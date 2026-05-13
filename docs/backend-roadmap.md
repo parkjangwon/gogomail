@@ -5303,6 +5303,9 @@ Progress:
    configured and has not already been negotiated. TRANSACTION-state `CAPA`
    omits `STLS`, and TRANSACTION-state `STLS` returns `-ERR` without closing the
    mailbox session.
+3. POP3 raw-message fetch failures now propagate from the mailservice adapter
+   to the protocol server. `RETR` and `TOP` return `-ERR` before starting a
+   multi-line success response when message content cannot be loaded.
 
 ---
 

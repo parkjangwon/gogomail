@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"strings"
 
-	smtpd "github.com/gogomail/gogomail/internal/smtp"
 	"github.com/gogomail/gogomail/internal/maildb"
 	"github.com/gogomail/gogomail/internal/pop3d"
+	smtpd "github.com/gogomail/gogomail/internal/smtp"
 )
 
 // POP3StoreAdapter bridges the POP3 server with the mail service.
@@ -113,18 +113,26 @@ func (m *pop3Mailbox) MessageUIDL(i int) string {
 }
 
 func (m *pop3Mailbox) MessageContent(i int) string {
-	if i < 0 || i >= len(m.msgs) || m.deleted[i] {
+	content, err := m.MessageContentWithError(i)
+	if err != nil {
 		return ""
+	}
+	return content
+}
+
+func (m *pop3Mailbox) MessageContentWithError(i int) (string, error) {
+	if i < 0 || i >= len(m.msgs) || m.deleted[i] {
+		return "", fmt.Errorf("invalid message index")
 	}
 	if !m.loaded[i] {
 		body, err := m.service.FetchRawMessageBody(m.ctx, m.userID, m.msgs[i].id)
 		if err != nil {
-			return ""
+			return "", fmt.Errorf("fetch raw message body: %w", err)
 		}
 		m.content[i] = body
 		m.loaded[i] = true
 	}
-	return m.content[i]
+	return m.content[i], nil
 }
 
 func (m *pop3Mailbox) MarkDeleted(i int) error {

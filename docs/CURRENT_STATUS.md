@@ -1379,6 +1379,9 @@ line beginning with `.` before the final `.\r\n` terminator.
 `CAPA` advertises `STLS` only while the session is still in AUTHORIZATION state
 and TLS has not already been negotiated; authenticated TRANSACTION sessions
 reject `STLS` while keeping the mailbox session usable.
+The mailservice POP3 adapter now exposes raw body fetch errors to the POP3
+server, so `RETR` and `TOP` return `-ERR` instead of opening a successful
+multi-line response when message content cannot be loaded.
 TLS support via `STLS` command and implicit POP3S (port 995) are supported
 through a configurable `tls.Config`.
 

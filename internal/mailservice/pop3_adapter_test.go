@@ -274,6 +274,15 @@ func TestPOP3AdapterNoStorage(t *testing.T) {
 	if content != "" {
 		t.Fatalf("expected empty content for nil store, got %q", content)
 	}
+	contentWithError, ok := mb.(interface {
+		MessageContentWithError(int) (string, error)
+	})
+	if !ok {
+		t.Fatal("mailbox does not expose MessageContentWithError")
+	}
+	if _, err := contentWithError.MessageContentWithError(0); err == nil {
+		t.Fatal("expected raw body fetch error")
+	}
 }
 
 // Ensure storage.Store interface has the methods we use in the fake.
