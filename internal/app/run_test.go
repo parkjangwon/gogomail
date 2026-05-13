@@ -143,6 +143,31 @@ func TestLDAPPrincipalDNUsesKindSpecificSubtrees(t *testing.T) {
 	}
 }
 
+func TestLDAPPrincipalFromDNUsesKindSpecificSubtrees(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		dn       string
+		wantKind string
+		wantID   string
+		wantOK   bool
+	}{
+		{dn: "uid=user-1,ou=users,dc=example,dc=com", wantKind: directory.PrincipalKindUser, wantID: "user-1", wantOK: true},
+		{dn: "ou=org-1,ou=organizations,dc=example,dc=com", wantKind: directory.PrincipalKindOrganization, wantID: "org-1", wantOK: true},
+		{dn: "cn=group-1,ou=groups,dc=example,dc=com", wantKind: directory.PrincipalKindGroup, wantID: "group-1", wantOK: true},
+		{dn: "cn=room-1,ou=resources,dc=example,dc=com", wantKind: directory.PrincipalKindResource, wantID: "room-1", wantOK: true},
+		{dn: "cn=room-1,ou=users,dc=example,dc=com", wantOK: false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.dn, func(t *testing.T) {
+			gotKind, gotID, gotOK := ldapPrincipalFromDN(tt.dn)
+			if gotOK != tt.wantOK || gotKind != tt.wantKind || gotID != tt.wantID {
+				t.Fatalf("ldapPrincipalFromDN = %q/%q/%v, want %q/%q/%v", gotKind, gotID, gotOK, tt.wantKind, tt.wantID, tt.wantOK)
+			}
+		})
+	}
+}
+
 type fakeStorageChecker struct {
 	err error
 }

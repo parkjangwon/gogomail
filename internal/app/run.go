@@ -899,6 +899,23 @@ func (q *ldapDirectoryQuerier) SearchPrincipals(ctx context.Context, req ldapgw.
 	if limit <= 0 {
 		limit = 100
 	}
+	baseDN := q.baseDomain
+	if baseDN == "" {
+		baseDN = "dc=local"
+	}
+	if req.Scope == 0 {
+		if kind, id, ok := ldapPrincipalFromDN(req.BaseDN); ok {
+			principal, err := q.repo.ResolvePrincipal(ctx, directory.ResolvePrincipalRequest{
+				ID:         id,
+				Kind:       kind,
+				ActiveOnly: true,
+			})
+			if err != nil {
+				return nil, nil
+			}
+			return []ldapgw.PrincipalEntry{ldapPrincipalEntry(principal, baseDN)}, nil
+		}
+	}
 	principals, err := q.repo.SearchPrincipals(ctx, directory.SearchPrincipalsRequest{
 		CompanyID:  q.companyID,
 		Kinds:      req.Kinds,
@@ -911,24 +928,23 @@ func (q *ldapDirectoryQuerier) SearchPrincipals(ctx context.Context, req ldapgw.
 		return nil, err
 	}
 	entries := make([]ldapgw.PrincipalEntry, 0, len(principals))
-	baseDN := q.baseDomain
-	if baseDN == "" {
-		baseDN = "dc=local"
-	}
 	for _, p := range principals {
-		dn := ldapPrincipalDN(p, baseDN)
-		entries = append(entries, ldapgw.PrincipalEntry{
-			DN:           dn,
-			Kind:         p.Kind,
-			CN:           p.DisplayName,
-			Mail:         p.PrimaryEmail,
-			UID:          p.ID,
-			OU:           p.DisplayName,
-			DisplayName:  p.DisplayName,
-			ResourceType: p.ResourceType,
-		})
+		entries = append(entries, ldapPrincipalEntry(p, baseDN))
 	}
 	return entries, nil
+}
+
+func ldapPrincipalEntry(p directory.Principal, baseDN string) ldapgw.PrincipalEntry {
+	return ldapgw.PrincipalEntry{
+		DN:           ldapPrincipalDN(p, baseDN),
+		Kind:         p.Kind,
+		CN:           p.DisplayName,
+		Mail:         p.PrimaryEmail,
+		UID:          p.ID,
+		OU:           p.DisplayName,
+		DisplayName:  p.DisplayName,
+		ResourceType: p.ResourceType,
+	}
 }
 
 func ldapPrincipalDN(p directory.Principal, baseDN string) string {
@@ -941,6 +957,30 @@ func ldapPrincipalDN(p directory.Principal, baseDN string) string {
 		return fmt.Sprintf("cn=%s,ou=resources,%s", p.ID, baseDN)
 	default:
 		return fmt.Sprintf("uid=%s,ou=users,%s", p.ID, baseDN)
+	}
+}
+
+func ldapPrincipalFromDN(dn string) (kind string, id string, ok bool) {
+	parts := strings.Split(strings.ToLower(strings.TrimSpace(dn)), ",")
+	if len(parts) < 2 {
+		return "", "", false
+	}
+	first := strings.SplitN(strings.TrimSpace(parts[0]), "=", 2)
+	if len(first) != 2 {
+		return "", "", false
+	}
+	value := strings.TrimSpace(first[1])
+	switch {
+	case first[0] == "uid" && strings.TrimSpace(parts[1]) == "ou=users":
+		return directory.PrincipalKindUser, value, true
+	case first[0] == "ou" && strings.TrimSpace(parts[1]) == "ou=organizations":
+		return directory.PrincipalKindOrganization, value, true
+	case first[0] == "cn" && strings.TrimSpace(parts[1]) == "ou=groups":
+		return directory.PrincipalKindGroup, value, true
+	case first[0] == "cn" && strings.TrimSpace(parts[1]) == "ou=resources":
+		return directory.PrincipalKindResource, value, true
+	default:
+		return "", "", false
 	}
 }
 
