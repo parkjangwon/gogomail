@@ -1152,6 +1152,7 @@
       "description": "Configure per-domain security, password policy, quota, and user registration settings.",
       "ip_whitelist_label": "IP Whitelist Enabled",
       "last_updated": "Last updated",
+      "load_error": "Failed to load domain settings",
       "mode_invite_hint": "Users receive an invite link and set their own password. Recommended when email is configured.",
       "mode_temp_hint": "Admin sets a temporary password. User must change it on first login. Use when email is not yet configured.",
       "password_expiry_label": "Password Expiry",

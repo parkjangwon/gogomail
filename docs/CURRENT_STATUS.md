@@ -1,6 +1,11 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (Password reset contact groundwork)
+Last updated: 2026-05-14 (Recovery settings form hardening)
+
+## Recovery settings form hardening (2026-05-14, complete)
+- Webmail profile updates now parse structured API error envelopes before displaying them, so backup email validation errors no longer render as `[object Object]`.
+- Domain settings now auto-select the first available domain and surfaces settings-load failures in the UI instead of leaving a blank configuration area.
+- Admin domain settings reads now create the default `domain_settings` row on demand for existing domains that predate the settings trigger, allowing the password reset link expiry field to appear and save normally.
 
 ## Password reset contact groundwork (2026-05-14, complete)
 - Users now have a shared `recovery_email` field exposed consistently through admin user list/detail/create/update APIs and the authenticated webmail profile API.
