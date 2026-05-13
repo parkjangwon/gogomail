@@ -5853,3 +5853,4 @@ Next focus areas:
 - Console company settings now presents the same policy sections as domain settings: user registration, security, password/reset policy, and per-user storage quota.
 - Company policy defaults are stored under the reserved company config key `domain_settings_defaults`; newly created domains inherit that policy into `domain_settings` at the backend API boundary.
 - Domain settings still override those defaults after creation, and both company/domain per-user quota fields are shown in MB while the backend continues storing bytes.
+- The quota UX now lets admins enter per-user quota as a number with an explicit MB/GB/TB unit selector; values are converted back to bytes before saving.

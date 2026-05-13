@@ -1033,6 +1033,7 @@
       "password_reset_ttl_desc": "분 단위입니다. 최대 10080분(7일)까지 허용됩니다.",
       "password_reset_ttl_label": "비밀번호 재설정 링크 만료",
       "quota_per_user_label": "사용자당 할당량",
+      "quota_unit_label": "단위",
       "registration_mode_desc": "이 도메인의 신규 사용자 온보딩 방식입니다.",
       "registration_mode_label": "사용자 등록 방식",
       "require_2fa_label": "2FA 필수",

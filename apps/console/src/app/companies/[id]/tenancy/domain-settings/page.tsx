@@ -45,6 +45,24 @@ interface DomainSettings {
 }
 
 const BYTES_PER_MB = 1048576;
+const QUOTA_UNITS = {
+  MB: BYTES_PER_MB,
+  GB: BYTES_PER_MB * 1024,
+  TB: BYTES_PER_MB * 1024 * 1024,
+} as const;
+
+type QuotaUnit = keyof typeof QUOTA_UNITS;
+
+const bestQuotaUnit = (bytes: number): QuotaUnit => {
+  if (bytes >= QUOTA_UNITS.TB && bytes % QUOTA_UNITS.TB === 0) return 'TB';
+  if (bytes >= QUOTA_UNITS.GB && bytes % QUOTA_UNITS.GB === 0) return 'GB';
+  return 'MB';
+};
+
+const formatQuotaValue = (bytes: number, unit: QuotaUnit): string => {
+  const value = bytes / QUOTA_UNITS[unit];
+  return Number.isInteger(value) ? String(value) : String(Number(value.toFixed(2)));
+};
 
 export default function DomainSettingsPage() {
   const { t } = useI18n();
@@ -60,6 +78,7 @@ export default function DomainSettingsPage() {
   const [saving, setSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [saveError, setSaveError] = useState('');
+  const [quotaUnit, setQuotaUnit] = useState<QuotaUnit>('GB');
 
   const tlsOptions = [
     { label: t('pages.domain_settings_page.tls_opportunistic'), value: 'opportunistic' },
@@ -70,6 +89,12 @@ export default function DomainSettingsPage() {
   const registrationModeOptions = [
     { label: t('pages.domain_settings_page.registration_temp_password'), value: 'temp_password' },
     { label: t('pages.domain_settings_page.registration_email_invite'), value: 'email_invite' },
+  ];
+
+  const quotaUnitOptions = [
+    { label: 'MB', value: 'MB' },
+    { label: 'GB', value: 'GB' },
+    { label: 'TB', value: 'TB' },
   ];
 
   const apiErrorMessage = (value: unknown, fallback: string): string => {
@@ -134,6 +159,7 @@ export default function DomainSettingsPage() {
         const nextSettings = normalizeSettings(data.settings);
         setSettings(nextSettings);
         setForm(nextSettings);
+        setQuotaUnit(bestQuotaUnit(nextSettings.quota_per_user));
       } else {
         const err = await res.json().catch(() => ({}));
         setSaveError(apiErrorMessage(err, t('pages.domain_settings_page.load_error')));
@@ -186,6 +212,11 @@ export default function DomainSettingsPage() {
   const f = <K extends keyof DomainSettings>(key: K) => form[key] as DomainSettings[K];
   const set = <K extends keyof DomainSettings>(key: K, value: DomainSettings[K]) =>
     setForm(prev => ({ ...prev, [key]: value }));
+  const handleQuotaUnitChange = (unit: QuotaUnit) => {
+    const value = parseFloat(formatQuotaValue(Number(f('quota_per_user') ?? 10737418240), quotaUnit));
+    setQuotaUnit(unit);
+    set('quota_per_user', Math.max(1, Math.round((Number.isFinite(value) ? value : 1) * QUOTA_UNITS[unit])));
+  };
 
   if (loadingDomains) {
     return (
@@ -358,13 +389,25 @@ export default function DomainSettingsPage() {
 
             {/* Quota */}
             <Container key="quota-settings" header={<Header variant="h2">{t('pages.domain_settings_page.section_quota')}</Header>}>
-              <FormField label={t('pages.domain_settings_page.quota_per_user_label')} description="MB">
-                <Input
-                  type="number"
-                  value={String(Math.max(1, Math.round(Number(f('quota_per_user') ?? 10737418240) / BYTES_PER_MB)))}
-                  onChange={(e) => set('quota_per_user', Math.max(1, parseInt(e.detail.value) || 1) * BYTES_PER_MB)}
-                />
-              </FormField>
+              <ColumnLayout columns={2}>
+                <FormField label={t('pages.domain_settings_page.quota_per_user_label')}>
+                  <Input
+                    type="number"
+                    value={formatQuotaValue(Number(f('quota_per_user') ?? 10737418240), quotaUnit)}
+                    onChange={(e) => {
+                      const value = parseFloat(e.detail.value);
+                      set('quota_per_user', Math.max(1, Math.round((Number.isFinite(value) ? value : 1) * QUOTA_UNITS[quotaUnit])));
+                    }}
+                  />
+                </FormField>
+                <FormField label={t('pages.domain_settings_page.quota_unit_label')}>
+                  <Select
+                    selectedOption={quotaUnitOptions.find(o => o.value === quotaUnit) ?? quotaUnitOptions[1]}
+                    onChange={(e) => handleQuotaUnitChange((e.detail.selectedOption.value as QuotaUnit) ?? 'GB')}
+                    options={quotaUnitOptions}
+                  />
+                </FormField>
+              </ColumnLayout>
             </Container>
 
             {/* Footer */}

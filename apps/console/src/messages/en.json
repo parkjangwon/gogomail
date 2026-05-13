@@ -1160,6 +1160,7 @@
       "password_reset_ttl_desc": "Minutes. Maximum 10080 minutes (7 days).",
       "password_reset_ttl_label": "Password reset link expiry",
       "quota_per_user_label": "Quota Per User",
+      "quota_unit_label": "Unit",
       "registration_mode_desc": "How new users are onboarded to this domain.",
       "registration_mode_label": "User Registration Mode",
       "require_2fa_label": "Require 2FA",
