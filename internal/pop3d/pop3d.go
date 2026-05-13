@@ -334,10 +334,7 @@ func (sess *session) handleTransaction(cmd string, args []string) {
 		}
 		content := sess.mailbox.MessageContent(idx - 1)
 		sess.writeOK(fmt.Sprintf("%d octets", len(content)))
-		sess.writer.WriteString(content)
-		if !strings.HasSuffix(content, "\n") {
-			sess.writer.WriteString("\r\n")
-		}
+		sess.writeDotStuffedMultiline(content)
 		sess.writer.WriteString(".\r\n")
 		sess.writer.Flush()
 	case "DELE":
@@ -391,7 +388,7 @@ func (sess *session) handleTransaction(cmd string, args []string) {
 		lines, _ := strconv.Atoi(args[1])
 		content := sess.mailbox.MessageContent(idx - 1)
 		sess.writeOK("")
-		sess.sendTopContent(content, lines)
+		sess.writeDotStuffedMultiline(topContent(content, lines))
 		sess.writer.WriteString(".\r\n")
 		sess.writer.Flush()
 	case "QUIT":
@@ -432,23 +429,56 @@ func (sess *session) msgCountAndSize() (int, int) {
 	return count, size
 }
 
-func (sess *session) sendTopContent(content string, n int) {
-	parts := strings.SplitN(content, "\r\n\r\n", 2)
-	if len(parts) == 1 {
-		parts = strings.SplitN(content, "\n\n", 2)
+func (sess *session) writeDotStuffedMultiline(content string) {
+	for _, line := range pop3MultilineLines(content) {
+		if strings.HasPrefix(line, ".") {
+			sess.writer.WriteByte('.')
+		}
+		sess.writer.WriteString(line)
+		sess.writer.WriteString("\r\n")
 	}
+}
+
+func topContent(content string, n int) string {
+	content = normalizePOP3LineEndings(content)
+	parts := strings.SplitN(content, "\n\n", 2)
+	var b strings.Builder
 	if len(parts) >= 1 {
-		sess.writer.WriteString(parts[0])
-		sess.writer.WriteString("\r\n\r\n")
+		b.WriteString(parts[0])
+		b.WriteString("\n\n")
 	}
 	if len(parts) == 2 && n > 0 {
-		bodyLines := strings.Split(parts[1], "\n")
-		for i, line := range bodyLines {
+		for i, line := range pop3MultilineLines(parts[1]) {
 			if i >= n {
 				break
 			}
-			sess.writer.WriteString(line)
-			sess.writer.WriteString("\r\n")
+			b.WriteString(line)
+			b.WriteByte('\n')
 		}
 	}
+	return b.String()
+}
+
+func pop3MultilineLines(content string) []string {
+	content = normalizePOP3LineEndings(content)
+	if content == "" {
+		return nil
+	}
+	lines := make([]string, 0, strings.Count(content, "\n")+1)
+	for len(content) > 0 {
+		idx := strings.IndexByte(content, '\n')
+		if idx < 0 {
+			lines = append(lines, content)
+			break
+		}
+		lines = append(lines, content[:idx])
+		content = content[idx+1:]
+	}
+	return lines
+}
+
+func normalizePOP3LineEndings(content string) string {
+	content = strings.ReplaceAll(content, "\r\n", "\n")
+	content = strings.ReplaceAll(content, "\r", "\n")
+	return content
 }
