@@ -419,6 +419,7 @@ Target outcome:
 328. Delivery route runtime counter snapshots now sort pools deterministically, keeping admin operator dashboards and API tests stable across map iteration order.
 329. CalDAV and CardDAV Basic Auth now reject `must_change_password` users, keeping DAV clients aligned with SMTP submission, IMAP, and POP3 temporary-password rotation policy.
 330. CardDAV vCard object validation now requires CRLF line endings, rejecting LF-only or mixed-newline contact payloads before they can be persisted.
+331. CardDAV `address-data` partial projections now retain vCard `UID` lines even when the client requests a narrow property set, preserving contact identity in filtered REPORT responses.
 329. Shared EML parsing now exposes a `MaxHeaderBytes` option wired into go-message header parsing, letting hot-path callers bound pathological RFC 5322 header blocks alongside body, attachment, and part limits.
 330. Push notification attempt outcomes can now persist provider message IDs and provider status codes, preparing the async push pipeline for FCM/APNs/Web Push adapters without exposing a public mutation API or coupling vendor behavior to SMTP writes.
 331. Delivery attempt rows now persist sender, RFC 3463 enhanced status, and RFC 3461 DSN `RET`/`ENVID`/`NOTIFY`/`ORCPT` metadata, and Admin/user delivery status reads expose those diagnostics for bounce and retry triage.

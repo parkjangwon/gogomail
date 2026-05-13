@@ -199,10 +199,10 @@ func TestContactObjectDataPropertyProjectsRequestedProperties(t *testing.T) {
 	if !prop.Found {
 		t.Fatal("projected address-data not found")
 	}
-	if !strings.Contains(prop.Value.Text, "BEGIN:VCARD\r\n") || !strings.Contains(prop.Value.Text, "VERSION:4.0\r\n") || !strings.Contains(prop.Value.Text, "FN:Contact One\r\n") || !strings.Contains(prop.Value.Text, "END:VCARD\r\n") {
+	if !strings.Contains(prop.Value.Text, "BEGIN:VCARD\r\n") || !strings.Contains(prop.Value.Text, "VERSION:4.0\r\n") || !strings.Contains(prop.Value.Text, "UID:contact-1\r\n") || !strings.Contains(prop.Value.Text, "FN:Contact One\r\n") || !strings.Contains(prop.Value.Text, "END:VCARD\r\n") {
 		t.Fatalf("projected vcard missing required/requested lines:\n%s", prop.Value.Text)
 	}
-	if strings.Contains(prop.Value.Text, "EMAIL:") || strings.Contains(prop.Value.Text, "UID:") {
+	if strings.Contains(prop.Value.Text, "EMAIL:") {
 		t.Fatalf("projected vcard included unrequested data:\n%s", prop.Value.Text)
 	}
 }
