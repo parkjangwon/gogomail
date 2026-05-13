@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (POP3 authorization unknown command recovery)
+Last updated: 2026-05-14 (POP3 transaction unknown command recovery)
+
+## POP3 transaction unknown command recovery (2026-05-14, complete)
+- POP3 server coverage now verifies unknown transaction-state commands return `-ERR unknown command`.
+- The regression verifies `NOOP` and `STAT` still work after the unknown command.
 
 ## POP3 authorization unknown command recovery (2026-05-14, complete)
 - POP3 server coverage now verifies unknown authorization-state commands return `-ERR unknown command`.
