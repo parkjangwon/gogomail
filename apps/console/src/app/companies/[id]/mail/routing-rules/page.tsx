@@ -48,10 +48,10 @@ const emptyRule = (): RoutingRule => ({
 });
 
 const ACTION_OPTIONS = [
-  { label: 'Forward', value: 'forward' },
+  { labelKey: 'action_forward', value: 'forward' },
   { label: 'BCC', value: 'bcc' },
-  { label: 'Reject', value: 'reject' },
-  { label: 'Tag', value: 'tag' },
+  { labelKey: 'action_reject', value: 'reject' },
+  { labelKey: 'action_tag', value: 'tag' },
 ];
 
 export default function RoutingRulesPage() {
@@ -146,7 +146,11 @@ export default function RoutingRulesPage() {
     setRules(rs => rs.map(r => r.id === rule.id ? { ...r, enabled: !r.enabled } : r));
   };
 
-  const selectedActionOption = ACTION_OPTIONS.find(o => o.value === editingRule.action) ?? ACTION_OPTIONS[0];
+  const actionOptions = ACTION_OPTIONS.map(o => ({
+    label: 'labelKey' in o ? t(`pages.routing_rules_page.${o.labelKey}`) : o.label,
+    value: o.value,
+  }));
+  const selectedActionOption = actionOptions.find(o => o.value === editingRule.action) ?? actionOptions[0];
 
   if (loading) {
     return (
@@ -328,10 +332,7 @@ export default function RoutingRulesPage() {
             <Select
               selectedOption={selectedActionOption}
               onChange={e => setEditingRule(r => ({ ...r, action: e.detail.selectedOption.value ?? 'forward' }))}
-              options={ACTION_OPTIONS.map(o => ({
-                label: t(`pages.routing_rules_page.action_${o.value}`),
-                value: o.value,
-              }))}
+              options={actionOptions}
             />
           </FormField>
 

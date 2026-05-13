@@ -44,17 +44,6 @@ interface DomainSettings {
   updated_by: string;
 }
 
-const TLS_OPTIONS = [
-  { label: 'Opportunistic (STARTTLS if available)', value: 'opportunistic' },
-  { label: 'Require (enforce TLS)', value: 'require' },
-  { label: 'Disable', value: 'disable' },
-];
-
-const REGISTRATION_MODE_OPTIONS = [
-  { label: 'Temporary Password (admin sets, user must change)', value: 'temp_password' },
-  { label: 'Email Invite (user sets own password via link)', value: 'email_invite' },
-];
-
 export default function DomainSettingsPage() {
   const { t } = useI18n();
   const params = useParams();
@@ -69,6 +58,17 @@ export default function DomainSettingsPage() {
   const [saving, setSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [saveError, setSaveError] = useState('');
+
+  const tlsOptions = [
+    { label: t('pages.domain_settings_page.tls_opportunistic'), value: 'opportunistic' },
+    { label: t('pages.domain_settings_page.tls_require'), value: 'require' },
+    { label: t('pages.domain_settings_page.tls_disable'), value: 'disable' },
+  ];
+
+  const registrationModeOptions = [
+    { label: t('pages.domain_settings_page.registration_temp_password'), value: 'temp_password' },
+    { label: t('pages.domain_settings_page.registration_email_invite'), value: 'email_invite' },
+  ];
 
   useEffect(() => {
     fetchDomains();
@@ -133,10 +133,10 @@ export default function DomainSettingsPage() {
         fetchSettings(selectedDomainId);
       } else {
         const err = await res.json().catch(() => ({}));
-        setSaveError(err.error || 'Failed to save settings');
+        setSaveError(err.error || t('pages.domain_settings_page.save_error'));
       }
     } catch (e) {
-      setSaveError('Failed to save settings');
+      setSaveError(t('pages.domain_settings_page.save_error'));
     } finally {
       setSaving(false);
     }
@@ -198,8 +198,8 @@ export default function DomainSettingsPage() {
                   description={t('pages.domain_settings_page.registration_mode_desc')}
                 >
                   <Select
-                    selectedOption={REGISTRATION_MODE_OPTIONS.find(o => o.value === f('user_registration_mode')) ?? REGISTRATION_MODE_OPTIONS[0]}
-                    options={REGISTRATION_MODE_OPTIONS}
+                    selectedOption={registrationModeOptions.find(o => o.value === f('user_registration_mode')) ?? registrationModeOptions[0]}
+                    options={registrationModeOptions}
                     onChange={(e) => set('user_registration_mode', e.detail.selectedOption.value as string)}
                     expandToViewport
                   />
@@ -218,8 +218,8 @@ export default function DomainSettingsPage() {
                 <SpaceBetween size="m">
                   <FormField label={t('pages.domain_settings_page.tls_policy_label')}>
                     <Select
-                      selectedOption={TLS_OPTIONS.find(o => o.value === f('tls_policy')) ?? TLS_OPTIONS[0]}
-                      options={TLS_OPTIONS}
+                      selectedOption={tlsOptions.find(o => o.value === f('tls_policy')) ?? tlsOptions[0]}
+                      options={tlsOptions}
                       onChange={(e) => set('tls_policy', e.detail.selectedOption.value as string)}
                       expandToViewport
                     />
@@ -238,7 +238,7 @@ export default function DomainSettingsPage() {
                   </Toggle>
                 </SpaceBetween>
                 <SpaceBetween size="m">
-                  <FormField label={t('pages.domain_settings_page.session_timeout_label')} description="minutes">
+                  <FormField label={t('pages.domain_settings_page.session_timeout_label')} description={t('pages.domain_settings_page.minutes')}>
                     <Input
                       type="number"
                       value={String(f('session_timeout_minutes') ?? 480)}
@@ -260,7 +260,7 @@ export default function DomainSettingsPage() {
                       onChange={(e) => set('password_min_length', parseInt(e.detail.value) || 8)}
                     />
                   </FormField>
-                  <FormField label={t('pages.domain_settings_page.password_expiry_label')} description="days (0 = never)">
+                  <FormField label={t('pages.domain_settings_page.password_expiry_label')} description={t('pages.domain_settings_page.password_expiry_desc')}>
                     <Input
                       type="number"
                       value={String(f('password_expiry_days') ?? 0)}

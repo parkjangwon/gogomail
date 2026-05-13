@@ -65,7 +65,7 @@ export default function WebhooksPage() {
       const data = await res.json();
       setWebhooks(data.webhooks ?? []);
     } catch {
-      setFlash([{ type: 'error', content: 'Failed to load webhooks', dismissible: true, onDismiss: () => setFlash([]) }]);
+      setFlash([{ type: 'error', content: t('webhooks_page.failed_load'), dismissible: true, onDismiss: () => setFlash([]) }]);
     } finally {
       setLoading(false);
     }
@@ -82,7 +82,7 @@ export default function WebhooksPage() {
         body: JSON.stringify(form),
       });
       if (!res.ok) throw new Error(await res.text());
-      setFlash([{ type: 'success', content: 'Webhook created', dismissible: true, onDismiss: () => setFlash([]) }]);
+      setFlash([{ type: 'success', content: t('webhooks_page.created'), dismissible: true, onDismiss: () => setFlash([]) }]);
       setShowModal(false);
       setForm({ name: '', url: '', events: [], enabled: true });
       load();
@@ -94,14 +94,14 @@ export default function WebhooksPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Delete this webhook?')) return;
+    if (!confirm(t('webhooks_page.confirm_delete'))) return;
     try {
       const res = await fetch(`/admin/v1/companies/${cid}/webhooks/${id}`, { method: 'DELETE' });
       if (!res.ok) throw new Error(await res.text());
-      setFlash([{ type: 'success', content: 'Webhook deleted', dismissible: true, onDismiss: () => setFlash([]) }]);
+      setFlash([{ type: 'success', content: t('webhooks_page.deleted'), dismissible: true, onDismiss: () => setFlash([]) }]);
       load();
     } catch {
-      setFlash([{ type: 'error', content: 'Delete failed', dismissible: true, onDismiss: () => setFlash([]) }]);
+      setFlash([{ type: 'error', content: t('webhooks_page.delete_failed'), dismissible: true, onDismiss: () => setFlash([]) }]);
     }
   };
 
@@ -112,12 +112,12 @@ export default function WebhooksPage() {
       const data = await res.json();
       setFlash([{
         type: data.success ? 'success' : 'error',
-        content: data.message ?? (data.success ? 'Test delivered' : 'Test failed'),
+        content: data.message ?? (data.success ? t('webhooks_page.test_delivered') : t('webhooks_page.test_failed')),
         dismissible: true,
         onDismiss: () => setFlash([]),
       }]);
     } catch {
-      setFlash([{ type: 'error', content: 'Test request failed', dismissible: true, onDismiss: () => setFlash([]) }]);
+      setFlash([{ type: 'error', content: t('webhooks_page.test_request_failed'), dismissible: true, onDismiss: () => setFlash([]) }]);
     } finally {
       setTesting(null);
     }
@@ -126,49 +126,49 @@ export default function WebhooksPage() {
   if (loading) return <Box padding="xl"><Spinner /></Box>;
 
   return (
-    <ContentLayout header={<Header variant="h1" description="Receive real-time event notifications via HTTP POST">{t('nav.webhooks')}</Header>}>
+    <ContentLayout header={<Header variant="h1" description={t('webhooks_page.description')}>{t('nav.webhooks')}</Header>}>
       <SpaceBetween size="m">
         {flash.length > 0 && <Flashbar items={flash} />}
         <Container
           header={
             <Header
               variant="h2"
-              actions={<Button variant="primary" onClick={() => setShowModal(true)}>Add Webhook</Button>}
+              actions={<Button variant="primary" onClick={() => setShowModal(true)}>{t('webhooks_page.add_webhook')}</Button>}
             >
-              Endpoints ({webhooks.length})
+              {t('webhooks_page.endpoints')} ({webhooks.length})
             </Header>
           }
         >
           <Table
             items={webhooks}
             columnDefinitions={[
-              { id: 'name', header: 'Name', cell: (i) => i.name },
+              { id: 'name', header: t('webhooks_page.name'), cell: (i) => i.name },
               { id: 'url', header: 'URL', cell: (i) => <Box variant="code">{i.url}</Box> },
-              { id: 'events', header: 'Events', cell: (i) => <SpaceBetween size="xs" direction="horizontal">{i.events.map(e => <Badge key={e} color="blue">{e}</Badge>)}</SpaceBetween> },
-              { id: 'status', header: 'Status', cell: (i) => <Badge color={i.enabled ? 'green' : 'grey'}>{i.enabled ? 'Active' : 'Disabled'}</Badge> },
+              { id: 'events', header: t('webhooks_page.events'), cell: (i) => <SpaceBetween size="xs" direction="horizontal">{i.events.map(e => <Badge key={e} color="blue">{e}</Badge>)}</SpaceBetween> },
+              { id: 'status', header: t('webhooks_page.status'), cell: (i) => <Badge color={i.enabled ? 'green' : 'grey'}>{i.enabled ? t('status.active') : t('status.disabled')}</Badge> },
               {
-                id: 'actions', header: 'Actions',
+                id: 'actions', header: t('common.actions'),
                 cell: (i) => (
                   <SpaceBetween size="xs" direction="horizontal">
-                    <Button variant="inline-link" loading={testing === i.id} onClick={() => handleTest(i.id)}>Test</Button>
-                    <Button variant="inline-link" onClick={() => handleDelete(i.id)}>Delete</Button>
+                    <Button variant="inline-link" loading={testing === i.id} onClick={() => handleTest(i.id)}>{t('webhooks_page.test')}</Button>
+                    <Button variant="inline-link" onClick={() => handleDelete(i.id)}>{t('common.delete')}</Button>
                   </SpaceBetween>
                 ),
               },
             ]}
-            empty={<Box textAlign="center" color="inherit">No webhooks configured</Box>}
+            empty={<Box textAlign="center" color="inherit">{t('webhooks_page.empty')}</Box>}
           />
         </Container>
 
         <Modal
           visible={showModal}
           onDismiss={() => setShowModal(false)}
-          header="Add Webhook"
+          header={t('webhooks_page.add_webhook')}
           footer={
             <Box float="right">
               <SpaceBetween size="xs" direction="horizontal">
-                <Button variant="link" onClick={() => setShowModal(false)}>Cancel</Button>
-                <Button variant="primary" loading={saving} onClick={handleCreate}>Create</Button>
+                <Button variant="link" onClick={() => setShowModal(false)}>{t('common.cancel')}</Button>
+                <Button variant="primary" loading={saving} onClick={handleCreate}>{t('common.create')}</Button>
               </SpaceBetween>
             </Box>
           }
@@ -189,7 +189,7 @@ export default function WebhooksPage() {
               />
             </FormField>
             <Toggle checked={form.enabled} onChange={({ detail }) => setForm(f => ({ ...f, enabled: detail.checked }))}>
-              Enable immediately
+              {t('webhooks_page.enable_immediately')}
             </Toggle>
           </SpaceBetween>
         </Modal>

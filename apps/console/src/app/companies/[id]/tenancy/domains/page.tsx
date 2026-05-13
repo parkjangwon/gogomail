@@ -26,11 +26,6 @@ import { useI18n } from '@/app/i18n-provider';
 import { useRouter } from 'next/navigation';
 import { useCompany } from '@/contexts/CompanyContext';
 
-const STATUS_OPTIONS = [
-  { label: 'active', value: 'active' },
-  { label: 'suspended', value: 'suspended' },
-];
-
 interface Domain {
   id: string;
   company_id: string;
@@ -43,11 +38,11 @@ interface Domain {
   created_at: string;
 }
 
-const dnsBadge = (status: string) => {
-  if (status === 'pass') return <Badge color="green">Pass</Badge>;
-  if (status === 'fail') return <Badge color="red">Fail</Badge>;
-  if (status === 'partial') return <Badge color="severity-high">Partial</Badge>;
-  return <Badge color="grey">Unchecked</Badge>;
+const dnsBadge = (status: string, t: (key: string, defaultValue?: string) => string) => {
+  if (status === 'pass') return <Badge color="green">{t('domains_page.dns_pass')}</Badge>;
+  if (status === 'fail') return <Badge color="red">{t('domains_page.dns_fail')}</Badge>;
+  if (status === 'partial') return <Badge color="severity-high">{t('domains_page.dns_partial')}</Badge>;
+  return <Badge color="grey">{t('domains_page.dns_unchecked')}</Badge>;
 };
 
 const fmtQuota = (used: number, limit: number) => {
@@ -59,6 +54,10 @@ const fmtQuota = (used: number, limit: number) => {
 
 export default function DomainsPage() {
   const { t } = useI18n();
+  const statusOptions = [
+    { label: t('status.active'), value: 'active' },
+    { label: t('users.suspended'), value: 'suspended' },
+  ];
   const router = useRouter();
   const { currentCompany } = useCompany();
   const cid = currentCompany?.id;
@@ -99,7 +98,7 @@ export default function DomainsPage() {
       setDomains(data.domains ?? []);
       setSelected([]);
     } catch {
-      err('Failed to load domains');
+      err(t('domains_page.failed_load'));
     } finally {
       setLoading(false);
     }
@@ -130,7 +129,7 @@ export default function DomainsPage() {
         }),
       });
       if (!res.ok) throw new Error(await res.text());
-      ok('Domain created');
+      ok(t('domains_page.created'));
       setShowCreate(false);
       setCreateForm({ name: '', quota_gb: '100' });
       load();
@@ -147,7 +146,7 @@ export default function DomainsPage() {
       await fetch(`/admin/v1/domains/${id}/dns-check`, { method: 'GET' });
       load();
     } catch {
-      err('DNS check failed');
+      err(t('domains_page.dns_check_failed'));
     } finally {
       setVerifying(null);
     }
@@ -181,7 +180,7 @@ export default function DomainsPage() {
         }));
       }
       await Promise.all(calls);
-      ok('Domain updated');
+      ok(t('domains_page.updated'));
       setEditTarget(null);
       load();
     } catch (e: unknown) {
@@ -197,7 +196,7 @@ export default function DomainsPage() {
     try {
       const res = await fetch(`/admin/v1/domains/${deleteTarget.id}`, { method: 'DELETE' });
       if (!res.ok) throw new Error(await res.text());
-      ok('Domain deleted');
+      ok(t('domains_page.deleted'));
       setDeleteTarget(null);
       load();
     } catch (e: unknown) {
@@ -209,7 +208,7 @@ export default function DomainsPage() {
 
   const handleBulk = async (action: 'activate' | 'suspend' | 'delete') => {
     if (selected.length === 0) return;
-    if (action === 'delete' && !confirm(`Delete ${selected.length} domain(s)?`)) return;
+    if (action === 'delete' && !confirm(`${t('domains_page.confirm_bulk_delete')} ${selected.length}`)) return;
     setBulkLoading(true);
     try {
       const res = await fetch('/admin/v1/domains/bulk', {
@@ -220,7 +219,7 @@ export default function DomainsPage() {
       const data = await res.json();
       const s = data.succeeded?.length ?? 0;
       const f = data.failed?.length ?? 0;
-      ok(`${action}: ${s} succeeded${f > 0 ? `, ${f} failed` : ''}`);
+      ok(`${t(`domains_page.bulk_${action}`)}: ${s} ${t('domains_page.succeeded')}${f > 0 ? `, ${f} ${t('domains_page.failed')}` : ''}`);
       load();
     } catch (e: unknown) {
       err(String(e));
@@ -237,7 +236,7 @@ export default function DomainsPage() {
         <Header
           variant="h1"
           counter={`(${domains.length})`}
-          actions={<Button variant="primary" onClick={() => setShowCreate(true)}>Add Domain</Button>}
+          actions={<Button variant="primary" onClick={() => setShowCreate(true)}>{t('domains_page.add_domain')}</Button>}
         >
           {t('pages.domains.title')}
         </Header>
@@ -255,7 +254,7 @@ export default function DomainsPage() {
           loading={loading}
           columnDefinitions={[
             {
-              id: 'name', header: 'Domain',
+              id: 'name', header: t('domains_page.domain'),
               cell: (d) => (
                 <Button variant="inline-link" onClick={() => router.push(`/companies/${d.company_id}/domains/${d.id}`)}>
                   {d.name}
@@ -263,32 +262,32 @@ export default function DomainsPage() {
               ),
             },
             {
-              id: 'company', header: 'Company',
+              id: 'company', header: t('domains_page.company'),
               cell: (d) => d.company_name || d.company_id,
             },
             {
-              id: 'status', header: 'Status',
+              id: 'status', header: t('domains_page.status'),
               cell: (d) => <Badge color={d.status === 'active' ? 'green' : 'grey'}>{d.status}</Badge>,
             },
             {
               id: 'dns', header: 'DNS',
-              cell: (d) => dnsBadge(d.last_dns_check_status),
+              cell: (d) => dnsBadge(d.last_dns_check_status, t),
             },
             {
-              id: 'quota', header: 'Quota',
+              id: 'quota', header: t('domains_page.quota'),
               cell: (d) => fmtQuota(d.quota_used, d.quota_limit),
             },
             {
-              id: 'created', header: 'Created',
+              id: 'created', header: t('domains_page.created_at'),
               cell: (d) => new Date(d.created_at).toLocaleDateString(),
             },
             {
               id: 'actions', header: '',
               cell: (d) => (
                 <SpaceBetween direction="horizontal" size="xs">
-                  <Button variant="inline-link" loading={verifying === d.id} onClick={() => handleVerifyDNS(d.id)}>Verify DNS</Button>
-                  <Button variant="inline-link" onClick={() => openEdit(d)}>Edit</Button>
-                  <Button variant="inline-link" onClick={() => setDeleteTarget(d)}>Delete</Button>
+                  <Button variant="inline-link" loading={verifying === d.id} onClick={() => handleVerifyDNS(d.id)}>{t('domains_page.verify_dns')}</Button>
+                  <Button variant="inline-link" onClick={() => openEdit(d)}>{t('common.edit')}</Button>
+                  <Button variant="inline-link" onClick={() => setDeleteTarget(d)}>{t('common.delete')}</Button>
                 </SpaceBetween>
               ),
             },
@@ -300,7 +299,7 @@ export default function DomainsPage() {
               actions={
                 selected.length > 0 ? (
                   <SpaceBetween size="xs" direction="horizontal">
-                    <Box color="text-status-inactive" padding={{ top: 'xs' }}>{selected.length} selected</Box>
+                    <Box color="text-status-inactive" padding={{ top: 'xs' }}>{selected.length} {t('domains_page.selected')}</Box>
                     <ButtonDropdown
                       loading={bulkLoading}
                       items={[
@@ -310,21 +309,21 @@ export default function DomainsPage() {
                       ]}
                       onItemClick={({ detail }) => handleBulk(detail.id as 'activate' | 'suspend' | 'delete')}
                     >
-                      Bulk Actions
+                      {t('domains_page.bulk_actions')}
                     </ButtonDropdown>
                   </SpaceBetween>
                 ) : undefined
               }
             >
-              Domains
+              {t('pages.domains.title')}
             </Header>
           }
           filter={
             <TextFilter
               filteringText={filter}
-              filteringPlaceholder="Search domains…"
+              filteringPlaceholder={t('domains_page.search_placeholder')}
               onChange={(e) => { setFilter(e.detail.filteringText); setCurrentPage(1); }}
-              countText={`${filtered.length} domains`}
+              countText={`${filtered.length} ${t('pages.domains.title')}`}
             />
           }
           pagination={
@@ -336,18 +335,18 @@ export default function DomainsPage() {
               />
             ) : undefined
           }
-          empty={<Box textAlign="center" padding="l"><StatusIndicator type="info">No domains found</StatusIndicator></Box>}
+          empty={<Box textAlign="center" padding="l"><StatusIndicator type="info">{t('domains_page.empty')}</StatusIndicator></Box>}
         />
 
         <Modal
           visible={showCreate}
           onDismiss={() => setShowCreate(false)}
-          header="Add Domain"
+          header={t('domains_page.add_domain')}
           footer={
             <Box float="right">
               <SpaceBetween direction="horizontal" size="xs">
-                <Button onClick={() => setShowCreate(false)}>Cancel</Button>
-                <Button variant="primary" loading={creating} onClick={handleCreate} disabled={!createForm.name.trim()}>Create</Button>
+                <Button onClick={() => setShowCreate(false)}>{t('common.cancel')}</Button>
+                <Button variant="primary" loading={creating} onClick={handleCreate} disabled={!createForm.name.trim()}>{t('common.create')}</Button>
               </SpaceBetween>
             </Box>
           }
@@ -365,12 +364,12 @@ export default function DomainsPage() {
         <Modal
           visible={!!editTarget}
           onDismiss={() => setEditTarget(null)}
-          header={`Edit — ${editTarget?.name ?? ''}`}
+          header={`${t('common.edit')} — ${editTarget?.name ?? ''}`}
           footer={
             <Box float="right">
               <SpaceBetween direction="horizontal" size="xs">
-                <Button onClick={() => setEditTarget(null)}>Cancel</Button>
-                <Button variant="primary" loading={saving} onClick={handleSaveEdit}>Save</Button>
+                <Button onClick={() => setEditTarget(null)}>{t('common.cancel')}</Button>
+                <Button variant="primary" loading={saving} onClick={handleSaveEdit}>{t('common.save')}</Button>
               </SpaceBetween>
             </Box>
           }
@@ -378,12 +377,12 @@ export default function DomainsPage() {
           <SpaceBetween size="m">
             <FormField label={t('pages.domains_page.domain_status')}>
               <Select
-                selectedOption={STATUS_OPTIONS.find(o => o.value === editForm.status) ?? STATUS_OPTIONS[0]}
-                options={STATUS_OPTIONS}
+                selectedOption={statusOptions.find(o => o.value === editForm.status) ?? statusOptions[0]}
+                options={statusOptions}
                 onChange={(e) => setEditForm(f => ({ ...f, status: e.detail.selectedOption.value ?? 'active' }))}
               />
             </FormField>
-            <FormField label="Storage Quota (GB)" constraintText="0 = unlimited">
+            <FormField label={t('domains_page.storage_quota_gb')} constraintText={t('domains_page.quota_hint')}>
               <Input type="number" value={editForm.quota_gb} onChange={(e) => setEditForm(f => ({ ...f, quota_gb: e.detail.value }))} />
             </FormField>
           </SpaceBetween>
@@ -392,18 +391,18 @@ export default function DomainsPage() {
         <Modal
           visible={!!deleteTarget}
           onDismiss={() => setDeleteTarget(null)}
-          header="Delete Domain"
+          header={t('domains_page.delete_domain')}
           footer={
             <Box float="right">
               <SpaceBetween direction="horizontal" size="xs">
-                <Button onClick={() => setDeleteTarget(null)}>Cancel</Button>
-                <Button variant="primary" loading={deleting} onClick={handleDelete}>Delete</Button>
+                <Button onClick={() => setDeleteTarget(null)}>{t('common.cancel')}</Button>
+                <Button variant="primary" loading={deleting} onClick={handleDelete}>{t('common.delete')}</Button>
               </SpaceBetween>
             </Box>
           }
         >
           <Alert type="warning">
-            Delete <strong>{deleteTarget?.name}</strong>? This cannot be undone.
+            {t('domains_page.delete_confirm_prefix')} <strong>{deleteTarget?.name}</strong>? {t('domains_page.cannot_undo')}
           </Alert>
         </Modal>
       </SpaceBetween>

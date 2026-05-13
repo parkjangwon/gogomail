@@ -64,7 +64,7 @@ export default function LegalHoldsPage() {
   }, [companyId]);
 
   const handleCreate = async () => {
-    if (!userEmail || !reason) { setSaveError('User email and reason are required.'); return; }
+    if (!userEmail || !reason) { setSaveError(t('legal_holds.required_error')); return; }
     setSaving(true);
     setSaveError('');
     try {
@@ -74,7 +74,7 @@ export default function LegalHoldsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ user_email: userEmail, reason }),
       });
-      if (!res.ok) { setSaveError((await res.json()).error || 'Failed to create hold'); return; }
+      if (!res.ok) { setSaveError((await res.json()).error || t('legal_holds.create_failed')); return; }
       setCreateVisible(false);
       setUserEmail('');
       setReason('');
@@ -104,7 +104,7 @@ export default function LegalHoldsPage() {
 
   if (loading) {
     return (
-      <ContentLayout header={<Header variant="h1">Legal Holds</Header>}>
+      <ContentLayout header={<Header variant="h1">{t('legal_holds.title')}</Header>}>
         <Box textAlign="center" padding="xl"><Spinner /></Box>
       </ContentLayout>
     );
@@ -115,36 +115,36 @@ export default function LegalHoldsPage() {
       header={
         <Header
           variant="h1"
-          description={t('pages.legal_holds_page.description')}
+          description={t('legal_holds.description')}
           actions={
             <Button variant="primary" onClick={() => setCreateVisible(true)}>
-              Create Hold
+              {t('legal_holds.create_hold')}
             </Button>
           }
         >
-          Legal Holds
+          {t('legal_holds.title')}
         </Header>
       }
     >
       <Table
         columnDefinitions={[
           {
-            header: 'User',
+            header: t('legal_holds.user'),
             cell: (item: LegalHold) => item.user_email || item.user_id,
             width: '25%',
           },
           {
-            header: 'Reason',
+            header: t('legal_holds.reason'),
             cell: (item: LegalHold) => item.reason,
             width: '35%',
           },
           {
-            header: 'Created By',
+            header: t('legal_holds.created_by'),
             cell: (item: LegalHold) => item.created_by || '—',
             width: '15%',
           },
           {
-            header: 'Created At',
+            header: t('legal_holds.created_at'),
             cell: (item: LegalHold) => item.created_at ? new Date(item.created_at).toLocaleString() : '—',
             width: '15%',
           },
@@ -152,7 +152,7 @@ export default function LegalHoldsPage() {
             header: '',
             cell: (item: LegalHold) => (
               <Button variant="inline-link" onClick={() => setDeleteTarget(item)}>
-                Release
+                {t('legal_holds.release')}
               </Button>
             ),
             width: '10%',
@@ -169,17 +169,17 @@ export default function LegalHoldsPage() {
             actions={
               selected.length > 0 && (
                 <Button variant="normal" onClick={() => setDeleteTarget(selected[0])}>
-                  Release Hold
+                  {t('legal_holds.release_hold')}
                 </Button>
               )
             }
           >
-            Active Holds
+            {t('legal_holds.active_holds')}
           </Header>
         }
         empty={
           <Box textAlign="center" padding="l" color="text-body-secondary">
-            No legal holds. Click <strong>Create Hold</strong> to preserve a user&apos;s mailbox.
+            {t('legal_holds.empty_prefix')} <strong>{t('legal_holds.create_hold')}</strong> {t('legal_holds.empty_suffix')}
           </Box>
         }
       />
@@ -189,30 +189,30 @@ export default function LegalHoldsPage() {
         visible={createVisible}
         onDismiss={() => { setCreateVisible(false); setSaveError(''); }}
         size="medium"
-        header="Create Legal Hold"
+        header={t('legal_holds.create_modal')}
         footer={
           <Box float="right">
             <SpaceBetween direction="horizontal" size="xs">
-              <Button onClick={() => setCreateVisible(false)}>Cancel</Button>
-              <Button variant="primary" onClick={handleCreate} loading={saving}>Create</Button>
+              <Button onClick={() => setCreateVisible(false)}>{t('common.cancel')}</Button>
+              <Button variant="primary" onClick={handleCreate} loading={saving}>{t('common.create')}</Button>
             </SpaceBetween>
           </Box>
         }
       >
         <Form errorText={saveError}>
           <SpaceBetween size="m">
-            <FormField label={t('pages.legal_holds_page.user_email')} description={t('pages.legal_holds_page.user_email_desc')}>
+            <FormField label={t('legal_holds.user_email')} description={t('legal_holds.user_email_desc')}>
               <Input
                 value={userEmail}
                 onChange={e => setUserEmail(e.detail.value)}
                 placeholder="user@company.com"
               />
             </FormField>
-            <FormField label={t('pages.legal_holds_page.reason')} description={t('pages.legal_holds_page.reason_desc')}>
+            <FormField label={t('legal_holds.reason')} description={t('legal_holds.reason_desc')}>
               <Input
                 value={reason}
                 onChange={e => setReason(e.detail.value)}
-                placeholder="Litigation — case #12345"
+                placeholder={t('legal_holds.reason_placeholder')}
               />
             </FormField>
           </SpaceBetween>
@@ -224,21 +224,21 @@ export default function LegalHoldsPage() {
         visible={!!deleteTarget}
         onDismiss={() => setDeleteTarget(null)}
         size="small"
-        header="Release Legal Hold"
+        header={t('legal_holds.release_modal')}
         footer={
           <Box float="right">
             <SpaceBetween direction="horizontal" size="xs">
-              <Button onClick={() => setDeleteTarget(null)}>Cancel</Button>
-              <Button variant="primary" onClick={handleDelete} loading={deleting}>Release</Button>
+              <Button onClick={() => setDeleteTarget(null)}>{t('common.cancel')}</Button>
+              <Button variant="primary" onClick={handleDelete} loading={deleting}>{t('legal_holds.release')}</Button>
             </SpaceBetween>
           </Box>
         }
       >
         <SpaceBetween size="s">
-          <StatusIndicator type="warning">This action cannot be undone.</StatusIndicator>
+          <StatusIndicator type="warning">{t('legal_holds.cannot_undo')}</StatusIndicator>
           <Box>
-            Release the hold for <strong>{deleteTarget?.user_email}</strong>?
-            The mailbox will no longer be preserved and may be subject to normal retention policies.
+            {t('legal_holds.release_confirm_prefix')} <strong>{deleteTarget?.user_email}</strong>?
+            {t('legal_holds.release_confirm_suffix')}
           </Box>
         </SpaceBetween>
       </Modal>

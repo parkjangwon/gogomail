@@ -302,13 +302,13 @@ export default function UsersPage() {
         credentials: 'include',
       });
       if (!res.ok) {
-        addFlash('error', 'Failed to suspend user');
+        addFlash('error', t('pages.users_page.suspend_failed'));
         return;
       }
       setOffboardTarget(null);
       fetchUsers();
     } catch {
-      addFlash('error', 'Failed to suspend user');
+      addFlash('error', t('pages.users_page.suspend_failed'));
     } finally {
       setOffboarding(false);
     }
@@ -324,9 +324,9 @@ export default function UsersPage() {
   };
 
   const ROLE_OPTIONS = [
-    { label: 'User (email only)', value: 'user' },
-    { label: 'Company Admin (console access)', value: 'company_admin' },
-    { label: 'System Admin (all companies)', value: 'system_admin' },
+    { label: t('pages.users_page.role_user_email'), value: 'user' },
+    { label: t('pages.users_page.role_company_admin'), value: 'company_admin' },
+    { label: t('pages.users_page.role_system_admin'), value: 'system_admin' },
   ];
 
   const addFlash = (type: 'success' | 'error' | 'info', content: string) => {
@@ -349,17 +349,22 @@ export default function UsersPage() {
         const succeeded: number = data.succeeded?.length ?? 0;
         const failed: number = data.failed?.length ?? 0;
         if (failed === 0) {
-          addFlash('success', `${action}: ${succeeded} user(s) updated`);
+          addFlash('success', t('pages.users_page.bulk_updated')
+            .replace('{action}', t(`pages.users_page.bulk_${action}`))
+            .replace('{succeeded}', String(succeeded)));
         } else {
-          addFlash('error', `${action}: ${succeeded} succeeded, ${failed} failed`);
+          addFlash('error', t('pages.users_page.bulk_partial')
+            .replace('{action}', t(`pages.users_page.bulk_${action}`))
+            .replace('{succeeded}', String(succeeded))
+            .replace('{failed}', String(failed)));
         }
       } else {
-        addFlash('error', `Bulk ${action} failed`);
+        addFlash('error', t('pages.users_page.bulk_failed').replace('{action}', t(`pages.users_page.bulk_${action}`)));
       }
       setSelectedUsers([]);
       fetchUsers();
     } catch {
-      addFlash('error', `Bulk ${action} failed`);
+      addFlash('error', t('pages.users_page.bulk_failed').replace('{action}', t(`pages.users_page.bulk_${action}`)));
     } finally {
       setBulkLoading(false);
     }
@@ -369,7 +374,7 @@ export default function UsersPage() {
     try {
       const res = await fetch(`/api/admin/companies/${companyId}/users/bulk-export`, { credentials: 'include' });
       if (!res.ok) {
-        addFlash('error', 'Export failed');
+        addFlash('error', t('pages.users_page.export_failed'));
         return;
       }
       const blob = await res.blob();
@@ -380,7 +385,7 @@ export default function UsersPage() {
       a.click();
       URL.revokeObjectURL(url);
     } catch {
-      addFlash('error', 'Export failed');
+      addFlash('error', t('pages.users_page.export_failed'));
     }
   };
 
@@ -413,10 +418,10 @@ export default function UsersPage() {
           fetchUsers();
         }
       } else {
-        addFlash('error', 'Import failed');
+        addFlash('error', t('pages.users_page.import_failed'));
       }
     } catch {
-      addFlash('error', 'Import failed');
+      addFlash('error', t('pages.users_page.import_failed'));
     } finally {
       setImporting(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -618,16 +623,18 @@ export default function UsersPage() {
               actions={
                 selectedUsers.length > 0 ? (
                   <SpaceBetween direction="horizontal" size="xs">
-                    <Box color="text-status-inactive" padding={{ top: 'xs' }}>{selectedUsers.length} selected</Box>
+                    <Box color="text-status-inactive" padding={{ top: 'xs' }}>
+                      {t('pages.users_page.selected_count').replace('{n}', String(selectedUsers.length))}
+                    </Box>
                     <ButtonDropdown
                       loading={bulkLoading}
                       items={[
-                        { id: 'activate', text: 'Activate selected' },
-                        { id: 'suspend', text: 'Suspend selected' },
+                        { id: 'activate', text: t('pages.users_page.activate_selected') },
+                        { id: 'suspend', text: t('pages.users_page.suspend_selected') },
                       ]}
                       onItemClick={({ detail }) => handleBulkAction(detail.id as 'activate' | 'suspend')}
                     >
-                      Bulk Actions
+                      {t('pages.users_page.bulk_actions')}
                     </ButtonDropdown>
                   </SpaceBetween>
                 ) : undefined
@@ -756,7 +763,7 @@ export default function UsersPage() {
                 <Input
                   value={newUser.display_name}
                   onChange={(e) => setNewUser({ ...newUser, display_name: e.detail.value })}
-                  placeholder="John Doe"
+                  placeholder={t('pages.users_page.display_name_placeholder')}
                 />
               </FormField>
 
@@ -779,7 +786,7 @@ export default function UsersPage() {
                 </FormField>
               )}
 
-              <FormField label={t('pages.users_page.quota_label')} description="GB (0 = domain default)">
+              <FormField label={t('pages.users_page.quota_label')} description={t('pages.users_page.quota_description')}>
                 <Input
                   type="number"
                   value={newUser.quota_gb}
@@ -822,7 +829,7 @@ export default function UsersPage() {
             />
           </FormField>
           <FormField
-            label="Role"
+            label={t('pages.users_page.role')}
             description={t('pages.users_page.admin_role_desc')}
           >
             <Select
@@ -839,13 +846,13 @@ export default function UsersPage() {
         visible={!!offboardTarget}
         onDismiss={() => setOffboardTarget(null)}
         size="medium"
-        header={`Offboard User — ${offboardTarget?.username ?? ''}`}
+        header={`${t('pages.users_page.offboard_title')} — ${offboardTarget?.username ?? ''}`}
         footer={
           <Box float="right">
             <SpaceBetween direction="horizontal" size="xs">
-              <Button onClick={() => setOffboardTarget(null)}>Cancel</Button>
+              <Button onClick={() => setOffboardTarget(null)}>{t('common.cancel')}</Button>
               <Button variant="primary" onClick={handleOffboard} loading={offboarding}>
-                Suspend User
+                {t('pages.users_page.suspend_user')}
               </Button>
             </SpaceBetween>
           </Box>
@@ -853,12 +860,13 @@ export default function UsersPage() {
       >
         <SpaceBetween size="m">
           <Alert type="warning">
-            This will suspend <strong>{offboardTarget?.username}</strong> and prevent them from logging in.
-            Their mailbox and data will be preserved.
+            {t('pages.users_page.offboard_warning_prefix')} <strong>{offboardTarget?.username}</strong>{' '}
+            {t('pages.users_page.offboard_warning_suffix')}
           </Alert>
           <Alert type="info">
-            To forward incoming mail after offboarding, go to <strong>Access → Aliases</strong> and create
-            an alias from <strong>{offboardTarget?.username}</strong> to the desired address.
+            {t('pages.users_page.offboard_alias_prefix')} <strong>{t('pages.users_page.access_aliases')}</strong>{' '}
+            {t('pages.users_page.offboard_alias_middle')} <strong>{offboardTarget?.username}</strong>{' '}
+            {t('pages.users_page.offboard_alias_suffix')}
           </Alert>
         </SpaceBetween>
       </Modal>

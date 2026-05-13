@@ -36,34 +36,32 @@ interface AuditLog {
   created_at: string;
 }
 
-const CATEGORY_OPTIONS: SelectProps.Option[] = [
-  { label: 'All categories', value: '' },
-  { label: 'Admin', value: 'admin' },
-  { label: 'Auth', value: 'auth' },
-  { label: 'User', value: 'user' },
-  { label: 'Domain', value: 'domain' },
-  { label: 'Mail', value: 'mail' },
-];
-
-const RESULT_OPTIONS: SelectProps.Option[] = [
-  { label: 'All results', value: '' },
-  { label: 'Success', value: 'success' },
-  { label: 'Failure', value: 'failure' },
-];
-
 const PAGE_SIZE = 25;
 
 export default function AdminActivityPage() {
   const { t } = useI18n();
   const params = useParams();
   const companyId = params?.id as string;
+  const categoryOptions: SelectProps.Option[] = [
+    { label: t('admin_activity.all_categories'), value: '' },
+    { label: t('admin_activity.cat_admin'), value: 'admin' },
+    { label: t('admin_activity.cat_auth'), value: 'auth' },
+    { label: t('admin_activity.cat_user'), value: 'user' },
+    { label: t('admin_activity.cat_domain'), value: 'domain' },
+    { label: t('admin_activity.cat_mail'), value: 'mail' },
+  ];
+  const resultOptions: SelectProps.Option[] = [
+    { label: t('admin_activity.all_results'), value: '' },
+    { label: t('admin_activity.result_success'), value: 'success' },
+    { label: t('admin_activity.result_failure'), value: 'failure' },
+  ];
 
   const [logs, setLogs] = useState<AuditLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState(false);
   const [filter, setFilter] = useState('');
-  const [category, setCategory] = useState<SelectProps.Option>(CATEGORY_OPTIONS[0]);
-  const [result, setResult] = useState<SelectProps.Option>(RESULT_OPTIONS[0]);
+  const [category, setCategory] = useState<SelectProps.Option>({ label: t('admin_activity.all_categories'), value: '' });
+  const [result, setResult] = useState<SelectProps.Option>({ label: t('admin_activity.all_results'), value: '' });
   const [currentPage, setCurrentPage] = useState(1);
   const [selected, setSelected] = useState<AuditLog[]>([]);
 
@@ -112,7 +110,7 @@ export default function AdminActivityPage() {
 
   if (loading) {
     return (
-      <ContentLayout header={<Header variant="h1">Admin Activity Log</Header>}>
+      <ContentLayout header={<Header variant="h1">{t('admin_activity.title')}</Header>}>
         <Box textAlign="center" padding="xl"><Spinner /></Box>
       </ContentLayout>
     );
@@ -120,11 +118,11 @@ export default function AdminActivityPage() {
 
   if (fetchError) {
     return (
-      <ContentLayout header={<Header variant="h1">Admin Activity Log</Header>}>
+      <ContentLayout header={<Header variant="h1">{t('admin_activity.title')}</Header>}>
         <Box textAlign="center" padding="xl">
           <SpaceBetween size="m" alignItems="center">
-            <Box color="text-status-error">Failed to load audit logs. Check your connection or permissions.</Box>
-            <Button iconName="refresh" onClick={fetchLogs}>Retry</Button>
+            <Box color="text-status-error">{t('admin_activity.failed_load')}</Box>
+            <Button iconName="refresh" onClick={fetchLogs}>{t('admin_activity.retry')}</Button>
           </SpaceBetween>
         </Box>
       </ContentLayout>
@@ -136,10 +134,10 @@ export default function AdminActivityPage() {
       header={
         <Header
           variant="h1"
-          description={t('pages.admin_activity_page.description')}
-          actions={<Button iconName="refresh" onClick={fetchLogs}>Refresh</Button>}
+          description={t('admin_activity.description')}
+          actions={<Button iconName="refresh" onClick={fetchLogs}>{t('admin_activity.refresh')}</Button>}
         >
-          Admin Activity Log
+          {t('admin_activity.title')}
         </Header>
       }
     >
@@ -147,7 +145,7 @@ export default function AdminActivityPage() {
         <Table
           columnDefinitions={[
             {
-              header: 'Time',
+              header: t('admin_activity.col_time'),
               cell: (item: AuditLog) => (
                 <Box fontSize="body-s" color="text-body-secondary">
                   {item.created_at ? new Date(item.created_at).toLocaleString() : '—'}
@@ -156,7 +154,7 @@ export default function AdminActivityPage() {
               width: '16%',
             },
             {
-              header: 'Category / Action',
+              header: t('admin_activity.col_category_action'),
               cell: (item: AuditLog) => (
                 <SpaceBetween size="xxxs">
                   <Badge color={item.category === 'admin' ? 'blue' : 'grey'}>{item.category}</Badge>
@@ -166,7 +164,7 @@ export default function AdminActivityPage() {
               width: '22%',
             },
             {
-              header: 'Actor',
+              header: t('admin_activity.col_actor'),
               cell: (item: AuditLog) => (
                 <Box fontSize="body-s" color="text-body-secondary">
                   {item.actor_id || '—'}
@@ -175,7 +173,7 @@ export default function AdminActivityPage() {
               width: '20%',
             },
             {
-              header: 'Target',
+              header: t('admin_activity.col_target'),
               cell: (item: AuditLog) => (
                 <SpaceBetween size="xxxs">
                   <Box fontSize="body-s" color="text-body-secondary">{item.target_type || '—'}</Box>
@@ -187,14 +185,14 @@ export default function AdminActivityPage() {
               width: '20%',
             },
             {
-              header: 'IP',
+              header: t('admin_activity.col_ip'),
               cell: (item: AuditLog) => (
                 <Box fontSize="body-s" color="text-body-secondary">{item.ip_address || '—'}</Box>
               ),
               width: '12%',
             },
             {
-              header: 'Result',
+              header: t('admin_activity.col_result'),
               cell: (item: AuditLog) => (
                 <Badge color={resultColor(item.result)}>{item.result || '—'}</Badge>
               ),
@@ -207,25 +205,25 @@ export default function AdminActivityPage() {
           onSelectionChange={e => setSelected(e.detail.selectedItems)}
           header={
             <Header variant="h2" counter={`(${filtered.length})`}>
-              Events
+              {t('admin_activity.events_header')}
             </Header>
           }
           filter={
             <SpaceBetween direction="horizontal" size="xs">
               <TextFilter
                 filteringText={filter}
-                filteringPlaceholder="Search action, actor, IP..."
+                filteringPlaceholder={t('admin_activity.search_placeholder')}
                 onChange={e => { setFilter(e.detail.filteringText); setCurrentPage(1); }}
               />
               <Select
                 selectedOption={category}
-                options={CATEGORY_OPTIONS}
+                options={categoryOptions}
                 onChange={e => { setCategory(e.detail.selectedOption); setCurrentPage(1); }}
                 expandToViewport
               />
               <Select
                 selectedOption={result}
-                options={RESULT_OPTIONS}
+                options={resultOptions}
                 onChange={e => { setResult(e.detail.selectedOption); setCurrentPage(1); }}
                 expandToViewport
               />
@@ -242,24 +240,24 @@ export default function AdminActivityPage() {
           }
           empty={
             <Box textAlign="center" padding="l" color="text-body-secondary">
-              No audit events found.
+              {t('admin_activity.no_events')}
             </Box>
           }
         />
 
         {selected.length > 0 && (
-          <ExpandableSection headerText={`Detail: ${selected[0].action} — ${selected[0].id}`} defaultExpanded>
+          <ExpandableSection headerText={`${t('admin_activity.detail')}: ${selected[0].action} — ${selected[0].id}`} defaultExpanded>
             <SpaceBetween size="s">
               {([
                 ['ID', selected[0].id],
-                ['Category', selected[0].category],
-                ['Action', selected[0].action],
-                ['Actor', selected[0].actor_id],
-                ['Target Type', selected[0].target_type],
-                ['Target ID', selected[0].target_id],
-                ['IP Address', selected[0].ip_address],
-                ['Result', selected[0].result],
-                ['Time', selected[0].created_at ? new Date(selected[0].created_at).toISOString() : '—'],
+                [t('admin_activity.detail_category'), selected[0].category],
+                [t('admin_activity.detail_action'), selected[0].action],
+                [t('admin_activity.detail_actor'), selected[0].actor_id],
+                [t('admin_activity.detail_target_type'), selected[0].target_type],
+                [t('admin_activity.detail_target_id'), selected[0].target_id],
+                [t('admin_activity.detail_ip_address'), selected[0].ip_address],
+                [t('admin_activity.detail_result'), selected[0].result],
+                [t('admin_activity.detail_time'), selected[0].created_at ? new Date(selected[0].created_at).toISOString() : '—'],
               ] as [string, string][]).map(([label, value]) => (
                 <ColumnLayout key={label} columns={2} variant="text-grid">
                   <Box fontWeight="bold" fontSize="body-s" color="text-body-secondary">{label}</Box>
@@ -268,7 +266,7 @@ export default function AdminActivityPage() {
               ))}
               {selected[0].detail && Object.keys(selected[0].detail).length > 0 && (
                 <SpaceBetween size="xxs">
-                  <Box fontWeight="bold" fontSize="body-s" color="text-body-secondary">Detail</Box>
+                  <Box fontWeight="bold" fontSize="body-s" color="text-body-secondary">{t('admin_activity.detail')}</Box>
                   <Box fontSize="body-s">
                     <pre style={{ margin: 0, whiteSpace: 'pre-wrap', fontSize: '12px' }}>
                       {JSON.stringify(selected[0].detail, null, 2)}
@@ -283,4 +281,3 @@ export default function AdminActivityPage() {
     </ContentLayout>
   );
 }
-

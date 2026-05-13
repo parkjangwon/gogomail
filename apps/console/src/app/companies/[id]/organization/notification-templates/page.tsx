@@ -56,7 +56,7 @@ export default function NotifTemplatesPage() {
       const data = await res.json();
       setTemplates(data.templates ?? []);
     } catch {
-      setFlash([{ type: 'error', content: 'Failed to load templates', dismissible: true, onDismiss: () => setFlash([]) }]);
+      setFlash([{ type: 'error', content: t('notif_templates_page.failed_load'), dismissible: true, onDismiss: () => setFlash([]) }]);
     } finally {
       setLoading(false);
     }
@@ -79,7 +79,7 @@ export default function NotifTemplatesPage() {
         body: JSON.stringify(editForm),
       });
       if (!res.ok) throw new Error(await res.text());
-      setFlash([{ type: 'success', content: 'Template saved', dismissible: true, onDismiss: () => setFlash([]) }]);
+      setFlash([{ type: 'success', content: t('notif_templates_page.saved'), dismissible: true, onDismiss: () => setFlash([]) }]);
       setSelected(null);
       load();
     } catch (e: unknown) {
@@ -114,33 +114,33 @@ export default function NotifTemplatesPage() {
 </head>
 <body>
   <div class="wrapper">
-    <div class="subject-bar">Subject: ${renderedSubject}</div>
-    <div class="body">${renderedBody || '<p style="color:#aaa;font-style:italic">No HTML content yet.</p>'}</div>
+    <div class="subject-bar">${t('notif_templates_page.preview_subject')}: ${renderedSubject}</div>
+    <div class="body">${renderedBody || `<p style="color:#aaa;font-style:italic">${t('notif_templates_page.no_html_content')}</p>`}</div>
   </div>
 </body>
 </html>`;
-  }, [editForm.body, editForm.subject]);
+  }, [editForm.body, editForm.subject, t]);
 
   if (loading) return <Box padding="xl"><Spinner /></Box>;
 
   return (
-    <ContentLayout header={<Header variant="h1" description="Customize transactional email and notification messages">{t('nav.notif_templates')}</Header>}>
+    <ContentLayout header={<Header variant="h1" description={t('notif_templates_page.description')}>{t('nav.notif_templates')}</Header>}>
       <SpaceBetween size="m">
         {flash.length > 0 && <Flashbar items={flash} />}
 
-        <Container header={<Header variant="h2">Templates ({templates.length})</Header>}>
+        <Container header={<Header variant="h2">{t('notif_templates_page.templates')} ({templates.length})</Header>}>
           <Table
             items={templates}
             columnDefinitions={[
-              { id: 'name', header: 'Template', cell: (i) => i.name },
+              { id: 'name', header: t('notif_templates_page.template'), cell: (i) => i.name },
               { id: 'id', header: 'ID', cell: (i) => <Box variant="code">{i.id}</Box> },
-              { id: 'status', header: 'Status', cell: (i) => <Badge color={i.enabled ? 'green' : 'grey'}>{i.enabled ? 'Enabled' : 'Disabled'}</Badge> },
+              { id: 'status', header: t('notif_templates_page.status'), cell: (i) => <Badge color={i.enabled ? 'green' : 'grey'}>{i.enabled ? t('status.enabled') : t('status.disabled')}</Badge> },
               {
                 id: 'actions', header: '',
-                cell: (i) => <Button variant="inline-link" onClick={() => openEdit(i)}>Edit & Preview</Button>,
+                cell: (i) => <Button variant="inline-link" onClick={() => openEdit(i)}>{t('notif_templates_page.edit_preview')}</Button>,
               },
             ]}
-            empty={<Box textAlign="center" color="inherit">No templates available</Box>}
+            empty={<Box textAlign="center" color="inherit">{t('notif_templates_page.empty')}</Box>}
           />
         </Container>
 
@@ -149,12 +149,12 @@ export default function NotifTemplatesPage() {
             size="max"
             visible={!!selected}
             onDismiss={() => setSelected(null)}
-            header={`Edit: ${selected.name}`}
+            header={`${t('notif_templates_page.edit')}: ${selected.name}`}
             footer={
               <Box float="right">
                 <SpaceBetween size="xs" direction="horizontal">
-                  <Button variant="link" onClick={() => setSelected(null)}>Cancel</Button>
-                  <Button variant="primary" loading={saving} onClick={handleSave}>Save</Button>
+                  <Button variant="link" onClick={() => setSelected(null)}>{t('common.cancel')}</Button>
+                  <Button variant="primary" loading={saving} onClick={handleSave}>{t('common.save')}</Button>
                 </SpaceBetween>
               </Box>
             }
@@ -176,17 +176,17 @@ export default function NotifTemplatesPage() {
                   />
                 </FormField>
                 <Toggle checked={editForm.enabled ?? true} onChange={({ detail }) => setEditForm(f => ({ ...f, enabled: detail.checked }))}>
-                  Enabled
+                  {t('status.enabled')}
                 </Toggle>
               </SpaceBetween>
 
               {/* ── Right: Preview ── */}
               <SpaceBetween size="m">
-                <Header variant="h3" description="Live preview with sample values">Email Preview</Header>
+                <Header variant="h3" description={t('notif_templates_page.preview_desc')}>{t('notif_templates_page.preview_title')}</Header>
                 <Box>
                   <iframe
                     srcDoc={previewHtml}
-                    title="Email HTML Preview"
+                    title={t('notif_templates_page.preview_iframe_title')}
                     style={{
                       width: '100%',
                       height: '480px',

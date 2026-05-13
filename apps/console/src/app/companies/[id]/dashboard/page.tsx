@@ -21,11 +21,11 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useState, useEffect } from 'react';
 import { getRecentVisits } from '@/components/AdminLayout';
 
-const healthIndicator = (status: string) => {
-  if (status === 'healthy') return <StatusIndicator type="success">Healthy</StatusIndicator>;
-  if (status === 'warning') return <StatusIndicator type="warning">Warning</StatusIndicator>;
-  if (status === 'degraded') return <StatusIndicator type="error">Degraded</StatusIndicator>;
-  return <StatusIndicator type="pending">Unknown</StatusIndicator>;
+const healthIndicator = (status: string, t: (key: string, defaultValue?: string) => string) => {
+  if (status === 'healthy') return <StatusIndicator type="success">{t('status.healthy')}</StatusIndicator>;
+  if (status === 'warning') return <StatusIndicator type="warning">{t('status.warning')}</StatusIndicator>;
+  if (status === 'degraded') return <StatusIndicator type="error">{t('status.degraded')}</StatusIndicator>;
+  return <StatusIndicator type="pending">{t('status.unknown')}</StatusIndicator>;
 };
 
 const fmtGb = (bytes: number) => `${(bytes / 1073741824).toFixed(1)} GB`;
@@ -95,6 +95,15 @@ export default function DashboardPage() {
     ? fetchedAt.toLocaleTimeString()
     : '—';
 
+  const formatRelativeVisit = (ts: number) => {
+    const mins = Math.floor((Date.now() - ts) / 60000);
+    if (mins < 1) return t('pages.dashboard_page.just_now');
+    if (mins < 60) return t('pages.dashboard_page.minutes_ago').replace('{n}', String(mins));
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return t('pages.dashboard_page.hours_ago').replace('{n}', String(hrs));
+    return t('pages.dashboard_page.days_ago').replace('{n}', String(Math.floor(hrs / 24)));
+  };
+
   const ALL_QUICK_LINKS = [
     { labelKey: 'manage_users', path: '/users' },
     { labelKey: 'manage_domains', path: '/tenancy/domains' },
@@ -119,11 +128,11 @@ export default function DashboardPage() {
           actions={
             <SpaceBetween direction="horizontal" size="xs">
               <Box color="text-status-inactive" padding={{ top: 'xs' }} fontSize="body-s">
-                Updated {lastUpdated} · refreshes in {countdown}s
+                {t('pages.dashboard_page.updated')} {lastUpdated} · {t('pages.dashboard_page.refreshes_in')} {countdown}s
               </Box>
-              <Button iconName="refresh" loading={isFetching} onClick={handleRefresh}>Refresh</Button>
+              <Button iconName="refresh" loading={isFetching} onClick={handleRefresh}>{t('common.refresh')}</Button>
               <Button variant="primary" onClick={() => router.push(`/companies/${companyId}/tenancy/health`)}>
-                Health
+                {t('pages.dashboard_page.health')}
               </Button>
             </SpaceBetween>
           }
@@ -137,8 +146,8 @@ export default function DashboardPage() {
         <ColumnLayout columns={4} variant="text-grid" minColumnWidth={140}>
           <Container>
             <SpaceBetween size="xs">
-              <Box color="text-body-secondary" fontSize="body-s">Tenant Health</Box>
-              {healthIndicator(stats.health_status)}
+              <Box color="text-body-secondary" fontSize="body-s">{t('pages.dashboard_page.tenant_health')}</Box>
+              {healthIndicator(stats.health_status, t)}
             </SpaceBetween>
           </Container>
           <Container>
@@ -147,14 +156,16 @@ export default function DashboardPage() {
                 color={stats.security_score >= 80 ? 'text-status-success' : stats.security_score >= 50 ? 'text-status-warning' : 'text-status-error'}>
                 {stats.security_score > 0 ? `${stats.security_score}/100` : '—'}
               </Box>
-              <Box color="text-body-secondary" fontSize="body-s">Security Score</Box>
+              <Box color="text-body-secondary" fontSize="body-s">{t('pages.dashboard_page.security_score')}</Box>
             </SpaceBetween>
           </Container>
           <Container>
             <SpaceBetween size="xs">
               <Box fontSize="display-l" fontWeight="bold">{stats.total_users > 0 ? stats.total_users : stats.active_domains}</Box>
               <Box color="text-body-secondary" fontSize="body-s">
-                {stats.total_users > 0 ? `Users (${stats.active_users} active)` : t('pages.dashboard_page.active_domains')}
+                {stats.total_users > 0
+                  ? t('pages.dashboard_page.users_active').replace('{total}', String(stats.total_users)).replace('{active}', String(stats.active_users))
+                  : t('pages.dashboard_page.active_domains')}
               </Box>
             </SpaceBetween>
           </Container>
@@ -164,7 +175,7 @@ export default function DashboardPage() {
                 {stats.mfa_total > 0 ? `${stats.mfa_rate.toFixed(0)}%` : '—'}
               </Box>
               <Box color="text-body-secondary" fontSize="body-s">
-                MFA Adoption{stats.mfa_total > 0 ? ` (${stats.mfa_enabled}/${stats.mfa_total})` : ''}
+                {t('pages.dashboard_page.mfa_adoption')}{stats.mfa_total > 0 ? ` (${stats.mfa_enabled}/${stats.mfa_total})` : ''}
               </Box>
             </SpaceBetween>
           </Container>
@@ -190,7 +201,12 @@ export default function DashboardPage() {
                 items={[
                   { label: t('pages.dashboard_page.used_label'), value: fmtGb(storageUsed) },
                   { label: t('pages.dashboard_page.limit_label'), value: storageLimit > 0 ? fmtGb(storageLimit) : t('pages.dashboard_page.unlimited_label') },
-                  { label: 'Domains', value: `${stats.active_domains} / ${stats.domain_count} active` },
+                  {
+                    label: t('pages.dashboard_page.domains'),
+                    value: t('pages.dashboard_page.domains_active')
+                      .replace('{active}', String(stats.active_domains))
+                      .replace('{total}', String(stats.domain_count)),
+                  },
                 ]}
               />
             </SpaceBetween>
@@ -202,12 +218,7 @@ export default function DashboardPage() {
               {quickLinks.map(({ labelKey, path }) => {
                 const ts = recentVisitMap.get(`/companies/${companyId}${path}`);
                 const ago = ts ? (() => {
-                  const mins = Math.floor((Date.now() - ts) / 60000);
-                  if (mins < 1) return 'just now';
-                  if (mins < 60) return `${mins}m ago`;
-                  const hrs = Math.floor(mins / 60);
-                  if (hrs < 24) return `${hrs}h ago`;
-                  return `${Math.floor(hrs / 24)}d ago`;
+                  return formatRelativeVisit(ts);
                 })() : null;
                 return (
                   <SpaceBetween key={labelKey} direction="horizontal" size="xs">

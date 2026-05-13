@@ -39,6 +39,19 @@ const statusBadgeColor = (s: string) =>
 const latencyColor = (ms: number) =>
   ms < 50 ? 'text-status-success' : ms < 200 ? 'text-status-warning' : 'text-status-error';
 
+const statusLabel = (status: string, t: (key: string, defaultValue?: string) => string) => {
+  switch (status) {
+    case 'healthy':
+      return t('status.healthy');
+    case 'degraded':
+      return t('status.degraded');
+    case 'unhealthy':
+      return t('status.unhealthy');
+    default:
+      return status;
+  }
+};
+
 export default function APIHealthPage() {
   const { t } = useI18n();
   const [checks, setChecks] = useState<HealthCheck[]>([]);
@@ -102,8 +115,8 @@ export default function APIHealthPage() {
       <ContentLayout header={<Header variant="h1">{t('pages.api_health.title')}</Header>}>
         <Box textAlign="center" padding="xl">
           <SpaceBetween size="m" alignItems="center">
-            <Box color="text-status-error">Failed to load health data.</Box>
-            <Button iconName="refresh" onClick={fetchAll}>Retry</Button>
+            <Box color="text-status-error">{t('pages.api_health.failed_load')}</Box>
+            <Button iconName="refresh" onClick={fetchAll}>{t('common.retry')}</Button>
           </SpaceBetween>
         </Box>
       </ContentLayout>
@@ -120,10 +133,10 @@ export default function APIHealthPage() {
             <SpaceBetween direction="horizontal" size="xs">
               {lastRefreshed && (
                 <Box color="text-status-inactive" padding={{ top: 'xs' }} fontSize="body-s">
-                  Updated {lastRefreshed.toLocaleTimeString()} · auto-refreshes 15s
+                  {t('pages.api_health.updated')} {lastRefreshed.toLocaleTimeString()} · {t('pages.api_health.auto_refresh_15s')}
                 </Box>
               )}
-              <Button iconName="refresh" onClick={fetchAll}>Refresh</Button>
+              <Button iconName="refresh" onClick={fetchAll}>{t('common.refresh')}</Button>
             </SpaceBetween>
           }
         >
@@ -136,9 +149,9 @@ export default function APIHealthPage() {
         <ColumnLayout columns={4} variant="text-grid" minColumnWidth={140}>
           <Container>
             <SpaceBetween size="xs">
-              <Box color="text-body-secondary" fontSize="body-s">Overall Status</Box>
+              <Box color="text-body-secondary" fontSize="body-s">{t('pages.api_health.overall_status')}</Box>
               <StatusIndicator type={overallStatus === 'healthy' ? 'success' : overallStatus === 'degraded' ? 'warning' : 'error'}>
-                {overallStatus.charAt(0).toUpperCase() + overallStatus.slice(1)}
+                {statusLabel(overallStatus, t)}
               </StatusIndicator>
             </SpaceBetween>
           </Container>
@@ -147,14 +160,14 @@ export default function APIHealthPage() {
               <Box color={latencyColor(maxLatency)} fontSize="display-l" fontWeight="bold">
                 {maxLatency}ms
               </Box>
-              <Box color="text-body-secondary" fontSize="body-s">Max DB Latency</Box>
+              <Box color="text-body-secondary" fontSize="body-s">{t('pages.api_health.max_db_latency')}</Box>
             </SpaceBetween>
           </Container>
           <Container>
             <SpaceBetween size="xs">
               <Box fontSize="display-l" fontWeight="bold">{totalQueued}</Box>
               <Box color="text-body-secondary" fontSize="body-s">
-                Queue Depth ({totalReady} ready)
+                {t('pages.api_health.queue_depth')} ({totalReady} {t('pages.api_health.ready')})
               </Box>
             </SpaceBetween>
           </Container>
@@ -167,7 +180,7 @@ export default function APIHealthPage() {
               >
                 {totalStale}
               </Box>
-              <Box color="text-body-secondary" fontSize="body-s">Stale Jobs</Box>
+              <Box color="text-body-secondary" fontSize="body-s">{t('pages.api_health.stale_jobs')}</Box>
             </SpaceBetween>
           </Container>
         </ColumnLayout>
@@ -183,7 +196,7 @@ export default function APIHealthPage() {
             {
               header: t('pages.api_health.status'),
               cell: (item: HealthCheck) => (
-                <Badge color={statusBadgeColor(item.status)}>{item.status}</Badge>
+                <Badge color={statusBadgeColor(item.status)}>{statusLabel(item.status, t)}</Badge>
               ),
               width: '20%',
             },
@@ -201,8 +214,8 @@ export default function APIHealthPage() {
             },
           ]}
           items={checks}
-          header={<Header variant="h2">Service Checks</Header>}
-          empty={<Box textAlign="center" padding="l" color="text-body-secondary">No health data</Box>}
+          header={<Header variant="h2">{t('pages.api_health.service_checks')}</Header>}
+          empty={<Box textAlign="center" padding="l" color="text-body-secondary">{t('pages.api_health.no_health_data')}</Box>}
         />
 
         {/* Queue Stats */}
@@ -210,29 +223,29 @@ export default function APIHealthPage() {
           <Table
             columnDefinitions={[
               {
-                header: 'Topic',
+                header: t('pages.api_health.topic'),
                 cell: (q: QueueStat) => <Box fontWeight="bold">{q.topic}</Box>,
                 width: '28%',
               },
               {
-                header: 'Total',
+                header: t('pages.api_health.total'),
                 cell: (q: QueueStat) => q.count,
                 width: '12%',
               },
               {
-                header: 'Ready',
+                header: t('pages.api_health.ready'),
                 cell: (q: QueueStat) => (
                   <Box color={q.ready_count > 100 ? 'text-status-warning' : undefined}>{q.ready_count}</Box>
                 ),
                 width: '12%',
               },
               {
-                header: 'Delayed',
+                header: t('pages.api_health.delayed'),
                 cell: (q: QueueStat) => q.delayed_count,
                 width: '12%',
               },
               {
-                header: 'Stale',
+                header: t('pages.api_health.stale'),
                 cell: (q: QueueStat) => (
                   <Box color={q.stale_processing_count > 0 ? 'text-status-error' : undefined}>
                     {q.stale_processing_count}
@@ -241,7 +254,7 @@ export default function APIHealthPage() {
                 width: '12%',
               },
               {
-                header: 'Oldest Ready',
+                header: t('pages.api_health.oldest_ready'),
                 cell: (q: QueueStat) => q.oldest_ready_at
                   ? new Date(q.oldest_ready_at).toLocaleTimeString()
                   : '—',
@@ -249,7 +262,7 @@ export default function APIHealthPage() {
               },
             ]}
             items={queues}
-            header={<Header variant="h2" counter={`(${queues.length})`}>Queue Stats</Header>}
+            header={<Header variant="h2" counter={`(${queues.length})`}>{t('pages.api_health.queue_stats')}</Header>}
           />
         )}
       </SpaceBetween>

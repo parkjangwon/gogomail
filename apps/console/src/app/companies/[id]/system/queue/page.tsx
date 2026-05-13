@@ -79,7 +79,7 @@ export default function QueueStatsPage() {
         <Header
           variant="h1"
           description={t('pages.queue_stats.description')}
-          info={lastUpdated ? <Box color="text-body-secondary" fontSize="body-s">Updated {lastUpdated.toLocaleTimeString()}</Box> : undefined}
+          info={lastUpdated ? <Box color="text-body-secondary" fontSize="body-s">{t('pages.queue_stats_page.updated')} {lastUpdated.toLocaleTimeString()}</Box> : undefined}
         >
           {t('pages.queue_stats.title')}
         </Header>

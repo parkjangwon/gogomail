@@ -31,14 +31,12 @@ function getNestedValue(obj: any, path: string): any {
 
 export function I18nProvider({ children }: { children: ReactNode }) {
   const [locale, setLocaleState] = useState<Locale>(defaultLocale);
-  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     const savedLocale = localStorage.getItem('locale') as Locale | null;
     const browserLocale = navigator.language.split('-')[0] as Locale;
     const initialLocale = savedLocale || (locales.includes(browserLocale) ? browserLocale : defaultLocale);
     setLocaleState(initialLocale);
-    setMounted(true);
   }, []);
 
   const setLocale = (newLocale: Locale) => {
@@ -52,10 +50,6 @@ export function I18nProvider({ children }: { children: ReactNode }) {
     const value = getNestedValue(messages, key);
     return value || defaultValue;
   };
-
-  if (!mounted) {
-    return children;
-  }
 
   return (
     <I18nContext.Provider value={{ locale, setLocale, messages, t }}>

@@ -332,7 +332,7 @@ export default function DomainDetailPage() {
           tabs={[
             {
               id: 'mail-stats',
-              label: 'Mail Stats',
+              label: t('pages.domain_detail.mail_stats'),
               content: (
                 <Container header={
                 <Header
@@ -340,11 +340,11 @@ export default function DomainDetailPage() {
                   description={t('pages.domain_detail.mail_stats_desc')}
                   actions={
                     <Button iconName="refresh" loading={statsLoading} onClick={() => fetchMailStats(domain?.name ?? '', true)}>
-                      Refresh
+                      {t('common.refresh')}
                     </Button>
                   }
                 >
-                  Daily Message Volume
+                  {t('pages.domain_detail.daily_message_volume')}
                 </Header>
               }>
                   {statsLoading ? (
@@ -352,7 +352,7 @@ export default function DomainDetailPage() {
                   ) : (
                     <SpaceBetween size="l">
                       {mailStats.length === 0 ? (
-                        <Box color="text-body-secondary" textAlign="center" padding="l">No mail data in the last 7 days.</Box>
+                        <Box color="text-body-secondary" textAlign="center" padding="l">{t('pages.domain_detail.no_mail_data_7d')}</Box>
                       ) : (() => {
                         const maxCount = Math.max(...mailStats.map(d => d.total), 1);
                         return (
@@ -378,10 +378,10 @@ export default function DomainDetailPage() {
                               ))}
                             </div>
                             <SpaceBetween direction="horizontal" size="l">
-                              <Box fontSize="body-s"><span style={{ display: 'inline-block', width: 12, height: 12, backgroundColor: '#1d8348', borderRadius: 2, marginRight: 6 }} />Delivered</Box>
-                              <Box fontSize="body-s"><span style={{ display: 'inline-block', width: 12, height: 12, backgroundColor: '#e74c3c', borderRadius: 2, marginRight: 6 }} />Failed</Box>
+                              <Box fontSize="body-s"><span style={{ display: 'inline-block', width: 12, height: 12, backgroundColor: '#1d8348', borderRadius: 2, marginRight: 6 }} />{t('pages.domain_detail.delivered')}</Box>
+                              <Box fontSize="body-s"><span style={{ display: 'inline-block', width: 12, height: 12, backgroundColor: '#e74c3c', borderRadius: 2, marginRight: 6 }} />{t('pages.domain_detail.failed')}</Box>
                               <Box fontSize="body-s" color="text-body-secondary">
-                                Total last 7d: {mailStats.reduce((s, d) => s + d.total, 0)} messages
+                                {t('pages.domain_detail.total_last_7d')}: {mailStats.reduce((s, d) => s + d.total, 0)} {t('pages.domain_detail.messages')}
                               </Box>
                             </SpaceBetween>
                           </SpaceBetween>

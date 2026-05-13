@@ -1,6 +1,12 @@
 # gogomail current status
 
-Last updated: 2026-05-12 (Webmail beta stabilization started)
+Last updated: 2026-05-13 (Admin console i18n hardening)
+
+## Admin console i18n hardening (2026-05-13, complete)
+- Admin console pages were scanned for hard-coded English UI strings and the visible labels, descriptions, table headers, buttons, flash messages, modal text, placeholders, status labels, and dashboard/health counters were moved behind the console `useI18n()` message catalog.
+- The English/Korean/Japanese/Simplified Chinese message catalogs now include the new console strings for SCIM status, admin activity, security posture, seat usage, webhooks, global signatures, legal holds, notification templates, login, layout, tenant health, domains, dashboard, system health, change history, delegations, users, auth policy, DMARC/SPF, domain settings, domain detail mail stats, routing rules, alerts, and queue status.
+- `I18nProvider` now provides the default locale context during first render, fixing the login page runtime failure caused by calling `useI18n()` before client mount.
+- Verification covered console TypeScript type-checking, catalog key coverage across all four locales, and the hard-coded-string scanner. Remaining scanner hits are technical placeholders or literals such as certificate/private-key examples, TLS version names, sample hostnames, browser metadata, and language names.
 
 ## Admin console to webmail browser smoke hardening (2026-05-13, complete)
 - 실제 dev 스택(PostgreSQL/Redis/MinIO, Go all-in-one, admin console, webmail)을 기동해 콘솔 로그인 → 회사 사용자 생성 → 웹메일 로그인/작성 플로우를 점검했다.

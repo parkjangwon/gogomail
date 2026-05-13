@@ -73,7 +73,7 @@ export default function AuthPolicyPage() {
         setPolicy({ ...DEFAULT_POLICY, ...data.policy });
       }
     } catch {
-      setFlash([{ type: 'error', content: 'Failed to load auth policy', dismissible: true, onDismiss: () => setFlash([]) }]);
+      setFlash([{ type: 'error', content: t('pages.auth_policy_page.failed_load'), dismissible: true, onDismiss: () => setFlash([]) }]);
     } finally {
       setLoading(false);
     }
@@ -91,12 +91,12 @@ export default function AuthPolicyPage() {
       if (res.ok) {
         const saved = await res.json().catch(() => null);
         if (saved?.policy) setPolicy({ ...DEFAULT_POLICY, ...saved.policy });
-        setFlash([{ type: 'success', content: 'Auth policy saved', dismissible: true, onDismiss: () => setFlash([]) }]);
+        setFlash([{ type: 'success', content: t('pages.auth_policy_page.saved'), dismissible: true, onDismiss: () => setFlash([]) }]);
       } else {
-        setFlash([{ type: 'error', content: 'Failed to save auth policy', dismissible: true, onDismiss: () => setFlash([]) }]);
+        setFlash([{ type: 'error', content: t('pages.auth_policy_page.failed_save'), dismissible: true, onDismiss: () => setFlash([]) }]);
       }
     } catch {
-      setFlash([{ type: 'error', content: 'Failed to save auth policy', dismissible: true, onDismiss: () => setFlash([]) }]);
+      setFlash([{ type: 'error', content: t('pages.auth_policy_page.failed_save'), dismissible: true, onDismiss: () => setFlash([]) }]);
     } finally {
       setSaving(false);
     }
@@ -146,21 +146,21 @@ export default function AuthPolicyPage() {
         <Container header={<Header variant="h2">{t('pages.auth_policy_page.password_section')}</Header>}>
           <SpaceBetween size="m">
             <ColumnLayout columns={2}>
-              <FormField label={t('pages.auth_policy_page.min_length')} constraintText="Minimum characters (8–64)">
+              <FormField label={t('pages.auth_policy_page.min_length')} constraintText={t('pages.auth_policy_page.min_length_hint')}>
                 <Input
                   type="number"
                   value={String(policy.min_length)}
                   onChange={(e) => setPolicy({ ...policy, min_length: parseInt(e.detail.value) || 0 })}
                 />
               </FormField>
-              <FormField label={t('pages.auth_policy_page.max_age_days')} constraintText="0 = no expiry">
+              <FormField label={t('pages.auth_policy_page.max_age_days')} constraintText={t('pages.auth_policy_page.max_age_hint')}>
                 <Input
                   type="number"
                   value={String(policy.max_age_days)}
                   onChange={(e) => setPolicy({ ...policy, max_age_days: parseInt(e.detail.value) || 0 })}
                 />
               </FormField>
-              <FormField label={t('pages.auth_policy_page.history_count')} constraintText="0 = no history check">
+              <FormField label={t('pages.auth_policy_page.history_count')} constraintText={t('pages.auth_policy_page.history_hint')}>
                 <Input
                   type="number"
                   value={String(policy.history_count)}
@@ -174,7 +174,7 @@ export default function AuthPolicyPage() {
                   checked={policy.require_uppercase}
                   onChange={(e) => setPolicy({ ...policy, require_uppercase: e.detail.checked })}
                 >
-                  {policy.require_uppercase ? 'Enabled' : 'Disabled'}
+                  {policy.require_uppercase ? t('status.enabled') : t('status.disabled')}
                 </Toggle>
               </FormField>
               <FormField label={t('pages.auth_policy_page.require_numbers')}>
@@ -182,7 +182,7 @@ export default function AuthPolicyPage() {
                   checked={policy.require_numbers}
                   onChange={(e) => setPolicy({ ...policy, require_numbers: e.detail.checked })}
                 >
-                  {policy.require_numbers ? 'Enabled' : 'Disabled'}
+                  {policy.require_numbers ? t('status.enabled') : t('status.disabled')}
                 </Toggle>
               </FormField>
               <FormField label={t('pages.auth_policy_page.require_symbols')}>
@@ -190,7 +190,7 @@ export default function AuthPolicyPage() {
                   checked={policy.require_symbols}
                   onChange={(e) => setPolicy({ ...policy, require_symbols: e.detail.checked })}
                 >
-                  {policy.require_symbols ? 'Enabled' : 'Disabled'}
+                  {policy.require_symbols ? t('status.enabled') : t('status.disabled')}
                 </Toggle>
               </FormField>
             </SpaceBetween>
@@ -200,29 +200,29 @@ export default function AuthPolicyPage() {
         <Container header={<Header variant="h2">{t('pages.auth_policy_page.mfa_section')}</Header>}>
           <SpaceBetween size="m">
             {policy.mfa_required && policy.mfa_methods.length === 0 && (
-              <Alert type="warning">MFA is required but no methods are enabled. Users will be unable to log in.</Alert>
+              <Alert type="warning">{t('pages.auth_policy_page.mfa_no_methods_warning')}</Alert>
             )}
             <FormField label={t('pages.auth_policy_page.mfa_required')}>
               <Toggle
                 checked={policy.mfa_required}
                 onChange={(e) => setPolicy({ ...policy, mfa_required: e.detail.checked })}
               >
-                {policy.mfa_required ? 'Enabled — all users must enroll MFA' : 'Disabled'}
+                {policy.mfa_required ? t('pages.auth_policy_page.mfa_enabled_required') : t('status.disabled')}
               </Toggle>
             </FormField>
-            <FormField label={t('pages.auth_policy_page.mfa_methods')} description="Allowed second factors">
+            <FormField label={t('pages.auth_policy_page.mfa_methods')} description={t('pages.auth_policy_page.mfa_methods_desc')}>
               <SpaceBetween direction="horizontal" size="m">
                 <Checkbox
                   checked={policy.mfa_methods.includes('totp')}
                   onChange={(e) => toggleMFAMethod('totp', e.detail.checked)}
                 >
-                  TOTP (Authenticator app)
+                  {t('pages.auth_policy_page.totp')}
                 </Checkbox>
                 <Checkbox
                   checked={policy.mfa_methods.includes('fido2')}
                   onChange={(e) => toggleMFAMethod('fido2', e.detail.checked)}
                 >
-                  FIDO2 / Passkey
+                  {t('pages.auth_policy_page.fido2')}
                 </Checkbox>
               </SpaceBetween>
             </FormField>
@@ -231,7 +231,7 @@ export default function AuthPolicyPage() {
 
         <Container header={<Header variant="h2">{t('pages.auth_policy_page.session_section')}</Header>}>
           <ColumnLayout columns={2}>
-            <FormField label={t('pages.auth_policy_page.session_timeout')} constraintText="Minutes (0 = no timeout)">
+            <FormField label={t('pages.auth_policy_page.session_timeout')} constraintText={t('pages.auth_policy_page.session_timeout_hint')}>
               <Input
                 type="number"
                 value={String(policy.session_timeout_minutes)}
@@ -240,7 +240,7 @@ export default function AuthPolicyPage() {
                 }
               />
             </FormField>
-            <FormField label={t('pages.auth_policy_page.max_concurrent')} constraintText="0 = unlimited">
+            <FormField label={t('pages.auth_policy_page.max_concurrent')} constraintText={t('pages.auth_policy_page.max_concurrent_hint')}>
               <Input
                 type="number"
                 value={String(policy.max_concurrent_sessions)}

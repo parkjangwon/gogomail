@@ -9,9 +9,11 @@ import {
   Button,
   Alert,
 } from '@cloudscape-design/components';
+import { useI18n } from '@/app/i18n-provider';
 import './login.css';
 
 export default function LoginPage() {
+  const { t } = useI18n();
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -24,19 +26,19 @@ export default function LoginPage() {
   const validate = () => {
     let valid = true;
     if (!email.trim()) {
-      setEmailError('Email address is required.');
+      setEmailError(t('login.email_required'));
       valid = false;
     } else if (!/^[^\s@]+@[^\s@]+$/.test(email)) {
-      setEmailError('Enter a valid email address.');
+      setEmailError(t('login.email_invalid'));
       valid = false;
     } else {
       setEmailError('');
     }
     if (!password) {
-      setPasswordError('Password is required.');
+      setPasswordError(t('login.password_required'));
       valid = false;
     } else if (password.length < 6) {
-      setPasswordError('Password must be at least 6 characters.');
+      setPasswordError(t('login.password_min_length'));
       valid = false;
     } else {
       setPasswordError('');
@@ -59,7 +61,7 @@ export default function LoginPage() {
 
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({}));
-        const message = typeof errorData?.error === 'string' ? errorData.error : 'Invalid credentials';
+        const message = typeof errorData?.error === 'string' ? errorData.error : t('login.invalid_credentials');
         throw new Error(message);
       }
 
@@ -67,16 +69,16 @@ export default function LoginPage() {
         // Token is stored as httpOnly cookie by the server
         router.push('/companies/default/dashboard');
       } else {
-        throw new Error('Login failed');
+        throw new Error(t('login.failed'));
       }
     } catch (err) {
-      let errorMessage = 'Login failed';
+      let errorMessage = t('login.failed');
       if (err instanceof Error) {
-        errorMessage = err.message || 'An error occurred';
+        errorMessage = err.message || t('common.error');
       } else if (typeof err === 'string') {
         errorMessage = err;
       }
-      setError(errorMessage || 'Login failed');
+      setError(errorMessage || t('login.failed'));
     } finally {
       setLoading(false);
     }
@@ -88,7 +90,7 @@ export default function LoginPage() {
         {/* Logo and Title */}
         <div className="aws-login-header">
           <h1>GoGoMail</h1>
-          <p>Admin Console</p>
+          <p>{t('login.subtitle')}</p>
         </div>
 
         {/* Login Card */}
@@ -106,7 +108,7 @@ export default function LoginPage() {
           )}
 
           <div className="aws-login-form">
-            <FormField label="Email Address" errorText={emailError}>
+            <FormField label={t('login.email_label')} errorText={emailError}>
               <Input
                 value={email}
                 onChange={(e) => { setEmail(e.detail.value); setEmailError(''); }}
@@ -119,7 +121,7 @@ export default function LoginPage() {
               />
             </FormField>
 
-            <FormField label="Password" errorText={passwordError}>
+            <FormField label={t('login.password_label')} errorText={passwordError}>
               <Input
                 ref={passwordRef}
                 value={password}
@@ -137,14 +139,14 @@ export default function LoginPage() {
               loading={loading}
               fullWidth
             >
-              {loading ? 'Signing in...' : 'Sign in'}
+              {loading ? t('login.signing_in') : t('login.sign_in')}
             </Button>
           </div>
 
           {/* Demo Credentials */}
           <div className="aws-login-footer">
             <div className="aws-login-divider"></div>
-            <p className="aws-login-hint">Demo Credentials</p>
+            <p className="aws-login-hint">{t('login.demo_credentials')}</p>
             <div className="aws-login-credentials">
               <span>admin@system / admin1234</span>
             </div>
@@ -153,7 +155,7 @@ export default function LoginPage() {
 
         {/* Copyright */}
         <div className="aws-login-copyright">
-          © 2026 GoGoMail Inc. All rights reserved.
+          {t('login.copyright')}
         </div>
       </div>
     </div>

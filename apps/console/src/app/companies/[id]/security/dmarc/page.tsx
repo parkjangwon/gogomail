@@ -115,14 +115,14 @@ export default function DmarcSpfPage() {
         setNotifications([{
           type: passed ? 'success' : 'warning',
           content: passed
-            ? `DNS check passed for ${selectedDomain.label}.`
-            : `DNS issues detected for ${selectedDomain.label}. Check MX, SPF, and DKIM records.`,
+            ? t('pages.dmarc_page.dns_check_passed').replace('{domain}', String(selectedDomain.label))
+            : t('pages.dmarc_page.dns_check_issues').replace('{domain}', String(selectedDomain.label)),
           dismissible: true,
           onDismiss: () => setNotifications([]),
           id: 'dns-check',
         }]);
       } else {
-        setNotifications([{ type: 'error', content: 'DNS check failed — domain may not be configured.', dismissible: true, onDismiss: () => setNotifications([]), id: 'dns-check-err' }]);
+        setNotifications([{ type: 'error', content: t('pages.dmarc_page.dns_check_failed'), dismissible: true, onDismiss: () => setNotifications([]), id: 'dns-check-err' }]);
       }
     } finally {
       setCheckingDns(false);
@@ -198,9 +198,9 @@ export default function DmarcSpfPage() {
                       selectedOption={{ label: policy.dmarc_policy, value: policy.dmarc_policy }}
                       onChange={e => setPolicy(p => ({ ...p, dmarc_policy: e.detail.selectedOption.value ?? 'none' }))}
                       options={[
-                        { label: 'none — Monitor only', value: 'none' },
-                        { label: 'quarantine — Send to spam', value: 'quarantine' },
-                        { label: 'reject — Block delivery', value: 'reject' },
+                        { label: t('pages.dmarc_page.policy_none'), value: 'none' },
+                        { label: t('pages.dmarc_page.policy_quarantine'), value: 'quarantine' },
+                        { label: t('pages.dmarc_page.policy_reject'), value: 'reject' },
                       ]}
                     />
                   </FormField>
@@ -295,10 +295,10 @@ export default function DmarcSpfPage() {
                     selectedOption={{ label: policy.spf_all_mechanism, value: policy.spf_all_mechanism }}
                     onChange={e => setPolicy(p => ({ ...p, spf_all_mechanism: e.detail.selectedOption.value ?? '~all' }))}
                     options={[
-                      { label: '~all — SoftFail (recommended)', value: '~all' },
-                      { label: '-all — HardFail (strict)', value: '-all' },
-                      { label: '?all — Neutral', value: '?all' },
-                      { label: '+all — Pass all (not recommended)', value: '+all' },
+                      { label: t('pages.dmarc_page.spf_softfail'), value: '~all' },
+                      { label: t('pages.dmarc_page.spf_hardfail'), value: '-all' },
+                      { label: t('pages.dmarc_page.spf_neutral'), value: '?all' },
+                      { label: t('pages.dmarc_page.spf_pass_all'), value: '+all' },
                     ]}
                   />
                 </FormField>
@@ -339,7 +339,7 @@ export default function DmarcSpfPage() {
             <Box float="right">
               <SpaceBetween direction="horizontal" size="xs">
                 <Button onClick={handleDnsCheck} loading={checkingDns} iconName="check">
-                  Verify DNS
+                  {t('pages.dmarc_page.verify_dns')}
                 </Button>
                 <Button variant="primary" onClick={handleSave} loading={saving}>
                   {t('pages.dmarc_page.save')}

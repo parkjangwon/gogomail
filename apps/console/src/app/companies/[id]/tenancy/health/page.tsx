@@ -90,8 +90,8 @@ export default function TenantHealthPage() {
       header={
         <Header
           variant="h1"
-          description={health ? `Last checked: ${new Date(health.checked_at).toLocaleString()}` : ''}
-          actions={<Button iconName="refresh" onClick={load} loading={loading}>Refresh</Button>}
+          description={health ? `${t('tenant_health.last_checked')}: ${new Date(health.checked_at).toLocaleString()}` : ''}
+          actions={<Button iconName="refresh" onClick={load} loading={loading}>{t('common.refresh')}</Button>}
         >
           {t('nav.tenant_health')}
         </Header>
@@ -102,79 +102,79 @@ export default function TenantHealthPage() {
 
         {health && (
           <>
-            <Container header={<Header variant="h2">Overall Status</Header>}>
+            <Container header={<Header variant="h2">{t('tenant_health.overall_status')}</Header>}>
               <ColumnLayout columns={2} variant="text-grid">
                 <div>
-                  <Box variant="awsui-key-label">Health</Box>
+                  <Box variant="awsui-key-label">{t('tenant_health.health')}</Box>
                   <StatusIndicator type={statusType(health.status)}>
-                    {health.status.charAt(0).toUpperCase() + health.status.slice(1)}
+                    {t(`tenant_health.status_${health.status}`)}
                   </StatusIndicator>
                 </div>
                 <div>
-                  <Box variant="awsui-key-label">Company</Box>
+                  <Box variant="awsui-key-label">{t('tenant_health.company')}</Box>
                   <Box>{health.company_name}</Box>
                 </div>
               </ColumnLayout>
             </Container>
 
-            <Container header={<Header variant="h2">Domains</Header>}>
+            <Container header={<Header variant="h2">{t('nav.domains')}</Header>}>
               <ColumnLayout columns={3} variant="text-grid">
                 <div>
-                  <Box variant="awsui-key-label">Total Domains</Box>
+                  <Box variant="awsui-key-label">{t('tenant_health.total_domains')}</Box>
                   <Box variant="h2">{health.domain_count}</Box>
                 </div>
                 <div>
-                  <Box variant="awsui-key-label">Active Domains</Box>
+                  <Box variant="awsui-key-label">{t('tenant_health.active_domains')}</Box>
                   <SpaceBetween size="xs" direction="horizontal">
                     <Box variant="h2">{health.active_domains}</Box>
                     {health.active_domains < health.domain_count && (
-                      <Badge color="red">{health.domain_count - health.active_domains} inactive</Badge>
+                      <Badge color="red">{health.domain_count - health.active_domains} {t('tenant_health.inactive')}</Badge>
                     )}
                   </SpaceBetween>
                 </div>
                 <div>
-                  <Box variant="awsui-key-label">Domain Health</Box>
+                  <Box variant="awsui-key-label">{t('tenant_health.domain_health')}</Box>
                   <StatusIndicator type={health.active_domains === health.domain_count ? 'success' : 'warning'}>
-                    {health.active_domains === health.domain_count ? 'All active' : 'Some inactive'}
+                    {health.active_domains === health.domain_count ? t('tenant_health.all_active') : t('tenant_health.some_inactive')}
                   </StatusIndicator>
                 </div>
               </ColumnLayout>
             </Container>
 
-            <Container header={<Header variant="h2">Storage Quota</Header>}>
+            <Container header={<Header variant="h2">{t('tenant_health.storage_quota')}</Header>}>
               <SpaceBetween size="m">
                 <ColumnLayout columns={3} variant="text-grid">
                   <div>
-                    <Box variant="awsui-key-label">Used</Box>
+                    <Box variant="awsui-key-label">{t('tenant_health.used')}</Box>
                     <Box variant="h2">{fmt(health.quota.used_bytes)}</Box>
                   </div>
                   <div>
-                    <Box variant="awsui-key-label">Total Allocated</Box>
+                    <Box variant="awsui-key-label">{t('tenant_health.total_allocated')}</Box>
                     <Box variant="h2">{fmt(health.quota.total_bytes)}</Box>
                   </div>
                   <div>
-                    <Box variant="awsui-key-label">Usage</Box>
+                    <Box variant="awsui-key-label">{t('tenant_health.usage')}</Box>
                     <Badge color={quotaColor(pct)}>{pct.toFixed(1)}%</Badge>
                   </div>
                 </ColumnLayout>
                 <ProgressBar
                   value={pct}
-                  additionalInfo={health.over_allocated ? 'Over-allocated — reduce domain quotas' : undefined}
+                  additionalInfo={health.over_allocated ? t('tenant_health.over_allocated_hint') : undefined}
                   status={pct > 90 ? 'error' : pct > 75 ? 'in-progress' : 'success'}
                 />
               </SpaceBetween>
             </Container>
 
-            <Container header={<Header variant="h2">Integrations</Header>}>
+            <Container header={<Header variant="h2">{t('tenant_health.integrations')}</Header>}>
               <ColumnLayout columns={2} variant="text-grid">
                 <div>
-                  <Box variant="awsui-key-label">Active Webhooks</Box>
+                  <Box variant="awsui-key-label">{t('tenant_health.active_webhooks')}</Box>
                   <Box variant="h2">{health.active_webhooks}</Box>
                 </div>
                 <div>
-                  <Box variant="awsui-key-label">Quota Over-Allocated</Box>
+                  <Box variant="awsui-key-label">{t('tenant_health.quota_over_allocated')}</Box>
                   <StatusIndicator type={health.over_allocated ? 'error' : 'success'}>
-                    {health.over_allocated ? 'Yes — action required' : 'No'}
+                    {health.over_allocated ? t('tenant_health.yes_action_required') : t('tenant_health.no')}
                   </StatusIndicator>
                 </div>
               </ColumnLayout>
