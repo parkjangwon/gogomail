@@ -5142,6 +5142,9 @@ Target outcome:
          afterward.
  1649. POP3 transaction-state unknown-command handling now verifies session
          recovery: unknown commands leave NOOP and STAT usable afterward.
+ 1650. POP3 transaction-state empty-command handling now verifies session
+         recovery: blank command lines return syntax error while NOOP and STAT
+         remain usable afterward.
 
 ## Deferred until backend contracts stabilize
 

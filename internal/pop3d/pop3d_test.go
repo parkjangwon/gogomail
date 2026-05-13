@@ -461,6 +461,25 @@ func TestPOP3TransactionUnknownCommandKeepsSessionUsable(t *testing.T) {
 	}
 }
 
+func TestPOP3TransactionEmptyCommandKeepsSessionUsable(t *testing.T) {
+	_, listener := newTestServer(t)
+	defer listener.Close()
+
+	tp := pop3Conn(t, listener.Addr().String())
+	defer tp.Close()
+
+	pop3Login(t, tp)
+	line := pop3Cmd(t, tp, "-ERR", "")
+	if !strings.Contains(line, "syntax error") {
+		t.Fatalf("expected syntax error response, got: %s", line)
+	}
+	pop3Cmd(t, tp, "+OK", "NOOP")
+	line = pop3Cmd(t, tp, "+OK", "STAT")
+	if !strings.Contains(line, "2 ") {
+		t.Fatalf("expected transaction session to remain usable, got: %s", line)
+	}
+}
+
 func TestPOP3AuthPlainRejectsExtraArguments(t *testing.T) {
 	_, listener := newTestServer(t)
 	defer listener.Close()
