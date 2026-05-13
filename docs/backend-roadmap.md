@@ -5086,6 +5086,9 @@ Target outcome:
  1630. POP3 AUTH LOGIN username invalid-base64 handling now verifies
          authorization-state capability preservation: username parse errors
          leave CAPA and normal login usable afterward.
+ 1631. POP3 AUTH LOGIN password invalid-base64 handling now verifies
+         authorization-state capability preservation: password parse errors
+         leave CAPA and normal login usable afterward.
 
 ## Deferred until backend contracts stabilize
 
