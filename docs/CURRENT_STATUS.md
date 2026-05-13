@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (IMAP subscription name normalization)
+Last updated: 2026-05-14 (IMAP retained subscription case-insensitive unsubscribe)
+
+## IMAP retained subscription case-insensitive unsubscribe (2026-05-14, complete)
+- Postgres coverage now verifies a missing mailbox retained subscription such as `Retired` can be removed with a differently cased name such as `retired`.
+- The regression verifies the retained LSUB entry is fully removed from `ListSubscribedIMAPMailboxes` afterward.
 
 ## IMAP subscription name normalization (2026-05-14, complete)
 - `SubscribeIMAPMailbox` and `UnsubscribeIMAPMailbox` now trim mailbox name/id input before resolving existing mailboxes or retained subscription names.

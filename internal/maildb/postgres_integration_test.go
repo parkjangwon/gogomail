@@ -1703,6 +1703,33 @@ func TestPostgresIMAPMailboxSubscriptionTrimsNames(t *testing.T) {
 	}
 }
 
+func TestPostgresIMAPMailboxSubscriptionUnsubscribesRetainedNameCaseInsensitively(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	db := openMigratedPostgresTestDB(t)
+	seed := seedPostgresMailUser(t, db)
+	repo := NewRepository(db)
+
+	subscription, err := repo.SubscribeIMAPMailbox(ctx, seed.userID, "Retired")
+	if err != nil {
+		t.Fatalf("SubscribeIMAPMailbox returned error: %v", err)
+	}
+	if subscription.Exists || subscription.Name != "Retired" {
+		t.Fatalf("retained subscription = %#v, want non-existing Retired", subscription)
+	}
+	if err := repo.UnsubscribeIMAPMailbox(ctx, seed.userID, "retired"); err != nil {
+		t.Fatalf("UnsubscribeIMAPMailbox returned error: %v", err)
+	}
+	listed, err := repo.ListSubscribedIMAPMailboxes(ctx, seed.userID)
+	if err != nil {
+		t.Fatalf("ListSubscribedIMAPMailboxes returned error: %v", err)
+	}
+	if len(listed) != 0 {
+		t.Fatalf("subscriptions after case-insensitive unsubscribe = %#v, want empty", listed)
+	}
+}
+
 func TestPostgresIMAPMoveMessagesMovesActiveUIDs(t *testing.T) {
 	t.Parallel()
 
