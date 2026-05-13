@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (IMAP single restore fresh UID)
+Last updated: 2026-05-14 (mailbox delete deleted-message guard)
+
+## Mailbox delete deleted-message guard (2026-05-14, complete)
+- `DeleteFolder` now treats any remaining message row, including soft-deleted messages, as folder content before attempting folder deletion.
+- Postgres coverage verifies a folder with only deleted messages returns the clean not-empty error instead of leaking a foreign-key failure after IMAP UID row cleanup.
 
 ## IMAP single restore fresh UID (2026-05-14, complete)
 - IMAP/Postgres coverage now verifies a message restored with `RestoreMessage` gets a fresh UID after delete-time UID row removal instead of reusing the expunged UID value.

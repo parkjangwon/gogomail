@@ -1179,6 +1179,50 @@ INSERT INTO messages (
 	assertMessageAssignedIMAPUIDCount(t, db, seed.userID, seed.inboxID, messageID, 1)
 }
 
+func TestPostgresDeleteFolderRejectsDeletedMessagesWithoutFKError(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	db := openMigratedPostgresTestDB(t)
+	seed := seedPostgresMailUser(t, db)
+	repo := NewRepository(db)
+
+	folder, err := repo.CreateFolder(ctx, CreateFolderRequest{
+		UserID: seed.userID,
+		Name:   "Archive",
+	})
+	if err != nil {
+		t.Fatalf("CreateFolder returned error: %v", err)
+	}
+	var messageID string
+	if err := db.QueryRowContext(ctx, `
+INSERT INTO messages (
+  tenant_id, domain_id, user_id, folder_id, rfc_message_id, subject,
+  from_addr, received_at, size, storage_path
+) VALUES (
+  $1::uuid, $2::uuid, $3::uuid, $4::uuid, '<delete-folder-deleted-message@example.com>',
+  'delete folder deleted message', 'sender@example.net', '2026-05-04T00:00:00Z'::timestamptz,
+  100, 'mail/delete-folder-deleted-message.eml'
+) RETURNING id::text`, seed.companyID, seed.domainID, seed.userID, folder.ID).Scan(&messageID); err != nil {
+		t.Fatalf("insert folder message: %v", err)
+	}
+	if _, err := repo.EnsureIMAPMessageUID(ctx, seed.userID, folder.ID, messageID); err != nil {
+		t.Fatalf("EnsureIMAPMessageUID returned error: %v", err)
+	}
+	if err := repo.DeleteMessage(ctx, seed.userID, messageID); err != nil {
+		t.Fatalf("DeleteMessage returned error: %v", err)
+	}
+	assertMessageAssignedIMAPUIDCount(t, db, seed.userID, folder.ID, messageID, 0)
+
+	err = repo.DeleteFolder(ctx, seed.userID, folder.ID)
+	if err == nil {
+		t.Fatal("DeleteFolder succeeded for folder with deleted message")
+	}
+	if !strings.Contains(err.Error(), "not found or not empty") || strings.Contains(err.Error(), "foreign key") {
+		t.Fatalf("DeleteFolder error = %v, want clean not-empty error without FK leak", err)
+	}
+}
+
 func TestPostgresBulkMoveMessagesRemovesOldIMAPUIDRows(t *testing.T) {
 	t.Parallel()
 
