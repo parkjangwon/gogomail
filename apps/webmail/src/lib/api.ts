@@ -1,41 +1,55 @@
 export interface Folder {
   id: string;
+  parent_id?: string;
   name: string;
   full_path: string;
   type: string;
   system_type?: string;
+  order_index: number;
   total: number;
   unread: number;
   starred: number;
 }
 
+export interface MessageAddress {
+  email: string;
+  address?: string;
+  name?: string;
+}
+
 export interface MessageSummary {
   id: string;
   subject: string;
+  preview: string;
   from_addr: string;
   from_name: string;
   received_at: string;
+  size: number;
+  has_attachment: boolean;
   read: boolean;
   starred: boolean;
-  has_attachment: boolean;
-  preview: string;
+  search_rank?: number;
+  search_highlights?: {
+    subject?: string[];
+    from?: string[];
+    body?: string[];
+  };
   // Thread view optional fields
   thread_id?: string;
   message_count?: number;
   unread_count?: number;
 }
 
-export interface MessageDetail {
-  id: string;
-  subject: string;
-  from_addr: string;
-  from_name: string;
-  to_addrs: { address: string; name?: string }[];
-  cc_addrs?: { address: string; name?: string }[];
-  received_at: string;
+export interface MessageDetail extends MessageSummary {
+  message_id: string;
+  to_addrs: MessageAddress[];
+  cc_addrs: MessageAddress[];
+  bcc_addrs: MessageAddress[];
+  flags: Record<string, unknown>;
+  storage_path: string;
   text_body: string;
   html_body?: string;
-  has_attachment: boolean;
+  attachments?: Attachment[];
 }
 
 type ComposeAddressLike = {
@@ -72,6 +86,8 @@ export interface AuthTokenResponse {
 export interface Attachment {
   id: string;
   message_id: string;
+  upload_id: string;
+  storage_path: string;
   filename: string;
   size: number;
   mime_type: string;
@@ -79,12 +95,13 @@ export interface Attachment {
   created_at: string;
 }
 
-export type ComposeIntent = 'new' | 'reply' | 'reply_all' | 'forward';
+export type ComposeIntent = 'new' | 'reply' | 'forward';
+export type UIComposeIntent = ComposeIntent | 'reply_all';
 
 export interface SendMessageRequest {
-  to: { address: string; name?: string }[];
-  cc?: { address: string; name?: string }[];
-  bcc?: { address: string; name?: string }[];
+  to: ComposeAddressLike[];
+  cc?: ComposeAddressLike[];
+  bcc?: ComposeAddressLike[];
   subject: string;
   text_body: string;
   html_body?: string;
@@ -99,6 +116,7 @@ export interface SendMessageRequest {
 export interface SendMessageResult {
   id: string;
   message_id: string;
+  farm: string;
   send_status: string;
   delivery_status: string;
   bounce_status: string;
@@ -301,9 +319,9 @@ export interface DraftData {
   source_message_id?: string;
   attachment_ids?: string[];
   from?: string;
-  to: { address: string; name?: string }[];
-  cc?: { address: string; name?: string }[];
-  bcc?: { address: string; name?: string }[];
+  to: ComposeAddressLike[];
+  cc?: ComposeAddressLike[];
+  bcc?: ComposeAddressLike[];
   subject: string;
   text_body: string;
   track_opens?: boolean;
@@ -380,7 +398,10 @@ export async function getFolderStats(): Promise<FolderStats[]> {
 
 function formatEml(msg: MessageDetail): string {
   const date = new Date(msg.received_at ?? Date.now()).toUTCString();
-  const to = msg.to_addrs.map((a) => (a.name ? `"${a.name}" <${a.address}>` : a.address)).join(', ');
+  const to = msg.to_addrs.map((a) => {
+    const email = a.email || a.address || '';
+    return a.name ? `"${a.name}" <${email}>` : email;
+  }).join(', ');
   const from = msg.from_name ? `"${msg.from_name}" <${msg.from_addr}>` : msg.from_addr;
   const body = msg.html_body ?? msg.text_body ?? '';
   return [

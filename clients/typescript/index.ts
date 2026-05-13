@@ -5455,8 +5455,14 @@ export type components = {
             address: string;
             display_name: string;
             domain_id: string;
+            /**
+             * Format: password
+             * @description Optional temporary plain password accepted by the admin handler; the server hashes it before persistence and marks the user for password change.
+             */
+            password?: string;
             /** @description Optional pre-hashed local password for SMTP Submission authentication. Supported formats are pbkdf2-sha256, sha256, and explicit plain: development fixtures. */
             password_hash?: string;
+            must_change_password?: boolean;
             /** Format: int64 */
             quota_limit?: number;
             username: string;

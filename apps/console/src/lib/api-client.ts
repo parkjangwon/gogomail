@@ -46,6 +46,10 @@ export async function apiClient<T>(
     );
   }
 
+  if (response.status === 204) {
+    return undefined as T;
+  }
+
   return response.json();
 }
 

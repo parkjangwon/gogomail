@@ -7,12 +7,35 @@ export interface Domain {
   id: string;
   company_id: string;
   name: string;
+  name_ace: string;
   status: 'active' | 'suspended' | 'disabled';
-  is_primary: boolean;
+  quota_used: number;
+  quota_limit?: number;
+  quota_remaining: number;
+  default_user_quota?: number;
+  allocated_user_quota: number;
+  allocatable_user_quota: number;
+  over_allocated: boolean;
+  last_dns_check_status?: 'ok' | 'missing' | 'mismatch' | 'error';
+  last_dns_checked_at?: string;
   created_at: string;
-  dkim_configured: boolean;
-  spf_configured: boolean;
-  dmarc_configured: boolean;
+}
+
+interface DomainListEnvelope {
+  domains: Domain[];
+}
+
+interface DomainEnvelope {
+  domain: Domain;
+}
+
+export interface CreateDomainInput {
+  company_id: string;
+  name: string;
+  name_ace?: string;
+  quota_limit?: number;
+  default_user_quota?: number;
+  quota_source?: 'default' | 'custom';
 }
 
 export function useDomains(companyId: string | undefined) {
@@ -20,8 +43,10 @@ export function useDomains(companyId: string | undefined) {
     queryKey: ['domains', companyId],
     queryFn: async () => {
       if (!companyId) return [];
-      const res = await api.get(`/companies/${companyId}/domains`) as any;
-      return (res.data?.domains || []) as Domain[];
+      const res = await api.get<DomainListEnvelope>('/domains', {
+        params: { company_id: companyId, limit: 200 },
+      });
+      return res.domains;
     },
     enabled: !!companyId,
   });
@@ -35,10 +60,13 @@ export function useCreateDomain() {
       domain,
     }: {
       companyId: string;
-      domain: Omit<Domain, 'id' | 'created_at'>;
+      domain: Omit<CreateDomainInput, 'company_id'>;
     }) => {
-      const res = await api.post(`/companies/${companyId}/domains`, domain) as any;
-      return res.data as Domain;
+      const res = await api.post<DomainEnvelope>('/domains', {
+        ...domain,
+        company_id: companyId,
+      });
+      return res.domain;
     },
     onSuccess: (_, { companyId }) => {
       queryClient.invalidateQueries({ queryKey: ['domains', companyId] });
@@ -49,17 +77,11 @@ export function useCreateDomain() {
 export function useDeleteDomain() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({
-      companyId,
-      domainId,
-    }: {
+    mutationFn: async ({ domainId }: {
       companyId: string;
       domainId: string;
     }) => {
-      const res = await api.delete(
-        `/companies/${companyId}/domains/${domainId}`
-      ) as any;
-      return res.data;
+      return api.delete<void>(`/domains/${domainId}`);
     },
     onSuccess: (_, { companyId }) => {
       queryClient.invalidateQueries({ queryKey: ['domains', companyId] });

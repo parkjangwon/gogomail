@@ -120,14 +120,20 @@ export default function UsersPage() {
   const fetchUsers = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/admin/users?limit=200', { credentials: 'include' });
-      if (res.ok) {
-        const data = await res.json();
-        setUsers((data.users || []).map((u: { status?: unknown }) => ({
+      const domainRes = await fetch(`/api/admin/domains?company_id=${encodeURIComponent(companyId)}&limit=200`, { credentials: 'include' });
+      if (!domainRes.ok) return;
+      const domainData = await domainRes.json();
+      const companyDomains: Domain[] = domainData.domains || [];
+      const userLists = await Promise.all(
+        companyDomains.map((domain) =>
+          fetch(`/api/admin/users?domain_id=${encodeURIComponent(domain.id)}&limit=200`, { credentials: 'include' })
+            .then((res) => res.ok ? res.json() : { users: [] })
+        )
+      );
+      setUsers(userLists.flatMap((data: { users?: User[] }) => data.users || []).map((u: User) => ({
           ...u,
           status: normalizeUserStatus(u.status),
         })));
-      }
     } catch (e) {
       console.error('Failed to fetch users:', e);
     } finally {
@@ -137,7 +143,7 @@ export default function UsersPage() {
 
   const fetchDomains = async () => {
     try {
-      const res = await fetch('/api/admin/domains?limit=100', { credentials: 'include' });
+      const res = await fetch(`/api/admin/domains?company_id=${encodeURIComponent(companyId)}&limit=200`, { credentials: 'include' });
       if (res.ok) {
         const data = await res.json();
         setDomains(data.domains || []);
@@ -248,10 +254,11 @@ export default function UsersPage() {
         credentials: 'include',
       });
       if (editForm.role !== editUser.role) {
-        await fetch(`/admin/v1/users/${editUser.id}/role`, {
+        await fetch(`/api/admin/users/${editUser.id}/role`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ role: editForm.role }),
+          credentials: 'include',
         });
       }
       setEditUser(null);
@@ -331,7 +338,7 @@ export default function UsersPage() {
     if (selectedUsers.length === 0) return;
     setBulkLoading(true);
     try {
-      const res = await fetch('/admin/v1/users/bulk', {
+      const res = await fetch('/api/admin/users/bulk', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ids: selectedUsers.map(u => u.id), action }),

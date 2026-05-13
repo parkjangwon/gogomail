@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { deleteMessage, restoreMessage, bulkRestoreMessages, createFolder, renameFolder, deleteFolder, starMessage, markRead, moveMessage, bulkMarkRead, searchMessages, sendMessage, listThreads, listThreadMessages, ComposeIntent, MessageDetail, MessageSummary, ThreadSummary } from '@/lib/api';
+import { deleteMessage, restoreMessage, bulkRestoreMessages, createFolder, renameFolder, deleteFolder, starMessage, markRead, moveMessage, bulkMarkRead, searchMessages, sendMessage, listThreads, listThreadMessages, UIComposeIntent, MessageAddress, MessageDetail, MessageSummary, ThreadSummary } from '@/lib/api';
 import { AdvancedFilters, VIRTUAL_ALL, VIRTUAL_STARRED, VIRTUAL_ATTACHMENTS, VIRTUAL_UNREAD, VIRTUAL_SNOOZED, VIRTUAL_PINNED, VIRTUAL_IMPORTANT, VIRTUAL_TASKS } from '@/components/Sidebar';
 import { useMailList } from '@/hooks/useMailList';
 import { useMessage } from '@/hooks/useMessage';
@@ -30,7 +30,7 @@ export default function MailPage() {
   const [activeFolderId, setActiveFolderId] = useState('');
   const [selectedMessageId, setSelectedMessageId] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState('');
-  type ComposeContext = { intent: ComposeIntent; source?: MessageDetail; draft?: MessageDetail; to?: string; initialSubject?: string; initialBody?: string };
+  type ComposeContext = { intent: UIComposeIntent; source?: MessageDetail; draft?: MessageDetail; to?: string; initialSubject?: string; initialBody?: string };
   const [composeContext, setComposeContext] = useState<ComposeContext | null>(null);
   const openCompose = useCallback((ctx: ComposeContext) => setComposeContext(ctx), []);
   const closeCompose = useCallback(() => setComposeContext(null), []);
@@ -1269,6 +1269,7 @@ export default function MailPage() {
                     from_addr: t.latest_from_addr,
                     from_name: t.latest_from_addr,
                     received_at: t.latest_at,
+                    size: 0,
                     read: t.unread_count === 0,
                     starred: t.starred,
                     has_attachment: t.has_attachment,
@@ -1463,7 +1464,8 @@ export default function MailPage() {
                   const body = msg.html_body
                     ? `<div>${msg.html_body}</div>`
                     : (msg.text_body || '').split('\n').map((l) => `<p style="margin:0 0 4px">${l || '&nbsp;'}</p>`).join('');
-                  w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${msg.subject || '(제목 없음)'}</title><style>body{font-family:-apple-system,sans-serif;font-size:14px;color:#111;max-width:720px;margin:0 auto;padding:24px}h1{font-size:20px;margin:0 0 12px}table{border-collapse:collapse;margin-bottom:16px;font-size:13px}td{padding:3px 8px 3px 0;vertical-align:top}td:first-child{color:#555;white-space:nowrap;min-width:80px}hr{border:none;border-top:1px solid #ddd;margin:16px 0}@media print{body{padding:0}}</style></head><body><h1>${msg.subject || '(제목 없음)'}</h1><table><tr><td>보낸 사람</td><td><b>${msg.from_name ? `${msg.from_name} &lt;${msg.from_addr}&gt;` : msg.from_addr}</b></td></tr><tr><td>받는 사람</td><td>${(msg.to_addrs ?? []).map((a) => a.name ? `${a.name} &lt;${a.address}&gt;` : a.address).join(', ')}</td></tr><tr><td>날짜</td><td>${date}</td></tr></table><hr>${body}</body></html>`);
+                  const emailOf = (a: MessageAddress) => a.email || a.address || '';
+                  w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${msg.subject || '(제목 없음)'}</title><style>body{font-family:-apple-system,sans-serif;font-size:14px;color:#111;max-width:720px;margin:0 auto;padding:24px}h1{font-size:20px;margin:0 0 12px}table{border-collapse:collapse;margin-bottom:16px;font-size:13px}td{padding:3px 8px 3px 0;vertical-align:top}td:first-child{color:#555;white-space:nowrap;min-width:80px}hr{border:none;border-top:1px solid #ddd;margin:16px 0}@media print{body{padding:0}}</style></head><body><h1>${msg.subject || '(제목 없음)'}</h1><table><tr><td>보낸 사람</td><td><b>${msg.from_name ? `${msg.from_name} &lt;${msg.from_addr}&gt;` : msg.from_addr}</b></td></tr><tr><td>받는 사람</td><td>${(msg.to_addrs ?? []).map((a) => a.name ? `${a.name} &lt;${emailOf(a)}&gt;` : emailOf(a)).join(', ')}</td></tr><tr><td>날짜</td><td>${date}</td></tr></table><hr>${body}</body></html>`);
                   w.document.close();
                   w.onload = () => w.print();
                 } : undefined}

@@ -8,7 +8,7 @@ import Underline from '@tiptap/extension-underline';
 import TextAlign from '@tiptap/extension-text-align';
 import Placeholder from '@tiptap/extension-placeholder';
 import Image from '@tiptap/extension-image';
-import { sendMessage, saveDraft, updateDraft, deleteDraft, sendDraft, uploadAttachment, attachDriveFileToEmail, listDriveNodes, listUserAddresses, DriveNode, ComposeIntent, MessageDetail, SendMessageRequest, SendMessageResult, UserAddressEntry } from '@/lib/api';
+import { sendMessage, saveDraft, updateDraft, deleteDraft, sendDraft, uploadAttachment, attachDriveFileToEmail, listDriveNodes, listUserAddresses, DriveNode, ComposeIntent, UIComposeIntent, MessageAddress, MessageDetail, SendMessageRequest, SendMessageResult, UserAddressEntry } from '@/lib/api';
 import { composeCloseSaveButtonAriaLabel } from '@/lib/composeCloseSaveButtonAriaLabel';
 import { composeCloseSaveButtonLabel } from '@/lib/composeCloseSaveButtonLabel';
 import { composeCloseSavePrompt } from '@/lib/composeCloseSavePrompt';
@@ -47,7 +47,7 @@ interface EmailTemplate {
 
 interface ComposeModalProps {
   onClose: () => void;
-  intent?: ComposeIntent;
+  intent?: UIComposeIntent;
   sourceMessage?: MessageDetail;
   draftMessage?: MessageDetail;
   userEmail?: string;
@@ -106,8 +106,12 @@ function invalidRecipientAddresses(...values: string[]): string[] {
     .filter((address) => !isValidEmailAddress(address));
 }
 
-function backendComposeIntent(intent: ComposeIntent): ComposeIntent {
+function backendComposeIntent(intent: UIComposeIntent): ComposeIntent {
   return intent === 'reply_all' ? 'reply' : intent;
+}
+
+function emailOf(addr: MessageAddress): string {
+  return addr.email || addr.address || '';
 }
 
 function buildQuoteHTML(intent: string, source: MessageDetail): string {
@@ -166,7 +170,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
     : '';
   const replyCc = intent === 'reply_all' && sourceMessage
     ? (sourceMessage.to_addrs ?? [])
-        .map((a) => a.address)
+        .map(emailOf)
         .filter((addr) => !userEmail || addr.toLowerCase() !== userEmail.toLowerCase())
         .join(', ')
     : '';
@@ -176,8 +180,8 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
       : `Re: ${sourceMessage.subject}`
     : '';
 
-  const draftTo = draftMessage ? (draftMessage.to_addrs ?? []).map((a) => a.address).join(', ') : '';
-  const draftCc = draftMessage ? (draftMessage.cc_addrs ?? []).map((a) => a.address).join(', ') : '';
+  const draftTo = draftMessage ? (draftMessage.to_addrs ?? []).map(emailOf).join(', ') : '';
+  const draftCc = draftMessage ? (draftMessage.cc_addrs ?? []).map(emailOf).join(', ') : '';
 
   const [to, setTo] = useState(draftMessage ? draftTo : (initialTo ?? replyTo));
   const [cc, setCc] = useState(draftMessage ? draftCc : replyCc);

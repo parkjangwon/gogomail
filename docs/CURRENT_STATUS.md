@@ -5789,3 +5789,10 @@ Next focus areas:
 - Drive breadcrumb(상단 경로) 항목을 드래그 드롭 대상에서 제외하지 않고, 내부 노드 드래그 시 해당 경로(현재 폴더의 상위 경로 포함)로 직접 이동할 수 있게 동작을 보강했다.
 - 브레드크럼의 각 경로 항목이 폴더 이동 목표가 되면 이동 대상 하이라이트가 표시되도록 했고, 폴더 카드 기준 이동 동작과 동일하게 다중 선택 노드 이동도 처리한다.
 - 브레드크럼 대상으로 외부 파일을 드롭하면 해당 경로에 파일 업로드가 동작하도록 유지했다.
+
+## Admin/webmail contract alignment audit (2026-05-13)
+- Webmail message/folder/attachment client types now include the required OpenAPI fields (`order_index`, message `size`, RFC `message_id`, `flags`, `storage_path`, and attachment storage metadata) while keeping UI-only `reply_all` normalized to backend `reply` before send/draft requests.
+- Console domain, role, and user hooks now use the current Admin API envelopes and endpoints (`/domains`, `/roles`, `/users`) instead of stale `/companies/{id}/domains|roles` or generic user update/delete routes that are not in the backend contract.
+- Company user management now scopes list loading by the company's domains and uses the proxied Admin API path for role and bulk status changes, avoiding cross-tenant user mixing in the console.
+- Domain DNS re-check actions now use the documented `GET /admin/v1/domains/{id}/dns-check` contract.
+- The Admin user-create contract now documents the temporary plain `password` field that the backend hashes before persistence, alongside the existing `password_hash` advanced path.
