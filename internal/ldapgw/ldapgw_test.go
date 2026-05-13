@@ -71,6 +71,32 @@ func TestIsReadOnlyOperation(t *testing.T) {
 	}
 }
 
+func TestEncodeSearchResultEntryUsesApplicationPayloadDirectly(t *testing.T) {
+	pdu, err := encodeSearchResultEntry(7, "uid=alice,ou=users,dc=example,dc=com", map[string][]string{
+		"cn": {"Alice"},
+	})
+	if err != nil {
+		t.Fatalf("encodeSearchResultEntry returned error: %v", err)
+	}
+	_, opTag, opData, err := decodeLDAPPacket(pdu)
+	if err != nil {
+		t.Fatalf("decodeLDAPPacket returned error: %v", err)
+	}
+	if opTag != opSearchResultEntry {
+		t.Fatalf("opTag = %d, want %d", opTag, opSearchResultEntry)
+	}
+	if len(opData) == 0 || opData[0] != tagOctetString {
+		t.Fatalf("SearchResultEntry payload starts with 0x%02x, want LDAPDN octet string", opData[0])
+	}
+	dn, _, err := decodeOctetString(opData)
+	if err != nil {
+		t.Fatalf("decode entry DN returned error: %v", err)
+	}
+	if dn != "uid=alice,ou=users,dc=example,dc=com" {
+		t.Fatalf("entry DN = %q", dn)
+	}
+}
+
 func TestEscapeLDAPValue(t *testing.T) {
 	tests := []struct {
 		input    string
