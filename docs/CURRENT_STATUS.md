@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (CalDAV scheduling persistence guard)
+Last updated: 2026-05-14 (CalDAV sync-token retention hardening)
+
+## CalDAV sync-token retention hardening (2026-05-14, complete)
+- CalDAV sync change pruning now explicitly excludes the current `caldav_calendars.sync_token` from both dry-run candidate counts and delete candidates.
+- The CalDAV retention guard now matches the CardDAV behavior, keeping the latest collection sync marker available after cleanup.
 
 ## CalDAV scheduling persistence guard (2026-05-14, complete)
 - CalDAV repository validation tests now explicitly reject `METHOD`-bearing VCALENDAR bodies at the `UpsertObject` storage boundary.

@@ -1433,6 +1433,12 @@ WITH candidates AS (
       WHERE newer.calendar_id = c.calendar_id
         AND newer.id > c.id
     )
+    AND NOT EXISTS (
+      SELECT 1
+      FROM caldav_calendars cal
+      WHERE cal.id = c.calendar_id
+        AND cal.sync_token = c.sync_token
+    )
   ORDER BY c.id ASC
   LIMIT $4
 )
@@ -1454,6 +1460,12 @@ WITH candidates AS (
       FROM caldav_calendar_sync_changes newer
       WHERE newer.calendar_id = c.calendar_id
         AND newer.id > c.id
+    )
+    AND NOT EXISTS (
+      SELECT 1
+      FROM caldav_calendars cal
+      WHERE cal.id = c.calendar_id
+        AND cal.sync_token = c.sync_token
     )
   ORDER BY c.id ASC
   LIMIT $4
