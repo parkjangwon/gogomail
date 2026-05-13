@@ -6158,3 +6158,6 @@ Target outcome:
 1722. SMTP submission invalid credential event isolation is now covered:
       invalid AUTH credentials emit no authenticated hook events while still
       recording a rejected auth metric.
+1723. SMTP submission malformed AUTH PLAIN payload isolation is now covered:
+      parser-level failures leave the session unauthenticated, emit no
+      authenticated hook events, and keep `MAIL FROM` behind AUTH.

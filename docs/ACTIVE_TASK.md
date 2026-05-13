@@ -1,12 +1,13 @@
 # ACTIVE_TASK
 
-## TASK-449: SMTP submission invalid credentials event isolation audit
+## TASK-450: SMTP submission malformed auth payload isolation audit
 
 ### 배경
 
-Invalid SMTP submission credentials must fail before any authenticated hook event is emitted. This
-keeps audit/logging extensions from observing unauthenticated identities while still recording the
-rejected auth metric for operational visibility.
+Malformed SMTP submission AUTH PLAIN payloads fail inside the SASL parser before the authenticator
+callback runs. Such malformed payloads must not authenticate the session and must not emit
+authenticated hook events, so downstream audit/logging extensions never observe a principal for a
+parse-failed AUTH attempt.
 
 ### 구현 대상
 
@@ -17,13 +18,14 @@ rejected auth metric for operational visibility.
 
 ### 완료 조건
 
-- [x] invalid SMTP submission credentials가 `ErrAuthFailed`로 거절되는지 검증한다.
-- [x] invalid credentials 거절 경로에서 auth hook event가 하나도 방출되지 않는지 검증한다.
-- [x] invalid credentials 거절 경로에서 rejected auth metric은 기록되는지 검증한다.
-- [x] `go test -count=1 ./internal/smtp -run TestSubmissionInvalidCredentialsDoNotEmitAuthHook` 통과.
+- [x] malformed SMTP submission AUTH PLAIN payload가 오류를 반환하는지 검증한다.
+- [x] malformed payload 이후 session user가 빈 상태로 남는지 검증한다.
+- [x] malformed payload 거절 경로에서 auth hook event가 하나도 방출되지 않는지 검증한다.
+- [x] malformed payload 이후 `MAIL FROM`이 `ErrAuthRequired`를 반환하는지 검증한다.
+- [x] `go test -count=1 ./internal/smtp -run TestSubmissionMalformedAuthPayloadLeavesSessionUnauthenticated` 통과.
 - [x] `go test ./...` 통과.
 - [x] 개발 문서를 최신 상태로 갱신한다.
 
 ### 다음 태스크
 
-TASK-450: SMTP submission malformed auth payload isolation audit
+TASK-451: SMTP submission unsupported auth mechanism audit
