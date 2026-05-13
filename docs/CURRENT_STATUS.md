@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (IMAP bulk thread move/delete stale-row)
+Last updated: 2026-05-14 (IMAP bulk restore fresh UID)
+
+## IMAP bulk restore fresh UID (2026-05-14, complete)
+- IMAP/Postgres coverage now verifies messages restored with `BulkRestoreMessages` get fresh UIDs after delete-time UID row removal instead of reusing expunged UID values.
+- The regression also verifies `BulkRestoreThreads` gives every restored thread message a fresh UID above the previous mailbox max UID.
 
 ## IMAP bulk thread move/delete stale-row (2026-05-14, complete)
 - IMAP/Postgres coverage now verifies `BulkMoveThreads` removes source mailbox `imap_message_uid` rows for every message in a moved thread and rejects stale old-mailbox UID reallocation.

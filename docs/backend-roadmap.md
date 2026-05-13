@@ -6090,3 +6090,7 @@ Target outcome:
      message before destination reassignment, and `BulkDeleteThreads` removes
      assigned UID rows for every deleted thread message before rejecting later
      reallocation.
+1705. IMAP bulk restore fresh UID behavior is now covered:
+     `BulkRestoreMessages` and `BulkRestoreThreads` restore deleted messages
+     without reusing expunged UID values; subsequent IMAP UID assignment must
+     allocate values above the previous mailbox max UID.
