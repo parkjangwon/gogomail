@@ -310,6 +310,9 @@ func decodeLDAPPacketWithControls(pdu []byte) (messageID int, opTag int, opData 
 	if len(msgIDRest) < msgIDLen {
 		return 0, 0, nil, nil, fmt.Errorf("messageID data too short")
 	}
+	if msgIDLen > 5 {
+		return 0, 0, nil, nil, fmt.Errorf("messageID too long")
+	}
 	var v int64
 	if msgIDLen > 0 && msgIDRest[0]&0x80 != 0 {
 		v = -1

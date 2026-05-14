@@ -121,6 +121,7 @@ func TestDecodeLDAPPacketRejectsInvalidMessageID(t *testing.T) {
 		{name: "zero", messageID: []byte{tagInteger, 0x01, 0x00}},
 		{name: "negative", messageID: []byte{tagInteger, 0x01, 0xff}},
 		{name: "above-maxInt", messageID: []byte{tagInteger, 0x05, 0x00, 0x80, 0x00, 0x00, 0x00}},
+		{name: "too-long", messageID: []byte{tagInteger, 0x09, 0x00, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			op := []byte{byte(opUnbindRequest), 0x00}
