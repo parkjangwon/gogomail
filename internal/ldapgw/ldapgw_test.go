@@ -1,6 +1,7 @@
 package ldapgw
 
 import (
+	"strings"
 	"testing"
 )
 
@@ -109,6 +110,25 @@ func TestEncodeLDAPResponsePreservesLargeMessageID(t *testing.T) {
 	}
 	if got != messageID {
 		t.Fatalf("messageID = %d, want %d", got, messageID)
+	}
+}
+
+func TestEncodeOctetStringUsesLongFormLength(t *testing.T) {
+	value := strings.Repeat("x", 300)
+	encoded := encodeOctetString(value)
+	if len(encoded) < 4 || encoded[0] != tagOctetString || encoded[1] != 0x82 {
+		prefixLen := len(encoded)
+		if prefixLen > 4 {
+			prefixLen = 4
+		}
+		t.Fatalf("encoded octet string prefix = %x, want long-form length", encoded[:prefixLen])
+	}
+	got, rest, err := decodeOctetString(encoded)
+	if err != nil {
+		t.Fatalf("decodeOctetString returned error: %v", err)
+	}
+	if got != value || len(rest) != 0 {
+		t.Fatalf("decodeOctetString = len %d rest %d, want len %d rest 0", len(got), len(rest), len(value))
 	}
 }
 
