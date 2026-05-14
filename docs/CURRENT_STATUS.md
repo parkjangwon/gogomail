@@ -29,6 +29,7 @@ Last updated: 2026-05-14 (LDAP gateway StartTLS/LDAPS and discovery hardening)
 - LDAP BER length decoding now rejects indefinite-length encodings instead of treating them as zero-length values, preserving the definite-length envelope expected by LDAP clients and servers.
 - LDAP BER length decoding now rejects overlong length-of-length fields and element lengths above the 16 MB safety cap before allocating or slicing payloads.
 - LDAPMessage control parsing now rejects trailing bytes after the optional controls wrapper instead of silently ignoring data beyond the RFC 4511 envelope.
+- LDAP control decoding now validates `controlType` as a numeric LDAPOID, rejecting empty, descriptor-style, or malformed dotted strings before control dispatch.
 - LDAP entries and filter extraction now include common Active Directory-style compatibility aliases (`name`, `sAMAccountName`, `userPrincipalName`) mapped from existing principal names, IDs, and primary email addresses.
 - LDAP user entries now expose Exchange/AD-style mail aliases (`mailNickname`, `proxyAddresses`) and accept those attributes in directory filter extraction.
 - LDAP principal entries now expose additional AD-style identity attributes (`distinguishedName`, binary deterministic `objectGUID`, binary deterministic `objectSid`, `objectCategory`) for clients that key cache/display behavior on those attributes.
