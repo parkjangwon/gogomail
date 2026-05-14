@@ -1773,6 +1773,60 @@ func TestLDAPServerSimplePagedResultsControl(t *testing.T) {
 	}
 }
 
+func TestLDAPServerPagedResultsFetchesEnoughCandidatesForPostFilter(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+
+	dir := newFakeDirectoryQuerier()
+	for i := 1; i <= 5; i++ {
+		uid := fmt.Sprintf("user%d", i)
+		mail := uid + "@example.com"
+		if i >= 4 {
+			mail = "match" + fmt.Sprint(i) + "@example.com"
+		}
+		dir.addPrincipal(PrincipalEntry{
+			DN:          fmt.Sprintf("uid=%s,ou=users,dc=example,dc=com", uid),
+			CN:          uid,
+			Mail:        mail,
+			UID:         uid,
+			DisplayName: "User " + fmt.Sprint(i),
+		})
+	}
+	auth := newFakeLDAPAuth()
+	srv := NewServer(ln, auth, dir)
+	go srv.Serve()
+	defer srv.Close()
+
+	conn, err := net.Dial("tcp", ln.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	bindTestConnection(t, conn, auth)
+
+	filter := buildOrFilter(
+		buildEqualityFilter("mail", "match4@example.com"),
+		buildEqualityFilter("mail", "match5@example.com"),
+	)
+	req := buildLDAPPacketWithControls(38, opSearchRequest,
+		buildSearchRequest("dc=example,dc=com", scopeWholeSubtree, filter),
+		[]control{buildPagedResultsControl(1, "")},
+	)
+	if err := sendPDU(conn, req); err != nil {
+		t.Fatal(err)
+	}
+	dns, controls := readSearchDNsUntilDone(t, conn)
+	if len(dns) != 1 || dns[0] != "uid=user4,ou=users,dc=example,dc=com" {
+		t.Fatalf("first sparse paged result DNs = %#v, want user4", dns)
+	}
+	if cookie := pagedResponseCookie(t, controls); cookie != "1" {
+		t.Fatalf("first sparse paged cookie = %q, want 1", cookie)
+	}
+}
+
 func TestLDAPServerServerSideSortControl(t *testing.T) {
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
