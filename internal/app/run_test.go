@@ -171,6 +171,29 @@ func TestLDAPPrincipalKindIDDNUsesKindSpecificSubtrees(t *testing.T) {
 	}
 }
 
+func TestLDAPShouldExpandGroupMembersOnlyWhenRequested(t *testing.T) {
+	t.Parallel()
+
+	if !ldapShouldExpandGroupMembers(nil) {
+		t.Fatal("empty attrs should expand default user attributes")
+	}
+	if !ldapShouldExpandGroupMembers([]string{"cn", "member"}) {
+		t.Fatal("explicit member attr should expand group members")
+	}
+	if !ldapShouldExpandGroupMembers([]string{"*"}) {
+		t.Fatal("* selector should expand group members")
+	}
+	if ldapShouldExpandGroupMembers([]string{"cn", "displayName"}) {
+		t.Fatal("narrow non-member attrs should not expand group members")
+	}
+	if ldapShouldExpandGroupMembers([]string{"+"}) {
+		t.Fatal("+ operational selector should not expand group members")
+	}
+	if ldapShouldExpandGroupMembers([]string{"1.1"}) {
+		t.Fatal("1.1 no-attrs selector should not expand group members")
+	}
+}
+
 func TestLDAPPrincipalFromDNUsesKindSpecificSubtrees(t *testing.T) {
 	t.Parallel()
 
