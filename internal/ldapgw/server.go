@@ -1646,7 +1646,8 @@ func encodeOctetStringBytes(value []byte) []byte {
 func isSupportedControl(controlType string) bool {
 	switch strings.TrimSpace(controlType) {
 	case controlManageDsaIT, controlPagedResults, controlServerSideSortRequest, controlVirtualListViewRequest, controlAssertion, controlMatchedValues,
-		controlDomainScope, controlDontUseCopy, controlDontUseCopyOpenLDAP, controlSubentries, controlSyncRequest, controlProxiedAuthorization:
+		controlDomainScope, controlDontUseCopy, controlDontUseCopyOpenLDAP, controlSubentries, controlSyncRequest, controlProxiedAuthorization,
+		controlRelax, controlNoOp, controlPreRead, controlPostRead, controlPasswordPolicy, controlSessionTracking:
 		return true
 	default:
 		return false
@@ -1670,6 +1671,12 @@ const (
 	controlSyncState               = "1.3.6.1.4.1.4203.1.9.1.2"
 	controlSyncDone                = "1.3.6.1.4.1.4203.1.9.1.3"
 	controlProxiedAuthorization    = "2.16.840.1.113730.3.4.18"
+	controlRelax                   = "1.3.6.1.4.1.4203.666.5.12"
+	controlNoOp                    = "1.3.6.1.4.1.4203.666.5.2"
+	controlPreRead                 = "1.3.6.1.1.13.1"
+	controlPostRead                = "1.3.6.1.1.13.2"
+	controlPasswordPolicy          = "1.3.6.1.4.1.42.2.27.8.5.1"
+	controlSessionTracking         = "1.3.6.1.4.1.21008.108.63.1"
 	syncModeRefreshOnly            = 1
 	syncModeRefreshAndPersist      = 3
 	syncStateAdd                   = 1
@@ -1935,7 +1942,7 @@ func rootDSEAttributes(namingContexts []string, startTLSEnabled bool) map[string
 		"namingContexts":       namingContexts,
 		"subschemaSubentry":    {"cn=Subschema"},
 		"supportedLDAPVersion": {"3"},
-		"supportedControl":     {controlManageDsaIT, controlPagedResults, controlServerSideSortRequest, controlVirtualListViewRequest, controlAssertion, controlMatchedValues, controlDomainScope, controlDontUseCopy, controlDontUseCopyOpenLDAP, controlSubentries, controlSyncRequest, controlProxiedAuthorization},
+		"supportedControl":     {controlManageDsaIT, controlPagedResults, controlServerSideSortRequest, controlVirtualListViewRequest, controlAssertion, controlMatchedValues, controlDomainScope, controlDontUseCopy, controlDontUseCopyOpenLDAP, controlSubentries, controlSyncRequest, controlProxiedAuthorization, controlRelax, controlNoOp, controlPreRead, controlPostRead, controlPasswordPolicy, controlSessionTracking},
 		"supportedExtension":   {whoAmIOID},
 		"vendorName":           {"gogomail"},
 	}

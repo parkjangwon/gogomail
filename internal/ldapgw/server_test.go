@@ -1227,6 +1227,47 @@ func TestLDAPServerAdditionalSearchControls(t *testing.T) {
 	}
 }
 
+func TestLDAPServerAdditionalGeneralControls(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+
+	dir := newFakeDirectoryQuerier()
+	dir.addPrincipal(PrincipalEntry{DN: "uid=alice,ou=users,dc=example,dc=com", Kind: "user", CN: "Alice", UID: "alice", DisplayName: "Alice"})
+	auth := newFakeLDAPAuth()
+	srv := NewServer(ln, auth, dir)
+	go srv.Serve()
+	defer srv.Close()
+
+	conn, err := net.Dial("tcp", ln.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	bindTestConnection(t, conn, auth)
+
+	req := buildLDAPPacketWithControls(21, opSearchRequest,
+		buildSearchRequestWithAttrs("ou=users,dc=example,dc=com", scopeWholeSubtree, buildEqualityFilter("objectClass", "person"), "cn"),
+		[]control{
+			{Type: controlRelax, Critical: true},
+			{Type: controlNoOp, Critical: true},
+			{Type: controlPreRead, Critical: true},
+			{Type: controlPostRead, Critical: true},
+			{Type: controlPasswordPolicy, Critical: true},
+			{Type: controlSessionTracking, Critical: true},
+		},
+	)
+	if err := sendPDU(conn, req); err != nil {
+		t.Fatal(err)
+	}
+	entries, _ := readSearchUntilDone(t, conn)
+	if entries != 1 {
+		t.Fatalf("additional general controls entries = %d, want 1", entries)
+	}
+}
+
 func TestLDAPServerSyncRefreshOnlyControl(t *testing.T) {
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
@@ -1888,6 +1929,51 @@ func TestLDAPServerOpenLDAPProxiedAuthorizationCompatibility(t *testing.T) {
 	if !strings.Contains(output, "dn: uid=alice,ou=users,dc=example,dc=com") ||
 		!strings.Contains(output, "cn: Alice") {
 		t.Fatalf("ldapsearch proxied authorization output missing user:\n%s", output)
+	}
+}
+
+func TestLDAPServerOpenLDAPAdditionalGeneralControlsCompatibility(t *testing.T) {
+	ldapsearch, err := exec.LookPath("ldapsearch")
+	if err != nil {
+		t.Skip("ldapsearch is not installed")
+	}
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+
+	bindDN := "uid=alice,ou=users,dc=example,dc=com"
+	auth := newFakeLDAPAuth()
+	auth.addUser(bindDN, "secret")
+	dir := newFakeDirectoryQuerier()
+	dir.addPrincipal(PrincipalEntry{DN: bindDN, Kind: "user", CN: "Alice", UID: "alice", DisplayName: "Alice"})
+	srv := NewServer(ln, auth, dir)
+	go srv.Serve()
+	defer srv.Close()
+
+	cmd := exec.Command(ldapsearch,
+		"-x",
+		"-H", "ldap://"+ln.Addr().String(),
+		"-D", bindDN,
+		"-w", "secret",
+		"-e", "!relax",
+		"-e", "ppolicy",
+		"-e", "sessiontracking",
+		"-e", "!preread=cn",
+		"-e", "!postread=cn",
+		"-b", "ou=users,dc=example,dc=com",
+		"(objectClass=person)",
+		"cn",
+	)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("ldapsearch additional general controls failed: %v\n%s", err, out)
+	}
+	output := string(out)
+	if !strings.Contains(output, "dn: uid=alice,ou=users,dc=example,dc=com") ||
+		!strings.Contains(output, "cn: Alice") {
+		t.Fatalf("ldapsearch additional general controls output missing user:\n%s", output)
 	}
 }
 
