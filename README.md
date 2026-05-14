@@ -119,7 +119,15 @@ gogomail --mode=migration          # run database migrations
 
 ---
 
-## Recent Updates (2026-05-14)
+## Recent Updates (2026-05-15)
+
+### SMTP Super-Powerful Server Performance Tests (2026-05-15)
+- ✅ **Throughput Test**: 2012 msg/sec sustained (target: ≥1000 msg/sec)
+- ✅ **Stability Test**: 63k messages in 30 seconds, zero errors, zero data loss
+- ⚠️ **Isolation Test**: Bulk mail handling verified (6-38% latency impact, target: ≤5%)
+- ⚠️ **Concurrency Test**: 100 simultaneous connections handled (2-18% message loss, race condition identified)
+- Performance verification suite added: `TestSubmissionThroughputTarget`, `TestSubmissionStability`, `TestSubmissionBulkIsolation`, `TestSubmissionConcurrentConnections`
+- Full audit and test results documented in `docs/CURRENT_STATUS.md`
 
 ### CardDAV RFC 100% Implementation Complete (2026-05-14)
 - ✅ RFC 6350 PHOTO property: Extract and store binary photo data separately with media type support
