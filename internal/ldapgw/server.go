@@ -729,7 +729,7 @@ func (s *LDAPServer) handleSearchRequest(ctx context.Context, msgID int, opData 
 	limit := 100
 	offset := pageOffset
 	if paged && pageSize > 0 {
-		limit = pageOffset + pageSize + 1
+		limit = max(100, pageOffset+pageSize+1)
 		offset = 0
 	}
 	if hasVLV {
