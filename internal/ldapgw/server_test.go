@@ -344,6 +344,10 @@ func buildSyncRequestControl(mode int, cookie string, critical bool) control {
 	return control{Type: controlSyncRequest, Critical: critical, Value: seq}
 }
 
+func buildProxiedAuthorizationControl(authzID string, critical bool) control {
+	return control{Type: controlProxiedAuthorization, Critical: critical, Value: []byte(authzID)}
+}
+
 func buildCompareRequest(entry, attr, value string) []byte {
 	assertion := append(encodeOctetString(attr), encodeOctetString(value)...)
 	var assertionSeq []byte
@@ -1287,6 +1291,67 @@ func TestLDAPServerSyncRefreshOnlyControl(t *testing.T) {
 	}
 }
 
+func TestLDAPServerProxiedAuthorizationControl(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+
+	dir := newFakeDirectoryQuerier()
+	dir.addPrincipal(PrincipalEntry{DN: "uid=alice,ou=users,dc=example,dc=com", Kind: "user", CN: "Alice", UID: "alice", DisplayName: "Alice"})
+	auth := newFakeLDAPAuth()
+	auth.addUser("uid=alice,ou=users,dc=example,dc=com", "secret")
+	srv := NewServer(ln, auth, dir)
+	go srv.Serve()
+	defer srv.Close()
+
+	conn, err := net.Dial("tcp", ln.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+
+	bindReq := buildLDAPPacket(18, opBindRequest, buildBindRequest(3, "uid=alice,ou=users,dc=example,dc=com", "secret"))
+	if err := sendPDU(conn, bindReq); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := readFullPDU(conn, time.Now().Add(3*time.Second)); err != nil {
+		t.Fatal(err)
+	}
+
+	okReq := buildLDAPPacketWithControls(19, opSearchRequest,
+		buildSearchRequestWithAttrs("ou=users,dc=example,dc=com", scopeWholeSubtree, buildEqualityFilter("objectClass", "person"), "cn"),
+		[]control{buildProxiedAuthorizationControl("dn:uid=alice,ou=users,dc=example,dc=com", true)},
+	)
+	if err := sendPDU(conn, okReq); err != nil {
+		t.Fatal(err)
+	}
+	entries, _ := readSearchUntilDone(t, conn)
+	if entries != 1 {
+		t.Fatalf("matching proxied authz entries = %d, want 1", entries)
+	}
+
+	deniedReq := buildLDAPPacketWithControls(20, opSearchRequest,
+		buildSearchRequestWithAttrs("ou=users,dc=example,dc=com", scopeWholeSubtree, buildEqualityFilter("objectClass", "person"), "cn"),
+		[]control{buildProxiedAuthorizationControl("dn:uid=bob,ou=users,dc=example,dc=com", true)},
+	)
+	if err := sendPDU(conn, deniedReq); err != nil {
+		t.Fatal(err)
+	}
+	resp, err := readFullPDU(conn, time.Now().Add(3*time.Second))
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, opTag, opData, err := decodeLDAPPacket(resp)
+	if err != nil {
+		t.Fatalf("decode proxied authz denied response: %v", err)
+	}
+	if opTag != opSearchResultDone || decodeEnumerated(opData) != resultAuthorizationDenied {
+		t.Fatalf("proxied authz denied op/result = %d/%d, want %d/%d", opTag, decodeEnumerated(opData), opSearchResultDone, resultAuthorizationDenied)
+	}
+}
+
 func TestLDAPServerSimplePagedResultsControl(t *testing.T) {
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
@@ -1782,6 +1847,47 @@ func TestLDAPServerOpenLDAPSyncRefreshOnlyCompatibility(t *testing.T) {
 		!strings.Contains(output, "control: 1.3.6.1.4.1.4203.1.9.1.2") ||
 		!strings.Contains(output, "control: 1.3.6.1.4.1.4203.1.9.1.3") {
 		t.Fatalf("ldapsearch sync output missing entry/state/done:\n%s", output)
+	}
+}
+
+func TestLDAPServerOpenLDAPProxiedAuthorizationCompatibility(t *testing.T) {
+	ldapsearch, err := exec.LookPath("ldapsearch")
+	if err != nil {
+		t.Skip("ldapsearch is not installed")
+	}
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+
+	bindDN := "uid=alice,ou=users,dc=example,dc=com"
+	auth := newFakeLDAPAuth()
+	auth.addUser(bindDN, "secret")
+	dir := newFakeDirectoryQuerier()
+	dir.addPrincipal(PrincipalEntry{DN: bindDN, Kind: "user", CN: "Alice", UID: "alice", DisplayName: "Alice"})
+	srv := NewServer(ln, auth, dir)
+	go srv.Serve()
+	defer srv.Close()
+
+	cmd := exec.Command(ldapsearch,
+		"-x",
+		"-H", "ldap://"+ln.Addr().String(),
+		"-D", bindDN,
+		"-w", "secret",
+		"-e", "!authzid=dn:"+bindDN,
+		"-b", "ou=users,dc=example,dc=com",
+		"(objectClass=person)",
+		"cn",
+	)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("ldapsearch proxied authorization failed: %v\n%s", err, out)
+	}
+	output := string(out)
+	if !strings.Contains(output, "dn: uid=alice,ou=users,dc=example,dc=com") ||
+		!strings.Contains(output, "cn: Alice") {
+		t.Fatalf("ldapsearch proxied authorization output missing user:\n%s", output)
 	}
 }
 

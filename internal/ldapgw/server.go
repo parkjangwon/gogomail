@@ -317,12 +317,20 @@ func (s *LDAPServer) handleOperation(ctx context.Context, msgID int, opTag int, 
 			result := resultInsufficientAccessRights
 			return encodeSearchResultDone(msgID, result, "", "bind required"), result, 0, false
 		}
+		if err := authorizeProxiedAuthorization(controls, authzID); err != nil {
+			result := resultAuthorizationDenied
+			return encodeSearchResultDone(msgID, result, "", err.Error()), result, 0, false
+		}
 		resp, result, entries := s.handleSearchRequest(ctx, msgID, opData, controls)
 		return resp, result, entries, false
 	case opCompareRequest:
 		if !authenticated {
 			result := resultInsufficientAccessRights
 			return encodeCompareResponse(msgID, result, "", "bind required"), result, 0, false
+		}
+		if err := authorizeProxiedAuthorization(controls, authzID); err != nil {
+			result := resultAuthorizationDenied
+			return encodeCompareResponse(msgID, result, "", err.Error()), result, 0, false
 		}
 		resp, result := s.handleCompareRequest(ctx, msgID, opData)
 		return resp, result, 0, false
@@ -1527,6 +1535,22 @@ func parseSubentriesControl(controls []control) (bool, error) {
 	return false, nil
 }
 
+func authorizeProxiedAuthorization(controls []control, boundAuthzID string) error {
+	for _, ctrl := range controls {
+		if ctrl.Type != controlProxiedAuthorization {
+			continue
+		}
+		requested := strings.TrimSpace(string(ctrl.Value))
+		if requested == "" {
+			return fmt.Errorf("proxied authorization identity is required")
+		}
+		if !strings.EqualFold(requested, strings.TrimSpace(boundAuthzID)) {
+			return fmt.Errorf("proxied authorization denied")
+		}
+	}
+	return nil
+}
+
 type syncRequest struct {
 	Mode   int
 	Cookie string
@@ -1622,7 +1646,7 @@ func encodeOctetStringBytes(value []byte) []byte {
 func isSupportedControl(controlType string) bool {
 	switch strings.TrimSpace(controlType) {
 	case controlManageDsaIT, controlPagedResults, controlServerSideSortRequest, controlVirtualListViewRequest, controlAssertion, controlMatchedValues,
-		controlDomainScope, controlDontUseCopy, controlDontUseCopyOpenLDAP, controlSubentries, controlSyncRequest:
+		controlDomainScope, controlDontUseCopy, controlDontUseCopyOpenLDAP, controlSubentries, controlSyncRequest, controlProxiedAuthorization:
 		return true
 	default:
 		return false
@@ -1645,6 +1669,7 @@ const (
 	controlSyncRequest             = "1.3.6.1.4.1.4203.1.9.1.1"
 	controlSyncState               = "1.3.6.1.4.1.4203.1.9.1.2"
 	controlSyncDone                = "1.3.6.1.4.1.4203.1.9.1.3"
+	controlProxiedAuthorization    = "2.16.840.1.113730.3.4.18"
 	syncModeRefreshOnly            = 1
 	syncModeRefreshAndPersist      = 3
 	syncStateAdd                   = 1
@@ -1910,7 +1935,7 @@ func rootDSEAttributes(namingContexts []string, startTLSEnabled bool) map[string
 		"namingContexts":       namingContexts,
 		"subschemaSubentry":    {"cn=Subschema"},
 		"supportedLDAPVersion": {"3"},
-		"supportedControl":     {controlManageDsaIT, controlPagedResults, controlServerSideSortRequest, controlVirtualListViewRequest, controlAssertion, controlMatchedValues, controlDomainScope, controlDontUseCopy, controlDontUseCopyOpenLDAP, controlSubentries, controlSyncRequest},
+		"supportedControl":     {controlManageDsaIT, controlPagedResults, controlServerSideSortRequest, controlVirtualListViewRequest, controlAssertion, controlMatchedValues, controlDomainScope, controlDontUseCopy, controlDontUseCopyOpenLDAP, controlSubentries, controlSyncRequest, controlProxiedAuthorization},
 		"supportedExtension":   {whoAmIOID},
 		"vendorName":           {"gogomail"},
 	}
