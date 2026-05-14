@@ -1,6 +1,14 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (SMTP Phase 8 - RFC Compliance Integration)
+Last updated: 2026-05-15 (Source File Separation & Refactoring)
+
+## Source File Separation & Refactoring (2026-05-15, in progress)
+- Goal: Reduce oversized source files by appropriately separating concerns into focused modules.
+- `internal/httpapi/admin_helpers.go`: Created new helper file (57 lines) extracting 9 query validation functions.
+  - Moved: rejectUnknownAPIUsageAggregateQuery, rejectUnknownAPIUsageLedgerQuery, rejectUnknownAPIUsageLedgerStatsQuery, rejectUnknownAPIUsageRetentionReadinessQuery, rejectUnknownAPIUsageRetentionRunListQuery, rejectUnknownDAVSyncRetentionRunListQuery, rejectUnknownDAVSyncRetentionReadinessQuery, rejectUnknownAPIUsageExportBatchCreateQuery, rejectUnknownAPIUsageExportBatchListQuery.
+- `internal/httpapi/admin.go`: Reduced from 8385 lines to 8340 lines (91 lines extracted to helpers).
+- Verification: All 526 admin package tests pass.
+- Next phases: Extract 26+ parse* functions to admin_helpers.go, extract type definitions to admin_types.go, refactor RegisterAdminRoutes (4260-line function) into category-based register* functions, then tackle internal/imapgw/server.go (8927 lines) and internal/maildb/admin.go (7281 lines).
 
 ## SMTP Phase 8 - RFC Compliance Integration (2026-05-14, complete)
 - CRITICAL GAP FIX: RFC compliance validator now integrated into actual SMTP submission pipeline.
