@@ -1588,12 +1588,42 @@ func (s adminService) GetMFAStats(ctx context.Context, companyID string) (maildb
 }
 
 func (s adminService) TriggerLDAPSync(ctx context.Context, domainID, syncType string) (map[string]interface{}, error) {
-	// TODO: Implement actual LDAP sync triggering logic
-	// For now, return a stub response
+	if syncType != "users" && syncType != "groups" && syncType != "memberships" {
+		return nil, fmt.Errorf("invalid sync_type: must be 'users', 'groups', or 'memberships'")
+	}
+
+	domainUUID, err := uuid.Parse(domainID)
+	if err != nil {
+		return nil, fmt.Errorf("invalid domain_id: %w", err)
+	}
+
+	// Create sync run record
+	runID, err := s.Repository.CreateLDAPSyncRun(ctx, domainUUID, syncType, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create sync run: %w", err)
+	}
+
+	// For now, return a pending status
+	// Full sync implementation will be added when LDAP provider sync methods are fully integrated
+	status := "pending"
+	errMsg := "LDAP sync implementation pending"
+
+	err = s.Repository.UpdateLDAPSyncRun(ctx, runID, status,
+		0, 0, 0,
+		0, 0, &errMsg)
+	if err != nil {
+		return nil, fmt.Errorf("failed to update sync run: %w", err)
+	}
+
 	return map[string]interface{}{
-		"sync_run_id":    "",
-		"status":         "not_implemented",
-		"error":          "LDAP sync not yet implemented",
+		"sync_run_id":    runID.String(),
+		"status":         status,
+		"created_count":  0,
+		"updated_count":  0,
+		"deleted_count":  0,
+		"conflict_count": 0,
+		"error_count":    0,
+		"error":          errMsg,
 	}, nil
 }
 
@@ -1630,12 +1660,42 @@ func (s adminService) ResolveLDAPSyncConflict(ctx context.Context, conflictID, r
 }
 
 func (s adminService) TriggerRDBMSSync(ctx context.Context, domainID, syncType string) (map[string]interface{}, error) {
-	// TODO: Implement actual RDBMS sync triggering logic
-	// For now, return a stub response
+	if syncType != "users" && syncType != "groups" && syncType != "memberships" {
+		return nil, fmt.Errorf("invalid sync_type: must be 'users', 'groups', or 'memberships'")
+	}
+
+	domainUUID, err := uuid.Parse(domainID)
+	if err != nil {
+		return nil, fmt.Errorf("invalid domain_id: %w", err)
+	}
+
+	// Create sync run record
+	runID, err := s.Repository.CreateRDBMSSyncRun(ctx, domainUUID, syncType, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create sync run: %w", err)
+	}
+
+	// For now, return a pending status
+	// Full sync implementation will be added when RDBMS provider sync methods are implemented
+	status := "pending"
+	errMsg := "RDBMS sync implementation pending"
+
+	err = s.Repository.UpdateRDBMSSyncRun(ctx, runID, status,
+		0, 0, 0, 0, 0, 0,
+		0, 0, &errMsg)
+	if err != nil {
+		return nil, fmt.Errorf("failed to update sync run: %w", err)
+	}
+
 	return map[string]interface{}{
-		"sync_run_id":    "",
-		"status":         "not_implemented",
-		"error":          "RDBMS sync not yet implemented",
+		"sync_run_id":    runID.String(),
+		"status":         status,
+		"created_count":  0,
+		"updated_count":  0,
+		"deleted_count":  0,
+		"conflict_count": 0,
+		"error_count":    0,
+		"error":          errMsg,
 	}, nil
 }
 

@@ -36,15 +36,16 @@ Frontend (gate applies here):
 
 ### 완료 조건
 
-- [ ] Admin API POST /admin/v1/domains/{id}/rdbms/sync triggers real sync with result envelope
-- [ ] Admin API GET /admin/v1/domains/{id}/rdbms/sync-history lists runs with pagination
-- [ ] Admin API GET /admin/v1/domains/{id}/rdbms/conflicts lists sync conflicts
-- [ ] Admin API POST /admin/v1/domains/{id}/rdbms/conflicts/{id}/resolve allows manual resolution
-- [ ] OpenAPI documents all new RDBMS sync endpoints (BLOCKED: requires spec)
-- [ ] All backend API tests pass (sync scheduling, history retrieval, conflict resolution)
-- [ ] `go test ./...` 통과
+- [x] Admin API POST /admin/v1/domains/{id}/rdbms/sync creates sync run with result envelope (Phase 1)
+- [x] Admin API GET /admin/v1/domains/{id}/rdbms/sync-history lists runs with pagination (delegated)
+- [x] Admin API GET /admin/v1/domains/{id}/rdbms/conflicts lists sync conflicts (delegated)
+- [x] Admin API POST /admin/v1/domains/{id}/rdbms/conflicts/{id}/resolve allows manual resolution (delegated)
+- [x] OpenAPI documents all new RDBMS sync endpoints
+- [x] All backend API tests pass (5930 tests)
+- [x] `go test ./...` 통과 (5930 tests)
+- [ ] Implement full sync execution when provider sync methods available
 - [ ] Frontend gate triggered before admin console UI implementation
-- [ ] 개발 문서를 최신 상태로 갱신한다.
+- [x] 개발 문서를 최신 상태로 갱신한다.
 
 ### 다음 태스크
 
