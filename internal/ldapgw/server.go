@@ -145,8 +145,8 @@ func (s *LDAPServer) Close() error {
 
 func (s *LDAPServer) handleConn(ctx context.Context, conn net.Conn) {
 	defer conn.Close()
-	buf := make([]byte, 8192)
-	readOffset := 0
+	buf := make([]byte, 0, 8192)
+	readBuf := make([]byte, 8192)
 	tlsActive := false
 	authenticated := false
 	authzID := ""
@@ -159,15 +159,18 @@ func (s *LDAPServer) handleConn(ctx context.Context, conn net.Conn) {
 		default:
 		}
 
-		n, err := conn.Read(buf[readOffset:])
+		n, err := conn.Read(readBuf)
 		if n > 0 {
-			readOffset += n
+			buf = append(buf, readBuf[:n]...)
+			if len(buf) > maxBERMessageSize+8 {
+				return
+			}
 		}
 		if err != nil {
 			return
 		}
 
-		for readOffset > 0 {
+		for len(buf) > 0 {
 			// Check context before processing each PDU.
 			select {
 			case <-ctx.Done():
@@ -175,7 +178,7 @@ func (s *LDAPServer) handleConn(ctx context.Context, conn net.Conn) {
 			default:
 			}
 
-			pduLen, headerLen, pduErr := parsePDULengthWithError(buf[:readOffset])
+			pduLen, headerLen, pduErr := parsePDULengthWithError(buf)
 			if pduErr != nil {
 				// Declared length exceeds the safety cap — drop the connection.
 				return
@@ -184,13 +187,12 @@ func (s *LDAPServer) handleConn(ctx context.Context, conn net.Conn) {
 				break
 			}
 			totalLen := headerLen + pduLen
-			if readOffset < totalLen {
+			if len(buf) < totalLen {
 				break
 			}
 			pdu := make([]byte, totalLen)
 			copy(pdu, buf[:totalLen])
-			copy(buf, buf[totalLen:readOffset])
-			readOffset -= totalLen
+			buf = buf[totalLen:]
 
 			msgID, opTag, opData, controls, err := decodeLDAPPacketWithControls(pdu)
 			if err != nil {
@@ -227,7 +229,7 @@ func (s *LDAPServer) handleConn(ctx context.Context, conn net.Conn) {
 					s.observe(ctx, opTag, result, 0, conn.RemoteAddr(), nil)
 					continue
 				}
-				if readOffset != 0 {
+				if len(buf) != 0 {
 					result := resultProtocolError
 					resp := encodeExtendedResponse(msgID, result, "", "StartTLS must be the last plaintext operation")
 					conn.Write(resp) //nolint:errcheck
