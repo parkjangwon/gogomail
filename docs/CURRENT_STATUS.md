@@ -1,6 +1,13 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (SMTP submission DSN audit completion)
+Last updated: 2026-05-14 (Delivery throttling distributed coordination audit)
+
+## Delivery throttling distributed coordination audit (2026-05-14, complete)
+- Audited delivery throttling and confirmed the existing `InMemoryThrottler` protected only one process-local counter, so multiple delivery workers in a server farm could each consume the same farm/domain concurrency budget independently.
+- Split throttling into `CoordinatedThrottler` plus a `ThrottleCounter` lease boundary. This keeps SMTP/delivery policy code independent from any future Redis/Postgres counter implementation while preserving the existing in-memory runtime behavior.
+- `NewLocalThrottleCounter` now provides the current process-local counter implementation, and multiple `CoordinatedThrottler` instances can share the same counter to enforce farm/domain limits across worker instances that use a common backend.
+- Coverage verifies shared-counter throttling across worker instances for bulk farm limits and cross-farm recipient-domain limits, plus deterministic key generation for `transactional`, `general`, and `bulk` jobs.
+- Verification: `go test -count=1 ./internal/delivery -run 'Throttle|Throttl'`, `go test -count=1 ./internal/config ./internal/app -run 'Throttl|Delivery'`, and `go test ./...`.
 
 ## SMTP submission DSN audit completion (2026-05-14, complete)
 - Completed an audit of authenticated submission DSN coverage across direct session tests, TCP protocol integration, queued delivery decode/normalization, retry filtering, attempt recording, and outbound SMTP command generation.
