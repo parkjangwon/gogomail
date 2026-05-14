@@ -2633,6 +2633,71 @@ func TestLDAPServerOpenLDAPADMetadataCompatibility(t *testing.T) {
 	}
 }
 
+func TestLDAPServerOpenLDAPADUserFilterCompatibility(t *testing.T) {
+	ldapsearch, err := exec.LookPath("ldapsearch")
+	if err != nil {
+		t.Skip("ldapsearch is not installed")
+	}
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+
+	auth := newFakeLDAPAuth()
+	auth.addUser("alice", "secret")
+	dir := newFakeDirectoryQuerier()
+	dir.addPrincipal(PrincipalEntry{
+		DN:          "uid=alice,ou=users,dc=example,dc=com",
+		Kind:        "user",
+		CN:          "Alice",
+		Mail:        "alice@example.com",
+		UID:         "alice",
+		DisplayName: "Alice",
+	})
+	dir.addPrincipal(PrincipalEntry{
+		DN:          "uid=bob,ou=users,dc=example,dc=com",
+		Kind:        "user",
+		CN:          "Bob",
+		Mail:        "bob@example.com",
+		UID:         "bob",
+		DisplayName: "Bob",
+	})
+	srv := NewServer(ln, auth, dir)
+	go srv.Serve()
+	defer srv.Close()
+
+	cmd := exec.Command(ldapsearch,
+		"-x",
+		"-H", "ldap://"+ln.Addr().String(),
+		"-D", "uid=alice,ou=users,dc=example,dc=com",
+		"-w", "secret",
+		"-b", "ou=users,dc=example,dc=com",
+		"(&(objectCategory=person)(objectClass=user)(!(userAccountControl:1.2.840.113556.1.4.803:=2))(sAMAccountName=alice))",
+		"cn",
+		"objectClass",
+		"userAccountControl",
+	)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("ldapsearch AD user filter failed: %v\n%s", err, out)
+	}
+	output := string(out)
+	for _, expected := range []string{
+		"dn: uid=alice,ou=users,dc=example,dc=com",
+		"cn: Alice",
+		"objectClass: user",
+		"userAccountControl: 512",
+	} {
+		if !strings.Contains(output, expected) {
+			t.Fatalf("ldapsearch AD user filter output missing %q:\n%s", expected, output)
+		}
+	}
+	if strings.Contains(output, "dn: uid=bob,ou=users,dc=example,dc=com") {
+		t.Fatalf("ldapsearch AD user filter output included nonmatching user:\n%s", output)
+	}
+}
+
 func TestLDAPServerOpenLDAPNoAttributesCompatibility(t *testing.T) {
 	ldapsearch, err := exec.LookPath("ldapsearch")
 	if err != nil {
