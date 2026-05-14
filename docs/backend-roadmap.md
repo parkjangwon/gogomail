@@ -5731,6 +5731,7 @@ Current implementation notes:
 - Root DSE advertises `subschemaSubentry`, and `cn=Subschema` base-object search returns minimal RFC 4512/RFC 4519 schema metadata for person/inetOrgPerson-style directory clients.
 - SearchRequest parsing now covers and validates scope, deref aliases, client size/time limits, typesOnly, filter, and requested attribute selection before mapping supported directory filters into the repository boundary.
 - Common client search filters using OR/AND/NOT wrappers, substring matches, and RFC 4511 extensibleMatch type/value assertions are accepted for RFC 4519 directory attributes (`cn`, `mail`, `uid`, `displayName`, `givenName`, `sn`) plus Active Directory-style compatibility aliases (`name`, `sAMAccountName`, `userPrincipalName`).
+- Negated LDAP filter assertions are validated but not used as positive repository search terms or principal-kind narrowing hints.
 - LDAP user entries expose Exchange/AD-style mail aliases (`mailNickname`, `proxyAddresses`) and directory filter extraction accepts those attributes for broader mail-client lookup compatibility.
 - LDAP entries expose AD-style identity attributes (`distinguishedName`, deterministic `objectGUID`, deterministic `objectSid`, `objectCategory`) alongside the RFC-oriented attributes for clients that cache or render from those fields.
 - LDAP entries expose AD-style directory metadata (`canonicalName`, `instanceType`, `whenCreated`, `whenChanged`, `uSNCreated`, `uSNChanged`) plus conservative user account hints (`userAccountControl`, `accountExpires`, `primaryGroupID`) for Active Directory-oriented address book and tree-browsing clients, with canonical-name filters narrowed to the final path segment for repository lookup.
@@ -5740,6 +5741,7 @@ Current implementation notes:
 - LDAP principal entries populate requested/default `memberOf` reverse membership attributes from Directory group memberships, with no reverse expansion for narrow non-memberOf projections.
 - LDAP `objectClass`/`objectCategory` filters and base DNs narrow repository searches to the matching principal kinds, including organization-chart searches under `ou=organizations` and AD-style category searches.
 - LDAP search scope filtering now applies base-object, one-level, and subtree semantics against generated entry DNs.
+- LDAP client size limits return `sizeLimitExceeded` only when matching entries exceed the requested limit, while exact-limit result sets complete with success.
 - Simple bind accepts common client identity formats, including raw username/email and generated entry DN forms such as `uid=<user-id>,ou=users,...`.
 - Generated user/organization/group/resource DNs escape RDN values, and base-object lookup unescapes generated DN values before resolving principals.
 - Non-discovery directory searches require successful bind while Root DSE and `cn=Subschema` discovery remain pre-bind accessible.

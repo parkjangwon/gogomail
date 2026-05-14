@@ -180,6 +180,22 @@ func buildSearchRequest(baseDN string, scope int, filter []byte) []byte {
 	return buildSearchRequestWithParams(baseDN, scope, derefAliasesNever, filter)
 }
 
+func buildSearchRequestWithSizeLimit(baseDN string, scope int, sizeLimit int, filter []byte) []byte {
+	var content []byte
+	content = append(content, encodeOctetString(baseDN)...)
+	content = append(content, encodeEnumerated(scope)...)
+	content = append(content, encodeEnumerated(derefAliasesNever)...)
+	content = append(content, encodeInt(sizeLimit)...)
+	content = append(content, encodeInt(0)...)
+	content = append(content, tagBoolean, 0x01, 0x00)
+	content = append(content, filter...)
+	var attrList []byte
+	attrList = append(attrList, tagSequence)
+	attrList = append(attrList, encodeLength(0)...)
+	content = append(content, attrList...)
+	return content
+}
+
 func buildSearchRequestWithParams(baseDN string, scope int, derefAliases int, filter []byte) []byte {
 	var content []byte
 	content = append(content, encodeOctetString(baseDN)...)
@@ -267,6 +283,22 @@ func buildOrFilter(children ...[]byte) []byte {
 	filterData := []byte{tagContextSpecific | 0x20 | filterOr}
 	filterData = append(filterData, encodeLength(len(content))...)
 	return append(filterData, content...)
+}
+
+func buildAndFilter(children ...[]byte) []byte {
+	var content []byte
+	for _, child := range children {
+		content = append(content, child...)
+	}
+	filterData := []byte{tagContextSpecific | 0x20 | filterAnd}
+	filterData = append(filterData, encodeLength(len(content))...)
+	return append(filterData, content...)
+}
+
+func buildNotFilter(child []byte) []byte {
+	filterData := []byte{tagContextSpecific | 0x20 | filterNot}
+	filterData = append(filterData, encodeLength(len(child))...)
+	return append(filterData, child...)
 }
 
 func buildPagedResultsControl(pageSize int, cookie string) control {
@@ -442,6 +474,29 @@ func readSearchUntilDone(t *testing.T, conn net.Conn) (int, []control) {
 			entries++
 		case opSearchResultDone:
 			return entries, controls
+		default:
+			t.Fatalf("unexpected search response opTag = %d", opTag)
+		}
+	}
+}
+
+func readSearchResultCodeUntilDone(t *testing.T, conn net.Conn) (int, int) {
+	t.Helper()
+	entries := 0
+	for {
+		resp, err := readFullPDU(conn, time.Now().Add(3*time.Second))
+		if err != nil {
+			t.Fatalf("read search response: %v", err)
+		}
+		_, opTag, opData, err := decodeLDAPPacket(resp)
+		if err != nil {
+			t.Fatalf("decode search response: %v", err)
+		}
+		switch opTag {
+		case opSearchResultEntry:
+			entries++
+		case opSearchResultDone:
+			return entries, decodeEnumerated(opData)
 		default:
 			t.Fatalf("unexpected search response opTag = %d", opTag)
 		}
@@ -988,6 +1043,48 @@ func TestLDAPServerSearchRequest(t *testing.T) {
 	}
 	if !found {
 		t.Error("expected SearchResultEntry after search request")
+	}
+}
+
+func TestLDAPServerSearchSizeLimitResultCode(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+
+	auth := newFakeLDAPAuth()
+	dir := newFakeDirectoryQuerier()
+	dir.addPrincipal(PrincipalEntry{DN: "uid=alice,ou=users,dc=example,dc=com", Kind: "user", CN: "Alice", UID: "alice"})
+	dir.addPrincipal(PrincipalEntry{DN: "uid=bob,ou=users,dc=example,dc=com", Kind: "user", CN: "Bob", UID: "bob"})
+	srv := NewServer(ln, auth, dir)
+	go srv.Serve()
+	defer srv.Close()
+
+	conn, err := net.Dial("tcp", ln.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	bindTestConnection(t, conn, auth)
+
+	filter := buildEqualityFilter("objectClass", "person")
+	exactReq := buildLDAPPacket(33, opSearchRequest, buildSearchRequestWithSizeLimit("ou=users,dc=example,dc=com", scopeWholeSubtree, 2, filter))
+	if err := sendPDU(conn, exactReq); err != nil {
+		t.Fatal(err)
+	}
+	entries, result := readSearchResultCodeUntilDone(t, conn)
+	if entries != 2 || result != resultSuccess {
+		t.Fatalf("exact sizeLimit search entries/result = %d/%d, want 2/%d", entries, result, resultSuccess)
+	}
+
+	limitedReq := buildLDAPPacket(34, opSearchRequest, buildSearchRequestWithSizeLimit("ou=users,dc=example,dc=com", scopeWholeSubtree, 1, filter))
+	if err := sendPDU(conn, limitedReq); err != nil {
+		t.Fatal(err)
+	}
+	entries, result = readSearchResultCodeUntilDone(t, conn)
+	if entries != 1 || result != resultSizeLimitExceeded {
+		t.Fatalf("exceeded sizeLimit search entries/result = %d/%d, want 1/%d", entries, result, resultSizeLimitExceeded)
 	}
 }
 
@@ -3114,6 +3211,43 @@ func TestParseLDAPFilterSupportsClientOrSubstringSearch(t *testing.T) {
 	}
 	if got != "(cn=ali)" {
 		t.Fatalf("parseLDAPFilter = %q, want first searchable substring candidate", got)
+	}
+}
+
+func TestParseLDAPFilterIgnoresNegatedSearchCandidates(t *testing.T) {
+	filter := buildAndFilter(
+		buildEqualityFilter("objectCategory", "person"),
+		buildNotFilter(buildEqualityFilter("cn", "Disabled")),
+		buildEqualityFilter("mail", "alice@example.com"),
+	)
+	got, err := parseLDAPFilter(filter)
+	if err != nil {
+		t.Fatalf("parseLDAPFilter returned error: %v", err)
+	}
+	if got != "(mail=alice@example.com)" {
+		t.Fatalf("parseLDAPFilter = %q, want positive mail candidate", got)
+	}
+
+	kinds, err := parseLDAPFilterPrincipalKinds(filter)
+	if err != nil {
+		t.Fatalf("parseLDAPFilterPrincipalKinds returned error: %v", err)
+	}
+	if len(kinds) != 1 || kinds[0] != "user" {
+		t.Fatalf("kinds = %#v, want only positive user kind", kinds)
+	}
+}
+
+func TestParseLDAPFilterIgnoresNegatedPrincipalKinds(t *testing.T) {
+	filter := buildAndFilter(
+		buildNotFilter(buildEqualityFilter("objectClass", "groupOfNames")),
+		buildSubstringFilter("cn", "team"),
+	)
+	kinds, err := parseLDAPFilterPrincipalKinds(filter)
+	if err != nil {
+		t.Fatalf("parseLDAPFilterPrincipalKinds returned error: %v", err)
+	}
+	if len(kinds) != 0 {
+		t.Fatalf("kinds = %#v, want no positive kind narrowing from NOT", kinds)
 	}
 }
 
