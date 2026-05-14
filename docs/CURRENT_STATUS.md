@@ -1,6 +1,14 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (Delivery farm-aware domain backoff isolation)
+Last updated: 2026-05-14 (Admin role API persistence)
+
+## Admin role API persistence (2026-05-14, complete)
+- `/admin/v1/roles` now requires `company_id` and lists persisted RBAC role definitions through the app admin service instead of returning hard-coded mock roles.
+- Role list responses include `company_id`, `is_builtin`, deterministic permission counts, and active assigned-user counts derived from `admin_role_permissions` and `admin_user_roles`.
+- `POST /admin/v1/roles` now validates `company_id`, trims role fields, rejects builtin creation, and persists custom roles through the existing admin role schema.
+- The app admin service delegates role list/create requests to `internal/admin.Service`, keeping the backend contract ready for console use without starting frontend implementation.
+- OpenAPI now documents the `company_id` role filter, create payload, and role metadata returned by the backend.
+- Coverage verifies role listing, custom role creation, invalid create input, and service wiring with `go test -count=1 ./internal/httpapi ./internal/admin ./internal/app -run 'Role|Admin'`.
 
 ## Delivery farm-aware domain backoff isolation (2026-05-14, complete)
 - Adaptive delivery domain backoff now supports explicit scope modes: `domain` and `farm_domain`.

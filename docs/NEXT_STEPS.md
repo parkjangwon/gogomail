@@ -33,7 +33,7 @@ ACTIVE_TASK.md가 COMPLETE이면 여기서 첫 번째 항목을 선택해 ACTIVE
 | TASK-050 | LDAP Auth — maildb.AuthenticateLDAP 커밋 + 단위 테스트 | 완료 |
 | TASK-061 | Organization Structure — 조직도 백엔드 (LDAP 연동) | 완료 |
 | TASK-062 | Spam Filter Hardening — RFC 5764 Milter 표준 + 스코링 | 완료 |
-| TASK-063 | Admin Console Schema + RBAC + Custom Roles | 대기 |
+| TASK-063 | Admin Console Schema + RBAC + Custom Roles | 완료 |
 | TASK-064 | Admin Auth & Session — JWT, login, refresh | 대기 |
 | TASK-065 | User Management CRUD | 대기 |
 | TASK-066 | Organization Management | 대기 |

@@ -13,8 +13,10 @@ import (
 type RepositoryInterface interface {
 	// Role operations
 	CreateRole(ctx context.Context, role *Role) error
+	CreateRoleSummary(ctx context.Context, req CreateRoleRequest) (RoleSummary, error)
 	GetRole(ctx context.Context, id string) (*Role, error)
 	ListRoles(ctx context.Context, companyID string) ([]Role, error)
+	ListRoleSummaries(ctx context.Context, companyID string) ([]RoleSummary, error)
 	UpdateRole(ctx context.Context, role *Role) error
 	DeleteRole(ctx context.Context, id string) error
 
@@ -107,6 +109,20 @@ func (r *Repository) CreateRole(ctx context.Context, role *Role) error {
 	return err
 }
 
+func (r *Repository) CreateRoleSummary(ctx context.Context, req CreateRoleRequest) (RoleSummary, error) {
+	var role RoleSummary
+	err := r.db.QueryRowContext(ctx,
+		`INSERT INTO admin_role_definitions (company_id, name, description, is_builtin, created_by, created_at, updated_at)
+		 VALUES ($1, $2, $3, false, NULLIF($4, '')::uuid, NOW(), NOW())
+		 RETURNING id, company_id, name, COALESCE(description, ''), is_builtin, created_at, updated_at`,
+		req.CompanyID, req.Name, req.Description, req.CreatedBy,
+	).Scan(&role.ID, &role.CompanyID, &role.Name, &role.Description, &role.IsBuiltin, &role.CreatedAt, &role.UpdatedAt)
+	if err != nil {
+		return RoleSummary{}, err
+	}
+	return role, nil
+}
+
 // GetRole retrieves a role by ID.
 func (r *Repository) GetRole(ctx context.Context, id string) (*Role, error) {
 	role := &Role{}
@@ -139,6 +155,55 @@ func (r *Repository) ListRoles(ctx context.Context, companyID string) ([]Role, e
 		var role Role
 		if err := rows.Scan(&role.ID, &role.CompanyID, &role.Name, &role.Description,
 			&role.IsBuiltin, &role.CreatedBy, &role.CreatedAt, &role.UpdatedAt); err != nil {
+			return nil, err
+		}
+		roles = append(roles, role)
+	}
+	return roles, rows.Err()
+}
+
+func (r *Repository) ListRoleSummaries(ctx context.Context, companyID string) ([]RoleSummary, error) {
+	rows, err := r.db.QueryContext(ctx,
+		`SELECT
+		     ard.id,
+		     ard.company_id,
+		     ard.name,
+		     COALESCE(ard.description, ''),
+		     ard.is_builtin,
+		     COUNT(DISTINCT arp.id)::int AS permissions_count,
+		     COUNT(DISTINCT aur.user_id)::int AS assigned_users,
+		     ard.created_at,
+		     ard.updated_at
+		   FROM admin_role_definitions ard
+		   LEFT JOIN admin_role_permissions arp ON arp.role_id = ard.id
+		   LEFT JOIN admin_user_roles aur
+		     ON aur.role_id = ard.id
+		    AND aur.company_id = ard.company_id
+		    AND (aur.expires_at IS NULL OR aur.expires_at > NOW())
+		   WHERE ard.company_id = $1
+		   GROUP BY ard.id, ard.company_id, ard.name, ard.description, ard.is_builtin, ard.created_at, ard.updated_at
+		   ORDER BY lower(ard.name), ard.id`,
+		companyID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var roles []RoleSummary
+	for rows.Next() {
+		var role RoleSummary
+		if err := rows.Scan(
+			&role.ID,
+			&role.CompanyID,
+			&role.Name,
+			&role.Description,
+			&role.IsBuiltin,
+			&role.PermissionsCount,
+			&role.AssignedUsers,
+			&role.CreatedAt,
+			&role.UpdatedAt,
+		); err != nil {
 			return nil, err
 		}
 		roles = append(roles, role)

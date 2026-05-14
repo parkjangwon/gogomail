@@ -19,6 +19,27 @@ type Role struct {
 	UpdatedAt   time.Time `json:"updated_at,omitempty"`
 }
 
+// RoleSummary is the Admin API read model for roles plus RBAC table counts.
+type RoleSummary struct {
+	ID               string    `json:"id"`
+	CompanyID        string    `json:"company_id"`
+	Name             string    `json:"name"`
+	Description      string    `json:"description,omitempty"`
+	IsBuiltin        bool      `json:"is_builtin"`
+	PermissionsCount int       `json:"permissions_count"`
+	AssignedUsers    int       `json:"assigned_users"`
+	CreatedAt        time.Time `json:"created_at"`
+	UpdatedAt        time.Time `json:"updated_at,omitempty"`
+}
+
+type CreateRoleRequest struct {
+	CompanyID   string `json:"company_id"`
+	Name        string `json:"name"`
+	Description string `json:"description,omitempty"`
+	CreatedBy   string `json:"created_by,omitempty"`
+	IsBuiltin   bool   `json:"is_builtin,omitempty"`
+}
+
 // Permission represents a single permission for a role.
 type Permission struct {
 	ID         string     `json:"id"`

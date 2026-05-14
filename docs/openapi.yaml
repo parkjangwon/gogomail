@@ -6819,7 +6819,11 @@ paths:
         - adminToken: []
         - bearerAuth: []
       parameters:
-        - $ref: "#/components/parameters/Limit"
+        - name: company_id
+          in: query
+          required: true
+          schema:
+            type: string
       responses:
         "200":
           description: Roles list
@@ -6835,16 +6839,24 @@ paths:
                       properties:
                         id:
                           type: string
+                        company_id:
+                          type: string
                         name:
                           type: string
                         description:
                           type: string
+                        is_builtin:
+                          type: boolean
                         permissions_count:
                           type: integer
                         assigned_users:
                           type: integer
                         created_at:
                           type: string
+                          format: date-time
+                        updated_at:
+                          type: string
+                          format: date-time
         default:
           $ref: "#/components/responses/Error"
     post:
@@ -6863,12 +6875,20 @@ paths:
             schema:
               type: object
               required:
+                - company_id
                 - name
               properties:
+                company_id:
+                  type: string
                 name:
                   type: string
                 description:
                   type: string
+                created_by:
+                  type: string
+                is_builtin:
+                  type: boolean
+                  description: Must be omitted or false; custom role creation cannot create builtin roles.
       responses:
         "201":
           description: Role created

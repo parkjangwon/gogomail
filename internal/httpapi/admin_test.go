@@ -112,6 +112,146 @@ func TestAdminConsoleCapabilitiesHandler(t *testing.T) {
 	}
 }
 
+func TestAdminListRolesHandlerUsesService(t *testing.T) {
+	t.Parallel()
+
+	createdAt := time.Date(2026, 5, 14, 9, 0, 0, 0, time.UTC)
+	service := &fakeAdminService{
+		adminRoles: []admin.RoleSummary{{
+			ID:               "role-1",
+			CompanyID:        "company-1",
+			Name:             "Operator",
+			Description:      "Runs mail operations",
+			IsBuiltin:        false,
+			PermissionsCount: 7,
+			AssignedUsers:    3,
+			CreatedAt:        createdAt,
+			UpdatedAt:        createdAt,
+		}},
+	}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "")
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/roles?company_id=company-1", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	var body struct {
+		Roles []admin.RoleSummary `json:"roles"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("json.Unmarshal returned error: %v", err)
+	}
+	if service.lastRoleCompanyID != "company-1" {
+		t.Fatalf("lastRoleCompanyID = %q, want company-1", service.lastRoleCompanyID)
+	}
+	if len(body.Roles) != 1 || body.Roles[0].ID != "role-1" || body.Roles[0].PermissionsCount != 7 || body.Roles[0].AssignedUsers != 3 {
+		t.Fatalf("roles = %+v", body.Roles)
+	}
+}
+
+func TestAdminCreateRoleHandlerPersistsCustomRole(t *testing.T) {
+	t.Parallel()
+
+	createdAt := time.Date(2026, 5, 14, 9, 0, 0, 0, time.UTC)
+	service := &fakeAdminService{
+		createdAdminRole: admin.RoleSummary{
+			ID:          "role-new",
+			CompanyID:   "company-1",
+			Name:        "Security Analyst",
+			Description: "Investigates abuse",
+			IsBuiltin:   false,
+			CreatedAt:   createdAt,
+			UpdatedAt:   createdAt,
+		},
+	}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "")
+
+	req := httptest.NewRequest(http.MethodPost, "/admin/v1/roles", strings.NewReader(`{"company_id":"company-1","name":" Security Analyst ","description":"Investigates abuse"}`))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if service.lastCreateAdminRole.CompanyID != "company-1" || service.lastCreateAdminRole.Name != "Security Analyst" {
+		t.Fatalf("lastCreateAdminRole = %+v", service.lastCreateAdminRole)
+	}
+	var body struct {
+		Role admin.RoleSummary `json:"role"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("json.Unmarshal returned error: %v", err)
+	}
+	if body.Role.ID != "role-new" || body.Role.IsBuiltin {
+		t.Fatalf("role = %+v", body.Role)
+	}
+}
+
+func TestAdminCreateRoleHandlerRejectsInvalidInput(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		body string
+	}{
+		{name: "missing company", body: `{"name":"Operator"}`},
+		{name: "missing name", body: `{"company_id":"company-1"}`},
+		{name: "builtin rejected", body: `{"company_id":"company-1","name":"Root","is_builtin":true}`},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			service := &fakeAdminService{}
+			mux := http.NewServeMux()
+			RegisterAdminRoutes(mux, service, "")
+
+			req := httptest.NewRequest(http.MethodPost, "/admin/v1/roles", strings.NewReader(tt.body))
+			req.Header.Set("Content-Type", "application/json")
+			rec := httptest.NewRecorder()
+			mux.ServeHTTP(rec, req)
+
+			if rec.Code != http.StatusBadRequest {
+				t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+			}
+			if service.lastCreateAdminRole.Name != "" {
+				t.Fatalf("dispatched role create %+v", service.lastCreateAdminRole)
+			}
+		})
+	}
+}
+
+func TestAdminRoleHandlersMapServiceErrors(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeAdminService{roleErr: fmt.Errorf("role backend down")}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "")
+
+	listReq := httptest.NewRequest(http.MethodGet, "/admin/v1/roles?company_id=company-1", nil)
+	listRec := httptest.NewRecorder()
+	mux.ServeHTTP(listRec, listReq)
+	if listRec.Code != http.StatusInternalServerError {
+		t.Fatalf("list status = %d, body = %s", listRec.Code, listRec.Body.String())
+	}
+
+	createReq := httptest.NewRequest(http.MethodPost, "/admin/v1/roles", strings.NewReader(`{"company_id":"company-1","name":"Operator"}`))
+	createReq.Header.Set("Content-Type", "application/json")
+	createRec := httptest.NewRecorder()
+	mux.ServeHTTP(createRec, createReq)
+	if createRec.Code != http.StatusBadRequest {
+		t.Fatalf("create status = %d, body = %s", createRec.Code, createRec.Body.String())
+	}
+}
+
 func TestAdminConsoleCapabilitiesHandlerIsAdminBaseOnly(t *testing.T) {
 	t.Parallel()
 
@@ -8556,6 +8696,9 @@ type fakeAdminService struct {
 	alertRules                                  []admin.AlertRule
 	alertChannels                               []admin.AlertChannel
 	alertEvents                                 []admin.AlertEvent
+	adminRoles                                  []admin.RoleSummary
+	createdAdminRole                            admin.RoleSummary
+	roleErr                                     error
 	lastCreateAlertRule                         *admin.AlertRule
 	lastGetAlertRuleID                          string
 	lastListAlertRulesCompanyID                 string
@@ -8568,12 +8711,41 @@ type fakeAdminService struct {
 	lastDeleteAlertChannelID                    string
 	lastListAlertEventsFilter                   admin.AlertEventFilter
 	lastLogAlertEvent                           *admin.AlertEvent
+	lastRoleCompanyID                           string
+	lastCreateAdminRole                         admin.CreateRoleRequest
 }
 
 func (f *fakeAdminService) ListCompanies(_ context.Context, req maildb.CompanyListRequest) ([]maildb.CompanyView, error) {
 	f.lastLimit = req.Limit
 	f.lastCompanyList = req
 	return f.companies, nil
+}
+
+func (f *fakeAdminService) ListAdminRoles(_ context.Context, companyID string) ([]admin.RoleSummary, error) {
+	f.lastRoleCompanyID = companyID
+	if f.roleErr != nil {
+		return nil, f.roleErr
+	}
+	return f.adminRoles, nil
+}
+
+func (f *fakeAdminService) CreateAdminRole(_ context.Context, req admin.CreateRoleRequest) (admin.RoleSummary, error) {
+	f.lastCreateAdminRole = req
+	if f.roleErr != nil {
+		return admin.RoleSummary{}, f.roleErr
+	}
+	if f.createdAdminRole.ID != "" {
+		return f.createdAdminRole, nil
+	}
+	return admin.RoleSummary{
+		ID:          "role-new",
+		CompanyID:   req.CompanyID,
+		Name:        req.Name,
+		Description: req.Description,
+		IsBuiltin:   false,
+		CreatedAt:   time.Now().UTC(),
+		UpdatedAt:   time.Now().UTC(),
+	}, nil
 }
 
 func (f *fakeAdminService) GetCompany(_ context.Context, id string) (maildb.CompanyView, error) {

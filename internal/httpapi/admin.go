@@ -177,6 +177,8 @@ type AdminService interface {
 	UpdateDomainQuota(ctx context.Context, req maildb.UpdateDomainQuotaRequest) error
 	DeleteDomain(ctx context.Context, id string) error
 	UpdateDomainPolicy(ctx context.Context, req maildb.UpdateDomainPolicyRequest) (maildb.DomainPolicyView, error)
+	ListAdminRoles(ctx context.Context, companyID string) ([]admin.RoleSummary, error)
+	CreateAdminRole(ctx context.Context, req admin.CreateRoleRequest) (admin.RoleSummary, error)
 	GetDomainSettings(ctx context.Context, domainID string) (*admin.DomainSettings, error)
 	UpdateDomainSettings(ctx context.Context, settings *admin.DomainSettings) error
 	GetAPISettings(ctx context.Context, domainID string) (*admin.APISettings, error)
@@ -4547,11 +4549,11 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	}))
 
 	mux.HandleFunc("GET /admin/v1/roles", adminAuth(func(w http.ResponseWriter, r *http.Request) {
-		handleListRoles(w, r)
+		handleListRoles(w, r, service)
 	}))
 
 	mux.HandleFunc("POST /admin/v1/roles", adminAuth(func(w http.ResponseWriter, r *http.Request) {
-		handleCreateRole(w, r)
+		handleCreateRole(w, r, service)
 	}))
 
 	mux.HandleFunc("GET /admin/v1/reports", adminAuth(func(w http.ResponseWriter, r *http.Request) {
@@ -4968,64 +4970,55 @@ func handleListCompliance(w http.ResponseWriter, r *http.Request, service AdminS
 	})
 }
 
-func handleListRoles(w http.ResponseWriter, r *http.Request) {
+func handleListRoles(w http.ResponseWriter, r *http.Request, service AdminService) {
 	defer r.Body.Close()
-	now := time.Now().UTC().Format(time.RFC3339)
-	writeJSON(w, http.StatusOK, map[string]any{
-		"roles": []map[string]any{
-			{
-				"id":                "role-admin",
-				"name":              "Administrator",
-				"description":       "Full system access",
-				"permissions_count": 42,
-				"assigned_users":    1,
-				"created_at":        now,
-			},
-			{
-				"id":                "role-operator",
-				"name":              "Operator",
-				"description":       "Read and manage mail flow",
-				"permissions_count": 18,
-				"assigned_users":    0,
-				"created_at":        now,
-			},
-			{
-				"id":                "role-viewer",
-				"name":              "Viewer",
-				"description":       "Read-only access",
-				"permissions_count": 8,
-				"assigned_users":    0,
-				"created_at":        now,
-			},
-		},
-	})
+	if !rejectUnknownQueryKeys(w, r, "company_id") {
+		return
+	}
+	companyID, ok := parseBoundedAdminQuery(w, r, "company_id")
+	if !ok {
+		return
+	}
+	roles, err := service.ListAdminRoles(r.Context(), companyID)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"roles": roles})
 }
 
-func handleCreateRole(w http.ResponseWriter, r *http.Request) {
+func handleCreateRole(w http.ResponseWriter, r *http.Request, service AdminService) {
 	defer r.Body.Close()
-	var req struct {
-		Name        string `json:"name"`
-		Description string `json:"description"`
+	if !rejectUnknownQueryKeys(w, r) {
+		return
 	}
+	var req admin.CreateRoleRequest
 	if err := decodeJSONBody(r, &req); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid JSON body")
+		return
+	}
+	req.CompanyID = strings.TrimSpace(req.CompanyID)
+	req.Name = strings.TrimSpace(req.Name)
+	req.Description = strings.TrimSpace(req.Description)
+	req.CreatedBy = strings.TrimSpace(req.CreatedBy)
+	if req.CompanyID == "" {
+		writeError(w, http.StatusBadRequest, "company_id is required")
 		return
 	}
 	if req.Name == "" {
 		writeError(w, http.StatusBadRequest, "name is required")
 		return
 	}
-	now := time.Now().UTC().Format(time.RFC3339)
-	writeJSON(w, http.StatusCreated, map[string]any{
-		"role": map[string]any{
-			"id":                "role-" + req.Name,
-			"name":              req.Name,
-			"description":       req.Description,
-			"permissions_count": 0,
-			"assigned_users":    0,
-			"created_at":        now,
-		},
-	})
+	if req.IsBuiltin {
+		writeError(w, http.StatusBadRequest, "custom role creation cannot set is_builtin")
+		return
+	}
+	role, err := service.CreateAdminRole(r.Context(), req)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusCreated, map[string]any{"role": role})
 }
 
 func handleListReports(w http.ResponseWriter, r *http.Request, service AdminService) {
