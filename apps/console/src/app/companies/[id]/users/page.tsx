@@ -1,7 +1,6 @@
 'use client';
 import { DataTable } from '@/components/DataTable';
-
-
+import { User, Domain, STATUS_COLORS, normalizeUserStatus } from '@/lib/users/userUtils';
 import {
   ContentLayout,
   Header,
@@ -27,48 +26,6 @@ import {
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useI18n } from '@/app/i18n-provider';
 import { useParams } from 'next/navigation';
-
-interface User {
-  id: string;
-  domain_id: string;
-  username: string;
-  display_name: string;
-  recovery_email?: string;
-  role: string;
-  status: UserStatus;
-  password_configured: boolean;
-  must_change_password: boolean;
-  quota_used: number;
-  quota_limit: number;
-  created_at: string;
-}
-
-interface Domain {
-  id: string;
-  name: string;
-  status: string;
-}
-
-type UserStatus = 'active' | 'suspended' | 'disabled';
-
-const STATUS_COLORS: Record<UserStatus, 'green' | 'red' | 'grey' | 'blue'> = {
-  active: 'green',
-  suspended: 'red',
-  disabled: 'red',
-};
-
-function normalizeUserStatus(rawStatus: unknown): UserStatus {
-  switch (String(rawStatus).trim().toLowerCase()) {
-    case 'active':
-      return 'active';
-    case 'suspended':
-      return 'suspended';
-    case 'disabled':
-      return 'disabled';
-    default:
-      return 'disabled';
-  }
-}
 
 export default function UsersPage() {
   const { t } = useI18n();
