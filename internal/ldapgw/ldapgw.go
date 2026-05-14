@@ -255,12 +255,18 @@ func decodeLength(data []byte) (int, []byte, error) {
 	if numBytes == 0 {
 		return 0, nil, fmt.Errorf("indefinite lengths are not supported")
 	}
+	if numBytes > 4 {
+		return 0, nil, fmt.Errorf("length uses too many octets")
+	}
 	if len(data) < numBytes+1 {
 		return 0, nil, fmt.Errorf("length data too short")
 	}
 	length := 0
 	for i := 0; i < numBytes; i++ {
 		length = length<<8 | int(data[1+i])
+	}
+	if length > maxBERMessageSize {
+		return 0, nil, fmt.Errorf("length %d exceeds maximum %d", length, maxBERMessageSize)
 	}
 	return length, data[1+numBytes:], nil
 }

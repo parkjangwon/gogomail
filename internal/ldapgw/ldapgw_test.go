@@ -150,6 +150,15 @@ func TestDecodeLDAPPacketRejectsIndefiniteLength(t *testing.T) {
 	}
 }
 
+func TestDecodeLengthRejectsOversizedLengthForms(t *testing.T) {
+	if _, _, err := decodeLength([]byte{0x85, 0x00, 0x00, 0x00, 0x00, 0x01}); err == nil {
+		t.Fatal("decodeLength accepted overlong length-of-length")
+	}
+	if _, _, err := decodeLength([]byte{0x84, 0x01, 0x00, 0x00, 0x01}); err == nil {
+		t.Fatal("decodeLength accepted length above maxBERMessageSize")
+	}
+}
+
 func TestEncodeOctetStringUsesLongFormLength(t *testing.T) {
 	value := strings.Repeat("x", 300)
 	encoded := encodeOctetString(value)
