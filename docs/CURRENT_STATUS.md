@@ -5,17 +5,25 @@ Last updated: 2026-05-15 (Source File Separation & Refactoring)
 ## Source File Separation & Refactoring (2026-05-15, in progress)
 - Goal: Reduce oversized source files by appropriately separating concerns into focused modules.
 - **Phase 1 Complete**: Parse function extraction to admin_helpers.go
-  - `internal/httpapi/admin_helpers.go`: Expanded from 57 lines to 923 lines, now containing 30+ utility functions
-  - Extracted from admin.go: parseAdminAttachmentCleanupRequest + 26 parse* functions (parseAPIUsageLedger*, parseMailFlowLog*, parseDirectoryPrincipal*, etc.)
-  - Extracted helper constants: maxAdminQueryFilterBytes (1024)
+  - `internal/httpapi/admin_helpers.go`: Expanded from 57 to 923 lines; consolidated 30+ utility functions
+  - Extracted 27 functions: parseAdminAttachmentCleanupRequest + 26 parse* helpers (parseAPIUsageLedger*, parseMailFlowLog*, parseDirectoryPrincipal*, parseDirectoryAlias*, parseDirectoryDelegation*, parseDirectoryGroupMembership*, parseDAVSyncRetention*, parseOptionalRFC3339Query, parseBoundedAdminQuery, parseBoundedAdminPathValue/Pair/Triple)
+  - Extracted constant: maxAdminQueryFilterBytes (1024)
   - All parsing and validation logic consolidated in single focused module
-- `internal/httpapi/admin.go`: Reduced from 8340 to 7483 lines (-857 lines, 10.3% reduction)
+- `internal/httpapi/admin.go`: Reduced from 8340 → 7483 lines (-857 lines, **10.3% reduction**)
+  - Target for next phase: RegisterAdminRoutes (lines 550-4794, 4244 lines) contains 11 logical sections (Console, Audit Log, Tenant Health, Change History, Webhooks, Notification Templates, Security Posture, Global Signature, Legal Holds, SCIM Status, Seat Usage) — could be split into 11 register* functions
+  - 15 type definitions (adminRouteConfig, adminContextKey, admin*Request, admin*Capabilities, etc.) candidates for admin_types.go extraction
 - Verification: All 991 admin package tests pass; 6046 total tests passing
-- Remaining phases: 
-  1. Extract type definitions to admin_types.go (~20 admin*Request types)
-  2. Refactor RegisterAdminRoutes (4244-line function) into 11 category-based register* functions (~400 lines each)
-  3. Tackle internal/imapgw/server.go (8927 lines, 375+ functions)
-  4. Separate internal/maildb/admin.go (7281 lines)
+- **Oversized files ranking** (production code, excluding tests):
+  1. internal/imapgw/server.go: 8927 lines (375+ functions, handleLineWithLiteral: 475 lines)
+  2. internal/httpapi/admin.go: 7483 lines (REDUCED by 857 lines this phase)
+  3. internal/maildb/admin.go: 7281 lines
+  4. internal/ldapgw/server.go: 3276 lines
+  5. internal/app/run.go: 3325 lines
+- **Remaining phases**: 
+  1. RegisterAdminRoutes refactoring (4244-line function → 11 register* functions)
+  2. Extract admin type definitions to admin_types.go
+  3. Tackle imapgw/server.go (8927 lines, highest priority)
+  4. Separate maildb/admin.go (7281 lines)
 
 ## SMTP Phase 8 - RFC Compliance Integration (2026-05-14, complete)
 - CRITICAL GAP FIX: RFC compliance validator now integrated into actual SMTP submission pipeline.
