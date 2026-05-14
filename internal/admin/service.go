@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"fmt"
+	"strings"
 	"time"
 
 	"golang.org/x/crypto/bcrypt"
@@ -108,6 +109,31 @@ func (s *Service) GetRole(ctx context.Context, roleID string) (*Role, error) {
 // ListRoles lists all roles for a company.
 func (s *Service) ListRoles(ctx context.Context, companyID string) ([]Role, error) {
 	return s.repo.ListRoles(ctx, companyID)
+}
+
+func (s *Service) ListRoleSummaries(ctx context.Context, companyID string) ([]RoleSummary, error) {
+	companyID = strings.TrimSpace(companyID)
+	if companyID == "" {
+		return nil, fmt.Errorf("%w: company_id", ErrMissingRequiredField)
+	}
+	return s.repo.ListRoleSummaries(ctx, companyID)
+}
+
+func (s *Service) CreateRoleSummary(ctx context.Context, req CreateRoleRequest) (RoleSummary, error) {
+	req.CompanyID = strings.TrimSpace(req.CompanyID)
+	req.Name = strings.TrimSpace(req.Name)
+	req.Description = strings.TrimSpace(req.Description)
+	req.CreatedBy = strings.TrimSpace(req.CreatedBy)
+	if req.CompanyID == "" {
+		return RoleSummary{}, fmt.Errorf("%w: company_id", ErrMissingRequiredField)
+	}
+	if req.Name == "" {
+		return RoleSummary{}, fmt.Errorf("%w: name", ErrMissingRequiredField)
+	}
+	if req.IsBuiltin {
+		return RoleSummary{}, ErrCannotDeleteBuiltin
+	}
+	return s.repo.CreateRoleSummary(ctx, req)
 }
 
 // UpdateRole updates an existing role.

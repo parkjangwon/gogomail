@@ -1236,9 +1236,9 @@ func (s adminService) GetMailFlowLogStats(ctx context.Context, req maildb.MailFl
 		return maildb.MailFlowLogStatsView{}, err
 	}
 	return maildb.MailFlowLogStatsView{
-		TotalMessages:     result.TotalMessages,
-		UniqueSenders:     result.UniqueSenders,
-		UniqueDomains:     result.UniqueDomains,
+		TotalMessages:    result.TotalMessages,
+		UniqueSenders:    result.UniqueSenders,
+		UniqueDomains:    result.UniqueDomains,
 		TotalSizeBytes:   result.TotalSizeBytes,
 		AverageSizeBytes: result.AverageSizeBytes,
 		MaxSizeBytes:     result.MaxSizeBytes,
@@ -1273,11 +1273,11 @@ func (s adminService) GetMailFlowLogDailyStats(ctx context.Context, req maildb.M
 			Date:             r.Date,
 			InboundMessages:  r.InboundMessages,
 			OutboundMessages: r.OutboundMessages,
-			InboundSize:     r.InboundSize,
-			OutboundSize:    r.OutboundSize,
-			Delivered:       r.Delivered,
-			Failed:          r.Failed,
-			Bounced:         r.Bounced,
+			InboundSize:      r.InboundSize,
+			OutboundSize:     r.OutboundSize,
+			Delivered:        r.Delivered,
+			Failed:           r.Failed,
+			Bounced:          r.Bounced,
 		})
 	}
 	return views, nil
@@ -1425,6 +1425,20 @@ func (s adminService) GetDomainSettings(ctx context.Context, domainID string) (*
 		return nil, fmt.Errorf("admin service is not configured")
 	}
 	return s.adminSvc.GetDomainSettings(ctx, domainID)
+}
+
+func (s adminService) ListAdminRoles(ctx context.Context, companyID string) ([]admin.RoleSummary, error) {
+	if s.adminSvc == nil {
+		return nil, fmt.Errorf("admin service is not configured")
+	}
+	return s.adminSvc.ListRoleSummaries(ctx, companyID)
+}
+
+func (s adminService) CreateAdminRole(ctx context.Context, req admin.CreateRoleRequest) (admin.RoleSummary, error) {
+	if s.adminSvc == nil {
+		return admin.RoleSummary{}, fmt.Errorf("admin service is not configured")
+	}
+	return s.adminSvc.CreateRoleSummary(ctx, req)
 }
 
 func (s adminService) UpdateDomainSettings(ctx context.Context, settings *admin.DomainSettings) error {
