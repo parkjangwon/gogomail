@@ -5731,6 +5731,7 @@ Current implementation notes:
 - Root DSE advertises `subschemaSubentry`, and `cn=Subschema` base-object search returns minimal RFC 4512/RFC 4519 schema metadata for person/inetOrgPerson-style directory clients.
 - SearchRequest parsing now covers and validates scope, deref aliases, client size/time limits, typesOnly, filter, and requested attribute selection before mapping supported directory filters into the repository boundary.
 - Common client search filters using OR/AND/NOT wrappers, substring matches, and RFC 4511 extensibleMatch type/value assertions are accepted for RFC 4519 directory attributes (`cn`, `mail`, `uid`, `displayName`, `givenName`, `sn`) plus Active Directory-style compatibility aliases (`name`, `sAMAccountName`, `userPrincipalName`).
+- Repository narrowing uses only safe conjunctive LDAP filter hints; OR/NOT branches are validated and left to the full entry filter evaluator so matching entries are not under-returned.
 - Negated LDAP filter assertions are validated but not used as positive repository search terms or principal-kind narrowing hints.
 - SearchResultEntry candidates are post-filtered against the full LDAP filter tree, including AD bitwise `userAccountControl` matching rules, so repository search hints cannot over-return entries that fail the requested filter.
 - LDAP search materializes candidate LDAP attributes once and reuses them across full-filter evaluation, server-side sort, matched-values processing, and response projection to avoid repeated per-entry map construction.

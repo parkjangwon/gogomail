@@ -1140,6 +1140,46 @@ func TestLDAPServerAppliesFullSearchFilterToEntries(t *testing.T) {
 	}
 }
 
+func TestLDAPServerDoesNotUnderReturnOrSearchFilters(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+
+	auth := newFakeLDAPAuth()
+	dir := newFakeDirectoryQuerier()
+	dir.addPrincipal(PrincipalEntry{DN: "uid=alice,ou=users,dc=example,dc=com", Kind: "user", CN: "Alice", Mail: "alice@example.com", UID: "alice"})
+	dir.addPrincipal(PrincipalEntry{DN: "uid=bob,ou=users,dc=example,dc=com", Kind: "user", CN: "Bob", Mail: "bob@example.com", UID: "bob"})
+	dir.addPrincipal(PrincipalEntry{DN: "uid=dana,ou=users,dc=example,dc=com", Kind: "user", CN: "Dana", Mail: "dana@example.com", UID: "dana"})
+	srv := NewServer(ln, auth, dir)
+	go srv.Serve()
+	defer srv.Close()
+
+	conn, err := net.Dial("tcp", ln.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	bindTestConnection(t, conn, auth)
+
+	filter := buildOrFilter(
+		buildEqualityFilter("mail", "alice@example.com"),
+		buildEqualityFilter("mail", "bob@example.com"),
+	)
+	req := buildLDAPPacket(37, opSearchRequest, buildSearchRequest("ou=users,dc=example,dc=com", scopeWholeSubtree, filter))
+	if err := sendPDU(conn, req); err != nil {
+		t.Fatal(err)
+	}
+	dns, _ := readSearchDNsUntilDone(t, conn)
+	if len(dns) != 2 ||
+		!containsStringFold(dns, "uid=alice,ou=users,dc=example,dc=com") ||
+		!containsStringFold(dns, "uid=bob,ou=users,dc=example,dc=com") ||
+		containsStringFold(dns, "uid=dana,ou=users,dc=example,dc=com") {
+		t.Fatalf("OR filter DNs = %#v, want alice and bob only", dns)
+	}
+}
+
 func TestLDAPServerAppliesADStyleUserSearchFilter(t *testing.T) {
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
@@ -3353,7 +3393,7 @@ func TestLDAPServerReturnsSearchReferenceForForeignNamingContext(t *testing.T) {
 	}
 }
 
-func TestParseLDAPFilterSupportsClientOrSubstringSearch(t *testing.T) {
+func TestParseLDAPFilterDoesNotUseOrAsRepositoryHint(t *testing.T) {
 	filter := buildOrFilter(
 		buildEqualityFilter("objectClass", "person"),
 		buildSubstringFilter("cn", "ali"),
@@ -3363,8 +3403,8 @@ func TestParseLDAPFilterSupportsClientOrSubstringSearch(t *testing.T) {
 	if err != nil {
 		t.Fatalf("parseLDAPFilter returned error: %v", err)
 	}
-	if got != "(cn=ali)" {
-		t.Fatalf("parseLDAPFilter = %q, want first searchable substring candidate", got)
+	if got != "" {
+		t.Fatalf("parseLDAPFilter = %q, want no unsafe OR repository hint", got)
 	}
 }
 
@@ -3406,7 +3446,7 @@ func TestParseLDAPFilterIgnoresNegatedPrincipalKinds(t *testing.T) {
 }
 
 func TestParseLDAPFilterSupportsExtensibleMatch(t *testing.T) {
-	filter := buildOrFilter(
+	filter := buildAndFilter(
 		buildExtensibleFilter("objectClass", "organizationalUnit"),
 		buildExtensibleFilter("ou", "Research"),
 	)
@@ -3428,44 +3468,44 @@ func TestParseLDAPFilterSupportsExtensibleMatch(t *testing.T) {
 }
 
 func TestParseLDAPFilterPrincipalKindsFromObjectClass(t *testing.T) {
-	filter := buildOrFilter(
+	filter := buildAndFilter(
 		buildEqualityFilter("objectClass", "organizationalUnit"),
-		buildEqualityFilter("objectClass", "groupOfNames"),
 		buildSubstringFilter("ou", "Research"),
 	)
 	got, err := parseLDAPFilterPrincipalKinds(filter)
 	if err != nil {
 		t.Fatalf("parseLDAPFilterPrincipalKinds returned error: %v", err)
 	}
-	want := []string{"organization", "group"}
-	if len(got) != len(want) {
-		t.Fatalf("kinds = %#v, want %#v", got, want)
-	}
-	for i := range want {
-		if got[i] != want[i] {
-			t.Fatalf("kinds = %#v, want %#v", got, want)
-		}
+	if len(got) != 1 || got[0] != "organization" {
+		t.Fatalf("kinds = %#v, want organization", got)
 	}
 }
 
 func TestParseLDAPFilterPrincipalKindsFromObjectCategory(t *testing.T) {
-	filter := buildOrFilter(
+	filter := buildAndFilter(
 		buildEqualityFilter("objectCategory", "person"),
-		buildExtensibleFilter("objectCategory", "group"),
 		buildSubstringFilter("cn", "Team"),
 	)
 	got, err := parseLDAPFilterPrincipalKinds(filter)
 	if err != nil {
 		t.Fatalf("parseLDAPFilterPrincipalKinds returned error: %v", err)
 	}
-	want := []string{"user", "group"}
-	if len(got) != len(want) {
-		t.Fatalf("kinds = %#v, want %#v", got, want)
+	if len(got) != 1 || got[0] != "user" {
+		t.Fatalf("kinds = %#v, want user", got)
 	}
-	for i := range want {
-		if got[i] != want[i] {
-			t.Fatalf("kinds = %#v, want %#v", got, want)
-		}
+}
+
+func TestParseLDAPFilterPrincipalKindsDoesNotNarrowMixedOr(t *testing.T) {
+	filter := buildOrFilter(
+		buildEqualityFilter("objectClass", "person"),
+		buildSubstringFilter("cn", "Team"),
+	)
+	got, err := parseLDAPFilterPrincipalKinds(filter)
+	if err != nil {
+		t.Fatalf("parseLDAPFilterPrincipalKinds returned error: %v", err)
+	}
+	if len(got) != 0 {
+		t.Fatalf("kinds = %#v, want no unsafe OR kind narrowing", got)
 	}
 }
 

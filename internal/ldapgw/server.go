@@ -2559,7 +2559,7 @@ func collectLDAPFilterPrincipalKinds(data []byte, seen map[string]struct{}) erro
 		return err
 	}
 	switch filterType {
-	case filterAnd, filterOr:
+	case filterAnd:
 		for len(content) > 0 {
 			child, rest, err := readRawTLV(content)
 			if err != nil {
@@ -2570,6 +2570,15 @@ func collectLDAPFilterPrincipalKinds(data []byte, seen map[string]struct{}) erro
 			}
 			content = rest
 		}
+	case filterOr:
+		for len(content) > 0 {
+			_, rest, err := readRawTLV(content)
+			if err != nil {
+				return err
+			}
+			content = rest
+		}
+		return nil
 	case filterNot:
 		if _, _, err := readRawTLV(content); err != nil {
 			return err
@@ -2635,7 +2644,7 @@ func parseLDAPFilterCandidate(data []byte) (attr string, value string, ok bool, 
 		return "", "", false, err
 	}
 	switch filterType {
-	case filterAnd, filterOr:
+	case filterAnd:
 		for len(content) > 0 {
 			child, rest, err := readRawTLV(content)
 			if err != nil {
@@ -2647,6 +2656,15 @@ func parseLDAPFilterCandidate(data []byte) (attr string, value string, ok bool, 
 			}
 			if childOK && isDirectorySearchAttribute(childAttr) && strings.Trim(childValue, "*") != "" {
 				return childAttr, childValue, true, nil
+			}
+			content = rest
+		}
+		return "", "", false, nil
+	case filterOr:
+		for len(content) > 0 {
+			_, rest, err := readRawTLV(content)
+			if err != nil {
+				return "", "", false, err
 			}
 			content = rest
 		}
