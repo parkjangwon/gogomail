@@ -1055,11 +1055,11 @@ func filterLDAPSearchEntriesByFilter(entries []ldapSearchEntry, filter []byte) [
 }
 
 func parentDN(dn string) string {
-	parts := strings.SplitN(dn, ",", 2)
-	if len(parts) != 2 {
+	parts := splitDNComponents(dn)
+	if len(parts) < 2 {
 		return ""
 	}
-	return strings.TrimSpace(parts[1])
+	return strings.Join(parts[1:], ",")
 }
 
 func ldapContainerAttributes(dn string) (map[string][]string, bool) {
@@ -1105,12 +1105,20 @@ func firstRDNValue(dn, attr string) string {
 	if dn == "" {
 		return ""
 	}
-	first := strings.TrimSpace(strings.Split(dn, ",")[0])
+	components := splitDNComponents(dn)
+	if len(components) == 0 {
+		return ""
+	}
+	first := strings.TrimSpace(components[0])
 	parts := strings.SplitN(first, "=", 2)
 	if len(parts) != 2 || !strings.EqualFold(strings.TrimSpace(parts[0]), attr) {
 		return ""
 	}
-	return strings.TrimSpace(parts[1])
+	value, ok := unescapeDNValue(strings.TrimSpace(parts[1]))
+	if !ok {
+		return ""
+	}
+	return strings.ToLower(value)
 }
 
 func intersectPrincipalKinds(filterKinds, baseKinds []string) ([]string, bool) {
@@ -2372,11 +2380,40 @@ func ldapOperationName(opTag int) string {
 }
 
 func normalizeDNForCompare(dn string) string {
-	parts := strings.Split(strings.TrimSpace(dn), ",")
-	for i, part := range parts {
-		parts[i] = strings.ToLower(strings.TrimSpace(part))
+	components := splitDNComponents(strings.TrimSpace(dn))
+	if len(components) == 0 {
+		return ""
+	}
+	parts := make([]string, 0, len(components))
+	for _, component := range components {
+		attr, value, ok := splitDNAttributeValue(component)
+		if !ok {
+			parts = append(parts, strings.ToLower(strings.TrimSpace(component)))
+			continue
+		}
+		parts = append(parts, strings.ToLower(strings.TrimSpace(attr))+"="+escapeNormalizedDNValue(strings.ToLower(value)))
 	}
 	return strings.Join(parts, ",")
+}
+
+func escapeNormalizedDNValue(value string) string {
+	var b strings.Builder
+	for i := 0; i < len(value); i++ {
+		c := value[i]
+		needsEscape := c == ',' || c == '+' || c == '"' || c == '\\' || c == '<' || c == '>' || c == ';' || c == '=' || c == 0
+		if i == 0 && (c == ' ' || c == '#') {
+			needsEscape = true
+		}
+		if i == len(value)-1 && c == ' ' {
+			needsEscape = true
+		}
+		if needsEscape {
+			b.WriteString(fmt.Sprintf("\\%02x", c))
+			continue
+		}
+		b.WriteByte(c)
+	}
+	return b.String()
 }
 
 func decodeSearchRequest(data []byte) (baseDN string, scope int, filter []byte, attrs []string, sizeLimit int, timeLimit int, typesOnly bool, err error) {

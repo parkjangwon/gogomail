@@ -1117,6 +1117,18 @@ func TestBindIdentityCandidatesUnescapesDNValues(t *testing.T) {
 	}
 }
 
+func TestNormalizeDNForComparePreservesEscapedSeparators(t *testing.T) {
+	commaEscaped := normalizeDNForCompare(`uid=Alice\, Ops,ou=Users,dc=Example,dc=Com`)
+	hexEscaped := normalizeDNForCompare(`uid=Alice\2c Ops,ou=users,dc=example,dc=com`)
+	want := `uid=alice\2c ops,ou=users,dc=example,dc=com`
+	if commaEscaped != want || hexEscaped != want {
+		t.Fatalf("normalizeDNForCompare comma=%q hex=%q, want %q", commaEscaped, hexEscaped, want)
+	}
+	if got := parentDN(commaEscaped); got != "ou=users,dc=example,dc=com" {
+		t.Fatalf("parentDN(%q) = %q, want users container", commaEscaped, got)
+	}
+}
+
 func TestLDAPServerReadOnlyEnforcement(t *testing.T) {
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
@@ -1361,6 +1373,46 @@ func TestLDAPServerSearchRequest(t *testing.T) {
 	}
 	if !found {
 		t.Error("expected SearchResultEntry after search request")
+	}
+}
+
+func TestLDAPServerSearchBaseDNMatchesEquivalentEscapedRDNs(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+
+	auth := newFakeLDAPAuth()
+	dir := newFakeDirectoryQuerier()
+	dir.addPrincipal(PrincipalEntry{
+		DN:          `uid=Alice\, Ops,ou=users,dc=example,dc=com`,
+		Kind:        "user",
+		CN:          "Alice Ops",
+		Mail:        "alice.ops@example.com",
+		UID:         "Alice, Ops",
+		DisplayName: "Alice Ops",
+	})
+	srv := NewServer(ln, auth, dir)
+	go srv.Serve()
+	defer srv.Close()
+
+	conn, err := net.Dial("tcp", ln.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	bindTestConnection(t, conn, auth)
+
+	req := buildLDAPPacket(51, opSearchRequest,
+		buildSearchRequest(`uid=Alice\2c Ops,ou=users,dc=example,dc=com`, scopeBaseObject, buildEqualityFilter("objectClass", "person")),
+	)
+	if err := sendPDU(conn, req); err != nil {
+		t.Fatal(err)
+	}
+	dns, _ := readSearchDNsUntilDone(t, conn)
+	if len(dns) != 1 || dns[0] != `uid=Alice\, Ops,ou=users,dc=example,dc=com` {
+		t.Fatalf("search DNs = %#v, want escaped-comma base object", dns)
 	}
 }
 
