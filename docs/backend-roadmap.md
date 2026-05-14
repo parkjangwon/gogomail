@@ -5740,6 +5740,7 @@ Current implementation notes:
 - BindRequest encoding uses BER long-form lengths for large generated bind requests, covering long bind DNs and long simple-auth credentials in internal/client-side helpers.
 - Common client search filters using OR/AND/NOT wrappers, substring matches, and RFC 4511 extensibleMatch type/value assertions are accepted for RFC 4519 directory attributes (`cn`, `mail`, `uid`, `displayName`, `givenName`, `sn`) plus Active Directory-style compatibility aliases (`name`, `sAMAccountName`, `userPrincipalName`).
 - Repository narrowing uses only safe conjunctive LDAP filter hints; OR/NOT branches are validated and left to the full entry filter evaluator so matching entries are not under-returned.
+- LDAP filter validation now recursively rejects malformed child filters, trailing bytes, and empty or option-only AttributeDescription values before repository narrowing or post-filter evaluation.
 - LDAP ordering filters (`greaterOrEqual`, `lessOrEqual`) are evaluated only by the full entry filter evaluator, avoiding unsafe text-search narrowing.
 - Negated LDAP filter assertions are validated but not used as positive repository search terms or principal-kind narrowing hints.
 - SearchResultEntry candidates are post-filtered against the full LDAP filter tree, including AD bitwise `userAccountControl` matching rules, so repository search hints cannot over-return entries that fail the requested filter.

@@ -4294,6 +4294,30 @@ func TestLDAPAttributeDescriptionsIgnoreOptionsForMatching(t *testing.T) {
 	}
 }
 
+func TestValidateFilterRejectsEmptyAttributeDescriptions(t *testing.T) {
+	validWithOption := buildEqualityFilter("mail;lang-en", "alice@example.com")
+	if err := validateFilter(validWithOption); err != nil {
+		t.Fatalf("validateFilter rejected attribute option: %v", err)
+	}
+
+	for name, filter := range map[string][]byte{
+		"equality empty":      buildEqualityFilter("", "alice@example.com"),
+		"equality option":     buildEqualityFilter(";binary", "alice@example.com"),
+		"substring empty":     buildSubstringFilter("", "alice"),
+		"substring option":    buildSubstringFilter(";lang-en", "alice"),
+		"present empty":       {tagContextSpecific | filterPresent, 0x00},
+		"present option":      {tagContextSpecific | filterPresent, 0x07, ';', 'b', 'i', 'n', 'a', 'r', 'y'},
+		"extensible empty":    buildExtensibleFilter("", "alice@example.com"),
+		"extensible option":   buildExtensibleFilter(";binary", "alice@example.com"),
+		"nested option-only":  buildAndFilter(buildEqualityFilter("mail", "alice@example.com"), buildEqualityFilter(";binary", "alice@example.com")),
+		"not trailing filter": append(buildNotFilter(buildEqualityFilter("mail", "alice@example.com")), 0x00),
+	} {
+		if err := validateFilter(filter); err == nil {
+			t.Fatalf("validateFilter accepted %s attribute description", name)
+		}
+	}
+}
+
 func TestParseLDAPFilterSupportsExtensibleMatch(t *testing.T) {
 	filter := buildAndFilter(
 		buildExtensibleFilter("objectClass", "organizationalUnit"),
