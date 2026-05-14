@@ -3133,6 +3133,20 @@ func TestFilterPrincipalEntriesByLDAPScope(t *testing.T) {
 	}
 }
 
+func TestLDAPContainerAttributesExposeSubordinateHints(t *testing.T) {
+	attrs, ok := ldapContainerAttributes("ou=users,dc=example,dc=com")
+	if !ok {
+		t.Fatal("ldapContainerAttributes did not recognize users container")
+	}
+	if attrs["hasSubordinates"][0] != "TRUE" || attrs["numSubordinates"][0] != "0" {
+		t.Fatalf("container subordinate attrs = %#v", attrs)
+	}
+	leaf := ldapOperationalAttributes("uid=alice,ou=users,dc=example,dc=com")
+	if leaf["hasSubordinates"][0] != "FALSE" || leaf["numSubordinates"][0] != "0" {
+		t.Fatalf("leaf subordinate attrs = %#v", leaf)
+	}
+}
+
 func TestSelectLDAPAttributesHonorsSpecialSelectors(t *testing.T) {
 	attrs := map[string][]string{
 		"cn":                   {"Alice"},
