@@ -1,6 +1,7 @@
 package httpapi
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 
@@ -8,15 +9,15 @@ import (
 )
 
 type OrgChartService interface {
-	CreateUnit(ctx interface{}, unit *orgchart.OrganizationUnit) error
-	GetUnit(ctx interface{}, id string) (*orgchart.OrganizationUnit, error)
-	ListUnits(ctx interface{}, companyID string) ([]orgchart.OrganizationUnit, error)
-	UpdateUnit(ctx interface{}, unit *orgchart.OrganizationUnit) error
-	DeleteUnit(ctx interface{}, id string) error
-	GetHierarchy(ctx interface{}, companyID string) (*orgchart.OrganizationHierarchy, error)
-	AssignUserToUnit(ctx interface{}, unitID, userID string, role string) error
-	RemoveUserFromUnit(ctx interface{}, memberID string) error
-	SyncWithLDAP(ctx interface{}, companyID string) (*orgchart.SyncLog, error)
+	CreateUnit(ctx context.Context, unit *orgchart.OrganizationUnit) error
+	GetUnit(ctx context.Context, id string) (*orgchart.OrganizationUnit, error)
+	ListUnits(ctx context.Context, companyID string) ([]orgchart.OrganizationUnit, error)
+	UpdateUnit(ctx context.Context, unit *orgchart.OrganizationUnit) error
+	DeleteUnit(ctx context.Context, id string) error
+	GetHierarchy(ctx context.Context, companyID string) (*orgchart.OrganizationHierarchy, error)
+	AssignUserToUnit(ctx context.Context, unitID, userID string, role string) error
+	RemoveUserFromUnit(ctx context.Context, memberID string) error
+	SyncWithLDAP(ctx context.Context, companyID string) (*orgchart.SyncLog, error)
 }
 
 func RegisterOrgChartRoutes(mux *http.ServeMux, service OrgChartService, adminToken string) {

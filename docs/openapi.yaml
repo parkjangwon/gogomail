@@ -6776,6 +6776,287 @@ paths:
                           type: string
         default:
           $ref: "#/components/responses/Error"
+  /organization/units:
+    get:
+      operationId: adminListOrganizationUnits
+      summary: List organization units
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      parameters:
+        - name: company_id
+          in: query
+          required: true
+          schema:
+            type: string
+            maxLength: 1024
+      responses:
+        "200":
+          description: Organization units
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [units]
+                properties:
+                  units:
+                    type: array
+                    items:
+                      type: object
+        default:
+          $ref: "#/components/responses/Error"
+    post:
+      operationId: adminCreateOrganizationUnit
+      summary: Create an organization unit
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [company_id, name]
+              properties:
+                company_id:
+                  type: string
+                parent_id:
+                  type: string
+                name:
+                  type: string
+                type:
+                  type: string
+                description:
+                  type: string
+                display_name:
+                  type: string
+                manager_user_id:
+                  type: string
+                status:
+                  type: string
+      responses:
+        "201":
+          description: Organization unit created
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [unit]
+                properties:
+                  unit:
+                    type: object
+        default:
+          $ref: "#/components/responses/Error"
+  /organization/units/{id}:
+    get:
+      operationId: adminGetOrganizationUnit
+      summary: Get an organization unit
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+      responses:
+        "200":
+          description: Organization unit
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [unit]
+                properties:
+                  unit:
+                    type: object
+        default:
+          $ref: "#/components/responses/Error"
+    put:
+      operationId: adminUpdateOrganizationUnit
+      summary: Update an organization unit
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [company_id, name]
+              properties:
+                company_id:
+                  type: string
+                parent_id:
+                  type: string
+                name:
+                  type: string
+                type:
+                  type: string
+                description:
+                  type: string
+                display_name:
+                  type: string
+                manager_user_id:
+                  type: string
+                status:
+                  type: string
+      responses:
+        "200":
+          description: Organization unit updated
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [unit]
+                properties:
+                  unit:
+                    type: object
+        default:
+          $ref: "#/components/responses/Error"
+    delete:
+      operationId: adminDeleteOrganizationUnit
+      summary: Delete an organization unit
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+      responses:
+        "204":
+          description: Organization unit deleted
+        default:
+          $ref: "#/components/responses/Error"
+  /organization/hierarchy:
+    get:
+      operationId: adminGetOrganizationHierarchy
+      summary: Get organization hierarchy
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      parameters:
+        - name: company_id
+          in: query
+          required: true
+          schema:
+            type: string
+            maxLength: 1024
+      responses:
+        "200":
+          description: Organization hierarchy
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [hierarchy]
+                properties:
+                  hierarchy:
+                    type: object
+        default:
+          $ref: "#/components/responses/Error"
+  /organization/members:
+    post:
+      operationId: adminAssignOrganizationMember
+      summary: Assign a user to an organization unit
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [unit_id, user_id]
+              properties:
+                unit_id:
+                  type: string
+                user_id:
+                  type: string
+                role:
+                  type: string
+      responses:
+        "201":
+          description: Organization member assigned
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status]
+                properties:
+                  status:
+                    type: string
+        default:
+          $ref: "#/components/responses/Error"
+  /organization/members/{id}:
+    delete:
+      operationId: adminRemoveOrganizationMember
+      summary: Remove an organization member assignment
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+      responses:
+        "204":
+          description: Organization member assignment removed
+        default:
+          $ref: "#/components/responses/Error"
+  /organization/sync:
+    post:
+      operationId: adminSyncOrganization
+      summary: Trigger organization LDAP sync
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      parameters:
+        - name: company_id
+          in: query
+          required: true
+          schema:
+            type: string
+            maxLength: 1024
+      responses:
+        "201":
+          description: Organization sync started
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [sync_log]
+                properties:
+                  sync_log:
+                    type: object
+        default:
+          $ref: "#/components/responses/Error"
   /organization/settings:
     get:
       operationId: adminGetOrganizationSettings

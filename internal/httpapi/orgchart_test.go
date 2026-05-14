@@ -18,6 +18,8 @@ type mockOrgChartService struct {
 	members map[string]*orgchart.OrganizationMember
 }
 
+var _ OrgChartService = (*orgchart.Service)(nil)
+
 func newMockOrgChartService() *mockOrgChartService {
 	return &mockOrgChartService{
 		units:   make(map[string]*orgchart.OrganizationUnit),
@@ -25,7 +27,7 @@ func newMockOrgChartService() *mockOrgChartService {
 	}
 }
 
-func (m *mockOrgChartService) CreateUnit(ctx interface{}, unit *orgchart.OrganizationUnit) error {
+func (m *mockOrgChartService) CreateUnit(ctx context.Context, unit *orgchart.OrganizationUnit) error {
 	if unit.CompanyID == "" || unit.Name == "" {
 		return fmt.Errorf("company_id and name are required")
 	}
@@ -36,14 +38,14 @@ func (m *mockOrgChartService) CreateUnit(ctx interface{}, unit *orgchart.Organiz
 	return nil
 }
 
-func (m *mockOrgChartService) GetUnit(ctx interface{}, id string) (*orgchart.OrganizationUnit, error) {
+func (m *mockOrgChartService) GetUnit(ctx context.Context, id string) (*orgchart.OrganizationUnit, error) {
 	if u, ok := m.units[id]; ok {
 		return u, nil
 	}
 	return nil, fmt.Errorf("not found")
 }
 
-func (m *mockOrgChartService) ListUnits(ctx interface{}, companyID string) ([]orgchart.OrganizationUnit, error) {
+func (m *mockOrgChartService) ListUnits(ctx context.Context, companyID string) ([]orgchart.OrganizationUnit, error) {
 	var result []orgchart.OrganizationUnit
 	for _, u := range m.units {
 		if u.CompanyID == companyID {
@@ -53,7 +55,7 @@ func (m *mockOrgChartService) ListUnits(ctx interface{}, companyID string) ([]or
 	return result, nil
 }
 
-func (m *mockOrgChartService) UpdateUnit(ctx interface{}, unit *orgchart.OrganizationUnit) error {
+func (m *mockOrgChartService) UpdateUnit(ctx context.Context, unit *orgchart.OrganizationUnit) error {
 	if _, ok := m.units[unit.ID]; ok {
 		unit.UpdatedAt = time.Now()
 		m.units[unit.ID] = unit
@@ -62,27 +64,27 @@ func (m *mockOrgChartService) UpdateUnit(ctx interface{}, unit *orgchart.Organiz
 	return fmt.Errorf("not found")
 }
 
-func (m *mockOrgChartService) DeleteUnit(ctx interface{}, id string) error {
+func (m *mockOrgChartService) DeleteUnit(ctx context.Context, id string) error {
 	delete(m.units, id)
 	return nil
 }
 
-func (m *mockOrgChartService) AssignUserToUnit(ctx interface{}, unitID, userID string, role string) error {
+func (m *mockOrgChartService) AssignUserToUnit(ctx context.Context, unitID, userID string, role string) error {
 	member := &orgchart.OrganizationMember{
-		ID:                   fmt.Sprintf("member-%d", len(m.members)),
-		OrganizationUnitID:   unitID,
-		UserID:               userID,
-		Role:                 role,
-		StartedAt:            time.Now(),
-		IsPrimary:            true,
-		CreatedAt:            time.Now(),
-		UpdatedAt:            time.Now(),
+		ID:                 fmt.Sprintf("member-%d", len(m.members)),
+		OrganizationUnitID: unitID,
+		UserID:             userID,
+		Role:               role,
+		StartedAt:          time.Now(),
+		IsPrimary:          true,
+		CreatedAt:          time.Now(),
+		UpdatedAt:          time.Now(),
 	}
 	m.members[member.ID] = member
 	return nil
 }
 
-func (m *mockOrgChartService) RemoveUserFromUnit(ctx interface{}, memberID string) error {
+func (m *mockOrgChartService) RemoveUserFromUnit(ctx context.Context, memberID string) error {
 	if mem, ok := m.members[memberID]; ok {
 		now := time.Now()
 		mem.EndedAt = &now
@@ -91,7 +93,7 @@ func (m *mockOrgChartService) RemoveUserFromUnit(ctx interface{}, memberID strin
 	return fmt.Errorf("not found")
 }
 
-func (m *mockOrgChartService) GetHierarchy(ctx interface{}, companyID string) (*orgchart.OrganizationHierarchy, error) {
+func (m *mockOrgChartService) GetHierarchy(ctx context.Context, companyID string) (*orgchart.OrganizationHierarchy, error) {
 	for _, u := range m.units {
 		if u.CompanyID == companyID && u.ParentID == nil {
 			return &orgchart.OrganizationHierarchy{Unit: u}, nil
@@ -100,7 +102,7 @@ func (m *mockOrgChartService) GetHierarchy(ctx interface{}, companyID string) (*
 	return nil, fmt.Errorf("no root unit found")
 }
 
-func (m *mockOrgChartService) SyncWithLDAP(ctx interface{}, companyID string) (*orgchart.SyncLog, error) {
+func (m *mockOrgChartService) SyncWithLDAP(ctx context.Context, companyID string) (*orgchart.SyncLog, error) {
 	return &orgchart.SyncLog{
 		ID:        "sync-1",
 		CompanyID: companyID,

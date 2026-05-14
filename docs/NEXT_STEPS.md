@@ -36,7 +36,7 @@ ACTIVE_TASK.md가 COMPLETE이면 여기서 첫 번째 항목을 선택해 ACTIVE
 | TASK-063 | Admin Console Schema + RBAC + Custom Roles | 완료 |
 | TASK-064 | Admin Auth & Session — JWT, login, refresh | 완료 |
 | TASK-065 | User Management CRUD | 완료 |
-| TASK-066 | Organization Management | 대기 |
+| TASK-066 | Organization Management | 완료 |
 | TASK-067 | Audit Logs (Level 1 + 2) | 대기 |
 | TASK-068 | Identity Provider Abstraction | 대기 |
 | TASK-069 | Database Identity Mode | 대기 |

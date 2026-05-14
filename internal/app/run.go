@@ -1323,6 +1323,10 @@ func driveServiceForConfig(db *sql.DB, cfg config.Config, store storage.Store) *
 	return drive.NewService(drive.NewRepository(db), storageStoresForConfig(cfg, store))
 }
 
+func orgChartServiceForDB(db *sql.DB) httpapi.OrgChartService {
+	return orgchart.NewService(orgchart.NewRepository(db), nil)
+}
+
 func storageStoresForConfig(cfg config.Config, store storage.Store) map[string]storage.Store {
 	backend := normalizedStorageBackend(cfg.StorageBackend)
 	stores := map[string]storage.Store{
@@ -2997,6 +3001,7 @@ func runHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, mode M
 		}
 		adminRepo := admin.NewRepository(db)
 		adminSvc := admin.NewService(adminRepo)
+		orgChartService := orgChartServiceForDB(db)
 		httpapi.RegisterAdminRoutes(mux, adminService{
 			Repository:                  repository,
 			adminSvc:                    adminSvc,
@@ -3016,6 +3021,8 @@ func runHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, mode M
 			configStore:                 configStore,
 		}, cfg.AdminToken, httpapi.WithStorageCapabilities(storageCapabilitiesForConfig(cfg)), httpapi.WithConfigNotifier(configStore), httpapi.WithTokenManager(tokenManager))
 		logger.Info("admin api routes registered")
+		httpapi.RegisterOrgChartRoutes(mux, orgChartService, cfg.AdminToken)
+		logger.Info("organization routes registered")
 		if cfg.SCIMToken != "" {
 			httpapi.RegisterSCIMRoutes(mux, &maildbSCIMUserService{
 				repo:            repository,
