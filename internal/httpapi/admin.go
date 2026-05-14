@@ -109,57 +109,6 @@ func adminJWTOrStaticAuth(token string, tokenMgr *auth.TokenManager, next http.H
 		next(w, r)
 	}
 }
-
-func rejectUnknownAPIUsageAggregateQuery(w http.ResponseWriter, r *http.Request) bool {
-	return rejectUnknownQueryKeys(w, r,
-		"limit",
-		"tenant_id",
-		"company_id",
-		"domain_id",
-		"user_id",
-		"api_key_id",
-		"principal_id",
-		"auth_source",
-		"method",
-		"route",
-		"status",
-		"from",
-		"to",
-	)
-}
-
-func rejectUnknownAPIUsageLedgerQuery(w http.ResponseWriter, r *http.Request) bool {
-	return rejectUnknownQueryKeys(w, r, "limit", "tenant_id", "principal_id", "from", "to")
-}
-
-func rejectUnknownAPIUsageLedgerStatsQuery(w http.ResponseWriter, r *http.Request) bool {
-	return rejectUnknownQueryKeys(w, r, "tenant_id", "principal_id", "from", "to")
-}
-
-func rejectUnknownAPIUsageRetentionReadinessQuery(w http.ResponseWriter, r *http.Request) bool {
-	return rejectUnknownQueryKeys(w, r, "cutoff", "tenant_id", "principal_id")
-}
-
-func rejectUnknownAPIUsageRetentionRunListQuery(w http.ResponseWriter, r *http.Request) bool {
-	return rejectUnknownQueryKeys(w, r, "limit", "tenant_id", "principal_id", "created_from", "created_to")
-}
-
-func rejectUnknownDAVSyncRetentionRunListQuery(w http.ResponseWriter, r *http.Request) bool {
-	return rejectUnknownQueryKeys(w, r, "limit", "status", "created_from", "created_to")
-}
-
-func rejectUnknownDAVSyncRetentionReadinessQuery(w http.ResponseWriter, r *http.Request) bool {
-	return rejectUnknownQueryKeys(w, r, "cutoff", "limit")
-}
-
-func rejectUnknownAPIUsageExportBatchCreateQuery(w http.ResponseWriter, r *http.Request) bool {
-	return rejectUnknownQueryKeys(w, r, "tenant_id", "principal_id", "from", "to")
-}
-
-func rejectUnknownAPIUsageExportBatchListQuery(w http.ResponseWriter, r *http.Request) bool {
-	return rejectUnknownQueryKeys(w, r, "limit", "tenant_id", "principal_id", "status", "from", "to")
-}
-
 type AdminService interface {
 	ListCompanies(ctx context.Context, req maildb.CompanyListRequest) ([]maildb.CompanyView, error)
 	CreateCompany(ctx context.Context, req maildb.CreateCompanyRequest) (maildb.CompanyView, error)
@@ -607,24 +556,9 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	adminAuth := func(next http.HandlerFunc) http.HandlerFunc {
 		return adminJWTOrStaticAuth(token, cfg.tokenMgr, next)
 	}
-	mux.HandleFunc("GET /admin/v1/console/capabilities", adminAuth(func(w http.ResponseWriter, r *http.Request) {
-		if !rejectBodylessRequestPayload(w, r) {
-			return
-		}
-		if !rejectUnknownQueryKeys(w, r) {
-			return
-		}
-		writeJSON(w, http.StatusOK, adminConsoleCapabilitiesEnvelope{AdminConsoleCapabilities: currentAdminConsoleCapabilities(storageCapabilitiesFromRouteConfig(cfg))})
-	}))
 
-	if cfg.routeCounters != nil {
-		mux.HandleFunc("GET /admin/v1/delivery-routes/counters", adminAuth(func(w http.ResponseWriter, r *http.Request) {
-			if !rejectUnknownQueryKeys(w, r) {
-				return
-			}
-			writeJSON(w, http.StatusOK, map[string]any{"route_counters": cfg.routeCounters.Snapshot()})
-		}))
-	}
+	// ─── Console & Delivery Routes ─────────────────────────────────────────────
+	registerConsoleRoutes(mux, cfg, adminAuth)
 
 	mux.HandleFunc("GET /admin/v1/companies", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		if !rejectUnknownQueryKeys(w, r, "limit", "status") {
@@ -4857,6 +4791,27 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		}
 		handleGetSeatUsage(w, r, service)
 	}))
+}
+
+func registerConsoleRoutes(mux *http.ServeMux, cfg adminRouteConfig, adminAuth func(http.HandlerFunc) http.HandlerFunc) {
+	mux.HandleFunc("GET /admin/v1/console/capabilities", adminAuth(func(w http.ResponseWriter, r *http.Request) {
+		if !rejectBodylessRequestPayload(w, r) {
+			return
+		}
+		if !rejectUnknownQueryKeys(w, r) {
+			return
+		}
+		writeJSON(w, http.StatusOK, adminConsoleCapabilitiesEnvelope{AdminConsoleCapabilities: currentAdminConsoleCapabilities(storageCapabilitiesFromRouteConfig(cfg))})
+	}))
+
+	if cfg.routeCounters != nil {
+		mux.HandleFunc("GET /admin/v1/delivery-routes/counters", adminAuth(func(w http.ResponseWriter, r *http.Request) {
+			if !rejectUnknownQueryKeys(w, r) {
+				return
+			}
+			writeJSON(w, http.StatusOK, map[string]any{"route_counters": cfg.routeCounters.Snapshot()})
+		}))
+	}
 }
 
 func handleAdminHealth(w http.ResponseWriter, r *http.Request, service AdminService) {
