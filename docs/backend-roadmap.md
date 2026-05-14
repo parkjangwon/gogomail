@@ -233,6 +233,7 @@ Implementation order:
 184. Same-connection SMTP soak coverage now verifies DSN `RET`/`ENVID`/`NOTIFY`/`ORCPT` state does not leak into a later transaction on the same TCP session.
 185. SMTP backend release operations now have a dedicated runbook for PostgreSQL verification, same-connection soak, STARTTLS, SMTPS, trusted relay policy, and outbound DSN/bounce smoke checks.
 186. SMTP RCPT DSN recipient state is isolated per normalized recipient, with repeated RCPT commands replacing stored DSN metadata with the latest `NOTIFY`/`ORCPT` options for deterministic RFC 3461 handling.
+187. Delivery throttling now has a shared `ThrottleCounter` lease boundary, preserving process-local throttling while giving server-farm deployments a clean integration point for cluster-wide farm/domain concurrency coordination.
 186. Shared submission authentication now requires the owning company, domain, and user to all be active, preventing suspended tenants from authenticating through SMTP submission, IMAP, POP3, CardDAV, or other shared protocol adapters.
 186. DSN queue and bounce-event trust boundaries now reject malformed RFC 3461 xtext metadata before outbound SMTP command generation or RFC 3464 report composition.
 187. Attachment storage-path contracts now reject unsafe caller-provided paths and sanitize generated attachment object path segments before writing to storage.

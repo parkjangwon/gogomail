@@ -19,37 +19,71 @@ type ThrottlePolicy struct {
 	DefaultConcurrent   int
 }
 
+type ThrottleLease struct {
+	Key   string
+	Limit int
+}
+
+type ThrottleCounter interface {
+	Acquire(ctx context.Context, leases []ThrottleLease) (release func(), err error)
+}
+
+type CoordinatedThrottler struct {
+	policy  ThrottlePolicy
+	counter ThrottleCounter
+}
+
+type LocalThrottleCounter struct {
+	mu   sync.Mutex
+	used map[string]int
+}
+
 type InMemoryThrottler struct {
-	mu     sync.Mutex
-	policy ThrottlePolicy
-	used   map[string]int
+	*CoordinatedThrottler
 }
 
 func NewInMemoryThrottler(policy ThrottlePolicy) *InMemoryThrottler {
-	return &InMemoryThrottler{policy: normalizeThrottlePolicy(policy), used: make(map[string]int)}
+	return &InMemoryThrottler{CoordinatedThrottler: NewCoordinatedThrottler(policy, NewLocalThrottleCounter())}
 }
 
-func (t *InMemoryThrottler) Acquire(_ context.Context, job Job) (func(), error) {
-	keys := throttleKeys(job)
-	t.mu.Lock()
-	defer t.mu.Unlock()
-	for _, key := range keys {
-		limit := t.limitFor(key)
-		if limit > 0 && t.used[key] >= limit {
-			return nil, &ThrottleError{Key: key, Limit: limit}
+func NewCoordinatedThrottler(policy ThrottlePolicy, counter ThrottleCounter) *CoordinatedThrottler {
+	if counter == nil {
+		counter = NewLocalThrottleCounter()
+	}
+	return &CoordinatedThrottler{policy: normalizeThrottlePolicy(policy), counter: counter}
+}
+
+func NewLocalThrottleCounter() *LocalThrottleCounter {
+	return &LocalThrottleCounter{used: make(map[string]int)}
+}
+
+func (t *CoordinatedThrottler) Acquire(ctx context.Context, job Job) (func(), error) {
+	leases := t.leasesFor(job)
+	if len(leases) == 0 {
+		return func() {}, nil
+	}
+	return t.counter.Acquire(ctx, leases)
+}
+
+func (c *LocalThrottleCounter) Acquire(_ context.Context, leases []ThrottleLease) (func(), error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	for _, lease := range leases {
+		if lease.Limit > 0 && c.used[lease.Key] >= lease.Limit {
+			return nil, &ThrottleError{Key: lease.Key, Limit: lease.Limit}
 		}
 	}
-	for _, key := range keys {
-		t.used[key]++
+	for _, lease := range leases {
+		c.used[lease.Key]++
 	}
 	var once sync.Once
 	return func() {
 		once.Do(func() {
-			t.mu.Lock()
-			defer t.mu.Unlock()
-			for _, key := range keys {
-				if t.used[key] > 0 {
-					t.used[key]--
+			c.mu.Lock()
+			defer c.mu.Unlock()
+			for _, lease := range leases {
+				if c.used[lease.Key] > 0 {
+					c.used[lease.Key]--
 				}
 			}
 		})
@@ -75,7 +109,19 @@ func throttleKeys(job Job) []string {
 	return dedupeStrings(keys)
 }
 
-func (t *InMemoryThrottler) limitFor(key string) int {
+func (t *CoordinatedThrottler) leasesFor(job Job) []ThrottleLease {
+	keys := throttleKeys(job)
+	leases := make([]ThrottleLease, 0, len(keys))
+	for _, key := range keys {
+		limit := t.limitFor(key)
+		if limit > 0 {
+			leases = append(leases, ThrottleLease{Key: key, Limit: limit})
+		}
+	}
+	return leases
+}
+
+func (t *CoordinatedThrottler) limitFor(key string) int {
 	if farm, ok := strings.CutPrefix(key, "farm:"); ok {
 		if limit := t.policy.FarmMaxConcurrent[outbound.Farm(farm)]; limit > 0 {
 			return limit
