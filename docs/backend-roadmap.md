@@ -5735,6 +5735,7 @@ Current implementation notes:
 - SearchRequest `timeLimit` is enforced with `timeLimitExceeded` results when repository lookup or post-filtering runs past the client-requested duration.
 - Negative SearchRequest `sizeLimit` and `timeLimit` BER INTEGER values are rejected during decoding instead of being widened into large positive limits.
 - AbandonRequest cancels outstanding same-connection searches by message ID while preserving the RFC no-response behavior for both the abandon operation and the abandoned search.
+- AbandonRequest target IDs are range-checked before cancellation, so malformed, negative, zero, overlong, or above-`maxInt` abandon targets are ignored without changing the required no-response behavior.
 - OCTET STRING encoding uses BER long-form lengths for values beyond 127 bytes, preserving long DNs, long attribute values, controls, and binary AD compatibility attributes.
 - BindRequest encoding uses BER long-form lengths for large generated bind requests, covering long bind DNs and long simple-auth credentials in internal/client-side helpers.
 - Common client search filters using OR/AND/NOT wrappers, substring matches, and RFC 4511 extensibleMatch type/value assertions are accepted for RFC 4519 directory attributes (`cn`, `mail`, `uid`, `displayName`, `givenName`, `sn`) plus Active Directory-style compatibility aliases (`name`, `sAMAccountName`, `userPrincipalName`).

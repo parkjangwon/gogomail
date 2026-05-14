@@ -380,13 +380,19 @@ func decodeAbandonRequestMessageID(opData []byte) (int, bool) {
 	}
 	if opData[0] == tagInteger {
 		target, rest, err := decodeInt(opData)
-		return target, err == nil && len(rest) == 0 && target > 0
+		return target, err == nil && len(rest) == 0 && target > 0 && target <= ldapMaxMessageID
+	}
+	if len(opData) > 5 {
+		return 0, false
+	}
+	if len(opData) > 0 && opData[0]&0x80 != 0 {
+		return 0, false
 	}
 	var target int
 	for _, b := range opData {
 		target = target<<8 | int(b)
 	}
-	return target, target > 0
+	return target, target > 0 && target <= ldapMaxMessageID
 }
 
 // parsePDULength is the original two-value wrapper kept for callers that do

@@ -12,6 +12,7 @@ Last updated: 2026-05-14 (LDAP gateway StartTLS/LDAPS and discovery hardening)
 - LDAP SearchRequest decoding now rejects negative `sizeLimit` and `timeLimit` BER INTEGER values instead of treating two's-complement encodings as large positive limits.
 - LDAP SearchRequest decoding now validates RFC 4511 scope and derefAliases enumerations, returning `protocolError` for out-of-range values instead of silently widening query behavior.
 - LDAP AbandonRequest now cancels outstanding same-connection searches by message ID while preserving the RFC no-response behavior for both the abandon operation and the abandoned search.
+- LDAP AbandonRequest target IDs are range-checked before cancellation, so malformed, negative, zero, overlong, or above-`maxInt` abandon targets are ignored without changing the required no-response behavior.
 - LDAP OCTET STRING encoding now uses BER long-form lengths for values beyond 127 bytes, preserving long DNs, long attribute values, controls, and binary AD compatibility attributes.
 - LDAP BindRequest encoding now uses BER long-form lengths for large generated bind requests, covering long bind DNs and long simple-auth credentials in internal/client-side helpers.
 - Root DSE now advertises `subschemaSubentry`, and base-object search for `cn=Subschema` returns minimal RFC 4512/RFC 4519 schema metadata for person/inetOrgPerson-style clients.
