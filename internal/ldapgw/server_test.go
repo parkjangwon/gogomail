@@ -103,6 +103,13 @@ func (f *fakeDirectoryQuerier) addPrincipal(p PrincipalEntry) {
 	f.mu.Unlock()
 }
 
+type blockingDirectoryQuerier struct{}
+
+func (blockingDirectoryQuerier) SearchPrincipals(ctx context.Context, req DirectorySearchRequest) ([]PrincipalEntry, error) {
+	<-ctx.Done()
+	return nil, ctx.Err()
+}
+
 func containsStringFold(values []string, want string) bool {
 	for _, value := range values {
 		if strings.EqualFold(value, want) {
@@ -190,12 +197,20 @@ func buildSearchRequest(baseDN string, scope int, filter []byte) []byte {
 }
 
 func buildSearchRequestWithSizeLimit(baseDN string, scope int, sizeLimit int, filter []byte) []byte {
+	return buildSearchRequestWithLimits(baseDN, scope, sizeLimit, 0, filter)
+}
+
+func buildSearchRequestWithTimeLimit(baseDN string, scope int, timeLimit int, filter []byte) []byte {
+	return buildSearchRequestWithLimits(baseDN, scope, 0, timeLimit, filter)
+}
+
+func buildSearchRequestWithLimits(baseDN string, scope int, sizeLimit int, timeLimit int, filter []byte) []byte {
 	var content []byte
 	content = append(content, encodeOctetString(baseDN)...)
 	content = append(content, encodeEnumerated(scope)...)
 	content = append(content, encodeEnumerated(derefAliasesNever)...)
 	content = append(content, encodeInt(sizeLimit)...)
-	content = append(content, encodeInt(0)...)
+	content = append(content, encodeInt(timeLimit)...)
 	content = append(content, tagBoolean, 0x01, 0x00)
 	content = append(content, filter...)
 	var attrList []byte
@@ -1264,6 +1279,41 @@ func TestLDAPServerSearchSizeLimitResultCode(t *testing.T) {
 	entries, result = readSearchResultCodeUntilDone(t, conn)
 	if entries != 1 || result != resultSizeLimitExceeded {
 		t.Fatalf("exceeded sizeLimit search entries/result = %d/%d, want 1/%d", entries, result, resultSizeLimitExceeded)
+	}
+}
+
+func TestLDAPServerSearchTimeLimitResultCode(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+
+	auth := newFakeLDAPAuth()
+	srv := NewServer(ln, auth, blockingDirectoryQuerier{})
+	go srv.Serve()
+	defer srv.Close()
+
+	conn, err := net.Dial("tcp", ln.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	bindTestConnection(t, conn, auth)
+
+	req := buildLDAPPacket(49, opSearchRequest,
+		buildSearchRequestWithTimeLimit("ou=users,dc=example,dc=com", scopeWholeSubtree, 1, buildEqualityFilter("objectClass", "person")),
+	)
+	start := time.Now()
+	if err := sendPDU(conn, req); err != nil {
+		t.Fatal(err)
+	}
+	entries, result := readSearchResultCodeUntilDone(t, conn)
+	if entries != 0 || result != resultTimeLimitExceeded {
+		t.Fatalf("timeLimit search entries/result = %d/%d, want 0/%d", entries, result, resultTimeLimitExceeded)
+	}
+	if elapsed := time.Since(start); elapsed < time.Second || elapsed > 3*time.Second {
+		t.Fatalf("timeLimit elapsed = %v, want roughly one second", elapsed)
 	}
 }
 

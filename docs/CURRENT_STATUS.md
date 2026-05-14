@@ -8,6 +8,7 @@ Last updated: 2026-05-14 (LDAP gateway StartTLS/LDAPS and discovery hardening)
 - Root DSE now exposes Active Directory-style discovery metadata (`defaultNamingContext`, `rootDomainNamingContext`, `configurationNamingContext`, `schemaNamingContext`, `supportedCapabilities`, `dnsHostName`, domain/forest functionality levels, and readiness flags) derived from the configured naming context for AD-oriented clients.
 - Root DSE now advertises `supportedFeatures=1.3.6.1.4.1.4203.1.5.1` for all-operational-attributes discovery by OpenLDAP-compatible clients.
 - `SearchRequest` parsing now consumes scope, deref aliases, size limit, time limit, typesOnly, filter, and requested attribute selection instead of treating filter bytes as the remainder of the request.
+- LDAP search now enforces client-requested `timeLimit` values and returns `timeLimitExceeded` when repository lookup or post-filtering exceeds the requested duration.
 - LDAP SearchRequest decoding now validates RFC 4511 scope and derefAliases enumerations, returning `protocolError` for out-of-range values instead of silently widening query behavior.
 - Root DSE now advertises `subschemaSubentry`, and base-object search for `cn=Subschema` returns minimal RFC 4512/RFC 4519 schema metadata for person/inetOrgPerson-style clients.
 - Root DSE, subschema, and synthetic container base-object searches now validate and apply the requested LDAP filter before returning the synthetic entry.

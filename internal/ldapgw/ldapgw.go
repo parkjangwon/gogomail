@@ -49,6 +49,7 @@ const (
 	resultUnwillingToPerform           = 53
 	resultNoSuchObject                 = 32
 	resultSizeLimitExceeded            = 4
+	resultTimeLimitExceeded            = 3
 )
 
 // BER tag constants

@@ -10,6 +10,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"time"
 )
 
 // maxBERMessageSize is the maximum allowed BER-encoded PDU body size (16 MB).
@@ -639,10 +640,15 @@ func (s *LDAPServer) handleSearchRequest(ctx context.Context, msgID int, opData 
 	default:
 	}
 
-	baseObject, scope, filter, attrs, sizeLimit, _, typesOnly, err := decodeSearchRequest(opData)
+	baseObject, scope, filter, attrs, sizeLimit, timeLimit, typesOnly, err := decodeSearchRequest(opData)
 	if err != nil {
 		result := resultProtocolError
 		return encodeSearchResultDone(msgID, result, "", err.Error()), result, 0
+	}
+	if timeLimit > 0 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, time.Duration(timeLimit)*time.Second)
+		defer cancel()
 	}
 	if baseObject == "" && scope == scopeBaseObject {
 		return encodeSyntheticSearchResult(msgID, "", rootDSEAttributes(s.namingContexts, s.tlsConfig != nil), filter, attrs, typesOnly)
@@ -752,6 +758,10 @@ func (s *LDAPServer) handleSearchRequest(ctx context.Context, msgID int, opData 
 		Kinds:  kinds,
 	}, filter, targetEntries, scanAllCandidates)
 	if err != nil {
+		if errors.Is(err, context.DeadlineExceeded) {
+			result := resultTimeLimitExceeded
+			return encodeSearchResultDone(msgID, result, "", "time limit exceeded"), result, 0
+		}
 		result := resultUnwillingToPerform
 		return encodeSearchResultDone(msgID, result, "", err.Error()), result, 0
 	}
@@ -875,11 +885,17 @@ func (s *LDAPServer) searchLDAPEntries(ctx context.Context, req DirectorySearchR
 	var entries []ldapSearchEntry
 	offset := 0
 	for offset < ldapMaxCandidateScan {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
 		batchReq := req
 		batchReq.Limit = ldapSearchCandidateBatchSize
 		batchReq.Offset = offset
 		principals, err := s.quer.SearchPrincipals(ctx, batchReq)
 		if err != nil {
+			return nil, err
+		}
+		if err := ctx.Err(); err != nil {
 			return nil, err
 		}
 		if len(principals) == 0 {
