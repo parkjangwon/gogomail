@@ -4009,8 +4009,8 @@ func TestPrincipalLDAPAttributesSatisfyDeclaredObjectClassRequirements(t *testin
 		userAttrs["canonicalName"][0] != "example.com/users/alice" ||
 		userAttrs["instanceType"][0] != "4" ||
 		userAttrs["objectCategory"][0] != "person" ||
-		userAttrs["objectGUID"][0] == "" ||
-		!strings.HasPrefix(userAttrs["objectSid"][0], "S-1-5-21-") {
+		len(userAttrs["objectGUID"][0]) != 16 ||
+		!isLDAPBinarySID(userAttrs["objectSid"][0]) {
 		t.Fatalf("user AD identity attrs missing: %#v", userAttrs)
 	}
 	if userAttrs["whenCreated"][0] != "19700101000000.0Z" ||
@@ -4065,8 +4065,42 @@ func TestPrincipalLDAPAttributesSatisfyDeclaredObjectClassRequirements(t *testin
 		groupAttrs["uSNChanged"][0] == "" {
 		t.Fatalf("group AD metadata attrs missing: %#v", groupAttrs)
 	}
-	if !strings.HasPrefix(groupAttrs["objectSid"][0], "S-1-5-21-") {
-		t.Fatalf("group objectSid = %#v, want stable SID", groupAttrs["objectSid"])
+	if !isLDAPBinarySID(groupAttrs["objectSid"][0]) {
+		t.Fatalf("group objectSid = %#v, want stable binary SID", groupAttrs["objectSid"])
+	}
+}
+
+func isLDAPBinarySID(value string) bool {
+	b := []byte(value)
+	if len(b) < 28 {
+		return false
+	}
+	return b[0] == 1 &&
+		int(b[1]) == 5 &&
+		b[2] == 0 &&
+		b[3] == 0 &&
+		b[4] == 0 &&
+		b[5] == 0 &&
+		b[6] == 0 &&
+		b[7] == 5
+}
+
+func TestLDAPBinaryADAttributesUseExactFilterMatching(t *testing.T) {
+	attrs := map[string][]string{
+		"objectGUID": {string([]byte("ABCDEFGHIJKLMNOP"))},
+		"objectSid":  {string([]byte{1, 5, 0, 0, 0, 0, 0, 5, 'A', 0, 0, 0, 1, 0, 0, 0})},
+	}
+	if !ldapEntryAttributesMatchFilter(attrs, buildEqualityFilter("objectGUID", string([]byte("ABCDEFGHIJKLMNOP")))) {
+		t.Fatalf("objectGUID exact binary equality did not match")
+	}
+	if ldapEntryAttributesMatchFilter(attrs, buildEqualityFilter("objectGUID", string([]byte("aBCDEFGHIJKLMNOP")))) {
+		t.Fatalf("objectGUID binary equality matched case-folded bytes")
+	}
+	if !ldapAttributeValueMatchesFilter("objectSid", attrs["objectSid"][0], buildEqualityFilter("objectSid", attrs["objectSid"][0])) {
+		t.Fatalf("objectSid matched-values binary equality did not match")
+	}
+	if ldapAttributeValueMatchesFilter("objectSid", attrs["objectSid"][0], buildEqualityFilter("objectSid", string([]byte{1, 5, 0, 0, 0, 0, 0, 5, 'a', 0, 0, 0, 1, 0, 0, 0}))) {
+		t.Fatalf("objectSid matched-values binary equality matched case-folded bytes")
 	}
 }
 
