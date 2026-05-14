@@ -246,6 +246,13 @@ func buildEqualityFilter(attr, value string) []byte {
 	return append(filterData, filterContent...)
 }
 
+func buildOrderingFilter(filterType int, attr, value string) []byte {
+	filterContent := append(encodeOctetString(attr), encodeOctetString(value)...)
+	filterData := []byte{tagContextSpecific | byte(filterType)}
+	filterData = append(filterData, encodeLength(len(filterContent))...)
+	return append(filterData, filterContent...)
+}
+
 func buildSubstringFilter(attr string, parts ...string) []byte {
 	var substrings []byte
 	for _, part := range parts {
@@ -1177,6 +1184,44 @@ func TestLDAPServerDoesNotUnderReturnOrSearchFilters(t *testing.T) {
 		!containsStringFold(dns, "uid=bob,ou=users,dc=example,dc=com") ||
 		containsStringFold(dns, "uid=dana,ou=users,dc=example,dc=com") {
 		t.Fatalf("OR filter DNs = %#v, want alice and bob only", dns)
+	}
+}
+
+func TestLDAPServerAppliesOrderingFiltersWithoutRepositoryHint(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+
+	auth := newFakeLDAPAuth()
+	dir := newFakeDirectoryQuerier()
+	dir.addPrincipal(PrincipalEntry{DN: "uid=alice,ou=users,dc=example,dc=com", Kind: "user", CN: "Alice", Mail: "alice@example.com", UID: "alice"})
+	dir.addPrincipal(PrincipalEntry{DN: "uid=mara,ou=users,dc=example,dc=com", Kind: "user", CN: "Mara", Mail: "mara@example.com", UID: "mara"})
+	dir.addPrincipal(PrincipalEntry{DN: "uid=zoe,ou=users,dc=example,dc=com", Kind: "user", CN: "Zoe", Mail: "zoe@example.com", UID: "zoe"})
+	srv := NewServer(ln, auth, dir)
+	go srv.Serve()
+	defer srv.Close()
+
+	conn, err := net.Dial("tcp", ln.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	bindTestConnection(t, conn, auth)
+
+	req := buildLDAPPacket(39, opSearchRequest,
+		buildSearchRequest("ou=users,dc=example,dc=com", scopeWholeSubtree, buildOrderingFilter(filterGreaterOrEqual, "cn", "M")),
+	)
+	if err := sendPDU(conn, req); err != nil {
+		t.Fatal(err)
+	}
+	dns, _ := readSearchDNsUntilDone(t, conn)
+	if len(dns) != 2 ||
+		containsStringFold(dns, "uid=alice,ou=users,dc=example,dc=com") ||
+		!containsStringFold(dns, "uid=mara,ou=users,dc=example,dc=com") ||
+		!containsStringFold(dns, "uid=zoe,ou=users,dc=example,dc=com") {
+		t.Fatalf("ordering filter DNs = %#v, want Mara and Zoe only", dns)
 	}
 }
 
@@ -3496,6 +3541,28 @@ func TestParseLDAPFilterIgnoresNegatedPrincipalKinds(t *testing.T) {
 	}
 	if len(kinds) != 0 {
 		t.Fatalf("kinds = %#v, want no positive kind narrowing from NOT", kinds)
+	}
+}
+
+func TestParseLDAPFilterDoesNotUseOrderingFiltersAsRepositoryHints(t *testing.T) {
+	filter := buildAndFilter(
+		buildOrderingFilter(filterGreaterOrEqual, "cn", "M"),
+		buildEqualityFilter("mail", "alice@example.com"),
+	)
+	got, err := parseLDAPFilter(filter)
+	if err != nil {
+		t.Fatalf("parseLDAPFilter returned error: %v", err)
+	}
+	if got != "(mail=alice@example.com)" {
+		t.Fatalf("parseLDAPFilter = %q, want equality hint after unsafe ordering filter", got)
+	}
+
+	got, err = parseLDAPFilter(buildOrderingFilter(filterLessOrEqual, "cn", "M"))
+	if err != nil {
+		t.Fatalf("parseLDAPFilter returned error: %v", err)
+	}
+	if got != "" {
+		t.Fatalf("parseLDAPFilter = %q, want no ordering repository hint", got)
 	}
 }
 
