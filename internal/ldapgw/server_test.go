@@ -2858,7 +2858,7 @@ func TestLDAPServerRootDSEAdvertisesNamingContextAndStartTLS(t *testing.T) {
 	filter := []byte{tagContextSpecific | filterPresent}
 	filter = append(filter, encodeLength(len("objectClass"))...)
 	filter = append(filter, []byte("objectClass")...)
-	searchReq := buildLDAPPacket(6, opSearchRequest, buildSearchRequestWithAttrs("", scopeBaseObject, filter, "namingContexts", "supportedExtension", "subschemaSubentry"))
+	searchReq := buildLDAPPacket(6, opSearchRequest, buildSearchRequestWithAttrs("", scopeBaseObject, filter, "namingContexts", "supportedExtension", "supportedFeatures", "subschemaSubentry"))
 	if err := sendPDU(conn, searchReq); err != nil {
 		t.Fatal(err)
 	}
@@ -2879,6 +2879,9 @@ func TestLDAPServerRootDSEAdvertisesNamingContextAndStartTLS(t *testing.T) {
 	}
 	if !bytesContains(opData, []byte(startTLSOID)) {
 		t.Fatalf("root DSE response did not include StartTLS OID: %x", opData)
+	}
+	if !bytesContains(opData, []byte(ldapFeatureAllOperationalAttributes)) {
+		t.Fatalf("root DSE response did not include all-operational-attrs feature OID: %x", opData)
 	}
 	if !bytesContains(opData, []byte("cn=Subschema")) {
 		t.Fatalf("root DSE response did not include subschemaSubentry: %x", opData)
