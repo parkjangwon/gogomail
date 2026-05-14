@@ -276,6 +276,22 @@ func buildPagedResultsControl(pageSize int, cookie string) control {
 	return control{Type: controlPagedResults, Value: seq}
 }
 
+func buildServerSideSortControl(attr string, reverse bool) control {
+	keyContent := encodeOctetString(attr)
+	if reverse {
+		keyContent = append(keyContent, 0x81, 0x01, 0xff)
+	}
+	var keySeq []byte
+	keySeq = append(keySeq, tagSequence)
+	keySeq = append(keySeq, encodeLength(len(keyContent))...)
+	keySeq = append(keySeq, keyContent...)
+	var seq []byte
+	seq = append(seq, tagSequence)
+	seq = append(seq, encodeLength(len(keySeq))...)
+	seq = append(seq, keySeq...)
+	return control{Type: controlServerSideSortRequest, Value: seq}
+}
+
 func buildCompareRequest(entry, attr, value string) []byte {
 	assertion := append(encodeOctetString(attr), encodeOctetString(value)...)
 	var assertionSeq []byte
@@ -371,6 +387,35 @@ func bindTestConnection(t *testing.T, conn net.Conn, auth *fakeLDAPAuth) {
 	}
 }
 
+func readSearchDNsUntilDone(t *testing.T, conn net.Conn) ([]string, []control) {
+	t.Helper()
+	var dns []string
+	for {
+		resp, err := readFullPDU(conn, time.Now().Add(3*time.Second))
+		if err != nil {
+			t.Fatalf("read search response: %v", err)
+		}
+		_, opTag, opData, controls, err := decodeLDAPPacketWithControls(resp)
+		if err != nil {
+			t.Fatalf("decode search response: %v", err)
+		}
+		switch opTag {
+		case opSearchResultEntry:
+			dn, _, err := decodeOctetString(opData)
+			if err != nil {
+				t.Fatalf("decode search result DN: %v", err)
+			}
+			dns = append(dns, dn)
+		case opSearchResultDone:
+			return dns, controls
+		case opSearchResultReference:
+			continue
+		default:
+			t.Fatalf("unexpected search response opTag %d", opTag)
+		}
+	}
+}
+
 func pagedResponseCookie(t *testing.T, controls []control) string {
 	t.Helper()
 	for _, ctrl := range controls {
@@ -399,6 +444,23 @@ func pagedResponseCookie(t *testing.T, controls []control) string {
 	}
 	t.Fatalf("missing paged results response control: %+v", controls)
 	return ""
+}
+
+func hasServerSideSortResponseControl(controls []control) bool {
+	for _, ctrl := range controls {
+		if ctrl.Type != controlServerSideSortResponse {
+			continue
+		}
+		if len(ctrl.Value) == 0 || ctrl.Value[0] != tagSequence {
+			return false
+		}
+		content, err := decodeContent(ctrl.Value[1:])
+		if err != nil {
+			return false
+		}
+		return len(content) == 3 && decodeEnumerated(content) == resultSuccess
+	}
+	return false
 }
 
 func TestLDAPServerBindSuccess(t *testing.T) {
@@ -969,6 +1031,54 @@ func TestLDAPServerSimplePagedResultsControl(t *testing.T) {
 	}
 }
 
+func TestLDAPServerServerSideSortControl(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+
+	dir := newFakeDirectoryQuerier()
+	for _, p := range []PrincipalEntry{
+		{DN: "uid=charlie,ou=users,dc=example,dc=com", Kind: "user", CN: "Charlie", UID: "charlie", DisplayName: "Charlie"},
+		{DN: "uid=alice,ou=users,dc=example,dc=com", Kind: "user", CN: "Alice", UID: "alice", DisplayName: "Alice"},
+		{DN: "uid=bob,ou=users,dc=example,dc=com", Kind: "user", CN: "Bob", UID: "bob", DisplayName: "Bob"},
+	} {
+		dir.addPrincipal(p)
+	}
+	auth := newFakeLDAPAuth()
+	srv := NewServer(ln, auth, dir)
+	go srv.Serve()
+	defer srv.Close()
+
+	conn, err := net.Dial("tcp", ln.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	bindTestConnection(t, conn, auth)
+
+	req := buildLDAPPacketWithControls(31, opSearchRequest,
+		buildSearchRequest("ou=users,dc=example,dc=com", scopeWholeSubtree, buildEqualityFilter("objectClass", "person")),
+		[]control{buildServerSideSortControl("cn", false)},
+	)
+	if err := sendPDU(conn, req); err != nil {
+		t.Fatal(err)
+	}
+	dns, controls := readSearchDNsUntilDone(t, conn)
+	want := []string{
+		"uid=alice,ou=users,dc=example,dc=com",
+		"uid=bob,ou=users,dc=example,dc=com",
+		"uid=charlie,ou=users,dc=example,dc=com",
+	}
+	if strings.Join(dns, "|") != strings.Join(want, "|") {
+		t.Fatalf("sorted DNs = %#v, want %#v", dns, want)
+	}
+	if !hasServerSideSortResponseControl(controls) {
+		t.Fatalf("missing successful server-side sort response control: %+v", controls)
+	}
+}
+
 func TestLDAPServerOrganizationalUnitSearchReturnsOrganizationEntries(t *testing.T) {
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
@@ -1221,6 +1331,57 @@ func TestLDAPServerOpenLDAPExtensibleMatchCompatibility(t *testing.T) {
 	if !strings.Contains(output, "dn: ou=org-1,ou=organizations,dc=example,dc=com") ||
 		!strings.Contains(output, "ou: Research") {
 		t.Fatalf("ldapsearch extensibleMatch output missing organization entry:\n%s", output)
+	}
+}
+
+func TestLDAPServerOpenLDAPServerSideSortCompatibility(t *testing.T) {
+	ldapsearch, err := exec.LookPath("ldapsearch")
+	if err != nil {
+		t.Skip("ldapsearch is not installed")
+	}
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+
+	auth := newFakeLDAPAuth()
+	auth.addUser("alice", "secret")
+	dir := newFakeDirectoryQuerier()
+	for _, p := range []PrincipalEntry{
+		{DN: "uid=charlie,ou=users,dc=example,dc=com", Kind: "user", CN: "Charlie", UID: "charlie", DisplayName: "Charlie"},
+		{DN: "uid=alice,ou=users,dc=example,dc=com", Kind: "user", CN: "Alice", UID: "alice", DisplayName: "Alice"},
+		{DN: "uid=bob,ou=users,dc=example,dc=com", Kind: "user", CN: "Bob", UID: "bob", DisplayName: "Bob"},
+	} {
+		dir.addPrincipal(p)
+	}
+	srv := NewServer(ln, auth, dir)
+	go srv.Serve()
+	defer srv.Close()
+
+	cmd := exec.Command(ldapsearch,
+		"-x",
+		"-H", "ldap://"+ln.Addr().String(),
+		"-D", "uid=alice,ou=users,dc=example,dc=com",
+		"-w", "secret",
+		"-E", "sss=cn",
+		"-b", "ou=users,dc=example,dc=com",
+		"(objectClass=person)",
+		"cn",
+	)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("ldapsearch server-side sort failed: %v\n%s", err, out)
+	}
+	output := string(out)
+	alice := strings.Index(output, "dn: uid=alice,ou=users,dc=example,dc=com")
+	bob := strings.Index(output, "dn: uid=bob,ou=users,dc=example,dc=com")
+	charlie := strings.Index(output, "dn: uid=charlie,ou=users,dc=example,dc=com")
+	if alice < 0 || bob < 0 || charlie < 0 || !(alice < bob && bob < charlie) {
+		t.Fatalf("ldapsearch server-side sort output not sorted:\n%s", output)
+	}
+	if !strings.Contains(output, "control: 1.2.840.113556.1.4.474") || !strings.Contains(output, "sortResult: (0) Success") {
+		t.Fatalf("ldapsearch output missing sort response control:\n%s", output)
 	}
 }
 
