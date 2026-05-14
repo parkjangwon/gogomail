@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha1"
 	"crypto/tls"
+	"errors"
 	"fmt"
 	"net"
 	"sort"
@@ -18,6 +19,8 @@ const ldapFeatureAllOperationalAttributes = "1.3.6.1.4.1.4203.1.5.1"
 
 const ldapSearchCandidateBatchSize = 100
 const ldapMaxCandidateScan = 10000
+
+var errUnsupportedBindAuth = errors.New("unsupported bind authentication choice")
 
 type LDAPAuthenticator interface {
 	AuthenticateLDAP(ctx context.Context, username, password string) (bool, error)
@@ -246,10 +249,14 @@ func (s *LDAPServer) handleConn(ctx context.Context, conn net.Conn) {
 				continue
 			}
 			resp, resultCode, entries, authOK := s.handleOperation(ctx, msgID, opTag, opData, controls, authenticated, authzID)
-			if authOK {
-				authenticated = true
-				if req, err := decodeBindRequestData(opData); err == nil {
-					authzID = "dn:" + req.name
+			if opTag == opBindRequest {
+				authenticated = false
+				authzID = ""
+				if authOK {
+					authenticated = true
+					if req, err := decodeBindRequestData(opData); err == nil {
+						authzID = "dn:" + req.name
+					}
 				}
 			}
 			if len(resp) > 0 {
@@ -402,6 +409,10 @@ func (s *LDAPServer) handleBindRequest(ctx context.Context, msgID int, opData []
 
 	req, err := decodeBindRequestData(opData)
 	if err != nil {
+		if errors.Is(err, errUnsupportedBindAuth) {
+			result := resultAuthMethodNotSupported
+			return encodeBindResponse(msgID, result, "", "unsupported bind authentication method"), result
+		}
 		result := resultUnwillingToPerform
 		return encodeBindResponse(msgID, result, "", "malformed bind request"), result
 	}
@@ -601,11 +612,19 @@ func decodeBindRequestData(data []byte) (*bindRequest, error) {
 		return nil, err
 	}
 	auth := []byte{}
-	if len(rest) > 0 && rest[0] == 0x80 {
-		authLen, authRest, err := decodeLength(rest[1:])
-		if err == nil && len(authRest) >= authLen {
-			auth = authRest[:authLen]
-		}
+	if len(rest) == 0 || rest[0] != 0x80 {
+		return nil, errUnsupportedBindAuth
+	}
+	authLen, authRest, err := decodeLength(rest[1:])
+	if err != nil {
+		return nil, err
+	}
+	if len(authRest) < authLen {
+		return nil, fmt.Errorf("bind simple auth value truncated")
+	}
+	auth = authRest[:authLen]
+	if len(authRest[authLen:]) != 0 {
+		return nil, fmt.Errorf("bind request has trailing data")
 	}
 	return &bindRequest{version: version, name: name, auth: auth}, nil
 }
