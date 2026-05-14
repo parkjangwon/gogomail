@@ -39,6 +39,11 @@ type PrincipalEntry struct {
 	MemberOf     []string
 }
 
+type ldapSearchEntry struct {
+	principal PrincipalEntry
+	attrs     map[string][]string
+}
+
 type DirectorySearchRequest struct {
 	BaseDN string
 	Scope  int
@@ -751,47 +756,48 @@ func (s *LDAPServer) handleSearchRequest(ctx context.Context, msgID int, opData 
 		return encodeSearchResultDone(msgID, result, "", err.Error()), result, 0
 	}
 	principals = filterPrincipalEntriesByScope(principals, baseObject, scope)
-	principals = filterPrincipalEntriesByLDAPFilter(principals, filter)
+	entries := ldapSearchEntries(principals)
+	entries = filterLDAPSearchEntriesByFilter(entries, filter)
 	if sorted {
-		sortPrincipalEntries(principals, sortKeys)
+		sortLDAPSearchEntries(entries, sortKeys)
 	}
-	sizeLimitExceeded := sizeLimit > 0 && len(principals) > sizeLimit
-	if sizeLimit > 0 && len(principals) > sizeLimit {
-		principals = principals[:sizeLimit]
+	sizeLimitExceeded := sizeLimit > 0 && len(entries) > sizeLimit
+	if sizeLimit > 0 && len(entries) > sizeLimit {
+		entries = entries[:sizeLimit]
 	}
 	vlvTargetPosition := 0
-	vlvContentCount := len(principals)
+	vlvContentCount := len(entries)
 	if hasVLV {
-		principals, vlvTargetPosition = applyVirtualListView(principals, vlv)
+		entries, vlvTargetPosition = applyVirtualListView(entries, vlv)
 	}
 	nextCookie := ""
 	if paged && pageSize > 0 {
-		if pageOffset < len(principals) {
-			principals = principals[pageOffset:]
+		if pageOffset < len(entries) {
+			entries = entries[pageOffset:]
 		} else {
-			principals = nil
+			entries = nil
 		}
-		if len(principals) > pageSize {
-			principals = principals[:pageSize]
+		if len(entries) > pageSize {
+			entries = entries[:pageSize]
 			nextCookie = fmt.Sprintf("%d", pageOffset+pageSize)
 		}
 	}
 
 	resp := make([]byte, 0, 4096)
-	for _, p := range principals {
-		attrMap := principalLDAPAttributes(p)
+	for _, entry := range entries {
+		attrMap := entry.attrs
 		if hasMatchedValues {
 			attrMap = applyMatchedValuesFilter(attrMap, matchedValuesFilters)
 		}
 		var entryControls []control
 		if hasSync {
-			entryControls = append(entryControls, syncStateControl(p.DN, syncReq.Cookie))
+			entryControls = append(entryControls, syncStateControl(entry.principal.DN, syncReq.Cookie))
 		}
-		entry, err := encodeSearchResultEntryWithControls(msgID, p.DN, selectLDAPAttributes(attrMap, attrs, typesOnly), entryControls)
+		responseEntry, err := encodeSearchResultEntryWithControls(msgID, entry.principal.DN, selectLDAPAttributes(attrMap, attrs, typesOnly), entryControls)
 		if err != nil {
 			continue
 		}
-		resp = append(resp, entry...)
+		resp = append(resp, responseEntry...)
 	}
 	result := resultSuccess
 	if sizeLimitExceeded {
@@ -815,7 +821,7 @@ func (s *LDAPServer) handleSearchRequest(ctx context.Context, msgID int, opData 
 	} else {
 		resp = append(resp, encodeSearchResultDone(msgID, result, "", "")...)
 	}
-	return resp, result, len(principals)
+	return resp, result, len(entries)
 }
 
 func filterPrincipalEntriesByScope(principals []PrincipalEntry, baseObject string, scope int) []PrincipalEntry {
@@ -849,14 +855,22 @@ func filterPrincipalEntriesByScope(principals []PrincipalEntry, baseObject strin
 	return filtered
 }
 
-func filterPrincipalEntriesByLDAPFilter(principals []PrincipalEntry, filter []byte) []PrincipalEntry {
-	if len(filter) == 0 {
-		return principals
-	}
-	filtered := make([]PrincipalEntry, 0, len(principals))
+func ldapSearchEntries(principals []PrincipalEntry) []ldapSearchEntry {
+	entries := make([]ldapSearchEntry, 0, len(principals))
 	for _, p := range principals {
-		if ldapEntryAttributesMatchFilter(principalLDAPAttributes(p), filter) {
-			filtered = append(filtered, p)
+		entries = append(entries, ldapSearchEntry{principal: p, attrs: principalLDAPAttributes(p)})
+	}
+	return entries
+}
+
+func filterLDAPSearchEntriesByFilter(entries []ldapSearchEntry, filter []byte) []ldapSearchEntry {
+	if len(filter) == 0 {
+		return entries
+	}
+	filtered := make([]ldapSearchEntry, 0, len(entries))
+	for _, entry := range entries {
+		if ldapEntryAttributesMatchFilter(entry.attrs, filter) {
+			filtered = append(filtered, entry)
 		}
 	}
 	return filtered
@@ -1364,12 +1378,20 @@ func decodeSortKey(data []byte) (sortKey, error) {
 }
 
 func sortPrincipalEntries(principals []PrincipalEntry, keys []sortKey) {
+	entries := ldapSearchEntries(principals)
+	sortLDAPSearchEntries(entries, keys)
+	for i, entry := range entries {
+		principals[i] = entry.principal
+	}
+}
+
+func sortLDAPSearchEntries(entries []ldapSearchEntry, keys []sortKey) {
 	if len(keys) == 0 {
 		return
 	}
-	sort.SliceStable(principals, func(i, j int) bool {
-		leftAttrs := principalLDAPAttributes(principals[i])
-		rightAttrs := principalLDAPAttributes(principals[j])
+	sort.SliceStable(entries, func(i, j int) bool {
+		leftAttrs := entries[i].attrs
+		rightAttrs := entries[j].attrs
 		for _, key := range keys {
 			left := firstLDAPAttributeValue(leftAttrs, key.Attribute)
 			right := firstLDAPAttributeValue(rightAttrs, key.Attribute)
@@ -1382,7 +1404,7 @@ func sortPrincipalEntries(principals []PrincipalEntry, keys []sortKey) {
 			}
 			return cmp < 0
 		}
-		return normalizeDNForCompare(principals[i].DN) < normalizeDNForCompare(principals[j].DN)
+		return normalizeDNForCompare(entries[i].principal.DN) < normalizeDNForCompare(entries[j].principal.DN)
 	})
 }
 
@@ -1490,23 +1512,23 @@ func decodeVirtualListViewControlValue(value []byte) (virtualListViewRequest, er
 	return virtualListViewRequest{BeforeCount: before, AfterCount: after, Offset: offset}, nil
 }
 
-func applyVirtualListView(principals []PrincipalEntry, req virtualListViewRequest) ([]PrincipalEntry, int) {
-	if len(principals) == 0 {
+func applyVirtualListView[T any](entries []T, req virtualListViewRequest) ([]T, int) {
+	if len(entries) == 0 {
 		return nil, 0
 	}
 	target := req.Offset
-	if target > len(principals) {
-		target = len(principals)
+	if target > len(entries) {
+		target = len(entries)
 	}
 	start := target - 1 - req.BeforeCount
 	if start < 0 {
 		start = 0
 	}
 	end := target + req.AfterCount
-	if end > len(principals) {
-		end = len(principals)
+	if end > len(entries) {
+		end = len(entries)
 	}
-	return principals[start:end], target
+	return entries[start:end], target
 }
 
 func virtualListViewResponseControl(targetPosition int, contentCount int, resultCode int, contextID string) control {
