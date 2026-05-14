@@ -315,6 +315,14 @@ func buildAssertionControl(filter []byte, critical bool) control {
 	return control{Type: controlAssertion, Critical: critical, Value: filter}
 }
 
+func buildMatchedValuesControl(filter []byte, critical bool) control {
+	var seq []byte
+	seq = append(seq, tagSequence)
+	seq = append(seq, encodeLength(len(filter))...)
+	seq = append(seq, filter...)
+	return control{Type: controlMatchedValues, Critical: critical, Value: seq}
+}
+
 func buildCompareRequest(entry, attr, value string) []byte {
 	assertion := append(encodeOctetString(attr), encodeOctetString(value)...)
 	var assertionSeq []byte
@@ -1075,6 +1083,66 @@ func TestLDAPServerAssertionControl(t *testing.T) {
 	}
 }
 
+func TestLDAPServerMatchedValuesControl(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+
+	dir := newFakeDirectoryQuerier()
+	dir.addPrincipal(PrincipalEntry{DN: "uid=alice,ou=users,dc=example,dc=com", Kind: "user", CN: "Alice", UID: "alice", DisplayName: "Alice"})
+	auth := newFakeLDAPAuth()
+	srv := NewServer(ln, auth, dir)
+	go srv.Serve()
+	defer srv.Close()
+
+	conn, err := net.Dial("tcp", ln.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	bindTestConnection(t, conn, auth)
+
+	req := buildLDAPPacketWithControls(14, opSearchRequest,
+		buildSearchRequestWithAttrs("ou=users,dc=example,dc=com", scopeWholeSubtree, buildEqualityFilter("objectClass", "person"), "objectClass"),
+		[]control{buildMatchedValuesControl(buildEqualityFilter("objectClass", "inetOrgPerson"), true)},
+	)
+	if err := sendPDU(conn, req); err != nil {
+		t.Fatal(err)
+	}
+	resp, err := readFullPDU(conn, time.Now().Add(3*time.Second))
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, opTag, opData, err := decodeLDAPPacket(resp)
+	if err != nil {
+		t.Fatalf("decode matched-values entry: %v", err)
+	}
+	if opTag != opSearchResultEntry {
+		t.Fatalf("opTag = %d, want SearchResultEntry", opTag)
+	}
+	if !bytesContains(opData, []byte("inetOrgPerson")) {
+		t.Fatalf("matched-values entry missing inetOrgPerson: %x", opData)
+	}
+	for _, unexpected := range [][]byte{[]byte("person"), []byte("organizationalPerson")} {
+		if bytesContains(opData, unexpected) {
+			t.Fatalf("matched-values entry contained unrequested value %q: %x", unexpected, opData)
+		}
+	}
+	resp, err = readFullPDU(conn, time.Now().Add(3*time.Second))
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, opTag, opData, err = decodeLDAPPacket(resp)
+	if err != nil {
+		t.Fatalf("decode matched-values done: %v", err)
+	}
+	if opTag != opSearchResultDone || decodeEnumerated(opData) != resultSuccess {
+		t.Fatalf("matched-values done op/result = %d/%d, want %d/%d", opTag, decodeEnumerated(opData), opSearchResultDone, resultSuccess)
+	}
+}
+
 func TestLDAPServerSimplePagedResultsControl(t *testing.T) {
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
@@ -1485,6 +1553,50 @@ func TestLDAPServerOpenLDAPAssertionControlCompatibility(t *testing.T) {
 	if !strings.Contains(output, "dn: uid=alice,ou=users,dc=example,dc=com") ||
 		!strings.Contains(output, "cn: Alice") {
 		t.Fatalf("ldapsearch assertion output missing user entry:\n%s", output)
+	}
+}
+
+func TestLDAPServerOpenLDAPMatchedValuesCompatibility(t *testing.T) {
+	ldapsearch, err := exec.LookPath("ldapsearch")
+	if err != nil {
+		t.Skip("ldapsearch is not installed")
+	}
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+
+	auth := newFakeLDAPAuth()
+	auth.addUser("alice", "secret")
+	dir := newFakeDirectoryQuerier()
+	dir.addPrincipal(PrincipalEntry{DN: "uid=alice,ou=users,dc=example,dc=com", Kind: "user", CN: "Alice", UID: "alice", DisplayName: "Alice"})
+	srv := NewServer(ln, auth, dir)
+	go srv.Serve()
+	defer srv.Close()
+
+	cmd := exec.Command(ldapsearch,
+		"-x",
+		"-H", "ldap://"+ln.Addr().String(),
+		"-D", "uid=alice,ou=users,dc=example,dc=com",
+		"-w", "secret",
+		"-E", "!mv=(objectClass=inetOrgPerson)",
+		"-b", "ou=users,dc=example,dc=com",
+		"(objectClass=person)",
+		"objectClass",
+	)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("ldapsearch matched-values control failed: %v\n%s", err, out)
+	}
+	output := string(out)
+	if !strings.Contains(output, "objectClass: inetOrgPerson") {
+		t.Fatalf("ldapsearch matched-values output missing inetOrgPerson:\n%s", output)
+	}
+	for _, unexpected := range []string{"objectClass: person", "objectClass: organizationalPerson"} {
+		if strings.Contains(output, unexpected) {
+			t.Fatalf("ldapsearch matched-values output included %q:\n%s", unexpected, output)
+		}
 	}
 }
 
