@@ -2656,6 +2656,14 @@ func runDeliveryWorker(ctx context.Context, cfg config.Config, logger *slog.Logg
 			"domain_limits", cfg.DeliveryDomainConcurrency,
 		)
 	}
+	if backoff := deliveryDomainBackoffFromConfig(cfg); backoff != nil {
+		handler.WithDomainBackoff(backoff)
+		logger.Info(
+			"delivery adaptive domain backoff enabled",
+			"base_delay", cfg.DeliveryDomainBackoffBaseDelay,
+			"max_delay", cfg.DeliveryDomainBackoffMaxDelay,
+		)
+	}
 	handler.WithMetrics(deliveryMetrics(cfg, logger))
 
 	consumer, err := eventstream.NewRedisConsumer(eventstream.RedisConsumerOptions{
@@ -2748,6 +2756,16 @@ func deliveryFarmLimits(values map[string]int) map[outbound.Farm]int {
 		result[outbound.Farm(farm)] = limit
 	}
 	return result
+}
+
+func deliveryDomainBackoffFromConfig(cfg config.Config) delivery.DomainBackoff {
+	if !cfg.DeliveryDomainBackoffEnabled {
+		return nil
+	}
+	return delivery.NewInMemoryDomainBackoff(delivery.DomainBackoffPolicy{
+		BaseDelay: cfg.DeliveryDomainBackoffBaseDelay,
+		MaxDelay:  cfg.DeliveryDomainBackoffMaxDelay,
+	})
 }
 
 func smtpMetrics(cfg config.Config, logger *slog.Logger) smtpd.Metrics {
