@@ -9,13 +9,30 @@ Last updated: 2026-05-15 (Source File Separation & Refactoring)
   - Extracted 27 functions: parseAdminAttachmentCleanupRequest + 26 parse* helpers (parseAPIUsageLedger*, parseMailFlowLog*, parseDirectoryPrincipal*, parseDirectoryAlias*, parseDirectoryDelegation*, parseDirectoryGroupMembership*, parseDAVSyncRetention*, parseOptionalRFC3339Query, parseBoundedAdminQuery, parseBoundedAdminPathValue/Pair/Triple)
   - Extracted constant: maxAdminQueryFilterBytes (1024)
   - All parsing and validation logic consolidated in single focused module
-- **Phase 2 In Progress**: RegisterAdminRoutes modularization via register* functions
+- **Phase 2 Progress**: RegisterAdminRoutes modularization via register* functions (10 sections extracted, 219 routes remain inline)
   - `internal/httpapi/admin_helpers.go`: Expanded to 1046 lines with 10 new register* function implementations
-  - Extracted route registration functions: registerWebhookRoutes, registerNotificationTemplateRoutes, registerSecurityPostureRoutes, registerGlobalSignatureRoutes, registerLegalHoldsRoutes, registerSCIMStatusRoutes, registerSeatUsageRoutes, registerAuditLogExportRoutes, registerTenantHealthRoutes, registerChangeHistoryAndApprovalsRoutes (25 route handlers total)
-  - `internal/httpapi/admin.go`: Reduced to 7379 lines with delegation pattern at RegisterAdminRoutes lines 4684-4693 (10 register* function calls)
-  - **Test fix**: openapi_contract_test.go now includes admin_helpers.go in route extraction pattern matching
-  - Cumulative reduction: 8340 → 7379 lines (-961 lines, **11.5% reduction** from original)
-  - Remaining: RegisterAdminRoutes still has ~4100 lines in company/domain/user CRUD sections (lines 540-4657) needing further modularization
+  - Extracted route registration functions (25 route handlers total):
+    1. registerWebhookRoutes (4 routes)
+    2. registerNotificationTemplateRoutes (2 routes)
+    3. registerSecurityPostureRoutes (1 route)
+    4. registerGlobalSignatureRoutes (2 routes)
+    5. registerLegalHoldsRoutes (3 routes)
+    6. registerSCIMStatusRoutes (1 route)
+    7. registerSeatUsageRoutes (1 route)
+    8. registerAuditLogExportRoutes (1 route)
+    9. registerTenantHealthRoutes (1 route)
+    10. registerChangeHistoryAndApprovalsRoutes (5 routes: change-history + pending-approvals)
+  - `internal/httpapi/admin.go`: Reduced to 7379 lines with delegation pattern at RegisterAdminRoutes (10 register* function calls)
+  - **Test fix**: openapi_contract_test.go now includes admin_helpers.go in route extraction pattern matching (routes were in admin_helpers.go, test only searched admin.go)
+  - Cumulative reduction: **8340 → 7379 lines (-961 lines, 11.5% reduction)** from original
+  - **Remaining work**: RegisterAdminRoutes still inline with 219 routes (mostly company/domain/user CRUD, API usage, audit logs, auth, alert management, retention, compliance). Future phases should extract:
+    - Auth routes (login, logout, refresh, setup, verify)
+    - API usage routes (daily, monthly, ledger, export batches) 
+    - Audit log routes (list, integrity, get)
+    - Mail flow log routes
+    - Compliance routes
+    - Admin users/roles routes
+    - And others for ~10-15 more register* functions
 - Verification: All 991 admin package tests pass; 6040 total tests passing
 - **Oversized files ranking** (production code, excluding tests):
   1. internal/imapgw/server.go: 8927 lines (375+ functions, handleLineWithLiteral: 475 lines)
