@@ -1,6 +1,15 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (Delivery throttling Redis lease counter)
+Last updated: 2026-05-14 (Delivery adaptive domain backoff boundary)
+
+## Delivery adaptive domain backoff boundary (2026-05-14, complete)
+- Delivery handlers now expose a `DomainBackoff` boundary with pre-delivery `Check` and temporary-failure observation hooks, giving large deployments a dedicated place to adapt per-recipient-domain pressure after 4xx/provider tempfail signals.
+- Added `DomainBackoffError` and `MetricDomainBackoff`, so jobs deferred by domain backoff flow through the existing retry scheduler while remaining observable separately from concurrency throttling.
+- Temporary partial failures now observe only the retry recipient set, so delivered or permanently bounced recipients do not extend adaptive backoff state.
+- Permanent SMTP failures/bounces do not update the backoff boundary.
+- Added `InMemoryDomainBackoff` with exponential per-domain delay and max-delay capping for single-node deployments and deterministic policy tests.
+- Coverage verifies backed-off domains are deferred without delivering, unrelated domains/farms continue, temporary failure domains are isolated, permanent failures do not extend backoff, deduplicated domain extraction, expiration, and delay capping.
+- Verification: `go test -count=1 ./internal/delivery -run 'Backoff|Throttle|Retry|Handler'` and `go test ./...`.
 
 ## Delivery throttling Redis lease counter (2026-05-14, complete)
 - Delivery throttling now supports a Redis-backed `ThrottleCounter` for cluster-wide farm/domain concurrency coordination across delivery worker processes.

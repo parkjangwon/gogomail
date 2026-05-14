@@ -66,6 +66,33 @@ type Transport interface {
 	Deliver(ctx context.Context, job Job) error
 }
 
+type DomainBackoff interface {
+	Check(ctx context.Context, job Job) error
+	ObserveTemporaryFailure(ctx context.Context, job Job, recipients []outbound.Address, cause error)
+}
+
+type DomainBackoffError struct {
+	Domain string
+	Err    error
+}
+
+func (e *DomainBackoffError) Error() string {
+	if e == nil {
+		return ""
+	}
+	if e.Err != nil {
+		return fmt.Sprintf("delivery domain %s is backed off: %v", e.Domain, e.Err)
+	}
+	return fmt.Sprintf("delivery domain %s is backed off", e.Domain)
+}
+
+func (e *DomainBackoffError) Unwrap() error {
+	if e == nil {
+		return nil
+	}
+	return e.Err
+}
+
 // ExhaustionHook is called once when all retries for a message are exhausted.
 type ExhaustionHook interface {
 	RecordExhausted(ctx context.Context, queued QueuedMessage, cause error) error
@@ -78,6 +105,7 @@ type Handler struct {
 	retry          RetryScheduler
 	metrics        Metrics
 	throttler      Throttler
+	backoff        DomainBackoff
 	routeCounter   *RouteCounters
 	exhaustionHook ExhaustionHook
 }
@@ -96,6 +124,11 @@ func (h *Handler) WithMetrics(metrics Metrics) *Handler {
 
 func (h *Handler) WithThrottler(throttler Throttler) *Handler {
 	h.throttler = throttler
+	return h
+}
+
+func (h *Handler) WithDomainBackoff(backoff DomainBackoff) *Handler {
+	h.backoff = backoff
 	return h
 }
 
@@ -132,6 +165,25 @@ func (h *Handler) HandleEvent(ctx context.Context, msg eventstream.Message) erro
 		OpenMessage: func(openCtx context.Context) (io.ReadCloser, error) {
 			return h.store.Get(openCtx, queued.StoragePath)
 		},
+	}
+
+	if h.backoff != nil {
+		if err := h.backoff.Check(ctx, job); err != nil {
+			h.observe(ctx, metricEvent(queued, MetricDomainBackoff, MetricDeferred, err))
+			if h.retry != nil {
+				retryErr := h.retry.ScheduleRetry(ctx, job, err)
+				if retryErr == nil {
+					h.observe(ctx, metricEvent(queued, MetricRetryScheduled, MetricDeferred, err))
+					return nil
+				}
+				if errors.Is(retryErr, ErrRetryExhausted) {
+					h.observe(ctx, metricEvent(queued, MetricRetryExhausted, MetricFailed, retryErr))
+					return h.notifyExhausted(ctx, queued, retryErr)
+				}
+				return retryErr
+			}
+			return err
+		}
 	}
 
 	if h.throttler != nil {
@@ -172,6 +224,9 @@ func (h *Handler) HandleEvent(ctx context.Context, msg eventstream.Message) erro
 			}
 			retryJob := job
 			retryJob.QueuedMessage = queuedMessageForRecipients(job.QueuedMessage, temporary)
+			if h.backoff != nil {
+				h.backoff.ObserveTemporaryFailure(ctx, retryJob, temporary, err)
+			}
 			retryErr := h.retry.ScheduleRetry(ctx, retryJob, err)
 			if retryErr == nil || errors.Is(retryErr, ErrRetryExhausted) {
 				if errors.Is(retryErr, ErrRetryExhausted) {
@@ -195,6 +250,9 @@ func (h *Handler) HandleEvent(ctx context.Context, msg eventstream.Message) erro
 		}
 		if IsPermanentFailure(err) {
 			return nil
+		}
+		if h.backoff != nil {
+			h.backoff.ObserveTemporaryFailure(ctx, job, job.Recipients(), err)
 		}
 		if h.retry != nil {
 			retryErr := h.retry.ScheduleRetry(ctx, job, err)

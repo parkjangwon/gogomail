@@ -1,35 +1,34 @@
 # ACTIVE_TASK
 
-## TASK-461: Delivery throttling Redis lease counter
+## TASK-462: Delivery adaptive domain backoff boundary
 
 ### 배경
 
-TASK-460 split delivery throttling into policy evaluation plus a `ThrottleCounter` lease boundary.
-The runtime still wires the process-local counter, so a multi-worker/server-farm deployment does not yet
-enforce farm/domain concurrency budgets cluster-wide. Add a Redis-backed counter implementation with
-atomic multi-key acquire/release semantics and wire it behind explicit runtime configuration.
+Cluster-wide farm/domain concurrency is now available through Redis-backed delivery throttling, but large
+bulk deployments also need a policy boundary for adaptive destination backoff. When a recipient domain
+returns temporary delivery failures, workers should be able to defer later jobs for that domain without
+slowing unrelated transactional traffic or other domains. Add a small delivery-domain backoff boundary and
+coverage that keeps the transport/retry path deterministic and extensible.
 
 ### 구현 대상
 
-- `internal/delivery/throttle.go`
+- `internal/delivery/handler.go`
+- `internal/delivery/retry.go`
 - `internal/delivery/*_test.go`
-- `internal/config/config.go`
-- `internal/app/run.go`
 - `docs/ACTIVE_TASK.md`
 - `docs/CURRENT_STATUS.md`
 - `docs/backend-roadmap.md`
 
 ### 완료 조건
 
-- [x] Redis throttle counter가 multi-key acquire를 atomic하게 처리하고 하나라도 limit 초과면 어떤 key도 증가시키지 않는다.
-- [x] release는 acquire된 key만 감소시키고 중복 release에 안전하다.
-- [x] runtime config가 `local`/`redis` backend를 명시적으로 선택할 수 있고 잘못된 값은 startup validation에서 거부된다.
-- [x] delivery worker는 Redis backend 선택 시 기존 Redis client를 공유해 `CoordinatedThrottler`에 연결한다.
-- [x] `go test -count=1 ./internal/delivery -run 'Throttle|Throttl'` 통과.
-- [x] `go test -count=1 ./internal/config ./internal/app -run 'Throttl|Delivery'` 통과.
+- [x] recipient domain별 adaptive backoff policy/interface 경계를 추가한다.
+- [x] temporary failure가 발생한 recipient domain만 backoff 대상이 되고 unrelated domains/farms는 영향을 받지 않음을 검증한다.
+- [x] backoff 중인 domain job은 retry scheduling 경로로 defer되고 metrics에 관찰 가능해야 한다.
+- [x] permanent failure/bounce는 adaptive backoff를 확장하지 않음을 검증한다.
+- [x] `go test -count=1 ./internal/delivery -run 'Backoff|Throttle|Retry|Handler'` 통과.
 - [x] `go test ./...` 통과.
 - [x] 개발 문서를 최신 상태로 갱신한다.
 
 ### 다음 태스크
 
-TBD after Redis throttle counter.
+TBD after adaptive domain backoff.
