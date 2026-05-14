@@ -14,6 +14,8 @@ import (
 // maxBERMessageSize is the maximum allowed BER-encoded PDU body size (16 MB).
 const maxBERMessageSize = 16 * 1024 * 1024
 
+const ldapFeatureAllOperationalAttributes = "1.3.6.1.4.1.4203.1.5.1"
+
 type LDAPAuthenticator interface {
 	AuthenticateLDAP(ctx context.Context, username, password string) (bool, error)
 }
@@ -2202,6 +2204,7 @@ func rootDSEAttributes(namingContexts []string, startTLSEnabled bool) map[string
 		"supportedLDAPVersion": {"3"},
 		"supportedControl":     {controlManageDsaIT, controlPagedResults, controlServerSideSortRequest, controlVirtualListViewRequest, controlAssertion, controlMatchedValues, controlDomainScope, controlDontUseCopy, controlDontUseCopyOpenLDAP, controlSubentries, controlSyncRequest, controlProxiedAuthorization, controlDereferenceRequest, controlRelax, controlNoOp, controlPreRead, controlPostRead, controlPasswordPolicy, controlSessionTracking},
 		"supportedExtension":   {whoAmIOID},
+		"supportedFeatures":    {ldapFeatureAllOperationalAttributes},
 		"vendorName":           {"gogomail"},
 	}
 	if startTLSEnabled {
@@ -2297,7 +2300,7 @@ func copyLDAPAttributeSet(dst map[string][]string, attrs map[string][]string, ty
 
 func isOperationalLDAPAttribute(attr string) bool {
 	switch strings.ToLower(strings.TrimSpace(attr)) {
-	case "subschemasubentry", "supportedldapversion", "supportedcontrol", "supportedextension", "namingcontexts", "vendorname",
+	case "subschemasubentry", "supportedldapversion", "supportedcontrol", "supportedextension", "supportedfeatures", "namingcontexts", "vendorname",
 		"entrydn", "entryuuid", "createtimestamp", "modifytimestamp", "creatorsname", "modifiersname",
 		"distinguishedname", "objectguid", "objectsid", "instancetype", "whencreated", "whenchanged",
 		"usncreated", "usnchanged", "hassubordinates", "numsubordinates":
