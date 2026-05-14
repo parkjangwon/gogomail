@@ -5747,6 +5747,7 @@ Current implementation notes:
 - LDAP search scans repository candidates in bounded 100-entry batches up to a protective cap when full-filter post-processing needs more entries, covering sparse matches beyond the first repository window.
 - LDAP response encoding preserves BER INTEGER message IDs above 255 for long-lived clients that continue incrementing request IDs.
 - LDAPMessage decoding rejects out-of-range `messageID` values, including zero, negative BER INTEGER encodings, values above RFC 4511 `maxInt`, and overlong integer encodings.
+- BER length decoding rejects indefinite-length encodings instead of treating them as zero-length values, preserving the definite-length envelope expected by LDAP clients and servers.
 - LDAP user entries expose Exchange/AD-style mail aliases (`mailNickname`, `proxyAddresses`) and directory filter extraction accepts those attributes for broader mail-client lookup compatibility.
 - LDAP entries expose AD-style identity attributes (`distinguishedName`, binary deterministic `objectGUID`, binary deterministic `objectSid`, `objectCategory`) alongside the RFC-oriented attributes for clients that cache or render from those fields.
 - LDAP entries expose AD-style directory metadata (`canonicalName`, `instanceType`, `whenCreated`, `whenChanged`, `uSNCreated`, `uSNChanged`) plus conservative user account hints (`userAccountControl`, `accountExpires`, `primaryGroupID`) for Active Directory-oriented address book and tree-browsing clients, with canonical-name filters narrowed to the final path segment for repository lookup.

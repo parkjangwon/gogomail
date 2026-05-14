@@ -135,6 +135,21 @@ func TestDecodeLDAPPacketRejectsInvalidMessageID(t *testing.T) {
 	}
 }
 
+func TestDecodeLDAPPacketRejectsIndefiniteLength(t *testing.T) {
+	pdu := []byte{
+		tagSequence, 0x80,
+		tagInteger, 0x01, 0x01,
+		byte(opUnbindRequest), 0x00,
+		0x00, 0x00,
+	}
+	if _, _, _, err := decodeLDAPPacket(pdu); err == nil {
+		t.Fatal("decodeLDAPPacket accepted indefinite-length BER")
+	}
+	if _, _, err := decodeLength([]byte{0x80, 0x00, 0x00}); err == nil {
+		t.Fatal("decodeLength accepted indefinite length")
+	}
+}
+
 func TestEncodeOctetStringUsesLongFormLength(t *testing.T) {
 	value := strings.Repeat("x", 300)
 	encoded := encodeOctetString(value)
