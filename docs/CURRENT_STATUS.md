@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-15 (Source File Separation & Refactoring Phase 3)
+Last updated: 2026-05-15 (LDAP Sync Admin API - TASK-071 Phase 1 in progress)
 
 ## Source File Separation & Refactoring (2026-05-15, Phase 3 started)
 - Goal: Reduce oversized source files by appropriately separating concerns into focused modules.
@@ -72,15 +72,28 @@ Last updated: 2026-05-15 (Source File Separation & Refactoring Phase 3)
 - All 6062 tests passing; 228 SMTP tests including compliance checks.
 - Verification: `go test ./internal/smtp -count=1` (228 tests) and `go test ./...` (6062 tests).
 
-## LDAP Identity Config & Sync (2026-05-14, in progress)
+## LDAP Sync Admin API (2026-05-15, TASK-071 Phase 1 in progress)
+- Backend API for LDAP sync scheduling, history, and conflict management now functional.
+- `POST /admin/v1/domains/{id}/ldap/sync` — Trigger LDAP sync with sync_type parameter (users/groups/memberships/all)
+- `GET /admin/v1/domains/{id}/ldap/sync-history` — List sync runs with pagination (limit/offset)
+- `GET /admin/v1/domains/{id}/ldap/conflicts` — List unresolved sync conflicts with pagination
+- `POST /admin/v1/domains/{id}/ldap/conflicts/{id}/resolve` — Resolve conflict with resolution strategy
+- All 4 routes registered in `internal/httpapi/admin.go` via `registerLDAPSyncRoutes` handler
+- Route handlers in `internal/httpapi/admin_helpers.go` implement request parsing and response formatting
+- OpenAPI schema updated with all 4 endpoint definitions and request/response schemas
+- All 5901 tests passing (991 admin tests)
+- **Phase 1 Complete**: Backend HTTP API structure ready for database integration
+- **Phase 2 Pending**: Integrate with `ldap_sync_*` database tables from TASK-070 schema
+- **Phase 3 Pending**: Frontend admin console UI (triggers frontend gate per PROJECT_HARNESS.md rules)
+
+## LDAP Identity Config & Sync (2026-05-14, COMPLETE)
 - LDAP provider implements the IdentityProvider interface as a read-only directory source.
 - `internal/idprovider/ldap/provider.go` handles GetUser, GetGroup, ListUsers, ListGroups (stub implementations).
 - `internal/idprovider/ldap/sync.go` provides SyncUsers, SyncGroups, SyncMemberships APIs for on-demand LDAP sync.
 - Config struct supports host, port, DNS, bind credentials, SSL/TLS options, and LDAP attribute mappings.
 - Database schema in `migrations/0103_ldap_sync_metadata.sql` tracks sync runs, conflicts, and incremental sync cursors.
 - All 19 LDAP provider tests pass; validation for required fields, configuration checks, and sync request handling.
-- Verification: `go test -count=1 ./internal/idprovider/ldap -v` (19 tests) and `go test ./...` (5975 tests).
-- Next: Implement actual LDAP connections, user/group queries, sync logic, and conflict resolution using go-ldap library.
+- Verification: `go test -count=1 ./internal/idprovider/ldap -v` (19 tests) and `go test ./...` (5901 tests).
 
 ## Database Identity Mode (2026-05-14, complete)
 - Database provider implements full CRUD operations for users and groups through `maildb` repositories.
