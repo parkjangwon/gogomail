@@ -5735,7 +5735,7 @@ Current implementation notes:
 - Principal-kind-aware LDAP entries now map users to `inetOrgPerson`, organizations to `organizationalUnit`, groups to `groupOfNames`, and resources to `device` under kind-specific OU subtrees.
 - LDAP `groupOfNames` entries populate requested/default `member` attributes with active Directory group-membership DNs for user, organization, group, and resource principals, with a schema-safe fallback for empty groups and no membership expansion for narrow non-member projections.
 - LDAP principal entries populate requested/default `memberOf` reverse membership attributes from Directory group memberships, with no reverse expansion for narrow non-memberOf projections.
-- LDAP `objectClass` filters and base DNs narrow repository searches to the matching principal kinds, including organization-chart searches under `ou=organizations`.
+- LDAP `objectClass`/`objectCategory` filters and base DNs narrow repository searches to the matching principal kinds, including organization-chart searches under `ou=organizations` and AD-style category searches.
 - LDAP search scope filtering now applies base-object, one-level, and subtree semantics against generated entry DNs.
 - Simple bind accepts common client identity formats, including raw username/email and generated entry DN forms such as `uid=<user-id>,ou=users,...`.
 - Generated user/organization/group/resource DNs escape RDN values, and base-object lookup unescapes generated DN values before resolving principals.
