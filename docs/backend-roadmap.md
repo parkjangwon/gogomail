@@ -5744,7 +5744,7 @@ Current implementation notes:
 - SearchResultEntry responses are encoded as RFC 4511 application payloads and covered by OpenLDAP `ldapsearch` plaintext, Assertion control, Matched Values control, Domain Scope/Don't Use Copy/Subentries controls, LDAP Sync refreshOnly, Proxied Authorization, Dereference, Relax/Password Policy/Session Tracking/Pre/Post Read controls, extensibleMatch, server-side sort, Virtual List View, StartTLS, LDAPS, and paged-results smoke tests when the client is available.
 - SearchRequest requested-attribute lists are decoded from real client requests, preserving narrow attribute projection for compatibility and payload efficiency.
 - Attribute selection honors LDAP special selectors: `1.1` for no attributes, `*` for user attributes, and `+` for operational attributes.
-- Principal and container entries expose stable operational attributes (`entryDN`, deterministic `entryUUID`, timestamps, creator/modifier names) for clients that request `+`.
+- Principal and container entries expose stable operational attributes (`entryDN`, deterministic `entryUUID`, timestamps, creator/modifier names, subordinate hints) for clients that request `+`.
 - LDAP entries provide conservative fallbacks for declared objectClass MUST attributes, including user `sn` and empty-group `member`.
 - Read-only write operations reject Modify/Add/Delete/ModifyDN with `ModifyResponse`, `AddResponse`, `DelResponse`, and `ModifyDNResponse` tags plus `unwillingToPerform`.
 - Read-only CompareRequest is implemented with RFC 4511 CompareResponse result codes and OpenLDAP `ldapcompare` coverage.

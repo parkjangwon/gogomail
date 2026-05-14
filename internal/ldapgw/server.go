@@ -859,6 +859,8 @@ func ldapContainerAttributes(dn string) (map[string][]string, bool) {
 		for k, values := range operational {
 			attrs[k] = values
 		}
+		attrs["hasSubordinates"] = []string{"TRUE"}
+		attrs["numSubordinates"] = []string{"0"}
 		return attrs
 	}
 	switch firstRDNValue(normalizeDNForCompare(dn), "ou") {
@@ -1029,6 +1031,8 @@ func ldapOperationalAttributes(dn string) map[string][]string {
 	return map[string][]string{
 		"entryDN":         {dn},
 		"entryUUID":       {ldapEntryUUID(dn)},
+		"hasSubordinates": {"FALSE"},
+		"numSubordinates": {"0"},
 		"createTimestamp": {"19700101000000Z"},
 		"modifyTimestamp": {"19700101000000Z"},
 		"creatorsName":    {"cn=gogomail"},
@@ -2203,7 +2207,7 @@ func isOperationalLDAPAttribute(attr string) bool {
 	switch strings.ToLower(strings.TrimSpace(attr)) {
 	case "subschemasubentry", "supportedldapversion", "supportedcontrol", "supportedextension", "namingcontexts", "vendorname",
 		"entrydn", "entryuuid", "createtimestamp", "modifytimestamp", "creatorsname", "modifiersname",
-		"distinguishedname", "objectguid", "objectsid":
+		"distinguishedname", "objectguid", "objectsid", "hassubordinates", "numsubordinates":
 		return true
 	default:
 		return false
