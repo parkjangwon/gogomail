@@ -376,15 +376,10 @@ func (s *session) Data(r io.Reader) (err error) {
 	observedSize = size
 	messageID := s.receiver.idGenerator()
 	receivedAt := s.receiver.clock()
+	headerBuffer := NewHeaderBuffer()
+
 	if s.receiver.addReceivedHeader {
-		prefixed, prefixedSize, err := prependHeaderToSpool(spooled, BuildReceivedHeader(s.remoteAddr, s.receiver.receivedDomain, messageID, receivedAt))
-		cleanupSpool(spooled)
-		if err != nil {
-			return err
-		}
-		spooled = prefixed
-		size = prefixedSize
-		observedSize = size
+		headerBuffer.AddPrepend(BuildReceivedHeader(s.remoteAddr, s.receiver.receivedDomain, messageID, receivedAt))
 	}
 	defer cleanupSpool(spooled)
 	if err := s.emit(context.Background(), Event{
@@ -406,14 +401,7 @@ func (s *session) Data(r io.Reader) (err error) {
 	}
 	if parsed.MessageID == "" {
 		parsed.MessageID = message.FallbackMessageID(s.from, mailboxAddresses(s.recipients), parsed.Date, parsed.Subject)
-		prefixed, prefixedSize, err := insertHeaderAfterTraceHeaders(spooled, "Message-ID: "+parsed.MessageID+"\r\n")
-		cleanupSpool(spooled)
-		if err != nil {
-			return err
-		}
-		spooled = prefixed
-		size = prefixedSize
-		observedSize = size
+		headerBuffer.AddAfterTrace("Message-ID: " + parsed.MessageID + "\r\n")
 	}
 	if err := s.emit(context.Background(), Event{
 		Stage:        StageParsed,
@@ -447,15 +435,18 @@ func (s *session) Data(r io.Reader) (err error) {
 		}); err != nil {
 			return err
 		}
-		prefixed, prefixedSize, err := insertHeaderAfterTraceHeaders(spooled, FormatAuthenticationResults(authResults))
-		cleanupSpool(spooled)
-		if err != nil {
-			return err
-		}
-		spooled = prefixed
-		size = prefixedSize
-		observedSize = size
+		headerBuffer.AddAfterTrace(FormatAuthenticationResults(authResults))
 	}
+
+	// Apply all buffered headers in a single pass to avoid multiple file rewrites
+	updated, updatedSize, err := headerBuffer.ApplyToFile(spooled)
+	if err != nil {
+		return fmt.Errorf("apply headers: %w", err)
+	}
+	cleanupSpool(spooled)
+	spooled = updated
+	size = updatedSize
+	observedSize = size
 
 	for _, recipient := range s.recipients {
 		shouldProcess, err := s.receiver.deduplicator.CheckAndSet(context.Background(), DedupKey{
