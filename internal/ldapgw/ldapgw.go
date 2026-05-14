@@ -205,8 +205,7 @@ func decodeInt(data []byte) (int, []byte, error) {
 }
 
 func encodeOctetString(s string) []byte {
-	b := []byte(s)
-	return append([]byte{0x04, byte(len(b))}, b...)
+	return encodeOctetStringBytes([]byte(s))
 }
 
 func decodeOctetString(data []byte) (string, []byte, error) {
