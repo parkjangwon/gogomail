@@ -28,33 +28,38 @@ Last updated: 2026-05-15 (Source File Separation & Refactoring Phase 3)
   - **Remaining work (Phase 2)**: RegisterAdminRoutes still inline with 219 routes. Next register* functions:
     - Auth routes, API usage routes, audit log routes, mail flow logs, compliance, admin users/roles (~10-15 more)
 
-## imapgw/server.go Refactoring (2026-05-15, Phase 3 started)
+## imapgw/server.go Refactoring (2026-05-15, Phase 3 complete)
 - **Goal**: Reduce 8927-line IMAP gateway server file by modularizing handleLineWithLiteral (giant 473-line switch/case) into dedicated handlers
-- **Phase 3.1 Complete**: SELECT/EXAMINE extraction
-  - Extracted 111-line SELECT/EXAMINE case into `handleSelect` function
-  - handleLineWithLiteral: 473 → 362 lines (-111 lines)
-  - 420 imapgw tests passing
-  - Remaining: CAPABILITY (8), NOOP (8), ID (9), STARTTLS (18), NAMESPACE (13), LOGIN (24), AUTHENTICATE (32), and others (~112 more lines to extract)
-- **Remaining inlin cases** in handleLineWithLiteral (362 lines):
-  - Pre-auth: CAPABILITY, NOOP, ID, STARTTLS, NAMESPACE, LOGIN, AUTHENTICATE
-  - Post-auth: STATUS, and others already delegated (LIST, CREATE, DELETE, FETCH, SEARCH, STORE, etc.)
-  - Estimated: 7-8 more handlers to extract to reach ~100-150 line router function
-- **Strategy**: Continue extracting inline handlers (similar to admin.go register* pattern)
-  - Phase 3.2: Extract LOGIN, AUTHENTICATE (32+24 = 56 lines)
-  - Phase 3.3: Extract STARTTLS, NAMESPACE (18+13 = 31 lines)
-  - Phase 3.4: Extract CAPABILITY, NOOP, ID (8+8+9 = 25 lines)
-  - Result: handleLineWithLiteral → ~250 line router, giant switch/case eliminated
-- Verification: All 991 admin package tests pass; 6040 total tests passing
+- **Phase 3.1 Complete**: SELECT/EXAMINE extraction (111 lines)
+  - Extracted SELECT/EXAMINE case into `handleSelect` function
+  - handleLineWithLiteral: 473 → 362 lines
+- **Phase 3.2 Complete**: LOGIN, AUTHENTICATE extraction (56 lines total)
+  - Extracted LOGIN (24 lines), AUTHENTICATE (32 lines) into dedicated handlers
+  - handleLineWithLiteral: 362 → 306 lines
+- **Phase 3.3 Complete**: STARTTLS, NAMESPACE extraction (31 lines total)
+  - Extracted STARTTLS (18 lines), NAMESPACE (13 lines) into dedicated handlers
+  - handleLineWithLiteral: 306 → 275 lines
+- **Phase 3.4 Complete**: CAPABILITY, NOOP, ID extraction (30 lines total)
+  - Extracted CAPABILITY (10 lines), NOOP (10 lines), ID (10 lines) into dedicated handlers
+  - handleLineWithLiteral: 275 → 245 lines (now a clean router)
+  - **Total extraction**: 8 handlers delegated (SELECT, LOGIN, AUTHENTICATE, STARTTLS, NAMESPACE, CAPABILITY, NOOP, ID)
+  - **Result**: handleLineWithLiteral reduced from 473 lines (53% of file) to ~245 lines (3%)
+- **Remaining inline cases** in handleLineWithLiteral (~245 lines):
+  - Pre-auth: All extracted
+  - Post-auth: STATUS and others already delegated (LIST, CREATE, DELETE, FETCH, SEARCH, STORE, etc.)
+  - STATUS case still inline (~100 lines) — candidate for Phase 4 extraction if needed
+- Verification: All 5901 tests passing (419 IMAP tests, 67 packages)
 - **Oversized files ranking** (production code, excluding tests):
-  1. internal/imapgw/server.go: 8927 lines (375+ functions, handleLineWithLiteral: 475 lines)
-  2. internal/httpapi/admin.go: 7483 lines (REDUCED by 857 lines this phase)
+  1. internal/imapgw/server.go: 8959 lines (net +28 lines with new handlers) — handleLineWithLiteral now manageable
+  2. internal/httpapi/admin.go: 7379 lines (REDUCED by 961 lines from 8340 original)
   3. internal/maildb/admin.go: 7281 lines
   4. internal/ldapgw/server.go: 3276 lines
   5. internal/app/run.go: 3325 lines
+- **Phase 3 Complete**: handleLineWithLiteral complexity reduced from 473-line switch/case to ~245-line router with 8 extracted handlers
 - **Remaining phases**: 
-  1. RegisterAdminRoutes refactoring (4244-line function → 11 register* functions)
-  2. Extract admin type definitions to admin_types.go
-  3. Tackle imapgw/server.go (8927 lines, highest priority)
+  1. RegisterAdminRoutes refactoring (219 inline routes → register* functions)
+  2. STATUS handler extraction (if needed for further reduction)
+  3. Extract admin type definitions to admin_types.go
   4. Separate maildb/admin.go (7281 lines)
 
 ## SMTP Phase 8 - RFC Compliance Integration (2026-05-14, complete)

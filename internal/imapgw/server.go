@@ -553,128 +553,21 @@ func (s *Server) handleLineWithLiteral(writer *bufio.Writer, line string, litera
 	}
 	switch command {
 	case "CAPABILITY":
-		if len(fields) != 2 {
-			_, err := writer.WriteString(tag + " BAD CAPABILITY does not accept arguments\r\n")
-			return false, err
-		}
-		if _, err := writer.WriteString("* CAPABILITY " + strings.Join(s.imapCapabilities(state), " ") + "\r\n"); err != nil {
-			return false, err
-		}
-		_, err := writer.WriteString(tag + " OK CAPABILITY completed\r\n")
-		return false, err
+		return s.handleCapability(writer, tag, fields, state)
 	case "ENABLE":
 		return s.handleEnable(writer, tag, fields, state)
 	case "NOOP":
-		if len(fields) != 2 {
-			_, err := writer.WriteString(tag + " BAD NOOP does not accept arguments\r\n")
-			return false, err
-		}
-		if err := s.drainMailboxEvents(writer, state); err != nil {
-			return false, err
-		}
-		_, err := writer.WriteString(tag + " OK NOOP completed\r\n")
-		return false, err
+		return s.handleNoop(writer, tag, fields, state)
 	case "ID":
-		if !imapIDArgumentsValidWithLiterals(imapCommandArgumentString(trimmedLine), literals) {
-			_, err := writer.WriteString(tag + " BAD ID requires NIL or parameter list\r\n")
-			return false, err
-		}
-		if _, err := writer.WriteString(`* ID ("name" "gogomail")` + "\r\n"); err != nil {
-			return false, err
-		}
-		_, err := writer.WriteString(tag + " OK ID completed\r\n")
-		return false, err
+		return s.handleID(writer, tag, trimmedLine, literals, state)
 	case "STARTTLS":
-		if len(fields) != 2 {
-			_, err := writer.WriteString(tag + " BAD STARTTLS does not accept arguments\r\n")
-			return false, err
-		}
-		if state.session != nil {
-			_, err := writer.WriteString(tag + " BAD already authenticated\r\n")
-			return false, err
-		}
-		if state.tlsActive || s.options.TLSConfig == nil {
-			_, err := writer.WriteString(tag + " BAD STARTTLS is unavailable\r\n")
-			return false, err
-		}
-		state.startTLS = true
-		tlsState := *state
-		tlsState.startTLS = false
-		tlsState.tlsActive = true
-		_, err := writer.WriteString(tag + " OK [CAPABILITY " + strings.Join(s.imapCapabilities(&tlsState), " ") + "] Begin TLS negotiation now\r\n")
-		return false, err
+		return s.handleStartTLS(writer, tag, fields, state)
 	case "NAMESPACE":
-		if len(fields) != 2 {
-			_, err := writer.WriteString(tag + " BAD NAMESPACE does not accept arguments\r\n")
-			return false, err
-		}
-		if state.session == nil {
-			_, err := writer.WriteString(tag + " NO authentication required\r\n")
-			return false, err
-		}
-		if _, err := writer.WriteString(`* NAMESPACE (("" "/")) NIL NIL` + "\r\n"); err != nil {
-			return false, err
-		}
-		_, err := writer.WriteString(tag + " OK NAMESPACE completed\r\n")
-		return false, err
+		return s.handleNamespace(writer, tag, fields, state)
 	case "LOGIN":
-		if state.session != nil {
-			_, err := writer.WriteString(tag + " BAD already authenticated\r\n")
-			return false, err
-		}
-		if len(fields) != 4 {
-			_, err := writer.WriteString(tag + " BAD LOGIN requires username and password atoms\r\n")
-			return false, err
-		}
-		if !imapLoginCredentialsValid(fields[2], fields[3]) {
-			_, err := writer.WriteString(tag + " BAD LOGIN credentials are malformed\r\n")
-			return false, err
-		}
-		if !s.authAllowed(state) {
-			_, err := writer.WriteString(tag + " NO [PRIVACYREQUIRED] TLS is required for LOGIN\r\n")
-			return false, err
-		}
-		authSession, err := s.options.Backend.Authenticate(context.Background(), fields[2], fields[3])
-		if err != nil {
-			_, writeErr := writer.WriteString(tag + " NO [AUTHENTICATIONFAILED] LOGIN failed\r\n")
-			return false, writeErr
-		}
-		state.session = &authSession
-		_, err = writer.WriteString(tag + " OK " + s.authenticatedCapabilityCode(state) + " LOGIN completed\r\n")
-		return false, err
+		return s.handleLogin(writer, tag, fields, state)
 	case "AUTHENTICATE":
-		if state.session != nil {
-			_, err := writer.WriteString(tag + " BAD already authenticated\r\n")
-			return false, err
-		}
-		if len(fields) != 3 && len(fields) != 4 {
-			_, err := writer.WriteString(tag + " BAD AUTHENTICATE requires mechanism and optional initial response\r\n")
-			return false, err
-		}
-		if !imapAtomValid(fields[2]) {
-			_, err := writer.WriteString(tag + " BAD AUTHENTICATE mechanism is malformed\r\n")
-			return false, err
-		}
-		if !strings.EqualFold(fields[2], "PLAIN") {
-			_, err := writer.WriteString(tag + " NO AUTHENTICATE mechanism is unsupported\r\n")
-			return false, err
-		}
-		if !s.authAllowed(state) {
-			_, err := writer.WriteString(tag + " NO [PRIVACYREQUIRED] TLS is required for AUTHENTICATE\r\n")
-			return false, err
-		}
-		if len(fields) == 4 {
-			if _, _, ok := decodeSASLPlain(fields[3]); !ok {
-				_, err := writer.WriteString(tag + " BAD AUTHENTICATE PLAIN response is malformed\r\n")
-				return false, err
-			}
-		}
-		if len(fields) == 4 {
-			return s.completeAuthenticatePlain(writer, tag, fields[3], state)
-		}
-		state.pendingAuthTag = tag
-		_, err := writer.WriteString("+ \r\n")
-		return false, err
+		return s.handleAuthenticate(writer, tag, fields, state)
 	case "SELECT", "EXAMINE":
 		return s.handleSelect(writer, tag, command, fields, state)
 	case "LIST":
@@ -1446,6 +1339,141 @@ func (s *Server) handleSelect(writer *bufio.Writer, tag string, command string, 
 		return false, err
 	}
 	_, err = writer.WriteString(tag + " OK [READ-WRITE] SELECT completed\r\n")
+	return false, err
+}
+
+func (s *Server) handleLogin(writer *bufio.Writer, tag string, fields []string, state *imapConnState) (bool, error) {
+	if state.session != nil {
+		_, err := writer.WriteString(tag + " BAD already authenticated\r\n")
+		return false, err
+	}
+	if len(fields) != 4 {
+		_, err := writer.WriteString(tag + " BAD LOGIN requires username and password atoms\r\n")
+		return false, err
+	}
+	if !imapLoginCredentialsValid(fields[2], fields[3]) {
+		_, err := writer.WriteString(tag + " BAD LOGIN credentials are malformed\r\n")
+		return false, err
+	}
+	if !s.authAllowed(state) {
+		_, err := writer.WriteString(tag + " NO [PRIVACYREQUIRED] TLS is required for LOGIN\r\n")
+		return false, err
+	}
+	authSession, err := s.options.Backend.Authenticate(context.Background(), fields[2], fields[3])
+	if err != nil {
+		_, writeErr := writer.WriteString(tag + " NO [AUTHENTICATIONFAILED] LOGIN failed\r\n")
+		return false, writeErr
+	}
+	state.session = &authSession
+	_, err = writer.WriteString(tag + " OK " + s.authenticatedCapabilityCode(state) + " LOGIN completed\r\n")
+	return false, err
+}
+
+func (s *Server) handleAuthenticate(writer *bufio.Writer, tag string, fields []string, state *imapConnState) (bool, error) {
+	if state.session != nil {
+		_, err := writer.WriteString(tag + " BAD already authenticated\r\n")
+		return false, err
+	}
+	if len(fields) != 3 && len(fields) != 4 {
+		_, err := writer.WriteString(tag + " BAD AUTHENTICATE requires mechanism and optional initial response\r\n")
+		return false, err
+	}
+	if !imapAtomValid(fields[2]) {
+		_, err := writer.WriteString(tag + " BAD AUTHENTICATE mechanism is malformed\r\n")
+		return false, err
+	}
+	if !strings.EqualFold(fields[2], "PLAIN") {
+		_, err := writer.WriteString(tag + " NO AUTHENTICATE mechanism is unsupported\r\n")
+		return false, err
+	}
+	if !s.authAllowed(state) {
+		_, err := writer.WriteString(tag + " NO [PRIVACYREQUIRED] TLS is required for AUTHENTICATE\r\n")
+		return false, err
+	}
+	if len(fields) == 4 {
+		if _, _, ok := decodeSASLPlain(fields[3]); !ok {
+			_, err := writer.WriteString(tag + " BAD AUTHENTICATE PLAIN response is malformed\r\n")
+			return false, err
+		}
+	}
+	if len(fields) == 4 {
+		return s.completeAuthenticatePlain(writer, tag, fields[3], state)
+	}
+	state.pendingAuthTag = tag
+	_, err := writer.WriteString("+ \r\n")
+	return false, err
+}
+
+func (s *Server) handleStartTLS(writer *bufio.Writer, tag string, fields []string, state *imapConnState) (bool, error) {
+	if len(fields) != 2 {
+		_, err := writer.WriteString(tag + " BAD STARTTLS does not accept arguments\r\n")
+		return false, err
+	}
+	if state.session != nil {
+		_, err := writer.WriteString(tag + " BAD already authenticated\r\n")
+		return false, err
+	}
+	if state.tlsActive || s.options.TLSConfig == nil {
+		_, err := writer.WriteString(tag + " BAD STARTTLS is unavailable\r\n")
+		return false, err
+	}
+	state.startTLS = true
+	tlsState := *state
+	tlsState.startTLS = false
+	tlsState.tlsActive = true
+	_, err := writer.WriteString(tag + " OK [CAPABILITY " + strings.Join(s.imapCapabilities(&tlsState), " ") + "] Begin TLS negotiation now\r\n")
+	return false, err
+}
+
+func (s *Server) handleNamespace(writer *bufio.Writer, tag string, fields []string, state *imapConnState) (bool, error) {
+	if len(fields) != 2 {
+		_, err := writer.WriteString(tag + " BAD NAMESPACE does not accept arguments\r\n")
+		return false, err
+	}
+	if state.session == nil {
+		_, err := writer.WriteString(tag + " NO authentication required\r\n")
+		return false, err
+	}
+	if _, err := writer.WriteString(`* NAMESPACE (("" "/")) NIL NIL` + "\r\n"); err != nil {
+		return false, err
+	}
+	_, err := writer.WriteString(tag + " OK NAMESPACE completed\r\n")
+	return false, err
+}
+
+func (s *Server) handleCapability(writer *bufio.Writer, tag string, fields []string, state *imapConnState) (bool, error) {
+	if len(fields) != 2 {
+		_, err := writer.WriteString(tag + " BAD CAPABILITY does not accept arguments\r\n")
+		return false, err
+	}
+	if _, err := writer.WriteString("* CAPABILITY " + strings.Join(s.imapCapabilities(state), " ") + "\r\n"); err != nil {
+		return false, err
+	}
+	_, err := writer.WriteString(tag + " OK CAPABILITY completed\r\n")
+	return false, err
+}
+
+func (s *Server) handleNoop(writer *bufio.Writer, tag string, fields []string, state *imapConnState) (bool, error) {
+	if len(fields) != 2 {
+		_, err := writer.WriteString(tag + " BAD NOOP does not accept arguments\r\n")
+		return false, err
+	}
+	if err := s.drainMailboxEvents(writer, state); err != nil {
+		return false, err
+	}
+	_, err := writer.WriteString(tag + " OK NOOP completed\r\n")
+	return false, err
+}
+
+func (s *Server) handleID(writer *bufio.Writer, tag string, trimmedLine string, literals []string, state *imapConnState) (bool, error) {
+	if !imapIDArgumentsValidWithLiterals(imapCommandArgumentString(trimmedLine), literals) {
+		_, err := writer.WriteString(tag + " BAD ID requires NIL or parameter list\r\n")
+		return false, err
+	}
+	if _, err := writer.WriteString(`* ID ("name" "gogomail")` + "\r\n"); err != nil {
+		return false, err
+	}
+	_, err := writer.WriteString(tag + " OK ID completed\r\n")
 	return false, err
 }
 
