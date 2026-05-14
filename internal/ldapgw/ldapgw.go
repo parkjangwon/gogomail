@@ -75,6 +75,8 @@ const (
 	derefAliasesAlways      = 3
 )
 
+const ldapMaxMessageID = 2147483647
+
 // LDAPFilter map from RFC 4511
 const (
 	filterAnd            = 0
@@ -316,7 +318,7 @@ func decodeLDAPPacketWithControls(pdu []byte) (messageID int, opTag int, opData 
 		v = v<<8 | int64(msgIDRest[i])
 	}
 	messageID = int(v)
-	if messageID <= 0 {
+	if messageID <= 0 || messageID > ldapMaxMessageID {
 		return 0, 0, nil, nil, fmt.Errorf("invalid messageID %d", messageID)
 	}
 	msgContent = msgIDRest[msgIDLen:]
