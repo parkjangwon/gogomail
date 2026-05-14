@@ -8,7 +8,7 @@ import Underline from '@tiptap/extension-underline';
 import TextAlign from '@tiptap/extension-text-align';
 import Placeholder from '@tiptap/extension-placeholder';
 import Image from '@tiptap/extension-image';
-import { sendMessage, saveDraft, updateDraft, deleteDraft, sendDraft, uploadAttachment, attachDriveFileToEmail, listDriveNodes, listUserAddresses, DriveNode, ComposeIntent, UIComposeIntent, MessageAddress, MessageDetail, SendMessageRequest, SendMessageResult, UserAddressEntry } from '@/lib/api';
+import { sendMessage, saveDraft, updateDraft, deleteDraft, sendDraft, uploadAttachment, attachDriveFileToEmail, listDriveNodes, listUserAddresses, DriveNode, UIComposeIntent, MessageDetail, SendMessageRequest, SendMessageResult, UserAddressEntry } from '@/lib/api';
 import { composeCloseSaveButtonAriaLabel } from '@/lib/composeCloseSaveButtonAriaLabel';
 import { composeCloseSaveButtonLabel } from '@/lib/composeCloseSaveButtonLabel';
 import { composeCloseSavePrompt } from '@/lib/composeCloseSavePrompt';
@@ -16,6 +16,7 @@ import { composeSendButtonLabel } from '@/lib/composeSendButtonLabel';
 import { toDateTimeLocalValue } from '@/lib/dateTimeLocal';
 import { formatSendResultLabel } from '@/lib/sendResultLabel';
 import { DriveNodeIcon } from '@/lib/driveNodeIcon';
+import { escapeHtml, parseAddrs, buildQuoteHTML, backendComposeIntent, emailOf, invalidRecipientAddresses, EmailTemplate } from '@/lib/compose/composeUtils';
 import { RecipientChips } from './RecipientChips';
 import { OrgPickerModal, parseToPickerItems, pickerItemsToString } from './OrgPickerModal';
 import {
@@ -38,13 +39,6 @@ import {
   UsersIcon,
 } from '@heroicons/react/24/outline';
 
-interface EmailTemplate {
-  id: string;
-  name: string;
-  subject: string;
-  body: string; // HTML string
-}
-
 interface ComposeModalProps {
   onClose: () => void;
   intent?: UIComposeIntent;
@@ -57,78 +51,6 @@ interface ComposeModalProps {
   isMobile?: boolean;
   windowOffset?: number;
   onArchiveSource?: () => void;
-}
-
-function escapeHtml(text: string): string {
-  return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-}
-
-function parseAddr(raw: string): { address: string; name?: string } {
-  const m = raw.match(/^(.+?)\s*<([^>]+)>$/);
-  if (m) return { name: m[1].trim() || undefined, address: m[2].trim() };
-  return { address: raw.trim() };
-}
-
-function parseAddrs(raw: string): { address: string; name?: string }[] {
-  // Split on commas not inside angle brackets
-  const parts: string[] = [];
-  let depth = 0, start = 0;
-  for (let i = 0; i < raw.length; i++) {
-    if (raw[i] === '<') depth++;
-    else if (raw[i] === '>') depth--;
-    else if (raw[i] === ',' && depth === 0) {
-      parts.push(raw.slice(start, i));
-      start = i + 1;
-    }
-  }
-  parts.push(raw.slice(start));
-  return parts.map((p) => parseAddr(p.trim())).filter((a) => a.address);
-}
-
-function isValidEmailAddress(address: string): boolean {
-  if (isRecipientGroupToken(address)) return true;
-  if (!address || /\s|<|>/.test(address)) return false;
-  const at = address.indexOf('@');
-  if (at <= 0 || at !== address.lastIndexOf('@') || at === address.length - 1) return false;
-  const domain = address.slice(at + 1);
-  if (domain.startsWith('.') || domain.endsWith('.') || domain.includes('..')) return false;
-  return true;
-}
-
-function isRecipientGroupToken(address: string): boolean {
-  return /^org:[0-9a-fA-F-]{36}(?::children)?$/.test(address) || /^addressbook:[0-9a-fA-F-]{36}$/.test(address);
-}
-
-function invalidRecipientAddresses(...values: string[]): string[] {
-  return values
-    .flatMap((value) => parseAddrs(value))
-    .map((addr) => addr.address)
-    .filter((address) => !isValidEmailAddress(address));
-}
-
-function backendComposeIntent(intent: UIComposeIntent): ComposeIntent {
-  return intent === 'reply_all' ? 'reply' : intent;
-}
-
-function emailOf(addr: MessageAddress): string {
-  return addr.email || addr.address || '';
-}
-
-function buildQuoteHTML(intent: string, source: MessageDetail): string {
-  const from = source.from_name
-    ? `${escapeHtml(source.from_name)} &lt;${escapeHtml(source.from_addr)}&gt;`
-    : escapeHtml(source.from_addr);
-  const date = new Intl.DateTimeFormat('ko-KR', {
-    year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false,
-  }).format(new Date(source.received_at));
-  const bodyLines = (source.text_body || '')
-    .split('\n')
-    .map((line) => `<p>${escapeHtml(line) || '&nbsp;'}</p>`)
-    .join('');
-  const header = intent === 'forward'
-    ? '<p><strong>---------- 전달된 메시지 ----------</strong></p>'
-    : '<p><strong>--- 원본 메시지 ---</strong></p>';
-  return `<p></p>${header}<blockquote><p><strong>보낸 사람:</strong> ${from}</p><p><strong>날짜:</strong> ${escapeHtml(date)}</p><p><strong>제목:</strong> ${escapeHtml(source.subject || '(제목 없음)')}</p><p>&nbsp;</p>${bodyLines}</blockquote>`;
 }
 
 const SLASH_COMMANDS = [
