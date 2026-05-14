@@ -1,6 +1,15 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (Delivery throttling distributed coordination audit)
+Last updated: 2026-05-14 (Delivery throttling Redis lease counter)
+
+## Delivery throttling Redis lease counter (2026-05-14, complete)
+- Delivery throttling now supports a Redis-backed `ThrottleCounter` for cluster-wide farm/domain concurrency coordination across delivery worker processes.
+- `RedisThrottleCounter` uses one Lua `EVAL` for multi-key acquire: it checks every farm/domain lease before incrementing any key, so a domain-limit failure cannot partially consume a farm slot.
+- Release uses a Lua script to decrement/delete only acquired keys and the release closure remains idempotent, preserving the existing handler contract.
+- Runtime config now exposes `GOGOMAIL_DELIVERY_THROTTLE_BACKEND=local|redis` and YAML `delivery_throttle_backend`; invalid backend values are rejected during startup validation.
+- `runDeliveryWorker` wires the Redis throttle backend through the existing Redis client and `CoordinatedThrottler`, while keeping `local` as the default process-local backend.
+- Coverage verifies atomic Redis acquire behavior, no partial increments on throttle, idempotent release, config loading/validation, and delivery/app wiring smoke coverage.
+- Verification: `go test -count=1 ./internal/delivery -run 'Throttle|Throttl'`, `go test -count=1 ./internal/config ./internal/app -run 'Throttl|Delivery'`, and `go test ./...`.
 
 ## Delivery throttling distributed coordination audit (2026-05-14, complete)
 - Audited delivery throttling and confirmed the existing `InMemoryThrottler` protected only one process-local counter, so multiple delivery workers in a server farm could each consume the same farm/domain concurrency budget independently.

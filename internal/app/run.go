@@ -2635,13 +2635,22 @@ func runDeliveryWorker(ctx context.Context, cfg config.Config, logger *slog.Logg
 		delivery.NewPostgresRetryScheduler(db, retryPolicy),
 	).WithExhaustionHook(deliveryRecorder)
 	if cfg.DeliveryThrottleEnabled {
-		handler.WithThrottler(delivery.NewInMemoryThrottler(delivery.ThrottlePolicy{
+		throttlePolicy := delivery.ThrottlePolicy{
 			FarmMaxConcurrent:   deliveryFarmLimits(cfg.DeliveryFarmConcurrency),
 			DomainMaxConcurrent: cfg.DeliveryDomainConcurrency,
 			DefaultConcurrent:   cfg.DeliveryDefaultConcurrency,
-		}))
+		}
+		if strings.EqualFold(strings.TrimSpace(cfg.DeliveryThrottleBackend), "redis") {
+			handler.WithThrottler(delivery.NewCoordinatedThrottler(
+				throttlePolicy,
+				delivery.NewRedisThrottleCounter(redisClient, "gogomail:delivery:throttle"),
+			))
+		} else {
+			handler.WithThrottler(delivery.NewInMemoryThrottler(throttlePolicy))
+		}
 		logger.Info(
 			"delivery throttling enabled",
+			"backend", cfg.DeliveryThrottleBackend,
 			"default_concurrency", cfg.DeliveryDefaultConcurrency,
 			"farm_limits", cfg.DeliveryFarmConcurrency,
 			"domain_limits", cfg.DeliveryDomainConcurrency,

@@ -577,6 +577,7 @@ func TestLoadReadsEnvironmentOverrides(t *testing.T) {
 	t.Setenv("GOGOMAIL_SUBMISSION_ALLOW_INSECURE_AUTH", "false")
 	t.Setenv("GOGOMAIL_DATABASE_URL", "postgres://example")
 	t.Setenv("GOGOMAIL_REDIS_ADDR", "redis:6379")
+	t.Setenv("GOGOMAIL_DELIVERY_THROTTLE_BACKEND", "redis")
 	t.Setenv("GOGOMAIL_STORAGE_BACKEND", "local")
 	t.Setenv("GOGOMAIL_STORAGE_S3_CA_CERT_FILE", "/etc/gogomail/s3-ca.pem")
 	t.Setenv("GOGOMAIL_STORAGE_S3_INSECURE_SKIP_VERIFY", "true")
@@ -780,6 +781,9 @@ func TestLoadReadsEnvironmentOverrides(t *testing.T) {
 	}
 	if cfg.RedisAddr != "redis:6379" {
 		t.Fatalf("RedisAddr = %q, want redis:6379", cfg.RedisAddr)
+	}
+	if cfg.DeliveryThrottleBackend != "redis" {
+		t.Fatalf("DeliveryThrottleBackend = %q, want redis", cfg.DeliveryThrottleBackend)
 	}
 	if cfg.StorageBackend != "local" {
 		t.Fatalf("StorageBackend = %q, want local", cfg.StorageBackend)

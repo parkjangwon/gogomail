@@ -985,6 +985,26 @@ func TestValidateRejectsThrottleWithoutLimits(t *testing.T) {
 	}
 }
 
+func TestValidateRejectsUnknownDeliveryThrottleBackend(t *testing.T) {
+	cfg := Load()
+	cfg.DeliveryThrottleEnabled = true
+	cfg.DeliveryThrottleBackend = "memcached"
+	cfg.DeliveryDefaultConcurrency = 1
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("Validate() error = nil, want throttle backend rejection")
+	}
+}
+
+func TestValidateAcceptsRedisDeliveryThrottleBackend(t *testing.T) {
+	cfg := Load()
+	cfg.DeliveryThrottleEnabled = true
+	cfg.DeliveryThrottleBackend = "redis"
+	cfg.DeliveryDefaultConcurrency = 1
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("Validate() error = %v", err)
+	}
+}
+
 func TestValidateRejectsInvalidDeliveryRetryDelays(t *testing.T) {
 	tests := []struct {
 		name   string
