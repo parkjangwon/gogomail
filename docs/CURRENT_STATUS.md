@@ -52,13 +52,13 @@ Last updated: 2026-05-14 (LDAP gateway StartTLS/LDAPS and discovery hardening)
 - Non-discovery directory searches now require a successful bind; Root DSE and `cn=Subschema` base-object discovery remain available before bind for standard client setup.
 - `SearchResultEntry` encoding now emits the RFC 4511 application payload directly, matching OpenLDAP client decoding expectations.
 - LDAP requested-attribute selection now decodes real client SearchRequest attribute lists correctly, so clients can request narrow projections such as only `mail` without receiving every directory attribute, and AttributeDescription options such as `mail;lang-en` resolve against the base attribute for matching/projection compatibility.
-- LDAP SearchRequest decoding now rejects malformed requested-attribute lists and trailing data after the attribute list instead of silently truncating or ignoring the request tail.
+- LDAP SearchRequest decoding now rejects malformed, empty, option-only requested-attribute lists and trailing data after the attribute list instead of silently truncating or ignoring the request tail.
 - LDAP attribute selection now honors special selectors: `1.1` returns no attributes and `+` returns only operational attributes, while `*` still returns user attributes.
 - LDAP entries now expose stable operational attributes for `+` requests, including `entryDN`, deterministic `entryUUID`, `createTimestamp`, `modifyTimestamp`, `creatorsName`, and `modifiersName`.
 - LDAP entries and kind containers now expose `hasSubordinates` and `numSubordinates` operational hints so tree-browsing clients can distinguish expandable containers from leaf entries.
 - LDAP entries now provide conservative fallback values for declared objectClass MUST attributes, including `sn` for `person`/`inetOrgPerson` users and `member` for empty `groupOfNames` groups.
 - LDAP read-only CompareRequest now returns RFC 4511 CompareResponse result codes (`compareTrue`/`compareFalse`) after bind, with RFC 4514-normalized generated-DN base-object lookup through the directory repository.
-- LDAP CompareRequest decoding now rejects trailing data after the attribute value assertion sequence instead of ignoring bytes beyond the RFC 4511 request shape.
+- LDAP CompareRequest decoding now rejects empty or option-only attribute descriptions and trailing data after the attribute value assertion sequence instead of ignoring bytes beyond the RFC 4511 request shape.
 - LDAP Who Am I? extended operation (`1.3.6.1.4.1.4203.1.11.3`) is advertised in Root DSE and returns the bound authorization identity for OpenLDAP `ldapwhoami` clients.
 - LDAP ExtendedRequest decoding now validates request names as numeric LDAPOIDs and rejects trailing data unless it is the RFC 4511 optional requestValue wrapper.
 - LDAP AbandonRequest now follows RFC 4511 no-response semantics instead of returning a generic error response.

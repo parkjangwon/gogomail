@@ -1129,6 +1129,15 @@ func TestDecodeCompareRequestRejectsTrailingAssertionSequenceData(t *testing.T) 
 	}
 }
 
+func TestDecodeCompareRequestRejectsEmptyAttributeDescription(t *testing.T) {
+	if _, err := decodeCompareRequestData(buildCompareRequest("uid=alice,ou=users,dc=example,dc=com", ";binary", "alice@example.com")); err == nil {
+		t.Fatal("decodeCompareRequestData accepted option-only attribute description")
+	}
+	if _, err := decodeCompareRequestData(buildCompareRequest("uid=alice,ou=users,dc=example,dc=com", " ", "alice@example.com")); err == nil {
+		t.Fatal("decodeCompareRequestData accepted blank attribute description")
+	}
+}
+
 func TestBindIdentityCandidatesUnescapesDNValues(t *testing.T) {
 	got := bindIdentityCandidates(`uid=alice\2eops,ou=users,dc=example,dc=com`)
 	want := []string{`uid=alice\2eops,ou=users,dc=example,dc=com`, "alice.ops"}
@@ -1728,6 +1737,14 @@ func TestDecodeSearchRequestRejectsMalformedAttributeList(t *testing.T) {
 	truncatedAttr := append(append([]byte{}, base[:len(base)-2]...), tagSequence, 0x03, tagOctetString, 0x02, 'c')
 	if _, _, _, _, _, _, _, err := decodeSearchRequest(truncatedAttr); err == nil {
 		t.Fatal("decodeSearchRequest accepted truncated attribute description")
+	}
+	emptyAttr := append(append([]byte{}, base[:len(base)-2]...), tagSequence, 0x02, tagOctetString, 0x00)
+	if _, _, _, _, _, _, _, err := decodeSearchRequest(emptyAttr); err == nil {
+		t.Fatal("decodeSearchRequest accepted empty attribute description")
+	}
+	optionOnlyAttr := append(append([]byte{}, base[:len(base)-2]...), tagSequence, 0x09, tagOctetString, 0x07, ';', 'b', 'i', 'n', 'a', 'r', 'y')
+	if _, _, _, _, _, _, _, err := decodeSearchRequest(optionOnlyAttr); err == nil {
+		t.Fatal("decodeSearchRequest accepted option-only attribute description")
 	}
 }
 
