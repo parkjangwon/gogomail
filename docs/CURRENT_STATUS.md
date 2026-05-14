@@ -1,8 +1,8 @@
 # gogomail current status
 
-Last updated: 2026-05-15 (Source File Separation & Refactoring)
+Last updated: 2026-05-15 (Source File Separation & Refactoring Phase 3)
 
-## Source File Separation & Refactoring (2026-05-15, in progress)
+## Source File Separation & Refactoring (2026-05-15, Phase 3 started)
 - Goal: Reduce oversized source files by appropriately separating concerns into focused modules.
 - **Phase 1 Complete**: Parse function extraction to admin_helpers.go
   - `internal/httpapi/admin_helpers.go`: Expanded from 57 to 923 lines; consolidated 30+ utility functions
@@ -25,14 +25,25 @@ Last updated: 2026-05-15 (Source File Separation & Refactoring)
   - `internal/httpapi/admin.go`: Reduced to 7379 lines with delegation pattern at RegisterAdminRoutes (10 register* function calls)
   - **Test fix**: openapi_contract_test.go now includes admin_helpers.go in route extraction pattern matching (routes were in admin_helpers.go, test only searched admin.go)
   - Cumulative reduction: **8340 → 7379 lines (-961 lines, 11.5% reduction)** from original
-  - **Remaining work**: RegisterAdminRoutes still inline with 219 routes (mostly company/domain/user CRUD, API usage, audit logs, auth, alert management, retention, compliance). Future phases should extract:
-    - Auth routes (login, logout, refresh, setup, verify)
-    - API usage routes (daily, monthly, ledger, export batches) 
-    - Audit log routes (list, integrity, get)
-    - Mail flow log routes
-    - Compliance routes
-    - Admin users/roles routes
-    - And others for ~10-15 more register* functions
+  - **Remaining work (Phase 2)**: RegisterAdminRoutes still inline with 219 routes. Next register* functions:
+    - Auth routes, API usage routes, audit log routes, mail flow logs, compliance, admin users/roles (~10-15 more)
+
+## imapgw/server.go Refactoring (2026-05-15, Phase 3 started)
+- **Goal**: Reduce 8927-line IMAP gateway server file by modularizing handleLineWithLiteral (giant 473-line switch/case) into dedicated handlers
+- **Phase 3.1 Complete**: SELECT/EXAMINE extraction
+  - Extracted 111-line SELECT/EXAMINE case into `handleSelect` function
+  - handleLineWithLiteral: 473 → 362 lines (-111 lines)
+  - 420 imapgw tests passing
+  - Remaining: CAPABILITY (8), NOOP (8), ID (9), STARTTLS (18), NAMESPACE (13), LOGIN (24), AUTHENTICATE (32), and others (~112 more lines to extract)
+- **Remaining inlin cases** in handleLineWithLiteral (362 lines):
+  - Pre-auth: CAPABILITY, NOOP, ID, STARTTLS, NAMESPACE, LOGIN, AUTHENTICATE
+  - Post-auth: STATUS, and others already delegated (LIST, CREATE, DELETE, FETCH, SEARCH, STORE, etc.)
+  - Estimated: 7-8 more handlers to extract to reach ~100-150 line router function
+- **Strategy**: Continue extracting inline handlers (similar to admin.go register* pattern)
+  - Phase 3.2: Extract LOGIN, AUTHENTICATE (32+24 = 56 lines)
+  - Phase 3.3: Extract STARTTLS, NAMESPACE (18+13 = 31 lines)
+  - Phase 3.4: Extract CAPABILITY, NOOP, ID (8+8+9 = 25 lines)
+  - Result: handleLineWithLiteral → ~250 line router, giant switch/case eliminated
 - Verification: All 991 admin package tests pass; 6040 total tests passing
 - **Oversized files ranking** (production code, excluding tests):
   1. internal/imapgw/server.go: 8927 lines (375+ functions, handleLineWithLiteral: 475 lines)
