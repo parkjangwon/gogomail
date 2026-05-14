@@ -1018,8 +1018,7 @@ func principalLDAPAttributes(p PrincipalEntry) map[string][]string {
 		"distinguishedName": nonEmptyLDAPValues([]string{p.DN}),
 		"instanceType":      {"4"},
 		"objectCategory":    {objectCategory},
-		"objectGUID":        {ldapEntryUUID(p.DN)},
-		"objectSid":         nonEmptyLDAPValues([]string{ldapObjectSID(p.DN, kind)}),
+		"objectGUID":        {string(ldapEntryUUIDBytes(p.DN))},
 		"mailNickname":      nonEmptyLDAPValues([]string{p.UID}),
 		"proxyAddresses":    ldapProxyAddresses(p.Mail),
 		"sAMAccountName":    {p.UID},
@@ -1035,8 +1034,8 @@ func principalLDAPAttributes(p PrincipalEntry) map[string][]string {
 	if len(attrs["distinguishedName"]) == 0 {
 		delete(attrs, "distinguishedName")
 	}
-	if len(attrs["objectSid"]) == 0 {
-		delete(attrs, "objectSid")
+	if sid := ldapObjectSIDBytes(p.DN, kind); len(sid) > 0 {
+		attrs["objectSid"] = []string{string(sid)}
 	}
 	if len(attrs["userPrincipalName"]) == 0 {
 		delete(attrs, "userPrincipalName")
@@ -1143,8 +1142,28 @@ func ldapEntryUUIDBytes(dn string) []byte {
 }
 
 func ldapObjectSID(dn, kind string) string {
-	if strings.TrimSpace(dn) == "" {
+	a, c, d, rid, ok := ldapObjectSIDParts(dn, kind)
+	if !ok {
 		return ""
+	}
+	return fmt.Sprintf("S-1-5-21-%d-%d-%d-%d", a, c, d, rid)
+}
+
+func ldapObjectSIDBytes(dn, kind string) []byte {
+	a, c, d, rid, ok := ldapObjectSIDParts(dn, kind)
+	if !ok {
+		return nil
+	}
+	out := []byte{1, 5, 0, 0, 0, 0, 0, 5}
+	for _, v := range []uint32{21, a, c, d, rid} {
+		out = append(out, byte(v), byte(v>>8), byte(v>>16), byte(v>>24))
+	}
+	return out
+}
+
+func ldapObjectSIDParts(dn, kind string) (uint32, uint32, uint32, uint32, bool) {
+	if strings.TrimSpace(dn) == "" {
+		return 0, 0, 0, 0, false
 	}
 	b := ldapEntryUUIDBytes(dn)
 	a := uint32(b[0])<<24 | uint32(b[1])<<16 | uint32(b[2])<<8 | uint32(b[3])
@@ -1161,7 +1180,7 @@ func ldapObjectSID(dn, kind string) string {
 	default:
 		rid = 1000000000 + rid%999999999
 	}
-	return fmt.Sprintf("S-1-5-21-%d-%d-%d-%d", a, c, d, rid)
+	return a, c, d, rid, true
 }
 
 func ldapUpdateSequenceNumber(dn string) string {
@@ -1698,7 +1717,7 @@ func ldapAttributeValueMatchesFilter(attrName, attrValue string, filter []byte) 
 		if err != nil {
 			return false
 		}
-		return strings.EqualFold(attrValue, val)
+		return ldapAttributeValueEqual(attrName, attrValue, val)
 	case filterSubstrings:
 		attr, rest, err := decodeOctetString(content)
 		if err != nil || !strings.EqualFold(strings.TrimSpace(attr), attrName) {
@@ -1713,7 +1732,7 @@ func ldapAttributeValueMatchesFilter(attrName, attrValue string, filter []byte) 
 		return strings.EqualFold(strings.TrimSpace(string(content)), attrName)
 	case filterExtensible:
 		attr, value, ok, err := decodeExtensibleMatch(content)
-		return err == nil && ok && strings.EqualFold(strings.TrimSpace(attr), attrName) && strings.EqualFold(attrValue, value)
+		return err == nil && ok && strings.EqualFold(strings.TrimSpace(attr), attrName) && ldapAttributeValueEqual(attrName, attrValue, value)
 	default:
 		return false
 	}
@@ -1772,7 +1791,7 @@ func ldapEntryAttributesMatchFilter(attrs map[string][]string, filter []byte) bo
 			case filterLessOrEqual:
 				return strings.ToLower(candidate) <= strings.ToLower(val)
 			default:
-				return strings.EqualFold(candidate, val)
+				return ldapAttributeValueEqual(attr, candidate, val)
 			}
 		})
 	case filterSubstrings:
@@ -1825,10 +1844,26 @@ func ldapEntryAttributeValues(attrs map[string][]string, attr string) ([]string,
 	return nil, false
 }
 
+func ldapAttributeValueEqual(attr, candidate, assertion string) bool {
+	if ldapAttributeUsesBinaryMatch(attr) {
+		return candidate == assertion
+	}
+	return strings.EqualFold(candidate, assertion)
+}
+
+func ldapAttributeUsesBinaryMatch(attr string) bool {
+	switch strings.ToLower(strings.TrimSpace(attr)) {
+	case "objectguid", "objectsid":
+		return true
+	default:
+		return false
+	}
+}
+
 func ldapExtensibleValueMatches(candidate string, match extensibleMatchAssertion) bool {
 	switch strings.TrimSpace(match.MatchingRule) {
 	case "":
-		return strings.EqualFold(candidate, match.Value)
+		return ldapAttributeValueEqual(match.Attr, candidate, match.Value)
 	case "1.2.840.113556.1.4.803": // LDAP_MATCHING_RULE_BIT_AND
 		candidateInt, ok1 := parseLDAPInt64(candidate)
 		assertionInt, ok2 := parseLDAPInt64(match.Value)
@@ -1838,7 +1873,7 @@ func ldapExtensibleValueMatches(candidate string, match extensibleMatchAssertion
 		assertionInt, ok2 := parseLDAPInt64(match.Value)
 		return ok1 && ok2 && candidateInt&assertionInt != 0
 	default:
-		return strings.EqualFold(candidate, match.Value)
+		return ldapAttributeValueEqual(match.Attr, candidate, match.Value)
 	}
 }
 
@@ -2464,7 +2499,7 @@ func subschemaAttributes() map[string][]string {
 			"( 1.2.840.113556.1.2.1 NAME 'instanceType' EQUALITY integerMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.27 )",
 			"( 1.2.840.113556.1.4.782 NAME 'objectCategory' EQUALITY caseIgnoreMatch SUBSTR caseIgnoreSubstringsMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 )",
 			"( 1.2.840.113556.1.4.2 NAME 'objectGUID' EQUALITY octetStringMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.40 )",
-			"( 1.2.840.113556.1.4.146 NAME 'objectSid' EQUALITY caseIgnoreMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 )",
+			"( 1.2.840.113556.1.4.146 NAME 'objectSid' EQUALITY octetStringMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.40 )",
 			"( 1.2.840.113556.1.2.2 NAME 'whenCreated' EQUALITY generalizedTimeMatch ORDERING generalizedTimeOrderingMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.24 )",
 			"( 1.2.840.113556.1.2.3 NAME 'whenChanged' EQUALITY generalizedTimeMatch ORDERING generalizedTimeOrderingMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.24 )",
 			"( 1.2.840.113556.1.2.19 NAME 'uSNCreated' EQUALITY integerMatch ORDERING integerOrderingMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.27 )",
