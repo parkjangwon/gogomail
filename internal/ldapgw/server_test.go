@@ -110,6 +110,24 @@ func (blockingDirectoryQuerier) SearchPrincipals(ctx context.Context, req Direct
 	return nil, ctx.Err()
 }
 
+type abandonAwareDirectoryQuerier struct {
+	started      chan struct{}
+	canceled     chan struct{}
+	startedOnce  sync.Once
+	canceledOnce sync.Once
+}
+
+func (q *abandonAwareDirectoryQuerier) SearchPrincipals(ctx context.Context, req DirectorySearchRequest) ([]PrincipalEntry, error) {
+	q.startedOnce.Do(func() {
+		close(q.started)
+	})
+	<-ctx.Done()
+	q.canceledOnce.Do(func() {
+		close(q.canceled)
+	})
+	return nil, ctx.Err()
+}
+
 func containsStringFold(values []string, want string) bool {
 	for _, value := range values {
 		if strings.EqualFold(value, want) {
@@ -1176,6 +1194,57 @@ func TestLDAPServerAbandonRequestHasNoResponse(t *testing.T) {
 	conn.SetReadDeadline(time.Now().Add(150 * time.Millisecond))
 	if _, err := conn.Read(buf); err == nil {
 		t.Fatal("AbandonRequest produced a response, want no response")
+	}
+}
+
+func TestLDAPServerAbandonRequestCancelsOutstandingSearch(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+
+	auth := newFakeLDAPAuth()
+	dir := &abandonAwareDirectoryQuerier{
+		started:  make(chan struct{}),
+		canceled: make(chan struct{}),
+	}
+	srv := NewServer(ln, auth, dir)
+	go srv.Serve()
+	defer srv.Close()
+
+	conn, err := net.Dial("tcp", ln.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	bindTestConnection(t, conn, auth)
+
+	searchReq := buildLDAPPacket(50, opSearchRequest,
+		buildSearchRequest("ou=users,dc=example,dc=com", scopeWholeSubtree, buildEqualityFilter("objectClass", "person")),
+	)
+	if err := sendPDU(conn, searchReq); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case <-dir.started:
+	case <-time.After(2 * time.Second):
+		t.Fatal("search did not start")
+	}
+	abandonReq := buildLDAPPacket(51, opAbandonRequest, encodeInt(50))
+	if err := sendPDU(conn, abandonReq); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case <-dir.canceled:
+	case <-time.After(2 * time.Second):
+		t.Fatal("AbandonRequest did not cancel outstanding search")
+	}
+
+	buf := make([]byte, 1)
+	conn.SetReadDeadline(time.Now().Add(250 * time.Millisecond))
+	if _, err := conn.Read(buf); err == nil {
+		t.Fatal("abandoned search produced a response, want no response")
 	}
 }
 

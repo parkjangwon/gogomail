@@ -151,6 +151,55 @@ func (s *LDAPServer) handleConn(ctx context.Context, conn net.Conn) {
 	tlsActive := false
 	authenticated := false
 	authzID := ""
+	var writeMu sync.Mutex
+	activeOps := make(map[int]context.CancelFunc)
+	var activeOpsMu sync.Mutex
+	defer func() {
+		activeOpsMu.Lock()
+		for _, cancel := range activeOps {
+			cancel()
+		}
+		activeOpsMu.Unlock()
+	}()
+	writeResponse := func(resp []byte) bool {
+		if len(resp) == 0 {
+			return true
+		}
+		writeMu.Lock()
+		defer writeMu.Unlock()
+		_, err := conn.Write(resp)
+		return err == nil
+	}
+	storeActiveOp := func(messageID int, cancel context.CancelFunc) {
+		activeOpsMu.Lock()
+		activeOps[messageID] = cancel
+		activeOpsMu.Unlock()
+	}
+	removeActiveOp := func(messageID int) {
+		activeOpsMu.Lock()
+		delete(activeOps, messageID)
+		activeOpsMu.Unlock()
+	}
+	cancelActiveOp := func(messageID int) {
+		activeOpsMu.Lock()
+		cancel := activeOps[messageID]
+		activeOpsMu.Unlock()
+		if cancel != nil {
+			cancel()
+		}
+	}
+	cancelAllActiveOps := func() {
+		activeOpsMu.Lock()
+		for _, cancel := range activeOps {
+			cancel()
+		}
+		activeOpsMu.Unlock()
+	}
+	hasActiveOps := func() bool {
+		activeOpsMu.Lock()
+		defer activeOpsMu.Unlock()
+		return len(activeOps) > 0
+	}
 
 	for {
 		// Check context before blocking on read.
@@ -198,14 +247,14 @@ func (s *LDAPServer) handleConn(ctx context.Context, conn net.Conn) {
 			msgID, opTag, opData, controls, err := decodeLDAPPacketWithControls(pdu)
 			if err != nil {
 				resp := encodeLDAPResponse(0, opTag, mustEncodeNotSupported())
-				conn.Write(resp) //nolint:errcheck
+				writeResponse(resp)
 				s.observe(ctx, opTag, resultUnwillingToPerform, 0, conn.RemoteAddr(), err)
 				return
 			}
 			if ctrl, ok := firstUnsupportedCriticalControl(controls); ok {
 				result := resultUnavailableCriticalExtension
 				resp := encodeControlErrorResponse(msgID, opTag, result, "unsupported critical control: "+ctrl.Type)
-				if _, err := conn.Write(resp); err != nil {
+				if !writeResponse(resp) {
 					return
 				}
 				s.observe(ctx, opTag, result, 0, conn.RemoteAddr(), nil)
@@ -215,7 +264,16 @@ func (s *LDAPServer) handleConn(ctx context.Context, conn net.Conn) {
 				if tlsActive {
 					result := resultOperationsError
 					resp := encodeExtendedResponse(msgID, result, "", "TLS already active")
-					if _, err := conn.Write(resp); err != nil {
+					if !writeResponse(resp) {
+						return
+					}
+					s.observe(ctx, opTag, result, 0, conn.RemoteAddr(), nil)
+					continue
+				}
+				if hasActiveOps() {
+					result := resultOperationsError
+					resp := encodeExtendedResponse(msgID, result, "", "operations outstanding")
+					if !writeResponse(resp) {
 						return
 					}
 					s.observe(ctx, opTag, result, 0, conn.RemoteAddr(), nil)
@@ -224,7 +282,7 @@ func (s *LDAPServer) handleConn(ctx context.Context, conn net.Conn) {
 				if s.tlsConfig == nil {
 					result := resultUnavailable
 					resp := encodeExtendedResponse(msgID, result, "", "StartTLS not configured")
-					if _, err := conn.Write(resp); err != nil {
+					if !writeResponse(resp) {
 						return
 					}
 					s.observe(ctx, opTag, result, 0, conn.RemoteAddr(), nil)
@@ -233,13 +291,13 @@ func (s *LDAPServer) handleConn(ctx context.Context, conn net.Conn) {
 				if len(buf) != 0 {
 					result := resultProtocolError
 					resp := encodeExtendedResponse(msgID, result, "", "StartTLS must be the last plaintext operation")
-					conn.Write(resp) //nolint:errcheck
+					writeResponse(resp)
 					s.observe(ctx, opTag, result, 0, conn.RemoteAddr(), nil)
 					return
 				}
 				result := resultSuccess
 				resp := encodeExtendedResponse(msgID, result, "", "")
-				if _, err := conn.Write(resp); err != nil {
+				if !writeResponse(resp) {
 					return
 				}
 				s.observe(ctx, opTag, result, 0, conn.RemoteAddr(), nil)
@@ -249,6 +307,33 @@ func (s *LDAPServer) handleConn(ctx context.Context, conn net.Conn) {
 				}
 				conn = tlsConn
 				tlsActive = true
+				continue
+			}
+			if opTag == opAbandonRequest {
+				if targetID, ok := decodeAbandonRequestMessageID(opData); ok {
+					cancelActiveOp(targetID)
+				}
+				s.observe(ctx, opTag, resultSuccess, 0, conn.RemoteAddr(), nil)
+				continue
+			}
+			if opTag == opSearchRequest {
+				opCtx, cancel := context.WithCancel(ctx)
+				storeActiveOp(msgID, cancel)
+				authenticatedSnapshot := authenticated
+				authzIDSnapshot := authzID
+				go func(messageID int, operationTag int, data []byte, ctrls []control, authn bool, authz string) {
+					defer removeActiveOp(messageID)
+					defer cancel()
+					resp, resultCode, entries, _ := s.handleOperation(opCtx, messageID, operationTag, data, ctrls, authn, authz)
+					if opCtx.Err() == context.Canceled {
+						s.observe(ctx, operationTag, resultSuccess, 0, conn.RemoteAddr(), opCtx.Err())
+						return
+					}
+					if !writeResponse(resp) {
+						return
+					}
+					s.observe(ctx, operationTag, resultCode, entries, conn.RemoteAddr(), nil)
+				}(msgID, opTag, opData, controls, authenticatedSnapshot, authzIDSnapshot)
 				continue
 			}
 			resp, resultCode, entries, authOK := s.handleOperation(ctx, msgID, opTag, opData, controls, authenticated, authzID)
@@ -262,13 +347,12 @@ func (s *LDAPServer) handleConn(ctx context.Context, conn net.Conn) {
 					}
 				}
 			}
-			if len(resp) > 0 {
-				if _, err := conn.Write(resp); err != nil {
-					return
-				}
+			if !writeResponse(resp) {
+				return
 			}
 			s.observe(ctx, opTag, resultCode, entries, conn.RemoteAddr(), nil)
 			if opTag == opUnbindRequest {
+				cancelAllActiveOps()
 				return
 			}
 		}
@@ -288,6 +372,21 @@ func encodeControlErrorResponse(msgID int, opTag int, resultCode int, message st
 	default:
 		return encodeLDAPResponse(msgID, opTag, encodeLDAPResult(resultCode, "", message))
 	}
+}
+
+func decodeAbandonRequestMessageID(opData []byte) (int, bool) {
+	if len(opData) == 0 {
+		return 0, false
+	}
+	if opData[0] == tagInteger {
+		target, rest, err := decodeInt(opData)
+		return target, err == nil && len(rest) == 0 && target > 0
+	}
+	var target int
+	for _, b := range opData {
+		target = target<<8 | int(b)
+	}
+	return target, target > 0
 }
 
 // parsePDULength is the original two-value wrapper kept for callers that do
