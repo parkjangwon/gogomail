@@ -8,59 +8,13 @@ import {
   downloadDriveNode, uploadDriveFile, createDriveShareLink, listDriveShareLinks, revokeDriveShareLink,
 } from '@/lib/api';
 import { DriveNodeIcon } from '@/lib/driveNodeIcon';
+import { formatBytes, formatDate, BreadcrumbItem, SidebarFolderItem, DRIVE_NODE_DRAG_MIME, DRIVE_NODE_DRAG_TEXT, DroppedFileEntry, FileSystemEntryLike, DirectoryReaderLike } from '@/lib/drive/driveUtils';
 import {
   FolderIcon, ArrowUpTrayIcon, FolderPlusIcon,
   EllipsisVerticalIcon, ArrowDownTrayIcon, LinkIcon, PencilIcon,
   TrashIcon, XMarkIcon, ArrowPathIcon, ChevronRightIcon, ArrowUturnLeftIcon,
 } from '@heroicons/react/24/outline';
 import { FolderIcon as FolderSolid, TrashIcon as TrashSolid } from '@heroicons/react/24/solid';
-
-function formatBytes(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  if (bytes < 1024 * 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
-  return `${(bytes / 1024 / 1024 / 1024).toFixed(2)} GB`;
-}
-
-function formatDate(iso: string): string {
-  return new Intl.DateTimeFormat('ko-KR', { year: 'numeric', month: 'short', day: 'numeric' }).format(new Date(iso));
-}
-
-interface BreadcrumbItem { id: string; name: string; }
-
-interface SidebarFolderItem {
-  id: string;
-  name: string;
-}
-
-const DRIVE_NODE_DRAG_MIME = 'application/x-gogomail-drive-node';
-const DRIVE_NODE_DRAG_TEXT = 'application/x-gogomail-drive-node-id';
-
-interface DroppedFileEntry {
-  file: File;
-  relativePath: string;
-}
-
-type FileSystemEntryLike = {
-  isFile: boolean;
-  isDirectory: boolean;
-  name: string;
-  fullPath?: string;
-  file: (cb: (file: File) => void, errCb?: (err: DOMException) => void) => void;
-  createReader: () => {
-    readEntries: (
-      cb: (entries: FileSystemEntryLike[]) => void,
-      errCb?: (err: DOMException) => void,
-    ) => void;
-  };
-};
-
-type DirectoryReaderLike = {
-  readEntries: (
-    cb: (entries: FileSystemEntryLike[]) => void,
-    errCb?: (err: DOMException) => void,
-  ) => void;
-};
 
 function getDriveNodeDragPayload(dataTransfer: DataTransfer): string | null {
   const raw = dataTransfer.getData(DRIVE_NODE_DRAG_MIME);
