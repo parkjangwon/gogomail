@@ -1,6 +1,17 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (Admin organization route wiring)
+Last updated: 2026-05-14 (Identity Provider Abstraction)
+
+## Identity Provider Abstraction (2026-05-14, complete)
+- `internal/idprovider` package now defines the `IdentityProvider` interface with methods for user/group CRUD, search, and membership management.
+- `IdentityProvider` interface supports GetUser, GetGroup, ListUsers, ListGroups, CreateUser, UpdateUser, DeleteUser, CreateGroup, DeleteGroup, AddMember, and RemoveMember operations.
+- `idprovider.User` and `idprovider.Group` domain models are aligned with existing `maildb` user/group structures, supporting future LDAP, Azure AD, and external RDBMS implementations.
+- `IdentityProviderRegistry` provides pluggable provider registration and lookup, with `Get(providerType string)` and `Register(providerType string, provider IdentityProvider)` methods.
+- Database provider implementation in `internal/idprovider/database` wraps `maildb` repositories and provides user/group directory operations against PostgreSQL.
+- `idp_configurations` migration (0102) creates per-domain IdP configuration table, allowing each domain to use database, LDAP, Azure AD, or external RDBMS identity sources independently.
+- Unit tests cover IdentityProvider interface contract, registry register/get/unknown-provider behavior, and database provider wrapping of maildb repositories.
+- All 5896 tests pass; identity provider foundation ready for downstream TASK-069-073 implementations (database mode, LDAP sync, Azure AD, external RDBMS, and UI).
+- Verification: `go test -count=1 ./internal/idprovider ./internal/idprovider/database -v` and `go test ./...`.
 
 ## Admin organization route wiring (2026-05-14, complete)
 - Organization unit CRUD, hierarchy, membership, and LDAP sync routes are now registered by the admin HTTP runtime.
