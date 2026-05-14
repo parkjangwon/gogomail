@@ -14,9 +14,8 @@ This is the authoritative durable contract for all coding agents working on this
 - "할 일이 없다"는 없다 — `docs/NEXT_STEPS.md` 백로그가 항상 다음 항목을 갖는다.
 - 블로커 없이 루프를 멈추는 것 자체가 **하네스 위반**이다.
 - 루프가 멈추는 유일한 합법적 조건:
-  1. 사용자가 명시적으로 중단을 요청할 때
-  2. 프론트엔드 게이트가 트리거될 때 (아래 참고)
-  3. `go test ./...` 반복 실패 후 원인을 특정할 수 없을 때 (ACTIVE_TASK.md에 블로커 기록 후 대기)
+ 1. 사용자가 명시적으로 중단을 요청할 때
+ 2. `go test ./...` 반복 실패 후 원인을 특정할 수 없을 때 (ACTIVE_TASK.md에 블로커 기록 후 대기)
 
 ### 🚨 COMPLETE 상태 처리 (루프 재진입 규칙)
 
@@ -64,7 +63,6 @@ This is the authoritative durable contract for all coding agents working on this
 - 테스트 실패 상태에서 push
 - ACTIVE_TASK.md를 건너뛰고 임의로 태스크 선택
 - 로드맵/백로그에 없는 기능을 임의로 구현
-- frontend 앱 구현 시작 (아래 프론트엔드 게이트 참고)
 - **루프를 멈추고 사용자 입력을 기다리는 것 (블로커가 없는 경우)**
 
 ### 루프 블로킹 조건
@@ -203,14 +201,11 @@ gogomail은 극도의 성능, 확장성, 가용성을 갖춘 개발자 친화적
 
 ---
 
-## 프론트엔드 게이트 (필수 일시정지)
+## 프론트엔드 작업 규칙
 
 백엔드 계약, API 준비, 프론트엔드 계획은 자율적으로 진행 가능.
 
-그러나 `apps/shell`, `apps/webmail`, `apps/console`, 공유 UI 패키지, 실제 Next.js 화면 구현 시작 전에:
-**반드시 사용자에게 알리고 프론트엔드 관련 지시를 기다린다.**
-
-프론트엔드 구현이 허가된 이후에는:
+`apps/shell`, `apps/webmail`, `apps/console`, 공유 UI 패키지, 실제 Next.js 화면을 구현할 때는 다음 규칙을 따른다:
 - **`docs/DESIGN.md`를 반드시 먼저 읽는다** — 컬러 토큰, 레이아웃, 컴포넌트 패턴, 금지사항 전부 이 파일에 있다.
 - 디자인 시스템 토큰을 임의로 추가하거나 변경하지 않는다.
 - DESIGN.md에 없는 컴포넌트 패턴이 필요하면 이 파일을 먼저 업데이트하고 구현한다.
