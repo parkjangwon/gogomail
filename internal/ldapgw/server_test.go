@@ -331,6 +331,19 @@ func buildSubentriesControl(value bool, critical bool) control {
 	return control{Type: controlSubentries, Critical: critical, Value: encoded}
 }
 
+func buildSyncRequestControl(mode int, cookie string, critical bool) control {
+	var value []byte
+	value = append(value, encodeEnumerated(mode)...)
+	if cookie != "" {
+		value = append(value, encodeOctetString(cookie)...)
+	}
+	var seq []byte
+	seq = append(seq, tagSequence)
+	seq = append(seq, encodeLength(len(value))...)
+	seq = append(seq, value...)
+	return control{Type: controlSyncRequest, Critical: critical, Value: seq}
+}
+
 func buildCompareRequest(entry, attr, value string) []byte {
 	assertion := append(encodeOctetString(attr), encodeOctetString(value)...)
 	var assertionSeq []byte
@@ -530,6 +543,15 @@ func virtualListViewResponse(t *testing.T, controls []control) (targetPosition i
 	}
 	t.Fatalf("missing VLV response control: %+v", controls)
 	return 0, 0
+}
+
+func hasSyncDoneControl(controls []control) bool {
+	for _, ctrl := range controls {
+		if ctrl.Type == controlSyncDone {
+			return len(ctrl.Value) > 0 && ctrl.Value[0] == tagSequence
+		}
+	}
+	return false
 }
 
 func TestLDAPServerBindSuccess(t *testing.T) {
@@ -1201,6 +1223,70 @@ func TestLDAPServerAdditionalSearchControls(t *testing.T) {
 	}
 }
 
+func TestLDAPServerSyncRefreshOnlyControl(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+
+	dir := newFakeDirectoryQuerier()
+	dir.addPrincipal(PrincipalEntry{DN: "uid=alice,ou=users,dc=example,dc=com", Kind: "user", CN: "Alice", UID: "alice", DisplayName: "Alice"})
+	auth := newFakeLDAPAuth()
+	srv := NewServer(ln, auth, dir)
+	go srv.Serve()
+	defer srv.Close()
+
+	conn, err := net.Dial("tcp", ln.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	bindTestConnection(t, conn, auth)
+
+	req := buildLDAPPacketWithControls(17, opSearchRequest,
+		buildSearchRequestWithAttrs("ou=users,dc=example,dc=com", scopeWholeSubtree, buildEqualityFilter("objectClass", "person"), "cn"),
+		[]control{buildSyncRequestControl(syncModeRefreshOnly, "", true)},
+	)
+	if err := sendPDU(conn, req); err != nil {
+		t.Fatal(err)
+	}
+	resp, err := readFullPDU(conn, time.Now().Add(3*time.Second))
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, opTag, _, controls, err := decodeLDAPPacketWithControls(resp)
+	if err != nil {
+		t.Fatalf("decode sync entry: %v", err)
+	}
+	if opTag != opSearchResultEntry {
+		t.Fatalf("sync entry opTag = %d, want SearchResultEntry", opTag)
+	}
+	foundState := false
+	for _, ctrl := range controls {
+		if ctrl.Type == controlSyncState {
+			foundState = true
+		}
+	}
+	if !foundState {
+		t.Fatalf("sync entry missing Sync State control: %+v", controls)
+	}
+	resp, err = readFullPDU(conn, time.Now().Add(3*time.Second))
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, opTag, opData, controls, err := decodeLDAPPacketWithControls(resp)
+	if err != nil {
+		t.Fatalf("decode sync done: %v", err)
+	}
+	if opTag != opSearchResultDone || decodeEnumerated(opData) != resultSuccess {
+		t.Fatalf("sync done op/result = %d/%d, want %d/%d", opTag, decodeEnumerated(opData), opSearchResultDone, resultSuccess)
+	}
+	if !hasSyncDoneControl(controls) {
+		t.Fatalf("sync done missing Sync Done control: %+v", controls)
+	}
+}
+
 func TestLDAPServerSimplePagedResultsControl(t *testing.T) {
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
@@ -1655,6 +1741,47 @@ func TestLDAPServerOpenLDAPMatchedValuesCompatibility(t *testing.T) {
 		if strings.Contains(output, unexpected) {
 			t.Fatalf("ldapsearch matched-values output included %q:\n%s", unexpected, output)
 		}
+	}
+}
+
+func TestLDAPServerOpenLDAPSyncRefreshOnlyCompatibility(t *testing.T) {
+	ldapsearch, err := exec.LookPath("ldapsearch")
+	if err != nil {
+		t.Skip("ldapsearch is not installed")
+	}
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+
+	auth := newFakeLDAPAuth()
+	auth.addUser("alice", "secret")
+	dir := newFakeDirectoryQuerier()
+	dir.addPrincipal(PrincipalEntry{DN: "uid=alice,ou=users,dc=example,dc=com", Kind: "user", CN: "Alice", UID: "alice", DisplayName: "Alice"})
+	srv := NewServer(ln, auth, dir)
+	go srv.Serve()
+	defer srv.Close()
+
+	cmd := exec.Command(ldapsearch,
+		"-x",
+		"-H", "ldap://"+ln.Addr().String(),
+		"-D", "uid=alice,ou=users,dc=example,dc=com",
+		"-w", "secret",
+		"-E", "!sync=ro",
+		"-b", "ou=users,dc=example,dc=com",
+		"(objectClass=person)",
+		"cn",
+	)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("ldapsearch sync refreshOnly failed: %v\n%s", err, out)
+	}
+	output := string(out)
+	if !strings.Contains(output, "dn: uid=alice,ou=users,dc=example,dc=com") ||
+		!strings.Contains(output, "control: 1.3.6.1.4.1.4203.1.9.1.2") ||
+		!strings.Contains(output, "control: 1.3.6.1.4.1.4203.1.9.1.3") {
+		t.Fatalf("ldapsearch sync output missing entry/state/done:\n%s", output)
 	}
 }
 
