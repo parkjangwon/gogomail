@@ -16,6 +16,9 @@ const maxBERMessageSize = 16 * 1024 * 1024
 
 const ldapFeatureAllOperationalAttributes = "1.3.6.1.4.1.4203.1.5.1"
 
+const ldapSearchCandidateBatchSize = 100
+const ldapMaxCandidateScan = 10000
+
 type LDAPAuthenticator interface {
 	AuthenticateLDAP(ctx context.Context, username, password string) (bool, error)
 }
@@ -726,38 +729,26 @@ func (s *LDAPServer) handleSearchRequest(ctx context.Context, msgID int, opData 
 		return encodeSearchResultDone(msgID, resultSuccess, "", ""), resultSuccess, 0
 	}
 
-	limit := 100
-	offset := pageOffset
+	targetEntries := ldapSearchCandidateBatchSize
+	scanAllCandidates := sorted || hasVLV
 	if paged && pageSize > 0 {
-		limit = max(100, pageOffset+pageSize+1)
-		offset = 0
+		targetEntries = max(targetEntries, pageOffset+pageSize+1)
 	}
-	if hasVLV {
-		offset = 0
-		vlvEnd := vlv.Offset + vlv.AfterCount
-		if vlvEnd < 100 {
-			vlvEnd = 100
-		}
-		if vlvEnd > limit {
-			limit = vlvEnd
-		}
+	if sizeLimit > 0 {
+		targetEntries = max(targetEntries, sizeLimit+1)
 	}
-	principals, err := s.quer.SearchPrincipals(ctx, DirectorySearchRequest{
+
+	entries, err := s.searchLDAPEntries(ctx, DirectorySearchRequest{
 		BaseDN: baseObject,
 		Scope:  scope,
 		Filter: ldapFilter,
 		Attrs:  attrs,
 		Kinds:  kinds,
-		Limit:  limit,
-		Offset: offset,
-	})
+	}, filter, targetEntries, scanAllCandidates)
 	if err != nil {
 		result := resultUnwillingToPerform
 		return encodeSearchResultDone(msgID, result, "", err.Error()), result, 0
 	}
-	principals = filterPrincipalEntriesByScope(principals, baseObject, scope)
-	entries := ldapSearchEntries(principals)
-	entries = filterLDAPSearchEntriesByFilter(entries, filter)
 	if sorted {
 		sortLDAPSearchEntries(entries, sortKeys)
 	}
@@ -853,6 +844,37 @@ func filterPrincipalEntriesByScope(principals []PrincipalEntry, baseObject strin
 		}
 	}
 	return filtered
+}
+
+func (s *LDAPServer) searchLDAPEntries(ctx context.Context, req DirectorySearchRequest, filter []byte, targetEntries int, scanAll bool) ([]ldapSearchEntry, error) {
+	if targetEntries <= 0 {
+		targetEntries = ldapSearchCandidateBatchSize
+	}
+	var entries []ldapSearchEntry
+	offset := 0
+	for offset < ldapMaxCandidateScan {
+		batchReq := req
+		batchReq.Limit = ldapSearchCandidateBatchSize
+		batchReq.Offset = offset
+		principals, err := s.quer.SearchPrincipals(ctx, batchReq)
+		if err != nil {
+			return nil, err
+		}
+		if len(principals) == 0 {
+			break
+		}
+		scoped := filterPrincipalEntriesByScope(principals, req.BaseDN, req.Scope)
+		batchEntries := ldapSearchEntries(scoped)
+		entries = append(entries, filterLDAPSearchEntriesByFilter(batchEntries, filter)...)
+		if !scanAll && len(entries) >= targetEntries {
+			break
+		}
+		if len(principals) < ldapSearchCandidateBatchSize {
+			break
+		}
+		offset += len(principals)
+	}
+	return entries, nil
 }
 
 func ldapSearchEntries(principals []PrincipalEntry) []ldapSearchEntry {
