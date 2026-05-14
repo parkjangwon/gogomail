@@ -1075,6 +1075,53 @@ func TestLDAPServerCompareRequest(t *testing.T) {
 	}
 }
 
+func TestLDAPServerCompareMatchesEquivalentEscapedDNs(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+
+	auth := newFakeLDAPAuth()
+	dir := newFakeDirectoryQuerier()
+	dir.addPrincipal(PrincipalEntry{
+		DN:          `uid=Alice\, Ops,ou=users,dc=example,dc=com`,
+		Kind:        "user",
+		CN:          "Alice Ops",
+		Mail:        "alice.ops@example.com",
+		UID:         "Alice, Ops",
+		DisplayName: "Alice Ops",
+	})
+	srv := NewServer(ln, auth, dir)
+	go srv.Serve()
+	defer srv.Close()
+
+	conn, err := net.Dial("tcp", ln.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	bindTestConnection(t, conn, auth)
+
+	req := buildLDAPPacket(52, opCompareRequest,
+		buildCompareRequest(`uid=Alice\2c Ops,ou=users,dc=example,dc=com`, "mail", "alice.ops@example.com"),
+	)
+	if err := sendPDU(conn, req); err != nil {
+		t.Fatal(err)
+	}
+	resp, err := readFullPDU(conn, time.Now().Add(3*time.Second))
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, opTag, opData, err := decodeLDAPPacket(resp)
+	if err != nil {
+		t.Fatalf("decode compare response: %v", err)
+	}
+	if opTag != opCompareResponse || decodeEnumerated(opData) != resultCompareTrue {
+		t.Fatalf("compare escaped DN op/result = %d/%d, want %d/%d", opTag, decodeEnumerated(opData), opCompareResponse, resultCompareTrue)
+	}
+}
+
 func TestDecodeCompareRequestRejectsTrailingAssertionSequenceData(t *testing.T) {
 	data := append(buildCompareRequest("uid=alice,ou=users,dc=example,dc=com", "mail", "alice@example.com"), 0x00)
 	if _, err := decodeCompareRequestData(data); err == nil {

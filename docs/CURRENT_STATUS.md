@@ -57,7 +57,7 @@ Last updated: 2026-05-14 (LDAP gateway StartTLS/LDAPS and discovery hardening)
 - LDAP entries now expose stable operational attributes for `+` requests, including `entryDN`, deterministic `entryUUID`, `createTimestamp`, `modifyTimestamp`, `creatorsName`, and `modifiersName`.
 - LDAP entries and kind containers now expose `hasSubordinates` and `numSubordinates` operational hints so tree-browsing clients can distinguish expandable containers from leaf entries.
 - LDAP entries now provide conservative fallback values for declared objectClass MUST attributes, including `sn` for `person`/`inetOrgPerson` users and `member` for empty `groupOfNames` groups.
-- LDAP read-only CompareRequest now returns RFC 4511 CompareResponse result codes (`compareTrue`/`compareFalse`) after bind, with generated-DN base-object lookup through the directory repository.
+- LDAP read-only CompareRequest now returns RFC 4511 CompareResponse result codes (`compareTrue`/`compareFalse`) after bind, with RFC 4514-normalized generated-DN base-object lookup through the directory repository.
 - LDAP CompareRequest decoding now rejects trailing data after the attribute value assertion sequence instead of ignoring bytes beyond the RFC 4511 request shape.
 - LDAP Who Am I? extended operation (`1.3.6.1.4.1.4203.1.11.3`) is advertised in Root DSE and returns the bound authorization identity for OpenLDAP `ldapwhoami` clients.
 - LDAP ExtendedRequest decoding now validates request names as numeric LDAPOIDs and rejects trailing data unless it is the RFC 4511 optional requestValue wrapper.
