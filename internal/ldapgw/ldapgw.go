@@ -195,6 +195,9 @@ func decodeInt(data []byte) (int, []byte, error) {
 		return 0, nil, fmt.Errorf("int data too short")
 	}
 	var v int64
+	if length > 0 && rest[0]&0x80 != 0 {
+		v = -1
+	}
 	for i := 0; i < length; i++ {
 		v = v<<8 | int64(rest[i])
 	}

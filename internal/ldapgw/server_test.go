@@ -1480,6 +1480,18 @@ func TestDecodeSearchRequestRejectsInvalidEnums(t *testing.T) {
 	}
 }
 
+func TestDecodeSearchRequestRejectsNegativeLimits(t *testing.T) {
+	if _, _, _, _, _, _, _, err := decodeSearchRequest(buildSearchRequestWithLimits("dc=example,dc=com", scopeWholeSubtree, -1, 0, buildEqualityFilter("objectClass", "person"))); err == nil {
+		t.Fatal("decodeSearchRequest accepted negative sizeLimit")
+	}
+	if _, _, _, _, _, _, _, err := decodeSearchRequest(buildSearchRequestWithLimits("dc=example,dc=com", scopeWholeSubtree, 0, -1, buildEqualityFilter("objectClass", "person"))); err == nil {
+		t.Fatal("decodeSearchRequest accepted negative timeLimit")
+	}
+	if got, _, err := decodeInt(encodeInt(-1)); err != nil || got != -1 {
+		t.Fatalf("decodeInt negative = %d, %v; want -1", got, err)
+	}
+}
+
 func TestLDAPServerIgnoresSupportedCriticalControlAndRecordsMetrics(t *testing.T) {
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
