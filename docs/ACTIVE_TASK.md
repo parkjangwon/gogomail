@@ -1,49 +1,53 @@
 # ACTIVE_TASK
 
-## TASK-068: Identity Provider Abstraction
+## TASK-069: Database Identity Mode
 
 ### 배경
 
-User and group provisioning is currently database-only (hardcoded in users/groups tables).
-The backend-roadmap requires a pluggable identity provider abstraction to support:
-1. Database-only (default, current state)
-2. LDAP/Active Directory (via bind, search, sync)
-3. Azure AD (via Microsoft Graph API)
-4. External RDBMS (SQL query against remote database)
+TASK-068 delivered the pluggable `IdentityProvider` interface and registry. TASK-069 implements
+the database-only identity mode as the concrete default provider, fully supporting user/group
+CRUD operations through `maildb` repositories.
 
-Per-domain IdP configuration allows each domain to use a different identity source,
-enabling organizations to federate multiple identity providers in a single deployment.
-
-TASK-068 defines the `IdentityProvider` interface and pluggable provider registry,
-allowing downstream TASK-069/070/071/072/073 to implement concrete providers.
+The database provider will:
+1. Wrap existing `maildb` user repositories for GetUser/ListUsers/CreateUser/UpdateUser/DeleteUser
+2. Wrap directory_groups tables for GetGroup/ListGroup/CreateGroup/DeleteGroup
+3. Support group membership management through directory_group_memberships
+4. Register itself as the default "database" provider in the registry
+5. Support per-domain IdP configuration with fallback to default database mode
 
 ### 구현 대상
 
-- [x] `internal/idprovider/interface.go` — `IdentityProvider` interface (User/Group CRUD, search, sync)
-- [x] `internal/idprovider/registry.go` — pluggable provider registry (Get by type, Register)
-- [x] `internal/idprovider/models.go` — User, Group, Member domain models (aligned with maildb)
-- [x] `internal/idprovider/database/provider.go` — Database provider implementation (wraps maildb)
-- [x] Database schema update for `idp_configurations` table (per-domain IdP config)
-- [x] `internal/idprovider/*_test.go` — unit tests for interface, registry, database provider
-- [x] Update `maildb.User` and `maildb.Group` exports for idprovider import
-- [x] `docs/ACTIVE_TASK.md`
-- [x] `migrations/0102_idp_configurations.sql`
+- `internal/idprovider/database/repository.go` — IdP-focused repository methods (get by email, search by org)
+- `internal/idprovider/database/provider.go` — Complete provider implementation (overwrite with full CRUD support)
+- `internal/idprovider/database/provider_test.go` — Comprehensive tests for all CRUD operations
+- `internal/idprovider/config.go` — Per-domain IdP configuration loader/validator
+- `internal/app/idprovider_init.go` — App startup wiring (register database provider, load per-domain configs)
+- `internal/maildb/idprovider_adapter.go` — Exports for idprovider import (User, Group models)
+- Database model exports and idprovider domain model alignment
+- `docs/ACTIVE_TASK.md`
+- `docs/CURRENT_STATUS.md`
 
 ### 완료 조건
 
-- [x] `IdentityProvider` interface defined with methods: GetUser, GetGroup, ListUsers, ListGroups, CreateUser, UpdateUser, DeleteUser, CreateGroup, DeleteGroup, AddMember, RemoveMember
-- [x] `IdentityProviderRegistry` with Get(providerType string) and Register(providerType string, provider IdentityProvider)
-- [x] `idprovider.User` and `idprovider.Group` domain models align with maildb.User/Group structure
-- [x] Database provider implements IdentityProvider by wrapping maildb repositories
-- [x] `idp_configurations` table stores per-domain IdP configuration (domain_id, provider_type, config jsonb)
-- [x] Database migration creates idp_configurations table with domain_id foreign key
-- [x] Unit tests for IdentityProvider interface contract (CRUD, search)
-- [x] Unit tests for registry (register, get, unknown provider error)
-- [x] Unit tests for database provider (wraps maildb, returns correct user/group)
-- [x] `go test -count=1 ./internal/idprovider ./internal/idprovider/database -v` 통과
-- [x] `go test ./...` 통과
-- [x] 개발 문서를 최신 상태로 갱신한다.
+- [ ] Database provider fully implements IdentityProvider interface with all CRUD operations
+- [ ] GetUser by user ID and by email address
+- [ ] ListUsers with org filter, search query, limit, offset
+- [ ] CreateUser validates unique username per domain, required fields
+- [ ] UpdateUser allows status, role, settings changes
+- [ ] DeleteUser soft-deletes by setting status to 'deleted'
+- [ ] GetGroup, ListGroups with org filter
+- [ ] CreateGroup validates unique slug per domain
+- [ ] DeleteGroup soft-deletes by setting status to 'deleted'
+- [ ] AddMember supports user/org/group/resource membership
+- [ ] RemoveMember soft-deletes membership records
+- [ ] Per-domain IdP configuration lookup with fallback to database mode
+- [ ] App startup registers database provider and initializes per-domain configs
+- [ ] All provider tests pass with CreateUser/UpdateUser/DeleteUser covering full lifecycle
+- [ ] IdP configuration CRUD tests pass
+- [ ] `go test -count=1 ./internal/idprovider ./internal/idprovider/database ./internal/config -v` 통과
+- [ ] `go test ./...` 통과
+- [ ] 개발 문서를 최신 상태로 갱신한다.
 
 ### 다음 태스크
 
-TASK-069: Database Identity Mode
+TASK-070: LDAP Identity Config & Sync
