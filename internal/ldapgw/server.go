@@ -647,6 +647,11 @@ func (s *LDAPServer) handleSearchRequest(ctx context.Context, msgID int, opData 
 		result := resultProtocolError
 		return encodeSearchResultDone(msgID, result, "", err.Error()), result, 0
 	}
+	matchedValuesFilters, hasMatchedValues, err := parseMatchedValuesControl(controls)
+	if err != nil {
+		result := resultProtocolError
+		return encodeSearchResultDone(msgID, result, "", err.Error()), result, 0
+	}
 	assertionFilter, hasAssertion, err := parseAssertionControl(controls)
 	if err != nil {
 		result := resultProtocolError
@@ -741,6 +746,9 @@ func (s *LDAPServer) handleSearchRequest(ctx context.Context, msgID int, opData 
 	resp := make([]byte, 0, 4096)
 	for _, p := range principals {
 		attrMap := principalLDAPAttributes(p)
+		if hasMatchedValues {
+			attrMap = applyMatchedValuesFilter(attrMap, matchedValuesFilters)
+		}
 		entry, err := encodeSearchResultEntry(msgID, p.DN, selectLDAPAttributes(attrMap, attrs, typesOnly))
 		if err != nil {
 			continue
@@ -1289,6 +1297,152 @@ func virtualListViewResponseControl(targetPosition int, contentCount int, result
 	return control{Type: controlVirtualListViewResponse, Value: seq}
 }
 
+func parseMatchedValuesControl(controls []control) ([][]byte, bool, error) {
+	for _, ctrl := range controls {
+		if ctrl.Type != controlMatchedValues {
+			continue
+		}
+		if len(ctrl.Value) == 0 {
+			return nil, true, fmt.Errorf("matched values control value is required")
+		}
+		if ctrl.Value[0]&0x80 != 0 {
+			if err := validateFilter(ctrl.Value); err != nil {
+				return nil, true, fmt.Errorf("matched values filter: %w", err)
+			}
+			return [][]byte{ctrl.Value}, true, nil
+		}
+		if ctrl.Value[0] != tagSequence {
+			return nil, true, fmt.Errorf("matched values control value must be a sequence")
+		}
+		content, err := decodeContent(ctrl.Value[1:])
+		if err != nil {
+			return nil, true, err
+		}
+		var filters [][]byte
+		for len(content) > 0 {
+			item, rest, err := readRawTLV(content)
+			if err != nil {
+				return nil, true, err
+			}
+			if err := validateFilter(item); err != nil {
+				return nil, true, fmt.Errorf("matched values filter: %w", err)
+			}
+			filters = append(filters, item)
+			content = rest
+		}
+		if len(filters) == 0 {
+			return nil, true, fmt.Errorf("matched values control requires at least one filter")
+		}
+		return filters, true, nil
+	}
+	return nil, false, nil
+}
+
+func applyMatchedValuesFilter(attrs map[string][]string, filters [][]byte) map[string][]string {
+	filtered := make(map[string][]string, len(attrs))
+	for name, values := range attrs {
+		var kept []string
+		for _, value := range values {
+			for _, filter := range filters {
+				if ldapAttributeValueMatchesFilter(name, value, filter) {
+					kept = append(kept, value)
+					break
+				}
+			}
+		}
+		if len(kept) > 0 {
+			filtered[name] = kept
+		}
+	}
+	return filtered
+}
+
+func ldapAttributeValueMatchesFilter(attrName, attrValue string, filter []byte) bool {
+	if len(filter) == 0 || filter[0]&0x80 == 0 {
+		return false
+	}
+	filterType := int(filter[0] & 0x1f)
+	content, err := decodeContent(filter[1:])
+	if err != nil {
+		return false
+	}
+	switch filterType {
+	case filterAnd:
+		matchedAny := false
+		for len(content) > 0 {
+			child, rest, err := readRawTLV(content)
+			if err != nil {
+				return false
+			}
+			if !ldapAttributeValueMatchesFilter(attrName, attrValue, child) {
+				return false
+			}
+			matchedAny = true
+			content = rest
+		}
+		return matchedAny
+	case filterOr:
+		for len(content) > 0 {
+			child, rest, err := readRawTLV(content)
+			if err != nil {
+				return false
+			}
+			if ldapAttributeValueMatchesFilter(attrName, attrValue, child) {
+				return true
+			}
+			content = rest
+		}
+		return false
+	case filterNot:
+		child, _, err := readRawTLV(content)
+		return err == nil && !ldapAttributeValueMatchesFilter(attrName, attrValue, child)
+	case filterEqualityMatch, filterApproxMatch, filterGreaterOrEqual, filterLessOrEqual:
+		attr, valRest, err := decodeOctetString(content)
+		if err != nil || !strings.EqualFold(strings.TrimSpace(attr), attrName) {
+			return false
+		}
+		val, _, err := decodeOctetString(valRest)
+		if err != nil {
+			return false
+		}
+		return strings.EqualFold(attrValue, val)
+	case filterSubstrings:
+		attr, rest, err := decodeOctetString(content)
+		if err != nil || !strings.EqualFold(strings.TrimSpace(attr), attrName) {
+			return false
+		}
+		parts, err := decodeSubstringParts(rest)
+		if err != nil {
+			return false
+		}
+		return ldapSubstringMatches(attrValue, parts)
+	case filterPresent:
+		return strings.EqualFold(strings.TrimSpace(string(content)), attrName)
+	case filterExtensible:
+		attr, value, ok, err := decodeExtensibleMatch(content)
+		return err == nil && ok && strings.EqualFold(strings.TrimSpace(attr), attrName) && strings.EqualFold(attrValue, value)
+	default:
+		return false
+	}
+}
+
+func ldapSubstringMatches(value string, parts []string) bool {
+	if len(parts) == 0 {
+		return false
+	}
+	value = strings.ToLower(value)
+	pos := 0
+	for _, part := range parts {
+		part = strings.ToLower(part)
+		idx := strings.Index(value[pos:], part)
+		if idx < 0 {
+			return false
+		}
+		pos += idx + len(part)
+	}
+	return true
+}
+
 func parseAssertionControl(controls []control) ([]byte, bool, error) {
 	for _, ctrl := range controls {
 		if ctrl.Type != controlAssertion {
@@ -1328,7 +1482,7 @@ func evaluateSearchAssertion(filter []byte, baseObject string) (bool, error) {
 
 func isSupportedControl(controlType string) bool {
 	switch strings.TrimSpace(controlType) {
-	case controlManageDsaIT, controlPagedResults, controlServerSideSortRequest, controlVirtualListViewRequest, controlAssertion:
+	case controlManageDsaIT, controlPagedResults, controlServerSideSortRequest, controlVirtualListViewRequest, controlAssertion, controlMatchedValues:
 		return true
 	default:
 		return false
@@ -1343,6 +1497,7 @@ const (
 	controlVirtualListViewRequest  = "2.16.840.1.113730.3.4.9"
 	controlVirtualListViewResponse = "2.16.840.1.113730.3.4.10"
 	controlAssertion               = "1.3.6.1.1.12"
+	controlMatchedValues           = "1.2.826.0.1.3344810.2.3"
 )
 
 func (s *LDAPServer) observe(ctx context.Context, opTag int, resultCode int, entries int, remoteAddr net.Addr, err error) {
@@ -1605,7 +1760,7 @@ func rootDSEAttributes(namingContexts []string, startTLSEnabled bool) map[string
 		"namingContexts":       namingContexts,
 		"subschemaSubentry":    {"cn=Subschema"},
 		"supportedLDAPVersion": {"3"},
-		"supportedControl":     {controlManageDsaIT, controlPagedResults, controlServerSideSortRequest, controlVirtualListViewRequest, controlAssertion},
+		"supportedControl":     {controlManageDsaIT, controlPagedResults, controlServerSideSortRequest, controlVirtualListViewRequest, controlAssertion, controlMatchedValues},
 		"supportedExtension":   {whoAmIOID},
 		"vendorName":           {"gogomail"},
 	}
