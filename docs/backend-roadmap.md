@@ -5737,7 +5737,7 @@ Current implementation notes:
 - Simple bind accepts common client identity formats, including raw username/email and generated entry DN forms such as `uid=<user-id>,ou=users,...`.
 - Generated user/organization/group/resource DNs escape RDN values, and base-object lookup unescapes generated DN values before resolving principals.
 - Non-discovery directory searches require successful bind while Root DSE and `cn=Subschema` discovery remain pre-bind accessible.
-- SearchResultEntry responses are encoded as RFC 4511 application payloads and covered by OpenLDAP `ldapsearch` plaintext, extensibleMatch, server-side sort, Virtual List View, StartTLS, LDAPS, and paged-results smoke tests when the client is available.
+- SearchResultEntry responses are encoded as RFC 4511 application payloads and covered by OpenLDAP `ldapsearch` plaintext, Assertion control, extensibleMatch, server-side sort, Virtual List View, StartTLS, LDAPS, and paged-results smoke tests when the client is available.
 - SearchRequest requested-attribute lists are decoded from real client requests, preserving narrow attribute projection for compatibility and payload efficiency.
 - Attribute selection honors LDAP special selectors: `1.1` for no attributes, `*` for user attributes, and `+` for operational attributes.
 - Principal and container entries expose stable operational attributes (`entryDN`, deterministic `entryUUID`, timestamps, creator/modifier names) for clients that request `+`.
@@ -5747,7 +5747,7 @@ Current implementation notes:
 - Root DSE advertises the Who Am I? extended operation (`1.3.6.1.4.1.4203.1.11.3`), with OpenLDAP `ldapwhoami` coverage.
 - AbandonRequest follows RFC 4511 no-response semantics.
 - Cross-naming-context requests can return SearchResultReference values from `GOGOMAIL_LDAP_REFERRAL_URLS` for multi-domain deployments.
-- LDAPMessage controls are parsed separately from protocolOp bytes; supported critical controls (`ManageDsaIT`, Simple Paged Results, Server Side Sort, Virtual List View) are accepted, Simple Paged Results returns continuation cookies, Server Side Sort orders entries and returns the RFC response control, Virtual List View returns sorted position/count windows, and unsupported critical controls return `unavailableCriticalExtension`.
+- LDAPMessage controls are parsed separately from protocolOp bytes; supported critical controls (`ManageDsaIT`, Simple Paged Results, Server Side Sort, Virtual List View, Assertion`) are accepted, Simple Paged Results returns continuation cookies, Server Side Sort orders entries and returns the RFC response control, Virtual List View returns sorted position/count windows, Assertion validates RFC 4528 filters before search dispatch, and unsupported critical controls return `unavailableCriticalExtension`.
 - Bind/search/extended/read-only outcomes now expose a metrics boundary and can be logged through `GOGOMAIL_METRICS_BACKEND=slog`.
 - Remaining hardening for full enterprise interoperability: broader optional client controls and a wider real-client compatibility matrix.
 
