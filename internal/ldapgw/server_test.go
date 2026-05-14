@@ -3151,7 +3151,8 @@ func TestPrincipalLDAPAttributesSatisfyDeclaredObjectClassRequirements(t *testin
 	}
 	if userAttrs["distinguishedName"][0] != "uid=alice,ou=users,dc=example,dc=com" ||
 		userAttrs["objectCategory"][0] != "person" ||
-		userAttrs["objectGUID"][0] == "" {
+		userAttrs["objectGUID"][0] == "" ||
+		!strings.HasPrefix(userAttrs["objectSid"][0], "S-1-5-21-") {
 		t.Fatalf("user AD identity attrs missing: %#v", userAttrs)
 	}
 	if userAttrs["entryDN"][0] != "uid=alice,ou=users,dc=example,dc=com" || userAttrs["entryUUID"][0] == "" {
@@ -3191,6 +3192,9 @@ func TestPrincipalLDAPAttributesSatisfyDeclaredObjectClassRequirements(t *testin
 	}
 	if groupAttrs["objectCategory"][0] != "group" {
 		t.Fatalf("group objectCategory = %#v, want group", groupAttrs["objectCategory"])
+	}
+	if !strings.HasPrefix(groupAttrs["objectSid"][0], "S-1-5-21-") {
+		t.Fatalf("group objectSid = %#v, want stable SID", groupAttrs["objectSid"])
 	}
 }
 
