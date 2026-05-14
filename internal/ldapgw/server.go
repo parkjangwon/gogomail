@@ -657,6 +657,11 @@ func (s *LDAPServer) handleSearchRequest(ctx context.Context, msgID int, opData 
 		result := resultProtocolError
 		return encodeSearchResultDone(msgID, result, "", err.Error()), result, 0
 	}
+	syncReq, hasSync, err := parseSyncRequestControl(controls)
+	if err != nil {
+		result := resultProtocolError
+		return encodeSearchResultDone(msgID, result, "", err.Error()), result, 0
+	}
 	subentriesOnly, err := parseSubentriesControl(controls)
 	if err != nil {
 		result := resultProtocolError
@@ -757,7 +762,11 @@ func (s *LDAPServer) handleSearchRequest(ctx context.Context, msgID int, opData 
 		if hasMatchedValues {
 			attrMap = applyMatchedValuesFilter(attrMap, matchedValuesFilters)
 		}
-		entry, err := encodeSearchResultEntry(msgID, p.DN, selectLDAPAttributes(attrMap, attrs, typesOnly))
+		var entryControls []control
+		if hasSync {
+			entryControls = append(entryControls, syncStateControl(p.DN, syncReq.Cookie))
+		}
+		entry, err := encodeSearchResultEntryWithControls(msgID, p.DN, selectLDAPAttributes(attrMap, attrs, typesOnly), entryControls)
 		if err != nil {
 			continue
 		}
@@ -776,6 +785,9 @@ func (s *LDAPServer) handleSearchRequest(ctx context.Context, msgID int, opData 
 	}
 	if hasVLV {
 		responseControls = append(responseControls, virtualListViewResponseControl(vlvTargetPosition, vlvContentCount, resultSuccess, ""))
+	}
+	if hasSync {
+		responseControls = append(responseControls, syncDoneControl(syncReq.Cookie))
 	}
 	if len(responseControls) > 0 {
 		resp = append(resp, encodeSearchResultDoneWithControls(msgID, result, "", "", responseControls)...)
@@ -951,11 +963,18 @@ func ldapOperationalAttributes(dn string) map[string][]string {
 }
 
 func ldapEntryUUID(dn string) string {
+	b := ldapEntryUUIDBytes(dn)
+	return fmt.Sprintf("%x-%x-%x-%x-%x", b[0:4], b[4:6], b[6:8], b[8:10], b[10:16])
+}
+
+func ldapEntryUUIDBytes(dn string) []byte {
 	sum := sha1.Sum([]byte(normalizeDNForCompare(dn)))
 	b := sum[:16]
 	b[6] = (b[6] & 0x0f) | 0x50
 	b[8] = (b[8] & 0x3f) | 0x80
-	return fmt.Sprintf("%x-%x-%x-%x-%x", b[0:4], b[4:6], b[6:8], b[8:10], b[10:16])
+	out := make([]byte, 16)
+	copy(out, b)
+	return out
 }
 
 func firstNonEmpty(values ...string) string {
@@ -1508,10 +1527,102 @@ func parseSubentriesControl(controls []control) (bool, error) {
 	return false, nil
 }
 
+type syncRequest struct {
+	Mode   int
+	Cookie string
+}
+
+func parseSyncRequestControl(controls []control) (syncRequest, bool, error) {
+	for _, ctrl := range controls {
+		if ctrl.Type != controlSyncRequest {
+			continue
+		}
+		req, err := decodeSyncRequestControlValue(ctrl.Value)
+		if err != nil {
+			return syncRequest{}, true, err
+		}
+		return req, true, nil
+	}
+	return syncRequest{}, false, nil
+}
+
+func decodeSyncRequestControlValue(value []byte) (syncRequest, error) {
+	if len(value) == 0 || value[0] != tagSequence {
+		return syncRequest{}, fmt.Errorf("sync request control value must be a sequence")
+	}
+	content, err := decodeContent(value[1:])
+	if err != nil {
+		return syncRequest{}, err
+	}
+	mode, rest, err := decodeEnumeratedWithRest(content)
+	if err != nil {
+		return syncRequest{}, fmt.Errorf("sync request mode: %w", err)
+	}
+	switch mode {
+	case syncModeRefreshOnly, syncModeRefreshAndPersist:
+	default:
+		return syncRequest{}, fmt.Errorf("sync request mode %d is unsupported", mode)
+	}
+	req := syncRequest{Mode: mode}
+	if len(rest) > 0 && rest[0] == tagOctetString {
+		cookie, next, err := decodeOctetString(rest)
+		if err != nil {
+			return syncRequest{}, fmt.Errorf("sync request cookie: %w", err)
+		}
+		req.Cookie = cookie
+		rest = next
+	}
+	if len(rest) > 0 && rest[0] == tagBoolean {
+		_, next, err := decodeBoolean(rest)
+		if err != nil {
+			return syncRequest{}, fmt.Errorf("sync request reloadHint: %w", err)
+		}
+		rest = next
+	}
+	if len(rest) != 0 {
+		return syncRequest{}, fmt.Errorf("sync request control has trailing data")
+	}
+	return req, nil
+}
+
+func syncStateControl(dn, cookie string) control {
+	var content []byte
+	content = append(content, encodeEnumerated(syncStateAdd)...)
+	content = append(content, encodeOctetStringBytes(ldapEntryUUIDBytes(dn))...)
+	if cookie != "" {
+		content = append(content, encodeOctetString(cookie)...)
+	}
+	var seq []byte
+	seq = append(seq, tagSequence)
+	seq = append(seq, encodeLength(len(content))...)
+	seq = append(seq, content...)
+	return control{Type: controlSyncState, Value: seq}
+}
+
+func syncDoneControl(cookie string) control {
+	var content []byte
+	if cookie != "" {
+		content = append(content, encodeOctetString(cookie)...)
+	}
+	var seq []byte
+	seq = append(seq, tagSequence)
+	seq = append(seq, encodeLength(len(content))...)
+	seq = append(seq, content...)
+	return control{Type: controlSyncDone, Value: seq}
+}
+
+func encodeOctetStringBytes(value []byte) []byte {
+	var out []byte
+	out = append(out, tagOctetString)
+	out = append(out, encodeLength(len(value))...)
+	out = append(out, value...)
+	return out
+}
+
 func isSupportedControl(controlType string) bool {
 	switch strings.TrimSpace(controlType) {
 	case controlManageDsaIT, controlPagedResults, controlServerSideSortRequest, controlVirtualListViewRequest, controlAssertion, controlMatchedValues,
-		controlDomainScope, controlDontUseCopy, controlDontUseCopyOpenLDAP, controlSubentries:
+		controlDomainScope, controlDontUseCopy, controlDontUseCopyOpenLDAP, controlSubentries, controlSyncRequest:
 		return true
 	default:
 		return false
@@ -1531,6 +1642,12 @@ const (
 	controlDontUseCopy             = "1.3.6.1.1.22"
 	controlDontUseCopyOpenLDAP     = "1.3.6.1.4.1.4203.666.5.15"
 	controlSubentries              = "1.3.6.1.4.1.4203.1.10.1"
+	controlSyncRequest             = "1.3.6.1.4.1.4203.1.9.1.1"
+	controlSyncState               = "1.3.6.1.4.1.4203.1.9.1.2"
+	controlSyncDone                = "1.3.6.1.4.1.4203.1.9.1.3"
+	syncModeRefreshOnly            = 1
+	syncModeRefreshAndPersist      = 3
+	syncStateAdd                   = 1
 )
 
 func (s *LDAPServer) observe(ctx context.Context, opTag int, resultCode int, entries int, remoteAddr net.Addr, err error) {
@@ -1793,7 +1910,7 @@ func rootDSEAttributes(namingContexts []string, startTLSEnabled bool) map[string
 		"namingContexts":       namingContexts,
 		"subschemaSubentry":    {"cn=Subschema"},
 		"supportedLDAPVersion": {"3"},
-		"supportedControl":     {controlManageDsaIT, controlPagedResults, controlServerSideSortRequest, controlVirtualListViewRequest, controlAssertion, controlMatchedValues, controlDomainScope, controlDontUseCopy, controlDontUseCopyOpenLDAP, controlSubentries},
+		"supportedControl":     {controlManageDsaIT, controlPagedResults, controlServerSideSortRequest, controlVirtualListViewRequest, controlAssertion, controlMatchedValues, controlDomainScope, controlDontUseCopy, controlDontUseCopyOpenLDAP, controlSubentries, controlSyncRequest},
 		"supportedExtension":   {whoAmIOID},
 		"vendorName":           {"gogomail"},
 	}

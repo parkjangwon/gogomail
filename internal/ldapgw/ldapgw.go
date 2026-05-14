@@ -481,6 +481,10 @@ func encodeControls(controls []control) []byte {
 // encodeSearchResultEntry encodes a SearchResultEntry PDU.
 // dn is the distinguished name, attrs is a map of attribute names to values.
 func encodeSearchResultEntry(messageID int, dn string, attrs map[string][]string) ([]byte, error) {
+	return encodeSearchResultEntryWithControls(messageID, dn, attrs, nil)
+}
+
+func encodeSearchResultEntryWithControls(messageID int, dn string, attrs map[string][]string, controls []control) ([]byte, error) {
 	var attrSeq bytes.Buffer
 	for name, values := range attrs {
 		// AttributeDescription SEQUENCE { type OCTETSTRING, vals SET OF OCTETSTRING }
@@ -510,7 +514,7 @@ func encodeSearchResultEntry(messageID int, dn string, attrs map[string][]string
 	entryContent.Write(encodeLength(len(attrSeq.Bytes())))
 	entryContent.Write(attrSeq.Bytes())
 
-	return encodeLDAPResponse(messageID, opSearchResultEntry, entryContent.Bytes()), nil
+	return encodeLDAPResponseWithControls(messageID, opSearchResultEntry, entryContent.Bytes(), controls), nil
 }
 
 // encodeSearchResultDone encodes a SearchResultDone response.
@@ -590,4 +594,22 @@ func decodeEnumerated(data []byte) int {
 		return -1
 	}
 	return int(data[2])
+}
+
+func decodeEnumeratedWithRest(data []byte) (int, []byte, error) {
+	if len(data) < 2 || data[0] != 0x0A {
+		return 0, nil, fmt.Errorf("invalid enumerated tag")
+	}
+	length, rest, err := decodeLength(data[1:])
+	if err != nil {
+		return 0, nil, err
+	}
+	if len(rest) < length {
+		return 0, nil, fmt.Errorf("enumerated data too short")
+	}
+	var v int64
+	for i := 0; i < length; i++ {
+		v = v<<8 | int64(rest[i])
+	}
+	return int(v), rest[length:], nil
 }
