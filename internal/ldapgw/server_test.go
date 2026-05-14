@@ -3130,6 +3130,16 @@ func TestPrincipalLDAPAttributesSatisfyDeclaredObjectClassRequirements(t *testin
 	if userAttrs["entryDN"][0] != "uid=alice,ou=users,dc=example,dc=com" || userAttrs["entryUUID"][0] == "" {
 		t.Fatalf("user operational attrs missing: %#v", userAttrs)
 	}
+	userAttrs = principalLDAPAttributes(PrincipalEntry{
+		DN:       "uid=alice,ou=users,dc=example,dc=com",
+		Kind:     "user",
+		CN:       "Alice",
+		UID:      "alice",
+		MemberOf: []string{"cn=team,ou=groups,dc=example,dc=com", "  "},
+	})
+	if got := userAttrs["memberOf"]; len(got) != 1 || got[0] != "cn=team,ou=groups,dc=example,dc=com" {
+		t.Fatalf("user memberOf = %#v, want concrete group DN", got)
+	}
 	groupAttrs := principalLDAPAttributes(PrincipalEntry{
 		DN:          "cn=team,ou=groups,dc=example,dc=com",
 		Kind:        "group",

@@ -34,6 +34,7 @@ type PrincipalEntry struct {
 	SN           string
 	ResourceType string
 	Members      []string
+	MemberOf     []string
 }
 
 type DirectorySearchRequest struct {
@@ -934,6 +935,9 @@ func principalLDAPAttributes(p PrincipalEntry) map[string][]string {
 		"cn":          {cn},
 		"uid":         {p.UID},
 		"displayName": {firstNonEmpty(p.DisplayName, cn)},
+	}
+	if memberOf := nonEmptyLDAPValues(p.MemberOf); len(memberOf) > 0 {
+		attrs["memberOf"] = memberOf
 	}
 	switch kind {
 	case "organization":

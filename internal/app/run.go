@@ -944,33 +944,57 @@ func (q *ldapDirectoryQuerier) SearchPrincipals(ctx context.Context, req ldapgw.
 
 func (q *ldapDirectoryQuerier) ldapPrincipalEntry(ctx context.Context, p directory.Principal, baseDN string, attrs []string) (ldapgw.PrincipalEntry, error) {
 	entry := ldapPrincipalEntry(p, baseDN)
-	if p.Kind != directory.PrincipalKindGroup || !ldapShouldExpandGroupMembers(attrs) {
-		return entry, nil
+	if p.Kind == directory.PrincipalKindGroup && ldapShouldExpandGroupMembers(attrs) {
+		memberships, err := q.repo.ListGroupMemberships(ctx, directory.ListGroupMembershipsRequest{
+			CompanyID:  q.companyID,
+			GroupID:    p.ID,
+			ActiveOnly: true,
+			Limit:      directory.MaxGroupMembershipListLimit,
+		})
+		if err != nil {
+			return ldapgw.PrincipalEntry{}, err
+		}
+		for _, membership := range memberships {
+			if memberDN := ldapPrincipalKindIDDN(membership.MemberKind, membership.MemberID, baseDN); memberDN != "" {
+				entry.Members = append(entry.Members, memberDN)
+			}
+		}
 	}
-	memberships, err := q.repo.ListGroupMemberships(ctx, directory.ListGroupMembershipsRequest{
-		CompanyID:  q.companyID,
-		GroupID:    p.ID,
-		ActiveOnly: true,
-		Limit:      directory.MaxGroupMembershipListLimit,
-	})
-	if err != nil {
-		return ldapgw.PrincipalEntry{}, err
-	}
-	for _, membership := range memberships {
-		if memberDN := ldapPrincipalKindIDDN(membership.MemberKind, membership.MemberID, baseDN); memberDN != "" {
-			entry.Members = append(entry.Members, memberDN)
+	if ldapShouldExpandMemberOf(attrs) {
+		memberships, err := q.repo.ListGroupMemberships(ctx, directory.ListGroupMembershipsRequest{
+			CompanyID:  q.companyID,
+			MemberKind: p.Kind,
+			MemberID:   p.ID,
+			ActiveOnly: true,
+			Limit:      directory.MaxGroupMembershipListLimit,
+		})
+		if err != nil {
+			return ldapgw.PrincipalEntry{}, err
+		}
+		for _, membership := range memberships {
+			if groupDN := ldapPrincipalKindIDDN(directory.PrincipalKindGroup, membership.GroupID, baseDN); groupDN != "" {
+				entry.MemberOf = append(entry.MemberOf, groupDN)
+			}
 		}
 	}
 	return entry, nil
 }
 
 func ldapShouldExpandGroupMembers(attrs []string) bool {
+	return ldapAttributeRequested(attrs, "member")
+}
+
+func ldapShouldExpandMemberOf(attrs []string) bool {
+	return ldapAttributeRequested(attrs, "memberOf")
+}
+
+func ldapAttributeRequested(attrs []string, target string) bool {
 	if len(attrs) == 0 {
 		return true
 	}
 	for _, attr := range attrs {
 		switch strings.ToLower(strings.TrimSpace(attr)) {
-		case "member", "*":
+		case strings.ToLower(target), "*":
 			return true
 		case "1.1", "+":
 			continue
