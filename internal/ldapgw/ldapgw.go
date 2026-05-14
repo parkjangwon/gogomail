@@ -106,7 +106,10 @@ func (r *bindRequest) encode() ([]byte, error) {
 	buf.WriteByte(0x80)
 	buf.Write(encodeLength(len(r.auth)))
 	buf.Write(r.auth)
-	return append([]byte{0x60, byte(buf.Len())}, buf.Bytes()...), nil
+	out := []byte{0x60}
+	out = append(out, encodeLength(buf.Len())...)
+	out = append(out, buf.Bytes()...)
+	return out, nil
 }
 
 func decodeBindRequest(data []byte) (*bindRequest, error) {
