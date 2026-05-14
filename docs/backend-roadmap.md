@@ -5730,6 +5730,7 @@ Current implementation notes:
 - Root DSE advertises `subschemaSubentry`, and `cn=Subschema` base-object search returns minimal RFC 4512/RFC 4519 schema metadata for person/inetOrgPerson-style directory clients.
 - SearchRequest parsing now covers and validates scope, deref aliases, client size/time limits, typesOnly, filter, and requested attribute selection before mapping supported directory filters into the repository boundary.
 - Common client search filters using OR/AND/NOT wrappers, substring matches, and RFC 4511 extensibleMatch type/value assertions are accepted for RFC 4519 directory attributes (`cn`, `mail`, `uid`, `displayName`, `givenName`, `sn`) plus Active Directory-style compatibility aliases (`name`, `sAMAccountName`, `userPrincipalName`).
+- LDAP user entries expose Exchange/AD-style mail aliases (`mailNickname`, `proxyAddresses`) and directory filter extraction accepts those attributes for broader mail-client lookup compatibility.
 - LDAP entries expose AD-style identity attributes (`distinguishedName`, deterministic `objectGUID`, deterministic `objectSid`, `objectCategory`) alongside the RFC-oriented attributes for clients that cache or render from those fields.
 - Repository query extraction preserves organization/resource attributes (`ou`, `description`) in addition to user attributes.
 - Principal-kind-aware LDAP entries now map users to `inetOrgPerson`, organizations to `organizationalUnit`, groups to `groupOfNames`, and resources to `device` under kind-specific OU subtrees.
