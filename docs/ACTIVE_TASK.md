@@ -1,6 +1,58 @@
 # ACTIVE_TASK
 
-## TASK-072: External RDBMS Config & Sync (in progress)
+## TASK-073: External RDBMS Sync UI & Logs (in progress)
+
+### 배경
+
+TASK-072 delivered RDBMS provider support with admin API and backend infrastructure. TASK-073 implements the admin backend and frontend for RDBMS sync operations, logs, and monitoring.
+
+The RDBMS sync surface includes:
+1. Admin API for RDBMS sync scheduling and history
+2. Sync logs and conflict resolution UI
+3. Real-time sync status monitoring
+4. Per-domain RDBMS configuration management in admin console
+
+### 구현 대상
+
+Backend (no frontend gate required):
+- `internal/httpapi/admin.go` — Add RDBMS sync routes:
+  - `POST /admin/v1/domains/{id}/rdbms/sync` — Trigger RDBMS sync (users, groups, memberships)
+  - `GET /admin/v1/domains/{id}/rdbms/sync-history` — List sync runs with status/counts/timing
+  - `GET /admin/v1/domains/{id}/rdbms/conflicts` — List unresolved sync conflicts
+  - `POST /admin/v1/domains/{id}/rdbms/conflicts/{id}/resolve` — Resolve conflict manually
+- `internal/admin/admin.go` — Wire RDBMS sync service into admin runtime
+- `internal/idprovider/rdbms/admin_service.go` — Service layer for sync scheduling/history querying
+- OpenAPI documentation for sync endpoints
+
+Frontend (gate applies here):
+- Admin console "Domain Settings > RDBMS Configuration" screen
+  - Display RDBMS provider status (connected/disconnected, last sync time)
+  - Manual sync button + sync progress indicator
+  - Sync history table (run date, user count, group count, duration, status)
+- Admin console "Domain Settings > RDBMS Conflicts" screen
+  - Unresolved conflict listing (user/group, issue type, details)
+  - Bulk resolve or per-item manual review
+- Sync logs viewer (export, filter by domain/status/date range)
+
+### 완료 조건
+
+- [ ] Admin API POST /admin/v1/domains/{id}/rdbms/sync triggers real sync with result envelope
+- [ ] Admin API GET /admin/v1/domains/{id}/rdbms/sync-history lists runs with pagination
+- [ ] Admin API GET /admin/v1/domains/{id}/rdbms/conflicts lists sync conflicts
+- [ ] Admin API POST /admin/v1/domains/{id}/rdbms/conflicts/{id}/resolve allows manual resolution
+- [ ] OpenAPI documents all new RDBMS sync endpoints (BLOCKED: requires spec)
+- [ ] All backend API tests pass (sync scheduling, history retrieval, conflict resolution)
+- [ ] `go test ./...` 통과
+- [ ] Frontend gate triggered before admin console UI implementation
+- [ ] 개발 문서를 최신 상태로 갱신한다.
+
+### 다음 태스크
+
+TASK-074: Mail Log Queries & UI
+
+---
+
+## TASK-072: External RDBMS Config & Sync (COMPLETE)
 
 ### 배경
 
