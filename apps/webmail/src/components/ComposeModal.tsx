@@ -8,7 +8,8 @@ import Underline from '@tiptap/extension-underline';
 import TextAlign from '@tiptap/extension-text-align';
 import Placeholder from '@tiptap/extension-placeholder';
 import Image from '@tiptap/extension-image';
-import { sendMessage, saveDraft, updateDraft, deleteDraft, sendDraft, uploadAttachment, attachDriveFileToEmail, listDriveNodes, listUserAddresses, DriveNode, UIComposeIntent, MessageDetail, SendMessageRequest, SendMessageResult, UserAddressEntry } from '@/lib/api';
+import { sendMessage, saveDraft, updateDraft, deleteDraft, sendDraft, uploadAttachment, attachDriveFileToEmail, listDriveNodes, listUserAddresses } from '@/lib/api';
+import type { DriveNode, UIComposeIntent, MessageDetail, SendMessageRequest, SendMessageResult, UserAddressEntry } from '@/lib/api';
 import { composeCloseSaveButtonAriaLabel } from '@/lib/composeCloseSaveButtonAriaLabel';
 import { composeCloseSaveButtonLabel } from '@/lib/composeCloseSaveButtonLabel';
 import { composeCloseSavePrompt } from '@/lib/composeCloseSavePrompt';
@@ -16,9 +17,10 @@ import { composeSendButtonLabel } from '@/lib/composeSendButtonLabel';
 import { toDateTimeLocalValue } from '@/lib/dateTimeLocal';
 import { formatSendResultLabel } from '@/lib/sendResultLabel';
 import { DriveNodeIcon } from '@/lib/driveNodeIcon';
-import { escapeHtml, parseAddrs, buildQuoteHTML, backendComposeIntent, emailOf, invalidRecipientAddresses, EmailTemplate } from '@/lib/compose/composeUtils';
+import { escapeHtml, parseAddrs, EmailTemplate, backendComposeIntent } from '@/lib/compose/composeUtils';
+import { buildQuoteHTML, emailOf, invalidRecipientAddresses, parseToPickerItems, pickerItemsToString } from '@/lib/mail-address';
 import { RecipientChips } from './RecipientChips';
-import { OrgPickerModal, parseToPickerItems, pickerItemsToString } from './OrgPickerModal';
+import { OrgPickerModal } from './OrgPickerModal';
 import {
   PaperClipIcon,
   LinkIcon,

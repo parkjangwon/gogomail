@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect, KeyboardEvent, ClipboardEvent } from 'react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import { autocompleteContacts, ContactSuggestion } from '@/lib/api';
+import { parseAddressList } from '@/lib/mail-address';
 
 interface RecipientChipsProps {
   value: string;
@@ -14,31 +15,13 @@ interface RecipientChipsProps {
   suggestions?: string[];
 }
 
-function parseEmails(raw: string): string[] {
-  // Split on commas/semicolons outside angle brackets so "Name <email>" stays together
-  const parts: string[] = [];
-  let depth = 0, start = 0;
-  for (let i = 0; i < raw.length; i++) {
-    if (raw[i] === '<') depth++;
-    else if (raw[i] === '>') depth--;
-    else if ((raw[i] === ',' || raw[i] === ';') && depth === 0) {
-      const part = raw.slice(start, i).trim();
-      if (part) parts.push(part);
-      start = i + 1;
-    }
-  }
-  const last = raw.slice(start).trim();
-  if (last) parts.push(last);
-  return parts;
-}
-
 /** Format a ContactSuggestion as a chip string. */
 function formatSuggestion(s: ContactSuggestion): string {
   return s.display_name ? `${s.display_name} <${s.email}>` : s.email;
 }
 
 export function RecipientChips({ value, onChange, placeholder, id, autoFocus, hasError, suggestions = [] }: RecipientChipsProps) {
-  const [chips, setChips] = useState<string[]>(() => (value ? parseEmails(value) : []));
+  const [chips, setChips] = useState<string[]>(() => (value ? parseAddressList(value).map((addr) => addr.address) : []));
   const [input, setInput] = useState('');
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [activeIdx, setActiveIdx] = useState(-1);
@@ -49,9 +32,9 @@ export function RecipientChips({ value, onChange, placeholder, id, autoFocus, ha
 
   // Sync chips when value is changed externally (e.g. org picker confirm)
   useEffect(() => {
-    if (value !== lastExternalValue.current) {
+      if (value !== lastExternalValue.current) {
       lastExternalValue.current = value;
-      setChips(value ? parseEmails(value) : []);
+      setChips(value ? parseAddressList(value).map((addr) => addr.address) : []);
       setInput('');
     }
   }, [value]);
@@ -96,7 +79,7 @@ export function RecipientChips({ value, onChange, placeholder, id, autoFocus, ha
   const dropdownItems: DropdownItem[] = [...localItems, ...apiItems].slice(0, 8);
 
   function commit(raw: string) {
-    const emails = parseEmails(raw);
+    const emails = parseAddressList(raw).map((addr) => addr.address);
     if (emails.length === 0) return;
     const next = [...chips, ...emails];
     setChips(next);

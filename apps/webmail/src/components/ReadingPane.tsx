@@ -1,9 +1,9 @@
 'use client';
 
-import { useEffect, useRef, useState, useCallback, useMemo, ReactNode } from 'react';
+import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { MessageDetail, MessageSummary, Folder, Attachment, MessageDeliveryStatus, TrackingEvent, listAttachments, downloadAttachment, getMessageDeliveryStatus, getMessageTracking, saveAttachmentToDrive, listCalendars, createCalendarEvent, sendMessage, uploadAttachment } from '@/lib/api';
 import { parseAddrs, emailOf, linkify } from '@/lib/message/messageUtils';
-import { OrgPickerModal, parseToPickerItems, pickerItemsToString } from './OrgPickerModal';
+import { parseToPickerItems, pickerItemsToString } from '@/lib/mail-address';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import LinkExt from '@tiptap/extension-link';
@@ -34,6 +34,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid';
 import { RecipientChips } from './RecipientChips';
+import { OrgPickerModal } from './OrgPickerModal';
 
 function SafeHTMLBody({ html, onMailto, externalImages = 'ask' }: { html: string; onMailto?: (addr: string) => void; externalImages?: string }) {
   const blockTrackingPixels = (() => { try { return JSON.parse(localStorage.getItem('webmail_settings') ?? '{}').blockTrackingPixels !== false; } catch { return true; } })();
