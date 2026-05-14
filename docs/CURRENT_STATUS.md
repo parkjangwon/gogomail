@@ -1,6 +1,15 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (Delivery adaptive domain backoff runtime wiring)
+Last updated: 2026-05-14 (Delivery Redis adaptive domain backoff)
+
+## Delivery Redis adaptive domain backoff (2026-05-14, complete)
+- Adaptive recipient-domain backoff now supports a Redis backend so tempfail pressure is shared across delivery worker processes in server-farm deployments.
+- `RedisDomainBackoff` stores per-domain failure counters with Redis TTLs and uses Lua scripts for backoff checks and temporary-failure observation.
+- Redis `Check` defers only domains with active TTL state and allows unrelated domains to continue.
+- Temporary failure observation extends the domain delay exponentially and caps it at the configured max delay.
+- Runtime config now supports `GOGOMAIL_DELIVERY_DOMAIN_BACKOFF_BACKEND=local|redis` and YAML `delivery_domain_backoff_backend`; `runDeliveryWorker` wires the Redis backend through the existing Redis client when selected.
+- Coverage verifies Redis active-domain deferral, unrelated-domain pass-through, delay extension/capping, env/YAML backend loading, validation, and app wiring helper behavior.
+- Verification: `go test -count=1 ./internal/delivery -run 'Backoff'`, `go test -count=1 ./internal/config ./internal/app -run 'Backoff|Delivery'`, and `go test ./...`.
 
 ## Delivery adaptive domain backoff runtime wiring (2026-05-14, complete)
 - Delivery workers can now enable adaptive recipient-domain backoff through runtime config instead of code changes.

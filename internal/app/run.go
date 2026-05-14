@@ -2656,10 +2656,11 @@ func runDeliveryWorker(ctx context.Context, cfg config.Config, logger *slog.Logg
 			"domain_limits", cfg.DeliveryDomainConcurrency,
 		)
 	}
-	if backoff := deliveryDomainBackoffFromConfig(cfg); backoff != nil {
+	if backoff := deliveryDomainBackoffFromConfig(cfg, redisClient); backoff != nil {
 		handler.WithDomainBackoff(backoff)
 		logger.Info(
 			"delivery adaptive domain backoff enabled",
+			"backend", cfg.DeliveryDomainBackoffBackend,
 			"base_delay", cfg.DeliveryDomainBackoffBaseDelay,
 			"max_delay", cfg.DeliveryDomainBackoffMaxDelay,
 		)
@@ -2758,14 +2759,18 @@ func deliveryFarmLimits(values map[string]int) map[outbound.Farm]int {
 	return result
 }
 
-func deliveryDomainBackoffFromConfig(cfg config.Config) delivery.DomainBackoff {
+func deliveryDomainBackoffFromConfig(cfg config.Config, redisClient *redis.Client) delivery.DomainBackoff {
 	if !cfg.DeliveryDomainBackoffEnabled {
 		return nil
 	}
-	return delivery.NewInMemoryDomainBackoff(delivery.DomainBackoffPolicy{
+	policy := delivery.DomainBackoffPolicy{
 		BaseDelay: cfg.DeliveryDomainBackoffBaseDelay,
 		MaxDelay:  cfg.DeliveryDomainBackoffMaxDelay,
-	})
+	}
+	if strings.EqualFold(strings.TrimSpace(cfg.DeliveryDomainBackoffBackend), "redis") {
+		return delivery.NewRedisDomainBackoff(redisClient, "gogomail:delivery:domain_backoff", policy)
+	}
+	return delivery.NewInMemoryDomainBackoff(policy)
 }
 
 func smtpMetrics(cfg config.Config, logger *slog.Logger) smtpd.Metrics {

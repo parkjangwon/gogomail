@@ -265,6 +265,9 @@ func (c Config) Validate() error {
 		return fmt.Errorf("GOGOMAIL_DRIVE_SHARE_RATELIMIT_PER_MINUTE must be positive")
 	}
 	if c.DeliveryDomainBackoffEnabled {
+		if err := validateEnum("GOGOMAIL_DELIVERY_DOMAIN_BACKOFF_BACKEND", c.DeliveryDomainBackoffBackend, "local", "redis"); err != nil {
+			return err
+		}
 		if c.DeliveryDomainBackoffBaseDelay <= 0 {
 			return fmt.Errorf("GOGOMAIL_DELIVERY_DOMAIN_BACKOFF_BASE_DELAY must be positive")
 		}

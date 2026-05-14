@@ -235,6 +235,8 @@ func applyYAMLConfigValue(cfg *Config, key string, value any) error {
 		return setYAMLIntMap(value, &cfg.DeliveryDomainConcurrency, key)
 	case "delivery_domain_backoff_enabled":
 		return setYAMLBool(value, &cfg.DeliveryDomainBackoffEnabled, key)
+	case "delivery_domain_backoff_backend":
+		return setYAMLString(value, &cfg.DeliveryDomainBackoffBackend, key)
 	case "delivery_domain_backoff_base_delay":
 		return setYAMLDuration(value, &cfg.DeliveryDomainBackoffBaseDelay, key)
 	case "delivery_domain_backoff_max_delay":

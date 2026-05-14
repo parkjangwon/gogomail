@@ -579,6 +579,7 @@ func TestLoadReadsEnvironmentOverrides(t *testing.T) {
 	t.Setenv("GOGOMAIL_REDIS_ADDR", "redis:6379")
 	t.Setenv("GOGOMAIL_DELIVERY_THROTTLE_BACKEND", "redis")
 	t.Setenv("GOGOMAIL_DELIVERY_DOMAIN_BACKOFF_ENABLED", "true")
+	t.Setenv("GOGOMAIL_DELIVERY_DOMAIN_BACKOFF_BACKEND", "redis")
 	t.Setenv("GOGOMAIL_DELIVERY_DOMAIN_BACKOFF_BASE_DELAY", "2m")
 	t.Setenv("GOGOMAIL_DELIVERY_DOMAIN_BACKOFF_MAX_DELAY", "30m")
 	t.Setenv("GOGOMAIL_STORAGE_BACKEND", "local")
@@ -790,6 +791,9 @@ func TestLoadReadsEnvironmentOverrides(t *testing.T) {
 	}
 	if !cfg.DeliveryDomainBackoffEnabled {
 		t.Fatal("DeliveryDomainBackoffEnabled = false, want true")
+	}
+	if cfg.DeliveryDomainBackoffBackend != "redis" {
+		t.Fatalf("DeliveryDomainBackoffBackend = %q, want redis", cfg.DeliveryDomainBackoffBackend)
 	}
 	if cfg.DeliveryDomainBackoffBaseDelay != 2*time.Minute || cfg.DeliveryDomainBackoffMaxDelay != 30*time.Minute {
 		t.Fatalf("DeliveryDomainBackoff delays = %s/%s, want 2m/30m", cfg.DeliveryDomainBackoffBaseDelay, cfg.DeliveryDomainBackoffMaxDelay)
