@@ -10,11 +10,12 @@ Last updated: 2026-05-15 (Source File Separation & Refactoring)
   - Extracted constant: maxAdminQueryFilterBytes (1024)
   - All parsing and validation logic consolidated in single focused module
 - **Phase 2 In Progress**: RegisterAdminRoutes modularization via register* functions
-  - `internal/httpapi/admin_helpers.go`: Expanded to 1017 lines with 7 new register* function implementations
-  - Extracted route registration functions: registerWebhookRoutes, registerNotificationTemplateRoutes, registerSecurityPostureRoutes, registerGlobalSignatureRoutes, registerLegalHoldsRoutes, registerSCIMStatusRoutes, registerSeatUsageRoutes (18 route handlers total)
-  - `internal/httpapi/admin.go`: Reduced to 7483 lines with delegation pattern at RegisterAdminRoutes lines 4684-4690
-  - **Test fix**: openapi_contract_test.go now includes admin_helpers.go in route extraction pattern matching (routes weren't being found in test because mux.HandleFunc calls were in admin_helpers.go)
-  - Remaining: RegisterAdminRoutes still has ~4200 lines in main console/delivery/approval sections needing further modularization
+  - `internal/httpapi/admin_helpers.go`: Expanded to 1046 lines with 10 new register* function implementations
+  - Extracted route registration functions: registerWebhookRoutes, registerNotificationTemplateRoutes, registerSecurityPostureRoutes, registerGlobalSignatureRoutes, registerLegalHoldsRoutes, registerSCIMStatusRoutes, registerSeatUsageRoutes, registerAuditLogExportRoutes, registerTenantHealthRoutes, registerChangeHistoryAndApprovalsRoutes (25 route handlers total)
+  - `internal/httpapi/admin.go`: Reduced to 7379 lines with delegation pattern at RegisterAdminRoutes lines 4684-4693 (10 register* function calls)
+  - **Test fix**: openapi_contract_test.go now includes admin_helpers.go in route extraction pattern matching
+  - Cumulative reduction: 8340 → 7379 lines (-961 lines, **11.5% reduction** from original)
+  - Remaining: RegisterAdminRoutes still has ~4100 lines in company/domain/user CRUD sections (lines 540-4657) needing further modularization
 - Verification: All 991 admin package tests pass; 6040 total tests passing
 - **Oversized files ranking** (production code, excluding tests):
   1. internal/imapgw/server.go: 8927 lines (375+ functions, handleLineWithLiteral: 475 lines)

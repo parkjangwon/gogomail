@@ -4654,33 +4654,9 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"valid": true, "message": "domain format is valid"})
 	}))
 
-	// ─── Audit Log Export ─────────────────────────────────────────────────────
-	mux.HandleFunc("GET /admin/v1/companies/{id}/audit-logs/export", adminAuth(func(w http.ResponseWriter, r *http.Request) {
-		handleExportCompanyAuditLogs(w, r, service)
-	}))
-
-	// ─── Tenant Health ────────────────────────────────────────────────────────
-	mux.HandleFunc("GET /admin/v1/companies/{id}/health", adminAuth(func(w http.ResponseWriter, r *http.Request) {
-		handleGetCompanyHealth(w, r, service)
-	}))
-
-	// ─── Change History / Approval Queue ─────────────────────────────────────
-	mux.HandleFunc("GET /admin/v1/companies/{id}/change-history", adminAuth(func(w http.ResponseWriter, r *http.Request) {
-		handleGetCompanyChangeHistory(w, r, service)
-	}))
-	mux.HandleFunc("GET /admin/v1/companies/{id}/pending-approvals", adminAuth(func(w http.ResponseWriter, r *http.Request) {
-		handleGetPendingApprovals(w, r, service)
-	}))
-	mux.HandleFunc("POST /admin/v1/companies/{id}/pending-approvals", adminAuth(func(w http.ResponseWriter, r *http.Request) {
-		handleCreatePendingApproval(w, r, service)
-	}))
-	mux.HandleFunc("POST /admin/v1/companies/{id}/pending-approvals/{approvalId}/approve", adminAuth(func(w http.ResponseWriter, r *http.Request) {
-		handleApproveApproval(w, r, service)
-	}))
-	mux.HandleFunc("POST /admin/v1/companies/{id}/pending-approvals/{approvalId}/reject", adminAuth(func(w http.ResponseWriter, r *http.Request) {
-		handleRejectApproval(w, r, service)
-	}))
-
+	registerAuditLogExportRoutes(mux, adminAuth, service)
+	registerTenantHealthRoutes(mux, adminAuth, service)
+	registerChangeHistoryAndApprovalsRoutes(mux, adminAuth, service)
 	registerWebhookRoutes(mux, adminAuth, service)
 	registerNotificationTemplateRoutes(mux, adminAuth, service)
 	registerSecurityPostureRoutes(mux, adminAuth, service)
