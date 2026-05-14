@@ -9,6 +9,7 @@ Last updated: 2026-05-14 (LDAP gateway StartTLS/LDAPS and discovery hardening)
 - `SearchRequest` parsing now consumes scope, deref aliases, size limit, time limit, typesOnly, filter, and requested attribute selection instead of treating filter bytes as the remainder of the request.
 - LDAP SearchRequest decoding now validates RFC 4511 scope and derefAliases enumerations, returning `protocolError` for out-of-range values instead of silently widening query behavior.
 - Root DSE now advertises `subschemaSubentry`, and base-object search for `cn=Subschema` returns minimal RFC 4512/RFC 4519 schema metadata for person/inetOrgPerson-style clients.
+- Root DSE, subschema, and synthetic container base-object searches now validate and apply the requested LDAP filter before returning the synthetic entry.
 - LDAP search filters now accept common client OR/AND/NOT wrappers and substring filters such as `(|(cn=*alice*)(mail=*alice*)(uid=*alice*))`, extracting supported RFC 4519 directory attributes while ignoring non-directory predicates such as `objectClass`.
 - LDAP repository narrowing now uses only safe conjunctive filter hints; OR and NOT filters are validated and evaluated by full post-filtering without narrowing the repository query in a way that could under-return matching entries.
 - LDAP ordering filters (`greaterOrEqual`, `lessOrEqual`) are now validated and handled by full entry filtering without being converted into unsafe repository text-search hints.

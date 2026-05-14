@@ -2343,6 +2343,37 @@ func TestLDAPServerContainerBaseObjectSearch(t *testing.T) {
 	}
 }
 
+func TestLDAPServerContainerBaseObjectAppliesSearchFilter(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+
+	auth := newFakeLDAPAuth()
+	srv := NewServer(ln, auth, newFakeDirectoryQuerier())
+	go srv.Serve()
+	defer srv.Close()
+
+	conn, err := net.Dial("tcp", ln.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	bindTestConnection(t, conn, auth)
+
+	searchReq := buildLDAPPacket(48, opSearchRequest,
+		buildSearchRequestWithAttrs("ou=organizations,dc=example,dc=com", scopeBaseObject, buildEqualityFilter("objectClass", "person"), "objectClass"),
+	)
+	if err := sendPDU(conn, searchReq); err != nil {
+		t.Fatal(err)
+	}
+	entries, _ := readSearchUntilDone(t, conn)
+	if entries != 0 {
+		t.Fatalf("container person filter entries = %d, want 0", entries)
+	}
+}
+
 func TestLDAPServerOpenLDAPSearchCompatibility(t *testing.T) {
 	ldapsearch, err := exec.LookPath("ldapsearch")
 	if err != nil {
@@ -3553,6 +3584,35 @@ func TestLDAPServerRootDSEAdvertisesNamingContextAndStartTLS(t *testing.T) {
 	}
 }
 
+func TestLDAPServerRootDSEAppliesSearchFilter(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+
+	srv := NewServer(ln, newFakeLDAPAuth(), newFakeDirectoryQuerier())
+	go srv.Serve()
+	defer srv.Close()
+
+	conn, err := net.Dial("tcp", ln.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+
+	searchReq := buildLDAPPacket(46, opSearchRequest,
+		buildSearchRequestWithAttrs("", scopeBaseObject, buildEqualityFilter("objectClass", "person"), "objectClass"),
+	)
+	if err := sendPDU(conn, searchReq); err != nil {
+		t.Fatal(err)
+	}
+	entries, _ := readSearchUntilDone(t, conn)
+	if entries != 0 {
+		t.Fatalf("RootDSE person filter entries = %d, want 0", entries)
+	}
+}
+
 func TestLDAPServerReturnsSubschemaDiscovery(t *testing.T) {
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
@@ -3590,6 +3650,35 @@ func TestLDAPServerReturnsSubschemaDiscovery(t *testing.T) {
 	}
 	if !bytesContains(opData, []byte("inetOrgPerson")) || !bytesContains(opData, []byte("displayName")) {
 		t.Fatalf("subschema response missing expected directory schema: %x", opData)
+	}
+}
+
+func TestLDAPServerSubschemaAppliesSearchFilter(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+
+	srv := NewServer(ln, newFakeLDAPAuth(), newFakeDirectoryQuerier())
+	go srv.Serve()
+	defer srv.Close()
+
+	conn, err := net.Dial("tcp", ln.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+
+	searchReq := buildLDAPPacket(47, opSearchRequest,
+		buildSearchRequestWithAttrs("cn=Subschema", scopeBaseObject, buildEqualityFilter("objectClass", "person"), "objectClass"),
+	)
+	if err := sendPDU(conn, searchReq); err != nil {
+		t.Fatal(err)
+	}
+	entries, _ := readSearchUntilDone(t, conn)
+	if entries != 0 {
+		t.Fatalf("Subschema person filter entries = %d, want 0", entries)
 	}
 }
 
