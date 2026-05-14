@@ -5749,6 +5749,7 @@ Current implementation notes:
 - LDAPMessage decoding rejects out-of-range `messageID` values, including zero, negative BER INTEGER encodings, values above RFC 4511 `maxInt`, and overlong integer encodings.
 - BER length decoding rejects indefinite-length encodings instead of treating them as zero-length values, preserving the definite-length envelope expected by LDAP clients and servers.
 - BER length decoding rejects overlong length-of-length fields and element lengths above the 16 MB safety cap before allocating or slicing payloads.
+- LDAPMessage control parsing rejects trailing bytes after the optional controls wrapper instead of silently ignoring data beyond the RFC 4511 envelope.
 - LDAP user entries expose Exchange/AD-style mail aliases (`mailNickname`, `proxyAddresses`) and directory filter extraction accepts those attributes for broader mail-client lookup compatibility.
 - LDAP entries expose AD-style identity attributes (`distinguishedName`, binary deterministic `objectGUID`, binary deterministic `objectSid`, `objectCategory`) alongside the RFC-oriented attributes for clients that cache or render from those fields.
 - LDAP entries expose AD-style directory metadata (`canonicalName`, `instanceType`, `whenCreated`, `whenChanged`, `uSNCreated`, `uSNChanged`) plus conservative user account hints (`userAccountControl`, `accountExpires`, `primaryGroupID`) for Active Directory-oriented address book and tree-browsing clients, with canonical-name filters narrowed to the final path segment for repository lookup.
