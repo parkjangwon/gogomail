@@ -6,6 +6,7 @@ Last updated: 2026-05-14 (LDAP gateway StartTLS/LDAPS and discovery hardening)
 - `internal/ldapgw` now handles RFC 4511 StartTLS extended requests (`1.3.6.1.4.1.1466.20037`) when a TLS certificate/key is configured.
 - Root DSE base-object search now returns `namingContexts`, `supportedLDAPVersion`, `vendorName`, and `supportedExtension` for StartTLS discovery.
 - `SearchRequest` parsing now consumes scope, deref aliases, size limit, time limit, typesOnly, filter, and requested attribute selection instead of treating filter bytes as the remainder of the request.
+- LDAP SearchRequest decoding now validates RFC 4511 scope and derefAliases enumerations, returning `protocolError` for out-of-range values instead of silently widening query behavior.
 - Root DSE now advertises `subschemaSubentry`, and base-object search for `cn=Subschema` returns minimal RFC 4512/RFC 4519 schema metadata for person/inetOrgPerson-style clients.
 - LDAP search filters now accept common client OR/AND/NOT wrappers and substring filters such as `(|(cn=*alice*)(mail=*alice*)(uid=*alice*))`, extracting supported RFC 4519 directory attributes while ignoring non-directory predicates such as `objectClass`.
 - LDAP entries and filter extraction now include common Active Directory-style compatibility aliases (`name`, `sAMAccountName`, `userPrincipalName`) mapped from existing principal names, IDs, and primary email addresses.

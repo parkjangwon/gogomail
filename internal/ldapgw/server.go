@@ -610,7 +610,7 @@ func (s *LDAPServer) handleSearchRequest(ctx context.Context, msgID int, opData 
 
 	baseObject, scope, filter, attrs, sizeLimit, _, typesOnly, err := decodeSearchRequest(opData)
 	if err != nil {
-		result := resultUnwillingToPerform
+		result := resultProtocolError
 		return encodeSearchResultDone(msgID, result, "", err.Error()), result, 0
 	}
 	if baseObject == "" && scope == scopeBaseObject {
@@ -1867,15 +1867,25 @@ func decodeSearchRequest(data []byte) (baseDN string, scope int, filter []byte, 
 		err = fmt.Errorf("decode scope: %w", err)
 		return
 	}
+	switch scopeVal {
+	case scopeBaseObject, scopeSingleLevel, scopeWholeSubtree:
+	default:
+		err = fmt.Errorf("search request: invalid scope %d", scopeVal)
+		return
+	}
 	scope = scopeVal
 
 	if len(rest) < 2 {
 		err = fmt.Errorf("search request: missing derefAliases")
 		return
 	}
-	_, rest, err = decodeLDAPIntLike(rest)
+	derefAliases, rest, err := decodeLDAPIntLike(rest)
 	if err != nil {
 		err = fmt.Errorf("decode derefAliases: %w", err)
+		return
+	}
+	if derefAliases < derefAliasesNever || derefAliases > derefAliasesAlways {
+		err = fmt.Errorf("search request: invalid derefAliases %d", derefAliases)
 		return
 	}
 	sizeLimit, rest, err = decodeInt(rest)

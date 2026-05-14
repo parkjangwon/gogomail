@@ -177,10 +177,14 @@ func buildBindRequest(version int, name, password string) []byte {
 }
 
 func buildSearchRequest(baseDN string, scope int, filter []byte) []byte {
+	return buildSearchRequestWithParams(baseDN, scope, derefAliasesNever, filter)
+}
+
+func buildSearchRequestWithParams(baseDN string, scope int, derefAliases int, filter []byte) []byte {
 	var content []byte
 	content = append(content, encodeOctetString(baseDN)...)
 	content = append(content, encodeEnumerated(scope)...)
-	content = append(content, encodeEnumerated(0)...)
+	content = append(content, encodeEnumerated(derefAliases)...)
 	content = append(content, encodeInt(0)...)
 	content = append(content, encodeInt(0)...)
 	content = append(content, tagBoolean, 0x01, 0x00)
@@ -984,6 +988,18 @@ func TestLDAPServerSearchRequest(t *testing.T) {
 	}
 	if !found {
 		t.Error("expected SearchResultEntry after search request")
+	}
+}
+
+func TestDecodeSearchRequestRejectsInvalidEnums(t *testing.T) {
+	if _, _, _, _, _, _, _, err := decodeSearchRequest(buildSearchRequestWithParams("dc=example,dc=com", 9, derefAliasesNever, buildEqualityFilter("objectClass", "person"))); err == nil {
+		t.Fatal("decodeSearchRequest accepted invalid scope")
+	}
+	if _, _, _, _, _, _, _, err := decodeSearchRequest(buildSearchRequestWithParams("dc=example,dc=com", scopeWholeSubtree, 9, buildEqualityFilter("objectClass", "person"))); err == nil {
+		t.Fatal("decodeSearchRequest accepted invalid derefAliases")
+	}
+	if _, scope, _, _, _, _, _, err := decodeSearchRequest(buildSearchRequestWithParams("dc=example,dc=com", scopeSingleLevel, derefAliasesAlways, buildEqualityFilter("objectClass", "person"))); err != nil || scope != scopeSingleLevel {
+		t.Fatalf("decodeSearchRequest valid enums scope=%d err=%v", scope, err)
 	}
 }
 
