@@ -137,6 +137,30 @@ export function MailActions({
     return date;
   }, []);
 
+  const quickActions = useMemo(
+    () => [
+      {
+        icon: <ArrowUturnLeftIcon style={{ width: '16px', height: '16px' }} />,
+        label: '답장 (R)',
+        action: onReply,
+        intent: 'reply' as const,
+      },
+      {
+        icon: <ArrowUturnLeftIcon style={{ width: '16px', height: '16px', opacity: 0.7 }} />,
+        label: '전체 답장 (A)',
+        action: onReplyAll,
+        intent: 'reply_all' as const,
+      },
+      {
+        icon: <ArrowUturnRightIcon style={{ width: '16px', height: '16px' }} />,
+        label: '전달 (F)',
+        action: onForward,
+        intent: 'forward' as const,
+      },
+    ],
+    [onForward, onReply, onReplyAll]
+  );
+
   return (
     <div
       style={{
@@ -191,27 +215,7 @@ export function MailActions({
         ><ChevronDownIcon style={{ width: '16px', height: '16px' }} /></button>
       )}
 
-      {[
-        {
-          icon: <ArrowUturnLeftIcon style={{ width: '16px', height: '16px' }} />,
-          label: '답장 (R)',
-          action: onReply,
-          intent: 'reply' as const,
-        },
-        {
-          icon: <ArrowUturnLeftIcon style={{ width: '16px', height: '16px', opacity: 0.7 }} />,
-          label: '전체 답장 (A)',
-          action: onReplyAll,
-          intent: 'reply_all' as const,
-        },
-        {
-          icon: <ArrowUturnRightIcon style={{ width: '16px', height: '16px' }} />,
-          label: '전달 (F)',
-          action: onForward,
-          intent: 'forward' as const,
-        },
-      ] as Array<{ icon: ReactNode; label: string; action?: () => void; intent: 'reply' | 'reply_all' | 'forward' }>
-      .map(({ icon, label, action, intent }) => action ? (
+      {quickActions.map(({ icon, label, action, intent }) => action ? (
         <button
           key={label}
           aria-label={label}
