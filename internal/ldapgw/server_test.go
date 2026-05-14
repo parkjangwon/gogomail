@@ -1212,6 +1212,24 @@ func TestLDAPServerAbandonRequestHasNoResponse(t *testing.T) {
 	}
 }
 
+func TestDecodeAbandonRequestMessageIDRejectsOutOfRangeTargets(t *testing.T) {
+	if got, ok := decodeAbandonRequestMessageID([]byte{0x32}); !ok || got != 50 {
+		t.Fatalf("decodeAbandonRequestMessageID raw = %d/%v, want 50/true", got, ok)
+	}
+	for _, tc := range [][]byte{
+		{},
+		{0x00},
+		{0xff},
+		{0x00, 0x80, 0x00, 0x00, 0x00},
+		{0x00, 0xff, 0xff, 0xff, 0xff, 0xff},
+		encodeInt(ldapMaxMessageID + 1),
+	} {
+		if target, ok := decodeAbandonRequestMessageID(tc); ok {
+			t.Fatalf("decodeAbandonRequestMessageID(%x) = %d/true, want false", tc, target)
+		}
+	}
+}
+
 func TestLDAPServerAbandonRequestCancelsOutstandingSearch(t *testing.T) {
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
