@@ -2674,7 +2674,7 @@ func parseLDAPFilterCandidate(data []byte) (attr string, value string, ok bool, 
 			return "", "", false, err
 		}
 		return "", "", false, nil
-	case filterEqualityMatch, filterApproxMatch, filterGreaterOrEqual, filterLessOrEqual:
+	case filterEqualityMatch, filterApproxMatch:
 		attr, valRest, err := decodeOctetString(content)
 		if err != nil {
 			return "", "", false, fmt.Errorf("malformed attribute assertion: %w", err)
@@ -2684,6 +2684,15 @@ func parseLDAPFilterCandidate(data []byte) (attr string, value string, ok bool, 
 			return "", "", false, fmt.Errorf("malformed assertion value: %w", err)
 		}
 		return attr, val, true, nil
+	case filterGreaterOrEqual, filterLessOrEqual:
+		_, valRest, err := decodeOctetString(content)
+		if err != nil {
+			return "", "", false, fmt.Errorf("malformed attribute assertion: %w", err)
+		}
+		if _, _, err := decodeOctetString(valRest); err != nil {
+			return "", "", false, fmt.Errorf("malformed assertion value: %w", err)
+		}
+		return "", "", false, nil
 	case filterSubstrings:
 		attr, rest, err := decodeOctetString(content)
 		if err != nil {
