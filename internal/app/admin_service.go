@@ -12,6 +12,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/google/uuid"
 	"github.com/gogomail/gogomail/internal/admin"
 	"github.com/gogomail/gogomail/internal/apimeter"
 	"github.com/gogomail/gogomail/internal/audit"
@@ -1584,4 +1585,46 @@ func (s adminService) ResetUserMFA(ctx context.Context, userID string) error {
 
 func (s adminService) GetMFAStats(ctx context.Context, companyID string) (maildb.MFAStats, error) {
 	return s.Repository.GetMFAStats(ctx, companyID)
+}
+
+func (s adminService) TriggerLDAPSync(ctx context.Context, domainID, syncType string) (map[string]interface{}, error) {
+	// TODO: Implement actual LDAP sync triggering logic
+	// For now, return a stub response
+	return map[string]interface{}{
+		"sync_run_id":    "",
+		"status":         "not_implemented",
+		"error":          "LDAP sync not yet implemented",
+	}, nil
+}
+
+func (s adminService) GetLDAPSyncRuns(ctx context.Context, req maildb.LDAPSyncRunListRequest) ([]maildb.LDAPSyncRunView, error) {
+	return s.Repository.GetLDAPSyncRuns(ctx, req)
+}
+
+func (s adminService) GetLDAPSyncRun(ctx context.Context, runID string) (*maildb.LDAPSyncRunView, error) {
+	id, err := uuid.Parse(runID)
+	if err != nil {
+		return nil, fmt.Errorf("invalid run id: %w", err)
+	}
+	return s.Repository.GetLDAPSyncRun(ctx, id)
+}
+
+func (s adminService) GetLDAPSyncConflicts(ctx context.Context, req maildb.LDAPSyncConflictListRequest) ([]maildb.LDAPSyncConflictView, error) {
+	return s.Repository.GetLDAPSyncConflicts(ctx, req)
+}
+
+func (s adminService) GetLDAPSyncConflict(ctx context.Context, conflictID string) (*maildb.LDAPSyncConflictView, error) {
+	id, err := uuid.Parse(conflictID)
+	if err != nil {
+		return nil, fmt.Errorf("invalid conflict id: %w", err)
+	}
+	return s.Repository.GetLDAPSyncConflict(ctx, id)
+}
+
+func (s adminService) ResolveLDAPSyncConflict(ctx context.Context, conflictID, resolution string) error {
+	id, err := uuid.Parse(conflictID)
+	if err != nil {
+		return fmt.Errorf("invalid conflict id: %w", err)
+	}
+	return s.Repository.ResolveLDAPSyncConflict(ctx, id, resolution)
 }

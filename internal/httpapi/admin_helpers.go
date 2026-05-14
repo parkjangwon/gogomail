@@ -1064,94 +1064,103 @@ func registerLDAPSyncRoutes(mux *http.ServeMux, adminAuth func(http.HandlerFunc)
 
 func handleLDAPSync(w http.ResponseWriter, r *http.Request, service AdminService) {
 	defer r.Body.Close()
-	if !rejectUnknownQueryKeys(w, r) {
+	if !rejectUnknownQueryKeys(w, r, "sync_type") {
 		return
 	}
 	id, ok := parseBoundedAdminPathValue(w, r, "id")
 	if !ok {
 		return
 	}
-	var req struct {
-		SyncType string `json:"sync_type"` // 'users', 'groups', 'memberships', or 'all'
-	}
-	if err := decodeJSONBody(r, &req); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid JSON body")
+	syncType, ok := parseBoundedAdminQuery(w, r, "sync_type")
+	if !ok {
 		return
 	}
-	if req.SyncType == "" {
-		req.SyncType = "all"
+	if syncType == "" {
+		writeError(w, http.StatusBadRequest, "sync_type is required")
+		return
 	}
-	syncID := "sync-" + time.Now().Format("20060102-150405")
-	writeJSON(w, http.StatusOK, map[string]any{
-		"sync_id":   syncID,
-		"domain_id": id,
-		"status":    "queued",
-		"requested_at": time.Now().Format(time.RFC3339),
-	})
+	result, err := service.TriggerLDAPSync(r.Context(), id, syncType)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, result)
 }
 
 func handleLDAPSyncHistory(w http.ResponseWriter, r *http.Request, service AdminService) {
 	if !rejectBodylessRequestPayload(w, r) {
 		return
 	}
-	if !rejectUnknownQueryKeys(w, r) {
+	if !rejectUnknownQueryKeys(w, r, "limit", "offset") {
 		return
 	}
 	id, ok := parseBoundedAdminPathValue(w, r, "id")
 	if !ok {
 		return
 	}
-	limit := 50
+	limit, ok := parseQueryLimit(w, r)
+	if !ok {
+		return
+	}
 	offset := 0
-	if l := r.URL.Query().Get("limit"); l != "" {
-		if parsed, err := strconv.Atoi(l); err == nil && parsed > 0 && parsed <= 500 {
-			limit = parsed
-		}
-	}
 	if o := r.URL.Query().Get("offset"); o != "" {
-		if parsed, err := strconv.Atoi(o); err == nil && parsed >= 0 {
-			offset = parsed
+		var err error
+		offset, err = strconv.Atoi(o)
+		if err != nil || offset < 0 {
+			writeError(w, http.StatusBadRequest, "invalid offset")
+			return
 		}
 	}
-	writeJSON(w, http.StatusOK, map[string]any{
-		"domain_id": id,
-		"sync_runs": []map[string]any{},
-		"limit":     limit,
-		"offset":    offset,
-		"total":     0,
+	runs, err := service.GetLDAPSyncRuns(r.Context(), maildb.LDAPSyncRunListRequest{
+		DomainID: id,
+		Limit:    limit,
+		Offset:   offset,
 	})
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"sync_runs": runs})
 }
 
 func handleLDAPSyncConflicts(w http.ResponseWriter, r *http.Request, service AdminService) {
 	if !rejectBodylessRequestPayload(w, r) {
 		return
 	}
-	if !rejectUnknownQueryKeys(w, r) {
+	if !rejectUnknownQueryKeys(w, r, "unresolved_only", "sync_run_id", "limit", "offset") {
 		return
 	}
 	id, ok := parseBoundedAdminPathValue(w, r, "id")
 	if !ok {
 		return
 	}
-	limit := 100
+	limit, ok := parseQueryLimit(w, r)
+	if !ok {
+		return
+	}
 	offset := 0
-	if l := r.URL.Query().Get("limit"); l != "" {
-		if parsed, err := strconv.Atoi(l); err == nil && parsed > 0 && parsed <= 500 {
-			limit = parsed
-		}
-	}
 	if o := r.URL.Query().Get("offset"); o != "" {
-		if parsed, err := strconv.Atoi(o); err == nil && parsed >= 0 {
-			offset = parsed
+		var err error
+		offset, err = strconv.Atoi(o)
+		if err != nil || offset < 0 {
+			writeError(w, http.StatusBadRequest, "invalid offset")
+			return
 		}
 	}
-	writeJSON(w, http.StatusOK, map[string]any{
-		"domain_id": id,
-		"conflicts": []map[string]any{},
-		"limit":     limit,
-		"offset":    offset,
-		"total":     0,
+	unresolvedOnly := r.URL.Query().Get("unresolved_only") == "true"
+	syncRunID := r.URL.Query().Get("sync_run_id")
+	conflicts, err := service.GetLDAPSyncConflicts(r.Context(), maildb.LDAPSyncConflictListRequest{
+		DomainID:       id,
+		SyncRunID:      syncRunID,
+		UnresolvedOnly: unresolvedOnly,
+		Limit:          limit,
+		Offset:         offset,
 	})
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"conflicts": conflicts})
 }
 
 func handleResolveLDAPConflict(w http.ResponseWriter, r *http.Request, service AdminService) {
@@ -1178,10 +1187,14 @@ func handleResolveLDAPConflict(w http.ResponseWriter, r *http.Request, service A
 		writeError(w, http.StatusBadRequest, "resolution is required")
 		return
 	}
+	if err := service.ResolveLDAPSyncConflict(r.Context(), conflictID, req.Resolution); err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
 	writeJSON(w, http.StatusOK, map[string]any{
+		"status":      "resolved",
 		"conflict_id": conflictID,
 		"domain_id":   id,
 		"resolution":  req.Resolution,
-		"resolved_at": time.Now().Format(time.RFC3339),
 	})
 }

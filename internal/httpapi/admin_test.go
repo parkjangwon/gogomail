@@ -10176,3 +10176,30 @@ func (f *fakeAdminService) GetInviteToken(ctx context.Context, token string) (ma
 func (f *fakeAdminService) AcceptInviteToken(ctx context.Context, token, passwordHash string) (maildb.UserView, error) {
 	return maildb.UserView{}, nil
 }
+
+func (f *fakeAdminService) TriggerLDAPSync(ctx context.Context, domainID, syncType string) (map[string]interface{}, error) {
+	return map[string]interface{}{
+		"sync_run_id": "test-sync-run-id",
+		"status":      "running",
+	}, nil
+}
+
+func (f *fakeAdminService) GetLDAPSyncRuns(ctx context.Context, req maildb.LDAPSyncRunListRequest) ([]maildb.LDAPSyncRunView, error) {
+	return []maildb.LDAPSyncRunView{}, nil
+}
+
+func (f *fakeAdminService) GetLDAPSyncRun(ctx context.Context, runID string) (*maildb.LDAPSyncRunView, error) {
+	return nil, nil
+}
+
+func (f *fakeAdminService) GetLDAPSyncConflicts(ctx context.Context, req maildb.LDAPSyncConflictListRequest) ([]maildb.LDAPSyncConflictView, error) {
+	return []maildb.LDAPSyncConflictView{}, nil
+}
+
+func (f *fakeAdminService) GetLDAPSyncConflict(ctx context.Context, conflictID string) (*maildb.LDAPSyncConflictView, error) {
+	return nil, nil
+}
+
+func (f *fakeAdminService) ResolveLDAPSyncConflict(ctx context.Context, conflictID, resolution string) error {
+	return nil
+}

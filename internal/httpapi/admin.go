@@ -287,6 +287,12 @@ type AdminService interface {
 	CreateInviteToken(ctx context.Context, userID, createdBy string) (maildb.InviteToken, error)
 	GetInviteToken(ctx context.Context, token string) (maildb.InviteToken, error)
 	AcceptInviteToken(ctx context.Context, token, passwordHash string) (maildb.UserView, error)
+	TriggerLDAPSync(ctx context.Context, domainID, syncType string) (map[string]interface{}, error)
+	GetLDAPSyncRuns(ctx context.Context, req maildb.LDAPSyncRunListRequest) ([]maildb.LDAPSyncRunView, error)
+	GetLDAPSyncRun(ctx context.Context, runID string) (*maildb.LDAPSyncRunView, error)
+	GetLDAPSyncConflicts(ctx context.Context, req maildb.LDAPSyncConflictListRequest) ([]maildb.LDAPSyncConflictView, error)
+	GetLDAPSyncConflict(ctx context.Context, conflictID string) (*maildb.LDAPSyncConflictView, error)
+	ResolveLDAPSyncConflict(ctx context.Context, conflictID, resolution string) error
 }
 
 type adminIMAPUIDBackfillItem struct {
