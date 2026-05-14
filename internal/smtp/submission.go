@@ -31,14 +31,15 @@ type SubmissionAuthenticator interface {
 }
 
 type SubmittedMessage struct {
-	EnvelopeFrom string
-	User         SubmissionUser
-	Recipients   []string
-	DSN          DSNOptions
-	StoragePath  string
-	Parsed       message.ParsedMessage
-	SubmittedAt  time.Time
-	Size         int64
+	EnvelopeFrom  string
+	User          SubmissionUser
+	Recipients    []string
+	DSN           DSNOptions
+	StoragePath   string
+	Parsed        message.ParsedMessage
+	SubmittedAt   time.Time
+	Size          int64
+	RFCCompliance RFCCompliance
 }
 
 type SubmissionRecorder interface {
@@ -347,6 +348,28 @@ func (s *submissionSession) Data(r io.Reader) (err error) {
 	if err != nil {
 		return fmt.Errorf("parse submitted message: %w", err)
 	}
+
+	// Validate RFC compliance - check envelope and basic message format
+	rfcValidator := NewRFCCompliant()
+	var rfcCompliance RFCCompliance
+	if _, err := spooled.Seek(0, io.SeekStart); err == nil {
+		rawData := make([]byte, observedSize)
+		if n, err := spooled.Read(rawData); err == nil && int64(n) == observedSize {
+			rfcCompliance = rfcValidator.ValidateMessage(
+				string(rawData),
+				s.from,
+				s.recipients,
+				s.currentDSNOptions().Return,
+				[]string{}, // DSN notify options per recipient
+				"",         // DKIM signature (if present in message)
+			)
+			// Log violations but don't reject (yet) - in Phase 8, we could make this stricter
+			if !rfcCompliance.IsCompliant() && s.receiver.metrics != nil {
+				s.receiver.metrics.ObserveRFCNonCompliance(rfcCompliance)
+			}
+		}
+	}
+
 	if parsed.MessageID == "" {
 		parsed.MessageID = submittedMessageID(messageID, s.user.Address)
 		prefixed, prefixedSize, err := insertHeaderAfterTraceHeaders(spooled, "Message-ID: "+parsed.MessageID+"\r\n")
@@ -398,14 +421,15 @@ func (s *submissionSession) Data(r io.Reader) (err error) {
 		return err
 	}
 	_, err = s.receiver.recorder.RecordSubmitted(context.Background(), SubmittedMessage{
-		EnvelopeFrom: s.from,
-		User:         s.user,
-		Recipients:   append([]string(nil), s.recipients...),
-		DSN:          s.currentDSNOptions(),
-		StoragePath:  path,
-		Parsed:       parsed,
-		SubmittedAt:  submittedAt,
-		Size:         size,
+		EnvelopeFrom:  s.from,
+		User:          s.user,
+		Recipients:    append([]string(nil), s.recipients...),
+		DSN:           s.currentDSNOptions(),
+		StoragePath:   path,
+		Parsed:        parsed,
+		SubmittedAt:   submittedAt,
+		Size:          size,
+		RFCCompliance: rfcCompliance,
 	})
 	if err != nil {
 		s.deleteStoredMessage(path)

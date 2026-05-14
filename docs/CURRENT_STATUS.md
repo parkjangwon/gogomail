@@ -1,6 +1,16 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (LDAP Identity Config & Sync foundation)
+Last updated: 2026-05-14 (SMTP Phase 8 - RFC Compliance Integration)
+
+## SMTP Phase 8 - RFC Compliance Integration (2026-05-14, complete)
+- CRITICAL GAP FIX: RFC compliance validator now integrated into actual SMTP submission pipeline.
+- Previously, RFC validator existed but was never called during message submission (gap in "gap-free" implementation).
+- `internal/smtp/submission.go`: RFC validation now runs immediately after message parsing, before storage/recording.
+- Validates all 5 RFC standards on every submitted message: RFC 5322 (Message Format), RFC 5321 (SMTP Protocol), RFC 3461 (DSN), RFC 6376 (DKIM), RFC 5891 (IDN).
+- Non-compliance results logged via metrics interface for observability.
+- `internal/observability/slog.go`: Implemented RFC violation logging with detailed error tracking.
+- All 6062 tests passing; 228 SMTP tests including compliance checks.
+- Verification: `go test ./internal/smtp -count=1` (228 tests) and `go test ./...` (6062 tests).
 
 ## LDAP Identity Config & Sync (2026-05-14, in progress)
 - LDAP provider implements the IdentityProvider interface as a read-only directory source.

@@ -78,6 +78,26 @@ func (a SlogAdapter) ObserveLDAP(ctx context.Context, event ldapgw.MetricEvent) 
 	logger.InfoContext(ctx, "ldap metric", attrs...)
 }
 
+func (a SlogAdapter) ObserveRFCNonCompliance(compliance smtpd.RFCCompliance) {
+	if compliance.IsCompliant() {
+		return
+	}
+	logger := a.logger()
+	attrs := []any{
+		"component", "smtp",
+		"rfc5322", compliance.RFC5322Valid,
+		"rfc5321", compliance.RFC5321Valid,
+		"rfc3461", compliance.RFC3461Valid,
+		"rfc6376", compliance.RFC6376Valid,
+		"rfc5891", compliance.RFC5891Valid,
+		"violation_count", len(compliance.Errors),
+	}
+	logger.WarnContext(context.Background(), "RFC compliance violation detected", attrs...)
+	for i, err := range compliance.Errors {
+		logger.Debug("RFC violation detail", "index", i, "error", err)
+	}
+}
+
 func (a SlogAdapter) logger() *slog.Logger {
 	if a.Logger != nil {
 		return a.Logger

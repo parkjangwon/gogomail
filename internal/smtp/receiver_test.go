@@ -1852,6 +1852,10 @@ func (m *recordingMetrics) ObserveSMTP(_ context.Context, event MetricEvent) {
 	m.events = append(m.events, event)
 }
 
+func (m *recordingMetrics) ObserveRFCNonCompliance(RFCCompliance) {
+	// No-op for testing
+}
+
 func (m *recordingMetrics) has(stage Stage, result MetricResult) bool {
 	for _, event := range m.events {
 		if event.Stage == stage && event.Result == result {
