@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { CheckIcon, ExclamationTriangleIcon, UserCircleIcon, SwatchIcon, BellIcon, ShieldCheckIcon, InformationCircleIcon, InboxIcon, BookOpenIcon, PencilSquareIcon, KeyIcon, FunnelIcon, CalendarDaysIcon, NoSymbolIcon, LockClosedIcon, EyeIcon, CircleStackIcon, ArrowDownTrayIcon } from '@heroicons/react/24/outline';
 import { revokeAllSessions, getFolderStats, exportFolderEml, exportFolderZip, getPreferences, setPreferences, getUserProfile, updateUserProfile, changePassword, type FolderStats, type WebmailPreferences, type UserProfile } from '@/lib/api';
+import { ReadMark, ExternalImages, SendDelay, Theme, FontSize, ACCENT_COLORS, FilterCondition, FilterAction, FilterRule, LABEL_COLORS, migrateFilterRule, loadFilterRules, saveFilterRules } from '@/lib/settings/settingsUtils';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import LinkExt from '@tiptap/extension-link';
@@ -13,75 +14,6 @@ import Placeholder from '@tiptap/extension-placeholder';
 interface SettingsViewProps {
   userEmail?: string;
   userName?: string;
-}
-
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-type ReadMark = 'instant' | '2s' | 'manual';
-type ExternalImages = 'always' | 'ask' | 'never';
-type SendDelay = 0 | 5 | 10 | 30;
-type Theme = 'light' | 'dark' | 'system';
-type FontSize = 'small' | 'medium' | 'large';
-
-const ACCENT_COLORS = [
-  { value: '#2563eb', label: '파랑' },
-  { value: '#7c3aed', label: '보라' },
-  { value: '#0d9488', label: '청록' },
-  { value: '#16a34a', label: '초록' },
-  { value: '#dc2626', label: '빨강' },
-  { value: '#ea580c', label: '주황' },
-  { value: '#d97706', label: '황금' },
-];
-
-// ─── Filter rules ─────────────────────────────────────────────────────────────
-
-interface FilterCondition {
-  field: 'from' | 'to' | 'cc' | 'subject' | 'body' | 'has_attachment' | 'is_unread' | 'size_larger' | 'size_smaller';
-  matchType: 'contains' | 'not_contains' | 'equals' | 'starts_with' | 'ends_with' | 'regex';
-  value: string;
-}
-
-interface FilterAction {
-  labelColor?: string;
-  moveToFolder?: string;
-  markRead?: boolean;
-  markUnread?: boolean;
-  markStarred?: boolean;
-  markImportant?: boolean;
-  skipInbox?: boolean;
-  deleteMsg?: boolean;
-  forwardTo?: string;
-}
-
-interface FilterRule {
-  id: string;
-  name: string;
-  enabled: boolean;
-  logic: 'and' | 'or';
-  conditions: FilterCondition[];
-  action: FilterAction;
-  stopProcessing?: boolean;
-}
-
-const FILTER_RULES_KEY = 'webmail_filter_rules';
-const LABEL_COLORS = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6', '#8b5cf6', '#ec4899', '#6b7280'];
-
-function migrateFilterRule(r: Record<string, unknown>): FilterRule {
-  if (Array.isArray(r.conditions)) return { enabled: true, ...r } as unknown as FilterRule;
-  return {
-    id: (r.id as string) ?? Math.random().toString(36).slice(2),
-    name: (r.name as string) ?? '',
-    enabled: true,
-    logic: 'and',
-    conditions: [{ field: (r.field === 'any' ? 'from' : (r.field as FilterCondition['field'])) ?? 'from', matchType: 'contains', value: (r.value as string) ?? '' }],
-    action: { labelColor: r.labelColor as string | undefined },
-  };
-}
-function loadFilterRules(): FilterRule[] {
-  try { return (JSON.parse(localStorage.getItem(FILTER_RULES_KEY) ?? '[]') as Record<string, unknown>[]).map(migrateFilterRule); } catch { return []; }
-}
-function saveFilterRules(rules: FilterRule[]) {
-  try { localStorage.setItem(FILTER_RULES_KEY, JSON.stringify(rules)); } catch { /* ignore */ }
 }
 
 // ─── Settings storage helpers ──────────────────────────────────────────────────
