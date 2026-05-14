@@ -3092,6 +3092,27 @@ func TestParseLDAPFilterPrincipalKindsFromObjectClass(t *testing.T) {
 	}
 }
 
+func TestParseLDAPFilterPrincipalKindsFromObjectCategory(t *testing.T) {
+	filter := buildOrFilter(
+		buildEqualityFilter("objectCategory", "person"),
+		buildExtensibleFilter("objectCategory", "group"),
+		buildSubstringFilter("cn", "Team"),
+	)
+	got, err := parseLDAPFilterPrincipalKinds(filter)
+	if err != nil {
+		t.Fatalf("parseLDAPFilterPrincipalKinds returned error: %v", err)
+	}
+	want := []string{"user", "group"}
+	if len(got) != len(want) {
+		t.Fatalf("kinds = %#v, want %#v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("kinds = %#v, want %#v", got, want)
+		}
+	}
+}
+
 func TestFilterPrincipalEntriesByLDAPScope(t *testing.T) {
 	principals := []PrincipalEntry{
 		{DN: "uid=user-1,ou=users,dc=example,dc=com"},

@@ -2297,7 +2297,7 @@ func collectLDAPFilterPrincipalKinds(data []byte, seen map[string]struct{}) erro
 		if err != nil {
 			return err
 		}
-		if strings.EqualFold(strings.TrimSpace(attr), "objectClass") {
+		if principalKindAttr := strings.TrimSpace(attr); strings.EqualFold(principalKindAttr, "objectClass") || strings.EqualFold(principalKindAttr, "objectCategory") {
 			for _, kind := range principalKindsForObjectClass(value) {
 				seen[kind] = struct{}{}
 			}
@@ -2307,7 +2307,7 @@ func collectLDAPFilterPrincipalKinds(data []byte, seen map[string]struct{}) erro
 		if err != nil {
 			return err
 		}
-		if ok && strings.EqualFold(strings.TrimSpace(attr), "objectClass") {
+		if principalKindAttr := strings.TrimSpace(attr); ok && (strings.EqualFold(principalKindAttr, "objectClass") || strings.EqualFold(principalKindAttr, "objectCategory")) {
 			for _, kind := range principalKindsForObjectClass(value) {
 				seen[kind] = struct{}{}
 			}
@@ -2322,13 +2322,13 @@ func collectLDAPFilterPrincipalKinds(data []byte, seen map[string]struct{}) erro
 
 func principalKindsForObjectClass(value string) []string {
 	switch strings.ToLower(strings.TrimSpace(value)) {
-	case "person", "organizationalperson", "inetorgperson":
+	case "person", "organizationalperson", "inetorgperson", "user":
 		return []string{"user"}
-	case "organizationalunit":
+	case "organizationalunit", "organizational-unit", "organization":
 		return []string{"organization"}
-	case "groupofnames", "groupofuniquenames", "posixgroup":
+	case "group", "groupofnames", "groupofuniquenames", "posixgroup":
 		return []string{"group"}
-	case "device":
+	case "device", "resource":
 		return []string{"resource"}
 	default:
 		return nil
