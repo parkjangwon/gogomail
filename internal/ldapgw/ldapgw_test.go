@@ -132,6 +132,32 @@ func TestEncodeOctetStringUsesLongFormLength(t *testing.T) {
 	}
 }
 
+func TestBindRequestEncodeUsesLongFormLength(t *testing.T) {
+	req := bindRequest{
+		version: 3,
+		name:    "uid=" + strings.Repeat("a", 180) + ",dc=example,dc=com",
+		auth:    simpleAuth(strings.Repeat("s", 180)),
+	}
+	encoded, err := req.encode()
+	if err != nil {
+		t.Fatalf("encode failed: %v", err)
+	}
+	if len(encoded) < 3 || encoded[0] != opBindRequest || encoded[1] != 0x82 {
+		prefixLen := len(encoded)
+		if prefixLen > 4 {
+			prefixLen = 4
+		}
+		t.Fatalf("bind request prefix = %x, want application long-form length", encoded[:prefixLen])
+	}
+	decoded, err := decodeBindRequest(encoded)
+	if err != nil {
+		t.Fatalf("decodeBindRequest returned error: %v", err)
+	}
+	if decoded.name != req.name || string(decoded.auth) != string(req.auth) {
+		t.Fatalf("decoded bind request name/auth lengths = %d/%d, want %d/%d", len(decoded.name), len(decoded.auth), len(req.name), len(req.auth))
+	}
+}
+
 func TestEscapeLDAPValue(t *testing.T) {
 	tests := []struct {
 		input    string

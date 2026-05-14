@@ -5736,6 +5736,7 @@ Current implementation notes:
 - Negative SearchRequest `sizeLimit` and `timeLimit` BER INTEGER values are rejected during decoding instead of being widened into large positive limits.
 - AbandonRequest cancels outstanding same-connection searches by message ID while preserving the RFC no-response behavior for both the abandon operation and the abandoned search.
 - OCTET STRING encoding uses BER long-form lengths for values beyond 127 bytes, preserving long DNs, long attribute values, controls, and binary AD compatibility attributes.
+- BindRequest encoding uses BER long-form lengths for large generated bind requests, covering long bind DNs and long simple-auth credentials in internal/client-side helpers.
 - Common client search filters using OR/AND/NOT wrappers, substring matches, and RFC 4511 extensibleMatch type/value assertions are accepted for RFC 4519 directory attributes (`cn`, `mail`, `uid`, `displayName`, `givenName`, `sn`) plus Active Directory-style compatibility aliases (`name`, `sAMAccountName`, `userPrincipalName`).
 - Repository narrowing uses only safe conjunctive LDAP filter hints; OR/NOT branches are validated and left to the full entry filter evaluator so matching entries are not under-returned.
 - LDAP ordering filters (`greaterOrEqual`, `lessOrEqual`) are evaluated only by the full entry filter evaluator, avoiding unsafe text-search narrowing.
