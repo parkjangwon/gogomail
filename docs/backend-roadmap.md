@@ -240,6 +240,7 @@ Implementation order:
 191. Adaptive delivery domain backoff can use Redis-backed per-domain TTL state through `GOGOMAIL_DELIVERY_DOMAIN_BACKOFF_BACKEND=redis`, sharing provider tempfail backoff across delivery worker processes.
 192. Adaptive delivery domain backoff can now scope tempfail pressure by normalized delivery farm plus recipient domain through `GOGOMAIL_DELIVERY_DOMAIN_BACKOFF_SCOPE=farm_domain`, isolating bulk ramps from transactional/general delivery.
 193. Admin role list/create endpoints now use the persisted RBAC schema instead of mock role data, including company-scoped role listing, custom role creation, permission counts, and active assignment counts.
+194. Admin auth/session routes now use signed JWT access/refresh tokens, validate bearer sessions with `session_version`, refresh access tokens from refresh JWTs, and revoke sessions on logout by incrementing `session_version`.
 186. Shared submission authentication now requires the owning company, domain, and user to all be active, preventing suspended tenants from authenticating through SMTP submission, IMAP, POP3, CardDAV, or other shared protocol adapters.
 186. DSN queue and bounce-event trust boundaries now reject malformed RFC 3461 xtext metadata before outbound SMTP command generation or RFC 3464 report composition.
 187. Attachment storage-path contracts now reject unsafe caller-provided paths and sanitize generated attachment object path segments before writing to storage.

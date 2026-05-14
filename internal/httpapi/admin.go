@@ -89,7 +89,7 @@ func adminJWTOrStaticAuth(token string, tokenMgr *auth.TokenManager, next http.H
 		}
 		authorized := false
 		if tokenMgr != nil && got != "" {
-			if claims, err := tokenMgr.Verify(got); err == nil {
+			if claims, err := tokenMgr.VerifyFull(r.Context(), got); err == nil {
 				if claims.Role == "company_admin" || claims.Role == "system_admin" {
 					r = r.WithContext(context.WithValue(r.Context(), adminContextKey{}, claims))
 					authorized = true
@@ -196,6 +196,7 @@ type AdminService interface {
 	UpdateUserRole(ctx context.Context, req maildb.UpdateUserRoleRequest) error
 	UpdateUserRecoveryEmail(ctx context.Context, req maildb.UpdateUserRecoveryEmailRequest) error
 	AuthenticateUser(ctx context.Context, email, password string) (maildb.AuthenticatedUser, error)
+	IncrementSessionVersion(ctx context.Context, userID string) (int64, error)
 	ListQueueStats(ctx context.Context) ([]maildb.QueueStat, error)
 	ListOutboxEvents(ctx context.Context, req maildb.OutboxEventListRequest) ([]maildb.OutboxEventView, error)
 	GetOutboxEvent(ctx context.Context, id string) (maildb.OutboxEventView, error)
@@ -4508,16 +4509,20 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		handleAdminLogin(w, r, service, cfg.tokenMgr)
 	})
 
+	mux.HandleFunc("POST /admin/v1/auth/refresh", func(w http.ResponseWriter, r *http.Request) {
+		handleAdminRefresh(w, r, cfg.tokenMgr)
+	})
+
 	mux.HandleFunc("POST /admin/v1/auth/setup", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		handleAdminSetup(w, r, service)
 	}))
 
 	mux.HandleFunc("POST /admin/v1/auth/logout", func(w http.ResponseWriter, r *http.Request) {
-		handleAdminLogout(w, r)
+		handleAdminLogout(w, r, service, cfg.tokenMgr)
 	})
 
 	mux.HandleFunc("GET /admin/v1/auth/verify", func(w http.ResponseWriter, r *http.Request) {
-		handleAdminVerify(w, r)
+		handleAdminVerify(w, r, cfg.tokenMgr)
 	})
 
 	mux.HandleFunc("GET /admin/v1/admin-users", adminAuth(func(w http.ResponseWriter, r *http.Request) {
@@ -6177,6 +6182,11 @@ func adminTokenFromRequest(w http.ResponseWriter, r *http.Request) (string, bool
 	return "", true
 }
 
+const (
+	adminAccessTokenTTL  = 15 * time.Minute
+	adminRefreshTokenTTL = 30 * 24 * time.Hour
+)
+
 func handleAdminLogin(w http.ResponseWriter, r *http.Request, service AdminService, tokenMgr *auth.TokenManager) {
 	defer r.Body.Close()
 
@@ -6201,20 +6211,18 @@ func handleAdminLogin(w http.ResponseWriter, r *http.Request, service AdminServi
 	}
 
 	issueToken := func(claims auth.Claims) {
-		var accessToken string
-		if tokenMgr != nil {
-			var err error
-			accessToken, err = tokenMgr.Sign(claims, 24*time.Hour)
-			if err != nil {
-				writeError(w, http.StatusInternalServerError, "failed to issue token")
-				return
-			}
-		} else {
-			accessToken = "test-token-" + fmt.Sprintf("%d", time.Now().Unix())
+		if tokenMgr == nil {
+			writeError(w, http.StatusInternalServerError, "admin jwt token manager is not configured")
+			return
+		}
+		accessToken, refreshToken, err := signAdminSessionTokens(tokenMgr, claims)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "failed to issue token")
+			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{
 			"access_token":  accessToken,
-			"refresh_token": "refresh-" + accessToken,
+			"refresh_token": refreshToken,
 			"user": map[string]any{
 				"id":         claims.UserID,
 				"role":       claims.Role,
@@ -6295,7 +6303,85 @@ func handleAdminSetup(w http.ResponseWriter, r *http.Request, service AdminServi
 	})
 }
 
-func handleAdminLogout(w http.ResponseWriter, r *http.Request) {
+func signAdminSessionTokens(tokenMgr *auth.TokenManager, claims auth.Claims) (string, string, error) {
+	accessClaims := claims
+	accessClaims.TokenType = "access"
+	accessToken, err := tokenMgr.Sign(accessClaims, adminAccessTokenTTL)
+	if err != nil {
+		return "", "", err
+	}
+	refreshClaims := claims
+	refreshClaims.TokenType = "refresh"
+	refreshToken, err := tokenMgr.Sign(refreshClaims, adminRefreshTokenTTL)
+	if err != nil {
+		return "", "", err
+	}
+	return accessToken, refreshToken, nil
+}
+
+func adminBearerClaims(ctx context.Context, w http.ResponseWriter, r *http.Request, tokenMgr *auth.TokenManager) (auth.Claims, bool) {
+	if tokenMgr == nil {
+		writeError(w, http.StatusUnauthorized, "admin jwt token manager is not configured")
+		return auth.Claims{}, false
+	}
+	token, ok := bearerToken(w, r)
+	if !ok {
+		return auth.Claims{}, false
+	}
+	if token == "" {
+		writeError(w, http.StatusUnauthorized, "bearer token is required")
+		return auth.Claims{}, false
+	}
+	claims, err := tokenMgr.VerifyFull(ctx, token)
+	if err != nil {
+		writeError(w, http.StatusUnauthorized, "invalid bearer token")
+		return auth.Claims{}, false
+	}
+	if claims.Role != "company_admin" && claims.Role != "system_admin" {
+		writeError(w, http.StatusForbidden, "admin access required")
+		return auth.Claims{}, false
+	}
+	return claims, true
+}
+
+func handleAdminRefresh(w http.ResponseWriter, r *http.Request, tokenMgr *auth.TokenManager) {
+	defer r.Body.Close()
+
+	var req struct {
+		RefreshToken string `json:"refresh_token"`
+	}
+	if err := decodeJSONBody(r, &req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid JSON body")
+		return
+	}
+	if tokenMgr == nil {
+		writeError(w, http.StatusUnauthorized, "admin jwt token manager is not configured")
+		return
+	}
+	req.RefreshToken = strings.TrimSpace(req.RefreshToken)
+	if req.RefreshToken == "" {
+		writeError(w, http.StatusBadRequest, "refresh_token is required")
+		return
+	}
+	claims, err := tokenMgr.VerifyFull(r.Context(), req.RefreshToken)
+	if err != nil {
+		writeError(w, http.StatusUnauthorized, "invalid refresh token")
+		return
+	}
+	if claims.TokenType != "refresh" {
+		writeError(w, http.StatusBadRequest, "refresh token is required")
+		return
+	}
+	claims.TokenType = "access"
+	accessToken, err := tokenMgr.Sign(claims, adminAccessTokenTTL)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to issue token")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"access_token": accessToken})
+}
+
+func handleAdminLogout(w http.ResponseWriter, r *http.Request, service AdminService, tokenMgr *auth.TokenManager) {
 	defer r.Body.Close()
 
 	if r.Method != "POST" {
@@ -6303,14 +6389,20 @@ func handleAdminLogout(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Logout is client-side: clear cookies
-	// Server just confirms the logout
+	claims, ok := adminBearerClaims(r.Context(), w, r, tokenMgr)
+	if !ok {
+		return
+	}
+	if _, err := service.IncrementSessionVersion(r.Context(), claims.UserID); err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to revoke session")
+		return
+	}
 	writeJSON(w, http.StatusOK, map[string]any{
 		"status": "logged out",
 	})
 }
 
-func handleAdminVerify(w http.ResponseWriter, r *http.Request) {
+func handleAdminVerify(w http.ResponseWriter, r *http.Request, tokenMgr *auth.TokenManager) {
 	defer r.Body.Close()
 
 	if r.Method != "GET" {
@@ -6318,11 +6410,16 @@ func handleAdminVerify(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Check if user has valid auth cookie
-	// For now, just return 200 if any request is made
-	// In production, verify the token/cookie is valid
+	claims, ok := adminBearerClaims(r.Context(), w, r, tokenMgr)
+	if !ok {
+		return
+	}
 	writeJSON(w, http.StatusOK, map[string]any{
 		"authenticated": true,
+		"user_id":       claims.UserID,
+		"domain_id":     claims.DomainID,
+		"company_id":    claims.CompanyID,
+		"role":          claims.Role,
 	})
 }
 

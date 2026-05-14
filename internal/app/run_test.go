@@ -1175,6 +1175,38 @@ func TestMeteringIdentityResolverUsesJWTClaims(t *testing.T) {
 	}
 }
 
+func TestTokenManagerForConfigAttachesRevocationChecker(t *testing.T) {
+	t.Parallel()
+
+	checker := &staticSessionVersionChecker{version: 5}
+	manager, err := tokenManagerForConfig(config.Config{AuthJWTSecret: "admin-secret"}, checker)
+	if err != nil {
+		t.Fatalf("tokenManagerForConfig returned error: %v", err)
+	}
+	if manager == nil {
+		t.Fatal("tokenManagerForConfig returned nil manager")
+	}
+	token, err := manager.Sign(auth.Claims{UserID: "user-1", DomainID: "domain-1", Role: "company_admin", SessionVersion: 4}, time.Minute)
+	if err != nil {
+		t.Fatalf("Sign returned error: %v", err)
+	}
+	if _, err := manager.VerifyFull(context.Background(), token); err == nil {
+		t.Fatal("VerifyFull accepted token below configured session version")
+	}
+}
+
+func TestTokenManagerForConfigAllowsMissingSecret(t *testing.T) {
+	t.Parallel()
+
+	manager, err := tokenManagerForConfig(config.Config{}, nil)
+	if err != nil {
+		t.Fatalf("tokenManagerForConfig returned error: %v", err)
+	}
+	if manager != nil {
+		t.Fatal("tokenManagerForConfig returned manager for empty secret")
+	}
+}
+
 func TestMeteringIdentityResolverUsesAdminToken(t *testing.T) {
 	t.Parallel()
 
@@ -1214,6 +1246,14 @@ type sentinelHTTPHandler struct{}
 
 func (*sentinelHTTPHandler) ServeHTTP(w http.ResponseWriter, _ *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
+}
+
+type staticSessionVersionChecker struct {
+	version int64
+}
+
+func (s *staticSessionVersionChecker) SessionVersionFor(context.Context, string) (int64, error) {
+	return s.version, nil
 }
 
 func (r fakeDKIMKeyRepository) ActiveDKIMKey(_ context.Context, domainID string) (maildb.DKIMKey, error) {

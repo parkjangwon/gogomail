@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/gogomail/gogomail/internal/admin"
+	"github.com/gogomail/gogomail/internal/auth"
 	"github.com/gogomail/gogomail/internal/backpressure"
 	"github.com/gogomail/gogomail/internal/configstore"
 	"github.com/gogomail/gogomail/internal/davsyncretention"
@@ -5373,6 +5374,186 @@ func TestAdminAuthRejectsWrongLengthToken(t *testing.T) {
 	}
 }
 
+func TestAdminLoginIssuesSignedAccessAndRefreshTokens(t *testing.T) {
+	t.Parallel()
+
+	manager, err := auth.NewTokenManager("admin-auth-secret")
+	if err != nil {
+		t.Fatalf("NewTokenManager returned error: %v", err)
+	}
+	service := &fakeAdminService{
+		authenticatedUser: maildb.AuthenticatedUser{UserID: "user-1", DomainID: "domain-1", SessionVersion: 4},
+		users:             []maildb.UserView{{ID: "user-1", DomainID: "domain-1", Role: "company_admin"}},
+		domains:           []maildb.DomainView{{ID: "domain-1", CompanyID: "company-1"}},
+	}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "", WithTokenManager(manager))
+
+	req := httptest.NewRequest(http.MethodPost, "/admin/v1/auth/login", strings.NewReader(`{"email":"admin@example.com","password":"secret"}`))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	var body struct {
+		AccessToken  string `json:"access_token"`
+		RefreshToken string `json:"refresh_token"`
+		User         struct {
+			ID        string `json:"id"`
+			Role      string `json:"role"`
+			CompanyID string `json:"company_id"`
+		} `json:"user"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("json.Unmarshal returned error: %v", err)
+	}
+	accessClaims, err := manager.Verify(body.AccessToken)
+	if err != nil {
+		t.Fatalf("verify access token: %v", err)
+	}
+	refreshClaims, err := manager.Verify(body.RefreshToken)
+	if err != nil {
+		t.Fatalf("verify refresh token: %v", err)
+	}
+	if accessClaims.UserID != "user-1" || accessClaims.CompanyID != "company-1" || accessClaims.Role != "company_admin" || accessClaims.SessionVersion != 4 {
+		t.Fatalf("access claims = %+v", accessClaims)
+	}
+	if accessClaims.TokenType != "access" || refreshClaims.TokenType != "refresh" || refreshClaims.UserID != accessClaims.UserID || refreshClaims.SessionVersion != accessClaims.SessionVersion || !refreshClaims.Expires.After(accessClaims.Expires) {
+		t.Fatalf("refresh claims = %+v, access = %+v", refreshClaims, accessClaims)
+	}
+	if body.User.ID != "user-1" || body.User.CompanyID != "company-1" {
+		t.Fatalf("user = %+v", body.User)
+	}
+}
+
+func TestAdminVerifyRequiresValidBearerJWT(t *testing.T) {
+	t.Parallel()
+
+	manager, err := auth.NewTokenManager("admin-auth-secret")
+	if err != nil {
+		t.Fatalf("NewTokenManager returned error: %v", err)
+	}
+	service := &fakeAdminService{sessionVersions: map[string]int64{"user-1": 2}}
+	manager.SetRevocationChecker(service)
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "", WithTokenManager(manager))
+
+	missingReq := httptest.NewRequest(http.MethodGet, "/admin/v1/auth/verify", nil)
+	missingRec := httptest.NewRecorder()
+	mux.ServeHTTP(missingRec, missingReq)
+	if missingRec.Code != http.StatusUnauthorized {
+		t.Fatalf("missing status = %d, body = %s", missingRec.Code, missingRec.Body.String())
+	}
+
+	revoked, err := manager.Sign(auth.Claims{UserID: "user-1", DomainID: "domain-1", CompanyID: "company-1", Role: "company_admin", SessionVersion: 1}, time.Minute)
+	if err != nil {
+		t.Fatalf("Sign revoked returned error: %v", err)
+	}
+	revokedReq := httptest.NewRequest(http.MethodGet, "/admin/v1/auth/verify", nil)
+	revokedReq.Header.Set("Authorization", "Bearer "+revoked)
+	revokedRec := httptest.NewRecorder()
+	mux.ServeHTTP(revokedRec, revokedReq)
+	if revokedRec.Code != http.StatusUnauthorized {
+		t.Fatalf("revoked status = %d, body = %s", revokedRec.Code, revokedRec.Body.String())
+	}
+
+	valid, err := manager.Sign(auth.Claims{UserID: "user-1", DomainID: "domain-1", CompanyID: "company-1", Role: "company_admin", SessionVersion: 2}, time.Minute)
+	if err != nil {
+		t.Fatalf("Sign valid returned error: %v", err)
+	}
+	validReq := httptest.NewRequest(http.MethodGet, "/admin/v1/auth/verify", nil)
+	validReq.Header.Set("Authorization", "Bearer "+valid)
+	validRec := httptest.NewRecorder()
+	mux.ServeHTTP(validRec, validReq)
+	if validRec.Code != http.StatusOK {
+		t.Fatalf("valid status = %d, body = %s", validRec.Code, validRec.Body.String())
+	}
+	var body struct {
+		Authenticated bool   `json:"authenticated"`
+		UserID        string `json:"user_id"`
+		CompanyID     string `json:"company_id"`
+	}
+	if err := json.Unmarshal(validRec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("json.Unmarshal returned error: %v", err)
+	}
+	if !body.Authenticated || body.UserID != "user-1" || body.CompanyID != "company-1" {
+		t.Fatalf("verify body = %+v", body)
+	}
+}
+
+func TestAdminRefreshIssuesNewAccessToken(t *testing.T) {
+	t.Parallel()
+
+	manager, err := auth.NewTokenManager("admin-auth-secret")
+	if err != nil {
+		t.Fatalf("NewTokenManager returned error: %v", err)
+	}
+	service := &fakeAdminService{sessionVersions: map[string]int64{"user-1": 3}}
+	manager.SetRevocationChecker(service)
+	refreshToken, err := manager.Sign(auth.Claims{UserID: "user-1", DomainID: "domain-1", CompanyID: "company-1", Role: "company_admin", SessionVersion: 3, TokenType: "refresh"}, 24*time.Hour)
+	if err != nil {
+		t.Fatalf("Sign returned error: %v", err)
+	}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "", WithTokenManager(manager))
+
+	req := httptest.NewRequest(http.MethodPost, "/admin/v1/auth/refresh", strings.NewReader(`{"refresh_token":"`+refreshToken+`"}`))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	var body struct {
+		AccessToken string `json:"access_token"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("json.Unmarshal returned error: %v", err)
+	}
+	claims, err := manager.VerifyFull(context.Background(), body.AccessToken)
+	if err != nil {
+		t.Fatalf("VerifyFull access token returned error: %v", err)
+	}
+	if claims.UserID != "user-1" || claims.Role != "company_admin" || claims.SessionVersion != 3 {
+		t.Fatalf("claims = %+v", claims)
+	}
+}
+
+func TestAdminLogoutRevokesBearerSession(t *testing.T) {
+	t.Parallel()
+
+	manager, err := auth.NewTokenManager("admin-auth-secret")
+	if err != nil {
+		t.Fatalf("NewTokenManager returned error: %v", err)
+	}
+	service := &fakeAdminService{sessionVersions: map[string]int64{"user-1": 7}}
+	manager.SetRevocationChecker(service)
+	token, err := manager.Sign(auth.Claims{UserID: "user-1", DomainID: "domain-1", CompanyID: "company-1", Role: "company_admin", SessionVersion: 7}, time.Hour)
+	if err != nil {
+		t.Fatalf("Sign returned error: %v", err)
+	}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "", WithTokenManager(manager))
+
+	req := httptest.NewRequest(http.MethodPost, "/admin/v1/auth/logout", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if service.sessionVersions["user-1"] != 8 || service.lastSessionRevokedUserID != "user-1" {
+		t.Fatalf("session versions = %+v revoked = %q", service.sessionVersions, service.lastSessionRevokedUserID)
+	}
+	if _, err := manager.VerifyFull(context.Background(), token); err == nil {
+		t.Fatal("VerifyFull accepted token after logout revocation")
+	}
+}
+
 func TestAdminAuthRejectsOversizedAuthorizationHeaders(t *testing.T) {
 	t.Parallel()
 
@@ -8713,6 +8894,10 @@ type fakeAdminService struct {
 	lastLogAlertEvent                           *admin.AlertEvent
 	lastRoleCompanyID                           string
 	lastCreateAdminRole                         admin.CreateRoleRequest
+	authenticatedUser                           maildb.AuthenticatedUser
+	authErr                                     error
+	sessionVersions                             map[string]int64
+	lastSessionRevokedUserID                    string
 }
 
 func (f *fakeAdminService) ListCompanies(_ context.Context, req maildb.CompanyListRequest) ([]maildb.CompanyView, error) {
@@ -8924,7 +9109,29 @@ func (f *fakeAdminService) UpdateUserRecoveryEmail(_ context.Context, req maildb
 }
 
 func (f *fakeAdminService) AuthenticateUser(_ context.Context, email, password string) (maildb.AuthenticatedUser, error) {
-	return maildb.AuthenticatedUser{}, fmt.Errorf("invalid credentials")
+	if f.authErr != nil {
+		return maildb.AuthenticatedUser{}, f.authErr
+	}
+	if f.authenticatedUser.UserID == "" {
+		return maildb.AuthenticatedUser{}, fmt.Errorf("invalid credentials")
+	}
+	return f.authenticatedUser, nil
+}
+
+func (f *fakeAdminService) SessionVersionFor(_ context.Context, userID string) (int64, error) {
+	if f.sessionVersions == nil {
+		return 0, nil
+	}
+	return f.sessionVersions[userID], nil
+}
+
+func (f *fakeAdminService) IncrementSessionVersion(_ context.Context, userID string) (int64, error) {
+	if f.sessionVersions == nil {
+		f.sessionVersions = make(map[string]int64)
+	}
+	f.sessionVersions[userID]++
+	f.lastSessionRevokedUserID = userID
+	return f.sessionVersions[userID], nil
 }
 
 func (f *fakeAdminService) ListQueueStats(context.Context) ([]maildb.QueueStat, error) {

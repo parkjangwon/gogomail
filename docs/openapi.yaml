@@ -5088,8 +5088,48 @@ paths:
                     type: string
                   refresh_token:
                     type: string
-                  requires_initial_setup:
-                    type: boolean
+                  user:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                      role:
+                        type: string
+                      company_id:
+                        type: string
+        default:
+          $ref: "#/components/responses/Error"
+  /auth/refresh:
+    post:
+      operationId: refreshAdminSession
+      summary: Refresh admin access token
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - refresh_token
+              properties:
+                refresh_token:
+                  type: string
+      responses:
+        "200":
+          description: Access token refreshed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  access_token:
+                    type: string
         default:
           $ref: "#/components/responses/Error"
   /auth/setup:
@@ -5120,7 +5160,14 @@ paths:
                   description: Admin password
       responses:
         "200":
-          $ref: "#/components/responses/IDStatus"
+          description: Admin session revoked
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
         default:
           $ref: "#/components/responses/Error"
   /auth/logout:
@@ -5158,6 +5205,14 @@ paths:
                 properties:
                   authenticated:
                     type: boolean
+                  user_id:
+                    type: string
+                  domain_id:
+                    type: string
+                  company_id:
+                    type: string
+                  role:
+                    type: string
         default:
           $ref: "#/components/responses/Error"
   /admin-users:
