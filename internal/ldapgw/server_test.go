@@ -4252,6 +4252,31 @@ func TestParseLDAPFilterDoesNotUseOrderingFiltersAsRepositoryHints(t *testing.T)
 	}
 }
 
+func TestLDAPAttributeDescriptionsIgnoreOptionsForMatching(t *testing.T) {
+	attrs := map[string][]string{
+		"cn":      {"Alice"},
+		"mail":    {"alice@example.com"},
+		"entryDN": {"uid=alice,ou=users,dc=example,dc=com"},
+	}
+	if got, err := parseLDAPFilter(buildEqualityFilter("mail;lang-en", "alice@example.com")); err != nil || got != "(mail=alice@example.com)" {
+		t.Fatalf("parseLDAPFilter with attribute option = %q, %v; want base attribute hint", got, err)
+	}
+	if !ldapEntryAttributesMatchFilter(attrs, buildEqualityFilter("mail;lang-en", "alice@example.com")) {
+		t.Fatal("filter with attribute option did not match base attribute")
+	}
+	if !ldapAttributeValueMatchesFilter("mail", "alice@example.com", buildEqualityFilter("mail;lang-en", "alice@example.com")) {
+		t.Fatal("matched-values filter with attribute option did not match base attribute")
+	}
+	values, ok := lookupLDAPAttributeValues(attrs, "mail;lang-en")
+	if !ok || len(values) != 1 || values[0] != "alice@example.com" {
+		t.Fatalf("lookupLDAPAttributeValues option lookup = %#v, %v; want mail value", values, ok)
+	}
+	selected := selectLDAPAttributes(attrs, []string{"mail;lang-en", "entryDN;binary"}, false)
+	if len(selected) != 2 || selected["mail"][0] != "alice@example.com" || selected["entryDN"][0] == "" {
+		t.Fatalf("selectLDAPAttributes option projection = %#v, want base attributes", selected)
+	}
+}
+
 func TestParseLDAPFilterSupportsExtensibleMatch(t *testing.T) {
 	filter := buildAndFilter(
 		buildExtensibleFilter("objectClass", "organizationalUnit"),
