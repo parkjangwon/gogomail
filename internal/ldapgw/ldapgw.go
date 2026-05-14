@@ -67,6 +67,13 @@ const (
 	scopeWholeSubtree = 2
 )
 
+const (
+	derefAliasesNever       = 0
+	derefAliasesInSearching = 1
+	derefAliasesFindingBase = 2
+	derefAliasesAlways      = 3
+)
+
 // LDAPFilter map from RFC 4511
 const (
 	filterAnd            = 0
