@@ -281,6 +281,14 @@ func buildExtendedRequest(name string) []byte {
 	return content
 }
 
+func buildExtendedRequestWithValue(name string, value []byte) []byte {
+	content := buildExtendedRequest(name)
+	content = append(content, 0x81)
+	content = append(content, encodeLength(len(value))...)
+	content = append(content, value...)
+	return content
+}
+
 func buildEqualityFilter(attr, value string) []byte {
 	filterContent := append(encodeOctetString(attr), encodeOctetString(value)...)
 	filterData := []byte{tagContextSpecific | filterEqualityMatch}
@@ -3471,6 +3479,28 @@ func TestLDAPServerWhoAmIExtendedRequest(t *testing.T) {
 	}
 	if !bytesContains(opData, []byte("dn:tester")) {
 		t.Fatalf("WhoAmI response missing authzID: %x", opData)
+	}
+}
+
+func TestDecodeExtendedRequestNameValidatesOIDAndRequestValue(t *testing.T) {
+	if name, err := decodeExtendedRequestName(buildExtendedRequestWithValue(whoAmIOID, []byte("opaque"))); err != nil || name != whoAmIOID {
+		t.Fatalf("decodeExtendedRequestName valid value = %q, %v", name, err)
+	}
+	for _, tc := range []struct {
+		name string
+		data []byte
+	}{
+		{name: "empty oid", data: buildExtendedRequest("")},
+		{name: "descriptor oid", data: buildExtendedRequest("whoami")},
+		{name: "malformed oid", data: buildExtendedRequest("1..2")},
+		{name: "unexpected trailing", data: append(buildExtendedRequest(whoAmIOID), 0x04, 0x00)},
+		{name: "truncated value", data: append(buildExtendedRequest(whoAmIOID), 0x81, 0x02, 0x00)},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if _, err := decodeExtendedRequestName(tc.data); err == nil {
+				t.Fatal("decodeExtendedRequestName accepted malformed request")
+			}
+		})
 	}
 }
 

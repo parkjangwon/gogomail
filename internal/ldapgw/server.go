@@ -2766,7 +2766,25 @@ func decodeExtendedRequestName(data []byte) (string, error) {
 	if len(rest) < length {
 		return "", fmt.Errorf("extended requestName truncated")
 	}
-	return string(rest[:length]), nil
+	name := string(rest[:length])
+	if !isNumericLDAPOID(name) {
+		return "", fmt.Errorf("extended requestName invalid LDAPOID")
+	}
+	rest = rest[length:]
+	if len(rest) == 0 {
+		return name, nil
+	}
+	if rest[0] != 0x81 {
+		return "", fmt.Errorf("extended request has invalid trailing data")
+	}
+	valueLen, valueRest, err := decodeLength(rest[1:])
+	if err != nil {
+		return "", err
+	}
+	if len(valueRest) != valueLen {
+		return "", fmt.Errorf("extended requestValue length mismatch")
+	}
+	return name, nil
 }
 
 func parseLDAPFilter(data []byte) (string, error) {
