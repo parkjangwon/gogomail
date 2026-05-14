@@ -1,6 +1,16 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (LDAP Identity Config & Sync)
+Last updated: 2026-05-14 (LDAP Identity Config & Sync foundation)
+
+## LDAP Identity Config & Sync (2026-05-14, in progress)
+- LDAP provider implements the IdentityProvider interface as a read-only directory source.
+- `internal/idprovider/ldap/provider.go` handles GetUser, GetGroup, ListUsers, ListGroups (stub implementations).
+- `internal/idprovider/ldap/sync.go` provides SyncUsers, SyncGroups, SyncMemberships APIs for on-demand LDAP sync.
+- Config struct supports host, port, DNS, bind credentials, SSL/TLS options, and LDAP attribute mappings.
+- Database schema in `migrations/0103_ldap_sync_metadata.sql` tracks sync runs, conflicts, and incremental sync cursors.
+- All 19 LDAP provider tests pass; validation for required fields, configuration checks, and sync request handling.
+- Verification: `go test -count=1 ./internal/idprovider/ldap -v` (19 tests) and `go test ./...` (5975 tests).
+- Next: Implement actual LDAP connections, user/group queries, sync logic, and conflict resolution using go-ldap library.
 
 ## Database Identity Mode (2026-05-14, complete)
 - Database provider implements full CRUD operations for users and groups through `maildb` repositories.
