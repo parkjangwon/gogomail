@@ -3191,7 +3191,80 @@ func validateFilter(data []byte) error {
 	if len(data) < headerLen+declLen {
 		return fmt.Errorf("filter truncated: need %d bytes after header, have %d", declLen, len(data)-headerLen)
 	}
-	return nil
+	if len(data) != headerLen+declLen {
+		return fmt.Errorf("filter trailing data")
+	}
+	return validateFilterContent(filterType, data[headerLen:headerLen+declLen])
+}
+
+func validateFilterContent(filterType int, content []byte) error {
+	switch filterType {
+	case filterAnd, filterOr:
+		for len(content) > 0 {
+			child, rest, err := readRawTLV(content)
+			if err != nil {
+				return err
+			}
+			if err := validateFilter(child); err != nil {
+				return err
+			}
+			content = rest
+		}
+		return nil
+	case filterNot:
+		child, rest, err := readRawTLV(content)
+		if err != nil {
+			return err
+		}
+		if len(rest) != 0 {
+			return fmt.Errorf("not filter trailing data")
+		}
+		return validateFilter(child)
+	case filterEqualityMatch, filterApproxMatch, filterGreaterOrEqual, filterLessOrEqual:
+		attr, valueRest, err := decodeOctetString(content)
+		if err != nil {
+			return fmt.Errorf("filter attribute: %w", err)
+		}
+		if ldapAttributeType(attr) == "" {
+			return fmt.Errorf("filter attribute description empty")
+		}
+		_, trailing, err := decodeOctetString(valueRest)
+		if err != nil {
+			return fmt.Errorf("filter assertion value: %w", err)
+		}
+		if len(trailing) != 0 {
+			return fmt.Errorf("filter assertion trailing data")
+		}
+		return nil
+	case filterSubstrings:
+		attr, rest, err := decodeOctetString(content)
+		if err != nil {
+			return fmt.Errorf("substring filter attribute: %w", err)
+		}
+		if ldapAttributeType(attr) == "" {
+			return fmt.Errorf("substring filter attribute description empty")
+		}
+		if _, err := decodeSubstringParts(rest); err != nil {
+			return err
+		}
+		return nil
+	case filterPresent:
+		if ldapAttributeType(string(content)) == "" {
+			return fmt.Errorf("present filter attribute description empty")
+		}
+		return nil
+	case filterExtensible:
+		match, ok, err := decodeExtensibleMatchDetail(content)
+		if err != nil {
+			return err
+		}
+		if !ok || ldapAttributeType(match.Attr) == "" {
+			return fmt.Errorf("extensible filter attribute description empty")
+		}
+		return nil
+	default:
+		return fmt.Errorf("unsupported filter type %d", filterType)
+	}
 }
 
 func mustEncodeNotSupported() []byte {

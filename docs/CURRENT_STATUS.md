@@ -6786,7 +6786,7 @@ Next focus areas:
 ## ldapgw security fixes (TASK-007)
 - BER length cap: PDUs with declared body > 16 MB are rejected; connection closed
 - Context deadline enforced: ctx.Done() checked before every PDU operation
-- Filter validation: validateFilter() rejects empty, non-context-specific, unsupported, or truncated LDAP filters before processing
+- Filter validation: validateFilter() rejects empty, non-context-specific, unsupported, truncated, trailing-data, and empty/option-only AttributeDescription LDAP filters before processing
 
 ## drive chunk upload fixes (TASK-016)
 - TOCTOU race eliminated: StoreUploadSessionBody now uses SELECT FOR UPDATE inside a transaction; concurrent writers for the same session are serialised and the authoritative prior storage_path is returned from the locked row
