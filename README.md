@@ -27,10 +27,11 @@ This matters in practice. When your mail client, calendar app, and contacts sync
 | SPF / DMARC verification | RFC 7208, RFC 7489 | Production-ready |
 | DSN / bounce handling | RFC 3461, RFC 3464 | Production-ready |
 | IMAP | RFC 9051 (IMAP4rev2), RFC 3501 | Production-ready |
-| CalDAV + iCalendar | RFC 4791, RFC 5545, RFC 6638 | Advanced |
+| CalDAV + iCalendar | RFC 4791, RFC 5545, RFC 6638, RFC 7809, RFC 3744 | Production-ready |
 | iMIP scheduling | RFC 6047 | Complete |
 | Timezone support | RFC 7809 | Complete |
 | CardDAV + vCard | RFC 6352, RFC 6350, RFC 2426, RFC 3744 | Production-ready |
+| LDAP directory gateway | RFC 4511, RFC 4512, RFC 4519 | Advanced |
 | Mail API (REST) | OpenAPI | Production-ready |
 | Admin API | OpenAPI | Production-ready |
 | POP3 | RFC 1939 | Production-ready |
@@ -105,6 +106,7 @@ gogomail --mode=imap               # IMAP server (port 143 / 993)
 gogomail --mode=pop3               # POP3 server (port 110 / 995)
 gogomail --mode=caldav             # CalDAV server
 gogomail --mode=carddav            # CardDAV server
+gogomail --mode=ldap-gateway       # read-only LDAP v3 directory gateway
 gogomail --mode=webdav             # WebDAV gateway (RFC 4918)
 gogomail --mode=api                # Mail + Admin REST API
 gogomail --mode=delivery-worker    # outbound SMTP delivery
@@ -249,7 +251,7 @@ Development workflow is driven by `docs/ACTIVE_TASK.md` — one task at a time, 
 | 0–1 | SMTP, IMAP, CalDAV, CardDAV, Mail/Admin API, delivery, DKIM/SPF/DMARC | ✓ Complete |
 | 2 | Webmail frontend — keyboard-first, settings, filters, calendar, contacts, drive | ✓ Complete |
 | 3 | Runtime config store · company→domain→user settings hierarchy · 2FA/TOTP | Planned |
-| 4 | Enterprise identity: LDAP (RFC 4511) · SCIM 2.0 · SAML/OIDC | Planned |
+| 4 | Enterprise identity: LDAP (RFC 4511) · SCIM 2.0 · SAML/OIDC | LDAP advanced, SCIM/SSO planned |
 | 5 | Drive WebDAV gateway (RFC 4918) · CalDAV/CardDAV production hardening | ✓ Complete (WebDAV + CardDAV RFC 100%) |
 | 6 | Mail security: milter adapter · DNSBL (RFC 5782) | Planned |
 | 7 | POP3 (RFC 1939) | ✓ Complete |

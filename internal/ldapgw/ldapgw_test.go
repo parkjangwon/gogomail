@@ -113,6 +113,26 @@ func TestEncodeLDAPResponsePreservesLargeMessageID(t *testing.T) {
 	}
 }
 
+func TestDecodeLDAPPacketRejectsInvalidMessageID(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		messageID []byte
+	}{
+		{name: "zero", messageID: []byte{tagInteger, 0x01, 0x00}},
+		{name: "negative", messageID: []byte{tagInteger, 0x01, 0xff}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			op := []byte{byte(opUnbindRequest), 0x00}
+			content := append(append([]byte{}, tc.messageID...), op...)
+			pdu := append([]byte{tagSequence}, encodeLength(len(content))...)
+			pdu = append(pdu, content...)
+			if _, _, _, err := decodeLDAPPacket(pdu); err == nil {
+				t.Fatal("decodeLDAPPacket accepted invalid messageID")
+			}
+		})
+	}
+}
+
 func TestEncodeOctetStringUsesLongFormLength(t *testing.T) {
 	value := strings.Repeat("x", 300)
 	encoded := encodeOctetString(value)

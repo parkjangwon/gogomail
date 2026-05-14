@@ -309,10 +309,16 @@ func decodeLDAPPacketWithControls(pdu []byte) (messageID int, opTag int, opData 
 		return 0, 0, nil, nil, fmt.Errorf("messageID data too short")
 	}
 	var v int64
+	if msgIDLen > 0 && msgIDRest[0]&0x80 != 0 {
+		v = -1
+	}
 	for i := 0; i < msgIDLen; i++ {
 		v = v<<8 | int64(msgIDRest[i])
 	}
 	messageID = int(v)
+	if messageID <= 0 {
+		return 0, 0, nil, nil, fmt.Errorf("invalid messageID %d", messageID)
+	}
 	msgContent = msgIDRest[msgIDLen:]
 
 	if len(msgContent) < 2 {
