@@ -2579,6 +2579,7 @@ func rootDSEAttributes(namingContexts []string, startTLSEnabled bool) map[string
 	}
 	defaultNamingContext := namingContexts[0]
 	configurationNamingContext := "cn=Configuration," + defaultNamingContext
+	serverName := "cn=ldap,cn=Servers,cn=Default-First-Site-Name,cn=Sites," + configurationNamingContext
 	attrs := map[string][]string{
 		"objectClass":                   {"top", "OpenLDAProotDSE"},
 		"namingContexts":                namingContexts,
@@ -2594,6 +2595,10 @@ func rootDSEAttributes(namingContexts []string, startTLSEnabled bool) map[string
 		"supportedCapabilities":         {"1.2.840.113556.1.4.800", "1.2.840.113556.1.4.1670", "1.2.840.113556.1.4.1791"},
 		"vendorName":                    {"gogomail"},
 		"dnsHostName":                   {"ldap." + ldapDNSDomainFromNamingContext(defaultNamingContext)},
+		"serverName":                    {serverName},
+		"dsServiceName":                 {"cn=NTDS Settings," + serverName},
+		"currentTime":                   {ldapGeneralizedTime(time.Now().UTC())},
+		"highestCommittedUSN":           {ldapUpdateSequenceNumber(defaultNamingContext)},
 		"domainControllerFunctionality": {"7"},
 		"domainFunctionality":           {"7"},
 		"forestFunctionality":           {"7"},
@@ -2604,6 +2609,10 @@ func rootDSEAttributes(namingContexts []string, startTLSEnabled bool) map[string
 		attrs["supportedExtension"] = append(attrs["supportedExtension"], startTLSOID)
 	}
 	return attrs
+}
+
+func ldapGeneralizedTime(t time.Time) string {
+	return t.UTC().Format("20060102150405") + ".0Z"
 }
 
 func ldapDNSDomainFromNamingContext(namingContext string) string {
@@ -2718,7 +2727,8 @@ func isOperationalLDAPAttribute(attr string) bool {
 	switch strings.ToLower(strings.TrimSpace(attr)) {
 	case "subschemasubentry", "supportedldapversion", "supportedcontrol", "supportedextension", "supportedfeatures", "namingcontexts", "vendorname",
 		"defaultnamingcontext", "rootdomainnamingcontext", "configurationnamingcontext", "schemanamingcontext", "supportedcapabilities",
-		"dnshostname", "domaincontrollerfunctionality", "domainfunctionality", "forestfunctionality", "isglobalcatalogready", "issynchronized",
+		"dnshostname", "servername", "dsservicename", "currenttime", "highestcommittedusn",
+		"domaincontrollerfunctionality", "domainfunctionality", "forestfunctionality", "isglobalcatalogready", "issynchronized",
 		"entrydn", "entryuuid", "createtimestamp", "modifytimestamp", "creatorsname", "modifiersname",
 		"distinguishedname", "objectguid", "objectsid", "instancetype", "whencreated", "whenchanged",
 		"usncreated", "usnchanged", "hassubordinates", "numsubordinates":

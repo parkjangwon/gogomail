@@ -3685,7 +3685,7 @@ func TestLDAPServerRootDSEAdvertisesNamingContextAndStartTLS(t *testing.T) {
 	filter := []byte{tagContextSpecific | filterPresent}
 	filter = append(filter, encodeLength(len("objectClass"))...)
 	filter = append(filter, []byte("objectClass")...)
-	searchReq := buildLDAPPacket(6, opSearchRequest, buildSearchRequestWithAttrs("", scopeBaseObject, filter, "namingContexts", "defaultNamingContext", "rootDomainNamingContext", "configurationNamingContext", "schemaNamingContext", "supportedExtension", "supportedFeatures", "supportedCapabilities", "subschemaSubentry", "dnsHostName", "domainControllerFunctionality", "isGlobalCatalogReady", "isSynchronized"))
+	searchReq := buildLDAPPacket(6, opSearchRequest, buildSearchRequestWithAttrs("", scopeBaseObject, filter, "namingContexts", "defaultNamingContext", "rootDomainNamingContext", "configurationNamingContext", "schemaNamingContext", "supportedExtension", "supportedFeatures", "supportedCapabilities", "subschemaSubentry", "dnsHostName", "serverName", "dsServiceName", "currentTime", "highestCommittedUSN", "domainControllerFunctionality", "isGlobalCatalogReady", "isSynchronized"))
 	if err := sendPDU(conn, searchReq); err != nil {
 		t.Fatal(err)
 	}
@@ -3715,6 +3715,12 @@ func TestLDAPServerRootDSEAdvertisesNamingContextAndStartTLS(t *testing.T) {
 		"1.2.840.113556.1.4.800",
 		"dnsHostName",
 		"ldap.example.com",
+		"serverName",
+		"cn=ldap,cn=Servers,cn=Default-First-Site-Name,cn=Sites,cn=Configuration,dc=example,dc=com",
+		"dsServiceName",
+		"cn=NTDS Settings,cn=ldap,cn=Servers,cn=Default-First-Site-Name,cn=Sites,cn=Configuration,dc=example,dc=com",
+		"currentTime",
+		"highestCommittedUSN",
 		"domainControllerFunctionality",
 		"isGlobalCatalogReady",
 		"isSynchronized",
@@ -3740,8 +3746,14 @@ func TestRootDSEAttributesDeriveADDiscoveryFromNamingContext(t *testing.T) {
 		attrs["rootDomainNamingContext"][0] != "dc=example,dc=com" ||
 		attrs["configurationNamingContext"][0] != "cn=Configuration,dc=example,dc=com" ||
 		attrs["schemaNamingContext"][0] != "cn=Schema,cn=Configuration,dc=example,dc=com" ||
-		attrs["dnsHostName"][0] != "ldap.example.com" {
+		attrs["dnsHostName"][0] != "ldap.example.com" ||
+		attrs["serverName"][0] != "cn=ldap,cn=Servers,cn=Default-First-Site-Name,cn=Sites,cn=Configuration,dc=example,dc=com" ||
+		attrs["dsServiceName"][0] != "cn=NTDS Settings,cn=ldap,cn=Servers,cn=Default-First-Site-Name,cn=Sites,cn=Configuration,dc=example,dc=com" ||
+		attrs["highestCommittedUSN"][0] == "" {
 		t.Fatalf("AD discovery attrs = %#v", attrs)
+	}
+	if got := attrs["currentTime"][0]; len(got) != len("20260514010203.0Z") || !strings.HasSuffix(got, ".0Z") {
+		t.Fatalf("currentTime = %q, want generalized time", got)
 	}
 	if got := attrs["namingContexts"]; len(got) != 2 || got[1] != "dc=example,dc=net" {
 		t.Fatalf("namingContexts = %#v, want all configured contexts", got)
