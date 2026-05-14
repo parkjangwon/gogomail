@@ -45,6 +45,16 @@ func normalizeDSNRecipientOptions(address string, opts *gosmtp.RcptOptions) DSNR
 	return recipient
 }
 
+func upsertDSNRecipientOption(recipients []DSNRecipientOptions, recipient DSNRecipientOptions) []DSNRecipientOptions {
+	for i := range recipients {
+		if recipients[i].Address == recipient.Address {
+			recipients[i] = recipient
+			return recipients
+		}
+	}
+	return append(recipients, recipient)
+}
+
 func normalizeDSNOriginalRecipient(opts *gosmtp.RcptOptions) string {
 	if opts == nil {
 		return ""

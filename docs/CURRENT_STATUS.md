@@ -1,6 +1,14 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (LDAP gateway StartTLS/LDAPS and discovery hardening)
+Last updated: 2026-05-14 (SMTP submission RCPT DSN recipient isolation)
+
+## SMTP submission RCPT DSN recipient isolation (2026-05-14, complete)
+- SMTP submission now has focused RFC 3461 coverage for recipient-specific `RCPT TO` DSN parameters.
+- Coverage verifies multiple RCPT commands preserve independent `NOTIFY` and `ORCPT` state without leaking options to plain recipients or later transactions.
+- `NOTIFY` coverage includes `NEVER`, `SUCCESS`, `FAILURE`, and `DELAY`, including canonical ordering for combined notification requests.
+- `ORCPT` coverage verifies both already-typed original recipient values and type/address input that must be xtext encoded before recorder/hook exposure.
+- Repeated RCPT for the same normalized recipient now replaces the stored DSN recipient metadata with the latest options, keeping duplicate recipient state deterministic for later DSN generation.
+- Verification: `go test -count=1 ./internal/smtp -run TestSubmissionRcptDSN`, `go test -count=1 ./internal/smtp`, and `go test ./...`.
 
 ## LDAP gateway StartTLS/LDAPS and discovery hardening (2026-05-14, complete)
 - `internal/ldapgw` now handles RFC 4511 StartTLS extended requests (`1.3.6.1.4.1.1466.20037`) when a TLS certificate/key is configured.
