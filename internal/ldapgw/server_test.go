@@ -711,6 +711,47 @@ func TestLDAPServerBindSuccess(t *testing.T) {
 	}
 }
 
+func TestLDAPServerHandlesBindPDUOverInitialReadBuffer(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+
+	longPassword := strings.Repeat("s", 9000)
+	auth := newFakeLDAPAuth()
+	auth.addUser("admin@example.com", longPassword)
+	srv := NewServer(ln, auth, newFakeDirectoryQuerier())
+	go srv.Serve()
+	defer srv.Close()
+
+	conn, err := net.Dial("tcp", ln.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+
+	bindReq := buildLDAPPacket(45, opBindRequest, buildBindRequest(3, "admin@example.com", longPassword))
+	if len(bindReq) <= 8192 {
+		t.Fatalf("test bind PDU length = %d, want >8192", len(bindReq))
+	}
+	if err := sendPDU(conn, bindReq); err != nil {
+		t.Fatal(err)
+	}
+
+	resp, err := readFullPDU(conn, time.Now().Add(3*time.Second))
+	if err != nil {
+		t.Fatal(err)
+	}
+	msgID, opTag, opData, err := decodeLDAPPacket(resp)
+	if err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if msgID != 45 || opTag != opBindResponse || decodeEnumerated(opData) != resultSuccess {
+		t.Fatalf("large bind response msg/op/result = %d/%d/%d, want 45/%d/%d", msgID, opTag, decodeEnumerated(opData), opBindResponse, resultSuccess)
+	}
+}
+
 func TestLDAPServerBindAcceptsUserDNIdentity(t *testing.T) {
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
