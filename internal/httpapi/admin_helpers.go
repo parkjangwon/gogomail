@@ -1014,3 +1014,33 @@ func registerSeatUsageRoutes(mux *http.ServeMux, adminAuth func(http.HandlerFunc
 		handleGetSeatUsage(w, r, service)
 	}))
 }
+
+func registerAuditLogExportRoutes(mux *http.ServeMux, adminAuth func(http.HandlerFunc) http.HandlerFunc, service AdminService) {
+	mux.HandleFunc("GET /admin/v1/companies/{id}/audit-logs/export", adminAuth(func(w http.ResponseWriter, r *http.Request) {
+		handleExportCompanyAuditLogs(w, r, service)
+	}))
+}
+
+func registerTenantHealthRoutes(mux *http.ServeMux, adminAuth func(http.HandlerFunc) http.HandlerFunc, service AdminService) {
+	mux.HandleFunc("GET /admin/v1/companies/{id}/health", adminAuth(func(w http.ResponseWriter, r *http.Request) {
+		handleGetCompanyHealth(w, r, service)
+	}))
+}
+
+func registerChangeHistoryAndApprovalsRoutes(mux *http.ServeMux, adminAuth func(http.HandlerFunc) http.HandlerFunc, service AdminService) {
+	mux.HandleFunc("GET /admin/v1/companies/{id}/change-history", adminAuth(func(w http.ResponseWriter, r *http.Request) {
+		handleGetCompanyChangeHistory(w, r, service)
+	}))
+	mux.HandleFunc("GET /admin/v1/companies/{id}/pending-approvals", adminAuth(func(w http.ResponseWriter, r *http.Request) {
+		handleGetPendingApprovals(w, r, service)
+	}))
+	mux.HandleFunc("POST /admin/v1/companies/{id}/pending-approvals", adminAuth(func(w http.ResponseWriter, r *http.Request) {
+		handleCreatePendingApproval(w, r, service)
+	}))
+	mux.HandleFunc("POST /admin/v1/companies/{id}/pending-approvals/{approvalId}/approve", adminAuth(func(w http.ResponseWriter, r *http.Request) {
+		handleApproveApproval(w, r, service)
+	}))
+	mux.HandleFunc("POST /admin/v1/companies/{id}/pending-approvals/{approvalId}/reject", adminAuth(func(w http.ResponseWriter, r *http.Request) {
+		handleRejectApproval(w, r, service)
+	}))
+}
