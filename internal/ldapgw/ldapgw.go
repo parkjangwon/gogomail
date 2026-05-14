@@ -41,6 +41,7 @@ const (
 	resultCompareTrue                  = 6
 	resultUnavailableCriticalExtension = 12
 	resultAssertionFailed              = 122
+	resultAuthorizationDenied          = 123
 	resultInsufficientAccessRights     = 50
 	resultAuthMethodNotSupported       = 48
 	resultInvalidCredentials           = 49
