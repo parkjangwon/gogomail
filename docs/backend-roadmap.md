@@ -5761,6 +5761,7 @@ Current implementation notes:
 - LDAP principal entries populate requested/default `memberOf` reverse membership attributes from Directory group memberships, with no reverse expansion for narrow non-memberOf projections.
 - LDAP `objectClass`/`objectCategory` filters and base DNs narrow repository searches to the matching principal kinds, including organization-chart searches under `ou=organizations` and AD-style category searches.
 - LDAP search scope filtering now applies base-object, one-level, and subtree semantics against RFC 4514-normalized generated entry DNs, including equivalent escaped separators such as `\,` and `\2c`.
+- CompareRequest base-object lookup uses the same RFC 4514-normalized generated-DN matching as SearchRequest, so equivalent escaped DN forms remain interoperable for `ldapcompare`-style clients.
 - LDAP client size limits return `sizeLimitExceeded` only when matching entries exceed the requested limit, while exact-limit result sets complete with success.
 - Simple bind accepts common client identity formats, including raw username/email and generated entry DN forms such as `uid=<user-id>,ou=users,...`, while preserving escaped commas and hex-escaped first-RDN values during identity extraction.
 - Failed re-bind clears the connection authorization state, and unsupported bind authentication choices return `authMethodNotSupported` instead of falling through as empty simple passwords.
