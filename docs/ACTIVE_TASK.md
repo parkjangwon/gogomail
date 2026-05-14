@@ -1,5 +1,36 @@
 # ACTIVE_TASK
 
+## PARALLEL WORK: SMTP Optimization (Super-Powerful SMTP)
+
+### Background
+
+TASK-067 (Audit Logs) completion enables SMTP monitoring. However, SMTP itself lacks:
+- Monster performance & scalability for massive traffic
+- Extreme stability (bulk mail doesn't impact regular users)
+- Mode-based multiplexing (single instance, multiple roles)
+- Server farm configuration (horizontal scaling)
+
+**Roadmap**: See SMTP_OPTIMIZATION_ROADMAP.md (7 phases)
+
+### Current Phase: Phase 1 — Connection & Concurrency Control
+
+- [x] Increase SMTPMaxConnections default from 0 (unlimited) to 10,000
+  - Prevents resource exhaustion under high load
+  - Avoids OS file descriptor limits
+- [ ] Add per-domain delivery concurrency limits (default 10, configurable)
+- [ ] Implement circuit breaker for consistently failing domains
+- [ ] Add connection pool metrics (current, max, average lifetime)
+
+### Files Modified
+- internal/config/config.go - SMTPMaxConnections default
+- internal/config/config_test.go - updated test expectations
+
+### Next in Phase 1
+- internal/delivery/worker.go - per-domain concurrency control
+- delivery/metrics.go - connection pool metrics
+
+---
+
 ## TASK-068: Identity Provider Abstraction
 
 ### 배경
