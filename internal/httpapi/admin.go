@@ -4681,93 +4681,13 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		handleRejectApproval(w, r, service)
 	}))
 
-	// ─── Webhooks ─────────────────────────────────────────────────────────────
-	mux.HandleFunc("GET /admin/v1/companies/{id}/webhooks", adminAuth(func(w http.ResponseWriter, r *http.Request) {
-		handleGetCompanyWebhooks(w, r, service)
-	}))
-
-	mux.HandleFunc("POST /admin/v1/companies/{id}/webhooks", adminAuth(func(w http.ResponseWriter, r *http.Request) {
-		handlePostCompanyWebhook(w, r, service)
-	}))
-
-	mux.HandleFunc("DELETE /admin/v1/companies/{id}/webhooks/{webhookId}", adminAuth(func(w http.ResponseWriter, r *http.Request) {
-		handleDeleteCompanyWebhook(w, r, service)
-	}))
-
-	mux.HandleFunc("POST /admin/v1/companies/{id}/webhooks/{webhookId}/test", adminAuth(func(w http.ResponseWriter, r *http.Request) {
-		handleTestCompanyWebhook(w, r, service)
-	}))
-
-	// ─── Notification Templates ───────────────────────────────────────────────
-	mux.HandleFunc("GET /admin/v1/companies/{id}/notification-templates", adminAuth(func(w http.ResponseWriter, r *http.Request) {
-		handleGetNotifTemplates(w, r, service)
-	}))
-
-	mux.HandleFunc("PUT /admin/v1/companies/{id}/notification-templates/{templateId}", adminAuth(func(w http.ResponseWriter, r *http.Request) {
-		handlePutNotifTemplate(w, r, service)
-	}))
-
-	// ─── Security Posture ──────────────────────────────────────────────────────
-	mux.HandleFunc("GET /admin/v1/companies/{id}/security/posture", adminAuth(func(w http.ResponseWriter, r *http.Request) {
-		defer r.Body.Close()
-		if !rejectUnknownQueryKeys(w, r) {
-			return
-		}
-		id, ok := parseBoundedAdminPathValue(w, r, "id")
-		if !ok {
-			return
-		}
-		handleGetSecurityPosture(w, r, service, id)
-	}))
-
-	// ─── Global Signature ──────────────────────────────────────────────────────
-	mux.HandleFunc("GET /admin/v1/companies/{id}/signature", adminAuth(func(w http.ResponseWriter, r *http.Request) {
-		defer r.Body.Close()
-		if !rejectUnknownQueryKeys(w, r) {
-			return
-		}
-		handleGetSignature(w, r, service)
-	}))
-	mux.HandleFunc("PUT /admin/v1/companies/{id}/signature", adminAuth(func(w http.ResponseWriter, r *http.Request) {
-		handlePutSignature(w, r, service)
-	}))
-
-	// ─── Legal Holds ───────────────────────────────────────────────────────────
-	mux.HandleFunc("GET /admin/v1/companies/{id}/legal-holds", adminAuth(func(w http.ResponseWriter, r *http.Request) {
-		defer r.Body.Close()
-		if !rejectUnknownQueryKeys(w, r) {
-			return
-		}
-		handleGetLegalHolds(w, r, service)
-	}))
-	mux.HandleFunc("POST /admin/v1/companies/{id}/legal-holds", adminAuth(func(w http.ResponseWriter, r *http.Request) {
-		handleCreateLegalHold(w, r, service)
-	}))
-	mux.HandleFunc("DELETE /admin/v1/companies/{id}/legal-holds/{holdId}", adminAuth(func(w http.ResponseWriter, r *http.Request) {
-		defer r.Body.Close()
-		if !rejectUnknownQueryKeys(w, r) {
-			return
-		}
-		handleDeleteLegalHold(w, r, service)
-	}))
-
-	// ─── SCIM Status ───────────────────────────────────────────────────────────
-	mux.HandleFunc("GET /admin/v1/companies/{id}/scim/status", adminAuth(func(w http.ResponseWriter, r *http.Request) {
-		defer r.Body.Close()
-		if !rejectUnknownQueryKeys(w, r) {
-			return
-		}
-		handleGetSCIMStatus(w, r, service)
-	}))
-
-	// ─── Seat Usage ────────────────────────────────────────────────────────────
-	mux.HandleFunc("GET /admin/v1/companies/{id}/seat-usage", adminAuth(func(w http.ResponseWriter, r *http.Request) {
-		defer r.Body.Close()
-		if !rejectUnknownQueryKeys(w, r) {
-			return
-		}
-		handleGetSeatUsage(w, r, service)
-	}))
+	registerWebhookRoutes(mux, adminAuth, service)
+	registerNotificationTemplateRoutes(mux, adminAuth, service)
+	registerSecurityPostureRoutes(mux, adminAuth, service)
+	registerGlobalSignatureRoutes(mux, adminAuth, service)
+	registerLegalHoldsRoutes(mux, adminAuth, service)
+	registerSCIMStatusRoutes(mux, adminAuth, service)
+	registerSeatUsageRoutes(mux, adminAuth, service)
 }
 
 func registerConsoleRoutes(mux *http.ServeMux, cfg adminRouteConfig, adminAuth func(http.HandlerFunc) http.HandlerFunc) {

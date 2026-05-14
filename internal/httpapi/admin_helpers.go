@@ -921,3 +921,96 @@ func parseBoundedAdminPathTriple(w http.ResponseWriter, r *http.Request, firstKe
 	}
 	return first, second, third, true
 }
+
+// Route registration helpers - split RegisterAdminRoutes into focused functions
+
+func registerWebhookRoutes(mux *http.ServeMux, adminAuth func(http.HandlerFunc) http.HandlerFunc, service AdminService) {
+	mux.HandleFunc("GET /admin/v1/companies/{id}/webhooks", adminAuth(func(w http.ResponseWriter, r *http.Request) {
+		handleGetCompanyWebhooks(w, r, service)
+	}))
+	mux.HandleFunc("POST /admin/v1/companies/{id}/webhooks", adminAuth(func(w http.ResponseWriter, r *http.Request) {
+		handlePostCompanyWebhook(w, r, service)
+	}))
+	mux.HandleFunc("DELETE /admin/v1/companies/{id}/webhooks/{webhookId}", adminAuth(func(w http.ResponseWriter, r *http.Request) {
+		handleDeleteCompanyWebhook(w, r, service)
+	}))
+	mux.HandleFunc("POST /admin/v1/companies/{id}/webhooks/{webhookId}/test", adminAuth(func(w http.ResponseWriter, r *http.Request) {
+		handleTestCompanyWebhook(w, r, service)
+	}))
+}
+
+func registerNotificationTemplateRoutes(mux *http.ServeMux, adminAuth func(http.HandlerFunc) http.HandlerFunc, service AdminService) {
+	mux.HandleFunc("GET /admin/v1/companies/{id}/notification-templates", adminAuth(func(w http.ResponseWriter, r *http.Request) {
+		handleGetNotifTemplates(w, r, service)
+	}))
+	mux.HandleFunc("PUT /admin/v1/companies/{id}/notification-templates/{templateId}", adminAuth(func(w http.ResponseWriter, r *http.Request) {
+		handlePutNotifTemplate(w, r, service)
+	}))
+}
+
+func registerSecurityPostureRoutes(mux *http.ServeMux, adminAuth func(http.HandlerFunc) http.HandlerFunc, service AdminService) {
+	mux.HandleFunc("GET /admin/v1/companies/{id}/security/posture", adminAuth(func(w http.ResponseWriter, r *http.Request) {
+		defer r.Body.Close()
+		if !rejectUnknownQueryKeys(w, r) {
+			return
+		}
+		id, ok := parseBoundedAdminPathValue(w, r, "id")
+		if !ok {
+			return
+		}
+		handleGetSecurityPosture(w, r, service, id)
+	}))
+}
+
+func registerGlobalSignatureRoutes(mux *http.ServeMux, adminAuth func(http.HandlerFunc) http.HandlerFunc, service AdminService) {
+	mux.HandleFunc("GET /admin/v1/companies/{id}/signature", adminAuth(func(w http.ResponseWriter, r *http.Request) {
+		defer r.Body.Close()
+		if !rejectUnknownQueryKeys(w, r) {
+			return
+		}
+		handleGetSignature(w, r, service)
+	}))
+	mux.HandleFunc("PUT /admin/v1/companies/{id}/signature", adminAuth(func(w http.ResponseWriter, r *http.Request) {
+		handlePutSignature(w, r, service)
+	}))
+}
+
+func registerLegalHoldsRoutes(mux *http.ServeMux, adminAuth func(http.HandlerFunc) http.HandlerFunc, service AdminService) {
+	mux.HandleFunc("GET /admin/v1/companies/{id}/legal-holds", adminAuth(func(w http.ResponseWriter, r *http.Request) {
+		defer r.Body.Close()
+		if !rejectUnknownQueryKeys(w, r) {
+			return
+		}
+		handleGetLegalHolds(w, r, service)
+	}))
+	mux.HandleFunc("POST /admin/v1/companies/{id}/legal-holds", adminAuth(func(w http.ResponseWriter, r *http.Request) {
+		handleCreateLegalHold(w, r, service)
+	}))
+	mux.HandleFunc("DELETE /admin/v1/companies/{id}/legal-holds/{holdId}", adminAuth(func(w http.ResponseWriter, r *http.Request) {
+		defer r.Body.Close()
+		if !rejectUnknownQueryKeys(w, r) {
+			return
+		}
+		handleDeleteLegalHold(w, r, service)
+	}))
+}
+
+func registerSCIMStatusRoutes(mux *http.ServeMux, adminAuth func(http.HandlerFunc) http.HandlerFunc, service AdminService) {
+	mux.HandleFunc("GET /admin/v1/companies/{id}/scim/status", adminAuth(func(w http.ResponseWriter, r *http.Request) {
+		defer r.Body.Close()
+		if !rejectUnknownQueryKeys(w, r) {
+			return
+		}
+		handleGetSCIMStatus(w, r, service)
+	}))
+}
+
+func registerSeatUsageRoutes(mux *http.ServeMux, adminAuth func(http.HandlerFunc) http.HandlerFunc, service AdminService) {
+	mux.HandleFunc("GET /admin/v1/companies/{id}/seat-usage", adminAuth(func(w http.ResponseWriter, r *http.Request) {
+		defer r.Body.Close()
+		if !rejectUnknownQueryKeys(w, r) {
+			return
+		}
+		handleGetSeatUsage(w, r, service)
+	}))
+}
