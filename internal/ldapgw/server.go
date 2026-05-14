@@ -6,6 +6,7 @@ import (
 	"crypto/tls"
 	"fmt"
 	"net"
+	"sort"
 	"strings"
 	"sync"
 )
@@ -636,6 +637,11 @@ func (s *LDAPServer) handleSearchRequest(ctx context.Context, msgID int, opData 
 		result := resultProtocolError
 		return encodeSearchResultDone(msgID, result, "", err.Error()), result, 0
 	}
+	sortKeys, sorted, err := parseServerSideSortControl(controls)
+	if err != nil {
+		result := resultProtocolError
+		return encodeSearchResultDone(msgID, result, "", err.Error()), result, 0
+	}
 
 	if err := validateFilter(filter); err != nil {
 		result := resultUnwillingToPerform
@@ -658,8 +664,10 @@ func (s *LDAPServer) handleSearchRequest(ctx context.Context, msgID int, opData 
 	}
 
 	limit := 100
+	offset := pageOffset
 	if paged && pageSize > 0 {
-		limit = pageSize + 1
+		limit = pageOffset + pageSize + 1
+		offset = 0
 	}
 	principals, err := s.quer.SearchPrincipals(ctx, DirectorySearchRequest{
 		BaseDN: baseObject,
@@ -668,20 +676,30 @@ func (s *LDAPServer) handleSearchRequest(ctx context.Context, msgID int, opData 
 		Attrs:  attrs,
 		Kinds:  kinds,
 		Limit:  limit,
-		Offset: pageOffset,
+		Offset: offset,
 	})
 	if err != nil {
 		result := resultUnwillingToPerform
 		return encodeSearchResultDone(msgID, result, "", err.Error()), result, 0
 	}
 	principals = filterPrincipalEntriesByScope(principals, baseObject, scope)
+	if sorted {
+		sortPrincipalEntries(principals, sortKeys)
+	}
 	if sizeLimit > 0 && len(principals) > sizeLimit {
 		principals = principals[:sizeLimit]
 	}
 	nextCookie := ""
-	if paged && pageSize > 0 && len(principals) > pageSize {
-		principals = principals[:pageSize]
-		nextCookie = fmt.Sprintf("%d", pageOffset+pageSize)
+	if paged && pageSize > 0 {
+		if pageOffset < len(principals) {
+			principals = principals[pageOffset:]
+		} else {
+			principals = nil
+		}
+		if len(principals) > pageSize {
+			principals = principals[:pageSize]
+			nextCookie = fmt.Sprintf("%d", pageOffset+pageSize)
+		}
 	}
 
 	resp := make([]byte, 0, 4096)
@@ -697,8 +715,15 @@ func (s *LDAPServer) handleSearchRequest(ctx context.Context, msgID int, opData 
 	if sizeLimit > 0 && len(principals) == sizeLimit {
 		result = resultSizeLimitExceeded
 	}
+	responseControls := make([]control, 0, 2)
 	if paged {
-		resp = append(resp, encodeSearchResultDoneWithControls(msgID, result, "", "", []control{pagedResultsResponseControl(nextCookie)})...)
+		responseControls = append(responseControls, pagedResultsResponseControl(nextCookie))
+	}
+	if sorted {
+		responseControls = append(responseControls, serverSideSortResponseControl(resultSuccess, ""))
+	}
+	if len(responseControls) > 0 {
+		resp = append(resp, encodeSearchResultDoneWithControls(msgID, result, "", "", responseControls)...)
 	} else {
 		resp = append(resp, encodeSearchResultDone(msgID, result, "", "")...)
 	}
@@ -973,9 +998,148 @@ func pagedResultsResponseControl(cookie string) control {
 	return control{Type: controlPagedResults, Value: seq}
 }
 
+type sortKey struct {
+	Attribute string
+	Reverse   bool
+}
+
+func parseServerSideSortControl(controls []control) ([]sortKey, bool, error) {
+	for _, ctrl := range controls {
+		if ctrl.Type != controlServerSideSortRequest {
+			continue
+		}
+		keys, err := decodeServerSideSortControlValue(ctrl.Value)
+		if err != nil {
+			return nil, true, err
+		}
+		return keys, true, nil
+	}
+	return nil, false, nil
+}
+
+func decodeServerSideSortControlValue(value []byte) ([]sortKey, error) {
+	if len(value) == 0 {
+		return nil, fmt.Errorf("server-side sort control value is required")
+	}
+	if value[0] != tagSequence {
+		return nil, fmt.Errorf("server-side sort control value must be a sequence")
+	}
+	content, err := decodeContent(value[1:])
+	if err != nil {
+		return nil, err
+	}
+	var keys []sortKey
+	for len(content) > 0 {
+		item, rest, err := readRawTLV(content)
+		if err != nil {
+			return nil, err
+		}
+		key, err := decodeSortKey(item)
+		if err != nil {
+			return nil, err
+		}
+		keys = append(keys, key)
+		content = rest
+	}
+	if len(keys) == 0 {
+		return nil, fmt.Errorf("server-side sort control requires at least one key")
+	}
+	return keys, nil
+}
+
+func decodeSortKey(data []byte) (sortKey, error) {
+	if len(data) == 0 || data[0] != tagSequence {
+		return sortKey{}, fmt.Errorf("server-side sort key must be a sequence")
+	}
+	content, err := decodeContent(data[1:])
+	if err != nil {
+		return sortKey{}, err
+	}
+	attr, rest, err := decodeOctetString(content)
+	if err != nil {
+		return sortKey{}, fmt.Errorf("server-side sort attribute: %w", err)
+	}
+	key := sortKey{Attribute: strings.TrimSpace(attr)}
+	if key.Attribute == "" {
+		return sortKey{}, fmt.Errorf("server-side sort attribute is empty")
+	}
+	for len(rest) > 0 {
+		tag := rest[0]
+		length, tail, err := decodeLength(rest[1:])
+		if err != nil {
+			return sortKey{}, err
+		}
+		if len(tail) < length {
+			return sortKey{}, fmt.Errorf("server-side sort key value truncated")
+		}
+		value := tail[:length]
+		switch tag {
+		case 0x80:
+			// orderingRule is accepted but repository entries use local string ordering.
+		case 0x81:
+			if len(value) != 1 {
+				return sortKey{}, fmt.Errorf("server-side sort reverseOrder malformed")
+			}
+			key.Reverse = value[0] != 0
+		default:
+			return sortKey{}, fmt.Errorf("unsupported server-side sort key tag 0x%02x", tag)
+		}
+		rest = tail[length:]
+	}
+	return key, nil
+}
+
+func sortPrincipalEntries(principals []PrincipalEntry, keys []sortKey) {
+	if len(keys) == 0 {
+		return
+	}
+	sort.SliceStable(principals, func(i, j int) bool {
+		leftAttrs := principalLDAPAttributes(principals[i])
+		rightAttrs := principalLDAPAttributes(principals[j])
+		for _, key := range keys {
+			left := firstLDAPAttributeValue(leftAttrs, key.Attribute)
+			right := firstLDAPAttributeValue(rightAttrs, key.Attribute)
+			cmp := strings.Compare(strings.ToLower(left), strings.ToLower(right))
+			if cmp == 0 {
+				continue
+			}
+			if key.Reverse {
+				return cmp > 0
+			}
+			return cmp < 0
+		}
+		return normalizeDNForCompare(principals[i].DN) < normalizeDNForCompare(principals[j].DN)
+	})
+}
+
+func firstLDAPAttributeValue(attrs map[string][]string, attr string) string {
+	for name, values := range attrs {
+		if strings.EqualFold(name, attr) && len(values) > 0 {
+			return values[0]
+		}
+	}
+	return ""
+}
+
+func serverSideSortResponseControl(resultCode int, attributeType string) control {
+	var content []byte
+	content = append(content, encodeEnumerated(resultCode)...)
+	if strings.TrimSpace(attributeType) != "" {
+		value := []byte(attributeType)
+		content = append(content, 0x80)
+		content = append(content, encodeLength(len(value))...)
+		content = append(content, value...)
+	}
+	var seq []byte
+	seq = append(seq, tagSequence)
+	seq = append(seq, encodeLength(len(content))...)
+	seq = append(seq, content...)
+	return control{Type: controlServerSideSortResponse, Value: seq}
+}
+
 func isSupportedControl(controlType string) bool {
 	switch strings.TrimSpace(controlType) {
-	case controlManageDsaIT, controlPagedResults:
+	case controlManageDsaIT, controlPagedResults, controlServerSideSortRequest:
 		return true
 	default:
 		return false
@@ -983,8 +1147,10 @@ func isSupportedControl(controlType string) bool {
 }
 
 const (
-	controlManageDsaIT  = "2.16.840.1.113730.3.4.2"
-	controlPagedResults = "1.2.840.113556.1.4.319"
+	controlManageDsaIT            = "2.16.840.1.113730.3.4.2"
+	controlPagedResults           = "1.2.840.113556.1.4.319"
+	controlServerSideSortRequest  = "1.2.840.113556.1.4.473"
+	controlServerSideSortResponse = "1.2.840.113556.1.4.474"
 )
 
 func (s *LDAPServer) observe(ctx context.Context, opTag int, resultCode int, entries int, remoteAddr net.Addr, err error) {
@@ -1247,7 +1413,7 @@ func rootDSEAttributes(namingContexts []string, startTLSEnabled bool) map[string
 		"namingContexts":       namingContexts,
 		"subschemaSubentry":    {"cn=Subschema"},
 		"supportedLDAPVersion": {"3"},
-		"supportedControl":     {controlManageDsaIT, controlPagedResults},
+		"supportedControl":     {controlManageDsaIT, controlPagedResults, controlServerSideSortRequest},
 		"supportedExtension":   {whoAmIOID},
 		"vendorName":           {"gogomail"},
 	}
