@@ -657,6 +657,11 @@ func (s *LDAPServer) handleSearchRequest(ctx context.Context, msgID int, opData 
 		result := resultProtocolError
 		return encodeSearchResultDone(msgID, result, "", err.Error()), result, 0
 	}
+	subentriesOnly, err := parseSubentriesControl(controls)
+	if err != nil {
+		result := resultProtocolError
+		return encodeSearchResultDone(msgID, result, "", err.Error()), result, 0
+	}
 
 	if err := validateFilter(filter); err != nil {
 		result := resultUnwillingToPerform
@@ -686,6 +691,9 @@ func (s *LDAPServer) handleSearchRequest(ctx context.Context, msgID int, opData 
 	}
 	kinds, noKindMatch := intersectPrincipalKinds(kinds, principalKindsForBaseDN(baseObject))
 	if noKindMatch {
+		return encodeSearchResultDone(msgID, resultSuccess, "", ""), resultSuccess, 0
+	}
+	if subentriesOnly {
 		return encodeSearchResultDone(msgID, resultSuccess, "", ""), resultSuccess, 0
 	}
 
@@ -1480,9 +1488,30 @@ func evaluateSearchAssertion(filter []byte, baseObject string) (bool, error) {
 	return true, nil
 }
 
+func parseSubentriesControl(controls []control) (bool, error) {
+	for _, ctrl := range controls {
+		if ctrl.Type != controlSubentries {
+			continue
+		}
+		if len(ctrl.Value) == 0 {
+			return true, nil
+		}
+		value, rest, err := decodeBoolean(ctrl.Value)
+		if err != nil {
+			return false, fmt.Errorf("subentries control: %w", err)
+		}
+		if len(rest) != 0 {
+			return false, fmt.Errorf("subentries control has trailing data")
+		}
+		return value, nil
+	}
+	return false, nil
+}
+
 func isSupportedControl(controlType string) bool {
 	switch strings.TrimSpace(controlType) {
-	case controlManageDsaIT, controlPagedResults, controlServerSideSortRequest, controlVirtualListViewRequest, controlAssertion, controlMatchedValues:
+	case controlManageDsaIT, controlPagedResults, controlServerSideSortRequest, controlVirtualListViewRequest, controlAssertion, controlMatchedValues,
+		controlDomainScope, controlDontUseCopy, controlDontUseCopyOpenLDAP, controlSubentries:
 		return true
 	default:
 		return false
@@ -1498,6 +1527,10 @@ const (
 	controlVirtualListViewResponse = "2.16.840.1.113730.3.4.10"
 	controlAssertion               = "1.3.6.1.1.12"
 	controlMatchedValues           = "1.2.826.0.1.3344810.2.3"
+	controlDomainScope             = "1.2.840.113556.1.4.1339"
+	controlDontUseCopy             = "1.3.6.1.1.22"
+	controlDontUseCopyOpenLDAP     = "1.3.6.1.4.1.4203.666.5.15"
+	controlSubentries              = "1.3.6.1.4.1.4203.1.10.1"
 )
 
 func (s *LDAPServer) observe(ctx context.Context, opTag int, resultCode int, entries int, remoteAddr net.Addr, err error) {
@@ -1760,7 +1793,7 @@ func rootDSEAttributes(namingContexts []string, startTLSEnabled bool) map[string
 		"namingContexts":       namingContexts,
 		"subschemaSubentry":    {"cn=Subschema"},
 		"supportedLDAPVersion": {"3"},
-		"supportedControl":     {controlManageDsaIT, controlPagedResults, controlServerSideSortRequest, controlVirtualListViewRequest, controlAssertion, controlMatchedValues},
+		"supportedControl":     {controlManageDsaIT, controlPagedResults, controlServerSideSortRequest, controlVirtualListViewRequest, controlAssertion, controlMatchedValues, controlDomainScope, controlDontUseCopy, controlDontUseCopyOpenLDAP, controlSubentries},
 		"supportedExtension":   {whoAmIOID},
 		"vendorName":           {"gogomail"},
 	}
