@@ -711,8 +711,9 @@ func decodeCompareRequestData(data []byte) (compareRequest, error) {
 }
 
 func lookupLDAPAttributeValues(attrs map[string][]string, attr string) ([]string, bool) {
+	want := ldapAttributeType(attr)
 	for name, values := range attrs {
-		if strings.EqualFold(name, strings.TrimSpace(attr)) {
+		if strings.EqualFold(ldapAttributeType(name), want) {
 			return values, true
 		}
 	}
@@ -1552,7 +1553,7 @@ func decodeSortKey(data []byte) (sortKey, error) {
 	if err != nil {
 		return sortKey{}, fmt.Errorf("server-side sort attribute: %w", err)
 	}
-	key := sortKey{Attribute: strings.TrimSpace(attr)}
+	key := sortKey{Attribute: ldapAttributeType(attr)}
 	if key.Attribute == "" {
 		return sortKey{}, fmt.Errorf("server-side sort attribute is empty")
 	}
@@ -1852,7 +1853,7 @@ func ldapAttributeValueMatchesFilter(attrName, attrValue string, filter []byte) 
 		return err == nil && !ldapAttributeValueMatchesFilter(attrName, attrValue, child)
 	case filterEqualityMatch, filterApproxMatch, filterGreaterOrEqual, filterLessOrEqual:
 		attr, valRest, err := decodeOctetString(content)
-		if err != nil || !strings.EqualFold(strings.TrimSpace(attr), attrName) {
+		if err != nil || !strings.EqualFold(ldapAttributeType(attr), ldapAttributeType(attrName)) {
 			return false
 		}
 		val, _, err := decodeOctetString(valRest)
@@ -1862,7 +1863,7 @@ func ldapAttributeValueMatchesFilter(attrName, attrValue string, filter []byte) 
 		return ldapAttributeValueEqual(attrName, attrValue, val)
 	case filterSubstrings:
 		attr, rest, err := decodeOctetString(content)
-		if err != nil || !strings.EqualFold(strings.TrimSpace(attr), attrName) {
+		if err != nil || !strings.EqualFold(ldapAttributeType(attr), ldapAttributeType(attrName)) {
 			return false
 		}
 		parts, err := decodeSubstringParts(rest)
@@ -1871,10 +1872,10 @@ func ldapAttributeValueMatchesFilter(attrName, attrValue string, filter []byte) 
 		}
 		return ldapSubstringMatches(attrValue, parts)
 	case filterPresent:
-		return strings.EqualFold(strings.TrimSpace(string(content)), attrName)
+		return strings.EqualFold(ldapAttributeType(string(content)), ldapAttributeType(attrName))
 	case filterExtensible:
 		attr, value, ok, err := decodeExtensibleMatch(content)
-		return err == nil && ok && strings.EqualFold(strings.TrimSpace(attr), attrName) && ldapAttributeValueEqual(attrName, attrValue, value)
+		return err == nil && ok && strings.EqualFold(ldapAttributeType(attr), ldapAttributeType(attrName)) && ldapAttributeValueEqual(attrName, attrValue, value)
 	default:
 		return false
 	}
@@ -1978,8 +1979,9 @@ func ldapEntryAttributeHasValue(attrs map[string][]string, attr string, match fu
 }
 
 func ldapEntryAttributeValues(attrs map[string][]string, attr string) ([]string, bool) {
+	want := ldapAttributeType(attr)
 	for name, values := range attrs {
-		if strings.EqualFold(strings.TrimSpace(name), strings.TrimSpace(attr)) {
+		if strings.EqualFold(ldapAttributeType(name), want) {
 			return values, true
 		}
 	}
@@ -1994,12 +1996,20 @@ func ldapAttributeValueEqual(attr, candidate, assertion string) bool {
 }
 
 func ldapAttributeUsesBinaryMatch(attr string) bool {
-	switch strings.ToLower(strings.TrimSpace(attr)) {
+	switch strings.ToLower(ldapAttributeType(attr)) {
 	case "objectguid", "objectsid":
 		return true
 	default:
 		return false
 	}
+}
+
+func ldapAttributeType(attr string) string {
+	attr = strings.TrimSpace(attr)
+	if idx := strings.IndexByte(attr, ';'); idx >= 0 {
+		attr = attr[:idx]
+	}
+	return strings.TrimSpace(attr)
 }
 
 func ldapExtensibleValueMatches(candidate string, match extensibleMatchAssertion) bool {
@@ -2757,12 +2767,12 @@ func selectLDAPAttributes(attrs map[string][]string, requested []string, typesOn
 		copyLDAPAttributeSet(selected, attrs, typesOnly, true)
 	}
 	for _, name := range requested {
-		name = strings.TrimSpace(name)
+		name = ldapAttributeType(name)
 		if name == "*" || name == "+" {
 			continue
 		}
 		for attrName, values := range attrs {
-			if strings.EqualFold(name, attrName) {
+			if strings.EqualFold(name, ldapAttributeType(attrName)) {
 				if typesOnly {
 					selected[attrName] = nil
 				} else {
@@ -2788,7 +2798,7 @@ func copyLDAPAttributeSet(dst map[string][]string, attrs map[string][]string, ty
 }
 
 func isOperationalLDAPAttribute(attr string) bool {
-	switch strings.ToLower(strings.TrimSpace(attr)) {
+	switch strings.ToLower(ldapAttributeType(attr)) {
 	case "subschemasubentry", "supportedldapversion", "supportedcontrol", "supportedextension", "supportedfeatures", "namingcontexts", "vendorname",
 		"defaultnamingcontext", "rootdomainnamingcontext", "configurationnamingcontext", "schemanamingcontext", "supportedcapabilities",
 		"dnshostname", "servername", "dsservicename", "currenttime", "highestcommittedusn",
@@ -2804,7 +2814,7 @@ func isOperationalLDAPAttribute(attr string) bool {
 
 func containsLDAPAttribute(attrs []string, want string) bool {
 	for _, attr := range attrs {
-		if strings.EqualFold(strings.TrimSpace(attr), want) {
+		if strings.EqualFold(ldapAttributeType(attr), want) {
 			return true
 		}
 	}
@@ -2927,7 +2937,7 @@ func collectLDAPFilterPrincipalKinds(data []byte, seen map[string]struct{}) erro
 		if err != nil {
 			return err
 		}
-		if principalKindAttr := strings.TrimSpace(attr); strings.EqualFold(principalKindAttr, "objectClass") || strings.EqualFold(principalKindAttr, "objectCategory") {
+		if principalKindAttr := ldapAttributeType(attr); strings.EqualFold(principalKindAttr, "objectClass") || strings.EqualFold(principalKindAttr, "objectCategory") {
 			for _, kind := range principalKindsForObjectClass(value) {
 				seen[kind] = struct{}{}
 			}
@@ -2937,7 +2947,7 @@ func collectLDAPFilterPrincipalKinds(data []byte, seen map[string]struct{}) erro
 		if err != nil {
 			return err
 		}
-		if principalKindAttr := strings.TrimSpace(attr); ok && (strings.EqualFold(principalKindAttr, "objectClass") || strings.EqualFold(principalKindAttr, "objectCategory")) {
+		if principalKindAttr := ldapAttributeType(attr); ok && (strings.EqualFold(principalKindAttr, "objectClass") || strings.EqualFold(principalKindAttr, "objectCategory")) {
 			for _, kind := range principalKindsForObjectClass(value) {
 				seen[kind] = struct{}{}
 			}
@@ -3017,7 +3027,7 @@ func parseLDAPFilterCandidate(data []byte) (attr string, value string, ok bool, 
 		if err != nil {
 			return "", "", false, fmt.Errorf("malformed assertion value: %w", err)
 		}
-		return attr, val, true, nil
+		return ldapAttributeType(attr), val, true, nil
 	case filterGreaterOrEqual, filterLessOrEqual:
 		_, valRest, err := decodeOctetString(content)
 		if err != nil {
@@ -3036,11 +3046,12 @@ func parseLDAPFilterCandidate(data []byte) (attr string, value string, ok bool, 
 		if err != nil {
 			return "", "", false, err
 		}
-		return attr, strings.Join(parts, "*"), len(parts) > 0, nil
+		return ldapAttributeType(attr), strings.Join(parts, "*"), len(parts) > 0, nil
 	case filterPresent:
-		return string(content), "*", true, nil
+		return ldapAttributeType(string(content)), "*", true, nil
 	case filterExtensible:
-		return decodeExtensibleMatch(content)
+		attr, value, ok, err := decodeExtensibleMatch(content)
+		return ldapAttributeType(attr), value, ok, err
 	default:
 		return "", "", false, fmt.Errorf("unsupported filter type: %d", filterType)
 	}
@@ -3131,7 +3142,7 @@ func decodeExtensibleMatchDetail(content []byte) (extensibleMatchAssertion, bool
 }
 
 func isDirectorySearchAttribute(attr string) bool {
-	switch strings.ToLower(strings.TrimSpace(attr)) {
+	switch strings.ToLower(ldapAttributeType(attr)) {
 	case "cn", "mail", "uid", "displayname", "givenname", "sn", "ou", "description", "name", "canonicalname", "samaccountname", "userprincipalname", "mailnickname", "proxyaddresses":
 		return true
 	default:

@@ -51,7 +51,7 @@ Last updated: 2026-05-14 (LDAP gateway StartTLS/LDAPS and discovery hardening)
 - LDAP generated principal DNs now escape RDN values and base-object lookup unescapes them, preserving user/organization/group/resource identifiers containing RFC 4514 special characters.
 - Non-discovery directory searches now require a successful bind; Root DSE and `cn=Subschema` base-object discovery remain available before bind for standard client setup.
 - `SearchResultEntry` encoding now emits the RFC 4511 application payload directly, matching OpenLDAP client decoding expectations.
-- LDAP requested-attribute selection now decodes real client SearchRequest attribute lists correctly, so clients can request narrow projections such as only `mail` without receiving every directory attribute.
+- LDAP requested-attribute selection now decodes real client SearchRequest attribute lists correctly, so clients can request narrow projections such as only `mail` without receiving every directory attribute, and AttributeDescription options such as `mail;lang-en` resolve against the base attribute for matching/projection compatibility.
 - LDAP SearchRequest decoding now rejects malformed requested-attribute lists and trailing data after the attribute list instead of silently truncating or ignoring the request tail.
 - LDAP attribute selection now honors special selectors: `1.1` returns no attributes and `+` returns only operational attributes, while `*` still returns user attributes.
 - LDAP entries now expose stable operational attributes for `+` requests, including `entryDN`, deterministic `entryUUID`, `createTimestamp`, `modifyTimestamp`, `creatorsName`, and `modifiersName`.
