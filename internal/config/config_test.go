@@ -178,8 +178,8 @@ func TestLoadAppliesDefaults(t *testing.T) {
 	if cfg.InboundSMTPAddr != ":2526" {
 		t.Fatalf("InboundSMTPAddr = %q, want :2526", cfg.InboundSMTPAddr)
 	}
-	if cfg.SMTPMaxConnections != 0 {
-		t.Fatalf("SMTPMaxConnections = %d, want 0 for unlimited default", cfg.SMTPMaxConnections)
+	if cfg.SMTPMaxConnections != 10000 {
+		t.Fatalf("SMTPMaxConnections = %d, want 10000 default", cfg.SMTPMaxConnections)
 	}
 	if len(cfg.InboundTrustedRelays) != 2 {
 		t.Fatalf("InboundTrustedRelays = %+v, want loopback defaults", cfg.InboundTrustedRelays)
