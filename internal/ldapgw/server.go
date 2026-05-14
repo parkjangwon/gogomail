@@ -2451,9 +2451,14 @@ func decodeSearchRequest(data []byte) (baseDN string, scope int, filter []byte, 
 	}
 	filter = rest[:filterHeaderLen+filterLen]
 	rest = rest[filterHeaderLen+filterLen:]
-	attrs, _, err = decodeAttributeDescriptionList(rest)
+	var attrRest []byte
+	attrs, attrRest, err = decodeAttributeDescriptionList(rest)
 	if err != nil {
 		err = fmt.Errorf("decode attributes: %w", err)
+		return
+	}
+	if len(attrRest) != 0 {
+		err = fmt.Errorf("search request trailing data")
 		return
 	}
 
@@ -2549,7 +2554,7 @@ func decodeSequence(data []byte) ([][]byte, error) {
 
 func decodeAttributeDescriptionList(data []byte) ([]string, []byte, error) {
 	if len(data) == 0 || data[0] != tagSequence {
-		return nil, data, nil
+		return nil, data, fmt.Errorf("attribute list missing")
 	}
 	contentLen, restAfterLen, err := decodeLength(data[1:])
 	if err != nil {
@@ -2568,15 +2573,18 @@ func decodeAttributeDescriptionList(data []byte) ([]string, []byte, error) {
 	for pos < len(content) {
 		if content[pos] == tagOctetString {
 			attrLen, attrRest, err := decodeLength(content[pos+1:])
+			if err != nil {
+				return nil, data, err
+			}
 			attrHeaderLen := len(content[pos+1:]) - len(attrRest)
-			if err != nil || len(attrRest) < attrLen {
-				break
+			if len(attrRest) < attrLen {
+				return nil, data, fmt.Errorf("attribute description truncated")
 			}
 			attr := string(attrRest[:attrLen])
 			attrs = append(attrs, attr)
 			pos += 1 + attrHeaderLen + attrLen
 		} else {
-			break
+			return nil, data, fmt.Errorf("malformed attribute description")
 		}
 	}
 	return attrs, data[totalLen:], nil
