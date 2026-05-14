@@ -4664,6 +4664,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	registerLegalHoldsRoutes(mux, adminAuth, service)
 	registerSCIMStatusRoutes(mux, adminAuth, service)
 	registerSeatUsageRoutes(mux, adminAuth, service)
+	registerLDAPSyncRoutes(mux, adminAuth, service)
 }
 
 func registerConsoleRoutes(mux *http.ServeMux, cfg adminRouteConfig, adminAuth func(http.HandlerFunc) http.HandlerFunc) {

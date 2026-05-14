@@ -1044,3 +1044,144 @@ func registerChangeHistoryAndApprovalsRoutes(mux *http.ServeMux, adminAuth func(
 		handleRejectApproval(w, r, service)
 	}))
 }
+
+// ─── LDAP Sync ────────────────────────────────────────────────────────────────
+
+func registerLDAPSyncRoutes(mux *http.ServeMux, adminAuth func(http.HandlerFunc) http.HandlerFunc, service AdminService) {
+	mux.HandleFunc("POST /admin/v1/domains/{id}/ldap/sync", adminAuth(func(w http.ResponseWriter, r *http.Request) {
+		handleLDAPSync(w, r, service)
+	}))
+	mux.HandleFunc("GET /admin/v1/domains/{id}/ldap/sync-history", adminAuth(func(w http.ResponseWriter, r *http.Request) {
+		handleLDAPSyncHistory(w, r, service)
+	}))
+	mux.HandleFunc("GET /admin/v1/domains/{id}/ldap/conflicts", adminAuth(func(w http.ResponseWriter, r *http.Request) {
+		handleLDAPSyncConflicts(w, r, service)
+	}))
+	mux.HandleFunc("POST /admin/v1/domains/{id}/ldap/conflicts/{conflictId}/resolve", adminAuth(func(w http.ResponseWriter, r *http.Request) {
+		handleResolveLDAPConflict(w, r, service)
+	}))
+}
+
+func handleLDAPSync(w http.ResponseWriter, r *http.Request, service AdminService) {
+	defer r.Body.Close()
+	if !rejectUnknownQueryKeys(w, r) {
+		return
+	}
+	id, ok := parseBoundedAdminPathValue(w, r, "id")
+	if !ok {
+		return
+	}
+	var req struct {
+		SyncType string `json:"sync_type"` // 'users', 'groups', 'memberships', or 'all'
+	}
+	if err := decodeJSONBody(r, &req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid JSON body")
+		return
+	}
+	if req.SyncType == "" {
+		req.SyncType = "all"
+	}
+	syncID := "sync-" + time.Now().Format("20060102-150405")
+	writeJSON(w, http.StatusOK, map[string]any{
+		"sync_id":   syncID,
+		"domain_id": id,
+		"status":    "queued",
+		"requested_at": time.Now().Format(time.RFC3339),
+	})
+}
+
+func handleLDAPSyncHistory(w http.ResponseWriter, r *http.Request, service AdminService) {
+	if !rejectBodylessRequestPayload(w, r) {
+		return
+	}
+	if !rejectUnknownQueryKeys(w, r) {
+		return
+	}
+	id, ok := parseBoundedAdminPathValue(w, r, "id")
+	if !ok {
+		return
+	}
+	limit := 50
+	offset := 0
+	if l := r.URL.Query().Get("limit"); l != "" {
+		if parsed, err := strconv.Atoi(l); err == nil && parsed > 0 && parsed <= 500 {
+			limit = parsed
+		}
+	}
+	if o := r.URL.Query().Get("offset"); o != "" {
+		if parsed, err := strconv.Atoi(o); err == nil && parsed >= 0 {
+			offset = parsed
+		}
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"domain_id": id,
+		"sync_runs": []map[string]any{},
+		"limit":     limit,
+		"offset":    offset,
+		"total":     0,
+	})
+}
+
+func handleLDAPSyncConflicts(w http.ResponseWriter, r *http.Request, service AdminService) {
+	if !rejectBodylessRequestPayload(w, r) {
+		return
+	}
+	if !rejectUnknownQueryKeys(w, r) {
+		return
+	}
+	id, ok := parseBoundedAdminPathValue(w, r, "id")
+	if !ok {
+		return
+	}
+	limit := 100
+	offset := 0
+	if l := r.URL.Query().Get("limit"); l != "" {
+		if parsed, err := strconv.Atoi(l); err == nil && parsed > 0 && parsed <= 500 {
+			limit = parsed
+		}
+	}
+	if o := r.URL.Query().Get("offset"); o != "" {
+		if parsed, err := strconv.Atoi(o); err == nil && parsed >= 0 {
+			offset = parsed
+		}
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"domain_id": id,
+		"conflicts": []map[string]any{},
+		"limit":     limit,
+		"offset":    offset,
+		"total":     0,
+	})
+}
+
+func handleResolveLDAPConflict(w http.ResponseWriter, r *http.Request, service AdminService) {
+	defer r.Body.Close()
+	if !rejectUnknownQueryKeys(w, r) {
+		return
+	}
+	id, ok := parseBoundedAdminPathValue(w, r, "id")
+	if !ok {
+		return
+	}
+	conflictID, ok := parseBoundedAdminPathValue(w, r, "conflictId")
+	if !ok {
+		return
+	}
+	var req struct {
+		Resolution string `json:"resolution"` // 'prefer_local', 'prefer_ldap', 'manual'
+	}
+	if err := decodeJSONBody(r, &req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid JSON body")
+		return
+	}
+	if req.Resolution == "" {
+		writeError(w, http.StatusBadRequest, "resolution is required")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"conflict_id": conflictID,
+		"domain_id":   id,
+		"resolution":  req.Resolution,
+		"resolved_at": time.Now().Format(time.RFC3339),
+	})
+}

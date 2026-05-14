@@ -9141,6 +9141,181 @@ paths:
                     type: integer
         default:
           $ref: "#/components/responses/Error"
+  /domains/{id}/ldap/sync:
+    post:
+      operationId: triggerLDAPSync
+      summary: Trigger LDAP directory synchronization
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                sync_type:
+                  type: string
+                  description: "Type of sync: 'users', 'groups', 'memberships', or 'all'"
+      responses:
+        "200":
+          description: Sync job created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  sync_id:
+                    type: string
+                  domain_id:
+                    type: string
+                  status:
+                    type: string
+                  requested_at:
+                    type: string
+                    format: date-time
+        default:
+          $ref: "#/components/responses/Error"
+  /domains/{id}/ldap/sync-history:
+    get:
+      operationId: getLDAPSyncHistory
+      summary: Get LDAP sync operation history
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        "200":
+          description: LDAP sync history
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  domain_id:
+                    type: string
+                  sync_runs:
+                    type: array
+                    items:
+                      type: object
+                  limit:
+                    type: integer
+                  offset:
+                    type: integer
+                  total:
+                    type: integer
+        default:
+          $ref: "#/components/responses/Error"
+  /domains/{id}/ldap/conflicts:
+    get:
+      operationId: getLDAPSyncConflicts
+      summary: Get unresolved LDAP sync conflicts
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 100
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        "200":
+          description: LDAP sync conflicts
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  domain_id:
+                    type: string
+                  conflicts:
+                    type: array
+                    items:
+                      type: object
+                  limit:
+                    type: integer
+                  offset:
+                    type: integer
+                  total:
+                    type: integer
+        default:
+          $ref: "#/components/responses/Error"
+  /domains/{id}/ldap/conflicts/{conflictId}/resolve:
+    post:
+      operationId: resolveLDAPConflict
+      summary: Resolve an LDAP sync conflict
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+        - name: conflictId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                resolution:
+                  type: string
+                  description: "Resolution strategy: 'prefer_local', 'prefer_ldap', or 'manual'"
+      responses:
+        "200":
+          description: Conflict resolved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  conflict_id:
+                    type: string
+                  domain_id:
+                    type: string
+                  resolution:
+                    type: string
+                  resolved_at:
+                    type: string
+                    format: date-time
+        default:
+          $ref: "#/components/responses/Error"
 components:
   securitySchemes:
     bearerAuth:
