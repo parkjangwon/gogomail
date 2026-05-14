@@ -754,6 +754,7 @@ func (s *LDAPServer) handleSearchRequest(ctx context.Context, msgID int, opData 
 	if sorted {
 		sortPrincipalEntries(principals, sortKeys)
 	}
+	sizeLimitExceeded := sizeLimit > 0 && len(principals) > sizeLimit
 	if sizeLimit > 0 && len(principals) > sizeLimit {
 		principals = principals[:sizeLimit]
 	}
@@ -792,7 +793,7 @@ func (s *LDAPServer) handleSearchRequest(ctx context.Context, msgID int, opData 
 		resp = append(resp, entry...)
 	}
 	result := resultSuccess
-	if sizeLimit > 0 && len(principals) == sizeLimit {
+	if sizeLimitExceeded {
 		result = resultSizeLimitExceeded
 	}
 	responseControls := make([]control, 0, 2)
@@ -2395,11 +2396,10 @@ func collectLDAPFilterPrincipalKinds(data []byte, seen map[string]struct{}) erro
 			content = rest
 		}
 	case filterNot:
-		child, _, err := readRawTLV(content)
-		if err != nil {
+		if _, _, err := readRawTLV(content); err != nil {
 			return err
 		}
-		return collectLDAPFilterPrincipalKinds(child, seen)
+		return nil
 	case filterEqualityMatch, filterApproxMatch:
 		attr, valRest, err := decodeOctetString(content)
 		if err != nil {
@@ -2477,11 +2477,10 @@ func parseLDAPFilterCandidate(data []byte) (attr string, value string, ok bool, 
 		}
 		return "", "", false, nil
 	case filterNot:
-		child, _, err := readRawTLV(content)
-		if err != nil {
+		if _, _, err := readRawTLV(content); err != nil {
 			return "", "", false, err
 		}
-		return parseLDAPFilterCandidate(child)
+		return "", "", false, nil
 	case filterEqualityMatch, filterApproxMatch, filterGreaterOrEqual, filterLessOrEqual:
 		attr, valRest, err := decodeOctetString(content)
 		if err != nil {
