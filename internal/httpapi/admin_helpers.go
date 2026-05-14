@@ -2,6 +2,13 @@ package httpapi
 
 import (
 	"net/http"
+	"strconv"
+	"strings"
+	"time"
+
+	"github.com/gogomail/gogomail/internal/davsyncretention"
+	"github.com/gogomail/gogomail/internal/directory"
+	"github.com/gogomail/gogomail/internal/maildb"
 )
 
 // Query validation helpers - reject unknown query parameters for specific endpoints
@@ -54,4 +61,863 @@ func rejectUnknownAPIUsageExportBatchCreateQuery(w http.ResponseWriter, r *http.
 
 func rejectUnknownAPIUsageExportBatchListQuery(w http.ResponseWriter, r *http.Request) bool {
 	return rejectUnknownQueryKeys(w, r, "limit", "tenant_id", "principal_id", "status", "from", "to")
+}
+
+// Parse request helpers - parse and validate HTTP request parameters
+
+func parseAdminAttachmentCleanupRequest(w http.ResponseWriter, req adminAttachmentCleanupRunRequest) (time.Time, bool) {
+	beforeRaw := strings.TrimSpace(req.Before)
+	if beforeRaw == "" {
+		writeError(w, http.StatusBadRequest, "before is required")
+		return time.Time{}, false
+	}
+	before, err := time.Parse(time.RFC3339, beforeRaw)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "before must be RFC3339 timestamp")
+		return time.Time{}, false
+	}
+	before = before.UTC()
+	if before.After(time.Now().UTC()) {
+		writeError(w, http.StatusBadRequest, "before must not be in the future")
+		return time.Time{}, false
+	}
+	if req.Limit < 0 {
+		writeError(w, http.StatusBadRequest, "limit must not be negative")
+		return time.Time{}, false
+	}
+	return before, true
+}
+
+func parseAPIUsageLedgerListRequest(w http.ResponseWriter, r *http.Request, limit int) (maildb.APIUsageLedgerListRequest, bool) {
+	tenantID, ok := parseBoundedAdminQuery(w, r, "tenant_id")
+	if !ok {
+		return maildb.APIUsageLedgerListRequest{}, false
+	}
+	principalID, ok := parseBoundedAdminQuery(w, r, "principal_id")
+	if !ok {
+		return maildb.APIUsageLedgerListRequest{}, false
+	}
+	req := maildb.APIUsageLedgerListRequest{
+		Limit:       limit,
+		TenantID:    tenantID,
+		PrincipalID: principalID,
+	}
+	from, ok := parseOptionalRFC3339Query(w, r, "from")
+	if !ok {
+		return maildb.APIUsageLedgerListRequest{}, false
+	}
+	to, ok := parseOptionalRFC3339Query(w, r, "to")
+	if !ok {
+		return maildb.APIUsageLedgerListRequest{}, false
+	}
+	req.From = from
+	req.To = to
+	if !req.From.IsZero() && !req.To.IsZero() && !req.From.Before(req.To) {
+		writeError(w, http.StatusBadRequest, "from must be before to")
+		return maildb.APIUsageLedgerListRequest{}, false
+	}
+	return req, true
+}
+
+func parseAPIUsageExportBatchListRequest(w http.ResponseWriter, r *http.Request, limit int) (maildb.APIUsageExportBatchListRequest, bool) {
+	var ok bool
+	req := maildb.APIUsageExportBatchListRequest{Limit: limit}
+	if req.TenantID, ok = parseBoundedAdminQuery(w, r, "tenant_id"); !ok {
+		return maildb.APIUsageExportBatchListRequest{}, false
+	}
+	if req.PrincipalID, ok = parseBoundedAdminQuery(w, r, "principal_id"); !ok {
+		return maildb.APIUsageExportBatchListRequest{}, false
+	}
+	if req.Status, ok = parseBoundedAdminQuery(w, r, "status"); !ok {
+		return maildb.APIUsageExportBatchListRequest{}, false
+	}
+	if req.From, ok = parseOptionalRFC3339Query(w, r, "from"); !ok {
+		return maildb.APIUsageExportBatchListRequest{}, false
+	}
+	if req.To, ok = parseOptionalRFC3339Query(w, r, "to"); !ok {
+		return maildb.APIUsageExportBatchListRequest{}, false
+	}
+	if err := maildb.ValidateAPIUsageExportBatchListRequest(req); err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return maildb.APIUsageExportBatchListRequest{}, false
+	}
+	return req, true
+}
+
+func parseAPIUsageAggregateListRequest(w http.ResponseWriter, r *http.Request, limit int) (maildb.APIUsageAggregateListRequest, bool) {
+	req := maildb.APIUsageAggregateListRequest{Limit: limit}
+	var ok bool
+	if req.TenantID, ok = parseBoundedAdminQuery(w, r, "tenant_id"); !ok {
+		return maildb.APIUsageAggregateListRequest{}, false
+	}
+	if req.CompanyID, ok = parseBoundedAdminQuery(w, r, "company_id"); !ok {
+		return maildb.APIUsageAggregateListRequest{}, false
+	}
+	if req.DomainID, ok = parseBoundedAdminQuery(w, r, "domain_id"); !ok {
+		return maildb.APIUsageAggregateListRequest{}, false
+	}
+	if req.UserID, ok = parseBoundedAdminQuery(w, r, "user_id"); !ok {
+		return maildb.APIUsageAggregateListRequest{}, false
+	}
+	if req.APIKeyID, ok = parseBoundedAdminQuery(w, r, "api_key_id"); !ok {
+		return maildb.APIUsageAggregateListRequest{}, false
+	}
+	if req.PrincipalID, ok = parseBoundedAdminQuery(w, r, "principal_id"); !ok {
+		return maildb.APIUsageAggregateListRequest{}, false
+	}
+	if req.AuthSource, ok = parseBoundedAdminQuery(w, r, "auth_source"); !ok {
+		return maildb.APIUsageAggregateListRequest{}, false
+	}
+	if req.Method, ok = parseBoundedAdminQuery(w, r, "method"); !ok {
+		return maildb.APIUsageAggregateListRequest{}, false
+	}
+	if req.Route, ok = parseBoundedAdminQuery(w, r, "route"); !ok {
+		return maildb.APIUsageAggregateListRequest{}, false
+	}
+	var statusOK bool
+	if req.Status, statusOK = parseOptionalHTTPStatusQuery(w, r, "status"); !statusOK {
+		return maildb.APIUsageAggregateListRequest{}, false
+	}
+	if req.From, ok = parseOptionalRFC3339Query(w, r, "from"); !ok {
+		return maildb.APIUsageAggregateListRequest{}, false
+	}
+	if req.To, ok = parseOptionalRFC3339Query(w, r, "to"); !ok {
+		return maildb.APIUsageAggregateListRequest{}, false
+	}
+	if !req.From.IsZero() && !req.To.IsZero() && !req.From.Before(req.To) {
+		writeError(w, http.StatusBadRequest, "from must be before to")
+		return maildb.APIUsageAggregateListRequest{}, false
+	}
+	return req, true
+}
+
+func parseOptionalHTTPStatusQuery(w http.ResponseWriter, r *http.Request, key string) (int, bool) {
+	raw, ok := singleQueryValue(w, r, key)
+	if !ok {
+		return 0, false
+	}
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return 0, true
+	}
+	status, err := strconv.Atoi(raw)
+	if err != nil || status < 100 || status > 599 {
+		writeError(w, http.StatusBadRequest, key+" must be an HTTP status code")
+		return 0, false
+	}
+	return status, true
+}
+
+func parseAuditLogListRequest(w http.ResponseWriter, r *http.Request, limit int) (maildb.AuditLogListRequest, bool) {
+	category, ok := parseBoundedAdminQuery(w, r, "category")
+	if !ok {
+		return maildb.AuditLogListRequest{}, false
+	}
+	action, ok := parseBoundedAdminQuery(w, r, "action")
+	if !ok {
+		return maildb.AuditLogListRequest{}, false
+	}
+	actionPrefix, ok := parseBoundedAdminQuery(w, r, "action_prefix")
+	if !ok {
+		return maildb.AuditLogListRequest{}, false
+	}
+	result, ok := parseBoundedAdminQuery(w, r, "result")
+	if !ok {
+		return maildb.AuditLogListRequest{}, false
+	}
+	targetType, ok := parseBoundedAdminQuery(w, r, "target_type")
+	if !ok {
+		return maildb.AuditLogListRequest{}, false
+	}
+	companyID, ok := parseBoundedAdminQuery(w, r, "company_id")
+	if !ok {
+		return maildb.AuditLogListRequest{}, false
+	}
+	domainID, ok := parseBoundedAdminQuery(w, r, "domain_id")
+	if !ok {
+		return maildb.AuditLogListRequest{}, false
+	}
+	userID, ok := parseBoundedAdminQuery(w, r, "user_id")
+	if !ok {
+		return maildb.AuditLogListRequest{}, false
+	}
+	actorID, ok := parseBoundedAdminQuery(w, r, "actor_id")
+	if !ok {
+		return maildb.AuditLogListRequest{}, false
+	}
+	targetID, ok := parseBoundedAdminQuery(w, r, "target_id")
+	if !ok {
+		return maildb.AuditLogListRequest{}, false
+	}
+	since, ok := parseOptionalRFC3339Query(w, r, "since")
+	if !ok {
+		return maildb.AuditLogListRequest{}, false
+	}
+	return maildb.AuditLogListRequest{
+		Limit:        limit,
+		Category:     category,
+		Action:       action,
+		ActionPrefix: actionPrefix,
+		Result:       result,
+		TargetType:   targetType,
+		CompanyID:    companyID,
+		DomainID:     domainID,
+		UserID:       userID,
+		ActorID:      actorID,
+		TargetID:     targetID,
+		Since:        since,
+	}, true
+}
+
+func parseMailFlowLogListRequest(w http.ResponseWriter, r *http.Request, limit int) (maildb.MailFlowLogListRequest, bool) {
+	direction, ok := parseBoundedAdminQuery(w, r, "direction")
+	if !ok {
+		return maildb.MailFlowLogListRequest{}, false
+	}
+	companyID, ok := parseBoundedAdminQuery(w, r, "company_id")
+	if !ok {
+		return maildb.MailFlowLogListRequest{}, false
+	}
+	domainID, ok := parseBoundedAdminQuery(w, r, "domain_id")
+	if !ok {
+		return maildb.MailFlowLogListRequest{}, false
+	}
+	userID, ok := parseBoundedAdminQuery(w, r, "user_id")
+	if !ok {
+		return maildb.MailFlowLogListRequest{}, false
+	}
+	messageID, ok := parseBoundedAdminQuery(w, r, "message_id")
+	if !ok {
+		return maildb.MailFlowLogListRequest{}, false
+	}
+	rfcMessageID, ok := parseBoundedAdminQuery(w, r, "rfc_message_id")
+	if !ok {
+		return maildb.MailFlowLogListRequest{}, false
+	}
+	fromAddr, ok := parseBoundedAdminQuery(w, r, "from_addr")
+	if !ok {
+		return maildb.MailFlowLogListRequest{}, false
+	}
+	toAddr, ok := parseBoundedAdminQuery(w, r, "to_addr")
+	if !ok {
+		return maildb.MailFlowLogListRequest{}, false
+	}
+	subject, ok := parseBoundedAdminQuery(w, r, "subject")
+	if !ok {
+		return maildb.MailFlowLogListRequest{}, false
+	}
+	flowStatus, ok := parseBoundedAdminQuery(w, r, "flow_status")
+	if !ok {
+		return maildb.MailFlowLogListRequest{}, false
+	}
+	since, ok := parseOptionalRFC3339Query(w, r, "since")
+	if !ok {
+		return maildb.MailFlowLogListRequest{}, false
+	}
+	until, ok := parseOptionalRFC3339Query(w, r, "until")
+	if !ok {
+		return maildb.MailFlowLogListRequest{}, false
+	}
+	return maildb.MailFlowLogListRequest{
+		Limit:        limit,
+		Direction:    direction,
+		CompanyID:    companyID,
+		DomainID:     domainID,
+		UserID:       userID,
+		MessageID:    messageID,
+		RFCMessageID: rfcMessageID,
+		FromAddr:     fromAddr,
+		ToAddr:       toAddr,
+		Subject:      subject,
+		FlowStatus:   flowStatus,
+		Since:        since,
+		Until:        until,
+	}, true
+}
+
+func parseMailFlowLogStatsRequest(w http.ResponseWriter, r *http.Request) (maildb.MailFlowLogStatsRequest, bool) {
+	direction, ok := parseBoundedAdminQuery(w, r, "direction")
+	if !ok {
+		return maildb.MailFlowLogStatsRequest{}, false
+	}
+	companyID, ok := parseBoundedAdminQuery(w, r, "company_id")
+	if !ok {
+		return maildb.MailFlowLogStatsRequest{}, false
+	}
+	domainID, ok := parseBoundedAdminQuery(w, r, "domain_id")
+	if !ok {
+		return maildb.MailFlowLogStatsRequest{}, false
+	}
+	userID, ok := parseBoundedAdminQuery(w, r, "user_id")
+	if !ok {
+		return maildb.MailFlowLogStatsRequest{}, false
+	}
+	since, ok := parseOptionalRFC3339Query(w, r, "since")
+	if !ok {
+		return maildb.MailFlowLogStatsRequest{}, false
+	}
+	until, ok := parseOptionalRFC3339Query(w, r, "until")
+	if !ok {
+		return maildb.MailFlowLogStatsRequest{}, false
+	}
+	return maildb.MailFlowLogStatsRequest{
+		Direction: direction,
+		CompanyID: companyID,
+		DomainID:  domainID,
+		UserID:    userID,
+		Since:     since,
+		Until:     until,
+	}, true
+}
+
+func parseMailFlowLogDailyStatsRequest(w http.ResponseWriter, r *http.Request) (maildb.MailFlowLogDailyStatsRequest, bool) {
+	direction, ok := parseBoundedAdminQuery(w, r, "direction")
+	if !ok {
+		return maildb.MailFlowLogDailyStatsRequest{}, false
+	}
+	companyID, ok := parseBoundedAdminQuery(w, r, "company_id")
+	if !ok {
+		return maildb.MailFlowLogDailyStatsRequest{}, false
+	}
+	domainID, ok := parseBoundedAdminQuery(w, r, "domain_id")
+	if !ok {
+		return maildb.MailFlowLogDailyStatsRequest{}, false
+	}
+	userID, ok := parseBoundedAdminQuery(w, r, "user_id")
+	if !ok {
+		return maildb.MailFlowLogDailyStatsRequest{}, false
+	}
+	since, ok := parseOptionalRFC3339Query(w, r, "since")
+	if !ok {
+		return maildb.MailFlowLogDailyStatsRequest{}, false
+	}
+	until, ok := parseOptionalRFC3339Query(w, r, "until")
+	if !ok {
+		return maildb.MailFlowLogDailyStatsRequest{}, false
+	}
+	return maildb.MailFlowLogDailyStatsRequest{
+		Direction: direction,
+		CompanyID: companyID,
+		DomainID:  domainID,
+		UserID:    userID,
+		Since:     since,
+		Until:     until,
+	}, true
+}
+
+func parseDirectoryPrincipalSearchRequest(w http.ResponseWriter, r *http.Request, limit int) (directory.SearchPrincipalsRequest, bool) {
+	companyID, ok := parseBoundedAdminQuery(w, r, "company_id")
+	if !ok {
+		return directory.SearchPrincipalsRequest{}, false
+	}
+	domainID, ok := parseBoundedAdminQuery(w, r, "domain_id")
+	if !ok {
+		return directory.SearchPrincipalsRequest{}, false
+	}
+	organizationID, ok := parseBoundedAdminQuery(w, r, "organization_id")
+	if !ok {
+		return directory.SearchPrincipalsRequest{}, false
+	}
+	rawKinds, ok := parseBoundedAdminQuery(w, r, "kinds")
+	if !ok {
+		return directory.SearchPrincipalsRequest{}, false
+	}
+	query, ok := parseBoundedAdminQuery(w, r, "q")
+	if !ok {
+		return directory.SearchPrincipalsRequest{}, false
+	}
+	activeOnlyValue, ok := parseOptionalBoolQuery(w, r, "active_only")
+	if !ok {
+		return directory.SearchPrincipalsRequest{}, false
+	}
+	activeOnly := true
+	if activeOnlyValue != nil {
+		activeOnly = *activeOnlyValue
+	}
+	return directory.SearchPrincipalsRequest{
+		CompanyID:      companyID,
+		DomainID:       domainID,
+		OrganizationID: organizationID,
+		Kinds:          splitDirectoryPrincipalKinds(rawKinds),
+		Query:          query,
+		ActiveOnly:     activeOnly,
+		Limit:          limit,
+	}, true
+}
+
+func splitDirectoryPrincipalKinds(value string) []string {
+	fields := strings.FieldsFunc(value, func(r rune) bool {
+		return r == ',' || r == ' ' || r == '\t' || r == '\n' || r == '\r'
+	})
+	kinds := make([]string, 0, len(fields))
+	for _, field := range fields {
+		if field = strings.TrimSpace(field); field != "" {
+			kinds = append(kinds, field)
+		}
+	}
+	return kinds
+}
+
+func parseDirectoryAliasResolveRequest(w http.ResponseWriter, r *http.Request) (directory.ResolveAliasRequest, bool) {
+	address, ok := parseBoundedAdminQuery(w, r, "address")
+	if !ok {
+		return directory.ResolveAliasRequest{}, false
+	}
+	activeOnlyValue, ok := parseOptionalBoolQuery(w, r, "active_only")
+	if !ok {
+		return directory.ResolveAliasRequest{}, false
+	}
+	activeOnly := true
+	if activeOnlyValue != nil {
+		activeOnly = *activeOnlyValue
+	}
+	return directory.ResolveAliasRequest{
+		Address:    address,
+		ActiveOnly: activeOnly,
+	}, true
+}
+
+func parseDirectoryAliasListRequest(w http.ResponseWriter, r *http.Request, limit int) (directory.ListAliasesRequest, bool) {
+	companyID, ok := parseBoundedAdminQuery(w, r, "company_id")
+	if !ok {
+		return directory.ListAliasesRequest{}, false
+	}
+	domainID, ok := parseBoundedAdminQuery(w, r, "domain_id")
+	if !ok {
+		return directory.ListAliasesRequest{}, false
+	}
+	targetKind, ok := parseBoundedAdminQuery(w, r, "target_kind")
+	if !ok {
+		return directory.ListAliasesRequest{}, false
+	}
+	targetID, ok := parseBoundedAdminQuery(w, r, "target_id")
+	if !ok {
+		return directory.ListAliasesRequest{}, false
+	}
+	query, ok := parseBoundedAdminQuery(w, r, "q")
+	if !ok {
+		return directory.ListAliasesRequest{}, false
+	}
+	activeOnlyValue, ok := parseOptionalBoolQuery(w, r, "active_only")
+	if !ok {
+		return directory.ListAliasesRequest{}, false
+	}
+	activeOnly := true
+	if activeOnlyValue != nil {
+		activeOnly = *activeOnlyValue
+	}
+	return directory.ListAliasesRequest{
+		CompanyID:  companyID,
+		DomainID:   domainID,
+		TargetKind: targetKind,
+		TargetID:   targetID,
+		Query:      query,
+		ActiveOnly: activeOnly,
+		Limit:      limit,
+	}, true
+}
+
+func parseDirectoryDelegationListRequest(w http.ResponseWriter, r *http.Request, limit int) (directory.ListDelegationsRequest, bool) {
+	companyID, ok := parseBoundedAdminQuery(w, r, "company_id")
+	if !ok {
+		return directory.ListDelegationsRequest{}, false
+	}
+	ownerKind, ok := parseBoundedAdminQuery(w, r, "owner_kind")
+	if !ok {
+		return directory.ListDelegationsRequest{}, false
+	}
+	ownerID, ok := parseBoundedAdminQuery(w, r, "owner_id")
+	if !ok {
+		return directory.ListDelegationsRequest{}, false
+	}
+	delegateKind, ok := parseBoundedAdminQuery(w, r, "delegate_kind")
+	if !ok {
+		return directory.ListDelegationsRequest{}, false
+	}
+	delegateID, ok := parseBoundedAdminQuery(w, r, "delegate_id")
+	if !ok {
+		return directory.ListDelegationsRequest{}, false
+	}
+	scope, ok := parseBoundedAdminQuery(w, r, "scope")
+	if !ok {
+		return directory.ListDelegationsRequest{}, false
+	}
+	role, ok := parseBoundedAdminQuery(w, r, "role")
+	if !ok {
+		return directory.ListDelegationsRequest{}, false
+	}
+	activeOnlyValue, ok := parseOptionalBoolQuery(w, r, "active_only")
+	if !ok {
+		return directory.ListDelegationsRequest{}, false
+	}
+	activeOnly := true
+	if activeOnlyValue != nil {
+		activeOnly = *activeOnlyValue
+	}
+	return directory.ListDelegationsRequest{
+		CompanyID:    companyID,
+		OwnerKind:    ownerKind,
+		OwnerID:      ownerID,
+		DelegateKind: delegateKind,
+		DelegateID:   delegateID,
+		Scope:        scope,
+		Role:         role,
+		ActiveOnly:   activeOnly,
+		Limit:        limit,
+	}, true
+}
+
+func parseDirectoryGroupMembershipListRequest(w http.ResponseWriter, r *http.Request, limit int) (directory.ListGroupMembershipsRequest, bool) {
+	companyID, ok := parseBoundedAdminQuery(w, r, "company_id")
+	if !ok {
+		return directory.ListGroupMembershipsRequest{}, false
+	}
+	groupID, ok := parseBoundedAdminQuery(w, r, "group_id")
+	if !ok {
+		return directory.ListGroupMembershipsRequest{}, false
+	}
+	memberKind, ok := parseBoundedAdminQuery(w, r, "member_kind")
+	if !ok {
+		return directory.ListGroupMembershipsRequest{}, false
+	}
+	memberID, ok := parseBoundedAdminQuery(w, r, "member_id")
+	if !ok {
+		return directory.ListGroupMembershipsRequest{}, false
+	}
+	role, ok := parseBoundedAdminQuery(w, r, "role")
+	if !ok {
+		return directory.ListGroupMembershipsRequest{}, false
+	}
+	activeOnlyValue, ok := parseOptionalBoolQuery(w, r, "active_only")
+	if !ok {
+		return directory.ListGroupMembershipsRequest{}, false
+	}
+	activeOnly := true
+	if activeOnlyValue != nil {
+		activeOnly = *activeOnlyValue
+	}
+	return directory.ListGroupMembershipsRequest{
+		CompanyID:  companyID,
+		GroupID:    groupID,
+		MemberKind: memberKind,
+		MemberID:   memberID,
+		Role:       role,
+		ActiveOnly: activeOnly,
+		Limit:      limit,
+	}, true
+}
+
+func parseAPIUsageLedgerRetentionRequest(w http.ResponseWriter, r *http.Request) (maildb.APIUsageLedgerRetentionRequest, bool) {
+	tenantID, ok := parseBoundedAdminQuery(w, r, "tenant_id")
+	if !ok {
+		return maildb.APIUsageLedgerRetentionRequest{}, false
+	}
+	principalID, ok := parseBoundedAdminQuery(w, r, "principal_id")
+	if !ok {
+		return maildb.APIUsageLedgerRetentionRequest{}, false
+	}
+	cutoff, ok := parseOptionalRFC3339Query(w, r, "cutoff")
+	if !ok {
+		return maildb.APIUsageLedgerRetentionRequest{}, false
+	}
+	if cutoff.IsZero() {
+		writeError(w, http.StatusBadRequest, "cutoff is required")
+		return maildb.APIUsageLedgerRetentionRequest{}, false
+	}
+	if cutoff.After(time.Now().UTC()) {
+		writeError(w, http.StatusBadRequest, "cutoff must not be in the future")
+		return maildb.APIUsageLedgerRetentionRequest{}, false
+	}
+	return maildb.APIUsageLedgerRetentionRequest{
+		Cutoff:      cutoff,
+		TenantID:    tenantID,
+		PrincipalID: principalID,
+	}, true
+}
+
+func parseAPIUsageLedgerRetentionRunRequest(w http.ResponseWriter, req adminAPIUsageLedgerRetentionRunRequest) (maildb.APIUsageLedgerRetentionRunRequest, bool) {
+	tenantID := strings.TrimSpace(req.TenantID)
+	if strings.ContainsAny(tenantID, "\r\n") {
+		writeError(w, http.StatusBadRequest, "tenant_id must not contain CR or LF")
+		return maildb.APIUsageLedgerRetentionRunRequest{}, false
+	}
+	if len(tenantID) > maxAdminQueryFilterBytes {
+		writeError(w, http.StatusBadRequest, "tenant_id is too long")
+		return maildb.APIUsageLedgerRetentionRunRequest{}, false
+	}
+	principalID := strings.TrimSpace(req.PrincipalID)
+	if strings.ContainsAny(principalID, "\r\n") {
+		writeError(w, http.StatusBadRequest, "principal_id must not contain CR or LF")
+		return maildb.APIUsageLedgerRetentionRunRequest{}, false
+	}
+	if len(principalID) > maxAdminQueryFilterBytes {
+		writeError(w, http.StatusBadRequest, "principal_id is too long")
+		return maildb.APIUsageLedgerRetentionRunRequest{}, false
+	}
+	cutoffRaw := strings.TrimSpace(req.Cutoff)
+	if cutoffRaw == "" {
+		writeError(w, http.StatusBadRequest, "cutoff is required")
+		return maildb.APIUsageLedgerRetentionRunRequest{}, false
+	}
+	cutoff, err := time.Parse(time.RFC3339, cutoffRaw)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "cutoff must be RFC3339 timestamp")
+		return maildb.APIUsageLedgerRetentionRunRequest{}, false
+	}
+	cutoff = cutoff.UTC()
+	if cutoff.After(time.Now().UTC()) {
+		writeError(w, http.StatusBadRequest, "cutoff must not be in the future")
+		return maildb.APIUsageLedgerRetentionRunRequest{}, false
+	}
+	if req.Limit < 0 {
+		writeError(w, http.StatusBadRequest, "limit must not be negative")
+		return maildb.APIUsageLedgerRetentionRunRequest{}, false
+	}
+	if !req.DryRun && !req.ConfirmReady {
+		writeError(w, http.StatusBadRequest, "confirm_ready is required for destructive retention runs")
+		return maildb.APIUsageLedgerRetentionRunRequest{}, false
+	}
+	return maildb.APIUsageLedgerRetentionRunRequest{
+		Cutoff:       cutoff,
+		TenantID:     tenantID,
+		PrincipalID:  principalID,
+		Limit:        req.Limit,
+		DryRun:       req.DryRun,
+		ConfirmReady: req.ConfirmReady,
+	}, true
+}
+
+func parseAPIUsageLedgerRetentionRunListRequest(w http.ResponseWriter, r *http.Request, limit int) (maildb.APIUsageLedgerRetentionRunListRequest, bool) {
+	tenantID, ok := parseBoundedAdminQuery(w, r, "tenant_id")
+	if !ok {
+		return maildb.APIUsageLedgerRetentionRunListRequest{}, false
+	}
+	principalID, ok := parseBoundedAdminQuery(w, r, "principal_id")
+	if !ok {
+		return maildb.APIUsageLedgerRetentionRunListRequest{}, false
+	}
+	createdFrom, ok := parseOptionalRFC3339Query(w, r, "created_from")
+	if !ok {
+		return maildb.APIUsageLedgerRetentionRunListRequest{}, false
+	}
+	createdTo, ok := parseOptionalRFC3339Query(w, r, "created_to")
+	if !ok {
+		return maildb.APIUsageLedgerRetentionRunListRequest{}, false
+	}
+	if !createdFrom.IsZero() && !createdTo.IsZero() && !createdFrom.Before(createdTo) {
+		writeError(w, http.StatusBadRequest, "created_from must be before created_to")
+		return maildb.APIUsageLedgerRetentionRunListRequest{}, false
+	}
+	return maildb.APIUsageLedgerRetentionRunListRequest{
+		Limit:       limit,
+		TenantID:    tenantID,
+		PrincipalID: principalID,
+		CreatedFrom: createdFrom,
+		CreatedTo:   createdTo,
+	}, true
+}
+
+func parseDAVSyncRetentionRunListRequest(w http.ResponseWriter, r *http.Request, limit int) (davsyncretention.RunListRequest, bool) {
+	statusRaw, ok := parseBoundedAdminQuery(w, r, "status")
+	if !ok {
+		return davsyncretention.RunListRequest{}, false
+	}
+	status := davsyncretention.RunStatus(statusRaw)
+	if status != "" && status != davsyncretention.RunStatusCompleted && status != davsyncretention.RunStatusFailed {
+		writeError(w, http.StatusBadRequest, "status is unsupported")
+		return davsyncretention.RunListRequest{}, false
+	}
+	createdFrom, ok := parseOptionalRFC3339Query(w, r, "created_from")
+	if !ok {
+		return davsyncretention.RunListRequest{}, false
+	}
+	createdTo, ok := parseOptionalRFC3339Query(w, r, "created_to")
+	if !ok {
+		return davsyncretention.RunListRequest{}, false
+	}
+	if !createdFrom.IsZero() && !createdTo.IsZero() && !createdFrom.Before(createdTo) {
+		writeError(w, http.StatusBadRequest, "created_from must be before created_to")
+		return davsyncretention.RunListRequest{}, false
+	}
+	return davsyncretention.RunListRequest{
+		Limit:       limit,
+		Status:      status,
+		CreatedFrom: createdFrom,
+		CreatedTo:   createdTo,
+	}, true
+}
+
+func parseDAVSyncRetentionRunRequest(w http.ResponseWriter, req adminDAVSyncRetentionRunRequest) (davsyncretention.RunRequest, bool) {
+	cutoffRaw := strings.TrimSpace(req.Cutoff)
+	if cutoffRaw == "" {
+		writeError(w, http.StatusBadRequest, "cutoff is required")
+		return davsyncretention.RunRequest{}, false
+	}
+	cutoff, err := time.Parse(time.RFC3339, cutoffRaw)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "cutoff must be RFC3339 timestamp")
+		return davsyncretention.RunRequest{}, false
+	}
+	normalized, err := davsyncretention.NormalizeRunRequest(davsyncretention.RunRequest{
+		Cutoff:       cutoff,
+		Limit:        req.Limit,
+		DryRun:       req.DryRun,
+		ConfirmReady: req.ConfirmReady,
+	}, time.Now)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return davsyncretention.RunRequest{}, false
+	}
+	return normalized, true
+}
+
+func parseDAVSyncRetentionReadinessRequest(w http.ResponseWriter, r *http.Request) (davsyncretention.ReadinessRequest, bool) {
+	cutoffRaw, ok := singleQueryValue(w, r, "cutoff")
+	if !ok {
+		return davsyncretention.ReadinessRequest{}, false
+	}
+	cutoffRaw = strings.TrimSpace(cutoffRaw)
+	if cutoffRaw == "" {
+		writeError(w, http.StatusBadRequest, "cutoff is required")
+		return davsyncretention.ReadinessRequest{}, false
+	}
+	cutoff, err := time.Parse(time.RFC3339, cutoffRaw)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "cutoff must be RFC3339 timestamp")
+		return davsyncretention.ReadinessRequest{}, false
+	}
+	limit, ok := parseDAVSyncRetentionLimit(w, r)
+	if !ok {
+		return davsyncretention.ReadinessRequest{}, false
+	}
+	req, err := davsyncretention.NormalizeReadinessRequest(davsyncretention.ReadinessRequest{
+		Cutoff: cutoff,
+		Limit:  limit,
+	}, time.Now)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return davsyncretention.ReadinessRequest{}, false
+	}
+	return req, true
+}
+
+func parseDAVSyncRetentionLimit(w http.ResponseWriter, r *http.Request) (int, bool) {
+	raw, ok := singleQueryValue(w, r, "limit")
+	if !ok {
+		return 0, false
+	}
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return 0, true
+	}
+	if len(raw) > maxHTTPControlBytes {
+		writeError(w, http.StatusBadRequest, "limit is too long")
+		return 0, false
+	}
+	limit, err := strconv.Atoi(raw)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "limit must be an integer")
+		return 0, false
+	}
+	if limit <= 0 {
+		writeError(w, http.StatusBadRequest, "limit must be positive")
+		return 0, false
+	}
+	if limit > davsyncretention.MaxReadinessLimit {
+		writeError(w, http.StatusBadRequest, "limit must be at most "+strconv.Itoa(davsyncretention.MaxReadinessLimit))
+		return 0, false
+	}
+	return limit, true
+}
+
+func apiUsageLedgerRequestFromBatch(batch maildb.APIUsageExportBatchView, limit int) maildb.APIUsageLedgerListRequest {
+	req := maildb.APIUsageLedgerListRequest{
+		Limit:       limit,
+		TenantID:    batch.TenantID,
+		PrincipalID: batch.PrincipalID,
+	}
+	if batch.WindowStart != nil {
+		req.From = batch.WindowStart.UTC()
+	}
+	if batch.WindowEnd != nil {
+		req.To = batch.WindowEnd.UTC()
+	}
+	return req
+}
+
+func parseOptionalRFC3339Query(w http.ResponseWriter, r *http.Request, key string) (time.Time, bool) {
+	raw, ok := singleQueryValue(w, r, key)
+	if !ok {
+		return time.Time{}, false
+	}
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return time.Time{}, true
+	}
+	value, err := time.Parse(time.RFC3339Nano, raw)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, key+" must be RFC3339 timestamp")
+		return time.Time{}, false
+	}
+	return value.UTC(), true
+}
+
+const maxAdminQueryFilterBytes = 1024
+
+func parseBoundedAdminQuery(w http.ResponseWriter, r *http.Request, key string) (string, bool) {
+	value, ok := singleQueryValue(w, r, key)
+	if !ok {
+		return "", false
+	}
+	value = strings.TrimSpace(value)
+	if strings.ContainsAny(value, "\r\n") {
+		writeError(w, http.StatusBadRequest, key+" must not contain CR or LF")
+		return "", false
+	}
+	if len(value) > maxAdminQueryFilterBytes {
+		writeError(w, http.StatusBadRequest, key+" is too long")
+		return "", false
+	}
+	return value, true
+}
+
+func parseBoundedAdminPathValue(w http.ResponseWriter, r *http.Request, key string) (string, bool) {
+	value := strings.TrimSpace(r.PathValue(key))
+	if value == "" {
+		writeError(w, http.StatusBadRequest, key+" is required")
+		return "", false
+	}
+	if strings.ContainsAny(value, "\r\n") {
+		writeError(w, http.StatusBadRequest, key+" must not contain CR or LF")
+		return "", false
+	}
+	if len(value) > maxAdminQueryFilterBytes {
+		writeError(w, http.StatusBadRequest, key+" is too long")
+		return "", false
+	}
+	return value, true
+}
+
+func parseBoundedAdminPathPair(w http.ResponseWriter, r *http.Request, firstKey string, secondKey string) (string, string, bool) {
+	first, ok := parseBoundedAdminPathValue(w, r, firstKey)
+	if !ok {
+		return "", "", false
+	}
+	second, ok := parseBoundedAdminPathValue(w, r, secondKey)
+	if !ok {
+		return "", "", false
+	}
+	return first, second, true
+}
+
+func parseBoundedAdminPathTriple(w http.ResponseWriter, r *http.Request, firstKey string, secondKey string, thirdKey string) (string, string, string, bool) {
+	first, second, ok := parseBoundedAdminPathPair(w, r, firstKey, secondKey)
+	if !ok {
+		return "", "", "", false
+	}
+	third, ok := parseBoundedAdminPathValue(w, r, thirdKey)
+	if !ok {
+		return "", "", "", false
+	}
+	return first, second, third, true
 }

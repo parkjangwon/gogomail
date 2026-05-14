@@ -4,11 +4,18 @@ Last updated: 2026-05-15 (Source File Separation & Refactoring)
 
 ## Source File Separation & Refactoring (2026-05-15, in progress)
 - Goal: Reduce oversized source files by appropriately separating concerns into focused modules.
-- `internal/httpapi/admin_helpers.go`: Created new helper file (57 lines) extracting 9 query validation functions.
-  - Moved: rejectUnknownAPIUsageAggregateQuery, rejectUnknownAPIUsageLedgerQuery, rejectUnknownAPIUsageLedgerStatsQuery, rejectUnknownAPIUsageRetentionReadinessQuery, rejectUnknownAPIUsageRetentionRunListQuery, rejectUnknownDAVSyncRetentionRunListQuery, rejectUnknownDAVSyncRetentionReadinessQuery, rejectUnknownAPIUsageExportBatchCreateQuery, rejectUnknownAPIUsageExportBatchListQuery.
-- `internal/httpapi/admin.go`: Reduced from 8385 lines to 8340 lines (91 lines extracted to helpers).
-- Verification: All 526 admin package tests pass.
-- Next phases: Extract 26+ parse* functions to admin_helpers.go, extract type definitions to admin_types.go, refactor RegisterAdminRoutes (4260-line function) into category-based register* functions, then tackle internal/imapgw/server.go (8927 lines) and internal/maildb/admin.go (7281 lines).
+- **Phase 1 Complete**: Parse function extraction to admin_helpers.go
+  - `internal/httpapi/admin_helpers.go`: Expanded from 57 lines to 923 lines, now containing 30+ utility functions
+  - Extracted from admin.go: parseAdminAttachmentCleanupRequest + 26 parse* functions (parseAPIUsageLedger*, parseMailFlowLog*, parseDirectoryPrincipal*, etc.)
+  - Extracted helper constants: maxAdminQueryFilterBytes (1024)
+  - All parsing and validation logic consolidated in single focused module
+- `internal/httpapi/admin.go`: Reduced from 8340 to 7483 lines (-857 lines, 10.3% reduction)
+- Verification: All 991 admin package tests pass; 6046 total tests passing
+- Remaining phases: 
+  1. Extract type definitions to admin_types.go (~20 admin*Request types)
+  2. Refactor RegisterAdminRoutes (4244-line function) into 11 category-based register* functions (~400 lines each)
+  3. Tackle internal/imapgw/server.go (8927 lines, 375+ functions)
+  4. Separate internal/maildb/admin.go (7281 lines)
 
 ## SMTP Phase 8 - RFC Compliance Integration (2026-05-14, complete)
 - CRITICAL GAP FIX: RFC compliance validator now integrated into actual SMTP submission pipeline.
