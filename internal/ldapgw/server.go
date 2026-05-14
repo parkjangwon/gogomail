@@ -645,28 +645,13 @@ func (s *LDAPServer) handleSearchRequest(ctx context.Context, msgID int, opData 
 		return encodeSearchResultDone(msgID, result, "", err.Error()), result, 0
 	}
 	if baseObject == "" && scope == scopeBaseObject {
-		entry, err := encodeSearchResultEntry(msgID, "", selectLDAPAttributes(rootDSEAttributes(s.namingContexts, s.tlsConfig != nil), attrs, typesOnly))
-		if err != nil {
-			result := resultUnwillingToPerform
-			return encodeSearchResultDone(msgID, result, "", err.Error()), result, 0
-		}
-		return append(entry, encodeSearchResultDone(msgID, resultSuccess, "", "")...), resultSuccess, 1
+		return encodeSyntheticSearchResult(msgID, "", rootDSEAttributes(s.namingContexts, s.tlsConfig != nil), filter, attrs, typesOnly)
 	}
 	if normalizeDNForCompare(baseObject) == "cn=subschema" && scope == scopeBaseObject {
-		entry, err := encodeSearchResultEntry(msgID, "cn=Subschema", selectLDAPAttributes(subschemaAttributes(), attrs, typesOnly))
-		if err != nil {
-			result := resultUnwillingToPerform
-			return encodeSearchResultDone(msgID, result, "", err.Error()), result, 0
-		}
-		return append(entry, encodeSearchResultDone(msgID, resultSuccess, "", "")...), resultSuccess, 1
+		return encodeSyntheticSearchResult(msgID, "cn=Subschema", subschemaAttributes(), filter, attrs, typesOnly)
 	}
 	if containerAttrs, ok := ldapContainerAttributes(baseObject); ok && scope == scopeBaseObject {
-		entry, err := encodeSearchResultEntry(msgID, baseObject, selectLDAPAttributes(containerAttrs, attrs, typesOnly))
-		if err != nil {
-			result := resultUnwillingToPerform
-			return encodeSearchResultDone(msgID, result, "", err.Error()), result, 0
-		}
-		return append(entry, encodeSearchResultDone(msgID, resultSuccess, "", "")...), resultSuccess, 1
+		return encodeSyntheticSearchResult(msgID, baseObject, containerAttrs, filter, attrs, typesOnly)
 	}
 	if !s.baseDNWithinNamingContext(baseObject) && len(s.referralURLs) > 0 {
 		resp := encodeSearchResultReference(msgID, s.referralURLs)
@@ -834,6 +819,22 @@ func (s *LDAPServer) handleSearchRequest(ctx context.Context, msgID int, opData 
 		resp = append(resp, encodeSearchResultDone(msgID, result, "", "")...)
 	}
 	return resp, result, len(entries)
+}
+
+func encodeSyntheticSearchResult(msgID int, dn string, entryAttrs map[string][]string, filter []byte, requested []string, typesOnly bool) ([]byte, int, int) {
+	if err := validateFilter(filter); err != nil {
+		result := resultProtocolError
+		return encodeSearchResultDone(msgID, result, "", "malformed filter"), result, 0
+	}
+	if !ldapEntryAttributesMatchFilter(entryAttrs, filter) {
+		return encodeSearchResultDone(msgID, resultSuccess, "", ""), resultSuccess, 0
+	}
+	entry, err := encodeSearchResultEntry(msgID, dn, selectLDAPAttributes(entryAttrs, requested, typesOnly))
+	if err != nil {
+		result := resultUnwillingToPerform
+		return encodeSearchResultDone(msgID, result, "", err.Error()), result, 0
+	}
+	return append(entry, encodeSearchResultDone(msgID, resultSuccess, "", "")...), resultSuccess, 1
 }
 
 func filterPrincipalEntriesByScope(principals []PrincipalEntry, baseObject string, scope int) []PrincipalEntry {
