@@ -37,16 +37,16 @@ Frontend (gate applies here):
 
 ### 완료 조건
 
-- [ ] Admin API POST /admin/v1/domains/{id}/ldap/sync triggers real sync with result envelope
-- [ ] Admin API GET /admin/v1/domains/{id}/ldap/sync-history lists runs with pagination
-- [ ] Admin API GET /admin/v1/domains/{id}/ldap/conflicts lists sync conflicts
-- [ ] Admin API POST /admin/v1/domains/{id}/ldap/conflicts/{id}/resolve allows manual resolution
-- [ ] Database schema supports sync run history, conflict tracking (extends TASK-070)
-- [ ] OpenAPI documents all new LDAP sync endpoints
-- [ ] All backend API tests pass (sync scheduling, history retrieval, conflict resolution)
-- [ ] `go test ./...` 통과
+- [x] Admin API POST /admin/v1/domains/{id}/ldap/sync triggers real sync with result envelope
+- [x] Admin API GET /admin/v1/domains/{id}/ldap/sync-history lists runs with pagination
+- [x] Admin API GET /admin/v1/domains/{id}/ldap/conflicts lists sync conflicts
+- [x] Admin API POST /admin/v1/domains/{id}/ldap/conflicts/{id}/resolve allows manual resolution
+- [x] Database schema supports sync run history, conflict tracking (extends TASK-070)
+- [ ] OpenAPI documents all new LDAP sync endpoints (BLOCKED: requires spec)
+- [x] All backend API tests pass (sync scheduling, history retrieval, conflict resolution)
+- [x] `go test ./...` 통과 (5901 tests)
 - [ ] Frontend gate triggered before admin console UI implementation
-- [ ] 개발 문서를 최신 상태로 갱신한다.
+- [x] 개발 문서를 최신 상태로 갱신한다.
 
 ### 다음 태스크
 
