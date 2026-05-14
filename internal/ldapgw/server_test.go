@@ -275,6 +275,22 @@ func buildExtensibleFilter(attr, value string) []byte {
 	return append(filterData, filterContent...)
 }
 
+func buildExtensibleFilterWithRule(attr, matchingRule, value string) []byte {
+	var filterContent []byte
+	filterContent = append(filterContent, 0x81)
+	filterContent = append(filterContent, encodeLength(len(matchingRule))...)
+	filterContent = append(filterContent, []byte(matchingRule)...)
+	filterContent = append(filterContent, 0x82)
+	filterContent = append(filterContent, encodeLength(len(attr))...)
+	filterContent = append(filterContent, []byte(attr)...)
+	filterContent = append(filterContent, 0x83)
+	filterContent = append(filterContent, encodeLength(len(value))...)
+	filterContent = append(filterContent, []byte(value)...)
+	filterData := []byte{tagContextSpecific | 0x20 | filterExtensible}
+	filterData = append(filterData, encodeLength(len(filterContent))...)
+	return append(filterData, filterContent...)
+}
+
 func buildOrFilter(children ...[]byte) []byte {
 	var content []byte
 	for _, child := range children {
@@ -1085,6 +1101,79 @@ func TestLDAPServerSearchSizeLimitResultCode(t *testing.T) {
 	entries, result = readSearchResultCodeUntilDone(t, conn)
 	if entries != 1 || result != resultSizeLimitExceeded {
 		t.Fatalf("exceeded sizeLimit search entries/result = %d/%d, want 1/%d", entries, result, resultSizeLimitExceeded)
+	}
+}
+
+func TestLDAPServerAppliesFullSearchFilterToEntries(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+
+	auth := newFakeLDAPAuth()
+	dir := newFakeDirectoryQuerier()
+	dir.addPrincipal(PrincipalEntry{DN: "uid=alice,ou=users,dc=example,dc=com", Kind: "user", CN: "Alice", Mail: "alice@example.com", UID: "alice"})
+	dir.addPrincipal(PrincipalEntry{DN: "uid=bob,ou=users,dc=example,dc=com", Kind: "user", CN: "Bob", Mail: "bob@example.com", UID: "bob"})
+	srv := NewServer(ln, auth, dir)
+	go srv.Serve()
+	defer srv.Close()
+
+	conn, err := net.Dial("tcp", ln.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	bindTestConnection(t, conn, auth)
+
+	filter := buildAndFilter(
+		buildEqualityFilter("mail", "alice@example.com"),
+		buildEqualityFilter("uid", "bob"),
+	)
+	req := buildLDAPPacket(35, opSearchRequest, buildSearchRequest("ou=users,dc=example,dc=com", scopeWholeSubtree, filter))
+	if err := sendPDU(conn, req); err != nil {
+		t.Fatal(err)
+	}
+	entries, result := readSearchResultCodeUntilDone(t, conn)
+	if entries != 0 || result != resultSuccess {
+		t.Fatalf("conflicting AND filter entries/result = %d/%d, want 0/%d", entries, result, resultSuccess)
+	}
+}
+
+func TestLDAPServerAppliesADStyleUserSearchFilter(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+
+	auth := newFakeLDAPAuth()
+	dir := newFakeDirectoryQuerier()
+	dir.addPrincipal(PrincipalEntry{DN: "uid=alice,ou=users,dc=example,dc=com", Kind: "user", CN: "Alice", Mail: "alice@example.com", UID: "alice"})
+	srv := NewServer(ln, auth, dir)
+	go srv.Serve()
+	defer srv.Close()
+
+	conn, err := net.Dial("tcp", ln.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	bindTestConnection(t, conn, auth)
+
+	filter := buildAndFilter(
+		buildEqualityFilter("objectCategory", "person"),
+		buildEqualityFilter("objectClass", "user"),
+		buildNotFilter(buildExtensibleFilterWithRule("userAccountControl", "1.2.840.113556.1.4.803", "2")),
+		buildEqualityFilter("sAMAccountName", "alice"),
+	)
+	req := buildLDAPPacket(36, opSearchRequest, buildSearchRequest("ou=users,dc=example,dc=com", scopeWholeSubtree, filter))
+	if err := sendPDU(conn, req); err != nil {
+		t.Fatal(err)
+	}
+	entries, result := readSearchResultCodeUntilDone(t, conn)
+	if entries != 1 || result != resultSuccess {
+		t.Fatalf("AD user filter entries/result = %d/%d, want 1/%d", entries, result, resultSuccess)
 	}
 }
 
@@ -3380,6 +3469,9 @@ func TestPrincipalLDAPAttributesSatisfyDeclaredObjectClassRequirements(t *testin
 	})
 	if userAttrs["sn"][0] != "Alice User" {
 		t.Fatalf("user sn = %#v, want display-name fallback for person MUST sn", userAttrs["sn"])
+	}
+	if !containsStringFold(userAttrs["objectClass"], "user") {
+		t.Fatalf("user objectClass = %#v, want AD-compatible user class", userAttrs["objectClass"])
 	}
 	if userAttrs["name"][0] != "Alice" ||
 		userAttrs["sAMAccountName"][0] != "alice" ||

@@ -751,6 +751,7 @@ func (s *LDAPServer) handleSearchRequest(ctx context.Context, msgID int, opData 
 		return encodeSearchResultDone(msgID, result, "", err.Error()), result, 0
 	}
 	principals = filterPrincipalEntriesByScope(principals, baseObject, scope)
+	principals = filterPrincipalEntriesByLDAPFilter(principals, filter)
 	if sorted {
 		sortPrincipalEntries(principals, sortKeys)
 	}
@@ -842,6 +843,19 @@ func filterPrincipalEntriesByScope(principals []PrincipalEntry, baseObject strin
 				filtered = append(filtered, p)
 			}
 		default:
+			filtered = append(filtered, p)
+		}
+	}
+	return filtered
+}
+
+func filterPrincipalEntriesByLDAPFilter(principals []PrincipalEntry, filter []byte) []PrincipalEntry {
+	if len(filter) == 0 {
+		return principals
+	}
+	filtered := make([]PrincipalEntry, 0, len(principals))
+	for _, p := range principals {
+		if ldapEntryAttributesMatchFilter(principalLDAPAttributes(p), filter) {
 			filtered = append(filtered, p)
 		}
 	}
@@ -989,7 +1003,7 @@ func principalLDAPAttributes(p PrincipalEntry) map[string][]string {
 			attrs["description"] = []string{p.ResourceType}
 		}
 	default:
-		attrs["objectClass"] = []string{"top", "person", "organizationalPerson", "inetOrgPerson"}
+		attrs["objectClass"] = []string{"top", "person", "organizationalPerson", "inetOrgPerson", "user"}
 		attrs["accountExpires"] = []string{"9223372036854775807"}
 		attrs["primaryGroupID"] = []string{"513"}
 		attrs["userAccountControl"] = []string{"512"}
@@ -1639,6 +1653,144 @@ func ldapAttributeValueMatchesFilter(attrName, attrValue string, filter []byte) 
 	}
 }
 
+func ldapEntryAttributesMatchFilter(attrs map[string][]string, filter []byte) bool {
+	if len(filter) == 0 || filter[0]&0x80 == 0 {
+		return false
+	}
+	filterType := int(filter[0] & 0x1f)
+	content, err := decodeContent(filter[1:])
+	if err != nil {
+		return false
+	}
+	switch filterType {
+	case filterAnd:
+		for len(content) > 0 {
+			child, rest, err := readRawTLV(content)
+			if err != nil {
+				return false
+			}
+			if !ldapEntryAttributesMatchFilter(attrs, child) {
+				return false
+			}
+			content = rest
+		}
+		return true
+	case filterOr:
+		for len(content) > 0 {
+			child, rest, err := readRawTLV(content)
+			if err != nil {
+				return false
+			}
+			if ldapEntryAttributesMatchFilter(attrs, child) {
+				return true
+			}
+			content = rest
+		}
+		return false
+	case filterNot:
+		child, _, err := readRawTLV(content)
+		return err == nil && !ldapEntryAttributesMatchFilter(attrs, child)
+	case filterEqualityMatch, filterApproxMatch, filterGreaterOrEqual, filterLessOrEqual:
+		attr, valRest, err := decodeOctetString(content)
+		if err != nil {
+			return false
+		}
+		val, _, err := decodeOctetString(valRest)
+		if err != nil {
+			return false
+		}
+		return ldapEntryAttributeHasValue(attrs, attr, func(candidate string) bool {
+			switch filterType {
+			case filterGreaterOrEqual:
+				return strings.ToLower(candidate) >= strings.ToLower(val)
+			case filterLessOrEqual:
+				return strings.ToLower(candidate) <= strings.ToLower(val)
+			default:
+				return strings.EqualFold(candidate, val)
+			}
+		})
+	case filterSubstrings:
+		attr, rest, err := decodeOctetString(content)
+		if err != nil {
+			return false
+		}
+		parts, err := decodeSubstringParts(rest)
+		if err != nil {
+			return false
+		}
+		return ldapEntryAttributeHasValue(attrs, attr, func(candidate string) bool {
+			return ldapSubstringMatches(candidate, parts)
+		})
+	case filterPresent:
+		_, ok := ldapEntryAttributeValues(attrs, string(content))
+		return ok
+	case filterExtensible:
+		match, ok, err := decodeExtensibleMatchDetail(content)
+		if err != nil || !ok {
+			return false
+		}
+		return ldapEntryAttributeHasValue(attrs, match.Attr, func(candidate string) bool {
+			return ldapExtensibleValueMatches(candidate, match)
+		})
+	default:
+		return false
+	}
+}
+
+func ldapEntryAttributeHasValue(attrs map[string][]string, attr string, match func(string) bool) bool {
+	values, ok := ldapEntryAttributeValues(attrs, attr)
+	if !ok {
+		return false
+	}
+	for _, value := range values {
+		if match(value) {
+			return true
+		}
+	}
+	return false
+}
+
+func ldapEntryAttributeValues(attrs map[string][]string, attr string) ([]string, bool) {
+	for name, values := range attrs {
+		if strings.EqualFold(strings.TrimSpace(name), strings.TrimSpace(attr)) {
+			return values, true
+		}
+	}
+	return nil, false
+}
+
+func ldapExtensibleValueMatches(candidate string, match extensibleMatchAssertion) bool {
+	switch strings.TrimSpace(match.MatchingRule) {
+	case "":
+		return strings.EqualFold(candidate, match.Value)
+	case "1.2.840.113556.1.4.803": // LDAP_MATCHING_RULE_BIT_AND
+		candidateInt, ok1 := parseLDAPInt64(candidate)
+		assertionInt, ok2 := parseLDAPInt64(match.Value)
+		return ok1 && ok2 && candidateInt&assertionInt == assertionInt
+	case "1.2.840.113556.1.4.804": // LDAP_MATCHING_RULE_BIT_OR
+		candidateInt, ok1 := parseLDAPInt64(candidate)
+		assertionInt, ok2 := parseLDAPInt64(match.Value)
+		return ok1 && ok2 && candidateInt&assertionInt != 0
+	default:
+		return strings.EqualFold(candidate, match.Value)
+	}
+}
+
+func parseLDAPInt64(value string) (int64, bool) {
+	var n int64
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return 0, false
+	}
+	for _, r := range value {
+		if r < '0' || r > '9' {
+			return 0, false
+		}
+		n = n*10 + int64(r-'0')
+	}
+	return n, true
+}
+
 func ldapSubstringMatches(value string, parts []string) bool {
 	if len(parts) == 0 {
 		return false
@@ -2222,6 +2374,7 @@ func subschemaAttributes() map[string][]string {
 			"( 2.5.6.6 NAME 'person' SUP top STRUCTURAL MUST ( sn $ cn ) MAY ( userPassword $ telephoneNumber $ seeAlso $ description ) )",
 			"( 2.5.6.7 NAME 'organizationalPerson' SUP person STRUCTURAL MAY ( title $ x121Address $ registeredAddress $ destinationIndicator $ preferredDeliveryMethod $ telexNumber $ teletexTerminalIdentifier $ telephoneNumber $ internationaliSDNNumber $ facsimileTelephoneNumber $ street $ postOfficeBox $ postalCode $ postalAddress $ physicalDeliveryOfficeName $ ou $ st $ l ) )",
 			"( 2.16.840.1.113730.3.2.2 NAME 'inetOrgPerson' SUP organizationalPerson STRUCTURAL MAY ( mail $ uid $ givenName $ displayName $ name $ canonicalName $ distinguishedName $ instanceType $ objectCategory $ objectGUID $ objectSid $ mailNickname $ proxyAddresses $ sAMAccountName $ userPrincipalName $ whenCreated $ whenChanged $ uSNCreated $ uSNChanged $ accountExpires $ primaryGroupID $ userAccountControl ) )",
+			"( 1.2.840.113556.1.5.9 NAME 'user' SUP organizationalPerson STRUCTURAL MAY ( mail $ uid $ givenName $ displayName $ name $ canonicalName $ distinguishedName $ instanceType $ objectCategory $ objectGUID $ objectSid $ mailNickname $ proxyAddresses $ sAMAccountName $ userPrincipalName $ whenCreated $ whenChanged $ uSNCreated $ uSNChanged $ accountExpires $ primaryGroupID $ userAccountControl ) )",
 			"( 2.5.6.5 NAME 'organizationalUnit' SUP top STRUCTURAL MUST ou MAY ( userPassword $ searchGuide $ seeAlso $ businessCategory $ x121Address $ registeredAddress $ destinationIndicator $ preferredDeliveryMethod $ telexNumber $ teletexTerminalIdentifier $ telephoneNumber $ internationaliSDNNumber $ facsimileTelephoneNumber $ street $ postOfficeBox $ postalCode $ postalAddress $ physicalDeliveryOfficeName $ st $ l $ description $ canonicalName $ distinguishedName $ instanceType $ objectCategory $ objectGUID $ objectSid $ whenCreated $ whenChanged $ uSNCreated $ uSNChanged ) )",
 			"( 2.5.6.9 NAME 'groupOfNames' SUP top STRUCTURAL MUST ( member $ cn ) MAY ( businessCategory $ seeAlso $ owner $ ou $ o $ description $ memberOf $ canonicalName $ distinguishedName $ instanceType $ objectCategory $ objectGUID $ objectSid $ whenCreated $ whenChanged $ uSNCreated $ uSNChanged ) )",
 			"( 2.5.6.14 NAME 'device' SUP top STRUCTURAL MUST cn MAY ( serialNumber $ seeAlso $ owner $ ou $ o $ l $ description $ memberOf $ canonicalName $ distinguishedName $ instanceType $ objectCategory $ objectGUID $ objectSid $ whenCreated $ whenChanged $ uSNCreated $ uSNChanged ) )",
@@ -2553,30 +2706,45 @@ func decodeSubstringParts(data []byte) ([]string, error) {
 	return parts, nil
 }
 
+type extensibleMatchAssertion struct {
+	Attr         string
+	Value        string
+	MatchingRule string
+	DNAttributes bool
+}
+
 func decodeExtensibleMatch(content []byte) (attr string, value string, ok bool, err error) {
+	match, ok, err := decodeExtensibleMatchDetail(content)
+	return match.Attr, match.Value, ok, err
+}
+
+func decodeExtensibleMatchDetail(content []byte) (extensibleMatchAssertion, bool, error) {
+	var match extensibleMatchAssertion
 	for len(content) > 0 {
 		tag := content[0]
 		length, rest, err := decodeLength(content[1:])
 		if err != nil {
-			return "", "", false, err
+			return extensibleMatchAssertion{}, false, err
 		}
 		if len(rest) < length {
-			return "", "", false, fmt.Errorf("extensibleMatch value truncated")
+			return extensibleMatchAssertion{}, false, fmt.Errorf("extensibleMatch value truncated")
 		}
 		val := string(rest[:length])
 		switch tag {
 		case 0x82: // type [2] AttributeDescription
-			attr = val
+			match.Attr = val
 		case 0x83: // matchValue [3] AssertionValue
-			value = val
-		case 0x81, 0x84: // matchingRule [1], dnAttributes [4]
-			// Accepted for interoperability; repository search is driven by type/value.
+			match.Value = val
+		case 0x81: // matchingRule [1]
+			match.MatchingRule = val
+		case 0x84: // dnAttributes [4]
+			match.DNAttributes = len(rest[:length]) > 0 && rest[0] != 0
 		default:
-			return "", "", false, fmt.Errorf("unsupported extensibleMatch choice tag 0x%02x", tag)
+			return extensibleMatchAssertion{}, false, fmt.Errorf("unsupported extensibleMatch choice tag 0x%02x", tag)
 		}
 		content = rest[length:]
 	}
-	return attr, value, strings.TrimSpace(attr) != "" && strings.TrimSpace(value) != "", nil
+	return match, strings.TrimSpace(match.Attr) != "" && strings.TrimSpace(match.Value) != "", nil
 }
 
 func isDirectorySearchAttribute(attr string) bool {
