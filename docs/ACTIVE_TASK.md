@@ -33,9 +33,17 @@ TASK-067 (Audit Logs) completion enables SMTP monitoring. However, SMTP itself l
 - [x] Automatic recovery when domain comes back online
 - [x] Prevents failing domains from blocking other deliveries
 
-### Current Phase: Phase 5 — Server Farm Configuration
+**Phase 5 ✓ — Server Farm Configuration**
+- [x] FarmCoordinator interface for pluggable distributed coordination
+- [x] Node registration and health tracking
+- [x] Distributed delivery job queue with priority support
+- [x] Job assignment and status tracking across farm
+- [x] NoOpFarmCoordinator for single-node deployments
+- [x] DeliveryJob encoding/decoding for queue transport
 
-Next: Redis-based delivery queue for distributed coordination
+### Current Phase: Phase 6 — Observability & Tracing
+
+Next: End-to-end latency metrics and audit log tracing
 
 ---
 
