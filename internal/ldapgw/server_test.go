@@ -323,6 +323,14 @@ func buildMatchedValuesControl(filter []byte, critical bool) control {
 	return control{Type: controlMatchedValues, Critical: critical, Value: seq}
 }
 
+func buildSubentriesControl(value bool, critical bool) control {
+	encoded := []byte{tagBoolean, 0x01, 0x00}
+	if value {
+		encoded[2] = 0xff
+	}
+	return control{Type: controlSubentries, Critical: critical, Value: encoded}
+}
+
 func buildCompareRequest(entry, attr, value string) []byte {
 	assertion := append(encodeOctetString(attr), encodeOctetString(value)...)
 	var assertionSeq []byte
@@ -1143,6 +1151,56 @@ func TestLDAPServerMatchedValuesControl(t *testing.T) {
 	}
 }
 
+func TestLDAPServerAdditionalSearchControls(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+
+	dir := newFakeDirectoryQuerier()
+	dir.addPrincipal(PrincipalEntry{DN: "uid=alice,ou=users,dc=example,dc=com", Kind: "user", CN: "Alice", UID: "alice", DisplayName: "Alice"})
+	auth := newFakeLDAPAuth()
+	srv := NewServer(ln, auth, dir)
+	go srv.Serve()
+	defer srv.Close()
+
+	conn, err := net.Dial("tcp", ln.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	bindTestConnection(t, conn, auth)
+
+	normalReq := buildLDAPPacketWithControls(15, opSearchRequest,
+		buildSearchRequestWithAttrs("ou=users,dc=example,dc=com", scopeWholeSubtree, buildEqualityFilter("objectClass", "person"), "cn"),
+		[]control{
+			{Type: controlDomainScope, Critical: true},
+			{Type: controlDontUseCopy, Critical: true},
+			buildSubentriesControl(false, true),
+		},
+	)
+	if err := sendPDU(conn, normalReq); err != nil {
+		t.Fatal(err)
+	}
+	entries, _ := readSearchUntilDone(t, conn)
+	if entries != 1 {
+		t.Fatalf("domainScope/dontUseCopy/subentries=false entries = %d, want 1", entries)
+	}
+
+	subentriesReq := buildLDAPPacketWithControls(16, opSearchRequest,
+		buildSearchRequestWithAttrs("ou=users,dc=example,dc=com", scopeWholeSubtree, buildEqualityFilter("objectClass", "person"), "cn"),
+		[]control{buildSubentriesControl(true, true)},
+	)
+	if err := sendPDU(conn, subentriesReq); err != nil {
+		t.Fatal(err)
+	}
+	entries, _ = readSearchUntilDone(t, conn)
+	if entries != 0 {
+		t.Fatalf("subentries=true entries = %d, want 0", entries)
+	}
+}
+
 func TestLDAPServerSimplePagedResultsControl(t *testing.T) {
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
@@ -1597,6 +1655,69 @@ func TestLDAPServerOpenLDAPMatchedValuesCompatibility(t *testing.T) {
 		if strings.Contains(output, unexpected) {
 			t.Fatalf("ldapsearch matched-values output included %q:\n%s", unexpected, output)
 		}
+	}
+}
+
+func TestLDAPServerOpenLDAPAdditionalSearchControlsCompatibility(t *testing.T) {
+	ldapsearch, err := exec.LookPath("ldapsearch")
+	if err != nil {
+		t.Skip("ldapsearch is not installed")
+	}
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+
+	auth := newFakeLDAPAuth()
+	auth.addUser("alice", "secret")
+	dir := newFakeDirectoryQuerier()
+	dir.addPrincipal(PrincipalEntry{DN: "uid=alice,ou=users,dc=example,dc=com", Kind: "user", CN: "Alice", UID: "alice", DisplayName: "Alice"})
+	srv := NewServer(ln, auth, dir)
+	go srv.Serve()
+	defer srv.Close()
+
+	cmd := exec.Command(ldapsearch,
+		"-x",
+		"-H", "ldap://"+ln.Addr().String(),
+		"-D", "uid=alice,ou=users,dc=example,dc=com",
+		"-w", "secret",
+		"-E", "!domainScope",
+		"-E", "!dontUseCopy",
+		"-E", "!subentries=false",
+		"-b", "ou=users,dc=example,dc=com",
+		"(objectClass=person)",
+		"cn",
+	)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("ldapsearch additional controls failed: %v\n%s", err, out)
+	}
+	output := string(out)
+	if !strings.Contains(output, "dn: uid=alice,ou=users,dc=example,dc=com") {
+		t.Fatalf("ldapsearch additional controls output missing user:\n%s", output)
+	}
+
+	subentriesCmd := exec.Command(ldapsearch,
+		"-x",
+		"-H", "ldap://"+ln.Addr().String(),
+		"-D", "uid=alice,ou=users,dc=example,dc=com",
+		"-w", "secret",
+		"-E", "!subentries=true",
+		"-b", "ou=users,dc=example,dc=com",
+		"(objectClass=person)",
+		"cn",
+	)
+	out, err = subentriesCmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("ldapsearch subentries=true failed: %v\n%s", err, out)
+	}
+	output = string(out)
+	if strings.Contains(output, "dn: uid=alice,ou=users,dc=example,dc=com") {
+		t.Fatalf("ldapsearch subentries=true returned normal entry:\n%s", output)
+	}
+	if !strings.Contains(output, "result: 0 Success") || strings.Contains(output, "# numEntries:") {
+		t.Fatalf("ldapsearch subentries=true output did not look like empty success:\n%s", output)
 	}
 }
 
