@@ -292,6 +292,25 @@ func buildServerSideSortControl(attr string, reverse bool) control {
 	return control{Type: controlServerSideSortRequest, Value: seq}
 }
 
+func buildVirtualListViewControl(before, after, offset, contentCount int) control {
+	var target []byte
+	target = append(target, encodeInt(offset)...)
+	target = append(target, encodeInt(contentCount)...)
+	var targetChoice []byte
+	targetChoice = append(targetChoice, 0xa0)
+	targetChoice = append(targetChoice, encodeLength(len(target))...)
+	targetChoice = append(targetChoice, target...)
+	var value []byte
+	value = append(value, encodeInt(before)...)
+	value = append(value, encodeInt(after)...)
+	value = append(value, targetChoice...)
+	var seq []byte
+	seq = append(seq, tagSequence)
+	seq = append(seq, encodeLength(len(value))...)
+	seq = append(seq, value...)
+	return control{Type: controlVirtualListViewRequest, Value: seq}
+}
+
 func buildCompareRequest(entry, attr, value string) []byte {
 	assertion := append(encodeOctetString(attr), encodeOctetString(value)...)
 	var assertionSeq []byte
@@ -461,6 +480,36 @@ func hasServerSideSortResponseControl(controls []control) bool {
 		return len(content) == 3 && decodeEnumerated(content) == resultSuccess
 	}
 	return false
+}
+
+func virtualListViewResponse(t *testing.T, controls []control) (targetPosition int, contentCount int) {
+	t.Helper()
+	for _, ctrl := range controls {
+		if ctrl.Type != controlVirtualListViewResponse {
+			continue
+		}
+		if len(ctrl.Value) == 0 || ctrl.Value[0] != tagSequence {
+			t.Fatalf("VLV response control value is not a sequence: %x", ctrl.Value)
+		}
+		content, err := decodeContent(ctrl.Value[1:])
+		if err != nil {
+			t.Fatalf("decode VLV response: %v", err)
+		}
+		targetPosition, rest, err := decodeInt(content)
+		if err != nil {
+			t.Fatalf("decode VLV target position: %v", err)
+		}
+		contentCount, rest, err = decodeInt(rest)
+		if err != nil {
+			t.Fatalf("decode VLV content count: %v", err)
+		}
+		if got := decodeEnumerated(rest); got != resultSuccess {
+			t.Fatalf("VLV result = %d, want %d", got, resultSuccess)
+		}
+		return targetPosition, contentCount
+	}
+	t.Fatalf("missing VLV response control: %+v", controls)
+	return 0, 0
 }
 
 func TestLDAPServerBindSuccess(t *testing.T) {
@@ -1079,6 +1128,58 @@ func TestLDAPServerServerSideSortControl(t *testing.T) {
 	}
 }
 
+func TestLDAPServerVirtualListViewControl(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+
+	dir := newFakeDirectoryQuerier()
+	for _, p := range []PrincipalEntry{
+		{DN: "uid=charlie,ou=users,dc=example,dc=com", Kind: "user", CN: "Charlie", UID: "charlie", DisplayName: "Charlie"},
+		{DN: "uid=alice,ou=users,dc=example,dc=com", Kind: "user", CN: "Alice", UID: "alice", DisplayName: "Alice"},
+		{DN: "uid=bob,ou=users,dc=example,dc=com", Kind: "user", CN: "Bob", UID: "bob", DisplayName: "Bob"},
+		{DN: "uid=dana,ou=users,dc=example,dc=com", Kind: "user", CN: "Dana", UID: "dana", DisplayName: "Dana"},
+	} {
+		dir.addPrincipal(p)
+	}
+	auth := newFakeLDAPAuth()
+	srv := NewServer(ln, auth, dir)
+	go srv.Serve()
+	defer srv.Close()
+
+	conn, err := net.Dial("tcp", ln.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	bindTestConnection(t, conn, auth)
+
+	req := buildLDAPPacketWithControls(32, opSearchRequest,
+		buildSearchRequest("ou=users,dc=example,dc=com", scopeWholeSubtree, buildEqualityFilter("objectClass", "person")),
+		[]control{
+			buildServerSideSortControl("cn", false),
+			buildVirtualListViewControl(0, 1, 2, 0),
+		},
+	)
+	if err := sendPDU(conn, req); err != nil {
+		t.Fatal(err)
+	}
+	dns, controls := readSearchDNsUntilDone(t, conn)
+	want := []string{
+		"uid=bob,ou=users,dc=example,dc=com",
+		"uid=charlie,ou=users,dc=example,dc=com",
+	}
+	if strings.Join(dns, "|") != strings.Join(want, "|") {
+		t.Fatalf("VLV DNs = %#v, want %#v", dns, want)
+	}
+	target, count := virtualListViewResponse(t, controls)
+	if target != 2 || count != 4 {
+		t.Fatalf("VLV response target/count = %d/%d, want 2/4", target, count)
+	}
+}
+
 func TestLDAPServerOrganizationalUnitSearchReturnsOrganizationEntries(t *testing.T) {
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
@@ -1266,7 +1367,9 @@ func TestLDAPServerOpenLDAPSearchCompatibility(t *testing.T) {
 	go srv.Serve()
 	defer srv.Close()
 
-	cmd := exec.Command(ldapsearch,
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, ldapsearch,
 		"-x",
 		"-H", "ldap://"+ln.Addr().String(),
 		"-D", "uid=alice,ou=users,dc=example,dc=com",
@@ -1314,7 +1417,9 @@ func TestLDAPServerOpenLDAPExtensibleMatchCompatibility(t *testing.T) {
 	go srv.Serve()
 	defer srv.Close()
 
-	cmd := exec.Command(ldapsearch,
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, ldapsearch,
 		"-x",
 		"-H", "ldap://"+ln.Addr().String(),
 		"-D", "uid=alice,ou=users,dc=example,dc=com",
@@ -1382,6 +1487,66 @@ func TestLDAPServerOpenLDAPServerSideSortCompatibility(t *testing.T) {
 	}
 	if !strings.Contains(output, "control: 1.2.840.113556.1.4.474") || !strings.Contains(output, "sortResult: (0) Success") {
 		t.Fatalf("ldapsearch output missing sort response control:\n%s", output)
+	}
+}
+
+func TestLDAPServerOpenLDAPVirtualListViewCompatibility(t *testing.T) {
+	ldapsearch, err := exec.LookPath("ldapsearch")
+	if err != nil {
+		t.Skip("ldapsearch is not installed")
+	}
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+
+	auth := newFakeLDAPAuth()
+	auth.addUser("alice", "secret")
+	dir := newFakeDirectoryQuerier()
+	for _, p := range []PrincipalEntry{
+		{DN: "uid=charlie,ou=users,dc=example,dc=com", Kind: "user", CN: "Charlie", UID: "charlie", DisplayName: "Charlie"},
+		{DN: "uid=alice,ou=users,dc=example,dc=com", Kind: "user", CN: "Alice", UID: "alice", DisplayName: "Alice"},
+		{DN: "uid=bob,ou=users,dc=example,dc=com", Kind: "user", CN: "Bob", UID: "bob", DisplayName: "Bob"},
+		{DN: "uid=dana,ou=users,dc=example,dc=com", Kind: "user", CN: "Dana", UID: "dana", DisplayName: "Dana"},
+	} {
+		dir.addPrincipal(p)
+	}
+	srv := NewServer(ln, auth, dir)
+	go srv.Serve()
+	defer srv.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, ldapsearch,
+		"-x",
+		"-H", "ldap://"+ln.Addr().String(),
+		"-D", "uid=alice,ou=users,dc=example,dc=com",
+		"-w", "secret",
+		"-E", "sss=cn",
+		"-E", "vlv=0/1/2/0",
+		"-b", "ou=users,dc=example,dc=com",
+		"(objectClass=person)",
+		"cn",
+	)
+	cmd.Stdin = strings.NewReader("q\n")
+	out, err := cmd.CombinedOutput()
+	if ctx.Err() == context.DeadlineExceeded {
+		t.Fatalf("ldapsearch VLV timed out\n%s", out)
+	}
+	output := string(out)
+	if err != nil && !strings.Contains(output, "vlvResult: pos=2 count=4") {
+		t.Fatalf("ldapsearch VLV failed: %v\n%s", err, out)
+	}
+	bob := strings.Index(output, "dn: uid=bob,ou=users,dc=example,dc=com")
+	charlie := strings.Index(output, "dn: uid=charlie,ou=users,dc=example,dc=com")
+	if bob < 0 || charlie < 0 || bob > charlie ||
+		strings.Contains(output, "dn: uid=alice,ou=users,dc=example,dc=com") ||
+		strings.Contains(output, "dn: uid=dana,ou=users,dc=example,dc=com") {
+		t.Fatalf("ldapsearch VLV output did not return the requested sorted window:\n%s", output)
+	}
+	if !strings.Contains(output, "control: 2.16.840.1.113730.3.4.10") {
+		t.Fatalf("ldapsearch output missing VLV response control:\n%s", output)
 	}
 }
 

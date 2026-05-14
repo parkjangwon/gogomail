@@ -642,6 +642,11 @@ func (s *LDAPServer) handleSearchRequest(ctx context.Context, msgID int, opData 
 		result := resultProtocolError
 		return encodeSearchResultDone(msgID, result, "", err.Error()), result, 0
 	}
+	vlv, hasVLV, err := parseVirtualListViewControl(controls)
+	if err != nil {
+		result := resultProtocolError
+		return encodeSearchResultDone(msgID, result, "", err.Error()), result, 0
+	}
 
 	if err := validateFilter(filter); err != nil {
 		result := resultUnwillingToPerform
@@ -669,6 +674,16 @@ func (s *LDAPServer) handleSearchRequest(ctx context.Context, msgID int, opData 
 		limit = pageOffset + pageSize + 1
 		offset = 0
 	}
+	if hasVLV {
+		offset = 0
+		vlvEnd := vlv.Offset + vlv.AfterCount
+		if vlvEnd < 100 {
+			vlvEnd = 100
+		}
+		if vlvEnd > limit {
+			limit = vlvEnd
+		}
+	}
 	principals, err := s.quer.SearchPrincipals(ctx, DirectorySearchRequest{
 		BaseDN: baseObject,
 		Scope:  scope,
@@ -688,6 +703,11 @@ func (s *LDAPServer) handleSearchRequest(ctx context.Context, msgID int, opData 
 	}
 	if sizeLimit > 0 && len(principals) > sizeLimit {
 		principals = principals[:sizeLimit]
+	}
+	vlvTargetPosition := 0
+	vlvContentCount := len(principals)
+	if hasVLV {
+		principals, vlvTargetPosition = applyVirtualListView(principals, vlv)
 	}
 	nextCookie := ""
 	if paged && pageSize > 0 {
@@ -721,6 +741,9 @@ func (s *LDAPServer) handleSearchRequest(ctx context.Context, msgID int, opData 
 	}
 	if sorted {
 		responseControls = append(responseControls, serverSideSortResponseControl(resultSuccess, ""))
+	}
+	if hasVLV {
+		responseControls = append(responseControls, virtualListViewResponseControl(vlvTargetPosition, vlvContentCount, resultSuccess, ""))
 	}
 	if len(responseControls) > 0 {
 		resp = append(resp, encodeSearchResultDoneWithControls(msgID, result, "", "", responseControls)...)
@@ -1137,9 +1160,122 @@ func serverSideSortResponseControl(resultCode int, attributeType string) control
 	return control{Type: controlServerSideSortResponse, Value: seq}
 }
 
+type virtualListViewRequest struct {
+	BeforeCount int
+	AfterCount  int
+	Offset      int
+}
+
+func parseVirtualListViewControl(controls []control) (virtualListViewRequest, bool, error) {
+	for _, ctrl := range controls {
+		if ctrl.Type != controlVirtualListViewRequest {
+			continue
+		}
+		req, err := decodeVirtualListViewControlValue(ctrl.Value)
+		if err != nil {
+			return virtualListViewRequest{}, true, err
+		}
+		return req, true, nil
+	}
+	return virtualListViewRequest{}, false, nil
+}
+
+func decodeVirtualListViewControlValue(value []byte) (virtualListViewRequest, error) {
+	if len(value) == 0 {
+		return virtualListViewRequest{}, fmt.Errorf("virtual list view control value is required")
+	}
+	if value[0] != tagSequence {
+		return virtualListViewRequest{}, fmt.Errorf("virtual list view control value must be a sequence")
+	}
+	content, err := decodeContent(value[1:])
+	if err != nil {
+		return virtualListViewRequest{}, err
+	}
+	before, rest, err := decodeInt(content)
+	if err != nil {
+		return virtualListViewRequest{}, fmt.Errorf("virtual list view beforeCount: %w", err)
+	}
+	after, rest, err := decodeInt(rest)
+	if err != nil {
+		return virtualListViewRequest{}, fmt.Errorf("virtual list view afterCount: %w", err)
+	}
+	if before < 0 || after < 0 {
+		return virtualListViewRequest{}, fmt.Errorf("virtual list view counts must not be negative")
+	}
+	if len(rest) == 0 || rest[0] != 0xa0 {
+		return virtualListViewRequest{}, fmt.Errorf("virtual list view byOffset target is required")
+	}
+	target, rest, err := readRawTLV(rest)
+	if err != nil {
+		return virtualListViewRequest{}, err
+	}
+	targetContent, err := decodeContent(target[1:])
+	if err != nil {
+		return virtualListViewRequest{}, err
+	}
+	offset, targetRest, err := decodeInt(targetContent)
+	if err != nil {
+		return virtualListViewRequest{}, fmt.Errorf("virtual list view offset: %w", err)
+	}
+	_, targetRest, err = decodeInt(targetRest)
+	if err != nil {
+		return virtualListViewRequest{}, fmt.Errorf("virtual list view contentCount: %w", err)
+	}
+	if len(targetRest) != 0 {
+		return virtualListViewRequest{}, fmt.Errorf("virtual list view target has trailing data")
+	}
+	if len(rest) > 0 {
+		_, rest, err = decodeOctetString(rest)
+		if err != nil {
+			return virtualListViewRequest{}, fmt.Errorf("virtual list view contextID: %w", err)
+		}
+		if len(rest) != 0 {
+			return virtualListViewRequest{}, fmt.Errorf("virtual list view control has trailing data")
+		}
+	}
+	if offset < 1 {
+		offset = 1
+	}
+	return virtualListViewRequest{BeforeCount: before, AfterCount: after, Offset: offset}, nil
+}
+
+func applyVirtualListView(principals []PrincipalEntry, req virtualListViewRequest) ([]PrincipalEntry, int) {
+	if len(principals) == 0 {
+		return nil, 0
+	}
+	target := req.Offset
+	if target > len(principals) {
+		target = len(principals)
+	}
+	start := target - 1 - req.BeforeCount
+	if start < 0 {
+		start = 0
+	}
+	end := target + req.AfterCount
+	if end > len(principals) {
+		end = len(principals)
+	}
+	return principals[start:end], target
+}
+
+func virtualListViewResponseControl(targetPosition int, contentCount int, resultCode int, contextID string) control {
+	var content []byte
+	content = append(content, encodeInt(targetPosition)...)
+	content = append(content, encodeInt(contentCount)...)
+	content = append(content, encodeEnumerated(resultCode)...)
+	if contextID != "" {
+		content = append(content, encodeOctetString(contextID)...)
+	}
+	var seq []byte
+	seq = append(seq, tagSequence)
+	seq = append(seq, encodeLength(len(content))...)
+	seq = append(seq, content...)
+	return control{Type: controlVirtualListViewResponse, Value: seq}
+}
+
 func isSupportedControl(controlType string) bool {
 	switch strings.TrimSpace(controlType) {
-	case controlManageDsaIT, controlPagedResults, controlServerSideSortRequest:
+	case controlManageDsaIT, controlPagedResults, controlServerSideSortRequest, controlVirtualListViewRequest:
 		return true
 	default:
 		return false
@@ -1147,10 +1283,12 @@ func isSupportedControl(controlType string) bool {
 }
 
 const (
-	controlManageDsaIT            = "2.16.840.1.113730.3.4.2"
-	controlPagedResults           = "1.2.840.113556.1.4.319"
-	controlServerSideSortRequest  = "1.2.840.113556.1.4.473"
-	controlServerSideSortResponse = "1.2.840.113556.1.4.474"
+	controlManageDsaIT             = "2.16.840.1.113730.3.4.2"
+	controlPagedResults            = "1.2.840.113556.1.4.319"
+	controlServerSideSortRequest   = "1.2.840.113556.1.4.473"
+	controlServerSideSortResponse  = "1.2.840.113556.1.4.474"
+	controlVirtualListViewRequest  = "2.16.840.1.113730.3.4.9"
+	controlVirtualListViewResponse = "2.16.840.1.113730.3.4.10"
 )
 
 func (s *LDAPServer) observe(ctx context.Context, opTag int, resultCode int, entries int, remoteAddr net.Addr, err error) {
@@ -1413,7 +1551,7 @@ func rootDSEAttributes(namingContexts []string, startTLSEnabled bool) map[string
 		"namingContexts":       namingContexts,
 		"subschemaSubentry":    {"cn=Subschema"},
 		"supportedLDAPVersion": {"3"},
-		"supportedControl":     {controlManageDsaIT, controlPagedResults, controlServerSideSortRequest},
+		"supportedControl":     {controlManageDsaIT, controlPagedResults, controlServerSideSortRequest, controlVirtualListViewRequest},
 		"supportedExtension":   {whoAmIOID},
 		"vendorName":           {"gogomail"},
 	}
