@@ -57,6 +57,7 @@ Last updated: 2026-05-14 (LDAP gateway StartTLS/LDAPS and discovery hardening)
 - LDAP entries now provide conservative fallback values for declared objectClass MUST attributes, including `sn` for `person`/`inetOrgPerson` users and `member` for empty `groupOfNames` groups.
 - LDAP read-only CompareRequest now returns RFC 4511 CompareResponse result codes (`compareTrue`/`compareFalse`) after bind, with generated-DN base-object lookup through the directory repository.
 - LDAP Who Am I? extended operation (`1.3.6.1.4.1.4203.1.11.3`) is advertised in Root DSE and returns the bound authorization identity for OpenLDAP `ldapwhoami` clients.
+- LDAP ExtendedRequest decoding now validates request names as numeric LDAPOIDs and rejects trailing data unless it is the RFC 4511 optional requestValue wrapper.
 - LDAP AbandonRequest now follows RFC 4511 no-response semantics instead of returning a generic error response.
 - LDAP read-only write operations now reject Modify/Add/Delete/ModifyDN with their RFC 4511 response protocolOp tags (`ModifyResponse`, `AddResponse`, `DelResponse`, `ModifyDNResponse`) and `unwillingToPerform`, so write-capable clients can decode the refusal cleanly.
 - LDAP bind/search/extended/read-only outcomes now flow through a metrics boundary, with `GOGOMAIL_METRICS_BACKEND=slog` wiring for operational logs.
