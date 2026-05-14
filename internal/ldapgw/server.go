@@ -700,6 +700,9 @@ func decodeCompareRequestData(data []byte) (compareRequest, error) {
 	if err != nil {
 		return compareRequest{}, fmt.Errorf("decode compare attribute: %w", err)
 	}
+	if ldapAttributeType(attr) == "" {
+		return compareRequest{}, fmt.Errorf("compare attribute description empty")
+	}
 	value, trailing, err := decodeOctetString(valueRest)
 	if err != nil {
 		return compareRequest{}, fmt.Errorf("decode compare value: %w", err)
@@ -2638,6 +2641,9 @@ func decodeAttributeDescriptionList(data []byte) ([]string, []byte, error) {
 				return nil, data, fmt.Errorf("attribute description truncated")
 			}
 			attr := string(attrRest[:attrLen])
+			if strings.TrimSpace(attr) == "" || ldapAttributeType(attr) == "" {
+				return nil, data, fmt.Errorf("attribute description empty")
+			}
 			attrs = append(attrs, attr)
 			pos += 1 + attrHeaderLen + attrLen
 		} else {
