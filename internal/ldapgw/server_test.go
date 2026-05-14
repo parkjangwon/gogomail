@@ -3122,10 +3122,16 @@ func TestPrincipalLDAPAttributesSatisfyDeclaredObjectClassRequirements(t *testin
 		Kind:        "user",
 		CN:          "Alice",
 		UID:         "alice",
+		Mail:        "alice@example.com",
 		DisplayName: "Alice User",
 	})
 	if userAttrs["sn"][0] != "Alice User" {
 		t.Fatalf("user sn = %#v, want display-name fallback for person MUST sn", userAttrs["sn"])
+	}
+	if userAttrs["name"][0] != "Alice" ||
+		userAttrs["sAMAccountName"][0] != "alice" ||
+		userAttrs["userPrincipalName"][0] != "alice@example.com" {
+		t.Fatalf("user AD aliases missing: %#v", userAttrs)
 	}
 	if userAttrs["entryDN"][0] != "uid=alice,ou=users,dc=example,dc=com" || userAttrs["entryUUID"][0] == "" {
 		t.Fatalf("user operational attrs missing: %#v", userAttrs)

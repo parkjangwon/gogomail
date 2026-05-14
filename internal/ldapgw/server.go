@@ -932,9 +932,15 @@ func principalLDAPAttributes(p PrincipalEntry) map[string][]string {
 	}
 	cn := firstNonEmpty(p.CN, p.DisplayName, p.UID)
 	attrs := map[string][]string{
-		"cn":          {cn},
-		"uid":         {p.UID},
-		"displayName": {firstNonEmpty(p.DisplayName, cn)},
+		"cn":                {cn},
+		"name":              {cn},
+		"uid":               {p.UID},
+		"displayName":       {firstNonEmpty(p.DisplayName, cn)},
+		"sAMAccountName":    {p.UID},
+		"userPrincipalName": nonEmptyLDAPValues([]string{p.Mail}),
+	}
+	if len(attrs["userPrincipalName"]) == 0 {
+		delete(attrs, "userPrincipalName")
 	}
 	if memberOf := nonEmptyLDAPValues(p.MemberOf); len(memberOf) > 0 {
 		attrs["memberOf"] = memberOf
@@ -2058,7 +2064,7 @@ func subschemaAttributes() map[string][]string {
 			"( 2.5.6.0 NAME 'top' ABSTRACT MUST objectClass )",
 			"( 2.5.6.6 NAME 'person' SUP top STRUCTURAL MUST ( sn $ cn ) MAY ( userPassword $ telephoneNumber $ seeAlso $ description ) )",
 			"( 2.5.6.7 NAME 'organizationalPerson' SUP person STRUCTURAL MAY ( title $ x121Address $ registeredAddress $ destinationIndicator $ preferredDeliveryMethod $ telexNumber $ teletexTerminalIdentifier $ telephoneNumber $ internationaliSDNNumber $ facsimileTelephoneNumber $ street $ postOfficeBox $ postalCode $ postalAddress $ physicalDeliveryOfficeName $ ou $ st $ l ) )",
-			"( 2.16.840.1.113730.3.2.2 NAME 'inetOrgPerson' SUP organizationalPerson STRUCTURAL MAY ( mail $ uid $ givenName $ displayName ) )",
+			"( 2.16.840.1.113730.3.2.2 NAME 'inetOrgPerson' SUP organizationalPerson STRUCTURAL MAY ( mail $ uid $ givenName $ displayName $ name ) )",
 			"( 2.5.6.5 NAME 'organizationalUnit' SUP top STRUCTURAL MUST ou MAY ( userPassword $ searchGuide $ seeAlso $ businessCategory $ x121Address $ registeredAddress $ destinationIndicator $ preferredDeliveryMethod $ telexNumber $ teletexTerminalIdentifier $ telephoneNumber $ internationaliSDNNumber $ facsimileTelephoneNumber $ street $ postOfficeBox $ postalCode $ postalAddress $ physicalDeliveryOfficeName $ st $ l $ description ) )",
 			"( 2.5.6.9 NAME 'groupOfNames' SUP top STRUCTURAL MUST ( member $ cn ) MAY ( businessCategory $ seeAlso $ owner $ ou $ o $ description ) )",
 			"( 2.5.6.14 NAME 'device' SUP top STRUCTURAL MUST cn MAY ( serialNumber $ seeAlso $ owner $ ou $ o $ l $ description ) )",
@@ -2073,6 +2079,8 @@ func subschemaAttributes() map[string][]string {
 			"( 0.9.2342.19200300.100.1.1 NAME 'uid' EQUALITY caseIgnoreMatch SUBSTR caseIgnoreSubstringsMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 )",
 			"( 0.9.2342.19200300.100.1.3 NAME 'mail' EQUALITY caseIgnoreIA5Match SUBSTR caseIgnoreIA5SubstringsMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.26 )",
 			"( 2.16.840.1.113730.3.1.241 NAME 'displayName' EQUALITY caseIgnoreMatch SUBSTR caseIgnoreSubstringsMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 )",
+			"( 1.2.840.113556.1.4.221 NAME 'sAMAccountName' EQUALITY caseIgnoreMatch SUBSTR caseIgnoreSubstringsMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 )",
+			"( 1.2.840.113556.1.4.656 NAME 'userPrincipalName' EQUALITY caseIgnoreMatch SUBSTR caseIgnoreSubstringsMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 )",
 		},
 	}
 }
@@ -2401,7 +2409,7 @@ func decodeExtensibleMatch(content []byte) (attr string, value string, ok bool, 
 
 func isDirectorySearchAttribute(attr string) bool {
 	switch strings.ToLower(strings.TrimSpace(attr)) {
-	case "cn", "mail", "uid", "displayname", "givenname", "sn", "ou", "description":
+	case "cn", "mail", "uid", "displayname", "givenname", "sn", "ou", "description", "name", "samaccountname", "userprincipalname":
 		return true
 	default:
 		return false

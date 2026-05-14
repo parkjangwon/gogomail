@@ -1232,7 +1232,7 @@ func ldapFilterToQuery(filter string) string {
 	if idx := strings.Index(filter, "="); idx >= 0 {
 		attr := strings.ToLower(strings.TrimSpace(filter[:idx]))
 		switch attr {
-		case "cn", "mail", "uid", "displayname", "givenname", "sn", "ou", "description":
+		case "cn", "mail", "uid", "displayname", "givenname", "sn", "ou", "description", "name", "samaccountname", "userprincipalname":
 		default:
 			return ""
 		}

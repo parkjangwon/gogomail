@@ -5729,7 +5729,7 @@ Current implementation notes:
 - StartTLS is advertised through Root DSE `supportedExtension` and handled when `GOGOMAIL_LDAP_TLS_CERT_FILE` / `GOGOMAIL_LDAP_TLS_KEY_FILE` are configured.
 - Root DSE advertises `subschemaSubentry`, and `cn=Subschema` base-object search returns minimal RFC 4512/RFC 4519 schema metadata for person/inetOrgPerson-style directory clients.
 - SearchRequest parsing now covers scope, deref aliases, client size/time limits, typesOnly, filter, and requested attribute selection before mapping supported directory filters into the repository boundary.
-- Common client search filters using OR/AND/NOT wrappers, substring matches, and RFC 4511 extensibleMatch type/value assertions are accepted for RFC 4519 directory attributes (`cn`, `mail`, `uid`, `displayName`, `givenName`, `sn`).
+- Common client search filters using OR/AND/NOT wrappers, substring matches, and RFC 4511 extensibleMatch type/value assertions are accepted for RFC 4519 directory attributes (`cn`, `mail`, `uid`, `displayName`, `givenName`, `sn`) plus Active Directory-style compatibility aliases (`name`, `sAMAccountName`, `userPrincipalName`).
 - Repository query extraction preserves organization/resource attributes (`ou`, `description`) in addition to user attributes.
 - Principal-kind-aware LDAP entries now map users to `inetOrgPerson`, organizations to `organizationalUnit`, groups to `groupOfNames`, and resources to `device` under kind-specific OU subtrees.
 - LDAP `groupOfNames` entries populate requested/default `member` attributes with active Directory group-membership DNs for user, organization, group, and resource principals, with a schema-safe fallback for empty groups and no membership expansion for narrow non-member projections.
