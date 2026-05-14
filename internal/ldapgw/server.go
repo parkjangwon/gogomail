@@ -2308,9 +2308,17 @@ func decodeSearchRequest(data []byte) (baseDN string, scope int, filter []byte, 
 		err = fmt.Errorf("decode sizeLimit: %w", err)
 		return
 	}
+	if sizeLimit < 0 {
+		err = fmt.Errorf("search request: negative sizeLimit %d", sizeLimit)
+		return
+	}
 	timeLimit, rest, err = decodeInt(rest)
 	if err != nil {
 		err = fmt.Errorf("decode timeLimit: %w", err)
+		return
+	}
+	if timeLimit < 0 {
+		err = fmt.Errorf("search request: negative timeLimit %d", timeLimit)
 		return
 	}
 	typesOnly, rest, err = decodeBoolean(rest)
@@ -2362,6 +2370,9 @@ func decodeLDAPIntLike(data []byte) (int, []byte, error) {
 		return 0, nil, fmt.Errorf("enumerated data too short")
 	}
 	var v int64
+	if length > 0 && rest[0]&0x80 != 0 {
+		v = -1
+	}
 	for i := 0; i < length; i++ {
 		v = v<<8 | int64(rest[i])
 	}

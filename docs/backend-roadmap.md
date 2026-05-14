@@ -5733,6 +5733,7 @@ Current implementation notes:
 - Root DSE, subschema, and synthetic kind-container base-object searches validate and apply the requested LDAP filter before returning entries.
 - SearchRequest parsing now covers and validates scope, deref aliases, client size/time limits, typesOnly, filter, and requested attribute selection before mapping supported directory filters into the repository boundary.
 - SearchRequest `timeLimit` is enforced with `timeLimitExceeded` results when repository lookup or post-filtering runs past the client-requested duration.
+- Negative SearchRequest `sizeLimit` and `timeLimit` BER INTEGER values are rejected during decoding instead of being widened into large positive limits.
 - Common client search filters using OR/AND/NOT wrappers, substring matches, and RFC 4511 extensibleMatch type/value assertions are accepted for RFC 4519 directory attributes (`cn`, `mail`, `uid`, `displayName`, `givenName`, `sn`) plus Active Directory-style compatibility aliases (`name`, `sAMAccountName`, `userPrincipalName`).
 - Repository narrowing uses only safe conjunctive LDAP filter hints; OR/NOT branches are validated and left to the full entry filter evaluator so matching entries are not under-returned.
 - LDAP ordering filters (`greaterOrEqual`, `lessOrEqual`) are evaluated only by the full entry filter evaluator, avoiding unsafe text-search narrowing.
