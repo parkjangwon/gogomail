@@ -235,6 +235,7 @@ type Config struct {
 	DeliveryFarmConcurrency             map[string]int
 	DeliveryDomainConcurrency           map[string]int
 	DeliveryDomainBackoffEnabled        bool
+	DeliveryDomainBackoffBackend        string
 	DeliveryDomainBackoffBaseDelay      time.Duration
 	DeliveryDomainBackoffMaxDelay       time.Duration
 	DSNPostmaster                       string
@@ -473,6 +474,7 @@ func Load() Config {
 		DeliveryFarmConcurrency:             intMapEnvOrDefault("GOGOMAIL_DELIVERY_FARM_CONCURRENCY", nil),
 		DeliveryDomainConcurrency:           intMapEnvOrDefault("GOGOMAIL_DELIVERY_DOMAIN_CONCURRENCY", nil),
 		DeliveryDomainBackoffEnabled:        boolEnvOrDefault("GOGOMAIL_DELIVERY_DOMAIN_BACKOFF_ENABLED", false),
+		DeliveryDomainBackoffBackend:        envOrDefault("GOGOMAIL_DELIVERY_DOMAIN_BACKOFF_BACKEND", "local"),
 		DeliveryDomainBackoffBaseDelay:      durationEnvOrDefault("GOGOMAIL_DELIVERY_DOMAIN_BACKOFF_BASE_DELAY", time.Minute),
 		DeliveryDomainBackoffMaxDelay:       durationEnvOrDefault("GOGOMAIL_DELIVERY_DOMAIN_BACKOFF_MAX_DELAY", time.Hour),
 		DSNPostmaster:                       envOrDefault("GOGOMAIL_DSN_POSTMASTER", ""),
