@@ -27,9 +27,15 @@ TASK-067 (Audit Logs) completion enables SMTP monitoring. However, SMTP itself l
 - [x] Eliminates I/O pressure and GC strain for large messages (25MB+)
 - [x] Single temp file created instead of 3, reducing disk thrashing
 
-### Current Phase: Phase 4 — Delivery Concurrency Control
+**Phase 4 ✓ — Delivery Concurrency Control**
+- [x] DeliveryCounter with per-domain concurrency limits (default 10)
+- [x] Circuit breaker pattern with 3 states: closed, open, half-open
+- [x] Automatic recovery when domain comes back online
+- [x] Prevents failing domains from blocking other deliveries
 
-Next: Per-domain delivery concurrency limits and circuit breaker pattern
+### Current Phase: Phase 5 — Server Farm Configuration
+
+Next: Redis-based delivery queue for distributed coordination
 
 ---
 
