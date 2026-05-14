@@ -252,6 +252,9 @@ func decodeLength(data []byte) (int, []byte, error) {
 		return int(data[0]), data[1:], nil
 	}
 	numBytes := int(data[0] & 0x7f)
+	if numBytes == 0 {
+		return 0, nil, fmt.Errorf("indefinite lengths are not supported")
+	}
 	if len(data) < numBytes+1 {
 		return 0, nil, fmt.Errorf("length data too short")
 	}
