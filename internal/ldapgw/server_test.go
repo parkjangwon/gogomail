@@ -311,6 +311,10 @@ func buildVirtualListViewControl(before, after, offset, contentCount int) contro
 	return control{Type: controlVirtualListViewRequest, Value: seq}
 }
 
+func buildAssertionControl(filter []byte, critical bool) control {
+	return control{Type: controlAssertion, Critical: critical, Value: filter}
+}
+
 func buildCompareRequest(entry, attr, value string) []byte {
 	assertion := append(encodeOctetString(attr), encodeOctetString(value)...)
 	var assertionSeq []byte
@@ -1018,6 +1022,59 @@ func TestLDAPServerRejectsUnsupportedCriticalControl(t *testing.T) {
 	}
 }
 
+func TestLDAPServerAssertionControl(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+
+	dir := newFakeDirectoryQuerier()
+	dir.addPrincipal(PrincipalEntry{DN: "uid=alice,ou=users,dc=example,dc=com", Kind: "user", CN: "Alice", UID: "alice", DisplayName: "Alice"})
+	auth := newFakeLDAPAuth()
+	srv := NewServer(ln, auth, dir)
+	go srv.Serve()
+	defer srv.Close()
+
+	conn, err := net.Dial("tcp", ln.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	bindTestConnection(t, conn, auth)
+
+	okReq := buildLDAPPacketWithControls(12, opSearchRequest,
+		buildSearchRequest("ou=users,dc=example,dc=com", scopeWholeSubtree, buildEqualityFilter("objectClass", "person")),
+		[]control{buildAssertionControl(buildEqualityFilter("objectClass", "person"), true)},
+	)
+	if err := sendPDU(conn, okReq); err != nil {
+		t.Fatal(err)
+	}
+	entries, _ := readSearchUntilDone(t, conn)
+	if entries != 1 {
+		t.Fatalf("assertion accepted entries = %d, want 1", entries)
+	}
+
+	failReq := buildLDAPPacketWithControls(13, opSearchRequest,
+		buildSearchRequest("ou=users,dc=example,dc=com", scopeWholeSubtree, buildEqualityFilter("objectClass", "person")),
+		[]control{buildAssertionControl(buildEqualityFilter("objectClass", "organizationalUnit"), true)},
+	)
+	if err := sendPDU(conn, failReq); err != nil {
+		t.Fatal(err)
+	}
+	resp, err := readFullPDU(conn, time.Now().Add(3*time.Second))
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, opTag, opData, err := decodeLDAPPacket(resp)
+	if err != nil {
+		t.Fatalf("decode assertion failed response: %v", err)
+	}
+	if opTag != opSearchResultDone || decodeEnumerated(opData) != resultAssertionFailed {
+		t.Fatalf("assertion failed op/result = %d/%d, want %d/%d", opTag, decodeEnumerated(opData), opSearchResultDone, resultAssertionFailed)
+	}
+}
+
 func TestLDAPServerSimplePagedResultsControl(t *testing.T) {
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
@@ -1388,6 +1445,46 @@ func TestLDAPServerOpenLDAPSearchCompatibility(t *testing.T) {
 		!strings.Contains(output, "objectClass: organizationalUnit") ||
 		!strings.Contains(output, "ou: Research") {
 		t.Fatalf("ldapsearch output missing organization entry:\n%s", output)
+	}
+}
+
+func TestLDAPServerOpenLDAPAssertionControlCompatibility(t *testing.T) {
+	ldapsearch, err := exec.LookPath("ldapsearch")
+	if err != nil {
+		t.Skip("ldapsearch is not installed")
+	}
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+
+	auth := newFakeLDAPAuth()
+	auth.addUser("alice", "secret")
+	dir := newFakeDirectoryQuerier()
+	dir.addPrincipal(PrincipalEntry{DN: "uid=alice,ou=users,dc=example,dc=com", Kind: "user", CN: "Alice", UID: "alice", DisplayName: "Alice"})
+	srv := NewServer(ln, auth, dir)
+	go srv.Serve()
+	defer srv.Close()
+
+	cmd := exec.Command(ldapsearch,
+		"-x",
+		"-H", "ldap://"+ln.Addr().String(),
+		"-D", "uid=alice,ou=users,dc=example,dc=com",
+		"-w", "secret",
+		"-e", "!assert=(objectClass=person)",
+		"-b", "ou=users,dc=example,dc=com",
+		"(objectClass=person)",
+		"cn",
+	)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("ldapsearch assertion control failed: %v\n%s", err, out)
+	}
+	output := string(out)
+	if !strings.Contains(output, "dn: uid=alice,ou=users,dc=example,dc=com") ||
+		!strings.Contains(output, "cn: Alice") {
+		t.Fatalf("ldapsearch assertion output missing user entry:\n%s", output)
 	}
 }
 

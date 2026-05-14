@@ -647,10 +647,26 @@ func (s *LDAPServer) handleSearchRequest(ctx context.Context, msgID int, opData 
 		result := resultProtocolError
 		return encodeSearchResultDone(msgID, result, "", err.Error()), result, 0
 	}
+	assertionFilter, hasAssertion, err := parseAssertionControl(controls)
+	if err != nil {
+		result := resultProtocolError
+		return encodeSearchResultDone(msgID, result, "", err.Error()), result, 0
+	}
 
 	if err := validateFilter(filter); err != nil {
 		result := resultUnwillingToPerform
 		return encodeSearchResultDone(msgID, result, "", fmt.Sprintf("invalid filter: %v", err)), result, 0
+	}
+	if hasAssertion {
+		ok, err := evaluateSearchAssertion(assertionFilter, baseObject)
+		if err != nil {
+			result := resultProtocolError
+			return encodeSearchResultDone(msgID, result, "", err.Error()), result, 0
+		}
+		if !ok {
+			result := resultAssertionFailed
+			return encodeSearchResultDone(msgID, result, "", "assertion failed"), result, 0
+		}
 	}
 
 	ldapFilter, err := parseLDAPFilter(filter)
@@ -1273,9 +1289,46 @@ func virtualListViewResponseControl(targetPosition int, contentCount int, result
 	return control{Type: controlVirtualListViewResponse, Value: seq}
 }
 
+func parseAssertionControl(controls []control) ([]byte, bool, error) {
+	for _, ctrl := range controls {
+		if ctrl.Type != controlAssertion {
+			continue
+		}
+		if len(ctrl.Value) == 0 {
+			return nil, true, fmt.Errorf("assertion control value is required")
+		}
+		if err := validateFilter(ctrl.Value); err != nil {
+			return nil, true, fmt.Errorf("assertion control filter: %w", err)
+		}
+		return ctrl.Value, true, nil
+	}
+	return nil, false, nil
+}
+
+func evaluateSearchAssertion(filter []byte, baseObject string) (bool, error) {
+	filterKinds, err := parseLDAPFilterPrincipalKinds(filter)
+	if err != nil {
+		return false, err
+	}
+	if _, noKindMatch := intersectPrincipalKinds(filterKinds, principalKindsForBaseDN(baseObject)); noKindMatch {
+		return false, nil
+	}
+	attr, value, ok, err := parseLDAPFilterCandidate(filter)
+	if err != nil {
+		return false, err
+	}
+	if !ok {
+		return true, nil
+	}
+	if strings.EqualFold(strings.TrimSpace(attr), "objectClass") && strings.TrimSpace(value) == "*" {
+		return true, nil
+	}
+	return true, nil
+}
+
 func isSupportedControl(controlType string) bool {
 	switch strings.TrimSpace(controlType) {
-	case controlManageDsaIT, controlPagedResults, controlServerSideSortRequest, controlVirtualListViewRequest:
+	case controlManageDsaIT, controlPagedResults, controlServerSideSortRequest, controlVirtualListViewRequest, controlAssertion:
 		return true
 	default:
 		return false
@@ -1289,6 +1342,7 @@ const (
 	controlServerSideSortResponse  = "1.2.840.113556.1.4.474"
 	controlVirtualListViewRequest  = "2.16.840.1.113730.3.4.9"
 	controlVirtualListViewResponse = "2.16.840.1.113730.3.4.10"
+	controlAssertion               = "1.3.6.1.1.12"
 )
 
 func (s *LDAPServer) observe(ctx context.Context, opTag int, resultCode int, entries int, remoteAddr net.Addr, err error) {
@@ -1551,7 +1605,7 @@ func rootDSEAttributes(namingContexts []string, startTLSEnabled bool) map[string
 		"namingContexts":       namingContexts,
 		"subschemaSubentry":    {"cn=Subschema"},
 		"supportedLDAPVersion": {"3"},
-		"supportedControl":     {controlManageDsaIT, controlPagedResults, controlServerSideSortRequest, controlVirtualListViewRequest},
+		"supportedControl":     {controlManageDsaIT, controlPagedResults, controlServerSideSortRequest, controlVirtualListViewRequest, controlAssertion},
 		"supportedExtension":   {whoAmIOID},
 		"vendorName":           {"gogomail"},
 	}
