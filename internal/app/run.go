@@ -2967,6 +2967,10 @@ func runHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, mode M
 		defer db.Close()
 		readinessChecks = append(readinessChecks, databaseReadinessCheck("admin_database", db, cfg.MigrationDir))
 
+		if err := initializeIdPProvider(ctx, db); err != nil {
+			return fmt.Errorf("initialize identity provider: %w", err)
+		}
+
 		var redisClient *redis.Client
 		var pressure backpressureStore
 		if cfg.BackpressureBackend == "redis" {

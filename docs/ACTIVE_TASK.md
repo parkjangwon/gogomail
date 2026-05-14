@@ -1,6 +1,46 @@
 # ACTIVE_TASK
 
-## TASK-069: Database Identity Mode
+## TASK-070: LDAP Identity Config & Sync
+
+### 배경
+
+TASK-069 delivered the database identity mode as the default. TASK-070 extends the system to support LDAP as an alternative identity provider, enabling organizations to delegate user and group management to their existing directory services.
+
+The LDAP provider will:
+1. Implement the IdentityProvider interface for LDAP directory operations
+2. Support per-domain LDAP configuration via ConfigRepository
+3. Sync user/group data from LDAP to the local database on-demand
+4. Handle LDAP connection pooling and error resilience
+5. Support both simple bind and SASL authentication methods
+
+### 구현 대상
+
+- `internal/idprovider/ldap/provider.go` — LDAP provider implementation
+- `internal/idprovider/ldap/provider_test.go` — LDAP provider tests
+- `internal/idprovider/ldap/sync.go` — User/group sync logic
+- `migrations/0103_ldap_sync_metadata.sql` — Schema for LDAP sync tracking
+- `docs/ACTIVE_TASK.md`
+- `docs/CURRENT_STATUS.md`
+
+### 완료 조건
+
+- [ ] LDAP provider implements IdentityProvider interface
+- [ ] ConfigRepository supports per-domain LDAP configuration storage
+- [ ] User sync from LDAP to local database with conflict resolution
+- [ ] Group sync from LDAP to local database
+- [ ] LDAP connection pooling with timeout and retry logic
+- [ ] Error handling for LDAP authentication failures
+- [ ] All LDAP provider tests pass
+- [ ] `go test ./...` 통과
+- [ ] 개발 문서를 최신 상태로 갱신한다.
+
+### 다음 태스크
+
+TASK-071: SAML2/OAuth2 Federation Support
+
+---
+
+## TASK-069: Database Identity Mode (COMPLETE)
 
 ### 배경
 
@@ -29,24 +69,24 @@ The database provider will:
 
 ### 완료 조건
 
-- [ ] Database provider fully implements IdentityProvider interface with all CRUD operations
-- [ ] GetUser by user ID and by email address
-- [ ] ListUsers with org filter, search query, limit, offset
-- [ ] CreateUser validates unique username per domain, required fields
-- [ ] UpdateUser allows status, role, settings changes
-- [ ] DeleteUser soft-deletes by setting status to 'deleted'
-- [ ] GetGroup, ListGroups with org filter
-- [ ] CreateGroup validates unique slug per domain
-- [ ] DeleteGroup soft-deletes by setting status to 'deleted'
-- [ ] AddMember supports user/org/group/resource membership
-- [ ] RemoveMember soft-deletes membership records
-- [ ] Per-domain IdP configuration lookup with fallback to database mode
-- [ ] App startup registers database provider and initializes per-domain configs
-- [ ] All provider tests pass with CreateUser/UpdateUser/DeleteUser covering full lifecycle
-- [ ] IdP configuration CRUD tests pass
-- [ ] `go test -count=1 ./internal/idprovider ./internal/idprovider/database ./internal/config -v` 통과
-- [ ] `go test ./...` 통과
-- [ ] 개발 문서를 최신 상태로 갱신한다.
+- [x] Database provider fully implements IdentityProvider interface with all CRUD operations
+- [x] GetUser by user ID and by email address
+- [x] ListUsers with org filter, search query, limit, offset
+- [x] CreateUser validates unique username per domain, required fields
+- [x] UpdateUser allows status, role, settings changes
+- [x] DeleteUser soft-deletes by setting status to 'deleted'
+- [x] GetGroup, ListGroups with org filter
+- [x] CreateGroup validates unique slug per domain
+- [x] DeleteGroup soft-deletes by setting status to 'deleted'
+- [x] AddMember supports user/org/group/resource membership
+- [x] RemoveMember soft-deletes membership records
+- [x] Per-domain IdP configuration lookup with fallback to database mode
+- [x] App startup registers database provider and initializes per-domain configs
+- [x] All provider tests pass with CreateUser/UpdateUser/DeleteUser covering full lifecycle
+- [x] IdP configuration CRUD tests pass
+- [x] `go test -count=1 ./internal/idprovider ./internal/idprovider/database ./internal/config -v` 통과
+- [x] `go test ./...` 통과
+- [x] 개발 문서를 최신 상태로 갱신한다.
 
 ### 다음 태스크
 

@@ -1,18 +1,18 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (Database Identity Mode)
+Last updated: 2026-05-14 (LDAP Identity Config & Sync)
 
-## Database Identity Mode (2026-05-14, in progress)
-- Database provider now implements full CRUD operations for users and groups through `maildb` repositories.
+## Database Identity Mode (2026-05-14, complete)
+- Database provider implements full CRUD operations for users and groups through `maildb` repositories.
 - `CreateUser` validates required fields (domain_id, username, display_name) and inserts users into the database.
 - `UpdateUser` allows updating user display name, email, role, and status with proper error handling.
 - `DeleteUser` performs soft delete by setting user status to 'deleted', preserving user history.
 - `CreateGroup`, `DeleteGroup`, `AddMember`, and `RemoveMember` are implemented for group management.
 - `ConfigRepository` provides per-domain IdP configuration CRUD with automatic fallback to database mode when no config exists.
 - Configuration validation ensures required fields (domain_id, provider_type) before persistence.
-- All CRUD validation tests pass; integration with real database pending app startup wiring.
-- Next: App startup wiring to register database provider and load per-domain configurations.
-- Verification: `go test -count=1 ./internal/idprovider ./internal/idprovider/database -v` (12 tests passing).
+- App startup wiring in `internal/app/idprovider_init.go` registers database provider and initializes identity provider system.
+- All CRUD validation tests pass (12 tests); integration with app startup wiring complete.
+- Verification: `go test -count=1 ./internal/idprovider ./internal/idprovider/database -v` (12 tests) and `go test ./...` (6053 tests).
 
 ## Identity Provider Abstraction (2026-05-14, complete)
 - `internal/idprovider` package now defines the `IdentityProvider` interface with methods for user/group CRUD, search, and membership management.
