@@ -913,7 +913,11 @@ func (q *ldapDirectoryQuerier) SearchPrincipals(ctx context.Context, req ldapgw.
 			if err != nil {
 				return nil, nil
 			}
-			return []ldapgw.PrincipalEntry{ldapPrincipalEntry(principal, baseDN)}, nil
+			entry, err := q.ldapPrincipalEntry(ctx, principal, baseDN)
+			if err != nil {
+				return nil, err
+			}
+			return []ldapgw.PrincipalEntry{entry}, nil
 		}
 	}
 	principals, err := q.repo.SearchPrincipals(ctx, directory.SearchPrincipalsRequest{
@@ -929,9 +933,35 @@ func (q *ldapDirectoryQuerier) SearchPrincipals(ctx context.Context, req ldapgw.
 	}
 	entries := make([]ldapgw.PrincipalEntry, 0, len(principals))
 	for _, p := range principals {
-		entries = append(entries, ldapPrincipalEntry(p, baseDN))
+		entry, err := q.ldapPrincipalEntry(ctx, p, baseDN)
+		if err != nil {
+			return nil, err
+		}
+		entries = append(entries, entry)
 	}
 	return entries, nil
+}
+
+func (q *ldapDirectoryQuerier) ldapPrincipalEntry(ctx context.Context, p directory.Principal, baseDN string) (ldapgw.PrincipalEntry, error) {
+	entry := ldapPrincipalEntry(p, baseDN)
+	if p.Kind != directory.PrincipalKindGroup {
+		return entry, nil
+	}
+	memberships, err := q.repo.ListGroupMemberships(ctx, directory.ListGroupMembershipsRequest{
+		CompanyID:  q.companyID,
+		GroupID:    p.ID,
+		ActiveOnly: true,
+		Limit:      directory.MaxGroupMembershipListLimit,
+	})
+	if err != nil {
+		return ldapgw.PrincipalEntry{}, err
+	}
+	for _, membership := range memberships {
+		if memberDN := ldapPrincipalKindIDDN(membership.MemberKind, membership.MemberID, baseDN); memberDN != "" {
+			entry.Members = append(entry.Members, memberDN)
+		}
+	}
+	return entry, nil
 }
 
 func ldapPrincipalEntry(p directory.Principal, baseDN string) ldapgw.PrincipalEntry {
@@ -945,6 +975,10 @@ func ldapPrincipalEntry(p directory.Principal, baseDN string) ldapgw.PrincipalEn
 		DisplayName:  p.DisplayName,
 		ResourceType: p.ResourceType,
 	}
+}
+
+func ldapPrincipalKindIDDN(kind, id, baseDN string) string {
+	return ldapPrincipalDN(directory.Principal{ID: id, Kind: kind}, baseDN)
 }
 
 func ldapPrincipalDN(p directory.Principal, baseDN string) string {
