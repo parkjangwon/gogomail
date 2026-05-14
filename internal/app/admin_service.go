@@ -1628,3 +1628,45 @@ func (s adminService) ResolveLDAPSyncConflict(ctx context.Context, conflictID, r
 	}
 	return s.Repository.ResolveLDAPSyncConflict(ctx, id, resolution)
 }
+
+func (s adminService) TriggerRDBMSSync(ctx context.Context, domainID, syncType string) (map[string]interface{}, error) {
+	// TODO: Implement actual RDBMS sync triggering logic
+	// For now, return a stub response
+	return map[string]interface{}{
+		"sync_run_id":    "",
+		"status":         "not_implemented",
+		"error":          "RDBMS sync not yet implemented",
+	}, nil
+}
+
+func (s adminService) GetRDBMSSyncRuns(ctx context.Context, req maildb.RDBMSSyncRunListRequest) ([]maildb.RDBMSSyncRunView, error) {
+	return s.Repository.GetRDBMSSyncRuns(ctx, req)
+}
+
+func (s adminService) GetRDBMSSyncRun(ctx context.Context, runID string) (*maildb.RDBMSSyncRunView, error) {
+	id, err := uuid.Parse(runID)
+	if err != nil {
+		return nil, fmt.Errorf("invalid run id: %w", err)
+	}
+	return s.Repository.GetRDBMSSyncRun(ctx, id)
+}
+
+func (s adminService) GetRDBMSSyncConflicts(ctx context.Context, req maildb.RDBMSSyncConflictListRequest) ([]maildb.RDBMSSyncConflictView, error) {
+	return s.Repository.GetRDBMSSyncConflicts(ctx, req)
+}
+
+func (s adminService) GetRDBMSSyncConflict(ctx context.Context, conflictID string) (*maildb.RDBMSSyncConflictView, error) {
+	id, err := uuid.Parse(conflictID)
+	if err != nil {
+		return nil, fmt.Errorf("invalid conflict id: %w", err)
+	}
+	return s.Repository.GetRDBMSSyncConflict(ctx, id)
+}
+
+func (s adminService) ResolveRDBMSSyncConflict(ctx context.Context, conflictID, resolution string) error {
+	id, err := uuid.Parse(conflictID)
+	if err != nil {
+		return fmt.Errorf("invalid conflict id: %w", err)
+	}
+	return s.Repository.ResolveRDBMSSyncConflict(ctx, id, resolution)
+}

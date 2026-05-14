@@ -293,6 +293,12 @@ type AdminService interface {
 	GetLDAPSyncConflicts(ctx context.Context, req maildb.LDAPSyncConflictListRequest) ([]maildb.LDAPSyncConflictView, error)
 	GetLDAPSyncConflict(ctx context.Context, conflictID string) (*maildb.LDAPSyncConflictView, error)
 	ResolveLDAPSyncConflict(ctx context.Context, conflictID, resolution string) error
+	TriggerRDBMSSync(ctx context.Context, domainID, syncType string) (map[string]interface{}, error)
+	GetRDBMSSyncRuns(ctx context.Context, req maildb.RDBMSSyncRunListRequest) ([]maildb.RDBMSSyncRunView, error)
+	GetRDBMSSyncRun(ctx context.Context, runID string) (*maildb.RDBMSSyncRunView, error)
+	GetRDBMSSyncConflicts(ctx context.Context, req maildb.RDBMSSyncConflictListRequest) ([]maildb.RDBMSSyncConflictView, error)
+	GetRDBMSSyncConflict(ctx context.Context, conflictID string) (*maildb.RDBMSSyncConflictView, error)
+	ResolveRDBMSSyncConflict(ctx context.Context, conflictID, resolution string) error
 }
 
 type adminIMAPUIDBackfillItem struct {

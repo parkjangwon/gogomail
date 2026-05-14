@@ -10203,3 +10203,30 @@ func (f *fakeAdminService) GetLDAPSyncConflict(ctx context.Context, conflictID s
 func (f *fakeAdminService) ResolveLDAPSyncConflict(ctx context.Context, conflictID, resolution string) error {
 	return nil
 }
+
+func (f *fakeAdminService) TriggerRDBMSSync(ctx context.Context, domainID, syncType string) (map[string]interface{}, error) {
+	return map[string]interface{}{
+		"sync_run_id": "test-sync-run-id",
+		"status":      "running",
+	}, nil
+}
+
+func (f *fakeAdminService) GetRDBMSSyncRuns(ctx context.Context, req maildb.RDBMSSyncRunListRequest) ([]maildb.RDBMSSyncRunView, error) {
+	return []maildb.RDBMSSyncRunView{}, nil
+}
+
+func (f *fakeAdminService) GetRDBMSSyncRun(ctx context.Context, runID string) (*maildb.RDBMSSyncRunView, error) {
+	return nil, nil
+}
+
+func (f *fakeAdminService) GetRDBMSSyncConflicts(ctx context.Context, req maildb.RDBMSSyncConflictListRequest) ([]maildb.RDBMSSyncConflictView, error) {
+	return []maildb.RDBMSSyncConflictView{}, nil
+}
+
+func (f *fakeAdminService) GetRDBMSSyncConflict(ctx context.Context, conflictID string) (*maildb.RDBMSSyncConflictView, error) {
+	return nil, nil
+}
+
+func (f *fakeAdminService) ResolveRDBMSSyncConflict(ctx context.Context, conflictID, resolution string) error {
+	return nil
+}
