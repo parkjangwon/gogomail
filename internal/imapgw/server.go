@@ -676,117 +676,7 @@ func (s *Server) handleLineWithLiteral(writer *bufio.Writer, line string, litera
 		_, err := writer.WriteString("+ \r\n")
 		return false, err
 	case "SELECT", "EXAMINE":
-		if len(fields) < 3 {
-			_, err := writer.WriteString(tag + " BAD " + command + " requires a mailbox atom and optional CONDSTORE parameter\r\n")
-			return false, err
-		}
-		condstore, ok := imapSelectCondstore(fields[3:])
-		if !ok {
-			_, err := writer.WriteString(tag + " BAD " + command + " requires a mailbox atom and optional CONDSTORE parameter\r\n")
-			return false, err
-		}
-		mailboxName, valid, nonEmpty := imapDecodeRequiredMailboxName(fields[2])
-		if !valid {
-			_, err := writer.WriteString(tag + " BAD " + command + " mailbox name is not valid modified UTF-7\r\n")
-			return false, err
-		}
-		if !nonEmpty {
-			_, err := writer.WriteString(tag + " BAD " + command + " mailbox name is empty\r\n")
-			return false, err
-		}
-		if state.session == nil {
-			_, err := writer.WriteString(tag + " NO authentication required\r\n")
-			return false, err
-		}
-		mailboxState, err := s.options.Backend.SelectMailbox(context.Background(), SelectMailboxRequest{
-			UserID:    state.session.UserID,
-			MailboxID: MailboxID(mailboxName),
-			ReadOnly:  command == "EXAMINE",
-		})
-		if err != nil {
-			if errors.Is(err, ErrMailboxNotFound) {
-				_, writeErr := writer.WriteString(imapMailboxNotFoundResponse(tag, command))
-				return false, writeErr
-			}
-			_, writeErr := writer.WriteString(tag + " NO " + command + " failed\r\n")
-			return false, writeErr
-		}
-		events, cancel, err := s.options.Backend.Subscribe(context.Background(), state.session.UserID, mailboxState.ID)
-		if err != nil {
-			_, writeErr := writer.WriteString(tag + " NO " + command + " failed\r\n")
-			return false, writeErr
-		}
-		subscriptionInstalled := false
-		defer func() {
-			if !subscriptionInstalled && cancel != nil {
-				cancel()
-			}
-		}()
-		permanentFlags := imapCanonicalPermanentFlags(mailboxState.PermanentFlags)
-		if _, err := writer.WriteString("* FLAGS " + imapFlagList(permanentFlags) + "\r\n"); err != nil {
-			return false, err
-		}
-		if _, err := writer.WriteString(fmt.Sprintf("* %d EXISTS\r\n", mailboxState.Messages)); err != nil {
-			return false, err
-		}
-		if _, err := writer.WriteString(fmt.Sprintf("* %d RECENT\r\n", mailboxState.Recent)); err != nil {
-			return false, err
-		}
-		if unseenSequence := s.firstUnseenSequenceNumber(context.Background(), state.session.UserID, mailboxState); unseenSequence > 0 {
-			if _, err := writer.WriteString(fmt.Sprintf("* OK [UNSEEN %d] Message %d is first unseen\r\n", unseenSequence, unseenSequence)); err != nil {
-				return false, err
-			}
-		}
-		if _, err := writer.WriteString(fmt.Sprintf("* OK [UIDVALIDITY %d] UIDs valid\r\n", mailboxState.UIDValidity)); err != nil {
-			return false, err
-		}
-		if _, err := writer.WriteString(fmt.Sprintf("* OK [UIDNEXT %d] Predicted next UID\r\n", mailboxState.UIDNext)); err != nil {
-			return false, err
-		}
-		if mailboxState.UIDNotSticky {
-			if _, err := writer.WriteString("* OK [UIDNOTSTICKY] UIDs are not sticky\r\n"); err != nil {
-				return false, err
-			}
-		}
-		if mailboxState.HighestModSeq > 0 {
-			if _, err := writer.WriteString(fmt.Sprintf("* OK [HIGHESTMODSEQ %d] Highest mod-sequence\r\n", mailboxState.HighestModSeq)); err != nil {
-				return false, err
-			}
-		} else if condstore || state.condstoreAware {
-			if _, err := writer.WriteString("* OK [NOMODSEQ] No persistent mod-sequences\r\n"); err != nil {
-				return false, err
-			}
-		}
-		state.deselectMailbox()
-		state.selectedMailbox = mailboxState.ID
-		state.selectedMessages = mailboxState.Messages
-		state.selectedHighestModSeq = mailboxState.HighestModSeq
-		state.selectedNoModSeq = mailboxState.HighestModSeq == 0 && (condstore || state.condstoreAware)
-		state.readOnly = command == "EXAMINE"
-		if state.readOnly {
-			state.permanentFlags = nil
-		} else {
-			state.permanentFlags = imapPermanentFlagSet(permanentFlags)
-		}
-		state.savedSearch = nil
-		if condstore {
-			state.condstoreAware = true
-		}
-		state.events = events
-		state.cancelEvents = cancel
-		subscriptionInstalled = true
-		if state.readOnly {
-			if _, err := writer.WriteString("* OK [PERMANENTFLAGS ()] No permanent flags permitted\r\n"); err != nil {
-				return false, err
-			}
-			_, err = writer.WriteString(tag + " OK [READ-ONLY] EXAMINE completed\r\n")
-			return false, err
-		}
-		if _, err := writer.WriteString("* OK [PERMANENTFLAGS " + imapFlagList(permanentFlags) + "] Permanent flags\r\n"); err != nil {
-			return false, err
-		}
-		_, err = writer.WriteString(tag + " OK [READ-WRITE] SELECT completed\r\n")
-		return false, err
+		return s.handleSelect(writer, tag, command, fields, state)
 	case "LIST":
 		return s.handleList(writer, tag, fields, state, false)
 	case "LSUB":
@@ -1443,6 +1333,120 @@ func imapMalformedCommandResponse(line string) string {
 		return tag + " BAD malformed command\r\n"
 	}
 	return "* BAD malformed command\r\n"
+}
+
+func (s *Server) handleSelect(writer *bufio.Writer, tag string, command string, fields []string, state *imapConnState) (bool, error) {
+	if len(fields) < 3 {
+		_, err := writer.WriteString(tag + " BAD " + command + " requires a mailbox atom and optional CONDSTORE parameter\r\n")
+		return false, err
+	}
+	condstore, ok := imapSelectCondstore(fields[3:])
+	if !ok {
+		_, err := writer.WriteString(tag + " BAD " + command + " requires a mailbox atom and optional CONDSTORE parameter\r\n")
+		return false, err
+	}
+	mailboxName, valid, nonEmpty := imapDecodeRequiredMailboxName(fields[2])
+	if !valid {
+		_, err := writer.WriteString(tag + " BAD " + command + " mailbox name is not valid modified UTF-7\r\n")
+		return false, err
+	}
+	if !nonEmpty {
+		_, err := writer.WriteString(tag + " BAD " + command + " mailbox name is empty\r\n")
+		return false, err
+	}
+	if state.session == nil {
+		_, err := writer.WriteString(tag + " NO authentication required\r\n")
+		return false, err
+	}
+	mailboxState, err := s.options.Backend.SelectMailbox(context.Background(), SelectMailboxRequest{
+		UserID:    state.session.UserID,
+		MailboxID: MailboxID(mailboxName),
+		ReadOnly:  command == "EXAMINE",
+	})
+	if err != nil {
+		if errors.Is(err, ErrMailboxNotFound) {
+			_, writeErr := writer.WriteString(imapMailboxNotFoundResponse(tag, command))
+			return false, writeErr
+		}
+		_, writeErr := writer.WriteString(tag + " NO " + command + " failed\r\n")
+		return false, writeErr
+	}
+	events, cancel, err := s.options.Backend.Subscribe(context.Background(), state.session.UserID, mailboxState.ID)
+	if err != nil {
+		_, writeErr := writer.WriteString(tag + " NO " + command + " failed\r\n")
+		return false, writeErr
+	}
+	subscriptionInstalled := false
+	defer func() {
+		if !subscriptionInstalled && cancel != nil {
+			cancel()
+		}
+	}()
+	permanentFlags := imapCanonicalPermanentFlags(mailboxState.PermanentFlags)
+	if _, err := writer.WriteString("* FLAGS " + imapFlagList(permanentFlags) + "\r\n"); err != nil {
+		return false, err
+	}
+	if _, err := writer.WriteString(fmt.Sprintf("* %d EXISTS\r\n", mailboxState.Messages)); err != nil {
+		return false, err
+	}
+	if _, err := writer.WriteString(fmt.Sprintf("* %d RECENT\r\n", mailboxState.Recent)); err != nil {
+		return false, err
+	}
+	if unseenSequence := s.firstUnseenSequenceNumber(context.Background(), state.session.UserID, mailboxState); unseenSequence > 0 {
+		if _, err := writer.WriteString(fmt.Sprintf("* OK [UNSEEN %d] Message %d is first unseen\r\n", unseenSequence, unseenSequence)); err != nil {
+			return false, err
+		}
+	}
+	if _, err := writer.WriteString(fmt.Sprintf("* OK [UIDVALIDITY %d] UIDs valid\r\n", mailboxState.UIDValidity)); err != nil {
+		return false, err
+	}
+	if _, err := writer.WriteString(fmt.Sprintf("* OK [UIDNEXT %d] Predicted next UID\r\n", mailboxState.UIDNext)); err != nil {
+		return false, err
+	}
+	if mailboxState.UIDNotSticky {
+		if _, err := writer.WriteString("* OK [UIDNOTSTICKY] UIDs are not sticky\r\n"); err != nil {
+			return false, err
+		}
+	}
+	if mailboxState.HighestModSeq > 0 {
+		if _, err := writer.WriteString(fmt.Sprintf("* OK [HIGHESTMODSEQ %d] Highest mod-sequence\r\n", mailboxState.HighestModSeq)); err != nil {
+			return false, err
+		}
+	} else if condstore || state.condstoreAware {
+		if _, err := writer.WriteString("* OK [NOMODSEQ] No persistent mod-sequences\r\n"); err != nil {
+			return false, err
+		}
+	}
+	state.deselectMailbox()
+	state.selectedMailbox = mailboxState.ID
+	state.selectedMessages = mailboxState.Messages
+	state.selectedHighestModSeq = mailboxState.HighestModSeq
+	state.selectedNoModSeq = mailboxState.HighestModSeq == 0 && (condstore || state.condstoreAware)
+	state.readOnly = command == "EXAMINE"
+	if state.readOnly {
+		state.permanentFlags = nil
+	} else {
+		state.permanentFlags = imapPermanentFlagSet(permanentFlags)
+	}
+	state.savedSearch = nil
+	if condstore {
+		state.condstoreAware = true
+	}
+	state.events = events
+	state.cancelEvents = cancel
+	subscriptionInstalled = true
+	if state.readOnly {
+		if _, err := writer.WriteString("* OK [PERMANENTFLAGS ()] No permanent flags permitted\r\n"); err != nil {
+			return false, err
+		}
+		_, err = writer.WriteString(tag + " OK [READ-ONLY] EXAMINE completed\r\n")
+		return false, err
+	}
+	if _, err := writer.WriteString("* OK [PERMANENTFLAGS " + imapFlagList(permanentFlags) + "] Permanent flags\r\n"); err != nil {
+		return false, err
+	}
+	_, err = writer.WriteString(tag + " OK [READ-WRITE] SELECT completed\r\n")
+	return false, err
 }
 
 func (s *Server) handleList(writer *bufio.Writer, tag string, fields []string, state *imapConnState, subscribed bool) (bool, error) {
