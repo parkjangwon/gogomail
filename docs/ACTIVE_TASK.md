@@ -1,6 +1,60 @@
 # ACTIVE_TASK
 
-## TASK-070: LDAP Identity Config & Sync (in progress)
+## TASK-071: LDAP Sync UI & Logs (in progress)
+
+### 배경
+
+TASK-070 delivered the LDAP provider interface and configuration schema. TASK-071 implements the admin backend and frontend for LDAP sync operations, logs, and monitoring.
+
+The LDAP sync surface includes:
+1. Admin API for LDAP sync scheduling and history
+2. Sync logs and conflict resolution UI
+3. Real-time sync status monitoring
+4. Per-domain LDAP configuration management in admin console
+
+### 구현 대상
+
+Backend (no frontend gate required):
+- `internal/httpapi/admin.go` — Add LDAP sync routes:
+  - `POST /admin/v1/domains/{id}/ldap/sync` — Trigger LDAP sync (users, groups, memberships)
+  - `GET /admin/v1/domains/{id}/ldap/sync-history` — List sync runs with status/counts/timing
+  - `GET /admin/v1/domains/{id}/ldap/conflicts` — List unresolved sync conflicts
+  - `POST /admin/v1/domains/{id}/ldap/conflicts/{id}/resolve` — Resolve conflict manually
+- `internal/admin/admin.go` — Wire LDAP sync service into admin runtime
+- `internal/idprovider/ldap/admin_service.go` — Service layer for sync scheduling/history querying
+- Database migrations for sync run metadata, status history (if needed beyond TASK-070 schema)
+- OpenAPI documentation for sync endpoints
+
+Frontend (gate applies here):
+- Admin console "Domain Settings > LDAP Configuration" screen
+  - Display LDAP provider status (connected/disconnected, last sync time)
+  - Manual sync button + sync progress indicator
+  - Sync history table (run date, user count, group count, duration, status)
+- Admin console "Domain Settings > LDAP Conflicts" screen
+  - Unresolved conflict listing (user/group, issue type, details)
+  - Bulk resolve or per-item manual review
+- Sync logs viewer (export, filter by domain/status/date range)
+
+### 완료 조건
+
+- [ ] Admin API POST /admin/v1/domains/{id}/ldap/sync triggers real sync with result envelope
+- [ ] Admin API GET /admin/v1/domains/{id}/ldap/sync-history lists runs with pagination
+- [ ] Admin API GET /admin/v1/domains/{id}/ldap/conflicts lists sync conflicts
+- [ ] Admin API POST /admin/v1/domains/{id}/ldap/conflicts/{id}/resolve allows manual resolution
+- [ ] Database schema supports sync run history, conflict tracking (extends TASK-070)
+- [ ] OpenAPI documents all new LDAP sync endpoints
+- [ ] All backend API tests pass (sync scheduling, history retrieval, conflict resolution)
+- [ ] `go test ./...` 통과
+- [ ] Frontend gate triggered before admin console UI implementation
+- [ ] 개발 문서를 최신 상태로 갱신한다.
+
+### 다음 태스크
+
+TASK-072: External RDBMS Config & Sync
+
+---
+
+## TASK-070: LDAP Identity Config & Sync (COMPLETE)
 
 ### 배경
 
@@ -37,20 +91,15 @@ The LDAP provider implements:
 - [x] LDAP connection configuration with pooling, SSL/TLS, bind methods
 - [x] Database schema for sync tracking, metadata, and conflict resolution
 - [x] All LDAP provider tests pass (19 tests)
-- [x] `go test ./...` 통과 (5975 tests)
+- [x] `go test ./...` 통과 (5901 tests)
 - [x] 개발 문서를 최신 상태로 갱신한다.
 
 ### 다음 단계
 
-LDAP provider foundation complete. Next steps:
-1. Implement actual LDAP connection logic using go-ldap library
-2. Implement user/group query, sync, and membership linking
-3. Implement conflict detection and resolution
-4. Add per-domain LDAP config loading in app startup
-
-### 다음 태스크
-
-TASK-071: SAML2/OAuth2 Federation Support
+LDAP provider foundation complete. Implementation tasks deferred to TASK-071:
+1. Admin API for LDAP sync scheduling and history
+2. Sync logs and conflict resolution UI
+3. Real-time sync status monitoring in admin console
 
 ---
 
@@ -58,28 +107,14 @@ TASK-071: SAML2/OAuth2 Federation Support
 
 ### 배경
 
-TASK-068 delivered the pluggable `IdentityProvider` interface and registry. TASK-069 implements
-the database-only identity mode as the concrete default provider, fully supporting user/group
-CRUD operations through `maildb` repositories.
+TASK-068 delivered the pluggable `IdentityProvider` interface and registry. TASK-069 implements the database-only identity mode as the concrete default provider, fully supporting user/group CRUD operations through `maildb` repositories.
 
-The database provider will:
-1. Wrap existing `maildb` user repositories for GetUser/ListUsers/CreateUser/UpdateUser/DeleteUser
-2. Wrap directory_groups tables for GetGroup/ListGroup/CreateGroup/DeleteGroup
-3. Support group membership management through directory_group_memberships
-4. Register itself as the default "database" provider in the registry
-5. Support per-domain IdP configuration with fallback to default database mode
-
-### 구현 대상
-
-- `internal/idprovider/database/repository.go` — IdP-focused repository methods (get by email, search by org)
-- `internal/idprovider/database/provider.go` — Complete provider implementation (overwrite with full CRUD support)
-- `internal/idprovider/database/provider_test.go` — Comprehensive tests for all CRUD operations
-- `internal/idprovider/config.go` — Per-domain IdP configuration loader/validator
-- `internal/app/idprovider_init.go` — App startup wiring (register database provider, load per-domain configs)
-- `internal/maildb/idprovider_adapter.go` — Exports for idprovider import (User, Group models)
-- Database model exports and idprovider domain model alignment
-- `docs/ACTIVE_TASK.md`
-- `docs/CURRENT_STATUS.md`
+The database provider:
+1. Wraps existing `maildb` user repositories for GetUser/ListUsers/CreateUser/UpdateUser/DeleteUser
+2. Wraps directory_groups tables for GetGroup/ListGroup/CreateGroup/DeleteGroup
+3. Supports group membership management through directory_group_memberships
+4. Registers itself as the default "database" provider in the registry
+5. Supports per-domain IdP configuration with fallback to default database mode
 
 ### 완료 조건
 
@@ -101,7 +136,3 @@ The database provider will:
 - [x] `go test -count=1 ./internal/idprovider ./internal/idprovider/database ./internal/config -v` 통과
 - [x] `go test ./...` 통과
 - [x] 개발 문서를 최신 상태로 갱신한다.
-
-### 다음 태스크
-
-TASK-070: LDAP Identity Config & Sync
