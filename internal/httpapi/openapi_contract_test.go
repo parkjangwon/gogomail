@@ -269,7 +269,7 @@ func TestOpenAPIDraftDocumentsPublicShareLinkRoutesAsUnauthenticated(t *testing.
 func TestOpenAPIDraftCoversRegisteredHTTPRoutes(t *testing.T) {
 	t.Parallel()
 
-	registered := extractRegisteredRoutes(t, "mail.go", "drive.go", "admin.go", "health.go")
+	registered := extractRegisteredRoutes(t, "mail.go", "drive.go", "admin.go", "orgchart.go", "health.go")
 	documented := extractOpenAPIRoutes(t, "../../docs/openapi.yaml")
 
 	var missing []string
@@ -288,7 +288,7 @@ func TestOpenAPIDraftDoesNotExposeUnregisteredRoutes(t *testing.T) {
 	t.Parallel()
 
 	registered := make(map[string]bool)
-	for _, route := range extractRegisteredRoutes(t, "mail.go", "drive.go", "admin.go", "health.go") {
+	for _, route := range extractRegisteredRoutes(t, "mail.go", "drive.go", "admin.go", "orgchart.go", "health.go") {
 		registered[route] = true
 	}
 	documented := extractOpenAPIRoutes(t, "../../docs/openapi.yaml")

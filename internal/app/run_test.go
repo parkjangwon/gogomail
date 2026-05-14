@@ -21,10 +21,20 @@ import (
 	"github.com/gogomail/gogomail/internal/directory"
 	"github.com/gogomail/gogomail/internal/drive"
 	"github.com/gogomail/gogomail/internal/eventstream"
+	"github.com/gogomail/gogomail/internal/httpapi"
 	"github.com/gogomail/gogomail/internal/imapgw"
 	"github.com/gogomail/gogomail/internal/maildb"
 	"github.com/gogomail/gogomail/internal/storage"
 )
+
+func TestOrgChartServiceForDBSatisfiesHTTPRouteInterface(t *testing.T) {
+	t.Parallel()
+
+	var _ httpapi.OrgChartService = orgChartServiceForDB(nil)
+	if orgChartServiceForDB(nil) == nil {
+		t.Fatal("orgChartServiceForDB returned nil")
+	}
+}
 
 func TestSMTPTLSConfigRequiresCertAndKeyTogether(t *testing.T) {
 	t.Parallel()

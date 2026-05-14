@@ -1,6 +1,13 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (Admin user delete boundary)
+Last updated: 2026-05-14 (Admin organization route wiring)
+
+## Admin organization route wiring (2026-05-14, complete)
+- Organization unit CRUD, hierarchy, membership, and LDAP sync routes are now registered by the admin HTTP runtime.
+- `httpapi.OrgChartService` now uses `context.Context`, so the real `*orgchart.Service` satisfies the route boundary without an adapter shim.
+- The admin runtime wires `orgchart.NewService(orgchart.NewRepository(db), nil)` behind the existing admin-token-protected orgchart HTTP handlers.
+- OpenAPI now documents the organization unit, hierarchy, member assignment/removal, and sync operations under `/admin/v1`.
+- Coverage verifies the real orgchart service satisfies the HTTP route interface and the app wiring helper returns the route interface with `go test -count=1 ./internal/httpapi ./internal/app ./internal/orgchart -run 'Org|Organization'`.
 
 ## Admin user delete boundary (2026-05-14, complete)
 - Admin user management now has a `DELETE /admin/v1/users/{id}` backend route, completing the create/read/update/delete surface without starting frontend implementation.
