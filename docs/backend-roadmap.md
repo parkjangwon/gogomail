@@ -5727,6 +5727,7 @@ Current implementation notes:
 
 - LDAP gateway mode (`gogomail --mode=ldap-gateway`) can expose plaintext LDAP on `GOGOMAIL_LDAP_ADDR` and implicit TLS LDAP on `GOGOMAIL_LDAPS_ADDR`.
 - StartTLS is advertised through Root DSE `supportedExtension` and handled when `GOGOMAIL_LDAP_TLS_CERT_FILE` / `GOGOMAIL_LDAP_TLS_KEY_FILE` are configured.
+- Root DSE exposes Active Directory-style discovery metadata (`defaultNamingContext`, `rootDomainNamingContext`, `configurationNamingContext`, `schemaNamingContext`, `supportedCapabilities`, `dnsHostName`, domain/forest functionality levels, and readiness flags) derived from the configured naming context for AD-oriented clients.
 - Root DSE advertises `supportedFeatures=1.3.6.1.4.1.4203.1.5.1` so OpenLDAP-compatible clients can discover all-operational-attributes support.
 - Root DSE advertises `subschemaSubentry`, and `cn=Subschema` base-object search returns minimal RFC 4512/RFC 4519 schema metadata for person/inetOrgPerson-style directory clients.
 - Root DSE, subschema, and synthetic kind-container base-object searches validate and apply the requested LDAP filter before returning entries.

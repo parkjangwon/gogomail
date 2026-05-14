@@ -5,6 +5,7 @@ Last updated: 2026-05-14 (LDAP gateway StartTLS/LDAPS and discovery hardening)
 ## LDAP gateway StartTLS/LDAPS and discovery hardening (2026-05-14, complete)
 - `internal/ldapgw` now handles RFC 4511 StartTLS extended requests (`1.3.6.1.4.1.1466.20037`) when a TLS certificate/key is configured.
 - Root DSE base-object search now returns `namingContexts`, `supportedLDAPVersion`, `vendorName`, and `supportedExtension` for StartTLS discovery.
+- Root DSE now exposes Active Directory-style discovery metadata (`defaultNamingContext`, `rootDomainNamingContext`, `configurationNamingContext`, `schemaNamingContext`, `supportedCapabilities`, `dnsHostName`, domain/forest functionality levels, and readiness flags) derived from the configured naming context for AD-oriented clients.
 - Root DSE now advertises `supportedFeatures=1.3.6.1.4.1.4203.1.5.1` for all-operational-attributes discovery by OpenLDAP-compatible clients.
 - `SearchRequest` parsing now consumes scope, deref aliases, size limit, time limit, typesOnly, filter, and requested attribute selection instead of treating filter bytes as the remainder of the request.
 - LDAP SearchRequest decoding now validates RFC 4511 scope and derefAliases enumerations, returning `protocolError` for out-of-range values instead of silently widening query behavior.
