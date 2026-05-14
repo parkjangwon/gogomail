@@ -25,7 +25,7 @@ Last updated: 2026-05-14 (LDAP gateway StartTLS/LDAPS and discovery hardening)
 - LDAP paged-results searches now fetch at least the default directory candidate window before post-filter pagination, reducing under-return risk when small LDAP page sizes combine with broad OR filters or other post-filter-only predicates.
 - LDAP search now scans repository candidates in bounded 100-entry batches up to a protective cap when post-filtering needs more entries, so sparse matches beyond the first repository window are not silently missed.
 - LDAP response encoding now preserves BER INTEGER message IDs above 255, avoiding request/response correlation breakage on long-lived client connections.
-- LDAPMessage decoding now rejects non-positive `messageID` values, including zero and negative BER INTEGER encodings, matching RFC 4511 message envelope requirements.
+- LDAPMessage decoding now rejects out-of-range `messageID` values, including zero, negative BER INTEGER encodings, and values above RFC 4511 `maxInt`.
 - LDAP entries and filter extraction now include common Active Directory-style compatibility aliases (`name`, `sAMAccountName`, `userPrincipalName`) mapped from existing principal names, IDs, and primary email addresses.
 - LDAP user entries now expose Exchange/AD-style mail aliases (`mailNickname`, `proxyAddresses`) and accept those attributes in directory filter extraction.
 - LDAP principal entries now expose additional AD-style identity attributes (`distinguishedName`, binary deterministic `objectGUID`, binary deterministic `objectSid`, `objectCategory`) for clients that key cache/display behavior on those attributes.
