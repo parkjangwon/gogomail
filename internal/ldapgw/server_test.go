@@ -3187,10 +3187,21 @@ func TestPrincipalLDAPAttributesSatisfyDeclaredObjectClassRequirements(t *testin
 		t.Fatalf("user AD aliases missing: %#v", userAttrs)
 	}
 	if userAttrs["distinguishedName"][0] != "uid=alice,ou=users,dc=example,dc=com" ||
+		userAttrs["canonicalName"][0] != "example.com/users/alice" ||
+		userAttrs["instanceType"][0] != "4" ||
 		userAttrs["objectCategory"][0] != "person" ||
 		userAttrs["objectGUID"][0] == "" ||
 		!strings.HasPrefix(userAttrs["objectSid"][0], "S-1-5-21-") {
 		t.Fatalf("user AD identity attrs missing: %#v", userAttrs)
+	}
+	if userAttrs["whenCreated"][0] != "19700101000000.0Z" ||
+		userAttrs["whenChanged"][0] != "19700101000000.0Z" ||
+		userAttrs["uSNCreated"][0] == "" ||
+		userAttrs["uSNChanged"][0] != userAttrs["uSNCreated"][0] ||
+		userAttrs["accountExpires"][0] != "9223372036854775807" ||
+		userAttrs["primaryGroupID"][0] != "513" ||
+		userAttrs["userAccountControl"][0] != "512" {
+		t.Fatalf("user AD metadata attrs missing: %#v", userAttrs)
 	}
 	if userAttrs["entryDN"][0] != "uid=alice,ou=users,dc=example,dc=com" || userAttrs["entryUUID"][0] == "" {
 		t.Fatalf("user operational attrs missing: %#v", userAttrs)
@@ -3230,8 +3241,20 @@ func TestPrincipalLDAPAttributesSatisfyDeclaredObjectClassRequirements(t *testin
 	if groupAttrs["objectCategory"][0] != "group" {
 		t.Fatalf("group objectCategory = %#v, want group", groupAttrs["objectCategory"])
 	}
+	if groupAttrs["canonicalName"][0] != "example.com/groups/team" ||
+		groupAttrs["instanceType"][0] != "4" ||
+		groupAttrs["uSNChanged"][0] == "" {
+		t.Fatalf("group AD metadata attrs missing: %#v", groupAttrs)
+	}
 	if !strings.HasPrefix(groupAttrs["objectSid"][0], "S-1-5-21-") {
 		t.Fatalf("group objectSid = %#v, want stable SID", groupAttrs["objectSid"])
+	}
+}
+
+func TestLDAPCanonicalName(t *testing.T) {
+	got := ldapCanonicalName(`cn=Team\, Ops,ou=groups,dc=example,dc=com`)
+	if got != "example.com/groups/Team, Ops" {
+		t.Fatalf("ldapCanonicalName = %q, want escaped RDN value in canonical path", got)
 	}
 }
 

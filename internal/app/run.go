@@ -1232,12 +1232,17 @@ func ldapFilterToQuery(filter string) string {
 	if idx := strings.Index(filter, "="); idx >= 0 {
 		attr := strings.ToLower(strings.TrimSpace(filter[:idx]))
 		switch attr {
-		case "cn", "mail", "uid", "displayname", "givenname", "sn", "ou", "description", "name", "samaccountname", "userprincipalname", "mailnickname", "proxyaddresses":
+		case "cn", "mail", "uid", "displayname", "givenname", "sn", "ou", "description", "name", "canonicalname", "samaccountname", "userprincipalname", "mailnickname", "proxyaddresses":
 		default:
 			return ""
 		}
 		val := filter[idx+1:]
 		val = strings.Trim(val, "*")
+		if attr == "canonicalname" {
+			if idx := strings.LastIndex(val, "/"); idx >= 0 {
+				val = val[idx+1:]
+			}
+		}
 		return val
 	}
 	return ""

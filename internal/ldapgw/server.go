@@ -939,7 +939,9 @@ func principalLDAPAttributes(p PrincipalEntry) map[string][]string {
 		"name":              {cn},
 		"uid":               {p.UID},
 		"displayName":       {firstNonEmpty(p.DisplayName, cn)},
+		"canonicalName":     nonEmptyLDAPValues([]string{ldapCanonicalName(p.DN)}),
 		"distinguishedName": nonEmptyLDAPValues([]string{p.DN}),
+		"instanceType":      {"4"},
 		"objectCategory":    {objectCategory},
 		"objectGUID":        {ldapEntryUUID(p.DN)},
 		"objectSid":         nonEmptyLDAPValues([]string{ldapObjectSID(p.DN, kind)}),
@@ -947,6 +949,13 @@ func principalLDAPAttributes(p PrincipalEntry) map[string][]string {
 		"proxyAddresses":    ldapProxyAddresses(p.Mail),
 		"sAMAccountName":    {p.UID},
 		"userPrincipalName": nonEmptyLDAPValues([]string{p.Mail}),
+		"whenCreated":       {"19700101000000.0Z"},
+		"whenChanged":       {"19700101000000.0Z"},
+		"uSNCreated":        {ldapUpdateSequenceNumber(p.DN)},
+		"uSNChanged":        {ldapUpdateSequenceNumber(p.DN)},
+	}
+	if len(attrs["canonicalName"]) == 0 {
+		delete(attrs, "canonicalName")
 	}
 	if len(attrs["distinguishedName"]) == 0 {
 		delete(attrs, "distinguishedName")
@@ -978,6 +987,9 @@ func principalLDAPAttributes(p PrincipalEntry) map[string][]string {
 		}
 	default:
 		attrs["objectClass"] = []string{"top", "person", "organizationalPerson", "inetOrgPerson"}
+		attrs["accountExpires"] = []string{"9223372036854775807"}
+		attrs["primaryGroupID"] = []string{"513"}
+		attrs["userAccountControl"] = []string{"512"}
 		if p.Mail != "" {
 			attrs["mail"] = []string{p.Mail}
 		}
@@ -1075,6 +1087,77 @@ func ldapObjectSID(dn, kind string) string {
 		rid = 1000000000 + rid%999999999
 	}
 	return fmt.Sprintf("S-1-5-21-%d-%d-%d-%d", a, c, d, rid)
+}
+
+func ldapUpdateSequenceNumber(dn string) string {
+	b := ldapEntryUUIDBytes(dn)
+	var n uint64
+	for i := 0; i < 8 && i < len(b); i++ {
+		n = (n << 8) | uint64(b[i])
+	}
+	if n == 0 {
+		n = 1
+	}
+	return fmt.Sprintf("%d", n)
+}
+
+func ldapCanonicalName(dn string) string {
+	parts := splitDNComponents(strings.TrimSpace(dn))
+	if len(parts) == 0 {
+		return ""
+	}
+	domain := make([]string, 0, 2)
+	path := make([]string, 0, len(parts))
+	for _, part := range parts {
+		attr, value, ok := splitDNAttributeValue(part)
+		if !ok || value == "" {
+			return ""
+		}
+		if strings.EqualFold(attr, "dc") {
+			domain = append(domain, value)
+			continue
+		}
+		path = append([]string{value}, path...)
+	}
+	if len(domain) == 0 {
+		return strings.Join(path, "/")
+	}
+	canonical := strings.Join(domain, ".")
+	if len(path) > 0 {
+		canonical += "/" + strings.Join(path, "/")
+	}
+	return canonical
+}
+
+func splitDNComponents(dn string) []string {
+	if dn == "" {
+		return nil
+	}
+	parts := make([]string, 0, 4)
+	start := 0
+	escaped := false
+	for i := 0; i < len(dn); i++ {
+		switch {
+		case escaped:
+			escaped = false
+		case dn[i] == '\\':
+			escaped = true
+		case dn[i] == ',':
+			parts = append(parts, strings.TrimSpace(dn[start:i]))
+			start = i + 1
+		}
+	}
+	parts = append(parts, strings.TrimSpace(dn[start:]))
+	return parts
+}
+
+func splitDNAttributeValue(part string) (string, string, bool) {
+	parts := strings.SplitN(strings.TrimSpace(part), "=", 2)
+	if len(parts) != 2 {
+		return "", "", false
+	}
+	value, ok := unescapeDNValue(strings.TrimSpace(parts[1]))
+	return strings.TrimSpace(parts[0]), value, ok
 }
 
 func firstNonEmpty(values ...string) string {
@@ -2134,10 +2217,10 @@ func subschemaAttributes() map[string][]string {
 			"( 2.5.6.0 NAME 'top' ABSTRACT MUST objectClass )",
 			"( 2.5.6.6 NAME 'person' SUP top STRUCTURAL MUST ( sn $ cn ) MAY ( userPassword $ telephoneNumber $ seeAlso $ description ) )",
 			"( 2.5.6.7 NAME 'organizationalPerson' SUP person STRUCTURAL MAY ( title $ x121Address $ registeredAddress $ destinationIndicator $ preferredDeliveryMethod $ telexNumber $ teletexTerminalIdentifier $ telephoneNumber $ internationaliSDNNumber $ facsimileTelephoneNumber $ street $ postOfficeBox $ postalCode $ postalAddress $ physicalDeliveryOfficeName $ ou $ st $ l ) )",
-			"( 2.16.840.1.113730.3.2.2 NAME 'inetOrgPerson' SUP organizationalPerson STRUCTURAL MAY ( mail $ uid $ givenName $ displayName $ name $ distinguishedName $ objectCategory $ objectGUID $ objectSid $ mailNickname $ proxyAddresses $ sAMAccountName $ userPrincipalName ) )",
-			"( 2.5.6.5 NAME 'organizationalUnit' SUP top STRUCTURAL MUST ou MAY ( userPassword $ searchGuide $ seeAlso $ businessCategory $ x121Address $ registeredAddress $ destinationIndicator $ preferredDeliveryMethod $ telexNumber $ teletexTerminalIdentifier $ telephoneNumber $ internationaliSDNNumber $ facsimileTelephoneNumber $ street $ postOfficeBox $ postalCode $ postalAddress $ physicalDeliveryOfficeName $ st $ l $ description $ distinguishedName $ objectCategory $ objectGUID $ objectSid ) )",
-			"( 2.5.6.9 NAME 'groupOfNames' SUP top STRUCTURAL MUST ( member $ cn ) MAY ( businessCategory $ seeAlso $ owner $ ou $ o $ description $ memberOf $ distinguishedName $ objectCategory $ objectGUID $ objectSid ) )",
-			"( 2.5.6.14 NAME 'device' SUP top STRUCTURAL MUST cn MAY ( serialNumber $ seeAlso $ owner $ ou $ o $ l $ description $ memberOf $ distinguishedName $ objectCategory $ objectGUID $ objectSid ) )",
+			"( 2.16.840.1.113730.3.2.2 NAME 'inetOrgPerson' SUP organizationalPerson STRUCTURAL MAY ( mail $ uid $ givenName $ displayName $ name $ canonicalName $ distinguishedName $ instanceType $ objectCategory $ objectGUID $ objectSid $ mailNickname $ proxyAddresses $ sAMAccountName $ userPrincipalName $ whenCreated $ whenChanged $ uSNCreated $ uSNChanged $ accountExpires $ primaryGroupID $ userAccountControl ) )",
+			"( 2.5.6.5 NAME 'organizationalUnit' SUP top STRUCTURAL MUST ou MAY ( userPassword $ searchGuide $ seeAlso $ businessCategory $ x121Address $ registeredAddress $ destinationIndicator $ preferredDeliveryMethod $ telexNumber $ teletexTerminalIdentifier $ telephoneNumber $ internationaliSDNNumber $ facsimileTelephoneNumber $ street $ postOfficeBox $ postalCode $ postalAddress $ physicalDeliveryOfficeName $ st $ l $ description $ canonicalName $ distinguishedName $ instanceType $ objectCategory $ objectGUID $ objectSid $ whenCreated $ whenChanged $ uSNCreated $ uSNChanged ) )",
+			"( 2.5.6.9 NAME 'groupOfNames' SUP top STRUCTURAL MUST ( member $ cn ) MAY ( businessCategory $ seeAlso $ owner $ ou $ o $ description $ memberOf $ canonicalName $ distinguishedName $ instanceType $ objectCategory $ objectGUID $ objectSid $ whenCreated $ whenChanged $ uSNCreated $ uSNChanged ) )",
+			"( 2.5.6.14 NAME 'device' SUP top STRUCTURAL MUST cn MAY ( serialNumber $ seeAlso $ owner $ ou $ o $ l $ description $ memberOf $ canonicalName $ distinguishedName $ instanceType $ objectCategory $ objectGUID $ objectSid $ whenCreated $ whenChanged $ uSNCreated $ uSNChanged ) )",
 		},
 		"attributeTypes": {
 			"( 2.5.4.3 NAME 'cn' SUP name )",
@@ -2153,10 +2236,19 @@ func subschemaAttributes() map[string][]string {
 			"( 1.2.840.113556.1.4.656 NAME 'userPrincipalName' EQUALITY caseIgnoreMatch SUBSTR caseIgnoreSubstringsMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 )",
 			"( 1.2.840.113556.1.4.7000.102.1 NAME 'mailNickname' EQUALITY caseIgnoreMatch SUBSTR caseIgnoreSubstringsMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 )",
 			"( 1.2.840.113556.1.2.210 NAME 'proxyAddresses' EQUALITY caseIgnoreMatch SUBSTR caseIgnoreSubstringsMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 )",
+			"( 1.2.840.113556.1.4.916 NAME 'canonicalName' EQUALITY caseIgnoreMatch SUBSTR caseIgnoreSubstringsMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 )",
 			"( 2.5.4.49 NAME 'distinguishedName' EQUALITY distinguishedNameMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.12 )",
+			"( 1.2.840.113556.1.2.1 NAME 'instanceType' EQUALITY integerMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.27 )",
 			"( 1.2.840.113556.1.4.782 NAME 'objectCategory' EQUALITY caseIgnoreMatch SUBSTR caseIgnoreSubstringsMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 )",
 			"( 1.2.840.113556.1.4.2 NAME 'objectGUID' EQUALITY octetStringMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.40 )",
 			"( 1.2.840.113556.1.4.146 NAME 'objectSid' EQUALITY caseIgnoreMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 )",
+			"( 1.2.840.113556.1.2.2 NAME 'whenCreated' EQUALITY generalizedTimeMatch ORDERING generalizedTimeOrderingMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.24 )",
+			"( 1.2.840.113556.1.2.3 NAME 'whenChanged' EQUALITY generalizedTimeMatch ORDERING generalizedTimeOrderingMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.24 )",
+			"( 1.2.840.113556.1.2.19 NAME 'uSNCreated' EQUALITY integerMatch ORDERING integerOrderingMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.27 )",
+			"( 1.2.840.113556.1.2.120 NAME 'uSNChanged' EQUALITY integerMatch ORDERING integerOrderingMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.27 )",
+			"( 1.2.840.113556.1.4.159 NAME 'accountExpires' EQUALITY integerMatch ORDERING integerOrderingMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.27 )",
+			"( 1.2.840.113556.1.4.98 NAME 'primaryGroupID' EQUALITY integerMatch ORDERING integerOrderingMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.27 )",
+			"( 1.2.840.113556.1.4.8 NAME 'userAccountControl' EQUALITY integerMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.27 )",
 		},
 	}
 }
@@ -2207,7 +2299,8 @@ func isOperationalLDAPAttribute(attr string) bool {
 	switch strings.ToLower(strings.TrimSpace(attr)) {
 	case "subschemasubentry", "supportedldapversion", "supportedcontrol", "supportedextension", "namingcontexts", "vendorname",
 		"entrydn", "entryuuid", "createtimestamp", "modifytimestamp", "creatorsname", "modifiersname",
-		"distinguishedname", "objectguid", "objectsid", "hassubordinates", "numsubordinates":
+		"distinguishedname", "objectguid", "objectsid", "instancetype", "whencreated", "whenchanged",
+		"usncreated", "usnchanged", "hassubordinates", "numsubordinates":
 		return true
 	default:
 		return false
@@ -2486,7 +2579,7 @@ func decodeExtensibleMatch(content []byte) (attr string, value string, ok bool, 
 
 func isDirectorySearchAttribute(attr string) bool {
 	switch strings.ToLower(strings.TrimSpace(attr)) {
-	case "cn", "mail", "uid", "displayname", "givenname", "sn", "ou", "description", "name", "samaccountname", "userprincipalname", "mailnickname", "proxyaddresses":
+	case "cn", "mail", "uid", "displayname", "givenname", "sn", "ou", "description", "name", "canonicalname", "samaccountname", "userprincipalname", "mailnickname", "proxyaddresses":
 		return true
 	default:
 		return false
