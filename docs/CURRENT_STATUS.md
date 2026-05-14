@@ -1,6 +1,14 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (Admin JWT session boundary)
+Last updated: 2026-05-14 (Admin user delete boundary)
+
+## Admin user delete boundary (2026-05-14, complete)
+- Admin user management now has a `DELETE /admin/v1/users/{id}` backend route, completing the create/read/update/delete surface without starting frontend implementation.
+- Because the persisted user status constraint allows `active`, `suspended`, and `disabled`, delete is implemented as a safe disable operation rather than a hard row removal.
+- `maildb.Repository.DeleteUser` validates the user id, sets `status='disabled'`, increments `session_version`, and updates `updated_at`, revoking existing signed sessions for the user.
+- The route rejects unsafe path ids, query parameters, and request bodies through the existing admin guards, then returns the standard `{status,id}` envelope.
+- OpenAPI now documents the admin user delete operation and its safe-disable semantics.
+- Coverage verifies HTTP delete dispatch/path rejection and delete request validation with `go test -count=1 ./internal/httpapi ./internal/maildb -run 'User|Delete'`.
 
 ## Admin JWT session boundary (2026-05-14, complete)
 - Admin login now requires a configured JWT token manager and issues signed access/refresh token pairs instead of a synthetic refresh string.

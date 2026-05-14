@@ -190,6 +190,7 @@ type AdminService interface {
 	ListUsers(ctx context.Context, req maildb.UserListRequest) ([]maildb.UserView, error)
 	GetUser(ctx context.Context, id string) (maildb.UserView, error)
 	CreateUser(ctx context.Context, req maildb.CreateUserRequest) (maildb.UserView, error)
+	DeleteUser(ctx context.Context, id string) error
 	UpdateUserStatus(ctx context.Context, req maildb.UpdateUserStatusRequest) error
 	UpdateUserQuota(ctx context.Context, req maildb.UpdateUserQuotaRequest) error
 	UpdateUserPasswordHash(ctx context.Context, req maildb.UpdateUserPasswordHashRequest) error
@@ -1562,6 +1563,21 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"user": user})
+	}))
+
+	mux.HandleFunc("DELETE /admin/v1/users/{id}", adminAuth(func(w http.ResponseWriter, r *http.Request) {
+		if !rejectUnknownQueryKeys(w, r) {
+			return
+		}
+		id, ok := parseBoundedAdminPathValue(w, r, "id")
+		if !ok {
+			return
+		}
+		if err := service.DeleteUser(r.Context(), id); err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"status": "ok", "id": id})
 	}))
 
 	mux.HandleFunc("POST /admin/v1/users", adminAuth(func(w http.ResponseWriter, r *http.Request) {

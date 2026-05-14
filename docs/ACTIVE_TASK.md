@@ -1,20 +1,20 @@
 # ACTIVE_TASK
 
-## TASK-064: Admin Auth & Session — JWT, login, refresh
+## TASK-065: User Management CRUD
 
 ### 배경
 
-Admin auth routes have a login handler and JWT middleware hooks, but session behavior is still weak:
-`/auth/verify` returns authenticated without validating a token, logout is client-only, there is no
-refresh endpoint, and admin-only deployments do not reliably initialize the JWT token manager. The
-backend needs a real admin session boundary before frontend implementation starts.
+Admin user management already supports list/get/create plus patch-style status, quota, password,
+role, and recovery-email updates. The remaining CRUD gap is delete: the backend has no
+`DELETE /admin/v1/users/{id}` route or repository boundary. Because the user status constraint only
+allows `active`, `suspended`, and `disabled`, deletion should be a safe admin disable operation that
+also revokes existing sessions.
 
 ### 구현 대상
 
+- `internal/maildb/admin.go`
 - `internal/httpapi/admin.go`
 - `internal/httpapi/*_test.go`
-- `internal/app/run.go`
-- `internal/app/*_test.go`
 - `docs/ACTIVE_TASK.md`
 - `docs/CURRENT_STATUS.md`
 - `docs/NEXT_STEPS.md`
@@ -23,16 +23,15 @@ backend needs a real admin session boundary before frontend implementation start
 
 ### 완료 조건
 
-- [x] admin login issues signed access and refresh tokens when `GOGOMAIL_AUTH_JWT_SECRET` is configured.
-- [x] admin-only HTTP modes initialize the JWT token manager and session-version checker.
-- [x] `/admin/v1/auth/verify` validates bearer JWTs with session-version revocation instead of returning unconditional success.
-- [x] `/admin/v1/auth/refresh` accepts a valid refresh token and issues a new access token with the same admin claims.
-- [x] `/admin/v1/auth/logout` invalidates server-side sessions by incrementing `session_version` when a signed bearer token is provided.
-- [x] focused HTTP/app tests cover login, verify rejection/success, refresh, logout revocation, and admin-mode token-manager wiring.
-- [x] `go test -count=1 ./internal/httpapi ./internal/app ./internal/auth -run 'Admin.*Auth|Admin.*Session|Token|JWT|Refresh|Logout|Verify'` 통과.
+- [x] `maildb.Repository` exposes a delete-user boundary that marks the user `disabled` and increments `session_version`.
+- [x] `DELETE /admin/v1/users/{id}` validates the path id, rejects request bodies/query parameters, and dispatches through `AdminService`.
+- [x] delete responses use the existing status envelope and surface not-found/validation failures as API errors.
+- [x] OpenAPI documents `DELETE /admin/v1/users/{id}`.
+- [x] focused tests cover successful delete dispatch, unsafe path rejection, and repository delete-user behavior.
+- [x] `go test -count=1 ./internal/httpapi ./internal/maildb -run 'User|Delete'` 통과.
 - [x] `go test ./...` 통과.
 - [x] 개발 문서를 최신 상태로 갱신한다.
 
 ### 다음 태스크
 
-TASK-065: User Management CRUD
+TASK-066: Organization Management
