@@ -365,10 +365,19 @@ func decodeControls(data []byte) ([]control, error) {
 	if data[0] != 0xa0 {
 		return nil, fmt.Errorf("unexpected trailing LDAPMessage data")
 	}
-	content, err := decodeContent(data[1:])
+	length, rest, err := decodeLength(data[1:])
 	if err != nil {
 		return nil, err
 	}
+	headerLen := len(data) - len(rest)
+	totalLen := headerLen + length
+	if len(data) < totalLen {
+		return nil, fmt.Errorf("controls data too short")
+	}
+	if len(data) != totalLen {
+		return nil, fmt.Errorf("trailing data after controls")
+	}
+	content := data[headerLen:totalLen]
 	var controls []control
 	for len(content) > 0 {
 		if len(content) < 2 || content[0] != tagSequence {

@@ -150,6 +150,16 @@ func TestDecodeLDAPPacketRejectsIndefiniteLength(t *testing.T) {
 	}
 }
 
+func TestDecodeLDAPPacketRejectsTrailingDataAfterControls(t *testing.T) {
+	content := append(encodeInt(1), byte(opUnbindRequest), 0x00)
+	content = append(content, 0xa0, 0x00, 0x00)
+	pdu := append([]byte{tagSequence}, encodeLength(len(content))...)
+	pdu = append(pdu, content...)
+	if _, _, _, err := decodeLDAPPacket(pdu); err == nil {
+		t.Fatal("decodeLDAPPacket accepted trailing data after controls")
+	}
+}
+
 func TestDecodeLengthRejectsOversizedLengthForms(t *testing.T) {
 	if _, _, err := decodeLength([]byte{0x85, 0x00, 0x00, 0x00, 0x00, 0x01}); err == nil {
 		t.Fatal("decodeLength accepted overlong length-of-length")
