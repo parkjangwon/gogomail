@@ -234,6 +234,9 @@ type Config struct {
 	DeliveryDefaultConcurrency          int
 	DeliveryFarmConcurrency             map[string]int
 	DeliveryDomainConcurrency           map[string]int
+	DeliveryDomainBackoffEnabled        bool
+	DeliveryDomainBackoffBaseDelay      time.Duration
+	DeliveryDomainBackoffMaxDelay       time.Duration
 	DSNPostmaster                       string
 	DKIMEnabled                         bool
 	AdminToken                          string
@@ -469,6 +472,9 @@ func Load() Config {
 		DeliveryDefaultConcurrency:          intEnvOrDefault("GOGOMAIL_DELIVERY_DEFAULT_CONCURRENCY", 0),
 		DeliveryFarmConcurrency:             intMapEnvOrDefault("GOGOMAIL_DELIVERY_FARM_CONCURRENCY", nil),
 		DeliveryDomainConcurrency:           intMapEnvOrDefault("GOGOMAIL_DELIVERY_DOMAIN_CONCURRENCY", nil),
+		DeliveryDomainBackoffEnabled:        boolEnvOrDefault("GOGOMAIL_DELIVERY_DOMAIN_BACKOFF_ENABLED", false),
+		DeliveryDomainBackoffBaseDelay:      durationEnvOrDefault("GOGOMAIL_DELIVERY_DOMAIN_BACKOFF_BASE_DELAY", time.Minute),
+		DeliveryDomainBackoffMaxDelay:       durationEnvOrDefault("GOGOMAIL_DELIVERY_DOMAIN_BACKOFF_MAX_DELAY", time.Hour),
 		DSNPostmaster:                       envOrDefault("GOGOMAIL_DSN_POSTMASTER", ""),
 		DKIMEnabled:                         boolEnvOrDefault("GOGOMAIL_DKIM_ENABLED", false),
 		AdminToken:                          envOrDefault("GOGOMAIL_ADMIN_TOKEN", ""),

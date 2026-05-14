@@ -264,6 +264,17 @@ func (c Config) Validate() error {
 	if c.DriveShareRateLimitPerMinute <= 0 {
 		return fmt.Errorf("GOGOMAIL_DRIVE_SHARE_RATELIMIT_PER_MINUTE must be positive")
 	}
+	if c.DeliveryDomainBackoffEnabled {
+		if c.DeliveryDomainBackoffBaseDelay <= 0 {
+			return fmt.Errorf("GOGOMAIL_DELIVERY_DOMAIN_BACKOFF_BASE_DELAY must be positive")
+		}
+		if c.DeliveryDomainBackoffMaxDelay <= 0 {
+			return fmt.Errorf("GOGOMAIL_DELIVERY_DOMAIN_BACKOFF_MAX_DELAY must be positive")
+		}
+		if c.DeliveryDomainBackoffMaxDelay < c.DeliveryDomainBackoffBaseDelay {
+			return fmt.Errorf("GOGOMAIL_DELIVERY_DOMAIN_BACKOFF_MAX_DELAY must be greater than or equal to base delay")
+		}
+	}
 	if c.OutboxRelayBatchSize <= 0 {
 		return fmt.Errorf("GOGOMAIL_OUTBOX_RELAY_BATCH_SIZE must be positive")
 	}

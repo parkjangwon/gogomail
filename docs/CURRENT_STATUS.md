@@ -1,6 +1,14 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (Delivery adaptive domain backoff boundary)
+Last updated: 2026-05-14 (Delivery adaptive domain backoff runtime wiring)
+
+## Delivery adaptive domain backoff runtime wiring (2026-05-14, complete)
+- Delivery workers can now enable adaptive recipient-domain backoff through runtime config instead of code changes.
+- Added environment variables `GOGOMAIL_DELIVERY_DOMAIN_BACKOFF_ENABLED`, `GOGOMAIL_DELIVERY_DOMAIN_BACKOFF_BASE_DELAY`, and `GOGOMAIL_DELIVERY_DOMAIN_BACKOFF_MAX_DELAY`, plus YAML equivalents `delivery_domain_backoff_enabled`, `delivery_domain_backoff_base_delay`, and `delivery_domain_backoff_max_delay`.
+- Startup validation rejects enabled backoff with nonpositive base/max delays or a max delay below the base delay.
+- `runDeliveryWorker` wires `InMemoryDomainBackoff` into the delivery handler when adaptive domain backoff is enabled, while keeping it disabled by default.
+- Coverage verifies env loading, YAML loading, validation rejection/acceptance, and app wiring helper behavior.
+- Verification: `go test -count=1 ./internal/config ./internal/app -run 'Backoff|Delivery'` and `go test ./...`.
 
 ## Delivery adaptive domain backoff boundary (2026-05-14, complete)
 - Delivery handlers now expose a `DomainBackoff` boundary with pre-delivery `Check` and temporary-failure observation hooks, giving large deployments a dedicated place to adapt per-recipient-domain pressure after 4xx/provider tempfail signals.

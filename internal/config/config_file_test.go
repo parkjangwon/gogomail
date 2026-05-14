@@ -44,6 +44,9 @@ delivery_farm_concurrency:
   general: 50
   bulk: 10
 delivery_domain_concurrency: example.com=5,example.net=3
+delivery_domain_backoff_enabled: true
+delivery_domain_backoff_base_delay: 2m
+delivery_domain_backoff_max_delay: 30m
 attachment_scan_timeout: 3s
 imap_max_connections: 512
 imap_read_timeout: 45s
@@ -99,6 +102,12 @@ submission_max_connections: 256
 	}
 	if cfg.DeliveryDomainConcurrency["example.com"] != 5 || cfg.DeliveryDomainConcurrency["example.net"] != 3 {
 		t.Fatalf("domain concurrency = %#v", cfg.DeliveryDomainConcurrency)
+	}
+	if !cfg.DeliveryDomainBackoffEnabled {
+		t.Fatal("DeliveryDomainBackoffEnabled = false, want true")
+	}
+	if cfg.DeliveryDomainBackoffBaseDelay != 2*time.Minute || cfg.DeliveryDomainBackoffMaxDelay != 30*time.Minute {
+		t.Fatalf("DeliveryDomainBackoff delays = %s/%s, want 2m/30m", cfg.DeliveryDomainBackoffBaseDelay, cfg.DeliveryDomainBackoffMaxDelay)
 	}
 	if cfg.AttachmentScanTimeout != 3*time.Second {
 		t.Fatalf("AttachmentScanTimeout = %s, want 3s", cfg.AttachmentScanTimeout)

@@ -37,6 +37,22 @@ func TestSMTPTLSConfigRequiresCertAndKeyTogether(t *testing.T) {
 	}
 }
 
+func TestDeliveryDomainBackoffFromConfig(t *testing.T) {
+	t.Parallel()
+
+	if got := deliveryDomainBackoffFromConfig(config.Config{}); got != nil {
+		t.Fatalf("deliveryDomainBackoffFromConfig disabled = %T, want nil", got)
+	}
+	got := deliveryDomainBackoffFromConfig(config.Config{
+		DeliveryDomainBackoffEnabled:   true,
+		DeliveryDomainBackoffBaseDelay: time.Minute,
+		DeliveryDomainBackoffMaxDelay:  time.Hour,
+	})
+	if got == nil {
+		t.Fatal("deliveryDomainBackoffFromConfig enabled = nil")
+	}
+}
+
 func TestSMTPTLSConfigAllowsNoTLSFiles(t *testing.T) {
 	t.Parallel()
 

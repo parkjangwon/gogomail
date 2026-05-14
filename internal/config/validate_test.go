@@ -1005,6 +1005,42 @@ func TestValidateAcceptsRedisDeliveryThrottleBackend(t *testing.T) {
 	}
 }
 
+func TestValidateRejectsInvalidDeliveryDomainBackoffSettings(t *testing.T) {
+	tests := []struct {
+		name   string
+		mutate func(*Config)
+	}{
+		{name: "base zero", mutate: func(cfg *Config) { cfg.DeliveryDomainBackoffBaseDelay = 0 }},
+		{name: "max zero", mutate: func(cfg *Config) { cfg.DeliveryDomainBackoffMaxDelay = 0 }},
+		{name: "max below base", mutate: func(cfg *Config) {
+			cfg.DeliveryDomainBackoffBaseDelay = 10 * time.Minute
+			cfg.DeliveryDomainBackoffMaxDelay = time.Minute
+		}},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := Load()
+			cfg.DeliveryDomainBackoffEnabled = true
+			tt.mutate(&cfg)
+			if err := cfg.Validate(); err == nil {
+				t.Fatal("Validate() error = nil, want domain backoff setting rejection")
+			}
+		})
+	}
+}
+
+func TestValidateAcceptsDeliveryDomainBackoffSettings(t *testing.T) {
+	cfg := Load()
+	cfg.DeliveryDomainBackoffEnabled = true
+	cfg.DeliveryDomainBackoffBaseDelay = time.Minute
+	cfg.DeliveryDomainBackoffMaxDelay = time.Hour
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("Validate() error = %v", err)
+	}
+}
+
 func TestValidateRejectsInvalidDeliveryRetryDelays(t *testing.T) {
 	tests := []struct {
 		name   string
