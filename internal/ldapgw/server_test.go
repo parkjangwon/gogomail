@@ -1075,6 +1075,13 @@ func TestLDAPServerCompareRequest(t *testing.T) {
 	}
 }
 
+func TestDecodeCompareRequestRejectsTrailingAssertionSequenceData(t *testing.T) {
+	data := append(buildCompareRequest("uid=alice,ou=users,dc=example,dc=com", "mail", "alice@example.com"), 0x00)
+	if _, err := decodeCompareRequestData(data); err == nil {
+		t.Fatal("decodeCompareRequestData accepted trailing data after assertion sequence")
+	}
+}
+
 func TestBindIdentityCandidatesUnescapesDNValues(t *testing.T) {
 	got := bindIdentityCandidates(`uid=alice\2eops,ou=users,dc=example,dc=com`)
 	want := []string{`uid=alice\2eops,ou=users,dc=example,dc=com`, "alice.ops"}

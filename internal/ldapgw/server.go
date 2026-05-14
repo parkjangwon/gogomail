@@ -673,10 +673,19 @@ func decodeCompareRequestData(data []byte) (compareRequest, error) {
 	if len(rest) == 0 || rest[0] != tagSequence {
 		return compareRequest{}, fmt.Errorf("compare assertion missing")
 	}
-	assertion, err := decodeContent(rest[1:])
+	assertionLen, assertionRest, err := decodeLength(rest[1:])
 	if err != nil {
 		return compareRequest{}, fmt.Errorf("decode compare assertion: %w", err)
 	}
+	assertionHeaderLen := len(rest) - len(assertionRest)
+	assertionTotalLen := assertionHeaderLen + assertionLen
+	if len(rest) < assertionTotalLen {
+		return compareRequest{}, fmt.Errorf("compare assertion truncated")
+	}
+	if len(rest) != assertionTotalLen {
+		return compareRequest{}, fmt.Errorf("compare request trailing data")
+	}
+	assertion := rest[assertionHeaderLen:assertionTotalLen]
 	attr, valueRest, err := decodeOctetString(assertion)
 	if err != nil {
 		return compareRequest{}, fmt.Errorf("decode compare attribute: %w", err)
