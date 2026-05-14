@@ -5732,6 +5732,7 @@ Current implementation notes:
 - Common client search filters using OR/AND/NOT wrappers, substring matches, and RFC 4511 extensibleMatch type/value assertions are accepted for RFC 4519 directory attributes (`cn`, `mail`, `uid`, `displayName`, `givenName`, `sn`).
 - Repository query extraction preserves organization/resource attributes (`ou`, `description`) in addition to user attributes.
 - Principal-kind-aware LDAP entries now map users to `inetOrgPerson`, organizations to `organizationalUnit`, groups to `groupOfNames`, and resources to `device` under kind-specific OU subtrees.
+- LDAP `groupOfNames` entries populate `member` with active Directory group-membership DNs for user, organization, group, and resource principals, with a schema-safe fallback for empty groups.
 - LDAP `objectClass` filters and base DNs narrow repository searches to the matching principal kinds, including organization-chart searches under `ou=organizations`.
 - LDAP search scope filtering now applies base-object, one-level, and subtree semantics against generated entry DNs.
 - Simple bind accepts common client identity formats, including raw username/email and generated entry DN forms such as `uid=<user-id>,ou=users,...`.
@@ -5741,7 +5742,7 @@ Current implementation notes:
 - SearchRequest requested-attribute lists are decoded from real client requests, preserving narrow attribute projection for compatibility and payload efficiency.
 - Attribute selection honors LDAP special selectors: `1.1` for no attributes, `*` for user attributes, and `+` for operational attributes.
 - Principal and container entries expose stable operational attributes (`entryDN`, deterministic `entryUUID`, timestamps, creator/modifier names) for clients that request `+`.
-- LDAP entries provide conservative fallbacks for declared objectClass MUST attributes, including user `sn` and group `member`.
+- LDAP entries provide conservative fallbacks for declared objectClass MUST attributes, including user `sn` and empty-group `member`.
 - Read-only write operations reject Modify/Add/Delete/ModifyDN with `ModifyResponse`, `AddResponse`, `DelResponse`, and `ModifyDNResponse` tags plus `unwillingToPerform`.
 - Read-only CompareRequest is implemented with RFC 4511 CompareResponse result codes and OpenLDAP `ldapcompare` coverage.
 - Root DSE advertises the Who Am I? extended operation (`1.3.6.1.4.1.4203.1.11.3`), with OpenLDAP `ldapwhoami` coverage.

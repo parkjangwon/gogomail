@@ -3140,6 +3140,18 @@ func TestPrincipalLDAPAttributesSatisfyDeclaredObjectClassRequirements(t *testin
 	if groupAttrs["member"][0] != "cn=team,ou=groups,dc=example,dc=com" {
 		t.Fatalf("group member = %#v, want DN fallback for groupOfNames MUST member", groupAttrs["member"])
 	}
+	groupAttrs = principalLDAPAttributes(PrincipalEntry{
+		DN:      "cn=team,ou=groups,dc=example,dc=com",
+		Kind:    "group",
+		CN:      "Team",
+		UID:     "team",
+		Members: []string{"uid=alice,ou=users,dc=example,dc=com", "  ", "ou=ops,ou=organizations,dc=example,dc=com"},
+	})
+	if got := groupAttrs["member"]; len(got) != 2 ||
+		got[0] != "uid=alice,ou=users,dc=example,dc=com" ||
+		got[1] != "ou=ops,ou=organizations,dc=example,dc=com" {
+		t.Fatalf("group member = %#v, want concrete member DNs", got)
+	}
 }
 
 func bytesContains(haystack, needle []byte) bool {

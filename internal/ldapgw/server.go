@@ -33,6 +33,7 @@ type PrincipalEntry struct {
 	GivenName    string
 	SN           string
 	ResourceType string
+	Members      []string
 }
 
 type DirectorySearchRequest struct {
@@ -940,7 +941,11 @@ func principalLDAPAttributes(p PrincipalEntry) map[string][]string {
 		attrs["ou"] = []string{firstNonEmpty(p.OU, p.DisplayName, cn)}
 	case "group":
 		attrs["objectClass"] = []string{"top", "groupOfNames"}
-		attrs["member"] = []string{firstNonEmpty(p.DN, "cn=placeholder")}
+		members := nonEmptyLDAPValues(p.Members)
+		if len(members) == 0 {
+			members = []string{firstNonEmpty(p.DN, "cn=placeholder")}
+		}
+		attrs["member"] = members
 	case "resource":
 		attrs["objectClass"] = []string{"top", "device"}
 		if p.ResourceType != "" {
@@ -960,6 +965,16 @@ func principalLDAPAttributes(p PrincipalEntry) map[string][]string {
 		attrs[k] = values
 	}
 	return attrs
+}
+
+func nonEmptyLDAPValues(values []string) []string {
+	out := make([]string, 0, len(values))
+	for _, value := range values {
+		if value = strings.TrimSpace(value); value != "" {
+			out = append(out, value)
+		}
+	}
+	return out
 }
 
 func ldapOperationalAttributes(dn string) map[string][]string {

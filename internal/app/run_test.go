@@ -154,6 +154,23 @@ func TestLDAPPrincipalDNUsesKindSpecificSubtrees(t *testing.T) {
 	}
 }
 
+func TestLDAPPrincipalKindIDDNUsesKindSpecificSubtrees(t *testing.T) {
+	t.Parallel()
+
+	if got := ldapPrincipalKindIDDN(directory.PrincipalKindUser, "user-1", "dc=example,dc=com"); got != "uid=user-1,ou=users,dc=example,dc=com" {
+		t.Fatalf("user member DN = %q", got)
+	}
+	if got := ldapPrincipalKindIDDN(directory.PrincipalKindOrganization, "org-1", "dc=example,dc=com"); got != "ou=org-1,ou=organizations,dc=example,dc=com" {
+		t.Fatalf("organization member DN = %q", got)
+	}
+	if got := ldapPrincipalKindIDDN(directory.PrincipalKindGroup, "group-1", "dc=example,dc=com"); got != "cn=group-1,ou=groups,dc=example,dc=com" {
+		t.Fatalf("group member DN = %q", got)
+	}
+	if got := ldapPrincipalKindIDDN(directory.PrincipalKindResource, "room-1", "dc=example,dc=com"); got != "cn=room-1,ou=resources,dc=example,dc=com" {
+		t.Fatalf("resource member DN = %q", got)
+	}
+}
+
 func TestLDAPPrincipalFromDNUsesKindSpecificSubtrees(t *testing.T) {
 	t.Parallel()
 
