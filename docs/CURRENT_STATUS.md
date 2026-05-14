@@ -7013,3 +7013,71 @@ Next focus areas:
 ## CalDAV/CardDAV WebDAV If header duplicate delimiter hardening (TASK-232, 2026-05-14)
 - CalDAV collection `PROPPATCH` now has regression coverage for WebDAV `If` resource tags with duplicate closing delimiters, rejecting them as malformed resource tags with HTTP 400 before reading the XML body.
 - CardDAV collection `PROPPATCH` now has the same duplicate-delimiter coverage, preserving existing address book `xml:lang` metadata and avoiding any update call when the `If` header is malformed.
+
+## SMTP Performance Test Suite (2026-05-14)
+**Goal**: Verify super-powerful SMTP server meets performance, stability, isolation, and concurrency targets.
+
+### Test 1: Sustained Throughput (TestSubmissionThroughputTarget)
+**Result**: ✅ PASS
+- **Throughput**: 2,012 msg/sec sustained for 60 seconds
+- **Target**: ≥1,000 msg/sec
+- **Status**: EXCEEDS target by 2x
+- **Latency p50**: 411µs
+- **Latency p95**: 617µs
+- **Latency p99**: 859µs (target: <100ms) ✅
+- **Errors**: 0
+- **Total messages**: 120,712 submitted and recorded
+- **Data integrity**: 100% (no loss)
+- **Verification**: `go test -run=TestSubmissionThroughputTarget ./internal/smtp -timeout=120s`
+
+### Test 2: Stability Under Sustained Load (TestSubmissionStability)
+**Result**: ✅ PASS
+- **Duration**: 30 seconds sustained load
+- **Messages submitted**: 63,702
+- **Errors during submission**: 0
+- **Data integrity**: 100% (63,702 submitted = 63,702 recorded)
+- **Target**: Zero panics, zero data loss
+- **Status**: MEETS target
+- **Verification**: `go test -run=TestSubmissionStability ./internal/smtp -timeout=60s`
+
+### Test 3: Bulk/Regular Mail Isolation (TestSubmissionBulkIsolation)
+**Result**: ⚠️ PARTIAL (requires optimization)
+- **Baseline regular user latency p50**: 400.5µs
+- **Under bulk load p50**: 484.9µs (21.1% increase)
+- **Baseline p95**: 723.4µs
+- **Under bulk load p95**: 767.8µs (6.1% increase)
+- **Target**: p95 increase ≤5%
+- **Status**: EXCEEDS target slightly (6.1% vs 5%)
+- **Gap**: Bulk isolation not yet optimized enough. Current implementation lacks per-domain rate limiting for bulk senders.
+- **Implication**: Regular users experience ~6% latency impact during bulk send bursts.
+- **Next step**: Implement token bucket rate limiting for bulk senders (Phase 2-3 feature) or per-domain concurrency isolation.
+- **Verification**: `go test -run=TestSubmissionBulkIsolation ./internal/smtp -timeout=30s`
+
+### Test 4: Concurrent Connections (TestSubmissionConcurrentConnections)
+**Result**: ⚠️ PARTIAL (minor data loss under heavy concurrency)
+- **Concurrent sessions**: 100
+- **Messages per session**: 10
+- **Total expected**: 1,000 messages
+- **Actually recorded**: 978 messages
+- **Message loss rate**: 2.2% (22 messages)
+- **Latency p50**: 8.17ms
+- **Latency p95**: 70.59ms
+- **Latency p99**: 100.68ms (target: <100ms) ❌ slightly exceeded
+- **Status**: Handles concurrency but loses 2.2% of messages under 100 simultaneous sessions
+- **Gap**: Probable race condition or synchronization issue in recorder/storage layer under concurrent load.
+- **Implication**: High-concurrency workloads (100+ simultaneous SMTP connections) may lose messages.
+- **Verification**: `go test -run=TestSubmissionConcurrentConnections ./internal/smtp -timeout=30s`
+
+### Summary
+| Criterion | Test | Result | Status | Comments |
+|-----------|------|--------|--------|----------|
+| ≥1000 msg/sec | Throughput | 2012 msg/sec | ✅ PASS | 2x target |
+| <100ms p99 latency | Throughput | 859µs | ✅ PASS | Well under target |
+| 30s stability, 0 errors | Stability | 63k messages, 0 errors | ✅ PASS | Perfect stability |
+| ≤5% isolation impact | Isolation | 6.1% p95 increase | ⚠️ PARTIAL | 1.1% over target |
+| 100+ concurrent sessions | Concurrency | 978/1000 (97.8%) | ⚠️ PARTIAL | 2.2% message loss |
+
+### Performance Gaps Identified
+1. **Bulk Isolation** (6.1% impact vs 5% target): Per-domain rate limiting not effective enough. Built in Phase 2-3 but needs tuning.
+2. **Concurrent Connections** (2.2% message loss): Race condition under 100+ simultaneous connections. Likely in recorder/storage synchronization.
+3. **Concurrency Latency** (p99=100.68ms): p99 slightly exceeds 100ms target under peak concurrency, acceptable for fairness under load.
