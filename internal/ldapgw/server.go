@@ -2451,20 +2451,55 @@ func rootDSEAttributes(namingContexts []string, startTLSEnabled bool) map[string
 	if len(namingContexts) == 0 {
 		namingContexts = []string{"dc=local"}
 	}
+	defaultNamingContext := namingContexts[0]
+	configurationNamingContext := "cn=Configuration," + defaultNamingContext
 	attrs := map[string][]string{
-		"objectClass":          {"top", "OpenLDAProotDSE"},
-		"namingContexts":       namingContexts,
-		"subschemaSubentry":    {"cn=Subschema"},
-		"supportedLDAPVersion": {"3"},
-		"supportedControl":     {controlManageDsaIT, controlPagedResults, controlServerSideSortRequest, controlVirtualListViewRequest, controlAssertion, controlMatchedValues, controlDomainScope, controlDontUseCopy, controlDontUseCopyOpenLDAP, controlSubentries, controlSyncRequest, controlProxiedAuthorization, controlDereferenceRequest, controlRelax, controlNoOp, controlPreRead, controlPostRead, controlPasswordPolicy, controlSessionTracking},
-		"supportedExtension":   {whoAmIOID},
-		"supportedFeatures":    {ldapFeatureAllOperationalAttributes},
-		"vendorName":           {"gogomail"},
+		"objectClass":                   {"top", "OpenLDAProotDSE"},
+		"namingContexts":                namingContexts,
+		"defaultNamingContext":          {defaultNamingContext},
+		"rootDomainNamingContext":       {defaultNamingContext},
+		"configurationNamingContext":    {configurationNamingContext},
+		"schemaNamingContext":           {"cn=Schema," + configurationNamingContext},
+		"subschemaSubentry":             {"cn=Subschema"},
+		"supportedLDAPVersion":          {"3"},
+		"supportedControl":              {controlManageDsaIT, controlPagedResults, controlServerSideSortRequest, controlVirtualListViewRequest, controlAssertion, controlMatchedValues, controlDomainScope, controlDontUseCopy, controlDontUseCopyOpenLDAP, controlSubentries, controlSyncRequest, controlProxiedAuthorization, controlDereferenceRequest, controlRelax, controlNoOp, controlPreRead, controlPostRead, controlPasswordPolicy, controlSessionTracking},
+		"supportedExtension":            {whoAmIOID},
+		"supportedFeatures":             {ldapFeatureAllOperationalAttributes},
+		"supportedCapabilities":         {"1.2.840.113556.1.4.800", "1.2.840.113556.1.4.1670", "1.2.840.113556.1.4.1791"},
+		"vendorName":                    {"gogomail"},
+		"dnsHostName":                   {"ldap." + ldapDNSDomainFromNamingContext(defaultNamingContext)},
+		"domainControllerFunctionality": {"7"},
+		"domainFunctionality":           {"7"},
+		"forestFunctionality":           {"7"},
+		"isGlobalCatalogReady":          {"TRUE"},
+		"isSynchronized":                {"TRUE"},
 	}
 	if startTLSEnabled {
 		attrs["supportedExtension"] = append(attrs["supportedExtension"], startTLSOID)
 	}
 	return attrs
+}
+
+func ldapDNSDomainFromNamingContext(namingContext string) string {
+	var labels []string
+	for _, rdn := range splitDNComponents(namingContext) {
+		parts := strings.SplitN(rdn, "=", 2)
+		if len(parts) != 2 || !strings.EqualFold(strings.TrimSpace(parts[0]), "dc") {
+			continue
+		}
+		label, ok := unescapeDNValue(strings.TrimSpace(parts[1]))
+		if !ok {
+			continue
+		}
+		label = strings.TrimSpace(label)
+		if label != "" {
+			labels = append(labels, label)
+		}
+	}
+	if len(labels) == 0 {
+		return "gogomail.local"
+	}
+	return strings.Join(labels, ".")
 }
 
 func subschemaAttributes() map[string][]string {
@@ -2556,6 +2591,8 @@ func copyLDAPAttributeSet(dst map[string][]string, attrs map[string][]string, ty
 func isOperationalLDAPAttribute(attr string) bool {
 	switch strings.ToLower(strings.TrimSpace(attr)) {
 	case "subschemasubentry", "supportedldapversion", "supportedcontrol", "supportedextension", "supportedfeatures", "namingcontexts", "vendorname",
+		"defaultnamingcontext", "rootdomainnamingcontext", "configurationnamingcontext", "schemanamingcontext", "supportedcapabilities",
+		"dnshostname", "domaincontrollerfunctionality", "domainfunctionality", "forestfunctionality", "isglobalcatalogready", "issynchronized",
 		"entrydn", "entryuuid", "createtimestamp", "modifytimestamp", "creatorsname", "modifiersname",
 		"distinguishedname", "objectguid", "objectsid", "instancetype", "whencreated", "whenchanged",
 		"usncreated", "usnchanged", "hassubordinates", "numsubordinates":

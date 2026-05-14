@@ -3554,7 +3554,7 @@ func TestLDAPServerRootDSEAdvertisesNamingContextAndStartTLS(t *testing.T) {
 	filter := []byte{tagContextSpecific | filterPresent}
 	filter = append(filter, encodeLength(len("objectClass"))...)
 	filter = append(filter, []byte("objectClass")...)
-	searchReq := buildLDAPPacket(6, opSearchRequest, buildSearchRequestWithAttrs("", scopeBaseObject, filter, "namingContexts", "supportedExtension", "supportedFeatures", "subschemaSubentry"))
+	searchReq := buildLDAPPacket(6, opSearchRequest, buildSearchRequestWithAttrs("", scopeBaseObject, filter, "namingContexts", "defaultNamingContext", "rootDomainNamingContext", "configurationNamingContext", "schemaNamingContext", "supportedExtension", "supportedFeatures", "supportedCapabilities", "subschemaSubentry", "dnsHostName", "domainControllerFunctionality", "isGlobalCatalogReady", "isSynchronized"))
 	if err := sendPDU(conn, searchReq); err != nil {
 		t.Fatal(err)
 	}
@@ -3573,6 +3573,25 @@ func TestLDAPServerRootDSEAdvertisesNamingContextAndStartTLS(t *testing.T) {
 	if !bytesContains(opData, []byte("dc=example,dc=com")) {
 		t.Fatalf("root DSE response did not include naming context: %x", opData)
 	}
+	for _, want := range []string{
+		"defaultNamingContext",
+		"rootDomainNamingContext",
+		"configurationNamingContext",
+		"cn=Configuration,dc=example,dc=com",
+		"schemaNamingContext",
+		"cn=Schema,cn=Configuration,dc=example,dc=com",
+		"supportedCapabilities",
+		"1.2.840.113556.1.4.800",
+		"dnsHostName",
+		"ldap.example.com",
+		"domainControllerFunctionality",
+		"isGlobalCatalogReady",
+		"isSynchronized",
+	} {
+		if !bytesContains(opData, []byte(want)) {
+			t.Fatalf("root DSE response did not include %q: %x", want, opData)
+		}
+	}
 	if !bytesContains(opData, []byte(startTLSOID)) {
 		t.Fatalf("root DSE response did not include StartTLS OID: %x", opData)
 	}
@@ -3581,6 +3600,39 @@ func TestLDAPServerRootDSEAdvertisesNamingContextAndStartTLS(t *testing.T) {
 	}
 	if !bytesContains(opData, []byte("cn=Subschema")) {
 		t.Fatalf("root DSE response did not include subschemaSubentry: %x", opData)
+	}
+}
+
+func TestRootDSEAttributesDeriveADDiscoveryFromNamingContext(t *testing.T) {
+	attrs := rootDSEAttributes([]string{"dc=example,dc=com", "dc=example,dc=net"}, false)
+	if attrs["defaultNamingContext"][0] != "dc=example,dc=com" ||
+		attrs["rootDomainNamingContext"][0] != "dc=example,dc=com" ||
+		attrs["configurationNamingContext"][0] != "cn=Configuration,dc=example,dc=com" ||
+		attrs["schemaNamingContext"][0] != "cn=Schema,cn=Configuration,dc=example,dc=com" ||
+		attrs["dnsHostName"][0] != "ldap.example.com" {
+		t.Fatalf("AD discovery attrs = %#v", attrs)
+	}
+	if got := attrs["namingContexts"]; len(got) != 2 || got[1] != "dc=example,dc=net" {
+		t.Fatalf("namingContexts = %#v, want all configured contexts", got)
+	}
+	if len(attrs["supportedCapabilities"]) < 3 {
+		t.Fatalf("supportedCapabilities = %#v, want AD compatibility OIDs", attrs["supportedCapabilities"])
+	}
+	if attrs["domainControllerFunctionality"][0] != "7" ||
+		attrs["domainFunctionality"][0] != "7" ||
+		attrs["forestFunctionality"][0] != "7" ||
+		attrs["isGlobalCatalogReady"][0] != "TRUE" ||
+		attrs["isSynchronized"][0] != "TRUE" {
+		t.Fatalf("AD functionality attrs = %#v", attrs)
+	}
+}
+
+func TestLDAPDNSDomainFromNamingContext(t *testing.T) {
+	if got := ldapDNSDomainFromNamingContext(`dc=example\,corp,dc=com`); got != "example,corp.com" {
+		t.Fatalf("ldapDNSDomainFromNamingContext escaped = %q", got)
+	}
+	if got := ldapDNSDomainFromNamingContext("o=example"); got != "gogomail.local" {
+		t.Fatalf("ldapDNSDomainFromNamingContext fallback = %q", got)
 	}
 }
 
