@@ -19,24 +19,56 @@ func TestNewProvider(t *testing.T) {
 	}
 }
 
-func TestProviderGetUserNotSupported(t *testing.T) {
+func TestCreateUserValidation(t *testing.T) {
 	provider := New(nil, nil)
 
-	// Test that CreateUser returns an error (unsupported for DB provider)
-	err := provider.CreateUser(context.Background(), &idprovider.User{})
+	// Test invalid user (nil)
+	err := provider.CreateUser(context.Background(), nil)
 	if err == nil {
-		t.Errorf("Expected error for CreateUser, got nil")
+		t.Errorf("Expected error for nil user, got nil")
 	}
 
-	// Test that UpdateUser returns an error
+	// Test missing domain_id
+	err = provider.CreateUser(context.Background(), &idprovider.User{
+		Username:    "testuser",
+		DisplayName: "Test User",
+	})
+	if err == nil {
+		t.Errorf("Expected error for missing domain_id, got nil")
+	}
+
+	// Test missing username
+	err = provider.CreateUser(context.Background(), &idprovider.User{
+		DomainID:    "domain-id",
+		DisplayName: "Test User",
+	})
+	if err == nil {
+		t.Errorf("Expected error for missing username, got nil")
+	}
+}
+
+func TestUpdateUserValidation(t *testing.T) {
+	provider := New(nil, nil)
+
+	// Test invalid user (nil)
+	err := provider.UpdateUser(context.Background(), nil)
+	if err == nil {
+		t.Errorf("Expected error for nil user, got nil")
+	}
+
+	// Test missing user id
 	err = provider.UpdateUser(context.Background(), &idprovider.User{})
 	if err == nil {
-		t.Errorf("Expected error for UpdateUser, got nil")
+		t.Errorf("Expected error for missing user id, got nil")
 	}
+}
 
-	// Test that DeleteUser returns an error
-	err = provider.DeleteUser(context.Background(), "user-id")
+func TestDeleteUserValidation(t *testing.T) {
+	provider := New(nil, nil)
+
+	// Test empty user id
+	err := provider.DeleteUser(context.Background(), "")
 	if err == nil {
-		t.Errorf("Expected error for DeleteUser, got nil")
+		t.Errorf("Expected error for empty user id, got nil")
 	}
 }

@@ -162,17 +162,82 @@ func (p *Provider) ListGroups(ctx context.Context, filter *idprovider.GroupFilte
 
 // CreateUser creates a new user.
 func (p *Provider) CreateUser(ctx context.Context, user *idprovider.User) error {
-	return fmt.Errorf("database provider does not support user creation via idprovider")
+	if user == nil || user.DomainID == "" || user.Username == "" || user.DisplayName == "" {
+		return fmt.Errorf("invalid user: missing required fields")
+	}
+
+	result, err := p.db.ExecContext(ctx, `
+		INSERT INTO users (domain_id, org_id, username, display_name, recovery_email, auth_source, role, status)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+	`, user.DomainID, user.OrgID, user.Username, user.DisplayName, user.RecoveryEmail, user.AuthSource, user.Role, user.Status)
+
+	if err != nil {
+		return fmt.Errorf("failed to create user: %w", err)
+	}
+
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to check creation result: %w", err)
+	}
+
+	if rows == 0 {
+		return fmt.Errorf("user creation failed: no rows affected")
+	}
+
+	return nil
 }
 
 // UpdateUser updates an existing user.
 func (p *Provider) UpdateUser(ctx context.Context, user *idprovider.User) error {
-	return fmt.Errorf("database provider does not support user updates via idprovider")
+	if user == nil || user.ID == "" {
+		return fmt.Errorf("invalid user: missing id")
+	}
+
+	result, err := p.db.ExecContext(ctx, `
+		UPDATE users SET display_name = $1, recovery_email = $2, role = $3, status = $4, updated_at = now()
+		WHERE id = $5
+	`, user.DisplayName, user.RecoveryEmail, user.Role, user.Status, user.ID)
+
+	if err != nil {
+		return fmt.Errorf("failed to update user: %w", err)
+	}
+
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to check update result: %w", err)
+	}
+
+	if rows == 0 {
+		return fmt.Errorf("user not found")
+	}
+
+	return nil
 }
 
-// DeleteUser deletes a user.
+// DeleteUser deletes a user (soft delete by marking as deleted).
 func (p *Provider) DeleteUser(ctx context.Context, userID string) error {
-	return fmt.Errorf("database provider does not support user deletion via idprovider")
+	if userID == "" {
+		return fmt.Errorf("invalid user id")
+	}
+
+	result, err := p.db.ExecContext(ctx, `
+		UPDATE users SET status = 'deleted', updated_at = now() WHERE id = $1
+	`, userID)
+
+	if err != nil {
+		return fmt.Errorf("failed to delete user: %w", err)
+	}
+
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to check delete result: %w", err)
+	}
+
+	if rows == 0 {
+		return fmt.Errorf("user not found")
+	}
+
+	return nil
 }
 
 // CreateGroup creates a new group.
