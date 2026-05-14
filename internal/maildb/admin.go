@@ -901,6 +901,10 @@ type UpdateUserStatusRequest struct {
 	Status string `json:"status"`
 }
 
+type DeleteUserRequest struct {
+	ID string `json:"id"`
+}
+
 type UpdateUserQuotaRequest struct {
 	ID          string `json:"id"`
 	QuotaLimit  int64  `json:"quota_limit"`
@@ -1573,6 +1577,13 @@ func ValidateUpdateUserStatusRequest(req UpdateUserStatusRequest) error {
 	return nil
 }
 
+func ValidateDeleteUserRequest(req DeleteUserRequest) error {
+	if strings.TrimSpace(req.ID) == "" {
+		return fmt.Errorf("user id is required")
+	}
+	return nil
+}
+
 func ValidateUserListRequest(req UserListRequest) error {
 	status := normalizeAdminStatus(req.Status)
 	if status != "" && !isUserStatus(status) {
@@ -2069,6 +2080,35 @@ RETURNING u.id::text, u.domain_id::text, d.company_id::text, u.username, u.statu
 	}
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("commit user status transaction: %w", err)
+	}
+	return nil
+}
+
+func (r *Repository) DeleteUser(ctx context.Context, id string) error {
+	if r.db == nil {
+		return fmt.Errorf("database handle is required")
+	}
+	req := DeleteUserRequest{ID: strings.TrimSpace(id)}
+	if err := ValidateDeleteUserRequest(req); err != nil {
+		return err
+	}
+	result, err := r.db.ExecContext(ctx,
+		`UPDATE users
+		    SET status = 'disabled',
+		        session_version = session_version + 1,
+		        updated_at = now()
+		  WHERE id = $1::uuid`,
+		req.ID,
+	)
+	if err != nil {
+		return fmt.Errorf("delete user: %w", err)
+	}
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("delete user rows affected: %w", err)
+	}
+	if rows == 0 {
+		return fmt.Errorf("user %q not found", req.ID)
 	}
 	return nil
 }

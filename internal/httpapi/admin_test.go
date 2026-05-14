@@ -6920,6 +6920,32 @@ func TestAdminUpdateUserStatusHandler(t *testing.T) {
 	}
 }
 
+func TestAdminDeleteUserHandler(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeAdminService{}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "")
+
+	req := httptest.NewRequest(http.MethodDelete, "/admin/v1/users/%20user-1%20", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if service.lastDeleteUserID != "user-1" {
+		t.Fatalf("lastDeleteUserID = %q, want user-1", service.lastDeleteUserID)
+	}
+	var body map[string]string
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("json.Unmarshal returned error: %v", err)
+	}
+	if body["status"] != "ok" || body["id"] != "user-1" {
+		t.Fatalf("body = %+v", body)
+	}
+}
+
 func TestAdminUpdateUserQuotaHandler(t *testing.T) {
 	t.Parallel()
 
@@ -6979,6 +7005,11 @@ func TestAdminUserPathIDsRejectUnsafeValues(t *testing.T) {
 			method: http.MethodPatch,
 			path:   "/admin/v1/users/" + strings.Repeat("u", maxAdminQueryFilterBytes+1) + "/status",
 			body:   `{"status":"disabled"}`,
+		},
+		{
+			name:   "delete crlf",
+			method: http.MethodDelete,
+			path:   "/admin/v1/users/user%0Abad",
 		},
 		{
 			name:   "quota crlf",
@@ -8756,6 +8787,7 @@ type fakeAdminService struct {
 	lastUserQuota                               maildb.UpdateUserQuotaRequest
 	lastUserPasswordHash                        maildb.UpdateUserPasswordHashRequest
 	lastUserRecoveryEmail                       maildb.UpdateUserRecoveryEmailRequest
+	lastDeleteUserID                            string
 	lastQuotaCorrection                         maildb.CorrectQuotaReconciliationRequest
 	lastAttachmentCleanupBefore                 time.Time
 	lastAttachmentCleanupLimit                  int
@@ -9105,6 +9137,11 @@ func (f *fakeAdminService) UpdateUserRole(_ context.Context, req maildb.UpdateUs
 
 func (f *fakeAdminService) UpdateUserRecoveryEmail(_ context.Context, req maildb.UpdateUserRecoveryEmailRequest) error {
 	f.lastUserRecoveryEmail = req
+	return nil
+}
+
+func (f *fakeAdminService) DeleteUser(_ context.Context, id string) error {
+	f.lastDeleteUserID = id
 	return nil
 }
 

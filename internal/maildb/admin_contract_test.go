@@ -1,11 +1,55 @@
 package maildb
 
 import (
+	"context"
+	"database/sql"
+	"database/sql/driver"
 	"encoding/json"
+	"errors"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
+
+var deleteUserDriverState struct {
+	sync.Mutex
+	query string
+	args  []driver.NamedValue
+	rows  int64
+}
+
+func init() {
+	sql.Register("gogomail_delete_user_test", deleteUserTestDriver{})
+}
+
+type deleteUserTestDriver struct{}
+
+func (deleteUserTestDriver) Open(string) (driver.Conn, error) {
+	return deleteUserTestConn{}, nil
+}
+
+type deleteUserTestConn struct{}
+
+func (deleteUserTestConn) Prepare(string) (driver.Stmt, error) {
+	return nil, errors.New("prepare not implemented")
+}
+
+func (deleteUserTestConn) Close() error {
+	return nil
+}
+
+func (deleteUserTestConn) Begin() (driver.Tx, error) {
+	return nil, errors.New("begin not implemented")
+}
+
+func (deleteUserTestConn) ExecContext(_ context.Context, query string, args []driver.NamedValue) (driver.Result, error) {
+	deleteUserDriverState.Lock()
+	defer deleteUserDriverState.Unlock()
+	deleteUserDriverState.query = query
+	deleteUserDriverState.args = append([]driver.NamedValue(nil), args...)
+	return driver.RowsAffected(deleteUserDriverState.rows), nil
+}
 
 func TestValidateUpdateDomainStatusRequestRejectsUnknownStatus(t *testing.T) {
 	t.Parallel()
@@ -881,6 +925,43 @@ func TestValidateUpdateUserStatusRequestRejectsUnknownStatus(t *testing.T) {
 
 	if err := ValidateUpdateUserStatusRequest(UpdateUserStatusRequest{ID: "user-1", Status: "paused"}); err == nil {
 		t.Fatal("ValidateUpdateUserStatusRequest accepted unknown status")
+	}
+}
+
+func TestValidateDeleteUserRequestRejectsBlankID(t *testing.T) {
+	t.Parallel()
+
+	if err := ValidateDeleteUserRequest(DeleteUserRequest{ID: " \t "}); err == nil {
+		t.Fatal("ValidateDeleteUserRequest accepted blank id")
+	}
+}
+
+func TestDeleteUserDisablesUserAndRevokesSessions(t *testing.T) {
+	deleteUserDriverState.Lock()
+	deleteUserDriverState.query = ""
+	deleteUserDriverState.args = nil
+	deleteUserDriverState.rows = 1
+	deleteUserDriverState.Unlock()
+
+	db, err := sql.Open("gogomail_delete_user_test", "")
+	if err != nil {
+		t.Fatalf("sql.Open returned error: %v", err)
+	}
+	defer db.Close()
+	repo := NewRepository(db)
+
+	if err := repo.DeleteUser(context.Background(), " user-1 "); err != nil {
+		t.Fatalf("DeleteUser returned error: %v", err)
+	}
+
+	deleteUserDriverState.Lock()
+	defer deleteUserDriverState.Unlock()
+	if !strings.Contains(deleteUserDriverState.query, "status = 'disabled'") ||
+		!strings.Contains(deleteUserDriverState.query, "session_version = session_version + 1") {
+		t.Fatalf("delete query = %s", deleteUserDriverState.query)
+	}
+	if len(deleteUserDriverState.args) != 1 || deleteUserDriverState.args[0].Value != "user-1" {
+		t.Fatalf("delete args = %#v, want trimmed user id", deleteUserDriverState.args)
 	}
 }
 
