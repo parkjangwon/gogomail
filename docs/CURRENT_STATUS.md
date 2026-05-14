@@ -17,6 +17,7 @@ Last updated: 2026-05-14 (LDAP gateway StartTLS/LDAPS and discovery hardening)
 - LDAP search now materializes each candidate entry's LDAP attribute map once and reuses it for full-filter evaluation, server-side sort, matched-values processing, and response projection, reducing repeated per-entry allocation work on large directory searches.
 - LDAP paged-results searches now fetch at least the default directory candidate window before post-filter pagination, reducing under-return risk when small LDAP page sizes combine with broad OR filters or other post-filter-only predicates.
 - LDAP search now scans repository candidates in bounded 100-entry batches up to a protective cap when post-filtering needs more entries, so sparse matches beyond the first repository window are not silently missed.
+- LDAP response encoding now preserves BER INTEGER message IDs above 255, avoiding request/response correlation breakage on long-lived client connections.
 - LDAP entries and filter extraction now include common Active Directory-style compatibility aliases (`name`, `sAMAccountName`, `userPrincipalName`) mapped from existing principal names, IDs, and primary email addresses.
 - LDAP user entries now expose Exchange/AD-style mail aliases (`mailNickname`, `proxyAddresses`) and accept those attributes in directory filter extraction.
 - LDAP principal entries now expose additional AD-style identity attributes (`distinguishedName`, deterministic `objectGUID`, deterministic `objectSid`, `objectCategory`) for clients that key cache/display behavior on those attributes.

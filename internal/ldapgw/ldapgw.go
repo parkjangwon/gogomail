@@ -441,15 +441,9 @@ func encodeLDAPResponseWithControls(messageID int, opTag int, opData []byte, con
 	opContent.Write(encodeLength(len(opData)))
 	opContent.Write(opData)
 
-	// messageID INTEGER
-	var msgIDContent bytes.Buffer
-	msgIDContent.WriteByte(tagInteger)
-	msgIDContent.Write(encodeLength(1))
-	msgIDContent.WriteByte(byte(messageID))
-
 	// SEQUENCE { msgID, opContent }
 	var seqContent bytes.Buffer
-	seqContent.Write(msgIDContent.Bytes())
+	seqContent.Write(encodeInt(messageID))
 	seqContent.Write(opContent.Bytes())
 	if len(controls) > 0 {
 		seqContent.Write(encodeControls(controls))
