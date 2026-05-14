@@ -2,100 +2,9 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { CalendarDaysIcon, CheckIcon, FolderPlusIcon, LinkIcon } from '@heroicons/react/24/outline';
-import { Calendar, CalendarObject, listCalendars, listCalendarObjects, parseICS, icalDateToDate, createCalendarEvent, createCalendar, updateCalendar, deleteCalendar, parseVTODOICS, createCalendarTodo, setTodoStatus, deleteCalendarObject, CalendarSubscription, listCalendarSubscriptions, addCalendarSubscription, deleteCalendarSubscription, fetchSubscriptionICS } from '@/lib/api';
-
-// ── helpers ──────────────────────────────────────────────────────────────────
-
-function startOfWeek(d: Date): Date {
-  const copy = new Date(d);
-  const day = copy.getDay(); // 0=Sun
-  const diff = day === 0 ? -6 : 1 - day; // Mon-based
-  copy.setDate(copy.getDate() + diff);
-  copy.setHours(0, 0, 0, 0);
-  return copy;
-}
-
-function startOfMonth(d: Date): Date {
-  return new Date(d.getFullYear(), d.getMonth(), 1);
-}
-
-function isSameDay(a: Date, b: Date): boolean {
-  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
-}
-
-function addDays(d: Date, n: number): Date {
-  const c = new Date(d);
-  c.setDate(c.getDate() + n);
-  return c;
-}
-
-function formatDate(d: Date): string {
-  return `${d.getFullYear()}년 ${d.getMonth() + 1}월 ${d.getDate()}일`;
-}
-
-function formatMonthYear(d: Date): string {
-  return `${d.getFullYear()}년 ${d.getMonth() + 1}월`;
-}
-
-function formatWeekRange(d: Date): string {
-  const mon = startOfWeek(d);
-  const sun = addDays(mon, 6);
-  if (mon.getMonth() === sun.getMonth()) {
-    return `${mon.getFullYear()}년 ${mon.getMonth() + 1}월 ${mon.getDate()}일 – ${sun.getDate()}일`;
-  }
-  return `${mon.getFullYear()}년 ${mon.getMonth() + 1}월 ${mon.getDate()}일 – ${sun.getMonth() + 1}월 ${sun.getDate()}일`;
-}
-
-function formatHour(h: number): string {
-  return `${String(h).padStart(2, '0')}:00`;
-}
-
-function formatTime(d: Date): string {
-  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
-}
-
-// ── parsed event ─────────────────────────────────────────────────────────────
-
-interface ParsedEvent {
-  obj: CalendarObject;
-  summary: string;
-  description: string;
-  location: string;
-  start: Date;
-  end: Date;
-  allDay: boolean;
-  calendarId: string;
-  color: string;
-}
-
-function parseEvents(objects: CalendarObject[], calendars: Calendar[]): ParsedEvent[] {
-  const calMap = new Map(calendars.map((c) => [c.ID, c]));
-  const events: ParsedEvent[] = [];
-  for (const obj of objects) {
-    if (!obj.ICS) continue;
-    const ics = parseICS(obj.ICS);
-    const start = icalDateToDate(ics.dtstart);
-    if (!start) continue;
-    const endRaw = icalDateToDate(ics.dtend);
-    // For all-day events, dtend is exclusive — subtract 1ms to stay on the same day
-    const end = endRaw
-      ? ics.allDay ? new Date(endRaw.getTime() - 1) : endRaw
-      : new Date(start.getTime() + 60 * 60 * 1000);
-    const cal = calMap.get(obj.CalendarID);
-    events.push({
-      obj,
-      summary: ics.summary || obj.UID || '(제목 없음)',
-      description: ics.description,
-      location: ics.location,
-      start,
-      end,
-      allDay: ics.allDay,
-      calendarId: obj.CalendarID,
-      color: cal?.Color || 'var(--color-accent)',
-    });
-  }
-  return events;
-}
+import { Calendar, CalendarObject, listCalendars, listCalendarObjects, parseICS, icalDateToDate, createCalendarEvent, createCalendar, updateCalendar, deleteCalendar, createCalendarTodo, setTodoStatus, deleteCalendarObject, CalendarSubscription, listCalendarSubscriptions, addCalendarSubscription, deleteCalendarSubscription, fetchSubscriptionICS } from '@/lib/api';
+import { startOfWeek, startOfMonth, isSameDay, addDays, formatDate, formatMonthYear, formatWeekRange, formatHour, formatTime } from '@/lib/calendar/dateUtils';
+import { ParsedEvent, ParsedTodo, parseEvents, parseTodos } from '@/lib/calendar/eventParser';
 
 // ── Subscription event parser ─────────────────────────────────────────────────
 
@@ -126,45 +35,6 @@ function parseSubscriptionEvents(rawICS: string, sub: CalendarSubscription): Par
     });
   }
   return events;
-}
-
-// ── ParsedTodo ────────────────────────────────────────────────────────────────
-
-interface ParsedTodo {
-  obj: CalendarObject;
-  summary: string;
-  description: string;
-  dueDate: Date | null;
-  completed: boolean;
-  calendarId: string;
-  color: string;
-}
-
-function parseTodos(objects: CalendarObject[], calendars: Calendar[]): ParsedTodo[] {
-  const calMap = new Map(calendars.map((c) => [c.ID, c]));
-  const todos: ParsedTodo[] = [];
-  for (const obj of objects) {
-    if (obj.Component !== 'VTODO' || !obj.ICS) continue;
-    const f = parseVTODOICS(obj.ICS);
-    const dueDate = f.due ? icalDateToDate(f.due) : null;
-    const cal = calMap.get(obj.CalendarID);
-    todos.push({
-      obj,
-      summary: f.summary || '(제목 없음)',
-      description: f.description,
-      dueDate,
-      completed: f.status === 'COMPLETED',
-      calendarId: obj.CalendarID,
-      color: cal?.Color || 'var(--color-accent)',
-    });
-  }
-  return todos.sort((a, b) => {
-    if (a.completed !== b.completed) return a.completed ? 1 : -1;
-    if (a.dueDate && b.dueDate) return a.dueDate.getTime() - b.dueDate.getTime();
-    if (a.dueDate) return -1;
-    if (b.dueDate) return 1;
-    return 0;
-  });
 }
 
 // ── MiniCalendar ─────────────────────────────────────────────────────────────
