@@ -1576,6 +1576,22 @@ func TestDecodeSearchRequestRejectsNegativeLimits(t *testing.T) {
 	}
 }
 
+func TestDecodeSearchRequestRejectsMalformedAttributeList(t *testing.T) {
+	valid := buildSearchRequestWithAttrs("dc=example,dc=com", scopeWholeSubtree, buildEqualityFilter("objectClass", "person"), "cn")
+	if _, _, _, _, _, _, _, err := decodeSearchRequest(append(valid, 0x00)); err == nil {
+		t.Fatal("decodeSearchRequest accepted trailing data after attribute list")
+	}
+	base := buildSearchRequest("dc=example,dc=com", scopeWholeSubtree, buildEqualityFilter("objectClass", "person"))
+	malformed := append(append([]byte{}, base[:len(base)-2]...), tagSequence, 0x01, tagBoolean)
+	if _, _, _, _, _, _, _, err := decodeSearchRequest(malformed); err == nil {
+		t.Fatal("decodeSearchRequest accepted malformed attribute list")
+	}
+	truncatedAttr := append(append([]byte{}, base[:len(base)-2]...), tagSequence, 0x03, tagOctetString, 0x02, 'c')
+	if _, _, _, _, _, _, _, err := decodeSearchRequest(truncatedAttr); err == nil {
+		t.Fatal("decodeSearchRequest accepted truncated attribute description")
+	}
+}
+
 func TestLDAPServerIgnoresSupportedCriticalControlAndRecordsMetrics(t *testing.T) {
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
