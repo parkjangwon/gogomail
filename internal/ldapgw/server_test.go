@@ -3149,6 +3149,11 @@ func TestPrincipalLDAPAttributesSatisfyDeclaredObjectClassRequirements(t *testin
 		userAttrs["userPrincipalName"][0] != "alice@example.com" {
 		t.Fatalf("user AD aliases missing: %#v", userAttrs)
 	}
+	if userAttrs["distinguishedName"][0] != "uid=alice,ou=users,dc=example,dc=com" ||
+		userAttrs["objectCategory"][0] != "person" ||
+		userAttrs["objectGUID"][0] == "" {
+		t.Fatalf("user AD identity attrs missing: %#v", userAttrs)
+	}
 	if userAttrs["entryDN"][0] != "uid=alice,ou=users,dc=example,dc=com" || userAttrs["entryUUID"][0] == "" {
 		t.Fatalf("user operational attrs missing: %#v", userAttrs)
 	}
@@ -3183,6 +3188,9 @@ func TestPrincipalLDAPAttributesSatisfyDeclaredObjectClassRequirements(t *testin
 		got[0] != "uid=alice,ou=users,dc=example,dc=com" ||
 		got[1] != "ou=ops,ou=organizations,dc=example,dc=com" {
 		t.Fatalf("group member = %#v, want concrete member DNs", got)
+	}
+	if groupAttrs["objectCategory"][0] != "group" {
+		t.Fatalf("group objectCategory = %#v, want group", groupAttrs["objectCategory"])
 	}
 }
 
