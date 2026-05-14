@@ -97,6 +97,21 @@ func TestEncodeSearchResultEntryUsesApplicationPayloadDirectly(t *testing.T) {
 	}
 }
 
+func TestEncodeLDAPResponsePreservesLargeMessageID(t *testing.T) {
+	const messageID = 300
+	pdu := encodeBindResponse(messageID, resultSuccess, "", "")
+	got, opTag, _, err := decodeLDAPPacket(pdu)
+	if err != nil {
+		t.Fatalf("decodeLDAPPacket returned error: %v", err)
+	}
+	if opTag != opBindResponse {
+		t.Fatalf("opTag = %d, want %d", opTag, opBindResponse)
+	}
+	if got != messageID {
+		t.Fatalf("messageID = %d, want %d", got, messageID)
+	}
+}
+
 func TestEscapeLDAPValue(t *testing.T) {
 	tests := []struct {
 		input    string
