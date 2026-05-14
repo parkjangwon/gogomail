@@ -21,7 +21,7 @@ import { CalendarView } from '@/components/CalendarView';
 import { ContactsView } from '@/components/ContactsView';
 import { SettingsView } from '@/components/SettingsView';
 import { DriveView } from '@/components/DriveView';
-import { loadFilterRules } from '@/components/SettingsModal';
+import { loadFilterRules } from '@/components/settings/settingsConfig';
 import { SpotlightSearch } from '@/components/SpotlightSearch';
 
 export default function MailPage() {
