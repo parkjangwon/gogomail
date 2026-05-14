@@ -41,9 +41,18 @@ TASK-067 (Audit Logs) completion enables SMTP monitoring. However, SMTP itself l
 - [x] NoOpFarmCoordinator for single-node deployments
 - [x] DeliveryJob encoding/decoding for queue transport
 
-### Current Phase: Phase 6 — Observability & Tracing
+**Phase 6 ✓ — Observability & Tracing**
+- [x] MessageTracing for end-to-end lifecycle tracking
+- [x] PhaseLatency recording for each SMTP processing stage
+- [x] LatencyTracker with sliding window statistics
+- [x] Percentile calculation (p50, p95, p99) for performance monitoring
+- [x] Per-phase latency breakdown (received, parsed, stored, etc)
+- [x] Context-based tracing propagation for distributed systems
+- [x] Memory-efficient circular buffer for high-volume tracking
 
-Next: End-to-end latency metrics and audit log tracing
+### Current Phase: Phase 7 — RFC Compliance Hardening
+
+Next: Systematic RFC 5322, 5321, 3461, 6376, 5891 compliance testing
 
 ---
 
