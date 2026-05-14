@@ -940,11 +940,15 @@ func principalLDAPAttributes(p PrincipalEntry) map[string][]string {
 		"distinguishedName": nonEmptyLDAPValues([]string{p.DN}),
 		"objectCategory":    {objectCategory},
 		"objectGUID":        {ldapEntryUUID(p.DN)},
+		"objectSid":         nonEmptyLDAPValues([]string{ldapObjectSID(p.DN, kind)}),
 		"sAMAccountName":    {p.UID},
 		"userPrincipalName": nonEmptyLDAPValues([]string{p.Mail}),
 	}
 	if len(attrs["distinguishedName"]) == 0 {
 		delete(attrs, "distinguishedName")
+	}
+	if len(attrs["objectSid"]) == 0 {
+		delete(attrs, "objectSid")
 	}
 	if len(attrs["userPrincipalName"]) == 0 {
 		delete(attrs, "userPrincipalName")
@@ -1035,6 +1039,28 @@ func ldapEntryUUIDBytes(dn string) []byte {
 	out := make([]byte, 16)
 	copy(out, b)
 	return out
+}
+
+func ldapObjectSID(dn, kind string) string {
+	if strings.TrimSpace(dn) == "" {
+		return ""
+	}
+	b := ldapEntryUUIDBytes(dn)
+	a := uint32(b[0])<<24 | uint32(b[1])<<16 | uint32(b[2])<<8 | uint32(b[3])
+	c := uint32(b[4])<<24 | uint32(b[5])<<16 | uint32(b[6])<<8 | uint32(b[7])
+	d := uint32(b[8])<<24 | uint32(b[9])<<16 | uint32(b[10])<<8 | uint32(b[11])
+	rid := uint32(b[12])<<24 | uint32(b[13])<<16 | uint32(b[14])<<8 | uint32(b[15])
+	switch strings.ToLower(strings.TrimSpace(kind)) {
+	case "group":
+		rid = 2000000000 + rid%999999999
+	case "organization":
+		rid = 3000000000 + rid%999999999
+	case "resource":
+		rid = 4000000000 + rid%294967295
+	default:
+		rid = 1000000000 + rid%999999999
+	}
+	return fmt.Sprintf("S-1-5-21-%d-%d-%d-%d", a, c, d, rid)
 }
 
 func firstNonEmpty(values ...string) string {
@@ -2094,10 +2120,10 @@ func subschemaAttributes() map[string][]string {
 			"( 2.5.6.0 NAME 'top' ABSTRACT MUST objectClass )",
 			"( 2.5.6.6 NAME 'person' SUP top STRUCTURAL MUST ( sn $ cn ) MAY ( userPassword $ telephoneNumber $ seeAlso $ description ) )",
 			"( 2.5.6.7 NAME 'organizationalPerson' SUP person STRUCTURAL MAY ( title $ x121Address $ registeredAddress $ destinationIndicator $ preferredDeliveryMethod $ telexNumber $ teletexTerminalIdentifier $ telephoneNumber $ internationaliSDNNumber $ facsimileTelephoneNumber $ street $ postOfficeBox $ postalCode $ postalAddress $ physicalDeliveryOfficeName $ ou $ st $ l ) )",
-			"( 2.16.840.1.113730.3.2.2 NAME 'inetOrgPerson' SUP organizationalPerson STRUCTURAL MAY ( mail $ uid $ givenName $ displayName $ name $ distinguishedName $ objectCategory $ objectGUID $ sAMAccountName $ userPrincipalName ) )",
-			"( 2.5.6.5 NAME 'organizationalUnit' SUP top STRUCTURAL MUST ou MAY ( userPassword $ searchGuide $ seeAlso $ businessCategory $ x121Address $ registeredAddress $ destinationIndicator $ preferredDeliveryMethod $ telexNumber $ teletexTerminalIdentifier $ telephoneNumber $ internationaliSDNNumber $ facsimileTelephoneNumber $ street $ postOfficeBox $ postalCode $ postalAddress $ physicalDeliveryOfficeName $ st $ l $ description $ distinguishedName $ objectCategory $ objectGUID ) )",
-			"( 2.5.6.9 NAME 'groupOfNames' SUP top STRUCTURAL MUST ( member $ cn ) MAY ( businessCategory $ seeAlso $ owner $ ou $ o $ description $ memberOf $ distinguishedName $ objectCategory $ objectGUID ) )",
-			"( 2.5.6.14 NAME 'device' SUP top STRUCTURAL MUST cn MAY ( serialNumber $ seeAlso $ owner $ ou $ o $ l $ description $ memberOf $ distinguishedName $ objectCategory $ objectGUID ) )",
+			"( 2.16.840.1.113730.3.2.2 NAME 'inetOrgPerson' SUP organizationalPerson STRUCTURAL MAY ( mail $ uid $ givenName $ displayName $ name $ distinguishedName $ objectCategory $ objectGUID $ objectSid $ sAMAccountName $ userPrincipalName ) )",
+			"( 2.5.6.5 NAME 'organizationalUnit' SUP top STRUCTURAL MUST ou MAY ( userPassword $ searchGuide $ seeAlso $ businessCategory $ x121Address $ registeredAddress $ destinationIndicator $ preferredDeliveryMethod $ telexNumber $ teletexTerminalIdentifier $ telephoneNumber $ internationaliSDNNumber $ facsimileTelephoneNumber $ street $ postOfficeBox $ postalCode $ postalAddress $ physicalDeliveryOfficeName $ st $ l $ description $ distinguishedName $ objectCategory $ objectGUID $ objectSid ) )",
+			"( 2.5.6.9 NAME 'groupOfNames' SUP top STRUCTURAL MUST ( member $ cn ) MAY ( businessCategory $ seeAlso $ owner $ ou $ o $ description $ memberOf $ distinguishedName $ objectCategory $ objectGUID $ objectSid ) )",
+			"( 2.5.6.14 NAME 'device' SUP top STRUCTURAL MUST cn MAY ( serialNumber $ seeAlso $ owner $ ou $ o $ l $ description $ memberOf $ distinguishedName $ objectCategory $ objectGUID $ objectSid ) )",
 		},
 		"attributeTypes": {
 			"( 2.5.4.3 NAME 'cn' SUP name )",
@@ -2114,6 +2140,7 @@ func subschemaAttributes() map[string][]string {
 			"( 2.5.4.49 NAME 'distinguishedName' EQUALITY distinguishedNameMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.12 )",
 			"( 1.2.840.113556.1.4.782 NAME 'objectCategory' EQUALITY caseIgnoreMatch SUBSTR caseIgnoreSubstringsMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 )",
 			"( 1.2.840.113556.1.4.2 NAME 'objectGUID' EQUALITY octetStringMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.40 )",
+			"( 1.2.840.113556.1.4.146 NAME 'objectSid' EQUALITY caseIgnoreMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 )",
 		},
 	}
 }
@@ -2164,7 +2191,7 @@ func isOperationalLDAPAttribute(attr string) bool {
 	switch strings.ToLower(strings.TrimSpace(attr)) {
 	case "subschemasubentry", "supportedldapversion", "supportedcontrol", "supportedextension", "namingcontexts", "vendorname",
 		"entrydn", "entryuuid", "createtimestamp", "modifytimestamp", "creatorsname", "modifiersname",
-		"distinguishedname", "objectguid":
+		"distinguishedname", "objectguid", "objectsid":
 		return true
 	default:
 		return false
