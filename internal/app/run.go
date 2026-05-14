@@ -913,7 +913,7 @@ func (q *ldapDirectoryQuerier) SearchPrincipals(ctx context.Context, req ldapgw.
 			if err != nil {
 				return nil, nil
 			}
-			entry, err := q.ldapPrincipalEntry(ctx, principal, baseDN)
+			entry, err := q.ldapPrincipalEntry(ctx, principal, baseDN, req.Attrs)
 			if err != nil {
 				return nil, err
 			}
@@ -933,7 +933,7 @@ func (q *ldapDirectoryQuerier) SearchPrincipals(ctx context.Context, req ldapgw.
 	}
 	entries := make([]ldapgw.PrincipalEntry, 0, len(principals))
 	for _, p := range principals {
-		entry, err := q.ldapPrincipalEntry(ctx, p, baseDN)
+		entry, err := q.ldapPrincipalEntry(ctx, p, baseDN, req.Attrs)
 		if err != nil {
 			return nil, err
 		}
@@ -942,9 +942,9 @@ func (q *ldapDirectoryQuerier) SearchPrincipals(ctx context.Context, req ldapgw.
 	return entries, nil
 }
 
-func (q *ldapDirectoryQuerier) ldapPrincipalEntry(ctx context.Context, p directory.Principal, baseDN string) (ldapgw.PrincipalEntry, error) {
+func (q *ldapDirectoryQuerier) ldapPrincipalEntry(ctx context.Context, p directory.Principal, baseDN string, attrs []string) (ldapgw.PrincipalEntry, error) {
 	entry := ldapPrincipalEntry(p, baseDN)
-	if p.Kind != directory.PrincipalKindGroup {
+	if p.Kind != directory.PrincipalKindGroup || !ldapShouldExpandGroupMembers(attrs) {
 		return entry, nil
 	}
 	memberships, err := q.repo.ListGroupMemberships(ctx, directory.ListGroupMembershipsRequest{
@@ -962,6 +962,21 @@ func (q *ldapDirectoryQuerier) ldapPrincipalEntry(ctx context.Context, p directo
 		}
 	}
 	return entry, nil
+}
+
+func ldapShouldExpandGroupMembers(attrs []string) bool {
+	if len(attrs) == 0 {
+		return true
+	}
+	for _, attr := range attrs {
+		switch strings.ToLower(strings.TrimSpace(attr)) {
+		case "member", "*":
+			return true
+		case "1.1", "+":
+			continue
+		}
+	}
+	return false
 }
 
 func ldapPrincipalEntry(p directory.Principal, baseDN string) ldapgw.PrincipalEntry {
