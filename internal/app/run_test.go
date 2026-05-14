@@ -194,6 +194,29 @@ func TestLDAPShouldExpandGroupMembersOnlyWhenRequested(t *testing.T) {
 	}
 }
 
+func TestLDAPShouldExpandMemberOfOnlyWhenRequested(t *testing.T) {
+	t.Parallel()
+
+	if !ldapShouldExpandMemberOf(nil) {
+		t.Fatal("empty attrs should expand default memberOf attributes")
+	}
+	if !ldapShouldExpandMemberOf([]string{"cn", "memberOf"}) {
+		t.Fatal("explicit memberOf attr should expand reverse group memberships")
+	}
+	if !ldapShouldExpandMemberOf([]string{"*"}) {
+		t.Fatal("* selector should expand reverse group memberships")
+	}
+	if ldapShouldExpandMemberOf([]string{"cn", "displayName"}) {
+		t.Fatal("narrow non-memberOf attrs should not expand reverse group memberships")
+	}
+	if ldapShouldExpandMemberOf([]string{"+"}) {
+		t.Fatal("+ operational selector should not expand reverse group memberships")
+	}
+	if ldapShouldExpandMemberOf([]string{"1.1"}) {
+		t.Fatal("1.1 no-attrs selector should not expand reverse group memberships")
+	}
+}
+
 func TestLDAPPrincipalFromDNUsesKindSpecificSubtrees(t *testing.T) {
 	t.Parallel()
 
