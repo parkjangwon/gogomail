@@ -46,6 +46,7 @@ func TestDeliveryDomainBackoffFromConfig(t *testing.T) {
 	got := deliveryDomainBackoffFromConfig(config.Config{
 		DeliveryDomainBackoffEnabled:   true,
 		DeliveryDomainBackoffBackend:   "local",
+		DeliveryDomainBackoffScope:     "farm_domain",
 		DeliveryDomainBackoffBaseDelay: time.Minute,
 		DeliveryDomainBackoffMaxDelay:  time.Hour,
 	}, nil)
@@ -55,6 +56,7 @@ func TestDeliveryDomainBackoffFromConfig(t *testing.T) {
 	redisBackoff := deliveryDomainBackoffFromConfig(config.Config{
 		DeliveryDomainBackoffEnabled:   true,
 		DeliveryDomainBackoffBackend:   "redis",
+		DeliveryDomainBackoffScope:     "farm_domain",
 		DeliveryDomainBackoffBaseDelay: time.Minute,
 		DeliveryDomainBackoffMaxDelay:  time.Hour,
 	}, nil)

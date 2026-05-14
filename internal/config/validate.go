@@ -268,6 +268,9 @@ func (c Config) Validate() error {
 		if err := validateEnum("GOGOMAIL_DELIVERY_DOMAIN_BACKOFF_BACKEND", c.DeliveryDomainBackoffBackend, "local", "redis"); err != nil {
 			return err
 		}
+		if err := validateEnum("GOGOMAIL_DELIVERY_DOMAIN_BACKOFF_SCOPE", c.DeliveryDomainBackoffScope, "domain", "farm_domain"); err != nil {
+			return err
+		}
 		if c.DeliveryDomainBackoffBaseDelay <= 0 {
 			return fmt.Errorf("GOGOMAIL_DELIVERY_DOMAIN_BACKOFF_BASE_DELAY must be positive")
 		}

@@ -30,6 +30,32 @@ func TestInMemoryDomainBackoffDefersOnlyFailedDomain(t *testing.T) {
 	}
 }
 
+func TestInMemoryDomainBackoffFarmDomainScopeIsolatesFarms(t *testing.T) {
+	now := time.Date(2026, 5, 14, 12, 0, 0, 0, time.UTC)
+	backoff := NewInMemoryDomainBackoff(DomainBackoffPolicy{
+		BaseDelay: time.Minute,
+		Scope:     DomainBackoffScopeFarmDomain,
+	})
+	backoff.now = func() time.Time { return now }
+	recipient := []outbound.Address{{Email: "user@example.net"}}
+
+	backoff.ObserveTemporaryFailure(context.Background(), Job{QueuedMessage: QueuedMessage{
+		Farm: outbound.FarmBulk,
+	}}, recipient, errors.New("tempfail"))
+	if err := backoff.Check(context.Background(), Job{QueuedMessage: QueuedMessage{
+		Farm: outbound.FarmBulk,
+		To:   recipient,
+	}}); err == nil {
+		t.Fatal("Check() bulk farm error = nil, want backed off farm/domain")
+	}
+	if err := backoff.Check(context.Background(), Job{QueuedMessage: QueuedMessage{
+		Farm: outbound.FarmTransactional,
+		To:   recipient,
+	}}); err != nil {
+		t.Fatalf("Check() transactional farm error = %v, want nil", err)
+	}
+}
+
 func TestInMemoryDomainBackoffExpiresAndCapsDelay(t *testing.T) {
 	now := time.Date(2026, 5, 14, 12, 0, 0, 0, time.UTC)
 	backoff := NewInMemoryDomainBackoff(DomainBackoffPolicy{
@@ -65,6 +91,20 @@ func TestDomainsForRecipientsDeduplicatesAndNormalizes(t *testing.T) {
 	}
 }
 
+func TestDomainBackoffKeysFarmDomainDeduplicatesAndNormalizes(t *testing.T) {
+	got := domainBackoffKeys(Job{QueuedMessage: QueuedMessage{
+		Farm: outbound.Farm(" BULK "),
+	}}, []outbound.Address{
+		{Email: "one@Example.NET"},
+		{Email: "two@example.net"},
+		{Email: "user@example.org"},
+	}, DomainBackoffScopeFarmDomain)
+	want := []string{"farm:bulk:domain:example.net", "farm:bulk:domain:example.org"}
+	if len(got) != len(want) || got[0] != want[0] || got[1] != want[1] {
+		t.Fatalf("domainBackoffKeys = %v, want %v", got, want)
+	}
+}
+
 func TestRedisDomainBackoffDefersOnlyActiveDomain(t *testing.T) {
 	client := newFakeDomainBackoffRedis()
 	backoff := NewRedisDomainBackoff(client, "test", DomainBackoffPolicy{BaseDelay: time.Minute, MaxDelay: 10 * time.Minute})
@@ -78,6 +118,35 @@ func TestRedisDomainBackoffDefersOnlyActiveDomain(t *testing.T) {
 		To: []outbound.Address{{Email: "user@example.org"}},
 	}}); err != nil {
 		t.Fatalf("Check() unrelated domain error = %v, want nil", err)
+	}
+}
+
+func TestRedisDomainBackoffFarmDomainScopeIsolatesFarms(t *testing.T) {
+	client := newFakeDomainBackoffRedis()
+	backoff := NewRedisDomainBackoff(client, "test", DomainBackoffPolicy{
+		BaseDelay: time.Minute,
+		MaxDelay:  10 * time.Minute,
+		Scope:     DomainBackoffScopeFarmDomain,
+	})
+	recipient := []outbound.Address{{Email: "user@example.net"}}
+
+	backoff.ObserveTemporaryFailure(context.Background(), Job{QueuedMessage: QueuedMessage{
+		Farm: outbound.FarmBulk,
+	}}, recipient, errors.New("tempfail"))
+	if client.ttl["test:farm:bulk:domain:example.net"] != int64(time.Minute/time.Millisecond) {
+		t.Fatalf("bulk key ttl = %dms, want 1m", client.ttl["test:farm:bulk:domain:example.net"])
+	}
+	if err := backoff.Check(context.Background(), Job{QueuedMessage: QueuedMessage{
+		Farm: outbound.FarmBulk,
+		To:   recipient,
+	}}); err == nil {
+		t.Fatal("Check() bulk farm error = nil, want redis-backed farm/domain backoff")
+	}
+	if err := backoff.Check(context.Background(), Job{QueuedMessage: QueuedMessage{
+		Farm: outbound.FarmTransactional,
+		To:   recipient,
+	}}); err != nil {
+		t.Fatalf("Check() transactional farm error = %v, want nil", err)
 	}
 }
 

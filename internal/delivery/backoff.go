@@ -14,7 +14,15 @@ import (
 type DomainBackoffPolicy struct {
 	BaseDelay time.Duration
 	MaxDelay  time.Duration
+	Scope     DomainBackoffScope
 }
+
+type DomainBackoffScope string
+
+const (
+	DomainBackoffScopeDomain     DomainBackoffScope = "domain"
+	DomainBackoffScopeFarmDomain DomainBackoffScope = "farm_domain"
+)
 
 type InMemoryDomainBackoff struct {
 	mu     sync.Mutex
@@ -65,10 +73,10 @@ func (b *InMemoryDomainBackoff) Check(_ context.Context, job Job) error {
 	now := b.now().UTC()
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	for _, domain := range domainsForRecipients(job.Recipients()) {
-		state := b.state[domain]
+	for _, key := range domainBackoffKeys(job, job.Recipients(), b.policy.Scope) {
+		state := b.state[key]
 		if !state.until.IsZero() && now.Before(state.until) {
-			return &DomainBackoffError{Domain: domain}
+			return &DomainBackoffError{Domain: key}
 		}
 	}
 	return nil
@@ -116,7 +124,7 @@ func (b *RedisDomainBackoff) Check(ctx context.Context, job Job) error {
 	if b.client == nil {
 		return fmt.Errorf("redis domain backoff client is required")
 	}
-	keys := b.keysForRecipients(job.Recipients())
+	keys := b.keysForJob(job, job.Recipients())
 	if len(keys) == 0 {
 		return nil
 	}
@@ -134,38 +142,38 @@ func (b *RedisDomainBackoff) Check(ctx context.Context, job Job) error {
 	return &DomainBackoffError{Domain: strings.TrimPrefix(key, b.prefix+":")}
 }
 
-func (b *RedisDomainBackoff) ObserveTemporaryFailure(ctx context.Context, _ Job, recipients []outbound.Address, _ error) {
+func (b *RedisDomainBackoff) ObserveTemporaryFailure(ctx context.Context, job Job, recipients []outbound.Address, _ error) {
 	if b == nil || b.client == nil {
 		return
 	}
-	keys := b.keysForRecipients(recipients)
+	keys := b.keysForJob(job, recipients)
 	if len(keys) == 0 {
 		return
 	}
 	_, _ = b.client.Eval(ctx, redisDomainBackoffObserveScript, keys, int(b.policy.BaseDelay/time.Millisecond), int(b.policy.MaxDelay/time.Millisecond)).Result()
 }
 
-func (b *RedisDomainBackoff) keysForRecipients(recipients []outbound.Address) []string {
-	domains := domainsForRecipients(recipients)
-	keys := make([]string, 0, len(domains))
-	for _, domain := range domains {
-		keys = append(keys, b.prefix+":"+domain)
+func (b *RedisDomainBackoff) keysForJob(job Job, recipients []outbound.Address) []string {
+	backoffKeys := domainBackoffKeys(job, recipients, b.policy.Scope)
+	keys := make([]string, 0, len(backoffKeys))
+	for _, key := range backoffKeys {
+		keys = append(keys, b.prefix+":"+key)
 	}
 	return keys
 }
 
-func (b *InMemoryDomainBackoff) ObserveTemporaryFailure(_ context.Context, _ Job, recipients []outbound.Address, _ error) {
+func (b *InMemoryDomainBackoff) ObserveTemporaryFailure(_ context.Context, job Job, recipients []outbound.Address, _ error) {
 	if b == nil {
 		return
 	}
 	now := b.now().UTC()
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	for _, domain := range domainsForRecipients(recipients) {
-		state := b.state[domain]
+	for _, key := range domainBackoffKeys(job, recipients, b.policy.Scope) {
+		state := b.state[key]
 		state.failures++
 		state.until = now.Add(b.delayForFailures(state.failures))
-		b.state[domain] = state
+		b.state[key] = state
 	}
 }
 
@@ -193,7 +201,23 @@ func normalizeDomainBackoffPolicy(policy DomainBackoffPolicy) DomainBackoffPolic
 	if policy.MaxDelay > 0 && policy.MaxDelay < policy.BaseDelay {
 		policy.MaxDelay = policy.BaseDelay
 	}
+	if policy.Scope == "" {
+		policy.Scope = DomainBackoffScopeDomain
+	}
 	return policy
+}
+
+func domainBackoffKeys(job Job, recipients []outbound.Address, scope DomainBackoffScope) []string {
+	domains := domainsForRecipients(recipients)
+	if scope != DomainBackoffScopeFarmDomain {
+		return domains
+	}
+	farm := outbound.NormalizeFarm(job.Farm)
+	keys := make([]string, 0, len(domains))
+	for _, domain := range domains {
+		keys = append(keys, "farm:"+string(farm)+":domain:"+domain)
+	}
+	return keys
 }
 
 func domainsForRecipients(recipients []outbound.Address) []string {
