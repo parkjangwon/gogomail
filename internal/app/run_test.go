@@ -115,6 +115,12 @@ func TestLDAPFilterToQueryExtractsDirectorySearchAttributes(t *testing.T) {
 	if got := ldapFilterToQuery("(name=*Alice*)"); got != "Alice" {
 		t.Fatalf("ldapFilterToQuery name = %q, want Alice", got)
 	}
+	if got := ldapFilterToQuery("(mailNickname=alice)"); got != "alice" {
+		t.Fatalf("ldapFilterToQuery mailNickname = %q, want alice", got)
+	}
+	if got := ldapFilterToQuery("(proxyAddresses=SMTP:alice@example.com)"); got != "SMTP:alice@example.com" {
+		t.Fatalf("ldapFilterToQuery proxyAddresses = %q, want SMTP:alice@example.com", got)
+	}
 	if got := ldapFilterToQuery("(objectClass=person)"); got != "" {
 		t.Fatalf("ldapFilterToQuery objectClass = %q, want empty", got)
 	}

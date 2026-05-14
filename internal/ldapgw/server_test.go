@@ -3167,7 +3167,9 @@ func TestPrincipalLDAPAttributesSatisfyDeclaredObjectClassRequirements(t *testin
 	}
 	if userAttrs["name"][0] != "Alice" ||
 		userAttrs["sAMAccountName"][0] != "alice" ||
-		userAttrs["userPrincipalName"][0] != "alice@example.com" {
+		userAttrs["userPrincipalName"][0] != "alice@example.com" ||
+		userAttrs["mailNickname"][0] != "alice" ||
+		userAttrs["proxyAddresses"][0] != "SMTP:alice@example.com" {
 		t.Fatalf("user AD aliases missing: %#v", userAttrs)
 	}
 	if userAttrs["distinguishedName"][0] != "uid=alice,ou=users,dc=example,dc=com" ||

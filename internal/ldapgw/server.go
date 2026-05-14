@@ -941,6 +941,8 @@ func principalLDAPAttributes(p PrincipalEntry) map[string][]string {
 		"objectCategory":    {objectCategory},
 		"objectGUID":        {ldapEntryUUID(p.DN)},
 		"objectSid":         nonEmptyLDAPValues([]string{ldapObjectSID(p.DN, kind)}),
+		"mailNickname":      nonEmptyLDAPValues([]string{p.UID}),
+		"proxyAddresses":    ldapProxyAddresses(p.Mail),
 		"sAMAccountName":    {p.UID},
 		"userPrincipalName": nonEmptyLDAPValues([]string{p.Mail}),
 	}
@@ -986,6 +988,14 @@ func principalLDAPAttributes(p PrincipalEntry) map[string][]string {
 		attrs[k] = values
 	}
 	return attrs
+}
+
+func ldapProxyAddresses(mail string) []string {
+	mail = strings.TrimSpace(mail)
+	if mail == "" {
+		return nil
+	}
+	return []string{"SMTP:" + mail}
 }
 
 func ldapObjectCategory(kind string) string {
@@ -2120,7 +2130,7 @@ func subschemaAttributes() map[string][]string {
 			"( 2.5.6.0 NAME 'top' ABSTRACT MUST objectClass )",
 			"( 2.5.6.6 NAME 'person' SUP top STRUCTURAL MUST ( sn $ cn ) MAY ( userPassword $ telephoneNumber $ seeAlso $ description ) )",
 			"( 2.5.6.7 NAME 'organizationalPerson' SUP person STRUCTURAL MAY ( title $ x121Address $ registeredAddress $ destinationIndicator $ preferredDeliveryMethod $ telexNumber $ teletexTerminalIdentifier $ telephoneNumber $ internationaliSDNNumber $ facsimileTelephoneNumber $ street $ postOfficeBox $ postalCode $ postalAddress $ physicalDeliveryOfficeName $ ou $ st $ l ) )",
-			"( 2.16.840.1.113730.3.2.2 NAME 'inetOrgPerson' SUP organizationalPerson STRUCTURAL MAY ( mail $ uid $ givenName $ displayName $ name $ distinguishedName $ objectCategory $ objectGUID $ objectSid $ sAMAccountName $ userPrincipalName ) )",
+			"( 2.16.840.1.113730.3.2.2 NAME 'inetOrgPerson' SUP organizationalPerson STRUCTURAL MAY ( mail $ uid $ givenName $ displayName $ name $ distinguishedName $ objectCategory $ objectGUID $ objectSid $ mailNickname $ proxyAddresses $ sAMAccountName $ userPrincipalName ) )",
 			"( 2.5.6.5 NAME 'organizationalUnit' SUP top STRUCTURAL MUST ou MAY ( userPassword $ searchGuide $ seeAlso $ businessCategory $ x121Address $ registeredAddress $ destinationIndicator $ preferredDeliveryMethod $ telexNumber $ teletexTerminalIdentifier $ telephoneNumber $ internationaliSDNNumber $ facsimileTelephoneNumber $ street $ postOfficeBox $ postalCode $ postalAddress $ physicalDeliveryOfficeName $ st $ l $ description $ distinguishedName $ objectCategory $ objectGUID $ objectSid ) )",
 			"( 2.5.6.9 NAME 'groupOfNames' SUP top STRUCTURAL MUST ( member $ cn ) MAY ( businessCategory $ seeAlso $ owner $ ou $ o $ description $ memberOf $ distinguishedName $ objectCategory $ objectGUID $ objectSid ) )",
 			"( 2.5.6.14 NAME 'device' SUP top STRUCTURAL MUST cn MAY ( serialNumber $ seeAlso $ owner $ ou $ o $ l $ description $ memberOf $ distinguishedName $ objectCategory $ objectGUID $ objectSid ) )",
@@ -2137,6 +2147,8 @@ func subschemaAttributes() map[string][]string {
 			"( 2.16.840.1.113730.3.1.241 NAME 'displayName' EQUALITY caseIgnoreMatch SUBSTR caseIgnoreSubstringsMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 )",
 			"( 1.2.840.113556.1.4.221 NAME 'sAMAccountName' EQUALITY caseIgnoreMatch SUBSTR caseIgnoreSubstringsMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 )",
 			"( 1.2.840.113556.1.4.656 NAME 'userPrincipalName' EQUALITY caseIgnoreMatch SUBSTR caseIgnoreSubstringsMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 )",
+			"( 1.2.840.113556.1.4.7000.102.1 NAME 'mailNickname' EQUALITY caseIgnoreMatch SUBSTR caseIgnoreSubstringsMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 )",
+			"( 1.2.840.113556.1.2.210 NAME 'proxyAddresses' EQUALITY caseIgnoreMatch SUBSTR caseIgnoreSubstringsMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 )",
 			"( 2.5.4.49 NAME 'distinguishedName' EQUALITY distinguishedNameMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.12 )",
 			"( 1.2.840.113556.1.4.782 NAME 'objectCategory' EQUALITY caseIgnoreMatch SUBSTR caseIgnoreSubstringsMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 )",
 			"( 1.2.840.113556.1.4.2 NAME 'objectGUID' EQUALITY octetStringMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.40 )",
@@ -2470,7 +2482,7 @@ func decodeExtensibleMatch(content []byte) (attr string, value string, ok bool, 
 
 func isDirectorySearchAttribute(attr string) bool {
 	switch strings.ToLower(strings.TrimSpace(attr)) {
-	case "cn", "mail", "uid", "displayname", "givenname", "sn", "ou", "description", "name", "samaccountname", "userprincipalname":
+	case "cn", "mail", "uid", "displayname", "givenname", "sn", "ou", "description", "name", "samaccountname", "userprincipalname", "mailnickname", "proxyaddresses":
 		return true
 	default:
 		return false
