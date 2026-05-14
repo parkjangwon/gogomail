@@ -2382,6 +2382,71 @@ func TestLDAPServerOpenLDAPAttributeSelectionCompatibility(t *testing.T) {
 	}
 }
 
+func TestLDAPServerOpenLDAPADMetadataCompatibility(t *testing.T) {
+	ldapsearch, err := exec.LookPath("ldapsearch")
+	if err != nil {
+		t.Skip("ldapsearch is not installed")
+	}
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+
+	auth := newFakeLDAPAuth()
+	auth.addUser("alice", "secret")
+	dir := newFakeDirectoryQuerier()
+	dir.addPrincipal(PrincipalEntry{
+		DN:          "uid=alice,ou=users,dc=example,dc=com",
+		Kind:        "user",
+		CN:          "Alice",
+		Mail:        "alice@example.com",
+		UID:         "alice",
+		DisplayName: "Alice",
+	})
+	srv := NewServer(ln, auth, dir)
+	go srv.Serve()
+	defer srv.Close()
+
+	cmd := exec.Command(ldapsearch,
+		"-x",
+		"-H", "ldap://"+ln.Addr().String(),
+		"-D", "uid=alice,ou=users,dc=example,dc=com",
+		"-w", "secret",
+		"-b", "ou=users,dc=example,dc=com",
+		"(canonicalName=example.com/users/alice)",
+		"canonicalName",
+		"instanceType",
+		"whenCreated",
+		"whenChanged",
+		"uSNCreated",
+		"uSNChanged",
+		"userAccountControl",
+		"accountExpires",
+		"primaryGroupID",
+	)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("ldapsearch AD metadata failed: %v\n%s", err, out)
+	}
+	output := string(out)
+	for _, expected := range []string{
+		"canonicalName: example.com/users/alice",
+		"instanceType: 4",
+		"whenCreated: 19700101000000.0Z",
+		"whenChanged: 19700101000000.0Z",
+		"uSNCreated:",
+		"uSNChanged:",
+		"userAccountControl: 512",
+		"accountExpires: 9223372036854775807",
+		"primaryGroupID: 513",
+	} {
+		if !strings.Contains(output, expected) {
+			t.Fatalf("ldapsearch AD metadata output missing %q:\n%s", expected, output)
+		}
+	}
+}
+
 func TestLDAPServerOpenLDAPNoAttributesCompatibility(t *testing.T) {
 	ldapsearch, err := exec.LookPath("ldapsearch")
 	if err != nil {
