@@ -1,6 +1,57 @@
 # ACTIVE_TASK
 
-## TASK-071: LDAP Sync UI & Logs (in progress)
+## TASK-072: External RDBMS Config & Sync (in progress)
+
+### 배경
+
+TASK-070/071 delivered LDAP provider support with admin API and backend infrastructure. TASK-072 extends the system to support External RDBMS (HR/ERP databases) as an alternative identity provider, enabling organizations to read users and groups directly from their enterprise database using custom SQL queries and field mappings.
+
+The RDBMS provider implements:
+1. IdentityProvider interface for RDBMS directory operations (read-only, SQL-based)
+2. Per-domain RDBMS configuration via ConfigRepository with connection pooling
+3. User/group sync API with SQL query mapping and conflict resolution
+4. Field mapping (SQL column → gogomail schema fields)
+5. Sync metadata tracking and incremental sync support
+
+### 구현 대상
+
+Backend (no frontend gate required):
+- `internal/idprovider/rdbms/provider.go` — RDBMS provider implementing IdentityProvider interface
+  - Config struct with connection string, pool size, query templates, field mappings
+  - GetUser, GetGroup, ListUsers, ListGroups (read-only SQL-based operations)
+  - CreateUser, UpdateUser, DeleteUser return "read-only" errors
+  - CreateGroup, DeleteGroup, AddMember, RemoveMember return "read-only" errors
+- `internal/idprovider/rdbms/sync.go` — SyncUsers, SyncGroups, SyncMemberships with conflict resolution
+- `internal/idprovider/rdbms/validator.go` — SQL query validation, field mapping validation, connection testing
+- `internal/maildb/rdbms_sync.go` — Data models for sync runs, conflicts, mapping configs
+- `internal/maildb/rdbms_sync_repository.go` — RDBMS sync history and conflict tracking (mirrors TASK-071 pattern)
+- `internal/idprovider/rdbms/admin_service.go` — Service layer for RDBMS config/sync/testing
+- `internal/admin/admin.go` — Wire RDBMS admin service into admin runtime
+- Database migrations for RDBMS sync run metadata (if needed beyond existing)
+- All RDBMS provider tests
+
+### 완료 조건
+
+- [x] RDBMS provider implements IdentityProvider interface (read-only SQL operations)
+- [x] ConfigRepository supports per-domain RDBMS configuration storage (via idp_configurations table)
+- [x] User sync API from RDBMS with field mapping and conflict resolution
+- [x] Group sync API from RDBMS
+- [x] RDBMS connection configuration with pooling and security
+- [x] SQL query validation and connection testing
+- [x] Field mapping configuration (SQL column names → go field names)
+- [x] Database schema for RDBMS sync tracking and metadata (migration 0104_rdbms_sync_metadata.sql)
+- [x] All RDBMS provider tests pass (36 tests)
+- [x] `go test ./...` 통과 (5930 tests)
+- [x] OpenAPI documentation for all RDBMS sync endpoints
+- [x] 개발 문서를 최신 상태로 갱신한다.
+
+### 다음 태스크
+
+TASK-073: External RDBMS Sync UI & Logs
+
+---
+
+## TASK-071: LDAP Sync UI & Logs (COMPLETE)
 
 ### 배경
 

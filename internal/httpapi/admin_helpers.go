@@ -1198,3 +1198,153 @@ func handleResolveLDAPConflict(w http.ResponseWriter, r *http.Request, service A
 		"resolution":  req.Resolution,
 	})
 }
+
+func registerRDBMSSyncRoutes(mux *http.ServeMux, adminAuth func(http.HandlerFunc) http.HandlerFunc, service AdminService) {
+	mux.HandleFunc("POST /admin/v1/domains/{id}/rdbms/sync", adminAuth(func(w http.ResponseWriter, r *http.Request) {
+		handleRDBMSSync(w, r, service)
+	}))
+	mux.HandleFunc("GET /admin/v1/domains/{id}/rdbms/sync-history", adminAuth(func(w http.ResponseWriter, r *http.Request) {
+		handleRDBMSSyncHistory(w, r, service)
+	}))
+	mux.HandleFunc("GET /admin/v1/domains/{id}/rdbms/conflicts", adminAuth(func(w http.ResponseWriter, r *http.Request) {
+		handleRDBMSSyncConflicts(w, r, service)
+	}))
+	mux.HandleFunc("POST /admin/v1/domains/{id}/rdbms/conflicts/{conflictId}/resolve", adminAuth(func(w http.ResponseWriter, r *http.Request) {
+		handleResolveRDBMSConflict(w, r, service)
+	}))
+}
+
+func handleRDBMSSync(w http.ResponseWriter, r *http.Request, service AdminService) {
+	defer r.Body.Close()
+	if !rejectUnknownQueryKeys(w, r, "sync_type") {
+		return
+	}
+	id, ok := parseBoundedAdminPathValue(w, r, "id")
+	if !ok {
+		return
+	}
+	syncType, ok := parseBoundedAdminQuery(w, r, "sync_type")
+	if !ok {
+		return
+	}
+	if syncType == "" {
+		writeError(w, http.StatusBadRequest, "sync_type is required")
+		return
+	}
+	result, err := service.TriggerRDBMSSync(r.Context(), id, syncType)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, result)
+}
+
+func handleRDBMSSyncHistory(w http.ResponseWriter, r *http.Request, service AdminService) {
+	if !rejectBodylessRequestPayload(w, r) {
+		return
+	}
+	if !rejectUnknownQueryKeys(w, r, "limit", "offset") {
+		return
+	}
+	id, ok := parseBoundedAdminPathValue(w, r, "id")
+	if !ok {
+		return
+	}
+	limit, ok := parseQueryLimit(w, r)
+	if !ok {
+		return
+	}
+	offset := 0
+	if o := r.URL.Query().Get("offset"); o != "" {
+		var err error
+		offset, err = strconv.Atoi(o)
+		if err != nil || offset < 0 {
+			writeError(w, http.StatusBadRequest, "invalid offset")
+			return
+		}
+	}
+	runs, err := service.GetRDBMSSyncRuns(r.Context(), maildb.RDBMSSyncRunListRequest{
+		DomainID: id,
+		Limit:    limit,
+		Offset:   offset,
+	})
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"sync_runs": runs})
+}
+
+func handleRDBMSSyncConflicts(w http.ResponseWriter, r *http.Request, service AdminService) {
+	if !rejectBodylessRequestPayload(w, r) {
+		return
+	}
+	if !rejectUnknownQueryKeys(w, r, "unresolved_only", "limit", "offset") {
+		return
+	}
+	id, ok := parseBoundedAdminPathValue(w, r, "id")
+	if !ok {
+		return
+	}
+	limit, ok := parseQueryLimit(w, r)
+	if !ok {
+		return
+	}
+	offset := 0
+	if o := r.URL.Query().Get("offset"); o != "" {
+		var err error
+		offset, err = strconv.Atoi(o)
+		if err != nil || offset < 0 {
+			writeError(w, http.StatusBadRequest, "invalid offset")
+			return
+		}
+	}
+	unresolvedOnly := r.URL.Query().Get("unresolved_only") == "true"
+	conflicts, err := service.GetRDBMSSyncConflicts(r.Context(), maildb.RDBMSSyncConflictListRequest{
+		DomainID:       id,
+		UnresolvedOnly: unresolvedOnly,
+		Limit:          limit,
+		Offset:         offset,
+	})
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"conflicts": conflicts})
+}
+
+func handleResolveRDBMSConflict(w http.ResponseWriter, r *http.Request, service AdminService) {
+	defer r.Body.Close()
+	if !rejectUnknownQueryKeys(w, r) {
+		return
+	}
+	id, ok := parseBoundedAdminPathValue(w, r, "id")
+	if !ok {
+		return
+	}
+	conflictID, ok := parseBoundedAdminPathValue(w, r, "conflictId")
+	if !ok {
+		return
+	}
+	var req struct {
+		Resolution string `json:"resolution"` // 'prefer_local', 'prefer_rdbms', 'manual'
+	}
+	if err := decodeJSONBody(r, &req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid JSON body")
+		return
+	}
+	if req.Resolution == "" {
+		writeError(w, http.StatusBadRequest, "resolution is required")
+		return
+	}
+	if err := service.ResolveRDBMSSyncConflict(r.Context(), conflictID, req.Resolution); err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"status":      "resolved",
+		"conflict_id": conflictID,
+		"domain_id":   id,
+		"resolution":  req.Resolution,
+	})
+}
