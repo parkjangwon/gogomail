@@ -2,15 +2,8 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { listOrgTree, listAddressBooks, listContacts, parseVCard, OrgUnit, AddressBook, getUserProfile } from '@/lib/api';
-
-export interface PickerItem {
-  id: string;
-  display_name: string;
-  email: string;
-  kind?: 'user' | 'org' | 'addressbook';
-  include_children?: boolean;
-  count?: number;
-}
+import { parseToPickerItems, pickerItemsToString } from '@/lib/mail-address';
+import type { PickerItem } from '@/lib/mail-address';
 
 interface OrgPickerModalProps {
   initialTo?: PickerItem[];
@@ -18,43 +11,6 @@ interface OrgPickerModalProps {
   initialBcc?: PickerItem[];
   onClose: () => void;
   onConfirm: (result: { to: PickerItem[]; cc: PickerItem[]; bcc: PickerItem[] }) => void;
-}
-
-// ── Helpers ────────────────────────────────────────────────────────────────────
-
-export function parseToPickerItems(str: string): PickerItem[] {
-  if (!str.trim()) return [];
-  const parts: string[] = [];
-  let depth = 0, start = 0;
-  for (let i = 0; i < str.length; i++) {
-    if (str[i] === '<') depth++;
-    else if (str[i] === '>') depth--;
-    else if (str[i] === ',' && depth === 0) {
-      parts.push(str.slice(start, i));
-      start = i + 1;
-    }
-  }
-  parts.push(str.slice(start));
-  return parts
-    .map((p) => p.trim())
-    .filter(Boolean)
-    .map((p) => {
-      const m = p.match(/^(.+?)\s*<([^>]+)>$/);
-      if (m) {
-        const name = m[1].trim();
-        const email = m[2].trim();
-        const kind = email.startsWith('org:') ? 'org' : email.startsWith('addressbook:') ? 'addressbook' : 'user';
-        return { id: email, display_name: name || email, email, kind };
-      }
-      const kind = p.startsWith('org:') ? 'org' : p.startsWith('addressbook:') ? 'addressbook' : 'user';
-      return { id: p, display_name: p, email: p, kind };
-    });
-}
-
-export function pickerItemsToString(items: PickerItem[]): string {
-  return items
-    .map((i) => (i.display_name && i.display_name !== i.email ? `${i.display_name} <${i.email}>` : i.email))
-    .join(', ');
 }
 
 // ── Hierarchical tree renderer ─────────────────────────────────────────────────

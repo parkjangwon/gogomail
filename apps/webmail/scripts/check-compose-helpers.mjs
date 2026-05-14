@@ -4,6 +4,7 @@ import { composeCloseSaveButtonLabel } from '../src/lib/composeCloseSaveButtonLa
 import { composeCloseSavePrompt } from '../src/lib/composeCloseSavePrompt.ts';
 import { composeSendButtonLabel } from '../src/lib/composeSendButtonLabel.ts';
 import { toDateTimeLocalValue } from '../src/lib/dateTimeLocal.ts';
+import { buildQuoteHTML, invalidRecipientAddresses, parseAddressList, parseToPickerItems, pickerItemsToString } from '../src/lib/mail-address.ts';
 
 // Keep these assertions focused on pure compose helpers that are easy to
 // regress through copy or datetime formatting changes.
@@ -19,5 +20,41 @@ assert.equal(composeCloseSaveButtonAriaLabel(true), '임시저장 중입니다')
 
 assert.equal(composeSendButtonLabel({ sending: false, sent: false, scheduled: true, uploading: false }), '예약 전송');
 assert.equal(composeSendButtonLabel({ sending: false, sent: true, scheduled: true, uploading: false }), '예약됨 ✓');
+
+assert.deepEqual(
+  parseAddressList('Alice <alice@example.com>, org:123e4567-e89b-12d3-a456-426614174000'),
+  [
+    { name: 'Alice', address: 'alice@example.com' },
+    { address: 'org:123e4567-e89b-12d3-a456-426614174000' },
+  ]
+);
+assert.deepEqual(
+  invalidRecipientAddresses('ok@example.com', 'bad address', 'org:123e4567-e89b-12d3-a456-426614174000'),
+  ['bad address']
+);
+
+const pickerItems = parseToPickerItems('Alice <alice@example.com>, addressbook:123e4567-e89b-12d3-a456-426614174000');
+assert.equal(pickerItemsToString(pickerItems), 'Alice <alice@example.com>, addressbook:123e4567-e89b-12d3-a456-426614174000');
+assert.ok(
+  buildQuoteHTML('reply', {
+    id: '1',
+    subject: 'Hello',
+    preview: '',
+    from_addr: 'sender@example.com',
+    from_name: 'Sender',
+    received_at: '2026-01-02T03:04:00.000Z',
+    size: 1,
+    has_attachment: false,
+    read: false,
+    starred: false,
+    message_id: '<msg@example.com>',
+    to_addrs: [],
+    cc_addrs: [],
+    bcc_addrs: [],
+    flags: {},
+    storage_path: '/mail/1.eml',
+    text_body: 'First line\nSecond line',
+  }).includes('보낸 사람:')
+);
 
 console.log('compose datetime, send button, and close-save helper checks passed');

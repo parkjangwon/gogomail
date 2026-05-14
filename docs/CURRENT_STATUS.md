@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-15 (Webmail Frontend Refactoring - CalendarView component modularization)
+Last updated: 2026-05-15 (Webmail Frontend Refactoring - shared mail address helpers extraction)
 
 ## Webmail Frontend Refactoring (2026-05-15, Phase 1 in progress)
 - Goal: Reduce oversized webmail component files by extracting utilities and sub-components
@@ -8,6 +8,10 @@ Last updated: 2026-05-15 (Webmail Frontend Refactoring - CalendarView component 
   - `apps/webmail/src/lib/calendar/dateUtils.ts` (55 lines): 9 date manipulation/formatting functions
   - `apps/webmail/src/lib/calendar/eventParser.ts` (94 lines): Event and todo parsing logic
   - Fixed TypeScript error in eventParser (completed field derived from status)
+- **Shared Mail Address Helpers Extracted**:
+  - `apps/webmail/src/lib/mail-address.ts`: address parsing, picker item conversion, recipient validation, quoted reply HTML
+  - `ComposeModal`, `ReadingPane`, `RecipientChips`, and `OrgPickerModal` now reuse the shared helpers instead of duplicating parsing logic
+  - Added focused helper assertions to the webmail compose helper script for regression coverage
 - **Component Extraction Progress**:
   - `apps/webmail/src/components/calendar/MiniCalendar.tsx` (101 lines)
   - `apps/webmail/src/components/calendar/QuickCreatePopover.tsx` (104 lines)
