@@ -176,6 +176,15 @@ func buildBindRequest(version int, name, password string) []byte {
 	return content
 }
 
+func buildSASLBindRequest(version int, name string) []byte {
+	var content []byte
+	content = append(content, encodeInt(version)...)
+	content = append(content, encodeOctetString(name)...)
+	content = append(content, 0xa3)
+	content = append(content, encodeLength(0)...)
+	return content
+}
+
 func buildSearchRequest(baseDN string, scope int, filter []byte) []byte {
 	return buildSearchRequestWithParams(baseDN, scope, derefAliasesNever, filter)
 }
@@ -778,6 +787,112 @@ func TestLDAPServerBindInvalidCredentials(t *testing.T) {
 	resultCode := decodeEnumerated(opData)
 	if resultCode != resultInvalidCredentials {
 		t.Errorf("resultCode = %d, want %d (InvalidCredentials)", resultCode, resultInvalidCredentials)
+	}
+}
+
+func TestLDAPServerFailedRebindClearsAuthentication(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+
+	auth := newFakeLDAPAuth()
+	auth.addUser("admin@example.com", "secret")
+	dir := newFakeDirectoryQuerier()
+	dir.addPrincipal(PrincipalEntry{DN: "uid=alice,ou=users,dc=example,dc=com", Kind: "user", CN: "Alice", UID: "alice"})
+	srv := NewServer(ln, auth, dir)
+	go srv.Serve()
+	defer srv.Close()
+
+	conn, err := net.Dial("tcp", ln.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+
+	okBind := buildLDAPPacket(41, opBindRequest, buildBindRequest(3, "admin@example.com", "secret"))
+	if err := sendPDU(conn, okBind); err != nil {
+		t.Fatal(err)
+	}
+	resp, err := readFullPDU(conn, time.Now().Add(3*time.Second))
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, opTag, opData, err := decodeLDAPPacket(resp)
+	if err != nil {
+		t.Fatalf("decode bind response: %v", err)
+	}
+	if opTag != opBindResponse || decodeEnumerated(opData) != resultSuccess {
+		t.Fatalf("initial bind op/result = %d/%d, want success", opTag, decodeEnumerated(opData))
+	}
+
+	badBind := buildLDAPPacket(42, opBindRequest, buildBindRequest(3, "admin@example.com", "wrong"))
+	if err := sendPDU(conn, badBind); err != nil {
+		t.Fatal(err)
+	}
+	resp, err = readFullPDU(conn, time.Now().Add(3*time.Second))
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, opTag, opData, err = decodeLDAPPacket(resp)
+	if err != nil {
+		t.Fatalf("decode failed bind response: %v", err)
+	}
+	if opTag != opBindResponse || decodeEnumerated(opData) != resultInvalidCredentials {
+		t.Fatalf("failed rebind op/result = %d/%d, want invalidCredentials", opTag, decodeEnumerated(opData))
+	}
+
+	searchReq := buildLDAPPacket(43, opSearchRequest,
+		buildSearchRequest("dc=example,dc=com", scopeWholeSubtree, buildEqualityFilter("objectClass", "person")),
+	)
+	if err := sendPDU(conn, searchReq); err != nil {
+		t.Fatal(err)
+	}
+	resp, err = readFullPDU(conn, time.Now().Add(3*time.Second))
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, opTag, opData, err = decodeLDAPPacket(resp)
+	if err != nil {
+		t.Fatalf("decode search response: %v", err)
+	}
+	if opTag != opSearchResultDone || decodeEnumerated(opData) != resultInsufficientAccessRights {
+		t.Fatalf("post-failed-bind search op/result = %d/%d, want bind required", opTag, decodeEnumerated(opData))
+	}
+}
+
+func TestLDAPServerRejectsUnsupportedBindAuthenticationChoice(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+
+	srv := NewServer(ln, newFakeLDAPAuth(), newFakeDirectoryQuerier())
+	go srv.Serve()
+	defer srv.Close()
+
+	conn, err := net.Dial("tcp", ln.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+
+	bindReq := buildLDAPPacket(44, opBindRequest, buildSASLBindRequest(3, "admin@example.com"))
+	if err := sendPDU(conn, bindReq); err != nil {
+		t.Fatal(err)
+	}
+	resp, err := readFullPDU(conn, time.Now().Add(3*time.Second))
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, opTag, opData, err := decodeLDAPPacket(resp)
+	if err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if opTag != opBindResponse || decodeEnumerated(opData) != resultAuthMethodNotSupported {
+		t.Fatalf("unsupported bind auth op/result = %d/%d, want %d/%d", opTag, decodeEnumerated(opData), opBindResponse, resultAuthMethodNotSupported)
 	}
 }
 
