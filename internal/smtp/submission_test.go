@@ -1157,6 +1157,75 @@ func TestSubmissionPreservesDSNOptions(t *testing.T) {
 	}
 }
 
+func TestSubmissionDSNOptionsReachHooks(t *testing.T) {
+	t.Parallel()
+
+	var mailEvent, rcptEvent, recordedEvent Event
+	recorder := &submissionRecorder{}
+	store := storage.NewLocalStore(t.TempDir())
+	submission := newAuthenticatedSubmissionSessionWithOptions(t, SubmissionOptions{
+		Store:         store,
+		Authenticator: submissionAuthenticator{username: "jangwon@example.com", password: "pass"},
+		Recorder:      recorder,
+		IDGenerator:   func() string { return "submitted-dsn-hooks" },
+		Clock:         func() time.Time { return time.Date(2026, 5, 3, 10, 0, 0, 0, time.UTC) },
+		SupportDSN:    true,
+		Hooks: []Hook{
+			func(_ context.Context, event Event) error {
+				switch event.Stage {
+				case StageMailFrom:
+					mailEvent = event
+				case StageRcpt:
+					rcptEvent = event
+				case StageRecorded:
+					recordedEvent = event
+				}
+				return nil
+			},
+		},
+	})
+
+	if err := submission.Mail("jangwon@example.com", &gosmtp.MailOptions{
+		Return:     gosmtp.DSNReturnFull,
+		EnvelopeID: "hook-env",
+	}); err != nil {
+		t.Fatalf("Mail returned error: %v", err)
+	}
+	if err := submission.Rcpt("hooks@example.net", &gosmtp.RcptOptions{
+		Notify:            []gosmtp.DSNNotify{gosmtp.DSNNotifyFailure, gosmtp.DSNNotifyDelayed},
+		OriginalRecipient: "rfc822;hooks+40example.net",
+	}); err != nil {
+		t.Fatalf("Rcpt returned error: %v", err)
+	}
+	raw := "Message-ID: <submission-dsn-hooks@example.com>\r\nFrom: jangwon@example.com\r\nTo: hooks@example.net\r\nSubject: dsn hooks\r\n\r\nbody"
+	if err := submission.Data(strings.NewReader(raw)); err != nil {
+		t.Fatalf("Data returned error: %v", err)
+	}
+
+	wantEnvelope := DSNOptions{Return: "FULL", EnvelopeID: "hook-env"}
+	if !reflect.DeepEqual(mailEvent.DSN, wantEnvelope) {
+		t.Fatalf("mail hook DSN = %+v, want envelope %+v", mailEvent.DSN, wantEnvelope)
+	}
+	want := DSNOptions{
+		Return:     "FULL",
+		EnvelopeID: "hook-env",
+		Recipients: []DSNRecipientOptions{{
+			Address:           "hooks@example.net",
+			Notify:            []string{"FAILURE", "DELAY"},
+			OriginalRecipient: "rfc822;hooks+40example.net",
+		}},
+	}
+	if !reflect.DeepEqual(rcptEvent.DSN, want) {
+		t.Fatalf("rcpt hook DSN = %+v, want %+v", rcptEvent.DSN, want)
+	}
+	if !reflect.DeepEqual(recordedEvent.DSN, want) {
+		t.Fatalf("recorded hook DSN = %+v, want %+v", recordedEvent.DSN, want)
+	}
+	if len(recorder.messages) != 1 || !reflect.DeepEqual(recorder.messages[0].DSN, want) {
+		t.Fatalf("recorder DSN = %+v, want %+v", recorder.messages, want)
+	}
+}
+
 func TestSubmissionRcptDSNRecipientIsolation(t *testing.T) {
 	t.Parallel()
 
