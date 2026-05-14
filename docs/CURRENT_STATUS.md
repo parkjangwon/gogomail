@@ -1,6 +1,15 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (Delivery Redis adaptive domain backoff)
+Last updated: 2026-05-14 (Delivery farm-aware domain backoff isolation)
+
+## Delivery farm-aware domain backoff isolation (2026-05-14, complete)
+- Adaptive delivery domain backoff now supports explicit scope modes: `domain` and `farm_domain`.
+- `domain` preserves the existing recipient-domain behavior, while `farm_domain` keys backoff state by normalized delivery farm plus recipient domain.
+- Local and Redis-backed backoff implementations share the same scope key generation, so bulk tempfail pressure can be isolated from transactional/general delivery to the same recipient domain.
+- Runtime config now supports `GOGOMAIL_DELIVERY_DOMAIN_BACKOFF_SCOPE=domain|farm_domain` and YAML `delivery_domain_backoff_scope`, with startup validation for invalid scope values.
+- `runDeliveryWorker` passes the configured scope into both local and Redis backoff policy construction and logs the selected scope at startup.
+- Coverage verifies farm/domain isolation for local and Redis backoff, normalized farm-domain key generation, env/YAML loading, validation rejection, and app wiring helper behavior.
+- Verification: `go test -count=1 ./internal/delivery -run 'Backoff'`, `go test -count=1 ./internal/config ./internal/app -run 'Backoff|Delivery'`, and `go test ./...`.
 
 ## Delivery Redis adaptive domain backoff (2026-05-14, complete)
 - Adaptive recipient-domain backoff now supports a Redis backend so tempfail pressure is shared across delivery worker processes in server-farm deployments.

@@ -2661,6 +2661,7 @@ func runDeliveryWorker(ctx context.Context, cfg config.Config, logger *slog.Logg
 		logger.Info(
 			"delivery adaptive domain backoff enabled",
 			"backend", cfg.DeliveryDomainBackoffBackend,
+			"scope", cfg.DeliveryDomainBackoffScope,
 			"base_delay", cfg.DeliveryDomainBackoffBaseDelay,
 			"max_delay", cfg.DeliveryDomainBackoffMaxDelay,
 		)
@@ -2766,6 +2767,7 @@ func deliveryDomainBackoffFromConfig(cfg config.Config, redisClient *redis.Clien
 	policy := delivery.DomainBackoffPolicy{
 		BaseDelay: cfg.DeliveryDomainBackoffBaseDelay,
 		MaxDelay:  cfg.DeliveryDomainBackoffMaxDelay,
+		Scope:     delivery.DomainBackoffScope(cfg.DeliveryDomainBackoffScope),
 	}
 	if strings.EqualFold(strings.TrimSpace(cfg.DeliveryDomainBackoffBackend), "redis") {
 		return delivery.NewRedisDomainBackoff(redisClient, "gogomail:delivery:domain_backoff", policy)

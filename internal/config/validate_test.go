@@ -1011,6 +1011,7 @@ func TestValidateRejectsInvalidDeliveryDomainBackoffSettings(t *testing.T) {
 		mutate func(*Config)
 	}{
 		{name: "unknown backend", mutate: func(cfg *Config) { cfg.DeliveryDomainBackoffBackend = "memcached" }},
+		{name: "unknown scope", mutate: func(cfg *Config) { cfg.DeliveryDomainBackoffScope = "tenant_domain" }},
 		{name: "base zero", mutate: func(cfg *Config) { cfg.DeliveryDomainBackoffBaseDelay = 0 }},
 		{name: "max zero", mutate: func(cfg *Config) { cfg.DeliveryDomainBackoffMaxDelay = 0 }},
 		{name: "max below base", mutate: func(cfg *Config) {

@@ -238,6 +238,7 @@ Implementation order:
 189. Delivery handlers now expose an adaptive domain backoff boundary and in-memory policy so temporary recipient-domain failures can defer later jobs for that domain without slowing unrelated domains or permanent-bounce handling.
 190. Adaptive delivery domain backoff is runtime-configurable through environment/YAML settings and can be enabled in delivery workers with validated base/max delay windows.
 191. Adaptive delivery domain backoff can use Redis-backed per-domain TTL state through `GOGOMAIL_DELIVERY_DOMAIN_BACKOFF_BACKEND=redis`, sharing provider tempfail backoff across delivery worker processes.
+192. Adaptive delivery domain backoff can now scope tempfail pressure by normalized delivery farm plus recipient domain through `GOGOMAIL_DELIVERY_DOMAIN_BACKOFF_SCOPE=farm_domain`, isolating bulk ramps from transactional/general delivery.
 186. Shared submission authentication now requires the owning company, domain, and user to all be active, preventing suspended tenants from authenticating through SMTP submission, IMAP, POP3, CardDAV, or other shared protocol adapters.
 186. DSN queue and bounce-event trust boundaries now reject malformed RFC 3461 xtext metadata before outbound SMTP command generation or RFC 3464 report composition.
 187. Attachment storage-path contracts now reject unsafe caller-provided paths and sanitize generated attachment object path segments before writing to storage.
