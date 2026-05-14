@@ -1093,6 +1093,28 @@ func TestBindIdentityCandidatesUnescapesDNValues(t *testing.T) {
 			t.Fatalf("bindIdentityCandidates = %#v, want %#v", got, want)
 		}
 	}
+
+	got = bindIdentityCandidates(`uid=Alice\, Ops,ou=users,dc=example,dc=com`)
+	want = []string{`uid=Alice\, Ops,ou=users,dc=example,dc=com`, "Alice, Ops"}
+	if len(got) != len(want) {
+		t.Fatalf("bindIdentityCandidates = %#v, want %#v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("bindIdentityCandidates = %#v, want %#v", got, want)
+		}
+	}
+
+	got = bindIdentityCandidates(`uid=Alice\2c Ops,ou=users,dc=example,dc=com`)
+	want = []string{`uid=Alice\2c Ops,ou=users,dc=example,dc=com`, "Alice, Ops"}
+	if len(got) != len(want) {
+		t.Fatalf("bindIdentityCandidates = %#v, want %#v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("bindIdentityCandidates = %#v, want %#v", got, want)
+		}
+	}
 }
 
 func TestLDAPServerReadOnlyEnforcement(t *testing.T) {

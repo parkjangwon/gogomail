@@ -5762,7 +5762,7 @@ Current implementation notes:
 - LDAP `objectClass`/`objectCategory` filters and base DNs narrow repository searches to the matching principal kinds, including organization-chart searches under `ou=organizations` and AD-style category searches.
 - LDAP search scope filtering now applies base-object, one-level, and subtree semantics against generated entry DNs.
 - LDAP client size limits return `sizeLimitExceeded` only when matching entries exceed the requested limit, while exact-limit result sets complete with success.
-- Simple bind accepts common client identity formats, including raw username/email and generated entry DN forms such as `uid=<user-id>,ou=users,...`.
+- Simple bind accepts common client identity formats, including raw username/email and generated entry DN forms such as `uid=<user-id>,ou=users,...`, while preserving escaped commas and hex-escaped first-RDN values during identity extraction.
 - Failed re-bind clears the connection authorization state, and unsupported bind authentication choices return `authMethodNotSupported` instead of falling through as empty simple passwords.
 - Generated user/organization/group/resource DNs escape RDN values, and base-object lookup unescapes generated DN values before resolving principals.
 - Non-discovery directory searches require successful bind while Root DSE and `cn=Subschema` discovery remain pre-bind accessible.

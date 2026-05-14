@@ -573,7 +573,11 @@ func bindIdentityCandidates(name string) []string {
 }
 
 func firstDNAttributeValue(dn string) (string, string, bool) {
-	first := strings.TrimSpace(strings.Split(dn, ",")[0])
+	components := splitDNComponents(dn)
+	if len(components) == 0 {
+		return "", "", false
+	}
+	first := strings.TrimSpace(components[0])
 	parts := strings.SplitN(first, "=", 2)
 	if len(parts) != 2 {
 		return "", "", false
