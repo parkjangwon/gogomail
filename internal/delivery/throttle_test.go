@@ -2,10 +2,13 @@ package delivery
 
 import (
 	"context"
+	"errors"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/gogomail/gogomail/internal/outbound"
+	"github.com/redis/go-redis/v9"
 )
 
 func TestInMemoryThrottlerLimitsFarmConcurrency(t *testing.T) {
@@ -143,4 +146,82 @@ func TestThrottleKeysAreDeterministicAcrossFarmsAndDomains(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestRedisThrottleCounterAcquireIsAtomicAcrossKeys(t *testing.T) {
+	client := newFakeThrottleRedis()
+	counter := NewRedisThrottleCounter(client, "test")
+
+	release, err := counter.Acquire(context.Background(), []ThrottleLease{
+		{Key: "farm:bulk", Limit: 2},
+		{Key: "domain:example.net", Limit: 1},
+	})
+	if err != nil {
+		t.Fatalf("first Acquire() error = %v", err)
+	}
+	if client.used["test:farm:bulk"] != 1 || client.used["test:domain:example.net"] != 1 {
+		t.Fatalf("used after first acquire = %+v, want both keys incremented", client.used)
+	}
+
+	if _, err := counter.Acquire(context.Background(), []ThrottleLease{
+		{Key: "farm:bulk", Limit: 2},
+		{Key: "domain:example.net", Limit: 1},
+	}); err == nil {
+		t.Fatal("second Acquire() error = nil, want domain throttle")
+	}
+	if client.used["test:farm:bulk"] != 1 || client.used["test:domain:example.net"] != 1 {
+		t.Fatalf("used after failed acquire = %+v, want no partial increment", client.used)
+	}
+
+	release()
+	if client.used["test:farm:bulk"] != 0 || client.used["test:domain:example.net"] != 0 {
+		t.Fatalf("used after release = %+v, want both keys released", client.used)
+	}
+}
+
+func TestRedisThrottleCounterReleaseIsIdempotent(t *testing.T) {
+	client := newFakeThrottleRedis()
+	counter := NewRedisThrottleCounter(client, "test")
+
+	release, err := counter.Acquire(context.Background(), []ThrottleLease{{Key: "farm:general", Limit: 1}})
+	if err != nil {
+		t.Fatalf("Acquire() error = %v", err)
+	}
+	release()
+	release()
+	if client.used["test:farm:general"] != 0 {
+		t.Fatalf("used after duplicate release = %+v, want zero", client.used)
+	}
+}
+
+type fakeThrottleRedis struct {
+	used map[string]int
+}
+
+func newFakeThrottleRedis() *fakeThrottleRedis {
+	return &fakeThrottleRedis{used: make(map[string]int)}
+}
+
+func (f *fakeThrottleRedis) Eval(ctx context.Context, script string, keys []string, args ...interface{}) *redis.Cmd {
+	if strings.Contains(script, "redis.call('INCR'") {
+		for i, key := range keys {
+			limit, ok := args[i].(int)
+			if !ok {
+				return redis.NewCmdResult(nil, errors.New("limit arg is not int"))
+			}
+			if limit > 0 && f.used[key] >= limit {
+				return redis.NewCmdResult([]interface{}{int64(0), key, int64(limit)}, nil)
+			}
+		}
+		for _, key := range keys {
+			f.used[key]++
+		}
+		return redis.NewCmdResult([]interface{}{int64(1), "", int64(0)}, nil)
+	}
+	for _, key := range keys {
+		if f.used[key] > 0 {
+			f.used[key]--
+		}
+	}
+	return redis.NewCmdResult(int64(1), nil)
 }

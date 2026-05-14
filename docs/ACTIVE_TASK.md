@@ -1,14 +1,13 @@
 # ACTIVE_TASK
 
-## TASK-460: Delivery throttling distributed coordination audit
+## TASK-461: Delivery throttling Redis lease counter
 
 ### 배경
 
-Delivery worker throttling currently protects per-process farm/domain concurrency, but very large
-bulk/server-farm deployments need explicit coverage and a path for cluster-wide coordination so multiple
-workers cannot accidentally exceed the intended destination pressure. Audit the current throttler boundary
-and add the smallest roadmap-compatible hardening step that improves multi-worker safety without coupling
-SMTP protocol code to Redis internals.
+TASK-460 split delivery throttling into policy evaluation plus a `ThrottleCounter` lease boundary.
+The runtime still wires the process-local counter, so a multi-worker/server-farm deployment does not yet
+enforce farm/domain concurrency budgets cluster-wide. Add a Redis-backed counter implementation with
+atomic multi-key acquire/release semantics and wire it behind explicit runtime configuration.
 
 ### 구현 대상
 
@@ -22,9 +21,10 @@ SMTP protocol code to Redis internals.
 
 ### 완료 조건
 
-- [x] 현재 farm/domain throttling이 process-local인지, worker farm 구성에서 어떤 위험을 남기는지 코드 기준으로 감사한다.
-- [x] cluster-wide throttling을 위한 작은 인터페이스/구성 경계를 추가하거나, 구현 전 선행 테스트가 필요한 경우 실패 테스트를 먼저 작성한다.
-- [x] bulk/general/transactional farm과 recipient domain 조합에서 throttling 결정이 deterministic하게 검증된다.
+- [x] Redis throttle counter가 multi-key acquire를 atomic하게 처리하고 하나라도 limit 초과면 어떤 key도 증가시키지 않는다.
+- [x] release는 acquire된 key만 감소시키고 중복 release에 안전하다.
+- [x] runtime config가 `local`/`redis` backend를 명시적으로 선택할 수 있고 잘못된 값은 startup validation에서 거부된다.
+- [x] delivery worker는 Redis backend 선택 시 기존 Redis client를 공유해 `CoordinatedThrottler`에 연결한다.
 - [x] `go test -count=1 ./internal/delivery -run 'Throttle|Throttl'` 통과.
 - [x] `go test -count=1 ./internal/config ./internal/app -run 'Throttl|Delivery'` 통과.
 - [x] `go test ./...` 통과.
@@ -32,4 +32,4 @@ SMTP protocol code to Redis internals.
 
 ### 다음 태스크
 
-TBD after distributed throttling audit.
+TBD after Redis throttle counter.

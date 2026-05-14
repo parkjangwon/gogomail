@@ -230,6 +230,7 @@ type Config struct {
 	DeliveryRetryJitterRatio            float64
 	DeliveryRetryMaxDelay               time.Duration
 	DeliveryThrottleEnabled             bool
+	DeliveryThrottleBackend             string
 	DeliveryDefaultConcurrency          int
 	DeliveryFarmConcurrency             map[string]int
 	DeliveryDomainConcurrency           map[string]int
@@ -464,6 +465,7 @@ func Load() Config {
 		DeliveryRetryJitterRatio:            floatEnvOrDefault("GOGOMAIL_DELIVERY_RETRY_JITTER_RATIO", 0.20),
 		DeliveryRetryMaxDelay:               durationEnvOrDefault("GOGOMAIL_DELIVERY_RETRY_MAX_DELAY", 24*time.Hour),
 		DeliveryThrottleEnabled:             boolEnvOrDefault("GOGOMAIL_DELIVERY_THROTTLE_ENABLED", false),
+		DeliveryThrottleBackend:             envOrDefault("GOGOMAIL_DELIVERY_THROTTLE_BACKEND", "local"),
 		DeliveryDefaultConcurrency:          intEnvOrDefault("GOGOMAIL_DELIVERY_DEFAULT_CONCURRENCY", 0),
 		DeliveryFarmConcurrency:             intMapEnvOrDefault("GOGOMAIL_DELIVERY_FARM_CONCURRENCY", nil),
 		DeliveryDomainConcurrency:           intMapEnvOrDefault("GOGOMAIL_DELIVERY_DOMAIN_CONCURRENCY", nil),

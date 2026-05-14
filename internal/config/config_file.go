@@ -225,6 +225,8 @@ func applyYAMLConfigValue(cfg *Config, key string, value any) error {
 		return setYAMLInt64(value, &cfg.SearchIndexMaxBodyBytes, key)
 	case "delivery_throttle_enabled":
 		return setYAMLBool(value, &cfg.DeliveryThrottleEnabled, key)
+	case "delivery_throttle_backend":
+		return setYAMLString(value, &cfg.DeliveryThrottleBackend, key)
 	case "delivery_default_concurrency":
 		return setYAMLInt(value, &cfg.DeliveryDefaultConcurrency, key)
 	case "delivery_farm_concurrency":

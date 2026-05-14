@@ -255,6 +255,9 @@ func (c Config) Validate() error {
 	if err := validateEnum("GOGOMAIL_BACKPRESSURE_BACKEND", c.BackpressureBackend, "none", "redis"); err != nil {
 		return err
 	}
+	if err := validateEnum("GOGOMAIL_DELIVERY_THROTTLE_BACKEND", c.DeliveryThrottleBackend, "local", "redis"); err != nil {
+		return err
+	}
 	if c.RcptRateLimitPerMinute <= 0 {
 		return fmt.Errorf("GOGOMAIL_RCPT_RATE_LIMIT_PER_MINUTE must be positive")
 	}

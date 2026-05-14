@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"github.com/gogomail/gogomail/internal/outbound"
+	"github.com/redis/go-redis/v9"
 )
 
 type Throttler interface {
@@ -38,6 +39,15 @@ type LocalThrottleCounter struct {
 	used map[string]int
 }
 
+type redisThrottleClient interface {
+	Eval(ctx context.Context, script string, keys []string, args ...interface{}) *redis.Cmd
+}
+
+type RedisThrottleCounter struct {
+	client redisThrottleClient
+	prefix string
+}
+
 type InMemoryThrottler struct {
 	*CoordinatedThrottler
 }
@@ -55,6 +65,14 @@ func NewCoordinatedThrottler(policy ThrottlePolicy, counter ThrottleCounter) *Co
 
 func NewLocalThrottleCounter() *LocalThrottleCounter {
 	return &LocalThrottleCounter{used: make(map[string]int)}
+}
+
+func NewRedisThrottleCounter(client redisThrottleClient, prefix string) *RedisThrottleCounter {
+	prefix = strings.TrimSpace(prefix)
+	if prefix == "" {
+		prefix = "gogomail:delivery:throttle"
+	}
+	return &RedisThrottleCounter{client: client, prefix: strings.TrimRight(prefix, ":")}
 }
 
 func (t *CoordinatedThrottler) Acquire(ctx context.Context, job Job) (func(), error) {
@@ -88,6 +106,105 @@ func (c *LocalThrottleCounter) Acquire(_ context.Context, leases []ThrottleLease
 			}
 		})
 	}, nil
+}
+
+const redisThrottleAcquireScript = `
+for i = 1, #KEYS do
+  local used = tonumber(redis.call('GET', KEYS[i]) or '0')
+  local limit = tonumber(ARGV[i])
+  if limit > 0 and used >= limit then
+    return {0, KEYS[i], limit}
+  end
+end
+for i = 1, #KEYS do
+  redis.call('INCR', KEYS[i])
+end
+return {1, '', 0}
+`
+
+const redisThrottleReleaseScript = `
+for i = 1, #KEYS do
+  local used = tonumber(redis.call('GET', KEYS[i]) or '0')
+  if used > 1 then
+    redis.call('DECR', KEYS[i])
+  else
+    redis.call('DEL', KEYS[i])
+  end
+end
+return 1
+`
+
+func (c *RedisThrottleCounter) Acquire(ctx context.Context, leases []ThrottleLease) (func(), error) {
+	if c.client == nil {
+		return nil, fmt.Errorf("redis throttle client is required")
+	}
+	keys := make([]string, 0, len(leases))
+	args := make([]interface{}, 0, len(leases))
+	for _, lease := range leases {
+		if lease.Limit <= 0 {
+			continue
+		}
+		keys = append(keys, c.redisKey(lease.Key))
+		args = append(args, lease.Limit)
+	}
+	if len(keys) == 0 {
+		return func() {}, nil
+	}
+	result, err := c.client.Eval(ctx, redisThrottleAcquireScript, keys, args...).Result()
+	if err != nil {
+		return nil, err
+	}
+	acquired, throttleKey, limit, err := parseRedisThrottleAcquireResult(result)
+	if err != nil {
+		return nil, err
+	}
+	if !acquired {
+		return nil, &ThrottleError{Key: strings.TrimPrefix(throttleKey, c.prefix+":"), Limit: limit}
+	}
+	var once sync.Once
+	return func() {
+		once.Do(func() {
+			_ = c.client.Eval(context.Background(), redisThrottleReleaseScript, keys).Err()
+		})
+	}, nil
+}
+
+func (c *RedisThrottleCounter) redisKey(key string) string {
+	return c.prefix + ":" + strings.TrimSpace(key)
+}
+
+func parseRedisThrottleAcquireResult(result interface{}) (bool, string, int, error) {
+	values, ok := result.([]interface{})
+	if !ok || len(values) != 3 {
+		return false, "", 0, fmt.Errorf("invalid redis throttle acquire result %T", result)
+	}
+	acquired, err := redisInt(values[0])
+	if err != nil {
+		return false, "", 0, err
+	}
+	key, _ := values[1].(string)
+	limit, err := redisInt(values[2])
+	if err != nil {
+		return false, "", 0, err
+	}
+	return acquired == 1, key, limit, nil
+}
+
+func redisInt(value interface{}) (int, error) {
+	switch v := value.(type) {
+	case int:
+		return v, nil
+	case int64:
+		return int(v), nil
+	case string:
+		var out int
+		if _, err := fmt.Sscanf(v, "%d", &out); err != nil {
+			return 0, fmt.Errorf("invalid redis integer %q", v)
+		}
+		return out, nil
+	default:
+		return 0, fmt.Errorf("invalid redis integer %T", value)
+	}
 }
 
 type ThrottleError struct {
