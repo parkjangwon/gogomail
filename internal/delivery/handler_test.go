@@ -561,6 +561,129 @@ func TestHandlerObservesThrottleRetryExhausted(t *testing.T) {
 	}
 }
 
+func TestHandlerDefersBackedOffDomainWithoutAffectingOtherDomains(t *testing.T) {
+	t.Parallel()
+
+	store := storage.NewLocalStore(t.TempDir())
+	if err := store.Put(context.Background(), "mailstore/msg.eml", strings.NewReader("Subject: hello\r\n\r\nbody")); err != nil {
+		t.Fatalf("Put returned error: %v", err)
+	}
+	transport := &fakeTransport{}
+	retry := &fakeRetryScheduler{}
+	metrics := &fakeMetrics{}
+	backoff := &fakeDomainBackoff{blocked: map[string]bool{"example.net": true}}
+	handler := NewHandler(store, transport, &fakeRecorder{}, retry).
+		WithMetrics(metrics).
+		WithDomainBackoff(backoff)
+
+	err := handler.HandleEvent(context.Background(), eventstream.Message{
+		ID: "1-0",
+		Payload: []byte(`{
+			"event":"mail.queued",
+			"message_id":"msg-1",
+			"from":{"email":"sender@example.com"},
+			"to":[{"email":"recipient@example.net"}],
+			"storage_path":"mailstore/msg.eml",
+			"farm":"bulk"
+		}`),
+	})
+	if err != nil {
+		t.Fatalf("HandleEvent returned error: %v", err)
+	}
+	if transport.delivered.MessageID != "" {
+		t.Fatalf("transport delivered = %+v, want backed off job not delivered", transport.delivered)
+	}
+	if retry.scheduled.MessageID != "msg-1" {
+		t.Fatalf("scheduled retry = %+v, want backed off message", retry.scheduled)
+	}
+	if !metrics.has(MetricDomainBackoff, MetricDeferred) || !metrics.has(MetricRetryScheduled, MetricDeferred) {
+		t.Fatalf("metrics = %+v, want domain backoff and retry scheduled", metrics.events)
+	}
+
+	err = handler.HandleEvent(context.Background(), eventstream.Message{
+		ID: "2-0",
+		Payload: []byte(`{
+			"event":"mail.queued",
+			"message_id":"msg-2",
+			"from":{"email":"sender@example.com"},
+			"to":[{"email":"recipient@example.org"}],
+			"storage_path":"mailstore/msg.eml",
+			"farm":"transactional"
+		}`),
+	})
+	if err != nil {
+		t.Fatalf("HandleEvent for unrelated domain returned error: %v", err)
+	}
+	if transport.delivered.MessageID != "msg-2" {
+		t.Fatalf("transport delivered = %+v, want unrelated domain delivered", transport.delivered)
+	}
+}
+
+func TestHandlerBackoffObservesOnlyTemporaryFailureDomains(t *testing.T) {
+	t.Parallel()
+
+	store := storage.NewLocalStore(t.TempDir())
+	if err := store.Put(context.Background(), "mailstore/msg.eml", strings.NewReader("Subject: hello\r\n\r\nbody")); err != nil {
+		t.Fatalf("Put returned error: %v", err)
+	}
+	backoff := &fakeDomainBackoff{}
+	handler := NewHandler(store, &fakeTransport{err: &PartialDeliveryError{
+		Delivered: []outbound.Address{{Email: "ok@example.org"}},
+		Failed: []RecipientDeliveryError{
+			{Recipient: outbound.Address{Email: "gone@example.net"}, Err: &SMTPStatusError{Op: "rcpt", Code: 550, Message: "gone"}},
+			{Recipient: outbound.Address{Email: "temp@example.com"}, Err: &SMTPStatusError{Op: "rcpt", Code: 451, Message: "try later"}},
+		},
+	}}, &fakeRecorder{}, &fakeRetryScheduler{}).WithDomainBackoff(backoff)
+
+	err := handler.HandleEvent(context.Background(), eventstream.Message{
+		ID: "1-0",
+		Payload: []byte(`{
+			"event":"mail.queued",
+			"message_id":"msg-1",
+			"from":{"email":"sender@example.com"},
+			"to":[{"email":"ok@example.org"},{"email":"gone@example.net"},{"email":"temp@example.com"}],
+			"storage_path":"mailstore/msg.eml",
+			"farm":"general"
+		}`),
+	})
+	if err != nil {
+		t.Fatalf("HandleEvent returned error: %v", err)
+	}
+	if strings.Join(backoff.observedDomains, ",") != "example.com" {
+		t.Fatalf("observed domains = %v, want temporary failure domain only", backoff.observedDomains)
+	}
+}
+
+func TestHandlerDoesNotExtendBackoffForPermanentFailure(t *testing.T) {
+	t.Parallel()
+
+	store := storage.NewLocalStore(t.TempDir())
+	if err := store.Put(context.Background(), "mailstore/msg.eml", strings.NewReader("Subject: hello\r\n\r\nbody")); err != nil {
+		t.Fatalf("Put returned error: %v", err)
+	}
+	backoff := &fakeDomainBackoff{}
+	handler := NewHandler(store, &fakeTransport{err: &SMTPStatusError{Op: "rcpt", Code: 550, Message: "no such user"}}, &fakeRecorder{}, &fakeRetryScheduler{}).
+		WithDomainBackoff(backoff)
+
+	err := handler.HandleEvent(context.Background(), eventstream.Message{
+		ID: "1-0",
+		Payload: []byte(`{
+			"event":"mail.queued",
+			"message_id":"msg-1",
+			"from":{"email":"sender@example.com"},
+			"to":[{"email":"recipient@example.net"}],
+			"storage_path":"mailstore/msg.eml",
+			"farm":"bulk"
+		}`),
+	})
+	if err != nil {
+		t.Fatalf("HandleEvent returned error: %v", err)
+	}
+	if len(backoff.observedDomains) != 0 {
+		t.Fatalf("observed domains = %v, want no permanent failure backoff", backoff.observedDomains)
+	}
+}
+
 func TestDecodeQueuedMessageRejectsWrongEvent(t *testing.T) {
 	t.Parallel()
 
@@ -874,6 +997,29 @@ func (m *fakeMetrics) has(stage MetricStage, result MetricResult) bool {
 		}
 	}
 	return false
+}
+
+type fakeDomainBackoff struct {
+	blocked         map[string]bool
+	observedDomains []string
+}
+
+func (b *fakeDomainBackoff) Check(_ context.Context, job Job) error {
+	for _, recipient := range job.Recipients() {
+		domain := domainFromAddress(recipient.Email)
+		if b.blocked[domain] {
+			return &DomainBackoffError{Domain: domain}
+		}
+	}
+	return nil
+}
+
+func (b *fakeDomainBackoff) ObserveTemporaryFailure(_ context.Context, _ Job, recipients []outbound.Address, _ error) {
+	for _, recipient := range recipients {
+		if domain := domainFromAddress(recipient.Email); domain != "" {
+			b.observedDomains = append(b.observedDomains, domain)
+		}
+	}
 }
 
 type alwaysThrottle struct{}

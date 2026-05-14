@@ -8,6 +8,7 @@ const (
 	MetricQueuedDecoded      MetricStage = "queued_decoded"
 	MetricTransportDelivered MetricStage = "transport_delivered"
 	MetricTransportFailed    MetricStage = "transport_failed"
+	MetricDomainBackoff      MetricStage = "domain_backoff"
 	MetricThrottled          MetricStage = "throttled"
 	MetricRetryScheduled     MetricStage = "retry_scheduled"
 	MetricRetryExhausted     MetricStage = "retry_exhausted"
