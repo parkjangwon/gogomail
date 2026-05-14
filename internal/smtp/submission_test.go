@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -1153,6 +1154,144 @@ func TestSubmissionPreservesDSNOptions(t *testing.T) {
 	}
 	if recipient.OriginalRecipient != "rfc822;team@example.net" {
 		t.Fatalf("original recipient = %q", recipient.OriginalRecipient)
+	}
+}
+
+func TestSubmissionRcptDSNRecipientIsolation(t *testing.T) {
+	t.Parallel()
+
+	recorder := &submissionRecorder{}
+	store := storage.NewLocalStore(t.TempDir())
+	submission := newAuthenticatedSubmissionSession(t, recorder, store)
+	submission.receiver.supportDSN = true
+
+	if err := submission.Mail("jangwon@example.com", nil); err != nil {
+		t.Fatalf("Mail returned error: %v", err)
+	}
+	if err := submission.Rcpt("success@example.net", &gosmtp.RcptOptions{
+		Notify:            []gosmtp.DSNNotify{gosmtp.DSNNotifySuccess},
+		OriginalRecipient: "rfc822;Success@Example.NET",
+	}); err != nil {
+		t.Fatalf("first Rcpt returned error: %v", err)
+	}
+	if err := submission.Rcpt("plain@example.net", nil); err != nil {
+		t.Fatalf("second Rcpt returned error: %v", err)
+	}
+	if err := submission.Rcpt("failure-delay@example.net", &gosmtp.RcptOptions{
+		Notify:                []gosmtp.DSNNotify{gosmtp.DSNNotifyDelayed, gosmtp.DSNNotifyFailure},
+		OriginalRecipientType: "rfc822",
+		OriginalRecipient:     "Failure Delay <failure-delay@example.net>",
+	}); err != nil {
+		t.Fatalf("third Rcpt returned error: %v", err)
+	}
+	if err := submission.Rcpt("never@example.net", &gosmtp.RcptOptions{
+		Notify: []gosmtp.DSNNotify{gosmtp.DSNNotifyNever},
+	}); err != nil {
+		t.Fatalf("fourth Rcpt returned error: %v", err)
+	}
+	raw := "Message-ID: <submission-rcpt-dsn-isolation@example.com>\r\nFrom: jangwon@example.com\r\nTo: success@example.net\r\nSubject: rcpt dsn isolation\r\n\r\nbody"
+	if err := submission.Data(strings.NewReader(raw)); err != nil {
+		t.Fatalf("Data returned error: %v", err)
+	}
+
+	if len(recorder.messages) != 1 {
+		t.Fatalf("recorded messages = %d, want 1", len(recorder.messages))
+	}
+	got := recorder.messages[0].DSN.Recipients
+	want := []DSNRecipientOptions{
+		{Address: "success@example.net", Notify: []string{"SUCCESS"}, OriginalRecipient: "rfc822;Success@Example.NET"},
+		{Address: "plain@example.net"},
+		{Address: "failure-delay@example.net", Notify: []string{"FAILURE", "DELAY"}, OriginalRecipient: "RFC822;Failure+20Delay+20<failure-delay@example.net>"},
+		{Address: "never@example.net", Notify: []string{"NEVER"}},
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("DSN recipients = %+v, want %+v", got, want)
+	}
+}
+
+func TestSubmissionRcptDSNDoesNotLeakAcrossTransactions(t *testing.T) {
+	t.Parallel()
+
+	recorder := &submissionRecorder{}
+	store := storage.NewLocalStore(t.TempDir())
+	submission := newAuthenticatedSubmissionSession(t, recorder, store)
+	submission.receiver.supportDSN = true
+
+	if err := submission.Mail("jangwon@example.com", nil); err != nil {
+		t.Fatalf("first Mail returned error: %v", err)
+	}
+	if err := submission.Rcpt("first@example.net", &gosmtp.RcptOptions{
+		Notify:            []gosmtp.DSNNotify{gosmtp.DSNNotifyFailure},
+		OriginalRecipient: "rfc822;first@example.net",
+	}); err != nil {
+		t.Fatalf("first Rcpt returned error: %v", err)
+	}
+	raw1 := "Message-ID: <submission-rcpt-dsn-first@example.com>\r\nFrom: jangwon@example.com\r\nTo: first@example.net\r\nSubject: first\r\n\r\nbody"
+	if err := submission.Data(strings.NewReader(raw1)); err != nil {
+		t.Fatalf("first Data returned error: %v", err)
+	}
+
+	if err := submission.Mail("jangwon@example.com", nil); err != nil {
+		t.Fatalf("second Mail returned error: %v", err)
+	}
+	if err := submission.Rcpt("second@example.net", nil); err != nil {
+		t.Fatalf("second Rcpt returned error: %v", err)
+	}
+	raw2 := "Message-ID: <submission-rcpt-dsn-second@example.com>\r\nFrom: jangwon@example.com\r\nTo: second@example.net\r\nSubject: second\r\n\r\nbody"
+	if err := submission.Data(strings.NewReader(raw2)); err != nil {
+		t.Fatalf("second Data returned error: %v", err)
+	}
+
+	if len(recorder.messages) != 2 {
+		t.Fatalf("recorded messages = %d, want 2", len(recorder.messages))
+	}
+	got := recorder.messages[1].DSN.Recipients
+	want := []DSNRecipientOptions{{Address: "second@example.net"}}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("second DSN recipients = %+v, want %+v", got, want)
+	}
+}
+
+func TestSubmissionRcptDSNDuplicateRecipientUsesLastOptions(t *testing.T) {
+	t.Parallel()
+
+	recorder := &submissionRecorder{}
+	store := storage.NewLocalStore(t.TempDir())
+	submission := newAuthenticatedSubmissionSession(t, recorder, store)
+	submission.receiver.supportDSN = true
+
+	if err := submission.Mail("jangwon@example.com", nil); err != nil {
+		t.Fatalf("Mail returned error: %v", err)
+	}
+	if err := submission.Rcpt("repeat@example.net", &gosmtp.RcptOptions{
+		Notify:            []gosmtp.DSNNotify{gosmtp.DSNNotifySuccess},
+		OriginalRecipient: "rfc822;old@example.net",
+	}); err != nil {
+		t.Fatalf("first Rcpt returned error: %v", err)
+	}
+	if err := submission.Rcpt("Repeat@Example.NET", &gosmtp.RcptOptions{
+		Notify:                []gosmtp.DSNNotify{gosmtp.DSNNotifyDelayed, gosmtp.DSNNotifyFailure},
+		OriginalRecipientType: "rfc822",
+		OriginalRecipient:     "final recipient@example.net",
+	}); err != nil {
+		t.Fatalf("second Rcpt returned error: %v", err)
+	}
+	raw := "Message-ID: <submission-rcpt-dsn-repeat@example.com>\r\nFrom: jangwon@example.com\r\nTo: repeat@example.net\r\nSubject: repeat\r\n\r\nbody"
+	if err := submission.Data(strings.NewReader(raw)); err != nil {
+		t.Fatalf("Data returned error: %v", err)
+	}
+
+	if len(recorder.messages) != 1 {
+		t.Fatalf("recorded messages = %d, want 1", len(recorder.messages))
+	}
+	got := recorder.messages[0].DSN.Recipients
+	want := []DSNRecipientOptions{{
+		Address:           "repeat@example.net",
+		Notify:            []string{"FAILURE", "DELAY"},
+		OriginalRecipient: "RFC822;final+20recipient@example.net",
+	}}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("DSN recipients = %+v, want last recipient options %+v", got, want)
 	}
 }
 

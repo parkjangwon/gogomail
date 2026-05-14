@@ -322,7 +322,7 @@ func (s *session) Rcpt(to string, opts *gosmtp.RcptOptions) (err error) {
 
 	s.domainPolicy = nextDomainPolicy
 	s.recipients = append(s.recipients, mailbox)
-	s.dsn.Recipients = append(s.dsn.Recipients, normalizeDSNRecipientOptions(mailbox.Address, opts))
+	s.dsn.Recipients = upsertDSNRecipientOption(s.dsn.Recipients, normalizeDSNRecipientOptions(mailbox.Address, opts))
 	return nil
 }
 

@@ -265,7 +265,7 @@ func (s *submissionSession) Rcpt(to string, opts *gosmtp.RcptOptions) (err error
 		return err
 	}
 	s.recipients = append(s.recipients, normalized)
-	s.dsn.Recipients = append(s.dsn.Recipients, normalizeDSNRecipientOptions(normalized, opts))
+	s.dsn.Recipients = upsertDSNRecipientOption(s.dsn.Recipients, normalizeDSNRecipientOptions(normalized, opts))
 	if err := s.emit(context.Background(), Event{
 		Stage:          StageRcpt,
 		EnvelopeFrom:   s.from,
