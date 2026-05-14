@@ -5772,6 +5772,7 @@ Current implementation notes:
 - LDAP entries provide conservative fallbacks for declared objectClass MUST attributes, including user `sn` and empty-group `member`.
 - Read-only write operations reject Modify/Add/Delete/ModifyDN with `ModifyResponse`, `AddResponse`, `DelResponse`, and `ModifyDNResponse` tags plus `unwillingToPerform`.
 - Read-only CompareRequest is implemented with RFC 4511 CompareResponse result codes and OpenLDAP `ldapcompare` coverage.
+- CompareRequest decoding rejects trailing data after the attribute value assertion sequence instead of ignoring bytes beyond the RFC 4511 request shape.
 - Root DSE advertises the Who Am I? extended operation (`1.3.6.1.4.1.4203.1.11.3`), with OpenLDAP `ldapwhoami` coverage.
 - ExtendedRequest decoding validates request names as numeric LDAPOIDs and rejects trailing data unless it is the RFC 4511 optional requestValue wrapper.
 - AbandonRequest follows RFC 4511 no-response semantics.
