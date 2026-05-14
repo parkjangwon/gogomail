@@ -1,6 +1,17 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (SMTP submission RCPT DSN recipient isolation)
+Last updated: 2026-05-14 (SMTP submission DSN audit completion)
+
+## SMTP submission DSN audit completion (2026-05-14, complete)
+- Completed an audit of authenticated submission DSN coverage across direct session tests, TCP protocol integration, queued delivery decode/normalization, retry filtering, attempt recording, and outbound SMTP command generation.
+- Audit mapping:
+  - `MAIL FROM` `RET`/`ENVID`: `TestSubmissionPreservesDSNOptions`, `TestSubmissionMailClearsDSNOptions`, `TestSubmissionMailDSNParameterVariations`, and `TestSMTPProtocolPreservesWireDSNOptions`.
+  - `RCPT TO` `NOTIFY`/`ORCPT`: `TestSubmissionRcptDSNRecipientIsolation`, `TestSubmissionRcptDSNDuplicateRecipientUsesLastOptions`, and `TestSMTPProtocolPreservesWireDSNOptions`.
+  - State isolation: `TestSubmissionResetClearsDSNOptions`, `TestSubmissionMailClearsDSNOptions`, `TestSubmissionRcptDSNDoesNotLeakAcrossTransactions`, `TestSubmissionLogoutClearsDomainPolicyAndDSNOptions`, and `TestSMTPProtocolSequentialTransactionsDoNotLeakDSNState`.
+  - Wire-level DSN behavior: `TestSMTPProtocolPreservesWireDSNOptions`, `TestSMTPProtocolSequentialTransactionsDoNotLeakDSNState`, and outbound delivery tests that send or suppress DSN SMTP parameters based on peer capability and null reverse-path rules.
+  - Delivery boundary: `TestDecodeQueuedMessagePreservesDSNOptions`, `TestDecodeQueuedMessageNormalizesDSNOptions`, duplicate-recipient DSN decode tests, `TestHandlerFiltersDSNRecipientsForPartialRetry`, `TestAttemptsForCarriesDSNMetadata`, and DSN transport wire tests.
+- Added `TestSubmissionDSNOptionsReachHooks` to pin the previously uncovered authenticated-submission hook boundary, verifying DSN envelope and recipient metadata reach `mail_from`, `rcpt`, `recorded` hook events and the recorder consistently.
+- Verification: `go test -count=1 ./internal/smtp -run 'TestSubmission.*DSN|TestSMTPProtocol.*DSN'`, `go test -count=1 ./internal/mailflow ./internal/delivery -run DSN`, and `go test ./...`.
 
 ## SMTP submission RCPT DSN recipient isolation (2026-05-14, complete)
 - SMTP submission now has focused RFC 3461 coverage for recipient-specific `RCPT TO` DSN parameters.
