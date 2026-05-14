@@ -1,6 +1,27 @@
 # gogomail current status
 
-Last updated: 2026-05-15 (LDAP Sync Admin API - TASK-071 Phase 1 in progress)
+Last updated: 2026-05-15 (Webmail Frontend Refactoring - CalendarView component modularization)
+
+## Webmail Frontend Refactoring (2026-05-15, Phase 1 in progress)
+- Goal: Reduce oversized webmail component files by extracting utilities and sub-components
+- **Utility Extraction Complete**:
+  - `apps/webmail/src/lib/calendar/dateUtils.ts` (55 lines): 9 date manipulation/formatting functions
+    - startOfWeek, startOfMonth, isSameDay, addDays, formatDate, formatMonthYear, formatWeekRange, formatHour, formatTime
+  - `apps/webmail/src/lib/calendar/eventParser.ts` (94 lines): Event and todo parsing logic
+    - ParsedEvent interface, ParsedTodo interface, parseEvents, parseTodos functions
+    - Handles ICS parsing and calendar object extraction with conflict handling
+  - Fixed TypeScript error in eventParser (completed field derived from status)
+- **Component Extraction In Progress**:
+  - `apps/webmail/src/components/calendar/MiniCalendar.tsx` (101 lines): Mini calendar widget for date selection
+  - `apps/webmail/src/components/calendar/QuickCreatePopover.tsx` (104 lines): Quick event/todo creation popover
+  - `apps/webmail/src/components/calendar/EventPopover.tsx` (64 lines): Event details popover
+  - CalendarView.tsx: 1887 → 1502 lines (-385 lines, -20.4% reduction)
+  - Remaining components to extract: MonthView (132 lines), WeekView (157 lines), DayView (unknown)
+- **Next Steps**:
+  1. Extract remaining view components (MonthView, WeekView, DayView)
+  2. Consolidate subscription event parser into eventParser module
+  3. Refactor other large webmail components (ComposeModal 1795 lines, ReadingPane 1756 lines, SettingsView 1691 lines, DriveView 1284 lines, MessageList 1267 lines)
+  4. Apply same refactoring pattern to apps/console
 
 ## Source File Separation & Refactoring (2026-05-15, Phase 3 started)
 - Goal: Reduce oversized source files by appropriately separating concerns into focused modules.
