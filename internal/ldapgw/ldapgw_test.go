@@ -160,6 +160,19 @@ func TestDecodeLDAPPacketRejectsTrailingDataAfterControls(t *testing.T) {
 	}
 }
 
+func TestDecodeControlRejectsInvalidLDAPOID(t *testing.T) {
+	for _, oid := range []string{"", "pagedResults", "1.", ".1", "1..2", "1.2.a"} {
+		t.Run(oid, func(t *testing.T) {
+			if _, err := decodeControl(encodeOctetString(oid)); err == nil {
+				t.Fatal("decodeControl accepted invalid LDAPOID")
+			}
+		})
+	}
+	if ctrl, err := decodeControl(encodeOctetString("1.2.840.113556.1.4.319")); err != nil || ctrl.Type != "1.2.840.113556.1.4.319" {
+		t.Fatalf("decodeControl valid LDAPOID = %+v, %v", ctrl, err)
+	}
+}
+
 func TestDecodeLengthRejectsOversizedLengthForms(t *testing.T) {
 	if _, _, err := decodeLength([]byte{0x85, 0x00, 0x00, 0x00, 0x00, 0x01}); err == nil {
 		t.Fatal("decodeLength accepted overlong length-of-length")

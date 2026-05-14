@@ -410,6 +410,9 @@ func decodeControl(data []byte) (control, error) {
 	if err != nil {
 		return control{}, fmt.Errorf("controlType: %w", err)
 	}
+	if !isNumericLDAPOID(controlType) {
+		return control{}, fmt.Errorf("controlType: invalid LDAPOID")
+	}
 	ctrl := control{Type: controlType}
 	if len(rest) > 0 && rest[0] == tagBoolean {
 		critical, next, err := decodeBoolValue(rest)
@@ -434,6 +437,27 @@ func decodeControl(data []byte) (control, error) {
 		return control{}, fmt.Errorf("trailing control data")
 	}
 	return ctrl, nil
+}
+
+func isNumericLDAPOID(value string) bool {
+	if value == "" {
+		return false
+	}
+	needDigit := true
+	for _, r := range value {
+		switch {
+		case '0' <= r && r <= '9':
+			needDigit = false
+		case r == '.':
+			if needDigit {
+				return false
+			}
+			needDigit = true
+		default:
+			return false
+		}
+	}
+	return !needDigit && strings.Contains(value, ".")
 }
 
 func decodeOctetBytes(data []byte) ([]byte, []byte, error) {
