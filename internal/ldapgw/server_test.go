@@ -348,6 +348,27 @@ func buildProxiedAuthorizationControl(authzID string, critical bool) control {
 	return control{Type: controlProxiedAuthorization, Critical: critical, Value: []byte(authzID)}
 }
 
+func buildDereferenceControl(derefAttr string, attrs ...string) control {
+	var attrList []byte
+	for _, attr := range attrs {
+		attrList = append(attrList, encodeOctetString(attr)...)
+	}
+	var attrSeq []byte
+	attrSeq = append(attrSeq, tagSequence)
+	attrSeq = append(attrSeq, encodeLength(len(attrList))...)
+	attrSeq = append(attrSeq, attrList...)
+	specContent := append(encodeOctetString(derefAttr), attrSeq...)
+	var specSeq []byte
+	specSeq = append(specSeq, tagSequence)
+	specSeq = append(specSeq, encodeLength(len(specContent))...)
+	specSeq = append(specSeq, specContent...)
+	var seq []byte
+	seq = append(seq, tagSequence)
+	seq = append(seq, encodeLength(len(specSeq))...)
+	seq = append(seq, specSeq...)
+	return control{Type: controlDereferenceRequest, Critical: true, Value: seq}
+}
+
 func buildCompareRequest(entry, attr, value string) []byte {
 	assertion := append(encodeOctetString(attr), encodeOctetString(value)...)
 	var assertionSeq []byte
@@ -1332,6 +1353,61 @@ func TestLDAPServerSyncRefreshOnlyControl(t *testing.T) {
 	}
 }
 
+func TestLDAPServerDereferenceControl(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+
+	dir := newFakeDirectoryQuerier()
+	dir.addPrincipal(PrincipalEntry{DN: "cn=team,ou=groups,dc=example,dc=com", Kind: "group", CN: "Team", UID: "team", DisplayName: "Team"})
+	auth := newFakeLDAPAuth()
+	srv := NewServer(ln, auth, dir)
+	go srv.Serve()
+	defer srv.Close()
+
+	conn, err := net.Dial("tcp", ln.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	bindTestConnection(t, conn, auth)
+
+	req := buildLDAPPacketWithControls(29, opSearchRequest,
+		buildSearchRequestWithAttrs("ou=groups,dc=example,dc=com", scopeWholeSubtree, buildEqualityFilter("objectClass", "groupOfNames"), "cn"),
+		[]control{buildDereferenceControl("member", "cn", "mail")},
+	)
+	if err := sendPDU(conn, req); err != nil {
+		t.Fatal(err)
+	}
+	resp, err := readFullPDU(conn, time.Now().Add(3*time.Second))
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, opTag, _, controls, err := decodeLDAPPacketWithControls(resp)
+	if err != nil {
+		t.Fatalf("decode deref entry: %v", err)
+	}
+	if opTag != opSearchResultEntry {
+		t.Fatalf("deref entry opTag = %d, want SearchResultEntry", opTag)
+	}
+	if len(controls) != 0 {
+		t.Fatalf("deref read-only no-op returned unexpected entry controls: %+v", controls)
+	}
+	resp, err = readFullPDU(conn, time.Now().Add(3*time.Second))
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, opTag, opData, _, err := decodeLDAPPacketWithControls(resp)
+	if err != nil {
+		t.Fatalf("decode deref done: %v", err)
+	}
+	if opTag != opSearchResultDone || decodeEnumerated(opData) != resultSuccess {
+		t.Fatalf("deref done op/result = %d/%d, want %d/%d", opTag, decodeEnumerated(opData), opSearchResultDone, resultSuccess)
+	}
+}
+
 func TestLDAPServerProxiedAuthorizationControl(t *testing.T) {
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
@@ -1974,6 +2050,47 @@ func TestLDAPServerOpenLDAPAdditionalGeneralControlsCompatibility(t *testing.T) 
 	if !strings.Contains(output, "dn: uid=alice,ou=users,dc=example,dc=com") ||
 		!strings.Contains(output, "cn: Alice") {
 		t.Fatalf("ldapsearch additional general controls output missing user:\n%s", output)
+	}
+}
+
+func TestLDAPServerOpenLDAPDereferenceCompatibility(t *testing.T) {
+	ldapsearch, err := exec.LookPath("ldapsearch")
+	if err != nil {
+		t.Skip("ldapsearch is not installed")
+	}
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+
+	bindDN := "uid=alice,ou=users,dc=example,dc=com"
+	auth := newFakeLDAPAuth()
+	auth.addUser(bindDN, "secret")
+	dir := newFakeDirectoryQuerier()
+	dir.addPrincipal(PrincipalEntry{DN: "cn=team,ou=groups,dc=example,dc=com", Kind: "group", CN: "Team", UID: "team", DisplayName: "Team"})
+	srv := NewServer(ln, auth, dir)
+	go srv.Serve()
+	defer srv.Close()
+
+	cmd := exec.Command(ldapsearch,
+		"-x",
+		"-H", "ldap://"+ln.Addr().String(),
+		"-D", bindDN,
+		"-w", "secret",
+		"-E", "!deref=member:cn,mail",
+		"-b", "ou=groups,dc=example,dc=com",
+		"(objectClass=groupOfNames)",
+		"cn",
+	)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("ldapsearch dereference control failed: %v\n%s", err, out)
+	}
+	output := string(out)
+	if !strings.Contains(output, "dn: cn=team,ou=groups,dc=example,dc=com") ||
+		!strings.Contains(output, "cn: Team") {
+		t.Fatalf("ldapsearch dereference output missing group:\n%s", output)
 	}
 }
 

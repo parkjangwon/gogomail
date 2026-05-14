@@ -670,6 +670,13 @@ func (s *LDAPServer) handleSearchRequest(ctx context.Context, msgID int, opData 
 		result := resultProtocolError
 		return encodeSearchResultDone(msgID, result, "", err.Error()), result, 0
 	}
+	_, err = parseDereferenceControl(controls)
+	if err != nil {
+		result := resultProtocolError
+		return encodeSearchResultDone(msgID, result, "", err.Error()), result, 0
+	}
+	// Gogomail has no DN-valued relationship expansion repository yet; accept
+	// well-formed dereference requests as a read-only no-op for client parity.
 	subentriesOnly, err := parseSubentriesControl(controls)
 	if err != nil {
 		result := resultProtocolError
@@ -1635,6 +1642,78 @@ func syncDoneControl(cookie string) control {
 	return control{Type: controlSyncDone, Value: seq}
 }
 
+func parseDereferenceControl(controls []control) (bool, error) {
+	for _, ctrl := range controls {
+		if ctrl.Type != controlDereferenceRequest {
+			continue
+		}
+		if err := decodeDereferenceControlValue(ctrl.Value); err != nil {
+			return true, err
+		}
+		return true, nil
+	}
+	return false, nil
+}
+
+func decodeDereferenceControlValue(value []byte) error {
+	content, rest, err := decodeTaggedContent(value, tagSequence)
+	if err != nil {
+		return fmt.Errorf("dereference control value must be a sequence: %w", err)
+	}
+	if len(rest) != 0 {
+		return fmt.Errorf("dereference control has trailing data")
+	}
+	if len(content) == 0 {
+		return fmt.Errorf("dereference control requires at least one dereference spec")
+	}
+	for len(content) > 0 {
+		var spec []byte
+		spec, content, err = decodeTaggedContent(content, tagSequence)
+		if err != nil {
+			return fmt.Errorf("dereference spec: %w", err)
+		}
+		derefAttr, specRest, err := decodeOctetString(spec)
+		if err != nil {
+			return fmt.Errorf("dereference attribute: %w", err)
+		}
+		if strings.TrimSpace(derefAttr) == "" {
+			return fmt.Errorf("dereference attribute is required")
+		}
+		attrs, specRest, err := decodeTaggedContent(specRest, tagSequence)
+		if err != nil {
+			return fmt.Errorf("dereference attribute list: %w", err)
+		}
+		for len(attrs) > 0 {
+			attr, next, err := decodeOctetString(attrs)
+			if err != nil {
+				return fmt.Errorf("dereference returned attribute: %w", err)
+			}
+			if strings.TrimSpace(attr) == "" {
+				return fmt.Errorf("dereference returned attribute is required")
+			}
+			attrs = next
+		}
+		if len(specRest) != 0 {
+			return fmt.Errorf("dereference spec has trailing data")
+		}
+	}
+	return nil
+}
+
+func decodeTaggedContent(data []byte, tag byte) ([]byte, []byte, error) {
+	if len(data) < 2 || data[0] != tag {
+		return nil, nil, fmt.Errorf("invalid tag")
+	}
+	length, rest, err := decodeLength(data[1:])
+	if err != nil {
+		return nil, nil, err
+	}
+	if len(rest) < length {
+		return nil, nil, fmt.Errorf("content too short")
+	}
+	return rest[:length], rest[length:], nil
+}
+
 func encodeOctetStringBytes(value []byte) []byte {
 	var out []byte
 	out = append(out, tagOctetString)
@@ -1647,7 +1726,7 @@ func isSupportedControl(controlType string) bool {
 	switch strings.TrimSpace(controlType) {
 	case controlManageDsaIT, controlPagedResults, controlServerSideSortRequest, controlVirtualListViewRequest, controlAssertion, controlMatchedValues,
 		controlDomainScope, controlDontUseCopy, controlDontUseCopyOpenLDAP, controlSubentries, controlSyncRequest, controlProxiedAuthorization,
-		controlRelax, controlNoOp, controlPreRead, controlPostRead, controlPasswordPolicy, controlSessionTracking:
+		controlDereferenceRequest, controlRelax, controlNoOp, controlPreRead, controlPostRead, controlPasswordPolicy, controlSessionTracking:
 		return true
 	default:
 		return false
@@ -1671,6 +1750,7 @@ const (
 	controlSyncState               = "1.3.6.1.4.1.4203.1.9.1.2"
 	controlSyncDone                = "1.3.6.1.4.1.4203.1.9.1.3"
 	controlProxiedAuthorization    = "2.16.840.1.113730.3.4.18"
+	controlDereferenceRequest      = "1.3.6.1.4.1.4203.666.5.16"
 	controlRelax                   = "1.3.6.1.4.1.4203.666.5.12"
 	controlNoOp                    = "1.3.6.1.4.1.4203.666.5.2"
 	controlPreRead                 = "1.3.6.1.1.13.1"
@@ -1942,7 +2022,7 @@ func rootDSEAttributes(namingContexts []string, startTLSEnabled bool) map[string
 		"namingContexts":       namingContexts,
 		"subschemaSubentry":    {"cn=Subschema"},
 		"supportedLDAPVersion": {"3"},
-		"supportedControl":     {controlManageDsaIT, controlPagedResults, controlServerSideSortRequest, controlVirtualListViewRequest, controlAssertion, controlMatchedValues, controlDomainScope, controlDontUseCopy, controlDontUseCopyOpenLDAP, controlSubentries, controlSyncRequest, controlProxiedAuthorization, controlRelax, controlNoOp, controlPreRead, controlPostRead, controlPasswordPolicy, controlSessionTracking},
+		"supportedControl":     {controlManageDsaIT, controlPagedResults, controlServerSideSortRequest, controlVirtualListViewRequest, controlAssertion, controlMatchedValues, controlDomainScope, controlDontUseCopy, controlDontUseCopyOpenLDAP, controlSubentries, controlSyncRequest, controlProxiedAuthorization, controlDereferenceRequest, controlRelax, controlNoOp, controlPreRead, controlPostRead, controlPasswordPolicy, controlSessionTracking},
 		"supportedExtension":   {whoAmIOID},
 		"vendorName":           {"gogomail"},
 	}
