@@ -2918,11 +2918,10 @@ func runHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, mode M
 			service.WithSearchIDSource(searchIDSource)
 		}
 		if cfg.AuthJWTSecret != "" {
-			tokenManager, err = auth.NewTokenManager(cfg.AuthJWTSecret)
+			tokenManager, err = tokenManagerForConfig(cfg, repository)
 			if err != nil {
 				return err
 			}
-			tokenManager.SetRevocationChecker(repository)
 		}
 		driveRouteOptions := httpapi.DriveRouteOptions{}
 		driveRouteOptions.PublicShareAudit = drivePublicShareAuditRecorder{audit: audit.NewPostgresRepository(db)}
@@ -2985,6 +2984,12 @@ func runHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, mode M
 		}
 		readinessChecks = append(readinessChecks, storageReadinessCheck("admin_storage", store))
 		repository := maildb.NewRepository(db)
+		if tokenManager == nil && cfg.AuthJWTSecret != "" {
+			tokenManager, err = tokenManagerForConfig(cfg, repository)
+			if err != nil {
+				return err
+			}
+		}
 		mailFlowStatsProvider := mailFlowStatsProviderForConfig(cfg, repository)
 		configStore := configstore.NewPostgresConfigStore(db)
 		if err := configStore.Start(ctx); err != nil {
@@ -3069,6 +3074,20 @@ func newHTTPServer(cfg config.Config, handler http.Handler) *http.Server {
 		ReadHeaderTimeout: cfg.HTTPReadHeaderTimeout,
 		MaxHeaderBytes:    cfg.HTTPMaxHeaderBytes,
 	}
+}
+
+func tokenManagerForConfig(cfg config.Config, checker auth.RevocationChecker) (*auth.TokenManager, error) {
+	if strings.TrimSpace(cfg.AuthJWTSecret) == "" {
+		return nil, nil
+	}
+	tokenManager, err := auth.NewTokenManager(cfg.AuthJWTSecret)
+	if err != nil {
+		return nil, err
+	}
+	if checker != nil {
+		tokenManager.SetRevocationChecker(checker)
+	}
+	return tokenManager, nil
 }
 
 func modeIncludesMailAPI(mode Mode) bool {

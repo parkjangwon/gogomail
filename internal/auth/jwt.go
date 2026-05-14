@@ -36,6 +36,7 @@ type Claims struct {
 	CompanyID      string    `json:"company_id,omitempty"`
 	Role           string    `json:"role"`
 	SessionVersion int64     `json:"session_ver,omitempty"`
+	TokenType      string    `json:"token_type,omitempty"`
 	MFAVerified    bool      `json:"mfa_verified,omitempty"`
 	Expires        time.Time `json:"-"`
 	Expiry         int64     `json:"exp"`
@@ -233,9 +234,9 @@ func (m *TokenManager) sign(input string) string {
 type MFAMode string
 
 const (
-	MFAModeDisabled  MFAMode = "disabled"
-	MFAModeOptional  MFAMode = "optional"
-	MFAModeRequired  MFAMode = "required"
+	MFAModeDisabled MFAMode = "disabled"
+	MFAModeOptional MFAMode = "optional"
+	MFAModeRequired MFAMode = "required"
 )
 
 func (m MFAMode) IsValid() bool {

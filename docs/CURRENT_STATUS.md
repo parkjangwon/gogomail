@@ -1,6 +1,16 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (Admin role API persistence)
+Last updated: 2026-05-14 (Admin JWT session boundary)
+
+## Admin JWT session boundary (2026-05-14, complete)
+- Admin login now requires a configured JWT token manager and issues signed access/refresh token pairs instead of a synthetic refresh string.
+- Admin access tokens use short-lived `token_type=access` claims, while refresh tokens use longer-lived `token_type=refresh` claims with the same admin identity and `session_ver`.
+- Admin-only HTTP modes now initialize the JWT token manager with the `maildb.Repository` session-version checker, matching all-in-one/mail API revocation behavior.
+- `/admin/v1/auth/verify` now validates bearer JWTs through `VerifyFull`, rejects missing/revoked tokens, and returns the authenticated admin identity.
+- `/admin/v1/auth/refresh` accepts a valid refresh token and issues a new signed access token.
+- `/admin/v1/auth/logout` validates the bearer token and increments the user's `session_version`, invalidating existing signed admin tokens.
+- OpenAPI now documents admin refresh, signed login output, verify identity output, and logout status response shapes.
+- Coverage verifies signed login tokens, verify rejection/success, refresh, logout revocation, token-manager revocation wiring, and existing JWT/token guards with `go test -count=1 ./internal/httpapi ./internal/app ./internal/auth -run 'Admin.*Auth|Admin.*Session|Token|JWT|Refresh|Logout|Verify'`.
 
 ## Admin role API persistence (2026-05-14, complete)
 - `/admin/v1/roles` now requires `company_id` and lists persisted RBAC role definitions through the app admin service instead of returning hard-coded mock roles.
