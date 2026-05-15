@@ -210,7 +210,32 @@ IMAP, CalDAV, CardDAV 프로토콜 게이트웨이 성능, 안정성, RFC 준수
   - BuildSyncCollectionTruncatedXML: pooled buffers
 - [x] 테스트 검증: 1083 CalDAV/CardDAV 테스트 통과 (race detection enabled)
 
-**Phase 2 예정: 메트릭 & Rate Limiting**
-- Protocol gateway metrics: connection count, latency, errors
-- Per-user rate limiting
-- Graceful degradation under load
+**Phase 2 시작: 메트릭 & Rate Limiting**
+
+구현 대상:
+- IMAP metrics (imapgw): 
+  - Connection count (current, peak, total)
+  - Command processing latency (p50, p99)
+  - Command error counts (AUTH, SELECT, FETCH, APPEND, etc)
+  - IDLE session count
+  - RFC violations/compliance errors
+  
+- CalDAV/CardDAV metrics (caldavgw, carddavgw):
+  - HTTP method counts (PROPFIND, REPORT, PUT, DELETE)
+  - Response time histogram
+  - Error rates by HTTP status
+  - Collection size metrics
+  - Concurrent request tracking
+
+- Rate Limiting:
+  - Per-user connection limits (IMAP max concurrent connections)
+  - Per-user request rate limiting (CalDAV/CardDAV ops/sec)
+  - Per-domain quota enforcement
+  - Graceful rejection when limits exceeded
+  - Metrics for rate limit violations
+
+- Observability:
+  - Structured logging with slog
+  - Metrics export (Prometheus-compatible)
+  - Health check endpoints
+  - Performance profiling hooks
