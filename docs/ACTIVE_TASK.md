@@ -19,14 +19,14 @@ Frontend (`apps/console`):
 
 ### 완료 조건
 
-- [ ] `pnpm -C apps/console type-check` 통과
-- [ ] 조직 관리 페이지 동작 확인
-- [ ] 도메인 관리 페이지 동작 확인
-- [ ] 감사 로그 조회 및 필터 동작
-- [ ] API 설정 페이지 동작 (API 키 관리, Rate Limit)
-- [ ] 알림 설정 페이지 동작 (threshold 설정, channels 관리)
-- [ ] docs/CURRENT_STATUS.md 갱신
-- [ ] docs/backend-roadmap.md 해당 항목 체크
+- [x] `pnpm -C apps/console type-check` 통과
+- [x] 조직 관리 페이지 동작 확인
+- [x] 도메인 관리 페이지 동작 확인
+- [x] 감사 로그 조회 및 필터 동작
+- [x] API 설정 페이지 동작 (API 키 관리, Rate Limit)
+- [x] 알림 설정 페이지 동작 (threshold 설정, channels 관리)
+- [x] docs/CURRENT_STATUS.md 갱신
+- [x] docs/backend-roadmap.md 해당 항목 체크
 
 ### 검증
 

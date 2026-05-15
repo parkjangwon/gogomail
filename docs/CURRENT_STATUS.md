@@ -1,6 +1,16 @@
 # gogomail current status
 
-Last updated: 2026-05-16 (TASK-084 complete, alerts & notifications backend)
+Last updated: 2026-05-16 (TASK-086 in progress, alerts & notifications frontend)
+
+## Admin Console Frontend Phase 2 (2026-05-16, TASK-086 in progress)
+- Alerts & Notifications UI page: `apps/console/src/app/companies/[id]/security/alerts/page.tsx` provides alert config CRUD operations with threshold settings, channel management (email/webhook/dashboard), and enable/disable controls.
+- Alert Hooks: `apps/console/src/hooks/useAlertConfigs.ts` implements `useAlertConfigs`, `useCreateAlertConfig`, `useUpdateAlertConfig`, `useDeleteAlertConfig`, `useAlertNotifications`, and `useAcknowledgeNotification` with React Query integration and proper cache invalidation.
+- Organization, Domain, Audit Log, and API Settings pages already exist from prior phases; alerts page completes the admin console feature set.
+- TypeScript type-checking: Fixed unused imports and apiClient response typing in alert hooks and page component.
+- Verification:
+  - `pnpm -C apps/console type-check` passes
+  - `pnpm -C apps/console build` succeeds  
+  - `go test ./...` passes with 5961 tests
 
 ## Alerts & Notifications Backend (2026-05-16, TASK-084 complete)
 - `internal/alert/alert.go` defines core alert infrastructure: `AlertType` (storage, login_failures, api_errors), `ChannelType` (email, webhook, dashboard), and data structures for `Config`, `Channel`, `Notification`.
