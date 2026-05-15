@@ -1,36 +1,33 @@
 # ACTIVE_TASK
 
-## TASK-077: API Metering (in progress)
+## TASK-078: Dashboard UI (in progress)
 
 ### 배경
 
-TASK-076 delivered the first consolidated statistics dashboard for mail volume, user activity, and storage. TASK-077 now tightens the API metering read model so Domain Admins can inspect daily rollups and per-domain visibility for request volume, error rate, and response-time trends.
+TASK-077 delivered API metering daily rollups and per-domain visibility. TASK-078 now polishes the dashboard UI so System Admins and Domain Admins can read the consolidated stats surface quickly and consistently.
 
 ### 구현 대상
 
-Backend:
-- `internal/apimeter/*` — daily rollup worker/read-model hardening for `api_usage_daily`
-- `internal/httpapi/admin.go` — admin API coverage for API usage daily/monthly/statistics views, if any gaps remain
-- OpenAPI documentation for metering read models
-
 Frontend:
+- `apps/console/src/app/companies/[id]/dashboard/page.tsx`
+  - tighten the high-density summary cards and supporting sections
+  - keep the core stats row readable at a glance
 - `apps/console/src/app/companies/[id]/analytics/api-usage/page.tsx`
-  - daily usage rollup table
-  - per-domain / per-principal visibility
-  - error-rate and response-time summaries if available from the backend payload
+  - polish the table/filters layout for the meter view
+- `apps/console/src/components/*` if shared presentation helpers are needed
 
 ### 완료 조건
 
 - [ ] `go test ./...` 통과
-- [ ] API usage daily rollup data is visible for a company/domain in the admin console
-- [ ] Daily statistics stay bounded and deterministic for empty and populated windows
+- [ ] Dashboard summary cards remain compact and readable on the console layout
+- [ ] API usage analytics remain usable after dashboard polish changes
 - [ ] `docs/CURRENT_STATUS.md` 갱신
 - [ ] `docs/backend-roadmap.md` 해당 항목 체크/갱신
 - [ ] (API 변경 시) `docs/openapi.yaml` 갱신
 
 ### 다음 태스크
 
-TASK-078: Dashboard UI
+TASK-079: Audit Policy Config UI
 
 ---
 

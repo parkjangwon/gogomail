@@ -47,7 +47,7 @@ ACTIVE_TASK.md가 COMPLETE이면 여기서 첫 번째 항목을 선택해 ACTIVE
 | TASK-074 | Mail Log Queries & UI | 대기 |
 | TASK-075 | Login/Security Audit Logs | 대기 |
 | TASK-076 | Statistics & Dashboard | 완료 |
-| TASK-077 | API Metering | 대기 |
+| TASK-077 | API Metering | 완료 |
 | TASK-078 | Dashboard UI | 대기 |
 | TASK-079 | Audit Policy Config UI | 대기 |
 | TASK-080 | Export & Reports | 대기 |
