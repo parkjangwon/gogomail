@@ -1,8 +1,33 @@
 # gogomail current status
 
-Last updated: 2026-05-16 (TASK-088 phase 3, mail infrastructure hardening)
+Last updated: 2026-05-16 (TASK-089 phase 2, protocol gateway hardening)
 
-## Mail Infrastructure Hardening Phase 3 (2026-05-16, TASK-088 in progress)
+## Protocol Gateway Hardening (2026-05-16, TASK-089 in progress)
+- Performance and observability hardening for IMAP, CalDAV, CardDAV protocol gateways
+- **Phase 1 (Buffer Pooling)** ✓ Complete:
+  - IMAP gateway: `sync.Pool` reuse for literal buffers (4KB), section reading, response building
+  - CalDAV gateway: `sync.Pool` reuse for XML response generation (8KB buffers)
+  - CardDAV gateway: `sync.Pool` reuse for XML response generation (8KB buffers)
+  - Benchmarks confirm pool efficiency: BenchmarkLiteralBufferPool, BenchmarkReadIMAPSectionLiteral, BenchmarkResponseBufferPool
+  - Verification: IMAP 421 tests, CalDAV 563 tests, CardDAV 520 tests (total 1504 protocol tests)
+- **Phase 2 (Metrics & Rate Limiting)** In Progress:
+  - `internal/protocolmetrics/metrics.go`: Thread-safe `GatewayMetrics` for connection/command/error tracking
+  - Per-user metrics isolation with RWMutex protection
+  - Atomic operations for lock-free concurrent access to counters
+  - `RateLimiter` infrastructure: per-user connection limits, request rate limiting
+  - Snapshot generation with error rate calculation, average latency computation
+  - Ready for integration into IMAP/CalDAV/CardDAV gateway implementations
+  - 9 comprehensive metrics tests passing
+- **Phase 3 (Integration & Observability)** Planned:
+  - Wire metrics into IMAP server connection handler
+  - Wire metrics into CalDAV/CardDAV HTTP handlers
+  - Structured logging with slog
+  - Prometheus-compatible metrics export
+  - Health check endpoints
+  - Graceful degradation under rate limits
+- Verification: `go test ./...` passes with 5980 total tests (includes new protocolmetrics tests)
+
+## Mail Infrastructure Hardening Phase 3 (2026-05-16, TASK-088 complete)
 - Performance optimization for high-volume bulk send scenarios: connection pooling, pipelining, and retry policy tuning.
 - **Phase 1 (Connection Pooling)** ✓ Complete:
   - SMTP `SMTPConnectionPool` with per-host connection reuse (host, port, implicit TLS, auth user as keys)
