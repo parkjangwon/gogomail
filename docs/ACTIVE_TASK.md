@@ -66,7 +66,10 @@ Go Backend (`internal/`):
   - sanitizeAttachmentFilename 단일 패스 처리
   - 문자열 할당 최소화 (strings.ReplaceAll, strings.Map 제거)
   - UTF-8 경계 검증 효율화
-- [ ] Database 쿼리 최적화 및 인덱싱 (defer: 구체적 병목 미파악)
+- [x] Database 쿼리 최적화 및 인덱싱 (retry dedupeKey 최적화 구현)
+  - StringBuilder로 문자열 연결 최적화 (메모리 할당 감소)
+  - 정렬된 recipients 빠른 경로 (이미 정렬된 경우 skip)
+  - Retry 쿼리 인덱싱 검증 (dedupe_key, available_at, status)
 - [x] 대량 발신 부하 테스트 프레임워크
   - BenchmarkBulkSendThroughput: 처리량 측정 (msg/sec)
   - BenchmarkBulkSendWithPipelining: 다중 수신자 성능
