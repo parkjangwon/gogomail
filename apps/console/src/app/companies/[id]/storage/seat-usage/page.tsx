@@ -10,18 +10,10 @@ import {
   ColumnLayout,
   ProgressBar,
 } from '@cloudscape-design/components';
-import { useState, useEffect } from 'react';
+import { useMemo } from 'react';
 import { useParams } from 'next/navigation';
 import { useI18n } from '@/app/i18n-provider';
-
-interface SeatUsage {
-  total_users: number;
-  active_users: number;
-  suspended_users: number;
-  domain_count: number;
-  storage_used: number;
-  storage_limit: number;
-}
+import { useSeatUsage } from '@/hooks';
 
 function formatBytes(bytes: number): string {
   if (!bytes || bytes === 0) return '0 B';
@@ -34,20 +26,20 @@ export default function SeatUsagePage() {
   const { t } = useI18n();
   const params = useParams();
   const companyId = params?.id as string;
-  const [data, setData] = useState<SeatUsage | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const { data, isLoading, error } = useSeatUsage(companyId);
+  const totalUsers = data?.total_users ?? 0;
+  const activeUsers = data?.active_users ?? 0;
+  const suspendedUsers = data?.suspended_users ?? 0;
+  const domainCount = data?.domain_count ?? 0;
+  const storageUsed = data?.storage_used ?? 0;
+  const storageLimit = data?.storage_limit ?? 0;
 
-  useEffect(() => {
-    if (!companyId) return;
-    fetch(`/api/admin/companies/${companyId}/seat-usage`, { credentials: 'include' })
-      .then(r => r.ok ? r.json() : Promise.reject(r.statusText))
-      .then(setData)
-      .catch(e => setError(String(e)))
-      .finally(() => setLoading(false));
-  }, [companyId]);
+  const storagePercent = useMemo(() => {
+    if (!storageLimit || storageLimit <= 0) return 0;
+    return Math.min(100, Math.round((storageUsed / storageLimit) * 100));
+  }, [storageLimit, storageUsed]);
 
-  if (loading) {
+  if (isLoading) {
     return (
       <ContentLayout header={<Header variant="h1">{t('seat_usage.title')}</Header>}>
         <Box textAlign="center" padding="xl"><Spinner /></Box>
@@ -58,14 +50,10 @@ export default function SeatUsagePage() {
   if (error || !data) {
     return (
       <ContentLayout header={<Header variant="h1">{t('seat_usage.title')}</Header>}>
-        <Box color="text-status-error">{error || t('seat_usage.failed_load')}</Box>
+        <Box color="text-status-error">{String(error?.message || error || t('seat_usage.failed_load'))}</Box>
       </ContentLayout>
     );
   }
-
-  const storagePercent = data.storage_limit > 0
-    ? Math.min(100, Math.round((data.storage_used / data.storage_limit) * 100))
-    : 0;
 
   const storageStatus: 'error' | 'success' | 'in-progress' = storagePercent >= 90 ? 'error' : storagePercent >= 75 ? 'in-progress' : 'success';
 
@@ -82,9 +70,9 @@ export default function SeatUsagePage() {
         <ColumnLayout columns={3} variant="text-grid" minColumnWidth={160}>
           <Container header={<Header variant="h3">{t('seat_usage.total_users_header')}</Header>}>
             <SpaceBetween size="xxs">
-              <Box fontSize="display-l" fontWeight="bold">{data.total_users}</Box>
+              <Box fontSize="display-l" fontWeight="bold">{totalUsers}</Box>
               <Box color="text-body-secondary" fontSize="body-s">
-                {t('seat_usage.across_domains')} {data.domain_count} {data.domain_count !== 1 ? t('seat_usage.domain_plural') : t('seat_usage.domain_singular')}
+                {t('seat_usage.across_domains')} {domainCount} {domainCount !== 1 ? t('seat_usage.domain_plural') : t('seat_usage.domain_singular')}
               </Box>
             </SpaceBetween>
           </Container>
@@ -92,10 +80,10 @@ export default function SeatUsagePage() {
           <Container header={<Header variant="h3">{t('seat_usage.active_header')}</Header>}>
             <SpaceBetween size="xxs">
               <Box fontSize="display-l" fontWeight="bold" color="text-status-success">
-                {data.active_users}
+                {activeUsers}
               </Box>
               <Box color="text-body-secondary" fontSize="body-s">
-                {data.total_users > 0 ? `${Math.round((data.active_users / data.total_users) * 100)}%` : '—'} {t('seat_usage.of_total')}
+                {totalUsers > 0 ? `${Math.round((activeUsers / totalUsers) * 100)}%` : '—'} {t('seat_usage.of_total')}
               </Box>
             </SpaceBetween>
           </Container>
@@ -105,12 +93,12 @@ export default function SeatUsagePage() {
               <Box
                 fontSize="display-l"
                 fontWeight="bold"
-                color={data.suspended_users > 0 ? 'text-status-warning' : undefined}
+                color={suspendedUsers > 0 ? 'text-status-warning' : undefined}
               >
-                {data.suspended_users}
+                {suspendedUsers}
               </Box>
               <Box color="text-body-secondary" fontSize="body-s">
-                {data.suspended_users > 0 ? t('seat_usage.suspended_cleanup') : t('seat_usage.no_suspended')}
+                {suspendedUsers > 0 ? t('seat_usage.suspended_cleanup') : t('seat_usage.no_suspended')}
               </Box>
             </SpaceBetween>
           </Container>
@@ -122,26 +110,26 @@ export default function SeatUsagePage() {
             <ColumnLayout columns={3} variant="text-grid">
               <SpaceBetween size="xxs">
                 <Box fontWeight="bold" fontSize="body-s" color="text-body-secondary">{t('seat_usage.used_label')}</Box>
-                <Box fontWeight="bold">{formatBytes(data.storage_used)}</Box>
+                <Box fontWeight="bold">{formatBytes(storageUsed)}</Box>
               </SpaceBetween>
               <SpaceBetween size="xxs">
                 <Box fontWeight="bold" fontSize="body-s" color="text-body-secondary">{t('seat_usage.allocated_label')}</Box>
-                <Box fontWeight="bold">{data.storage_limit > 0 ? formatBytes(data.storage_limit) : t('seat_usage.unlimited')}</Box>
+                <Box fontWeight="bold">{storageLimit > 0 ? formatBytes(storageLimit) : t('seat_usage.unlimited')}</Box>
               </SpaceBetween>
               <SpaceBetween size="xxs">
                 <Box fontWeight="bold" fontSize="body-s" color="text-body-secondary">{t('seat_usage.available_label')}</Box>
                 <Box fontWeight="bold">
-                  {data.storage_limit > 0 ? formatBytes(Math.max(0, data.storage_limit - data.storage_used)) : '—'}
+                  {storageLimit > 0 ? formatBytes(Math.max(0, storageLimit - storageUsed)) : '—'}
                 </Box>
               </SpaceBetween>
             </ColumnLayout>
 
-            {data.storage_limit > 0 && (
+            {storageLimit > 0 && (
               <ProgressBar
                 value={storagePercent}
                 label={`${t('seat_usage.storage_usage_label')} (${storagePercent}%)`}
                 status={storageStatus}
-                additionalInfo={`${formatBytes(data.storage_used)} ${t('seat_usage.of_total')} ${formatBytes(data.storage_limit)}`}
+                additionalInfo={`${formatBytes(storageUsed)} ${t('seat_usage.of_total')} ${formatBytes(storageLimit)}`}
               />
             )}
           </SpaceBetween>
