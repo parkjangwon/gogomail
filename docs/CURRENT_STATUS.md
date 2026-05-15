@@ -142,6 +142,14 @@ Last updated: 2026-05-15 (Frontend Refactoring - console users modal extraction 
 - All 19 LDAP provider tests pass; validation for required fields, configuration checks, and sync request handling.
 - Verification: `go test -count=1 ./internal/idprovider/ldap -v` (19 tests) and `go test ./...` (5901 tests).
 
+## External RDBMS query mapping & sync execution (2026-05-15, in progress)
+- `internal/idprovider/rdbms/provider.go` now reads external SQL result sets into `idprovider.User` and `idprovider.Group` models using the configured field map.
+- `GetUser`, `GetGroup`, `ListUsers`, and `ListGroups` return mapped records with in-memory org/search filtering and pagination.
+- `internal/idprovider/rdbms/sync.go` now reports on-demand sync summaries from the fetched RDBMS rows for users and groups, keeping the admin sync history path live.
+- Membership sync currently executes as a deterministic no-op because the RDBMS config schema does not yet expose a dedicated membership query.
+- New provider query/sync coverage verifies mapped fields, org/search filtering, and sync row counts against a scripted SQL driver.
+- Verification: `go test ./internal/idprovider/rdbms` and `go test ./...`.
+
 ## Database Identity Mode (2026-05-14, complete)
 - Database provider implements full CRUD operations for users and groups through `maildb` repositories.
 - `CreateUser` validates required fields (domain_id, username, display_name) and inserts users into the database.
