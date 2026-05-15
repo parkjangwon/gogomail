@@ -1,6 +1,7 @@
 package message
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
@@ -8,6 +9,7 @@ import (
 	"io"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 	"unicode/utf8"
 
@@ -18,6 +20,13 @@ import (
 const maxAttachmentFilenameBytes = 255
 const defaultMaxMetadataBytes = 2048
 const maxStructuredHeaderParseBytes = 64 << 10
+
+// bufferPool reuses byte buffers for message parsing to reduce allocations
+var bufferPool = sync.Pool{
+	New: func() interface{} {
+		return new(bytes.Buffer)
+	},
+}
 
 type Address struct {
 	Name    string
@@ -164,31 +173,60 @@ func recordAttachment(parsed *ParsedMessage, opts ParseOptions, filename string)
 
 func sanitizeAttachmentFilename(filename string) string {
 	filename = strings.TrimSpace(filename)
-	filename = strings.ReplaceAll(filename, "\\", "/")
+
+	// Extract filename after last path separator
 	if idx := strings.LastIndex(filename, "/"); idx >= 0 {
 		filename = filename[idx+1:]
 	}
-	filename = strings.Map(func(r rune) rune {
+	if idx := strings.LastIndex(filename, "\\"); idx >= 0 {
+		filename = filename[idx+1:]
+	}
+
+	// Single-pass sanitization using bytes buffer to reduce allocations
+	buf := bufferPool.Get().(*bytes.Buffer)
+	defer bufferPool.Put(buf)
+	buf.Reset()
+
+	lastWasSpace := true
+	for _, r := range filename {
 		switch r {
 		case '\r', '\n', '\t':
-			return ' '
+			if !lastWasSpace {
+				buf.WriteByte(' ')
+				lastWasSpace = true
+			}
+		case ' ':
+			if !lastWasSpace {
+				buf.WriteByte(' ')
+				lastWasSpace = true
+			}
 		default:
 			if r < 0x20 || r == 0x7f {
-				return -1
+				// Skip control characters
+				continue
 			}
-			return r
+			buf.WriteRune(r)
+			lastWasSpace = false
 		}
-	}, filename)
-	filename = strings.Join(strings.Fields(filename), " ")
-	if len(filename) <= maxAttachmentFilenameBytes {
-		return filename
+
+		// Stop if buffer exceeds max size
+		if buf.Len() >= maxAttachmentFilenameBytes {
+			break
+		}
 	}
-	body := []byte(filename[:maxAttachmentFilenameBytes])
+
+	result := buf.String()
+	if len(result) <= maxAttachmentFilenameBytes {
+		return strings.TrimRight(result, " ")
+	}
+
+	// Truncate at byte boundary respecting UTF-8
+	body := []byte(result[:maxAttachmentFilenameBytes])
 	for len(body) > 0 && !utf8.Valid(body) {
 		_, size := utf8.DecodeLastRune(body)
 		body = body[:len(body)-size]
 	}
-	return string(body)
+	return strings.TrimRight(string(body), " ")
 }
 
 func inlineAttachmentMetadata(header *gomail.InlineHeader) (string, bool) {
@@ -275,13 +313,23 @@ func readLimitedText(r io.Reader, maxBytes int64) (string, bool, error) {
 	if maxBytes <= 0 {
 		maxBytes = 1 << 20
 	}
-	body, err := io.ReadAll(io.LimitReader(r, maxBytes+1))
+	// Use buffer pool to reduce allocation overhead
+	buf := bufferPool.Get().(*bytes.Buffer)
+	defer bufferPool.Put(buf)
+	buf.Reset()
+
+	// Copy with limit to detect overflow without reading extra bytes
+	limitedReader := io.LimitReader(r, maxBytes+1)
+	_, err := io.Copy(buf, limitedReader)
 	if err != nil {
 		return "", false, err
 	}
+
+	body := buf.Bytes()
 	truncated := int64(len(body)) > maxBytes
 	if truncated {
 		body = body[:maxBytes]
+		// Truncate at UTF-8 boundary to avoid invalid sequences
 		for len(body) > 0 && !utf8.Valid(body) {
 			_, size := utf8.DecodeLastRune(body)
 			body = body[:len(body)-size]
