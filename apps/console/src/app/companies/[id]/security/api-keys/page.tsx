@@ -1,7 +1,6 @@
 'use client';
 import { DataTable } from '@/components/DataTable';
 
-
 import {
   ContentLayout,
   Header,
@@ -22,23 +21,14 @@ import {
 import { useState, useEffect } from 'react';
 import { useI18n } from '@/app/i18n-provider';
 import { useParams } from 'next/navigation';
-
-interface Domain {
-  id: string;
-  name: string;
-  ID?: string;
-  Name?: string;
-}
-
-interface APIKey {
-  id: string;
-  name: string;
-  created_by: string;
-  created_at: string;
-  last_used_at: string | null;
-  expires_at: string | null;
-  is_active: boolean;
-}
+import { useDomains } from '@/hooks/useDomains';
+import {
+  useApiKeys,
+  useCreateApiKey,
+  useDeleteApiKey,
+  useRotateApiKey,
+  type ApiKey,
+} from '@/hooks/useApiKeys';
 
 type FlashItem = {
   type: 'success' | 'error' | 'info' | 'warning';
@@ -53,16 +43,15 @@ export default function APIKeysPage() {
   const params = useParams();
   const companyId = params?.id as string;
 
-  const [domains, setDomains] = useState<Domain[]>([]);
-  const [domainsLoading, setDomainsLoading] = useState(true);
+  const { data: domains = [], isLoading: domainsLoading } = useDomains(companyId);
   const [selectedDomainId, setSelectedDomainId] = useState<string>('');
-
-  const [keys, setKeys] = useState<APIKey[]>([]);
-  const [keysLoading, setKeysLoading] = useState(false);
+  const { data: keys = [], isLoading: keysLoading } = useApiKeys(selectedDomainId);
+  const createKey = useCreateApiKey();
+  const deleteKey = useDeleteApiKey();
+  const rotateKey = useRotateApiKey();
   const [filter, setFilter] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [newKeyName, setNewKeyName] = useState('');
-  const [creating, setCreating] = useState(false);
   const [createdSecret, setCreatedSecret] = useState<{ id: string; secret: string } | null>(null);
 
   const [rotatingId, setRotatingId] = useState<string | null>(null);
@@ -74,16 +63,10 @@ export default function APIKeysPage() {
   const [flashItems, setFlashItems] = useState<FlashItem[]>([]);
 
   useEffect(() => {
-    fetchDomains();
-  }, [companyId]);
-
-  useEffect(() => {
-    if (selectedDomainId) {
-      fetchAPIKeys(selectedDomainId);
-    } else {
-      setKeys([]);
+    if (!selectedDomainId && domains.length > 0) {
+      setSelectedDomainId(domains[0].id);
     }
-  }, [selectedDomainId]);
+  }, [domains, selectedDomainId]);
 
   const addFlash = (type: FlashItem['type'], content: string) => {
     const id = Date.now().toString();
@@ -93,70 +76,25 @@ export default function APIKeysPage() {
     }]);
   };
 
-  const fetchDomains = async () => {
-    setDomainsLoading(true);
-    try {
-      const res = await fetch(`/api/admin/domains?company_id=${companyId}&limit=100`, {
-        credentials: 'include',
-      });
-      if (res.ok) {
-        const data = await res.json();
-        // Normalize domain shape (backend may return ID/Name or id/name)
-        const raw: Array<{ id?: string; name?: string; ID?: string; Name?: string }> = data.domains || [];
-        setDomains(raw.map(d => ({
-          id: d.id ?? d.ID ?? '',
-          name: d.name ?? d.Name ?? '',
-        })));
-      }
-    } catch (error) {
-      console.error('Failed to fetch domains:', error);
-    } finally {
-      setDomainsLoading(false);
-    }
-  };
-
-  const fetchAPIKeys = async (domainId: string) => {
-    setKeysLoading(true);
-    try {
-      const res = await fetch(`/api/admin/domains/${domainId}/api-keys`, {
-        credentials: 'include',
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setKeys(data.keys || []);
-      }
-    } catch (error) {
-      console.error('Failed to fetch API keys:', error);
-    } finally {
-      setKeysLoading(false);
-    }
-  };
-
   const handleCreateKey = async () => {
     if (!selectedDomainId || !newKeyName.trim()) return;
-    setCreating(true);
     try {
-      const res = await fetch(`/api/admin/domains/${selectedDomainId}/api-keys`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: newKeyName.trim() }),
-        credentials: 'include',
+      const data = await createKey.mutateAsync({
+        domainId: selectedDomainId,
+        data: {
+          name: newKeyName.trim(),
+          created_by: 'admin-console',
+        },
       });
-      if (res.ok) {
-        const data = await res.json();
-        setCreatedSecret({ id: data.id, secret: data.secret });
-        fetchAPIKeys(selectedDomainId);
-        setNewKeyName('');
-        addFlash('success', t('pages.api_keys_page.key_created_success'));
-      } else {
-        const err = await res.json().catch(() => ({}));
-        addFlash('error', err.error || t('pages.api_keys_page.create_failed'));
+      if (!data.secret) {
+        throw new Error(t('pages.api_keys_page.create_failed'));
       }
+      setCreatedSecret({ id: data.id ?? '', secret: data.secret });
+      setNewKeyName('');
+      addFlash('success', t('pages.api_keys_page.key_created_success'));
     } catch (error) {
       console.error('Failed to create API key:', error);
-      addFlash('error', t('pages.api_keys_page.create_failed'));
-    } finally {
-      setCreating(false);
+      addFlash('error', error instanceof Error ? error.message : t('pages.api_keys_page.create_failed'));
     }
   };
 
@@ -164,19 +102,11 @@ export default function APIKeysPage() {
     if (!selectedDomainId) return;
     setDeletingId(keyId);
     try {
-      const res = await fetch(`/api/admin/domains/${selectedDomainId}/api-keys/${keyId}`, {
-        method: 'DELETE',
-        credentials: 'include',
-      });
-      if (res.ok) {
-        fetchAPIKeys(selectedDomainId);
-        addFlash('success', t('pages.api_keys_page.key_deleted'));
-      } else {
-        addFlash('error', t('pages.api_keys_page.delete_failed'));
-      }
+      await deleteKey.mutateAsync({ domainId: selectedDomainId, keyId });
+      addFlash('success', t('pages.api_keys_page.key_deleted'));
     } catch (error) {
       console.error('Failed to delete API key:', error);
-      addFlash('error', t('pages.api_keys_page.delete_failed'));
+      addFlash('error', error instanceof Error ? error.message : t('pages.api_keys_page.delete_failed'));
     } finally {
       setDeletingId(null);
     }
@@ -186,22 +116,16 @@ export default function APIKeysPage() {
     if (!selectedDomainId) return;
     setRotatingId(keyId);
     try {
-      const res = await fetch(`/api/admin/domains/${selectedDomainId}/api-keys/${keyId}/rotate`, {
-        method: 'POST',
-        credentials: 'include',
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setRotatedSecret({ keyId, secret: data.secret });
-        setShowRotateModal(true);
-        fetchAPIKeys(selectedDomainId);
-        addFlash('success', t('pages.api_keys_page.key_rotated'));
-      } else {
-        addFlash('error', t('pages.api_keys_page.rotate_failed'));
+      const data = await rotateKey.mutateAsync({ domainId: selectedDomainId, keyId });
+      if (!data.secret) {
+        throw new Error(t('pages.api_keys_page.rotate_failed'));
       }
+      setRotatedSecret({ keyId, secret: data.secret });
+      setShowRotateModal(true);
+      addFlash('success', t('pages.api_keys_page.key_rotated'));
     } catch (error) {
       console.error('Failed to rotate API key:', error);
-      addFlash('error', t('pages.api_keys_page.rotate_failed'));
+      addFlash('error', error instanceof Error ? error.message : t('pages.api_keys_page.rotate_failed'));
     } finally {
       setRotatingId(null);
     }
@@ -262,7 +186,7 @@ export default function APIKeysPage() {
             columnDefinitions={[
               {
                 header: t('pages.api_keys_page.name'),
-                cell: (item: APIKey) => (
+                cell: (item: ApiKey) => (
                   <SpaceBetween size="xxxs">
                     <Box fontWeight="bold">{item.name}</Box>
                     <Box color="text-body-secondary" fontSize="body-s">{item.id}</Box>
@@ -272,7 +196,7 @@ export default function APIKeysPage() {
               },
               {
                 header: t('pages.api_keys_page.status'),
-                cell: (item: APIKey) => (
+                cell: (item: ApiKey) => (
                   <StatusIndicator type={item.is_active ? 'success' : 'stopped'}>
                     {item.is_active ? 'Active' : 'Inactive'}
                   </StatusIndicator>
@@ -281,7 +205,7 @@ export default function APIKeysPage() {
               },
               {
                 header: t('pages.api_keys.last_used'),
-                cell: (item: APIKey) =>
+                cell: (item: ApiKey) =>
                   item.last_used_at
                     ? new Date(item.last_used_at).toLocaleString()
                     : <Box color="text-body-secondary">—</Box>,
@@ -289,12 +213,12 @@ export default function APIKeysPage() {
               },
               {
                 header: t('pages.api_keys.created'),
-                cell: (item: APIKey) => new Date(item.created_at).toLocaleDateString(),
+                cell: (item: ApiKey) => new Date(item.created_at).toLocaleDateString(),
                 width: '15%',
               },
               {
                 header: t('common.actions'),
-                cell: (item: APIKey) => (
+                cell: (item: ApiKey) => (
                   <SpaceBetween direction="horizontal" size="xs">
                     <Button
                       variant="inline-link"
@@ -372,7 +296,7 @@ export default function APIKeysPage() {
                 <Button
                   variant="primary"
                   onClick={handleCreateKey}
-                  loading={creating}
+                  loading={createKey.isPending}
                   disabled={!newKeyName.trim()}
                 >
                   {t('pages.api_keys_page.create_btn')}

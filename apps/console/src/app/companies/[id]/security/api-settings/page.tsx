@@ -82,12 +82,15 @@ export default function APISettingsPage() {
       await updateSettings.mutateAsync({
         domainId: selectedDomainId,
         data: {
-          ...form,
           domain_id: selectedDomainId,
+          rate_limit_rps: form.rate_limit_rps,
+          rate_limit_bps: form.rate_limit_bps,
+          cidr_allowlist_enabled: form.cidr_allowlist_enabled,
           cidr_allowlist: allowlistText
             .split(',')
             .map((item) => item.trim())
             .filter(Boolean),
+          require_api_key: form.require_api_key,
         },
       });
       setSaveSuccess(true);
