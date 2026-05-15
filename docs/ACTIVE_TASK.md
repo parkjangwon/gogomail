@@ -1,43 +1,42 @@
 # ACTIVE_TASK
 
-## TASK-087: Admin Console Frontend (Phase 3)
+## TASK-088: Mail Infrastructure Hardening (Performance & RFC Compliance)
 
 ### 배경
 
-Phase 2에서 조직/도메인/감사로그/API/알림 설정 페이지가 완료됨.
-Phase 3는 운영 관리, 모니터링, 규정 준수 관리 등 추가 고급 기능 페이지 구현.
+개발 목표: "파워풀한 백엔드 성능, 초고속 수발신 처리, 버그 없는 단단한 코드, RFC 완전 준수, 몬스터 같은 SMTP 경험"
+
+Admin Console Phase 1-3이 완료됨. Phase 1 mail infrastructure (receive, send, delivery) 기본 구현도 완료.
+이제 대량 메일 발신 환경에서의 성능, 안정성, RFC 준수 등을 강화해야 함.
 
 ### 구현 대상
 
-Frontend (`apps/console`):
-- `src/app/companies/[id]/compliance/page.tsx` - 규정 준수 현황 대시보드
-- `src/app/companies/[id]/compliance/legal-holds/page.tsx` - 법적 보류 관리
-- `src/app/companies/[id]/delivery/relays/page.tsx` - SMTP 릴레이/스마트호스트 관리
-- `src/app/companies/[id]/delivery/routes/page.tsx` - 배송 라우팅 규칙 관리
-- `src/app/companies/[id]/monitoring/page.tsx` - 시스템 모니터링 대시보드
-- `src/app/companies/[id]/system/backpressure/page.tsx` - 백프레셔 상태 조회
-- `src/app/companies/[id]/system/health/page.tsx` - 시스템 상태 점검
-- `src/app/companies/[id]/system/queue/page.tsx` - 큐 통계 및 재시도 관리
-- `src/app/companies/[id]/admin-activity/page.tsx` - 관리자 활동 로그
-- E2E 테스트 추가 (admin console 전체 workflow)
+Go Backend (`internal/`):
+- SMTP 파이프라인 최적화: 배치 전송, 커넥션 풀 재활용, 홀드백 조정
+- RFC compliance 검증: SMTPUTF8, DSN, DKIM, SPF/DMARC, trace headers
+- Delivery worker 성능: 병렬 처리, 재시도 정책 튜닝, 핸들링 에러
+- Message parsing 성능: 메모리 할당 최소화, 스트리밍 우선
+- Database 쿼리 최적화: 인덱싱, 쿼리 재작성, 배치 처리
+- Observability: 메트릭, 로깅, 추적(tracing) 
 
 ### 완료 조건
 
-- [x] `pnpm -C apps/console type-check` 통과
-- [x] 규정 준수 관리 페이지 동작 확인
-- [x] 배송 라우팅 페이지 동작 확인
-- [x] 모니터링 및 시스템 상태 페이지 동작 확인
-- [x] 관리자 활동 로그 조회
-- [x] E2E 테스트 작성 및 통과
-- [x] docs/CURRENT_STATUS.md 갱신
-- [x] docs/backend-roadmap.md 해당 항목 체크
+- [ ] RFC compliance 검증 및 문제 해결
+- [ ] SMTP 파이프라인 성능 벤치마크 및 최적화
+- [ ] Delivery worker 재시도 정책 튜닝
+- [ ] Message parser 성능 개선 및 메모리 할당 감소
+- [ ] Database 쿼리 최적화 및 인덱싱
+- [ ] 대량 발신 부하 테스트 (1000+ msg/sec)
+- [ ] 성능 메트릭 수집 및 대시보드
+- [ ] docs/CURRENT_STATUS.md 갱신
+- [ ] docs/backend-roadmap.md 해당 항목 체크
 
 ### 검증
 
-- `pnpm -C apps/console type-check`
-- `pnpm -C apps/console build`
-- `pnpm -C apps/console test` (E2E tests)
+- `go test ./...` 통과
+- `go build ./...` 성공
+- 벤치마크 결과 기록 (msg/sec, latency, memory)
 
 ### 다음 태스크
 
-TASK-088: Admin Console Frontend (Phase 4) / Mail Infrastructure Hardening
+TASK-089: Protocol Gateway Hardening (IMAP, CalDAV, CardDAV)
