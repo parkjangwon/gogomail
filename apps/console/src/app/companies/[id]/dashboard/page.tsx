@@ -20,6 +20,7 @@ import { useI18n } from '@/app/i18n-provider';
 import { useQueryClient } from '@tanstack/react-query';
 import { useState, useEffect } from 'react';
 import { getRecentVisits } from '@/components/AdminLayout';
+import { MetricCard } from '@/components/dashboard/MetricCard';
 
 const healthIndicator = (status: string, t: (key: string, defaultValue?: string) => string) => {
   if (status === 'healthy') return <StatusIndicator type="success">{t('status.healthy')}</StatusIndicator>;
@@ -163,75 +164,64 @@ export default function DashboardPage() {
       <SpaceBetween size="l">
         {/* Core statistics */}
         <ColumnLayout columns={3} variant="text-grid" minColumnWidth={200}>
-          <Container>
-            <SpaceBetween size="xs">
-              <Box fontSize="display-l" fontWeight="bold">
-                {mailVolume.total_24h > 0 ? mailVolume.total_24h.toLocaleString() : '—'}
-              </Box>
-              <Box color="text-body-secondary" fontSize="body-s">{t('pages.dashboard_page.mail_volume')}</Box>
-              <KeyValuePairs
-                items={[
-                  { label: t('pages.dashboard_page.mail_volume_24h'), value: mailVolume.total_24h.toLocaleString() },
-                  { label: t('pages.dashboard_page.mail_volume_inbound_7d'), value: mailVolume.inbound_7d.toLocaleString() },
-                  { label: t('pages.dashboard_page.mail_volume_outbound_7d'), value: mailVolume.outbound_7d.toLocaleString() },
-                  { label: t('pages.dashboard_page.mail_volume_failed_24h'), value: mailVolume.failed_24h.toLocaleString() },
-                ]}
+          <MetricCard
+            title={t('pages.dashboard_page.mail_volume')}
+            value={mailVolume.total_24h > 0 ? mailVolume.total_24h.toLocaleString() : '—'}
+            description={t('pages.dashboard_page.mail_volume_7d_avg').replace('{n}', mailVolume.average_7d.toLocaleString())}
+          >
+            <KeyValuePairs
+              items={[
+                { label: t('pages.dashboard_page.mail_volume_24h'), value: mailVolume.total_24h.toLocaleString() },
+                { label: t('pages.dashboard_page.mail_volume_inbound_7d'), value: mailVolume.inbound_7d.toLocaleString() },
+                { label: t('pages.dashboard_page.mail_volume_outbound_7d'), value: mailVolume.outbound_7d.toLocaleString() },
+                { label: t('pages.dashboard_page.mail_volume_failed_24h'), value: mailVolume.failed_24h.toLocaleString() },
+              ]}
+            />
+          </MetricCard>
+          <MetricCard
+            title={t('pages.dashboard_page.user_activity')}
+            value={userActivity.active_users > 0 ? userActivity.active_users.toLocaleString() : '—'}
+            valueColor={userActivity.total_users > 0 ? 'text-status-success' : undefined}
+            description={t('pages.dashboard_page.users_active').replace('{active}', String(userActivity.active_users))}
+          >
+            <KeyValuePairs
+              items={[
+                { label: t('pages.dashboard_page.total_users'), value: userActivity.total_users.toLocaleString() },
+                { label: t('pages.dashboard_page.users_active_rate'), value: userActivity.total_users > 0 ? `${userActivity.active_rate}%` : '—' },
+                { label: t('pages.dashboard_page.users_suspended'), value: userActivity.suspended_users.toLocaleString() },
+              ]}
+            />
+          </MetricCard>
+          <MetricCard
+            title={t('pages.dashboard_page.storage_quota')}
+            value={storageLimit > 0 ? `${storagePct}%` : '—'}
+            description={storageLimit > 0 ? `${fmtGb(storageUsed)} / ${fmtGb(storageLimit)}` : t('pages.dashboard_page.unlimited_storage')}
+          >
+            {storageLimit > 0 ? (
+              <ProgressBar
+                value={storagePct}
+                status={stats.over_allocated ? 'error' : storagePct > 80 ? 'in-progress' : 'success'}
+                additionalInfo={`${fmtGb(storageUsed)} / ${fmtGb(storageLimit)}`}
               />
-              <Box color="text-body-secondary" fontSize="body-s">
-                {t('pages.dashboard_page.mail_volume_7d_avg').replace('{n}', mailVolume.average_7d.toLocaleString())}
-              </Box>
-            </SpaceBetween>
-          </Container>
-          <Container>
-            <SpaceBetween size="xs">
-              <Box fontSize="display-l" fontWeight="bold" color={userActivity.total_users > 0 ? 'text-status-success' : undefined}>
-                {userActivity.active_users > 0 ? `${userActivity.active_users.toLocaleString()}` : '—'}
-              </Box>
-              <Box color="text-body-secondary" fontSize="body-s">{t('pages.dashboard_page.user_activity')}</Box>
-              <KeyValuePairs
-                items={[
-                  { label: t('pages.dashboard_page.total_users'), value: userActivity.total_users.toLocaleString() },
-                  { label: t('pages.dashboard_page.users_active_rate'), value: userActivity.total_users > 0 ? `${userActivity.active_rate}%` : '—' },
-                  { label: t('pages.dashboard_page.users_suspended'), value: userActivity.suspended_users.toLocaleString() },
-                ]}
-              />
-              <Box color="text-body-secondary" fontSize="body-s">
-                {t('pages.dashboard_page.users_active').replace('{active}', String(userActivity.active_users))}
-              </Box>
-            </SpaceBetween>
-          </Container>
-          <Container>
-            <SpaceBetween size="xs">
-              <Box fontSize="display-l" fontWeight="bold">
-                {storageLimit > 0 ? `${storagePct}%` : '—'}
-              </Box>
-              <Box color="text-body-secondary" fontSize="body-s">{t('pages.dashboard_page.storage_quota')}</Box>
-              {storageLimit > 0 ? (
-                <ProgressBar
-                  value={storagePct}
-                  status={stats.over_allocated ? 'error' : storagePct > 80 ? 'in-progress' : 'success'}
-                  additionalInfo={`${fmtGb(storageUsed)} / ${fmtGb(storageLimit)}`}
-                />
-              ) : (
-                <StatusIndicator type="success">{t('pages.dashboard_page.unlimited_storage')}</StatusIndicator>
-              )}
-              {stats.over_allocated && (
-                <StatusIndicator type="error">{t('pages.dashboard_page.over_allocated')}</StatusIndicator>
-              )}
-              <KeyValuePairs
-                items={[
-                  { label: t('pages.dashboard_page.used_label'), value: fmtGb(storageUsed) },
-                  { label: t('pages.dashboard_page.limit_label'), value: storageLimit > 0 ? fmtGb(storageLimit) : t('pages.dashboard_page.unlimited_label') },
-                  {
-                    label: t('pages.dashboard_page.domains'),
-                    value: t('pages.dashboard_page.domains_active')
-                      .replace('{active}', String(stats.active_domains))
-                      .replace('{total}', String(stats.domain_count)),
-                  },
-                ]}
-              />
-            </SpaceBetween>
-          </Container>
+            ) : (
+              <StatusIndicator type="success">{t('pages.dashboard_page.unlimited_storage')}</StatusIndicator>
+            )}
+            {stats.over_allocated && (
+              <StatusIndicator type="error">{t('pages.dashboard_page.over_allocated')}</StatusIndicator>
+            )}
+            <KeyValuePairs
+              items={[
+                { label: t('pages.dashboard_page.used_label'), value: fmtGb(storageUsed) },
+                { label: t('pages.dashboard_page.limit_label'), value: storageLimit > 0 ? fmtGb(storageLimit) : t('pages.dashboard_page.unlimited_label') },
+                {
+                  label: t('pages.dashboard_page.domains'),
+                  value: t('pages.dashboard_page.domains_active')
+                    .replace('{active}', String(stats.active_domains))
+                    .replace('{total}', String(stats.domain_count)),
+                },
+              ]}
+            />
+          </MetricCard>
         </ColumnLayout>
 
         <ColumnLayout columns={2}>

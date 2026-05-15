@@ -1,6 +1,25 @@
 # gogomail current status
 
-Last updated: 2026-05-15 (Statistics & Dashboard - mail volume, user activity, storage)
+Last updated: 2026-05-15 (Audit Policy Config UI started after dashboard polish)
+
+## Audit Policy Config UI (2026-05-15, TASK-079 in progress)
+- `apps/console/src/app/companies/[id]/security/audit-policy/page.tsx` adds a dedicated audit policy screen with audit level selection plus admin-action and security-event toggles.
+- `apps/console/src/components/Sidebar.tsx` now exposes the new Audit Policy entry inside the governance section so admins can reach the page directly.
+- The console translations were extended with audit policy labels and page copy in English, Korean, Japanese, and Simplified Chinese.
+- The page is wired to the existing `useAuditPolicy` / `useUpdateAuditPolicy` hooks and stays aligned with the existing admin API proxy path.
+- Verification:
+  - `pnpm -C apps/console type-check`
+  - `go test ./...`
+
+## Dashboard UI Polish (2026-05-15, TASK-078 complete)
+- `apps/console/src/components/dashboard/MetricCard.tsx` now provides a reusable high-density metric card shell for console analytics pages.
+- `apps/console/src/app/companies/[id]/dashboard/page.tsx` now uses the shared card shell to keep mail volume, user activity, and storage summaries compact and visually consistent.
+- `apps/console/src/app/companies/[id]/analytics/api-usage/page.tsx` now reuses the same card shell so the API usage summary row matches the dashboard layout language.
+- The statistics dashboard, mail-volume analytics, and API metering flows remain backed by the real admin API sources and continue to pass console type-checks and repo-wide tests.
+- Verification:
+  - `pnpm -C apps/console exec vitest run src/lib/__tests__/apiUsage.test.ts src/lib/__tests__/dashboardStats.test.ts`
+  - `pnpm -C apps/console type-check`
+  - `go test ./...`
 
 ## Statistics & Dashboard (2026-05-15, TASK-076 complete)
 - The admin console dashboard now surfaces the three requested operational metrics together: mail volume, user activity, and storage.

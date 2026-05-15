@@ -80,6 +80,7 @@
     "mfa_management": "2FA Management",
     "ip_access": "IP Access Control",
     "auth_policy": "Auth Policy",
+    "audit_policy": "Audit Policy",
     "retention_policy": "Data Retention",
     "session_mgmt": "Session Management",
     "rate_limits": "Rate Limits",
@@ -781,6 +782,19 @@
       "warning": "Warning: Enabling auto-purge will permanently delete data beyond the retention period. This action cannot be undone.",
       "save": "Save Policy",
       "scope_note": "Company-level policy applies to all domains unless overridden."
+    },
+    "audit_policy_page": {
+      "title": "Audit Policy",
+      "description": "Choose the audit level and masking behavior for this company",
+      "info": "Audit levels control which classes of events are captured and retained.",
+      "company_scope": "Company Scope",
+      "audit_level": "Audit Level",
+      "audit_admin_actions": "Audit Admin Actions",
+      "audit_admin_actions_desc": "Track admin-side changes such as user, role, and configuration updates.",
+      "audit_security_events": "Audit Security Events",
+      "audit_security_events_desc": "Track sign-ins, policy changes, and other sensitive security events.",
+      "scope_note": "Company-level audit policy applies to all domains unless a domain override exists.",
+      "save": "Save Policy"
     },
     "ip_access_page": {
       "title": "IP Access Control",
