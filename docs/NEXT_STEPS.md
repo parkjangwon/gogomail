@@ -52,8 +52,8 @@ ACTIVE_TASK.md가 COMPLETE이면 여기서 첫 번째 항목을 선택해 ACTIVE
 | TASK-079 | Audit Policy Config UI | 완료 |
 | TASK-080 | Export & Reports | 완료 |
 | TASK-081 | Role Management UI | 완료 |
-| TASK-082 | Domain Settings UI | 진행 중 |
-| TASK-083 | API Settings UI | 완료 |
+| TASK-082 | Domain Settings UI | 완료 |
+| TASK-083 | API Settings UI | 진행 중 |
 | TASK-084 | Alerts & Notifications | 대기 |
 | TASK-085 | Admin Console Frontend (Phase 1) | 대기 |
 | TASK-086 | Admin Console Frontend (Phase 2) | 대기 |

@@ -1,8 +1,16 @@
 # gogomail current status
 
-Last updated: 2026-05-15 (Domain Settings UI refactor after role/report/audit policy work)
+Last updated: 2026-05-15 (API Settings UI added after domain settings refactor)
 
-## Domain Settings UI (2026-05-15, TASK-082 in progress)
+## API Settings UI (2026-05-15, TASK-083 in progress)
+- `apps/console/src/app/companies/[id]/security/api-settings/page.tsx` adds a dedicated API Settings screen with domain selection plus rate limit, CIDR allowlist, and API key requirement controls.
+- `apps/console/src/hooks/useAPISettings.ts` and `apps/console/src/hooks/useDomains.ts` provide the query/mutation path that keeps API settings aligned with the admin proxy contract.
+- `apps/console/src/components/Sidebar.tsx` now exposes an API Settings link inside the security section so operators can reach the page directly.
+- Console translations were extended with API settings labels and page copy in English, Korean, Japanese, and Simplified Chinese.
+- Verification:
+  - `pnpm -C apps/console type-check`
+
+## Domain Settings UI (2026-05-15, TASK-082 complete)
 - `apps/console/src/app/companies/[id]/tenancy/domain-settings/page.tsx` now consumes `useDomains()` and `useDomainSettings()` instead of hand-rolled fetch logic for the domain selector and domain settings payload.
 - `apps/console/src/hooks/useDomainSettings.ts` was added to standardize domain settings reads and writes through the admin API proxy.
 - The page still preserves the existing security/password/quota controls and now shares the same query/mutation pattern as the other admin console settings screens.

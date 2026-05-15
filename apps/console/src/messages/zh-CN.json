@@ -64,6 +64,7 @@
     "backpressure": "背压",
     "security": "安全",
     "api_keys": "API 密钥",
+    "api_settings": "API 设置",
     "dkim_keys": "DKIM 密钥",
     "suppression_list": "抑制列表",
     "alert_rules": "警报规则",
@@ -379,6 +380,27 @@
       "actions": "操作",
       "created": "创建日期",
       "title": "API密钥"
+    },
+    "api_settings_page": {
+      "title": "API 设置",
+      "description": "为域名配置 API 速率限制和访问控制",
+      "domain_scope": "域名范围",
+      "select_domain_label": "域名",
+      "select_domain_placeholder": "选择域名",
+      "settings_section": "API 控制",
+      "rate_limit_rps": "速率限制（请求/秒）",
+      "rate_limit_bps": "速率限制（字节/秒）",
+      "cidr_allowlist_enabled": "启用 CIDR 允许列表",
+      "cidr_allowlist_enabled_desc": "仅允许下方地址访问 API。",
+      "cidr_allowlist": "CIDR 允许列表",
+      "cidr_allowlist_desc": "用逗号分隔可调用 API 的 CIDR 块或 IP。",
+      "cidr_allowlist_placeholder": "192.0.2.0/24, 203.0.113.0/24",
+      "require_api_key": "需要 API 密钥",
+      "require_api_key_desc": "启用后，API 请求必须包含有效密钥。",
+      "last_updated": "最后更新",
+      "save": "保存 API 设置",
+      "saved": "API 设置已保存",
+      "save_error": "保存 API 设置失败"
     },
     "api_usage": {
       "title": "Title"

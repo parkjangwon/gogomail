@@ -6149,7 +6149,7 @@ Target outcome:
 | TASK-080 | Export & Reports | CSV, PDF, NDJSON |
 | TASK-081 | Role Management UI | Builtin roles view, company-scoped custom role create |
 | TASK-082 | Domain Settings UI | TLS, quota, IP whitelist, 2FA, hook-backed save flow |
-| TASK-083 | API Settings UI | API key management, rate limit |
+| TASK-083 | API Settings UI | API key management, rate limit, CIDR allowlist |
 | TASK-084 | Alerts & Notifications | Threshold-based alerts, channels |
 | TASK-085 | Admin Console Frontend (Phase 1) | Login, dashboard, user list |
 | TASK-086 | Admin Console Frontend (Phase 2) | Organization, settings pages |

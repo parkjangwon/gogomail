@@ -7,3 +7,4 @@ export * from "./useStatistics";
 export * from "./useReports";
 export * from "./useRoles";
 export * from "./useAPISettings";
+export * from "./useDomainSettings";

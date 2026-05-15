@@ -64,6 +64,7 @@
     "backpressure": "백프레셔",
     "security": "보안",
     "api_keys": "API 키",
+    "api_settings": "API 설정",
     "dkim_keys": "DKIM 키",
     "suppression_list": "발송 차단 목록",
     "alert_rules": "알림 규칙",
@@ -283,6 +284,27 @@
       "title": "API 키",
       "created": "생성일",
       "actions": "작업"
+    },
+    "api_settings_page": {
+      "title": "API 설정",
+      "description": "도메인별 API 속도 제한과 접근 제어를 설정합니다",
+      "domain_scope": "도메인 범위",
+      "select_domain_label": "도메인",
+      "select_domain_placeholder": "도메인을 선택하세요",
+      "settings_section": "API 제어",
+      "rate_limit_rps": "속도 제한 (요청/초)",
+      "rate_limit_bps": "속도 제한 (바이트/초)",
+      "cidr_allowlist_enabled": "CIDR 허용 목록 사용",
+      "cidr_allowlist_enabled_desc": "아래에 있는 주소만 API에 접근할 수 있습니다.",
+      "cidr_allowlist": "CIDR 허용 목록",
+      "cidr_allowlist_desc": "API 호출을 허용할 CIDR 블록 또는 IP를 쉼표로 구분해 입력합니다.",
+      "cidr_allowlist_placeholder": "192.0.2.0/24, 203.0.113.0/24",
+      "require_api_key": "API 키 필요",
+      "require_api_key_desc": "활성화하면 유효한 API 키가 있어야 합니다.",
+      "last_updated": "마지막 갱신",
+      "save": "API 설정 저장",
+      "saved": "API 설정이 저장되었습니다",
+      "save_error": "API 설정 저장에 실패했습니다"
     },
     "api_usage": {
       "title": "API 사용량"
