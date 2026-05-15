@@ -85,6 +85,25 @@ export default function DashboardPage() {
     mfa_enabled: 0,
     mfa_total: 0,
   };
+  const userActivity = data?.userActivity ?? {
+    total_users: 0,
+    active_users: 0,
+    suspended_users: 0,
+    active_rate: 0,
+  };
+  const mailVolume = data?.mailVolume ?? {
+    total_24h: 0,
+    delivered_24h: 0,
+    failed_24h: 0,
+    bounced_24h: 0,
+    filtered_24h: 0,
+    rejected_24h: 0,
+    inbound_7d: 0,
+    outbound_7d: 0,
+    total_7d: 0,
+    average_7d: 0,
+    daily: [],
+  };
 
   const storageUsed = stats.total_storage_used;
   const storageLimit = stats.total_storage_limit;
@@ -142,49 +161,51 @@ export default function DashboardPage() {
       }
     >
       <SpaceBetween size="l">
-        {/* Health + KPI row */}
-        <ColumnLayout columns={4} variant="text-grid" minColumnWidth={140}>
+        {/* Core statistics */}
+        <ColumnLayout columns={3} variant="text-grid" minColumnWidth={200}>
           <Container>
             <SpaceBetween size="xs">
-              <Box color="text-body-secondary" fontSize="body-s">{t('pages.dashboard_page.tenant_health')}</Box>
-              {healthIndicator(stats.health_status, t)}
-            </SpaceBetween>
-          </Container>
-          <Container>
-            <SpaceBetween size="xs">
-              <Box fontSize="display-l" fontWeight="bold"
-                color={stats.security_score >= 80 ? 'text-status-success' : stats.security_score >= 50 ? 'text-status-warning' : 'text-status-error'}>
-                {stats.security_score > 0 ? `${stats.security_score}/100` : '—'}
+              <Box fontSize="display-l" fontWeight="bold">
+                {mailVolume.total_24h > 0 ? mailVolume.total_24h.toLocaleString() : '—'}
               </Box>
-              <Box color="text-body-secondary" fontSize="body-s">{t('pages.dashboard_page.security_score')}</Box>
+              <Box color="text-body-secondary" fontSize="body-s">{t('pages.dashboard_page.mail_volume')}</Box>
+              <KeyValuePairs
+                items={[
+                  { label: t('pages.dashboard_page.mail_volume_24h'), value: mailVolume.total_24h.toLocaleString() },
+                  { label: t('pages.dashboard_page.mail_volume_inbound_7d'), value: mailVolume.inbound_7d.toLocaleString() },
+                  { label: t('pages.dashboard_page.mail_volume_outbound_7d'), value: mailVolume.outbound_7d.toLocaleString() },
+                  { label: t('pages.dashboard_page.mail_volume_failed_24h'), value: mailVolume.failed_24h.toLocaleString() },
+                ]}
+              />
+              <Box color="text-body-secondary" fontSize="body-s">
+                {t('pages.dashboard_page.mail_volume_7d_avg').replace('{n}', mailVolume.average_7d.toLocaleString())}
+              </Box>
             </SpaceBetween>
           </Container>
           <Container>
             <SpaceBetween size="xs">
-              <Box fontSize="display-l" fontWeight="bold">{stats.total_users > 0 ? stats.total_users : stats.active_domains}</Box>
+              <Box fontSize="display-l" fontWeight="bold" color={userActivity.total_users > 0 ? 'text-status-success' : undefined}>
+                {userActivity.active_users > 0 ? `${userActivity.active_users.toLocaleString()}` : '—'}
+              </Box>
+              <Box color="text-body-secondary" fontSize="body-s">{t('pages.dashboard_page.user_activity')}</Box>
+              <KeyValuePairs
+                items={[
+                  { label: t('pages.dashboard_page.total_users'), value: userActivity.total_users.toLocaleString() },
+                  { label: t('pages.dashboard_page.users_active_rate'), value: userActivity.total_users > 0 ? `${userActivity.active_rate}%` : '—' },
+                  { label: t('pages.dashboard_page.users_suspended'), value: userActivity.suspended_users.toLocaleString() },
+                ]}
+              />
               <Box color="text-body-secondary" fontSize="body-s">
-                {stats.total_users > 0
-                  ? t('pages.dashboard_page.users_active').replace('{total}', String(stats.total_users)).replace('{active}', String(stats.active_users))
-                  : t('pages.dashboard_page.active_domains')}
+                {t('pages.dashboard_page.users_active').replace('{active}', String(userActivity.active_users))}
               </Box>
             </SpaceBetween>
           </Container>
           <Container>
             <SpaceBetween size="xs">
               <Box fontSize="display-l" fontWeight="bold">
-                {stats.mfa_total > 0 ? `${stats.mfa_rate.toFixed(0)}%` : '—'}
+                {storageLimit > 0 ? `${storagePct}%` : '—'}
               </Box>
-              <Box color="text-body-secondary" fontSize="body-s">
-                {t('pages.dashboard_page.mfa_adoption')}{stats.mfa_total > 0 ? ` (${stats.mfa_enabled}/${stats.mfa_total})` : ''}
-              </Box>
-            </SpaceBetween>
-          </Container>
-        </ColumnLayout>
-
-        <ColumnLayout columns={2}>
-          {/* Storage */}
-          <Container header={<Header variant="h3">{t('pages.dashboard_page.storage_quota')}</Header>}>
-            <SpaceBetween size="m">
+              <Box color="text-body-secondary" fontSize="body-s">{t('pages.dashboard_page.storage_quota')}</Box>
               {storageLimit > 0 ? (
                 <ProgressBar
                   value={storagePct}
@@ -207,6 +228,21 @@ export default function DashboardPage() {
                       .replace('{active}', String(stats.active_domains))
                       .replace('{total}', String(stats.domain_count)),
                   },
+                ]}
+              />
+            </SpaceBetween>
+          </Container>
+        </ColumnLayout>
+
+        <ColumnLayout columns={2}>
+          <Container header={<Header variant="h3">{t('pages.dashboard_page.tenant_health')}</Header>}>
+            <SpaceBetween size="m">
+              {healthIndicator(stats.health_status, t)}
+              <KeyValuePairs
+                items={[
+                  { label: t('pages.dashboard_page.security_score'), value: stats.security_score > 0 ? `${stats.security_score}/100` : '—' },
+                  { label: t('pages.dashboard_page.mfa_adoption'), value: stats.mfa_total > 0 ? `${stats.mfa_rate.toFixed(0)}% (${stats.mfa_enabled}/${stats.mfa_total})` : '—' },
+                  { label: t('pages.dashboard_page.active_webhooks'), value: String(stats.active_webhooks) },
                 ]}
               />
             </SpaceBetween>

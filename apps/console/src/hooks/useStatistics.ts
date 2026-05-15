@@ -1,101 +1,105 @@
-import { useQuery } from "@tanstack/react-query";
-import { api } from "@/lib/api-client";
+import { useQuery } from '@tanstack/react-query';
+import { api } from '@/lib/api-client';
+import {
+  buildDashboardWindows,
+  composeDashboardData,
+  type DashboardData,
+  type DashboardDomainShape,
+  type DashboardHealthShape,
+  type DashboardPostureShape,
+  type DashboardSeatUsageShape,
+  type MailFlowDailyStatShape,
+  type MailFlowStatsShape,
+} from '@/lib/dashboardStats';
 
-export interface StatisticsData {
-  total_users: number;
-  active_sessions: number;
-  mail_operations: number;
-  audit_logs_24h: number;
-  timestamp: string;
+interface DomainsEnvelope {
+  domains?: DashboardDomainShape[];
 }
 
-export interface MailVolumeMetrics {
-  hour: string;
-  sent: number;
-  received: number;
-  failed: number;
+interface HealthEnvelope {
+  health?: DashboardHealthShape;
 }
 
-export interface TopDomainsMetrics {
-  domain: string;
-  mail_count: number;
-  error_rate: number;
+interface PostureEnvelope {
+  score?: number;
+  mfa?: DashboardPostureShape['mfa'];
 }
 
-interface SeatUsageEnvelope {
-  total_users: number;
-  active_users: number;
-}
+interface SeatUsageEnvelope extends DashboardSeatUsageShape {}
 
-interface MailFlowDailyStats {
-  date: string;
-  inbound_messages: number;
-  outbound_messages: number;
-  failed: number;
+interface MailFlowStatsEnvelope {
+  mail_flow_stats?: MailFlowStatsShape;
 }
 
 interface MailFlowDailyStatsEnvelope {
-  mail_flow_daily_stats: MailFlowDailyStats[];
+  mail_flow_daily_stats?: MailFlowDailyStatShape[];
 }
 
-interface DomainListEnvelope {
-  domains: Array<{ name: string }>;
+function unwrap<T>(result: PromiseSettledResult<T>): T | null {
+  return result.status === 'fulfilled' ? result.value : null;
 }
 
 export function useStatistics(companyId: string) {
-  return useQuery({
-    queryKey: ["statistics", companyId],
+  return useQuery<DashboardData>({
+    queryKey: ['statistics', companyId],
     queryFn: async () => {
-      const seatUsage = await api.get<SeatUsageEnvelope>(`/companies/${companyId}/seat-usage`);
-      return {
-        total_users: seatUsage.total_users,
-        active_sessions: seatUsage.active_users,
-        mail_operations: 0,
-        audit_logs_24h: 0,
-        timestamp: new Date().toISOString(),
-      } satisfies StatisticsData;
+      const id = companyId === 'default' ? '' : companyId;
+      const windows = buildDashboardWindows();
+      const domainParams: Record<string, string | number | boolean> = { limit: 200 };
+      if (id) domainParams.company_id = id;
+
+      const [domainsRes, healthRes, postureRes, seatRes, mailStatsRes, mailDailyRes] = await Promise.allSettled([
+        api.get<DomainsEnvelope>('/domains', { params: domainParams }),
+        id ? api.get<HealthEnvelope>(`/companies/${id}/health`) : Promise.resolve(null),
+        id ? api.get<PostureEnvelope>(`/companies/${id}/security/posture`) : Promise.resolve(null),
+        id ? api.get<SeatUsageEnvelope>(`/companies/${id}/seat-usage`) : Promise.resolve(null),
+        id ? api.get<MailFlowStatsEnvelope>('/mail-flow-logs/stats', {
+          params: {
+            company_id: id,
+            since: windows.mailStatsSince,
+            until: windows.mailStatsUntil,
+          },
+        }) : Promise.resolve(null),
+        id ? api.get<MailFlowDailyStatsEnvelope>('/mail-flow-logs/daily-stats', {
+          params: {
+            company_id: id,
+            since: windows.mailDailySince,
+            until: windows.mailDailyUntil,
+          },
+        }) : Promise.resolve(null),
+      ]);
+
+      const domains = unwrap(domainsRes)?.domains ?? [];
+      const health = unwrap(healthRes)?.health ?? null;
+      const postureEnvelope = unwrap(postureRes);
+      const seatUsage = unwrap(seatRes);
+      const mailStats = unwrap(mailStatsRes)?.mail_flow_stats ?? null;
+      const mailDailyStats = unwrap(mailDailyRes)?.mail_flow_daily_stats ?? null;
+
+      return composeDashboardData({
+        domains,
+        health,
+        posture: postureEnvelope ? { score: postureEnvelope.score, mfa: postureEnvelope.mfa } : null,
+        seatUsage,
+        mailFlowStats: mailStats,
+        mailFlowDailyStats: mailDailyStats,
+      });
     },
     enabled: !!companyId,
-    refetchInterval: 30000, // Refresh every 30 seconds
-    staleTime: 5000, // Consider stale after 5 seconds
+    refetchInterval: 30_000,
+    staleTime: 5_000,
   });
 }
 
-export function useMailVolumeMetrics(companyId: string, hours: number = 24) {
-  return useQuery({
-    queryKey: ["mail-volume-metrics", companyId, hours],
-    queryFn: async () => {
-      const res = await api.get<MailFlowDailyStatsEnvelope>("/mail-flow-logs/daily-stats", {
-        params: { days: Math.max(1, Math.ceil(hours / 24)) },
-      });
-      return res.mail_flow_daily_stats.map((row) => ({
-        hour: row.date,
-        sent: row.outbound_messages,
-        received: row.inbound_messages,
-        failed: row.failed,
-      }));
-    },
-    enabled: !!companyId,
-    refetchInterval: 60000, // Refresh every minute
-    staleTime: 10000,
-  });
-}
-
-export function useTopDomainsMetrics(companyId: string, limit: number = 10) {
-  return useQuery({
-    queryKey: ["top-domains-metrics", companyId, limit],
-    queryFn: async () => {
-      const res = await api.get<DomainListEnvelope>("/domains", {
-        params: { company_id: companyId, limit },
-      });
-      return res.domains.map((domain) => ({
-        domain: domain.name,
-        mail_count: 0,
-        error_rate: 0,
-      }));
-    },
-    enabled: !!companyId,
-    refetchInterval: 120000, // Refresh every 2 minutes
-    staleTime: 30000,
-  });
-}
+export { buildDashboardWindows, composeDashboardData };
+export type {
+  DashboardData,
+  DashboardDomainShape,
+  DashboardHealthShape,
+  DashboardMailVolume,
+  DashboardPostureShape,
+  DashboardSeatUsageShape,
+  DashboardUserActivity,
+  MailFlowDailyStatShape,
+  MailFlowStatsShape,
+} from '@/lib/dashboardStats';

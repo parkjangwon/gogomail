@@ -1,55 +1,36 @@
 # ACTIVE_TASK
 
-## TASK-073: External RDBMS Sync UI & Logs (in progress)
+## TASK-077: API Metering (in progress)
 
 ### 배경
 
-TASK-072 delivered RDBMS provider support with admin API and backend infrastructure. TASK-073 implements the admin backend and frontend for RDBMS sync operations, logs, and monitoring.
-
-The RDBMS sync surface includes:
-1. Admin API for RDBMS sync scheduling and history
-2. Sync logs and conflict resolution UI
-3. Real-time sync status monitoring
-4. Per-domain RDBMS configuration management in admin console
+TASK-076 delivered the first consolidated statistics dashboard for mail volume, user activity, and storage. TASK-077 now tightens the API metering read model so Domain Admins can inspect daily rollups and per-domain visibility for request volume, error rate, and response-time trends.
 
 ### 구현 대상
 
-Backend (no frontend gate required):
-- `internal/httpapi/admin.go` — Add RDBMS sync routes:
-  - `POST /admin/v1/domains/{id}/rdbms/sync` — Trigger RDBMS sync (users, groups, memberships)
-  - `GET /admin/v1/domains/{id}/rdbms/sync-history` — List sync runs with status/counts/timing
-  - `GET /admin/v1/domains/{id}/rdbms/conflicts` — List unresolved sync conflicts
-  - `POST /admin/v1/domains/{id}/rdbms/conflicts/{id}/resolve` — Resolve conflict manually
-- `internal/admin/admin.go` — Wire RDBMS sync service into admin runtime
-- `internal/idprovider/rdbms/admin_service.go` — Service layer for sync scheduling/history querying
-- OpenAPI documentation for sync endpoints
+Backend:
+- `internal/apimeter/*` — daily rollup worker/read-model hardening for `api_usage_daily`
+- `internal/httpapi/admin.go` — admin API coverage for API usage daily/monthly/statistics views, if any gaps remain
+- OpenAPI documentation for metering read models
 
-Frontend (gate applies here):
-- Admin console "Domain Settings > RDBMS Configuration" screen
-  - Display RDBMS provider status (connected/disconnected, last sync time)
-  - Manual sync button + sync progress indicator
-  - Sync history table (run date, user count, group count, duration, status)
-- Admin console "Domain Settings > RDBMS Conflicts" screen
-  - Unresolved conflict listing (user/group, issue type, details)
-  - Bulk resolve or per-item manual review
-- Sync logs viewer (export, filter by domain/status/date range)
+Frontend:
+- `apps/console/src/app/companies/[id]/analytics/api-usage/page.tsx`
+  - daily usage rollup table
+  - per-domain / per-principal visibility
+  - error-rate and response-time summaries if available from the backend payload
 
 ### 완료 조건
 
-- [x] Admin API POST /admin/v1/domains/{id}/rdbms/sync creates sync run with result envelope (Phase 1)
-- [x] Admin API GET /admin/v1/domains/{id}/rdbms/sync-history lists runs with pagination (delegated)
-- [x] Admin API GET /admin/v1/domains/{id}/rdbms/conflicts lists sync conflicts (delegated)
-- [x] Admin API POST /admin/v1/domains/{id}/rdbms/conflicts/{id}/resolve allows manual resolution (delegated)
-- [x] OpenAPI documents all new RDBMS sync endpoints
-- [x] All backend API tests pass (5930 tests)
-- [x] `go test ./...` 통과 (5930 tests)
-- [ ] Implement full sync execution when provider sync methods available
-- [ ] Frontend gate triggered before admin console UI implementation
-- [x] 개발 문서를 최신 상태로 갱신한다.
+- [ ] `go test ./...` 통과
+- [ ] API usage daily rollup data is visible for a company/domain in the admin console
+- [ ] Daily statistics stay bounded and deterministic for empty and populated windows
+- [ ] `docs/CURRENT_STATUS.md` 갱신
+- [ ] `docs/backend-roadmap.md` 해당 항목 체크/갱신
+- [ ] (API 변경 시) `docs/openapi.yaml` 갱신
 
 ### 다음 태스크
 
-TASK-074: Mail Log Queries & UI
+TASK-078: Dashboard UI
 
 ---
 
