@@ -283,6 +283,11 @@ func (t *DirectSMTPTransport) deliverHostDefault(ctx context.Context, job Job, r
 		}
 		return fmt.Errorf("open queued message: %w", err)
 	}
+
+	// Inject RFC 5321 Received header
+	receivedHeader := fmt.Sprintf("Received: from %s by %s with SMTP\n\t%s\n",
+		t.Hello, host, time.Now().Format(time.RFC1123Z))
+	message = newHeaderInjector(receivedHeader, message)
 	_, copyErr := io.Copy(writer, message)
 	closeMessageErr := message.Close()
 	closeDataErr := writer.Close()
@@ -547,6 +552,27 @@ func (t *DirectSMTPTransport) openMessage(ctx context.Context, job Job) (io.Read
 		return message, nil
 	}
 	return t.Transformers.Transform(ctx, job, message)
+}
+
+// headerInjector prepends RFC 5321 Received header to message.
+type headerInjector struct {
+	reader io.Reader
+	msgR   io.ReadCloser
+}
+
+func newHeaderInjector(header string, msg io.ReadCloser) *headerInjector {
+	return &headerInjector{
+		reader: io.MultiReader(strings.NewReader(header), msg),
+		msgR:   msg,
+	}
+}
+
+func (h *headerInjector) Read(p []byte) (n int, err error) {
+	return h.reader.Read(p)
+}
+
+func (h *headerInjector) Close() error {
+	return h.msgR.Close()
 }
 
 func (t *DirectSMTPTransport) mxHosts(ctx context.Context, domain string) ([]string, error) {

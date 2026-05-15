@@ -37,7 +37,8 @@ Go Backend (`internal/`):
 
 **Phase 2: RFC Compliance & Pipelining (진행 중)**
 - [ ] SMTP 파이프라인 성능 벤치마크 및 최적화
-- [ ] RFC compliance 검증 (Received headers, DKIM, SPF/DMARC)
+- [x] RFC 5321 Received headers (✓ implemented)
+- [ ] RFC compliance 검증 (DKIM, SPF/DMARC)
 - [ ] Delivery worker 재시도 정책 튜닝
 
 **Phase 3: Performance Optimization**
