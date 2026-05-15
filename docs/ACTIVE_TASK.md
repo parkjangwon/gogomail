@@ -49,8 +49,11 @@ Go Backend (`internal/`):
 **Phase 2: RFC Compliance & Pipelining (진행 중)**
 - [x] SMTP 파이프라인 성능 벤치마크 및 최적화 (✓ pipelineRCPTs 구현)
 - [x] RFC 5321 Received headers (✓ implemented)
+- [x] Delivery worker 재시도 정책 튜닝 (✓ AggressiveBulkRetryPolicy)
+  - 초기 재시도 지연 단축: 5분 → 2분 (transient 빠른 복구)
+  - 최대 재시도 윈도우 제한: 24시간 → 12시간 (fail-fast)
+  - Jitter 감소: 20% → 15% (동시 재시도 방지 유지)
 - [ ] RFC compliance 검증 (DKIM, SPF/DMARC)
-- [ ] Delivery worker 재시도 정책 튜닝
 
 **Phase 3: Performance Optimization**
 - [ ] Message parser 성능 개선 및 메모리 할당 감소
