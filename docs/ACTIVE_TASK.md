@@ -75,10 +75,14 @@ Go Backend (`internal/`):
   - BenchmarkBulkSendWithPipelining: 다중 수신자 성능
   - TestBulkSendPoolingMetrics: 커넥션 풀 효율성 검증
   - Mock SMTP 서버로 리얼리스틱 부하 시뮬레이션
-- [ ] 성능 메트릭 수집 및 대시보드 (benchmark 결과 분석 필요)
+- [x] 성능 메트릭 수집 및 대시보드
+  - PerformanceMetrics 구조체 구현: atomic 카운터로 pool hits/misses, delivery success/failures, recipient count, SMTP timing 추적
+  - MetricSnapshot: pool hit rate, delivery success rate, average SMTP time, throughput (msg/sec) 계산
+  - MetricEvent 및 Metrics 인터페이스로 observable 패턴 지원
+  - noop metrics로 오버헤드 제로화 (nil 체크)
 
 **Documentation**
-- [ ] docs/CURRENT_STATUS.md 갱신
+- [x] docs/CURRENT_STATUS.md 갱신
 - [ ] docs/backend-roadmap.md 해당 항목 체크
 
 ### 검증
