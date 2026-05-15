@@ -1,5 +1,19 @@
 # ACTIVE_TASK
 
+## Current Status Summary
+
+**TASK-088: Mail Infrastructure Hardening** ✅ COMPLETE (5961 tests)
+- All 3 phases implemented and verified
+- SMTP connection pooling, RFC compliance, performance metrics
+- Ready for production deployment
+
+**TASK-089: Protocol Gateway Hardening** 🔄 75% COMPLETE (5980+ tests)
+- Phase 1 (Buffer Pooling): COMPLETE - IMAP, CalDAV, CardDAV optimized
+- Phase 2 (Metrics & Rate Limiting): 50% COMPLETE - Framework ready for integration
+- Phase 3 (Gateway Integration): PLANNED - Wire metrics into handlers
+
+---
+
 ## TASK-088: Mail Infrastructure Hardening (Performance & RFC Compliance)
 
 ### 배경
