@@ -1,9 +1,13 @@
 # gogomail current status
 
-Last updated: 2026-05-15 (Frontend Refactoring - console users modal extraction + webmail mail page helpers)
+Last updated: 2026-05-15 (Frontend Refactoring - console users modal extraction + webmail compose/mail helpers)
 
 ## Webmail Frontend Refactoring (2026-05-15, Phase 1 in progress)
 - Goal: Reduce oversized webmail component files by extracting utilities and sub-components
+- **Compose Modal Slash Menu Extracted**:
+  - `apps/webmail/src/lib/compose/slashCommands.ts`: shared slash command data and exact command union type
+  - `apps/webmail/src/components/compose/ComposeSlashCommandMenu.tsx`: floating slash command palette extracted from the modal
+  - `apps/webmail/src/components/ComposeModal.tsx`: reduced 1418 → 1374 lines (-44 lines) by delegating the menu to a focused component
 - **Mail Page Helpers Extracted**:
   - `apps/webmail/src/lib/mail/mailPageUtils.ts`: search operator parsing, thread row normalization, visible message filtering, next-message lookup, and empty-folder labels
   - `apps/webmail/scripts/check-mail-page-helpers.mjs`: focused regression checks for mail-page helper behavior

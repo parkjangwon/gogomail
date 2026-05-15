@@ -19,10 +19,12 @@ import { formatSendResultLabel } from '@/lib/sendResultLabel';
 import { DriveNodeIcon } from '@/lib/driveNodeIcon';
 import { escapeHtml, parseAddrs, EmailTemplate, backendComposeIntent } from '@/lib/compose/composeUtils';
 import { buildQuoteHTML, emailOf, invalidRecipientAddresses, parseToPickerItems, pickerItemsToString } from '@/lib/mail-address';
+import { SLASH_COMMANDS, type SlashCommand } from '@/lib/compose/slashCommands';
 import { RecipientChips } from './RecipientChips';
 import { OrgPickerModal } from './OrgPickerModal';
 import { ComposeModalActions } from './ComposeModalActions';
 import { ComposeModalFooter } from './ComposeModalFooter';
+import { ComposeSlashCommandMenu } from './compose/ComposeSlashCommandMenu';
 import {
   PaperClipIcon,
   LinkIcon,
@@ -56,21 +58,6 @@ interface ComposeModalProps {
   windowOffset?: number;
   onArchiveSource?: () => void;
 }
-
-const SLASH_COMMANDS = [
-  { id: 'h1', label: '제목 1', desc: 'Heading 1', icon: 'H1' },
-  { id: 'h2', label: '제목 2', desc: 'Heading 2', icon: 'H2' },
-  { id: 'h3', label: '제목 3', desc: 'Heading 3', icon: 'H3' },
-  { id: 'bullet', label: '글머리 목록', desc: 'Bullet list', icon: '•' },
-  { id: 'numbered', label: '번호 목록', desc: 'Numbered list', icon: '1.' },
-  { id: 'quote', label: '인용문', desc: 'Blockquote / callout', icon: '"' },
-  { id: 'code', label: '코드 블록', desc: 'Code block', icon: '</>' },
-  { id: 'hr', label: '구분선', desc: 'Horizontal divider', icon: '—' },
-  { id: 'bold', label: '굵게', desc: 'Bold text', icon: 'B' },
-  { id: 'italic', label: '기울임', desc: 'Italic text', icon: 'I' },
-] as const;
-
-type SlashCommand = typeof SLASH_COMMANDS[number];
 
 const SCHEDULE_INPUT_HELP = '예약 전송은 현재 시각 이후만 선택할 수 있습니다.';
 
@@ -1312,44 +1299,13 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
         </form>
       </div>
 
-      {/* Slash command floating menu */}
-      {slashMenu && filteredCmds.length > 0 && (
-        <div
-          style={{
-            position: 'fixed',
-            ...(slashMenu.top + 320 > window.innerHeight
-              ? { bottom: window.innerHeight - slashMenu.cursorTop + 4 }
-              : { top: slashMenu.top }),
-            left: Math.min(slashMenu.left, window.innerWidth - 240),
-            zIndex: 600,
-            width: '232px',
-            background: 'var(--color-bg-primary)',
-            border: '1px solid var(--color-border-default)',
-            borderRadius: '10px',
-            boxShadow: '0 8px 32px rgba(0,0,0,0.18)',
-            overflow: 'hidden',
-          }}
-        >
-          <div style={{ padding: '4px 10px 2px', fontSize: '10px', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--color-text-tertiary)' }}>서식</div>
-          {filteredCmds.map((cmd, i) => (
-            <div
-              key={cmd.id}
-              onMouseDown={(e) => { e.preventDefault(); runSlashCommand(cmd); }}
-              onMouseEnter={() => setSlashIndex(i)}
-              style={{
-                display: 'flex', alignItems: 'center', gap: '10px', padding: '6px 10px', cursor: 'pointer',
-                background: i === slashIndex ? 'var(--color-bg-secondary)' : 'transparent',
-              }}
-            >
-              <div style={{ width: '28px', height: '28px', borderRadius: '6px', border: '1px solid var(--color-border-default)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 700, flexShrink: 0, fontFamily: 'monospace' }}>{cmd.icon}</div>
-              <div>
-                <div style={{ fontSize: '13px', fontWeight: 500, color: 'var(--color-text-primary)' }}>{cmd.label}</div>
-                <div style={{ fontSize: '11px', color: 'var(--color-text-tertiary)' }}>{cmd.desc}</div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
+      <ComposeSlashCommandMenu
+        menu={slashMenu}
+        commands={filteredCmds}
+        selectedIndex={slashIndex}
+        onSelect={(cmd) => runSlashCommand(cmd)}
+        onHover={setSlashIndex}
+      />
 
       {/* Org picker */}
       {showOrgPicker && (
