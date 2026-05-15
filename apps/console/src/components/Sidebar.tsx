@@ -121,6 +121,7 @@ export function Sidebar() {
         { type: 'link', text: t('nav.suppression_list'), href: p('/security/suppression') },
         { type: 'link', text: t('nav.dkim_keys'), href: p('/security/dkim-keys') },
         { type: 'link', text: t('nav.api_keys'), href: p('/security/api-keys') },
+        { type: 'link', text: t('nav.api_settings'), href: p('/security/api-settings') },
         { type: 'link', text: t('nav.mfa_management'), href: p('/security/mfa') },
         { type: 'link', text: t('nav.ip_access'), href: p('/security/ip-access') },
         { type: 'link', text: t('nav.auth_policy'), href: p('/security/auth-policy') },

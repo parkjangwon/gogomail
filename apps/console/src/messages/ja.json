@@ -64,6 +64,7 @@
     "backpressure": "バックプレッシャー",
     "security": "セキュリティ",
     "api_keys": "APIキー",
+    "api_settings": "API Settings",
     "dkim_keys": "DKIMキー",
     "suppression_list": "抑制リスト",
     "alert_rules": "アラートルール",
@@ -379,6 +380,27 @@
       "actions": "操作",
       "created": "作成日",
       "title": "APIキー"
+    },
+    "api_settings_page": {
+      "title": "API Settings",
+      "description": "Configure API rate limits and request access controls for a domain",
+      "domain_scope": "Domain Scope",
+      "select_domain_label": "Domain",
+      "select_domain_placeholder": "Choose a domain",
+      "settings_section": "API Controls",
+      "rate_limit_rps": "Rate Limit (requests/sec)",
+      "rate_limit_bps": "Rate Limit (bytes/sec)",
+      "cidr_allowlist_enabled": "Enable CIDR Allowlist",
+      "cidr_allowlist_enabled_desc": "Restrict API access to the addresses listed below.",
+      "cidr_allowlist": "CIDR Allowlist",
+      "cidr_allowlist_desc": "Comma-separated CIDR blocks or IPs allowed to call the API.",
+      "cidr_allowlist_placeholder": "192.0.2.0/24, 203.0.113.0/24",
+      "require_api_key": "Require API Key",
+      "require_api_key_desc": "When enabled, API requests must include a valid key.",
+      "last_updated": "Last updated",
+      "save": "Save API Settings",
+      "saved": "API settings saved",
+      "save_error": "Failed to save API settings"
     },
     "api_usage": {
       "title": "Title"
