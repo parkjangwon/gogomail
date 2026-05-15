@@ -10,6 +10,9 @@ import { Kbd, MiniEditor, Row, SectionCard, SectionHeader, Segment, Toggle, load
 import { FilterRulesSection } from '@/components/settings-view/FilterRulesSection';
 import { SettingsAboutSection } from '@/components/settings-view/SettingsAboutSection';
 import { SettingsStorageSection, type BackupState } from '@/components/settings-view/SettingsStorageSection';
+import { SettingsPrivacySection } from '@/components/settings-view/SettingsPrivacySection';
+import { SettingsNotificationsSection } from '@/components/settings-view/SettingsNotificationsSection';
+import { SettingsSecuritySection } from '@/components/settings-view/SettingsSecuritySection';
 
 interface SettingsViewProps {
   userEmail?: string;
@@ -768,41 +771,16 @@ export function SettingsView({ userEmail, userName }: SettingsViewProps) {
 
       case 'privacy':
         return (
-          <>
-            <SectionCard>
-              <SectionHeader>추적 방지</SectionHeader>
-              <Row label="추적 픽셀 차단" description="메일에 삽입된 1×1 추적 이미지를 자동으로 차단합니다. 발신자가 읽음 여부를 알 수 없습니다.">
-                <Toggle value={blockTrackingPixels} onChange={(v) => { setBlockTrackingPixels(v); saveWmSetting('blockTrackingPixels', v); }} />
-              </Row>
-              <Row label="링크 미리보기" description="링크 위에 마우스를 올렸을 때 미리보기를 표시합니다." last>
-                <Toggle value={linkPreview} onChange={(v) => { setLinkPreview(v); saveWmSetting('linkPreview', v); }} />
-              </Row>
-            </SectionCard>
-
-            <SectionCard>
-              <SectionHeader>발신 메일 설정</SectionHeader>
-              <Row label="읽음 확인 요청" description="보내는 메일에 읽음 확인 요청을 자동으로 포함합니다.">
-                <Toggle value={requestReadReceipt} onChange={(v) => { setRequestReadReceipt(v); saveWmSetting('requestReadReceipt', v); }} />
-              </Row>
-              <Row label="답장 미수신 시 알림" description="보낸 메일에 답장이 없을 경우 지정한 기간 후 알림을 받습니다." last>
-                <Segment<0 | 1 | 3 | 7>
-                  options={[{ value: 0, label: '없음' }, { value: 1, label: '1일' }, { value: 3, label: '3일' }, { value: 7, label: '1주일' }]}
-                  value={followUpDays}
-                  onChange={(v) => { setFollowUpDays(v); saveWmSetting('followUpDays', v); }}
-                />
-              </Row>
-            </SectionCard>
-
-            <SectionCard>
-              <SectionHeader>데이터 및 개인정보</SectionHeader>
-              <Row label="GoGoMail 텔레메트리" description="GoGoMail은 사용자 데이터를 수집하거나 외부 서버로 전송하지 않습니다." last>
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '12px', color: '#16a34a', fontWeight: 600 }}>
-                  <CheckIcon style={{ width: 14, height: 14 }} />
-                  완전 로컬 처리
-                </span>
-              </Row>
-            </SectionCard>
-          </>
+          <SettingsPrivacySection
+            blockTrackingPixels={blockTrackingPixels}
+            setBlockTrackingPixels={setBlockTrackingPixels}
+            linkPreview={linkPreview}
+            setLinkPreview={setLinkPreview}
+            requestReadReceipt={requestReadReceipt}
+            setRequestReadReceipt={setRequestReadReceipt}
+            followUpDays={followUpDays}
+            setFollowUpDays={setFollowUpDays}
+          />
         );
 
       case 'appearance':
@@ -868,42 +846,20 @@ export function SettingsView({ userEmail, userName }: SettingsViewProps) {
 
       case 'notifications':
         return (
-          <SectionCard>
-            <SectionHeader>알림 설정</SectionHeader>
-            <Row label="브라우저 알림" description={notifPerm === 'granted' ? '새 메일 알림이 허용되어 있습니다' : notifPerm === 'denied' ? '알림이 차단됨 — 브라우저 설정에서 변경하세요' : '새 메일 도착 시 데스크탑 알림을 보냅니다'}>
-              {notifPerm === 'granted'
-                ? <span style={{ fontSize: '12px', color: 'var(--color-success, #22c55e)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}><CheckIcon style={{ width: 14, height: 14 }} />허용됨</span>
-                : notifPerm === 'denied'
-                ? <span style={{ fontSize: '12px', color: 'var(--color-destructive)', fontWeight: 500 }}>차단됨</span>
-                : <button onClick={requestNotif} style={{ padding: '5px 14px', borderRadius: '6px', border: '1px solid var(--color-border-default)', background: 'transparent', color: 'var(--color-text-primary)', fontSize: '12px', cursor: 'pointer' }}>허용하기</button>
-              }
-            </Row>
-            <Row label="알림 소리" description="새 메일 도착 시 알림음을 재생합니다">
-              <Toggle value={notifSound} onChange={(v) => { setNotifSound(v); try { localStorage.setItem('webmail_notif_sound', v ? '1' : '0'); } catch { /* */ } }} />
-            </Row>
-            <Row label="알림 표시 수준" description="알림 팝업에 표시할 정보 수준을 선택합니다">
-              <Segment
-                options={[{ value: 'sender' as const, label: '발신자' }, { value: 'subject' as const, label: '제목' }, { value: 'preview' as const, label: '미리보기' }]}
-                value={notifDetail}
-                onChange={(v) => { setNotifDetail(v); try { localStorage.setItem('webmail_notif_detail', v); } catch { /* */ } }}
-              />
-            </Row>
-            <Row label="방해 금지 모드" description="지정한 시간대에 알림을 무음으로 처리합니다">
-              <Toggle value={dndEnabled} onChange={(v) => { setDndEnabled(v); try { localStorage.setItem('webmail_dnd', v ? '1' : '0'); } catch { /* */ } }} />
-            </Row>
-            {dndEnabled && (
-              <Row label="방해 금지 시간대" description="알림을 억제할 시작·종료 시간" last>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <input type="time" value={dndStart} onChange={(e) => { setDndStart(e.target.value); try { localStorage.setItem('webmail_dnd_start', e.target.value); } catch { /* */ } }}
-                    style={{ padding: '4px 8px', border: '1px solid var(--color-border-default)', borderRadius: '6px', background: 'var(--color-bg-secondary)', color: 'var(--color-text-primary)', fontSize: '13px' }} />
-                  <span style={{ fontSize: '12px', color: 'var(--color-text-tertiary)' }}>~</span>
-                  <input type="time" value={dndEnd} onChange={(e) => { setDndEnd(e.target.value); try { localStorage.setItem('webmail_dnd_end', e.target.value); } catch { /* */ } }}
-                    style={{ padding: '4px 8px', border: '1px solid var(--color-border-default)', borderRadius: '6px', background: 'var(--color-bg-secondary)', color: 'var(--color-text-primary)', fontSize: '13px' }} />
-                </div>
-              </Row>
-            )}
-            {!dndEnabled && <div style={{ height: '1px' }} />}
-          </SectionCard>
+          <SettingsNotificationsSection
+            notifPerm={notifPerm}
+            onRequestNotif={requestNotif}
+            notifSound={notifSound}
+            setNotifSound={(v) => { setNotifSound(v); try { localStorage.setItem('webmail_notif_sound', v ? '1' : '0'); } catch { /* */ } }}
+            notifDetail={notifDetail}
+            setNotifDetail={(v) => { setNotifDetail(v); try { localStorage.setItem('webmail_notif_detail', v); } catch { /* */ } }}
+            dndEnabled={dndEnabled}
+            setDndEnabled={(v) => { setDndEnabled(v); try { localStorage.setItem('webmail_dnd', v ? '1' : '0'); } catch { /* */ } }}
+            dndStart={dndStart}
+            setDndStart={(v) => { setDndStart(v); try { localStorage.setItem('webmail_dnd_start', v); } catch { /* */ } }}
+            dndEnd={dndEnd}
+            setDndEnd={(v) => { setDndEnd(v); try { localStorage.setItem('webmail_dnd_end', v); } catch { /* */ } }}
+          />
         );
 
       case 'shortcuts':
@@ -926,55 +882,12 @@ export function SettingsView({ userEmail, userName }: SettingsViewProps) {
         );
 
       case 'security': {
-        const apiToken = (() => { try { return btoa(`${userEmail ?? 'user'}:${Date.now().toString(36)}`).slice(0, 32); } catch { return 'token-unavailable'; } })();
-        const loginHistory = [
-          { device: '현재 기기', location: '서울, 대한민국', time: '지금', current: true },
-          { device: 'Chrome on macOS', location: '서울, 대한민국', time: '2일 전', current: false },
-          { device: 'Safari on iPhone', location: '부산, 대한민국', time: '5일 전', current: false },
-        ];
         return (
-          <>
-            <SectionCard>
-              <SectionHeader>세션 관리</SectionHeader>
-              {loginHistory.map((session, i) => (
-                <Row key={session.device} label={session.device} description={`${session.location} · ${session.time}`} last={i === loginHistory.length - 1}>
-                  {session.current
-                    ? <span style={{ fontSize: '11px', color: 'var(--color-success, #22c55e)', fontWeight: 600, background: 'rgba(34,197,94,0.1)', padding: '2px 8px', borderRadius: '10px' }}>현재</span>
-                    : <button style={{ fontSize: '12px', color: 'var(--color-destructive)', background: 'transparent', border: '1px solid rgba(220,38,38,0.3)', borderRadius: '5px', padding: '3px 10px', cursor: 'pointer' }}>종료</button>
-                  }
-                </Row>
-              ))}
-            </SectionCard>
-            <SectionCard>
-              <SectionHeader>API 액세스 토큰</SectionHeader>
-              <div style={{ padding: '0 20px 12px', fontSize: '12px', color: 'var(--color-text-tertiary)' }}>
-                외부 앱이나 스크립트에서 GoGoMail API에 접근할 때 사용합니다.
-              </div>
-              <Row label="액세스 토큰" description="Bearer 토큰으로 API 요청에 포함하세요" last>
-                <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                  <code style={{ fontSize: '11px', fontFamily: 'monospace', background: 'var(--color-bg-tertiary)', padding: '4px 8px', borderRadius: '4px', color: 'var(--color-text-secondary)', maxWidth: '160px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{apiToken}…</code>
-                  <button onClick={() => { try { navigator.clipboard.writeText(apiToken); } catch { /* */ } }}
-                    style={{ fontSize: '12px', padding: '4px 10px', borderRadius: '5px', border: '1px solid var(--color-border-default)', background: 'transparent', color: 'var(--color-text-secondary)', cursor: 'pointer' }}>복사</button>
-                </div>
-              </Row>
-            </SectionCard>
-            <SectionCard>
-              <SectionHeader>위험 구역</SectionHeader>
-              <Row label="2단계 인증 (2FA)" description="TOTP 앱을 사용한 추가 인증 레이어 (엔터프라이즈 기능)">
-                <button style={{ fontSize: '12px', padding: '5px 14px', borderRadius: '6px', border: '1px solid var(--color-accent)', background: 'transparent', color: 'var(--color-accent)', cursor: 'pointer', fontWeight: 600 }}>설정하기</button>
-              </Row>
-              <Row label="모든 기기에서 로그아웃" description="현재 기기를 포함한 모든 활성 세션을 즉시 종료합니다" last>
-                <button
-                  onClick={handleRevokeAll}
-                  disabled={revokingAll}
-                  style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '6px 14px', borderRadius: '6px', border: '1px solid rgba(220,38,38,0.35)', background: 'rgba(220,38,38,0.04)', color: 'var(--color-destructive)', fontSize: '12px', fontWeight: 600, cursor: revokingAll ? 'wait' : 'pointer' }}
-                >
-                  <ExclamationTriangleIcon style={{ width: 13, height: 13 }} />
-                  {revokingAll ? '처리 중...' : '전체 로그아웃'}
-                </button>
-              </Row>
-            </SectionCard>
-          </>
+          <SettingsSecuritySection
+            userEmail={userEmail}
+            revokingAll={revokingAll}
+            onRevokeAll={handleRevokeAll}
+          />
         );
       }
 
