@@ -1,1 +1,0 @@
-{"timestamp":"2026-05-07T11:04:27.277Z","event":"DENY","hook":"BeforeTool","tool":"run_shell_command","command":"rm -rf /Users/pjw/.agents/skills/writing-skills /Users/pjw/.agents/skills/writing-plans /Users/pjw/.agents/skills/test-driven-development /Users/pjw/.agents/skills/code-review","reason":"Matches deny pattern","severity":"HIGH"}
