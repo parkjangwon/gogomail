@@ -72,6 +72,7 @@ type Handler struct {
 	ResolveUser      UserResolver
 	AccessAuthorizer AccessAuthorizer
 	IncludeSync      bool
+	metrics          interface{} // GatewayMetrics (optional, typed as interface{} to avoid import)
 }
 
 type SyncChangeStore interface {
@@ -138,13 +139,57 @@ func QueryUserResolver(r *http.Request) (string, error) {
 	return userID, nil
 }
 
+// SetMetrics sets optional metrics collector for gateway observability
+func (h *Handler) SetMetrics(metrics interface{}) {
+	if h == nil {
+		return
+	}
+	h.metrics = metrics
+}
+
+// recordCommand records HTTP operation processing with optional metrics
+func (h *Handler) recordCommand(userID string, duration time.Duration) {
+	if h == nil || h.metrics == nil {
+		return
+	}
+	if m, ok := h.metrics.(interface{ RecordCommand(string, time.Duration) }); ok {
+		m.RecordCommand(userID, duration)
+	}
+}
+
+// recordError records HTTP operation error with optional metrics
+func (h *Handler) recordError(userID string) {
+	if h == nil || h.metrics == nil {
+		return
+	}
+	if m, ok := h.metrics.(interface{ RecordError(string) }); ok {
+		m.RecordError(userID)
+	}
+}
+
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if h == nil {
 		http.Error(w, "carddav handler is not configured", http.StatusInternalServerError)
 		return
 	}
+
+	// Extract userID for metrics (skip for well-known paths)
+	userID := "unknown"
+	if !strings.HasPrefix(r.URL.Path, "/.well-known") {
+		resolve := h.ResolveUser
+		if resolve == nil {
+			resolve = QueryUserResolver
+		}
+		if id, err := resolve(r); err == nil {
+			userID = id
+		}
+	}
+
+	cmdStart := time.Now()
+
 	if r.URL.Path == WellKnownCardDAVPath {
 		h.serveWellKnown(w, r)
+		h.recordCommand(userID, time.Since(cmdStart))
 		return
 	}
 	switch r.Method {
@@ -170,6 +215,8 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 	}
+
+	h.recordCommand(userID, time.Since(cmdStart))
 }
 
 type cardDAVUnauthorizedChallenge interface {
