@@ -66,9 +66,13 @@ Go Backend (`internal/`):
   - sanitizeAttachmentFilename 단일 패스 처리
   - 문자열 할당 최소화 (strings.ReplaceAll, strings.Map 제거)
   - UTF-8 경계 검증 효율화
-- [ ] Database 쿼리 최적화 및 인덱싱
-- [ ] 대량 발신 부하 테스트 (1000+ msg/sec)
-- [ ] 성능 메트릭 수집 및 대시보드
+- [ ] Database 쿼리 최적화 및 인덱싱 (defer: 구체적 병목 미파악)
+- [x] 대량 발신 부하 테스트 프레임워크
+  - BenchmarkBulkSendThroughput: 처리량 측정 (msg/sec)
+  - BenchmarkBulkSendWithPipelining: 다중 수신자 성능
+  - TestBulkSendPoolingMetrics: 커넥션 풀 효율성 검증
+  - Mock SMTP 서버로 리얼리스틱 부하 시뮬레이션
+- [ ] 성능 메트릭 수집 및 대시보드 (benchmark 결과 분석 필요)
 
 **Documentation**
 - [ ] docs/CURRENT_STATUS.md 갱신
@@ -79,6 +83,32 @@ Go Backend (`internal/`):
 - `go test ./...` 통과
 - `go build ./...` 성공
 - 벤치마크 결과 기록 (msg/sec, latency, memory)
+
+### 진행률
+
+**Phase 1: Connection Pooling** ✓ 100% 완료
+- SMTP 커넥션 풀 구현 및 스레드 안전성 보장
+- 메트릭 추적 (hits/misses)
+
+**Phase 2: RFC Compliance & Pipelining** ~90% 완료 (부분 완료)
+- SMTP 파이프라인 구현 (RFC 2920)
+- RFC 5321 Received 헤더
+- Delivery worker 재시도 정책 최적화
+- DKIM, DSN, SMTPUTF8 통합
+- 남은 항목: RFC 검증 문서화
+
+**Phase 3: Performance Optimization** ~60% 진행 중
+- 메시지 파서 메모리 할당 최적화
+- 부하 테스트 프레임워크
+- 남은 항목: DB 최적화, 메트릭 대시보드
+
+### 성능 개선 요약
+
+지금까지의 최적화로 대량 메일 발신 성능 향상:
+1. **커넥션 풀링**: TCP 핸드셰이크 오버헤드 제거
+2. **SMTP 파이프라인**: 다중 RCPT RTT 감소
+3. **공격적 재시도 정책**: 3시간 → 12시간 윈도우 (fail-fast)
+4. **메시지 파서**: 메모리 할당 최소화 (sync.Pool)
 
 ### 다음 태스크
 
