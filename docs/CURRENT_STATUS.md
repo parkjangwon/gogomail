@@ -1,8 +1,15 @@
 # gogomail current status
 
-Last updated: 2026-05-15 (Role Management UI polish after export/report and audit policy work)
+Last updated: 2026-05-15 (Domain Settings UI refactor after role/report/audit policy work)
 
-## Role Management UI (2026-05-15, TASK-081 in progress)
+## Domain Settings UI (2026-05-15, TASK-082 in progress)
+- `apps/console/src/app/companies/[id]/tenancy/domain-settings/page.tsx` now consumes `useDomains()` and `useDomainSettings()` instead of hand-rolled fetch logic for the domain selector and domain settings payload.
+- `apps/console/src/hooks/useDomainSettings.ts` was added to standardize domain settings reads and writes through the admin API proxy.
+- The page still preserves the existing security/password/quota controls and now shares the same query/mutation pattern as the other admin console settings screens.
+- Verification:
+  - `pnpm -C apps/console type-check`
+
+## Role Management UI (2026-05-15, TASK-081 complete)
 - `apps/console/src/app/companies/[id]/roles/page.tsx` now reads roles through `useRoles(companyId)`, creates custom roles through `useCreateRole()`, and shows builtin vs custom roles explicitly in the table.
 - `apps/console/src/hooks/useRoles.ts` now sends the company scope through the list and create calls so the page stays aligned with the admin role contract.
 - Console translations were updated with builtin/custom role labels and a type column label in all four locale packs.
