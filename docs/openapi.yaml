@@ -7648,6 +7648,62 @@ paths:
                 type: object
         default:
           $ref: "#/components/responses/Error"
+  /companies/{id}/security/login-audits:
+    get:
+      operationId: adminListCompanyLoginAudits
+      summary: List company login audit logs
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: user_id
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: success
+          in: query
+          required: false
+          schema:
+            type: boolean
+        - name: from_date
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+        - name: to_date
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 1000
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+      responses:
+        "200":
+          $ref: "#/components/responses/LoginAuditList"
+        default:
+          $ref: "#/components/responses/Error"
   /domains/{id}/security/retention-policy:
     get:
       operationId: adminGetDomainRetentionPolicy
@@ -9780,6 +9836,12 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/AuditLogIntegrityEnvelope"
+    LoginAuditList:
+      description: Login audit list envelope
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/LoginAuditListEnvelope"
     MailFlowLogList:
       description: Mail flow log list envelope
       content:
@@ -12640,6 +12702,41 @@ components:
       properties:
         audit_log:
           $ref: "#/components/schemas/AuditLog"
+    LoginAudit:
+      type: object
+      required: [id, user_id, company_id, ip_address, user_agent, success, timestamp]
+      properties:
+        id:
+          type: string
+        user_id:
+          type: string
+        company_id:
+          type: string
+        ip_address:
+          type: string
+        user_agent:
+          type: string
+        success:
+          type: boolean
+        failure_reason:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+    LoginAuditListEnvelope:
+      type: object
+      required: [login_audits, limit, offset]
+      properties:
+        login_audits:
+          type: array
+          items:
+            $ref: "#/components/schemas/LoginAudit"
+        limit:
+          type: integer
+          minimum: 0
+        offset:
+          type: integer
+          minimum: 0
     AuditLogIntegrityBreak:
       type: object
       required: [id, created_at, reason]

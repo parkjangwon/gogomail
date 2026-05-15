@@ -1,11 +1,13 @@
 package httpapi
 
 import (
+	"context"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/gogomail/gogomail/internal/admin"
 	"github.com/gogomail/gogomail/internal/davsyncretention"
 	"github.com/gogomail/gogomail/internal/directory"
 	"github.com/gogomail/gogomail/internal/maildb"
@@ -266,6 +268,64 @@ func parseAuditLogListRequest(w http.ResponseWriter, r *http.Request, limit int)
 		ActorID:      actorID,
 		TargetID:     targetID,
 		Since:        since,
+	}, true
+}
+
+func parseLoginAuditListRequest(w http.ResponseWriter, r *http.Request, limit int) (admin.LoginAuditFilter, bool) {
+	userID, ok := parseBoundedAdminQuery(w, r, "user_id")
+	if !ok {
+		return admin.LoginAuditFilter{}, false
+	}
+	successRaw, ok := singleQueryValue(w, r, "success")
+	if !ok {
+		return admin.LoginAuditFilter{}, false
+	}
+	successRaw = strings.TrimSpace(successRaw)
+	var success *bool
+	if successRaw != "" {
+		parsed, err := strconv.ParseBool(successRaw)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, "success must be true or false")
+			return admin.LoginAuditFilter{}, false
+		}
+		success = &parsed
+	}
+	since, ok := parseOptionalRFC3339Query(w, r, "from_date")
+	if !ok {
+		return admin.LoginAuditFilter{}, false
+	}
+	until, ok := parseOptionalRFC3339Query(w, r, "to_date")
+	if !ok {
+		return admin.LoginAuditFilter{}, false
+	}
+	var startTime, endTime *time.Time
+	if !since.IsZero() {
+		value := since
+		startTime = &value
+	}
+	if !until.IsZero() {
+		value := until
+		endTime = &value
+	}
+	offset := 0
+	if raw, ok := singleQueryValue(w, r, "offset"); ok {
+		raw = strings.TrimSpace(raw)
+		if raw != "" {
+			parsed, err := strconv.Atoi(raw)
+			if err != nil || parsed < 0 {
+				writeError(w, http.StatusBadRequest, "offset must be a non-negative integer")
+				return admin.LoginAuditFilter{}, false
+			}
+			offset = parsed
+		}
+	}
+	return admin.LoginAuditFilter{
+		UserID:    userID,
+		Success:   success,
+		StartTime: startTime,
+		EndTime:   endTime,
+		Limit:     limit,
+		Offset:    offset,
 	}, true
 }
 
@@ -1197,6 +1257,74 @@ func handleResolveLDAPConflict(w http.ResponseWriter, r *http.Request, service A
 		"domain_id":   id,
 		"resolution":  req.Resolution,
 	})
+}
+
+type loginAuditListResponse struct {
+	LoginAudits []loginAuditResponse `json:"login_audits"`
+	Limit       int                  `json:"limit"`
+	Offset      int                  `json:"offset"`
+}
+
+type loginAuditLister interface {
+	ListLoginAttempts(ctx context.Context, filter admin.LoginAuditFilter) ([]admin.LoginAuditLog, error)
+}
+
+type loginAuditResponse struct {
+	ID            string `json:"id"`
+	UserID        string `json:"user_id"`
+	CompanyID     string `json:"company_id"`
+	IPAddress     string `json:"ip_address"`
+	UserAgent     string `json:"user_agent"`
+	Success       bool   `json:"success"`
+	FailureReason string `json:"failure_reason,omitempty"`
+	Timestamp     string `json:"timestamp"`
+}
+
+func handleCompanyLoginAudits(service loginAuditLister) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if !rejectBodylessRequestPayload(w, r) {
+			return
+		}
+		if !rejectUnknownQueryKeys(w, r, "company_id", "user_id", "success", "from_date", "to_date", "limit", "offset") {
+			return
+		}
+		companyID, ok := parseBoundedAdminPathValue(w, r, "id")
+		if !ok {
+			return
+		}
+		limit, ok := parseQueryLimit(w, r)
+		if !ok {
+			return
+		}
+		filter, ok := parseLoginAuditListRequest(w, r, limit)
+		if !ok {
+			return
+		}
+		filter.CompanyID = companyID
+		logs, err := service.ListLoginAttempts(r.Context(), filter)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		items := make([]loginAuditResponse, len(logs))
+		for i, log := range logs {
+			items[i] = loginAuditResponse{
+				ID:            log.ID,
+				UserID:        log.UserID,
+				CompanyID:     log.CompanyID,
+				IPAddress:     log.IPAddress,
+				UserAgent:     log.UserAgent,
+				Success:       log.Success,
+				FailureReason: log.FailureReason,
+				Timestamp:     log.Timestamp.UTC().Format(time.RFC3339),
+			}
+		}
+		writeJSON(w, http.StatusOK, loginAuditListResponse{
+			LoginAudits: items,
+			Limit:       filter.Limit,
+			Offset:      filter.Offset,
+		})
+	}
 }
 
 func registerRDBMSSyncRoutes(mux *http.ServeMux, adminAuth func(http.HandlerFunc) http.HandlerFunc, service AdminService) {

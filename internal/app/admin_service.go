@@ -1587,6 +1587,16 @@ func (s adminService) GetMFAStats(ctx context.Context, companyID string) (maildb
 	return s.Repository.GetMFAStats(ctx, companyID)
 }
 
+func (s adminService) ListLoginAttempts(ctx context.Context, filter admin.LoginAuditFilter) ([]admin.LoginAuditLog, error) {
+	if s.adminSvc == nil {
+		return nil, fmt.Errorf("admin service is not configured")
+	}
+	if filter.CompanyID == "" {
+		return nil, fmt.Errorf("company id required for login audit lookup")
+	}
+	return s.adminSvc.ListLoginAttempts(ctx, filter)
+}
+
 func (s adminService) TriggerLDAPSync(ctx context.Context, domainID, syncType string) (map[string]interface{}, error) {
 	if syncType != "users" && syncType != "groups" && syncType != "memberships" {
 		return nil, fmt.Errorf("invalid sync_type: must be 'users', 'groups', or 'memberships'")
