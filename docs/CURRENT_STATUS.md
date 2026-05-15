@@ -150,6 +150,12 @@ Last updated: 2026-05-15 (Frontend Refactoring - console users modal extraction 
 - New provider query/sync coverage verifies mapped fields, org/search filtering, and sync row counts against a scripted SQL driver.
 - Verification: `go test ./internal/idprovider/rdbms` and `go test ./...`.
 
+## Mail Flow Logs query UI (2026-05-15, in progress)
+- `apps/console/src/app/companies/[id]/mail/flow-logs/page.tsx` now performs server-side mail log queries with company/domain/user/status/direction/date-range filters.
+- CSV export now reuses a shared `mailFlowLogs` helper so the query builder and export formatting stay testable.
+- The mail flow logs table now surfaces translated status labels and keeps the action bar consistent with the console design language.
+- New console tests cover mail flow query-string construction and CSV escaping, and `pnpm type-check` passes for the console app.
+
 ## Database Identity Mode (2026-05-14, complete)
 - Database provider implements full CRUD operations for users and groups through `maildb` repositories.
 - `CreateUser` validates required fields (domain_id, username, display_name) and inserts users into the database.
