@@ -7,6 +7,7 @@ export interface Role {
   id: string;
   name: string;
   description?: string;
+  is_builtin: boolean;
   permissions_count: number;
   assigned_users: number;
   created_at: string;
@@ -31,7 +32,7 @@ export function useRoles(companyId: string | undefined) {
     queryFn: async () => {
       if (!companyId) return [];
       const res = await api.get<RoleListEnvelope>('/roles', {
-        params: { limit: 200 },
+        params: { company_id: companyId, limit: 200 },
       });
       return res.roles;
     },
@@ -45,7 +46,7 @@ export function useGetRole(companyId: string | undefined, roleId: string | undef
     queryFn: async () => {
       if (!companyId || !roleId) return null;
       const res = await api.get<RoleListEnvelope>('/roles', {
-        params: { limit: 200 },
+        params: { company_id: companyId, limit: 200 },
       });
       return res.roles.find((role) => role.id === roleId) ?? null;
     },
@@ -56,11 +57,14 @@ export function useGetRole(companyId: string | undefined, roleId: string | undef
 export function useCreateRole() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ data }: {
+    mutationFn: async ({
+      companyId,
+      data,
+    }: {
       companyId: string;
       data: CreateRoleInput;
     }) => {
-      const res = await api.post<RoleEnvelope>('/roles', data);
+      const res = await api.post<RoleEnvelope>('/roles', { company_id: companyId, ...data });
       return res.role;
     },
     onSuccess: (_, { companyId }) => {

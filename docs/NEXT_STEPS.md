@@ -49,9 +49,9 @@ ACTIVE_TASK.md가 COMPLETE이면 여기서 첫 번째 항목을 선택해 ACTIVE
 | TASK-076 | Statistics & Dashboard | 완료 |
 | TASK-077 | API Metering | 완료 |
 | TASK-078 | Dashboard UI | 완료 |
-| TASK-079 | Audit Policy Config UI | 진행 중 |
-| TASK-080 | Export & Reports | 대기 |
-| TASK-081 | Role Management UI | 대기 |
+| TASK-079 | Audit Policy Config UI | 완료 |
+| TASK-080 | Export & Reports | 완료 |
+| TASK-081 | Role Management UI | 진행 중 |
 | TASK-082 | Domain Settings UI | 대기 |
 | TASK-083 | API Settings UI | 완료 |
 | TASK-084 | Alerts & Notifications | 대기 |

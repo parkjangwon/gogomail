@@ -1,7 +1,6 @@
 'use client';
+
 import { DataTable } from '@/components/DataTable';
-
-
 import {
   ContentLayout,
   Header,
@@ -13,76 +12,39 @@ import {
   Modal,
   FormField,
   Input,
+  Badge,
 } from '@cloudscape-design/components';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
+import { useParams } from 'next/navigation';
 import { useI18n } from '@/app/i18n-provider';
-
-interface Role {
-  id: string;
-  name: string;
-  description: string;
-  permissions_count: number;
-  assigned_users: number;
-  created_at: string;
-}
+import { useCreateRole, useRoles, type Role as RoleItem } from '@/hooks/useRoles';
 
 export default function RolesPage() {
   const { t } = useI18n();
-  const [roles, setRoles] = useState<Role[]>([]);
-  const [loading, setLoading] = useState(true);
+  const params = useParams();
+  const companyId = params?.id as string;
+  const { data: roles = [], isLoading } = useRoles(companyId);
   const [filter, setFilter] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [newRole, setNewRole] = useState({ name: '', description: '' });
-  const [creating, setCreating] = useState(false);
-
-  useEffect(() => {
-    fetchRoles();
-  }, []);
-
-  const fetchRoles = async () => {
-    setLoading(true);
-    try {
-      const res = await fetch('/api/admin/roles?limit=100', {
-        credentials: 'include',
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setRoles(data.roles || []);
-      }
-    } catch {
-      // silently use empty list
-    } finally {
-      setLoading(false);
-    }
-  };
+  const createRole = useCreateRole();
 
   const handleCreate = async () => {
     if (!newRole.name.trim()) return;
-    setCreating(true);
     try {
-      const res = await fetch('/api/admin/roles', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newRole),
-        credentials: 'include',
-      });
-      if (res.ok) {
-        setShowModal(false);
-        setNewRole({ name: '', description: '' });
-        fetchRoles();
-      }
+      await createRole.mutateAsync({ companyId, data: newRole });
+      setShowModal(false);
+      setNewRole({ name: '', description: '' });
     } catch (error) {
       console.error('Failed to create role:', error);
-    } finally {
-      setCreating(false);
     }
   };
 
-  const filteredRoles = roles.filter((r) =>
+  const filteredRoles = roles.filter((r: RoleItem) =>
     r.name.toLowerCase().includes(filter.toLowerCase())
   );
 
-  if (loading) {
+  if (isLoading) {
     return (
       <ContentLayout header={<Header variant="h1">{t('pages.roles_page.title')}</Header>}>
         <Box textAlign="center" padding="xl">
@@ -112,28 +74,37 @@ export default function RolesPage() {
         <DataTable
           columnDefinitions={[
             {
+              header: t('pages.roles_page.type'),
+              cell: (item: RoleItem) => (
+                <Badge color={item.is_builtin ? 'blue' : 'grey'}>
+                  {item.is_builtin ? t('pages.roles_page.builtin_role') : t('pages.roles_page.custom_role')}
+                </Badge>
+              ),
+              width: '15%',
+            },
+            {
               header: t('pages.roles_page.name'),
-              cell: (item: Role) => item.name,
+              cell: (item: RoleItem) => item.name,
               width: '20%',
             },
             {
               header: t('pages.roles_page.description_col'),
-              cell: (item: Role) => item.description,
+              cell: (item: RoleItem) => item.description,
               width: '35%',
             },
             {
               header: t('pages.roles_page.permissions'),
-              cell: (item: Role) => item.permissions_count,
+              cell: (item: RoleItem) => item.permissions_count,
               width: '15%',
             },
             {
               header: t('pages.roles_page.assigned_users'),
-              cell: (item: Role) => item.assigned_users,
+              cell: (item: RoleItem) => item.assigned_users,
               width: '15%',
             },
             {
               header: t('pages.roles_page.created'),
-              cell: (item: Role) => new Date(item.created_at).toLocaleDateString(),
+              cell: (item: RoleItem) => new Date(item.created_at).toLocaleDateString(),
               width: '15%',
             },
           ]}
@@ -163,7 +134,7 @@ export default function RolesPage() {
               <Button
                 variant="primary"
                 onClick={handleCreate}
-                loading={creating}
+                loading={createRole.isPending}
                 disabled={!newRole.name.trim()}
               >
                 {t('pages.roles_page.create_role')}

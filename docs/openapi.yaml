@@ -7474,6 +7474,67 @@ paths:
                     $ref: "#/components/schemas/AuthPolicy"
         default:
           $ref: "#/components/responses/Error"
+  /companies/{id}/security/audit-policy:
+    get:
+      operationId: adminGetCompanyAuditPolicy
+      summary: Get company audit policy
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Audit policy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  policy:
+                    $ref: "#/components/schemas/AuditPolicy"
+        default:
+          $ref: "#/components/responses/Error"
+    put:
+      operationId: adminPutCompanyAuditPolicy
+      summary: Set company audit policy
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AuditPolicy"
+      responses:
+        "200":
+          description: Saved audit policy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  policy:
+                    $ref: "#/components/schemas/AuditPolicy"
+        default:
+          $ref: "#/components/responses/Error"
   /companies/{id}/security/retention-policy:
     get:
       operationId: adminGetCompanyRetentionPolicy
@@ -10872,6 +10933,24 @@ components:
           type: integer
         max_concurrent_sessions:
           type: integer
+    AuditPolicy:
+      type: object
+      properties:
+        company_id:
+          type: string
+        audit_level:
+          type: string
+          enum: [level_1, level_2, level_3]
+        audit_admin_actions:
+          type: boolean
+        audit_security_events:
+          type: boolean
+        retention_days:
+          type: integer
+        mask_mail_content:
+          type: boolean
+        mask_recipient_emails:
+          type: boolean
     RetentionPolicy:
       type: object
       properties:

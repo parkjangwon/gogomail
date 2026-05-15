@@ -8,12 +8,22 @@ export interface AuditPolicyConfig {
   audit_level: AuditLevel;
   audit_admin_actions: boolean;
   audit_security_events: boolean;
+  retention_days: number;
+  mask_mail_content: boolean;
+  mask_recipient_emails: boolean;
+}
+
+interface AuditPolicyEnvelope {
+  policy: AuditPolicyConfig;
 }
 
 export function useAuditPolicy(companyId: string) {
   return useQuery({
     queryKey: ["audit-policy", companyId],
-    queryFn: () => api.get<AuditPolicyConfig>(`/audit-policy/${companyId}`),
+    queryFn: async () => {
+      const res = await api.get<AuditPolicyEnvelope>(`/companies/${companyId}/security/audit-policy`);
+      return res.policy;
+    },
     enabled: !!companyId,
     staleTime: 5 * 60 * 1000,
   });
@@ -24,7 +34,7 @@ export function useUpdateAuditPolicy() {
 
   return useMutation({
     mutationFn: (data: AuditPolicyConfig) =>
-      api.put<AuditPolicyConfig>(`/audit-policy/${data.company_id}`, data),
+      api.put<AuditPolicyEnvelope>(`/companies/${data.company_id}/security/audit-policy`, data),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({
         queryKey: ["audit-policy", variables.company_id],

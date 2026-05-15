@@ -113,6 +113,87 @@ func TestAdminConsoleCapabilitiesHandler(t *testing.T) {
 	}
 }
 
+func TestAdminCompanyAuditPolicyDefaultsToSafeValues(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeAdminService{}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "")
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/companies/company-1/security/audit-policy", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+
+	var body struct {
+		Policy struct {
+			CompanyID            string `json:"company_id"`
+			AuditLevel           string `json:"audit_level"`
+			AuditAdminActions    bool   `json:"audit_admin_actions"`
+			AuditSecurityEvents  bool   `json:"audit_security_events"`
+			RetentionDays        int    `json:"retention_days"`
+			MaskMailContent      bool   `json:"mask_mail_content"`
+			MaskRecipientEmails  bool   `json:"mask_recipient_emails"`
+		} `json:"policy"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("json.Unmarshal returned error: %v", err)
+	}
+	if body.Policy.CompanyID != "company-1" {
+		t.Fatalf("company_id = %q, want company-1", body.Policy.CompanyID)
+	}
+	if body.Policy.AuditLevel != "level_2" || !body.Policy.AuditAdminActions || !body.Policy.AuditSecurityEvents || body.Policy.RetentionDays != 90 || !body.Policy.MaskMailContent || body.Policy.MaskRecipientEmails {
+		t.Fatalf("policy = %+v", body.Policy)
+	}
+	if service.lastCompanyConfigID != "company-1" || service.lastCompanyConfigKey != "audit_policy" {
+		t.Fatalf("config lookup = (%q, %q), want (company-1, audit_policy)", service.lastCompanyConfigID, service.lastCompanyConfigKey)
+	}
+}
+
+func TestAdminCompanyAuditPolicySavePersistsCompanyConfig(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeAdminService{}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "")
+
+	req := httptest.NewRequest(http.MethodPut, "/admin/v1/companies/company-1/security/audit-policy", strings.NewReader(`{"audit_level":"level_3","audit_admin_actions":false,"audit_security_events":true,"retention_days":180,"mask_mail_content":false,"mask_recipient_emails":true}`))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+
+	var body struct {
+		Policy struct {
+			CompanyID            string `json:"company_id"`
+			AuditLevel           string `json:"audit_level"`
+			AuditAdminActions    bool   `json:"audit_admin_actions"`
+			AuditSecurityEvents  bool   `json:"audit_security_events"`
+			RetentionDays        int    `json:"retention_days"`
+			MaskMailContent      bool   `json:"mask_mail_content"`
+			MaskRecipientEmails  bool   `json:"mask_recipient_emails"`
+		} `json:"policy"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("json.Unmarshal returned error: %v", err)
+	}
+	if body.Policy.CompanyID != "company-1" || body.Policy.AuditLevel != "level_3" || body.Policy.RetentionDays != 180 || body.Policy.MaskMailContent || !body.Policy.MaskRecipientEmails {
+		t.Fatalf("policy = %+v", body.Policy)
+	}
+	if service.lastCompanyConfigID != "company-1" || service.lastCompanyConfigKey != "audit_policy" {
+		t.Fatalf("config save = (%q, %q), want (company-1, audit_policy)", service.lastCompanyConfigID, service.lastCompanyConfigKey)
+	}
+	if len(service.companyConfig) != 0 {
+		t.Fatalf("companyConfig should not be prepopulated by test")
+	}
+}
+
 func TestAdminListRolesHandlerUsesService(t *testing.T) {
 	t.Parallel()
 
@@ -667,6 +748,49 @@ func TestAdminAuditLogsHandler(t *testing.T) {
 		service.lastAuditLogList.ActorID != "actor-1" ||
 		service.lastAuditLogList.TargetID != "target-1" ||
 		service.lastAuditLogList.Since.IsZero() {
+		t.Fatalf("lastAuditLogList = %+v", service.lastAuditLogList)
+	}
+}
+
+func TestAdminCompanyAuditLogsExportHandler(t *testing.T) {
+	t.Parallel()
+
+	now := time.Date(2026, 5, 4, 9, 0, 0, 0, time.UTC)
+	service := &fakeAdminService{
+		auditLogs: []maildb.AuditLogView{{
+			ID:         "audit-1",
+			CompanyID:  "company-1",
+			ActorID:    "actor-1",
+			Category:   "admin",
+			Action:     "quota.reconciliation_correction",
+			TargetType: "user",
+			TargetID:   "target-1",
+			Result:     "applied",
+			IPAddress:  "192.0.2.10",
+			CreatedAt:  now,
+		}},
+	}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "")
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/companies/company-1/audit-logs/export?limit=10&category=admin&action_prefix=quota.", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if ct := rec.Header().Get("Content-Type"); !strings.HasPrefix(ct, "text/csv") {
+		t.Fatalf("Content-Type = %q, want text/csv", ct)
+	}
+	if cd := rec.Header().Get("Content-Disposition"); !strings.Contains(cd, `audit-logs-company-1.csv`) {
+		t.Fatalf("Content-Disposition = %q", cd)
+	}
+	body := rec.Body.String()
+	if !strings.Contains(body, "audit-1,company-1,actor-1,admin,quota.reconciliation_correction,user,target-1,applied,192.0.2.10") {
+		t.Fatalf("CSV body = %q", body)
+	}
+	if service.lastAuditLogList.CompanyID != "company-1" || service.lastAuditLogList.Limit != 10 || service.lastAuditLogList.Category != "admin" || service.lastAuditLogList.ActionPrefix != "quota." {
 		t.Fatalf("lastAuditLogList = %+v", service.lastAuditLogList)
 	}
 }
