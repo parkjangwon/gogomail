@@ -17,6 +17,7 @@ Admin Console Phase 1-3이 완료됨. Phase 1 mail infrastructure (receive, send
 - MaxIdle, IdleTimeout, MaxAge 설정 가능
 - DirectSMTPTransport에 통합 완료
 - Thread-safe 초기화 (sync.Once)
+- Pool metrics: hits/misses 추적으로 성능 가시성 제공
 - 모든 테스트 통과 (6045 tests)
 - 성능: 연결 재사용으로 handshake 오버헤드 감소
 
