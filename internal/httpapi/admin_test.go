@@ -10165,6 +10165,10 @@ func (f *fakeAdminService) GetMFAStats(ctx context.Context, companyID string) (m
 	return maildb.MFAStats{}, nil
 }
 
+func (f *fakeAdminService) ListLoginAttempts(ctx context.Context, filter admin.LoginAuditFilter) ([]admin.LoginAuditLog, error) {
+	return []admin.LoginAuditLog{}, nil
+}
+
 func (f *fakeAdminService) CreateInviteToken(ctx context.Context, userID, createdBy string) (maildb.InviteToken, error) {
 	return maildb.InviteToken{}, nil
 }

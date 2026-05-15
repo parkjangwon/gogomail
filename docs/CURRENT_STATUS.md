@@ -163,6 +163,12 @@ Last updated: 2026-05-15 (Frontend Refactoring - console users modal extraction 
 - The audit log console now exposes target-type and action filters that map directly to the backend `/admin/v1/audit-logs` query contract.
 - New console tests cover audit-log query-string construction and CSV escaping, and `pnpm type-check` passes for the console app.
 
+## Login/Security Audit Logs (2026-05-15, in progress)
+- `internal/httpapi/admin.go` now exposes `GET /admin/v1/companies/{id}/security/login-audits` for company-scoped login history queries.
+- `internal/app/admin_service.go` delegates login-attempt lookup to the admin audit service, keeping the HTTP surface on the real repository-backed implementation.
+- `apps/console/src/app/companies/[id]/security/sessions/page.tsx` now includes a login audit table with user, success/failure, and date-range filters plus CSV export for suspicious activity review.
+- New console and HTTP tests cover login-audit query-string construction, CSV escaping, and route filter parsing, and `pnpm type-check` passes for the console app.
+
 ## Database Identity Mode (2026-05-14, complete)
 - Database provider implements full CRUD operations for users and groups through `maildb` repositories.
 - `CreateUser` validates required fields (domain_id, username, display_name) and inserts users into the database.

@@ -284,6 +284,7 @@ type AdminService interface {
 	GetUserMFAStatus(ctx context.Context, userID string) (maildb.UserMFAStatus, error)
 	ResetUserMFA(ctx context.Context, userID string) error
 	GetMFAStats(ctx context.Context, companyID string) (maildb.MFAStats, error)
+	ListLoginAttempts(ctx context.Context, filter admin.LoginAuditFilter) ([]admin.LoginAuditLog, error)
 	CreateInviteToken(ctx context.Context, userID, createdBy string) (maildb.InviteToken, error)
 	GetInviteToken(ctx context.Context, token string) (maildb.InviteToken, error)
 	AcceptInviteToken(ctx context.Context, token, passwordHash string) (maildb.UserView, error)
@@ -4558,6 +4559,10 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 
 	mux.HandleFunc("DELETE /admin/v1/companies/{id}/sessions/{userId}", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		handleDeleteCompanySession(w, r)
+	}))
+
+	mux.HandleFunc("GET /admin/v1/companies/{id}/security/login-audits", adminAuth(func(w http.ResponseWriter, r *http.Request) {
+		handleCompanyLoginAudits(service)(w, r)
 	}))
 
 	mux.HandleFunc("GET /admin/v1/companies/{id}/security/rate-limit", adminAuth(func(w http.ResponseWriter, r *http.Request) {
