@@ -1515,6 +1515,8 @@
       "description_label": "설명",
       "edit_settings": "설정 편집",
       "edit_settings_header": "조직 설정 편집",
+      "integration_status_header": "연동 상태",
+      "integration_status_placeholder": "LDAP와 조직도 동기화는 placeholder로 등록되어 있습니다. 디렉터리 데이터는 로컬에서 관리할 수 있지만 외부 동기화 작업은 아직 사용할 수 없습니다.",
       "max_domains": "최대 도메인 수",
       "max_users": "최대 사용자 수",
       "org_name": "조직 이름",

@@ -1506,6 +1506,8 @@
       "description_label": "Description",
       "edit_settings": "Edit Settings",
       "edit_settings_header": "Edit Settings Header",
+      "integration_status_header": "集成状态",
+      "integration_status_placeholder": "LDAP 和组织同步已注册为 placeholder。目录数据可以在本地管理，但外部同步操作尚不可用。",
       "max_domains": "Max Domains",
       "max_users": "Max Users",
       "org_name": "Org Name",

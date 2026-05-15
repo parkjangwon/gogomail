@@ -1643,6 +1643,8 @@
       "description_label": "Description",
       "edit_settings": "Edit Settings",
       "edit_settings_header": "Edit Settings Header",
+      "integration_status_header": "Integration status",
+      "integration_status_placeholder": "LDAP and organization sync are registered as placeholders. Directory data can be managed locally, but external sync actions are not available yet.",
       "max_domains": "Max Domains",
       "max_users": "Max Users",
       "org_name": "Org Name",

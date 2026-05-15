@@ -1506,6 +1506,8 @@
       "description_label": "Description",
       "edit_settings": "Edit Settings",
       "edit_settings_header": "Edit Settings Header",
+      "integration_status_header": "連携ステータス",
+      "integration_status_placeholder": "LDAP と組織同期は placeholder として登録されています。ディレクトリデータはローカルで管理できますが、外部同期操作はまだ利用できません。",
       "max_domains": "Max Domains",
       "max_users": "Max Users",
       "org_name": "Org Name",

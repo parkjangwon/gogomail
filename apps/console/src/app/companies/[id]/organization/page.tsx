@@ -11,9 +11,11 @@ import {
   FormField,
   Input,
   KeyValuePairs,
+  Alert,
 } from '@cloudscape-design/components';
 import { useState, useEffect } from 'react';
 import { useI18n } from '@/app/i18n-provider';
+import { useConsoleCapabilities } from '@/hooks/useConsoleCapabilities';
 
 interface OrgSettings {
   name: string;
@@ -25,6 +27,7 @@ interface OrgSettings {
 
 export default function OrganizationSettingsPage() {
   const { t } = useI18n();
+  const { data: capabilities } = useConsoleCapabilities();
   const [settings, setSettings] = useState<OrgSettings | null>(null);
   const [draft, setDraft] = useState<OrgSettings | null>(null);
   const [loading, setLoading] = useState(true);
@@ -80,6 +83,8 @@ export default function OrganizationSettingsPage() {
     setEditing(false);
   };
 
+  const integrationStatus = capabilities?.integrations.organization_sync;
+
   if (loading) {
     return (
       <ContentLayout header={<Header variant="h1">{t('pages.organization.title')}</Header>}>
@@ -116,6 +121,15 @@ export default function OrganizationSettingsPage() {
       }
     >
       <SpaceBetween size="l">
+        {integrationStatus === 'placeholder' && (
+          <Alert
+            type="info"
+            header={t('pages.organization_page.integration_status_header')}
+          >
+            {t('pages.organization_page.integration_status_placeholder')}
+          </Alert>
+        )}
+
         {settings && draft && (
           <>
             {!editing ? (

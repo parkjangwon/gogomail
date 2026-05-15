@@ -7,4 +7,6 @@ export * from "./useStatistics";
 export * from "./useReports";
 export * from "./useRoles";
 export * from "./useAPISettings";
+export * from "./useApiKeys";
+export * from "./useConsoleCapabilities";
 export * from "./useDomainSettings";
