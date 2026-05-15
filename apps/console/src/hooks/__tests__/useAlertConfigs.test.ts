@@ -28,9 +28,7 @@ describe('useAlertConfigs', () => {
       error: null,
     } as any);
 
-    const { result } = {
-      result: useAlertConfigs('company-123'),
-    };
+    useAlertConfigs('company-123');
 
     expect(vi.mocked(useQuery)).toHaveBeenCalled();
   });
@@ -43,23 +41,7 @@ describe('useAlertConfigs', () => {
       error: null,
     } as any);
 
-    const { mutate } = {
-      mutate: vi.fn(),
-    };
-
-    const configData = {
-      alert_type: 'login_failures',
-      threshold: 10,
-      name: 'Login Failure Alert',
-      channels: [
-        {
-          channel_type: 'email',
-          config: { email: 'admin@example.com' },
-        },
-      ],
-    };
-
-    expect(mutate).toBeDefined();
+    expect(mockMutate).toBeDefined();
   });
 
   it('should update alert config', () => {
@@ -69,12 +51,6 @@ describe('useAlertConfigs', () => {
       isPending: false,
       error: null,
     } as any);
-
-    const configId = 'config-1';
-    const updates = {
-      threshold: 90.0,
-      is_enabled: false,
-    };
 
     expect(mockMutate).toBeDefined();
   });
@@ -86,8 +62,6 @@ describe('useAlertConfigs', () => {
       isPending: false,
       error: null,
     } as any);
-
-    const configId = 'config-1';
 
     expect(mockMutate).toBeDefined();
   });
@@ -120,8 +94,6 @@ describe('useAlertConfigs', () => {
       isPending: false,
       error: null,
     } as any);
-
-    const notificationId = 'notif-1';
 
     expect(mockMutate).toBeDefined();
   });

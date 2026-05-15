@@ -44,8 +44,7 @@ export function useAlertConfigs(companyId: string) {
   return useQuery({
     queryKey: ['alert-configs', companyId],
     queryFn: async () => {
-      const response = await api.get(`/admin/v1/alerts/configs`);
-      return response.json();
+      return api.get<AlertConfig[]>(`/admin/v1/alerts/configs`);
     },
   });
 }
@@ -55,12 +54,9 @@ export function useCreateAlertConfig() {
 
   return useMutation({
     mutationFn: async (config: Omit<AlertConfig, 'id' | 'created_at' | 'updated_at' | 'company_id'>) => {
-      const response = await api.post(`/admin/v1/alerts/configs`, config);
-      if (!response.ok) throw new Error('Failed to create alert config');
-      return response.json();
+      return api.post<AlertConfig>(`/admin/v1/alerts/configs`, config);
     },
-    onSuccess: (_, variables) => {
-      // Invalidate configs query
+    onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: ['alert-configs'],
       });
@@ -73,9 +69,7 @@ export function useUpdateAlertConfig() {
 
   return useMutation({
     mutationFn: async ({ id, ...updates }: Partial<AlertConfig> & { id: string }) => {
-      const response = await api.put(`/admin/v1/alerts/configs/${id}`, updates);
-      if (!response.ok) throw new Error('Failed to update alert config');
-      return response.json();
+      return api.put<AlertConfig>(`/admin/v1/alerts/configs/${id}`, updates);
     },
     onSuccess: (_, { id }) => {
       queryClient.invalidateQueries({
@@ -93,8 +87,7 @@ export function useDeleteAlertConfig() {
 
   return useMutation({
     mutationFn: async (id: string) => {
-      const response = await api.delete(`/admin/v1/alerts/configs/${id}`);
-      if (!response.ok) throw new Error('Failed to delete alert config');
+      return api.delete<void>(`/admin/v1/alerts/configs/${id}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({
@@ -108,8 +101,7 @@ export function useAlertNotifications(companyId: string) {
   return useQuery({
     queryKey: ['alert-notifications', companyId],
     queryFn: async () => {
-      const response = await api.get(`/admin/v1/alerts/notifications`);
-      return response.json();
+      return api.get<AlertNotification[]>(`/admin/v1/alerts/notifications`);
     },
   });
 }
@@ -119,8 +111,7 @@ export function useAcknowledgeNotification() {
 
   return useMutation({
     mutationFn: async (notificationId: string) => {
-      const response = await api.post(`/admin/v1/alerts/notifications/${notificationId}/acknowledge`);
-      if (!response.ok) throw new Error('Failed to acknowledge notification');
+      return api.post<void>(`/admin/v1/alerts/notifications/${notificationId}/acknowledge`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({
