@@ -18,31 +18,12 @@ import {
 import { Fragment, useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import { useI18n } from '@/app/i18n-provider';
-
-interface Domain {
-  id: string;
-  name: string;
-  status: string;
-}
-
-interface DomainSettings {
-  domain_id: string;
-  tls_policy: string;
-  quota_per_user: number;
-  ip_whitelist_enabled: boolean;
-  ip_whitelist: string[];
-  require_2fa: boolean;
-  session_timeout_minutes: number;
-  password_min_length: number;
-  password_require_uppercase: boolean;
-  password_require_numbers: boolean;
-  password_require_special_chars: boolean;
-  password_expiry_days: number;
-  user_registration_mode: string;
-  password_reset_token_ttl_minutes: number;
-  updated_at: string;
-  updated_by: string;
-}
+import { useDomains } from '@/hooks/useDomains';
+import {
+  useDomainSettings,
+  useUpdateDomainSettings,
+  type DomainSettings,
+} from '@/hooks/useDomainSettings';
 
 const BYTES_PER_MB = 1048576;
 const QUOTA_UNITS = {
@@ -69,16 +50,14 @@ export default function DomainSettingsPage() {
   const params = useParams();
   const companyId = params?.id as string;
 
-  const [domains, setDomains] = useState<Domain[]>([]);
   const [selectedDomainId, setSelectedDomainId] = useState('');
-  const [settings, setSettings] = useState<DomainSettings | null>(null);
   const [form, setForm] = useState<Partial<DomainSettings>>({});
-  const [loadingDomains, setLoadingDomains] = useState(true);
-  const [loadingSettings, setLoadingSettings] = useState(false);
-  const [saving, setSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [saveError, setSaveError] = useState('');
   const [quotaUnit, setQuotaUnit] = useState<QuotaUnit>('GB');
+  const { data: domains = [], isLoading: loadingDomains } = useDomains(companyId);
+  const { data: settings, isLoading: loadingSettings } = useDomainSettings(selectedDomainId);
+  const updateSettings = useUpdateDomainSettings();
 
   const tlsOptions = [
     { label: t('pages.domain_settings_page.tls_opportunistic'), value: 'opportunistic' },
@@ -97,20 +76,6 @@ export default function DomainSettingsPage() {
     { label: 'TB', value: 'TB' },
   ];
 
-  const apiErrorMessage = (value: unknown, fallback: string): string => {
-    if (!value || typeof value !== 'object') return fallback;
-    const body = value as { error?: unknown; error_message?: unknown; message?: unknown };
-    if (typeof body.error_message === 'string' && body.error_message.trim()) return body.error_message;
-    if (typeof body.error === 'string' && body.error.trim()) return body.error;
-    if (body.error && typeof body.error === 'object') {
-      const error = body.error as { message?: unknown; status_text?: unknown };
-      if (typeof error.message === 'string' && error.message.trim()) return error.message;
-      if (typeof error.status_text === 'string' && error.status_text.trim()) return error.status_text;
-    }
-    if (typeof body.message === 'string' && body.message.trim()) return body.message;
-    return fallback;
-  };
-
   const normalizeSettings = (value: DomainSettings): DomainSettings => ({
     ...value,
     ip_whitelist: value.ip_whitelist ?? [],
@@ -119,87 +84,44 @@ export default function DomainSettingsPage() {
   });
 
   useEffect(() => {
-    fetchDomains();
-  }, [companyId]);
+    if (!selectedDomainId && domains.length > 0) {
+      setSelectedDomainId(domains[0].id);
+    }
+  }, [domains, selectedDomainId]);
 
   useEffect(() => {
-    if (selectedDomainId) fetchSettings(selectedDomainId);
-  }, [selectedDomainId]);
-
-  const fetchDomains = async () => {
-    setLoadingDomains(true);
-    try {
-      const url = companyId
-        ? `/api/admin/domains?company_id=${companyId}&limit=100`
-        : '/api/admin/domains?limit=100';
-      const res = await fetch(url, { credentials: 'include' });
-      if (res.ok) {
-        const data = await res.json();
-        const nextDomains: Domain[] = data.domains || [];
-        setDomains(nextDomains);
-        if (!selectedDomainId && nextDomains.length > 0) {
-          setSelectedDomainId(nextDomains[0].id);
-        }
-      }
-    } catch (e) {
-      console.error('Failed to fetch domains:', e);
-    } finally {
-      setLoadingDomains(false);
-    }
-  };
-
-  const fetchSettings = async (domainId: string) => {
-    setLoadingSettings(true);
-    setSaveSuccess(false);
+    if (!settings) return;
+    const nextSettings = normalizeSettings(settings);
+    setForm(nextSettings);
+    setQuotaUnit(bestQuotaUnit(nextSettings.quota_per_user));
     setSaveError('');
-    try {
-      const res = await fetch(`/api/admin/domains/${domainId}/settings`, { credentials: 'include' });
-      if (res.ok) {
-        const data = await res.json();
-        const nextSettings = normalizeSettings(data.settings);
-        setSettings(nextSettings);
-        setForm(nextSettings);
-        setQuotaUnit(bestQuotaUnit(nextSettings.quota_per_user));
-      } else {
-        const err = await res.json().catch(() => ({}));
-        setSaveError(apiErrorMessage(err, t('pages.domain_settings_page.load_error')));
-      }
-    } catch (e) {
-      console.error('Failed to fetch domain settings:', e);
-      setSaveError(t('pages.domain_settings_page.load_error'));
-    } finally {
-      setLoadingSettings(false);
+    setSaveSuccess(false);
+  }, [settings]);
+
+  useEffect(() => {
+    if (selectedDomainId) {
+      setForm({});
+      setSaveSuccess(false);
+      setSaveError('');
     }
-  };
+  }, [selectedDomainId]);
 
   const handleDomainChange = (domainId: string) => {
     setSelectedDomainId(domainId);
-    setSettings(null);
   };
 
   const handleSave = async () => {
     if (!selectedDomainId) return;
-    setSaving(true);
     setSaveSuccess(false);
     setSaveError('');
     try {
-      const res = await fetch(`/api/admin/domains/${selectedDomainId}/settings`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
-        credentials: 'include',
+      await updateSettings.mutateAsync({
+        domainId: selectedDomainId,
+        settings: form as DomainSettings,
       });
-      if (res.ok) {
-        setSaveSuccess(true);
-        fetchSettings(selectedDomainId);
-      } else {
-        const err = await res.json().catch(() => ({}));
-        setSaveError(apiErrorMessage(err, t('pages.domain_settings_page.save_error')));
-      }
+      setSaveSuccess(true);
     } catch (e) {
       setSaveError(t('pages.domain_settings_page.save_error'));
-    } finally {
-      setSaving(false);
     }
   };
 
@@ -419,7 +341,7 @@ export default function DomainSettingsPage() {
                     {settings.updated_by && <> · <Badge color="grey">{settings.updated_by.slice(0, 8)}</Badge></>}
                   </Box>
                 )}
-                <Button variant="primary" onClick={handleSave} loading={saving}>
+                <Button variant="primary" onClick={handleSave} loading={updateSettings.isPending}>
                   {t('pages.domain_settings_page.save_btn')}
                 </Button>
               </div>
