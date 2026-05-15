@@ -13,7 +13,6 @@ import {
   Select,
   Toggle,
   Modal,
-  ModalProps,
   Form,
 } from '@cloudscape-design/components';
 import { useParams } from 'next/navigation';
@@ -22,7 +21,6 @@ import { useI18n } from '@/app/i18n-provider';
 import { useAlertConfigs, useCreateAlertConfig, useUpdateAlertConfig, useDeleteAlertConfig, type AlertConfig } from '@/hooks/useAlertConfigs';
 
 type AlertTypeOption = { label: string; value: 'storage' | 'login_failures' | 'api_errors' };
-type ChannelTypeOption = { label: string; value: 'email' | 'webhook' | 'dashboard' };
 
 export default function AlertsPage() {
   const { t } = useI18n();
@@ -42,12 +40,6 @@ export default function AlertsPage() {
     { label: t('alerts.type.storage'), value: 'storage' },
     { label: t('alerts.type.login_failures'), value: 'login_failures' },
     { label: t('alerts.type.api_errors'), value: 'api_errors' },
-  ];
-
-  const channelTypeOptions: ChannelTypeOption[] = [
-    { label: t('alerts.channel.email'), value: 'email' },
-    { label: t('alerts.channel.webhook'), value: 'webhook' },
-    { label: t('alerts.channel.dashboard'), value: 'dashboard' },
   ];
 
   const handleCreateOpen = () => {
@@ -202,10 +194,14 @@ export default function AlertsPage() {
                 <Select
                   selectedOption={
                     formData.alert_type
-                      ? alertTypeOptions.find(o => o.value === formData.alert_type)
+                      ? alertTypeOptions.find(o => o.value === formData.alert_type) ?? null
                       : null
                   }
-                  onChange={e => setFormData({ ...formData, alert_type: e.detail.selectedOption.value })}
+                  onChange={e => {
+                    if (e.detail.selectedOption?.value) {
+                      setFormData({ ...formData, alert_type: e.detail.selectedOption.value as 'storage' | 'login_failures' | 'api_errors' });
+                    }
+                  }}
                   options={alertTypeOptions}
                 />
               </FormField>
