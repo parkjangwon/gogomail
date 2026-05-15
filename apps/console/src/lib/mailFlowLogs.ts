@@ -15,6 +15,10 @@ export interface MailFlowLogQueryFilters {
   userId?: string;
   status?: string;
   direction?: string;
+  fromAddr?: string;
+  toAddr?: string;
+  subject?: string;
+  rfcMessageId?: string;
   search?: string;
   since?: string;
   until?: string;
@@ -42,6 +46,10 @@ export function buildMailFlowLogsQuery(filters: MailFlowLogQueryFilters): string
   if (filters.userId?.trim()) params.set('user_id', filters.userId.trim());
   if (filters.status?.trim()) params.set('flow_status', filters.status.trim());
   if (filters.direction?.trim()) params.set('direction', filters.direction.trim());
+  if (filters.fromAddr?.trim()) params.set('from_addr', filters.fromAddr.trim());
+  if (filters.toAddr?.trim()) params.set('to_addr', filters.toAddr.trim());
+  if (filters.subject?.trim()) params.set('subject', filters.subject.trim());
+  if (filters.rfcMessageId?.trim()) params.set('rfc_message_id', filters.rfcMessageId.trim());
   appendSearchTerms(params, filters.search ?? '');
   if (filters.since?.trim()) params.set('since', filters.since.trim());
   if (filters.until?.trim()) params.set('until', filters.until.trim());
