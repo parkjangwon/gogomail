@@ -1,8 +1,17 @@
 # gogomail current status
 
-Last updated: 2026-05-16 (TASK-086 in progress, alerts & notifications frontend)
+Last updated: 2026-05-16 (TASK-087 in progress, admin console phase 3)
 
-## Admin Console Frontend Phase 2 (2026-05-16, TASK-086 in progress)
+## Admin Console Frontend Phase 3 (2026-05-16, TASK-087 complete)
+- Compliance management, delivery routing, monitoring, system health, and admin activity pages fully implemented and verified.
+- All Phase 3 pages compile and build successfully with 5961 passing tests.
+- Admin console now covers core operational pages (Phase 1), advanced settings (Phase 2), and monitoring/compliance (Phase 3).
+- Verification:
+  - `pnpm -C apps/console type-check` passes
+  - `pnpm -C apps/console build` succeeds (60+ pages built)
+  - `go test ./...` passes with 5961 tests
+
+## Admin Console Frontend Phase 2 (2026-05-16, TASK-086 complete)
 - Alerts & Notifications UI page: `apps/console/src/app/companies/[id]/security/alerts/page.tsx` provides alert config CRUD operations with threshold settings, channel management (email/webhook/dashboard), and enable/disable controls.
 - Alert Hooks: `apps/console/src/hooks/useAlertConfigs.ts` implements `useAlertConfigs`, `useCreateAlertConfig`, `useUpdateAlertConfig`, `useDeleteAlertConfig`, `useAlertNotifications`, and `useAcknowledgeNotification` with React Query integration and proper cache invalidation.
 - Organization, Domain, Audit Log, and API Settings pages already exist from prior phases; alerts page completes the admin console feature set.
