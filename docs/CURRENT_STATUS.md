@@ -1,14 +1,18 @@
 # gogomail current status
 
-Last updated: 2026-05-15 (API Settings UI added after domain settings refactor)
+Last updated: 2026-05-15 (TASK-083 complete, admin maintainability hardening)
 
-## API Settings UI (2026-05-15, TASK-083 in progress)
+## API Settings UI + maintainability hardening (2026-05-15, TASK-083 complete)
 - `apps/console/src/app/companies/[id]/security/api-settings/page.tsx` adds a dedicated API Settings screen with domain selection plus rate limit, CIDR allowlist, and API key requirement controls.
-- `apps/console/src/hooks/useAPISettings.ts` and `apps/console/src/hooks/useDomains.ts` provide the query/mutation path that keeps API settings aligned with the admin proxy contract.
+- `apps/console/src/hooks/useAPISettings.ts`, `apps/console/src/hooks/useApiKeys.ts`, and `apps/console/src/hooks/useDomains.ts` provide the query/mutation path that keeps API settings and API keys aligned with the admin proxy contract and generated OpenAPI types.
 - `apps/console/src/components/Sidebar.tsx` now exposes an API Settings link inside the security section so operators can reach the page directly.
+- `GET /admin/v1/console/capabilities` now exposes integration status fields for LDAP read, LDAP sync, and organization sync using `available | placeholder | planned`; the console organization page surfaces placeholder state instead of implying external sync is live.
+- `internal/httpapi/admin.go` now delegates admin route registration through section functions, `internal/httpapi/admin_service_interfaces.go` splits the oversized `AdminService` contract into focused facets, `internal/maildb/admin_company.go` moves company repository methods out of the monolithic admin repository file, and IMAP `STATUS` handling is extracted into a dedicated server helper.
 - Console translations were extended with API settings labels and page copy in English, Korean, Japanese, and Simplified Chinese.
 - Verification:
   - `pnpm -C apps/console type-check`
+  - `go test ./...`
+  - `go build ./...`
 
 ## Domain Settings UI (2026-05-15, TASK-082 complete)
 - `apps/console/src/app/companies/[id]/tenancy/domain-settings/page.tsx` now consumes `useDomains()` and `useDomainSettings()` instead of hand-rolled fetch logic for the domain selector and domain settings payload.

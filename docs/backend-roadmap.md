@@ -6259,3 +6259,16 @@ Target outcome:
       clears the active envelope plus RFC 3461 `RET`, `ENVID`, `NOTIFY`, and
       `ORCPT` state while preserving authentication for the next submitted
       transaction.
+1730. TASK-083 API Settings UI is complete: the console uses admin-proxy hooks
+      backed by generated OpenAPI types for domain API settings and API key
+      management, including the backend-required `created_by` field on key
+      creation.
+1731. Admin console capability discovery now exposes integration truth states
+      (`available`, `placeholder`, `planned`) for LDAP read, LDAP sync, and
+      organization sync, and the console organization surface renders
+      placeholder status instead of presenting external sync as available.
+1732. Admin maintainability hardening split the oversized HTTP admin service
+      contract into domain facets, delegated admin route registration through
+      section functions, moved company repository methods into
+      `internal/maildb/admin_company.go`, and extracted IMAP `STATUS` handling
+      into a dedicated server helper without changing wire responses.
