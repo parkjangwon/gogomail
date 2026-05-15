@@ -22,6 +22,7 @@ Go Backend (`internal/`):
 ### 완료 조건
 
 - [x] SMTP 커넥션 풀 구현 (connection pooling)
+- [x] 풀 초기화 동시성 보호 (sync.Once)
 - [ ] SMTP 파이프라인 성능 벤치마크 및 최적화
 - [ ] RFC compliance 검증 및 문제 해결
 - [ ] Delivery worker 재시도 정책 튜닝
