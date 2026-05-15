@@ -153,6 +153,7 @@ Last updated: 2026-05-15 (Frontend Refactoring - console users modal extraction 
 ## Mail Flow Logs query UI (2026-05-15, in progress)
 - `apps/console/src/app/companies/[id]/mail/flow-logs/page.tsx` now performs server-side mail log queries with company/domain/user/status/direction/date-range filters.
 - CSV export now reuses a shared `mailFlowLogs` helper so the query builder and export formatting stay testable.
+- `apps/console/src/app/companies/[id]/mail/message-trace/page.tsx` and the domain dashboard summary now reuse the same mail-flow query builder, keeping the log search contract consistent across console surfaces.
 - The mail flow logs table now surfaces translated status labels and keeps the action bar consistent with the console design language.
 - New console tests cover mail flow query-string construction and CSV escaping, and `pnpm type-check` passes for the console app.
 

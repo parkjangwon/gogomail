@@ -21,6 +21,7 @@ import {
 import { useState } from 'react';
 import { useParams } from 'next/navigation';
 import { useI18n } from '@/app/i18n-provider';
+import { buildMailFlowLogsQuery, exportMailFlowLogsCsv } from '@/lib/mailFlowLogs';
 
 interface LogEntry {
   id: string;
@@ -83,19 +84,18 @@ export default function MessageTracePage() {
 
   const handleExportCSV = () => {
     if (logs.length === 0) return;
-    const headers = ['ID', 'RFC Message ID', 'From', 'To', 'Subject', 'Status', 'Direction', 'Time'];
-    const escape = (v: string) => `"${(v ?? '').replace(/"/g, '""')}"`;
-    const rows = logs.map(l => [
-      escape(l.id),
-      escape(l.rfc_message_id),
-      escape(l.from_addr),
-      escape(l.to_addr),
-      escape(l.subject),
-      escape(l.flow_status),
-      escape(l.direction),
-      escape(l.created_at ? new Date(l.created_at).toISOString() : ''),
-    ].join(','));
-    const csv = [headers.join(','), ...rows].join('\n');
+    const csv = exportMailFlowLogsCsv(
+      logs.map((log) => ({
+        id: log.id,
+        from: log.from_addr,
+        to: log.to_addr,
+        subject: log.subject,
+        status: log.flow_status,
+        created_at: log.created_at,
+        timestamp: log.created_at,
+        message_size: 0,
+      }))
+    );
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -110,17 +110,20 @@ export default function MessageTracePage() {
     setSearched(true);
     setSearchError(false);
     try {
-      const qs = new URLSearchParams({ company_id: companyId, limit: '100' });
-      if (fromAddr) qs.set('from_addr', fromAddr);
-      if (toAddr) qs.set('to_addr', toAddr);
-      if (subject) qs.set('subject', subject);
-      if (rfcMsgId) qs.set('rfc_message_id', rfcMsgId);
-      if (status.value) qs.set('flow_status', status.value as string);
-      if (direction.value) qs.set('direction', direction.value as string);
-      if (since) qs.set('since', since);
-      if (until) qs.set('until', until);
-
-      const res = await fetch(`/api/admin/mail-flow-logs?${qs}`, { credentials: 'include' });
+      const qs = buildMailFlowLogsQuery({
+        companyId,
+        userId: '',
+        status: (status.value as string) || '',
+        direction: (direction.value as string) || '',
+        fromAddr,
+        toAddr,
+        subject,
+        rfcMessageId: rfcMsgId,
+        since,
+        until,
+        limit: 100,
+      });
+      const res = await fetch(`/api/admin/mail-flow-logs${qs ? `?${qs}` : ''}`, { credentials: 'include' });
       if (res.ok) {
         const data = await res.json();
         setLogs(data.mail_flow_logs || []);

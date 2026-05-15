@@ -25,6 +25,7 @@ import {
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useI18n } from '@/app/i18n-provider';
+import { buildMailFlowLogsQuery } from '@/lib/mailFlowLogs';
 
 interface DomainDetail {
   id: string;
@@ -227,13 +228,13 @@ export default function DomainDetailPage() {
     setStatsLoading(true);
     try {
       const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
-      const qs = new URLSearchParams({
-        company_id: companyId,
-        domain_id: domainId,
-        limit: '500',
+      const qs = buildMailFlowLogsQuery({
+        companyId,
+        domainId,
         since,
+        limit: 500,
       });
-      const res = await fetch(`/api/admin/mail-flow-logs?${qs}`, { credentials: 'include' });
+      const res = await fetch(`/api/admin/mail-flow-logs${qs ? `?${qs}` : ''}`, { credentials: 'include' });
       if (!res.ok) return;
       const data = await res.json();
       const logs: Array<{ created_at: string; status: string }> = data.mail_flow_logs ?? [];

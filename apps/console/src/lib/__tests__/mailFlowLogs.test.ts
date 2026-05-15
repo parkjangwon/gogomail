@@ -43,4 +43,20 @@ describe('mailFlowLogs', () => {
       ].join('\n')
     );
   });
+
+  it('builds a query string from explicit message trace filters', () => {
+    expect(
+      buildMailFlowLogsQuery({
+        companyId: 'company-1',
+        fromAddr: 'alice@example.com',
+        toAddr: 'bob@example.com',
+        subject: 'Quarterly update',
+        rfcMessageId: '<msg@example.com>',
+        direction: 'outbound',
+        limit: 100,
+      })
+    ).toBe(
+      'company_id=company-1&direction=outbound&from_addr=alice%40example.com&to_addr=bob%40example.com&subject=Quarterly+update&rfc_message_id=%3Cmsg%40example.com%3E&limit=100'
+    );
+  });
 });
