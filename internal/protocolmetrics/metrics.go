@@ -30,6 +30,7 @@ type GatewayMetrics struct {
 	userErrors        map[string]int64
 
 	startTime time.Time
+	logger    *Logger // Optional structured logging
 }
 
 // NewGatewayMetrics creates a new metrics collector
@@ -39,7 +40,16 @@ func NewGatewayMetrics() *GatewayMetrics {
 		userCommands:    make(map[string]int64),
 		userErrors:      make(map[string]int64),
 		startTime:       time.Now(),
+		logger:          NewLogger(),
 	}
+}
+
+// SetLogger sets optional structured logger for metrics events
+func (m *GatewayMetrics) SetLogger(logger *Logger) {
+	if m == nil {
+		return
+	}
+	m.logger = logger
 }
 
 // RecordConnect records a new user connection
@@ -62,6 +72,11 @@ func (m *GatewayMetrics) RecordConnect(userID string) {
 	m.mu.Lock()
 	m.userConnections[userID]++
 	m.mu.Unlock()
+
+	// Log connection event
+	if m.logger != nil {
+		m.logger.LogConnection(userID, "connected")
+	}
 }
 
 // RecordDisconnect records a user disconnection
@@ -96,6 +111,11 @@ func (m *GatewayMetrics) RecordError(userID string) {
 	m.mu.Lock()
 	m.userErrors[userID]++
 	m.mu.Unlock()
+
+	// Log error event
+	if m.logger != nil {
+		m.logger.LogError(userID, "command_failed", nil)
+	}
 }
 
 // RecordRateLimitExceeded records a rate limit violation
@@ -104,6 +124,11 @@ func (m *GatewayMetrics) RecordRateLimitExceeded() {
 		return
 	}
 	atomic.AddInt64(&m.rateLimitExceeded, 1)
+
+	// Log rate limit event
+	if m.logger != nil {
+		m.logger.LogRateLimitViolation("unknown", "rate_limit")
+	}
 }
 
 // RecordConnectionLimitExceeded records a connection limit violation
