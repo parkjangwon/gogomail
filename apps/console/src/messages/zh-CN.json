@@ -80,6 +80,7 @@
     "mfa_management": "2FA管理",
     "ip_access": "IP访问控制",
     "auth_policy": "认证策略",
+    "audit_policy": "审计策略",
     "retention_policy": "数据保留策略",
     "session_mgmt": "会话管理",
     "rate_limits": "发送速率限制",
@@ -2151,6 +2152,19 @@
       "warning": "警告：启用自动清除将永久删除超出保留期限的数据。此操作无法撤销。",
       "save": "保存策略",
       "scope_note": "公司级策略适用于所有域，除非被覆盖。"
+    },
+    "audit_policy_page": {
+      "title": "审计策略",
+      "description": "为该公司设置审计级别和脱敏行为",
+      "info": "审计级别决定会收集和保留哪些事件类别。",
+      "company_scope": "公司范围",
+      "audit_level": "审计级别",
+      "audit_admin_actions": "审计管理员操作",
+      "audit_admin_actions_desc": "跟踪用户、角色和配置变更等管理端操作。",
+      "audit_security_events": "审计安全事件",
+      "audit_security_events_desc": "跟踪登录、策略变更和其他敏感安全事件。",
+      "scope_note": "公司级审计策略适用于所有域，除非存在域覆盖。",
+      "save": "保存策略"
     },
     "ip_access_page": {
       "title": "IP访问控制",

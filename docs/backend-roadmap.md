@@ -6070,7 +6070,7 @@ Target outcome:
 
 ### 8-B. Monitoring & Analytics
 
-16. Dashboard: System Admin은 전체 통계, Domain Admin은 자신 회사만, 실시간 메일 트래픽, 트렌드.
+16. Dashboard: System Admin은 전체 통계, Domain Admin은 자신 회사만, 실시간 메일 트래픽, 트렌드. Console UI now uses compact shared metric cards for mail volume, user activity, and storage.
 17. Mail Log: 발신/수신 로그, 검색 (sender, recipient, date range), 상세 조회 (headers, Authentication-Results).
 18. Spam Monitoring (활성화시): 일일 스팸 차단율, 상위 규칙, false positive 신고.
 19. Login Audit: 로그인 이력 (시간, IP, 디바이스), 성공/실패, 의심 활동 감지.

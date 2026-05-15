@@ -80,6 +80,7 @@
     "mfa_management": "2FA 관리",
     "ip_access": "IP 접근 제어",
     "auth_policy": "인증 정책",
+    "audit_policy": "감사 정책",
     "retention_policy": "데이터 보존 정책",
     "session_mgmt": "세션 관리",
     "rate_limits": "발신 제한",
@@ -654,6 +655,19 @@
       "warning": "경고: 자동 삭제를 활성화하면 보존 기간을 초과한 데이터가 영구적으로 삭제됩니다. 이 작업은 취소할 수 없습니다.",
       "save": "정책 저장",
       "scope_note": "회사 수준 정책은 재정의되지 않는 한 모든 도메인에 적용됩니다."
+    },
+    "audit_policy_page": {
+      "title": "감사 정책",
+      "description": "회사에 대한 감사 수준과 마스킹 동작을 설정합니다",
+      "info": "감사 수준은 어떤 이벤트가 수집되고 보관되는지 결정합니다.",
+      "company_scope": "회사 범위",
+      "audit_level": "감사 수준",
+      "audit_admin_actions": "관리자 작업 감사",
+      "audit_admin_actions_desc": "사용자, 역할, 설정 변경 같은 관리자 측 변경을 추적합니다.",
+      "audit_security_events": "보안 이벤트 감사",
+      "audit_security_events_desc": "로그인, 정책 변경, 기타 민감한 보안 이벤트를 추적합니다.",
+      "scope_note": "회사 수준 감사 정책은 도메인 재정의가 없는 한 모든 도메인에 적용됩니다.",
+      "save": "정책 저장"
     },
     "ip_access_page": {
       "title": "IP 접근 제어",

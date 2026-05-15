@@ -80,6 +80,7 @@
     "mfa_management": "2FA管理",
     "ip_access": "IPアクセス制御",
     "auth_policy": "認証ポリシー",
+    "audit_policy": "監査ポリシー",
     "retention_policy": "データ保持ポリシー",
     "session_mgmt": "セッション管理",
     "rate_limits": "送信レート制限",
@@ -2151,6 +2152,19 @@
       "warning": "警告：自動削除を有効にすると、保持期間を超えたデータが完全に削除されます。この操作は元に戻せません。",
       "save": "ポリシーを保存",
       "scope_note": "会社レベルのポリシーは、上書きされない限りすべてのドメインに適用されます。"
+    },
+    "audit_policy_page": {
+      "title": "監査ポリシー",
+      "description": "この会社の監査レベルとマスキング動作を設定します",
+      "info": "監査レベルは、どの種類のイベントを収集・保持するかを決めます。",
+      "company_scope": "会社スコープ",
+      "audit_level": "監査レベル",
+      "audit_admin_actions": "管理者操作を監査",
+      "audit_admin_actions_desc": "ユーザー、ロール、設定変更などの管理者側変更を追跡します。",
+      "audit_security_events": "セキュリティイベントを監査",
+      "audit_security_events_desc": "サインイン、ポリシー変更、その他の機密セキュリティイベントを追跡します。",
+      "scope_note": "会社レベルの監査ポリシーは、ドメイン上書きがない限りすべてのドメインに適用されます。",
+      "save": "ポリシーを保存"
     },
     "ip_access_page": {
       "title": "IPアクセス制御",

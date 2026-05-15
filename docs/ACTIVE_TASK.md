@@ -1,33 +1,34 @@
 # ACTIVE_TASK
 
-## TASK-078: Dashboard UI (in progress)
+## TASK-079: Audit Policy Config UI (in progress)
 
 ### 배경
 
-TASK-077 delivered API metering daily rollups and per-domain visibility. TASK-078 now polishes the dashboard UI so System Admins and Domain Admins can read the consolidated stats surface quickly and consistently.
+TASK-078 delivered the dashboard UI polish pass. TASK-079 adds a dedicated audit policy configuration surface so System Admins and Domain Admins can control audit level, retention, and masking without leaving the security area.
 
 ### 구현 대상
 
 Frontend:
-- `apps/console/src/app/companies/[id]/dashboard/page.tsx`
-  - tighten the high-density summary cards and supporting sections
-  - keep the core stats row readable at a glance
-- `apps/console/src/app/companies/[id]/analytics/api-usage/page.tsx`
-  - polish the table/filters layout for the meter view
-- `apps/console/src/components/*` if shared presentation helpers are needed
+- `apps/console/src/app/companies/[id]/security/audit-policy/page.tsx`
+  - audit level selector
+  - audit retention controls
+  - masking toggle(s)
+- `apps/console/src/hooks/useAuditPolicy.ts`
+- `apps/console/src/components/Sidebar.tsx` if a navigation link is needed
 
 ### 완료 조건
 
 - [ ] `go test ./...` 통과
-- [ ] Dashboard summary cards remain compact and readable on the console layout
-- [ ] API usage analytics remain usable after dashboard polish changes
+- [ ] Audit policy values can be viewed and saved from the console
+- [ ] Audit level, retention, and masking controls are clearly labeled
+- [ ] The page fits the existing security section layout without crowding neighboring settings
 - [ ] `docs/CURRENT_STATUS.md` 갱신
 - [ ] `docs/backend-roadmap.md` 해당 항목 체크/갱신
 - [ ] (API 변경 시) `docs/openapi.yaml` 갱신
 
 ### 다음 태스크
 
-TASK-079: Audit Policy Config UI
+TASK-080: Export & Reports
 
 ---
 

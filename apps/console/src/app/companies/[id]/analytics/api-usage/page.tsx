@@ -18,6 +18,7 @@ import {
 import { useMemo, useState, useEffect, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import { useI18n } from '@/app/i18n-provider';
+import { MetricCard } from '@/components/dashboard/MetricCard';
 import {
   buildAPIUsageQuery,
   exportAPIUsageCsv,
@@ -144,28 +145,19 @@ export default function APIUsagePage() {
     >
       <SpaceBetween size="l">
         <ColumnLayout columns={3} variant="text-grid" minColumnWidth={200}>
-          <Container>
-            <SpaceBetween size="xs">
-              <Box fontSize="display-l" fontWeight="bold">{summary.request_count.toLocaleString()}</Box>
-              <Box color="text-body-secondary" fontSize="body-s">{t('pages.api_usage_analytics.api_request_count')}</Box>
-            </SpaceBetween>
-          </Container>
-          <Container>
-            <SpaceBetween size="xs">
-              <Box fontSize="display-l" fontWeight="bold" color={summary.error_rate > 0 ? 'text-status-warning' : 'text-status-success'}>
-                {summary.error_rate}%
-              </Box>
-              <Box color="text-body-secondary" fontSize="body-s">{t('pages.api_usage_analytics.api_error_rate')}</Box>
-            </SpaceBetween>
-          </Container>
-          <Container>
-            <SpaceBetween size="xs">
-              <Box fontSize="display-l" fontWeight="bold">
-                {summary.average_latency_ms > 0 ? `${summary.average_latency_ms} ms` : '—'}
-              </Box>
-              <Box color="text-body-secondary" fontSize="body-s">{t('pages.api_usage_analytics.average_latency')}</Box>
-            </SpaceBetween>
-          </Container>
+          <MetricCard
+            title={t('pages.api_usage_analytics.api_request_count')}
+            value={summary.request_count.toLocaleString()}
+          />
+          <MetricCard
+            title={t('pages.api_usage_analytics.api_error_rate')}
+            value={`${summary.error_rate}%`}
+            valueColor={summary.error_rate > 0 ? 'text-status-warning' : 'text-status-success'}
+          />
+          <MetricCard
+            title={t('pages.api_usage_analytics.average_latency')}
+            value={summary.average_latency_ms > 0 ? `${summary.average_latency_ms} ms` : '—'}
+          />
         </ColumnLayout>
 
         <Container header={<Header variant="h2">{t('pages.api_usage_analytics.filters')}</Header>}>
