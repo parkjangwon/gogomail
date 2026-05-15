@@ -10,6 +10,8 @@ import {
   TextFilter,
   SpaceBetween,
   Button,
+  Input,
+  FormField,
   Select,
   SelectProps,
   Badge,
@@ -20,17 +22,14 @@ import {
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useI18n } from '@/app/i18n-provider';
 import { useCompany } from '@/contexts/CompanyContext';
+import { buildAuditLogsQuery, exportAuditLogsCsv, type AuditLogRow } from '@/lib/auditLogs';
 
-interface AuditLog {
+interface AuditLog extends AuditLogRow {
+  company_id?: string;
+  domain_id?: string;
+  user_id?: string;
   id: string;
   actor_id: string;
-  category: string;
-  action: string;
-  target_type: string;
-  target_id: string;
-  result: string;
-  ip_address: string;
-  created_at: string;
 }
 
 const resultType = (r: string): 'success' | 'error' | 'pending' =>
@@ -50,6 +49,15 @@ export default function AuditLogsPage() {
     { label: t('pages.audit_logs_page.cat_auth'), value: 'auth' },
   ];
 
+  const TARGET_TYPE_OPTIONS: SelectProps.Option[] = [
+    { label: t('common.all'), value: '' },
+    { label: t('pages.audit_logs_page.target_type_user'), value: 'user' },
+    { label: t('pages.audit_logs_page.target_type_domain'), value: 'domain' },
+    { label: t('pages.audit_logs_page.target_type_session'), value: 'session' },
+    { label: t('pages.audit_logs_page.target_type_role'), value: 'role' },
+    { label: t('pages.audit_logs_page.target_type_config'), value: 'config' },
+  ];
+
   const LIMIT_OPTIONS: SelectProps.Option[] = [
     { label: t('pages.audit_logs_page.limit_50'), value: '50' },
     { label: t('pages.audit_logs_page.limit_100'), value: '100' },
@@ -60,6 +68,10 @@ export default function AuditLogsPage() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
+  const [actionFilter, setActionFilter] = useState('');
+  const [targetTypeFilter, setTargetTypeFilter] = useState('');
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
   const [limit, setLimit] = useState('100');
   const [flash, setFlash] = useState<FlashbarProps.MessageDefinition[]>([]);
   const [exporting, setExporting] = useState(false);
@@ -68,9 +80,17 @@ export default function AuditLogsPage() {
     if (!cid) return;
     setLoading(true);
     try {
-      const params = new URLSearchParams({ limit });
-      if (categoryFilter) params.set('category', categoryFilter);
-      const res = await fetch(`/admin/v1/audit-logs?company_id=${cid}&${params}`);
+      const query = buildAuditLogsQuery({
+        companyId: cid,
+        category: categoryFilter,
+        action: actionFilter,
+        targetType: targetTypeFilter,
+        fromDate,
+        toDate,
+        limit: Number(limit),
+        offset: 0,
+      });
+      const res = await fetch(`/admin/v1/audit-logs${query ? `?${query}` : ''}`);
       const data = await res.json();
       setLogs(data.audit_logs ?? []);
     } catch {
@@ -78,7 +98,7 @@ export default function AuditLogsPage() {
     } finally {
       setLoading(false);
     }
-  }, [cid, categoryFilter, limit, t]);
+  }, [actionFilter, categoryFilter, cid, fromDate, limit, targetTypeFilter, t, toDate]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -98,11 +118,20 @@ export default function AuditLogsPage() {
     setExporting(true);
     try {
       if (format === 'csv') {
-        const params = new URLSearchParams({ limit: '10000' });
-        if (categoryFilter) params.set('category', categoryFilter);
-        const res = await fetch(`/admin/v1/companies/${cid}/audit-logs/export?${params}`);
-        if (!res.ok) throw new Error(await res.text());
-        const blob = await res.blob();
+        const csv = exportAuditLogsCsv(
+          filtered.map((log) => ({
+            id: log.id,
+            actor_id: log.actor_id,
+            category: log.category,
+            action: log.action,
+            target_type: log.target_type,
+            target_id: log.target_id,
+            result: log.result,
+            ip_address: log.ip_address,
+            created_at: log.created_at,
+          }))
+        );
+        const blob = new Blob([csv], { type: 'text/csv' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
@@ -189,6 +218,20 @@ export default function AuditLogsPage() {
                 options={CATEGORY_OPTIONS}
                 onChange={(e) => setCategoryFilter(e.detail.selectedOption.value ?? '')}
               />
+              <Select
+                selectedOption={TARGET_TYPE_OPTIONS.find(o => o.value === targetTypeFilter) ?? TARGET_TYPE_OPTIONS[0]}
+                options={TARGET_TYPE_OPTIONS}
+                onChange={(e) => setTargetTypeFilter(e.detail.selectedOption.value ?? '')}
+              />
+              <FormField label={t('pages.audit_logs_page.action_filter')}>
+                <Input value={actionFilter} onChange={(e) => setActionFilter(e.detail.value)} placeholder={t('pages.audit_logs_page.action_filter_placeholder')} />
+              </FormField>
+              <FormField label={t('pages.audit_logs_page.date_from')}>
+                <Input value={fromDate} onChange={(e) => setFromDate(e.detail.value)} placeholder="2026-05-01T00:00:00Z" />
+              </FormField>
+              <FormField label={t('pages.audit_logs_page.date_to')}>
+                <Input value={toDate} onChange={(e) => setToDate(e.detail.value)} placeholder="2026-05-31T23:59:59Z" />
+              </FormField>
               <Select
                 selectedOption={LIMIT_OPTIONS.find(o => o.value === limit) ?? LIMIT_OPTIONS[1]}
                 options={LIMIT_OPTIONS}
