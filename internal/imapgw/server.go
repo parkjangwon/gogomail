@@ -6493,7 +6493,9 @@ func readIMAPSectionLiteral(reader io.Reader, wantHeader bool) ([]byte, error) {
 	const maxHeaderBytes = 1 << 20
 
 	var data []byte
-	buffer := make([]byte, 4096)
+	buffer := acquireLiteralBuffer()
+	defer releaseLiteralBuffer(buffer)
+
 	for {
 		n, err := reader.Read(buffer)
 		if n > 0 {
