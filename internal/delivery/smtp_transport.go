@@ -42,6 +42,7 @@ type DirectSMTPTransport struct {
 	mtastsClient   *mtasts.Client
 	tlsrptCollector *tlsrpt.Collector
 	deliverHost    func(context.Context, Job, Route, string, []outbound.Address) error
+	pool           *SMTPConnectionPool
 }
 
 func NewDirectSMTPTransport() *DirectSMTPTransport {
@@ -54,6 +55,7 @@ func NewDirectSMTPTransport() *DirectSMTPTransport {
 		daneValidator:   dane.NewValidator(dnsResolver),
 		mtastsClient:    mtasts.NewClient(),
 		tlsrptCollector: tlsrpt.NewCollector("localhost"), // Domain placeholder
+		pool:            NewSMTPConnectionPool(4, 30*time.Second, 5*time.Minute),
 	}
 }
 
@@ -134,71 +136,110 @@ func (t *DirectSMTPTransport) deliverHostFunc() func(context.Context, Job, Route
 	return t.deliverHostDefault
 }
 
+func (t *DirectSMTPTransport) ensurePool() {
+	if t.pool == nil {
+		t.pool = NewSMTPConnectionPool(4, 30*time.Second, 5*time.Minute)
+	}
+}
+
 func (t *DirectSMTPTransport) deliverHostDefault(ctx context.Context, job Job, route Route, host string, recipients []outbound.Address) error {
 	// Check MTA-STS policy before connecting
 	if err := t.checkMTASTSPolicy(ctx, route.Domain, host); err != nil {
 		return fmt.Errorf("mta-sts: %w", err)
 	}
 
-	timeout := t.Timeout
-	if timeout <= 0 {
-		timeout = 30 * time.Second
+	t.ensurePool()
+
+	// Create pool key for this route
+	poolKey := SMTPConnPoolKey{
+		Host:        host,
+		Port:        normalizeRoutePort(route.Port),
+		ImplicitTLS: route.ImplicitTLS,
+		AuthUser:    route.Auth.Username,
 	}
-	dialer := net.Dialer{Timeout: timeout}
-	addr := net.JoinHostPort(host, fmt.Sprintf("%d", normalizeRoutePort(route.Port)))
+
+	// Try to get existing connection from pool
+	pooledConn, _ := t.pool.Get(ctx, poolKey)
+	var client *smtp.Client
 	var conn net.Conn
-	var err error
-	if route.ImplicitTLS {
-		tlsDialer := tls.Dialer{
-			NetDialer: &dialer,
-			Config:    t.deliveryTLSConfig(host),
-		}
-		conn, err = tlsDialer.DialContext(ctx, "tcp", addr)
+	var pooledConnUsed bool
+
+	if pooledConn != nil {
+		client = pooledConn.Client
+		conn = pooledConn.Conn
+		pooledConnUsed = true
 	} else {
-		conn, err = dialer.DialContext(ctx, "tcp", addr)
-	}
-	if err != nil {
-		return fmt.Errorf("dial mx %s for %s: %w", host, route.Domain, err)
-	}
-	defer conn.Close()
-	if deadline := deliveryDeadline(ctx, timeout, time.Now()); !deadline.IsZero() {
-		if err := conn.SetDeadline(deadline); err != nil {
-			return fmt.Errorf("set smtp session deadline for %s: %w", host, err)
+		// Pool miss: create new connection
+		timeout := t.Timeout
+		if timeout <= 0 {
+			timeout = 30 * time.Second
+		}
+		dialer := net.Dialer{Timeout: timeout}
+		addr := net.JoinHostPort(host, fmt.Sprintf("%d", poolKey.Port))
+		var err error
+		if route.ImplicitTLS {
+			tlsDialer := tls.Dialer{
+				NetDialer: &dialer,
+				Config:    t.deliveryTLSConfig(host),
+			}
+			conn, err = tlsDialer.DialContext(ctx, "tcp", addr)
+		} else {
+			conn, err = dialer.DialContext(ctx, "tcp", addr)
+		}
+		if err != nil {
+			return fmt.Errorf("dial mx %s for %s: %w", host, route.Domain, err)
+		}
+		if deadline := deliveryDeadline(ctx, timeout, time.Now()); !deadline.IsZero() {
+			if err := conn.SetDeadline(deadline); err != nil {
+				conn.Close()
+				return fmt.Errorf("set smtp session deadline for %s: %w", host, err)
+			}
+		}
+
+		client, err = smtp.NewClient(conn, host)
+		if err != nil {
+			conn.Close()
+			return fmt.Errorf("create smtp client for %s: %w", host, err)
+		}
+
+		hello := strings.TrimSpace(t.Hello)
+		if route.Hello != "" {
+			hello = route.Hello
+		}
+		if hello == "" {
+			hello = "localhost"
+		}
+		if err := client.Hello(hello); err != nil {
+			client.Close()
+			return WrapSMTPError("hello", err)
+		}
+		if !route.ImplicitTLS {
+			if err := t.startTLS(ctx, client, host, route.TLSMode); err != nil {
+				client.Close()
+				return WrapSMTPError("starttls", err)
+			}
+		}
+
+		// Check DANE policy after TLS is established
+		if err := t.checkDANEPolicy(ctx, route.Domain, host, 25, client); err != nil {
+			client.Close()
+			return fmt.Errorf("dane: %w", err)
+		}
+		if routeRequiresAuth(route) {
+			if err := client.Auth(smtp.PlainAuth(route.Auth.Identity, route.Auth.Username, route.Auth.Password, host)); err != nil {
+				client.Close()
+				return WrapSMTPError("auth", err)
+			}
 		}
 	}
 
-	client, err := smtp.NewClient(conn, host)
-	if err != nil {
-		return fmt.Errorf("create smtp client for %s: %w", host, err)
-	}
-	defer client.Close()
-
-	hello := strings.TrimSpace(t.Hello)
-	if route.Hello != "" {
-		hello = route.Hello
-	}
-	if hello == "" {
-		hello = "localhost"
-	}
-	if err := client.Hello(hello); err != nil {
-		return WrapSMTPError("hello", err)
-	}
-	if !route.ImplicitTLS {
-		if err := t.startTLS(ctx, client, host, route.TLSMode); err != nil {
-			return WrapSMTPError("starttls", err)
-		}
-	}
-
-	// Check DANE policy after TLS is established
-	if err := t.checkDANEPolicy(ctx, route.Domain, host, 25, client); err != nil {
-		return fmt.Errorf("dane: %w", err)
-	}
-	if routeRequiresAuth(route) {
-		if err := client.Auth(smtp.PlainAuth(route.Auth.Identity, route.Auth.Username, route.Auth.Password, host)); err != nil {
-			return WrapSMTPError("auth", err)
-		}
-	}
 	if err := smtpMail(client, job); err != nil {
+		if pooledConnUsed {
+			_ = conn.Close()
+			_ = client.Close()
+		} else {
+			_ = client.Close()
+		}
 		return WrapSMTPError("mail", err)
 	}
 	acceptedRecipients, recipientFailures := acceptRecipients(recipients, func(recipient outbound.Address) error {
@@ -208,31 +249,74 @@ func (t *DirectSMTPTransport) deliverHostDefault(ctx context.Context, job Job, r
 		return nil
 	})
 	if len(acceptedRecipients) == 0 {
+		if pooledConnUsed {
+			_ = conn.Close()
+			_ = client.Close()
+		} else {
+			_ = client.Close()
+		}
 		return recipientsRejectedResult(recipientFailures)
 	}
 
 	writer, err := client.Data()
 	if err != nil {
+		if pooledConnUsed {
+			_ = conn.Close()
+			_ = client.Close()
+		} else {
+			_ = client.Close()
+		}
 		return WrapSMTPError("data", err)
 	}
 	message, err := t.openMessage(ctx, job)
 	if err != nil {
 		_ = writer.Close()
+		if pooledConnUsed {
+			_ = conn.Close()
+			_ = client.Close()
+		} else {
+			_ = client.Close()
+		}
 		return fmt.Errorf("open queued message: %w", err)
 	}
 	_, copyErr := io.Copy(writer, message)
 	closeMessageErr := message.Close()
 	closeDataErr := writer.Close()
 	if copyErr != nil {
+		if pooledConnUsed {
+			_ = conn.Close()
+			_ = client.Close()
+		} else {
+			_ = client.Close()
+		}
 		return fmt.Errorf("write smtp data: %w", copyErr)
 	}
 	if closeMessageErr != nil {
+		if pooledConnUsed {
+			_ = conn.Close()
+			_ = client.Close()
+		} else {
+			_ = client.Close()
+		}
 		return fmt.Errorf("close queued message: %w", closeMessageErr)
 	}
 	if closeDataErr != nil {
+		if pooledConnUsed {
+			_ = conn.Close()
+			_ = client.Close()
+		} else {
+			_ = client.Close()
+		}
 		return WrapSMTPError("data", closeDataErr)
 	}
-	_ = client.Quit()
+
+	// Successful delivery: return connection to pool for reuse (no Quit yet)
+	_ = t.pool.Put(poolKey, &PooledSMTPConn{
+		Key:      poolKey,
+		Client:   client,
+		Conn:     conn,
+		LastUsed: time.Now(),
+	})
 	return dataAcceptedResult(acceptedRecipients, recipientFailures)
 }
 
