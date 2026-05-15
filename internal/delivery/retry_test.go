@@ -114,6 +114,52 @@ func TestRetrySchedulerReportsExhaustion(t *testing.T) {
 	}
 }
 
+func TestAggressiveBulkRetryPolicy(t *testing.T) {
+	t.Parallel()
+
+	policy := AggressiveBulkRetryPolicy()
+
+	tests := []struct {
+		attempt   int
+		minDelay  time.Duration
+		maxDelay  time.Duration
+	}{
+		{0, time.Minute, 3 * time.Minute},       // ~2 min with ±15% jitter
+		{1, 8 * time.Minute, 12 * time.Minute},  // ~10 min with ±15% jitter
+		{2, 50 * time.Minute, 70 * time.Minute}, // ~1 hour with ±15% jitter
+		{3, 5 * time.Hour, 7 * time.Hour},       // ~6 hours with ±15% jitter
+		{4, 10 * time.Hour, 12 * time.Hour},     // ~12 hours with ±15% jitter
+	}
+
+	for _, tt := range tests {
+		delay, ok := policy.NextScheduledDelay("test-msg", tt.attempt)
+		if !ok {
+			t.Fatalf("attempt %d: expected ok=true", tt.attempt)
+		}
+		if delay < tt.minDelay || delay > tt.maxDelay {
+			t.Fatalf("attempt %d: delay %s outside range [%s, %s]", tt.attempt, delay, tt.minDelay, tt.maxDelay)
+		}
+	}
+
+	// Verify exhaustion after 5 attempts
+	_, ok := policy.NextDelay(5)
+	if ok {
+		t.Fatal("expected ok=false after exhausting all delays")
+	}
+}
+
+func TestAggressiveBulkRetryPolicyCapsMaxDelay(t *testing.T) {
+	t.Parallel()
+
+	policy := AggressiveBulkRetryPolicy()
+
+	// Max delay should be 12 hours
+	delay, _ := policy.NextScheduledDelay("test-msg", 10)
+	if delay > 12*time.Hour {
+		t.Fatalf("max delay exceeded: %s > 12h", delay)
+	}
+}
+
 func TestRetryErrorMessageTruncatesAtUTF8Boundary(t *testing.T) {
 	t.Parallel()
 

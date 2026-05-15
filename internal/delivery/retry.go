@@ -33,6 +33,18 @@ func DefaultRetryPolicy() RetryPolicy {
 	}, JitterRatio: 0.20, MaxDelay: 24 * time.Hour}
 }
 
+// AggressiveBulkRetryPolicy optimizes for high-volume scenarios
+// with faster recovery on transient errors and bounded retry window
+func AggressiveBulkRetryPolicy() RetryPolicy {
+	return RetryPolicy{Delays: []time.Duration{
+		2 * time.Minute,  // First retry: 2 minutes (faster for transient)
+		10 * time.Minute, // Second retry: 10 minutes
+		1 * time.Hour,    // Third retry: 1 hour
+		6 * time.Hour,    // Fourth retry: 6 hours (smaller window, fail-fast)
+		12 * time.Hour,   // Final retry: 12 hours (bounded)
+	}, JitterRatio: 0.15, MaxDelay: 12 * time.Hour}
+}
+
 func (p RetryPolicy) NextDelay(currentAttempt int) (time.Duration, bool) {
 	if len(p.Delays) == 0 {
 		return 0, false
