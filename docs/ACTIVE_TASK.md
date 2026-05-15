@@ -60,8 +60,12 @@ Go Backend (`internal/`):
   - SMTPUTF8는 pipelineRCPTs에서 검증됨
 - [ ] RFC compliance 검증 문서화 및 엣지케이스 테스트 (defer to Phase 3)
 
-**Phase 3: Performance Optimization (시작)**
-- [ ] Message parser 성능 개선 및 메모리 할당 감소 (진행 중)
+**Phase 3: Performance Optimization (진행 중)**
+- [x] Message parser 성능 개선 및 메모리 할당 감소
+  - sync.Pool로 바이트 버퍼 재사용 (readLimitedText)
+  - sanitizeAttachmentFilename 단일 패스 처리
+  - 문자열 할당 최소화 (strings.ReplaceAll, strings.Map 제거)
+  - UTF-8 경계 검증 효율화
 - [ ] Database 쿼리 최적화 및 인덱싱
 - [ ] 대량 발신 부하 테스트 (1000+ msg/sec)
 - [ ] 성능 메트릭 수집 및 대시보드
