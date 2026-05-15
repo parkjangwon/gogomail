@@ -23,6 +23,12 @@ import { SettingsView } from '@/components/SettingsView';
 import { DriveView } from '@/components/DriveView';
 import { loadFilterRules } from '@/components/settings/settingsConfig';
 import { SpotlightSearch } from '@/components/SpotlightSearch';
+import {
+  getEmptyFolderLabel,
+  getNextMessageId,
+  getVisibleMailMessages,
+  parseSearchOperators,
+} from '@/lib/mail/mailPageUtils';
 
 export default function MailPage() {
   const router = useRouter();
@@ -408,18 +414,6 @@ export default function MailPage() {
     });
   }, [messages, setMessages, adjustUnread, activeFolderId]);
 
-  const parseSearchOperators = useCallback((raw: string): { q: string; operators: AdvancedFilters } => {
-    let q = raw;
-    const operators: AdvancedFilters = {};
-    q = q.replace(/\bfrom:(\S+)/gi, (_, val) => { operators.from = val; return ''; });
-    q = q.replace(/\bto:(\S+)/gi, (_, val) => { operators.to = val; return ''; });
-    q = q.replace(/\bsubject:(?:"([^"]+)"|(\S+))/gi, (_, quoted, plain) => { operators.subject = quoted ?? plain; return ''; });
-    q = q.replace(/\bhas:attachment\b/gi, () => { operators.has_attachment = true; return ''; });
-    q = q.replace(/\bbefore:(\S+)/gi, (_, val) => { operators.until = val; return ''; });
-    q = q.replace(/\bafter:(\S+)/gi, (_, val) => { operators.since = val; return ''; });
-    return { q: q.replace(/\s+/g, ' ').trim(), operators };
-  }, []);
-
   const runSearch = useCallback(async (q: string, filters: AdvancedFilters) => {
     if (!q.trim() && !filters.from && !filters.to && !filters.subject && !filters.since && !filters.until && !filters.has_attachment) {
       setSearchResults(null);
@@ -466,10 +460,7 @@ export default function MailPage() {
     setSelectedMessageId(id);
   }, []);
 
-  const getNextId = useCallback((id: string): string | null => {
-    const idx = messages.findIndex((m) => m.id === id);
-    return (messages[idx + 1] ?? messages[idx - 1])?.id ?? null;
-  }, [messages]);
+  const getNextId = useCallback((id: string): string | null => getNextMessageId(messages, id), [messages]);
 
   const handleDeleteById = useCallback((id: string) => {
     const msgToDelete = messages.find((m) => m.id === id);
@@ -1102,6 +1093,34 @@ export default function MailPage() {
     );
   }
 
+  const visibleMessages = (() => {
+    let blockedSenders: string[] = [];
+    let snoozedMessages: Record<string, string> = {};
+    let focusModeEnabled = false;
+    try {
+      if (activeFolderId !== VIRTUAL_SNOOZED) {
+        blockedSenders = JSON.parse(localStorage.getItem('webmail_blocked_senders') ?? '[]');
+        snoozedMessages = JSON.parse(localStorage.getItem('webmail_snoozed') ?? '{}');
+      }
+      if (activeFolderSystemType === 'inbox') {
+        focusModeEnabled = localStorage.getItem('webmail_focus_mode') === '1';
+      }
+    } catch { /* ignore */ }
+    return getVisibleMailMessages({
+      searchResults,
+      messages,
+      threads,
+      threadViewEnabled,
+      activeFolderId,
+      activeFolderSystemType,
+      blockedSenders,
+      snoozedMessages,
+      pinnedIds,
+      importantIds,
+      focusModeEnabled,
+    });
+  })();
+
   return (
     <div
       style={{
@@ -1258,64 +1277,11 @@ export default function MailPage() {
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
 
             <MessageList
-              messages={(() => {
-                let msgs: MessageSummary[];
-                if (searchResults !== null) {
-                  msgs = searchResults;
-                } else if (threadViewEnabled && threads.length > 0) {
-                  msgs = threads.map((t): MessageSummary => ({
-                    id: t.latest_message_id || t.id,
-                    subject: t.subject,
-                    from_addr: t.latest_from_addr,
-                    from_name: t.latest_from_addr,
-                    received_at: t.latest_at,
-                    size: 0,
-                    read: t.unread_count === 0,
-                    starred: t.starred,
-                    has_attachment: t.has_attachment,
-                    preview: t.preview,
-                    thread_id: t.id,
-                    message_count: t.message_count,
-                    unread_count: t.unread_count,
-                  }));
-                } else {
-                  msgs = messages;
-                }
-                if (activeFolderId !== VIRTUAL_SNOOZED) {
-                  try {
-                    const blocked: string[] = JSON.parse(localStorage.getItem('webmail_blocked_senders') ?? '[]');
-                    if (blocked.length > 0) {
-                      msgs = msgs.filter((m) => !blocked.some((b) => m.from_addr.toLowerCase().includes(b)));
-                    }
-                    const snoozed: Record<string, string> = JSON.parse(localStorage.getItem('webmail_snoozed') ?? '{}');
-                    const now = Date.now();
-                    msgs = msgs.filter((m) => !snoozed[m.id] || new Date(snoozed[m.id]).getTime() <= now);
-                  } catch { /* ignore */ }
-                }
-                // Focus mode: show only starred, pinned, or important in inbox
-                if (activeFolderSystemType === 'inbox') {
-                  try {
-                    if (localStorage.getItem('webmail_focus_mode') === '1') {
-                      const pinnedSet = new Set<string>(JSON.parse(localStorage.getItem('webmail_pinned') ?? '[]'));
-                      const importantSet = new Set<string>(JSON.parse(localStorage.getItem('webmail_important') ?? '[]'));
-                      msgs = msgs.filter((m) => m.starred || pinnedSet.has(m.id) || importantSet.has(m.id));
-                    }
-                  } catch { /* ignore */ }
-                }
-                return msgs;
-              })()}
+              messages={visibleMessages}
               selectedId={selectedMessageId}
               onSelect={handleSelectMessage}
               loading={searchResults !== null ? searchLoading : messagesLoading}
-              emptyLabel={searchResults !== null ? (searchQuery ? `"${searchQuery}" 검색 결과가 없습니다` : '검색 결과가 없습니다') : (() => {
-                const f = folders.find((f) => f.id === activeFolderId);
-                const t = f?.system_type;
-                if (t === 'drafts') return '임시 보관된 메일이 없습니다';
-                if (t === 'sent') return '보낸 메일이 없습니다';
-                if (t === 'trash') return '휴지통이 비어있습니다';
-                if (t === 'inbox') return '받은 메일이 없습니다';
-                return undefined;
-              })()}
+              emptyLabel={searchResults !== null ? (searchQuery ? `"${searchQuery}" 검색 결과가 없습니다` : '검색 결과가 없습니다') : getEmptyFolderLabel(activeFolderSystemType)}
               hasMore={searchResults === null ? hasMore : false}
               loadingMore={loadingMore}
               onLoadMore={loadMore}

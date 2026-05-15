@@ -2,6 +2,17 @@
 import { DataTable } from '@/components/DataTable';
 import { User, Domain, STATUS_COLORS, normalizeUserStatus } from '@/lib/users/userUtils';
 import {
+  buildAutoAddress,
+  createEmptyUserDraft,
+  formatStorage,
+  parseUsersCsv,
+  USER_STORAGE_BYTES_PER_GB,
+} from '@/lib/users/userPageUtils';
+import { CreateUserModal } from '@/components/users/CreateUserModal';
+import { EditUserModal, type EditUserFormState } from '@/components/users/EditUserModal';
+import { OffboardUserModal } from '@/components/users/OffboardUserModal';
+import { ImportUsersModal, type ImportUsersResult } from '@/components/users/ImportUsersModal';
+import {
   ContentLayout,
   Header,
   Button,
@@ -9,16 +20,11 @@ import {
   Box,
   Spinner,
   Badge,
-  Modal,
-  FormField,
-  Input,
   TextFilter,
   Select,
   ColumnLayout,
   Container,
   StatusIndicator,
-  Alert,
-  CopyToClipboard,
   Flashbar,
   Pagination,
   ButtonDropdown,
@@ -41,12 +47,12 @@ export default function UsersPage() {
   // Bulk import/export state
   const [showImportModal, setShowImportModal] = useState(false);
   const [importing, setImporting] = useState(false);
-  const [importResult, setImportResult] = useState<{ total: number; success: number; failed: number; failures: Array<{ email: string; error: string }> } | null>(null);
+  const [importResult, setImportResult] = useState<ImportUsersResult | null>(null);
   const [flashItems, setFlashItems] = useState<Array<{ type: 'success' | 'error' | 'info'; content: string; id: string; dismissible: boolean; onDismiss: () => void }>>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [newUser, setNewUser] = useState({ username: '', display_name: '', domain_id: '', password: '', recovery_email: '', quota_gb: '0' });
+  const [newUser, setNewUser] = useState(() => createEmptyUserDraft());
   const [registrationMode, setRegistrationMode] = useState<'temp_password' | 'email_invite'>('temp_password');
   const [loadingDomainSettings, setLoadingDomainSettings] = useState(false);
   const [creating, setCreating] = useState(false);
@@ -54,7 +60,7 @@ export default function UsersPage() {
   const [inviteLink, setInviteLink] = useState('');
 
   const [editUser, setEditUser] = useState<User | null>(null);
-  const [editForm, setEditForm] = useState({ display_name: '', recovery_email: '', quota_gb: '0', role: 'user' });
+  const [editForm, setEditForm] = useState<EditUserFormState>({ display_name: '', recovery_email: '', quota_gb: '0', role: 'user' });
   const [saving, setSaving] = useState(false);
 
   const [togglingId, setTogglingId] = useState<string | null>(null);
@@ -112,6 +118,13 @@ export default function UsersPage() {
     }
   };
 
+  const resetCreateUserForm = () => {
+    setShowCreateModal(false);
+    setNewUser(createEmptyUserDraft());
+    setInviteLink('');
+    setCreateError('');
+  };
+
   const handleDomainChange = async (domainId: string) => {
     setNewUser(u => ({ ...u, domain_id: domainId }));
     if (!domainId) return;
@@ -130,9 +143,7 @@ export default function UsersPage() {
   };
 
   const selectedDomain = domains.find(d => d.id === newUser.domain_id);
-  const autoAddress = selectedDomain && newUser.username.trim()
-    ? `${newUser.username.trim().toLowerCase()}@${selectedDomain.name}`
-    : '';
+  const autoAddress = buildAutoAddress(newUser.username, selectedDomain?.name);
 
   const handleCreateUser = async () => {
     if (!newUser.username.trim() || !newUser.domain_id.trim()) return;
@@ -147,7 +158,7 @@ export default function UsersPage() {
         domain_id: newUser.domain_id,
         address: autoAddress,
         recovery_email: newUser.recovery_email.trim(),
-        quota_limit: parseInt(newUser.quota_gb) * 1073741824,
+        quota_limit: parseInt(newUser.quota_gb) * USER_STORAGE_BYTES_PER_GB,
       };
 
       if (registrationMode === 'temp_password') {
@@ -191,8 +202,7 @@ export default function UsersPage() {
       }
 
       if (registrationMode === 'temp_password') {
-        setShowCreateModal(false);
-        setNewUser({ username: '', display_name: '', domain_id: '', password: '', recovery_email: '', quota_gb: '0' });
+        resetCreateUserForm();
       }
       fetchUsers();
     } catch (e) {
@@ -210,7 +220,7 @@ export default function UsersPage() {
       await fetch(`/api/admin/users/${editUser.id}/quota`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ quota_limit: parseInt(editForm.quota_gb) * 1073741824 }),
+        body: JSON.stringify({ quota_limit: parseInt(editForm.quota_gb) * USER_STORAGE_BYTES_PER_GB }),
         credentials: 'include',
       });
       if (editForm.role !== editUser.role) {
@@ -287,7 +297,7 @@ export default function UsersPage() {
     setEditForm({
       display_name: user.display_name,
       recovery_email: user.recovery_email ?? '',
-      quota_gb: user.quota_limit > 0 ? String(Math.round(user.quota_limit / 1073741824)) : '0',
+      quota_gb: user.quota_limit > 0 ? String(Math.round(user.quota_limit / USER_STORAGE_BYTES_PER_GB)) : '0',
       role: user.role || 'user',
     });
   };
@@ -363,16 +373,7 @@ export default function UsersPage() {
     setImportResult(null);
     try {
       const text = await file.text();
-      const lines = text.trim().split('\n').filter(Boolean);
-      const usersToImport = lines.map(line => {
-        const cols = line.split(',');
-        return {
-          email: (cols[0] ?? '').trim(),
-          display_name: (cols[1] ?? '').trim(),
-          domain_id: (cols[2] ?? '').trim(),
-          password: (cols[3] ?? '').trim(),
-        };
-      }).filter(u => u.email);
+      const usersToImport = parseUsersCsv(text);
 
       const res = await fetch(`/api/admin/companies/${companyId}/users/bulk-import`, {
         method: 'POST',
@@ -426,14 +427,6 @@ export default function UsersPage() {
   const totalUsers = users.length;
   const activeUsers = users.filter(u => u.status === 'active').length;
   const suspendedUsers = users.filter(u => u.status === 'suspended' || u.status === 'disabled').length;
-
-  const formatStorage = (used: number, limit: number) => {
-    const usedGb = (used / 1073741824).toFixed(1);
-    if (!limit) return `${usedGb} GB`;
-    const limitGb = (limit / 1073741824).toFixed(1);
-    const pct = Math.round((used / limit) * 100);
-    return `${usedGb} / ${limitGb} GB (${pct}%)`;
-  };
 
   if (loading) {
     return (
@@ -654,281 +647,50 @@ export default function UsersPage() {
         />
       </SpaceBetween>
 
-      {/* Create Modal */}
-      <Modal
-        onDismiss={() => {
-          setShowCreateModal(false);
-          setNewUser({ username: '', display_name: '', domain_id: '', password: '', recovery_email: '', quota_gb: '0' });
-          setInviteLink('');
-          setCreateError('');
-        }}
+      <CreateUserModal
         visible={showCreateModal}
-        size="medium"
-        footer={
-          inviteLink ? (
-            <Box float="right">
-              <Button onClick={() => {
-                setShowCreateModal(false);
-                setNewUser({ username: '', display_name: '', domain_id: '', password: '', recovery_email: '', quota_gb: '0' });
-                setInviteLink('');
-              }}>{t('common.close')}</Button>
-            </Box>
-          ) : (
-            <Box float="right">
-              <SpaceBetween direction="horizontal" size="xs">
-                <Button onClick={() => setShowCreateModal(false)}>{t('common.cancel')}</Button>
-                <Button
-                  variant="primary"
-                  onClick={handleCreateUser}
-                  loading={creating}
-                  disabled={!newUser.username.trim() || !newUser.domain_id.trim() || loadingDomainSettings}
-                >
-                  {registrationMode === 'email_invite'
-                    ? t('pages.users_page.create_and_invite_btn')
-                    : t('pages.users_page.create_btn')}
-                </Button>
-              </SpaceBetween>
-            </Box>
-          )
-        }
-        header={t('pages.users_page.create_modal_title')}
-      >
-        <SpaceBetween size="m">
-          {inviteLink ? (
-            <SpaceBetween size="m">
-              <Alert type="success">{t('pages.users_page.invite_created')}</Alert>
-              <FormField label={t('pages.users_page.invite_link_label')}
-                description={t('pages.users_page.invite_link_desc')}>
-                <CopyToClipboard
-                  copyButtonText={t('pages.users_page.copy_invite')}
-                  copySuccessText={t('pages.users_page.copy_success')}
-                  copyErrorText={t('pages.users_page.copy_error')}
-                  textToCopy={inviteLink}
-                />
-              </FormField>
-              <Box color="text-body-secondary" fontSize="body-s">
-                {inviteLink}
-              </Box>
-            </SpaceBetween>
-          ) : (
-            <>
-              <FormField label={t('pages.users_page.domain_label')}>
-                <Select
-                  selectedOption={domainOptions.find(o => o.value === newUser.domain_id) ?? null}
-                  options={domainOptions}
-                  onChange={(e) => handleDomainChange(e.detail.selectedOption?.value ?? '')}
-                  placeholder={t('pages.users_page.domain_placeholder')}
-                  statusType={loadingDomainSettings ? 'loading' : 'finished'}
-                  expandToViewport
-                />
-              </FormField>
+        newUser={newUser}
+        setNewUser={setNewUser}
+        inviteLink={inviteLink}
+        createError={createError}
+        loadingDomainSettings={loadingDomainSettings}
+        creating={creating}
+        registrationMode={registrationMode}
+        domainOptions={domainOptions}
+        autoAddress={autoAddress}
+        onDismiss={resetCreateUserForm}
+        onCloseAfterInvite={resetCreateUserForm}
+        onDomainChange={handleDomainChange}
+        onCreate={handleCreateUser}
+      />
 
-              {newUser.domain_id && (
-                <Alert type="info">
-                  {registrationMode === 'email_invite'
-                    ? t('pages.users_page.mode_email_invite_info')
-                    : t('pages.users_page.mode_temp_password_info')}
-                </Alert>
-              )}
-
-              <FormField label={t('pages.users_page.username_label')}>
-                <Input
-                  value={newUser.username}
-                  onChange={(e) => setNewUser({ ...newUser, username: e.detail.value })}
-                  placeholder="john.doe"
-                />
-              </FormField>
-              <FormField label={t('pages.users_page.display_name_label')}>
-                <Input
-                  value={newUser.display_name}
-                  onChange={(e) => setNewUser({ ...newUser, display_name: e.detail.value })}
-                  placeholder={t('pages.users_page.display_name_placeholder')}
-                />
-              </FormField>
-
-              {autoAddress && (
-                <FormField label={t('pages.users_page.address_label')}>
-                  <Box color="text-body-secondary">{autoAddress}</Box>
-                </FormField>
-              )}
-
-              {registrationMode === 'temp_password' && (
-                <FormField
-                  label={t('pages.users_page.password_label')}
-                  description={t('pages.users_page.temp_password_desc')}
-                >
-                  <Input
-                    type="password"
-                    value={newUser.password}
-                    onChange={(e) => setNewUser({ ...newUser, password: e.detail.value })}
-                  />
-                </FormField>
-              )}
-
-              <FormField
-                label={t('pages.users_page.recovery_email_label')}
-                description={t('pages.users_page.recovery_email_description')}
-              >
-                <Input
-                  type="email"
-                  value={newUser.recovery_email}
-                  onChange={(e) => setNewUser({ ...newUser, recovery_email: e.detail.value })}
-                  placeholder={t('pages.users_page.recovery_email_placeholder')}
-                />
-              </FormField>
-
-              <FormField label={t('pages.users_page.quota_label')} description={t('pages.users_page.quota_description')}>
-                <Input
-                  type="number"
-                  value={newUser.quota_gb}
-                  onChange={(e) => setNewUser({ ...newUser, quota_gb: e.detail.value })}
-                />
-              </FormField>
-
-              {createError && <Alert type="error">{createError}</Alert>}
-            </>
-          )}
-        </SpaceBetween>
-      </Modal>
-
-      {/* Edit Modal */}
-      <Modal
-        onDismiss={() => setEditUser(null)}
+      <EditUserModal
         visible={!!editUser}
-        size="medium"
-        footer={
-          <Box float="right">
-            <SpaceBetween direction="horizontal" size="xs">
-              <Button onClick={() => setEditUser(null)}>{t('common.cancel')}</Button>
-              <Button variant="primary" onClick={handleEditSave} loading={saving}>
-                {t('pages.users_page.save_btn')}
-              </Button>
-            </SpaceBetween>
-          </Box>
-        }
-        header={`${t('pages.users_page.edit_modal_title')} — ${editUser?.username ?? ''}`}
-      >
-        <SpaceBetween size="m">
-          <FormField label={t('pages.users_page.display_name_label')}>
-            <Box color="text-body-secondary">{editForm.display_name || '—'}</Box>
-          </FormField>
-          <FormField
-            label={t('pages.users_page.recovery_email_label')}
-            description={t('pages.users_page.recovery_email_description')}
-          >
-            <Input
-              type="email"
-              value={editForm.recovery_email}
-              onChange={(e) => setEditForm({ ...editForm, recovery_email: e.detail.value })}
-              placeholder={t('pages.users_page.recovery_email_placeholder')}
-            />
-          </FormField>
-          <FormField label={t('pages.users_page.quota_label')}>
-            <Input
-              type="number"
-              value={editForm.quota_gb}
-              onChange={(e) => setEditForm({ ...editForm, quota_gb: e.detail.value })}
-            />
-          </FormField>
-          <FormField
-            label={t('pages.users_page.role')}
-            description={t('pages.users_page.admin_role_desc')}
-          >
-            <Select
-              selectedOption={ROLE_OPTIONS.find(o => o.value === editForm.role) ?? ROLE_OPTIONS[0]}
-              options={ROLE_OPTIONS}
-              onChange={(e) => setEditForm({ ...editForm, role: e.detail.selectedOption.value ?? 'user' })}
-            />
-          </FormField>
-        </SpaceBetween>
-      </Modal>
+        username={editUser?.username ?? ''}
+        editForm={editForm}
+        setEditForm={setEditForm}
+        saving={saving}
+        roleOptions={ROLE_OPTIONS}
+        onDismiss={() => setEditUser(null)}
+        onSave={handleEditSave}
+      />
 
-      {/* Offboarding Modal */}
-      <Modal
+      <OffboardUserModal
         visible={!!offboardTarget}
+        targetUser={offboardTarget}
+        offboarding={offboarding}
         onDismiss={() => setOffboardTarget(null)}
-        size="medium"
-        header={`${t('pages.users_page.offboard_title')} — ${offboardTarget?.username ?? ''}`}
-        footer={
-          <Box float="right">
-            <SpaceBetween direction="horizontal" size="xs">
-              <Button onClick={() => setOffboardTarget(null)}>{t('common.cancel')}</Button>
-              <Button variant="primary" onClick={handleOffboard} loading={offboarding}>
-                {t('pages.users_page.suspend_user')}
-              </Button>
-            </SpaceBetween>
-          </Box>
-        }
-      >
-        <SpaceBetween size="m">
-          <Alert type="warning">
-            {t('pages.users_page.offboard_warning_prefix')} <strong>{offboardTarget?.username}</strong>{' '}
-            {t('pages.users_page.offboard_warning_suffix')}
-          </Alert>
-          <Alert type="info">
-            {t('pages.users_page.offboard_alias_prefix')} <strong>{t('pages.users_page.access_aliases')}</strong>{' '}
-            {t('pages.users_page.offboard_alias_middle')} <strong>{offboardTarget?.username}</strong>{' '}
-            {t('pages.users_page.offboard_alias_suffix')}
-          </Alert>
-        </SpaceBetween>
-      </Modal>
+        onConfirm={handleOffboard}
+      />
 
-      {/* Import CSV Modal */}
-      <Modal
-        onDismiss={() => { setShowImportModal(false); setImportResult(null); }}
+      <ImportUsersModal
         visible={showImportModal}
-        size="medium"
-        header={t('pages.users_page.users_bulk.import_modal')}
-        footer={
-          <Box float="right">
-            <Button onClick={() => { setShowImportModal(false); setImportResult(null); }}>
-              {t('pages.users_page.users_bulk.close')}
-            </Button>
-          </Box>
-        }
-      >
-        <SpaceBetween size="m">
-          <Alert type="info">
-            {t('pages.users_page.users_bulk.format_hint')}
-          </Alert>
-
-          {!importResult && (
-            <FormField label={t('pages.users_page.users_bulk.drop_or_click')}>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".csv"
-                style={{ display: 'block' }}
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) handleImportCSV(file);
-                }}
-              />
-              {importing && <Box padding={{ top: 's' }}><Spinner /> {t('pages.users_page.users_bulk.importing')}</Box>}
-            </FormField>
-          )}
-
-          {importResult && (
-            <SpaceBetween size="s">
-              <Alert type={importResult.failed === 0 ? 'success' : 'warning'}>
-                {t('pages.users_page.users_bulk.success_count').replace('{n}', String(importResult.success))}
-                {importResult.failed > 0 && (
-                  <> &mdash; {t('pages.users_page.users_bulk.failed_count').replace('{n}', String(importResult.failed))}</>
-                )}
-              </Alert>
-              {importResult.failures && importResult.failures.length > 0 && (
-                <Alert type="error" header={t('pages.users_page.users_bulk.import_result')}>
-                  <ul style={{ margin: 0, paddingLeft: '1.2em' }}>
-                    {importResult.failures.map((f, i) => (
-                      <li key={i}><strong>{f.email}</strong>: {f.error}</li>
-                    ))}
-                  </ul>
-                </Alert>
-              )}
-            </SpaceBetween>
-          )}
-        </SpaceBetween>
-      </Modal>
+        importing={importing}
+        importResult={importResult}
+        fileInputRef={fileInputRef}
+        onDismiss={() => { setShowImportModal(false); setImportResult(null); }}
+        onImportFile={handleImportCSV}
+      />
     </ContentLayout>
   );
 }

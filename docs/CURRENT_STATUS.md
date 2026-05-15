@@ -1,9 +1,13 @@
 # gogomail current status
 
-Last updated: 2026-05-15 (Webmail Frontend Refactoring - shared mail address helpers extraction)
+Last updated: 2026-05-15 (Frontend Refactoring - console users modal extraction + webmail mail page helpers)
 
 ## Webmail Frontend Refactoring (2026-05-15, Phase 1 in progress)
 - Goal: Reduce oversized webmail component files by extracting utilities and sub-components
+- **Mail Page Helpers Extracted**:
+  - `apps/webmail/src/lib/mail/mailPageUtils.ts`: search operator parsing, thread row normalization, visible message filtering, next-message lookup, and empty-folder labels
+  - `apps/webmail/scripts/check-mail-page-helpers.mjs`: focused regression checks for mail-page helper behavior
+  - `apps/webmail/src/app/mail/page.tsx`: reduced 1665 → 1631 lines (-34 lines) by delegating list/search helpers to a feature module
 - **Utility Extraction Complete**:
   - `apps/webmail/src/lib/calendar/dateUtils.ts` (55 lines): 9 date manipulation/formatting functions
   - `apps/webmail/src/lib/calendar/eventParser.ts` (94 lines): Event and todo parsing logic
@@ -28,6 +32,18 @@ Last updated: 2026-05-15 (Webmail Frontend Refactoring - shared mail address hel
   2. Consolidate subscription event parser
   3. Refactor other large webmail components (ComposeModal, ReadingPane, SettingsView, DriveView, MessageList)
   4. Apply same pattern to apps/console (106 files, 1.4M)
+
+## Console Frontend Refactoring (2026-05-15, started)
+- **Users Page Decomposition**:
+  - `apps/console/src/lib/users/userPageUtils.ts`: shared user-page helpers for blank drafts, auto-address generation, CSV parsing, and storage formatting
+  - `apps/console/src/lib/__tests__/userPageUtils.test.ts`: focused unit coverage for helper behavior
+  - `apps/console/src/components/users/{CreateUserModal,EditUserModal,OffboardUserModal,ImportUsersModal}.tsx`: modal-specific feature components extracted from the page
+  - `apps/console/src/app/companies/[id]/users/page.tsx`: reduced 934 → 696 lines (-238 lines) by delegating modal UI and shared helpers
+- **Verification**:
+  - `pnpm -C apps/console exec vitest run src/lib/__tests__/userPageUtils.test.ts`
+  - `pnpm -C apps/console type-check`
+  - `pnpm -C apps/webmail type-check`
+  - `pnpm -C apps/webmail build`
 
 ## Source File Separation & Refactoring (2026-05-15, Phase 3 started)
 - Goal: Reduce oversized source files by appropriately separating concerns into focused modules.
