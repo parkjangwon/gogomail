@@ -1,6 +1,6 @@
 # ACTIVE_TASK
 
-## TASK-083: API Settings UI (in progress)
+## TASK-083: API Settings UI (complete)
 
 ### 배경
 
@@ -18,11 +18,17 @@ Frontend:
 
 ### 완료 조건
 
-- [ ] `go test ./...` 통과
-- [ ] API settings can be loaded and saved from the console
-- [ ] Rate limit and allowlist controls are clearly labeled
-- [ ] `docs/CURRENT_STATUS.md` 갱신
-- [ ] `docs/backend-roadmap.md` 해당 항목 체크/갱신
+- [x] `go test ./...` 통과
+- [x] API settings can be loaded and saved from the console
+- [x] Rate limit and allowlist controls are clearly labeled
+- [x] `docs/CURRENT_STATUS.md` 갱신
+- [x] `docs/backend-roadmap.md` 해당 항목 체크/갱신
+
+### 검증
+
+- `pnpm -C apps/console type-check`
+- `go test ./...`
+- `go build ./...`
 
 ### 다음 태스크
 
