@@ -99,6 +99,9 @@ func TestAdminConsoleCapabilitiesHandler(t *testing.T) {
 	if !got.Security.AdminTokenHeader || !got.Security.BearerToken || !got.Security.RejectsAmbiguousAuth || !got.Security.NoStoreJSON {
 		t.Fatalf("security capabilities = %#v", got.Security)
 	}
+	if got.Integrations.LDAPRead != "placeholder" || got.Integrations.LDAPSync != "placeholder" || got.Integrations.OrganizationSync != "placeholder" {
+		t.Fatalf("integration capabilities = %#v", got.Integrations)
+	}
 	if got.Storage.ConfiguredBackend != "local" || !got.Storage.LocalFilesystem || !got.Storage.SecretsRedacted || len(got.Storage.ActiveLabels) != 1 || got.Storage.ActiveLabels[0] != "local" || !got.Storage.SupportsLocalNFS || got.Storage.SupportsMinIO || got.Storage.SupportsAWSCompatible {
 		t.Fatalf("storage capabilities = %#v", got.Storage)
 	}
@@ -130,13 +133,13 @@ func TestAdminCompanyAuditPolicyDefaultsToSafeValues(t *testing.T) {
 
 	var body struct {
 		Policy struct {
-			CompanyID            string `json:"company_id"`
-			AuditLevel           string `json:"audit_level"`
-			AuditAdminActions    bool   `json:"audit_admin_actions"`
-			AuditSecurityEvents  bool   `json:"audit_security_events"`
-			RetentionDays        int    `json:"retention_days"`
-			MaskMailContent      bool   `json:"mask_mail_content"`
-			MaskRecipientEmails  bool   `json:"mask_recipient_emails"`
+			CompanyID           string `json:"company_id"`
+			AuditLevel          string `json:"audit_level"`
+			AuditAdminActions   bool   `json:"audit_admin_actions"`
+			AuditSecurityEvents bool   `json:"audit_security_events"`
+			RetentionDays       int    `json:"retention_days"`
+			MaskMailContent     bool   `json:"mask_mail_content"`
+			MaskRecipientEmails bool   `json:"mask_recipient_emails"`
 		} `json:"policy"`
 	}
 	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
@@ -171,13 +174,13 @@ func TestAdminCompanyAuditPolicySavePersistsCompanyConfig(t *testing.T) {
 
 	var body struct {
 		Policy struct {
-			CompanyID            string `json:"company_id"`
-			AuditLevel           string `json:"audit_level"`
-			AuditAdminActions    bool   `json:"audit_admin_actions"`
-			AuditSecurityEvents  bool   `json:"audit_security_events"`
-			RetentionDays        int    `json:"retention_days"`
-			MaskMailContent      bool   `json:"mask_mail_content"`
-			MaskRecipientEmails  bool   `json:"mask_recipient_emails"`
+			CompanyID           string `json:"company_id"`
+			AuditLevel          string `json:"audit_level"`
+			AuditAdminActions   bool   `json:"audit_admin_actions"`
+			AuditSecurityEvents bool   `json:"audit_security_events"`
+			RetentionDays       int    `json:"retention_days"`
+			MaskMailContent     bool   `json:"mask_mail_content"`
+			MaskRecipientEmails bool   `json:"mask_recipient_emails"`
 		} `json:"policy"`
 	}
 	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {

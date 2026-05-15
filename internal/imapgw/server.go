@@ -583,54 +583,7 @@ func (s *Server) handleLineWithLiteral(writer *bufio.Writer, line string, litera
 	case "SUBSCRIBE", "UNSUBSCRIBE":
 		return s.handleSubscriptionCommand(writer, tag, fields, state, command)
 	case "STATUS":
-		if len(fields) < 4 {
-			_, err := writer.WriteString(tag + " BAD STATUS requires mailbox and status item atoms\r\n")
-			return false, err
-		}
-		if !imapStatusItemListIsParenthesized(fields[3:]) {
-			_, err := writer.WriteString(tag + " BAD STATUS requires parenthesized item list\r\n")
-			return false, err
-		}
-		if imapStatusItemListIsEmpty(fields[3:]) {
-			_, err := writer.WriteString(tag + " BAD STATUS requires status data items\r\n")
-			return false, err
-		}
-		statusItems, statusErr, ok := imapStatusItems(fields[3:])
-		if !ok {
-			_, err := writer.WriteString(tag + " BAD " + statusErr + "\r\n")
-			return false, err
-		}
-		mailboxName, valid, nonEmpty := imapDecodeRequiredMailboxName(fields[2])
-		if !valid {
-			_, err := writer.WriteString(tag + " BAD STATUS mailbox name is not valid modified UTF-7\r\n")
-			return false, err
-		}
-		if !nonEmpty {
-			_, err := writer.WriteString(tag + " BAD STATUS mailbox name is empty\r\n")
-			return false, err
-		}
-		if state.session == nil {
-			_, err := writer.WriteString(tag + " NO authentication required\r\n")
-			return false, err
-		}
-		if imapStatusRequestsItem(statusItems, "HIGHESTMODSEQ") {
-			state.condstoreAware = true
-		}
-		mailbox, err := s.options.Backend.GetMailbox(context.Background(), state.session.UserID, MailboxID(mailboxName))
-		if err != nil {
-			if errors.Is(err, ErrMailboxNotFound) {
-				_, writeErr := writer.WriteString(imapMailboxNotFoundResponse(tag, "STATUS"))
-				return false, writeErr
-			}
-			_, writeErr := writer.WriteString(tag + " NO STATUS failed\r\n")
-			return false, writeErr
-		}
-		statusName := imapEncodeMailboxName(imapMailboxWireName(imapMailboxDisplayName(mailbox)))
-		if _, err := writer.WriteString(fmt.Sprintf("* STATUS %s (%s)\r\n", imapQuotedString(statusName), imapStatusData(mailbox, statusItems))); err != nil {
-			return false, err
-		}
-		_, err = writer.WriteString(tag + " OK STATUS completed\r\n")
-		return false, err
+		return s.handleStatus(writer, tag, fields, state)
 	case "UID":
 		return s.handleUIDLine(writer, tag, fields, state)
 	case "FETCH":
@@ -1339,6 +1292,57 @@ func (s *Server) handleSelect(writer *bufio.Writer, tag string, command string, 
 		return false, err
 	}
 	_, err = writer.WriteString(tag + " OK [READ-WRITE] SELECT completed\r\n")
+	return false, err
+}
+
+func (s *Server) handleStatus(writer *bufio.Writer, tag string, fields []string, state *imapConnState) (bool, error) {
+	if len(fields) < 4 {
+		_, err := writer.WriteString(tag + " BAD STATUS requires mailbox and status item atoms\r\n")
+		return false, err
+	}
+	if !imapStatusItemListIsParenthesized(fields[3:]) {
+		_, err := writer.WriteString(tag + " BAD STATUS requires parenthesized item list\r\n")
+		return false, err
+	}
+	if imapStatusItemListIsEmpty(fields[3:]) {
+		_, err := writer.WriteString(tag + " BAD STATUS requires status data items\r\n")
+		return false, err
+	}
+	statusItems, statusErr, ok := imapStatusItems(fields[3:])
+	if !ok {
+		_, err := writer.WriteString(tag + " BAD " + statusErr + "\r\n")
+		return false, err
+	}
+	mailboxName, valid, nonEmpty := imapDecodeRequiredMailboxName(fields[2])
+	if !valid {
+		_, err := writer.WriteString(tag + " BAD STATUS mailbox name is not valid modified UTF-7\r\n")
+		return false, err
+	}
+	if !nonEmpty {
+		_, err := writer.WriteString(tag + " BAD STATUS mailbox name is empty\r\n")
+		return false, err
+	}
+	if state.session == nil {
+		_, err := writer.WriteString(tag + " NO authentication required\r\n")
+		return false, err
+	}
+	if imapStatusRequestsItem(statusItems, "HIGHESTMODSEQ") {
+		state.condstoreAware = true
+	}
+	mailbox, err := s.options.Backend.GetMailbox(context.Background(), state.session.UserID, MailboxID(mailboxName))
+	if err != nil {
+		if errors.Is(err, ErrMailboxNotFound) {
+			_, writeErr := writer.WriteString(imapMailboxNotFoundResponse(tag, "STATUS"))
+			return false, writeErr
+		}
+		_, writeErr := writer.WriteString(tag + " NO STATUS failed\r\n")
+		return false, writeErr
+	}
+	statusName := imapEncodeMailboxName(imapMailboxWireName(imapMailboxDisplayName(mailbox)))
+	if _, err := writer.WriteString(fmt.Sprintf("* STATUS %s (%s)\r\n", imapQuotedString(statusName), imapStatusData(mailbox, statusItems))); err != nil {
+		return false, err
+	}
+	_, err = writer.WriteString(tag + " OK STATUS completed\r\n")
 	return false, err
 }
 

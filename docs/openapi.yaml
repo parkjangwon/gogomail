@@ -209,14 +209,12 @@ paths:
         - name: status
           in: query
           schema:
-            type: string
-            enum: [active, trashed, deleted]
+            $ref: "#/components/schemas/DriveNodeStatus"
             default: active
         - name: node_type
           in: query
           schema:
-            type: string
-            enum: [folder, file]
+            $ref: "#/components/schemas/DriveNodeType"
           description: Optional Drive node type filter.
         - name: q
           in: query
@@ -233,8 +231,7 @@ paths:
         - name: sort
           in: query
           schema:
-            type: string
-            enum: [name, updated, created, size]
+            $ref: "#/components/schemas/DriveNodeSort"
             default: name
           description: Drive node ordering. Folders remain grouped before files for each sort mode.
       responses:
@@ -271,8 +268,7 @@ paths:
         - name: status
           in: query
           schema:
-            type: string
-            enum: [pending, uploading, finalized, canceled, expired, failed]
+            $ref: "#/components/schemas/DriveUploadSessionStatus"
       responses:
         "200":
           $ref: "#/components/responses/DriveUploadSessionList"
@@ -428,8 +424,7 @@ paths:
         - name: status
           in: query
           schema:
-            type: string
-            enum: [active, trashed, deleted]
+            $ref: "#/components/schemas/DriveNodeStatus"
             default: active
       responses:
         "200":
@@ -2977,8 +2972,7 @@ paths:
         - name: status
           in: query
           schema:
-            type: string
-            enum: [pending, uploading, finalized, canceled, expired, failed]
+            $ref: "#/components/schemas/DriveUploadSessionStatus"
           description: Limit Drive upload sessions by lifecycle status.
       responses:
         "200":
@@ -3013,15 +3007,13 @@ paths:
         - name: status
           in: query
           schema:
-            type: string
-            enum: [active, trashed, deleted]
+            $ref: "#/components/schemas/DriveNodeStatus"
             default: active
           description: Limit Drive nodes by lifecycle status.
         - name: node_type
           in: query
           schema:
-            type: string
-            enum: [folder, file]
+            $ref: "#/components/schemas/DriveNodeType"
           description: Optional Drive node type filter.
         - name: q
           in: query
@@ -3032,8 +3024,7 @@ paths:
         - name: sort
           in: query
           schema:
-            type: string
-            enum: [name, updated, created, size]
+            $ref: "#/components/schemas/DriveNodeSort"
             default: name
           description: Drive node ordering. Folders remain grouped before files for each sort mode.
         - name: all_parents
@@ -3069,8 +3060,7 @@ paths:
         - name: status
           in: query
           schema:
-            type: string
-            enum: [active, trashed, deleted]
+            $ref: "#/components/schemas/DriveNodeStatus"
             default: active
           description: Required lifecycle view for the Drive node lookup.
       responses:
@@ -11096,6 +11086,18 @@ components:
       properties:
         folder:
           $ref: "#/components/schemas/Folder"
+    DriveNodeType:
+      type: string
+      enum: [folder, file]
+    DriveNodeStatus:
+      type: string
+      enum: [active, trashed, deleted]
+    DriveNodeSort:
+      type: string
+      enum: [name, updated, created, size]
+    DriveUploadSessionStatus:
+      type: string
+      enum: [pending, uploading, finalized, canceled, expired, failed]
     DriveNode:
       type: object
       required: [id, user_id, node_type, name, normalized_name, status, size, created_at, updated_at]
@@ -11111,8 +11113,7 @@ components:
         parent_id:
           type: string
         node_type:
-          type: string
-          enum: [folder, file]
+          $ref: "#/components/schemas/DriveNodeType"
         name:
           type: string
           maxLength: 255
@@ -11132,8 +11133,7 @@ components:
         checksum_sha256:
           type: string
         status:
-          type: string
-          enum: [active, trashed, deleted]
+          $ref: "#/components/schemas/DriveNodeStatus"
         created_at:
           type: string
           format: date-time
@@ -11402,8 +11402,7 @@ components:
           type: string
           maxLength: 255
         status:
-          type: string
-          enum: [pending, uploading, finalized, canceled, expired, failed]
+          $ref: "#/components/schemas/DriveUploadSessionStatus"
         storage_backend:
           type: string
           maxLength: 64
@@ -12441,7 +12440,7 @@ components:
           type: boolean
     AdminConsoleCapabilities:
       type: object
-      required: [contract_version, modules, limits, tenancy, operations, security, storage]
+      required: [contract_version, modules, limits, tenancy, operations, security, integrations, storage]
       properties:
         contract_version:
           type: string
@@ -12564,6 +12563,22 @@ components:
               type: boolean
             no_store_json:
               type: boolean
+        integrations:
+          type: object
+          required: [ldap_read, ldap_sync, organization_sync]
+          properties:
+            ldap_read:
+              type: string
+              enum: [available, placeholder, planned]
+              description: LDAP directory read provider status.
+            ldap_sync:
+              type: string
+              enum: [available, placeholder, planned]
+              description: LDAP sync execution status.
+            organization_sync:
+              type: string
+              enum: [available, placeholder, planned]
+              description: Organization sync adapter status.
         storage:
           $ref: "#/components/schemas/StorageBackendCapabilities"
     AdminConsoleCapabilitiesEnvelope:
@@ -13041,6 +13056,7 @@ components:
         resource_type:
           type: string
           enum: ["", room, equipment, vehicle, other]
+          x-enum-varnames: [unspecified, room, equipment, vehicle, other]
     DirectoryPrincipalListEnvelope:
       type: object
       required: [directory_principals]

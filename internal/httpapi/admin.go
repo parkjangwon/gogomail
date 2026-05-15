@@ -21,10 +21,8 @@ import (
 	"github.com/gogomail/gogomail/internal/auth"
 	"github.com/gogomail/gogomail/internal/backpressure"
 	"github.com/gogomail/gogomail/internal/configstore"
-	"github.com/gogomail/gogomail/internal/davsyncretention"
 	"github.com/gogomail/gogomail/internal/delivery"
 	"github.com/gogomail/gogomail/internal/directory"
-	"github.com/gogomail/gogomail/internal/dnscheck"
 	"github.com/gogomail/gogomail/internal/drive"
 	"github.com/gogomail/gogomail/internal/maildb"
 	"github.com/gogomail/gogomail/internal/storage"
@@ -109,198 +107,6 @@ func adminJWTOrStaticAuth(token string, tokenMgr *auth.TokenManager, next http.H
 		next(w, r)
 	}
 }
-type AdminService interface {
-	ListCompanies(ctx context.Context, req maildb.CompanyListRequest) ([]maildb.CompanyView, error)
-	CreateCompany(ctx context.Context, req maildb.CreateCompanyRequest) (maildb.CompanyView, error)
-	GetCompany(ctx context.Context, id string) (maildb.CompanyView, error)
-	UpdateCompanyQuota(ctx context.Context, req maildb.UpdateCompanyQuotaRequest) error
-	UpdateCompany(ctx context.Context, req maildb.UpdateCompanyRequest) (maildb.CompanyView, error)
-	DeleteCompany(ctx context.Context, id string) error
-	ListDomains(ctx context.Context, req maildb.DomainListRequest) ([]maildb.DomainView, error)
-	GetDomain(ctx context.Context, id string) (maildb.DomainView, error)
-	GetDomainStats(ctx context.Context, id string) (maildb.DomainStatsView, error)
-	VerifyDomainDNS(ctx context.Context, id string) (dnscheck.DomainReport, error)
-	ListDomainDNSChecks(ctx context.Context, req maildb.DomainDNSCheckListRequest) ([]maildb.DomainDNSCheckView, error)
-	CreateDomain(ctx context.Context, req maildb.CreateDomainRequest) (maildb.DomainView, error)
-	UpdateDomainStatus(ctx context.Context, req maildb.UpdateDomainStatusRequest) error
-	UpdateDomainQuota(ctx context.Context, req maildb.UpdateDomainQuotaRequest) error
-	DeleteDomain(ctx context.Context, id string) error
-	UpdateDomainPolicy(ctx context.Context, req maildb.UpdateDomainPolicyRequest) (maildb.DomainPolicyView, error)
-	ListAdminRoles(ctx context.Context, companyID string) ([]admin.RoleSummary, error)
-	CreateAdminRole(ctx context.Context, req admin.CreateRoleRequest) (admin.RoleSummary, error)
-	GetDomainSettings(ctx context.Context, domainID string) (*admin.DomainSettings, error)
-	UpdateDomainSettings(ctx context.Context, settings *admin.DomainSettings) error
-	GetAPISettings(ctx context.Context, domainID string) (*admin.APISettings, error)
-	UpdateAPISettings(ctx context.Context, settings *admin.APISettings) error
-	CreateAPIKey(ctx context.Context, key *admin.APIKey) (secret string, err error)
-	ListAPIKeys(ctx context.Context, domainID string) ([]admin.APIKey, error)
-	DeleteAPIKey(ctx context.Context, keyID string) error
-	RotateAPIKey(ctx context.Context, keyID string) (newSecret string, err error)
-	ListUsers(ctx context.Context, req maildb.UserListRequest) ([]maildb.UserView, error)
-	GetUser(ctx context.Context, id string) (maildb.UserView, error)
-	CreateUser(ctx context.Context, req maildb.CreateUserRequest) (maildb.UserView, error)
-	DeleteUser(ctx context.Context, id string) error
-	UpdateUserStatus(ctx context.Context, req maildb.UpdateUserStatusRequest) error
-	UpdateUserQuota(ctx context.Context, req maildb.UpdateUserQuotaRequest) error
-	UpdateUserPasswordHash(ctx context.Context, req maildb.UpdateUserPasswordHashRequest) error
-	UpdateUserRole(ctx context.Context, req maildb.UpdateUserRoleRequest) error
-	UpdateUserRecoveryEmail(ctx context.Context, req maildb.UpdateUserRecoveryEmailRequest) error
-	AuthenticateUser(ctx context.Context, email, password string) (maildb.AuthenticatedUser, error)
-	IncrementSessionVersion(ctx context.Context, userID string) (int64, error)
-	ListQueueStats(ctx context.Context) ([]maildb.QueueStat, error)
-	ListOutboxEvents(ctx context.Context, req maildb.OutboxEventListRequest) ([]maildb.OutboxEventView, error)
-	GetOutboxEvent(ctx context.Context, id string) (maildb.OutboxEventView, error)
-	ListAuditLogs(ctx context.Context, req maildb.AuditLogListRequest) ([]maildb.AuditLogView, error)
-	GetAuditLog(ctx context.Context, id string) (maildb.AuditLogView, error)
-	CheckAuditLogIntegrity(ctx context.Context, req maildb.AuditLogIntegrityRequest) (maildb.AuditLogIntegrityView, error)
-	ListMailFlowLogs(ctx context.Context, req maildb.MailFlowLogListRequest) ([]maildb.MailFlowLogView, error)
-	GetMailFlowLog(ctx context.Context, id string) (maildb.MailFlowLogView, error)
-	GetMailFlowLogStats(ctx context.Context, req maildb.MailFlowLogStatsRequest) (maildb.MailFlowLogStatsView, error)
-	GetMailFlowLogDailyStats(ctx context.Context, req maildb.MailFlowLogDailyStatsRequest) ([]maildb.MailFlowLogDailyStatsView, error)
-	ListQuotaUsage(ctx context.Context, req maildb.QuotaUsageListRequest) ([]maildb.QuotaUsageView, error)
-	RunAttachmentCleanup(ctx context.Context, before time.Time, limit int) ([]maildb.Attachment, error)
-	CountStaleAttachmentUploads(ctx context.Context, before time.Time, limit int) (maildb.StaleAttachmentUploadCount, error)
-	ListStaleAttachmentUploads(ctx context.Context, before time.Time, limit int) ([]maildb.StaleAttachmentUploadCandidate, error)
-	RunAttachmentUploadSessionCleanup(ctx context.Context, before time.Time, limit int) ([]maildb.AttachmentUploadSession, error)
-	CountStaleAttachmentUploadSessions(ctx context.Context, before time.Time, limit int) (maildb.StaleAttachmentUploadSessionCount, error)
-	ListStaleAttachmentUploadSessions(ctx context.Context, before time.Time, limit int) ([]maildb.StaleAttachmentUploadSessionCandidate, error)
-	ListAttachmentUploadSessions(ctx context.Context, req maildb.AttachmentUploadSessionListRequest) ([]maildb.AttachmentUploadSession, error)
-	SearchDirectoryPrincipals(ctx context.Context, req directory.SearchPrincipalsRequest) ([]directory.Principal, error)
-	CreateDirectoryAlias(ctx context.Context, req directory.CreateAliasRequest) (directory.Alias, error)
-	CreateDirectoryDelegation(ctx context.Context, req directory.CreateDelegationRequest) (directory.Delegation, error)
-	CreateDirectoryGroupMembership(ctx context.Context, req directory.CreateGroupMembershipRequest) (directory.GroupMembership, error)
-	DeleteDirectoryAlias(ctx context.Context, id string) (directory.Alias, error)
-	DeleteDirectoryDelegation(ctx context.Context, id string) (directory.Delegation, error)
-	DeleteDirectoryGroupMembership(ctx context.Context, id string) (directory.GroupMembership, error)
-	ListDirectoryGroupMemberships(ctx context.Context, req directory.ListGroupMembershipsRequest) ([]directory.GroupMembership, error)
-	ResolveDirectoryAlias(ctx context.Context, req directory.ResolveAliasRequest) (directory.Alias, error)
-	ListDirectoryAliases(ctx context.Context, req directory.ListAliasesRequest) ([]directory.Alias, error)
-	ListDirectoryDelegations(ctx context.Context, req directory.ListDelegationsRequest) ([]directory.Delegation, error)
-	UpdateDirectoryDelegationRole(ctx context.Context, req directory.UpdateDelegationRoleRequest) (directory.Delegation, error)
-	ReassignDirectoryDelegation(ctx context.Context, req directory.ReassignDelegationRequest) (directory.Delegation, error)
-	ReassignDirectoryGroupMembership(ctx context.Context, req directory.ReassignGroupMembershipRequest) (directory.GroupMembership, error)
-	UpdateDirectoryGroupMembershipRole(ctx context.Context, req directory.UpdateGroupMembershipRoleRequest) (directory.GroupMembership, error)
-	ListDriveUploadSessions(ctx context.Context, req drive.ListUploadSessionsRequest) ([]drive.UploadSession, error)
-	ListDriveNodes(ctx context.Context, req drive.ListNodesRequest) ([]drive.Node, error)
-	GetDriveNode(ctx context.Context, req drive.GetNodeRequest) (drive.Node, error)
-	GetDriveUsageSummary(ctx context.Context, req drive.GetUsageSummaryRequest) (drive.UsageSummary, error)
-	CountStaleDriveUploadSessions(ctx context.Context, before time.Time, limit int) (drive.StaleUploadSessionCount, error)
-	ListStaleDriveUploadSessions(ctx context.Context, before time.Time, limit int) ([]drive.UploadSession, error)
-	RunDriveUploadSessionCleanup(ctx context.Context, before time.Time, limit int) ([]drive.UploadSession, error)
-	ListDriveObjectCleanupFailures(ctx context.Context, req drive.ListObjectCleanupFailuresRequest) ([]drive.ObjectCleanupFailure, error)
-	ResolveDriveObjectCleanupFailure(ctx context.Context, id string) (drive.ObjectCleanupFailure, error)
-	RetryDriveObjectCleanupFailures(ctx context.Context, req drive.ListObjectCleanupFailuresRequest) (drive.RetryObjectCleanupFailuresResult, error)
-	ListAPIUsageDaily(ctx context.Context, req maildb.APIUsageAggregateListRequest) ([]maildb.APIUsageDailyView, error)
-	ListAPIUsageMonthly(ctx context.Context, req maildb.APIUsageAggregateListRequest) ([]maildb.APIUsageMonthlyView, error)
-	ListAPIUsageLedger(ctx context.Context, req maildb.APIUsageLedgerListRequest) ([]maildb.APIUsageLedgerView, error)
-	GetAPIUsageLedgerStats(ctx context.Context, req maildb.APIUsageLedgerListRequest) (maildb.APIUsageLedgerStatsView, error)
-	GetAPIUsageLedgerRetentionReadiness(ctx context.Context, req maildb.APIUsageLedgerRetentionRequest) (maildb.APIUsageLedgerRetentionReadinessView, error)
-	RunAPIUsageLedgerRetention(ctx context.Context, req maildb.APIUsageLedgerRetentionRunRequest) (maildb.APIUsageLedgerRetentionRunView, error)
-	ListAPIUsageLedgerRetentionRuns(ctx context.Context, req maildb.APIUsageLedgerRetentionRunListRequest) ([]maildb.APIUsageLedgerRetentionRunView, error)
-	GetAPIUsageLedgerRetentionRun(ctx context.Context, id string) (maildb.APIUsageLedgerRetentionRunView, error)
-	RunDAVSyncRetention(ctx context.Context, req davsyncretention.RunRequest) (davsyncretention.RunRecord, error)
-	ListDAVSyncRetentionRuns(ctx context.Context, req davsyncretention.RunListRequest) ([]davsyncretention.RunRecord, error)
-	GetDAVSyncRetentionRun(ctx context.Context, id string) (davsyncretention.RunRecord, error)
-	GetDAVSyncRetentionReadiness(ctx context.Context, req davsyncretention.ReadinessRequest) (davsyncretention.ReadinessView, error)
-	GetAPIUsageExportCapabilities(ctx context.Context) (maildb.APIUsageExportCapabilityView, error)
-	CreateAPIUsageExportBatch(ctx context.Context, req maildb.APIUsageLedgerListRequest) (maildb.APIUsageExportBatchView, error)
-	ListAPIUsageExportBatches(ctx context.Context, req maildb.APIUsageExportBatchListRequest) ([]maildb.APIUsageExportBatchView, error)
-	GetAPIUsageExportBatch(ctx context.Context, id string) (maildb.APIUsageExportBatchView, error)
-	GetAPIUsageExportHandoff(ctx context.Context, batchID string, deep bool) (maildb.APIUsageExportHandoffView, error)
-	CreateAPIUsageExportArtifact(ctx context.Context, req maildb.CreateAPIUsageExportArtifactRequest) (maildb.APIUsageExportArtifactView, error)
-	WriteAPIUsageExportArtifact(ctx context.Context, batchID string, req maildb.WriteAPIUsageExportArtifactRequest) (maildb.APIUsageExportArtifactView, error)
-	ListAPIUsageExportArtifacts(ctx context.Context, batchID string, limit int) ([]maildb.APIUsageExportArtifactView, error)
-	GetAPIUsageExportArtifact(ctx context.Context, batchID string, artifactID string) (maildb.APIUsageExportArtifactView, error)
-	OpenAPIUsageExportArtifact(ctx context.Context, batchID string, artifactID string) (maildb.APIUsageExportArtifactView, io.ReadCloser, error)
-	VerifyAPIUsageExportArtifact(ctx context.Context, batchID string, artifactID string) (maildb.APIUsageExportArtifactVerificationView, error)
-	CreateAPIUsageExportManifestDigest(ctx context.Context, batchID string) (maildb.APIUsageExportManifestDigestView, error)
-	ListAPIUsageExportManifestDigests(ctx context.Context, batchID string, limit int) ([]maildb.APIUsageExportManifestDigestView, error)
-	GetAPIUsageExportManifestDigest(ctx context.Context, batchID string, digestID string) (maildb.APIUsageExportManifestDigestView, error)
-	VerifyAPIUsageExportManifestDigest(ctx context.Context, batchID string, digestID string) (maildb.APIUsageExportManifestDigestVerificationView, error)
-	CreateAPIUsageExportManifestSignature(ctx context.Context, batchID string, digestID string) (maildb.APIUsageExportManifestSignatureView, error)
-	ListAPIUsageExportManifestSignatures(ctx context.Context, batchID string, digestID string, limit int) ([]maildb.APIUsageExportManifestSignatureView, error)
-	GetAPIUsageExportManifestSignature(ctx context.Context, batchID string, digestID string, signatureID string) (maildb.APIUsageExportManifestSignatureView, error)
-	VerifyAPIUsageExportManifestSignature(ctx context.Context, batchID string, digestID string, signatureID string) (maildb.APIUsageExportManifestSignatureVerificationView, error)
-	ListQuotaReconciliation(ctx context.Context, limit int) ([]maildb.QuotaReconciliationView, error)
-	CorrectQuotaReconciliation(ctx context.Context, req maildb.CorrectQuotaReconciliationRequest) (maildb.QuotaCorrectionResult, error)
-	ListDeliveryAttempts(ctx context.Context, req maildb.DeliveryAttemptListRequest) ([]maildb.DeliveryAttemptView, error)
-	GetDeliveryAttemptStats(ctx context.Context, req maildb.DeliveryAttemptStatsRequest) (maildb.DeliveryAttemptStatsView, error)
-	ListExhaustedAttempts(ctx context.Context, req maildb.ExhaustedAttemptListRequest) ([]maildb.DeliveryAttemptView, error)
-	ListPushNotificationAttempts(ctx context.Context, req maildb.PushNotificationAttemptListRequest) ([]maildb.PushNotificationAttemptView, error)
-	GetPushNotificationAttempt(ctx context.Context, id string) (maildb.PushNotificationAttemptView, error)
-	UpdatePushNotificationOutcome(ctx context.Context, req maildb.UpdatePushNotificationOutcomeRequest) error
-	GetPushNotificationStats(ctx context.Context, req maildb.PushNotificationStatsRequest) (maildb.PushNotificationStatsView, error)
-	ListPushDevices(ctx context.Context, userID string, limit int) ([]maildb.PushDevice, error)
-	DeletePushDevice(ctx context.Context, userID string, id string) error
-	DeleteAllPushDevices(ctx context.Context, userID string) (int, error)
-	ListSuppressionEntries(ctx context.Context, req maildb.SuppressionEntryListRequest) ([]maildb.SuppressionEntry, error)
-	ListTrustedRelays(ctx context.Context, req maildb.TrustedRelayListRequest) ([]maildb.TrustedRelayView, error)
-	CreateTrustedRelay(ctx context.Context, req maildb.CreateTrustedRelayRequest) (maildb.TrustedRelayView, error)
-	DeleteTrustedRelay(ctx context.Context, id string) error
-	ListDeliveryRoutes(ctx context.Context, req maildb.DeliveryRouteListRequest) ([]maildb.DeliveryRouteView, error)
-	CreateDeliveryRoute(ctx context.Context, req maildb.CreateDeliveryRouteRequest) (maildb.DeliveryRouteView, error)
-	ResolveDeliveryRoute(ctx context.Context, domain string) (maildb.DeliveryRouteResolveView, error)
-	UpdateDeliveryRouteStatus(ctx context.Context, req maildb.UpdateDeliveryRouteStatusRequest) error
-	DeleteDeliveryRoute(ctx context.Context, id string) error
-	ListDKIMKeys(ctx context.Context, req maildb.DKIMKeyListRequest) ([]maildb.DKIMKeyView, error)
-	CreateDKIMKey(ctx context.Context, input maildb.CreateDKIMKeyInput) (string, error)
-	DeactivateDKIMKey(ctx context.Context, id string) error
-	VerifyDKIMKeyDNS(ctx context.Context, keyID string) (maildb.DKIMKeyDNSVerificationResult, error)
-	RetryOutbox(ctx context.Context, id string) error
-	DeleteSuppressionEntry(ctx context.Context, id string) error
-	BackfillIMAPMailboxUIDs(ctx context.Context, userID string, mailboxID string, limit int) ([]maildb.IMAPMessageUID, error)
-	ListQuotaAlertThresholds(ctx context.Context, req maildb.QuotaAlertThresholdListRequest) ([]maildb.QuotaAlertThresholdView, error)
-	GetQuotaAlertThreshold(ctx context.Context, id string) (maildb.QuotaAlertThresholdView, error)
-	CreateQuotaAlertThreshold(ctx context.Context, req maildb.CreateQuotaAlertThresholdRequest) (maildb.QuotaAlertThresholdView, error)
-	UpdateQuotaAlertThreshold(ctx context.Context, req maildb.UpdateQuotaAlertThresholdRequest) (maildb.QuotaAlertThresholdView, error)
-	DeleteQuotaAlertThreshold(ctx context.Context, id string) error
-	ListQuotaAlerts(ctx context.Context, req maildb.QuotaAlertListRequest) ([]maildb.QuotaAlertView, error)
-	GetQuotaAlert(ctx context.Context, id string) (maildb.QuotaAlertView, error)
-	GetCompanyConfig(ctx context.Context, companyID, key string) (configstore.ConfigEntry, error)
-	SetCompanyConfig(ctx context.Context, companyID, key string, value json.RawMessage, locked bool, expectedVersion int64) (configstore.ConfigEntry, error)
-	DeleteCompanyConfig(ctx context.Context, companyID, key string, expectedVersion int64) error
-	ListCompanyConfig(ctx context.Context, companyID string) ([]configstore.ConfigEntry, error)
-	GetDomainConfig(ctx context.Context, domainID, key string) (configstore.ConfigEntry, error)
-	SetDomainConfig(ctx context.Context, domainID, key string, value json.RawMessage, locked bool, expectedVersion int64) (configstore.ConfigEntry, error)
-	DeleteDomainConfig(ctx context.Context, domainID, key string, expectedVersion int64) error
-	ListDomainConfig(ctx context.Context, domainID string) ([]configstore.ConfigEntry, error)
-	GetUserConfig(ctx context.Context, userID, key string) (configstore.ConfigEntry, error)
-	SetUserConfig(ctx context.Context, userID, key string, value json.RawMessage, locked bool, expectedVersion int64) (configstore.ConfigEntry, error)
-	DeleteUserConfig(ctx context.Context, userID, key string, expectedVersion int64) error
-	ListUserConfig(ctx context.Context, userID string) ([]configstore.ConfigEntry, error)
-	PropagateCompanyConfig(ctx context.Context, companyID string, scope configstore.PropagateScope, key string, value json.RawMessage, locked bool) error
-	CreateAlertRule(ctx context.Context, rule *admin.AlertRule) error
-	GetAlertRule(ctx context.Context, ruleID string) (*admin.AlertRule, error)
-	ListAlertRules(ctx context.Context, companyID string) ([]admin.AlertRule, error)
-	UpdateAlertRule(ctx context.Context, rule *admin.AlertRule) error
-	DeleteAlertRule(ctx context.Context, ruleID string) error
-	CreateAlertChannel(ctx context.Context, channel *admin.AlertChannel) error
-	GetAlertChannel(ctx context.Context, channelID string) (*admin.AlertChannel, error)
-	ListAlertChannels(ctx context.Context, companyID string) ([]admin.AlertChannel, error)
-	UpdateAlertChannel(ctx context.Context, channel *admin.AlertChannel) error
-	DeleteAlertChannel(ctx context.Context, channelID string) error
-	ListAlertEvents(ctx context.Context, filter admin.AlertEventFilter) ([]admin.AlertEvent, error)
-	LogAlertEvent(ctx context.Context, event *admin.AlertEvent) error
-	GetUserMFAStatus(ctx context.Context, userID string) (maildb.UserMFAStatus, error)
-	ResetUserMFA(ctx context.Context, userID string) error
-	GetMFAStats(ctx context.Context, companyID string) (maildb.MFAStats, error)
-	ListLoginAttempts(ctx context.Context, filter admin.LoginAuditFilter) ([]admin.LoginAuditLog, error)
-	CreateInviteToken(ctx context.Context, userID, createdBy string) (maildb.InviteToken, error)
-	GetInviteToken(ctx context.Context, token string) (maildb.InviteToken, error)
-	AcceptInviteToken(ctx context.Context, token, passwordHash string) (maildb.UserView, error)
-	TriggerLDAPSync(ctx context.Context, domainID, syncType string) (map[string]interface{}, error)
-	GetLDAPSyncRuns(ctx context.Context, req maildb.LDAPSyncRunListRequest) ([]maildb.LDAPSyncRunView, error)
-	GetLDAPSyncRun(ctx context.Context, runID string) (*maildb.LDAPSyncRunView, error)
-	GetLDAPSyncConflicts(ctx context.Context, req maildb.LDAPSyncConflictListRequest) ([]maildb.LDAPSyncConflictView, error)
-	GetLDAPSyncConflict(ctx context.Context, conflictID string) (*maildb.LDAPSyncConflictView, error)
-	ResolveLDAPSyncConflict(ctx context.Context, conflictID, resolution string) error
-	TriggerRDBMSSync(ctx context.Context, domainID, syncType string) (map[string]interface{}, error)
-	GetRDBMSSyncRuns(ctx context.Context, req maildb.RDBMSSyncRunListRequest) ([]maildb.RDBMSSyncRunView, error)
-	GetRDBMSSyncRun(ctx context.Context, runID string) (*maildb.RDBMSSyncRunView, error)
-	GetRDBMSSyncConflicts(ctx context.Context, req maildb.RDBMSSyncConflictListRequest) ([]maildb.RDBMSSyncConflictView, error)
-	GetRDBMSSyncConflict(ctx context.Context, conflictID string) (*maildb.RDBMSSyncConflictView, error)
-	ResolveRDBMSSyncConflict(ctx context.Context, conflictID, resolution string) error
-}
 
 type adminIMAPUIDBackfillItem struct {
 	MessageID string `json:"message_id"`
@@ -319,13 +125,14 @@ type adminConsoleCapabilitiesEnvelope struct {
 }
 
 type adminConsoleCapabilities struct {
-	ContractVersion string                            `json:"contract_version"`
-	Modules         map[string]string                 `json:"modules"`
-	Limits          adminConsoleLimits                `json:"limits"`
-	Tenancy         adminConsoleTenancyCapabilities   `json:"tenancy"`
-	Operations      adminConsoleOperationCapabilities `json:"operations"`
-	Security        adminConsoleSecurityCapabilities  `json:"security"`
-	Storage         storage.BackendCapabilities       `json:"storage"`
+	ContractVersion string                              `json:"contract_version"`
+	Modules         map[string]string                   `json:"modules"`
+	Limits          adminConsoleLimits                  `json:"limits"`
+	Tenancy         adminConsoleTenancyCapabilities     `json:"tenancy"`
+	Operations      adminConsoleOperationCapabilities   `json:"operations"`
+	Security        adminConsoleSecurityCapabilities    `json:"security"`
+	Integrations    adminConsoleIntegrationCapabilities `json:"integrations"`
+	Storage         storage.BackendCapabilities         `json:"storage"`
 }
 
 type adminConsoleLimits struct {
@@ -380,6 +187,12 @@ type adminConsoleSecurityCapabilities struct {
 	BearerToken          bool `json:"bearer_token"`
 	RejectsAmbiguousAuth bool `json:"rejects_ambiguous_auth"`
 	NoStoreJSON          bool `json:"no_store_json"`
+}
+
+type adminConsoleIntegrationCapabilities struct {
+	LDAPRead         string `json:"ldap_read"`
+	LDAPSync         string `json:"ldap_sync"`
+	OrganizationSync string `json:"organization_sync"`
 }
 
 func currentAdminConsoleCapabilities(storageCapabilities storage.BackendCapabilities) adminConsoleCapabilities {
@@ -439,6 +252,11 @@ func currentAdminConsoleCapabilities(storageCapabilities storage.BackendCapabili
 			BearerToken:          true,
 			RejectsAmbiguousAuth: true,
 			NoStoreJSON:          true,
+		},
+		Integrations: adminConsoleIntegrationCapabilities{
+			LDAPRead:         "placeholder",
+			LDAPSync:         "placeholder",
+			OrganizationSync: "placeholder",
 		},
 		Storage: storageCapabilities,
 	}
@@ -549,7 +367,18 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 
 	// ─── Console & Delivery Routes ─────────────────────────────────────────────
 	registerConsoleRoutes(mux, cfg, adminAuth)
+	registerCompanyRoutes(mux, service, adminAuth)
+	registerDomainRoutes(mux, service, adminAuth)
+	registerUserAndConfigRoutes(mux, service, token, cfg, adminAuth)
+	registerOperationsRoutes(mux, service, adminAuth)
+	registerDirectoryRoutes(mux, service, adminAuth)
+	registerStorageRoutes(mux, service, adminAuth)
+	registerUsageAndQuotaRoutes(mux, service, adminAuth)
+	registerDeliveryAndMailRoutes(mux, service, adminAuth)
+	registerAdminUtilityRoutes(mux, service, cfg, adminAuth)
+}
 
+func registerCompanyRoutes(mux *http.ServeMux, service AdminService, adminAuth func(http.HandlerFunc) http.HandlerFunc) {
 	mux.HandleFunc("GET /admin/v1/companies", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		if !rejectUnknownQueryKeys(w, r, "limit", "status") {
 			return
@@ -920,7 +749,9 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"status": "ok"})
 	}))
+}
 
+func registerDomainRoutes(mux *http.ServeMux, service AdminService, adminAuth func(http.HandlerFunc) http.HandlerFunc) {
 	mux.HandleFunc("GET /admin/v1/domains", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		if !rejectUnknownQueryKeys(w, r, "limit", "company_id", "status", "dns_status") {
 			return
@@ -1434,7 +1265,9 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"domain_policy": policy})
 	}))
+}
 
+func registerUserAndConfigRoutes(mux *http.ServeMux, service AdminService, token string, cfg adminRouteConfig, adminAuth func(http.HandlerFunc) http.HandlerFunc) {
 	mux.HandleFunc("GET /admin/v1/users", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		if !rejectUnknownQueryKeys(w, r, "limit", "domain_id", "status", "password_configured") {
 			return
@@ -1874,7 +1707,9 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 			}
 		}
 	}))
+}
 
+func registerOperationsRoutes(mux *http.ServeMux, service AdminService, adminAuth func(http.HandlerFunc) http.HandlerFunc) {
 	mux.HandleFunc("GET /admin/v1/queue", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		if !rejectUnknownQueryKeys(w, r) {
 			return
@@ -2107,7 +1942,9 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"mail_flow_log": log})
 	}))
+}
 
+func registerDirectoryRoutes(mux *http.ServeMux, service AdminService, adminAuth func(http.HandlerFunc) http.HandlerFunc) {
 	mux.HandleFunc("GET /admin/v1/directory/principals", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		if !rejectUnknownQueryKeys(w, r, "limit", "company_id", "domain_id", "organization_id", "kinds", "q", "active_only") {
 			return
@@ -2445,7 +2282,9 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"backpressure": state})
 	}))
+}
 
+func registerStorageRoutes(mux *http.ServeMux, service AdminService, adminAuth func(http.HandlerFunc) http.HandlerFunc) {
 	mux.HandleFunc("GET /admin/v1/quota-usage", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		if !rejectUnknownQueryKeys(w, r, "limit", "scope", "domain_id", "over_limit", "over_allocated") {
 			return
@@ -2949,7 +2788,9 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 			},
 		})
 	}))
+}
 
+func registerUsageAndQuotaRoutes(mux *http.ServeMux, service AdminService, adminAuth func(http.HandlerFunc) http.HandlerFunc) {
 	mux.HandleFunc("GET /admin/v1/api-usage/daily", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		if !rejectUnknownAPIUsageAggregateQuery(w, r) {
 			return
@@ -3785,7 +3626,9 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"quota_alert": alert})
 	}))
+}
 
+func registerDeliveryAndMailRoutes(mux *http.ServeMux, service AdminService, adminAuth func(http.HandlerFunc) http.HandlerFunc) {
 	mux.HandleFunc("GET /admin/v1/delivery-attempts", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		if !rejectUnknownQueryKeys(w, r, "limit", "since", "status", "recipient_domain", "message_id", "farm", "sender") {
 			return
@@ -4412,7 +4255,9 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"status": "ok", "id": id})
 	}))
+}
 
+func registerAdminUtilityRoutes(mux *http.ServeMux, service AdminService, cfg adminRouteConfig, adminAuth func(http.HandlerFunc) http.HandlerFunc) {
 	mux.HandleFunc("POST /admin/v1/companies/{id}/alert-rules", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		handleCreateAlertRule(w, r, service)
 	}))

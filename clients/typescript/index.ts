@@ -4,6 +4,60 @@
  */
 
 export type paths = {
+    "/admin-users": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List admin users */
+        get: operations["adminListUsers"];
+        put?: never;
+        /** Create admin user */
+        post: operations["createNewAdminUser"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin-users/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete admin user */
+        delete: operations["deleteManagedUser"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/alert-rules/{ruleid}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get alert rule */
+        get: operations["getAlertRule"];
+        /** Update alert rule */
+        put: operations["updateAlertRule"];
+        post?: never;
+        /** Delete alert rule */
+        delete: operations["deleteAlertRule"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api-usage/daily": {
         parameters: {
             query?: never;
@@ -665,6 +719,57 @@ export type paths = {
         patch?: never;
         trace?: never;
     };
+    "/auth/login": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Admin user login */
+        post: operations["loginAdminUser"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/logout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Admin user logout */
+        post: operations["adminLogout"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/refresh": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Refresh admin access token */
+        post: operations["refreshAdminSession"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/auth/sessions/revoke-all": {
         parameters: {
             query?: never;
@@ -682,6 +787,57 @@ export type paths = {
          *     version and be accepted normally.
          */
         post: operations["revokeAllSessions"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/setup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Initial setup for admin user */
+        post: operations["setupAdminUser"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/token": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Authenticate a user and issue a JWT token */
+        post: operations["loginUser"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/verify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Verify admin authentication */
+        get: operations["adminVerifyAuth"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -716,7 +872,8 @@ export type paths = {
         /** Admin company list with contracted storage pool usage */
         get: operations["listAdminCompanies"];
         put?: never;
-        post?: never;
+        /** Admin create company */
+        post: operations["createAdminCompany"];
         delete?: never;
         options?: never;
         head?: never;
@@ -732,6 +889,95 @@ export type paths = {
         };
         /** Admin company detail */
         get: operations["getAdminCompany"];
+        put?: never;
+        post?: never;
+        /** Admin delete company */
+        delete: operations["deleteAdminCompany"];
+        options?: never;
+        head?: never;
+        /** Admin update company */
+        patch: operations["updateAdminCompany"];
+        trace?: never;
+    };
+    "/companies/{id}/alert-channels": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List alert channels for company */
+        get: operations["listAlertChannels"];
+        put?: never;
+        /** Create alert channel */
+        post: operations["createAlertChannel"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/companies/{id}/alert-events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List alert events for company */
+        get: operations["listAlertEvents"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/companies/{id}/alert-rules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List alert rules for company */
+        get: operations["listAlertRules"];
+        put?: never;
+        /** Create alert rule */
+        post: operations["createAlertRule"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/companies/{id}/audit-logs/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Export company audit logs as CSV */
+        get: operations["adminExportCompanyAuditLogs"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/companies/{id}/change-history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get per-tenant configuration change history */
+        get: operations["adminGetCompanyChangeHistory"];
         put?: never;
         post?: never;
         delete?: never;
@@ -793,6 +1039,161 @@ export type paths = {
         patch?: never;
         trace?: never;
     };
+    "/companies/{id}/health": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get per-tenant health summary */
+        get: operations["adminGetCompanyHealth"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/companies/{id}/legal-holds": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List legal holds for a company */
+        get: operations["listLegalHolds"];
+        put?: never;
+        /** Create a legal hold */
+        post: operations["createLegalHold"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/companies/{id}/legal-holds/{holdId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Release a legal hold */
+        delete: operations["deleteLegalHold"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/companies/{id}/mfa/stats": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Admin get company MFA adoption stats */
+        get: operations["getAdminMFAStats"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/companies/{id}/notification-templates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List company notification templates */
+        get: operations["adminListCompanyNotifTemplates"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/companies/{id}/notification-templates/{templateId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Update a company notification template */
+        put: operations["adminUpdateCompanyNotifTemplate"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/companies/{id}/pending-approvals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List pending approval requests for a company */
+        get: operations["adminListPendingApprovals"];
+        put?: never;
+        /** Submit a change for approval */
+        post: operations["adminCreatePendingApproval"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/companies/{id}/pending-approvals/{approvalId}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Approve a pending change request */
+        post: operations["adminApproveApproval"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/companies/{id}/pending-approvals/{approvalId}/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reject a pending change request */
+        post: operations["adminRejectApproval"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/companies/{id}/quota": {
         parameters: {
             query?: never;
@@ -808,6 +1209,425 @@ export type paths = {
         head?: never;
         /** Admin update company contracted storage quota */
         patch: operations["updateAdminCompanyQuota"];
+        trace?: never;
+    };
+    "/companies/{id}/quota-summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get company quota summary */
+        get: operations["adminGetCompanyQuotaSummary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/companies/{id}/routing-rules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get company routing rules */
+        get: operations["adminGetCompanyRoutingRules"];
+        /** Update company routing rules */
+        put: operations["adminUpdateCompanyRoutingRules"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/companies/{id}/scim/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get SCIM provisioning status */
+        get: operations["getSCIMStatus"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/companies/{id}/seat-usage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get seat and license usage for a company */
+        get: operations["getSeatUsage"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/companies/{id}/security/audit-policy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get company audit policy */
+        get: operations["adminGetCompanyAuditPolicy"];
+        /** Set company audit policy */
+        put: operations["adminPutCompanyAuditPolicy"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/companies/{id}/security/auth-policy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get company password and auth policy */
+        get: operations["adminGetCompanyAuthPolicy"];
+        /** Set company password and auth policy */
+        put: operations["adminPutCompanyAuthPolicy"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/companies/{id}/security/ip-policy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get company IP access policy */
+        get: operations["adminGetCompanyIPPolicy"];
+        /** Set company IP access policy */
+        put: operations["adminPutCompanyIPPolicy"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/companies/{id}/security/login-audits": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List company login audit logs */
+        get: operations["adminListCompanyLoginAudits"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/companies/{id}/security/posture": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get security posture score and breakdown */
+        get: operations["getSecurityPosture"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/companies/{id}/security/rate-limit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get company send rate limit policy */
+        get: operations["adminGetCompanyRateLimitPolicy"];
+        /** Set company send rate limit policy */
+        put: operations["adminPutCompanyRateLimitPolicy"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/companies/{id}/security/retention-policy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get company data retention policy */
+        get: operations["adminGetCompanyRetentionPolicy"];
+        /** Set company data retention policy */
+        put: operations["adminPutCompanyRetentionPolicy"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/companies/{id}/security/session-policy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get company session policy */
+        get: operations["adminGetCompanySessionPolicy"];
+        /** Set company session policy */
+        put: operations["adminPutCompanySessionPolicy"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/companies/{id}/security/spam-filter": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get company spam/content filter policy */
+        get: operations["adminGetCompanySpamFilterPolicy"];
+        /** Update company spam/content filter policy */
+        put: operations["adminUpdateCompanySpamFilterPolicy"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/companies/{id}/sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List active sessions for a company */
+        get: operations["adminListCompanySessions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/companies/{id}/sessions/{userId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Terminate a user session */
+        delete: operations["adminDeleteCompanySession"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/companies/{id}/signature": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get company global email signature */
+        get: operations["getGlobalSignature"];
+        /** Set company global email signature */
+        put: operations["putGlobalSignature"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/companies/{id}/sso/config": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get company SSO/SAML configuration */
+        get: operations["adminGetCompanySSOConfig"];
+        /** Update company SSO/SAML configuration */
+        put: operations["adminUpdateCompanySSOConfig"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/companies/{id}/sso/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Test company SSO configuration */
+        post: operations["adminTestCompanySSOConfig"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/companies/{id}/users/bulk-export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Export all users for a company as CSV */
+        get: operations["bulkExportCompanyUsers"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/companies/{id}/users/bulk-import": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Bulk import users for a company */
+        post: operations["bulkImportCompanyUsers"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/companies/{id}/webhooks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List company webhook endpoints */
+        get: operations["adminListCompanyWebhooks"];
+        put?: never;
+        /** Create a company webhook endpoint */
+        post: operations["adminCreateCompanyWebhook"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/companies/{id}/webhooks/{webhookId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete a company webhook endpoint */
+        delete: operations["adminDeleteCompanyWebhook"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/companies/{id}/webhooks/{webhookId}/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Send a test event to a webhook */
+        post: operations["adminTestCompanyWebhook"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/compliance": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List compliance reports */
+        get: operations["adminListCompliance"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/config/stream": {
@@ -1321,6 +2141,77 @@ export type paths = {
         get: operations["getAdminDomain"];
         put?: never;
         post?: never;
+        /** Admin delete domain */
+        delete: operations["deleteAdminDomain"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/domains/{id}/api-keys": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Admin list domain API keys */
+        get: operations["listAdminDomainAPIKeys"];
+        put?: never;
+        /** Admin create domain API key */
+        post: operations["createAdminDomainAPIKey"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/domains/{id}/api-keys/{keyid}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Admin delete domain API key */
+        delete: operations["deleteAdminDomainAPIKey"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/domains/{id}/api-keys/{keyid}/rotate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Admin rotate domain API key */
+        post: operations["rotateAdminDomainAPIKey"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/domains/{id}/api-settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Admin get domain API settings */
+        get: operations["getAdminDomainAPISettings"];
+        /** Admin update domain API settings */
+        put: operations["updateAdminDomainAPISettings"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1397,6 +2288,74 @@ export type paths = {
         patch?: never;
         trace?: never;
     };
+    "/domains/{id}/ldap/conflicts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get unresolved LDAP sync conflicts */
+        get: operations["getLDAPSyncConflicts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/domains/{id}/ldap/conflicts/{conflictId}/resolve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Resolve an LDAP sync conflict */
+        post: operations["resolveLDAPConflict"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/domains/{id}/ldap/sync": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Trigger LDAP directory synchronization */
+        post: operations["triggerLDAPSync"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/domains/{id}/ldap/sync-history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get LDAP sync operation history */
+        get: operations["getLDAPSyncHistory"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/domains/{id}/policy": {
         parameters: {
             query?: never;
@@ -1431,6 +2390,218 @@ export type paths = {
         patch: operations["updateAdminDomainQuota"];
         trace?: never;
     };
+    "/domains/{id}/rdbms/conflicts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get unresolved RDBMS sync conflicts */
+        get: operations["getRDBMSSyncConflicts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/domains/{id}/rdbms/conflicts/{conflictId}/resolve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Resolve an RDBMS sync conflict */
+        post: operations["resolveRDBMSConflict"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/domains/{id}/rdbms/sync": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Trigger RDBMS directory synchronization */
+        post: operations["triggerRDBMSSync"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/domains/{id}/rdbms/sync-history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get RDBMS sync operation history */
+        get: operations["getRDBMSSyncHistory"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/domains/{id}/routing-rules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get domain routing rules */
+        get: operations["adminGetDomainRoutingRules"];
+        /** Update domain routing rules */
+        put: operations["adminUpdateDomainRoutingRules"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/domains/{id}/security/dmarc-spf": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get domain DMARC/SPF policy */
+        get: operations["adminGetDomainDmarcSpfPolicy"];
+        /** Update domain DMARC/SPF policy */
+        put: operations["adminUpdateDomainDmarcSpfPolicy"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/domains/{id}/security/ip-policy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get domain IP access policy */
+        get: operations["adminGetDomainIPPolicy"];
+        /** Set domain IP access policy */
+        put: operations["adminPutDomainIPPolicy"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/domains/{id}/security/rate-limit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get domain send rate limit policy */
+        get: operations["adminGetDomainRateLimitPolicy"];
+        /** Set domain send rate limit policy */
+        put: operations["adminPutDomainRateLimitPolicy"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/domains/{id}/security/retention-policy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get domain data retention policy */
+        get: operations["adminGetDomainRetentionPolicy"];
+        /** Set domain data retention policy */
+        put: operations["adminPutDomainRetentionPolicy"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/domains/{id}/security/spam-filter": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get domain spam/content filter policy */
+        get: operations["adminGetDomainSpamFilterPolicy"];
+        /** Update domain spam/content filter policy */
+        put: operations["adminUpdateDomainSpamFilterPolicy"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/domains/{id}/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Admin get domain settings */
+        get: operations["getAdminDomainSettings"];
+        /** Admin update domain settings */
+        put: operations["updateAdminDomainSettings"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/domains/{id}/smtp-policy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get domain outbound SMTP policy */
+        get: operations["adminGetDomainSMTPPolicy"];
+        /** Update domain outbound SMTP policy */
+        put: operations["adminUpdateDomainSMTPPolicy"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/domains/{id}/stats": {
         parameters: {
             query?: never;
@@ -1463,6 +2634,23 @@ export type paths = {
         head?: never;
         /** Admin update domain status */
         patch: operations["updateAdminDomainStatus"];
+        trace?: never;
+    };
+    "/domains/bulk": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Bulk activate, suspend, or delete domains */
+        post: operations["adminBulkDomains"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/drafts": {
@@ -2069,6 +3257,23 @@ export type paths = {
         patch: operations["renameFolder"];
         trace?: never;
     };
+    "/health": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** System health check */
+        get: operations["adminGetHealth"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/health/live": {
         parameters: {
             query?: never;
@@ -2216,6 +3421,58 @@ export type paths = {
         get: operations["getMailboxOverview"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get the authenticated user's profile */
+        get: operations["getUserProfile"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update the authenticated user's profile */
+        patch: operations["updateUserProfile"];
+        trace?: never;
+    };
+    "/me/addresses": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List all email addresses for the authenticated user */
+        get: operations["listUserAddresses"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Change the authenticated user's password */
+        post: operations["changeUserPassword"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2445,6 +3702,146 @@ export type paths = {
         patch?: never;
         trace?: never;
     };
+    "/onboarding/validate-domain": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Validate domain name format for onboarding */
+        post: operations["validateOnboardingDomain"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/organization/hierarchy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get organization hierarchy */
+        get: operations["adminGetOrganizationHierarchy"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/organization/members": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Assign a user to an organization unit */
+        post: operations["adminAssignOrganizationMember"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/organization/members/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Remove an organization member assignment */
+        delete: operations["adminRemoveOrganizationMember"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/organization/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get organization settings */
+        get: operations["adminGetOrganizationSettings"];
+        /** Update organization settings */
+        put: operations["adminUpdateOrganizationSettings"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/organization/sync": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Trigger organization LDAP sync */
+        post: operations["adminSyncOrganization"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/organization/units": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List organization units */
+        get: operations["adminListOrganizationUnits"];
+        put?: never;
+        /** Create an organization unit */
+        post: operations["adminCreateOrganizationUnit"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/organization/units/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get an organization unit */
+        get: operations["adminGetOrganizationUnit"];
+        /** Update an organization unit */
+        put: operations["adminUpdateOrganizationUnit"];
+        post?: never;
+        /** Delete an organization unit */
+        delete: operations["adminDeleteOrganizationUnit"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/outbox-events": {
         parameters: {
             query?: never;
@@ -2490,6 +3887,24 @@ export type paths = {
         put?: never;
         /** Admin retry one outbox event */
         post: operations["retryAdminOutboxEvent"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/preferences": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get user webmail preferences */
+        get: operations["getWebmailPreferences"];
+        /** Replace user webmail preferences */
+        put: operations["setWebmailPreferences"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -2738,6 +4153,41 @@ export type paths = {
         patch?: never;
         trace?: never;
     };
+    "/reports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List reports */
+        get: operations["adminListReports"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/roles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List roles */
+        get: operations["adminListRoles"];
+        put?: never;
+        /** Create role */
+        post: operations["adminCreateRole"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/search": {
         parameters: {
             query?: never;
@@ -2955,7 +4405,11 @@ export type paths = {
         get: operations["getAdminUser"];
         put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * Admin delete user
+         * @description Safely disables the user and revokes existing sessions.
+         */
+        delete: operations["deleteAdminUser"];
         options?: never;
         head?: never;
         patch?: never;
@@ -2997,6 +4451,41 @@ export type paths = {
         patch?: never;
         trace?: never;
     };
+    "/users/{id}/invite": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Generate an invite token for a user */
+        post: operations["createUserInviteToken"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/users/{id}/mfa": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Admin get user MFA status */
+        get: operations["getAdminUserMFAStatus"];
+        put?: never;
+        post?: never;
+        /** Admin reset user MFA */
+        delete: operations["resetAdminUserMFA"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/users/{id}/password-hash": {
         parameters: {
             query?: never;
@@ -3031,6 +4520,40 @@ export type paths = {
         patch: operations["updateAdminUserQuota"];
         trace?: never;
     };
+    "/users/{id}/recovery-email": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update a user's backup recovery email */
+        patch: operations["updateAdminUserRecoveryEmail"];
+        trace?: never;
+    };
+    "/users/{id}/role": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update a user's admin role */
+        patch: operations["updateAdminUserRole"];
+        trace?: never;
+    };
     "/users/{id}/status": {
         parameters: {
             query?: never;
@@ -3046,6 +4569,23 @@ export type paths = {
         head?: never;
         /** Admin update user status */
         patch: operations["updateAdminUserStatus"];
+        trace?: never;
+    };
+    "/users/bulk": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Bulk activate or suspend users */
+        post: operations["adminBulkUsers"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/webmail/capabilities": {
@@ -3071,6 +4611,23 @@ export type components = {
     schemas: {
         AdminConsoleCapabilities: {
             contract_version: string;
+            integrations: {
+                /**
+                 * @description LDAP directory read provider status.
+                 * @enum {string}
+                 */
+                ldap_read: AdminConsoleCapabilitiesIntegrationsLdap_read;
+                /**
+                 * @description LDAP sync execution status.
+                 * @enum {string}
+                 */
+                ldap_sync: AdminConsoleCapabilitiesIntegrationsLdap_sync;
+                /**
+                 * @description Organization sync adapter status.
+                 * @enum {string}
+                 */
+                organization_sync: AdminConsoleCapabilitiesIntegrationsOrganization_sync;
+            };
             limits: {
                 max_api_usage_retention_run_limit: number;
                 max_attachment_cleanup_limit: number;
@@ -3133,6 +4690,83 @@ export type components = {
         };
         AdminConsoleCapabilitiesEnvelope: {
             admin_console_capabilities: components["schemas"]["AdminConsoleCapabilities"];
+        };
+        AlertChannel: {
+            /** @enum {string} */
+            channel_type: AlertChannelChannel_type;
+            company_id: string;
+            config: {
+                auth_header?: string;
+                recipients?: string[];
+                url?: string;
+            };
+            /** Format: date-time */
+            created_at: string;
+            created_by?: string;
+            id: string;
+            is_enabled: boolean;
+            name: string;
+        };
+        AlertEvent: {
+            alert_rule_id: string;
+            company_id: string;
+            current_value: number;
+            id: string;
+            message?: string;
+            /** Format: date-time */
+            resolved_at?: string;
+            threshold: number;
+            /** Format: date-time */
+            triggered_at: string;
+        };
+        AlertRule: {
+            /** @enum {string} */
+            alert_type: AlertRuleAlert_type;
+            check_interval_minutes: number;
+            company_id: string;
+            /** Format: date-time */
+            created_at: string;
+            created_by?: string;
+            description?: string;
+            id: string;
+            is_enabled: boolean;
+            name: string;
+            threshold: number;
+        };
+        APIKey: {
+            /** Format: date-time */
+            created_at: string;
+            created_by: string;
+            domain_id: string;
+            /** Format: date-time */
+            expires_at?: string | null;
+            id: string;
+            is_active: boolean;
+            /** Format: date-time */
+            last_used_at?: string | null;
+            name: string;
+        };
+        APISettings: {
+            cidr_allowlist?: string[];
+            cidr_allowlist_enabled: boolean;
+            domain_id: string;
+            rate_limit_bps: number;
+            rate_limit_rps: number;
+            require_api_key: boolean;
+            /** Format: date-time */
+            updated_at: string;
+            updated_by: string;
+        };
+        APISettingsEnvelope: {
+            settings: components["schemas"]["APISettings"];
+        };
+        APISettingsUpdateRequest: {
+            cidr_allowlist?: string[];
+            cidr_allowlist_enabled: boolean;
+            domain_id: string;
+            rate_limit_bps: number;
+            rate_limit_rps: number;
+            require_api_key: boolean;
         };
         APIUsageDaily: {
             api_key_id?: string;
@@ -3600,6 +5234,20 @@ export type components = {
         APIUsageMonthlyListEnvelope: {
             api_usage_monthly: components["schemas"]["APIUsageMonthly"][];
         };
+        ApprovalItem: {
+            category?: string;
+            comment?: string;
+            description?: string;
+            id?: string;
+            payload?: Record<string, never>;
+            requested_at?: string;
+            requested_by?: string;
+            reviewed_at?: string;
+            reviewed_by?: string;
+            /** @enum {string} */
+            status?: ApprovalItemStatus;
+            title?: string;
+        };
         Attachment: {
             /** Format: date-time */
             created_at: string;
@@ -3843,6 +5491,43 @@ export type components = {
         AuditLogListEnvelope: {
             audit_logs: components["schemas"]["AuditLog"][];
         };
+        AuditLogView: {
+            action?: string;
+            actor_id?: string;
+            category?: string;
+            company_id?: string;
+            created_at?: string;
+            detail?: Record<string, never>;
+            domain_id?: string;
+            id?: string;
+            ip_address?: string;
+            result?: string;
+            target_id?: string;
+            target_type?: string;
+            user_id?: string;
+        };
+        AuditPolicy: {
+            audit_admin_actions?: boolean;
+            /** @enum {string} */
+            audit_level?: AuditPolicyAudit_level;
+            audit_security_events?: boolean;
+            company_id?: string;
+            mask_mail_content?: boolean;
+            mask_recipient_emails?: boolean;
+            retention_days?: number;
+        };
+        AuthPolicy: {
+            history_count?: number;
+            max_age_days?: number;
+            max_concurrent_sessions?: number;
+            mfa_methods?: string[];
+            mfa_required?: boolean;
+            min_length?: number;
+            require_numbers?: boolean;
+            require_symbols?: boolean;
+            require_uppercase?: boolean;
+            session_timeout_minutes?: number;
+        };
         BackpressureEnvelope: {
             backpressure: components["schemas"]["BackpressureState"];
         };
@@ -3943,12 +5628,17 @@ export type components = {
             from?: string;
             /** @enum {string} */
             intent: ComposeRequestIntent;
-            /** Format: date-time */
+            /**
+             * Format: date-time
+             * @description Future send time. Draft saves preserve this option for draft-send.
+             */
             scheduled_at?: string;
             source_message_id?: string;
             subject: string;
             text_body: string;
             to?: components["schemas"]["ComposeAddress"][];
+            /** @description Request open-tracking for the sent message. Draft saves preserve this option for draft-send. */
+            track_opens?: boolean;
             transactional?: boolean;
             /** @description Development fallback when bearer auth is disabled. */
             user_id?: string;
@@ -3984,6 +5674,28 @@ export type components = {
              * @description Expected version for optimistic locking, omit or use -1 to skip
              */
             version?: number;
+        };
+        CreateAlertChannel: {
+            /** @enum {string} */
+            channel_type: CreateAlertChannelChannel_type;
+            config: {
+                auth_header?: string;
+                recipients?: string[];
+                url?: string;
+            };
+            created_by?: string;
+            is_enabled: boolean;
+            name: string;
+        };
+        CreateAlertRule: {
+            /** @enum {string} */
+            alert_type: CreateAlertRuleAlert_type;
+            check_interval_minutes: number;
+            created_by?: string;
+            description?: string;
+            is_enabled: boolean;
+            name: string;
+            threshold: number;
         };
         DAVSyncRetentionReadiness: {
             /** Format: int64 */
@@ -4456,6 +6168,46 @@ export type components = {
             /** Format: int64 */
             quota_limit: number;
         };
+        DomainSettings: {
+            domain_id: string;
+            ip_whitelist?: string[];
+            ip_whitelist_enabled: boolean;
+            password_expiry_days: number;
+            password_min_length: number;
+            password_require_numbers: boolean;
+            password_require_special_chars: boolean;
+            password_require_uppercase: boolean;
+            password_reset_token_ttl_minutes: number;
+            /** Format: int64 */
+            quota_per_user: number;
+            require_2fa: boolean;
+            session_timeout_minutes: number;
+            /** @enum {string} */
+            tls_policy: DomainSettingsTls_policy;
+            /** Format: date-time */
+            updated_at: string;
+            updated_by: string;
+        };
+        DomainSettingsEnvelope: {
+            settings: components["schemas"]["DomainSettings"];
+        };
+        DomainSettingsUpdateRequest: {
+            domain_id: string;
+            ip_whitelist?: string[];
+            ip_whitelist_enabled: boolean;
+            password_expiry_days: number;
+            password_min_length: number;
+            password_require_numbers: boolean;
+            password_require_special_chars: boolean;
+            password_require_uppercase: boolean;
+            password_reset_token_ttl_minutes: number;
+            /** Format: int64 */
+            quota_per_user: number;
+            require_2fa: boolean;
+            session_timeout_minutes: number;
+            /** @enum {string} */
+            tls_policy: DomainSettingsUpdateRequestTls_policy;
+        };
         DomainStats: {
             /** Format: int64 */
             active_messages: number;
@@ -4566,14 +6318,12 @@ export type components = {
             id: string;
             mime_type?: string;
             name: string;
-            /** @enum {string} */
-            node_type: DriveNodeNode_type;
+            node_type: components["schemas"]["DriveNodeType"];
             normalized_name: string;
             parent_id?: string;
             /** Format: int64 */
             size: number;
-            /** @enum {string} */
-            status: DriveNodeStatus;
+            status: components["schemas"]["DriveNodeStatus"];
             storage_backend?: string;
             storage_path?: string;
             /** Format: date-time */
@@ -4598,6 +6348,12 @@ export type components = {
         DriveNodeRenameRequest: {
             name: string;
         };
+        /** @enum {string} */
+        DriveNodeSort: DriveNodeSort;
+        /** @enum {string} */
+        DriveNodeStatus: DriveNodeStatus;
+        /** @enum {string} */
+        DriveNodeType: DriveNodeType;
         DriveNodeUpdateEnvelope: {
             drive_node: components["schemas"]["DriveNode"];
             /** Format: int64 */
@@ -4715,8 +6471,7 @@ export type components = {
             parent_id?: string;
             /** Format: int64 */
             received_size: number;
-            /** @enum {string} */
-            status: DriveUploadSessionStatus;
+            status: components["schemas"]["DriveUploadSessionStatus"];
             storage_backend: string;
             storage_path?: string;
             /** Format: date-time */
@@ -4740,6 +6495,8 @@ export type components = {
         DriveUploadSessionListEnvelope: {
             drive_upload_sessions: components["schemas"]["DriveUploadSession"][];
         };
+        /** @enum {string} */
+        DriveUploadSessionStatus: DriveUploadSessionStatus;
         DriveUsageSummary: {
             /** Format: int64 */
             active_bytes: number;
@@ -4844,6 +6601,30 @@ export type components = {
             service: InfoResponseService;
             /** @enum {string} */
             status: InfoResponseStatus;
+        };
+        IPAccessPolicy: {
+            /** @enum {string} */
+            action?: IPAccessPolicyAction;
+            allowlist?: string[];
+            denylist?: string[];
+            enabled?: boolean;
+            protocols?: string[];
+        };
+        LoginAudit: {
+            company_id: string;
+            failure_reason?: string;
+            id: string;
+            ip_address: string;
+            success: boolean;
+            /** Format: date-time */
+            timestamp: string;
+            user_agent: string;
+            user_id: string;
+        };
+        LoginAuditListEnvelope: {
+            limit: number;
+            login_audits: components["schemas"]["LoginAudit"][];
+            offset: number;
         };
         MailboxOverview: {
             /** Format: int64 */
@@ -5025,6 +6806,13 @@ export type components = {
             size: number;
             starred: boolean;
             subject: string;
+        };
+        NotifTemplate: {
+            body?: string;
+            enabled?: boolean;
+            id?: string;
+            name?: string;
+            subject?: string;
         };
         OutboxEvent: {
             attempts: number;
@@ -5315,6 +7103,17 @@ export type components = {
         QuotaUsageListEnvelope: {
             quota_usage: components["schemas"]["QuotaUsage"][];
         };
+        RateLimitPolicy: {
+            /** @enum {string} */
+            action_on_exceed?: RateLimitPolicyAction_on_exceed;
+            enabled?: boolean;
+            max_message_size_mb?: number;
+            max_per_day?: number;
+            max_per_hour?: number;
+            max_recipients_per_msg?: number;
+            per_user_max_per_day?: number;
+            per_user_max_per_hour?: number;
+        };
         ReadinessCheck: {
             detail?: string;
             name: string;
@@ -5324,6 +7123,13 @@ export type components = {
             checks: components["schemas"]["ReadinessCheck"][];
             /** @enum {string} */
             status: ReadinessResponseStatus;
+        };
+        RetentionPolicy: {
+            attachment_retention_days?: number;
+            audit_log_retention_days?: number;
+            auto_purge_enabled?: boolean;
+            deleted_items_retention_days?: number;
+            mail_retention_days?: number;
         };
         SendQueued: {
             /** @enum {string} */
@@ -5430,12 +7236,25 @@ export type components = {
         TrustedRelayListEnvelope: {
             trusted_relays: components["schemas"]["TrustedRelay"][];
         };
+        UpdateAlertChannel: {
+            config?: Record<string, never>;
+            is_enabled: boolean;
+            name: string;
+        };
+        UpdateAlertRule: {
+            check_interval_minutes: number;
+            description?: string;
+            is_enabled: boolean;
+            name: string;
+            threshold: number;
+        };
         User: {
             /** Format: date-time */
             created_at: string;
             display_name: string;
             domain_id: string;
             id: string;
+            must_change_password: boolean;
             password_configured: boolean;
             /** Format: int64 */
             quota_limit?: number;
@@ -5445,6 +7264,8 @@ export type components = {
             quota_source: UserQuota_source;
             /** Format: int64 */
             quota_used: number;
+            /** Format: email */
+            recovery_email?: string;
             role: string;
             /** @enum {string} */
             status: UserStatus;
@@ -5455,6 +7276,7 @@ export type components = {
             address: string;
             display_name: string;
             domain_id: string;
+            must_change_password?: boolean;
             /**
              * Format: password
              * @description Optional temporary plain password accepted by the admin handler; the server hashes it before persistence and marks the user for password change.
@@ -5462,9 +7284,10 @@ export type components = {
             password?: string;
             /** @description Optional pre-hashed local password for SMTP Submission authentication. Supported formats are pbkdf2-sha256, sha256, and explicit plain: development fixtures. */
             password_hash?: string;
-            must_change_password?: boolean;
             /** Format: int64 */
             quota_limit?: number;
+            /** Format: email */
+            recovery_email?: string;
             username: string;
         };
         UserEnvelope: {
@@ -5485,6 +7308,22 @@ export type components = {
              * @enum {string}
              */
             quota_source?: UserQuotaUpdateRequestQuota_source;
+        };
+        Webhook: {
+            created_at?: string;
+            enabled?: boolean;
+            events?: string[];
+            id?: string;
+            last_triggered_at?: string;
+            name?: string;
+            secret?: string;
+            url?: string;
+        };
+        WebhookInput: {
+            enabled?: boolean;
+            events: string[];
+            name: string;
+            url: string;
         };
         WebmailCapabilities: {
             attachments: components["schemas"]["AttachmentUploadCapabilities"];
@@ -5587,6 +7426,15 @@ export type components = {
             };
             content: {
                 "application/json": components["schemas"]["AdminConsoleCapabilitiesEnvelope"];
+            };
+        };
+        /** @description Domain API settings envelope */
+        APISettings: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["APISettingsEnvelope"];
             };
         };
         /** @description Daily API usage aggregate envelope */
@@ -6129,6 +7977,15 @@ export type components = {
                 "application/json": components["schemas"]["DomainPolicyEnvelope"];
             };
         };
+        /** @description Domain settings envelope */
+        DomainSettings: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["DomainSettingsEnvelope"];
+            };
+        };
         /** @description Domain statistics envelope */
         DomainStats: {
             headers: {
@@ -6372,6 +8229,15 @@ export type components = {
             };
             content: {
                 "application/json": components["schemas"]["InfoResponse"];
+            };
+        };
+        /** @description Login audit list envelope */
+        LoginAuditList: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["LoginAuditListEnvelope"];
             };
         };
         /** @description Mailbox overview envelope */
@@ -6691,6 +8557,11 @@ export type components = {
         UserIDFallback: string;
     };
     requestBodies: {
+        APISettingsUpdate: {
+            content: {
+                "application/json": components["schemas"]["APISettingsUpdateRequest"];
+            };
+        };
         APIUsageLedgerRetentionRun: {
             content: {
                 "application/json": components["schemas"]["APIUsageLedgerRetentionRunRequest"];
@@ -6846,6 +8717,11 @@ export type components = {
                 "application/json": components["schemas"]["DomainQuotaUpdateRequest"];
             };
         };
+        DomainSettingsUpdate: {
+            content: {
+                "application/json": components["schemas"]["DomainSettingsUpdateRequest"];
+            };
+        };
         DraftSave: {
             content: {
                 "application/json": components["schemas"]["ComposeRequest"];
@@ -6967,6 +8843,144 @@ export type components = {
 };
 export type $defs = Record<string, never>;
 export interface operations {
+    adminListUsers: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Admin users list */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        users?: {
+                            created_at?: string;
+                            email?: string;
+                            id?: string;
+                            role?: string;
+                            status?: string;
+                            username?: string;
+                        }[];
+                    };
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    createNewAdminUser: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    email: string;
+                    password: string;
+                    role: string;
+                    username: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Admin user created */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        email?: string;
+                        id?: string;
+                        role?: string;
+                        status?: string;
+                        username?: string;
+                    };
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    deleteManagedUser: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["PathID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: components["responses"]["IDStatus"];
+            default: components["responses"]["Error"];
+        };
+    };
+    getAlertRule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ruleid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Alert rule detail */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AlertRule"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    updateAlertRule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ruleid: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateAlertRule"];
+            };
+        };
+        responses: {
+            200: components["responses"]["IDStatus"];
+            default: components["responses"]["Error"];
+        };
+    };
+    deleteAlertRule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ruleid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: components["responses"]["IDStatus"];
+            default: components["responses"]["Error"];
+        };
+    };
     listAdminAPIUsageDaily: {
         parameters: {
             query?: {
@@ -7769,6 +9783,86 @@ export interface operations {
             default: components["responses"]["Error"];
         };
     };
+    loginAdminUser: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @description Admin email */
+                    email: string;
+                    /** @description Admin password */
+                    password: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Login successful */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        access_token?: string;
+                        refresh_token?: string;
+                        user?: {
+                            company_id?: string;
+                            id?: string;
+                            role?: string;
+                        };
+                    };
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    adminLogout: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: components["responses"]["IDStatus"];
+            default: components["responses"]["Error"];
+        };
+    };
+    refreshAdminSession: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    refresh_token: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Access token refreshed */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        access_token?: string;
+                    };
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
     revokeAllSessions: {
         parameters: {
             query?: never;
@@ -7784,6 +9878,100 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    setupAdminUser: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @description Admin password */
+                    password: string;
+                    /** @description Admin username */
+                    username: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Admin session revoked */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        status?: string;
+                    };
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    loginUser: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Format: email */
+                    email: string;
+                    /** Format: password */
+                    password: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Authentication successful */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Format: date-time */
+                        expires_at?: string;
+                        must_change_password?: boolean;
+                        token?: string;
+                    };
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    adminVerifyAuth: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Authentication verified */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        authenticated?: boolean;
+                        company_id?: string;
+                        domain_id?: string;
+                        role?: string;
+                        user_id?: string;
+                    };
+                };
             };
             default: components["responses"]["Error"];
         };
@@ -7831,6 +10019,31 @@ export interface operations {
             default: components["responses"]["Error"];
         };
     };
+    createAdminCompany: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @description Company name */
+                    name: string;
+                    /**
+                     * Format: int64
+                     * @description Quota limit in bytes
+                     */
+                    quota_limit: number;
+                };
+            };
+        };
+        responses: {
+            201: components["responses"]["Company"];
+            default: components["responses"]["Error"];
+        };
+    };
     getAdminCompany: {
         parameters: {
             query?: never;
@@ -7843,6 +10056,241 @@ export interface operations {
         requestBody?: never;
         responses: {
             200: components["responses"]["Company"];
+            default: components["responses"]["Error"];
+        };
+    };
+    deleteAdminCompany: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["PathID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Company deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    updateAdminCompany: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["PathID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @description Company name */
+                    name?: string;
+                    /**
+                     * Format: int64
+                     * @description Quota limit in bytes
+                     */
+                    quota_limit?: number;
+                };
+            };
+        };
+        responses: {
+            200: components["responses"]["IDStatus"];
+            default: components["responses"]["Error"];
+        };
+    };
+    listAlertChannels: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["PathID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Alert channels list */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        channels?: components["schemas"]["AlertChannel"][];
+                    };
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    createAlertChannel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["PathID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateAlertChannel"];
+            };
+        };
+        responses: {
+            /** @description Alert channel created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AlertChannel"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    listAlertEvents: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["PathID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Alert events list */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        events?: components["schemas"]["AlertEvent"][];
+                    };
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    listAlertRules: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["PathID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Alert rules list */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        rules?: components["schemas"]["AlertRule"][];
+                    };
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    createAlertRule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["PathID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateAlertRule"];
+            };
+        };
+        responses: {
+            /** @description Alert rule created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AlertRule"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    adminExportCompanyAuditLogs: {
+        parameters: {
+            query?: {
+                action_prefix?: string;
+                category?: string;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                id: components["parameters"]["PathID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description CSV file download */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/csv": string;
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    adminGetCompanyChangeHistory: {
+        parameters: {
+            query?: {
+                action_prefix?: string;
+                actor_id?: string;
+                category?: string;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                id: components["parameters"]["PathID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Change history list */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        changes?: components["schemas"]["AuditLogView"][];
+                        total?: number;
+                    };
+                };
+            };
             default: components["responses"]["Error"];
         };
     };
@@ -7966,6 +10414,329 @@ export interface operations {
             default: components["responses"]["Error"];
         };
     };
+    adminGetCompanyHealth: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["PathID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Tenant health summary */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        health?: {
+                            active_domains?: number;
+                            active_webhooks?: number;
+                            checked_at?: string;
+                            company_id?: string;
+                            company_name?: string;
+                            domain_count?: number;
+                            over_allocated?: boolean;
+                            quota?: {
+                                total_bytes?: number;
+                                usage_pct?: number;
+                                used_bytes?: number;
+                            };
+                            /** @enum {string} */
+                            status?: PathsCompaniesIdHealthGetResponses200ContentApplicationJsonHealthStatus;
+                        };
+                    };
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    listLegalHolds: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["PathID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Legal holds list */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        holds?: Record<string, never>[];
+                    };
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    createLegalHold: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["PathID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    reason: string;
+                    user_email: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Legal hold created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    deleteLegalHold: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                holdId: string;
+                id: components["parameters"]["PathID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Legal hold released */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        deleted?: boolean;
+                    };
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    getAdminMFAStats: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["PathID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description MFA adoption statistics */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        mfa_stats?: Record<string, never>;
+                    };
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    adminListCompanyNotifTemplates: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["PathID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Template list */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        templates?: components["schemas"]["NotifTemplate"][];
+                    };
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    adminUpdateCompanyNotifTemplate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["PathID"];
+                templateId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NotifTemplate"];
+            };
+        };
+        responses: {
+            /** @description Updated template */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        template?: components["schemas"]["NotifTemplate"];
+                    };
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    adminListPendingApprovals: {
+        parameters: {
+            query?: {
+                status?: PathsCompaniesIdPendingApprovalsGetParametersQueryStatus;
+            };
+            header?: never;
+            path: {
+                id: components["parameters"]["PathID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Approval list */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        approvals?: components["schemas"]["ApprovalItem"][];
+                    };
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    adminCreatePendingApproval: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["PathID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ApprovalItem"];
+            };
+        };
+        responses: {
+            /** @description Created approval request */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        approval?: components["schemas"]["ApprovalItem"];
+                    };
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    adminApproveApproval: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                approvalId: string;
+                id: components["parameters"]["PathID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": {
+                    comment?: string;
+                    reviewed_by?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Approved */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        approval?: components["schemas"]["ApprovalItem"];
+                    };
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    adminRejectApproval: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                approvalId: string;
+                id: components["parameters"]["PathID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": {
+                    comment?: string;
+                    reviewed_by?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Rejected */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        approval?: components["schemas"]["ApprovalItem"];
+                    };
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
     updateAdminCompanyQuota: {
         parameters: {
             query?: never;
@@ -7978,6 +10749,951 @@ export interface operations {
         requestBody: components["requestBodies"]["CompanyQuotaUpdate"];
         responses: {
             200: components["responses"]["IDStatus"];
+            default: components["responses"]["Error"];
+        };
+    };
+    adminGetCompanyQuotaSummary: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["PathID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Quota summary */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        summary?: Record<string, never>;
+                        top_consumers?: Record<string, never>[];
+                    };
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    adminGetCompanyRoutingRules: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["PathID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Routing rules */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        rules?: Record<string, never>[];
+                    };
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    adminUpdateCompanyRoutingRules: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["PathID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            /** @description Updated routing rules */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    getSCIMStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["PathID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description SCIM status */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        domain_id?: string;
+                        endpoint?: string;
+                        status?: string;
+                        supported_resources?: string[];
+                        user_count?: number;
+                    };
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    getSeatUsage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["PathID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Seat usage data */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        active_users?: number;
+                        domain_count?: number;
+                        storage_limit?: number;
+                        storage_used?: number;
+                        suspended_users?: number;
+                        total_users?: number;
+                    };
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    adminGetCompanyAuditPolicy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Audit policy */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        policy?: components["schemas"]["AuditPolicy"];
+                    };
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    adminPutCompanyAuditPolicy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AuditPolicy"];
+            };
+        };
+        responses: {
+            /** @description Saved audit policy */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        policy?: components["schemas"]["AuditPolicy"];
+                    };
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    adminGetCompanyAuthPolicy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Auth policy */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        policy?: components["schemas"]["AuthPolicy"];
+                    };
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    adminPutCompanyAuthPolicy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AuthPolicy"];
+            };
+        };
+        responses: {
+            /** @description Saved auth policy */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        policy?: components["schemas"]["AuthPolicy"];
+                    };
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    adminGetCompanyIPPolicy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description IP access policy */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        policy?: components["schemas"]["IPAccessPolicy"];
+                    };
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    adminPutCompanyIPPolicy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["IPAccessPolicy"];
+            };
+        };
+        responses: {
+            /** @description Saved IP access policy */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        policy?: components["schemas"]["IPAccessPolicy"];
+                    };
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    adminListCompanyLoginAudits: {
+        parameters: {
+            query?: {
+                from_date?: string;
+                limit?: number;
+                offset?: number;
+                success?: boolean;
+                to_date?: string;
+                user_id?: string;
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: components["responses"]["LoginAuditList"];
+            default: components["responses"]["Error"];
+        };
+    };
+    getSecurityPosture: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["PathID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Security posture data */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        active_domains?: number;
+                        domain_count?: number;
+                        ip_policy_configured?: boolean;
+                        mfa?: Record<string, never>;
+                        score?: number;
+                        users_without_password?: number;
+                    };
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    adminGetCompanyRateLimitPolicy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Rate limit policy */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        policy?: components["schemas"]["RateLimitPolicy"];
+                    };
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    adminPutCompanyRateLimitPolicy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RateLimitPolicy"];
+            };
+        };
+        responses: {
+            /** @description Saved rate limit policy */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        policy?: components["schemas"]["RateLimitPolicy"];
+                    };
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    adminGetCompanyRetentionPolicy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Retention policy */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        policy?: components["schemas"]["RetentionPolicy"];
+                    };
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    adminPutCompanyRetentionPolicy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RetentionPolicy"];
+            };
+        };
+        responses: {
+            /** @description Saved retention policy */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        policy?: components["schemas"]["RetentionPolicy"];
+                    };
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    adminGetCompanySessionPolicy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Session policy */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        policy?: Record<string, never>;
+                    };
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    adminPutCompanySessionPolicy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            /** @description Saved session policy */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    adminGetCompanySpamFilterPolicy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["PathID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Spam filter policy */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        policy?: Record<string, never>;
+                    };
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    adminUpdateCompanySpamFilterPolicy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["PathID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            /** @description Updated spam filter policy */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    adminListCompanySessions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Active sessions list */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    adminDeleteCompanySession: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                userId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Session terminated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    getGlobalSignature: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["PathID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Email signature config */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        signature?: Record<string, never>;
+                    };
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    putGlobalSignature: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["PathID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    enabled?: boolean;
+                    html?: string;
+                    text?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Updated signature config */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    adminGetCompanySSOConfig: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["PathID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description SSO configuration */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        config?: Record<string, never>;
+                    };
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    adminUpdateCompanySSOConfig: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["PathID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            /** @description Updated SSO configuration */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    adminTestCompanySSOConfig: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["PathID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description SSO test result */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        message?: string;
+                        success?: boolean;
+                    };
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    bulkExportCompanyUsers: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["PathID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description CSV file with user data */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/csv": string;
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    bulkImportCompanyUsers: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["PathID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    users: {
+                        display_name?: string;
+                        domain_id: string;
+                        email: string;
+                        password?: string;
+                    }[];
+                };
+            };
+        };
+        responses: {
+            /** @description Bulk import result */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        failed?: number;
+                        failures?: {
+                            email?: string;
+                            error?: string;
+                        }[];
+                        success?: number;
+                        total?: number;
+                    };
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    adminListCompanyWebhooks: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["PathID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Webhook list */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        webhooks?: components["schemas"]["Webhook"][];
+                    };
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    adminCreateCompanyWebhook: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["PathID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WebhookInput"];
+            };
+        };
+        responses: {
+            /** @description Created webhook */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        webhook?: components["schemas"]["Webhook"];
+                    };
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    adminDeleteCompanyWebhook: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["PathID"];
+                webhookId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        deleted?: boolean;
+                    };
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    adminTestCompanyWebhook: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["PathID"];
+                webhookId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Test result */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        status_code?: number;
+                        success?: boolean;
+                    };
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    adminListCompliance: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Compliance reports */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        reports?: {
+                            findings?: number;
+                            framework?: string;
+                            id?: string;
+                            last_audit?: string;
+                            status?: string;
+                        }[];
+                    };
+                };
+            };
             default: components["responses"]["Error"];
         };
     };
@@ -8610,6 +12326,179 @@ export interface operations {
             default: components["responses"]["Error"];
         };
     };
+    deleteAdminDomain: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["PathID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Domain deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    listAdminDomainAPIKeys: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["PathID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description API keys list */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        keys?: components["schemas"]["APIKey"][];
+                    };
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    createAdminDomainAPIKey: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["PathID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    created_by: string;
+                    name: string;
+                };
+            };
+        };
+        responses: {
+            /** @description API key created */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        id?: string;
+                        secret?: string;
+                    };
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    deleteAdminDomainAPIKey: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["PathID"];
+                keyid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description API key deleted */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        status?: string;
+                    };
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    rotateAdminDomainAPIKey: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["PathID"];
+                keyid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description API key rotated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        secret?: string;
+                        status?: string;
+                    };
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    getAdminDomainAPISettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["PathID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: components["responses"]["APISettings"];
+            default: components["responses"]["Error"];
+        };
+    };
+    updateAdminDomainAPISettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["PathID"];
+            };
+            cookie?: never;
+        };
+        requestBody: components["requestBodies"]["APISettingsUpdate"];
+        responses: {
+            /** @description Settings updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        id?: string;
+                        status?: string;
+                    };
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
     listAdminDomainConfig: {
         parameters: {
             query?: never;
@@ -8745,6 +12634,143 @@ export interface operations {
             default: components["responses"]["Error"];
         };
     };
+    getLDAPSyncConflicts: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path: {
+                id: components["parameters"]["PathID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description LDAP sync conflicts */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        conflicts?: Record<string, never>[];
+                        domain_id?: string;
+                        limit?: number;
+                        offset?: number;
+                        total?: number;
+                    };
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    resolveLDAPConflict: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                conflictId: string;
+                id: components["parameters"]["PathID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @description Resolution strategy: 'prefer_local', 'prefer_ldap', or 'manual' */
+                    resolution?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Conflict resolved */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        conflict_id?: string;
+                        domain_id?: string;
+                        resolution?: string;
+                        /** Format: date-time */
+                        resolved_at?: string;
+                    };
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    triggerLDAPSync: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["PathID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @description Type of sync: 'users', 'groups', 'memberships', or 'all' */
+                    sync_type?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Sync job created */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        domain_id?: string;
+                        /** Format: date-time */
+                        requested_at?: string;
+                        status?: string;
+                        sync_id?: string;
+                    };
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    getLDAPSyncHistory: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path: {
+                id: components["parameters"]["PathID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description LDAP sync history */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        domain_id?: string;
+                        limit?: number;
+                        offset?: number;
+                        sync_runs?: Record<string, never>[];
+                        total?: number;
+                    };
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
     updateAdminDomainPolicy: {
         parameters: {
             query?: never;
@@ -8775,6 +12801,555 @@ export interface operations {
             default: components["responses"]["Error"];
         };
     };
+    getRDBMSSyncConflicts: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path: {
+                id: components["parameters"]["PathID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description RDBMS sync conflicts */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        conflicts?: Record<string, never>[];
+                        domain_id?: string;
+                        limit?: number;
+                        offset?: number;
+                        total?: number;
+                    };
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    resolveRDBMSConflict: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                conflictId: string;
+                id: components["parameters"]["PathID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @description Resolution strategy: 'prefer_local', 'prefer_rdbms', or 'manual' */
+                    resolution?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Conflict resolved */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        conflict_id?: string;
+                        domain_id?: string;
+                        resolution?: string;
+                        /** Format: date-time */
+                        resolved_at?: string;
+                    };
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    triggerRDBMSSync: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["PathID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @description Type of sync: 'users', 'groups', 'memberships', or 'all' */
+                    sync_type?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Sync job created */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        domain_id?: string;
+                        /** Format: date-time */
+                        requested_at?: string;
+                        status?: string;
+                        sync_id?: string;
+                    };
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    getRDBMSSyncHistory: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path: {
+                id: components["parameters"]["PathID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description RDBMS sync history */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        domain_id?: string;
+                        limit?: number;
+                        offset?: number;
+                        sync_runs?: Record<string, never>[];
+                        total?: number;
+                    };
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    adminGetDomainRoutingRules: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["PathID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Routing rules */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        rules?: Record<string, never>[];
+                    };
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    adminUpdateDomainRoutingRules: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["PathID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            /** @description Updated routing rules */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    adminGetDomainDmarcSpfPolicy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["PathID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description DMARC/SPF policy and generated records */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        generated_records?: Record<string, never>;
+                        policy?: Record<string, never>;
+                    };
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    adminUpdateDomainDmarcSpfPolicy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["PathID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            /** @description Updated DMARC/SPF policy */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    adminGetDomainIPPolicy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description IP access policy */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        policy?: components["schemas"]["IPAccessPolicy"];
+                    };
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    adminPutDomainIPPolicy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["IPAccessPolicy"];
+            };
+        };
+        responses: {
+            /** @description Saved IP access policy */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        policy?: components["schemas"]["IPAccessPolicy"];
+                    };
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    adminGetDomainRateLimitPolicy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Rate limit policy */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        policy?: components["schemas"]["RateLimitPolicy"];
+                    };
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    adminPutDomainRateLimitPolicy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RateLimitPolicy"];
+            };
+        };
+        responses: {
+            /** @description Saved rate limit policy */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        policy?: components["schemas"]["RateLimitPolicy"];
+                    };
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    adminGetDomainRetentionPolicy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Retention policy */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        policy?: components["schemas"]["RetentionPolicy"];
+                    };
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    adminPutDomainRetentionPolicy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RetentionPolicy"];
+            };
+        };
+        responses: {
+            /** @description Saved retention policy */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        policy?: components["schemas"]["RetentionPolicy"];
+                    };
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    adminGetDomainSpamFilterPolicy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["PathID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Spam filter policy */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        policy?: Record<string, never>;
+                    };
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    adminUpdateDomainSpamFilterPolicy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["PathID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            /** @description Updated spam filter policy */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    getAdminDomainSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["PathID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: components["responses"]["DomainSettings"];
+            default: components["responses"]["Error"];
+        };
+    };
+    updateAdminDomainSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["PathID"];
+            };
+            cookie?: never;
+        };
+        requestBody: components["requestBodies"]["DomainSettingsUpdate"];
+        responses: {
+            /** @description Settings updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        id?: string;
+                        status?: string;
+                    };
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    adminGetDomainSMTPPolicy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["PathID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description SMTP policy */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        policy?: Record<string, never>;
+                    };
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    adminUpdateDomainSMTPPolicy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["PathID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            /** @description Updated SMTP policy */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
     getAdminDomainStats: {
         parameters: {
             query?: never;
@@ -8802,6 +13377,41 @@ export interface operations {
         requestBody: components["requestBodies"]["StatusUpdate"];
         responses: {
             200: components["responses"]["IDStatus"];
+            default: components["responses"]["Error"];
+        };
+    };
+    adminBulkDomains: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @enum {string} */
+                    action: PathsDomainsBulkPostRequestBodyContentApplicationJsonAction;
+                    ids: string[];
+                };
+            };
+        };
+        responses: {
+            /** @description Bulk operation result */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        failed?: {
+                            error?: string;
+                            id?: string;
+                        }[];
+                        succeeded?: string[];
+                    };
+                };
+            };
             default: components["responses"]["Error"];
         };
     };
@@ -8954,15 +13564,15 @@ export interface operations {
                 all_parents?: boolean;
                 limit?: components["parameters"]["Limit"];
                 /** @description Optional Drive node type filter. */
-                node_type?: PathsDriveNodesGetParametersQueryNode_type;
+                node_type?: components["schemas"]["DriveNodeType"];
                 /** @description Optional parent folder scope. Omit for root nodes. */
                 parent_id?: string;
                 /** @description Optional case-insensitive Drive node name filter within the selected parent/status scope. */
                 q?: string;
                 /** @description Drive node ordering. Folders remain grouped before files for each sort mode. */
-                sort?: PathsDriveNodesGetParametersQuerySort;
+                sort?: components["schemas"]["DriveNodeSort"];
                 /** @description Limit Drive nodes by lifecycle status. */
-                status?: PathsDriveNodesGetParametersQueryStatus;
+                status?: components["schemas"]["DriveNodeStatus"];
                 /** @description Required user scope for Drive node inventory. */
                 user_id: string;
             };
@@ -8980,7 +13590,7 @@ export interface operations {
         parameters: {
             query: {
                 /** @description Required lifecycle view for the Drive node lookup. */
-                status?: PathsDriveNodesIdGetParametersQueryStatus;
+                status?: components["schemas"]["DriveNodeStatus"];
                 /** @description Required user scope for Drive node inspection. */
                 user_id: string;
             };
@@ -9027,7 +13637,7 @@ export interface operations {
             query: {
                 limit?: components["parameters"]["Limit"];
                 /** @description Limit Drive upload sessions by lifecycle status. */
-                status?: PathsDriveUploadSessionsGetParametersQueryStatus;
+                status?: components["schemas"]["DriveUploadSessionStatus"];
                 /** @description Required user scope for Drive upload session inspection. */
                 user_id: string;
             };
@@ -9120,13 +13730,13 @@ export interface operations {
                 all_parents?: boolean;
                 limit?: components["parameters"]["Limit"];
                 /** @description Optional Drive node type filter. */
-                node_type?: PathsDriveNodesGetParametersQueryNode_type;
+                node_type?: components["schemas"]["DriveNodeType"];
                 parent_id?: string;
                 /** @description Optional case-insensitive Drive node name filter within the selected parent/status scope. */
                 q?: string;
                 /** @description Drive node ordering. Folders remain grouped before files for each sort mode. */
-                sort?: PathsDriveNodesGetParametersQuerySort;
-                status?: PathsDriveNodesGetParametersQueryStatus;
+                sort?: components["schemas"]["DriveNodeSort"];
+                status?: components["schemas"]["DriveNodeStatus"];
                 /** @description Development fallback required only when JWT auth is disabled. */
                 user_id?: components["parameters"]["UserIDFallback"];
             };
@@ -9143,7 +13753,7 @@ export interface operations {
     getDriveNode: {
         parameters: {
             query?: {
-                status?: PathsDriveNodesIdGetParametersQueryStatus;
+                status?: components["schemas"]["DriveNodeStatus"];
                 /** @description Development fallback required only when JWT auth is disabled. */
                 user_id?: components["parameters"]["UserIDFallback"];
             };
@@ -9556,7 +14166,7 @@ export interface operations {
         parameters: {
             query?: {
                 limit?: components["parameters"]["Limit"];
-                status?: PathsDriveUploadSessionsGetParametersQueryStatus;
+                status?: components["schemas"]["DriveUploadSessionStatus"];
                 /** @description Development fallback required only when JWT auth is disabled. */
                 user_id?: components["parameters"]["UserIDFallback"];
             };
@@ -9746,6 +14356,34 @@ export interface operations {
             default: components["responses"]["Error"];
         };
     };
+    adminGetHealth: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Health status */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        checks?: {
+                            last_check?: string;
+                            response_time_ms?: number;
+                            service?: string;
+                            status?: string;
+                        }[];
+                    };
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
     getHealthLive: {
         parameters: {
             query?: never;
@@ -9910,6 +14548,117 @@ export interface operations {
         requestBody?: never;
         responses: {
             200: components["responses"]["MailboxOverview"];
+            default: components["responses"]["Error"];
+        };
+    };
+    getUserProfile: {
+        parameters: {
+            query?: {
+                /** @description Development fallback required only when JWT auth is disabled. */
+                user_id?: components["parameters"]["UserIDFallback"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description User profile */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        user?: {
+                            display_name?: string;
+                            email?: string;
+                            quota_limit?: number | null;
+                            quota_used?: number;
+                            /** Format: email */
+                            recovery_email?: string;
+                            user_id?: string;
+                        };
+                    };
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    updateUserProfile: {
+        parameters: {
+            query?: {
+                /** @description Development fallback required only when JWT auth is disabled. */
+                user_id?: components["parameters"]["UserIDFallback"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    display_name?: string;
+                    /** Format: email */
+                    recovery_email?: string;
+                };
+            };
+        };
+        responses: {
+            200: components["responses"]["Status"];
+            default: components["responses"]["Error"];
+        };
+    };
+    listUserAddresses: {
+        parameters: {
+            query?: {
+                /** @description Development fallback required only when JWT auth is disabled. */
+                user_id?: components["parameters"]["UserIDFallback"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description List of email addresses */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        addresses?: {
+                            address?: string;
+                            id?: string;
+                            is_primary?: boolean;
+                        }[];
+                    };
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    changeUserPassword: {
+        parameters: {
+            query?: {
+                /** @description Development fallback required only when JWT auth is disabled. */
+                user_id?: components["parameters"]["UserIDFallback"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    current_password: string;
+                    new_password: string;
+                };
+            };
+        };
+        responses: {
+            200: components["responses"]["Status"];
             default: components["responses"]["Error"];
         };
     };
@@ -10214,6 +14963,345 @@ export interface operations {
             default: components["responses"]["Error"];
         };
     };
+    validateOnboardingDomain: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @description Domain name to validate */
+                    name: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Validation result */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        message?: string;
+                        valid?: boolean;
+                    };
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    adminGetOrganizationHierarchy: {
+        parameters: {
+            query: {
+                company_id: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Organization hierarchy */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        hierarchy: Record<string, never>;
+                    };
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    adminAssignOrganizationMember: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    role?: string;
+                    unit_id: string;
+                    user_id: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Organization member assigned */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        status: string;
+                    };
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    adminRemoveOrganizationMember: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["PathID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Organization member assignment removed */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    adminGetOrganizationSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Organization settings */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        settings?: {
+                            created_at?: string;
+                            description?: string;
+                            max_domains?: number;
+                            max_users?: number;
+                            name?: string;
+                        };
+                    };
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    adminUpdateOrganizationSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    description?: string;
+                    max_domains?: number;
+                    max_users?: number;
+                    name?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Updated organization settings */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        settings?: Record<string, never>;
+                    };
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    adminSyncOrganization: {
+        parameters: {
+            query: {
+                company_id: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Organization sync started */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        sync_log: Record<string, never>;
+                    };
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    adminListOrganizationUnits: {
+        parameters: {
+            query: {
+                company_id: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Organization units */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        units: Record<string, never>[];
+                    };
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    adminCreateOrganizationUnit: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    company_id: string;
+                    description?: string;
+                    display_name?: string;
+                    manager_user_id?: string;
+                    name: string;
+                    parent_id?: string;
+                    status?: string;
+                    type?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Organization unit created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        unit: Record<string, never>;
+                    };
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    adminGetOrganizationUnit: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["PathID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Organization unit */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        unit: Record<string, never>;
+                    };
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    adminUpdateOrganizationUnit: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["PathID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    company_id: string;
+                    description?: string;
+                    display_name?: string;
+                    manager_user_id?: string;
+                    name: string;
+                    parent_id?: string;
+                    status?: string;
+                    type?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Organization unit updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        unit: Record<string, never>;
+                    };
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    adminDeleteOrganizationUnit: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["PathID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Organization unit deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            default: components["responses"]["Error"];
+        };
+    };
     listAdminOutboxEvents: {
         parameters: {
             query?: {
@@ -10261,6 +15349,68 @@ export interface operations {
         requestBody?: never;
         responses: {
             200: components["responses"]["IDStatus"];
+            default: components["responses"]["Error"];
+        };
+    };
+    getWebmailPreferences: {
+        parameters: {
+            query?: {
+                /** @description Development fallback required only when JWT auth is disabled. */
+                user_id?: components["parameters"]["UserIDFallback"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description User webmail preferences */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        preferences?: {
+                            [key: string]: unknown;
+                        };
+                    };
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    setWebmailPreferences: {
+        parameters: {
+            query?: {
+                /** @description Development fallback required only when JWT auth is disabled. */
+                user_id?: components["parameters"]["UserIDFallback"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    [key: string]: unknown;
+                };
+            };
+        };
+        responses: {
+            /** @description Updated user webmail preferences */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        preferences?: {
+                            [key: string]: unknown;
+                        };
+                    };
+                };
+            };
             default: components["responses"]["Error"];
         };
     };
@@ -10578,6 +15728,108 @@ export interface operations {
             default: components["responses"]["Error"];
         };
     };
+    adminListReports: {
+        parameters: {
+            query?: {
+                limit?: components["parameters"]["Limit"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Reports list */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        reports?: {
+                            file_size?: number;
+                            generated_at?: string;
+                            id?: string;
+                            name?: string;
+                            type?: string;
+                        }[];
+                    };
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    adminListRoles: {
+        parameters: {
+            query: {
+                company_id: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Roles list */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        roles?: {
+                            assigned_users?: number;
+                            company_id?: string;
+                            /** Format: date-time */
+                            created_at?: string;
+                            description?: string;
+                            id?: string;
+                            is_builtin?: boolean;
+                            name?: string;
+                            permissions_count?: number;
+                            /** Format: date-time */
+                            updated_at?: string;
+                        }[];
+                    };
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    adminCreateRole: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    company_id: string;
+                    created_by?: string;
+                    description?: string;
+                    /** @description Must be omitted or false; custom role creation cannot create builtin roles. */
+                    is_builtin?: boolean;
+                    name: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Role created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        role?: Record<string, never>;
+                    };
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
     searchMessages: {
         parameters: {
             query?: {
@@ -10849,6 +16101,21 @@ export interface operations {
             default: components["responses"]["Error"];
         };
     };
+    deleteAdminUser: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["PathID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: components["responses"]["IDStatus"];
+            default: components["responses"]["Error"];
+        };
+    };
     listAdminUserConfig: {
         parameters: {
             query?: never;
@@ -10948,6 +16215,71 @@ export interface operations {
             default: components["responses"]["Error"];
         };
     };
+    createUserInviteToken: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["PathID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Invite token created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        invite_token?: Record<string, never>;
+                    };
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    getAdminUserMFAStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["PathID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description User MFA status */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        mfa_status?: Record<string, never>;
+                    };
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    resetAdminUserMFA: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["PathID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: components["responses"]["IDStatus"];
+            default: components["responses"]["Error"];
+        };
+    };
     updateAdminUserPasswordHash: {
         parameters: {
             query?: never;
@@ -10978,6 +16310,53 @@ export interface operations {
             default: components["responses"]["Error"];
         };
     };
+    updateAdminUserRecoveryEmail: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["PathID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /**
+                     * Format: email
+                     * @description Empty string clears the backup email.
+                     */
+                    recovery_email: string;
+                };
+            };
+        };
+        responses: {
+            200: components["responses"]["IDStatus"];
+            default: components["responses"]["Error"];
+        };
+    };
+    updateAdminUserRole: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["PathID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @enum {string} */
+                    role: PathsUsersIdRolePatchRequestBodyContentApplicationJsonRole;
+                };
+            };
+        };
+        responses: {
+            200: components["responses"]["IDStatus"];
+            default: components["responses"]["Error"];
+        };
+    };
     updateAdminUserStatus: {
         parameters: {
             query?: never;
@@ -10990,6 +16369,41 @@ export interface operations {
         requestBody: components["requestBodies"]["StatusUpdate"];
         responses: {
             200: components["responses"]["IDStatus"];
+            default: components["responses"]["Error"];
+        };
+    };
+    adminBulkUsers: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @enum {string} */
+                    action: PathsUsersBulkPostRequestBodyContentApplicationJsonAction;
+                    ids: string[];
+                };
+            };
+        };
+        responses: {
+            /** @description Bulk operation result */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        failed?: {
+                            error?: string;
+                            id?: string;
+                        }[];
+                        succeeded?: string[];
+                    };
+                };
+            };
             default: components["responses"]["Error"];
         };
     };
@@ -11031,6 +16445,16 @@ export enum PathsCompaniesIdConfigPropagatePostParametersQueryScope {
     subtree = "subtree",
     children = "children",
     domains = "domains"
+}
+export enum PathsCompaniesIdHealthGetResponses200ContentApplicationJsonHealthStatus {
+    healthy = "healthy",
+    warning = "warning",
+    degraded = "degraded"
+}
+export enum PathsCompaniesIdPendingApprovalsGetParametersQueryStatus {
+    pending = "pending",
+    approved = "approved",
+    rejected = "rejected"
 }
 export enum PathsDavSyncRetentionRunsGetParametersQueryStatus {
     completed = "completed",
@@ -11113,57 +16537,14 @@ export enum PathsDomainsIdDnsChecksGetParametersQueryStatus {
     mismatch = "mismatch",
     error = "error"
 }
+export enum PathsDomainsBulkPostRequestBodyContentApplicationJsonAction {
+    activate = "activate",
+    suspend = "suspend",
+    delete = "delete"
+}
 export enum PathsDriveCleanupFailuresGetParametersQueryStatus {
     pending = "pending",
     resolved = "resolved"
-}
-export enum PathsDriveNodesGetParametersQueryNode_type {
-    folder = "folder",
-    file = "file"
-}
-export enum PathsDriveNodesGetParametersQuerySort {
-    name = "name",
-    updated = "updated",
-    created = "created",
-    size = "size"
-}
-export enum PathsDriveNodesGetParametersQueryStatus {
-    active = "active",
-    trashed = "trashed",
-    deleted = "deleted"
-}
-export enum PathsDriveNodesIdGetParametersQueryStatus {
-    active = "active",
-    trashed = "trashed",
-    deleted = "deleted"
-}
-export enum PathsDriveUploadSessionsGetParametersQueryStatus {
-    pending = "pending",
-    uploading = "uploading",
-    finalized = "finalized",
-    canceled = "canceled",
-    expired = "expired",
-    failed = "failed"
-}
-export enum PathsDriveNodesGetParametersQueryNode_type {
-    folder = "folder",
-    file = "file"
-}
-export enum PathsDriveNodesGetParametersQuerySort {
-    name = "name",
-    updated = "updated",
-    created = "created",
-    size = "size"
-}
-export enum PathsDriveNodesGetParametersQueryStatus {
-    active = "active",
-    trashed = "trashed",
-    deleted = "deleted"
-}
-export enum PathsDriveNodesIdGetParametersQueryStatus {
-    active = "active",
-    trashed = "trashed",
-    deleted = "deleted"
 }
 export enum PathsDriveNodesIdDownloadGetResponses200HeadersAcceptRanges {
     bytes = "bytes"
@@ -11222,14 +16603,6 @@ export enum PathsDriveShareLinksIdDownloadHeadResponses200HeadersCacheControl {
 }
 export enum PathsDriveShareLinksIdDownloadHeadResponses200HeadersXContentTypeOptions {
     nosniff = "nosniff"
-}
-export enum PathsDriveUploadSessionsGetParametersQueryStatus {
-    pending = "pending",
-    uploading = "uploading",
-    finalized = "finalized",
-    canceled = "canceled",
-    expired = "expired",
-    failed = "failed"
 }
 export enum PathsMessagesGetParametersQuerySort {
     newest = "newest",
@@ -11303,6 +16676,30 @@ export enum PathsUsersGetParametersQueryStatus {
     suspended = "suspended",
     disabled = "disabled"
 }
+export enum PathsUsersIdRolePatchRequestBodyContentApplicationJsonRole {
+    user = "user",
+    company_admin = "company_admin",
+    system_admin = "system_admin"
+}
+export enum PathsUsersBulkPostRequestBodyContentApplicationJsonAction {
+    activate = "activate",
+    suspend = "suspend"
+}
+export enum AdminConsoleCapabilitiesIntegrationsLdap_read {
+    available = "available",
+    placeholder = "placeholder",
+    planned = "planned"
+}
+export enum AdminConsoleCapabilitiesIntegrationsLdap_sync {
+    available = "available",
+    placeholder = "placeholder",
+    planned = "planned"
+}
+export enum AdminConsoleCapabilitiesIntegrationsOrganization_sync {
+    available = "available",
+    placeholder = "placeholder",
+    planned = "planned"
+}
 export enum AdminConsoleCapabilitiesModulesAdmin {
     available = "available"
 }
@@ -11311,6 +16708,16 @@ export enum AdminConsoleCapabilitiesModulesDrive {
 }
 export enum AdminConsoleCapabilitiesModulesMail {
     available = "available"
+}
+export enum AlertChannelChannel_type {
+    email = "email",
+    webhook = "webhook",
+    dashboard = "dashboard"
+}
+export enum AlertRuleAlert_type {
+    storage = "storage",
+    login_failures = "login_failures",
+    api_errors = "api_errors"
 }
 export enum APIUsageDailyAuth_source {
     anonymous = "anonymous",
@@ -11430,6 +16837,11 @@ export enum APIUsageMonthlyAuth_source {
     admin_token = "admin_token",
     query_user_id = "query_user_id"
 }
+export enum ApprovalItemStatus {
+    pending = "pending",
+    approved = "approved",
+    rejected = "rejected"
+}
 export enum AttachmentStatus {
     uploading = "uploading",
     stored = "stored",
@@ -11454,6 +16866,11 @@ export enum AttachmentUploadSessionStatus {
 export enum AuditLogIntegrityBreakReason {
     hash_mismatch = "hash_mismatch",
     prev_hash_mismatch = "prev_hash_mismatch"
+}
+export enum AuditPolicyAudit_level {
+    level_1 = "level_1",
+    level_2 = "level_2",
+    level_3 = "level_3"
 }
 export enum BackpressureStateLevel {
     normal = "normal",
@@ -11496,6 +16913,16 @@ export enum ConfigEntryScope_type {
     company = "company",
     domain = "domain",
     user = "user"
+}
+export enum CreateAlertChannelChannel_type {
+    email = "email",
+    webhook = "webhook",
+    dashboard = "dashboard"
+}
+export enum CreateAlertRuleAlert_type {
+    storage = "storage",
+    login_failures = "login_failures",
+    api_errors = "api_errors"
 }
 export enum DAVSyncRetentionRunStatus {
     completed = "completed",
@@ -11658,7 +17085,7 @@ export enum DirectoryPrincipalKind {
     resource = "resource"
 }
 export enum DirectoryPrincipalResource_type {
-     = "",
+    unspecified = "",
     room = "room",
     equipment = "equipment",
     vehicle = "vehicle",
@@ -11715,18 +17142,34 @@ export enum DomainPolicyUpdateRequestOutbound_mode {
     monitor = "monitor",
     enforce = "enforce"
 }
+export enum DomainSettingsTls_policy {
+    opportunistic = "opportunistic",
+    require = "require",
+    disable = "disable"
+}
+export enum DomainSettingsUpdateRequestTls_policy {
+    opportunistic = "opportunistic",
+    require = "require",
+    disable = "disable"
+}
 export enum DriveCleanupFailureStatus {
     pending = "pending",
     resolved = "resolved"
 }
-export enum DriveNodeNode_type {
-    folder = "folder",
-    file = "file"
+export enum DriveNodeSort {
+    name = "name",
+    updated = "updated",
+    created = "created",
+    size = "size"
 }
 export enum DriveNodeStatus {
     active = "active",
     trashed = "trashed",
     deleted = "deleted"
+}
+export enum DriveNodeType {
+    folder = "folder",
+    file = "file"
 }
 export enum DriveSharedFilePermission {
     view = "view",
@@ -11770,6 +17213,10 @@ export enum InfoResponseService {
 }
 export enum InfoResponseStatus {
     ok = "ok"
+}
+export enum IPAccessPolicyAction {
+    deny = "deny",
+    log = "log"
 }
 export enum MailFlowLogDirection {
     inbound = "inbound",
@@ -11875,6 +17322,10 @@ export enum QuotaUsageScope {
     company = "company",
     domain = "domain",
     user = "user"
+}
+export enum RateLimitPolicyAction_on_exceed {
+    queue = "queue",
+    reject = "reject"
 }
 export enum ReadinessResponseStatus {
     ok = "ok"
