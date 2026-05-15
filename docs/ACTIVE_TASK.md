@@ -197,14 +197,17 @@ IMAP, CalDAV, CardDAV 프로토콜 게이트웨이 성능, 안정성, RFC 준수
 - PROPFIND 응답 스트리밍
 - 목표: Large collection 대응 성능 개선
 
-**Phase 3: 메트릭 & Rate Limiting (예상)**
-- Protocol gateway metrics: connection count, command latency, errors
-- Per-user rate limiting (IP 기반 아님)
-- Graceful connection rejection under load
+**Phase 3: Gateway Integration (진행 중)**
+- IMAP metrics integration: connection/command tracking
+- CalDAV/CardDAV metrics integration: HTTP operation tracking
+- Structured logging with slog
+- Prometheus metrics export
+- Health check endpoints
+- Graceful degradation under load
 
 ### 진행 상황
 
-**Phase 1 진행 중: Protocol Gateway 버퍼 풀 최적화**
+**Phase 1 완료: Protocol Gateway 버퍼 풀 최적화**
 
 ✓ IMAP (완료):
 - [x] 벤치마크 프레임워크: literal/section/response 버퍼 풀 성능 측정
@@ -224,7 +227,7 @@ IMAP, CalDAV, CardDAV 프로토콜 게이트웨이 성능, 안정성, RFC 준수
   - BuildSyncCollectionTruncatedXML: pooled buffers
 - [x] 테스트 검증: 1083 CalDAV/CardDAV 테스트 통과 (race detection enabled)
 
-**Phase 2 진행 중: 메트릭 & Rate Limiting**
+**Phase 2 완료: 메트릭 & Rate Limiting (인프라)**
 
 완료된 항목:
 - [x] GatewayMetrics 기반 구조:
@@ -239,30 +242,36 @@ IMAP, CalDAV, CardDAV 프로토콜 게이트웨이 성능, 안정성, RFC 준수
   - Support for unlimited mode (maxConnections=0)
 - [x] 종합 테스트: 9 tests 통과 (metrics, rate limiting, nil safety, benchmarks)
 
+**Phase 3 진행 중: Gateway Integration (메트릭 기록)**
+
+✓ IMAP Gateway (완료):
+- [x] Metrics 필드 및 SetMetrics() 메서드 추가
+- [x] Connection tracking: recordConnect(userID), recordDisconnect()
+- [x] Command timing: recordCommand(userID, duration) - per-command measurement
+- [x] Error tracking: recordError(userID) for failed commands
+- [x] Authentication integration: 
+  - LOGIN & AUTHENTICATE 명령에서 userID 추적 시작
+  - Unauthenticated 연결과 authenticated 연결 분리
+- [x] 테스트 검증: 421 IMAP 테스트 통과
+
+✓ CalDAV Gateway (완료):
+- [x] Metrics 필드 및 SetMetrics() 메서드 추가
+- [x] ServeHTTP 통합: 전체 HTTP 요청에 대한 timing 기록
+- [x] UserID 추출 및 command recording
+- [x] Well-known path 처리
+- [x] 테스트 검증: 619 CalDAV 테스트 통과
+
+✓ CardDAV Gateway (완료):
+- [x] Metrics 필드 및 SetMetrics() 메서드 추가
+- [x] ServeHTTP 통합: 전체 HTTP 요청에 대한 timing 기록
+- [x] UserID 추출 및 command recording
+- [x] Well-known path 처리
+- [x] 테스트 검증: 464 CardDAV 테스트 통과
+
 구현 대상 (계속):
-- IMAP metrics (imapgw): 
-  - Connection count (current, peak, total)
-  - Command processing latency (p50, p99)
-  - Command error counts (AUTH, SELECT, FETCH, APPEND, etc)
-  - IDLE session count
-  - RFC violations/compliance errors
-  
-- CalDAV/CardDAV metrics (caldavgw, carddavgw):
-  - HTTP method counts (PROPFIND, REPORT, PUT, DELETE)
-  - Response time histogram
-  - Error rates by HTTP status
-  - Collection size metrics
-  - Concurrent request tracking
-
-- Rate Limiting:
-  - Per-user connection limits (IMAP max concurrent connections)
-  - Per-user request rate limiting (CalDAV/CardDAV ops/sec)
-  - Per-domain quota enforcement
-  - Graceful rejection when limits exceeded
-  - Metrics for rate limit violations
-
-- Observability:
-  - Structured logging with slog
-  - Metrics export (Prometheus-compatible)
-  - Health check endpoints
-  - Performance profiling hooks
+- Prometheus metrics export endpoint
+- Health check endpoints (/health, /metrics)
+- Graceful degradation under load
+- slog 기반 구조화된 로깅
+- Rate limiter 통합 (MaxConnections, RPS limits)
+- Connection/request rejection under limit exceeded

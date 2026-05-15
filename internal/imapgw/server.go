@@ -43,6 +43,7 @@ type Server struct {
 	options  ServerOptions
 	mu       sync.Mutex
 	listener net.Listener
+	metrics  interface{} // GatewayMetrics (optional, typed as interface{} to avoid import)
 }
 
 var ErrServerClosed = errors.New("imap server closed")
@@ -85,6 +86,81 @@ func (s *Server) Options() ServerOptions {
 		return ServerOptions{}
 	}
 	return s.options
+}
+
+// SetMetrics sets optional metrics collector for gateway observability
+func (s *Server) SetMetrics(metrics interface{}) {
+	if s == nil {
+		return
+	}
+	s.mu.Lock()
+	s.metrics = metrics
+	s.mu.Unlock()
+}
+
+// recordConnect records a connection with optional metrics
+func (s *Server) recordConnect(userID string) {
+	if s == nil {
+		return
+	}
+	s.mu.Lock()
+	metrics := s.metrics
+	s.mu.Unlock()
+	if metrics == nil {
+		return
+	}
+	// Type assert to GatewayMetrics interface
+	if m, ok := metrics.(interface{ RecordConnect(string) }); ok {
+		m.RecordConnect(userID)
+	}
+}
+
+// recordDisconnect records a disconnection with optional metrics
+func (s *Server) recordDisconnect() {
+	if s == nil {
+		return
+	}
+	s.mu.Lock()
+	metrics := s.metrics
+	s.mu.Unlock()
+	if metrics == nil {
+		return
+	}
+	if m, ok := metrics.(interface{ RecordDisconnect() }); ok {
+		m.RecordDisconnect()
+	}
+}
+
+// recordCommand records command processing with optional metrics
+func (s *Server) recordCommand(userID string, duration time.Duration) {
+	if s == nil {
+		return
+	}
+	s.mu.Lock()
+	metrics := s.metrics
+	s.mu.Unlock()
+	if metrics == nil {
+		return
+	}
+	if m, ok := metrics.(interface{ RecordCommand(string, time.Duration) }); ok {
+		m.RecordCommand(userID, duration)
+	}
+}
+
+// recordError records command error with optional metrics
+func (s *Server) recordError(userID string) {
+	if s == nil {
+		return
+	}
+	s.mu.Lock()
+	metrics := s.metrics
+	s.mu.Unlock()
+	if metrics == nil {
+		return
+	}
+	if m, ok := metrics.(interface{ RecordError(string) }); ok {
+		m.RecordError(userID)
+	}
 }
 
 func (s *Server) Serve(listener net.Listener) error {
@@ -199,6 +275,11 @@ func (s *Server) ServeConn(conn net.Conn) error {
 	writer := bufio.NewWriter(conn)
 	state := imapConnState{}
 	_, state.tlsActive = conn.(*tls.Conn)
+
+	// Initial connection tracking (unauth'd)
+	s.recordConnect("unauthenticated")
+	defer s.recordDisconnect()
+
 	if _, err := writer.WriteString("* OK " + s.capabilityCode(&state) + " gogomail IMAP4rev1 service ready\r\n"); err != nil {
 		return err
 	}
@@ -233,9 +314,18 @@ func (s *Server) ServeConn(conn net.Conn) error {
 			}
 			return err
 		}
+		cmdStart := time.Now()
 		done, err := s.handleLineWithLiteral(writer, line, literals, &state)
 		if err != nil {
+			// Record error with current userID
+			if state.userID != "" {
+				s.recordError(state.userID)
+			}
 			return err
+		}
+		// Record command timing
+		if state.userID != "" {
+			s.recordCommand(state.userID, time.Since(cmdStart))
 		}
 		if err := s.setWriteDeadline(conn); err != nil {
 			return err
@@ -483,6 +573,7 @@ type imapConnState struct {
 	tlsActive             bool
 	events                <-chan MailboxEvent
 	cancelEvents          func()
+	userID                string // For metrics tracking
 }
 
 func (s *Server) handleLine(writer *bufio.Writer, line string, state *imapConnState) (bool, error) {
@@ -1369,6 +1460,8 @@ func (s *Server) handleLogin(writer *bufio.Writer, tag string, fields []string, 
 		return false, writeErr
 	}
 	state.session = &authSession
+	state.userID = fields[2] // Set userID for metrics tracking
+	s.recordConnect(fields[2])  // Record auth'd connection
 	_, err = writer.WriteString(tag + " OK " + s.authenticatedCapabilityCode(state) + " LOGIN completed\r\n")
 	return false, err
 }
@@ -2110,6 +2203,8 @@ func (s *Server) completeAuthenticatePlain(writer *bufio.Writer, tag string, val
 		return false, writeErr
 	}
 	state.session = &authSession
+	state.userID = username // Set userID for metrics tracking
+	s.recordConnect(username)  // Record auth'd connection
 	_, err = writer.WriteString(tag + " OK " + s.authenticatedCapabilityCode(state) + " AUTHENTICATE completed\r\n")
 	return false, err
 }
