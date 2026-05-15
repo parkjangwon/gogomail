@@ -17,6 +17,7 @@ import (
 	"github.com/gogomail/gogomail/internal/imapgw"
 	"github.com/gogomail/gogomail/internal/mail"
 	"github.com/gogomail/gogomail/internal/maildb"
+	"github.com/gogomail/gogomail/internal/message"
 	"github.com/gogomail/gogomail/internal/outbound"
 	"github.com/gogomail/gogomail/internal/searchindex"
 	smtpd "github.com/gogomail/gogomail/internal/smtp"
@@ -3168,6 +3169,31 @@ func (f *fakeRepository) GetAttachment(_ context.Context, userID string, message
 	return f.attachment, nil
 }
 
+func (f *fakeRepository) AttachmentsByIDs(_ context.Context, userID string, attachmentIDs []string) ([]maildb.Attachment, error) {
+	f.lastAttachmentUserID = userID
+	f.lastAttachmentID = strings.Join(attachmentIDs, ",")
+	if len(f.attachments) == 0 {
+		if f.attachment.ID != "" {
+			return []maildb.Attachment{f.attachment}, nil
+		}
+		return nil, nil
+	}
+	if len(attachmentIDs) == 0 {
+		return f.attachments, nil
+	}
+	lookup := make(map[string]maildb.Attachment, len(f.attachments))
+	for _, attachment := range f.attachments {
+		lookup[attachment.ID] = attachment
+	}
+	resolved := make([]maildb.Attachment, 0, len(attachmentIDs))
+	for _, id := range attachmentIDs {
+		if attachment, ok := lookup[id]; ok {
+			resolved = append(resolved, attachment)
+		}
+	}
+	return resolved, nil
+}
+
 func (f *fakeRepository) SenderForUser(_ context.Context, userID string, from string) (maildb.Sender, error) {
 	f.lastSenderUserID = userID
 	f.lastSenderFrom = from
@@ -3234,6 +3260,7 @@ func (f *fakeRepository) GetDraftForSend(context.Context, string, string) (maild
 		To:            []outbound.Address{{Email: "recipient@example.net"}},
 		Subject:       "draft subject",
 		TextBody:      "draft body",
+		HTMLBody:      "<p>draft html</p>",
 		AttachmentIDs: []string{"att-1"},
 		TrackOpens:    true,
 		ScheduledAt:   time.Unix(4102444800, 0).UTC(),
@@ -3840,11 +3867,101 @@ func TestSendTextWritesReplyThreadHeaders(t *testing.T) {
 	}
 }
 
+func TestSendTextComposesHTMLAndAttachments(t *testing.T) {
+	t.Parallel()
+
+	store := storage.NewLocalStore(t.TempDir())
+	attachmentPath := "attachments/report.pdf"
+	if err := store.Put(context.Background(), attachmentPath, strings.NewReader("PDFDATA")); err != nil {
+		t.Fatalf("Put returned error: %v", err)
+	}
+
+	repo := &fakeRepository{
+		attachments: []maildb.Attachment{
+			{
+				ID:          "att-1",
+				Filename:    "report.pdf",
+				MIMEType:    "application/pdf",
+				StoragePath: attachmentPath,
+				Status:      "uploading",
+			},
+		},
+	}
+	service := New(repo, store)
+	_, err := service.SendText(context.Background(), SendTextRequest{
+		UserID:        "user-1",
+		To:            []outbound.Address{{Email: "user@example.net"}},
+		Subject:       "hello",
+		TextBody:      "plain body",
+		HTMLBody:      "<p>rich body</p>",
+		AttachmentIDs: []string{"att-1"},
+	})
+	if err != nil {
+		t.Fatalf("SendText returned error: %v", err)
+	}
+
+	body, err := store.Get(context.Background(), repo.lastOutgoing.StoragePath)
+	if err != nil {
+		t.Fatalf("Get returned error: %v", err)
+	}
+	defer body.Close()
+	raw, err := io.ReadAll(body)
+	if err != nil {
+		t.Fatalf("ReadAll returned error: %v", err)
+	}
+
+	parsed, err := message.ParseEML(bytes.NewReader(raw))
+	if err != nil {
+		t.Fatalf("ParseEML returned error: %v", err)
+	}
+	if parsed.HTMLBody != "<p>rich body</p>" {
+		t.Fatalf("HTMLBody = %q", parsed.HTMLBody)
+	}
+	if !parsed.HasAttachment || len(parsed.Attachments) != 1 || parsed.Attachments[0].Filename != "report.pdf" {
+		t.Fatalf("attachments = %+v", parsed.Attachments)
+	}
+
+	structure, err := message.ParseMIMEStructure(bytes.NewReader(raw), message.MIMEStructureOptions{})
+	if err != nil {
+		t.Fatalf("ParseMIMEStructure returned error: %v", err)
+	}
+	if structure.Root.MediaType != "MULTIPART" || structure.Root.MediaSubtype != "MIXED" {
+		t.Fatalf("root = %+v, want multipart/mixed", structure.Root)
+	}
+	if len(structure.Root.Parts) != 2 {
+		t.Fatalf("root parts = %d, want 2", len(structure.Root.Parts))
+	}
+	if structure.Root.Parts[0].MediaType != "MULTIPART" || structure.Root.Parts[0].MediaSubtype != "ALTERNATIVE" {
+		t.Fatalf("body part = %+v, want multipart/alternative", structure.Root.Parts[0])
+	}
+	if len(structure.Root.Parts[0].Parts) != 2 || structure.Root.Parts[0].Parts[1].MediaSubtype != "HTML" {
+		t.Fatalf("alternative parts = %+v", structure.Root.Parts[0].Parts)
+	}
+	if structure.Root.Parts[1].Disposition != "ATTACHMENT" || structure.Root.Parts[1].DispositionParams["filename"] != "report.pdf" {
+		t.Fatalf("attachment part = %+v", structure.Root.Parts[1])
+	}
+}
+
 func TestSendDraftSendsAndMarksDraftSent(t *testing.T) {
 	t.Parallel()
 
-	repo := &fakeRepository{}
-	service := New(repo, storage.NewLocalStore(t.TempDir()))
+	store := storage.NewLocalStore(t.TempDir())
+	attachmentPath := "attachments/report.pdf"
+	if err := store.Put(context.Background(), attachmentPath, strings.NewReader("PDFDATA")); err != nil {
+		t.Fatalf("Put returned error: %v", err)
+	}
+	repo := &fakeRepository{
+		attachments: []maildb.Attachment{
+			{
+				ID:          "att-1",
+				Filename:    "report.pdf",
+				MIMEType:    "application/pdf",
+				StoragePath: attachmentPath,
+				Status:      "uploading",
+			},
+		},
+	}
+	service := New(repo, store)
 	result, err := service.SendDraft(context.Background(), "user-1", "draft-1")
 	if err != nil {
 		t.Fatalf("SendDraft returned error: %v", err)
@@ -3861,6 +3978,26 @@ func TestSendDraftSendsAndMarksDraftSent(t *testing.T) {
 	if repo.lastOutgoing.ScheduledAt.IsZero() {
 		t.Fatal("draft scheduled_at was not reflected on outgoing message")
 	}
+
+	body, err := store.Get(context.Background(), repo.lastOutgoing.StoragePath)
+	if err != nil {
+		t.Fatalf("Get returned error: %v", err)
+	}
+	defer body.Close()
+	raw, err := io.ReadAll(body)
+	if err != nil {
+		t.Fatalf("ReadAll returned error: %v", err)
+	}
+	parsed, err := message.ParseEML(bytes.NewReader(raw))
+	if err != nil {
+		t.Fatalf("ParseEML returned error: %v", err)
+	}
+	if parsed.HTMLBody != "<p>draft html</p>" {
+		t.Fatalf("HTMLBody = %q", parsed.HTMLBody)
+	}
+	if !parsed.HasAttachment || len(parsed.Attachments) != 1 || parsed.Attachments[0].Filename != "report.pdf" {
+		t.Fatalf("attachments = %+v", parsed.Attachments)
+	}
 }
 
 func TestSaveDraftDelegatesToDraftRepository(t *testing.T) {
@@ -3875,6 +4012,7 @@ func TestSaveDraftDelegatesToDraftRepository(t *testing.T) {
 		SourceMessageID: " source-1 ",
 		From:            " sender@example.com ",
 		To:              []outbound.Address{{Name: " User ", Email: " user@example.net "}},
+		HTMLBody:        "<p>draft html</p>",
 		AttachmentIDs:   []string{" att-1 "},
 		TrackOpens:      true,
 		ScheduledAt:     time.Unix(4102444800, 0).UTC(),
@@ -3891,6 +4029,7 @@ func TestSaveDraftDelegatesToDraftRepository(t *testing.T) {
 		repo.lastDraft.From != "sender@example.com" ||
 		repo.lastDraft.To[0].Name != "User" ||
 		repo.lastDraft.To[0].Email != "user@example.net" ||
+		repo.lastDraft.HTMLBody != "<p>draft html</p>" ||
 		repo.lastDraft.AttachmentIDs[0] != "att-1" ||
 		!repo.lastDraft.TrackOpens ||
 		repo.lastDraft.ScheduledAt.IsZero() ||

@@ -1,7 +1,6 @@
 package mailservice
 
 import (
-	"bytes"
 	"context"
 	"crypto/rand"
 	"crypto/sha256"
@@ -51,6 +50,7 @@ type Repository interface {
 	DeletePushDevice(ctx context.Context, userID string, id string) error
 	ListAttachments(ctx context.Context, userID string, messageID string) ([]maildb.Attachment, error)
 	GetAttachment(ctx context.Context, userID string, messageID string, attachmentID string) (maildb.Attachment, error)
+	AttachmentsByIDs(ctx context.Context, userID string, attachmentIDs []string) ([]maildb.Attachment, error)
 	SenderForUser(ctx context.Context, userID string, fromAddress string) (maildb.Sender, error)
 	SuppressedRecipients(ctx context.Context, domainID string, recipients []string) ([]string, error)
 	RecordOutgoing(ctx context.Context, msg maildb.OutgoingMessage) (string, error)
@@ -1593,6 +1593,7 @@ func (s *Service) SaveDraft(ctx context.Context, req SaveDraftRequest) (maildb.M
 		Bcc:             req.Bcc,
 		Subject:         req.Subject,
 		TextBody:        req.TextBody,
+		HTMLBody:        req.HTMLBody,
 		AttachmentIDs:   req.AttachmentIDs,
 		TrackOpens:      req.TrackOpens,
 		ScheduledAt:     req.ScheduledAt,
@@ -2299,6 +2300,7 @@ type SendTextRequest struct {
 	Bcc             []outbound.Address `json:"bcc"`
 	Subject         string             `json:"subject"`
 	TextBody        string             `json:"text_body"`
+	HTMLBody        string             `json:"html_body,omitempty"`
 	AttachmentIDs   []string           `json:"attachment_ids,omitempty"`
 	Transactional   bool               `json:"transactional"`
 	ScheduledAt     time.Time          `json:"scheduled_at"`
@@ -2354,6 +2356,7 @@ func (s *Service) SendDraft(ctx context.Context, userID string, draftID string) 
 		Bcc:             draft.Bcc,
 		Subject:         draft.Subject,
 		TextBody:        draft.TextBody,
+		HTMLBody:        draft.HTMLBody,
 		AttachmentIDs:   draft.AttachmentIDs,
 		TrackOpens:      draft.TrackOpens,
 		ScheduledAt:     draft.ScheduledAt,
@@ -2417,7 +2420,7 @@ func (s *Service) SendText(ctx context.Context, req SendTextRequest) (SendTextRe
 		email   string
 	}
 	var pixels []pixelEntry
-	var htmlBody string
+	finalHTMLBody := req.HTMLBody
 	if req.TrackOpens && s.trackingRepo != nil {
 		allRecipients := make([]outbound.Address, 0, len(req.To)+len(req.Cc)+len(req.Bcc))
 		allRecipients = append(allRecipients, req.To...)
@@ -2437,26 +2440,34 @@ func (s *Service) SendText(ctx context.Context, req SendTextRequest) (SendTextRe
 			pixelImgs.WriteString(pid)
 			pixelImgs.WriteString(`" width="1" height="1" alt="" style="display:none">`)
 		}
-		htmlBody = `<html><body><pre style="font-family:inherit;white-space:pre-wrap">` +
-			req.TextBody + `</pre>` + pixelImgs.String() + `</body></html>`
+		if strings.TrimSpace(finalHTMLBody) != "" {
+			if idx := strings.LastIndex(strings.ToLower(finalHTMLBody), "</body>"); idx >= 0 {
+				finalHTMLBody = finalHTMLBody[:idx] + pixelImgs.String() + finalHTMLBody[idx:]
+			} else {
+				finalHTMLBody += pixelImgs.String()
+			}
+		} else {
+			finalHTMLBody = `<html><body><pre style="font-family:inherit;white-space:pre-wrap">` +
+				req.TextBody + `</pre>` + pixelImgs.String() + `</body></html>`
+		}
 	}
 
-	composed, err := outbound.ComposeText(outbound.TextMessage{
-		From:       from,
-		To:         req.To,
-		Cc:         req.Cc,
-		Bcc:        req.Bcc,
-		Subject:    req.Subject,
-		TextBody:   req.TextBody,
-		HTMLBody:   htmlBody,
-		InReplyTo:  sourceThread.MessageID,
-		References: sourceThread.References(),
-	})
+	attachments, err := s.resolveAttachmentParts(ctx, req.UserID, req.AttachmentIDs)
 	if err != nil {
 		return SendTextResult{}, err
 	}
-	if err := enforceOutboundSizePolicy(composed.Size, policy); err != nil {
-		return SendTextResult{}, err
+
+	composedMsg := outbound.TextMessage{
+		From:        from,
+		To:          req.To,
+		Cc:          req.Cc,
+		Bcc:         req.Bcc,
+		Subject:     req.Subject,
+		TextBody:    req.TextBody,
+		HTMLBody:    finalHTMLBody,
+		InReplyTo:   sourceThread.MessageID,
+		References:  sourceThread.References(),
+		Attachments: attachments,
 	}
 
 	now := time.Now().UTC()
@@ -2472,8 +2483,13 @@ func (s *Service) SendText(ctx context.Context, req SendTextRequest) (SendTextRe
 		objectID + ".eml",
 	}, "/")
 
-	if err := s.store.Put(ctx, path, bytes.NewReader(composed.Raw)); err != nil {
-		return SendTextResult{}, fmt.Errorf("store outgoing message: %w", err)
+	composed, err := s.storeComposedMessage(ctx, path, composedMsg)
+	if err != nil {
+		return SendTextResult{}, err
+	}
+	if err := enforceOutboundSizePolicy(composed.Size, policy); err != nil {
+		_ = s.store.Delete(ctx, path)
+		return SendTextResult{}, err
 	}
 
 	farm := outbound.Classify(outbound.ClassificationInput{
@@ -2535,6 +2551,41 @@ func (s *Service) SendText(ctx context.Context, req SendTextRequest) (SendTextRe
 	}), nil
 }
 
+func (s *Service) storeComposedMessage(ctx context.Context, path string, msg outbound.TextMessage) (outbound.ComposedMessage, error) {
+	if s.store == nil {
+		return outbound.ComposedMessage{}, fmt.Errorf("mail storage is required")
+	}
+	pr, pw := io.Pipe()
+	defer pr.Close()
+	type composeResult struct {
+		message outbound.ComposedMessage
+		err     error
+	}
+	resultCh := make(chan composeResult, 1)
+	go func() {
+		composed, err := outbound.ComposeTextToWriter(pw, msg)
+		if err != nil {
+			_ = pw.CloseWithError(err)
+		} else {
+			_ = pw.Close()
+		}
+		resultCh <- composeResult{message: composed, err: err}
+	}()
+
+	putErr := s.store.Put(ctx, path, pr)
+	if putErr != nil {
+		_ = pr.CloseWithError(putErr)
+	}
+	result := <-resultCh
+	if putErr != nil {
+		return outbound.ComposedMessage{}, fmt.Errorf("store outgoing message: %w", putErr)
+	}
+	if result.err != nil {
+		return outbound.ComposedMessage{}, result.err
+	}
+	return result.message, nil
+}
+
 func normalizeSendTextRequest(req SendTextRequest) SendTextRequest {
 	intent, err := NormalizeComposeIntent(string(req.Intent))
 	if err == nil {
@@ -2548,6 +2599,42 @@ func normalizeSendTextRequest(req SendTextRequest) SendTextRequest {
 	req.Bcc = normalizeComposeAddresses(req.Bcc)
 	req.AttachmentIDs = normalizeStringList(req.AttachmentIDs)
 	return req
+}
+
+func (s *Service) resolveAttachmentParts(ctx context.Context, userID string, attachmentIDs []string) ([]outbound.Attachment, error) {
+	if len(attachmentIDs) == 0 {
+		return nil, nil
+	}
+	if s.store == nil {
+		return nil, fmt.Errorf("mail storage is required")
+	}
+	repo, ok := s.repository.(interface {
+		AttachmentsByIDs(context.Context, string, []string) ([]maildb.Attachment, error)
+	})
+	if !ok {
+		return nil, fmt.Errorf("attachment lookup repository is required")
+	}
+	attachments, err := repo.AttachmentsByIDs(ctx, strings.TrimSpace(userID), attachmentIDs)
+	if err != nil {
+		return nil, err
+	}
+	parts := make([]outbound.Attachment, 0, len(attachments))
+	for _, attachment := range attachments {
+		parts = append(parts, outbound.Attachment{
+			Filename: attachment.Filename,
+			MIMEType: attachment.MIMEType,
+			Open: func(storagePath string) func() (io.ReadCloser, error) {
+				return func() (io.ReadCloser, error) {
+					body, err := s.store.Get(ctx, storagePath)
+					if err != nil {
+						return nil, fmt.Errorf("open attachment %q: %w", storagePath, err)
+					}
+					return body, nil
+				}
+			}(attachment.StoragePath),
+		})
+	}
+	return parts, nil
 }
 
 func normalizeComposeAddresses(addresses []outbound.Address) []outbound.Address {

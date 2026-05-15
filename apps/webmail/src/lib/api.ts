@@ -334,6 +334,7 @@ export interface DraftData {
   bcc?: ComposeAddressLike[];
   subject: string;
   text_body: string;
+  html_body?: string;
   track_opens?: boolean;
   scheduled_at?: string;
 }

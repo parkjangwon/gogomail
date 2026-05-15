@@ -258,6 +258,65 @@ LIMIT 1`
 	return attachment, nil
 }
 
+func (r *Repository) AttachmentsByIDs(ctx context.Context, userID string, attachmentIDs []string) ([]Attachment, error) {
+	if r.db == nil {
+		return nil, fmt.Errorf("database handle is required")
+	}
+	if len(attachmentIDs) == 0 {
+		return nil, nil
+	}
+
+	const query = `
+SELECT
+  id::text,
+  COALESCE(message_id::text, ''),
+  upload_id,
+  storage_path,
+  filename,
+  size,
+  mime_type,
+  status,
+  created_at
+FROM attachments
+WHERE user_id = $1
+  AND message_id IS NULL
+  AND status = 'uploading'
+  AND id = ANY($2)
+ORDER BY array_position($2, id), created_at ASC, filename ASC`
+
+	rows, err := r.db.QueryContext(ctx, query, strings.TrimSpace(userID), stringArray(attachmentIDs))
+	if err != nil {
+		return nil, fmt.Errorf("list attachments by ids: %w", err)
+	}
+	defer rows.Close()
+
+	attachments := make([]Attachment, 0, len(attachmentIDs))
+	for rows.Next() {
+		var attachment Attachment
+		if err := rows.Scan(
+			&attachment.ID,
+			&attachment.MessageID,
+			&attachment.UploadID,
+			&attachment.StoragePath,
+			&attachment.Filename,
+			&attachment.Size,
+			&attachment.MIMEType,
+			&attachment.Status,
+			&attachment.CreatedAt,
+		); err != nil {
+			return nil, fmt.Errorf("scan attachment by id: %w", err)
+		}
+		attachments = append(attachments, attachment)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate attachments by ids: %w", err)
+	}
+	if len(attachments) != len(attachmentIDs) {
+		return nil, fmt.Errorf("one or more attachments were not found")
+	}
+	return attachments, nil
+}
+
 func (r *Repository) CancelAttachmentUpload(ctx context.Context, userID string, attachmentID string) (Attachment, error) {
 	if r.db == nil {
 		return Attachment{}, fmt.Errorf("database handle is required")

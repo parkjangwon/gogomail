@@ -19,6 +19,7 @@ type SaveDraftRequest struct {
 	Bcc             []outbound.Address `json:"bcc,omitempty"`
 	Subject         string             `json:"subject"`
 	TextBody        string             `json:"text_body"`
+	HTMLBody        string             `json:"html_body,omitempty"`
 	AttachmentIDs   []string           `json:"attachment_ids,omitempty"`
 	TrackOpens      bool               `json:"track_opens,omitempty"`
 	ScheduledAt     time.Time          `json:"scheduled_at,omitempty"`
@@ -56,6 +57,9 @@ func ValidateSaveDraftRequest(req SaveDraftRequest) error {
 	}
 	if len(req.TextBody) > MaxComposeTextBodyBytes {
 		return fmt.Errorf("text_body is too long")
+	}
+	if len(req.HTMLBody) > MaxComposeHTMLBodyBytes {
+		return fmt.Errorf("html_body is too long")
 	}
 	if len(req.To)+len(req.Cc)+len(req.Bcc) > MaxComposeRecipients {
 		return fmt.Errorf("too many recipients")
