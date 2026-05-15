@@ -10,6 +10,7 @@ import (
 	"net/smtp"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gogomail/gogomail/internal/dane"
@@ -43,6 +44,7 @@ type DirectSMTPTransport struct {
 	tlsrptCollector *tlsrpt.Collector
 	deliverHost    func(context.Context, Job, Route, string, []outbound.Address) error
 	pool           *SMTPConnectionPool
+	poolOnce       sync.Once // Protect pool initialization
 }
 
 func NewDirectSMTPTransport() *DirectSMTPTransport {
@@ -137,9 +139,11 @@ func (t *DirectSMTPTransport) deliverHostFunc() func(context.Context, Job, Route
 }
 
 func (t *DirectSMTPTransport) ensurePool() {
-	if t.pool == nil {
-		t.pool = NewSMTPConnectionPool(4, 30*time.Second, 5*time.Minute)
-	}
+	t.poolOnce.Do(func() {
+		if t.pool == nil {
+			t.pool = NewSMTPConnectionPool(4, 30*time.Second, 5*time.Minute)
+		}
+	})
 }
 
 func (t *DirectSMTPTransport) deliverHostDefault(ctx context.Context, job Job, route Route, host string, recipients []outbound.Address) error {
