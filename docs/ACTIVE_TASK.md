@@ -46,17 +46,22 @@ Go Backend (`internal/`):
 - [x] SMTP 커넥션 풀 구현 (connection pooling)
 - [x] 풀 초기화 동시성 보호 (sync.Once)
 
-**Phase 2: RFC Compliance & Pipelining (진행 중)**
+**Phase 2: RFC Compliance & Pipelining (부분 완료)**
 - [x] SMTP 파이프라인 성능 벤치마크 및 최적화 (✓ pipelineRCPTs 구현)
 - [x] RFC 5321 Received headers (✓ implemented)
 - [x] Delivery worker 재시도 정책 튜닝 (✓ AggressiveBulkRetryPolicy)
   - 초기 재시도 지연 단축: 5분 → 2분 (transient 빠른 복구)
   - 최대 재시도 윈도우 제한: 24시간 → 12시간 (fail-fast)
   - Jitter 감소: 20% → 15% (동시 재시도 방지 유지)
-- [ ] RFC compliance 검증 (DKIM, SPF/DMARC)
+- [x] RFC compliance 구현 (DKIM signing, Received headers, DSN, SMTPUTF8 all integrated)
+  - DKIM 서명은 dkim.Transformer로 통합됨
+  - RFC 5321 Received 헤더는 headerInjector로 추가됨
+  - DSN 옵션은 smtpMail/pipelineRCPTs로 처리됨
+  - SMTPUTF8는 pipelineRCPTs에서 검증됨
+- [ ] RFC compliance 검증 문서화 및 엣지케이스 테스트 (defer to Phase 3)
 
-**Phase 3: Performance Optimization**
-- [ ] Message parser 성능 개선 및 메모리 할당 감소
+**Phase 3: Performance Optimization (시작)**
+- [ ] Message parser 성능 개선 및 메모리 할당 감소 (진행 중)
 - [ ] Database 쿼리 최적화 및 인덱싱
 - [ ] 대량 발신 부하 테스트 (1000+ msg/sec)
 - [ ] 성능 메트릭 수집 및 대시보드
