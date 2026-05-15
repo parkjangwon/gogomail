@@ -13,7 +13,7 @@ Last updated: 2026-05-15 (Statistics & Dashboard - mail volume, user activity, s
   - `pnpm -C apps/console type-check`
   - `go test ./...`
 
-## API Metering (2026-05-15, TASK-077 in progress)
+## API Metering (2026-05-15, TASK-077 complete)
 - `apps/console/src/lib/apiUsage.ts` now centralizes API usage daily query construction, CSV export, and rollup summaries.
 - `apps/console/src/app/companies/[id]/analytics/api-usage/page.tsx` now exposes server-side filters for domain, principal, user, route, auth source, method, status, and date range, plus summary cards for request volume, error rate, and average latency.
 - New console tests cover the API metering query builder, CSV export, and summary calculation alongside the dashboard statistics helpers.

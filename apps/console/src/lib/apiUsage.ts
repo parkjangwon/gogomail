@@ -47,7 +47,10 @@ export function buildAPIUsageQuery(filters: APIUsageQueryFilters): string {
   if (filters.authSource?.trim()) params.set('auth_source', filters.authSource.trim());
   if (filters.method?.trim()) params.set('method', filters.method.trim());
   if (filters.route?.trim()) params.set('route', filters.route.trim());
-  if (filters.status !== undefined && filters.status !== '') params.set('status', String(filters.status));
+  if (filters.status !== undefined && filters.status !== '') {
+    const status = typeof filters.status === 'number' ? filters.status : Number(filters.status);
+    if (Number.isFinite(status)) params.set('status', String(status));
+  }
   if (filters.from?.trim()) params.set('from', filters.from.trim());
   if (filters.to?.trim()) params.set('to', filters.to.trim());
   if (typeof filters.limit === 'number' && filters.limit > 0) params.set('limit', String(filters.limit));

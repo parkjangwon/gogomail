@@ -64,6 +64,7 @@ export default function APIUsagePage() {
   const [toDate, setToDate] = useState('');
   const [method, setMethod] = useState<SelectProps.Option>(METHOD_OPTIONS[0]);
   const [authSource, setAuthSource] = useState<SelectProps.Option>(AUTH_SOURCE_OPTIONS[0]);
+  const parsedStatus = status.trim() ? Number(status) : undefined;
 
   const fetchAPIUsage = useCallback(async () => {
     if (!companyId) return;
@@ -75,7 +76,7 @@ export default function APIUsagePage() {
         userId,
         principalId,
         route,
-        status: status ? Number(status) : undefined,
+        status: parsedStatus !== undefined && Number.isFinite(parsedStatus) ? parsedStatus : undefined,
         from: fromDate,
         to: toDate,
         method: optionValue(method),
