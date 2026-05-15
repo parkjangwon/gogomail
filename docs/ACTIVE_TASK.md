@@ -9,6 +9,16 @@
 Admin Console Phase 1-3이 완료됨. Phase 1 mail infrastructure (receive, send, delivery) 기본 구현도 완료.
 이제 대량 메일 발신 환경에서의 성능, 안정성, RFC 준수 등을 강화해야 함.
 
+### 진행 상황
+
+**Phase 1: Connection Pooling (✓ 완료)**
+- SMTP ConnectionPool 구현: 재사용 가능한 연결 관리
+- SMTPConnPoolKey로 호스트별 연결 구분
+- MaxIdle, IdleTimeout, MaxAge 설정 가능
+- DirectSMTPTransport에 통합 완료
+- Thread-safe 초기화 (sync.Once)
+- 모든 테스트 통과 (6056 tests)
+
 ### 구현 대상
 
 Go Backend (`internal/`):
@@ -21,15 +31,22 @@ Go Backend (`internal/`):
 
 ### 완료 조건
 
+**Phase 1: Connection Pooling (✓)**
 - [x] SMTP 커넥션 풀 구현 (connection pooling)
 - [x] 풀 초기화 동시성 보호 (sync.Once)
+
+**Phase 2: RFC Compliance & Pipelining (진행 중)**
 - [ ] SMTP 파이프라인 성능 벤치마크 및 최적화
-- [ ] RFC compliance 검증 및 문제 해결
+- [ ] RFC compliance 검증 (Received headers, DKIM, SPF/DMARC)
 - [ ] Delivery worker 재시도 정책 튜닝
+
+**Phase 3: Performance Optimization**
 - [ ] Message parser 성능 개선 및 메모리 할당 감소
 - [ ] Database 쿼리 최적화 및 인덱싱
 - [ ] 대량 발신 부하 테스트 (1000+ msg/sec)
 - [ ] 성능 메트릭 수집 및 대시보드
+
+**Documentation**
 - [ ] docs/CURRENT_STATUS.md 갱신
 - [ ] docs/backend-roadmap.md 해당 항목 체크
 
