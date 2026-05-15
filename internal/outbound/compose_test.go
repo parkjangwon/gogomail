@@ -2,6 +2,7 @@ package outbound
 
 import (
 	"bytes"
+	"io"
 	"strings"
 	"testing"
 	"time"
@@ -38,6 +39,59 @@ func TestComposeTextBuildsParseableRFC5322Message(t *testing.T) {
 	}
 	if !strings.Contains(parsed.TextBody, "line1") || !strings.Contains(parsed.TextBody, "line2") {
 		t.Fatalf("TextBody = %q", parsed.TextBody)
+	}
+}
+
+func TestComposeTextBuildsMultipartMixedWithAlternativeAndAttachments(t *testing.T) {
+	t.Parallel()
+
+	composed, err := ComposeText(TextMessage{
+		From:     Address{Name: "Sender", Email: "sender@example.com"},
+		To:       []Address{{Email: "user@example.com"}},
+		Subject:  "hello",
+		TextBody: "plain body",
+		HTMLBody: "<p>rich body</p>",
+		Attachments: []Attachment{{
+			Filename: "report.pdf",
+			MIMEType: "application/pdf",
+			Open: func() (io.ReadCloser, error) {
+				return io.NopCloser(strings.NewReader("PDFDATA")), nil
+			},
+		}},
+	})
+	if err != nil {
+		t.Fatalf("ComposeText returned error: %v", err)
+	}
+
+	parsed, err := message.ParseEML(bytes.NewReader(composed.Raw))
+	if err != nil {
+		t.Fatalf("ParseEML returned error: %v", err)
+	}
+	if parsed.HTMLBody != "<p>rich body</p>" {
+		t.Fatalf("HTMLBody = %q", parsed.HTMLBody)
+	}
+	if !parsed.HasAttachment || len(parsed.Attachments) != 1 || parsed.Attachments[0].Filename != "report.pdf" {
+		t.Fatalf("Attachments = %+v", parsed.Attachments)
+	}
+
+	structure, err := message.ParseMIMEStructure(bytes.NewReader(composed.Raw), message.MIMEStructureOptions{})
+	if err != nil {
+		t.Fatalf("ParseMIMEStructure returned error: %v", err)
+	}
+	if structure.Root.MediaType != "MULTIPART" || structure.Root.MediaSubtype != "MIXED" {
+		t.Fatalf("root = %+v, want multipart/mixed", structure.Root)
+	}
+	if len(structure.Root.Parts) != 2 {
+		t.Fatalf("root parts = %d, want 2", len(structure.Root.Parts))
+	}
+	if structure.Root.Parts[0].MediaType != "MULTIPART" || structure.Root.Parts[0].MediaSubtype != "ALTERNATIVE" {
+		t.Fatalf("body part = %+v, want multipart/alternative", structure.Root.Parts[0])
+	}
+	if len(structure.Root.Parts[0].Parts) != 2 || structure.Root.Parts[0].Parts[1].MediaSubtype != "HTML" {
+		t.Fatalf("alternative parts = %+v", structure.Root.Parts[0].Parts)
+	}
+	if structure.Root.Parts[1].Disposition != "ATTACHMENT" || structure.Root.Parts[1].DispositionParams["filename"] != "report.pdf" {
+		t.Fatalf("attachment part = %+v", structure.Root.Parts[1])
 	}
 }
 

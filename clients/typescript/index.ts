@@ -5654,6 +5654,7 @@ export type components = {
             source_message_id?: string;
             subject: string;
             text_body: string;
+            html_body?: string;
             to?: components["schemas"]["ComposeAddress"][];
             /** @description Request open-tracking for the sent message. Draft saves preserve this option for draft-send. */
             track_opens?: boolean;

@@ -17,6 +17,7 @@ type SaveDraftRequest struct {
 	Bcc             []outbound.Address
 	Subject         string
 	TextBody        string
+	HTMLBody        string
 	AttachmentIDs   []string
 	TrackOpens      bool
 	ScheduledAt     time.Time

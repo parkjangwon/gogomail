@@ -10,6 +10,7 @@ import (
 
 const MaxComposeSubjectBytes = 998
 const MaxComposeTextBodyBytes = 4 << 20
+const MaxComposeHTMLBodyBytes = 4 << 20
 const MaxComposeRecipients = 200
 const MaxComposeAttachments = 100
 
@@ -61,6 +62,9 @@ func ValidateSendTextRequest(req SendTextRequest) error {
 	}
 	if len(req.TextBody) > MaxComposeTextBodyBytes {
 		return fmt.Errorf("text_body is too long")
+	}
+	if len(req.HTMLBody) > MaxComposeHTMLBodyBytes {
+		return fmt.Errorf("html_body is too long")
 	}
 	recipientCount := len(req.To) + len(req.Cc) + len(req.Bcc)
 	if recipientCount == 0 {

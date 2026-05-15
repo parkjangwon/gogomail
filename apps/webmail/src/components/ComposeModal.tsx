@@ -320,7 +320,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
     return useDraftSend && draftId ? sendDraft(draftId) : sendMessage(msg);
   }, []);
 
-  const buildDraftData = useCallback((toVal: string, ccVal: string, bccVal: string, subjectVal: string, bodyText: string) => {
+  const buildDraftData = useCallback((toVal: string, ccVal: string, bccVal: string, subjectVal: string, bodyText: string, bodyHtml: string) => {
     const attachmentIds = readyAttachmentIds();
     return {
       intent: backendComposeIntent(intent),
@@ -330,6 +330,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
       ...(bccVal.trim() && { bcc: parseAddrs(bccVal) }),
       subject: subjectVal,
       text_body: bodyText,
+      html_body: bodyHtml,
       ...(fromAddress && { from: fromAddress }),
       ...(attachmentIds.length > 0 && { attachment_ids: attachmentIds }),
       ...(trackOpens && { track_opens: true }),
@@ -337,13 +338,13 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
     };
   }, [intent, sourceMessage, fromAddress, readyAttachmentIds, trackOpens, scheduledAt]);
 
-  const triggerAutoSave = useCallback((toVal: string, ccVal: string, bccVal: string, subjectVal: string, bodyText: string) => {
+  const triggerAutoSave = useCallback((toVal: string, ccVal: string, bccVal: string, subjectVal: string, bodyText: string, bodyHtml: string) => {
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     saveTimerRef.current = setTimeout(async () => {
       if (!toVal.trim() && !subjectVal.trim() && !bodyText.trim()) return;
       setSaveStatus('saving');
       try {
-        const data = buildDraftData(toVal, ccVal, bccVal, subjectVal, bodyText);
+        const data = buildDraftData(toVal, ccVal, bccVal, subjectVal, bodyText, bodyHtml);
         if (draftIdRef.current) {
           await updateDraft(draftIdRef.current, data);
         } else {
@@ -498,7 +499,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
       },
     },
     onUpdate: ({ editor: e }) => {
-      triggerAutoSave(toRef.current, ccRef.current, bccRef.current, subjectRef.current, e.getText());
+      triggerAutoSave(toRef.current, ccRef.current, bccRef.current, subjectRef.current, e.getText(), e.getHTML());
       // Slash command detection
       const { from } = e.state.selection;
       const textBefore = e.state.doc.textBetween(Math.max(0, from - 50), from, '\n');
@@ -585,7 +586,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
     if (!to.trim() && !subject.trim() && !bodyText.trim()) return;
     setSaveStatus('saving');
     try {
-      const data = buildDraftData(to, cc, bcc, subject, bodyText);
+      const data = buildDraftData(to, cc, bcc, subject, bodyText, editor?.getHTML() ?? '');
       if (draftIdRef.current) await updateDraft(draftIdRef.current, data);
       else { const r = await saveDraft(data); draftIdRef.current = r.draft.id; }
       markDraftSaved();
@@ -598,7 +599,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
     const bodyText = editor?.getText() ?? '';
     try {
       if (to.trim() || subject.trim() || bodyText.trim()) {
-        const data = buildDraftData(to, cc, bcc, subject, bodyText);
+        const data = buildDraftData(to, cc, bcc, subject, bodyText, editor?.getHTML() ?? '');
         try {
           if (draftIdRef.current) await updateDraft(draftIdRef.current, data);
           else { const r = await saveDraft(data); draftIdRef.current = r.draft.id; }
@@ -678,7 +679,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
       }
     }
     const attachmentIds = readyAttachmentIds();
-    const draftData = buildDraftData(to, cc, bcc, subject.trim(), bodyText);
+    const draftData = buildDraftData(to, cc, bcc, subject.trim(), bodyText, editor?.getHTML() ?? '');
     const msg: SendMessageRequest = {
       to: parseAddrs(to),
       ...(cc.trim() && { cc: parseAddrs(cc) }),
@@ -1103,7 +1104,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
             <RecipientChips
               id="compose-to"
               value={to}
-              onChange={(v) => { setTo(v); toRef.current = v; if (error) setError(''); triggerAutoSave(v, ccRef.current, bccRef.current, subjectRef.current, editor?.getText() ?? ''); }}
+              onChange={(v) => { setTo(v); toRef.current = v; if (error) setError(''); triggerAutoSave(v, ccRef.current, bccRef.current, subjectRef.current, editor?.getText() ?? '', editor?.getHTML() ?? ''); }}
               placeholder="example@domain.com"
               autoFocus
               hasError={error.includes('받는 사람')}
@@ -1136,7 +1137,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
               <RecipientChips
                 id="compose-cc"
                 value={cc}
-                onChange={(v) => { setCc(v); ccRef.current = v; triggerAutoSave(toRef.current, v, bccRef.current, subjectRef.current, editor?.getText() ?? ''); }}
+                onChange={(v) => { setCc(v); ccRef.current = v; triggerAutoSave(toRef.current, v, bccRef.current, subjectRef.current, editor?.getText() ?? '', editor?.getHTML() ?? ''); }}
                 placeholder="example@domain.com, ..."
                 suggestions={recentRecipients}
               />
@@ -1155,7 +1156,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
               <RecipientChips
                 id="compose-bcc"
                 value={bcc}
-                onChange={(v) => { setBcc(v); bccRef.current = v; triggerAutoSave(toRef.current, ccRef.current, v, subjectRef.current, editor?.getText() ?? ''); }}
+                onChange={(v) => { setBcc(v); bccRef.current = v; triggerAutoSave(toRef.current, ccRef.current, v, subjectRef.current, editor?.getText() ?? '', editor?.getHTML() ?? ''); }}
                 placeholder="example@domain.com, ..."
                 suggestions={recentRecipients}
               />
@@ -1173,7 +1174,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
               id="compose-subject"
               type="text"
               value={subject}
-              onChange={(e) => { setSubject(e.target.value); subjectRef.current = e.target.value; triggerAutoSave(toRef.current, ccRef.current, bccRef.current, e.target.value, editor?.getText() ?? ''); }}
+              onChange={(e) => { setSubject(e.target.value); subjectRef.current = e.target.value; triggerAutoSave(toRef.current, ccRef.current, bccRef.current, e.target.value, editor?.getText() ?? '', editor?.getHTML() ?? ''); }}
               placeholder="제목"
               style={{ flex: 1, padding: '10px 0', border: 'none', outline: 'none', fontSize: '14px', background: 'transparent', color: 'var(--color-text-primary)', fontWeight: 500 }}
             />

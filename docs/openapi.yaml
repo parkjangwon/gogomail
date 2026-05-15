@@ -15993,6 +15993,8 @@ components:
           type: string
         text_body:
           type: string
+        html_body:
+          type: string
         attachment_ids:
           type: array
           maxItems: 100

@@ -22,6 +22,7 @@ type DraftForSend struct {
 	Bcc             []outbound.Address
 	Subject         string
 	TextBody        string
+	HTMLBody        string
 	AttachmentIDs   []string
 	TrackOpens      bool
 	ScheduledAt     time.Time
@@ -44,6 +45,7 @@ SELECT
   bcc_addrs,
   subject,
   COALESCE(draft_text_body, ''),
+  COALESCE(html_body, ''),
   COALESCE((flags->>'track_opens')::boolean, false),
   COALESCE(flags->>'scheduled_at', '')
 FROM messages
@@ -66,6 +68,7 @@ LIMIT 1`
 		&bccJSON,
 		&draft.Subject,
 		&draft.TextBody,
+		&draft.HTMLBody,
 		&draft.TrackOpens,
 		&scheduledAtText,
 	); err != nil {
@@ -202,15 +205,15 @@ INSERT INTO messages (
   source_message_id, compose_intent,
   subject, from_addr, from_name,
   to_addrs, cc_addrs, bcc_addrs,
-  draft_text_body, draft_updated_at, storage_path, flags, status
+  draft_text_body, html_body, draft_updated_at, storage_path, flags, status
 ) VALUES (
   $1, $2, $3, $4,
   NULLIF($5, '')::uuid, $6,
   $7, $8, $9,
   $10::jsonb, $11::jsonb, $12::jsonb,
-  $13, $14, '', jsonb_build_object('read', true, 'track_opens', $15::boolean, 'scheduled_at', $16::text), 'draft'
+  $13, $14, $15, '', jsonb_build_object('read', true, 'track_opens', $16::boolean, 'scheduled_at', $17::text), 'draft'
 ) RETURNING id::text, COALESCE(rfc_message_id, ''), subject, from_addr, from_name,
-  to_addrs, cc_addrs, bcc_addrs, draft_updated_at, size, has_attachment, flags, storage_path, draft_text_body`
+  to_addrs, cc_addrs, bcc_addrs, draft_updated_at, size, has_attachment, flags, storage_path, draft_text_body, html_body`
 
 	var draft MessageDetail
 	if err := tx.QueryRowContext(
@@ -229,6 +232,7 @@ INSERT INTO messages (
 		string(ccJSON),
 		string(bccJSON),
 		req.TextBody,
+		req.HTMLBody,
 		now,
 		req.TrackOpens,
 		draftScheduledAtText(req.ScheduledAt),
@@ -247,6 +251,7 @@ INSERT INTO messages (
 		&draft.Flags,
 		&draft.StoragePath,
 		&draft.TextBody,
+		&draft.HTMLBody,
 	); err != nil {
 		return MessageDetail{}, fmt.Errorf("insert draft: %w", err)
 	}
@@ -287,7 +292,7 @@ func (r *Repository) updateDraft(ctx context.Context, req SaveDraftRequest) (Mes
 	now := time.Now().UTC()
 	const query = `
 UPDATE messages
-SET source_message_id = NULLIF($3, '')::uuid,
+	SET source_message_id = NULLIF($3, '')::uuid,
     compose_intent = $4,
     subject = $5,
     from_addr = $6,
@@ -296,14 +301,15 @@ SET source_message_id = NULLIF($3, '')::uuid,
     cc_addrs = $9::jsonb,
     bcc_addrs = $10::jsonb,
     draft_text_body = $11,
-    draft_updated_at = $12,
-    updated_at = $12,
-    flags = COALESCE(flags, '{}'::jsonb) || jsonb_build_object('read', true, 'track_opens', $13::boolean, 'scheduled_at', $14::text)
+    html_body = $12,
+    draft_updated_at = $13,
+    updated_at = $13,
+    flags = COALESCE(flags, '{}'::jsonb) || jsonb_build_object('read', true, 'track_opens', $14::boolean, 'scheduled_at', $15::text)
 WHERE user_id = $1
   AND id = $2
   AND status = 'draft'
 RETURNING id::text, COALESCE(rfc_message_id, ''), subject, from_addr, from_name,
-  to_addrs, cc_addrs, bcc_addrs, draft_updated_at, size, has_attachment, flags, storage_path, draft_text_body`
+  to_addrs, cc_addrs, bcc_addrs, draft_updated_at, size, has_attachment, flags, storage_path, draft_text_body, html_body`
 
 	var draft MessageDetail
 	if err := tx.QueryRowContext(
@@ -320,6 +326,7 @@ RETURNING id::text, COALESCE(rfc_message_id, ''), subject, from_addr, from_name,
 		string(ccJSON),
 		string(bccJSON),
 		req.TextBody,
+		req.HTMLBody,
 		now,
 		req.TrackOpens,
 		draftScheduledAtText(req.ScheduledAt),
@@ -338,6 +345,7 @@ RETURNING id::text, COALESCE(rfc_message_id, ''), subject, from_addr, from_name,
 		&draft.Flags,
 		&draft.StoragePath,
 		&draft.TextBody,
+		&draft.HTMLBody,
 	); err != nil {
 		if err == sql.ErrNoRows {
 			return MessageDetail{}, fmt.Errorf("draft %q not found", req.DraftID)
