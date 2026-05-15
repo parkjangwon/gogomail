@@ -1,7 +1,5 @@
 'use client';
 import { DataTable } from '@/components/DataTable';
-
-
 import {
   ContentLayout,
   Header,
@@ -11,59 +9,61 @@ import {
   TextFilter,
   Badge,
 } from '@cloudscape-design/components';
-import { useState, useEffect } from 'react';
+import { useMemo, useState } from 'react';
+import { useParams } from 'next/navigation';
 import { useI18n } from '@/app/i18n-provider';
-
-interface QuotaAlert {
-  id: string;
-  tenant: string;
-  threshold_percent: number;
-  current_percent: number;
-  alert_status: string;
-  created_at: string;
-}
+import { useQuotaAlerts, type QuotaAlert } from '@/hooks';
 
 export default function QuotaAlertsPage() {
   const { t } = useI18n();
-  const [alerts, setAlerts] = useState<QuotaAlert[]>([]);
-  const [loading, setLoading] = useState(true);
+  const params = useParams();
+  const companyId = params?.id as string;
+  const { data: alerts = [], isLoading } = useQuotaAlerts(companyId);
   const [filter, setFilter] = useState('');
 
-  useEffect(() => {
-    fetchQuotaAlerts();
-  }, []);
-
-  const fetchQuotaAlerts = async () => {
-    setLoading(true);
-    try {
-      const res = await fetch('/api/admin/quota-alerts?limit=100', {
-        credentials: 'include'
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setAlerts(data.alerts || []);
-      }
-    } catch (error) {
-      console.error('Failed to fetch quota alerts:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const filteredAlerts = alerts.filter(a =>
-    a.tenant.toLowerCase().includes(filter.toLowerCase())
+  const filteredAlerts = useMemo(
+    () =>
+      alerts.filter((alert) =>
+        [
+          alert.company_id,
+          alert.domain_id,
+          alert.user_id,
+          alert.scope,
+          alert.alert_type,
+        ]
+          .filter((value): value is string => Boolean(value))
+          .some((value) => value.toLowerCase().includes(filter.toLowerCase()))
+      ),
+    [alerts, filter]
   );
 
-  const getAlertColor = (status: string) => {
+  const getAlertColor = (status: QuotaAlert['alert_type']) => {
     switch (status) {
-      case 'critical': return 'red';
-      case 'warning': return 'severity-high';
-      case 'normal': return 'green';
-      default: return 'grey';
+      case 'critical':
+        return 'red';
+      case 'warning':
+        return 'severity-high';
+      case 'exhausted':
+        return 'red';
+      default:
+        return 'grey';
     }
   };
 
-  if (loading) {
+  const getScopeColor = (scope: QuotaAlert['scope']) => {
+    switch (scope) {
+      case 'company':
+        return 'blue';
+      case 'domain':
+        return 'green';
+      case 'user':
+        return 'grey';
+      default:
+        return 'grey';
+    }
+  };
+
+  if (isLoading) {
     return (
       <ContentLayout header={<Header variant="h1">{t('pages.quota_alerts.title')}</Header>}>
         <Box textAlign="center" padding="xl">
@@ -88,33 +88,43 @@ export default function QuotaAlertsPage() {
         <DataTable
           columnDefinitions={[
             {
-              header: t('pages.quota_alerts_page.tenant'),
-              cell: (item: QuotaAlert) => item.tenant,
+              header: 'Scope',
+              cell: (item: QuotaAlert) => (
+                <Badge color={getScopeColor(item.scope)}>{item.scope}</Badge>
+              ),
               width: '25%',
             },
             {
-              header: t('pages.quota_alerts_page.threshold'),
-              cell: (item: QuotaAlert) => `${item.threshold_percent}%`,
-              width: '15%',
-            },
-            {
-              header: t('pages.quota_alerts_page.current_usage'),
-              cell: (item: QuotaAlert) => `${item.current_percent.toFixed(1)}%`,
-              width: '15%',
-            },
-            {
-              header: t('pages.quota_alerts_page.status'),
+              header: 'Alert Type',
               cell: (item: QuotaAlert) => (
-                <Badge color={getAlertColor(item.alert_status)}>
-                  {item.alert_status}
-                </Badge>
+                <Badge color={getAlertColor(item.alert_type)}>{item.alert_type}</Badge>
               ),
-              width: '20%',
+              width: '15%',
+            },
+            {
+              header: 'Usage',
+              cell: (item: QuotaAlert) => `${(item.usage_ratio * 100).toFixed(1)}%`,
+              width: '12%',
+            },
+            {
+              header: 'Limit',
+              cell: (item: QuotaAlert) => item.quota_limit.toLocaleString(),
+              width: '12%',
             },
             {
               header: t('pages.quota_alerts_page.created'),
               cell: (item: QuotaAlert) => new Date(item.created_at).toLocaleString(),
-              width: '25%',
+              width: '18%',
+            },
+            {
+              header: t('pages.quota_alerts_page.domain_id'),
+              cell: (item: QuotaAlert) => item.domain_id || '—',
+              width: '10%',
+            },
+            {
+              header: t('pages.quota_alerts_page.user_id'),
+              cell: (item: QuotaAlert) => item.user_id || '—',
+              width: '10%',
             },
           ]}
           items={filteredAlerts}
