@@ -1,6 +1,24 @@
 # gogomail current status
 
-Last updated: 2026-05-15 (TASK-083 complete, admin maintainability hardening)
+Last updated: 2026-05-16 (TASK-084 complete, alerts & notifications backend)
+
+## Alerts & Notifications Backend (2026-05-16, TASK-084 complete)
+- `internal/alert/alert.go` defines core alert infrastructure: `AlertType` (storage, login_failures, api_errors), `ChannelType` (email, webhook, dashboard), and data structures for `Config`, `Channel`, `Notification`.
+- `internal/alert/db.go` implements `DBRepository` with PostgreSQL persistence for alert configs, channels, and notifications with full CRUD operations.
+- `internal/alert/evaluator.go` implements `DefaultEvaluator` that evaluates storage usage, login failure counts, and API error rates against configured thresholds, creating notifications when thresholds are exceeded.
+- `migrations/0105_alert_configs_and_channels.sql` creates `alert_configs`, `alert_channels`, and `alert_notifications` tables with proper indexing and audit trails.
+- `internal/httpapi/alerts.go` exposes Admin API endpoints for:
+  - `GET /admin/v1/alerts/configs` - list alert configs for company
+  - `POST /admin/v1/alerts/configs` - create alert config with channels
+  - `GET /admin/v1/alerts/configs/{id}` - retrieve single config
+  - `PUT /admin/v1/alerts/configs/{id}` - update config
+  - `DELETE /admin/v1/alerts/configs/{id}` - delete config
+  - `GET /admin/v1/alerts/notifications` - list recent notifications
+  - `POST /admin/v1/alerts/notifications/{id}/acknowledge` - mark notification as acknowledged
+- All unit tests pass (22 tests for core logic + 1002 httpapi tests).
+- Verification:
+  - `go test ./...` passes with 5961 tests
+  - `go build ./...` succeeds
 
 ## API Settings UI + maintainability hardening (2026-05-15, TASK-083 complete)
 - `apps/console/src/app/companies/[id]/security/api-settings/page.tsx` adds a dedicated API Settings screen with domain selection plus rate limit, CIDR allowlist, and API key requirement controls.
