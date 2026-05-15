@@ -95,3 +95,41 @@ export function useDeleteReportSchedule() {
     },
   });
 }
+
+export interface ReportCsvExportRequest {
+  companyId: string;
+  report: ReportDefLike;
+}
+
+export interface ReportCsvExportResult {
+  blob: Blob;
+  filename: string;
+}
+
+export interface ReportDefLike {
+  id: string;
+  exportEndpoint?: string;
+}
+
+export function useReportCsvExport() {
+  return useMutation({
+    mutationFn: async ({ companyId, report }: ReportCsvExportRequest): Promise<ReportCsvExportResult> => {
+      if (!report.exportEndpoint) {
+        throw new Error('CSV export is not available for this report');
+      }
+
+      const res = await fetch(`/api/admin/companies/${companyId}/${report.exportEndpoint}`, {
+        credentials: 'include',
+      });
+
+      if (!res.ok) {
+        throw new Error(await res.text());
+      }
+
+      return {
+        blob: await res.blob(),
+        filename: `${report.id}-${companyId}.csv`,
+      };
+    },
+  });
+}

@@ -1,7 +1,6 @@
 'use client';
+
 import { DataTable } from '@/components/DataTable';
-
-
 import {
   ContentLayout,
   Header,
@@ -12,52 +11,25 @@ import {
   SpaceBetween,
   Badge,
   StatusIndicator,
+  Button,
 } from '@cloudscape-design/components';
+import { useMemo } from 'react';
 import { useI18n } from '@/app/i18n-provider';
-import { useState, useEffect } from 'react';
-
-interface QueueStat {
-  topic: string;
-  status: string;
-  count: number;
-  ready_count: number;
-  delayed_count: number;
-  stale_processing_count: number;
-  oldest_ready_at?: string;
-  next_available_at?: string;
-}
+import { useAdminQueueStats, type QueueStat } from '@/hooks';
 
 export default function QueueStatsPage() {
   const { t } = useI18n();
-  const [queues, setQueues] = useState<QueueStat[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const queueQuery = useAdminQueueStats(5_000);
+  const queues = queueQuery.data?.queues ?? [];
+  const loading = queueQuery.isLoading;
+  const lastUpdated = queueQuery.dataUpdatedAt ? new Date(queueQuery.dataUpdatedAt) : null;
 
-  useEffect(() => {
-    fetchQueueStats();
-    const interval = setInterval(fetchQueueStats, 5000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const fetchQueueStats = async () => {
-    try {
-      const res = await fetch('/api/admin/queue', { credentials: 'include' });
-      if (res.ok) {
-        const data = await res.json();
-        setQueues(data.queues || []);
-        setLastUpdated(new Date());
-      }
-    } catch (error) {
-      console.error('Failed to fetch queue stats:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const totalCount = queues.reduce((sum, q) => sum + (q.count || 0), 0);
-  const totalReady = queues.reduce((sum, q) => sum + (q.ready_count || 0), 0);
-  const totalDelayed = queues.reduce((sum, q) => sum + (q.delayed_count || 0), 0);
-  const totalStale = queues.reduce((sum, q) => sum + (q.stale_processing_count || 0), 0);
+  const totals = useMemo(() => ({
+    count: queues.reduce((sum, q) => sum + (q.count || 0), 0),
+    ready: queues.reduce((sum, q) => sum + (q.ready_count || 0), 0),
+    delayed: queues.reduce((sum, q) => sum + (q.delayed_count || 0), 0),
+    stale: queues.reduce((sum, q) => sum + (q.stale_processing_count || 0), 0),
+  }), [queues]);
 
   const getStatusIndicator = (q: QueueStat) => {
     if (q.stale_processing_count > 0) return <StatusIndicator type="error">{t('pages.queue_stats_page.stale')}</StatusIndicator>;
@@ -70,6 +42,19 @@ export default function QueueStatsPage() {
     return (
       <ContentLayout header={<Header variant="h1">{t('pages.queue_stats.title')}</Header>}>
         <Box textAlign="center" padding="xl"><Spinner /></Box>
+      </ContentLayout>
+    );
+  }
+
+  if (queueQuery.isError && queues.length === 0) {
+    return (
+      <ContentLayout header={<Header variant="h1">{t('pages.queue_stats.title')}</Header>}>
+        <Box textAlign="center" padding="xl">
+          <SpaceBetween size="m" alignItems="center">
+            <Box color="text-status-error">{t('pages.queue_stats.description')}</Box>
+            <Button iconName="refresh" onClick={() => queueQuery.refetch()}>{t('common.retry')}</Button>
+          </SpaceBetween>
+        </Box>
       </ContentLayout>
     );
   }
@@ -89,21 +74,21 @@ export default function QueueStatsPage() {
       <SpaceBetween size="l">
         <ColumnLayout columns={4}>
           <Container header={<Header variant="h3">{t('pages.queue_stats.total_messages')}</Header>}>
-            <Box fontSize="display-l" fontWeight="bold">{totalCount.toLocaleString()}</Box>
+            <Box fontSize="display-l" fontWeight="bold">{totals.count.toLocaleString()}</Box>
           </Container>
           <Container header={<Header variant="h3">{t('pages.queue_stats.pending')}</Header>}>
-            <Box fontSize="display-l" fontWeight="bold" color={totalReady > 0 ? 'text-status-warning' : 'text-body-secondary'}>
-              {totalReady.toLocaleString()}
+            <Box fontSize="display-l" fontWeight="bold" color={totals.ready > 0 ? 'text-status-warning' : 'text-body-secondary'}>
+              {totals.ready.toLocaleString()}
             </Box>
           </Container>
           <Container header={<Header variant="h3">{t('pages.queue_stats.processing')}</Header>}>
             <Box fontSize="display-l" fontWeight="bold" color="text-status-info">
-              {totalDelayed.toLocaleString()}
+              {totals.delayed.toLocaleString()}
             </Box>
           </Container>
           <Container header={<Header variant="h3">{t('pages.queue_stats.failed')}</Header>}>
-            <Box fontSize="display-l" fontWeight="bold" color={totalStale > 0 ? 'text-status-error' : 'text-body-secondary'}>
-              {totalStale.toLocaleString()}
+            <Box fontSize="display-l" fontWeight="bold" color={totals.stale > 0 ? 'text-status-error' : 'text-body-secondary'}>
+              {totals.stale.toLocaleString()}
             </Box>
           </Container>
         </ColumnLayout>

@@ -1,36 +1,105 @@
 'use client';
-import { DataTable } from '@/components/DataTable';
 
-
+import { useMemo, useState } from 'react';
+import { useParams } from 'next/navigation';
 import {
-  ContentLayout,
-  Header,
-  Button,
-  SpaceBetween,
+  Badge,
   Box,
+  Button,
+  Checkbox,
+  ContentLayout,
+  FormField,
+  Header,
+  Input,
+  Modal,
+  Select,
+  SpaceBetween,
   Spinner,
   TextFilter,
-  Badge,
-  Modal,
-  FormField,
-  Input,
-  Select,
-  Checkbox,
+  Textarea,
+  Container,
 } from '@cloudscape-design/components';
 import type { SelectProps } from '@cloudscape-design/components';
-import { useState, useEffect } from 'react';
-import { useParams } from 'next/navigation';
+import {
+  CreateAlertChannelChannel_type,
+  CreateAlertRuleAlert_type,
+} from '@gogomail/api-types';
+import { DataTable } from '@/components/DataTable';
 import { useI18n } from '@/app/i18n-provider';
+import {
+  type AlertChannel,
+  type AlertChannelCreateRequest,
+  type AlertChannelUpdateRequest,
+  type AlertEvent,
+  type AlertRule,
+  type AlertRuleCreateRequest,
+  type AlertRuleUpdateRequest,
+  useAlertChannels,
+  useAlertEvents,
+  useAlertRules,
+  useCreateAlertChannel,
+  useCreateAlertRule,
+  useDeleteAlertChannel,
+  useDeleteAlertRule,
+  useUpdateAlertChannel,
+  useUpdateAlertRule,
+} from '@/hooks/useAlerts';
 
-interface AlertRule {
-  id: string;
+type RuleForm = {
+  id?: string;
   name: string;
-  alert_type: string;
+  alert_type: CreateAlertRuleAlert_type;
   description: string;
-  threshold: number;
-  check_interval_minutes: number;
+  threshold: string;
+  check_interval_minutes: string;
   is_enabled: boolean;
-  created_at: string;
+};
+
+type ChannelForm = {
+  id?: string;
+  name: string;
+  channel_type: CreateAlertChannelChannel_type;
+  recipients_text: string;
+  url: string;
+  auth_header: string;
+  is_enabled: boolean;
+};
+
+const defaultRuleForm: RuleForm = {
+  name: '',
+  alert_type: CreateAlertRuleAlert_type.storage,
+  description: '',
+  threshold: '0.8',
+  check_interval_minutes: '60',
+  is_enabled: true,
+};
+
+const defaultChannelForm: ChannelForm = {
+  name: '',
+  channel_type: CreateAlertChannelChannel_type.email,
+  recipients_text: '',
+  url: '',
+  auth_header: '',
+  is_enabled: true,
+};
+
+const alertTypeOptions: SelectProps.Option[] = [
+  { label: 'Storage usage', value: 'storage' },
+  { label: 'Login failures', value: 'login_failures' },
+  { label: 'API errors', value: 'api_errors' },
+];
+
+const channelTypeOptions: SelectProps.Option[] = [
+  { label: 'Email', value: 'email' },
+  { label: 'Webhook', value: 'webhook' },
+  { label: 'Dashboard', value: 'dashboard' },
+];
+
+function toRecipients(text: string) {
+  return text
+    .split(',')
+    .map(value => value.trim())
+    .filter(Boolean);
 }
 
 export default function AlertRulesPage() {
@@ -38,110 +107,163 @@ export default function AlertRulesPage() {
   const params = useParams();
   const companyId = params?.id as string;
 
-  const [rules, setRules] = useState<AlertRule[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState('');
+  const { data: rules = [], isLoading: loadingRules } = useAlertRules(companyId);
+  const { data: channels = [], isLoading: loadingChannels } = useAlertChannels(companyId);
+  const { data: events = [], isLoading: loadingEvents } = useAlertEvents(companyId);
+  const createRule = useCreateAlertRule();
+  const updateRule = useUpdateAlertRule();
+  const deleteRule = useDeleteAlertRule();
+  const createChannel = useCreateAlertChannel();
+  const updateChannel = useUpdateAlertChannel();
+  const deleteChannel = useDeleteAlertChannel();
 
-  const [showCreateModal, setShowCreateModal] = useState(false);
-  const [creating, setCreating] = useState(false);
-  const [newRule, setNewRule] = useState({
-    name: '',
-    alert_type: 'bounce_rate',
-    description: '',
-    threshold: '0.05',
-    check_interval_minutes: '60',
-    is_enabled: true,
-  });
+  const [ruleFilter, setRuleFilter] = useState('');
+  const [channelFilter, setChannelFilter] = useState('');
+  const [showRuleModal, setShowRuleModal] = useState(false);
+  const [showChannelModal, setShowChannelModal] = useState(false);
+  const [ruleForm, setRuleForm] = useState<RuleForm>(defaultRuleForm);
+  const [channelForm, setChannelForm] = useState<ChannelForm>(defaultChannelForm);
+  const [deletingRuleId, setDeletingRuleId] = useState<string | null>(null);
+  const [deletingChannelId, setDeletingChannelId] = useState<string | null>(null);
 
-  const [deletingId, setDeletingId] = useState<string | null>(null);
-
-  const alertTypeOptions: SelectProps.Option[] = [
-    { label: t('pages.alerts_page.type_bounce_rate'), value: 'bounce_rate' },
-    { label: t('pages.alerts_page.type_delivery_failure'), value: 'delivery_failure' },
-    { label: t('pages.alerts_page.type_quota_usage'), value: 'quota_usage' },
-    { label: t('pages.alerts_page.type_spam_score'), value: 'spam_score' },
-    { label: t('pages.alerts_page.type_queue_size'), value: 'queue_size' },
-  ];
-
-  useEffect(() => {
-    fetchAlertRules();
-  }, [companyId]);
-
-  const fetchAlertRules = async () => {
-    if (!companyId) return;
-    setLoading(true);
-    try {
-      const res = await fetch(`/api/admin/companies/${companyId}/alert-rules`, {
-        credentials: 'include',
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setRules(data.rules || []);
-      }
-    } catch (error) {
-      console.error('Failed to fetch alert rules:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleCreate = async () => {
-    if (!newRule.name.trim()) return;
-    setCreating(true);
-    try {
-      const res = await fetch(`/api/admin/companies/${companyId}/alert-rules`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: newRule.name,
-          alert_type: newRule.alert_type,
-          description: newRule.description,
-          threshold: parseFloat(newRule.threshold) || 0,
-          check_interval_minutes: parseInt(newRule.check_interval_minutes) || 60,
-          is_enabled: newRule.is_enabled,
-          created_by: 'admin',
-        }),
-        credentials: 'include',
-      });
-      if (res.ok) {
-        setShowCreateModal(false);
-        setNewRule({
-          name: '',
-          alert_type: 'bounce_rate',
-          description: '',
-          threshold: '0.05',
-          check_interval_minutes: '60',
-          is_enabled: true,
-        });
-        fetchAlertRules();
-      }
-    } catch (error) {
-      console.error('Failed to create alert rule:', error);
-    } finally {
-      setCreating(false);
-    }
-  };
-
-  const handleDelete = async (rule: AlertRule) => {
-    setDeletingId(rule.id);
-    try {
-      await fetch(`/api/admin/alert-rules/${rule.id}`, {
-        method: 'DELETE',
-        credentials: 'include',
-      });
-      fetchAlertRules();
-    } catch (error) {
-      console.error('Failed to delete alert rule:', error);
-    } finally {
-      setDeletingId(null);
-    }
-  };
-
-  const selectedAlertType = alertTypeOptions.find(o => o.value === newRule.alert_type) ?? alertTypeOptions[0];
-
-  const filteredRules = rules.filter(r =>
-    r.name.toLowerCase().includes(filter.toLowerCase())
+  const filteredRules = useMemo(
+    () => rules.filter(rule => rule.name.toLowerCase().includes(ruleFilter.toLowerCase())),
+    [ruleFilter, rules]
   );
+
+  const filteredChannels = useMemo(
+    () => channels.filter(channel => channel.name.toLowerCase().includes(channelFilter.toLowerCase())),
+    [channelFilter, channels]
+  );
+
+  const openEvents = events.filter(event => !event.resolved_at);
+  const recentEvents = events.slice(0, 10);
+  const loading = loadingRules || loadingChannels || loadingEvents;
+
+  const openRuleCreate = () => {
+    setRuleForm(defaultRuleForm);
+    setShowRuleModal(true);
+  };
+
+  const openRuleEdit = (rule: AlertRule) => {
+    setRuleForm({
+      id: rule.id,
+      name: rule.name,
+      alert_type: rule.alert_type as unknown as CreateAlertRuleAlert_type,
+      description: rule.description ?? '',
+      threshold: String(rule.threshold),
+      check_interval_minutes: String(rule.check_interval_minutes),
+      is_enabled: rule.is_enabled,
+    });
+    setShowRuleModal(true);
+  };
+
+  const openChannelCreate = () => {
+    setChannelForm(defaultChannelForm);
+    setShowChannelModal(true);
+  };
+
+  const openChannelEdit = (channel: AlertChannel) => {
+    setChannelForm({
+      id: channel.id,
+      name: channel.name,
+      channel_type: channel.channel_type as unknown as CreateAlertChannelChannel_type,
+      recipients_text: channel.config.recipients?.join(', ') ?? '',
+      url: channel.config.url ?? '',
+      auth_header: channel.config.auth_header ?? '',
+      is_enabled: channel.is_enabled,
+    });
+    setShowChannelModal(true);
+  };
+
+  const saveRule = async () => {
+    const payload: AlertRuleCreateRequest = {
+      name: ruleForm.name.trim(),
+      alert_type: ruleForm.alert_type,
+      description: ruleForm.description.trim() || undefined,
+      threshold: Number(ruleForm.threshold) || 0,
+      check_interval_minutes: Number(ruleForm.check_interval_minutes) || 60,
+      is_enabled: ruleForm.is_enabled,
+    };
+
+    if (!companyId || !ruleForm.name.trim()) return;
+
+    if (ruleForm.id) {
+      await updateRule.mutateAsync({
+        companyId,
+        ruleId: ruleForm.id,
+        data: payload as unknown as AlertRuleUpdateRequest,
+      });
+    } else {
+      await createRule.mutateAsync({
+        companyId,
+        data: payload,
+      });
+    }
+
+    setShowRuleModal(false);
+  };
+
+  const saveChannel = async () => {
+    if (!companyId || !channelForm.name.trim()) return;
+
+    if (channelForm.id) {
+      await updateChannel.mutateAsync({
+        companyId,
+        channelId: channelForm.id,
+        data: {
+          name: channelForm.name.trim(),
+          is_enabled: channelForm.is_enabled,
+        } as AlertChannelUpdateRequest,
+      });
+    } else {
+      const config: AlertChannelCreateRequest['config'] = {};
+      if (channelForm.channel_type === 'email') {
+        config.recipients = toRecipients(channelForm.recipients_text);
+      }
+      if (channelForm.channel_type === 'webhook') {
+        if (channelForm.url.trim()) config.url = channelForm.url.trim();
+        if (channelForm.auth_header.trim()) config.auth_header = channelForm.auth_header.trim();
+      }
+
+      await createChannel.mutateAsync({
+        companyId,
+        data: {
+          name: channelForm.name.trim(),
+          channel_type: channelForm.channel_type,
+          config,
+          is_enabled: channelForm.is_enabled,
+        } as AlertChannelCreateRequest,
+      });
+    }
+
+    setShowChannelModal(false);
+  };
+
+  const removeRule = async (rule: AlertRule) => {
+    if (!companyId || !window.confirm(`Delete rule "${rule.name}"?`)) return;
+    setDeletingRuleId(rule.id);
+    try {
+      await deleteRule.mutateAsync({ companyId, ruleId: rule.id });
+    } finally {
+      setDeletingRuleId(null);
+    }
+  };
+
+  const removeChannel = async (channel: AlertChannel) => {
+    if (!companyId || !window.confirm(`Delete channel "${channel.name}"?`)) return;
+    setDeletingChannelId(channel.id);
+    try {
+      await deleteChannel.mutateAsync({ companyId, channelId: channel.id });
+    } finally {
+      setDeletingChannelId(null);
+    }
+  };
+
+  const ruleTypeOption =
+    alertTypeOptions.find(option => option.value === ruleForm.alert_type) ?? alertTypeOptions[0];
+  const channelTypeOption =
+    channelTypeOptions.find(option => option.value === channelForm.channel_type) ?? channelTypeOptions[0];
 
   if (loading) {
     return (
@@ -158,11 +280,14 @@ export default function AlertRulesPage() {
       header={
         <Header
           variant="h1"
-          description={t('pages.alerts_page.description')}
+          description="Rules, channels, and recent events for this company."
           actions={
-            <Button variant="primary" onClick={() => setShowCreateModal(true)}>
-              {t('pages.alerts_page.create_alert_btn')}
-            </Button>
+            <SpaceBetween direction="horizontal" size="xs">
+              <Button onClick={openChannelCreate}>New channel</Button>
+              <Button variant="primary" onClick={openRuleCreate}>
+                {t('pages.alerts_page.create_alert_btn')}
+              </Button>
+            </SpaceBetween>
           }
         >
           {t('pages.alerts_page.title')}
@@ -170,18 +295,33 @@ export default function AlertRulesPage() {
       }
     >
       <SpaceBetween size="l">
+        <Container header={<Header variant="h3">Summary</Header>}>
+          <SpaceBetween direction="horizontal" size="l">
+            <Box>
+              <Box color="text-body-secondary" fontSize="body-s">Enabled rules</Box>
+              <Box fontSize="heading-m">{rules.filter(rule => rule.is_enabled).length}</Box>
+            </Box>
+            <Box>
+              <Box color="text-body-secondary" fontSize="body-s">Channels</Box>
+              <Box fontSize="heading-m">{channels.length}</Box>
+            </Box>
+            <Box>
+              <Box color="text-body-secondary" fontSize="body-s">Open events</Box>
+              <Box fontSize="heading-m">{openEvents.length}</Box>
+            </Box>
+          </SpaceBetween>
+        </Container>
+
         <DataTable
           columnDefinitions={[
             {
               header: t('pages.alerts_page.name'),
               cell: (item: AlertRule) => item.name,
-              width: '20%',
+              width: '18%',
             },
             {
               header: t('pages.alerts_page.alert_type'),
-              cell: (item: AlertRule) => (
-                <Badge color="blue">{item.alert_type}</Badge>
-              ),
+              cell: (item: AlertRule) => <Badge color="blue">{item.alert_type}</Badge>,
               width: '15%',
             },
             {
@@ -192,7 +332,7 @@ export default function AlertRulesPage() {
             {
               header: t('pages.alerts_page.interval'),
               cell: (item: AlertRule) => `${item.check_interval_minutes} min`,
-              width: '12%',
+              width: '10%',
             },
             {
               header: t('pages.alerts_page.enabled'),
@@ -201,25 +341,30 @@ export default function AlertRulesPage() {
                   {item.is_enabled ? t('pages.alerts_page.enabled_label') : t('pages.alerts_page.disabled_label')}
                 </Badge>
               ),
-              width: '12%',
+              width: '10%',
             },
             {
               header: t('pages.alerts_page.created'),
-              cell: (item: AlertRule) => new Date(item.created_at).toLocaleDateString(),
+              cell: (item: AlertRule) => new Date(item.created_at).toLocaleString(),
               width: '15%',
             },
             {
-              header: t('pages.alerts_page.actions'),
+              header: t('common.actions'),
               cell: (item: AlertRule) => (
-                <Button
-                  variant="inline-link"
-                  onClick={() => handleDelete(item)}
-                  loading={deletingId === item.id}
-                >
-                  {t('common.delete')}
-                </Button>
+                <SpaceBetween direction="horizontal" size="xs">
+                  <Button variant="inline-link" onClick={() => openRuleEdit(item)}>
+                    Edit
+                  </Button>
+                  <Button
+                    variant="inline-link"
+                    onClick={() => removeRule(item)}
+                    loading={deletingRuleId === item.id}
+                  >
+                    {t('common.delete')}
+                  </Button>
+                </SpaceBetween>
               ),
-              width: '16%',
+              width: '20%',
             },
           ]}
           items={filteredRules}
@@ -230,35 +375,141 @@ export default function AlertRulesPage() {
           }
           filter={
             <TextFilter
-              filteringText={filter}
+              filteringText={ruleFilter}
               filteringPlaceholder={t('common.search')}
-              onChange={(e) => setFilter(e.detail.filteringText)}
+              onChange={(e) => setRuleFilter(e.detail.filteringText)}
             />
           }
-          empty={
-            <Box textAlign="center" padding="l">
-              {t('pages.alerts_page.no_rules')}
-            </Box>
+          empty={<Box textAlign="center" padding="l">No rules found</Box>}
+        />
+
+        <DataTable
+          columnDefinitions={[
+            {
+              header: 'Name',
+              cell: (item: AlertChannel) => item.name,
+              width: '20%',
+            },
+            {
+              header: 'Type',
+              cell: (item: AlertChannel) => <Badge color="blue">{item.channel_type}</Badge>,
+              width: '12%',
+            },
+            {
+              header: 'Config',
+              cell: (item: AlertChannel) => {
+                if (item.channel_type === 'email') return item.config.recipients?.join(', ') || '—';
+                if (item.channel_type === 'webhook') return item.config.url || '—';
+                return 'Dashboard only';
+              },
+              width: '28%',
+            },
+            {
+              header: 'Status',
+              cell: (item: AlertChannel) => (
+                <Badge color={item.is_enabled ? 'green' : 'grey'}>
+                  {item.is_enabled ? 'Enabled' : 'Disabled'}
+                </Badge>
+              ),
+              width: '10%',
+            },
+            {
+              header: t('common.actions'),
+              cell: (item: AlertChannel) => (
+                <SpaceBetween direction="horizontal" size="xs">
+                  <Button variant="inline-link" onClick={() => openChannelEdit(item)}>
+                    Edit
+                  </Button>
+                  <Button
+                    variant="inline-link"
+                    onClick={() => removeChannel(item)}
+                    loading={deletingChannelId === item.id}
+                  >
+                    {t('common.delete')}
+                  </Button>
+                </SpaceBetween>
+              ),
+              width: '20%',
+            },
+          ]}
+          items={filteredChannels}
+          header={
+            <Header variant="h2" counter={`(${filteredChannels.length})`}>
+              Channels
+            </Header>
           }
+          filter={
+            <TextFilter
+              filteringText={channelFilter}
+              filteringPlaceholder={t('common.search')}
+              onChange={(e) => setChannelFilter(e.detail.filteringText)}
+            />
+          }
+          empty={<Box textAlign="center" padding="l">No channels yet</Box>}
+        />
+
+        <DataTable
+          columnDefinitions={[
+            {
+              header: 'Rule',
+              cell: (item: AlertEvent) => item.alert_rule_id,
+              width: '18%',
+            },
+            {
+              header: 'Current',
+              cell: (item: AlertEvent) => item.current_value,
+              width: '10%',
+            },
+            {
+              header: 'Threshold',
+              cell: (item: AlertEvent) => item.threshold,
+              width: '10%',
+            },
+            {
+              header: 'Message',
+              cell: (item: AlertEvent) => item.message || '—',
+              width: '34%',
+            },
+            {
+              header: 'Status',
+              cell: (item: AlertEvent) => (
+                <Badge color={item.resolved_at ? 'green' : 'red'}>
+                  {item.resolved_at ? 'Resolved' : 'Open'}
+                </Badge>
+              ),
+              width: '12%',
+            },
+            {
+              header: 'Triggered',
+              cell: (item: AlertEvent) => new Date(item.triggered_at).toLocaleString(),
+              width: '16%',
+            },
+          ]}
+          items={recentEvents}
+          header={
+            <Header variant="h2" counter={`(${recentEvents.length})`}>
+              Recent events
+            </Header>
+          }
+          empty={<Box textAlign="center" padding="l">No recent events</Box>}
         />
       </SpaceBetween>
 
       <Modal
-        onDismiss={() => setShowCreateModal(false)}
-        visible={showCreateModal}
-        size="medium"
-        header={t('pages.alerts_page.create_modal_title')}
+        onDismiss={() => setShowRuleModal(false)}
+        visible={showRuleModal}
+        header={ruleForm.id ? 'Edit rule' : t('pages.alerts_page.create_modal_title')}
         footer={
           <Box float="right">
             <SpaceBetween direction="horizontal" size="xs">
-              <Button onClick={() => setShowCreateModal(false)}>{t('common.cancel')}</Button>
+              <Button onClick={() => setShowRuleModal(false)}>{t('common.cancel')}</Button>
               <Button
                 variant="primary"
-                onClick={handleCreate}
-                loading={creating}
-                disabled={!newRule.name.trim()}
+                onClick={saveRule}
+                loading={createRule.isPending || updateRule.isPending}
+                disabled={!ruleForm.name.trim()}
               >
-                {t('pages.alerts_page.create_btn')}
+                {ruleForm.id ? t('common.save') : t('pages.alerts_page.create_btn')}
               </Button>
             </SpaceBetween>
           </Box>
@@ -267,52 +518,126 @@ export default function AlertRulesPage() {
         <SpaceBetween size="m">
           <FormField label={t('pages.alerts_page.name_label')}>
             <Input
-              value={newRule.name}
-              onChange={(e) => setNewRule({ ...newRule, name: e.detail.value })}
-              placeholder={t('pages.alerts_page.name_placeholder')}
+              value={ruleForm.name}
+              onChange={(e) => setRuleForm({ ...ruleForm, name: e.detail.value })}
             />
           </FormField>
           <FormField label={t('pages.alerts_page.alert_type_label')}>
             <Select
-              selectedOption={selectedAlertType}
+              selectedOption={ruleTypeOption}
               options={alertTypeOptions}
               onChange={(e: { detail: SelectProps.ChangeDetail }) =>
-                setNewRule({ ...newRule, alert_type: e.detail.selectedOption.value ?? 'bounce_rate' })
+                setRuleForm({ ...ruleForm, alert_type: e.detail.selectedOption.value as CreateAlertRuleAlert_type })
               }
               expandToViewport
             />
           </FormField>
           <FormField label={t('pages.alerts_page.description_label')}>
             <Input
-              value={newRule.description}
-              onChange={(e) => setNewRule({ ...newRule, description: e.detail.value })}
-              placeholder={t('pages.alerts_page.description_placeholder')}
+              value={ruleForm.description}
+              onChange={(e) => setRuleForm({ ...ruleForm, description: e.detail.value })}
             />
           </FormField>
           <FormField label={t('pages.alerts_page.threshold_label')}>
             <Input
               type="number"
-              value={newRule.threshold}
-              onChange={(e) => setNewRule({ ...newRule, threshold: e.detail.value })}
-              placeholder="0.05"
+              value={ruleForm.threshold}
+              onChange={(e) => setRuleForm({ ...ruleForm, threshold: e.detail.value })}
             />
           </FormField>
           <FormField label={t('pages.alerts_page.interval_label')}>
             <Input
               type="number"
-              value={newRule.check_interval_minutes}
-              onChange={(e) => setNewRule({ ...newRule, check_interval_minutes: e.detail.value })}
-              placeholder="60"
+              value={ruleForm.check_interval_minutes}
+              onChange={(e) => setRuleForm({ ...ruleForm, check_interval_minutes: e.detail.value })}
             />
           </FormField>
-          <FormField label={t('pages.alerts_page.enabled_label')}>
-            <Checkbox
-              checked={newRule.is_enabled}
-              onChange={(e) => setNewRule({ ...newRule, is_enabled: e.detail.checked })}
-            >
-              {t('pages.alerts_page.enabled_checkbox_label')}
-            </Checkbox>
+          <Checkbox
+            checked={ruleForm.is_enabled}
+            onChange={(e) => setRuleForm({ ...ruleForm, is_enabled: e.detail.checked })}
+          >
+            {t('pages.alerts_page.enabled_checkbox_label')}
+          </Checkbox>
+        </SpaceBetween>
+      </Modal>
+
+      <Modal
+        onDismiss={() => setShowChannelModal(false)}
+        visible={showChannelModal}
+        header={channelForm.id ? 'Edit channel' : 'Create channel'}
+        footer={
+          <Box float="right">
+            <SpaceBetween direction="horizontal" size="xs">
+              <Button onClick={() => setShowChannelModal(false)}>{t('common.cancel')}</Button>
+              <Button
+                variant="primary"
+                onClick={saveChannel}
+                loading={createChannel.isPending || updateChannel.isPending}
+                disabled={!channelForm.name.trim()}
+              >
+                {channelForm.id ? t('common.save') : t('common.create')}
+              </Button>
+            </SpaceBetween>
+          </Box>
+        }
+      >
+        <SpaceBetween size="m">
+          <FormField label="Name">
+            <Input
+              value={channelForm.name}
+              onChange={(e) => setChannelForm({ ...channelForm, name: e.detail.value })}
+            />
           </FormField>
+          <FormField label="Channel type">
+            <Select
+              selectedOption={channelTypeOption}
+              options={channelTypeOptions}
+              onChange={(e: { detail: SelectProps.ChangeDetail }) =>
+                setChannelForm({
+                  ...channelForm,
+                  channel_type: e.detail.selectedOption.value as CreateAlertChannelChannel_type,
+                })
+              }
+              expandToViewport
+              disabled={!!channelForm.id}
+            />
+          </FormField>
+          {channelForm.id ? (
+            <Box color="text-body-secondary">Config is read-only after creation.</Box>
+          ) : channelForm.channel_type === 'email' ? (
+            <FormField label="Recipients">
+              <Textarea
+                value={channelForm.recipients_text}
+                onChange={({ detail }) => setChannelForm({ ...channelForm, recipients_text: detail.value })}
+                rows={3}
+              />
+            </FormField>
+          ) : channelForm.channel_type === 'webhook' ? (
+            <>
+              <FormField label="Webhook URL">
+                <Input
+                  value={channelForm.url}
+                  onChange={(e) => setChannelForm({ ...channelForm, url: e.detail.value })}
+                  placeholder="https://example.com/webhook"
+                />
+              </FormField>
+              <FormField label="Auth header">
+                <Input
+                  value={channelForm.auth_header}
+                  onChange={(e) => setChannelForm({ ...channelForm, auth_header: e.detail.value })}
+                  placeholder="Authorization: Bearer ..."
+                />
+              </FormField>
+            </>
+          ) : (
+            <Box color="text-body-secondary">Dashboard channels need no extra config.</Box>
+          )}
+          <Checkbox
+            checked={channelForm.is_enabled}
+            onChange={(e) => setChannelForm({ ...channelForm, is_enabled: e.detail.checked })}
+          >
+            Enabled
+          </Checkbox>
         </SpaceBetween>
       </Modal>
     </ContentLayout>

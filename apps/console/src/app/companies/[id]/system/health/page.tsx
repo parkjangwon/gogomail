@@ -1,7 +1,6 @@
 'use client';
+
 import { DataTable } from '@/components/DataTable';
-
-
 import {
   ContentLayout,
   Header,
@@ -14,31 +13,13 @@ import {
   Button,
   StatusIndicator,
 } from '@cloudscape-design/components';
-import { useState, useEffect, useCallback } from 'react';
+import { useCallback } from 'react';
 import { useI18n } from '@/app/i18n-provider';
+import { useAdminHealth, useAdminQueueStats, type AdminHealthCheck, type QueueStat } from '@/hooks';
 
-interface HealthCheck {
-  service: string;
-  status: 'healthy' | 'degraded' | 'unhealthy';
-  response_time_ms: number;
-  last_check: string;
-}
+const statusBadgeColor = (s: string) => (s === 'healthy' ? 'green' : s === 'degraded' ? 'severity-high' : 'red');
 
-interface QueueStat {
-  topic: string;
-  status: string;
-  count: number;
-  ready_count: number;
-  delayed_count: number;
-  stale_processing_count: number;
-  oldest_ready_at?: string;
-}
-
-const statusBadgeColor = (s: string) =>
-  s === 'healthy' ? 'green' : s === 'degraded' ? 'severity-high' : 'red';
-
-const latencyColor = (ms: number) =>
-  ms < 50 ? 'text-status-success' : ms < 200 ? 'text-status-warning' : 'text-status-error';
+const latencyColor = (ms: number) => (ms < 50 ? 'text-status-success' : ms < 200 ? 'text-status-warning' : 'text-status-error');
 
 const statusLabel = (status: string, t: (key: string, defaultValue?: string) => string) => {
   switch (status) {
@@ -55,53 +36,31 @@ const statusLabel = (status: string, t: (key: string, defaultValue?: string) => 
 
 export default function APIHealthPage() {
   const { t } = useI18n();
-  const [checks, setChecks] = useState<HealthCheck[]>([]);
-  const [queues, setQueues] = useState<QueueStat[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [fetchError, setFetchError] = useState(false);
-  const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
+  const healthQuery = useAdminHealth(15_000);
+  const queueQuery = useAdminQueueStats(15_000);
+
+  const checks = healthQuery.data?.checks ?? [];
+  const queues = queueQuery.data?.queues ?? [];
+  const loading = healthQuery.isLoading || queueQuery.isLoading;
+  const fetchError = (healthQuery.isError || queueQuery.isError) && checks.length === 0 && queues.length === 0;
+  const lastRefreshed = Math.max(healthQuery.dataUpdatedAt, queueQuery.dataUpdatedAt)
+    ? new Date(Math.max(healthQuery.dataUpdatedAt, queueQuery.dataUpdatedAt))
+    : null;
 
   const fetchAll = useCallback(async () => {
-    setFetchError(false);
-    try {
-      const [healthRes, queueRes] = await Promise.all([
-        fetch('/api/admin/health', { credentials: 'include' }),
-        fetch('/api/admin/queue', { credentials: 'include' }),
-      ]);
-      if (healthRes.ok) {
-        const data = await healthRes.json();
-        setChecks(data.checks || []);
-      } else {
-        setFetchError(true);
-      }
-      if (queueRes.ok) {
-        const data = await queueRes.json();
-        setQueues(data.queues || []);
-      }
-      setLastRefreshed(new Date());
-    } catch {
-      setFetchError(true);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchAll();
-    const interval = setInterval(fetchAll, 15_000);
-    return () => clearInterval(interval);
-  }, [fetchAll]);
+    await Promise.all([healthQuery.refetch(), queueQuery.refetch()]);
+  }, [healthQuery, queueQuery]);
 
   const overallStatus = checks.every(c => c.status === 'healthy')
     ? 'healthy'
     : checks.some(c => c.status === 'unhealthy')
-    ? 'unhealthy'
-    : 'degraded';
+      ? 'unhealthy'
+      : 'degraded';
 
   const totalQueued = queues.reduce((s, q) => s + q.count, 0);
   const totalReady = queues.reduce((s, q) => s + q.ready_count, 0);
   const totalStale = queues.reduce((s, q) => s + q.stale_processing_count, 0);
-  const maxLatency = checks.length > 0 ? Math.max(...checks.map(c => c.response_time_ms)) : 0;
+  const maxLatency = checks.length > 0 ? Math.max(...checks.map(c => c.response_time_ms ?? 0)) : 0;
 
   if (loading) {
     return (
@@ -111,7 +70,7 @@ export default function APIHealthPage() {
     );
   }
 
-  if (fetchError && checks.length === 0) {
+  if (fetchError) {
     return (
       <ContentLayout header={<Header variant="h1">{t('pages.api_health.title')}</Header>}>
         <Box textAlign="center" padding="xl">
@@ -146,7 +105,6 @@ export default function APIHealthPage() {
       }
     >
       <SpaceBetween size="l">
-        {/* KPI Summary */}
         <ColumnLayout columns={4} variant="text-grid" minColumnWidth={140}>
           <Container>
             <SpaceBetween size="xs">
@@ -186,31 +144,30 @@ export default function APIHealthPage() {
           </Container>
         </ColumnLayout>
 
-        {/* Service Health */}
         <DataTable
           columnDefinitions={[
             {
               header: t('pages.health_page.service'),
-              cell: (item: HealthCheck) => item.service,
+              cell: (item: AdminHealthCheck) => item.service ?? '—',
               width: '25%',
             },
             {
               header: t('pages.api_health.status'),
-              cell: (item: HealthCheck) => (
-                <Badge color={statusBadgeColor(item.status)}>{statusLabel(item.status, t)}</Badge>
+              cell: (item: AdminHealthCheck) => (
+                <Badge color={statusBadgeColor(item.status ?? 'unhealthy')}>{statusLabel(item.status ?? 'unhealthy', t)}</Badge>
               ),
               width: '20%',
             },
             {
               header: t('pages.health_page.response_time_ms'),
-              cell: (item: HealthCheck) => (
-                <Box color={latencyColor(item.response_time_ms)}>{item.response_time_ms} ms</Box>
+              cell: (item: AdminHealthCheck) => (
+                <Box color={latencyColor(item.response_time_ms ?? 0)}>{item.response_time_ms ?? 0} ms</Box>
               ),
               width: '20%',
             },
             {
               header: t('pages.health_page.last_check'),
-              cell: (item: HealthCheck) => new Date(item.last_check).toLocaleString(),
+              cell: (item: AdminHealthCheck) => new Date(item.last_check ?? Date.now()).toLocaleString(),
               width: '35%',
             },
           ]}
@@ -219,20 +176,11 @@ export default function APIHealthPage() {
           empty={<Box textAlign="center" padding="l" color="text-body-secondary">{t('pages.api_health.no_health_data')}</Box>}
         />
 
-        {/* Queue Stats */}
         {queues.length > 0 && (
           <DataTable
             columnDefinitions={[
-              {
-                header: t('pages.api_health.topic'),
-                cell: (q: QueueStat) => <Box fontWeight="bold">{q.topic}</Box>,
-                width: '28%',
-              },
-              {
-                header: t('pages.api_health.total'),
-                cell: (q: QueueStat) => q.count,
-                width: '12%',
-              },
+              { header: t('pages.api_health.topic'), cell: (q: QueueStat) => <Box fontWeight="bold">{q.topic}</Box>, width: '28%' },
+              { header: t('pages.api_health.total'), cell: (q: QueueStat) => q.count, width: '12%' },
               {
                 header: t('pages.api_health.ready'),
                 cell: (q: QueueStat) => (
@@ -240,11 +188,7 @@ export default function APIHealthPage() {
                 ),
                 width: '12%',
               },
-              {
-                header: t('pages.api_health.delayed'),
-                cell: (q: QueueStat) => q.delayed_count,
-                width: '12%',
-              },
+              { header: t('pages.api_health.delayed'), cell: (q: QueueStat) => q.delayed_count, width: '12%' },
               {
                 header: t('pages.api_health.stale'),
                 cell: (q: QueueStat) => (
@@ -256,9 +200,7 @@ export default function APIHealthPage() {
               },
               {
                 header: t('pages.api_health.oldest_ready'),
-                cell: (q: QueueStat) => q.oldest_ready_at
-                  ? new Date(q.oldest_ready_at).toLocaleTimeString()
-                  : '—',
+                cell: (q: QueueStat) => q.oldest_ready_at ? new Date(q.oldest_ready_at).toLocaleTimeString() : '—',
                 width: '24%',
               },
             ]}

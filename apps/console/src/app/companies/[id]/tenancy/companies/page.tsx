@@ -11,52 +11,30 @@ import {
   Spinner,
   TextFilter,
   Pagination,
-  Modal,
-  FormField,
-  Input,
   Badge,
   StatusIndicator,
-  ColumnLayout,
-  Container,
-  KeyValuePairs,
   Alert,
   ProgressBar,
-  Tabs,
 } from '@cloudscape-design/components';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useI18n } from '@/app/i18n-provider';
 import { useParams } from 'next/navigation';
-
-interface Company {
-  id: string;
-  name: string;
-  status: string;
-  quota_used: number;
-  quota_limit: number;
-  quota_remaining: number;
-  allocated_domain_quota: number;
-  allocatable_domain_quota: number;
-  over_allocated: boolean;
-  created_at: string;
-}
-
-interface DomainSummary {
-  id: string;
-  name: string;
-  status: string;
-  last_dns_check_status: string;
-  created_at: string;
-}
+import { useCompanies, useCreateCompany, useUpdateCompany, useDeleteCompany, useDomains, type Company } from '@/hooks';
+import { CompanyManagementModals } from './company-management-modals';
+import { CompanyDetailModal } from './company-detail-modal';
 
 export default function CompaniesPage() {
   const { t } = useI18n();
   const router = useRouter();
   const params = useParams();
   const cid = params?.id as string;
-
-  const [companies, setCompanies] = useState<Company[]>([]);
-  const [loading, setLoading] = useState(true);
+  const companiesQuery = useCompanies(200);
+  const createCompany = useCreateCompany();
+  const updateCompany = useUpdateCompany();
+  const deleteCompany = useDeleteCompany();
+  const companies = companiesQuery.data ?? [];
+  const loading = companiesQuery.isLoading;
   const [filter, setFilter] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
 
@@ -65,11 +43,11 @@ export default function CompaniesPage() {
   const [creating, setCreating] = useState(false);
   const [createdCompany, setCreatedCompany] = useState<Company | null>(null);
   const [showPostCreateGuide, setShowPostCreateGuide] = useState(false);
-
   const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
-  const [companyDomains, setCompanyDomains] = useState<DomainSummary[]>([]);
-  const [loadingDomains, setLoadingDomains] = useState(false);
+  const domainsQuery = useDomains(selectedCompany?.id);
+  const companyDomains = domainsQuery.data ?? [];
+  const loadingDomains = domainsQuery.isLoading;
 
   // Edit modal
   const [editTarget, setEditTarget] = useState<Company | null>(null);
@@ -84,61 +62,23 @@ export default function CompaniesPage() {
 
   const itemsPerPage = 20;
 
-  useEffect(() => { fetchCompanies(); }, []);
-
-  const fetchCompanies = async () => {
-    setLoading(true);
-    try {
-      const res = await fetch('/api/admin/companies?limit=200', { credentials: 'include' });
-      if (res.ok) {
-        const data = await res.json();
-        setCompanies(data.companies || []);
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchCompanyDomains = async (companyId: string) => {
-    setLoadingDomains(true);
-    try {
-      const res = await fetch(`/api/admin/domains?company_id=${companyId}&limit=100`, { credentials: 'include' });
-      if (res.ok) {
-        const data = await res.json();
-        setCompanyDomains(data.domains || []);
-      }
-    } finally {
-      setLoadingDomains(false);
-    }
-  };
-
   const handleViewCompany = (company: Company) => {
     setSelectedCompany(company);
     setShowDetailModal(true);
-    fetchCompanyDomains(company.id);
   };
 
   const handleCreateCompany = async () => {
     if (!newCompany.name.trim()) return;
     setCreating(true);
     try {
-      const res = await fetch('/api/admin/companies', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: newCompany.name,
-          quota_limit: newCompany.quota_gb ? parseInt(newCompany.quota_gb) * 1073741824 : 0,
-        }),
-        credentials: 'include',
+      const company = await createCompany.mutateAsync({
+        name: newCompany.name,
+        quota_limit: newCompany.quota_gb ? parseInt(newCompany.quota_gb) * 1073741824 : 0,
       });
-      if (res.ok) {
-        const data = await res.json();
-        setCreatedCompany(data.company);
-        setShowCreateModal(false);
-        setNewCompany({ name: '', quota_gb: '' });
-        setShowPostCreateGuide(true);
-        fetchCompanies();
-      }
+      setCreatedCompany(company.company ?? null);
+      setShowCreateModal(false);
+      setNewCompany({ name: '', quota_gb: '' });
+      setShowPostCreateGuide(true);
     } finally {
       setCreating(false);
     }
@@ -148,7 +88,7 @@ export default function CompaniesPage() {
     setEditTarget(c);
     setEditForm({
       name: c.name,
-      quota_gb: c.quota_limit > 0 ? String(Math.round(c.quota_limit / 1073741824)) : '',
+      quota_gb: (c.quota_limit ?? 0) > 0 ? String(Math.round((c.quota_limit ?? 0) / 1073741824)) : '',
     });
     setSaveError('');
   }, []);
@@ -158,22 +98,14 @@ export default function CompaniesPage() {
     setSaving(true);
     setSaveError('');
     try {
-      const res = await fetch(`/api/admin/companies/${editTarget.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      await updateCompany.mutateAsync({
+        companyId: editTarget.id,
+        data: {
           name: editForm.name.trim(),
           quota_limit: editForm.quota_gb ? parseInt(editForm.quota_gb) * 1073741824 : 0,
-        }),
-        credentials: 'include',
+        },
       });
-      if (res.ok) {
-        setEditTarget(null);
-        fetchCompanies();
-      } else {
-        const data = await res.json().catch(() => ({})) as { error?: { message?: string } };
-        setSaveError(data.error?.message ?? '저장 실패');
-      }
+      setEditTarget(null);
     } finally {
       setSaving(false);
     }
@@ -184,14 +116,8 @@ export default function CompaniesPage() {
     setDeleting(true);
     setDeleteError('');
     try {
-      const res = await fetch(`/api/admin/companies/${deleteTarget.id}`, { method: 'DELETE', credentials: 'include' });
-      if (res.ok) {
-        setDeleteTarget(null);
-        fetchCompanies();
-      } else {
-        const data = await res.json().catch(() => ({})) as { error?: { message?: string } };
-        setDeleteError(data.error?.message ?? '삭제 실패');
-      }
+      await deleteCompany.mutateAsync({ companyId: deleteTarget.id });
+      setDeleteTarget(null);
     } finally {
       setDeleting(false);
     }
@@ -350,243 +276,45 @@ export default function CompaniesPage() {
         />
       </SpaceBetween>
 
-      {/* Create Company Modal */}
-      <Modal
-        onDismiss={() => setShowCreateModal(false)}
-        visible={showCreateModal}
-        footer={
-          <Box float="right">
-            <SpaceBetween direction="horizontal" size="xs">
-              <Button onClick={() => setShowCreateModal(false)}>{t('common.cancel')}</Button>
-              <Button
-                variant="primary"
-                onClick={handleCreateCompany}
-                loading={creating}
-                disabled={!newCompany.name.trim()}
-              >
-                {t('pages.companies.create_company_btn')}
-              </Button>
-            </SpaceBetween>
-          </Box>
-        }
-        header={t('pages.companies.create_modal_title')}
-      >
-        <SpaceBetween size="m">
-          <FormField
-            label={t('pages.companies.company_name')}
-            constraintText={t('pages.companies.name_constraint')}
-          >
-            <Input
-              value={newCompany.name}
-              onChange={(e) => setNewCompany({ ...newCompany, name: e.detail.value })}
-              placeholder={t('pages.companies.name_placeholder')}
-              autoFocus
-            />
-          </FormField>
-          <FormField
-            label={t('pages.companies.quota_label')}
-            description={t('pages.companies.quota_desc')}
-          >
-            <Input
-              type="number"
-              value={newCompany.quota_gb}
-              onChange={(e) => setNewCompany({ ...newCompany, quota_gb: e.detail.value })}
-              placeholder={t('pages.companies.quota_placeholder')}
-            />
-          </FormField>
-        </SpaceBetween>
-      </Modal>
+      <CompanyManagementModals
+        t={t}
+        showCreateModal={showCreateModal}
+        onDismissCreate={() => setShowCreateModal(false)}
+        newCompany={newCompany}
+        onChangeNewCompany={setNewCompany}
+        onCreate={handleCreateCompany}
+        creating={creating}
+        editTarget={editTarget}
+        onDismissEdit={() => { setEditTarget(null); setSaveError(''); }}
+        editForm={editForm}
+        onChangeEditForm={setEditForm}
+        onSaveEdit={handleSaveEdit}
+        saving={saving}
+        saveError={saveError}
+        deleteTarget={deleteTarget}
+        onDismissDelete={() => { setDeleteTarget(null); setDeleteError(''); }}
+        onDelete={handleDeleteCompany}
+        deleting={deleting}
+        deleteError={deleteError}
+      />
 
-      {/* Edit Company Modal */}
-      <Modal
-        visible={!!editTarget}
-        onDismiss={() => { setEditTarget(null); setSaveError(''); }}
-        header={`${t('common.edit') || '회사 수정'} — ${editTarget?.name ?? ''}`}
-        footer={
-          <Box float="right">
-            <SpaceBetween direction="horizontal" size="xs">
-              <Button onClick={() => { setEditTarget(null); setSaveError(''); }}>{t('common.cancel')}</Button>
-              <Button variant="primary" onClick={handleSaveEdit} loading={saving} disabled={!editForm.name.trim()}>
-                {t('common.save') || '저장'}
-              </Button>
-            </SpaceBetween>
-          </Box>
-        }
-      >
-        <SpaceBetween size="m">
-          <FormField label={t('pages.companies.company_name')}>
-            <Input
-              value={editForm.name}
-              onChange={(e) => setEditForm({ ...editForm, name: e.detail.value })}
-              placeholder={t('pages.companies.name_placeholder')}
-            />
-          </FormField>
-          <FormField label={t('pages.companies.quota_label') || '스토리지 할당량 (GB)'} description="0 = 무제한">
-            <Input
-              type="number"
-              value={editForm.quota_gb}
-              onChange={(e) => setEditForm({ ...editForm, quota_gb: e.detail.value })}
-              placeholder="0 = 무제한"
-            />
-          </FormField>
-          {saveError ? <Alert type="error">{saveError}</Alert> : null}
-        </SpaceBetween>
-      </Modal>
-
-      {/* Delete Company Modal */}
-      <Modal
-        visible={!!deleteTarget}
-        onDismiss={() => { setDeleteTarget(null); setDeleteError(''); }}
-        header={t('common.delete') || '회사 삭제'}
-        footer={
-          <Box float="right">
-            <SpaceBetween direction="horizontal" size="xs">
-              <Button onClick={() => { setDeleteTarget(null); setDeleteError(''); }}>{t('common.cancel')}</Button>
-              <Button variant="primary" onClick={handleDeleteCompany} loading={deleting}>
-                {t('common.delete') || '삭제'}
-              </Button>
-            </SpaceBetween>
-          </Box>
-        }
-      >
-        <SpaceBetween size="m">
-          <Box><strong>{deleteTarget?.name}</strong> 회사를 삭제하시겠습니까? 도메인이 있는 경우 삭제할 수 없습니다.</Box>
-          {deleteError ? <Alert type="error">{deleteError}</Alert> : null}
-        </SpaceBetween>
-      </Modal>
-
-      {/* Company Detail Modal */}
       {selectedCompany && (
-        <Modal
-          onDismiss={() => setShowDetailModal(false)}
-          visible={showDetailModal}
-          size="large"
-          header={
-            <SpaceBetween direction="horizontal" size="s">
-              <Box fontWeight="bold" fontSize="heading-m">{selectedCompany.name}</Box>
-              <Badge color={selectedCompany.status === 'active' ? 'green' : 'grey'}>{selectedCompany.status}</Badge>
-            </SpaceBetween>
-          }
-          footer={
-            <Box float="right">
-              <SpaceBetween direction="horizontal" size="xs">
-                <Button
-                  onClick={() => {
-                    setShowDetailModal(false);
-                    router.push(`/companies/${selectedCompany.id}/tenancy/domains`);
-                  }}
-                >
-                  {t('pages.companies.add_domain')}
-                </Button>
-                <Button variant="primary" onClick={() => setShowDetailModal(false)}>
-                  {t('pages.companies.close')}
-                </Button>
-              </SpaceBetween>
-            </Box>
-          }
-        >
-          <Tabs
-            tabs={[
-              {
-                label: t('pages.companies.overview_tab'),
-                id: 'overview',
-                content: (
-                  <SpaceBetween size="m">
-                    <ColumnLayout columns={2}>
-                      <Container header={<Header variant="h3">{t('pages.companies.company_info')}</Header>}>
-                        <KeyValuePairs
-                          items={[
-                            { label: t('pages.companies.company_id_label'), value: <Box fontSize="body-s" color="text-body-secondary">{selectedCompany.id}</Box> },
-                            { label: t('pages.companies.status'), value: <Badge color={selectedCompany.status === 'active' ? 'green' : 'grey'}>{selectedCompany.status}</Badge> },
-                            { label: t('pages.companies.created'), value: new Date(selectedCompany.created_at).toLocaleString() },
-                          ]}
-                        />
-                      </Container>
-                      <Container header={<Header variant="h3">{t('pages.companies.storage')}</Header>}>
-                        <KeyValuePairs
-                          items={[
-                            { label: t('pages.companies.used'), value: `${((selectedCompany.quota_used ?? 0) / 1073741824).toFixed(2)} GB` },
-                            { label: t('pages.companies.limit'), value: (selectedCompany.quota_limit ?? 0) > 0 ? `${(selectedCompany.quota_limit / 1073741824).toFixed(2)} GB` : t('pages.companies.unlimited') },
-                            { label: t('pages.companies.remaining'), value: (selectedCompany.quota_limit ?? 0) > 0 ? `${((selectedCompany.quota_remaining ?? 0) / 1073741824).toFixed(2)} GB` : '—' },
-                            {
-                              label: t('pages.companies.utilization'),
-                              value: (selectedCompany.quota_limit ?? 0) > 0
-                                ? <ProgressBar value={getQuotaPercent(selectedCompany.quota_used, selectedCompany.quota_limit)} resultText={`${getQuotaPercent(selectedCompany.quota_used, selectedCompany.quota_limit)}%`} />
-                                : '—',
-                            },
-                          ]}
-                        />
-                      </Container>
-                    </ColumnLayout>
-                  </SpaceBetween>
-                ),
-              },
-              {
-                label: `${t('pages.companies.domains_tab')} (${companyDomains.length})`,
-                id: 'domains',
-                content: loadingDomains ? (
-                  <Box textAlign="center" padding="l"><Spinner /></Box>
-                ) : companyDomains.length === 0 ? (
-                  <Box textAlign="center" padding="l">
-                    <SpaceBetween size="m" alignItems="center">
-                      <StatusIndicator type="warning">{t('pages.companies.no_domains')}</StatusIndicator>
-                      <Box color="text-body-secondary">{t('pages.companies.no_domains_desc')}</Box>
-                      <Button
-                        variant="primary"
-                        onClick={() => {
-                          setShowDetailModal(false);
-                          router.push(`/companies/${selectedCompany.id}/tenancy/domains`);
-                        }}
-                      >
-                        {t('pages.companies.add_domain')}
-                      </Button>
-                    </SpaceBetween>
-                  </Box>
-                ) : (
-                  <DataTable
-                    columnDefinitions={[
-                      {
-                        header: t('pages.companies.domain'),
-                        cell: (d: DomainSummary) => (
-                          <Button variant="inline-link" onClick={() => {
-                            setShowDetailModal(false);
-                            router.push(`/companies/${selectedCompany.id}/domains/${d.id}`);
-                          }}>
-                            {d.name}
-                          </Button>
-                        ),
-                        width: '40%',
-                      },
-                      {
-                        header: t('pages.companies.status'),
-                        cell: (d: DomainSummary) => (
-                          <Badge color={d.status === 'active' ? 'green' : 'grey'}>{d.status}</Badge>
-                        ),
-                        width: '20%',
-                      },
-                      {
-                        header: t('pages.companies.dns'),
-                        cell: (d: DomainSummary) => (
-                          <Badge color={d.last_dns_check_status === 'pass' ? 'green' : d.last_dns_check_status === 'fail' ? 'red' : 'grey'}>
-                            {d.last_dns_check_status || 'Unchecked'}
-                          </Badge>
-                        ),
-                        width: '20%',
-                      },
-                      {
-                        header: t('pages.companies.added'),
-                        cell: (d: DomainSummary) => new Date(d.created_at).toLocaleDateString(),
-                        width: '20%',
-                      },
-                    ]}
-                    items={companyDomains}
-                    header={<Header variant="h3">{selectedCompany.name}</Header>}
-                  />
-                ),
-              },
-            ]}
-          />
-        </Modal>
+        <CompanyDetailModal
+          t={t}
+          company={selectedCompany}
+          open={showDetailModal}
+          loadingDomains={loadingDomains}
+          domains={companyDomains}
+          onClose={() => setShowDetailModal(false)}
+          onOpenDomains={() => {
+            setShowDetailModal(false);
+            router.push(`/companies/${selectedCompany.id}/tenancy/domains`);
+          }}
+          onOpenDomain={(domainId) => {
+            setShowDetailModal(false);
+            router.push(`/companies/${selectedCompany.id}/domains/${domainId}`);
+          }}
+        />
       )}
     </ContentLayout>
   );

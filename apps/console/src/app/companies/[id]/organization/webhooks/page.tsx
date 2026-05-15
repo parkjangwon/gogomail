@@ -20,20 +20,10 @@ import {
   Modal,
   Badge,
 } from '@cloudscape-design/components';
-import { useState, useEffect, useCallback } from 'react';
+import { useState } from 'react';
 import { useI18n } from '@/app/i18n-provider';
 import { useCompany } from '@/contexts/CompanyContext';
-
-interface Webhook {
-  id: string;
-  name: string;
-  url: string;
-  secret: string;
-  events: string[];
-  enabled: boolean;
-  created_at: string;
-  last_triggered_at?: string;
-}
+import { useCompanyWebhooks, useCreateCompanyWebhook, useDeleteCompanyWebhook, useTestCompanyWebhook, type CompanyWebhookInput } from '@/hooks';
 
 const ALL_EVENTS = [
   'user.created', 'user.deleted', 'user.updated',
@@ -48,45 +38,25 @@ export default function WebhooksPage() {
   const { t } = useI18n();
   const { currentCompany } = useCompany();
   const cid = currentCompany?.id;
-
-  const [webhooks, setWebhooks] = useState<Webhook[]>([]);
-  const [loading, setLoading] = useState(true);
+  const webhooksQuery = useCompanyWebhooks(cid);
+  const createWebhook = useCreateCompanyWebhook();
+  const deleteWebhook = useDeleteCompanyWebhook();
+  const testWebhook = useTestCompanyWebhook();
+  const webhooks = webhooksQuery.data ?? [];
+  const loading = webhooksQuery.isLoading;
   const [flash, setFlash] = useState<FlashbarProps.MessageDefinition[]>([]);
   const [showModal, setShowModal] = useState(false);
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState<string | null>(null);
-
-  const [form, setForm] = useState({ name: '', url: '', events: [] as string[], enabled: true });
-
-  const load = useCallback(async () => {
-    if (!cid) return;
-    setLoading(true);
-    try {
-      const res = await fetch(`/admin/v1/companies/${cid}/webhooks`);
-      const data = await res.json();
-      setWebhooks(data.webhooks ?? []);
-    } catch {
-      setFlash([{ type: 'error', content: t('webhooks_page.failed_load'), dismissible: true, onDismiss: () => setFlash([]) }]);
-    } finally {
-      setLoading(false);
-    }
-  }, [cid]);
-
-  useEffect(() => { load(); }, [load]);
+  const [form, setForm] = useState<CompanyWebhookInput>({ name: '', url: '', events: [], enabled: true });
 
   const handleCreate = async () => {
     setSaving(true);
     try {
-      const res = await fetch(`/admin/v1/companies/${cid}/webhooks`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
-      });
-      if (!res.ok) throw new Error(await res.text());
+      await createWebhook.mutateAsync({ companyId: cid!, data: form });
       setFlash([{ type: 'success', content: t('webhooks_page.created'), dismissible: true, onDismiss: () => setFlash([]) }]);
       setShowModal(false);
       setForm({ name: '', url: '', events: [], enabled: true });
-      load();
     } catch (e: unknown) {
       setFlash([{ type: 'error', content: String(e), dismissible: true, onDismiss: () => setFlash([]) }]);
     } finally {
@@ -97,10 +67,8 @@ export default function WebhooksPage() {
   const handleDelete = async (id: string) => {
     if (!confirm(t('webhooks_page.confirm_delete'))) return;
     try {
-      const res = await fetch(`/admin/v1/companies/${cid}/webhooks/${id}`, { method: 'DELETE' });
-      if (!res.ok) throw new Error(await res.text());
+      await deleteWebhook.mutateAsync({ companyId: cid!, webhookId: id });
       setFlash([{ type: 'success', content: t('webhooks_page.deleted'), dismissible: true, onDismiss: () => setFlash([]) }]);
-      load();
     } catch {
       setFlash([{ type: 'error', content: t('webhooks_page.delete_failed'), dismissible: true, onDismiss: () => setFlash([]) }]);
     }
@@ -109,11 +77,10 @@ export default function WebhooksPage() {
   const handleTest = async (id: string) => {
     setTesting(id);
     try {
-      const res = await fetch(`/admin/v1/companies/${cid}/webhooks/${id}/test`, { method: 'POST' });
-      const data = await res.json();
+      const res = await testWebhook.mutateAsync({ companyId: cid!, webhookId: id });
       setFlash([{
-        type: data.success ? 'success' : 'error',
-        content: data.message ?? (data.success ? t('webhooks_page.test_delivered') : t('webhooks_page.test_failed')),
+        type: res.status_code && res.status_code < 300 ? 'success' : 'error',
+        content: res.status_code && res.status_code < 300 ? t('webhooks_page.test_delivered') : t('webhooks_page.test_failed'),
         dismissible: true,
         onDismiss: () => setFlash([]),
       }]);
@@ -143,16 +110,16 @@ export default function WebhooksPage() {
           <DataTable
             items={webhooks}
             columnDefinitions={[
-              { id: 'name', header: t('webhooks_page.name'), cell: (i) => i.name },
-              { id: 'url', header: 'URL', cell: (i) => <Box variant="code">{i.url}</Box> },
-              { id: 'events', header: t('webhooks_page.events'), cell: (i) => <SpaceBetween size="xs" direction="horizontal">{i.events.map(e => <Badge key={e} color="blue">{e}</Badge>)}</SpaceBetween> },
-              { id: 'status', header: t('webhooks_page.status'), cell: (i) => <Badge color={i.enabled ? 'green' : 'grey'}>{i.enabled ? t('status.active') : t('status.disabled')}</Badge> },
+              { id: 'name', header: t('webhooks_page.name'), cell: (i) => i.name ?? '—' },
+              { id: 'url', header: 'URL', cell: (i) => <Box variant="code">{i.url ?? '—'}</Box> },
+              { id: 'events', header: t('webhooks_page.events'), cell: (i) => <SpaceBetween size="xs" direction="horizontal">{(i.events ?? []).map(e => <Badge key={e} color="blue">{e}</Badge>)}</SpaceBetween> },
+              { id: 'status', header: t('webhooks_page.status'), cell: (i) => <Badge color={i.enabled ? 'green' : 'grey'}>{(i.enabled ?? false) ? t('status.active') : t('status.disabled')}</Badge> },
               {
                 id: 'actions', header: t('common.actions'),
                 cell: (i) => (
                   <SpaceBetween size="xs" direction="horizontal">
-                    <Button variant="inline-link" loading={testing === i.id} onClick={() => handleTest(i.id)}>{t('webhooks_page.test')}</Button>
-                    <Button variant="inline-link" onClick={() => handleDelete(i.id)}>{t('common.delete')}</Button>
+                    <Button variant="inline-link" loading={testing === i.id} onClick={() => handleTest(i.id ?? '')}>{t('webhooks_page.test')}</Button>
+                    <Button variant="inline-link" onClick={() => handleDelete(i.id ?? '')}>{t('common.delete')}</Button>
                   </SpaceBetween>
                 ),
               },
@@ -189,7 +156,7 @@ export default function WebhooksPage() {
                 placeholder={t('pages.webhooks_page.events_placeholder')}
               />
             </FormField>
-            <Toggle checked={form.enabled} onChange={({ detail }) => setForm(f => ({ ...f, enabled: detail.checked }))}>
+            <Toggle checked={form.enabled ?? true} onChange={({ detail }) => setForm(f => ({ ...f, enabled: detail.checked }))}>
               {t('webhooks_page.enable_immediately')}
             </Toggle>
           </SpaceBetween>

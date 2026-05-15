@@ -4286,6 +4286,14 @@ func registerAdminUtilityRoutes(mux *http.ServeMux, service AdminService, cfg ad
 		handleListAlertChannels(w, r, service)
 	}))
 
+	mux.HandleFunc("PUT /admin/v1/alert-channels/{channelid}", adminAuth(func(w http.ResponseWriter, r *http.Request) {
+		handleUpdateAlertChannel(w, r, service)
+	}))
+
+	mux.HandleFunc("DELETE /admin/v1/alert-channels/{channelid}", adminAuth(func(w http.ResponseWriter, r *http.Request) {
+		handleDeleteAlertChannel(w, r, service)
+	}))
+
 	mux.HandleFunc("GET /admin/v1/companies/{id}/alert-events", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		handleListAlertEvents(w, r, service)
 	}))

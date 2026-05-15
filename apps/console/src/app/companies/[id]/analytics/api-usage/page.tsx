@@ -20,11 +20,11 @@ import { useParams } from 'next/navigation';
 import { useI18n } from '@/app/i18n-provider';
 import { MetricCard } from '@/components/dashboard/MetricCard';
 import {
-  buildAPIUsageQuery,
   exportAPIUsageCsv,
   summarizeAPIUsage,
   type APIUsageDailyRow,
 } from '@/lib/apiUsage';
+import { useAdminAPIUsageDaily } from '@/hooks';
 
 interface APIUsageRecord extends APIUsageDailyRow {}
 
@@ -66,37 +66,32 @@ export default function APIUsagePage() {
   const [method, setMethod] = useState<SelectProps.Option>(METHOD_OPTIONS[0]);
   const [authSource, setAuthSource] = useState<SelectProps.Option>(AUTH_SOURCE_OPTIONS[0]);
   const parsedStatus = status.trim() ? Number(status) : undefined;
+  const usageQuery = useAdminAPIUsageDaily({
+    companyId,
+    domainId,
+    userId,
+    principalId,
+    route,
+    status: parsedStatus !== undefined && Number.isFinite(parsedStatus) ? parsedStatus : undefined,
+    from: fromDate,
+    to: toDate,
+    method: optionValue(method),
+    authSource: optionValue(authSource),
+    limit: 100,
+  }, false);
 
   const fetchAPIUsage = useCallback(async () => {
     if (!companyId) return;
     setLoading(true);
     try {
-      const query = buildAPIUsageQuery({
-        companyId,
-        domainId,
-        userId,
-        principalId,
-        route,
-        status: parsedStatus !== undefined && Number.isFinite(parsedStatus) ? parsedStatus : undefined,
-        from: fromDate,
-        to: toDate,
-        method: optionValue(method),
-        authSource: optionValue(authSource),
-        limit: 100,
-      });
-      const res = await fetch(`/api/admin/api-usage/daily${query ? `?${query}` : ''}`, {
-        credentials: 'include',
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setRecords(data.api_usage_daily || []);
-      }
+      const result = await usageQuery.refetch();
+      setRecords(result.data || []);
     } catch (error) {
       console.error('Failed to fetch API usage:', error);
     } finally {
       setLoading(false);
     }
-  }, [authSource, companyId, domainId, fromDate, method, principalId, route, status, toDate, userId]);
+  }, [companyId, usageQuery.refetch]);
 
   useEffect(() => {
     fetchAPIUsage();

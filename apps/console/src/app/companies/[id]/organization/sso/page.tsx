@@ -23,6 +23,7 @@ import {
 import { useState, useEffect, useCallback } from 'react';
 import { useI18n } from '@/app/i18n-provider';
 import { useCompany } from '@/contexts/CompanyContext';
+import { useCompanySSOConfig, useUpdateCompanySSOConfig, useTestCompanySSOConfig } from '@/hooks';
 
 interface SSOConfig {
   enabled: boolean;
@@ -72,6 +73,9 @@ export default function SSOPage() {
   const cid = currentCompany?.id ?? 'default';
 
   const [config, setConfig] = useState<SSOConfig>(defaultConfig());
+  const configQuery = useCompanySSOConfig(cid);
+  const updateConfig = useUpdateCompanySSOConfig();
+  const testConfig = useTestCompanySSOConfig();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
@@ -79,34 +83,20 @@ export default function SSOPage() {
   const [notifications, setNotifications] = useState<FlashbarProps.MessageDefinition[]>([]);
 
   const fetchConfig = useCallback(async () => {
-    setLoading(true);
-    try {
-      const res = await fetch(`/api/admin/companies/${cid}/sso/config`, { credentials: 'include' });
-      if (res.ok) {
-        const data = await res.json();
-        setConfig({ ...defaultConfig(), ...(data.config ?? {}) });
-      }
-    } finally {
-      setLoading(false);
+    setLoading(configQuery.isLoading);
+    if (configQuery.data) {
+      setConfig({ ...defaultConfig(), ...(configQuery.data as Partial<SSOConfig>) });
     }
-  }, [cid]);
+  }, [configQuery.data, configQuery.isLoading]);
 
   useEffect(() => { fetchConfig(); }, [fetchConfig]);
 
   const handleSave = async () => {
     setSaving(true);
     try {
-      const res = await fetch(`/api/admin/companies/${cid}/sso/config`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(config),
-        credentials: 'include',
-      });
-      if (res.ok) {
-        setNotifications([{ type: 'success', content: t('pages.sso_page.save_success'), dismissible: true, onDismiss: () => setNotifications([]), id: 'save-ok' }]);
-      } else {
-        setNotifications([{ type: 'error', content: t('pages.sso_page.save_error'), dismissible: true, onDismiss: () => setNotifications([]), id: 'save-err' }]);
-      }
+      await updateConfig.mutateAsync({ companyId: cid, data: config as unknown as Record<string, never> });
+      setNotifications([{ type: 'success', content: t('pages.sso_page.save_success'), dismissible: true, onDismiss: () => setNotifications([]), id: 'save-ok' }]);
+      setConfig({ ...config });
     } finally {
       setSaving(false);
     }
@@ -116,16 +106,8 @@ export default function SSOPage() {
     setTesting(true);
     setTestResult(null);
     try {
-      const res = await fetch(`/api/admin/companies/${cid}/sso/test`, {
-        method: 'POST',
-        credentials: 'include',
-      });
-      const data = await res.json();
-      if (res.ok) {
-        setTestResult({ success: data.success, message: data.message });
-      } else {
-        setTestResult({ success: false, message: data.error ?? t('pages.sso_page.test_error') });
-      }
+      const data = await testConfig.mutateAsync({ companyId: cid });
+      setTestResult({ success: !!data.success, message: data.message ?? t('pages.sso_page.test_error') });
     } finally {
       setTesting(false);
     }

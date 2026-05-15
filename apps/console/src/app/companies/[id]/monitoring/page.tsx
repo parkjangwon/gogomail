@@ -1,7 +1,6 @@
 'use client';
+
 import { DataTable } from '@/components/DataTable';
-
-
 import {
   ContentLayout,
   Header,
@@ -13,91 +12,55 @@ import {
   StatusIndicator,
   SpaceBetween,
 } from '@cloudscape-design/components';
-import { useState, useEffect } from 'react';
+import { useMemo } from 'react';
 import { useI18n } from '@/app/i18n-provider';
-
-interface QueueStats {
-  total: number;
-  pending: number;
-  processing: number;
-  failed: number;
-}
+import { useAdminQueueStats, type QueueStat } from '@/hooks';
 
 export default function MonitoringPage() {
   const { t } = useI18n();
-  const [stats, setStats] = useState<QueueStats>({ total: 0, pending: 0, processing: 0, failed: 0 });
+  const queueQuery = useAdminQueueStats(5_000);
+  const queues = queueQuery.data?.queues ?? [];
 
-  useEffect(() => {
-    fetchMonitoringStats();
-    const interval = setInterval(fetchMonitoringStats, 5000);
-    return () => clearInterval(interval);
-  }, []);
+  const stats = useMemo(() => {
+    const total = queues.reduce((sum: number, q: QueueStat) => sum + (q.count || 0), 0);
+    return {
+      total,
+      pending: Math.floor(total * 0.4),
+      processing: Math.floor(total * 0.4),
+      failed: Math.floor(total * 0.2),
+    };
+  }, [queues]);
 
-  const fetchMonitoringStats = async () => {
-    try {
-      const res = await fetch('/api/admin/queue', { credentials: 'include' });
-      if (res.ok) {
-        const data = await res.json();
-        const queues = data.queues || [];
-        const total = queues.reduce((sum: number, q: any) => sum + (q.count || 0), 0);
-        setStats({
-          total,
-          pending: Math.floor(total * 0.4),
-          processing: Math.floor(total * 0.4),
-          failed: Math.floor(total * 0.2),
-        });
-      }
-    } catch (error) {
-      console.error('Failed to fetch monitoring stats:', error);
-    }
-  };
-
-  const cpuUsage = Math.random() * 80;
-  const memoryUsage = Math.random() * 70;
-  const diskUsage = Math.random() * 60;
+  const cpuUsage = useMemo(() => Math.random() * 80, []);
+  const memoryUsage = useMemo(() => Math.random() * 70, []);
+  const diskUsage = useMemo(() => Math.random() * 60, []);
 
   return (
-    <ContentLayout
-      header={<Header variant="h1">{t('pages.monitoring.title')}</Header>}
-    >
+    <ContentLayout header={<Header variant="h1">{t('pages.monitoring.title')}</Header>}>
       <SpaceBetween size="l">
-        {/* System Resources */}
         <Container header={<Header variant="h2">{t('pages.monitoring_page.system_resources')}</Header>}>
           <ColumnLayout columns={3} variant="text-grid">
             <Box>
               <Box variant="h3" color="text-body-secondary">
                 <small>{t('pages.monitoring_page.cpu_usage')}</small>
               </Box>
-              <ProgressBar
-                value={cpuUsage}
-                label={`${Math.round(cpuUsage)}%`}
-                status={cpuUsage > 80 ? 'error' : 'success'}
-              />
+              <ProgressBar value={cpuUsage} label={`${Math.round(cpuUsage)}%`} status={cpuUsage > 80 ? 'error' : 'success'} />
             </Box>
             <Box>
               <Box variant="h3" color="text-body-secondary">
                 <small>{t('pages.monitoring_page.memory_usage')}</small>
               </Box>
-              <ProgressBar
-                value={memoryUsage}
-                label={`${Math.round(memoryUsage)}%`}
-                status={memoryUsage > 85 ? 'error' : 'success'}
-              />
+              <ProgressBar value={memoryUsage} label={`${Math.round(memoryUsage)}%`} status={memoryUsage > 85 ? 'error' : 'success'} />
             </Box>
             <Box>
               <Box variant="h3" color="text-body-secondary">
                 <small>{t('pages.monitoring_page.disk_usage')}</small>
               </Box>
-              <ProgressBar
-                value={diskUsage}
-                label={`${Math.round(diskUsage)}%`}
-                status={diskUsage > 80 ? 'error' : 'success'}
-              />
+              <ProgressBar value={diskUsage} label={`${Math.round(diskUsage)}%`} status={diskUsage > 80 ? 'error' : 'success'} />
             </Box>
           </ColumnLayout>
         </Container>
 
-        {/* Queue Status */}
         <Container header={<Header variant="h2">{t('pages.monitoring_page.message_queue')}</Header>}>
           <KeyValuePairs
             items={[
@@ -118,7 +81,6 @@ export default function MonitoringPage() {
           />
         </Container>
 
-        {/* Network Traffic */}
         <Container header={<Header variant="h2">{t('pages.monitoring_page.network_traffic')}</Header>}>
           <DataTable
             columnDefinitions={[
@@ -126,11 +88,15 @@ export default function MonitoringPage() {
               { header: t('pages.monitoring_page.inbound'), cell: (item: any) => item.inbound, width: '25%' },
               { header: t('pages.monitoring_page.outbound'), cell: (item: any) => item.outbound, width: '25%' },
               { header: t('pages.monitoring_page.connections'), cell: (item: any) => item.connections, width: '15%' },
-              { header: t('pages.monitoring_page.queue_status'), cell: (item: any) => (
-                <StatusIndicator type={item.connections > 0 ? 'success' : 'pending'}>
-                  {item.connections > 0 ? t('pages.monitoring_page.active') : t('pages.monitoring_page.idle')}
-                </StatusIndicator>
-              ), width: '15%' },
+              {
+                header: t('pages.monitoring_page.queue_status'),
+                cell: (item: any) => (
+                  <StatusIndicator type={item.connections > 0 ? 'success' : 'pending'}>
+                    {item.connections > 0 ? t('pages.monitoring_page.active') : t('pages.monitoring_page.idle')}
+                  </StatusIndicator>
+                ),
+                width: '15%',
+              },
             ]}
             items={[
               { protocol: 'SMTP', inbound: 45.2, outbound: 128.5, connections: 42 },
@@ -141,7 +107,6 @@ export default function MonitoringPage() {
           />
         </Container>
 
-        {/* Database */}
         <Container header={<Header variant="h2">{t('pages.monitoring_page.database')}</Header>}>
           <KeyValuePairs
             items={[
