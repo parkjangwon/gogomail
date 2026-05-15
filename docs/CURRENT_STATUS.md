@@ -1,6 +1,25 @@
 # gogomail current status
 
-Last updated: 2026-05-15 (Frontend Refactoring - console users modal extraction + webmail compose/mail helpers)
+Last updated: 2026-05-15 (Statistics & Dashboard - mail volume, user activity, storage)
+
+## Statistics & Dashboard (2026-05-15, TASK-076 complete)
+- The admin console dashboard now surfaces the three requested operational metrics together: mail volume, user activity, and storage.
+- `apps/console/src/lib/dashboardStats.ts` centralizes dashboard shaping and time-window helpers so the console no longer hard-codes ad hoc metric math in the page component.
+- `apps/console/src/hooks/useStatistics.ts` now pulls the real admin endpoints for domains, seat usage, health, posture, and mail-flow stats, then composes them into one normalized dashboard payload.
+- `apps/console/src/app/companies/[id]/dashboard/page.tsx` now renders a three-card core stats row for mail volume, user activity, and storage, with tenant health and quick actions kept below as supporting context.
+- Console translation packs were updated for the new dashboard labels in English, Korean, Japanese, and Simplified Chinese.
+- Verification:
+  - `pnpm -C apps/console exec vitest run src/lib/__tests__/dashboardStats.test.ts src/lib/__tests__/mailFlowLogs.test.ts src/lib/__tests__/loginAudits.test.ts src/lib/__tests__/auditLogs.test.ts`
+  - `pnpm -C apps/console type-check`
+  - `go test ./...`
+
+## API Metering (2026-05-15, TASK-077 in progress)
+- `apps/console/src/lib/apiUsage.ts` now centralizes API usage daily query construction, CSV export, and rollup summaries.
+- `apps/console/src/app/companies/[id]/analytics/api-usage/page.tsx` now exposes server-side filters for domain, principal, user, route, auth source, method, status, and date range, plus summary cards for request volume, error rate, and average latency.
+- New console tests cover the API metering query builder, CSV export, and summary calculation alongside the dashboard statistics helpers.
+- Verification:
+  - `pnpm -C apps/console exec vitest run src/lib/__tests__/dashboardStats.test.ts src/lib/__tests__/apiUsage.test.ts src/lib/__tests__/mailFlowLogs.test.ts src/lib/__tests__/loginAudits.test.ts src/lib/__tests__/auditLogs.test.ts`
+  - `pnpm -C apps/console type-check`
 
 ## Webmail Frontend Refactoring (2026-05-15, Phase 1 in progress)
 - Goal: Reduce oversized webmail component files by extracting utilities and sub-components
