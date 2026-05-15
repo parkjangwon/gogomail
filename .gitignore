@@ -12,10 +12,19 @@
 !.env.example
 
 # ── AI agent workspace files ──────────────────────────────────────────
+# Codex / OpenAI agents
+.codex/
+.codex-cache/
+.codex-session/
+.openai/
+
 # Claude Code
 .claude/
+.claude.json
+.claude.local.json
 
-# OpenCode / Oh-My-Claude
+# OpenCode / Oh-My-Codex / Oh-My-Claude
+.omx/
 .omc/
 
 # Cursor
@@ -36,8 +45,24 @@
 .aider.chat.history.md
 .aider.input.history
 
+# Gemini
+.gemini/
+
+# Playwright MCP
+.playwright-mcp/
+
+# Sisyphus continuation state
+.sisyphus/run-continuation/
+
 # Continue.dev
 .continue/
+
+# OpenHands / Devin / Roo / Kilo / Augment
+.openhands/
+.devin/
+.roo/
+.kilocode/
+.augment/
 
 # Tabnine
 .tabnine/
@@ -48,6 +73,13 @@
 # Zed AI
 .zed/
 
-# Generic AI session/cache artifacts
+# Generic AI agent session/cache artifacts
+.agent/
+.agents/
+.ai/
+.mcp/
 *.ai-history
 *.ai-cache
+*.agent-history
+*.agent-cache
+*.session.json
