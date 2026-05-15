@@ -122,11 +122,34 @@ func normalizeRetryFarm(farm outbound.Farm) outbound.Farm {
 func retryDedupeKey(job Job) string {
 	recipients := job.Recipients()
 	values := make([]string, 0, len(recipients))
+
+	// Normalize and collect recipient emails
 	for _, recipient := range recipients {
 		values = append(values, strings.ToLower(strings.TrimSpace(recipient.Email)))
 	}
-	sort.Strings(values)
-	return fmt.Sprintf("retry:%s:%d:%s", strings.TrimSpace(job.MessageID), job.RetryAttempt+1, strings.Join(values, ","))
+
+	// Fast path: check if already sorted to avoid unnecessary sort
+	isSorted := true
+	for i := 1; i < len(values); i++ {
+		if values[i] < values[i-1] {
+			isSorted = false
+			break
+		}
+	}
+	if !isSorted {
+		sort.Strings(values)
+	}
+
+	// Use StringBuilder to reduce allocations in concatenation
+	var sb strings.Builder
+	sb.WriteString("retry:")
+	sb.WriteString(strings.TrimSpace(job.MessageID))
+	sb.WriteString(":")
+	sb.WriteString(fmt.Sprint(job.RetryAttempt + 1))
+	sb.WriteString(":")
+	sb.WriteString(strings.Join(values, ","))
+
+	return sb.String()
 }
 
 func retryErrorMessage(cause error) string {
