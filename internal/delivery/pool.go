@@ -38,6 +38,10 @@ type SMTPConnectionPool struct {
 	maxIdle     int
 	idleTimeout time.Duration
 	maxAge      time.Duration
+
+	// Metrics
+	hits   uint64 // Successful connection reuse from pool
+	misses uint64 // Connections not available in pool
 }
 
 // NewSMTPConnectionPool creates a new connection pool
@@ -65,6 +69,7 @@ func (p *SMTPConnectionPool) Get(ctx context.Context, key SMTPConnPoolKey) (*Poo
 	if conn, ok := p.conns[key]; ok {
 		if p.isValidConn(conn) {
 			delete(p.conns, key)
+			p.hits++
 			p.mu.Unlock()
 			return conn, nil
 		}
@@ -76,6 +81,7 @@ func (p *SMTPConnectionPool) Get(ctx context.Context, key SMTPConnPoolKey) (*Poo
 		}
 		delete(p.conns, key)
 	}
+	p.misses++
 	p.mu.Unlock()
 	return nil, nil // caller creates new connection
 }
@@ -145,4 +151,11 @@ func (p *SMTPConnectionPool) PruneStale() {
 			delete(p.conns, key)
 		}
 	}
+}
+
+// Metrics returns pool hit/miss statistics
+func (p *SMTPConnectionPool) Metrics() (hits, misses uint64) {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+	return p.hits, p.misses
 }
