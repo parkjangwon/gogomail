@@ -1,7 +1,5 @@
 'use client';
 import { DataTable } from '@/components/DataTable';
-
-
 import {
   ContentLayout,
   Header,
@@ -10,51 +8,44 @@ import {
   Spinner,
   TextFilter,
   ProgressBar,
+  Badge,
 } from '@cloudscape-design/components';
-import { useState, useEffect } from 'react';
+import { useMemo, useState } from 'react';
+import { useParams } from 'next/navigation';
 import { useI18n } from '@/app/i18n-provider';
-
-interface QuotaUsage {
-  id: string;
-  tenant: string;
-  used_gb: number;
-  quota_gb: number;
-  percentage: number;
-  last_updated: string;
-}
+import { useQuotaUsage, type QuotaUsage } from '@/hooks';
 
 export default function QuotaUsagePage() {
   const { t } = useI18n();
-  const [quotas, setQuotas] = useState<QuotaUsage[]>([]);
-  const [loading, setLoading] = useState(true);
+  const params = useParams();
+  const companyId = params?.id as string;
+  const { data: quotas = [], isLoading } = useQuotaUsage(companyId);
   const [filter, setFilter] = useState('');
 
-  useEffect(() => {
-    fetchQuotaUsage();
-  }, []);
+  const filteredQuotas = useMemo(
+    () =>
+      quotas.filter((quota) =>
+        [quota.name, quota.scope, quota.domain_id, quota.id]
+          .filter((value): value is string => Boolean(value))
+          .some((value) => value.toLowerCase().includes(filter.toLowerCase()))
+      ),
+    [quotas, filter]
+  );
 
-  const fetchQuotaUsage = async () => {
-    setLoading(true);
-    try {
-      const res = await fetch('/api/admin/quota-usage?limit=100', {
-        credentials: 'include'
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setQuotas(data.quotas || []);
-      }
-    } catch (error) {
-      console.error('Failed to fetch quota usage:', error);
-    } finally {
-      setLoading(false);
+  const scopeColor = (scope: QuotaUsage['scope']) => {
+    switch (scope) {
+      case 'company':
+        return 'blue';
+      case 'domain':
+        return 'green';
+      case 'user':
+        return 'grey';
+      default:
+        return 'grey';
     }
   };
 
-  const filteredQuotas = quotas.filter(q =>
-    q.tenant.toLowerCase().includes(filter.toLowerCase())
-  );
-
-  if (loading) {
+  if (isLoading) {
     return (
       <ContentLayout header={<Header variant="h1">{t('pages.quota_usage.title')}</Header>}>
         <Box textAlign="center" padding="xl">
@@ -79,36 +70,41 @@ export default function QuotaUsagePage() {
         <DataTable
           columnDefinitions={[
             {
-              header: t('pages.quota_usage_page.tenant'),
-              cell: (item: QuotaUsage) => item.tenant,
+              header: 'Scope',
+              cell: (item: QuotaUsage) => <Badge color={scopeColor(item.scope)}>{item.scope}</Badge>,
               width: '25%',
             },
             {
+              header: t('pages.quota_usage_page.name'),
+              cell: (item: QuotaUsage) => item.name,
+              width: '22%',
+            },
+            {
               header: t('pages.quota_usage_page.used'),
-              cell: (item: QuotaUsage) => `${item.used_gb.toFixed(2)} GB`,
-              width: '15%',
+              cell: (item: QuotaUsage) => item.quota_used.toLocaleString(),
+              width: '12%',
             },
             {
               header: t('pages.quota_usage_page.quota'),
-              cell: (item: QuotaUsage) => `${item.quota_gb.toFixed(2)} GB`,
-              width: '15%',
+              cell: (item: QuotaUsage) => item.quota_limit.toLocaleString(),
+              width: '12%',
             },
             {
               header: t('pages.quota_usage_page.usage'),
               cell: (item: QuotaUsage) => (
                 <Box>
-                  <ProgressBar value={item.percentage} />
+                  <ProgressBar value={item.usage_ratio * 100} />
                   <Box color="text-body-secondary" fontSize="body-s">
-                    {item.percentage.toFixed(1)}%
+                    {(item.usage_ratio * 100).toFixed(1)}%
                   </Box>
                 </Box>
               ),
-              width: '30%',
+              width: '18%',
             },
             {
               header: t('pages.quota_usage_page.last_updated'),
-              cell: (item: QuotaUsage) => new Date(item.last_updated).toLocaleString(),
-              width: '15%',
+              cell: (item: QuotaUsage) => new Date(item.updated_at).toLocaleString(),
+              width: '13%',
             },
           ]}
           items={filteredQuotas}

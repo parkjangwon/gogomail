@@ -12,6 +12,7 @@ export * from "./useAPISettings";
 export * from "./useApiKeys";
 export * from "./useAlerts";
 export * from "./useQuotaAlerts";
+export * from "./useQuotaUsage";
 export * from "./useSystem";
 export * from "./useConsoleCapabilities";
 export * from "./useDomainSettings";
