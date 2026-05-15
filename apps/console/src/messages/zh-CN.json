@@ -263,7 +263,7 @@
       "role_label": "Role",
       "status": "Status",
       "system_admin": "System Admin",
-      "title": "Title",
+      "title": "警报与通知",
       "username": "Username",
       "username_label": "Username",
       "description": "管理系统管理员账户"
@@ -292,10 +292,10 @@
       "rules": "Rules",
       "threshold": "Threshold",
       "threshold_label": "Threshold",
-      "title": "Title",
-      "type_bounce_rate": "退信率",
-      "type_delivery_failure": "投递失败",
-      "type_quota_usage": "配额使用量",
+      "title": "警报与通知",
+      "type_bounce_rate": "存储使用量",
+      "type_delivery_failure": "登录失败",
+      "type_quota_usage": "API 错误",
       "type_spam_score": "垃圾邮件分数",
       "type_queue_size": "队列大小"
     },

@@ -263,7 +263,7 @@
       "role_label": "Role",
       "status": "Status",
       "system_admin": "System Admin",
-      "title": "Title",
+      "title": "アラートと通知",
       "username": "Username",
       "username_label": "Username",
       "description": "システム管理者アカウントを管理します"
@@ -292,10 +292,10 @@
       "rules": "Rules",
       "threshold": "Threshold",
       "threshold_label": "Threshold",
-      "title": "Title",
-      "type_bounce_rate": "バウンス率",
-      "type_delivery_failure": "配信失敗",
-      "type_quota_usage": "クォータ使用量",
+      "title": "アラートと通知",
+      "type_bounce_rate": "ストレージ使用量",
+      "type_delivery_failure": "ログイン失敗",
+      "type_quota_usage": "API エラー",
       "type_spam_score": "スパムスコア",
       "type_queue_size": "キューサイズ"
     },

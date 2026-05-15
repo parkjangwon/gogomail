@@ -16,6 +16,7 @@ import {
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import { useI18n } from '@/app/i18n-provider';
+import { useCompanySignature, useUpdateCompanySignature } from '@/hooks';
 
 interface SignatureConfig {
   html: string;
@@ -27,6 +28,8 @@ export default function GlobalSignaturePage() {
   const { t } = useI18n();
   const params = useParams();
   const companyId = params?.id as string;
+  const signatureQuery = useCompanySignature(companyId);
+  const updateSignature = useUpdateCompanySignature();
 
   const [config, setConfig] = useState<SignatureConfig>({ html: '', text: '', enabled: false });
   const [loading, setLoading] = useState(true);
@@ -34,38 +37,21 @@ export default function GlobalSignaturePage() {
   const [saveStatus, setSaveStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [error, setError] = useState('');
 
-  const fetchSignature = async () => {
-    if (!companyId) return;
-    setLoading(true);
-    try {
-      const res = await fetch(`/api/admin/companies/${companyId}/signature`, { credentials: 'include' });
-      if (res.ok) {
-        const data = await res.json();
-        setConfig(data.signature || { html: '', text: '', enabled: false });
-      }
-    } catch (e) {
-      setError(String(e));
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
-    fetchSignature();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [companyId]);
+    setLoading(signatureQuery.isLoading);
+    if (signatureQuery.data) {
+      setConfig(signatureQuery.data as unknown as SignatureConfig);
+    }
+    if (signatureQuery.isError) {
+      setError(t('global_signature.load_error'));
+    }
+  }, [signatureQuery.data, signatureQuery.isError, signatureQuery.isLoading, t]);
 
   const handleSave = async () => {
     setSaving(true);
     setSaveStatus('idle');
     try {
-      const res = await fetch(`/api/admin/companies/${companyId}/signature`, {
-        method: 'PUT',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(config),
-      });
-      if (!res.ok) { setSaveStatus('error'); return; }
+      await updateSignature.mutateAsync({ companyId, data: config });
       setSaveStatus('success');
     } catch {
       setSaveStatus('error');
@@ -90,7 +76,7 @@ export default function GlobalSignaturePage() {
           description={t('global_signature.page_description')}
           actions={
             <SpaceBetween direction="horizontal" size="xs">
-              <Button onClick={fetchSignature}>{t('global_signature.discard')}</Button>
+              <Button onClick={() => signatureQuery.refetch()}>{t('global_signature.discard')}</Button>
               <Button variant="primary" onClick={handleSave} loading={saving}>{t('common.save')}</Button>
             </SpaceBetween>
           }

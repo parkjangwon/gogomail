@@ -15,6 +15,7 @@ import {
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import { useI18n } from '@/app/i18n-provider';
+import { useSCIMStatus } from '@/hooks';
 
 interface SCIMStatus {
   endpoint: string;
@@ -28,18 +29,16 @@ export default function SCIMStatusPage() {
   const { t } = useI18n();
   const params = useParams();
   const companyId = params?.id as string;
+  const scimQuery = useSCIMStatus(companyId);
   const [data, setData] = useState<SCIMStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
   useEffect(() => {
-    if (!companyId) return;
-    fetch(`/api/admin/companies/${companyId}/scim/status`, { credentials: 'include' })
-      .then(r => r.ok ? r.json() : Promise.reject(r.statusText))
-      .then(setData)
-      .catch(e => setError(String(e)))
-      .finally(() => setLoading(false));
-  }, [companyId]);
+    setLoading(scimQuery.isLoading);
+    if (scimQuery.data) setData(scimQuery.data as SCIMStatus);
+    if (scimQuery.isError) setError(t('scim_status.failed_load'));
+  }, [scimQuery.data, scimQuery.isError, scimQuery.isLoading, t]);
 
   if (loading) {
     return (

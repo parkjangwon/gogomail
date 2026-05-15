@@ -22,26 +22,26 @@ import {
   ColumnLayout,
   StatusIndicator,
 } from '@cloudscape-design/components';
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { useI18n } from '@/app/i18n-provider';
 import { useCompany } from '@/contexts/CompanyContext';
-
-interface Delegation {
-  ID: string;
-  CompanyID: string;
-  OwnerKind: string;
-  OwnerID: string;
-  DelegateKind: string;
-  DelegateID: string;
-  Scope: string;
-  Role: string;
-  Status: string;
-}
+import {
+  DirectoryDelegationCreateRequestDelegate_kind,
+  DirectoryDelegationCreateRequestOwner_kind,
+  DirectoryDelegationCreateRequestRole,
+  DirectoryDelegationCreateRequestScope,
+} from '@gogomail/api-types';
+import {
+  type DirectoryDelegation,
+  useCreateDirectoryDelegation,
+  useDeleteDirectoryDelegation,
+  useDirectoryDelegations,
+} from '@/hooks/useDirectory';
 
 const roleColor = (role: string): 'blue' | 'green' | 'red' | 'grey' => {
-  if (role === 'admin') return 'red';
-  if (role === 'editor' || role === 'send_as') return 'blue';
-  if (role === 'viewer' || role === 'send_on_behalf') return 'green';
+  if (role === 'manage') return 'red';
+  if (role === 'write') return 'blue';
+  if (role === 'read') return 'green';
   return 'grey';
 };
 
@@ -56,66 +56,59 @@ export default function DelegationsPage() {
   const { currentCompany } = useCompany();
   const cid = currentCompany?.id;
 
-  const [delegations, setDelegations] = useState<Delegation[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data: delegations = [], isLoading: loading } = useDirectoryDelegations(cid);
   const [filter, setFilter] = useState('');
   const [viewMode, setViewMode] = useState<'graph' | 'list'>('graph');
   const [flash, setFlash] = useState<FlashbarProps.MessageDefinition[]>([]);
   const [showModal, setShowModal] = useState(false);
   const [creating, setCreating] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const createDelegation = useCreateDirectoryDelegation();
+  const deleteDelegation = useDeleteDirectoryDelegation();
 
   const [form, setForm] = useState({
-    owner_kind: 'user', owner_id: '',
-    delegate_kind: 'user', delegate_id: '',
-    scope: '', role: 'viewer',
+    owner_kind: DirectoryDelegationCreateRequestOwner_kind.user,
+    owner_id: '',
+    delegate_kind: DirectoryDelegationCreateRequestDelegate_kind.user,
+    delegate_id: '',
+    scope: DirectoryDelegationCreateRequestScope.mailbox,
+    role: DirectoryDelegationCreateRequestRole.read,
   });
 
   const kindOptions: SelectProps.Option[] = [
     { label: t('pages.delegations_page.kind_user'), value: 'user' },
     { label: t('pages.delegations_page.kind_group'), value: 'group' },
-    { label: t('pages.delegations_page.kind_domain'), value: 'domain' },
+    { label: t('pages.delegations_page.kind_domain'), value: 'organization' },
   ];
 
   const roleOptions: SelectProps.Option[] = [
-    { label: t('pages.delegations_page.role_viewer'), value: 'viewer' },
-    { label: t('pages.delegations_page.role_editor'), value: 'editor' },
-    { label: t('pages.delegations_page.role_admin'), value: 'admin' },
-    { label: t('pages.delegations_page.role_send_as'), value: 'send_as' },
-    { label: t('pages.delegations_page.role_send_on_behalf'), value: 'send_on_behalf' },
+    { label: t('pages.delegations_page.role_viewer'), value: 'read' },
+    { label: t('pages.delegations_page.role_editor'), value: 'write' },
+    { label: t('pages.delegations_page.role_admin'), value: 'manage' },
   ];
 
-  const load = useCallback(async () => {
-    if (!cid) return;
-    setLoading(true);
-    try {
-      const res = await fetch(`/admin/v1/directory/delegations?company_id=${cid}&limit=200`);
-      const data = await res.json();
-      setDelegations(data.directory_delegations ?? []);
-    } catch {
-      setFlash([{ type: 'error', content: t('pages.delegations_page.failed_load'), dismissible: true, onDismiss: () => setFlash([]) }]);
-    } finally {
-      setLoading(false);
-    }
-  }, [cid]);
-
-  useEffect(() => { load(); }, [load]);
+  const scopeOptions: SelectProps.Option[] = [
+    { label: 'Mailbox', value: DirectoryDelegationCreateRequestScope.mailbox },
+    { label: 'Calendar', value: DirectoryDelegationCreateRequestScope.calendar },
+    { label: 'Contacts', value: DirectoryDelegationCreateRequestScope.contacts },
+    { label: 'Drive', value: DirectoryDelegationCreateRequestScope.drive },
+  ];
 
   const filtered = useMemo(() => {
     if (!filter) return delegations;
     const q = filter.toLowerCase();
     return delegations.filter(d =>
-      d.OwnerID.toLowerCase().includes(q) ||
-      d.DelegateID.toLowerCase().includes(q) ||
-      d.Scope.toLowerCase().includes(q) ||
-      d.Role.toLowerCase().includes(q)
+      d.owner_id.toLowerCase().includes(q) ||
+      d.delegate_id.toLowerCase().includes(q) ||
+      d.scope.toLowerCase().includes(q) ||
+      d.role.toLowerCase().includes(q)
     );
   }, [delegations, filter]);
 
   const byOwner = useMemo(() => {
-    const map = new Map<string, Delegation[]>();
+    const map = new Map<string, DirectoryDelegation[]>();
     for (const d of filtered) {
-      const key = `${d.OwnerKind}:${d.OwnerID}`;
+      const key = `${d.owner_kind}:${d.owner_id}`;
       if (!map.has(key)) map.set(key, []);
       map.get(key)!.push(d);
     }
@@ -125,16 +118,21 @@ export default function DelegationsPage() {
   const handleCreate = async () => {
     setCreating(true);
     try {
-      const res = await fetch(`/admin/v1/directory/delegations`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...form, company_id: cid }),
+      if (!cid) return;
+      await createDelegation.mutateAsync({
+        companyId: cid,
+        data: { ...form, company_id: cid },
       });
-      if (!res.ok) throw new Error(await res.text());
       setFlash([{ type: 'success', content: t('pages.delegations_page.created'), dismissible: true, onDismiss: () => setFlash([]) }]);
       setShowModal(false);
-      setForm({ owner_kind: 'user', owner_id: '', delegate_kind: 'user', delegate_id: '', scope: '', role: 'viewer' });
-      load();
+      setForm({
+        owner_kind: DirectoryDelegationCreateRequestOwner_kind.user,
+        owner_id: '',
+        delegate_kind: DirectoryDelegationCreateRequestDelegate_kind.user,
+        delegate_id: '',
+        scope: DirectoryDelegationCreateRequestScope.mailbox,
+        role: DirectoryDelegationCreateRequestRole.read,
+      });
     } catch (e: unknown) {
       setFlash([{ type: 'error', content: String(e), dismissible: true, onDismiss: () => setFlash([]) }]);
     } finally {
@@ -145,9 +143,9 @@ export default function DelegationsPage() {
   const handleDelete = async (id: string) => {
     setDeletingId(id);
     try {
-      await fetch(`/admin/v1/directory/delegations/${id}`, { method: 'DELETE' });
+      if (!cid) return;
+      await deleteDelegation.mutateAsync({ id, companyId: cid });
       setFlash([{ type: 'success', content: t('pages.delegations_page.revoked'), dismissible: true, onDismiss: () => setFlash([]) }]);
-      load();
     } catch {
       setFlash([{ type: 'error', content: t('pages.delegations_page.failed_revoke'), dismissible: true, onDismiss: () => setFlash([]) }]);
     } finally {
@@ -214,32 +212,32 @@ export default function DelegationsPage() {
                 >
                   <SpaceBetween size="xs">
                     {delegates.map(d => (
-                      <Container key={d.ID}>
+                      <Container key={d.id}>
                         <ColumnLayout columns={5} variant="text-grid">
                           <div>
                             <Box variant="awsui-key-label">{t('pages.delegations_page.delegate')}</Box>
                             <SpaceBetween size="xs" direction="horizontal">
-                              <Badge color="grey">{d.DelegateKind}</Badge>
-                              <span>{d.DelegateID}</span>
+                              <Badge color="grey">{d.delegate_kind}</Badge>
+                              <span>{d.delegate_id}</span>
                             </SpaceBetween>
                           </div>
                           <div>
                             <Box variant="awsui-key-label">{t('pages.delegations_page.scope')}</Box>
-                            <Box variant="code">{d.Scope || 'all'}</Box>
+                            <Box variant="code">{d.scope || 'all'}</Box>
                           </div>
                           <div>
                             <Box variant="awsui-key-label">{t('pages.delegations_page.role')}</Box>
-                            <Badge color={roleColor(d.Role)}>{d.Role}</Badge>
+                            <Badge color={roleColor(d.role)}>{d.role}</Badge>
                           </div>
                           <div>
                             <Box variant="awsui-key-label">{t('users.status')}</Box>
-                            <StatusIndicator type={statusType(d.Status)}>{d.Status}</StatusIndicator>
+                            <StatusIndicator type={statusType(d.status)}>{d.status}</StatusIndicator>
                           </div>
                           <div>
                             <Button
                               variant="inline-link"
-                              loading={deletingId === d.ID}
-                              onClick={() => handleDelete(d.ID)}
+                              loading={deletingId === d.id}
+                              onClick={() => handleDelete(d.id)}
                             >
                               {t('pages.delegations_page.revoke')}
                             </Button>
@@ -259,36 +257,36 @@ export default function DelegationsPage() {
                 <Box textAlign="center" padding="xl" color="inherit">{t('pages.delegations_page.no_delegations')}</Box>
               )}
               {filtered.map(d => (
-                <Box key={d.ID} padding="s">
+                <Box key={d.id} padding="s">
                   <ColumnLayout columns={6} variant="text-grid">
                     <div>
                       <Box variant="awsui-key-label">{t('pages.delegations_page.owner')}</Box>
                       <SpaceBetween size="xs" direction="horizontal">
-                        <Badge color="grey">{d.OwnerKind}</Badge>
-                        <span>{d.OwnerID}</span>
+                        <Badge color="grey">{d.owner_kind}</Badge>
+                        <span>{d.owner_id}</span>
                       </SpaceBetween>
                     </div>
                     <div>
                       <Box variant="awsui-key-label">{t('pages.delegations_page.delegate')}</Box>
                       <SpaceBetween size="xs" direction="horizontal">
-                        <Badge color="grey">{d.DelegateKind}</Badge>
-                        <span>{d.DelegateID}</span>
+                        <Badge color="grey">{d.delegate_kind}</Badge>
+                        <span>{d.delegate_id}</span>
                       </SpaceBetween>
                     </div>
                     <div>
                       <Box variant="awsui-key-label">{t('pages.delegations_page.scope')}</Box>
-                      <Box variant="code">{d.Scope || 'all'}</Box>
+                      <Box variant="code">{d.scope || 'all'}</Box>
                     </div>
                     <div>
                       <Box variant="awsui-key-label">{t('pages.delegations_page.role')}</Box>
-                      <Badge color={roleColor(d.Role)}>{d.Role}</Badge>
+                      <Badge color={roleColor(d.role)}>{d.role}</Badge>
                     </div>
                     <div>
                       <Box variant="awsui-key-label">{t('users.status')}</Box>
-                      <StatusIndicator type={statusType(d.Status)}>{d.Status}</StatusIndicator>
+                      <StatusIndicator type={statusType(d.status)}>{d.status}</StatusIndicator>
                     </div>
                     <div>
-                      <Button variant="inline-link" loading={deletingId === d.ID} onClick={() => handleDelete(d.ID)}>{t('pages.delegations_page.revoke')}</Button>
+                      <Button variant="inline-link" loading={deletingId === d.id} onClick={() => handleDelete(d.id)}>{t('pages.delegations_page.revoke')}</Button>
                     </div>
                   </ColumnLayout>
                 </Box>
@@ -316,7 +314,7 @@ export default function DelegationsPage() {
                 <Select
                   selectedOption={kindOptions.find(o => o.value === form.owner_kind) ?? kindOptions[0]}
                   options={kindOptions}
-                  onChange={({ detail }) => setForm(f => ({ ...f, owner_kind: detail.selectedOption.value ?? 'user' }))}
+                  onChange={({ detail }) => setForm(f => ({ ...f, owner_kind: detail.selectedOption.value as DirectoryDelegationCreateRequestOwner_kind }))}
                 />
               </FormField>
               <FormField label={t('pages.delegations_page.owner_id')} constraintText={t('pages.delegations_page.owner_id_hint')}>
@@ -328,7 +326,7 @@ export default function DelegationsPage() {
                 <Select
                   selectedOption={kindOptions.find(o => o.value === form.delegate_kind) ?? kindOptions[0]}
                   options={kindOptions}
-                  onChange={({ detail }) => setForm(f => ({ ...f, delegate_kind: detail.selectedOption.value ?? 'user' }))}
+                  onChange={({ detail }) => setForm(f => ({ ...f, delegate_kind: detail.selectedOption.value as DirectoryDelegationCreateRequestDelegate_kind }))}
                 />
               </FormField>
               <FormField label={t('pages.delegations_page.delegate_id')} constraintText={t('pages.delegations_page.delegate_id_hint')}>
@@ -336,13 +334,17 @@ export default function DelegationsPage() {
               </FormField>
             </ColumnLayout>
             <FormField label={t('pages.delegations_page.scope')} constraintText={t('pages.delegations_page.scope_hint')}>
-              <Input value={form.scope} placeholder={t('pages.delegations_page.scope_placeholder')} onChange={({ detail }) => setForm(f => ({ ...f, scope: detail.value }))} />
+              <Select
+                selectedOption={scopeOptions.find(o => o.value === form.scope) ?? scopeOptions[0]}
+                options={scopeOptions}
+                onChange={({ detail }) => setForm(f => ({ ...f, scope: detail.selectedOption.value as DirectoryDelegationCreateRequestScope }))}
+              />
             </FormField>
             <FormField label={t('pages.delegations_page.role')}>
               <Select
                 selectedOption={roleOptions.find(o => o.value === form.role) ?? roleOptions[0]}
                 options={roleOptions}
-                onChange={({ detail }) => setForm(f => ({ ...f, role: detail.selectedOption.value ?? 'viewer' }))}
+                onChange={({ detail }) => setForm(f => ({ ...f, role: detail.selectedOption.value as DirectoryDelegationCreateRequestRole }))}
               />
             </FormField>
           </SpaceBetween>

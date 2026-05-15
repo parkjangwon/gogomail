@@ -1,7 +1,5 @@
 'use client';
 import { DataTable } from '@/components/DataTable';
-
-
 import {
   ContentLayout,
   Header,
@@ -11,44 +9,16 @@ import {
   TextFilter,
   Badge,
 } from '@cloudscape-design/components';
-import { useState, useEffect } from 'react';
+import { useMemo, useState } from 'react';
 import { useI18n } from '@/app/i18n-provider';
-
-interface PushMetric {
-  id: string;
-  device_id: string;
-  user_email: string;
-  attempt_status: string;
-  notification_type: string;
-  timestamp: string;
-}
+import { useAdminPushNotificationAttempts, type PushNotificationAttempt } from '@/hooks';
 
 export default function PushNotificationsPage() {
   const { t } = useI18n();
-  const [metrics, setMetrics] = useState<PushMetric[]>([]);
-  const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('');
-
-  useEffect(() => {
-    fetchPushMetrics();
-  }, []);
-
-  const fetchPushMetrics = async () => {
-    setLoading(true);
-    try {
-      const res = await fetch('/api/admin/push-notification-attempts?limit=100', {
-        credentials: 'include'
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setMetrics(data.push_notification_attempts || []);
-      }
-    } catch (error) {
-      console.error('Failed to fetch push metrics:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const attemptsQuery = useAdminPushNotificationAttempts({ limit: 100 });
+  const metrics = attemptsQuery.data ?? [];
+  const loading = attemptsQuery.isLoading;
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -59,9 +29,12 @@ export default function PushNotificationsPage() {
     }
   };
 
-  const filteredMetrics = metrics.filter(m =>
-    m.user_email.toLowerCase().includes(filter.toLowerCase()) ||
-    m.device_id.toLowerCase().includes(filter.toLowerCase())
+  const filteredMetrics = useMemo(
+    () => metrics.filter((m: PushNotificationAttempt) =>
+      (m.recipient || '').toLowerCase().includes(filter.toLowerCase()) ||
+      (m.device_id || '').toLowerCase().includes(filter.toLowerCase())
+    ),
+    [filter, metrics]
   );
 
   if (loading) {
@@ -90,31 +63,31 @@ export default function PushNotificationsPage() {
           columnDefinitions={[
             {
               header: t('pages.push_page.user_email'),
-              cell: (item: PushMetric) => item.user_email,
+              cell: (item: PushNotificationAttempt) => item.recipient,
               width: '25%',
             },
             {
               header: t('pages.push_page.device_id'),
-              cell: (item: PushMetric) => item.device_id,
+              cell: (item: PushNotificationAttempt) => item.device_id ?? '—',
               width: '25%',
             },
             {
               header: t('pages.push_page.type'),
-              cell: (item: PushMetric) => item.notification_type,
+              cell: (item: PushNotificationAttempt) => item.subject,
               width: '15%',
             },
             {
               header: t('pages.push_page.status'),
-              cell: (item: PushMetric) => (
-                <Badge color={getStatusColor(item.attempt_status)}>
-                  {item.attempt_status}
+              cell: (item: PushNotificationAttempt) => (
+                <Badge color={getStatusColor(String(item.status))}>
+                  {String(item.status)}
                 </Badge>
               ),
               width: '15%',
             },
             {
               header: t('pages.push_page.timestamp'),
-              cell: (item: PushMetric) => new Date(item.timestamp).toLocaleString(),
+              cell: (item: PushNotificationAttempt) => new Date(item.attempted_at).toLocaleString(),
               width: '20%',
             },
           ]}

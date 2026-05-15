@@ -264,7 +264,7 @@
       "role_label": "Role",
       "status": "Status",
       "system_admin": "System Admin",
-      "title": "Title",
+      "title": "Alerts & Notifications",
       "username": "Username",
       "username_label": "Username",
       "description": "Manage system administrator accounts"
@@ -293,10 +293,10 @@
       "rules": "Rules",
       "threshold": "Threshold",
       "threshold_label": "Threshold",
-      "title": "Title",
-      "type_bounce_rate": "Bounce Rate",
-      "type_delivery_failure": "Delivery Failure",
-      "type_quota_usage": "Quota Usage",
+      "title": "Alerts & Notifications",
+      "type_bounce_rate": "Storage usage",
+      "type_delivery_failure": "Login failures",
+      "type_quota_usage": "API errors",
       "type_spam_score": "Spam Score",
       "type_queue_size": "Queue Size"
     },

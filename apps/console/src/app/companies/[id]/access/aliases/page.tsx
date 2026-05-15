@@ -1,7 +1,6 @@
 'use client';
 import { DataTable } from '@/components/DataTable';
 
-
 import {
   ContentLayout,
   Header,
@@ -15,23 +14,21 @@ import {
   Input,
   Select,
 } from '@cloudscape-design/components';
-import { useState, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import { useI18n } from '@/app/i18n-provider';
 import { useParams } from 'next/navigation';
-
-interface Alias {
-  ID: string;
-  Address: string;
-  TargetKind: string;
-  TargetID: string;
-  DomainID: string;
-  Status: string;
-}
+import {
+  type DirectoryAlias,
+  useCreateDirectoryAlias,
+  useDeleteDirectoryAlias,
+  useDirectoryAliases,
+} from '@/hooks/useDirectory';
+import { DirectoryAliasCreateRequestTarget_kind } from '@gogomail/api-types';
 
 type NewAlias = {
   domain_id: string;
   address: string;
-  target_kind: string;
+  target_kind: DirectoryAliasCreateRequestTarget_kind;
   target_id: string;
 };
 
@@ -40,64 +37,38 @@ export default function AliasesPage() {
   const params = useParams();
   const companyId = params?.id as string;
 
-  const [aliases, setAliases] = useState<Alias[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data: aliases = [], isLoading: loading } = useDirectoryAliases(companyId);
   const [filter, setFilter] = useState('');
 
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newAlias, setNewAlias] = useState<NewAlias>({
     domain_id: '',
     address: '',
-    target_kind: 'user',
+    target_kind: DirectoryAliasCreateRequestTarget_kind.user,
     target_id: '',
   });
   const [creating, setCreating] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
-
-  useEffect(() => {
-    fetchAliases();
-  }, []);
-
-  const fetchAliases = async () => {
-    setLoading(true);
-    try {
-      const res = await fetch(`/api/admin/directory/aliases?company_id=${companyId}&limit=100`, {
-        credentials: 'include',
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setAliases(data.directory_aliases || []);
-      }
-    } catch (error) {
-      console.error('Failed to fetch aliases:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const createAlias = useCreateDirectoryAlias();
+  const deleteAlias = useDeleteDirectoryAlias();
 
   const handleCreate = async () => {
     if (!newAlias.address.trim() || !newAlias.target_id.trim()) return;
     setCreating(true);
     try {
-      const res = await fetch('/api/admin/directory/aliases', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      if (!companyId) return;
+      await createAlias.mutateAsync({
+        companyId,
+        data: {
           company_id: companyId,
           domain_id: newAlias.domain_id,
           address: newAlias.address,
           target_kind: newAlias.target_kind,
           target_id: newAlias.target_id,
-        }),
-        credentials: 'include',
+        },
       });
-      if (res.ok) {
-        setShowCreateModal(false);
-        setNewAlias({ domain_id: '', address: '', target_kind: 'user', target_id: '' });
-        fetchAliases();
-      } else {
-        console.error('Failed to create alias:', await res.text());
-      }
+      setShowCreateModal(false);
+      setNewAlias({ domain_id: '', address: '', target_kind: DirectoryAliasCreateRequestTarget_kind.user, target_id: '' });
     } catch (error) {
       console.error('Failed to create alias:', error);
     } finally {
@@ -108,15 +79,11 @@ export default function AliasesPage() {
   const handleDelete = async (id: string) => {
     setDeletingId(id);
     try {
-      const res = await fetch(`/api/admin/directory/aliases/${id}`, {  // id is Alias.ID
-        method: 'DELETE',
-        credentials: 'include',
+      if (!companyId) return;
+      await deleteAlias.mutateAsync({
+        id,
+        companyId,
       });
-      if (res.ok) {
-        fetchAliases();
-      } else {
-        console.error('Failed to delete alias:', await res.text());
-      }
     } catch (error) {
       console.error('Failed to delete alias:', error);
     } finally {
@@ -127,14 +94,15 @@ export default function AliasesPage() {
   const targetKindOptions = [
     { label: t('pages.aliases.target_kind_user'), value: 'user' },
     { label: t('pages.aliases.target_kind_group'), value: 'group' },
-    { label: t('pages.aliases.target_kind_external'), value: 'external' },
+    { label: t('pages.aliases.target_kind_external'), value: 'organization' },
+    { label: 'Resource', value: 'resource' },
   ];
 
-  const filteredAliases = aliases.filter(
+  const filteredAliases = useMemo(() => aliases.filter(
     (a) =>
-      a.Address.toLowerCase().includes(filter.toLowerCase()) ||
-      a.TargetID.toLowerCase().includes(filter.toLowerCase())
-  );
+      a.address.toLowerCase().includes(filter.toLowerCase()) ||
+      a.target_id.toLowerCase().includes(filter.toLowerCase())
+  ), [aliases, filter]);
 
   if (loading) {
     return (
@@ -167,36 +135,36 @@ export default function AliasesPage() {
           columnDefinitions={[
             {
               header: t('pages.aliases.address'),
-              cell: (item: Alias) => item.Address,
+              cell: (item: DirectoryAlias) => item.address,
               width: '30%',
             },
             {
               header: t('pages.aliases.domain'),
-              cell: (item: Alias) => item.DomainID || '—',
+              cell: (item: DirectoryAlias) => item.domain_id || '—',
               width: '20%',
             },
             {
               header: t('pages.aliases.target_kind'),
-              cell: (item: Alias) => item.TargetKind,
+              cell: (item: DirectoryAlias) => item.target_kind,
               width: '15%',
             },
             {
               header: t('pages.aliases.target_id'),
-              cell: (item: Alias) => item.TargetID,
+              cell: (item: DirectoryAlias) => item.target_id,
               width: '20%',
             },
             {
               header: t('pages.aliases_page.status'),
-              cell: (item: Alias) => item.Status || '—',
+              cell: (item: DirectoryAlias) => item.status || '—',
               width: '10%',
             },
             {
               header: t('common.actions'),
-              cell: (item: Alias) => (
+              cell: (item: DirectoryAlias) => (
                 <Button
                   variant="inline-link"
-                  onClick={() => handleDelete(item.ID)}
-                  loading={deletingId === item.ID}
+                  onClick={() => handleDelete(item.id)}
+                  loading={deletingId === item.id}
                 >
                   {t('common.delete')}
                 </Button>
@@ -269,7 +237,10 @@ export default function AliasesPage() {
               }
               options={targetKindOptions}
               onChange={(e) =>
-                setNewAlias({ ...newAlias, target_kind: e.detail.selectedOption.value ?? 'user' })
+                setNewAlias({
+                  ...newAlias,
+                  target_kind: e.detail.selectedOption.value as DirectoryAliasCreateRequestTarget_kind,
+                })
               }
               expandToViewport
             />

@@ -10,10 +10,11 @@ import {
   Box,
 } from '@cloudscape-design/components';
 import { Sidebar } from './Sidebar';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useI18n } from '@/app/i18n-provider';
 import { useCompany } from '@/contexts/CompanyContext';
+import { useAlertEvents } from '@/hooks/useAlerts';
 import { locales, type Locale } from '@/i18n/config';
 
 const VISIT_KEY = 'ggm_recent_visits';
@@ -64,11 +65,11 @@ function useIsMobile(breakpoint = 688) {
 
 export function AdminLayout({ children }: { children: React.ReactNode }) {
   const [notifications] = useState<FlashbarProps.MessageDefinition[]>([]);
-  const [alertCount, setAlertCount] = useState(0);
   const { locale, setLocale, t } = useI18n();
   const { companies, currentCompany, switchCompany } = useCompany();
   const router = useRouter();
   const isMobile = useIsMobile();
+  const { data: alertEvents = [] } = useAlertEvents(currentCompany?.id);
 
   const cid = currentCompany?.id ?? 'default';
   const pathname = usePathname();
@@ -77,19 +78,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
     if (pathname) recordVisit(pathname);
   }, [pathname]);
 
-  const alertTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  useEffect(() => {
-    if (!currentCompany?.id) return;
-    const fetchAlerts = () => {
-      fetch(`/api/admin/companies/${currentCompany.id}/alert-events`, { credentials: 'include' })
-        .then(r => r.ok ? r.json() : null)
-        .then(data => { if (data) setAlertCount((data.events ?? []).length); })
-        .catch(() => {});
-    };
-    fetchAlerts();
-    alertTimerRef.current = setInterval(fetchAlerts, 60_000);
-    return () => { if (alertTimerRef.current) clearInterval(alertTimerRef.current); };
-  }, [currentCompany?.id]);
+  const alertCount = alertEvents.filter(event => !event.resolved_at).length;
 
   return (
     <>

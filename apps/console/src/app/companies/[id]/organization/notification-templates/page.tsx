@@ -20,17 +20,10 @@ import {
   ColumnLayout,
   Toggle,
 } from '@cloudscape-design/components';
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { useI18n } from '@/app/i18n-provider';
 import { useCompany } from '@/contexts/CompanyContext';
-
-interface NotifTemplate {
-  id: string;
-  name: string;
-  subject: string;
-  body: string;
-  enabled: boolean;
-}
+import { useCompanyNotificationTemplates, useUpdateCompanyNotificationTemplate, type CompanyNotifTemplate } from '@/hooks';
 
 // Substitute {{variable}} placeholders with sample values
 function interpolate(tmpl: string, samples: Record<string, string>): string {
@@ -41,31 +34,16 @@ export default function NotifTemplatesPage() {
   const { t } = useI18n();
   const { currentCompany } = useCompany();
   const cid = currentCompany?.id;
-
-  const [templates, setTemplates] = useState<NotifTemplate[]>([]);
-  const [loading, setLoading] = useState(true);
+  const templatesQuery = useCompanyNotificationTemplates(cid);
+  const updateTemplate = useUpdateCompanyNotificationTemplate();
+  const templates = templatesQuery.data ?? [];
+  const loading = templatesQuery.isLoading;
   const [flash, setFlash] = useState<FlashbarProps.MessageDefinition[]>([]);
-  const [selected, setSelected] = useState<NotifTemplate | null>(null);
+  const [selected, setSelected] = useState<CompanyNotifTemplate | null>(null);
   const [saving, setSaving] = useState(false);
-  const [editForm, setEditForm] = useState<Partial<NotifTemplate>>({});
+  const [editForm, setEditForm] = useState<CompanyNotifTemplate>({ enabled: true, name: '', subject: '', body: '' });
 
-  const load = useCallback(async () => {
-    if (!cid) return;
-    setLoading(true);
-    try {
-      const res = await fetch(`/admin/v1/companies/${cid}/notification-templates`);
-      const data = await res.json();
-      setTemplates(data.templates ?? []);
-    } catch {
-      setFlash([{ type: 'error', content: t('notif_templates_page.failed_load'), dismissible: true, onDismiss: () => setFlash([]) }]);
-    } finally {
-      setLoading(false);
-    }
-  }, [cid]);
-
-  useEffect(() => { load(); }, [load]);
-
-  const openEdit = (tmpl: NotifTemplate) => {
+  const openEdit = (tmpl: CompanyNotifTemplate) => {
     setSelected(tmpl);
     setEditForm({ ...tmpl });
   };
@@ -74,15 +52,9 @@ export default function NotifTemplatesPage() {
     if (!selected) return;
     setSaving(true);
     try {
-      const res = await fetch(`/admin/v1/companies/${cid}/notification-templates/${selected.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(editForm),
-      });
-      if (!res.ok) throw new Error(await res.text());
+      await updateTemplate.mutateAsync({ companyId: cid!, templateId: selected.id!, data: editForm });
       setFlash([{ type: 'success', content: t('notif_templates_page.saved'), dismissible: true, onDismiss: () => setFlash([]) }]);
       setSelected(null);
-      load();
     } catch (e: unknown) {
       setFlash([{ type: 'error', content: String(e), dismissible: true, onDismiss: () => setFlash([]) }]);
     } finally {

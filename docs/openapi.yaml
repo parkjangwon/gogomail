@@ -6707,6 +6707,57 @@ paths:
                       $ref: "#/components/schemas/AlertChannel"
         default:
           $ref: "#/components/responses/Error"
+  /alert-channels/{channelid}:
+    put:
+      operationId: updateAlertChannel
+      summary: Update alert channel
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      parameters:
+        - name: channelid
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateAlertChannel"
+      responses:
+        "200":
+          description: Alert channel updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AlertChannel"
+        default:
+          $ref: "#/components/responses/Error"
+    delete:
+      operationId: deleteAlertChannel
+      summary: Delete alert channel
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      parameters:
+        - name: channelid
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          $ref: "#/components/responses/IDStatus"
+        default:
+          $ref: "#/components/responses/Error"
   /companies/{id}/alert-events:
     get:
       operationId: listAlertEvents

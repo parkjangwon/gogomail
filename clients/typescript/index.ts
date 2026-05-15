@@ -39,6 +39,24 @@ export type paths = {
         patch?: never;
         trace?: never;
     };
+    "/alert-channels/{channelid}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Update alert channel */
+        put: operations["updateAlertChannel"];
+        post?: never;
+        /** Delete alert channel */
+        delete: operations["deleteAlertChannel"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/alert-rules/{ruleid}": {
         parameters: {
             query?: never;
@@ -8915,6 +8933,48 @@ export interface operations {
             header?: never;
             path: {
                 id: components["parameters"]["PathID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: components["responses"]["IDStatus"];
+            default: components["responses"]["Error"];
+        };
+    };
+    updateAlertChannel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                channelid: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateAlertChannel"];
+            };
+        };
+        responses: {
+            /** @description Alert channel updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AlertChannel"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    deleteAlertChannel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                channelid: string;
             };
             cookie?: never;
         };

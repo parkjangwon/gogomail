@@ -16,6 +16,7 @@ import {
 import { useState } from 'react';
 import { useI18n } from '@/app/i18n-provider';
 import { useCompany } from '@/contexts/CompanyContext';
+import { useReportCsvExport } from '@/hooks';
 
 interface ReportDef {
   id: string;
@@ -43,6 +44,7 @@ export default function ReportsPage() {
   const cid = currentCompany?.id;
   const [flash, setFlash] = useState<FlashbarProps.MessageDefinition[]>([]);
   const [exporting, setExporting] = useState<string | null>(null);
+  const exportCsv = useReportCsvExport();
 
   const err = (msg: string) => setFlash([{ type: 'error', content: msg, dismissible: true, onDismiss: () => setFlash([]) }]);
   const ok = (msg: string) => setFlash([{ type: 'success', content: msg, dismissible: true, onDismiss: () => setFlash([]) }]);
@@ -57,13 +59,11 @@ export default function ReportsPage() {
     }
     setExporting(report.id);
     try {
-      const res = await fetch(`/api/admin/companies/${cid}/${report.exportEndpoint}`);
-      if (!res.ok) throw new Error(await res.text());
-      const blob = await res.blob();
+      const { blob, filename } = await exportCsv.mutateAsync({ companyId: cid, report });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `${report.id}-${cid}.csv`;
+      a.download = filename;
       a.click();
       URL.revokeObjectURL(url);
       ok(getLabel(report.id, 'name'));

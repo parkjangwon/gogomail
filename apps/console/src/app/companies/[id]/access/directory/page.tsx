@@ -1,7 +1,6 @@
 'use client';
 import { DataTable } from '@/components/DataTable';
 
-
 import {
   ContentLayout,
   Header,
@@ -12,54 +11,22 @@ import {
   TextFilter,
   Badge,
 } from '@cloudscape-design/components';
-import { useState, useEffect } from 'react';
+import { useMemo, useState } from 'react';
 import { useI18n } from '@/app/i18n-provider';
 import { useParams } from 'next/navigation';
-
-interface Principal {
-  ID: string;
-  Kind: string;
-  CompanyID: string;
-  DomainID: string;
-  OrganizationID: string;
-  DisplayName: string;
-  PrimaryEmail: string;
-  Status: string;
-}
+import { type DirectoryPrincipal, useDirectoryPrincipals } from '@/hooks/useDirectory';
 
 export default function DirectoryPage() {
   const { t } = useI18n();
   const params = useParams();
   const companyId = params?.id as string;
-  const [principals, setPrincipals] = useState<Principal[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data: principals = [], isLoading: loading } = useDirectoryPrincipals(companyId);
   const [filter, setFilter] = useState('');
 
-  useEffect(() => {
-    fetchPrincipals();
-  }, [companyId]);
-
-  const fetchPrincipals = async () => {
-    setLoading(true);
-    try {
-      const res = await fetch(`/api/admin/directory/principals?company_id=${companyId}&limit=100`, {
-        credentials: 'include'
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setPrincipals(data.directory_principals || []);
-      }
-    } catch (error) {
-      console.error('Failed to fetch principals:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const filteredPrincipals = principals.filter(p =>
-    p.PrimaryEmail.toLowerCase().includes(filter.toLowerCase()) ||
-    p.DisplayName.toLowerCase().includes(filter.toLowerCase())
-  );
+  const filteredPrincipals = useMemo(() => principals.filter(p =>
+    p.primary_email.toLowerCase().includes(filter.toLowerCase()) ||
+    p.display_name.toLowerCase().includes(filter.toLowerCase())
+  ), [principals, filter]);
 
   if (loading) {
     return (
@@ -92,26 +59,26 @@ export default function DirectoryPage() {
           columnDefinitions={[
             {
               header: t('pages.directory_page.email'),
-              cell: (item: Principal) => item.PrimaryEmail,
+              cell: (item: DirectoryPrincipal) => item.primary_email,
               width: '30%',
             },
             {
               header: t('pages.directory_page.name'),
-              cell: (item: Principal) => item.DisplayName,
+              cell: (item: DirectoryPrincipal) => item.display_name,
               width: '25%',
             },
             {
               header: t('pages.directory_page.type'),
-              cell: (item: Principal) => (
-                <Badge color="blue">{item.Kind}</Badge>
+              cell: (item: DirectoryPrincipal) => (
+                <Badge color="blue">{item.kind}</Badge>
               ),
               width: '15%',
             },
             {
               header: t('pages.directory_page.status'),
-              cell: (item: Principal) => (
-                <Badge color={item.Status === 'active' ? 'green' : 'grey'}>
-                  {item.Status}
+              cell: (item: DirectoryPrincipal) => (
+                <Badge color={item.status === 'active' ? 'green' : 'grey'}>
+                  {item.status}
                 </Badge>
               ),
               width: '15%',

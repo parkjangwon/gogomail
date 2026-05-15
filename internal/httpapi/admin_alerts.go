@@ -203,6 +203,63 @@ func handleListAlertChannels(w http.ResponseWriter, r *http.Request, svc AdminSe
 	})
 }
 
+// handleUpdateAlertChannel updates an alert channel.
+func handleUpdateAlertChannel(w http.ResponseWriter, r *http.Request, svc AdminService) {
+	channelID, ok := parseBoundedAdminPathValue(w, r, "channelid")
+	if !ok {
+		return
+	}
+
+	var req struct {
+		Name      string                     `json:"name"`
+		Config    admin.AlertChannelConfig `json:"config"`
+		IsEnabled bool                      `json:"is_enabled"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	channel, err := svc.GetAlertChannel(r.Context(), channelID)
+	if err != nil {
+		writeError(w, http.StatusNotFound, "alert channel not found")
+		return
+	}
+
+	channel.Name = req.Name
+	channel.IsEnabled = req.IsEnabled
+	if len(req.Config.Recipients) > 0 || req.Config.URL != "" || req.Config.AuthHeader != "" {
+		channel.Config = req.Config
+	}
+
+	if err := svc.UpdateAlertChannel(r.Context(), channel); err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(channel)
+}
+
+// handleDeleteAlertChannel deletes an alert channel.
+func handleDeleteAlertChannel(w http.ResponseWriter, r *http.Request, svc AdminService) {
+	channelID, ok := parseBoundedAdminPathValue(w, r, "channelid")
+	if !ok {
+		return
+	}
+
+	if err := svc.DeleteAlertChannel(r.Context(), channelID); err != nil {
+		writeError(w, http.StatusNotFound, "alert channel not found")
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{
+		"status": "deleted",
+	})
+}
+
 // handleListAlertEvents lists alert events.
 func handleListAlertEvents(w http.ResponseWriter, r *http.Request, svc AdminService) {
 	companyID, ok := parseBoundedAdminPathValue(w, r, "id")
