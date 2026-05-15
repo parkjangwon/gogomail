@@ -190,16 +190,27 @@ IMAP, CalDAV, CardDAV 프로토콜 게이트웨이 성능, 안정성, RFC 준수
 
 ### 진행 상황
 
-Phase 1 진행: IMAP 버퍼 풀 최적화
-- [x] TASK-089 요구사항 분석 완료
-- [x] IMAP 벤치마크 프레임워크 구축
-  - BenchmarkLiteralBufferPool: small/medium/large buffers with/without pooling
-  - BenchmarkReadIMAPSectionLiteral: header/body 읽기 성능
-  - BenchmarkResponseBufferPool: 응답 버퍼 풀 효율성
-- [x] Buffer pool 구현 및 통합
-  - `internal/imapgw/buffers.go`: 4KB literal buffer pool, response writer pool
-  - readIMAPSectionLiteral 최적화: pooled buffers 사용
-  - 최대 풀 크기: 1MB (초과하면 풀링하지 않음)
-- [x] 성능 검증
-  - 모든 IMAP 테스트 통과 (421 tests, race detection enabled)
-  - 다음: CalDAV/CardDAV XML 버퍼 최적화
+**Phase 1 진행 중: Protocol Gateway 버퍼 풀 최적화**
+
+✓ IMAP (완료):
+- [x] 벤치마크 프레임워크: literal/section/response 버퍼 풀 성능 측정
+- [x] Buffer pool 구현: 4KB literal buffers, response writers (1MB cap)
+- [x] readIMAPSectionLiteral 최적화: pooled buffers 사용
+- [x] 테스트 검증: 421 IMAP 테스트 통과 (race detection enabled)
+
+✓ CalDAV & CardDAV (완료):
+- [x] XML 버퍼 풀 구현: 8KB buffers, 1MB cap
+- [x] CalDAV response 최적화:
+  - BuildMultiStatusXML: pooled buffers
+  - BuildSyncCollectionTruncatedXML: pooled buffers
+  - BuildMKCalendarResponseXML: pooled buffers
+- [x] CardDAV response 최적화:
+  - BuildMultiStatusXML: pooled buffers
+  - BuildMKCOLResponseXML: pooled buffers
+  - BuildSyncCollectionTruncatedXML: pooled buffers
+- [x] 테스트 검증: 1083 CalDAV/CardDAV 테스트 통과 (race detection enabled)
+
+**Phase 2 예정: 메트릭 & Rate Limiting**
+- Protocol gateway metrics: connection count, latency, errors
+- Per-user rate limiting
+- Graceful degradation under load

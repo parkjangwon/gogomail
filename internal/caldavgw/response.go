@@ -1,7 +1,6 @@
 package caldavgw
 
 import (
-	"bytes"
 	"encoding/xml"
 	"fmt"
 	"net/http"
@@ -383,9 +382,11 @@ func BuildSyncCollectionXML(responses []MultiStatusResponse, syncToken string) (
 }
 
 func BuildSyncCollectionTruncatedXML() ([]byte, error) {
-	var buf bytes.Buffer
+	buf := acquireXMLBuffer()
+	defer releaseXMLBuffer(buf)
+
 	buf.WriteString(xml.Header)
-	enc := xml.NewEncoder(&buf)
+	enc := xml.NewEncoder(buf)
 	root := xml.StartElement{
 		Name: xml.Name{Local: "D:multistatus"},
 		Attr: []xml.Attr{
@@ -407,13 +408,15 @@ func BuildSyncCollectionTruncatedXML() ([]byte, error) {
 	if err := enc.Flush(); err != nil {
 		return nil, err
 	}
-	return buf.Bytes(), nil
+	return append([]byte(nil), buf.Bytes()...), nil
 }
 
 func BuildMKCalendarResponseXML(propStats []PropStatus) ([]byte, error) {
-	var buf bytes.Buffer
+	buf := acquireXMLBuffer()
+	defer releaseXMLBuffer(buf)
+
 	buf.WriteString(xml.Header)
-	enc := xml.NewEncoder(&buf)
+	enc := xml.NewEncoder(buf)
 	root := xml.StartElement{
 		Name: xml.Name{Local: "C:mkcalendar-response"},
 		Attr: []xml.Attr{
@@ -437,13 +440,15 @@ func BuildMKCalendarResponseXML(propStats []PropStatus) ([]byte, error) {
 	if err := enc.Flush(); err != nil {
 		return nil, err
 	}
-	return buf.Bytes(), nil
+	return append([]byte(nil), buf.Bytes()...), nil
 }
 
 func buildMultiStatusXML(responses []MultiStatusResponse, syncToken string) ([]byte, error) {
-	var buf bytes.Buffer
+	buf := acquireXMLBuffer()
+	defer releaseXMLBuffer(buf)
+
 	buf.WriteString(xml.Header)
-	enc := xml.NewEncoder(&buf)
+	enc := xml.NewEncoder(buf)
 	root := xml.StartElement{
 		Name: xml.Name{Local: "D:multistatus"},
 		Attr: []xml.Attr{
@@ -472,7 +477,7 @@ func buildMultiStatusXML(responses []MultiStatusResponse, syncToken string) ([]b
 	if err := enc.Flush(); err != nil {
 		return nil, err
 	}
-	return buf.Bytes(), nil
+	return append([]byte(nil), buf.Bytes()...), nil
 }
 
 func encodeResponse(enc *xml.Encoder, response MultiStatusResponse) error {
