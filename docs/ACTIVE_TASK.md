@@ -21,8 +21,12 @@ Admin Console Phase 1-3이 완료됨. Phase 1 mail infrastructure (receive, send
 - 모든 테스트 통과 (6045 tests)
 - 성능: 연결 재사용으로 handshake 오버헤드 감소
 
-**Phase 2: RFC Compliance (진행 중 → 부분 완료)**
-- RFC 5321 Received 헤더 구현 (메일 추적성 개선)
+**Phase 2: RFC Compliance & Pipelining (진행 중)**
+- ✓ RFC 5321 Received 헤더 구현 (메일 추적성 개선)
+- ✓ SMTP 파이프라인 구현 (pipelineRCPTs)
+  - 복수 RCPT 명령 동시 전송으로 왕복 시간 감소
+  - 벤치마크 프레임워크 구현 (5-100 recipient 케이스)
+  - RFC 2920 호환성 (명령 버퍼링 & 응답 읽기)
 - headerInjector로 DATA phase에서 헤더 자동 주입
 - io.MultiReader로 효율적인 스트리밍
 
@@ -43,7 +47,7 @@ Go Backend (`internal/`):
 - [x] 풀 초기화 동시성 보호 (sync.Once)
 
 **Phase 2: RFC Compliance & Pipelining (진행 중)**
-- [ ] SMTP 파이프라인 성능 벤치마크 및 최적화
+- [x] SMTP 파이프라인 성능 벤치마크 및 최적화 (✓ pipelineRCPTs 구현)
 - [x] RFC 5321 Received headers (✓ implemented)
 - [ ] RFC compliance 검증 (DKIM, SPF/DMARC)
 - [ ] Delivery worker 재시도 정책 튜닝

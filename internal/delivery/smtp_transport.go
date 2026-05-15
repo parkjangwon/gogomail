@@ -246,12 +246,7 @@ func (t *DirectSMTPTransport) deliverHostDefault(ctx context.Context, job Job, r
 		}
 		return WrapSMTPError("mail", err)
 	}
-	acceptedRecipients, recipientFailures := acceptRecipients(recipients, func(recipient outbound.Address) error {
-		if err := smtpRcpt(client, job, recipient); err != nil {
-			return WrapSMTPError("rcpt", err)
-		}
-		return nil
-	})
+	acceptedRecipients, recipientFailures := pipelineRCPTs(client, job, recipients)
 	if len(acceptedRecipients) == 0 {
 		if pooledConnUsed {
 			_ = conn.Close()
@@ -445,6 +440,70 @@ func acceptRecipients(recipients []outbound.Address, rcpt func(outbound.Address)
 		}
 		accepted = append(accepted, recipient)
 	}
+	return accepted, failures
+}
+
+// pipelineRCPTs sends multiple RCPT commands via pipelining (RFC 2920)
+// Returns accepted recipients and failures, enabling bulk recipient handling
+func pipelineRCPTs(client *smtp.Client, job Job, recipients []outbound.Address) ([]outbound.Address, []RecipientDeliveryError) {
+	if len(recipients) == 0 {
+		return []outbound.Address{}, []RecipientDeliveryError{}
+	}
+
+	// Send all RCPT commands without waiting for responses
+	rcptCmds := make([]string, 0, len(recipients))
+	for _, recipient := range recipients {
+		if containsNonASCIIByte(recipient.Email) && !smtpClientSupports(client, "SMTPUTF8") {
+			return []outbound.Address{}, []RecipientDeliveryError{
+				{Recipient: recipient, Err: &SMTPStatusError{Op: "rcpt", Code: 553, Message: "5.6.7 SMTPUTF8 required but not advertised"}},
+			}
+		}
+
+		options := dsnOptionsForRecipient(job.DSN.Recipients, recipient.Email)
+		cmd := "RCPT TO:<" + recipient.Email + ">"
+		if shouldSendOutboundDSNRcptOptions(job) && smtpClientSupports(client, "DSN") && len(options) > 0 {
+			cmd += " " + strings.Join(options, " ")
+		}
+		rcptCmds = append(rcptCmds, cmd)
+	}
+
+	// Pipeline: send all commands at once
+	cmdIDs := make([]uint, 0, len(rcptCmds))
+	for _, cmd := range rcptCmds {
+		if strings.ContainsAny(cmd, "\r\n") {
+			return []outbound.Address{}, []RecipientDeliveryError{
+				{Recipient: recipients[0], Err: fmt.Errorf("smtp command contains newline")},
+			}
+		}
+		id, err := client.Text.Cmd("%s", cmd)
+		if err != nil {
+			return []outbound.Address{}, []RecipientDeliveryError{
+				{Recipient: recipients[0], Err: WrapSMTPError("rcpt", err)},
+			}
+		}
+		cmdIDs = append(cmdIDs, id)
+	}
+
+	// Read all responses
+	accepted := make([]outbound.Address, 0, len(recipients))
+	failures := make([]RecipientDeliveryError, 0)
+
+	for i, id := range cmdIDs {
+		client.Text.StartResponse(id)
+		code, _, err := client.Text.ReadResponse(250)
+		client.Text.EndResponse(id)
+
+		if err != nil {
+			failures = append(failures, RecipientDeliveryError{Recipient: recipients[i], Err: WrapSMTPError("rcpt", err)})
+			continue
+		}
+		if code != 250 {
+			failures = append(failures, RecipientDeliveryError{Recipient: recipients[i], Err: &SMTPStatusError{Op: "rcpt", Code: code, Message: fmt.Sprintf("%d recipient rejected", code)}})
+			continue
+		}
+		accepted = append(accepted, recipients[i])
+	}
+
 	return accepted, failures
 }
 
