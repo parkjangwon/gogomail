@@ -13,11 +13,17 @@ Admin Console Phase 1-3이 완료됨. Phase 1 mail infrastructure (receive, send
 
 **Phase 1: Connection Pooling (✓ 완료)**
 - SMTP ConnectionPool 구현: 재사용 가능한 연결 관리
-- SMTPConnPoolKey로 호스트별 연결 구분
+- SMTPConnPoolKey로 호스트별 연결 구분 (Host, Port, ImplicitTLS, AuthUser)
 - MaxIdle, IdleTimeout, MaxAge 설정 가능
 - DirectSMTPTransport에 통합 완료
 - Thread-safe 초기화 (sync.Once)
-- 모든 테스트 통과 (6056 tests)
+- 모든 테스트 통과 (6045 tests)
+- 성능: 연결 재사용으로 handshake 오버헤드 감소
+
+**Phase 2: RFC Compliance (진행 중 → 부분 완료)**
+- RFC 5321 Received 헤더 구현 (메일 추적성 개선)
+- headerInjector로 DATA phase에서 헤더 자동 주입
+- io.MultiReader로 효율적인 스트리밍
 
 ### 구현 대상
 
