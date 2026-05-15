@@ -1,6 +1,25 @@
 # gogomail current status
 
-Last updated: 2026-05-16 (TASK-087 in progress, admin console phase 3)
+Last updated: 2026-05-16 (TASK-088 phase 3, mail infrastructure hardening)
+
+## Mail Infrastructure Hardening Phase 3 (2026-05-16, TASK-088 in progress)
+- Performance optimization for high-volume bulk send scenarios: connection pooling, pipelining, and retry policy tuning.
+- **Phase 1 (Connection Pooling)** ✓ Complete:
+  - SMTP `SMTPConnectionPool` with per-host connection reuse (host, port, implicit TLS, auth user as keys)
+  - Thread-safe initialization with `sync.Once` pattern
+  - Pool metrics tracking (hits/misses) for visibility into connection reuse efficiency
+  - All connection pooling tests pass (171 tests in delivery package)
+- **Phase 2 (RFC Compliance & Pipelining)** ✓ Complete:
+  - RFC 2920 SMTP pipelining via `pipelineRCPTs()` function: batched RCPT commands reduce network round-trips
+  - RFC 5321 Received header injection for mail traceability via `headerInjector` + `io.MultiReader` streaming
+  - Aggressive bulk retry policy: 2min→10min→1hr→6hr→12hr (vs default 5min→30min→2h→8h→24h) for faster transient recovery + bounded window
+  - DKIM signing, DSN options, SMTPUTF8 support integrated into pipelining
+- **Phase 3 (Performance Optimization)** In Progress:
+  - Message parser: `sync.Pool` buffer reuse in `readLimitedText()`, single-pass `sanitizeAttachmentFilename()` processing
+  - Database optimization: `retryDedupeKey()` uses `strings.Builder` + fast-path sorting detection
+  - Load test framework: `BenchmarkBulkSendThroughput`, `BenchmarkBulkSendWithPipelining`, `TestBulkSendPoolingMetrics`
+  - Performance metrics framework: `PerformanceMetrics` struct with atomic counters for pool hits/misses, delivery success rate, SMTP timing, throughput calculation
+- Verification: `go test ./...` passes with 5961 total tests (171 in delivery package with race detection)
 
 ## Admin Console Frontend Phase 3 (2026-05-16, TASK-087 complete)
 - Compliance management, delivery routing, monitoring, system health, and admin activity pages fully implemented and verified.
