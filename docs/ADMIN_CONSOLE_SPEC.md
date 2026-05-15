@@ -771,8 +771,8 @@ GET    /admin/v1/api-usage/daily
 ### Settings
 
 ```
-GET    /admin/v1/audit-policy
-PUT    /admin/v1/audit-policy       (audit level, retention)
+GET    /admin/v1/companies/{id}/security/audit-policy
+PUT    /admin/v1/companies/{id}/security/audit-policy  (audit level, retention, masking)
 
 GET    /admin/v1/domain-settings
 PUT    /admin/v1/domain-settings    (TLS, Quota, Security)

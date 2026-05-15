@@ -1,12 +1,26 @@
 # gogomail current status
 
-Last updated: 2026-05-15 (Audit Policy Config UI started after dashboard polish)
+Last updated: 2026-05-15 (Role Management UI polish after export/report and audit policy work)
 
-## Audit Policy Config UI (2026-05-15, TASK-079 in progress)
-- `apps/console/src/app/companies/[id]/security/audit-policy/page.tsx` adds a dedicated audit policy screen with audit level selection plus admin-action and security-event toggles.
-- `apps/console/src/components/Sidebar.tsx` now exposes the new Audit Policy entry inside the governance section so admins can reach the page directly.
+## Role Management UI (2026-05-15, TASK-081 in progress)
+- `apps/console/src/app/companies/[id]/roles/page.tsx` now reads roles through `useRoles(companyId)`, creates custom roles through `useCreateRole()`, and shows builtin vs custom roles explicitly in the table.
+- `apps/console/src/hooks/useRoles.ts` now sends the company scope through the list and create calls so the page stays aligned with the admin role contract.
+- Console translations were updated with builtin/custom role labels and a type column label in all four locale packs.
+- Verification:
+  - `pnpm -C apps/console type-check`
+
+## Export & Reports (2026-05-15, TASK-080 complete)
+- `apps/console/src/app/companies/[id]/reports/page.tsx` now sends audit log and user export requests through the admin API proxy path instead of hitting `/admin/v1` directly from the browser.
+- The existing backend audit-log export handler and users bulk-export route already cover the report actions the page exposes, so the fix was a frontend routing alignment rather than a new endpoint.
+- Verification:
+  - `pnpm -C apps/console type-check`
+  - `go test ./...`
+
+## Audit Policy Config UI (2026-05-15, TASK-079 complete)
+- `apps/console/src/app/companies/[id]/security/audit-policy/page.tsx` now exposes a dedicated audit policy screen with audit level selection, retention, and masking controls.
+- `apps/console/src/hooks/useAuditPolicy.ts` now targets the company-scoped audit-policy route through the admin proxy and serializes the full policy envelope.
+- `apps/console/src/components/Sidebar.tsx` exposes the new Audit Policy entry inside the governance section so admins can reach the page directly.
 - The console translations were extended with audit policy labels and page copy in English, Korean, Japanese, and Simplified Chinese.
-- The page is wired to the existing `useAuditPolicy` / `useUpdateAuditPolicy` hooks and stays aligned with the existing admin API proxy path.
 - Verification:
   - `pnpm -C apps/console type-check`
   - `go test ./...`

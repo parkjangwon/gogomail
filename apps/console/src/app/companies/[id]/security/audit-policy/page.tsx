@@ -9,10 +9,12 @@ import {
   Spinner,
   Toggle,
   FormField,
+  Input,
   Select,
   type SelectProps,
   Container,
   Alert,
+  ColumnLayout,
 } from '@cloudscape-design/components';
 import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
@@ -27,9 +29,12 @@ const AUDIT_LEVEL_OPTIONS: SelectProps.Option[] = [
 
 const DEFAULT_POLICY = {
   company_id: '',
-  audit_level: 'level_1' as AuditLevel,
+  audit_level: 'level_2' as AuditLevel,
   audit_admin_actions: true,
   audit_security_events: true,
+  retention_days: 90,
+  mask_mail_content: true,
+  mask_recipient_emails: false,
 };
 
 function toOption(level: AuditLevel): SelectProps.Option {
@@ -45,12 +50,20 @@ export default function AuditPolicyPage() {
   const [policy, setPolicy] = useState(DEFAULT_POLICY);
 
   useEffect(() => {
+    if (!companyId) return;
+    setPolicy((current) => ({ ...current, company_id: companyId }));
+  }, [companyId]);
+
+  useEffect(() => {
     if (!data) return;
     setPolicy({
-      company_id: data.company_id,
+      company_id: data.company_id || companyId,
       audit_level: data.audit_level,
       audit_admin_actions: data.audit_admin_actions,
       audit_security_events: data.audit_security_events,
+      retention_days: data.retention_days,
+      mask_mail_content: data.mask_mail_content,
+      mask_recipient_emails: data.mask_recipient_emails,
     });
   }, [data]);
 
@@ -93,13 +106,26 @@ export default function AuditPolicyPage() {
 
         <Container header={<Header variant="h2">{t('pages.audit_policy_page.company_scope')}</Header>}>
           <SpaceBetween size="m">
-            <FormField label={t('pages.audit_policy_page.audit_level')}>
-              <Select
-                selectedOption={selectedLevel}
-                options={AUDIT_LEVEL_OPTIONS}
-                onChange={(e) => setPolicy({ ...policy, audit_level: e.detail.selectedOption.value as AuditLevel })}
-              />
-            </FormField>
+            <ColumnLayout columns={2}>
+              <FormField label={t('pages.audit_policy_page.audit_level')}>
+                <Select
+                  selectedOption={selectedLevel}
+                  options={AUDIT_LEVEL_OPTIONS}
+                  onChange={(e) => setPolicy({ ...policy, audit_level: e.detail.selectedOption.value as AuditLevel })}
+                />
+              </FormField>
+
+              <FormField
+                label={t('pages.audit_policy_page.retention_days')}
+                description={t('pages.audit_policy_page.retention_days_desc')}
+              >
+                <Input
+                  type="number"
+                  value={String(policy.retention_days)}
+                  onChange={(e) => setPolicy({ ...policy, retention_days: parseInt(e.detail.value) || 0 })}
+                />
+              </FormField>
+            </ColumnLayout>
 
             <FormField
               label={t('pages.audit_policy_page.audit_admin_actions')}
@@ -122,6 +148,34 @@ export default function AuditPolicyPage() {
                 onChange={(e) => setPolicy({ ...policy, audit_security_events: e.detail.checked })}
               >
                 {policy.audit_security_events ? t('common.enabled') : t('common.disabled')}
+              </Toggle>
+            </FormField>
+          </SpaceBetween>
+        </Container>
+
+        <Container header={<Header variant="h2">{t('pages.audit_policy_page.masking_section')}</Header>}>
+          <SpaceBetween size="m">
+            <FormField
+              label={t('pages.audit_policy_page.mask_mail_content')}
+              description={t('pages.audit_policy_page.mask_mail_content_desc')}
+            >
+              <Toggle
+                checked={policy.mask_mail_content}
+                onChange={(e) => setPolicy({ ...policy, mask_mail_content: e.detail.checked })}
+              >
+                {policy.mask_mail_content ? t('common.enabled') : t('common.disabled')}
+              </Toggle>
+            </FormField>
+
+            <FormField
+              label={t('pages.audit_policy_page.mask_recipient_emails')}
+              description={t('pages.audit_policy_page.mask_recipient_emails_desc')}
+            >
+              <Toggle
+                checked={policy.mask_recipient_emails}
+                onChange={(e) => setPolicy({ ...policy, mask_recipient_emails: e.detail.checked })}
+              >
+                {policy.mask_recipient_emails ? t('common.enabled') : t('common.disabled')}
               </Toggle>
             </FormField>
           </SpaceBetween>

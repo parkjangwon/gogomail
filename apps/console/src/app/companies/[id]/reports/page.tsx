@@ -57,7 +57,7 @@ export default function ReportsPage() {
     }
     setExporting(report.id);
     try {
-      const res = await fetch(`/admin/v1/companies/${cid}/${report.exportEndpoint}`);
+      const res = await fetch(`/api/admin/companies/${cid}/${report.exportEndpoint}`);
       if (!res.ok) throw new Error(await res.text());
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);

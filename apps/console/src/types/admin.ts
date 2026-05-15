@@ -63,6 +63,9 @@ export interface AuditPolicyConfig {
   audit_level: "level_1" | "level_2" | "level_3";
   audit_admin_actions: boolean;
   audit_security_events: boolean;
+  retention_days: number;
+  mask_mail_content: boolean;
+  mask_recipient_emails: boolean;
 }
 
 export interface StatisticsData {

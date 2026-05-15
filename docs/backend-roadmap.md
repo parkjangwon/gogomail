@@ -6145,9 +6145,9 @@ Target outcome:
 | TASK-076 | Statistics & Dashboard | Mail volume, user activity, storage |
 | TASK-077 | API Metering | Daily rollup, per-domain visibility |
 | TASK-078 | Dashboard UI | System/Domain admin views |
-| TASK-079 | Audit Policy Config UI | Level selection, retention, masking |
+| TASK-079 | Audit Policy Config UI | Company audit-policy settings, retention, masking |
 | TASK-080 | Export & Reports | CSV, PDF, NDJSON |
-| TASK-081 | Role Management UI | Builtin roles view, custom role CRUD |
+| TASK-081 | Role Management UI | Builtin roles view, company-scoped custom role create |
 | TASK-082 | Domain Settings UI | TLS, quota, IP whitelist, 2FA |
 | TASK-083 | API Settings UI | API key management, rate limit |
 | TASK-084 | Alerts & Notifications | Threshold-based alerts, channels |

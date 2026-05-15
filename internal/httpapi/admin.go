@@ -4529,6 +4529,14 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		handlePutCompanyAuthPolicy(w, r, service)
 	}))
 
+	mux.HandleFunc("GET /admin/v1/companies/{id}/security/audit-policy", adminAuth(func(w http.ResponseWriter, r *http.Request) {
+		handleGetCompanyAuditPolicy(w, r, service)
+	}))
+
+	mux.HandleFunc("PUT /admin/v1/companies/{id}/security/audit-policy", adminAuth(func(w http.ResponseWriter, r *http.Request) {
+		handlePutCompanyAuditPolicy(w, r, service)
+	}))
+
 	mux.HandleFunc("GET /admin/v1/companies/{id}/security/retention-policy", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		handleGetCompanyRetentionPolicy(w, r, service)
 	}))
@@ -5586,6 +5594,79 @@ func handlePutCompanyAuthPolicy(w http.ResponseWriter, r *http.Request, service 
 		return
 	}
 	if _, err := service.SetCompanyConfig(r.Context(), id, authPolicyKey, json.RawMessage(b), false, 0); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"policy": policy})
+}
+
+const auditPolicyKey = "audit_policy"
+
+type auditPolicy struct {
+	CompanyID           string `json:"company_id"`
+	AuditLevel          string `json:"audit_level"`
+	AuditAdminActions   bool   `json:"audit_admin_actions"`
+	AuditSecurityEvents bool   `json:"audit_security_events"`
+	RetentionDays       int    `json:"retention_days"`
+	MaskMailContent     bool   `json:"mask_mail_content"`
+	MaskRecipientEmails bool   `json:"mask_recipient_emails"`
+}
+
+func defaultAuditPolicy() auditPolicy {
+	return auditPolicy{
+		AuditLevel:          "level_2",
+		AuditAdminActions:   true,
+		AuditSecurityEvents: true,
+		RetentionDays:       90,
+		MaskMailContent:     true,
+		MaskRecipientEmails: false,
+	}
+}
+
+func handleGetCompanyAuditPolicy(w http.ResponseWriter, r *http.Request, service AdminService) {
+	defer r.Body.Close()
+	id, ok := parseBoundedAdminPathValue(w, r, "id")
+	if !ok {
+		return
+	}
+	entry, err := service.GetCompanyConfig(r.Context(), id, auditPolicyKey)
+	if err != nil {
+		if errors.Is(err, configstore.ErrConfigNotFound) {
+			policy := defaultAuditPolicy()
+			policy.CompanyID = id
+			writeJSON(w, http.StatusOK, map[string]any{"policy": policy})
+			return
+		}
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	policy := defaultAuditPolicy()
+	if err := json.Unmarshal(entry.Value, &policy); err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to parse policy")
+		return
+	}
+	policy.CompanyID = id
+	writeJSON(w, http.StatusOK, map[string]any{"policy": policy})
+}
+
+func handlePutCompanyAuditPolicy(w http.ResponseWriter, r *http.Request, service AdminService) {
+	defer r.Body.Close()
+	id, ok := parseBoundedAdminPathValue(w, r, "id")
+	if !ok {
+		return
+	}
+	policy := defaultAuditPolicy()
+	if err := decodeJSONBody(r, &policy); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid JSON body")
+		return
+	}
+	policy.CompanyID = id
+	b, err := json.Marshal(policy)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to marshal policy")
+		return
+	}
+	if _, err := service.SetCompanyConfig(r.Context(), id, auditPolicyKey, json.RawMessage(b), false, 0); err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
