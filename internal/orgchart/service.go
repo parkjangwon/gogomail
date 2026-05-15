@@ -6,6 +6,12 @@ import (
 	"time"
 )
 
+const (
+	// CapabilityStatusPlaceholder marks organization sync as a product-visible
+	// placeholder until a real external directory adapter is configured.
+	CapabilityStatusPlaceholder = "placeholder"
+)
+
 // RepositoryInterface defines organization data access operations.
 type RepositoryInterface interface {
 	CreateUnit(ctx context.Context, unit *OrganizationUnit) error
@@ -22,8 +28,8 @@ type RepositoryInterface interface {
 
 // Service manages organization structure operations.
 type Service struct {
-	repo          RepositoryInterface
-	syncAdapter   OrgChartSyncAdapter
+	repo        RepositoryInterface
+	syncAdapter OrgChartSyncAdapter
 }
 
 // NewService creates a new organization service.
@@ -173,9 +179,7 @@ func (s *Service) RemoveUserFromUnit(ctx context.Context, memberID string) error
 
 // GetUserUnits gets all units a user is assigned to.
 func (s *Service) GetUserUnits(ctx context.Context, userID string) ([]OrganizationUnit, error) {
-	// This would require a query to join organization_members and organization_units
-	// Implemented in repository layer
-	return nil, fmt.Errorf("not implemented")
+	return nil, fmt.Errorf("organization chart placeholder: user-unit lookup is not available yet")
 }
 
 // UpdateUnit updates an organization unit.

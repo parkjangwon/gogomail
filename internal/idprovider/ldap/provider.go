@@ -7,6 +7,17 @@ import (
 	"github.com/gogomail/gogomail/internal/idprovider"
 )
 
+const (
+	// CapabilityStatusPlaceholder marks the LDAP provider as a typed integration
+	// placeholder. The package exposes provider contracts, but external LDAP
+	// reads and sync are not wired to a live backend yet.
+	CapabilityStatusPlaceholder = "placeholder"
+)
+
+func placeholderError(operation string) error {
+	return fmt.Errorf("ldap provider placeholder: %s is not available yet", operation)
+}
+
 // Config represents LDAP server configuration.
 type Config struct {
 	Host      string
@@ -42,8 +53,7 @@ func (p *Provider) GetUser(ctx context.Context, userID string) (*idprovider.User
 	if p.config == nil {
 		return nil, fmt.Errorf("ldap provider not configured")
 	}
-	// TODO: Implement LDAP user lookup
-	return nil, fmt.Errorf("not implemented")
+	return nil, placeholderError("user lookup")
 }
 
 // GetGroup retrieves a group by ID from LDAP.
@@ -54,8 +64,7 @@ func (p *Provider) GetGroup(ctx context.Context, groupID string) (*idprovider.Gr
 	if p.config == nil {
 		return nil, fmt.Errorf("ldap provider not configured")
 	}
-	// TODO: Implement LDAP group lookup
-	return nil, fmt.Errorf("not implemented")
+	return nil, placeholderError("group lookup")
 }
 
 // ListUsers lists users from LDAP matching the filter.
@@ -63,8 +72,7 @@ func (p *Provider) ListUsers(ctx context.Context, filter *idprovider.UserFilter)
 	if p.config == nil {
 		return nil, fmt.Errorf("ldap provider not configured")
 	}
-	// TODO: Implement LDAP user list
-	return nil, fmt.Errorf("not implemented")
+	return nil, placeholderError("user listing")
 }
 
 // ListGroups lists groups from LDAP matching the filter.
@@ -72,8 +80,7 @@ func (p *Provider) ListGroups(ctx context.Context, filter *idprovider.GroupFilte
 	if p.config == nil {
 		return nil, fmt.Errorf("ldap provider not configured")
 	}
-	// TODO: Implement LDAP group list
-	return nil, fmt.Errorf("not implemented")
+	return nil, placeholderError("group listing")
 }
 
 // CreateUser creates a new user (LDAP is read-only, returns error).
