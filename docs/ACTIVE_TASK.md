@@ -21,8 +21,9 @@ Go Backend (`internal/`):
 
 ### 완료 조건
 
-- [ ] RFC compliance 검증 및 문제 해결
+- [x] SMTP 커넥션 풀 구현 (connection pooling)
 - [ ] SMTP 파이프라인 성능 벤치마크 및 최적화
+- [ ] RFC compliance 검증 및 문제 해결
 - [ ] Delivery worker 재시도 정책 튜닝
 - [ ] Message parser 성능 개선 및 메모리 할당 감소
 - [ ] Database 쿼리 최적화 및 인덱싱
