@@ -145,4 +145,53 @@ Go Backend (`internal/`):
 
 ### 다음 태스크
 
-TASK-089: Protocol Gateway Hardening (IMAP, CalDAV, CardDAV)
+## TASK-089: Protocol Gateway Hardening (IMAP, CalDAV, CardDAV)
+
+### 목표
+
+IMAP, CalDAV, CardDAV 프로토콜 게이트웨이 성능, 안정성, RFC 준수 강화.
+`internal/imapgw`, `internal/caldavgw`, `internal/carddavgw`는 이미 구현되어 있으며, 
+대규모 동시 접근 환경에서의 성능, 안정성, RFC 엣지케이스 처리를 개선해야 함.
+
+### 실제 구현 대상
+
+**IMAP Gateway (`internal/imapgw`) - 8963 lines server.go, 15897 lines tests**
+- Buffer pool optimization: literals, command parsing, response building에서 임시 string/[]byte 할당 최소화
+- Command parser 성능: line parsing, token splitting 최적화 (make/append 사용 최소화)
+- FETCH response building: multipart/MIME 응답 작성 시 버퍼 재사용
+- Connection state management: per-connection context cleanup 개선
+
+**CalDAV Gateway (`internal/caldavgw`) - 100.5K handler, 76.9K repository**
+- WebDAV PROPFIND 쿼리 최적화: XML 파싱/생성 버퍼 풀 사용
+- Large collection handling: REPORT 명령 시 메모리 효율성 (streaming vs buffering)
+- Concurrent property updates: transaction isolation level 검토
+
+**CardDAV Gateway (`internal/carddavgw`) - 88K handler, 67.8K repository**
+- Contact list PROPFIND 최적화: XML 생성 버퍼 재사용
+- vCard 파싱/생성 성능: 다중 접근 시 메모리 할당 감소
+
+### 단계별 계획
+
+**Phase 1: IMAP Buffer Pooling & Command Parsing (진행 중)**
+- sync.Pool로 IMAP command literals 임시 버퍼 재사용
+- Response building에 strings.Builder 사용 (여러 append 최적화)
+- 벤치마크: FETCH, SEARCH, SORT 성능 측정
+- 목표: 메모리 할당 30%+ 감소, 응답 시간 5-10% 개선
+
+**Phase 2: CalDAV/CardDAV XML 버퍼 최적화 (예상)**
+- XML encoder/decoder 버퍼 풀화
+- PROPFIND 응답 스트리밍
+- 목표: Large collection 대응 성능 개선
+
+**Phase 3: 메트릭 & Rate Limiting (예상)**
+- Protocol gateway metrics: connection count, command latency, errors
+- Per-user rate limiting (IP 기반 아님)
+- Graceful connection rejection under load
+
+### 진행 상황
+
+Phase 1 시작: IMAP 버퍼 풀 최적화
+- [x] TASK-089 요구사항 분석 완료
+- [ ] IMAP 벤치마크 프레임워크 구축
+- [ ] Buffer pool 구현 및 통합
+- [ ] 성능 검증
