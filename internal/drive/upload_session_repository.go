@@ -586,6 +586,7 @@ WHERE s.id = $2::uuid
   AND s.status IN ('pending', 'uploading', 'failed')
   AND s.expires_at > now()
   AND $3 <= s.declared_size
+  AND (NOT $6::boolean OR s.received_size = $7)
 RETURNING
   s.id::text,
   s.user_id::text,
@@ -609,6 +610,7 @@ RETURNING
 	var canceledAt sql.NullTime
 	err = tx.QueryRowContext(ctx, query,
 		req.UserID, req.SessionID, req.ReceivedSize, req.StoragePath, req.ChecksumSHA256,
+		req.EnforcePreviousReceivedSize, req.PreviousReceivedSize,
 	).Scan(
 		&session.ID, &session.UserID, &session.ParentID,
 		&session.UploadID, &session.Name,

@@ -75,6 +75,7 @@ type CancelUploadSessionRequest struct {
 type StoreUploadSessionBodyRequest struct {
 	UserID                 string
 	SessionID              string
+	ContentRange           ContentRange
 	ExpectedChecksumSHA256 string
 	Body                   io.Reader
 }
@@ -95,11 +96,13 @@ type StaleUploadSessionCount struct {
 }
 
 type RecordUploadSessionBodyRequest struct {
-	UserID         string
-	SessionID      string
-	ReceivedSize   int64
-	StoragePath    string
-	ChecksumSHA256 string
+	UserID                      string
+	SessionID                   string
+	ReceivedSize                int64
+	StoragePath                 string
+	ChecksumSHA256              string
+	EnforcePreviousReceivedSize bool
+	PreviousReceivedSize        int64
 }
 
 func NewUploadID() (string, error) {
@@ -219,7 +222,13 @@ func ValidateStoreUploadSessionBodyRequest(req StoreUploadSessionBodyRequest) (S
 	if req.Body == nil {
 		return StoreUploadSessionBodyRequest{}, fmt.Errorf("drive upload session body is required")
 	}
-	return StoreUploadSessionBodyRequest{UserID: userID, SessionID: sessionID, ExpectedChecksumSHA256: expectedChecksum, Body: req.Body}, nil
+	return StoreUploadSessionBodyRequest{
+		UserID:                 userID,
+		SessionID:              sessionID,
+		ContentRange:           req.ContentRange,
+		ExpectedChecksumSHA256: expectedChecksum,
+		Body:                   req.Body,
+	}, nil
 }
 
 func ValidateFinalizeUploadSessionRequest(req FinalizeUploadSessionRequest) (FinalizeUploadSessionRequest, error) {
@@ -261,6 +270,9 @@ func ValidateRecordUploadSessionBodyRequest(req RecordUploadSessionBodyRequest) 
 	if req.ReceivedSize < 0 {
 		return RecordUploadSessionBodyRequest{}, fmt.Errorf("received_size must not be negative")
 	}
+	if req.PreviousReceivedSize < 0 {
+		return RecordUploadSessionBodyRequest{}, fmt.Errorf("previous_received_size must not be negative")
+	}
 	storagePath := strings.TrimSpace(req.StoragePath)
 	if storagePath == "" {
 		return RecordUploadSessionBodyRequest{}, fmt.Errorf("storage_path is required")
@@ -274,11 +286,13 @@ func ValidateRecordUploadSessionBodyRequest(req RecordUploadSessionBodyRequest) 
 		return RecordUploadSessionBodyRequest{}, err
 	}
 	return RecordUploadSessionBodyRequest{
-		UserID:         userID,
-		SessionID:      sessionID,
-		ReceivedSize:   req.ReceivedSize,
-		StoragePath:    storagePath,
-		ChecksumSHA256: checksum,
+		UserID:                      userID,
+		SessionID:                   sessionID,
+		ReceivedSize:                req.ReceivedSize,
+		StoragePath:                 storagePath,
+		ChecksumSHA256:              checksum,
+		EnforcePreviousReceivedSize: req.EnforcePreviousReceivedSize,
+		PreviousReceivedSize:        req.PreviousReceivedSize,
 	}, nil
 }
 
@@ -321,9 +335,9 @@ func ValidateUploadSessionStatus(status string) (string, error) {
 }
 
 type ContentRange struct {
-	Start  int64
-	End    int64
-	Total  int64
+	Start          int64
+	End            int64
+	Total          int64
 	IsAsteriskForm bool
 }
 
@@ -405,6 +419,19 @@ func ValidateChunkSequence(contentRange ContentRange, session UploadSession) err
 			"chunk out of order: content-range start %d does not match expected offset %d",
 			contentRange.Start, session.ReceivedSize,
 		)
+	}
+	return nil
+}
+
+func ValidateContentRangeForUpload(contentRange ContentRange, declaredSize int64) error {
+	if contentRange == (ContentRange{}) {
+		return nil
+	}
+	if declaredSize <= 0 {
+		return fmt.Errorf("upload session declared size is zero, content-range header is invalid")
+	}
+	if contentRange.Total != declaredSize {
+		return fmt.Errorf("content-range total %d does not match declared size %d", contentRange.Total, declaredSize)
 	}
 	return nil
 }

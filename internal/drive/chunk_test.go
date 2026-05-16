@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"strings"
 	"sync"
 	"testing"
@@ -254,6 +255,42 @@ func TestStoreBodyChunkAcceptsInOrderChunk(t *testing.T) {
 	}
 	if repo.calls != 1 {
 		t.Fatalf("repo calls = %d, want 1", repo.calls)
+	}
+}
+
+func TestUploadSessionBodyReaderAppendsPriorChunk(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	store := storage.NewLocalStore(t.TempDir())
+	priorPath := "drive/users/user-1/upload-sessions/session-1/bodies/prior-obj"
+	if err := store.Put(ctx, priorPath, strings.NewReader("hello")); err != nil {
+		t.Fatalf("put prior object: %v", err)
+	}
+	session := newChunkTestSession("user-1", "session-1")
+	session.StoragePath = priorPath
+	session.ReceivedSize = 5
+	session.DeclaredSize = 11
+
+	body, gotPriorPath, expectedReceivedSize, err := uploadSessionBodyReader(ctx, store, session, strings.NewReader(" world"), ContentRange{Start: 5, End: 10, Total: 11})
+	if err != nil {
+		t.Fatalf("uploadSessionBodyReader returned error: %v", err)
+	}
+	if gotPriorPath != priorPath {
+		t.Fatalf("priorPath = %q, want %q", gotPriorPath, priorPath)
+	}
+	if expectedReceivedSize != 11 {
+		t.Fatalf("expectedReceivedSize = %d, want 11", expectedReceivedSize)
+	}
+	if closer, ok := body.(io.Closer); ok {
+		defer closer.Close()
+	}
+	got, err := io.ReadAll(body)
+	if err != nil {
+		t.Fatalf("ReadAll returned error: %v", err)
+	}
+	if string(got) != "hello world" {
+		t.Fatalf("assembled body = %q, want hello world", string(got))
 	}
 }
 

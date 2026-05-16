@@ -215,9 +215,14 @@ or development `user_id` fallback path as webmail mail routes:
   or failed session and returns `{"drive_upload_session":{...}}` with
   `status=canceled`.
 - `PUT /api/v1/drive/upload-sessions/{id}/body` streams the body through the
-  configured storage backend, rejects `Content-Range`, optionally verifies
-  `X-Content-SHA256`, records received size/storage path/checksum, and returns
-  `{"drive_upload_session":{...}}`.
+  configured storage backend. Without `Content-Range`, the body is stored as
+  the current upload-session object. With
+  `Content-Range: bytes first-last/total`, chunks must arrive sequentially
+  without gaps or overlaps; the service assembles the prior stored object plus
+  the new chunk into one backend object, validates the locked session's prior
+  received size before commit, optionally verifies `X-Content-SHA256` against
+  the assembled object, records received size/storage path/checksum, and
+  returns `{"drive_upload_session":{...}}`.
 - `POST /api/v1/drive/upload-sessions/{id}/finalize` verifies the stored body
   through shared storage, creates quota-accounted Drive file metadata, marks
   the session finalized, and returns `{"drive_node":{...}}`; quota exhaustion

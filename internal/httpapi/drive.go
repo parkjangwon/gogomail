@@ -525,13 +525,14 @@ func RegisterDriveRoutesWithOptions(mux *http.ServeMux, service DriveService, to
 			writeError(w, http.StatusBadRequest, err.Error())
 			return
 		}
+		var parsedRange drive.ContentRange
 		if contentRange != "" {
-			parsedRange, err := drive.ParseContentRange(contentRange)
+			parsedRange, err = drive.ParseContentRange(contentRange)
 			if err != nil {
 				writeError(w, http.StatusBadRequest, err.Error())
 				return
 			}
-			if err := drive.ValidateContentRangeComplete(parsedRange, session.DeclaredSize); err != nil {
+			if err := drive.ValidateContentRangeForUpload(parsedRange, session.DeclaredSize); err != nil {
 				writeError(w, http.StatusBadRequest, err.Error())
 				return
 			}
@@ -544,6 +545,7 @@ func RegisterDriveRoutesWithOptions(mux *http.ServeMux, service DriveService, to
 		session, err = service.StoreUploadSessionBody(r.Context(), drive.StoreUploadSessionBodyRequest{
 			UserID:                 userID,
 			SessionID:              sessionID,
+			ContentRange:           parsedRange,
 			ExpectedChecksumSHA256: checksum,
 			Body:                   body,
 		})
