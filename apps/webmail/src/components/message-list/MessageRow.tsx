@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { SnoozePopover } from '../SnoozePopover';
 import { MessageRowProps } from './messageListTypes';
+import { useWebmailAvatar } from '@/lib/webmailAvatar';
 import {
   formatDate,
   getAutoCategory,
@@ -57,6 +58,7 @@ export function MessageRow({
   const [hovered, setHovered] = useState(false);
   const [showSnoozePopover, setShowSnoozePopover] = useState(false);
   const swipeEnabled = onDelete || onArchiveRow;
+  const userAvatarUrl = useWebmailAvatar();
   const hoverActionStyle = {
     background: 'none',
     border: 'none',
@@ -137,17 +139,50 @@ export function MessageRow({
           if (!isSelected) (e.currentTarget as HTMLDivElement).style.background = 'var(--color-bg-primary)';
         }}
       >
-        <div
+        <button
+          type="button"
           onClick={(e) => { e.stopPropagation(); onToggleBulk(message.id, e.shiftKey); }}
           title={isBulkChecked ? '선택 해제' : '선택'}
-          style={{ width: '16px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', alignSelf: 'center' }}
+          aria-label={isBulkChecked ? '선택 해제' : '선택'}
+          style={{
+            width: '18px',
+            height: '18px',
+            flexShrink: 0,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer',
+            alignSelf: 'center',
+            border: 'none',
+            background: 'transparent',
+            padding: 0,
+            opacity: hovered || isBulkChecked ? 1 : 0,
+            transition: 'opacity 100ms ease',
+          }}
         >
-          {isBulkChecked ? (
-            <input type="checkbox" checked readOnly aria-label="선택됨" style={{ cursor: 'pointer', accentColor: 'var(--color-accent)', pointerEvents: 'none' }} />
-          ) : (
-            <div aria-hidden="true" style={{ width: '6px', height: '6px', borderRadius: '50%', background: isUnread ? 'var(--color-accent)' : 'transparent' }} />
-          )}
-        </div>
+          <div
+            aria-hidden="true"
+            style={{
+              width: '14px',
+              height: '14px',
+              borderRadius: '3px',
+              boxSizing: 'border-box',
+              border: `1.5px solid ${isBulkChecked ? 'var(--color-accent)' : 'var(--color-border-default)'}`,
+              background: isBulkChecked ? 'var(--color-accent)' : 'var(--color-bg-primary)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              transition: 'border-color 100ms ease, background 100ms ease, transform 100ms ease',
+              transform: hovered || isBulkChecked ? 'scale(1)' : 'scale(0.92)',
+            }}
+          >
+            {isBulkChecked ? (
+              <CheckIconOutline style={{ width: '10px', height: '10px', color: '#fff', strokeWidth: 2.5 }} />
+            ) : hovered ? (
+              <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: isUnread ? 'var(--color-accent)' : 'var(--color-border-default)' }} />
+            ) : null}
+          </div>
+        </button>
 
         {!compact && (
           <div ref={avatarRef} aria-hidden="true" style={{ width: '32px', height: '32px', borderRadius: '50%', flexShrink: 0, background: avatarColor(message.from_name || message.from_addr), color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px', fontWeight: 600, userSelect: 'none', alignSelf: 'center', overflow: 'hidden' }}
@@ -155,8 +190,8 @@ export function MessageRow({
             onMouseLeave={() => onAvatarLeave?.()}
           >
             {(() => {
-              if (userEmail && message.from_addr === userEmail) {
-                try { const av = localStorage.getItem('webmail_avatar'); if (av) return <img src={av} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />; } catch { /* */ }
+              if (userEmail && message.from_addr === userEmail && userAvatarUrl) {
+                return <img src={userAvatarUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />;
               }
               return (message.from_name || message.from_addr).charAt(0).toUpperCase();
             })()}

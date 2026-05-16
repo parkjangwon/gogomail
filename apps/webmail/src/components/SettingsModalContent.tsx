@@ -13,6 +13,7 @@ import {
   createEmptyRule,
   saveFilterRules,
 } from './settings/settingsConfig';
+import { setWebmailAvatar } from '@/lib/webmailAvatar';
 
 interface SettingsModalContentProps {
   activeCategory: Category;
@@ -244,13 +245,13 @@ export function SettingsModalContent({
                     reader.onload = (ev) => {
                       const url = ev.target?.result as string;
                       setAvatarUrl(url);
-                      try { localStorage.setItem('webmail_avatar', url); } catch { /* */ }
+                      setWebmailAvatar(url);
                     };
                     reader.readAsDataURL(file);
                   }} />
                 </label>
                 {avatarUrl && (
-                  <button onClick={() => { setAvatarUrl(''); try { localStorage.removeItem('webmail_avatar'); } catch { /* */ } }} style={{ padding: '7px 14px', background: 'transparent', border: '1px solid var(--color-border-default)', borderRadius: '6px', fontSize: '13px', cursor: 'pointer', color: 'var(--color-destructive)' }}>
+                  <button onClick={() => { setAvatarUrl(''); setWebmailAvatar(''); }} style={{ padding: '7px 14px', background: 'transparent', border: '1px solid var(--color-border-default)', borderRadius: '6px', fontSize: '13px', cursor: 'pointer', color: 'var(--color-destructive)' }}>
                     사진 제거
                   </button>
                 )}
