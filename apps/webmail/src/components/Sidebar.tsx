@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import type { CSSProperties, ReactNode } from 'react';
 import { Folder } from '@/lib/api';
 import {
@@ -28,6 +28,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { SettingsModal } from '@/components/SettingsModal';
 import { SidebarUserMenu } from './SidebarUserMenu';
+import { useWebmailAvatar } from '@/lib/webmailAvatar';
 
 
 export const VIRTUAL_ALL = '__all__';
@@ -144,18 +145,7 @@ export function Sidebar({
   const [renamingValue, setRenamingValue] = useState('');
   const [hoveredFolderId, setHoveredFolderId] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState(false);
-  const [avatarUrl, setAvatarUrl] = useState('');
-
-  useEffect(() => {
-    try { setAvatarUrl(localStorage.getItem('webmail_avatar') ?? ''); } catch { /* */ }
-    function onStorage(e: StorageEvent) {
-      if (e.key === 'webmail_avatar') {
-        setAvatarUrl(e.newValue ?? '');
-      }
-    }
-    window.addEventListener('storage', onStorage);
-    return () => window.removeEventListener('storage', onStorage);
-  }, []);
+  const avatarUrl = useWebmailAvatar();
 
   const systemFoldersByType = new Map(folders.map((f) => {
     const key = f.system_type === 'junk' ? 'spam' : (f.system_type ?? '');
