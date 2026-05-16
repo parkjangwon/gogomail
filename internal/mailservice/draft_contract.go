@@ -10,6 +10,7 @@ import (
 
 type SaveDraftRequest struct {
 	UserID          string             `json:"user_id"`
+	UserEmail       string             `json:"user_email,omitempty"`
 	DraftID         string             `json:"draft_id,omitempty"`
 	Intent          ComposeIntent      `json:"intent"`
 	SourceMessageID string             `json:"source_message_id,omitempty"`

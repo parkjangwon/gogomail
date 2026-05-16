@@ -3270,7 +3270,7 @@ func meteringIdentityResolver(tokenManager *auth.TokenManager, adminToken string
 			TenantID:    r.Header.Get("X-Gogomail-Tenant-ID"),
 			CompanyID:   r.Header.Get("X-Gogomail-Company-ID"),
 			DomainID:    r.Header.Get("X-Gogomail-Domain-ID"),
-			UserID:      firstNonEmptyString(r.Header.Get("X-Gogomail-User-ID"), r.URL.Query().Get("user_id")),
+			UserID:      firstNonEmptyString(r.Header.Get("X-Gogomail-Resolved-User-ID"), r.Header.Get("X-Gogomail-User-ID"), r.URL.Query().Get("user_id")),
 			APIKeyID:    r.Header.Get("X-Gogomail-API-Key-ID"),
 			PrincipalID: r.Header.Get("X-Gogomail-Principal-ID"),
 			AuthSource:  apimeter.AuthSourceAnonymous,

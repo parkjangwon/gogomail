@@ -52,6 +52,42 @@ LIMIT 1`
 	return p, nil
 }
 
+// GetUserProfileByEmail returns a profile by any known user address.
+func (r *Repository) GetUserProfileByEmail(ctx context.Context, email string) (UserProfile, error) {
+	if r.db == nil {
+		return UserProfile{}, fmt.Errorf("database handle is required")
+	}
+	email = strings.TrimSpace(email)
+	if email == "" {
+		return UserProfile{}, fmt.Errorf("email is required")
+	}
+	const query = `
+SELECT u.id::text, u.domain_id::text, u.display_name, primary_addr.address, COALESCE(u.recovery_email, ''), u.quota_used, u.quota_limit
+FROM user_addresses lookup
+JOIN users u ON u.id = lookup.user_id
+JOIN user_addresses primary_addr ON primary_addr.user_id = u.id AND primary_addr.is_primary = true
+WHERE lower(lookup.address) = lower($1)
+LIMIT 1`
+
+	var p UserProfile
+	err := r.db.QueryRowContext(ctx, query, email).Scan(
+		&p.UserID,
+		&p.DomainID,
+		&p.DisplayName,
+		&p.Email,
+		&p.RecoveryEmail,
+		&p.QuotaUsed,
+		&p.QuotaLimit,
+	)
+	if err == sql.ErrNoRows {
+		return UserProfile{}, fmt.Errorf("user not found")
+	}
+	if err != nil {
+		return UserProfile{}, fmt.Errorf("get user profile by email: %w", err)
+	}
+	return p, nil
+}
+
 type UserAddress struct {
 	ID        string `json:"id"`
 	Address   string `json:"address"`

@@ -1250,6 +1250,23 @@ func TestMeteringIdentityResolverUsesAPIKeyContext(t *testing.T) {
 	}
 }
 
+func TestMeteringIdentityResolverUsesResolvedAPIKeyUser(t *testing.T) {
+	t.Parallel()
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/messages?user_email=user%40example.com", nil)
+	req.Header.Set("X-Gogomail-Resolved-User-ID", "user-1")
+	req = req.WithContext(apikeys.ContextWithKeyInfo(req.Context(), &apikeys.KeyInfo{
+		ID:       "key-1",
+		DomainID: "domain-1",
+		Scopes:   []string{"mail:read"},
+	}))
+
+	id := meteringIdentityResolver(nil, "")(req)
+	if id.AuthSource != apimeter.AuthSourceAPIKey || id.UserID != "user-1" || id.PrincipalID != "user-1" {
+		t.Fatalf("identity = %+v", id)
+	}
+}
+
 func TestMeteringAdminTokenMatchesTrimsAndRejectsMismatches(t *testing.T) {
 	t.Parallel()
 

@@ -120,6 +120,7 @@ type PreferencesRepository interface {
 
 type MeRepository interface {
 	GetUserProfile(ctx context.Context, userID string) (maildb.UserProfile, error)
+	GetUserProfileByEmail(ctx context.Context, email string) (maildb.UserProfile, error)
 	ListUserAddresses(ctx context.Context, userID string) ([]maildb.UserAddress, error)
 	UpdateUserDisplayName(ctx context.Context, userID, displayName string) error
 	UpdateOwnRecoveryEmail(ctx context.Context, userID, recoveryEmail string) error
@@ -1273,6 +1274,14 @@ func (s *Service) GetUserProfile(ctx context.Context, userID string) (maildb.Use
 	return repo.GetUserProfile(ctx, strings.TrimSpace(userID))
 }
 
+func (s *Service) GetUserProfileByEmail(ctx context.Context, email string) (maildb.UserProfile, error) {
+	repo, ok := s.repository.(MeRepository)
+	if !ok {
+		return maildb.UserProfile{}, fmt.Errorf("me repository is required")
+	}
+	return repo.GetUserProfileByEmail(ctx, strings.TrimSpace(email))
+}
+
 func (s *Service) ListUserAddresses(ctx context.Context, userID string) ([]maildb.UserAddress, error) {
 	repo, ok := s.repository.(MeRepository)
 	if !ok {
@@ -2292,6 +2301,7 @@ func (s *Service) ListStaleAttachmentUploads(ctx context.Context, before time.Ti
 
 type SendTextRequest struct {
 	UserID          string             `json:"user_id"`
+	UserEmail       string             `json:"user_email,omitempty"`
 	Intent          ComposeIntent      `json:"intent"`
 	SourceMessageID string             `json:"source_message_id"`
 	From            string             `json:"from"`

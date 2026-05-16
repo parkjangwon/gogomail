@@ -112,6 +112,7 @@ paths:
           description: Mail API
       parameters:
         - $ref: "#/components/parameters/UserIDFallback"
+        - $ref: "#/components/parameters/UserEmailFallback"
       responses:
         "200":
           $ref: "#/components/responses/WebmailCapabilities"
@@ -141,6 +142,7 @@ paths:
           description: Mail API
       parameters:
         - $ref: "#/components/parameters/UserIDFallback"
+        - $ref: "#/components/parameters/UserEmailFallback"
       responses:
         "200":
           $ref: "#/components/responses/FolderList"
@@ -154,6 +156,7 @@ paths:
           description: Mail API
       parameters:
         - $ref: "#/components/parameters/UserIDFallback"
+        - $ref: "#/components/parameters/UserEmailFallback"
       requestBody:
         $ref: "#/components/requestBodies/FolderCreate"
       responses:
@@ -171,6 +174,7 @@ paths:
       parameters:
         - $ref: "#/components/parameters/PathID"
         - $ref: "#/components/parameters/UserIDFallback"
+        - $ref: "#/components/parameters/UserEmailFallback"
       requestBody:
         $ref: "#/components/requestBodies/FolderRename"
       responses:
@@ -187,6 +191,7 @@ paths:
       parameters:
         - $ref: "#/components/parameters/PathID"
         - $ref: "#/components/parameters/UserIDFallback"
+        - $ref: "#/components/parameters/UserEmailFallback"
       responses:
         "200":
           $ref: "#/components/responses/Status"
@@ -201,6 +206,7 @@ paths:
           description: Mail API
       parameters:
         - $ref: "#/components/parameters/UserIDFallback"
+        - $ref: "#/components/parameters/UserEmailFallback"
         - $ref: "#/components/parameters/Limit"
         - name: parent_id
           in: query
@@ -249,6 +255,7 @@ paths:
           description: Mail API
       parameters:
         - $ref: "#/components/parameters/UserIDFallback"
+        - $ref: "#/components/parameters/UserEmailFallback"
       requestBody:
         $ref: "#/components/requestBodies/DriveFolderCreate"
       responses:
@@ -265,6 +272,7 @@ paths:
           description: Mail API
       parameters:
         - $ref: "#/components/parameters/UserIDFallback"
+        - $ref: "#/components/parameters/UserEmailFallback"
         - $ref: "#/components/parameters/Limit"
         - name: status
           in: query
@@ -283,6 +291,7 @@ paths:
           description: Mail API
       parameters:
         - $ref: "#/components/parameters/UserIDFallback"
+        - $ref: "#/components/parameters/UserEmailFallback"
       requestBody:
         $ref: "#/components/requestBodies/DriveUploadSessionCreate"
       responses:
@@ -300,6 +309,7 @@ paths:
       parameters:
         - $ref: "#/components/parameters/PathID"
         - $ref: "#/components/parameters/UserIDFallback"
+        - $ref: "#/components/parameters/UserEmailFallback"
       responses:
         "200":
           $ref: "#/components/responses/DriveUploadSession"
@@ -314,6 +324,7 @@ paths:
       parameters:
         - $ref: "#/components/parameters/PathID"
         - $ref: "#/components/parameters/UserIDFallback"
+        - $ref: "#/components/parameters/UserEmailFallback"
       responses:
         "200":
           $ref: "#/components/responses/DriveUploadSession"
@@ -329,6 +340,7 @@ paths:
       parameters:
         - $ref: "#/components/parameters/PathID"
         - $ref: "#/components/parameters/UserIDFallback"
+        - $ref: "#/components/parameters/UserEmailFallback"
         - name: X-Content-SHA256
           in: header
           required: false
@@ -354,6 +366,7 @@ paths:
       parameters:
         - $ref: "#/components/parameters/PathID"
         - $ref: "#/components/parameters/UserIDFallback"
+        - $ref: "#/components/parameters/UserEmailFallback"
       responses:
         "201":
           $ref: "#/components/responses/DriveNode"
@@ -370,6 +383,7 @@ paths:
           description: Mail API
       parameters:
         - $ref: "#/components/parameters/UserIDFallback"
+        - $ref: "#/components/parameters/UserEmailFallback"
       requestBody:
         $ref: "#/components/requestBodies/DriveFileFinalize"
       responses:
@@ -394,6 +408,7 @@ paths:
             type: string
             maxLength: 200
         - $ref: "#/components/parameters/UserIDFallback"
+        - $ref: "#/components/parameters/UserEmailFallback"
         - name: storage_backend
           in: query
           required: true
@@ -422,6 +437,7 @@ paths:
       parameters:
         - $ref: "#/components/parameters/PathID"
         - $ref: "#/components/parameters/UserIDFallback"
+        - $ref: "#/components/parameters/UserEmailFallback"
         - name: status
           in: query
           schema:
@@ -441,6 +457,7 @@ paths:
       parameters:
         - $ref: "#/components/parameters/PathID"
         - $ref: "#/components/parameters/UserIDFallback"
+        - $ref: "#/components/parameters/UserEmailFallback"
       responses:
         "200":
           $ref: "#/components/responses/DriveDelete"
@@ -456,6 +473,7 @@ paths:
       parameters:
         - $ref: "#/components/parameters/PathID"
         - $ref: "#/components/parameters/UserIDFallback"
+        - $ref: "#/components/parameters/UserEmailFallback"
       responses:
         "200":
           description: Drive file metadata headers without a response body.
@@ -500,6 +518,7 @@ paths:
       parameters:
         - $ref: "#/components/parameters/PathID"
         - $ref: "#/components/parameters/UserIDFallback"
+        - $ref: "#/components/parameters/UserEmailFallback"
         - name: Range
           in: header
           required: false
@@ -596,6 +615,7 @@ paths:
           description: Mail API
       parameters:
         - $ref: "#/components/parameters/UserIDFallback"
+        - $ref: "#/components/parameters/UserEmailFallback"
       responses:
         "200":
           $ref: "#/components/responses/DriveUsageSummary"
@@ -611,6 +631,7 @@ paths:
       parameters:
         - $ref: "#/components/parameters/PathID"
         - $ref: "#/components/parameters/UserIDFallback"
+        - $ref: "#/components/parameters/UserEmailFallback"
       responses:
         "200":
           $ref: "#/components/responses/DriveNodeUpdate"
@@ -626,6 +647,7 @@ paths:
       parameters:
         - $ref: "#/components/parameters/PathID"
         - $ref: "#/components/parameters/UserIDFallback"
+        - $ref: "#/components/parameters/UserEmailFallback"
       responses:
         "200":
           $ref: "#/components/responses/DriveNodeUpdate"
@@ -641,6 +663,7 @@ paths:
       parameters:
         - $ref: "#/components/parameters/PathID"
         - $ref: "#/components/parameters/UserIDFallback"
+        - $ref: "#/components/parameters/UserEmailFallback"
       requestBody:
         $ref: "#/components/requestBodies/DriveNodeRename"
       responses:
@@ -658,6 +681,7 @@ paths:
       parameters:
         - $ref: "#/components/parameters/PathID"
         - $ref: "#/components/parameters/UserIDFallback"
+        - $ref: "#/components/parameters/UserEmailFallback"
       requestBody:
         $ref: "#/components/requestBodies/DriveNodeMove"
       responses:
@@ -675,6 +699,7 @@ paths:
       parameters:
         - $ref: "#/components/parameters/PathID"
         - $ref: "#/components/parameters/UserIDFallback"
+        - $ref: "#/components/parameters/UserEmailFallback"
       requestBody:
         $ref: "#/components/requestBodies/DriveNodeCopy"
       responses:
@@ -694,6 +719,7 @@ paths:
       parameters:
         - $ref: "#/components/parameters/PathID"
         - $ref: "#/components/parameters/UserIDFallback"
+        - $ref: "#/components/parameters/UserEmailFallback"
       requestBody:
         $ref: "#/components/requestBodies/DriveShareLinkCreate"
       responses:
@@ -710,6 +736,7 @@ paths:
           description: Mail API
       parameters:
         - $ref: "#/components/parameters/UserIDFallback"
+        - $ref: "#/components/parameters/UserEmailFallback"
         - $ref: "#/components/parameters/Limit"
         - name: node_id
           in: query
@@ -761,6 +788,7 @@ paths:
       parameters:
         - $ref: "#/components/parameters/PathID"
         - $ref: "#/components/parameters/UserIDFallback"
+        - $ref: "#/components/parameters/UserEmailFallback"
       responses:
         "200":
           $ref: "#/components/responses/DriveShareLink"
@@ -948,6 +976,7 @@ paths:
           description: Mail API
       parameters:
         - $ref: "#/components/parameters/UserIDFallback"
+        - $ref: "#/components/parameters/UserEmailFallback"
       responses:
         "200":
           $ref: "#/components/responses/MailboxOverview"
@@ -962,6 +991,7 @@ paths:
           description: Mail API
       parameters:
         - $ref: "#/components/parameters/UserIDFallback"
+        - $ref: "#/components/parameters/UserEmailFallback"
         - $ref: "#/components/parameters/Limit"
         - name: folder_id
           in: query
@@ -1010,6 +1040,7 @@ paths:
           description: Mail API
       parameters:
         - $ref: "#/components/parameters/UserIDFallback"
+        - $ref: "#/components/parameters/UserEmailFallback"
         - $ref: "#/components/parameters/Limit"
         - name: cursor
           in: query
@@ -1100,6 +1131,7 @@ paths:
       parameters:
         - $ref: "#/components/parameters/PathID"
         - $ref: "#/components/parameters/UserIDFallback"
+        - $ref: "#/components/parameters/UserEmailFallback"
       responses:
         "200":
           $ref: "#/components/responses/Message"
@@ -1114,6 +1146,7 @@ paths:
       parameters:
         - $ref: "#/components/parameters/PathID"
         - $ref: "#/components/parameters/UserIDFallback"
+        - $ref: "#/components/parameters/UserEmailFallback"
       responses:
         "200":
           $ref: "#/components/responses/Status"
@@ -1129,6 +1162,7 @@ paths:
       parameters:
         - $ref: "#/components/parameters/PathID"
         - $ref: "#/components/parameters/UserIDFallback"
+        - $ref: "#/components/parameters/UserEmailFallback"
       responses:
         "200":
           $ref: "#/components/responses/MessageDeliveryStatus"
@@ -1144,6 +1178,7 @@ paths:
       parameters:
         - $ref: "#/components/parameters/PathID"
         - $ref: "#/components/parameters/UserIDFallback"
+        - $ref: "#/components/parameters/UserEmailFallback"
       responses:
         "200":
           $ref: "#/components/responses/Status"
@@ -1158,6 +1193,7 @@ paths:
           description: Mail API
       parameters:
         - $ref: "#/components/parameters/UserIDFallback"
+        - $ref: "#/components/parameters/UserEmailFallback"
         - $ref: "#/components/parameters/Limit"
         - name: folder_id
           in: query
@@ -1207,6 +1243,7 @@ paths:
       parameters:
         - $ref: "#/components/parameters/PathID"
         - $ref: "#/components/parameters/UserIDFallback"
+        - $ref: "#/components/parameters/UserEmailFallback"
         - $ref: "#/components/parameters/Limit"
         - name: cursor
           in: query
@@ -1228,6 +1265,7 @@ paths:
       parameters:
         - $ref: "#/components/parameters/PathID"
         - $ref: "#/components/parameters/UserIDFallback"
+        - $ref: "#/components/parameters/UserEmailFallback"
       requestBody:
         $ref: "#/components/requestBodies/MessageFlagUpdate"
       responses:
@@ -1245,6 +1283,7 @@ paths:
       parameters:
         - $ref: "#/components/parameters/PathID"
         - $ref: "#/components/parameters/UserIDFallback"
+        - $ref: "#/components/parameters/UserEmailFallback"
       requestBody:
         $ref: "#/components/requestBodies/MessageMove"
       responses:
@@ -1261,6 +1300,7 @@ paths:
           description: Mail API
       parameters:
         - $ref: "#/components/parameters/UserIDFallback"
+        - $ref: "#/components/parameters/UserEmailFallback"
       requestBody:
         $ref: "#/components/requestBodies/BulkMessageFlagUpdate"
       responses:
@@ -1277,6 +1317,7 @@ paths:
           description: Mail API
       parameters:
         - $ref: "#/components/parameters/UserIDFallback"
+        - $ref: "#/components/parameters/UserEmailFallback"
       requestBody:
         $ref: "#/components/requestBodies/BulkMessageMove"
       responses:
@@ -1293,6 +1334,7 @@ paths:
           description: Mail API
       parameters:
         - $ref: "#/components/parameters/UserIDFallback"
+        - $ref: "#/components/parameters/UserEmailFallback"
       requestBody:
         $ref: "#/components/requestBodies/BulkMessageDelete"
       responses:
@@ -1309,6 +1351,7 @@ paths:
           description: Mail API
       parameters:
         - $ref: "#/components/parameters/UserIDFallback"
+        - $ref: "#/components/parameters/UserEmailFallback"
       requestBody:
         $ref: "#/components/requestBodies/BulkMessageRestore"
       responses:
@@ -1325,6 +1368,7 @@ paths:
           description: Mail API
       parameters:
         - $ref: "#/components/parameters/UserIDFallback"
+        - $ref: "#/components/parameters/UserEmailFallback"
       requestBody:
         $ref: "#/components/requestBodies/BulkThreadFlagUpdate"
       responses:
@@ -1341,6 +1385,7 @@ paths:
           description: Mail API
       parameters:
         - $ref: "#/components/parameters/UserIDFallback"
+        - $ref: "#/components/parameters/UserEmailFallback"
       requestBody:
         $ref: "#/components/requestBodies/BulkThreadMove"
       responses:
@@ -1357,6 +1402,7 @@ paths:
           description: Mail API
       parameters:
         - $ref: "#/components/parameters/UserIDFallback"
+        - $ref: "#/components/parameters/UserEmailFallback"
       requestBody:
         $ref: "#/components/requestBodies/BulkThreadDelete"
       responses:
@@ -1373,6 +1419,7 @@ paths:
           description: Mail API
       parameters:
         - $ref: "#/components/parameters/UserIDFallback"
+        - $ref: "#/components/parameters/UserEmailFallback"
       requestBody:
         $ref: "#/components/requestBodies/BulkThreadRestore"
       responses:
@@ -1390,6 +1437,7 @@ paths:
       parameters:
         - $ref: "#/components/parameters/PathID"
         - $ref: "#/components/parameters/UserIDFallback"
+        - $ref: "#/components/parameters/UserEmailFallback"
       responses:
         "200":
           $ref: "#/components/responses/AttachmentList"
@@ -1406,6 +1454,7 @@ paths:
         - $ref: "#/components/parameters/PathID"
         - $ref: "#/components/parameters/AttachmentID"
         - $ref: "#/components/parameters/UserIDFallback"
+        - $ref: "#/components/parameters/UserEmailFallback"
       responses:
         "200":
           description: Attachment download headers
@@ -1441,6 +1490,7 @@ paths:
         - $ref: "#/components/parameters/PathID"
         - $ref: "#/components/parameters/AttachmentID"
         - $ref: "#/components/parameters/UserIDFallback"
+        - $ref: "#/components/parameters/UserEmailFallback"
       responses:
         "200":
           description: Attachment bytes
@@ -1480,6 +1530,7 @@ paths:
           description: Mail API
       parameters:
         - $ref: "#/components/parameters/UserIDFallback"
+        - $ref: "#/components/parameters/UserEmailFallback"
       requestBody:
         $ref: "#/components/requestBodies/ComposeSend"
       responses:
@@ -1496,6 +1547,7 @@ paths:
           description: Mail API
       parameters:
         - $ref: "#/components/parameters/UserIDFallback"
+        - $ref: "#/components/parameters/UserEmailFallback"
       requestBody:
         $ref: "#/components/requestBodies/DraftSave"
       responses:
@@ -1512,6 +1564,7 @@ paths:
           description: Mail API
       parameters:
         - $ref: "#/components/parameters/UserIDFallback"
+        - $ref: "#/components/parameters/UserEmailFallback"
         - $ref: "#/components/parameters/Limit"
         - name: q
           in: query
@@ -1567,6 +1620,7 @@ paths:
       parameters:
         - $ref: "#/components/parameters/PathID"
         - $ref: "#/components/parameters/UserIDFallback"
+        - $ref: "#/components/parameters/UserEmailFallback"
       requestBody:
         $ref: "#/components/requestBodies/DraftSave"
       responses:
@@ -1583,6 +1637,7 @@ paths:
       parameters:
         - $ref: "#/components/parameters/PathID"
         - $ref: "#/components/parameters/UserIDFallback"
+        - $ref: "#/components/parameters/UserEmailFallback"
       responses:
         "200":
           $ref: "#/components/responses/Status"
@@ -1598,6 +1653,7 @@ paths:
       parameters:
         - $ref: "#/components/parameters/PathID"
         - $ref: "#/components/parameters/UserIDFallback"
+        - $ref: "#/components/parameters/UserEmailFallback"
       responses:
         "202":
           $ref: "#/components/responses/SendQueued"
@@ -1612,6 +1668,7 @@ paths:
           description: Mail API
       parameters:
         - $ref: "#/components/parameters/UserIDFallback"
+        - $ref: "#/components/parameters/UserEmailFallback"
       requestBody:
         $ref: "#/components/requestBodies/AttachmentReserve"
       responses:
@@ -1630,6 +1687,7 @@ paths:
           description: Mail API
       parameters:
         - $ref: "#/components/parameters/UserIDFallback"
+        - $ref: "#/components/parameters/UserEmailFallback"
       requestBody:
         $ref: "#/components/requestBodies/AttachmentMultipartUpload"
       responses:
@@ -1648,6 +1706,7 @@ paths:
           description: Mail API
       parameters:
         - $ref: "#/components/parameters/UserIDFallback"
+        - $ref: "#/components/parameters/UserEmailFallback"
       requestBody:
         $ref: "#/components/requestBodies/AttachmentUploadSessionCreate"
       responses:
@@ -1666,6 +1725,7 @@ paths:
           description: Mail API
       parameters:
         - $ref: "#/components/parameters/UserIDFallback"
+        - $ref: "#/components/parameters/UserEmailFallback"
       responses:
         "200":
           $ref: "#/components/responses/AttachmentUploadCapabilities"
@@ -1681,6 +1741,7 @@ paths:
       parameters:
         - $ref: "#/components/parameters/PathID"
         - $ref: "#/components/parameters/UserIDFallback"
+        - $ref: "#/components/parameters/UserEmailFallback"
       responses:
         "200":
           $ref: "#/components/responses/Attachment"
@@ -1696,6 +1757,7 @@ paths:
       parameters:
         - $ref: "#/components/parameters/PathID"
         - $ref: "#/components/parameters/UserIDFallback"
+        - $ref: "#/components/parameters/UserEmailFallback"
       responses:
         "200":
           $ref: "#/components/responses/AttachmentUploadSession"
@@ -1710,6 +1772,7 @@ paths:
       parameters:
         - $ref: "#/components/parameters/PathID"
         - $ref: "#/components/parameters/UserIDFallback"
+        - $ref: "#/components/parameters/UserEmailFallback"
       responses:
         "200":
           $ref: "#/components/responses/AttachmentUploadSession"
@@ -1733,6 +1796,7 @@ paths:
       parameters:
         - $ref: "#/components/parameters/PathID"
         - $ref: "#/components/parameters/UserIDFallback"
+        - $ref: "#/components/parameters/UserEmailFallback"
         - name: Content-Range
           in: header
           required: false
@@ -1772,6 +1836,7 @@ paths:
       parameters:
         - $ref: "#/components/parameters/PathID"
         - $ref: "#/components/parameters/UserIDFallback"
+        - $ref: "#/components/parameters/UserEmailFallback"
       responses:
         "201":
           $ref: "#/components/responses/Attachment"
@@ -1786,6 +1851,7 @@ paths:
           description: Mail API
       parameters:
         - $ref: "#/components/parameters/UserIDFallback"
+        - $ref: "#/components/parameters/UserEmailFallback"
       requestBody:
         required: true
         content:
@@ -1808,6 +1874,7 @@ paths:
           description: Mail API
       parameters:
         - $ref: "#/components/parameters/UserIDFallback"
+        - $ref: "#/components/parameters/UserEmailFallback"
       responses:
         "200":
           description: User profile
@@ -1836,6 +1903,7 @@ paths:
           description: Mail API
       parameters:
         - $ref: "#/components/parameters/UserIDFallback"
+        - $ref: "#/components/parameters/UserEmailFallback"
       responses:
         "200":
           description: List of email addresses
@@ -1863,6 +1931,7 @@ paths:
           description: Mail API
       parameters:
         - $ref: "#/components/parameters/UserIDFallback"
+        - $ref: "#/components/parameters/UserEmailFallback"
       requestBody:
         required: true
         content:
@@ -1887,6 +1956,7 @@ paths:
           description: Mail API
       parameters:
         - $ref: "#/components/parameters/UserIDFallback"
+        - $ref: "#/components/parameters/UserEmailFallback"
       responses:
         "200":
           description: User webmail preferences
@@ -1908,6 +1978,7 @@ paths:
           description: Mail API
       parameters:
         - $ref: "#/components/parameters/UserIDFallback"
+        - $ref: "#/components/parameters/UserEmailFallback"
       requestBody:
         required: true
         content:
@@ -1937,6 +2008,7 @@ paths:
           description: Mail API
       parameters:
         - $ref: "#/components/parameters/UserIDFallback"
+        - $ref: "#/components/parameters/UserEmailFallback"
         - $ref: "#/components/parameters/Limit"
       responses:
         "200":
@@ -1951,6 +2023,7 @@ paths:
           description: Mail API
       parameters:
         - $ref: "#/components/parameters/UserIDFallback"
+        - $ref: "#/components/parameters/UserEmailFallback"
       requestBody:
         $ref: "#/components/requestBodies/PushDeviceUpsert"
       responses:
@@ -1968,6 +2041,7 @@ paths:
       parameters:
         - $ref: "#/components/parameters/PathID"
         - $ref: "#/components/parameters/UserIDFallback"
+        - $ref: "#/components/parameters/UserEmailFallback"
       responses:
         "200":
           $ref: "#/components/responses/IDStatus"
@@ -9675,7 +9749,7 @@ components:
       type: http
       scheme: bearer
       bearerFormat: GoGoMail API key
-      description: "Use Authorization: Bearer gm_... for trusted server-to-server external integrations. API-key mailbox calls must identify the target user with user_id or X-Gogomail-User-ID and are recorded by API metering."
+      description: "Use Authorization: Bearer gm_... for trusted server-to-server external integrations. API-key mailbox calls should identify the target mailbox with user_email or X-Gogomail-User-Email. user_id and X-Gogomail-User-ID remain supported for systems that already store GoGoMail IDs. Calls are recorded by API metering."
     adminToken:
       type: apiKey
       in: header
@@ -10502,18 +10576,36 @@ components:
       name: user_id
       in: query
       required: false
-      description: Development fallback required only when JWT auth is disabled. For API-key external integrations, this query parameter may identify the target mailbox user; X-Gogomail-User-ID can be used instead when the client prefers a header.
+      description: Development fallback required only when JWT auth is disabled. For API-key external integrations, prefer user_email because external systems usually know email addresses before GoGoMail internal user IDs.
       schema:
         type: string
         maxLength: 200
+    UserEmailFallback:
+      name: user_email
+      in: query
+      required: false
+      description: Recommended target mailbox identifier for trusted server-to-server API-key integrations. Use an email address such as user@example.com. If user_email and user_id are both supplied, they must resolve to the same GoGoMail user.
+      schema:
+        type: string
+        format: email
+        maxLength: 320
     ExternalIntegrationUserIDHeader:
       name: X-Gogomail-User-ID
       in: header
       required: false
-      description: Target mailbox user for trusted server-to-server API-key external integrations. If both this header and user_id are supplied, they must match.
+      description: Internal GoGoMail user ID target for trusted server-to-server API-key integrations. Prefer X-Gogomail-User-Email unless the external system already stores GoGoMail user IDs.
       schema:
         type: string
         maxLength: 200
+    ExternalIntegrationUserEmailHeader:
+      name: X-Gogomail-User-Email
+      in: header
+      required: false
+      description: Recommended target mailbox user for trusted server-to-server API-key integrations. If this header is supplied with user_id or X-Gogomail-User-ID, all identifiers must resolve to the same user.
+      schema:
+        type: string
+        format: email
+        maxLength: 320
   requestBodies:
     FolderCreate:
       required: true
@@ -13473,7 +13565,7 @@ components:
           type: string
         auth_source:
           type: string
-          enum: [anonymous, unknown, bearer, admin_token, query_user_id]
+          enum: [anonymous, unknown, bearer, admin_token, query_user_id, api_key]
         request_count:
           type: integer
           format: int64
@@ -13541,7 +13633,7 @@ components:
           type: string
         auth_source:
           type: string
-          enum: [anonymous, unknown, bearer, admin_token, query_user_id]
+          enum: [anonymous, unknown, bearer, admin_token, query_user_id, api_key]
         request_count:
           type: integer
           format: int64
@@ -13616,7 +13708,7 @@ components:
           type: string
         auth_source:
           type: string
-          enum: [anonymous, unknown, bearer, admin_token, query_user_id]
+          enum: [anonymous, unknown, bearer, admin_token, query_user_id, api_key]
         request_count:
           type: integer
           format: int64
@@ -16001,7 +16093,12 @@ components:
       properties:
         user_id:
           type: string
-          description: Development fallback when bearer auth is disabled.
+          description: Development fallback when bearer auth is disabled. API-key integrations may use it when they already store GoGoMail internal user IDs.
+        user_email:
+          type: string
+          format: email
+          maxLength: 320
+          description: Recommended mailbox identifier for API-key integrations.
         draft_id:
           type: string
           maxLength: 200
@@ -16049,6 +16146,11 @@ components:
       type: object
       required: [filename, size, mime_type]
       properties:
+        user_email:
+          type: string
+          format: email
+          maxLength: 320
+          description: Recommended mailbox identifier for API-key integrations.
         draft_id:
           type: string
           maxLength: 200
