@@ -346,7 +346,7 @@ func currentWebmailCapabilities() webmailCapabilities {
 			UploadSessionChecksum:      true,
 			FinalizeUploadSessions:     true,
 			CancelUploadSessions:       true,
-			ResumableChunkedUploads:    false,
+			ResumableChunkedUploads:    true,
 			MaxUploadSessionBytes:      drive.MaxUploadSessionBytes,
 			MaxSessionTTLSeconds:       int64(drive.MaxUploadSessionTTL.Seconds()),
 			DefaultSessionTTLSeconds:   int64(drive.DefaultUploadSessionTTL.Seconds()),

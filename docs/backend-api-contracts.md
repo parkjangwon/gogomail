@@ -162,6 +162,10 @@ session capabilities and limits, and push-device platforms.
 Clients should use this endpoint to enable controls and validate local form
 limits instead of copying backend constants into the frontend. The route is a
 read-only capability surface and does not dispatch repository work.
+Drive clients should read `webmail_capabilities.drive.resumable_chunked_uploads`
+before enabling chunked resumable upload UI. When the flag is true, the Drive
+upload-session body route accepts sequential `Content-Range` chunk commits and
+clients can show per-chunk progress instead of only finalization state.
 
 ## Drive API
 
