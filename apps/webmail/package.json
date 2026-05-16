@@ -29,7 +29,7 @@
     "@untitledui/file-icons": "^0.0.9",
     "dompurify": "^3.4.2",
     "fflate": "^0.8.2",
-    "next": "^15.5.18",
+    "next": "^16.2.6",
     "next-intl": "^4.11.1",
     "react": "^19.2.6",
     "react-dom": "^19.2.6"
@@ -41,7 +41,7 @@
     "@types/react": "^19.1.0",
     "@types/react-dom": "^19.1.0",
     "eslint": "^9.0.0",
-    "eslint-config-next": "^15.5.18",
+    "eslint-config-next": "^16.2.6",
     "postcss": "^8.5.0",
     "tailwindcss": "^4.3.0",
     "typescript": "^5.8.0"
