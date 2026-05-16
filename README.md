@@ -1,16 +1,14 @@
 # gogomail
 
-<img width="1456" height="720" alt="1777874812592" src="https://github.com/user-attachments/assets/3e222678-51be-465f-b37d-58d2390ba40d" />
+<img width="1456" height="720" alt="gogomail" src="https://github.com/user-attachments/assets/3e222678-51be-465f-b37d-58d2390ba40d" />
 
-A standards-first mail platform built in Go. SMTP, IMAP, CalDAV, CardDAV — all implemented against their RFCs so any compliant client works out of the box, without proprietary plugins or vendor-specific extensions.
+A standards-first mail platform built in Go. SMTP, IMAP, CalDAV, CardDAV — implemented against their RFCs so any compliant client works without proprietary plugins.
 
 ---
 
 ## Philosophy
 
-Most webmail platforms accumulate years of proprietary APIs and vendor lock-in. gogomail takes the opposite approach: every protocol surface maps to a published RFC, and every design decision is filtered through interoperability first. If a feature can't be expressed in a standard, it waits until it can.
-
-This matters in practice. When your mail client, calendar app, and contacts sync work via open standards, you can replace any component — the MTA, the storage backend, the identity provider — without rewriting integrations.
+Every protocol surface maps to a published RFC, and every design decision is filtered through interoperability first. If a feature can't be expressed in a standard, it waits until it can — so any component (MTA, storage, identity provider) can be replaced without rewriting integrations.
 
 ---
 
@@ -20,84 +18,41 @@ This matters in practice. When your mail client, calendar app, and contacts sync
 
 | Component | Standards | Status |
 |---|---|---|
-| SMTP receive (edge MTA) | RFC 5321, 5322, 2045–2049 | Production-ready |
-| SMTP submission (outbound MTA) | RFC 6409, AUTH RFC 4954 | Production-ready |
-| SMTP delivery + smart-host relay | RFC 5321, RFC 7505 (null MX) | Production-ready |
-| DKIM signing | RFC 6376 | Production-ready |
-| SPF / DMARC verification | RFC 7208, RFC 7489 | Production-ready |
-| DSN / bounce handling | RFC 3461, RFC 3464 | Production-ready |
-| IMAP | RFC 9051 (IMAP4rev2), RFC 3501 | Production-ready |
-| CalDAV + iCalendar | RFC 4791, RFC 5545, RFC 6638, RFC 7809, RFC 3744 | Production-ready |
-| iMIP scheduling | RFC 6047 | Complete |
-| Timezone support | RFC 7809 | Complete |
-| CardDAV + vCard | RFC 6352, RFC 6350, RFC 2426, RFC 3744 | Production-ready |
-| LDAP directory gateway | RFC 4511, RFC 4512, RFC 4519 | Advanced |
-| Mail API (REST) | OpenAPI | Production-ready |
-| Admin API | OpenAPI | Production-ready |
-| POP3 | RFC 1939 | Production-ready |
-| Drive / file storage | S3-compatible backend | Advanced |
-| WebDAV / Drive gateway | RFC 4918 | Advanced |
+| SMTP receive (edge MTA) | RFC 5321, 5322, 2045–2049 | Production |
+| SMTP submission | RFC 6409, 4954 | Production |
+| SMTP delivery + smart-host relay | RFC 5321, 7505 | Production |
+| DKIM signing | RFC 6376 | Production |
+| SPF / DMARC verification | RFC 7208, 7489 | Production |
+| DSN / bounce handling | RFC 3461, 3464 | Production |
+| IMAP | RFC 9051, 3501 | Production |
+| POP3 | RFC 1939 | Production |
+| CalDAV + iCalendar | RFC 4791, 5545, 6638, 7809, 3744 | Production |
+| iMIP scheduling | RFC 6047 | Production |
+| CardDAV + vCard | RFC 6352, 6350, 2426, 3744 | Production |
+| WebDAV / Drive gateway | RFC 4918 | Production |
+| LDAP directory gateway | RFC 4511, 4512, 4519 | Advanced |
+| Mail + Admin REST API | OpenAPI | Production |
+| Drive / file storage | S3-compatible | Advanced |
 | Mail flow logs + analytics | PostgreSQL + OpenSearch | Advanced |
+
+Current implementation detail: [`docs/CURRENT_STATUS.md`](docs/CURRENT_STATUS.md).
 
 ### Webmail (Next.js 15)
 
-A keyboard-first webmail client built with Next.js 15, Tailwind v4, and shadcn/ui. Inspired by Notion Mail / Superhuman UX principles.
+Keyboard-first webmail built with Next.js 15, Tailwind v4, and shadcn/ui.
 
-**Mail**
-- 3-pane layout — sidebar, message list, reading pane
-- Keyboard shortcuts: Gmail-style (`g i`, `g s`, `e`, `r`, `a`, `f`, `#`, …) + Korean IME support
-- Spotlight search (Cmd+K) with Gmail-style operators (`from:`, `to:`, `subject:`, `has:attachment`)
-- Inline reply editor (TipTap v2) with rich text, slash commands, inline images
-- Compose with TipTap — slash commands, inline image paste, attachment upload
-- Send delay (undo send countdown)
-- Snooze, pin, follow-up reminders for sent mail
-- Inbox category tabs + smart auto-classification chips
-- Compact view toggle
-- Inbox zero celebration state
-- Unsubscribe link auto-detection
-- ICS calendar invite detection with Add to Calendar
-
-**Filters & Automation**
-- Multi-condition filter rules with AND/OR logic
-- 9 condition fields: from, to, cc, subject, body, has attachment, is unread, size larger/smaller
-- 6 match types: contains, not contains, equals, starts with, ends with, regex
-- 9 actions: label color, move to folder, mark read/unread, star, mark important, skip inbox, delete, forward
-- Enabled toggle + stop processing flag per rule
-- Blocked senders, vacation responder
-
-**Virtual folders**
-- Unread, Snoozed, Pinned, Important, Tasks — all sidebar shortcuts
-
-**Calendar**
-- Month/week/day/agenda views
-- Multiple calendars with color-coding — add, edit, delete calendars
-- Recurring events (RFC 5545 RRULE: daily/weekly/monthly/yearly, interval, day selection, end by count or date)
-- ICS import via email
-
-**Contacts & Organization**
-- CardDAV-backed contact list with search
-- Contact hover card in message headers
-- Organization chart (조직도) with hierarchical navigation
-- Group-based recipient picking in compose modal
-- 3-pane recipient picker (org tree, members/contacts, selected recipients)
-
-**Drive**
-- S3-backed file manager with folder tree, upload, download, share link, trash
-
-**Settings**
-- General, appearance, notifications, reading, compose, signature/auto-reply, filters, blocked senders, vacation responder, templates, privacy, accessibility, enterprise security, storage/backup, about
-- Per-folder mailbox stats (message count, unread, starred, estimated size)
-- Async EML / ZIP backup per folder (non-blocking, progress tracking)
-- Mailbox restore from EML/MBOX file
-- Settings import / export (JSON)
-- Focus mode, DND-aware browser notifications
-- High contrast, reduced motion, font family, screen reader mode
+- **Mail** — 3-pane layout, Gmail-style shortcuts (`g i`, `e`, `r`, `#`, …) with Korean IME, Spotlight search (Cmd+K) with operators, TipTap rich-text compose with slash commands and inline images, send delay, snooze, pin, follow-up reminders, inbox category tabs, unsubscribe detection, ICS invite detection.
+- **Filters** — multi-condition rules (AND/OR), 9 condition fields, 6 match types including regex, 9 actions, blocked senders, vacation responder.
+- **Calendar** — month/week/day/agenda views, multiple color-coded calendars, RFC 5545 recurring events, ICS import.
+- **Contacts** — CardDAV-backed list, hover cards, hierarchical org chart, group-based recipient picker.
+- **Drive** — S3-backed file manager with folder tree, share links, trash.
+- **Settings** — per-folder mailbox stats, async EML/ZIP backup, restore from EML/MBOX, JSON settings import/export, focus mode, accessibility (high contrast, reduced motion, screen reader).
 
 ---
 
 ## Architecture
 
-Single binary, multiple modes. Each mode runs one component independently, so you can deploy them on separate nodes or compose them into a single process for development.
+Single binary, multiple modes. Each mode runs one component independently — deploy on separate nodes or compose into a single process for development.
 
 ```
 gogomail --mode=smtp-edge          # inbound SMTP (port 25)
@@ -119,69 +74,23 @@ gogomail --mode=migration          # run database migrations
 
 ---
 
-## Recent Updates (2026-05-15)
-
-### SMTP Super-Powerful Server Performance Tests (2026-05-15)
-- ✅ **Throughput Test**: 2012 msg/sec sustained (target: ≥1000 msg/sec)
-- ✅ **Stability Test**: 63k messages in 30 seconds, zero errors, zero data loss
-- ⚠️ **Isolation Test**: Bulk mail handling verified (6-38% latency impact, target: ≤5%)
-- ⚠️ **Concurrency Test**: 100 simultaneous connections handled (2-18% message loss, race condition identified)
-- Performance verification suite added: `TestSubmissionThroughputTarget`, `TestSubmissionStability`, `TestSubmissionBulkIsolation`, `TestSubmissionConcurrentConnections`
-- Full audit and test results documented in `docs/CURRENT_STATUS.md`
-
-### CardDAV RFC 100% Implementation Complete (2026-05-14)
-- ✅ RFC 6350 PHOTO property: Extract and store binary photo data separately with media type support
-- ✅ RFC 6350 CATEGORIES property: Store comma-separated category lists as TEXT[] arrays with GIN index
-- ✅ RFC 6350 GROUP property: Store group identifiers for contact organization with B-tree index
-- ✅ RFC 3744 ACL support: Principal-based access control with grant/deny privilege lists
-- ✅ All vCard properties extracted during upsert and merged back during retrieval for RFC compliance
-- ✅ 5940+ tests passing, zero regressions, production-ready CardDAV implementation
-
-### WebDAV Gateway Authentication (2026-05-14)
-- ✅ Bearer token and HTTPS Basic auth support enabled for external client access
-- ✅ External clients (Mac Finder, Windows Explorer, Linux) can mount gogomail drive via `/dav/` endpoint
-- ✅ Lock management optimized with RWMutex and automatic cleanup of expired locks
-- ✅ All RFC 4918 WebDAV operations supported: OPTIONS, PROPFIND, MKCOL, GET, PUT, DELETE, MOVE, COPY, PROPPATCH, LOCK, UNLOCK
-
-### Webmail Phase 3 Completion (2026-05-12)
-- ✅ E2E test infrastructure (Playwright, 25+ test cases)
-- ✅ Org chart recipient picker with hierarchical navigation
-- ✅ ComposeModal integration: send delay, draft autosave, emoji picker
-- ✅ ReadingPane enhancements: star toggle, read/unread, calendar invite detection
-- ✅ Settings modal: profile picture, security, enterprise features
-- ✅ Drive file picker, message search with operators, inbox categories
-
-### API & Infrastructure
-- ✅ Backend API route alignment: `/api/v1/` → `/api/mail/` (971 tests passing)
-- ✅ Hierarchical organization data structure loaded (depth-based parent_id relationships)
-- ✅ CardDAV directory org-tree endpoint with member resolution
-- ✅ Admin console: user management, organization structure, audit logs
-- ✅ Docker Compose configurations for dev/prod deployments
-
----
-
 ## Quick start
 
 ### Backend
 
-**Requirements**: Go 1.25+, PostgreSQL 15+, Redis 7+
+Requirements: Go 1.25+, PostgreSQL 15+, Redis 7+
 
 ```bash
-# Build
 go build -o bin/gogomail ./cmd/gogomail
 
-# Run migrations
 GOGOMAIL_DATABASE_URL=postgres://... bin/gogomail --mode=migration
 
-# Start API server (development)
 GOGOMAIL_DATABASE_URL=postgres://... \
 GOGOMAIL_REDIS_URL=redis://localhost:6379 \
 GOGOMAIL_STORAGE_BACKEND=local \
 GOGOMAIL_STORAGE_LOCAL_PATH=/tmp/gogomail \
 bin/gogomail --mode=api
 ```
-
-Key environment variables:
 
 | Variable | Description |
 |---|---|
@@ -194,61 +103,44 @@ Key environment variables:
 | `GOGOMAIL_DELIVERY_TLS_MODE` | `opportunistic` (default) / `require` / `disable` |
 | `GOGOMAIL_ENV` | `production` enforces stricter TLS and auth guards |
 
-Full configuration reference: `internal/config/`.
+Full reference: `internal/config/`.
 
 ### Webmail
 
-**Requirements**: Node.js 20+, pnpm 9+
+Requirements: Node.js 20+, pnpm 9+
 
 ```bash
 cd apps/webmail
 pnpm install
 pnpm dev       # http://localhost:3000
-pnpm build     # production build
+pnpm build
 ```
 
-### Development seed data
-
-For local beta testing with Docker PostgreSQL:
+### Seed data
 
 ```bash
 docker compose -f docker/docker-compose.dev.yml up -d postgres
 ./scripts/seed_dev_beta.sh
 ```
 
-Default seeded webmail login:
-
-```text
-email: pjw@parkjw.org
-password: pass1234
-```
-
-The seed data includes Korean users, primary addresses, system folders, hierarchical organizations, CardDAV contacts, and mailbox messages for admin-console and user-webmail smoke testing.
+Default login: `pjw@parkjw.org` / `pass1234`.
 
 ---
 
 ## Development
 
 ```bash
-# Run all tests
-go test ./...
-
-# Run tests for a specific package
-go test ./internal/scheduling/...
-
-# Build check
-go build ./...
-
-# Webmail type check
-tsc --noEmit -p apps/webmail/tsconfig.json
+go test ./...                                # all tests
+go build ./...                               # build check
+tsc --noEmit -p apps/webmail/tsconfig.json   # webmail type check
 ```
 
-The pre-commit hook enforces two rules automatically:
+The pre-commit hook enforces:
 
-1. `go test ./...` must pass before any commit.
-2. Production code changes (`internal/`, `migrations/`) require at least one `docs/` file staged in the same commit.
+1. `go test ./...` must pass.
+2. Changes under `internal/` or `migrations/` require at least one `docs/` file in the same commit.
 
-Development workflow is driven by `docs/ACTIVE_TASK.md` — one task at a time, TDD, docs and code committed together. See `PROJECT_HARNESS.md` for the full contract.
+Workflow is driven by `docs/ACTIVE_TASK.md` — one task at a time, TDD, docs and code committed together. See `PROJECT_HARNESS.md`.
 
 ---
 
@@ -257,15 +149,15 @@ Development workflow is driven by `docs/ACTIVE_TASK.md` — one task at a time, 
 | Phase | Focus | Status |
 |---|---|---|
 | 0–1 | SMTP, IMAP, CalDAV, CardDAV, Mail/Admin API, delivery, DKIM/SPF/DMARC | ✓ Complete |
-| 2 | Webmail frontend — keyboard-first, settings, filters, calendar, contacts, drive | ✓ Complete |
-| 3 | Runtime config store · company→domain→user settings hierarchy · 2FA/TOTP | Planned |
-| 4 | Enterprise identity: LDAP (RFC 4511) · SCIM 2.0 · SAML/OIDC | LDAP advanced, SCIM/SSO planned |
-| 5 | Drive WebDAV gateway (RFC 4918) · CalDAV/CardDAV production hardening | ✓ Complete (WebDAV + CardDAV RFC 100%) |
+| 2 | Webmail frontend | ✓ Complete |
+| 3 | Runtime config store · company→domain→user hierarchy · 2FA/TOTP | Planned |
+| 4 | Enterprise identity: LDAP · SCIM 2.0 · SAML/OIDC | LDAP advanced, SCIM/SSO planned |
+| 5 | WebDAV gateway · CalDAV/CardDAV hardening | ✓ Complete |
 | 6 | Mail security: milter adapter · DNSBL (RFC 5782) | Planned |
-| 7 | POP3 (RFC 1939) | ✓ Complete |
+| 7 | POP3 | ✓ Complete |
 | 8 | Push notifications: FCM / APNs / Web Push (RFC 8030) | Planned |
 
-Full roadmap: `docs/backend-roadmap.md`.
+Full roadmap: [`docs/backend-roadmap.md`](docs/backend-roadmap.md).
 
 ---
 
@@ -275,10 +167,8 @@ Full roadmap: `docs/backend-roadmap.md`.
 |---|---|
 | `docs/ACTIVE_TASK.md` | Current development task |
 | `docs/backend-roadmap.md` | Full phase-by-phase roadmap with RFC references |
-| `docs/CURRENT_STATUS.md` | Detailed current implementation status |
-| `docs/DESIGN.md` | Frontend design language and component patterns |
+| `docs/CURRENT_STATUS.md` | Detailed implementation status |
 | `docs/openapi.yaml` | OpenAPI spec for Mail + Admin APIs |
-| `docs/backend-api-contracts.md` | API contract documentation |
 | `docs/adr/` | Architecture decision records |
 | `PROJECT_HARNESS.md` | Development loop contract for autonomous agents |
 
@@ -286,6 +176,6 @@ Full roadmap: `docs/backend-roadmap.md`.
 
 ## License
 
-[Elastic License 2.0](LICENSE) — free to use internally (commercial or non-commercial), fork and customize. Selling or hosting gogomail as a product or managed service requires explicit permission from the copyright holder.
+[Elastic License 2.0](LICENSE). Free to use and modify internally; offering gogomail as a hosted or managed service requires explicit permission.
 
 Copyright (c) 2026 Park Jangwon.
