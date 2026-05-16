@@ -1366,33 +1366,33 @@ function makeMessages(locale: DocsLocale): DocsMessages {
           {
             title: translated({ en: 'Authentication model', ko: '인증 모델', ja: '認証モデル', 'zh-CN': '认证模型' }),
             body: translated({
-              en: 'External integration calls use Authorization: Bearer with a GoGoMail API key. The key is bound to one domain, and every mailbox request must also identify the target user with user_id or the X-Gogomail-User-ID header.',
-              ko: '외부 연동 호출은 Authorization: Bearer 헤더에 GoGoMail API 키를 넣어 사용합니다. 키는 하나의 도메인에 묶이며, 메일함 요청은 user_id 쿼리 또는 X-Gogomail-User-ID 헤더로 대상 사용자를 반드시 지정해야 합니다.',
-              ja: '外部連携呼び出しは Authorization: Bearer に GoGoMail API キーを入れて使います。キーは 1 つのドメインに結び付き、メールボックス要求では user_id または X-Gogomail-User-ID ヘッダーで対象ユーザーを必ず指定します。',
-              'zh-CN': '外部集成调用使用 Authorization: Bearer 携带 GoGoMail API 密钥。密钥绑定到一个域名，每个邮箱请求还必须通过 user_id 或 X-Gogomail-User-ID 请求头指定目标用户。',
+              en: 'External integration calls use Authorization: Bearer with a GoGoMail API key. The key is bound to one domain, and mailbox requests should identify the target user with user_email or the X-Gogomail-User-Email header. user_id and X-Gogomail-User-ID remain available only when the external system already stores GoGoMail internal IDs.',
+              ko: '외부 연동 호출은 Authorization: Bearer 헤더에 GoGoMail API 키를 넣어 사용합니다. 키는 하나의 도메인에 묶이며, 메일함 요청은 user_email 쿼리 또는 X-Gogomail-User-Email 헤더로 대상 사용자를 지정하는 방식을 권장합니다. user_id와 X-Gogomail-User-ID는 외부 시스템이 GoGoMail 내부 ID를 이미 저장하는 경우에만 사용합니다.',
+              ja: '外部連携呼び出しは Authorization: Bearer に GoGoMail API キーを入れて使います。キーは 1 つのドメインに結び付き、メールボックス要求では user_email または X-Gogomail-User-Email ヘッダーで対象ユーザーを指定する方式を推奨します。user_id と X-Gogomail-User-ID は外部システムが GoGoMail 内部 ID を保存している場合だけ使います。',
+              'zh-CN': '外部集成调用使用 Authorization: Bearer 携带 GoGoMail API 密钥。密钥绑定到一个域名，邮箱请求推荐通过 user_email 或 X-Gogomail-User-Email 请求头指定目标用户。只有外部系统已经保存 GoGoMail 内部 ID 时，才使用 user_id 和 X-Gogomail-User-ID。',
             }),
             paragraphs: [
               translated({
-                en: 'GoGoMail checks that the target user belongs to the same domain as the API key. If the user belongs to another domain, the request is rejected before mailbox data is returned.',
-                ko: 'GoGoMail은 대상 사용자가 API 키와 같은 도메인에 속하는지 확인합니다. 다른 도메인의 사용자를 지정하면 메일함 데이터를 반환하기 전에 요청을 거부합니다.',
-                ja: 'GoGoMail は対象ユーザーが API キーと同じドメインに属するか確認します。別ドメインのユーザーを指定すると、メールボックスデータを返す前に拒否します。',
-                'zh-CN': 'GoGoMail 会检查目标用户是否属于 API 密钥所在的同一域名。如果指定其他域名的用户，请求会在返回邮箱数据前被拒绝。',
+                en: 'GoGoMail resolves the email address to the internal user, then checks that the user belongs to the same domain as the API key. If both email and user ID are supplied, they must resolve to the same user. If the user belongs to another domain, the request is rejected before mailbox data is returned.',
+                ko: 'GoGoMail은 이메일 주소를 내부 사용자로 해석한 뒤, 대상 사용자가 API 키와 같은 도메인에 속하는지 확인합니다. 이메일과 사용자 ID를 함께 넣으면 둘이 같은 사용자로 해석되어야 합니다. 다른 도메인의 사용자를 지정하면 메일함 데이터를 반환하기 전에 요청을 거부합니다.',
+                ja: 'GoGoMail はメールアドレスを内部ユーザーに解決し、そのユーザーが API キーと同じドメインに属するか確認します。メールアドレスとユーザー ID を両方渡す場合は、同じユーザーに解決されなければなりません。別ドメインのユーザーを指定すると、メールボックスデータを返す前に拒否します。',
+                'zh-CN': 'GoGoMail 会把邮箱地址解析为内部用户，然后检查该用户是否属于 API 密钥所在的同一域名。如果同时提供邮箱和用户 ID，它们必须解析到同一个用户。如果指定其他域名的用户，请求会在返回邮箱数据前被拒绝。',
               }),
             ],
-            items: ['Authorization: Bearer gm_...', 'X-Gogomail-User-ID', 'user_id', console.nav.domains],
+            items: ['Authorization: Bearer gm_...', 'X-Gogomail-User-Email', 'user_email', 'X-Gogomail-User-ID', 'user_id', console.nav.domains],
             examples: [
               {
                 title: translated({ en: 'Common request headers', ko: '공통 요청 헤더', ja: '共通リクエストヘッダー', 'zh-CN': '通用请求头' }),
                 language: 'http',
                 code: `Authorization: Bearer gm_REPLACE_WITH_ISSUED_KEY
-X-Gogomail-User-ID: 11111111-1111-1111-1111-111111111111
+X-Gogomail-User-Email: user@example.com
 Accept: application/json
 Content-Type: application/json`,
               },
               {
                 title: translated({ en: 'Equivalent query parameter form', ko: '쿼리 파라미터 방식', ja: 'クエリパラメーター形式', 'zh-CN': '查询参数形式' }),
                 language: 'http',
-                code: `GET /api/v1/mailbox/overview?user_id=11111111-1111-1111-1111-111111111111 HTTP/1.1
+                code: `GET /api/v1/mailbox/overview?user_email=user%40example.com HTTP/1.1
 Host: mail.example.com
 Authorization: Bearer gm_REPLACE_WITH_ISSUED_KEY
 Accept: application/json`,
@@ -1427,10 +1427,10 @@ Accept: application/json`,
             }),
             paragraphs: [
               translated({
-                en: 'For compose, call POST /api/v1/messages/send from the external system server. The body uses the same webmail send model: user_id, recipients, subject, text_body or html_body, optional attachments, and optional tracking or scheduling fields where enabled.',
-                ko: '메일 쓰기는 외부 시스템 서버에서 POST /api/v1/messages/send를 호출합니다. 본문은 웹메일 전송 모델과 동일하게 user_id, 수신자, 제목, text_body 또는 html_body, 선택 첨부파일, 허용된 경우 추적 또는 예약 필드를 사용합니다.',
-                ja: '作成は外部システムサーバーから POST /api/v1/messages/send を呼び出します。本文はウェブメール送信モデルと同じで、user_id、宛先、件名、text_body または html_body、任意の添付、許可された追跡または予約フィールドを使います。',
-                'zh-CN': '写信由外部系统服务器调用 POST /api/v1/messages/send。请求体与 Webmail 发送模型相同：user_id、收件人、主题、text_body 或 html_body、可选附件，以及启用时的跟踪或定时字段。',
+                en: 'For compose, call POST /api/v1/messages/send from the external system server. The body uses the same webmail send model: user_email, recipients, subject, text_body or html_body, optional attachments, and optional tracking or scheduling fields where enabled.',
+                ko: '메일 쓰기는 외부 시스템 서버에서 POST /api/v1/messages/send를 호출합니다. 본문은 웹메일 전송 모델과 동일하게 user_email, 수신자, 제목, text_body 또는 html_body, 선택 첨부파일, 허용된 경우 추적 또는 예약 필드를 사용합니다.',
+                ja: '作成は外部システムサーバーから POST /api/v1/messages/send を呼び出します。本文はウェブメール送信モデルと同じで、user_email、宛先、件名、text_body または html_body、任意の添付、許可された追跡または予約フィールドを使います。',
+                'zh-CN': '写信由外部系统服务器调用 POST /api/v1/messages/send。请求体与 Webmail 发送模型相同：user_email、收件人、主题、text_body 或 html_body、可选附件，以及启用时的跟踪或定时字段。',
               }),
             ],
             items: ['/api/v1/mailbox/overview', '/api/v1/messages', '/api/v1/search', '/api/v1/messages/send'],
@@ -1440,7 +1440,7 @@ Accept: application/json`,
                 language: 'bash',
                 code: `curl -sS 'https://mail.example.com/api/v1/mailbox/overview' \\
   -H 'Authorization: Bearer gm_REPLACE_WITH_ISSUED_KEY' \\
-  -H 'X-Gogomail-User-ID: 11111111-1111-1111-1111-111111111111' \\
+  -H 'X-Gogomail-User-Email: user@example.com' \\
   -H 'Accept: application/json'`,
               },
               {
@@ -1466,7 +1466,7 @@ Accept: application/json`,
                 language: 'bash',
                 code: `curl -sS 'https://mail.example.com/api/v1/messages?folder_id=folder-inbox&read=false&limit=20&sort=newest' \\
   -H 'Authorization: Bearer gm_REPLACE_WITH_ISSUED_KEY' \\
-  -H 'X-Gogomail-User-ID: 11111111-1111-1111-1111-111111111111' \\
+  -H 'X-Gogomail-User-Email: user@example.com' \\
   -H 'Accept: application/json'`,
               },
               {
@@ -1516,7 +1516,7 @@ Accept: application/json`,
                 language: 'bash',
                 code: `curl -sS 'https://mail.example.com/api/v1/search?q=invoice&from=billing%40example.net&has_attachment=true&limit=10&sort=date' \\
   -H 'Authorization: Bearer gm_REPLACE_WITH_ISSUED_KEY' \\
-  -H 'X-Gogomail-User-ID: 11111111-1111-1111-1111-111111111111' \\
+  -H 'X-Gogomail-User-Email: user@example.com' \\
   -H 'Accept: application/json'`,
               },
             ],
@@ -1537,7 +1537,7 @@ Accept: application/json`,
                 'zh-CN': '发送邮件使用 mail:send。如果外部系统还需要创建草稿、上传附件或创建文件夹，应签发 mail:manage 权限的密钥，而不是扩大仅发送密钥的用途。',
               }),
             ],
-            items: ['/api/v1/messages/send', 'user_id', 'to', 'cc', 'bcc', 'subject', 'text_body', 'html_body', 'attachment_ids'],
+            items: ['/api/v1/messages/send', 'user_email', 'user_id', 'to', 'cc', 'bcc', 'subject', 'text_body', 'html_body', 'attachment_ids'],
             examples: [
               {
                 title: translated({ en: 'POST send message', ko: 'POST 메일 전송', ja: 'POST メール送信', 'zh-CN': 'POST 发送邮件' }),
@@ -1546,7 +1546,7 @@ Accept: application/json`,
   -H 'Authorization: Bearer gm_REPLACE_WITH_ISSUED_KEY' \\
   -H 'Content-Type: application/json' \\
   -d '{
-    "user_id": "11111111-1111-1111-1111-111111111111",
+    "user_email": "user@example.com",
     "to": [{"email": "customer@example.net", "name": "Customer"}],
     "cc": [],
     "bcc": [],
@@ -1593,7 +1593,7 @@ Accept: application/json`,
                 language: 'bash',
                 code: `curl -sS -X PUT 'https://mail.example.com/api/v1/preferences' \\
   -H 'Authorization: Bearer gm_REPLACE_WITH_ISSUED_KEY' \\
-  -H 'X-Gogomail-User-ID: 11111111-1111-1111-1111-111111111111' \\
+  -H 'X-Gogomail-User-Email: user@example.com' \\
   -H 'Content-Type: application/json' \\
   -d '{
     "theme": "dark",
@@ -1606,7 +1606,7 @@ Accept: application/json`,
                 language: 'bash',
                 code: `curl -sS -X PATCH 'https://mail.example.com/api/v1/messages/msg-01HZY/flags' \\
   -H 'Authorization: Bearer gm_REPLACE_WITH_ISSUED_KEY' \\
-  -H 'X-Gogomail-User-ID: 11111111-1111-1111-1111-111111111111' \\
+  -H 'X-Gogomail-User-Email: user@example.com' \\
   -H 'Content-Type: application/json' \\
   -d '{"flag":"read","value":true}'`,
               },

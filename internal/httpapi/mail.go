@@ -11,6 +11,7 @@ import (
 	"mime/multipart"
 	"net"
 	"net/http"
+	netmail "net/mail"
 	"net/url"
 	"strconv"
 	"strings"
@@ -30,6 +31,7 @@ const (
 	maxHTTPAuthHeaderBytes = 16 << 10
 	maxHTTPControlBytes    = 32
 	maxHTTPResourceIDBytes = 200
+	maxHTTPUserEmailBytes  = 320
 	maxHTTPQueryBytes      = 1024
 )
 
@@ -94,6 +96,7 @@ type MessageService interface {
 	GetWebmailPreferences(ctx context.Context, userID string) (json.RawMessage, error)
 	SetWebmailPreferences(ctx context.Context, userID string, prefs json.RawMessage) error
 	GetUserProfile(ctx context.Context, userID string) (maildb.UserProfile, error)
+	GetUserProfileByEmail(ctx context.Context, email string) (maildb.UserProfile, error)
 	ListUserAddresses(ctx context.Context, userID string) ([]maildb.UserAddress, error)
 	UpdateUserDisplayName(ctx context.Context, userID, displayName string) error
 	UpdateOwnRecoveryEmail(ctx context.Context, userID, recoveryEmail string) error
@@ -474,7 +477,7 @@ func RegisterMailRoutesWithOptions(mux *http.ServeMux, service MessageService, t
 		if !rejectBodylessRequestPayload(w, r) {
 			return
 		}
-		if !rejectUnknownQueryKeys(w, r, "user_id") {
+		if !rejectUnknownQueryKeys(w, r, "user_id", "user_email") {
 			return
 		}
 		if _, ok := userIDFromRequest(w, r, tokenManager, service); !ok {
@@ -487,7 +490,7 @@ func RegisterMailRoutesWithOptions(mux *http.ServeMux, service MessageService, t
 		if !rejectBodylessRequestPayload(w, r) {
 			return
 		}
-		if !rejectUnknownQueryKeys(w, r, "user_id") {
+		if !rejectUnknownQueryKeys(w, r, "user_id", "user_email") {
 			return
 		}
 		userID, ok := userIDFromRequest(w, r, tokenManager, service)
@@ -506,7 +509,7 @@ func RegisterMailRoutesWithOptions(mux *http.ServeMux, service MessageService, t
 		if !rejectBodylessRequestPayload(w, r) {
 			return
 		}
-		if !rejectUnknownQueryKeys(w, r, "user_id") {
+		if !rejectUnknownQueryKeys(w, r, "user_id", "user_email") {
 			return
 		}
 		userID, ok := userIDFromRequest(w, r, tokenManager, service)
@@ -526,7 +529,7 @@ func RegisterMailRoutesWithOptions(mux *http.ServeMux, service MessageService, t
 	mux.HandleFunc("POST /api/v1/folders", func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 
-		if !rejectUnknownQueryKeys(w, r, "user_id") {
+		if !rejectUnknownQueryKeys(w, r, "user_id", "user_email") {
 			return
 		}
 		userID, ok := userIDFromRequest(w, r, tokenManager, service)
@@ -556,7 +559,7 @@ func RegisterMailRoutesWithOptions(mux *http.ServeMux, service MessageService, t
 	mux.HandleFunc("PATCH /api/v1/folders/{id}", func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 
-		if !rejectUnknownQueryKeys(w, r, "user_id") {
+		if !rejectUnknownQueryKeys(w, r, "user_id", "user_email") {
 			return
 		}
 		userID, ok := userIDFromRequest(w, r, tokenManager, service)
@@ -588,7 +591,7 @@ func RegisterMailRoutesWithOptions(mux *http.ServeMux, service MessageService, t
 		if !rejectBodylessRequestPayload(w, r) {
 			return
 		}
-		if !rejectUnknownQueryKeys(w, r, "user_id") {
+		if !rejectUnknownQueryKeys(w, r, "user_id", "user_email") {
 			return
 		}
 		userID, ok := userIDFromRequest(w, r, tokenManager, service)
@@ -611,7 +614,7 @@ func RegisterMailRoutesWithOptions(mux *http.ServeMux, service MessageService, t
 		if !rejectBodylessRequestPayload(w, r) {
 			return
 		}
-		if !rejectUnknownQueryKeys(w, r, "user_id", "limit", "cursor", "folder_id", "read", "starred", "has_attachment", "sort") {
+		if !rejectUnknownQueryKeys(w, r, "user_id", "user_email", "limit", "cursor", "folder_id", "read", "starred", "has_attachment", "sort") {
 			return
 		}
 		userID, ok := userIDFromRequest(w, r, tokenManager, service)
@@ -686,7 +689,7 @@ func RegisterMailRoutesWithOptions(mux *http.ServeMux, service MessageService, t
 		if !rejectBodylessRequestPayload(w, r) {
 			return
 		}
-		if !rejectUnknownQueryKeys(w, r, "user_id") {
+		if !rejectUnknownQueryKeys(w, r, "user_id", "user_email") {
 			return
 		}
 		userID, ok := userIDFromRequest(w, r, tokenManager, service)
@@ -711,7 +714,7 @@ func RegisterMailRoutesWithOptions(mux *http.ServeMux, service MessageService, t
 		if !rejectBodylessRequestPayload(w, r) {
 			return
 		}
-		if !rejectUnknownQueryKeys(w, r, "user_id", "limit", "cursor", "has_attachment", "include_rank", "include_highlights", "sort", "q", "folder_id", "from", "to", "cc", "bcc", "subject", "since", "until") {
+		if !rejectUnknownQueryKeys(w, r, "user_id", "user_email", "limit", "cursor", "has_attachment", "include_rank", "include_highlights", "sort", "q", "folder_id", "from", "to", "cc", "bcc", "subject", "since", "until") {
 			return
 		}
 		userID, ok := userIDFromRequest(w, r, tokenManager, service)
@@ -837,7 +840,7 @@ func RegisterMailRoutesWithOptions(mux *http.ServeMux, service MessageService, t
 		if !rejectBodylessRequestPayload(w, r) {
 			return
 		}
-		if !rejectUnknownQueryKeys(w, r, "user_id", "limit", "cursor", "folder_id", "read", "starred", "has_attachment", "sort") {
+		if !rejectUnknownQueryKeys(w, r, "user_id", "user_email", "limit", "cursor", "folder_id", "read", "starred", "has_attachment", "sort") {
 			return
 		}
 		userID, ok := userIDFromRequest(w, r, tokenManager, service)
@@ -910,7 +913,7 @@ func RegisterMailRoutesWithOptions(mux *http.ServeMux, service MessageService, t
 		if !rejectBodylessRequestPayload(w, r) {
 			return
 		}
-		if !rejectUnknownQueryKeys(w, r, "user_id", "limit", "cursor") {
+		if !rejectUnknownQueryKeys(w, r, "user_id", "user_email", "limit", "cursor") {
 			return
 		}
 		userID, ok := userIDFromRequest(w, r, tokenManager, service)
@@ -955,7 +958,7 @@ func RegisterMailRoutesWithOptions(mux *http.ServeMux, service MessageService, t
 	mux.HandleFunc("PATCH /api/v1/threads/bulk/flags", func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 
-		if !rejectUnknownQueryKeys(w, r, "user_id") {
+		if !rejectUnknownQueryKeys(w, r, "user_id", "user_email") {
 			return
 		}
 		userID, ok := userIDFromRequest(w, r, tokenManager, service)
@@ -982,7 +985,7 @@ func RegisterMailRoutesWithOptions(mux *http.ServeMux, service MessageService, t
 		if !rejectBodylessRequestPayload(w, r) {
 			return
 		}
-		if !rejectUnknownQueryKeys(w, r, "user_id") {
+		if !rejectUnknownQueryKeys(w, r, "user_id", "user_email") {
 			return
 		}
 		userID, ok := userIDFromRequest(w, r, tokenManager, service)
@@ -1004,7 +1007,7 @@ func RegisterMailRoutesWithOptions(mux *http.ServeMux, service MessageService, t
 	mux.HandleFunc("PATCH /api/v1/messages/{id}/flags", func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 
-		if !rejectUnknownQueryKeys(w, r, "user_id") {
+		if !rejectUnknownQueryKeys(w, r, "user_id", "user_email") {
 			return
 		}
 		userID, ok := userIDFromRequest(w, r, tokenManager, service)
@@ -1035,7 +1038,7 @@ func RegisterMailRoutesWithOptions(mux *http.ServeMux, service MessageService, t
 	mux.HandleFunc("PATCH /api/v1/messages/bulk/flags", func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 
-		if !rejectUnknownQueryKeys(w, r, "user_id") {
+		if !rejectUnknownQueryKeys(w, r, "user_id", "user_email") {
 			return
 		}
 		userID, ok := userIDFromRequest(w, r, tokenManager, service)
@@ -1061,7 +1064,7 @@ func RegisterMailRoutesWithOptions(mux *http.ServeMux, service MessageService, t
 	mux.HandleFunc("PATCH /api/v1/messages/{id}/folder", func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 
-		if !rejectUnknownQueryKeys(w, r, "user_id") {
+		if !rejectUnknownQueryKeys(w, r, "user_id", "user_email") {
 			return
 		}
 		userID, ok := userIDFromRequest(w, r, tokenManager, service)
@@ -1091,7 +1094,7 @@ func RegisterMailRoutesWithOptions(mux *http.ServeMux, service MessageService, t
 	mux.HandleFunc("PATCH /api/v1/messages/bulk/folder", func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 
-		if !rejectUnknownQueryKeys(w, r, "user_id") {
+		if !rejectUnknownQueryKeys(w, r, "user_id", "user_email") {
 			return
 		}
 		userID, ok := userIDFromRequest(w, r, tokenManager, service)
@@ -1117,7 +1120,7 @@ func RegisterMailRoutesWithOptions(mux *http.ServeMux, service MessageService, t
 	mux.HandleFunc("PATCH /api/v1/threads/bulk/folder", func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 
-		if !rejectUnknownQueryKeys(w, r, "user_id") {
+		if !rejectUnknownQueryKeys(w, r, "user_id", "user_email") {
 			return
 		}
 		userID, ok := userIDFromRequest(w, r, tokenManager, service)
@@ -1144,7 +1147,7 @@ func RegisterMailRoutesWithOptions(mux *http.ServeMux, service MessageService, t
 		if !rejectBodylessRequestPayload(w, r) {
 			return
 		}
-		if !rejectUnknownQueryKeys(w, r, "user_id") {
+		if !rejectUnknownQueryKeys(w, r, "user_id", "user_email") {
 			return
 		}
 		userID, ok := userIDFromRequest(w, r, tokenManager, service)
@@ -1166,7 +1169,7 @@ func RegisterMailRoutesWithOptions(mux *http.ServeMux, service MessageService, t
 	mux.HandleFunc("POST /api/v1/messages/bulk/delete", func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 
-		if !rejectUnknownQueryKeys(w, r, "user_id") {
+		if !rejectUnknownQueryKeys(w, r, "user_id", "user_email") {
 			return
 		}
 		userID, ok := userIDFromRequest(w, r, tokenManager, service)
@@ -1192,7 +1195,7 @@ func RegisterMailRoutesWithOptions(mux *http.ServeMux, service MessageService, t
 	mux.HandleFunc("POST /api/v1/threads/bulk/delete", func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 
-		if !rejectUnknownQueryKeys(w, r, "user_id") {
+		if !rejectUnknownQueryKeys(w, r, "user_id", "user_email") {
 			return
 		}
 		userID, ok := userIDFromRequest(w, r, tokenManager, service)
@@ -1219,7 +1222,7 @@ func RegisterMailRoutesWithOptions(mux *http.ServeMux, service MessageService, t
 		if !rejectBodylessRequestPayload(w, r) {
 			return
 		}
-		if !rejectUnknownQueryKeys(w, r, "user_id") {
+		if !rejectUnknownQueryKeys(w, r, "user_id", "user_email") {
 			return
 		}
 		userID, ok := userIDFromRequest(w, r, tokenManager, service)
@@ -1241,7 +1244,7 @@ func RegisterMailRoutesWithOptions(mux *http.ServeMux, service MessageService, t
 	mux.HandleFunc("POST /api/v1/messages/bulk/restore", func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 
-		if !rejectUnknownQueryKeys(w, r, "user_id") {
+		if !rejectUnknownQueryKeys(w, r, "user_id", "user_email") {
 			return
 		}
 		userID, ok := userIDFromRequest(w, r, tokenManager, service)
@@ -1267,7 +1270,7 @@ func RegisterMailRoutesWithOptions(mux *http.ServeMux, service MessageService, t
 	mux.HandleFunc("POST /api/v1/threads/bulk/restore", func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 
-		if !rejectUnknownQueryKeys(w, r, "user_id") {
+		if !rejectUnknownQueryKeys(w, r, "user_id", "user_email") {
 			return
 		}
 		userID, ok := userIDFromRequest(w, r, tokenManager, service)
@@ -1293,7 +1296,7 @@ func RegisterMailRoutesWithOptions(mux *http.ServeMux, service MessageService, t
 	mux.HandleFunc("POST /api/v1/drafts", func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 
-		if !rejectUnknownQueryKeys(w, r, "user_id") {
+		if !rejectUnknownQueryKeys(w, r, "user_id", "user_email") {
 			return
 		}
 		var req mailservice.SaveDraftRequest
@@ -1301,7 +1304,7 @@ func RegisterMailRoutesWithOptions(mux *http.ServeMux, service MessageService, t
 			writeError(w, http.StatusBadRequest, "invalid JSON body")
 			return
 		}
-		if !bindRequestUserID(w, r, tokenManager, service, &req.UserID) {
+		if !bindRequestUserID(w, r, tokenManager, service, &req.UserID, req.UserEmail) {
 			return
 		}
 		if !allowMailMutationRequest(w, r, opts, req.UserID, "save_draft") {
@@ -1319,7 +1322,7 @@ func RegisterMailRoutesWithOptions(mux *http.ServeMux, service MessageService, t
 		if !rejectBodylessRequestPayload(w, r) {
 			return
 		}
-		if !rejectUnknownQueryKeys(w, r, "user_id", "limit", "cursor", "has_attachment", "q", "from", "to", "cc", "bcc", "subject") {
+		if !rejectUnknownQueryKeys(w, r, "user_id", "user_email", "limit", "cursor", "has_attachment", "q", "from", "to", "cc", "bcc", "subject") {
 			return
 		}
 		userID, ok := userIDFromRequest(w, r, tokenManager, service)
@@ -1399,7 +1402,7 @@ func RegisterMailRoutesWithOptions(mux *http.ServeMux, service MessageService, t
 	mux.HandleFunc("PATCH /api/v1/drafts/{id}", func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 
-		if !rejectUnknownQueryKeys(w, r, "user_id") {
+		if !rejectUnknownQueryKeys(w, r, "user_id", "user_email") {
 			return
 		}
 		var req mailservice.SaveDraftRequest
@@ -1412,7 +1415,7 @@ func RegisterMailRoutesWithOptions(mux *http.ServeMux, service MessageService, t
 			return
 		}
 		req.DraftID = draftID
-		if !bindRequestUserID(w, r, tokenManager, service, &req.UserID) {
+		if !bindRequestUserID(w, r, tokenManager, service, &req.UserID, req.UserEmail) {
 			return
 		}
 		if !allowMailMutationRequest(w, r, opts, req.UserID, "update_draft") {
@@ -1430,7 +1433,7 @@ func RegisterMailRoutesWithOptions(mux *http.ServeMux, service MessageService, t
 		if !rejectBodylessRequestPayload(w, r) {
 			return
 		}
-		if !rejectUnknownQueryKeys(w, r, "user_id") {
+		if !rejectUnknownQueryKeys(w, r, "user_id", "user_email") {
 			return
 		}
 		userID, ok := userIDFromRequest(w, r, tokenManager, service)
@@ -1452,7 +1455,7 @@ func RegisterMailRoutesWithOptions(mux *http.ServeMux, service MessageService, t
 		if !rejectBodylessRequestPayload(w, r) {
 			return
 		}
-		if !rejectUnknownQueryKeys(w, r, "user_id") {
+		if !rejectUnknownQueryKeys(w, r, "user_id", "user_email") {
 			return
 		}
 		userID, ok := userIDFromRequest(w, r, tokenManager, service)
@@ -1476,7 +1479,7 @@ func RegisterMailRoutesWithOptions(mux *http.ServeMux, service MessageService, t
 		if !rejectBodylessRequestPayload(w, r) {
 			return
 		}
-		if !rejectUnknownQueryKeys(w, r, "user_id") {
+		if !rejectUnknownQueryKeys(w, r, "user_id", "user_email") {
 			return
 		}
 		userID, ok := userIDFromRequest(w, r, tokenManager, service)
@@ -1499,7 +1502,7 @@ func RegisterMailRoutesWithOptions(mux *http.ServeMux, service MessageService, t
 	mux.HandleFunc("POST /api/v1/attachments", func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 
-		if !rejectUnknownQueryKeys(w, r, "user_id") {
+		if !rejectUnknownQueryKeys(w, r, "user_id", "user_email") {
 			return
 		}
 		var req mailservice.CreateAttachmentUploadRequest
@@ -1507,7 +1510,7 @@ func RegisterMailRoutesWithOptions(mux *http.ServeMux, service MessageService, t
 			writeError(w, http.StatusBadRequest, "invalid JSON body")
 			return
 		}
-		if !bindRequestUserID(w, r, tokenManager, service, &req.UserID) {
+		if !bindRequestUserID(w, r, tokenManager, service, &req.UserID, req.UserEmail) {
 			return
 		}
 		attachment, err := service.CreateAttachmentUpload(r.Context(), req)
@@ -1519,7 +1522,7 @@ func RegisterMailRoutesWithOptions(mux *http.ServeMux, service MessageService, t
 	})
 
 	mux.HandleFunc("POST /api/v1/attachments/upload", func(w http.ResponseWriter, r *http.Request) {
-		if !rejectUnknownQueryKeys(w, r, "user_id") {
+		if !rejectUnknownQueryKeys(w, r, "user_id", "user_email") {
 			return
 		}
 		userID, ok := userIDFromRequest(w, r, tokenManager, service)
@@ -1576,7 +1579,7 @@ func RegisterMailRoutesWithOptions(mux *http.ServeMux, service MessageService, t
 	mux.HandleFunc("POST /api/v1/attachments/upload-sessions", func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 
-		if !rejectUnknownQueryKeys(w, r, "user_id") {
+		if !rejectUnknownQueryKeys(w, r, "user_id", "user_email") {
 			return
 		}
 		userID, ok := userIDFromRequest(w, r, tokenManager, service)
@@ -1613,7 +1616,7 @@ func RegisterMailRoutesWithOptions(mux *http.ServeMux, service MessageService, t
 		if !rejectBodylessRequestPayload(w, r) {
 			return
 		}
-		if !rejectUnknownQueryKeys(w, r, "user_id") {
+		if !rejectUnknownQueryKeys(w, r, "user_id", "user_email") {
 			return
 		}
 		if _, ok := userIDFromRequest(w, r, tokenManager, service); !ok {
@@ -1643,7 +1646,7 @@ func RegisterMailRoutesWithOptions(mux *http.ServeMux, service MessageService, t
 		if !rejectBodylessRequestPayload(w, r) {
 			return
 		}
-		if !rejectUnknownQueryKeys(w, r, "user_id") {
+		if !rejectUnknownQueryKeys(w, r, "user_id", "user_email") {
 			return
 		}
 		userID, ok := userIDFromRequest(w, r, tokenManager, service)
@@ -1666,7 +1669,7 @@ func RegisterMailRoutesWithOptions(mux *http.ServeMux, service MessageService, t
 		if !rejectBodylessRequestPayload(w, r) {
 			return
 		}
-		if !rejectUnknownQueryKeys(w, r, "user_id") {
+		if !rejectUnknownQueryKeys(w, r, "user_id", "user_email") {
 			return
 		}
 		userID, ok := userIDFromRequest(w, r, tokenManager, service)
@@ -1689,7 +1692,7 @@ func RegisterMailRoutesWithOptions(mux *http.ServeMux, service MessageService, t
 		if !rejectBodylessRequestPayload(w, r) {
 			return
 		}
-		if !rejectUnknownQueryKeys(w, r, "user_id") {
+		if !rejectUnknownQueryKeys(w, r, "user_id", "user_email") {
 			return
 		}
 		userID, ok := userIDFromRequest(w, r, tokenManager, service)
@@ -1711,7 +1714,7 @@ func RegisterMailRoutesWithOptions(mux *http.ServeMux, service MessageService, t
 	mux.HandleFunc("PUT /api/v1/attachments/upload-sessions/{id}/body", func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 
-		if !rejectUnknownQueryKeys(w, r, "user_id") {
+		if !rejectUnknownQueryKeys(w, r, "user_id", "user_email") {
 			return
 		}
 		userID, ok := userIDFromRequest(w, r, tokenManager, service)
@@ -1758,7 +1761,7 @@ func RegisterMailRoutesWithOptions(mux *http.ServeMux, service MessageService, t
 		if !rejectBodylessRequestPayload(w, r) {
 			return
 		}
-		if !rejectUnknownQueryKeys(w, r, "user_id") {
+		if !rejectUnknownQueryKeys(w, r, "user_id", "user_email") {
 			return
 		}
 		userID, ok := userIDFromRequest(w, r, tokenManager, service)
@@ -1781,7 +1784,7 @@ func RegisterMailRoutesWithOptions(mux *http.ServeMux, service MessageService, t
 		if !rejectBodylessRequestPayload(w, r) {
 			return
 		}
-		if !rejectUnknownQueryKeys(w, r, "user_id") {
+		if !rejectUnknownQueryKeys(w, r, "user_id", "user_email") {
 			return
 		}
 		userID, ok := userIDFromRequest(w, r, tokenManager, service)
@@ -1808,7 +1811,7 @@ func RegisterMailRoutesWithOptions(mux *http.ServeMux, service MessageService, t
 		if !rejectBodylessRequestPayload(w, r) {
 			return
 		}
-		if !rejectUnknownQueryKeys(w, r, "user_id") {
+		if !rejectUnknownQueryKeys(w, r, "user_id", "user_email") {
 			return
 		}
 		userID, ok := userIDFromRequest(w, r, tokenManager, service)
@@ -1832,7 +1835,7 @@ func RegisterMailRoutesWithOptions(mux *http.ServeMux, service MessageService, t
 		if !rejectBodylessRequestPayload(w, r) {
 			return
 		}
-		if !rejectUnknownQueryKeys(w, r, "user_id", "limit") {
+		if !rejectUnknownQueryKeys(w, r, "user_id", "user_email", "limit") {
 			return
 		}
 		userID, ok := userIDFromRequest(w, r, tokenManager, service)
@@ -1854,7 +1857,7 @@ func RegisterMailRoutesWithOptions(mux *http.ServeMux, service MessageService, t
 	mux.HandleFunc("POST /api/v1/push-devices", func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 
-		if !rejectUnknownQueryKeys(w, r, "user_id") {
+		if !rejectUnknownQueryKeys(w, r, "user_id", "user_email") {
 			return
 		}
 		userID, ok := userIDFromRequest(w, r, tokenManager, service)
@@ -1879,7 +1882,7 @@ func RegisterMailRoutesWithOptions(mux *http.ServeMux, service MessageService, t
 		if !rejectBodylessRequestPayload(w, r) {
 			return
 		}
-		if !rejectUnknownQueryKeys(w, r, "user_id") {
+		if !rejectUnknownQueryKeys(w, r, "user_id", "user_email") {
 			return
 		}
 		userID, ok := userIDFromRequest(w, r, tokenManager, service)
@@ -1900,7 +1903,7 @@ func RegisterMailRoutesWithOptions(mux *http.ServeMux, service MessageService, t
 	mux.HandleFunc("POST /api/v1/messages/send", func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 
-		if !rejectUnknownQueryKeys(w, r, "user_id") {
+		if !rejectUnknownQueryKeys(w, r, "user_id", "user_email") {
 			return
 		}
 		var req mailservice.SendTextRequest
@@ -1908,7 +1911,7 @@ func RegisterMailRoutesWithOptions(mux *http.ServeMux, service MessageService, t
 			writeError(w, http.StatusBadRequest, "invalid JSON body")
 			return
 		}
-		if !bindRequestUserID(w, r, tokenManager, service, &req.UserID) {
+		if !bindRequestUserID(w, r, tokenManager, service, &req.UserID, req.UserEmail) {
 			return
 		}
 		result, err := service.SendText(r.Context(), req)
@@ -1925,7 +1928,7 @@ func RegisterMailRoutesWithOptions(mux *http.ServeMux, service MessageService, t
 		if !rejectBodylessRequestPayload(w, r) {
 			return
 		}
-		if !rejectUnknownQueryKeys(w, r, "user_id") {
+		if !rejectUnknownQueryKeys(w, r, "user_id", "user_email") {
 			return
 		}
 		userID, ok := userIDFromRequest(w, r, tokenManager, service)
@@ -1942,7 +1945,7 @@ func RegisterMailRoutesWithOptions(mux *http.ServeMux, service MessageService, t
 
 	mux.HandleFunc("PUT /api/v1/preferences", func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
-		if !rejectUnknownQueryKeys(w, r, "user_id") {
+		if !rejectUnknownQueryKeys(w, r, "user_id", "user_email") {
 			return
 		}
 		userID, ok := userIDFromRequest(w, r, tokenManager, service)
@@ -1963,7 +1966,7 @@ func RegisterMailRoutesWithOptions(mux *http.ServeMux, service MessageService, t
 
 	mux.HandleFunc("PATCH /api/v1/me", func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
-		if !rejectUnknownQueryKeys(w, r, "user_id") {
+		if !rejectUnknownQueryKeys(w, r, "user_id", "user_email") {
 			return
 		}
 		userID, ok := userIDFromRequest(w, r, tokenManager, service)
@@ -2001,7 +2004,7 @@ func RegisterMailRoutesWithOptions(mux *http.ServeMux, service MessageService, t
 		if !rejectBodylessRequestPayload(w, r) {
 			return
 		}
-		if !rejectUnknownQueryKeys(w, r, "user_id") {
+		if !rejectUnknownQueryKeys(w, r, "user_id", "user_email") {
 			return
 		}
 		userID, ok := userIDFromRequest(w, r, tokenManager, service)
@@ -2020,7 +2023,7 @@ func RegisterMailRoutesWithOptions(mux *http.ServeMux, service MessageService, t
 		if !rejectBodylessRequestPayload(w, r) {
 			return
 		}
-		if !rejectUnknownQueryKeys(w, r, "user_id") {
+		if !rejectUnknownQueryKeys(w, r, "user_id", "user_email") {
 			return
 		}
 		userID, ok := userIDFromRequest(w, r, tokenManager, service)
@@ -2037,7 +2040,7 @@ func RegisterMailRoutesWithOptions(mux *http.ServeMux, service MessageService, t
 
 	mux.HandleFunc("POST /api/v1/me/password", func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
-		if !rejectUnknownQueryKeys(w, r, "user_id") {
+		if !rejectUnknownQueryKeys(w, r, "user_id", "user_email") {
 			return
 		}
 		userID, ok := userIDFromRequest(w, r, tokenManager, service)
@@ -2348,7 +2351,7 @@ func userIDFromRequest(w http.ResponseWriter, r *http.Request, tokenManager *aut
 		service = services[0]
 	}
 	if info, ok := apikeys.KeyInfoFromContext(r.Context()); ok && info != nil && service != nil {
-		return apiKeyUserIDFromRequest(w, r, service, info, "")
+		return apiKeyUserIDFromRequest(w, r, service, info, "", "")
 	}
 	if tokenManager == nil {
 		return parseBoundedHTTPQuery(w, r, "user_id", true, maxHTTPResourceIDBytes)
@@ -2360,9 +2363,13 @@ func userIDFromRequest(w http.ResponseWriter, r *http.Request, tokenManager *aut
 	return claims.UserID, true
 }
 
-func bindRequestUserID(w http.ResponseWriter, r *http.Request, tokenManager *auth.TokenManager, service MessageService, dst *string) bool {
+func bindRequestUserID(w http.ResponseWriter, r *http.Request, tokenManager *auth.TokenManager, service MessageService, dst *string, bodyEmails ...string) bool {
 	if info, ok := apikeys.KeyInfoFromContext(r.Context()); ok && info != nil {
-		userID, ok := apiKeyUserIDFromRequest(w, r, service, info, strings.TrimSpace(*dst))
+		bodyEmail := ""
+		if len(bodyEmails) > 0 {
+			bodyEmail = bodyEmails[0]
+		}
+		userID, ok := apiKeyUserIDFromRequest(w, r, service, info, strings.TrimSpace(*dst), strings.TrimSpace(bodyEmail))
 		if !ok {
 			return false
 		}
@@ -2393,7 +2400,7 @@ func bindRequestUserID(w http.ResponseWriter, r *http.Request, tokenManager *aut
 	return true
 }
 
-func apiKeyUserIDFromRequest(w http.ResponseWriter, r *http.Request, service MessageService, info *apikeys.KeyInfo, bodyUserID string) (string, bool) {
+func apiKeyUserIDFromRequest(w http.ResponseWriter, r *http.Request, service MessageService, info *apikeys.KeyInfo, bodyUserID string, bodyUserEmail string) (string, bool) {
 	requiredScope := requiredMailAPIKeyScope(r)
 	if !apiKeyHasMailScope(info, requiredScope) {
 		writeError(w, http.StatusForbidden, "api key scope "+requiredScope+" is required")
@@ -2407,7 +2414,15 @@ func apiKeyUserIDFromRequest(w http.ResponseWriter, r *http.Request, service Mes
 	if !ok {
 		return "", false
 	}
+	headerUserEmail, ok := singleHTTPHeaderValue(w, r, "X-Gogomail-User-Email", maxHTTPUserEmailBytes)
+	if !ok {
+		return "", false
+	}
 	queryUserID, ok := parseBoundedHTTPQuery(w, r, "user_id", false, maxHTTPResourceIDBytes)
+	if !ok {
+		return "", false
+	}
+	queryUserEmail, ok := parseBoundedHTTPQuery(w, r, "user_email", false, maxHTTPUserEmailBytes)
 	if !ok {
 		return "", false
 	}
@@ -2415,9 +2430,14 @@ func apiKeyUserIDFromRequest(w http.ResponseWriter, r *http.Request, service Mes
 	if !ok {
 		return "", false
 	}
+	bodyUserEmail, ok = parseBoundedHTTPValue(w, "user_email", bodyUserEmail, false, maxHTTPUserEmailBytes)
+	if !ok {
+		return "", false
+	}
 	userID := firstNonEmpty(headerUserID, queryUserID, bodyUserID)
-	if userID == "" {
-		writeError(w, http.StatusBadRequest, "user_id or X-Gogomail-User-ID is required for API key requests")
+	userEmail := firstNonEmpty(headerUserEmail, queryUserEmail, bodyUserEmail)
+	if userID == "" && userEmail == "" {
+		writeError(w, http.StatusBadRequest, "user_email, X-Gogomail-User-Email, user_id, or X-Gogomail-User-ID is required for API key requests")
 		return "", false
 	}
 	for _, candidate := range []string{headerUserID, queryUserID, bodyUserID} {
@@ -2426,8 +2446,46 @@ func apiKeyUserIDFromRequest(w http.ResponseWriter, r *http.Request, service Mes
 			return "", false
 		}
 	}
-	profile, err := service.GetUserProfile(r.Context(), userID)
-	if err != nil {
+	normalizedEmail, ok := normalizeAPIUserEmail(w, userEmail, userEmail != "")
+	if !ok {
+		return "", false
+	}
+	for _, candidate := range []string{headerUserEmail, queryUserEmail, bodyUserEmail} {
+		if candidate == "" {
+			continue
+		}
+		normalizedCandidate, ok := normalizeAPIUserEmail(w, candidate, true)
+		if !ok {
+			return "", false
+		}
+		if normalizedCandidate != normalizedEmail {
+			writeError(w, http.StatusBadRequest, "request user identifiers must match")
+			return "", false
+		}
+	}
+
+	var profile maildb.UserProfile
+	if userID != "" {
+		var err error
+		profile, err = service.GetUserProfile(r.Context(), userID)
+		if err != nil {
+			writeError(w, http.StatusForbidden, "api key is not allowed for the requested user")
+			return "", false
+		}
+	}
+	if normalizedEmail != "" {
+		emailProfile, err := service.GetUserProfileByEmail(r.Context(), normalizedEmail)
+		if err != nil {
+			writeError(w, http.StatusForbidden, "api key is not allowed for the requested user")
+			return "", false
+		}
+		if profile.UserID != "" && strings.TrimSpace(profile.UserID) != strings.TrimSpace(emailProfile.UserID) {
+			writeError(w, http.StatusBadRequest, "request user identifiers must match")
+			return "", false
+		}
+		profile = emailProfile
+	}
+	if strings.TrimSpace(profile.UserID) == "" {
 		writeError(w, http.StatusForbidden, "api key is not allowed for the requested user")
 		return "", false
 	}
@@ -2435,7 +2493,8 @@ func apiKeyUserIDFromRequest(w http.ResponseWriter, r *http.Request, service Mes
 		writeError(w, http.StatusForbidden, "api key is not allowed for the requested user")
 		return "", false
 	}
-	return userID, true
+	r.Header.Set("X-Gogomail-Resolved-User-ID", profile.UserID)
+	return profile.UserID, true
 }
 
 func firstNonEmpty(values ...string) string {
@@ -2446,6 +2505,36 @@ func firstNonEmpty(values ...string) string {
 		}
 	}
 	return ""
+}
+
+func normalizeAPIUserEmail(w http.ResponseWriter, email string, required bool) (string, bool) {
+	email = strings.TrimSpace(email)
+	if email == "" {
+		if required {
+			writeError(w, http.StatusBadRequest, "user_email is required")
+			return "", false
+		}
+		return "", true
+	}
+	if len(email) > maxHTTPUserEmailBytes {
+		writeError(w, http.StatusBadRequest, "user_email is too long")
+		return "", false
+	}
+	if strings.ContainsAny(email, " \t\r\n") {
+		writeError(w, http.StatusBadRequest, "user_email must be a single email address")
+		return "", false
+	}
+	addr, err := netmail.ParseAddress(email)
+	if err != nil || addr.Address != email {
+		writeError(w, http.StatusBadRequest, "user_email must be a valid email address")
+		return "", false
+	}
+	local, domain, ok := strings.Cut(addr.Address, "@")
+	if !ok || local == "" || domain == "" || !strings.Contains(domain, ".") {
+		writeError(w, http.StatusBadRequest, "user_email must be a valid email address")
+		return "", false
+	}
+	return strings.ToLower(addr.Address), true
 }
 
 func requiredMailAPIKeyScope(r *http.Request) string {

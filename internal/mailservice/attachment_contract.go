@@ -16,6 +16,7 @@ const MaxAttachmentUploadSessionTTL = 24 * time.Hour
 
 type CreateAttachmentUploadRequest struct {
 	UserID      string `json:"user_id"`
+	UserEmail   string `json:"user_email,omitempty"`
 	DraftID     string `json:"draft_id,omitempty"`
 	Filename    string `json:"filename"`
 	Size        int64  `json:"size"`
