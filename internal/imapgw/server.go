@@ -1367,7 +1367,7 @@ func (s *Server) handleSelect(writer *bufio.Writer, tag string, command string, 
 		return false, err
 	}
 	if unseenSequence := s.firstUnseenSequenceNumber(context.Background(), state.session.UserID, mailboxState); unseenSequence > 0 {
-		if _, err := writer.WriteString(fmt.Sprintf("* OK [UNSEEN %d] Message %d is first unseen\r\n", unseenSequence, unseenSequence)); err != nil {
+		if err := writeIMAPUnseenLine(writer, unseenSequence); err != nil {
 			return false, err
 		}
 	}
@@ -1467,7 +1467,7 @@ func (s *Server) handleStatus(writer *bufio.Writer, tag string, fields []string,
 		return false, writeErr
 	}
 	statusName := imapEncodeMailboxName(imapMailboxWireName(imapMailboxDisplayName(mailbox)))
-	if _, err := writer.WriteString(fmt.Sprintf("* STATUS %s (%s)\r\n", imapQuotedString(statusName), imapStatusData(mailbox, statusItems))); err != nil {
+	if err := writeIMAPStatusLine(writer, imapQuotedString(statusName), imapStatusData(mailbox, statusItems)); err != nil {
 		return false, err
 	}
 	_, err = writer.WriteString(tag + " OK STATUS completed\r\n")
@@ -1707,7 +1707,7 @@ func (s *Server) handleList(writer *bufio.Writer, tag string, fields []string, s
 			return false, err
 		}
 		if len(listOptions.statusItems) > 0 {
-			if _, err := writer.WriteString(fmt.Sprintf("* STATUS %s (%s)\r\n", imapQuotedString(wireDisplayName), imapStatusData(mailbox, listOptions.statusItems))); err != nil {
+			if err := writeIMAPStatusLine(writer, imapQuotedString(wireDisplayName), imapStatusData(mailbox, listOptions.statusItems)); err != nil {
 				return false, err
 			}
 		}
@@ -1771,7 +1771,7 @@ func (s *Server) writeSubscribedListResponses(writer *bufio.Writer, tag string, 
 			return false, err
 		}
 		if subscription.Exists && len(listOptions.statusItems) > 0 {
-			if _, err := writer.WriteString(fmt.Sprintf("* STATUS %s (%s)\r\n", imapQuotedString(imapEncodeMailboxName(displayName)), imapStatusData(subscription.Mailbox, listOptions.statusItems))); err != nil {
+			if err := writeIMAPStatusLine(writer, imapQuotedString(imapEncodeMailboxName(displayName)), imapStatusData(subscription.Mailbox, listOptions.statusItems)); err != nil {
 				return false, err
 			}
 		}
@@ -4385,7 +4385,7 @@ func imapSearchResultSuffix(results []uint32, highestModSeq uint64, includeModSe
 	}
 	suffix := " " + strings.Join(parts, " ")
 	if includeModSeq {
-		suffix += fmt.Sprintf(" (MODSEQ %d)", highestModSeq)
+		suffix += " (MODSEQ " + strconv.FormatUint(highestModSeq, 10) + ")"
 	}
 	return suffix
 }
@@ -7818,7 +7818,7 @@ func (s *Server) writeStoreResponses(writer *bufio.Writer, tag string, state *im
 				_, writeErr := writer.WriteString(tag + " NO " + completionCommand + " failed\r\n")
 				return false, writeErr
 			}
-			_, writeErr := writer.WriteString(fmt.Sprintf("%s OK [MODIFIED %s] %s conditional store completed\r\n", tag, modifiedSet, completionCommand))
+			_, writeErr := writer.WriteString(tag + " OK [MODIFIED " + modifiedSet + "] " + completionCommand + " conditional store completed\r\n")
 			return false, writeErr
 		}
 		_, writeErr := writer.WriteString(tag + " NO " + completionCommand + " failed\r\n")
@@ -7865,6 +7865,28 @@ func writeIMAPFetchLine(writer *bufio.Writer, sequenceNumber uint32, attributes 
 	out = append(out, attributes...)
 	out = append(out, tail...)
 	out = append(out, '\r', '\n')
+	_, err := writer.Write(out)
+	return err
+}
+
+func writeIMAPStatusLine(writer *bufio.Writer, mailboxName string, statusData string) error {
+	var buf [128]byte
+	out := append(buf[:0], "* STATUS "...)
+	out = append(out, mailboxName...)
+	out = append(out, " ("...)
+	out = append(out, statusData...)
+	out = append(out, ")\r\n"...)
+	_, err := writer.Write(out)
+	return err
+}
+
+func writeIMAPUnseenLine(writer *bufio.Writer, unseenSequence uint32) error {
+	var buf [128]byte
+	out := append(buf[:0], "* OK [UNSEEN "...)
+	out = strconv.AppendUint(out, uint64(unseenSequence), 10)
+	out = append(out, "] Message "...)
+	out = strconv.AppendUint(out, uint64(unseenSequence), 10)
+	out = append(out, " is first unseen\r\n"...)
 	_, err := writer.Write(out)
 	return err
 }
