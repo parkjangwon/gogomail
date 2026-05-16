@@ -16,6 +16,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gogomail/gogomail/internal/apikeys"
 	"github.com/gogomail/gogomail/internal/auth"
 	"github.com/gogomail/gogomail/internal/drive"
 	"github.com/gogomail/gogomail/internal/mail"
@@ -3422,6 +3423,150 @@ func TestMailRoutesRequireJWTWhenConfigured(t *testing.T) {
 	}
 }
 
+func TestMailRoutesAllowAPIKeyReadForDomainUser(t *testing.T) {
+	t.Parallel()
+
+	manager, err := auth.NewTokenManager("secret")
+	if err != nil {
+		t.Fatalf("NewTokenManager returned error: %v", err)
+	}
+	service := &fakeMessageService{
+		userProfile: maildb.UserProfile{UserID: "user-1", DomainID: "domain-1"},
+		list:        []maildb.MessageSummary{{ID: "msg-1", Subject: "hello"}},
+	}
+	mux := http.NewServeMux()
+	RegisterMailRoutes(mux, service, manager)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/messages?user_id=user-1", nil)
+	req = req.WithContext(apikeys.ContextWithKeyInfo(req.Context(), &apikeys.KeyInfo{
+		ID:       "key-1",
+		DomainID: "domain-1",
+		Scopes:   []string{"mail:read"},
+	}))
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if service.lastSend.UserID != "" {
+		t.Fatalf("send should not be called: %+v", service.lastSend)
+	}
+	if service.lastUserID != "user-1" {
+		t.Fatalf("lastUserID = %q, want user-1", service.lastUserID)
+	}
+}
+
+func TestMailRoutesAllowAPIKeyUserHeader(t *testing.T) {
+	t.Parallel()
+
+	manager, err := auth.NewTokenManager("secret")
+	if err != nil {
+		t.Fatalf("NewTokenManager returned error: %v", err)
+	}
+	service := &fakeMessageService{
+		userProfile: maildb.UserProfile{UserID: "user-1", DomainID: "domain-1"},
+	}
+	mux := http.NewServeMux()
+	RegisterMailRoutes(mux, service, manager)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/mailbox/overview", nil)
+	req.Header.Set("X-Gogomail-User-ID", "user-1")
+	req = req.WithContext(apikeys.ContextWithKeyInfo(req.Context(), &apikeys.KeyInfo{
+		ID:       "key-1",
+		DomainID: "domain-1",
+		Scopes:   []string{"mail.read"},
+	}))
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if service.lastUserID != "user-1" {
+		t.Fatalf("lastUserID = %q, want user-1", service.lastUserID)
+	}
+}
+
+func TestMailRoutesRejectAPIKeyWithoutRequiredScope(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeMessageService{
+		userProfile: maildb.UserProfile{UserID: "user-1", DomainID: "domain-1"},
+	}
+	mux := http.NewServeMux()
+	RegisterMailRoutes(mux, service, nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/messages?user_id=user-1", nil)
+	req = req.WithContext(apikeys.ContextWithKeyInfo(req.Context(), &apikeys.KeyInfo{
+		ID:       "key-1",
+		DomainID: "domain-1",
+		Scopes:   []string{"mail:send"},
+	}))
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestMailRoutesRejectAPIKeyCrossDomainUser(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeMessageService{
+		userProfile: maildb.UserProfile{UserID: "user-1", DomainID: "domain-2"},
+	}
+	mux := http.NewServeMux()
+	RegisterMailRoutes(mux, service, nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/messages?user_id=user-1", nil)
+	req = req.WithContext(apikeys.ContextWithKeyInfo(req.Context(), &apikeys.KeyInfo{
+		ID:       "key-1",
+		DomainID: "domain-1",
+		Scopes:   []string{"mail:read"},
+	}))
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestMailRoutesAllowAPIKeySendWithBodyUser(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeMessageService{
+		userProfile: maildb.UserProfile{UserID: "user-1", DomainID: "domain-1"},
+		sendResult:  mailservice.SendTextResult{ID: "msg-1", RFCMessageID: "<msg-1@example.com>", Farm: outbound.FarmGeneral},
+	}
+	mux := http.NewServeMux()
+	RegisterMailRoutes(mux, service, nil)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/messages/send", strings.NewReader(`{
+		"user_id":"user-1",
+		"to":[{"email":"recipient@example.net"}],
+		"subject":"hello",
+		"text_body":"body"
+	}`))
+	req.Header.Set("Content-Type", "application/json")
+	req = req.WithContext(apikeys.ContextWithKeyInfo(req.Context(), &apikeys.KeyInfo{
+		ID:       "key-1",
+		DomainID: "domain-1",
+		Scopes:   []string{"mail:send"},
+	}))
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusAccepted {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if service.lastSend.UserID != "user-1" {
+		t.Fatalf("lastSend.UserID = %q, want user-1", service.lastSend.UserID)
+	}
+}
+
 type fakeMessageService struct {
 	folders                     []maildb.Folder
 	createdFolder               maildb.Folder
@@ -3435,6 +3580,8 @@ type fakeMessageService struct {
 	detail                      maildb.MessageDetail
 	sendResult                  mailservice.SendTextResult
 	deliveryStatus              maildb.MessageDeliveryStatusView
+	userProfile                 maildb.UserProfile
+	userProfileErr              error
 	lastSend                    mailservice.SendTextRequest
 	lastDraft                   mailservice.SaveDraftRequest
 	lastAttachmentUpload        mailservice.CreateAttachmentUploadRequest
@@ -3816,8 +3963,14 @@ func (f *fakeMessageService) SetWebmailPreferences(_ context.Context, _ string, 
 	return nil
 }
 
-func (f *fakeMessageService) GetUserProfile(_ context.Context, _ string) (maildb.UserProfile, error) {
-	return maildb.UserProfile{}, nil
+func (f *fakeMessageService) GetUserProfile(_ context.Context, userID string) (maildb.UserProfile, error) {
+	if f.userProfileErr != nil {
+		return maildb.UserProfile{}, f.userProfileErr
+	}
+	if f.userProfile.UserID != "" {
+		return f.userProfile, nil
+	}
+	return maildb.UserProfile{UserID: userID, DomainID: "domain-1"}, nil
 }
 
 func (f *fakeMessageService) ListUserAddresses(_ context.Context, _ string) ([]maildb.UserAddress, error) {

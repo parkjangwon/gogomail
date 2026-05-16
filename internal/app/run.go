@@ -24,6 +24,7 @@ import (
 
 	"github.com/gogomail/gogomail/internal/accesspolicy"
 	"github.com/gogomail/gogomail/internal/admin"
+	"github.com/gogomail/gogomail/internal/apikeys"
 	"github.com/gogomail/gogomail/internal/apimeter"
 	"github.com/gogomail/gogomail/internal/attachmentscan"
 	"github.com/gogomail/gogomail/internal/audit"
@@ -2899,6 +2900,8 @@ func runHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, mode M
 	var readinessChecks []httpapi.ReadinessCheckFunc
 
 	var tokenManager *auth.TokenManager
+	var apiKeyVerifier apikeys.PostgresVerifier
+	var apiKeyVerifierConfigured bool
 	if modeIncludesMailAPI(mode) {
 		db, err := database.Open(ctx, cfg.DatabaseURL)
 		if err != nil {
@@ -2929,6 +2932,8 @@ func runHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, mode M
 		}
 		driveRouteOptions := httpapi.DriveRouteOptions{}
 		driveRouteOptions.PublicShareAudit = drivePublicShareAuditRecorder{audit: audit.NewPostgresRepository(db)}
+		apiKeyVerifier = apikeys.NewPostgresVerifier(db)
+		apiKeyVerifierConfigured = true
 		if strings.EqualFold(strings.TrimSpace(cfg.DriveShareRateLimitBackend), "redis") {
 			redisClient := redis.NewClient(&redis.Options{Addr: cfg.RedisAddr})
 			if err := redisClient.Ping(ctx).Err(); err != nil {
@@ -3056,6 +3061,9 @@ func runHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, mode M
 	httpapi.RegisterHealthRoutesWithChecks(mux, readinessChecks...)
 
 	handler := apiMeteringHandler(mux, cfg, logger, meteringDB, tokenManager, cfg.AdminToken)
+	if apiKeyVerifierConfigured {
+		handler = apikeys.Middleware(apiKeyVerifier)(handler)
+	}
 	server := newHTTPServer(cfg, handler)
 
 	errCh := make(chan error, 1)
@@ -3262,10 +3270,16 @@ func meteringIdentityResolver(tokenManager *auth.TokenManager, adminToken string
 			TenantID:    r.Header.Get("X-Gogomail-Tenant-ID"),
 			CompanyID:   r.Header.Get("X-Gogomail-Company-ID"),
 			DomainID:    r.Header.Get("X-Gogomail-Domain-ID"),
-			UserID:      r.URL.Query().Get("user_id"),
+			UserID:      firstNonEmptyString(r.Header.Get("X-Gogomail-User-ID"), r.URL.Query().Get("user_id")),
 			APIKeyID:    r.Header.Get("X-Gogomail-API-Key-ID"),
 			PrincipalID: r.Header.Get("X-Gogomail-Principal-ID"),
 			AuthSource:  apimeter.AuthSourceAnonymous,
+		}
+		if info, ok := apikeys.KeyInfoFromContext(r.Context()); ok && info != nil {
+			id.DomainID = firstNonEmptyString(info.DomainID, id.DomainID)
+			id.APIKeyID = firstNonEmptyString(info.ID, id.APIKeyID)
+			id.AuthSource = apimeter.AuthSourceAPIKey
+			return id.Normalize()
 		}
 		bearer := meteringBearerToken(r)
 		if tokenManager != nil && bearer != "" {
@@ -3297,6 +3311,16 @@ func meteringBearerToken(r *http.Request) string {
 	authHeader := strings.TrimSpace(r.Header.Get("Authorization"))
 	if strings.HasPrefix(strings.ToLower(authHeader), "bearer ") {
 		return strings.TrimSpace(authHeader[len("bearer "):])
+	}
+	return ""
+}
+
+func firstNonEmptyString(values ...string) string {
+	for _, value := range values {
+		value = strings.TrimSpace(value)
+		if value != "" {
+			return value
+		}
 	}
 	return ""
 }

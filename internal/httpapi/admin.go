@@ -1054,17 +1054,23 @@ func registerDomainRoutes(mux *http.ServeMux, service AdminService, adminAuth fu
 			return
 		}
 		var req struct {
-			Name      string `json:"name"`
-			CreatedBy string `json:"created_by"`
+			Name         string     `json:"name"`
+			CreatedBy    string     `json:"created_by"`
+			Scopes       []string   `json:"scopes"`
+			AllowedCIDRs []string   `json:"allowed_cidrs"`
+			ExpiresAt    *time.Time `json:"expires_at"`
 		}
 		if err := decodeJSONBody(r, &req); err != nil {
 			writeError(w, http.StatusBadRequest, "invalid JSON body")
 			return
 		}
 		key := &admin.APIKey{
-			DomainID:  id,
-			Name:      req.Name,
-			CreatedBy: req.CreatedBy,
+			DomainID:     id,
+			Name:         req.Name,
+			CreatedBy:    req.CreatedBy,
+			Scopes:       req.Scopes,
+			AllowedCIDRs: req.AllowedCIDRs,
+			ExpiresAt:    req.ExpiresAt,
 		}
 		secret, err := service.CreateAPIKey(r.Context(), key)
 		if err != nil {

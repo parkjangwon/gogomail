@@ -2,13 +2,11 @@ package admin
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/base64"
 	"fmt"
 	"strings"
 	"time"
 
-	"golang.org/x/crypto/bcrypt"
+	"github.com/gogomail/gogomail/internal/apikeys"
 )
 
 var (
@@ -409,13 +407,15 @@ func (s *Service) CreateAPIKey(ctx context.Context, key *APIKey) (secret string,
 		return "", fmt.Errorf("%w: createdBy", ErrMissingRequiredField)
 	}
 
-	secret = generateAPIKeySecret(32)
-	hash, err := bcrypt.GenerateFromPassword([]byte(secret), bcrypt.DefaultCost)
+	secret, err = apikeys.GenerateKey()
 	if err != nil {
-		return "", fmt.Errorf("hash api key secret: %w", err)
+		return "", fmt.Errorf("generate api key: %w", err)
 	}
 
-	key.SecretHash = string(hash)
+	key.SecretHash = apikeys.HashKey(secret)
+	if len(key.Scopes) == 0 {
+		key.Scopes = []string{"mail"}
+	}
 	key.CreatedAt = time.Now()
 	key.IsActive = true
 
@@ -447,23 +447,13 @@ func (s *Service) RotateAPIKey(ctx context.Context, keyID string) (newSecret str
 		return "", fmt.Errorf("%w: keyID", ErrMissingRequiredField)
 	}
 
-	newSecret = generateAPIKeySecret(32)
-	hash, err := bcrypt.GenerateFromPassword([]byte(newSecret), bcrypt.DefaultCost)
+	newSecret, err = apikeys.GenerateKey()
 	if err != nil {
-		return "", fmt.Errorf("hash new api key secret: %w", err)
+		return "", fmt.Errorf("generate api key: %w", err)
 	}
 
-	if err := s.repo.RotateAPIKeySecret(ctx, keyID, string(hash)); err != nil {
+	if err := s.repo.RotateAPIKeySecret(ctx, keyID, apikeys.HashKey(newSecret)); err != nil {
 		return "", fmt.Errorf("rotate api key: %w", err)
 	}
 	return newSecret, nil
-}
-
-// generateAPIKeySecret generates a random API key secret.
-func generateAPIKeySecret(length int) string {
-	b := make([]byte, length)
-	if _, err := rand.Read(b); err != nil {
-		panic(fmt.Sprintf("failed to generate random bytes: %v", err))
-	}
-	return base64.StdEncoding.EncodeToString(b)
 }

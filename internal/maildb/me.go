@@ -13,6 +13,7 @@ import (
 
 type UserProfile struct {
 	UserID        string `json:"user_id"`
+	DomainID      string `json:"domain_id,omitempty"`
 	DisplayName   string `json:"display_name"`
 	Email         string `json:"email"`
 	RecoveryEmail string `json:"recovery_email,omitempty"`
@@ -26,7 +27,7 @@ func (r *Repository) GetUserProfile(ctx context.Context, userID string) (UserPro
 		return UserProfile{}, fmt.Errorf("database handle is required")
 	}
 	const query = `
-SELECT u.id::text, u.display_name, ua.address, COALESCE(u.recovery_email, ''), u.quota_used, u.quota_limit
+SELECT u.id::text, u.domain_id::text, u.display_name, ua.address, COALESCE(u.recovery_email, ''), u.quota_used, u.quota_limit
 FROM users u
 JOIN user_addresses ua ON ua.user_id = u.id AND ua.is_primary = true
 WHERE u.id = $1::uuid
@@ -35,6 +36,7 @@ LIMIT 1`
 	var p UserProfile
 	err := r.db.QueryRowContext(ctx, query, userID).Scan(
 		&p.UserID,
+		&p.DomainID,
 		&p.DisplayName,
 		&p.Email,
 		&p.RecoveryEmail,

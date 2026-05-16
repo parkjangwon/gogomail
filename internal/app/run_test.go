@@ -14,6 +14,7 @@ import (
 	"time"
 
 	gosmtp "github.com/emersion/go-smtp"
+	"github.com/gogomail/gogomail/internal/apikeys"
 	"github.com/gogomail/gogomail/internal/apimeter"
 	"github.com/gogomail/gogomail/internal/auth"
 	"github.com/gogomail/gogomail/internal/config"
@@ -1226,6 +1227,26 @@ func TestMeteringIdentityResolverUsesAdminToken(t *testing.T) {
 	id := meteringIdentityResolver(nil, "secret")(req)
 	if id.AuthSource != apimeter.AuthSourceAdminToken || id.PrincipalID != apimeter.AuthSourceAdminToken {
 		t.Fatalf("identity = %+v", id)
+	}
+}
+
+func TestMeteringIdentityResolverUsesAPIKeyContext(t *testing.T) {
+	t.Parallel()
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/messages", nil)
+	req.Header.Set("X-Gogomail-User-ID", "user-1")
+	req = req.WithContext(apikeys.ContextWithKeyInfo(req.Context(), &apikeys.KeyInfo{
+		ID:       "key-1",
+		DomainID: "domain-1",
+		Scopes:   []string{"mail:read"},
+	}))
+
+	id := meteringIdentityResolver(nil, "")(req)
+	if id.AuthSource != apimeter.AuthSourceAPIKey || id.APIKeyID != "key-1" || id.DomainID != "domain-1" || id.UserID != "user-1" {
+		t.Fatalf("identity = %+v", id)
+	}
+	if id.PrincipalID != "user-1" {
+		t.Fatalf("principal = %q, want user-1", id.PrincipalID)
 	}
 }
 

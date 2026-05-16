@@ -6,6 +6,7 @@ const (
 	AuthSourceAnonymous   = "anonymous"
 	AuthSourceUnknown     = "unknown"
 	AuthSourceBearer      = "bearer"
+	AuthSourceAPIKey      = "api_key"
 	AuthSourceAdminToken  = "admin_token"
 	AuthSourceQueryUserID = "query_user_id"
 )
@@ -56,6 +57,8 @@ func normalizeAuthSource(source string) string {
 		return AuthSourceAnonymous
 	case AuthSourceBearer:
 		return AuthSourceBearer
+	case AuthSourceAPIKey:
+		return AuthSourceAPIKey
 	case AuthSourceAdminToken:
 		return AuthSourceAdminToken
 	case AuthSourceQueryUserID:

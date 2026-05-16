@@ -13,6 +13,7 @@ type KeyVerifier interface {
 }
 
 type KeyInfo struct {
+	ID       string
 	DomainID string
 	Scopes   []string
 }
@@ -65,6 +66,12 @@ func Middleware(verifier KeyVerifier) func(http.Handler) http.Handler {
 				return
 			}
 
+			if strings.TrimSpace(info.ID) != "" {
+				r.Header.Set("X-Gogomail-API-Key-ID", strings.TrimSpace(info.ID))
+			}
+			if strings.TrimSpace(info.DomainID) != "" {
+				r.Header.Set("X-Gogomail-Domain-ID", strings.TrimSpace(info.DomainID))
+			}
 			next.ServeHTTP(w, r.WithContext(ContextWithKeyInfo(r.Context(), info)))
 		})
 	}
