@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
+import { useState, useRef, useEffect, useMemo, useCallback, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { MessageSummary } from '@/lib/api';
 import {
   StarIcon,
@@ -20,6 +20,7 @@ import { MessageRow } from './message-list/MessageRow';
 import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid';
 import { ContactHoverCard } from './message-list/ContactHoverCard';
 import { MessageListHeader } from './message-list/MessageListHeader';
+import { moveNavFocus } from '@/lib/navKeyboard';
 import {
   type CategoryTab,
   type FilterMode,
@@ -166,6 +167,57 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
 
   const selectAll = () => setBulkSelected(new Set(filteredMessages.map((m) => m.id)));
   const clearAll = () => { setBulkSelected(new Set()); lastBulkIndexRef.current = null; };
+  const handleRowKeyDownCapture = (event: ReactKeyboardEvent<HTMLDivElement>) => {
+    const target = event.target as HTMLElement | null;
+    if (!target) return;
+    if (target.closest('button, a, input, textarea, select, [role="button"]')) return;
+
+    const row = target.closest<HTMLElement>('[data-message-id]');
+    if (!row) return;
+
+    if (event.key === 'ArrowDown' || event.key === 'j') {
+      event.preventDefault();
+      event.stopPropagation();
+      moveNavFocus(row, 'next', 'message-list');
+      return;
+    }
+
+    if (event.key === 'ArrowUp' || event.key === 'k') {
+      event.preventDefault();
+      event.stopPropagation();
+      moveNavFocus(row, 'prev', 'message-list');
+      return;
+    }
+
+    if (event.key === 'Home') {
+      event.preventDefault();
+      event.stopPropagation();
+      moveNavFocus(row, 'first', 'message-list');
+      return;
+    }
+
+    if (event.key === 'End') {
+      event.preventDefault();
+      event.stopPropagation();
+      moveNavFocus(row, 'last', 'message-list');
+      return;
+    }
+
+    if (event.key === ' ' || event.key === 'Spacebar' || event.key === 'x') {
+      event.preventDefault();
+      event.stopPropagation();
+      const id = row.dataset.messageId;
+      if (id) toggleBulk(id, event.shiftKey);
+      return;
+    }
+
+    if (event.key === 'Enter' || event.key === 'o') {
+      event.preventDefault();
+      event.stopPropagation();
+      const id = row.dataset.messageId;
+      if (id) onSelect(id);
+    }
+  };
 
   const bulkSize = bulkSelected.size;
   const clearAllRef = useRef(clearAll);
@@ -470,6 +522,7 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
         ref={scrollContainerRef}
         role="list"
         aria-label="메일 목록"
+        onKeyDownCapture={handleRowKeyDownCapture}
         style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', overscrollBehavior: 'contain' }}
         onTouchStart={isMobile && onRefresh ? (e) => {
           if (scrollContainerRef.current?.scrollTop === 0) {

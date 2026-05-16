@@ -71,11 +71,13 @@ export function MessageRow({
     alignItems: 'center',
     gap: '1px',
   };
-
   return (
     <div
       role="listitem"
       data-message-id={message.id}
+      tabIndex={0}
+      data-nav-group="message-list"
+      onMouseDown={(e) => { if (e.button === 0) e.currentTarget.focus(); }}
       style={{ position: 'relative', overflow: 'hidden', borderLeft: labelColor ? `3px solid ${labelColor}` : '3px solid transparent' }}
     >
       {onArchiveRow && swipeX > 20 && (
@@ -110,13 +112,6 @@ export function MessageRow({
         } : undefined}
         onClick={() => { if (swipeX !== 0) { setSwipeX(0); return; } onSelect(message.id); }}
         onContextMenu={onContextMenu ? (e) => { e.preventDefault(); onContextMenu(message.id, e.clientX, e.clientY); } : undefined}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            onSelect(message.id);
-          }
-        }}
-        tabIndex={0}
         aria-selected={isSelected}
         style={{
           display: 'flex',

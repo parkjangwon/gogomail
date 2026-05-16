@@ -5,6 +5,7 @@ Last updated: 2026-05-17 (Webmail interaction polish)
 ## Webmail Interaction Polish (2026-05-17)
 - Message-list row selection chips now surface on row hover with a dedicated checkbox-style control, so bulk selection can start directly from each row instead of only from the header-level select-all control.
 - Webmail profile avatar updates now propagate immediately through shared local state events, so the sidebar, sent-mail avatars, and account settings preview stay in sync without a refresh.
+- Keyboard navigation is expanded across the mail list, app switcher, sidebar folders, and settings nav: arrows move focus between items, `Space` toggles row selection, `Enter` opens the current row, and `Home` / `End` jump to the edges.
 
 ## Drive Upload UX Resumable Queue (2026-05-16)
 - Drive webmail uploads now use the resumable chunked upload-session path when `webmail_capabilities.drive.resumable_chunked_uploads` is true, and fall back to the existing single-body session path when it is not.

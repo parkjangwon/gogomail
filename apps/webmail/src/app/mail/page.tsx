@@ -702,6 +702,7 @@ export default function MailPage() {
       const key = KO[e.key] ?? e.key;
       const list = searchResults ?? messages;
       const currentIdx = list.findIndex((m) => m.id === selectedMessageId);
+      const isMailApp = activeApp === 'mail';
 
       // g+key two-key folder navigation
       if (gPrefixRef.current) {
@@ -723,6 +724,29 @@ export default function MailPage() {
         const appSwitchMap: Record<string, AppId> = { m: 'mail', c: 'calendar', k: 'contacts', v: 'drive', ',': 'settings' };
         const appTarget = appSwitchMap[key];
         if (appTarget) { e.preventDefault(); setActiveApp(appTarget); return; }
+      }
+
+      if (!isMailApp) {
+        switch (key) {
+          case '?':
+            setShowShortcuts((v) => !v);
+            return;
+          case '[':
+            setSidebarCollapsed((v) => !v);
+            return;
+          case 'Escape':
+            if (showShortcuts) setShowShortcuts(false);
+            else if (showSpotlight) setShowSpotlight(false);
+            return;
+          case 'k':
+            if (e.ctrlKey || e.metaKey) {
+              e.preventDefault();
+              setShowSpotlight(true);
+            }
+            return;
+          default:
+            return;
+        }
       }
 
       switch (key) {
@@ -881,7 +905,7 @@ export default function MailPage() {
     }
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [messages, searchResults, selectedMessageId, selectedMessage, composeContext, openCompose, closeCompose, showShortcuts, handleDelete, handleArchive, handleSpam, handleMarkRead, handleMarkUnread, handleStar, getNextId, folders, messageLabels, setLabel, activeFolderSystemType, setActiveApp, showSpotlight, handleMove, handlePin]);
+  }, [messages, searchResults, selectedMessageId, selectedMessage, composeContext, openCompose, closeCompose, showShortcuts, handleDelete, handleArchive, handleSpam, handleMarkRead, handleMarkUnread, handleStar, getNextId, folders, messageLabels, setLabel, activeFolderSystemType, setActiveApp, showSpotlight, handleMove, handlePin, activeApp]);
 
   const refreshRef = useRef(refresh);
   useEffect(() => { refreshRef.current = refresh; }, [refresh]);

@@ -13,6 +13,7 @@ import { SettingsStorageSection, type BackupState } from '@/components/settings-
 import { SettingsPrivacySection } from '@/components/settings-view/SettingsPrivacySection';
 import { SettingsNotificationsSection } from '@/components/settings-view/SettingsNotificationsSection';
 import { SettingsSecuritySection } from '@/components/settings-view/SettingsSecuritySection';
+import { handleVerticalNavKeyDown } from '@/lib/navKeyboard';
 
 interface SettingsViewProps {
   userEmail?: string;
@@ -973,9 +974,11 @@ export function SettingsView({ userEmail, userName }: SettingsViewProps) {
         {NAV_ITEMS.map((item) => {
           const active = item.id === activeSection;
           return (
-            <button
+          <button
               key={item.id}
               onClick={() => { setActiveSection(item.id); contentRef.current?.scrollTo({ top: 0 }); }}
+              data-nav-group="settings-nav"
+              onKeyDown={(e) => handleVerticalNavKeyDown(e, 'settings-nav')}
               style={{
                 display: 'flex', alignItems: 'center', gap: '9px',
                 width: '100%', padding: '8px 14px 8px 12px',

@@ -33,4 +33,41 @@ test.describe('Mail List', () => {
       expect(count).toBeGreaterThanOrEqual(0);
     }
   });
+
+  test('arrow keys move between rows and space toggles bulk selection', async ({ page }) => {
+    await page.goto('/login');
+    await page.getByLabel('이메일').fill('pjw@parkjw.org');
+    await page.getByLabel('비밀번호').fill('pass1234');
+    await page.getByRole('button', { name: '로그인' }).click();
+    await page.waitForURL(/\/mail/, { timeout: 15_000 });
+
+    const rows = page.locator('[data-message-id]');
+    await expect(rows.first()).toBeVisible({ timeout: 15_000 });
+    await rows.first().focus();
+    await expect(rows.first()).toBeFocused();
+    await rows.first().press('ArrowDown');
+    await expect(rows.nth(1)).toBeFocused();
+
+    await rows.nth(1).press('Space');
+    await expect(rows.nth(1).getByRole('button', { name: '선택 해제' })).toBeVisible();
+  });
+
+  test('settings menu moves with arrow keys', async ({ page }) => {
+    await page.goto('/login');
+    await page.getByLabel('이메일').fill('pjw@parkjw.org');
+    await page.getByLabel('비밀번호').fill('pass1234');
+    await page.getByRole('button', { name: '로그인' }).click();
+    await page.waitForURL(/\/mail/, { timeout: 15_000 });
+
+    await page.getByRole('button', { name: '설정', exact: true }).click();
+    await expect(page.getByRole('heading', { name: '계정' })).toBeVisible();
+
+    const settingsNav = page.locator('button[data-nav-group="settings-nav"]');
+    await settingsNav.first().evaluate((node) => {
+      node.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true }));
+    });
+    await expect(settingsNav.nth(1)).toBeFocused();
+    await settingsNav.nth(1).press('Space');
+    await expect(page.getByRole('heading', { name: '받은편지함' })).toBeVisible();
+  });
 });
