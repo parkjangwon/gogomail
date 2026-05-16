@@ -522,11 +522,39 @@ func writeIMAPFramingError(writer *bufio.Writer, line string, message string) er
 }
 
 func imapTagFromCommandLine(line string) string {
-	fields := strings.Fields(strings.TrimSpace(line))
-	if len(fields) == 0 || !imapTagValid(fields[0]) {
+	start := 0
+	for start < len(line) && isIMAPSpace(line[start]) {
+		start++
+	}
+	end := len(line)
+	for end > start && isIMAPSpace(line[end-1]) {
+		end--
+	}
+	if start >= end {
 		return ""
 	}
-	return fields[0]
+	for i := start; i < end; i++ {
+		if isIMAPSpace(line[i]) {
+			tag := line[start:i]
+			if !imapTagValid(tag) {
+				return ""
+			}
+			return tag
+		}
+	}
+	if !imapTagValid(line[start:end]) {
+		return ""
+	}
+	return line[start:end]
+}
+
+func isIMAPSpace(b byte) bool {
+	switch b {
+	case ' ', '\t', '\v', '\f':
+		return true
+	default:
+		return false
+	}
 }
 
 func readIMAPLine(reader *bufio.Reader, maxBytes int) (string, error) {

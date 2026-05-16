@@ -2,10 +2,17 @@
 
 Last updated: 2026-05-17 (Webmail interaction polish)
 
+## IMAP/POP3 Fast Path Cleanup (2026-05-17)
+- POP3 command parsing now uses a small ASCII scanner instead of `strings.Fields`, so common authorization and transaction commands avoid slice-heavy tokenization on the hot path.
+- POP3 multiline responses (`RETR`/`TOP`) now stream line-by-line directly to the buffered writer, with dot-stuffing and TOP header/body handling preserved without building intermediate line slices.
+- POP3 status responses for `STAT`, `LIST`, `UIDL`, and `RETR` now write directly to the wire buffer instead of going through `fmt.Sprintf` concatenation in the request path.
+- IMAP framing-error tag extraction now uses a lightweight scanner instead of `strings.Fields`, reducing allocation on malformed-line handling.
+- Verification: `go test ./...` passes and `go build ./...` succeeds after the fast-path cleanup.
+
 ## Webmail Interaction Polish (2026-05-17)
 - Message-list row selection chips now surface on row hover with a dedicated checkbox-style control, so bulk selection can start directly from each row instead of only from the header-level select-all control.
 - Webmail profile avatar updates now propagate immediately through shared local state events, so the sidebar, sent-mail avatars, and account settings preview stay in sync without a refresh.
-- Keyboard navigation is expanded across the mail list, app switcher, sidebar folders, and settings nav: arrows move focus between items, `Space` toggles row selection, `Enter` opens the current row, and `Home` / `End` jump to the edges.
+- Keyboard navigation is expanded across the mail list, sidebar folders, and settings nav: arrows move focus between items, `Space` toggles row selection, `o` opens the current row, and `Home` / `End` jump to the edges. App switching stays shortcut-driven.
 
 ## Drive Upload UX Resumable Queue (2026-05-16)
 - Drive webmail uploads now use the resumable chunked upload-session path when `webmail_capabilities.drive.resumable_chunked_uploads` is true, and fall back to the existing single-body session path when it is not.
