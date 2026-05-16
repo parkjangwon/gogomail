@@ -16,6 +16,7 @@ import {
   TrashIcon,
   NoSymbolIcon,
   PencilIcon,
+  FolderIcon,
   ArrowTopRightOnSquareIcon,
   XMarkIcon,
   CheckIcon,
@@ -375,7 +376,7 @@ export function Sidebar({
               })}
 
               {folders.filter((f) => !systemFolderIds.has(f.id)).length > 0 || onCreateFolder ? (
-                <div style={{ padding: '12px 10px 4px', fontSize: '11px', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--color-text-tertiary)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ padding: '12px 16px 4px', fontSize: '11px', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--color-text-tertiary)' }}>
                   <span>개인 편지함</span>
                 </div>
               ) : null}
@@ -410,7 +411,7 @@ export function Sidebar({
                           <button onClick={() => setRenamingFolderId(null)} style={{ padding: '3px 6px', border: '1px solid var(--color-border-default)', background: 'transparent', color: 'var(--color-text-secondary)', borderRadius: '4px', cursor: 'pointer', display: 'inline-flex' }}><XMarkIcon style={{ width: '12px', height: '12px' }} /></button>
                         </div>
                       ) : (
-                        <button
+                      <button
                           onClick={() => onSelectFolder(f.id)}
                           aria-current={isActive ? 'page' : undefined}
                           style={{
@@ -418,6 +419,7 @@ export function Sidebar({
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'space-between',
+                            gap: '8px',
                             padding: '7px 12px',
                             border: dragOverFolderId === f.id ? '1px solid var(--color-accent)' : '1px solid transparent',
                             background: dragOverFolderId === f.id ? 'var(--color-accent-subtle)' : isActive ? 'var(--color-bg-tertiary)' : 'transparent',
@@ -432,7 +434,12 @@ export function Sidebar({
                           onDragLeave={() => setDragOverFolderId(null)}
                           onDrop={(e) => { e.preventDefault(); setDragOverFolderId(null); const id = e.dataTransfer.getData('text/plain'); if (id && onDropMessage) onDropMessage(id, f.id); }}
                         >
-                          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>{f.name}</span>
+                          <span style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, flex: 1, overflow: 'hidden' }}>
+                            <span style={{ flexShrink: 0, display: 'inline-flex', opacity: 0.65 }}>
+                              <FolderIcon style={{ width: '14px', height: '14px' }} />
+                            </span>
+                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.name}</span>
+                          </span>
                           {isHovered && (onRenameFolder || onDeleteFolder) ? (
                             <span style={{ display: 'flex', gap: '2px', flexShrink: 0, marginInlineStart: '4px' }}>
                               {onRenameFolder && <span onClick={(e) => { e.stopPropagation(); setRenamingValue(f.name); setRenamingFolderId(f.id); }} style={{ padding: '2px 4px', borderRadius: '3px', cursor: 'pointer', color: 'var(--color-text-tertiary)', display: 'inline-flex', alignItems: 'center' }} title="이름 변경"><PencilIcon style={{ width: '12px', height: '12px' }} /></span>}

@@ -4,6 +4,7 @@ Last updated: 2026-05-16 (Drive upload UX resumable queue)
 
 ## Drive Upload UX Resumable Queue (2026-05-16)
 - Drive webmail uploads now use the resumable chunked upload-session path when `webmail_capabilities.drive.resumable_chunked_uploads` is true, and fall back to the existing single-body session path when it is not.
+- Compose draft saves now require the `messages.html_body` column again via migration `0106_message_html_body.sql`, and mail-list hover action buttons were hardened so their click handlers are reliably reachable in the message list UI.
 - The Drive file picker and drag-and-drop flow now keep a queue of pending uploads, show per-file progress bars, and expose pause/resume/cancel controls so interrupted uploads can continue from the last committed chunk.
 - Chunked Drive uploads reuse the existing Drive upload-session body endpoint, so progress remains backend-neutral and the web app no longer has to buffer whole large files into one request body when resumable uploads are available.
 
