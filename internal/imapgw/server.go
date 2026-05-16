@@ -3505,16 +3505,16 @@ func imapOrderedSubjectThread(matches []imapSearchMatch) string {
 		return "()"
 	}
 	if len(matches) == 1 {
-		return fmt.Sprintf("(%d)", matches[0].value)
+		return "(" + strconv.FormatUint(uint64(matches[0].value), 10) + ")"
 	}
 	if len(matches) == 2 {
-		return fmt.Sprintf("(%d %d)", matches[0].value, matches[1].value)
+		return "(" + strconv.FormatUint(uint64(matches[0].value), 10) + " " + strconv.FormatUint(uint64(matches[1].value), 10) + ")"
 	}
 	children := make([]string, 0, len(matches)-1)
 	for _, match := range matches[1:] {
-		children = append(children, fmt.Sprintf("(%d)", match.value))
+		children = append(children, "("+strconv.FormatUint(uint64(match.value), 10)+")")
 	}
-	return fmt.Sprintf("(%d %s)", matches[0].value, strings.Join(children, ""))
+	return "(" + strconv.FormatUint(uint64(matches[0].value), 10) + " " + strings.Join(children, "") + ")"
 }
 
 func imapCompareSortCriterion(collator *collate.Collator, left MessageSummary, right MessageSummary, key string) int {
@@ -7320,16 +7320,16 @@ func imapMIMESinglePartBody(part messageparse.MIMEPart, fallbackSize int64, exte
 		imapBodyMetadataNString(part.ContentID),
 		imapBodyMetadataNString(part.Description),
 		imapQuotedString(imapMIMEToken(part.Encoding, "7BIT")),
-		fmt.Sprintf("%d", maxInt64(size, 0)),
+		strconv.FormatInt(maxInt64(size, 0), 10),
 	}
 	if mediaType == "MESSAGE" && mediaSubtype == "RFC822" {
-		fields = append(fields, imapMIMEEnvelope(part.Envelope), imapMIMEMessageBody(part, extended), fmt.Sprintf("%d", maxInt64(part.Lines, 0)))
+		fields = append(fields, imapMIMEEnvelope(part.Envelope), imapMIMEMessageBody(part, extended), strconv.FormatInt(maxInt64(part.Lines, 0), 10))
 	} else if mediaType == "TEXT" {
 		lines := part.Lines
 		if lines == 0 && size > 0 {
 			lines = 1
 		}
-		fields = append(fields, fmt.Sprintf("%d", lines))
+		fields = append(fields, strconv.FormatInt(lines, 10))
 	}
 	if extended {
 		fields = append(fields, "NIL", imapMIMEBodyDisposition(part), "NIL", "NIL")
@@ -7419,10 +7419,10 @@ func imapBodyFromHeaderExtended(summary MessageSummary, header []byte, extended 
 		imapBodyMetadataNString(metadata.id),
 		imapBodyMetadataNString(metadata.description),
 		imapQuotedString(metadata.encoding),
-		fmt.Sprintf("%d", size),
+		strconv.FormatInt(size, 10),
 	}
 	if metadata.mediaType == "TEXT" {
-		fields = append(fields, fmt.Sprintf("%d", lines))
+		fields = append(fields, strconv.FormatInt(lines, 10))
 	}
 	if extended {
 		fields = append(fields, "NIL", "NIL", "NIL", "NIL")
