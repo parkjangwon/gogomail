@@ -70,6 +70,7 @@ Go Backend (`internal/`):
 
 최근 진행:
 - `ListMessagesByIDs` hydration을 `unnest($2::uuid[]) WITH ORDINALITY` 기반으로 바꿔 JSON 배열 파싱을 제거함
+- `ListMessageIDsForThreads`와 `BulkSetThreadFlag`도 UUID 배열 `unnest` 경로로 바꿔 thread 배치 처리의 JSON 파싱을 제거함
 - `ListThreadMessagesPage`는 `COALESCE(thread_id, id)` 비교를 UUID 친화적인 `thread_id = ... OR id = ...`로 분해함
 - active 메시지/스레드 lookup용 partial index migration을 추가함
 

@@ -3,6 +3,9 @@ package maildb
 import (
 	"strings"
 	"testing"
+
+	"github.com/google/uuid"
+	"github.com/lib/pq"
 )
 
 func TestValidateBulkMessageFlagRequestRejectsDuplicateIDs(t *testing.T) {
@@ -77,13 +80,84 @@ func TestBulkSetThreadFlagSQLUpdatesActiveThreadMessages(t *testing.T) {
 	t.Parallel()
 
 	for _, want := range []string{
-		"COALESCE(thread_id, id)::text IN",
-		"jsonb_array_elements_text($2::jsonb)",
+		"WITH requested AS (",
+		"unnest($2::uuid[])",
+		"JOIN requested ON messages.thread_id = requested.id",
+		"JOIN requested ON messages.id = requested.id",
 		"RETURNING id::text",
 	} {
 		if !strings.Contains(bulkSetThreadFlagSQL, want) {
 			t.Fatalf("bulk thread flag SQL does not include %q:\n%s", want, bulkSetThreadFlagSQL)
 		}
+	}
+}
+
+func BenchmarkValidateBulkThreadIDs1K(b *testing.B) {
+	benchValidateBulkThreadIDs(b, 1_000)
+}
+
+func BenchmarkValidateBulkThreadIDs10K(b *testing.B) {
+	benchValidateBulkThreadIDs(b, 10_000)
+}
+
+func BenchmarkBulkThreadIDsArrayValue1K(b *testing.B) {
+	benchBulkThreadIDsArrayValue(b, 1_000)
+}
+
+func BenchmarkBulkThreadIDsArrayValue10K(b *testing.B) {
+	benchBulkThreadIDsArrayValue(b, 10_000)
+}
+
+func benchValidateBulkThreadIDs(b *testing.B, count int) {
+	b.Helper()
+	threadIDs := benchmarkBulkThreadIDs(count)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		if err := validateBulkThreadIDs(threadIDs); err != nil {
+			b.Fatalf("validateBulkThreadIDs returned error: %v", err)
+		}
+	}
+}
+
+func benchBulkThreadIDsArrayValue(b *testing.B, count int) {
+	b.Helper()
+	threadIDs := benchmarkBulkThreadIDs(count)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		value, err := pq.Array(threadIDs).Value()
+		if err != nil {
+			b.Fatalf("pq.Array.Value returned error: %v", err)
+		}
+		if value == nil {
+			b.Fatal("pq.Array.Value returned nil")
+		}
+	}
+}
+
+func benchmarkBulkThreadIDs(count int) []string {
+	ids := make([]string, 0, count)
+	for len(ids) < count {
+		ids = append(ids, uuid.NewString())
+	}
+	return ids
+}
+
+func TestListMessageIDsForThreadsSQLUsesUuidUnnest(t *testing.T) {
+	t.Parallel()
+
+	for _, want := range []string{
+		"WITH requested AS (",
+		"unnest($2::uuid[])",
+		"JOIN requested ON messages.thread_id = requested.id",
+		"JOIN requested ON messages.id = requested.id",
+		"ORDER BY id",
+	} {
+		if !strings.Contains(listMessageIDsForThreadsSQL, want) {
+			t.Fatalf("list message ids for threads SQL does not include %q:\n%s", want, listMessageIDsForThreadsSQL)
+		}
+	}
+	if strings.Contains(listMessageIDsForThreadsSQL, "jsonb_array_elements_text") {
+		t.Fatalf("listMessageIDsForThreadsSQL still uses JSON array expansion:\n%s", listMessageIDsForThreadsSQL)
 	}
 }
 

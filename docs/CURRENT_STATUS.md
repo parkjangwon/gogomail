@@ -74,6 +74,7 @@ Last updated: 2026-05-17 (Webmail interaction polish)
   - Define batch read optimizations for outbound message lookups
   - Add benchmark coverage for 1k+/10k+ bulk-send scenarios
 - Batch lookup hydration now uses `unnest($2::uuid[]) WITH ORDINALITY` instead of JSON expansion, keeping external-ID hydration allocation-light and order-stable.
+- Thread batch lookup and bulk thread flag updates now use UUID array unnest joins instead of JSON expansion, reducing per-request parsing overhead for thread-scoped batch operations.
 - Thread message page lookup now splits root-thread and child-thread matching into UUID-friendly predicates so PostgreSQL can use the active thread lookup indexes.
 - New partial lookup indexes cover active messages by mailbox time and active thread time ordering for the Phase 1 read hot path.
 - **Phase 2 (Bulk Delivery Batching)** Next:
