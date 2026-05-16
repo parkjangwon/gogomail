@@ -1,6 +1,21 @@
 # gogomail current status
 
-Last updated: 2026-05-16 (TASK-090 phase 1 starting, message storage & delivery optimization)
+Last updated: 2026-05-16 (console/webmail E2E auth and navigation regression fixes)
+
+## Console & Webmail E2E Regression Fixes (2026-05-16)
+- Admin console auth redirect flow now verifies the correct `/api/admin/auth/verify` endpoint, preserves protected `next` destinations through login, and accepts the signed bootstrap system-admin token after JWT signature/expiry verification.
+- Admin console visual/runtime regressions fixed:
+  - Cloudscape visual-refresh CSS sentinel added to prevent AWS-UI missing-CSS console errors.
+  - Alert icon button now has an accessible `Alerts` / `알림` label.
+  - English menu page titles that rendered as placeholder `Title` now use meaningful page names.
+  - User config selector de-duplicates users before rendering options.
+- Webmail dev skip-login behavior now only activates when explicitly enabled, avoiding cookie-less `/mail` redirect loops; the icon rail has bottom spacing so the settings button remains reachable above dev tooling.
+- New admin console menu-inventory E2E covers every sidebar menu route plus the top alert route for render stability, missing translations, placeholder headings, and page errors.
+- Verification:
+  - `pnpm -C apps/console type-check` passes
+  - `pnpm -C apps/console exec playwright test --project=chromium` passes (50 tests)
+  - `pnpm -C apps/webmail test:e2e` passes (25 tests)
+  - `go test ./internal/httpapi` passes
 
 ## Message Storage & Delivery Optimization (2026-05-16, TASK-090 starting)
 - Focus has moved from protocol gateway hardening to bulk-mail storage and delivery performance.

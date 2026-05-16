@@ -296,18 +296,19 @@ export default function MailPage() {
   const [sessionWarning, setSessionWarning] = useState<string | null>(null);
 
   const DEV_USER_ID = process.env.NEXT_PUBLIC_GOGOMAIL_DEV_USER_ID || '';
+  const DEV_SKIP_LOGIN = process.env.NEXT_PUBLIC_GOGOMAIL_DEV_SKIP_LOGIN === 'true';
 
   // Check auth on mount, load email
   useEffect(() => {
     const authenticated = localStorage.getItem('webmail_authenticated');
-    if (!authenticated && !DEV_USER_ID) { router.push('/login'); return; }
+    if (!authenticated && !(DEV_SKIP_LOGIN && DEV_USER_ID)) { router.push('/login'); return; }
     let email = localStorage.getItem('webmail_email') ?? '';
-    if (!email && DEV_USER_ID.includes('@')) email = DEV_USER_ID;
+    if (!email && DEV_SKIP_LOGIN && DEV_USER_ID.includes('@')) email = DEV_USER_ID;
     setUserEmail(email);
     if (localStorage.getItem('webmail_must_change_password') === '1') {
       setMustChangePassword(true);
     }
-  }, [router]);
+  }, [router, DEV_SKIP_LOGIN, DEV_USER_ID]);
 
   // Session expiry warning: check every 60s, warn when < 10 min left
   useEffect(() => {

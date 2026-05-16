@@ -102,7 +102,9 @@ export default function UserConfigPage() {
     }
   };
 
-  const userOptions = users.map((u) => ({
+  const userOptions = Array.from(
+    new Map(users.map((u) => [u.id, u])).values()
+  ).map((u) => ({
     label: u.display_name ? `${u.display_name} (${u.username})` : u.username,
     value: u.id,
   }));

@@ -92,6 +92,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
             {
               type: 'button',
               iconName: 'notification',
+              ariaLabel: t('layout.alerts'),
               badge: alertCount > 0,
               title: alertCount > 0 ? `${alertCount} ${t(alertCount > 1 ? 'layout.active_alerts_plural' : 'layout.active_alert')}` : t('layout.no_active_alerts'),
               onClick: () => router.push(`/companies/${cid}/security/alerts`),

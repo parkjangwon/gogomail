@@ -4,7 +4,7 @@ import { NextIntlClientProvider } from 'next-intl';
 import { Providers } from '@/components/Providers';
 
 export const metadata = {
-  title: 'GoGoMail',
+  title: 'GoGoMail 웹메일',
   description: 'Webmail',
 };
 
