@@ -112,4 +112,19 @@ test.describe('Drive upload queue', () => {
     await expect(modal.locator('div[title="modal-b.txt"]')).toBeVisible();
     await expect(modal.locator('div[title="modal-c.txt"]')).toBeVisible();
   });
+
+  test('keeps the selected app after refresh', async ({ page }) => {
+    await page.goto('/login');
+    await page.getByLabel('이메일').fill('pjw@parkjw.org');
+    await page.getByLabel('비밀번호').fill('pass1234');
+    await page.getByRole('button', { name: '로그인' }).click();
+    await page.waitForURL(/\/mail/, { timeout: 15_000 });
+
+    const driveTab = page.getByRole('button', { name: '드라이브', exact: true });
+    await driveTab.click();
+    await expect(driveTab).toHaveAttribute('aria-pressed', 'true');
+
+    await page.reload();
+    await expect(page.getByRole('button', { name: '드라이브', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  });
 });

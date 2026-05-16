@@ -30,6 +30,25 @@ import {
   parseSearchOperators,
 } from '@/lib/mail/mailPageUtils';
 
+const WEBMAIL_ACTIVE_APP_KEY = 'webmail_active_app';
+
+function isAppId(value: string | null): value is AppId {
+  return value === 'mail' || value === 'calendar' || value === 'contacts' || value === 'drive' || value === 'settings';
+}
+
+function getInitialActiveApp(): AppId {
+  if (typeof window === 'undefined') return 'mail';
+  try {
+    const urlApp = new URLSearchParams(window.location.search).get('app');
+    if (isAppId(urlApp)) return urlApp;
+    const stored = window.localStorage.getItem(WEBMAIL_ACTIVE_APP_KEY);
+    if (isAppId(stored)) return stored;
+  } catch {
+    // ignore
+  }
+  return 'mail';
+}
+
 export default function MailPage() {
   const router = useRouter();
 
@@ -92,9 +111,28 @@ export default function MailPage() {
     });
   }, []);
 
-  const [activeApp, setActiveApp] = useState<AppId>('mail');
+  const [activeApp, setActiveApp] = useState<AppId>(getInitialActiveApp);
   const [showSpotlight, setShowSpotlight] = useState(false);
   const [spotlightMoveId, setSpotlightMoveId] = useState<string | null>(null);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(WEBMAIL_ACTIVE_APP_KEY, activeApp);
+    } catch {
+      // ignore
+    }
+
+    try {
+      const url = new URL(window.location.href);
+      if (activeApp === 'mail') url.searchParams.delete('app');
+      else url.searchParams.set('app', activeApp);
+      const nextUrl = `${url.pathname}${url.search}${url.hash}`;
+      const currentUrl = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+      if (nextUrl !== currentUrl) window.history.replaceState(window.history.state, '', nextUrl);
+    } catch {
+      // ignore
+    }
+  }, [activeApp]);
 
   const [wmSettings, setWmSettings] = useState<{ showPreview: boolean; externalImages: string }>(() => {
     try {
