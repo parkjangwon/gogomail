@@ -1366,8 +1366,8 @@ export function DriveView() {
                       <span>{driveUploadBatch.fileCount}개 파일</span>
                     </div>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                      {uploadBatchNames.map((item) => (
-                        <span key={`${driveUploadBatch.id}-${item.relativePath}`} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '6px 10px', borderRadius: '999px', border: '1px solid var(--color-border-default)', background: 'var(--color-bg-primary)', color: 'var(--color-text-secondary)', fontSize: '11px', maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={`${item.relativePath} · ${formatBytes(item.size)}`}>
+                      {uploadBatchNames.map((item, index) => (
+                        <span key={`${driveUploadBatch.id}-${index}-${item.relativePath}-${item.size}`} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '6px 10px', borderRadius: '999px', border: '1px solid var(--color-border-default)', background: 'var(--color-bg-primary)', color: 'var(--color-text-secondary)', fontSize: '11px', maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={`${item.relativePath} · ${formatBytes(item.size)}`}>
                           <strong style={{ fontWeight: 600 }}>{item.name}</strong>
                           <span style={{ color: 'var(--color-text-tertiary)' }}>{formatBytes(item.size)}</span>
                         </span>
