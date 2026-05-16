@@ -7,6 +7,7 @@ Last updated: 2026-05-16 (Drive upload-session chunk storage hardening)
 - Sequential Drive chunks are assembled into a single backend object: non-zero chunks read the prior object, append the new body, verify the expected resulting byte count, write a replacement object, and delete the locked prior object only after the metadata update commits.
 - Upload-session metadata commits can enforce the previous `received_size` under the database row lock, preventing stale concurrent chunk writers from overwriting newer progress.
 - The Drive API contract and storage backend docs now describe `Content-Range` chunk behavior and assembled-object SHA-256 semantics.
+- README status now marks Drive / file storage as Production.
 - Verification: `go test ./internal/drive ./internal/storage ./internal/httpapi` passes (1753 tests).
 
 ## LDAP Directory Gateway Completion (2026-05-16)
