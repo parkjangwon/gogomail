@@ -272,9 +272,9 @@ func (r *Repository) DeleteAlertRuleChannel(ctx context.Context, ruleID, channel
 // LogAlertEvent logs an alert event.
 func (r *Repository) LogAlertEvent(ctx context.Context, event *AlertEvent) error {
 	err := r.db.QueryRowContext(ctx,
-		`INSERT INTO alert_events (id, company_id, alert_rule_id, current_value, threshold, message, triggered_at)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7)
-		 RETURNING id, triggered_at`,
+		`INSERT INTO alert_notifications (id, company_id, alert_config_id, alert_type, current_value, threshold, notification_data, created_at)
+		 VALUES ($1, $2, $3, (SELECT alert_type FROM alert_configs WHERE id = $3), $4, $5, jsonb_build_object('message', $6), $7)
+		 RETURNING id, created_at`,
 		event.ID, event.CompanyID, event.AlertRuleID, event.CurrentValue, event.Threshold, event.Message, time.Now(),
 	).Scan(&event.ID, &event.TriggeredAt)
 	if err != nil {
@@ -285,20 +285,22 @@ func (r *Repository) LogAlertEvent(ctx context.Context, event *AlertEvent) error
 
 // ListAlertEvents lists alert events with filtering.
 func (r *Repository) ListAlertEvents(ctx context.Context, filter AlertEventFilter) ([]AlertEvent, error) {
-	query := `SELECT id, company_id, alert_rule_id, current_value, threshold, message, triggered_at, resolved_at
-		 FROM alert_events WHERE company_id = $1`
+	query := `SELECT id, company_id, alert_config_id, current_value, threshold,
+		 COALESCE(notification_data->>'message', alert_type) AS message,
+		 created_at, acknowledged_at
+		 FROM alert_notifications WHERE company_id = $1`
 	args := []interface{}{filter.CompanyID}
 
 	if filter.AlertRuleID != "" {
-		query += " AND alert_rule_id = $" + fmt.Sprintf("%d", len(args)+1)
+		query += " AND alert_config_id = $" + fmt.Sprintf("%d", len(args)+1)
 		args = append(args, filter.AlertRuleID)
 	}
 
 	if filter.OnlyUnresolved {
-		query += " AND resolved_at IS NULL"
+		query += " AND acknowledged_at IS NULL"
 	}
 
-	query += " ORDER BY triggered_at DESC"
+	query += " ORDER BY created_at DESC"
 
 	if filter.Limit > 0 {
 		query += " LIMIT $" + fmt.Sprintf("%d", len(args)+1)
@@ -330,7 +332,7 @@ func (r *Repository) ListAlertEvents(ctx context.Context, filter AlertEventFilte
 // ResolveAlertEvent marks an alert event as resolved.
 func (r *Repository) ResolveAlertEvent(ctx context.Context, eventID string) error {
 	result, err := r.db.ExecContext(ctx,
-		"UPDATE alert_events SET resolved_at = $1 WHERE id = $2 AND resolved_at IS NULL",
+		"UPDATE alert_notifications SET acknowledged_at = $1 WHERE id = $2 AND acknowledged_at IS NULL",
 		time.Now(), eventID,
 	)
 	if err != nil {

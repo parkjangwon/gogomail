@@ -25,9 +25,17 @@ async function handler(
     headers.set('Authorization', `Bearer ${token}`);
   }
 
+  const hasRequestBody = req.method !== 'GET' && req.method !== 'HEAD';
+  if (!hasRequestBody) {
+    headers.delete('content-type');
+  }
+
   let body: BodyInit | undefined;
-  if (req.method !== 'GET' && req.method !== 'HEAD') {
+  if (hasRequestBody) {
     body = await req.arrayBuffer();
+    if (body.byteLength === 0) {
+      headers.delete('content-type');
+    }
   }
 
   try {
