@@ -12,12 +12,12 @@ export default function RootPage() {
     // If authenticated, redirect to dashboard; otherwise to login
     const checkAuth = async () => {
       try {
-        const response = await fetch('/api/auth/verify', {
+        const response = await fetch('/api/admin/auth/verify', {
           credentials: 'include',
         });
 
         if (response.ok) {
-          router.replace('/dashboard');
+          router.replace('/companies/default/dashboard');
         } else {
           router.replace('/login');
         }

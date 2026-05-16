@@ -21,6 +21,8 @@ const BOTTOM_APPS: { id: AppId; label: string; icon: React.ReactNode; activeIcon
   { id: 'settings', label: '설정', icon: <Cog6ToothIcon style={{ width: '20px', height: '20px' }} />, activeIcon: <Cog6ToothSolid style={{ width: '20px', height: '20px' }} /> },
 ];
 
+const DEV_TOOL_SAFE_BOTTOM = process.env.NODE_ENV === 'development' ? 56 : 8;
+
 function AppBtn({ app, isActive, onChangeApp, badge }: { app: typeof MAIN_APPS[0]; isActive: boolean; onChangeApp: (id: AppId) => void; badge?: number }) {
   const badgeLabel = badge && badge > 0 ? (badge > 99 ? '99+' : String(badge)) : '';
   return (
@@ -95,7 +97,7 @@ export function AppIconBar({ activeApp, onChangeApp, mailUnread }: AppIconBarPro
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        padding: '8px 0',
+        padding: `8px 0 ${DEV_TOOL_SAFE_BOTTOM}px`,
         gap: '2px',
         background: 'var(--color-bg-secondary)',
         borderRight: '1px solid var(--color-border-subtle)',

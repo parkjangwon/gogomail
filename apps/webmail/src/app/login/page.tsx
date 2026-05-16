@@ -6,6 +6,7 @@ import { loginUser } from '@/lib/api';
 import { ThemeToggle } from '@/components/ThemeToggle';
 
 const DEV_USER_ID = process.env.NEXT_PUBLIC_GOGOMAIL_DEV_USER_ID || '';
+const DEV_SKIP_LOGIN = process.env.NEXT_PUBLIC_GOGOMAIL_DEV_SKIP_LOGIN === 'true';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -16,7 +17,7 @@ export default function LoginPage() {
 
   // Dev mode: skip login and go directly to mail
   useEffect(() => {
-    if (DEV_USER_ID) {
+    if (DEV_SKIP_LOGIN && DEV_USER_ID) {
       localStorage.setItem('webmail_authenticated', '1');
       if (DEV_USER_ID.includes('@')) {
         localStorage.setItem('webmail_email', DEV_USER_ID);

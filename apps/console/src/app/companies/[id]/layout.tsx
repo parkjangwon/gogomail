@@ -18,6 +18,7 @@ export default function CompanyLayout({
   const [companyId, setCompanyId] = useState<string>('default');
   const router = useRouter();
   const pathname = usePathname();
+  const loginPath = `/login?next=${encodeURIComponent(pathname)}`;
 
   useEffect(() => {
     (async () => {
@@ -26,13 +27,13 @@ export default function CompanyLayout({
       try {
         const res = await fetch('/api/admin/auth/verify', { credentials: 'include' });
         if (!res.ok) {
-          router.replace('/login');
+          router.replace(loginPath);
           return;
         }
         if (id === 'default') {
           const companiesRes = await fetch('/api/admin/companies?limit=1', { credentials: 'include' });
           if (companiesRes.status === 401) {
-            router.replace('/login');
+            router.replace(loginPath);
             return;
           }
           if (companiesRes.ok) {
@@ -48,10 +49,10 @@ export default function CompanyLayout({
         setAuthorized(true);
         setResolved(true);
       } catch {
-        router.replace('/login');
+        router.replace(loginPath);
       }
     })();
-  }, [params, pathname, router]);
+  }, [loginPath, params, pathname, router]);
 
   if (!resolved) {
     return (

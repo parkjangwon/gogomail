@@ -3309,6 +3309,7 @@
     "copyright": "© 2026 GoGoMail Inc. 모든 권리 보유."
   },
   "layout": {
+    "alerts": "알림",
     "active_alert": "활성 알림",
     "active_alerts_plural": "활성 알림",
     "no_active_alerts": "활성 알림 없음",
