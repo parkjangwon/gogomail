@@ -2171,14 +2171,13 @@ func (s *Server) writeMailboxEvent(writer *bufio.Writer, state *imapConnState, e
 			return fmt.Errorf("imap event sequence number is unavailable")
 		}
 		attributes := []string{
-			fmt.Sprintf("UID %d", message.Summary.UID),
+			"UID " + strconv.FormatUint(uint64(message.Summary.UID), 10),
 			"FLAGS " + imapFlagList(message.Summary.Flags.IMAPFlags()),
 		}
 		if state.condstoreAware {
-			attributes = append(attributes, fmt.Sprintf("MODSEQ (%d)", message.Summary.ModSeq))
+			attributes = append(attributes, "MODSEQ ("+strconv.FormatUint(message.Summary.ModSeq, 10)+")")
 		}
-		_, err = writer.WriteString(fmt.Sprintf("* %d FETCH (%s)\r\n", sequenceNumber, strings.Join(attributes, " ")))
-		return err
+		return writeIMAPFetchLine(writer, sequenceNumber, strings.Join(attributes, " "), ")")
 	default:
 		return nil
 	}
@@ -5525,7 +5524,8 @@ func (s *Server) writeFetchResponses(writer *bufio.Writer, tag string, items []s
 					return false, err
 				}
 				attributes := imapFetchAttributes(summary, requestsEnvelope, requestsInternalDate, requestsModSeq, requestsBodyAttribute, requestsBodyStructure, bodyAttribute, bodyStructure)
-				if _, err := writer.WriteString(fmt.Sprintf("* %d FETCH (%s BODY[%s]%s {%d}\r\n", sequenceNumber, strings.Join(attributes, " "), partRequest.sectionName(), partRequest.partialSuffix(), len(literal))); err != nil {
+				tail := " BODY[" + partRequest.sectionName() + "]" + partRequest.partialSuffix() + " {" + strconv.Itoa(len(literal)) + "}"
+				if err := writeIMAPFetchLine(writer, sequenceNumber, strings.Join(attributes, " "), tail); err != nil {
 					return false, err
 				}
 				if _, err := writer.Write(literal); err != nil {
@@ -5584,16 +5584,17 @@ func (s *Server) writeFetchResponses(writer *bufio.Writer, tag string, items []s
 				}
 				partialSuffix := ""
 				if requestsPartialSection {
-					partialSuffix = fmt.Sprintf("<%d>", partialSection.partial.offset)
+					partialSuffix = imapPartialOffsetSuffix(partialSection.partial.offset)
 				}
 				if requestsPartialHeaderFields {
-					partialSuffix = fmt.Sprintf("<%d>", partialHeaderFields.offset)
+					partialSuffix = imapPartialOffsetSuffix(partialHeaderFields.offset)
 				}
 				if requestsPartialHeaderFieldsNot {
-					partialSuffix = fmt.Sprintf("<%d>", partialHeaderFieldsNot.offset)
+					partialSuffix = imapPartialOffsetSuffix(partialHeaderFieldsNot.offset)
 				}
 				itemName := imapSectionLiteralResponseName(items, section)
-				if _, err := writer.WriteString(fmt.Sprintf("* %d FETCH (%s %s%s {%d}\r\n", sequenceNumber, strings.Join(attributes, " "), itemName, partialSuffix, len(literal))); err != nil {
+				tail := " " + itemName + partialSuffix + " {" + strconv.Itoa(len(literal)) + "}"
+				if err := writeIMAPFetchLine(writer, sequenceNumber, strings.Join(attributes, " "), tail); err != nil {
 					return false, err
 				}
 				if _, err := writer.Write(literal); err != nil {
@@ -5617,7 +5618,8 @@ func (s *Server) writeFetchResponses(writer *bufio.Writer, tag string, items []s
 					_ = body.Close()
 					return false, err
 				}
-				if _, err := writer.WriteString(fmt.Sprintf("* %d FETCH (%s %s<%d> {%d}\r\n", sequenceNumber, strings.Join(attributes, " "), itemName, partial.offset, count)); err != nil {
+				tail := " " + itemName + "<" + strconv.FormatUint(partial.offset, 10) + "> {" + strconv.FormatUint(count, 10) + "}"
+				if err := writeIMAPFetchLine(writer, sequenceNumber, strings.Join(attributes, " "), tail); err != nil {
 					_ = body.Close()
 					return false, err
 				}
@@ -5635,7 +5637,8 @@ func (s *Server) writeFetchResponses(writer *bufio.Writer, tag string, items []s
 				}
 				continue
 			}
-			if _, err := writer.WriteString(fmt.Sprintf("* %d FETCH (%s %s {%d}\r\n", sequenceNumber, strings.Join(attributes, " "), imapFullBodyLiteralResponseName(items), summary.Size)); err != nil {
+			tail := " " + imapFullBodyLiteralResponseName(items) + " {" + strconv.FormatUint(uint64(summary.Size), 10) + "}"
+			if err := writeIMAPFetchLine(writer, sequenceNumber, strings.Join(attributes, " "), tail); err != nil {
 				_ = body.Close()
 				return false, err
 			}
@@ -5654,7 +5657,7 @@ func (s *Server) writeFetchResponses(writer *bufio.Writer, tag string, items []s
 		if message.Body != nil {
 			_ = message.Body.Close()
 		}
-		if _, err := writer.WriteString(fmt.Sprintf("* %d FETCH (%s)\r\n", sequenceNumber, strings.Join(imapFetchAttributes(summary, requestsEnvelope, requestsInternalDate, requestsModSeq, requestsBodyAttribute, requestsBodyStructure, bodyAttribute, bodyStructure), " "))); err != nil {
+		if err := writeIMAPFetchLine(writer, sequenceNumber, strings.Join(imapFetchAttributes(summary, requestsEnvelope, requestsInternalDate, requestsModSeq, requestsBodyAttribute, requestsBodyStructure, bodyAttribute, bodyStructure), " "), ")"); err != nil {
 			return false, err
 		}
 	}
@@ -6160,7 +6163,7 @@ func (r imapMIMEPartRequest) partialSuffix() string {
 	if r.partial.count == 0 {
 		return ""
 	}
-	return fmt.Sprintf("<%d>", r.partial.offset)
+	return imapPartialOffsetSuffix(r.partial.offset)
 }
 
 func (r imapPartialSectionRequest) headerLike() bool {
@@ -7141,9 +7144,9 @@ func imapFetchRequestsToken(items []string, want string) bool {
 
 func imapFetchAttributes(summary MessageSummary, includeEnvelope bool, includeInternalDate bool, includeModSeq bool, includeBody bool, includeBodyStructure bool, bodyAttribute string, bodyStructure string) []string {
 	attributes := []string{
-		fmt.Sprintf("UID %d", summary.UID),
+		"UID " + strconv.FormatUint(uint64(summary.UID), 10),
 		"FLAGS " + imapFlagList(summary.Flags.IMAPFlags()),
-		fmt.Sprintf("RFC822.SIZE %d", summary.Size),
+		"RFC822.SIZE " + strconv.FormatUint(uint64(summary.Size), 10),
 	}
 	if includeInternalDate {
 		attributes = append(attributes, "INTERNALDATE "+imapQuotedString(imapInternalDate(summary.InternalDate)))
@@ -7152,7 +7155,7 @@ func imapFetchAttributes(summary MessageSummary, includeEnvelope bool, includeIn
 		attributes = append(attributes, "ENVELOPE "+imapEnvelope(summary))
 	}
 	if includeModSeq {
-		attributes = append(attributes, fmt.Sprintf("MODSEQ (%d)", summary.ModSeq))
+		attributes = append(attributes, "MODSEQ ("+strconv.FormatUint(summary.ModSeq, 10)+")")
 	}
 	if includeBody {
 		if bodyAttribute == "" {
@@ -7841,17 +7844,33 @@ func (s *Server) writeStoreFetchResponses(writer *bufio.Writer, tag string, summ
 			return err
 		}
 		attributes := []string{
-			fmt.Sprintf("UID %d", summary.UID),
+			"UID " + strconv.FormatUint(uint64(summary.UID), 10),
 			"FLAGS " + imapFlagList(summary.Flags.IMAPFlags()),
 		}
 		if includeModSeq {
-			attributes = append(attributes, fmt.Sprintf("MODSEQ (%d)", summary.ModSeq))
+			attributes = append(attributes, "MODSEQ ("+strconv.FormatUint(summary.ModSeq, 10)+")")
 		}
-		if _, err := writer.WriteString(fmt.Sprintf("* %d FETCH (%s)\r\n", sequenceNumber, strings.Join(attributes, " "))); err != nil {
+		if err := writeIMAPFetchLine(writer, sequenceNumber, strings.Join(attributes, " "), ")"); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+func writeIMAPFetchLine(writer *bufio.Writer, sequenceNumber uint32, attributes string, tail string) error {
+	var buf [128]byte
+	out := append(buf[:0], "* "...)
+	out = strconv.AppendUint(out, uint64(sequenceNumber), 10)
+	out = append(out, " FETCH ("...)
+	out = append(out, attributes...)
+	out = append(out, tail...)
+	out = append(out, '\r', '\n')
+	_, err := writer.Write(out)
+	return err
+}
+
+func imapPartialOffsetSuffix(offset uint64) string {
+	return "<" + strconv.FormatUint(offset, 10) + ">"
 }
 
 func imapStoreSuccessfulSummaries(summaries []MessageSummary, modified *StoreModifiedError) []MessageSummary {
