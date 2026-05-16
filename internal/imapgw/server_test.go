@@ -13438,6 +13438,54 @@ func TestIMAPFetchDataItemsSyntaxAcceptsSupportedItems(t *testing.T) {
 	}
 }
 
+func TestIMAPCollapseWhitespace(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{name: "empty", input: "", want: ""},
+		{name: "trimmed", input: "  Hello\tworld\r\nthere  ", want: "Hello world there"},
+		{name: "tabs only", input: "\t\tfoo\tbar\t", want: "foo bar"},
+		{name: "preserve bytes", input: "imap", want: "imap"},
+	}
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			if got := imapCollapseWhitespace(tc.input); got != tc.want {
+				t.Fatalf("imapCollapseWhitespace(%q) = %q, want %q", tc.input, got, tc.want)
+			}
+		})
+	}
+}
+
+func TestIMAPEachNormalizedFetchToken(t *testing.T) {
+	t.Parallel()
+
+	var got []string
+	imapEachNormalizedFetchToken(" (uid \t flags\r\n body.peek[header.fields (subject from)] modseq) ", func(token string) bool {
+		got = append(got, token)
+		return true
+	})
+	want := []string{"UID", "FLAGS", "BODY.PEEK[HEADER.FIELDS", "(SUBJECT", "FROM)]", "MODSEQ"}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("imapEachNormalizedFetchToken tokens = %v, want %v", got, want)
+	}
+
+	var early []string
+	imapEachNormalizedFetchToken("(uid flags body)", func(token string) bool {
+		early = append(early, token)
+		return len(early) < 2
+	})
+	if !reflect.DeepEqual(early, []string{"UID", "FLAGS"}) {
+		t.Fatalf("imapEachNormalizedFetchToken early stop = %v, want [UID FLAGS]", early)
+	}
+}
+
 func TestReadIMAPSectionLiteral(t *testing.T) {
 	t.Parallel()
 

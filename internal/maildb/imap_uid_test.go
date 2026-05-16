@@ -261,6 +261,34 @@ func TestNormalizeIMAPMailboxLookupName(t *testing.T) {
 	}
 }
 
+func BenchmarkIMAPUIDArray1K(b *testing.B) {
+	benchIMAPUIDArray(b, 1_000)
+}
+
+func BenchmarkIMAPUIDArray10K(b *testing.B) {
+	benchIMAPUIDArray(b, 10_000)
+}
+
+func benchIMAPUIDArray(b *testing.B, count int) {
+	b.Helper()
+	uids := benchmarkIMAPUIDs(count)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		values := imapUIDArray(uids)
+		if len(values) != count {
+			b.Fatalf("imapUIDArray len = %d, want %d", len(values), count)
+		}
+	}
+}
+
+func benchmarkIMAPUIDs(count int) []imapgw.UID {
+	uids := make([]imapgw.UID, 0, count)
+	for len(uids) < count {
+		uids = append(uids, imapgw.UID(len(uids)+1))
+	}
+	return uids
+}
+
 func TestIMAPUIDBackfillAuditDetailSamplesAssignments(t *testing.T) {
 	t.Parallel()
 

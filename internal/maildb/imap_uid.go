@@ -9,11 +9,13 @@ import (
 	"math"
 	"net/mail"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/gogomail/gogomail/internal/audit"
 	"github.com/gogomail/gogomail/internal/imapgw"
+	"github.com/lib/pq"
 )
 
 type IMAPUIDState = imapgw.UIDState
@@ -157,8 +159,31 @@ func normalizeIMAPMailboxLookupName(value string) (string, bool) {
 	allowCompatLookup := value == strings.TrimSpace(value)
 	value = strings.Trim(value, `"`)
 	value = strings.Trim(value, "/")
-	value = strings.Join(strings.Fields(value), " ")
+	value = collapseIMAPMailboxLookupWhitespace(value)
 	return strings.ToLower(value), allowCompatLookup
+}
+
+func collapseIMAPMailboxLookupWhitespace(value string) string {
+	if value == "" {
+		return ""
+	}
+	out := make([]byte, 0, len(value))
+	inSpace := false
+	for i := 0; i < len(value); i++ {
+		switch value[i] {
+		case ' ', '\t', '\r', '\n':
+			if len(out) > 0 {
+				inSpace = true
+			}
+		default:
+			if inSpace {
+				out = append(out, ' ')
+				inSpace = false
+			}
+			out = append(out, value[i])
+		}
+	}
+	return string(out)
 }
 
 func (r *Repository) ListIMAPMessages(ctx context.Context, userID string, mailboxID string, limit int, afterUID imapgw.UID) ([]imapgw.MessageSummary, error) {
@@ -521,10 +546,7 @@ func (r *Repository) CopyIMAPMessages(ctx context.Context, userID string, source
 			return nil, fmt.Errorf("uid must not be zero")
 		}
 	}
-	rawUIDs, err := json.Marshal(uids)
-	if err != nil {
-		return nil, fmt.Errorf("encode imap copy uids: %w", err)
-	}
+	uidsArray := imapUIDArray(uids)
 
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -560,7 +582,7 @@ ON CONFLICT (mailbox_id) DO NOTHING`
 	const totalQuery = `
 WITH input AS (
   SELECT value::bigint AS uid
-  FROM jsonb_array_elements_text($4::jsonb)
+  FROM unnest($4::bigint[]) AS input(value)
 ),
 source AS (
   SELECT m.id, m.size
@@ -592,7 +614,7 @@ WHERE EXISTS (
     AND f.user_id = $1::uuid
 )`
 	var sourceCount int64
-	if err := tx.QueryRowContext(ctx, totalQuery, userID, sourceMailboxID, destMailboxID, string(rawUIDs)).Scan(&totalSize, &sourceCount); err != nil {
+	if err := tx.QueryRowContext(ctx, totalQuery, userID, sourceMailboxID, destMailboxID, pq.Array(uidsArray)).Scan(&totalSize, &sourceCount); err != nil {
 		return nil, fmt.Errorf("sum imap copy message sizes: %w", err)
 	}
 	if err := checkAndIncrementUserQuota(ctx, tx, userID, totalSize); err != nil {
@@ -605,7 +627,7 @@ WHERE EXISTS (
 	const copyQuery = `
 WITH input AS (
   SELECT value::bigint AS uid, ordinality
-  FROM jsonb_array_elements_text($4::jsonb) WITH ORDINALITY
+  FROM unnest($4::bigint[]) WITH ORDINALITY AS input(value, ordinality)
 ),
 locked_state AS (
   SELECT mailbox_id, user_id, uidnext, highest_modseq
@@ -829,7 +851,7 @@ FROM source
 JOIN inserted_messages ON inserted_messages.id = source.new_id
 JOIN inserted_uids ON inserted_uids.message_id = source.new_id
 ORDER BY source.rn`
-	rows, err := tx.QueryContext(ctx, copyQuery, userID, sourceMailboxID, destMailboxID, string(rawUIDs))
+	rows, err := tx.QueryContext(ctx, copyQuery, userID, sourceMailboxID, destMailboxID, pq.Array(uidsArray))
 	if err != nil {
 		return nil, fmt.Errorf("copy imap messages: %w", err)
 	}
@@ -907,10 +929,7 @@ func (r *Repository) ExpungeIMAPMessages(ctx context.Context, userID string, mai
 			return nil, fmt.Errorf("uid must not be zero")
 		}
 	}
-	rawUIDs, err := json.Marshal(uids)
-	if err != nil {
-		return nil, fmt.Errorf("encode imap expunge uids: %w", err)
-	}
+	uidsArray := imapUIDArray(uids)
 
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -921,7 +940,7 @@ func (r *Repository) ExpungeIMAPMessages(ctx context.Context, userID string, mai
 	const query = `
 WITH input AS (
   SELECT value::bigint AS uid
-  FROM jsonb_array_elements_text($4::jsonb)
+  FROM unnest($4::bigint[]) AS input(value)
 )
 SELECT
   m.id::text,
@@ -959,7 +978,7 @@ WHERE i.user_id = $1::uuid
   AND ($3::bool = false OR i.uid IN (SELECT uid FROM input))
 ORDER BY i.uid
 FOR UPDATE OF i, m`
-	rows, err := tx.QueryContext(ctx, query, userID, mailboxID, len(uids) > 0, string(rawUIDs))
+	rows, err := tx.QueryContext(ctx, query, userID, mailboxID, len(uids) > 0, pq.Array(uidsArray))
 	if err != nil {
 		return nil, fmt.Errorf("list imap expunge messages: %w", err)
 	}
@@ -1020,18 +1039,14 @@ FOR UPDATE OF i, m`
 		}
 		return nil, nil
 	}
-	rawMessageIDs, err := json.Marshal(messageIDs)
-	if err != nil {
-		return nil, fmt.Errorf("encode imap expunge message ids: %w", err)
-	}
 	if _, err := tx.ExecContext(ctx, `
 UPDATE messages
 SET status = 'deleted',
     deleted_at = now(),
     updated_at = now()
 WHERE user_id = $1::uuid
-  AND id IN (SELECT value::uuid FROM jsonb_array_elements_text($2::jsonb))
-  AND status = 'active'`, userID, string(rawMessageIDs)); err != nil {
+  AND id IN (SELECT value::uuid FROM unnest($2::uuid[]) AS input(value))
+  AND status = 'active'`, userID, pq.Array(messageIDs)); err != nil {
 		return nil, fmt.Errorf("expunge imap messages: %w", err)
 	}
 	if err := deleteIMAPUIDRowsForMessages(ctx, tx, userID, messageIDs); err != nil {
@@ -1074,10 +1089,7 @@ func (r *Repository) MoveIMAPMessages(ctx context.Context, userID string, source
 			return nil, fmt.Errorf("uid must not be zero")
 		}
 	}
-	rawUIDs, err := json.Marshal(uids)
-	if err != nil {
-		return nil, fmt.Errorf("encode imap move uids: %w", err)
-	}
+	uidsArray := imapUIDArray(uids)
 
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -1152,7 +1164,7 @@ FOR UPDATE`
 	const query = `
 WITH input AS (
   SELECT value::bigint AS uid, ordinality
-  FROM jsonb_array_elements_text($3::jsonb) WITH ORDINALITY
+  FROM unnest($3::bigint[]) WITH ORDINALITY AS input(value, ordinality)
 )
 SELECT
   m.id::text,
@@ -1191,7 +1203,7 @@ JOIN messages m
  AND m.status = 'active'
 ORDER BY input.ordinality
 FOR UPDATE OF i, m`
-	rows, err := tx.QueryContext(ctx, query, userID, sourceMailboxID, string(rawUIDs))
+	rows, err := tx.QueryContext(ctx, query, userID, sourceMailboxID, pq.Array(uidsArray))
 	if err != nil {
 		return nil, fmt.Errorf("list imap move messages: %w", err)
 	}
@@ -1261,17 +1273,13 @@ FOR UPDATE OF i, m`
 	if uint64(destState.uidNext)+uint64(len(messageIDs)) > math.MaxUint32 {
 		return nil, fmt.Errorf("imap destination uidnext exhausted")
 	}
-	rawMessageIDs, err := json.Marshal(messageIDs)
-	if err != nil {
-		return nil, fmt.Errorf("encode imap move message ids: %w", err)
-	}
 	if _, err := tx.ExecContext(ctx, `
 UPDATE messages
 SET folder_id = $3::uuid,
     updated_at = now()
 WHERE user_id = $1::uuid
-  AND id IN (SELECT value::uuid FROM jsonb_array_elements_text($2::jsonb))
-  AND status = 'active'`, userID, string(rawMessageIDs), destMailboxID); err != nil {
+  AND id IN (SELECT value::uuid FROM unnest($2::uuid[]) AS input(value))
+  AND status = 'active'`, userID, pq.Array(messageIDs), destMailboxID); err != nil {
 		return nil, fmt.Errorf("move imap messages: %w", err)
 	}
 
@@ -1448,11 +1456,11 @@ FOR UPDATE`
 	return nil
 }
 
-func countIMAPSourceUIDsTx(ctx context.Context, tx *sql.Tx, userID string, mailboxID string, rawUIDs string) (int64, error) {
+func countIMAPSourceUIDsTx(ctx context.Context, tx *sql.Tx, userID string, mailboxID string, uidsArray []string) (int64, error) {
 	const query = `
 WITH input AS (
   SELECT value::bigint AS uid
-  FROM jsonb_array_elements_text($3::jsonb)
+  FROM unnest($3::bigint[]) AS input(value)
 )
 SELECT COUNT(*)
 FROM input
@@ -1466,7 +1474,7 @@ JOIN messages m
  AND m.folder_id = $2::uuid
  AND m.status = 'active'`
 	var count int64
-	if err := tx.QueryRowContext(ctx, query, userID, mailboxID, rawUIDs).Scan(&count); err != nil {
+	if err := tx.QueryRowContext(ctx, query, userID, mailboxID, pq.Array(uidsArray)).Scan(&count); err != nil {
 		return 0, fmt.Errorf("count imap source uids: %w", err)
 	}
 	return count, nil
@@ -1484,10 +1492,7 @@ func (r *Repository) moveIMAPMessagesWithinMailbox(ctx context.Context, userID s
 			return nil, fmt.Errorf("uid must not be zero")
 		}
 	}
-	rawUIDs, err := json.Marshal(uids)
-	if err != nil {
-		return nil, fmt.Errorf("encode imap same-mailbox move uids: %w", err)
-	}
+	uidsArray := imapUIDArray(uids)
 
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -1505,7 +1510,7 @@ ON CONFLICT (mailbox_id) DO NOTHING`
 	if _, err := tx.ExecContext(ctx, ensureState, mailboxID, userID); err != nil {
 		return nil, fmt.Errorf("ensure imap same-mailbox move state: %w", err)
 	}
-	moveCount, err := countIMAPSourceUIDsTx(ctx, tx, userID, mailboxID, string(rawUIDs))
+	moveCount, err := countIMAPSourceUIDsTx(ctx, tx, userID, mailboxID, uidsArray)
 	if err != nil {
 		return nil, err
 	}
@@ -1516,7 +1521,7 @@ ON CONFLICT (mailbox_id) DO NOTHING`
 	const query = `
 WITH input AS (
   SELECT value::bigint AS uid, ordinality
-  FROM jsonb_array_elements_text($3::jsonb) WITH ORDINALITY
+  FROM unnest($3::bigint[]) WITH ORDINALITY AS input(value, ordinality)
 ),
 locked_state AS (
   SELECT mailbox_id, user_id, uidnext, highest_modseq
@@ -1773,7 +1778,7 @@ JOIN inserted_uids ON inserted_uids.message_id = source.new_id
 WHERE EXISTS (SELECT 1 FROM deleted_messages)
   AND EXISTS (SELECT 1 FROM deleted_uids)
 ORDER BY source.rn`
-	rows, err := tx.QueryContext(ctx, query, userID, mailboxID, string(rawUIDs))
+	rows, err := tx.QueryContext(ctx, query, userID, mailboxID, pq.Array(uidsArray))
 	if err != nil {
 		return nil, fmt.Errorf("move imap messages within mailbox: %w", err)
 	}
@@ -1864,15 +1869,10 @@ func (r *Repository) ExistingIMAPMessageUIDs(ctx context.Context, userID string,
 	if len(messageIDs) == 0 {
 		return nil, nil
 	}
-	rawIDs, err := json.Marshal(messageIDs)
-	if err != nil {
-		return nil, fmt.Errorf("encode imap uid message ids: %w", err)
-	}
-
 	const query = `
 WITH input AS (
   SELECT value::uuid AS message_id, ordinality
-  FROM jsonb_array_elements_text($2::jsonb) WITH ORDINALITY
+  FROM unnest($2::uuid[]) WITH ORDINALITY AS input(value, ordinality)
 )
 SELECT
   imu.message_id::text,
@@ -1891,7 +1891,7 @@ JOIN imap_message_uid imu
   ON imu.message_id = input.message_id
 WHERE imu.user_id = $1::uuid
 ORDER BY input.ordinality`
-	rows, err := r.db.QueryContext(ctx, query, userID, string(rawIDs))
+	rows, err := r.db.QueryContext(ctx, query, userID, pq.Array(messageIDs))
 	if err != nil {
 		return nil, fmt.Errorf("list existing imap message uids: %w", err)
 	}
@@ -1931,6 +1931,17 @@ func normalizeExistingIMAPMessageIDs(messageIDs []string) []string {
 	return out
 }
 
+func imapUIDArray(uids []imapgw.UID) []string {
+	if len(uids) == 0 {
+		return nil
+	}
+	values := make([]string, 0, len(uids))
+	for _, uid := range uids {
+		values = append(values, strconv.FormatUint(uint64(uid), 10))
+	}
+	return values
+}
+
 func (r *Repository) EnsureIMAPMessageUIDsForMessages(ctx context.Context, userID string, messageIDs []string) ([]IMAPMessageUID, error) {
 	if r.db == nil {
 		return nil, fmt.Errorf("database handle is required")
@@ -1943,15 +1954,10 @@ func (r *Repository) EnsureIMAPMessageUIDsForMessages(ctx context.Context, userI
 	if len(messageIDs) == 0 {
 		return nil, nil
 	}
-	rawIDs, err := json.Marshal(messageIDs)
-	if err != nil {
-		return nil, fmt.Errorf("encode imap message ids: %w", err)
-	}
-
 	const query = `
 WITH requested AS (
   SELECT value AS message_id, ord
-  FROM jsonb_array_elements_text($2::jsonb) WITH ORDINALITY AS requested(value, ord)
+  FROM unnest($2::uuid[]) WITH ORDINALITY AS requested(value, ord)
 )
 SELECT
   m.id::text,
@@ -1962,7 +1968,7 @@ JOIN messages m ON m.id = requested.message_id::uuid
 WHERE m.user_id = $1::uuid
   AND m.status = 'active'
 ORDER BY m.folder_id, internal_date, m.id`
-	rows, err := r.db.QueryContext(ctx, query, userID, string(rawIDs))
+	rows, err := r.db.QueryContext(ctx, query, userID, pq.Array(messageIDs))
 	if err != nil {
 		return nil, fmt.Errorf("list active imap message uid targets: %w", err)
 	}

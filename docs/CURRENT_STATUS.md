@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-17 (Webmail interaction polish)
+Last updated: 2026-05-17 (IMAP/POP3 fast path cleanup + query hydration)
 
 ## IMAP/POP3 Fast Path Cleanup (2026-05-17)
 - POP3 command parsing now uses a small ASCII scanner instead of `strings.Fields`, so common authorization and transaction commands avoid slice-heavy tokenization on the hot path.
@@ -12,6 +12,7 @@ Last updated: 2026-05-17 (Webmail interaction polish)
 - IMAP `APPEND`, `COPY`, `MOVE`, and mailbox-selection update paths now reuse the same numeric-response helper for common `EXISTS`, `EXPUNGE`, and `HIGHESTMODSEQ` notifications.
 - IMAP `APPENDUID` / `COPYUID` response-code assembly and UID-set formatting now use builder-style helpers instead of `fmt.Sprintf`, reducing allocation in bulk-copy and append flows.
 - IMAP `FETCH` response lines now write through a dedicated buffered helper so the most common message-read responses avoid `fmt.Sprintf` assembly on the hot path.
+- IMAP mailbox lookup normalization now collapses whitespace with a small local scanner instead of `strings.Fields`, so `SELECT`/`LIST` alias handling avoids token-slice allocation too.
 - IMAP `STATUS`, `UNSEEN`, bodystructure numeric fields, ordered-subject thread formatting, and conditional-store `MODIFIED` responses now use direct writer helpers or string assembly instead of `fmt.Sprintf`.
 - Verification: `go test ./...` passes and `go build ./...` succeeds after the fast-path cleanup.
 - Benchmarks: `BenchmarkParsePOP3Command` ~17.4 ns/op, 0 allocs; `BenchmarkWritePOP3Multiline` ~535.9 ns/op, 0 allocs; `BenchmarkIMAPTagFromCommandLine` ~17.8 ns/op, 0 allocs; `BenchmarkIMAPUIDSetResponse` ~69.5 ns/op, 2 allocs; `BenchmarkIMAPFetchLine` ~44.8 ns/op, 1 alloc.
@@ -76,6 +77,10 @@ Last updated: 2026-05-17 (Webmail interaction polish)
 - Batch lookup hydration now uses `unnest($2::uuid[]) WITH ORDINALITY` instead of JSON expansion, keeping external-ID hydration allocation-light and order-stable.
 - Thread batch lookup and bulk thread flag updates now use UUID array unnest joins instead of JSON expansion, reducing per-request parsing overhead for thread-scoped batch operations.
 - Thread message page lookup now splits root-thread and child-thread matching into UUID-friendly predicates so PostgreSQL can use the active thread lookup indexes.
+- IMAP UID batch operations now reuse typed UUID/bigint array parameters instead of JSON array expansion for copy, expunge, move, and UID hydration flows.
+- New IMAP UID array conversion benchmarks track 1k/10k conversion cost to guard against regressions in command-heavy mail clients.
+- Recent benchmark samples: `BenchmarkIMAPUIDArray1K` ~15.4 us/op, `BenchmarkIMAPUIDArray10K` ~169.9 us/op, `BenchmarkNormalizeSearchMessageIDs200` ~5.2 us/op, `BenchmarkSearchMessageIDsArrayValue10K` ~680 us/op.
+- IMAP FETCH token parsing now uses a scanner helper instead of repeated `strings.Fields`, and subject normalization collapses whitespace without building a token slice.
 - New partial lookup indexes cover active messages by mailbox time and active thread time ordering for the Phase 1 read hot path.
 - **Phase 2 (Bulk Delivery Batching)** Next:
   - Multi-recipient and same-domain batching

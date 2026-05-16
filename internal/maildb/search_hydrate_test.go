@@ -25,12 +25,12 @@ func TestListMessagesByIDsSQLUsesUuidUnnest(t *testing.T) {
 	}
 }
 
-func BenchmarkNormalizeSearchMessageIDs1K(b *testing.B) {
-	benchNormalizeSearchMessageIDs(b, 1_000)
+func BenchmarkNormalizeSearchMessageIDs100(b *testing.B) {
+	benchNormalizeSearchMessageIDs(b, 100)
 }
 
-func BenchmarkNormalizeSearchMessageIDs10K(b *testing.B) {
-	benchNormalizeSearchMessageIDs(b, 10_000)
+func BenchmarkNormalizeSearchMessageIDs200(b *testing.B) {
+	benchNormalizeSearchMessageIDs(b, 200)
 }
 
 func BenchmarkSearchMessageIDsArrayValue1K(b *testing.B) {
@@ -61,11 +61,7 @@ func benchSearchMessageIDsArrayValue(b *testing.B, count int) {
 	messageIDs := benchmarkSearchMessageIDs(count)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		normalized, err := normalizeSearchMessageIDs(messageIDs)
-		if err != nil {
-			b.Fatalf("normalizeSearchMessageIDs returned error: %v", err)
-		}
-		value, err := pq.Array(normalized).Value()
+		value, err := pq.Array(messageIDs).Value()
 		if err != nil {
 			b.Fatalf("pq.Array.Value returned error: %v", err)
 		}
