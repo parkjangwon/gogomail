@@ -1,6 +1,10 @@
 package imapgw
 
-import "testing"
+import (
+	"bufio"
+	"bytes"
+	"testing"
+)
 
 func TestIMAPTagFromCommandLine(t *testing.T) {
 	t.Parallel()
@@ -42,5 +46,22 @@ func BenchmarkIMAPUIDSetResponse(b *testing.B) {
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
 		_ = imapUIDSetResponse(uids)
+	}
+}
+
+func BenchmarkIMAPFetchLine(b *testing.B) {
+	var buf bytes.Buffer
+	writer := bufio.NewWriter(&buf)
+	attrs := "UID 7 FLAGS (\\Seen \\Flagged) RFC822.SIZE 1024"
+	tail := ")"
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		if err := writeIMAPFetchLine(writer, 42, attrs, tail); err != nil {
+			b.Fatalf("writeIMAPFetchLine: %v", err)
+		}
+		if err := writer.Flush(); err != nil {
+			b.Fatalf("flush: %v", err)
+		}
+		buf.Reset()
 	}
 }
