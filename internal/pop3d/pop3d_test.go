@@ -1892,6 +1892,23 @@ func TestPOP3RetrTopHideDeletedMessages(t *testing.T) {
 	pop3Cmd(t, tp, "-ERR", "TOP 1 0")
 }
 
+func TestPOP3TopRejectsNegativeLineCount(t *testing.T) {
+	_, listener := newTestServer(t)
+	defer listener.Close()
+
+	tp := pop3Conn(t, listener.Addr().String())
+	defer tp.Close()
+
+	pop3Login(t, tp)
+	if line := pop3Cmd(t, tp, "-ERR", "TOP 1 -1"); !strings.Contains(line, "syntax error") {
+		t.Fatalf("expected TOP negative line count to be rejected as syntax error, got: %s", line)
+	}
+	line := pop3Cmd(t, tp, "+OK", "STAT")
+	if !strings.Contains(line, "2 ") {
+		t.Fatalf("expected session to remain usable after TOP syntax error, got: %s", line)
+	}
+}
+
 // commitMailbox wraps mockMailbox and adds a CommitDeletes method.
 type commitMailbox struct {
 	*mockMailbox

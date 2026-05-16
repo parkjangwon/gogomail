@@ -6,6 +6,7 @@ Last updated: 2026-05-17 (Webmail interaction polish)
 - POP3 command parsing now uses a small ASCII scanner instead of `strings.Fields`, so common authorization and transaction commands avoid slice-heavy tokenization on the hot path.
 - POP3 multiline responses (`RETR`/`TOP`) now stream line-by-line directly to the buffered writer, with dot-stuffing and TOP header/body handling preserved without building intermediate line slices.
 - POP3 status responses for `STAT`, `LIST`, `UIDL`, and `RETR` now write directly to the wire buffer instead of going through `fmt.Sprintf` concatenation in the request path.
+- POP3 `TOP` now rejects negative line counts up front instead of treating them as silent zero-line requests, which makes the command framing stricter and easier to reason about.
 - IMAP framing-error tag extraction now uses a lightweight scanner instead of `strings.Fields`, reducing allocation on malformed-line handling.
 - Verification: `go test ./...` passes and `go build ./...` succeeds after the fast-path cleanup.
 
