@@ -78,4 +78,38 @@ test.describe('Drive upload queue', () => {
 
     await dialog.getByRole('button', { name: '취소' }).first().click();
   });
+
+  test('accepts multi-file drops while the upload modal is open', async ({ page }) => {
+    await page.goto('/login');
+    await page.getByLabel('이메일').fill('pjw@parkjw.org');
+    await page.getByLabel('비밀번호').fill('pass1234');
+    await page.getByRole('button', { name: '로그인' }).click();
+    await page.waitForURL(/\/mail/, { timeout: 15_000 });
+
+    await page.getByRole('button', { name: '드라이브' }).click();
+
+    const firstBatch = page.locator('input[type="file"]').first();
+    await firstBatch.setInputFiles([
+      { name: 'seed.txt', mimeType: 'text/plain', buffer: Buffer.from('seed') },
+    ]);
+
+    const modal = page.locator('[data-testid="drive-upload-modal"]');
+    await expect(modal).toBeVisible();
+
+    await modal.evaluate((node) => {
+      const dataTransfer = new DataTransfer();
+      dataTransfer.items.add(new File(['one'], 'modal-a.txt', { type: 'text/plain' }));
+      dataTransfer.items.add(new File(['two'], 'modal-b.txt', { type: 'text/plain' }));
+      dataTransfer.items.add(new File(['three'], 'modal-c.txt', { type: 'text/plain' }));
+
+      node.dispatchEvent(new DragEvent('dragover', { bubbles: true, cancelable: true, dataTransfer }));
+      node.dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer }));
+    });
+
+    await expect(modal.getByText('3개 선택')).toBeVisible();
+    await expect(modal.locator('div[title="seed.txt"]')).toBeVisible();
+    await expect(modal.locator('div[title="modal-a.txt"]')).toBeVisible();
+    await expect(modal.locator('div[title="modal-b.txt"]')).toBeVisible();
+    await expect(modal.locator('div[title="modal-c.txt"]')).toBeVisible();
+  });
 });

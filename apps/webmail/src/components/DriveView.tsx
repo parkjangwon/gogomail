@@ -1294,6 +1294,18 @@ export function DriveView() {
               role="dialog"
               aria-modal="true"
               aria-label="파일 업로드"
+              onDragOver={(e) => {
+                if (Array.from(e.dataTransfer.types).includes('Files')) {
+                  e.preventDefault();
+                  e.stopPropagation();
+                }
+              }}
+              onDrop={async (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const files = await collectDroppedFiles(e.dataTransfer);
+                if (files.length) await handleUploadEntries(files, currentParentId || undefined, 'drop');
+              }}
               style={{
                 position: 'fixed',
                 inset: 0,
