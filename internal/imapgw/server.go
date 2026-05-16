@@ -4852,7 +4852,7 @@ func (s *Server) handleAppend(writer *bufio.Writer, tag string, fields []string,
 	if summary.MailboxID == state.selectedMailbox {
 		state.selectedMessages = imapAppendExistsCount(state.selectedMessages, summary)
 		state.observeHighestModSeq(summary.ModSeq)
-		if _, err := writer.WriteString(fmt.Sprintf("* %d EXISTS\r\n", state.selectedMessages)); err != nil {
+		if err := writeIMAPUintLine(writer, "* ", uint64(state.selectedMessages), " EXISTS\r\n"); err != nil {
 			return false, err
 		}
 	}
@@ -5047,7 +5047,7 @@ func (s *Server) writeCopyResponse(writer *bufio.Writer, tag string, state *imap
 	if destMailbox.ID == state.selectedMailbox && len(summaries) > 0 {
 		state.selectedMessages = imapSummariesExistsCount(state.selectedMessages, summaries)
 		state.observeHighestModSeq(imapHighestSummaryModSeq(summaries))
-		if _, err := writer.WriteString(fmt.Sprintf("* %d EXISTS\r\n", state.selectedMessages)); err != nil {
+		if err := writeIMAPUintLine(writer, "* ", uint64(state.selectedMessages), " EXISTS\r\n"); err != nil {
 			return false, err
 		}
 	}
@@ -5096,7 +5096,7 @@ func (s *Server) writeMoveResponse(writer *bufio.Writer, tag string, state *imap
 	}
 	if highestModSeq := imapMoveHighestModSeq(summaries); highestModSeq > 0 {
 		state.observeHighestModSeq(highestModSeq)
-		if _, err := writer.WriteString(fmt.Sprintf("* OK [HIGHESTMODSEQ %d] %s source mod-sequence\r\n", highestModSeq, completionCommand)); err != nil {
+		if err := writeIMAPUintLine(writer, "* OK [HIGHESTMODSEQ ", highestModSeq, "] "+completionCommand+" source mod-sequence\r\n"); err != nil {
 			return false, err
 		}
 	}
@@ -5139,7 +5139,7 @@ func (s *Server) writeMovedExpungeResponses(writer *bufio.Writer, tag string, st
 		if adjusted == 0 {
 			adjusted = 1
 		}
-		if _, err := writer.WriteString(fmt.Sprintf("* %d EXPUNGE\r\n", adjusted)); err != nil {
+		if err := writeIMAPUintLine(writer, "* ", uint64(adjusted), " EXPUNGE\r\n"); err != nil {
 			return false, err
 		}
 	}
@@ -7600,7 +7600,7 @@ func (s *Server) handleEnable(writer *bufio.Writer, tag string, fields []string,
 	if enableCondstore && !wasCondstoreAware && state.selectedMailbox != "" {
 		if state.selectedHighestModSeq > 0 {
 			state.selectedNoModSeq = false
-			if _, err := writer.WriteString(fmt.Sprintf("* OK [HIGHESTMODSEQ %d] Highest mod-sequence\r\n", state.selectedHighestModSeq)); err != nil {
+			if err := writeIMAPUintLine(writer, "* OK [HIGHESTMODSEQ ", state.selectedHighestModSeq, "] Highest mod-sequence\r\n"); err != nil {
 				return false, err
 			}
 		} else {
