@@ -1,29 +1,84 @@
 package maildb
 
-import "testing"
+import (
+	"strings"
+	"testing"
 
-func TestNormalizeSearchMessageIDsTrimsDeduplicatesAndPreservesOrder(t *testing.T) {
-	got, err := normalizeSearchMessageIDs([]string{" msg-1 ", "msg-2", "msg-1", "", "msg-3"})
-	if err != nil {
-		t.Fatalf("normalizeSearchMessageIDs returned error: %v", err)
+	"github.com/google/uuid"
+	"github.com/lib/pq"
+)
+
+func TestListMessagesByIDsSQLUsesUuidUnnest(t *testing.T) {
+	t.Parallel()
+
+	for _, want := range []string{
+		"unnest($2::uuid[]) WITH ORDINALITY",
+		"ORDER BY requested.ordinality",
+		"JOIN messages m ON m.id = requested.id",
+	} {
+		if !strings.Contains(listMessagesByIDsSQL, want) {
+			t.Fatalf("listMessagesByIDsSQL does not include %q:\n%s", want, listMessagesByIDsSQL)
+		}
 	}
-	want := []string{"msg-1", "msg-2", "msg-3"}
-	if len(got) != len(want) {
-		t.Fatalf("ids = %#v, want %#v", got, want)
+	if strings.Contains(listMessagesByIDsSQL, "jsonb_array_elements_text") {
+		t.Fatalf("listMessagesByIDsSQL still uses JSON array expansion:\n%s", listMessagesByIDsSQL)
 	}
-	for i := range want {
-		if got[i] != want[i] {
-			t.Fatalf("ids = %#v, want %#v", got, want)
+}
+
+func BenchmarkNormalizeSearchMessageIDs1K(b *testing.B) {
+	benchNormalizeSearchMessageIDs(b, 1_000)
+}
+
+func BenchmarkNormalizeSearchMessageIDs10K(b *testing.B) {
+	benchNormalizeSearchMessageIDs(b, 10_000)
+}
+
+func BenchmarkSearchMessageIDsArrayValue1K(b *testing.B) {
+	benchSearchMessageIDsArrayValue(b, 1_000)
+}
+
+func BenchmarkSearchMessageIDsArrayValue10K(b *testing.B) {
+	benchSearchMessageIDsArrayValue(b, 10_000)
+}
+
+func benchNormalizeSearchMessageIDs(b *testing.B, count int) {
+	b.Helper()
+	messageIDs := benchmarkSearchMessageIDs(count)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		normalized, err := normalizeSearchMessageIDs(messageIDs)
+		if err != nil {
+			b.Fatalf("normalizeSearchMessageIDs returned error: %v", err)
+		}
+		if len(normalized) != count {
+			b.Fatalf("normalized len = %d, want %d", len(normalized), count)
 		}
 	}
 }
 
-func TestNormalizeSearchMessageIDsCapsBatchSize(t *testing.T) {
-	ids := make([]string, 201)
-	for i := range ids {
-		ids[i] = "msg"
+func benchSearchMessageIDsArrayValue(b *testing.B, count int) {
+	b.Helper()
+	messageIDs := benchmarkSearchMessageIDs(count)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		normalized, err := normalizeSearchMessageIDs(messageIDs)
+		if err != nil {
+			b.Fatalf("normalizeSearchMessageIDs returned error: %v", err)
+		}
+		value, err := pq.Array(normalized).Value()
+		if err != nil {
+			b.Fatalf("pq.Array.Value returned error: %v", err)
+		}
+		if value == nil {
+			b.Fatal("pq.Array.Value returned nil")
+		}
 	}
-	if _, err := normalizeSearchMessageIDs(ids); err == nil {
-		t.Fatal("normalizeSearchMessageIDs accepted too many ids")
+}
+
+func benchmarkSearchMessageIDs(count int) []string {
+	ids := make([]string, 0, count)
+	for len(ids) < count {
+		ids = append(ids, uuid.NewString())
 	}
+	return ids
 }

@@ -48,3 +48,20 @@ func TestThreadListSQLUsesLatestMessagePreview(t *testing.T) {
 		})
 	}
 }
+
+func TestThreadMessagesSQLUsesIndexedThreadMatch(t *testing.T) {
+	t.Parallel()
+
+	for _, want := range []string{
+		"messages.thread_id = $2::uuid",
+		"messages.id = $2::uuid",
+		"ORDER BY message_at ASC, id ASC",
+	} {
+		if !strings.Contains(threadMessagesPageSQL, want) {
+			t.Fatalf("threadMessagesPageSQL does not include %q:\n%s", want, threadMessagesPageSQL)
+		}
+	}
+	if strings.Contains(threadMessagesPageSQL, "COALESCE(messages.thread_id, messages.id)::text = $2") {
+		t.Fatalf("threadMessagesPageSQL still uses COALESCE thread match:\n%s", threadMessagesPageSQL)
+	}
+}
