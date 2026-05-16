@@ -31,9 +31,10 @@ Every protocol surface maps to a published RFC, and every design decision is fil
 | CardDAV + vCard | RFC 6352, 6350, 2426, 3744 | Production |
 | WebDAV / Drive gateway | RFC 4918 | Production |
 | LDAP directory gateway | RFC 4511, 4512, 4519 | Advanced |
-| Mail + Admin REST API | OpenAPI | Production |
+| Mail + Admin REST API | OpenAPI, API-key integrations | Production |
 | Drive / file storage | S3-compatible | Advanced |
 | Mail flow logs + analytics | PostgreSQL + OpenSearch | Advanced |
+| API metering | PostgreSQL usage ledger | Production |
 
 Current implementation detail: [`docs/CURRENT_STATUS.md`](docs/CURRENT_STATUS.md).
 
@@ -62,6 +63,14 @@ Enterprise administration console built with Next.js 15 and Cloudscape Design Sy
 - **Analytics** — API usage metrics, push notification analytics.
 - **System** — health checks, queue state, backpressure monitoring.
 
+### Product guide (VitePress)
+
+`apps/docs` contains the public GoGoMail guide. It is written as a dense operator and user guide, not a marketing site.
+
+- **Coverage** — Admin Console and Webmail are split into feature-specific pages, with a glossary for terms such as DKIM, SCIM provisioning, governance, retention, and delegation.
+- **Languages** — English, Korean, Japanese, and Simplified Chinese are handled through the docs i18n layer.
+- **External integration API** — documents API-key authentication, mailbox identity by email, request examples, error responses, scopes, and API metering for external systems such as intranet portals.
+
 ---
 
 ## Architecture
@@ -85,6 +94,18 @@ gogomail --mode=migration          # run database migrations
 ```
 
 **Infrastructure**: PostgreSQL, Redis, S3-compatible object storage (local, MinIO, or AWS S3).
+
+---
+
+## External integration API
+
+GoGoMail exposes server-to-server APIs for trusted external systems that need to embed mail features inside a portal, groupware, approval workflow, or internal dashboard.
+
+- **Authentication** — integrations use `Authorization: Bearer gm_...` API keys generated in the Admin Console. Keys are scoped and domain-bound.
+- **Mailbox identity** — prefer `X-Gogomail-User-Email` or `user_email` because external systems usually know the user's email address. `X-Gogomail-User-ID` and `user_id` remain available only for systems that already store GoGoMail internal user IDs.
+- **Scopes** — `mail:read` for counts, folders, and message lists; `mail:send` for compose/send flows; `mail:manage` for state-changing mailbox actions.
+- **Metering** — external API calls are recorded for usage reporting, quota analysis, and customer-facing billing or chargeback.
+- **Reference** — see `docs/openapi.yaml` for the machine-readable OpenAPI spec and the VitePress guide at `/admin-console/external-integration` for vendor-facing examples.
 
 ---
 
@@ -130,6 +151,19 @@ pnpm dev       # http://localhost:3000
 pnpm build
 ```
 
+### Docs guide
+
+Requirements: Node.js 22+, pnpm 10+
+
+```bash
+cd apps/docs
+pnpm install
+pnpm dev       # http://localhost:3005
+pnpm build
+```
+
+The local Korean guide starts at `http://localhost:3005/ko/`. The external integration API guide is available at `http://localhost:3005/ko/admin-console/external-integration`.
+
 ### Admin console
 
 Requirements: Node.js 20+, pnpm 8+
@@ -161,6 +195,8 @@ go test ./...                                # all tests
 go build ./...                               # build check
 tsc --noEmit -p apps/webmail/tsconfig.json   # webmail type check
 tsc --noEmit -p apps/console/tsconfig.json  # admin console type check
+pnpm --dir apps/docs type-check              # docs type check
+pnpm --dir apps/docs build                   # docs build
 ```
 
 The pre-commit hook enforces:
@@ -197,6 +233,7 @@ Full roadmap: [`docs/backend-roadmap.md`](docs/backend-roadmap.md).
 | `docs/backend-roadmap.md` | Full phase-by-phase roadmap with RFC references |
 | `docs/CURRENT_STATUS.md` | Detailed implementation status |
 | `docs/openapi.yaml` | OpenAPI spec for Mail + Admin APIs |
+| `apps/docs/` | VitePress product guide for Admin Console, Webmail, glossary, and external integration API |
 | `docs/adr/` | Architecture decision records |
 | `PROJECT_HARNESS.md` | Development loop contract for autonomous agents |
 
