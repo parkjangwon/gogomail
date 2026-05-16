@@ -32,7 +32,7 @@ Every protocol surface maps to a published RFC, and every design decision is fil
 | WebDAV / Drive gateway | RFC 4918 | Production |
 | LDAP directory gateway | RFC 4511, 4512, 4519 | Production |
 | Mail + Admin REST API | OpenAPI, API-key integrations | Production |
-| Drive / file storage | S3-compatible | Advanced |
+| Drive / file storage | S3-compatible | Production |
 | Mail flow logs + analytics | PostgreSQL + OpenSearch | Advanced |
 | API metering | PostgreSQL usage ledger | Production |
 

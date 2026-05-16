@@ -373,6 +373,8 @@ func (s *Service) storeUploadSessionBodyWithRange(ctx context.Context, req Store
 }
 
 func uploadSessionBodyReader(ctx context.Context, store storage.Store, session UploadSession, body io.Reader, contentRange ContentRange) (io.Reader, string, int64, error) {
+	// Chunked uploads reuse the locked prior object as the prefix of the next
+	// assembled body, so the caller stores one replacement object per commit.
 	if contentRange == (ContentRange{}) || contentRange.IsAsteriskForm {
 		return body, "", -1, nil
 	}
