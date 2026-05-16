@@ -223,13 +223,16 @@ async function collectDroppedFilesFromEntry(entry: FileSystemEntryLike, basePath
 
 async function collectDroppedFiles(dataTransfer: DataTransfer): Promise<DroppedFileEntry[]> {
   const entries: DroppedFileEntry[] = [];
+  const seen = new Set<string>();
+  const pushEntry = (file: File, relativePath: string) => {
+    const normalized = normalizeDroppedPath(relativePath || file.name);
+    const key = `${normalized}\u0000${file.size}\u0000${file.lastModified}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    entries.push({ file, relativePath: normalized });
+  };
+
   const dataTransferItemItems = Array.from(dataTransfer.items || []);
-
-  if (!dataTransferItemItems.length) {
-    const files = Array.from(dataTransfer.files || []);
-    return files.map((file) => ({ file, relativePath: file.name }));
-  }
-
   for (const item of dataTransferItemItems) {
     if (item.kind !== 'file') continue;
 
@@ -238,17 +241,20 @@ async function collectDroppedFiles(dataTransfer: DataTransfer): Promise<DroppedF
     };
     const entry = webkitLikeItem.webkitGetAsEntry?.() as FileSystemEntryLike | null;
     if (entry) {
-      await collectDroppedFilesFromEntry(entry, '', entries);
+      const nested: DroppedFileEntry[] = [];
+      await collectDroppedFilesFromEntry(entry, '', nested);
+      for (const child of nested) pushEntry(child.file, child.relativePath);
       continue;
     }
 
     const file = item.getAsFile();
-    if (file) entries.push({ file, relativePath: file.name });
+    if (file) pushEntry(file, file.name);
   }
 
-  if (entries.length === 0) {
-    const files = Array.from(dataTransfer.files || []);
-    return files.map((file) => ({ file, relativePath: file.name }));
+  const files = Array.from(dataTransfer.files || []);
+  for (const file of files) {
+    const relativePath = (file as File & { webkitRelativePath?: string }).webkitRelativePath?.trim() || file.name;
+    pushEntry(file, relativePath);
   }
 
   return entries;
@@ -1075,6 +1081,7 @@ export function DriveView() {
       ) : (
         /* Drive view */
         <div
+          data-testid="drive-drop-surface"
           style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', position: 'relative' }}
           onDragOver={(e) => {
             const isInternalDrive = isDriveNodeDrag(e.dataTransfer);
@@ -1090,7 +1097,7 @@ export function DriveView() {
             const payloadNodeId = getDriveNodeDragPayload(e.dataTransfer);
             if (payloadNodeId) return;
             const files = await collectDroppedFiles(e.dataTransfer);
-            if (files.length) await handleUploadEntries(files, currentParentId || undefined, 'picker');
+            if (files.length) await handleUploadEntries(files, currentParentId || undefined, 'drop');
           }}
         >
           {dragOver && (
@@ -1243,6 +1250,7 @@ export function DriveView() {
 
           {uploadPanelOpen && (
             <div
+              data-testid="drive-upload-modal"
               role="dialog"
               aria-modal="true"
               aria-label="파일 업로드"
