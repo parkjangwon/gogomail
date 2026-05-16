@@ -1400,6 +1400,41 @@ Accept: application/json`,
             ],
           },
           {
+            title: translated({ en: 'Choosing the mailbox user identifier', ko: '메일함 사용자 식별자 선택', ja: 'メールボックスユーザー識別子の選び方', 'zh-CN': '选择邮箱用户标识' }),
+            body: translated({
+              en: 'Use email address as the default identifier for external integrations. Most organization systems, intranet services, approval systems, and HR systems already store the user email address, while they usually do not know the GoGoMail internal user ID.',
+              ko: '외부 연동에서는 이메일 주소를 기본 식별자로 사용합니다. 일반적인 기관 포털, 그룹웨어, 결재 시스템, 인사 시스템은 사용자의 이메일 주소를 이미 가지고 있지만 GoGoMail 내부 사용자 ID는 모르는 경우가 대부분입니다.',
+              ja: '外部連携ではメールアドレスを既定の識別子として使います。一般的な組織ポータル、グループウェア、承認システム、人事システムは利用者のメールアドレスを保持していますが、GoGoMail 内部ユーザー ID は通常知りません。',
+              'zh-CN': '外部集成默认使用邮箱地址作为标识。常见机构门户、协同办公、审批系统和人事系统通常已经保存用户邮箱地址，但通常不知道 GoGoMail 内部用户 ID。',
+            }),
+            paragraphs: [
+              translated({
+                en: 'Prefer X-Gogomail-User-Email for server-to-server calls because it keeps the target mailbox out of URLs and logs that capture query strings. Use user_email when a simple GET URL is easier for the integration vendor. Use user_id or X-Gogomail-User-ID only for systems that have already synchronized and stored GoGoMail user IDs.',
+                ko: '서버 간 호출에서는 X-Gogomail-User-Email을 우선 사용합니다. 대상 메일함 정보가 URL과 쿼리 로그에 덜 남기 때문입니다. 연동 업체가 단순한 GET URL을 구성하기 쉬운 경우에는 user_email을 사용할 수 있습니다. user_id 또는 X-Gogomail-User-ID는 GoGoMail 사용자 ID를 이미 동기화해서 저장한 시스템에서만 사용합니다.',
+                ja: 'サーバー間呼び出しでは X-Gogomail-User-Email を優先します。対象メールボックス情報が URL やクエリログに残りにくいためです。連携ベンダーが単純な GET URL を作りやすい場合は user_email を使えます。user_id または X-Gogomail-User-ID は GoGoMail ユーザー ID を同期して保存済みのシステムだけで使います。',
+                'zh-CN': '服务器到服务器调用优先使用 X-Gogomail-User-Email，因为目标邮箱信息较少出现在 URL 和查询日志中。当集成厂商更容易构造简单 GET URL 时，可以使用 user_email。只有已经同步并保存 GoGoMail 用户 ID 的系统才使用 user_id 或 X-Gogomail-User-ID。',
+              }),
+              translated({
+                en: 'If both email and internal user ID are sent, GoGoMail resolves the email first and rejects the request when the two identifiers point to different users. This prevents an external system from accidentally reading or sending mail for the wrong mailbox.',
+                ko: '이메일과 내부 사용자 ID를 함께 보내면 GoGoMail은 이메일을 사용자로 해석한 뒤 두 식별자가 서로 다른 사용자를 가리키는 요청을 거부합니다. 이렇게 해야 외부 시스템이 실수로 다른 사람의 메일함을 읽거나 다른 사람 이름으로 메일을 보내는 일을 막을 수 있습니다.',
+                ja: 'メールアドレスと内部ユーザー ID を両方送ると、GoGoMail はメールアドレスをユーザーに解決し、2 つの識別子が別ユーザーを指す場合は拒否します。これにより、外部システムが誤って別のメールボックスを読んだり別ユーザーとして送信したりすることを防ぎます。',
+                'zh-CN': '如果同时发送邮箱和内部用户 ID，GoGoMail 会先把邮箱解析为用户；当两个标识指向不同用户时拒绝请求。这样可以避免外部系统误读他人邮箱或以错误用户身份发送邮件。',
+              }),
+            ],
+            items: ['X-Gogomail-User-Email', 'user_email', 'X-Gogomail-User-ID', 'user_id', console.nav.api_usage],
+            examples: [
+              {
+                title: translated({ en: 'Recommended user binding', ko: '권장 사용자 지정 방식', ja: '推奨ユーザー指定方式', 'zh-CN': '推荐用户绑定方式' }),
+                language: 'http',
+                code: `GET /api/v1/messages?folder_id=folder-inbox&read=false HTTP/1.1
+Host: mail.example.com
+Authorization: Bearer gm_REPLACE_WITH_ISSUED_KEY
+X-Gogomail-User-Email: user@example.com
+Accept: application/json`,
+              },
+            ],
+          },
+          {
             title: translated({ en: 'Permission scopes', ko: '권한 범위', ja: '権限スコープ', 'zh-CN': '权限范围' }),
             body: translated({
               en: 'The API key must carry a mail scope that matches the operation. Reading counts, folders, messages, searches, and attachments uses mail:read. Sending a message or sending a draft uses mail:send. Folder changes, message moves, deletes, restores, draft edits, attachment uploads, preferences, push devices, and profile changes use mail:manage.',
