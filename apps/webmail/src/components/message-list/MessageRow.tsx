@@ -57,6 +57,18 @@ export function MessageRow({
   const [hovered, setHovered] = useState(false);
   const [showSnoozePopover, setShowSnoozePopover] = useState(false);
   const swipeEnabled = onDelete || onArchiveRow;
+  const hoverActionStyle = {
+    background: 'none',
+    border: 'none',
+    cursor: 'pointer',
+    padding: '4px 4px 2px',
+    color: 'var(--color-text-tertiary)',
+    borderRadius: '4px',
+    display: 'inline-flex',
+    flexDirection: 'column' as const,
+    alignItems: 'center',
+    gap: '1px',
+  };
 
   return (
     <div
@@ -189,15 +201,18 @@ export function MessageRow({
           </div>
         </div>
 
-        <div style={{ width: '120px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '1px', alignSelf: 'center' }}>
+        <div style={{ width: '120px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '1px', alignSelf: 'center', position: 'relative', zIndex: 1, pointerEvents: 'auto' }}>
           {hovered ? (
             <>
               {onStar && (
                 <button
+                  type="button"
                   aria-label={message.starred ? '별표 해제' : '별표 추가'}
                   title={message.starred ? '별표 해제 (S)' : '별표 추가 (S)'}
+                  draggable={false}
+                  onMouseDown={(e) => e.stopPropagation()}
                   onClick={(e) => { e.stopPropagation(); onStar(message.id, !message.starred); }}
-                  style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px 4px 2px', color: message.starred ? '#f59e0b' : 'var(--color-text-tertiary)', borderRadius: '4px', display: 'inline-flex', flexDirection: 'column', alignItems: 'center', gap: '1px' }}
+                  style={{ ...hoverActionStyle, color: message.starred ? '#f59e0b' : 'var(--color-text-tertiary)' }}
                   onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-tertiary)'; }}
                   onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'none'; }}
                 >
@@ -207,10 +222,13 @@ export function MessageRow({
               )}
               {onHoverToggleRead && (
                 <button
+                  type="button"
                   aria-label={message.read ? '읽지 않음으로' : '읽음으로'}
                   title={message.read ? '읽지 않음으로 (M)' : '읽음으로 (M)'}
+                  draggable={false}
+                  onMouseDown={(e) => e.stopPropagation()}
                   onClick={(e) => { e.stopPropagation(); onHoverToggleRead(message.id, !message.read); }}
-                  style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px 4px 2px', color: 'var(--color-text-tertiary)', borderRadius: '4px', display: 'inline-flex', flexDirection: 'column', alignItems: 'center', gap: '1px' }}
+                  style={hoverActionStyle}
                   onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-tertiary)'; }}
                   onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'none'; }}
                 >
@@ -220,10 +238,13 @@ export function MessageRow({
               )}
               {onHoverArchive && (
                 <button
+                  type="button"
                   aria-label="아카이브"
                   title="아카이브 (E)"
+                  draggable={false}
+                  onMouseDown={(e) => e.stopPropagation()}
                   onClick={(e) => { e.stopPropagation(); onHoverArchive(message.id); }}
-                  style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px 4px 2px', color: 'var(--color-text-tertiary)', borderRadius: '4px', display: 'inline-flex', flexDirection: 'column', alignItems: 'center', gap: '1px' }}
+                  style={hoverActionStyle}
                   onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-tertiary)'; }}
                   onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'none'; }}
                 >
@@ -234,10 +255,13 @@ export function MessageRow({
               {onHoverSnooze && (
                 <div style={{ position: 'relative' }}>
                   <button
+                    type="button"
                     aria-label="다시 알림"
                     title="다시 알림 (Z)"
+                    draggable={false}
+                    onMouseDown={(e) => e.stopPropagation()}
                     onClick={(e) => { e.stopPropagation(); setShowSnoozePopover((v) => !v); }}
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px 4px 2px', color: 'var(--color-text-tertiary)', borderRadius: '4px', display: 'inline-flex', flexDirection: 'column', alignItems: 'center', gap: '1px' }}
+                    style={hoverActionStyle}
                     onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-tertiary)'; }}
                     onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'none'; }}
                   >
@@ -255,10 +279,13 @@ export function MessageRow({
               )}
               {onHoverPin && (
                 <button
+                  type="button"
                   aria-label={isPinned ? '핀 해제' : '핀 고정'}
                   title={isPinned ? '핀 해제 (P)' : '핀 고정 (P)'}
+                  draggable={false}
+                  onMouseDown={(e) => e.stopPropagation()}
                   onClick={(e) => { e.stopPropagation(); onHoverPin(message.id); }}
-                  style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px 4px 2px', color: isPinned ? 'var(--color-accent)' : 'var(--color-text-tertiary)', borderRadius: '4px', display: 'inline-flex', flexDirection: 'column', alignItems: 'center', gap: '1px' }}
+                  style={{ ...hoverActionStyle, color: isPinned ? 'var(--color-accent)' : 'var(--color-text-tertiary)' }}
                   onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-tertiary)'; }}
                   onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'none'; }}
                 >
@@ -268,10 +295,13 @@ export function MessageRow({
               )}
               {onHoverDelete && (
                 <button
+                  type="button"
                   aria-label="삭제"
                   title="삭제 (#)"
+                  draggable={false}
+                  onMouseDown={(e) => e.stopPropagation()}
                   onClick={(e) => { e.stopPropagation(); onHoverDelete(message.id); }}
-                  style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px 4px 2px', color: 'var(--color-text-tertiary)', borderRadius: '4px', display: 'inline-flex', flexDirection: 'column', alignItems: 'center', gap: '1px' }}
+                  style={hoverActionStyle}
                   onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-tertiary)'; }}
                   onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'none'; }}
                 >
