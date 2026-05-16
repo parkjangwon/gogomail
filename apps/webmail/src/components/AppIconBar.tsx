@@ -103,19 +103,31 @@ export function AppIconBar({ activeApp, onChangeApp, mailUnread }: AppIconBarPro
         borderRight: '1px solid var(--color-border-subtle)',
       }}
     >
-      {MAIN_APPS.map((app) => (
-        <AppBtn
-          key={app.id}
-          app={app}
-          isActive={activeApp === app.id}
-          onChangeApp={onChangeApp}
-          badge={app.id === 'mail' ? mailUnread : undefined}
-        />
-      ))}
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
+        {MAIN_APPS.map((app) => (
+          <AppBtn
+            key={app.id}
+            app={app}
+            isActive={activeApp === app.id}
+            onChangeApp={onChangeApp}
+            badge={app.id === 'mail' ? mailUnread : undefined}
+          />
+        ))}
+      </div>
       <div style={{ flex: 1 }} />
-      {BOTTOM_APPS.map((app) => (
-        <AppBtn key={app.id} app={app} isActive={activeApp === app.id} onChangeApp={onChangeApp} />
-      ))}
+      <div style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        gap: '2px',
+        width: '100%',
+        paddingTop: '8px',
+        borderTop: '1px solid var(--color-border-subtle)',
+      }}>
+        {BOTTOM_APPS.map((app) => (
+          <AppBtn key={app.id} app={app} isActive={activeApp === app.id} onChangeApp={onChangeApp} />
+        ))}
+      </div>
     </div>
   );
 }
