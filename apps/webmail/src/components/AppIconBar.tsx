@@ -1,6 +1,7 @@
 'use client';
 import { EnvelopeIcon, CalendarDaysIcon, UserGroupIcon, Cog6ToothIcon, CloudIcon, BookOpenIcon } from '@heroicons/react/24/outline';
 import { EnvelopeIcon as EnvelopeIconSolid, CalendarDaysIcon as CalendarSolid, UserGroupIcon as UserGroupSolid, Cog6ToothIcon as Cog6ToothSolid, CloudIcon as CloudSolid } from '@heroicons/react/24/solid';
+import { handleVerticalNavKeyDown } from '@/lib/navKeyboard';
 
 export type AppId = 'mail' | 'calendar' | 'contacts' | 'drive' | 'settings';
 
@@ -33,6 +34,8 @@ function AppBtn({ app, isActive, onChangeApp, badge }: { app: typeof MAIN_APPS[0
       aria-pressed={isActive}
       title={app.label}
       onClick={() => onChangeApp(app.id)}
+      data-nav-group="app-switcher"
+      onKeyDown={(e) => handleVerticalNavKeyDown(e, 'app-switcher')}
       style={{
         width: '36px',
         height: '36px',
@@ -94,6 +97,8 @@ function AppActionBtn({ label, icon, onClick }: { label: string; icon: React.Rea
       title={label}
       type="button"
       onClick={onClick}
+      data-nav-group="app-switcher"
+      onKeyDown={(e) => handleVerticalNavKeyDown(e, 'app-switcher')}
       style={{
         width: '36px',
         height: '36px',

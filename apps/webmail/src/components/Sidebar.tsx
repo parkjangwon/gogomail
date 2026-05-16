@@ -29,6 +29,7 @@ import {
 import { SettingsModal } from '@/components/SettingsModal';
 import { SidebarUserMenu } from './SidebarUserMenu';
 import { useWebmailAvatar } from '@/lib/webmailAvatar';
+import { handleVerticalNavKeyDown } from '@/lib/navKeyboard';
 
 
 export const VIRTUAL_ALL = '__all__';
@@ -219,6 +220,8 @@ export function Sidebar({
             <button
               aria-label="편지 쓰기"
               onClick={onCompose}
+              data-nav-group="sidebar-nav"
+              onKeyDown={(e) => handleVerticalNavKeyDown(e, 'sidebar-nav')}
               title="편지 쓰기"
               style={{ width: '36px', height: '36px', borderRadius: '6px', border: 'none', background: 'var(--color-accent)', cursor: 'pointer', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
             >
@@ -228,6 +231,8 @@ export function Sidebar({
               <button
                 aria-label="새창으로 쓰기"
                 onClick={onComposeInNewWindow}
+                data-nav-group="sidebar-nav"
+                onKeyDown={(e) => handleVerticalNavKeyDown(e, 'sidebar-nav')}
                 title="새창으로 쓰기"
                 style={{ width: '36px', height: '36px', borderRadius: '6px', border: '1px solid var(--color-border-default)', background: 'transparent', cursor: 'pointer', color: 'var(--color-text-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '8px' }}
               >
@@ -244,6 +249,8 @@ export function Sidebar({
                 <button
                   key={sf.systemType}
                   onClick={() => onSelectFolder(folderId)}
+                  data-nav-group="sidebar-nav"
+                  onKeyDown={(e) => handleVerticalNavKeyDown(e, 'sidebar-nav')}
                   title={sf.label}
                   aria-label={`${sf.label}${unread > 0 ? ` (읽지 않음 ${unread})` : ''}`}
                   style={{ position: 'relative', width: '36px', height: '36px', borderRadius: '6px', border: dragOverFolderId === folderId ? '2px solid var(--color-accent)' : 'none', background: isActive ? 'var(--color-bg-tertiary)' : 'transparent', cursor: 'pointer', fontSize: '18px', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'border 80ms ease' }}
@@ -284,6 +291,8 @@ export function Sidebar({
                   <button
                     key={vf.id}
                     onClick={() => onSelectFolder(vf.id)}
+                    data-nav-group="sidebar-nav"
+                    onKeyDown={(e) => handleVerticalNavKeyDown(e, 'sidebar-nav')}
                     aria-current={isActive ? 'page' : undefined}
                     style={{ width: 'calc(100% - 8px)', display: 'flex', alignItems: 'center', gap: '8px', padding: '7px 16px', border: '1px solid transparent', background: isActive ? 'var(--color-bg-tertiary)' : 'transparent', color: isActive ? 'var(--color-text-primary)' : 'var(--color-text-secondary)', fontSize: '14px', fontWeight: isActive ? 500 : 400, cursor: 'pointer', borderRadius: '4px', marginInline: '4px' } as CSSProperties}
                     onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.background = 'var(--color-bg-overlay)'; }}
@@ -403,6 +412,8 @@ export function Sidebar({
                       ) : (
                       <button
                           onClick={() => onSelectFolder(f.id)}
+                          data-nav-group="sidebar-nav"
+                          onKeyDown={(e) => handleVerticalNavKeyDown(e, 'sidebar-nav')}
                           aria-current={isActive ? 'page' : undefined}
                           style={{
                             width: '100%',
@@ -465,6 +476,8 @@ export function Sidebar({
                   ) : (
                     <button
                       onClick={() => setShowNewFolder(true)}
+                      data-nav-group="sidebar-nav"
+                      onKeyDown={(e) => handleVerticalNavKeyDown(e, 'sidebar-nav')}
                       style={{ width: '100%', textAlign: 'left', padding: '5px 12px', border: '1px solid transparent', background: 'transparent', color: 'var(--color-text-tertiary)', fontSize: '13px', cursor: 'pointer', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}
                       onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--color-text-secondary)'; }}
                       onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--color-text-tertiary)'; }}
