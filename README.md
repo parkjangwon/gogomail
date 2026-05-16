@@ -48,6 +48,20 @@ Keyboard-first webmail built with Next.js 15, Tailwind v4, and shadcn/ui.
 - **Drive** — S3-backed file manager with folder tree, share links, trash.
 - **Settings** — per-folder mailbox stats, async EML/ZIP backup, restore from EML/MBOX, JSON settings import/export, focus mode, accessibility (high contrast, reduced motion, screen reader).
 
+### Admin Console (Next.js 15)
+
+Enterprise administration console built with Next.js 15 and Cloudscape Design System (port 3001).
+
+- **Tenancy** — company · domain hierarchy management, domain onboarding, change history, tenant health.
+- **Organization** — SSO, SCIM provisioning, webhooks, org-wide signature, notification templates.
+- **Access** — address aliases, delegation, directory, group management.
+- **Mail** — flow logs, message trace, delivery attempts, outbox inspection, routing rules.
+- **Security** — DKIM keys, DMARC, MFA policy, IP access control, session management, spam filter, rate limits, API keys, retention policy, auth policy, SMTP policy, security posture score.
+- **Storage** — quota dashboard, per-seat usage, Drive management, attachment inventory, storage reconciliation.
+- **Compliance** — legal holds, data retention policy, audit logs.
+- **Analytics** — API usage metrics, push notification analytics.
+- **System** — health checks, queue state, backpressure monitoring.
+
 ---
 
 ## Architecture
@@ -116,6 +130,19 @@ pnpm dev       # http://localhost:3000
 pnpm build
 ```
 
+### Admin console
+
+Requirements: Node.js 20+, pnpm 8+
+
+```bash
+cd apps/console
+pnpm install
+pnpm dev       # http://localhost:3001
+pnpm build
+```
+
+Backend must be running on `http://localhost:8080` (or set `GOGOMAIL_BACKEND_URL`). Log in with your admin credentials.
+
 ### Seed data
 
 ```bash
@@ -133,6 +160,7 @@ Default login: `pjw@parkjw.org` / `pass1234`.
 go test ./...                                # all tests
 go build ./...                               # build check
 tsc --noEmit -p apps/webmail/tsconfig.json   # webmail type check
+tsc --noEmit -p apps/console/tsconfig.json  # admin console type check
 ```
 
 The pre-commit hook enforces:
