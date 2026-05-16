@@ -5,7 +5,6 @@ import {
   ContentLayout,
   Header,
   Button,
-  SpaceBetween,
   Box,
   Spinner,
   TextFilter,
@@ -156,15 +155,15 @@ export default function APIKeysPage() {
         </Header>
       }
     >
-      <SpaceBetween size="l">
-        {flashItems.length > 0 && <Flashbar items={flashItems} />}
+      <div style={{ display: 'grid', gap: 20 }}>
+        {flashItems.length > 0 && <Flashbar key="flashbar" items={flashItems} />}
 
         {domains.length === 0 && (
-          <Alert type="info">{t('pages.api_keys_page.no_domains')}</Alert>
+          <Alert key="no-domains" type="info">{t('pages.api_keys_page.no_domains')}</Alert>
         )}
 
         {domains.length > 0 && (
-          <FormField label={t('pages.api_keys_page.select_domain')}>
+          <FormField key="domain-select" label={t('pages.api_keys_page.select_domain')}>
             <Select
               selectedOption={selectedOption}
               options={domainOptions}
@@ -176,25 +175,28 @@ export default function APIKeysPage() {
         )}
 
         {selectedDomainId && keysLoading && (
-          <Box textAlign="center" padding="l">
+          <Box key="loading-keys" textAlign="center" padding="l">
             <Spinner />
           </Box>
         )}
 
         {selectedDomainId && !keysLoading && (
           <DataTable
+            key="api-keys-table"
             columnDefinitions={[
               {
+                id: 'name',
                 header: t('pages.api_keys_page.name'),
                 cell: (item: ApiKey) => (
-                  <SpaceBetween size="xxxs">
-                    <Box fontWeight="bold">{item.name}</Box>
-                    <Box color="text-body-secondary" fontSize="body-s">{item.id}</Box>
-                  </SpaceBetween>
+                  <div style={{ display: 'grid', gap: 2 }}>
+                    <Box key="api-key-name" fontWeight="bold">{item.name}</Box>
+                    <Box key="api-key-id" color="text-body-secondary" fontSize="body-s">{item.id}</Box>
+                  </div>
                 ),
                 width: '30%',
               },
               {
+                id: 'status',
                 header: t('pages.api_keys_page.status'),
                 cell: (item: ApiKey) => (
                   <StatusIndicator type={item.is_active ? 'success' : 'stopped'}>
@@ -204,6 +206,7 @@ export default function APIKeysPage() {
                 width: '15%',
               },
               {
+                id: 'last-used',
                 header: t('pages.api_keys.last_used'),
                 cell: (item: ApiKey) =>
                   item.last_used_at
@@ -212,15 +215,18 @@ export default function APIKeysPage() {
                 width: '20%',
               },
               {
+                id: 'created',
                 header: t('pages.api_keys.created'),
                 cell: (item: ApiKey) => new Date(item.created_at).toLocaleDateString(),
                 width: '15%',
               },
               {
+                id: 'actions',
                 header: t('common.actions'),
                 cell: (item: ApiKey) => (
-                  <SpaceBetween direction="horizontal" size="xs">
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                     <Button
+                      key="rotate"
                       variant="inline-link"
                       onClick={() => handleRotateKey(item.id)}
                       loading={rotatingId === item.id}
@@ -228,13 +234,14 @@ export default function APIKeysPage() {
                       {t('buttons.rotate')}
                     </Button>
                     <Button
+                      key="delete"
                       variant="inline-link"
                       onClick={() => handleDeleteKey(item.id)}
                       loading={deletingId === item.id}
                     >
                       {t('common.delete')}
                     </Button>
-                  </SpaceBetween>
+                  </div>
                 ),
                 width: '20%',
               },
@@ -262,24 +269,25 @@ export default function APIKeysPage() {
             }
             empty={
               <Box textAlign="center" padding="l">
-                <SpaceBetween size="m" alignItems="center">
-                  <StatusIndicator type="info">{t('pages.api_keys_page.no_keys')}</StatusIndicator>
-                  <Button variant="primary" onClick={() => { setCreatedSecret(null); setShowModal(true); }}>
+                <div style={{ display: 'grid', gap: 16, justifyItems: 'center' }}>
+                  <StatusIndicator key="no-keys" type="info">{t('pages.api_keys_page.no_keys')}</StatusIndicator>
+                  <Button key="create-empty" variant="primary" onClick={() => { setCreatedSecret(null); setShowModal(true); }}>
                     {t('pages.api_keys.create_key')}
                   </Button>
-                </SpaceBetween>
+                </div>
               </Box>
             }
           />
         )}
 
         {!selectedDomainId && domains.length > 0 && (
-          <Alert type="info">{t('pages.api_keys_page.info_message')}</Alert>
+          <Alert key="select-domain-info" type="info">{t('pages.api_keys_page.info_message')}</Alert>
         )}
-      </SpaceBetween>
+      </div>
 
       {/* Create Key Modal */}
       <Modal
+        key="create-key-modal"
         onDismiss={() => { setShowModal(false); setCreatedSecret(null); }}
         visible={showModal}
         footer={
@@ -291,9 +299,10 @@ export default function APIKeysPage() {
             </Box>
           ) : (
             <Box float="right">
-              <SpaceBetween direction="horizontal" size="xs">
-                <Button onClick={() => setShowModal(false)}>{t('common.cancel')}</Button>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <Button key="cancel-create" onClick={() => setShowModal(false)}>{t('common.cancel')}</Button>
                 <Button
+                  key="confirm-create"
                   variant="primary"
                   onClick={handleCreateKey}
                   loading={createKey.isPending}
@@ -301,16 +310,17 @@ export default function APIKeysPage() {
                 >
                   {t('pages.api_keys_page.create_btn')}
                 </Button>
-              </SpaceBetween>
+              </div>
             </Box>
           )
         }
         header={t('pages.api_keys_page.modal_header')}
       >
         {createdSecret ? (
-          <SpaceBetween size="m">
-            <Alert type="success">{t('pages.api_keys_page.key_created_success')}</Alert>
+          <div style={{ display: 'grid', gap: 16 }}>
+            <Alert key="created-success" type="success">{t('pages.api_keys_page.key_created_success')}</Alert>
             <FormField
+              key="created-secret"
               label={t('pages.api_keys_page.secret_label')}
               description={t('pages.api_keys_page.secret_desc')}
             >
@@ -324,7 +334,7 @@ export default function APIKeysPage() {
                 {createdSecret.secret}
               </Box>
             </FormField>
-          </SpaceBetween>
+          </div>
         ) : (
           <FormField
             label={t('pages.api_keys_page.key_name_label')}
@@ -341,6 +351,7 @@ export default function APIKeysPage() {
 
       {/* Rotate Secret Modal */}
       <Modal
+        key="rotate-key-modal"
         onDismiss={() => { setShowRotateModal(false); setRotatedSecret(null); }}
         visible={showRotateModal}
         footer={
@@ -352,10 +363,11 @@ export default function APIKeysPage() {
         }
         header={t('pages.api_keys_page.rotate_modal_header')}
       >
-        <SpaceBetween size="m">
-          <Alert type="warning">{t('pages.api_keys_page.rotate_warning')}</Alert>
+        <div style={{ display: 'grid', gap: 16 }}>
+          <Alert key="rotate-warning" type="warning">{t('pages.api_keys_page.rotate_warning')}</Alert>
           {rotatedSecret && (
             <FormField
+              key="rotated-secret"
               label={t('pages.api_keys_page.new_secret_label')}
               description={t('pages.api_keys_page.secret_desc')}
             >
@@ -370,7 +382,7 @@ export default function APIKeysPage() {
               </Box>
             </FormField>
           )}
-        </SpaceBetween>
+        </div>
       </Modal>
     </ContentLayout>
   );

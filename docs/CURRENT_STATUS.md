@@ -11,6 +11,9 @@ Last updated: 2026-05-16 (console/webmail E2E auth and navigation regression fix
   - User config selector de-duplicates users before rendering options.
 - Webmail dev skip-login behavior now only activates when explicitly enabled, avoiding cookie-less `/mail` redirect loops; the icon rail has bottom spacing so the settings button remains reachable above dev tooling.
 - New admin console menu-inventory E2E covers every sidebar menu route plus the top alert route for render stability, missing translations, placeholder headings, and page errors.
+- Admin console API Keys page no longer emits React key warnings under React 19 / Cloudscape; its table columns now have stable IDs and the page avoids the `SpaceBetween` child wrapping path that produced the warning.
+- Admin API proxy no longer forwards `Content-Type` on body-less GET/HEAD requests, preventing backend body guard 400s on list endpoints.
+- Alert event listing now reads the current `alert_notifications` schema introduced by migration 0105, and the duplicate legacy audit-log route registration was removed so current-source all-in-one API servers can start cleanly.
 - Verification:
   - `pnpm -C apps/console type-check` passes
   - `pnpm -C apps/console exec playwright test --project=chromium` passes (50 tests)

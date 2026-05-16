@@ -3032,8 +3032,6 @@ func runHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, mode M
 		logger.Info("admin api routes registered")
 		httpapi.RegisterOrgChartRoutes(mux, orgChartService, cfg.AdminToken)
 		logger.Info("organization routes registered")
-		httpapi.RegisterAuditLogRoutes(mux, audit.NewPostgresRepository(db), cfg.AdminToken)
-		logger.Info("audit log routes registered")
 		if cfg.SCIMToken != "" {
 			httpapi.RegisterSCIMRoutes(mux, &maildbSCIMUserService{
 				repo:            repository,
