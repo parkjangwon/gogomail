@@ -2040,6 +2040,8 @@ Last updated: 2026-05-16 (Drive upload UX resumable queue)
   - session response key corrected to `drive_upload_session`
   - finalize request switched to `/api/mail/drive/upload-sessions/{id}/finalize` without extra body
 - Fixed backend `insertDriveFileNode` argument mismatch in `internal/drive/repository.go` (removed extra argument in file insert), which was returning `expected 9 arguments, got 10`.
+- Drive upload UI now uses a centered modal queue with true parallel execution, removes internal session IDs from the visible row UI, and keeps resumable uploads in the queue UI only.
+- Duplicate active sibling-name conflicts on Drive file creation/finalize now map to HTTP 409, while folder creation stays idempotent by reusing the existing active folder on concurrent create races.
 - Verification: real file from `/Users/Downloads` upload succeeded through `POST /api/v1/drive/upload-sessions`, `PUT /body`, `POST /finalize`; result node appears in `GET /api/v1/drive/nodes`.
 
 ## Webmail drive file type icon refresh (2026-05-12, complete)

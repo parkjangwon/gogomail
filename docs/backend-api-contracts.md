@@ -203,7 +203,8 @@ or development `user_id` fallback path as webmail mail routes:
   authenticated/fallback user, exposing quota ledger values, status-scoped node
   counts and bytes, and pending/uploading/failed upload-session counts.
 - `POST /api/v1/drive/folders` creates a folder from `{"parent_id","name"}`
-  and returns `{"drive_node":{...}}`.
+  and returns `{"drive_node":{...}}`; concurrent duplicate folder creates
+  reuse the existing active folder so folder creation stays idempotent.
 - `POST /api/v1/drive/upload-sessions` creates a pending upload session from
   `{"parent_id","name","declared_size","mime_type","storage_backend",
   "expires_at"}` and returns `{"drive_upload_session":{...}}`; `expires_at`
@@ -230,15 +231,17 @@ or development `user_id` fallback path as webmail mail routes:
 - `POST /api/v1/drive/upload-sessions/{id}/finalize` verifies the stored body
   through shared storage, creates quota-accounted Drive file metadata, marks
   the session finalized, and returns `{"drive_node":{...}}`; quota exhaustion
-  maps to HTTP 507 `insufficient_storage`. Stored upload-session bodies must
+  maps to HTTP 507 `insufficient_storage`, and active sibling-name conflicts
+  map to HTTP 409 `Conflict`. Stored upload-session bodies must
   stay under the authenticated user's `drive/users/{user_id}/...` object prefix
   before storage adapter reads or cleanup deletes.
 - `POST /api/v1/drive/files/finalize` verifies an existing staged object,
   creates file metadata, and increments the unified company/domain/user quota
   ledger from `{"parent_id","name","storage_backend","storage_path",
   "mime_type","checksum_sha256"}`. Quota exhaustion maps to HTTP 507
-  `insufficient_storage`. The storage path must stay under the authenticated
-  user's `drive/users/{user_id}/...` object prefix.
+  `insufficient_storage`, and active sibling-name conflicts map to HTTP 409
+  `Conflict`. The storage path must stay under the authenticated user's
+  `drive/users/{user_id}/...` object prefix.
 - `PUT /api/v1/drive/files/staged/{upload_id}/body` streams a bounded object
   body into the requested `storage_backend`, derives a stable
   `drive/users/{user_id}/staging/{upload_id}` key, returns

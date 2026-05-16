@@ -2,11 +2,13 @@ package drive
 
 import (
 	"context"
+	"errors"
 	"io"
 	"strings"
 	"testing"
 
 	"github.com/gogomail/gogomail/internal/storage"
+	"github.com/jackc/pgx/v5/pgconn"
 )
 
 func TestValidateCreateFolderRequest(t *testing.T) {
@@ -105,6 +107,18 @@ func TestValidateCreateFileFromObjectRequestRejectsUnsafeInput(t *testing.T) {
 				t.Fatalf("ValidateCreateFileFromObjectRequest(%+v) error = nil, want rejection", tc)
 			}
 		})
+	}
+}
+
+func TestMapDriveFileCreateError(t *testing.T) {
+	t.Parallel()
+
+	err := mapDriveFileCreateError(&pgconn.PgError{
+		Code:           "23505",
+		ConstraintName: "idx_drive_nodes_user_active_sibling_name",
+	})
+	if !errors.Is(err, ErrDriveNodeAlreadyExists) {
+		t.Fatalf("mapped error = %v, want ErrDriveNodeAlreadyExists", err)
 	}
 }
 

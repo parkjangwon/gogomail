@@ -43,8 +43,10 @@ async function handler(
   const cookieStore = await cookies();
   const token = cookieStore.get('webmail_token')?.value;
   if (token) headers.set('Authorization', `Bearer ${token}`);
-  const ct = req.headers.get('content-type');
-  if (ct) headers.set('Content-Type', ct);
+  for (const name of ['content-type', 'content-range', 'x-content-sha256', 'range']) {
+    const value = req.headers.get(name);
+    if (value) headers.set(name, value);
+  }
 
   let body: ArrayBuffer | undefined;
   if (req.method !== 'GET' && req.method !== 'HEAD') {

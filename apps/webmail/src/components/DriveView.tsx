@@ -19,6 +19,22 @@ import {
 import { FolderIcon as FolderSolid, TrashIcon as TrashSolid } from '@heroicons/react/24/solid';
 
 type DriveUploadStatus = 'queued' | 'creating_session' | 'uploading' | 'paused' | 'finalizing' | 'done' | 'error' | 'canceled';
+type DriveUploadSource = 'picker' | 'folder' | 'drop';
+
+const DRIVE_UPLOAD_CONCURRENCY = 3;
+
+type DriveUploadBatch = {
+  id: string;
+  source: DriveUploadSource;
+  fileCount: number;
+  totalBytes: number;
+  files: Array<{
+    name: string;
+    relativePath: string;
+    size: number;
+  }>;
+  createdAt: number;
+};
 
 type DriveUploadItem = {
   id: string;
@@ -33,11 +49,13 @@ type DriveUploadItem = {
   storageBackend?: string;
   error?: string;
   node?: DriveNode;
+  batchId?: string;
+  source?: DriveUploadSource;
 };
 
 const DRIVE_UPLOAD_STATUS_LABELS: Record<DriveUploadStatus, string> = {
   queued: '대기 중',
-  creating_session: '세션 생성 중',
+  creating_session: '준비 중',
   uploading: '업로드 중',
   paused: '일시정지',
   finalizing: '마무리 중',
@@ -140,6 +158,31 @@ function normalizeDroppedPath(path: string): string {
   return path.replace(/[\\/]+/g, '/').replace(/^\/+|\/+$/g, '');
 }
 
+function getDriveUploadSourceLabel(source: DriveUploadSource): string {
+  switch (source) {
+    case 'picker':
+      return '파일 선택';
+    case 'folder':
+      return '폴더 선택';
+    case 'drop':
+      return '드롭';
+  }
+}
+
+function formatDriveUploadError(error: unknown): string {
+  const message = error instanceof Error ? error.message : String(error ?? '업로드 실패');
+  const lower = message.toLowerCase();
+  if (
+    lower.includes('duplicate key') ||
+    lower.includes('already exists') ||
+    lower.includes('conflict') ||
+    lower.includes('same name')
+  ) {
+    return '같은 이름의 파일이 이미 있습니다. 이름을 바꾸거나 기존 파일을 정리한 뒤 다시 시도하세요.';
+  }
+  return message || '업로드 실패';
+}
+
 async function readAllEntries(reader: DirectoryReaderLike): Promise<FileSystemEntryLike[]> {
   const entries: FileSystemEntryLike[] = [];
   while (true) {
@@ -225,7 +268,9 @@ export function DriveView() {
   const [shareNode, setShareNode] = useState<DriveNode | null>(null);
   const [newFolderMode, setNewFolderMode] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
+  const [driveUploadBatch, setDriveUploadBatch] = useState<DriveUploadBatch | null>(null);
   const [driveUploads, setDriveUploads] = useState<DriveUploadItem[]>([]);
+  const [driveUploadModalOpen, setDriveUploadModalOpen] = useState(false);
   const [driveUploadResumable, setDriveUploadResumable] = useState<boolean | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const [draggingNodeIds, setDraggingNodeIds] = useState<string[]>([]);
@@ -241,8 +286,10 @@ export function DriveView() {
   const renameRef = useRef<HTMLInputElement>(null);
   const driveUploadControllersRef = useRef<Map<string, AbortController>>(new Map());
   const driveUploadAbortReasonsRef = useRef<Map<string, 'pause' | 'cancel'>>(new Map());
+  const driveUploadActiveIdsRef = useRef<Set<string>>(new Set());
   const driveUploadsRef = useRef<DriveUploadItem[]>([]);
-  const driveUploadProcessingRef = useRef(false);
+  const driveUploadSchedulerRef = useRef(false);
+  const driveUploadModalDismissedRef = useRef(false);
 
   const currentParentId = breadcrumb[breadcrumb.length - 1]?.id ?? '';
 
@@ -250,6 +297,24 @@ export function DriveView() {
     const withPath = (file as File & { webkitRelativePath?: string }).webkitRelativePath;
     if (withPath && withPath.trim()) return normalizeDroppedPath(withPath);
     return file.name;
+  }
+
+  function buildDriveUploadBatch(
+    source: DriveUploadSource,
+    files: Array<{ file: File; relativePath: string }>,
+  ): DriveUploadBatch {
+    return {
+      id: crypto.randomUUID(),
+      source,
+      fileCount: files.length,
+      totalBytes: files.reduce((sum, item) => sum + item.file.size, 0),
+      files: files.slice(0, 6).map((item) => ({
+        name: item.file.name,
+        relativePath: item.relativePath,
+        size: item.file.size,
+      })),
+      createdAt: Date.now(),
+    };
   }
 
   useEffect(() => {
@@ -478,86 +543,105 @@ export function DriveView() {
     getDriveUsage().then(setUsage);
   }, [currentParentId, loadNodes]);
 
-  const processDriveUploads = useCallback(async () => {
-    if (driveUploadProcessingRef.current) return;
-    driveUploadProcessingRef.current = true;
+  const runDriveUpload = useCallback(async (uploadId: string) => {
+    const next = driveUploadsRef.current.find((item) => item.id === uploadId);
+    if (!next || next.status !== 'queued') return;
+
+    driveUploadActiveIdsRef.current.add(next.id);
+    const controller = new AbortController();
+    driveUploadControllersRef.current.set(next.id, controller);
+    driveUploadAbortReasonsRef.current.delete(next.id);
+
     try {
-      while (true) {
-        const next = driveUploadsRef.current.find((item) => item.status === 'queued');
-        if (!next) break;
+      updateDriveUpload(next.id, (item) => ({
+        ...item,
+        status: 'creating_session',
+        error: undefined,
+      }));
 
-        const controller = new AbortController();
-        driveUploadControllersRef.current.set(next.id, controller);
-        driveUploadAbortReasonsRef.current.delete(next.id);
-
-        try {
+      const node = await uploadDriveFileWithOptions(next.file, {
+        parentId: next.parentId,
+        resumable: next.resumable,
+        resumeSessionId: next.sessionId,
+        signal: controller.signal,
+        onProgress: (progress) => {
           updateDriveUpload(next.id, (item) => ({
             ...item,
-            status: 'creating_session',
-            error: undefined,
+            status: progress.phase === 'creating_session'
+              ? 'creating_session'
+              : progress.phase === 'finalizing'
+                ? 'finalizing'
+                : 'uploading',
+            sessionId: progress.sessionId ?? item.sessionId,
+            storageBackend: progress.storageBackend ?? item.storageBackend,
+            uploadedBytes: progress.uploadedBytes,
+            totalBytes: progress.totalBytes,
           }));
+        },
+      });
 
-          const node = await uploadDriveFileWithOptions(next.file, {
-            parentId: next.parentId,
-            resumable: next.resumable,
-            resumeSessionId: next.sessionId,
-            signal: controller.signal,
-            onProgress: (progress) => {
-              updateDriveUpload(next.id, (item) => ({
-                ...item,
-                status: progress.phase === 'creating_session'
-                  ? 'creating_session'
-                  : progress.phase === 'finalizing'
-                    ? 'finalizing'
-                    : 'uploading',
-                sessionId: progress.sessionId ?? item.sessionId,
-                storageBackend: progress.storageBackend ?? item.storageBackend,
-                uploadedBytes: progress.uploadedBytes,
-                totalBytes: progress.totalBytes,
-              }));
-            },
-          });
-
-          updateDriveUpload(next.id, (item) => ({
-            ...item,
-            status: 'done',
-            uploadedBytes: item.totalBytes,
-            node: node ?? item.node,
-            error: undefined,
-          }));
-          await refreshDriveNodes();
-        } catch (error) {
-          const reason = driveUploadAbortReasonsRef.current.get(next.id);
-          if (controller.signal.aborted || reason === 'pause' || reason === 'cancel') {
-            updateDriveUpload(next.id, (item) => ({
-              ...item,
-              status: reason === 'cancel' ? 'canceled' : 'paused',
-              error: undefined,
-            }));
-          } else {
-            const message = error instanceof Error ? error.message : '업로드 실패';
-            updateDriveUpload(next.id, (item) => ({
-              ...item,
-              status: 'error',
-              error: message,
-            }));
-          }
-        } finally {
-          driveUploadControllersRef.current.delete(next.id);
-          driveUploadAbortReasonsRef.current.delete(next.id);
-        }
+      updateDriveUpload(next.id, (item) => ({
+        ...item,
+        status: 'done',
+        uploadedBytes: item.totalBytes,
+        node: node ?? item.node,
+        error: undefined,
+      }));
+      await refreshDriveNodes();
+    } catch (error) {
+      const reason = driveUploadAbortReasonsRef.current.get(next.id);
+      if (controller.signal.aborted || reason === 'pause' || reason === 'cancel') {
+        updateDriveUpload(next.id, (item) => ({
+          ...item,
+          status: reason === 'cancel' ? 'canceled' : 'paused',
+          error: undefined,
+        }));
+      } else {
+        const message = formatDriveUploadError(error);
+        updateDriveUpload(next.id, (item) => ({
+          ...item,
+          status: 'error',
+          error: message,
+        }));
       }
     } finally {
-      driveUploadProcessingRef.current = false;
+      driveUploadControllersRef.current.delete(next.id);
+      driveUploadAbortReasonsRef.current.delete(next.id);
+      driveUploadActiveIdsRef.current.delete(next.id);
+      driveUploadSchedulerRef.current = false;
+      void scheduleDriveUploads();
     }
   }, [refreshDriveNodes, updateDriveUpload]);
 
-  useEffect(() => {
-    void processDriveUploads();
-  }, [driveUploads, processDriveUploads]);
+  const scheduleDriveUploads = useCallback(() => {
+    if (driveUploadSchedulerRef.current) return;
+    driveUploadSchedulerRef.current = true;
+    try {
+      const runningCount = driveUploadActiveIdsRef.current.size;
+      let availableSlots = DRIVE_UPLOAD_CONCURRENCY - runningCount;
+      while (availableSlots > 0) {
+        const next = driveUploadsRef.current.find((item) => item.status === 'queued' && !driveUploadActiveIdsRef.current.has(item.id));
+        if (!next) break;
+        availableSlots -= 1;
+        void runDriveUpload(next.id);
+      }
+    } finally {
+      driveUploadSchedulerRef.current = false;
+    }
+  }, [runDriveUpload]);
 
-  const enqueueDriveUploads = useCallback((items: Array<{ file: File; relativePath: string; parentId?: string; resumable: boolean }>) => {
+  useEffect(() => {
+    void scheduleDriveUploads();
+  }, [driveUploads, scheduleDriveUploads]);
+
+  const enqueueDriveUploads = useCallback((
+    items: Array<{ file: File; relativePath: string; parentId?: string; resumable: boolean; batchId: string; source: DriveUploadSource }>,
+    batch?: DriveUploadBatch | null,
+  ) => {
     if (!items.length) return;
+    driveUploadModalDismissedRef.current = false;
+    setDriveUploadModalOpen(true);
+    if (batch) setDriveUploadBatch(batch);
     setDriveUploads((prev) => [
       ...prev,
       ...items.map((item) => ({
@@ -569,14 +653,16 @@ export function DriveView() {
         uploadedBytes: 0,
         totalBytes: item.file.size,
         resumable: item.resumable,
+        batchId: item.batchId,
+        source: item.source,
       })),
     ]);
-    void processDriveUploads();
-  }, [processDriveUploads]);
+    void scheduleDriveUploads();
+  }, [scheduleDriveUploads]);
 
-  async function handleUploadEntries(files: DroppedFileEntry[], targetParentId?: string) {
+  async function handleUploadEntries(files: DroppedFileEntry[], targetParentId?: string, source: DriveUploadSource = 'drop') {
     const folderCache = getFolderCache();
-    const queueItems: Array<{ file: File; relativePath: string; parentId?: string; resumable: boolean }> = [];
+    const queueItems: Array<{ file: File; relativePath: string; parentId?: string; resumable: boolean; batchId: string; source: DriveUploadSource }> = [];
 
     for (const item of files) {
       const relPath = normalizeDroppedPath(item.relativePath);
@@ -590,15 +676,19 @@ export function DriveView() {
         relativePath: relPath,
         parentId: uploadParentId || undefined,
         resumable: driveUploadResumable === true,
+        batchId: '',
+        source,
       });
     }
 
-    enqueueDriveUploads(queueItems);
+    if (!queueItems.length) return;
+    const batch = buildDriveUploadBatch(source, queueItems);
+    enqueueDriveUploads(queueItems.map((item) => ({ ...item, batchId: batch.id })), batch);
   }
 
-  function handleUploadFromList(files: FileList, targetParentId?: string) {
+  function handleUploadFromList(files: FileList, targetParentId?: string, source: DriveUploadSource = 'picker') {
     const entries = Array.from(files).map((file) => ({ file, relativePath: getUploadRelativePath(file) }));
-    handleUploadEntries(entries, targetParentId).catch(() => {});
+    handleUploadEntries(entries, targetParentId, source).catch(() => {});
   }
 
   function pauseDriveUpload(uploadId: string) {
@@ -614,7 +704,9 @@ export function DriveView() {
       status: 'queued',
       error: undefined,
     }));
-    await processDriveUploads();
+    driveUploadModalDismissedRef.current = false;
+    setDriveUploadModalOpen(true);
+    await scheduleDriveUploads();
   }
 
   async function cancelDriveUpload(uploadId: string) {
@@ -683,7 +775,15 @@ export function DriveView() {
 
   const usedPct = usage && usage.quota_limit > 0 ? Math.min(100, (usage.quota_used / usage.quota_limit) * 100) : 0;
   const barColor = usedPct >= 90 ? '#ef4444' : usedPct >= 70 ? '#f59e0b' : '#22c55e';
-  const activeDriveUploads = driveUploads.filter((item) => item.status === 'queued' || item.status === 'creating_session' || item.status === 'uploading' || item.status === 'finalizing');
+  const activeDriveUploads = driveUploads.filter((item) => item.status === 'creating_session' || item.status === 'uploading' || item.status === 'finalizing');
+  const queuedDriveUploads = driveUploads.filter((item) => item.status === 'queued');
+  const completedDriveUploads = driveUploads.filter((item) => item.status === 'done' || item.status === 'canceled');
+  const erroredDriveUploads = driveUploads.filter((item) => item.status === 'error');
+  const totalDriveUploadBytes = driveUploads.reduce((sum, item) => sum + item.totalBytes, 0);
+  const totalDriveUploadProgressBytes = driveUploads.reduce((sum, item) => sum + Math.min(item.uploadedBytes, item.totalBytes), 0);
+  const uploadProgressPct = totalDriveUploadBytes > 0 ? Math.min(100, Math.round((totalDriveUploadProgressBytes / totalDriveUploadBytes) * 100)) : 0;
+  const uploadPanelOpen = driveUploadModalOpen && driveUploads.length > 0;
+  const uploadBatchNames = driveUploadBatch?.files ?? [];
   const draggingNodeNames = draggingNodeIds
     .map((id) => nodes.find((node) => node.id === id)?.name)
     .filter(Boolean) as string[];
@@ -760,7 +860,7 @@ export function DriveView() {
                     return;
                   }
                   const files = await collectDroppedFiles(e.dataTransfer);
-                  if (files.length) await handleUploadEntries(files, folder.id);
+                  if (files.length) await handleUploadEntries(files, folder.id, 'drop');
                   setDropTargetFolderId(null);
                 }}
               >
@@ -850,7 +950,7 @@ export function DriveView() {
                 return;
               }
               const files = await collectDroppedFiles(e.dataTransfer);
-              if (files.length) await handleUploadEntries(files, undefined);
+              if (files.length) await handleUploadEntries(files, undefined, 'drop');
               setDropTargetFolderId(null);
             }}
             style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '7px 10px', borderRadius: '6px', border: 'none', background: activeSection === 'drive' || sidebarDropTargetActive ? 'var(--color-accent-subtle)' : 'transparent', color: activeSection === 'drive' ? 'var(--color-accent)' : 'var(--color-text-secondary)', fontSize: '13px', fontWeight: activeSection === 'drive' ? 600 : 400, cursor: 'pointer', textAlign: 'left' }}
@@ -990,7 +1090,7 @@ export function DriveView() {
             const payloadNodeId = getDriveNodeDragPayload(e.dataTransfer);
             if (payloadNodeId) return;
             const files = await collectDroppedFiles(e.dataTransfer);
-            if (files.length) await handleUploadEntries(files, currentParentId || undefined);
+            if (files.length) await handleUploadEntries(files, currentParentId || undefined, 'picker');
           }}
         >
           {dragOver && (
@@ -1031,7 +1131,7 @@ export function DriveView() {
                           if (!isInternalDrive) {
                             const files = await collectDroppedFiles(e.dataTransfer);
                             if (files.length) {
-                              await handleUploadEntries(files, item.id || undefined);
+                              await handleUploadEntries(files, item.id || undefined, 'drop');
                             }
                             return;
                           }
@@ -1089,12 +1189,17 @@ export function DriveView() {
             </button>
             <button
               onClick={(e) => {
+                if (driveUploads.length > 0) {
+                  driveUploadModalDismissedRef.current = false;
+                  setDriveUploadModalOpen(true);
+                  return;
+                }
                 if (e.shiftKey) folderInputRef.current?.click();
                 else fileInputRef.current?.click();
               }}
-              title="클릭: 파일 업로드, Shift+클릭: 폴더 업로드"
+              title={driveUploads.length > 0 ? '업로드 창 열기' : '클릭: 파일 업로드, Shift+클릭: 폴더 업로드'}
               style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '5px 14px', borderRadius: '6px', border: 'none', background: 'var(--color-accent)', color: '#fff', fontSize: '13px', fontWeight: 500, cursor: 'pointer' }}>
-              <ArrowUpTrayIcon style={{ width: '15px', height: '15px' }} /> {activeDriveUploads.length > 0 ? '업로드 추가' : '업로드'}
+              <ArrowUpTrayIcon style={{ width: '15px', height: '15px' }} /> {driveUploads.length > 0 ? `업로드 창 (${driveUploads.length})` : '업로드'}
             </button>
             {draggingNodeIds.length > 1 && (
               <div
@@ -1121,7 +1226,7 @@ export function DriveView() {
                 주렁주렁 이동 중: {draggingNodeIds.length}개 선택
               </div>
             )}
-            <input ref={fileInputRef} type="file" multiple style={{ display: 'none' }} onChange={(e) => { if (e.target.files) { handleUploadFromList(e.target.files, currentParentId || undefined); e.target.value = ''; } }} />
+            <input ref={fileInputRef} type="file" multiple style={{ display: 'none' }} onChange={(e) => { if (e.target.files) { handleUploadFromList(e.target.files, currentParentId || undefined, 'picker'); e.target.value = ''; } }} />
             <input
               ref={folderInputRef}
               type="file"
@@ -1129,28 +1234,109 @@ export function DriveView() {
               style={{ display: 'none' }}
               onChange={(e) => {
                 if (e.target.files) {
-                  handleUploadFromList(e.target.files, currentParentId || undefined);
+                  handleUploadFromList(e.target.files, currentParentId || undefined, 'folder');
                   e.target.value = '';
                 }
               }}
             />
           </div>
 
-          {driveUploads.length > 0 && (
-            <div style={{ padding: '12px 20px 0' }}>
-              <div style={{ border: '1px solid var(--color-border-subtle)', borderRadius: '8px', background: 'var(--color-bg-secondary)' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', padding: '10px 12px', borderBottom: '1px solid var(--color-border-subtle)' }}>
-                  <div style={{ minWidth: 0 }}>
-                    <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-text-primary)' }}>업로드 대기열</div>
-                    <div style={{ fontSize: '11px', color: 'var(--color-text-tertiary)', marginTop: '2px' }}>
-                      {driveUploadResumable ? '청크 업로드와 재개 업로드를 사용합니다.' : '브라우저/서버가 지원하지 않으면 전체 파일 업로드로 전환합니다.'}
+          {uploadPanelOpen && (
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-label="파일 업로드"
+              style={{
+                position: 'fixed',
+                inset: 0,
+                zIndex: 60,
+                background: 'rgba(15, 23, 42, 0.58)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: '24px',
+              }}
+              onMouseDown={(e) => {
+                if (e.target === e.currentTarget && activeDriveUploads.length === 0) {
+                  driveUploadModalDismissedRef.current = true;
+                  setDriveUploadModalOpen(false);
+                }
+              }}
+            >
+              <div style={{ width: 'min(1120px, 100%)', maxHeight: 'min(84vh, 920px)', display: 'flex', flexDirection: 'column', borderRadius: '10px', border: '1px solid var(--color-border-default)', background: 'var(--color-bg-primary)', boxShadow: '0 24px 72px rgba(15, 23, 42, 0.42)', overflow: 'hidden' }}>
+                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px', padding: '18px 20px', borderBottom: '1px solid var(--color-border-subtle)' }}>
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                      <div style={{ fontSize: '15px', fontWeight: 700, color: 'var(--color-text-primary)' }}>파일 업로드</div>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '3px 8px', borderRadius: '999px', background: 'var(--color-bg-secondary)', color: 'var(--color-text-secondary)', fontSize: '11px', fontWeight: 500 }}>
+                        {driveUploadBatch?.fileCount ?? driveUploads.length}개 선택
+                      </span>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '3px 8px', borderRadius: '999px', background: 'var(--color-accent-subtle)', color: 'var(--color-accent)', fontSize: '11px', fontWeight: 500 }}>
+                        동시 {activeDriveUploads.length}/{DRIVE_UPLOAD_CONCURRENCY}
+                      </span>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '3px 8px', borderRadius: '999px', background: 'rgba(34, 197, 94, 0.10)', color: '#15803d', fontSize: '11px', fontWeight: 500 }}>
+                        {driveUploadResumable ? '재개 가능' : '재개 비활성'}
+                      </span>
+                    </div>
+                    <div style={{ marginTop: '6px', fontSize: '12px', lineHeight: 1.5, color: 'var(--color-text-tertiary)' }}>
+                      {driveUploadResumable
+                        ? '큰 파일은 청크로 나눠 병렬 처리하고, 중단된 업로드는 이어서 진행합니다.'
+                        : '지원이 제한되면 전체 파일 업로드로 자동 전환합니다.'}
                     </div>
                   </div>
-                  <div style={{ fontSize: '11px', color: 'var(--color-text-tertiary)', whiteSpace: 'nowrap' }}>
-                    {activeDriveUploads.length > 0 ? `${activeDriveUploads.length}개 진행 중` : '대기 없음'}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      driveUploadModalDismissedRef.current = true;
+                      setDriveUploadModalOpen(false);
+                    }}
+                    title="창 닫기"
+                    style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', borderRadius: '8px', border: '1px solid var(--color-border-default)', background: 'var(--color-bg-primary)', color: 'var(--color-text-secondary)', flexShrink: 0 }}
+                  >
+                    <XMarkIcon style={{ width: '14px', height: '14px' }} />
+                  </button>
+                </div>
+                {driveUploadBatch && (
+                  <div style={{ padding: '14px 20px', borderBottom: '1px solid var(--color-border-subtle)', background: 'linear-gradient(180deg, rgba(148, 163, 184, 0.06), rgba(148, 163, 184, 0.02))' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px', flexWrap: 'wrap', fontSize: '11px', color: 'var(--color-text-tertiary)' }}>
+                      <span>{getDriveUploadSourceLabel(driveUploadBatch.source)}</span>
+                      <span>{formatBytes(driveUploadBatch.totalBytes)}</span>
+                      <span>{driveUploadBatch.fileCount}개 파일</span>
+                    </div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                      {uploadBatchNames.map((item) => (
+                        <span key={`${driveUploadBatch.id}-${item.relativePath}`} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '6px 10px', borderRadius: '999px', border: '1px solid var(--color-border-default)', background: 'var(--color-bg-primary)', color: 'var(--color-text-secondary)', fontSize: '11px', maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={`${item.relativePath} · ${formatBytes(item.size)}`}>
+                          <strong style={{ fontWeight: 600 }}>{item.name}</strong>
+                          <span style={{ color: 'var(--color-text-tertiary)' }}>{formatBytes(item.size)}</span>
+                        </span>
+                      ))}
+                      {driveUploadBatch.fileCount > uploadBatchNames.length && (
+                        <span style={{ display: 'inline-flex', alignItems: 'center', padding: '6px 10px', borderRadius: '999px', border: '1px dashed var(--color-border-default)', color: 'var(--color-text-tertiary)', fontSize: '11px' }}>
+                          +{driveUploadBatch.fileCount - uploadBatchNames.length}개 더
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                )}
+                <div style={{ padding: '12px 20px', borderBottom: '1px solid var(--color-border-subtle)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '10px', flexWrap: 'wrap', fontSize: '11px', color: 'var(--color-text-tertiary)' }}>
+                    <span>진행 중 {activeDriveUploads.length}</span>
+                    <span>대기 {queuedDriveUploads.length}</span>
+                    <span>완료 {completedDriveUploads.length}</span>
+                    <span>실패 {erroredDriveUploads.length}</span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ height: '7px', borderRadius: '999px', background: 'var(--color-bg-tertiary)', overflow: 'hidden' }}>
+                        <div style={{ width: `${uploadProgressPct}%`, height: '100%', borderRadius: '999px', background: 'var(--color-accent)', transition: 'width 180ms ease' }} />
+                      </div>
+                    </div>
+                    <div style={{ fontSize: '11px', color: 'var(--color-text-tertiary)', whiteSpace: 'nowrap' }}>
+                      {formatBytes(totalDriveUploadProgressBytes)} / {formatBytes(totalDriveUploadBytes)}
+                    </div>
                   </div>
                 </div>
-                <div style={{ maxHeight: '220px', overflowY: 'auto' }}>
+                <div style={{ overflowY: 'auto', padding: '10px 0' }}>
                   {driveUploads.map((item) => {
                     const progress = item.totalBytes > 0 ? Math.min(100, Math.round((item.uploadedBytes / item.totalBytes) * 100)) : 0;
                     const label = DRIVE_UPLOAD_STATUS_LABELS[item.status];
@@ -1158,24 +1344,26 @@ export function DriveView() {
                     const canResume = item.status === 'paused' || item.status === 'error';
                     const canCancel = item.status !== 'done' && item.status !== 'canceled';
                     return (
-                      <div key={item.id} style={{ padding: '10px 12px', borderBottom: '1px solid var(--color-border-subtle)' }}>
-                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+                      <div key={item.id} style={{ padding: '10px 20px', borderBottom: '1px solid var(--color-border-subtle)' }}>
+                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '14px' }}>
                           <div style={{ flex: 1, minWidth: 0 }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
-                              <div style={{ fontSize: '13px', fontWeight: 500, color: 'var(--color-text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={item.relativePath}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, flexWrap: 'wrap' }}>
+                              <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={item.relativePath}>
                                 {item.relativePath}
                               </div>
-                              <span style={{ fontSize: '11px', color: 'var(--color-text-tertiary)', flexShrink: 0 }}>{label}</span>
+                              <span style={{ display: 'inline-flex', alignItems: 'center', padding: '3px 8px', borderRadius: '999px', background: item.status === 'error' ? 'rgba(239, 68, 68, 0.12)' : item.status === 'done' ? 'rgba(34, 197, 94, 0.12)' : 'var(--color-bg-secondary)', color: item.status === 'error' ? 'var(--color-destructive)' : item.status === 'done' ? '#15803d' : 'var(--color-text-secondary)', fontSize: '11px', fontWeight: 500, flexShrink: 0 }}>
+                                {label}
+                              </span>
                             </div>
-                            <div style={{ marginTop: '6px', height: '6px', borderRadius: '999px', background: 'var(--color-bg-tertiary)', overflow: 'hidden' }}>
-                              <div style={{ width: `${progress}%`, height: '100%', borderRadius: '999px', background: item.status === 'error' ? 'var(--color-destructive)' : 'var(--color-accent)', transition: 'width 160ms ease' }} />
+                            <div style={{ marginTop: '8px', height: '8px', borderRadius: '999px', background: 'var(--color-bg-tertiary)', overflow: 'hidden' }}>
+                              <div style={{ width: `${progress}%`, height: '100%', borderRadius: '999px', background: item.status === 'error' ? 'var(--color-destructive)' : item.status === 'done' ? '#22c55e' : 'var(--color-accent)', transition: 'width 160ms ease' }} />
                             </div>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px', marginTop: '6px', fontSize: '11px', color: 'var(--color-text-tertiary)' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px', marginTop: '8px', fontSize: '11px', color: 'var(--color-text-tertiary)' }}>
                               <span>{formatBytes(item.uploadedBytes)} / {formatBytes(item.totalBytes)}</span>
-                              <span>{item.sessionId ? `세션 ${item.sessionId.slice(0, 8)}` : '세션 준비중'}</span>
+                              <span>{item.resumable ? '재개 지원' : '재개 미지원'}</span>
                             </div>
                             {item.error && (
-                              <div style={{ marginTop: '6px', fontSize: '11px', color: 'var(--color-destructive)', lineHeight: 1.4 }}>
+                              <div style={{ marginTop: '8px', fontSize: '11px', color: 'var(--color-destructive)', lineHeight: 1.45 }}>
                                 {item.error}
                               </div>
                             )}
@@ -1186,7 +1374,7 @@ export function DriveView() {
                                 type="button"
                                 onClick={() => pauseDriveUpload(item.id)}
                                 title="일시정지"
-                                style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '30px', height: '30px', borderRadius: '6px', border: '1px solid var(--color-border-default)', background: 'transparent', color: 'var(--color-text-secondary)' }}
+                                style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '30px', height: '30px', borderRadius: '8px', border: '1px solid var(--color-border-default)', background: 'transparent', color: 'var(--color-text-secondary)' }}
                               >
                                 <PauseIcon style={{ width: '14px', height: '14px' }} />
                               </button>
@@ -1196,7 +1384,7 @@ export function DriveView() {
                                 type="button"
                                 onClick={() => { void resumeDriveUpload(item.id); }}
                                 title="이어 업로드"
-                                style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '30px', height: '30px', borderRadius: '6px', border: '1px solid var(--color-border-default)', background: 'transparent', color: 'var(--color-text-secondary)' }}
+                                style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '30px', height: '30px', borderRadius: '8px', border: '1px solid var(--color-border-default)', background: 'transparent', color: 'var(--color-text-secondary)' }}
                               >
                                 <PlayIcon style={{ width: '14px', height: '14px' }} />
                               </button>
@@ -1206,7 +1394,7 @@ export function DriveView() {
                                 type="button"
                                 onClick={() => { void cancelDriveUpload(item.id); }}
                                 title="취소"
-                                style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '30px', height: '30px', borderRadius: '6px', border: '1px solid var(--color-destructive)', background: 'transparent', color: 'var(--color-destructive)' }}
+                                style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '30px', height: '30px', borderRadius: '8px', border: '1px solid var(--color-destructive)', background: 'transparent', color: 'var(--color-destructive)' }}
                               >
                                 <XMarkIcon style={{ width: '14px', height: '14px' }} />
                               </button>
@@ -1216,6 +1404,29 @@ export function DriveView() {
                       </div>
                     );
                   })}
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', padding: '14px 20px', borderTop: '1px solid var(--color-border-subtle)', background: 'var(--color-bg-secondary)' }}>
+                  <div style={{ fontSize: '11px', color: 'var(--color-text-tertiary)', lineHeight: 1.5 }}>
+                    파일을 추가하면 대기열에 이어 붙습니다. 폴더 드롭도 그대로 처리됩니다.
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '7px 12px', borderRadius: '8px', border: '1px solid var(--color-border-default)', background: 'var(--color-bg-primary)', color: 'var(--color-text-secondary)', fontSize: '12px', fontWeight: 500 }}
+                    >
+                      <ArrowUpTrayIcon style={{ width: '14px', height: '14px' }} />
+                      파일 추가
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => folderInputRef.current?.click()}
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '7px 12px', borderRadius: '8px', border: '1px solid var(--color-border-default)', background: 'var(--color-bg-primary)', color: 'var(--color-text-secondary)', fontSize: '12px', fontWeight: 500 }}
+                    >
+                      <FolderPlusIcon style={{ width: '14px', height: '14px' }} />
+                      폴더 추가
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1313,7 +1524,7 @@ export function DriveView() {
                           return;
                         }
                         const files = await collectDroppedFiles(e.dataTransfer);
-                        if (files.length) await handleUploadEntries(files, node.id);
+                        if (files.length) await handleUploadEntries(files, node.id, 'drop');
                       }}
                       onDoubleClick={() => openFolder(node)}
                       style={{

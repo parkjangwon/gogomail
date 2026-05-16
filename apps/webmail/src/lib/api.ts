@@ -1335,7 +1335,12 @@ export async function uploadDriveFileWithOptions(file: File, options: DriveUploa
     const chunk = file.slice(uploadedBytes, chunkEnd);
     const sentSession = await storeDriveUploadSessionChunk(session.id, chunk, uploadedBytes, chunkEnd - 1, totalBytes, signal);
     session = sentSession;
-    uploadedBytes = Math.max(uploadedBytes, sentSession.received_size, chunkEnd);
+    if (sentSession.received_size !== chunkEnd) {
+      throw new Error(
+        `Upload session progress mismatch: server recorded ${sentSession.received_size} bytes after chunk ending at ${chunkEnd}`,
+      );
+    }
+    uploadedBytes = sentSession.received_size;
     storageBackend = sentSession.storage_backend;
     emitProgress('uploading', uploadedBytes, session.id, storageBackend);
   }

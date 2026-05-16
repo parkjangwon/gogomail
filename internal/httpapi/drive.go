@@ -374,7 +374,7 @@ func RegisterDriveRoutesWithOptions(mux *http.ServeMux, service DriveService, to
 			Name:     req.Name,
 		})
 		if err != nil {
-			writeError(w, http.StatusBadRequest, err.Error())
+			writeDriveServiceError(w, err)
 			return
 		}
 		writeJSON(w, http.StatusCreated, map[string]any{"drive_node": node})
@@ -1148,6 +1148,10 @@ func driveShareLinkErrorStatus(err error) int {
 func writeDriveServiceError(w http.ResponseWriter, err error) {
 	if errors.Is(err, mail.ErrMailboxFull) {
 		writeError(w, http.StatusInsufficientStorage, err.Error())
+		return
+	}
+	if errors.Is(err, drive.ErrDriveNodeAlreadyExists) {
+		writeError(w, http.StatusConflict, err.Error())
 		return
 	}
 	writeError(w, http.StatusBadRequest, err.Error())
