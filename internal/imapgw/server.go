@@ -3574,7 +3574,7 @@ func imapCompareInt64(left int64, right int64) int {
 
 func imapBaseSubject(subject string) string {
 	subject = imapDecodeSubjectHeader(subject)
-	subject = strings.TrimSpace(strings.Join(strings.Fields(subject), " "))
+	subject = imapCollapseWhitespace(subject)
 	for {
 		previous := subject
 		subject = imapStripSubjectTrailers(subject)
@@ -3642,6 +3642,29 @@ func imapStripSubjectLeader(subject string) string {
 		}
 	}
 	return subject
+}
+
+func imapCollapseWhitespace(value string) string {
+	if value == "" {
+		return ""
+	}
+	out := make([]byte, 0, len(value))
+	inSpace := false
+	for i := 0; i < len(value); i++ {
+		switch value[i] {
+		case ' ', '\t', '\r', '\n':
+			if len(out) > 0 {
+				inSpace = true
+			}
+		default:
+			if inSpace {
+				out = append(out, ' ')
+				inSpace = false
+			}
+			out = append(out, value[i])
+		}
+	}
+	return string(out)
 }
 
 func imapStripSubjectBlob(subject string) (string, bool) {
@@ -6040,17 +6063,24 @@ func imapFetchRequestsBody(items []string) bool {
 
 func imapFetchSetsSeen(items []string) bool {
 	for _, item := range items {
-		for _, token := range strings.Fields(strings.Trim(strings.ToUpper(strings.TrimSpace(item)), "()")) {
+		seen := false
+		imapEachNormalizedFetchToken(item, func(token string) bool {
 			switch {
 			case token == "RFC822" || strings.HasPrefix(token, "RFC822<") || token == "RFC822.TEXT" || strings.HasPrefix(token, "RFC822.TEXT<"):
-				return true
+				seen = true
+				return false
 			case token == "RFC822.HEADER" || strings.HasPrefix(token, "RFC822.HEADER<"):
-				continue
-			case strings.HasPrefix(token, "BODY.PEEK["):
-				continue
-			case strings.HasPrefix(token, "BODY["):
 				return true
+			case strings.HasPrefix(token, "BODY.PEEK["):
+				return true
+			case strings.HasPrefix(token, "BODY["):
+				seen = true
+				return false
 			}
+			return true
+		})
+		if seen {
+			return true
 		}
 	}
 	return false
@@ -6058,10 +6088,16 @@ func imapFetchSetsSeen(items []string) bool {
 
 func imapFullBodyLiteralResponseName(items []string) string {
 	for _, item := range items {
-		for _, token := range strings.Fields(strings.Trim(strings.ToUpper(strings.TrimSpace(item)), "()")) {
+		found := false
+		imapEachNormalizedFetchToken(item, func(token string) bool {
 			if token == "RFC822" {
-				return "RFC822"
+				found = true
+				return false
 			}
+			return true
+		})
+		if found {
+			return "RFC822"
 		}
 	}
 	return "BODY[]"
@@ -6069,10 +6105,16 @@ func imapFullBodyLiteralResponseName(items []string) string {
 
 func imapPartialBodyLiteralResponseName(items []string) string {
 	for _, item := range items {
-		for _, token := range strings.Fields(strings.Trim(strings.ToUpper(strings.TrimSpace(item)), "()")) {
+		found := false
+		imapEachNormalizedFetchToken(item, func(token string) bool {
 			if strings.HasPrefix(token, "RFC822<") {
-				return "RFC822"
+				found = true
+				return false
 			}
+			return true
+		})
+		if found {
+			return "RFC822"
 		}
 	}
 	return "BODY[]"
@@ -6080,13 +6122,20 @@ func imapPartialBodyLiteralResponseName(items []string) string {
 
 func imapSectionLiteralResponseName(items []string, section string) string {
 	for _, item := range items {
-		for _, token := range strings.Fields(strings.Trim(strings.ToUpper(strings.TrimSpace(item)), "()")) {
+		found := ""
+		imapEachNormalizedFetchToken(item, func(token string) bool {
 			if section == "HEADER" && (token == "RFC822.HEADER" || strings.HasPrefix(token, "RFC822.HEADER<")) {
-				return "RFC822.HEADER"
+				found = "RFC822.HEADER"
+				return false
 			}
 			if section == "TEXT" && (token == "RFC822.TEXT" || strings.HasPrefix(token, "RFC822.TEXT<")) {
-				return "RFC822.TEXT"
+				found = "RFC822.TEXT"
+				return false
 			}
+			return true
+		})
+		if found != "" {
+			return found
 		}
 	}
 	return "BODY[" + section + "]"
@@ -6172,11 +6221,17 @@ func (r imapPartialSectionRequest) headerLike() bool {
 
 func imapFetchPartialBody(items []string) (imapPartialBodyRequest, bool) {
 	for _, item := range items {
-		for _, token := range strings.Fields(strings.Trim(strings.ToUpper(strings.TrimSpace(item)), "()")) {
+		var req imapPartialBodyRequest
+		found := false
+		imapEachNormalizedFetchToken(item, func(token string) bool {
 			if !strings.HasPrefix(token, "BODY[]<") && !strings.HasPrefix(token, "BODY.PEEK[]<") && !strings.HasPrefix(token, "RFC822<") {
-				continue
+				return true
 			}
-			return imapParsePartialBodyToken(token)
+			req, found = imapParsePartialBodyToken(token)
+			return false
+		})
+		if found {
+			return req, true
 		}
 	}
 	return imapPartialBodyRequest{}, false
@@ -6193,7 +6248,9 @@ func imapFetchPartialSection(items []string) (imapPartialSectionRequest, bool) {
 		{[]string{"BODY[1.MIME]<", "BODY.PEEK[1.MIME]<"}, "1.MIME"},
 	}
 	for _, item := range items {
-		for _, token := range strings.Fields(strings.Trim(strings.ToUpper(strings.TrimSpace(item)), "()")) {
+		var req imapPartialSectionRequest
+		found := false
+		imapEachNormalizedFetchToken(item, func(token string) bool {
 			for _, candidate := range sections {
 				for _, prefix := range candidate.prefixes {
 					if !strings.HasPrefix(token, prefix) {
@@ -6201,11 +6258,18 @@ func imapFetchPartialSection(items []string) (imapPartialSectionRequest, bool) {
 					}
 					partial, ok := imapParsePartialBodyToken(token)
 					if !ok {
-						return imapPartialSectionRequest{}, false
+						found = false
+						return false
 					}
-					return imapPartialSectionRequest{section: candidate.section, partial: partial}, true
+					req = imapPartialSectionRequest{section: candidate.section, partial: partial}
+					found = true
+					return false
 				}
 			}
+			return true
+		})
+		if found {
+			return req, true
 		}
 	}
 	return imapPartialSectionRequest{}, false
@@ -6216,11 +6280,14 @@ func imapFetchMIMEPartRequest(items []string) (imapMIMEPartRequest, bool) {
 		return req, true
 	}
 	for _, item := range items {
-		for _, token := range strings.Fields(strings.Trim(strings.ToUpper(strings.TrimSpace(item)), "()")) {
-			req, ok := imapParseMIMEPartRequestToken(token)
-			if ok {
-				return req, true
-			}
+		var req imapMIMEPartRequest
+		found := false
+		imapEachNormalizedFetchToken(item, func(token string) bool {
+			req, found = imapParseMIMEPartRequestToken(token)
+			return !found
+		})
+		if found {
+			return req, true
 		}
 	}
 	return imapMIMEPartRequest{}, false
@@ -7006,11 +7073,12 @@ func imapFetchDataItemOuterWhitespaceValid(items []string) bool {
 func imapFetchNormalizedTokens(items []string) []string {
 	tokens := make([]string, 0, len(items))
 	for _, item := range items {
-		for _, token := range strings.Fields(strings.Trim(strings.ToUpper(strings.TrimSpace(item)), "()")) {
+		imapEachNormalizedFetchToken(item, func(token string) bool {
 			if token != "" {
 				tokens = append(tokens, token)
 			}
-		}
+			return true
+		})
 	}
 	return tokens
 }
@@ -7043,6 +7111,35 @@ func imapFetchDataItemsSupported(items []string) bool {
 
 func imapFetchToken(item string) string {
 	return strings.Trim(strings.ToUpper(strings.TrimSpace(item)), "()")
+}
+
+func imapEachNormalizedFetchToken(item string, visit func(token string) bool) {
+	token := strings.TrimSpace(item)
+	if token == "" {
+		return
+	}
+	token = strings.Trim(token, "()")
+	start := -1
+	for i := 0; i < len(token); i++ {
+		switch token[i] {
+		case ' ', '\t', '\r', '\n':
+			if start >= 0 {
+				if !visit(strings.ToUpper(token[start:i])) {
+					return
+				}
+				start = -1
+			}
+		default:
+			if start < 0 {
+				start = i
+			}
+		}
+	}
+	if start >= 0 {
+		if !visit(strings.ToUpper(token[start:])) {
+			return
+		}
+	}
 }
 
 func imapFetchHeaderFieldSectionStart(token string) bool {
