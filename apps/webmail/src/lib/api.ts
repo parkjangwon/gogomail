@@ -1115,6 +1115,240 @@ export interface DriveShareLink {
   expires_at: string;
 }
 
+export interface DriveUploadSession {
+  id: string;
+  user_id: string;
+  parent_id?: string;
+  upload_id: string;
+  name: string;
+  declared_size: number;
+  received_size: number;
+  mime_type: string;
+  status: 'pending' | 'uploading' | 'finalized' | 'canceled' | 'expired' | 'failed';
+  storage_backend: string;
+  storage_path?: string;
+  checksum_sha256?: string;
+  expires_at: string;
+  created_at: string;
+  updated_at: string;
+  finalized_at?: string;
+  canceled_at?: string;
+}
+
+export interface DriveUploadProgress {
+  phase: 'creating_session' | 'uploading' | 'finalizing';
+  uploadedBytes: number;
+  totalBytes: number;
+  sessionId?: string;
+  storageBackend?: string;
+}
+
+export interface DriveUploadOptions {
+  parentId?: string;
+  resumable?: boolean;
+  resumeSessionId?: string;
+  chunkSizeBytes?: number;
+  signal?: AbortSignal;
+  onProgress?: (progress: DriveUploadProgress) => void;
+}
+
+export interface DriveUploadCapabilities {
+  upload_sessions: boolean;
+  list_upload_sessions: boolean;
+  upload_session_body: boolean;
+  upload_session_checksum: boolean;
+  finalize_upload_sessions: boolean;
+  cancel_upload_sessions: boolean;
+  resumable_chunked_uploads: boolean;
+  max_upload_session_bytes: number;
+  max_session_ttl_seconds: number;
+  default_session_ttl_seconds: number;
+}
+
+export interface WebmailCapabilitiesEnvelope {
+  webmail_capabilities?: {
+    drive?: DriveUploadCapabilities;
+  };
+}
+
+export async function getWebmailCapabilities(): Promise<WebmailCapabilitiesEnvelope['webmail_capabilities'] | null> {
+  try {
+    const data = await request<WebmailCapabilitiesEnvelope>('webmail/capabilities');
+    return data.webmail_capabilities ?? null;
+  } catch {
+    return null;
+  }
+}
+
+async function getDriveUploadSession(sessionId: string): Promise<DriveUploadSession | null> {
+  try {
+    const res = await fetch(`/api/mail/drive/upload-sessions/${encodeURIComponent(sessionId)}`);
+    if (!res.ok) return null;
+    const data = await res.json() as { drive_upload_session?: DriveUploadSession };
+    return data.drive_upload_session ?? null;
+  } catch {
+    return null;
+  }
+}
+
+export async function cancelDriveUploadSession(sessionId: string): Promise<boolean> {
+  try {
+    const res = await fetch(`/api/mail/drive/upload-sessions/${encodeURIComponent(sessionId)}`, {
+      method: 'DELETE',
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
+async function createDriveUploadSession(
+  file: File,
+  parentId: string | undefined,
+  storageBackends: string[],
+  signal?: AbortSignal,
+): Promise<DriveUploadSession> {
+  for (const storageBackend of storageBackends) {
+    const sessionRes = await fetch('/api/mail/drive/upload-sessions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        parent_id: parentId ?? '',
+        name: file.name,
+        declared_size: file.size,
+        mime_type: file.type || 'application/octet-stream',
+        storage_backend: storageBackend,
+      }),
+      signal,
+    });
+
+    if (sessionRes.ok) {
+      const body = await sessionRes.json() as { drive_upload_session?: DriveUploadSession };
+      if (body.drive_upload_session) return body.drive_upload_session;
+    }
+
+    const shouldRetryBackend = storageBackend !== storageBackends[storageBackends.length - 1];
+    if (!shouldRetryBackend) {
+      throw new Error(await responseErrorMessage(sessionRes, `Create upload session failed: ${sessionRes.status}`));
+    }
+  }
+
+  throw new Error('Create upload session failed.');
+}
+
+async function storeDriveUploadSessionChunk(
+  sessionId: string,
+  chunk: Blob,
+  start: number,
+  end: number,
+  total: number,
+  signal?: AbortSignal,
+): Promise<DriveUploadSession> {
+  const res = await fetch(`/api/mail/drive/upload-sessions/${encodeURIComponent(sessionId)}/body`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/octet-stream',
+      'Content-Range': `bytes ${start}-${end}/${total}`,
+    },
+    body: chunk,
+    signal,
+  });
+  if (!res.ok) {
+    throw new Error(await responseErrorMessage(res, `Upload body failed: ${res.status}`));
+  }
+  const data = await res.json() as { drive_upload_session?: DriveUploadSession };
+  if (!data.drive_upload_session) {
+    throw new Error('Upload body failed: missing session response');
+  }
+  return data.drive_upload_session;
+}
+
+async function finalizeDriveUploadSession(sessionId: string): Promise<DriveNode | null> {
+  const res = await fetch(`/api/mail/drive/upload-sessions/${encodeURIComponent(sessionId)}/finalize`, {
+    method: 'POST',
+  });
+  if (!res.ok) {
+    throw new Error(await responseErrorMessage(res, `Finalize upload session failed: ${res.status}`));
+  }
+  const data = await res.json() as { drive_node?: DriveNode };
+  return data.drive_node ?? null;
+}
+
+export async function uploadDriveFileWithOptions(file: File, options: DriveUploadOptions = {}): Promise<DriveNode | null> {
+  const resumable = options.resumable ?? true;
+  const chunkSize = Math.max(1 << 20, options.chunkSizeBytes ?? (8 << 20));
+  const storageBackends = ['local', 's3', 'minio'];
+  const totalBytes = file.size;
+  const signal = options.signal;
+  const emitProgress = (phase: DriveUploadProgress['phase'], uploadedBytes: number, sessionId?: string, storageBackend?: string) => {
+    options.onProgress?.({ phase, uploadedBytes, totalBytes, sessionId, storageBackend });
+  };
+
+  const isAborted = () => signal?.aborted ?? false;
+
+  if (!resumable || totalBytes <= 0) {
+    const session = await createDriveUploadSession(file, options.parentId, storageBackends, signal);
+    emitProgress('creating_session', 0, session.id, session.storage_backend);
+    if (isAborted()) throw new DOMException('Upload aborted', 'AbortError');
+    const bodyRes = await fetch(`/api/mail/drive/upload-sessions/${encodeURIComponent(session.id)}/body`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': file.type || 'application/octet-stream',
+      },
+      body: file,
+      signal,
+    });
+    if (!bodyRes.ok) {
+      throw new Error(await responseErrorMessage(bodyRes, `Upload body failed: ${bodyRes.status}`));
+    }
+    emitProgress('uploading', totalBytes, session.id, session.storage_backend);
+    emitProgress('finalizing', totalBytes, session.id, session.storage_backend);
+    return finalizeDriveUploadSession(session.id);
+  }
+
+  let session: DriveUploadSession | null = null;
+  let uploadedBytes = 0;
+  let storageBackend = '';
+
+  if (options.resumeSessionId) {
+    const resumed = await getDriveUploadSession(options.resumeSessionId);
+    if (resumed && (resumed.status === 'pending' || resumed.status === 'uploading' || resumed.status === 'failed')) {
+      session = resumed;
+      uploadedBytes = Math.max(0, Math.min(resumed.received_size, totalBytes));
+      storageBackend = resumed.storage_backend;
+      emitProgress('uploading', uploadedBytes, session.id, storageBackend);
+    }
+  }
+
+  if (!session) {
+    session = await createDriveUploadSession(file, options.parentId, storageBackends, signal);
+    uploadedBytes = 0;
+    storageBackend = session.storage_backend;
+    emitProgress('creating_session', uploadedBytes, session.id, storageBackend);
+  }
+
+  if (isAborted()) throw new DOMException('Upload aborted', 'AbortError');
+
+  while (uploadedBytes < totalBytes) {
+    if (isAborted()) throw new DOMException('Upload aborted', 'AbortError');
+    const chunkEnd = Math.min(totalBytes, uploadedBytes + chunkSize);
+    const chunk = file.slice(uploadedBytes, chunkEnd);
+    const sentSession = await storeDriveUploadSessionChunk(session.id, chunk, uploadedBytes, chunkEnd - 1, totalBytes, signal);
+    session = sentSession;
+    uploadedBytes = Math.max(uploadedBytes, sentSession.received_size, chunkEnd);
+    storageBackend = sentSession.storage_backend;
+    emitProgress('uploading', uploadedBytes, session.id, storageBackend);
+  }
+
+  if (isAborted()) throw new DOMException('Upload aborted', 'AbortError');
+  emitProgress('finalizing', uploadedBytes, session.id, storageBackend);
+  return finalizeDriveUploadSession(session.id);
+}
+
+export async function uploadDriveFile(file: File, parentId?: string): Promise<DriveNode | null> {
+  return uploadDriveFileWithOptions(file, { parentId, resumable: false });
+}
+
 export async function listDriveNodes(parentId?: string): Promise<DriveNode[]> {
   try {
     const p = new URLSearchParams({ status: 'active' });
@@ -1215,89 +1449,6 @@ export async function downloadDriveNode(nodeId: string, filename: string): Promi
   const a = document.createElement('a');
   a.href = url; a.download = filename; a.click();
   URL.revokeObjectURL(url);
-}
-
-export async function uploadDriveFile(file: File, parentId?: string): Promise<DriveNode | null> {
-  try {
-    const arrayBuffer = await file.arrayBuffer();
-    const hashBuffer = await crypto.subtle.digest('SHA-256', arrayBuffer);
-    const hash = Array.from(new Uint8Array(hashBuffer))
-      .map((byte) => byte.toString(16).padStart(2, '0'))
-      .join('');
-
-    const storageBackends = ['local', 's3', 'minio'];
-    let session: { id: string } | null = null;
-
-    for (const storageBackend of storageBackends) {
-      const sessionRes = await fetch('/api/mail/drive/upload-sessions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          parent_id: parentId ?? '',
-          name: file.name,
-          declared_size: file.size,
-          mime_type: file.type || 'application/octet-stream',
-          storage_backend: storageBackend,
-        }),
-      });
-
-      if (sessionRes.ok) {
-        const body = await sessionRes.json() as { drive_upload_session: { id: string } };
-        session = body.drive_upload_session;
-        break;
-      }
-
-      const shouldRetryBackend = storageBackend !== storageBackends[storageBackends.length - 1];
-      if (!shouldRetryBackend) {
-        let message = `Create upload session failed: ${sessionRes.status}`;
-        try {
-          const errorBody = (await sessionRes.json()) as { error?: string; message?: string };
-          message = errorBody.error ?? errorBody.message ?? message;
-        } catch {
-          // ignore parse error
-        }
-        throw new Error(message);
-      }
-    }
-
-    if (!session) {
-      throw new Error('Create upload session failed.');
-    }
-
-    const bodyRes = await fetch(`/api/mail/drive/upload-sessions/${encodeURIComponent(session.id)}/body`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': file.type || 'application/octet-stream',
-        'X-Content-SHA256': hash,
-      },
-      body: file,
-    });
-    if (!bodyRes.ok) {
-      let msg = `Upload body failed: ${bodyRes.status}`;
-      try {
-        const err = (await bodyRes.json()) as { error?: string; message?: string };
-        msg = err.error ?? err.message ?? msg;
-      } catch { /* ignore */ }
-      throw new Error(msg);
-    }
-
-    const finalRes = await fetch(`/api/mail/drive/upload-sessions/${encodeURIComponent(session.id)}/finalize`, {
-      method: 'POST',
-    });
-    if (!finalRes.ok) {
-      let msg = `Finalize upload session failed: ${finalRes.status}`;
-      try {
-        const err = (await finalRes.json()) as { error?: string; message?: string };
-        msg = err.error ?? err.message ?? msg;
-      } catch {
-        // ignore
-      }
-      throw new Error(msg);
-    }
-
-    const data = await finalRes.json() as { drive_node?: DriveNode };
-    return data.drive_node ?? null;
-  } catch { return null; }
 }
 
 export async function createDriveShareLink(nodeId: string, expiresAt: string): Promise<DriveShareLink | null> {
