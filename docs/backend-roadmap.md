@@ -6155,6 +6155,8 @@ Target outcome:
 | TASK-086 | Admin Console Frontend (Phase 2) | Organization, settings pages |
 | TASK-087 | Admin Console Frontend (Phase 3) | Logs, analytics, exports |
 | TASK-088 | Mail Infrastructure Hardening | Connection pooling, pipelining, retry policy, performance metrics |
+| TASK-089 | Protocol Gateway Hardening | IMAP/CalDAV/CardDAV buffer pooling, metrics, health checks, graceful degradation |
+| TASK-090 | Message Storage & Delivery Optimization | Query/index optimization, bulk delivery batching, message metadata caching |
 
 1703. IMAP bulk message move/delete stale UID rows are now covered:
      `BulkMoveMessages` removes source mailbox UID rows before destination

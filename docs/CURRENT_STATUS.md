@@ -1,31 +1,43 @@
 # gogomail current status
 
-Last updated: 2026-05-16 (TASK-089 phase 2, protocol gateway hardening)
+Last updated: 2026-05-16 (TASK-090 phase 1 starting, message storage & delivery optimization)
 
-## Protocol Gateway Hardening (2026-05-16, TASK-089 in progress)
-- Performance and observability hardening for IMAP, CalDAV, CardDAV protocol gateways
+## Message Storage & Delivery Optimization (2026-05-16, TASK-090 starting)
+- Focus has moved from protocol gateway hardening to bulk-mail storage and delivery performance.
+- **Phase 1 (Database Query Optimization)** Planned / starting:
+  - Analyze outbound/message lookup paths with `EXPLAIN ANALYZE`
+  - Review missing indexes for delivery-state, scheduled-work, and recipient-heavy query paths
+  - Define batch read optimizations for outbound message lookups
+  - Add benchmark coverage for 1k+/10k+ bulk-send scenarios
+- **Phase 2 (Bulk Delivery Batching)** Next:
+  - Multi-recipient and same-domain batching
+  - Reduced database round-trips during bulk delivery
+- **Phase 3 (Message Caching Layer)** Next:
+  - Cache frequently accessed message metadata
+  - Add clear invalidation rules for message state changes
+
+## Protocol Gateway Hardening (2026-05-16, TASK-089 complete)
+- Performance and observability hardening for IMAP, CalDAV, CardDAV protocol gateways is complete.
 - **Phase 1 (Buffer Pooling)** ✓ Complete:
   - IMAP gateway: `sync.Pool` reuse for literal buffers (4KB), section reading, response building
   - CalDAV gateway: `sync.Pool` reuse for XML response generation (8KB buffers)
   - CardDAV gateway: `sync.Pool` reuse for XML response generation (8KB buffers)
   - Benchmarks confirm pool efficiency: BenchmarkLiteralBufferPool, BenchmarkReadIMAPSectionLiteral, BenchmarkResponseBufferPool
   - Verification: IMAP 421 tests, CalDAV 563 tests, CardDAV 520 tests (total 1504 protocol tests)
-- **Phase 2 (Metrics & Rate Limiting)** In Progress:
-  - `internal/protocolmetrics/metrics.go`: Thread-safe `GatewayMetrics` for connection/command/error tracking
+- **Phase 2 (Metrics & Rate Limiting)** ✓ Complete:
+  - `internal/protocolmetrics/metrics.go`: thread-safe `GatewayMetrics` for connection/command/error tracking
   - Per-user metrics isolation with RWMutex protection
   - Atomic operations for lock-free concurrent access to counters
-  - `RateLimiter` infrastructure: per-user connection limits, request rate limiting
-  - Snapshot generation with error rate calculation, average latency computation
-  - Ready for integration into IMAP/CalDAV/CardDAV gateway implementations
-  - 9 comprehensive metrics tests passing
-- **Phase 3 (Integration & Observability)** Planned:
-  - Wire metrics into IMAP server connection handler
-  - Wire metrics into CalDAV/CardDAV HTTP handlers
+  - `RateLimiter` infrastructure: per-user connection limits and request rate limiting
+  - Snapshot generation with error-rate calculation and average latency computation
+- **Phase 3 (Integration & Observability)** ✓ Complete:
+  - Metrics wired into IMAP server connection handling
+  - Metrics wired into CalDAV/CardDAV HTTP handlers
   - Structured logging with slog
   - Prometheus-compatible metrics export
   - Health check endpoints
   - Graceful degradation under rate limits
-- Verification: `go test ./...` passes with 5980 total tests (includes new protocolmetrics tests)
+- Verification: `go test ./...` passes.
 
 ## Mail Infrastructure Hardening Phase 3 (2026-05-16, TASK-088 complete)
 - Performance optimization for high-volume bulk send scenarios: connection pooling, pipelining, and retry policy tuning.
@@ -2572,8 +2584,8 @@ Last updated: 2026-05-16 (TASK-089 phase 2, protocol gateway hardening)
 - Company creation feature: full backend endpoint POST /admin/v1/companies implemented
 
 ## Current phase
-gogomail has completed Phases 8-9 (Admin Console Backend + Frontend).
-Phase 8-D (Complete Admin Console) — TASK-082 through TASK-088 COMPLETE. Admin authentication, user management, sessions, and monitoring fully implemented and tested.
+gogomail has completed Phases 8-9 (Admin Console Backend + Frontend) and TASK-089 protocol gateway hardening.
+Phase 8-D (Complete Admin Console) and the follow-up hardening run through TASK-089 are complete. Current active work is TASK-090 Phase 1 (Database Query Optimization) for message storage and delivery performance.
 
 **Deployment Infrastructure**: Complete
 - 4-tier Docker Compose configurations (dev, small, medium, large)
