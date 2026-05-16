@@ -221,6 +221,31 @@ async function collectDroppedFilesFromEntry(entry: FileSystemEntryLike, basePath
   }
 }
 
+type FileSystemHandleLike =
+  | { kind: 'file'; name: string; getFile?: () => Promise<File> }
+  | { kind: 'directory'; name: string; entries?: () => AsyncIterable<[string, FileSystemHandleLike]> | Iterable<[string, FileSystemHandleLike]> };
+
+async function collectDroppedFilesFromHandle(
+  handle: FileSystemHandleLike,
+  basePath: string,
+  out: DroppedFileEntry[],
+) {
+  if (handle.kind === 'file') {
+    const file = handle.getFile ? await handle.getFile() : null;
+    if (!file) return;
+    const relativePath = normalizeDroppedPath(basePath ? `${basePath}/${handle.name}` : handle.name);
+    out.push({ file, relativePath });
+    return;
+  }
+
+  if (handle.kind !== 'directory' || !handle.entries) return;
+  const nextBasePath = normalizeDroppedPath(basePath ? `${basePath}/${handle.name}` : handle.name);
+  const iterator = handle.entries();
+  for await (const [, child] of iterator as AsyncIterable<[string, FileSystemHandleLike]>) {
+    await collectDroppedFilesFromHandle(child, nextBasePath, out);
+  }
+}
+
 async function collectDroppedFiles(dataTransfer: DataTransfer): Promise<DroppedFileEntry[]> {
   const entries: DroppedFileEntry[] = [];
   const seen = new Set<string>();
@@ -235,6 +260,21 @@ async function collectDroppedFiles(dataTransfer: DataTransfer): Promise<DroppedF
   const dataTransferItemItems = Array.from(dataTransfer.items || []);
   for (const item of dataTransferItemItems) {
     if (item.kind !== 'file') continue;
+
+    const handleItem = item as DataTransferItem & {
+      getAsFileSystemHandle?: () => Promise<FileSystemHandleLike | null>;
+    };
+    if (handleItem.getAsFileSystemHandle) {
+      try {
+        const handle = await handleItem.getAsFileSystemHandle();
+        if (handle) {
+          await collectDroppedFilesFromHandle(handle, '', entries);
+          continue;
+        }
+      } catch {
+        // fall through to legacy entry/file handling
+      }
+    }
 
     const webkitLikeItem = item as DataTransferItem & {
       webkitGetAsEntry?: () => FileSystemEntryLike | null;
