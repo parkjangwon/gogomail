@@ -2,35 +2,16 @@ package maildb
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"strings"
+
+	"github.com/lib/pq"
 )
 
-func (r *Repository) ListMessagesByIDs(ctx context.Context, userID string, messageIDs []string) ([]MessageSummary, error) {
-	if r.db == nil {
-		return nil, fmt.Errorf("database handle is required")
-	}
-	userID = strings.TrimSpace(userID)
-	if userID == "" {
-		return nil, fmt.Errorf("user_id is required")
-	}
-	messageIDs, err := normalizeSearchMessageIDs(messageIDs)
-	if err != nil {
-		return nil, err
-	}
-	if len(messageIDs) == 0 {
-		return nil, nil
-	}
-	rawIDs, err := json.Marshal(messageIDs)
-	if err != nil {
-		return nil, fmt.Errorf("encode search message ids: %w", err)
-	}
-
-	const query = `
+const listMessagesByIDsSQL = `
 WITH requested AS (
-  SELECT value::uuid AS id, ordinality
-  FROM jsonb_array_elements_text($2::jsonb) WITH ORDINALITY
+  SELECT value AS id, ordinality
+  FROM unnest($2::uuid[]) WITH ORDINALITY AS requested(value, ordinality)
 )
 SELECT
   m.id::text,
@@ -52,7 +33,22 @@ WHERE m.user_id = $1::uuid
   AND m.status = 'active'
 ORDER BY requested.ordinality`
 
-	rows, err := r.db.QueryContext(ctx, query, userID, string(rawIDs))
+func (r *Repository) ListMessagesByIDs(ctx context.Context, userID string, messageIDs []string) ([]MessageSummary, error) {
+	if r.db == nil {
+		return nil, fmt.Errorf("database handle is required")
+	}
+	userID = strings.TrimSpace(userID)
+	if userID == "" {
+		return nil, fmt.Errorf("user_id is required")
+	}
+	messageIDs, err := normalizeSearchMessageIDs(messageIDs)
+	if err != nil {
+		return nil, err
+	}
+	if len(messageIDs) == 0 {
+		return nil, nil
+	}
+	rows, err := r.db.QueryContext(ctx, listMessagesByIDsSQL, userID, pq.Array(messageIDs))
 	if err != nil {
 		return nil, fmt.Errorf("list messages by ids: %w", err)
 	}

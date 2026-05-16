@@ -68,6 +68,11 @@ Go Backend (`internal/`):
 - [ ] 벤치마크 프레임워크 (메시지 1000+, 10000+ 시나리오)
 - [ ] 테스트 검증: go test ./... 통과
 
+최근 진행:
+- `ListMessagesByIDs` hydration을 `unnest($2::uuid[]) WITH ORDINALITY` 기반으로 바꿔 JSON 배열 파싱을 제거함
+- `ListThreadMessagesPage`는 `COALESCE(thread_id, id)` 비교를 UUID 친화적인 `thread_id = ... OR id = ...`로 분해함
+- active 메시지/스레드 lookup용 partial index migration을 추가함
+
 다음 단계: Phase 2 (Bulk Delivery Batching) 구현
 
 ### 검증

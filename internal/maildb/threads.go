@@ -194,34 +194,17 @@ func (r *Repository) ListThreadMessagesPage(ctx context.Context, userID string, 
 	}
 	limit = normalizeLimit(limit) + 1
 
-	const query = `
-SELECT
-  messages.id::text,
-  messages.subject,
-  left(btrim(regexp_replace(left(coalesce(msd.body_text, ''), 2000), '[[:space:]]+', ' ', 'g')), 280) AS preview,
-  messages.from_addr,
-  messages.from_name,
-  COALESCE(messages.received_at, messages.sent_at, messages.draft_updated_at, messages.created_at) AS message_at,
-  messages.size,
-  messages.has_attachment,
-  COALESCE((messages.flags->>'read')::boolean, false) AS read,
-  COALESCE((messages.flags->>'starred')::boolean, false) AS starred
-FROM messages
-LEFT JOIN message_search_documents msd
-  ON msd.message_id = messages.id
- AND msd.user_id = messages.user_id
-WHERE messages.user_id = $1
-  AND messages.status = 'active'
-  AND COALESCE(messages.thread_id, messages.id)::text = $2
-  AND (
-    $5 = ''
-    OR (COALESCE(messages.received_at, messages.sent_at, messages.draft_updated_at, messages.created_at), messages.id)
-       > ($4::timestamptz, $5::uuid)
-  )
-ORDER BY message_at ASC, id ASC
-LIMIT $3`
+	const query = threadMessagesPageSQL
 
-	rows, err := r.db.QueryContext(ctx, query, userID, threadID, limit, cursor.At, strings.TrimSpace(cursor.ID))
+	rows, err := r.db.QueryContext(
+		ctx,
+		query,
+		userID,
+		threadID,
+		limit,
+		cursor.At,
+		strings.TrimSpace(cursor.ID),
+	)
 	if err != nil {
 		return nil, fmt.Errorf("list thread messages: %w", err)
 	}
@@ -251,3 +234,33 @@ LIMIT $3`
 	}
 	return messages, nil
 }
+
+const threadMessagesPageSQL = `
+SELECT
+  messages.id::text,
+  messages.subject,
+  left(btrim(regexp_replace(left(coalesce(msd.body_text, ''), 2000), '[[:space:]]+', ' ', 'g')), 280) AS preview,
+  messages.from_addr,
+  messages.from_name,
+  COALESCE(messages.received_at, messages.sent_at, messages.draft_updated_at, messages.created_at) AS message_at,
+  messages.size,
+  messages.has_attachment,
+  COALESCE((messages.flags->>'read')::boolean, false) AS read,
+  COALESCE((messages.flags->>'starred')::boolean, false) AS starred
+FROM messages
+LEFT JOIN message_search_documents msd
+  ON msd.message_id = messages.id
+ AND msd.user_id = messages.user_id
+WHERE messages.user_id = $1
+  AND messages.status = 'active'
+  AND (
+    messages.thread_id = $2::uuid
+    OR messages.id = $2::uuid
+  )
+  AND (
+    $5 = ''
+    OR (COALESCE(messages.received_at, messages.sent_at, messages.draft_updated_at, messages.created_at), messages.id)
+       > ($4::timestamptz, $5::uuid)
+  )
+ORDER BY message_at ASC, id ASC
+LIMIT $3`
