@@ -5337,10 +5337,10 @@ func imapUIDSetResponse(uids []UID) string {
 	if len(uids) == 0 {
 		return ""
 	}
-	var b strings.Builder
+	buf := make([]byte, 0, len(uids)*4)
 	for i := 0; i < len(uids); {
-		if i > 0 {
-			b.WriteByte(',')
+		if len(buf) > 0 {
+			buf = append(buf, ',')
 		}
 		start := uids[i]
 		end := start
@@ -5350,44 +5350,42 @@ func imapUIDSetResponse(uids []UID) string {
 			j++
 		}
 		if end > start {
-			b.WriteString(strconv.FormatUint(uint64(start), 10))
-			b.WriteByte(':')
-			b.WriteString(strconv.FormatUint(uint64(end), 10))
+			buf = strconv.AppendUint(buf, uint64(start), 10)
+			buf = append(buf, ':')
+			buf = strconv.AppendUint(buf, uint64(end), 10)
 		} else {
-			b.WriteString(strconv.FormatUint(uint64(start), 10))
+			buf = strconv.AppendUint(buf, uint64(start), 10)
 		}
 		i = j
 	}
-	return b.String()
+	return string(buf)
 }
 
 func imapAppendUIDResponseCode(uidValidity uint32, uid UID) string {
 	if uidValidity == 0 || uid == 0 {
 		return ""
 	}
-	var b strings.Builder
-	b.Grow(24)
-	b.WriteString(" [APPENDUID ")
-	b.WriteString(strconv.FormatUint(uint64(uidValidity), 10))
-	b.WriteByte(' ')
-	b.WriteString(strconv.FormatUint(uint64(uid), 10))
-	b.WriteByte(']')
-	return b.String()
+	buf := make([]byte, 0, 24)
+	buf = append(buf, " [APPENDUID "...)
+	buf = strconv.AppendUint(buf, uint64(uidValidity), 10)
+	buf = append(buf, ' ')
+	buf = strconv.AppendUint(buf, uint64(uid), 10)
+	buf = append(buf, ']')
+	return string(buf)
 }
 
 func imapCopyUIDResponseCode(uidValidity uint32, sourceUIDs, destUIDs []UID) string {
 	if uidValidity == 0 || len(sourceUIDs) == 0 || len(destUIDs) == 0 {
 		return ""
 	}
-	var b strings.Builder
-	b.Grow(32 + len(sourceUIDs)*4 + len(destUIDs)*4)
-	b.WriteString("COPYUID ")
-	b.WriteString(strconv.FormatUint(uint64(uidValidity), 10))
-	b.WriteByte(' ')
-	b.WriteString(imapUIDSetResponse(sourceUIDs))
-	b.WriteByte(' ')
-	b.WriteString(imapUIDSetResponse(destUIDs))
-	return b.String()
+	buf := make([]byte, 0, 32+len(sourceUIDs)*4+len(destUIDs)*4)
+	buf = append(buf, "COPYUID "...)
+	buf = strconv.AppendUint(buf, uint64(uidValidity), 10)
+	buf = append(buf, ' ')
+	buf = append(buf, imapUIDSetResponse(sourceUIDs)...)
+	buf = append(buf, ' ')
+	buf = append(buf, imapUIDSetResponse(destUIDs)...)
+	return string(buf)
 }
 
 func (s *Server) writeFetchResponses(writer *bufio.Writer, tag string, items []string, state *imapConnState, uids []UID, completionCommand string) (bool, error) {
