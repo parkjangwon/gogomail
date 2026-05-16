@@ -4858,7 +4858,7 @@ func (s *Server) handleAppend(writer *bufio.Writer, tag string, fields []string,
 	}
 	responseCode := ""
 	if !result.UIDNotSticky && result.UIDValidity != 0 && summary.UID != 0 {
-		responseCode = fmt.Sprintf(" [APPENDUID %d %d]", result.UIDValidity, summary.UID)
+		responseCode = imapAppendUIDResponseCode(result.UIDValidity, summary.UID)
 	}
 	_, err = writer.WriteString(tag + " OK" + responseCode + " APPEND completed\r\n")
 	return false, err
@@ -5090,7 +5090,7 @@ func (s *Server) writeMoveResponse(writer *bufio.Writer, tag string, state *imap
 	copyUID := imapMoveCopyUIDResponse(destMailbox, summaries)
 	if destMailbox.ID == state.selectedMailbox && len(summaries) > 0 {
 		state.selectedMessages = imapSummariesExistsCount(state.selectedMessages, imapMoveDestinationSummaries(summaries))
-		if _, err := writer.WriteString(fmt.Sprintf("* %d EXISTS\r\n", state.selectedMessages)); err != nil {
+		if err := writeIMAPUintLine(writer, "* ", uint64(state.selectedMessages), " EXISTS\r\n"); err != nil {
 			return false, err
 		}
 	}
@@ -5257,7 +5257,7 @@ func imapCopyUIDResponse(destMailbox Mailbox, results []CopyMessageResult) strin
 		sourceUIDs = append(sourceUIDs, result.SourceUID)
 		destUIDs = append(destUIDs, result.Destination.UID)
 	}
-	return fmt.Sprintf("COPYUID %d %s %s", destMailbox.UIDValidity, imapUIDSetResponse(sourceUIDs), imapUIDSetResponse(destUIDs))
+	return imapCopyUIDResponseCode(destMailbox.UIDValidity, sourceUIDs, destUIDs)
 }
 
 func imapMoveCopyUIDResponse(destMailbox Mailbox, results []MoveMessageResult) string {
@@ -5273,7 +5273,7 @@ func imapMoveCopyUIDResponse(destMailbox Mailbox, results []MoveMessageResult) s
 		sourceUIDs = append(sourceUIDs, result.Source.UID)
 		destUIDs = append(destUIDs, result.Destination.UID)
 	}
-	return fmt.Sprintf("COPYUID %d %s %s", destMailbox.UIDValidity, imapUIDSetResponse(sourceUIDs), imapUIDSetResponse(destUIDs))
+	return imapCopyUIDResponseCode(destMailbox.UIDValidity, sourceUIDs, destUIDs)
 }
 
 func imapMoveSourceSummaries(results []MoveMessageResult) []MessageSummary {
@@ -5334,8 +5334,14 @@ func imapMoveHighestModSeq(results []MoveMessageResult) uint64 {
 }
 
 func imapUIDSetResponse(uids []UID) string {
-	parts := make([]string, 0, len(uids))
+	if len(uids) == 0 {
+		return ""
+	}
+	var b strings.Builder
 	for i := 0; i < len(uids); {
+		if i > 0 {
+			b.WriteByte(',')
+		}
 		start := uids[i]
 		end := start
 		j := i + 1
@@ -5344,13 +5350,44 @@ func imapUIDSetResponse(uids []UID) string {
 			j++
 		}
 		if end > start {
-			parts = append(parts, fmt.Sprintf("%d:%d", start, end))
+			b.WriteString(strconv.FormatUint(uint64(start), 10))
+			b.WriteByte(':')
+			b.WriteString(strconv.FormatUint(uint64(end), 10))
 		} else {
-			parts = append(parts, strconv.FormatUint(uint64(start), 10))
+			b.WriteString(strconv.FormatUint(uint64(start), 10))
 		}
 		i = j
 	}
-	return strings.Join(parts, ",")
+	return b.String()
+}
+
+func imapAppendUIDResponseCode(uidValidity uint32, uid UID) string {
+	if uidValidity == 0 || uid == 0 {
+		return ""
+	}
+	var b strings.Builder
+	b.Grow(24)
+	b.WriteString(" [APPENDUID ")
+	b.WriteString(strconv.FormatUint(uint64(uidValidity), 10))
+	b.WriteByte(' ')
+	b.WriteString(strconv.FormatUint(uint64(uid), 10))
+	b.WriteByte(']')
+	return b.String()
+}
+
+func imapCopyUIDResponseCode(uidValidity uint32, sourceUIDs, destUIDs []UID) string {
+	if uidValidity == 0 || len(sourceUIDs) == 0 || len(destUIDs) == 0 {
+		return ""
+	}
+	var b strings.Builder
+	b.Grow(32 + len(sourceUIDs)*4 + len(destUIDs)*4)
+	b.WriteString("COPYUID ")
+	b.WriteString(strconv.FormatUint(uint64(uidValidity), 10))
+	b.WriteByte(' ')
+	b.WriteString(imapUIDSetResponse(sourceUIDs))
+	b.WriteByte(' ')
+	b.WriteString(imapUIDSetResponse(destUIDs))
+	return b.String()
 }
 
 func (s *Server) writeFetchResponses(writer *bufio.Writer, tag string, items []string, state *imapConnState, uids []UID, completionCommand string) (bool, error) {

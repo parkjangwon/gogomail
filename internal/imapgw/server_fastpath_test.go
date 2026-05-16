@@ -36,3 +36,11 @@ func BenchmarkIMAPTagFromCommandLine(b *testing.B) {
 		_ = imapTagFromCommandLine(line)
 	}
 }
+
+func BenchmarkIMAPUIDSetResponse(b *testing.B) {
+	uids := []UID{1, 2, 3, 5, 6, 10, 11, 12, 20}
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		_ = imapUIDSetResponse(uids)
+	}
+}
