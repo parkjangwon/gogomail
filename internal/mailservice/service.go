@@ -335,6 +335,39 @@ func (s *Service) SearchMessages(ctx context.Context, query maildb.MessageSearch
 	return repo.SearchMessages(ctx, query)
 }
 
+func (s *Service) SearchMessageIDs(ctx context.Context, query maildb.MessageSearchQuery) ([]string, error) {
+	query = normalizeMessageSearchQuery(query)
+	if err := validateMessageSearchQuery(query); err != nil {
+		return nil, err
+	}
+	if s.searchIDSource != nil && canUseSearchIDSourceForIDs(query) {
+		hits, err := s.searchIDSource.SearchMessageIDs(ctx, openSearchSearchQueryFromMessageSearchQuery(query, 200))
+		if err != nil {
+			return nil, err
+		}
+		return uniqueSearchHitIDs(hits), nil
+	}
+	repo, ok := s.repository.(interface {
+		SearchMessages(context.Context, maildb.MessageSearchQuery) ([]maildb.MessageSummary, error)
+	})
+	if !ok {
+		return nil, fmt.Errorf("search repository is required")
+	}
+	messages, err := repo.SearchMessages(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	ids := make([]string, 0, len(messages))
+	for _, message := range messages {
+		id := strings.TrimSpace(message.ID)
+		if id == "" {
+			continue
+		}
+		ids = append(ids, id)
+	}
+	return ids, nil
+}
+
 func (s *Service) SearchDrafts(ctx context.Context, query maildb.DraftSearchQuery) ([]maildb.MessageDetail, error) {
 	query = normalizeDraftSearchQuery(query)
 	if err := validateDraftSearchQuery(query); err != nil {
@@ -356,39 +389,11 @@ func (s *Service) searchMessagesByExternalIDs(ctx context.Context, query maildb.
 	if !ok {
 		return nil, fmt.Errorf("search hydration repository is required")
 	}
-	hits, err := s.searchIDSource.SearchMessageIDs(ctx, searchindex.OpenSearchSearchQuery{
-		UserID:            query.UserID,
-		FolderID:          query.FolderID,
-		Query:             query.Query,
-		From:              query.From,
-		To:                query.To,
-		Cc:                query.Cc,
-		Bcc:               query.Bcc,
-		Subject:           query.Subject,
-		HasAttachment:     query.HasAttachment,
-		Since:             query.Since,
-		Until:             query.Until,
-		IncludeHighlights: query.IncludeHighlights,
-		Limit:             query.Limit,
-	})
+	hits, err := s.searchIDSource.SearchMessageIDs(ctx, openSearchSearchQueryFromMessageSearchQuery(query, query.Limit))
 	if err != nil {
 		return nil, err
 	}
-	messageIDs := make([]string, 0, len(hits))
-	ranks := make(map[string]float64, len(hits))
-	highlights := make(map[string]searchindex.OpenSearchHighlights, len(hits))
-	for _, hit := range hits {
-		id := strings.TrimSpace(hit.MessageID)
-		if id == "" {
-			continue
-		}
-		if _, ok := ranks[id]; ok {
-			continue
-		}
-		messageIDs = append(messageIDs, id)
-		ranks[id] = hit.Score
-		highlights[id] = hit.Highlights
-	}
+	messageIDs, ranks, highlights := searchMessageIDsFromHits(hits)
 	messages, err := hydrator.ListMessagesByIDs(ctx, query.UserID, messageIDs)
 	if err != nil {
 		return nil, err
@@ -417,6 +422,61 @@ func (s *Service) searchMessagesByExternalIDs(ctx context.Context, query maildb.
 func canUseSearchIDSource(query maildb.MessageSearchQuery) bool {
 	return strings.TrimSpace(query.Query) != "" &&
 		normalizedSearchSort(query.Sort) == maildb.MessageSearchSortRelevance
+}
+
+func canUseSearchIDSourceForIDs(query maildb.MessageSearchQuery) bool {
+	return strings.TrimSpace(query.Query) != "" ||
+		strings.TrimSpace(query.FolderID) != "" ||
+		strings.TrimSpace(query.From) != "" ||
+		strings.TrimSpace(query.To) != "" ||
+		strings.TrimSpace(query.Cc) != "" ||
+		strings.TrimSpace(query.Bcc) != "" ||
+		strings.TrimSpace(query.Subject) != "" ||
+		query.HasAttachment != nil ||
+		strings.TrimSpace(query.Since) != "" ||
+		strings.TrimSpace(query.Until) != ""
+}
+
+func openSearchSearchQueryFromMessageSearchQuery(query maildb.MessageSearchQuery, limit int) searchindex.OpenSearchSearchQuery {
+	return searchindex.OpenSearchSearchQuery{
+		UserID:            query.UserID,
+		FolderID:          query.FolderID,
+		Query:             query.Query,
+		From:              query.From,
+		To:                query.To,
+		Cc:                query.Cc,
+		Bcc:               query.Bcc,
+		Subject:           query.Subject,
+		HasAttachment:     query.HasAttachment,
+		Since:             query.Since,
+		Until:             query.Until,
+		IncludeHighlights: query.IncludeHighlights,
+		Limit:             limit,
+	}
+}
+
+func searchMessageIDsFromHits(hits []searchindex.OpenSearchHit) ([]string, map[string]float64, map[string]searchindex.OpenSearchHighlights) {
+	messageIDs := make([]string, 0, len(hits))
+	ranks := make(map[string]float64, len(hits))
+	highlights := make(map[string]searchindex.OpenSearchHighlights, len(hits))
+	for _, hit := range hits {
+		id := strings.TrimSpace(hit.MessageID)
+		if id == "" {
+			continue
+		}
+		if _, ok := ranks[id]; ok {
+			continue
+		}
+		messageIDs = append(messageIDs, id)
+		ranks[id] = hit.Score
+		highlights[id] = hit.Highlights
+	}
+	return messageIDs, ranks, highlights
+}
+
+func uniqueSearchHitIDs(hits []searchindex.OpenSearchHit) []string {
+	messageIDs, _, _ := searchMessageIDsFromHits(hits)
+	return messageIDs
 }
 
 func normalizedSearchSort(sort string) string {

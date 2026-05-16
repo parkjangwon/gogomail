@@ -5920,6 +5920,10 @@ The platform hardening sprint completed the following:
   common `BODY[HEADER]`, `BODY[TEXT]`, `BODY[1]`, and `BODY[1.MIME]` requests.
 - IMAP `SEARCH`/`UID SEARCH` supports common flag criteria for unread, starred,
   answered, and draft client views.
+- IMAP `SEARCH`/`UID SEARCH` can now opportunistically prefilter simple
+  conjunctions of supported text/date criteria through OpenSearch when the
+  search index backend is enabled, while keeping the local IMAP predicate
+  evaluator as the source of truth for unsupported or capped queries.
 - IMAP `STORE`/`UID STORE` can persist the IMAP-specific `\Deleted` flag
   separately from gogomail's soft-delete status, and `FETCH`/`SEARCH` expose
   that flag through `FLAGS`, `DELETED`, and `UNDELETED`.
