@@ -9,7 +9,7 @@ ADD COLUMN photo_data BYTEA,
 ADD COLUMN photo_media_type VARCHAR(100);
 
 CREATE INDEX idx_carddav_contact_objects_photo
-ON carddav_contact_objects(addressbook_id, photo_data IS NOT NULL)
+ON carddav_contact_objects(addressbook_id)
 WHERE photo_data IS NOT NULL;
 
 -- Constraint: photo_data AND photo_media_type must both be NULL or both be NOT NULL

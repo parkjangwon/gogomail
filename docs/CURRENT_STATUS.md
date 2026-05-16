@@ -2,6 +2,12 @@
 
 Last updated: 2026-05-16 (Drive upload-session chunk storage hardening)
 
+## Repository Housekeeping (2026-05-16)
+- pi-crew runtime state is now ignored in `.gitignore` so local orchestration scratch data stays out of the repo.
+- `AGENTS.md` and `CLAUDE.md` now carry the same pi-crew guidance block to keep the operator instructions in sync.
+- Migration 0099 now uses the `addressbook_id` leading column plus a `photo_data IS NOT NULL` predicate for the photo-storage index.
+- Migration 0105 now drops superseded legacy alert tables before recreating the redesigned alert config/channel/notification schema.
+
 ## Drive/File Storage Completion Hardening (2026-05-16)
 - Drive upload-session body writes now carry parsed `Content-Range` from the HTTP route into the service layer instead of dropping it after validation.
 - Sequential Drive chunks are assembled into a single backend object: non-zero chunks read the prior object, append the new body, verify the expected resulting byte count, write a replacement object, and delete the locked prior object only after the metadata update commits.
