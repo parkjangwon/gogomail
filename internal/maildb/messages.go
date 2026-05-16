@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"github.com/lib/pq"
 )
 
 type MessageSummary struct {
@@ -865,13 +867,9 @@ func (r *Repository) BulkSetThreadFlag(ctx context.Context, req BulkThreadFlagRe
 	if err := ValidateBulkThreadFlagRequest(req); err != nil {
 		return BulkThreadFlagResult{}, err
 	}
-	rawIDs, err := json.Marshal(req.ThreadIDs)
-	if err != nil {
-		return BulkThreadFlagResult{}, fmt.Errorf("encode thread ids: %w", err)
-	}
 	flag := strings.TrimSpace(req.Flag)
 
-	rows, err := r.db.QueryContext(ctx, bulkSetThreadFlagSQL, strings.TrimSpace(req.UserID), string(rawIDs), "{"+flag+"}", req.Value)
+	rows, err := r.db.QueryContext(ctx, bulkSetThreadFlagSQL, strings.TrimSpace(req.UserID), pq.Array(req.ThreadIDs), "{"+flag+"}", req.Value)
 	if err != nil {
 		return BulkThreadFlagResult{}, fmt.Errorf("bulk set thread flag: %w", err)
 	}
@@ -892,14 +890,22 @@ func (r *Repository) BulkSetThreadFlag(ctx context.Context, req BulkThreadFlagRe
 }
 
 const bulkSetThreadFlagSQL = `
-WITH target_messages AS (
-  SELECT id
+WITH requested AS (
+  SELECT value AS id
+  FROM unnest($2::uuid[]) AS requested(value)
+),
+target_messages AS (
+  SELECT messages.id
   FROM messages
+  JOIN requested ON messages.thread_id = requested.id
   WHERE user_id = $1
     AND status = 'active'
-    AND COALESCE(thread_id, id)::text IN (
-      SELECT value FROM jsonb_array_elements_text($2::jsonb)
-    )
+  UNION
+  SELECT messages.id
+  FROM messages
+  JOIN requested ON messages.id = requested.id
+  WHERE user_id = $1
+    AND status = 'active'
 ),
 updated_messages AS (
   UPDATE messages
@@ -923,12 +929,8 @@ func (r *Repository) ListMessageIDsForThreads(ctx context.Context, userID string
 	if err := validateBulkThreadIDs(threadIDs); err != nil {
 		return nil, err
 	}
-	rawIDs, err := json.Marshal(threadIDs)
-	if err != nil {
-		return nil, fmt.Errorf("encode thread ids: %w", err)
-	}
 
-	rows, err := r.db.QueryContext(ctx, listMessageIDsForThreadsSQL, userID, string(rawIDs))
+	rows, err := r.db.QueryContext(ctx, listMessageIDsForThreadsSQL, userID, pq.Array(threadIDs))
 	if err != nil {
 		return nil, fmt.Errorf("list message ids for threads: %w", err)
 	}
@@ -949,13 +951,21 @@ func (r *Repository) ListMessageIDsForThreads(ctx context.Context, userID string
 }
 
 const listMessageIDsForThreadsSQL = `
+WITH requested AS (
+  SELECT value AS id
+  FROM unnest($2::uuid[]) AS requested(value)
+)
 SELECT id::text
 FROM messages
+JOIN requested ON messages.thread_id = requested.id
 WHERE user_id = $1
   AND status = 'active'
-  AND COALESCE(thread_id, id)::text IN (
-    SELECT value FROM jsonb_array_elements_text($2::jsonb)
-  )
+UNION
+SELECT id::text
+FROM messages
+JOIN requested ON messages.id = requested.id
+WHERE user_id = $1
+  AND status = 'active'
 ORDER BY id`
 
 func (r *Repository) MoveMessage(ctx context.Context, userID string, messageID string, folderID string) error {
