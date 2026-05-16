@@ -254,7 +254,7 @@ func currentAdminConsoleCapabilities(storageCapabilities storage.BackendCapabili
 			NoStoreJSON:          true,
 		},
 		Integrations: adminConsoleIntegrationCapabilities{
-			LDAPRead:         "placeholder",
+			LDAPRead:         "available",
 			LDAPSync:         "placeholder",
 			OrganizationSync: "placeholder",
 		},

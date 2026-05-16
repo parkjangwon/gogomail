@@ -296,6 +296,12 @@ func buildEqualityFilter(attr, value string) []byte {
 	return append(filterData, filterContent...)
 }
 
+func buildPresentFilter(attr string) []byte {
+	filterData := []byte{tagContextSpecific | filterPresent}
+	filterData = append(filterData, encodeLength(len(attr))...)
+	return append(filterData, []byte(attr)...)
+}
+
 func buildOrderingFilter(filterType int, attr, value string) []byte {
 	filterContent := append(encodeOctetString(attr), encodeOctetString(value)...)
 	filterData := []byte{tagContextSpecific | byte(filterType)}
@@ -749,6 +755,87 @@ func TestLDAPServerBindSuccess(t *testing.T) {
 	}
 	if opTag != opBindResponse {
 		t.Errorf("opTag = %d, want %d (BindResponse)", opTag, opBindResponse)
+	}
+}
+
+func TestLDAPServerAnonymousBindAllowsDiscoveryOnly(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+
+	srv := NewServerWithOptions(ln, newFakeLDAPAuth(), newFakeDirectoryQuerier(), ServerOptions{
+		NamingContexts: []string{"dc=example,dc=com"},
+	})
+	go srv.Serve()
+	defer srv.Close()
+
+	conn, err := net.Dial("tcp", ln.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+
+	bindReq := buildLDAPPacket(31, opBindRequest, buildBindRequest(3, "", ""))
+	if err := sendPDU(conn, bindReq); err != nil {
+		t.Fatal(err)
+	}
+	resp, err := readFullPDU(conn, time.Now().Add(3*time.Second))
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, opTag, opData, err := decodeLDAPPacket(resp)
+	if err != nil {
+		t.Fatalf("decode anonymous bind response: %v", err)
+	}
+	if opTag != opBindResponse || decodeEnumerated(opData) != resultSuccess {
+		t.Fatalf("anonymous bind op/result = %d/%d, want %d/%d", opTag, decodeEnumerated(opData), opBindResponse, resultSuccess)
+	}
+
+	rootDSEReq := buildLDAPPacket(32, opSearchRequest,
+		buildSearchRequestWithAttrs("", scopeBaseObject, buildPresentFilter("objectClass"), "namingContexts"),
+	)
+	if err := sendPDU(conn, rootDSEReq); err != nil {
+		t.Fatal(err)
+	}
+	resp, err = readFullPDU(conn, time.Now().Add(3*time.Second))
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, opTag, opData, err = decodeLDAPPacket(resp)
+	if err != nil {
+		t.Fatalf("decode root DSE response: %v", err)
+	}
+	if opTag != opSearchResultEntry || !bytesContains(opData, []byte("dc=example,dc=com")) {
+		t.Fatalf("anonymous root DSE op/data = %d/%x, want naming context entry", opTag, opData)
+	}
+
+	protectedReq := buildLDAPPacket(33, opSearchRequest,
+		buildSearchRequest("dc=example,dc=com", scopeWholeSubtree, buildEqualityFilter("objectClass", "person")),
+	)
+	if err := sendPDU(conn, protectedReq); err != nil {
+		t.Fatal(err)
+	}
+	for {
+		resp, err = readFullPDU(conn, time.Now().Add(3*time.Second))
+		if err != nil {
+			t.Fatal(err)
+		}
+		msgID, opTag, opData, err := decodeLDAPPacket(resp)
+		if err != nil {
+			t.Fatalf("decode protected search response: %v", err)
+		}
+		if msgID != 33 {
+			continue
+		}
+		if opTag != opSearchResultDone {
+			continue
+		}
+		if decodeEnumerated(opData) != resultInsufficientAccessRights {
+			t.Fatalf("anonymous protected search result = %d, want %d", decodeEnumerated(opData), resultInsufficientAccessRights)
+		}
+		break
 	}
 }
 
