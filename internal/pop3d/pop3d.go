@@ -462,7 +462,11 @@ func (sess *session) handleTransaction(cmd, arg1, arg2 string, argc int) {
 			sess.writeERR("no such message")
 			return
 		}
-		lines, _ := strconv.Atoi(arg2)
+		lines, err := strconv.Atoi(arg2)
+		if err != nil || lines < 0 {
+			sess.writeERR("syntax error")
+			return
+		}
 		content, err := sess.messageContent(idx - 1)
 		if err != nil {
 			sess.writeERR("message content unavailable")
