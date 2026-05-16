@@ -257,6 +257,14 @@ async function collectDroppedFiles(dataTransfer: DataTransfer): Promise<DroppedF
     entries.push({ file, relativePath: normalized });
   };
 
+  const fileSnapshot = Array.from(dataTransfer.files || []).map((file) => ({
+    file,
+    relativePath: (file as File & { webkitRelativePath?: string }).webkitRelativePath?.trim() || file.name,
+  }));
+  for (const item of fileSnapshot) {
+    pushEntry(item.file, item.relativePath);
+  }
+
   const dataTransferItemItems = Array.from(dataTransfer.items || []);
   for (const item of dataTransferItemItems) {
     if (item.kind !== 'file') continue;
@@ -289,12 +297,6 @@ async function collectDroppedFiles(dataTransfer: DataTransfer): Promise<DroppedF
 
     const file = item.getAsFile();
     if (file) pushEntry(file, file.name);
-  }
-
-  const files = Array.from(dataTransfer.files || []);
-  for (const file of files) {
-    const relativePath = (file as File & { webkitRelativePath?: string }).webkitRelativePath?.trim() || file.name;
-    pushEntry(file, relativePath);
   }
 
   return entries;
