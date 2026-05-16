@@ -548,6 +548,15 @@ func imapTagFromCommandLine(line string) string {
 	return line[start:end]
 }
 
+func writeIMAPUintLine(writer *bufio.Writer, prefix string, value uint64, suffix string) error {
+	var buf [64]byte
+	out := append(buf[:0], prefix...)
+	out = strconv.AppendUint(out, value, 10)
+	out = append(out, suffix...)
+	_, err := writer.Write(out)
+	return err
+}
+
 func isIMAPSpace(b byte) bool {
 	switch b {
 	case ' ', '\t', '\v', '\f':
@@ -1351,10 +1360,10 @@ func (s *Server) handleSelect(writer *bufio.Writer, tag string, command string, 
 	if _, err := writer.WriteString("* FLAGS " + imapFlagList(permanentFlags) + "\r\n"); err != nil {
 		return false, err
 	}
-	if _, err := writer.WriteString(fmt.Sprintf("* %d EXISTS\r\n", mailboxState.Messages)); err != nil {
+	if err := writeIMAPUintLine(writer, "* ", uint64(mailboxState.Messages), " EXISTS\r\n"); err != nil {
 		return false, err
 	}
-	if _, err := writer.WriteString(fmt.Sprintf("* %d RECENT\r\n", mailboxState.Recent)); err != nil {
+	if err := writeIMAPUintLine(writer, "* ", uint64(mailboxState.Recent), " RECENT\r\n"); err != nil {
 		return false, err
 	}
 	if unseenSequence := s.firstUnseenSequenceNumber(context.Background(), state.session.UserID, mailboxState); unseenSequence > 0 {
@@ -1362,10 +1371,10 @@ func (s *Server) handleSelect(writer *bufio.Writer, tag string, command string, 
 			return false, err
 		}
 	}
-	if _, err := writer.WriteString(fmt.Sprintf("* OK [UIDVALIDITY %d] UIDs valid\r\n", mailboxState.UIDValidity)); err != nil {
+	if err := writeIMAPUintLine(writer, "* OK [UIDVALIDITY ", uint64(mailboxState.UIDValidity), "] UIDs valid\r\n"); err != nil {
 		return false, err
 	}
-	if _, err := writer.WriteString(fmt.Sprintf("* OK [UIDNEXT %d] Predicted next UID\r\n", mailboxState.UIDNext)); err != nil {
+	if err := writeIMAPUintLine(writer, "* OK [UIDNEXT ", uint64(mailboxState.UIDNext), "] Predicted next UID\r\n"); err != nil {
 		return false, err
 	}
 	if mailboxState.UIDNotSticky {
@@ -1374,7 +1383,7 @@ func (s *Server) handleSelect(writer *bufio.Writer, tag string, command string, 
 		}
 	}
 	if mailboxState.HighestModSeq > 0 {
-		if _, err := writer.WriteString(fmt.Sprintf("* OK [HIGHESTMODSEQ %d] Highest mod-sequence\r\n", mailboxState.HighestModSeq)); err != nil {
+		if err := writeIMAPUintLine(writer, "* OK [HIGHESTMODSEQ ", mailboxState.HighestModSeq, "] Highest mod-sequence\r\n"); err != nil {
 			return false, err
 		}
 	} else if condstore || state.condstoreAware {
@@ -2124,8 +2133,7 @@ func (s *Server) writeMailboxEvent(writer *bufio.Writer, state *imapConnState, e
 		} else {
 			state.selectedMessages++
 		}
-		_, err := writer.WriteString(fmt.Sprintf("* %d EXISTS\r\n", state.selectedMessages))
-		return err
+		return writeIMAPUintLine(writer, "* ", uint64(state.selectedMessages), " EXISTS\r\n")
 	case MailboxEventExpunge:
 		sequenceNumber := event.SequenceNumber
 		if sequenceNumber == 0 {
@@ -2144,8 +2152,7 @@ func (s *Server) writeMailboxEvent(writer *bufio.Writer, state *imapConnState, e
 			state.selectedMessages--
 		}
 		state.removeExpungedFromSavedSearch([]MessageSummary{{SequenceNumber: sequenceNumber}})
-		_, err := writer.WriteString(fmt.Sprintf("* %d EXPUNGE\r\n", sequenceNumber))
-		return err
+		return writeIMAPUintLine(writer, "* ", uint64(sequenceNumber), " EXPUNGE\r\n")
 	case MailboxEventFlags:
 		message, err := s.options.Backend.FetchMessage(context.Background(), FetchMessageRequest{
 			UserID:    state.session.UserID,

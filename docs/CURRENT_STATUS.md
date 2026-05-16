@@ -8,6 +8,7 @@ Last updated: 2026-05-17 (Webmail interaction polish)
 - POP3 status responses for `STAT`, `LIST`, `UIDL`, and `RETR` now write directly to the wire buffer instead of going through `fmt.Sprintf` concatenation in the request path.
 - POP3 `TOP` now rejects negative line counts up front instead of treating them as silent zero-line requests, which makes the command framing stricter and easier to reason about.
 - IMAP framing-error tag extraction now uses a lightweight scanner instead of `strings.Fields`, reducing allocation on malformed-line handling.
+- IMAP `EXISTS`, `RECENT`, `UIDVALIDITY`, `UIDNEXT`, `HIGHESTMODSEQ`, and expunge notifications now stream numeric responses directly to the wire buffer instead of building `fmt.Sprintf` strings.
 - Verification: `go test ./...` passes and `go build ./...` succeeds after the fast-path cleanup.
 
 ## Webmail Interaction Polish (2026-05-17)
