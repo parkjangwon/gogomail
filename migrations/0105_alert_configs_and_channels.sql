@@ -1,5 +1,11 @@
 -- +goose Up
 -- Alert configuration and notification channels
+-- Supersedes 0085_alert_rules, 0086_alert_channels, 0087_alert_events with a redesigned schema.
+
+DROP TABLE IF EXISTS alert_events CASCADE;
+DROP TABLE IF EXISTS alert_rule_channels CASCADE;
+DROP TABLE IF EXISTS alert_channels CASCADE;
+DROP TABLE IF EXISTS alert_rules CASCADE;
 
 CREATE TABLE IF NOT EXISTS alert_configs (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
