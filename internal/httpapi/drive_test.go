@@ -1742,3 +1742,14 @@ func TestDriveDelegatedAccessDeniesCrossUserWithoutDelegation(t *testing.T) {
 		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
 	}
 }
+
+func TestWriteDriveServiceErrorMapsDriveNodeConflict(t *testing.T) {
+	t.Parallel()
+
+	rec := httptest.NewRecorder()
+	writeDriveServiceError(rec, drive.ErrDriveNodeAlreadyExists)
+
+	if rec.Code != http.StatusConflict {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusConflict)
+	}
+}

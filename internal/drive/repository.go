@@ -11,6 +11,7 @@ import (
 
 	"github.com/gogomail/gogomail/internal/mail"
 	"github.com/gogomail/gogomail/internal/storage"
+	"github.com/jackc/pgx/v5/pgconn"
 )
 
 type Repository struct {
@@ -513,6 +514,13 @@ RETURNING
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return Node{}, fmt.Errorf("active user or parent folder not found")
+		}
+		if isDriveNodeSiblingNameConflict(err) {
+			existing, lookupErr := r.findActiveNodeBySiblingName(ctx, req.UserID, req.ParentID, normalizedName, NodeTypeFolder)
+			if lookupErr == nil {
+				return existing, nil
+			}
+			return Node{}, lookupErr
 		}
 		return Node{}, fmt.Errorf("create drive folder: %w", err)
 	}
@@ -1071,6 +1079,9 @@ func (r *Repository) CreateFileFromObject(ctx context.Context, store storage.Sto
 	}
 	node, err := insertDriveFileNode(ctx, tx, req, normalizedName, info.Size)
 	if err != nil {
+		if errors.Is(err, ErrDriveNodeAlreadyExists) {
+			return Node{}, err
+		}
 		return Node{}, err
 	}
 	if err := tx.Commit(); err != nil {
@@ -1480,9 +1491,77 @@ RETURNING
 		if errors.Is(err, sql.ErrNoRows) {
 			return Node{}, fmt.Errorf("active user or parent folder not found")
 		}
-		return Node{}, fmt.Errorf("create drive file: %w", err)
+		return Node{}, mapDriveFileCreateError(err)
 	}
 	return node, nil
+}
+
+func (r *Repository) findActiveNodeBySiblingName(ctx context.Context, userID, parentID, normalizedName, nodeType string) (Node, error) {
+	if r == nil || r.db == nil {
+		return Node{}, fmt.Errorf("database handle is required")
+	}
+	const query = `
+SELECT
+  id::text,
+  company_id::text,
+  domain_id::text,
+  user_id::text,
+  COALESCE(parent_id::text, ''),
+  node_type,
+  name,
+  normalized_name,
+  mime_type,
+  size,
+  storage_backend,
+  storage_path,
+  checksum_sha256,
+  status,
+  created_at,
+  updated_at
+FROM drive_nodes
+WHERE user_id = $1::uuid
+  AND status = 'active'
+  AND COALESCE(parent_id, '00000000-0000-0000-0000-000000000000'::uuid) = COALESCE(NULLIF($2, '')::uuid, '00000000-0000-0000-0000-000000000000'::uuid)
+  AND normalized_name = $3
+  AND node_type = $4`
+	var node Node
+	err := r.db.QueryRowContext(ctx, query, userID, parentID, normalizedName, nodeType).Scan(
+		&node.ID,
+		&node.CompanyID,
+		&node.DomainID,
+		&node.UserID,
+		&node.ParentID,
+		&node.Type,
+		&node.Name,
+		&node.NormalizedName,
+		&node.MIMEType,
+		&node.Size,
+		&node.StorageBackend,
+		&node.StoragePath,
+		&node.ChecksumSHA256,
+		&node.Status,
+		&node.CreatedAt,
+		&node.UpdatedAt,
+	)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return Node{}, fmt.Errorf("%w: drive node already exists in this folder", ErrDriveNodeAlreadyExists)
+		}
+		return Node{}, fmt.Errorf("lookup existing drive node: %w", err)
+	}
+	return node, nil
+}
+
+func isDriveNodeSiblingNameConflict(err error) bool {
+	var pgErr *pgconn.PgError
+	return errors.As(err, &pgErr) && pgErr.Code == "23505" && pgErr.ConstraintName == "idx_drive_nodes_user_active_sibling_name"
+}
+
+func mapDriveFileCreateError(err error) error {
+	if isDriveNodeSiblingNameConflict(err) {
+		return fmt.Errorf("%w: drive file already exists in this folder", ErrDriveNodeAlreadyExists)
+	}
+	return fmt.Errorf("create drive file: %w", err)
 }
 
 func incrementDriveQuota(ctx context.Context, tx *sql.Tx, userID string, size int64) error {

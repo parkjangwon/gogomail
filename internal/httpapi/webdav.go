@@ -319,6 +319,11 @@ func (h *webdavHandler) handleMkcol(w http.ResponseWriter, r *http.Request) {
 		Name:     name,
 	})
 	if err != nil {
+		if errors.Is(err, drive.ErrDriveNodeAlreadyExists) {
+			http.Error(w, "collection already exists", http.StatusConflict)
+			h.observe(ctx, WebDAVMethodMkcol, userID, path, WebDAVResultRejected, "already_exists")
+			return
+		}
 		http.Error(w, "create folder failed: "+err.Error(), http.StatusInternalServerError)
 		h.observe(ctx, WebDAVMethodMkcol, userID, path, WebDAVResultError, err.Error())
 		return
@@ -429,6 +434,11 @@ func (h *webdavHandler) handlePut(w http.ResponseWriter, r *http.Request) {
 		if errors.Is(err, drive.ErrQuotaExceeded) {
 			http.Error(w, "insufficient storage", http.StatusInsufficientStorage)
 			h.observe(ctx, WebDAVMethodPut, userID, path, WebDAVResultRejected, "quota_exceeded")
+			return
+		}
+		if errors.Is(err, drive.ErrDriveNodeAlreadyExists) {
+			http.Error(w, "file already exists", http.StatusConflict)
+			h.observe(ctx, WebDAVMethodPut, userID, path, WebDAVResultRejected, "already_exists")
 			return
 		}
 		http.Error(w, "create file failed: "+err.Error(), http.StatusInternalServerError)
