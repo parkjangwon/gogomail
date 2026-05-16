@@ -11,6 +11,7 @@ Last updated: 2026-05-17 (Webmail interaction polish)
 - IMAP `EXISTS`, `RECENT`, `UIDVALIDITY`, `UIDNEXT`, `HIGHESTMODSEQ`, and expunge notifications now stream numeric responses directly to the wire buffer instead of building `fmt.Sprintf` strings.
 - IMAP `APPEND`, `COPY`, `MOVE`, and mailbox-selection update paths now reuse the same numeric-response helper for common `EXISTS`, `EXPUNGE`, and `HIGHESTMODSEQ` notifications.
 - Verification: `go test ./...` passes and `go build ./...` succeeds after the fast-path cleanup.
+- Benchmarks: `BenchmarkParsePOP3Command` ~17.4 ns/op, 0 allocs; `BenchmarkWritePOP3Multiline` ~535.9 ns/op, 0 allocs; `BenchmarkIMAPTagFromCommandLine` ~18.2 ns/op, 0 allocs.
 
 ## Webmail Interaction Polish (2026-05-17)
 - Message-list row selection chips now surface on row hover with a dedicated checkbox-style control, so bulk selection can start directly from each row instead of only from the header-level select-all control.
