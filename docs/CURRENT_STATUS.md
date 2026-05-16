@@ -2,6 +2,13 @@
 
 Last updated: 2026-05-16 (console/webmail E2E auth and navigation regression fixes)
 
+## LDAP Directory Gateway Completion (2026-05-16)
+- LDAP directory gateway is now treated as complete for the read-only gateway surface: RFC 4511 bind/search/compare/extended operation handling, StartTLS/LDAPS, Root DSE, subschema discovery, paging/sort/VLV/search controls, AD/OpenLDAP compatibility attributes, group membership expansion, scope filtering, and read-only write rejection are implemented in `internal/ldapgw`.
+- Runtime mode `gogomail --mode=ldap-gateway` is backed by the production directory repository, supports `GOGOMAIL_LDAP_ADDR`, `GOGOMAIL_LDAPS_ADDR`, `GOGOMAIL_LDAP_BASE_DOMAIN`, `GOGOMAIL_LDAP_COMPANY_ID`, TLS certificate/key files, and referral URLs.
+- Admin capability discovery now reports `integrations.ldap_read = "available"` for the read-only LDAP gateway. External LDAP import/sync remains a separate identity-provider workflow and is still reported as `ldap_sync = "placeholder"`.
+- README status now marks the LDAP directory gateway as Production.
+- Verification: `go test ./internal/ldapgw ./internal/maildb ./internal/directory ./internal/idprovider/ldap ./internal/httpapi ./internal/app` passes (1939 tests). `ldapsearch` smoke tests also pass for anonymous Root DSE discovery, authenticated user lookup, and anonymous protected-subtree rejection.
+
 ## Console & Webmail E2E Regression Fixes (2026-05-16)
 - Admin console auth redirect flow now verifies the correct `/api/admin/auth/verify` endpoint, preserves protected `next` destinations through login, and accepts the signed bootstrap system-admin token after JWT signature/expiry verification.
 - Admin console visual/runtime regressions fixed:

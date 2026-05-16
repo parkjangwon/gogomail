@@ -30,7 +30,7 @@ Go로 구축한 표준 중심의 메일 플랫폼입니다. SMTP, IMAP, CalDAV, 
 | iMIP 스케줄링 | RFC 6047 | 프로덕션 |
 | CardDAV + vCard | RFC 6352, 6350, 2426, 3744 | 프로덕션 |
 | WebDAV / 드라이브 게이트웨이 | RFC 4918 | 프로덕션 |
-| LDAP 디렉터리 게이트웨이 | RFC 4511, 4512, 4519 | 고급 |
+| LDAP 디렉터리 게이트웨이 | RFC 4511, 4512, 4519 | 프로덕션 |
 | 메일 + 관리자 REST API | OpenAPI, API 키 연동 | 프로덕션 |
 | 드라이브 / 파일 저장소 | S3 호환 | 고급 |
 | 메일 흐름 로그 + 분석 | PostgreSQL + OpenSearch | 고급 |
@@ -215,7 +215,7 @@ Pre-commit 훅이 강제하는 규칙:
 | 0–1 | SMTP, IMAP, CalDAV, CardDAV, 메일/관리자 API, 전달, DKIM/SPF/DMARC | ✓ 완료 |
 | 2 | 웹메일 프론트엔드 | ✓ 완료 |
 | 3 | 런타임 설정 저장소 · company→domain→user 계층 · 2FA/TOTP | 예정 |
-| 4 | 엔터프라이즈 인증: LDAP · SCIM 2.0 · SAML/OIDC | LDAP 고급, SCIM/SSO 예정 |
+| 4 | 엔터프라이즈 인증: LDAP 디렉터리 게이트웨이 · SCIM 2.0 · SAML/OIDC | LDAP 게이트웨이 완료, SCIM/SSO 예정 |
 | 5 | WebDAV 게이트웨이 · CalDAV/CardDAV 강화 | ✓ 완료 |
 | 6 | 메일 보안: milter 어댑터 · DNSBL (RFC 5782) | 예정 |
 | 7 | POP3 | ✓ 완료 |

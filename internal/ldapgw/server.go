@@ -437,8 +437,8 @@ func parsePDULengthWithError(data []byte) (pduLen int, headerLen int, err error)
 func (s *LDAPServer) handleOperation(ctx context.Context, msgID int, opTag int, opData []byte, controls []control, authenticated bool, authzID string) ([]byte, int, int, bool) {
 	switch opTag {
 	case opBindRequest:
-		resp, result := s.handleBindRequest(ctx, msgID, opData)
-		return resp, result, 0, result == resultSuccess
+		resp, result, authOK := s.handleBindRequest(ctx, msgID, opData)
+		return resp, result, 0, authOK
 	case opSearchRequest:
 		if !authenticated && !isPublicDiscoverySearch(opData) {
 			result := resultInsufficientAccessRights
@@ -507,11 +507,11 @@ func isPublicDiscoverySearch(opData []byte) bool {
 	return normalizeDNForCompare(baseObject) == "cn=subschema" && scope == scopeBaseObject
 }
 
-func (s *LDAPServer) handleBindRequest(ctx context.Context, msgID int, opData []byte) ([]byte, int) {
+func (s *LDAPServer) handleBindRequest(ctx context.Context, msgID int, opData []byte) ([]byte, int, bool) {
 	select {
 	case <-ctx.Done():
 		result := resultUnwillingToPerform
-		return encodeBindResponse(msgID, result, "", "operation timed out"), result
+		return encodeBindResponse(msgID, result, "", "operation timed out"), result, false
 	default:
 	}
 
@@ -519,22 +519,25 @@ func (s *LDAPServer) handleBindRequest(ctx context.Context, msgID int, opData []
 	if err != nil {
 		if errors.Is(err, errUnsupportedBindAuth) {
 			result := resultAuthMethodNotSupported
-			return encodeBindResponse(msgID, result, "", "unsupported bind authentication method"), result
+			return encodeBindResponse(msgID, result, "", "unsupported bind authentication method"), result, false
 		}
 		result := resultUnwillingToPerform
-		return encodeBindResponse(msgID, result, "", "malformed bind request"), result
+		return encodeBindResponse(msgID, result, "", "malformed bind request"), result, false
 	}
 	if req.version != ldapV3 {
 		result := resultAuthMethodNotSupported
-		return encodeBindResponse(msgID, result, "", "unsupported LDAP version"), result
+		return encodeBindResponse(msgID, result, "", "unsupported LDAP version"), result, false
+	}
+	if strings.TrimSpace(req.name) == "" && len(req.auth) == 0 {
+		return encodeBindResponse(msgID, resultSuccess, "", ""), resultSuccess, false
 	}
 
 	ok, err := s.authenticateBindIdentity(ctx, req.name, string(req.auth))
 	if err != nil || !ok {
 		result := resultInvalidCredentials
-		return encodeBindResponse(msgID, result, "", "invalid credentials"), result
+		return encodeBindResponse(msgID, result, "", "invalid credentials"), result, false
 	}
-	return encodeBindResponse(msgID, resultSuccess, "", ""), resultSuccess
+	return encodeBindResponse(msgID, resultSuccess, "", ""), resultSuccess, true
 }
 
 func (s *LDAPServer) authenticateBindIdentity(ctx context.Context, name, password string) (bool, error) {

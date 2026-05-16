@@ -30,7 +30,7 @@ Every protocol surface maps to a published RFC, and every design decision is fil
 | iMIP scheduling | RFC 6047 | Production |
 | CardDAV + vCard | RFC 6352, 6350, 2426, 3744 | Production |
 | WebDAV / Drive gateway | RFC 4918 | Production |
-| LDAP directory gateway | RFC 4511, 4512, 4519 | Advanced |
+| LDAP directory gateway | RFC 4511, 4512, 4519 | Production |
 | Mail + Admin REST API | OpenAPI, API-key integrations | Production |
 | Drive / file storage | S3-compatible | Advanced |
 | Mail flow logs + analytics | PostgreSQL + OpenSearch | Advanced |
@@ -215,7 +215,7 @@ Workflow is driven by `docs/ACTIVE_TASK.md` — one task at a time, TDD, docs an
 | 0–1 | SMTP, IMAP, CalDAV, CardDAV, Mail/Admin API, delivery, DKIM/SPF/DMARC | ✓ Complete |
 | 2 | Webmail frontend | ✓ Complete |
 | 3 | Runtime config store · company→domain→user hierarchy · 2FA/TOTP | Planned |
-| 4 | Enterprise identity: LDAP · SCIM 2.0 · SAML/OIDC | LDAP advanced, SCIM/SSO planned |
+| 4 | Enterprise identity: LDAP directory gateway · SCIM 2.0 · SAML/OIDC | LDAP gateway complete, SCIM/SSO planned |
 | 5 | WebDAV gateway · CalDAV/CardDAV hardening | ✓ Complete |
 | 6 | Mail security: milter adapter · DNSBL (RFC 5782) | Planned |
 | 7 | POP3 | ✓ Complete |
