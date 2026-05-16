@@ -698,29 +698,32 @@ func (r *Repository) UpdateAPISettings(ctx context.Context, settings *APISetting
 // CreateAPIKey creates a new API key.
 func (r *Repository) CreateAPIKey(ctx context.Context, key *APIKey) error {
 	return r.db.QueryRowContext(ctx,
-		`INSERT INTO api_keys (domain_id, name, secret_hash, created_by, created_at, expires_at, is_active)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
-		key.DomainID, key.Name, key.SecretHash, key.CreatedBy, key.CreatedAt, key.ExpiresAt, key.IsActive,
+		`INSERT INTO domain_api_keys (domain_id, name, key_hash, scopes, allowed_cidrs, expires_at, revoked, created_at, updated_at)
+		 VALUES ($1, $2, $3, $4, $5, $6, false, $7, $7) RETURNING id`,
+		key.DomainID, key.Name, key.SecretHash, pq.Array(key.Scopes), pq.Array(key.AllowedCIDRs), key.ExpiresAt, key.CreatedAt,
 	).Scan(&key.ID)
 }
 
 // GetAPIKey retrieves an API key by ID.
 func (r *Repository) GetAPIKey(ctx context.Context, keyID string) (*APIKey, error) {
 	var key APIKey
+	var revoked bool
 	err := r.db.QueryRowContext(ctx,
-		`SELECT id, domain_id, name, secret_hash, created_by, created_at, last_used_at, expires_at, is_active
-		 FROM api_keys WHERE id = $1`,
+		`SELECT id::text, domain_id::text, name, key_hash, scopes, allowed_cidrs, created_at, expires_at, revoked
+		 FROM domain_api_keys WHERE id = $1`,
 		keyID,
-	).Scan(&key.ID, &key.DomainID, &key.Name, &key.SecretHash, &key.CreatedBy,
-		&key.CreatedAt, &key.LastUsedAt, &key.ExpiresAt, &key.IsActive)
+	).Scan(&key.ID, &key.DomainID, &key.Name, &key.SecretHash, pq.Array(&key.Scopes), pq.Array(&key.AllowedCIDRs),
+		&key.CreatedAt, &key.ExpiresAt, &revoked)
+	key.CreatedBy = "domain-api-key"
+	key.IsActive = !revoked
 	return &key, err
 }
 
 // ListAPIKeys lists all API keys for a domain.
 func (r *Repository) ListAPIKeys(ctx context.Context, domainID string) ([]APIKey, error) {
 	rows, err := r.db.QueryContext(ctx,
-		`SELECT id, domain_id, name, secret_hash, created_by, created_at, last_used_at, expires_at, is_active
-		 FROM api_keys WHERE domain_id = $1 ORDER BY created_at DESC`,
+		`SELECT id::text, domain_id::text, name, key_hash, scopes, allowed_cidrs, created_at, expires_at, revoked
+		 FROM domain_api_keys WHERE domain_id = $1 ORDER BY created_at DESC`,
 		domainID,
 	)
 	if err != nil {
@@ -731,10 +734,13 @@ func (r *Repository) ListAPIKeys(ctx context.Context, domainID string) ([]APIKey
 	var keys []APIKey
 	for rows.Next() {
 		var key APIKey
-		if err := rows.Scan(&key.ID, &key.DomainID, &key.Name, &key.SecretHash, &key.CreatedBy,
-			&key.CreatedAt, &key.LastUsedAt, &key.ExpiresAt, &key.IsActive); err != nil {
+		var revoked bool
+		if err := rows.Scan(&key.ID, &key.DomainID, &key.Name, &key.SecretHash, pq.Array(&key.Scopes), pq.Array(&key.AllowedCIDRs),
+			&key.CreatedAt, &key.ExpiresAt, &revoked); err != nil {
 			return nil, err
 		}
+		key.CreatedBy = "domain-api-key"
+		key.IsActive = !revoked
 		keys = append(keys, key)
 	}
 	return keys, rows.Err()
@@ -742,14 +748,14 @@ func (r *Repository) ListAPIKeys(ctx context.Context, domainID string) ([]APIKey
 
 // DeleteAPIKey deletes an API key.
 func (r *Repository) DeleteAPIKey(ctx context.Context, keyID string) error {
-	_, err := r.db.ExecContext(ctx, `DELETE FROM api_keys WHERE id = $1`, keyID)
+	_, err := r.db.ExecContext(ctx, `UPDATE domain_api_keys SET revoked = true, updated_at = now() WHERE id = $1`, keyID)
 	return err
 }
 
 // UpdateAPIKeyLastUsed updates the last_used_at timestamp for an API key.
 func (r *Repository) UpdateAPIKeyLastUsed(ctx context.Context, keyID string) error {
 	_, err := r.db.ExecContext(ctx,
-		`UPDATE api_keys SET last_used_at = NOW() WHERE id = $1`,
+		`UPDATE domain_api_keys SET updated_at = NOW() WHERE id = $1`,
 		keyID,
 	)
 	return err
@@ -758,7 +764,7 @@ func (r *Repository) UpdateAPIKeyLastUsed(ctx context.Context, keyID string) err
 // RotateAPIKeySecret updates the secret hash for an API key.
 func (r *Repository) RotateAPIKeySecret(ctx context.Context, keyID, newSecretHash string) error {
 	_, err := r.db.ExecContext(ctx,
-		`UPDATE api_keys SET secret_hash = $1, last_used_at = NULL WHERE id = $2`,
+		`UPDATE domain_api_keys SET key_hash = $1, updated_at = now() WHERE id = $2`,
 		newSecretHash, keyID,
 	)
 	return err

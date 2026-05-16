@@ -10,6 +10,7 @@ servers:
     description: Admin API
 security:
   - bearerAuth: []
+  - apiKeyAuth: []
 paths:
   /health/live:
     get:
@@ -5928,6 +5929,20 @@ paths:
                   type: string
                 created_by:
                   type: string
+                scopes:
+                  type: array
+                  description: Mail API scopes for external integrations. Defaults to full mail access when omitted by the current console.
+                  items:
+                    type: string
+                    enum: [mail, mail:read, mail:send, mail:manage, mail:write, mail:*]
+                allowed_cidrs:
+                  type: array
+                  description: Optional CIDR allowlist for the API key. Empty means any source IP is allowed.
+                  items:
+                    type: string
+                expires_at:
+                  type: string
+                  format: date-time
       responses:
         "200":
           description: API key created
@@ -9656,6 +9671,11 @@ components:
       scheme: bearer
       bearerFormat: JWT
       description: Bearer authentication headers are size-bounded before JWT parsing.
+    apiKeyAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: GoGoMail API key
+      description: "Use Authorization: Bearer gm_... for trusted server-to-server external integrations. API-key mailbox calls must identify the target user with user_id or X-Gogomail-User-ID and are recorded by API metering."
     adminToken:
       type: apiKey
       in: header
@@ -10482,7 +10502,15 @@ components:
       name: user_id
       in: query
       required: false
-      description: Development fallback required only when JWT auth is disabled.
+      description: Development fallback required only when JWT auth is disabled. For API-key external integrations, this query parameter may identify the target mailbox user; X-Gogomail-User-ID can be used instead when the client prefers a header.
+      schema:
+        type: string
+        maxLength: 200
+    ExternalIntegrationUserIDHeader:
+      name: X-Gogomail-User-ID
+      in: header
+      required: false
+      description: Target mailbox user for trusted server-to-server API-key external integrations. If both this header and user_id are supplied, they must match.
       schema:
         type: string
         maxLength: 200
@@ -15754,6 +15782,14 @@ components:
           type: string
         name:
           type: string
+        scopes:
+          type: array
+          items:
+            type: string
+        allowed_cidrs:
+          type: array
+          items:
+            type: string
         created_by:
           type: string
         created_at:

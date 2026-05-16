@@ -207,13 +207,15 @@ type APISettings struct {
 
 // APIKey represents an API key for domain access.
 type APIKey struct {
-	ID         string     `json:"id"`
-	DomainID   string     `json:"domain_id"`
-	Name       string     `json:"name"`
-	SecretHash string     `json:"-"` // never expose in JSON
-	CreatedBy  string     `json:"created_by"`
-	CreatedAt  time.Time  `json:"created_at"`
-	LastUsedAt *time.Time `json:"last_used_at,omitempty"`
-	ExpiresAt  *time.Time `json:"expires_at,omitempty"`
-	IsActive   bool       `json:"is_active"`
+	ID           string     `json:"id"`
+	DomainID     string     `json:"domain_id"`
+	Name         string     `json:"name"`
+	SecretHash   string     `json:"-"` // never expose in JSON
+	Scopes       []string   `json:"scopes,omitempty"`
+	AllowedCIDRs []string   `json:"allowed_cidrs,omitempty"`
+	CreatedBy    string     `json:"created_by"`
+	CreatedAt    time.Time  `json:"created_at"`
+	LastUsedAt   *time.Time `json:"last_used_at,omitempty"`
+	ExpiresAt    *time.Time `json:"expires_at,omitempty"`
+	IsActive     bool       `json:"is_active"`
 }
