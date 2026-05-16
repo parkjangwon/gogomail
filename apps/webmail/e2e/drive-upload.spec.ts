@@ -49,4 +49,33 @@ test.describe('Drive upload queue', () => {
 
     await dialog.getByRole('button', { name: '취소' }).first().click();
   });
+
+  test('accepts a multi-file drop as a single batch', async ({ page }) => {
+    await page.goto('/login');
+    await page.getByLabel('이메일').fill('pjw@parkjw.org');
+    await page.getByLabel('비밀번호').fill('pass1234');
+    await page.getByRole('button', { name: '로그인' }).click();
+    await page.waitForURL(/\/mail/, { timeout: 15_000 });
+
+    await page.getByRole('button', { name: '드라이브' }).click();
+
+    await page.locator('[data-testid="drive-drop-surface"]').evaluate((node) => {
+      const dataTransfer = new DataTransfer();
+      dataTransfer.items.add(new File(['alpha'], 'drop-a.txt', { type: 'text/plain' }));
+      dataTransfer.items.add(new File(['beta'], 'drop-b.txt', { type: 'text/plain' }));
+      dataTransfer.items.add(new File(['gamma'], 'drop-c.txt', { type: 'text/plain' }));
+
+      node.dispatchEvent(new DragEvent('dragover', { bubbles: true, cancelable: true, dataTransfer }));
+      node.dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer }));
+    });
+
+    const dialog = page.locator('[data-testid="drive-upload-modal"]');
+    await expect(dialog).toBeVisible();
+    await expect(dialog.getByText('3개 선택')).toBeVisible();
+    await expect(dialog.locator('div[title="drop-a.txt"]')).toBeVisible();
+    await expect(dialog.locator('div[title="drop-b.txt"]')).toBeVisible();
+    await expect(dialog.locator('div[title="drop-c.txt"]')).toBeVisible();
+
+    await dialog.getByRole('button', { name: '취소' }).first().click();
+  });
 });
