@@ -926,9 +926,10 @@ Admin operational read models also keep explicit envelope keys:
 - `GET /admin/v1/mail-flow-logs/daily-stats` returns
   `{"mail_flow_daily_stats":[{...}]}` with daily time-series breakdown including
   `date`, `inbound_messages`, `outbound_messages`, `inbound_size_bytes`,
-  `outbound_size_bytes`, `delivered`, `failed`, and `bounced` counts. It
-  supports `direction`, `company_id`, `domain_id`, `user_id`, and RFC3339
-  `since`/`until` filters. Results are ordered by date descending.
+  `outbound_size_bytes`, `delivered`, `failed`, `bounced`, `filtered`, and
+  `rejected` counts. It supports `direction`, `company_id`, `domain_id`,
+  `user_id`, and RFC3339 `since`/`until` filters. Results are ordered by date
+  descending and include zero-filled days when both time bounds are supplied.
 - `GET /admin/v1/mail-flow-logs/{id}` returns `{"mail_flow_log":{...}}` with
   the stored direction, SMTP envelope (mail_from, rcpt_to), auth results
   (DKIM/SPF/DMARC), spam score, delivery status, and timestamps for one

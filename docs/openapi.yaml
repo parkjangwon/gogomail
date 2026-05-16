@@ -13187,7 +13187,7 @@ components:
             $ref: "#/components/schemas/MailFlowLogDailyStatsView"
     MailFlowLogDailyStatsView:
       type: object
-      required: [date, inbound_messages, outbound_messages, delivered, failed, bounced]
+      required: [date, inbound_messages, outbound_messages, delivered, failed, bounced, filtered, rejected]
       properties:
         date:
           type: string
@@ -13212,6 +13212,12 @@ components:
           type: integer
           format: int64
         bounced:
+          type: integer
+          format: int64
+        filtered:
+          type: integer
+          format: int64
+        rejected:
           type: integer
           format: int64
     DirectoryPrincipal:

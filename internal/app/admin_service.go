@@ -12,7 +12,6 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/google/uuid"
 	"github.com/gogomail/gogomail/internal/admin"
 	"github.com/gogomail/gogomail/internal/apimeter"
 	"github.com/gogomail/gogomail/internal/audit"
@@ -25,6 +24,7 @@ import (
 	"github.com/gogomail/gogomail/internal/drive"
 	"github.com/gogomail/gogomail/internal/maildb"
 	"github.com/gogomail/gogomail/internal/mailflow"
+	"github.com/google/uuid"
 )
 
 const maxBackpressureAuditReasonBytes = 512
@@ -1279,6 +1279,8 @@ func (s adminService) GetMailFlowLogDailyStats(ctx context.Context, req maildb.M
 			Delivered:        r.Delivered,
 			Failed:           r.Failed,
 			Bounced:          r.Bounced,
+			Filtered:         r.Filtered,
+			Rejected:         r.Rejected,
 		})
 	}
 	return views, nil

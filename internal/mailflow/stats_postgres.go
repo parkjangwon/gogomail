@@ -29,8 +29,8 @@ func (p *PostgresMailFlowStatsProvider) GetStats(ctx context.Context, req MailFl
 	}
 	return MailFlowStatsResult{
 		TotalMessages:    stats.TotalMessages,
-		UniqueSenders:     stats.UniqueSenders,
-		UniqueDomains:     stats.UniqueDomains,
+		UniqueSenders:    stats.UniqueSenders,
+		UniqueDomains:    stats.UniqueDomains,
 		TotalSizeBytes:   stats.TotalSizeBytes,
 		AverageSizeBytes: stats.AverageSizeBytes,
 		MaxSizeBytes:     stats.MaxSizeBytes,
@@ -62,11 +62,13 @@ func (p *PostgresMailFlowStatsProvider) GetDailyStats(ctx context.Context, req M
 			Date:             s.Date,
 			InboundMessages:  s.InboundMessages,
 			OutboundMessages: s.OutboundMessages,
-			InboundSize:     s.InboundSize,
-			OutboundSize:    s.OutboundSize,
-			Delivered:       s.Delivered,
-			Failed:          s.Failed,
-			Bounced:         s.Bounced,
+			InboundSize:      s.InboundSize,
+			OutboundSize:     s.OutboundSize,
+			Delivered:        s.Delivered,
+			Failed:           s.Failed,
+			Bounced:          s.Bounced,
+			Filtered:         s.Filtered,
+			Rejected:         s.Rejected,
 		})
 	}
 	return results, nil

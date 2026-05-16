@@ -24,8 +24,8 @@ describe('dashboardStats', () => {
       seatUsage: { total_users: 100, active_users: 72, suspended_users: 8 },
       mailFlowStats: { total_messages: 240, delivered: 222, failed: 8, bounced: 4, filtered: 3, rejected: 1 },
       mailFlowDailyStats: [
-        { date: '2026-05-13', inbound_messages: 25, outbound_messages: 35, failed: 2 },
-        { date: '2026-05-14', inbound_messages: 30, outbound_messages: 40, failed: 1 },
+        { date: '2026-05-13', inbound_messages: 25, outbound_messages: 35, delivered: 52, failed: 2, bounced: 1, filtered: 0, rejected: 0 },
+        { date: '2026-05-14', inbound_messages: 30, outbound_messages: 40, delivered: 68, failed: 1, bounced: 2, filtered: 1, rejected: 0 },
       ],
     });
 
@@ -65,9 +65,14 @@ describe('dashboardStats', () => {
       outbound_7d: 75,
       total_7d: 130,
       average_7d: 65,
+      delivered_7d: 120,
+      failed_7d: 3,
+      bounced_7d: 3,
+      filtered_7d: 1,
+      rejected_7d: 0,
       daily: [
-        { date: '2026-05-13', inbound_messages: 25, outbound_messages: 35, failed: 2, total: 60 },
-        { date: '2026-05-14', inbound_messages: 30, outbound_messages: 40, failed: 1, total: 70 },
+        { date: '2026-05-13', inbound_messages: 25, outbound_messages: 35, delivered: 52, failed: 2, bounced: 1, filtered: 0, rejected: 0, total: 60 },
+        { date: '2026-05-14', inbound_messages: 30, outbound_messages: 40, delivered: 68, failed: 1, bounced: 2, filtered: 1, rejected: 0, total: 70 },
       ],
     });
   });
