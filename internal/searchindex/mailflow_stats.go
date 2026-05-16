@@ -29,28 +29,30 @@ type MailFlowStatsQuery struct {
 
 type MailFlowStatsResult struct {
 	TotalMessages    int64   `json:"total_messages"`
-	UniqueSenders   int64   `json:"unique_senders"`
-	UniqueDomains   int64   `json:"unique_domains"`
-	TotalSizeBytes  int64   `json:"total_size_bytes"`
+	UniqueSenders    int64   `json:"unique_senders"`
+	UniqueDomains    int64   `json:"unique_domains"`
+	TotalSizeBytes   int64   `json:"total_size_bytes"`
 	AverageSizeBytes float64 `json:"average_size_bytes"`
-	MaxSizeBytes    int64   `json:"max_size_bytes"`
-	Delivered       int64   `json:"delivered"`
-	Failed          int64   `json:"failed"`
-	Bounced         int64   `json:"bounced"`
-	Filtered        int64   `json:"filtered"`
-	Rejected        int64   `json:"rejected"`
-	DeliveryRate    float64 `json:"delivery_rate"`
+	MaxSizeBytes     int64   `json:"max_size_bytes"`
+	Delivered        int64   `json:"delivered"`
+	Failed           int64   `json:"failed"`
+	Bounced          int64   `json:"bounced"`
+	Filtered         int64   `json:"filtered"`
+	Rejected         int64   `json:"rejected"`
+	DeliveryRate     float64 `json:"delivery_rate"`
 }
 
 type MailFlowDailyStatsResult struct {
 	Date             time.Time `json:"date"`
 	InboundMessages  int64     `json:"inbound_messages"`
 	OutboundMessages int64     `json:"outbound_messages"`
-	InboundSize     int64     `json:"inbound_size_bytes"`
-	OutboundSize    int64     `json:"outbound_size_bytes"`
-	Delivered       int64     `json:"delivered"`
-	Failed          int64     `json:"failed"`
-	Bounced         int64     `json:"bounced"`
+	InboundSize      int64     `json:"inbound_size_bytes"`
+	OutboundSize     int64     `json:"outbound_size_bytes"`
+	Delivered        int64     `json:"delivered"`
+	Failed           int64     `json:"failed"`
+	Bounced          int64     `json:"bounced"`
+	Filtered         int64     `json:"filtered"`
+	Rejected         int64     `json:"rejected"`
 }
 
 type MailFlowStatsSearcher struct {
@@ -97,16 +99,16 @@ func (s MailFlowStatsSearcher) executeStatsQuery(ctx context.Context, payload ma
 
 	result := MailFlowStatsResult{
 		TotalMessages:    resp.Aggregations.TotalMessages.Value,
-		UniqueSenders:   resp.Aggregations.UniqueSenders.Value,
-		UniqueDomains:   resp.Aggregations.UniqueDomains.Value,
-		TotalSizeBytes: int64(resp.Aggregations.TotalSize.Value),
+		UniqueSenders:    resp.Aggregations.UniqueSenders.Value,
+		UniqueDomains:    resp.Aggregations.UniqueDomains.Value,
+		TotalSizeBytes:   int64(resp.Aggregations.TotalSize.Value),
 		AverageSizeBytes: resp.Aggregations.AverageSize.Value,
-		MaxSizeBytes:   int64(resp.Aggregations.MaxSize.Value),
-		Delivered:      resp.Aggregations.Delivered.DocCount,
-		Failed:         resp.Aggregations.Failed.DocCount,
-		Bounced:        resp.Aggregations.Bounced.DocCount,
-		Filtered:       resp.Aggregations.Filtered.DocCount,
-		Rejected:       resp.Aggregations.Rejected.DocCount,
+		MaxSizeBytes:     int64(resp.Aggregations.MaxSize.Value),
+		Delivered:        resp.Aggregations.Delivered.DocCount,
+		Failed:           resp.Aggregations.Failed.DocCount,
+		Bounced:          resp.Aggregations.Bounced.DocCount,
+		Filtered:         resp.Aggregations.Filtered.DocCount,
+		Rejected:         resp.Aggregations.Rejected.DocCount,
 	}
 	if result.TotalMessages > 0 {
 		result.DeliveryRate = float64(result.Delivered) / float64(result.TotalMessages)
@@ -139,13 +141,15 @@ func (s MailFlowStatsSearcher) executeDailyStatsQuery(ctx context.Context, paylo
 	for _, bucket := range resp.Aggregations.DateHistogram.Buckets {
 		r := MailFlowDailyStatsResult{
 			Date:             time.Unix(bucket.Key, 0).UTC(),
-			InboundMessages:  bucket.InboundMessages.DocCount,
-			OutboundMessages: bucket.OutboundMessages.DocCount,
-			InboundSize:     int64(bucket.InboundSizeAgg.Value),
-			OutboundSize:    int64(bucket.OutboundSizeAgg.Value),
-			Delivered:       bucket.Delivered.DocCount,
-			Failed:          bucket.Failed.DocCount,
-			Bounced:         bucket.Bounced.DocCount,
+			InboundMessages:  bucket.Inbound.DocCount,
+			OutboundMessages: bucket.Outbound.DocCount,
+			InboundSize:      int64(bucket.Inbound.Size.Value),
+			OutboundSize:     int64(bucket.Outbound.Size.Value),
+			Delivered:        bucket.Delivered.DocCount,
+			Failed:           bucket.Failed.DocCount,
+			Bounced:          bucket.Bounced.DocCount,
+			Filtered:         bucket.Filtered.DocCount,
+			Rejected:         bucket.Rejected.DocCount,
 		}
 		results = append(results, r)
 	}
@@ -213,20 +217,48 @@ func mailFlowStatsAggregationPayload(query MailFlowStatsQuery) map[string]any {
 
 func mailFlowDailyStatsAggregationPayload(query MailFlowStatsQuery) map[string]any {
 	must := buildMailFlowMustClauses(query)
-
-	aggs := map[string]any{
-		"date_histogram": map[string]any{
-			"field":             "created_at",
-			"calendar_interval": "day",
-			"time_zone":         "UTC",
-			"min_doc_count":     0,
+	dateHistogram := map[string]any{
+		"field":             "created_at",
+		"calendar_interval": "day",
+		"time_zone":         "UTC",
+		"min_doc_count":     0,
+		"aggs": map[string]any{
+			"inbound": map[string]any{
+				"filter": map[string]any{"term": map[string]any{"direction": "inbound"}},
+				"aggs": map[string]any{
+					"size": map[string]any{"sum": map[string]any{"field": "size"}},
+				},
+			},
+			"outbound": map[string]any{
+				"filter": map[string]any{"term": map[string]any{"direction": "outbound"}},
+				"aggs": map[string]any{
+					"size": map[string]any{"sum": map[string]any{"field": "size"}},
+				},
+			},
+			"delivered": map[string]any{"filter": map[string]any{"term": map[string]any{"flow_status": "delivered"}}},
+			"failed":    map[string]any{"filter": map[string]any{"term": map[string]any{"flow_status": "failed"}}},
+			"bounced":   map[string]any{"filter": map[string]any{"term": map[string]any{"flow_status": "bounced"}}},
+			"filtered":  map[string]any{"filter": map[string]any{"term": map[string]any{"flow_status": "filtered"}}},
+			"rejected":  map[string]any{"filter": map[string]any{"term": map[string]any{"flow_status": "rejected"}}},
 		},
+	}
+	if query.Since != "" || query.Until != "" {
+		bounds := map[string]any{}
+		if query.Since != "" {
+			bounds["min"] = query.Since
+		}
+		if query.Until != "" {
+			bounds["max"] = query.Until
+		}
+		dateHistogram["extended_bounds"] = bounds
 	}
 
 	return map[string]any{
-		"size":   0,
-		"query":  map[string]any{"bool": map[string]any{"must": must}},
-		"aggs":   aggs,
+		"size":  0,
+		"query": map[string]any{"bool": map[string]any{"must": must}},
+		"aggs": map[string]any{
+			"date_histogram": dateHistogram,
+		},
 	}
 }
 
@@ -304,19 +336,19 @@ type mailFlowDailyStatsResponse struct {
 	Aggregations struct {
 		DateHistogram struct {
 			Buckets []struct {
-				Key              int64 `json:"key"`
-				InboundMessages  struct {
+				Key     int64 `json:"key"`
+				Inbound struct {
 					DocCount int64 `json:"doc_count"`
-				} `json:"inbound_messages"`
-				OutboundMessages struct {
+					Size     struct {
+						Value float64 `json:"value"`
+					} `json:"size"`
+				} `json:"inbound"`
+				Outbound struct {
 					DocCount int64 `json:"doc_count"`
-				} `json:"outbound_messages"`
-				InboundSizeAgg  struct {
-					Value float64 `json:"value"`
-				} `json:"inbound_size"`
-				OutboundSizeAgg struct {
-					Value float64 `json:"value"`
-				} `json:"outbound_size"`
+					Size     struct {
+						Value float64 `json:"value"`
+					} `json:"size"`
+				} `json:"outbound"`
 				Delivered struct {
 					DocCount int64 `json:"doc_count"`
 				} `json:"delivered"`
@@ -326,6 +358,12 @@ type mailFlowDailyStatsResponse struct {
 				Bounced struct {
 					DocCount int64 `json:"doc_count"`
 				} `json:"bounced"`
+				Filtered struct {
+					DocCount int64 `json:"doc_count"`
+				} `json:"filtered"`
+				Rejected struct {
+					DocCount int64 `json:"doc_count"`
+				} `json:"rejected"`
 			} `json:"buckets"`
 		} `json:"date_histogram"`
 	} `json:"aggregations"`

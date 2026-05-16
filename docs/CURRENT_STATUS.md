@@ -2872,7 +2872,10 @@ and `mail.delivery_exhausted` events. Admin API exposes GET
 endpoints with filtering by direction, company, domain, user, message_id,
 rfc_message_id, from/to addresses, subject, flow_status, and time range.
 The daily-stats endpoint provides time-series breakdown with date,
-inbound/outbound message counts and sizes, and delivery status counts.
+inbound/outbound message counts and sizes, and delivery status counts for
+delivered, failed, bounced, filtered, and rejected mail. When both bounds are
+supplied, the series is zero-filled across the requested day range so dashboard
+averages do not shrink on quiet days.
 
 Mail flow logs use a hybrid storage architecture: PostgreSQL provides ACID
 guarantees and referential integrity for audit compliance, while OpenSearch
@@ -2890,6 +2893,9 @@ PostgreSQL queries directly and `OpenSearchMailFlowStatsProvider` using the
 `mailflow.MailFlowStatsResult` to `maildb.MailFlowLogStatsView` for API
 compatibility. Auto mode uses OpenSearch when `MailFlowOpenSearchBootstrap=true`,
 falling back to PostgreSQL if OpenSearch is unavailable.
+
+Mail flow logs + analytics are production-ready after the zero-filled daily
+series and status completeness pass.
 
 API metering fail-open logic now logs recovered panics with full route and
 method context, preventing silent failures when the metering worker or sink is

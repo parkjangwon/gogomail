@@ -37,11 +37,13 @@ interface LogEntry {
 
 const statusColor = (s: string) => {
   switch (s) {
+    case 'received': return 'blue';
     case 'delivered': return 'green';
-    case 'queued': return 'blue';
+    case 'failed': return 'red';
     case 'bounced': return 'red';
     case 'rejected': return 'red';
-    case 'spam': return 'severity-high';
+    case 'filtered': return 'severity-high';
+    case 'pending': return 'blue';
     default: return 'grey';
   }
 };
@@ -53,11 +55,13 @@ export default function MessageTracePage() {
 
   const STATUS_OPTIONS: SelectProps.Option[] = [
     { label: t('common.all'), value: '' },
-    { label: t('common.status_delivered'), value: 'delivered' },
-    { label: t('common.status_queued'), value: 'queued' },
-    { label: t('common.status_bounced'), value: 'bounced' },
-    { label: t('common.status_rejected'), value: 'rejected' },
-    { label: t('common.status_spam'), value: 'spam' },
+    { label: t('pages.flow_logs_page.status_received'), value: 'received' },
+    { label: t('pages.flow_logs_page.status_delivered'), value: 'delivered' },
+    { label: t('pages.flow_logs_page.status_failed'), value: 'failed' },
+    { label: t('pages.flow_logs_page.status_bounced'), value: 'bounced' },
+    { label: t('pages.flow_logs_page.status_filtered'), value: 'filtered' },
+    { label: t('pages.flow_logs_page.status_rejected'), value: 'rejected' },
+    { label: t('pages.flow_logs_page.status_pending'), value: 'pending' },
   ];
 
   const DIR_OPTIONS: SelectProps.Option[] = [

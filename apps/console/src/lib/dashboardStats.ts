@@ -44,7 +44,11 @@ export interface MailFlowDailyStatShape {
   date: string;
   inbound_messages: number;
   outbound_messages: number;
+  delivered: number;
   failed: number;
+  bounced: number;
+  filtered: number;
+  rejected: number;
 }
 
 export interface DashboardMailVolume {
@@ -58,6 +62,11 @@ export interface DashboardMailVolume {
   outbound_7d: number;
   total_7d: number;
   average_7d: number;
+  delivered_7d: number;
+  failed_7d: number;
+  bounced_7d: number;
+  filtered_7d: number;
+  rejected_7d: number;
   daily: Array<{
     date: string;
     inbound_messages: number;
@@ -145,10 +154,14 @@ export function composeDashboardData(input: DashboardStatsInput): DashboardData 
     (acc, row) => {
       acc.inbound += row.inbound_messages ?? 0;
       acc.outbound += row.outbound_messages ?? 0;
+      acc.delivered += row.delivered ?? 0;
       acc.failed += row.failed ?? 0;
+      acc.bounced += row.bounced ?? 0;
+      acc.filtered += row.filtered ?? 0;
+      acc.rejected += row.rejected ?? 0;
       return acc;
     },
-    { inbound: 0, outbound: 0, failed: 0 },
+    { inbound: 0, outbound: 0, delivered: 0, failed: 0, bounced: 0, filtered: 0, rejected: 0 },
   );
   const total24h = input.mailFlowStats?.total_messages ?? 0;
 
@@ -187,11 +200,20 @@ export function composeDashboardData(input: DashboardStatsInput): DashboardData 
       outbound_7d: dailyTotals.outbound,
       total_7d: dailyTotals.inbound + dailyTotals.outbound,
       average_7d: daily.length > 0 ? Math.round((dailyTotals.inbound + dailyTotals.outbound) / daily.length) : 0,
+      delivered_7d: dailyTotals.delivered,
+      failed_7d: dailyTotals.failed,
+      bounced_7d: dailyTotals.bounced,
+      filtered_7d: dailyTotals.filtered,
+      rejected_7d: dailyTotals.rejected,
       daily: daily.map((row) => ({
         date: row.date,
         inbound_messages: row.inbound_messages ?? 0,
         outbound_messages: row.outbound_messages ?? 0,
+        delivered: row.delivered ?? 0,
         failed: row.failed ?? 0,
+        bounced: row.bounced ?? 0,
+        filtered: row.filtered ?? 0,
+        rejected: row.rejected ?? 0,
         total: (row.inbound_messages ?? 0) + (row.outbound_messages ?? 0),
       })),
     },
