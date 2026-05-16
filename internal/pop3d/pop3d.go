@@ -2,9 +2,9 @@ package pop3d
 
 import (
 	"bufio"
+	"bytes"
 	"crypto/tls"
 	"encoding/base64"
-	"fmt"
 	"net"
 	"net/textproto"
 	"strconv"
@@ -176,59 +176,60 @@ func isTLSConn(conn net.Conn) bool {
 }
 
 func (sess *session) writeLine(line string) {
-	sess.writer.WriteString(line + "\r\n")
-	sess.writer.Flush()
+	_, _ = sess.writer.WriteString(line)
+	_, _ = sess.writer.WriteString("\r\n")
+	_ = sess.writer.Flush()
 }
 
 func (sess *session) writeOK(msg string) {
-	if msg != "" {
-		sess.writeLine("+OK " + msg)
-	} else {
-		sess.writeLine("+OK")
-	}
+	sess.writeStatusLine("+OK", msg)
 }
 
 func (sess *session) writeERR(msg string) {
+	sess.writeStatusLine("-ERR", msg)
+}
+
+func (sess *session) writeStatusLine(prefix, msg string) {
+	_, _ = sess.writer.WriteString(prefix)
 	if msg != "" {
-		sess.writeLine("-ERR " + msg)
-	} else {
-		sess.writeLine("-ERR")
+		_ = sess.writer.WriteByte(' ')
+		_, _ = sess.writer.WriteString(msg)
 	}
+	_, _ = sess.writer.WriteString("\r\n")
+	_ = sess.writer.Flush()
 }
 
 func (sess *session) handleCommand(line string) {
-	parts := strings.Fields(line)
-	if len(parts) == 0 {
+	cmd, arg1, arg2, argc := parsePOP3Command(line)
+	if cmd == "" {
 		sess.writeERR("syntax error")
 		return
 	}
-	cmd := strings.ToUpper(parts[0])
-	args := parts[1:]
 
 	switch sess.state {
 	case stateAuthorization:
-		sess.handleAuth(cmd, args, line)
+		sess.handleAuth(cmd, arg1, arg2, argc)
 	case stateTransaction:
-		sess.handleTransaction(cmd, args)
+		sess.handleTransaction(cmd, arg1, arg2, argc)
 	}
 }
 
-func (sess *session) handleAuth(cmd string, args []string, raw string) {
+func (sess *session) handleAuth(cmd, arg1, arg2 string, argc int) {
 	switch cmd {
 	case "USER":
-		if len(args) != 1 {
+		if argc != 1 {
 			sess.writeERR("syntax error")
 			return
 		}
-		sess.user = args[0]
+		sess.user = arg1
 		sess.writeOK("")
 	case "PASS":
-		if len(args) != 1 {
+		if argc != 1 {
 			sess.writeERR("syntax error")
 			return
 		}
-		user := sess.extractUser(raw)
-		pass := args[0]
+		user := sess.extractUser()
+		pass := arg1
 		if user == "" {
 			sess.writeERR("authentication failed")
 			return
@@ -260,20 +261,20 @@ func (sess *session) handleAuth(cmd string, args []string, raw string) {
 	case "NOOP":
 		sess.writeOK("")
 	case "AUTH":
-		if len(args) == 0 {
+		if argc == 0 {
 			sess.writeERR("syntax error")
 			return
 		}
-		mechanism := strings.ToUpper(args[0])
+		mechanism := pop3UpperASCII(arg1)
 		switch mechanism {
 		case "PLAIN":
-			if len(args) > 2 {
+			if argc > 2 {
 				sess.writeERR("syntax error")
 				return
 			}
 			var encoded string
-			if len(args) >= 2 {
-				encoded = args[1]
+			if argc >= 2 {
+				encoded = arg2
 			} else {
 				sess.writeLine("+ ")
 				line, err := sess.reader.ReadString('\n')
@@ -292,15 +293,14 @@ func (sess *session) handleAuth(cmd string, args []string, raw string) {
 				sess.writeERR("invalid base64")
 				return
 			}
-			parts := strings.SplitN(string(decoded), "\x00", 3)
-			if len(parts) != 3 {
+			user, pass, ok := pop3AuthPlainCredentials(decoded)
+			if !ok {
 				sess.writeERR("invalid credentials format")
 				return
 			}
-			user, pass := parts[1], parts[2]
 			sess.authenticate(user, pass)
 		case "LOGIN":
-			if len(args) != 1 {
+			if argc != 1 {
 				sess.writeERR("syntax error")
 				return
 			}
@@ -362,7 +362,7 @@ func (sess *session) authenticate(user, pass string) {
 	sess.writeOK("mailbox ready")
 }
 
-func (sess *session) extractUser(raw string) string {
+func (sess *session) extractUser() string {
 	return sess.user
 }
 
@@ -375,35 +375,34 @@ func (sess *session) releaseMaildropLock() {
 	release()
 }
 
-func (sess *session) handleTransaction(cmd string, args []string) {
+func (sess *session) handleTransaction(cmd, arg1, arg2 string, argc int) {
 	switch cmd {
 	case "STAT":
 		count, size := sess.msgCountAndSize()
-		sess.writeOK(fmt.Sprintf("%d %d", count, size))
+		sess.writeOKIntPair(count, size)
 	case "LIST":
-		if len(args) == 0 {
+		if argc == 0 {
 			sess.writeOK("")
 			for i := 0; i < sess.mailbox.MessageCount(); i++ {
 				if !sess.mailbox.Deleted(i) {
-					sess.writer.WriteString(fmt.Sprintf("%d %d\r\n", i+1, sess.mailbox.MessageSize(i)))
+					sess.writeNumberPairLine(i+1, sess.mailbox.MessageSize(i))
 				}
 			}
-			sess.writer.WriteString(".\r\n")
-			sess.writer.Flush()
+			sess.writeLine(".")
 		} else {
-			idx, err := strconv.Atoi(args[0])
+			idx, err := strconv.Atoi(arg1)
 			if err != nil || idx < 1 || idx > sess.mailbox.MessageCount() || sess.mailbox.Deleted(idx-1) {
 				sess.writeERR("no such message")
 				return
 			}
-			sess.writeOK(fmt.Sprintf("%d %d", idx, sess.mailbox.MessageSize(idx-1)))
+			sess.writeOKIntPair(idx, sess.mailbox.MessageSize(idx-1))
 		}
 	case "RETR":
-		if len(args) != 1 {
+		if argc != 1 {
 			sess.writeERR("syntax error")
 			return
 		}
-		idx, err := strconv.Atoi(args[0])
+		idx, err := strconv.Atoi(arg1)
 		if err != nil || idx < 1 || idx > sess.mailbox.MessageCount() || sess.mailbox.Deleted(idx-1) {
 			sess.writeERR("no such message")
 			return
@@ -413,16 +412,15 @@ func (sess *session) handleTransaction(cmd string, args []string) {
 			sess.writeERR("message content unavailable")
 			return
 		}
-		sess.writeOK(fmt.Sprintf("%d octets", sess.mailbox.MessageSize(idx-1)))
+		sess.writeOKIntSuffix(sess.mailbox.MessageSize(idx-1), " octets")
 		sess.writeDotStuffedMultiline(content)
-		sess.writer.WriteString(".\r\n")
-		sess.writer.Flush()
+		sess.writeLine(".")
 	case "DELE":
-		if len(args) != 1 {
+		if argc != 1 {
 			sess.writeERR("syntax error")
 			return
 		}
-		idx, err := strconv.Atoi(args[0])
+		idx, err := strconv.Atoi(arg1)
 		if err != nil || idx < 1 || idx > sess.mailbox.MessageCount() || sess.mailbox.Deleted(idx-1) {
 			sess.writeERR("no such message")
 			return
@@ -438,43 +436,41 @@ func (sess *session) handleTransaction(cmd string, args []string) {
 		sess.mailbox.ResetDeleted()
 		sess.writeOK("")
 	case "UIDL":
-		if len(args) == 0 {
+		if argc == 0 {
 			sess.writeOK("")
 			for i := 0; i < sess.mailbox.MessageCount(); i++ {
 				if !sess.mailbox.Deleted(i) {
-					sess.writer.WriteString(fmt.Sprintf("%d %s\r\n", i+1, sess.mailbox.MessageUIDL(i)))
+					sess.writeNumberStringLine(i+1, sess.mailbox.MessageUIDL(i))
 				}
 			}
-			sess.writer.WriteString(".\r\n")
-			sess.writer.Flush()
+			sess.writeLine(".")
 		} else {
-			idx, err := strconv.Atoi(args[0])
+			idx, err := strconv.Atoi(arg1)
 			if err != nil || idx < 1 || idx > sess.mailbox.MessageCount() || sess.mailbox.Deleted(idx-1) {
 				sess.writeERR("no such message")
 				return
 			}
-			sess.writeOK(fmt.Sprintf("%d %s", idx, sess.mailbox.MessageUIDL(idx-1)))
+			sess.writeOKIntString(idx, sess.mailbox.MessageUIDL(idx-1))
 		}
 	case "TOP":
-		if len(args) != 2 {
+		if argc != 2 {
 			sess.writeERR("syntax error")
 			return
 		}
-		idx, err := strconv.Atoi(args[0])
+		idx, err := strconv.Atoi(arg1)
 		if err != nil || idx < 1 || idx > sess.mailbox.MessageCount() || sess.mailbox.Deleted(idx-1) {
 			sess.writeERR("no such message")
 			return
 		}
-		lines, _ := strconv.Atoi(args[1])
+		lines, _ := strconv.Atoi(arg2)
 		content, err := sess.messageContent(idx - 1)
 		if err != nil {
 			sess.writeERR("message content unavailable")
 			return
 		}
 		sess.writeOK("")
-		sess.writeDotStuffedMultiline(topContent(content, lines))
-		sess.writer.WriteString(".\r\n")
-		sess.writer.Flush()
+		sess.writeTopDotStuffedMultiline(content, lines)
+		sess.writeLine(".")
 	case "QUIT":
 		if committer, ok := sess.mailbox.(interface{ CommitDeletes() error }); ok && sess.hasDeletedMessages() {
 			if err := committer.CommitDeletes(); err != nil {
@@ -579,55 +575,184 @@ func (sess *session) msgCountAndSize() (int, int) {
 }
 
 func (sess *session) writeDotStuffedMultiline(content string) {
-	for _, line := range pop3MultilineLines(content) {
-		if strings.HasPrefix(line, ".") {
-			sess.writer.WriteByte('.')
-		}
-		sess.writer.WriteString(line)
-		sess.writer.WriteString("\r\n")
-	}
+	sess.writePOP3Multiline(content, false, 0)
 }
 
-func topContent(content string, n int) string {
-	content = normalizePOP3LineEndings(content)
-	parts := strings.SplitN(content, "\n\n", 2)
-	var b strings.Builder
-	if len(parts) >= 1 {
-		b.WriteString(parts[0])
-		b.WriteString("\n\n")
-	}
-	if len(parts) == 2 && n > 0 {
-		for i, line := range pop3MultilineLines(parts[1]) {
-			if i >= n {
-				break
-			}
-			b.WriteString(line)
-			b.WriteByte('\n')
-		}
-	}
-	return b.String()
+func (sess *session) writeTopDotStuffedMultiline(content string, n int) {
+	sess.writePOP3Multiline(content, true, n)
 }
 
-func pop3MultilineLines(content string) []string {
-	content = normalizePOP3LineEndings(content)
-	if content == "" {
-		return nil
-	}
-	lines := make([]string, 0, strings.Count(content, "\n")+1)
+func (sess *session) writePOP3Multiline(content string, topMode bool, topLimit int) {
+	sawSeparator := false
+	bodyLines := 0
 	for len(content) > 0 {
-		idx := strings.IndexByte(content, '\n')
-		if idx < 0 {
-			lines = append(lines, content)
+		line, rest := pop3NextLine(content)
+		content = rest
+		if topMode && !sawSeparator {
+			if line == "" {
+				sawSeparator = true
+				sess.writeNormalizedPOP3Line(line)
+			} else {
+				sess.writeNormalizedPOP3Line(line)
+			}
+			continue
+		}
+		if topMode && topLimit >= 0 && sawSeparator {
+			if bodyLines >= topLimit {
+				continue
+			}
+			bodyLines++
+		}
+		sess.writeNormalizedPOP3Line(line)
+	}
+	if topMode && !sawSeparator {
+		sess.writeNormalizedPOP3Line("")
+	}
+}
+
+func (sess *session) writeNormalizedPOP3Line(line string) {
+	if strings.HasPrefix(line, ".") {
+		_ = sess.writer.WriteByte('.')
+	}
+	_, _ = sess.writer.WriteString(line)
+	_, _ = sess.writer.WriteString("\r\n")
+}
+
+func (sess *session) writeNumberPairLine(index, size int) {
+	var buf [64]byte
+	out := buf[:0]
+	out = strconv.AppendInt(out, int64(index), 10)
+	out = append(out, ' ')
+	out = strconv.AppendInt(out, int64(size), 10)
+	out = append(out, '\r', '\n')
+	_, _ = sess.writer.Write(out)
+}
+
+func (sess *session) writeNumberStringLine(index int, uidl string) {
+	var buf [64]byte
+	out := buf[:0]
+	out = strconv.AppendInt(out, int64(index), 10)
+	out = append(out, ' ')
+	out = append(out, uidl...)
+	out = append(out, '\r', '\n')
+	_, _ = sess.writer.Write(out)
+}
+
+func (sess *session) writeOKIntPair(left, right int) {
+	var buf [64]byte
+	out := append(buf[:0], "+OK "...)
+	out = strconv.AppendInt(out, int64(left), 10)
+	out = append(out, ' ')
+	out = strconv.AppendInt(out, int64(right), 10)
+	out = append(out, '\r', '\n')
+	_, _ = sess.writer.Write(out)
+	_ = sess.writer.Flush()
+}
+
+func (sess *session) writeOKIntString(left int, right string) {
+	var buf [64]byte
+	out := append(buf[:0], "+OK "...)
+	out = strconv.AppendInt(out, int64(left), 10)
+	out = append(out, ' ')
+	out = append(out, right...)
+	out = append(out, '\r', '\n')
+	_, _ = sess.writer.Write(out)
+	_ = sess.writer.Flush()
+}
+
+func (sess *session) writeOKIntSuffix(num int, suffix string) {
+	var buf [64]byte
+	out := append(buf[:0], "+OK "...)
+	out = strconv.AppendInt(out, int64(num), 10)
+	out = append(out, suffix...)
+	out = append(out, '\r', '\n')
+	_, _ = sess.writer.Write(out)
+	_ = sess.writer.Flush()
+}
+
+func pop3NextLine(content string) (line, rest string) {
+	for i := 0; i < len(content); i++ {
+		switch content[i] {
+		case '\r':
+			if i+1 < len(content) && content[i+1] == '\n' {
+				return content[:i], content[i+2:]
+			}
+			return content[:i], content[i+1:]
+		case '\n':
+			return content[:i], content[i+1:]
+		}
+	}
+	return content, ""
+}
+
+func pop3AuthPlainCredentials(decoded []byte) (user, pass string, ok bool) {
+	first := bytes.IndexByte(decoded, 0)
+	if first < 0 {
+		return "", "", false
+	}
+	rest := decoded[first+1:]
+	second := bytes.IndexByte(rest, 0)
+	if second < 0 {
+		return "", "", false
+	}
+	return string(rest[:second]), string(rest[second+1:]), true
+}
+
+func parsePOP3Command(line string) (cmd, arg1, arg2 string, argc int) {
+	start := 0
+	for start < len(line) && isPOP3Space(line[start]) {
+		start++
+	}
+	end := len(line)
+	for end > start && isPOP3Space(line[end-1]) {
+		end--
+	}
+	if start >= end {
+		return "", "", "", 0
+	}
+
+	i := start
+	for i < end && !isPOP3Space(line[i]) {
+		i++
+	}
+	cmd = pop3UpperASCII(line[start:i])
+	for i < end {
+		for i < end && isPOP3Space(line[i]) {
+			i++
+		}
+		if i >= end {
 			break
 		}
-		lines = append(lines, content[:idx])
-		content = content[idx+1:]
+		j := i
+		for j < end && !isPOP3Space(line[j]) {
+			j++
+		}
+		switch argc {
+		case 0:
+			arg1 = line[i:j]
+		case 1:
+			arg2 = line[i:j]
+		}
+		argc++
+		i = j
 	}
-	return lines
+	return cmd, arg1, arg2, argc
 }
 
-func normalizePOP3LineEndings(content string) string {
-	content = strings.ReplaceAll(content, "\r\n", "\n")
-	content = strings.ReplaceAll(content, "\r", "\n")
-	return content
+func isPOP3Space(b byte) bool {
+	switch b {
+	case ' ', '\t', '\v', '\f':
+		return true
+	default:
+		return false
+	}
+}
+
+func pop3UpperASCII(s string) string {
+	for i := 0; i < len(s); i++ {
+		if 'a' <= s[i] && s[i] <= 'z' {
+			return strings.ToUpper(s)
+		}
+	}
+	return s
 }
