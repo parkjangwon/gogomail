@@ -341,6 +341,17 @@ paths:
         - $ref: "#/components/parameters/PathID"
         - $ref: "#/components/parameters/UserIDFallback"
         - $ref: "#/components/parameters/UserEmailFallback"
+        - name: Content-Range
+          in: header
+          required: false
+          schema:
+            type: string
+            pattern: "^bytes (\\d+-\\d+|\\*)/\\d+$"
+          description: |
+            Optional Drive upload-session chunk range. Without this header the
+            request body is stored as the current object. With
+            `bytes first-last/total`, chunks must arrive sequentially without
+            gaps or overlaps and the service stores an assembled object.
         - name: X-Content-SHA256
           in: header
           required: false

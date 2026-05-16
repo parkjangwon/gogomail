@@ -479,65 +479,65 @@ func TestValidateContentRangeComplete(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		name        string
+		name         string
 		contentRange ContentRange
 		declaredSize int64
-		wantErr     bool
-		errContains string
+		wantErr      bool
+		errContains  string
 	}{
 		{
-			name:        "valid asterisk form matching size",
+			name:         "valid asterisk form matching size",
 			contentRange: ContentRange{Total: 100, IsAsteriskForm: true},
 			declaredSize: 100,
-			wantErr:     false,
+			wantErr:      false,
 		},
 		{
-			name:        "valid full range matching size",
+			name:         "valid full range matching size",
 			contentRange: ContentRange{Start: 0, End: 99, Total: 100},
 			declaredSize: 100,
-			wantErr:     false,
+			wantErr:      false,
 		},
 		{
-			name:        "asterisk total mismatch",
+			name:         "asterisk total mismatch",
 			contentRange: ContentRange{Total: 200, IsAsteriskForm: true},
 			declaredSize: 100,
-			wantErr:     true,
-			errContains: "total 200 does not match declared size 100",
+			wantErr:      true,
+			errContains:  "total 200 does not match declared size 100",
 		},
 		{
-			name:        "full range start not zero",
+			name:         "full range start not zero",
 			contentRange: ContentRange{Start: 10, End: 99, Total: 100},
 			declaredSize: 100,
-			wantErr:     true,
-			errContains: "start must be 0",
+			wantErr:      true,
+			errContains:  "start must be 0",
 		},
 		{
-			name:        "full range end mismatch",
+			name:         "full range end mismatch",
 			contentRange: ContentRange{Start: 0, End: 98, Total: 100},
 			declaredSize: 100,
-			wantErr:     true,
-			errContains: "end must be 99",
+			wantErr:      true,
+			errContains:  "end must be 99",
 		},
 		{
-			name:        "full range total mismatch",
+			name:         "full range total mismatch",
 			contentRange: ContentRange{Start: 0, End: 99, Total: 200},
 			declaredSize: 100,
-			wantErr:     true,
-			errContains: "total 200 does not match declared size 100",
+			wantErr:      true,
+			errContains:  "total 200 does not match declared size 100",
 		},
 		{
-			name:        "zero declared size",
+			name:         "zero declared size",
 			contentRange: ContentRange{Total: 100, IsAsteriskForm: true},
 			declaredSize: 0,
-			wantErr:     true,
-			errContains: "declared size is zero",
+			wantErr:      true,
+			errContains:  "declared size is zero",
 		},
 		{
-			name:        "zero declared size non-asterisk",
+			name:         "zero declared size non-asterisk",
 			contentRange: ContentRange{Start: 0, End: 0, Total: 1},
 			declaredSize: 0,
-			wantErr:     true,
-			errContains: "declared size is zero",
+			wantErr:      true,
+			errContains:  "declared size is zero",
 		},
 	}
 
@@ -560,5 +560,22 @@ func TestValidateContentRangeComplete(t *testing.T) {
 				t.Fatalf("ValidateContentRangeComplete(%+v, %d) returned error: %v", tc.contentRange, tc.declaredSize, err)
 			}
 		})
+	}
+}
+
+func TestValidateContentRangeForUploadAcceptsPartialRange(t *testing.T) {
+	t.Parallel()
+
+	if err := ValidateContentRangeForUpload(ContentRange{Start: 50, End: 99, Total: 100}, 100); err != nil {
+		t.Fatalf("ValidateContentRangeForUpload returned error for partial range: %v", err)
+	}
+}
+
+func TestValidateContentRangeForUploadRejectsTotalMismatch(t *testing.T) {
+	t.Parallel()
+
+	err := ValidateContentRangeForUpload(ContentRange{Start: 0, End: 49, Total: 200}, 100)
+	if err == nil || !strings.Contains(err.Error(), "total 200 does not match declared size 100") {
+		t.Fatalf("ValidateContentRangeForUpload error = %v, want total mismatch", err)
 	}
 }

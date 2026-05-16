@@ -50,6 +50,13 @@ Future Drive and lifecycle modules should prefer `Stat` for existence/size
 checks, `GetRange` for resumable downloads and media preview windows, `Copy`
 for object duplication workflows, `Move` for file rename/relocation workflows,
 and `List` for prefix-scoped browsing, reconciliation, and cleanup scans.
+Drive upload sessions now use the same backend-neutral primitives for
+sequential chunk commits: the service validates `Content-Range`, reads the
+prior object through `Get` when a chunk starts after byte zero, writes one
+assembled replacement object with `Put`, and deletes only the locked prior
+object after metadata commit succeeds. The stored upload-session checksum is
+the SHA-256 digest of the assembled object so final Drive files keep
+whole-object integrity metadata across local/NFS and S3-compatible backends.
 S3-compatible listings validate provider continuation tokens only when a page
 is actually truncated and always clear final-page cursors, so ignored
 `NextContinuationToken` values on non-truncated provider responses do not leak

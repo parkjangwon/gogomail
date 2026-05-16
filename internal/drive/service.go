@@ -248,7 +248,7 @@ func (s *Service) ListStaleUploadSessions(ctx context.Context, req ExpireUploadS
 }
 
 func (s *Service) StoreUploadSessionBody(ctx context.Context, req StoreUploadSessionBodyRequest) (UploadSession, error) {
-	return s.storeUploadSessionBodyWithRange(ctx, req, ContentRange{})
+	return s.storeUploadSessionBodyWithRange(ctx, req, req.ContentRange)
 }
 
 // storeUploadSessionBodyWithRange is the core implementation used by both
@@ -304,6 +304,12 @@ func (s *Service) storeUploadSessionBodyWithRange(ctx context.Context, req Store
 	if store == nil {
 		return UploadSession{}, fmt.Errorf("storage store %q is required", session.StorageBackend)
 	}
+	if err := ValidateContentRangeForUpload(contentRange, session.DeclaredSize); err != nil {
+		return UploadSession{}, err
+	}
+	if err := ValidateChunkSequence(contentRange, session); err != nil {
+		return UploadSession{}, err
+	}
 	objectID, err := NewUploadID()
 	if err != nil {
 		return UploadSession{}, err
@@ -312,7 +318,14 @@ func (s *Service) storeUploadSessionBodyWithRange(ctx context.Context, req Store
 	if err != nil {
 		return UploadSession{}, err
 	}
-	counter := &countingReader{reader: req.Body}
+	body, _, expectedReceivedSize, err := uploadSessionBodyReader(ctx, store, session, req.Body, contentRange)
+	if err != nil {
+		return UploadSession{}, err
+	}
+	if closer, ok := body.(io.Closer); ok {
+		defer closer.Close()
+	}
+	counter := &countingReader{reader: body}
 	limited := &io.LimitedReader{R: counter, N: session.DeclaredSize + 1}
 	hash := sha256.New()
 	if err := store.Put(ctx, storagePath, io.TeeReader(limited, hash)); err != nil {
@@ -323,6 +336,10 @@ func (s *Service) storeUploadSessionBodyWithRange(ctx context.Context, req Store
 		_ = store.Delete(ctx, storagePath)
 		return UploadSession{}, fmt.Errorf("drive upload session body exceeds declared_size")
 	}
+	if expectedReceivedSize >= 0 && counter.bytesRead != expectedReceivedSize {
+		_ = store.Delete(ctx, storagePath)
+		return UploadSession{}, fmt.Errorf("drive upload session chunk size mismatch: stored %d bytes, expected %d", counter.bytesRead, expectedReceivedSize)
+	}
 	checksum := hex.EncodeToString(hash.Sum(nil))
 	if req.ExpectedChecksumSHA256 != "" && checksum != req.ExpectedChecksumSHA256 {
 		// Checksum mismatch: delete immediately (no orphan).
@@ -331,12 +348,14 @@ func (s *Service) storeUploadSessionBodyWithRange(ctx context.Context, req Store
 	}
 	// Atomic lock + update. Returns the authoritative prior path from the
 	// locked row — not the potentially-stale pre-flight read above.
-	updated, priorPath, err := s.repo.StoreUploadSessionBody(ctx, RecordUploadSessionBodyRequest{
-		UserID:         req.UserID,
-		SessionID:      req.SessionID,
-		ReceivedSize:   counter.bytesRead,
-		StoragePath:    storagePath,
-		ChecksumSHA256: checksum,
+	updated, lockedPriorPath, err := s.repo.StoreUploadSessionBody(ctx, RecordUploadSessionBodyRequest{
+		UserID:                      req.UserID,
+		SessionID:                   req.SessionID,
+		ReceivedSize:                counter.bytesRead,
+		StoragePath:                 storagePath,
+		ChecksumSHA256:              checksum,
+		EnforcePreviousReceivedSize: contentRange != (ContentRange{}) && !contentRange.IsAsteriskForm,
+		PreviousReceivedSize:        contentRange.Start,
 	})
 	if err != nil {
 		// DB update failed: delete the newly written object to prevent orphans.
@@ -345,12 +364,53 @@ func (s *Service) storeUploadSessionBodyWithRange(ctx context.Context, req Store
 	}
 	// Delete the object that was just replaced. Use the path from the locked
 	// row (authoritative), not the pre-flight read which may be stale.
-	if priorPath != "" && priorPath != storagePath {
-		if validated, valErr := validateUserObjectPath(session.UserID, priorPath); valErr == nil {
+	if lockedPriorPath != "" && lockedPriorPath != storagePath {
+		if validated, valErr := validateUserObjectPath(session.UserID, lockedPriorPath); valErr == nil {
 			_ = store.Delete(ctx, validated)
 		}
 	}
 	return updated, nil
+}
+
+func uploadSessionBodyReader(ctx context.Context, store storage.Store, session UploadSession, body io.Reader, contentRange ContentRange) (io.Reader, string, int64, error) {
+	if contentRange == (ContentRange{}) || contentRange.IsAsteriskForm {
+		return body, "", -1, nil
+	}
+	expectedReceivedSize := contentRange.End + 1
+	if contentRange.Start == 0 {
+		return body, "", expectedReceivedSize, nil
+	}
+	priorPath, err := validateUserObjectPath(session.UserID, session.StoragePath)
+	if err != nil {
+		return nil, "", -1, fmt.Errorf("prior drive upload session body path is invalid: %w", err)
+	}
+	info, err := store.Stat(ctx, priorPath)
+	if err != nil {
+		return nil, "", -1, fmt.Errorf("stat prior drive upload session body: %w", err)
+	}
+	if info.Size != session.ReceivedSize || info.Size != contentRange.Start {
+		return nil, "", -1, fmt.Errorf("prior drive upload session body size mismatch")
+	}
+	priorBody, err := store.Get(ctx, priorPath)
+	if err != nil {
+		return nil, "", -1, fmt.Errorf("open prior drive upload session body: %w", err)
+	}
+	return &closeableMultiReader{
+		Reader: io.MultiReader(priorBody, body),
+		closer: priorBody,
+	}, priorPath, expectedReceivedSize, nil
+}
+
+type closeableMultiReader struct {
+	io.Reader
+	closer io.Closer
+}
+
+func (r *closeableMultiReader) Close() error {
+	if r == nil || r.closer == nil {
+		return nil
+	}
+	return r.closer.Close()
 }
 
 func (s *Service) FinalizeUploadSession(ctx context.Context, req FinalizeUploadSessionRequest) (Node, error) {

@@ -996,6 +996,37 @@ func TestDriveStoreUploadSessionBodyHandler(t *testing.T) {
 	}
 }
 
+func TestDriveStoreUploadSessionBodyHandlerPassesContentRange(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeDriveService{uploadSession: drive.UploadSession{
+		ID:             "session-1",
+		UserID:         "user-1",
+		UploadID:       "upload-1",
+		Name:           "Report.pdf",
+		DeclaredSize:   11,
+		ReceivedSize:   11,
+		Status:         drive.UploadSessionStatusUploading,
+		StorageBackend: "s3",
+		ChecksumSHA256: strings.Repeat("a", 64),
+	}}
+	mux := http.NewServeMux()
+	RegisterDriveRoutes(mux, service, nil)
+
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/drive/upload-sessions/session-1/body?user_id=user-1", strings.NewReader("hello drive"))
+	req.Header.Set("Content-Range", "bytes 0-10/11")
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	want := drive.ContentRange{Start: 0, End: 10, Total: 11}
+	if service.storeUploadSessionBodyReq.ContentRange != want {
+		t.Fatalf("content range = %+v, want %+v", service.storeUploadSessionBodyReq.ContentRange, want)
+	}
+}
+
 func TestDriveFinalizeUploadSessionHandler(t *testing.T) {
 	t.Parallel()
 

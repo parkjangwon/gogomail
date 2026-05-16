@@ -6275,3 +6275,7 @@ Target outcome:
       section functions, moved company repository methods into
       `internal/maildb/admin_company.go`, and extracted IMAP `STATUS` handling
       into a dedicated server helper without changing wire responses.
+1733. Drive upload-session chunk storage now carries `Content-Range` from HTTP
+      into the service layer, assembles sequential chunks into one backend
+      object, enforces the previous received size under the locked metadata
+      row, and records whole-object checksum metadata for finalized Drive files.
