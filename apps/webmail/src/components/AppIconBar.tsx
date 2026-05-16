@@ -1,5 +1,5 @@
 'use client';
-import { EnvelopeIcon, CalendarDaysIcon, UserGroupIcon, Cog6ToothIcon, CloudIcon } from '@heroicons/react/24/outline';
+import { EnvelopeIcon, CalendarDaysIcon, UserGroupIcon, Cog6ToothIcon, CloudIcon, BookOpenIcon } from '@heroicons/react/24/outline';
 import { EnvelopeIcon as EnvelopeIconSolid, CalendarDaysIcon as CalendarSolid, UserGroupIcon as UserGroupSolid, Cog6ToothIcon as Cog6ToothSolid, CloudIcon as CloudSolid } from '@heroicons/react/24/solid';
 
 export type AppId = 'mail' | 'calendar' | 'contacts' | 'drive' | 'settings';
@@ -20,6 +20,8 @@ const MAIN_APPS: { id: AppId; label: string; icon: React.ReactNode; activeIcon: 
 const BOTTOM_APPS: { id: AppId; label: string; icon: React.ReactNode; activeIcon: React.ReactNode }[] = [
   { id: 'settings', label: '설정', icon: <Cog6ToothIcon style={{ width: '20px', height: '20px' }} />, activeIcon: <Cog6ToothSolid style={{ width: '20px', height: '20px' }} /> },
 ];
+
+const GUIDE_URL = process.env.NEXT_PUBLIC_WEBMAIL_GUIDE_URL ?? 'http://localhost:3005/';
 
 const DEV_TOOL_SAFE_BOTTOM = process.env.NODE_ENV === 'development' ? 56 : 8;
 
@@ -85,6 +87,41 @@ function AppBtn({ app, isActive, onChangeApp, badge }: { app: typeof MAIN_APPS[0
   );
 }
 
+function AppActionBtn({ label, icon, onClick }: { label: string; icon: React.ReactNode; onClick: () => void }) {
+  return (
+    <button
+      aria-label={label}
+      title={label}
+      type="button"
+      onClick={onClick}
+      style={{
+        width: '36px',
+        height: '36px',
+        borderRadius: '8px',
+        border: 'none',
+        background: 'transparent',
+        color: 'var(--color-text-tertiary)',
+        cursor: 'pointer',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        transition: 'background 100ms ease, color 100ms ease',
+        position: 'relative',
+      }}
+      onMouseEnter={(e) => {
+        (e.currentTarget).style.background = 'var(--color-bg-tertiary)';
+        (e.currentTarget).style.color = 'var(--color-text-secondary)';
+      }}
+      onMouseLeave={(e) => {
+        (e.currentTarget).style.background = 'transparent';
+        (e.currentTarget).style.color = 'var(--color-text-tertiary)';
+      }}
+    >
+      {icon}
+    </button>
+  );
+}
+
 export function AppIconBar({ activeApp, onChangeApp, mailUnread }: AppIconBarProps) {
   return (
     <div
@@ -124,6 +161,14 @@ export function AppIconBar({ activeApp, onChangeApp, mailUnread }: AppIconBarPro
         paddingTop: '8px',
         borderTop: '1px solid var(--color-border-subtle)',
       }}>
+        <AppActionBtn
+          label="가이드"
+          icon={<BookOpenIcon style={{ width: '20px', height: '20px' }} />}
+          onClick={() => {
+            if (typeof window === 'undefined') return;
+            window.open(GUIDE_URL, '_blank', 'noopener,noreferrer');
+          }}
+        />
         {BOTTOM_APPS.map((app) => (
           <AppBtn key={app.id} app={app} isActive={activeApp === app.id} onChangeApp={onChangeApp} />
         ))}
