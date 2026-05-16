@@ -1460,8 +1460,8 @@ func (s *Server) handleLogin(writer *bufio.Writer, tag string, fields []string, 
 		return false, writeErr
 	}
 	state.session = &authSession
-	state.userID = fields[2] // Set userID for metrics tracking
-	s.recordConnect(fields[2])  // Record auth'd connection
+	state.userID = fields[2]   // Set userID for metrics tracking
+	s.recordConnect(fields[2]) // Record auth'd connection
 	_, err = writer.WriteString(tag + " OK " + s.authenticatedCapabilityCode(state) + " LOGIN completed\r\n")
 	return false, err
 }
@@ -2203,8 +2203,8 @@ func (s *Server) completeAuthenticatePlain(writer *bufio.Writer, tag string, val
 		return false, writeErr
 	}
 	state.session = &authSession
-	state.userID = username // Set userID for metrics tracking
-	s.recordConnect(username)  // Record auth'd connection
+	state.userID = username   // Set userID for metrics tracking
+	s.recordConnect(username) // Record auth'd connection
 	_, err = writer.WriteString(tag + " OK " + s.authenticatedCapabilityCode(state) + " AUTHENTICATE completed\r\n")
 	return false, err
 }
@@ -3063,6 +3063,7 @@ func (s *Server) imapSearchResults(ctx context.Context, state *imapConnState, cr
 		return nil, 0, false, nil
 	}
 	maxUID := imapMaxSummaryUID(messages)
+	candidateIDs := s.imapSearchCandidateIDs(ctx, state, criteria)
 	predicates := make([]imapSearchPredicate, 0, len(criteria))
 	for i := 0; i < len(criteria); {
 		predicate, consumed, ok := imapParseSearchPredicate(criteria[i:], state.selectedMessages, maxUID, state)
@@ -3077,6 +3078,11 @@ func (s *Server) imapSearchResults(ctx context.Context, state *imapConnState, cr
 	results := make([]imapSearchMatch, 0, len(messages))
 	var highestModSeq uint64
 	for i, summary := range messages {
+		if candidateIDs != nil {
+			if _, ok := candidateIDs[summary.ID]; !ok {
+				continue
+			}
+		}
 		matches, err := s.imapMessageMatchesSearchPredicates(ctx, state, summary, i, predicates)
 		if err != nil {
 			return nil, 0, true, err
@@ -3105,6 +3111,208 @@ func (s *Server) imapSearchResults(ctx context.Context, state *imapConnState, cr
 		highestModSeq = 0
 	}
 	return results, highestModSeq, true, nil
+}
+
+const maxIMAPSearchOpenSearchCandidates = 200
+
+func (s *Server) imapSearchCandidateIDs(ctx context.Context, state *imapConnState, criteria []string) map[MessageID]struct{} {
+	req, ok := imapOpenSearchSearchRequest(state, criteria)
+	if !ok || s == nil || s.options.Backend == nil {
+		return nil
+	}
+	source, ok := s.options.Backend.(SearchMessageIDSource)
+	if !ok {
+		return nil
+	}
+	req.Limit = maxIMAPSearchOpenSearchCandidates
+	ids, err := source.SearchMessageIDs(ctx, req)
+	if err != nil || len(ids) >= maxIMAPSearchOpenSearchCandidates {
+		return nil
+	}
+	candidates := make(map[MessageID]struct{}, len(ids))
+	for _, id := range ids {
+		trimmed := strings.TrimSpace(string(id))
+		if trimmed == "" {
+			continue
+		}
+		candidates[MessageID(trimmed)] = struct{}{}
+	}
+	return candidates
+}
+
+func imapOpenSearchSearchRequest(state *imapConnState, criteria []string) (SearchMessagesRequest, bool) {
+	if state == nil || state.session == nil || state.selectedMailbox == "" {
+		return SearchMessagesRequest{}, false
+	}
+	req := SearchMessagesRequest{
+		UserID:        state.session.UserID,
+		MailboxID:     state.selectedMailbox,
+		Limit:         maxIMAPSearchOpenSearchCandidates,
+		HasAttachment: nil,
+	}
+	used, ok := imapCollectOpenSearchSearchRequest(criteria, &req)
+	if !ok || !used {
+		return SearchMessagesRequest{}, false
+	}
+	return req, true
+}
+
+func imapCollectOpenSearchSearchRequest(criteria []string, req *SearchMessagesRequest) (bool, bool) {
+	used := false
+	for i := 0; i < len(criteria); {
+		consumed, tokenUsed, ok := imapCollectOpenSearchSearchRequestToken(criteria[i:], req)
+		if !ok || consumed <= 0 {
+			return false, false
+		}
+		used = used || tokenUsed
+		i += consumed
+	}
+	return used, true
+}
+
+func imapCollectOpenSearchSearchRequestToken(criteria []string, req *SearchMessagesRequest) (int, bool, bool) {
+	if len(criteria) == 0 {
+		return 0, false, false
+	}
+	switch token := strings.ToUpper(criteria[0]); token {
+	case "(":
+		end, ok := imapOpenSearchGroupEnd(criteria)
+		if !ok || end < 3 {
+			return 0, false, false
+		}
+		used, ok := imapCollectOpenSearchSearchRequest(criteria[1:end-1], req)
+		if !ok {
+			return 0, false, false
+		}
+		return end, used, true
+	case "OR", "NOT", "TEXT", "HEADER", "KEYWORD", "UNKEYWORD", "UID", "MODSEQ", "LARGER", "SMALLER":
+		return 0, false, false
+	case "ALL":
+		return 1, false, true
+	case "BODY":
+		if len(criteria) < 2 {
+			return 0, false, false
+		}
+		value, ok := imapSearchStringArgument(criteria[1])
+		if !ok || strings.TrimSpace(value) == "" {
+			return 0, false, false
+		}
+		req.Query = strings.TrimSpace(req.Query + " " + value)
+		return 2, true, true
+	case "FROM":
+		return imapAssignOpenSearchString(&req.From, criteria)
+	case "TO":
+		return imapAssignOpenSearchString(&req.To, criteria)
+	case "CC":
+		return imapAssignOpenSearchString(&req.Cc, criteria)
+	case "BCC":
+		return imapAssignOpenSearchString(&req.Bcc, criteria)
+	case "SUBJECT":
+		return imapAssignOpenSearchString(&req.Subject, criteria)
+	case "SINCE":
+		return imapAssignOpenSearchDate(&req.Since, criteria)
+	case "BEFORE":
+		return imapAssignOpenSearchBeforeDate(&req.Until, criteria)
+	case "ON":
+		if len(criteria) < 2 {
+			return 0, false, false
+		}
+		if err := imapAssignOpenSearchExactDate(req, criteria[1]); err != nil {
+			return 0, false, false
+		}
+		return 2, true, true
+	default:
+		return 0, false, false
+	}
+}
+
+func imapOpenSearchGroupEnd(criteria []string) (int, bool) {
+	depth := 0
+	for i, token := range criteria {
+		switch token {
+		case "(":
+			depth++
+		case ")":
+			depth--
+			if depth == 0 {
+				return i + 1, true
+			}
+			if depth < 0 {
+				return 0, false
+			}
+		}
+	}
+	return 0, false
+}
+
+func imapAssignOpenSearchString(dst *string, criteria []string) (int, bool, bool) {
+	if len(criteria) < 2 {
+		return 0, false, false
+	}
+	value, ok := imapSearchStringArgument(criteria[1])
+	if !ok {
+		return 0, false, false
+	}
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return 0, false, false
+	}
+	if strings.TrimSpace(*dst) != "" && !strings.EqualFold(strings.TrimSpace(*dst), value) {
+		return 0, false, false
+	}
+	*dst = value
+	return 2, true, true
+}
+
+func imapAssignOpenSearchDate(dst *string, criteria []string) (int, bool, bool) {
+	if len(criteria) < 2 {
+		return 0, false, false
+	}
+	value := strings.TrimSpace(criteria[1])
+	if value == "" {
+		return 0, false, false
+	}
+	if _, ok := parseIMAPSearchDate(value); !ok {
+		return 0, false, false
+	}
+	if strings.TrimSpace(*dst) != "" && !strings.EqualFold(strings.TrimSpace(*dst), value) {
+		return 0, false, false
+	}
+	*dst = value
+	return 2, true, true
+}
+
+func imapAssignOpenSearchBeforeDate(dst *string, criteria []string) (int, bool, bool) {
+	if len(criteria) < 2 {
+		return 0, false, false
+	}
+	value := strings.TrimSpace(criteria[1])
+	if value == "" {
+		return 0, false, false
+	}
+	if _, ok := parseIMAPSearchDate(value); !ok {
+		return 0, false, false
+	}
+	if strings.TrimSpace(*dst) != "" && !strings.EqualFold(strings.TrimSpace(*dst), value) {
+		return 0, false, false
+	}
+	*dst = value
+	return 2, true, true
+}
+
+func imapAssignOpenSearchExactDate(req *SearchMessagesRequest, value string) error {
+	if _, ok := parseIMAPSearchDate(value); !ok {
+		return fmt.Errorf("invalid IMAP search date")
+	}
+	if strings.TrimSpace(req.Since) != "" && !strings.EqualFold(strings.TrimSpace(req.Since), value) {
+		return fmt.Errorf("conflicting IMAP search date")
+	}
+	if strings.TrimSpace(req.Until) != "" && !strings.EqualFold(strings.TrimSpace(req.Until), value) {
+		return fmt.Errorf("conflicting IMAP search date")
+	}
+	req.Since = value
+	req.Until = value
+	return nil
 }
 
 func imapMaxSummaryUID(messages []MessageSummary) UID {

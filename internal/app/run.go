@@ -426,6 +426,13 @@ func runIMAPGateway(ctx context.Context, cfg config.Config, logger *slog.Logger)
 	defer redisClient.Close()
 	quotaAlertEmitter := maildb.NewQuotaWarningEmitter(db, redisClient, cfg.EventStream)
 	runtime := newIMAPGatewayRuntime(repository, store, repository, quotaAlertEmitter)
+	searchIDSource, err := searchIDSourceForConfig(cfg)
+	if err != nil {
+		return err
+	}
+	if searchIDSource != nil {
+		runtime.service.WithSearchIDSource(searchIDSource)
+	}
 
 	router, err := newIMAPMailboxEventRouter(repository, runtime.events, &fanOutAdapter{fanOut: runtime.fanOut})
 	if err != nil {

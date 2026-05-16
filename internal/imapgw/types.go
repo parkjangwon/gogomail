@@ -84,6 +84,21 @@ type ListMessagesRequest struct {
 	AfterUID  UID
 }
 
+type SearchMessagesRequest struct {
+	UserID        UserID
+	MailboxID     MailboxID
+	Query         string
+	From          string
+	To            string
+	Cc            string
+	Bcc           string
+	Subject       string
+	HasAttachment *bool
+	Since         string
+	Until         string
+	Limit         int
+}
+
 type FetchMessageRequest struct {
 	UserID    UserID
 	MailboxID MailboxID
@@ -142,6 +157,10 @@ type MessageStore interface {
 	FetchMessage(ctx context.Context, req FetchMessageRequest) (Message, error)
 	StoreFlags(ctx context.Context, req StoreFlagsRequest) ([]MessageSummary, error)
 	AppendMessage(ctx context.Context, req AppendMessageRequest) (AppendMessageResult, error)
+}
+
+type SearchMessageIDSource interface {
+	SearchMessageIDs(ctx context.Context, req SearchMessagesRequest) ([]MessageID, error)
 }
 
 type Store interface {

@@ -384,6 +384,7 @@ Target outcome:
 282. IMAP mailbox event publication from service mutations is now best-effort after successful database updates, preventing future IDLE fan-out failures from making committed mail writes look failed to clients.
 283. `mailservice.IMAPStoreAdapter` now satisfies `imapgw.Store`, giving a future IMAP protocol listener a narrow adapter over service methods instead of direct repository access.
 284. Backend release readiness now records the IMAP backend boundary state: service adapter, UID backfill, user-scoped event broker, best-effort flag/move/delete events, and focused verification commands.
+284a. IMAP `SEARCH`/`UID SEARCH` can opportunistically prefilter simple conjunctions of supported text/date criteria with OpenSearch candidate IDs when the search index backend is enabled, while preserving the existing mailbox-order evaluator and falling back for unsupported boolean, flag, sequence-set, or header-heavy queries.
 285. API metering now records immutable `api_usage_ledger` rows before updating daily/monthly aggregate read models, preserving event-level usage payloads for future billing/export workflows.
 286. Admin API now exposes bounded API usage ledger list, NDJSON export, and stats endpoints with tenant/principal/time filters so operators can inspect and export event-level usage without depending on aggregates.
 287. API usage ledger schema now enforces status, positive request count, nonnegative byte/latency, and JSON object payload constraints at the database boundary.
