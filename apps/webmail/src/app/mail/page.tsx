@@ -206,6 +206,19 @@ export default function MailPage() {
   const { folders, messages, setMessages, foldersLoading, messagesLoading, hasMore, loadingMore, loadMore, adjustUnread, refresh, refreshing } =
     useMailList(activeFolderId);
 
+  const patchVisibleMessages = useCallback((ids: string[], patch: Partial<MessageSummary>) => {
+    const idSet = new Set(ids);
+    const applyPatch = (items: MessageSummary[]) => items.map((m) => (idSet.has(m.id) ? { ...m, ...patch } : m));
+    setMessages(applyPatch);
+    setSearchResults((prev) => (prev ? applyPatch(prev) : prev));
+  }, [setMessages]);
+  const findVisibleMessage = useCallback((id: string) => (
+    messages.find((m) => m.id === id) ?? searchResults?.find((m) => m.id === id)
+  ), [messages, searchResults]);
+  const countUnreadVisible = useCallback((ids: string[]) => (
+    ids.reduce((count, id) => count + (findVisibleMessage(id)?.read === false ? 1 : 0), 0)
+  ), [findVisibleMessage]);
+
   // Set default folder to inbox UUID once folders are loaded, and recover from stale saved IDs.
   useEffect(() => {
     if (folders.length === 0 || activeFolderId.startsWith('__')) return;
@@ -434,46 +447,38 @@ export default function MailPage() {
 
   const handleMarkUnread = useCallback(async () => {
     if (!selectedMessageId) return;
-    setMessages((prev) =>
-      prev.map((m) => (m.id === selectedMessageId ? { ...m, read: false } : m))
-    );
+    patchVisibleMessages([selectedMessageId], { read: false });
     adjustUnread(activeFolderId, 1);
     addToast('읽지 않음으로 표시했습니다', 'info');
     markRead(selectedMessageId, false).catch(() => {
-      setMessages((prev) =>
-        prev.map((m) => (m.id === selectedMessageId ? { ...m, read: true } : m))
-      );
+      patchVisibleMessages([selectedMessageId], { read: true });
       adjustUnread(activeFolderId, -1);
     });
-  }, [selectedMessageId, setMessages, adjustUnread, activeFolderId, addToast]);
+  }, [selectedMessageId, patchVisibleMessages, adjustUnread, activeFolderId, addToast]);
 
   const handleMarkRead = useCallback(async () => {
     if (!selectedMessageId) return;
-    const msg = messages.find((m) => m.id === selectedMessageId);
+    const msg = findVisibleMessage(selectedMessageId);
     if (msg?.read) return;
-    setMessages((prev) =>
-      prev.map((m) => (m.id === selectedMessageId ? { ...m, read: true } : m))
-    );
+    patchVisibleMessages([selectedMessageId], { read: true });
     adjustUnread(activeFolderId, -1);
     addToast('읽음으로 표시했습니다', 'info');
     markRead(selectedMessageId, true).catch(() => {
-      setMessages((prev) =>
-        prev.map((m) => (m.id === selectedMessageId ? { ...m, read: false } : m))
-      );
+      patchVisibleMessages([selectedMessageId], { read: false });
       adjustUnread(activeFolderId, 1);
     });
-  }, [selectedMessageId, messages, setMessages, adjustUnread, activeFolderId, addToast]);
+  }, [selectedMessageId, findVisibleMessage, patchVisibleMessages, adjustUnread, activeFolderId, addToast]);
 
   const handleToggleReadMessage = useCallback((id: string, read: boolean) => {
-    const prev = messages.find((m) => m.id === id);
+    const prev = findVisibleMessage(id);
     if (!prev || prev.read === read) return;
-    setMessages((ms) => ms.map((m) => (m.id === id ? { ...m, read } : m)));
+    patchVisibleMessages([id], { read });
     adjustUnread(activeFolderId, read ? -1 : 1);
     markRead(id, read).catch(() => {
-      setMessages((ms) => ms.map((m) => (m.id === id ? { ...m, read: !read } : m)));
+      patchVisibleMessages([id], { read: !read });
       adjustUnread(activeFolderId, read ? 1 : -1);
     });
-  }, [messages, setMessages, adjustUnread, activeFolderId]);
+  }, [findVisibleMessage, patchVisibleMessages, adjustUnread, activeFolderId]);
 
   const runSearch = useCallback(async (q: string, filters: AdvancedFilters) => {
     if (!q.trim() && !filters.from && !filters.to && !filters.subject && !filters.since && !filters.until && !filters.has_attachment) {
@@ -584,39 +589,39 @@ export default function MailPage() {
   }, [selectedMessageId, setMessages, addToast]);
 
   const handleBulkMarkRead = useCallback(async (ids: string[]) => {
-    const unreadCount = messages.filter((m) => ids.includes(m.id) && !m.read).length;
-    setMessages((prev) => prev.map((m) => ids.includes(m.id) ? { ...m, read: true } : m));
+    const unreadCount = countUnreadVisible(ids);
+    patchVisibleMessages(ids, { read: true });
     if (unreadCount > 0) adjustUnread(activeFolderId, -unreadCount);
     try {
       await bulkMarkRead(ids, true);
       addToast(`${ids.length}개를 읽음으로 표시했습니다`, 'info');
     } catch {
-      setMessages((prev) => prev.map((m) => ids.includes(m.id) ? { ...m, read: false } : m));
+      patchVisibleMessages(ids, { read: false });
       if (unreadCount > 0) adjustUnread(activeFolderId, unreadCount);
       addToast('읽음 표시에 실패했습니다', 'error');
     }
-  }, [messages, setMessages, adjustUnread, activeFolderId, addToast]);
+  }, [messages, countUnreadVisible, patchVisibleMessages, adjustUnread, activeFolderId, addToast]);
 
   const handleBulkStar = useCallback(async (ids: string[], starred: boolean) => {
-    setMessages((prev) => prev.map((m) => ids.includes(m.id) ? { ...m, starred } : m));
+    patchVisibleMessages(ids, { starred });
     await Promise.allSettled(ids.map((id) => starMessage(id, starred)));
     addToast(starred ? `${ids.length}개에 별표를 추가했습니다` : `${ids.length}개의 별표를 제거했습니다`, 'info');
-  }, [setMessages, addToast]);
+  }, [patchVisibleMessages, addToast]);
 
   const handleMarkAllRead = useCallback(async () => {
     const unreadIds = messages.filter((m) => !m.read).map((m) => m.id);
     if (unreadIds.length === 0) return;
-    setMessages((prev) => prev.map((m) => ({ ...m, read: true })));
+    patchVisibleMessages(unreadIds, { read: true });
     adjustUnread(activeFolderId, -unreadIds.length);
     try {
       await bulkMarkRead(unreadIds, true);
       addToast(`${unreadIds.length}개를 읽음으로 표시했습니다`, 'info');
     } catch {
-      setMessages((prev) => prev.map((m) => unreadIds.includes(m.id) ? { ...m, read: false } : m));
+      patchVisibleMessages(unreadIds, { read: false });
       adjustUnread(activeFolderId, unreadIds.length);
       addToast('읽음 표시에 실패했습니다', 'error');
     }
-  }, [messages, setMessages, adjustUnread, activeFolderId, addToast]);
+  }, [messages, patchVisibleMessages, adjustUnread, activeFolderId, addToast]);
 
   const handleArchiveById = useCallback((id: string) => {
     const archiveFolder = folders.find((f) => f.system_type === 'archive');
@@ -698,11 +703,11 @@ export default function MailPage() {
   }, [selectedMessageId, getNextId, setMessages, addToast]);
 
   const handleStar = useCallback(async (id: string, starred: boolean) => {
-    setMessages((prev) => prev.map((m) => (m.id === id ? { ...m, starred } : m)));
+    patchVisibleMessages([id], { starred });
     starMessage(id, starred).catch(() => {
-      setMessages((prev) => prev.map((m) => (m.id === id ? { ...m, starred: !starred } : m)));
+      patchVisibleMessages([id], { starred: !starred });
     });
-  }, [setMessages]);
+  }, [patchVisibleMessages]);
 
 
   // Persist last-selected message per folder
@@ -801,7 +806,10 @@ export default function MailPage() {
           break;
         }
         case 's':
-          if (!composeContext && !selectedMessageId) { e.preventDefault(); openCompose({ intent: 'new' }); }
+          if (!e.ctrlKey && !e.metaKey && !e.altKey && !composeContext) {
+            e.preventDefault();
+            openCompose({ intent: 'new' });
+          }
           break;
         case 'n': {
           // Next unread message
@@ -827,13 +835,6 @@ export default function MailPage() {
         case '!':
           if (selectedMessageId && !composeContext) handleSpam();
           break;
-        case 's': {
-          if (selectedMessageId && !composeContext) {
-            const msg = messages.find((m) => m.id === selectedMessageId);
-            if (msg) handleStar(selectedMessageId, !msg.starred);
-          }
-          break;
-        }
         case 'r':
           if (selectedMessage && !composeContext) {
             e.preventDefault();

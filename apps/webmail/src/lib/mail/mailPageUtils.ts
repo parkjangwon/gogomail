@@ -31,6 +31,7 @@ export function parseSearchOperators(raw: string): { q: string; operators: Advan
 export function buildThreadMessages(threads: ThreadSummary[]): MessageSummary[] {
   return threads.map((t): MessageSummary => ({
     id: t.latest_message_id || t.id,
+    folder_id: t.folder_id ?? '',
     subject: t.subject,
     from_addr: t.latest_from_addr,
     from_name: t.latest_from_addr,

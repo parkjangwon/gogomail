@@ -47,6 +47,7 @@ export function MessageRow({
   showPreview = true,
   hasNote = false,
   isImportant = false,
+  folderLabel,
   onAvatarEnter,
   onAvatarLeave,
   onHoverChange,
@@ -221,6 +222,8 @@ export function MessageRow({
         <div style={{ flex: 1, minWidth: 0, overflow: 'hidden', alignSelf: 'center' }}>
           <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: '13px' }}>
             {isImportant && <span title="중요 메일 (I)" aria-label="중요" style={{ color: '#eab308', marginRight: '4px', fontSize: '10px', verticalAlign: 'middle' }}>▶</span>}
+            {message.starred && <StarIconSolid aria-label="별표" title="별표" style={{ width: '12px', height: '12px', color: '#f59e0b', marginRight: '4px', verticalAlign: '-1px', display: 'inline-block' }} />}
+            {folderLabel && <span title={`편지함: ${folderLabel}`} style={{ display: 'inline-block', marginRight: '5px', padding: '1px 5px', borderRadius: '999px', background: 'var(--color-bg-tertiary)', color: 'var(--color-text-tertiary)', fontSize: '10px', fontWeight: 600, verticalAlign: '1px' }}>{folderLabel}</span>}
             <span style={{ fontWeight: isUnread ? 600 : 400, color: 'var(--color-text-primary)' }}>
               {highlight(message.subject || '(제목 없음)', q)}
             </span>
@@ -246,7 +249,7 @@ export function MessageRow({
                 <button
                   type="button"
                   aria-label={message.starred ? '별표 해제' : '별표 추가'}
-                  title={message.starred ? '별표 해제 (S)' : '별표 추가 (S)'}
+                  title={message.starred ? '별표 해제' : '별표 추가'}
                   draggable={false}
                   onMouseDown={(e) => e.stopPropagation()}
                   onClick={(e) => { e.stopPropagation(); onStar(message.id, !message.starred); }}
@@ -255,7 +258,6 @@ export function MessageRow({
                   onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'none'; }}
                 >
                   {message.starred ? <StarIconSolid style={{ width: '14px', height: '14px' }} /> : <StarIcon style={{ width: '14px', height: '14px' }} />}
-                  <kbd style={{ fontSize: '8px', lineHeight: 1, color: 'var(--color-text-tertiary)', background: 'none', border: 'none', fontFamily: 'monospace', fontWeight: 700 }}>S</kbd>
                 </button>
               )}
               {onHoverToggleRead && (

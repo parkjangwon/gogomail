@@ -19,6 +19,7 @@ export interface MessageAddress {
 
 export interface MessageSummary {
   id: string;
+  folder_id: string;
   subject: string;
   preview: string;
   from_addr: string;
@@ -1045,6 +1046,7 @@ export async function listOrgTree(): Promise<OrgUnit[]> {
 
 export interface ThreadSummary {
   id: string;
+  folder_id: string;
   subject: string;
   preview: string;
   message_count: number;

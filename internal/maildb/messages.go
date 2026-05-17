@@ -13,6 +13,7 @@ import (
 
 type MessageSummary struct {
 	ID               string                   `json:"id"`
+	FolderID         string                   `json:"folder_id"`
 	Subject          string                   `json:"subject"`
 	Preview          string                   `json:"preview"`
 	FromAddr         string                   `json:"from_addr"`
@@ -518,6 +519,7 @@ func (r *Repository) ListMessages(ctx context.Context, userID string, limit int)
 	const query = `
 SELECT
   m.id::text,
+  m.folder_id::text,
   m.subject,
   left(btrim(regexp_replace(left(coalesce(msd.body_text, ''), 2000), '[[:space:]]+', ' ', 'g')), 280) AS preview,
   m.from_addr,
@@ -547,6 +549,7 @@ LIMIT $2`
 		var msg MessageSummary
 		if err := rows.Scan(
 			&msg.ID,
+			&msg.FolderID,
 			&msg.Subject,
 			&msg.Preview,
 			&msg.FromAddr,
@@ -579,6 +582,7 @@ func (r *Repository) ListMessagesInFolder(ctx context.Context, userID string, fo
 	const query = `
 SELECT
   m.id::text,
+  m.folder_id::text,
   m.subject,
   left(btrim(regexp_replace(left(coalesce(msd.body_text, ''), 2000), '[[:space:]]+', ' ', 'g')), 280) AS preview,
   m.from_addr,
@@ -609,6 +613,7 @@ LIMIT $3`
 		var msg MessageSummary
 		if err := rows.Scan(
 			&msg.ID,
+			&msg.FolderID,
 			&msg.Subject,
 			&msg.Preview,
 			&msg.FromAddr,
@@ -666,6 +671,7 @@ func (r *Repository) ListMessagesPage(ctx context.Context, userID string, folder
 		var msg MessageSummary
 		if err := rows.Scan(
 			&msg.ID,
+			&msg.FolderID,
 			&msg.Subject,
 			&msg.Preview,
 			&msg.FromAddr,
@@ -689,6 +695,7 @@ func (r *Repository) ListMessagesPage(ctx context.Context, userID string, folder
 const messageListPageNewestSQL = `
 SELECT
   messages.id::text,
+  messages.folder_id::text,
   messages.subject,
   left(btrim(regexp_replace(left(coalesce(msd.body_text, ''), 2000), '[[:space:]]+', ' ', 'g')), 280) AS preview,
   messages.from_addr,
@@ -719,6 +726,7 @@ LIMIT $5`
 const messageListPageOldestSQL = `
 SELECT
   messages.id::text,
+  messages.folder_id::text,
   messages.subject,
   left(btrim(regexp_replace(left(coalesce(msd.body_text, ''), 2000), '[[:space:]]+', ' ', 'g')), 280) AS preview,
   messages.from_addr,

@@ -190,7 +190,7 @@ export function MessageListHeader({
         </button>
       )}
       {onBulkStar && (
-        <button onClick={() => { onBulkStar([...bulkSelected], bulkStarTarget); clearAll(); }} title={bulkStarTarget ? '별표 추가 (S)' : '별표 제거 (S)'} style={{ padding: '4px 8px', borderRadius: '12px', border: '1px solid var(--color-border-default)', background: 'transparent', cursor: 'pointer', color: bulkStarTarget ? '#f59e0b' : 'var(--color-text-tertiary)', display: 'inline-flex', alignItems: 'center' }}>
+        <button onClick={() => { onBulkStar([...bulkSelected], bulkStarTarget); clearAll(); }} title={bulkStarTarget ? '별표 추가' : '별표 제거'} style={{ padding: '4px 8px', borderRadius: '12px', border: '1px solid var(--color-border-default)', background: 'transparent', cursor: 'pointer', color: bulkStarTarget ? '#f59e0b' : 'var(--color-text-tertiary)', display: 'inline-flex', alignItems: 'center' }}>
           {bulkStarTarget ? <StarIconSolid style={{ width: '13px', height: '13px' }} /> : <StarIcon style={{ width: '13px', height: '13px' }} />}
         </button>
       )}

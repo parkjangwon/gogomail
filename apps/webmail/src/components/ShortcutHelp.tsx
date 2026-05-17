@@ -41,7 +41,6 @@ const SECTIONS = [
       { key: 'r', desc: '회신' },
       { key: 'a', desc: '전체 회신' },
       { key: 'f', desc: '전달' },
-      { key: 's', desc: '별표 토글' },
       { key: 'e', desc: '보관' },
       { key: 'v', desc: '편지함으로 이동 (스팟라이트)' },
       { key: '#  /  Del', desc: '삭제' },
