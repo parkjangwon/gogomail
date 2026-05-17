@@ -7,7 +7,8 @@ async function login(page: Page) {
   await page.getByPlaceholder("admin@system").fill("admin@system");
   await page.locator('input[type="password"]').fill("admin1234");
   await page.getByRole("button", { name: "Sign in" }).click();
-  await page.waitForURL("**/companies/**/dashboard", { timeout: 15000 });
+  await page.waitForURL("**/companies/**/dashboard", { timeout: 15000, waitUntil: "domcontentloaded" });
+  await expect(page.getByRole("heading", { name: /Dashboard|대시보드/ })).toBeVisible({ timeout: 15000 });
 }
 
 test.describe("Admin Console", () => {
@@ -40,7 +41,7 @@ test.describe("Admin Console", () => {
     await page.locator('input[type="password"]').fill("admin1234");
     await page.getByRole("button", { name: "Sign in" }).click();
 
-    await page.waitForURL("**/companies/default/audit-logs", { timeout: 15000 });
+    await page.waitForURL("**/companies/default/audit-logs", { timeout: 15000, waitUntil: "domcontentloaded" });
     await expect(page.getByRole("heading", { name: /Audit Logs|감사 로그/ })).toBeVisible();
   });
 
@@ -51,7 +52,7 @@ test.describe("Admin Console", () => {
     await expect(page.getByRole("button", { name: /Manage Users|사용자 관리/ })).toBeVisible();
 
     await page.getByRole("button", { name: /Manage Users|사용자 관리/ }).click();
-    await page.waitForURL("**/companies/**/users");
+    await page.waitForURL("**/companies/**/users", { waitUntil: "domcontentloaded" });
     await expect(page.getByRole("heading", { name: /Users|사용자/ })).toBeVisible();
   });
 

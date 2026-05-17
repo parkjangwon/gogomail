@@ -12,7 +12,7 @@ test('Verify Korean i18n translations on Dashboard', async ({ page }) => {
   await page.fill('input[type="email"]', 'admin@system');
   await page.fill('input[type="password"]', 'admin1234');
   await page.getByRole('button', { name: /Sign in|로그인/ }).click();
-  await page.waitForURL('**/companies/**/dashboard', { timeout: 15000 });
+  await page.waitForURL('**/companies/**/dashboard', { timeout: 15000, waitUntil: 'domcontentloaded' });
   await expect(page.getByRole('heading', { name: '대시보드' })).toBeVisible();
   await expect(page.getByText('빠른 작업')).toBeVisible({ timeout: 15000 });
 

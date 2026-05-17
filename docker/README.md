@@ -96,7 +96,8 @@ chmod +x init-scripts/postgresql-replication-setup.sh
 docker-compose -f docker-compose.medium.yml up -d
 
 # Check health
-curl http://localhost:8080/health
+curl http://localhost:8080/health/live
+curl http://localhost:8080/health/ready
 curl http://localhost:9000/minio/health/live
 curl http://localhost:9090 # Prometheus
 
@@ -338,7 +339,8 @@ docker-compose -f docker-compose.SCALE.yml inspect SERVICE_NAME
 
 ```bash
 # Check backend health
-curl http://localhost:8080/health
+curl http://localhost:8080/health/live
+curl http://localhost:8080/health/ready
 
 # PostgreSQL connectivity
 docker-compose -f docker-compose.SCALE.yml exec postgres \

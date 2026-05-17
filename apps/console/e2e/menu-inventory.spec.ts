@@ -71,7 +71,7 @@ async function login(page: Page) {
   await page.getByPlaceholder("admin@system").fill("admin@system");
   await page.locator('input[type="password"]').fill("admin1234");
   await page.getByRole("button", { name: "Sign in" }).click();
-  await page.waitForURL("**/companies/**/dashboard", { timeout: 15000 });
+  await page.waitForURL("**/companies/**/dashboard", { timeout: 15000, waitUntil: "domcontentloaded" });
 }
 
 async function currentCompanyId(page: Page) {
@@ -94,7 +94,6 @@ test.describe("Admin Console menu inventory", () => {
       if (
         message.type() === "error" &&
         !text.includes("Failed to load resource") &&
-        !text.includes("Each child in a list should have a unique \"key\" prop") &&
         !text.includes("favicon.ico")
       ) {
         issues.push(`${currentRoute}: console ${message.type()}: ${text}`);
@@ -109,7 +108,6 @@ test.describe("Admin Console menu inventory", () => {
       await test.step(route, async () => {
         currentRoute = route;
         const response = await page.goto(url, { waitUntil: "domcontentloaded" });
-        await page.waitForLoadState("networkidle", { timeout: 10000 }).catch(() => {});
         await expect(page.locator("body")).toBeVisible();
         await expect(page.getByRole("heading").first()).toBeVisible({ timeout: 10000 });
 
@@ -121,7 +119,7 @@ test.describe("Admin Console menu inventory", () => {
         if (/This page could not be found|404|Application error/i.test(bodyText)) {
           issues.push(`${route}: rendered an error page`);
         }
-        if (/\b(?:pages|nav|layout|status)\.[a-z0-9_.-]+/i.test(bodyText)) {
+        if (/\b(?:common|pages|nav|layout|status)\.[a-z0-9_.-]+/i.test(bodyText)) {
           issues.push(`${route}: rendered untranslated message keys`);
         }
         const heading = (await page.getByRole("heading").first().innerText()).trim();
@@ -139,7 +137,7 @@ test.describe("Admin Console menu inventory", () => {
     const companyId = await currentCompanyId(page);
 
     await page.getByRole("button", { name: /Alerts|No active alerts|active alert/i }).click();
-    await page.waitForURL("**/companies/**/security/alerts");
+    await page.waitForURL("**/companies/**/security/alerts", { waitUntil: "domcontentloaded" });
     await expect(page.getByRole("heading", { name: /Alerts|Notifications|알림/ })).toBeVisible();
 
     await page.goto(`${BASE_URL}/companies/${companyId}/organization`);

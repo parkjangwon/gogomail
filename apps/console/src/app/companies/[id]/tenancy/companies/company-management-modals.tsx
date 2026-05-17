@@ -108,7 +108,7 @@ export function CompanyManagementModals({
             <SpaceBetween direction="horizontal" size="xs">
               <Button onClick={onDismissEdit}>{t('common.cancel')}</Button>
               <Button variant="primary" onClick={onSaveEdit} loading={saving} disabled={!editForm.name.trim()}>
-                {t('common.save') || '저장'}
+                {t('common.save')}
               </Button>
             </SpaceBetween>
           </Box>
@@ -122,12 +122,12 @@ export function CompanyManagementModals({
               placeholder={t('pages.companies.name_placeholder')}
             />
           </FormField>
-          <FormField label={t('pages.companies.quota_label') || '스토리지 할당량 (GB)'} description="0 = 무제한">
+          <FormField label={t('pages.companies.quota_label')} description={t('pages.companies.quota_zero_unlimited')}>
             <Input
               type="number"
               value={editForm.quota_gb}
               onChange={(e) => onChangeEditForm({ ...editForm, quota_gb: e.detail.value })}
-              placeholder="0 = 무제한"
+              placeholder={t('pages.companies.quota_zero_unlimited')}
             />
           </FormField>
           {saveError ? <Alert type="error">{saveError}</Alert> : null}
@@ -137,20 +137,20 @@ export function CompanyManagementModals({
       <Modal
         visible={!!deleteTarget}
         onDismiss={onDismissDelete}
-        header={t('common.delete') || '회사 삭제'}
+        header={t('common.delete')}
         footer={
           <Box float="right">
             <SpaceBetween direction="horizontal" size="xs">
               <Button onClick={onDismissDelete}>{t('common.cancel')}</Button>
               <Button variant="primary" onClick={onDelete} loading={deleting}>
-                {t('common.delete') || '삭제'}
+                {t('common.delete')}
               </Button>
             </SpaceBetween>
           </Box>
         }
       >
         <SpaceBetween size="m">
-          <Box><strong>{deleteTarget?.name}</strong> 회사를 삭제하시겠습니까? 도메인이 있는 경우 삭제할 수 없습니다.</Box>
+          <Box>{t('pages.companies.delete_confirm').replace('{name}', deleteTarget?.name ?? '')}</Box>
           {deleteError ? <Alert type="error">{deleteError}</Alert> : null}
         </SpaceBetween>
       </Modal>

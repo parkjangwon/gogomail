@@ -86,11 +86,20 @@ export default function GlobalSignaturePage() {
       }
     >
       <SpaceBetween size="l">
-        {error && <Alert type="error">{error}</Alert>}
-        {saveStatus === 'success' && <Alert type="success" dismissible onDismiss={() => setSaveStatus('idle')}>{t('global_signature.save_success')}</Alert>}
-        {saveStatus === 'error' && <Alert type="error" dismissible onDismiss={() => setSaveStatus('idle')}>{t('global_signature.save_error')}</Alert>}
+        {error ? <Alert key="load-error" type="error">{error}</Alert> : null}
+        {saveStatus === 'success' ? (
+          <Alert key="save-success" type="success" dismissible onDismiss={() => setSaveStatus('idle')}>
+            {t('global_signature.save_success')}
+          </Alert>
+        ) : null}
+        {saveStatus === 'error' ? (
+          <Alert key="save-error" type="error" dismissible onDismiss={() => setSaveStatus('idle')}>
+            {t('global_signature.save_error')}
+          </Alert>
+        ) : null}
 
         <Container
+          key="settings"
           header={
             <Header
               variant="h2"
@@ -107,14 +116,14 @@ export default function GlobalSignaturePage() {
             </Header>
           }
         >
-          {!config.enabled && (
-            <Alert type="info">
+          {!config.enabled ? (
+            <Alert key="disabled-info" type="info">
               {t('global_signature.disabled_info')}
             </Alert>
-          )}
+          ) : null}
         </Container>
 
-        <Container header={<Header variant="h2">{t('global_signature.content_header')}</Header>}>
+        <Container key="content" header={<Header variant="h2">{t('global_signature.content_header')}</Header>}>
           <Tabs
             tabs={[
               {
@@ -131,15 +140,15 @@ export default function GlobalSignaturePage() {
                       placeholder={t('global_signature.html_placeholder')}
                       rows={12}
                     />
-                    {config.html && (
-                      <SpaceBetween size="xs">
+                    {config.html ? (
+                      <SpaceBetween key="preview" size="xs">
                         <Box fontWeight="bold" fontSize="body-s">{t('global_signature.preview')}</Box>
                         <div
                           style={{ border: '1px solid var(--color-border-divider-default)', borderRadius: 4, padding: 16, background: '#fff', color: '#000' }}
                           dangerouslySetInnerHTML={{ __html: config.html }}
                         />
                       </SpaceBetween>
-                    )}
+                    ) : null}
                   </SpaceBetween>
                 ),
               },

@@ -1,14 +1,9 @@
 import { test, expect } from '@playwright/test';
+import { loginAsSeedUser } from './helpers';
 
 test.describe('Mail List', () => {
   test.beforeEach(async ({ page }) => {
-    await page.addInitScript(() => {
-      localStorage.setItem('webmail_authenticated', '1');
-      localStorage.setItem('webmail_email', 'pjw@parkjw.org');
-    });
-    // Navigate to mail page
-    // In dev mode with GOGOMAIL_DEV_USER_ID, this should work without login
-    await page.goto('/mail');
+    await loginAsSeedUser(page);
   });
 
   test('displays mail list', async ({ page }) => {

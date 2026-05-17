@@ -582,12 +582,12 @@ export default function DomainDetailPage() {
       <Modal
         visible={showEdit}
         onDismiss={() => { setShowEdit(false); setSaveError(''); }}
-        header={`${t('common.edit') || '도메인 수정'} — ${domain.name}`}
+        header={`${t('common.edit')} — ${domain.name}`}
         footer={
           <Box float="right">
             <SpaceBetween direction="horizontal" size="xs">
               <Button onClick={() => { setShowEdit(false); setSaveError(''); }}>{t('common.cancel')}</Button>
-              <Button variant="primary" onClick={handleSaveEdit} loading={saving}>{t('common.save') || '저장'}</Button>
+              <Button variant="primary" onClick={handleSaveEdit} loading={saving}>{t('common.save')}</Button>
             </SpaceBetween>
           </Box>
         }
@@ -600,12 +600,12 @@ export default function DomainDetailPage() {
               onChange={(e) => setEditForm({ ...editForm, status: e.detail.selectedOption.value ?? 'active' })}
             />
           </FormField>
-          <FormField label={t('pages.tenancy_domains.storage_quota_gb') || '스토리지 할당량 (GB)'} description="0 = 무제한">
+          <FormField label={t('pages.tenancy_domains.storage_quota_gb')} description={t('pages.tenancy_domains.quota_zero_unlimited')}>
             <Input
               type="number"
               value={editForm.quota_gb}
               onChange={(e) => setEditForm({ ...editForm, quota_gb: e.detail.value })}
-              placeholder="0 = 무제한"
+              placeholder={t('pages.tenancy_domains.quota_zero_unlimited')}
             />
           </FormField>
           {saveError ? <Alert type="error">{saveError}</Alert> : null}
@@ -616,7 +616,7 @@ export default function DomainDetailPage() {
       <Modal
         visible={showDelete}
         onDismiss={() => { setShowDelete(false); setDeleteError(''); }}
-        header={t('common.delete') || '도메인 삭제'}
+        header={t('common.delete')}
         footer={
           <Box float="right">
             <SpaceBetween direction="horizontal" size="xs">
