@@ -30,7 +30,7 @@ const SHORTCUTS: { category: string; items: { key: string; desc: string }[] }[] 
       { key: 'c', desc: '새 메일 작성' },
       { key: 'j / k', desc: '다음 / 이전 메일' },
       { key: '↑ / ↓', desc: '목록 이동' },
-      { key: 'Enter', desc: '선택 메일 열기' },
+      { key: 'o', desc: '선택 메일 열기' },
       { key: 'u', desc: '목록으로 / 메일 닫기' },
       { key: '/', desc: '검색창 포커스' },
       { key: 'Esc', desc: '검색 닫기 / 뒤로' },
