@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"net/url"
 	"strings"
 
 	"github.com/gogomail/gogomail/internal/webhook"
@@ -27,9 +26,10 @@ const (
 )
 
 type WebhookOptions struct {
-	Endpoint string
-	Token    string
-	Client   *http.Client
+	Endpoint            string
+	Token               string
+	Client              *http.Client
+	AllowPrivateNetwork bool
 }
 
 type WebhookScanner struct {
@@ -39,26 +39,17 @@ type WebhookScanner struct {
 }
 
 func NewWebhookScanner(opts WebhookOptions) (*WebhookScanner, error) {
-	endpoint := strings.TrimSpace(opts.Endpoint)
-	if strings.ContainsAny(endpoint, "\r\n") {
-		return nil, fmt.Errorf("attachment scanner webhook endpoint cannot contain line breaks")
-	}
-	parsed, err := url.Parse(endpoint)
+	parsed, err := webhook.ValidateOutboundHTTPURL(context.Background(), opts.Endpoint, webhook.OutboundURLGuardOptions{AllowPrivateNetwork: opts.AllowPrivateNetwork})
 	if err != nil {
-		return nil, fmt.Errorf("attachment scanner webhook endpoint must be a valid URL: %w", err)
-	}
-	if (parsed.Scheme != "http" && parsed.Scheme != "https") || parsed.Host == "" {
-		return nil, fmt.Errorf("attachment scanner webhook endpoint must be an http or https URL")
+		return nil, fmt.Errorf("attachment scanner webhook endpoint: %w", err)
 	}
 	client := opts.Client
-	if client == nil {
-		client = http.DefaultClient
-	}
+	client = webhook.GuardedHTTPClient(client, webhook.OutboundURLGuardOptions{AllowPrivateNetwork: opts.AllowPrivateNetwork})
 	token, err := webhook.NormalizeWebhookToken(opts.Token, maxWebhookTokenBytes)
 	if err != nil {
 		return nil, fmt.Errorf("attachment scanner webhook token: %w", err)
 	}
-	return &WebhookScanner{endpoint: endpoint, token: token, client: client}, nil
+	return &WebhookScanner{endpoint: parsed.String(), token: token, client: client}, nil
 }
 
 func (s *WebhookScanner) ScanAttachments(ctx context.Context, req Request) (Result, error) {

@@ -31,7 +31,7 @@ func TestWebhookScannerPostsAttachmentRequest(t *testing.T) {
 	}))
 	defer server.Close()
 
-	scanner, err := NewWebhookScanner(WebhookOptions{Endpoint: server.URL, Token: " secret-token ", Client: server.Client()})
+	scanner, err := NewWebhookScanner(WebhookOptions{Endpoint: server.URL, Token: " secret-token ", Client: server.Client(), AllowPrivateNetwork: true})
 	if err != nil {
 		t.Fatalf("NewWebhookScanner returned error: %v", err)
 	}
@@ -88,7 +88,7 @@ func TestWebhookScannerReturnsHTTPFailure(t *testing.T) {
 	}))
 	defer server.Close()
 
-	scanner, err := NewWebhookScanner(WebhookOptions{Endpoint: server.URL, Client: server.Client()})
+	scanner, err := NewWebhookScanner(WebhookOptions{Endpoint: server.URL, Client: server.Client(), AllowPrivateNetwork: true})
 	if err != nil {
 		t.Fatalf("NewWebhookScanner returned error: %v", err)
 	}
@@ -112,7 +112,7 @@ func TestNewWebhookScannerRejectsTokenWithLineBreak(t *testing.T) {
 	}))
 	defer server.Close()
 
-	if _, err := NewWebhookScanner(WebhookOptions{Endpoint: server.URL, Token: "scanner-token\rabc", Client: server.Client()}); err == nil {
+	if _, err := NewWebhookScanner(WebhookOptions{Endpoint: server.URL, Token: "scanner-token\rabc", Client: server.Client(), AllowPrivateNetwork: true}); err == nil {
 		t.Fatal("NewWebhookScanner accepted token with line break")
 	}
 }
@@ -129,7 +129,7 @@ func TestWebhookScannerBoundsRequestPayload(t *testing.T) {
 	}))
 	defer server.Close()
 
-	scanner, err := NewWebhookScanner(WebhookOptions{Endpoint: server.URL, Client: server.Client()})
+	scanner, err := NewWebhookScanner(WebhookOptions{Endpoint: server.URL, Client: server.Client(), AllowPrivateNetwork: true})
 	if err != nil {
 		t.Fatalf("NewWebhookScanner returned error: %v", err)
 	}
@@ -196,5 +196,13 @@ func TestNewWebhookScannerRejectsUnsupportedEndpoint(t *testing.T) {
 
 	if _, err := NewWebhookScanner(WebhookOptions{Endpoint: "ftp://scanner.example/scan"}); err == nil {
 		t.Fatal("NewWebhookScanner accepted unsupported endpoint")
+	}
+}
+
+func TestNewWebhookScannerRejectsPrivateEndpointByDefault(t *testing.T) {
+	t.Parallel()
+
+	if _, err := NewWebhookScanner(WebhookOptions{Endpoint: "http://127.0.0.1:8080/scan"}); err == nil {
+		t.Fatal("NewWebhookScanner accepted private endpoint by default")
 	}
 }

@@ -27,12 +27,12 @@ func TestSAMLAuthnRequest(t *testing.T) {
 		ACSURL:       "https://sp.example.com/acs",
 	}
 
-	xml, err := req.MarshalXML()
+	xml, err := req.BuildXML()
 	if err != nil {
-		t.Fatalf("MarshalXML error: %v", err)
+		t.Fatalf("BuildXML error: %v", err)
 	}
 	if len(xml) == 0 {
-		t.Fatal("MarshalXML returned empty xml")
+		t.Fatal("BuildXML returned empty xml")
 	}
 	xmlStr := string(xml)
 	if !contains(xmlStr, "AuthnRequest") {

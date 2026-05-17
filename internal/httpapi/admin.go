@@ -26,6 +26,7 @@ import (
 	"github.com/gogomail/gogomail/internal/drive"
 	"github.com/gogomail/gogomail/internal/maildb"
 	"github.com/gogomail/gogomail/internal/storage"
+	webhookguard "github.com/gogomail/gogomail/internal/webhook"
 )
 
 type adminRouteConfig struct {
@@ -33,6 +34,7 @@ type adminRouteConfig struct {
 	storageCapabilities *storage.BackendCapabilities
 	configNotifier      configstore.Notifier
 	tokenMgr            *auth.TokenManager
+	environment         string
 }
 
 // AdminRouteOption configures optional capabilities for RegisterAdminRoutes.
@@ -58,6 +60,10 @@ func WithConfigNotifier(n configstore.Notifier) AdminRouteOption {
 // and receive a signed JWT that is accepted by all admin routes.
 func WithTokenManager(tm *auth.TokenManager) AdminRouteOption {
 	return func(cfg *adminRouteConfig) { cfg.tokenMgr = tm }
+}
+
+func WithEnvironment(environment string) AdminRouteOption {
+	return func(cfg *adminRouteConfig) { cfg.environment = strings.TrimSpace(environment) }
 }
 
 type adminContextKey struct{}
@@ -356,7 +362,7 @@ func inheritCompanyDomainSettings(ctx context.Context, service AdminService, dom
 }
 
 func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string, opts ...AdminRouteOption) {
-	var cfg adminRouteConfig
+	cfg := adminRouteConfig{environment: "development"}
 	for _, opt := range opts {
 		opt(&cfg)
 	}
@@ -4305,7 +4311,7 @@ func registerAdminUtilityRoutes(mux *http.ServeMux, service AdminService, cfg ad
 	}))
 
 	mux.HandleFunc("POST /admin/v1/auth/login", func(w http.ResponseWriter, r *http.Request) {
-		handleAdminLogin(w, r, service, cfg.tokenMgr)
+		handleAdminLogin(w, r, service, cfg.tokenMgr, cfg.environment)
 	})
 
 	mux.HandleFunc("POST /admin/v1/auth/refresh", func(w http.ResponseWriter, r *http.Request) {
@@ -5082,7 +5088,7 @@ const (
 	adminRefreshTokenTTL = 30 * 24 * time.Hour
 )
 
-func handleAdminLogin(w http.ResponseWriter, r *http.Request, service AdminService, tokenMgr *auth.TokenManager) {
+func handleAdminLogin(w http.ResponseWriter, r *http.Request, service AdminService, tokenMgr *auth.TokenManager, environment string) {
 	defer r.Body.Close()
 
 	if r.Method != "POST" {
@@ -5127,7 +5133,7 @@ func handleAdminLogin(w http.ResponseWriter, r *http.Request, service AdminServi
 	}
 
 	// Bootstrap system admin (no DB user required)
-	if req.Email == "admin@system" && req.Password == "admin1234" {
+	if req.Email == "admin@system" && req.Password == "admin1234" && !strings.EqualFold(strings.TrimSpace(environment), "production") {
 		issueToken(auth.Claims{
 			UserID:    "system-admin",
 			DomainID:  "system",
@@ -6385,6 +6391,7 @@ type webhook struct {
 	Name            string   `json:"name"`
 	URL             string   `json:"url"`
 	Secret          string   `json:"secret"`
+	SecretSuffix    string   `json:"secret_suffix,omitempty"`
 	Events          []string `json:"events"`
 	Enabled         bool     `json:"enabled"`
 	CreatedAt       string   `json:"created_at"`
@@ -6399,6 +6406,22 @@ func randomHex(n int) string {
 	b := make([]byte, n)
 	_, _ = rand.Read(b)
 	return hex.EncodeToString(b)
+}
+
+func publicWebhooks(items []webhook) []webhook {
+	out := make([]webhook, 0, len(items))
+	for _, item := range items {
+		if item.SecretSuffix == "" && item.Secret != "" {
+			if len(item.Secret) > 8 {
+				item.SecretSuffix = item.Secret[len(item.Secret)-8:]
+			} else {
+				item.SecretSuffix = item.Secret
+			}
+		}
+		item.Secret = ""
+		out = append(out, item)
+	}
+	return out
 }
 
 func getWebhooksConfig(ctx context.Context, service AdminService, companyID string) (webhooksConfig, error) {
@@ -6439,7 +6462,7 @@ func handleGetCompanyWebhooks(w http.ResponseWriter, r *http.Request, service Ad
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"webhooks": cfg.Webhooks})
+	writeJSON(w, http.StatusOK, map[string]any{"webhooks": publicWebhooks(cfg.Webhooks)})
 }
 
 func handlePostCompanyWebhook(w http.ResponseWriter, r *http.Request, service AdminService) {
@@ -6462,6 +6485,11 @@ func handlePostCompanyWebhook(w http.ResponseWriter, r *http.Request, service Ad
 		writeError(w, http.StatusBadRequest, "name and url are required")
 		return
 	}
+	parsedURL, err := webhookguard.ValidateOutboundHTTPURL(r.Context(), input.URL, webhookguard.OutboundURLGuardOptions{})
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "webhook url is not allowed")
+		return
+	}
 	cfg, err := getWebhooksConfig(r.Context(), service, id)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
@@ -6470,7 +6498,7 @@ func handlePostCompanyWebhook(w http.ResponseWriter, r *http.Request, service Ad
 	wh := webhook{
 		ID:        fmt.Sprintf("wh-%d", time.Now().UnixNano()),
 		Name:      input.Name,
-		URL:       input.URL,
+		URL:       parsedURL.String(),
 		Secret:    randomHex(16),
 		Events:    input.Events,
 		Enabled:   input.Enabled,
@@ -6551,6 +6579,10 @@ func handleTestCompanyWebhook(w http.ResponseWriter, r *http.Request, service Ad
 		writeError(w, http.StatusNotFound, "webhook not found")
 		return
 	}
+	if _, err := webhookguard.ValidateOutboundHTTPURL(r.Context(), target.URL, webhookguard.OutboundURLGuardOptions{}); err != nil {
+		writeJSON(w, http.StatusOK, map[string]any{"success": false, "status_code": 0, "message": "webhook url is not allowed"})
+		return
+	}
 	payload := fmt.Sprintf(`{"event":"test","timestamp":"%s","data":{"message":"Test webhook from gogomail"}}`,
 		time.Now().UTC().Format(time.RFC3339))
 	req, err := http.NewRequestWithContext(r.Context(), http.MethodPost, target.URL, strings.NewReader(payload))
@@ -6560,7 +6592,8 @@ func handleTestCompanyWebhook(w http.ResponseWriter, r *http.Request, service Ad
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("X-Gogomail-Event", "test")
-	resp, err := http.DefaultClient.Do(req)
+	client := webhookguard.GuardedHTTPClient(&http.Client{Timeout: 10 * time.Second}, webhookguard.OutboundURLGuardOptions{})
+	resp, err := client.Do(req)
 	if err != nil {
 		writeJSON(w, http.StatusOK, map[string]any{"success": false, "status_code": 0, "message": fmt.Sprintf("request failed: %v", err)})
 		return

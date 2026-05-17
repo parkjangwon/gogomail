@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
     ? Math.max(60, Math.floor((new Date(data.expires_at).getTime() - Date.now()) / 1000))
     : 86400;
 
-  const response = NextResponse.json({ ok: true });
+  const response = NextResponse.json({ ok: true }, { headers: { 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' } });
   response.cookies.set('admin_access_token', data.access_token, {
     httpOnly: true,
     secure: IS_PROD,

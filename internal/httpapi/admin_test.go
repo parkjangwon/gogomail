@@ -5501,6 +5501,57 @@ func TestAdminAuthRejectsWrongLengthToken(t *testing.T) {
 	}
 }
 
+func TestAdminWebhooksRejectPrivateURL(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeAdminService{}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "")
+
+	req := httptest.NewRequest(http.MethodPost, "/admin/v1/companies/company-1/webhooks", strings.NewReader(`{"name":"local","url":"http://127.0.0.1:8080/hook","events":["mail.received"],"enabled":true}`))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestAdminWebhooksListRedactsSecret(t *testing.T) {
+	t.Parallel()
+
+	cfg := webhooksConfig{Webhooks: []webhook{{
+		ID:      "wh-1",
+		Name:    "hook",
+		URL:     "https://hooks.example.test/mail",
+		Secret:  "0123456789abcdef",
+		Events:  []string{"mail.received"},
+		Enabled: true,
+	}}}
+	raw, err := json.Marshal(cfg)
+	if err != nil {
+		t.Fatalf("json.Marshal returned error: %v", err)
+	}
+	service := &fakeAdminService{companyConfig: []configstore.ConfigEntry{{Value: raw}}}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "")
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/companies/company-1/webhooks", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if strings.Contains(rec.Body.String(), "0123456789abcdef") {
+		t.Fatalf("secret leaked in response: %s", rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), `"secret_suffix":"89abcdef"`) {
+		t.Fatalf("secret suffix missing: %s", rec.Body.String())
+	}
+}
+
 func TestAdminLoginIssuesSignedAccessAndRefreshTokens(t *testing.T) {
 	t.Parallel()
 
@@ -5552,6 +5603,46 @@ func TestAdminLoginIssuesSignedAccessAndRefreshTokens(t *testing.T) {
 	}
 	if body.User.ID != "user-1" || body.User.CompanyID != "company-1" {
 		t.Fatalf("user = %+v", body.User)
+	}
+}
+
+func TestAdminLoginRejectsBootstrapCredentialsInProduction(t *testing.T) {
+	t.Parallel()
+
+	manager, err := auth.NewTokenManager("admin-auth-secret")
+	if err != nil {
+		t.Fatalf("NewTokenManager returned error: %v", err)
+	}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, &fakeAdminService{}, "", WithTokenManager(manager), WithEnvironment("production"))
+
+	req := httptest.NewRequest(http.MethodPost, "/admin/v1/auth/login", strings.NewReader(`{"email":"admin@system","password":"admin1234"}`))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestAdminLoginAllowsBootstrapCredentialsOutsideProduction(t *testing.T) {
+	t.Parallel()
+
+	manager, err := auth.NewTokenManager("admin-auth-secret")
+	if err != nil {
+		t.Fatalf("NewTokenManager returned error: %v", err)
+	}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, &fakeAdminService{}, "", WithTokenManager(manager), WithEnvironment("test"))
+
+	req := httptest.NewRequest(http.MethodPost, "/admin/v1/auth/login", strings.NewReader(`{"email":"admin@system","password":"admin1234"}`))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
 	}
 }
 

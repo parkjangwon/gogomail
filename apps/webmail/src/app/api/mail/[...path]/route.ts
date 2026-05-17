@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
+import { assertSameOriginForMutation, encodeBackendPath, headersForBackend } from '@/lib/security/proxy';
 
 const BACKEND = process.env.NEXT_PUBLIC_GOGOMAIL_BACKEND_URL || 'http://localhost:8080';
 const DEV_USER_ID = process.env.GOGOMAIL_DEV_USER_ID || '';
@@ -43,7 +44,13 @@ async function handler(
   { params }: { params: Promise<{ path: string[] }> }
 ) {
   const { path } = await params;
-  const pathStr = path.join('/');
+  let pathStr: string;
+  try {
+    assertSameOriginForMutation(req.method, req.url, req.headers);
+    pathStr = encodeBackendPath(path);
+  } catch {
+    return NextResponse.json({ error: 'Invalid proxy request' }, { status: 400 });
+  }
   const isPublicShareLinkRoute = isDrivePublicShareLinkRoute(req.method, path);
   const reqUrl = new URL(req.url);
   if (isPublicShareLinkRoute) {
@@ -58,15 +65,10 @@ async function handler(
   const search = reqUrl.search;
   const url = `${BACKEND}${backendBaseFor(pathStr)}/${pathStr}${search}`;
 
-  const headers = new Headers();
   // Read token from httpOnly cookie — never from client-supplied Authorization header
   const cookieStore = await cookies();
   const token = cookieStore.get('webmail_token')?.value;
-  if (token && !isPublicShareLinkRoute) headers.set('Authorization', `Bearer ${token}`);
-  for (const name of ['content-type', 'content-range', 'x-content-sha256', 'range']) {
-    const value = req.headers.get(name);
-    if (value) headers.set(name, value);
-  }
+  const headers = headersForBackend(req.headers, token, isPublicShareLinkRoute);
 
   let body: ArrayBuffer | undefined;
   if (req.method !== 'GET' && req.method !== 'HEAD') {
@@ -92,9 +94,11 @@ async function handler(
     }
     const responseHeaders: Record<string, string> = {
       'Content-Type': contentType,
+      'Cache-Control': 'no-store',
+      'X-Content-Type-Options': 'nosniff',
     };
     const cd = res.headers.get('content-disposition');
-    if (cd) responseHeaders['Content-Disposition'] = cd;
+    if (cd) responseHeaders['Content-Disposition'] = cd.replace(/[\r\n]/g, ' ');
     return new NextResponse(data, { status: res.status, headers: responseHeaders });
   } catch (_e) {
     return NextResponse.json({ error: 'Backend unreachable' }, { status: 503 });

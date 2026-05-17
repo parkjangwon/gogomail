@@ -23,6 +23,7 @@ export default function LoginPage() {
   const [emailError, setEmailError] = useState('');
   const [passwordError, setPasswordError] = useState('');
   const passwordRef = useRef<InputProps.Ref>(null);
+  const showDemoCredentials = process.env.NODE_ENV !== 'production';
 
   const validate = () => {
     let valid = true;
@@ -146,14 +147,15 @@ export default function LoginPage() {
             </Button>
           </div>
 
-          {/* Demo Credentials */}
-          <div className="aws-login-footer">
-            <div className="aws-login-divider"></div>
-            <p className="aws-login-hint">{t('login.demo_credentials')}</p>
-            <div className="aws-login-credentials">
-              <span>admin@system / admin1234</span>
+          {showDemoCredentials && (
+            <div className="aws-login-footer">
+              <div className="aws-login-divider"></div>
+              <p className="aws-login-hint">{t('login.demo_credentials')}</p>
+              <div className="aws-login-credentials">
+                <span>admin@system / admin1234</span>
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
         {/* Copyright */}
