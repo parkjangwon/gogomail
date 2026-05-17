@@ -35,10 +35,11 @@ export function DriveShareModal({ node, onClose }: ShareModalProps) {
     setLinks((prev) => prev.filter((l) => l.id !== id));
   }
 
-  function copyLink(suffix: string) {
-    const url = `${window.location.origin}/api/mail/drive/share-links/${suffix}/download`;
+  function copyLink(link: DriveShareLink) {
+    if (!link.token) return;
+    const url = `${window.location.origin}/api/mail/drive/share-links/${encodeURIComponent(link.token)}/download`;
     navigator.clipboard.writeText(url).catch(() => {});
-    setCopied(suffix);
+    setCopied(link.token_suffix);
     setTimeout(() => setCopied(''), 2000);
   }
 
@@ -80,9 +81,10 @@ export function DriveShareModal({ node, onClose }: ShareModalProps) {
                     만료: {formatDate(link.expires_at)}
                   </div>
                 </div>
-                <button onClick={() => copyLink(link.token_suffix)}
-                  style={{ padding: '4px 10px', borderRadius: '5px', border: '1px solid var(--color-border-default)', background: 'transparent', color: 'var(--color-accent)', fontSize: '12px', cursor: 'pointer' }}>
-                  {copied === link.token_suffix ? '복사됨 ✓' : '복사'}
+                <button onClick={() => copyLink(link)} disabled={!link.token}
+                  title={link.token ? '공유 URL 복사' : '보안을 위해 전체 URL은 생성 직후에만 표시됩니다. 새 링크를 만들어 복사하세요.'}
+                  style={{ padding: '4px 10px', borderRadius: '5px', border: '1px solid var(--color-border-default)', background: 'transparent', color: link.token ? 'var(--color-accent)' : 'var(--color-text-tertiary)', fontSize: '12px', cursor: link.token ? 'pointer' : 'not-allowed' }}>
+                  {copied === link.token_suffix ? '복사됨 ✓' : link.token ? '복사' : '재생성 필요'}
                 </button>
                 <button onClick={() => handleRevoke(link.id)}
                   style={{ padding: '4px 8px', borderRadius: '5px', border: 'none', background: 'transparent', color: 'var(--color-destructive)', cursor: 'pointer', display: 'flex' }}>

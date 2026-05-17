@@ -1111,6 +1111,7 @@ export interface DriveUsage {
 export interface DriveShareLink {
   id: string;
   node_id: string;
+  token?: string;
   token_suffix: string;
   expires_at: string;
 }
@@ -1461,7 +1462,7 @@ export async function createDriveShareLink(nodeId: string, expiresAt: string): P
     const res = await fetch(`/api/mail/drive/nodes/${encodeURIComponent(nodeId)}/share-links`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ expires_at: expiresAt }),
+      body: JSON.stringify({ permission: 'download', expires_at: expiresAt }),
     });
     if (!res.ok) return null;
     const data = await res.json() as { drive_share_link?: DriveShareLink };
