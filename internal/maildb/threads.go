@@ -215,6 +215,7 @@ func (r *Repository) ListThreadMessagesPage(ctx context.Context, userID string, 
 		var msg MessageSummary
 		if err := rows.Scan(
 			&msg.ID,
+			&msg.FolderID,
 			&msg.Subject,
 			&msg.Preview,
 			&msg.FromAddr,
@@ -238,6 +239,7 @@ func (r *Repository) ListThreadMessagesPage(ctx context.Context, userID string, 
 const threadMessagesPageSQL = `
 SELECT
   messages.id::text,
+  messages.folder_id::text,
   messages.subject,
   left(btrim(regexp_replace(left(coalesce(msd.body_text, ''), 2000), '[[:space:]]+', ' ', 'g')), 280) AS preview,
   messages.from_addr,

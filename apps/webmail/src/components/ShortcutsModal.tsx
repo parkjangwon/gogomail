@@ -46,7 +46,6 @@ const SHORTCUTS: { category: string; items: { key: string; desc: string }[] }[] 
       { key: 'r', desc: '회신' },
       { key: 'a', desc: '전체 회신' },
       { key: 'f', desc: '전달' },
-      { key: 's', desc: '별표 토글' },
       { key: 'e', desc: '보관' },
       { key: '#', desc: '삭제' },
       { key: '!', desc: '스팸으로 이동' },

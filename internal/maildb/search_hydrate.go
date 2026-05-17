@@ -15,6 +15,7 @@ WITH requested AS (
 )
 SELECT
   m.id::text,
+  m.folder_id::text,
   m.subject,
   left(btrim(regexp_replace(left(coalesce(msd.body_text, ''), 2000), '[[:space:]]+', ' ', 'g')), 280) AS preview,
   m.from_addr,
@@ -59,6 +60,7 @@ func (r *Repository) ListMessagesByIDs(ctx context.Context, userID string, messa
 		var msg MessageSummary
 		if err := rows.Scan(
 			&msg.ID,
+			&msg.FolderID,
 			&msg.Subject,
 			&msg.Preview,
 			&msg.FromAddr,

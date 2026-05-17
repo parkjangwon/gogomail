@@ -363,18 +363,6 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
         finish(() => toggleReadForIds(ids, readTarget, isBulkAction));
         return;
       }
-      if (lowerKey === 's' && onStar) {
-        const starredTarget = actionMessages.some((m) => !m.starred);
-        finish(() => {
-          if (isBulkAction && onBulkStar) onBulkStar(ids, starredTarget);
-          else ids.forEach((id) => {
-            const msg = actionMessages.find((m) => m.id === id);
-            if (msg) onStar(id, !msg.starred);
-          });
-          if (isBulkAction) clearAll();
-        });
-        return;
-      }
       if (lowerKey === 'e' && onArchiveMessage) {
         finish(() => runActionForIds(ids, onArchiveMessage, isBulkAction));
         return;
@@ -400,7 +388,7 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
     };
     window.addEventListener('keydown', handler, { capture: true });
     return () => window.removeEventListener('keydown', handler, { capture: true });
-  }, [bulkSelected, hoveredMessageId, filteredMessages, messages, onToggleReadMessage, onStar, onBulkStar, onArchiveMessage, onSnoozeMessage, onPinMessage, onDeleteMessage, onBulkDelete]);
+  }, [bulkSelected, hoveredMessageId, filteredMessages, messages, onToggleReadMessage, onArchiveMessage, onSnoozeMessage, onPinMessage, onDeleteMessage, onBulkDelete]);
 
   const listWidth = (isMobile || fullWidth || bottomLayout || !paneWidth)
     ? { flex: 1, minWidth: 0 }
@@ -460,6 +448,19 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
   const bulkReadTarget = bulkMessages.some((m) => !m.read);
   const bulkStarTarget = bulkMessages.some((m) => !m.starred);
   const bulkPinned = bulkMessages.length > 0 && bulkMessages.every((m) => pinnedIds.has(m.id));
+  const folderLabelById = new Map((folders ?? []).map((folder) => [folder.id, folder.system_type === 'inbox'
+    ? '받은 편지함'
+    : folder.system_type === 'sent'
+      ? '보낸 편지함'
+      : folder.system_type === 'drafts'
+        ? '임시 보관함'
+        : folder.system_type === 'trash'
+          ? '휴지통'
+          : folder.system_type === 'spam' || folder.system_type === 'junk'
+            ? '스팸'
+            : folder.system_type === 'archive'
+              ? '아카이브'
+              : folder.name]));
   const header = (
     <MessageListHeader
       hasBulk={hasBulk}
@@ -655,6 +656,7 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
               showPreview={showPreview}
               hasNote={noteIds.has(msg.id)}
               isImportant={importantIds.has(msg.id)}
+              folderLabel={folderLabelById.get(msg.folder_id)}
               onAvatarEnter={!isMobile ? handleAvatarEnter : undefined}
               onAvatarLeave={!isMobile ? handleAvatarLeave : undefined}
               onHoverChange={setHoveredMessageId}

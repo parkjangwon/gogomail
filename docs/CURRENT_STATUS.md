@@ -38,7 +38,8 @@ Last updated: 2026-05-17 (Mail panel keyboard navigation)
 - Keyboard navigation is expanded across the mail list, sidebar folders, and settings nav: arrows move focus between items, `Space` toggles row selection, `o` opens the current row, and `Home` / `End` jump to the edges. App switching stays shortcut-driven.
 - Mail panel keyboard focus now moves horizontally with `ArrowLeft` / `ArrowRight` across the folder layer, message list, and open reading pane; each focused panel keeps vertical `ArrowUp` / `ArrowDown` behavior local to that panel.
 - App-switch chords now arm `g` globally, so `g m`, `g c`, `g a`, `g d`, and `g ,` work consistently from Mail, Calendar, Contacts, Drive, and Settings; `g k` remains a Contacts alias and `g v` remains a Drive alias while `g d` no longer opens Drafts.
-- Mail list hover actions and selected-message toolbar actions now share the same primary action set (read/unread, star, archive, snooze, pin, delete), and their shortcuts run against the hovered row or selected rows.
+- Mail list hover actions and selected-message toolbar actions now share the same primary action set (read/unread, star, archive, snooze, pin, delete), with action shortcuts avoiding `s` so compose keeps the global `s` binding; read/star state updates reflect immediately in active lists and search results.
+- Message summaries now carry `folder_id`, and rows show a folder badge beside the subject so All Mail views distinguish inbox, sent, archive, trash/spam, and personal folders.
 
 ## Drive Upload UX Resumable Queue (2026-05-16)
 - Drive webmail uploads now use the resumable chunked upload-session path when `webmail_capabilities.drive.resumable_chunked_uploads` is true, and fall back to the existing single-body session path when it is not.

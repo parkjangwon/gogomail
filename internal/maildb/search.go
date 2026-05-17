@@ -116,6 +116,7 @@ func (r *Repository) SearchMessages(ctx context.Context, query MessageSearchQuer
 		var subjectHighlight, fromHighlight, bodyHighlight sql.NullString
 		if err := rows.Scan(
 			&msg.ID,
+			&msg.FolderID,
 			&msg.Subject,
 			&msg.Preview,
 			&msg.FromAddr,
@@ -223,6 +224,7 @@ WITH search_input AS (
 ranked_messages AS (
 SELECT
   messages.id::text AS id,
+  messages.folder_id::text AS folder_id,
   messages.subject,
   left(btrim(regexp_replace(left(coalesce(msd.body_text, ''), 2000), '[[:space:]]+', ' ', 'g')), 280) AS preview,
   messages.from_addr,
@@ -285,6 +287,7 @@ WHERE messages.user_id = $1
 )
 SELECT
   id,
+  folder_id,
   subject,
   preview,
   from_addr,

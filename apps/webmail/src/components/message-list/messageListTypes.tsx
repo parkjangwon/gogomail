@@ -139,6 +139,7 @@ export interface MessageRowProps {
   showPreview?: boolean;
   hasNote?: boolean;
   isImportant?: boolean;
+  folderLabel?: string;
   onAvatarEnter?: (name: string, addr: string, rect: DOMRect) => void;
   onAvatarLeave?: () => void;
   onHoverChange?: (id: string | null) => void;
