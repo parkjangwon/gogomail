@@ -84,14 +84,16 @@ type DedupKey struct {
 }
 
 type ReceivedMessage struct {
-	EnvelopeFrom   string
-	Mailbox        Mailbox
-	DSN            DSNOptions
-	StoragePath    string
-	Parsed         message.ParsedMessage
-	Authentication AuthenticationResults
-	ReceivedAt     time.Time
-	Size           int64
+	EnvelopeFrom     string
+	Mailbox          Mailbox
+	DSN              DSNOptions
+	StoragePath      string
+	Parsed           message.ParsedMessage
+	Authentication   AuthenticationResults
+	ReceivedAt       time.Time
+	Size             int64
+	FolderSystemType string
+	SpamScore        *float64
 }
 
 type DSNOptions struct {

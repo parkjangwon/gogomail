@@ -67,6 +67,7 @@ import (
 	"github.com/gogomail/gogomail/internal/scim"
 	"github.com/gogomail/gogomail/internal/searchindex"
 	smtpd "github.com/gogomail/gogomail/internal/smtp"
+	"github.com/gogomail/gogomail/internal/spamfilter"
 	"github.com/gogomail/gogomail/internal/storage"
 )
 
@@ -1792,6 +1793,8 @@ func runReceiveMTA(ctx context.Context, cfg config.Config, logger *slog.Logger, 
 	var relayAuthorizer smtpd.RelayAuthorizer
 	var redisClient *redis.Client
 	var maildbRepo *maildb.Repository
+	var runtimeConfigStore *configstore.PostgresConfigStore
+	var mailFlowWriter *maildb.MailFlowLogWriter
 
 	if len(cfg.LocalRecipients) > 0 {
 		staticResolver, err := smtpd.StaticResolverFromRecipients(cfg.LocalRecipients)
@@ -1810,6 +1813,11 @@ func runReceiveMTA(ctx context.Context, cfg config.Config, logger *slog.Logger, 
 		maildbRepo = maildb.NewRepository(db)
 		resolver = maildbRepo
 		recorder = maildbRepo
+		runtimeConfigStore = configstore.NewPostgresConfigStore(db)
+		if err := runtimeConfigStore.Start(ctx); err != nil {
+			return fmt.Errorf("start receive mta config store: %w", err)
+		}
+		mailFlowWriter = maildb.NewMailFlowLogWriter(db)
 		logger.Info(opts.Component + " using database recipient resolver and message recorder")
 	}
 
@@ -1887,6 +1895,21 @@ func runReceiveMTA(ctx context.Context, cfg config.Config, logger *slog.Logger, 
 		return err
 	}
 	hooks = append(hooks, attachmentHooks...)
+	if runtimeConfigStore != nil {
+		engine := spamfilter.NewEngine()
+		hooks = append(hooks, spamfilter.Hook(spamfilter.Options{
+			Resolver: runtimeConfigStore,
+			Logger:   mailFlowWriter,
+			Engine:   engine,
+		}))
+		recorder = spamfilter.Recorder{
+			Next:     recorder,
+			Resolver: runtimeConfigStore,
+			Logger:   mailFlowWriter,
+			Engine:   engine,
+		}
+		logger.Info(opts.Component + " built-in spam filter enabled")
+	}
 	if cfg.MilterEnabled {
 		hooks = append(hooks, milterhook.Hook(milterhook.HookOptions{
 			Dialer:     milterhook.PoolDialer(cfg.MilterAddr, cfg.MilterTimeout, cfg.MilterMaxConns),

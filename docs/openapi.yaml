@@ -8382,6 +8382,99 @@ paths:
                 type: object
         default:
           $ref: "#/components/responses/Error"
+  /companies/{id}/security/spam-filter/events:
+    get:
+      operationId: adminListCompanySpamFilterEvents
+      summary: List recent company spam filter events
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+        - name: domain_id
+          in: query
+          schema:
+            type: string
+        - name: user_id
+          in: query
+          schema:
+            type: string
+        - name: from_addr
+          in: query
+          schema:
+            type: string
+        - name: to_addr
+          in: query
+          schema:
+            type: string
+        - name: subject
+          in: query
+          schema:
+            type: string
+        - name: flow_status
+          in: query
+          schema:
+            type: string
+            enum: [filtered, rejected, received]
+        - name: since
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: until
+          in: query
+          schema:
+            type: string
+            format: date-time
+      responses:
+        "200":
+          $ref: "#/components/responses/SpamFilterEventList"
+        default:
+          $ref: "#/components/responses/Error"
+  /companies/{id}/security/spam-filter/stats:
+    get:
+      operationId: adminGetCompanySpamFilterStats
+      summary: Get company spam filter monitoring statistics
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+        - name: domain_id
+          in: query
+          schema:
+            type: string
+        - name: user_id
+          in: query
+          schema:
+            type: string
+        - name: since
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: until
+          in: query
+          schema:
+            type: string
+            format: date-time
+      responses:
+        "200":
+          $ref: "#/components/responses/SpamFilterStats"
+        default:
+          $ref: "#/components/responses/Error"
   /companies/{id}/sso/config:
     get:
       operationId: adminGetCompanySSOConfig
@@ -10281,6 +10374,18 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/MailFlowLogDailyStatsEnvelope"
+    SpamFilterEventList:
+      description: Spam filter event list envelope
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/SpamFilterEventListEnvelope"
+    SpamFilterStats:
+      description: Spam filter monitoring statistics envelope
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/SpamFilterStatsEnvelope"
     DirectoryPrincipalList:
       description: Directory principal search envelope
       content:
@@ -13374,6 +13479,20 @@ components:
       required: [mail_flow_stats]
       properties:
         mail_flow_stats:
+          $ref: "#/components/schemas/MailFlowLogStats"
+    SpamFilterEventListEnvelope:
+      type: object
+      required: [spam_filter_events]
+      properties:
+        spam_filter_events:
+          type: array
+          items:
+            $ref: "#/components/schemas/MailFlowLog"
+    SpamFilterStatsEnvelope:
+      type: object
+      required: [spam_filter_stats]
+      properties:
+        spam_filter_stats:
           $ref: "#/components/schemas/MailFlowLogStats"
     MailFlowLogStats:
       type: object
