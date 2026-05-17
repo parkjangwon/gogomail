@@ -203,7 +203,7 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
       return;
     }
 
-    if (event.key === ' ' || event.key === 'Spacebar' || event.key === 'x') {
+    if (event.key === ' ' || event.key === 'Spacebar') {
       event.preventDefault();
       event.stopPropagation();
       const id = row.dataset.messageId;
@@ -246,23 +246,6 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
 
   const selectedIdRef = useRef(selectedId);
   useEffect(() => { selectedIdRef.current = selectedId; }, [selectedId]);
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (e.key !== 'x') return;
-      const tag = (e.target as HTMLElement).tagName;
-      if (tag === 'INPUT' || tag === 'TEXTAREA' || (e.target as HTMLElement).isContentEditable) return;
-      const id = selectedIdRef.current;
-      if (!id) return;
-      setBulkSelected((prev) => {
-        const next = new Set(prev);
-        if (next.has(id)) next.delete(id); else next.add(id);
-        return next;
-      });
-    };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, []);
-
   useEffect(() => { setPage(0); }, [filterMode, filterLabel]);
   useEffect(() => { setPage(0); }, [messages]);
 
