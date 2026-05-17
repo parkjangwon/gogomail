@@ -20,7 +20,7 @@ const SHORTCUTS: { category: string; items: { key: string; desc: string }[] }[] 
     items: [
       { key: 'g  m', desc: '메일' },
       { key: 'g  c', desc: '캘린더' },
-      { key: 'g  k', desc: '연락처' },
+      { key: 'g  a', desc: '연락처' },
       { key: 'g  o', desc: '조직도' },
       { key: 'g  d', desc: '드라이브' },
     ],
