@@ -794,6 +794,7 @@ func RegisterDriveRoutesWithOptions(mux *http.ServeMux, service DriveService, to
 		var req struct {
 			Permission string `json:"permission"`
 			ExpiresAt  string `json:"expires_at"`
+			Password   string `json:"password"`
 		}
 		if err := decodeJSONBody(r, &req); err != nil {
 			writeError(w, http.StatusBadRequest, "invalid JSON body")
@@ -813,6 +814,7 @@ func RegisterDriveRoutesWithOptions(mux *http.ServeMux, service DriveService, to
 			NodeID:     nodeID,
 			Permission: req.Permission,
 			ExpiresAt:  expiresAt,
+			Password:   req.Password,
 		})
 		if err != nil {
 			writeError(w, http.StatusBadRequest, err.Error())
@@ -937,6 +939,35 @@ func RegisterDriveRoutesWithOptions(mux *http.ServeMux, service DriveService, to
 		defer download.Body.Close()
 		writeDriveFileDownloadHeaders(w, download.Node)
 		recordDrivePublicShareAccess(r, opts, drivePublicShareAccessEvent("download", "success", http.StatusOK, drive.ResolvedShareLink{ShareLink: download.ShareLink, Node: download.Node}, token, ""))
+		w.WriteHeader(http.StatusOK)
+		_, _ = io.Copy(w, download.Body)
+	})
+
+	mux.HandleFunc("POST /api/v1/drive/share-links/{id}/download", func(w http.ResponseWriter, r *http.Request) {
+		defer r.Body.Close()
+		if !rejectUnknownQueryKeys(w, r) {
+			return
+		}
+		token, ok := parseDriveShareTokenPathValue(w, r)
+		if !ok {
+			return
+		}
+		if !allowDrivePublicShareRequest(w, r, opts, token, "download_password") {
+			return
+		}
+		password, ok := driveSharePasswordFromRequest(w, r)
+		if !ok {
+			return
+		}
+		download, err := service.OpenSharedFile(r.Context(), drive.ResolveShareLinkRequest{Token: token, Password: password})
+		if err != nil {
+			recordDrivePublicShareAccess(r, opts, drivePublicShareAccessEventFromToken("download_password", "denied", driveShareLinkErrorStatus(err), token, ""))
+			writeDriveShareLinkError(w, err)
+			return
+		}
+		defer download.Body.Close()
+		writeDriveFileDownloadHeaders(w, download.Node)
+		recordDrivePublicShareAccess(r, opts, drivePublicShareAccessEvent("download_password", "success", http.StatusOK, drive.ResolvedShareLink{ShareLink: download.ShareLink, Node: download.Node}, token, ""))
 		w.WriteHeader(http.StatusOK)
 		_, _ = io.Copy(w, download.Body)
 	})
@@ -1135,9 +1166,36 @@ func writeDriveShareLinkError(w http.ResponseWriter, err error) {
 	writeError(w, driveShareLinkErrorStatus(err), err.Error())
 }
 
+func driveSharePasswordFromRequest(w http.ResponseWriter, r *http.Request) (string, bool) {
+	contentType := strings.ToLower(strings.TrimSpace(strings.Split(r.Header.Get("Content-Type"), ";")[0]))
+	if contentType == "application/json" || contentType == "" {
+		var req struct {
+			Password string `json:"password"`
+		}
+		if err := decodeJSONBody(r, &req); err != nil {
+			writeError(w, http.StatusBadRequest, "invalid JSON body")
+			return "", false
+		}
+		return req.Password, true
+	}
+	if contentType == "application/x-www-form-urlencoded" {
+		r.Body = http.MaxBytesReader(w, r.Body, maxJSONBodyBytes)
+		if err := r.ParseForm(); err != nil {
+			writeError(w, http.StatusBadRequest, "invalid form body")
+			return "", false
+		}
+		return r.PostFormValue("password"), true
+	}
+	writeError(w, http.StatusUnsupportedMediaType, "unsupported content type")
+	return "", false
+}
+
 func driveShareLinkErrorStatus(err error) int {
 	if errors.Is(err, drive.ErrShareLinkPermissionDenied) {
 		return http.StatusForbidden
+	}
+	if errors.Is(err, drive.ErrShareLinkPasswordRequired) || errors.Is(err, drive.ErrShareLinkPasswordInvalid) {
+		return http.StatusUnauthorized
 	}
 	if strings.Contains(err.Error(), "not found") {
 		return http.StatusNotFound

@@ -120,6 +120,35 @@ func TestDriveCreateShareLinkHandler(t *testing.T) {
 	}
 }
 
+func TestDriveCreateShareLinkHandlerAcceptsPassword(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeDriveService{shareLink: drive.ShareLink{ID: "link-1", UserID: "user-1", NodeID: "node-1", Token: strings.Repeat("t", 40), Permission: drive.ShareLinkPermissionDownload, Status: drive.ShareLinkStatusActive, PasswordProtected: true}}
+	mux := http.NewServeMux()
+	RegisterDriveRoutes(mux, service, nil)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/drive/nodes/node-1/share-links?user_id=user-1", strings.NewReader(`{"permission":"download","password":"open sesame"}`))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if service.createShareLinkReq.Password != "open sesame" {
+		t.Fatalf("password = %q, want request password", service.createShareLinkReq.Password)
+	}
+	var body struct {
+		Link drive.ShareLink `json:"drive_share_link"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("json.Unmarshal returned error: %v", err)
+	}
+	if !body.Link.PasswordProtected {
+		t.Fatalf("link = %+v, want password_protected", body.Link)
+	}
+}
+
 func TestDriveListShareLinksHandler(t *testing.T) {
 	t.Parallel()
 
@@ -241,6 +270,51 @@ func TestDrivePublicShareRoutesRejectWhitespaceNormalizedToken(t *testing.T) {
 				t.Fatalf("public share token reached service: resolve=%+v open=%+v stat=%+v", service.resolveShareLinkReq, service.openSharedReq, service.statSharedReq)
 			}
 		})
+	}
+}
+
+func TestDriveDownloadPasswordProtectedShareHandler(t *testing.T) {
+	t.Parallel()
+
+	token := strings.Repeat("p", 40)
+	service := &fakeDriveService{download: drive.FileDownload{
+		ShareLink: drive.ShareLink{ID: "link-1", TokenSuffix: strings.Repeat("p", 8), Permission: drive.ShareLinkPermissionDownload, PasswordProtected: true},
+		Node:      drive.Node{ID: "node-1", UserID: "user-1", Name: "secret.txt", Type: drive.NodeTypeFile, MIMEType: "text/plain", Size: 6, Status: drive.NodeStatusActive},
+		Body:      io.NopCloser(strings.NewReader("secret")),
+	}}
+	mux := http.NewServeMux()
+	RegisterDriveRoutes(mux, service, nil)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/drive/share-links/"+token+"/download", strings.NewReader(`{"password":"open sesame"}`))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if service.openSharedReq.Token != token || service.openSharedReq.Password != "open sesame" {
+		t.Fatalf("open shared request = %+v, want token/password", service.openSharedReq)
+	}
+	if got := rec.Body.String(); got != "secret" {
+		t.Fatalf("body = %q, want secret", got)
+	}
+}
+
+func TestDriveProtectedShareDownloadRequiresPassword(t *testing.T) {
+	t.Parallel()
+
+	token := strings.Repeat("p", 40)
+	service := &fakeDriveService{err: drive.ErrShareLinkPasswordRequired}
+	mux := http.NewServeMux()
+	RegisterDriveRoutes(mux, service, nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/drive/share-links/"+token+"/download", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
 	}
 }
 

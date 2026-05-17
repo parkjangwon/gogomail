@@ -16,6 +16,8 @@ export function DriveShareModal({ node, onClose }: ShareModalProps) {
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [expiryDays, setExpiryDays] = useState(7);
+  const [passwordEnabled, setPasswordEnabled] = useState(false);
+  const [password, setPassword] = useState('');
   const [copied, setCopied] = useState('');
 
   useEffect(() => {
@@ -25,8 +27,11 @@ export function DriveShareModal({ node, onClose }: ShareModalProps) {
   async function handleCreate() {
     setCreating(true);
     const expiresAt = new Date(Date.now() + expiryDays * 86400000).toISOString();
-    const link = await createDriveShareLink(node.id, expiresAt);
-    if (link) setLinks((prev) => [...prev, link]);
+    const link = await createDriveShareLink(node.id, expiresAt, passwordEnabled ? password : '');
+    if (link) {
+      setLinks((prev) => [...prev, link]);
+      setPassword('');
+    }
     setCreating(false);
   }
 
@@ -60,10 +65,20 @@ export function DriveShareModal({ node, onClose }: ShareModalProps) {
             <option value={30}>30일</option>
             <option value={90}>90일</option>
           </select>
-          <button onClick={handleCreate} disabled={creating}
+          <button onClick={handleCreate} disabled={creating || (passwordEnabled && !password.trim())}
             style={{ padding: '5px 14px', borderRadius: '6px', border: 'none', background: 'var(--color-accent)', color: '#fff', fontSize: '13px', cursor: creating ? 'wait' : 'pointer' }}>
             {creating ? '생성 중...' : '링크 만들기'}
           </button>
+        </div>
+        <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', alignItems: 'center' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', color: 'var(--color-text-secondary)' }}>
+            <input type="checkbox" checked={passwordEnabled} onChange={(e) => setPasswordEnabled(e.target.checked)} />
+            비밀번호 보호
+          </label>
+          {passwordEnabled ? (
+            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="공유 비밀번호"
+              style={{ flex: 1, minWidth: 0, padding: '5px 8px', borderRadius: '5px', border: '1px solid var(--color-border-default)', background: 'var(--color-bg-primary)', color: 'var(--color-text-primary)', fontSize: '13px' }} />
+          ) : null}
         </div>
         {loading ? (
           <div style={{ fontSize: '13px', color: 'var(--color-text-tertiary)' }}>로딩 중...</div>
@@ -75,7 +90,7 @@ export function DriveShareModal({ node, onClose }: ShareModalProps) {
               <div key={link.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 12px', borderRadius: '6px', border: '1px solid var(--color-border-default)', background: 'var(--color-bg-secondary)' }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    .../{link.token_suffix}
+                    .../{link.token_suffix}{link.password_protected ? ' · 비밀번호 보호' : ''}
                   </div>
                   <div style={{ fontSize: '11px', color: 'var(--color-text-tertiary)', marginTop: '2px' }}>
                     만료: {formatDate(link.expires_at)}

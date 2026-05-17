@@ -6,16 +6,36 @@ const DEV_USER_ID = process.env.GOGOMAIL_DEV_USER_ID || '';
 const MAIL_BASE_PREFIXES = new Set(['addressbooks', 'contacts', 'directory']);
 
 function isDrivePublicShareLinkRoute(method: string, segments: string[]): boolean {
-  if (method !== 'GET' && method !== 'HEAD') return false;
   if (segments.length < 2 || segments[0] !== 'drive' || segments[1] !== 'share-links') return false;
+  if ((method === 'GET' || method === 'HEAD') && segments.length === 3) return true;
+  if ((method === 'GET' || method === 'HEAD' || method === 'POST') && segments.length === 4 && segments[3] === 'download') return true;
+  return false;
+}
 
-  if (segments.length === 3) return true;
-  return segments.length === 4 && segments[3] === 'download';
+function isDrivePublicShareDownload(method: string, segments: string[]): boolean {
+  return segments.length === 4 && segments[0] === 'drive' && segments[1] === 'share-links' && segments[3] === 'download' && (method === 'GET' || method === 'POST');
 }
 
 function backendBaseFor(pathStr: string): '/api/mail' | '/api/v1' {
   const [prefix] = pathStr.split('/');
   return MAIL_BASE_PREFIXES.has(prefix) ? '/api/mail' : '/api/v1';
+}
+
+function htmlEscape(value: string): string {
+  return value.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#39;');
+}
+
+function passwordForm(req: NextRequest, message = '이 공유 파일은 비밀번호가 필요합니다.'): NextResponse {
+  const safeMessage = htmlEscape(message);
+  const action = htmlEscape(new URL(req.url).pathname);
+  return new NextResponse(`<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>공유 파일 비밀번호</title>
+<style>body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#f6f7fb;margin:0;min-height:100vh;display:grid;place-items:center;color:#111827}.card{background:#fff;border:1px solid #e5e7eb;border-radius:16px;padding:28px;width:min(420px,calc(100vw - 32px));box-shadow:0 20px 50px rgba(15,23,42,.12)}h1{font-size:20px;margin:0 0 8px}p{margin:0 0 18px;color:#6b7280;font-size:14px}input{width:100%;box-sizing:border-box;border:1px solid #d1d5db;border-radius:10px;padding:12px;font-size:15px;margin-bottom:14px}button{width:100%;border:0;border-radius:10px;padding:12px;background:#2563eb;color:white;font-weight:700;font-size:15px;cursor:pointer}.msg{color:#dc2626}</style>
+</head><body><main class="card"><h1>공유 파일 다운로드</h1><p class="msg">${safeMessage}</p><form method="post" action="${action}"><input type="password" name="password" autocomplete="current-password" autofocus placeholder="비밀번호"><button type="submit">비밀번호 확인 후 다운로드</button></form></main></body></html>`, {
+    status: 401,
+    headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' },
+  });
 }
 
 async function handler(
@@ -42,7 +62,7 @@ async function handler(
   // Read token from httpOnly cookie — never from client-supplied Authorization header
   const cookieStore = await cookies();
   const token = cookieStore.get('webmail_token')?.value;
-  if (token) headers.set('Authorization', `Bearer ${token}`);
+  if (token && !isPublicShareLinkRoute) headers.set('Authorization', `Bearer ${token}`);
   for (const name of ['content-type', 'content-range', 'x-content-sha256', 'range']) {
     const value = req.headers.get(name);
     if (value) headers.set(name, value);
@@ -60,8 +80,18 @@ async function handler(
       body,
     });
     const data = await res.arrayBuffer();
+    const contentType = res.headers.get('content-type') || 'application/json';
+    if (isDrivePublicShareDownload(req.method, path) && res.status === 401 && req.headers.get('accept')?.includes('text/html')) {
+      let message = req.method === 'POST' ? '비밀번호가 올바르지 않습니다.' : '이 공유 파일은 비밀번호가 필요합니다.';
+      try {
+        const parsed = JSON.parse(new TextDecoder().decode(data)) as { error_message?: string; error?: { message?: string } };
+        const backendMessage = parsed.error_message ?? parsed.error?.message ?? '';
+        if (backendMessage.includes('invalid')) message = '비밀번호가 올바르지 않습니다.';
+      } catch {}
+      return passwordForm(req, message);
+    }
     const responseHeaders: Record<string, string> = {
-      'Content-Type': res.headers.get('content-type') || 'application/json',
+      'Content-Type': contentType,
     };
     const cd = res.headers.get('content-disposition');
     if (cd) responseHeaders['Content-Disposition'] = cd;
@@ -76,3 +106,4 @@ export const POST = handler;
 export const PUT = handler;
 export const PATCH = handler;
 export const DELETE = handler;
+export const HEAD = handler;

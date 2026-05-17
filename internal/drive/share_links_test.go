@@ -153,3 +153,47 @@ func TestShareLinkRepositoryAndServiceRequireDependencies(t *testing.T) {
 		t.Fatalf("service StatSharedFile err = %v, want repository rejection", err)
 	}
 }
+
+func TestValidateCreateShareLinkRequestHashesPassword(t *testing.T) {
+	t.Parallel()
+
+	now := time.Date(2026, 5, 6, 12, 0, 0, 0, time.UTC)
+	req, _, err := ValidateCreateShareLinkRequest(CreateShareLinkRequest{
+		UserID:    "user-1",
+		NodeID:    "node-1",
+		Token:     strings.Repeat("a", 40),
+		Password:  "open sesame",
+		ExpiresAt: now.Add(time.Hour),
+	}, now)
+	if err != nil {
+		t.Fatalf("ValidateCreateShareLinkRequest returned error: %v", err)
+	}
+	if req.Password == "" || req.Password == "open sesame" {
+		t.Fatalf("password = %q, want stored hash", req.Password)
+	}
+	if !strings.HasPrefix(req.Password, "pbkdf2-sha256$") {
+		t.Fatalf("password hash = %q, want pbkdf2-sha256", req.Password)
+	}
+}
+
+func TestValidateCreateShareLinkRequestRejectsUnsafePassword(t *testing.T) {
+	t.Parallel()
+
+	now := time.Date(2026, 5, 6, 12, 0, 0, 0, time.UTC)
+	for _, password := range []string{strings.Repeat("a", MaxShareLinkPasswordBytes+1), "line\nbreak"} {
+		password := password
+		t.Run(password[:1], func(t *testing.T) {
+			t.Parallel()
+			_, _, err := ValidateCreateShareLinkRequest(CreateShareLinkRequest{
+				UserID:    "user-1",
+				NodeID:    "node-1",
+				Token:     strings.Repeat("a", 40),
+				Password:  password,
+				ExpiresAt: now.Add(time.Hour),
+			}, now)
+			if err == nil {
+				t.Fatal("ValidateCreateShareLinkRequest error = nil, want rejection")
+			}
+		})
+	}
+}

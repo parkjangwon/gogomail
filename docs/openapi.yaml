@@ -982,6 +982,88 @@ paths:
           $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
+    post:
+      operationId: downloadPasswordProtectedDriveSharedFile
+      summary: Download a password-protected public Drive shared file
+      servers:
+        - url: /api/v1
+          description: Mail API
+      security: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            maxLength: 256
+          description: Raw public Drive share token.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [password]
+              properties:
+                password:
+                  type: string
+                  maxLength: 256
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              required: [password]
+              properties:
+                password:
+                  type: string
+                  maxLength: 256
+      responses:
+        "200":
+          description: Shared Drive file bytes after password verification.
+          headers:
+            Content-Disposition:
+              description: Attachment filename for the shared Drive file, including RFC 5987 filename* when needed.
+              schema:
+                type: string
+            Content-Length:
+              description: Full size in bytes reported for the shared Drive file object.
+              schema:
+                type: integer
+                format: int64
+            Accept-Ranges:
+              description: Indicates support for shared Drive downloads.
+              schema:
+                type: string
+                enum: [bytes]
+            X-Gogomail-Drive-SHA256:
+              description: SHA-256 digest of the complete shared Drive file object when recorded on the node.
+              schema:
+                type: string
+                pattern: "^[0-9a-f]{64}$"
+            Cache-Control:
+              description: Shared Drive file downloads are user data and must not be stored by shared caches.
+              schema:
+                type: string
+                enum: [no-store]
+            X-Content-Type-Options:
+              description: Prevent browser MIME sniffing for shared Drive file downloads.
+              schema:
+                type: string
+                enum: [nosniff]
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
+        "429":
+          $ref: "#/components/responses/Error"
+        default:
+          $ref: "#/components/responses/Error"
   /mailbox/overview:
     get:
       operationId: getMailboxOverview
@@ -11356,6 +11438,9 @@ components:
         token_suffix:
           type: string
           maxLength: 16
+        password_protected:
+          type: boolean
+          description: True when the public share requires a password before metadata or download access.
         permission:
           type: string
           enum: [view, download]
@@ -11871,6 +11956,10 @@ components:
           type: string
           format: date-time
           description: Optional RFC3339 expiry; defaults server-side and must be within the advertised max share-link TTL.
+        password:
+          type: string
+          maxLength: 256
+          description: Optional share password. When set, public users must submit it before metadata or download access.
     MailboxOverview:
       type: object
       required: [total_messages, unread_messages, starred_messages, total_size_bytes, system_folders]

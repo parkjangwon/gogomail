@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-17 (Drive upload/share URL fixes)
+Last updated: 2026-05-17 (Drive password-protected share links)
 
 ## Development Backend Hot Reload (2026-05-17)
 - The dev Docker backend now runs through `air` with `.air.dev.toml`, so local changes under `cmd/`, `internal/`, `configs/`, and `migrations/` rebuild and restart the Go all-in-one backend inside the existing container.
@@ -9,6 +9,7 @@ Last updated: 2026-05-17 (Drive upload/share URL fixes)
 - New Drive and attachment objects use tenant-scoped object keys (`drive/<company>/<domain>/users/<user>/...` and `uploads/<company>/<domain>/users/<user>/...`) so MinIO object browsing lines up with the existing `mailstore/<company>/<domain>/<user>/...` layout.
 - Drive upload-session creation now defaults to the configured backend when the client omits `storage_backend`, and rejects unconfigured explicit labels before accepting a session; the webmail uploader lets the server choose first, so dev uploads record `minio` instead of creating unusable `local` sessions.
 - Drive share URL creation now requests download permission and copies the create-time full token instead of the stored suffix, preventing suffix-only `/share-links/<suffix>/download` URLs from failing token validation.
+- Drive share links can now be created with an optional password. Protected public downloads return a password challenge when opened in the browser and require a verified password before streaming file bytes; unprotected download URLs still work directly.
 - The current dev MinIO bucket was reorganized in place: 20 legacy `drive/users/...` and `uploads/<user>/...` objects were copied to tenant-scoped keys, the old keys were removed, and matching `minio` DB rows were updated to the new paths.
 - Verification: touching `cmd/gogomail/main.go` triggers an `air` rebuild and the backend returns to `http server listening` on `:8080`.
 

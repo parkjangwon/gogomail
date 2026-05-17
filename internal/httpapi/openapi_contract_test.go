@@ -256,6 +256,8 @@ func TestOpenAPIDraftDocumentsPublicShareLinkRoutesAsUnauthenticated(t *testing.
 		"GET /drive/share-links/{id}",
 		"HEAD /drive/share-links/{id}/download",
 		"GET /drive/share-links/{id}/download",
+		"POST /drive/share-links/{id}/download",
+		"POST /drive/share-links/{id}/download",
 	} {
 		block, ok := operations[route]
 		if !ok {
@@ -607,6 +609,7 @@ func TestOpenAPIDraftDocumentsStableResponseEnvelopes(t *testing.T) {
 		"DELETE /drive/share-links/{id}":                                      "#/components/responses/DriveShareLink",
 		"HEAD /drive/share-links/{id}/download":                               "",
 		"GET /drive/share-links/{id}/download":                                "",
+		"POST /drive/share-links/{id}/download":                               "",
 		"GET /mailbox/overview":                                               "#/components/responses/MailboxOverview",
 		"GET /messages":                                                       "#/components/responses/MessageListPage",
 		"GET /search":                                                         "#/components/responses/MessageListPage",
@@ -766,7 +769,11 @@ func TestOpenAPIDraftDocumentsStableResponseEnvelopes(t *testing.T) {
 			t.Fatalf("OpenAPI operation %s is missing", route)
 		}
 		if responseRef == "" {
-			if strings.Contains(block, "application/json:") {
+			responseBlock := block
+			if _, after, ok := strings.Cut(block, "responses:"); ok {
+				responseBlock = after
+			}
+			if strings.Contains(responseBlock, "application/json:") {
 				t.Fatalf("OpenAPI operation %s downloads bytes and must not declare a JSON envelope", route)
 			}
 			continue

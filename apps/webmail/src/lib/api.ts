@@ -1113,6 +1113,8 @@ export interface DriveShareLink {
   node_id: string;
   token?: string;
   token_suffix: string;
+  permission?: string;
+  password_protected?: boolean;
   expires_at: string;
 }
 
@@ -1457,12 +1459,12 @@ export async function downloadDriveNode(nodeId: string, filename: string): Promi
   URL.revokeObjectURL(url);
 }
 
-export async function createDriveShareLink(nodeId: string, expiresAt: string): Promise<DriveShareLink | null> {
+export async function createDriveShareLink(nodeId: string, expiresAt: string, password = ''): Promise<DriveShareLink | null> {
   try {
     const res = await fetch(`/api/mail/drive/nodes/${encodeURIComponent(nodeId)}/share-links`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ permission: 'download', expires_at: expiresAt }),
+      body: JSON.stringify({ permission: 'download', expires_at: expiresAt, ...(password.trim() ? { password } : {}) }),
     });
     if (!res.ok) return null;
     const data = await res.json() as { drive_share_link?: DriveShareLink };
