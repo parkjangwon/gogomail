@@ -726,7 +726,7 @@ export default function MailPage() {
       const currentIdx = list.findIndex((m) => m.id === selectedMessageId);
       const isMailApp = activeApp === 'mail';
 
-      // g+key two-key folder navigation
+      // g+key two-key folder/app navigation
       if (gPrefixRef.current) {
         gPrefixRef.current = false;
         if (key === 'u') {
@@ -746,6 +746,13 @@ export default function MailPage() {
         const appSwitchMap: Record<string, AppId> = { m: 'mail', c: 'calendar', k: 'contacts', v: 'drive', ',': 'settings' };
         const appTarget = appSwitchMap[key];
         if (appTarget) { e.preventDefault(); setActiveApp(appTarget); return; }
+      }
+
+      if (key === 'g' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        e.preventDefault();
+        gPrefixRef.current = true;
+        setTimeout(() => { gPrefixRef.current = false; }, 1000);
+        return;
       }
 
       if (!isMailApp) {
@@ -777,10 +784,6 @@ export default function MailPage() {
           return;
         case 'ArrowLeft':
           if (moveMailPanelFocus('prev', !!selectedMessageId && !isMobile)) e.preventDefault();
-          return;
-        case 'g':
-          gPrefixRef.current = true;
-          setTimeout(() => { gPrefixRef.current = false; }, 1000);
           return;
         case 'j': {
           const next = list[currentIdx + 1];
