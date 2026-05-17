@@ -15,8 +15,8 @@ export default function MessagePage() {
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    const token = localStorage.getItem('webmail_token');
-    if (!token) router.push('/login');
+    const authenticated = localStorage.getItem('webmail_authenticated');
+    if (authenticated !== '1') router.push('/login');
   }, [router]);
 
   const { message, loading } = useMessage(messageId ?? null);

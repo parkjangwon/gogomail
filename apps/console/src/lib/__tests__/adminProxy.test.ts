@@ -14,6 +14,9 @@ describe('admin proxy security helpers', () => {
       headers: { origin: 'https://evil.example.test' },
     });
     expect(() => assertSameOriginRequest(req)).toThrow();
+    expect(() => assertSameOriginRequest(new Request('https://console.example.test/api/admin/users', {
+      method: 'POST',
+    }))).toThrow();
   });
 
   it('strips client credentials before proxying', () => {

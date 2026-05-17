@@ -7762,6 +7762,67 @@ paths:
                     $ref: "#/components/schemas/AuditPolicy"
         default:
           $ref: "#/components/responses/Error"
+  /companies/{id}/security/governance:
+    get:
+      operationId: adminGetCompanySecurityGovernance
+      summary: Get company security governance policy
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Security governance policy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  policy:
+                    $ref: "#/components/schemas/SecurityGovernancePolicy"
+        default:
+          $ref: "#/components/responses/Error"
+    put:
+      operationId: adminPutCompanySecurityGovernance
+      summary: Set company security governance policy
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SecurityGovernancePolicy"
+      responses:
+        "200":
+          description: Saved security governance policy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  policy:
+                    $ref: "#/components/schemas/SecurityGovernancePolicy"
+        default:
+          $ref: "#/components/responses/Error"
   /companies/{id}/security/retention-policy:
     get:
       operationId: adminGetCompanyRetentionPolicy
@@ -8051,6 +8112,67 @@ paths:
                 properties:
                   policy:
                     $ref: "#/components/schemas/RetentionPolicy"
+        default:
+          $ref: "#/components/responses/Error"
+  /domains/{id}/security/governance:
+    get:
+      operationId: adminGetDomainSecurityGovernance
+      summary: Get domain security governance policy
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Security governance policy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  policy:
+                    $ref: "#/components/schemas/SecurityGovernancePolicy"
+        default:
+          $ref: "#/components/responses/Error"
+    put:
+      operationId: adminPutDomainSecurityGovernance
+      summary: Set domain security governance policy
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SecurityGovernancePolicy"
+      responses:
+        "200":
+          description: Saved security governance policy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  policy:
+                    $ref: "#/components/schemas/SecurityGovernancePolicy"
         default:
           $ref: "#/components/responses/Error"
   /companies/{id}/security/rate-limit:
@@ -11209,6 +11331,17 @@ components:
           type: boolean
         mask_recipient_emails:
           type: boolean
+    SecurityGovernancePolicy:
+      type: object
+      properties:
+        security_profile:
+          type: string
+          enum: [standard, enterprise, high_assurance]
+          description: Enterprise posture preset for operator-facing governance.
+        webhook_private_network_access:
+          type: string
+          enum: [deny, allow]
+          description: Controls whether company/domain governed webhook targets may use private network destinations.
     RetentionPolicy:
       type: object
       properties:

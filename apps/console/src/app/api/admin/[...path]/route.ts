@@ -1,6 +1,6 @@
 import { adminProxyHandler } from '@/lib/server/adminProxy';
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_GOGOMAIL_BACKEND_URL || 'http://localhost:8080';
+const BACKEND_URL = process.env.GOGOMAIL_BACKEND_URL || 'http://localhost:8080';
 
 async function handler(
   req: Request,

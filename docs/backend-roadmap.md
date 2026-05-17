@@ -6284,3 +6284,10 @@ Target outcome:
       production bootstrap-admin blocking, webhook secret redaction, webmail
       HTML/image proxy XSS/SSRF controls, patched Go/PostCSS dependency pins,
       and console/webmail proxy header plus same-origin protections.
+1735. Enterprise security posture tightened cookie-backed mutation provenance,
+      production `__Host-` auth cookies, server-only backend URL handling, and
+      production CSP/security headers for console and webmail.
+1736. Company/domain security governance now exposes explicit policy endpoints
+      for posture presets and controlled webhook private-network exceptions,
+      keeping enterprise defaults strict while allowing audited tenant-specific
+      relaxation where operationally required.

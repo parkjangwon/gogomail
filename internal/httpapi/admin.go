@@ -4402,6 +4402,14 @@ func registerAdminUtilityRoutes(mux *http.ServeMux, service AdminService, cfg ad
 		handlePutCompanyAuditPolicy(w, r, service)
 	}))
 
+	mux.HandleFunc("GET /admin/v1/companies/{id}/security/governance", adminAuth(func(w http.ResponseWriter, r *http.Request) {
+		handleGetCompanySecurityGovernancePolicy(w, r, service)
+	}))
+
+	mux.HandleFunc("PUT /admin/v1/companies/{id}/security/governance", adminAuth(func(w http.ResponseWriter, r *http.Request) {
+		handlePutCompanySecurityGovernancePolicy(w, r, service)
+	}))
+
 	mux.HandleFunc("GET /admin/v1/companies/{id}/security/retention-policy", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		handleGetCompanyRetentionPolicy(w, r, service)
 	}))
@@ -4416,6 +4424,14 @@ func registerAdminUtilityRoutes(mux *http.ServeMux, service AdminService, cfg ad
 
 	mux.HandleFunc("PUT /admin/v1/domains/{id}/security/retention-policy", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		handlePutDomainRetentionPolicy(w, r, service)
+	}))
+
+	mux.HandleFunc("GET /admin/v1/domains/{id}/security/governance", adminAuth(func(w http.ResponseWriter, r *http.Request) {
+		handleGetDomainSecurityGovernancePolicy(w, r, service)
+	}))
+
+	mux.HandleFunc("PUT /admin/v1/domains/{id}/security/governance", adminAuth(func(w http.ResponseWriter, r *http.Request) {
+		handlePutDomainSecurityGovernancePolicy(w, r, service)
 	}))
 
 	mux.HandleFunc("GET /admin/v1/companies/{id}/security/session-policy", adminAuth(func(w http.ResponseWriter, r *http.Request) {
@@ -5550,6 +5566,157 @@ func handlePutCompanyAuditPolicy(w http.ResponseWriter, r *http.Request, service
 	writeJSON(w, http.StatusOK, map[string]any{"policy": policy})
 }
 
+const securityGovernancePolicyKey = "security_governance_policy"
+
+type securityGovernancePolicy struct {
+	SecurityProfile             string `json:"security_profile"`
+	WebhookPrivateNetworkAccess string `json:"webhook_private_network_access"`
+}
+
+func defaultSecurityGovernancePolicy() securityGovernancePolicy {
+	return securityGovernancePolicy{
+		SecurityProfile:             "enterprise",
+		WebhookPrivateNetworkAccess: "deny",
+	}
+}
+
+func normalizeSecurityGovernancePolicy(policy securityGovernancePolicy) (securityGovernancePolicy, error) {
+	policy.SecurityProfile = strings.ToLower(strings.TrimSpace(policy.SecurityProfile))
+	if policy.SecurityProfile == "" {
+		policy.SecurityProfile = "enterprise"
+	}
+	switch policy.SecurityProfile {
+	case "standard", "enterprise", "high_assurance":
+	default:
+		return securityGovernancePolicy{}, fmt.Errorf("invalid security_profile")
+	}
+	policy.WebhookPrivateNetworkAccess = strings.ToLower(strings.TrimSpace(policy.WebhookPrivateNetworkAccess))
+	if policy.WebhookPrivateNetworkAccess == "" {
+		policy.WebhookPrivateNetworkAccess = "deny"
+	}
+	switch policy.WebhookPrivateNetworkAccess {
+	case "deny", "allow":
+	default:
+		return securityGovernancePolicy{}, fmt.Errorf("invalid webhook_private_network_access")
+	}
+	return policy, nil
+}
+
+func securityGovernanceFromEntry(entry configstore.ConfigEntry) securityGovernancePolicy {
+	policy := defaultSecurityGovernancePolicy()
+	if len(entry.Value) == 0 {
+		return policy
+	}
+	var stored securityGovernancePolicy
+	if err := json.Unmarshal(entry.Value, &stored); err != nil {
+		return policy
+	}
+	normalized, err := normalizeSecurityGovernancePolicy(stored)
+	if err != nil {
+		return policy
+	}
+	return normalized
+}
+
+func getCompanySecurityGovernancePolicy(ctx context.Context, service AdminService, companyID string) (securityGovernancePolicy, error) {
+	entry, err := service.GetCompanyConfig(ctx, companyID, securityGovernancePolicyKey)
+	if err != nil {
+		if errors.Is(err, configstore.ErrConfigNotFound) {
+			return defaultSecurityGovernancePolicy(), nil
+		}
+		return securityGovernancePolicy{}, err
+	}
+	return securityGovernanceFromEntry(entry), nil
+}
+
+func handleGetCompanySecurityGovernancePolicy(w http.ResponseWriter, r *http.Request, service AdminService) {
+	defer r.Body.Close()
+	id, ok := parseBoundedAdminPathValue(w, r, "id")
+	if !ok {
+		return
+	}
+	policy, err := getCompanySecurityGovernancePolicy(r.Context(), service, id)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"policy": policy})
+}
+
+func handlePutCompanySecurityGovernancePolicy(w http.ResponseWriter, r *http.Request, service AdminService) {
+	defer r.Body.Close()
+	id, ok := parseBoundedAdminPathValue(w, r, "id")
+	if !ok {
+		return
+	}
+	var input securityGovernancePolicy
+	if err := decodeJSONBody(r, &input); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid JSON body")
+		return
+	}
+	policy, err := normalizeSecurityGovernancePolicy(input)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	b, err := json.Marshal(policy)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to marshal policy")
+		return
+	}
+	if _, err := service.SetCompanyConfig(r.Context(), id, securityGovernancePolicyKey, json.RawMessage(b), false, 0); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"policy": policy})
+}
+
+func handleGetDomainSecurityGovernancePolicy(w http.ResponseWriter, r *http.Request, service AdminService) {
+	defer r.Body.Close()
+	id, ok := parseBoundedAdminPathValue(w, r, "id")
+	if !ok {
+		return
+	}
+	entry, err := service.GetDomainConfig(r.Context(), id, securityGovernancePolicyKey)
+	if err != nil {
+		if errors.Is(err, configstore.ErrConfigNotFound) {
+			writeJSON(w, http.StatusOK, map[string]any{"policy": defaultSecurityGovernancePolicy()})
+			return
+		}
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"policy": securityGovernanceFromEntry(entry)})
+}
+
+func handlePutDomainSecurityGovernancePolicy(w http.ResponseWriter, r *http.Request, service AdminService) {
+	defer r.Body.Close()
+	id, ok := parseBoundedAdminPathValue(w, r, "id")
+	if !ok {
+		return
+	}
+	var input securityGovernancePolicy
+	if err := decodeJSONBody(r, &input); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid JSON body")
+		return
+	}
+	policy, err := normalizeSecurityGovernancePolicy(input)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	b, err := json.Marshal(policy)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to marshal policy")
+		return
+	}
+	if _, err := service.SetDomainConfig(r.Context(), id, securityGovernancePolicyKey, json.RawMessage(b), false, 0); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"policy": policy})
+}
+
 const sessionPolicyKey = "session_policy"
 
 type sessionPolicy struct {
@@ -6485,7 +6652,13 @@ func handlePostCompanyWebhook(w http.ResponseWriter, r *http.Request, service Ad
 		writeError(w, http.StatusBadRequest, "name and url are required")
 		return
 	}
-	parsedURL, err := webhookguard.ValidateOutboundHTTPURL(r.Context(), input.URL, webhookguard.OutboundURLGuardOptions{})
+	governance, err := getCompanySecurityGovernancePolicy(r.Context(), service, id)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	allowPrivateNetwork := governance.WebhookPrivateNetworkAccess == "allow"
+	parsedURL, err := webhookguard.ValidateOutboundHTTPURL(r.Context(), input.URL, webhookguard.OutboundURLGuardOptions{AllowPrivateNetwork: allowPrivateNetwork})
 	if err != nil {
 		writeError(w, http.StatusBadRequest, "webhook url is not allowed")
 		return
@@ -6579,7 +6752,13 @@ func handleTestCompanyWebhook(w http.ResponseWriter, r *http.Request, service Ad
 		writeError(w, http.StatusNotFound, "webhook not found")
 		return
 	}
-	if _, err := webhookguard.ValidateOutboundHTTPURL(r.Context(), target.URL, webhookguard.OutboundURLGuardOptions{}); err != nil {
+	governance, err := getCompanySecurityGovernancePolicy(r.Context(), service, id)
+	if err != nil {
+		writeJSON(w, http.StatusOK, map[string]any{"success": false, "status_code": 0, "message": "security governance policy unavailable"})
+		return
+	}
+	guardOptions := webhookguard.OutboundURLGuardOptions{AllowPrivateNetwork: governance.WebhookPrivateNetworkAccess == "allow"}
+	if _, err := webhookguard.ValidateOutboundHTTPURL(r.Context(), target.URL, guardOptions); err != nil {
 		writeJSON(w, http.StatusOK, map[string]any{"success": false, "status_code": 0, "message": "webhook url is not allowed"})
 		return
 	}
@@ -6592,7 +6771,7 @@ func handleTestCompanyWebhook(w http.ResponseWriter, r *http.Request, service Ad
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("X-Gogomail-Event", "test")
-	client := webhookguard.GuardedHTTPClient(&http.Client{Timeout: 10 * time.Second}, webhookguard.OutboundURLGuardOptions{})
+	client := webhookguard.GuardedHTTPClient(&http.Client{Timeout: 10 * time.Second}, guardOptions)
 	resp, err := client.Do(req)
 	if err != nil {
 		writeJSON(w, http.StatusOK, map[string]any{"success": false, "status_code": 0, "message": fmt.Sprintf("request failed: %v", err)})

@@ -9,6 +9,8 @@ Last updated: 2026-05-17 (Security hardening)
 - Webmail HTML email rendering now removes active-content tags, unsafe URL schemes, and SVG image proxying; image proxy fetches enforce private-address blocking, redirect validation, size limits, and `nosniff`.
 - Console and webmail Next.js API proxies now encode backend path segments, strip client-supplied credentials, forward only allowlisted headers, enforce same-origin mutating requests, and return no-store/nosniff download responses.
 - Go builds are pinned to patched `go1.26.3`; webmail and console pin `postcss` to a non-vulnerable line via pnpm overrides.
+- Enterprise hardening now requires browser provenance on cookie-backed mutating requests, uses production `__Host-` auth cookie names, avoids publishing the private backend URL into browser bundles, and removes production CSP `unsafe-eval`.
+- Company/domain security governance now exposes `/security/governance` so tenant policy can select `standard`/`enterprise`/`high_assurance` posture and deliberately allow otherwise-blocked private-network webhook targets when an operator needs that exception.
 - Security review notes and verification commands are recorded in `docs/SECURITY_REVIEW.md`.
 
 ## Development Backend Hot Reload (2026-05-17)

@@ -1,5 +1,10 @@
 import type { NextConfig } from "next";
 
+const isProduction = process.env.NODE_ENV === "production";
+const scriptSrc = isProduction
+  ? "script-src 'self' 'unsafe-inline'"
+  : "script-src 'self' 'unsafe-inline' 'unsafe-eval'";
+
 const config: NextConfig = {
   reactStrictMode: true,
   typescript: {
@@ -7,10 +12,6 @@ const config: NextConfig = {
   },
   experimental: {
     optimizePackageImports: ["@cloudscape-design/components"],
-  },
-  env: {
-    NEXT_PUBLIC_GOGOMAIL_BACKEND_URL:
-      process.env.GOGOMAIL_BACKEND_URL || "http://localhost:8080",
   },
   generateBuildId: async () => {
     return process.env.GIT_SHA || `dev-${Date.now()}`;
@@ -22,11 +23,14 @@ const config: NextConfig = {
       headers: [
         { key: "X-Content-Type-Options", value: "nosniff" },
         { key: "X-Frame-Options", value: "DENY" },
+        { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
+        { key: "Cross-Origin-Resource-Policy", value: "same-origin" },
+        { key: "X-DNS-Prefetch-Control", value: "off" },
         {
           key: "Content-Security-Policy",
           value: [
             "default-src 'self'",
-            "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+            scriptSrc,
             "style-src 'self' 'unsafe-inline'",
             "img-src 'self' data: blob:",
             "connect-src 'self'",
@@ -36,6 +40,7 @@ const config: NextConfig = {
             "object-src 'none'",
             "base-uri 'self'",
             "form-action 'self'",
+            ...(isProduction ? ["upgrade-insecure-requests"] : []),
           ].join("; "),
         },
         {

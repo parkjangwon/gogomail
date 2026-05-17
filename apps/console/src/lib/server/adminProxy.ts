@@ -1,4 +1,5 @@
 import { cookies } from 'next/headers';
+import { ADMIN_ACCESS_TOKEN_COOKIE, LEGACY_ADMIN_ACCESS_TOKEN_COOKIE } from './cookies';
 
 const MUTATING_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 const REQUEST_HEADER_ALLOWLIST = new Set(['accept', 'content-type']);
@@ -22,7 +23,8 @@ export function assertSameOriginRequest(req: Request): void {
     return;
   }
   const referer = req.headers.get('referer');
-  if (referer && new URL(referer).origin !== url.origin) {
+  if (!referer) throw new Error('Missing request origin');
+  if (new URL(referer).origin !== url.origin) {
     throw new Error('Invalid request origin');
   }
 }
@@ -66,7 +68,8 @@ export async function adminProxyHandler(
   const reqUrl = new URL(req.url);
   const url = `${backendURL}/admin/v1/${encodedPath}${reqUrl.search}`;
   const cookieStore = await cookies();
-  const token = cookieStore.get('admin_access_token')?.value;
+  const token = cookieStore.get(ADMIN_ACCESS_TOKEN_COOKIE)?.value
+    ?? cookieStore.get(LEGACY_ADMIN_ACCESS_TOKEN_COOKIE)?.value;
   const headers = requestHeadersForBackend(req, token);
   const hasRequestBody = req.method !== 'GET' && req.method !== 'HEAD';
   const body = hasRequestBody ? await req.arrayBuffer() : undefined;
