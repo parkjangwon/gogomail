@@ -11,19 +11,20 @@ const PolicyConfigKey = "spam_filter_policy"
 const maxRBLZones = 20
 
 type Policy struct {
-	Enabled            bool     `json:"enabled"`
-	SpamThreshold      int      `json:"spam_threshold"`
-	VirusScanEnabled   bool     `json:"virus_scan_enabled"`
-	StrictAuthEnabled  bool     `json:"strict_auth_enabled"`
-	RBLCheckEnabled    bool     `json:"rbl_check_enabled"`
-	RBLRejectEnabled   bool     `json:"rbl_reject_enabled"`
-	RBLZones           []string `json:"rbl_zones"`
-	BlockedExtensions  []string `json:"blocked_extensions"`
-	BlockedSenders     []string `json:"blocked_senders"`
-	AllowedSenders     []string `json:"allowed_senders"`
-	QuarantineEnabled  bool     `json:"quarantine_enabled"`
-	MaxAttachmentMB    int      `json:"max_attachment_mb"`
-	BulkRecipientLimit int      `json:"bulk_recipient_limit"`
+	Enabled            bool             `json:"enabled"`
+	SpamThreshold      int              `json:"spam_threshold"`
+	VirusScanEnabled   bool             `json:"virus_scan_enabled"`
+	StrictAuthEnabled  bool             `json:"strict_auth_enabled"`
+	RBLCheckEnabled    bool             `json:"rbl_check_enabled"`
+	RBLRejectEnabled   bool             `json:"rbl_reject_enabled"`
+	RBLZones           []string         `json:"rbl_zones"`
+	BlockedExtensions  []string         `json:"blocked_extensions"`
+	BlockedSenders     []string         `json:"blocked_senders"`
+	AllowedSenders     []string         `json:"allowed_senders"`
+	QuarantineEnabled  bool             `json:"quarantine_enabled"`
+	MaxAttachmentMB    int              `json:"max_attachment_mb"`
+	BulkRecipientLimit int              `json:"bulk_recipient_limit"`
+	FilterPacks        FilterPackBundle `json:"filter_packs"`
 }
 
 func DefaultPolicy() Policy {
@@ -46,6 +47,7 @@ func DefaultPolicy() Policy {
 		QuarantineEnabled:  true,
 		MaxAttachmentMB:    25,
 		BulkRecipientLimit: 50,
+		FilterPacks:        DefaultFilterPackBundle(),
 	}
 }
 
@@ -79,6 +81,7 @@ func NormalizePolicy(policy Policy) Policy {
 	policy.BlockedSenders = normalizeList(policy.BlockedSenders)
 	policy.AllowedSenders = normalizeList(policy.AllowedSenders)
 	policy.RBLZones = normalizeZones(policy.RBLZones)
+	policy.FilterPacks = NormalizeFilterPackBundle(policy.FilterPacks)
 	return policy
 }
 

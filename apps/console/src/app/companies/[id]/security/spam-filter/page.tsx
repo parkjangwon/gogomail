@@ -37,6 +37,33 @@ interface SpamFilterPolicy {
   quarantine_enabled: boolean;
   max_attachment_mb: number;
   bulk_recipient_limit: number;
+  filter_packs: FilterPackBundle;
+}
+
+interface FilterPackBundle {
+  enabled_pack_ids: string[];
+  custom_packs: FilterPack[];
+}
+
+interface FilterPack {
+  id: string;
+  version: string;
+  name: string;
+  description: string;
+  category: string;
+  source: 'system' | 'custom' | string;
+  enabled: boolean;
+  rules: FilterRule[];
+}
+
+interface FilterRule {
+  id: string;
+  type: 'phrase' | 'attachment_extension' | 'bulk_recipient' | 'auth_failure' | string;
+  target?: 'subject' | 'body' | 'subject_body' | string;
+  patterns: string[];
+  score: number;
+  enabled: boolean;
+  action?: 'quarantine' | 'reject' | string;
 }
 
 interface SpamFilterEvent {
@@ -76,7 +103,64 @@ const defaultPolicy = (): SpamFilterPolicy => ({
   quarantine_enabled: true,
   max_attachment_mb: 25,
   bulk_recipient_limit: 50,
+  filter_packs: {
+    enabled_pack_ids: ['gogomail-core-auth', 'gogomail-core-malware', 'gogomail-core-phishing-ko', 'gogomail-core-bulk'],
+    custom_packs: [],
+  },
 });
+
+const builtinFilterPacks: FilterPack[] = [
+  {
+    id: 'gogomail-core-auth',
+    version: '2026.05.17',
+    name: 'Core authentication defense',
+    description: 'Scores suspicious SPF, DKIM, and DMARC failure combinations.',
+    category: 'authentication',
+    source: 'system',
+    enabled: true,
+    rules: [
+      { id: 'no-auth-pass', type: 'auth_failure', patterns: ['no_auth_pass'], score: 1.5, enabled: true },
+      { id: 'dmarc-fail', type: 'auth_failure', patterns: ['dmarc_fail'], score: 1.5, enabled: true },
+    ],
+  },
+  {
+    id: 'gogomail-core-malware',
+    version: '2026.05.17',
+    name: 'Core malware attachment defense',
+    description: 'Scores high-risk executable and macro attachment extensions.',
+    category: 'malware',
+    source: 'system',
+    enabled: true,
+    rules: [
+      { id: 'dangerous-extension', type: 'attachment_extension', patterns: ['.exe', '.scr', '.js', '.vbs', '.ps1', '.jar', '.docm', '.xlsm'], score: 2, enabled: true },
+    ],
+  },
+  {
+    id: 'gogomail-core-phishing-ko',
+    version: '2026.05.17',
+    name: 'Korean and global phishing phrases',
+    description: 'Scores common credential theft, urgency, and payment-lure phrases.',
+    category: 'phishing',
+    source: 'system',
+    enabled: true,
+    rules: [
+      { id: 'credential-lures', type: 'phrase', target: 'subject_body', patterns: ['verify your account', 'password expired', 'login immediately', '계정 확인', '비밀번호 만료', '긴급 로그인'], score: 1.5, enabled: true },
+      { id: 'payment-lures', type: 'phrase', target: 'subject_body', patterns: ['wire transfer', 'gift card', 'crypto giveaway', '송금', '상품권', '당첨'], score: 1, enabled: true },
+    ],
+  },
+  {
+    id: 'gogomail-core-bulk',
+    version: '2026.05.17',
+    name: 'Bulk receive pressure defense',
+    description: 'Scores messages above the tenant bulk recipient threshold.',
+    category: 'bulk',
+    source: 'system',
+    enabled: true,
+    rules: [
+      { id: 'recipient-fanout', type: 'bulk_recipient', patterns: [], score: 1.5, enabled: true },
+    ],
+  },
+];
 
 export default function SpamFilterPage() {
   const { t } = useI18n();
@@ -96,6 +180,10 @@ export default function SpamFilterPage() {
   const [newBlockedSender, setNewBlockedSender] = useState('');
   const [newAllowedSender, setNewAllowedSender] = useState('');
   const [newRBLZone, setNewRBLZone] = useState('');
+  const [newPackId, setNewPackId] = useState('');
+  const [newPackName, setNewPackName] = useState('');
+  const [newPackPhrase, setNewPackPhrase] = useState('');
+  const [newPackScore, setNewPackScore] = useState('4');
 
   const fetchPolicy = useCallback(async () => {
     setLoading(true);
@@ -123,6 +211,10 @@ export default function SpamFilterPage() {
           blocked_senders: p.blocked_senders ?? [],
           allowed_senders: p.allowed_senders ?? [],
           rbl_zones: p.rbl_zones ?? [],
+          filter_packs: {
+            enabled_pack_ids: p.filter_packs?.enabled_pack_ids ?? defaultPolicy().filter_packs.enabled_pack_ids,
+            custom_packs: p.filter_packs?.custom_packs ?? [],
+          },
         });
       }
       if (eventsRes.ok) {
@@ -172,6 +264,68 @@ export default function SpamFilterPage() {
 
   const removeFromList = (field: keyof SpamFilterPolicy, index: number) => {
     setPolicy(p => ({ ...p, [field]: (p[field] as string[]).filter((_, i) => i !== index) }));
+  };
+
+  const setFilterPackEnabled = (packId: string, enabled: boolean) => {
+    setPolicy(p => {
+      const current = p.filter_packs?.enabled_pack_ids ?? [];
+      const nextIds = enabled
+        ? Array.from(new Set([...current, packId]))
+        : current.filter(id => id !== packId);
+      return {
+        ...p,
+        filter_packs: {
+          enabled_pack_ids: nextIds,
+          custom_packs: p.filter_packs?.custom_packs ?? [],
+        },
+      };
+    });
+  };
+
+  const addCustomPack = () => {
+    const id = newPackId.trim().toLowerCase();
+    const phrase = newPackPhrase.trim();
+    if (!id || !phrase) return;
+    const safeRuleId = `${id}-phrase`.replace(/[^a-z0-9._-]/g, '-').slice(0, 80);
+    const score = Math.max(0.5, Math.min(20, parseFloat(newPackScore) || 4));
+    const pack: FilterPack = {
+      id,
+      version: 'custom',
+      name: newPackName.trim() || id,
+      description: 'Tenant managed custom filter pack.',
+      category: 'custom',
+      source: 'custom',
+      enabled: true,
+      rules: [{
+        id: safeRuleId,
+        type: 'phrase',
+        target: 'subject_body',
+        patterns: [phrase],
+        score,
+        enabled: true,
+      }],
+    };
+    setPolicy(p => ({
+      ...p,
+      filter_packs: {
+        enabled_pack_ids: Array.from(new Set([...(p.filter_packs?.enabled_pack_ids ?? []), id])),
+        custom_packs: [...(p.filter_packs?.custom_packs ?? []).filter(existing => existing.id !== id), pack],
+      },
+    }));
+    setNewPackId('');
+    setNewPackName('');
+    setNewPackPhrase('');
+    setNewPackScore('4');
+  };
+
+  const removeCustomPack = (packId: string) => {
+    setPolicy(p => ({
+      ...p,
+      filter_packs: {
+        enabled_pack_ids: (p.filter_packs?.enabled_pack_ids ?? []).filter(id => id !== packId),
+        custom_packs: (p.filter_packs?.custom_packs ?? []).filter(pack => pack.id !== packId),
+      },
+    }));
   };
 
   if (loading) {
@@ -343,6 +497,62 @@ export default function SpamFilterPage() {
                         {t('common.add')}
                       </Button>
                     </SpaceBetween>
+                  </SpaceBetween>
+                </FormField>
+              </SpaceBetween>
+            </Container>
+
+            <Container header={<Header variant="h2">Filter packs</Header>}>
+              <SpaceBetween size="m">
+                <Alert type="info">
+                  Filter packs are saved inside the selected company or domain policy, so tenant custom packs and enabled-pack choices do not bleed across tenants.
+                </Alert>
+                <ColumnLayout columns={2}>
+                  {builtinFilterPacks.map(pack => {
+                    const enabled = (policy.filter_packs?.enabled_pack_ids ?? []).includes(pack.id);
+                    return (
+                      <FormField key={pack.id} label={pack.name} description={pack.description}>
+                        <SpaceBetween size="xs">
+                          <Toggle checked={enabled} onChange={e => setFilterPackEnabled(pack.id, e.detail.checked)}>
+                            {enabled ? t('pages.spam_filter_page.enabled_on') : t('pages.spam_filter_page.enabled_off')}
+                          </Toggle>
+                          <SpaceBetween direction="horizontal" size="xs">
+                            <Badge color="blue">{pack.category}</Badge>
+                            <Badge color="grey">{pack.rules.length} rules</Badge>
+                          </SpaceBetween>
+                        </SpaceBetween>
+                      </FormField>
+                    );
+                  })}
+                </ColumnLayout>
+
+                <FormField label="Custom tenant packs" description="Create tenant-owned phrase packs for urgent response rules or local spam patterns.">
+                  <SpaceBetween size="s">
+                    {(policy.filter_packs?.custom_packs ?? []).length === 0 && (
+                      <Box color="text-body-secondary" fontSize="body-s">No custom packs registered.</Box>
+                    )}
+                    {(policy.filter_packs?.custom_packs ?? []).map(pack => {
+                      const enabled = (policy.filter_packs?.enabled_pack_ids ?? []).includes(pack.id);
+                      return (
+                        <SpaceBetween key={pack.id} direction="horizontal" size="xs">
+                          <Badge color={enabled ? 'green' : 'grey'}>{pack.id}</Badge>
+                          <Box>{pack.name}</Box>
+                          <Button variant="inline-link" onClick={() => setFilterPackEnabled(pack.id, !enabled)}>
+                            {enabled ? 'Disable' : 'Enable'}
+                          </Button>
+                          <Button variant="inline-link" onClick={() => removeCustomPack(pack.id)}>
+                            {t('common.delete')}
+                          </Button>
+                        </SpaceBetween>
+                      );
+                    })}
+                    <ColumnLayout columns={4}>
+                      <Input value={newPackId} onChange={e => setNewPackId(e.detail.value)} placeholder="pack-id" />
+                      <Input value={newPackName} onChange={e => setNewPackName(e.detail.value)} placeholder="Pack name" />
+                      <Input value={newPackPhrase} onChange={e => setNewPackPhrase(e.detail.value)} placeholder="phrase to match" />
+                      <Input type="number" value={newPackScore} onChange={e => setNewPackScore(e.detail.value)} placeholder="score" />
+                    </ColumnLayout>
+                    <Button onClick={addCustomPack}>{t('common.add')}</Button>
                   </SpaceBetween>
                 </FormField>
               </SpaceBetween>

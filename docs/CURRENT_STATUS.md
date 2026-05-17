@@ -1,6 +1,14 @@
 # gogomail current status
 
-Last updated: 2026-05-17 (ClamAV attachment scanning)
+Last updated: 2026-05-17 (tenant spam filter packs)
+
+## Tenant Spam Filter Packs (2026-05-17)
+- Spam filtering now has a first-class filter-pack layer on top of the existing policy engine. Built-in packs cover authentication failures, malware attachment extensions, Korean/global phishing phrases, and bulk-recipient pressure.
+- Filter-pack state is stored inside the existing company/domain `spam_filter_policy` config value, so enabled-pack choices and custom rules are tenant scoped and never shared globally between companies or domains.
+- Custom packs are normalized and bounded before storage: pack IDs use a strict lowercase identifier format, system-reserved `gogomail-core-*` IDs cannot be shadowed, control/CRLF text is dropped, rule counts and pattern counts are capped, and scores are clamped.
+- The engine evaluates enabled packs after the core spam signals and records rule hits as `PACK:<pack_id>:<rule_id>` in the decision, preserving existing decisions while making tenant policy changes observable.
+- `apps/console` spam-filter management now exposes built-in pack toggles plus tenant-owned custom phrase packs for both company default and explicit domain override scopes.
+- OpenAPI documents `filter_packs`, `SpamFilterPack`, and `SpamFilterRule` as part of `SpamFilterPolicy`.
 
 ## ClamAV Attachment Scanning (2026-05-17)
 - Attachment scanning now supports `attachment_scan_backend: clamav`, with backend configuration through `attachment_scan_clamav_addr` / `GOGOMAIL_ATTACHMENT_SCAN_CLAMAV_ADDR`.
