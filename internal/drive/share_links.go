@@ -11,6 +11,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"github.com/gogomail/gogomail/internal/auth"
 )
 
 const (
@@ -20,25 +22,29 @@ const (
 	ShareLinkStatusActive  = "active"
 	ShareLinkStatusRevoked = "revoked"
 
-	DefaultShareLinkTTL    = 7 * 24 * time.Hour
-	MaxShareLinkTTL        = 30 * 24 * time.Hour
-	MaxShareLinkTokenBytes = 256
+	DefaultShareLinkTTL       = 7 * 24 * time.Hour
+	MaxShareLinkTTL           = 30 * 24 * time.Hour
+	MaxShareLinkTokenBytes    = 256
+	MaxShareLinkPasswordBytes = 256
 )
 
 var ErrShareLinkPermissionDenied = errors.New("drive share link does not allow download")
+var ErrShareLinkPasswordRequired = errors.New("drive share password is required")
+var ErrShareLinkPasswordInvalid = errors.New("drive share password is invalid")
 
 type ShareLink struct {
-	ID          string    `json:"id"`
-	UserID      string    `json:"user_id"`
-	NodeID      string    `json:"node_id"`
-	Token       string    `json:"token,omitempty"`
-	TokenSuffix string    `json:"token_suffix"`
-	Permission  string    `json:"permission"`
-	Status      string    `json:"status"`
-	ExpiresAt   time.Time `json:"expires_at"`
-	CreatedAt   time.Time `json:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at"`
-	RevokedAt   time.Time `json:"revoked_at,omitempty"`
+	ID                string    `json:"id"`
+	UserID            string    `json:"user_id"`
+	NodeID            string    `json:"node_id"`
+	Token             string    `json:"token,omitempty"`
+	TokenSuffix       string    `json:"token_suffix"`
+	Permission        string    `json:"permission"`
+	Status            string    `json:"status"`
+	ExpiresAt         time.Time `json:"expires_at"`
+	CreatedAt         time.Time `json:"created_at"`
+	UpdatedAt         time.Time `json:"updated_at"`
+	PasswordProtected bool      `json:"password_protected"`
+	RevokedAt         time.Time `json:"revoked_at,omitempty"`
 }
 
 type CreateShareLinkRequest struct {
@@ -47,6 +53,7 @@ type CreateShareLinkRequest struct {
 	Permission string
 	ExpiresAt  time.Time
 	Token      string
+	Password   string
 }
 
 type ListShareLinksRequest struct {
@@ -62,8 +69,9 @@ type RevokeShareLinkRequest struct {
 }
 
 type ResolveShareLinkRequest struct {
-	Token string
-	Now   time.Time
+	Token    string
+	Password string
+	Now      time.Time
 }
 
 type ResolvedShareLink struct {
@@ -117,12 +125,17 @@ func ValidateCreateShareLinkRequest(req CreateShareLinkRequest, now time.Time) (
 	if err != nil {
 		return CreateShareLinkRequest{}, "", err
 	}
+	passwordHash, err := hashOptionalShareLinkPassword(req.Password)
+	if err != nil {
+		return CreateShareLinkRequest{}, "", err
+	}
 	return CreateShareLinkRequest{
 		UserID:     userID,
 		NodeID:     nodeID,
 		Permission: permission,
 		ExpiresAt:  expiresAt,
 		Token:      token,
+		Password:   passwordHash,
 	}, tokenHash + ":" + suffix, nil
 }
 
@@ -175,7 +188,25 @@ func ValidateResolveShareLinkRequest(req ResolveShareLinkRequest) (ResolveShareL
 	if now.IsZero() {
 		now = time.Now().UTC()
 	}
-	return ResolveShareLinkRequest{Token: req.Token, Now: now.UTC()}, tokenHash, nil
+	return ResolveShareLinkRequest{Token: req.Token, Password: req.Password, Now: now.UTC()}, tokenHash, nil
+}
+
+func hashOptionalShareLinkPassword(password string) (string, error) {
+	password = strings.TrimSpace(password)
+	if password == "" {
+		return "", nil
+	}
+	if len(password) > MaxShareLinkPasswordBytes {
+		return "", fmt.Errorf("drive share password is too long")
+	}
+	if strings.ContainsAny(password, "\r\n") {
+		return "", fmt.Errorf("drive share password must not contain line breaks")
+	}
+	var salt [16]byte
+	if _, err := rand.Read(salt[:]); err != nil {
+		return "", fmt.Errorf("generate drive share password salt: %w", err)
+	}
+	return auth.HashPasswordPBKDF2SHA256(password, salt[:], 210_000)
 }
 
 func ValidateShareLinkPermission(permission string) (string, error) {
@@ -242,6 +273,8 @@ SELECT
   l.node_id::text,
   l.token_suffix,
   l.permission,
+  COALESCE(l.password_hash, '') <> '',
+  l.password_hash,
   l.status,
   l.expires_at,
   l.created_at,
@@ -275,6 +308,7 @@ WHERE l.token_hash = $1
   AND u.status = 'active'
   AND d.status = 'active'`
 	var resolved ResolvedShareLink
+	var passwordHash string
 	var revokedAt sql.NullTime
 	err = r.db.QueryRowContext(ctx, query, tokenHash, req.Now).Scan(
 		&resolved.ShareLink.ID,
@@ -282,6 +316,8 @@ WHERE l.token_hash = $1
 		&resolved.ShareLink.NodeID,
 		&resolved.ShareLink.TokenSuffix,
 		&resolved.ShareLink.Permission,
+		&resolved.ShareLink.PasswordProtected,
+		&passwordHash,
 		&resolved.ShareLink.Status,
 		&resolved.ShareLink.ExpiresAt,
 		&resolved.ShareLink.CreatedAt,
@@ -312,6 +348,15 @@ WHERE l.token_hash = $1
 	}
 	if revokedAt.Valid {
 		resolved.ShareLink.RevokedAt = revokedAt.Time
+	}
+	if passwordHash != "" {
+		password := strings.TrimSpace(req.Password)
+		if password == "" {
+			return ResolvedShareLink{}, ErrShareLinkPasswordRequired
+		}
+		if !auth.VerifyPasswordHash(password, passwordHash) {
+			return ResolvedShareLink{}, ErrShareLinkPasswordInvalid
+		}
 	}
 	return resolved, nil
 }
@@ -347,6 +392,7 @@ INSERT INTO drive_share_links (
   token_hash,
   token_suffix,
   permission,
+  password_hash,
   status,
   expires_at
 )
@@ -356,8 +402,9 @@ SELECT
   $3,
   $4,
   $5,
+  $6,
   'active',
-  $6
+  $7
 FROM target
 RETURNING
   id::text,
@@ -365,12 +412,13 @@ RETURNING
   node_id::text,
   token_suffix,
   permission,
+  COALESCE(password_hash, '') <> '',
   status,
   expires_at,
   created_at,
   updated_at,
   revoked_at`
-	link, err := scanShareLink(r.db.QueryRowContext(ctx, query, req.UserID, req.NodeID, tokenHash, tokenSuffix, req.Permission, req.ExpiresAt))
+	link, err := scanShareLink(r.db.QueryRowContext(ctx, query, req.UserID, req.NodeID, tokenHash, tokenSuffix, req.Permission, req.Password, req.ExpiresAt))
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return ShareLink{}, fmt.Errorf("active drive file not found")
@@ -396,6 +444,7 @@ SELECT
   node_id::text,
   token_suffix,
   permission,
+  COALESCE(password_hash, '') <> '',
   status,
   expires_at,
   created_at,
@@ -449,6 +498,7 @@ RETURNING
   node_id::text,
   token_suffix,
   permission,
+  COALESCE(password_hash, '') <> '',
   status,
   expires_at,
   created_at,
@@ -477,6 +527,7 @@ func scanShareLink(scanner shareLinkScanner) (ShareLink, error) {
 		&link.NodeID,
 		&link.TokenSuffix,
 		&link.Permission,
+		&link.PasswordProtected,
 		&link.Status,
 		&link.ExpiresAt,
 		&link.CreatedAt,
