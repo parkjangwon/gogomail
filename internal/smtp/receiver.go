@@ -391,6 +391,7 @@ func (s *session) Data(r io.Reader) (err error) {
 		EnvelopeFrom: s.from,
 		Recipients:   mailboxAddresses(s.recipients),
 		DSN:          s.currentDSNOptions(),
+		SpoolPath:    spooled.Name(),
 		Size:         size,
 	}); err != nil {
 		return err

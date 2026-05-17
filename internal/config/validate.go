@@ -335,15 +335,23 @@ func (c Config) Validate() error {
 	if err := validateEnum("GOGOMAIL_METRICS_BACKEND", c.MetricsBackend, "none", "slog"); err != nil {
 		return err
 	}
-	if err := validateEnum("GOGOMAIL_ATTACHMENT_SCAN_BACKEND", c.AttachmentScanBackend, "none", "webhook"); err != nil {
+	if err := validateEnum("GOGOMAIL_ATTACHMENT_SCAN_BACKEND", c.AttachmentScanBackend, "none", "webhook", "clamav"); err != nil {
 		return err
 	}
-	if strings.EqualFold(strings.TrimSpace(c.AttachmentScanBackend), "webhook") {
+	switch strings.ToLower(strings.TrimSpace(c.AttachmentScanBackend)) {
+	case "webhook":
 		if err := validateWebhookURL("GOGOMAIL_ATTACHMENT_SCAN_WEBHOOK_URL", c.AttachmentScanWebhookURL, production); err != nil {
 			return err
 		}
 		if err := validateOptionalSecret("GOGOMAIL_ATTACHMENT_SCAN_WEBHOOK_TOKEN", c.AttachmentScanWebhookToken); err != nil {
 			return err
+		}
+	case "clamav":
+		if strings.TrimSpace(c.AttachmentScanClamAVAddr) == "" || strings.ContainsAny(c.AttachmentScanClamAVAddr, " \t\r\n") {
+			return fmt.Errorf("GOGOMAIL_ATTACHMENT_SCAN_CLAMAV_ADDR must be a non-empty host:port without whitespace")
+		}
+		if _, _, err := net.SplitHostPort(c.AttachmentScanClamAVAddr); err != nil {
+			return fmt.Errorf("GOGOMAIL_ATTACHMENT_SCAN_CLAMAV_ADDR must be host:port: %w", err)
 		}
 	}
 	if c.AttachmentScanTimeout <= 0 {

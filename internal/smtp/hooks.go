@@ -30,6 +30,7 @@ type Event struct {
 	SubmissionUser SubmissionUser
 	Recipients     []string
 	DSN            DSNOptions
+	SpoolPath      string
 	StoragePath    string
 	Parsed         message.ParsedMessage
 	Authentication AuthenticationResults

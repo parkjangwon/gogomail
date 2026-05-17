@@ -3,6 +3,7 @@ package attachmentscan
 import (
 	"context"
 	"fmt"
+	"os"
 	"strings"
 	"unicode/utf8"
 
@@ -46,6 +47,10 @@ type Scanner interface {
 	ScanAttachments(ctx context.Context, req Request) (Result, error)
 }
 
+type StreamScanner interface {
+	ScanStream(ctx context.Context, name string, file *os.File) (Result, error)
+}
+
 type HookOptions struct {
 	Scanner Scanner
 }
@@ -58,6 +63,28 @@ func Hook(opts HookOptions) smtpd.Hook {
 		result, err := opts.Scanner.ScanAttachments(ctx, requestFromSMTPEvent(event))
 		if err != nil {
 			return fmt.Errorf("attachment scanner failed: %w", err)
+		}
+		return enforceResult(result)
+	}
+}
+
+type StreamHookOptions struct {
+	Scanner StreamScanner
+}
+
+func StreamHook(opts StreamHookOptions) smtpd.Hook {
+	return func(ctx context.Context, event smtpd.Event) error {
+		if event.Stage != smtpd.StageSpooled || opts.Scanner == nil || strings.TrimSpace(event.SpoolPath) == "" {
+			return nil
+		}
+		file, err := os.Open(event.SpoolPath)
+		if err != nil {
+			return fmt.Errorf("open spooled message for attachment scan: %w", err)
+		}
+		defer file.Close()
+		result, err := opts.Scanner.ScanStream(ctx, "smtp-message.eml", file)
+		if err != nil {
+			return fmt.Errorf("attachment stream scanner failed: %w", err)
 		}
 		return enforceResult(result)
 	}

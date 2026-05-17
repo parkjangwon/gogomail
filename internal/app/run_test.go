@@ -1023,6 +1023,22 @@ func TestAttachmentScanHooksForConfigWebhook(t *testing.T) {
 	}
 }
 
+func TestAttachmentScanHooksForConfigClamAV(t *testing.T) {
+	t.Parallel()
+
+	hooks, err := attachmentScanHooksForConfig(config.Config{
+		AttachmentScanBackend:    "clamav",
+		AttachmentScanClamAVAddr: "127.0.0.1:3310",
+		AttachmentScanTimeout:    time.Second,
+	}, nil, "test")
+	if err != nil {
+		t.Fatalf("attachmentScanHooksForConfig returned error: %v", err)
+	}
+	if len(hooks) != 1 {
+		t.Fatalf("hooks = %d, want one clamav stream scanner hook", len(hooks))
+	}
+}
+
 func TestPushNotificationSinkForConfigWebhook(t *testing.T) {
 	t.Parallel()
 

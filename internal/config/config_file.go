@@ -181,6 +181,8 @@ func applyYAMLConfigValue(cfg *Config, key string, value any) error {
 		return setYAMLString(value, &cfg.MetricsBackend, key)
 	case "attachment_scan_backend":
 		return setYAMLString(value, &cfg.AttachmentScanBackend, key)
+	case "attachment_scan_clamav_addr":
+		return setYAMLString(value, &cfg.AttachmentScanClamAVAddr, key)
 	case "attachment_scan_webhook_url":
 		return setYAMLString(value, &cfg.AttachmentScanWebhookURL, key)
 	case "attachment_scan_webhook_token":
