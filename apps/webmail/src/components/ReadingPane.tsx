@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import {
   Attachment,
   MessageDeliveryStatus,
@@ -449,6 +449,13 @@ export function ReadingPane({
     action?.();
   };
 
+  const handleReadingPaneKeyDown = (event: ReactKeyboardEvent<HTMLElement>) => {
+    if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return;
+    if ((event.target as HTMLElement | null)?.closest('button, a, input, textarea, select, [contenteditable="true"]')) return;
+    event.preventDefault();
+    scrollContainerRef.current?.scrollBy({ top: event.key === 'ArrowDown' ? 80 : -80, behavior: 'smooth' });
+  };
+
   if (loading) {
     return (
       <main
@@ -534,6 +541,9 @@ export function ReadingPane({
     <main
       ref={scrollContainerRef}
       aria-label="메일 읽기"
+      tabIndex={0}
+      data-nav-group="reading-pane"
+      onKeyDown={handleReadingPaneKeyDown}
       onScroll={handleReadingScroll}
       style={{
         flex: 1,

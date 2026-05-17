@@ -56,6 +56,7 @@ export function MessageRow({
   const avatarRef = useRef<HTMLDivElement>(null);
   const [swipeX, setSwipeX] = useState(0);
   const [hovered, setHovered] = useState(false);
+  const [focused, setFocused] = useState(false);
   const [showSnoozePopover, setShowSnoozePopover] = useState(false);
   const swipeEnabled = onDelete || onArchiveRow;
   const userAvatarUrl = useWebmailAvatar();
@@ -77,7 +78,12 @@ export function MessageRow({
       data-message-id={message.id}
       tabIndex={0}
       data-nav-group="message-list"
+      data-nav-current={isSelected ? 'true' : undefined}
       onMouseDown={(e) => { if (e.button === 0) e.currentTarget.focus(); }}
+      onFocusCapture={() => setFocused(true)}
+      onBlurCapture={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setFocused(false);
+      }}
       style={{ position: 'relative', overflow: 'hidden', borderLeft: labelColor ? `3px solid ${labelColor}` : '3px solid transparent' }}
     >
       {onArchiveRow && swipeX > 20 && (
@@ -119,20 +125,21 @@ export function MessageRow({
           gap: '8px',
           padding: compact ? '4px 16px' : '9px 16px',
           borderBottom: '1px solid var(--color-border-subtle)',
-          background: isSelected ? 'var(--color-accent-subtle)' : 'var(--color-bg-primary)',
+          background: isSelected
+            ? 'var(--color-accent-subtle)'
+            : focused
+              ? 'rgba(37, 99, 235, 0.06)'
+              : hovered
+                ? 'var(--color-bg-secondary)'
+                : 'var(--color-bg-primary)',
+          boxShadow: focused ? 'inset 0 0 0 1px rgba(37, 99, 235, 0.14)' : 'none',
           cursor: 'pointer',
-          transition: 'background 100ms ease, transform 80ms ease',
+          transition: 'background 100ms ease, transform 80ms ease, box-shadow 100ms ease',
           position: 'relative',
           transform: `translateX(${swipeX}px)`,
         }}
-        onMouseEnter={(e) => {
-          setHovered(true);
-          if (!isSelected) (e.currentTarget as HTMLDivElement).style.background = 'var(--color-bg-secondary)';
-        }}
-        onMouseLeave={(e) => {
-          setHovered(false);
-          if (!isSelected) (e.currentTarget as HTMLDivElement).style.background = 'var(--color-bg-primary)';
-        }}
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
       >
         <button
           type="button"

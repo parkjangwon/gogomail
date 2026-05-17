@@ -29,6 +29,7 @@ import {
   getVisibleMailMessages,
   parseSearchOperators,
 } from '@/lib/mail/mailPageUtils';
+import { focusNavGroup } from '@/lib/navKeyboard';
 
 const WEBMAIL_ACTIVE_APP_KEY = 'webmail_active_app';
 
@@ -47,6 +48,27 @@ function getInitialActiveApp(): AppId {
     // ignore
   }
   return 'mail';
+}
+
+function getFocusedNavGroup(): string | null {
+  if (typeof document === 'undefined') return null;
+  const active = document.activeElement as HTMLElement | null;
+  return active?.closest<HTMLElement>('[data-nav-group]')?.dataset.navGroup ?? null;
+}
+
+function getMailNavGroups(readingPaneOpen: boolean): string[] {
+  return readingPaneOpen ? ['sidebar-nav', 'message-list', 'reading-pane'] : ['sidebar-nav', 'message-list'];
+}
+
+function moveMailPanelFocus(direction: 'prev' | 'next', readingPaneOpen: boolean): boolean {
+  const groups = getMailNavGroups(readingPaneOpen);
+  const currentGroup = getFocusedNavGroup();
+  const currentIndex = currentGroup ? groups.indexOf(currentGroup) : -1;
+  const fallbackIndex = direction === 'next' ? 0 : groups.length - 1;
+  const nextIndex = currentIndex === -1
+    ? fallbackIndex
+    : Math.max(0, Math.min(groups.length - 1, currentIndex + (direction === 'next' ? 1 : -1)));
+  return !!focusNavGroup(groups[nextIndex]);
 }
 
 export default function MailPage() {
@@ -750,6 +772,12 @@ export default function MailPage() {
       }
 
       switch (key) {
+        case 'ArrowRight':
+          if (moveMailPanelFocus('next', !!selectedMessageId && !isMobile)) e.preventDefault();
+          return;
+        case 'ArrowLeft':
+          if (moveMailPanelFocus('prev', !!selectedMessageId && !isMobile)) e.preventDefault();
+          return;
         case 'g':
           gPrefixRef.current = true;
           setTimeout(() => { gPrefixRef.current = false; }, 1000);
@@ -867,11 +895,8 @@ export default function MailPage() {
         case 'Delete':
           if (selectedMessageId && !composeContext) handleDelete();
           break;
-        case 'Enter':
         case 'o': {
           if (selectedMessageId && !composeContext) {
-            // 'Enter' in the list opens the message — already selected, just a no-op (reading pane shows)
-            // If nothing is selected, open first message
             if (!selectedMessageId) {
               const first = list[0];
               if (first) setSelectedMessageId(first.id);
@@ -905,7 +930,7 @@ export default function MailPage() {
     }
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [messages, searchResults, selectedMessageId, selectedMessage, composeContext, openCompose, closeCompose, showShortcuts, handleDelete, handleArchive, handleSpam, handleMarkRead, handleMarkUnread, handleStar, getNextId, folders, messageLabels, setLabel, activeFolderSystemType, setActiveApp, showSpotlight, handleMove, handlePin, activeApp]);
+  }, [messages, searchResults, selectedMessageId, selectedMessage, composeContext, openCompose, closeCompose, showShortcuts, handleDelete, handleArchive, handleSpam, handleMarkRead, handleMarkUnread, handleStar, getNextId, folders, messageLabels, setLabel, activeFolderSystemType, setActiveApp, showSpotlight, handleMove, handlePin, activeApp, isMobile]);
 
   const refreshRef = useRef(refresh);
   useEffect(() => { refreshRef.current = refresh; }, [refresh]);
