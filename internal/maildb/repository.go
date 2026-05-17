@@ -69,7 +69,7 @@ func (r *Repository) Record(ctx context.Context, msg smtpd.ReceivedMessage) erro
 		return err
 	}
 
-	folderID, err := r.inboxFolderID(ctx, msg.Mailbox.UserID)
+	folderID, err := r.deliveryFolderID(ctx, msg.Mailbox.UserID, msg.FolderSystemType)
 	if err != nil {
 		return err
 	}
@@ -153,21 +153,28 @@ INSERT INTO messages (
 	return nil
 }
 
-func (r *Repository) inboxFolderID(ctx context.Context, userID string) (string, error) {
+func (r *Repository) deliveryFolderID(ctx context.Context, userID string, systemType string) (string, error) {
+	systemType = strings.TrimSpace(systemType)
+	if systemType == "" {
+		systemType = "inbox"
+	}
 	const query = `
 SELECT id::text
 FROM folders
 WHERE user_id = $1
   AND type = 'system'
-  AND system_type = 'inbox'
+  AND system_type = $2
 LIMIT 1`
 
 	var folderID string
-	if err := r.db.QueryRowContext(ctx, query, userID).Scan(&folderID); err != nil {
+	if err := r.db.QueryRowContext(ctx, query, userID, systemType).Scan(&folderID); err != nil {
 		if err == sql.ErrNoRows {
+			if systemType != "inbox" {
+				return r.deliveryFolderID(ctx, userID, "inbox")
+			}
 			return "", fmt.Errorf("inbox folder for user %q not found", userID)
 		}
-		return "", fmt.Errorf("lookup inbox folder for user %q: %w", userID, err)
+		return "", fmt.Errorf("lookup %s folder for user %q: %w", systemType, userID, err)
 	}
 	return folderID, nil
 }

@@ -674,6 +674,8 @@ func TestOpenAPIDraftDocumentsStableResponseEnvelopes(t *testing.T) {
 		"GET /audit-logs/integrity":                                           "#/components/responses/AuditLogIntegrity",
 		"GET /audit-logs/{id}":                                                "#/components/responses/AuditLog",
 		"GET /companies/{id}/security/login-audits":                           "#/components/responses/LoginAuditList",
+		"GET /companies/{id}/security/spam-filter/events":                     "#/components/responses/SpamFilterEventList",
+		"GET /companies/{id}/security/spam-filter/stats":                      "#/components/responses/SpamFilterStats",
 		"GET /directory/principals":                                           "#/components/responses/DirectoryPrincipalList",
 		"GET /directory/aliases/resolve":                                      "#/components/responses/DirectoryAlias",
 		"GET /directory/aliases":                                              "#/components/responses/DirectoryAliasList",

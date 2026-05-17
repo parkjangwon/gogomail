@@ -25,6 +25,7 @@ import (
 	"github.com/gogomail/gogomail/internal/directory"
 	"github.com/gogomail/gogomail/internal/drive"
 	"github.com/gogomail/gogomail/internal/maildb"
+	"github.com/gogomail/gogomail/internal/spamfilter"
 	"github.com/gogomail/gogomail/internal/storage"
 	webhookguard "github.com/gogomail/gogomail/internal/webhook"
 )
@@ -4486,6 +4487,14 @@ func registerAdminUtilityRoutes(mux *http.ServeMux, service AdminService, cfg ad
 		handlePutCompanySpamFilterPolicy(w, r, service)
 	}))
 
+	mux.HandleFunc("GET /admin/v1/companies/{id}/security/spam-filter/events", adminAuth(func(w http.ResponseWriter, r *http.Request) {
+		handleListCompanySpamFilterEvents(w, r, service)
+	}))
+
+	mux.HandleFunc("GET /admin/v1/companies/{id}/security/spam-filter/stats", adminAuth(func(w http.ResponseWriter, r *http.Request) {
+		handleGetCompanySpamFilterStats(w, r, service)
+	}))
+
 	mux.HandleFunc("GET /admin/v1/domains/{id}/security/spam-filter", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		handleGetDomainSpamFilterPolicy(w, r, service)
 	}))
@@ -5979,28 +5988,8 @@ func buildSpfRecord(p dmarcSpfPolicy) string {
 
 const spamFilterPolicyKey = "spam_filter_policy"
 
-type spamFilterPolicy struct {
-	Enabled           bool     `json:"enabled"`
-	SpamThreshold     int      `json:"spam_threshold"`
-	VirusScanEnabled  bool     `json:"virus_scan_enabled"`
-	BlockedExtensions []string `json:"blocked_extensions"`
-	BlockedSenders    []string `json:"blocked_senders"`
-	AllowedSenders    []string `json:"allowed_senders"`
-	QuarantineEnabled bool     `json:"quarantine_enabled"`
-	MaxAttachmentMB   int      `json:"max_attachment_mb"`
-}
-
-func defaultSpamFilterPolicy() spamFilterPolicy {
-	return spamFilterPolicy{
-		Enabled:           true,
-		SpamThreshold:     5,
-		VirusScanEnabled:  true,
-		BlockedExtensions: []string{".exe", ".bat", ".scr", ".vbs", ".pif"},
-		BlockedSenders:    []string{},
-		AllowedSenders:    []string{},
-		QuarantineEnabled: true,
-		MaxAttachmentMB:   25,
-	}
+func defaultSpamFilterPolicy() spamfilter.Policy {
+	return spamfilter.DefaultPolicy()
 }
 
 func handleGetCompanySpamFilterPolicy(w http.ResponseWriter, r *http.Request, service AdminService) {
@@ -6013,15 +6002,7 @@ func handleGetCompanySpamFilterPolicy(w http.ResponseWriter, r *http.Request, se
 	policy := defaultSpamFilterPolicy()
 	if err == nil {
 		_ = json.Unmarshal(entry.Value, &policy)
-		if policy.BlockedExtensions == nil {
-			policy.BlockedExtensions = []string{}
-		}
-		if policy.BlockedSenders == nil {
-			policy.BlockedSenders = []string{}
-		}
-		if policy.AllowedSenders == nil {
-			policy.AllowedSenders = []string{}
-		}
+		policy = spamfilter.NormalizePolicy(policy)
 	} else if !errors.Is(err, configstore.ErrConfigNotFound) {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -6035,7 +6016,7 @@ func handlePutCompanySpamFilterPolicy(w http.ResponseWriter, r *http.Request, se
 	if !ok {
 		return
 	}
-	var policy spamFilterPolicy
+	var policy spamfilter.Policy
 	if err := decodeJSONBody(r, &policy); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid JSON body")
 		return
@@ -6048,15 +6029,7 @@ func handlePutCompanySpamFilterPolicy(w http.ResponseWriter, r *http.Request, se
 		writeError(w, http.StatusBadRequest, "max_attachment_mb must be >= 0")
 		return
 	}
-	if policy.BlockedExtensions == nil {
-		policy.BlockedExtensions = []string{}
-	}
-	if policy.BlockedSenders == nil {
-		policy.BlockedSenders = []string{}
-	}
-	if policy.AllowedSenders == nil {
-		policy.AllowedSenders = []string{}
-	}
+	policy = spamfilter.NormalizePolicy(policy)
 	b, err := json.Marshal(policy)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to marshal policy")
@@ -6079,15 +6052,7 @@ func handleGetDomainSpamFilterPolicy(w http.ResponseWriter, r *http.Request, ser
 	policy := defaultSpamFilterPolicy()
 	if err == nil {
 		_ = json.Unmarshal(entry.Value, &policy)
-		if policy.BlockedExtensions == nil {
-			policy.BlockedExtensions = []string{}
-		}
-		if policy.BlockedSenders == nil {
-			policy.BlockedSenders = []string{}
-		}
-		if policy.AllowedSenders == nil {
-			policy.AllowedSenders = []string{}
-		}
+		policy = spamfilter.NormalizePolicy(policy)
 	} else if !errors.Is(err, configstore.ErrConfigNotFound) {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -6101,7 +6066,7 @@ func handlePutDomainSpamFilterPolicy(w http.ResponseWriter, r *http.Request, ser
 	if !ok {
 		return
 	}
-	var policy spamFilterPolicy
+	var policy spamfilter.Policy
 	if err := decodeJSONBody(r, &policy); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid JSON body")
 		return
@@ -6114,15 +6079,7 @@ func handlePutDomainSpamFilterPolicy(w http.ResponseWriter, r *http.Request, ser
 		writeError(w, http.StatusBadRequest, "max_attachment_mb must be >= 0")
 		return
 	}
-	if policy.BlockedExtensions == nil {
-		policy.BlockedExtensions = []string{}
-	}
-	if policy.BlockedSenders == nil {
-		policy.BlockedSenders = []string{}
-	}
-	if policy.AllowedSenders == nil {
-		policy.AllowedSenders = []string{}
-	}
+	policy = spamfilter.NormalizePolicy(policy)
 	b, err := json.Marshal(policy)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to marshal policy")
@@ -6133,6 +6090,57 @@ func handlePutDomainSpamFilterPolicy(w http.ResponseWriter, r *http.Request, ser
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"policy": policy})
+}
+
+func handleListCompanySpamFilterEvents(w http.ResponseWriter, r *http.Request, service AdminService) {
+	if !rejectUnknownQueryKeys(w, r, "limit", "domain_id", "user_id", "from_addr", "to_addr", "subject", "flow_status", "since", "until") {
+		return
+	}
+	id, ok := parseBoundedAdminPathValue(w, r, "id")
+	if !ok {
+		return
+	}
+	limit, ok := parseQueryLimit(w, r)
+	if !ok {
+		return
+	}
+	req, ok := parseMailFlowLogListRequest(w, r, limit)
+	if !ok {
+		return
+	}
+	req.CompanyID = id
+	req.Direction = string(maildb.MailFlowDirectionInbound)
+	if strings.TrimSpace(req.FlowStatus) == "" {
+		req.FlowStatus = string(maildb.MailFlowStatusFiltered)
+	}
+	logs, err := service.ListMailFlowLogs(r.Context(), req)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"spam_filter_events": logs})
+}
+
+func handleGetCompanySpamFilterStats(w http.ResponseWriter, r *http.Request, service AdminService) {
+	if !rejectUnknownQueryKeys(w, r, "domain_id", "user_id", "since", "until") {
+		return
+	}
+	id, ok := parseBoundedAdminPathValue(w, r, "id")
+	if !ok {
+		return
+	}
+	req, ok := parseMailFlowLogStatsRequest(w, r)
+	if !ok {
+		return
+	}
+	req.CompanyID = id
+	req.Direction = string(maildb.MailFlowDirectionInbound)
+	stats, err := service.GetMailFlowLogStats(r.Context(), req)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"spam_filter_stats": stats})
 }
 
 // ─── Quota Summary ────────────────────────────────────────────────────────────

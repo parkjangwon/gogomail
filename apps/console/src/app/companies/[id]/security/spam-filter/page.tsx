@@ -21,6 +21,7 @@ import {
 import { useState, useEffect, useCallback } from 'react';
 import { useI18n } from '@/app/i18n-provider';
 import { useCompany } from '@/contexts/CompanyContext';
+import { DataTable } from '@/components/DataTable';
 
 interface SpamFilterPolicy {
   enabled: boolean;
@@ -31,6 +32,29 @@ interface SpamFilterPolicy {
   allowed_senders: string[];
   quarantine_enabled: boolean;
   max_attachment_mb: number;
+}
+
+interface SpamFilterEvent {
+  id: string;
+  created_at: string;
+  from_addr?: string;
+  mail_from?: string;
+  rcpt_to?: string;
+  subject?: string;
+  flow_status: string;
+  enhanced_status?: string;
+  error_message?: string;
+  spam_score?: number;
+  spf_result?: string;
+  dkim_result?: string;
+  dmarc_result?: string;
+}
+
+interface SpamFilterStats {
+  total_messages: number;
+  filtered: number;
+  rejected: number;
+  delivered: number;
 }
 
 const defaultPolicy = (): SpamFilterPolicy => ({
@@ -53,6 +77,10 @@ export default function SpamFilterPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [notifications, setNotifications] = useState<FlashbarProps.MessageDefinition[]>([]);
+  const [events, setEvents] = useState<SpamFilterEvent[]>([]);
+  const [stats, setStats] = useState<SpamFilterStats | null>(null);
+  const [scopeDomainId, setScopeDomainId] = useState('');
+  const [activeDomainId, setActiveDomainId] = useState('');
 
   const [newBlockedExt, setNewBlockedExt] = useState('');
   const [newBlockedSender, setNewBlockedSender] = useState('');
@@ -61,9 +89,21 @@ export default function SpamFilterPage() {
   const fetchPolicy = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/admin/companies/${cid}/security/spam-filter`, { credentials: 'include' });
-      if (res.ok) {
-        const data = await res.json();
+      const domainId = activeDomainId.trim();
+      const policyPath = domainId
+        ? `/api/admin/domains/${encodeURIComponent(domainId)}/security/spam-filter`
+        : `/api/admin/companies/${cid}/security/spam-filter`;
+      const domainQuery = domainId ? `&domain_id=${encodeURIComponent(domainId)}` : '';
+      const statsPath = domainId
+        ? `/api/admin/companies/${cid}/security/spam-filter/stats?domain_id=${encodeURIComponent(domainId)}`
+        : `/api/admin/companies/${cid}/security/spam-filter/stats`;
+      const [policyRes, eventsRes, statsRes] = await Promise.all([
+        fetch(policyPath, { credentials: 'include' }),
+        fetch(`/api/admin/companies/${cid}/security/spam-filter/events?limit=25${domainQuery}`, { credentials: 'include' }),
+        fetch(statsPath, { credentials: 'include' }),
+      ]);
+      if (policyRes.ok) {
+        const data = await policyRes.json();
         const p = data.policy ?? {};
         setPolicy({
           ...defaultPolicy(),
@@ -73,17 +113,29 @@ export default function SpamFilterPage() {
           allowed_senders: p.allowed_senders ?? [],
         });
       }
+      if (eventsRes.ok) {
+        const data = await eventsRes.json();
+        setEvents(data.spam_filter_events ?? []);
+      }
+      if (statsRes.ok) {
+        const data = await statsRes.json();
+        setStats(data.spam_filter_stats ?? null);
+      }
     } finally {
       setLoading(false);
     }
-  }, [cid]);
+  }, [cid, activeDomainId]);
 
   useEffect(() => { fetchPolicy(); }, [fetchPolicy]);
 
   const handleSave = async () => {
     setSaving(true);
     try {
-      const res = await fetch(`/api/admin/companies/${cid}/security/spam-filter`, {
+      const domainId = activeDomainId.trim();
+      const policyPath = domainId
+        ? `/api/admin/domains/${encodeURIComponent(domainId)}/security/spam-filter`
+        : `/api/admin/companies/${cid}/security/spam-filter`;
+      const res = await fetch(policyPath, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(policy),
@@ -132,6 +184,19 @@ export default function SpamFilterPage() {
         {/* Master toggle */}
         <Container header={<Header variant="h2">{t('pages.spam_filter_page.general_section')}</Header>}>
           <SpaceBetween size="m">
+            <FormField
+              label="Policy scope"
+              description="Leave empty to manage the company default policy. Enter a domain ID to manage that domain override."
+            >
+              <SpaceBetween direction="horizontal" size="xs">
+                <Input
+                  value={scopeDomainId}
+                  onChange={e => setScopeDomainId(e.detail.value)}
+                  placeholder="domain id"
+                />
+                <Button onClick={() => setActiveDomainId(scopeDomainId.trim())}>Load scope</Button>
+              </SpaceBetween>
+            </FormField>
             <FormField label={t('pages.spam_filter_page.enabled_label')} description={t('pages.spam_filter_page.enabled_desc')}>
               <Toggle
                 checked={policy.enabled}
@@ -145,6 +210,21 @@ export default function SpamFilterPage() {
 
         {policy.enabled && (
           <>
+            <ColumnLayout columns={3} variant="text-grid" minColumnWidth={180}>
+              <Container>
+                <Box variant="awsui-key-label">Filtered</Box>
+                <Box variant="h2">{(stats?.filtered ?? 0).toLocaleString()}</Box>
+              </Container>
+              <Container>
+                <Box variant="awsui-key-label">Rejected</Box>
+                <Box variant="h2">{(stats?.rejected ?? 0).toLocaleString()}</Box>
+              </Container>
+              <Container>
+                <Box variant="awsui-key-label">Delivered</Box>
+                <Box variant="h2">{(stats?.delivered ?? 0).toLocaleString()}</Box>
+              </Container>
+            </ColumnLayout>
+
             {/* Spam detection */}
             <Container header={<Header variant="h2">{t('pages.spam_filter_page.detection_section')}</Header>}>
               <SpaceBetween size="m">
@@ -285,6 +365,43 @@ export default function SpamFilterPage() {
                 </FormField>
               </SpaceBetween>
             </Container>
+
+            <DataTable
+              columnDefinitions={[
+                {
+                  header: 'Time',
+                  cell: (item: SpamFilterEvent) => item.created_at ? new Date(item.created_at).toLocaleString() : '—',
+                  width: '16%',
+                },
+                {
+                  header: 'From',
+                  cell: (item: SpamFilterEvent) => item.from_addr || item.mail_from || '—',
+                  width: '18%',
+                },
+                {
+                  header: 'Subject',
+                  cell: (item: SpamFilterEvent) => item.subject || '—',
+                  width: '24%',
+                },
+                {
+                  header: 'Action',
+                  cell: (item: SpamFilterEvent) => item.enhanced_status || item.flow_status,
+                  width: '10%',
+                },
+                {
+                  header: 'Score',
+                  cell: (item: SpamFilterEvent) => item.spam_score?.toFixed(1) ?? '—',
+                  width: '8%',
+                },
+                {
+                  header: 'Reason',
+                  cell: (item: SpamFilterEvent) => item.error_message || '—',
+                  width: '24%',
+                },
+              ]}
+              items={events}
+              header={<Header variant="h2" counter={`(${events.length})`}>Recent spam filter events</Header>}
+            />
           </>
         )}
 

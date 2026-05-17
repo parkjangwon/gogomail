@@ -1,6 +1,15 @@
 # gogomail current status
 
-Last updated: 2026-05-17 (Security hardening)
+Last updated: 2026-05-17 (Built-in spam filter)
+
+## Built-in Spam Filter (2026-05-17)
+- SMTP receive now runs a built-in spam filter after dedupe checks and before message storage, using company/domain/user policy resolution from configstore.
+- The filter scores SPF, DKIM, DMARC, suspicious subject patterns, blocked senders/domains, blocked or double executable attachment names, attachment size, high recipient count, and unauthenticated remote delivery.
+- Policy actions support accept, quarantine to the spam system folder, reject, and temporary failure. Quarantined messages are routed to the spam folder before repository storage instead of relying on a later mailbox move.
+- `apps/console` spam-filter management now supports the company default policy plus an explicit domain policy scope, so domain administrators can load a domain override, tune thresholds, manage blocked/allowed senders, and set attachment controls.
+- Company spam-filter monitoring now exposes recent filtered/rejected events and aggregate counters through the admin API and console table, backed by inbound mail-flow logs.
+- The OpenAPI contract now documents company spam-filter events and stats endpoints.
+- Verification: `go test ./...`, `pnpm --dir apps/console type-check`, and `git diff --check` pass.
 
 ## OWASP Security Hardening (2026-05-17)
 - Backend outbound URL validation now rejects localhost, private/link-local, multicast, unspecified, and metadata-service destinations after DNS resolution for webhook-style integrations, including redirect revalidation.
