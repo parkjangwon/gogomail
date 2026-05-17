@@ -64,6 +64,10 @@ Primary risk areas covered in this pass:
 - SMTP receive parsing keeps body extraction bounded to 64KB for spam scoring
   and milter BodyChunk input, so content checks have useful signal without
   unbounded memory growth on bulk inbound traffic.
+- Attachment byte scanning supports a separate ClamAV `clamd` service through
+  the INSTREAM protocol. The backend streams the spooled MIME message to ClamAV
+  over TCP and treats `FOUND` as a reject verdict, while keeping the AV engine,
+  signature database, and update lifecycle outside the backend container.
 
 ## Verification Commands
 
@@ -88,7 +92,6 @@ Primary risk areas covered in this pass:
   remove `unsafe-inline` without visual flicker.
 - Add centralized security event logging for rejected same-origin, private URL,
   and oversized proxy attempts once the audit pipeline is finalized.
-- Add content-based antivirus scanning for stored attachment bytes. The current
-  built-in filter blocks dangerous attachment names and can call the attachment
-  scanner webhook, but it does not yet embed a local ClamAV/YARA-style byte
-  scanner in-process.
+- Add operator-facing ClamAV health and signature freshness monitoring in
+  `apps/console` so administrators can see stale signatures or scanner outages
+  before mail acceptance depends on them.

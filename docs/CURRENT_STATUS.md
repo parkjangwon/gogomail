@@ -1,6 +1,13 @@
 # gogomail current status
 
-Last updated: 2026-05-17 (Spam filter hardening)
+Last updated: 2026-05-17 (ClamAV attachment scanning)
+
+## ClamAV Attachment Scanning (2026-05-17)
+- Attachment scanning now supports `attachment_scan_backend: clamav`, with backend configuration through `attachment_scan_clamav_addr` / `GOGOMAIL_ATTACHMENT_SCAN_CLAMAV_ADDR`.
+- The SMTP receive pipeline sends the bounded spooled MIME message to `clamd` using the ClamAV `INSTREAM` protocol, so attachment bytes are scanned outside the backend container without loading whole messages into memory.
+- Development Docker Compose now runs a separate `clamav/clamav:stable` service with a persistent signature database volume, healthcheck, and backend dependency.
+- `configs/config.dev.yaml` enables the ClamAV backend at `clamav:3310`; `configs/config.example.yaml` documents the default standalone `127.0.0.1:3310` address for non-compose deployments.
+- Verification: `go test ./internal/attachmentscan ./internal/config ./internal/app ./internal/smtp` passes.
 
 ## Spam Filter Hardening (2026-05-17)
 - The built-in receive filter now has stricter authentication scoring: DMARC/SPF/DKIM failures and missing auth-pass combinations are weighted strongly enough to quarantine under the default threshold.

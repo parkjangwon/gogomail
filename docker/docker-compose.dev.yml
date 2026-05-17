@@ -78,6 +78,22 @@ services:
       - gogomail-dev
 
   # Go Backend - Development
+  clamav:
+    image: clamav/clamav:stable
+    container_name: gogomail-clamav-dev
+    ports:
+      - "${GOGOMAIL_DEV_CLAMAV_PORT:-3310}:3310"
+    volumes:
+      - clamav-data:/var/lib/clamav
+    healthcheck:
+      test: ["CMD-SHELL", "clamdscan --ping=1 >/dev/null 2>&1"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
+    networks:
+      - gogomail-dev
+
   backend:
     image: golang:1.25-alpine
     container_name: gogomail-backend-dev
@@ -107,6 +123,8 @@ services:
         condition: service_healthy
       minio:
         condition: service_healthy
+      clamav:
+        condition: service_healthy
     networks:
       - gogomail-dev
 
@@ -116,6 +134,8 @@ volumes:
   redis-data:
     driver: local
   minio-data:
+    driver: local
+  clamav-data:
     driver: local
 
 networks:

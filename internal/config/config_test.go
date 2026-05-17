@@ -81,6 +81,7 @@ func TestLoadAppliesDefaults(t *testing.T) {
 	t.Setenv("GOGOMAIL_DEDUP_BACKEND", "")
 	t.Setenv("GOGOMAIL_RATELIMIT_BACKEND", "")
 	t.Setenv("GOGOMAIL_ATTACHMENT_SCAN_BACKEND", "")
+	t.Setenv("GOGOMAIL_ATTACHMENT_SCAN_CLAMAV_ADDR", "")
 	t.Setenv("GOGOMAIL_ATTACHMENT_SCAN_WEBHOOK_URL", "")
 	t.Setenv("GOGOMAIL_ATTACHMENT_SCAN_WEBHOOK_TOKEN", "")
 	t.Setenv("GOGOMAIL_ATTACHMENT_SCAN_TIMEOUT", "")
@@ -602,6 +603,7 @@ func TestLoadReadsEnvironmentOverrides(t *testing.T) {
 	t.Setenv("GOGOMAIL_DEDUP_BACKEND", "redis")
 	t.Setenv("GOGOMAIL_RATELIMIT_BACKEND", "redis")
 	t.Setenv("GOGOMAIL_ATTACHMENT_SCAN_BACKEND", "webhook")
+	t.Setenv("GOGOMAIL_ATTACHMENT_SCAN_CLAMAV_ADDR", "clamav:3310")
 	t.Setenv("GOGOMAIL_ATTACHMENT_SCAN_WEBHOOK_URL", "http://scanner.internal/scan")
 	t.Setenv("GOGOMAIL_ATTACHMENT_SCAN_WEBHOOK_TOKEN", "scanner-token")
 	t.Setenv("GOGOMAIL_ATTACHMENT_SCAN_TIMEOUT", "3s")
@@ -855,6 +857,9 @@ func TestLoadReadsEnvironmentOverrides(t *testing.T) {
 	}
 	if cfg.AttachmentScanBackend != "webhook" {
 		t.Fatalf("AttachmentScanBackend = %q, want webhook", cfg.AttachmentScanBackend)
+	}
+	if cfg.AttachmentScanClamAVAddr != "clamav:3310" {
+		t.Fatalf("AttachmentScanClamAVAddr = %q, want clamav:3310", cfg.AttachmentScanClamAVAddr)
 	}
 	if cfg.AttachmentScanWebhookURL != "http://scanner.internal/scan" {
 		t.Fatalf("AttachmentScanWebhookURL = %q, want scanner URL", cfg.AttachmentScanWebhookURL)

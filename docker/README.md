@@ -12,6 +12,7 @@ This directory contains Docker Compose configurations for different deployment s
 - PostgreSQL (single instance)
 - Redis (single instance)
 - MinIO (single node)
+- ClamAV (`clamd` + persistent signature DB volume)
 - GoGoMail backend (hot-reload via mounted volume)
 
 **Usage**:
@@ -22,6 +23,7 @@ docker-compose -f docker-compose.dev.yml up
 **Features**:
 - Hot reload for Go backend
 - Direct database access for testing
+- Attachment byte scanning through a separate ClamAV container at `clamav:3310`
 - Development-friendly logging
 - No authentication required
 

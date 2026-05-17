@@ -668,6 +668,10 @@ func TestValidateRejectsInvalidAttachmentScanConfig(t *testing.T) {
 		mutate func(*Config)
 	}{
 		{name: "unknown backend", mutate: func(cfg *Config) { cfg.AttachmentScanBackend = "clamd" }},
+		{name: "bad clamav addr", mutate: func(cfg *Config) {
+			cfg.AttachmentScanBackend = "clamav"
+			cfg.AttachmentScanClamAVAddr = "clamav"
+		}},
 		{name: "missing webhook url", mutate: func(cfg *Config) {
 			cfg.AttachmentScanBackend = "webhook"
 			cfg.AttachmentScanWebhookURL = ""

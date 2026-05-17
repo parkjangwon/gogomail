@@ -2130,6 +2130,18 @@ func attachmentScanHooksForConfig(cfg config.Config, logger *slog.Logger, compon
 			logger.Info(component+" attachment scanner configured", "backend", "webhook", "timeout", cfg.AttachmentScanTimeout.String())
 		}
 		return []smtpd.Hook{attachmentscan.Hook(attachmentscan.HookOptions{Scanner: scanner})}, nil
+	case "clamav":
+		scanner, err := attachmentscan.NewClamAVScanner(attachmentscan.ClamAVOptions{
+			Addr:    cfg.AttachmentScanClamAVAddr,
+			Timeout: cfg.AttachmentScanTimeout,
+		})
+		if err != nil {
+			return nil, err
+		}
+		if logger != nil {
+			logger.Info(component+" attachment scanner configured", "backend", "clamav", "addr", cfg.AttachmentScanClamAVAddr, "timeout", cfg.AttachmentScanTimeout.String())
+		}
+		return []smtpd.Hook{attachmentscan.StreamHook(attachmentscan.StreamHookOptions{Scanner: scanner})}, nil
 	default:
 		return nil, fmt.Errorf("unsupported attachment scanner backend %q", cfg.AttachmentScanBackend)
 	}
