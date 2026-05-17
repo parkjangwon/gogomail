@@ -24,6 +24,8 @@ docker-compose -f docker-compose.dev.yml up
 - Hot reload for Go backend
 - Direct database access for testing
 - Attachment byte scanning through a separate ClamAV container at `clamav:3310`
+- Bounded ClamAV scan admission: only attachment-bearing messages are scanned,
+  with backend concurrency, timeout, max-byte, and circuit-breaker controls
 - Development-friendly logging
 - No authentication required
 

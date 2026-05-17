@@ -122,6 +122,10 @@ type Config struct {
 	DNSBLPolicy                         string
 	AttachmentScanBackend               string
 	AttachmentScanClamAVAddr            string
+	AttachmentScanMaxConcurrency        int
+	AttachmentScanMaxBytes              int64
+	AttachmentScanFailureThreshold      int
+	AttachmentScanCircuitOpenDuration   time.Duration
 	AttachmentScanWebhookURL            string
 	AttachmentScanWebhookToken          string
 	AttachmentScanTimeout               time.Duration
@@ -363,6 +367,10 @@ func Load() Config {
 		DNSBLPolicy:                         envOrDefault("GOGOMAIL_DNSBL_POLICY", "reject"),
 		AttachmentScanBackend:               envOrDefault("GOGOMAIL_ATTACHMENT_SCAN_BACKEND", "none"),
 		AttachmentScanClamAVAddr:            envOrDefault("GOGOMAIL_ATTACHMENT_SCAN_CLAMAV_ADDR", "127.0.0.1:3310"),
+		AttachmentScanMaxConcurrency:        intEnvOrDefault("GOGOMAIL_ATTACHMENT_SCAN_MAX_CONCURRENCY", 4),
+		AttachmentScanMaxBytes:              int64EnvOrDefault("GOGOMAIL_ATTACHMENT_SCAN_MAX_BYTES", 25<<20),
+		AttachmentScanFailureThreshold:      intEnvOrDefault("GOGOMAIL_ATTACHMENT_SCAN_FAILURE_THRESHOLD", 3),
+		AttachmentScanCircuitOpenDuration:   durationEnvOrDefault("GOGOMAIL_ATTACHMENT_SCAN_CIRCUIT_OPEN_DURATION", 30*time.Second),
 		AttachmentScanWebhookURL:            envOrDefault("GOGOMAIL_ATTACHMENT_SCAN_WEBHOOK_URL", ""),
 		AttachmentScanWebhookToken:          os.Getenv("GOGOMAIL_ATTACHMENT_SCAN_WEBHOOK_TOKEN"),
 		AttachmentScanTimeout:               durationEnvOrDefault("GOGOMAIL_ATTACHMENT_SCAN_TIMEOUT", 2*time.Second),

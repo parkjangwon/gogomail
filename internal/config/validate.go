@@ -357,6 +357,21 @@ func (c Config) Validate() error {
 	if c.AttachmentScanTimeout <= 0 {
 		return fmt.Errorf("GOGOMAIL_ATTACHMENT_SCAN_TIMEOUT must be positive")
 	}
+	if c.AttachmentScanMaxConcurrency <= 0 {
+		return fmt.Errorf("GOGOMAIL_ATTACHMENT_SCAN_MAX_CONCURRENCY must be positive")
+	}
+	if c.AttachmentScanMaxConcurrency > 1024 {
+		return fmt.Errorf("GOGOMAIL_ATTACHMENT_SCAN_MAX_CONCURRENCY must be <= 1024")
+	}
+	if c.AttachmentScanMaxBytes <= 0 {
+		return fmt.Errorf("GOGOMAIL_ATTACHMENT_SCAN_MAX_BYTES must be positive")
+	}
+	if c.AttachmentScanFailureThreshold <= 0 {
+		return fmt.Errorf("GOGOMAIL_ATTACHMENT_SCAN_FAILURE_THRESHOLD must be positive")
+	}
+	if c.AttachmentScanCircuitOpenDuration <= 0 {
+		return fmt.Errorf("GOGOMAIL_ATTACHMENT_SCAN_CIRCUIT_OPEN_DURATION must be positive")
+	}
 	if c.AttachmentCleanupInterval <= 0 {
 		return fmt.Errorf("GOGOMAIL_ATTACHMENT_CLEANUP_INTERVAL must be positive")
 	}

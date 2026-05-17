@@ -1027,9 +1027,13 @@ func TestAttachmentScanHooksForConfigClamAV(t *testing.T) {
 	t.Parallel()
 
 	hooks, err := attachmentScanHooksForConfig(config.Config{
-		AttachmentScanBackend:    "clamav",
-		AttachmentScanClamAVAddr: "127.0.0.1:3310",
-		AttachmentScanTimeout:    time.Second,
+		AttachmentScanBackend:             "clamav",
+		AttachmentScanClamAVAddr:          "127.0.0.1:3310",
+		AttachmentScanTimeout:             time.Second,
+		AttachmentScanMaxConcurrency:      2,
+		AttachmentScanMaxBytes:            1024,
+		AttachmentScanFailureThreshold:    2,
+		AttachmentScanCircuitOpenDuration: time.Second,
 	}, nil, "test")
 	if err != nil {
 		t.Fatalf("attachmentScanHooksForConfig returned error: %v", err)

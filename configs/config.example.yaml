@@ -24,6 +24,10 @@ delivery_smarthost_username: ""
 metrics_backend: none
 attachment_scan_backend: none
 attachment_scan_clamav_addr: 127.0.0.1:3310
+attachment_scan_max_concurrency: 4
+attachment_scan_max_bytes: 26214400
+attachment_scan_failure_threshold: 3
+attachment_scan_circuit_open_duration: 30s
 attachment_scan_webhook_url: ""
 attachment_scan_webhook_token: ""
 attachment_scan_timeout: 2s
