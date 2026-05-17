@@ -2,6 +2,10 @@ import { test, expect } from '@playwright/test';
 
 test.describe('Mail List', () => {
   test.beforeEach(async ({ page }) => {
+    await page.addInitScript(() => {
+      localStorage.setItem('webmail_authenticated', '1');
+      localStorage.setItem('webmail_email', 'pjw@parkjw.org');
+    });
     // Navigate to mail page
     // In dev mode with GOGOMAIL_DEV_USER_ID, this should work without login
     await page.goto('/mail');
@@ -35,12 +39,6 @@ test.describe('Mail List', () => {
   });
 
   test('arrow keys move between rows and space toggles bulk selection', async ({ page }) => {
-    await page.goto('/login');
-    await page.getByLabel('이메일').fill('pjw@parkjw.org');
-    await page.getByLabel('비밀번호').fill('pass1234');
-    await page.getByRole('button', { name: '로그인' }).click();
-    await page.waitForURL(/\/mail/, { timeout: 15_000 });
-
     const rows = page.locator('[data-message-id]');
     await expect(rows.first()).toBeVisible({ timeout: 15_000 });
     await rows.first().focus();
@@ -53,12 +51,6 @@ test.describe('Mail List', () => {
   });
 
   test('settings menu moves with arrow keys', async ({ page }) => {
-    await page.goto('/login');
-    await page.getByLabel('이메일').fill('pjw@parkjw.org');
-    await page.getByLabel('비밀번호').fill('pass1234');
-    await page.getByRole('button', { name: '로그인' }).click();
-    await page.waitForURL(/\/mail/, { timeout: 15_000 });
-
     await page.getByRole('button', { name: '설정', exact: true }).click();
     await expect(page.getByRole('heading', { name: '계정' })).toBeVisible();
 
