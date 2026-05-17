@@ -18,7 +18,7 @@ import {
   ColumnLayout,
   Badge,
 } from '@cloudscape-design/components';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useI18n } from '@/app/i18n-provider';
 import { useCompany } from '@/contexts/CompanyContext';
 import { DataTable } from '@/components/DataTable';
@@ -89,6 +89,8 @@ interface SpamFilterStats {
   delivered: number;
 }
 
+type EventFilter = 'all' | 'filtered' | 'rejected' | 'delivered';
+
 const defaultPolicy = (): SpamFilterPolicy => ({
   enabled: true,
   spam_threshold: 5,
@@ -109,9 +111,12 @@ const defaultPolicy = (): SpamFilterPolicy => ({
   },
 });
 
-const builtinFilterPacks: FilterPack[] = [
+const builtinFilterPacks: Array<FilterPack & { nameKey: string; descriptionKey: string; categoryKey: string }> = [
   {
     id: 'gogomail-core-auth',
+    nameKey: 'pack_auth_name',
+    descriptionKey: 'pack_auth_desc',
+    categoryKey: 'pack_category_authentication',
     version: '2026.05.17',
     name: 'Core authentication defense',
     description: 'Scores suspicious SPF, DKIM, and DMARC failure combinations.',
@@ -125,6 +130,9 @@ const builtinFilterPacks: FilterPack[] = [
   },
   {
     id: 'gogomail-core-malware',
+    nameKey: 'pack_malware_name',
+    descriptionKey: 'pack_malware_desc',
+    categoryKey: 'pack_category_malware',
     version: '2026.05.17',
     name: 'Core malware attachment defense',
     description: 'Scores high-risk executable and macro attachment extensions.',
@@ -137,6 +145,9 @@ const builtinFilterPacks: FilterPack[] = [
   },
   {
     id: 'gogomail-core-phishing-ko',
+    nameKey: 'pack_phishing_name',
+    descriptionKey: 'pack_phishing_desc',
+    categoryKey: 'pack_category_phishing',
     version: '2026.05.17',
     name: 'Korean and global phishing phrases',
     description: 'Scores common credential theft, urgency, and payment-lure phrases.',
@@ -150,6 +161,9 @@ const builtinFilterPacks: FilterPack[] = [
   },
   {
     id: 'gogomail-core-bulk',
+    nameKey: 'pack_bulk_name',
+    descriptionKey: 'pack_bulk_desc',
+    categoryKey: 'pack_category_bulk',
     version: '2026.05.17',
     name: 'Bulk receive pressure defense',
     description: 'Scores messages above the tenant bulk recipient threshold.',
@@ -163,12 +177,14 @@ const builtinFilterPacks: FilterPack[] = [
 ];
 
 export default function SpamFilterPage() {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const { currentCompany } = useCompany();
   const cid = currentCompany?.id ?? 'default';
 
   const [policy, setPolicy] = useState<SpamFilterPolicy>(defaultPolicy());
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const hasLoadedRef = useRef(false);
   const [saving, setSaving] = useState(false);
   const [notifications, setNotifications] = useState<FlashbarProps.MessageDefinition[]>([]);
   const [events, setEvents] = useState<SpamFilterEvent[]>([]);
@@ -184,9 +200,15 @@ export default function SpamFilterPage() {
   const [newPackName, setNewPackName] = useState('');
   const [newPackPhrase, setNewPackPhrase] = useState('');
   const [newPackScore, setNewPackScore] = useState('4');
+  const [eventFilter, setEventFilter] = useState<EventFilter>('all');
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
   const fetchPolicy = useCallback(async () => {
-    setLoading(true);
+    if (!hasLoadedRef.current) {
+      setLoading(true);
+    } else {
+      setRefreshing(true);
+    }
     try {
       const domainId = activeDomainId.trim();
       const policyPath = domainId
@@ -225,8 +247,11 @@ export default function SpamFilterPage() {
         const data = await statsRes.json();
         setStats(data.spam_filter_stats ?? null);
       }
+      setLastUpdated(new Date());
+      hasLoadedRef.current = true;
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   }, [cid, activeDomainId]);
 
@@ -328,6 +353,30 @@ export default function SpamFilterPage() {
     }));
   };
 
+  const activeScopeLabel = activeDomainId.trim()
+    ? t('pages.spam_filter_page.scope_domain')
+    : t('pages.spam_filter_page.scope_company');
+  const activePackCount = (policy.filter_packs?.enabled_pack_ids ?? []).length;
+  const customPackCount = (policy.filter_packs?.custom_packs ?? []).length;
+  const filteredRate = stats?.total_messages
+    ? Math.round(((stats.filtered ?? 0) / stats.total_messages) * 100)
+    : 0;
+  const filteredEvents = useMemo(() => {
+    if (eventFilter === 'all') return events;
+    return events.filter(event => {
+      const status = `${event.flow_status ?? ''} ${event.enhanced_status ?? ''} ${event.error_message ?? ''}`.toLowerCase();
+      if (eventFilter === 'rejected') return status.includes('reject') || status.includes('blocked');
+      if (eventFilter === 'delivered') return status.includes('deliver') || status.includes('accept');
+      return status.includes('filter') || status.includes('spam') || status.includes('quarantine');
+    });
+  }, [eventFilter, events]);
+  const formatRulesCount = (count: number) => {
+    if (locale === 'ko') return `${count}개 규칙`;
+    if (locale === 'ja') return `${count}件のルール`;
+    if (locale === 'zh-CN') return `${count}条规则`;
+    return `${count} ${count === 1 ? 'rule' : 'rules'}`;
+  };
+
   if (loading) {
     return (
       <ContentLayout header={<Header variant="h1">{t('pages.spam_filter_page.title')}</Header>}>
@@ -339,7 +388,15 @@ export default function SpamFilterPage() {
   return (
     <ContentLayout
       header={
-        <Header variant="h1" description={t('pages.spam_filter_page.description')}>
+        <Header
+          variant="h1"
+          description={t('pages.spam_filter_page.description')}
+          actions={
+            <Button onClick={fetchPolicy} loading={refreshing}>
+              {t('pages.spam_filter_page.refresh')}
+            </Button>
+          }
+        >
           {t('pages.spam_filter_page.title')}
         </Header>
       }
@@ -351,16 +408,19 @@ export default function SpamFilterPage() {
         <Container header={<Header variant="h2">{t('pages.spam_filter_page.general_section')}</Header>}>
           <SpaceBetween size="m">
             <FormField
-              label="Policy scope"
-              description="Leave empty to manage the company default policy. Enter a domain ID to manage that domain override."
+              label={t('pages.spam_filter_page.scope_label')}
+              description={t('pages.spam_filter_page.scope_desc')}
             >
               <SpaceBetween direction="horizontal" size="xs">
                 <Input
                   value={scopeDomainId}
                   onChange={e => setScopeDomainId(e.detail.value)}
-                  placeholder="domain id"
+                  placeholder={t('pages.spam_filter_page.scope_placeholder')}
                 />
-                <Button onClick={() => setActiveDomainId(scopeDomainId.trim())}>Load scope</Button>
+                <Button onClick={() => setActiveDomainId(scopeDomainId.trim())}>{t('pages.spam_filter_page.scope_load')}</Button>
+                <Badge color={activeDomainId.trim() ? 'blue' : 'green'}>
+                  {activeScopeLabel}
+                </Badge>
               </SpaceBetween>
             </FormField>
             <FormField label={t('pages.spam_filter_page.enabled_label')} description={t('pages.spam_filter_page.enabled_desc')}>
@@ -376,18 +436,26 @@ export default function SpamFilterPage() {
 
         {policy.enabled && (
           <>
-            <ColumnLayout columns={3} variant="text-grid" minColumnWidth={180}>
+            <ColumnLayout columns={5} variant="text-grid" minColumnWidth={140}>
               <Container>
-                <Box variant="awsui-key-label">Filtered</Box>
+                <Box variant="awsui-key-label">{t('pages.spam_filter_page.metric_total')}</Box>
+                <Box variant="h2">{(stats?.total_messages ?? 0).toLocaleString()}</Box>
+              </Container>
+              <Container>
+                <Box variant="awsui-key-label">{t('pages.spam_filter_page.metric_filtered')}</Box>
                 <Box variant="h2">{(stats?.filtered ?? 0).toLocaleString()}</Box>
               </Container>
               <Container>
-                <Box variant="awsui-key-label">Rejected</Box>
+                <Box variant="awsui-key-label">{t('pages.spam_filter_page.metric_rejected')}</Box>
                 <Box variant="h2">{(stats?.rejected ?? 0).toLocaleString()}</Box>
               </Container>
               <Container>
-                <Box variant="awsui-key-label">Delivered</Box>
+                <Box variant="awsui-key-label">{t('pages.spam_filter_page.metric_delivered')}</Box>
                 <Box variant="h2">{(stats?.delivered ?? 0).toLocaleString()}</Box>
+              </Container>
+              <Container>
+                <Box variant="awsui-key-label">{t('pages.spam_filter_page.metric_filter_rate')}</Box>
+                <Box variant="h2">{filteredRate}%</Box>
               </Container>
             </ColumnLayout>
 
@@ -416,7 +484,7 @@ export default function SpamFilterPage() {
                       {policy.virus_scan_enabled ? t('pages.spam_filter_page.enabled_on') : t('pages.spam_filter_page.enabled_off')}
                     </Toggle>
                   </FormField>
-                  <FormField label="Strict authentication" description="Score SPF, DKIM, and DMARC failures more aggressively.">
+                  <FormField label={t('pages.spam_filter_page.strict_auth_label')} description={t('pages.spam_filter_page.strict_auth_desc')}>
                     <Toggle
                       checked={policy.strict_auth_enabled}
                       onChange={e => setPolicy(p => ({ ...p, strict_auth_enabled: e.detail.checked }))}
@@ -425,8 +493,8 @@ export default function SpamFilterPage() {
                     </Toggle>
                   </FormField>
                   <FormField
-                    label="Bulk recipient limit"
-                    constraintText="Messages above this recipient count receive a stronger bulk-spam score."
+                    label={t('pages.spam_filter_page.bulk_limit_label')}
+                    constraintText={t('pages.spam_filter_page.bulk_limit_hint')}
                   >
                     <Input
                       type="number"
@@ -452,10 +520,10 @@ export default function SpamFilterPage() {
               </SpaceBetween>
             </Container>
 
-            <Container header={<Header variant="h2">RBL defense</Header>}>
+            <Container header={<Header variant="h2">{t('pages.spam_filter_page.rbl_section')}</Header>}>
               <SpaceBetween size="m">
                 <ColumnLayout columns={2}>
-                  <FormField label="RBL lookup" description="Check the remote SMTP IP against registered DNSBL/RBL zones.">
+                  <FormField label={t('pages.spam_filter_page.rbl_lookup_label')} description={t('pages.spam_filter_page.rbl_lookup_desc')}>
                     <Toggle
                       checked={policy.rbl_check_enabled}
                       onChange={e => setPolicy(p => ({ ...p, rbl_check_enabled: e.detail.checked }))}
@@ -463,7 +531,7 @@ export default function SpamFilterPage() {
                       {policy.rbl_check_enabled ? t('pages.spam_filter_page.enabled_on') : t('pages.spam_filter_page.enabled_off')}
                     </Toggle>
                   </FormField>
-                  <FormField label="Reject listed IPs" description="Reject RBL-listed senders during SMTP receive instead of only scoring.">
+                  <FormField label={t('pages.spam_filter_page.rbl_reject_label')} description={t('pages.spam_filter_page.rbl_reject_desc')}>
                     <Toggle
                       checked={policy.rbl_reject_enabled}
                       onChange={e => setPolicy(p => ({ ...p, rbl_reject_enabled: e.detail.checked }))}
@@ -472,10 +540,10 @@ export default function SpamFilterPage() {
                     </Toggle>
                   </FormField>
                 </ColumnLayout>
-                <FormField label="RBL zones" description="Register DNSBL zones such as your licensed enterprise RBL provider.">
+                <FormField label={t('pages.spam_filter_page.rbl_zones_label')} description={t('pages.spam_filter_page.rbl_zones_desc')}>
                   <SpaceBetween size="xs">
                     {policy.rbl_zones.length === 0 && (
-                      <Box color="text-body-secondary" fontSize="body-s">No RBL zones registered.</Box>
+                      <Box color="text-body-secondary" fontSize="body-s">{t('pages.spam_filter_page.no_rbl_zones')}</Box>
                     )}
                     <SpaceBetween direction="horizontal" size="xs">
                       {policy.rbl_zones.map((zone, i) => (
@@ -502,23 +570,32 @@ export default function SpamFilterPage() {
               </SpaceBetween>
             </Container>
 
-            <Container header={<Header variant="h2">Filter packs</Header>}>
+            <Container
+              header={
+                <Header
+                  variant="h2"
+                  counter={`(${activePackCount}/${builtinFilterPacks.length + customPackCount})`}
+                >
+                  {t('pages.spam_filter_page.filter_packs_section')}
+                </Header>
+              }
+            >
               <SpaceBetween size="m">
                 <Alert type="info">
-                  Filter packs are saved inside the selected company or domain policy, so tenant custom packs and enabled-pack choices do not bleed across tenants.
+                  {t('pages.spam_filter_page.filter_packs_notice')}
                 </Alert>
                 <ColumnLayout columns={2}>
                   {builtinFilterPacks.map(pack => {
                     const enabled = (policy.filter_packs?.enabled_pack_ids ?? []).includes(pack.id);
                     return (
-                      <FormField key={pack.id} label={pack.name} description={pack.description}>
+                      <FormField key={pack.id} label={t(`pages.spam_filter_page.${pack.nameKey}`, pack.name)} description={t(`pages.spam_filter_page.${pack.descriptionKey}`, pack.description)}>
                         <SpaceBetween size="xs">
                           <Toggle checked={enabled} onChange={e => setFilterPackEnabled(pack.id, e.detail.checked)}>
                             {enabled ? t('pages.spam_filter_page.enabled_on') : t('pages.spam_filter_page.enabled_off')}
                           </Toggle>
                           <SpaceBetween direction="horizontal" size="xs">
-                            <Badge color="blue">{pack.category}</Badge>
-                            <Badge color="grey">{pack.rules.length} rules</Badge>
+                            <Badge color="blue">{t(`pages.spam_filter_page.${pack.categoryKey}`, pack.category)}</Badge>
+                            <Badge color="grey">{formatRulesCount(pack.rules.length)}</Badge>
                           </SpaceBetween>
                         </SpaceBetween>
                       </FormField>
@@ -526,10 +603,10 @@ export default function SpamFilterPage() {
                   })}
                 </ColumnLayout>
 
-                <FormField label="Custom tenant packs" description="Create tenant-owned phrase packs for urgent response rules or local spam patterns.">
+                <FormField label={t('pages.spam_filter_page.custom_packs_label')} description={t('pages.spam_filter_page.custom_packs_desc')}>
                   <SpaceBetween size="s">
                     {(policy.filter_packs?.custom_packs ?? []).length === 0 && (
-                      <Box color="text-body-secondary" fontSize="body-s">No custom packs registered.</Box>
+                      <Box color="text-body-secondary" fontSize="body-s">{t('pages.spam_filter_page.no_custom_packs')}</Box>
                     )}
                     {(policy.filter_packs?.custom_packs ?? []).map(pack => {
                       const enabled = (policy.filter_packs?.enabled_pack_ids ?? []).includes(pack.id);
@@ -538,7 +615,7 @@ export default function SpamFilterPage() {
                           <Badge color={enabled ? 'green' : 'grey'}>{pack.id}</Badge>
                           <Box>{pack.name}</Box>
                           <Button variant="inline-link" onClick={() => setFilterPackEnabled(pack.id, !enabled)}>
-                            {enabled ? 'Disable' : 'Enable'}
+                            {enabled ? t('pages.spam_filter_page.disable') : t('pages.spam_filter_page.enable')}
                           </Button>
                           <Button variant="inline-link" onClick={() => removeCustomPack(pack.id)}>
                             {t('common.delete')}
@@ -547,12 +624,12 @@ export default function SpamFilterPage() {
                       );
                     })}
                     <ColumnLayout columns={4}>
-                      <Input value={newPackId} onChange={e => setNewPackId(e.detail.value)} placeholder="pack-id" />
-                      <Input value={newPackName} onChange={e => setNewPackName(e.detail.value)} placeholder="Pack name" />
-                      <Input value={newPackPhrase} onChange={e => setNewPackPhrase(e.detail.value)} placeholder="phrase to match" />
-                      <Input type="number" value={newPackScore} onChange={e => setNewPackScore(e.detail.value)} placeholder="score" />
+                      <Input value={newPackId} onChange={e => setNewPackId(e.detail.value)} placeholder={t('pages.spam_filter_page.pack_id_placeholder')} />
+                      <Input value={newPackName} onChange={e => setNewPackName(e.detail.value)} placeholder={t('pages.spam_filter_page.pack_name_placeholder')} />
+                      <Input value={newPackPhrase} onChange={e => setNewPackPhrase(e.detail.value)} placeholder={t('pages.spam_filter_page.pack_phrase_placeholder')} />
+                      <Input type="number" value={newPackScore} onChange={e => setNewPackScore(e.detail.value)} placeholder={t('pages.spam_filter_page.pack_score_placeholder')} />
                     </ColumnLayout>
-                    <Button onClick={addCustomPack}>{t('common.add')}</Button>
+                    <Button onClick={addCustomPack}>{t('pages.spam_filter_page.add_custom_pack')}</Button>
                   </SpaceBetween>
                 </FormField>
               </SpaceBetween>
@@ -659,42 +736,72 @@ export default function SpamFilterPage() {
               </SpaceBetween>
             </Container>
 
-            <DataTable
-              columnDefinitions={[
-                {
-                  header: 'Time',
-                  cell: (item: SpamFilterEvent) => item.created_at ? new Date(item.created_at).toLocaleString() : '—',
-                  width: '16%',
-                },
-                {
-                  header: 'From',
-                  cell: (item: SpamFilterEvent) => item.from_addr || item.mail_from || '—',
-                  width: '18%',
-                },
-                {
-                  header: 'Subject',
-                  cell: (item: SpamFilterEvent) => item.subject || '—',
-                  width: '24%',
-                },
-                {
-                  header: 'Action',
-                  cell: (item: SpamFilterEvent) => item.enhanced_status || item.flow_status,
-                  width: '10%',
-                },
-                {
-                  header: 'Score',
-                  cell: (item: SpamFilterEvent) => item.spam_score?.toFixed(1) ?? '—',
-                  width: '8%',
-                },
-                {
-                  header: 'Reason',
-                  cell: (item: SpamFilterEvent) => item.error_message || '—',
-                  width: '24%',
-                },
-              ]}
-              items={events}
-              header={<Header variant="h2" counter={`(${events.length})`}>Recent spam filter events</Header>}
-            />
+            <Container
+              header={
+                <Header
+                  variant="h2"
+                  counter={`(${filteredEvents.length})`}
+                  actions={
+                    <SpaceBetween direction="horizontal" size="xs">
+                      {lastUpdated && <Box color="text-body-secondary">{t('pages.spam_filter_page.last_updated')}: {lastUpdated.toLocaleTimeString()}</Box>}
+                      <Button onClick={fetchPolicy} loading={refreshing}>{t('pages.spam_filter_page.refresh')}</Button>
+                    </SpaceBetween>
+                  }
+                >
+                  {t('pages.spam_filter_page.events_section')}
+                </Header>
+              }
+            >
+              <SpaceBetween size="m">
+                <RadioGroup
+                  value={eventFilter}
+                  onChange={e => setEventFilter(e.detail.value as EventFilter)}
+                  items={[
+                    { value: 'all', label: t('pages.spam_filter_page.event_filter_all') },
+                    { value: 'filtered', label: t('pages.spam_filter_page.event_filter_filtered') },
+                    { value: 'rejected', label: t('pages.spam_filter_page.event_filter_rejected') },
+                    { value: 'delivered', label: t('pages.spam_filter_page.event_filter_delivered') },
+                  ]}
+                />
+                <DataTable
+                  searchPlaceholder={t('pages.spam_filter_page.events_search')}
+                  columnDefinitions={[
+                    {
+                      header: t('pages.spam_filter_page.col_time'),
+                      cell: (item: SpamFilterEvent) => item.created_at ? new Date(item.created_at).toLocaleString() : '—',
+                      width: '16%',
+                    },
+                    {
+                      header: t('pages.spam_filter_page.col_from'),
+                      cell: (item: SpamFilterEvent) => item.from_addr || item.mail_from || '—',
+                      width: '18%',
+                    },
+                    {
+                      header: t('pages.spam_filter_page.col_subject'),
+                      cell: (item: SpamFilterEvent) => item.subject || '—',
+                      width: '24%',
+                    },
+                    {
+                      header: t('pages.spam_filter_page.col_action'),
+                      cell: (item: SpamFilterEvent) => item.enhanced_status || item.flow_status,
+                      width: '10%',
+                    },
+                    {
+                      header: t('pages.spam_filter_page.col_score'),
+                      cell: (item: SpamFilterEvent) => item.spam_score?.toFixed(1) ?? '—',
+                      width: '8%',
+                    },
+                    {
+                      header: t('pages.spam_filter_page.col_reason'),
+                      cell: (item: SpamFilterEvent) => item.error_message || '—',
+                      width: '24%',
+                    },
+                  ]}
+                  items={filteredEvents}
+                  header={<Header variant="h3">{t('pages.spam_filter_page.events_table_title')}</Header>}
+                />
+              </SpaceBetween>
+            </Container>
           </>
         )}
 
