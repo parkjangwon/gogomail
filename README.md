@@ -2,245 +2,263 @@
 
 <img width="1456" height="720" alt="gogomail" src="https://github.com/user-attachments/assets/3e222678-51be-465f-b37d-58d2390ba40d" />
 
-A standards-first mail platform built in Go. SMTP, IMAP, CalDAV, CardDAV — implemented against their RFCs so any compliant client works without proprietary plugins.
+GoGoMail is a standards-first mail platform written in Go, with a webmail app,
+an enterprise admin console, and a VitePress product guide.
+
+The backend is built around interoperable protocol surfaces rather than
+proprietary client assumptions: SMTP, IMAP, POP3, CalDAV, CardDAV, WebDAV,
+LDAP, DKIM, SPF, DMARC, DSN, and OpenAPI-backed REST APIs.
+
+[한국어 README](README.ko.md)
 
 ---
 
-## Philosophy
+## What Is In This Repo
 
-Every protocol surface maps to a published RFC, and every design decision is filtered through interoperability first. If a feature can't be expressed in a standard, it waits until it can — so any component (MTA, storage, identity provider) can be replaced without rewriting integrations.
-
----
-
-## What's implemented
-
-### Backend
-
-| Component | Standards | Status |
+| Area | Path | Notes |
 |---|---|---|
-| SMTP receive (edge MTA) | RFC 5321, 5322, 2045–2049 | Production |
-| SMTP submission | RFC 6409, 4954 | Production |
-| SMTP delivery + smart-host relay | RFC 5321, 7505 | Production |
-| DKIM signing | RFC 6376 | Production |
-| SPF / DMARC verification | RFC 7208, 7489 | Production |
-| DSN / bounce handling | RFC 3461, 3464 | Production |
-| IMAP | RFC 9051, 3501 | Production |
-| POP3 | RFC 1939 | Production |
-| CalDAV + iCalendar | RFC 4791, 5545, 6638, 7809, 3744 | Production |
-| iMIP scheduling | RFC 6047 | Production |
-| CardDAV + vCard | RFC 6352, 6350, 2426, 3744 | Production |
-| WebDAV / Drive gateway | RFC 4918 | Production |
-| LDAP directory gateway | RFC 4511, 4512, 4519 | Production |
-| Mail + Admin REST API | OpenAPI, API-key integrations | Production |
-| Drive / file storage | S3-compatible | Production |
-| Mail flow logs + analytics | PostgreSQL + OpenSearch | Production |
-| API metering | PostgreSQL usage ledger | Production |
-
-Current implementation detail: [`docs/CURRENT_STATUS.md`](docs/CURRENT_STATUS.md).
-
-### Webmail (Next.js 15)
-
-Keyboard-first webmail built with Next.js 15, Tailwind v4, and shadcn/ui.
-
-- **Mail** — 3-pane layout, Gmail-style shortcuts (`g i`, `e`, `r`, `#`, …) with Korean IME, Spotlight search (Cmd+K) with operators, TipTap rich-text compose with slash commands and inline images, send delay, snooze, pin, follow-up reminders, inbox category tabs, unsubscribe detection, ICS invite detection.
-- **Filters** — multi-condition rules (AND/OR), 9 condition fields, 6 match types including regex, 9 actions, blocked senders, vacation responder.
-- **Calendar** — month/week/day/agenda views, multiple color-coded calendars, RFC 5545 recurring events, ICS import.
-- **Contacts** — CardDAV-backed list, hover cards, hierarchical org chart, group-based recipient picker.
-- **Drive** — S3-backed file manager with folder tree, share links, trash.
-- **Settings** — per-folder mailbox stats, async EML/ZIP backup, restore from EML/MBOX, JSON settings import/export, focus mode, accessibility (high contrast, reduced motion, screen reader).
-
-### Admin Console (Next.js 15)
-
-Enterprise administration console built with Next.js 15 and Cloudscape Design System (port 3001).
-
-- **Tenancy** — company · domain hierarchy management, domain onboarding, change history, tenant health.
-- **Organization** — SSO, SCIM provisioning, webhooks, org-wide signature, notification templates.
-- **Access** — address aliases, delegation, directory, group management.
-- **Mail** — flow logs, message trace, delivery attempts, outbox inspection, routing rules.
-- **Security** — DKIM keys, DMARC, MFA policy, IP access control, session management, spam filter, rate limits, API keys, retention policy, auth policy, SMTP policy, security posture score.
-- **Storage** — quota dashboard, per-seat usage, Drive management, attachment inventory, storage reconciliation.
-- **Compliance** — legal holds, data retention policy, audit logs.
-- **Analytics** — API usage metrics, push notification analytics.
-- **System** — health checks, queue state, backpressure monitoring.
-
-### Product guide (VitePress)
-
-`apps/docs` contains the public GoGoMail guide. It is written as a dense operator and user guide, not a marketing site.
-
-- **Coverage** — Admin Console and Webmail are split into feature-specific pages, with a glossary for terms such as DKIM, SCIM provisioning, governance, retention, and delegation.
-- **Languages** — English, Korean, Japanese, and Simplified Chinese are handled through the docs i18n layer.
-- **External integration API** — documents API-key authentication, mailbox identity by email, request examples, error responses, scopes, and API metering for external systems such as intranet portals.
+| Go backend | `cmd/`, `internal/`, `migrations/` | Mail protocols, REST APIs, delivery workers, storage, security policy, migrations |
+| Webmail | `apps/webmail` | Next.js 16 webmail on port `3003` |
+| Admin console | `apps/console` | Next.js 16 + Cloudscape console on port `3001` |
+| Product guide | `apps/docs` | VitePress guide on port `3005`, localized in English, Korean, Japanese, and Simplified Chinese |
+| API clients | `clients/` | Generated/shared API types |
+| Operations docs | `docs/` | Current status, OpenAPI, security review, roadmap, ADRs |
+| Local infrastructure | `docker/` | Docker Compose profiles for development and larger deployment sketches |
 
 ---
 
-## Architecture
-
-Single binary, multiple modes. Each mode runs one component independently — deploy on separate nodes or compose into a single process for development.
-
-```
-gogomail --mode=smtp-edge          # inbound SMTP (port 25)
-gogomail --mode=smtp-submission    # authenticated submission (port 587)
-gogomail --mode=imap               # IMAP server (port 143 / 993)
-gogomail --mode=pop3               # POP3 server (port 110 / 995)
-gogomail --mode=caldav             # CalDAV server
-gogomail --mode=carddav            # CardDAV server
-gogomail --mode=ldap-gateway       # read-only LDAP v3 directory gateway
-gogomail --mode=webdav             # WebDAV gateway (RFC 4918)
-gogomail --mode=api                # Mail + Admin REST API
-gogomail --mode=delivery-worker    # outbound SMTP delivery
-gogomail --mode=outbox-relay       # outbox → event stream relay
-gogomail --mode=event-worker       # event stream consumer
-gogomail --mode=migration          # run database migrations
-```
-
-**Infrastructure**: PostgreSQL, Redis, S3-compatible object storage (local, MinIO, or AWS S3).
-
----
-
-## External integration API
-
-GoGoMail exposes server-to-server APIs for trusted external systems that need to embed mail features inside a portal, groupware, approval workflow, or internal dashboard.
-
-- **Authentication** — integrations use `Authorization: Bearer gm_...` API keys generated in the Admin Console. Keys are scoped and domain-bound.
-- **Mailbox identity** — prefer `X-Gogomail-User-Email` or `user_email` because external systems usually know the user's email address. `X-Gogomail-User-ID` and `user_id` remain available only for systems that already store GoGoMail internal user IDs.
-- **Scopes** — `mail:read` for counts, folders, and message lists; `mail:send` for compose/send flows; `mail:manage` for state-changing mailbox actions.
-- **Metering** — external API calls are recorded for usage reporting, quota analysis, and customer-facing billing or chargeback.
-- **Reference** — see `docs/openapi.yaml` for the machine-readable OpenAPI spec and the VitePress guide at `/admin-console/external-integration` for vendor-facing examples.
-
----
-
-## Quick start
+## Current Capabilities
 
 ### Backend
 
-Requirements: Go 1.25+, PostgreSQL 15+, Redis 7+
+- SMTP receive, submission, outbound delivery, smart-host routing, DSN/bounce handling
+- IMAP and POP3 mailbox access
+- CalDAV, CardDAV, iMIP, WebDAV/Drive, and read-only LDAP gateway surfaces
+- Mail and Admin REST APIs with OpenAPI documentation
+- PostgreSQL metadata, Redis coordination, and local/MinIO/S3-compatible object storage
+- DKIM signing, SPF/DMARC verification, DNS checks, queue/backpressure controls, audit logs, API metering
+- Company/domain/user configuration boundaries and security governance policy
+
+### Webmail
+
+- Mail list, reading pane, rich compose, folders, search, snooze, labels, reminders, attachments, and Drive picker flows
+- Keyboard-oriented UX: global shortcuts, app switching, Spotlight search, row focus, reading-pane navigation, and message actions
+- Safer rendering for HTML mail, external images, and proxied remote content
+
+### Admin Console
+
+- Company, domain, user, admin, role, and onboarding workflows
+- SSO/SCIM, webhooks, notification templates, signatures, organization settings
+- Message trace, mail-flow logs, delivery attempts, outbox, routing, relays, queues, and system health
+- Security posture, MFA, auth/session/IP/rate-limit policies, DKIM, DMARC/SPF, spam filtering, API keys, retention, audit, and legal hold workflows
+- Company/domain security governance for posture presets and controlled private-network webhook exceptions
+
+### Product Guide
+
+`apps/docs` documents Admin Console, Webmail, external integration APIs, glossary terms, shortcut behavior, security governance, and user/operator workflows.
+
+---
+
+## Security Posture
+
+Recent hardening work is documented in [`docs/SECURITY_REVIEW.md`](docs/SECURITY_REVIEW.md).
+
+Implemented controls include:
+
+- Production bootstrap admin login is disabled.
+- Backend outbound URL guards reject localhost, private/link-local, multicast, unspecified, and metadata-service targets after DNS resolution.
+- Guarded outbound clients re-check redirects and cap redirect chains.
+- Webhook secrets are redacted in list responses.
+- Webmail HTML rendering strips active content and unsafe URL schemes.
+- Image proxy rejects SVG, oversized responses, private destinations, and private redirects.
+- Webmail and console API proxies strip client-supplied credentials and forward only allowlisted headers.
+- Cookie-backed mutating routes require same-origin `Origin` or `Referer`.
+- Production auth cookies use `__Host-` names with `HttpOnly`, `SameSite=Strict`, and `Secure`.
+- Production CSP removes `unsafe-eval`; apps set `nosniff`, frame denial, COOP/CORP, HSTS, and no-store where appropriate.
+- Go builds are pinned to patched toolchain `go1.26.3`; frontend apps override PostCSS to a patched line.
+- Company/domain `/security/governance` controls allow typed operational exceptions while platform invariants remain fixed.
+
+Verification commands:
+
+```bash
+go test ./...
+go vet ./...
+go run golang.org/x/vuln/cmd/govulncheck@latest ./...
+pnpm --dir apps/webmail type-check
+pnpm --dir apps/webmail test:security-helpers
+pnpm --dir apps/webmail audit --prod
+pnpm --dir apps/console type-check
+pnpm --dir apps/console exec vitest run src/lib/__tests__/adminProxy.test.ts
+pnpm --dir apps/console audit --prod
+pnpm --dir apps/docs type-check
+pnpm --dir apps/docs build
+```
+
+---
+
+## Quick Start
+
+### 1. Start local backend infrastructure
+
+```bash
+docker compose -f docker/docker-compose.dev.yml up -d
+```
+
+This starts PostgreSQL, Redis, MinIO, MinIO bucket initialization, and the Go
+backend with hot reload through `air`.
+
+Common local endpoints:
+
+| Service | URL |
+|---|---|
+| Backend API | `http://localhost:8080` |
+| PostgreSQL | `localhost:15432` |
+| Redis | `localhost:16379` |
+| MinIO API | `http://localhost:19000` |
+| MinIO Console | `http://localhost:19001` |
+
+Stop everything:
+
+```bash
+docker compose -f docker/docker-compose.dev.yml down
+```
+
+### 2. Seed development data
+
+```bash
+./scripts/seed_dev_beta.sh
+```
+
+Default development login:
+
+```text
+pjw@parkjw.org / pass1234
+```
+
+### 3. Run the frontends
+
+```bash
+pnpm --dir apps/webmail install
+pnpm --dir apps/webmail dev
+# http://localhost:3003
+```
+
+```bash
+pnpm --dir apps/console install
+pnpm --dir apps/console dev
+# http://localhost:3001
+```
+
+```bash
+pnpm --dir apps/docs install
+pnpm --dir apps/docs dev
+# http://localhost:3005
+```
+
+---
+
+## Backend Binary
+
+The backend is a single Go binary with multiple modes:
 
 ```bash
 go build -o bin/gogomail ./cmd/gogomail
 
-GOGOMAIL_DATABASE_URL=postgres://... bin/gogomail --mode=migration
-
-GOGOMAIL_DATABASE_URL=postgres://... \
-GOGOMAIL_REDIS_URL=redis://localhost:6379 \
-GOGOMAIL_STORAGE_BACKEND=local \
-GOGOMAIL_STORAGE_LOCAL_PATH=/tmp/gogomail \
 bin/gogomail --mode=api
+bin/gogomail --mode=smtp-edge
+bin/gogomail --mode=smtp-submission
+bin/gogomail --mode=delivery-worker
+bin/gogomail --mode=imap
+bin/gogomail --mode=pop3
+bin/gogomail --mode=caldav
+bin/gogomail --mode=carddav
+bin/gogomail --mode=webdav
+bin/gogomail --mode=ldap-gateway
+bin/gogomail --mode=migration
 ```
 
-| Variable | Description |
+Core runtime dependencies:
+
+- Go module declares `go 1.25.7` and pins toolchain `go1.26.3`.
+- PostgreSQL 15+.
+- Redis 7+.
+- Local, MinIO, or S3-compatible object storage.
+
+Important environment variables:
+
+| Variable | Purpose |
 |---|---|
+| `GOGOMAIL_ENV` | Use `production` for stricter auth/TLS/security defaults |
 | `GOGOMAIL_DATABASE_URL` | PostgreSQL connection string |
-| `GOGOMAIL_REDIS_URL` | Redis connection string |
-| `GOGOMAIL_STORAGE_BACKEND` | `local` / `minio` / `s3` |
-| `GOGOMAIL_AUTH_JWT_SECRET` | HS256 secret for Mail API JWT auth |
-| `GOGOMAIL_ADMIN_TOKEN` | Bearer token for Admin API |
-| `GOGOMAIL_DKIM_ENABLED` | `true` to enable DKIM signing on delivery |
-| `GOGOMAIL_DELIVERY_TLS_MODE` | `opportunistic` (default) / `require` / `disable` |
-| `GOGOMAIL_ENV` | `production` enforces stricter TLS and auth guards |
+| `GOGOMAIL_REDIS_URL` / `REDIS_ADDR` | Redis connection |
+| `GOGOMAIL_STORAGE_BACKEND` | `local`, `minio`, or `s3` |
+| `GOGOMAIL_AUTH_JWT_SECRET` | Mail API JWT signing secret |
+| `GOGOMAIL_ADMIN_TOKEN` | Admin API bearer token for token-based admin access |
+| `GOGOMAIL_BACKEND_URL` | Backend URL used by Next.js server routes |
+| `NEXT_PUBLIC_GOGOMAIL_PUBLIC_BASE_URL` | Public origin displayed in browser-facing console copy when needed |
 
-Full reference: `internal/config/`.
-
-### Webmail
-
-Requirements: Node.js 20+, pnpm 9+
-
-```bash
-cd apps/webmail
-pnpm install
-pnpm dev       # http://localhost:3000
-pnpm build
-```
-
-### Docs guide
-
-Requirements: Node.js 22+, pnpm 10+
-
-```bash
-cd apps/docs
-pnpm install
-pnpm dev       # http://localhost:3005
-pnpm build
-```
-
-The local Korean guide starts at `http://localhost:3005/ko/`. The external integration API guide is available at `http://localhost:3005/ko/admin-console/external-integration`.
-
-### Admin console
-
-Requirements: Node.js 20+, pnpm 8+
-
-```bash
-cd apps/console
-pnpm install
-pnpm dev       # http://localhost:3001
-pnpm build
-```
-
-Backend must be running on `http://localhost:8080` (or set `GOGOMAIL_BACKEND_URL`). Log in with your admin credentials.
-
-### Seed data
-
-```bash
-docker compose -f docker/docker-compose.dev.yml up -d postgres
-./scripts/seed_dev_beta.sh
-```
-
-Default login: `pjw@parkjw.org` / `pass1234`.
+Full configuration details live under `internal/config/` and `configs/`.
 
 ---
 
-## Development
+## External Integration API
+
+Trusted external systems can call GoGoMail server-to-server APIs to embed mail
+features in portals, groupware, approval flows, or internal dashboards.
+
+- Use `Authorization: Bearer gm_...` API keys generated in the Admin Console.
+- Prefer `X-Gogomail-User-Email` or `user_email` for mailbox identity.
+- Use narrow scopes: `mail:read`, `mail:send`, and `mail:manage`.
+- API calls are metered for usage reporting and quota analysis.
+
+References:
+
+- [`docs/openapi.yaml`](docs/openapi.yaml)
+- `apps/docs` page `/admin-console/external-integration`
+
+---
+
+## Development Notes
 
 ```bash
-go test ./...                                # all tests
-go build ./...                               # build check
-tsc --noEmit -p apps/webmail/tsconfig.json   # webmail type check
-tsc --noEmit -p apps/console/tsconfig.json  # admin console type check
-pnpm --dir apps/docs type-check              # docs type check
-pnpm --dir apps/docs build                   # docs build
+go test ./...
+go vet ./...
+go build ./...
+pnpm --dir apps/webmail type-check
+pnpm --dir apps/console type-check
+pnpm --dir apps/docs type-check
+pnpm --dir apps/docs build
 ```
 
-The pre-commit hook enforces:
+The repository uses a strict project harness:
 
-1. `go test ./...` must pass.
-2. Changes under `internal/` or `migrations/` require at least one `docs/` file in the same commit.
+- Read `docs/ACTIVE_TASK.md` before picking implementation work.
+- Keep code, tests, and docs in the same commit when behavior changes.
+- The pre-commit hook runs `go test ./...`.
+- Backend or migration changes require a staged `docs/` update.
 
-Workflow is driven by `docs/ACTIVE_TASK.md` — one task at a time, TDD, docs and code committed together. See `PROJECT_HARNESS.md`.
-
----
-
-## Roadmap
-
-| Phase | Focus | Status |
-|---|---|---|
-| 0–1 | SMTP, IMAP, CalDAV, CardDAV, Mail/Admin API, delivery, DKIM/SPF/DMARC | ✓ Complete |
-| 2 | Webmail frontend | ✓ Complete |
-| 3 | Runtime config store · company→domain→user hierarchy · 2FA/TOTP | Planned |
-| 4 | Enterprise identity: LDAP directory gateway · SCIM 2.0 · SAML/OIDC | LDAP gateway complete, SCIM/SSO planned |
-| 5 | WebDAV gateway · CalDAV/CardDAV hardening | ✓ Complete |
-| 6 | Mail security: milter adapter · DNSBL (RFC 5782) | Planned |
-| 7 | POP3 | ✓ Complete |
-| 8 | Push notifications: FCM / APNs / Web Push (RFC 8030) | Planned |
-
-Full roadmap: [`docs/backend-roadmap.md`](docs/backend-roadmap.md).
+See [`PROJECT_HARNESS.md`](PROJECT_HARNESS.md).
 
 ---
 
-## Key documents
+## Key Documents
 
 | Document | Contents |
 |---|---|
-| `docs/ACTIVE_TASK.md` | Current development task |
-| `docs/backend-roadmap.md` | Full phase-by-phase roadmap with RFC references |
-| `docs/CURRENT_STATUS.md` | Detailed implementation status |
-| `docs/openapi.yaml` | OpenAPI spec for Mail + Admin APIs |
-| `apps/docs/` | VitePress product guide for Admin Console, Webmail, glossary, and external integration API |
-| `docs/adr/` | Architecture decision records |
-| `PROJECT_HARNESS.md` | Development loop contract for autonomous agents |
+| [`docs/ACTIVE_TASK.md`](docs/ACTIVE_TASK.md) | Current development task |
+| [`docs/CURRENT_STATUS.md`](docs/CURRENT_STATUS.md) | Detailed implementation status |
+| [`docs/SECURITY_REVIEW.md`](docs/SECURITY_REVIEW.md) | Security hardening summary and verification commands |
+| [`docs/openapi.yaml`](docs/openapi.yaml) | Mail and Admin API contract |
+| [`docs/backend-roadmap.md`](docs/backend-roadmap.md) | Long-form backend roadmap and completed hardening items |
+| [`apps/docs/`](apps/docs/) | Product guide for Admin Console, Webmail, glossary, and integration APIs |
+| [`docker/`](docker/) | Docker Compose files and deployment notes |
+| [`docs/adr/`](docs/adr/) | Architecture decision records |
 
 ---
 
 ## License
 
-[Elastic License 2.0](LICENSE). Free to use and modify internally; offering gogomail as a hosted or managed service requires explicit permission.
+[Elastic License 2.0](LICENSE). Free to use and modify internally; offering
+GoGoMail as a hosted or managed service requires explicit permission.
 
 Copyright (c) 2026 Park Jangwon.
