@@ -19,7 +19,7 @@ const SECTIONS = [
       { key: 'g  c', desc: '캘린더' },
       { key: 'g  k', desc: '연락처' },
       { key: 'g  o', desc: '조직도' },
-      { key: 'g  v', desc: '드라이브' },
+      { key: 'g  d', desc: '드라이브' },
       { key: 'g  ,', desc: '설정' },
     ],
   },
@@ -61,7 +61,6 @@ const SECTIONS = [
     items: [
       { key: 'g  i', desc: '받은 편지함' },
       { key: 'g  s', desc: '보낸 편지함' },
-      { key: 'g  d', desc: '임시 보관함' },
       { key: 'g  t', desc: '휴지통' },
       { key: 'g  p', desc: '스팸 편지함' },
       { key: 'g  u', desc: '첫 읽지 않은 메일' },
