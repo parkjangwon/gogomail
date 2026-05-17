@@ -1364,6 +1364,24 @@ function makeMessages(locale: DocsLocale): DocsMessages {
             items: [console.nav.api_keys, console.nav.api_settings, console.nav.api_usage, webmail.mail.inbox, webmail.compose.newMessage],
           },
           {
+            title: translated({ en: 'Security governance for integrations', ko: '연동 보안 거버넌스', ja: '連携のセキュリティガバナンス', 'zh-CN': '集成安全治理' }),
+            body: translated({
+              en: 'Company and domain governance policies decide which operational exceptions are allowed for integrations. The secure default is enterprise posture with private-network webhook targets denied.',
+              ko: '회사와 도메인의 거버넌스 정책은 외부 연동에서 어떤 운영 예외를 허용할지 정합니다. 기본값은 enterprise 보안 수준이며 private network 웹훅 대상은 거부됩니다.',
+              ja: '会社およびドメインのガバナンスポリシーは、外部連携で許可する運用例外を決めます。既定は enterprise 態勢で、プライベートネットワークの Webhook 先は拒否されます。',
+              'zh-CN': '公司和域名治理策略决定外部集成允许哪些运营例外。默认是 enterprise 安全态势，并拒绝私有网络 webhook 目标。',
+            }),
+            paragraphs: [
+              translated({
+                en: 'Treat credential stripping, same-origin browser provenance, production auth cookie rules, and HTML sanitization as platform invariants. Those controls are not tenant preferences. Use governance only for typed exceptions such as intentionally allowing private-network webhook delivery for a company or domain.',
+                ko: 'credential stripping, same-origin 브라우저 provenance, production 인증 쿠키 규칙, HTML sanitize는 플랫폼 불변식으로 다룹니다. 이 제어는 테넌트 취향 설정이 아닙니다. 거버넌스는 회사나 도메인에서 의도적으로 private-network 웹훅 전송을 허용하는 것처럼 타입이 정해진 예외에만 사용합니다.',
+                ja: 'credential stripping、same-origin のブラウザ provenance、本番認証 Cookie ルール、HTML サニタイズはプラットフォーム不変条件として扱います。これらはテナント設定ではありません。ガバナンスは、会社またはドメインでプライベートネットワーク Webhook 配信を意図的に許可するような型付き例外にだけ使います。',
+                'zh-CN': '凭据剥离、同源浏览器来源校验、生产认证 Cookie 规则和 HTML 清理属于平台不变量，不是租户偏好。治理只应用于类型化例外，例如某公司或域名有意允许私有网络 webhook 投递。',
+              }),
+            ],
+            items: ['/admin/v1/companies/{id}/security/governance', '/admin/v1/domains/{id}/security/governance', 'security_profile', 'webhook_private_network_access'],
+          },
+          {
             title: translated({ en: 'Authentication model', ko: '인증 모델', ja: '認証モデル', 'zh-CN': '认证模型' }),
             body: translated({
               en: 'External integration calls use Authorization: Bearer with a GoGoMail API key. The key is bound to one domain, and mailbox requests should identify the target user with user_email or the X-Gogomail-User-Email header. user_id and X-Gogomail-User-ID remain available only when the external system already stores GoGoMail internal IDs.',
@@ -1727,6 +1745,24 @@ Accept: application/json`,
         title: f.governanceTitle,
         lead: f.governanceLead,
         sections: [
+          {
+            title: translated({ en: 'Security governance policy', ko: '보안 거버넌스 정책', ja: 'セキュリティガバナンスポリシー', 'zh-CN': '安全治理策略' }),
+            body: translated({
+              en: 'Use company and domain security governance to choose the posture preset and record approved exceptions. The supported profiles are standard, enterprise, and high_assurance.',
+              ko: '회사와 도메인의 보안 거버넌스에서 보안 수준 프리셋을 선택하고 승인된 예외를 기록합니다. 지원되는 프로필은 standard, enterprise, high_assurance입니다.',
+              ja: '会社およびドメインのセキュリティガバナンスで態勢プリセットを選び、承認済み例外を記録します。対応プロファイルは standard、enterprise、high_assurance です。',
+              'zh-CN': '在公司和域名安全治理中选择安全态势预设，并记录批准的例外。支持的 profile 为 standard、enterprise 和 high_assurance。',
+            }),
+            paragraphs: [
+              translated({
+                en: 'The default enterprise posture denies private-network webhook targets. Set webhook_private_network_access to allow only when an operator has approved an internal integration target and understands the SSRF boundary being relaxed.',
+                ko: '기본 enterprise 수준은 private-network 웹훅 대상을 거부합니다. 운영자가 내부 연동 대상을 승인했고 완화되는 SSRF 경계를 이해한 경우에만 webhook_private_network_access를 allow로 설정합니다.',
+                ja: '既定の enterprise 態勢では、プライベートネットワークの Webhook 先を拒否します。運用者が内部連携先を承認し、緩和される SSRF 境界を理解している場合だけ webhook_private_network_access を allow にします。',
+                'zh-CN': '默认 enterprise 态势拒绝私有网络 webhook 目标。只有在运营者批准内部集成目标并理解被放宽的 SSRF 边界时，才将 webhook_private_network_access 设为 allow。',
+              }),
+            ],
+            items: ['standard', 'enterprise', 'high_assurance', 'webhook_private_network_access=deny', 'webhook_private_network_access=allow'],
+          },
           { title: console.nav.audit_logs, body: screenBody(console.nav.audit_logs), items: [console.nav.admin_activity, console.nav.reports] },
           { title: console.nav.admin_activity, body: screenBody(console.nav.admin_activity), items: [console.nav.audit_logs, console.nav.change_history] },
           { title: console.nav.alert_rules, body: screenBody(console.nav.alert_rules), items: [console.nav.webhooks, console.nav.notif_templates] },
@@ -1867,6 +1903,26 @@ Accept: application/json`,
         sections: [
           { title: webmail.mail.folders, body: c.webmailFoldersBody, items: [webmail.mail.inbox, webmail.mail.sent, webmail.mail.drafts, webmail.mail.trash, webmail.mail.spam, webmail.mail.archive, webmail.mail.folders] },
           { title: webmail.mail.selectMessage, body: c.webmailReadingBody, items: [webmail.mail.from, webmail.mail.to, webmail.mail.subject, webmail.mail.date, webmail.mail.noSubject] },
+          {
+            title: translated({ en: 'Message state changes', ko: '메일 상태 변경', ja: 'メッセージ状態の変更', 'zh-CN': '邮件状态变更' }),
+            body: translated({
+              en: 'Read, unread, important, star, delete, archive, and folder changes should appear in the message list immediately after the action. If a row is selected, toolbar actions apply to the selected message set; hover actions apply to the row under the pointer.',
+              ko: '읽음, 읽지 않음, 중요, 별표, 삭제, 보관, 폴더 변경은 작업 직후 메시지 목록에 바로 반영되어야 합니다. 행이 선택되어 있으면 상단 도구 동작은 선택된 메시지 묶음에 적용되고, 호버 동작은 포인터가 올라간 행에 적용됩니다.',
+              ja: '既読、未読、重要、スター、削除、アーカイブ、フォルダー変更は、操作直後にメッセージ一覧へ反映されます。行が選択されている場合、上部ツール操作は選択されたメッセージ群に適用され、ホバー操作はポインター下の行に適用されます。',
+              'zh-CN': '已读、未读、重要、星标、删除、归档和文件夹变更应在操作后立即反映到邮件列表。选中行时，顶部工具作用于选中的邮件集合；悬停操作作用于指针所在行。',
+            }),
+            items: [webmail.mail.unread, webmail.mail.markUnread, webmail.mail.deleteMessage, webmail.mail.archive],
+          },
+          {
+            title: translated({ en: 'Snooze and reminders', ko: '스누즈와 다시 알림', ja: 'スヌーズと再通知', 'zh-CN': '稍后提醒与再次提醒' }),
+            body: translated({
+              en: 'Snooze hides the message from the active mailbox view until the selected reminder time. Treat it as a time-based mailbox state, not as message deletion. When the reminder time arrives, the message should return to the relevant mail view.',
+              ko: '스누즈는 선택한 다시 알림 시간이 될 때까지 현재 메일함 보기에서 메시지를 숨깁니다. 삭제가 아니라 시간 기반 메일함 상태로 이해합니다. 시간이 되면 메시지는 관련 메일 보기로 다시 돌아와야 합니다.',
+              ja: 'スヌーズは、選択した再通知時刻まで現在のメールボックス表示からメッセージを隠します。削除ではなく時間ベースの状態として扱います。時刻になると、メッセージは関連するメール表示に戻ります。',
+              'zh-CN': '稍后提醒会在所选提醒时间到来前，把邮件从当前邮箱视图中隐藏。它是基于时间的邮箱状态，不是删除。到时间后，邮件应回到相关邮件视图。',
+            }),
+            items: ['snooze', 'reminder time', webmail.mail.inbox, webmail.mail.archive],
+          },
           { title: webmail.mail.attachments, body: c.webmailReadingBody, items: [webmail.mail.attachments, console.nav.drive, webmail.common.error, webmail.common.retry] },
           { title: webmail.mail.unread, body: c.webmailFoldersBody, items: [webmail.mail.unread, webmail.mail.markUnread, webmail.mail.noMessages] },
           { title: webmail.common.search, body: c.webmailMailboxBody, items: [webmail.common.search, webmail.common.noResults, webmail.common.loading] },
@@ -1922,10 +1978,37 @@ Accept: application/json`,
         title: f.webmailShortcutsTitle,
         lead: f.webmailShortcutsLead,
         sections: [
-          { title: 'Global', body: f.sourceNote, items: ['?', 'Cmd+K / Ctrl+K', '/', '['] },
-          { title: 'App switch', body: f.sourceNote, items: ['g m', 'g c', 'g k', 'g o', 'g v', 'g ,'] },
-          { title: 'Mail navigation', body: f.sourceNote, items: ['j / k', 'Enter / o', 'x', 'Ctrl+A', 'Esc'] },
-          { title: 'Mail actions', body: f.sourceNote, items: ['r', 'a', 'f', 'e', 'v', '#', 's', 'm', 'Shift+M', 'z', 'l', '!'] },
+          {
+            title: translated({ en: 'Global', ko: '전역', ja: 'グローバル', 'zh-CN': '全局' }),
+            body: translated({
+              en: 'Global shortcuts work across the mailbox unless the compose editor is focused. Esc dismisses the current overlay first: reading pane, spotlight search, selection state, popover, or modal.',
+              ko: '전역 단축어는 메일 쓰기 편집기가 포커스된 경우를 제외하고 메일함 전반에서 동작합니다. Esc는 읽기창, 스팟라이트 검색, 선택 상태, 팝오버, 모달처럼 현재 열린 표면을 먼저 닫습니다.',
+              ja: 'グローバルショートカットは、作成エディターにフォーカスがある場合を除きメールボックス全体で動作します。Esc は閲覧ペイン、スポットライト検索、選択状態、ポップオーバー、モーダルなど現在の表面を先に閉じます。',
+              'zh-CN': '全局快捷键在邮箱中生效，除非焦点在写信编辑器中。Esc 会先关闭当前打开的界面：阅读窗格、Spotlight 搜索、选择状态、弹出层或模态框。',
+            }),
+            items: ['?', 'Cmd+K / Ctrl+K', '/', '[', 'Esc'],
+          },
+          {
+            title: translated({ en: 'App switch and Spotlight', ko: '앱 전환과 스팟라이트', ja: 'アプリ切替とスポットライト', 'zh-CN': '应用切换与 Spotlight' }),
+            body: translated({
+              en: 'Use app-switch shortcuts to move between mail, contacts, calendar, organization, drive, and settings. Spotlight search covers mail, contacts, calendar, and drive results from one search surface.',
+              ko: '앱 전환 단축어는 메일, 연락처, 일정, 조직도, 드라이브, 설정 사이를 이동할 때 사용합니다. 스팟라이트 검색은 하나의 검색창에서 메일, 연락처, 일정, 드라이브 결과를 함께 찾습니다.',
+              ja: 'アプリ切替ショートカットは、メール、連絡先、予定表、組織、ドライブ、設定の移動に使います。スポットライト検索は、1 つの検索面でメール、連絡先、予定表、ドライブを横断します。',
+              'zh-CN': '应用切换快捷键用于在邮件、联系人、日历、组织、Drive 和设置之间移动。Spotlight 搜索在一个搜索界面中覆盖邮件、联系人、日历和 Drive 结果。',
+            }),
+            items: ['g m', 'g c', 'g k', 'g o', 'g v', 'g ,', 'Cmd+K / Ctrl+K'],
+          },
+          {
+            title: translated({ en: 'Mail navigation and reading', ko: '메일 이동과 읽기', ja: 'メール移動と閲覧', 'zh-CN': '邮件导航与阅读' }),
+            body: translated({
+              en: 'When a message row is focused, Enter or o opens the reading view. In the reading view, ArrowUp and ArrowDown scroll the message body, while Esc closes the reading view and returns to the list.',
+              ko: '메시지 행에 포커스가 있을 때 Enter 또는 o를 누르면 읽기 화면이 열립니다. 읽기 화면에서는 위/아래 화살표가 본문을 스크롤하고, Esc는 읽기 화면을 닫아 목록으로 돌아갑니다.',
+              ja: 'メッセージ行にフォーカスがあるとき、Enter または o で閲覧画面を開きます。閲覧画面では上下矢印で本文をスクロールし、Esc で閲覧画面を閉じて一覧に戻ります。',
+              'zh-CN': '邮件行获得焦点时，按 Enter 或 o 打开阅读视图。在阅读视图中，向上/向下箭头滚动正文，Esc 关闭阅读视图并返回列表。',
+            }),
+            items: ['j / k', 'Enter / o', 'ArrowUp / ArrowDown', 'x', 'Ctrl+A', 'Esc'],
+          },
+          { title: translated({ en: 'Mail actions', ko: '메일 작업', ja: 'メール操作', 'zh-CN': '邮件操作' }), body: f.sourceNote, items: ['r', 'a', 'f', 'e', 'v', '#', 's', 'm', 'Shift+M', 'z', 'l', '!'] },
           { title: webmail.mail.folders, body: f.sourceNote, items: ['g i', 'g s', 'g d', 'g t', 'g p'] },
           { title: webmail.compose.newMessage, body: f.sourceNote, items: ['c', 'Ctrl+Enter', 'Ctrl+S', 'Esc'] },
         ],
