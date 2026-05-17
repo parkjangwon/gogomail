@@ -737,13 +737,13 @@ export default function MailPage() {
         }
         const virtualFolderMap: Record<string, string> = { w: VIRTUAL_TASKS, x: VIRTUAL_IMPORTANT };
         if (virtualFolderMap[key]) { e.preventDefault(); handleSelectFolder(virtualFolderMap[key]); return; }
-        const systemTypeMap: Record<string, string> = { i: 'inbox', s: 'sent', d: 'drafts', t: 'trash', a: 'archive', p: 'spam' };
+        const systemTypeMap: Record<string, string> = { i: 'inbox', s: 'sent', t: 'trash', a: 'archive', p: 'spam' };
         const target = systemTypeMap[key];
         if (target) {
           const folder = folders.find((f) => f.system_type === target);
           if (folder) { e.preventDefault(); handleSelectFolder(folder.id); return; }
         }
-        const appSwitchMap: Record<string, AppId> = { m: 'mail', c: 'calendar', k: 'contacts', v: 'drive', ',': 'settings' };
+        const appSwitchMap: Record<string, AppId> = { m: 'mail', c: 'calendar', k: 'contacts', d: 'drive', v: 'drive', ',': 'settings' };
         const appTarget = appSwitchMap[key];
         if (appTarget) { e.preventDefault(); setActiveApp(appTarget); return; }
       }
