@@ -1,12 +1,13 @@
 # gogomail current status
 
-Last updated: 2026-05-17 (dev backend hot reload + migration drift recovery)
+Last updated: 2026-05-17 (dev MinIO upload default + migration drift recovery)
 
 ## Development Backend Hot Reload (2026-05-17)
 - The dev Docker backend now runs through `air` with `.air.dev.toml`, so local changes under `cmd/`, `internal/`, `configs/`, and `migrations/` rebuild and restart the Go all-in-one backend inside the existing container.
 - Large frontend/generated directories such as `apps/`, `clients/`, `docs/`, `node_modules/`, and `var/` are excluded from backend watching to keep frontend iteration separate.
 - `configs/config.dev.yaml` now defaults the dev backend storage provider to MinIO at `http://minio:9000` with the compose-managed `gogomail` bucket, matching the middleware stack that `docker-compose.dev.yml` already starts.
 - New Drive and attachment objects use tenant-scoped object keys (`drive/<company>/<domain>/users/<user>/...` and `uploads/<company>/<domain>/users/<user>/...`) so MinIO object browsing lines up with the existing `mailstore/<company>/<domain>/<user>/...` layout.
+- Drive upload-session creation now defaults to the configured backend when the client omits `storage_backend`, and rejects unconfigured explicit labels before accepting a session; the webmail uploader lets the server choose first, so dev uploads record `minio` instead of creating unusable `local` sessions.
 - The current dev MinIO bucket was reorganized in place: 20 legacy `drive/users/...` and `uploads/<user>/...` objects were copied to tenant-scoped keys, the old keys were removed, and matching `minio` DB rows were updated to the new paths.
 - Verification: touching `cmd/gogomail/main.go` triggers an `air` rebuild and the backend returns to `http server listening` on `:8080`.
 

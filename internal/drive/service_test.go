@@ -292,3 +292,44 @@ func (s *recordingCleanupFailureStore) RecordObjectCleanupFailure(_ context.Cont
 	s.recorded = failure
 	return failure, nil
 }
+
+func TestResolveWritableStorageBackendUsesConfiguredDefault(t *testing.T) {
+	t.Parallel()
+
+	store := &recordingStore{}
+	service := NewService(nil, map[string]storage.Store{"minio": store})
+
+	backend, err := service.resolveWritableStorageBackend(" ")
+	if err != nil {
+		t.Fatalf("resolveWritableStorageBackend returned error: %v", err)
+	}
+	if backend != "minio" {
+		t.Fatalf("backend = %q, want configured default", backend)
+	}
+}
+
+func TestResolveWritableStorageBackendRejectsUnconfiguredExplicitBackend(t *testing.T) {
+	t.Parallel()
+
+	service := NewService(nil, map[string]storage.Store{"minio": &recordingStore{}})
+
+	_, err := service.resolveWritableStorageBackend("local")
+	if err == nil || !strings.Contains(err.Error(), `storage store "local" is required`) {
+		t.Fatalf("resolveWritableStorageBackend err = %v, want missing store rejection", err)
+	}
+}
+
+func TestWithDefaultStorageBackendOverridesCompatPriority(t *testing.T) {
+	t.Parallel()
+
+	store := &recordingStore{}
+	service := NewService(nil, map[string]storage.Store{"minio": store, "s3": store}).WithDefaultStorageBackend("s3")
+
+	backend, _, err := service.defaultStorageBackend()
+	if err != nil {
+		t.Fatalf("defaultStorageBackend returned error: %v", err)
+	}
+	if backend != "s3" {
+		t.Fatalf("backend = %q, want configured primary backend", backend)
+	}
+}

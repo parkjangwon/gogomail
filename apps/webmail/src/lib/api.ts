@@ -1217,7 +1217,7 @@ async function createDriveUploadSession(
         name: file.name,
         declared_size: file.size,
         mime_type: file.type || 'application/octet-stream',
-        storage_backend: storageBackend,
+        ...(storageBackend ? { storage_backend: storageBackend } : {}),
       }),
       signal,
     });
@@ -1277,7 +1277,7 @@ async function finalizeDriveUploadSession(sessionId: string): Promise<DriveNode 
 export async function uploadDriveFileWithOptions(file: File, options: DriveUploadOptions = {}): Promise<DriveNode | null> {
   const resumable = options.resumable ?? true;
   const chunkSize = Math.max(1 << 20, options.chunkSizeBytes ?? (8 << 20));
-  const storageBackends = ['local', 's3', 'minio'];
+  const storageBackends = ['', 'minio', 's3', 'local'];
   const totalBytes = file.size;
   const signal = options.signal;
   const emitProgress = (phase: DriveUploadProgress['phase'], uploadedBytes: number, sessionId?: string, storageBackend?: string) => {
