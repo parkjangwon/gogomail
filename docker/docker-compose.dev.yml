@@ -79,7 +79,7 @@ services:
 
   # Go Backend - Development
   clamav:
-    image: clamav/clamav:stable
+    image: clamav/clamav-debian:stable
     container_name: gogomail-clamav-dev
     ports:
       - "${GOGOMAIL_DEV_CLAMAV_PORT:-3310}:3310"

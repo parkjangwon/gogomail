@@ -126,10 +126,10 @@ export default function APISettingsPage() {
       }
     >
       <SpaceBetween size="l">
-        {saveSuccess && <Alert type="success">{t('pages.api_settings_page.saved')}</Alert>}
-        {saveError && <Alert type="error">{saveError}</Alert>}
+        {saveSuccess ? <Alert key="save-success" type="success">{t('pages.api_settings_page.saved')}</Alert> : null}
+        {saveError ? <Alert key="save-error" type="error">{saveError}</Alert> : null}
 
-        <Container header={<Header variant="h2">{t('pages.api_settings_page.domain_scope')}</Header>}>
+        <Container key="domain-scope" header={<Header variant="h2">{t('pages.api_settings_page.domain_scope')}</Header>}>
           <FormField label={t('pages.api_settings_page.select_domain_label')}>
             <Select
               selectedOption={domainOptions.find((option) => option.value === selectedDomainId) ?? null}
@@ -141,14 +141,14 @@ export default function APISettingsPage() {
           </FormField>
         </Container>
 
-        {loadingSettings && (
-          <Box textAlign="center" padding="xl">
+        {loadingSettings ? (
+          <Box key="settings-loading" textAlign="center" padding="xl">
             <Spinner />
           </Box>
-        )}
+        ) : null}
 
-        {!loadingSettings && selectedDomainId && (
-          <Container header={<Header variant="h2">{t('pages.api_settings_page.settings_section')}</Header>}>
+        {!loadingSettings && selectedDomainId ? (
+          <Container key="settings" header={<Header variant="h2">{t('pages.api_settings_page.settings_section')}</Header>}>
             <SpaceBetween size="m">
               <FormField label={t('pages.api_settings_page.rate_limit_rps')}>
                 <Input
@@ -202,14 +202,14 @@ export default function APISettingsPage() {
               </FormField>
             </SpaceBetween>
           </Container>
-        )}
+        ) : null}
 
-        {settings?.updated_at && (
-          <Box color="text-body-secondary" fontSize="body-s">
+        {settings?.updated_at ? (
+          <Box key="last-updated" color="text-body-secondary" fontSize="body-s">
             {t('pages.api_settings_page.last_updated')}: {new Date(settings.updated_at).toLocaleString()}
             {settings.updated_by && <> · {settings.updated_by}</>}
           </Box>
-        )}
+        ) : null}
       </SpaceBetween>
     </ContentLayout>
   );

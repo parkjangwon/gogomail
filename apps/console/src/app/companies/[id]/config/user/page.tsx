@@ -133,12 +133,12 @@ export default function UserConfigPage() {
       }
     >
       <SpaceBetween size="l">
-        {users.length === 0 && (
-          <Alert type="info">{t('pages.config_user_page.no_users')}</Alert>
-        )}
+        {users.length === 0 ? (
+          <Alert key="no-users" type="info">{t('pages.config_user_page.no_users')}</Alert>
+        ) : null}
 
-        {users.length > 0 && (
-          <FormField label={t('pages.config_user_page.select_user')}>
+        {users.length > 0 ? (
+          <FormField key="user-select" label={t('pages.config_user_page.select_user')}>
             <Select
               selectedOption={selectedOption}
               options={userOptions}
@@ -148,16 +148,17 @@ export default function UserConfigPage() {
               expandToViewport
             />
           </FormField>
-        )}
+        ) : null}
 
-        {selectedUserId && configLoading && (
-          <Box textAlign="center" padding="l">
+        {selectedUserId && configLoading ? (
+          <Box key="config-loading" textAlign="center" padding="l">
             <Spinner />
           </Box>
-        )}
+        ) : null}
 
-        {selectedUserId && !configLoading && (
+        {selectedUserId && !configLoading ? (
           <DataTable
+            key="config-table"
             columnDefinitions={[
               {
                 header: t('pages.config_user_page.key'),
@@ -198,11 +199,11 @@ export default function UserConfigPage() {
               </Box>
             }
           />
-        )}
+        ) : null}
 
-        {!selectedUserId && users.length > 0 && (
-          <Alert type="info">{t('pages.config_user_page.info_message')}</Alert>
-        )}
+        {!selectedUserId && users.length > 0 ? (
+          <Alert key="select-user-hint" type="info">{t('pages.config_user_page.info_message')}</Alert>
+        ) : null}
       </SpaceBetween>
     </ContentLayout>
   );

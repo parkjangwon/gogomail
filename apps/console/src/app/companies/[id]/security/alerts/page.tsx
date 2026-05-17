@@ -83,18 +83,6 @@ const defaultChannelForm: ChannelForm = {
   is_enabled: true,
 };
 
-const alertTypeOptions: SelectProps.Option[] = [
-  { label: 'Storage usage', value: 'storage' },
-  { label: 'Login failures', value: 'login_failures' },
-  { label: 'API errors', value: 'api_errors' },
-];
-
-const channelTypeOptions: SelectProps.Option[] = [
-  { label: 'Email', value: 'email' },
-  { label: 'Webhook', value: 'webhook' },
-  { label: 'Dashboard', value: 'dashboard' },
-];
-
 function toRecipients(text: string) {
   return text
     .split(',')
@@ -116,6 +104,24 @@ export default function AlertRulesPage() {
   const createChannel = useCreateAlertChannel();
   const updateChannel = useUpdateAlertChannel();
   const deleteChannel = useDeleteAlertChannel();
+
+  const alertTypeOptions: SelectProps.Option[] = useMemo(
+    () => [
+      { label: t('pages.alerts_page.type_storage'), value: 'storage' },
+      { label: t('pages.alerts_page.type_login_failures'), value: 'login_failures' },
+      { label: t('pages.alerts_page.type_api_errors'), value: 'api_errors' },
+    ],
+    [t]
+  );
+
+  const channelTypeOptions: SelectProps.Option[] = useMemo(
+    () => [
+      { label: t('pages.alerts_page.channel_email'), value: 'email' },
+      { label: t('pages.alerts_page.channel_webhook'), value: 'webhook' },
+      { label: t('pages.alerts_page.channel_dashboard'), value: 'dashboard' },
+    ],
+    [t]
+  );
 
   const [ruleFilter, setRuleFilter] = useState('');
   const [channelFilter, setChannelFilter] = useState('');
@@ -241,7 +247,7 @@ export default function AlertRulesPage() {
   };
 
   const removeRule = async (rule: AlertRule) => {
-    if (!companyId || !window.confirm(`Delete rule "${rule.name}"?`)) return;
+    if (!companyId || !window.confirm(t('pages.alerts_page.confirm_delete_rule').replace('{name}', rule.name))) return;
     setDeletingRuleId(rule.id);
     try {
       await deleteRule.mutateAsync({ companyId, ruleId: rule.id });
@@ -251,7 +257,7 @@ export default function AlertRulesPage() {
   };
 
   const removeChannel = async (channel: AlertChannel) => {
-    if (!companyId || !window.confirm(`Delete channel "${channel.name}"?`)) return;
+    if (!companyId || !window.confirm(t('pages.alerts_page.confirm_delete_channel').replace('{name}', channel.name))) return;
     setDeletingChannelId(channel.id);
     try {
       await deleteChannel.mutateAsync({ companyId, channelId: channel.id });
@@ -280,10 +286,10 @@ export default function AlertRulesPage() {
       header={
         <Header
           variant="h1"
-          description="Rules, channels, and recent events for this company."
+          description={t('pages.alerts_page.page_description')}
           actions={
             <SpaceBetween direction="horizontal" size="xs">
-              <Button onClick={openChannelCreate}>New channel</Button>
+              <Button onClick={openChannelCreate}>{t('pages.alerts_page.new_channel')}</Button>
               <Button variant="primary" onClick={openRuleCreate}>
                 {t('pages.alerts_page.create_alert_btn')}
               </Button>
@@ -295,18 +301,18 @@ export default function AlertRulesPage() {
       }
     >
       <SpaceBetween size="l">
-        <Container header={<Header variant="h3">Summary</Header>}>
+        <Container header={<Header variant="h3">{t('pages.alerts_page.summary')}</Header>}>
           <SpaceBetween direction="horizontal" size="l">
             <Box>
-              <Box color="text-body-secondary" fontSize="body-s">Enabled rules</Box>
+              <Box color="text-body-secondary" fontSize="body-s">{t('pages.alerts_page.enabled_rules')}</Box>
               <Box fontSize="heading-m">{rules.filter(rule => rule.is_enabled).length}</Box>
             </Box>
             <Box>
-              <Box color="text-body-secondary" fontSize="body-s">Channels</Box>
+              <Box color="text-body-secondary" fontSize="body-s">{t('pages.alerts_page.channels')}</Box>
               <Box fontSize="heading-m">{channels.length}</Box>
             </Box>
             <Box>
-              <Box color="text-body-secondary" fontSize="body-s">Open events</Box>
+              <Box color="text-body-secondary" fontSize="body-s">{t('pages.alerts_page.open_events')}</Box>
               <Box fontSize="heading-m">{openEvents.length}</Box>
             </Box>
           </SpaceBetween>
@@ -353,7 +359,7 @@ export default function AlertRulesPage() {
               cell: (item: AlertRule) => (
                 <SpaceBetween direction="horizontal" size="xs">
                   <Button variant="inline-link" onClick={() => openRuleEdit(item)}>
-                    Edit
+                    {t('common.edit')}
                   </Button>
                   <Button
                     variant="inline-link"
@@ -380,35 +386,35 @@ export default function AlertRulesPage() {
               onChange={(e) => setRuleFilter(e.detail.filteringText)}
             />
           }
-          empty={<Box textAlign="center" padding="l">No rules found</Box>}
+          empty={<Box textAlign="center" padding="l">{t('pages.alerts_page.no_rules')}</Box>}
         />
 
         <DataTable
           columnDefinitions={[
             {
-              header: 'Name',
+              header: t('pages.alerts_page.name'),
               cell: (item: AlertChannel) => item.name,
               width: '20%',
             },
             {
-              header: 'Type',
+              header: t('pages.alerts_page.channel_type'),
               cell: (item: AlertChannel) => <Badge color="blue">{item.channel_type}</Badge>,
               width: '12%',
             },
             {
-              header: 'Config',
+              header: t('pages.alerts_page.config'),
               cell: (item: AlertChannel) => {
                 if (item.channel_type === 'email') return item.config.recipients?.join(', ') || '—';
                 if (item.channel_type === 'webhook') return item.config.url || '—';
-                return 'Dashboard only';
+                return t('pages.alerts_page.dashboard_only');
               },
               width: '28%',
             },
             {
-              header: 'Status',
+              header: t('pages.alerts_page.status'),
               cell: (item: AlertChannel) => (
                 <Badge color={item.is_enabled ? 'green' : 'grey'}>
-                  {item.is_enabled ? 'Enabled' : 'Disabled'}
+                  {item.is_enabled ? t('common.enabled') : t('common.disabled')}
                 </Badge>
               ),
               width: '10%',
@@ -418,7 +424,7 @@ export default function AlertRulesPage() {
               cell: (item: AlertChannel) => (
                 <SpaceBetween direction="horizontal" size="xs">
                   <Button variant="inline-link" onClick={() => openChannelEdit(item)}>
-                    Edit
+                    {t('common.edit')}
                   </Button>
                   <Button
                     variant="inline-link"
@@ -435,7 +441,7 @@ export default function AlertRulesPage() {
           items={filteredChannels}
           header={
             <Header variant="h2" counter={`(${filteredChannels.length})`}>
-              Channels
+              {t('pages.alerts_page.channels')}
             </Header>
           }
           filter={
@@ -445,42 +451,42 @@ export default function AlertRulesPage() {
               onChange={(e) => setChannelFilter(e.detail.filteringText)}
             />
           }
-          empty={<Box textAlign="center" padding="l">No channels yet</Box>}
+          empty={<Box textAlign="center" padding="l">{t('pages.alerts_page.no_channels')}</Box>}
         />
 
         <DataTable
           columnDefinitions={[
             {
-              header: 'Rule',
+              header: t('pages.alerts_page.rule'),
               cell: (item: AlertEvent) => item.alert_rule_id,
               width: '18%',
             },
             {
-              header: 'Current',
+              header: t('pages.alerts_page.current'),
               cell: (item: AlertEvent) => item.current_value,
               width: '10%',
             },
             {
-              header: 'Threshold',
+              header: t('pages.alerts_page.threshold'),
               cell: (item: AlertEvent) => item.threshold,
               width: '10%',
             },
             {
-              header: 'Message',
+              header: t('pages.alerts_page.message'),
               cell: (item: AlertEvent) => item.message || '—',
               width: '34%',
             },
             {
-              header: 'Status',
+              header: t('pages.alerts_page.status'),
               cell: (item: AlertEvent) => (
                 <Badge color={item.resolved_at ? 'green' : 'red'}>
-                  {item.resolved_at ? 'Resolved' : 'Open'}
+                  {item.resolved_at ? t('pages.alerts_page.resolved') : t('pages.alerts_page.open')}
                 </Badge>
               ),
               width: '12%',
             },
             {
-              header: 'Triggered',
+              header: t('pages.alerts_page.triggered'),
               cell: (item: AlertEvent) => new Date(item.triggered_at).toLocaleString(),
               width: '16%',
             },
@@ -488,17 +494,17 @@ export default function AlertRulesPage() {
           items={recentEvents}
           header={
             <Header variant="h2" counter={`(${recentEvents.length})`}>
-              Recent events
+              {t('pages.alerts_page.recent_events')}
             </Header>
           }
-          empty={<Box textAlign="center" padding="l">No recent events</Box>}
+          empty={<Box textAlign="center" padding="l">{t('pages.alerts_page.no_recent_events')}</Box>}
         />
       </SpaceBetween>
 
       <Modal
         onDismiss={() => setShowRuleModal(false)}
         visible={showRuleModal}
-        header={ruleForm.id ? 'Edit rule' : t('pages.alerts_page.create_modal_title')}
+        header={ruleForm.id ? t('pages.alerts_page.edit_rule') : t('pages.alerts_page.create_modal_title')}
         footer={
           <Box float="right">
             <SpaceBetween direction="horizontal" size="xs">
@@ -564,7 +570,7 @@ export default function AlertRulesPage() {
       <Modal
         onDismiss={() => setShowChannelModal(false)}
         visible={showChannelModal}
-        header={channelForm.id ? 'Edit channel' : 'Create channel'}
+        header={channelForm.id ? t('pages.alerts_page.edit_channel') : t('pages.alerts_page.create_channel')}
         footer={
           <Box float="right">
             <SpaceBetween direction="horizontal" size="xs">
@@ -582,13 +588,13 @@ export default function AlertRulesPage() {
         }
       >
         <SpaceBetween size="m">
-          <FormField label="Name">
+          <FormField label={t('pages.alerts_page.name')}>
             <Input
               value={channelForm.name}
               onChange={(e) => setChannelForm({ ...channelForm, name: e.detail.value })}
             />
           </FormField>
-          <FormField label="Channel type">
+          <FormField label={t('pages.alerts_page.channel_type')}>
             <Select
               selectedOption={channelTypeOption}
               options={channelTypeOptions}
@@ -603,9 +609,9 @@ export default function AlertRulesPage() {
             />
           </FormField>
           {channelForm.id ? (
-            <Box color="text-body-secondary">Config is read-only after creation.</Box>
+            <Box color="text-body-secondary">{t('pages.alerts_page.config_readonly')}</Box>
           ) : channelForm.channel_type === 'email' ? (
-            <FormField label="Recipients">
+            <FormField label={t('pages.alerts_page.recipients')}>
               <Textarea
                 value={channelForm.recipients_text}
                 onChange={({ detail }) => setChannelForm({ ...channelForm, recipients_text: detail.value })}
@@ -614,14 +620,14 @@ export default function AlertRulesPage() {
             </FormField>
           ) : channelForm.channel_type === 'webhook' ? (
             <>
-              <FormField label="Webhook URL">
+              <FormField label={t('pages.alerts_page.webhook_url')}>
                 <Input
                   value={channelForm.url}
                   onChange={(e) => setChannelForm({ ...channelForm, url: e.detail.value })}
                   placeholder="https://example.com/webhook"
                 />
               </FormField>
-              <FormField label="Auth header">
+              <FormField label={t('pages.alerts_page.auth_header')}>
                 <Input
                   value={channelForm.auth_header}
                   onChange={(e) => setChannelForm({ ...channelForm, auth_header: e.detail.value })}
@@ -630,13 +636,13 @@ export default function AlertRulesPage() {
               </FormField>
             </>
           ) : (
-            <Box color="text-body-secondary">Dashboard channels need no extra config.</Box>
+            <Box color="text-body-secondary">{t('pages.alerts_page.dashboard_no_config')}</Box>
           )}
           <Checkbox
             checked={channelForm.is_enabled}
             onChange={(e) => setChannelForm({ ...channelForm, is_enabled: e.detail.checked })}
           >
-            Enabled
+            {t('common.enabled')}
           </Checkbox>
         </SpaceBetween>
       </Modal>

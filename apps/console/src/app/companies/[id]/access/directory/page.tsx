@@ -24,8 +24,8 @@ export default function DirectoryPage() {
   const [filter, setFilter] = useState('');
 
   const filteredPrincipals = useMemo(() => principals.filter(p =>
-    p.primary_email.toLowerCase().includes(filter.toLowerCase()) ||
-    p.display_name.toLowerCase().includes(filter.toLowerCase())
+    (p.primary_email || '').toLowerCase().includes(filter.toLowerCase()) ||
+    (p.display_name || '').toLowerCase().includes(filter.toLowerCase())
   ), [principals, filter]);
 
   if (loading) {
