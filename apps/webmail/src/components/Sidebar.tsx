@@ -250,6 +250,7 @@ export function Sidebar({
                   key={sf.systemType}
                   onClick={() => onSelectFolder(folderId)}
                   data-nav-group="sidebar-nav"
+                  data-nav-current={isActive ? 'true' : undefined}
                   onKeyDown={(e) => handleVerticalNavKeyDown(e, 'sidebar-nav')}
                   title={sf.label}
                   aria-label={`${sf.label}${unread > 0 ? ` (읽지 않음 ${unread})` : ''}`}
@@ -292,6 +293,7 @@ export function Sidebar({
                     key={vf.id}
                     onClick={() => onSelectFolder(vf.id)}
                     data-nav-group="sidebar-nav"
+                    data-nav-current={isActive ? 'true' : undefined}
                     onKeyDown={(e) => handleVerticalNavKeyDown(e, 'sidebar-nav')}
                     aria-current={isActive ? 'page' : undefined}
                     style={{ width: 'calc(100% - 8px)', display: 'flex', alignItems: 'center', gap: '8px', padding: '7px 16px', border: '1px solid transparent', background: isActive ? 'var(--color-bg-tertiary)' : 'transparent', color: isActive ? 'var(--color-text-primary)' : 'var(--color-text-secondary)', fontSize: '14px', fontWeight: isActive ? 500 : 400, cursor: 'pointer', borderRadius: '4px', marginInline: '4px' } as CSSProperties}
@@ -318,6 +320,9 @@ export function Sidebar({
                   <button
                     key={sf.systemType}
                     onClick={() => onSelectFolder(folderId)}
+                    data-nav-group="sidebar-nav"
+                    data-nav-current={isActive ? 'true' : undefined}
+                    onKeyDown={(e) => handleVerticalNavKeyDown(e, 'sidebar-nav')}
                     aria-current={isActive ? 'page' : undefined}
                     style={{
                       width: 'calc(100% - 8px)',
@@ -413,6 +418,7 @@ export function Sidebar({
                       <button
                           onClick={() => onSelectFolder(f.id)}
                           data-nav-group="sidebar-nav"
+                          data-nav-current={isActive ? 'true' : undefined}
                           onKeyDown={(e) => handleVerticalNavKeyDown(e, 'sidebar-nav')}
                           aria-current={isActive ? 'page' : undefined}
                           style={{

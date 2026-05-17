@@ -10,6 +10,24 @@ function getNavItems(group: string): HTMLElement[] {
   });
 }
 
+function choosePreferredItem(items: HTMLElement[], preferred?: HTMLElement | null): HTMLElement | null {
+  if (preferred && items.includes(preferred)) return preferred;
+
+  return items.find((el) =>
+    el.dataset.navCurrent === 'true' ||
+    el.getAttribute('aria-current') === 'page' ||
+    el.getAttribute('aria-selected') === 'true'
+  ) ?? items[0] ?? null;
+}
+
+export function focusNavGroup(group: string, preferred?: HTMLElement | null): HTMLElement | null {
+  if (!group) return null;
+  const items = getNavItems(group);
+  const next = choosePreferredItem(items, preferred);
+  next?.focus();
+  return next;
+}
+
 export function moveNavFocus(current: HTMLElement, direction: NavDirection, group = current.dataset.navGroup ?? ''): HTMLElement | null {
   if (!group) return null;
   const items = getNavItems(group);
