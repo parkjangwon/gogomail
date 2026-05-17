@@ -3035,7 +3035,7 @@ func runHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, mode M
 			attachmentCleanup:           mailservice.New(repository, store),
 			mailFlowStats:               mailFlowStatsProvider,
 			configStore:                 configStore,
-		}, cfg.AdminToken, httpapi.WithStorageCapabilities(storageCapabilitiesForConfig(cfg)), httpapi.WithConfigNotifier(configStore), httpapi.WithTokenManager(tokenManager))
+		}, cfg.AdminToken, httpapi.WithStorageCapabilities(storageCapabilitiesForConfig(cfg)), httpapi.WithConfigNotifier(configStore), httpapi.WithTokenManager(tokenManager), httpapi.WithEnvironment(cfg.Environment))
 		logger.Info("admin api routes registered")
 		httpapi.RegisterOrgChartRoutes(mux, orgChartService, cfg.AdminToken)
 		logger.Info("organization routes registered")

@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
     expires_at: data.expires_at,
     must_change_password: data.must_change_password,
     client_ip: data.client_ip,
-  });
+  }, { headers: { 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' } });
 
   response.cookies.set('webmail_token', data.token, {
     httpOnly: true,

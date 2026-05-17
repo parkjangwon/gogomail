@@ -33,13 +33,14 @@ export function SafeHTMLBody({ html, onMailto, externalImages = 'ask' }: SafeHTM
     import('dompurify').then(({ default: DOMPurify }) => {
       if (!ref.current) return;
 
-      const forbidTags: string[] = ['script', 'style', 'iframe', 'form', 'input'];
+      const forbidTags: string[] = ['script', 'style', 'iframe', 'form', 'input', 'object', 'embed', 'svg', 'math'];
       if (!showImages) forbidTags.push('img');
 
       const clean = DOMPurify.sanitize(html, {
         USE_PROFILES: { html: true },
         FORBID_TAGS: forbidTags,
-        FORBID_ATTR: ['onerror', 'onload', 'onclick', 'onmouseover'],
+        FORBID_ATTR: ['style'],
+        ALLOWED_URI_REGEXP: /^(?:(?:https?|mailto):|[^a-z]|[a-z+.-]+(?:[^a-z+.-:]|$))/i,
       });
 
       ref.current.innerHTML = clean;
@@ -75,8 +76,10 @@ export function SafeHTMLBody({ html, onMailto, externalImages = 'ask' }: SafeHTM
             onMailto?.(addr);
           });
         } else if (href.startsWith('http://') || href.startsWith('https://')) {
-          a.setAttribute('rel', 'noopener noreferrer');
+          a.setAttribute('rel', 'noopener noreferrer nofollow');
           a.setAttribute('target', '_blank');
+        } else {
+          a.removeAttribute('href');
         }
       });
 

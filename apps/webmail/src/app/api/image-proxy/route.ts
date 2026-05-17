@@ -1,10 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
+import { assertImageContentType, validateOutboundHttpUrl } from '@/lib/security/outboundUrl';
 
-const PRIVATE_IP_RE =
-  /^(localhost$|127\.|10\.|172\.(1[6-9]|2\d|3[01])\.|192\.168\.|::1$|0\.0\.0\.0)/i;
-const ALLOWED_CONTENT_TYPE_RE =
-  /^image\/(jpeg|png|gif|webp|svg\+xml|bmp|tiff|x-icon|avif)/;
+const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+const MAX_REDIRECTS = 3;
+
+async function fetchImage(url: URL, redirects = 0): Promise<Response> {
+  const upstream = await fetch(url, {
+    headers: { 'User-Agent': 'GoGoMail-ImageProxy/1.0' },
+    redirect: 'manual',
+    signal: AbortSignal.timeout(10_000),
+  });
+  if (upstream.status >= 300 && upstream.status < 400 && upstream.headers.has('location')) {
+    if (redirects >= MAX_REDIRECTS) throw new Error('Too many redirects');
+    const next = new URL(upstream.headers.get('location') ?? '', url);
+    await validateOutboundHttpUrl(next.toString());
+    return fetchImage(next, redirects + 1);
+  }
+  return upstream;
+}
 
 export async function GET(req: NextRequest) {
   const cookieStore = await cookies();
@@ -18,31 +32,28 @@ export async function GET(req: NextRequest) {
   if (!rawUrl) return NextResponse.json({ error: 'Missing url' }, { status: 400 });
 
   let parsed: URL;
-  try { parsed = new URL(rawUrl); } catch {
+  try { parsed = await validateOutboundHttpUrl(rawUrl); } catch {
     return NextResponse.json({ error: 'Invalid URL' }, { status: 400 });
   }
 
-  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
-    return NextResponse.json({ error: 'Only http/https allowed' }, { status: 400 });
-  }
-
-  if (PRIVATE_IP_RE.test(parsed.hostname)) {
-    return NextResponse.json({ error: 'Private addresses not allowed' }, { status: 403 });
-  }
-
   try {
-    const upstream = await fetch(rawUrl, {
-      headers: { 'User-Agent': 'GoGoMail-ImageProxy/1.0' },
-      redirect: 'follow',
-      signal: AbortSignal.timeout(10_000),
-    });
+    const upstream = await fetchImage(parsed);
 
     const ct = upstream.headers.get('content-type') ?? '';
-    if (!ALLOWED_CONTENT_TYPE_RE.test(ct)) {
+    try {
+      assertImageContentType(ct);
+    } catch {
       return NextResponse.json({ error: 'Not an allowed image type' }, { status: 415 });
     }
 
+    const length = Number(upstream.headers.get('content-length') ?? '0');
+    if (length > MAX_IMAGE_BYTES) {
+      return NextResponse.json({ error: 'Image is too large' }, { status: 413 });
+    }
     const data = await upstream.arrayBuffer();
+    if (data.byteLength > MAX_IMAGE_BYTES) {
+      return NextResponse.json({ error: 'Image is too large' }, { status: 413 });
+    }
     return new NextResponse(data, {
       status: 200,
       headers: {

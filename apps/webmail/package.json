@@ -10,6 +10,7 @@
     "type-check": "tsc --noEmit",
     "test:compose-helpers": "node --experimental-strip-types scripts/check-compose-helpers.mjs",
     "test:mail-page-helpers": "node --experimental-strip-types scripts/check-mail-page-helpers.mjs",
+    "test:security-helpers": "node --experimental-strip-types scripts/check-security-helpers.mjs",
     "test:datetime-local": "pnpm test:compose-helpers",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui"
@@ -49,5 +50,10 @@
   "engines": {
     "node": ">=22.0.0",
     "pnpm": ">=10.0.0"
+  },
+  "pnpm": {
+    "overrides": {
+      "postcss": "^8.5.14"
+    }
   }
 }

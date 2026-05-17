@@ -6280,3 +6280,7 @@ Target outcome:
       into the service layer, assembles sequential chunks into one backend
       object, enforces the previous received size under the locked metadata
       row, and records whole-object checksum metadata for finalized Drive files.
+1734. OWASP-oriented security hardening now covers backend outbound URL guards,
+      production bootstrap-admin blocking, webhook secret redaction, webmail
+      HTML/image proxy XSS/SSRF controls, patched Go/PostCSS dependency pins,
+      and console/webmail proxy header plus same-origin protections.

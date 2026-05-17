@@ -1012,7 +1012,7 @@ func TestAttachmentScanHooksForConfigWebhook(t *testing.T) {
 
 	hooks, err := attachmentScanHooksForConfig(config.Config{
 		AttachmentScanBackend:    "webhook",
-		AttachmentScanWebhookURL: "http://scanner.example.test/scan",
+		AttachmentScanWebhookURL: "http://93.184.216.34/scan",
 		AttachmentScanTimeout:    time.Second,
 	}, nil, "test")
 	if err != nil {

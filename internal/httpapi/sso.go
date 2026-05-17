@@ -314,7 +314,7 @@ func buildSAMLRedirectURL(cfg maildb.SSOConfig, returnURL string) (string, error
 		Destination: cfg.SSOURL,
 		Issuer:      cfg.EntityID,
 	}
-	_, err = req.MarshalXML()
+	_, err = req.BuildXML()
 	if err != nil {
 		return "", err
 	}

@@ -28,7 +28,7 @@ type AuthnRequest struct {
 	ACSURL       string
 }
 
-func (r *AuthnRequest) MarshalXML() ([]byte, error) {
+func (r *AuthnRequest) BuildXML() ([]byte, error) {
 	xml := fmt.Sprintf(`<samlp:AuthnRequest xmlns:samlp="urn:oasis:names:tc:SAML:2.0:protocol" `+
 		`xmlns:saml="urn:oasis:names:tc:SAML:2.0:assertion" `+
 		`ID="%s" Version="2.0" IssueInstant="%s" Destination="%s">`+

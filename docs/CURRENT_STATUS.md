@@ -1,6 +1,15 @@
 # gogomail current status
 
-Last updated: 2026-05-17 (Mail panel keyboard navigation)
+Last updated: 2026-05-17 (Security hardening)
+
+## OWASP Security Hardening (2026-05-17)
+- Backend outbound URL validation now rejects localhost, private/link-local, multicast, unspecified, and metadata-service destinations after DNS resolution for webhook-style integrations, including redirect revalidation.
+- Production admin bootstrap login using `admin@system / admin1234` is disabled unless the admin route environment is explicitly non-production.
+- Admin webhooks reject private endpoints and redact stored webhook secrets in list responses, returning only a suffix for operator identification.
+- Webmail HTML email rendering now removes active-content tags, unsafe URL schemes, and SVG image proxying; image proxy fetches enforce private-address blocking, redirect validation, size limits, and `nosniff`.
+- Console and webmail Next.js API proxies now encode backend path segments, strip client-supplied credentials, forward only allowlisted headers, enforce same-origin mutating requests, and return no-store/nosniff download responses.
+- Go builds are pinned to patched `go1.26.3`; webmail and console pin `postcss` to a non-vulnerable line via pnpm overrides.
+- Security review notes and verification commands are recorded in `docs/SECURITY_REVIEW.md`.
 
 ## Development Backend Hot Reload (2026-05-17)
 - The dev Docker backend now runs through `air` with `.air.dev.toml`, so local changes under `cmd/`, `internal/`, `configs/`, and `migrations/` rebuild and restart the Go all-in-one backend inside the existing container.
