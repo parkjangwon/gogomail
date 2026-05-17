@@ -1,8 +1,26 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { searchMessages, MessageSummary, Folder } from '@/lib/api';
 import {
+  autocompleteContacts,
+  Calendar,
+  CalendarObject,
+  ContactObject,
+  DriveNode,
+  Folder,
+  listAddressBooks,
+  listCalendarObjects,
+  listCalendars,
+  listContacts,
+  listDriveNodes,
+  MessageSummary,
+  parseVCard,
+  searchMessages,
+} from '@/lib/api';
+import { parseEvents, parseTodos } from '@/lib/calendar/eventParser';
+import {
+  CalendarDaysIcon,
+  CheckCircleIcon,
   MagnifyingGlassIcon,
   PencilSquareIcon,
   InboxIcon,
@@ -18,11 +36,12 @@ import {
   PaperAirplaneIcon,
   ArchiveBoxIcon,
   DocumentTextIcon,
+  DocumentIcon,
 } from '@heroicons/react/24/outline';
 import { ReactNode } from 'react';
 
 interface SpotlightItem {
-  type: 'action' | 'mail' | 'contact' | 'folder' | 'template';
+  type: 'action' | 'mail' | 'contact' | 'calendar' | 'drive' | 'folder' | 'template';
   id: string;
   title: string;
   subtitle?: string;
@@ -37,8 +56,11 @@ interface SpotlightSearchProps {
   onSelectFolder: (id: string) => void;
   onCompose: () => void;
   onSelectMessage: (id: string, folderId?: string) => void;
+  onOpenCalendar: () => void;
+  onOpenDrive: () => void;
   onOpenSettings: () => void;
   onSearch: (q: string) => void;
+  onComposeToAddress?: (email: string) => void;
   movingMessageId?: string;
   onMoveMessage?: (folderId: string) => void;
   onComposeWithTemplate?: (t: { name: string; subject: string; body: string }) => void;
@@ -59,6 +81,8 @@ function sectionLabel(type: SpotlightItem['type']): string {
     case 'folder': return '폴더';
     case 'mail': return '메일';
     case 'contact': return '연락처';
+    case 'calendar': return '일정';
+    case 'drive': return '드라이브';
     case 'template': return '템플릿';
   }
 }
@@ -75,21 +99,37 @@ function relativeTime(iso: string): string {
   return new Intl.DateTimeFormat('ko-KR', { month: 'short', day: 'numeric' }).format(new Date(iso));
 }
 
+function formatDriveSize(bytes: number): string {
+  if (!Number.isFinite(bytes) || bytes <= 0) return '';
+  if (bytes < 1024) return `${bytes}B`;
+  const units = ['KB', 'MB', 'GB', 'TB'];
+  let value = bytes / 1024;
+  let index = 0;
+  while (value >= 1024 && index < units.length - 1) {
+    value /= 1024;
+    index += 1;
+  }
+  return `${value >= 10 ? Math.round(value) : value.toFixed(1)}${units[index]}`;
+}
+
 export function SpotlightSearch({
   onClose,
   folders,
   onSelectFolder,
   onCompose,
   onSelectMessage,
+  onOpenCalendar,
+  onOpenDrive,
   onOpenSettings,
   onSearch,
+  onComposeToAddress,
   movingMessageId,
   onMoveMessage,
   onComposeWithTemplate,
 }: SpotlightSearchProps) {
   const isMoveMode = !!movingMessageId;
   const [query, setQuery] = useState('');
-  const [scope, setScope] = useState<'all' | 'mail' | 'contacts' | 'folders' | 'commands'>('all');
+  const [scope, setScope] = useState<'all' | 'mail' | 'contacts' | 'calendar' | 'drive' | 'folders' | 'commands'>('all');
   const [items, setItems] = useState<SpotlightItem[]>([]);
   const [selIdx, setSelIdx] = useState(0);
   const [searching, setSearching] = useState(false);
@@ -97,6 +137,9 @@ export function SpotlightSearch({
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const contactCacheRef = useRef<SpotlightItem[] | null>(null);
+  const calendarCacheRef = useRef<SpotlightItem[] | null>(null);
+  const driveCacheRef = useRef<SpotlightItem[] | null>(null);
 
   // Build quick actions
   const buildQuickActions = useCallback((): SpotlightItem[] => {
@@ -134,10 +177,122 @@ export function SpotlightSearch({
           title: name || email,
           subtitle: email,
           icon: <UserCircleIcon style={{ width: 16, height: 16 }} />,
-          onSelect: () => { onCompose(); onClose(); /* will prefill via onSearch */ },
+          onSelect: () => { onComposeToAddress?.(email); onClose(); },
         }));
     } catch { return []; }
-  }, [onCompose, onClose]);
+  }, [onComposeToAddress, onClose]);
+
+  const buildRemoteContactItems = useCallback(async (q: string): Promise<SpotlightItem[]> => {
+    const ql = q.toLowerCase();
+    const suggestions = q ? await autocompleteContacts(q, 12) : [];
+    if (!contactCacheRef.current) {
+      const books = await listAddressBooks();
+      const contactRows = await Promise.all(books.map(async (book) => {
+        const contacts = await listContacts(book.ID);
+        return contacts.map((contact: ContactObject) => ({ bookName: book.Name, contact }));
+      }));
+      contactCacheRef.current = contactRows.flat().map(({ bookName, contact }) => {
+        const parsed = parseVCard(contact.VCard);
+        const email = parsed.email || '';
+        const title = parsed.fn || email || contact.ObjectName;
+        const subtitle = [email, parsed.org, bookName].filter(Boolean).join(' · ');
+        return {
+          type: 'contact' as const,
+          id: `contact-${contact.ID}`,
+          title,
+          subtitle,
+          icon: <UserCircleIcon style={{ width: 16, height: 16 }} />,
+          onSelect: () => { if (email) onComposeToAddress?.(email); onClose(); },
+        };
+      });
+    }
+    const fromSuggestions = suggestions.map((suggestion) => ({
+      type: 'contact' as const,
+      id: `contact-suggestion-${suggestion.email}`,
+      title: suggestion.display_name || suggestion.email,
+      subtitle: [suggestion.email, suggestion.organization].filter(Boolean).join(' · '),
+      icon: <UserCircleIcon style={{ width: 16, height: 16 }} />,
+      onSelect: () => { onComposeToAddress?.(suggestion.email); onClose(); },
+    }));
+    const seen = new Set<string>();
+    return [...fromSuggestions, ...contactCacheRef.current]
+      .filter((item) => !ql || `${item.title} ${item.subtitle ?? ''}`.toLowerCase().includes(ql))
+      .filter((item) => {
+        const key = (item.subtitle || item.title).toLowerCase();
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      })
+      .slice(0, 8);
+  }, [onClose, onComposeToAddress]);
+
+  const buildCalendarItems = useCallback(async (q: string): Promise<SpotlightItem[]> => {
+    const ql = q.toLowerCase();
+    if (!calendarCacheRef.current) {
+      const calendars = await listCalendars();
+      const objects = (await Promise.all(calendars.map((calendar: Calendar) => listCalendarObjects(calendar.ID)))).flat() as CalendarObject[];
+      const events = parseEvents(objects, calendars).map((event) => ({
+        type: 'calendar' as const,
+        id: `calendar-event-${event.obj.ID}`,
+        title: event.summary,
+        subtitle: [
+          event.allDay
+            ? new Intl.DateTimeFormat('ko-KR', { dateStyle: 'medium' }).format(event.start)
+            : new Intl.DateTimeFormat('ko-KR', { dateStyle: 'medium', timeStyle: 'short' }).format(event.start),
+          event.location,
+        ].filter(Boolean).join(' · '),
+        badge: '일정',
+        icon: <CalendarDaysIcon style={{ width: 16, height: 16 }} />,
+        onSelect: () => { onOpenCalendar(); onClose(); },
+      }));
+      const todos = parseTodos(objects, calendars).map((todo) => ({
+        type: 'calendar' as const,
+        id: `calendar-todo-${todo.obj.ID}`,
+        title: todo.summary,
+        subtitle: [todo.dueDate ? new Intl.DateTimeFormat('ko-KR', { dateStyle: 'medium' }).format(todo.dueDate) : '', todo.description].filter(Boolean).join(' · '),
+        badge: todo.completed ? '완료' : '할 일',
+        icon: <CheckCircleIcon style={{ width: 16, height: 16 }} />,
+        onSelect: () => { onOpenCalendar(); onClose(); },
+      }));
+      calendarCacheRef.current = [...events, ...todos];
+    }
+    return calendarCacheRef.current
+      .filter((item) => !ql || `${item.title} ${item.subtitle ?? ''}`.toLowerCase().includes(ql))
+      .slice(0, 8);
+  }, [onClose, onOpenCalendar]);
+
+  const buildDriveItems = useCallback(async (q: string): Promise<SpotlightItem[]> => {
+    const ql = q.toLowerCase();
+    if (!driveCacheRef.current) {
+      const collected: DriveNode[] = [];
+      const queue: Array<string | undefined> = [undefined];
+      const visited = new Set<string>();
+      while (queue.length > 0 && collected.length < 120) {
+        const parentId = queue.shift();
+        const key = parentId ?? '__root__';
+        if (visited.has(key)) continue;
+        visited.add(key);
+        const nodes = await listDriveNodes(parentId);
+        collected.push(...nodes);
+        for (const node of nodes) {
+          if (node.node_type === 'folder') queue.push(node.id);
+          if (queue.length + collected.length >= 160) break;
+        }
+      }
+      driveCacheRef.current = collected.map((node) => ({
+        type: 'drive' as const,
+        id: `drive-${node.id}`,
+        title: node.name,
+        subtitle: node.node_type === 'folder' ? '폴더' : node.mime_type || '파일',
+        badge: node.node_type === 'file' && node.size ? formatDriveSize(node.size) : undefined,
+        icon: node.node_type === 'folder' ? <FolderIcon style={{ width: 16, height: 16 }} /> : <DocumentIcon style={{ width: 16, height: 16 }} />,
+        onSelect: () => { onOpenDrive(); onClose(); },
+      }));
+    }
+    return driveCacheRef.current
+      .filter((item) => !ql || `${item.title} ${item.subtitle ?? ''}`.toLowerCase().includes(ql))
+      .slice(0, 8);
+  }, [onClose, onOpenDrive]);
 
   // Parse Gmail-style operators from a query string
   function parseQuery(raw: string): { params: Record<string, string | boolean>; freeText: string; operators: string[] } {
@@ -198,14 +353,14 @@ export function SpotlightSearch({
       return;
     }
 
-    // Immediate: filter actions + contacts + templates
+    // Immediate: filter actions + local contacts + templates
     const ql = q.toLowerCase();
     const actions = buildQuickActions().filter((a) =>
       a.title.toLowerCase().includes(ql) || (a.subtitle ?? '').toLowerCase().includes(ql)
     );
-    const contacts = isMoveMode ? [] : buildContactItems(ql);
+    const localContacts = isMoveMode ? [] : buildContactItems(ql);
     const templates = isMoveMode ? [] : buildTemplateItems(ql);
-    setItems([...actions, ...contacts, ...templates]);
+    setItems([...actions, ...localContacts, ...templates]);
     setSelIdx(0);
 
     if (isMoveMode) return;
@@ -214,7 +369,7 @@ export function SpotlightSearch({
     const { params: opParams, freeText, operators } = parseQuery(q);
     setActiveOperators(operators);
 
-    // Debounced: search mail with operator support
+    // Debounced: search mail, contacts, calendar, and drive with operator support
     setSearching(true);
     debounceRef.current = setTimeout(async () => {
       try {
@@ -224,7 +379,12 @@ export function SpotlightSearch({
         if (opParams.to) searchParams.to = opParams.to as string;
         if (opParams.subject) searchParams.subject = opParams.subject as string;
         if (opParams.has_attachment) searchParams.has_attachment = true;
-        const res = await searchMessages(searchParams as Parameters<typeof searchMessages>[0]);
+        const [res, remoteContacts, calendarItems, driveItems] = await Promise.all([
+          searchMessages(searchParams as Parameters<typeof searchMessages>[0]),
+          buildRemoteContactItems(q),
+          buildCalendarItems(q),
+          buildDriveItems(q),
+        ]);
         const mailItems: SpotlightItem[] = (res.messages ?? []).map((m: MessageSummary) => ({
           type: 'mail' as const,
           id: m.id,
@@ -238,24 +398,26 @@ export function SpotlightSearch({
         const searchAll: SpotlightItem = {
           type: 'action',
           id: '__search_all__',
-          title: `"${q}" 전체 검색`,
+          title: `"${q}" 메일 전체 검색`,
           icon: <MagnifyingGlassIcon style={{ width: 16, height: 16 }} />,
           onSelect: () => { onSearch(q); onClose(); },
         };
-        setItems([...actions, ...contacts, ...templates, ...mailItems, searchAll]);
+        setItems([...actions, ...remoteContacts, ...templates, ...mailItems, ...calendarItems, ...driveItems, searchAll]);
         setSelIdx(0);
       } catch { /* */ }
       setSearching(false);
     }, 200);
 
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
-  }, [query, buildQuickActions, buildContactItems, buildTemplateItems, onSelectMessage, onSearch, onClose, isMoveMode]);
+  }, [query, buildQuickActions, buildContactItems, buildTemplateItems, buildRemoteContactItems, buildCalendarItems, buildDriveItems, onSelectMessage, onSearch, onClose, isMoveMode]);
 
   // Apply scope filter to items
   const scopeTypeMap: Record<typeof scope, SpotlightItem['type'][] | null> = {
     all: null,
     mail: ['mail'],
     contacts: ['contact'],
+    calendar: ['calendar'],
+    drive: ['drive'],
     folders: ['folder'],
     commands: ['action', 'template'],
   };
@@ -343,7 +505,7 @@ export function SpotlightSearch({
             ref={inputRef}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder={isMoveMode ? '폴더 이름으로 이동...' : '메일, 연락처, 폴더, 명령 검색...'}
+            placeholder={isMoveMode ? '폴더 이름으로 이동...' : '메일, 연락처, 일정, 드라이브 검색...'}
             aria-label={isMoveMode ? '폴더로 이동' : '통합 검색 입력'}
             style={{
               flex: 1,
@@ -360,9 +522,9 @@ export function SpotlightSearch({
 
         {/* Scope filter chips */}
         {!isMoveMode && (
-          <div style={{ display: 'flex', gap: '6px', padding: '6px 16px', borderBottom: '1px solid var(--color-border-subtle)', flexShrink: 0 }}>
-            {(['all', 'mail', 'contacts', 'folders', 'commands'] as const).map((s) => {
-              const labels: Record<typeof s, string> = { all: '전체', mail: '메일', contacts: '연락처', folders: '편지함', commands: '명령' };
+          <div style={{ display: 'flex', gap: '6px', padding: '6px 16px', borderBottom: '1px solid var(--color-border-subtle)', flexShrink: 0, flexWrap: 'wrap' }}>
+            {(['all', 'mail', 'contacts', 'calendar', 'drive', 'folders', 'commands'] as const).map((s) => {
+              const labels: Record<typeof s, string> = { all: '전체', mail: '메일', contacts: '연락처', calendar: '일정', drive: '드라이브', folders: '편지함', commands: '명령' };
               return (
                 <button key={s} type="button" onClick={() => setScope(s)}
                   style={{ padding: '3px 10px', borderRadius: '12px', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: 500,
