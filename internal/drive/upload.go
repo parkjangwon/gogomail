@@ -52,7 +52,11 @@ func (s *Service) StoreStagedObject(ctx context.Context, req StoreStagedObjectRe
 	if store == nil {
 		return StagedObject{}, fmt.Errorf("storage store %q is required", storageBackend)
 	}
-	storagePath, err := BuildStagedObjectPath(userID, uploadID)
+	scope, scoped, err := s.objectPathScope(ctx, userID)
+	if err != nil {
+		return StagedObject{}, err
+	}
+	storagePath, err := buildServiceStagedObjectPath(scope, scoped, uploadID)
 	if err != nil {
 		return StagedObject{}, err
 	}

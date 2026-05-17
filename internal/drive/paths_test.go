@@ -14,6 +14,33 @@ func TestBuildStagedObjectPath(t *testing.T) {
 	}
 }
 
+func TestBuildScopedDriveObjectPaths(t *testing.T) {
+	t.Parallel()
+
+	scope := ObjectPathScope{CompanyID: " company-1 ", DomainID: " domain-1 ", UserID: " user-1 "}
+	staged, err := BuildScopedStagedObjectPath(scope, " upload-1 ")
+	if err != nil {
+		t.Fatalf("BuildScopedStagedObjectPath returned error: %v", err)
+	}
+	if staged != "drive/company-1/domain-1/users/user-1/staging/upload-1" {
+		t.Fatalf("staged path = %q", staged)
+	}
+	node, err := BuildScopedNodeObjectPath(scope, " node-1 ")
+	if err != nil {
+		t.Fatalf("BuildScopedNodeObjectPath returned error: %v", err)
+	}
+	if node != "drive/company-1/domain-1/users/user-1/objects/node-1" {
+		t.Fatalf("node path = %q", node)
+	}
+	body, err := BuildScopedUploadSessionBodyPath(scope, " session-1 ", " body-1 ")
+	if err != nil {
+		t.Fatalf("BuildScopedUploadSessionBodyPath returned error: %v", err)
+	}
+	if body != "drive/company-1/domain-1/users/user-1/upload-sessions/session-1/bodies/body-1" {
+		t.Fatalf("body path = %q", body)
+	}
+}
+
 func TestBuildNodeObjectPath(t *testing.T) {
 	t.Parallel()
 
@@ -50,6 +77,12 @@ func TestValidateUserObjectPathRequiresUserPrefix(t *testing.T) {
 	}
 	if _, err := validateUserObjectPath("user-1", "drive/users/user-2/staging/upload-1"); err == nil {
 		t.Fatal("validateUserObjectPath accepted another user's object path")
+	}
+	if path, err := validateUserObjectPath("user-1", "drive/company-1/domain-1/users/user-1/staging/upload-1"); err != nil || path != "drive/company-1/domain-1/users/user-1/staging/upload-1" {
+		t.Fatalf("validateUserObjectPath scoped path = %q, %v", path, err)
+	}
+	if _, err := validateUserObjectPath("user-1", "drive/company-1/domain-1/users/user-2/staging/upload-1"); err == nil {
+		t.Fatal("validateUserObjectPath accepted another user's scoped object path")
 	}
 	if _, err := validateUserObjectPath("user-1", "../bad"); err == nil {
 		t.Fatal("validateUserObjectPath accepted unsafe object path")

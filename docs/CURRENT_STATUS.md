@@ -1,6 +1,18 @@
 # gogomail current status
 
-Last updated: 2026-05-17 (IMAP/POP3 fast path cleanup + query hydration)
+Last updated: 2026-05-17 (dev backend hot reload + migration drift recovery)
+
+## Development Backend Hot Reload (2026-05-17)
+- The dev Docker backend now runs through `air` with `.air.dev.toml`, so local changes under `cmd/`, `internal/`, `configs/`, and `migrations/` rebuild and restart the Go all-in-one backend inside the existing container.
+- Large frontend/generated directories such as `apps/`, `clients/`, `docs/`, `node_modules/`, and `var/` are excluded from backend watching to keep frontend iteration separate.
+- `configs/config.dev.yaml` now defaults the dev backend storage provider to MinIO at `http://minio:9000` with the compose-managed `gogomail` bucket, matching the middleware stack that `docker-compose.dev.yml` already starts.
+- New Drive and attachment objects use tenant-scoped object keys (`drive/<company>/<domain>/users/<user>/...` and `uploads/<company>/<domain>/users/<user>/...`) so MinIO object browsing lines up with the existing `mailstore/<company>/<domain>/<user>/...` layout.
+- The current dev MinIO bucket was reorganized in place: 20 legacy `drive/users/...` and `uploads/<user>/...` objects were copied to tenant-scoped keys, the old keys were removed, and matching `minio` DB rows were updated to the new paths.
+- Verification: touching `cmd/gogomail/main.go` triggers an `air` rebuild and the backend returns to `http server listening` on `:8080`.
+
+## Development Migration Drift Recovery (2026-05-17)
+- Migration `0106_message_html_body.sql` now uses `ADD COLUMN IF NOT EXISTS` for `messages.html_body`, allowing development databases where the column exists but the goose version row is still at `0105` to recover and continue applying later migrations.
+- Verification: the dev Docker backend starts with `docker compose -f docker/docker-compose.dev.yml up -d backend` after the migration guard.
 
 ## IMAP/POP3 Fast Path Cleanup (2026-05-17)
 - POP3 command parsing now uses a small ASCII scanner instead of `strings.Fields`, so common authorization and transaction commands avoid slice-heavy tokenization on the hot path.

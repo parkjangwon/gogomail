@@ -1,6 +1,6 @@
 -- +goose Up
 ALTER TABLE messages
-  ADD COLUMN html_body text NOT NULL DEFAULT '';
+  ADD COLUMN IF NOT EXISTS html_body text NOT NULL DEFAULT '';
 
 -- +goose Down
 ALTER TABLE messages
