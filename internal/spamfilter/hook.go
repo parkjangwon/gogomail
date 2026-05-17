@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/gogomail/gogomail/internal/configstore"
+	"github.com/gogomail/gogomail/internal/dnsbl"
 	"github.com/gogomail/gogomail/internal/maildb"
 	smtpd "github.com/gogomail/gogomail/internal/smtp"
 )
@@ -18,9 +19,10 @@ type Resolver interface {
 }
 
 type Options struct {
-	Resolver Resolver
-	Logger   *maildb.MailFlowLogWriter
-	Engine   Engine
+	Resolver    Resolver
+	Logger      *maildb.MailFlowLogWriter
+	Engine      Engine
+	RBLResolver dnsbl.Resolver
 }
 
 func Hook(opts Options) smtpd.Hook {
@@ -44,6 +46,9 @@ func Hook(opts Options) smtpd.Hook {
 			}
 		}
 		decision := engine.Evaluate(policy, event)
+		if rblDecision, ok := checkRBL(ctx, opts.RBLResolver, policy, event, decision); ok {
+			decision = rblDecision
+		}
 		if decision.Action == ActionAccept {
 			if decision.Score > 0 {
 				_ = logDecision(ctx, opts.Logger, event, decision, maildb.MailFlowStatusReceived)
@@ -67,6 +72,41 @@ func Hook(opts Options) smtpd.Hook {
 			return nil
 		}
 	}
+}
+
+func checkRBL(ctx context.Context, resolver dnsbl.Resolver, policy Policy, event smtpd.Event, current Decision) (Decision, bool) {
+	policy = NormalizePolicy(policy)
+	if !policy.RBLCheckEnabled || len(policy.RBLZones) == 0 || current.Action == ActionReject || (current.Action == ActionQuarantine && !policy.RBLRejectEnabled) || isAllowlisted(policy, event) {
+		return Decision{}, false
+	}
+	ip := remoteIP(event.RemoteAddr)
+	if ip == "" {
+		return Decision{}, false
+	}
+	if resolver == nil {
+		resolver = dnsbl.NewResolverWithTimeout(2 * time.Second)
+	}
+	result, err := dnsbl.NewChecker(policy.RBLZones, resolver).CheckAddr(ip)
+	if err != nil || !result.Listed {
+		return Decision{}, false
+	}
+	score := current.Score + 5
+	rules := append([]string{}, current.Rules...)
+	rules = append(rules, "RBL_LISTED:"+result.Zone)
+	if policy.RBLRejectEnabled {
+		return Decision{
+			Action: ActionReject,
+			Score:  score,
+			Reason: "remote IP listed in RBL",
+			Rules:  rules,
+		}, true
+	}
+	return decisionForPolicy(policy, score, "remote IP listed in RBL", rules), true
+}
+
+func isAllowlisted(policy Policy, event smtpd.Event) bool {
+	from := firstNonEmpty(event.Parsed.From.Address, event.EnvelopeFrom)
+	return matchesAddressList(from, policy.AllowedSenders)
 }
 
 type Recorder struct {

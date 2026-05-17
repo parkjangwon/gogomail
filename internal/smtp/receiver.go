@@ -364,6 +364,7 @@ func (s *session) Data(r io.Reader) (err error) {
 	}
 	if err := s.emit(context.Background(), Event{
 		Stage:        StageBackpressureChecked,
+		RemoteAddr:   s.remoteAddr,
 		EnvelopeFrom: s.from,
 		Recipients:   mailboxAddresses(s.recipients),
 		DSN:          s.currentDSNOptions(),
@@ -386,6 +387,7 @@ func (s *session) Data(r io.Reader) (err error) {
 	defer cleanupSpool(spooled)
 	if err := s.emit(context.Background(), Event{
 		Stage:        StageSpooled,
+		RemoteAddr:   s.remoteAddr,
 		EnvelopeFrom: s.from,
 		Recipients:   mailboxAddresses(s.recipients),
 		DSN:          s.currentDSNOptions(),
@@ -397,7 +399,7 @@ func (s *session) Data(r io.Reader) (err error) {
 	if _, err := spooled.Seek(0, io.SeekStart); err != nil {
 		return fmt.Errorf("rewind spooled message for parse: %w", err)
 	}
-	parsed, err := message.ParseEMLWithOptions(spooled, message.ParseOptions{SkipTextBody: true})
+	parsed, err := message.ParseEMLWithOptions(spooled, message.ParseOptions{MaxTextBodyBytes: 64 << 10})
 	if err != nil {
 		return fmt.Errorf("parse smtp message: %w", err)
 	}
@@ -407,6 +409,7 @@ func (s *session) Data(r io.Reader) (err error) {
 	}
 	if err := s.emit(context.Background(), Event{
 		Stage:        StageParsed,
+		RemoteAddr:   s.remoteAddr,
 		EnvelopeFrom: s.from,
 		Recipients:   mailboxAddresses(s.recipients),
 		DSN:          s.currentDSNOptions(),
@@ -427,6 +430,7 @@ func (s *session) Data(r io.Reader) (err error) {
 	if s.receiver.authVerifier != nil {
 		if err := s.emit(context.Background(), Event{
 			Stage:          StageAuthenticationChecked,
+			RemoteAddr:     s.remoteAddr,
 			EnvelopeFrom:   s.from,
 			Recipients:     mailboxAddresses(s.recipients),
 			DSN:            s.currentDSNOptions(),
@@ -460,6 +464,7 @@ func (s *session) Data(r io.Reader) (err error) {
 		}
 		if err := s.emit(context.Background(), Event{
 			Stage:          StageDedupChecked,
+			RemoteAddr:     s.remoteAddr,
 			EnvelopeFrom:   s.from,
 			Mailbox:        recipient,
 			Recipients:     mailboxAddresses(s.recipients),
@@ -485,6 +490,7 @@ func (s *session) Data(r io.Reader) (err error) {
 		}
 		if err := s.emit(context.Background(), Event{
 			Stage:          StageStored,
+			RemoteAddr:     s.remoteAddr,
 			EnvelopeFrom:   s.from,
 			Mailbox:        recipient,
 			Recipients:     mailboxAddresses(s.recipients),
@@ -516,6 +522,7 @@ func (s *session) Data(r io.Reader) (err error) {
 		}
 		if err := s.emit(context.Background(), Event{
 			Stage:          StageRecorded,
+			RemoteAddr:     s.remoteAddr,
 			EnvelopeFrom:   s.from,
 			Mailbox:        recipient,
 			Recipients:     mailboxAddresses(s.recipients),
@@ -751,7 +758,8 @@ func (s *session) Auth(mech string) (sasl.Server, error) {
 		}
 		s.authenticated = true
 		if err := s.emit(context.Background(), Event{
-			Stage: StageAuthenticated,
+			Stage:      StageAuthenticated,
+			RemoteAddr: s.remoteAddr,
 		}); err != nil {
 			authErr = err
 			return err
