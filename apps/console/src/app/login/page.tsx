@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { Suspense, useState, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
   FormField,
@@ -12,7 +12,7 @@ import {
 import { useI18n } from '@/app/i18n-provider';
 import './login.css';
 
-export default function LoginPage() {
+function LoginPageContent() {
   const { t } = useI18n();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -164,5 +164,13 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <LoginPageContent />
+    </Suspense>
   );
 }
