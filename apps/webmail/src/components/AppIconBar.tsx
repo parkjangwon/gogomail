@@ -1,7 +1,6 @@
 'use client';
 import { EnvelopeIcon, CalendarDaysIcon, UserGroupIcon, Cog6ToothIcon, CloudIcon, BookOpenIcon } from '@heroicons/react/24/outline';
 import { EnvelopeIcon as EnvelopeIconSolid, CalendarDaysIcon as CalendarSolid, UserGroupIcon as UserGroupSolid, Cog6ToothIcon as Cog6ToothSolid, CloudIcon as CloudSolid } from '@heroicons/react/24/solid';
-import { handleVerticalNavKeyDown } from '@/lib/navKeyboard';
 
 export type AppId = 'mail' | 'calendar' | 'contacts' | 'drive' | 'settings';
 
@@ -33,9 +32,9 @@ function AppBtn({ app, isActive, onChangeApp, badge }: { app: typeof MAIN_APPS[0
       aria-label={`${app.label}${badgeLabel ? ` (읽지 않음 ${badgeLabel})` : ''}`}
       aria-pressed={isActive}
       title={app.label}
+      tabIndex={-1}
       onClick={() => onChangeApp(app.id)}
-      data-nav-group="app-switcher"
-      onKeyDown={(e) => handleVerticalNavKeyDown(e, 'app-switcher')}
+      onMouseDown={(e) => { e.currentTarget.blur(); }}
       style={{
         width: '36px',
         height: '36px',
@@ -96,9 +95,9 @@ function AppActionBtn({ label, icon, onClick }: { label: string; icon: React.Rea
       aria-label={label}
       title={label}
       type="button"
+      tabIndex={-1}
       onClick={onClick}
-      data-nav-group="app-switcher"
-      onKeyDown={(e) => handleVerticalNavKeyDown(e, 'app-switcher')}
+      onMouseDown={(e) => { e.currentTarget.blur(); }}
       style={{
         width: '36px',
         height: '36px',

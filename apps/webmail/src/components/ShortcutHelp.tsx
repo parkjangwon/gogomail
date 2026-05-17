@@ -29,7 +29,7 @@ const SECTIONS = [
       { key: 'j / k', desc: '다음 / 이전 메일' },
       { key: '↑ / ↓', desc: '목록 이동' },
       { key: 'n / N', desc: '다음 / 이전 읽지 않은 메일' },
-      { key: 'Enter / o', desc: '선택 메일 열기' },
+      { key: 'o', desc: '선택 메일 열기' },
       { key: 'Space', desc: '체크박스 토글' },
       { key: 'Home / End', desc: '첫 / 마지막 메일' },
       { key: 'Esc', desc: '읽기창 닫기 / 선택 해제' },
