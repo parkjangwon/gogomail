@@ -672,8 +672,20 @@ func (s *S3Store) bucketURL() url.URL {
 	return target
 }
 
+type s3ContentLengthProvider interface {
+	ContentLength() int64
+}
+
 func setS3ContentLength(req *http.Request, body io.Reader) error {
 	if req == nil || req.Method != http.MethodPut || body == nil || req.ContentLength > 0 {
+		return nil
+	}
+	if provider, ok := body.(s3ContentLengthProvider); ok {
+		length := provider.ContentLength()
+		if length < 0 {
+			return fmt.Errorf("s3 body length is invalid")
+		}
+		req.ContentLength = length
 		return nil
 	}
 	seeker, ok := body.(io.Seeker)

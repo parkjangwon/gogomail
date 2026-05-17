@@ -27,6 +27,7 @@ type ObjectCleanupFailureStore interface {
 type Service struct {
 	repo                   *Repository
 	stores                 map[string]storage.Store
+	primaryStorageBackend  string
 	cleanupFailureRecorder ObjectCleanupFailureRecorder
 	cleanupFailureStore    ObjectCleanupFailureStore
 }
@@ -58,6 +59,17 @@ func NewService(repo *Repository, stores map[string]storage.Store) *Service {
 		service.cleanupFailureStore = repo
 	}
 	return service
+}
+
+func (s *Service) WithDefaultStorageBackend(backend string) *Service {
+	if s == nil {
+		return nil
+	}
+	backend, err := validateStorageBackend(backend)
+	if err == nil && s.stores[backend] != nil {
+		s.primaryStorageBackend = backend
+	}
+	return s
 }
 
 func (s *Service) WithObjectCleanupFailureRecorder(recorder ObjectCleanupFailureRecorder) *Service {
@@ -102,6 +114,16 @@ func (s *Service) CreateFileFromObject(ctx context.Context, req CreateFileFromOb
 func (s *Service) defaultStorageBackend() (string, storage.Store, error) {
 	if len(s.stores) == 0 {
 		return "", nil, fmt.Errorf("no storage store configured")
+	}
+	if backend := strings.TrimSpace(s.primaryStorageBackend); backend != "" {
+		if store := s.stores[backend]; store != nil {
+			return backend, store, nil
+		}
+	}
+	for _, backend := range []string{"minio", "s3", "local", "nfs"} {
+		if store := s.stores[backend]; store != nil {
+			return backend, store, nil
+		}
 	}
 	for backend, store := range s.stores {
 		if store != nil {
@@ -210,6 +232,11 @@ func (s *Service) CreateUploadSession(ctx context.Context, req CreateUploadSessi
 	if s == nil || s.repo == nil {
 		return UploadSession{}, fmt.Errorf("drive repository is required")
 	}
+	storageBackend, err := s.resolveWritableStorageBackend(req.StorageBackend)
+	if err != nil {
+		return UploadSession{}, err
+	}
+	req.StorageBackend = storageBackend
 	if strings.TrimSpace(req.UploadID) == "" {
 		uploadID, err := NewUploadID()
 		if err != nil {
@@ -218,6 +245,27 @@ func (s *Service) CreateUploadSession(ctx context.Context, req CreateUploadSessi
 		req.UploadID = uploadID
 	}
 	return s.repo.CreateUploadSession(ctx, req)
+}
+
+func (s *Service) resolveWritableStorageBackend(requested string) (string, error) {
+	if strings.TrimSpace(requested) == "" {
+		storageBackend, store, err := s.defaultStorageBackend()
+		if err != nil {
+			return "", err
+		}
+		if store == nil {
+			return "", fmt.Errorf("storage store %q is required", storageBackend)
+		}
+		return storageBackend, nil
+	}
+	storageBackend, err := validateStorageBackend(requested)
+	if err != nil {
+		return "", err
+	}
+	if s.stores[storageBackend] == nil {
+		return "", fmt.Errorf("storage store %q is required", storageBackend)
+	}
+	return storageBackend, nil
 }
 
 func (s *Service) GetUploadSession(ctx context.Context, req GetUploadSessionRequest) (UploadSession, error) {
@@ -371,8 +419,16 @@ func (s *Service) storeUploadSessionBodyWithRange(ctx context.Context, req Store
 	}
 	counter := &countingReader{reader: body}
 	limited := &io.LimitedReader{R: counter, N: session.DeclaredSize + 1}
+	expectedObjectSize := expectedReceivedSize
+	if expectedObjectSize < 0 {
+		expectedObjectSize = session.DeclaredSize
+	}
 	hash := sha256.New()
-	if err := store.Put(ctx, storagePath, io.TeeReader(limited, hash)); err != nil {
+	putBody := io.Reader(io.TeeReader(limited, hash))
+	if expectedObjectSize >= 0 {
+		putBody = contentLengthReader{Reader: putBody, length: expectedObjectSize}
+	}
+	if err := store.Put(ctx, storagePath, putBody); err != nil {
 		return UploadSession{}, fmt.Errorf("store drive upload session body: %w", err)
 	}
 	if counter.bytesRead > session.DeclaredSize {
@@ -445,6 +501,15 @@ func uploadSessionBodyReader(ctx context.Context, store storage.Store, session U
 		Reader: io.MultiReader(priorBody, body),
 		closer: priorBody,
 	}, priorPath, expectedReceivedSize, nil
+}
+
+type contentLengthReader struct {
+	io.Reader
+	length int64
+}
+
+func (r contentLengthReader) ContentLength() int64 {
+	return r.length
 }
 
 type closeableMultiReader struct {

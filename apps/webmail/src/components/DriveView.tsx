@@ -169,6 +169,11 @@ function getDriveUploadSourceLabel(source: DriveUploadSource): string {
   }
 }
 
+function driveUploadNeedsFreshSession(message: string): boolean {
+  const lower = message.toLowerCase();
+  return lower.includes('storage store') && lower.includes('is required');
+}
+
 function formatDriveUploadError(error: unknown): string {
   const message = error instanceof Error ? error.message : String(error ?? '업로드 실패');
   const lower = message.toLowerCase();
@@ -650,6 +655,9 @@ export function DriveView() {
           ...item,
           status: 'error',
           error: message,
+          sessionId: driveUploadNeedsFreshSession(message) ? undefined : item.sessionId,
+          storageBackend: driveUploadNeedsFreshSession(message) ? undefined : item.storageBackend,
+          uploadedBytes: driveUploadNeedsFreshSession(message) ? 0 : item.uploadedBytes,
         }));
       }
     } finally {

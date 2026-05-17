@@ -4292,6 +4292,42 @@ func TestS3StoreSetsContentLengthForSeekablePutBody(t *testing.T) {
 	}
 }
 
+func TestS3StoreSetsContentLengthFromProviderPutBody(t *testing.T) {
+	t.Parallel()
+
+	store, err := NewS3Store(S3Options{
+		Endpoint:        "http://localhost:9000",
+		Region:          "us-east-1",
+		Bucket:          "gogomail",
+		Prefix:          "mail",
+		AccessKeyID:     "access",
+		SecretAccessKey: "secret",
+		ForcePathStyle:  true,
+	})
+	if err != nil {
+		t.Fatalf("NewS3Store returned error: %v", err)
+	}
+	store.now = func() time.Time { return time.Date(2026, 5, 5, 12, 0, 0, 0, time.UTC) }
+
+	body := fixedLengthTestReader{Reader: strings.NewReader("hello world"), length: 11}
+	req, err := store.newRequest(context.Background(), http.MethodPut, "messages/msg-1.eml", body)
+	if err != nil {
+		t.Fatalf("newRequest returned error: %v", err)
+	}
+	if req.ContentLength != 11 {
+		t.Fatalf("ContentLength = %d, want provider length", req.ContentLength)
+	}
+}
+
+type fixedLengthTestReader struct {
+	io.Reader
+	length int64
+}
+
+func (r fixedLengthTestReader) ContentLength() int64 {
+	return r.length
+}
+
 type seekableTestReader struct {
 	reader *strings.Reader
 }

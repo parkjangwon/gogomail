@@ -1328,7 +1328,7 @@ func runDAVSyncRetentionWorker(ctx context.Context, cfg config.Config, logger *s
 }
 
 func driveServiceForConfig(db *sql.DB, cfg config.Config, store storage.Store) *drive.Service {
-	return drive.NewService(drive.NewRepository(db), storageStoresForConfig(cfg, store))
+	return drive.NewService(drive.NewRepository(db), storageStoresForConfig(cfg, store)).WithDefaultStorageBackend(normalizedStorageBackend(cfg.StorageBackend))
 }
 
 func orgChartServiceForDB(db *sql.DB) httpapi.OrgChartService {
