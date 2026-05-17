@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"net"
+	"strings"
 	"testing"
 
 	"github.com/gogomail/gogomail/internal/dnsbl"
@@ -103,6 +104,76 @@ func TestPolicyNormalizesRBLZonesAndBulkLimit(t *testing.T) {
 	}
 	if policy.BulkRecipientLimit != 50 {
 		t.Fatalf("bulk recipient limit = %d, want default 50", policy.BulkRecipientLimit)
+	}
+}
+
+func TestPolicyKeepsFilterPacksTenantScopedAndNormalized(t *testing.T) {
+	policy := NormalizePolicy(Policy{
+		FilterPacks: FilterPackBundle{
+			EnabledPackIDs: []string{"CUSTOM-ALERTS", "bad id", "custom-alerts"},
+			CustomPacks: []FilterPack{
+				{
+					ID:       "custom-alerts",
+					Name:     "Tenant alerts",
+					Category: "phishing",
+					Source:   "system",
+					Rules: []FilterRuleDefinition{
+						{ID: "Wire-Transfer", Type: RuleTypePhrase, Target: RuleTargetSubjectBody, Patterns: []string{"wire transfer", "bad\r\nheader"}, Score: 4, Enabled: true},
+					},
+				},
+				{ID: "gogomail-core-shadow", Rules: []FilterRuleDefinition{{ID: "x", Type: RuleTypeBulkRecipient, Score: 1}}},
+			},
+		},
+	})
+	if got := policy.FilterPacks.EnabledPackIDs; len(got) != 1 || got[0] != "custom-alerts" {
+		t.Fatalf("enabled pack ids = %#v, want normalized custom-alerts only", got)
+	}
+	if len(policy.FilterPacks.CustomPacks) != 1 {
+		t.Fatalf("custom packs = %#v, want one tenant custom pack", policy.FilterPacks.CustomPacks)
+	}
+	pack := policy.FilterPacks.CustomPacks[0]
+	if pack.Source != "custom" || pack.Rules[0].Patterns[0] != "wire transfer" {
+		t.Fatalf("pack = %#v, want sanitized custom pack", pack)
+	}
+}
+
+func TestEngineScoresCustomFilterPackPhrase(t *testing.T) {
+	policy := DefaultPolicy()
+	policy.SpamThreshold = 4
+	policy.FilterPacks = FilterPackBundle{
+		EnabledPackIDs: []string{"tenant-wire-alert"},
+		CustomPacks: []FilterPack{{
+			ID:       "tenant-wire-alert",
+			Name:     "Tenant wire alert",
+			Category: "phishing",
+			Rules: []FilterRuleDefinition{{
+				ID:       "wire-transfer",
+				Type:     RuleTypePhrase,
+				Target:   RuleTargetSubjectBody,
+				Patterns: []string{"wire transfer approval"},
+				Score:    4,
+				Enabled:  true,
+			}},
+		}},
+	}
+
+	decision := NewEngine().Evaluate(policy, smtpd.Event{
+		Parsed: message.ParsedMessage{Subject: "Wire transfer approval needed"},
+	})
+	if decision.Action != ActionQuarantine || !contains(decision.Rules, "PACK:tenant-wire-alert:wire-transfer") {
+		t.Fatalf("decision = %+v, want custom pack quarantine", decision)
+	}
+}
+
+func TestBuiltinFilterPackCatalogMarksEnabledSystemPacks(t *testing.T) {
+	catalog := FilterPackCatalog(DefaultPolicy().FilterPacks)
+	if len(catalog) < 4 {
+		t.Fatalf("catalog length = %d, want built-in packs", len(catalog))
+	}
+	for _, pack := range catalog {
+		if strings.HasPrefix(pack.ID, "gogomail-core-") && !pack.Enabled {
+			t.Fatalf("builtin pack %s disabled in default catalog", pack.ID)
+		}
 	}
 }
 

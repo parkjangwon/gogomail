@@ -117,6 +117,10 @@ func (Engine) Evaluate(policy Policy, event smtpd.Event) Decision {
 	if ip := remoteIP(event.RemoteAddr); ip != "" && isLikelyDynamicPTRAbsent(event.Authentication.SPF.Result, ip) {
 		add(1, "UNAUTHENTICATED_REMOTE")
 	}
+	if packScore, packRules := evaluateFilterPacks(policy, event); packScore > 0 {
+		score += packScore
+		rules = append(rules, packRules...)
+	}
 	if score <= 0 {
 		return Decision{Action: ActionAccept, Score: 0, Reason: "no spam indicators"}
 	}

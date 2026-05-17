@@ -73,6 +73,14 @@ Primary risk areas covered in this pass:
   scan calls have deadlines, and repeated scanner failures open a short circuit.
   Under load or outage the SMTP path tempfails affected messages instead of
   accumulating unbounded blocked goroutines behind the AV service.
+- Spam filter packs are tenant-scoped inside company/domain policy config rather
+  than managed as global mutable files. Custom pack IDs, text fields, rule
+  patterns, counts, and scores are normalized before storage, and reserved
+  `gogomail-core-*` system pack IDs cannot be overridden by tenant input.
+- Admin console spam-filter management exposes built-in pack toggles and
+  tenant-owned custom phrase packs for both company defaults and domain
+  overrides, so operators can tighten or relax filtering without crossing
+  tenant boundaries.
 
 ## Verification Commands
 
@@ -100,3 +108,6 @@ Primary risk areas covered in this pass:
 - Add operator-facing ClamAV health and signature freshness monitoring in
   `apps/console` so administrators can see stale signatures or scanner outages
   before mail acceptance depends on them.
+- Expand filter-pack lifecycle controls with signed import/export bundles,
+  staged rollout, hit-rate analytics, and emergency disable once production
+  telemetry volume is available.
