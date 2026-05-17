@@ -49,6 +49,7 @@ export function MessageRow({
   isImportant = false,
   onAvatarEnter,
   onAvatarLeave,
+  onHoverChange,
 }: MessageRowProps) {
   const q = searchQuery ?? '';
   const isUnread = !message.read;
@@ -138,8 +139,8 @@ export function MessageRow({
           position: 'relative',
           transform: `translateX(${swipeX}px)`,
         }}
-        onMouseEnter={() => setHovered(true)}
-        onMouseLeave={() => setHovered(false)}
+        onMouseEnter={() => { setHovered(true); onHoverChange?.(message.id); }}
+        onMouseLeave={() => { setHovered(false); onHoverChange?.(null); }}
       >
         <button
           type="button"

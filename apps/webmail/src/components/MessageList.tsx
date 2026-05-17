@@ -52,6 +52,7 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
   const filterDropdownRef = useRef<HTMLDivElement>(null);
   const [bulkSelected, setBulkSelected] = useState<Set<string>>(new Set());
+  const [hoveredMessageId, setHoveredMessageId] = useState<string | null>(null);
   const [sortAsc, setSortAsc] = useState(false);
   const [bulkMoveOpen, setBulkMoveOpen] = useState(false);
   const [categoryTab, setCategoryTab] = useState<CategoryTab>('all');
@@ -167,6 +168,22 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
 
   const selectAll = () => setBulkSelected(new Set(filteredMessages.map((m) => m.id)));
   const clearAll = () => { setBulkSelected(new Set()); lastBulkIndexRef.current = null; };
+  const getActionMessages = (ids: string[]) => ids
+    .map((id) => filteredMessages.find((m) => m.id === id) ?? messages.find((m) => m.id === id))
+    .filter((m): m is MessageSummary => Boolean(m));
+  const runActionForIds = (ids: string[], action: (id: string) => void, clearAfter = false) => {
+    ids.forEach(action);
+    if (clearAfter) clearAll();
+  };
+  const toggleReadForIds = (ids: string[], read: boolean, clearAfter = false) => {
+    ids.forEach((id) => onToggleReadMessage?.(id, read));
+    if (clearAfter) clearAll();
+  };
+  const snoozeIdsForOneHour = (ids: string[], clearAfter = false) => {
+    const until = new Date(Date.now() + 60 * 60 * 1000);
+    ids.forEach((id) => onSnoozeMessage?.(id, until));
+    if (clearAfter) clearAll();
+  };
   const handleRowKeyDownCapture = (event: ReactKeyboardEvent<HTMLDivElement>) => {
     const target = event.target as HTMLElement | null;
     if (!target) return;
@@ -323,6 +340,68 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
   const pageEnd = pageStart + PAGE_SIZE;
   const pagedMessages = filteredMessages.slice(pageStart, pageEnd);
 
+  useEffect(() => {
+    const handler = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (target?.closest('input, textarea, select, [contenteditable="true"]')) return;
+      const bulkIds = [...bulkSelected];
+      const ids = bulkIds.length > 0 ? bulkIds : hoveredMessageId ? [hoveredMessageId] : [];
+      if (ids.length === 0) return;
+      const actionMessages = getActionMessages(ids);
+      if (actionMessages.length === 0) return;
+      const lowerKey = event.key.toLowerCase();
+      const isBulkAction = bulkIds.length > 0;
+      const finish = (run: () => void) => {
+        event.preventDefault();
+        event.stopPropagation();
+        event.stopImmediatePropagation();
+        run();
+      };
+
+      if (lowerKey === 'm' && onToggleReadMessage) {
+        const readTarget = actionMessages.some((m) => !m.read);
+        finish(() => toggleReadForIds(ids, readTarget, isBulkAction));
+        return;
+      }
+      if (lowerKey === 's' && onStar) {
+        const starredTarget = actionMessages.some((m) => !m.starred);
+        finish(() => {
+          if (isBulkAction && onBulkStar) onBulkStar(ids, starredTarget);
+          else ids.forEach((id) => {
+            const msg = actionMessages.find((m) => m.id === id);
+            if (msg) onStar(id, !msg.starred);
+          });
+          if (isBulkAction) clearAll();
+        });
+        return;
+      }
+      if (lowerKey === 'e' && onArchiveMessage) {
+        finish(() => runActionForIds(ids, onArchiveMessage, isBulkAction));
+        return;
+      }
+      if (lowerKey === 'z' && onSnoozeMessage) {
+        finish(() => snoozeIdsForOneHour(ids, isBulkAction));
+        return;
+      }
+      if (lowerKey === 'p' && onPinMessage) {
+        finish(() => runActionForIds(ids, onPinMessage, isBulkAction));
+        return;
+      }
+      if ((event.key === '#' || event.key === 'Delete') && onDeleteMessage) {
+        finish(() => {
+          if (isBulkAction && onBulkDelete) {
+            onBulkDelete(ids);
+            clearAll();
+          } else {
+            runActionForIds(ids, onDeleteMessage);
+          }
+        });
+      }
+    };
+    window.addEventListener('keydown', handler, { capture: true });
+    return () => window.removeEventListener('keydown', handler, { capture: true });
+  }, [bulkSelected, hoveredMessageId, filteredMessages, messages, onToggleReadMessage, onStar, onBulkStar, onArchiveMessage, onSnoozeMessage, onPinMessage, onDeleteMessage, onBulkDelete]);
+
   const listWidth = (isMobile || fullWidth || bottomLayout || !paneWidth)
     ? { flex: 1, minWidth: 0 }
     : { width: `${paneWidth}px`, minWidth: `${paneWidth}px` };
@@ -377,13 +456,21 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
   }
 
   const hasBulk = bulkSelected.size > 0;
+  const bulkMessages = getActionMessages([...bulkSelected]);
+  const bulkReadTarget = bulkMessages.some((m) => !m.read);
+  const bulkStarTarget = bulkMessages.some((m) => !m.starred);
+  const bulkPinned = bulkMessages.length > 0 && bulkMessages.every((m) => pinnedIds.has(m.id));
   const header = (
     <MessageListHeader
       hasBulk={hasBulk}
       bulkSelectedSize={bulkSelected.size}
       filteredCount={filteredMessages.length}
       onBulkMarkRead={onBulkMarkRead}
+      onBulkToggleRead={(ids, read) => toggleReadForIds(ids, read)}
       onBulkStar={onBulkStar}
+      onBulkArchive={onArchiveMessage ? (ids) => runActionForIds(ids, onArchiveMessage) : undefined}
+      onBulkSnooze={onSnoozeMessage ? (ids, until) => ids.forEach((id) => onSnoozeMessage(id, until)) : undefined}
+      onBulkPin={onPinMessage ? (ids) => runActionForIds(ids, onPinMessage) : undefined}
       onBulkMove={onBulkMove}
       onBulkRestore={onBulkRestore}
       onBulkLabel={onBulkLabel}
@@ -570,6 +657,7 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
               isImportant={importantIds.has(msg.id)}
               onAvatarEnter={!isMobile ? handleAvatarEnter : undefined}
               onAvatarLeave={!isMobile ? handleAvatarLeave : undefined}
+              onHoverChange={setHoveredMessageId}
             />
           ))}
         </div>

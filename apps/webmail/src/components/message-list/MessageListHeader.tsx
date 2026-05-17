@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 import {
+  ArchiveBoxIcon,
   ArrowPathIcon,
   Bars3Icon,
   BarsArrowDownIcon,
@@ -10,11 +11,16 @@ import {
   ChevronDownIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
+  ClockIcon,
   EllipsisVerticalIcon,
+  EnvelopeIcon,
+  EnvelopeOpenIcon,
   StarIcon,
+  TrashIcon,
   XMarkIcon,
 } from '@heroicons/react/24/outline';
-import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid';
+import { BookmarkIcon as BookmarkIconSolid, StarIcon as StarIconSolid } from '@heroicons/react/24/solid';
+import { BookmarkIcon } from '@heroicons/react/24/outline';
 import type { CategoryTab, FilterMode } from './messageListTypes';
 import { CATEGORY_TABS } from './messageListTypes';
 
@@ -23,7 +29,11 @@ type MessageListHeaderProps = {
   bulkSelectedSize: number;
   filteredCount: number;
   onBulkMarkRead?: (ids: string[]) => void;
+  onBulkToggleRead?: (ids: string[], read: boolean) => void;
   onBulkStar?: (ids: string[], starred: boolean) => void;
+  onBulkArchive?: (ids: string[]) => void;
+  onBulkSnooze?: (ids: string[], until: Date) => void;
+  onBulkPin?: (ids: string[]) => void;
   onBulkMove?: (ids: string[], folderId: string) => void;
   onBulkRestore?: (ids: string[]) => void;
   onBulkLabel?: (ids: string[], color: string | null) => void;
@@ -53,6 +63,9 @@ type MessageListHeaderProps = {
   emptyFolderLabel?: string;
   onEmptyFolder?: () => void;
   messagesHaveUnread: boolean;
+  bulkReadTarget?: boolean;
+  bulkStarTarget?: boolean;
+  bulkPinned?: boolean;
   sortAsc: boolean;
   setSortAsc: (value: boolean) => void;
   pageStart: number;
@@ -83,7 +96,11 @@ export function MessageListHeader({
   bulkSelectedSize,
   filteredCount,
   onBulkMarkRead,
+  onBulkToggleRead,
   onBulkStar,
+  onBulkArchive,
+  onBulkSnooze,
+  onBulkPin,
   onBulkMove,
   onBulkRestore,
   onBulkLabel,
@@ -113,6 +130,9 @@ export function MessageListHeader({
   emptyFolderLabel,
   onEmptyFolder,
   messagesHaveUnread,
+  bulkReadTarget = true,
+  bulkStarTarget = true,
+  bulkPinned = false,
   sortAsc,
   setSortAsc,
   pageStart,
@@ -155,20 +175,39 @@ export function MessageListHeader({
   const filterTabs = hasBulk ? (
     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 12px', borderBottom: '1px solid var(--color-border-subtle)', flexShrink: 0, background: 'var(--color-accent-subtle)' }}>
       <span style={{ fontSize: '13px', color: 'var(--color-text-primary)', flex: 1 }}>{bulkSelectedSize}개 선택됨</span>
-      {onBulkMarkRead && (
-        <button onClick={() => { onBulkMarkRead([...bulkSelected]); clearAll(); }} style={{ fontSize: '12px', padding: '3px 10px', borderRadius: '12px', border: '1px solid var(--color-border-default)', background: 'transparent', color: 'var(--color-text-secondary)', cursor: 'pointer' }}>
-          읽음
+      {(onBulkToggleRead || onBulkMarkRead) && (
+        <button
+          onClick={() => {
+            const ids = [...bulkSelected];
+            if (onBulkToggleRead) onBulkToggleRead(ids, bulkReadTarget);
+            else if (bulkReadTarget) onBulkMarkRead?.(ids);
+            clearAll();
+          }}
+          title={bulkReadTarget ? '읽음으로 (M)' : '읽지 않음으로 (M)'}
+          style={{ padding: '4px 8px', borderRadius: '12px', border: '1px solid var(--color-border-default)', background: 'transparent', color: 'var(--color-text-secondary)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}
+        >
+          {bulkReadTarget ? <EnvelopeIcon style={{ width: '13px', height: '13px' }} /> : <EnvelopeOpenIcon style={{ width: '13px', height: '13px' }} />}
         </button>
       )}
       {onBulkStar && (
-        <>
-          <button onClick={() => { onBulkStar([...bulkSelected], true); clearAll(); }} title="별표 추가" style={{ padding: '4px 8px', borderRadius: '12px', border: '1px solid var(--color-border-default)', background: 'transparent', cursor: 'pointer', color: '#f59e0b', display: 'inline-flex', alignItems: 'center' }}>
-            <StarIconSolid style={{ width: '13px', height: '13px' }} />
-          </button>
-          <button onClick={() => { onBulkStar([...bulkSelected], false); clearAll(); }} title="별표 제거" style={{ padding: '4px 8px', borderRadius: '12px', border: '1px solid var(--color-border-default)', background: 'transparent', cursor: 'pointer', color: 'var(--color-text-tertiary)', display: 'inline-flex', alignItems: 'center' }}>
-            <StarIcon style={{ width: '13px', height: '13px' }} />
-          </button>
-        </>
+        <button onClick={() => { onBulkStar([...bulkSelected], bulkStarTarget); clearAll(); }} title={bulkStarTarget ? '별표 추가 (S)' : '별표 제거 (S)'} style={{ padding: '4px 8px', borderRadius: '12px', border: '1px solid var(--color-border-default)', background: 'transparent', cursor: 'pointer', color: bulkStarTarget ? '#f59e0b' : 'var(--color-text-tertiary)', display: 'inline-flex', alignItems: 'center' }}>
+          {bulkStarTarget ? <StarIconSolid style={{ width: '13px', height: '13px' }} /> : <StarIcon style={{ width: '13px', height: '13px' }} />}
+        </button>
+      )}
+      {onBulkArchive && (
+        <button onClick={() => { onBulkArchive([...bulkSelected]); clearAll(); }} title="아카이브 (E)" style={{ padding: '4px 8px', borderRadius: '12px', border: '1px solid var(--color-border-default)', background: 'transparent', color: 'var(--color-text-secondary)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}>
+          <ArchiveBoxIcon style={{ width: '13px', height: '13px' }} />
+        </button>
+      )}
+      {onBulkSnooze && (
+        <button onClick={() => { onBulkSnooze([...bulkSelected], new Date(Date.now() + 60 * 60 * 1000)); clearAll(); }} title="1시간 다시 알림 (Z)" style={{ padding: '4px 8px', borderRadius: '12px', border: '1px solid var(--color-border-default)', background: 'transparent', color: 'var(--color-text-secondary)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}>
+          <ClockIcon style={{ width: '13px', height: '13px' }} />
+        </button>
+      )}
+      {onBulkPin && (
+        <button onClick={() => { onBulkPin([...bulkSelected]); clearAll(); }} title={bulkPinned ? '핀 해제 (P)' : '핀 고정 (P)'} style={{ padding: '4px 8px', borderRadius: '12px', border: '1px solid var(--color-border-default)', background: 'transparent', color: bulkPinned ? 'var(--color-accent)' : 'var(--color-text-tertiary)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}>
+          {bulkPinned ? <BookmarkIconSolid style={{ width: '13px', height: '13px' }} /> : <BookmarkIcon style={{ width: '13px', height: '13px' }} />}
+        </button>
       )}
       {onBulkMove && folders && folders.length > 0 && (
         <div style={{ position: 'relative' }}>
@@ -217,8 +256,8 @@ export function MessageListHeader({
         </div>
       )}
       {onBulkDelete && (
-        <button onClick={() => { onBulkDelete([...bulkSelected]); clearAll(); }} style={{ fontSize: '12px', padding: '3px 10px', borderRadius: '12px', border: '1px solid rgba(217,79,61,0.4)', background: 'transparent', color: 'var(--color-destructive)', cursor: 'pointer' }}>
-          삭제
+        <button onClick={() => { onBulkDelete([...bulkSelected]); clearAll(); }} title="삭제 (# / Delete)" style={{ padding: '4px 8px', borderRadius: '12px', border: '1px solid rgba(217,79,61,0.4)', background: 'transparent', color: 'var(--color-destructive)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}>
+          <TrashIcon style={{ width: '13px', height: '13px' }} />
         </button>
       )}
       <button onClick={clearAll} style={{ fontSize: '12px', padding: '3px 10px', borderRadius: '12px', border: '1px solid var(--color-border-default)', background: 'transparent', color: 'var(--color-text-secondary)', cursor: 'pointer' }}>
