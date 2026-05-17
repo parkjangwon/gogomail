@@ -22,6 +22,31 @@ func NewRepository(db *sql.DB) *Repository {
 	return &Repository{db: db}
 }
 
+func (r *Repository) ObjectPathScopeForUser(ctx context.Context, userID string) (ObjectPathScope, error) {
+	if r == nil || r.db == nil {
+		return ObjectPathScope{}, fmt.Errorf("database handle is required")
+	}
+	userID = strings.TrimSpace(userID)
+	if _, err := validateDriveObjectPathID("user_id", userID); err != nil {
+		return ObjectPathScope{}, err
+	}
+	const query = `
+SELECT d.company_id::text, d.id::text, u.id::text
+FROM users u
+JOIN domains d ON d.id = u.domain_id
+WHERE u.id = $1::uuid
+  AND u.status = 'active'
+  AND d.status = 'active'`
+	var scope ObjectPathScope
+	if err := r.db.QueryRowContext(ctx, query, userID).Scan(&scope.CompanyID, &scope.DomainID, &scope.UserID); err != nil {
+		if err == sql.ErrNoRows {
+			return ObjectPathScope{}, fmt.Errorf("active user not found")
+		}
+		return ObjectPathScope{}, fmt.Errorf("lookup drive object path scope: %w", err)
+	}
+	return validateObjectPathScope(scope)
+}
+
 type Node struct {
 	ID             string    `json:"id"`
 	CompanyID      string    `json:"company_id,omitempty"`

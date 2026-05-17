@@ -99,7 +99,7 @@ services:
       MINIO_ENDPOINT: minio:9000
       MINIO_ACCESS_KEY: gogomail
       MINIO_SECRET_KEY: gogomail123
-    command: sh -c "go run ./cmd/gogomail/main.go -mode all-in-one -migrate -config /app/configs/config.dev.yaml"
+    command: sh -c "go install github.com/air-verse/air@v1.61.7 && air -c /app/.air.dev.toml"
     depends_on:
       postgres:
         condition: service_healthy

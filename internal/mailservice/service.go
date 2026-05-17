@@ -76,6 +76,10 @@ type AttachmentUploadRepository interface {
 	CancelAttachmentUpload(ctx context.Context, userID string, attachmentID string) (maildb.Attachment, error)
 }
 
+type UserStorageScopeRepository interface {
+	UserStorageScope(ctx context.Context, userID string) (maildb.UserStorageScope, error)
+}
+
 type AttachmentUploadSessionRepository interface {
 	CreateAttachmentUploadSession(ctx context.Context, req maildb.CreateAttachmentUploadSessionRequest) (maildb.AttachmentUploadSession, error)
 	CancelAttachmentUploadSession(ctx context.Context, req maildb.CancelAttachmentUploadSessionRequest) (maildb.AttachmentUploadSession, error)
@@ -1745,12 +1749,10 @@ func (s *Service) UploadAttachment(ctx context.Context, req UploadAttachmentRequ
 		return maildb.Attachment{}, fmt.Errorf("attachment upload repository is required")
 	}
 
-	path := strings.Join([]string{
-		"uploads",
-		safeObjectPathSegment(req.UserID),
-		randomObjectID(),
-		safeObjectFilename(req.Filename),
-	}, "/")
+	path, err := s.buildAttachmentUploadPath(ctx, req.UserID, randomObjectID(), safeObjectFilename(req.Filename))
+	if err != nil {
+		return maildb.Attachment{}, err
+	}
 	counter := &countingReader{reader: req.Body}
 	limitedBody := &io.LimitedReader{R: counter, N: MaxAttachmentUploadBytes + 1}
 	if err := s.store.Put(ctx, path, limitedBody); err != nil {
@@ -1919,13 +1921,10 @@ func (s *Service) StoreAttachmentUploadSessionBody(ctx context.Context, req Stor
 		return s.storeChunk(ctx, repo, session, req)
 	}
 
-	path := strings.Join([]string{
-		"upload-sessions",
-		safeObjectPathSegment(req.UserID),
-		safeObjectPathSegment(req.SessionID),
-		"bodies",
-		randomObjectID(),
-	}, "/")
+	path, err := s.buildAttachmentUploadSessionObjectPath(ctx, req.UserID, req.SessionID, "bodies", randomObjectID())
+	if err != nil {
+		return maildb.AttachmentUploadSession{}, err
+	}
 	counter := &countingReader{reader: req.Body}
 	limitedBody := &io.LimitedReader{R: counter, N: session.DeclaredSize + 1}
 	hash := sha256.New()
@@ -1966,13 +1965,10 @@ func (s *Service) StoreAttachmentUploadSessionBody(ctx context.Context, req Stor
 
 func (s *Service) storeChunk(ctx context.Context, repo AttachmentUploadSessionRepository, session maildb.AttachmentUploadSession, req StoreAttachmentUploadSessionBodyRequest) (maildb.AttachmentUploadSession, error) {
 	cr := req.ContentRange
-	path := strings.Join([]string{
-		"upload-sessions",
-		safeObjectPathSegment(req.UserID),
-		safeObjectPathSegment(req.SessionID),
-		"chunks",
-		fmt.Sprintf("%d-%d", cr.FirstByte, cr.LastByte),
-	}, "/")
+	path, err := s.buildAttachmentUploadSessionObjectPath(ctx, req.UserID, req.SessionID, "chunks", fmt.Sprintf("%d-%d", cr.FirstByte, cr.LastByte))
+	if err != nil {
+		return maildb.AttachmentUploadSession{}, err
+	}
 	chunkSize := cr.LastByte - cr.FirstByte + 1
 	counter := &countingReader{reader: req.Body}
 	limitedBody := &io.LimitedReader{R: counter, N: chunkSize + 1}
@@ -2173,10 +2169,78 @@ func validateUploadSessionObjectPath(storagePath string) (string, error) {
 	if storagePath == "" {
 		return "", fmt.Errorf("storage_path is required")
 	}
-	if !strings.HasPrefix(storagePath, "upload-sessions/") {
+	if !strings.HasPrefix(storagePath, "upload-sessions/") && !(strings.HasPrefix(storagePath, "uploads/") && strings.Contains(storagePath, "/upload-sessions/")) {
 		return "", fmt.Errorf("storage_path must use upload-sessions prefix")
 	}
 	return storagePath, nil
+}
+
+func (s *Service) userStorageScope(ctx context.Context, userID string) (maildb.UserStorageScope, bool, error) {
+	userID = strings.TrimSpace(userID)
+	if err := validateServiceResourceID("user_id", userID); err != nil {
+		return maildb.UserStorageScope{}, false, err
+	}
+	repo, ok := s.repository.(UserStorageScopeRepository)
+	if !ok {
+		return maildb.UserStorageScope{UserID: userID}, false, nil
+	}
+	scope, err := repo.UserStorageScope(ctx, userID)
+	if err != nil {
+		return maildb.UserStorageScope{}, false, err
+	}
+	return scope, true, nil
+}
+
+func (s *Service) buildAttachmentUploadPath(ctx context.Context, userID string, objectID string, filename string) (string, error) {
+	scope, scoped, err := s.userStorageScope(ctx, userID)
+	if err != nil {
+		return "", err
+	}
+	if !scoped {
+		return strings.Join([]string{
+			"uploads",
+			safeObjectPathSegment(scope.UserID),
+			safeObjectPathSegment(objectID),
+			filename,
+		}, "/"), nil
+	}
+	return strings.Join([]string{
+		"uploads",
+		safeObjectPathSegment(scope.CompanyID),
+		safeObjectPathSegment(scope.DomainID),
+		"users",
+		safeObjectPathSegment(scope.UserID),
+		"attachments",
+		safeObjectPathSegment(objectID),
+		filename,
+	}, "/"), nil
+}
+
+func (s *Service) buildAttachmentUploadSessionObjectPath(ctx context.Context, userID string, sessionID string, kind string, objectID string) (string, error) {
+	scope, scoped, err := s.userStorageScope(ctx, userID)
+	if err != nil {
+		return "", err
+	}
+	if !scoped {
+		return strings.Join([]string{
+			"upload-sessions",
+			safeObjectPathSegment(scope.UserID),
+			safeObjectPathSegment(sessionID),
+			safeObjectPathSegment(kind),
+			safeObjectPathSegment(objectID),
+		}, "/"), nil
+	}
+	return strings.Join([]string{
+		"uploads",
+		safeObjectPathSegment(scope.CompanyID),
+		safeObjectPathSegment(scope.DomainID),
+		"users",
+		safeObjectPathSegment(scope.UserID),
+		"upload-sessions",
+		safeObjectPathSegment(sessionID),
+		safeObjectPathSegment(kind),
+		safeObjectPathSegment(objectID),
+	}, "/"), nil
 }
 
 func normalizeUploadAttachmentRequest(req UploadAttachmentRequest) UploadAttachmentRequest {

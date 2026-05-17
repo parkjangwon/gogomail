@@ -111,6 +111,42 @@ func (s *Service) defaultStorageBackend() (string, storage.Store, error) {
 	return "", nil, fmt.Errorf("no storage store configured")
 }
 
+func (s *Service) objectPathScope(ctx context.Context, userID string) (ObjectPathScope, bool, error) {
+	userID, err := validateDriveObjectPathID("user_id", userID)
+	if err != nil {
+		return ObjectPathScope{}, false, err
+	}
+	if s == nil || s.repo == nil || s.repo.db == nil {
+		return ObjectPathScope{UserID: userID}, false, nil
+	}
+	scope, err := s.repo.ObjectPathScopeForUser(ctx, userID)
+	if err != nil {
+		return ObjectPathScope{}, false, err
+	}
+	return scope, true, nil
+}
+
+func buildServiceStagedObjectPath(scope ObjectPathScope, scoped bool, uploadID string) (string, error) {
+	if scoped {
+		return BuildScopedStagedObjectPath(scope, uploadID)
+	}
+	return BuildStagedObjectPath(scope.UserID, uploadID)
+}
+
+func buildServiceUploadSessionBodyPath(scope ObjectPathScope, scoped bool, sessionID string, objectID string) (string, error) {
+	if scoped {
+		return BuildScopedUploadSessionBodyPath(scope, sessionID, objectID)
+	}
+	return BuildUploadSessionBodyPath(scope.UserID, sessionID, objectID)
+}
+
+func buildServiceNodeObjectPath(scope ObjectPathScope, scoped bool, nodeID string) (string, error) {
+	if scoped {
+		return BuildScopedNodeObjectPath(scope, nodeID)
+	}
+	return BuildNodeObjectPath(scope.UserID, nodeID)
+}
+
 func (s *Service) CreateFile(ctx context.Context, req CreateFileRequest) (Node, error) {
 	if s == nil || s.repo == nil {
 		return Node{}, fmt.Errorf("drive repository is required")
@@ -128,7 +164,11 @@ func (s *Service) CreateFile(ctx context.Context, req CreateFileRequest) (Node, 
 	if err != nil {
 		return Node{}, err
 	}
-	storagePath, err := BuildNodeObjectPath(req.UserID, nodeID)
+	scope, scoped, err := s.objectPathScope(ctx, req.UserID)
+	if err != nil {
+		return Node{}, err
+	}
+	storagePath, err := buildServiceNodeObjectPath(scope, scoped, nodeID)
 	if err != nil {
 		return Node{}, err
 	}
@@ -314,7 +354,11 @@ func (s *Service) storeUploadSessionBodyWithRange(ctx context.Context, req Store
 	if err != nil {
 		return UploadSession{}, err
 	}
-	storagePath, err := BuildUploadSessionBodyPath(session.UserID, session.ID, objectID)
+	scope, scoped, err := s.objectPathScope(ctx, session.UserID)
+	if err != nil {
+		return UploadSession{}, err
+	}
+	storagePath, err := buildServiceUploadSessionBodyPath(scope, scoped, session.ID, objectID)
 	if err != nil {
 		return UploadSession{}, err
 	}
@@ -754,7 +798,16 @@ func (s *Service) copyDriveFileNode(ctx context.Context, source Node, parentID s
 	if err != nil {
 		return Node{}, err
 	}
-	destPath, err := BuildNodeObjectPath(source.UserID, newNodeID)
+	scope := ObjectPathScope{CompanyID: source.CompanyID, DomainID: source.DomainID, UserID: source.UserID}
+	scoped := strings.TrimSpace(source.CompanyID) != "" && strings.TrimSpace(source.DomainID) != ""
+	if !scoped {
+		var scopeErr error
+		scope, scoped, scopeErr = s.objectPathScope(ctx, source.UserID)
+		if scopeErr != nil {
+			return Node{}, scopeErr
+		}
+	}
+	destPath, err := buildServiceNodeObjectPath(scope, scoped, newNodeID)
 	if err != nil {
 		return Node{}, err
 	}
