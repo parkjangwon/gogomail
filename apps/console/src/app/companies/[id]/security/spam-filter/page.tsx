@@ -27,11 +27,16 @@ interface SpamFilterPolicy {
   enabled: boolean;
   spam_threshold: number;
   virus_scan_enabled: boolean;
+  strict_auth_enabled: boolean;
+  rbl_check_enabled: boolean;
+  rbl_reject_enabled: boolean;
+  rbl_zones: string[];
   blocked_extensions: string[];
   blocked_senders: string[];
   allowed_senders: string[];
   quarantine_enabled: boolean;
   max_attachment_mb: number;
+  bulk_recipient_limit: number;
 }
 
 interface SpamFilterEvent {
@@ -61,11 +66,16 @@ const defaultPolicy = (): SpamFilterPolicy => ({
   enabled: true,
   spam_threshold: 5,
   virus_scan_enabled: true,
-  blocked_extensions: ['.exe', '.bat', '.scr', '.vbs', '.pif'],
+  strict_auth_enabled: true,
+  rbl_check_enabled: false,
+  rbl_reject_enabled: true,
+  rbl_zones: [],
+  blocked_extensions: ['.exe', '.bat', '.cmd', '.scr', '.vbs', '.js', '.ps1', '.jar', '.docm', '.xlsm'],
   blocked_senders: [],
   allowed_senders: [],
   quarantine_enabled: true,
   max_attachment_mb: 25,
+  bulk_recipient_limit: 50,
 });
 
 export default function SpamFilterPage() {
@@ -85,6 +95,7 @@ export default function SpamFilterPage() {
   const [newBlockedExt, setNewBlockedExt] = useState('');
   const [newBlockedSender, setNewBlockedSender] = useState('');
   const [newAllowedSender, setNewAllowedSender] = useState('');
+  const [newRBLZone, setNewRBLZone] = useState('');
 
   const fetchPolicy = useCallback(async () => {
     setLoading(true);
@@ -111,6 +122,7 @@ export default function SpamFilterPage() {
           blocked_extensions: p.blocked_extensions ?? [],
           blocked_senders: p.blocked_senders ?? [],
           allowed_senders: p.allowed_senders ?? [],
+          rbl_zones: p.rbl_zones ?? [],
         });
       }
       if (eventsRes.ok) {
@@ -250,6 +262,27 @@ export default function SpamFilterPage() {
                       {policy.virus_scan_enabled ? t('pages.spam_filter_page.enabled_on') : t('pages.spam_filter_page.enabled_off')}
                     </Toggle>
                   </FormField>
+                  <FormField label="Strict authentication" description="Score SPF, DKIM, and DMARC failures more aggressively.">
+                    <Toggle
+                      checked={policy.strict_auth_enabled}
+                      onChange={e => setPolicy(p => ({ ...p, strict_auth_enabled: e.detail.checked }))}
+                    >
+                      {policy.strict_auth_enabled ? t('pages.spam_filter_page.enabled_on') : t('pages.spam_filter_page.enabled_off')}
+                    </Toggle>
+                  </FormField>
+                  <FormField
+                    label="Bulk recipient limit"
+                    constraintText="Messages above this recipient count receive a stronger bulk-spam score."
+                  >
+                    <Input
+                      type="number"
+                      value={String(policy.bulk_recipient_limit)}
+                      onChange={e => {
+                        const v = parseInt(e.detail.value) || 1;
+                        setPolicy(p => ({ ...p, bulk_recipient_limit: Math.max(1, Math.min(500, v)) }));
+                      }}
+                    />
+                  </FormField>
                 </ColumnLayout>
 
                 <FormField label={t('pages.spam_filter_page.action_label')} description={t('pages.spam_filter_page.action_desc')}>
@@ -261,6 +294,56 @@ export default function SpamFilterPage() {
                       { value: 'reject', label: t('pages.spam_filter_page.action_reject') },
                     ]}
                   />
+                </FormField>
+              </SpaceBetween>
+            </Container>
+
+            <Container header={<Header variant="h2">RBL defense</Header>}>
+              <SpaceBetween size="m">
+                <ColumnLayout columns={2}>
+                  <FormField label="RBL lookup" description="Check the remote SMTP IP against registered DNSBL/RBL zones.">
+                    <Toggle
+                      checked={policy.rbl_check_enabled}
+                      onChange={e => setPolicy(p => ({ ...p, rbl_check_enabled: e.detail.checked }))}
+                    >
+                      {policy.rbl_check_enabled ? t('pages.spam_filter_page.enabled_on') : t('pages.spam_filter_page.enabled_off')}
+                    </Toggle>
+                  </FormField>
+                  <FormField label="Reject listed IPs" description="Reject RBL-listed senders during SMTP receive instead of only scoring.">
+                    <Toggle
+                      checked={policy.rbl_reject_enabled}
+                      onChange={e => setPolicy(p => ({ ...p, rbl_reject_enabled: e.detail.checked }))}
+                    >
+                      {policy.rbl_reject_enabled ? t('pages.spam_filter_page.enabled_on') : t('pages.spam_filter_page.enabled_off')}
+                    </Toggle>
+                  </FormField>
+                </ColumnLayout>
+                <FormField label="RBL zones" description="Register DNSBL zones such as your licensed enterprise RBL provider.">
+                  <SpaceBetween size="xs">
+                    {policy.rbl_zones.length === 0 && (
+                      <Box color="text-body-secondary" fontSize="body-s">No RBL zones registered.</Box>
+                    )}
+                    <SpaceBetween direction="horizontal" size="xs">
+                      {policy.rbl_zones.map((zone, i) => (
+                        <SpaceBetween key={zone} direction="horizontal" size="xs">
+                          <Badge color="blue">{zone}</Badge>
+                          <Button variant="inline-link" onClick={() => removeFromList('rbl_zones', i)}>
+                            {t('common.delete')}
+                          </Button>
+                        </SpaceBetween>
+                      ))}
+                    </SpaceBetween>
+                    <SpaceBetween direction="horizontal" size="xs">
+                      <Input
+                        value={newRBLZone}
+                        onChange={e => setNewRBLZone(e.detail.value)}
+                        placeholder="zen.example-rbl.test"
+                      />
+                      <Button onClick={() => addToList('rbl_zones', newRBLZone, setNewRBLZone)}>
+                        {t('common.add')}
+                      </Button>
+                    </SpaceBetween>
+                  </SpaceBetween>
                 </FormField>
               </SpaceBetween>
             </Container>

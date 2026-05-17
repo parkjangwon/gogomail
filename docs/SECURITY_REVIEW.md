@@ -56,6 +56,14 @@ Primary risk areas covered in this pass:
   `NEXT_PUBLIC_GOGOMAIL_PUBLIC_BASE_URL` for displayed SCIM endpoints.
 - Production CSP removes `unsafe-eval`, adds `upgrade-insecure-requests`, and
   both apps now set COOP/CORP plus DNS prefetch disabling.
+- Built-in SMTP spam filtering now supports strict SPF/DKIM/DMARC scoring,
+  policy-managed RBL/DNSBL zone registration, reject-on-listed-IP behavior,
+  dangerous attachment extension scoring, and policy-driven bulk recipient
+  thresholds. RBL lookup failures fail open to preserve receive availability,
+  while positive listings reject by default when enabled.
+- SMTP receive parsing keeps body extraction bounded to 64KB for spam scoring
+  and milter BodyChunk input, so content checks have useful signal without
+  unbounded memory growth on bulk inbound traffic.
 
 ## Verification Commands
 
@@ -80,3 +88,7 @@ Primary risk areas covered in this pass:
   remove `unsafe-inline` without visual flicker.
 - Add centralized security event logging for rejected same-origin, private URL,
   and oversized proxy attempts once the audit pipeline is finalized.
+- Add content-based antivirus scanning for stored attachment bytes. The current
+  built-in filter blocks dangerous attachment names and can call the attachment
+  scanner webhook, but it does not yet embed a local ClamAV/YARA-style byte
+  scanner in-process.

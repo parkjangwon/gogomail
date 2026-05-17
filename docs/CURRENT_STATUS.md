@@ -1,6 +1,16 @@
 # gogomail current status
 
-Last updated: 2026-05-17 (Built-in spam filter)
+Last updated: 2026-05-17 (Spam filter hardening)
+
+## Spam Filter Hardening (2026-05-17)
+- The built-in receive filter now has stricter authentication scoring: DMARC/SPF/DKIM failures and missing auth-pass combinations are weighted strongly enough to quarantine under the default threshold.
+- Domain/company spam-filter policy now supports RBL/DNSBL registration through `rbl_zones`, `rbl_check_enabled`, and `rbl_reject_enabled`; listed remote SMTP IPs are rejected during receive by default when RBL checking is enabled.
+- RBL zone input is normalized, deduplicated, capped, and validated as DNS zone names before storage, preventing CRLF/control/path-like policy injection.
+- Bulk inbound protection is now policy-driven with `bulk_recipient_limit`; messages above the limit receive a stronger bulk-spam score instead of the previous weak fixed point.
+- SMTP receive parsing now retains up to 64KB of text/HTML body for content scoring and milter body input, avoiding the previous metadata-only path while keeping body parsing bounded for bulk traffic.
+- `apps/console` exposes strict authentication, bulk recipient threshold, RBL lookup, RBL reject mode, and RBL zone registration on the spam filter page for company and domain scopes.
+- OpenAPI now documents `SpamFilterPolicy` instead of leaving the policy body as an anonymous object.
+- Verification: `go test ./...`, `go test ./internal/spamfilter ./internal/smtp ./internal/httpapi`, `pnpm --dir apps/console type-check`, and `git diff --check` pass.
 
 ## Built-in Spam Filter (2026-05-17)
 - SMTP receive now runs a built-in spam filter after dedupe checks and before message storage, using company/domain/user policy resolution from configstore.

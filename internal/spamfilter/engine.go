@@ -55,25 +55,44 @@ func (Engine) Evaluate(policy Policy, event smtpd.Event) Decision {
 	switch event.Authentication.DMARC.Result {
 	case smtpd.AuthResultFail:
 		add(4, "DMARC_FAIL")
+		if policy.StrictAuthEnabled {
+			add(2, "STRICT_DMARC_FAIL")
+		}
 	case smtpd.AuthResultTemporary:
 		add(1, "DMARC_TEMPERROR")
 	}
 	switch event.Authentication.SPF.Result {
 	case smtpd.AuthResultFail:
 		add(2, "SPF_FAIL")
+		if policy.StrictAuthEnabled {
+			add(1, "STRICT_SPF_FAIL")
+		}
 	case smtpd.AuthResultPermanent:
 		add(1, "SPF_PERMERROR")
 	case smtpd.AuthResultTemporary:
 		add(1, "SPF_TEMPERROR")
+	case smtpd.AuthResultNone:
+		if policy.StrictAuthEnabled {
+			add(1, "STRICT_SPF_NONE")
+		}
 	}
 	switch event.Authentication.DKIM.Result {
 	case smtpd.AuthResultFail:
 		add(2, "DKIM_FAIL")
+		if policy.StrictAuthEnabled {
+			add(1, "STRICT_DKIM_FAIL")
+		}
 	case smtpd.AuthResultNone:
 		add(1, "DKIM_NONE")
 	}
+	if policy.StrictAuthEnabled && event.Authentication.SPF.Result != smtpd.AuthResultPass && event.Authentication.DKIM.Result != smtpd.AuthResultPass && event.Authentication.DMARC.Result != smtpd.AuthResultPass {
+		add(2, "STRICT_NO_AUTH_PASS")
+	}
 	if isSuspiciousSubject(event.Parsed.Subject) {
 		add(2, "SUSPICIOUS_SUBJECT")
+	}
+	if isSuspiciousBody(event.Parsed.TextBody) || isSuspiciousBody(event.Parsed.HTMLBody) {
+		add(2, "SUSPICIOUS_BODY")
 	}
 	if event.Size > 0 && policy.MaxAttachmentMB > 0 && event.Parsed.HasAttachment && event.Size > int64(policy.MaxAttachmentMB)*1024*1024 {
 		add(3, "ATTACHMENT_SIZE_LIMIT")
@@ -92,8 +111,8 @@ func (Engine) Evaluate(policy Policy, event smtpd.Event) Decision {
 			}
 		}
 	}
-	if len(event.Recipients) > 50 {
-		add(1, "BULK_RECIPIENT_COUNT")
+	if policy.BulkRecipientLimit > 0 && len(event.Recipients) > policy.BulkRecipientLimit {
+		add(3, "BULK_RECIPIENT_COUNT")
 	}
 	if ip := remoteIP(event.RemoteAddr); ip != "" && isLikelyDynamicPTRAbsent(event.Authentication.SPF.Result, ip) {
 		add(1, "UNAUTHENTICATED_REMOTE")
@@ -142,6 +161,24 @@ func isSuspiciousSubject(subject string) bool {
 	phrases := []string{"urgent", "password expired", "verify your account", "wire transfer", "crypto giveaway", "무료", "당첨", "긴급", "비밀번호 만료", "계정 확인"}
 	for _, phrase := range phrases {
 		if strings.Contains(subject, phrase) {
+			return true
+		}
+	}
+	return false
+}
+
+func isSuspiciousBody(body string) bool {
+	body = strings.ToLower(strings.TrimSpace(body))
+	if body == "" {
+		return false
+	}
+	phrases := []string{
+		"verify your account", "password expired", "reset your password",
+		"gift card", "crypto giveaway", "wire transfer", "login immediately",
+		"계정 확인", "비밀번호 만료", "송금", "상품권", "긴급 로그인",
+	}
+	for _, phrase := range phrases {
+		if strings.Contains(body, phrase) {
 			return true
 		}
 	}

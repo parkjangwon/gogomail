@@ -8,16 +8,22 @@ import (
 )
 
 const PolicyConfigKey = "spam_filter_policy"
+const maxRBLZones = 20
 
 type Policy struct {
-	Enabled           bool     `json:"enabled"`
-	SpamThreshold     int      `json:"spam_threshold"`
-	VirusScanEnabled  bool     `json:"virus_scan_enabled"`
-	BlockedExtensions []string `json:"blocked_extensions"`
-	BlockedSenders    []string `json:"blocked_senders"`
-	AllowedSenders    []string `json:"allowed_senders"`
-	QuarantineEnabled bool     `json:"quarantine_enabled"`
-	MaxAttachmentMB   int      `json:"max_attachment_mb"`
+	Enabled            bool     `json:"enabled"`
+	SpamThreshold      int      `json:"spam_threshold"`
+	VirusScanEnabled   bool     `json:"virus_scan_enabled"`
+	StrictAuthEnabled  bool     `json:"strict_auth_enabled"`
+	RBLCheckEnabled    bool     `json:"rbl_check_enabled"`
+	RBLRejectEnabled   bool     `json:"rbl_reject_enabled"`
+	RBLZones           []string `json:"rbl_zones"`
+	BlockedExtensions  []string `json:"blocked_extensions"`
+	BlockedSenders     []string `json:"blocked_senders"`
+	AllowedSenders     []string `json:"allowed_senders"`
+	QuarantineEnabled  bool     `json:"quarantine_enabled"`
+	MaxAttachmentMB    int      `json:"max_attachment_mb"`
+	BulkRecipientLimit int      `json:"bulk_recipient_limit"`
 }
 
 func DefaultPolicy() Policy {
@@ -25,11 +31,21 @@ func DefaultPolicy() Policy {
 		Enabled:           true,
 		SpamThreshold:     5,
 		VirusScanEnabled:  true,
-		BlockedExtensions: []string{".exe", ".bat", ".cmd", ".com", ".js", ".jse", ".pif", ".scr", ".vbs", ".vbe", ".wsf", ".ps1", ".jar"},
-		BlockedSenders:    []string{},
-		AllowedSenders:    []string{},
-		QuarantineEnabled: true,
-		MaxAttachmentMB:   25,
+		StrictAuthEnabled: true,
+		RBLCheckEnabled:   false,
+		RBLRejectEnabled:  true,
+		RBLZones:          []string{},
+		BlockedExtensions: []string{
+			".bat", ".chm", ".cmd", ".com", ".dll", ".docm", ".exe", ".hta",
+			".img", ".iso", ".jar", ".js", ".jse", ".lnk", ".msi", ".pif",
+			".pptm", ".ps1", ".reg", ".scr", ".vbe", ".vbs", ".wsf", ".xlam",
+			".xlsm",
+		},
+		BlockedSenders:     []string{},
+		AllowedSenders:     []string{},
+		QuarantineEnabled:  true,
+		MaxAttachmentMB:    25,
+		BulkRecipientLimit: 50,
 	}
 }
 
@@ -53,9 +69,16 @@ func NormalizePolicy(policy Policy) Policy {
 	if policy.MaxAttachmentMB < 0 {
 		policy.MaxAttachmentMB = 0
 	}
+	if policy.BulkRecipientLimit < 1 {
+		policy.BulkRecipientLimit = 50
+	}
+	if policy.BulkRecipientLimit > 500 {
+		policy.BulkRecipientLimit = 500
+	}
 	policy.BlockedExtensions = normalizeExts(policy.BlockedExtensions)
 	policy.BlockedSenders = normalizeList(policy.BlockedSenders)
 	policy.AllowedSenders = normalizeList(policy.AllowedSenders)
+	policy.RBLZones = normalizeZones(policy.RBLZones)
 	return policy
 }
 
@@ -100,4 +123,43 @@ func normalizeExts(values []string) []string {
 	}
 	sort.Strings(out)
 	return out
+}
+
+func normalizeZones(values []string) []string {
+	seen := make(map[string]struct{}, len(values))
+	out := make([]string, 0, min(len(values), maxRBLZones))
+	for _, value := range values {
+		if len(out) >= maxRBLZones {
+			break
+		}
+		value = strings.ToLower(strings.TrimSpace(strings.TrimSuffix(value, ".")))
+		if !validDNSZone(value) {
+			continue
+		}
+		if _, ok := seen[value]; ok {
+			continue
+		}
+		seen[value] = struct{}{}
+		out = append(out, value)
+	}
+	sort.Strings(out)
+	return out
+}
+
+func validDNSZone(value string) bool {
+	if value == "" || len(value) > 253 || strings.ContainsAny(value, "\r\n\t /\\:@") || !strings.Contains(value, ".") {
+		return false
+	}
+	for _, label := range strings.Split(value, ".") {
+		if label == "" || len(label) > 63 || strings.HasPrefix(label, "-") || strings.HasSuffix(label, "-") {
+			return false
+		}
+		for _, r := range label {
+			if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == '-' {
+				continue
+			}
+			return false
+		}
+	}
+	return true
 }
