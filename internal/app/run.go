@@ -2132,8 +2132,12 @@ func attachmentScanHooksForConfig(cfg config.Config, logger *slog.Logger, compon
 		return []smtpd.Hook{attachmentscan.Hook(attachmentscan.HookOptions{Scanner: scanner})}, nil
 	case "clamav":
 		scanner, err := attachmentscan.NewClamAVScanner(attachmentscan.ClamAVOptions{
-			Addr:    cfg.AttachmentScanClamAVAddr,
-			Timeout: cfg.AttachmentScanTimeout,
+			Addr:                cfg.AttachmentScanClamAVAddr,
+			Timeout:             cfg.AttachmentScanTimeout,
+			MaxConcurrency:      cfg.AttachmentScanMaxConcurrency,
+			MaxScanBytes:        cfg.AttachmentScanMaxBytes,
+			FailureThreshold:    cfg.AttachmentScanFailureThreshold,
+			CircuitOpenDuration: cfg.AttachmentScanCircuitOpenDuration,
 		})
 		if err != nil {
 			return nil, err

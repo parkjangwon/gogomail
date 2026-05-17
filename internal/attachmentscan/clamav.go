@@ -9,24 +9,39 @@ import (
 	"net"
 	"os"
 	"strings"
+	"sync"
 	"time"
 )
 
 const (
 	defaultClamAVChunkBytes = 64 << 10
 	maxClamAVResponseBytes  = 4 << 10
+	defaultClamAVMaxBytes   = 25 << 20
+	defaultClamAVMaxConns   = 4
+	defaultClamAVFailures   = 3
 )
 
 type ClamAVOptions struct {
-	Addr    string
-	Timeout time.Duration
-	Dialer  func(ctx context.Context, network, address string) (net.Conn, error)
+	Addr                string
+	Timeout             time.Duration
+	MaxConcurrency      int
+	MaxScanBytes        int64
+	FailureThreshold    int
+	CircuitOpenDuration time.Duration
+	Dialer              func(ctx context.Context, network, address string) (net.Conn, error)
 }
 
 type ClamAVScanner struct {
-	addr    string
-	timeout time.Duration
-	dialer  func(ctx context.Context, network, address string) (net.Conn, error)
+	addr                string
+	timeout             time.Duration
+	maxScanBytes        int64
+	failureThreshold    int
+	circuitOpenDuration time.Duration
+	dialer              func(ctx context.Context, network, address string) (net.Conn, error)
+	slots               chan struct{}
+	mu                  sync.Mutex
+	consecutiveFailures int
+	circuitOpenUntil    time.Time
 }
 
 func NewClamAVScanner(opts ClamAVOptions) (*ClamAVScanner, error) {
@@ -41,12 +56,36 @@ func NewClamAVScanner(opts ClamAVOptions) (*ClamAVScanner, error) {
 	if timeout <= 0 {
 		timeout = 10 * time.Second
 	}
+	maxConcurrency := opts.MaxConcurrency
+	if maxConcurrency <= 0 {
+		maxConcurrency = defaultClamAVMaxConns
+	}
+	maxScanBytes := opts.MaxScanBytes
+	if maxScanBytes <= 0 {
+		maxScanBytes = defaultClamAVMaxBytes
+	}
+	failureThreshold := opts.FailureThreshold
+	if failureThreshold <= 0 {
+		failureThreshold = defaultClamAVFailures
+	}
+	circuitOpenDuration := opts.CircuitOpenDuration
+	if circuitOpenDuration <= 0 {
+		circuitOpenDuration = 30 * time.Second
+	}
 	dialer := opts.Dialer
 	if dialer == nil {
 		nd := &net.Dialer{Timeout: timeout}
 		dialer = nd.DialContext
 	}
-	return &ClamAVScanner{addr: addr, timeout: timeout, dialer: dialer}, nil
+	return &ClamAVScanner{
+		addr:                addr,
+		timeout:             timeout,
+		maxScanBytes:        maxScanBytes,
+		failureThreshold:    failureThreshold,
+		circuitOpenDuration: circuitOpenDuration,
+		dialer:              dialer,
+		slots:               make(chan struct{}, maxConcurrency),
+	}, nil
 }
 
 func (s *ClamAVScanner) ScanStream(ctx context.Context, name string, file *os.File) (Result, error) {
@@ -56,6 +95,28 @@ func (s *ClamAVScanner) ScanStream(ctx context.Context, name string, file *os.Fi
 	if file == nil {
 		return Result{}, fmt.Errorf("clamav scan requires a file")
 	}
+	if s.circuitOpen() {
+		return Result{Verdict: VerdictTempfail, Reason: "clamav circuit open"}, nil
+	}
+	select {
+	case s.slots <- struct{}{}:
+		defer func() { <-s.slots }()
+	default:
+		return Result{Verdict: VerdictTempfail, Reason: "clamav scanner saturated"}, nil
+	}
+	result, err := s.scanStream(ctx, name, file)
+	if err != nil {
+		s.recordFailure()
+		return Result{Verdict: VerdictTempfail, Reason: "clamav unavailable"}, nil
+	}
+	if result.Verdict == VerdictTempfail {
+		return result, nil
+	}
+	s.recordSuccess()
+	return result, nil
+}
+
+func (s *ClamAVScanner) scanStream(ctx context.Context, name string, file *os.File) (Result, error) {
 	ctx, cancel := context.WithTimeout(ctx, s.timeout)
 	defer cancel()
 	conn, err := s.dialer(ctx, "tcp", s.addr)
@@ -75,9 +136,14 @@ func (s *ClamAVScanner) ScanStream(ctx context.Context, name string, file *os.Fi
 	}
 	buf := make([]byte, defaultClamAVChunkBytes)
 	var prefix [4]byte
+	var scanned int64
 	for {
 		n, readErr := file.Read(buf)
 		if n > 0 {
+			scanned += int64(n)
+			if scanned > s.maxScanBytes {
+				return Result{Verdict: VerdictTempfail, Reason: "clamav scan stream too large"}, nil
+			}
 			binary.BigEndian.PutUint32(prefix[:], uint32(n))
 			if _, err := conn.Write(prefix[:]); err != nil {
 				return Result{}, fmt.Errorf("write clamd chunk length: %w", err)
@@ -105,6 +171,36 @@ func (s *ClamAVScanner) ScanStream(ctx context.Context, name string, file *os.Fi
 		return Result{}, fmt.Errorf("clamd response is too large")
 	}
 	return parseClamAVResponse(response), nil
+}
+
+func (s *ClamAVScanner) circuitOpen() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.circuitOpenUntil.IsZero() {
+		return false
+	}
+	if time.Now().Before(s.circuitOpenUntil) {
+		return true
+	}
+	s.circuitOpenUntil = time.Time{}
+	s.consecutiveFailures = 0
+	return false
+}
+
+func (s *ClamAVScanner) recordFailure() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.consecutiveFailures++
+	if s.consecutiveFailures >= s.failureThreshold {
+		s.circuitOpenUntil = time.Now().Add(s.circuitOpenDuration)
+	}
+}
+
+func (s *ClamAVScanner) recordSuccess() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.consecutiveFailures = 0
+	s.circuitOpenUntil = time.Time{}
 }
 
 func parseClamAVResponse(response string) Result {

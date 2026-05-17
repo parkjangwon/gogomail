@@ -681,6 +681,11 @@ func TestValidateRejectsInvalidAttachmentScanConfig(t *testing.T) {
 			cfg.AttachmentScanWebhookURL = "ftp://scanner.example/scan"
 		}},
 		{name: "nonpositive timeout", mutate: func(cfg *Config) { cfg.AttachmentScanTimeout = 0 }},
+		{name: "nonpositive scan concurrency", mutate: func(cfg *Config) { cfg.AttachmentScanMaxConcurrency = 0 }},
+		{name: "huge scan concurrency", mutate: func(cfg *Config) { cfg.AttachmentScanMaxConcurrency = 2048 }},
+		{name: "nonpositive max scan bytes", mutate: func(cfg *Config) { cfg.AttachmentScanMaxBytes = 0 }},
+		{name: "nonpositive failure threshold", mutate: func(cfg *Config) { cfg.AttachmentScanFailureThreshold = 0 }},
+		{name: "nonpositive circuit open duration", mutate: func(cfg *Config) { cfg.AttachmentScanCircuitOpenDuration = 0 }},
 		{name: "token newline", mutate: func(cfg *Config) {
 			cfg.AttachmentScanBackend = "webhook"
 			cfg.AttachmentScanWebhookURL = "http://scanner.example/scan"

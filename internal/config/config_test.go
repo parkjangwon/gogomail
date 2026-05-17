@@ -82,6 +82,10 @@ func TestLoadAppliesDefaults(t *testing.T) {
 	t.Setenv("GOGOMAIL_RATELIMIT_BACKEND", "")
 	t.Setenv("GOGOMAIL_ATTACHMENT_SCAN_BACKEND", "")
 	t.Setenv("GOGOMAIL_ATTACHMENT_SCAN_CLAMAV_ADDR", "")
+	t.Setenv("GOGOMAIL_ATTACHMENT_SCAN_MAX_CONCURRENCY", "")
+	t.Setenv("GOGOMAIL_ATTACHMENT_SCAN_MAX_BYTES", "")
+	t.Setenv("GOGOMAIL_ATTACHMENT_SCAN_FAILURE_THRESHOLD", "")
+	t.Setenv("GOGOMAIL_ATTACHMENT_SCAN_CIRCUIT_OPEN_DURATION", "")
 	t.Setenv("GOGOMAIL_ATTACHMENT_SCAN_WEBHOOK_URL", "")
 	t.Setenv("GOGOMAIL_ATTACHMENT_SCAN_WEBHOOK_TOKEN", "")
 	t.Setenv("GOGOMAIL_ATTACHMENT_SCAN_TIMEOUT", "")
@@ -362,6 +366,12 @@ func TestLoadAppliesDefaults(t *testing.T) {
 	if cfg.AttachmentScanBackend != "none" {
 		t.Fatalf("AttachmentScanBackend = %q, want none", cfg.AttachmentScanBackend)
 	}
+	if cfg.AttachmentScanClamAVAddr != "127.0.0.1:3310" {
+		t.Fatalf("AttachmentScanClamAVAddr = %q, want default address", cfg.AttachmentScanClamAVAddr)
+	}
+	if cfg.AttachmentScanMaxConcurrency != 4 || cfg.AttachmentScanMaxBytes != 25<<20 {
+		t.Fatalf("AttachmentScan limits = %d/%d, want 4/%d", cfg.AttachmentScanMaxConcurrency, cfg.AttachmentScanMaxBytes, int64(25<<20))
+	}
 	if cfg.AttachmentScanWebhookURL != "" {
 		t.Fatalf("AttachmentScanWebhookURL = %q, want empty", cfg.AttachmentScanWebhookURL)
 	}
@@ -604,6 +614,10 @@ func TestLoadReadsEnvironmentOverrides(t *testing.T) {
 	t.Setenv("GOGOMAIL_RATELIMIT_BACKEND", "redis")
 	t.Setenv("GOGOMAIL_ATTACHMENT_SCAN_BACKEND", "webhook")
 	t.Setenv("GOGOMAIL_ATTACHMENT_SCAN_CLAMAV_ADDR", "clamav:3310")
+	t.Setenv("GOGOMAIL_ATTACHMENT_SCAN_MAX_CONCURRENCY", "8")
+	t.Setenv("GOGOMAIL_ATTACHMENT_SCAN_MAX_BYTES", "1048576")
+	t.Setenv("GOGOMAIL_ATTACHMENT_SCAN_FAILURE_THRESHOLD", "2")
+	t.Setenv("GOGOMAIL_ATTACHMENT_SCAN_CIRCUIT_OPEN_DURATION", "45s")
 	t.Setenv("GOGOMAIL_ATTACHMENT_SCAN_WEBHOOK_URL", "http://scanner.internal/scan")
 	t.Setenv("GOGOMAIL_ATTACHMENT_SCAN_WEBHOOK_TOKEN", "scanner-token")
 	t.Setenv("GOGOMAIL_ATTACHMENT_SCAN_TIMEOUT", "3s")
@@ -860,6 +874,9 @@ func TestLoadReadsEnvironmentOverrides(t *testing.T) {
 	}
 	if cfg.AttachmentScanClamAVAddr != "clamav:3310" {
 		t.Fatalf("AttachmentScanClamAVAddr = %q, want clamav:3310", cfg.AttachmentScanClamAVAddr)
+	}
+	if cfg.AttachmentScanMaxConcurrency != 8 || cfg.AttachmentScanMaxBytes != 1048576 || cfg.AttachmentScanFailureThreshold != 2 || cfg.AttachmentScanCircuitOpenDuration != 45*time.Second {
+		t.Fatalf("AttachmentScan guardrails = %d/%d/%d/%s", cfg.AttachmentScanMaxConcurrency, cfg.AttachmentScanMaxBytes, cfg.AttachmentScanFailureThreshold, cfg.AttachmentScanCircuitOpenDuration)
 	}
 	if cfg.AttachmentScanWebhookURL != "http://scanner.internal/scan" {
 		t.Fatalf("AttachmentScanWebhookURL = %q, want scanner URL", cfg.AttachmentScanWebhookURL)

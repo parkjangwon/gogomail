@@ -68,6 +68,11 @@ Primary risk areas covered in this pass:
   the INSTREAM protocol. The backend streams the spooled MIME message to ClamAV
   over TCP and treats `FOUND` as a reject verdict, while keeping the AV engine,
   signature database, and update lifecycle outside the backend container.
+- ClamAV scan admission is bounded: only parsed messages with attachments are
+  sent to `clamd`, concurrent scans are capped, oversized scan streams tempfail,
+  scan calls have deadlines, and repeated scanner failures open a short circuit.
+  Under load or outage the SMTP path tempfails affected messages instead of
+  accumulating unbounded blocked goroutines behind the AV service.
 
 ## Verification Commands
 

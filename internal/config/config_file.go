@@ -183,6 +183,14 @@ func applyYAMLConfigValue(cfg *Config, key string, value any) error {
 		return setYAMLString(value, &cfg.AttachmentScanBackend, key)
 	case "attachment_scan_clamav_addr":
 		return setYAMLString(value, &cfg.AttachmentScanClamAVAddr, key)
+	case "attachment_scan_max_concurrency":
+		return setYAMLInt(value, &cfg.AttachmentScanMaxConcurrency, key)
+	case "attachment_scan_max_bytes":
+		return setYAMLInt64(value, &cfg.AttachmentScanMaxBytes, key)
+	case "attachment_scan_failure_threshold":
+		return setYAMLInt(value, &cfg.AttachmentScanFailureThreshold, key)
+	case "attachment_scan_circuit_open_duration":
+		return setYAMLDuration(value, &cfg.AttachmentScanCircuitOpenDuration, key)
 	case "attachment_scan_webhook_url":
 		return setYAMLString(value, &cfg.AttachmentScanWebhookURL, key)
 	case "attachment_scan_webhook_token":

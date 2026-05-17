@@ -4,10 +4,11 @@ Last updated: 2026-05-17 (ClamAV attachment scanning)
 
 ## ClamAV Attachment Scanning (2026-05-17)
 - Attachment scanning now supports `attachment_scan_backend: clamav`, with backend configuration through `attachment_scan_clamav_addr` / `GOGOMAIL_ATTACHMENT_SCAN_CLAMAV_ADDR`.
-- The SMTP receive pipeline sends the bounded spooled MIME message to `clamd` using the ClamAV `INSTREAM` protocol, so attachment bytes are scanned outside the backend container without loading whole messages into memory.
+- The SMTP receive pipeline sends only parsed messages with attachments to `clamd` using the ClamAV `INSTREAM` protocol, so attachment bytes are scanned outside the backend container without loading whole messages into memory.
+- ClamAV scanning is protected by non-blocking admission control, a bounded concurrency semaphore, max scan byte limits, per-scan deadlines, and a small circuit breaker. Scanner saturation or outage returns SMTP tempfail instead of letting receive workers pile up behind ClamAV.
 - Development Docker Compose now runs a separate `clamav/clamav:stable` service with a persistent signature database volume, healthcheck, and backend dependency.
-- `configs/config.dev.yaml` enables the ClamAV backend at `clamav:3310`; `configs/config.example.yaml` documents the default standalone `127.0.0.1:3310` address for non-compose deployments.
-- Verification: `go test ./internal/attachmentscan ./internal/config ./internal/app ./internal/smtp` passes.
+- `configs/config.dev.yaml` enables the ClamAV backend at `clamav:3310`; `configs/config.example.yaml` documents the standalone address and pressure controls for non-compose deployments.
+- Verification: `go test ./internal/attachmentscan ./internal/config ./internal/app`, `go test ./internal/smtp -run TestSubmissionConcurrentConnections -count=1`, `docker compose -f docker/docker-compose.dev.yml config`, and `git diff --check` pass.
 
 ## Spam Filter Hardening (2026-05-17)
 - The built-in receive filter now has stricter authentication scoring: DMARC/SPF/DKIM failures and missing auth-pass combinations are weighted strongly enough to quarantine under the default threshold.

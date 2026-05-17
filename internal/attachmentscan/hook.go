@@ -74,7 +74,7 @@ type StreamHookOptions struct {
 
 func StreamHook(opts StreamHookOptions) smtpd.Hook {
 	return func(ctx context.Context, event smtpd.Event) error {
-		if event.Stage != smtpd.StageSpooled || opts.Scanner == nil || strings.TrimSpace(event.SpoolPath) == "" {
+		if event.Stage != smtpd.StageParsed || opts.Scanner == nil || !event.Parsed.HasAttachment || strings.TrimSpace(event.SpoolPath) == "" {
 			return nil
 		}
 		file, err := os.Open(event.SpoolPath)

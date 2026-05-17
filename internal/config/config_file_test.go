@@ -51,6 +51,10 @@ delivery_domain_backoff_base_delay: 2m
 delivery_domain_backoff_max_delay: 30m
 attachment_scan_backend: clamav
 attachment_scan_clamav_addr: clamav:3310
+attachment_scan_max_concurrency: 6
+attachment_scan_max_bytes: 1048576
+attachment_scan_failure_threshold: 2
+attachment_scan_circuit_open_duration: 45s
 attachment_scan_timeout: 3s
 imap_max_connections: 512
 imap_read_timeout: 45s
@@ -124,6 +128,9 @@ submission_max_connections: 256
 	}
 	if cfg.AttachmentScanBackend != "clamav" || cfg.AttachmentScanClamAVAddr != "clamav:3310" {
 		t.Fatalf("attachment scan config = %s/%s, want clamav/clamav:3310", cfg.AttachmentScanBackend, cfg.AttachmentScanClamAVAddr)
+	}
+	if cfg.AttachmentScanMaxConcurrency != 6 || cfg.AttachmentScanMaxBytes != 1048576 || cfg.AttachmentScanFailureThreshold != 2 || cfg.AttachmentScanCircuitOpenDuration != 45*time.Second {
+		t.Fatalf("attachment scan guardrails = %d/%d/%d/%s", cfg.AttachmentScanMaxConcurrency, cfg.AttachmentScanMaxBytes, cfg.AttachmentScanFailureThreshold, cfg.AttachmentScanCircuitOpenDuration)
 	}
 	if cfg.IMAPMaxConnections != 512 {
 		t.Fatalf("IMAPMaxConnections = %d, want 512", cfg.IMAPMaxConnections)
