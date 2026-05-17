@@ -476,6 +476,9 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
       onBulkRestore={onBulkRestore}
       onBulkLabel={onBulkLabel}
       onBulkDelete={onBulkDelete}
+      bulkReadTarget={bulkReadTarget}
+      bulkStarTarget={bulkStarTarget}
+      bulkPinned={bulkPinned}
       folders={folders}
       bulkSelected={bulkSelected}
       clearAll={clearAll}

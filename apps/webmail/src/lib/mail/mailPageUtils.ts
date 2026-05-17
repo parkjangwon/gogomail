@@ -47,6 +47,32 @@ export function buildThreadMessages(threads: ThreadSummary[]): MessageSummary[] 
   }));
 }
 
+export function patchThreadsForMessages(
+  threads: ThreadSummary[],
+  ids: string[],
+  patch: Pick<Partial<MessageSummary>, 'read' | 'starred'>
+): ThreadSummary[] {
+  if (ids.length === 0) return threads;
+  const idSet = new Set(ids);
+  let changed = false;
+  const nextThreads = threads.map((thread) => {
+    if (!idSet.has(thread.latest_message_id) && !idSet.has(thread.id)) return thread;
+    let next = thread;
+    if (patch.starred !== undefined && thread.starred !== patch.starred) {
+      next = { ...next, starred: patch.starred };
+    }
+    if (patch.read !== undefined) {
+      const nextUnread = patch.read
+        ? Math.max(0, next.unread_count - 1)
+        : Math.max(1, next.unread_count);
+      if (nextUnread !== next.unread_count) next = { ...next, unread_count: nextUnread };
+    }
+    if (next !== thread) changed = true;
+    return next;
+  });
+  return changed ? nextThreads : threads;
+}
+
 export function getVisibleMailMessages({
   searchResults,
   messages,
@@ -84,7 +110,21 @@ export function getVisibleMailMessages({
     visible = visible.filter((m) => m.starred || pinnedIds.has(m.id) || importantIds.has(m.id));
   }
 
+  if (activeFolderId === '__starred__') {
+    visible = visible.filter((m) => m.starred);
+  } else if (activeFolderId === '__unread__') {
+    visible = visible.filter((m) => !m.read);
+  } else if (activeFolderId === '__pinned__') {
+    visible = visible.filter((m) => pinnedIds.has(m.id));
+  } else if (activeFolderId === '__important__') {
+    visible = visible.filter((m) => importantIds.has(m.id));
+  }
+
   return visible;
+}
+
+export function shouldHideMessageAfterSnooze(activeFolderId: string): boolean {
+  return activeFolderId !== '__snoozed__';
 }
 
 export function getNextMessageId(messages: MessageSummary[], id: string): string | null {

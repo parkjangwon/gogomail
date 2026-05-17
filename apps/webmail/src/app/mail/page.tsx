@@ -24,10 +24,13 @@ import { DriveView } from '@/components/DriveView';
 import { loadFilterRules } from '@/components/settings/settingsConfig';
 import { SpotlightSearch } from '@/components/SpotlightSearch';
 import {
+  buildThreadMessages,
   getEmptyFolderLabel,
   getNextMessageId,
   getVisibleMailMessages,
+  patchThreadsForMessages,
   parseSearchOperators,
+  shouldHideMessageAfterSnooze,
 } from '@/lib/mail/mailPageUtils';
 import { focusNavGroup } from '@/lib/navKeyboard';
 
@@ -205,16 +208,22 @@ export default function MailPage() {
 
   const { folders, messages, setMessages, foldersLoading, messagesLoading, hasMore, loadingMore, loadMore, adjustUnread, refresh, refreshing } =
     useMailList(activeFolderId);
+  const [threadMessages, setThreadMessages] = useState<MessageSummary[]>([]);
 
   const patchVisibleMessages = useCallback((ids: string[], patch: Partial<MessageSummary>) => {
     const idSet = new Set(ids);
     const applyPatch = (items: MessageSummary[]) => items.map((m) => (idSet.has(m.id) ? { ...m, ...patch } : m));
     setMessages(applyPatch);
     setSearchResults((prev) => (prev ? applyPatch(prev) : prev));
+    setThreadMessages(applyPatch);
+    setThreads((prev) => patchThreadsForMessages(prev, ids, patch));
   }, [setMessages]);
   const findVisibleMessage = useCallback((id: string) => (
-    messages.find((m) => m.id === id) ?? searchResults?.find((m) => m.id === id)
-  ), [messages, searchResults]);
+    messages.find((m) => m.id === id) ??
+    searchResults?.find((m) => m.id === id) ??
+    threadMessages.find((m) => m.id === id) ??
+    buildThreadMessages(threads).find((m) => m.id === id)
+  ), [messages, searchResults, threadMessages, threads]);
   const countUnreadVisible = useCallback((ids: string[]) => (
     ids.reduce((count, id) => count + (findVisibleMessage(id)?.read === false ? 1 : 0), 0)
   ), [findVisibleMessage]);
@@ -293,7 +302,6 @@ export default function MailPage() {
     : null;
   const selectedThreadId = selectedMessageSummary?.id ?? null;
 
-  const [threadMessages, setThreadMessages] = useState<MessageSummary[]>([]);
   useEffect(() => {
     // If viewing a thread from thread-view mode, fetch via thread API
     if (selectedThreadId) {
@@ -433,17 +441,14 @@ export default function MailPage() {
     let cancelled = false;
     const timer = setTimeout(() => {
       if (cancelled) return;
-      setMessages((prev) => {
-        const msg = prev.find((m) => m.id === selectedMessageId);
-        if (msg && !msg.read) {
-          adjustUnread(activeFolderId, -1);
-          markRead(selectedMessageId, true).catch(() => {});
-        }
-        return prev.map((m) => (m.id === selectedMessageId ? { ...m, read: true } : m));
-      });
+      const msg = findVisibleMessage(selectedMessageId);
+      if (!msg || msg.read) return;
+      patchVisibleMessages([selectedMessageId], { read: true });
+      adjustUnread(activeFolderId, -1);
+      markRead(selectedMessageId, true).catch(() => {});
     }, delay);
     return () => { cancelled = true; clearTimeout(timer); };
-  }, [selectedMessageId, setMessages, adjustUnread, activeFolderId, activeFolderSystemType]);
+  }, [selectedMessageId, findVisibleMessage, patchVisibleMessages, adjustUnread, activeFolderId, activeFolderSystemType]);
 
   const handleMarkUnread = useCallback(async () => {
     if (!selectedMessageId) return;
@@ -709,6 +714,32 @@ export default function MailPage() {
     });
   }, [patchVisibleMessages]);
 
+  const handleGlobalEscape = useCallback(() => {
+    if (composeContext) return false;
+    if (showSpotlight) {
+      setShowSpotlight(false);
+      setSpotlightMoveId(null);
+      return true;
+    }
+    if (contextMenu) {
+      setContextMenu(null);
+      return true;
+    }
+    if (showShortcuts) {
+      setShowShortcuts(false);
+      return true;
+    }
+    if (mobileSidebarOpen) {
+      setMobileSidebarOpen(false);
+      return true;
+    }
+    if (selectedMessageId) {
+      setSelectedMessageId(null);
+      return true;
+    }
+    return false;
+  }, [composeContext, showSpotlight, contextMenu, showShortcuts, mobileSidebarOpen, selectedMessageId]);
+
 
   // Persist last-selected message per folder
 
@@ -722,6 +753,15 @@ export default function MailPage() {
       'ㅂ':'q','ㅈ':'w',
     };
     function onKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') {
+        if (handleGlobalEscape()) {
+          e.preventDefault();
+          e.stopPropagation();
+          e.stopImmediatePropagation();
+        }
+        return;
+      }
+
       const tag = (e.target as HTMLElement).tagName;
       const editable = (e.target as HTMLElement).isContentEditable;
       if (tag === 'INPUT' || tag === 'TEXTAREA' || editable) return;
@@ -767,10 +807,6 @@ export default function MailPage() {
             return;
           case '[':
             setSidebarCollapsed((v) => !v);
-            return;
-          case 'Escape':
-            if (showShortcuts) setShowShortcuts(false);
-            else if (showSpotlight) setShowSpotlight(false);
             return;
           case 'k':
             if (e.ctrlKey || e.metaKey) {
@@ -925,16 +961,11 @@ export default function MailPage() {
         case '[':
           if (!composeContext) setSidebarCollapsed((v) => !v);
           break;
-        case 'Escape':
-          if (showShortcuts) setShowShortcuts(false);
-          else if (composeContext) closeCompose();
-          else setSelectedMessageId(null);
-          break;
       }
     }
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [messages, searchResults, selectedMessageId, selectedMessage, composeContext, openCompose, closeCompose, showShortcuts, handleDelete, handleArchive, handleSpam, handleMarkRead, handleMarkUnread, handleStar, getNextId, folders, messageLabels, setLabel, activeFolderSystemType, setActiveApp, showSpotlight, handleMove, handlePin, activeApp, isMobile]);
+  }, [messages, searchResults, selectedMessageId, selectedMessage, composeContext, openCompose, showShortcuts, handleDelete, handleArchive, handleSpam, handleMarkRead, handleMarkUnread, handleStar, getNextId, folders, messageLabels, setLabel, activeFolderSystemType, setActiveApp, showSpotlight, handleMove, handlePin, activeApp, isMobile, handleGlobalEscape]);
 
   const refreshRef = useRef(refresh);
   useEffect(() => { refreshRef.current = refresh; }, [refresh]);
@@ -1085,10 +1116,12 @@ export default function MailPage() {
       stored[id] = until.toISOString();
       localStorage.setItem('webmail_snoozed', JSON.stringify(stored));
     } catch { /* ignore */ }
-    setMessages((prev) => prev.filter((m) => m.id !== id));
-    if (selectedMessageId === id) setSelectedMessageId(null);
+    if (shouldHideMessageAfterSnooze(activeFolderId)) {
+      setMessages((prev) => prev.filter((m) => m.id !== id));
+      if (selectedMessageId === id) setSelectedMessageId(null);
+    }
     addToast(`스누즈: ${until.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}에 다시 알립니다`, 'info', { duration: 4000 });
-  }, [selectedMessageId, setMessages, addToast]);
+  }, [activeFolderId, selectedMessageId, setMessages, addToast]);
 
   // Check every 60s if any snoozed message should reappear
   useEffect(() => {
@@ -1547,10 +1580,10 @@ export default function MailPage() {
                 onComposeToAddress={(address) => openCompose({ intent: 'new', to: address })}
                 onSnooze={activeFolderSystemType !== 'trash' ? handleSnooze : undefined}
                 onOpenInWindow={selectedMessageId ? () => window.open(`/mail/${selectedMessageId}`, '_blank', 'width=900,height=700,menubar=no,toolbar=no') : undefined}
-                onToggleRead={selectedMessageId ? () => { const m = messages.find((x) => x.id === selectedMessageId); if (m?.read) handleMarkUnread(); else void handleMarkRead(); } : undefined}
-                isRead={messages.find((m) => m.id === selectedMessageId)?.read}
-                onStar={selectedMessageId ? () => { const m = messages.find((x) => x.id === selectedMessageId); if (m) handleStar(m.id, !m.starred); } : undefined}
-                isStarred={messages.find((m) => m.id === selectedMessageId)?.starred}
+                onToggleRead={selectedMessageId ? () => { const m = findVisibleMessage(selectedMessageId); if (m?.read) handleMarkUnread(); else void handleMarkRead(); } : undefined}
+                isRead={selectedMessageId ? findVisibleMessage(selectedMessageId)?.read : undefined}
+                onStar={selectedMessageId ? () => { const m = findVisibleMessage(selectedMessageId); if (m) handleStar(m.id, !m.starred); } : undefined}
+                isStarred={selectedMessageId ? findVisibleMessage(selectedMessageId)?.starred : undefined}
                 threadMessages={threadMessages.length > 1 ? threadMessages : undefined}
                 onSelectThread={handleSelectMessage}
                 userEmail={userEmail || undefined}
@@ -1608,7 +1641,7 @@ export default function MailPage() {
       )}
 
       {contextMenu && (() => {
-        const ctxMsg = messages.find((m) => m.id === contextMenu.id);
+        const ctxMsg = findVisibleMessage(contextMenu.id);
         return (
           <ContextMenu
             x={contextMenu.x}
@@ -1636,23 +1669,11 @@ export default function MailPage() {
               ctxMsg?.read
                 ? {
                     label: '읽지 않음으로',
-                    onClick: () => {
-                      setMessages((prev) =>
-                        prev.map((m) => (m.id === contextMenu.id ? { ...m, read: false } : m))
-                      );
-                      adjustUnread(activeFolderId, 1);
-                      markRead(contextMenu.id, false).catch(() => {});
-                    },
+                    onClick: () => handleToggleReadMessage(contextMenu.id, false),
                   }
                 : {
                     label: '읽음으로',
-                    onClick: () => {
-                      setMessages((prev) =>
-                        prev.map((m) => (m.id === contextMenu.id ? { ...m, read: true } : m))
-                      );
-                      adjustUnread(activeFolderId, -1);
-                      markRead(contextMenu.id, true).catch(() => {});
-                    },
+                    onClick: () => handleToggleReadMessage(contextMenu.id, true),
                   },
               {
                 label: '라벨',
@@ -1702,7 +1723,10 @@ export default function MailPage() {
           folders={folders}
           onSelectFolder={(id) => { handleSelectFolder(id); setShowSpotlight(false); setSpotlightMoveId(null); }}
           onCompose={() => { openCompose({ intent: 'new' }); setShowSpotlight(false); }}
+          onComposeToAddress={(email) => { openCompose({ intent: 'new', to: email }); setShowSpotlight(false); }}
           onSelectMessage={(id) => { handleSelectMessage(id); setShowSpotlight(false); }}
+          onOpenCalendar={() => { setActiveApp('calendar'); setShowSpotlight(false); }}
+          onOpenDrive={() => { setActiveApp('drive'); setShowSpotlight(false); }}
           onOpenSettings={() => { setActiveApp('settings'); setShowSpotlight(false); }}
           onSearch={(q) => { handleSearch(q); setActiveApp('mail'); setShowSpotlight(false); }}
           onComposeWithTemplate={(t) => { openCompose({ intent: 'new', initialSubject: t.subject, initialBody: t.body }); setShowSpotlight(false); }}
