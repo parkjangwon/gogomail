@@ -56,7 +56,8 @@ export default function SCIMStatusPage() {
     );
   }
 
-  const backendBase = process.env.NEXT_PUBLIC_GOGOMAIL_BACKEND_URL || 'http://localhost:8080';
+  const backendBase = process.env.NEXT_PUBLIC_GOGOMAIL_PUBLIC_BASE_URL
+    || (typeof window !== 'undefined' ? window.location.origin : '');
   const scimEndpointUrl = `${backendBase}${data.endpoint}`;
 
   return (

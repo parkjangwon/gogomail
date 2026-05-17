@@ -5518,6 +5518,44 @@ func TestAdminWebhooksRejectPrivateURL(t *testing.T) {
 	}
 }
 
+func TestAdminWebhooksAllowPrivateURLWhenCompanyGovernanceAllows(t *testing.T) {
+	t.Parallel()
+
+	raw := json.RawMessage(`{"security_profile":"enterprise","webhook_private_network_access":"allow"}`)
+	service := &fakeAdminService{companyConfig: []configstore.ConfigEntry{{Value: raw}}}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "")
+
+	req := httptest.NewRequest(http.MethodPost, "/admin/v1/companies/company-1/webhooks", strings.NewReader(`{"name":"local","url":"http://127.0.0.1:8080/hook","events":["mail.received"],"enabled":true}`))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if service.lastCompanyConfigKey != webhooksConfigKey {
+		t.Fatalf("lastCompanyConfigKey = %q, want %q", service.lastCompanyConfigKey, webhooksConfigKey)
+	}
+}
+
+func TestAdminCompanySecurityGovernancePolicyRejectsInvalidRelaxation(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeAdminService{}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "")
+
+	req := httptest.NewRequest(http.MethodPut, "/admin/v1/companies/company-1/security/governance", strings.NewReader(`{"security_profile":"enterprise","webhook_private_network_access":"private"}`))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+}
+
 func TestAdminWebhooksListRedactsSecret(t *testing.T) {
 	t.Parallel()
 

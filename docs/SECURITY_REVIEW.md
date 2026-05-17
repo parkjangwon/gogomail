@@ -42,6 +42,20 @@ Primary risk areas covered in this pass:
   production builds.
 - Go builds are pinned to patched toolchain `go1.26.3`, and both frontend apps
   override `postcss` to `^8.5.14` so production dependency audits are clean.
+- Enterprise cookie posture uses `__Host-` token cookie names in production,
+  with legacy cookie cleanup during migration.
+- Company/domain security governance is explicit via
+  `/security/governance`; platform invariants remain fixed, while approved
+  operational exceptions such as private-network webhook targets are deny by
+  default and can be enabled per tenant policy.
+- Cookie-backed mutating API routes now require same-origin `Origin` or
+  `Referer`; requests without browser provenance are rejected instead of treated
+  as implicitly trusted.
+- Frontend server routes use server-only `GOGOMAIL_BACKEND_URL`; public browser
+  configuration should use purpose-specific public origins such as
+  `NEXT_PUBLIC_GOGOMAIL_PUBLIC_BASE_URL` for displayed SCIM endpoints.
+- Production CSP removes `unsafe-eval`, adds `upgrade-insecure-requests`, and
+  both apps now set COOP/CORP plus DNS prefetch disabling.
 
 ## Verification Commands
 
@@ -60,6 +74,9 @@ Primary risk areas covered in this pass:
 - Move the current TypeScript helper tests into a broader frontend security
   suite if the repo later standardizes on one runner for webmail.
 - Add deployment-specific allowlists for intentional internal webhook targets
-  only if operators need them; the default remains private-network deny.
-- Evaluate stricter CSP removal of `unsafe-inline` and `unsafe-eval` after
-  Next.js development/runtime constraints are separated from production headers.
+  behind the governance setting if operators need narrower controls than the
+  current tenant-level allow/deny; the default remains private-network deny.
+- Evaluate nonce-based inline theme/style bootstrapping so production CSP can
+  remove `unsafe-inline` without visual flicker.
+- Add centralized security event logging for rejected same-origin, private URL,
+  and oversized proxy attempts once the audit pipeline is finalized.

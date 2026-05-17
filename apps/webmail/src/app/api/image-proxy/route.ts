@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { assertImageContentType, validateOutboundHttpUrl } from '@/lib/security/outboundUrl';
+import { LEGACY_WEBMAIL_TOKEN_COOKIE, WEBMAIL_TOKEN_COOKIE } from '@/lib/security/cookies';
 
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 const MAX_REDIRECTS = 3;
@@ -22,7 +23,8 @@ async function fetchImage(url: URL, redirects = 0): Promise<Response> {
 
 export async function GET(req: NextRequest) {
   const cookieStore = await cookies();
-  const token = cookieStore.get('webmail_token')?.value;
+  const token = cookieStore.get(WEBMAIL_TOKEN_COOKIE)?.value
+    ?? cookieStore.get(LEGACY_WEBMAIL_TOKEN_COOKIE)?.value;
   const devUserId = process.env.GOGOMAIL_DEV_USER_ID || '';
   if (!token && !devUserId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

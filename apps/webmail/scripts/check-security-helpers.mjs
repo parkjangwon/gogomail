@@ -15,6 +15,7 @@ assert.throws(() => assertImageContentType('text/html'));
 assert.equal(encodeBackendPath(['messages', 'id 1']), 'messages/id%201');
 assert.throws(() => encodeBackendPath(['messages', '../secret']));
 assert.throws(() => assertSameOriginForMutation('POST', 'https://mail.example.test/api/mail/messages', new Headers({ origin: 'https://evil.example.test' })));
+assert.throws(() => assertSameOriginForMutation('POST', 'https://mail.example.test/api/mail/messages', new Headers()));
 assert.doesNotThrow(() => assertSameOriginForMutation('POST', 'https://mail.example.test/api/mail/messages', new Headers({ origin: 'https://mail.example.test' })));
 
 const proxiedHeaders = headersForBackend(new Headers({

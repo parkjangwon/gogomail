@@ -19,7 +19,8 @@ export function assertSameOriginForMutation(method: string, requestUrl: string, 
     return;
   }
   const referer = headers.get('referer');
-  if (referer && new URL(referer).origin !== expectedOrigin) {
+  if (!referer) throw new Error('Missing request origin');
+  if (new URL(referer).origin !== expectedOrigin) {
     throw new Error('Invalid request origin');
   }
 }

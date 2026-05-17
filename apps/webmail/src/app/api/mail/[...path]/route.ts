@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { assertSameOriginForMutation, encodeBackendPath, headersForBackend } from '@/lib/security/proxy';
+import { LEGACY_WEBMAIL_TOKEN_COOKIE, WEBMAIL_TOKEN_COOKIE } from '@/lib/security/cookies';
 
-const BACKEND = process.env.NEXT_PUBLIC_GOGOMAIL_BACKEND_URL || 'http://localhost:8080';
+const BACKEND = process.env.GOGOMAIL_BACKEND_URL || 'http://localhost:8080';
 const DEV_USER_ID = process.env.GOGOMAIL_DEV_USER_ID || '';
 const MAIL_BASE_PREFIXES = new Set(['addressbooks', 'contacts', 'directory']);
 
@@ -67,7 +68,8 @@ async function handler(
 
   // Read token from httpOnly cookie — never from client-supplied Authorization header
   const cookieStore = await cookies();
-  const token = cookieStore.get('webmail_token')?.value;
+  const token = cookieStore.get(WEBMAIL_TOKEN_COOKIE)?.value
+    ?? cookieStore.get(LEGACY_WEBMAIL_TOKEN_COOKIE)?.value;
   const headers = headersForBackend(req.headers, token, isPublicShareLinkRoute);
 
   let body: ArrayBuffer | undefined;
