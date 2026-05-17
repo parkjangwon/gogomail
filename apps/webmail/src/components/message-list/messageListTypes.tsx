@@ -141,4 +141,5 @@ export interface MessageRowProps {
   isImportant?: boolean;
   onAvatarEnter?: (name: string, addr: string, rect: DOMRect) => void;
   onAvatarLeave?: () => void;
+  onHoverChange?: (id: string | null) => void;
 }
