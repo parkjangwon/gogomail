@@ -79,6 +79,7 @@ Go Backend (`internal/`):
 - Phase 2 배송 경로에 명시적인 `RecipientBatch` 계획 함수를 추가해 같은 도메인 수신자를 결정적 순서로 묶고, 1k/10k/100k 수신자 배치 계획 벤치마크를 추가함
 - 최근 배치 계획 벤치마크 샘플: 1k/10도메인 ~49.1 us/op, 10k/100도메인 ~567.5 us/op, 100k/1k도메인 ~6.0 ms/op
 - `GOGOMAIL_DELIVERY_RECIPIENT_BATCH_SIZE`를 추가해 대량 수신자 도메인 배치를 운영 환경에서 조정할 수 있게 하고, 기본값은 기존 수신자 한도와 맞춘 100으로 둠
+- 배치 vs 개별 발송 벤치마크를 추가함: 100 수신자/10 도메인 기준 배치 경로는 10 SMTP transaction/op, 개별 경로는 100 SMTP transaction/op
 
 다음 단계: Phase 2 (Bulk Delivery Batching) 구현
 

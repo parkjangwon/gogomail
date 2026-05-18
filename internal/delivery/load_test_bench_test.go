@@ -83,7 +83,7 @@ func BenchmarkBulkSendThroughput(b *testing.B) {
 // BenchmarkBulkSendWithPipelining demonstrates pipelined RCPT performance
 func BenchmarkBulkSendWithPipelining(b *testing.B) {
 	tests := []struct {
-		name      string
+		name       string
 		recipients int
 	}{
 		{"5_recipients", 5},
@@ -141,6 +141,70 @@ func BenchmarkBulkSendWithPipelining(b *testing.B) {
 			b.Logf("Recipients/sec: %.2f", throughput)
 		})
 	}
+}
+
+func BenchmarkDirectSMTPBatchingVsIndividual(b *testing.B) {
+	recipients := benchmarkRecipients(100, 10)
+	newTransport := func(transactionCounter *atomic.Int64) *DirectSMTPTransport {
+		return &DirectSMTPTransport{
+			Router: staticRouter{route: Route{Hosts: []string{"mx.example.test"}}},
+			deliverHost: func(_ context.Context, _ Job, _ Route, _ string, recipients []outbound.Address) error {
+				transactionCounter.Add(1)
+				if len(recipients) == 0 {
+					b.Fatal("empty recipient batch")
+				}
+				return nil
+			},
+		}
+	}
+
+	b.Run("batched_by_domain", func(b *testing.B) {
+		var transactions atomic.Int64
+		transport := newTransport(&transactions)
+		job := Job{
+			QueuedMessage: QueuedMessage{
+				MessageID: "bulk-message",
+				From:      outbound.Address{Email: "sender@example.com"},
+				To:        recipients,
+			},
+		}
+
+		b.ReportAllocs()
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			if err := transport.Deliver(context.Background(), job); err != nil {
+				b.Fatalf("Deliver returned error: %v", err)
+			}
+		}
+		b.StopTimer()
+		b.ReportMetric(float64(b.N*len(recipients))/b.Elapsed().Seconds(), "rcpt/sec")
+		b.ReportMetric(float64(transactions.Load())/float64(b.N), "smtp_txn/op")
+	})
+
+	b.Run("individual_recipients", func(b *testing.B) {
+		var transactions atomic.Int64
+		transport := newTransport(&transactions)
+
+		b.ReportAllocs()
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			for _, recipient := range recipients {
+				job := Job{
+					QueuedMessage: QueuedMessage{
+						MessageID: "single-message",
+						From:      outbound.Address{Email: "sender@example.com"},
+						To:        []outbound.Address{recipient},
+					},
+				}
+				if err := transport.Deliver(context.Background(), job); err != nil {
+					b.Fatalf("Deliver returned error: %v", err)
+				}
+			}
+		}
+		b.StopTimer()
+		b.ReportMetric(float64(b.N*len(recipients))/b.Elapsed().Seconds(), "rcpt/sec")
+		b.ReportMetric(float64(transactions.Load())/float64(b.N), "smtp_txn/op")
+	})
 }
 
 func mockBulkSMTPServer(listener net.Listener, successCount *atomic.Int64, timeout int) {
