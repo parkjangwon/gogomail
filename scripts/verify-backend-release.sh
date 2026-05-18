@@ -35,8 +35,8 @@ if [ "${GOGOMAIL_SECURITY_VERIFY:-}" = "1" ]; then
 		echo "==> govulncheck ./..."
 		govulncheck ./...
 	else
-		echo "security verification failed: govulncheck is not installed" >&2
-		exit 1
+		echo "==> govulncheck ./... via go run"
+		go run golang.org/x/vuln/cmd/govulncheck@latest ./...
 	fi
 else
 	echo "==> skipping security verification: GOGOMAIL_SECURITY_VERIFY=1 is not set"
