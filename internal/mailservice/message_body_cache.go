@@ -26,6 +26,7 @@ type messageBodyCache struct {
 	hits      uint64
 	misses    uint64
 	evictions uint64
+	expired   uint64
 }
 
 type messageBodyCacheEntry struct {
@@ -60,8 +61,8 @@ func (c *messageBodyCache) get(key string, now time.Time) (parsedMessageBody, bo
 	}
 	entry := elem.Value.(messageBodyCacheEntry)
 	if !entry.expiresAt.After(now) {
-		c.lru.Remove(elem)
-		delete(c.entries, key)
+		c.removeElement(elem)
+		c.expired++
 		c.misses++
 		return parsedMessageBody{}, false
 	}
@@ -76,6 +77,7 @@ func (c *messageBodyCache) put(key string, body parsedMessageBody, now time.Time
 	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	c.pruneExpiredLocked(now)
 
 	entry := messageBodyCacheEntry{key: key, body: body, expiresAt: now.Add(c.ttl)}
 	if elem := c.entries[key]; elem != nil {
@@ -90,11 +92,30 @@ func (c *messageBodyCache) put(key string, body parsedMessageBody, now time.Time
 		if last == nil {
 			return
 		}
-		evicted := last.Value.(messageBodyCacheEntry)
-		c.lru.Remove(last)
-		delete(c.entries, evicted.key)
+		c.removeElement(last)
 		c.evictions++
 	}
+}
+
+func (c *messageBodyCache) pruneExpiredLocked(now time.Time) {
+	for elem := c.lru.Back(); elem != nil; {
+		prev := elem.Prev()
+		entry := elem.Value.(messageBodyCacheEntry)
+		if !entry.expiresAt.After(now) {
+			c.removeElement(elem)
+			c.expired++
+		}
+		elem = prev
+	}
+}
+
+func (c *messageBodyCache) removeElement(elem *list.Element) {
+	if elem == nil {
+		return
+	}
+	entry := elem.Value.(messageBodyCacheEntry)
+	c.lru.Remove(elem)
+	delete(c.entries, entry.key)
 }
 
 type MessageBodyCacheSnapshot struct {
@@ -105,6 +126,7 @@ type MessageBodyCacheSnapshot struct {
 	Hits      uint64
 	Misses    uint64
 	Evictions uint64
+	Expired   uint64
 }
 
 func (c *messageBodyCache) snapshot() MessageBodyCacheSnapshot {
@@ -121,5 +143,6 @@ func (c *messageBodyCache) snapshot() MessageBodyCacheSnapshot {
 		Hits:      c.hits,
 		Misses:    c.misses,
 		Evictions: c.evictions,
+		Expired:   c.expired,
 	}
 }
