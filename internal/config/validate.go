@@ -326,6 +326,12 @@ func (c Config) Validate() error {
 	if c.DeliveryRecipientBatchSize <= 0 {
 		return fmt.Errorf("GOGOMAIL_DELIVERY_RECIPIENT_BATCH_SIZE must be positive")
 	}
+	if c.MessageBodyCacheEntries < 0 {
+		return fmt.Errorf("GOGOMAIL_MESSAGE_BODY_CACHE_ENTRIES must not be negative")
+	}
+	if c.MessageBodyCacheEntries > 0 && c.MessageBodyCacheTTL <= 0 {
+		return fmt.Errorf("GOGOMAIL_MESSAGE_BODY_CACHE_TTL must be positive when message body cache is enabled")
+	}
 	if strings.TrimSpace(c.DeliverySMTPHello) == "" || strings.ContainsAny(c.DeliverySMTPHello, " \t\r\n") {
 		return fmt.Errorf("GOGOMAIL_DELIVERY_SMTP_HELLO must be a non-empty hostname without whitespace")
 	}

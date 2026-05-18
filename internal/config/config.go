@@ -212,6 +212,8 @@ type Config struct {
 	MailFlowOpenSearchIndex             string
 	MailFlowOpenSearchBootstrap         bool
 	MailFlowStatsBackend                string
+	MessageBodyCacheEntries             int
+	MessageBodyCacheTTL                 time.Duration
 	DeliveryStream                      string
 	DeliveryConsumerGroup               string
 	DeliveryConsumerName                string
@@ -458,6 +460,8 @@ func Load() Config {
 		MailFlowOpenSearchIndex:             envOrDefault("GOGOMAIL_MAIL_FLOW_OPENSEARCH_INDEX", "mail_flow"),
 		MailFlowOpenSearchBootstrap:         boolEnvOrDefault("GOGOMAIL_MAIL_FLOW_OPENSEARCH_BOOTSTRAP", false),
 		MailFlowStatsBackend:                envOrDefault("GOGOMAIL_MAIL_FLOW_STATS_BACKEND", "auto"),
+		MessageBodyCacheEntries:             intEnvOrDefault("GOGOMAIL_MESSAGE_BODY_CACHE_ENTRIES", 256),
+		MessageBodyCacheTTL:                 durationEnvOrDefault("GOGOMAIL_MESSAGE_BODY_CACHE_TTL", 5*time.Minute),
 		DeliveryStream:                      envOrDefault("GOGOMAIL_DELIVERY_STREAM", "mail.outbound.general"),
 		DeliveryConsumerGroup:               envOrDefault("GOGOMAIL_DELIVERY_CONSUMER_GROUP", "gogomail.delivery-worker"),
 		DeliveryConsumerName:                envOrDefault("GOGOMAIL_DELIVERY_CONSUMER_NAME", "delivery-worker-1"),

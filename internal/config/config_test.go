@@ -138,6 +138,8 @@ func TestLoadAppliesDefaults(t *testing.T) {
 	t.Setenv("GOGOMAIL_DELIVERY_TIMEOUT", "")
 	t.Setenv("GOGOMAIL_DELIVERY_TLS_MODE", "")
 	t.Setenv("GOGOMAIL_DELIVERY_RECIPIENT_BATCH_SIZE", "")
+	t.Setenv("GOGOMAIL_MESSAGE_BODY_CACHE_ENTRIES", "")
+	t.Setenv("GOGOMAIL_MESSAGE_BODY_CACHE_TTL", "")
 	t.Setenv("GOGOMAIL_DELIVERY_RETRY_DELAYS", "")
 	t.Setenv("GOGOMAIL_DELIVERY_RETRY_JITTER_RATIO", "")
 	t.Setenv("GOGOMAIL_DELIVERY_RETRY_MAX_DELAY", "")
@@ -499,6 +501,12 @@ func TestLoadAppliesDefaults(t *testing.T) {
 	if cfg.DeliveryRecipientBatchSize != 100 {
 		t.Fatalf("DeliveryRecipientBatchSize = %d, want 100", cfg.DeliveryRecipientBatchSize)
 	}
+	if cfg.MessageBodyCacheEntries != 256 {
+		t.Fatalf("MessageBodyCacheEntries = %d, want 256", cfg.MessageBodyCacheEntries)
+	}
+	if cfg.MessageBodyCacheTTL != 5*time.Minute {
+		t.Fatalf("MessageBodyCacheTTL = %s, want 5m", cfg.MessageBodyCacheTTL)
+	}
 	wantRetryDelays := []time.Duration{5 * time.Minute, 30 * time.Minute, 2 * time.Hour, 8 * time.Hour, 24 * time.Hour}
 	if len(cfg.DeliveryRetryDelays) != len(wantRetryDelays) {
 		t.Fatalf("DeliveryRetryDelays = %v, want %v", cfg.DeliveryRetryDelays, wantRetryDelays)
@@ -682,6 +690,8 @@ func TestLoadReadsEnvironmentOverrides(t *testing.T) {
 	t.Setenv("GOGOMAIL_DELIVERY_TIMEOUT", "45s")
 	t.Setenv("GOGOMAIL_DELIVERY_TLS_MODE", "require")
 	t.Setenv("GOGOMAIL_DELIVERY_RECIPIENT_BATCH_SIZE", "250")
+	t.Setenv("GOGOMAIL_MESSAGE_BODY_CACHE_ENTRIES", "64")
+	t.Setenv("GOGOMAIL_MESSAGE_BODY_CACHE_TTL", "2m")
 	t.Setenv("GOGOMAIL_DELIVERY_RETRY_DELAYS", "1m, 5m, 1h")
 	t.Setenv("GOGOMAIL_DELIVERY_RETRY_JITTER_RATIO", "0.35")
 	t.Setenv("GOGOMAIL_DELIVERY_RETRY_MAX_DELAY", "6h")
@@ -1047,6 +1057,12 @@ func TestLoadReadsEnvironmentOverrides(t *testing.T) {
 	}
 	if cfg.DeliveryRecipientBatchSize != 250 {
 		t.Fatalf("DeliveryRecipientBatchSize = %d, want 250", cfg.DeliveryRecipientBatchSize)
+	}
+	if cfg.MessageBodyCacheEntries != 64 {
+		t.Fatalf("MessageBodyCacheEntries = %d, want 64", cfg.MessageBodyCacheEntries)
+	}
+	if cfg.MessageBodyCacheTTL != 2*time.Minute {
+		t.Fatalf("MessageBodyCacheTTL = %s, want 2m", cfg.MessageBodyCacheTTL)
 	}
 	if len(cfg.DeliveryRetryDelays) != 3 ||
 		cfg.DeliveryRetryDelays[0] != time.Minute ||
