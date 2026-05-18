@@ -28,6 +28,20 @@ else
 	echo "==> skipping backup restore rehearsal: GOGOMAIL_RESTORE_REHEARSAL_DATABASE_URL is not set"
 fi
 
+if [ "${GOGOMAIL_SECURITY_VERIFY:-}" = "1" ]; then
+	echo "==> go vet ./..."
+	go vet ./...
+	if command -v govulncheck >/dev/null 2>&1; then
+		echo "==> govulncheck ./..."
+		govulncheck ./...
+	else
+		echo "security verification failed: govulncheck is not installed" >&2
+		exit 1
+	fi
+else
+	echo "==> skipping security verification: GOGOMAIL_SECURITY_VERIFY=1 is not set"
+fi
+
 echo "==> git status --short"
 status="$(git status --short)"
 if [ "$status" != "" ]; then
