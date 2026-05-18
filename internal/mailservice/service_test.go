@@ -65,6 +65,42 @@ func TestGetMessageParsesTextBodyFromStorage(t *testing.T) {
 	}
 }
 
+func TestGetMessageCachesParsedBodyByStoragePath(t *testing.T) {
+	t.Parallel()
+
+	store := &recordingStore{body: strings.Join([]string{
+		"Message-ID: <body@example.com>",
+		"From: sender@example.net",
+		"To: admin@example.com",
+		"Subject: body",
+		"Content-Type: text/plain; charset=utf-8",
+		"",
+		"cached body",
+	}, "\r\n")}
+	service := New(&fakeRepository{
+		detail: maildb.MessageDetail{
+			ID:          "msg-1",
+			StoragePath: "mailstore/c/d/u/maildir/2026/05/msg.eml",
+			Flags:       []byte(`{"read":true}`),
+		},
+	}, store)
+
+	first, err := service.GetMessage(context.Background(), "user-1", "msg-1")
+	if err != nil {
+		t.Fatalf("first GetMessage returned error: %v", err)
+	}
+	second, err := service.GetMessage(context.Background(), "user-1", "msg-1")
+	if err != nil {
+		t.Fatalf("second GetMessage returned error: %v", err)
+	}
+	if first.TextBody != "cached body" || second.TextBody != "cached body" {
+		t.Fatalf("TextBody = %q/%q, want cached body", first.TextBody, second.TextBody)
+	}
+	if store.getCount != 1 {
+		t.Fatalf("store.Get count = %d, want 1", store.getCount)
+	}
+}
+
 func TestGetMessageMarksUnreadMessageRead(t *testing.T) {
 	t.Parallel()
 
@@ -3389,6 +3425,8 @@ func (p *fakeIMAPEventPublisher) Publish(_ context.Context, event imapgw.Mailbox
 type recordingStore struct {
 	getPath    string
 	deletePath string
+	body       string
+	getCount   int
 }
 
 func (s *recordingStore) Put(context.Context, string, io.Reader) error {
@@ -3397,7 +3435,8 @@ func (s *recordingStore) Put(context.Context, string, io.Reader) error {
 
 func (s *recordingStore) Get(_ context.Context, path string) (io.ReadCloser, error) {
 	s.getPath = path
-	return io.NopCloser(strings.NewReader("")), nil
+	s.getCount++
+	return io.NopCloser(strings.NewReader(s.body)), nil
 }
 
 func (s *recordingStore) GetRange(_ context.Context, path string, _ storage.RangeRequest) (io.ReadCloser, error) {
