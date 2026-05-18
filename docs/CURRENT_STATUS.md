@@ -4,7 +4,8 @@ Last updated: 2026-05-18 (message body cache tuning)
 
 ## Message Body Cache Tuning (2026-05-18)
 - Parsed EML text/HTML body caching is now runtime-tunable through `GOGOMAIL_MESSAGE_BODY_CACHE_ENTRIES` and `GOGOMAIL_MESSAGE_BODY_CACHE_TTL`; setting entries to `0` disables the cache for constrained deployments.
-- The mail service exposes a cache snapshot with enabled state, entries, capacity, TTL, hits, misses, and evictions, giving tests and future observability adapters a stable low-cardinality measurement point.
+- The mail service exposes a cache snapshot with enabled state, entries, capacity, TTL, hits, misses, evictions, and expired-entry removals, giving tests and future observability adapters a stable low-cardinality measurement point.
+- Cache writes now prune expired entries before inserting fresh bodies, so stale entries do not silently consume capacity until they happen to be read or evicted.
 - Mail API, IMAP gateway, and POP3 gateway service instances all inherit the same cache settings, keeping repeated message-detail and protocol reads consistent across runtime modes.
 - Validation rejects negative cache capacities and enabled caches with nonpositive TTLs, so unsafe cache configuration fails at startup instead of creating ambiguous read-path behavior.
 - Verification: `go test ./internal/mailservice -run 'TestGetMessage(CachesParsedBodyByStoragePath|ReportsMessageBodyCacheStats|CanDisableMessageBodyCache)'`, `go test ./internal/config -run 'TestLoad|TestValidateRejectsInvalidMessageBodyCacheSettings|TestValidateRejectsNonpositiveDeliveryRecipientBatchSize'`, and `go test ./internal/app -run '^$'` pass.

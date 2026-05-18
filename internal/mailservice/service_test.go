@@ -131,8 +131,8 @@ func TestGetMessageReportsMessageBodyCacheStats(t *testing.T) {
 	if !snapshot.Enabled || snapshot.Capacity != 8 || snapshot.Entries != 1 || snapshot.TTL != time.Minute {
 		t.Fatalf("cache snapshot sizing = %+v, want enabled capacity=8 entries=1 ttl=1m", snapshot)
 	}
-	if snapshot.Misses != 1 || snapshot.Hits != 1 || snapshot.Evictions != 0 {
-		t.Fatalf("cache snapshot counters = %+v, want 1 miss, 1 hit, 0 evictions", snapshot)
+	if snapshot.Misses != 1 || snapshot.Hits != 1 || snapshot.Evictions != 0 || snapshot.Expired != 0 {
+		t.Fatalf("cache snapshot counters = %+v, want 1 miss, 1 hit, 0 evictions, 0 expired", snapshot)
 	}
 }
 
