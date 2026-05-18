@@ -21,6 +21,13 @@ else
 	echo "==> skipping PostgreSQL integration tests: GOGOMAIL_TEST_DATABASE_URL is not set"
 fi
 
+if [ "${GOGOMAIL_RESTORE_REHEARSAL_DATABASE_URL:-}" != "" ]; then
+	echo "==> backup restore rehearsal"
+	GOGOMAIL_DATABASE_URL="${GOGOMAIL_RESTORE_REHEARSAL_DATABASE_URL}" ./scripts/backup-restore-rehearsal.sh
+else
+	echo "==> skipping backup restore rehearsal: GOGOMAIL_RESTORE_REHEARSAL_DATABASE_URL is not set"
+fi
+
 echo "==> git status --short"
 status="$(git status --short)"
 if [ "$status" != "" ]; then
