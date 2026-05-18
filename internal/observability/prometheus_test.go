@@ -28,13 +28,15 @@ func TestPrometheusAdapterObservesDeliveryEvents(t *testing.T) {
 
 	adapter := NewPrometheusAdapter()
 	adapter.ObserveDelivery(context.Background(), delivery.MetricEvent{
-		Stage:  delivery.MetricThrottled,
-		Result: delivery.MetricDeferred,
-		Farm:   "bulk",
+		Stage:          delivery.MetricThrottled,
+		Result:         delivery.MetricDeferred,
+		Farm:           "bulk",
+		RoutePool:      "bulk-relay",
+		RecipientCount: 42,
 	})
 
 	got := adapter.Text()
-	want := `gogomail_delivery_events_total{farm="bulk",result="deferred",stage="throttled"} 1`
+	want := `gogomail_delivery_events_total{farm="bulk",recipient_bucket="11-100",result="deferred",route_pool="bulk-relay",stage="throttled"} 1`
 	if !strings.Contains(got, want) {
 		t.Fatalf("Text() = %q, want %q", got, want)
 	}

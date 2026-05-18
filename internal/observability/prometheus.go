@@ -34,9 +34,11 @@ func (a *PrometheusAdapter) ObserveSMTP(_ context.Context, event smtpd.MetricEve
 
 func (a *PrometheusAdapter) ObserveDelivery(_ context.Context, event delivery.MetricEvent) {
 	a.inc("gogomail_delivery_events_total", map[string]string{
-		"stage":  string(event.Stage),
-		"result": string(event.Result),
-		"farm":   event.Farm,
+		"stage":            string(event.Stage),
+		"result":           string(event.Result),
+		"farm":             event.Farm,
+		"route_pool":       event.RoutePool,
+		"recipient_bucket": recipientBucket(event.RecipientCount),
 	})
 }
 
@@ -93,4 +95,19 @@ func promEscape(value string) string {
 	value = strings.ReplaceAll(value, "\n", `\n`)
 	value = strings.ReplaceAll(value, `"`, `\"`)
 	return value
+}
+
+func recipientBucket(count int) string {
+	switch {
+	case count <= 0:
+		return "0"
+	case count == 1:
+		return "1"
+	case count <= 10:
+		return "2-10"
+	case count <= 100:
+		return "11-100"
+	default:
+		return "100+"
+	}
 }

@@ -38,10 +38,11 @@ func TestSlogAdapterObservesDeliveryMetrics(t *testing.T) {
 		Result:         delivery.MetricDeferred,
 		MessageID:      "msg-1",
 		Farm:           "bulk",
+		RoutePool:      "bulk-relay",
 		RecipientCount: 2,
 	})
 	got := buf.String()
-	for _, want := range []string{"component=delivery", "stage=throttled", "result=deferred", "msg-1"} {
+	for _, want := range []string{"component=delivery", "stage=throttled", "result=deferred", "msg-1", "route_pool=bulk-relay"} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("log = %q, want %q", got, want)
 		}
