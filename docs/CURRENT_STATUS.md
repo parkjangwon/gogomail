@@ -153,6 +153,7 @@ Last updated: 2026-05-17 (tenant spam filter packs)
 - Bulk delivery benchmarks now compare batched domain delivery against per-recipient delivery; the 100-recipient/10-domain sample reduces SMTP transactions from 100/op to 10/op.
 - Message detail reads now use a bounded LRU cache for parsed EML text/HTML bodies keyed by immutable storage path, reducing repeated storage reads and MIME parsing for hot messages.
 - Delivery observability sinks now include route pool and bounded recipient-count buckets, making bulk delivery behavior visible without high-cardinality recipient labels.
+- Backup/restore rehearsal now has `scripts/backup-restore-rehearsal.sh`, which dumps the configured PostgreSQL database, restores it into a scratch database, checks applied migration metadata, and drops the scratch database by default.
 - **Phase 2 (Bulk Delivery Batching)** Next:
   - Multi-recipient and same-domain batching
   - Reduced database round-trips during bulk delivery
