@@ -2994,6 +2994,7 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Run `go test ./...`.
 - Run `go mod tidy -diff`.
 - Or run `./scripts/verify-backend-release.sh` to execute the standard backend release verification bundle.
+- Run `./scripts/verify-frontend-release.sh` before frontend-affecting releases; enable `GOGOMAIL_FRONTEND_E2E=1` and `GOGOMAIL_FRONTEND_BUILD=1` for the heavier browser and production build gates.
 - Verify `docs/openapi.yaml` still matches Go routes through the `internal/httpapi` contract tests before generating frontend clients.
 - Verify generated clients preserve the documented top-level envelope keys rather than flattening Mail/Admin response bodies.
 - Run `GOGOMAIL_TEST_DATABASE_URL=... go test ./internal/maildb ./internal/outbox` against a disposable PostgreSQL database/schema.

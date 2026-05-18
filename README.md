@@ -37,6 +37,8 @@ LDAP, DKIM, SPF, DMARC, DSN, and OpenAPI-backed REST APIs.
 - Mail and Admin REST APIs with OpenAPI documentation
 - PostgreSQL metadata, Redis coordination, and local/MinIO/S3-compatible object storage
 - DKIM signing, SPF/DMARC verification, DNS checks, queue/backpressure controls, audit logs, API metering
+- Built-in spam policy, DNSBL/RBL checks, tenant spam-filter packs, and optional ClamAV attachment scanning
+- Bulk delivery batching, delivery route observability, and tunable parsed-message body caching
 - Company/domain/user configuration boundaries and security governance policy
 
 ### Webmail
@@ -81,9 +83,8 @@ Implemented controls include:
 Verification commands:
 
 ```bash
-go test ./...
-go vet ./...
-go run golang.org/x/vuln/cmd/govulncheck@latest ./...
+./scripts/verify-backend-release.sh
+GOGOMAIL_SECURITY_VERIFY=1 ./scripts/verify-backend-release.sh
 pnpm --dir apps/webmail type-check
 pnpm --dir apps/webmail test:security-helpers
 pnpm --dir apps/webmail audit --prod
@@ -164,17 +165,23 @@ The backend is a single Go binary with multiple modes:
 ```bash
 go build -o bin/gogomail ./cmd/gogomail
 
-bin/gogomail --mode=api
-bin/gogomail --mode=smtp-edge
-bin/gogomail --mode=smtp-submission
+bin/gogomail --mode=all-in-one
+bin/gogomail --mode=mail-api
+bin/gogomail --mode=admin-api
+bin/gogomail --mode=auth-server
+bin/gogomail --mode=edge-mta
+bin/gogomail --mode=inbound-mta
+bin/gogomail --mode=outbound-mta
 bin/gogomail --mode=delivery-worker
+bin/gogomail --mode=outbox-relay
+bin/gogomail --mode=event-worker
 bin/gogomail --mode=imap
 bin/gogomail --mode=pop3
 bin/gogomail --mode=caldav
 bin/gogomail --mode=carddav
 bin/gogomail --mode=webdav
 bin/gogomail --mode=ldap-gateway
-bin/gogomail --mode=migration
+bin/gogomail --migrate --mode=mail-api
 ```
 
 Core runtime dependencies:
@@ -190,10 +197,15 @@ Important environment variables:
 |---|---|
 | `GOGOMAIL_ENV` | Use `production` for stricter auth/TLS/security defaults |
 | `GOGOMAIL_DATABASE_URL` | PostgreSQL connection string |
-| `GOGOMAIL_REDIS_URL` / `REDIS_ADDR` | Redis connection |
-| `GOGOMAIL_STORAGE_BACKEND` | `local`, `minio`, or `s3` |
+| `GOGOMAIL_REDIS_ADDR` | Redis host and port |
+| `GOGOMAIL_STORAGE_BACKEND` | `local`, `nfs`, `minio`, or `s3` |
 | `GOGOMAIL_AUTH_JWT_SECRET` | Mail API JWT signing secret |
 | `GOGOMAIL_ADMIN_TOKEN` | Admin API bearer token for token-based admin access |
+| `GOGOMAIL_DELIVERY_RECIPIENT_BATCH_SIZE` | Max recipients per same-domain SMTP delivery batch, default `100` |
+| `GOGOMAIL_MESSAGE_BODY_CACHE_ENTRIES` | Parsed message body cache capacity, default `256`; set `0` to disable |
+| `GOGOMAIL_MESSAGE_BODY_CACHE_TTL` | Parsed message body cache TTL, default `5m` |
+| `GOGOMAIL_RESTORE_REHEARSAL_DATABASE_URL` | Optional database URL used by release verification for backup/restore rehearsal |
+| `GOGOMAIL_SECURITY_VERIFY` | Set to `1` to add `go vet` and `govulncheck` to backend release verification |
 | `GOGOMAIL_BACKEND_URL` | Backend URL used by Next.js server routes |
 | `NEXT_PUBLIC_GOGOMAIL_PUBLIC_BASE_URL` | Public origin displayed in browser-facing console copy when needed |
 
@@ -224,11 +236,18 @@ References:
 go test ./...
 go vet ./...
 go build ./...
+./scripts/verify-backend-release.sh
+./scripts/verify-frontend-release.sh
 pnpm --dir apps/webmail type-check
 pnpm --dir apps/console type-check
 pnpm --dir apps/docs type-check
 pnpm --dir apps/docs build
 ```
+
+Release verification entrypoints:
+
+- `./scripts/verify-backend-release.sh` runs Go tests, module tidy diff checks, optional PostgreSQL/OpenSearch integration checks, optional restore rehearsal, optional security verification, and a clean-worktree gate.
+- `./scripts/verify-frontend-release.sh` runs webmail and console type checks plus helper tests by default; set `GOGOMAIL_FRONTEND_E2E=1` and `GOGOMAIL_FRONTEND_BUILD=1` for heavier browser/build gates.
 
 The repository uses a strict project harness:
 
@@ -248,6 +267,7 @@ See [`PROJECT_HARNESS.md`](PROJECT_HARNESS.md).
 | [`docs/ACTIVE_TASK.md`](docs/ACTIVE_TASK.md) | Current development task |
 | [`docs/CURRENT_STATUS.md`](docs/CURRENT_STATUS.md) | Detailed implementation status |
 | [`docs/SECURITY_REVIEW.md`](docs/SECURITY_REVIEW.md) | Security hardening summary and verification commands |
+| [`docs/backend-release-readiness.md`](docs/backend-release-readiness.md) | Release readiness checks, optional gates, and operational verification notes |
 | [`docs/openapi.yaml`](docs/openapi.yaml) | Mail and Admin API contract |
 | [`docs/backend-roadmap.md`](docs/backend-roadmap.md) | Long-form backend roadmap and completed hardening items |
 | [`apps/docs/`](apps/docs/) | Product guide for Admin Console, Webmail, glossary, and integration APIs |
