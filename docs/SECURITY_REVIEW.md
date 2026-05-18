@@ -87,6 +87,7 @@ Primary risk areas covered in this pass:
 - `go test ./...`
 - `go vet ./...`
 - `go run golang.org/x/vuln/cmd/govulncheck@latest ./...`
+- `GOGOMAIL_SECURITY_VERIFY=1 ./scripts/verify-backend-release.sh`
 - `pnpm --dir apps/webmail test:security-helpers`
 - `pnpm --dir apps/webmail type-check`
 - `pnpm --dir apps/console exec vitest run src/lib/__tests__/adminProxy.test.ts`
