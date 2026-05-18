@@ -85,6 +85,7 @@ Go Backend (`internal/`):
 - 백업/복구 리허설 스크립트를 추가해 PostgreSQL dump를 scratch DB에 복원하고 migration metadata를 확인한 뒤 기본적으로 scratch DB를 삭제하게 함
 - `verify-backend-release.sh`가 `GOGOMAIL_RESTORE_REHEARSAL_DATABASE_URL` 설정 시 백업/복구 리허설을 릴리즈 검증 단계에 포함하도록 연결함
 - `GOGOMAIL_SECURITY_VERIFY=1` 설정 시 `verify-backend-release.sh`가 `go vet ./...`와 설치된 `govulncheck ./...`를 보안 릴리즈 게이트로 실행하도록 함
+- 프론트엔드 릴리즈 검증 스크립트를 추가해 webmail/console type-check와 helper test를 기본 실행하고, E2E/build는 명시 환경변수로 켤 수 있게 함
 
 다음 단계: Phase 2 (Bulk Delivery Batching) 구현
 

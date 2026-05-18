@@ -156,6 +156,7 @@ Last updated: 2026-05-17 (tenant spam filter packs)
 - Backup/restore rehearsal now has `scripts/backup-restore-rehearsal.sh`, which dumps the configured PostgreSQL database, restores it into a scratch database, checks applied migration metadata, and drops the scratch database by default.
 - Backend release verification can now run the backup/restore rehearsal when `GOGOMAIL_RESTORE_REHEARSAL_DATABASE_URL` is set, making restore safety part of the pre-release gate without slowing default checks.
 - Backend release verification can now run security verification with `GOGOMAIL_SECURITY_VERIFY=1`, gating releases on `go vet ./...` plus an installed `govulncheck ./...`.
+- Frontend release verification now has `scripts/verify-frontend-release.sh` for webmail/console type checks and helper tests, with opt-in E2E and production build gates through `GOGOMAIL_FRONTEND_E2E=1` and `GOGOMAIL_FRONTEND_BUILD=1`.
 - **Phase 2 (Bulk Delivery Batching)** Next:
   - Multi-recipient and same-domain batching
   - Reduced database round-trips during bulk delivery
