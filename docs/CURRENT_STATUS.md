@@ -147,6 +147,8 @@ Last updated: 2026-05-17 (tenant spam filter packs)
 - Recent benchmark samples: `BenchmarkIMAPUIDArray1K` ~15.4 us/op, `BenchmarkIMAPUIDArray10K` ~169.9 us/op, `BenchmarkNormalizeSearchMessageIDs200` ~5.2 us/op, `BenchmarkSearchMessageIDsArrayValue10K` ~680 us/op.
 - IMAP FETCH token parsing now uses a scanner helper instead of repeated `strings.Fields`, and subject normalization collapses whitespace without building a token slice.
 - New partial lookup indexes cover active messages by mailbox time and active thread time ordering for the Phase 1 read hot path.
+- Direct outbound SMTP now plans deterministic recipient batches before delivery, preserving first-seen domain order while grouping same-domain recipients for bulk delivery and adding 1k/10k/100k planning benchmarks.
+- Recent delivery batch planning benchmark samples: 1k/10 domains ~49.1 us/op, 10k/100 domains ~567.5 us/op, 100k/1k domains ~6.0 ms/op.
 - **Phase 2 (Bulk Delivery Batching)** Next:
   - Multi-recipient and same-domain batching
   - Reduced database round-trips during bulk delivery

@@ -76,6 +76,8 @@ Go Backend (`internal/`):
 - `imapUIDArray` 1k/10k 벤치마크를 추가해 UID 전처리 비용을 추적할 수 있게 함
 - IMAP mailbox lookup normalization도 `strings.Fields` 대신 로컬 공백 정리 스캐너를 쓰도록 바꿔 `SELECT`/`LIST` alias 처리의 토큰 슬라이스 비용을 줄임
 - active 메시지/스레드 lookup용 partial index migration을 추가함
+- Phase 2 배송 경로에 명시적인 `RecipientBatch` 계획 함수를 추가해 같은 도메인 수신자를 결정적 순서로 묶고, 1k/10k/100k 수신자 배치 계획 벤치마크를 추가함
+- 최근 배치 계획 벤치마크 샘플: 1k/10도메인 ~49.1 us/op, 10k/100도메인 ~567.5 us/op, 100k/1k도메인 ~6.0 ms/op
 
 다음 단계: Phase 2 (Bulk Delivery Batching) 구현
 

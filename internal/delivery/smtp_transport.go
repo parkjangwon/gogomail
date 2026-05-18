@@ -32,19 +32,19 @@ const (
 )
 
 type DirectSMTPTransport struct {
-	Resolver       MXResolver
-	Router         Router
-	Timeout        time.Duration
-	Hello          string
-	TLSMode        DeliveryTLSMode
-	TLSConfig      *tls.Config
-	Transformers   TransformChain
-	daneValidator  *dane.Validator
-	mtastsClient   *mtasts.Client
+	Resolver        MXResolver
+	Router          Router
+	Timeout         time.Duration
+	Hello           string
+	TLSMode         DeliveryTLSMode
+	TLSConfig       *tls.Config
+	Transformers    TransformChain
+	daneValidator   *dane.Validator
+	mtastsClient    *mtasts.Client
 	tlsrptCollector *tlsrpt.Collector
-	deliverHost    func(context.Context, Job, Route, string, []outbound.Address) error
-	pool           *SMTPConnectionPool
-	poolOnce       sync.Once // Protect pool initialization
+	deliverHost     func(context.Context, Job, Route, string, []outbound.Address) error
+	pool            *SMTPConnectionPool
+	poolOnce        sync.Once // Protect pool initialization
 }
 
 func NewDirectSMTPTransport() *DirectSMTPTransport {
@@ -62,8 +62,8 @@ func NewDirectSMTPTransport() *DirectSMTPTransport {
 }
 
 func (t *DirectSMTPTransport) Deliver(ctx context.Context, job Job) error {
-	groups := groupRecipientsByDomain(job.Recipients())
-	if len(groups) == 0 {
+	batches := PlanRecipientBatches(job.Recipients())
+	if len(batches) == 0 {
 		return &SMTPStatusError{
 			Op:      "recipient",
 			Code:    554,
@@ -72,20 +72,20 @@ func (t *DirectSMTPTransport) Deliver(ctx context.Context, job Job) error {
 	}
 	delivered := make([]outbound.Address, 0, len(job.Recipients()))
 	failures := make([]RecipientDeliveryError, 0)
-	for domain, recipients := range groups {
-		if err := t.deliverDomain(ctx, job, domain, recipients); err != nil {
+	for _, batch := range batches {
+		if err := t.deliverDomain(ctx, job, batch.Domain, batch.Recipients); err != nil {
 			var partial *PartialDeliveryError
 			if errors.As(err, &partial) {
 				delivered = append(delivered, partial.Delivered...)
 				failures = append(failures, partial.Failed...)
 				continue
 			}
-			for _, recipient := range recipients {
+			for _, recipient := range batch.Recipients {
 				failures = append(failures, RecipientDeliveryError{Recipient: recipient, Err: err})
 			}
 			continue
 		}
-		delivered = append(delivered, recipients...)
+		delivered = append(delivered, batch.Recipients...)
 	}
 	if len(failures) > 0 {
 		return &PartialDeliveryError{Delivered: delivered, Failed: failures}
@@ -573,7 +573,7 @@ func (t *DirectSMTPTransport) recordTLSResult(sendingMTA string, tlsVersion stri
 	if err != nil {
 		// Record TLS failure
 		failure := &tlsrpt.FailureDetails{
-			ResultType:       "tlsa", // Could be other types
+			ResultType:        "tlsa",                      // Could be other types
 			FailureReasonCode: "certificate-host-mismatch", // Simplified
 			FailureReasonText: err.Error(),
 		}
@@ -727,20 +727,47 @@ func normalizeDeliveryTLSMode(mode DeliveryTLSMode) DeliveryTLSMode {
 	}
 }
 
-func groupRecipientsByDomain(recipients []outbound.Address) map[string][]outbound.Address {
-	groups := make(map[string][]outbound.Address)
+type RecipientBatch struct {
+	Domain     string
+	Recipients []outbound.Address
+}
+
+func PlanRecipientBatches(recipients []outbound.Address) []RecipientBatch {
+	batches := make([]RecipientBatch, 0)
+	batchByDomain := make(map[string]int)
 	for _, recipient := range recipients {
-		_, domain, ok := strings.Cut(strings.TrimSpace(recipient.Email), "@")
-		if !ok || domain == "" {
-			continue
-		}
-		domain = strings.ToLower(strings.TrimSuffix(strings.TrimSpace(domain), "."))
+		domain := normalizedRecipientDomain(recipient.Email)
 		if domain == "" {
 			continue
 		}
-		groups[domain] = append(groups[domain], recipient)
+		if idx, ok := batchByDomain[domain]; ok {
+			batches[idx].Recipients = append(batches[idx].Recipients, recipient)
+			continue
+		}
+		batchByDomain[domain] = len(batches)
+		batches = append(batches, RecipientBatch{
+			Domain:     domain,
+			Recipients: []outbound.Address{recipient},
+		})
+	}
+	return batches
+}
+
+func groupRecipientsByDomain(recipients []outbound.Address) map[string][]outbound.Address {
+	groups := make(map[string][]outbound.Address)
+	for _, batch := range PlanRecipientBatches(recipients) {
+		groups[batch.Domain] = append(groups[batch.Domain], batch.Recipients...)
 	}
 	return groups
+}
+
+func normalizedRecipientDomain(address string) string {
+	_, domain, ok := strings.Cut(strings.TrimSpace(address), "@")
+	if !ok || domain == "" {
+		return ""
+	}
+	domain = strings.ToLower(strings.TrimSuffix(strings.TrimSpace(domain), "."))
+	return domain
 }
 
 // checkMTASTSPolicy verifies the MX host matches MTA-STS policy for the domain.

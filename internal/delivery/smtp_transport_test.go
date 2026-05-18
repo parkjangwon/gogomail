@@ -32,6 +32,96 @@ func TestGroupRecipientsByDomain(t *testing.T) {
 	}
 }
 
+func TestPlanRecipientBatchesPreservesFirstSeenDomainOrder(t *testing.T) {
+	t.Parallel()
+
+	batches := PlanRecipientBatches([]outbound.Address{
+		{Email: "a@example.net"},
+		{Email: "b@example.com"},
+		{Email: "c@Example.NET."},
+		{Email: "d@example.org"},
+		{Email: "e@example.com"},
+	})
+
+	wantDomains := []string{"example.net", "example.com", "example.org"}
+	if len(batches) != len(wantDomains) {
+		t.Fatalf("batches = %+v, want %d batches", batches, len(wantDomains))
+	}
+	for i, want := range wantDomains {
+		if batches[i].Domain != want {
+			t.Fatalf("batch %d domain = %q, want %q", i, batches[i].Domain, want)
+		}
+	}
+	if got := []string{batches[0].Recipients[0].Email, batches[0].Recipients[1].Email}; got[0] != "a@example.net" || got[1] != "c@Example.NET." {
+		t.Fatalf("example.net recipients = %+v, want original order", got)
+	}
+	if got := []string{batches[1].Recipients[0].Email, batches[1].Recipients[1].Email}; got[0] != "b@example.com" || got[1] != "e@example.com" {
+		t.Fatalf("example.com recipients = %+v, want original order", got)
+	}
+}
+
+func TestPlanRecipientBatchesSkipsInvalidRecipients(t *testing.T) {
+	t.Parallel()
+
+	batches := PlanRecipientBatches([]outbound.Address{
+		{Email: "missing-domain"},
+		{Email: "valid@example.com"},
+		{Email: "empty@"},
+		{Email: "trailing@example.com."},
+	})
+	if len(batches) != 1 {
+		t.Fatalf("batches = %+v, want one deliverable domain batch", batches)
+	}
+	if batches[0].Domain != "example.com" {
+		t.Fatalf("domain = %q, want example.com", batches[0].Domain)
+	}
+	if len(batches[0].Recipients) != 2 {
+		t.Fatalf("recipients = %+v, want two valid recipients", batches[0].Recipients)
+	}
+}
+
+func TestDirectSMTPTransportDeliversRecipientBatchesInPlannedOrder(t *testing.T) {
+	t.Parallel()
+
+	var deliveredDomains []string
+	var deliveredCounts []int
+	transport := DirectSMTPTransport{
+		Router: staticRouter{route: Route{Hosts: []string{"mx.example.test"}}},
+		deliverHost: func(_ context.Context, _ Job, _ Route, _ string, recipients []outbound.Address) error {
+			if len(recipients) == 0 {
+				t.Fatal("deliverHost received empty recipient batch")
+			}
+			domain := normalizedRecipientDomain(recipients[0].Email)
+			deliveredDomains = append(deliveredDomains, domain)
+			deliveredCounts = append(deliveredCounts, len(recipients))
+			return nil
+		},
+	}
+
+	err := transport.Deliver(context.Background(), Job{
+		QueuedMessage: QueuedMessage{
+			To: []outbound.Address{
+				{Email: "a@example.net"},
+				{Email: "b@example.com"},
+				{Email: "c@example.net"},
+				{Email: "d@example.org"},
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("Deliver returned error: %v", err)
+	}
+
+	wantDomains := []string{"example.net", "example.com", "example.org"}
+	if fmt.Sprint(deliveredDomains) != fmt.Sprint(wantDomains) {
+		t.Fatalf("delivered domains = %+v, want %+v", deliveredDomains, wantDomains)
+	}
+	wantCounts := []int{2, 1, 1}
+	if fmt.Sprint(deliveredCounts) != fmt.Sprint(wantCounts) {
+		t.Fatalf("delivered counts = %+v, want %+v", deliveredCounts, wantCounts)
+	}
+}
+
 func TestDirectSMTPTransportRejectsNoDeliverableRecipients(t *testing.T) {
 	t.Parallel()
 

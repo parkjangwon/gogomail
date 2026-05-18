@@ -13,7 +13,7 @@ import (
 // BenchmarkSMTPPipelining measures current RCPT performance without pipelining
 func BenchmarkSMTPPipelining(b *testing.B) {
 	tests := []struct {
-		name      string
+		name       string
 		recipients int
 	}{
 		{"5_recipients", 5},
@@ -27,6 +27,41 @@ func BenchmarkSMTPPipelining(b *testing.B) {
 			benchmarkRCPTPipelining(b, tt.recipients)
 		})
 	}
+}
+
+func BenchmarkPlanRecipientBatches(b *testing.B) {
+	tests := []struct {
+		name       string
+		recipients int
+		domains    int
+	}{
+		{name: "1k_10_domains", recipients: 1_000, domains: 10},
+		{name: "10k_100_domains", recipients: 10_000, domains: 100},
+		{name: "100k_1k_domains", recipients: 100_000, domains: 1_000},
+	}
+
+	for _, tt := range tests {
+		recipients := benchmarkRecipients(tt.recipients, tt.domains)
+		b.Run(tt.name, func(b *testing.B) {
+			b.ReportAllocs()
+			b.SetBytes(int64(tt.recipients))
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				batches := PlanRecipientBatches(recipients)
+				if len(batches) != tt.domains {
+					b.Fatalf("batches = %d, want %d", len(batches), tt.domains)
+				}
+			}
+		})
+	}
+}
+
+func benchmarkRecipients(count int, domains int) []outbound.Address {
+	recipients := make([]outbound.Address, count)
+	for i := 0; i < count; i++ {
+		recipients[i] = outbound.Address{Email: fmt.Sprintf("user%d@example-%d.test", i, i%domains)}
+	}
+	return recipients
 }
 
 func benchmarkRCPTPipelining(b *testing.B, numRecipients int) {
@@ -86,8 +121,6 @@ func benchmarkRCPTPipelining(b *testing.B, numRecipients int) {
 		conn.Close()
 	}
 }
-
-
 
 func mockSMTPServer(listener net.Listener, expectedRcpts int) {
 	for {
@@ -149,7 +182,6 @@ func handleMockSMTPConn(conn net.Conn, expectedRcpts int) {
 		}
 	}
 }
-
 
 // Test that demonstrates recipient batching for bulk operations
 func TestAcceptRecipientsTypicalUsage(t *testing.T) {
