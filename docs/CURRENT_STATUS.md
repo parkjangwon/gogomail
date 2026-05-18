@@ -149,6 +149,7 @@ Last updated: 2026-05-17 (tenant spam filter packs)
 - New partial lookup indexes cover active messages by mailbox time and active thread time ordering for the Phase 1 read hot path.
 - Direct outbound SMTP now plans deterministic recipient batches before delivery, preserving first-seen domain order while grouping same-domain recipients for bulk delivery and adding 1k/10k/100k planning benchmarks.
 - Recent delivery batch planning benchmark samples: 1k/10 domains ~49.1 us/op, 10k/100 domains ~567.5 us/op, 100k/1k domains ~6.0 ms/op.
+- Runtime config now supports `GOGOMAIL_DELIVERY_RECIPIENT_BATCH_SIZE` so operators can cap one SMTP delivery batch's RCPT set without changing queue or submission recipient limits.
 - **Phase 2 (Bulk Delivery Batching)** Next:
   - Multi-recipient and same-domain batching
   - Reduced database round-trips during bulk delivery

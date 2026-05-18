@@ -2656,6 +2656,7 @@ func runDeliveryWorker(ctx context.Context, cfg config.Config, logger *slog.Logg
 	transport.Hello = cfg.DeliverySMTPHello
 	transport.Timeout = cfg.DeliveryTimeout
 	transport.TLSMode = delivery.DeliveryTLSMode(cfg.DeliveryTLSMode)
+	transport.MaxRecipientsPerBatch = cfg.DeliveryRecipientBatchSize
 	repository := maildb.NewRepository(db)
 	if strings.EqualFold(strings.TrimSpace(cfg.DeliveryRouteBackend), "postgres") {
 		transport.Router = postgresDeliveryRouter{repository: repository, fallbackTLSMode: delivery.DeliveryTLSMode(cfg.DeliveryTLSMode)}
