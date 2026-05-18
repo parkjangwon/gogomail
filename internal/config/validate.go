@@ -323,6 +323,9 @@ func (c Config) Validate() error {
 	if c.DeliveryTimeout <= 0 {
 		return fmt.Errorf("GOGOMAIL_DELIVERY_TIMEOUT must be positive")
 	}
+	if c.DeliveryRecipientBatchSize <= 0 {
+		return fmt.Errorf("GOGOMAIL_DELIVERY_RECIPIENT_BATCH_SIZE must be positive")
+	}
 	if strings.TrimSpace(c.DeliverySMTPHello) == "" || strings.ContainsAny(c.DeliverySMTPHello, " \t\r\n") {
 		return fmt.Errorf("GOGOMAIL_DELIVERY_SMTP_HELLO must be a non-empty hostname without whitespace")
 	}

@@ -223,6 +223,7 @@ type Config struct {
 	DeliverySMTPHello                   string
 	DeliveryTimeout                     time.Duration
 	DeliveryTLSMode                     string
+	DeliveryRecipientBatchSize          int
 	DeliveryRouteBackend                string
 	DeliverySmartHost                   string
 	DeliverySmartHostPort               int
@@ -468,6 +469,7 @@ func Load() Config {
 		DeliverySMTPHello:                   envOrDefault("GOGOMAIL_DELIVERY_SMTP_HELLO", "localhost"),
 		DeliveryTimeout:                     durationEnvOrDefault("GOGOMAIL_DELIVERY_TIMEOUT", 30*time.Second),
 		DeliveryTLSMode:                     envOrDefault("GOGOMAIL_DELIVERY_TLS_MODE", "opportunistic"),
+		DeliveryRecipientBatchSize:          intEnvOrDefault("GOGOMAIL_DELIVERY_RECIPIENT_BATCH_SIZE", 100),
 		DeliveryRouteBackend:                envOrDefault("GOGOMAIL_DELIVERY_ROUTE_BACKEND", "env"),
 		DeliverySmartHost:                   envOrDefault("GOGOMAIL_DELIVERY_SMARTHOST", ""),
 		DeliverySmartHostPort:               intEnvOrDefault("GOGOMAIL_DELIVERY_SMARTHOST_PORT", 0),

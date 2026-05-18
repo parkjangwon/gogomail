@@ -80,6 +80,78 @@ func TestPlanRecipientBatchesSkipsInvalidRecipients(t *testing.T) {
 	}
 }
 
+func TestPlanRecipientBatchesWithLimitSplitsLargeDomainGroups(t *testing.T) {
+	t.Parallel()
+
+	batches := PlanRecipientBatchesWithLimit([]outbound.Address{
+		{Email: "a@example.net"},
+		{Email: "b@example.com"},
+		{Email: "c@example.net"},
+		{Email: "d@example.net"},
+		{Email: "e@example.com"},
+	}, 2)
+
+	wantDomains := []string{"example.net", "example.net", "example.com"}
+	if len(batches) != len(wantDomains) {
+		t.Fatalf("batches = %+v, want %d batches", batches, len(wantDomains))
+	}
+	for i, want := range wantDomains {
+		if batches[i].Domain != want {
+			t.Fatalf("batch %d domain = %q, want %q", i, batches[i].Domain, want)
+		}
+		if len(batches[i].Recipients) > 2 {
+			t.Fatalf("batch %d recipients = %d, want <= 2", i, len(batches[i].Recipients))
+		}
+	}
+	wantEmails := [][]string{
+		{"a@example.net", "c@example.net"},
+		{"d@example.net"},
+		{"b@example.com", "e@example.com"},
+	}
+	for i := range wantEmails {
+		if len(batches[i].Recipients) != len(wantEmails[i]) {
+			t.Fatalf("batch %d recipients = %+v, want %+v", i, batches[i].Recipients, wantEmails[i])
+		}
+		for j, want := range wantEmails[i] {
+			if batches[i].Recipients[j].Email != want {
+				t.Fatalf("batch %d recipient %d = %q, want %q", i, j, batches[i].Recipients[j].Email, want)
+			}
+		}
+	}
+}
+
+func TestDirectSMTPTransportHonorsMaxRecipientsPerBatch(t *testing.T) {
+	t.Parallel()
+
+	var deliveredCounts []int
+	transport := DirectSMTPTransport{
+		MaxRecipientsPerBatch: 2,
+		Router:                staticRouter{route: Route{Hosts: []string{"mx.example.test"}}},
+		deliverHost: func(_ context.Context, _ Job, _ Route, _ string, recipients []outbound.Address) error {
+			deliveredCounts = append(deliveredCounts, len(recipients))
+			return nil
+		},
+	}
+
+	err := transport.Deliver(context.Background(), Job{
+		QueuedMessage: QueuedMessage{
+			To: []outbound.Address{
+				{Email: "a@example.net"},
+				{Email: "b@example.net"},
+				{Email: "c@example.net"},
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("Deliver returned error: %v", err)
+	}
+
+	wantCounts := []int{2, 1}
+	if fmt.Sprint(deliveredCounts) != fmt.Sprint(wantCounts) {
+		t.Fatalf("delivered counts = %+v, want %+v", deliveredCounts, wantCounts)
+	}
+}
+
 func TestDirectSMTPTransportDeliversRecipientBatchesInPlannedOrder(t *testing.T) {
 	t.Parallel()
 

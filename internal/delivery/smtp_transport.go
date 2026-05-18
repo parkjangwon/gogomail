@@ -32,19 +32,21 @@ const (
 )
 
 type DirectSMTPTransport struct {
-	Resolver        MXResolver
-	Router          Router
-	Timeout         time.Duration
-	Hello           string
-	TLSMode         DeliveryTLSMode
-	TLSConfig       *tls.Config
-	Transformers    TransformChain
-	daneValidator   *dane.Validator
-	mtastsClient    *mtasts.Client
-	tlsrptCollector *tlsrpt.Collector
-	deliverHost     func(context.Context, Job, Route, string, []outbound.Address) error
-	pool            *SMTPConnectionPool
-	poolOnce        sync.Once // Protect pool initialization
+	Resolver     MXResolver
+	Router       Router
+	Timeout      time.Duration
+	Hello        string
+	TLSMode      DeliveryTLSMode
+	TLSConfig    *tls.Config
+	Transformers TransformChain
+	// MaxRecipientsPerBatch caps one SMTP transaction's RCPT set. Zero means unlimited.
+	MaxRecipientsPerBatch int
+	daneValidator         *dane.Validator
+	mtastsClient          *mtasts.Client
+	tlsrptCollector       *tlsrpt.Collector
+	deliverHost           func(context.Context, Job, Route, string, []outbound.Address) error
+	pool                  *SMTPConnectionPool
+	poolOnce              sync.Once // Protect pool initialization
 }
 
 func NewDirectSMTPTransport() *DirectSMTPTransport {
@@ -62,7 +64,7 @@ func NewDirectSMTPTransport() *DirectSMTPTransport {
 }
 
 func (t *DirectSMTPTransport) Deliver(ctx context.Context, job Job) error {
-	batches := PlanRecipientBatches(job.Recipients())
+	batches := PlanRecipientBatchesWithLimit(job.Recipients(), t.MaxRecipientsPerBatch)
 	if len(batches) == 0 {
 		return &SMTPStatusError{
 			Op:      "recipient",
@@ -733,22 +735,46 @@ type RecipientBatch struct {
 }
 
 func PlanRecipientBatches(recipients []outbound.Address) []RecipientBatch {
-	batches := make([]RecipientBatch, 0)
-	batchByDomain := make(map[string]int)
+	return PlanRecipientBatchesWithLimit(recipients, 0)
+}
+
+func PlanRecipientBatchesWithLimit(recipients []outbound.Address, maxRecipientsPerBatch int) []RecipientBatch {
+	type domainBatch struct {
+		domain     string
+		recipients []outbound.Address
+	}
+
+	domains := make([]string, 0)
+	byDomain := make(map[string][]domainBatch)
 	for _, recipient := range recipients {
 		domain := normalizedRecipientDomain(recipient.Email)
 		if domain == "" {
 			continue
 		}
-		if idx, ok := batchByDomain[domain]; ok {
-			batches[idx].Recipients = append(batches[idx].Recipients, recipient)
+		if _, ok := byDomain[domain]; !ok {
+			domains = append(domains, domain)
+		}
+		domainBatches := byDomain[domain]
+		lastBatch := len(domainBatches) - 1
+		if lastBatch >= 0 && (maxRecipientsPerBatch <= 0 || len(domainBatches[lastBatch].recipients) < maxRecipientsPerBatch) {
+			domainBatches[lastBatch].recipients = append(domainBatches[lastBatch].recipients, recipient)
+			byDomain[domain] = domainBatches
 			continue
 		}
-		batchByDomain[domain] = len(batches)
-		batches = append(batches, RecipientBatch{
-			Domain:     domain,
-			Recipients: []outbound.Address{recipient},
+		byDomain[domain] = append(domainBatches, domainBatch{
+			domain:     domain,
+			recipients: []outbound.Address{recipient},
 		})
+	}
+
+	batches := make([]RecipientBatch, 0, len(domains))
+	for _, domain := range domains {
+		for _, batch := range byDomain[domain] {
+			batches = append(batches, RecipientBatch{
+				Domain:     batch.domain,
+				Recipients: batch.recipients,
+			})
+		}
 	}
 	return batches
 }

@@ -1110,6 +1110,14 @@ func TestValidateRejectsNonpositiveTimeouts(t *testing.T) {
 	}
 }
 
+func TestValidateRejectsNonpositiveDeliveryRecipientBatchSize(t *testing.T) {
+	cfg := Load()
+	cfg.DeliveryRecipientBatchSize = 0
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("Validate() error = nil, want delivery recipient batch size rejection")
+	}
+}
+
 func TestValidateRejectsUnsafeHTTPMaxHeaderBytes(t *testing.T) {
 	tests := []struct {
 		name  string
