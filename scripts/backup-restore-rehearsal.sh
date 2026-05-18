@@ -40,16 +40,17 @@ database_base_url() {
   echo "${path%/*}/postgres${query}"
 }
 
+quote_ident() {
+  printf '"%s"' "$(printf '%s' "$1" | sed 's/"/""/g')"
+}
+
 if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
   usage
   exit 0
 fi
 
 require_cmd pg_dump
-require_cmd pg_restore
 require_cmd psql
-require_cmd createdb
-require_cmd dropdb
 
 source_url="${GOGOMAIL_DATABASE_URL:-}"
 if [[ -z "$source_url" ]]; then
@@ -69,25 +70,25 @@ fi
 
 target_db="$(database_name "$target_url")"
 target_base_url="$(database_base_url "$target_url")"
-dump_file="$(mktemp "${TMPDIR:-/tmp}/gogomail-backup-restore.XXXXXX.dump")"
+dump_file="$(mktemp "${TMPDIR:-/tmp}/gogomail-backup-restore.XXXXXX.sql")"
 
 cleanup() {
   rm -f "$dump_file"
   if [[ "${GOGOMAIL_RESTORE_REHEARSAL_KEEP_DB:-0}" != "1" ]]; then
-    dropdb --if-exists "$target_db" --dbname "$target_base_url" >/dev/null 2>&1 || true
+    psql "$target_base_url" --quiet --command "DROP DATABASE IF EXISTS $(quote_ident "$target_db");" >/dev/null 2>&1 || true
   fi
 }
 trap cleanup EXIT
 
 echo "dumping source database: $source_db"
-pg_dump --format=custom --no-owner --no-privileges --file "$dump_file" "$source_url"
+pg_dump --format=plain --no-owner --no-privileges --file "$dump_file" "$source_url"
 
 echo "creating scratch database: $target_db"
-dropdb --if-exists "$target_db" --dbname "$target_base_url" >/dev/null 2>&1 || true
-createdb "$target_db" --dbname "$target_base_url"
+psql "$target_base_url" --quiet --command "DROP DATABASE IF EXISTS $(quote_ident "$target_db");" >/dev/null
+psql "$target_base_url" --quiet --command "CREATE DATABASE $(quote_ident "$target_db");" >/dev/null
 
 echo "restoring dump into scratch database"
-pg_restore --no-owner --no-privileges --dbname "$target_url" "$dump_file"
+sed '/^SET transaction_timeout =/d' "$dump_file" | psql "$target_url" --quiet --set ON_ERROR_STOP=1 >/dev/null
 
 echo "checking restored migration metadata"
 psql "$target_url" --tuples-only --no-align --command \
