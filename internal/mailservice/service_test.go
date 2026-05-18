@@ -101,6 +101,78 @@ func TestGetMessageCachesParsedBodyByStoragePath(t *testing.T) {
 	}
 }
 
+func TestGetMessageReportsMessageBodyCacheStats(t *testing.T) {
+	t.Parallel()
+
+	store := &recordingStore{body: strings.Join([]string{
+		"Message-ID: <body@example.com>",
+		"From: sender@example.net",
+		"To: admin@example.com",
+		"Subject: body",
+		"Content-Type: text/plain; charset=utf-8",
+		"",
+		"cached body",
+	}, "\r\n")}
+	service := New(&fakeRepository{
+		detail: maildb.MessageDetail{
+			ID:          "msg-1",
+			StoragePath: "mailstore/c/d/u/maildir/2026/05/msg.eml",
+			Flags:       []byte(`{"read":true}`),
+		},
+	}, store).WithMessageBodyCache(8, time.Minute)
+
+	if _, err := service.GetMessage(context.Background(), "user-1", "msg-1"); err != nil {
+		t.Fatalf("first GetMessage returned error: %v", err)
+	}
+	if _, err := service.GetMessage(context.Background(), "user-1", "msg-1"); err != nil {
+		t.Fatalf("second GetMessage returned error: %v", err)
+	}
+	snapshot := service.MessageBodyCacheSnapshot()
+	if !snapshot.Enabled || snapshot.Capacity != 8 || snapshot.Entries != 1 || snapshot.TTL != time.Minute {
+		t.Fatalf("cache snapshot sizing = %+v, want enabled capacity=8 entries=1 ttl=1m", snapshot)
+	}
+	if snapshot.Misses != 1 || snapshot.Hits != 1 || snapshot.Evictions != 0 {
+		t.Fatalf("cache snapshot counters = %+v, want 1 miss, 1 hit, 0 evictions", snapshot)
+	}
+}
+
+func TestGetMessageCanDisableMessageBodyCache(t *testing.T) {
+	t.Parallel()
+
+	store := &recordingStore{body: strings.Join([]string{
+		"Message-ID: <body@example.com>",
+		"From: sender@example.net",
+		"To: admin@example.com",
+		"Subject: body",
+		"Content-Type: text/plain; charset=utf-8",
+		"",
+		"uncached body",
+	}, "\r\n")}
+	service := New(&fakeRepository{
+		detail: maildb.MessageDetail{
+			ID:          "msg-1",
+			StoragePath: "mailstore/c/d/u/maildir/2026/05/msg.eml",
+			Flags:       []byte(`{"read":true}`),
+		},
+	}, store).WithMessageBodyCache(0, time.Minute)
+
+	for i := 0; i < 2; i++ {
+		msg, err := service.GetMessage(context.Background(), "user-1", "msg-1")
+		if err != nil {
+			t.Fatalf("GetMessage #%d returned error: %v", i+1, err)
+		}
+		if msg.TextBody != "uncached body" {
+			t.Fatalf("TextBody = %q, want uncached body", msg.TextBody)
+		}
+	}
+	if store.getCount != 2 {
+		t.Fatalf("store.Get count = %d, want 2", store.getCount)
+	}
+	if snapshot := service.MessageBodyCacheSnapshot(); snapshot.Enabled {
+		t.Fatalf("cache snapshot = %+v, want disabled", snapshot)
+	}
+}
+
 func TestGetMessageMarksUnreadMessageRead(t *testing.T) {
 	t.Parallel()
 

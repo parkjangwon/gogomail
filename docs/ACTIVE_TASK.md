@@ -81,6 +81,8 @@ Go Backend (`internal/`):
 - `GOGOMAIL_DELIVERY_RECIPIENT_BATCH_SIZE`를 추가해 대량 수신자 도메인 배치를 운영 환경에서 조정할 수 있게 하고, 기본값은 기존 수신자 한도와 맞춘 100으로 둠
 - 배치 vs 개별 발송 벤치마크를 추가함: 100 수신자/10 도메인 기준 배치 경로는 10 SMTP transaction/op, 개별 경로는 100 SMTP transaction/op
 - Phase 3 메시지 상세 조회에 bounded LRU EML body parse cache를 추가해 동일 storage path 반복 조회 시 storage read/parse를 재사용함
+- `GOGOMAIL_MESSAGE_BODY_CACHE_ENTRIES`와 `GOGOMAIL_MESSAGE_BODY_CACHE_TTL`을 추가해 Mail API/IMAP/POP3의 parsed body cache 용량과 TTL을 운영 환경에서 조정하거나 비활성화할 수 있게 함
+- message body cache snapshot에 enabled/entries/capacity/TTL/hit/miss/eviction 카운터를 추가해 read-path 캐시 효과를 낮은 cardinality로 관찰할 수 있게 함
 - Delivery observability sink에 route pool과 bounded recipient-count bucket을 추가해 대량 발송 배치 효과를 낮은 cardinality로 추적할 수 있게 함
 - 백업/복구 리허설 스크립트를 추가해 PostgreSQL dump를 scratch DB에 복원하고 migration metadata를 확인한 뒤 기본적으로 scratch DB를 삭제하게 함
 - `verify-backend-release.sh`가 `GOGOMAIL_RESTORE_REHEARSAL_DATABASE_URL` 설정 시 백업/복구 리허설을 릴리즈 검증 단계에 포함하도록 연결함
@@ -93,4 +95,5 @@ Go Backend (`internal/`):
 
 - `go test ./...` 통과
 - `go build ./...` 성공
+- 집중 검증: `go test ./internal/mailservice -run 'TestGetMessage(CachesParsedBodyByStoragePath|ReportsMessageBodyCacheStats|CanDisableMessageBodyCache)'`, `go test ./internal/config -run 'TestLoad|TestValidateRejectsInvalidMessageBodyCacheSettings|TestValidateRejectsNonpositiveDeliveryRecipientBatchSize'`, `go test ./internal/app -run '^$'` 통과
 - 벤치마크 결과 기록 (쿼리/sec, 레이턴시, 메모리)

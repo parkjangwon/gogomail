@@ -18,11 +18,14 @@ type parsedMessageBody struct {
 }
 
 type messageBodyCache struct {
-	mu       sync.Mutex
-	capacity int
-	ttl      time.Duration
-	entries  map[string]*list.Element
-	lru      *list.List
+	mu        sync.Mutex
+	capacity  int
+	ttl       time.Duration
+	entries   map[string]*list.Element
+	lru       *list.List
+	hits      uint64
+	misses    uint64
+	evictions uint64
 }
 
 type messageBodyCacheEntry struct {
@@ -52,15 +55,18 @@ func (c *messageBodyCache) get(key string, now time.Time) (parsedMessageBody, bo
 
 	elem := c.entries[key]
 	if elem == nil {
+		c.misses++
 		return parsedMessageBody{}, false
 	}
 	entry := elem.Value.(messageBodyCacheEntry)
 	if !entry.expiresAt.After(now) {
 		c.lru.Remove(elem)
 		delete(c.entries, key)
+		c.misses++
 		return parsedMessageBody{}, false
 	}
 	c.lru.MoveToFront(elem)
+	c.hits++
 	return entry.body, true
 }
 
@@ -87,5 +93,33 @@ func (c *messageBodyCache) put(key string, body parsedMessageBody, now time.Time
 		evicted := last.Value.(messageBodyCacheEntry)
 		c.lru.Remove(last)
 		delete(c.entries, evicted.key)
+		c.evictions++
+	}
+}
+
+type MessageBodyCacheSnapshot struct {
+	Enabled   bool
+	Entries   int
+	Capacity  int
+	TTL       time.Duration
+	Hits      uint64
+	Misses    uint64
+	Evictions uint64
+}
+
+func (c *messageBodyCache) snapshot() MessageBodyCacheSnapshot {
+	if c == nil {
+		return MessageBodyCacheSnapshot{}
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return MessageBodyCacheSnapshot{
+		Enabled:   true,
+		Entries:   len(c.entries),
+		Capacity:  c.capacity,
+		TTL:       c.ttl,
+		Hits:      c.hits,
+		Misses:    c.misses,
+		Evictions: c.evictions,
 	}
 }

@@ -169,6 +169,15 @@ func (s *Service) WithIMAPMailboxEvents(publisher IMAPMailboxEventPublisher) *Se
 	return s
 }
 
+func (s *Service) WithMessageBodyCache(capacity int, ttl time.Duration) *Service {
+	s.bodyCache = newMessageBodyCache(capacity, ttl)
+	return s
+}
+
+func (s *Service) MessageBodyCacheSnapshot() MessageBodyCacheSnapshot {
+	return s.bodyCache.snapshot()
+}
+
 func (s *Service) WithQuotaAlertEmitter(emitter maildb.QuotaWarningEmitterInterface) *Service {
 	s.quotaAlertEmitter = emitter
 	return s

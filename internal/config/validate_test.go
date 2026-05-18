@@ -1118,6 +1118,38 @@ func TestValidateRejectsNonpositiveDeliveryRecipientBatchSize(t *testing.T) {
 	}
 }
 
+func TestValidateRejectsInvalidMessageBodyCacheSettings(t *testing.T) {
+	tests := []struct {
+		name   string
+		mutate func(*Config)
+	}{
+		{
+			name: "negative entries",
+			mutate: func(cfg *Config) {
+				cfg.MessageBodyCacheEntries = -1
+			},
+		},
+		{
+			name: "enabled with zero ttl",
+			mutate: func(cfg *Config) {
+				cfg.MessageBodyCacheEntries = 1
+				cfg.MessageBodyCacheTTL = 0
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := Load()
+			tt.mutate(&cfg)
+			if err := cfg.Validate(); err == nil {
+				t.Fatal("Validate() error = nil, want message body cache setting rejection")
+			}
+		})
+	}
+}
+
 func TestValidateRejectsUnsafeHTTPMaxHeaderBytes(t *testing.T) {
 	tests := []struct {
 		name  string

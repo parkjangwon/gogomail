@@ -344,10 +344,12 @@ type imapServerOptions struct {
 	IdleTimeout       time.Duration
 }
 
-func newIMAPGatewayRuntime(repository mailservice.Repository, store storage.Store, authenticator smtpd.SubmissionAuthenticator, quotaAlertEmitter maildb.QuotaWarningEmitterInterface) imapGatewayRuntime {
+func newIMAPGatewayRuntime(cfg config.Config, repository mailservice.Repository, store storage.Store, authenticator smtpd.SubmissionAuthenticator, quotaAlertEmitter maildb.QuotaWarningEmitterInterface) imapGatewayRuntime {
 	events := imapgw.NewMailboxEventBroker(32)
 	fanOut := deltasync.NewFanOut()
-	service := mailservice.New(repository, store).WithIMAPMailboxEvents(events)
+	service := mailservice.New(repository, store).
+		WithMessageBodyCache(cfg.MessageBodyCacheEntries, cfg.MessageBodyCacheTTL).
+		WithIMAPMailboxEvents(events)
 	if quotaAlertEmitter != nil {
 		service = service.WithQuotaAlertEmitter(quotaAlertEmitter)
 	}
@@ -426,7 +428,7 @@ func runIMAPGateway(ctx context.Context, cfg config.Config, logger *slog.Logger)
 	}
 	defer redisClient.Close()
 	quotaAlertEmitter := maildb.NewQuotaWarningEmitter(db, redisClient, cfg.EventStream)
-	runtime := newIMAPGatewayRuntime(repository, store, repository, quotaAlertEmitter)
+	runtime := newIMAPGatewayRuntime(cfg, repository, store, repository, quotaAlertEmitter)
 	searchIDSource, err := searchIDSourceForConfig(cfg)
 	if err != nil {
 		return err
@@ -560,7 +562,7 @@ func runPOP3Gateway(ctx context.Context, cfg config.Config, logger *slog.Logger)
 	}
 
 	repository := maildb.NewRepository(db)
-	service := mailservice.New(repository, store)
+	service := mailservice.New(repository, store).WithMessageBodyCache(cfg.MessageBodyCacheEntries, cfg.MessageBodyCacheTTL)
 
 	server, err := pop3ServerForConfig(cfg, repository, service)
 	if err != nil {
@@ -2963,7 +2965,7 @@ func runHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, mode M
 		}
 		readinessChecks = append(readinessChecks, storageReadinessCheck("mail_storage", store))
 		repository := maildb.NewRepository(db)
-		service := mailservice.New(repository, store)
+		service := mailservice.New(repository, store).WithMessageBodyCache(cfg.MessageBodyCacheEntries, cfg.MessageBodyCacheTTL)
 		searchIDSource, err := searchIDSourceForConfig(cfg)
 		if err != nil {
 			return err

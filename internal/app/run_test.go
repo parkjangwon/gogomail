@@ -796,7 +796,7 @@ func TestDKIMKeyProviderMapsRepositoryKey(t *testing.T) {
 func TestNewIMAPGatewayRuntimeWiresMailboxEventBroker(t *testing.T) {
 	t.Parallel()
 
-	runtime := newIMAPGatewayRuntime(nil, nil, nil, nil)
+	runtime := newIMAPGatewayRuntime(config.Config{MessageBodyCacheEntries: 256, MessageBodyCacheTTL: 5 * time.Minute}, nil, nil, nil, nil)
 	if runtime.service == nil {
 		t.Fatal("service is nil")
 	}
@@ -873,7 +873,7 @@ func TestNewIMAPMailboxEventRouterPublishesStoredMailToBroker(t *testing.T) {
 func TestIMAPServerOptionsForConfigUsesRuntimeBackend(t *testing.T) {
 	t.Parallel()
 
-	runtime := newIMAPGatewayRuntime(nil, nil, nil, nil)
+	runtime := newIMAPGatewayRuntime(config.Config{MessageBodyCacheEntries: 256, MessageBodyCacheTTL: 5 * time.Minute}, nil, nil, nil, nil)
 	opts, err := imapServerOptionsForConfig(config.Config{
 		IMAPAddr:              " :1143 ",
 		IMAPAllowInsecureAuth: true,
@@ -923,7 +923,7 @@ func (fakeIMAPUIDEnsurer) EnsureIMAPMessageUID(_ context.Context, userID string,
 func TestNewIMAPServerBuildsProtocolShell(t *testing.T) {
 	t.Parallel()
 
-	runtime := newIMAPGatewayRuntime(nil, nil, nil, nil)
+	runtime := newIMAPGatewayRuntime(config.Config{MessageBodyCacheEntries: 256, MessageBodyCacheTTL: 5 * time.Minute}, nil, nil, nil, nil)
 	opts, err := imapServerOptionsForConfig(config.Config{IMAPAddr: ":1143", IMAPAllowInsecureAuth: true}, runtime.backend)
 	if err != nil {
 		t.Fatalf("imapServerOptionsForConfig returned error: %v", err)
