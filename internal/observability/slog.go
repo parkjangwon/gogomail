@@ -50,6 +50,7 @@ func (a SlogAdapter) ObserveDelivery(ctx context.Context, event delivery.MetricE
 		"rfc_message_id", event.RFCMessageID,
 		"domain_id", event.DomainID,
 		"farm", event.Farm,
+		"route_pool", event.RoutePool,
 		"recipient_count", event.RecipientCount,
 	}
 	if event.Error != "" {
