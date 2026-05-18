@@ -7,10 +7,10 @@
 - Buffer pooling, metrics export, health checks, graceful degradation
 - Ready for production deployment
 
-**TASK-090: Message Storage & Delivery Optimization** 🔄 STARTING
-- Phase 1 (Database Query Optimization): Planned - Index analysis, query optimization
-- Phase 2 (Bulk Delivery Batching): Planned - Multi-recipient optimization
-- Phase 3 (Message Caching Layer): Planned - Frequently accessed data caching
+**TASK-090: Message Storage & Delivery Optimization** 🔄 IN PROGRESS
+- Phase 1 (Database Query Optimization): Partial indexes, UUID array hydration, and batch lookup improvements implemented
+- Phase 2 (Bulk Delivery Batching): Same-domain batch planning, runtime batch-size tuning, observability, and benchmarks implemented
+- Phase 3 (Message Caching Layer): Parsed EML body LRU cache with runtime tuning and cache snapshots implemented
 
 ---
 
@@ -37,20 +37,20 @@ Go Backend (`internal/`):
 
 ### 단계별 계획
 
-**Phase 1: Database Query Optimization (진행 중)**
+**Phase 1: Database Query Optimization (진행 중 / 일부 구현)**
 - 메시지 조회 쿼리 분석: EXPLAIN ANALYZE로 현재 성능 조사
 - 누락된 인덱스 추가: delivery_state, scheduled_at, recipient_count 기준 인덱스
 - 배치 조회 함수 최적화: ListOutboundMessages(), GetMessagesByID()
 - 벤치마크: 단일 쿼리 vs 배치 조회 성능 비교
 - 목표: 대량 조회 시 쿼리 개수 50% 감소
 
-**Phase 2: Bulk Delivery Batching (예상)**
+**Phase 2: Bulk Delivery Batching (진행 중 / 일부 구현)**
 - 멀티 수신자 메시지 배치 처리: 같은 도메인 수신자 묶음 발송
 - 배치 크기 튜닝: 메모리/성능 트레이드오프
 - 벤치마크: 배치 vs 개별 발송 처리량 비교
 - 목표: 대량 발신 처리량 2배 이상 향상
 
-**Phase 3: Message Caching Layer (예상)**
+**Phase 3: Message Caching Layer (진행 중 / 일부 구현)**
 - 자주 접근하는 메시지 메타데이터 캐싱
 - Redis 기반 캐시 (선택사항) 또는 메모리 LRU 캐시
 - 캐시 무효화 전략: 메시지 상태 변경 시 자동 무효화
@@ -58,7 +58,7 @@ Go Backend (`internal/`):
 
 ### 진행 상황
 
-**Phase 1 진행 중: Database Query Optimization**
+**TASK-090 진행 중: Message Storage & Delivery Optimization**
 
 구현 대상:
 - [ ] EXPLAIN ANALYZE로 메시지 조회 쿼리 성능 분석

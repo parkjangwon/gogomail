@@ -38,6 +38,8 @@ CardDAV, WebDAV, LDAP, DKIM, SPF, DMARC, DSN, OpenAPI 기반 REST API처럼
 - OpenAPI로 문서화된 Mail/Admin REST API
 - PostgreSQL 메타데이터, Redis 조정, local/MinIO/S3 호환 객체 저장소
 - DKIM 서명, SPF/DMARC 검증, DNS 점검, 큐/백프레셔, 감사 로그, API 미터링
+- 내장 스팸 정책, DNSBL/RBL 점검, 테넌트 스팸 필터 팩, 선택적 ClamAV 첨부파일 스캔
+- 대량 전송 배치, 전송 route 관찰성, 조정 가능한 parsed message body 캐시
 - 회사/도메인/사용자 설정 경계와 보안 거버넌스 정책
 
 ### 웹메일
@@ -84,9 +86,8 @@ CardDAV, WebDAV, LDAP, DKIM, SPF, DMARC, DSN, OpenAPI 기반 REST API처럼
 검증 명령:
 
 ```bash
-go test ./...
-go vet ./...
-go run golang.org/x/vuln/cmd/govulncheck@latest ./...
+./scripts/verify-backend-release.sh
+GOGOMAIL_SECURITY_VERIFY=1 ./scripts/verify-backend-release.sh
 pnpm --dir apps/webmail type-check
 pnpm --dir apps/webmail test:security-helpers
 pnpm --dir apps/webmail audit --prod
@@ -167,17 +168,23 @@ pnpm --dir apps/docs dev
 ```bash
 go build -o bin/gogomail ./cmd/gogomail
 
-bin/gogomail --mode=api
-bin/gogomail --mode=smtp-edge
-bin/gogomail --mode=smtp-submission
+bin/gogomail --mode=all-in-one
+bin/gogomail --mode=mail-api
+bin/gogomail --mode=admin-api
+bin/gogomail --mode=auth-server
+bin/gogomail --mode=edge-mta
+bin/gogomail --mode=inbound-mta
+bin/gogomail --mode=outbound-mta
 bin/gogomail --mode=delivery-worker
+bin/gogomail --mode=outbox-relay
+bin/gogomail --mode=event-worker
 bin/gogomail --mode=imap
 bin/gogomail --mode=pop3
 bin/gogomail --mode=caldav
 bin/gogomail --mode=carddav
 bin/gogomail --mode=webdav
 bin/gogomail --mode=ldap-gateway
-bin/gogomail --mode=migration
+bin/gogomail --migrate --mode=mail-api
 ```
 
 핵심 런타임 의존성:
@@ -193,10 +200,15 @@ bin/gogomail --mode=migration
 |---|---|
 | `GOGOMAIL_ENV` | `production`에서 더 엄격한 인증/TLS/보안 기본값 적용 |
 | `GOGOMAIL_DATABASE_URL` | PostgreSQL 연결 문자열 |
-| `GOGOMAIL_REDIS_URL` / `REDIS_ADDR` | Redis 연결 |
-| `GOGOMAIL_STORAGE_BACKEND` | `local`, `minio`, `s3` |
+| `GOGOMAIL_REDIS_ADDR` | Redis host와 port |
+| `GOGOMAIL_STORAGE_BACKEND` | `local`, `nfs`, `minio`, `s3` |
 | `GOGOMAIL_AUTH_JWT_SECRET` | Mail API JWT 서명 secret |
 | `GOGOMAIL_ADMIN_TOKEN` | token 기반 관리자 API 접근용 bearer token |
+| `GOGOMAIL_DELIVERY_RECIPIENT_BATCH_SIZE` | 같은 도메인 SMTP 전송 배치의 최대 수신자 수, 기본 `100` |
+| `GOGOMAIL_MESSAGE_BODY_CACHE_ENTRIES` | parsed message body 캐시 용량, 기본 `256`, `0`이면 비활성화 |
+| `GOGOMAIL_MESSAGE_BODY_CACHE_TTL` | parsed message body 캐시 TTL, 기본 `5m` |
+| `GOGOMAIL_RESTORE_REHEARSAL_DATABASE_URL` | 릴리즈 검증에서 백업/복구 리허설에 사용할 선택 DB URL |
+| `GOGOMAIL_SECURITY_VERIFY` | `1`이면 backend release verification에 `go vet`과 `govulncheck` 추가 |
 | `GOGOMAIL_BACKEND_URL` | Next.js 서버 route가 사용할 백엔드 URL |
 | `NEXT_PUBLIC_GOGOMAIL_PUBLIC_BASE_URL` | 브라우저에 표시해야 하는 public origin |
 
@@ -227,11 +239,18 @@ bin/gogomail --mode=migration
 go test ./...
 go vet ./...
 go build ./...
+./scripts/verify-backend-release.sh
+./scripts/verify-frontend-release.sh
 pnpm --dir apps/webmail type-check
 pnpm --dir apps/console type-check
 pnpm --dir apps/docs type-check
 pnpm --dir apps/docs build
 ```
+
+릴리즈 검증 진입점:
+
+- `./scripts/verify-backend-release.sh`는 Go 테스트, module tidy diff, 선택 PostgreSQL/OpenSearch 통합 테스트, 선택 백업/복구 리허설, 선택 보안 검증, clean-worktree gate를 실행합니다.
+- `./scripts/verify-frontend-release.sh`는 기본적으로 webmail/console type-check와 helper test를 실행합니다. 더 무거운 브라우저/build gate는 `GOGOMAIL_FRONTEND_E2E=1`, `GOGOMAIL_FRONTEND_BUILD=1`로 켭니다.
 
 이 저장소는 엄격한 프로젝트 하네스를 사용합니다.
 
@@ -251,6 +270,7 @@ pnpm --dir apps/docs build
 | [`docs/ACTIVE_TASK.md`](docs/ACTIVE_TASK.md) | 현재 개발 태스크 |
 | [`docs/CURRENT_STATUS.md`](docs/CURRENT_STATUS.md) | 상세 구현 현황 |
 | [`docs/SECURITY_REVIEW.md`](docs/SECURITY_REVIEW.md) | 보안 강화 요약과 검증 명령 |
+| [`docs/backend-release-readiness.md`](docs/backend-release-readiness.md) | 릴리즈 준비 체크, 선택 gate, 운영 검증 메모 |
 | [`docs/openapi.yaml`](docs/openapi.yaml) | Mail/Admin API 계약 |
 | [`docs/backend-roadmap.md`](docs/backend-roadmap.md) | 장기 백엔드 로드맵과 완료된 하드닝 항목 |
 | [`apps/docs/`](apps/docs/) | 관리자 콘솔, 웹메일, 용어 사전, 연동 API 제품 가이드 |

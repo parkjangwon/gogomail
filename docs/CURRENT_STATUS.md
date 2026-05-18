@@ -1,6 +1,11 @@
 # gogomail current status
 
-Last updated: 2026-05-18 (message body cache tuning)
+Last updated: 2026-05-19 (README and release docs refresh)
+
+## Documentation Refresh (2026-05-19)
+- `README.md` and `README.ko.md` now reflect the current runtime mode names, release verification scripts, Redis environment variable name, bulk delivery batching controls, and message-body cache tuning controls.
+- Release documentation now points operators at `verify-backend-release.sh` and `verify-frontend-release.sh` instead of only listing lower-level commands.
+- TASK-090 documentation is normalized to show Phase 1/2/3 work as active and partially implemented, rather than "starting" or purely "next".
 
 ## Message Body Cache Tuning (2026-05-18)
 - Parsed EML text/HTML body caching is now runtime-tunable through `GOGOMAIL_MESSAGE_BODY_CACHE_ENTRIES` and `GOGOMAIL_MESSAGE_BODY_CACHE_TTL`; setting entries to `0` disables the cache for constrained deployments.
@@ -140,9 +145,9 @@ Last updated: 2026-05-18 (message body cache tuning)
   - `pnpm -C apps/webmail test:e2e` passes (25 tests)
   - `go test ./internal/httpapi` passes
 
-## Message Storage & Delivery Optimization (2026-05-16, TASK-090 starting)
+## Message Storage & Delivery Optimization (2026-05-16, TASK-090 in progress)
 - Focus has moved from protocol gateway hardening to bulk-mail storage and delivery performance.
-- **Phase 1 (Database Query Optimization)** Planned / starting:
+- **Phase 1 (Database Query Optimization)** In progress / partially implemented:
   - Analyze outbound/message lookup paths with `EXPLAIN ANALYZE`
   - Review missing indexes for delivery-state, scheduled-work, and recipient-heavy query paths
   - Define batch read optimizations for outbound message lookups
@@ -165,12 +170,12 @@ Last updated: 2026-05-18 (message body cache tuning)
 - Backend release verification can now run the backup/restore rehearsal when `GOGOMAIL_RESTORE_REHEARSAL_DATABASE_URL` is set, making restore safety part of the pre-release gate without slowing default checks.
 - Backend release verification can now run security verification with `GOGOMAIL_SECURITY_VERIFY=1`, gating releases on `go vet ./...` plus an installed `govulncheck ./...`.
 - Frontend release verification now has `scripts/verify-frontend-release.sh` for webmail/console type checks and helper tests, with opt-in E2E and production build gates through `GOGOMAIL_FRONTEND_E2E=1` and `GOGOMAIL_FRONTEND_BUILD=1`.
-- **Phase 2 (Bulk Delivery Batching)** Next:
-  - Multi-recipient and same-domain batching
-  - Reduced database round-trips during bulk delivery
-- **Phase 3 (Message Caching Layer)** Next:
-  - Cache frequently accessed message metadata
-  - Add clear invalidation rules for message state changes
+- **Phase 2 (Bulk Delivery Batching)** In progress / partially implemented:
+  - Same-domain recipient batching, batch-size runtime tuning, route-pool observability, and batch-vs-individual benchmarks are implemented.
+  - Remaining work should focus on database round-trip reduction and end-to-end bulk delivery soak coverage.
+- **Phase 3 (Message Caching Layer)** In progress / partially implemented:
+  - Parsed EML body caching for repeated detail reads is implemented with runtime capacity/TTL tuning, low-cardinality hit/miss/eviction/expired snapshots, and expired-entry pruning.
+  - Remaining work should focus on broader metadata caching or invalidation only where immutable storage-path caching is insufficient.
 
 ## Protocol Gateway Hardening (2026-05-16, TASK-089 complete)
 - Performance and observability hardening for IMAP, CalDAV, CardDAV protocol gateways is complete.
@@ -2743,7 +2748,7 @@ Last updated: 2026-05-18 (message body cache tuning)
 
 ## Current phase
 gogomail has completed Phases 8-9 (Admin Console Backend + Frontend) and TASK-089 protocol gateway hardening.
-Phase 8-D (Complete Admin Console) and the follow-up hardening run through TASK-089 are complete. Current active work is TASK-090 Phase 1 (Database Query Optimization) for message storage and delivery performance.
+Phase 8-D (Complete Admin Console) and the follow-up hardening run through TASK-089 are complete. Current active work is TASK-090 across database query optimization, bulk delivery batching, and message read-path caching.
 
 **Deployment Infrastructure**: Complete
 - 4-tier Docker Compose configurations (dev, small, medium, large)

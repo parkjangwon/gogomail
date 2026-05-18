@@ -40,6 +40,7 @@ Run:
 go test ./...
 go mod tidy -diff
 ./scripts/verify-backend-release.sh
+./scripts/verify-frontend-release.sh
 ```
 
 Optional when database behavior changed:
@@ -47,6 +48,9 @@ Optional when database behavior changed:
 ```bash
 GOGOMAIL_TEST_DATABASE_URL='postgres://...' go test ./internal/maildb ./internal/outbox
 GOGOMAIL_TEST_OPENSEARCH_URL='http://localhost:9200' go test ./internal/searchindex
+GOGOMAIL_RESTORE_REHEARSAL_DATABASE_URL='postgres://...' ./scripts/verify-backend-release.sh
+GOGOMAIL_SECURITY_VERIFY=1 ./scripts/verify-backend-release.sh
+GOGOMAIL_FRONTEND_E2E=1 GOGOMAIL_FRONTEND_BUILD=1 ./scripts/verify-frontend-release.sh
 ```
 
 ## Finish
