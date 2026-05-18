@@ -151,6 +151,7 @@ Last updated: 2026-05-17 (tenant spam filter packs)
 - Recent delivery batch planning benchmark samples: 1k/10 domains ~49.1 us/op, 10k/100 domains ~567.5 us/op, 100k/1k domains ~6.0 ms/op.
 - Runtime config now supports `GOGOMAIL_DELIVERY_RECIPIENT_BATCH_SIZE` so operators can cap one SMTP delivery batch's RCPT set without changing queue or submission recipient limits.
 - Bulk delivery benchmarks now compare batched domain delivery against per-recipient delivery; the 100-recipient/10-domain sample reduces SMTP transactions from 100/op to 10/op.
+- Message detail reads now use a bounded LRU cache for parsed EML text/HTML bodies keyed by immutable storage path, reducing repeated storage reads and MIME parsing for hot messages.
 - **Phase 2 (Bulk Delivery Batching)** Next:
   - Multi-recipient and same-domain batching
   - Reduced database round-trips during bulk delivery

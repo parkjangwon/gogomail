@@ -144,10 +144,11 @@ type Service struct {
 	quotaAlertEmitter maildb.QuotaWarningEmitterInterface
 	trackingRepo      TrackingRepository
 	publicBaseURL     string
+	bodyCache         *messageBodyCache
 }
 
 func New(repository Repository, store storage.Store) *Service {
-	return &Service{repository: repository, store: store}
+	return &Service{repository: repository, store: store, bodyCache: newMessageBodyCache(defaultMessageBodyCacheEntries, defaultMessageBodyCacheTTL)}
 }
 
 type SearchIDSource interface {
@@ -633,6 +634,11 @@ func (s *Service) GetMessage(ctx context.Context, userID string, messageID strin
 	if err != nil {
 		return maildb.MessageDetail{}, err
 	}
+	if body, ok := s.bodyCache.get(storagePath, time.Now()); ok {
+		detail.TextBody = body.text
+		detail.HTMLBody = body.html
+		return detail, nil
+	}
 	body, err := s.store.Get(ctx, storagePath)
 	if err != nil {
 		return maildb.MessageDetail{}, fmt.Errorf("open message body: %w", err)
@@ -645,6 +651,7 @@ func (s *Service) GetMessage(ctx context.Context, userID string, messageID strin
 	}
 	detail.TextBody = parsed.TextBody
 	detail.HTMLBody = parsed.HTMLBody
+	s.bodyCache.put(storagePath, parsedMessageBody{text: parsed.TextBody, html: parsed.HTMLBody}, time.Now())
 	return detail, nil
 }
 
