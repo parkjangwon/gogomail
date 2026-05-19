@@ -47,6 +47,7 @@ CardDAV, WebDAV, LDAP, DKIM, SPF, DMARC, DSN, OpenAPI 기반 REST API처럼
 - 메일 목록, 읽기 패널, 리치 텍스트 작성, 폴더, 검색, 스누즈, 라벨, 알림, 첨부파일, Drive 선택 흐름
 - 키보드 중심 UX: 전역 단축어, 앱 전환, 스팟라이트 검색, 행 포커스, 읽기창 이동, 메시지 작업
 - HTML 메일, 외부 이미지, 원격 콘텐츠 프록시의 안전 렌더링
+- TOTP MFA 로그인 (비밀번호 → 인증 코드 2단계) 및 설정 화면에서 QR 코드 등록, 복구 코드 발급, 비활성화 흐름
 
 ### 관리자 콘솔
 
@@ -82,6 +83,7 @@ CardDAV, WebDAV, LDAP, DKIM, SPF, DMARC, DSN, OpenAPI 기반 REST API처럼
 - production CSP에서 `unsafe-eval` 제거, `nosniff`, frame denial, COOP/CORP, HSTS, no-store 적용
 - Go toolchain `go1.26.3` 고정, 프론트엔드 PostCSS patched line override
 - 회사/도메인 `/security/governance`로 typed operational exception을 관리하되 platform invariant는 전역 고정
+- 웹메일 로그인에서 회사/도메인 `auth_policy`에 MFA가 필요하면 TOTP를 강제합니다. 이미 등록한 사용자는 정책과 관계없이 항상 TOTP 챌린지를 받습니다. `mfa_exempt_cidrs`로 IP 기반 면제를 설정할 수 있습니다.
 - 관리자 콘솔 로그인에서 TOTP MFA를 강제할 수 있습니다. `company_admin`의 MFA 여부는 테넌트별 `auth_policy` 설정 키로 제어하고, `system_admin` 강제 등록은 `GOGOMAIL_ADMIN_MFA_REQUIRED`로 제어합니다. 잠금 해제(break-glass): `bin/gogomail admin mfa-reset --email <주소>` (`DATABASE_URL` 환경 변수 필요).
 
 검증 명령:

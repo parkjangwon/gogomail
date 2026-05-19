@@ -46,6 +46,7 @@ LDAP, DKIM, SPF, DMARC, DSN, and OpenAPI-backed REST APIs.
 - Mail list, reading pane, rich compose, folders, search, snooze, labels, reminders, attachments, and Drive picker flows
 - Keyboard-oriented UX: global shortcuts, app switching, Spotlight search, row focus, reading-pane navigation, and message actions
 - Safer rendering for HTML mail, external images, and proxied remote content
+- TOTP MFA login (two-step password → code) and in-settings enrollment with QR code, recovery codes, and disable flow
 
 ### Admin Console
 
@@ -79,6 +80,7 @@ Implemented controls include:
 - Production CSP removes `unsafe-eval`; apps set `nosniff`, frame denial, COOP/CORP, HSTS, and no-store where appropriate.
 - Go builds are pinned to patched toolchain `go1.26.3`; frontend apps override PostCSS to a patched line.
 - Company/domain `/security/governance` controls allow typed operational exceptions while platform invariants remain fixed.
+- Webmail login enforces TOTP MFA when required by company/domain `auth_policy`; enrolled users always receive a TOTP challenge. IP-based exemptions are supported via `mfa_exempt_cidrs`.
 - Admin console login enforces TOTP MFA when enabled; `company_admin` MFA is controlled by the per-tenant `auth_policy` config key, and `system_admin` forced enrollment is controlled by `GOGOMAIL_ADMIN_MFA_REQUIRED`. Break-glass reset: `bin/gogomail admin mfa-reset --email <address>` (reads `DATABASE_URL`).
 
 Verification commands:
