@@ -63,6 +63,7 @@ type SubmissionOptions struct {
 	IDGenerator        IDGenerator
 	Clock              func() time.Time
 	MaxMessageBytes    int64
+	BulkSenderLimiter  *BulkSenderLimiter // nil disables bulk sender rate limiting
 }
 
 type SubmissionReceiver struct {
@@ -81,6 +82,7 @@ type SubmissionReceiver struct {
 	policy             ReceivePolicy
 	idGenerator        IDGenerator
 	clock              func() time.Time
+	bulkSenderLimiter  *BulkSenderLimiter
 }
 
 func NewSubmissionReceiver(opts SubmissionOptions) *SubmissionReceiver {
@@ -104,6 +106,7 @@ func NewSubmissionReceiver(opts SubmissionOptions) *SubmissionReceiver {
 		policy:             normalizePolicy(opts.Policy, opts.MaxMessageBytes),
 		idGenerator:        idGenerator,
 		clock:              clockOrDefault(opts.Clock),
+		bulkSenderLimiter:  opts.BulkSenderLimiter,
 	}
 }
 
@@ -207,6 +210,11 @@ func (s *submissionSession) Mail(from string, opts *gosmtp.MailOptions) (err err
 	}
 	if !submissionSenderAllowed(normalized, s.user) {
 		return smtpPolicyReject("mail from %q is not allowed for authenticated user", normalized)
+	}
+	if s.receiver.bulkSenderLimiter != nil && s.user.UserID != "" {
+		if !s.receiver.bulkSenderLimiter.AllowSubmission(s.user.UserID, s.user.UserID) {
+			return smtpRateLimited(from)
+		}
 	}
 	s.from = normalized
 	s.smtpUTF8 = mailOptionsUTF8(opts)

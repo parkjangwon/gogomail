@@ -1864,6 +1864,31 @@ func runReceiveMTA(ctx context.Context, cfg config.Config, logger *slog.Logger, 
 	if redisClient != nil {
 		defer redisClient.Close()
 	}
+
+	// Auto backpressure manager
+	if opts.EnableBackpressure && cfg.AutoBackpressureEnabled && redisClient != nil {
+		if redisBP, ok := pressure.(*backpressure.RedisBackpressure); ok {
+			monitorStreams := []string{}
+			if cfg.DeliveryStream != "" {
+				monitorStreams = append(monitorStreams, cfg.DeliveryStream)
+			}
+			autoMgr := backpressure.NewAutoBackpressureManager(redisClient, redisBP, backpressure.AutoBackpressureConfig{
+				CheckInterval:      cfg.AutoBackpressureCheckInterval,
+				WarningThreshold:   cfg.AutoBackpressureMemWarn,
+				DangerThreshold:    cfg.AutoBackpressureMemDanger,
+				CriticalThreshold:  cfg.AutoBackpressureMemCritical,
+				QueueWarningDepth:  cfg.AutoBackpressureQueueWarn,
+				QueueDangerDepth:   cfg.AutoBackpressureQueueDanger,
+				QueueCriticalDepth: cfg.AutoBackpressureQueueCritical,
+				MonitorStreams:     monitorStreams,
+			})
+			autoCtx, autoCancel := context.WithCancel(ctx)
+			defer autoCancel()
+			autoMgr.Start(autoCtx)
+			logger.Info(opts.Component + " auto backpressure manager started")
+		}
+	}
+
 	if len(opts.TrustedRelays) > 0 {
 		authorizer, err := smtpd.NewStaticTrustedRelays(opts.TrustedRelays)
 		if err != nil {
@@ -1934,6 +1959,12 @@ func runReceiveMTA(ctx context.Context, cfg config.Config, logger *slog.Logger, 
 		return err
 	}
 
+	var latencyTracker *smtpd.LatencyTracker
+	if cfg.SMTPLatencyTrackingEnabled {
+		latencyTracker = smtpd.NewLatencyTracker(cfg.SMTPLatencyWindowSize)
+		logger.Info(opts.Component + " SMTP latency tracking enabled")
+	}
+
 	receiver := smtpd.NewReceiver(smtpd.ReceiverOptions{
 		Store:              store,
 		Resolver:           resolver,
@@ -1957,6 +1988,7 @@ func runReceiveMTA(ctx context.Context, cfg config.Config, logger *slog.Logger, 
 			MaxRecipientsPerMessage: cfg.SMTPMaxRecipients,
 			MaxMessageBytes:         cfg.SMTPMaxMessageBytes,
 		},
+		LatencyTracker: latencyTracker,
 	})
 
 	return smtpd.RunServer(ctx, smtpd.ServerOptions{
@@ -1976,12 +2008,31 @@ func runReceiveMTA(ctx context.Context, cfg config.Config, logger *slog.Logger, 
 	})
 }
 
+func farmCoordinatorFromConfig(cfg config.Config, redisClient *redis.Client) smtpd.FarmCoordinator {
+	if strings.EqualFold(cfg.FarmCoordinatorBackend, "redis") && redisClient != nil {
+		return smtpd.NewRedisFarmCoordinator(redisClient, smtpd.RedisFarmCoordinatorOptions{
+			NodeHeartbeatTTL:     cfg.FarmCoordinatorHeartbeatTTL,
+			JobVisibilityTimeout: cfg.FarmCoordinatorJobVisibilityTimeout,
+		})
+	}
+	return smtpd.NewNoOpFarmCoordinator()
+}
+
 func runSubmissionMTA(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
 	db, err := database.Open(ctx, cfg.DatabaseURL)
 	if err != nil {
 		return err
 	}
 	defer db.Close()
+
+	var bulkLimiter *smtpd.BulkSenderLimiter
+	if cfg.SubmissionBulkSenderEnabled {
+		bulkLimiter = smtpd.NewBulkSenderLimiter(cfg.SubmissionBulkSenderRate, cfg.SubmissionBulkSenderRole)
+		logger.Info("submission bulk sender limiter enabled",
+			"rate", cfg.SubmissionBulkSenderRate,
+			"role", cfg.SubmissionBulkSenderRole,
+		)
+	}
 
 	repository := maildb.NewRepository(db)
 	hooks, err := attachmentScanHooksForConfig(cfg, logger, "outbound submission mta")
@@ -2008,6 +2059,7 @@ func runSubmissionMTA(ctx context.Context, cfg config.Config, logger *slog.Logge
 			MaxRecipientsPerMessage: cfg.SubmissionMaxRecipients,
 			MaxMessageBytes:         cfg.SubmissionMaxMessageBytes,
 		},
+		BulkSenderLimiter: bulkLimiter,
 	})
 	tlsConfig, err := smtpTLSConfig(cfg)
 	if err != nil {
@@ -2682,9 +2734,22 @@ func runDeliveryWorker(ctx context.Context, cfg config.Config, logger *slog.Logg
 	if err != nil {
 		return err
 	}
+	var deliveryTransport delivery.Transport = transport
+	if cfg.DeliveryCircuitBreakerEnabled {
+		cb := delivery.NewCircuitBreakerTransport(transport, cfg.DeliveryCircuitBreakerMax)
+		cb.FailureThreshold = cfg.DeliveryCircuitBreakerThreshold
+		cb.HalfOpenTimeout = cfg.DeliveryCircuitBreakerTimeout
+		deliveryTransport = cb
+		logger.Info("delivery circuit breaker enabled",
+			"max", cfg.DeliveryCircuitBreakerMax,
+			"threshold", cfg.DeliveryCircuitBreakerThreshold,
+			"timeout", cfg.DeliveryCircuitBreakerTimeout,
+		)
+	}
+
 	handler := delivery.NewHandler(
 		store,
-		transport,
+		deliveryTransport,
 		deliveryRecorder,
 		delivery.NewPostgresRetryScheduler(db, retryPolicy),
 	).WithExhaustionHook(deliveryRecorder)
