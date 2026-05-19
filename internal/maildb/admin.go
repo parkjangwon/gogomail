@@ -717,8 +717,9 @@ type DomainStatsView struct {
 }
 
 type CompanyListRequest struct {
-	Limit  int
-	Status string
+	Limit     int
+	Status    string
+	ProbeMore bool // when true the query fetches Limit+1 to detect has_more
 }
 
 type CreateCompanyRequest struct {

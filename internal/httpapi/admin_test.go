@@ -9188,10 +9188,22 @@ type fakeAdminService struct {
 	lastSessionRevokedUserID                    string
 }
 
-func (f *fakeAdminService) ListCompanies(_ context.Context, req maildb.CompanyListRequest) ([]maildb.CompanyView, error) {
+func (f *fakeAdminService) ListCompanies(_ context.Context, req maildb.CompanyListRequest) ([]maildb.CompanyView, bool, error) {
 	f.lastLimit = req.Limit
 	f.lastCompanyList = req
-	return f.companies, nil
+	companies := f.companies
+	hasMore := false
+	if req.ProbeMore {
+		limit := req.Limit
+		if limit <= 0 {
+			limit = maildb.MessageListDefaultLimit
+		}
+		if len(companies) > limit {
+			hasMore = true
+			companies = companies[:limit]
+		}
+	}
+	return companies, hasMore, nil
 }
 
 func (f *fakeAdminService) ListAdminRoles(_ context.Context, companyID string) ([]admin.RoleSummary, error) {

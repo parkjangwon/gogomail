@@ -10,15 +10,19 @@ import (
 	"github.com/gogomail/gogomail/internal/audit"
 )
 
-func (r *Repository) ListCompanies(ctx context.Context, req CompanyListRequest) ([]CompanyView, error) {
+func (r *Repository) ListCompanies(ctx context.Context, req CompanyListRequest) ([]CompanyView, bool, error) {
 	if r.db == nil {
-		return nil, fmt.Errorf("database handle is required")
+		return nil, false, fmt.Errorf("database handle is required")
 	}
 	if err := ValidateCompanyListRequest(req); err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	limit := normalizeLimit(req.Limit)
 	status := normalizeAdminStatus(req.Status)
+	queryLimit := limit
+	if req.ProbeMore {
+		queryLimit = limit + 1
+	}
 
 	rows, err := r.db.QueryContext(ctx, `
 SELECT
@@ -38,9 +42,9 @@ SELECT
 FROM companies
 WHERE ($1 = '' OR status = $1)
 ORDER BY created_at DESC
-LIMIT $2`, status, limit)
+LIMIT $2`, status, queryLimit)
 	if err != nil {
-		return nil, fmt.Errorf("list companies: %w", err)
+		return nil, false, fmt.Errorf("list companies: %w", err)
 	}
 	defer rows.Close()
 
@@ -56,7 +60,7 @@ LIMIT $2`, status, limit)
 			&company.AllocatedDomainQuota,
 			&company.CreatedAt,
 		); err != nil {
-			return nil, fmt.Errorf("scan company: %w", err)
+			return nil, false, fmt.Errorf("scan company: %w", err)
 		}
 		company.QuotaRemaining = quotaRemaining(company.QuotaUsed, company.QuotaLimit)
 		company.AllocatableDomainQuota = quotaRemaining(company.AllocatedDomainQuota, company.QuotaLimit)
@@ -64,9 +68,13 @@ LIMIT $2`, status, limit)
 		companies = append(companies, company)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("iterate companies: %w", err)
+		return nil, false, fmt.Errorf("iterate companies: %w", err)
 	}
-	return companies, nil
+	hasMore := req.ProbeMore && len(companies) > limit
+	if hasMore {
+		companies = companies[:limit]
+	}
+	return companies, hasMore, nil
 }
 
 func (r *Repository) GetCompany(ctx context.Context, id string) (CompanyView, error) {
