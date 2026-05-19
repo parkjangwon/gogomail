@@ -7628,3 +7628,8 @@ fix: pass companyID in adminMFASetupRequired configstore resolve
 - MaxConnections defaults: IMAP 5000, POP3 2000, Submission 5000
 - Admin API: SecurityHeadersMiddleware (X-Frame-Options, HSTS, Referrer-Policy)
 - Admin API: IPRateLimiter (600 req/min/IP) + MaxRequestBodyMiddleware (4 MiB)
+## 2026-05-20 has_more pagination for admin companies list
+
+- ListCompanies now returns ([]CompanyView, bool, error); ProbeMore fetches limit+1 to detect next page
+- Admin API companies list response includes has_more field
+

@@ -35,7 +35,7 @@ type AdminService interface {
 }
 
 type adminCompanyService interface {
-	ListCompanies(ctx context.Context, req maildb.CompanyListRequest) ([]maildb.CompanyView, error)
+	ListCompanies(ctx context.Context, req maildb.CompanyListRequest) ([]maildb.CompanyView, bool, error)
 	CreateCompany(ctx context.Context, req maildb.CreateCompanyRequest) (maildb.CompanyView, error)
 	GetCompany(ctx context.Context, id string) (maildb.CompanyView, error)
 	UpdateCompanyQuota(ctx context.Context, req maildb.UpdateCompanyQuotaRequest) error

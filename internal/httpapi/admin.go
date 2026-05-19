@@ -521,15 +521,16 @@ func registerCompanyRoutes(mux *http.ServeMux, service AdminService, adminAuth f
 		if !ok {
 			return
 		}
-		companies, err := service.ListCompanies(r.Context(), maildb.CompanyListRequest{
-			Limit:  limit,
-			Status: status,
+		companies, hasMore, err := service.ListCompanies(r.Context(), maildb.CompanyListRequest{
+			Limit:     limit,
+			Status:    status,
+			ProbeMore: true,
 		})
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, err.Error())
 			return
 		}
-		writeJSON(w, http.StatusOK, map[string]any{"companies": companies})
+		writeJSON(w, http.StatusOK, map[string]any{"companies": companies, "has_more": hasMore})
 	}))
 
 	mux.HandleFunc("POST /admin/v1/companies", adminAuth(func(w http.ResponseWriter, r *http.Request) {
@@ -4811,7 +4812,7 @@ type orgSettingsConfig struct {
 func handleGetOrganizationSettings(w http.ResponseWriter, r *http.Request, service AdminService) {
 	defer r.Body.Close()
 	ctx := r.Context()
-	companies, err := service.ListCompanies(ctx, maildb.CompanyListRequest{Limit: 1})
+	companies, _, err := service.ListCompanies(ctx, maildb.CompanyListRequest{Limit: 1})
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to fetch organization settings")
 		return
@@ -4850,7 +4851,7 @@ func handleUpdateOrganizationSettings(w http.ResponseWriter, r *http.Request, se
 		writeError(w, http.StatusBadRequest, "invalid JSON body")
 		return
 	}
-	companies, err := service.ListCompanies(ctx, maildb.CompanyListRequest{Limit: 1})
+	companies, _, err := service.ListCompanies(ctx, maildb.CompanyListRequest{Limit: 1})
 	if err != nil || len(companies) == 0 {
 		writeError(w, http.StatusInternalServerError, "no company configured")
 		return
@@ -4892,7 +4893,7 @@ func handleListCompliance(w http.ResponseWriter, r *http.Request, service AdminS
 	auditLogs, _ := service.ListAuditLogs(ctx, maildb.AuditLogListRequest{Limit: 1})
 	auditActive := len(auditLogs) > 0
 
-	companies, _ := service.ListCompanies(ctx, maildb.CompanyListRequest{Limit: 1})
+	companies, _, _ := service.ListCompanies(ctx, maildb.CompanyListRequest{Limit: 1})
 	mfaEnabled := false
 	ipPolicyOn := false
 	retentionOn := false
