@@ -1544,7 +1544,12 @@
       "search_placeholder": "搜索...",
       "title": "监控",
       "unacked": "未确认",
-      "warning": "警告"
+      "warning": "警告",
+      "goroutines": "协程数",
+      "delayed": "延迟",
+      "queue_breakdown": "队列详情",
+      "queue_topic": "队列",
+      "active_queues": "活跃队列"
     },
     "organization": {
       "description": "Description",

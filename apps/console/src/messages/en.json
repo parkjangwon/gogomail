@@ -1680,7 +1680,12 @@
       "search_placeholder": "Search...",
       "title": "Monitoring",
       "unacked": "Unacknowledged",
-      "warning": "Warning"
+      "warning": "Warning",
+      "goroutines": "Goroutines",
+      "delayed": "Delayed",
+      "queue_breakdown": "Queue Breakdown",
+      "queue_topic": "Queue",
+      "active_queues": "Active Queues"
     },
     "organization": {
       "description": "Description",

@@ -1544,7 +1544,12 @@
       "search_placeholder": "検索...",
       "title": "モニタリング",
       "unacked": "未確認",
-      "warning": "警告"
+      "warning": "警告",
+      "goroutines": "ゴルーチン数",
+      "delayed": "遅延",
+      "queue_breakdown": "キュー詳細",
+      "queue_topic": "キュー",
+      "active_queues": "アクティブキュー"
     },
     "organization": {
       "description": "Description",

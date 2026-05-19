@@ -43,6 +43,30 @@ export function useAdminBackpressure(refetchInterval = 5_000) {
   });
 }
 
+export interface SystemMetrics {
+  memory: {
+    heap_inuse_bytes: number;
+    heap_sys_bytes: number;
+    sys_bytes: number;
+    alloc_bytes: number;
+    gc_runs: number;
+    usage_pct: number;
+  };
+  goroutines: number;
+  timestamp: string;
+}
+
+const systemMetricsKey = ['admin', 'system', 'metrics'] as const;
+
+export function useAdminSystemMetrics(refetchInterval = 10_000) {
+  return useQuery({
+    queryKey: systemMetricsKey,
+    queryFn: async () => api.get<SystemMetrics>('/system/metrics'),
+    refetchInterval,
+    staleTime: 5_000,
+  });
+}
+
 export function useUpdateAdminBackpressure() {
   const queryClient = useQueryClient();
   return useMutation({
