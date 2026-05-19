@@ -440,20 +440,23 @@ func RegisterMailRoutesWithOptions(mux *http.ServeMux, service MessageService, t
 
 		clientIP := extractClientIP(r)
 
-		// MFA policy check: require a second factor when policy demands it.
+		// MFA policy check.
+		var mfaSetupRequired bool
 		if opts.MFAStore != nil && opts.ConfigResolver != nil {
-			if pending, pendingTok, checkErr := checkMFARequired(
-				r.Context(), opts, tokenManager, user, clientIP,
-			); checkErr != nil {
+			mfaResult, checkErr := checkMFARequired(r.Context(), opts, tokenManager, user, clientIP)
+			if checkErr != nil {
 				writeError(w, http.StatusInternalServerError, "mfa policy check failed")
 				return
-			} else if pending {
+			}
+			if mfaResult.TOTPRequired {
+				// Enrolled — block login until TOTP is verified.
 				writeJSON(w, http.StatusOK, map[string]any{
 					"mfa_required":  true,
-					"pending_token": pendingTok,
+					"pending_token": mfaResult.PendingToken,
 				})
 				return
 			}
+			mfaSetupRequired = mfaResult.SetupRequired
 		}
 
 		const tokenTTL = 24 * time.Hour
@@ -467,12 +470,16 @@ func RegisterMailRoutesWithOptions(mux *http.ServeMux, service MessageService, t
 			writeError(w, http.StatusInternalServerError, "failed to issue token")
 			return
 		}
-		writeJSON(w, http.StatusOK, map[string]any{
+		resp := map[string]any{
 			"token":                token,
 			"expires_at":           time.Now().UTC().Add(tokenTTL).Format(time.RFC3339),
 			"must_change_password": user.MustChangePassword,
 			"client_ip":            clientIP,
-		})
+		}
+		if mfaSetupRequired {
+			resp["mfa_setup_required"] = true
+		}
+		writeJSON(w, http.StatusOK, resp)
 	})
 
 	mux.HandleFunc("POST /api/v1/auth/sessions/revoke-all", func(w http.ResponseWriter, r *http.Request) {

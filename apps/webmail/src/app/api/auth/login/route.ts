@@ -37,9 +37,10 @@ export async function POST(req: NextRequest) {
     client_ip?: string;
     mfa_required?: boolean;
     pending_token?: string;
+    mfa_setup_required?: boolean;
   };
 
-  // MFA required: return pending token to client without setting cookie.
+  // MFA TOTP required: return pending token to client without setting cookie.
   if (data.mfa_required) {
     return NextResponse.json(
       { mfa_required: true, pending_token: data.pending_token },
@@ -56,6 +57,7 @@ export async function POST(req: NextRequest) {
     expires_at: data.expires_at,
     must_change_password: data.must_change_password,
     client_ip: data.client_ip,
+    mfa_setup_required: data.mfa_setup_required ?? false,
   }, { headers: { 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' } });
 
   response.cookies.set(WEBMAIL_TOKEN_COOKIE, data.token!, {
