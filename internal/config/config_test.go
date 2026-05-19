@@ -201,8 +201,8 @@ func TestLoadAppliesDefaults(t *testing.T) {
 	if !cfg.IMAPAllowInsecureAuth {
 		t.Fatal("IMAPAllowInsecureAuth = false, want true in development defaults")
 	}
-	if cfg.IMAPMaxConnections != 0 {
-		t.Fatalf("IMAPMaxConnections = %d, want 0 for unlimited default", cfg.IMAPMaxConnections)
+	if cfg.IMAPMaxConnections != 5000 {
+		t.Fatalf("IMAPMaxConnections = %d, want 5000", cfg.IMAPMaxConnections)
 	}
 	if cfg.IMAPReadTimeout != 5*time.Minute {
 		t.Fatalf("IMAPReadTimeout = %s, want 5m", cfg.IMAPReadTimeout)
@@ -213,8 +213,8 @@ func TestLoadAppliesDefaults(t *testing.T) {
 	if cfg.IMAPIdleTimeout != 30*time.Minute {
 		t.Fatalf("IMAPIdleTimeout = %s, want 30m", cfg.IMAPIdleTimeout)
 	}
-	if cfg.POP3MaxConnections != 0 {
-		t.Fatalf("POP3MaxConnections = %d, want 0 for unlimited default", cfg.POP3MaxConnections)
+	if cfg.POP3MaxConnections != 2000 {
+		t.Fatalf("POP3MaxConnections = %d, want 2000", cfg.POP3MaxConnections)
 	}
 	if cfg.POP3SAddr != "" {
 		t.Fatalf("POP3SAddr = %q, want empty default", cfg.POP3SAddr)
@@ -276,8 +276,8 @@ func TestLoadAppliesDefaults(t *testing.T) {
 	if cfg.SubmissionSMTPSAddr != "" {
 		t.Fatalf("SubmissionSMTPSAddr = %q, want empty", cfg.SubmissionSMTPSAddr)
 	}
-	if cfg.SubmissionMaxConnections != 0 {
-		t.Fatalf("SubmissionMaxConnections = %d, want 0 for unlimited default", cfg.SubmissionMaxConnections)
+	if cfg.SubmissionMaxConnections != 5000 {
+		t.Fatalf("SubmissionMaxConnections = %d, want 5000", cfg.SubmissionMaxConnections)
 	}
 	if cfg.SubmissionMaxRecipients != 100 {
 		t.Fatalf("SubmissionMaxRecipients = %d, want 100", cfg.SubmissionMaxRecipients)

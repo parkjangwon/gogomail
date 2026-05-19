@@ -7619,3 +7619,12 @@ fix: pass companyID in adminMFASetupRequired configstore resolve
 - Changed DeliveryThrottleBackend and DeliveryDomainBackoffBackend defaults to redis
 
 - Fixed 5 admin console stubs: org settings PUT now persists, compliance status derived from real checks, reports endpoint returns real export catalogue, SSO test actually fetches metadata URL, monitoring page replaces Math.random() with Go runtime metrics
+
+## 2026-05-20: Production hardening (security)
+
+- OIDC token exchange now uses GuardedHTTPClient (SSRF protection + 10s timeout)
+- SMTP AUTH brute-force protection: 10 failures/IP/10min → 421 reject
+- SMTP session now carries a cancellable context (graceful shutdown support)
+- MaxConnections defaults: IMAP 5000, POP3 2000, Submission 5000
+- Admin API: SecurityHeadersMiddleware (X-Frame-Options, HSTS, Referrer-Policy)
+- Admin API: IPRateLimiter (600 req/min/IP) + MaxRequestBodyMiddleware (4 MiB)

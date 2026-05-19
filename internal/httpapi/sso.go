@@ -14,6 +14,7 @@ import (
 	"github.com/gogomail/gogomail/internal/auth"
 	"github.com/gogomail/gogomail/internal/maildb"
 	"github.com/gogomail/gogomail/internal/sso"
+	webhookguard "github.com/gogomail/gogomail/internal/webhook"
 )
 
 // SSOAdminService manages SSO configurations per domain.
@@ -280,7 +281,8 @@ func exchangeOIDCCode(ctx context.Context, tokenURL, clientID, clientSecret, cod
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
-	resp, err := http.DefaultClient.Do(req)
+	oidcClient := webhookguard.GuardedHTTPClient(&http.Client{Timeout: 10 * time.Second}, webhookguard.OutboundURLGuardOptions{})
+	resp, err := oidcClient.Do(req)
 	if err != nil {
 		return "", fmt.Errorf("token endpoint request: %w", err)
 	}

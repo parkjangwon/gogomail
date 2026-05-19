@@ -3185,6 +3185,9 @@ func runHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, mode M
 	if apiKeyVerifierConfigured {
 		handler = apikeys.Middleware(apiKeyVerifier)(handler)
 	}
+	handler = httpapi.NewAdminIPRateLimiter(600, time.Minute).Middleware(handler)
+	handler = httpapi.MaxRequestBodyMiddleware(4*1024*1024)(handler)
+	handler = httpapi.SecurityHeadersMiddleware(handler)
 	server := newHTTPServer(cfg, handler)
 
 	errCh := make(chan error, 1)

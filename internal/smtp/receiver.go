@@ -11,6 +11,7 @@ import (
 	"net"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/emersion/go-sasl"
@@ -163,6 +164,7 @@ type Receiver struct {
 	clock              func() time.Time
 	bulkSenderLimiter  *BulkSenderLimiter
 	latencyTracker     *LatencyTracker
+	authFailures       *authFailureTracker
 }
 
 func NewReceiver(opts ReceiverOptions) *Receiver {
@@ -196,6 +198,7 @@ func NewReceiver(opts ReceiverOptions) *Receiver {
 		clock:              clockOrDefault(opts.Clock),
 		bulkSenderLimiter:  opts.BulkSenderLimiter,
 		latencyTracker:     opts.LatencyTracker,
+		authFailures:       newAuthFailureTracker(),
 	}
 }
 
@@ -206,11 +209,14 @@ func (r *Receiver) NewSession(conn *gosmtp.Conn) (gosmtp.Session, error) {
 	if r.resolver == nil {
 		return nil, fmt.Errorf("smtp receiver resolver is required")
 	}
-	return &session{receiver: r, remoteAddr: remoteAddrFromConn(conn)}, nil
+	ctx, cancel := context.WithCancel(context.Background())
+	return &session{receiver: r, remoteAddr: remoteAddrFromConn(conn), ctx: ctx, cancel: cancel}, nil
 }
 
 type session struct {
 	receiver          *Receiver
+	ctx               context.Context
+	cancel            context.CancelFunc
 	from              string
 	mailStarted       bool
 	recipients        []Mailbox
@@ -224,7 +230,7 @@ type session struct {
 
 func (s *session) Mail(from string, opts *gosmtp.MailOptions) (err error) {
 	defer func() {
-		s.observe(context.Background(), MetricEvent{
+		s.observe(s.ctx, MetricEvent{
 			Stage:        StageMailFrom,
 			Result:       metricResult(err),
 			EnvelopeFrom: from,
@@ -273,7 +279,7 @@ func (s *session) authorizeRelay() error {
 	if s.receiver.relayAuthorizer == nil {
 		return nil
 	}
-	allowed, err := s.receiver.relayAuthorizer.AllowRelay(context.Background(), s.remoteAddr)
+	allowed, err := s.receiver.relayAuthorizer.AllowRelay(s.ctx, s.remoteAddr)
 	if err != nil {
 		return fmt.Errorf("authorize smtp relay: %w", err)
 	}
@@ -285,7 +291,7 @@ func (s *session) authorizeRelay() error {
 
 func (s *session) Rcpt(to string, opts *gosmtp.RcptOptions) (err error) {
 	defer func() {
-		s.observe(context.Background(), MetricEvent{
+		s.observe(s.ctx, MetricEvent{
 			Stage:     StageRcpt,
 			Result:    metricResult(err),
 			Recipient: to,
@@ -301,7 +307,7 @@ func (s *session) Rcpt(to string, opts *gosmtp.RcptOptions) (err error) {
 	if err := validateRcptOptions(opts, extensionSupport{DSN: s.receiver.supportDSN}); err != nil {
 		return err
 	}
-	allowed, err := s.receiver.rateLimiter.Allow(context.Background(), RateLimitKey{
+	allowed, err := s.receiver.rateLimiter.Allow(s.ctx, RateLimitKey{
 		Stage:      StageRcpt,
 		RemoteAddr: s.remoteAddr,
 		Recipient:  to,
@@ -313,7 +319,7 @@ func (s *session) Rcpt(to string, opts *gosmtp.RcptOptions) (err error) {
 		return smtpRateLimited(to)
 	}
 
-	mailbox, err := s.receiver.resolver.ResolveRecipient(context.Background(), to)
+	mailbox, err := s.receiver.resolver.ResolveRecipient(s.ctx, to)
 	if err != nil {
 		return smtpMailboxUnavailable("recipient %q not found", to)
 	}
@@ -323,7 +329,7 @@ func (s *session) Rcpt(to string, opts *gosmtp.RcptOptions) (err error) {
 
 	nextDomainPolicy := s.domainPolicy
 	if s.receiver.domainPolicyLookup != nil {
-		dp, lookupErr := s.receiver.domainPolicyLookup.InboundDomainPolicy(context.Background(), mailbox.DomainID)
+		dp, lookupErr := s.receiver.domainPolicyLookup.InboundDomainPolicy(s.ctx, mailbox.DomainID)
 		if lookupErr != nil {
 			return smtpPolicyTempfail("domain policy lookup failed for recipient %q", mailbox.Address)
 		}
@@ -345,7 +351,7 @@ func (s *session) Data(r io.Reader) (err error) {
 	recipients := mailboxAddresses(s.recipients)
 	var observedSize int64
 	defer func() {
-		s.observe(context.Background(), MetricEvent{
+		s.observe(s.ctx, MetricEvent{
 			Stage:        StageRecorded,
 			Result:       metricResult(err),
 			EnvelopeFrom: envelopeFrom,
@@ -371,14 +377,14 @@ func (s *session) Data(r io.Reader) (err error) {
 	dataStart := time.Now()
 	_ = dataStart
 
-	accepted, err := s.receiver.backpressure.Accept(context.Background())
+	accepted, err := s.receiver.backpressure.Accept(s.ctx)
 	if err != nil {
 		return fmt.Errorf("check backpressure: %w", err)
 	}
 	if !accepted {
 		return smtpBackpressure()
 	}
-	if err := s.emit(context.Background(), Event{
+	if err := s.emit(s.ctx, Event{
 		Stage:        StageBackpressureChecked,
 		RemoteAddr:   s.remoteAddr,
 		EnvelopeFrom: s.from,
@@ -415,7 +421,7 @@ func (s *session) Data(r io.Reader) (err error) {
 		headerBuffer.AddPrepend(BuildReceivedHeader(s.remoteAddr, s.receiver.receivedDomain, messageID, receivedAt))
 	}
 	defer cleanupSpool(spooled)
-	if err := s.emit(context.Background(), Event{
+	if err := s.emit(s.ctx, Event{
 		Stage:        StageSpooled,
 		RemoteAddr:   s.remoteAddr,
 		EnvelopeFrom: s.from,
@@ -441,7 +447,7 @@ func (s *session) Data(r io.Reader) (err error) {
 	if trace != nil {
 		trace.RecordPhaseLatency("parsed", time.Since(spooledAt))
 	}
-	if err := s.emit(context.Background(), Event{
+	if err := s.emit(s.ctx, Event{
 		Stage:        StageParsed,
 		RemoteAddr:   s.remoteAddr,
 		EnvelopeFrom: s.from,
@@ -454,7 +460,7 @@ func (s *session) Data(r io.Reader) (err error) {
 		return err
 	}
 
-	authCtx := context.WithValue(context.Background(), authenticationRawMessageKey{}, spooled)
+	authCtx := context.WithValue(s.ctx, authenticationRawMessageKey{}, spooled)
 	authResults, err := s.verifyAuthentication(authCtx, parsed, size)
 	if err != nil {
 		return err
@@ -463,7 +469,7 @@ func (s *session) Data(r io.Reader) (err error) {
 		return err
 	}
 	if s.receiver.authVerifier != nil {
-		if err := s.emit(context.Background(), Event{
+		if err := s.emit(s.ctx, Event{
 			Stage:          StageAuthenticationChecked,
 			RemoteAddr:     s.remoteAddr,
 			EnvelopeFrom:   s.from,
@@ -490,14 +496,14 @@ func (s *session) Data(r io.Reader) (err error) {
 	observedSize = size
 
 	for _, recipient := range s.recipients {
-		shouldProcess, err := s.receiver.deduplicator.CheckAndSet(context.Background(), DedupKey{
+		shouldProcess, err := s.receiver.deduplicator.CheckAndSet(s.ctx, DedupKey{
 			MessageID: parsed.MessageID,
 			Recipient: recipient.Address,
 		})
 		if err != nil {
 			return fmt.Errorf("check duplicate message for %s: %w", recipient.Address, err)
 		}
-		if err := s.emit(context.Background(), Event{
+		if err := s.emit(s.ctx, Event{
 			Stage:          StageDedupChecked,
 			RemoteAddr:     s.remoteAddr,
 			EnvelopeFrom:   s.from,
@@ -521,13 +527,13 @@ func (s *session) Data(r io.Reader) (err error) {
 			return fmt.Errorf("rewind spooled message for store: %w", err)
 		}
 		storeStart := time.Now()
-		if err := s.receiver.store.Put(context.Background(), path, spooled); err != nil {
+		if err := s.receiver.store.Put(s.ctx, path, spooled); err != nil {
 			return fmt.Errorf("store message for %s: %w", recipient.Address, err)
 		}
 		if trace != nil {
 			trace.RecordPhaseLatency("stored", time.Since(storeStart))
 		}
-		if err := s.emit(context.Background(), Event{
+		if err := s.emit(s.ctx, Event{
 			Stage:          StageStored,
 			RemoteAddr:     s.remoteAddr,
 			EnvelopeFrom:   s.from,
@@ -543,7 +549,7 @@ func (s *session) Data(r io.Reader) (err error) {
 			s.deleteStoredMessage(path)
 			return err
 		}
-		if err := s.receiver.recorder.Record(context.Background(), ReceivedMessage{
+		if err := s.receiver.recorder.Record(s.ctx, ReceivedMessage{
 			EnvelopeFrom:   s.from,
 			Mailbox:        recipient,
 			DSN:            s.currentDSNOptions(),
@@ -562,7 +568,7 @@ func (s *session) Data(r io.Reader) (err error) {
 		if trace != nil {
 			trace.RecordPhaseLatency("recorded", time.Since(storeStart))
 		}
-		if err := s.emit(context.Background(), Event{
+		if err := s.emit(s.ctx, Event{
 			Stage:          StageRecorded,
 			RemoteAddr:     s.remoteAddr,
 			EnvelopeFrom:   s.from,
@@ -585,7 +591,7 @@ func (s *session) deleteStoredMessage(path string) {
 	if strings.TrimSpace(path) == "" || s.receiver.store == nil {
 		return
 	}
-	_ = s.receiver.store.Delete(context.Background(), path)
+	_ = s.receiver.store.Delete(s.ctx, path)
 }
 
 func (s *session) verifyAuthentication(ctx context.Context, parsed message.ParsedMessage, size int64) (AuthenticationResults, error) {
@@ -768,6 +774,10 @@ func (s *session) clearEnvelope() {
 func (s *session) Logout() error {
 	s.Reset()
 	s.authenticated = false
+	// Cancel the current context (signals any in-flight work to stop),
+	// then replace it so the session remains usable if reused.
+	s.cancel()
+	s.ctx, s.cancel = context.WithCancel(context.Background())
 	return nil
 }
 
@@ -785,22 +795,26 @@ func (s *session) Auth(mech string) (sasl.Server, error) {
 	if s.authenticated {
 		return nil, smtpAlreadyAuthenticated()
 	}
+	if s.receiver.authFailures.isLocked(s.remoteAddr) {
+		return nil, &gosmtp.SMTPError{Code: 421, EnhancedCode: gosmtp.EnhancedCode{4, 7, 0}, Message: "Too many authentication failures, try later"}
+	}
 	return sasl.NewPlainServer(func(identity, username, password string) error {
 		var authErr error
 		defer func() {
-			s.observe(context.Background(), MetricEvent{
+			s.observe(s.ctx, MetricEvent{
 				Stage:  StageAuthenticated,
 				Result: metricResult(authErr),
 				Error:  metricError(authErr),
 			})
 		}()
-		if err := s.receiver.authenticator.AuthenticatePlain(context.Background(), identity, username, password); err != nil {
+		if err := s.receiver.authenticator.AuthenticatePlain(s.ctx, identity, username, password); err != nil {
 			authErr = gosmtp.ErrAuthFailed
+			s.receiver.authFailures.record(s.remoteAddr)
 			return gosmtp.ErrAuthFailed
 		}
 		s.authenticated = true
 		s.authenticatedUser = username
-		if err := s.emit(context.Background(), Event{
+		if err := s.emit(s.ctx, Event{
 			Stage:      StageAuthenticated,
 			RemoteAddr: s.remoteAddr,
 		}); err != nil {
@@ -950,4 +964,56 @@ func randomMessageID() string {
 		return fmt.Sprintf("%d", time.Now().UnixNano())
 	}
 	return fmt.Sprintf("%d-%s", time.Now().UnixMilli(), hex.EncodeToString(random[:]))
+}
+
+// authFailureTracker provides in-process brute-force protection for SMTP AUTH.
+// It tracks per-IP failure timestamps and rejects attempts that exceed the
+// threshold within the window. The map is cleaned up lazily on every check.
+type authFailureTracker struct {
+	mu        sync.Mutex
+	failures  map[string][]time.Time
+	window    time.Duration
+	maxFails  int
+}
+
+func newAuthFailureTracker() *authFailureTracker {
+	return &authFailureTracker{
+		failures: make(map[string][]time.Time),
+		window:   10 * time.Minute,
+		maxFails: 10,
+	}
+}
+
+// record adds a failure for the given IP. Returns true if the IP is now locked out.
+func (t *authFailureTracker) record(ip string) bool {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	now := time.Now()
+	cutoff := now.Add(-t.window)
+	// Trim old entries while appending new one.
+	prev := t.failures[ip]
+	fresh := prev[:0]
+	for _, ts := range prev {
+		if ts.After(cutoff) {
+			fresh = append(fresh, ts)
+		}
+	}
+	fresh = append(fresh, now)
+	t.failures[ip] = fresh
+	return len(fresh) > t.maxFails
+}
+
+// isLocked returns true when the IP has too many recent failures.
+func (t *authFailureTracker) isLocked(ip string) bool {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	now := time.Now()
+	cutoff := now.Add(-t.window)
+	var count int
+	for _, ts := range t.failures[ip] {
+		if ts.After(cutoff) {
+			count++
+		}
+	}
+	return count >= t.maxFails
 }

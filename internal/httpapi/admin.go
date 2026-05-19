@@ -12,11 +12,13 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gogomail/gogomail/internal/admin"
@@ -87,6 +89,109 @@ func WithAdminConfigResolver(r ConfigResolver) AdminRouteOption {
 type adminContextKey struct{}
 
 const companyDomainSettingsDefaultsKey = "domain_settings_defaults"
+
+// SecurityHeadersMiddleware adds defensive HTTP security headers to every response.
+// It should wrap the outermost handler in production deployments.
+func SecurityHeadersMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		h := w.Header()
+		h.Set("X-Frame-Options", "DENY")
+		h.Set("X-Content-Type-Options", "nosniff")
+		h.Set("Referrer-Policy", "strict-origin-when-cross-origin")
+		h.Set("X-XSS-Protection", "0") // modern browsers ignore this; CSP is the real defence
+		h.Set("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
+		if r.TLS != nil {
+			h.Set("Strict-Transport-Security", "max-age=63072000; includeSubDomains; preload")
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+// AdminIPRateLimiter provides in-process per-IP rate limiting for admin API endpoints.
+// Use NewAdminIPRateLimiter to construct and Middleware to obtain the http.Handler wrapper.
+type AdminIPRateLimiter struct {
+	mu      sync.Mutex
+	windows map[string][]time.Time
+	limit   int
+	window  time.Duration
+}
+
+// NewAdminIPRateLimiter returns a limiter that allows up to limit requests per window per IP.
+func NewAdminIPRateLimiter(limit int, window time.Duration) *AdminIPRateLimiter {
+	if limit <= 0 {
+		limit = 600
+	}
+	if window <= 0 {
+		window = time.Minute
+	}
+	return &AdminIPRateLimiter{windows: make(map[string][]time.Time), limit: limit, window: window}
+}
+
+func (l *AdminIPRateLimiter) allow(ip string) bool {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	now := time.Now()
+	cutoff := now.Add(-l.window)
+	prev := l.windows[ip]
+	fresh := prev[:0]
+	for _, ts := range prev {
+		if ts.After(cutoff) {
+			fresh = append(fresh, ts)
+		}
+	}
+	if len(fresh) >= l.limit {
+		l.windows[ip] = fresh
+		return false
+	}
+	l.windows[ip] = append(fresh, now)
+	return true
+}
+
+// Middleware wraps next and returns 429 when the per-IP limit is exceeded.
+func (l *AdminIPRateLimiter) Middleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ip := adminClientIP(r)
+		if !l.allow(ip) {
+			w.Header().Set("Retry-After", "60")
+			http.Error(w, `{"error":"rate limit exceeded"}`, http.StatusTooManyRequests)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+// MaxRequestBodyMiddleware returns a middleware that enforces a max request body size.
+// Requests with a body larger than maxBytes receive 413 Entity Too Large.
+// Pass 0 to use the default of 4 MiB.
+func MaxRequestBodyMiddleware(maxBytes int64) func(http.Handler) http.Handler {
+	if maxBytes <= 0 {
+		maxBytes = 4 * 1024 * 1024
+	}
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.ContentLength > maxBytes {
+				http.Error(w, `{"error":"request body too large"}`, http.StatusRequestEntityTooLarge)
+				return
+			}
+			r.Body = http.MaxBytesReader(w, r.Body, maxBytes)
+			next.ServeHTTP(w, r)
+		})
+	}
+}
+
+// adminClientIP extracts the best client IP from the request, preferring X-Real-IP.
+func adminClientIP(r *http.Request) string {
+	if xri := strings.TrimSpace(r.Header.Get("X-Real-IP")); xri != "" {
+		if ip := net.ParseIP(xri); ip != nil {
+			return ip.String()
+		}
+	}
+	host, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		return r.RemoteAddr
+	}
+	return host
+}
 
 func adminClaimsFromCtx(ctx context.Context) (auth.Claims, bool) {
 	c, ok := ctx.Value(adminContextKey{}).(auth.Claims)
