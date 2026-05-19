@@ -69,6 +69,7 @@ import (
 	smtpd "github.com/gogomail/gogomail/internal/smtp"
 	"github.com/gogomail/gogomail/internal/spamfilter"
 	"github.com/gogomail/gogomail/internal/storage"
+	webhookguard "github.com/gogomail/gogomail/internal/webhook"
 )
 
 func Run(ctx context.Context, mode Mode, cfg config.Config, logger *slog.Logger) error {
@@ -2684,7 +2685,7 @@ func pushNotificationSinkForConfig(cfg config.Config, logger *slog.Logger) (push
 		return pushnotify.NewWebhookSink(pushnotify.WebhookOptions{
 			Endpoint: strings.TrimSpace(cfg.PushNotifyWebhookURL),
 			Token:    cfg.PushNotifyWebhookToken,
-			Client:   &http.Client{Timeout: cfg.PushNotifyWebhookTimeout},
+			Client:   webhookguard.GuardedHTTPClient(&http.Client{Timeout: cfg.PushNotifyWebhookTimeout}, webhookguard.OutboundURLGuardOptions{}),
 		})
 	default:
 		return nil, errors.New("unsupported push notification backend")

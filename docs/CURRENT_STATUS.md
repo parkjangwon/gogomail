@@ -7646,3 +7646,7 @@ fix: pass companyID in adminMFASetupRequired configstore resolve
 - SMTPDMARCEnforcement default changed from 'monitor' to 'reject'
 - Added aria-label to native file input in ImportUsersModal
 
+## 2026-05-20 Push notify SSRF protection
+
+- Push notify webhook client now uses GuardedHTTPClient to prevent SSRF
+
