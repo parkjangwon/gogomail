@@ -79,6 +79,7 @@ Implemented controls include:
 - Production CSP removes `unsafe-eval`; apps set `nosniff`, frame denial, COOP/CORP, HSTS, and no-store where appropriate.
 - Go builds are pinned to patched toolchain `go1.26.3`; frontend apps override PostCSS to a patched line.
 - Company/domain `/security/governance` controls allow typed operational exceptions while platform invariants remain fixed.
+- Admin console login enforces TOTP MFA when enabled; `company_admin` MFA is controlled by the per-tenant `auth_policy` config key, and `system_admin` forced enrollment is controlled by `GOGOMAIL_ADMIN_MFA_REQUIRED`. Break-glass reset: `bin/gogomail admin mfa-reset --email <address>` (reads `DATABASE_URL`).
 
 Verification commands:
 
@@ -208,6 +209,7 @@ Important environment variables:
 | `GOGOMAIL_SECURITY_VERIFY` | Set to `1` to add `go vet` and `govulncheck` to backend release verification |
 | `GOGOMAIL_BACKEND_URL` | Backend URL used by Next.js server routes |
 | `NEXT_PUBLIC_GOGOMAIL_PUBLIC_BASE_URL` | Public origin displayed in browser-facing console copy when needed |
+| `GOGOMAIL_ADMIN_MFA_REQUIRED` | Require TOTP MFA enrollment for `system_admin` login; default `false` |
 
 Full configuration details live under `internal/config/` and `configs/`.
 

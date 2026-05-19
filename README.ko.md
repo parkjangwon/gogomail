@@ -82,6 +82,7 @@ CardDAV, WebDAV, LDAP, DKIM, SPF, DMARC, DSN, OpenAPI 기반 REST API처럼
 - production CSP에서 `unsafe-eval` 제거, `nosniff`, frame denial, COOP/CORP, HSTS, no-store 적용
 - Go toolchain `go1.26.3` 고정, 프론트엔드 PostCSS patched line override
 - 회사/도메인 `/security/governance`로 typed operational exception을 관리하되 platform invariant는 전역 고정
+- 관리자 콘솔 로그인에서 TOTP MFA를 강제할 수 있습니다. `company_admin`의 MFA 여부는 테넌트별 `auth_policy` 설정 키로 제어하고, `system_admin` 강제 등록은 `GOGOMAIL_ADMIN_MFA_REQUIRED`로 제어합니다. 잠금 해제(break-glass): `bin/gogomail admin mfa-reset --email <주소>` (`DATABASE_URL` 환경 변수 필요).
 
 검증 명령:
 
@@ -211,6 +212,7 @@ bin/gogomail --migrate --mode=mail-api
 | `GOGOMAIL_SECURITY_VERIFY` | `1`이면 backend release verification에 `go vet`과 `govulncheck` 추가 |
 | `GOGOMAIL_BACKEND_URL` | Next.js 서버 route가 사용할 백엔드 URL |
 | `NEXT_PUBLIC_GOGOMAIL_PUBLIC_BASE_URL` | 브라우저에 표시해야 하는 public origin |
+| `GOGOMAIL_ADMIN_MFA_REQUIRED` | `system_admin` 로그인에 TOTP MFA 등록 강제 여부, 기본 `false` |
 
 전체 설정은 `internal/config/`와 `configs/`를 참고하세요.
 
