@@ -111,6 +111,27 @@ func TestAutoBackpressureConfig_SetDefaults(t *testing.T) {
 	if cfg.QueueCriticalDepth != 100_000 {
 		t.Errorf("QueueCriticalDepth default = %d, want 100000", cfg.QueueCriticalDepth)
 	}
+	if cfg.InstanceID == "" {
+		t.Error("InstanceID default must not be empty")
+	}
+	if cfg.LeaderLockTTL != 3*cfg.CheckInterval {
+		t.Errorf("LeaderLockTTL default = %v, want 3×CheckInterval (%v)", cfg.LeaderLockTTL, 3*cfg.CheckInterval)
+	}
+}
+
+func TestAutoBackpressureConfig_ExplicitInstanceIDNotOverwritten(t *testing.T) {
+	cfg := AutoBackpressureConfig{InstanceID: "my-node-1"}
+	cfg.setDefaults()
+	if cfg.InstanceID != "my-node-1" {
+		t.Errorf("InstanceID = %q, want my-node-1", cfg.InstanceID)
+	}
+}
+
+func TestLeaderKeyFor(t *testing.T) {
+	key := leaderKeyFor("backpressure:smtp:state")
+	if key != "backpressure:smtp:state:auto-leader" {
+		t.Errorf("leaderKeyFor = %q, want backpressure:smtp:state:auto-leader", key)
+	}
 }
 
 func TestParseInt64(t *testing.T) {

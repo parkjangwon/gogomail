@@ -1881,6 +1881,7 @@ func runReceiveMTA(ctx context.Context, cfg config.Config, logger *slog.Logger, 
 				QueueDangerDepth:   cfg.AutoBackpressureQueueDanger,
 				QueueCriticalDepth: cfg.AutoBackpressureQueueCritical,
 				MonitorStreams:     monitorStreams,
+				InstanceID:         cfg.AutoBackpressureInstanceID,
 			})
 			autoCtx, autoCancel := context.WithCancel(ctx)
 			defer autoCancel()
