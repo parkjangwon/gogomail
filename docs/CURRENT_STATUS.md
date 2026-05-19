@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-19 (CLI break-glass MFA reset command added)
+Last updated: 2026-05-19 (Console security settings page with MFA enrollment UI)
 
 ## CLI Break-Glass MFA Reset (2026-05-19)
 - `gogomail admin mfa-reset --email <email>` command added for locked-out admin recovery.
@@ -7595,4 +7595,13 @@ fix: pass companyID in adminMFASetupRequired configstore resolve
 - Login route handles `mfa_required` (returns pending_token, no cookies) and `mfa_setup_required` (sets cookie + flag)
 - Login page adds MFA TOTP step: 6-digit input, recovery toggle, Back link
 - New route `POST /api/admin/auth/mfa/verify` forwards to backend, sets httpOnly cookie (maxAge 900), clears legacy cookie
+- TypeScript: no errors
+
+## Task 8: Console Security Settings Page (2026-05-19)
+
+- Created `apps/console/src/app/settings/security/page.tsx`
+- TOTP MFA enrollment UI: status display, QR code + secret, 6-digit confirm input, recovery codes
+- Clears `localStorage.console_mfa_setup_required` on successful confirmation
+- Disable MFA button available when enrolled
+- Uses Cloudscape Design components (Box, Button, Container, Header, SpaceBetween, StatusIndicator, Input, FormField, Alert, ColumnLayout)
 - TypeScript: no errors
