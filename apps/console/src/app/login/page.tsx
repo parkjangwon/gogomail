@@ -8,6 +8,7 @@ import {
   InputProps,
   Button,
   Alert,
+  Link,
 } from '@cloudscape-design/components';
 import { useI18n } from '@/app/i18n-provider';
 import './login.css';
@@ -24,6 +25,12 @@ function LoginPageContent() {
   const [passwordError, setPasswordError] = useState('');
   const passwordRef = useRef<InputProps.Ref>(null);
   const showDemoCredentials = process.env.NODE_ENV !== 'production';
+
+  // MFA step state
+  const [step, setStep] = useState<'password' | 'mfa'>('password');
+  const [pendingToken, setPendingToken] = useState('');
+  const [mfaCode, setMfaCode] = useState('');
+  const [useRecovery, setUseRecovery] = useState(false);
 
   const validate = () => {
     let valid = true;
@@ -67,14 +74,26 @@ function LoginPageContent() {
         throw new Error(message);
       }
 
-      if (res.ok) {
-        // Token is stored as httpOnly cookie by the server
-        const next = searchParams.get('next');
-        const destination = next?.startsWith('/companies/') ? next : '/companies/default/dashboard';
-        router.push(destination);
-      } else {
-        throw new Error(t('login.failed'));
+      const data = await res.json() as {
+        ok?: boolean;
+        mfa_required?: boolean;
+        pending_token?: string;
+        mfa_setup_required?: boolean;
+      };
+
+      if (data.mfa_required && data.pending_token) {
+        setPendingToken(data.pending_token);
+        setStep('mfa');
+        return;
       }
+
+      if (data.mfa_setup_required) {
+        localStorage.setItem('console_mfa_setup_required', '1');
+      }
+
+      const next = searchParams.get('next');
+      const destination = next?.startsWith('/companies/') ? next : '/companies/default/dashboard';
+      router.push(destination);
     } catch (err) {
       let errorMessage = t('login.failed');
       if (err instanceof Error) {
@@ -88,6 +107,94 @@ function LoginPageContent() {
     }
   };
 
+  const handleMFASubmit = async () => {
+    if (!mfaCode.trim()) return;
+    setError('');
+    setLoading(true);
+    try {
+      const res = await fetch('/api/admin/auth/mfa/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ pending_token: pendingToken, code: mfaCode }),
+      });
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        const message = typeof errorData?.error === 'string' ? errorData.error : 'Invalid code';
+        throw new Error(message);
+      }
+      const next = searchParams.get('next');
+      const destination = next?.startsWith('/companies/') ? next : '/companies/default/dashboard';
+      router.push(destination);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Verification failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // MFA step UI
+  if (step === 'mfa') {
+    return (
+      <div className="aws-login-container">
+        <div className="aws-login-wrapper">
+          <div className="aws-login-header">
+            <h1>GoGoMail</h1>
+            <p>Two-factor authentication</p>
+          </div>
+          <div className="aws-login-card">
+            {error && (
+              <div className="aws-login-alert">
+                <Alert type="error" dismissible onDismiss={() => setError('')}>
+                  {error}
+                </Alert>
+              </div>
+            )}
+            <div className="aws-login-form">
+              <FormField
+                label={useRecovery ? 'Recovery code' : 'Authentication code'}
+                description={useRecovery
+                  ? 'Enter one of your saved recovery codes'
+                  : 'Enter the 6-digit code from your authenticator app'}
+              >
+                <Input
+                  value={mfaCode}
+                  onChange={(e) => setMfaCode(e.detail.value)}
+                  onKeyDown={(e) => { if (e.detail.key === 'Enter') handleMFASubmit(); }}
+                  inputMode={useRecovery ? undefined : 'numeric'}
+                  autoFocus
+                  disabled={loading}
+                />
+              </FormField>
+              <Button
+                variant="primary"
+                onClick={() => handleMFASubmit()}
+                loading={loading}
+                fullWidth
+              >
+                {loading ? 'Verifying…' : 'Verify'}
+              </Button>
+            </div>
+            <div className="aws-login-footer">
+              <div className="aws-login-divider"></div>
+              <Link onFollow={() => { setUseRecovery(v => !v); setMfaCode(''); }}>
+                {useRecovery ? 'Use authenticator code instead' : 'Use a recovery code instead'}
+              </Link>
+              <br />
+              <Link onFollow={() => { setStep('password'); setError(''); setMfaCode(''); }}>
+                ← Back to sign in
+              </Link>
+            </div>
+          </div>
+          <div className="aws-login-copyright">
+            {t('login.copyright')}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Password step — existing UI unchanged
   return (
     <div className="aws-login-container">
       <div className="aws-login-wrapper">

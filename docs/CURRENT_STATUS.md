@@ -7589,3 +7589,10 @@ Next focus areas:
 2. **Concurrent Connections** (2.2% message loss): Race condition under 100+ simultaneous connections. Likely in recorder/storage synchronization.
 3. **Concurrency Latency** (p99=100.68ms): p99 slightly exceeds 100ms target under peak concurrency, acceptable for fairness under load.
 fix: pass companyID in adminMFASetupRequired configstore resolve
+
+## Tasks 6 & 7: Console MFA Login Step (COMPLETE)
+
+- Login route handles `mfa_required` (returns pending_token, no cookies) and `mfa_setup_required` (sets cookie + flag)
+- Login page adds MFA TOTP step: 6-digit input, recovery toggle, Back link
+- New route `POST /api/admin/auth/mfa/verify` forwards to backend, sets httpOnly cookie (maxAge 900), clears legacy cookie
+- TypeScript: no errors
