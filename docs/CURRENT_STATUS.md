@@ -7650,3 +7650,8 @@ fix: pass companyID in adminMFASetupRequired configstore resolve
 
 - Push notify webhook client now uses GuardedHTTPClient to prevent SSRF
 
+## 2026-05-20 Push notify SSRF URL validation at construction time
+
+- ValidateOutboundHTTPURL called in NewWebhookSink to reject private IPs at startup
+- AllowPrivateNetwork option added for test overrides
+

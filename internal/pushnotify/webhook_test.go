@@ -31,7 +31,7 @@ func TestWebhookSinkPostsNotificationTargets(t *testing.T) {
 	}))
 	defer server.Close()
 
-	sink, err := NewWebhookSink(WebhookOptions{Endpoint: server.URL, Token: " push-token ", Client: server.Client()})
+	sink, err := NewWebhookSink(WebhookOptions{Endpoint: server.URL, Token: " push-token ", Client: server.Client(), })
 	if err != nil {
 		t.Fatalf("NewWebhookSink returned error: %v", err)
 	}
@@ -73,7 +73,7 @@ func TestWebhookSinkBoundsPayloadFields(t *testing.T) {
 	}))
 	defer server.Close()
 
-	sink, err := NewWebhookSink(WebhookOptions{Endpoint: server.URL, Client: server.Client()})
+	sink, err := NewWebhookSink(WebhookOptions{Endpoint: server.URL, Client: server.Client(), })
 	if err != nil {
 		t.Fatalf("NewWebhookSink returned error: %v", err)
 	}
@@ -137,7 +137,7 @@ func TestWebhookSinkReturnsHTTPFailure(t *testing.T) {
 	}))
 	defer server.Close()
 
-	sink, err := NewWebhookSink(WebhookOptions{Endpoint: server.URL, Client: server.Client()})
+	sink, err := NewWebhookSink(WebhookOptions{Endpoint: server.URL, Client: server.Client(), })
 	if err != nil {
 		t.Fatalf("NewWebhookSink returned error: %v", err)
 	}
@@ -158,7 +158,7 @@ func TestNewWebhookSinkRejectsTokenWithLineBreak(t *testing.T) {
 	}))
 	defer server.Close()
 
-	if _, err := NewWebhookSink(WebhookOptions{Endpoint: server.URL, Token: "push-token\nabc", Client: server.Client()}); err == nil {
+	if _, err := NewWebhookSink(WebhookOptions{Endpoint: server.URL, Token: "push-token\nabc", Client: server.Client(), }); err == nil {
 		t.Fatal("NewWebhookSink accepted token with line break")
 	}
 }
@@ -201,7 +201,7 @@ func TestWebhookSinkDrainsBodyOnErrorStatus(t *testing.T) {
 	}))
 	defer server.Close()
 
-	sink, err := NewWebhookSink(WebhookOptions{Endpoint: server.URL, Client: server.Client()})
+	sink, err := NewWebhookSink(WebhookOptions{Endpoint: server.URL, Client: server.Client(), })
 	if err != nil {
 		t.Fatalf("NewWebhookSink: %v", err)
 	}
