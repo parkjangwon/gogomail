@@ -28,6 +28,7 @@ import (
 	"github.com/gogomail/gogomail/internal/delivery"
 	"github.com/gogomail/gogomail/internal/directory"
 	"github.com/gogomail/gogomail/internal/drive"
+	"github.com/gogomail/gogomail/internal/eventstream"
 	"github.com/gogomail/gogomail/internal/maildb"
 	"github.com/gogomail/gogomail/internal/spamfilter"
 	"github.com/gogomail/gogomail/internal/storage"
@@ -43,6 +44,7 @@ type adminRouteConfig struct {
 	adminMFAStore       MFAStore
 	adminMFARequired    bool
 	configResolver      ConfigResolver
+	dlqReader           eventstream.DLQReader
 }
 
 // AdminRouteOption configures optional capabilities for RegisterAdminRoutes.
@@ -84,6 +86,12 @@ func WithAdminMFARequired(required bool) AdminRouteOption {
 
 func WithAdminConfigResolver(r ConfigResolver) AdminRouteOption {
 	return func(cfg *adminRouteConfig) { cfg.configResolver = r }
+}
+
+// WithDLQReader enables the GET /admin/v1/dlq and DELETE /admin/v1/dlq/{id}
+// endpoints for operator visibility into dead-letter streams.
+func WithDLQReader(r eventstream.DLQReader) AdminRouteOption {
+	return func(cfg *adminRouteConfig) { cfg.dlqReader = r }
 }
 
 type adminContextKey struct{}
@@ -499,7 +507,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	registerCompanyRoutes(mux, service, adminAuth)
 	registerDomainRoutes(mux, service, adminAuth)
 	registerUserAndConfigRoutes(mux, service, token, cfg, adminAuth)
-	registerOperationsRoutes(mux, service, adminAuth)
+	registerOperationsRoutes(mux, service, cfg, adminAuth)
 	registerDirectoryRoutes(mux, service, adminAuth)
 	registerStorageRoutes(mux, service, adminAuth)
 	registerUsageAndQuotaRoutes(mux, service, adminAuth)
@@ -1846,7 +1854,7 @@ func registerUserAndConfigRoutes(mux *http.ServeMux, service AdminService, token
 	}))
 }
 
-func registerOperationsRoutes(mux *http.ServeMux, service AdminService, adminAuth func(http.HandlerFunc) http.HandlerFunc) {
+func registerOperationsRoutes(mux *http.ServeMux, service AdminService, cfg adminRouteConfig, adminAuth func(http.HandlerFunc) http.HandlerFunc) {
 	mux.HandleFunc("GET /admin/v1/queue", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		if !rejectUnknownQueryKeys(w, r) {
 			return
@@ -1858,6 +1866,55 @@ func registerOperationsRoutes(mux *http.ServeMux, service AdminService, adminAut
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"queues": stats})
 	}))
+
+	if cfg.dlqReader != nil {
+		mux.HandleFunc("GET /admin/v1/dlq", adminAuth(func(w http.ResponseWriter, r *http.Request) {
+			if !rejectUnknownQueryKeys(w, r, "stream", "count") {
+				return
+			}
+			stream, ok := parseBoundedAdminQuery(w, r, "stream")
+			if !ok {
+				return
+			}
+			if stream == "" {
+				writeError(w, http.StatusBadRequest, "stream is required")
+				return
+			}
+			count, ok := parseQueryLimit(w, r)
+			if !ok {
+				return
+			}
+			entries, err := cfg.dlqReader.ListDLQ(r.Context(), stream, int64(count))
+			if err != nil {
+				writeError(w, http.StatusInternalServerError, err.Error())
+				return
+			}
+			writeJSON(w, http.StatusOK, map[string]any{"dlq_entries": entries})
+		}))
+
+		mux.HandleFunc("DELETE /admin/v1/dlq/{id}", adminAuth(func(w http.ResponseWriter, r *http.Request) {
+			if !rejectUnknownQueryKeys(w, r, "stream") {
+				return
+			}
+			id, ok := parseBoundedAdminPathValue(w, r, "id")
+			if !ok {
+				return
+			}
+			stream, ok := parseBoundedAdminQuery(w, r, "stream")
+			if !ok {
+				return
+			}
+			if stream == "" {
+				writeError(w, http.StatusBadRequest, "stream is required")
+				return
+			}
+			if err := cfg.dlqReader.DeleteDLQEntry(r.Context(), stream, id); err != nil {
+				writeError(w, http.StatusNotFound, err.Error())
+				return
+			}
+			w.WriteHeader(http.StatusNoContent)
+		}))
+	}
 
 	mux.HandleFunc("POST /admin/v1/imap/mailboxes/{id}/uid-backfill", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		if !rejectBodylessRequestPayload(w, r) {

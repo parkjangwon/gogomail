@@ -58,7 +58,7 @@ export default function WebhooksPage() {
       setShowModal(false);
       setForm({ name: '', url: '', events: [], enabled: true });
     } catch (e: unknown) {
-      setFlash([{ type: 'error', content: String(e), dismissible: true, onDismiss: () => setFlash([]) }]);
+      setFlash([{ type: 'error', content: e instanceof Error ? e.message : 'An unexpected error occurred.', dismissible: true, onDismiss: () => setFlash([]) }]);
     } finally {
       setSaving(false);
     }

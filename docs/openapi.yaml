@@ -2144,6 +2144,52 @@ paths:
           $ref: "#/components/responses/IDStatus"
         default:
           $ref: "#/components/responses/Error"
+  /dlq:
+    get:
+      operationId: listAdminDLQEntries
+      summary: Admin list dead-letter queue entries from a named stream
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      parameters:
+        - name: stream
+          in: query
+          required: true
+          schema:
+            type: string
+            maxLength: 1024
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          $ref: "#/components/responses/DLQEntries"
+        default:
+          $ref: "#/components/responses/Error"
+  /dlq/{id}:
+    delete:
+      operationId: deleteAdminDLQEntry
+      summary: Admin delete a dead-letter queue entry by ID
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+        - name: stream
+          in: query
+          required: true
+          schema:
+            type: string
+            maxLength: 1024
+      responses:
+        "204":
+          description: Entry deleted
+        default:
+          $ref: "#/components/responses/Error"
   /queue:
     get:
       operationId: getAdminQueueStats
@@ -10408,6 +10454,12 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/PushDeviceEnvelope"
+    DLQEntries:
+      description: Dead-letter queue entries envelope
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/DLQEntriesEnvelope"
     QueueStats:
       description: Queue stats envelope
       content:
@@ -13291,6 +13343,43 @@ components:
         next_available_at:
           type: string
           format: date-time
+    DLQEntry:
+      type: object
+      required: [id, original_stream, group, consumer, original_id, outbox_id, partition_key, error, deliveries, dead_lettered_at]
+      properties:
+        id:
+          type: string
+        original_stream:
+          type: string
+        group:
+          type: string
+        consumer:
+          type: string
+        original_id:
+          type: string
+        outbox_id:
+          type: string
+        partition_key:
+          type: string
+        payload:
+          type: object
+          additionalProperties: true
+        error:
+          type: string
+        deliveries:
+          type: integer
+          format: int64
+        dead_lettered_at:
+          type: string
+          format: date-time
+    DLQEntriesEnvelope:
+      type: object
+      required: [dlq_entries]
+      properties:
+        dlq_entries:
+          type: array
+          items:
+            $ref: "#/components/schemas/DLQEntry"
     QueueStatsEnvelope:
       type: object
       required: [queues]

@@ -7633,3 +7633,11 @@ fix: pass companyID in adminMFASetupRequired configstore resolve
 - ListCompanies now returns ([]CompanyView, bool, error); ProbeMore fetches limit+1 to detect next page
 - Admin API companies list response includes has_more field
 
+## 2026-05-20 DLQ visibility and frontend fixes
+
+- Added eventstream.DLQReader interface and RedisDLQReader implementation
+- Admin API: GET /admin/v1/dlq and DELETE /admin/v1/dlq/{id} endpoints
+- OpenAPI spec updated with DLQ schemas
+- Frontend: replaced String(e) with friendly error messages in 5 pages
+- Frontend: added formatDateTime/formatDate utility, applied to 7 timestamp call sites
+

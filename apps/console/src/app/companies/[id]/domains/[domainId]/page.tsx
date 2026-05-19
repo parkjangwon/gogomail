@@ -26,6 +26,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useI18n } from '@/app/i18n-provider';
 import { buildMailFlowLogsQuery } from '@/lib/mailFlowLogs';
+import { formatDateTime, formatDate } from '@/lib/format';
 
 interface DomainDetail {
   id: string;
@@ -448,7 +449,7 @@ export default function DomainDetailPage() {
                           { label: t('pages.domain_detail.status'), value: <Badge color={domain.status === 'active' ? 'green' : 'grey'}>{domain.status}</Badge> },
                           { label: t('pages.domain_detail.dns'), value: <Badge color={dnsColor}>{domain.last_dns_check_status || t('pages.domain_detail.unchecked')}</Badge> },
                           { label: t('pages.domain_detail.created'), value: new Date(domain.created_at).toLocaleDateString() },
-                          ...(domain.last_dns_checked_at ? [{ label: t('pages.domain_detail.last_checked'), value: new Date(domain.last_dns_checked_at).toLocaleString() }] : []),
+                          ...(domain.last_dns_checked_at ? [{ label: t('pages.domain_detail.last_checked'), value: formatDateTime(domain.last_dns_checked_at) }] : []),
                         ]}
                       />
                     </Container>
@@ -487,7 +488,7 @@ export default function DomainDetailPage() {
                       </Box>
                       {domain.last_dns_checked_at ? (
                         <Box color="text-body-secondary" fontSize="body-s">
-                          {t('pages.domain_detail.last_checked')}: {new Date(domain.last_dns_checked_at).toLocaleString()}
+                          {t('pages.domain_detail.last_checked')}: {formatDateTime(domain.last_dns_checked_at)}
                         </Box>
                       ) : null}
                     </SpaceBetween>
@@ -520,7 +521,7 @@ export default function DomainDetailPage() {
                         : `${(u.quota_used / 1073741824).toFixed(1)} GB`,
                       width: '20%',
                     },
-                    { header: t('pages.domain_detail.joined'), cell: (u: User) => new Date(u.created_at).toLocaleDateString(), width: '10%' },
+                    { header: t('pages.domain_detail.joined'), cell: (u: User) => formatDate(u.created_at), width: '10%' },
                   ]}
                   items={users}
                   header={

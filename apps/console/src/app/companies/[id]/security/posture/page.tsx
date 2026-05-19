@@ -37,7 +37,7 @@ export default function SecurityPosturePage() {
     fetch(`/api/admin/companies/${companyId}/security/posture`, { credentials: 'include' })
       .then(r => r.ok ? r.json() : Promise.reject(r.statusText))
       .then(setData)
-      .catch(e => setError(String(e)))
+      .catch(e => setError(e instanceof Error ? e.message : 'Failed to load security posture.'))
       .finally(() => setLoading(false));
   }, [companyId]);
 

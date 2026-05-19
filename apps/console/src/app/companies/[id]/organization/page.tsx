@@ -16,6 +16,7 @@ import {
 } from '@cloudscape-design/components';
 import { useState, useEffect } from 'react';
 import { useI18n } from '@/app/i18n-provider';
+import { formatDateTime } from '@/lib/format';
 import { useConsoleCapabilities } from '@/hooks/useConsoleCapabilities';
 import { useOrganizationSettings, useUpdateOrganizationSettings } from '@/hooks';
 
@@ -113,7 +114,7 @@ export default function OrganizationSettingsPage() {
                     { label: t('pages.organization_page.max_users'), value: settings.max_users },
                     { label: t('pages.organization_page.max_domains'), value: settings.max_domains },
                     { label: t('pages.organization_page.integration_status_header'), value: <Badge color={integrationStatus === 'available' ? 'green' : integrationStatus === 'placeholder' ? 'blue' : 'grey'}>{integrationStatus}</Badge> },
-                    { label: t('pages.organization_page.created'), value: new Date(settings.created_at ?? Date.now()).toLocaleString() },
+                    { label: t('pages.organization_page.created'), value: formatDateTime(settings.created_at) },
                   ]}
                 />
               </Container>
