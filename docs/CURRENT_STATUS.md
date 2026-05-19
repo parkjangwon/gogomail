@@ -7576,3 +7576,4 @@ Next focus areas:
 1. **Bulk Isolation** (6.1% impact vs 5% target): Per-domain rate limiting not effective enough. Built in Phase 2-3 but needs tuning.
 2. **Concurrent Connections** (2.2% message loss): Race condition under 100+ simultaneous connections. Likely in recorder/storage synchronization.
 3. **Concurrency Latency** (p99=100.68ms): p99 slightly exceeds 100ms target under peak concurrency, acceptable for fairness under load.
+fix: pass companyID in adminMFASetupRequired configstore resolve
