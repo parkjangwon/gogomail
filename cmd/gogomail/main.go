@@ -20,6 +20,11 @@ func main() {
 }
 
 func run(args []string, stdout io.Writer, stderr io.Writer, runApp func(context.Context, app.Mode, config.Config, *slog.Logger) error) int {
+	// Intercept "admin" subcommand before flag parsing.
+	if len(args) > 0 && args[0] == "admin" {
+		return runAdminCommand(args[1:], stdout, stderr)
+	}
+
 	flags := flag.NewFlagSet("gogomail", flag.ContinueOnError)
 	flags.SetOutput(stderr)
 	modeRaw := flags.String("mode", string(app.ModeAllInOne), "component mode to run")
