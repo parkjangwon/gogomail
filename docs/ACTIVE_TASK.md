@@ -2,6 +2,10 @@
 
 ## Current Status Summary
 
+**Console Admin MFA Implementation** 🔄 IN PROGRESS
+- Task 1 ✅ DONE: Added `AdminMFARequired` config field (env: `GOGOMAIL_ADMIN_MFA_REQUIRED`)
+- Tasks 2-9: Frontend/backend MFA enrollment, verification, CLI break-glass, security settings UI
+
 **TASK-089: Protocol Gateway Hardening** ✅ COMPLETE (5987 tests)
 - All 3 phases implemented and verified
 - Buffer pooling, metrics export, health checks, graceful degradation

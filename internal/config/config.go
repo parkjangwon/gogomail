@@ -251,6 +251,7 @@ type Config struct {
 	DKIMEnabled                         bool
 	AdminToken                          string
 	AuthJWTSecret                       string
+	AdminMFARequired                    bool
 	PublicBaseURL                       string
 
 	// Auto backpressure
@@ -530,6 +531,7 @@ func Load() Config {
 		DKIMEnabled:                         boolEnvOrDefault("GOGOMAIL_DKIM_ENABLED", false),
 		AdminToken:                          envOrDefault("GOGOMAIL_ADMIN_TOKEN", ""),
 		AuthJWTSecret:                       envOrDefault("GOGOMAIL_AUTH_JWT_SECRET", ""),
+		AdminMFARequired:                    boolEnvOrDefault("GOGOMAIL_ADMIN_MFA_REQUIRED", false),
 		PublicBaseURL:                       envOrDefault("GOGOMAIL_PUBLIC_BASE_URL", "http://localhost:8080"),
 
 		AutoBackpressureEnabled:        boolEnvOrDefault("GOGOMAIL_AUTO_BACKPRESSURE_ENABLED", false),
