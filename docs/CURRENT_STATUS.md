@@ -1,6 +1,13 @@
 # gogomail current status
 
-Last updated: 2026-05-19 (Admin MFA endpoints wired into run.go)
+Last updated: 2026-05-19 (CLI break-glass MFA reset command added)
+
+## CLI Break-Glass MFA Reset (2026-05-19)
+- `gogomail admin mfa-reset --email <email>` command added for locked-out admin recovery.
+- Connects directly to database using `DATABASE_URL` or constructed `POSTGRES_*` env vars.
+- Disables MFA for specified email without HTTP server startup.
+- Prints `[<RFC3339>] MFA reset successful for <email>` on success (exit 0).
+- Exits 1 with error message if user not found or DB fails; exits 2 if `--email` flag missing.
 
 ## Admin MFA Endpoints (2026-05-19)
 - `adminRouteConfig` extended with `adminMFAStore MFAStore`, `adminMFARequired bool`, `configResolver configstore.ConfigStore` and corresponding option functions `WithAdminMFAStore`, `WithAdminMFARequired`, `WithAdminConfigResolver`.
