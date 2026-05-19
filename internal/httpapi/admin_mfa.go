@@ -209,7 +209,7 @@ func adminMFASetupRequired(ctx context.Context, role string, user maildb.Authent
 	if cfg.configResolver == nil {
 		return false
 	}
-	raw, err := cfg.configResolver.Resolve(ctx, user.UserID, user.DomainID, "", "auth_policy")
+	raw, err := cfg.configResolver.Resolve(ctx, user.UserID, user.DomainID, user.CompanyID, "auth_policy")
 	if err != nil {
 		return false
 	}
