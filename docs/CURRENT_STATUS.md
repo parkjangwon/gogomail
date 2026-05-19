@@ -7641,3 +7641,8 @@ fix: pass companyID in adminMFASetupRequired configstore resolve
 - Frontend: replaced String(e) with friendly error messages in 5 pages
 - Frontend: added formatDateTime/formatDate utility, applied to 7 timestamp call sites
 
+## 2026-05-20 DMARC default and accessibility
+
+- SMTPDMARCEnforcement default changed from 'monitor' to 'reject'
+- Added aria-label to native file input in ImportUsersModal
+

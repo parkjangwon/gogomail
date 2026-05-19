@@ -60,6 +60,7 @@ export function ImportUsersModal({
               ref={fileInputRef}
               type="file"
               accept=".csv"
+              aria-label={t('pages.users_page.users_bulk.drop_or_click')}
               style={{ display: 'block' }}
               onChange={(e) => {
                 const file = e.target.files?.[0];
