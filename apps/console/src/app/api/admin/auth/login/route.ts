@@ -53,13 +53,17 @@ export async function POST(req: NextRequest) {
     ? Math.max(60, Math.floor((new Date(data.expires_at).getTime() - Date.now()) / 1000))
     : 86400;
 
+  if (!data.access_token) {
+    return NextResponse.json({ error: 'No access token in response' }, { status: 502 });
+  }
+
   const responseBody: Record<string, unknown> = { ok: true };
   if (data.mfa_setup_required) responseBody.mfa_setup_required = true;
 
   const response = NextResponse.json(responseBody, {
     headers: { 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' },
   });
-  response.cookies.set(ADMIN_ACCESS_TOKEN_COOKIE, data.access_token!, {
+  response.cookies.set(ADMIN_ACCESS_TOKEN_COOKIE, data.access_token, {
     httpOnly: true,
     secure: IS_PROD,
     sameSite: 'strict',

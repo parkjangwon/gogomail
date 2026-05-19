@@ -30,7 +30,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(err, { status: upstream.status });
   }
 
-  const data = await upstream.json() as { access_token: string; refresh_token?: string };
+  const data = await upstream.json() as { access_token?: string; refresh_token?: string };
+
+  if (!data.access_token) {
+    return NextResponse.json({ error: 'No access token in response' }, { status: 502 });
+  }
 
   const response = NextResponse.json(
     { ok: true },
