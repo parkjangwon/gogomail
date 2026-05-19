@@ -7614,3 +7614,6 @@ fix: pass companyID in adminMFASetupRequired configstore resolve
 - Normal login (no MFA flag) completely unaffected
 - All existing auth/redirect logic preserved unchanged
 - TypeScript: no errors
+
+- Fixed AutoBackpressureManager leader election for multi-instance safety
+- Changed DeliveryThrottleBackend and DeliveryDomainBackoffBackend defaults to redis

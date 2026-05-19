@@ -2,12 +2,29 @@ package backpressure
 
 import (
 	"context"
+	"fmt"
+	"os"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/redis/go-redis/v9"
 )
+
+// leaderElectScript atomically acquires or renews the leader lock.
+// Returns 1 if the caller holds the lock after execution, 0 otherwise.
+var leaderElectScript = redis.NewScript(`
+local current = redis.call("GET", KEYS[1])
+if current == ARGV[1] then
+    redis.call("PEXPIRE", KEYS[1], tonumber(ARGV[2]))
+    return 1
+elseif current == false then
+    if redis.call("SET", KEYS[1], ARGV[1], "NX", "PX", ARGV[2]) then
+        return 1
+    end
+end
+return 0
+`)
 
 // AutoBackpressureConfig configures the automatic backpressure manager.
 type AutoBackpressureConfig struct {
@@ -23,6 +40,13 @@ type AutoBackpressureConfig struct {
 	QueueCriticalDepth int64
 	// MonitorStreams is the list of Redis Streams to measure depth.
 	MonitorStreams []string
+	// InstanceID uniquely identifies this process for leader election.
+	// Defaults to hostname. Set explicitly when multiple processes share a host.
+	InstanceID string
+	// LeaderLockTTL is how long the leader lock is held between renewals.
+	// Defaults to 3× CheckInterval. Another instance takes over after this
+	// elapses without renewal, allowing failover when a leader crashes.
+	LeaderLockTTL time.Duration
 }
 
 func (c *AutoBackpressureConfig) setDefaults() {
@@ -47,19 +71,42 @@ func (c *AutoBackpressureConfig) setDefaults() {
 	if c.QueueCriticalDepth <= 0 {
 		c.QueueCriticalDepth = 100_000
 	}
+	if c.InstanceID == "" {
+		if h, err := os.Hostname(); err == nil {
+			c.InstanceID = fmt.Sprintf("auto-bp:%s", h)
+		} else {
+			c.InstanceID = fmt.Sprintf("auto-bp:%d", time.Now().UnixNano())
+		}
+	}
+	if c.LeaderLockTTL <= 0 {
+		c.LeaderLockTTL = 3 * c.CheckInterval
+	}
 }
 
 // AutoBackpressureManager monitors Redis memory and stream queue depth,
 // and automatically adjusts the backpressure level.
+//
+// When multiple instances run concurrently they use Redis leader election:
+// only the current leader writes the backpressure state. Other instances
+// observe the lock and take over automatically if the leader crashes.
 type AutoBackpressureManager struct {
 	client *redis.Client
 	bp     *RedisBackpressure
 	cfg    AutoBackpressureConfig
 
+	leaderKey  string
+	instanceID string
+	lockTTL    time.Duration
+
 	mu           sync.RWMutex
 	currentLevel string
 	stopCh       chan struct{}
 	done         chan struct{}
+}
+
+// leaderKeyFor derives the leader-election Redis key from the backpressure state key.
+func leaderKeyFor(stateKey string) string {
+	return stateKey + ":auto-leader"
 }
 
 // NewAutoBackpressureManager creates a new AutoBackpressureManager.
@@ -69,6 +116,9 @@ func NewAutoBackpressureManager(client *redis.Client, bp *RedisBackpressure, cfg
 		client:       client,
 		bp:           bp,
 		cfg:          cfg,
+		leaderKey:    leaderKeyFor(bp.key),
+		instanceID:   cfg.InstanceID,
+		lockTTL:      cfg.LeaderLockTTL,
 		currentLevel: "normal",
 		stopCh:       make(chan struct{}),
 		done:         make(chan struct{}),
@@ -110,7 +160,20 @@ func (m *AutoBackpressureManager) run(ctx context.Context) {
 	}
 }
 
+func (m *AutoBackpressureManager) isLeader(ctx context.Context) bool {
+	ttlMs := m.lockTTL.Milliseconds()
+	result, err := leaderElectScript.Run(ctx, m.client,
+		[]string{m.leaderKey},
+		m.instanceID,
+		ttlMs,
+	).Int64()
+	return err == nil && result == 1
+}
+
 func (m *AutoBackpressureManager) check(ctx context.Context) {
+	if !m.isLeader(ctx) {
+		return
+	}
 	level := m.computeLevel(ctx)
 	m.mu.Lock()
 	changed := level != m.currentLevel

@@ -263,6 +263,7 @@ type Config struct {
 	AutoBackpressureQueueWarn      int64
 	AutoBackpressureQueueDanger    int64
 	AutoBackpressureQueueCritical  int64
+	AutoBackpressureInstanceID     string
 
 	// Bulk sender limiter (Submission MTA)
 	SubmissionBulkSenderEnabled bool
@@ -518,12 +519,12 @@ func Load() Config {
 		DeliveryRetryJitterRatio:            floatEnvOrDefault("GOGOMAIL_DELIVERY_RETRY_JITTER_RATIO", 0.20),
 		DeliveryRetryMaxDelay:               durationEnvOrDefault("GOGOMAIL_DELIVERY_RETRY_MAX_DELAY", 24*time.Hour),
 		DeliveryThrottleEnabled:             boolEnvOrDefault("GOGOMAIL_DELIVERY_THROTTLE_ENABLED", false),
-		DeliveryThrottleBackend:             envOrDefault("GOGOMAIL_DELIVERY_THROTTLE_BACKEND", "local"),
+		DeliveryThrottleBackend:             envOrDefault("GOGOMAIL_DELIVERY_THROTTLE_BACKEND", "redis"),
 		DeliveryDefaultConcurrency:          intEnvOrDefault("GOGOMAIL_DELIVERY_DEFAULT_CONCURRENCY", 0),
 		DeliveryFarmConcurrency:             intMapEnvOrDefault("GOGOMAIL_DELIVERY_FARM_CONCURRENCY", nil),
 		DeliveryDomainConcurrency:           intMapEnvOrDefault("GOGOMAIL_DELIVERY_DOMAIN_CONCURRENCY", nil),
 		DeliveryDomainBackoffEnabled:        boolEnvOrDefault("GOGOMAIL_DELIVERY_DOMAIN_BACKOFF_ENABLED", false),
-		DeliveryDomainBackoffBackend:        envOrDefault("GOGOMAIL_DELIVERY_DOMAIN_BACKOFF_BACKEND", "local"),
+		DeliveryDomainBackoffBackend:        envOrDefault("GOGOMAIL_DELIVERY_DOMAIN_BACKOFF_BACKEND", "redis"),
 		DeliveryDomainBackoffScope:          envOrDefault("GOGOMAIL_DELIVERY_DOMAIN_BACKOFF_SCOPE", "domain"),
 		DeliveryDomainBackoffBaseDelay:      durationEnvOrDefault("GOGOMAIL_DELIVERY_DOMAIN_BACKOFF_BASE_DELAY", time.Minute),
 		DeliveryDomainBackoffMaxDelay:       durationEnvOrDefault("GOGOMAIL_DELIVERY_DOMAIN_BACKOFF_MAX_DELAY", time.Hour),
@@ -541,6 +542,7 @@ func Load() Config {
 		AutoBackpressureMemCritical:    floatEnvOrDefault("GOGOMAIL_AUTO_BACKPRESSURE_MEM_CRITICAL", 0.95),
 		AutoBackpressureQueueWarn:      int64EnvOrDefault("GOGOMAIL_AUTO_BACKPRESSURE_QUEUE_WARN", 10000),
 		AutoBackpressureQueueDanger:    int64EnvOrDefault("GOGOMAIL_AUTO_BACKPRESSURE_QUEUE_DANGER", 50000),
+		AutoBackpressureInstanceID:     os.Getenv("GOGOMAIL_AUTO_BACKPRESSURE_INSTANCE_ID"),
 		AutoBackpressureQueueCritical:  int64EnvOrDefault("GOGOMAIL_AUTO_BACKPRESSURE_QUEUE_CRITICAL", 100000),
 
 		SubmissionBulkSenderEnabled: boolEnvOrDefault("GOGOMAIL_SUBMISSION_BULK_SENDER_ENABLED", false),
