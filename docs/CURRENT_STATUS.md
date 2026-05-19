@@ -1,6 +1,12 @@
 # gogomail current status
 
-Last updated: 2026-05-19 (MFA enforcement and QR code fixes)
+Last updated: 2026-05-19 (Admin MFA endpoints and login challenge)
+
+## Admin MFA Endpoints (2026-05-19)
+- `adminRouteConfig` extended with `adminMFAStore MFAStore`, `adminMFARequired bool`, `configResolver configstore.ConfigStore` and corresponding option functions `WithAdminMFAStore`, `WithAdminMFARequired`, `WithAdminConfigResolver`.
+- `handleAdminLogin` now accepts `cfg adminRouteConfig` and performs an MFA enrollment check when `adminMFAStore` is wired: enrolled users receive `{mfa_required: true, pending_token}`, users required-but-not-enrolled receive a normal token with `mfa_setup_required: true`.
+- Bootstrap `admin@system` account bypasses all MFA checks.
+- Five new admin MFA endpoints registered under `/admin/v1/auth/mfa/`: `verify`, `status`, `setup`, `setup/confirm`, `DELETE` (disable).
 
 ## MFA Fixes (2026-05-19)
 - `checkMFARequired` now checks user enrollment before consulting domain policy; users who voluntarily enroll in TOTP are always challenged at login regardless of whether a domain-wide `mfa_required` policy exists.

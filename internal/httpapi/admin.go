@@ -36,6 +36,9 @@ type adminRouteConfig struct {
 	configNotifier      configstore.Notifier
 	tokenMgr            *auth.TokenManager
 	environment         string
+	adminMFAStore       MFAStore
+	adminMFARequired    bool
+	configResolver      configstore.ConfigStore
 }
 
 // AdminRouteOption configures optional capabilities for RegisterAdminRoutes.
@@ -65,6 +68,18 @@ func WithTokenManager(tm *auth.TokenManager) AdminRouteOption {
 
 func WithEnvironment(environment string) AdminRouteOption {
 	return func(cfg *adminRouteConfig) { cfg.environment = strings.TrimSpace(environment) }
+}
+
+func WithAdminMFAStore(s MFAStore) AdminRouteOption {
+	return func(cfg *adminRouteConfig) { cfg.adminMFAStore = s }
+}
+
+func WithAdminMFARequired(required bool) AdminRouteOption {
+	return func(cfg *adminRouteConfig) { cfg.adminMFARequired = required }
+}
+
+func WithAdminConfigResolver(r configstore.ConfigStore) AdminRouteOption {
+	return func(cfg *adminRouteConfig) { cfg.configResolver = r }
 }
 
 type adminContextKey struct{}
@@ -383,6 +398,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	registerUsageAndQuotaRoutes(mux, service, adminAuth)
 	registerDeliveryAndMailRoutes(mux, service, adminAuth)
 	registerAdminUtilityRoutes(mux, service, cfg, adminAuth)
+	registerAdminMFARoutes(mux, cfg, adminAuth)
 }
 
 func registerCompanyRoutes(mux *http.ServeMux, service AdminService, adminAuth func(http.HandlerFunc) http.HandlerFunc) {
@@ -4312,7 +4328,7 @@ func registerAdminUtilityRoutes(mux *http.ServeMux, service AdminService, cfg ad
 	}))
 
 	mux.HandleFunc("POST /admin/v1/auth/login", func(w http.ResponseWriter, r *http.Request) {
-		handleAdminLogin(w, r, service, cfg.tokenMgr, cfg.environment)
+		handleAdminLogin(w, r, service, cfg)
 	})
 
 	mux.HandleFunc("POST /admin/v1/auth/refresh", func(w http.ResponseWriter, r *http.Request) {
@@ -5121,7 +5137,7 @@ const (
 	adminRefreshTokenTTL = 30 * 24 * time.Hour
 )
 
-func handleAdminLogin(w http.ResponseWriter, r *http.Request, service AdminService, tokenMgr *auth.TokenManager, environment string) {
+func handleAdminLogin(w http.ResponseWriter, r *http.Request, service AdminService, cfg adminRouteConfig) {
 	defer r.Body.Close()
 
 	if r.Method != "POST" {
@@ -5145,11 +5161,11 @@ func handleAdminLogin(w http.ResponseWriter, r *http.Request, service AdminServi
 	}
 
 	issueToken := func(claims auth.Claims) {
-		if tokenMgr == nil {
+		if cfg.tokenMgr == nil {
 			writeError(w, http.StatusInternalServerError, "admin jwt token manager is not configured")
 			return
 		}
-		accessToken, refreshToken, err := signAdminSessionTokens(tokenMgr, claims)
+		accessToken, refreshToken, err := signAdminSessionTokens(cfg.tokenMgr, claims)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, "failed to issue token")
 			return
@@ -5165,8 +5181,8 @@ func handleAdminLogin(w http.ResponseWriter, r *http.Request, service AdminServi
 		})
 	}
 
-	// Bootstrap system admin (no DB user required)
-	if req.Email == "admin@system" && req.Password == "admin1234" && !strings.EqualFold(strings.TrimSpace(environment), "production") {
+	// Bootstrap system admin (no DB user required) — bypasses MFA entirely.
+	if req.Email == "admin@system" && req.Password == "admin1234" && !strings.EqualFold(strings.TrimSpace(cfg.environment), "production") {
 		issueToken(auth.Claims{
 			UserID:    "system-admin",
 			DomainID:  "system",
@@ -5198,6 +5214,66 @@ func handleAdminLogin(w http.ResponseWriter, r *http.Request, service AdminServi
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to resolve company")
 		return
+	}
+
+	// MFA check — only when adminMFAStore is wired in.
+	if cfg.adminMFAStore != nil {
+		mfaStatus, err := cfg.adminMFAStore.GetUserMFAStatus(r.Context(), authedUser.UserID)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "failed to check mfa status")
+			return
+		}
+		if mfaStatus.Enabled {
+			pendingClaims := auth.Claims{
+				UserID:         authedUser.UserID,
+				DomainID:       authedUser.DomainID,
+				CompanyID:      domain.CompanyID,
+				Role:           userView.Role,
+				SessionVersion: authedUser.SessionVersion,
+				TokenType:      "mfa_pending",
+			}
+			pendingToken, err := cfg.tokenMgr.Sign(pendingClaims, mfaPendingTTL)
+			if err != nil {
+				writeError(w, http.StatusInternalServerError, "failed to issue pending token")
+				return
+			}
+			writeJSON(w, http.StatusOK, map[string]any{
+				"mfa_required":  true,
+				"pending_token": pendingToken,
+			})
+			return
+		}
+
+		setupRequired := adminMFASetupRequired(r.Context(), userView.Role, authedUser, cfg)
+		if setupRequired {
+			fullClaims := auth.Claims{
+				UserID:         authedUser.UserID,
+				DomainID:       authedUser.DomainID,
+				CompanyID:      domain.CompanyID,
+				Role:           userView.Role,
+				SessionVersion: authedUser.SessionVersion,
+			}
+			if cfg.tokenMgr == nil {
+				writeError(w, http.StatusInternalServerError, "admin jwt token manager is not configured")
+				return
+			}
+			accessToken, refreshToken, err := signAdminSessionTokens(cfg.tokenMgr, fullClaims)
+			if err != nil {
+				writeError(w, http.StatusInternalServerError, "failed to issue token")
+				return
+			}
+			writeJSON(w, http.StatusOK, map[string]any{
+				"access_token":       accessToken,
+				"refresh_token":      refreshToken,
+				"mfa_setup_required": true,
+				"user": map[string]any{
+					"id":         fullClaims.UserID,
+					"role":       fullClaims.Role,
+					"company_id": fullClaims.CompanyID,
+				},
+			})
+			return
+		}
 	}
 
 	issueToken(auth.Claims{
