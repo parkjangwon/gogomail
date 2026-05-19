@@ -133,6 +133,8 @@ type ReceiverOptions struct {
 	IDGenerator        IDGenerator
 	Clock              func() time.Time
 	MaxMessageBytes    int64
+	BulkSenderLimiter  *BulkSenderLimiter // nil disables bulk sender rate limiting
+	LatencyTracker     *LatencyTracker    // nil disables latency tracking
 }
 
 type Receiver struct {
@@ -159,6 +161,8 @@ type Receiver struct {
 	policy             ReceivePolicy
 	idGenerator        IDGenerator
 	clock              func() time.Time
+	bulkSenderLimiter  *BulkSenderLimiter
+	latencyTracker     *LatencyTracker
 }
 
 func NewReceiver(opts ReceiverOptions) *Receiver {
@@ -190,6 +194,8 @@ func NewReceiver(opts ReceiverOptions) *Receiver {
 		policy:             normalizePolicy(opts.Policy, opts.MaxMessageBytes),
 		idGenerator:        idGenerator,
 		clock:              clockOrDefault(opts.Clock),
+		bulkSenderLimiter:  opts.BulkSenderLimiter,
+		latencyTracker:     opts.LatencyTracker,
 	}
 }
 
@@ -204,15 +210,16 @@ func (r *Receiver) NewSession(conn *gosmtp.Conn) (gosmtp.Session, error) {
 }
 
 type session struct {
-	receiver      *Receiver
-	from          string
-	mailStarted   bool
-	recipients    []Mailbox
-	dsn           DSNOptions
-	smtpUTF8      bool
-	remoteAddr    string
-	authenticated bool
-	domainPolicy  *InboundDomainPolicy
+	receiver          *Receiver
+	from              string
+	mailStarted       bool
+	recipients        []Mailbox
+	dsn               DSNOptions
+	smtpUTF8          bool
+	remoteAddr        string
+	authenticated     bool
+	authenticatedUser string // set after successful PLAIN auth
+	domainPolicy      *InboundDomainPolicy
 }
 
 func (s *session) Mail(from string, opts *gosmtp.MailOptions) (err error) {
@@ -229,6 +236,11 @@ func (s *session) Mail(from string, opts *gosmtp.MailOptions) (err error) {
 	}
 	if err := s.authorizeRelay(); err != nil {
 		return err
+	}
+	if s.receiver.bulkSenderLimiter != nil && s.authenticatedUser != "" {
+		if !s.receiver.bulkSenderLimiter.AllowSubmission(s.authenticatedUser, s.authenticatedUser) {
+			return smtpRateLimited(from)
+		}
 	}
 	s.clearEnvelope()
 	if err := validateMailOptions(opts, extensionSupport{
@@ -355,6 +367,10 @@ func (s *session) Data(r io.Reader) (err error) {
 	recipients = mailboxAddresses(s.recipients)
 	defer s.Reset()
 
+	// Start latency tracing if enabled (messageID not yet known, use placeholder)
+	dataStart := time.Now()
+	_ = dataStart
+
 	accepted, err := s.receiver.backpressure.Accept(context.Background())
 	if err != nil {
 		return fmt.Errorf("check backpressure: %w", err)
@@ -377,9 +393,23 @@ func (s *session) Data(r io.Reader) (err error) {
 		return err
 	}
 	observedSize = size
+	spooledAt := time.Now()
 	messageID := s.receiver.idGenerator()
 	receivedAt := s.receiver.clock()
 	headerBuffer := NewHeaderBuffer()
+
+	// Start latency tracing after spooling.
+	var trace *MessageTracing
+	if s.receiver.latencyTracker != nil {
+		trace = s.receiver.latencyTracker.StartTracingMessage(messageID, s.from, mailboxAddresses(s.recipients))
+		trace.RecordPhaseLatency("spooled", spooledAt.Sub(dataStart))
+		defer func() {
+			if trace != nil {
+				trace.RecordCompletion()
+				s.receiver.latencyTracker.StoreTrace(trace)
+			}
+		}()
+	}
 
 	if s.receiver.addReceivedHeader {
 		headerBuffer.AddPrepend(BuildReceivedHeader(s.remoteAddr, s.receiver.receivedDomain, messageID, receivedAt))
@@ -407,6 +437,9 @@ func (s *session) Data(r io.Reader) (err error) {
 	if parsed.MessageID == "" {
 		parsed.MessageID = message.FallbackMessageID(s.from, mailboxAddresses(s.recipients), parsed.Date, parsed.Subject)
 		headerBuffer.AddAfterTrace("Message-ID: " + parsed.MessageID + "\r\n")
+	}
+	if trace != nil {
+		trace.RecordPhaseLatency("parsed", time.Since(spooledAt))
 	}
 	if err := s.emit(context.Background(), Event{
 		Stage:        StageParsed,
@@ -487,8 +520,12 @@ func (s *session) Data(r io.Reader) (err error) {
 		if _, err := spooled.Seek(0, io.SeekStart); err != nil {
 			return fmt.Errorf("rewind spooled message for store: %w", err)
 		}
+		storeStart := time.Now()
 		if err := s.receiver.store.Put(context.Background(), path, spooled); err != nil {
 			return fmt.Errorf("store message for %s: %w", recipient.Address, err)
+		}
+		if trace != nil {
+			trace.RecordPhaseLatency("stored", time.Since(storeStart))
 		}
 		if err := s.emit(context.Background(), Event{
 			Stage:          StageStored,
@@ -521,6 +558,9 @@ func (s *session) Data(r io.Reader) (err error) {
 				return smtpMailboxFull(recipient.Address)
 			}
 			return fmt.Errorf("record message for %s: %w", recipient.Address, err)
+		}
+		if trace != nil {
+			trace.RecordPhaseLatency("recorded", time.Since(storeStart))
 		}
 		if err := s.emit(context.Background(), Event{
 			Stage:          StageRecorded,
@@ -759,6 +799,7 @@ func (s *session) Auth(mech string) (sasl.Server, error) {
 			return gosmtp.ErrAuthFailed
 		}
 		s.authenticated = true
+		s.authenticatedUser = username
 		if err := s.emit(context.Background(), Event{
 			Stage:      StageAuthenticated,
 			RemoteAddr: s.remoteAddr,

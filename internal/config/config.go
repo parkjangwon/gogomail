@@ -252,6 +252,37 @@ type Config struct {
 	AdminToken                          string
 	AuthJWTSecret                       string
 	PublicBaseURL                       string
+
+	// Auto backpressure
+	AutoBackpressureEnabled        bool
+	AutoBackpressureCheckInterval  time.Duration
+	AutoBackpressureMemWarn        float64
+	AutoBackpressureMemDanger      float64
+	AutoBackpressureMemCritical    float64
+	AutoBackpressureQueueWarn      int64
+	AutoBackpressureQueueDanger    int64
+	AutoBackpressureQueueCritical  int64
+
+	// Bulk sender limiter (Submission MTA)
+	SubmissionBulkSenderEnabled bool
+	SubmissionBulkSenderRate    int
+	SubmissionBulkSenderRole    string
+
+	// Delivery circuit breaker
+	DeliveryCircuitBreakerEnabled   bool
+	DeliveryCircuitBreakerMax       int
+	DeliveryCircuitBreakerThreshold int
+	DeliveryCircuitBreakerTimeout   time.Duration
+
+	// SMTP latency tracking
+	SMTPLatencyTrackingEnabled bool
+	SMTPLatencyWindowSize      int
+
+	// Farm coordinator
+	FarmCoordinatorBackend              string
+	FarmCoordinatorNodeID               string
+	FarmCoordinatorHeartbeatTTL         time.Duration
+	FarmCoordinatorJobVisibilityTimeout time.Duration
 }
 
 func Load() Config {
@@ -500,6 +531,32 @@ func Load() Config {
 		AdminToken:                          envOrDefault("GOGOMAIL_ADMIN_TOKEN", ""),
 		AuthJWTSecret:                       envOrDefault("GOGOMAIL_AUTH_JWT_SECRET", ""),
 		PublicBaseURL:                       envOrDefault("GOGOMAIL_PUBLIC_BASE_URL", "http://localhost:8080"),
+
+		AutoBackpressureEnabled:        boolEnvOrDefault("GOGOMAIL_AUTO_BACKPRESSURE_ENABLED", false),
+		AutoBackpressureCheckInterval:  durationEnvOrDefault("GOGOMAIL_AUTO_BACKPRESSURE_CHECK_INTERVAL", 5*time.Second),
+		AutoBackpressureMemWarn:        floatEnvOrDefault("GOGOMAIL_AUTO_BACKPRESSURE_MEM_WARN", 0.70),
+		AutoBackpressureMemDanger:      floatEnvOrDefault("GOGOMAIL_AUTO_BACKPRESSURE_MEM_DANGER", 0.85),
+		AutoBackpressureMemCritical:    floatEnvOrDefault("GOGOMAIL_AUTO_BACKPRESSURE_MEM_CRITICAL", 0.95),
+		AutoBackpressureQueueWarn:      int64EnvOrDefault("GOGOMAIL_AUTO_BACKPRESSURE_QUEUE_WARN", 10000),
+		AutoBackpressureQueueDanger:    int64EnvOrDefault("GOGOMAIL_AUTO_BACKPRESSURE_QUEUE_DANGER", 50000),
+		AutoBackpressureQueueCritical:  int64EnvOrDefault("GOGOMAIL_AUTO_BACKPRESSURE_QUEUE_CRITICAL", 100000),
+
+		SubmissionBulkSenderEnabled: boolEnvOrDefault("GOGOMAIL_SUBMISSION_BULK_SENDER_ENABLED", false),
+		SubmissionBulkSenderRate:    intEnvOrDefault("GOGOMAIL_SUBMISSION_BULK_SENDER_RATE", 100),
+		SubmissionBulkSenderRole:    envOrDefault("GOGOMAIL_SUBMISSION_BULK_SENDER_ROLE", "bulk_user"),
+
+		DeliveryCircuitBreakerEnabled:   boolEnvOrDefault("GOGOMAIL_DELIVERY_CIRCUIT_BREAKER_ENABLED", false),
+		DeliveryCircuitBreakerMax:       intEnvOrDefault("GOGOMAIL_DELIVERY_CIRCUIT_BREAKER_MAX", 10),
+		DeliveryCircuitBreakerThreshold: intEnvOrDefault("GOGOMAIL_DELIVERY_CIRCUIT_BREAKER_THRESHOLD", 5),
+		DeliveryCircuitBreakerTimeout:   durationEnvOrDefault("GOGOMAIL_DELIVERY_CIRCUIT_BREAKER_TIMEOUT", 30*time.Second),
+
+		SMTPLatencyTrackingEnabled: boolEnvOrDefault("GOGOMAIL_SMTP_LATENCY_TRACKING_ENABLED", false),
+		SMTPLatencyWindowSize:      intEnvOrDefault("GOGOMAIL_SMTP_LATENCY_WINDOW_SIZE", 1000),
+
+		FarmCoordinatorBackend:              envOrDefault("GOGOMAIL_FARM_COORDINATOR_BACKEND", "noop"),
+		FarmCoordinatorNodeID:               envOrDefault("GOGOMAIL_FARM_COORDINATOR_NODE_ID", ""),
+		FarmCoordinatorHeartbeatTTL:         durationEnvOrDefault("GOGOMAIL_FARM_COORDINATOR_HEARTBEAT_TTL", 30*time.Second),
+		FarmCoordinatorJobVisibilityTimeout: durationEnvOrDefault("GOGOMAIL_FARM_COORDINATOR_JOB_VISIBILITY_TIMEOUT", 5*time.Minute),
 	}
 	if cfg.EventConsumerDeadLetterStream == "" {
 		cfg.EventConsumerDeadLetterStream = cfg.EventStream + ".dead"

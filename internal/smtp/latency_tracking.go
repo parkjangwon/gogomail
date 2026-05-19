@@ -2,6 +2,7 @@ package smtpd
 
 import (
 	"context"
+	"sort"
 	"sync"
 	"time"
 )
@@ -29,7 +30,8 @@ type LatencyTracker struct {
 	mu              sync.RWMutex
 	measurements    []*MessageTracing
 	maxMeasurements int // keep sliding window of last N messages
-	percentiles     map[int]time.Duration // p50, p95, p99
+	percentiles     map[int]time.Duration // p50, p95, p99 (computed lazily on GetStats)
+	dirty           bool                  // true when measurements changed since last percentile calc
 }
 
 // NewLatencyTracker creates a new latency tracker.
@@ -78,14 +80,12 @@ func (lt *LatencyTracker) StoreTrace(trace *MessageTracing) {
 	defer lt.mu.Unlock()
 
 	lt.measurements = append(lt.measurements, trace)
+	lt.dirty = true
 
 	// Maintain sliding window
 	if len(lt.measurements) > lt.maxMeasurements {
 		lt.measurements = lt.measurements[len(lt.measurements)-lt.maxMeasurements:]
 	}
-
-	// Recalculate percentiles
-	lt.calculatePercentiles()
 }
 
 // calculatePercentiles computes p50, p95, p99 latencies.
@@ -100,14 +100,7 @@ func (lt *LatencyTracker) calculatePercentiles() {
 		latencies = append(latencies, trace.TotalLatency)
 	}
 
-	// Bubble sort for small windows
-	for i := 0; i < len(latencies); i++ {
-		for j := i + 1; j < len(latencies); j++ {
-			if latencies[j] < latencies[i] {
-				latencies[i], latencies[j] = latencies[j], latencies[i]
-			}
-		}
-	}
+	sort.Slice(latencies, func(i, j int) bool { return latencies[i] < latencies[j] })
 
 	// Calculate percentiles
 	lt.percentiles[50] = latencies[len(latencies)/2]
@@ -117,6 +110,13 @@ func (lt *LatencyTracker) calculatePercentiles() {
 
 // GetStats returns current latency statistics.
 func (lt *LatencyTracker) GetStats() map[string]interface{} {
+	lt.mu.Lock()
+	if lt.dirty {
+		lt.calculatePercentiles()
+		lt.dirty = false
+	}
+	lt.mu.Unlock()
+
 	lt.mu.RLock()
 	defer lt.mu.RUnlock()
 
