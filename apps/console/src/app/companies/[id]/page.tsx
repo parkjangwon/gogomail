@@ -75,7 +75,7 @@ export default function CompanyOverviewPage() {
     fetch(`/api/admin/domains?company_id=${company.id}&limit=100`, { credentials: 'include' })
       .then(r => r.ok ? r.json() : { domains: [] })
       .then(d => setDomains(d.domains || []))
-      .catch(() => {})
+      .catch((err) => { console.error('Failed to load domains:', err); })
       .finally(() => setLoadingDomains(false));
   }, [company]);
 
@@ -85,7 +85,7 @@ export default function CompanyOverviewPage() {
     fetch(`/api/admin/companies/${company.id}/config`, { credentials: 'include' })
       .then(r => r.ok ? r.json() : { config: [] })
       .then(d => setConfigs(d.config || d.entries || []))
-      .catch(() => setConfigs([]))
+      .catch((err) => { console.error('Failed to load configs:', err); setConfigs([]); })
       .finally(() => setLoadingConfigs(false));
   };
 

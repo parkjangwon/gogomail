@@ -58,6 +58,8 @@ export default function APIKeysPage() {
   const [showRotateModal, setShowRotateModal] = useState(false);
 
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   const [flashItems, setFlashItems] = useState<FlashItem[]>([]);
 
@@ -100,6 +102,8 @@ export default function APIKeysPage() {
   const handleDeleteKey = async (keyId: string) => {
     if (!selectedDomainId) return;
     setDeletingId(keyId);
+    setShowDeleteModal(false);
+    setPendingDeleteId(null);
     try {
       await deleteKey.mutateAsync({ domainId: selectedDomainId, keyId });
       addFlash('success', t('pages.api_keys_page.key_deleted'));
@@ -109,6 +113,11 @@ export default function APIKeysPage() {
     } finally {
       setDeletingId(null);
     }
+  };
+
+  const requestDeleteKey = (keyId: string) => {
+    setPendingDeleteId(keyId);
+    setShowDeleteModal(true);
   };
 
   const handleRotateKey = async (keyId: string) => {
@@ -230,14 +239,16 @@ export default function APIKeysPage() {
                       variant="inline-link"
                       onClick={() => handleRotateKey(item.id)}
                       loading={rotatingId === item.id}
+                      disabled={(rotatingId !== null && rotatingId !== item.id) || deletingId !== null}
                     >
                       {t('buttons.rotate')}
                     </Button>
                     <Button
                       key="delete"
                       variant="inline-link"
-                      onClick={() => handleDeleteKey(item.id)}
+                      onClick={() => requestDeleteKey(item.id)}
                       loading={deletingId === item.id}
+                      disabled={(deletingId !== null && deletingId !== item.id) || rotatingId !== null}
                     >
                       {t('common.delete')}
                     </Button>
@@ -383,6 +394,34 @@ export default function APIKeysPage() {
             </FormField>
           )}
         </div>
+      </Modal>
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        key="delete-confirm-modal"
+        onDismiss={() => { setShowDeleteModal(false); setPendingDeleteId(null); }}
+        visible={showDeleteModal}
+        footer={
+          <Box float="right">
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <Button key="cancel-delete" onClick={() => { setShowDeleteModal(false); setPendingDeleteId(null); }}>
+                {t('common.cancel')}
+              </Button>
+              <Button
+                key="confirm-delete"
+                variant="primary"
+                onClick={() => { if (pendingDeleteId) handleDeleteKey(pendingDeleteId); }}
+              >
+                {t('common.delete')}
+              </Button>
+            </div>
+          </Box>
+        }
+        header={t('common.delete')}
+      >
+        <Alert type="warning">
+          Are you sure you want to delete this API key? This action cannot be undone.
+        </Alert>
       </Modal>
     </ContentLayout>
   );
