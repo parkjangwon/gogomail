@@ -7,6 +7,17 @@
 - Buffer pooling, metrics export, health checks, graceful degradation
 - Ready for production deployment
 
+**TASK-091: Runtime Config Store Hardening** ✅ COMPLETE
+- Fixed `Resolve()` to respect `locked` flag: locked entry at any ancestor stops the walk
+- Fixed `Resolve()` to walk the company parent chain (root → ... → company → domain → user)
+- Fixed `listenNotifications()`: was calling `pg_notify` in a loop (sending, not receiving); replaced with `pgx.Conn.WaitForNotification()` via `sql.Conn.Raw()`
+- Fixed `collectSubtree()`: removed duplicate append that caused repeated entries
+- Fixed `Propagate()`: `PropagateDomains` now queries actual domain IDs under the company; `PropagateSubtree` now includes domains of all subtree companies
+- Added `parentOf map[string]string` field for O(depth) company chain resolution
+- `loadCompanyTree()` now builds both `companyTree` (parent→children) and `parentOf` (child→parent) in one pass
+- `Set()` and `Delete()` now write to `config_change_log` audit table
+- 16 unit tests covering locked resolution, tree traversal, cycle protection, fan-out, concurrency
+
 **TASK-090: Message Storage & Delivery Optimization** 🔄 IN PROGRESS
 - Phase 1 (Database Query Optimization): Partial indexes, UUID array hydration, and batch lookup improvements implemented
 - Phase 2 (Bulk Delivery Batching): Same-domain batch planning, runtime batch-size tuning, observability, and benchmarks implemented
