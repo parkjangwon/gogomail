@@ -64,6 +64,11 @@ export default function LoginPage() {
       if (result.must_change_password) {
         localStorage.setItem('webmail_must_change_password', '1');
       }
+      if (result.mfa_setup_required) {
+        localStorage.setItem('webmail_mfa_setup_required', '1');
+      } else {
+        localStorage.removeItem('webmail_mfa_setup_required');
+      }
       router.push('/mail');
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : '로그인에 실패했습니다.';

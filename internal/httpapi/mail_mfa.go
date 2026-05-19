@@ -27,59 +27,66 @@ type mfaPolicy struct {
 	MFAExemptCIDRs []string `json:"mfa_exempt_cidrs"`
 }
 
-// checkMFARequired returns (pendingRequired, pendingToken, error).
-// It resolves the effective auth policy for the user, checks IP exemption,
-// checks the user's MFA enrollment, and if MFA is required+enrolled issues a
-// short-lived mfa_pending token.
+// mfaCheckResult is returned by checkMFARequired.
+type mfaCheckResult struct {
+	// TOTPRequired is true when the user is enrolled and must complete TOTP/recovery
+	// verification before receiving a full token. PendingToken is set in this case.
+	TOTPRequired bool
+	PendingToken string
+	// SetupRequired is true when the policy mandates MFA but the user has not
+	// enrolled yet. The caller should issue a full token but inform the frontend
+	// so it can prompt the user to complete enrollment.
+	SetupRequired bool
+}
+
+// checkMFARequired resolves the effective auth policy for the user, checks IP
+// exemption, and determines whether MFA verification or setup is needed.
 func checkMFARequired(
 	ctx context.Context,
 	opts MailRouteOptions,
 	tokenManager *auth.TokenManager,
 	user maildb.AuthenticatedUser,
 	clientIP string,
-) (required bool, pendingToken string, err error) {
+) (mfaCheckResult, error) {
 	// Resolve effective auth_policy for this user/domain/company.
 	policyRaw, resolveErr := opts.ConfigResolver.Resolve(ctx, user.UserID, user.DomainID, user.CompanyID, authPolicyMFA)
 	if resolveErr != nil {
 		// No policy configured → MFA not required.
-		return false, "", nil
+		return mfaCheckResult{}, nil
 	}
 	var policy mfaPolicy
 	if err := json.Unmarshal(policyRaw, &policy); err != nil {
-		return false, "", fmt.Errorf("parse auth policy: %w", err)
+		return mfaCheckResult{}, fmt.Errorf("parse auth policy: %w", err)
 	}
 	if !policy.MFARequired {
-		return false, "", nil
+		return mfaCheckResult{}, nil
 	}
 
 	// Check IP exemption.
 	if len(policy.MFAExemptCIDRs) > 0 && clientIP != "" {
 		ip := net.ParseIP(clientIP)
 		if ip != nil && ipIsExempt(ip, policy.MFAExemptCIDRs) {
-			return false, "", nil
+			return mfaCheckResult{}, nil
 		}
 	}
 
 	// Check user's MFA enrollment.
 	status, err := opts.MFAStore.GetUserMFAStatus(ctx, user.UserID)
 	if err != nil {
-		return false, "", fmt.Errorf("get mfa status: %w", err)
+		return mfaCheckResult{}, fmt.Errorf("get mfa status: %w", err)
 	}
 	if !status.Enabled {
-		// Policy requires MFA but user hasn't enrolled → issue pending token
-		// so the login can proceed to the enrollment step in the UI.
-		tok, err := issuePendingToken(tokenManager, user)
-		if err != nil {
-			return false, "", err
-		}
-		return true, tok, nil
+		// Policy requires MFA but user hasn't enrolled yet.
+		// Issue a full token so the user can log in and reach the settings page.
+		return mfaCheckResult{SetupRequired: true}, nil
 	}
 
+	// User is enrolled — issue a short-lived pending token to gate the TOTP step.
 	tok, err := issuePendingToken(tokenManager, user)
 	if err != nil {
-		return false, "", err
+		return mfaCheckResult{}, err
 	}
-	return true, tok, nil
+	return mfaCheckResult{TOTPRequired: true, PendingToken: tok}, nil
 }
 
 func issuePendingToken(tokenManager *auth.TokenManager, user maildb.AuthenticatedUser) (string, error) {

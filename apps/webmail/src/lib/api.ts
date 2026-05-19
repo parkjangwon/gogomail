@@ -84,6 +84,7 @@ export interface AuthTokenResponse {
   client_ip?: string;
   mfa_required?: boolean;
   pending_token?: string;
+  mfa_setup_required?: boolean;
 }
 
 export interface MFAVerifyResponse {

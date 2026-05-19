@@ -20,9 +20,11 @@ import { AppIconBar, AppId } from '@/components/AppIconBar';
 import { CalendarView } from '@/components/CalendarView';
 import { ContactsView } from '@/components/ContactsView';
 import { SettingsView } from '@/components/SettingsView';
+import { type SectionId } from '@/components/settings-view/settingsViewConfig';
 import { DriveView } from '@/components/DriveView';
 import { loadFilterRules } from '@/components/settings/settingsConfig';
 import { SpotlightSearch } from '@/components/SpotlightSearch';
+import { MFASetupPromptModal } from '@/components/MFASetupPromptModal';
 import {
   buildThreadMessages,
   getEmptyFolderLabel,
@@ -137,6 +139,7 @@ export default function MailPage() {
   }, []);
 
   const [activeApp, setActiveApp] = useState<AppId>(getInitialActiveApp);
+  const [settingsInitialSection, setSettingsInitialSection] = useState<SectionId | undefined>(undefined);
   const [showSpotlight, setShowSpotlight] = useState(false);
   const [spotlightMoveId, setSpotlightMoveId] = useState<string | null>(null);
 
@@ -1454,8 +1457,15 @@ export default function MailPage() {
       ) : activeApp === 'drive' ? (
         <DriveView />
       ) : activeApp === 'settings' ? (
-        <SettingsView userEmail={userEmail || undefined} userName={userEmail || undefined} />
+        <SettingsView userEmail={userEmail || undefined} userName={userEmail || undefined} initialSection={settingsInitialSection} />
       ) : null}
+
+      <MFASetupPromptModal
+        onGoToSettings={() => {
+          setSettingsInitialSection('security');
+          setActiveApp('settings');
+        }}
+      />
 
       {/* Slide-in reading pane overlay */}
       {(() => {

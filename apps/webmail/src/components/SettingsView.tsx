@@ -15,16 +15,17 @@ import { SettingsNotificationsSection } from '@/components/settings-view/Setting
 import { SettingsSecuritySection } from '@/components/settings-view/SettingsSecuritySection';
 import { handleVerticalNavKeyDown } from '@/lib/navKeyboard';
 
-interface SettingsViewProps {
+export interface SettingsViewProps {
   userEmail?: string;
   userName?: string;
+  initialSection?: SectionId;
 }
 
 // ─── Main component ────────────────────────────────────────────────────────────
 
-export function SettingsView({ userEmail, userName }: SettingsViewProps) {
+export function SettingsView({ userEmail, userName, initialSection }: SettingsViewProps) {
   const router = useRouter();
-  const [activeSection, setActiveSection] = useState<SectionId>('account');
+  const [activeSection, setActiveSection] = useState<SectionId>(initialSection ?? 'account');
   const contentRef = useRef<HTMLDivElement>(null);
 
   // Account
