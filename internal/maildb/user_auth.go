@@ -13,6 +13,7 @@ import (
 type AuthenticatedUser struct {
 	UserID             string
 	DomainID           string
+	CompanyID          string
 	SessionVersion     int64
 	MustChangePassword bool
 }
@@ -27,7 +28,7 @@ func (r *Repository) AuthenticateUser(ctx context.Context, email, password strin
 		}
 	}
 	const query = `
-SELECT u.id::text, u.domain_id::text, u.session_version, u.must_change_password,
+SELECT u.id::text, u.domain_id::text, d.company_id::text, u.session_version, u.must_change_password,
        COALESCE(u.password_hash, '')
 FROM users u
 JOIN domains d ON d.id = u.domain_id
@@ -47,6 +48,7 @@ LIMIT 1`
 	err := r.db.QueryRowContext(ctx, query, normalized, normalizedAddress).Scan(
 		&user.UserID,
 		&user.DomainID,
+		&user.CompanyID,
 		&user.SessionVersion,
 		&user.MustChangePassword,
 		&passwordHash,

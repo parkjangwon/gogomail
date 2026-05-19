@@ -82,6 +82,12 @@ export interface AuthTokenResponse {
   expires_at: string;
   must_change_password: boolean;
   client_ip?: string;
+  mfa_required?: boolean;
+  pending_token?: string;
+}
+
+export interface MFAVerifyResponse {
+  expires_at: string;
 }
 
 export interface Attachment {
@@ -218,6 +224,52 @@ export async function loginUser(
   }
 
   return res.json() as Promise<AuthTokenResponse>;
+}
+
+export interface MFAStatus {
+  enrolled: boolean;
+  enabled: boolean;
+  recovery_codes_remaining?: number;
+}
+
+export interface MFASetupResponse {
+  secret: string;
+  qr_uri: string;
+  recovery_codes: string[];
+}
+
+export async function getMFAStatus(): Promise<MFAStatus> {
+  const res = await apiGet<{ mfa_status: MFAStatus }>('auth/mfa/status');
+  return res.mfa_status;
+}
+
+export async function startMFASetup(issuer?: string, email?: string): Promise<MFASetupResponse> {
+  return apiPost<MFASetupResponse>('auth/mfa/setup', { issuer: issuer ?? 'GoGoMail', email });
+}
+
+export async function confirmMFASetup(code: string): Promise<void> {
+  await apiPost<unknown>('auth/mfa/setup/confirm', { code });
+}
+
+export async function disableMFA(): Promise<void> {
+  await apiDelete<unknown>('auth/mfa');
+}
+
+export async function verifyMFA(
+  pendingToken: string,
+  code: string,
+): Promise<MFAVerifyResponse> {
+  const res = await fetch('/api/auth/mfa', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ pending_token: pendingToken, code }),
+  });
+
+  if (!res.ok) {
+    throw new Error(await responseErrorMessage(res, 'MFA 인증에 실패했습니다.'));
+  }
+
+  return res.json() as Promise<MFAVerifyResponse>;
 }
 
 export async function revokeAllSessions(): Promise<boolean> {

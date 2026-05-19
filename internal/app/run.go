@@ -2998,10 +2998,18 @@ func runHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, mode M
 		}
 		trackingRepo := maildb.NewRepository(db)
 		service.WithTrackingRepo(trackingRepo, cfg.PublicBaseURL)
-		httpapi.RegisterMailRoutesWithOptions(mux, service, tokenManager, httpapi.MailRouteOptions{
+		mailConfigStore := configstore.NewPostgresConfigStore(db)
+		if err := mailConfigStore.Start(ctx); err != nil {
+			logger.Warn("runtime config store unavailable for mail api", "error", err)
+		}
+		mailOpts := httpapi.MailRouteOptions{
 			SessionRevoker: repository,
 			Authenticator:  repository,
-		})
+			MFAStore:       repository,
+			ConfigResolver: mailConfigStore,
+		}
+		httpapi.RegisterMailRoutesWithOptions(mux, service, tokenManager, mailOpts)
+		httpapi.RegisterMFARoutes(mux, tokenManager, mailOpts)
 		httpapi.RegisterTrackingRoutes(mux, trackingRepo, tokenManager)
 		httpapi.RegisterDriveRoutesWithOptions(mux, driveServiceForConfig(db, cfg, store), tokenManager, driveRouteOptions)
 		httpapi.RegisterContactRoutes(mux, httpapi.NewContactHandler(

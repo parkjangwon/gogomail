@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
   }
 
-  const upstream = await fetch(`${BACKEND}/api/v1/auth/token`, {
+  const upstream = await fetch(`${BACKEND}/api/v1/auth/mfa/verify`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
@@ -26,39 +26,23 @@ export async function POST(req: NextRequest) {
   if (!upstream) return NextResponse.json({ error: 'Backend unreachable' }, { status: 503 });
 
   if (!upstream.ok) {
-    const err = await upstream.json().catch(() => ({ error: '로그인에 실패했습니다.' }));
+    const err = await upstream.json().catch(() => ({ error: 'MFA 인증에 실패했습니다.' }));
     return NextResponse.json(err, { status: upstream.status });
   }
 
-  const data = await upstream.json() as {
-    token?: string;
-    expires_at?: string;
-    must_change_password?: boolean;
-    client_ip?: string;
-    mfa_required?: boolean;
-    pending_token?: string;
-  };
-
-  // MFA required: return pending token to client without setting cookie.
-  if (data.mfa_required) {
-    return NextResponse.json(
-      { mfa_required: true, pending_token: data.pending_token },
-      { headers: { 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' } },
-    );
-  }
+  const data = await upstream.json() as { token: string; expires_at: string };
 
   const maxAge = Math.max(
     60,
-    Math.floor((new Date(data.expires_at!).getTime() - Date.now()) / 1000),
+    Math.floor((new Date(data.expires_at).getTime() - Date.now()) / 1000),
   );
 
-  const response = NextResponse.json({
-    expires_at: data.expires_at,
-    must_change_password: data.must_change_password,
-    client_ip: data.client_ip,
-  }, { headers: { 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' } });
+  const response = NextResponse.json(
+    { expires_at: data.expires_at },
+    { headers: { 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' } },
+  );
 
-  response.cookies.set(WEBMAIL_TOKEN_COOKIE, data.token!, {
+  response.cookies.set(WEBMAIL_TOKEN_COOKIE, data.token, {
     httpOnly: true,
     secure: IS_PROD,
     sameSite: 'strict',

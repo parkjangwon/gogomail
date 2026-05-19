@@ -9,7 +9,6 @@ import (
 	"io"
 	"mime"
 	"mime/multipart"
-	"net"
 	"net/http"
 	netmail "net/mail"
 	"net/url"
@@ -111,10 +110,29 @@ type UserAuthenticator interface {
 	AuthenticateUser(ctx context.Context, email, password string) (maildb.AuthenticatedUser, error)
 }
 
+// MFAStore is the subset of maildb.Repository methods used by the MFA login flow.
+type MFAStore interface {
+	GetUserMFAStatus(ctx context.Context, userID string) (maildb.UserMFAStatus, error)
+	GetMFASecret(ctx context.Context, userID string) (secret string, recoveryCodes []string, err error)
+	GetPendingMFASecret(ctx context.Context, userID string) (secret string, err error)
+	VerifyAndRecordTOTP(ctx context.Context, userID, secret, code string, now time.Time) error
+	VerifyAndConsumeRecoveryCode(ctx context.Context, userID, code string) error
+	SetupMFASecret(ctx context.Context, userID, secret string, recoveryCodes []string) error
+	ActivateMFA(ctx context.Context, userID string) error
+	DisableMFA(ctx context.Context, userID string) error
+}
+
+// ConfigResolver resolves runtime config values for MFA policy lookup.
+type ConfigResolver interface {
+	Resolve(ctx context.Context, userID, domainID, companyID, key string) (json.RawMessage, error)
+}
+
 type MailRouteOptions struct {
 	MutationLimiter MailMutationLimiter
 	SessionRevoker  auth.SessionRevoker
 	Authenticator   UserAuthenticator
+	MFAStore        MFAStore
+	ConfigResolver  ConfigResolver
 }
 
 type MailMutationLimiter interface {
@@ -419,6 +437,25 @@ func RegisterMailRoutesWithOptions(mux *http.ServeMux, service MessageService, t
 			writeError(w, http.StatusUnauthorized, "invalid credentials")
 			return
 		}
+
+		clientIP := extractClientIP(r)
+
+		// MFA policy check: require a second factor when policy demands it.
+		if opts.MFAStore != nil && opts.ConfigResolver != nil {
+			if pending, pendingTok, checkErr := checkMFARequired(
+				r.Context(), opts, tokenManager, user, clientIP,
+			); checkErr != nil {
+				writeError(w, http.StatusInternalServerError, "mfa policy check failed")
+				return
+			} else if pending {
+				writeJSON(w, http.StatusOK, map[string]any{
+					"mfa_required":  true,
+					"pending_token": pendingTok,
+				})
+				return
+			}
+		}
+
 		const tokenTTL = 24 * time.Hour
 		claims := auth.Claims{
 			UserID:         user.UserID,
@@ -429,15 +466,6 @@ func RegisterMailRoutesWithOptions(mux *http.ServeMux, service MessageService, t
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, "failed to issue token")
 			return
-		}
-		clientIP := r.RemoteAddr
-		if host, _, err := net.SplitHostPort(r.RemoteAddr); err == nil {
-			clientIP = host
-		}
-		if fwd := r.Header.Get("X-Forwarded-For"); fwd != "" {
-			if parts := strings.SplitN(fwd, ",", 2); len(parts) > 0 {
-				clientIP = strings.TrimSpace(parts[0])
-			}
 		}
 		writeJSON(w, http.StatusOK, map[string]any{
 			"token":                token,
@@ -2598,6 +2626,10 @@ func claimsFromRequest(w http.ResponseWriter, r *http.Request, tokenManager *aut
 	claims, err := tokenManager.VerifyFull(r.Context(), token)
 	if err != nil {
 		writeError(w, http.StatusUnauthorized, err.Error())
+		return auth.Claims{}, false
+	}
+	if claims.TokenType == "mfa_pending" {
+		writeError(w, http.StatusUnauthorized, "mfa verification required")
 		return auth.Claims{}, false
 	}
 	return claims, true
