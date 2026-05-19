@@ -2,6 +2,7 @@ package httpapi
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -9,6 +10,8 @@ import (
 	"net/http"
 	"strings"
 	"time"
+
+	qrcode "github.com/skip2/go-qrcode"
 
 	"github.com/gogomail/gogomail/internal/auth"
 	"github.com/gogomail/gogomail/internal/authmfa"
@@ -48,10 +51,22 @@ func checkMFARequired(
 	user maildb.AuthenticatedUser,
 	clientIP string,
 ) (mfaCheckResult, error) {
-	// Resolve effective auth_policy for this user/domain/company.
+	// Voluntary enrollment is always enforced — check user status first.
+	status, err := opts.MFAStore.GetUserMFAStatus(ctx, user.UserID)
+	if err != nil {
+		return mfaCheckResult{}, fmt.Errorf("get mfa status: %w", err)
+	}
+	if status.Enabled {
+		tok, err := issuePendingToken(tokenManager, user)
+		if err != nil {
+			return mfaCheckResult{}, err
+		}
+		return mfaCheckResult{TOTPRequired: true, PendingToken: tok}, nil
+	}
+
+	// User is not enrolled — consult policy to decide if setup is required.
 	policyRaw, resolveErr := opts.ConfigResolver.Resolve(ctx, user.UserID, user.DomainID, user.CompanyID, authPolicyMFA)
 	if resolveErr != nil {
-		// No policy configured → MFA not required.
 		return mfaCheckResult{}, nil
 	}
 	var policy mfaPolicy
@@ -70,23 +85,8 @@ func checkMFARequired(
 		}
 	}
 
-	// Check user's MFA enrollment.
-	status, err := opts.MFAStore.GetUserMFAStatus(ctx, user.UserID)
-	if err != nil {
-		return mfaCheckResult{}, fmt.Errorf("get mfa status: %w", err)
-	}
-	if !status.Enabled {
-		// Policy requires MFA but user hasn't enrolled yet.
-		// Issue a full token so the user can log in and reach the settings page.
-		return mfaCheckResult{SetupRequired: true}, nil
-	}
-
-	// User is enrolled — issue a short-lived pending token to gate the TOTP step.
-	tok, err := issuePendingToken(tokenManager, user)
-	if err != nil {
-		return mfaCheckResult{}, err
-	}
-	return mfaCheckResult{TOTPRequired: true, PendingToken: tok}, nil
+	// Policy requires MFA but user hasn't enrolled yet.
+	return mfaCheckResult{SetupRequired: true}, nil
 }
 
 func issuePendingToken(tokenManager *auth.TokenManager, user maildb.AuthenticatedUser) (string, error) {
@@ -133,7 +133,7 @@ func RegisterMFARoutes(mux *http.ServeMux, tokenManager *auth.TokenManager, opts
 			writeError(w, http.StatusServiceUnavailable, "mfa not configured")
 			return
 		}
-		if !rejectUnknownQueryKeys(w, r) {
+		if !rejectUnknownQueryKeys(w, r, "user_id") {
 			return
 		}
 		var req struct {
@@ -215,7 +215,7 @@ func RegisterMFARoutes(mux *http.ServeMux, tokenManager *auth.TokenManager, opts
 		if !ok {
 			return
 		}
-		if !rejectUnknownQueryKeys(w, r) {
+		if !rejectUnknownQueryKeys(w, r, "user_id") {
 			return
 		}
 		var req struct {
@@ -252,9 +252,16 @@ func RegisterMFARoutes(mux *http.ServeMux, tokenManager *auth.TokenManager, opts
 			"otpauth://totp/%s:%s?secret=%s&issuer=%s&digits=6&period=30",
 			req.Issuer, req.Email, secret, req.Issuer,
 		)
+		qrPNG, err := qrcode.Encode(qrURI, qrcode.Medium, 180)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "failed to generate qr code")
+			return
+		}
+		qrImage := "data:image/png;base64," + base64.StdEncoding.EncodeToString(qrPNG)
 		writeJSON(w, http.StatusOK, map[string]any{
 			"secret":         secret,
 			"qr_uri":         qrURI,
+			"qr_image":       qrImage,
 			"recovery_codes": codes,
 		})
 	})
@@ -269,7 +276,7 @@ func RegisterMFARoutes(mux *http.ServeMux, tokenManager *auth.TokenManager, opts
 		if !ok {
 			return
 		}
-		if !rejectUnknownQueryKeys(w, r) {
+		if !rejectUnknownQueryKeys(w, r, "user_id") {
 			return
 		}
 		var req struct {
@@ -316,7 +323,7 @@ func RegisterMFARoutes(mux *http.ServeMux, tokenManager *auth.TokenManager, opts
 		if !ok {
 			return
 		}
-		if !rejectUnknownQueryKeys(w, r) {
+		if !rejectUnknownQueryKeys(w, r, "user_id") {
 			return
 		}
 		if err := opts.MFAStore.DisableMFA(r.Context(), claims.UserID); err != nil {

@@ -1,6 +1,11 @@
 # gogomail current status
 
-Last updated: 2026-05-19 (README and release docs refresh)
+Last updated: 2026-05-19 (MFA enforcement and QR code fixes)
+
+## MFA Fixes (2026-05-19)
+- `checkMFARequired` now checks user enrollment before consulting domain policy; users who voluntarily enroll in TOTP are always challenged at login regardless of whether a domain-wide `mfa_required` policy exists.
+- MFA API handlers (`verify`, `setup`, `setup/confirm`, `disable`) now allow the dev proxy's injected `user_id` query parameter via `rejectUnknownQueryKeys`, fixing the 400 Bad Request during MFA setup in development.
+- QR code is now generated server-side using `go-qrcode` and returned as a `data:image/png;base64` URI, eliminating the CSP violation caused by loading from an external image service.
 
 ## Documentation Refresh (2026-05-19)
 - `README.md` and `README.ko.md` now reflect the current runtime mode names, release verification scripts, Redis environment variable name, bulk delivery batching controls, and message-body cache tuning controls.
