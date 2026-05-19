@@ -46,6 +46,12 @@ export default function CompanyLayout({
             }
           }
         }
+        // MFA setup gate — redirect before allowing access to any company page.
+        const mfaSetupRequired = localStorage.getItem('console_mfa_setup_required');
+        if (mfaSetupRequired === '1' && !pathname.startsWith('/settings/security')) {
+          router.replace('/settings/security');
+          return;
+        }
         setAuthorized(true);
         setResolved(true);
       } catch {

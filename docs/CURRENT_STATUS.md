@@ -7605,3 +7605,12 @@ fix: pass companyID in adminMFASetupRequired configstore resolve
 - Disable MFA button available when enrolled
 - Uses Cloudscape Design components (Box, Button, Container, Header, SpaceBetween, StatusIndicator, Input, FormField, Alert, ColumnLayout)
 - TypeScript: no errors
+
+## Task 9: Console MFA Setup Gate in Company Layout (2026-05-19)
+
+- Added `console_mfa_setup_required` localStorage gate to `apps/console/src/app/companies/[id]/layout.tsx`
+- Gate checks after auth verify and default company redirect, before setAuthorized
+- Redirects to `/settings/security` when flag is '1' and current path is not `/settings/security`
+- Normal login (no MFA flag) completely unaffected
+- All existing auth/redirect logic preserved unchanged
+- TypeScript: no errors
