@@ -4395,6 +4395,14 @@ func registerAdminUtilityRoutes(mux *http.ServeMux, service AdminService, cfg ad
 		handlePutCompanyAuthPolicy(w, r, service)
 	}))
 
+	mux.HandleFunc("GET /admin/v1/domains/{id}/security/auth-policy", adminAuth(func(w http.ResponseWriter, r *http.Request) {
+		handleGetDomainAuthPolicy(w, r, service)
+	}))
+
+	mux.HandleFunc("PUT /admin/v1/domains/{id}/security/auth-policy", adminAuth(func(w http.ResponseWriter, r *http.Request) {
+		handlePutDomainAuthPolicy(w, r, service)
+	}))
+
 	mux.HandleFunc("GET /admin/v1/companies/{id}/security/audit-policy", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		handleGetCompanyAuditPolicy(w, r, service)
 	}))
@@ -5436,6 +5444,7 @@ type authPolicy struct {
 	MaxAgeDays            int      `json:"max_age_days"`
 	HistoryCount          int      `json:"history_count"`
 	MFARequired           bool     `json:"mfa_required"`
+	MFAExemptCIDRs        []string `json:"mfa_exempt_cidrs"`
 	MFAMethods            []string `json:"mfa_methods"`
 	SessionTimeoutMinutes int      `json:"session_timeout_minutes"`
 	MaxConcurrentSessions int      `json:"max_concurrent_sessions"`
@@ -5496,6 +5505,52 @@ func handlePutCompanyAuthPolicy(w http.ResponseWriter, r *http.Request, service 
 		return
 	}
 	if _, err := service.SetCompanyConfig(r.Context(), id, authPolicyKey, json.RawMessage(b), false, 0); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"policy": policy})
+}
+
+func handleGetDomainAuthPolicy(w http.ResponseWriter, r *http.Request, service AdminService) {
+	defer r.Body.Close()
+	id, ok := parseBoundedAdminPathValue(w, r, "id")
+	if !ok {
+		return
+	}
+	entry, err := service.GetDomainConfig(r.Context(), id, authPolicyKey)
+	if err != nil {
+		if errors.Is(err, configstore.ErrConfigNotFound) {
+			writeJSON(w, http.StatusOK, map[string]any{"policy": defaultAuthPolicy()})
+			return
+		}
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	var policy authPolicy
+	if err := json.Unmarshal(entry.Value, &policy); err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to parse policy")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"policy": policy})
+}
+
+func handlePutDomainAuthPolicy(w http.ResponseWriter, r *http.Request, service AdminService) {
+	defer r.Body.Close()
+	id, ok := parseBoundedAdminPathValue(w, r, "id")
+	if !ok {
+		return
+	}
+	var policy authPolicy
+	if err := decodeJSONBody(r, &policy); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid JSON body")
+		return
+	}
+	b, err := json.Marshal(policy)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to marshal policy")
+		return
+	}
+	if _, err := service.SetDomainConfig(r.Context(), id, authPolicyKey, json.RawMessage(b), false, 0); err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}

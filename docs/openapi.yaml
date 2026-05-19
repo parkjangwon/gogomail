@@ -7701,6 +7701,67 @@ paths:
                     $ref: "#/components/schemas/AuthPolicy"
         default:
           $ref: "#/components/responses/Error"
+  /domains/{id}/security/auth-policy:
+    get:
+      operationId: adminGetDomainAuthPolicy
+      summary: Get domain password and auth policy
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Auth policy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  policy:
+                    $ref: "#/components/schemas/AuthPolicy"
+        default:
+          $ref: "#/components/responses/Error"
+    put:
+      operationId: adminPutDomainAuthPolicy
+      summary: Set domain password and auth policy
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AuthPolicy"
+      responses:
+        "200":
+          description: Saved auth policy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  policy:
+                    $ref: "#/components/schemas/AuthPolicy"
+        default:
+          $ref: "#/components/responses/Error"
   /companies/{id}/security/audit-policy:
     get:
       operationId: adminGetCompanyAuditPolicy
@@ -11416,6 +11477,10 @@ components:
           type: integer
         mfa_required:
           type: boolean
+        mfa_exempt_cidrs:
+          type: array
+          items:
+            type: string
         mfa_methods:
           type: array
           items:
