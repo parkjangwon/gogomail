@@ -38,7 +38,7 @@ type adminRouteConfig struct {
 	environment         string
 	adminMFAStore       MFAStore
 	adminMFARequired    bool
-	configResolver      configstore.ConfigStore
+	configResolver      ConfigResolver
 }
 
 // AdminRouteOption configures optional capabilities for RegisterAdminRoutes.
@@ -78,7 +78,7 @@ func WithAdminMFARequired(required bool) AdminRouteOption {
 	return func(cfg *adminRouteConfig) { cfg.adminMFARequired = required }
 }
 
-func WithAdminConfigResolver(r configstore.ConfigStore) AdminRouteOption {
+func WithAdminConfigResolver(r ConfigResolver) AdminRouteOption {
 	return func(cfg *adminRouteConfig) { cfg.configResolver = r }
 }
 
