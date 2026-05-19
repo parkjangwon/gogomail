@@ -7617,3 +7617,5 @@ fix: pass companyID in adminMFASetupRequired configstore resolve
 
 - Fixed AutoBackpressureManager leader election for multi-instance safety
 - Changed DeliveryThrottleBackend and DeliveryDomainBackoffBackend defaults to redis
+
+- Fixed 5 admin console stubs: org settings PUT now persists, compliance status derived from real checks, reports endpoint returns real export catalogue, SSO test actually fetches metadata URL, monitoring page replaces Math.random() with Go runtime metrics

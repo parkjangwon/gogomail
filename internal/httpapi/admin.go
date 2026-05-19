@@ -13,6 +13,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -4363,12 +4365,39 @@ func registerAdminUtilityRoutes(mux *http.ServeMux, service AdminService, cfg ad
 		handleAdminHealth(w, r, service)
 	}))
 
+	mux.HandleFunc("GET /admin/v1/system/metrics", adminAuth(func(w http.ResponseWriter, r *http.Request) {
+		if !rejectBodylessRequestPayload(w, r) {
+			return
+		}
+		if !rejectUnknownQueryKeys(w, r) {
+			return
+		}
+		var ms runtime.MemStats
+		runtime.ReadMemStats(&ms)
+		memPct := 0.0
+		if ms.Sys > 0 {
+			memPct = float64(ms.HeapInuse) / float64(ms.Sys) * 100
+		}
+		writeJSON(w, http.StatusOK, map[string]any{
+			"memory": map[string]any{
+				"heap_inuse_bytes": ms.HeapInuse,
+				"heap_sys_bytes":   ms.HeapSys,
+				"sys_bytes":        ms.Sys,
+				"alloc_bytes":      ms.Alloc,
+				"gc_runs":          ms.NumGC,
+				"usage_pct":        memPct,
+			},
+			"goroutines": runtime.NumGoroutine(),
+			"timestamp":  time.Now().UTC().Format(time.RFC3339),
+		})
+	}))
+
 	mux.HandleFunc("GET /admin/v1/organization/settings", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		handleGetOrganizationSettings(w, r, service)
 	}))
 
 	mux.HandleFunc("PUT /admin/v1/organization/settings", adminAuth(func(w http.ResponseWriter, r *http.Request) {
-		handleUpdateOrganizationSettings(w, r)
+		handleUpdateOrganizationSettings(w, r, service)
 	}))
 
 	mux.HandleFunc("GET /admin/v1/compliance", adminAuth(func(w http.ResponseWriter, r *http.Request) {
@@ -4665,46 +4694,77 @@ func handleAdminHealth(w http.ResponseWriter, r *http.Request, service AdminServ
 	})
 }
 
+const orgSettingsKey = "org_settings"
+
+type orgSettingsConfig struct {
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	MaxUsers    int    `json:"max_users"`
+	MaxDomains  int    `json:"max_domains"`
+}
+
 func handleGetOrganizationSettings(w http.ResponseWriter, r *http.Request, service AdminService) {
 	defer r.Body.Close()
-	companies, err := service.ListCompanies(r.Context(), maildb.CompanyListRequest{Limit: 200})
+	ctx := r.Context()
+	companies, err := service.ListCompanies(ctx, maildb.CompanyListRequest{Limit: 1})
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to fetch organization settings")
 		return
 	}
-	totalDomains, _ := service.ListDomains(r.Context(), maildb.DomainListRequest{Limit: 1000})
-	totalUsers, _ := service.ListUsers(r.Context(), maildb.UserListRequest{Limit: 1})
-
-	name := "gogomail"
-	description := ""
+	var cfg orgSettingsConfig
 	var createdAt time.Time
 	if len(companies) > 0 {
-		name = companies[0].Name
 		createdAt = companies[0].CreatedAt
+		cfg.Name = companies[0].Name
+		if entry, err2 := service.GetCompanyConfig(ctx, companies[0].ID, orgSettingsKey); err2 == nil && entry.Value != nil {
+			_ = json.Unmarshal(entry.Value, &cfg)
+			if cfg.Name == "" {
+				cfg.Name = companies[0].Name
+			}
+		}
 	}
-	_ = totalUsers
-
+	if cfg.Name == "" {
+		cfg.Name = "gogomail"
+	}
 	writeJSON(w, http.StatusOK, map[string]any{
 		"settings": map[string]any{
-			"name":        name,
-			"description": description,
-			"max_users":   len(companies) * 100,
-			"max_domains": len(totalDomains),
+			"name":        cfg.Name,
+			"description": cfg.Description,
+			"max_users":   cfg.MaxUsers,
+			"max_domains": cfg.MaxDomains,
 			"created_at":  createdAt.UTC().Format(time.RFC3339),
 		},
 	})
 }
 
-func handleUpdateOrganizationSettings(w http.ResponseWriter, r *http.Request) {
+func handleUpdateOrganizationSettings(w http.ResponseWriter, r *http.Request, service AdminService) {
 	defer r.Body.Close()
-	var req struct {
-		Name        string `json:"name"`
-		Description string `json:"description"`
-		MaxUsers    int    `json:"max_users"`
-		MaxDomains  int    `json:"max_domains"`
-	}
+	ctx := r.Context()
+	var req orgSettingsConfig
 	if err := decodeJSONBody(r, &req); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid JSON body")
+		return
+	}
+	companies, err := service.ListCompanies(ctx, maildb.CompanyListRequest{Limit: 1})
+	if err != nil || len(companies) == 0 {
+		writeError(w, http.StatusInternalServerError, "no company configured")
+		return
+	}
+	company := companies[0]
+	if req.Name != "" && req.Name != company.Name {
+		updated, err := service.UpdateCompany(ctx, maildb.UpdateCompanyRequest{ID: company.ID, Name: req.Name})
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		company = updated
+	}
+	if req.Name == "" {
+		req.Name = company.Name
+	}
+	b, _ := json.Marshal(req)
+	if _, err := service.SetCompanyConfig(ctx, company.ID, orgSettingsKey, json.RawMessage(b), false, 0); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
@@ -4713,47 +4773,119 @@ func handleUpdateOrganizationSettings(w http.ResponseWriter, r *http.Request) {
 			"description": req.Description,
 			"max_users":   req.MaxUsers,
 			"max_domains": req.MaxDomains,
-			"created_at":  time.Now().UTC().Format(time.RFC3339),
+			"created_at":  company.CreatedAt.UTC().Format(time.RFC3339),
 		},
 	})
 }
 
 func handleListCompliance(w http.ResponseWriter, r *http.Request, service AdminService) {
 	defer r.Body.Close()
-	logs, err := service.ListAuditLogs(r.Context(), maildb.AuditLogListRequest{Limit: 100})
-	auditCount := 0
-	if err == nil {
-		auditCount = len(logs)
-	}
-
-	status := "compliant"
-	if auditCount == 0 {
-		status = "pending"
-	}
-
+	ctx := r.Context()
 	now := time.Now().UTC()
+
+	// Gather real system state for compliance checks.
+	auditLogs, _ := service.ListAuditLogs(ctx, maildb.AuditLogListRequest{Limit: 1})
+	auditActive := len(auditLogs) > 0
+
+	companies, _ := service.ListCompanies(ctx, maildb.CompanyListRequest{Limit: 1})
+	mfaEnabled := false
+	ipPolicyOn := false
+	retentionOn := false
+	sessionPolicyOn := false
+	if len(companies) > 0 {
+		cid := companies[0].ID
+		if mfaStats, err := service.GetMFAStats(ctx, cid); err == nil {
+			mfaEnabled = mfaStats.Total > 0 && mfaStats.Enabled > 0
+		}
+		if _, err := service.GetCompanyConfig(ctx, cid, ipAccessPolicyKey); err == nil {
+			ipPolicyOn = true
+		}
+		if _, err := service.GetCompanyConfig(ctx, cid, "retention_policy"); err == nil {
+			retentionOn = true
+		}
+		if _, err := service.GetCompanyConfig(ctx, cid, "session_policy"); err == nil {
+			sessionPolicyOn = true
+		}
+	}
+
+	complianceStatus := func(findings int) string {
+		switch {
+		case findings == 0:
+			return "compliant"
+		case findings <= 2:
+			return "partial"
+		default:
+			return "non-compliant"
+		}
+	}
+
+	// GDPR: audit log, data retention, access controls, session policy
+	gdprFindings := 0
+	if !auditActive {
+		gdprFindings++
+	}
+	if !retentionOn {
+		gdprFindings++
+	}
+	if !ipPolicyOn {
+		gdprFindings++
+	}
+	if !sessionPolicyOn {
+		gdprFindings++
+	}
+
+	// HIPAA: MFA, audit log, access controls, data retention
+	hipaaFindings := 0
+	if !mfaEnabled {
+		hipaaFindings++
+	}
+	if !auditActive {
+		hipaaFindings++
+	}
+	if !ipPolicyOn {
+		hipaaFindings++
+	}
+	if !retentionOn {
+		hipaaFindings++
+	}
+
+	// SOC 2: audit log, MFA, access controls, session policy
+	soc2Findings := 0
+	if !auditActive {
+		soc2Findings++
+	}
+	if !mfaEnabled {
+		soc2Findings++
+	}
+	if !ipPolicyOn {
+		soc2Findings++
+	}
+	if !sessionPolicyOn {
+		soc2Findings++
+	}
+
 	writeJSON(w, http.StatusOK, map[string]any{
 		"reports": []map[string]any{
 			{
 				"id":         "gdpr-001",
 				"framework":  "GDPR",
-				"status":     status,
+				"status":     complianceStatus(gdprFindings),
 				"last_audit": now.Format(time.RFC3339),
-				"findings":   0,
+				"findings":   gdprFindings,
 			},
 			{
 				"id":         "hipaa-001",
 				"framework":  "HIPAA",
-				"status":     "pending",
-				"last_audit": now.AddDate(0, -1, 0).Format(time.RFC3339),
-				"findings":   2,
+				"status":     complianceStatus(hipaaFindings),
+				"last_audit": now.Format(time.RFC3339),
+				"findings":   hipaaFindings,
 			},
 			{
 				"id":         "soc2-001",
 				"framework":  "SOC 2",
-				"status":     "partial",
-				"last_audit": now.AddDate(0, -2, 0).Format(time.RFC3339),
-				"findings":   1,
+				"status":     complianceStatus(soc2Findings),
+				"last_audit": now.Format(time.RFC3339),
+				"findings":   soc2Findings,
 			},
 		},
 	})
@@ -4812,30 +4944,40 @@ func handleCreateRole(w http.ResponseWriter, r *http.Request, service AdminServi
 
 func handleListReports(w http.ResponseWriter, r *http.Request, service AdminService) {
 	defer r.Body.Close()
-	now := time.Now().UTC()
+	ctx := r.Context()
 
-	stats, err := service.GetMailFlowLogStats(r.Context(), maildb.MailFlowLogStatsRequest{})
-	mailCount := int64(0)
-	if err == nil {
-		mailCount = stats.TotalMessages
-	}
+	auditLogs, _ := service.ListAuditLogs(ctx, maildb.AuditLogListRequest{Limit: 1})
+	flowStats, _ := service.GetMailFlowLogStats(ctx, maildb.MailFlowLogStatsRequest{})
+	users, _ := service.ListUsers(ctx, maildb.UserListRequest{Limit: 1})
 
-	fileSizeEstimate := mailCount * 512
 	writeJSON(w, http.StatusOK, map[string]any{
 		"reports": []map[string]any{
 			{
-				"id":           "report-mailflow-" + now.Format("20060102"),
-				"name":         "Mail Flow Summary — " + now.Format("January 2006"),
-				"type":         "mail_flow",
-				"generated_at": now.Format(time.RFC3339),
-				"file_size":    fileSizeEstimate,
+				"id":              "audit_logs",
+				"name":            "Audit Log Export",
+				"category":        "compliance",
+				"export_endpoint": "audit-logs/export",
+				"available":       len(auditLogs) > 0,
 			},
 			{
-				"id":           "report-audit-" + now.Format("20060102"),
-				"name":         "Audit Log Export — " + now.Format("January 2006"),
-				"type":         "audit",
-				"generated_at": now.AddDate(0, 0, -1).Format(time.RFC3339),
-				"file_size":    int64(4096),
+				"id":              "users_export",
+				"name":            "Users Export",
+				"category":        "users",
+				"export_endpoint": "users/bulk-export",
+				"available":       len(users) > 0,
+			},
+			{
+				"id":           "mail_flow",
+				"name":         "Mail Flow Summary",
+				"category":     "domains",
+				"record_count": flowStats.TotalMessages,
+				"available":    flowStats.TotalMessages > 0,
+			},
+			{
+				"id":       "quota_summary",
+				"name":     "Quota Summary",
+				"category": "storage",
+				"available": true,
 			},
 		},
 	})
@@ -6540,9 +6682,60 @@ func handlePostCompanySSOTest(w http.ResponseWriter, r *http.Request, service Ad
 		writeError(w, http.StatusBadRequest, "metadata_url or sso_login_url is required")
 		return
 	}
+
+	if cfg.MetadataURL != "" {
+		// Validate URL syntax first.
+		if _, err := url.Parse(cfg.MetadataURL); err != nil {
+			writeJSON(w, http.StatusOK, map[string]any{
+				"success": false,
+				"message": fmt.Sprintf("invalid metadata URL: %v", err),
+			})
+			return
+		}
+		// Actually fetch the metadata endpoint.
+		client := &http.Client{Timeout: 10 * time.Second}
+		resp, err := client.Get(cfg.MetadataURL)
+		if err != nil {
+			writeJSON(w, http.StatusOK, map[string]any{
+				"success": false,
+				"message": fmt.Sprintf("failed to reach metadata endpoint: %v", err),
+			})
+			return
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode != http.StatusOK {
+			writeJSON(w, http.StatusOK, map[string]any{
+				"success": false,
+				"message": fmt.Sprintf("metadata endpoint returned HTTP %d", resp.StatusCode),
+			})
+			return
+		}
+		ct := resp.Header.Get("Content-Type")
+		if !strings.Contains(ct, "xml") && !strings.Contains(ct, "saml") && !strings.Contains(ct, "text") {
+			writeJSON(w, http.StatusOK, map[string]any{
+				"success": false,
+				"message": fmt.Sprintf("unexpected content type %q (expected XML/SAML metadata)", ct),
+			})
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{
+			"success": true,
+			"message": "SSO metadata endpoint is reachable and returned a valid response",
+		})
+		return
+	}
+
+	// No metadata URL — validate the login URL syntax.
+	if _, err := url.Parse(cfg.SSOLoginURL); err != nil {
+		writeJSON(w, http.StatusOK, map[string]any{
+			"success": false,
+			"message": fmt.Sprintf("invalid SSO login URL: %v", err),
+		})
+		return
+	}
 	writeJSON(w, http.StatusOK, map[string]any{
 		"success": true,
-		"message": "SSO configuration validated (simulation)",
+		"message": "SSO login URL is valid",
 	})
 }
 

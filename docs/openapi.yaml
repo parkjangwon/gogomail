@@ -7003,6 +7003,45 @@ paths:
                           type: string
         default:
           $ref: "#/components/responses/Error"
+  /system/metrics:
+    get:
+      operationId: adminGetSystemMetrics
+      summary: Go runtime system metrics
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      responses:
+        "200":
+          description: System metrics
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  memory:
+                    type: object
+                    properties:
+                      heap_inuse_bytes:
+                        type: integer
+                      heap_sys_bytes:
+                        type: integer
+                      sys_bytes:
+                        type: integer
+                      alloc_bytes:
+                        type: integer
+                      gc_runs:
+                        type: integer
+                      usage_pct:
+                        type: number
+                  goroutines:
+                    type: integer
+                  timestamp:
+                    type: string
+        default:
+          $ref: "#/components/responses/Error"
   /organization/units:
     get:
       operationId: adminListOrganizationUnits
