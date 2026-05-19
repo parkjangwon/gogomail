@@ -21,6 +21,26 @@ type OutboundURLGuardOptions struct {
 	LookupIPAddr        func(context.Context, string) ([]net.IPAddr, error)
 }
 
+// ValidateOutboundHTTPURLFormat checks that raw is a valid http/https URL
+// without performing a DNS lookup or private-IP check.
+func ValidateOutboundHTTPURLFormat(raw string) error {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return fmt.Errorf("url is required")
+	}
+	if strings.ContainsAny(raw, "\r\n") {
+		return fmt.Errorf("url cannot contain line breaks")
+	}
+	parsed, err := url.Parse(raw)
+	if err != nil {
+		return fmt.Errorf("url must be valid: %w", err)
+	}
+	if (parsed.Scheme != "http" && parsed.Scheme != "https") || parsed.Hostname() == "" {
+		return fmt.Errorf("url must be an http or https URL")
+	}
+	return nil
+}
+
 func ValidateOutboundHTTPURL(ctx context.Context, raw string, opts OutboundURLGuardOptions) (*url.URL, error) {
 	raw = strings.TrimSpace(raw)
 	if raw == "" {

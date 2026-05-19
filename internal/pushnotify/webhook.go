@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"net/url"
 	"strings"
 
 	"github.com/gogomail/gogomail/internal/webhook"
@@ -23,9 +22,10 @@ const (
 )
 
 type WebhookOptions struct {
-	Endpoint string
-	Token    string
-	Client   *http.Client
+	Endpoint            string
+	Token               string
+	Client              *http.Client
+	AllowPrivateNetwork bool
 }
 
 type WebhookSink struct {
@@ -36,15 +36,8 @@ type WebhookSink struct {
 
 func NewWebhookSink(opts WebhookOptions) (*WebhookSink, error) {
 	endpoint := strings.TrimSpace(opts.Endpoint)
-	if strings.ContainsAny(endpoint, "\r\n") {
-		return nil, fmt.Errorf("push notification webhook endpoint cannot contain line breaks")
-	}
-	parsed, err := url.Parse(endpoint)
-	if err != nil {
-		return nil, fmt.Errorf("push notification webhook endpoint must be a valid URL: %w", err)
-	}
-	if (parsed.Scheme != "http" && parsed.Scheme != "https") || parsed.Host == "" {
-		return nil, fmt.Errorf("push notification webhook endpoint must be an http or https URL")
+	if err := webhook.ValidateOutboundHTTPURLFormat(opts.Endpoint); err != nil {
+		return nil, fmt.Errorf("push notification webhook endpoint: %w", err)
 	}
 	client := opts.Client
 	if client == nil {
