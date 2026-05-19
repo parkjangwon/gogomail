@@ -56,7 +56,7 @@ export default function NotifTemplatesPage() {
       setFlash([{ type: 'success', content: t('notif_templates_page.saved'), dismissible: true, onDismiss: () => setFlash([]) }]);
       setSelected(null);
     } catch (e: unknown) {
-      setFlash([{ type: 'error', content: String(e), dismissible: true, onDismiss: () => setFlash([]) }]);
+      setFlash([{ type: 'error', content: e instanceof Error ? e.message : 'An unexpected error occurred.', dismissible: true, onDismiss: () => setFlash([]) }]);
     } finally {
       setSaving(false);
     }

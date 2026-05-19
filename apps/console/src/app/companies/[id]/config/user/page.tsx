@@ -16,6 +16,7 @@ import {
 import { useState, useEffect } from 'react';
 import { useI18n } from '@/app/i18n-provider';
 import { useParams } from 'next/navigation';
+import { formatDateTime } from '@/lib/format';
 
 interface User {
   id: string;
@@ -175,8 +176,7 @@ export default function UserConfigPage() {
               },
               {
                 header: t('pages.config_user_page.last_updated'),
-                cell: (item: ConfigEntry) =>
-                  item.UpdatedAt ? new Date(item.UpdatedAt).toLocaleString() : '—',
+                cell: (item: ConfigEntry) => formatDateTime(item.UpdatedAt),
                 width: '20%',
               },
             ]}

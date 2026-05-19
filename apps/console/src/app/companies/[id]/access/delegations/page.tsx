@@ -134,7 +134,7 @@ export default function DelegationsPage() {
         role: DirectoryDelegationCreateRequestRole.read,
       });
     } catch (e: unknown) {
-      setFlash([{ type: 'error', content: String(e), dismissible: true, onDismiss: () => setFlash([]) }]);
+      setFlash([{ type: 'error', content: e instanceof Error ? e.message : 'An unexpected error occurred.', dismissible: true, onDismiss: () => setFlash([]) }]);
     } finally {
       setCreating(false);
     }

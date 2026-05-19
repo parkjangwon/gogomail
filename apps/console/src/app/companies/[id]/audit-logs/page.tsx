@@ -23,6 +23,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useI18n } from '@/app/i18n-provider';
 import { useCompany } from '@/contexts/CompanyContext';
 import { buildAuditLogsQuery, exportAuditLogsCsv, type AuditLogRow } from '@/lib/auditLogs';
+import { formatDateTime } from '@/lib/format';
 
 interface AuditLog extends AuditLogRow {
   company_id?: string;
@@ -150,7 +151,7 @@ export default function AuditLogsPage() {
       }
       setFlash([{ type: 'success', content: t('pages.audit_logs_page.export'), dismissible: true, onDismiss: () => setFlash([]) }]);
     } catch (e: unknown) {
-      setFlash([{ type: 'error', content: String(e), dismissible: true, onDismiss: () => setFlash([]) }]);
+      setFlash([{ type: 'error', content: e instanceof Error ? e.message : 'An unexpected error occurred.', dismissible: true, onDismiss: () => setFlash([]) }]);
     } finally {
       setExporting(false);
     }
@@ -192,7 +193,7 @@ export default function AuditLogsPage() {
           loading={loading}
           loadingText={t('pages.audit_logs_page.loading')}
           columnDefinitions={[
-            { id: 'time', header: t('pages.audit_logs_page.col_time'), cell: (l) => new Date(l.created_at).toLocaleString(), width: 160 },
+            { id: 'time', header: t('pages.audit_logs_page.col_time'), cell: (l) => formatDateTime(l.created_at), width: 160 },
             { id: 'actor', header: t('pages.audit_logs_page.col_actor'), cell: (l) => l.actor_id || '—' },
             { id: 'action', header: t('pages.audit_logs_page.col_action'), cell: (l) => <Box variant="code">{l.action}</Box> },
             { id: 'category', header: t('pages.audit_logs_page.col_category'), cell: (l) => <Badge color="blue">{l.category}</Badge> },

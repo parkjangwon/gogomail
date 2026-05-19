@@ -16,6 +16,7 @@ import {
 import { useState, useEffect } from 'react';
 import { useI18n } from '@/app/i18n-provider';
 import { useParams } from 'next/navigation';
+import { formatDateTime } from '@/lib/format';
 
 interface Domain {
   ID: string;
@@ -157,8 +158,7 @@ export default function DomainConfigPage() {
               },
               {
                 header: t('pages.config_domain_page.last_updated'),
-                cell: (item: ConfigEntry) =>
-                  item.UpdatedAt ? new Date(item.UpdatedAt).toLocaleString() : '—',
+                cell: (item: ConfigEntry) => formatDateTime(item.UpdatedAt),
                 width: '20%',
               },
             ]}
