@@ -83,7 +83,7 @@ export default function DmarcSpfPage() {
           setSelectedDomain(opt);
         }
       })
-      .catch(() => {});
+      .catch((err) => { console.error('Failed to load domains for DMARC page:', err); });
   }, [cid]);
 
   const fetchPolicy = useCallback(async (domainId: string) => {

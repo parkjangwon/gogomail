@@ -14,6 +14,7 @@ import {
   Tabs,
 } from '@cloudscape-design/components';
 import { useState, useEffect } from 'react';
+import DOMPurify from 'dompurify';
 import { useParams } from 'next/navigation';
 import { useI18n } from '@/app/i18n-provider';
 import { useCompanySignature, useUpdateCompanySignature } from '@/hooks';
@@ -145,7 +146,7 @@ export default function GlobalSignaturePage() {
                         <Box fontWeight="bold" fontSize="body-s">{t('global_signature.preview')}</Box>
                         <div
                           style={{ border: '1px solid var(--color-border-divider-default)', borderRadius: 4, padding: 16, background: '#fff', color: '#000' }}
-                          dangerouslySetInnerHTML={{ __html: config.html }}
+                          dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(config.html ?? '') }}
                         />
                       </SpaceBetween>
                     ) : null}

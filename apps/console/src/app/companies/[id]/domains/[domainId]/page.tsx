@@ -86,6 +86,7 @@ export default function DomainDetailPage() {
   const [users, setUsers] = useState<User[]>([]);
   const [settings, setSettings] = useState<DomainSetting[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [verifying, setVerifying] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
 
@@ -125,7 +126,10 @@ export default function DomainDetailPage() {
       }
       setUsers(usersData.users || []);
       setSettings(settingsData.config || []);
-    }).catch(() => {}).finally(() => setLoading(false));
+    }).catch((err) => {
+      console.error('Failed to load domain details:', err);
+      setLoadError('Failed to load domain details. Please refresh the page.');
+    }).finally(() => setLoading(false));
   }, [domainId]);
 
   const handleVerifyDNS = async () => {
@@ -271,6 +275,14 @@ export default function DomainDetailPage() {
     return (
       <ContentLayout header={<Header variant="h1">{t('pages.domain_detail.title')}</Header>}>
         <Box textAlign="center" padding="xl"><Spinner size="large" /></Box>
+      </ContentLayout>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <ContentLayout header={<Header variant="h1">{t('pages.domain_detail.title')}</Header>}>
+        <Alert type="error">{loadError}</Alert>
       </ContentLayout>
     );
   }
