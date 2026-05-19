@@ -128,7 +128,7 @@ export function SettingsSecuritySection({
             </p>
             <div style={{ textAlign: 'center' }}>
               <img
-                src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(setupData.qr_uri)}`}
+                src={setupData.qr_image}
                 alt="MFA QR Code"
                 width={180}
                 height={180}

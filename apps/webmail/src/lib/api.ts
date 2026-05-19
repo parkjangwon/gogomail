@@ -236,6 +236,7 @@ export interface MFAStatus {
 export interface MFASetupResponse {
   secret: string;
   qr_uri: string;
+  qr_image: string;
   recovery_codes: string[];
 }
 
