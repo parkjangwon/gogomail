@@ -7693,3 +7693,9 @@ Next focus areas:
 - Retry exhaustion now reuses the same delivery-attempt batch insert path instead of inserting one exhausted attempt per recipient.
 - Benchmark evidence: `BenchmarkRecordAttemptBatchBulkVsIndividual` records 100 recipients with `1.000 record_calls/op` on the bulk path versus `100.0 record_calls/op` on the fallback individual path.
 - Verification: `go test ./internal/delivery`; `go test ./internal/delivery -run '^$' -bench 'BenchmarkRecordAttemptBatchBulkVsIndividual' -benchtime=100ms`.
+
+## 2026-05-21 Mailbox bulk mutation typed arrays
+
+- `BulkSetMessageFlag`, `BulkMoveMessages`, and IMAP UID cleanup for moved/deleted messages now pass UUID arrays through `pq.Array`/`unnest($2::uuid[])` instead of JSON-encoding IDs and expanding them with `jsonb_array_elements_text`.
+- Added message-ID array benchmarks: 1k UUIDs `~69.3 us/op`, 10k UUIDs `~689.3 us/op`.
+- Verification: `go test ./internal/maildb`; `go test ./internal/maildb -run '^$' -bench 'BenchmarkBulkMessageIDsArrayValue' -benchtime=100ms`.
