@@ -60,6 +60,7 @@ Last updated: 2026-05-21 (SaaS launch hardening continues: attachment cleanup ba
 - Verification: `go test ./internal/imapgw -run 'TestServerValidatesUIDSubcommandBeforeSelectedState|TestServerValidatesUIDSubcommandBeforeAuthentication'` passes.
 
 ## SaaS Launch Hardening Continuation (2026-05-21)
+- Open-tracking pixel creation now stores all recipient pixels with one typed-array `unnest` INSERT instead of one INSERT per recipient, reducing DB round trips for tracked bulk sends.
 - Organization chart user-unit lookup is now repository-backed instead of returning a placeholder error. `GetUserUnits` validates `user_id`, resolves active `organization_members` assignments through `organization_units`, and ignores ended memberships plus inactive units.
 - Migration `0115_organization_member_active_user_index.sql` adds a partial active-membership index for user-scoped organization lookups.
 - Organization hierarchy reads now batch-load all active members for the returned unit set instead of issuing one member query per organization unit. Migration `0116_organization_members_active_unit_index.sql` supports the active unit-member batch path.
