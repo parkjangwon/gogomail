@@ -1,6 +1,11 @@
 # gogomail current status
 
-Last updated: 2026-05-21 (SaaS launch hardening continues: password reset background context bounded)
+Last updated: 2026-05-21 (SaaS launch hardening continues: mail auth error boundary tightened)
+
+## Mail Auth Error Boundary (2026-05-21)
+- Mail API bearer-token verification failures now return a fixed `invalid bearer token` response instead of exposing verifier internals such as token format, signature, expiry, or revocation details.
+- Regression coverage exercises an invalid bearer token through the registered mail routes and asserts the handler does not dispatch to the message service.
+- Verification target: `go test ./internal/httpapi -run MailAuthRejectsInvalidBearerTokenWithGenericError`.
 
 ## Password Reset Background Context (2026-05-21)
 - Accepted password-reset requests now issue tokens and send best-effort email with a bounded background context instead of the client request context.

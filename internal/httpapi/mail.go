@@ -2708,7 +2708,7 @@ func claimsFromRequest(w http.ResponseWriter, r *http.Request, tokenManager *aut
 	}
 	claims, err := tokenManager.VerifyFull(r.Context(), token)
 	if err != nil {
-		writeError(w, http.StatusUnauthorized, err.Error())
+		writeError(w, http.StatusUnauthorized, "invalid bearer token")
 		return auth.Claims{}, false
 	}
 	if claims.TokenType == "mfa_pending" {

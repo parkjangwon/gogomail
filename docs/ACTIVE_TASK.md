@@ -180,6 +180,7 @@
 - Console and webmail Next.js proxy routes now require explicit `GOGOMAIL_BACKEND_URL` instead of silently defaulting to `http://localhost:8080` in production-capable paths.
 - Outbox relay claim selection now orders candidate and locked rows by `created_at, id`, making same-timestamp work claims deterministic across workers.
 - Password-reset token issuance now runs on a bounded background context after request acceptance, so client disconnects do not cancel token persistence or best-effort reset email dispatch.
+- Mail API bearer-token verification failures now return a fixed public error, preventing token parser/signature/expiry details from leaking to clients.
 
 **Infrastructure & Storage Hardening** ✅ COMPLETE
 - Task 1 (EML GC): Added `LookupDeleteableStoragePaths` and `LookupExpungeStoragePaths` to maildb; service layer now performs two-phase GC (lookup before DB delete, delete from store after commit) for `DeleteMessage`, `BulkDeleteMessages`, `BulkDeleteThreads`, and `ExpungeIMAPMessages`. Reference-count check prevents deletion of paths shared by IMAP COPY.
