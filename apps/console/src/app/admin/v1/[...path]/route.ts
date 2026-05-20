@@ -1,13 +1,18 @@
 import { adminProxyHandler } from '@/lib/server/adminProxy';
-
-const BACKEND_URL = process.env.GOGOMAIL_BACKEND_URL || 'http://localhost:8080';
+import { backendConfigErrorResponse, requiredBackendUrl } from '@/lib/server/backend';
 
 async function handler(
   req: Request,
   { params }: { params: Promise<{ path: string[] }> }
 ) {
   const { path } = await params;
-  return adminProxyHandler(req, path, BACKEND_URL);
+  let backendUrl: string;
+  try {
+    backendUrl = requiredBackendUrl();
+  } catch {
+    return backendConfigErrorResponse();
+  }
+  return adminProxyHandler(req, path, backendUrl);
 }
 
 export const GET = handler;

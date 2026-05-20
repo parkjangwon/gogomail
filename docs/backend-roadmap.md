@@ -6651,3 +6651,6 @@ Target outcome:
       `development`/`test` when neither static token nor JWT token manager is
       configured, and standalone audit-log route registration uses the same
       closed default.
+1829. Console and webmail Next.js server proxy routes now require explicit
+      `GOGOMAIL_BACKEND_URL` configuration instead of silently falling back to
+      localhost in production-capable paths.

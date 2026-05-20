@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { assertSameOriginForMutation } from '@/lib/security/proxy';
-
-const BACKEND = process.env.GOGOMAIL_BACKEND_URL || 'http://localhost:8080';
+import { backendConfigErrorResponse, requiredBackendUrl } from '@/lib/server/backend';
 
 export async function POST(req: NextRequest) {
   try {
@@ -9,13 +8,19 @@ export async function POST(req: NextRequest) {
   } catch {
     return NextResponse.json({ error: 'Invalid request origin' }, { status: 403 });
   }
+  let backendUrl: string;
+  try {
+    backendUrl = requiredBackendUrl();
+  } catch {
+    return backendConfigErrorResponse();
+  }
 
   let body: unknown;
   try { body = await req.json(); } catch {
     return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
   }
 
-  const upstream = await fetch(`${BACKEND}/api/v1/auth/password-reset/request`, {
+  const upstream = await fetch(`${backendUrl}/api/v1/auth/password-reset/request`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
