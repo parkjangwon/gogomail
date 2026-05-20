@@ -709,7 +709,7 @@ POST   /admin/v1/auth/login
 
 POST   /admin/v1/auth/logout
 GET    /admin/v1/auth/me             (현재 관리자 정보)
-POST   /admin/v1/auth/refresh-token
+POST   /admin/v1/auth/refresh        (refresh_token 회전)
 ```
 
 ### User Management
@@ -739,33 +739,50 @@ DELETE /admin/v1/organization/members/{id}
 ### Identity & Directory
 
 ```
-GET    /admin/v1/identity-config
-PUT    /admin/v1/identity-config    (mode, config)
+GET    /admin/v1/directory/principals
+GET    /admin/v1/directory/aliases/resolve
+GET    /admin/v1/directory/aliases
+POST   /admin/v1/directory/aliases
+DELETE /admin/v1/directory/aliases/{id}
+GET    /admin/v1/directory/delegations
+POST   /admin/v1/directory/delegations
+PATCH  /admin/v1/directory/delegations/{id}/role
+PATCH  /admin/v1/directory/delegations/{id}/assignment
+DELETE /admin/v1/directory/delegations/{id}
+GET    /admin/v1/directory/group-memberships
+POST   /admin/v1/directory/group-memberships
+PATCH  /admin/v1/directory/group-memberships/{id}/role
+PATCH  /admin/v1/directory/group-memberships/{id}/assignment
+DELETE /admin/v1/directory/group-memberships/{id}
 
-POST   /admin/v1/ldap-config
-POST   /admin/v1/ldap-config/test-connection
-POST   /admin/v1/ldap-config/{id}/sync-now
-GET    /admin/v1/ldap-config/{id}/sync-status
-
-POST   /admin/v1/external-rdbms-config
-POST   /admin/v1/external-rdbms-config/validate-query
-POST   /admin/v1/external-rdbms-config/{id}/sync-now
+GET    /admin/v1/companies/{id}/sso/config
+PUT    /admin/v1/companies/{id}/sso/config
+POST   /admin/v1/companies/{id}/sso/test
 ```
 
 ### Logs & Monitoring
 
 ```
-GET    /admin/v1/logs/mail          (메일 로그)
-GET    /admin/v1/logs/login         (로그인 로그)
-GET    /admin/v1/logs/audit         (감시 로그)
-GET    /admin/v1/logs/spam          (스팸 로그)
+GET    /admin/v1/mail-flow-logs
+GET    /admin/v1/mail-flow-logs/stats
+GET    /admin/v1/mail-flow-logs/daily-stats
+GET    /admin/v1/mail-flow-logs/{id}
+GET    /admin/v1/audit-logs
+GET    /admin/v1/audit-logs/integrity
+GET    /admin/v1/audit-logs/{id}
+GET    /admin/v1/companies/{id}/security/login-audits
+GET    /admin/v1/companies/{id}/security/spam-filter/events
+GET    /admin/v1/companies/{id}/security/spam-filter/stats
 
 GET    /admin/v1/stats/dashboard    (대시보드)
 GET    /admin/v1/stats/mail-volume
 GET    /admin/v1/stats/users
 GET    /admin/v1/stats/storage
-GET    /admin/v1/api-usage
 GET    /admin/v1/api-usage/daily
+GET    /admin/v1/api-usage/monthly
+GET    /admin/v1/api-usage/ledger
+GET    /admin/v1/api-usage/ledger/export
+GET    /admin/v1/api-usage/ledger/stats
 ```
 
 ### Settings
