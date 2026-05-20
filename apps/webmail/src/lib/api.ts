@@ -1662,6 +1662,7 @@ export interface WebmailPreferences {
   blocked_senders?: string[];
   vacation?: Record<string, unknown>;
   signatures?: Record<string, string>;
+  templates?: unknown[];
 }
 
 export async function getPreferences(): Promise<WebmailPreferences> {

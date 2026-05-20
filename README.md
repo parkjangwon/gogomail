@@ -46,7 +46,7 @@ LDAP, DKIM, SPF, DMARC, DSN, and OpenAPI-backed REST APIs.
 ### Webmail
 
 - Mail list, reading pane, rich compose, folders, search, snooze, labels, reminders, attachments, and Drive picker flows
-- Password reset UI, refresh-token based session renewal, server-synced email signatures and filter rules, Web Push service worker registration, calendar edit/delete flows, and crypto-backed browser ID generation for client-created records
+- Password reset UI, refresh-token based session renewal, server-synced email signatures, filter rules, and quick reply templates, Web Push service worker registration, calendar edit/delete flows, and crypto-backed browser ID generation for client-created records
 - Keyboard-oriented UX: global shortcuts, app switching, Spotlight search, row focus, reading-pane navigation, and message actions
 - Safer rendering for HTML mail, external images, and proxied remote content
 - TOTP MFA login (two-step password → code) and in-settings enrollment with QR code, recovery codes, and disable flow
