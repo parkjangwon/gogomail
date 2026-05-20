@@ -6482,3 +6482,6 @@ Target outcome:
 1778. Admin company listing now uses a dynamic optional status predicate,
       avoiding broad optional `OR` guards on tenant operations while preserving
       `has_more` probe limits.
+1779. Message page listing now emits the folder predicate only for
+      folder-scoped reads, using a typed `messages.folder_id = $2::uuid`
+      comparison and omitting folder predicates for all-folder reads.

@@ -28,3 +28,23 @@ func TestMessageListPageSQLProjectsBoundedPreview(t *testing.T) {
 		})
 	}
 }
+
+func TestMessageListPageQueryUsesSargableFolderFilter(t *testing.T) {
+	t.Parallel()
+
+	query := buildMessageListPageSQL(ListSortNewest, "folder-1")
+	if !strings.Contains(query, "AND messages.folder_id = $2::uuid") {
+		t.Fatalf("message list query missing sargable folder filter:\n%s", query)
+	}
+	if strings.Contains(query, "$2 = '' OR messages.folder_id::text = $2") {
+		t.Fatalf("message list query contains non-sargable folder filter:\n%s", query)
+	}
+
+	query = buildMessageListPageSQL(ListSortOldest, "")
+	if strings.Contains(query, "AND messages.folder_id") {
+		t.Fatalf("folderless message list query unexpectedly includes folder predicate:\n%s", query)
+	}
+	if !strings.Contains(query, "ORDER BY message_at ASC, id ASC") {
+		t.Fatalf("oldest message list query lost oldest ordering:\n%s", query)
+	}
+}
