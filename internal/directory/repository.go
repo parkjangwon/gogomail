@@ -47,7 +47,7 @@ func (r *Repository) ResolvePrincipal(ctx context.Context, req ResolvePrincipalR
 	case PrincipalKindResource:
 		return r.resolveResourcePrincipal(ctx, req)
 	default:
-		return Principal{}, fmt.Errorf("principal kind %q is not implemented", req.Kind)
+		return Principal{}, fmt.Errorf("unsupported principal kind %q", req.Kind)
 	}
 }
 

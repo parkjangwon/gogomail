@@ -7782,3 +7782,10 @@ Next focus areas:
 - Audit log integrity checks now build their recent-log subquery with explicit hash-chain columns instead of `SELECT *`, keeping operational integrity scans narrower as audit metadata grows.
 - Added a SQL-shape regression test for the integrity query while preserving the PostgreSQL tamper-detection coverage.
 - Verification: `go test ./internal/maildb -run 'TestAuditLogIntegrityQueryProjectsRecentColumns|TestPostgresAuditLogIntegrityCheck|TestAuditLogReadsRejectNilDatabase'`.
+
+## 2026-05-21 DAV unsupported wording polish
+
+- CardDAV and CalDAV REPORT fallback paths now return `unsupported REPORT ...` instead of implementation-status wording for parsed but unsupported report kinds.
+- Directory principal resolution fallback now uses `unsupported principal kind ...`, matching the normalized request validator.
+- Added CardDAV and CalDAV regression tests that reject `not implemented` in client-facing unsupported REPORT errors.
+- Verification: `go test ./internal/carddavgw -run TestReportResponsesRejectsUnsupportedReportWithProductWording`; `go test ./internal/caldavgw -run TestReportResponsesRejectsUnsupportedReportWithProductWording`; `go test ./internal/directory`.

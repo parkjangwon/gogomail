@@ -6341,3 +6341,7 @@ Target outcome:
       wording for unknown commands and UID subcommands, avoiding
       implementation-status language while preserving pre-auth validation
       ordering.
+1745. CardDAV/CalDAV REPORT and directory principal-kind fallback errors now
+      use client-facing unsupported wording instead of implementation-status
+      language, with regression tests preventing `not implemented` leakage on
+      DAV unsupported REPORT paths.

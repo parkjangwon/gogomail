@@ -2429,7 +2429,7 @@ func (h *Handler) reportResponses(ctx context.Context, userID string, resource R
 		responses, _, err := h.syncCollectionReport(ctx, userID, resource, report, currentUserPrivileges)
 		return responses, err
 	default:
-		return nil, fmt.Errorf("REPORT %s is not implemented", report.Kind)
+		return nil, fmt.Errorf("unsupported REPORT %s", report.Kind)
 	}
 }
 
