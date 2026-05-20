@@ -84,7 +84,7 @@ type adminUserService interface {
 	CreateInviteToken(ctx context.Context, userID, createdBy string) (maildb.InviteToken, error)
 	GetInviteToken(ctx context.Context, token string) (maildb.InviteToken, error)
 	AcceptInviteToken(ctx context.Context, token, passwordHash string) (maildb.UserView, error)
-	ListAdminUsers(ctx context.Context, companyID string) ([]maildb.AdminUserView, error)
+	ListAdminUsers(ctx context.Context, req maildb.AdminUserListRequest) ([]maildb.AdminUserView, bool, error)
 	SetUserRole(ctx context.Context, userID, role string) error
 	ClearUserAdminRole(ctx context.Context, userID string) error
 }

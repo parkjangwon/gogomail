@@ -1,0 +1,43 @@
+# docker-compose.backup.yml — scheduled PostgreSQL backup service
+#
+# Usage:
+#   docker compose -f docker-compose.backup.yml up -d
+#
+# Required:
+#   GOGOMAIL_DATABASE_URL         — PostgreSQL connection URL
+#
+# Optional (see scripts/backup.sh for full list):
+#   GOGOMAIL_BACKUP_DIR           — default: /backups
+#   GOGOMAIL_BACKUP_RETENTION_DAYS — default: 7
+#   GOGOMAIL_BACKUP_S3_BUCKET     — if set, uploads to S3
+#   GOGOMAIL_BACKUP_S3_PREFIX     — default: backups/
+#   AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY — required for S3 uploads
+
+services:
+  backup-cron:
+    image: alpine:3.20
+    container_name: gogomail-backup-cron
+    restart: unless-stopped
+    environment:
+      GOGOMAIL_DATABASE_URL: "${GOGOMAIL_DATABASE_URL}"
+      GOGOMAIL_BACKUP_DIR: "${GOGOMAIL_BACKUP_DIR:-/backups}"
+      GOGOMAIL_BACKUP_RETENTION_DAYS: "${GOGOMAIL_BACKUP_RETENTION_DAYS:-7}"
+      GOGOMAIL_BACKUP_S3_BUCKET: "${GOGOMAIL_BACKUP_S3_BUCKET:-}"
+      GOGOMAIL_BACKUP_S3_PREFIX: "${GOGOMAIL_BACKUP_S3_PREFIX:-backups/}"
+      AWS_ACCESS_KEY_ID: "${AWS_ACCESS_KEY_ID:-}"
+      AWS_SECRET_ACCESS_KEY: "${AWS_SECRET_ACCESS_KEY:-}"
+      AWS_DEFAULT_REGION: "${AWS_DEFAULT_REGION:-us-east-1}"
+    volumes:
+      - backup-data:/backups
+      - ../scripts/backup.sh:/usr/local/bin/backup.sh:ro
+    entrypoint: ["/bin/sh", "-c"]
+    # Install pg_dump client and crond, then run backup daily at 03:00 UTC.
+    command:
+      - |
+        apk add --no-cache postgresql16-client gzip aws-cli
+        echo '0 3 * * * /usr/local/bin/backup.sh >> /var/log/backup.log 2>&1' | crontab -
+        crond -f -l 2
+
+volumes:
+  backup-data:
+    driver: local

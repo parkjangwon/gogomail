@@ -12,7 +12,7 @@ export function Providers({ children }: { children: ReactNode }) {
           queries: {
             staleTime: 30_000,
             retry: (failureCount, error) => {
-              const err = error as any;
+              const err = error as { status?: number };
               if (err?.status === 401) return false;
               return failureCount < 2;
             },

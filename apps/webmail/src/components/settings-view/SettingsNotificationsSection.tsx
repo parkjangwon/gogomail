@@ -4,6 +4,7 @@ import { Row, SectionCard, SectionHeader, Segment, Toggle } from '@/components/s
 
 interface SettingsNotificationsSectionProps {
   notifPerm: NotificationPermission;
+  notifSyncError: string;
   onRequestNotif: () => void;
   notifSound: boolean;
   setNotifSound: (value: boolean) => void;
@@ -19,6 +20,7 @@ interface SettingsNotificationsSectionProps {
 
 export function SettingsNotificationsSection({
   notifPerm,
+  notifSyncError,
   onRequestNotif,
   notifSound,
   setNotifSound,
@@ -42,6 +44,11 @@ export function SettingsNotificationsSection({
           : <button onClick={onRequestNotif} style={{ padding: '5px 14px', borderRadius: '6px', border: '1px solid var(--color-border-default)', background: 'transparent', color: 'var(--color-text-primary)', fontSize: '12px', cursor: 'pointer' }}>허용하기</button>
         }
       </Row>
+      {notifSyncError && (
+        <div role="alert" style={{ margin: '0 0 12px', color: 'var(--color-destructive)', fontSize: '12px' }}>
+          {notifSyncError}
+        </div>
+      )}
       <Row label="알림 소리" description="새 메일 도착 시 알림음을 재생합니다">
         <Toggle value={notifSound} onChange={setNotifSound} />
       </Row>

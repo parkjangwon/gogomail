@@ -979,11 +979,23 @@ export default function MailPage() {
     return () => clearInterval(id);
   }, []);
 
-  // Request notification permission once on mount
+  // Request notification permission once on mount and register SW for WebPush
   useEffect(() => {
-    if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
-      Notification.requestPermission();
-    }
+    if (typeof Notification === 'undefined') return;
+    const doSetup = async () => {
+      if (Notification.permission === 'default') {
+        await Notification.requestPermission();
+      }
+      if (Notification.permission === 'granted' && 'serviceWorker' in navigator && 'PushManager' in window) {
+        try {
+          await navigator.serviceWorker.register('/sw.js');
+          // VAPID push subscription is handled in Settings when user explicitly enables notifications
+        } catch {
+          // ignore SW registration failure
+        }
+      }
+    };
+    doSetup().catch(() => {});
   }, []);
 
   // Detect new unread messages after refresh and notify

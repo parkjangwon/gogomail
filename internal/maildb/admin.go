@@ -2429,11 +2429,27 @@ type AdminUserView struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
+// AdminUserListRequest is the filter/pagination request for ListAdminUsers.
+type AdminUserListRequest struct {
+	CompanyID string
+	Limit     int
+	ProbeMore bool // when true the query fetches Limit+1 to detect has_more
+}
+
 // ListAdminUsers returns users whose role is system_admin or company_admin.
-// If companyID is non-empty, only users in domains belonging to that company are returned.
-func (r *Repository) ListAdminUsers(ctx context.Context, companyID string) ([]AdminUserView, error) {
+// If req.CompanyID is non-empty, only users in domains belonging to that company are returned.
+// When req.ProbeMore is true an extra row is fetched to populate the has_more return value.
+func (r *Repository) ListAdminUsers(ctx context.Context, req AdminUserListRequest) ([]AdminUserView, bool, error) {
 	if r.db == nil {
-		return nil, fmt.Errorf("database handle is required")
+		return nil, false, fmt.Errorf("database handle is required")
+	}
+	limit := req.Limit
+	if limit <= 0 {
+		limit = 1000
+	}
+	queryLimit := limit
+	if req.ProbeMore {
+		queryLimit = limit + 1
 	}
 	const query = `
 SELECT
@@ -2451,11 +2467,11 @@ LEFT JOIN user_addresses ua ON ua.user_id = u.id AND ua.address LIKE u.username 
 WHERE u.role IN ('system_admin', 'company_admin')
   AND ($1 = '' OR d.company_id::text = $1)
 ORDER BY u.created_at DESC
-LIMIT 1000`
+LIMIT $2`
 
-	rows, err := r.db.QueryContext(ctx, query, strings.TrimSpace(companyID))
+	rows, err := r.db.QueryContext(ctx, query, strings.TrimSpace(req.CompanyID), queryLimit)
 	if err != nil {
-		return nil, fmt.Errorf("list admin users: %w", err)
+		return nil, false, fmt.Errorf("list admin users: %w", err)
 	}
 	defer rows.Close()
 
@@ -2472,17 +2488,21 @@ LIMIT 1000`
 			&u.Status,
 			&u.CreatedAt,
 		); err != nil {
-			return nil, fmt.Errorf("scan admin user: %w", err)
+			return nil, false, fmt.Errorf("scan admin user: %w", err)
 		}
 		users = append(users, u)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("iterate admin users: %w", err)
+		return nil, false, fmt.Errorf("iterate admin users: %w", err)
+	}
+	hasMore := req.ProbeMore && len(users) > limit
+	if hasMore {
+		users = users[:limit]
 	}
 	if users == nil {
 		users = []AdminUserView{}
 	}
-	return users, nil
+	return users, hasMore, nil
 }
 
 // SetUserRole updates the role of a user by ID. The role must be a valid value.

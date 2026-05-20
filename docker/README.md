@@ -257,6 +257,15 @@ docker-compose -f docker-compose.large.yml up -d redis-node-4
 
 ### Backup Strategies
 
+**Scheduled PostgreSQL backup profile**:
+```bash
+docker compose -f docker-compose.backup.yml up -d
+```
+
+The backup profile runs `scripts/backup.sh` daily at 03:00 UTC. Configure it with
+`GOGOMAIL_DATABASE_URL`, `GOGOMAIL_BACKUP_DIR`, `GOGOMAIL_BACKUP_RETENTION_DAYS`,
+and optionally `GOGOMAIL_BACKUP_S3_BUCKET` / `GOGOMAIL_BACKUP_S3_PREFIX`.
+
 **Development/Small**:
 ```bash
 # Docker volumes backup

@@ -1,6 +1,19 @@
 # gogomail current status
 
-Last updated: 2026-05-19 (Console security settings page with MFA enrollment UI)
+Last updated: 2026-05-20 (Third pre-launch audit closure: auth refresh, retention, ops, webmail/console polish)
+
+## Third Pre-Launch Audit Closure (2026-05-20)
+- Mail API login now issues durable user refresh tokens when `RefreshTokenStore` is wired, and `POST /api/v1/auth/refresh` rotates the refresh token before returning a new 24-hour access token.
+- User refresh tokens are stored as SHA-256 hashes in `user_refresh_tokens` with a 30-day TTL and single-use rotation semantics.
+- HTTP now attaches an `X-Request-ID` to every response and stores it in request context for logging helpers.
+- PostgreSQL pool sizing is runtime-configurable through `GOGOMAIL_DB_MAX_OPEN_CONNS`, `GOGOMAIL_DB_MAX_IDLE_CONNS`, `GOGOMAIL_DB_CONN_MAX_LIFETIME`, and `GOGOMAIL_DB_CONN_MAX_IDLE_TIME`; every app DB open path uses those settings.
+- Quota alert scanning now sends pending user-scope quota alert emails through the system email sender and marks alerts as notified after successful dispatch.
+- Retention AutoPurge is implemented behind `GOGOMAIL_AUTO_PURGE_ENABLED`; it reads company `retention_policy` config, purges expired deleted/trash messages, and purges expired audit logs in bounded batches.
+- Admin invite acceptance sends a welcome email, and invite token creation sends a non-blocking invite email when the system email sender and `GOGOMAIL_PUBLIC_BASE_URL` are configured.
+- Webmail now includes forgot/reset password pages, password-reset proxy routes, server-synced email signatures, Web Push registration with base64url keys, service worker support, and calendar edit/delete controls.
+- Console audit logs now support cursor pagination through the backend `before` filter, and delivery attempts show filterable feedback instead of silent console errors.
+- Operational backup support now includes `scripts/backup.sh` plus `docker/docker-compose.backup.yml` for scheduled PostgreSQL dump backups with optional S3 upload.
+- Verification: `go test ./...`, `pnpm --dir apps/webmail type-check`, and `pnpm --dir apps/console type-check` pass.
 
 ## CLI Break-Glass MFA Reset (2026-05-19)
 - `gogomail admin mfa-reset --email <email>` command added for locked-out admin recovery.
@@ -7654,4 +7667,3 @@ fix: pass companyID in adminMFASetupRequired configstore resolve
 
 - ValidateOutboundHTTPURL called in NewWebhookSink to reject private IPs at startup
 - AllowPrivateNetwork option added for test overrides
-

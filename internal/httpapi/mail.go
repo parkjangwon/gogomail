@@ -110,6 +110,11 @@ type UserAuthenticator interface {
 	AuthenticateUser(ctx context.Context, email, password string) (maildb.AuthenticatedUser, error)
 }
 
+type UserRefreshTokenStore interface {
+	CreateUserRefreshToken(ctx context.Context, userID string) (string, error)
+	RotateUserRefreshToken(ctx context.Context, token string) (maildb.RotatedUserRefreshToken, error)
+}
+
 // MFAStore is the subset of maildb.Repository methods used by the MFA login flow.
 type MFAStore interface {
 	GetUserMFAStatus(ctx context.Context, userID string) (maildb.UserMFAStatus, error)
@@ -128,11 +133,12 @@ type ConfigResolver interface {
 }
 
 type MailRouteOptions struct {
-	MutationLimiter MailMutationLimiter
-	SessionRevoker  auth.SessionRevoker
-	Authenticator   UserAuthenticator
-	MFAStore        MFAStore
-	ConfigResolver  ConfigResolver
+	MutationLimiter   MailMutationLimiter
+	SessionRevoker    auth.SessionRevoker
+	Authenticator     UserAuthenticator
+	MFAStore          MFAStore
+	ConfigResolver    ConfigResolver
+	RefreshTokenStore UserRefreshTokenStore
 	// LoginLimiter guards POST /api/v1/auth/token against brute-force attacks.
 	// When nil a default in-process limiter of 10 attempts per IP per minute is used.
 	LoginLimiter *AdminIPRateLimiter
@@ -490,10 +496,62 @@ func RegisterMailRoutesWithOptions(mux *http.ServeMux, service MessageService, t
 			"must_change_password": user.MustChangePassword,
 			"client_ip":            clientIP,
 		}
+		if opts.RefreshTokenStore != nil {
+			refreshToken, err := opts.RefreshTokenStore.CreateUserRefreshToken(r.Context(), user.UserID)
+			if err != nil {
+				writeError(w, http.StatusInternalServerError, "failed to issue refresh token")
+				return
+			}
+			resp["refresh_token"] = refreshToken
+		}
 		if mfaSetupRequired {
 			resp["mfa_setup_required"] = true
 		}
 		writeJSON(w, http.StatusOK, resp)
+	})
+
+	mux.HandleFunc("POST /api/v1/auth/refresh", func(w http.ResponseWriter, r *http.Request) {
+		if opts.RefreshTokenStore == nil || tokenManager == nil {
+			writeError(w, http.StatusServiceUnavailable, "token refresh not configured")
+			return
+		}
+		if !rejectUnknownQueryKeys(w, r) {
+			return
+		}
+		var req struct {
+			RefreshToken string `json:"refresh_token"`
+		}
+		if err := decodeJSONBody(r, &req); err != nil {
+			writeError(w, http.StatusBadRequest, "invalid JSON body")
+			return
+		}
+		req.RefreshToken = strings.TrimSpace(req.RefreshToken)
+		if req.RefreshToken == "" {
+			writeError(w, http.StatusBadRequest, "refresh_token is required")
+			return
+		}
+		rotated, err := opts.RefreshTokenStore.RotateUserRefreshToken(r.Context(), req.RefreshToken)
+		if err != nil {
+			writeError(w, http.StatusUnauthorized, "invalid refresh token")
+			return
+		}
+		const tokenTTL = 24 * time.Hour
+		token, err := tokenManager.Sign(auth.Claims{
+			UserID:         rotated.User.UserID,
+			DomainID:       rotated.User.DomainID,
+			CompanyID:      rotated.User.CompanyID,
+			SessionVersion: rotated.User.SessionVersion,
+		}, tokenTTL)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "failed to issue token")
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{
+			"token":                token,
+			"refresh_token":        rotated.Token,
+			"expires_at":           time.Now().UTC().Add(tokenTTL).Format(time.RFC3339),
+			"must_change_password": rotated.User.MustChangePassword,
+		})
 	})
 
 	mux.HandleFunc("POST /api/v1/auth/sessions/revoke-all", func(w http.ResponseWriter, r *http.Request) {

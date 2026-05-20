@@ -10463,8 +10463,8 @@ func (f *fakeAdminService) AcceptInviteToken(ctx context.Context, token, passwor
 	return maildb.UserView{}, nil
 }
 
-func (f *fakeAdminService) ListAdminUsers(_ context.Context, companyID string) ([]maildb.AdminUserView, error) {
-	return []maildb.AdminUserView{}, nil
+func (f *fakeAdminService) ListAdminUsers(_ context.Context, req maildb.AdminUserListRequest) ([]maildb.AdminUserView, bool, error) {
+	return []maildb.AdminUserView{}, false, nil
 }
 
 func (f *fakeAdminService) SetUserRole(_ context.Context, userID, role string) error {

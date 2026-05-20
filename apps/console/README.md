@@ -110,6 +110,10 @@ The BFF handles:
 - Error normalization
 - CORS headers
 
+Current launch-readiness UI includes cursor-paginated audit logs, filterable
+delivery attempts with visible success/error feedback, and typed proxy/error
+helpers that are covered by `pnpm type-check`.
+
 ## Environment Variables
 
 ```bash
@@ -136,7 +140,6 @@ GIT_SHA=abc123def                           # Git commit SHA (for build ID)
 ## Future Enhancements
 
 - [ ] WebSocket support for real-time updates
-- [ ] Advanced filtering and export for audit logs
 - [ ] Chart visualization for statistics
 - [ ] Bulk operations for users/domains
 - [ ] API metering dashboard

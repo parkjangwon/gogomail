@@ -37,6 +37,13 @@ entry.
 - Admin capability discovery: `GET /admin/v1/console/capabilities`
 - Current backend contract version: `2026-05-04.backend-release`
 
+## Authentication contracts
+
+- `POST /api/v1/auth/token` returns the 24-hour access `token`; when the runtime has a `RefreshTokenStore`, it also returns a single-use `refresh_token`.
+- `POST /api/v1/auth/refresh` accepts `{"refresh_token":"..."}`, rotates the stored hashed refresh token, and returns a fresh access `token`, replacement `refresh_token`, `expires_at`, and `must_change_password`.
+- Refresh tokens are stored only as SHA-256 hashes, expire after 30 days, and are revoked atomically during rotation.
+- Admin auth keeps its existing `/admin/v1/auth/login` and `/admin/v1/auth/refresh` contract with admin access/refresh JWTs.
+
 ## Response envelopes
 
 `docs/openapi.yaml` documents successful JSON responses through reusable

@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { CheckIcon, ExclamationTriangleIcon, NoSymbolIcon, ArrowDownTrayIcon } from '@heroicons/react/24/outline';
-import { revokeAllSessions, getFolderStats, exportFolderEml, exportFolderZip, getPreferences, setPreferences, getUserProfile, updateUserProfile, changePassword, type FolderStats, type WebmailPreferences, type UserProfile } from '@/lib/api';
+import { revokeAllSessions, getFolderStats, exportFolderEml, exportFolderZip, getPreferences, setPreferences, getUserProfile, updateUserProfile, changePassword, registerWebPushDevice, type FolderStats, type WebmailPreferences, type UserProfile } from '@/lib/api';
 import { ReadMark, ExternalImages, SendDelay, Theme, FontSize, ACCENT_COLORS, FilterRule, migrateFilterRule, loadFilterRules } from '@/lib/settings/settingsUtils';
 import { NAV_ITEMS, SHORTCUT_GROUPS, type SectionId } from '@/components/settings-view/settingsViewConfig';
 import { Kbd, MiniEditor, Row, SectionCard, SectionHeader, Segment, Toggle, loadWmSettings, saveWmSetting } from '@/components/settings-view/settingsViewPrimitives';
@@ -72,6 +72,7 @@ export function SettingsView({ userEmail, userName, initialSection }: SettingsVi
 
   // Notifications
   const [notifPerm, setNotifPerm] = useState<NotificationPermission>('default');
+  const [notifSyncError, setNotifSyncError] = useState('');
   const [notifSound, setNotifSound] = useState(false);
   const [notifDetail, setNotifDetail] = useState<'sender' | 'subject' | 'preview'>('subject');
   const [dndEnabled, setDndEnabled] = useState(false);
@@ -176,6 +177,10 @@ export function SettingsView({ userEmail, userName, initialSection }: SettingsVi
           if (v.endDate !== undefined) setVacEndDate(v.endDate as string);
           if (v.subject) setVacSubject(v.subject as string);
           if (v.body !== undefined) setVacBody(v.body as string);
+        }
+        if (prefs.signatures && typeof prefs.signatures['default'] === 'string') {
+          setSignature(prefs.signatures['default']);
+          try { localStorage.setItem('webmail_signature', prefs.signatures['default']); } catch { /* ignore */ }
         }
       } catch { /* ignore */ }
       setPrefsLoaded(true);
@@ -302,6 +307,7 @@ export function SettingsView({ userEmail, userName, initialSection }: SettingsVi
 
   function saveSignature() {
     try { localStorage.setItem('webmail_signature', signature); } catch { /* ignore */ }
+    setPreferences({ signatures: { default: signature } }).catch(() => {});
     setSigSaved(true);
     setTimeout(() => setSigSaved(false), 2000);
   }
@@ -341,6 +347,22 @@ export function SettingsView({ userEmail, userName, initialSection }: SettingsVi
     if (typeof Notification === 'undefined') return;
     const p = await Notification.requestPermission();
     setNotifPerm(p);
+    setNotifSyncError('');
+    if (p === 'granted' && 'serviceWorker' in navigator && 'PushManager' in window) {
+      try {
+        const reg = await navigator.serviceWorker.register('/sw.js');
+        const vapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+        if (vapidKey) {
+          const sub = await reg.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: vapidKey,
+          });
+          await registerWebPushDevice(sub);
+        }
+      } catch {
+        setNotifSyncError('푸시 디바이스 등록에 실패했습니다. 새 메일 폴링 알림은 계속 동작합니다.');
+      }
+    }
   }
 
   // ─── Render ──────────────────────────────────────────────────────────────────
@@ -850,6 +872,7 @@ export function SettingsView({ userEmail, userName, initialSection }: SettingsVi
         return (
           <SettingsNotificationsSection
             notifPerm={notifPerm}
+            notifSyncError={notifSyncError}
             onRequestNotif={requestNotif}
             notifSound={notifSound}
             setNotifSound={(v) => { setNotifSound(v); try { localStorage.setItem('webmail_notif_sound', v ? '1' : '0'); } catch { /* */ } }}

@@ -1,4 +1,4 @@
-export function exportToCSV(data: any[], filename: string) {
+export function exportToCSV(data: Record<string, unknown>[], filename: string) {
   if (!data || data.length === 0) {
     console.warn("No data to export");
     return;
@@ -69,7 +69,7 @@ export function generatePDFReport(
   downloadBlob(blob, filename);
 }
 
-export function formatDataAsHTML(data: any[], title: string): string {
+export function formatDataAsHTML(data: Record<string, unknown>[], title: string): string {
   if (!data || data.length === 0) {
     return "<p>No data available</p>";
   }

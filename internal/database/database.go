@@ -14,7 +14,30 @@ import (
 	"github.com/pressly/goose/v3"
 )
 
-func Open(ctx context.Context, databaseURL string) (*sql.DB, error) {
+type Options struct {
+	MaxOpenConns    int
+	MaxIdleConns    int
+	ConnMaxLifetime time.Duration
+	ConnMaxIdleTime time.Duration
+}
+
+func (o Options) withDefaults() Options {
+	if o.MaxOpenConns <= 0 {
+		o.MaxOpenConns = 20
+	}
+	if o.MaxIdleConns <= 0 {
+		o.MaxIdleConns = 5
+	}
+	if o.ConnMaxLifetime <= 0 {
+		o.ConnMaxLifetime = 30 * time.Minute
+	}
+	if o.ConnMaxIdleTime <= 0 {
+		o.ConnMaxIdleTime = 5 * time.Minute
+	}
+	return o
+}
+
+func Open(ctx context.Context, databaseURL string, opts ...Options) (*sql.DB, error) {
 	if strings.TrimSpace(databaseURL) == "" {
 		return nil, fmt.Errorf("database URL is required")
 	}
@@ -24,10 +47,14 @@ func Open(ctx context.Context, databaseURL string) (*sql.DB, error) {
 		return nil, fmt.Errorf("open postgres connection: %w", err)
 	}
 
-	db.SetMaxOpenConns(20)
-	db.SetMaxIdleConns(5)
-	db.SetConnMaxLifetime(30 * time.Minute)
-	db.SetConnMaxIdleTime(5 * time.Minute)
+	options := Options{}.withDefaults()
+	if len(opts) > 0 {
+		options = opts[0].withDefaults()
+	}
+	db.SetMaxOpenConns(options.MaxOpenConns)
+	db.SetMaxIdleConns(options.MaxIdleConns)
+	db.SetConnMaxLifetime(options.ConnMaxLifetime)
+	db.SetConnMaxIdleTime(options.ConnMaxIdleTime)
 
 	pingCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()

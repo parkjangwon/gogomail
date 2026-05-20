@@ -59,7 +59,7 @@ export function validateUrl(url: string): ValidationResult {
   }
 }
 
-export function validateRequired(value: any): ValidationResult {
+export function validateRequired(value: unknown): ValidationResult {
   if (!value) return { valid: false, error: "This field is required" };
   return { valid: true };
 }

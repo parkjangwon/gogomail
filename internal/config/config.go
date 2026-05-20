@@ -75,6 +75,10 @@ type Config struct {
 	SMTPTLSKeyFile                      string
 	SubmissionAllowInsecureAuth         bool
 	DatabaseURL                         string
+	DBMaxOpenConns                      int
+	DBMaxIdleConns                      int
+	DBConnMaxLifetime                   time.Duration
+	DBConnMaxIdleTime                   time.Duration
 	RedisAddr                           string
 	RedisPassword                       string
 	RedisSentinelAddrs                  []string // GOGOMAIL_REDIS_SENTINEL_ADDRS (comma-separated)
@@ -265,17 +269,20 @@ type Config struct {
 	AuthJWTSecret                       string
 	AdminMFARequired                    bool
 	PublicBaseURL                       string
+	AutoPurgeEnabled                    bool
+	AutoPurgeInterval                   time.Duration
+	AutoPurgeBatchSize                  int
 
 	// Auto backpressure
-	AutoBackpressureEnabled        bool
-	AutoBackpressureCheckInterval  time.Duration
-	AutoBackpressureMemWarn        float64
-	AutoBackpressureMemDanger      float64
-	AutoBackpressureMemCritical    float64
-	AutoBackpressureQueueWarn      int64
-	AutoBackpressureQueueDanger    int64
-	AutoBackpressureQueueCritical  int64
-	AutoBackpressureInstanceID     string
+	AutoBackpressureEnabled       bool
+	AutoBackpressureCheckInterval time.Duration
+	AutoBackpressureMemWarn       float64
+	AutoBackpressureMemDanger     float64
+	AutoBackpressureMemCritical   float64
+	AutoBackpressureQueueWarn     int64
+	AutoBackpressureQueueDanger   int64
+	AutoBackpressureQueueCritical int64
+	AutoBackpressureInstanceID    string
 
 	// Bulk sender limiter (Submission MTA)
 	SubmissionBulkSenderEnabled bool
@@ -293,10 +300,10 @@ type Config struct {
 	SMTPLatencyWindowSize      int
 
 	// Alert dispatcher
-	AlertEmailTo      string // GOGOMAIL_ALERT_EMAIL_TO
-	AlertEmailFrom    string // GOGOMAIL_ALERT_EMAIL_FROM
-	AlertSMTPAddr     string // GOGOMAIL_ALERT_SMTP_ADDR
-	AlertWebhookURL   string // GOGOMAIL_ALERT_WEBHOOK_URL
+	AlertEmailTo    string // GOGOMAIL_ALERT_EMAIL_TO
+	AlertEmailFrom  string // GOGOMAIL_ALERT_EMAIL_FROM
+	AlertSMTPAddr   string // GOGOMAIL_ALERT_SMTP_ADDR
+	AlertWebhookURL string // GOGOMAIL_ALERT_WEBHOOK_URL
 
 	// Farm coordinator
 	FarmCoordinatorBackend              string
@@ -380,6 +387,10 @@ func Load() Config {
 		SMTPTLSKeyFile:                      envOrDefault("GOGOMAIL_SMTP_TLS_KEY_FILE", ""),
 		SubmissionAllowInsecureAuth:         boolEnvOrDefault("GOGOMAIL_SUBMISSION_ALLOW_INSECURE_AUTH", defaultSubmissionAllowInsecureAuth()),
 		DatabaseURL:                         envOrDefault("GOGOMAIL_DATABASE_URL", "postgres://gogomail:gogomail@localhost:5432/gogomail?sslmode=disable"),
+		DBMaxOpenConns:                      intEnvOrDefault("GOGOMAIL_DB_MAX_OPEN_CONNS", 20),
+		DBMaxIdleConns:                      intEnvOrDefault("GOGOMAIL_DB_MAX_IDLE_CONNS", 5),
+		DBConnMaxLifetime:                   durationEnvOrDefault("GOGOMAIL_DB_CONN_MAX_LIFETIME", 30*time.Minute),
+		DBConnMaxIdleTime:                   durationEnvOrDefault("GOGOMAIL_DB_CONN_MAX_IDLE_TIME", 5*time.Minute),
 		RedisAddr:                           envOrDefault("GOGOMAIL_REDIS_ADDR", "localhost:6379"),
 		RedisPassword:                       envOrDefault("GOGOMAIL_REDIS_PASSWORD", ""),
 		RedisSentinelAddrs:                  splitCSV(os.Getenv("GOGOMAIL_REDIS_SENTINEL_ADDRS")),
@@ -570,16 +581,19 @@ func Load() Config {
 		AuthJWTSecret:                       envOrDefault("GOGOMAIL_AUTH_JWT_SECRET", ""),
 		AdminMFARequired:                    boolEnvOrDefault("GOGOMAIL_ADMIN_MFA_REQUIRED", false),
 		PublicBaseURL:                       envOrDefault("GOGOMAIL_PUBLIC_BASE_URL", "http://localhost:8080"),
+		AutoPurgeEnabled:                    boolEnvOrDefault("GOGOMAIL_AUTO_PURGE_ENABLED", false),
+		AutoPurgeInterval:                   durationEnvOrDefault("GOGOMAIL_AUTO_PURGE_INTERVAL", 24*time.Hour),
+		AutoPurgeBatchSize:                  intEnvOrDefault("GOGOMAIL_AUTO_PURGE_BATCH_SIZE", 1000),
 
-		AutoBackpressureEnabled:        boolEnvOrDefault("GOGOMAIL_AUTO_BACKPRESSURE_ENABLED", false),
-		AutoBackpressureCheckInterval:  durationEnvOrDefault("GOGOMAIL_AUTO_BACKPRESSURE_CHECK_INTERVAL", 5*time.Second),
-		AutoBackpressureMemWarn:        floatEnvOrDefault("GOGOMAIL_AUTO_BACKPRESSURE_MEM_WARN", 0.70),
-		AutoBackpressureMemDanger:      floatEnvOrDefault("GOGOMAIL_AUTO_BACKPRESSURE_MEM_DANGER", 0.85),
-		AutoBackpressureMemCritical:    floatEnvOrDefault("GOGOMAIL_AUTO_BACKPRESSURE_MEM_CRITICAL", 0.95),
-		AutoBackpressureQueueWarn:      int64EnvOrDefault("GOGOMAIL_AUTO_BACKPRESSURE_QUEUE_WARN", 10000),
-		AutoBackpressureQueueDanger:    int64EnvOrDefault("GOGOMAIL_AUTO_BACKPRESSURE_QUEUE_DANGER", 50000),
-		AutoBackpressureInstanceID:     os.Getenv("GOGOMAIL_AUTO_BACKPRESSURE_INSTANCE_ID"),
-		AutoBackpressureQueueCritical:  int64EnvOrDefault("GOGOMAIL_AUTO_BACKPRESSURE_QUEUE_CRITICAL", 100000),
+		AutoBackpressureEnabled:       boolEnvOrDefault("GOGOMAIL_AUTO_BACKPRESSURE_ENABLED", false),
+		AutoBackpressureCheckInterval: durationEnvOrDefault("GOGOMAIL_AUTO_BACKPRESSURE_CHECK_INTERVAL", 5*time.Second),
+		AutoBackpressureMemWarn:       floatEnvOrDefault("GOGOMAIL_AUTO_BACKPRESSURE_MEM_WARN", 0.70),
+		AutoBackpressureMemDanger:     floatEnvOrDefault("GOGOMAIL_AUTO_BACKPRESSURE_MEM_DANGER", 0.85),
+		AutoBackpressureMemCritical:   floatEnvOrDefault("GOGOMAIL_AUTO_BACKPRESSURE_MEM_CRITICAL", 0.95),
+		AutoBackpressureQueueWarn:     int64EnvOrDefault("GOGOMAIL_AUTO_BACKPRESSURE_QUEUE_WARN", 10000),
+		AutoBackpressureQueueDanger:   int64EnvOrDefault("GOGOMAIL_AUTO_BACKPRESSURE_QUEUE_DANGER", 50000),
+		AutoBackpressureInstanceID:    os.Getenv("GOGOMAIL_AUTO_BACKPRESSURE_INSTANCE_ID"),
+		AutoBackpressureQueueCritical: int64EnvOrDefault("GOGOMAIL_AUTO_BACKPRESSURE_QUEUE_CRITICAL", 100000),
 
 		SubmissionBulkSenderEnabled: boolEnvOrDefault("GOGOMAIL_SUBMISSION_BULK_SENDER_ENABLED", false),
 		SubmissionBulkSenderRate:    intEnvOrDefault("GOGOMAIL_SUBMISSION_BULK_SENDER_RATE", 100),
@@ -593,10 +607,10 @@ func Load() Config {
 		SMTPLatencyTrackingEnabled: boolEnvOrDefault("GOGOMAIL_SMTP_LATENCY_TRACKING_ENABLED", false),
 		SMTPLatencyWindowSize:      intEnvOrDefault("GOGOMAIL_SMTP_LATENCY_WINDOW_SIZE", 1000),
 
-		AlertEmailTo:      os.Getenv("GOGOMAIL_ALERT_EMAIL_TO"),
-		AlertEmailFrom:    envOrDefault("GOGOMAIL_ALERT_EMAIL_FROM", "alerts@localhost"),
-		AlertSMTPAddr:     envOrDefault("GOGOMAIL_ALERT_SMTP_ADDR", "localhost:25"),
-		AlertWebhookURL:   os.Getenv("GOGOMAIL_ALERT_WEBHOOK_URL"),
+		AlertEmailTo:    os.Getenv("GOGOMAIL_ALERT_EMAIL_TO"),
+		AlertEmailFrom:  envOrDefault("GOGOMAIL_ALERT_EMAIL_FROM", "alerts@localhost"),
+		AlertSMTPAddr:   envOrDefault("GOGOMAIL_ALERT_SMTP_ADDR", "localhost:25"),
+		AlertWebhookURL: os.Getenv("GOGOMAIL_ALERT_WEBHOOK_URL"),
 
 		FarmCoordinatorBackend:              envOrDefault("GOGOMAIL_FARM_COORDINATOR_BACKEND", "noop"),
 		FarmCoordinatorNodeID:               envOrDefault("GOGOMAIL_FARM_COORDINATOR_NODE_ID", ""),

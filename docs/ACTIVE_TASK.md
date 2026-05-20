@@ -2,6 +2,46 @@
 
 ## Current Status Summary
 
+**3차 전수 감사 잔여 이슈 병렬 처리** ✅ COMPLETE
+- System email call sites wired: admin invite creation sends `SendInvite`, invite acceptance sends `SendWelcome`, quota alert scheduler sends `SendQuotaAlert` and marks alerts notified.
+- Operations readiness: `X-Request-ID` middleware, configurable DB pool sizing, scheduled AutoPurge, backup script/Compose cron profile, and OpenAPI refresh-token contract updated.
+- Mail API user refresh tokens: migration 0112 creates `user_refresh_tokens`; access-token login returns `refresh_token`; `/api/v1/auth/refresh` rotates refresh tokens.
+- Webmail launch gaps: forgot/reset password UI, server-synced signatures, Web Push SW/device registration, calendar edit/delete, and `.env.example` completed.
+- Console launch gaps: audit-log cursor pagination, delivery-attempt filters/feedback, TS helper cleanup completed.
+- Verification: `go test ./...`, `pnpm --dir apps/webmail type-check`, `pnpm --dir apps/console type-check`.
+
+**DMARC Quarantine Folder Routing & User Refresh Tokens** ✅ COMPLETE
+- DMARC quarantine: `enforceDMARCPolicy` in `internal/smtp/authentication.go` now returns `(DMARCEnforcementResult, error)`; `Quarantine=true` when `p=quarantine` and DMARC fails
+- Receiver: `internal/smtp/receiver.go` reads `dmarcResult.Quarantine` and sets `FolderSystemType="spam"` on `ReceivedMessage` so delivery routes to the Spam folder via `deliveryFolderID`
+- Mailauth enforcement comment in `internal/mailauth/enforcement.go` clarified: quarantine-mode hook continues to pass, real routing done at receiver level
+- Migration 0112: `user_refresh_tokens` table (user_id FK, token_hash BYTEA, expires_at, revoked_at, created_at)
+- `internal/maildb/user_refresh_tokens.go`: `CreateUserRefreshToken` (32-byte random, SHA-256 hash, 30-day TTL), `RotateUserRefreshToken` (validate + revoke + reissue in single TX)
+- `POST /api/v1/auth/token`: response now includes `refresh_token` field when `RefreshTokenStore` is configured
+- `POST /api/v1/auth/refresh`: new endpoint — validates refresh token, rotates it, returns new JWT + new refresh token
+- `internal/httpapi/mail.go`: `UserRefreshTokenStore` interface + `MailRouteOptions.RefreshTokenStore` field
+- `internal/app/run.go`: `repository` wired as `RefreshTokenStore`
+
+**Webmail: 캘린더 이벤트 편집/삭제 UI + WebPush Service Worker** ✅ COMPLETE
+- `EventPopover.tsx`: 팝오버에 "편집"/"삭제" 버튼 추가
+- `CalendarModals.tsx`: `EventEditModal` 컴포넌트 추가 (반복 이벤트 범위 선택 포함)
+- `CalendarView.tsx`: `openEditModal`, `handleEditSubmit`, `handleDeleteEvent` 핸들러 추가; `updateCalendarEvent` API 연동
+- `api.ts`: `updateCalendarEvent(calendarId, objectName, uid, req)` 함수 추가
+- `api.ts`: `registerWebPushDevice(subscription)` 함수 추가 (`POST /api/v1/push-devices`)
+- `public/sw.js`: WebPush Service Worker 생성 (push 이벤트 → showNotification, notificationclick → openWindow)
+- `SettingsView.tsx`: 알림 허용 시 SW 등록 + `pushManager.subscribe()` + 백엔드 구독 전송
+- `mail/page.tsx`: 마운트 시 알림 허용이면 SW 자동 등록
+- `.env.example`: `NEXT_PUBLIC_VAPID_PUBLIC_KEY=` 이미 포함
+- TypeScript 오류 없음
+
+**Webmail UI: 비밀번호 재설정 & 이메일 서명 서버 저장** ✅ COMPLETE
+- `/forgot-password` 페이지: 이메일 입력 → `POST /api/auth/password-reset/request` → 성공 메시지 표시
+- `/reset-password?token=<hex>` 페이지: 새 비밀번호 입력 → `POST /api/auth/password-reset/confirm` → 로그인 redirect
+- 로그인 페이지에 "비밀번호를 잊으셨나요?" 링크 추가 (`/forgot-password`)
+- Next.js API 프록시 라우트 2종 추가: `src/app/api/auth/password-reset/{request,confirm}/route.ts`
+- `SettingsView.tsx` 서명 저장: localStorage + `setPreferences({ signatures: { default: signature } })` 서버 동기화
+- 서명 로드: `getPreferences()`에서 `signatures.default` 우선, localStorage 폴백
+- TypeScript 타입 오류 없음 (기존 CalendarView.tsx 오류 제외)
+
 **3차 감사 수정 사항** ✅ COMPLETE
 - Inbound MTA STARTTLS: `runReceiveMTA`에서 `smtpTLSConfig` 호출 누락 수정 — 인바운드 포트 25에서 STARTTLS 활성화
 - IMAP 백필 OOM 방지: `backfillIMAPMailboxUIDsTx` 쿼리에 `LIMIT 1000` 추가 — 대형 메일박스 잠금 전체 로드 방지
@@ -99,6 +139,12 @@
   `SCIMUserService.PatchSCIMUser()` added to interface and `maildbSCIMUserService`;
   `ServiceProviderConfig` updated to report `patch.supported: true`
 
+**Infrastructure Improvements** ✅ COMPLETE
+- Task 1 (DB 커넥션 풀 환경변수화): `Config`에 `DBMaxOpenConns`/`DBMaxIdleConns`/`DBConnMaxLifetime` 필드 추가; `database.Open`에 `Options` 가변인자 추가; `internal/app/run.go` 24곳 호출부 모두 cfg 값 전달로 교체
+  - env: `GOGOMAIL_DB_MAX_OPEN_CONNS` (기본 20), `GOGOMAIL_DB_MAX_IDLE_CONNS` (기본 5), `GOGOMAIL_DB_CONN_MAX_LIFETIME` (기본 30m)
+- Task 2 (X-Request-ID 미들웨어): `httpapi.RequestIDMiddleware`, `RequestIDFromContext`, `RequestIDAttr` 추가; `run.go` HTTP 핸들러 체인 최외곽에 삽입
+- Task 3 (DB 백업 스크립트): `scripts/backup.sh` (pg_dump→gzip, 보존 기간 자동 삭제, S3 업로드 옵션); `docker/docker-compose.backup.yml` (alpine crond, 매일 03:00 UTC)
+
 **TASK-090: Message Storage & Delivery Optimization** 🔄 IN PROGRESS
 - Phase 1 (Database Query Optimization): Partial indexes, UUID array hydration, and batch lookup improvements implemented
 - Phase 2 (Bulk Delivery Batching): Same-domain batch planning, runtime batch-size tuning, observability, and benchmarks implemented
@@ -188,6 +234,18 @@ Go Backend (`internal/`):
 - `verify-backend-release.sh`가 `GOGOMAIL_RESTORE_REHEARSAL_DATABASE_URL` 설정 시 백업/복구 리허설을 릴리즈 검증 단계에 포함하도록 연결함
 - `GOGOMAIL_SECURITY_VERIFY=1` 설정 시 `verify-backend-release.sh`가 `go vet ./...`와 설치된 `govulncheck ./...`를 보안 릴리즈 게이트로 실행하도록 함
 - 프론트엔드 릴리즈 검증 스크립트를 추가해 webmail/console type-check와 helper test를 기본 실행하고, E2E/build는 명시 환경변수로 켤 수 있게 함
+
+**System Email Connections & AutoPurge** ✅ COMPLETE
+- `internal/httpapi/admin.go`: Added `systemEmail mailservice.SystemEmailSender` and `publicBaseURL string` fields to `adminRouteConfig`; added `WithSystemEmailSender` and `WithPublicBaseURL` `AdminRouteOption` constructors
+- `POST /admin/v1/users/{id}/invite`: After token creation, fetches user+domain in background goroutine, sends `SendInvite` email with URL `{publicBaseURL}/admin/invite/{token}/accept`
+- `POST /admin/invite/{token}/accept`: After accepting, sends `SendWelcome` email in background goroutine; failure is non-fatal
+- `internal/app/run.go`: Wired `WithSystemEmailSender` and `WithPublicBaseURL` into `adminRouteOpts` for the admin API
+- `migrations/0111_quota_alerts_notified_at.sql`: Added `notified_at timestamptz` column to `quota_alerts`
+- `internal/maildb/quota_alerts.go`: Added `PendingQuotaAlertEmail` struct, `GetPendingQuotaAlertEmails()`, and `MarkQuotaAlertNotified()` methods
+- `internal/app/run.go` quota-alert-check job: After scanning alerts, fetches pending user-scope alert emails, calls `SendQuotaAlert`, marks `notified_at` on success
+- `internal/maildb/autopurge.go` (new): `GetCompaniesWithAutoPurge()` reads retention policies from `runtime_config`; `PurgeExpiredTrashMessages()` deletes messages in trash folders older than retention days; `PurgeExpiredAuditLogs()` deletes expired `audit_logs` rows
+- `internal/config/config.go`: Added `AutoPurgeEnabled bool` (env: `GOGOMAIL_AUTO_PURGE_ENABLED`, default false)
+- `internal/app/run.go`: `auto-purge` batch job (24h interval) iterates companies with `auto_purge_enabled=true` and purges trash messages + audit logs per-company retention settings
 
 **Redis Sentinel Failover & Alert Dispatcher** ✅ COMPLETE
 - `internal/config/config.go`: 새 필드 `RedisSentinelAddrs` (env: `GOGOMAIL_REDIS_SENTINEL_ADDRS`), `RedisMasterName` (env: `GOGOMAIL_REDIS_MASTER_NAME`, 기본: "mymaster") 추가

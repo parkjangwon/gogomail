@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Calendar, CalendarObject, listCalendars, listCalendarObjects, createCalendarEvent, createCalendar, updateCalendar, deleteCalendar, createCalendarTodo, setTodoStatus, deleteCalendarObject, CalendarSubscription, listCalendarSubscriptions, addCalendarSubscription, deleteCalendarSubscription, fetchSubscriptionICS } from '@/lib/api';
+import { Calendar, CalendarObject, listCalendars, listCalendarObjects, createCalendarEvent, updateCalendarEvent, createCalendar, updateCalendar, deleteCalendar, createCalendarTodo, setTodoStatus, deleteCalendarObject, CalendarSubscription, listCalendarSubscriptions, addCalendarSubscription, deleteCalendarSubscription, fetchSubscriptionICS } from '@/lib/api';
 import { formatDate, formatMonthYear, formatWeekRange } from '@/lib/calendar/dateUtils';
 import { ParsedEvent, ParsedTodo, parseEvents, parseTodos } from '@/lib/calendar/eventParser';
 import { CalendarSidebar } from './calendar/CalendarSidebar';
@@ -9,7 +9,7 @@ import { CalendarToolbar } from './calendar/CalendarToolbar';
 import { QuickCreatePopover } from './calendar/QuickCreatePopover';
 import { EventPopover } from './calendar/EventPopover';
 import { parseSubscriptionEvents } from '@/lib/calendar/subscriptionParser';
-import { CalendarManagementModal, EventCreateModal, SubscriptionAddModal, TodoCreateModal } from './calendar/CalendarModals';
+import { CalendarManagementModal, EventCreateModal, EventEditModal, SubscriptionAddModal, TodoCreateModal } from './calendar/CalendarModals';
 import { MonthView } from './calendar/MonthView';
 import { WeekView } from './calendar/WeekView';
 import { DayView } from './calendar/DayView';
@@ -48,6 +48,26 @@ export function CalendarView() {
   const [createRruleCount, setCreateRruleCount] = useState(10);
   const [createRruleUntil, setCreateRruleUntil] = useState('');
   const [createRruleDays, setCreateRruleDays] = useState<number[]>([]);
+
+  // Event edit modal
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingEvent, setEditingEvent] = useState<import('@/lib/calendar/eventParser').ParsedEvent | null>(null);
+  const [editTitle, setEditTitle] = useState('');
+  const [editStart, setEditStart] = useState('');
+  const [editEnd, setEditEnd] = useState('');
+  const [editAllDay, setEditAllDay] = useState(false);
+  const [editLocation, setEditLocation] = useState('');
+  const [editDesc, setEditDesc] = useState('');
+  const [editCalId, setEditCalId] = useState('');
+  const [editSaving, setEditSaving] = useState(false);
+  const [editError, setEditError] = useState('');
+  const [editRrule, setEditRrule] = useState<'NONE' | 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'YEARLY'>('NONE');
+  const [editRruleInterval, setEditRruleInterval] = useState(1);
+  const [editRruleEnd, setEditRruleEnd] = useState<'never' | 'count' | 'until'>('never');
+  const [editRruleCount, setEditRruleCount] = useState(10);
+  const [editRruleUntil, setEditRruleUntil] = useState('');
+  const [editRruleDays, setEditRruleDays] = useState<number[]>([]);
+  const [editScope, setEditScope] = useState<'this' | 'all'>('this');
 
   // Calendar management modal
   const [showCalModal, setShowCalModal] = useState(false);
@@ -421,6 +441,120 @@ export function CalendarView() {
     setPopover({ event: ev, rect });
   };
 
+  const openEditModal = useCallback((ev: import('@/lib/calendar/eventParser').ParsedEvent) => {
+    setEditingEvent(ev);
+    setEditTitle(ev.summary === '(제목 없음)' ? '' : ev.summary);
+    setEditLocation(ev.location ?? '');
+    setEditDesc(ev.description ?? '');
+    setEditAllDay(ev.allDay);
+    setEditCalId(ev.calendarId);
+    setEditError('');
+    setEditScope('all');
+    // Parse rrule from ICS
+    const icsRaw = ev.obj.ICS;
+    let rruleStr = '';
+    try {
+      let text = '';
+      try { text = atob(icsRaw); } catch { text = icsRaw; }
+      text = text.replace(/\r\n[ \t]/g, '').replace(/\n[ \t]/g, '');
+      const m = text.match(/(?:^|\n)RRULE:([^\n]*)/im);
+      rruleStr = m ? m[1].trim() : '';
+    } catch { /* ignore */ }
+    if (rruleStr) {
+      const freqM = rruleStr.match(/FREQ=([A-Z]+)/);
+      const freq = (freqM?.[1] ?? 'NONE') as 'NONE' | 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'YEARLY';
+      setEditRrule(['DAILY','WEEKLY','MONTHLY','YEARLY'].includes(freq) ? freq : 'NONE');
+      const intM = rruleStr.match(/INTERVAL=(\d+)/);
+      setEditRruleInterval(intM ? parseInt(intM[1], 10) : 1);
+      const countM = rruleStr.match(/COUNT=(\d+)/);
+      const untilM = rruleStr.match(/UNTIL=([^;]+)/);
+      if (countM) { setEditRruleEnd('count'); setEditRruleCount(parseInt(countM[1], 10)); setEditRruleUntil(''); }
+      else if (untilM) {
+        setEditRruleEnd('until');
+        const u = untilM[1].replace(/[TZ]/g, '');
+        setEditRruleUntil(`${u.slice(0,4)}-${u.slice(4,6)}-${u.slice(6,8)}`);
+        setEditRruleCount(10);
+      } else { setEditRruleEnd('never'); setEditRruleCount(10); setEditRruleUntil(''); }
+      const bydayM = rruleStr.match(/BYDAY=([^;]+)/);
+      if (bydayM) {
+        const names = ['SU','MO','TU','WE','TH','FR','SA'];
+        setEditRruleDays(bydayM[1].split(',').map((d) => names.indexOf(d.trim())).filter((i) => i >= 0));
+      } else { setEditRruleDays([]); }
+    } else {
+      setEditRrule('NONE'); setEditRruleInterval(1); setEditRruleEnd('never');
+      setEditRruleCount(10); setEditRruleUntil(''); setEditRruleDays([]);
+    }
+    setEditStart(ev.allDay ? toLocalDate(ev.start) : toLocalDT(ev.start));
+    setEditEnd(ev.allDay ? toLocalDate(ev.end) : toLocalDT(ev.end));
+    setShowEditModal(true);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const buildEditRrule = (): string | undefined => {
+    if (editRrule === 'NONE') return undefined;
+    const parts: string[] = [`FREQ=${editRrule}`];
+    if (editRruleInterval > 1) parts.push(`INTERVAL=${editRruleInterval}`);
+    if (editRrule === 'WEEKLY' && editRruleDays.length > 0) {
+      const names = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'];
+      parts.push(`BYDAY=${editRruleDays.map((d) => names[d]).join(',')}`);
+    }
+    if (editRruleEnd === 'count') parts.push(`COUNT=${editRruleCount}`);
+    else if (editRruleEnd === 'until' && editRruleUntil) {
+      const u = new Date(editRruleUntil + 'T23:59:59Z');
+      const p = (n: number) => String(n).padStart(2, '0');
+      parts.push(`UNTIL=${u.getUTCFullYear()}${p(u.getUTCMonth()+1)}${p(u.getUTCDate())}T235959Z`);
+    }
+    return parts.join(';');
+  };
+
+  const handleEditSubmit = useCallback(async () => {
+    if (!editingEvent || !editTitle.trim()) { setEditError('제목을 입력하세요'); return; }
+    const startDate = new Date(editAllDay ? editStart + 'T00:00:00' : editStart);
+    const endDate = new Date(editAllDay ? editEnd + 'T00:00:00' : editEnd);
+    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) { setEditError('날짜를 확인하세요'); return; }
+    if (endDate <= startDate) { setEditError('종료 시간이 시작 시간보다 늦어야 합니다'); return; }
+    setEditSaving(true); setEditError('');
+    try {
+      const uid = editingEvent.obj.UID;
+      const objectName = editingEvent.obj.ObjectName;
+      if (editRrule !== 'NONE' && editScope === 'this') {
+        setEditError('개별 반복 일정 수정은 아직 지원되지 않습니다. 모든 반복 이벤트로 저장하세요.');
+        return;
+      }
+      const sourceCalId = editingEvent.calendarId;
+      const targetCalId = editCalId || sourceCalId;
+      await updateCalendarEvent(targetCalId, objectName, uid, {
+        title: editTitle.trim(),
+        start: startDate,
+        end: endDate,
+        allDay: editAllDay,
+        location: editLocation.trim() || undefined,
+        description: editDesc.trim() || undefined,
+        rrule: buildEditRrule(),
+      });
+      if (targetCalId !== sourceCalId) {
+        await deleteCalendarObject(sourceCalId, objectName);
+      }
+      setShowEditModal(false);
+      setEditingEvent(null);
+      await reloadObjects();
+    } catch (e) {
+      setEditError(e instanceof Error ? e.message : '수정 실패');
+    } finally {
+      setEditSaving(false);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editingEvent, editTitle, editAllDay, editStart, editEnd, editLocation, editDesc, editCalId, editRrule, editRruleInterval, editRruleEnd, editRruleCount, editRruleUntil, editRruleDays, editScope, reloadObjects]);
+
+  const handleDeleteEvent = useCallback(async (ev: import('@/lib/calendar/eventParser').ParsedEvent) => {
+    if (!window.confirm(`"${ev.summary}" 일정을 삭제하시겠습니까?`)) return;
+    setPopover(null);
+    try {
+      await deleteCalendarObject(ev.calendarId, ev.obj.ObjectName);
+      await reloadObjects();
+    } catch { /* ignore */ }
+  }, [reloadObjects]);
+
   const handleDayClick = (d: Date) => {
     setCurrentDate(d);
     setView('day');
@@ -555,6 +689,8 @@ export function CalendarView() {
           event={popover.event}
           anchorRect={popover.rect}
           onClose={() => setPopover(null)}
+          onEdit={openEditModal}
+          onDelete={handleDeleteEvent}
         />
       )}
 
@@ -613,6 +749,56 @@ export function CalendarView() {
         onRruleCountChange={setCreateRruleCount}
         onRruleUntilChange={setCreateRruleUntil}
         onToggleRruleDay={(day) => setCreateRruleDays((prev) => prev.includes(day) ? prev.filter((x) => x !== day) : [...prev, day])}
+      />
+
+      <EventEditModal
+        show={showEditModal}
+        calendars={calendars}
+        createTitle={editTitle}
+        createStart={editStart}
+        createEnd={editEnd}
+        createAllDay={editAllDay}
+        createLocation={editLocation}
+        createDesc={editDesc}
+        createCalId={editCalId}
+        createError={editError}
+        createSaving={editSaving}
+        createRrule={editRrule}
+        createRruleInterval={editRruleInterval}
+        createRruleEnd={editRruleEnd}
+        createRruleCount={editRruleCount}
+        createRruleUntil={editRruleUntil}
+        createRruleDays={editRruleDays}
+        canSubmit={Boolean(editTitle.trim())}
+        dayLabels={['일', '월', '화', '수', '목', '금', '토']}
+        ruleIntervalLabel={{ DAILY: '일', WEEKLY: '주', MONTHLY: '개월', YEARLY: '년', NONE: '' }[editRrule]}
+        isRecurring={editRrule !== 'NONE'}
+        editScope={editScope}
+        onEditScopeChange={setEditScope}
+        onClose={() => { setShowEditModal(false); setEditingEvent(null); }}
+        onSubmit={handleEditSubmit}
+        onTitleChange={setEditTitle}
+        onStartChange={setEditStart}
+        onEndChange={setEditEnd}
+        onAllDayToggle={(checked) => {
+          setEditAllDay(checked);
+          if (checked) {
+            setEditStart(editStart.split('T')[0] || toLocalDate(new Date()));
+            setEditEnd(editEnd.split('T')[0] || toLocalDate(new Date()));
+          } else {
+            setEditStart(editStart.includes('T') ? editStart : editStart + 'T09:00');
+            setEditEnd(editEnd.includes('T') ? editEnd : editEnd + 'T10:00');
+          }
+        }}
+        onLocationChange={setEditLocation}
+        onDescChange={setEditDesc}
+        onCalIdChange={setEditCalId}
+        onRruleChange={(r) => { setEditRrule(r); setEditRruleDays([]); }}
+        onRruleIntervalChange={setEditRruleInterval}
+        onRruleEndChange={setEditRruleEnd}
+        onRruleCountChange={setEditRruleCount}
+        onRruleUntilChange={setEditRruleUntil}
+        onToggleRruleDay={(day) => setEditRruleDays((prev) => prev.includes(day) ? prev.filter((x) => x !== day) : [...prev, day])}
       />
 
       <TodoCreateModal

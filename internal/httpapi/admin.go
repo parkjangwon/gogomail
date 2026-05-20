@@ -32,6 +32,7 @@ import (
 	"github.com/gogomail/gogomail/internal/drive"
 	"github.com/gogomail/gogomail/internal/eventstream"
 	"github.com/gogomail/gogomail/internal/maildb"
+	"github.com/gogomail/gogomail/internal/mailservice"
 	"github.com/gogomail/gogomail/internal/spamfilter"
 	"github.com/gogomail/gogomail/internal/storage"
 	webhookguard "github.com/gogomail/gogomail/internal/webhook"
@@ -47,6 +48,8 @@ type adminRouteConfig struct {
 	adminMFARequired    bool
 	configResolver      ConfigResolver
 	dlqReader           eventstream.DLQReader
+	systemEmailSender   mailservice.SystemEmailSender
+	publicBaseURL       string
 }
 
 // AdminRouteOption configures optional capabilities for RegisterAdminRoutes.
@@ -96,9 +99,48 @@ func WithDLQReader(r eventstream.DLQReader) AdminRouteOption {
 	return func(cfg *adminRouteConfig) { cfg.dlqReader = r }
 }
 
+func WithSystemEmailSender(sender mailservice.SystemEmailSender, publicBaseURL string) AdminRouteOption {
+	return func(cfg *adminRouteConfig) {
+		cfg.systemEmailSender = sender
+		cfg.publicBaseURL = strings.TrimRight(strings.TrimSpace(publicBaseURL), "/")
+	}
+}
+
 type adminContextKey struct{}
+type requestIDContextKey struct{}
 
 const companyDomainSettingsDefaultsKey = "domain_settings_defaults"
+
+func RequestIDFromContext(ctx context.Context) string {
+	if ctx == nil {
+		return ""
+	}
+	id, _ := ctx.Value(requestIDContextKey{}).(string)
+	return id
+}
+
+func RequestIDAttr(ctx context.Context) slog.Attr {
+	return slog.String("request_id", RequestIDFromContext(ctx))
+}
+
+func RequestIDMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requestID := strings.TrimSpace(r.Header.Get("X-Request-ID"))
+		if requestID == "" || len(requestID) > 128 || strings.ContainsAny(requestID, "\r\n") {
+			requestID = newRequestID()
+		}
+		w.Header().Set("X-Request-ID", requestID)
+		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), requestIDContextKey{}, requestID)))
+	})
+}
+
+func newRequestID() string {
+	var b [16]byte
+	if _, err := rand.Read(b[:]); err != nil {
+		return fmt.Sprintf("%d", time.Now().UnixNano())
+	}
+	return hex.EncodeToString(b[:])
+}
 
 // SecurityHeadersMiddleware adds defensive HTTP security headers to every response.
 // It should wrap the outermost handler in production deployments.
@@ -1827,6 +1869,7 @@ func registerUserAndConfigRoutes(mux *http.ServeMux, service AdminService, token
 			writeError(w, http.StatusBadRequest, err.Error())
 			return
 		}
+		sendInviteEmailAsync(r.Context(), cfg, service, id, it.Token)
 		writeJSON(w, http.StatusCreated, map[string]any{"invite_token": it})
 	}))
 
@@ -1867,6 +1910,7 @@ func registerUserAndConfigRoutes(mux *http.ServeMux, service AdminService, token
 			writeError(w, http.StatusBadRequest, err.Error())
 			return
 		}
+		sendWelcomeEmailAsync(r.Context(), cfg, service, user)
 		writeJSON(w, http.StatusOK, map[string]any{"user": user})
 	})
 
@@ -2342,7 +2386,7 @@ func registerOperationsRoutes(mux *http.ServeMux, service AdminService, cfg admi
 	}))
 
 	mux.HandleFunc("GET /admin/v1/audit-logs", adminAuth(func(w http.ResponseWriter, r *http.Request) {
-		if !rejectUnknownQueryKeys(w, r, "limit", "category", "action", "action_prefix", "result", "target_type", "company_id", "domain_id", "user_id", "actor_id", "target_id", "since") {
+		if !rejectUnknownQueryKeys(w, r, "limit", "category", "action", "action_prefix", "result", "target_type", "company_id", "domain_id", "user_id", "actor_id", "target_id", "since", "before") {
 			return
 		}
 		limit, ok := parseQueryLimit(w, r)
@@ -2353,6 +2397,11 @@ func registerOperationsRoutes(mux *http.ServeMux, service AdminService, cfg admi
 		if !ok {
 			return
 		}
+		before, ok := parseOptionalRFC3339Query(w, r, "before")
+		if !ok {
+			return
+		}
+		req.Before = before
 		req.ProbeMore = true
 		logs, hasMore, err := service.ListAuditLogs(r.Context(), req)
 		if err != nil {
@@ -5576,9 +5625,9 @@ func handleListReports(w http.ResponseWriter, r *http.Request, service AdminServ
 				"available":    flowStats.TotalMessages > 0,
 			},
 			{
-				"id":       "quota_summary",
-				"name":     "Quota Summary",
-				"category": "storage",
+				"id":        "quota_summary",
+				"name":      "Quota Summary",
+				"category":  "storage",
 				"available": true,
 			},
 		},
@@ -6215,7 +6264,7 @@ func handleListAdminUsers(w http.ResponseWriter, r *http.Request, service AdminS
 		companyID = claims.CompanyID
 	}
 
-	users, err := service.ListAdminUsers(r.Context(), companyID)
+	users, _, err := service.ListAdminUsers(r.Context(), maildb.AdminUserListRequest{CompanyID: companyID})
 	if err != nil {
 		slog.ErrorContext(r.Context(), "admin handler error", "error", err)
 		writeError(w, http.StatusInternalServerError, "internal server error")
@@ -6223,6 +6272,59 @@ func handleListAdminUsers(w http.ResponseWriter, r *http.Request, service AdminS
 	}
 
 	writeJSON(w, http.StatusOK, map[string]any{"users": users})
+}
+
+func sendInviteEmailAsync(ctx context.Context, cfg adminRouteConfig, service AdminService, userID, token string) {
+	if cfg.systemEmailSender == nil || cfg.publicBaseURL == "" {
+		return
+	}
+	go func() {
+		emailCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		email, err := userPrimaryEmail(emailCtx, service, userID)
+		if err != nil {
+			slog.WarnContext(ctx, "send invite email lookup failed", "error", err)
+			return
+		}
+		inviteURL := cfg.publicBaseURL + "/admin/invite/" + url.PathEscape(token) + "/accept"
+		if err := cfg.systemEmailSender.SendInvite(emailCtx, email, inviteURL); err != nil {
+			slog.WarnContext(ctx, "send invite email failed", "error", err)
+		}
+	}()
+}
+
+func sendWelcomeEmailAsync(ctx context.Context, cfg adminRouteConfig, service AdminService, user maildb.UserView) {
+	if cfg.systemEmailSender == nil {
+		return
+	}
+	go func() {
+		emailCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		email, err := userEmailFromView(emailCtx, service, user)
+		if err != nil {
+			slog.WarnContext(ctx, "send welcome email lookup failed", "error", err)
+			return
+		}
+		if err := cfg.systemEmailSender.SendWelcome(emailCtx, email, user.DisplayName); err != nil {
+			slog.WarnContext(ctx, "send welcome email failed", "error", err)
+		}
+	}()
+}
+
+func userPrimaryEmail(ctx context.Context, service AdminService, userID string) (string, error) {
+	user, err := service.GetUser(ctx, userID)
+	if err != nil {
+		return "", err
+	}
+	return userEmailFromView(ctx, service, user)
+}
+
+func userEmailFromView(ctx context.Context, service AdminService, user maildb.UserView) (string, error) {
+	domain, err := service.GetDomain(ctx, user.DomainID)
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(user.Username) + "@" + strings.TrimSpace(domain.Name), nil
 }
 
 func handleCreateAdminUser(w http.ResponseWriter, r *http.Request, service AdminService) {

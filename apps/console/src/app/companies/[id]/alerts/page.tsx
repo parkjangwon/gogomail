@@ -55,7 +55,7 @@ export default function AlertsPage() {
   const handleCreateSubmit = () => {
     if (!formData.alert_type || !formData.threshold || !formData.name) return;
 
-    createMutation.mutate(formData as any, {
+    createMutation.mutate(formData as Omit<AlertConfig, 'id' | 'created_at' | 'updated_at' | 'company_id'>, {
       onSuccess: () => {
         setShowCreateModal(false);
         setFormData({});

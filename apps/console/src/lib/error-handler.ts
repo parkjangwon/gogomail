@@ -72,18 +72,28 @@ export class AdminApiError extends Error {
   }
 }
 
-export function parseErrorResponse(error: any): AdminApiError {
+export function parseErrorResponse(error: unknown): AdminApiError {
   if (error instanceof AdminApiError) {
     return error;
   }
 
-  const status = error?.status || error?.response?.status || 500;
-  const data = error?.data || error?.response?.data;
-  const message = data?.message || error?.message || "An error occurred";
-  const details = data?.details || data?.errors;
-  const timestamp = data?.timestamp;
+  const e = error as Record<string, unknown>;
+  const response = e?.response as Record<string, unknown> | undefined;
+  const status = (e?.status as number) || (response?.status as number) || 500;
+  const data = (e?.data ?? response?.data) as Record<string, unknown> | undefined;
+  const message = (data?.message as string) || (e?.message as string) || "An error occurred";
+  const rawDetails = data?.details || data?.errors;
+  const details = isErrorDetails(rawDetails) ? rawDetails : undefined;
+  const timestamp = data?.timestamp as string | undefined;
 
   return new AdminApiError(status, message, details, timestamp);
+}
+
+function isErrorDetails(value: unknown): value is Record<string, string[]> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  return Object.values(value).every((messages) =>
+    Array.isArray(messages) && messages.every((message) => typeof message === "string")
+  );
 }
 
 export function getFieldError(

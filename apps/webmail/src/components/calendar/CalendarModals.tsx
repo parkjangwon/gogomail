@@ -469,6 +469,239 @@ export function EventCreateModal({
   );
 }
 
+type EventEditModalProps = Omit<EventCreateModalProps, 'showCalSelect'> & {
+  isRecurring?: boolean;
+  editScope?: 'this' | 'all';
+  onEditScopeChange?: (scope: 'this' | 'all') => void;
+};
+
+export function EventEditModal({
+  show,
+  calendars,
+  createTitle,
+  createStart,
+  createEnd,
+  createAllDay,
+  createLocation,
+  createDesc,
+  createCalId,
+  createError,
+  createSaving,
+  createRrule,
+  createRruleInterval,
+  createRruleEnd,
+  createRruleCount,
+  createRruleUntil,
+  createRruleDays,
+  canSubmit,
+  dayLabels,
+  ruleIntervalLabel,
+  isRecurring,
+  editScope,
+  onEditScopeChange,
+  onClose,
+  onSubmit,
+  onTitleChange,
+  onStartChange,
+  onEndChange,
+  onAllDayToggle,
+  onLocationChange,
+  onDescChange,
+  onCalIdChange,
+  onRruleChange,
+  onRruleIntervalChange,
+  onRruleEndChange,
+  onRruleCountChange,
+  onRruleUntilChange,
+  onToggleRruleDay,
+}: EventEditModalProps) {
+  const M = createCalendarModalStyles();
+  if (!show) return null;
+
+  return (
+    <div style={M.overlay} onClick={() => { if (!createSaving) onClose(); }}>
+      <div style={M.card('460px')} onClick={(e) => e.stopPropagation()}>
+        <div style={M.header}><span style={M.title}>일정 편집</span></div>
+        <div style={M.body}>
+          {isRecurring && onEditScopeChange && (
+            <div style={{ display: 'flex', gap: '8px', padding: '8px 0' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '13px', cursor: 'pointer' }}>
+                <input type="radio" name="editScope" value="this" checked={editScope === 'this'} onChange={() => onEditScopeChange('this')} />
+                이 이벤트만
+              </label>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '13px', cursor: 'pointer' }}>
+                <input type="radio" name="editScope" value="all" checked={editScope === 'all'} onChange={() => onEditScopeChange('all')} />
+                모든 반복 이벤트
+              </label>
+            </div>
+          )}
+
+          <div>
+            <label style={M.label}>제목 *</label>
+            <input
+              autoFocus
+              type="text"
+              placeholder="일정 제목"
+              value={createTitle}
+              onChange={(e) => onTitleChange(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') onSubmit(); }}
+              style={M.input}
+            />
+          </div>
+
+          {calendars.length > 1 && (
+            <div>
+              <label style={M.label}>캘린더</label>
+              <select value={createCalId} onChange={(e) => onCalIdChange(e.target.value)} style={M.select}>
+                {calendars.map((c) => <option key={c.ID} value={c.ID ?? ''}>{c.Name ?? '(캘린더)'}</option>)}
+              </select>
+            </div>
+          )}
+
+          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: 'var(--color-text-secondary)', cursor: 'pointer' }}>
+            <input type="checkbox" checked={createAllDay} onChange={(e) => onAllDayToggle(e.target.checked)} />
+            하루 종일
+          </label>
+
+          <div style={{ display: 'flex', gap: '10px' }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <label style={M.label}>시작</label>
+              <input
+                type={createAllDay ? 'date' : 'datetime-local'}
+                value={createStart}
+                onChange={(e) => onStartChange(e.target.value)}
+                style={{ ...M.input, minWidth: 0 }}
+              />
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <label style={M.label}>종료</label>
+              <input
+                type={createAllDay ? 'date' : 'datetime-local'}
+                value={createEnd}
+                onChange={(e) => onEndChange(e.target.value)}
+                style={{ ...M.input, minWidth: 0 }}
+              />
+            </div>
+          </div>
+
+          <div>
+            <label style={M.label}>장소 (선택)</label>
+            <input
+              type="text"
+              placeholder="장소 추가"
+              value={createLocation}
+              onChange={(e) => onLocationChange(e.target.value)}
+              style={M.input}
+            />
+          </div>
+
+          <div>
+            <label style={M.label}>메모 (선택)</label>
+            <textarea
+              placeholder="메모 추가"
+              value={createDesc}
+              onChange={(e) => onDescChange(e.target.value)}
+              rows={2}
+              style={{ ...M.input, resize: 'none', fontFamily: 'inherit' }}
+            />
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '10px', borderRadius: '8px', background: 'var(--color-bg-secondary)', border: '1px solid var(--color-border-subtle)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+              <span style={{ fontSize: '12px', color: 'var(--color-text-secondary)', width: '36px', flexShrink: 0 }}>반복</span>
+              <select value={createRrule} onChange={(e) => onRruleChange(e.target.value as EventCreateModalProps['createRrule'])} style={{ padding: '4px 8px', fontSize: '12px', border: '1px solid var(--color-border-default)', borderRadius: '5px', background: 'var(--color-bg-primary)', color: 'var(--color-text-primary)', cursor: 'pointer' }}>
+                <option value="NONE">없음</option>
+                <option value="DAILY">매일</option>
+                <option value="WEEKLY">매주</option>
+                <option value="MONTHLY">매월</option>
+                <option value="YEARLY">매년</option>
+              </select>
+              {createRrule !== 'NONE' && (
+                <>
+                  <span style={{ fontSize: '12px', color: 'var(--color-text-tertiary)' }}>마다</span>
+                  <input
+                    type="number"
+                    min={1}
+                    max={99}
+                    value={createRruleInterval}
+                    onChange={(e) => onRruleIntervalChange(Math.max(1, Number(e.target.value)))}
+                    style={{ width: '44px', padding: '4px 6px', fontSize: '12px', border: '1px solid var(--color-border-default)', borderRadius: '5px', background: 'var(--color-bg-primary)', color: 'var(--color-text-primary)', outline: 'none' }}
+                  />
+                  <span style={{ fontSize: '12px', color: 'var(--color-text-tertiary)' }}>{ruleIntervalLabel}</span>
+                </>
+              )}
+            </div>
+            {createRrule === 'WEEKLY' && (
+              <div style={{ display: 'flex', gap: '4px', paddingLeft: '44px' }}>
+                {dayLabels.map((d, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={() => onToggleRruleDay(i)}
+                    style={{
+                      width: '26px',
+                      height: '26px',
+                      borderRadius: '50%',
+                      border: '1px solid var(--color-border-default)',
+                      background: createRruleDays.includes(i) ? 'var(--color-accent)' : 'transparent',
+                      color: createRruleDays.includes(i) ? '#fff' : 'var(--color-text-secondary)',
+                      fontSize: '11px',
+                      cursor: 'pointer',
+                      padding: 0,
+                      fontWeight: 500,
+                    }}
+                  >
+                    {d}
+                  </button>
+                ))}
+              </div>
+            )}
+            {createRrule !== 'NONE' && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', paddingLeft: '44px' }}>
+                <span style={{ fontSize: '12px', color: 'var(--color-text-secondary)', flexShrink: 0 }}>종료</span>
+                <select value={createRruleEnd} onChange={(e) => onRruleEndChange(e.target.value as EventCreateModalProps['createRruleEnd'])} style={{ padding: '4px 8px', fontSize: '12px', border: '1px solid var(--color-border-default)', borderRadius: '5px', background: 'var(--color-bg-primary)', color: 'var(--color-text-primary)', cursor: 'pointer' }}>
+                  <option value="never">계속 반복</option>
+                  <option value="count">횟수 지정</option>
+                  <option value="until">날짜 지정</option>
+                </select>
+                {createRruleEnd === 'count' && (
+                  <>
+                    <input
+                      type="number"
+                      min={1}
+                      max={999}
+                      value={createRruleCount}
+                      onChange={(e) => onRruleCountChange(Math.max(1, Number(e.target.value)))}
+                      style={{ width: '52px', padding: '4px 6px', fontSize: '12px', border: '1px solid var(--color-border-default)', borderRadius: '5px', background: 'var(--color-bg-primary)', color: 'var(--color-text-primary)', outline: 'none' }}
+                    />
+                    <span style={{ fontSize: '12px', color: 'var(--color-text-tertiary)' }}>회</span>
+                  </>
+                )}
+                {createRruleEnd === 'until' && (
+                  <input
+                    type="date"
+                    value={createRruleUntil}
+                    onChange={(e) => onRruleUntilChange(e.target.value)}
+                    style={{ padding: '4px 6px', fontSize: '12px', border: '1px solid var(--color-border-default)', borderRadius: '5px', background: 'var(--color-bg-primary)', color: 'var(--color-text-primary)' }}
+                  />
+                )}
+              </div>
+            )}
+          </div>
+
+          {createError && <div style={M.error}>{createError}</div>}
+        </div>
+        <div style={M.footer}>
+          <button onClick={onClose} disabled={createSaving} style={M.cancelBtn}>취소</button>
+          <button onClick={onSubmit} disabled={createSaving || !canSubmit} style={M.primaryBtn(createSaving || !canSubmit)}>
+            {createSaving ? '저장 중...' : '수정'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function TodoCreateModal({
   show,
   todoDraft,
