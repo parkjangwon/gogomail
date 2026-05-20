@@ -1,6 +1,11 @@
 # gogomail current status
 
-Last updated: 2026-05-21 (SaaS launch hardening continues: TASK-090 address lookup sargability verified)
+Last updated: 2026-05-21 (SaaS launch hardening continues: TASK-090 identity provider pagination verified)
+
+## RDBMS Identity Provider Pagination (2026-05-21)
+- External RDBMS identity-provider user/group list calls now push plain `Limit`/`Offset` pagination into the configured source query when no app-side search or org filter is requested.
+- The provider keeps the existing in-memory path when search/org filtering is present, preserving current semantics while avoiding full external-table reads for simple admin pages and sync previews.
+- Verification: `go test ./internal/idprovider/rdbms` passes.
 
 ## User Address Lookup Sargability (2026-05-21)
 - Exact user-address lookup hot paths now compare normalized input against `user_addresses.address_ace` instead of wrapping table columns with `lower(address)`.

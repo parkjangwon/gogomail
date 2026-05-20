@@ -124,7 +124,8 @@ func (p *Provider) ListUsers(ctx context.Context, filter *idprovider.UserFilter)
 		return nil, fmt.Errorf("rdbms provider not connected")
 	}
 
-	rows, err := p.db.QueryContext(ctx, p.config.UserQuery)
+	query, args, paginatedByDB := buildPaginatedSourceQuery(p.config.UserQuery, userFilterLimit(filter), userFilterOffset(filter), userFilterCanUseDBPagination(filter))
+	rows, err := p.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("list users: %w", err)
 	}
@@ -136,6 +137,9 @@ func (p *Provider) ListUsers(ctx context.Context, filter *idprovider.UserFilter)
 	}
 
 	users = filterUsers(users, filter)
+	if paginatedByDB {
+		return users, nil
+	}
 	return paginateUsers(users, filter), nil
 }
 
@@ -148,7 +152,8 @@ func (p *Provider) ListGroups(ctx context.Context, filter *idprovider.GroupFilte
 		return nil, fmt.Errorf("rdbms provider not connected")
 	}
 
-	rows, err := p.db.QueryContext(ctx, p.config.GroupQuery)
+	query, args, paginatedByDB := buildPaginatedSourceQuery(p.config.GroupQuery, groupFilterLimit(filter), groupFilterOffset(filter), groupFilterCanUseDBPagination(filter))
+	rows, err := p.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("list groups: %w", err)
 	}
@@ -160,6 +165,9 @@ func (p *Provider) ListGroups(ctx context.Context, filter *idprovider.GroupFilte
 	}
 
 	groups = filterGroups(groups, filter)
+	if paginatedByDB {
+		return groups, nil
+	}
 	return paginateGroups(groups, filter), nil
 }
 
@@ -502,6 +510,60 @@ func paginateGroups(groups []*idprovider.Group, filter *idprovider.GroupFilter) 
 		return groups
 	}
 	return paginate(groups, filter.Offset, filter.Limit)
+}
+
+func buildPaginatedSourceQuery(sourceQuery string, limit int, offset int, eligible bool) (string, []any, bool) {
+	if !eligible || limit <= 0 {
+		return sourceQuery, nil, false
+	}
+	if offset < 0 {
+		offset = 0
+	}
+	sourceQuery = strings.TrimSpace(strings.TrimSuffix(strings.TrimSpace(sourceQuery), ";"))
+	query := fmt.Sprintf("SELECT * FROM (%s) AS gogomail_rdbms_source LIMIT $1 OFFSET $2", sourceQuery)
+	return query, []any{limit, offset}, true
+}
+
+func userFilterCanUseDBPagination(filter *idprovider.UserFilter) bool {
+	if filter == nil {
+		return false
+	}
+	return strings.TrimSpace(safeString(filter.SearchQuery)) == "" && strings.TrimSpace(safeString(filter.OrgID)) == ""
+}
+
+func groupFilterCanUseDBPagination(filter *idprovider.GroupFilter) bool {
+	if filter == nil {
+		return false
+	}
+	return strings.TrimSpace(safeString(filter.SearchQuery)) == "" && strings.TrimSpace(safeString(filter.OrgID)) == ""
+}
+
+func userFilterLimit(filter *idprovider.UserFilter) int {
+	if filter == nil {
+		return 0
+	}
+	return filter.Limit
+}
+
+func groupFilterLimit(filter *idprovider.GroupFilter) int {
+	if filter == nil {
+		return 0
+	}
+	return filter.Limit
+}
+
+func userFilterOffset(filter *idprovider.UserFilter) int {
+	if filter == nil {
+		return 0
+	}
+	return filter.Offset
+}
+
+func groupFilterOffset(filter *idprovider.GroupFilter) int {
+	if filter == nil {
+		return 0
+	}
+	return filter.Offset
 }
 
 func paginate[T any](items []T, offset, limit int) []T {
