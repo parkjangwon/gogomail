@@ -44,9 +44,10 @@ func TestGetMessageParsesTextBodyFromStorage(t *testing.T) {
 
 	service := New(&fakeRepository{
 		detail: maildb.MessageDetail{
-			ID:          "msg-1",
-			StoragePath: path,
-			Flags:       []byte(`{"read":true}`),
+			ID:            "msg-1",
+			StoragePath:   path,
+			Flags:         []byte(`{"read":true}`),
+			HasAttachment: true,
 		},
 		attachments: []maildb.Attachment{
 			{ID: "att-1", Filename: "report.pdf"},
@@ -62,6 +63,40 @@ func TestGetMessageParsesTextBodyFromStorage(t *testing.T) {
 	}
 	if len(msg.Attachments) != 1 || msg.Attachments[0].Filename != "report.pdf" {
 		t.Fatalf("Attachments = %+v", msg.Attachments)
+	}
+}
+
+func TestGetMessageSkipsAttachmentLookupWhenMessageHasNoAttachments(t *testing.T) {
+	t.Parallel()
+
+	store := &recordingStore{body: strings.Join([]string{
+		"Message-ID: <body@example.com>",
+		"From: sender@example.net",
+		"To: admin@example.com",
+		"Subject: body",
+		"Content-Type: text/plain; charset=utf-8",
+		"",
+		"body",
+	}, "\r\n")}
+	repo := &fakeRepository{
+		detail: maildb.MessageDetail{
+			ID:            "msg-1",
+			StoragePath:   "mailstore/c/d/u/maildir/2026/05/msg.eml",
+			Flags:         []byte(`{"read":true}`),
+			HasAttachment: false,
+		},
+	}
+	service := New(repo, store)
+
+	msg, err := service.GetMessage(context.Background(), "user-1", "msg-1")
+	if err != nil {
+		t.Fatalf("GetMessage returned error: %v", err)
+	}
+	if msg.TextBody != "body" {
+		t.Fatalf("TextBody = %q, want body", msg.TextBody)
+	}
+	if repo.listAttachmentsCount != 0 {
+		t.Fatalf("ListAttachments count = %d, want 0", repo.listAttachmentsCount)
 	}
 }
 
@@ -99,6 +134,51 @@ func TestGetMessageCachesParsedBodyByStoragePath(t *testing.T) {
 	if store.getCount != 1 {
 		t.Fatalf("store.Get count = %d, want 1", store.getCount)
 	}
+}
+
+func BenchmarkGetMessageBodyCache(b *testing.B) {
+	raw := strings.Join([]string{
+		"Message-ID: <body@example.com>",
+		"From: sender@example.net",
+		"To: admin@example.com",
+		"Subject: body",
+		"Content-Type: text/plain; charset=utf-8",
+		"",
+		strings.Repeat("cached body ", 64),
+	}, "\r\n")
+	newService := func(cacheEntries int) *Service {
+		return New(&fakeRepository{
+			detail: maildb.MessageDetail{
+				ID:          "msg-1",
+				StoragePath: "mailstore/c/d/u/maildir/2026/05/msg.eml",
+				Flags:       []byte(`{"read":true}`),
+			},
+		}, &recordingStore{body: raw}).WithMessageBodyCache(cacheEntries, time.Minute)
+	}
+
+	b.Run("miss", func(b *testing.B) {
+		service := newService(0)
+		b.ReportAllocs()
+		for i := 0; i < b.N; i++ {
+			if _, err := service.GetMessage(context.Background(), "user-1", "msg-1"); err != nil {
+				b.Fatal(err)
+			}
+		}
+	})
+
+	b.Run("hit", func(b *testing.B) {
+		service := newService(8)
+		if _, err := service.GetMessage(context.Background(), "user-1", "msg-1"); err != nil {
+			b.Fatal(err)
+		}
+		b.ReportAllocs()
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			if _, err := service.GetMessage(context.Background(), "user-1", "msg-1"); err != nil {
+				b.Fatal(err)
+			}
+		}
+	})
 }
 
 func TestGetMessageReportsMessageBodyCacheStats(t *testing.T) {
@@ -2826,6 +2906,7 @@ type fakeRepository struct {
 	lastAttachmentUserID           string
 	lastAttachmentMessageID        string
 	lastAttachmentID               string
+	listAttachmentsCount           int
 	attachment                     maildb.Attachment
 	canceledAttachment             maildb.Attachment
 	uploadSession                  maildb.AttachmentUploadSession
@@ -3265,6 +3346,7 @@ func (f *fakeRepository) MessageDeliveryStatus(_ context.Context, userID string,
 }
 
 func (f *fakeRepository) ListAttachments(_ context.Context, userID string, messageID string) ([]maildb.Attachment, error) {
+	f.listAttachmentsCount++
 	f.lastAttachmentUserID = userID
 	f.lastAttachmentMessageID = messageID
 	return f.attachments, nil

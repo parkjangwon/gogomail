@@ -6355,3 +6355,8 @@ Target outcome:
       with `ErrSyncNotConfigured`, and `POST /admin/v1/domains/{id}/ldap/sync`
       returns HTTP 501 instead of a pending response that could be mistaken for
       live synchronization.
+1748. TASK-090 message detail reads now skip attachment-list hydration when the
+      message row reports `HasAttachment=false`, removing a repository round
+      trip from the common attachment-free detail path.  `BenchmarkGetMessageBodyCache`
+      now tracks parsed-body miss/hit costs, with the current sample at miss
+      `~7.83 us/op` and hit `~933.6 ns/op`.
