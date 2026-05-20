@@ -2165,46 +2165,6 @@ func (r *Repository) checkDelegationPrincipalsActive(ctx context.Context, req Ch
 	return true, nil
 }
 
-func (r *Repository) resolveUserPrincipal(ctx context.Context, req ResolvePrincipalRequest) (Principal, error) {
-	const query = `
-SELECT u.id::text,
-       c.id::text,
-       d.id::text,
-       COALESCE(u.org_id::text, ''),
-       u.display_name,
-       COALESCE(primary_addr.address, ''),
-       u.status
-FROM users u
-JOIN domains d ON d.id = u.domain_id
-JOIN companies c ON c.id = d.company_id
-LEFT JOIN LATERAL (
-  SELECT address
-  FROM user_addresses
-  WHERE user_id = u.id
-  ORDER BY is_primary DESC, created_at ASC, id ASC
-  LIMIT 1
-) primary_addr ON TRUE
-WHERE u.id = $1::uuid
-  AND ($2::boolean = false OR (u.status = 'active' AND d.status = 'active' AND c.status = 'active'))`
-	var principal Principal
-	principal.Kind = PrincipalKindUser
-	if err := r.db.QueryRowContext(ctx, query, req.ID, req.ActiveOnly).Scan(
-		&principal.ID,
-		&principal.CompanyID,
-		&principal.DomainID,
-		&principal.OrganizationID,
-		&principal.DisplayName,
-		&principal.PrimaryEmail,
-		&principal.Status,
-	); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return Principal{}, ErrPrincipalNotFound
-		}
-		return Principal{}, fmt.Errorf("resolve directory principal: %w", err)
-	}
-	return principal, nil
-}
-
 func searchPrincipalKindAllowed(kinds []string, kind string) bool {
 	for _, candidate := range kinds {
 		if candidate == kind {
@@ -2233,8 +2193,55 @@ func principalSearchPattern(query string) string {
 	return b.String()
 }
 
-func (r *Repository) resolveOrganizationPrincipal(ctx context.Context, req ResolvePrincipalRequest) (Principal, error) {
-	const query = `
+const resolveUserPrincipalBaseSQL = `
+SELECT u.id::text,
+       c.id::text,
+       d.id::text,
+       COALESCE(u.org_id::text, ''),
+       u.display_name,
+       COALESCE(primary_addr.address, ''),
+       u.status
+FROM users u
+JOIN domains d ON d.id = u.domain_id
+JOIN companies c ON c.id = d.company_id
+LEFT JOIN LATERAL (
+  SELECT address
+  FROM user_addresses
+  WHERE user_id = u.id
+  ORDER BY is_primary DESC, created_at ASC, id ASC
+  LIMIT 1
+) primary_addr ON TRUE`
+
+func buildResolveUserPrincipalQuery(req ResolvePrincipalRequest) (string, []any) {
+	conditions := []string{"u.id = $1::uuid"}
+	if req.ActiveOnly {
+		conditions = append(conditions, "(u.status = 'active' AND d.status = 'active' AND c.status = 'active')")
+	}
+	return resolveUserPrincipalBaseSQL + "\nWHERE " + strings.Join(conditions, "\n  AND "), []any{req.ID}
+}
+
+func (r *Repository) resolveUserPrincipal(ctx context.Context, req ResolvePrincipalRequest) (Principal, error) {
+	query, args := buildResolveUserPrincipalQuery(req)
+	var principal Principal
+	principal.Kind = PrincipalKindUser
+	if err := r.db.QueryRowContext(ctx, query, args...).Scan(
+		&principal.ID,
+		&principal.CompanyID,
+		&principal.DomainID,
+		&principal.OrganizationID,
+		&principal.DisplayName,
+		&principal.PrimaryEmail,
+		&principal.Status,
+	); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return Principal{}, ErrPrincipalNotFound
+		}
+		return Principal{}, fmt.Errorf("resolve directory principal: %w", err)
+	}
+	return principal, nil
+}
+
+const resolveOrganizationPrincipalBaseSQL = `
 SELECT o.id::text,
        c.id::text,
        d.id::text,
@@ -2244,12 +2251,21 @@ SELECT o.id::text,
        o.status
 FROM organizations o
 JOIN domains d ON d.id = o.domain_id
-JOIN companies c ON c.id = d.company_id
-WHERE o.id = $1::uuid
-  AND ($2::boolean = false OR (o.status = 'active' AND d.status = 'active' AND c.status = 'active'))`
+JOIN companies c ON c.id = d.company_id`
+
+func buildResolveOrganizationPrincipalQuery(req ResolvePrincipalRequest) (string, []any) {
+	conditions := []string{"o.id = $1::uuid"}
+	if req.ActiveOnly {
+		conditions = append(conditions, "(o.status = 'active' AND d.status = 'active' AND c.status = 'active')")
+	}
+	return resolveOrganizationPrincipalBaseSQL + "\nWHERE " + strings.Join(conditions, "\n  AND "), []any{req.ID}
+}
+
+func (r *Repository) resolveOrganizationPrincipal(ctx context.Context, req ResolvePrincipalRequest) (Principal, error) {
+	query, args := buildResolveOrganizationPrincipalQuery(req)
 	var principal Principal
 	principal.Kind = PrincipalKindOrganization
-	if err := r.db.QueryRowContext(ctx, query, req.ID, req.ActiveOnly).Scan(
+	if err := r.db.QueryRowContext(ctx, query, args...).Scan(
 		&principal.ID,
 		&principal.CompanyID,
 		&principal.DomainID,
@@ -2266,8 +2282,7 @@ WHERE o.id = $1::uuid
 	return principal, nil
 }
 
-func (r *Repository) resolveGroupPrincipal(ctx context.Context, req ResolvePrincipalRequest) (Principal, error) {
-	const query = `
+const resolveGroupPrincipalBaseSQL = `
 SELECT g.id::text,
        g.company_id::text,
        g.domain_id::text,
@@ -2277,12 +2292,21 @@ SELECT g.id::text,
        g.status
 FROM directory_groups g
 JOIN domains d ON d.id = g.domain_id
-JOIN companies c ON c.id = g.company_id AND c.id = d.company_id
-WHERE g.id = $1::uuid
-  AND ($2::boolean = false OR (g.status = 'active' AND d.status = 'active' AND c.status = 'active'))`
+JOIN companies c ON c.id = g.company_id AND c.id = d.company_id`
+
+func buildResolveGroupPrincipalQuery(req ResolvePrincipalRequest) (string, []any) {
+	conditions := []string{"g.id = $1::uuid"}
+	if req.ActiveOnly {
+		conditions = append(conditions, "(g.status = 'active' AND d.status = 'active' AND c.status = 'active')")
+	}
+	return resolveGroupPrincipalBaseSQL + "\nWHERE " + strings.Join(conditions, "\n  AND "), []any{req.ID}
+}
+
+func (r *Repository) resolveGroupPrincipal(ctx context.Context, req ResolvePrincipalRequest) (Principal, error) {
+	query, args := buildResolveGroupPrincipalQuery(req)
 	var principal Principal
 	principal.Kind = PrincipalKindGroup
-	if err := r.db.QueryRowContext(ctx, query, req.ID, req.ActiveOnly).Scan(
+	if err := r.db.QueryRowContext(ctx, query, args...).Scan(
 		&principal.ID,
 		&principal.CompanyID,
 		&principal.DomainID,
@@ -2299,8 +2323,7 @@ WHERE g.id = $1::uuid
 	return principal, nil
 }
 
-func (r *Repository) resolveResourcePrincipal(ctx context.Context, req ResolvePrincipalRequest) (Principal, error) {
-	const query = `
+const resolveResourcePrincipalBaseSQL = `
 SELECT rsrc.id::text,
        rsrc.company_id::text,
        rsrc.domain_id::text,
@@ -2311,12 +2334,21 @@ SELECT rsrc.id::text,
        rsrc.resource_type
 FROM directory_resources rsrc
 JOIN domains d ON d.id = rsrc.domain_id
-JOIN companies c ON c.id = rsrc.company_id AND c.id = d.company_id
-WHERE rsrc.id = $1::uuid
-  AND ($2::boolean = false OR (rsrc.status = 'active' AND d.status = 'active' AND c.status = 'active'))`
+JOIN companies c ON c.id = rsrc.company_id AND c.id = d.company_id`
+
+func buildResolveResourcePrincipalQuery(req ResolvePrincipalRequest) (string, []any) {
+	conditions := []string{"rsrc.id = $1::uuid"}
+	if req.ActiveOnly {
+		conditions = append(conditions, "(rsrc.status = 'active' AND d.status = 'active' AND c.status = 'active')")
+	}
+	return resolveResourcePrincipalBaseSQL + "\nWHERE " + strings.Join(conditions, "\n  AND "), []any{req.ID}
+}
+
+func (r *Repository) resolveResourcePrincipal(ctx context.Context, req ResolvePrincipalRequest) (Principal, error) {
+	query, args := buildResolveResourcePrincipalQuery(req)
 	var principal Principal
 	principal.Kind = PrincipalKindResource
-	if err := r.db.QueryRowContext(ctx, query, req.ID, req.ActiveOnly).Scan(
+	if err := r.db.QueryRowContext(ctx, query, args...).Scan(
 		&principal.ID,
 		&principal.CompanyID,
 		&principal.DomainID,

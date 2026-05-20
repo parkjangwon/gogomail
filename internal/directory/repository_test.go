@@ -181,6 +181,81 @@ func TestResolveDirectoryLookupQueriesUseSargableActiveFilters(t *testing.T) {
 	}
 }
 
+func TestResolvePrincipalQueriesUseSargableActiveFilters(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name       string
+		kind       string
+		activeWant string
+		build      func(ResolvePrincipalRequest) (string, []any)
+	}{
+		{
+			name:       "user",
+			kind:       PrincipalKindUser,
+			activeWant: "AND (u.status = 'active' AND d.status = 'active' AND c.status = 'active')",
+			build:      buildResolveUserPrincipalQuery,
+		},
+		{
+			name:       "organization",
+			kind:       PrincipalKindOrganization,
+			activeWant: "AND (o.status = 'active' AND d.status = 'active' AND c.status = 'active')",
+			build:      buildResolveOrganizationPrincipalQuery,
+		},
+		{
+			name:       "group",
+			kind:       PrincipalKindGroup,
+			activeWant: "AND (g.status = 'active' AND d.status = 'active' AND c.status = 'active')",
+			build:      buildResolveGroupPrincipalQuery,
+		},
+		{
+			name:       "resource",
+			kind:       PrincipalKindResource,
+			activeWant: "AND (rsrc.status = 'active' AND d.status = 'active' AND c.status = 'active')",
+			build:      buildResolveResourcePrincipalQuery,
+		},
+	}
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			req, err := NormalizeResolvePrincipalRequest(ResolvePrincipalRequest{
+				ID:         " principal-1 ",
+				Kind:       tc.kind,
+				ActiveOnly: true,
+			})
+			if err != nil {
+				t.Fatalf("NormalizeResolvePrincipalRequest returned error: %v", err)
+			}
+			query, args := tc.build(req)
+			for _, want := range []string{
+				"WHERE ",
+				"= $1::uuid",
+				tc.activeWant,
+			} {
+				if !strings.Contains(query, want) {
+					t.Fatalf("resolve %s query missing %q:\n%s", tc.name, want, query)
+				}
+			}
+			if strings.Contains(query, "$2::boolean = false OR") {
+				t.Fatalf("resolve %s query contains non-sargable active filter:\n%s", tc.name, query)
+			}
+			if len(args) != 1 || args[0] != "principal-1" {
+				t.Fatalf("resolve %s args = %#v, want normalized id only", tc.name, args)
+			}
+
+			inactiveQuery, inactiveArgs := tc.build(ResolvePrincipalRequest{ID: "principal-1", Kind: tc.kind})
+			if strings.Contains(inactiveQuery, "status = 'active'") {
+				t.Fatalf("inactive resolve %s query unexpectedly includes active predicate:\n%s", tc.name, inactiveQuery)
+			}
+			if len(inactiveArgs) != 1 {
+				t.Fatalf("inactive resolve %s args len = %d, want 1", tc.name, len(inactiveArgs))
+			}
+		})
+	}
+}
+
 func TestNormalizeCreateAliasRequest(t *testing.T) {
 	t.Parallel()
 
