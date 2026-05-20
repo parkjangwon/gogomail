@@ -310,6 +310,7 @@ Go Backend (`internal/`):
 - 웹메일 빠른 답장 템플릿을 브라우저 localStorage 전용 상태에서 서버 preferences 동기화 상태로 승격하고, Compose/Settings/Spotlight가 같은 normalized template cache를 보도록 정리함
 - 관리자 outbox event 목록 조회가 `NULLIF(...) OR ...` 조건으로 인덱스 선택성을 흐리지 않도록, 제공된 필터만 WHERE에 추가하는 sargable 동적 쿼리로 전환함
 - 관리자 delivery attempt 목록 조회도 status/since/domain/message/farm/sender 필터를 제공된 조건만 포함하는 sargable WHERE로 전환해 대형 배송 기록 테이블에서 선택적 조회가 인덱스를 더 잘 타도록 정리함
+- delivery attempt 통계와 exhausted 목록도 같은 공통 sargable WHERE builder를 재사용하도록 바꿔, 대형 배송 기록 테이블을 읽는 list/stats/exhausted 운영 화면이 모두 optional `OR` predicate를 피하게 함
 
 **System Email Connections & AutoPurge** ✅ COMPLETE
 - `internal/httpapi/admin.go`: Added `systemEmail mailservice.SystemEmailSender` and `publicBaseURL string` fields to `adminRouteConfig`; added `WithSystemEmailSender` and `WithPublicBaseURL` `AdminRouteOption` constructors

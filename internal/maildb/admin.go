@@ -597,6 +597,17 @@ SELECT
   attempted_at
 FROM delivery_attempts`
 
+const deliveryAttemptStatsBaseSQL = `
+SELECT
+  count(*)::bigint,
+  count(DISTINCT message_id)::bigint,
+  count(DISTINCT recipient)::bigint,
+  count(*) FILTER (WHERE status = 'delivered')::bigint,
+  count(*) FILTER (WHERE status = 'failed')::bigint,
+  count(*) FILTER (WHERE status = 'bounced')::bigint,
+  count(*) FILTER (WHERE status = 'exhausted')::bigint
+FROM delivery_attempts`
+
 type DeliveryAttemptStatsRequest struct {
 	Status          string
 	RecipientDomain string
@@ -5686,6 +5697,17 @@ func (r *Repository) ListDeliveryAttempts(ctx context.Context, req DeliveryAttem
 
 func buildListDeliveryAttemptsQuery(filters deliveryAttemptFilters, since time.Time, queryLimit int) (string, []any) {
 	query := listDeliveryAttemptsBaseSQL
+	whereClause, args := buildDeliveryAttemptWhereClause(filters, since)
+	query += whereClause
+
+	args = append(args, queryLimit)
+	query += fmt.Sprintf(`
+ORDER BY attempted_at DESC, id DESC
+LIMIT $%d`, len(args))
+	return query, args
+}
+
+func buildDeliveryAttemptWhereClause(filters deliveryAttemptFilters, since time.Time) (string, []any) {
 	var conditions []string
 	var args []any
 
@@ -5714,14 +5736,9 @@ func buildListDeliveryAttemptsQuery(filters deliveryAttemptFilters, since time.T
 		conditions = append(conditions, fmt.Sprintf("lower(sender) = $%d", len(args)))
 	}
 	if len(conditions) > 0 {
-		query += "\nWHERE " + strings.Join(conditions, "\n  AND ")
+		return "\nWHERE " + strings.Join(conditions, "\n  AND "), args
 	}
-
-	args = append(args, queryLimit)
-	query += fmt.Sprintf(`
-ORDER BY attempted_at DESC, id DESC
-LIMIT $%d`, len(args))
-	return query, args
+	return "", args
 }
 
 type deliveryAttemptFilters struct {
@@ -5792,25 +5809,9 @@ func (r *Repository) GetDeliveryAttemptStats(ctx context.Context, req DeliveryAt
 		req.Since = req.Since.UTC()
 	}
 
-	const query = `
-SELECT
-  count(*)::bigint,
-  count(DISTINCT message_id)::bigint,
-  count(DISTINCT recipient)::bigint,
-  count(*) FILTER (WHERE status = 'delivered')::bigint,
-  count(*) FILTER (WHERE status = 'failed')::bigint,
-  count(*) FILTER (WHERE status = 'bounced')::bigint,
-  count(*) FILTER (WHERE status = 'exhausted')::bigint
-FROM delivery_attempts
-WHERE (NULLIF($1, '') IS NULL OR status = $1)
-  AND ($2::timestamptz IS NULL OR attempted_at >= $2::timestamptz)
-  AND (NULLIF($3, '') IS NULL OR recipient_domain = $3)
-  AND (NULLIF($4, '') IS NULL OR message_id::text = $4)
-  AND (NULLIF($5, '') IS NULL OR farm = $5)
-  AND (NULLIF($6, '') IS NULL OR lower(sender) = $6)`
-
 	var stats DeliveryAttemptStatsView
-	if err := r.db.QueryRowContext(ctx, query, filters.Status, nullableTime(req.Since), filters.RecipientDomain, filters.MessageID, filters.Farm, filters.Sender).Scan(
+	query, args := buildDeliveryAttemptStatsQuery(filters, req.Since)
+	if err := r.db.QueryRowContext(ctx, query, args...).Scan(
 		&stats.TotalAttempts,
 		&stats.UniqueMessages,
 		&stats.UniqueRecipients,
@@ -5822,6 +5823,11 @@ WHERE (NULLIF($1, '') IS NULL OR status = $1)
 		return DeliveryAttemptStatsView{}, fmt.Errorf("get delivery attempt stats: %w", err)
 	}
 	return stats, nil
+}
+
+func buildDeliveryAttemptStatsQuery(filters deliveryAttemptFilters, since time.Time) (string, []any) {
+	whereClause, args := buildDeliveryAttemptWhereClause(filters, since)
+	return deliveryAttemptStatsBaseSQL + whereClause, args
 }
 
 func (r *Repository) ListExhaustedAttempts(ctx context.Context, req ExhaustedAttemptListRequest) ([]DeliveryAttemptView, error) {
@@ -5842,34 +5848,9 @@ func (r *Repository) ListExhaustedAttempts(ctx context.Context, req ExhaustedAtt
 		req.Since = req.Since.UTC()
 	}
 
-	const query = `
-SELECT
-  id::text,
-  message_id::text,
-  rfc_message_id,
-  farm,
-  sender,
-  recipient,
-  recipient_domain,
-  status,
-  enhanced_status,
-  error_message,
-  dsn_return,
-  dsn_envelope_id,
-  dsn_notify,
-  original_recipient,
-  attempted_at
-FROM delivery_attempts
-WHERE status = 'exhausted'
-  AND ($2::timestamptz IS NULL OR attempted_at >= $2::timestamptz)
-  AND (NULLIF($3, '') IS NULL OR recipient_domain = $3)
-  AND (NULLIF($4, '') IS NULL OR message_id::text = $4)
-  AND (NULLIF($5, '') IS NULL OR farm = $5)
-  AND (NULLIF($6, '') IS NULL OR lower(sender) = $6)
-ORDER BY attempted_at DESC, id DESC
-LIMIT $1`
-
-	rows, err := r.db.QueryContext(ctx, query, req.Limit, nullableTime(req.Since), filters.RecipientDomain, filters.MessageID, filters.Farm, filters.Sender)
+	filters.Status = "exhausted"
+	query, args := buildListDeliveryAttemptsQuery(filters, req.Since, req.Limit)
+	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("list exhausted delivery attempts: %w", err)
 	}
