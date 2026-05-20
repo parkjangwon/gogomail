@@ -104,6 +104,56 @@ func TestValidateAttachmentUploadSessionListRequestRejectsUnsafeFilters(t *testi
 	}
 }
 
+func TestListAttachmentUploadSessionsQueryUsesSargableOptionalFilters(t *testing.T) {
+	t.Parallel()
+
+	query, args := buildListAttachmentUploadSessionsQuery(AttachmentUploadSessionListRequest{
+		UserID:  " user-1 ",
+		DraftID: " draft-1 ",
+		Status:  " Uploading ",
+		Limit:   25,
+	})
+	for _, want := range []string{
+		"FROM attachment_upload_sessions",
+		"WHERE user_id::text = $1",
+		"AND draft_id = $2::uuid",
+		"AND status = $3",
+		"ORDER BY created_at DESC, id DESC",
+		"LIMIT $4",
+	} {
+		if !strings.Contains(query, want) {
+			t.Fatalf("list attachment upload sessions query missing %q:\n%s", want, query)
+		}
+	}
+	for _, forbidden := range []string{
+		"$1 = '' OR",
+		"$2 = '' OR",
+		"$3 = '' OR",
+		"COALESCE(draft_id::text, '') =",
+	} {
+		if strings.Contains(query, forbidden) {
+			t.Fatalf("list attachment upload sessions query contains non-sargable optional filter %q:\n%s", forbidden, query)
+		}
+	}
+	if len(args) != 4 {
+		t.Fatalf("args len = %d, want 4", len(args))
+	}
+	if args[0] != "user-1" || args[1] != "draft-1" || args[2] != "uploading" || args[3] != 25 {
+		t.Fatalf("args = %#v", args)
+	}
+
+	query, args = buildListAttachmentUploadSessionsQuery(AttachmentUploadSessionListRequest{Limit: 50})
+	if strings.Contains(query, "WHERE") {
+		t.Fatalf("unfiltered list attachment upload sessions query unexpectedly includes WHERE:\n%s", query)
+	}
+	if len(args) != 1 {
+		t.Fatalf("unfiltered args len = %d, want 1", len(args))
+	}
+	if args[0] != 50 {
+		t.Fatalf("unfiltered args = %#v", args)
+	}
+}
+
 func TestValidateGetAttachmentUploadSessionRequest(t *testing.T) {
 	t.Parallel()
 

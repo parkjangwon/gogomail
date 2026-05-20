@@ -6476,3 +6476,6 @@ Target outcome:
 1776. Attachment share-link listing now uses dynamic optional attachment and
       status predicates, avoiding broad optional `OR` guards on share-link
       operations.
+1777. Attachment upload-session listing now uses dynamic optional user, draft,
+      and status predicates, avoiding broad optional `OR` guards on
+      upload-operation views.

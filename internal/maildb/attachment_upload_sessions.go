@@ -307,12 +307,28 @@ func (r *Repository) ListAttachmentUploadSessions(ctx context.Context, req Attac
 	if err := ValidateAttachmentUploadSessionListRequest(req); err != nil {
 		return nil, err
 	}
-	limit := normalizeLimit(req.Limit)
-	userID := strings.TrimSpace(req.UserID)
-	draftID := strings.TrimSpace(req.DraftID)
-	status := strings.ToLower(strings.TrimSpace(req.Status))
+	query, args := buildListAttachmentUploadSessionsQuery(req)
+	rows, err := r.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("list attachment upload sessions: %w", err)
+	}
+	defer rows.Close()
 
-	const query = `
+	sessions := make([]AttachmentUploadSession, 0)
+	for rows.Next() {
+		session, err := scanAttachmentUploadSession(rows)
+		if err != nil {
+			return nil, fmt.Errorf("scan attachment upload session: %w", err)
+		}
+		sessions = append(sessions, session)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate attachment upload sessions: %w", err)
+	}
+	return sessions, nil
+}
+
+const listAttachmentUploadSessionsBaseSQL = `
 SELECT
   id::text,
   user_id::text,
@@ -332,29 +348,31 @@ SELECT
   finalized_at,
   canceled_at
 FROM attachment_upload_sessions
-WHERE ($1 = '' OR user_id::text = $1)
-  AND ($2 = '' OR COALESCE(draft_id::text, '') = $2)
-  AND ($3 = '' OR status = $3)
-ORDER BY created_at DESC, id DESC
-LIMIT $4`
-	rows, err := r.db.QueryContext(ctx, query, userID, draftID, status, limit)
-	if err != nil {
-		return nil, fmt.Errorf("list attachment upload sessions: %w", err)
-	}
-	defer rows.Close()
+`
 
-	sessions := make([]AttachmentUploadSession, 0)
-	for rows.Next() {
-		session, err := scanAttachmentUploadSession(rows)
-		if err != nil {
-			return nil, fmt.Errorf("scan attachment upload session: %w", err)
-		}
-		sessions = append(sessions, session)
+func buildListAttachmentUploadSessionsQuery(req AttachmentUploadSessionListRequest) (string, []any) {
+	args := make([]any, 0, 4)
+	conditions := make([]string, 0, 3)
+	if userID := strings.TrimSpace(req.UserID); userID != "" {
+		args = append(args, userID)
+		conditions = append(conditions, fmt.Sprintf("user_id::text = $%d", len(args)))
 	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("iterate attachment upload sessions: %w", err)
+	if draftID := strings.TrimSpace(req.DraftID); draftID != "" {
+		args = append(args, draftID)
+		conditions = append(conditions, fmt.Sprintf("draft_id = $%d::uuid", len(args)))
 	}
-	return sessions, nil
+	if status := strings.ToLower(strings.TrimSpace(req.Status)); status != "" {
+		args = append(args, status)
+		conditions = append(conditions, fmt.Sprintf("status = $%d", len(args)))
+	}
+	args = append(args, normalizeLimit(req.Limit))
+	query := listAttachmentUploadSessionsBaseSQL
+	if len(conditions) > 0 {
+		query += "WHERE " + strings.Join(conditions, "\n  AND ") + "\n"
+	}
+	query += fmt.Sprintf(`ORDER BY created_at DESC, id DESC
+LIMIT $%d`, len(args))
+	return query, args
 }
 
 func (r *Repository) CreateAttachmentUploadSession(ctx context.Context, req CreateAttachmentUploadSessionRequest) (AttachmentUploadSession, error) {
