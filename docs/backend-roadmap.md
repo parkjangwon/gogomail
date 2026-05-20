@@ -6386,6 +6386,7 @@ Target outcome:
 1753. Webmail preferences saves now merge with the existing server-side
       preference document before replacing `settings->webmail`, preventing
       signature, filter-rule, and general-settings saves from erasing sibling
-      keys.  Both settings surfaces hydrate server filter rules back into the
-      local cache used by the message-list filter application path, and the
-      filter UI copy now reflects that rules are active and server-synced.
+      keys.  Both settings surfaces hydrate server filter rules, signatures,
+      and general settings back into local caches used by the message-list and
+      compose paths, and the filter UI copy now reflects that rules are active
+      and server-synced.

@@ -268,7 +268,7 @@ Go Backend (`internal/`):
 - delivery worker가 TLS-RPT collector domain을 `localhost` 고정값으로 두지 않고 `GOGOMAIL_SMTP_DOMAIN`에서 주입하도록 바꿔 운영 TLS report identity가 실제 MTA 도메인을 쓰게 함
 - `TestDirectSMTPTransportTLSReportDomainCanBeConfigured`를 추가해 TLS-RPT report domain override가 collector에 반영되는지 검증함
 - outbox relay `MarkFailedBatch` SQL이 `SELECT *` 대신 `unnest` 결과의 `id,last_error` 컬럼을 명시 투영하도록 바꿔 배치 실패 갱신 경로의 SQL shape를 고정함
-- 웹메일 preferences 저장을 서버 기존 값과 병합한 뒤 PUT하도록 바꿔 서명/필터/일반 설정 저장이 서로의 키를 지우지 않게 했고, 필터 규칙은 서버값을 로컬 캐시에 반영해 메일 목록의 클라이언트 필터 적용 경로와 설정 화면이 같은 규칙을 보게 함
+- 웹메일 preferences 저장을 서버 기존 값과 병합한 뒤 PUT하도록 바꿔 서명/필터/일반 설정 저장이 서로의 키를 지우지 않게 했고, `SettingsView`와 사이드바 `SettingsModal` 모두 서버값을 로컬 캐시에 반영해 메일 목록의 클라이언트 필터 적용 경로와 설정 화면이 같은 규칙/서명/일반 설정을 보게 함
 - `TestMarkFailedBatchSQLProjectsUnnestColumns`를 추가해 outbox batch failure CTE가 명시 projection을 유지하는지 검증함
 - draft attachment binding이 첨부 ID마다 UPDATE를 반복하지 않고 `unnest($3::uuid[])` typed-array 단일 UPDATE로 바인딩하도록 바꿔 draft save/update 첨부 N+1 왕복을 제거함
 - `TestBindDraftAttachmentsSQLUsesSingleTypedArrayUpdate`를 추가해 draft attachment binding SQL이 단일 typed-array update 경로를 유지하도록 고정함

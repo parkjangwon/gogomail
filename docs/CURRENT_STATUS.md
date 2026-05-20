@@ -57,7 +57,7 @@ Last updated: 2026-05-21 (SaaS launch hardening continues: attachment cleanup ba
 - Quota alert scanning now sends pending user-scope quota alert emails through the system email sender and marks alerts as notified after successful dispatch.
 - Retention AutoPurge is implemented behind `GOGOMAIL_AUTO_PURGE_ENABLED`; it reads company `retention_policy` config, purges expired deleted/trash messages, and purges expired audit logs in bounded batches.
 - Admin invite acceptance sends a welcome email, and invite token creation sends a non-blocking invite email when the system email sender and `GOGOMAIL_PUBLIC_BASE_URL` are configured.
-- Webmail now includes forgot/reset password pages, password-reset proxy routes, server-synced email signatures and filter rules, Web Push registration with base64url keys, service worker support, and calendar edit/delete controls.
+- Webmail now includes forgot/reset password pages, password-reset proxy routes, server-synced email signatures and filter rules across both settings surfaces, Web Push registration with base64url keys, service worker support, and calendar edit/delete controls.
 - Console audit logs now support cursor pagination through the backend `before` filter, and delivery attempts show filterable feedback instead of silent console errors.
 - Operational backup support now includes `scripts/backup.sh` plus `docker/docker-compose.backup.yml` for scheduled PostgreSQL dump backups with optional S3 upload.
 - Verification: `go test ./...`, `pnpm --dir apps/webmail type-check`, and `pnpm --dir apps/console type-check` pass.
