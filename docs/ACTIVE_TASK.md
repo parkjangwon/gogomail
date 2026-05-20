@@ -260,6 +260,7 @@ Go Backend (`internal/`):
 - `BenchmarkRecordAttemptBatchBulkVsIndividual`: 100 수신자 기준 bulk recorder `~3.18 ns/op`, `1.000 record_calls/op`; fallback individual recorder `~1051 ns/op`, `100.0 record_calls/op`
 - `BulkSetMessageFlag`, `BulkMoveMessages`, `deleteIMAPUIDRowsForMessages`가 JSON 배열 확장 대신 `unnest($2::uuid[])` typed array를 사용하도록 바꿔 메시지 bulk mutation의 JSON 인코딩/파싱 비용을 제거함
 - `BenchmarkBulkMessageIDsArrayValue`: UUID array 준비 비용 1k `~69.3 us/op`, 10k `~689.3 us/op` 기준선을 추가함
+- `BulkDeleteMessages`, `LookupDeleteableStoragePaths`, `BulkRestoreMessages`, `BulkMoveThreads`, `BulkRestoreThreads`, `BulkDeleteThreads`도 typed UUID array 기반 CTE로 전환해 메시지/스레드 bulk 작업의 `$2::jsonb` ID 확장을 제거함
 
 **System Email Connections & AutoPurge** ✅ COMPLETE
 - `internal/httpapi/admin.go`: Added `systemEmail mailservice.SystemEmailSender` and `publicBaseURL string` fields to `adminRouteConfig`; added `WithSystemEmailSender` and `WithPublicBaseURL` `AdminRouteOption` constructors

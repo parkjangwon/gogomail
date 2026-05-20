@@ -7697,5 +7697,6 @@ Next focus areas:
 ## 2026-05-21 Mailbox bulk mutation typed arrays
 
 - `BulkSetMessageFlag`, `BulkMoveMessages`, and IMAP UID cleanup for moved/deleted messages now pass UUID arrays through `pq.Array`/`unnest($2::uuid[])` instead of JSON-encoding IDs and expanding them with `jsonb_array_elements_text`.
+- `BulkDeleteMessages`, `LookupDeleteableStoragePaths`, `BulkRestoreMessages`, `BulkMoveThreads`, `BulkRestoreThreads`, and `BulkDeleteThreads` now use the same typed-array pattern, removing the remaining `$2::jsonb` ID expansion from `internal/maildb/messages.go`.
 - Added message-ID array benchmarks: 1k UUIDs `~69.3 us/op`, 10k UUIDs `~689.3 us/op`.
 - Verification: `go test ./internal/maildb`; `go test ./internal/maildb -run '^$' -bench 'BenchmarkBulkMessageIDsArrayValue' -benchtime=100ms`.

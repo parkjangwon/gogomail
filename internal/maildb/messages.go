@@ -1090,10 +1090,6 @@ func (r *Repository) BulkMoveThreads(ctx context.Context, req BulkThreadMoveRequ
 	}
 	userID := strings.TrimSpace(req.UserID)
 	folderID := strings.TrimSpace(req.FolderID)
-	rawIDs, err := json.Marshal(req.ThreadIDs)
-	if err != nil {
-		return BulkThreadMoveResult{}, fmt.Errorf("encode thread ids: %w", err)
-	}
 
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -1101,7 +1097,7 @@ func (r *Repository) BulkMoveThreads(ctx context.Context, req BulkThreadMoveRequ
 	}
 	defer tx.Rollback()
 
-	rows, err := tx.QueryContext(ctx, bulkMoveThreadsSQL, userID, string(rawIDs), folderID)
+	rows, err := tx.QueryContext(ctx, bulkMoveThreadsSQL, userID, pq.Array(req.ThreadIDs), folderID)
 	if err != nil {
 		return BulkThreadMoveResult{}, fmt.Errorf("bulk move threads: %w", err)
 	}
@@ -1130,21 +1126,39 @@ func (r *Repository) BulkMoveThreads(ctx context.Context, req BulkThreadMoveRequ
 }
 
 const bulkMoveThreadsSQL = `
-UPDATE messages
-SET folder_id = $3,
-    updated_at = now()
-WHERE user_id = $1
-  AND COALESCE(thread_id, id)::text IN (
-    SELECT value FROM jsonb_array_elements_text($2::jsonb)
-  )
-  AND status = 'active'
-  AND EXISTS (
+WITH requested AS (
+  SELECT value AS id
+  FROM unnest($2::uuid[]) AS requested(value)
+),
+target_messages AS (
+  SELECT messages.id
+  FROM messages
+  JOIN requested ON messages.thread_id = requested.id
+  WHERE user_id = $1
+    AND status = 'active'
+  UNION
+  SELECT messages.id
+  FROM messages
+  JOIN requested ON messages.id = requested.id
+  WHERE user_id = $1
+    AND status = 'active'
+),
+updated_messages AS (
+  UPDATE messages
+  SET folder_id = $3,
+      updated_at = now()
+  WHERE id IN (SELECT id FROM target_messages)
+    AND EXISTS (
     SELECT 1
     FROM folders
     WHERE folders.id = $3
       AND folders.user_id = $1
   )
-RETURNING id::text`
+  RETURNING id::text
+)
+SELECT id
+FROM updated_messages
+ORDER BY id`
 
 func (r *Repository) DeleteMessage(ctx context.Context, userID string, messageID string) error {
 	if r.db == nil {
@@ -1240,11 +1254,6 @@ func (r *Repository) BulkDeleteMessages(ctx context.Context, req BulkMessageDele
 	if err := ValidateBulkMessageDeleteRequest(req); err != nil {
 		return 0, err
 	}
-	rawIDs, err := json.Marshal(req.MessageIDs)
-	if err != nil {
-		return 0, fmt.Errorf("encode message ids: %w", err)
-	}
-
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
 		return 0, fmt.Errorf("begin bulk delete transaction: %w", err)
@@ -1256,8 +1265,8 @@ func (r *Repository) BulkDeleteMessages(ctx context.Context, req BulkMessageDele
 SELECT COALESCE(SUM(size), 0)
 FROM messages
 WHERE user_id = $1
-  AND id IN (SELECT value::uuid FROM jsonb_array_elements_text($2::jsonb))
-  AND status = 'active'`, strings.TrimSpace(req.UserID), string(rawIDs),
+  AND id IN (SELECT value FROM unnest($2::uuid[]) AS requested(value))
+  AND status = 'active'`, strings.TrimSpace(req.UserID), pq.Array(req.MessageIDs),
 	).Scan(&totalSize); err != nil {
 		return 0, fmt.Errorf("sum message sizes for bulk delete: %w", err)
 	}
@@ -1268,8 +1277,8 @@ SET status = 'deleted',
     deleted_at = now(),
     updated_at = now()
 WHERE user_id = $1
-  AND id IN (SELECT value::uuid FROM jsonb_array_elements_text($2::jsonb))
-  AND status = 'active'`, strings.TrimSpace(req.UserID), string(rawIDs))
+  AND id IN (SELECT value FROM unnest($2::uuid[]) AS requested(value))
+  AND status = 'active'`, strings.TrimSpace(req.UserID), pq.Array(req.MessageIDs))
 	if err != nil {
 		return 0, fmt.Errorf("bulk delete messages: %w", err)
 	}
@@ -1302,17 +1311,13 @@ func (r *Repository) LookupDeleteableStoragePaths(ctx context.Context, userID st
 	if len(messageIDs) == 0 {
 		return nil, nil
 	}
-	rawIDs, err := json.Marshal(messageIDs)
-	if err != nil {
-		return nil, fmt.Errorf("encode message ids: %w", err)
-	}
 	// Return storage_path values that belong to at least one of the target
 	// messages but are NOT shared by any other message (regardless of user).
 	rows, err := r.db.QueryContext(ctx, `
 SELECT DISTINCT m.storage_path
 FROM messages m
 WHERE m.user_id = $1
-  AND m.id IN (SELECT value::uuid FROM jsonb_array_elements_text($2::jsonb))
+  AND m.id IN (SELECT value FROM unnest($2::uuid[]) AS requested(value))
   AND m.storage_path IS NOT NULL
   AND m.storage_path <> ''
   AND (
@@ -1320,7 +1325,7 @@ WHERE m.user_id = $1
     FROM messages ref
     WHERE ref.storage_path = m.storage_path
       AND ref.id != m.id
-  ) = 0`, strings.TrimSpace(userID), string(rawIDs))
+  ) = 0`, strings.TrimSpace(userID), pq.Array(messageIDs))
 	if err != nil {
 		return nil, fmt.Errorf("lookup deleteable storage paths: %w", err)
 	}
@@ -1349,10 +1354,6 @@ func (r *Repository) BulkRestoreMessages(ctx context.Context, req BulkMessageRes
 	if err := ValidateBulkMessageRestoreRequest(req); err != nil {
 		return BulkMessageRestoreResult{}, err
 	}
-	rawIDs, err := json.Marshal(req.MessageIDs)
-	if err != nil {
-		return BulkMessageRestoreResult{}, fmt.Errorf("encode message ids: %w", err)
-	}
 	userID := strings.TrimSpace(req.UserID)
 
 	tx, err := r.db.BeginTx(ctx, nil)
@@ -1365,9 +1366,9 @@ func (r *Repository) BulkRestoreMessages(ctx context.Context, req BulkMessageRes
 SELECT id::text, COALESCE(size, 0)
 FROM messages
 WHERE user_id = $1
-  AND id IN (SELECT value::uuid FROM jsonb_array_elements_text($2::jsonb))
+  AND id IN (SELECT value FROM unnest($2::uuid[]) AS requested(value))
   AND status = 'deleted'
-FOR UPDATE`, userID, string(rawIDs))
+FOR UPDATE`, userID, pq.Array(req.MessageIDs))
 	if err != nil {
 		return BulkMessageRestoreResult{}, fmt.Errorf("list messages for bulk restore: %w", err)
 	}
@@ -1394,18 +1395,14 @@ FOR UPDATE`, userID, string(rawIDs))
 	}
 
 	if len(restoredIDs) > 0 {
-		rawRestoredIDs, err := json.Marshal(restoredIDs)
-		if err != nil {
-			return BulkMessageRestoreResult{}, fmt.Errorf("encode restored message ids: %w", err)
-		}
 		if _, err := tx.ExecContext(ctx, `
 UPDATE messages
 SET status = 'active',
     deleted_at = NULL,
     updated_at = now()
 WHERE user_id = $1
-  AND id IN (SELECT value::uuid FROM jsonb_array_elements_text($2::jsonb))
-  AND status = 'deleted'`, userID, string(rawRestoredIDs)); err != nil {
+  AND id IN (SELECT value FROM unnest($2::uuid[]) AS requested(value))
+  AND status = 'deleted'`, userID, pq.Array(restoredIDs)); err != nil {
 			return BulkMessageRestoreResult{}, fmt.Errorf("bulk restore messages: %w", err)
 		}
 	}
@@ -1423,10 +1420,6 @@ func (r *Repository) BulkRestoreThreads(ctx context.Context, req BulkThreadResto
 		return BulkThreadRestoreResult{}, err
 	}
 	userID := strings.TrimSpace(req.UserID)
-	rawIDs, err := json.Marshal(req.ThreadIDs)
-	if err != nil {
-		return BulkThreadRestoreResult{}, fmt.Errorf("encode thread ids: %w", err)
-	}
 
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -1434,7 +1427,7 @@ func (r *Repository) BulkRestoreThreads(ctx context.Context, req BulkThreadResto
 	}
 	defer tx.Rollback()
 
-	rows, err := tx.QueryContext(ctx, bulkRestoreThreadsSQL, userID, string(rawIDs))
+	rows, err := tx.QueryContext(ctx, bulkRestoreThreadsSQL, userID, pq.Array(req.ThreadIDs))
 	if err != nil {
 		return BulkThreadRestoreResult{}, fmt.Errorf("bulk restore threads: %w", err)
 	}
@@ -1460,18 +1453,14 @@ func (r *Repository) BulkRestoreThreads(ctx context.Context, req BulkThreadResto
 		return BulkThreadRestoreResult{}, err
 	}
 	if len(restoredIDs) > 0 {
-		rawMessageIDs, err := json.Marshal(restoredIDs)
-		if err != nil {
-			return BulkThreadRestoreResult{}, fmt.Errorf("encode restored message ids: %w", err)
-		}
 		if _, err := tx.ExecContext(ctx, `
 UPDATE messages
 SET status = 'active',
     deleted_at = NULL,
     updated_at = now()
 WHERE user_id = $1
-  AND id IN (SELECT value::uuid FROM jsonb_array_elements_text($2::jsonb))
-  AND status = 'deleted'`, userID, string(rawMessageIDs)); err != nil {
+  AND id IN (SELECT value FROM unnest($2::uuid[]) AS requested(value))
+  AND status = 'deleted'`, userID, pq.Array(restoredIDs)); err != nil {
 			return BulkThreadRestoreResult{}, fmt.Errorf("activate bulk restored thread messages: %w", err)
 		}
 	}
@@ -1482,13 +1471,26 @@ WHERE user_id = $1
 }
 
 const bulkRestoreThreadsSQL = `
-SELECT id::text, COALESCE(size, 0)
+WITH requested AS (
+  SELECT value AS id
+  FROM unnest($2::uuid[]) AS requested(value)
+),
+target_messages AS (
+  SELECT messages.id
+  FROM messages
+  JOIN requested ON messages.thread_id = requested.id
+  WHERE user_id = $1
+    AND status = 'deleted'
+  UNION
+  SELECT messages.id
+  FROM messages
+  JOIN requested ON messages.id = requested.id
+  WHERE user_id = $1
+    AND status = 'deleted'
+)
+SELECT messages.id::text, COALESCE(messages.size, 0)
 FROM messages
-WHERE user_id = $1
-  AND COALESCE(thread_id, id)::text IN (
-    SELECT value FROM jsonb_array_elements_text($2::jsonb)
-  )
-  AND status = 'deleted'
+JOIN target_messages ON target_messages.id = messages.id
 FOR UPDATE`
 
 func (r *Repository) BulkDeleteThreads(ctx context.Context, req BulkThreadDeleteRequest) (BulkThreadDeleteResult, error) {
@@ -1499,10 +1501,6 @@ func (r *Repository) BulkDeleteThreads(ctx context.Context, req BulkThreadDelete
 		return BulkThreadDeleteResult{}, err
 	}
 	userID := strings.TrimSpace(req.UserID)
-	rawIDs, err := json.Marshal(req.ThreadIDs)
-	if err != nil {
-		return BulkThreadDeleteResult{}, fmt.Errorf("encode thread ids: %w", err)
-	}
 
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -1510,7 +1508,7 @@ func (r *Repository) BulkDeleteThreads(ctx context.Context, req BulkThreadDelete
 	}
 	defer tx.Rollback()
 
-	rows, err := tx.QueryContext(ctx, bulkDeleteThreadsSQL, userID, string(rawIDs))
+	rows, err := tx.QueryContext(ctx, bulkDeleteThreadsSQL, userID, pq.Array(req.ThreadIDs))
 	if err != nil {
 		return BulkThreadDeleteResult{}, fmt.Errorf("bulk delete threads: %w", err)
 	}
@@ -1545,16 +1543,34 @@ func (r *Repository) BulkDeleteThreads(ctx context.Context, req BulkThreadDelete
 }
 
 const bulkDeleteThreadsSQL = `
-UPDATE messages
-SET status = 'deleted',
-    deleted_at = now(),
-    updated_at = now()
-WHERE user_id = $1
-  AND COALESCE(thread_id, id)::text IN (
-    SELECT value FROM jsonb_array_elements_text($2::jsonb)
-  )
-  AND status = 'active'
-RETURNING id::text, COALESCE(size, 0)`
+WITH requested AS (
+  SELECT value AS id
+  FROM unnest($2::uuid[]) AS requested(value)
+),
+target_messages AS (
+  SELECT messages.id
+  FROM messages
+  JOIN requested ON messages.thread_id = requested.id
+  WHERE user_id = $1
+    AND status = 'active'
+  UNION
+  SELECT messages.id
+  FROM messages
+  JOIN requested ON messages.id = requested.id
+  WHERE user_id = $1
+    AND status = 'active'
+),
+deleted_messages AS (
+  UPDATE messages
+  SET status = 'deleted',
+      deleted_at = now(),
+      updated_at = now()
+  WHERE id IN (SELECT id FROM target_messages)
+  RETURNING id::text, COALESCE(size, 0) AS size
+)
+SELECT id, size
+FROM deleted_messages
+ORDER BY id`
 
 func allowedMessageFlag(flag string) bool {
 	switch flag {
