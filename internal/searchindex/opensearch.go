@@ -165,7 +165,11 @@ func (i OpenSearchIndexer) EnsureIndex(ctx context.Context) error {
 	}
 	defer func() { _ = webhook.DrainAndClose(resp.Body, webhook.DefaultDrainBytes) }()
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return fmt.Errorf("ensure opensearch index %q: status %d: %s", i.index, resp.StatusCode, webhook.ErrorBodyPreview(resp.Body, 512))
+		preview := webhook.ErrorBodyPreview(resp.Body, 512)
+		if i.koreanAnalyzer && strings.Contains(strings.ToLower(preview), "nori") {
+			return fmt.Errorf("ensure opensearch index %q: status %d: %s (GOGOMAIL_OPENSEARCH_KOREAN_ANALYZER requires the OpenSearch analysis-nori plugin)", i.index, resp.StatusCode, preview)
+		}
+		return fmt.Errorf("ensure opensearch index %q: status %d: %s", i.index, resp.StatusCode, preview)
 	}
 	return nil
 }
@@ -196,7 +200,6 @@ func openSearchIndexDefinition(koreanAnalyzer bool) map[string]any {
 	}
 
 	if koreanAnalyzer {
-		// TODO: requires the OpenSearch analysis-nori plugin.
 		settings["analysis"] = map[string]any{
 			"analyzer": map[string]any{
 				"korean": map[string]any{
