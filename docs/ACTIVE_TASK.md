@@ -266,6 +266,7 @@ Go Backend (`internal/`):
 - `TestResolveThreadIDSQLUsesOrdinalityArray`, `TestAttachmentsByIDsSQLUsesUuidOrdinality`를 추가해 reply threading/attachment lookup SQL이 ordinality 기반 typed array 경로를 유지하도록 고정함
 - thread list newest/oldest 쿼리에서 `SELECT * FROM thread_summaries`를 제거하고 API 응답에 필요한 10개 컬럼만 명시해 스레드 목록 read model projection을 고정함
 - `TestThreadListSQLUsesLatestMessagePreview`가 명시 컬럼 projection과 `SELECT *` 금지를 함께 검증하도록 확장함
+- thread list newest/oldest 쿼리도 folder 필터가 있을 때만 `messages.folder_id = $8::uuid` 조건을 추가하고, 전체 스레드 목록에서는 folder predicate를 제거해 스레드 목록 조회의 optional `OR` predicate를 줄임
 - delivery worker가 TLS-RPT collector domain을 `localhost` 고정값으로 두지 않고 `GOGOMAIL_SMTP_DOMAIN`에서 주입하도록 바꿔 운영 TLS report identity가 실제 MTA 도메인을 쓰게 함
 - `TestDirectSMTPTransportTLSReportDomainCanBeConfigured`를 추가해 TLS-RPT report domain override가 collector에 반영되는지 검증함
 - outbox relay `MarkFailedBatch` SQL이 `SELECT *` 대신 `unnest` 결과의 `id,last_error` 컬럼을 명시 투영하도록 바꿔 배치 실패 갱신 경로의 SQL shape를 고정함

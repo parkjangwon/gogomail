@@ -38,12 +38,10 @@ func (r *Repository) ListThreadsPage(ctx context.Context, userID string, limit i
 		return nil, fmt.Errorf("unsupported list sort %q", filter.Sort)
 	}
 
-	query := threadListPageNewestSQL
-	if sortMode == ListSortOldest {
-		query = threadListPageOldestSQL
-	}
+	folderID := strings.TrimSpace(filter.FolderID)
+	query := buildThreadListPageSQL(sortMode, folderID)
 
-	rows, err := r.db.QueryContext(ctx, query, userID, limit, cursor.At, strings.TrimSpace(cursor.ID), filter.Read, filter.Starred, filter.HasAttachment, strings.TrimSpace(filter.FolderID))
+	rows, err := r.db.QueryContext(ctx, query, userID, limit, cursor.At, strings.TrimSpace(cursor.ID), filter.Read, filter.Starred, filter.HasAttachment, folderID)
 	if err != nil {
 		return nil, fmt.Errorf("list threads: %w", err)
 	}
@@ -72,6 +70,17 @@ func (r *Repository) ListThreadsPage(ctx context.Context, userID string, limit i
 		return nil, fmt.Errorf("iterate thread summaries: %w", err)
 	}
 	return threads, nil
+}
+
+func buildThreadListPageSQL(sortMode, folderID string) string {
+	query := threadListPageNewestSQL
+	if sortMode == ListSortOldest {
+		query = threadListPageOldestSQL
+	}
+	if folderID == "" {
+		return strings.Replace(query, "    AND ($8 = '' OR messages.folder_id::text = $8)\n", "", 1)
+	}
+	return strings.Replace(query, "    AND ($8 = '' OR messages.folder_id::text = $8)", "    AND messages.folder_id = $8::uuid", 1)
 }
 
 const threadListPageNewestSQL = `

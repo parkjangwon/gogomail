@@ -6485,3 +6485,6 @@ Target outcome:
 1779. Message page listing now emits the folder predicate only for
       folder-scoped reads, using a typed `messages.folder_id = $2::uuid`
       comparison and omitting folder predicates for all-folder reads.
+1780. Thread page listing now emits the folder predicate only for folder-scoped
+      reads, using a typed `messages.folder_id = $8::uuid` comparison and
+      omitting folder predicates for all-thread reads.
