@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"github.com/lib/pq"
 )
 
 type Attachment struct {
@@ -258,6 +260,28 @@ LIMIT 1`
 	return attachment, nil
 }
 
+const attachmentsByIDsSQL = `
+WITH requested AS (
+  SELECT value AS id, ordinality
+  FROM unnest($2::uuid[]) WITH ORDINALITY AS requested(value, ordinality)
+)
+SELECT
+  attachments.id::text,
+  COALESCE(attachments.message_id::text, ''),
+  attachments.upload_id,
+  attachments.storage_path,
+  attachments.filename,
+  attachments.size,
+  attachments.mime_type,
+  attachments.status,
+  attachments.created_at
+FROM attachments
+JOIN requested ON requested.id = attachments.id
+WHERE attachments.user_id = $1::uuid
+  AND attachments.message_id IS NULL
+  AND attachments.status = 'uploading'
+ORDER BY requested.ordinality, attachments.created_at ASC, attachments.filename ASC`
+
 func (r *Repository) AttachmentsByIDs(ctx context.Context, userID string, attachmentIDs []string) ([]Attachment, error) {
 	if r.db == nil {
 		return nil, fmt.Errorf("database handle is required")
@@ -266,25 +290,7 @@ func (r *Repository) AttachmentsByIDs(ctx context.Context, userID string, attach
 		return nil, nil
 	}
 
-	const query = `
-SELECT
-  id::text,
-  COALESCE(message_id::text, ''),
-  upload_id,
-  storage_path,
-  filename,
-  size,
-  mime_type,
-  status,
-  created_at
-FROM attachments
-WHERE user_id = $1
-  AND message_id IS NULL
-  AND status = 'uploading'
-  AND id = ANY($2)
-ORDER BY array_position($2, id), created_at ASC, filename ASC`
-
-	rows, err := r.db.QueryContext(ctx, query, strings.TrimSpace(userID), stringArray(attachmentIDs))
+	rows, err := r.db.QueryContext(ctx, attachmentsByIDsSQL, strings.TrimSpace(userID), pq.Array(attachmentIDs))
 	if err != nil {
 		return nil, fmt.Errorf("list attachments by ids: %w", err)
 	}

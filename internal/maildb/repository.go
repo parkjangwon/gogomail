@@ -9,6 +9,7 @@ import (
 
 	"github.com/gogomail/gogomail/internal/message"
 	smtpd "github.com/gogomail/gogomail/internal/smtp"
+	"github.com/lib/pq"
 )
 
 type Repository struct {
@@ -195,21 +196,26 @@ VALUES ('mail.event', $1, $2::jsonb, 'pending')`
 	return nil
 }
 
+const resolveThreadIDSQL = `
+WITH requested AS (
+  SELECT value AS rfc_message_id, ordinality
+  FROM unnest($2::text[]) WITH ORDINALITY AS requested(value, ordinality)
+)
+SELECT COALESCE(thread_id, id)::text
+FROM messages
+JOIN requested ON requested.rfc_message_id = messages.rfc_message_id
+WHERE user_id = $1::uuid
+ORDER BY requested.ordinality
+LIMIT 1`
+
 func (r *Repository) resolveThreadID(ctx context.Context, tx *sql.Tx, userID string, candidates []string) (string, error) {
 	candidates = normalizeThreadCandidates(candidates)
 	if len(candidates) == 0 {
 		return "", nil
 	}
-	const query = `
-SELECT COALESCE(thread_id, id)::text
-FROM messages
-WHERE user_id = $1
-  AND rfc_message_id = ANY($2)
-ORDER BY array_position($2, rfc_message_id)
-LIMIT 1`
 
 	var threadID string
-	if err := tx.QueryRowContext(ctx, query, strings.TrimSpace(userID), stringArray(candidates)).Scan(&threadID); err != nil {
+	if err := tx.QueryRowContext(ctx, resolveThreadIDSQL, strings.TrimSpace(userID), pq.Array(candidates)).Scan(&threadID); err != nil {
 		if err == sql.ErrNoRows {
 			return "", nil
 		}

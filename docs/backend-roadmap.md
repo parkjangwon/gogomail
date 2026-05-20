@@ -308,6 +308,7 @@ Implementation order:
 218. Received-message body search has an asynchronous indexing boundary: `search-index-worker` consumes `mail.stored`, reads raw `.eml` from storage, extracts bounded plain text through `internal/message`, and upserts `message_search_documents`.
 219. Postgres-backed search includes indexed received body text while preserving the existing `GET /api/v1/search` response envelope; OpenSearch, highlighting, and ranking remain behind the same future search contract.
 220. API metering has a disabled-by-default HTTP middleware boundary with async fail-open recording and a `slog` sink, preparing future durable usage aggregation without synchronous enforcement.
+221. Reply-thread candidate lookup and draft attachment lookup now use ordinality-preserving typed-array joins, removing `array_position($2, ...)` rescans from hot message ingestion and draft-send preparation paths.
 221. API metering can emit durable `api.usage` events through the generic outbox on topic `api.event`, keeping request handling fail-open while giving future aggregation workers a persistent event source.
 222. Quota reconciliation corrections can be explicitly applied by operators through `POST /admin/v1/quota-reconciliation/corrections`; corrections lock the affected quota hierarchy and set counters from message/attachment source rows.
 223. Domain outbound policy includes `max_attachment_bytes`, and Mail API attachment reservation/direct upload enforce it before quota reservation or object storage writes.

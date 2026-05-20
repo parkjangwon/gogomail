@@ -7700,3 +7700,10 @@ Next focus areas:
 - `BulkDeleteMessages`, `LookupDeleteableStoragePaths`, `BulkRestoreMessages`, `BulkMoveThreads`, `BulkRestoreThreads`, and `BulkDeleteThreads` now use the same typed-array pattern, removing the remaining `$2::jsonb` ID expansion from `internal/maildb/messages.go`.
 - Added message-ID array benchmarks: 1k UUIDs `~69.3 us/op`, 10k UUIDs `~689.3 us/op`.
 - Verification: `go test ./internal/maildb`; `go test ./internal/maildb -run '^$' -bench 'BenchmarkBulkMessageIDsArrayValue' -benchtime=100ms`.
+
+## 2026-05-21 Thread and attachment ordinality lookups
+
+- Reply-thread resolution now expands normalized `References`/`In-Reply-To` candidates with `unnest($2::text[]) WITH ORDINALITY`, preserving caller priority without `array_position($2, ...)` rescans.
+- Draft attachment lookup now expands attachment IDs with `unnest($2::uuid[]) WITH ORDINALITY`, preserving requested order through a typed array join instead of per-row array-position scans.
+- Added SQL-shape regression tests for both lookup paths.
+- Verification: `go test ./internal/maildb -run 'TestResolveThreadIDSQLUsesOrdinalityArray|TestAttachmentsByIDsSQLUsesUuidOrdinality'`.
