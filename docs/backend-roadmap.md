@@ -6599,3 +6599,6 @@ Target outcome:
 1814. LDAP empty `groupOfNames` fallback values now avoid internal
       `cn=placeholder` data; defensive groups without generated DNs use their
       escaped CN as a schema-safe single-member DN fallback.
+1815. OpenSearch Korean analyzer bootstrap failures now include an explicit
+      `analysis-nori` plugin hint when the backend rejects the Nori analyzer
+      type, shortening production diagnosis for optional Korean search rollout.

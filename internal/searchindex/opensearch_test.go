@@ -375,3 +375,30 @@ func TestOpenSearchIndexerEnsuresIndexWithKoreanAnalyzer(t *testing.T) {
 		t.Fatal("EnsureIndex with KoreanAnalyzer must send analysis settings")
 	}
 }
+
+func TestOpenSearchIndexerKoreanAnalyzerFailureMentionsNoriPlugin(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusBadRequest)
+		_, _ = w.Write([]byte(`{"error":"Unknown analyzer type [nori] for [korean]"}`))
+	}))
+	defer server.Close()
+
+	indexer, err := NewOpenSearchIndexer(OpenSearchOptions{
+		Endpoint:       server.URL,
+		Index:          "gogomail-messages",
+		Client:         server.Client(),
+		KoreanAnalyzer: true,
+	})
+	if err != nil {
+		t.Fatalf("NewOpenSearchIndexer returned error: %v", err)
+	}
+	err = indexer.EnsureIndex(context.Background())
+	if err == nil {
+		t.Fatal("EnsureIndex returned nil error")
+	}
+	if !strings.Contains(err.Error(), "analysis-nori plugin") {
+		t.Fatalf("EnsureIndex error = %q, want analysis-nori plugin hint", err.Error())
+	}
+}

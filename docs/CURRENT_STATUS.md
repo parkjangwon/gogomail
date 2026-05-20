@@ -7947,3 +7947,8 @@ Next focus areas:
 
 - Empty LDAP `groupOfNames` entries still emit a schema-safe `member` fallback, but defensive in-memory groups without a generated DN now use their escaped CN instead of leaking the internal `cn=placeholder` value.
 - Verification target: `go test ./internal/ldapgw -run TestPrincipalLDAPAttributesSatisfyDeclaredObjectClassRequirements`.
+
+## 2026-05-21 OpenSearch Korean analyzer diagnostics
+
+- OpenSearch index bootstrap now adds an explicit `analysis-nori plugin` hint when Korean analyzer mode fails with a Nori analyzer/type error, making production configuration mistakes actionable from logs.
+- Verification target: `go test ./internal/searchindex -run 'TestOpenSearch(IndexerKoreanAnalyzerFailureMentionsNoriPlugin|IndexDefinitionKoreanAnalyzerSetsNori|IndexerEnsuresIndexWithKoreanAnalyzer)'`.
