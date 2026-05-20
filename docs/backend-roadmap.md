@@ -6365,3 +6365,7 @@ Target outcome:
       performance, storage, backup/restore, push/webhook, system email, API
       usage, and frontend public-origin environment variables are visible in
       operator-facing setup surfaces.
+1750. BIMI validation no longer reports VMC verification from URL presence
+      alone.  Until full VMC certificate-chain validation exists, `ValidateAndFetch`
+      returns `vmcVerified=false`, and the logo cache now records the actual
+      SHA-256 body digest for fetched logo bytes.

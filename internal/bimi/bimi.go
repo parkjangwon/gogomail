@@ -18,11 +18,11 @@ import (
 // Policy represents a BIMI policy from DNS TXT record (RFC 6651).
 // Format: "v=BIMI1; l=<logo-url>; a=<vmc-url>"
 type Policy struct {
-	Version    string    // "BIMI1"
-	LogoURL    string    // Logo image URL (l= tag)
-	VMCURL     string    // VMC certificate URL (a= tag, optional)
-	Fetched    time.Time // When policy was fetched
-	Expires    time.Time // Cache expiration (TTL)
+	Version string    // "BIMI1"
+	LogoURL string    // Logo image URL (l= tag)
+	VMCURL  string    // VMC certificate URL (a= tag, optional)
+	Fetched time.Time // When policy was fetched
+	Expires time.Time // Cache expiration (TTL)
 }
 
 // IsExpired checks if cached policy has expired.
@@ -109,11 +109,11 @@ func ParsePolicy(txt string) (*Policy, error) {
 
 // LogoCache caches fetched logo images with size/TTL limits.
 type LogoCache struct {
-	client     *http.Client
-	cache      map[string]*cachedLogo
-	mu         sync.RWMutex
-	maxSize    int           // Max logo size in bytes
-	cacheTTL   time.Duration // Cache time-to-live
+	client   *http.Client
+	cache    map[string]*cachedLogo
+	mu       sync.RWMutex
+	maxSize  int           // Max logo size in bytes
+	cacheTTL time.Duration // Cache time-to-live
 }
 
 type cachedLogo struct {
@@ -129,8 +129,8 @@ func NewLogoCache() *LogoCache {
 		client: &http.Client{
 			Timeout: 5 * time.Second,
 		},
-		cache:   make(map[string]*cachedLogo),
-		maxSize: 32 * 1024, // 32KB max (RFC 6651)
+		cache:    make(map[string]*cachedLogo),
+		maxSize:  32 * 1024, // 32KB max (RFC 6651)
 		cacheTTL: 24 * time.Hour,
 	}
 }
@@ -177,7 +177,8 @@ func (lc *LogoCache) FetchLogo(ctx context.Context, logoURL string) ([]byte, err
 	}
 
 	// Cache the logo
-	hash := hex.EncodeToString(sha256.New().Sum(body))
+	sum := sha256.Sum256(body)
+	hash := hex.EncodeToString(sum[:])
 	cached := &cachedLogo{
 		data:    body,
 		fetched: time.Now(),
@@ -226,10 +227,7 @@ func (v *Validator) ValidateAndFetch(ctx context.Context, domain string) ([]byte
 		return nil, false, fmt.Errorf("fetch logo: %w", err)
 	}
 
-	// If VMC URL present, would validate certificate here (stub for now)
-	vmcVerified := policy.VMCURL != ""
-
-	return logoData, vmcVerified, nil
+	return logoData, false, nil
 }
 
 // GetLogoHeader returns Base64-encoded logo for BIMI-Selector header.
