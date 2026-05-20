@@ -1,6 +1,11 @@
 # gogomail current status
 
-Last updated: 2026-05-21 (SaaS launch hardening continues: admin audit repository filter totals verified)
+Last updated: 2026-05-21 (SaaS launch hardening continues: audit-log error responses hardened)
+
+## Audit Log Error Response Hardening (2026-05-21)
+- Standalone admin audit-log handlers now log backend failures server-side and return a generic `internal server error` response instead of including raw database/service error text.
+- Regression coverage verifies get/list audit-log failures do not leak sensitive internal error fragments in HTTP responses.
+- Verification target: `go test ./internal/httpapi -run TestAuditLogHandlersHideInternalErrors`.
 
 ## Admin Audit Repository Filter Totals (2026-05-21)
 - The legacy admin audit repository now builds the row query and `COUNT(*)` query from the same filter predicate set, so action/resource/time filters no longer produce mismatched totals.

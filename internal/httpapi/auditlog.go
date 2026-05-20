@@ -3,7 +3,7 @@ package httpapi
 import (
 	"context"
 	"encoding/json"
-	"fmt"
+	"log/slog"
 	"net/http"
 	"strconv"
 	"time"
@@ -17,20 +17,20 @@ type AuditLogService interface {
 }
 
 type auditLogResponse struct {
-	ID        string            `json:"id"`
-	CompanyID string            `json:"company_id,omitempty"`
-	DomainID  string            `json:"domain_id,omitempty"`
-	UserID    string            `json:"user_id,omitempty"`
-	ActorID   string            `json:"actor_id,omitempty"`
-	Category  string            `json:"category"`
-	Action    string            `json:"action"`
-	TargetType string           `json:"target_type"`
-	TargetID  string            `json:"target_id,omitempty"`
-	IPAddress string            `json:"ip_address,omitempty"`
-	UserAgent string            `json:"user_agent"`
-	Result    string            `json:"result"`
-	Detail    json.RawMessage   `json:"detail"`
-	CreatedAt string            `json:"created_at"`
+	ID         string          `json:"id"`
+	CompanyID  string          `json:"company_id,omitempty"`
+	DomainID   string          `json:"domain_id,omitempty"`
+	UserID     string          `json:"user_id,omitempty"`
+	ActorID    string          `json:"actor_id,omitempty"`
+	Category   string          `json:"category"`
+	Action     string          `json:"action"`
+	TargetType string          `json:"target_type"`
+	TargetID   string          `json:"target_id,omitempty"`
+	IPAddress  string          `json:"ip_address,omitempty"`
+	UserAgent  string          `json:"user_agent"`
+	Result     string          `json:"result"`
+	Detail     json.RawMessage `json:"detail"`
+	CreatedAt  string          `json:"created_at"`
 }
 
 type auditLogListResponse struct {
@@ -55,7 +55,8 @@ func handleAuditLogGet(service AuditLogService) http.HandlerFunc {
 
 		log, err := service.GetByID(r.Context(), id)
 		if err != nil {
-			http.Error(w, fmt.Sprintf("failed to get audit log: %v", err), http.StatusInternalServerError)
+			slog.ErrorContext(r.Context(), "failed to get audit log", "error", err, "audit_log_id", id)
+			http.Error(w, "internal server error", http.StatusInternalServerError)
 			return
 		}
 		if log == nil {
@@ -64,20 +65,20 @@ func handleAuditLogGet(service AuditLogService) http.HandlerFunc {
 		}
 
 		resp := auditLogResponse{
-			ID:        id,
-			CompanyID: log.CompanyID,
-			DomainID:  log.DomainID,
-			UserID:    log.UserID,
-			ActorID:   log.ActorID,
-			Category:  log.Category,
-			Action:    log.Action,
+			ID:         id,
+			CompanyID:  log.CompanyID,
+			DomainID:   log.DomainID,
+			UserID:     log.UserID,
+			ActorID:    log.ActorID,
+			Category:   log.Category,
+			Action:     log.Action,
 			TargetType: log.TargetType,
-			TargetID:  log.TargetID,
-			IPAddress: log.IPAddress,
-			UserAgent: log.UserAgent,
-			Result:    log.Result,
-			Detail:    log.Detail,
-			CreatedAt: log.CreatedAt.Format(time.RFC3339),
+			TargetID:   log.TargetID,
+			IPAddress:  log.IPAddress,
+			UserAgent:  log.UserAgent,
+			Result:     log.Result,
+			Detail:     log.Detail,
+			CreatedAt:  log.CreatedAt.Format(time.RFC3339),
 		}
 
 		w.Header().Set("Content-Type", "application/json")
@@ -130,7 +131,8 @@ func handleAuditLogList(service AuditLogService) http.HandlerFunc {
 
 		logs, err := service.ListWithFilters(r.Context(), filters)
 		if err != nil {
-			http.Error(w, fmt.Sprintf("failed to list audit logs: %v", err), http.StatusInternalServerError)
+			slog.ErrorContext(r.Context(), "failed to list audit logs", "error", err)
+			http.Error(w, "internal server error", http.StatusInternalServerError)
 			return
 		}
 
@@ -141,19 +143,19 @@ func handleAuditLogList(service AuditLogService) http.HandlerFunc {
 		items := make([]auditLogResponse, len(logs))
 		for i, log := range logs {
 			items[i] = auditLogResponse{
-				CompanyID: log.CompanyID,
-				DomainID:  log.DomainID,
-				UserID:    log.UserID,
-				ActorID:   log.ActorID,
-				Category:  log.Category,
-				Action:    log.Action,
+				CompanyID:  log.CompanyID,
+				DomainID:   log.DomainID,
+				UserID:     log.UserID,
+				ActorID:    log.ActorID,
+				Category:   log.Category,
+				Action:     log.Action,
 				TargetType: log.TargetType,
-				TargetID:  log.TargetID,
-				IPAddress: log.IPAddress,
-				UserAgent: log.UserAgent,
-				Result:    log.Result,
-				Detail:    log.Detail,
-				CreatedAt: log.CreatedAt.Format(time.RFC3339),
+				TargetID:   log.TargetID,
+				IPAddress:  log.IPAddress,
+				UserAgent:  log.UserAgent,
+				Result:     log.Result,
+				Detail:     log.Detail,
+				CreatedAt:  log.CreatedAt.Format(time.RFC3339),
 			}
 		}
 

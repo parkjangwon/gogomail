@@ -3,8 +3,11 @@ package httpapi
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -12,10 +15,15 @@ import (
 )
 
 type mockAuditRepository struct {
-	logs map[string]audit.Log
+	logs    map[string]audit.Log
+	getErr  error
+	listErr error
 }
 
 func (m *mockAuditRepository) GetByID(ctx context.Context, id string) (*audit.Log, error) {
+	if m.getErr != nil {
+		return nil, m.getErr
+	}
 	if log, ok := m.logs[id]; ok {
 		return &log, nil
 	}
@@ -23,6 +31,9 @@ func (m *mockAuditRepository) GetByID(ctx context.Context, id string) (*audit.Lo
 }
 
 func (m *mockAuditRepository) ListWithFilters(ctx context.Context, filters audit.ListFilters) ([]audit.Log, error) {
+	if m.listErr != nil {
+		return nil, m.listErr
+	}
 	var result []audit.Log
 	for _, log := range m.logs {
 		if filters.CompanyID != "" && log.CompanyID != filters.CompanyID {
@@ -157,5 +168,53 @@ func TestAuditLogList(t *testing.T) {
 
 	if len(filteredList.AuditLogs) != 1 {
 		t.Errorf("expected 1 filtered log, got %d", len(filteredList.AuditLogs))
+	}
+}
+
+func TestAuditLogHandlersHideInternalErrors(t *testing.T) {
+	t.Parallel()
+
+	secretErr := errors.New("postgres password=secret query failed")
+	tests := []struct {
+		name    string
+		handler http.HandlerFunc
+		path    string
+	}{
+		{
+			name:    "get",
+			handler: handleAuditLogGet(&mockAuditRepository{getErr: secretErr}),
+			path:    "/admin/v1/audit-logs/log-1",
+		},
+		{
+			name:    "list",
+			handler: handleAuditLogList(&mockAuditRepository{listErr: secretErr}),
+			path:    "/admin/v1/audit-logs",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, tc.path, nil)
+			if tc.name == "get" {
+				req.SetPathValue("id", "log-1")
+			}
+			rec := httptest.NewRecorder()
+
+			tc.handler(rec, req)
+
+			if rec.Code != http.StatusInternalServerError {
+				t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+			}
+			body, err := io.ReadAll(rec.Result().Body)
+			if err != nil {
+				t.Fatalf("read body: %v", err)
+			}
+			if strings.Contains(string(body), "password=secret") || strings.Contains(string(body), "query failed") {
+				t.Fatalf("internal error leaked to response: %q", string(body))
+			}
+			if !strings.Contains(string(body), "internal server error") {
+				t.Fatalf("body = %q, want generic internal server error", string(body))
+			}
+		})
 	}
 }
