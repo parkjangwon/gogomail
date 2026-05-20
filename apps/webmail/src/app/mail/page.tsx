@@ -35,6 +35,7 @@ import {
   shouldHideMessageAfterSnooze,
 } from '@/lib/mail/mailPageUtils';
 import { focusNavGroup } from '@/lib/navKeyboard';
+import { stableId } from '@/lib/stableId';
 
 const WEBMAIL_ACTIVE_APP_KEY = 'webmail_active_app';
 
@@ -192,7 +193,7 @@ export default function MailPage() {
   const pendingDeletesRef = useRef(new Map<string, ReturnType<typeof setTimeout>>());
 
   const addToast = useCallback((message: string, type: ToastItem['type'] = 'success', options?: { duration?: number; action?: ToastItem['action'] }) => {
-    const id = Math.random().toString(36).slice(2);
+    const id = stableId('toast');
     setToasts((prev) => [...prev, { id, message, type, ...options }]);
   }, []);
   const dismissToast = useCallback((id: string) => {
