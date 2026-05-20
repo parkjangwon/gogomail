@@ -1,6 +1,11 @@
 # gogomail current status
 
-Last updated: 2026-05-21 (SaaS launch hardening continues: admin auth closed by default)
+Last updated: 2026-05-21 (SaaS launch hardening continues: frontend backend URL fallback removed)
+
+## Frontend Backend URL Fail-Fast (2026-05-21)
+- Console and webmail Next.js server proxy routes now require explicit `GOGOMAIL_BACKEND_URL` configuration instead of silently falling back to `http://localhost:8080`.
+- Missing backend URL configuration returns a no-store 500 config error, avoiding production/staging deployments that accidentally forward browser actions to localhost.
+- Verification target: `pnpm --dir apps/console test -- src/lib/__tests__/backend.test.ts`; `pnpm --dir apps/console type-check`; `pnpm --dir apps/webmail type-check`.
 
 ## Admin Auth Closed By Default (2026-05-21)
 - Admin route auth now rejects requests when neither a static admin token nor JWT token manager is configured outside explicit `development`/`test` environments.
