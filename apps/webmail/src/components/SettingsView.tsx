@@ -15,6 +15,8 @@ import { SettingsNotificationsSection } from '@/components/settings-view/Setting
 import { SettingsSecuritySection } from '@/components/settings-view/SettingsSecuritySection';
 import { handleVerticalNavKeyDown } from '@/lib/navKeyboard';
 import { webPushPublicKeyToUint8Array } from '@/lib/webpush';
+import { loadLocalEmailTemplates, normalizeEmailTemplates, saveLocalEmailTemplates, type StoredEmailTemplate } from '@/lib/emailTemplates';
+import { stableId } from '@/lib/stableId';
 
 export interface SettingsViewProps {
   userEmail?: string;
@@ -81,7 +83,7 @@ export function SettingsView({ userEmail, userName, initialSection }: SettingsVi
   const [dndEnd, setDndEnd] = useState('08:00');
 
   // Templates
-  const [templates, setTemplates] = useState<{ name: string; subject: string; body: string }[]>([]);
+  const [templates, setTemplates] = useState<StoredEmailTemplate[]>([]);
   const [newTplName, setNewTplName] = useState('');
   const [newTplSubject, setNewTplSubject] = useState('');
   const [newTplBody, setNewTplBody] = useState('');
@@ -187,6 +189,11 @@ export function SettingsView({ userEmail, userName, initialSection }: SettingsVi
           setSignature(prefs.signatures['default']);
           try { localStorage.setItem('webmail_signature', prefs.signatures['default']); } catch { /* ignore */ }
         }
+        if (prefs.templates) {
+          const serverTemplates = normalizeEmailTemplates(prefs.templates);
+          setTemplates(serverTemplates);
+          saveLocalEmailTemplates(serverTemplates);
+        }
       } catch { /* ignore */ }
       setPrefsLoaded(true);
     }).catch(() => setPrefsLoaded(true));
@@ -207,6 +214,7 @@ export function SettingsView({ userEmail, userName, initialSection }: SettingsVi
         filter_rules: filterRules as unknown[],
         blocked_senders: blockedSenders,
         vacation: { enabled: vacEnabled, startDate: vacStartDate, endDate: vacEndDate, subject: vacSubject, body: vacBody },
+        templates,
       };
       setPreferences(prefs).catch(() => {});
     }, 2000);
@@ -218,7 +226,7 @@ export function SettingsView({ userEmail, userName, initialSection }: SettingsVi
     requestReadReceipt, linkPreview, followUpDays, focusMode,
     swipeLeft, swipeRight, refreshInterval, importanceMarkers, groupByDate,
     notifSound, notifDetail, dndEnabled, dndStart, dndEnd,
-    filterRules, blockedSenders,
+    filterRules, blockedSenders, templates,
     vacEnabled, vacStartDate, vacEndDate, vacSubject, vacBody,
   ]);
 
@@ -242,7 +250,7 @@ export function SettingsView({ userEmail, userName, initialSection }: SettingsVi
       setInlineImagePreview((wm.inlineImagePreview as boolean) !== false);
       setNotifSound(localStorage.getItem('webmail_notif_sound') === '1');
       setNotifDetail((localStorage.getItem('webmail_notif_detail') as 'sender' | 'subject' | 'preview') ?? 'subject');
-      setTemplates(JSON.parse(localStorage.getItem('webmail_templates') ?? '[]'));
+      setTemplates(loadLocalEmailTemplates());
       setFilterRules(loadFilterRules());
       setBlockedSenders(JSON.parse(localStorage.getItem('webmail_blocked_senders') ?? '[]') as string[]);
       const priv = loadWmSettings();
@@ -570,15 +578,20 @@ export function SettingsView({ userEmail, userName, initialSection }: SettingsVi
       case 'compose': {
         function saveTpl() {
           if (!newTplName.trim()) return;
-          const next = [...templates.filter((t) => t.name !== newTplName.trim()), { name: newTplName.trim(), subject: newTplSubject.trim(), body: newTplBody.trim() }];
+          const next = normalizeEmailTemplates([
+            ...templates.filter((t) => t.name !== newTplName.trim()),
+            { id: stableId('template'), name: newTplName.trim(), subject: newTplSubject.trim(), body: newTplBody.trim() },
+          ]);
           setTemplates(next);
-          try { localStorage.setItem('webmail_templates', JSON.stringify(next)); } catch { /* */ }
+          saveLocalEmailTemplates(next);
+          setPreferences({ templates: next }).catch(() => {});
           setNewTplName(''); setNewTplSubject(''); setNewTplBody(''); setShowNewTpl(false);
         }
         function deleteTpl(name: string) {
           const next = templates.filter((t) => t.name !== name);
           setTemplates(next);
-          try { localStorage.setItem('webmail_templates', JSON.stringify(next)); } catch { /* */ }
+          saveLocalEmailTemplates(next);
+          setPreferences({ templates: next }).catch(() => {});
         }
         return (
           <>

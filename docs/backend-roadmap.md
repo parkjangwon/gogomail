@@ -6399,3 +6399,7 @@ Target outcome:
       mail view only registers the service worker when notifications were
       already allowed.  Permission prompts remain tied to the explicit Settings
       opt-in action.
+1756. Webmail quick reply templates now live in server preferences rather than
+      only in browser `localStorage`.  Settings, compose, and Spotlight search
+      share a normalized template cache with stable ids, preserving offline
+      lookup while making templates portable across browsers and devices.

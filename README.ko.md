@@ -47,7 +47,7 @@ CardDAV, WebDAV, LDAP, DKIM, SPF, DMARC, DSN, OpenAPI 기반 REST API처럼
 ### 웹메일
 
 - 메일 목록, 읽기 패널, 리치 텍스트 작성, 폴더, 검색, 스누즈, 라벨, 알림, 첨부파일, Drive 선택 흐름
-- 비밀번호 재설정 UI, refresh-token 기반 세션 갱신, 서버 동기화 이메일 서명과 필터 규칙, Web Push service worker 등록, 캘린더 편집/삭제 흐름, 클라이언트 생성 레코드용 crypto 기반 브라우저 ID 생성
+- 비밀번호 재설정 UI, refresh-token 기반 세션 갱신, 서버 동기화 이메일 서명/필터 규칙/빠른 답장 템플릿, Web Push service worker 등록, 캘린더 편집/삭제 흐름, 클라이언트 생성 레코드용 crypto 기반 브라우저 ID 생성
 - 키보드 중심 UX: 전역 단축어, 앱 전환, 스팟라이트 검색, 행 포커스, 읽기창 이동, 메시지 작업
 - HTML 메일, 외부 이미지, 원격 콘텐츠 프록시의 안전 렌더링
 - TOTP MFA 로그인 (비밀번호 → 인증 코드 2단계) 및 설정 화면에서 QR 코드 등록, 복구 코드 발급, 비활성화 흐름

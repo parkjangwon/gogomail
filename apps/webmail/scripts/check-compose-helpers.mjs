@@ -4,6 +4,7 @@ import { composeCloseSaveButtonLabel } from '../src/lib/composeCloseSaveButtonLa
 import { composeCloseSavePrompt } from '../src/lib/composeCloseSavePrompt.ts';
 import { composeSendButtonLabel } from '../src/lib/composeSendButtonLabel.ts';
 import { toDateTimeLocalValue } from '../src/lib/dateTimeLocal.ts';
+import { normalizeEmailTemplates } from '../src/lib/emailTemplates.ts';
 import { buildQuoteHTML, invalidRecipientAddresses, parseAddressList, parseToPickerItems, pickerItemsToString } from '../src/lib/mail-address.ts';
 
 // Keep these assertions focused on pure compose helpers that are easy to
@@ -20,6 +21,22 @@ assert.equal(composeCloseSaveButtonAriaLabel(true), '임시저장 중입니다')
 
 assert.equal(composeSendButtonLabel({ sending: false, sent: false, scheduled: true, uploading: false }), '예약 전송');
 assert.equal(composeSendButtonLabel({ sending: false, sent: true, scheduled: true, uploading: false }), '예약됨 ✓');
+
+const normalizedTemplates = normalizeEmailTemplates([
+  { name: ' Follow up ', subject: ' Next step ', body: '<p>Thanks</p>' },
+  { name: 'follow up', subject: 'Duplicate should be ignored', body: '' },
+  { name: '', subject: 'Blank names are skipped', body: '' },
+]);
+assert.equal(normalizedTemplates.length, 1);
+assert.match(normalizedTemplates[0].id, /^template-/);
+assert.deepEqual(
+  {
+    name: normalizedTemplates[0].name,
+    subject: normalizedTemplates[0].subject,
+    body: normalizedTemplates[0].body,
+  },
+  { name: 'Follow up', subject: 'Next step', body: '<p>Thanks</p>' }
+);
 
 assert.deepEqual(
   parseAddressList('Alice <alice@example.com>, org:123e4567-e89b-12d3-a456-426614174000'),

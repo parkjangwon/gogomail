@@ -18,6 +18,7 @@ import {
   searchMessages,
 } from '@/lib/api';
 import { parseEvents, parseTodos } from '@/lib/calendar/eventParser';
+import { loadLocalEmailTemplates } from '@/lib/emailTemplates';
 import {
   CalendarDaysIcon,
   CheckCircleIcon,
@@ -315,7 +316,7 @@ export function SpotlightSearch({
   const buildTemplateItems = useCallback((q: string): SpotlightItem[] => {
     if (!onComposeWithTemplate) return [];
     try {
-      const templates: { name: string; subject: string; body: string }[] = JSON.parse(localStorage.getItem('webmail_templates') ?? '[]');
+      const templates = loadLocalEmailTemplates();
       return templates
         .filter((t) => !q || t.name.toLowerCase().includes(q.toLowerCase()) || t.subject.toLowerCase().includes(q.toLowerCase()))
         .slice(0, 5)

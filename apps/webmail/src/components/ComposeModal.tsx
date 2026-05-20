@@ -8,7 +8,7 @@ import Underline from '@tiptap/extension-underline';
 import TextAlign from '@tiptap/extension-text-align';
 import Placeholder from '@tiptap/extension-placeholder';
 import Image from '@tiptap/extension-image';
-import { sendMessage, saveDraft, updateDraft, deleteDraft, sendDraft, uploadAttachment, attachDriveFileToEmail, listDriveNodes, listUserAddresses } from '@/lib/api';
+import { sendMessage, saveDraft, updateDraft, deleteDraft, sendDraft, uploadAttachment, attachDriveFileToEmail, listDriveNodes, listUserAddresses, getPreferences, setPreferences } from '@/lib/api';
 import type { DriveNode, UIComposeIntent, MessageDetail, SendMessageRequest, SendMessageResult, UserAddressEntry } from '@/lib/api';
 import { composeCloseSaveButtonAriaLabel } from '@/lib/composeCloseSaveButtonAriaLabel';
 import { composeCloseSaveButtonLabel } from '@/lib/composeCloseSaveButtonLabel';
@@ -19,6 +19,7 @@ import { formatSendResultLabel } from '@/lib/sendResultLabel';
 import { DriveNodeIcon } from '@/lib/driveNodeIcon';
 import { stableId } from '@/lib/stableId';
 import { escapeHtml, parseAddrs, EmailTemplate, backendComposeIntent } from '@/lib/compose/composeUtils';
+import { loadLocalEmailTemplates, normalizeEmailTemplates, saveLocalEmailTemplates } from '@/lib/emailTemplates';
 import { buildQuoteHTML, emailOf, invalidRecipientAddresses, parseToPickerItems, pickerItemsToString } from '@/lib/mail-address';
 import { SLASH_COMMANDS, type SlashCommand } from '@/lib/compose/slashCommands';
 import { RecipientChips } from './RecipientChips';
@@ -133,13 +134,29 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
   const [dragOver, setDragOver] = useState(false);
   const dragCounterRef = useRef(0);
   const [showTemplates, setShowTemplates] = useState(false);
-  const [templates, setTemplates] = useState<EmailTemplate[]>(() => {
-    try { return JSON.parse(localStorage.getItem('webmail_templates') ?? '[]'); } catch { return []; }
-  });
+  const [templates, setTemplates] = useState<EmailTemplate[]>(() => loadLocalEmailTemplates());
   const [templateSaveName, setTemplateSaveName] = useState('');
   const [showTemplateSave, setShowTemplateSave] = useState(false);
   const templateMenuRef = useRef<HTMLDivElement>(null);
   const sendDropdownRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    let cancelled = false;
+    getPreferences().then((prefs) => {
+      if (cancelled || !prefs.templates) return;
+      const serverTemplates = normalizeEmailTemplates(prefs.templates);
+      setTemplates(serverTemplates);
+      saveLocalEmailTemplates(serverTemplates);
+    }).catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
+
+  const persistTemplates = useCallback((next: EmailTemplate[]) => {
+    const normalized = normalizeEmailTemplates(next);
+    setTemplates(normalized);
+    saveLocalEmailTemplates(normalized);
+    setPreferences({ templates: normalized }).catch(() => {});
+  }, []);
+
   // Slash command menu state
   const [slashMenu, setSlashMenu] = useState<{ query: string; top: number; cursorTop: number; left: number } | null>(null);
   const [slashIndex, setSlashIndex] = useState(0);
@@ -620,21 +637,16 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
     const name = templateSaveName.trim();
     if (!name) return;
     const body = editor?.getHTML() ?? '';
-    const newTemplate: EmailTemplate = { id: Date.now().toString(), name, subject, body };
+    const newTemplate: EmailTemplate = { id: stableId('template'), name, subject, body };
     const updated = [...templates, newTemplate];
-    setTemplates(updated);
-    try { localStorage.setItem('webmail_templates', JSON.stringify(updated)); } catch { /* */ }
+    persistTemplates(updated);
     setTemplateSaveName('');
     setShowTemplateSave(false);
   };
 
   const deleteTemplate = useCallback((id: string) => {
-    setTemplates((prev) => {
-      const next = prev.filter((t) => t.id !== id);
-      try { localStorage.setItem('webmail_templates', JSON.stringify(next)); } catch { /* */ }
-      return next;
-    });
-  }, []);
+    persistTemplates(templates.filter((t) => t.id !== id));
+  }, [persistTemplates, templates]);
 
   async function handleSend(e: { preventDefault(): void }) {
     e.preventDefault();
