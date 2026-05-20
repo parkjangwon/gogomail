@@ -6345,3 +6345,8 @@ Target outcome:
       use client-facing unsupported wording instead of implementation-status
       language, with regression tests preventing `not implemented` leakage on
       DAV unsupported REPORT paths.
+1746. Organization sync no longer reports false success when no external HR/LDAP
+      sync adapter is configured: the no-op adapter returns a typed
+      not-configured error, manual sync returns HTTP 501, failed sync logs retain
+      the reason, and the batch worker skips the hourly sync job until a real
+      adapter is wired.

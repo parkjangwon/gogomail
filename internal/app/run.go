@@ -258,15 +258,19 @@ func runBatchWorker(ctx context.Context, cfg config.Config, logger *slog.Logger)
 		return nil
 	}, 5*time.Minute)
 
-	var orgChartAdapter orgchart.OrgChartSyncAdapter = orgchart.NoopOrgChartAdapter{}
-	registry.Register("org-chart-sync", func() error {
-		if err := orgChartAdapter.SyncOrgChart(ctx); err != nil {
-			logger.Error("org chart sync failed", "error", err)
-			return err
-		}
-		logger.Info("org chart sync completed")
-		return nil
-	}, 1*time.Hour)
+	var orgChartAdapter orgchart.OrgChartSyncAdapter
+	if orgChartAdapter != nil {
+		registry.Register("org-chart-sync", func() error {
+			if err := orgChartAdapter.SyncOrgChart(ctx); err != nil {
+				logger.Error("org chart sync failed", "error", err)
+				return err
+			}
+			logger.Info("org chart sync completed")
+			return nil
+		}, 1*time.Hour)
+	} else {
+		logger.Info("org chart sync adapter not configured; skipping org-chart-sync job")
+	}
 
 	worker := batchlock.NewWorker(registry, db)
 	worker.Start()

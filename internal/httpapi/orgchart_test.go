@@ -16,6 +16,7 @@ import (
 type mockOrgChartService struct {
 	units   map[string]*orgchart.OrganizationUnit
 	members map[string]*orgchart.OrganizationMember
+	syncErr error
 }
 
 var _ OrgChartService = (*orgchart.Service)(nil)
@@ -103,6 +104,17 @@ func (m *mockOrgChartService) GetHierarchy(ctx context.Context, companyID string
 }
 
 func (m *mockOrgChartService) SyncWithLDAP(ctx context.Context, companyID string) (*orgchart.SyncLog, error) {
+	if m.syncErr != nil {
+		now := time.Now()
+		return &orgchart.SyncLog{
+			ID:           "sync-1",
+			CompanyID:    companyID,
+			Status:       "failed",
+			ErrorMessage: m.syncErr.Error(),
+			StartedAt:    now,
+			CompletedAt:  &now,
+		}, m.syncErr
+	}
 	return &orgchart.SyncLog{
 		ID:        "sync-1",
 		CompanyID: companyID,
@@ -304,5 +316,24 @@ func TestSyncLDAPEndpoint(t *testing.T) {
 	json.NewDecoder(w.Body).Decode(&result)
 	if _, ok := result["sync_log"]; !ok {
 		t.Fatal("response should contain sync_log")
+	}
+}
+
+func TestSyncLDAPEndpointReportsUnconfiguredAdapter(t *testing.T) {
+	service := newMockOrgChartService()
+	service.syncErr = orgchart.ErrOrgChartSyncNotConfigured
+	mux := http.NewServeMux()
+	RegisterOrgChartRoutes(mux, service, "test-token")
+
+	req := httptest.NewRequest("POST", "/admin/v1/organization/sync?company_id=company-1", nil)
+	req.Header.Set("X-Admin-Token", "test-token")
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusNotImplemented {
+		t.Fatalf("expected 501, got %d, body = %s", w.Code, w.Body.String())
+	}
+	if !bytes.Contains(w.Body.Bytes(), []byte(orgchart.ErrOrgChartSyncNotConfigured.Error())) {
+		t.Fatalf("response body = %q, want not-configured error", w.Body.String())
 	}
 }

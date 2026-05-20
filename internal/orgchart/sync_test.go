@@ -2,13 +2,14 @@ package orgchart
 
 import (
 	"context"
+	"errors"
 	"testing"
 )
 
-func TestNoopAdapterReturnsNil(t *testing.T) {
+func TestNoopAdapterReturnsNotConfigured(t *testing.T) {
 	adapter := NoopOrgChartAdapter{}
 	got := adapter.SyncOrgChart(context.Background())
-	if got != nil {
-		t.Errorf("NoopOrgChartAdapter.SyncOrgChart() = %v, want nil", got)
+	if !errors.Is(got, ErrOrgChartSyncNotConfigured) {
+		t.Errorf("NoopOrgChartAdapter.SyncOrgChart() = %v, want ErrOrgChartSyncNotConfigured", got)
 	}
 }
