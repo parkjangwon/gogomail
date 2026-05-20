@@ -2,6 +2,12 @@
 
 ## Current Status Summary
 
+**3차 감사 즉시 수정 사항** ✅ COMPLETE
+- Console: `companies/"[id]"/alerts/page.tsx` → `companies/[id]/alerts/page.tsx` 라우팅 버그 수정 (페이지가 404였음)
+- Login rate limit: `POST /api/v1/auth/token`에 10/min per-IP 제한 추가 (기존: 없음)
+- Password reset rate limit: `POST /api/v1/auth/password-reset/request`에 5/15min per-IP 제한 추가
+- JSON 로그: production 환경에서 `NewTextHandler` → `NewJSONHandler`로 교체
+
 **Critical Security Fixes** ✅ COMPLETE
 - `internal/maildb/user_auth.go`: `AuthenticateUser` now JOINs `companies` table and returns `ErrCompanySuspended` if company status is `suspended`; callers in `mail.go` map this to HTTP 403
 - `internal/httpapi/admin.go`: Added `requiresCompanyAccess` checks to all mutation endpoints (PATCH/DELETE/POST companies, bulk-import/export, company config/*, domain status/quota/DELETE/settings/config/*, user DELETE/status/password-hash)

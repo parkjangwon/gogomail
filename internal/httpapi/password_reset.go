@@ -89,11 +89,17 @@ func RegisterPasswordResetRoutes(
 	baseURL string,
 ) {
 	baseURL = strings.TrimRight(baseURL, "/")
+	// 5 requests per IP per 15 minutes to prevent token exhaustion attacks.
+	limiter := NewAdminIPRateLimiter(5, 15*time.Minute)
 
 	// POST /api/v1/auth/password-reset/request
 	//   Body: {"email": "user@domain.com"}
 	//   Always returns 200 to prevent user-enumeration.
 	mux.HandleFunc("POST /api/v1/auth/password-reset/request", func(w http.ResponseWriter, r *http.Request) {
+		if !limiter.allow(adminClientIP(r)) {
+			writeError(w, http.StatusTooManyRequests, "too many requests")
+			return
+		}
 		defer r.Body.Close()
 		if !rejectUnknownQueryKeys(w, r) {
 			return

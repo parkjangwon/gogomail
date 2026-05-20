@@ -133,6 +133,9 @@ type MailRouteOptions struct {
 	Authenticator   UserAuthenticator
 	MFAStore        MFAStore
 	ConfigResolver  ConfigResolver
+	// LoginLimiter guards POST /api/v1/auth/token against brute-force attacks.
+	// When nil a default in-process limiter of 10 attempts per IP per minute is used.
+	LoginLimiter *AdminIPRateLimiter
 }
 
 type MailMutationLimiter interface {
@@ -406,7 +409,14 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 }
 
 func RegisterMailRoutesWithOptions(mux *http.ServeMux, service MessageService, tokenManager *auth.TokenManager, opts MailRouteOptions) {
+	if opts.LoginLimiter == nil {
+		opts.LoginLimiter = NewAdminIPRateLimiter(10, time.Minute)
+	}
 	mux.HandleFunc("POST /api/v1/auth/token", func(w http.ResponseWriter, r *http.Request) {
+		if !opts.LoginLimiter.allow(adminClientIP(r)) {
+			writeError(w, http.StatusTooManyRequests, "too many login attempts")
+			return
+		}
 		if opts.Authenticator == nil {
 			writeError(w, http.StatusServiceUnavailable, "authentication not configured")
 			return

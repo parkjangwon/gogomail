@@ -49,9 +49,13 @@ func run(args []string, stdout io.Writer, stderr io.Writer, runApp func(context.
 		fmt.Fprintf(stderr, "invalid config: %v\n", err)
 		return 2
 	}
-	logger := slog.New(slog.NewTextHandler(stdout, &slog.HandlerOptions{
-		Level: slog.LevelInfo,
-	}))
+	var logHandler slog.Handler
+	if cfg.Environment == "production" {
+		logHandler = slog.NewJSONHandler(stdout, &slog.HandlerOptions{Level: slog.LevelInfo})
+	} else {
+		logHandler = slog.NewTextHandler(stdout, &slog.HandlerOptions{Level: slog.LevelInfo})
+	}
+	logger := slog.New(logHandler)
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
