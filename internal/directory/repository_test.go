@@ -379,6 +379,45 @@ func TestListAliasesQueryUsesSargableOptionalFilters(t *testing.T) {
 	}
 }
 
+func TestListOrgTreeQueryUsesSargableDomainFilter(t *testing.T) {
+	t.Parallel()
+
+	query, args := buildListOrgTreeQuery(" company-1 ", " domain-1 ")
+	for _, want := range []string{
+		"FROM organizations o",
+		"WHERE c.id = $1::uuid",
+		"AND o.status = 'active'",
+		"AND d.id = $2::uuid",
+		"ORDER BY o.depth, o.order_index, lower(o.name)",
+	} {
+		if !strings.Contains(query, want) {
+			t.Fatalf("list org tree query missing %q:\n%s", want, query)
+		}
+	}
+	for _, forbidden := range []string{
+		"$2 = '' OR",
+		"NULLIF($2, '')",
+	} {
+		if strings.Contains(query, forbidden) {
+			t.Fatalf("list org tree query contains non-sargable optional filter %q:\n%s", forbidden, query)
+		}
+	}
+	if len(args) != 2 {
+		t.Fatalf("args len = %d, want 2", len(args))
+	}
+	if args[0] != "company-1" || args[1] != "domain-1" {
+		t.Fatalf("args = %#v, want trimmed company/domain", args)
+	}
+
+	query, args = buildListOrgTreeQuery("company-1", "")
+	if strings.Contains(query, "d.id = $2::uuid") {
+		t.Fatalf("empty-domain query unexpectedly includes domain predicate:\n%s", query)
+	}
+	if len(args) != 1 {
+		t.Fatalf("empty-domain args len = %d, want 1", len(args))
+	}
+}
+
 func TestNormalizeSearchPrincipalsRequest(t *testing.T) {
 	t.Parallel()
 
