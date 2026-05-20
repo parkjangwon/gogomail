@@ -230,6 +230,7 @@ Go Backend (`internal/`):
 - `ListMessageIDsForThreads`와 `BulkSetThreadFlag`도 UUID 배열 `unnest` 경로로 바꿔 thread 배치 처리의 JSON 파싱을 제거함
 - `ListThreadMessagesPage`는 `COALESCE(thread_id, id)` 비교를 UUID 친화적인 `thread_id = ... OR id = ...`로 분해함
 - `ListMessagesPage`도 folder 필터가 있을 때만 `messages.folder_id = $2::uuid` 조건을 추가하고, 폴더 없는 전체 목록에서는 folder predicate를 제거해 메시지 페이지 조회의 optional `OR` predicate를 줄임
+- `ListMessagesPage`의 read/starred/attachment 필터도 제공된 경우에만 직접 predicate를 추가하고, 필터 없는 목록에서는 nullable boolean optional `OR` predicate를 제거함
 - `SearchMessages`도 folder 필터가 있을 때만 `folder_id = $3::uuid` 조건을 추가하고, 전체 메일 검색에서는 folder predicate를 제거해 메시지 검색 조회의 optional `OR` predicate를 줄임
 - `SearchMessages`/`SearchDrafts`의 attachment 필터도 제공된 경우에만 typed boolean predicate를 추가하고, attachment-agnostic 검색에서는 predicate를 제거해 optional `OR` predicate를 줄임
 - `SearchMessages`/`SearchDrafts`의 cursor predicate도 커서가 있을 때만 tuple comparison을 추가하고, 첫 페이지 검색에서는 predicate를 제거해 pagination optional `OR`를 줄임
