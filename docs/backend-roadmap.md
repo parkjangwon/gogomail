@@ -6337,3 +6337,7 @@ Target outcome:
       `SELECT * FROM updated/inserted` CTE reads from Drive rename, move, and
       upload-session creation queries, with a regression test guarding explicit
       result shapes.
+1744. IMAP unsupported command responses now use client-facing unsupported
+      wording for unknown commands and UID subcommands, avoiding
+      implementation-status language while preserving pre-auth validation
+      ordering.

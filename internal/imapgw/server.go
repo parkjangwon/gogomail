@@ -823,7 +823,7 @@ func (s *Server) handleLineWithLiteral(writer *bufio.Writer, line string, litera
 		_, err := writer.WriteString(tag + " OK LOGOUT completed\r\n")
 		return true, err
 	default:
-		_, err := writer.WriteString(tag + " BAD command not implemented\r\n")
+		_, err := writer.WriteString(tag + " BAD unsupported command\r\n")
 		return false, err
 	}
 }
@@ -2304,7 +2304,7 @@ func (s *Server) handleUIDLine(writer *bufio.Writer, tag string, fields []string
 		return false, err
 	}
 	if !imapUIDSubcommandKnown(subcommand) {
-		_, err := writer.WriteString(tag + " BAD UID command not implemented\r\n")
+		_, err := writer.WriteString(tag + " BAD unsupported UID command\r\n")
 		return false, err
 	}
 	if handled, done, err := s.validateUIDSubcommandSyntax(writer, tag, fields, subcommand); handled {
@@ -2339,7 +2339,7 @@ func (s *Server) handleUIDLine(writer *bufio.Writer, tag string, fields []string
 	case "MOVE":
 		return s.handleUIDMove(writer, tag, fields, state)
 	default:
-		_, err := writer.WriteString(tag + " BAD UID command not implemented\r\n")
+		_, err := writer.WriteString(tag + " BAD unsupported UID command\r\n")
 		return false, err
 	}
 }

@@ -289,6 +289,8 @@ Go Backend (`internal/`):
 - `BenchmarkRetryDedupeKey`에 1k/10k 수신자 케이스를 추가해 대량 수신자 retry key 생성 비용을 계속 추적할 수 있게 함
 - Drive rename/move/upload-session 생성 SQL의 마지막 CTE read가 `SELECT * FROM updated/inserted`를 쓰지 않고 API 응답에 필요한 컬럼을 명시하도록 좁혀 storage read/write 경로의 projection 회귀를 줄임
 - `TestDriveRepositorySQLAvoidsWideCTEProjection`을 추가해 Drive repository SQL이 wide CTE projection으로 되돌아가지 않도록 고정함
+- IMAP unknown command/UID subcommand 응답이 내부 구현 상태처럼 보이는 `not implemented` 대신 클라이언트-facing `unsupported command`/`unsupported UID command`를 반환하도록 바꿔 프로토콜 오류 문구를 제품 수준으로 정리함
+- UID syntax validation 테스트를 갱신해 미지원 UID 하위명령이 인증/선택 상태보다 먼저 안정적으로 거부되는 동작을 유지하도록 확인함
 
 **System Email Connections & AutoPurge** ✅ COMPLETE
 - `internal/httpapi/admin.go`: Added `systemEmail mailservice.SystemEmailSender` and `publicBaseURL string` fields to `adminRouteConfig`; added `WithSystemEmailSender` and `WithPublicBaseURL` `AdminRouteOption` constructors
