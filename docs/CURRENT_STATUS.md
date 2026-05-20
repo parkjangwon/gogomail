@@ -7796,3 +7796,10 @@ Next focus areas:
 - Manual organization sync now returns HTTP 501 when no external adapter is configured, and the sync log records a failed status instead of a false success.
 - The batch worker skips registering the hourly `org-chart-sync` job until a real adapter is wired.
 - Verification: `go test ./internal/orgchart`; `go test ./internal/httpapi -run 'TestSyncLDAPEndpoint|TestSyncLDAPEndpointReportsUnconfiguredAdapter'`; `go test ./internal/app -run '^$'`.
+
+## 2026-05-21 LDAP sync unavailable hardening
+
+- LDAP sync requests now fail explicitly with `ErrSyncNotConfigured` while external LDAP import/sync remains a placeholder capability.
+- The admin service records the requested sync run as `failed` with the not-configured reason instead of leaving a false `pending` success response.
+- `POST /admin/v1/domains/{id}/ldap/sync` maps the typed not-configured error to HTTP 501.
+- Verification: `go test ./internal/httpapi -run TestAdminLDAPSyncUnavailableReturnsNotImplemented`; `go test ./internal/app -run '^$'`; `go test ./internal/idprovider/ldap`.

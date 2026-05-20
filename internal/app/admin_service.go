@@ -23,6 +23,7 @@ import (
 	"github.com/gogomail/gogomail/internal/davsyncretention"
 	"github.com/gogomail/gogomail/internal/directory"
 	"github.com/gogomail/gogomail/internal/drive"
+	ldapidp "github.com/gogomail/gogomail/internal/idprovider/ldap"
 	"github.com/gogomail/gogomail/internal/maildb"
 	"github.com/gogomail/gogomail/internal/mailflow"
 	"github.com/google/uuid"
@@ -1620,10 +1621,8 @@ func (s adminService) TriggerLDAPSync(ctx context.Context, domainID, syncType st
 		return nil, fmt.Errorf("failed to create sync run: %w", err)
 	}
 
-	// For now, return a pending status
-	// Full sync implementation will be added when LDAP provider sync methods are fully integrated
-	status := "pending"
-	errMsg := "LDAP sync implementation pending"
+	status := "failed"
+	errMsg := ldapidp.ErrSyncNotConfigured.Error()
 
 	err = s.Repository.UpdateLDAPSyncRun(ctx, runID, status,
 		0, 0, 0,
@@ -1632,16 +1631,7 @@ func (s adminService) TriggerLDAPSync(ctx context.Context, domainID, syncType st
 		return nil, fmt.Errorf("failed to update sync run: %w", err)
 	}
 
-	return map[string]interface{}{
-		"sync_run_id":    runID.String(),
-		"status":         status,
-		"created_count":  0,
-		"updated_count":  0,
-		"deleted_count":  0,
-		"conflict_count": 0,
-		"error_count":    0,
-		"error":          errMsg,
-	}, nil
+	return nil, ldapidp.ErrSyncNotConfigured
 }
 
 func (s adminService) GetLDAPSyncRuns(ctx context.Context, req maildb.LDAPSyncRunListRequest) ([]maildb.LDAPSyncRunView, error) {

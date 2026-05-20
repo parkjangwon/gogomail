@@ -20,6 +20,7 @@ import (
 	"github.com/gogomail/gogomail/internal/directory"
 	"github.com/gogomail/gogomail/internal/dnscheck"
 	"github.com/gogomail/gogomail/internal/drive"
+	ldapidp "github.com/gogomail/gogomail/internal/idprovider/ldap"
 	"github.com/gogomail/gogomail/internal/imapgw"
 	"github.com/gogomail/gogomail/internal/maildb"
 	"github.com/gogomail/gogomail/internal/storage"
@@ -113,6 +114,25 @@ func TestAdminConsoleCapabilitiesHandler(t *testing.T) {
 		if got.Storage.Operations[i] != want {
 			t.Fatalf("storage operations = %#v, want %#v", got.Storage.Operations, wantStorageOperations)
 		}
+	}
+}
+
+func TestAdminLDAPSyncUnavailableReturnsNotImplemented(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeAdminService{ldapSyncErr: ldapidp.ErrSyncNotConfigured}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "")
+
+	req := httptest.NewRequest(http.MethodPost, "/admin/v1/domains/domain-1/ldap/sync?sync_type=users", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusNotImplemented {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), ldapidp.ErrSyncNotConfigured.Error()) {
+		t.Fatalf("body = %q, want not-configured error", rec.Body.String())
 	}
 }
 
@@ -9021,6 +9041,7 @@ type fakeAdminService struct {
 	driveCleanupRetryResult                     drive.RetryObjectCleanupFailuresResult
 	attempts                                    []maildb.DeliveryAttemptView
 	deliveryAttemptStats                        maildb.DeliveryAttemptStatsView
+	ldapSyncErr                                 error
 	lastDeliveryAttemptList                     maildb.DeliveryAttemptListRequest
 	lastDeliveryAttemptStats                    maildb.DeliveryAttemptStatsRequest
 	lastExhaustedAttemptList                    maildb.ExhaustedAttemptListRequest
@@ -10482,6 +10503,9 @@ func (f *fakeAdminService) ClearUserAdminRole(_ context.Context, userID string) 
 }
 
 func (f *fakeAdminService) TriggerLDAPSync(ctx context.Context, domainID, syncType string) (map[string]interface{}, error) {
+	if f.ldapSyncErr != nil {
+		return nil, f.ldapSyncErr
+	}
 	return map[string]interface{}{
 		"sync_run_id": "test-sync-run-id",
 		"status":      "running",

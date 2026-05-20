@@ -6350,3 +6350,8 @@ Target outcome:
       not-configured error, manual sync returns HTTP 501, failed sync logs retain
       the reason, and the batch worker skips the hourly sync job until a real
       adapter is wired.
+1747. LDAP sync requests now expose external LDAP import/sync placeholder status
+      as an explicit unavailable operation: admin sync runs are marked failed
+      with `ErrSyncNotConfigured`, and `POST /admin/v1/domains/{id}/ldap/sync`
+      returns HTTP 501 instead of a pending response that could be mistaken for
+      live synchronization.
