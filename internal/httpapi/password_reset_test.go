@@ -22,9 +22,20 @@ type fakePasswordResetStore struct {
 	lastCreatedUserID string
 	lastMarkedUsedID  string
 	lastResetUserID   string
+	respectContext    bool
+	lookupCtxErrs     chan error
+	createdUserIDs    chan string
 }
 
-func (f *fakePasswordResetStore) GetUserIDByEmail(_ context.Context, email string) (string, string, error) {
+func (f *fakePasswordResetStore) GetUserIDByEmail(ctx context.Context, email string) (string, string, error) {
+	if f.lookupCtxErrs != nil {
+		f.lookupCtxErrs <- ctx.Err()
+	}
+	if f.respectContext {
+		if err := ctx.Err(); err != nil {
+			return "", "", err
+		}
+	}
 	id, ok := f.users[email]
 	if !ok {
 		return "", "", context.DeadlineExceeded
@@ -34,6 +45,9 @@ func (f *fakePasswordResetStore) GetUserIDByEmail(_ context.Context, email strin
 
 func (f *fakePasswordResetStore) CreatePasswordResetToken(_ context.Context, userID string, _ []byte, _ time.Time) error {
 	f.lastCreatedUserID = userID
+	if f.createdUserIDs != nil {
+		f.createdUserIDs <- userID
+	}
 	return nil
 }
 
@@ -138,6 +152,47 @@ func TestPasswordResetRequest_MissingEmail(t *testing.T) {
 	w := postJSONPasswordReset(mux, "/api/v1/auth/password-reset/request", map[string]string{})
 	if w.Code != http.StatusBadRequest {
 		t.Fatalf("expected 400, got %d", w.Code)
+	}
+}
+
+func TestPasswordResetRequest_BackgroundIssueSurvivesRequestCancellation(t *testing.T) {
+	t.Parallel()
+
+	store := &fakePasswordResetStore{
+		users:          map[string]string{"alice@example.com": "user-1"},
+		respectContext: true,
+		lookupCtxErrs:  make(chan error, 1),
+		createdUserIDs: make(chan string, 1),
+	}
+	mux := newTestPasswordResetMux(store)
+	body, _ := json.Marshal(map[string]string{"email": "alice@example.com"})
+	req := httptest.NewRequest("POST", "/api/v1/auth/password-reset/request", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	ctx, cancel := context.WithCancel(req.Context())
+	cancel()
+	req = req.WithContext(ctx)
+
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", w.Code)
+	}
+
+	select {
+	case err := <-store.lookupCtxErrs:
+		if err != nil {
+			t.Fatalf("background issue used canceled request context: %v", err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("timed out waiting for password reset lookup")
+	}
+	select {
+	case userID := <-store.createdUserIDs:
+		if userID != "user-1" {
+			t.Fatalf("created token for %q, want user-1", userID)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("timed out waiting for password reset token creation")
 	}
 }
 

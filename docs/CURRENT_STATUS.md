@@ -1,6 +1,11 @@
 # gogomail current status
 
-Last updated: 2026-05-21 (SaaS launch hardening continues: outbox claim ordering stabilized)
+Last updated: 2026-05-21 (SaaS launch hardening continues: password reset background context bounded)
+
+## Password Reset Background Context (2026-05-21)
+- Accepted password-reset requests now issue tokens and send best-effort email with a bounded background context instead of the client request context.
+- Regression coverage cancels the request context immediately after submission and verifies token lookup/creation still run on a live context.
+- Verification target: `go test ./internal/httpapi -run PasswordResetRequest`.
 
 ## Outbox Claim Ordering Stability (2026-05-21)
 - Outbox relay candidate selection and picked-row locking now order by `created_at, id`, avoiding nondeterministic same-timestamp claims under worker contention.

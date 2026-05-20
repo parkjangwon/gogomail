@@ -118,9 +118,13 @@ func RegisterPasswordResetRoutes(
 		}
 
 		// Issue token in a goroutine so response is always prompt and
-		// timing-uniform (no enumeration via response latency).
-		ctx := r.Context()
+		// timing-uniform (no enumeration via response latency). Use a bounded
+		// background context so client disconnects do not interrupt token
+		// persistence or best-effort email dispatch after the request is
+		// accepted.
 		go func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			defer cancel()
 			if err := issuePasswordResetToken(ctx, store, emailSender, baseURL, req.Email); err != nil {
 				slog.Info("password reset token issue failed", "err", err)
 			}
