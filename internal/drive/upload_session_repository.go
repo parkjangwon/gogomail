@@ -371,40 +371,9 @@ func (r *Repository) ExpireUploadSessions(ctx context.Context, req ExpireUploadS
 	if err != nil {
 		return nil, err
 	}
-	tx, err := r.db.BeginTx(ctx, nil)
+	rows, err := r.db.QueryContext(ctx, buildExpireUploadSessionsQuery(), req.Before, req.Limit)
 	if err != nil {
-		return nil, fmt.Errorf("begin drive upload session expiry transaction: %w", err)
-	}
-	defer tx.Rollback()
-
-	const selectQuery = `
-SELECT
-  id::text,
-  user_id::text,
-  COALESCE(parent_id::text, ''),
-  upload_id,
-  name,
-  declared_size,
-  received_size,
-  mime_type,
-  status,
-  storage_backend,
-  storage_path,
-  checksum_sha256,
-  expires_at,
-  created_at,
-  updated_at,
-  finalized_at,
-  canceled_at
-FROM drive_upload_sessions
-WHERE status IN ('pending', 'uploading', 'failed')
-  AND expires_at < $1
-ORDER BY expires_at ASC, created_at ASC
-LIMIT $2
-FOR UPDATE SKIP LOCKED`
-	rows, err := tx.QueryContext(ctx, selectQuery, req.Before, req.Limit)
-	if err != nil {
-		return nil, fmt.Errorf("select expired drive upload sessions: %w", err)
+		return nil, fmt.Errorf("expire drive upload sessions: %w", err)
 	}
 	defer rows.Close()
 
@@ -419,25 +388,65 @@ FOR UPDATE SKIP LOCKED`
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("iterate expired drive upload sessions: %w", err)
 	}
-	if err := rows.Close(); err != nil {
-		return nil, fmt.Errorf("close expired drive upload session rows: %w", err)
-	}
-
-	for i := range expired {
-		if _, err := tx.ExecContext(ctx, `
-UPDATE drive_upload_sessions
-SET status = 'expired',
-    updated_at = now()
-WHERE id = $1::uuid
-  AND status IN ('pending', 'uploading', 'failed')`, expired[i].ID); err != nil {
-			return nil, fmt.Errorf("expire drive upload session: %w", err)
-		}
-		expired[i].Status = UploadSessionStatusExpired
-	}
-	if err := tx.Commit(); err != nil {
-		return nil, fmt.Errorf("commit drive upload session expiry transaction: %w", err)
-	}
 	return expired, nil
+}
+
+func buildExpireUploadSessionsQuery() string {
+	return `
+WITH expired AS (
+  SELECT id
+  FROM drive_upload_sessions
+  WHERE status IN ('pending', 'uploading', 'failed')
+    AND expires_at < $1
+  ORDER BY expires_at ASC, created_at ASC
+  LIMIT $2
+  FOR UPDATE SKIP LOCKED
+),
+updated AS (
+  UPDATE drive_upload_sessions s
+  SET status = 'expired',
+      updated_at = now()
+  FROM expired
+  WHERE s.id = expired.id
+  RETURNING
+    s.id::text,
+    s.user_id::text,
+    COALESCE(s.parent_id::text, '') AS parent_id,
+    s.upload_id,
+    s.name,
+    s.declared_size,
+    s.received_size,
+    s.mime_type,
+    s.status,
+    s.storage_backend,
+    s.storage_path,
+    s.checksum_sha256,
+    s.expires_at,
+    s.created_at,
+    s.updated_at,
+    s.finalized_at,
+    s.canceled_at
+)
+SELECT
+  id,
+  user_id,
+  parent_id,
+  upload_id,
+  name,
+  declared_size,
+  received_size,
+  mime_type,
+  status,
+  storage_backend,
+  storage_path,
+  checksum_sha256,
+  expires_at,
+  created_at,
+  updated_at,
+  finalized_at,
+  canceled_at
+FROM updated
+ORDER BY expires_at ASC, created_at ASC`
 }
 
 func (r *Repository) CountStaleUploadSessions(ctx context.Context, req ExpireUploadSessionsRequest) (StaleUploadSessionCount, error) {

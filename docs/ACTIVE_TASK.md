@@ -161,6 +161,7 @@
 - Organization hierarchy member loading no longer performs one query per unit; `GetHierarchy` now batch-loads active members for all units and groups them in memory.
 - Admin user bulk status updates no longer call the single-user update path in a loop; the endpoint now uses one repository bulk update and enforces company_admin company scope.
 - Scheduling attendee resolution no longer calls `ResolveUserByEmail` once per attendee for internal users; it now performs one typed-array email lookup before preserving the existing alias/CardDAV/external fallbacks.
+- Drive upload session expiry no longer performs one UPDATE per expired session; the cleanup repository now claims and expires stale sessions with one set-based `UPDATE ... RETURNING`.
 
 **Infrastructure & Storage Hardening** ✅ COMPLETE
 - Task 1 (EML GC): Added `LookupDeleteableStoragePaths` and `LookupExpungeStoragePaths` to maildb; service layer now performs two-phase GC (lookup before DB delete, delete from store after commit) for `DeleteMessage`, `BulkDeleteMessages`, `BulkDeleteThreads`, and `ExpungeIMAPMessages`. Reference-count check prevents deletion of paths shared by IMAP COPY.

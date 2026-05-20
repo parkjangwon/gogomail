@@ -142,6 +142,32 @@ func TestExpireUploadSessionsRequiresDatabase(t *testing.T) {
 	}
 }
 
+func TestExpireUploadSessionsQueryUsesSetBasedUpdate(t *testing.T) {
+	t.Parallel()
+
+	query := buildExpireUploadSessionsQuery()
+	for _, want := range []string{
+		"WITH expired AS (",
+		"FOR UPDATE SKIP LOCKED",
+		"UPDATE drive_upload_sessions s",
+		"SET status = 'expired'",
+		"FROM expired",
+		"RETURNING",
+		"FROM updated",
+		"ORDER BY expires_at ASC, created_at ASC",
+	} {
+		if !strings.Contains(query, want) {
+			t.Fatalf("expire upload sessions query missing %q:\n%s", want, query)
+		}
+	}
+	if strings.Count(query, "UPDATE drive_upload_sessions") != 1 {
+		t.Fatalf("expire upload sessions query should have one set-based update:\n%s", query)
+	}
+	if strings.Contains(query, "WHERE id = $1::uuid") {
+		t.Fatalf("expire upload sessions query contains per-row update pattern:\n%s", query)
+	}
+}
+
 func TestCountStaleUploadSessionsRequiresDatabase(t *testing.T) {
 	t.Parallel()
 

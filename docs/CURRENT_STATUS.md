@@ -7976,3 +7976,9 @@ Next focus areas:
 - Calendar scheduling attendee resolution now preloads all internal-user matches with one typed-array email query before falling back to alias, CardDAV contact, or external attendee handling.
 - The batch query preserves input order with `unnest(... WITH ORDINALITY)`, uses direct active predicates, and avoids one `ResolveUserByEmail` database round trip per attendee on multi-user invitations.
 - Verification target: `go test ./internal/directory -run 'TestResolveDirectoryLookupQueriesUseSargableActiveFilters|TestResolveUserByEmail'`; `go test ./internal/scheduling`.
+
+## 2026-05-21 Drive upload session expiry batching
+
+- Expired drive upload session cleanup now uses a single CTE-backed `UPDATE ... RETURNING` query to claim, expire, and return stale sessions.
+- The query keeps `FOR UPDATE SKIP LOCKED` concurrency behavior and deterministic expiry ordering while removing one UPDATE round trip per stale session.
+- Verification target: `go test ./internal/drive -run TestExpireUploadSessionsQueryUsesSetBasedUpdate`.
