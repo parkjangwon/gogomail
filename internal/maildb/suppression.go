@@ -2,41 +2,58 @@ package maildb
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"strings"
+
+	"github.com/lib/pq"
 )
+
+const suppressedRecipientsSQL = `
+WITH normalized AS (
+  SELECT lower(btrim(email)) AS email, ordinality
+  FROM unnest($2::text[]) WITH ORDINALITY AS requested(email, ordinality)
+),
+requested AS (
+  SELECT email, min(ordinality) AS ordinality
+  FROM normalized
+  WHERE email <> ''
+  GROUP BY email
+)
+SELECT requested.email
+FROM requested
+WHERE EXISTS (
+  SELECT 1
+  FROM suppression_list s
+  WHERE lower(s.email) = requested.email
+    AND COALESCE(s.domain_id, '00000000-0000-0000-0000-000000000000'::uuid)
+      IN ($1::uuid, '00000000-0000-0000-0000-000000000000'::uuid)
+)
+ORDER BY requested.ordinality`
 
 func (r *Repository) SuppressedRecipients(ctx context.Context, domainID string, recipients []string) ([]string, error) {
 	if r.db == nil {
 		return nil, fmt.Errorf("database handle is required")
 	}
-
-	const query = `
-SELECT 1
-FROM suppression_list
-WHERE lower(email) = lower($1)
-  AND (domain_id = $2 OR domain_id IS NULL)
-LIMIT 1`
+	if len(recipients) == 0 {
+		return nil, nil
+	}
+	domainID = strings.TrimSpace(domainID)
+	rows, err := r.db.QueryContext(ctx, suppressedRecipientsSQL, domainID, pq.Array(recipients))
+	if err != nil {
+		return nil, fmt.Errorf("check suppression list: %w", err)
+	}
+	defer rows.Close()
 
 	suppressed := make([]string, 0)
-	seen := make(map[string]struct{}, len(recipients))
-	for _, recipient := range recipients {
-		normalized := strings.TrimSpace(strings.ToLower(recipient))
-		if normalized == "" {
-			continue
+	for rows.Next() {
+		var recipient string
+		if err := rows.Scan(&recipient); err != nil {
+			return nil, fmt.Errorf("scan suppressed recipient: %w", err)
 		}
-		if _, ok := seen[normalized]; ok {
-			continue
-		}
-		seen[normalized] = struct{}{}
-
-		var exists int
-		if err := r.db.QueryRowContext(ctx, query, normalized, domainID).Scan(&exists); err == nil {
-			suppressed = append(suppressed, normalized)
-		} else if err != sql.ErrNoRows {
-			return nil, fmt.Errorf("check suppression list for %q: %w", normalized, err)
-		}
+		suppressed = append(suppressed, recipient)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate suppressed recipients: %w", err)
 	}
 	return suppressed, nil
 }
