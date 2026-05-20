@@ -7683,3 +7683,10 @@ Next focus areas:
 - Added an optional `outbox.BatchStore` fast path so stores can mark all successful publishes and all failed publishes in batch after a relay claim.
 - `PostgresStore` now implements `MarkDoneBatch` and `MarkFailedBatch`, reducing relay status-update round trips from one UPDATE per event to one UPDATE per status class.
 - Verification: `go test ./internal/outbox`.
+
+## 2026-05-21 Delivery attempt bulk recording
+
+- Added optional `delivery.BulkRecorder` support in the delivery handler.
+- `PostgresRecorder` now records multiple delivery attempts in one transaction using `unnest` batch INSERTs for `delivery_attempts`, related outbox events, and hard-bounce suppression rows.
+- Partial delivery failures are collected and recorded as one failed-attempt batch where supported.
+- Verification: `go test ./internal/delivery`.

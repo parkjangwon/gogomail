@@ -627,30 +627,41 @@ func orderDSNNotify(values []string) []string {
 }
 
 func (h *Handler) recordAttempts(ctx context.Context, job Job, status AttemptStatus, cause error) error {
-	for _, attempt := range attemptsFor(job, status, cause, timeNow()) {
-		if err := h.recorder.RecordAttempt(ctx, attempt); err != nil {
-			return fmt.Errorf("record delivery attempt: %w", err)
-		}
+	if err := h.recordAttemptBatch(ctx, attemptsFor(job, status, cause, timeNow())); err != nil {
+		return fmt.Errorf("record delivery attempt: %w", err)
 	}
 	return nil
 }
 
 func (h *Handler) recordPartialAttempts(ctx context.Context, job Job, partial *PartialDeliveryError) error {
 	attemptedAt := timeNow()
-	for _, attempt := range attemptsFor(Job{QueuedMessage: queuedMessageForRecipients(job.QueuedMessage, partial.Delivered)}, AttemptDelivered, nil, attemptedAt) {
-		if err := h.recorder.RecordAttempt(ctx, attempt); err != nil {
-			return fmt.Errorf("record partial delivered attempt: %w", err)
-		}
+	if err := h.recordAttemptBatch(ctx, attemptsFor(Job{QueuedMessage: queuedMessageForRecipients(job.QueuedMessage, partial.Delivered)}, AttemptDelivered, nil, attemptedAt)); err != nil {
+		return fmt.Errorf("record partial delivered attempt: %w", err)
 	}
+	failedAttempts := make([]Attempt, 0, len(partial.Failed))
 	for _, failure := range partial.Failed {
 		status := AttemptFailed
 		if IsPermanentFailure(failure.Err) {
 			status = AttemptBounced
 		}
-		for _, attempt := range attemptsFor(Job{QueuedMessage: queuedMessageForRecipients(job.QueuedMessage, []outbound.Address{failure.Recipient})}, status, failure.Err, attemptedAt) {
-			if err := h.recorder.RecordAttempt(ctx, attempt); err != nil {
-				return fmt.Errorf("record partial failed attempt: %w", err)
-			}
+		failedAttempts = append(failedAttempts, attemptsFor(Job{QueuedMessage: queuedMessageForRecipients(job.QueuedMessage, []outbound.Address{failure.Recipient})}, status, failure.Err, attemptedAt)...)
+	}
+	if err := h.recordAttemptBatch(ctx, failedAttempts); err != nil {
+		return fmt.Errorf("record partial failed attempt: %w", err)
+	}
+	return nil
+}
+
+func (h *Handler) recordAttemptBatch(ctx context.Context, attempts []Attempt) error {
+	if len(attempts) == 0 {
+		return nil
+	}
+	if bulk, ok := h.recorder.(BulkRecorder); ok {
+		return bulk.RecordAttempts(ctx, attempts)
+	}
+	for _, attempt := range attempts {
+		if err := h.recorder.RecordAttempt(ctx, attempt); err != nil {
+			return err
 		}
 	}
 	return nil

@@ -40,6 +40,11 @@ type Recorder interface {
 	RecordAttempt(ctx context.Context, attempt Attempt) error
 }
 
+type BulkRecorder interface {
+	Recorder
+	RecordAttempts(ctx context.Context, attempts []Attempt) error
+}
+
 func attemptsFor(job Job, status AttemptStatus, cause error, attemptedAt time.Time) []Attempt {
 	if attemptedAt.IsZero() {
 		attemptedAt = time.Now().UTC()
@@ -103,5 +108,9 @@ func truncateUTF8Bytes(value string, maxBytes int) string {
 type noopRecorder struct{}
 
 func (noopRecorder) RecordAttempt(context.Context, Attempt) error {
+	return nil
+}
+
+func (noopRecorder) RecordAttempts(context.Context, []Attempt) error {
 	return nil
 }
