@@ -206,6 +206,74 @@ func TestListUsersAppliesSearchAndOrgFilters(t *testing.T) {
 	}
 }
 
+func TestListUsersPushesPlainPaginationToSourceQuery(t *testing.T) {
+	db := registerScriptedRDBMSDriver(t, []scriptedRDBMSQuery{
+		{
+			query: "SELECT * FROM (SELECT employee_id, email_address, full_name FROM employees) AS gogomail_rdbms_source LIMIT $1 OFFSET $2",
+			columns: []string{
+				"employee_id",
+				"email_address",
+				"full_name",
+			},
+			rows: [][]driver.Value{
+				{"emp-2", "bob@example.com", "Bob Builder"},
+			},
+		},
+	})
+
+	p := New(&Config{
+		UserQuery: "SELECT employee_id, email_address, full_name FROM employees",
+		FieldMap: map[string]string{
+			"id":           "employee_id",
+			"username":     "email_address",
+			"display_name": "full_name",
+		},
+	})
+	p.db = db
+
+	got, err := p.ListUsers(context.Background(), &idprovider.UserFilter{Limit: 1, Offset: 1})
+	if err != nil {
+		t.Fatalf("ListUsers() error = %v", err)
+	}
+	if len(got) != 1 || got[0].ID != "emp-2" {
+		t.Fatalf("ListUsers() = %+v, want emp-2 only", got)
+	}
+}
+
+func TestListGroupsPushesPlainPaginationToSourceQuery(t *testing.T) {
+	db := registerScriptedRDBMSDriver(t, []scriptedRDBMSQuery{
+		{
+			query: "SELECT * FROM (SELECT group_id, group_name, group_slug FROM groups) AS gogomail_rdbms_source LIMIT $1 OFFSET $2",
+			columns: []string{
+				"group_id",
+				"group_name",
+				"group_slug",
+			},
+			rows: [][]driver.Value{
+				{"group-2", "Sales", "sales"},
+			},
+		},
+	})
+
+	p := New(&Config{
+		GroupQuery: "SELECT group_id, group_name, group_slug FROM groups;",
+		FieldMap: map[string]string{
+			"id":   "group_id",
+			"name": "group_name",
+			"slug": "group_slug",
+		},
+	})
+	p.db = db
+
+	got, err := p.ListGroups(context.Background(), &idprovider.GroupFilter{Limit: 1, Offset: 1})
+	if err != nil {
+		t.Fatalf("ListGroups() error = %v", err)
+	}
+	if len(got) != 1 || got[0].ID != "group-2" {
+		t.Fatalf("ListGroups() = %+v, want group-2 only", got)
+	}
+}
+
 func TestSyncUsersCountsFetchedRows(t *testing.T) {
 	db := registerScriptedRDBMSDriver(t, []scriptedRDBMSQuery{
 		{
