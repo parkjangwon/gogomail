@@ -66,6 +66,7 @@ Last updated: 2026-05-21 (SaaS launch hardening continues: attachment cleanup ba
 - Admin outbox event listing now builds sargable WHERE clauses only for provided filters, avoiding the previous `NULLIF(...) OR ...` predicate shape that could blur index selectivity on large queues.
 - Admin delivery-attempt listing, stats, and exhausted-message views use the same sargable dynamic query shape for status, time, domain, message, farm, and sender filters, keeping large delivery-history inspection paths aligned with their indexes.
 - Push-notification attempt list and stats views now build dynamic sargable predicates for message, user, platform, device, provider, and since filters, so Web Push operations remain inspectable as provider attempts grow.
+- Domain DNS check history listing now builds status and since predicates only when present, keeping domain operations history reads index-friendly.
 - Verification: `go test ./...`, `pnpm --dir apps/webmail type-check`, and `pnpm --dir apps/console type-check` pass.
 
 ## CLI Break-Glass MFA Reset (2026-05-19)

@@ -6420,3 +6420,7 @@ Target outcome:
       device, provider, and since filters.  This removes optional `OR`
       predicates from Web Push operations reads before production attempt
       history grows.
+1761. Domain DNS check history listing now uses dynamic sargable predicates for
+      status and checked-at filters, so domain operations pages can inspect DNS
+      verification history without routing selective filters through optional
+      `OR` predicates.
