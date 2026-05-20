@@ -28,6 +28,14 @@
 - Fixed pre-existing test breakage in auth/password_test.go and maildb/admin_contract_test.go
   caused by allowLegacy=false enforcement; updated to allowLegacy=true for admin APIs
 
+**Password Reset & System Email Infrastructure** ✅ COMPLETE
+- Migration 0109: `password_reset_tokens` table (user_id FK, token_hash BYTEA, expires_at, used_at)
+- `internal/maildb/password_reset.go`: CreatePasswordResetToken, GetPasswordResetToken, MarkTokenUsed, ResetUserPassword, GenerateResetToken
+- `internal/mailservice/systememail.go`: SystemEmailSender interface + SMTPSystemEmailSender (log-only when GOGOMAIL_SYSTEM_EMAIL_FROM unset)
+- `internal/httpapi/password_reset.go`: POST /api/v1/auth/password-reset/request + confirm, MaildbPasswordResetAdapter
+- Wired in internal/app/run.go alongside existing mail API routes
+- 17 new unit tests (maildb + httpapi); 5936 total tests passing
+
 **Console Admin MFA Implementation** 🔄 IN PROGRESS
 - Task 1 ✅ DONE: Added `AdminMFARequired` config field (env: `GOGOMAIL_ADMIN_MFA_REQUIRED`)
 - Tasks 2-9: Frontend/backend MFA enrollment, verification, CLI break-glass, security settings UI
