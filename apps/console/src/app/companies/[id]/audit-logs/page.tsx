@@ -112,7 +112,7 @@ export default function AuditLogsPage() {
         before: beforeParam,
         limit: Number(limit),
       });
-      const res = await fetch(`/admin/v1/audit-logs${query ? `?${query}` : ''}`);
+      const res = await fetch(`/api/admin/audit-logs${query ? `?${query}` : ''}`);
       const data = await res.json();
       setLogs(data.audit_logs ?? []);
       setHasMore(data.has_more ?? false);

@@ -92,8 +92,8 @@ export default function DomainsPage() {
     setLoading(true);
     try {
       const url = cid === 'default'
-        ? '/admin/v1/domains?limit=200'
-        : `/admin/v1/domains?company_id=${cid}&limit=200`;
+        ? '/api/admin/domains?limit=200'
+        : `/api/admin/domains?company_id=${cid}&limit=200`;
       const res = await fetch(url);
       const data = await res.json();
       setDomains(data.domains ?? []);
@@ -120,7 +120,7 @@ export default function DomainsPage() {
     if (!createForm.name.trim()) return;
     setCreating(true);
     try {
-      const res = await fetch('/admin/v1/domains', {
+      const res = await fetch('/api/admin/domains', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -144,7 +144,7 @@ export default function DomainsPage() {
   const handleVerifyDNS = async (id: string) => {
     setVerifying(id);
     try {
-      await fetch(`/admin/v1/domains/${id}/dns-check`, { method: 'GET' });
+      await fetch(`/api/admin/domains/${id}/dns-check`, { method: 'GET' });
       load();
     } catch {
       err(t('domains_page.dns_check_failed'));
@@ -167,14 +167,14 @@ export default function DomainsPage() {
     try {
       const calls: Promise<Response>[] = [];
       if (editTarget.status !== editForm.status) {
-        calls.push(fetch(`/admin/v1/domains/${editTarget.id}/status`, {
+        calls.push(fetch(`/api/admin/domains/${editTarget.id}/status`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ status: editForm.status }),
         }));
       }
       if (editForm.quota_gb) {
-        calls.push(fetch(`/admin/v1/domains/${editTarget.id}/quota`, {
+        calls.push(fetch(`/api/admin/domains/${editTarget.id}/quota`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ quota_limit: parseInt(editForm.quota_gb) * 1073741824 }),
@@ -195,7 +195,7 @@ export default function DomainsPage() {
     if (!deleteTarget) return;
     setDeleting(true);
     try {
-      const res = await fetch(`/admin/v1/domains/${deleteTarget.id}`, { method: 'DELETE' });
+      const res = await fetch(`/api/admin/domains/${deleteTarget.id}`, { method: 'DELETE' });
       if (!res.ok) throw new Error(await res.text());
       ok(t('domains_page.deleted'));
       setDeleteTarget(null);
@@ -212,7 +212,7 @@ export default function DomainsPage() {
     if (action === 'delete' && !confirm(`${t('domains_page.confirm_bulk_delete')} ${selected.length}`)) return;
     setBulkLoading(true);
     try {
-      const res = await fetch('/admin/v1/domains/bulk', {
+      const res = await fetch('/api/admin/domains/bulk', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ids: selected.map(d => d.id), action }),

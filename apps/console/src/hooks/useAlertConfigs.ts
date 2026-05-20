@@ -44,7 +44,7 @@ export function useAlertConfigs(companyId: string) {
   return useQuery({
     queryKey: ['alert-configs', companyId],
     queryFn: async () => {
-      return api.get<AlertConfig[]>(`/admin/v1/alerts/configs`);
+      return api.get<AlertConfig[]>(`/alerts/configs`);
     },
   });
 }
@@ -54,7 +54,7 @@ export function useCreateAlertConfig() {
 
   return useMutation({
     mutationFn: async (config: Omit<AlertConfig, 'id' | 'created_at' | 'updated_at' | 'company_id'>) => {
-      return api.post<AlertConfig>(`/admin/v1/alerts/configs`, config);
+      return api.post<AlertConfig>(`/alerts/configs`, config);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({
@@ -69,7 +69,7 @@ export function useUpdateAlertConfig() {
 
   return useMutation({
     mutationFn: async ({ id, ...updates }: Partial<AlertConfig> & { id: string }) => {
-      return api.put<AlertConfig>(`/admin/v1/alerts/configs/${id}`, updates);
+      return api.put<AlertConfig>(`/alerts/configs/${id}`, updates);
     },
     onSuccess: (_, { id }) => {
       queryClient.invalidateQueries({
@@ -87,7 +87,7 @@ export function useDeleteAlertConfig() {
 
   return useMutation({
     mutationFn: async (id: string) => {
-      return api.delete<void>(`/admin/v1/alerts/configs/${id}`);
+      return api.delete<void>(`/alerts/configs/${id}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({
@@ -101,7 +101,7 @@ export function useAlertNotifications(companyId: string) {
   return useQuery({
     queryKey: ['alert-notifications', companyId],
     queryFn: async () => {
-      return api.get<AlertNotification[]>(`/admin/v1/alerts/notifications`);
+      return api.get<AlertNotification[]>(`/alerts/notifications`);
     },
   });
 }
@@ -111,7 +111,7 @@ export function useAcknowledgeNotification() {
 
   return useMutation({
     mutationFn: async (notificationId: string) => {
-      return api.post<void>(`/admin/v1/alerts/notifications/${notificationId}/acknowledge`);
+      return api.post<void>(`/alerts/notifications/${notificationId}/acknowledge`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({
