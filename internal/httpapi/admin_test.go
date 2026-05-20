@@ -8782,6 +8782,43 @@ func TestAdminRoutesRequireTokenWhenConfigured(t *testing.T) {
 	}
 }
 
+func TestAdminRoutesRejectMissingAuthConfigOutsideDev(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeAdminService{}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "", WithEnvironment("production"))
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/queue", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "admin authentication is not configured") {
+		t.Fatalf("body = %q", rec.Body.String())
+	}
+}
+
+func TestAdminRoutesAllowMissingAuthOnlyInDevelopment(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeAdminService{
+		queueStats: []maildb.QueueStat{{Topic: "mail.outbound.general", Status: "pending", Count: 1}},
+	}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "", WithEnvironment("development"))
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/queue", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+}
+
 func TestAdminUpdateDirectoryDelegationRoleHandler(t *testing.T) {
 	t.Parallel()
 

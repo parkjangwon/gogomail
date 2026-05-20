@@ -6647,3 +6647,7 @@ Target outcome:
       explicit flag precedence while aligning Docker Compose environment
       examples with real runtime behavior and documenting storage-root
       precedence.
+1828. Admin HTTP authentication now fails closed outside explicit
+      `development`/`test` when neither static token nor JWT token manager is
+      configured, and standalone audit-log route registration uses the same
+      closed default.

@@ -1,6 +1,11 @@
 # gogomail current status
 
-Last updated: 2026-05-21 (SaaS launch hardening continues: backend mode env contract aligned)
+Last updated: 2026-05-21 (SaaS launch hardening continues: admin auth closed by default)
+
+## Admin Auth Closed By Default (2026-05-21)
+- Admin route auth now rejects requests when neither a static admin token nor JWT token manager is configured outside explicit `development`/`test` environments.
+- Standalone audit-log route registration uses the closed default, so an empty token no longer creates an unauthenticated admin endpoint.
+- Verification target: `go test ./internal/httpapi -run 'MissingAuthConfig|AuditLogRoutesRejectsMissingAuthConfig'`.
 
 ## Backend Mode Env Contract (2026-05-21)
 - The backend binary now honors `APP_MODE` when `--mode` is not passed, while keeping explicit `--mode` as the higher-precedence selector.

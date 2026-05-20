@@ -306,7 +306,7 @@ func adminClaimsFromCtx(ctx context.Context) (auth.Claims, bool) {
 // requiresCompanyAccess returns a non-nil error if the caller is a company_admin
 // attempting to access data belonging to a different company.
 // system_admin callers always pass. Callers with no claims in context also pass
-// (static-token or no-auth mode).
+// because static-token authentication proves access but does not carry tenant scope.
 func requiresCompanyAccess(ctx context.Context, companyID string) error {
 	claims, ok := adminClaimsFromCtx(ctx)
 	if !ok {
@@ -322,10 +322,18 @@ func requiresCompanyAccess(ctx context.Context, companyID string) error {
 }
 
 func adminJWTOrStaticAuth(token string, tokenMgr *auth.TokenManager, next http.HandlerFunc) http.HandlerFunc {
+	return adminJWTOrStaticAuthWithEnvironment(token, tokenMgr, "production", next)
+}
+
+func adminJWTOrStaticAuthWithEnvironment(token string, tokenMgr *auth.TokenManager, environment string, next http.HandlerFunc) http.HandlerFunc {
 	token = strings.TrimSpace(token)
+	environment = strings.TrimSpace(strings.ToLower(environment))
 	return func(w http.ResponseWriter, r *http.Request) {
-		// No auth configured: allow all (dev/test mode, same as original adminAuth behaviour).
 		if token == "" && tokenMgr == nil {
+			if environment != "development" && environment != "test" {
+				writeError(w, http.StatusUnauthorized, "admin authentication is not configured")
+				return
+			}
 			if (r.Method == http.MethodGet || r.Method == http.MethodDelete) && !rejectBodylessRequestPayload(w, r) {
 				return
 			}
@@ -614,7 +622,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	}
 	// adminAuth closes over token and cfg.tokenMgr so call sites only pass the handler.
 	adminAuth := func(next http.HandlerFunc) http.HandlerFunc {
-		return adminJWTOrStaticAuth(token, cfg.tokenMgr, next)
+		return adminJWTOrStaticAuthWithEnvironment(token, cfg.tokenMgr, cfg.environment, next)
 	}
 
 	// ─── Console & Delivery Routes ─────────────────────────────────────────────
@@ -5872,15 +5880,17 @@ func handlePutDomainIPPolicy(w http.ResponseWriter, r *http.Request, service Adm
 func adminAuth(token string, next http.HandlerFunc) http.HandlerFunc {
 	token = strings.TrimSpace(token)
 	return func(w http.ResponseWriter, r *http.Request) {
-		if token != "" {
-			got, ok := adminTokenFromRequest(w, r)
-			if !ok {
-				return
-			}
-			if !constantTimeTokenEqual(got, token) {
-				writeError(w, http.StatusUnauthorized, "admin token is required")
-				return
-			}
+		if token == "" {
+			writeError(w, http.StatusUnauthorized, "admin authentication is not configured")
+			return
+		}
+		got, ok := adminTokenFromRequest(w, r)
+		if !ok {
+			return
+		}
+		if !constantTimeTokenEqual(got, token) {
+			writeError(w, http.StatusUnauthorized, "admin token is required")
+			return
 		}
 		if (r.Method == http.MethodGet || r.Method == http.MethodDelete) && !rejectBodylessRequestPayload(w, r) {
 			return

@@ -176,6 +176,7 @@
 - Legacy admin audit-log repository totals now share the exact row-filter predicate builder, return count errors, and use `id DESC` as a deterministic timestamp tie-breaker so filtered audit pages do not show mismatched totals.
 - Standalone admin audit-log handlers now return generic internal errors and log the raw backend failure server-side, preventing database/service error text from leaking to clients.
 - Backend startup now honors `APP_MODE` when `--mode` is absent, keeps `--mode` precedence, and the README/env docs now document the same mode and storage-root precedence contract operators actually get.
+- Admin routes now fail closed outside explicit `development`/`test` when no static token or JWT token manager is configured, including standalone audit-log route registration.
 
 **Infrastructure & Storage Hardening** ✅ COMPLETE
 - Task 1 (EML GC): Added `LookupDeleteableStoragePaths` and `LookupExpungeStoragePaths` to maildb; service layer now performs two-phase GC (lookup before DB delete, delete from store after commit) for `DeleteMessage`, `BulkDeleteMessages`, `BulkDeleteThreads`, and `ExpungeIMAPMessages`. Reference-count check prevents deletion of paths shared by IMAP COPY.
@@ -244,6 +245,7 @@ Go Backend (`internal/`):
 최근 진행:
 - Console audit log/domain pages now call `/api/admin/...` instead of direct `/admin/v1/...`, and alert config hooks pass proxy-relative paths to `apiClient`.
 - Backend mode selection now accepts `APP_MODE` as the Docker/env fallback when `--mode` is not passed, and README/env docs clarify `--mode` precedence plus `GOGOMAIL_MAILSTORE_ROOT` over deprecated `GOGOMAIL_STORAGE_ROOT`.
+- Admin auth now rejects empty-auth configuration outside explicit development/test environments instead of silently allowing unauthenticated admin access.
 - Standalone audit-log HTTP handlers now hide raw backend errors from responses while keeping server-side slog diagnostics.
 - Legacy admin audit-log repository totals now use the same company/admin/action/resource/time predicates as row listing, return count errors, and order equal timestamps by `id DESC`.
 - Drive object cleanup retry now accumulates successful cleanup failure IDs and resolves them with one `UPDATE ... WHERE id = ANY($1::uuid[])`, eliminating the retry-loop resolve N+1.

@@ -218,3 +218,18 @@ func TestAuditLogHandlersHideInternalErrors(t *testing.T) {
 		})
 	}
 }
+
+func TestRegisterAuditLogRoutesRejectsMissingAuthConfig(t *testing.T) {
+	t.Parallel()
+
+	mux := http.NewServeMux()
+	RegisterAuditLogRoutes(mux, &mockAuditRepository{}, "")
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/audit-logs", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+}
