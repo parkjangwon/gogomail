@@ -436,15 +436,25 @@ func applyQuotaCorrection(ctx context.Context, tx *sql.Tx, req CorrectQuotaRecon
 }
 
 func quotaReconciliationFilteredQuery(scope string) string {
+	where := quotaReconciliationScopeWhere(scope)
 	return quotaActualCTE + `
 SELECT scope, id, domain_id, name, ledger_used, actual_used
 FROM quota_reconciliation_all
-WHERE ($1 = '' OR
-  ($1 = id AND scope = '` + scope + `') OR
-  ('` + scope + `' = 'company' AND $1 = company_id) OR
-  ('` + scope + `' = 'domain' AND $1 = domain_id)
-)
+` + where + `
 ORDER BY ABS(ledger_used - actual_used) DESC, scope, name`
+}
+
+func quotaReconciliationScopeWhere(scope string) string {
+	switch scope {
+	case "company":
+		return "WHERE company_id = $1"
+	case "domain":
+		return "WHERE domain_id = $1"
+	case "user":
+		return "WHERE scope = 'user' AND id = $1"
+	default:
+		return ""
+	}
 }
 
 const quotaActualCTE = `
@@ -509,48 +519,78 @@ quota_reconciliation_all AS (
 )`
 
 func quotaCorrectionUpdateUsersSQL(scope string) string {
+	where := quotaCorrectionUpdateUsersWhere(scope)
 	return quotaActualCTE + `
 UPDATE users u
 SET quota_used = user_actual.actual_used,
     updated_at = now()
 FROM user_actual
 WHERE u.id = user_actual.id
-  AND ($1 = '' OR
-    ('` + scope + `' = 'user' AND u.id::text = $1) OR
-    ('` + scope + `' = 'domain' AND user_actual.domain_id::text = $1) OR
-    ('` + scope + `' = 'company' AND user_actual.company_id::text = $1)
-  )`
+` + where
+}
+
+func quotaCorrectionUpdateUsersWhere(scope string) string {
+	switch scope {
+	case "company":
+		return "  AND user_actual.company_id::text = $1"
+	case "domain":
+		return "  AND user_actual.domain_id::text = $1"
+	case "user":
+		return "  AND u.id::text = $1"
+	default:
+		return ""
+	}
 }
 
 func quotaCorrectionUpdateDomainsSQL(scope string) string {
+	where := quotaCorrectionUpdateDomainsWhere(scope)
 	return quotaActualCTE + `
 UPDATE domains d
 SET quota_used = domain_actual.actual_used,
     updated_at = now()
 FROM domain_actual
 WHERE d.id = domain_actual.id
-  AND ($1 = '' OR
-    ('` + scope + `' = 'domain' AND d.id::text = $1) OR
-    ('` + scope + `' = 'user' AND EXISTS (SELECT 1 FROM users u WHERE u.id::text = $1 AND u.domain_id = d.id)) OR
-    ('` + scope + `' = 'company' AND d.company_id::text = $1)
-  )`
+` + where
+}
+
+func quotaCorrectionUpdateDomainsWhere(scope string) string {
+	switch scope {
+	case "company":
+		return "  AND d.company_id::text = $1"
+	case "domain":
+		return "  AND d.id::text = $1"
+	case "user":
+		return "  AND EXISTS (SELECT 1 FROM users u WHERE u.id::text = $1 AND u.domain_id = d.id)"
+	default:
+		return ""
+	}
 }
 
 func quotaCorrectionUpdateCompaniesSQL(scope string) string {
+	where := quotaCorrectionUpdateCompaniesWhere(scope)
 	return quotaActualCTE + `
 UPDATE companies c
 SET quota_used = company_actual.actual_used,
     updated_at = now()
 FROM company_actual
 WHERE c.id = company_actual.id
-  AND ($1 = '' OR
-    ('` + scope + `' = 'company' AND c.id::text = $1) OR
-    ('` + scope + `' = 'domain' AND EXISTS (SELECT 1 FROM domains d WHERE d.id::text = $1 AND d.company_id = c.id)) OR
-    ('` + scope + `' = 'user' AND EXISTS (
+` + where
+}
+
+func quotaCorrectionUpdateCompaniesWhere(scope string) string {
+	switch scope {
+	case "company":
+		return "  AND c.id::text = $1"
+	case "domain":
+		return "  AND EXISTS (SELECT 1 FROM domains d WHERE d.id::text = $1 AND d.company_id = c.id)"
+	case "user":
+		return `  AND EXISTS (
       SELECT 1
       FROM users u
       JOIN domains d ON d.id = u.domain_id
       WHERE u.id::text = $1 AND d.company_id = c.id
-    ))
-  )`
+    )`
+	default:
+		return ""
+	}
 }
