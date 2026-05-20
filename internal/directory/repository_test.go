@@ -113,6 +113,74 @@ func TestNormalizeResolveAliasRequestRejectsInvalidAddresses(t *testing.T) {
 	}
 }
 
+func TestResolveDirectoryLookupQueriesUseSargableActiveFilters(t *testing.T) {
+	t.Parallel()
+
+	aliasReq, err := NormalizeResolveAliasRequest(ResolveAliasRequest{
+		Address:    " Ops@Example.com ",
+		ActiveOnly: true,
+	})
+	if err != nil {
+		t.Fatalf("NormalizeResolveAliasRequest returned error: %v", err)
+	}
+	aliasQuery, aliasArgs := buildResolveAliasQuery(aliasReq)
+	for _, want := range []string{
+		"FROM directory_aliases a",
+		"WHERE lower(a.alias_address_ace) = $1",
+		"AND (a.status = 'active' AND d.status = 'active' AND c.status = 'active')",
+	} {
+		if !strings.Contains(aliasQuery, want) {
+			t.Fatalf("resolve alias query missing %q:\n%s", want, aliasQuery)
+		}
+	}
+	for _, forbidden := range []string{
+		"$2::boolean = false OR",
+		"NULLIF($",
+	} {
+		if strings.Contains(aliasQuery, forbidden) {
+			t.Fatalf("resolve alias query contains non-sargable active filter %q:\n%s", forbidden, aliasQuery)
+		}
+	}
+	if len(aliasArgs) != 1 || aliasArgs[0] != "ops@example.com" {
+		t.Fatalf("alias args = %#v, want normalized address only", aliasArgs)
+	}
+
+	inactiveAliasQuery, inactiveAliasArgs := buildResolveAliasQuery(ResolveAliasRequest{Address: "ops@example.com"})
+	if strings.Contains(inactiveAliasQuery, "status = 'active'") {
+		t.Fatalf("inactive alias query unexpectedly includes active predicate:\n%s", inactiveAliasQuery)
+	}
+	if len(inactiveAliasArgs) != 1 {
+		t.Fatalf("inactive alias args len = %d, want 1", len(inactiveAliasArgs))
+	}
+
+	userQuery, userArgs := buildResolveUserByEmailQuery(ResolveUserByEmailRequest{
+		Email:      "user@example.com",
+		ActiveOnly: true,
+	})
+	for _, want := range []string{
+		"JOIN user_addresses a ON a.user_id = u.id AND lower(a.address) = lower($1)",
+		"WHERE (u.status = 'active' AND d.status = 'active' AND c.status = 'active')",
+	} {
+		if !strings.Contains(userQuery, want) {
+			t.Fatalf("resolve user query missing %q:\n%s", want, userQuery)
+		}
+	}
+	if strings.Contains(userQuery, "$2::boolean = false OR") {
+		t.Fatalf("resolve user query contains non-sargable active filter:\n%s", userQuery)
+	}
+	if len(userArgs) != 1 || userArgs[0] != "user@example.com" {
+		t.Fatalf("user args = %#v, want email only", userArgs)
+	}
+
+	inactiveUserQuery, inactiveUserArgs := buildResolveUserByEmailQuery(ResolveUserByEmailRequest{Email: "user@example.com"})
+	if strings.Contains(inactiveUserQuery, "WHERE") {
+		t.Fatalf("inactive user query unexpectedly includes WHERE:\n%s", inactiveUserQuery)
+	}
+	if len(inactiveUserArgs) != 1 {
+		t.Fatalf("inactive user args len = %d, want 1", len(inactiveUserArgs))
+	}
+}
+
 func TestNormalizeCreateAliasRequest(t *testing.T) {
 	t.Parallel()
 

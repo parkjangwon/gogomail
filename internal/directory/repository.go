@@ -51,15 +51,7 @@ func (r *Repository) ResolvePrincipal(ctx context.Context, req ResolvePrincipalR
 	}
 }
 
-func (r *Repository) ResolveAlias(ctx context.Context, req ResolveAliasRequest) (Alias, error) {
-	if r == nil || r.db == nil {
-		return Alias{}, fmt.Errorf("database handle is required")
-	}
-	req, err := NormalizeResolveAliasRequest(req)
-	if err != nil {
-		return Alias{}, err
-	}
-	const query = `
+const resolveAliasBaseSQL = `
 SELECT a.id::text,
        a.company_id::text,
        a.domain_id::text,
@@ -70,11 +62,27 @@ SELECT a.id::text,
        a.status
 FROM directory_aliases a
 JOIN domains d ON d.id = a.domain_id
-JOIN companies c ON c.id = a.company_id AND c.id = d.company_id
-WHERE lower(a.alias_address_ace) = $1
-  AND ($2::boolean = false OR (a.status = 'active' AND d.status = 'active' AND c.status = 'active'))`
+JOIN companies c ON c.id = a.company_id AND c.id = d.company_id`
+
+func buildResolveAliasQuery(req ResolveAliasRequest) (string, []any) {
+	conditions := []string{"lower(a.alias_address_ace) = $1"}
+	if req.ActiveOnly {
+		conditions = append(conditions, "(a.status = 'active' AND d.status = 'active' AND c.status = 'active')")
+	}
+	return resolveAliasBaseSQL + "\nWHERE " + strings.Join(conditions, "\n  AND "), []any{req.Address}
+}
+
+func (r *Repository) ResolveAlias(ctx context.Context, req ResolveAliasRequest) (Alias, error) {
+	if r == nil || r.db == nil {
+		return Alias{}, fmt.Errorf("database handle is required")
+	}
+	req, err := NormalizeResolveAliasRequest(req)
+	if err != nil {
+		return Alias{}, err
+	}
+	query, args := buildResolveAliasQuery(req)
 	var alias Alias
-	if err := r.db.QueryRowContext(ctx, query, req.Address, req.ActiveOnly).Scan(
+	if err := r.db.QueryRowContext(ctx, query, args...).Scan(
 		&alias.ID,
 		&alias.CompanyID,
 		&alias.DomainID,
@@ -101,14 +109,7 @@ WHERE lower(a.alias_address_ace) = $1
 	return alias, nil
 }
 
-func (r *Repository) ResolveUserByEmail(ctx context.Context, req ResolveUserByEmailRequest) (Principal, error) {
-	if r == nil || r.db == nil {
-		return Principal{}, fmt.Errorf("database handle is required")
-	}
-	if req.Email == "" {
-		return Principal{}, fmt.Errorf("email is required")
-	}
-	const query = `
+const resolveUserByEmailBaseSQL = `
 SELECT u.id::text,
        c.id::text,
        d.id::text,
@@ -119,11 +120,31 @@ SELECT u.id::text,
 FROM users u
 JOIN domains d ON d.id = u.domain_id
 JOIN companies c ON c.id = d.company_id
-JOIN user_addresses a ON a.user_id = u.id AND lower(a.address) = lower($1)
-WHERE ($2::boolean = false OR (u.status = 'active' AND d.status = 'active' AND c.status = 'active'))`
+JOIN user_addresses a ON a.user_id = u.id AND lower(a.address) = lower($1)`
+
+func buildResolveUserByEmailQuery(req ResolveUserByEmailRequest) (string, []any) {
+	conditions := []string{}
+	if req.ActiveOnly {
+		conditions = append(conditions, "(u.status = 'active' AND d.status = 'active' AND c.status = 'active')")
+	}
+	query := resolveUserByEmailBaseSQL
+	if len(conditions) > 0 {
+		query += "\nWHERE " + strings.Join(conditions, "\n  AND ")
+	}
+	return query, []any{req.Email}
+}
+
+func (r *Repository) ResolveUserByEmail(ctx context.Context, req ResolveUserByEmailRequest) (Principal, error) {
+	if r == nil || r.db == nil {
+		return Principal{}, fmt.Errorf("database handle is required")
+	}
+	if req.Email == "" {
+		return Principal{}, fmt.Errorf("email is required")
+	}
+	query, args := buildResolveUserByEmailQuery(req)
 	var principal Principal
 	principal.Kind = PrincipalKindUser
-	if err := r.db.QueryRowContext(ctx, query, req.Email, req.ActiveOnly).Scan(
+	if err := r.db.QueryRowContext(ctx, query, args...).Scan(
 		&principal.ID,
 		&principal.CompanyID,
 		&principal.DomainID,
