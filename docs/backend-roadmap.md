@@ -6457,3 +6457,6 @@ Target outcome:
 1770. Directory direct delegation checks now add active-status predicates only
       when `ActiveOnly` is requested, removing boolean optional `OR` guards from
       delegation validation paths.
+1771. Directory delegation listing now uses dynamic optional predicates for
+      owner, delegate, scope, role, and active-status filters, avoiding broad
+      optional `OR` guards on large delegation operations.

@@ -1551,6 +1551,82 @@ func TestNormalizeListDelegationsRequestRejectsUnsafeInput(t *testing.T) {
 	}
 }
 
+func TestListDelegationsQueryUsesSargableOptionalFilters(t *testing.T) {
+	t.Parallel()
+
+	req, err := NormalizeListDelegationsRequest(ListDelegationsRequest{
+		CompanyID:    " company-1 ",
+		OwnerKind:    " Resource ",
+		OwnerID:      " room-1 ",
+		DelegateKind: " GROUP ",
+		DelegateID:   " team-1 ",
+		Scope:        " Calendar ",
+		Role:         " WRITE ",
+		ActiveOnly:   true,
+		Limit:        25,
+	})
+	if err != nil {
+		t.Fatalf("NormalizeListDelegationsRequest returned error: %v", err)
+	}
+	query, args := buildListDelegationsQuery(req)
+	for _, want := range []string{
+		"FROM directory_delegations",
+		"WHERE company_id = $1::uuid",
+		"AND owner_kind = $2",
+		"AND owner_id = $3::uuid",
+		"AND delegate_kind = $4",
+		"AND delegate_id = $5::uuid",
+		"AND scope = $6",
+		"AND role = $7",
+		"AND status = 'active'",
+		"ORDER BY updated_at DESC, id",
+		"LIMIT $8",
+	} {
+		if !strings.Contains(query, want) {
+			t.Fatalf("list delegation query missing %q:\n%s", want, query)
+		}
+	}
+	for _, forbidden := range []string{
+		"$2 = '' OR",
+		"NULLIF($",
+		"$8::boolean = false OR",
+	} {
+		if strings.Contains(query, forbidden) {
+			t.Fatalf("list delegation query contains non-sargable optional filter %q:\n%s", forbidden, query)
+		}
+	}
+	if len(args) != 8 {
+		t.Fatalf("args len = %d, want 8", len(args))
+	}
+	if args[0] != "company-1" || args[7] != 25 {
+		t.Fatalf("args = %#v", args)
+	}
+
+	query, args = buildListDelegationsQuery(ListDelegationsRequest{
+		CompanyID: "company-1",
+		Limit:     50,
+	})
+	for _, unexpected := range []string{
+		"owner_kind = $",
+		"owner_id = $",
+		"delegate_kind = $",
+		"delegate_id = $",
+		"scope = $",
+		"role = $",
+		"status = 'active'",
+	} {
+		if strings.Contains(query, unexpected) {
+			t.Fatalf("list delegation query unexpectedly includes %q:\n%s", unexpected, query)
+		}
+	}
+	if len(args) != 2 {
+		t.Fatalf("args len = %d, want 2", len(args))
+	}
+	if args[0] != "company-1" || args[1] != 50 {
+		t.Fatalf("args = %#v", args)
+	}
+}
+
 func TestDelegationRoleSatisfiesHierarchy(t *testing.T) {
 	t.Parallel()
 
