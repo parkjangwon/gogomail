@@ -2,6 +2,7 @@ package httpapi
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"strconv"
 	"strings"
@@ -10,6 +11,7 @@ import (
 	"github.com/gogomail/gogomail/internal/admin"
 	"github.com/gogomail/gogomail/internal/davsyncretention"
 	"github.com/gogomail/gogomail/internal/directory"
+	ldapidp "github.com/gogomail/gogomail/internal/idprovider/ldap"
 	"github.com/gogomail/gogomail/internal/maildb"
 )
 
@@ -1141,6 +1143,10 @@ func handleLDAPSync(w http.ResponseWriter, r *http.Request, service AdminService
 	}
 	result, err := service.TriggerLDAPSync(r.Context(), id, syncType)
 	if err != nil {
+		if errors.Is(err, ldapidp.ErrSyncNotConfigured) {
+			writeError(w, http.StatusNotImplemented, err.Error())
+			return
+		}
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}

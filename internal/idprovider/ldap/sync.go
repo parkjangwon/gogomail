@@ -2,9 +2,12 @@ package ldap
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 )
+
+var ErrSyncNotConfigured = errors.New("ldap sync provider is not configured")
 
 // SyncRequest contains parameters for syncing LDAP data to the local database.
 type SyncRequest struct {
