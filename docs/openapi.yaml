@@ -19,7 +19,9 @@ paths:
       servers:
         - url: /
           description: Service root
-      security: []
+      security:
+        - adminToken: []
+        - bearerAuth: []
       responses:
         "200":
           $ref: "#/components/responses/Health"
@@ -79,11 +81,147 @@ paths:
                 properties:
                   token:
                     type: string
+                    description: Mail API access JWT. Omitted when MFA verification is required.
+                  refresh_token:
+                    type: string
+                    description: Long-lived refresh token when refresh-token storage is configured.
                   expires_at:
                     type: string
                     format: date-time
                   must_change_password:
                     type: boolean
+                  client_ip:
+                    type: string
+                  mfa_required:
+                    type: boolean
+                    description: True when the password was accepted but MFA verification is required.
+                  pending_token:
+                    type: string
+                    description: Short-lived MFA pending token returned when mfa_required is true.
+                  mfa_setup_required:
+                    type: boolean
+                    description: True when policy requires the user to enroll MFA after login.
+        default:
+          $ref: "#/components/responses/Error"
+  /auth/refresh:
+    post:
+      operationId: refreshSession
+      summary: Refresh or rotate a session token
+      description: |
+        Mail API (`/api/v1`) rotates a user refresh token and returns `token`
+        plus a replacement `refresh_token`. Admin API (`/admin/v1`) accepts an
+        admin refresh JWT and returns `access_token`.
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      servers:
+        - url: /api/v1
+          description: Mail API
+        - url: /admin/v1
+          description: Admin API
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refresh_token]
+              properties:
+                refresh_token:
+                  type: string
+      responses:
+        "200":
+          description: Session refreshed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+                    description: Mail API access JWT.
+                  access_token:
+                    type: string
+                    description: Admin API access JWT.
+                  refresh_token:
+                    type: string
+                    description: Replacement mail refresh token.
+                  expires_at:
+                    type: string
+                    format: date-time
+                  must_change_password:
+                    type: boolean
+        default:
+          $ref: "#/components/responses/Error"
+  /auth/password-reset/request:
+    post:
+      operationId: requestPasswordReset
+      summary: Request a password reset email
+      description: Always returns OK for syntactically valid requests to avoid user enumeration.
+      security: []
+      servers:
+        - url: /api/v1
+          description: Mail API
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email:
+                  type: string
+                  format: email
+      responses:
+        "200":
+          description: Password reset request accepted
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status]
+                properties:
+                  status:
+                    type: string
+                    enum: [ok]
+        default:
+          $ref: "#/components/responses/Error"
+  /auth/password-reset/confirm:
+    post:
+      operationId: confirmPasswordReset
+      summary: Confirm a password reset token and set a new password
+      security: []
+      servers:
+        - url: /api/v1
+          description: Mail API
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token, new_password]
+              properties:
+                token:
+                  type: string
+                  description: Hex-encoded password reset token from email.
+                new_password:
+                  type: string
+                  format: password
+                  minLength: 8
+      responses:
+        "200":
+          description: Password reset completed
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status]
+                properties:
+                  status:
+                    type: string
+                    enum: [ok]
         default:
           $ref: "#/components/responses/Error"
   /auth/sessions/revoke-all:
@@ -5305,41 +5443,6 @@ paths:
                         type: string
                       company_id:
                         type: string
-        default:
-          $ref: "#/components/responses/Error"
-  /auth/refresh:
-    post:
-      operationId: refreshAdminSession
-      summary: Refresh admin access token
-      servers:
-        - url: /api/v1
-          description: Mail API
-        - url: /admin/v1
-          description: Admin API
-      security:
-        - adminToken: []
-        - bearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required:
-                - refresh_token
-              properties:
-                refresh_token:
-                  type: string
-      responses:
-        "200":
-          description: Access token refreshed
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  access_token:
-                    type: string
         default:
           $ref: "#/components/responses/Error"
   /auth/setup:

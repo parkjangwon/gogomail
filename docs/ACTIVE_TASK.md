@@ -185,6 +185,7 @@
 - POP3 login now uses a lightweight id/size-only INBOX metadata page query and streams pages directly into the POP3 mailbox index, avoiding the webmail preview join and the extra all-summary aggregation during authentication.
 - RDBMS sync history now supports opaque `(created_at, id)` seek cursors with a matching domain/created/id index while preserving legacy offset pagination for existing admin clients.
 - Message-list cursor encoding now uses compact base64 `unix_nano:id` payloads while retaining legacy JSON cursor decoding, reducing marshal/unmarshal overhead on high-volume list/search pages.
+- OpenAPI auth contracts now match implemented login refresh-token/MFA fields, shared mail/admin refresh semantics, and password-reset request/confirm endpoints.
 
 **Infrastructure & Storage Hardening** ✅ COMPLETE
 - Task 1 (EML GC): Added `LookupDeleteableStoragePaths` and `LookupExpungeStoragePaths` to maildb; service layer now performs two-phase GC (lookup before DB delete, delete from store after commit) for `DeleteMessage`, `BulkDeleteMessages`, `BulkDeleteThreads`, and `ExpungeIMAPMessages`. Reference-count check prevents deletion of paths shared by IMAP COPY.

@@ -6682,3 +6682,7 @@ Target outcome:
 1836. Message-list cursor encoding now emits compact base64 `unix_nano:id`
       payloads instead of JSON-marshaled cursor objects, while the decoder
       continues to accept legacy JSON cursors already held by clients.
+1837. OpenAPI auth contracts now match the implemented Mail API login response
+      fields, refresh-token rotation behavior, Admin API refresh response, and
+      password-reset request/confirm endpoints, with a regression test locking
+      those launch-critical paths into the contract draft.

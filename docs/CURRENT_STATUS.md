@@ -1,6 +1,12 @@
 # gogomail current status
 
-Last updated: 2026-05-21 (SaaS launch hardening continues: message cursor payload compacted)
+Last updated: 2026-05-21 (SaaS launch hardening continues: auth OpenAPI contract aligned)
+
+## Auth OpenAPI Contract Alignment (2026-05-21)
+- OpenAPI now documents the implemented Mail API login response fields: `refresh_token`, `client_ip`, MFA pending/setup flags, and password-change state.
+- `/auth/refresh` now describes both Mail API token rotation (`token` + replacement `refresh_token`) and Admin API refresh (`access_token`) without duplicate YAML path keys.
+- Password reset request/confirm endpoints are now documented with their request and `{status:"ok"}` response envelopes.
+- Verification target: `go test ./internal/httpapi -run OpenAPIDraftDocumentsMailAuthFlows`.
 
 ## Message Cursor Payload Compaction (2026-05-21)
 - Message-list, search, thread-message, and draft-search cursors now encode the hot path as compact `unix_nano:id` payloads before base64 instead of JSON marshaling every outgoing page cursor.
