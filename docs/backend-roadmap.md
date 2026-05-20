@@ -6640,3 +6640,6 @@ Target outcome:
       from one shared company/admin/action/resource/time filter path, returns
       count-query errors, and adds `id DESC` as a stable timestamp tie-breaker
       for deterministic filtered audit pages.
+1826. Standalone admin audit-log HTTP handlers now log backend failures
+      server-side and return a generic internal-error response, preventing raw
+      database or service error text from leaking to clients.
