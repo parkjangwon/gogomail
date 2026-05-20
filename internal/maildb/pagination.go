@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -171,11 +172,8 @@ func EncodeMessageListCursor(cursor MessageListCursor) (string, error) {
 	if strings.TrimSpace(cursor.ID) == "" {
 		return "", fmt.Errorf("cursor message id is required")
 	}
-	raw, err := json.Marshal(cursor)
-	if err != nil {
-		return "", fmt.Errorf("marshal message list cursor: %w", err)
-	}
-	return base64.RawURLEncoding.EncodeToString(raw), nil
+	raw := strconv.FormatInt(cursor.At.UTC().UnixNano(), 10) + ":" + strings.TrimSpace(cursor.ID)
+	return base64.RawURLEncoding.EncodeToString([]byte(raw)), nil
 }
 
 func DecodeMessageListCursor(value string) (MessageListCursor, error) {
@@ -190,14 +188,37 @@ func DecodeMessageListCursor(value string) (MessageListCursor, error) {
 	if err != nil {
 		return MessageListCursor{}, fmt.Errorf("decode message list cursor: %w", err)
 	}
-	var cursor MessageListCursor
-	if err := json.Unmarshal(raw, &cursor); err != nil {
-		return MessageListCursor{}, fmt.Errorf("unmarshal message list cursor: %w", err)
+	return decodeMessageListCursorRaw(raw)
+}
+
+func decodeMessageListCursorRaw(raw []byte) (MessageListCursor, error) {
+	if len(raw) > 0 && raw[0] == '{' {
+		var cursor MessageListCursor
+		if err := json.Unmarshal(raw, &cursor); err != nil {
+			return MessageListCursor{}, fmt.Errorf("unmarshal message list cursor: %w", err)
+		}
+		return validateMessageListCursor(cursor)
 	}
+	parts := strings.SplitN(string(raw), ":", 2)
+	if len(parts) != 2 {
+		return MessageListCursor{}, fmt.Errorf("message list cursor payload is malformed")
+	}
+	nanos, err := strconv.ParseInt(parts[0], 10, 64)
+	if err != nil {
+		return MessageListCursor{}, fmt.Errorf("parse message list cursor timestamp: %w", err)
+	}
+	return validateMessageListCursor(MessageListCursor{
+		At: time.Unix(0, nanos).UTC(),
+		ID: parts[1],
+	})
+}
+
+func validateMessageListCursor(cursor MessageListCursor) (MessageListCursor, error) {
 	if cursor.At.IsZero() {
 		return MessageListCursor{}, fmt.Errorf("cursor timestamp is required")
 	}
-	if strings.TrimSpace(cursor.ID) == "" {
+	cursor.ID = strings.TrimSpace(cursor.ID)
+	if cursor.ID == "" {
 		return MessageListCursor{}, fmt.Errorf("cursor message id is required")
 	}
 	if !isUUIDLike(cursor.ID) {

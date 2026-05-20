@@ -1,6 +1,8 @@
 package maildb
 
 import (
+	"encoding/base64"
+	"encoding/json"
 	"strings"
 	"testing"
 	"time"
@@ -14,6 +16,31 @@ func TestMessageListCursorRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatalf("EncodeMessageListCursor returned error: %v", err)
 	}
+	got, err := DecodeMessageListCursor(encoded)
+	if err != nil {
+		t.Fatalf("DecodeMessageListCursor returned error: %v", err)
+	}
+	if !got.At.Equal(want.At) || got.ID != want.ID {
+		t.Fatalf("cursor = %+v, want %+v", got, want)
+	}
+	raw, err := base64.RawURLEncoding.DecodeString(encoded)
+	if err != nil {
+		t.Fatalf("DecodeString returned error: %v", err)
+	}
+	if strings.Contains(string(raw), "{") || strings.Contains(string(raw), "created_at") || strings.Contains(string(raw), "at") {
+		t.Fatalf("encoded cursor still uses JSON payload: %q", string(raw))
+	}
+}
+
+func TestDecodeMessageListCursorAcceptsLegacyJSONPayload(t *testing.T) {
+	t.Parallel()
+
+	want := MessageListCursor{At: time.Date(2026, 5, 4, 1, 2, 3, 0, time.UTC), ID: "11111111-1111-1111-1111-111111111111"}
+	raw, err := json.Marshal(want)
+	if err != nil {
+		t.Fatalf("json.Marshal returned error: %v", err)
+	}
+	encoded := base64.RawURLEncoding.EncodeToString(raw)
 	got, err := DecodeMessageListCursor(encoded)
 	if err != nil {
 		t.Fatalf("DecodeMessageListCursor returned error: %v", err)
