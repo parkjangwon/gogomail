@@ -69,6 +69,7 @@ Last updated: 2026-05-21 (SaaS launch hardening continues: attachment cleanup ba
 - Webmail quick reply templates now sync through server preferences and keep a normalized local cache for compose and Spotlight search, so templates survive browser/device changes instead of living only in localStorage.
 - Admin outbox event listing now builds sargable WHERE clauses only for provided filters, avoiding the previous `NULLIF(...) OR ...` predicate shape that could blur index selectivity on large queues.
 - Admin delivery-attempt listing, stats, and exhausted-message views use the same sargable dynamic query shape for status, time, domain, message, farm, and sender filters, keeping large delivery-history inspection paths aligned with their indexes.
+- Admin company listing now adds the status predicate only when requested, keeping tenant operations clear of broad optional `OR` guards while preserving `has_more` probing.
 - Push-notification attempt list and stats views now build dynamic sargable predicates for message, user, platform, device, provider, and since filters, so Web Push operations remain inspectable as provider attempts grow.
 - Domain DNS check history listing now builds status and since predicates only when present, keeping domain operations history reads index-friendly.
 - API usage daily/monthly aggregate listings now build dynamic sargable predicates for tenant, company, domain, user, key, principal, auth source, method, route, status, and time windows, keeping SaaS usage and billing analytics responsive on large aggregates.

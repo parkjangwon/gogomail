@@ -6479,3 +6479,6 @@ Target outcome:
 1777. Attachment upload-session listing now uses dynamic optional user, draft,
       and status predicates, avoiding broad optional `OR` guards on
       upload-operation views.
+1778. Admin company listing now uses a dynamic optional status predicate,
+      avoiding broad optional `OR` guards on tenant operations while preserving
+      `has_more` probe limits.

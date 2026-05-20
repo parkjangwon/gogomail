@@ -18,31 +18,15 @@ func (r *Repository) ListCompanies(ctx context.Context, req CompanyListRequest) 
 		return nil, false, err
 	}
 	limit := normalizeLimit(req.Limit)
-	status := normalizeAdminStatus(req.Status)
 	queryLimit := limit
 	if req.ProbeMore {
 		queryLimit = limit + 1
 	}
-
-	rows, err := r.db.QueryContext(ctx, `
-SELECT
-  id::text,
-  name,
-  status,
-  quota_used,
-  COALESCE(quota_limit, 0),
-  COALESCE((
-    SELECT SUM(child.quota_limit)
-    FROM domains child
-    WHERE child.company_id = companies.id
-      AND child.quota_limit IS NOT NULL
-      AND child.quota_limit > 0
-  ), 0) AS allocated_domain_quota,
-  created_at
-FROM companies
-WHERE ($1 = '' OR status = $1)
-ORDER BY created_at DESC
-LIMIT $2`, status, queryLimit)
+	query, args := buildListCompaniesQuery(CompanyListRequest{
+		Limit:  queryLimit,
+		Status: req.Status,
+	})
+	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, false, fmt.Errorf("list companies: %w", err)
 	}
@@ -75,6 +59,45 @@ LIMIT $2`, status, queryLimit)
 		companies = companies[:limit]
 	}
 	return companies, hasMore, nil
+}
+
+const listCompaniesBaseSQL = `
+SELECT
+  id::text,
+  name,
+  status,
+  quota_used,
+  COALESCE(quota_limit, 0),
+  COALESCE((
+    SELECT SUM(child.quota_limit)
+    FROM domains child
+    WHERE child.company_id = companies.id
+      AND child.quota_limit IS NOT NULL
+      AND child.quota_limit > 0
+  ), 0) AS allocated_domain_quota,
+  created_at
+FROM companies
+`
+
+func buildListCompaniesQuery(req CompanyListRequest) (string, []any) {
+	args := make([]any, 0, 2)
+	conditions := make([]string, 0, 1)
+	if status := normalizeAdminStatus(req.Status); status != "" {
+		args = append(args, status)
+		conditions = append(conditions, fmt.Sprintf("status = $%d", len(args)))
+	}
+	limit := req.Limit
+	if limit <= 0 {
+		limit = normalizeLimit(limit)
+	}
+	args = append(args, limit)
+	query := listCompaniesBaseSQL
+	if len(conditions) > 0 {
+		query += "WHERE " + strings.Join(conditions, "\n  AND ") + "\n"
+	}
+	query += fmt.Sprintf(`ORDER BY created_at DESC
+LIMIT $%d`, len(args))
+	return query, args
 }
 
 func (r *Repository) GetCompany(ctx context.Context, id string) (CompanyView, error) {
