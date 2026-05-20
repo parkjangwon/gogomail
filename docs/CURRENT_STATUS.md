@@ -70,6 +70,7 @@ Last updated: 2026-05-21 (SaaS launch hardening continues: attachment cleanup ba
 - API usage daily/monthly aggregate listings now build dynamic sargable predicates for tenant, company, domain, user, key, principal, auth source, method, route, status, and time windows, keeping SaaS usage and billing analytics responsive on large aggregates.
 - API usage export batch listing now builds dynamic sargable predicates for tenant, principal, status, and export-window filters, keeping billing/export handoff discovery index-friendly as saved batches grow.
 - Directory alias listing now builds optional domain, target-kind, target-id, query, and active-status predicates only when requested, keeping large address-book alias operations aligned with selective indexes.
+- Directory organization-tree listing now emits the domain predicate only when requested, keeping organization navigation reads clear of optional `OR` guards.
 - Verification: `go test ./...`, `pnpm --dir apps/webmail type-check`, and `pnpm --dir apps/console type-check` pass.
 
 ## CLI Break-Glass MFA Reset (2026-05-19)

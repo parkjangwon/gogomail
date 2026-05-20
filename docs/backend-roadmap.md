@@ -6437,3 +6437,6 @@ Target outcome:
       target-kind, target-id, query, and active-status filters, avoiding broad
       optional `OR` guards on address-book alias operations as tenant directory
       data grows.
+1765. Directory organization-tree listing now emits the domain predicate only
+      when requested, avoiding broad optional `OR` guards on organization
+      navigation reads while preserving the same active-unit projection.

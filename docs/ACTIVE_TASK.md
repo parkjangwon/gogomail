@@ -316,6 +316,7 @@ Go Backend (`internal/`):
 - API usage daily/monthly 집계 조회도 tenant/company/domain/user/key/principal/auth/method/route/status/time 필터를 제공된 경우에만 WHERE에 추가하도록 바꿔 SaaS 사용량/청구 분석 화면의 대형 집계 조회가 인덱스 친화적인 쿼리 모양을 유지하게 함
 - API usage export batch 목록 조회도 tenant/principal/status/window 필터를 제공된 경우에만 WHERE에 추가하도록 바꿔 청구/사용량 export handoff 조회가 optional `OR` predicate를 피하게 함
 - Directory alias 목록 조회도 domain/target/query/active 필터를 제공된 경우에만 WHERE에 추가하도록 바꿔 대형 주소록에서 alias 운영 조회가 optional `OR` predicate를 피하게 함
+- Directory organization tree 조회도 domain 필터를 제공된 경우에만 WHERE에 추가하도록 바꿔 조직도 로딩 경로가 optional `OR` predicate를 피하게 함
 
 **System Email Connections & AutoPurge** ✅ COMPLETE
 - `internal/httpapi/admin.go`: Added `systemEmail mailservice.SystemEmailSender` and `publicBaseURL string` fields to `adminRouteConfig`; added `WithSystemEmailSender` and `WithPublicBaseURL` `AdminRouteOption` constructors
