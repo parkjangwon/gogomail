@@ -1,6 +1,12 @@
 # gogomail current status
 
-Last updated: 2026-05-21 (SaaS launch hardening continues: frontend launch safety tightened)
+Last updated: 2026-05-21 (SaaS launch hardening continues: POP3 login metadata path optimized)
+
+## POP3 Inbox Metadata Login Path (2026-05-21)
+- POP3 authentication now loads INBOX message id/size metadata through a POP3-specific lightweight page query instead of the full webmail message-list query with preview text joins.
+- The adapter converts each page directly into POP3 mailbox entries, avoiding the previous extra all-message `MessageSummary` aggregation before building the POP3 index.
+- Regression coverage verifies POP3 uses the metadata page path, and maildb SQL coverage locks out `message_search_documents` preview work from the POP3 query.
+- Verification target: `go test ./internal/mailservice -run POP3`; `go test ./internal/maildb -run POP3InboxMessagePageSQL`.
 
 ## Frontend Launch Safety Sweep (2026-05-21)
 - Console login no longer renders hardcoded demo credentials in non-production builds.

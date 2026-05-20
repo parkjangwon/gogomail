@@ -24,6 +24,7 @@ type pop3TestRepository struct {
 	details         map[string]maildb.MessageDetail
 	pageErr         error
 	pageCalls       int
+	fullPageCalls   int
 	folderUsers     []string
 	pageUsers       []string
 	pageFolders     []string
@@ -45,6 +46,15 @@ func (r *pop3TestRepository) ListMessagesInFolder(_ context.Context, _, _ string
 }
 
 func (r *pop3TestRepository) ListMessagesPage(_ context.Context, userID, folderID string, limit int, cursor maildb.MessageListCursor, _ maildb.MessageListFilter) ([]maildb.MessageSummary, error) {
+	r.fullPageCalls++
+	return r.listMessagePage(userID, folderID, limit, cursor)
+}
+
+func (r *pop3TestRepository) ListPOP3InboxMessagesPage(_ context.Context, userID, folderID string, limit int, cursor maildb.MessageListCursor) ([]maildb.MessageSummary, error) {
+	return r.listMessagePage(userID, folderID, limit, cursor)
+}
+
+func (r *pop3TestRepository) listMessagePage(userID, folderID string, limit int, cursor maildb.MessageListCursor) ([]maildb.MessageSummary, error) {
 	r.pageCalls++
 	r.pageUsers = append(r.pageUsers, userID)
 	r.pageFolders = append(r.pageFolders, folderID)
@@ -253,6 +263,9 @@ func TestPOP3StoreAdapterAuthenticateLoadsAllInboxPages(t *testing.T) {
 	}
 	if repo.pageCalls != 3 {
 		t.Fatalf("expected 3 page calls, got %d", repo.pageCalls)
+	}
+	if repo.fullPageCalls != 0 {
+		t.Fatalf("expected POP3 metadata path to avoid full message page calls, got %d", repo.fullPageCalls)
 	}
 	if len(repo.pageCursors) != 3 {
 		t.Fatalf("page cursors = %#v, want 3 cursors", repo.pageCursors)
