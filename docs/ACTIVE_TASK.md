@@ -283,6 +283,8 @@ Go Backend (`internal/`):
 - `TestExpireStaleAttachmentUploadsSQLUsesBatchUpdates`를 추가하고 attachment upload session cleanup도 같은 `decrementUserQuotasSQL` 회귀 가드를 공유하도록 정리함
 - thread list read path가 `COALESCE(thread_id, id)` thread key와 `message_at` expression으로 active messages를 집계하는 쿼리 shape에 맞춰 `0117_thread_list_indexes.sql` partial expression indexes를 추가함
 - `TestThreadListIndexMigrationMatchesThreadQueries`를 추가해 thread list index migration이 folder-scoped/unscoped active thread-key lookup을 계속 지원하도록 고정함
+- delivery attempt 생성과 exhausted event payload 생성이 수신자마다 DSN recipient 옵션을 선형 검색하지 않고, 요청당 한 번 만든 normalized address map을 재사용하도록 바꿔 대량 수신자 처리의 O(n²) DSN lookup 비용을 제거함
+- `TestDSNRecipientOptionsByAddressPreservesFirstNormalizedMatch`를 추가해 DSN recipient option map이 기존 first-match 의미와 빈 주소 제외를 유지하도록 고정함
 
 **System Email Connections & AutoPurge** ✅ COMPLETE
 - `internal/httpapi/admin.go`: Added `systemEmail mailservice.SystemEmailSender` and `publicBaseURL string` fields to `adminRouteConfig`; added `WithSystemEmailSender` and `WithPublicBaseURL` `AdminRouteOption` constructors

@@ -82,3 +82,21 @@ func TestAttemptsForCarriesDSNMetadata(t *testing.T) {
 		t.Fatalf("OriginalRecipient = %q", attempt.OriginalRecipient)
 	}
 }
+
+func TestDSNRecipientOptionsByAddressPreservesFirstNormalizedMatch(t *testing.T) {
+	t.Parallel()
+
+	byAddress := dsnRecipientOptionsByAddress([]DSNRecipientOptions{
+		{Address: " User@Example.NET ", OriginalRecipient: "rfc822;first"},
+		{Address: "user@example.net", OriginalRecipient: "rfc822;second"},
+		{Address: " ", OriginalRecipient: "rfc822;empty"},
+	})
+
+	got := byAddress["user@example.net"]
+	if got.OriginalRecipient != "rfc822;first" {
+		t.Fatalf("OriginalRecipient = %q, want first normalized match", got.OriginalRecipient)
+	}
+	if _, ok := byAddress[""]; ok {
+		t.Fatal("empty DSN recipient address was indexed")
+	}
+}

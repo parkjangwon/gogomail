@@ -56,11 +56,12 @@ func attemptsFor(job Job, status AttemptStatus, cause error, attemptedAt time.Ti
 	message = truncateUTF8Bytes(message, 2000)
 
 	recipients := job.Recipients()
+	dsnByAddress := dsnRecipientOptionsByAddress(job.DSN.Recipients)
 	attempts := make([]Attempt, 0, len(recipients))
 	for _, recipient := range recipients {
 		_, domain, _ := strings.Cut(strings.TrimSpace(recipient.Email), "@")
 		domain = strings.TrimSuffix(domain, ".")
-		dsnRecipient := dsnRecipientOptionsForAttempt(job.DSN.Recipients, recipient.Email)
+		dsnRecipient := dsnByAddress[strings.ToLower(strings.TrimSpace(recipient.Email))]
 		attempts = append(attempts, Attempt{
 			MessageID:         job.MessageID,
 			RFCMessageID:      job.RFCMessageID,
@@ -84,14 +85,22 @@ func attemptsFor(job Job, status AttemptStatus, cause error, attemptedAt time.Ti
 	return attempts
 }
 
-func dsnRecipientOptionsForAttempt(recipients []DSNRecipientOptions, address string) DSNRecipientOptions {
-	normalized := strings.ToLower(strings.TrimSpace(address))
-	for _, recipient := range recipients {
-		if strings.ToLower(strings.TrimSpace(recipient.Address)) == normalized {
-			return recipient
-		}
+func dsnRecipientOptionsByAddress(recipients []DSNRecipientOptions) map[string]DSNRecipientOptions {
+	if len(recipients) == 0 {
+		return nil
 	}
-	return DSNRecipientOptions{}
+	byAddress := make(map[string]DSNRecipientOptions, len(recipients))
+	for _, recipient := range recipients {
+		normalized := strings.ToLower(strings.TrimSpace(recipient.Address))
+		if normalized == "" {
+			continue
+		}
+		if _, ok := byAddress[normalized]; ok {
+			continue
+		}
+		byAddress[normalized] = recipient
+	}
+	return byAddress
 }
 
 func truncateUTF8Bytes(value string, maxBytes int) string {
