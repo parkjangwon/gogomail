@@ -6491,3 +6491,6 @@ Target outcome:
 1781. Message search now emits the folder predicate only for folder-scoped
       searches, using a typed `folder_id = $3::uuid` comparison and omitting
       folder predicates for all-mail searches.
+1782. Message and draft search now emit attachment predicates only when the
+      filter is requested, using typed boolean comparisons and omitting
+      attachment predicates for attachment-agnostic searches.

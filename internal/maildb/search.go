@@ -86,7 +86,7 @@ func (r *Repository) SearchMessages(ctx context.Context, query MessageSearchQuer
 	}
 
 	folderID := strings.TrimSpace(query.FolderID)
-	sqlQuery := buildMessageSearchSQL(sortMode, folderID)
+	sqlQuery := buildMessageSearchSQL(sortMode, folderID, hasAttachment)
 	rows, err := r.db.QueryContext(
 		ctx,
 		sqlQuery,
@@ -146,12 +146,17 @@ func (r *Repository) SearchMessages(ctx context.Context, query MessageSearchQuer
 	return messages, nil
 }
 
-func buildMessageSearchSQL(sortMode, folderID string) string {
+func buildMessageSearchSQL(sortMode, folderID, hasAttachment string) string {
 	query := messageSearchSQL(sortMode)
 	if folderID == "" {
-		return strings.Replace(query, "  AND ($3 = '' OR folder_id::text = $3)\n", "", 1)
+		query = strings.Replace(query, "  AND ($3 = '' OR folder_id::text = $3)\n", "", 1)
+	} else {
+		query = strings.Replace(query, "  AND ($3 = '' OR folder_id::text = $3)", "  AND folder_id = $3::uuid", 1)
 	}
-	return strings.Replace(query, "  AND ($3 = '' OR folder_id::text = $3)", "  AND folder_id = $3::uuid", 1)
+	if hasAttachment == "" {
+		return strings.Replace(query, "  AND ($9 = '' OR has_attachment = $9::boolean)\n", "", 1)
+	}
+	return strings.Replace(query, "  AND ($9 = '' OR has_attachment = $9::boolean)", "  AND has_attachment = $9::boolean", 1)
 }
 
 func (r *Repository) SearchDrafts(ctx context.Context, query DraftSearchQuery) ([]MessageDetail, error) {
@@ -174,7 +179,7 @@ func (r *Repository) SearchDrafts(ctx context.Context, query DraftSearchQuery) (
 
 	rows, err := r.db.QueryContext(
 		ctx,
-		draftSearchSQL(),
+		buildDraftSearchSQL(hasAttachment),
 		userID,
 		strings.TrimSpace(query.Query),
 		strings.TrimSpace(query.From),
@@ -366,6 +371,14 @@ WHERE user_id = $1
   )
 ORDER BY draft_at DESC, id DESC
 LIMIT $11`
+}
+
+func buildDraftSearchSQL(hasAttachment string) string {
+	query := draftSearchSQL()
+	if hasAttachment == "" {
+		return strings.Replace(query, "  AND ($8 = '' OR has_attachment = $8::boolean)\n", "", 1)
+	}
+	return strings.Replace(query, "  AND ($8 = '' OR has_attachment = $8::boolean)", "  AND has_attachment = $8::boolean", 1)
 }
 
 func searchHighlightsFromSQL(subject sql.NullString, from sql.NullString, body sql.NullString) *MessageSearchHighlights {
