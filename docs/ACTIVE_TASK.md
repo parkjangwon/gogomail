@@ -330,6 +330,7 @@ Go Backend (`internal/`):
 - 수신자 그룹 확장이 같은 발송 요청 안에서 반복된 `org:`/`addressbook:` 토큰을 요청당 캐시에 저장해 To/Cc/Bcc 중복 그룹 참조가 repository expansion DB 조회를 반복하지 않도록 정리함
 - hard-bounce suppression list 기록이 같은 배치 안의 동일 domain/email bounce를 DB로 보내기 전에 제거해 `ON CONFLICT`에 의존하던 중복 suppression row 작업을 줄임
 - 발송 전 suppression-list 확인이 수신자별 `SELECT 1 ... LIMIT 1` 반복 대신 `unnest($2::text[]) WITH ORDINALITY` 단일 batch lookup을 사용해 대량 발송 전 차단 수신자 확인 N+1 조회를 제거함
+- delivery handler가 디코딩 직후 normalized/deduped recipient list를 `Job`에 캐시해 transport/retry/throttle/backoff/recording 경로에서 같은 To/Cc/Bcc 병합과 주소 정규화를 반복하지 않도록 정리함
 - `BenchmarkGetMessageBodyCache`: miss `~7.83 us/op`, `10979 B/op`, `85 allocs/op`; hit `~933.6 ns/op`, `568 B/op`, `9 allocs/op`
 - README/README.ko, Docker env example, console/webmail env examples, backend release readiness 문서를 최신 운영 env 그룹(성능, 백업/복구, push/webhook, storage, API usage, system email)과 동기화함
 - BIMI VMC URL 존재만으로 `vmcVerified=true`를 반환하던 stub 동작을 제거해 실제 인증서 검증 전에는 VMC를 검증됨으로 표시하지 않도록 고정하고, logo cache hash 계산을 실제 SHA-256 body hash로 수정함

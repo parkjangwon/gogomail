@@ -7911,3 +7911,9 @@ Next focus areas:
 - Mail send suppression preflight now checks all unique requested recipients with one ordinality-preserving `unnest($2::text[])` lookup instead of one `SELECT 1 ... LIMIT 1` per recipient.
 - The query preserves first-recipient order after normalization and still matches both domain-scoped and global suppression rows.
 - Verification: `go test ./internal/maildb -run TestSuppressedRecipientsSQLUsesSingleOrdinalityBatchLookup`.
+
+## 2026-05-21 Delivery job recipient cache
+
+- Delivery event handling now computes the normalized, de-duplicated recipient list once per queued message and carries it on `Job`.
+- Transport, retry, throttle, backoff, and delivery attempt paths can reuse the cached list instead of repeatedly merging To/Cc/Bcc and normalizing addresses.
+- Verification: `go test ./internal/delivery -run 'Test(JobRecipientsUsesCachedRecipientList|AttemptsForUsesDeduplicatedRecipients|DecodeQueuedMessageNormalizesAndDeduplicatesRecipients)'`.

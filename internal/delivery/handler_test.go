@@ -1019,6 +1019,22 @@ func TestAttemptsForUsesDeduplicatedRecipients(t *testing.T) {
 	}
 }
 
+func TestJobRecipientsUsesCachedRecipientList(t *testing.T) {
+	t.Parallel()
+
+	job := Job{
+		QueuedMessage: QueuedMessage{
+			To: []outbound.Address{{Email: "raw@example.net"}},
+		},
+		recipientCache: []outbound.Address{{Name: "Cached", Email: "cached@example.net"}},
+	}
+
+	recipients := job.Recipients()
+	if len(recipients) != 1 || recipients[0].Email != "cached@example.net" || recipients[0].Name != "Cached" {
+		t.Fatalf("Recipients() = %+v, want cached recipient list", recipients)
+	}
+}
+
 type fakeTransport struct {
 	delivered QueuedMessage
 	raw       string
