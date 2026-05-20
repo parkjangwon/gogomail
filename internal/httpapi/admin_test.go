@@ -9054,6 +9054,7 @@ type fakeAdminService struct {
 	lastDomainSettings                          admin.DomainSettings
 	lastCreateDomain                            maildb.CreateDomainRequest
 	lastUserStatus                              maildb.UpdateUserStatusRequest
+	lastBulkUserStatus                          maildb.BulkUpdateUserStatusRequest
 	lastUserQuota                               maildb.UpdateUserQuotaRequest
 	lastUserPasswordHash                        maildb.UpdateUserPasswordHashRequest
 	lastUserRecoveryEmail                       maildb.UpdateUserRecoveryEmailRequest
@@ -9401,6 +9402,11 @@ func (f *fakeAdminService) GetUser(_ context.Context, id string) (maildb.UserVie
 func (f *fakeAdminService) UpdateUserStatus(_ context.Context, req maildb.UpdateUserStatusRequest) error {
 	f.lastUserStatus = req
 	return nil
+}
+
+func (f *fakeAdminService) BulkUpdateUserStatus(_ context.Context, req maildb.BulkUpdateUserStatusRequest) (maildb.BulkUpdateUserStatusResult, error) {
+	f.lastBulkUserStatus = req
+	return maildb.BulkUpdateUserStatusResult{Updated: req.IDs}, nil
 }
 
 func (f *fakeAdminService) UpdateUserQuota(_ context.Context, req maildb.UpdateUserQuotaRequest) error {

@@ -928,6 +928,27 @@ func TestValidateUpdateUserStatusRequestRejectsUnknownStatus(t *testing.T) {
 	}
 }
 
+func TestValidateBulkUpdateUserStatusRequestRejectsInvalidIDs(t *testing.T) {
+	t.Parallel()
+
+	err := ValidateBulkUpdateUserStatusRequest(BulkUpdateUserStatusRequest{
+		IDs:    []string{"not-a-uuid"},
+		Status: "active",
+	})
+	if err == nil {
+		t.Fatal("ValidateBulkUpdateUserStatusRequest accepted invalid user id")
+	}
+
+	err = ValidateBulkUpdateUserStatusRequest(BulkUpdateUserStatusRequest{
+		IDs:       []string{"00000000-0000-0000-0000-000000000001"},
+		Status:    "suspended",
+		CompanyID: "not-a-uuid",
+	})
+	if err == nil {
+		t.Fatal("ValidateBulkUpdateUserStatusRequest accepted invalid company id")
+	}
+}
+
 func TestValidateDeleteUserRequestRejectsBlankID(t *testing.T) {
 	t.Parallel()
 

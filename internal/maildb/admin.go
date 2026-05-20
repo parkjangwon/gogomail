@@ -20,6 +20,7 @@ import (
 	"github.com/gogomail/gogomail/internal/auth"
 	"github.com/gogomail/gogomail/internal/dnscheck"
 	"github.com/gogomail/gogomail/internal/mail"
+	"github.com/google/uuid"
 )
 
 var ErrDeliveryRouteNotFound = errors.New("delivery route not found")
@@ -906,6 +907,17 @@ type UpdateUserStatusRequest struct {
 	Status string `json:"status"`
 }
 
+type BulkUpdateUserStatusRequest struct {
+	IDs       []string `json:"ids"`
+	Status    string   `json:"status"`
+	CompanyID string   `json:"company_id,omitempty"`
+}
+
+type BulkUpdateUserStatusResult struct {
+	Updated []string `json:"updated"`
+	Failed  []string `json:"failed"`
+}
+
 type DeleteUserRequest struct {
 	ID string `json:"id"`
 }
@@ -1582,6 +1594,43 @@ func ValidateUpdateUserStatusRequest(req UpdateUserStatusRequest) error {
 	return nil
 }
 
+func ValidateBulkUpdateUserStatusRequest(req BulkUpdateUserStatusRequest) error {
+	if len(req.IDs) == 0 {
+		return fmt.Errorf("user ids are required")
+	}
+	if !isUserStatus(normalizeAdminStatus(req.Status)) {
+		return fmt.Errorf("unsupported user status %q", req.Status)
+	}
+	for _, id := range req.IDs {
+		if _, err := uuid.Parse(strings.TrimSpace(id)); err != nil {
+			return fmt.Errorf("invalid user id %q", id)
+		}
+	}
+	if companyID := strings.TrimSpace(req.CompanyID); companyID != "" {
+		if _, err := uuid.Parse(companyID); err != nil {
+			return fmt.Errorf("invalid company id %q", req.CompanyID)
+		}
+	}
+	return nil
+}
+
+func dedupeTrimmedStrings(values []string) []string {
+	seen := make(map[string]struct{}, len(values))
+	out := make([]string, 0, len(values))
+	for _, value := range values {
+		value = strings.TrimSpace(value)
+		if value == "" {
+			continue
+		}
+		if _, ok := seen[value]; ok {
+			continue
+		}
+		seen[value] = struct{}{}
+		out = append(out, value)
+	}
+	return out
+}
+
 func ValidateDeleteUserRequest(req DeleteUserRequest) error {
 	if strings.TrimSpace(req.ID) == "" {
 		return fmt.Errorf("user id is required")
@@ -1925,6 +1974,87 @@ func (r *Repository) DeleteUser(ctx context.Context, id string) error {
 		return fmt.Errorf("user %q not found", req.ID)
 	}
 	return nil
+}
+
+func (r *Repository) BulkUpdateUserStatus(ctx context.Context, req BulkUpdateUserStatusRequest) (BulkUpdateUserStatusResult, error) {
+	if r.db == nil {
+		return BulkUpdateUserStatusResult{}, fmt.Errorf("database handle is required")
+	}
+	if err := ValidateBulkUpdateUserStatusRequest(req); err != nil {
+		return BulkUpdateUserStatusResult{}, err
+	}
+	ids := dedupeTrimmedStrings(req.IDs)
+	status := normalizeAdminStatus(req.Status)
+	companyID := strings.TrimSpace(req.CompanyID)
+
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return BulkUpdateUserStatusResult{}, fmt.Errorf("begin bulk user status transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	rows, err := tx.QueryContext(ctx, `
+WITH input AS (
+  SELECT id::uuid
+  FROM unnest($1::text[]) AS id
+),
+updated AS (
+  UPDATE users u
+  SET status = $2,
+      updated_at = now()
+  FROM domains d, input i
+  WHERE u.domain_id = d.id
+    AND u.id = i.id
+    AND (NULLIF($3, '')::uuid IS NULL OR d.company_id = NULLIF($3, '')::uuid)
+  RETURNING u.id::text, u.domain_id::text, d.company_id::text, u.username, u.status
+)
+SELECT id, domain_id, company_id, username, status
+FROM updated
+ORDER BY id`, stringArray(ids), status, companyID)
+	if err != nil {
+		return BulkUpdateUserStatusResult{}, fmt.Errorf("bulk update user status: %w", err)
+	}
+	defer rows.Close()
+
+	updatedSet := make(map[string]struct{}, len(ids))
+	var result BulkUpdateUserStatusResult
+	for rows.Next() {
+		var view userStatusAuditView
+		if err := rows.Scan(&view.ID, &view.DomainID, &view.CompanyID, &view.Username, &view.Status); err != nil {
+			return BulkUpdateUserStatusResult{}, fmt.Errorf("scan bulk user status update: %w", err)
+		}
+		detail, err := userStatusAuditDetail(view)
+		if err != nil {
+			return BulkUpdateUserStatusResult{}, err
+		}
+		if err := audit.InsertTx(ctx, tx, audit.Log{
+			CompanyID:  view.CompanyID,
+			DomainID:   view.DomainID,
+			UserID:     view.ID,
+			Category:   "admin",
+			Action:     "user.status_update",
+			TargetType: "user",
+			TargetID:   view.ID,
+			Result:     view.Status,
+			Detail:     detail,
+		}); err != nil {
+			return BulkUpdateUserStatusResult{}, fmt.Errorf("record bulk user status audit: %w", err)
+		}
+		updatedSet[view.ID] = struct{}{}
+		result.Updated = append(result.Updated, view.ID)
+	}
+	if err := rows.Err(); err != nil {
+		return BulkUpdateUserStatusResult{}, fmt.Errorf("iterate bulk user status update: %w", err)
+	}
+	for _, id := range ids {
+		if _, ok := updatedSet[id]; !ok {
+			result.Failed = append(result.Failed, id)
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		return BulkUpdateUserStatusResult{}, fmt.Errorf("commit bulk user status transaction: %w", err)
+	}
+	return result, nil
 }
 
 func (r *Repository) UpdateUserQuota(ctx context.Context, req UpdateUserQuotaRequest) error {

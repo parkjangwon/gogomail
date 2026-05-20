@@ -1976,18 +1976,29 @@ func registerUserAndConfigRoutes(mux *http.ServeMux, service AdminService, token
 			return
 		}
 		ctx := r.Context()
-		succeeded := []string{}
-		failed := []map[string]string{}
-		for _, id := range input.IDs {
-			err := service.UpdateUserStatus(ctx, maildb.UpdateUserStatusRequest{ID: id, Status: targetStatus})
-			if err != nil {
-				failed = append(failed, map[string]string{"id": id, "error": err.Error()})
-			} else {
-				succeeded = append(succeeded, id)
+		companyID := ""
+		if claims, ok := adminClaimsFromCtx(ctx); ok && claims.Role == "company_admin" {
+			companyID = claims.CompanyID
+			if companyID == "" {
+				writeError(w, http.StatusForbidden, "access denied")
+				return
 			}
 		}
+		result, err := service.BulkUpdateUserStatus(ctx, maildb.BulkUpdateUserStatusRequest{
+			IDs:       input.IDs,
+			Status:    targetStatus,
+			CompanyID: companyID,
+		})
+		if err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		failed := make([]map[string]string, 0, len(result.Failed))
+		for _, id := range result.Failed {
+			failed = append(failed, map[string]string{"id": id, "error": "user not found or access denied"})
+		}
 		writeJSON(w, http.StatusOK, map[string]any{
-			"succeeded": succeeded,
+			"succeeded": result.Updated,
 			"failed":    failed,
 		})
 	}))

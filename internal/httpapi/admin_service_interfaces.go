@@ -75,6 +75,7 @@ type adminUserService interface {
 	CreateUser(ctx context.Context, req maildb.CreateUserRequest) (maildb.UserView, error)
 	DeleteUser(ctx context.Context, id string) error
 	UpdateUserStatus(ctx context.Context, req maildb.UpdateUserStatusRequest) error
+	BulkUpdateUserStatus(ctx context.Context, req maildb.BulkUpdateUserStatusRequest) (maildb.BulkUpdateUserStatusResult, error)
 	UpdateUserQuota(ctx context.Context, req maildb.UpdateUserQuotaRequest) error
 	UpdateUserPasswordHash(ctx context.Context, req maildb.UpdateUserPasswordHashRequest) error
 	UpdateUserRole(ctx context.Context, req maildb.UpdateUserRoleRequest) error
