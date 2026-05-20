@@ -1368,7 +1368,7 @@ func handleRDBMSSync(w http.ResponseWriter, r *http.Request, service AdminServic
 	}
 	result, err := service.TriggerRDBMSSync(r.Context(), id, syncType)
 	if err != nil {
-		if errors.Is(err, rdbmsidp.ErrSyncNotConfigured) {
+		if errors.Is(err, rdbmsidp.ErrSyncNotConfigured) || errors.Is(err, rdbmsidp.ErrMembershipSyncUnsupported) {
 			writeError(w, http.StatusNotImplemented, err.Error())
 			return
 		}
