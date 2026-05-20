@@ -6569,3 +6569,6 @@ Target outcome:
 1805. Open-tracking pixel creation now writes recipient pixels with one typed
       array `unnest` INSERT instead of one INSERT per recipient, reducing DB
       round trips for tracked bulk sends.
+1806. Recipient group expansion now caches repeated `org:` and `addressbook:`
+      tokens within each send request, avoiding duplicate repository expansion
+      queries when the same group appears across To/Cc/Bcc.

@@ -3010,6 +3010,10 @@ type fakeRepository struct {
 	lastBackfillUserID             string
 	lastBackfillMailboxID          string
 	lastBackfillLimit              int
+	orgRecipients                  map[string][]outbound.Address
+	addressBookRecipients          map[string][]outbound.Address
+	orgExpansionCalls              map[string]int
+	addressBookExpansionCalls      map[string]int
 	recordErr                      error
 	storeUploadSessionBodyErr      error
 }
@@ -3407,6 +3411,23 @@ func (f *fakeRepository) RecordOutgoing(_ context.Context, msg maildb.OutgoingMe
 func (f *fakeRepository) SuppressedRecipients(_ context.Context, _ string, recipients []string) ([]string, error) {
 	f.seenSuppressionRecipients = append([]string(nil), recipients...)
 	return f.suppressed, nil
+}
+
+func (f *fakeRepository) ExpandOrgRecipients(_ context.Context, _ string, orgID string, includeChildren bool) ([]outbound.Address, error) {
+	if f.orgExpansionCalls == nil {
+		f.orgExpansionCalls = make(map[string]int)
+	}
+	key := fmt.Sprintf("%s:%t", orgID, includeChildren)
+	f.orgExpansionCalls[key]++
+	return append([]outbound.Address(nil), f.orgRecipients[key]...), nil
+}
+
+func (f *fakeRepository) ExpandAddressBookRecipients(_ context.Context, _ string, addressBookID string) ([]outbound.Address, error) {
+	if f.addressBookExpansionCalls == nil {
+		f.addressBookExpansionCalls = make(map[string]int)
+	}
+	f.addressBookExpansionCalls[addressBookID]++
+	return append([]outbound.Address(nil), f.addressBookRecipients[addressBookID]...), nil
 }
 
 func (f *fakeRepository) DomainPolicy(_ context.Context, domainID string) (maildb.DomainPolicyView, error) {
@@ -3923,6 +3944,48 @@ func TestSendTextDeduplicatesSuppressionRecipients(t *testing.T) {
 	want := []string{"user@example.net", "other@example.net"}
 	if strings.Join(repo.seenSuppressionRecipients, ",") != strings.Join(want, ",") {
 		t.Fatalf("suppression recipients = %v, want %v", repo.seenSuppressionRecipients, want)
+	}
+}
+
+func TestExpandRecipientGroupsCachesRepeatedTokens(t *testing.T) {
+	t.Parallel()
+
+	repo := &fakeRepository{
+		orgRecipients: map[string][]outbound.Address{
+			"org-1:true": {{Name: "Org User", Email: "org-user@example.net"}},
+		},
+		addressBookRecipients: map[string][]outbound.Address{
+			"book-1": {{Name: "Book User", Email: "book-user@example.net"}},
+		},
+	}
+	service := New(repo, storage.NewLocalStore(t.TempDir()))
+
+	got, err := service.expandRecipientGroups(context.Background(), SendTextRequest{
+		UserID: "user-1",
+		To: []outbound.Address{
+			{Email: "org:org-1:children"},
+			{Email: "addressbook:book-1"},
+		},
+		Cc: []outbound.Address{
+			{Email: "org:org-1:children"},
+			{Email: "addressbook:book-1"},
+		},
+		Bcc: []outbound.Address{
+			{Email: "org:org-1:children"},
+			{Email: "addressbook:book-1"},
+		},
+	})
+	if err != nil {
+		t.Fatalf("expandRecipientGroups returned error: %v", err)
+	}
+	if repo.orgExpansionCalls["org-1:true"] != 1 {
+		t.Fatalf("org expansion calls = %d, want 1", repo.orgExpansionCalls["org-1:true"])
+	}
+	if repo.addressBookExpansionCalls["book-1"] != 1 {
+		t.Fatalf("address book expansion calls = %d, want 1", repo.addressBookExpansionCalls["book-1"])
+	}
+	if len(got.To) != 2 || len(got.Cc) != 0 || len(got.Bcc) != 0 {
+		t.Fatalf("expanded recipients = to:%v cc:%v bcc:%v, want two unique recipients only in first field", got.To, got.Cc, got.Bcc)
 	}
 }
 
