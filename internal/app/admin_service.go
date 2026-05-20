@@ -1570,9 +1570,9 @@ func (s adminService) DeleteAlertChannel(ctx context.Context, channelID string) 
 	return s.adminSvc.DeleteAlertChannel(ctx, channelID)
 }
 
-func (s adminService) ListAlertEvents(ctx context.Context, filter admin.AlertEventFilter) ([]admin.AlertEvent, error) {
+func (s adminService) ListAlertEvents(ctx context.Context, filter admin.AlertEventFilter) ([]admin.AlertEvent, bool, error) {
 	if s.adminSvc == nil {
-		return nil, fmt.Errorf("admin service is not configured")
+		return nil, false, fmt.Errorf("admin service is not configured")
 	}
 	return s.adminSvc.ListAlertEvents(ctx, filter)
 }

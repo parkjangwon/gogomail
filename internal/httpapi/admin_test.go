@@ -62,6 +62,43 @@ func TestAdminQueueHandler(t *testing.T) {
 	}
 }
 
+func TestHandleListAlertEventsReturnsPaginationMetadata(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeAdminService{
+		alertEvents: []admin.AlertEvent{
+			{ID: "event-1", CompanyID: "company-1", Message: "first"},
+			{ID: "event-2", CompanyID: "company-1", Message: "second"},
+			{ID: "event-3", CompanyID: "company-2", Message: "other"},
+		},
+	}
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/companies/company-1/alert-events?limit=1&offset=2&alert_rule_id=rule-1&unresolved=true", nil)
+	req.SetPathValue("id", "company-1")
+	rec := httptest.NewRecorder()
+
+	handleListAlertEvents(rec, req, service)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	var body struct {
+		Events  []admin.AlertEvent `json:"events"`
+		Limit   int                `json:"limit"`
+		Offset  int                `json:"offset"`
+		HasMore bool               `json:"has_more"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if body.Limit != 1 || body.Offset != 2 || !body.HasMore || len(body.Events) != 1 {
+		t.Fatalf("pagination body = %+v", body)
+	}
+	filter := service.lastListAlertEventsFilter
+	if filter.CompanyID != "company-1" || filter.AlertRuleID != "rule-1" || !filter.OnlyUnresolved || filter.Limit != 1 || filter.Offset != 2 {
+		t.Fatalf("filter = %+v", filter)
+	}
+}
+
 func TestAdminConsoleCapabilitiesHandler(t *testing.T) {
 	t.Parallel()
 
@@ -10456,7 +10493,7 @@ func (f *fakeAdminService) DeleteAlertChannel(_ context.Context, channelID strin
 	return nil
 }
 
-func (f *fakeAdminService) ListAlertEvents(_ context.Context, filter admin.AlertEventFilter) ([]admin.AlertEvent, error) {
+func (f *fakeAdminService) ListAlertEvents(_ context.Context, filter admin.AlertEventFilter) ([]admin.AlertEvent, bool, error) {
 	f.lastListAlertEventsFilter = filter
 	var events []admin.AlertEvent
 	for _, event := range f.alertEvents {
@@ -10464,7 +10501,11 @@ func (f *fakeAdminService) ListAlertEvents(_ context.Context, filter admin.Alert
 			events = append(events, event)
 		}
 	}
-	return events, nil
+	hasMore := filter.Limit > 0 && len(events) > filter.Limit
+	if hasMore {
+		events = events[:filter.Limit]
+	}
+	return events, hasMore, nil
 }
 
 func (f *fakeAdminService) LogAlertEvent(_ context.Context, event *admin.AlertEvent) error {

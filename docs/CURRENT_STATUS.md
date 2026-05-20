@@ -1,6 +1,11 @@
 # gogomail current status
 
-Last updated: 2026-05-21 (SaaS launch hardening continues: database identity provider pagination verified)
+Last updated: 2026-05-21 (SaaS launch hardening continues: admin alert event pagination verified)
+
+## Admin Alert Event Pagination (2026-05-21)
+- Company alert-event listing now uses a `limit + 1` probe and returns `limit`, `offset`, and `has_more` response metadata.
+- The handler accepts bounded `limit`, non-negative `offset`, `alert_rule_id`, and `unresolved` filters, and the OpenAPI contract now documents those query parameters and pagination fields.
+- Verification target: `go test ./internal/admin ./internal/httpapi -run AlertEvents`.
 
 ## Database Identity Provider Group Listing (2026-05-21)
 - Internal database identity-provider group listing now applies search text and offset pagination in SQL instead of ignoring those filter fields.
