@@ -162,6 +162,89 @@ func (r *Repository) ResolveUserByEmail(ctx context.Context, req ResolveUserByEm
 	return principal, nil
 }
 
+const resolveUsersByEmailsBaseSQL = `
+SELECT req.email,
+       u.id::text,
+       c.id::text,
+       d.id::text,
+       COALESCE(u.org_id::text, ''),
+       u.display_name,
+       COALESCE(primary_addr.address, ''),
+       u.status
+FROM unnest($1::text[]) WITH ORDINALITY AS req(email, email_order)
+JOIN user_addresses lookup ON lower(lookup.address) = lower(req.email)
+JOIN users u ON u.id = lookup.user_id
+JOIN domains d ON d.id = u.domain_id
+JOIN companies c ON c.id = d.company_id
+LEFT JOIN user_addresses primary_addr ON primary_addr.user_id = u.id AND primary_addr.is_primary = true`
+
+func buildResolveUsersByEmailsQuery(activeOnly bool) string {
+	query := resolveUsersByEmailsBaseSQL
+	if activeOnly {
+		query += "\nWHERE (u.status = 'active' AND d.status = 'active' AND c.status = 'active')"
+	}
+	query += "\nORDER BY req.email_order"
+	return query
+}
+
+func (r *Repository) ResolveUsersByEmails(ctx context.Context, emails []string, activeOnly bool) (map[string]Principal, error) {
+	if r == nil || r.db == nil {
+		return nil, fmt.Errorf("database handle is required")
+	}
+	emails = normalizeEmailList(emails)
+	out := make(map[string]Principal, len(emails))
+	if len(emails) == 0 {
+		return out, nil
+	}
+	rows, err := r.db.QueryContext(ctx, buildResolveUsersByEmailsQuery(activeOnly), pq.Array(emails))
+	if err != nil {
+		return nil, fmt.Errorf("resolve users by emails: %w", err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var email string
+		principal := Principal{Kind: PrincipalKindUser}
+		if err := rows.Scan(
+			&email,
+			&principal.ID,
+			&principal.CompanyID,
+			&principal.DomainID,
+			&principal.OrganizationID,
+			&principal.DisplayName,
+			&principal.PrimaryEmail,
+			&principal.Status,
+		); err != nil {
+			return nil, fmt.Errorf("scan resolved user by email: %w", err)
+		}
+		key := strings.ToLower(strings.TrimSpace(email))
+		if _, exists := out[key]; !exists {
+			out[key] = principal
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("resolve users by emails rows: %w", err)
+	}
+	return out, nil
+}
+
+func normalizeEmailList(emails []string) []string {
+	out := make([]string, 0, len(emails))
+	seen := make(map[string]struct{}, len(emails))
+	for _, email := range emails {
+		email = strings.TrimSpace(email)
+		if email == "" {
+			continue
+		}
+		key := strings.ToLower(email)
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		seen[key] = struct{}{}
+		out = append(out, email)
+	}
+	return out
+}
+
 func (r *Repository) CreateAlias(ctx context.Context, req CreateAliasRequest) (Alias, error) {
 	if r == nil || r.db == nil {
 		return Alias{}, fmt.Errorf("database handle is required")

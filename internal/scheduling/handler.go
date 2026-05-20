@@ -29,10 +29,10 @@ const DeliveryStream = "mail.outbound.general"
 type AttendeeKind string
 
 const (
-	AttendeeKindInternalUser     AttendeeKind = "internal-user"
-	AttendeeKindDirectoryAlias   AttendeeKind = "directory-alias"
-	AttendeeKindCardDAVContact  AttendeeKind = "carddav-contact"
-	AttendeeKindExternal        AttendeeKind = "external"
+	AttendeeKindInternalUser   AttendeeKind = "internal-user"
+	AttendeeKindDirectoryAlias AttendeeKind = "directory-alias"
+	AttendeeKindCardDAVContact AttendeeKind = "carddav-contact"
+	AttendeeKindExternal       AttendeeKind = "external"
 )
 
 type AttendeeResolution struct {
@@ -94,28 +94,29 @@ type DefaultAttendeeResolver struct {
 func NewDefaultAttendeeResolver(dirRepo *directory.Repository, carddavRepo *carddavgw.Repository) *DefaultAttendeeResolver {
 	return &DefaultAttendeeResolver{
 		directoryRepo: dirRepo,
-		carddavRepo:  carddavRepo,
+		carddavRepo:   carddavRepo,
 	}
 }
 
 func (r *DefaultAttendeeResolver) ResolveAttendees(ctx context.Context, userID string, addresses []string) ([]AttendeeResolution, error) {
 	resolutions := make([]AttendeeResolution, 0, len(addresses))
+	internalUsers := map[string]directory.Principal{}
+	if r.directoryRepo != nil {
+		users, err := r.directoryRepo.ResolveUsersByEmails(ctx, addresses, true)
+		if err == nil {
+			internalUsers = users
+		}
+	}
 
 	for _, addr := range addresses {
 		resolution := AttendeeResolution{Address: addr, Kind: AttendeeKindExternal}
 
-		if r.directoryRepo != nil {
-			principal, err := r.directoryRepo.ResolveUserByEmail(ctx, directory.ResolveUserByEmailRequest{
-				Email:      addr,
-				ActiveOnly: true,
-			})
-			if err == nil {
-				resolution.Kind = AttendeeKindInternalUser
-				resolution.UserID = principal.ID
-				resolution.Principal = principal
-				resolutions = append(resolutions, resolution)
-				continue
-			}
+		if principal, ok := internalUsers[strings.ToLower(strings.TrimSpace(addr))]; ok {
+			resolution.Kind = AttendeeKindInternalUser
+			resolution.UserID = principal.ID
+			resolution.Principal = principal
+			resolutions = append(resolutions, resolution)
+			continue
 		}
 
 		if r.directoryRepo != nil {
@@ -167,11 +168,11 @@ func NewHandler(logger *slog.Logger, queue Queue, store ObjectStore, attendeeRes
 
 type schedulingPayload struct {
 	SchemaVersion string `json:"schema_version"`
-	DavKind      string `json:"dav_kind"`
-	UserID       string `json:"user_id"`
-	UID          string `json:"uid"`
-	Method       string `json:"method"`
-	ICSPayload   string `json:"payload"`
+	DavKind       string `json:"dav_kind"`
+	UserID        string `json:"user_id"`
+	UID           string `json:"uid"`
+	Method        string `json:"method"`
+	ICSPayload    string `json:"payload"`
 }
 
 func (h *Handler) HandleEvent(ctx context.Context, msg eventstream.Message) error {

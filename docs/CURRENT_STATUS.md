@@ -7970,3 +7970,9 @@ Next focus areas:
 - LDAP gateway searches now batch-load requested/default `member` and `memberOf` relationships for all returned principals instead of calling `ListGroupMemberships` once per principal.
 - Directory repository batch membership queries use typed array `unnest(... WITH ORDINALITY)` and per-group/per-member `row_number()` limits to preserve deterministic response ordering without `array_position` rescans.
 - Verification target: `go test ./internal/directory -run 'Test(BatchGroupMembershipQueriesUseOrdinalityAndPerPrincipalLimits|ListGroupMembershipsQueryUsesSargableOptionalFilters)'`; `go test ./internal/app -run TestLDAP`; `go test ./internal/directory`.
+
+## 2026-05-21 Scheduling attendee user lookup batching
+
+- Calendar scheduling attendee resolution now preloads all internal-user matches with one typed-array email query before falling back to alias, CardDAV contact, or external attendee handling.
+- The batch query preserves input order with `unnest(... WITH ORDINALITY)`, uses direct active predicates, and avoids one `ResolveUserByEmail` database round trip per attendee on multi-user invitations.
+- Verification target: `go test ./internal/directory -run 'TestResolveDirectoryLookupQueriesUseSargableActiveFilters|TestResolveUserByEmail'`; `go test ./internal/scheduling`.
