@@ -700,6 +700,26 @@ type PushNotificationAttemptListRequest struct {
 	Since             time.Time
 }
 
+const listPushNotificationAttemptsBaseSQL = `
+SELECT
+  id::text,
+  message_id::text,
+  rfc_message_id,
+  COALESCE(company_id::text, ''),
+  COALESCE(domain_id::text, ''),
+  user_id::text,
+  recipient,
+  subject,
+  COALESCE(device_id::text, ''),
+  platform,
+  token_suffix,
+  status,
+  error_message,
+  provider_message_id,
+  provider_status,
+  attempted_at
+FROM push_notification_attempts`
+
 type UpdatePushNotificationOutcomeRequest struct {
 	AttemptID         string `json:"-"`
 	Status            string `json:"status"`
@@ -5880,37 +5900,8 @@ func (r *Repository) ListPushNotificationAttempts(ctx context.Context, req PushN
 		return nil, err
 	}
 
-	const query = `
-SELECT
-  id::text,
-  message_id::text,
-  rfc_message_id,
-  COALESCE(company_id::text, ''),
-  COALESCE(domain_id::text, ''),
-  user_id::text,
-  recipient,
-  subject,
-  COALESCE(device_id::text, ''),
-  platform,
-  token_suffix,
-  status,
-  error_message,
-  provider_message_id,
-  provider_status,
-  attempted_at
-FROM push_notification_attempts
-WHERE (NULLIF($2, '')::uuid IS NULL OR message_id = NULLIF($2, '')::uuid)
-  AND (NULLIF($3, '') IS NULL OR status = $3)
-  AND (NULLIF($4, '')::uuid IS NULL OR user_id = NULLIF($4, '')::uuid)
-  AND ($5::timestamptz IS NULL OR attempted_at >= $5::timestamptz)
-  AND (NULLIF($6, '') IS NULL OR platform = $6)
-  AND (NULLIF($7, '')::uuid IS NULL OR device_id = NULLIF($7, '')::uuid)
-  AND (NULLIF($8, '') IS NULL OR provider_status = $8)
-  AND (NULLIF($9, '') IS NULL OR provider_message_id = $9)
-ORDER BY attempted_at DESC, id DESC
-LIMIT $1`
-
-	rows, err := r.db.QueryContext(ctx, query, req.Limit, req.MessageID, req.Status, req.UserID, nullableTime(req.Since), req.Platform, req.DeviceID, req.ProviderStatus, req.ProviderMessageID)
+	query, args := buildListPushNotificationAttemptsQuery(req)
+	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("list push notification attempts: %w", err)
 	}
@@ -5945,6 +5936,60 @@ LIMIT $1`
 		return nil, fmt.Errorf("iterate push notification attempts: %w", err)
 	}
 	return attempts, nil
+}
+
+func buildListPushNotificationAttemptsQuery(req PushNotificationAttemptListRequest) (string, []any) {
+	query := listPushNotificationAttemptsBaseSQL
+	whereClause, args := buildPushNotificationAttemptWhereClause(req)
+	query += whereClause
+
+	args = append(args, req.Limit)
+	query += fmt.Sprintf(`
+ORDER BY attempted_at DESC, id DESC
+LIMIT $%d`, len(args))
+	return query, args
+}
+
+func buildPushNotificationAttemptWhereClause(req PushNotificationAttemptListRequest) (string, []any) {
+	var conditions []string
+	var args []any
+
+	if req.MessageID != "" {
+		args = append(args, req.MessageID)
+		conditions = append(conditions, fmt.Sprintf("message_id = $%d::uuid", len(args)))
+	}
+	if req.Status != "" {
+		args = append(args, req.Status)
+		conditions = append(conditions, fmt.Sprintf("status = $%d", len(args)))
+	}
+	if req.UserID != "" {
+		args = append(args, req.UserID)
+		conditions = append(conditions, fmt.Sprintf("user_id = $%d::uuid", len(args)))
+	}
+	if !req.Since.IsZero() {
+		args = append(args, req.Since.UTC())
+		conditions = append(conditions, fmt.Sprintf("attempted_at >= $%d", len(args)))
+	}
+	if req.Platform != "" {
+		args = append(args, req.Platform)
+		conditions = append(conditions, fmt.Sprintf("platform = $%d", len(args)))
+	}
+	if req.DeviceID != "" {
+		args = append(args, req.DeviceID)
+		conditions = append(conditions, fmt.Sprintf("device_id = $%d::uuid", len(args)))
+	}
+	if req.ProviderStatus != "" {
+		args = append(args, req.ProviderStatus)
+		conditions = append(conditions, fmt.Sprintf("provider_status = $%d", len(args)))
+	}
+	if req.ProviderMessageID != "" {
+		args = append(args, req.ProviderMessageID)
+		conditions = append(conditions, fmt.Sprintf("provider_message_id = $%d", len(args)))
+	}
+	if len(conditions) > 0 {
+		return "\nWHERE " + strings.Join(conditions, "\n  AND "), args
+	}
+	return "", args
 }
 
 func (r *Repository) GetPushNotificationAttempt(ctx context.Context, id string) (PushNotificationAttemptView, error) {
@@ -6238,31 +6283,9 @@ func (r *Repository) GetPushNotificationStats(ctx context.Context, req PushNotif
 		return PushNotificationStatsView{}, err
 	}
 
-	const query = `
-SELECT
-  COALESCE((
-    SELECT COUNT(*)
-    FROM push_devices
-    WHERE status = 'active'
-      AND (NULLIF($1, '')::uuid IS NULL OR user_id = NULLIF($1, '')::uuid)
-      AND (NULLIF($3, '') IS NULL OR platform = NULLIF($3, ''))
-      AND (NULLIF($4, '')::uuid IS NULL OR id = NULLIF($4, '')::uuid)
-  ), 0),
-  COALESCE(COUNT(*), 0),
-  COALESCE(COUNT(*) FILTER (WHERE status = 'candidate'), 0),
-  COALESCE(COUNT(*) FILTER (WHERE status = 'queued'), 0),
-  COALESCE(COUNT(*) FILTER (WHERE status = 'delivered'), 0),
-  COALESCE(COUNT(*) FILTER (WHERE status = 'failed'), 0),
-  COALESCE(COUNT(*) FILTER (WHERE status = 'invalid_token'), 0)
-FROM push_notification_attempts
-WHERE (NULLIF($1, '')::uuid IS NULL OR user_id = NULLIF($1, '')::uuid)
-  AND (NULLIF($2, '')::uuid IS NULL OR message_id = NULLIF($2, '')::uuid)
-  AND (NULLIF($3, '') IS NULL OR platform = NULLIF($3, ''))
-  AND (NULLIF($4, '')::uuid IS NULL OR device_id = NULLIF($4, '')::uuid)
-  AND ($5::timestamptz IS NULL OR attempted_at >= $5::timestamptz)`
-
 	var stats PushNotificationStatsView
-	if err := r.db.QueryRowContext(ctx, query, req.UserID, req.MessageID, req.Platform, req.DeviceID, nullableTime(req.Since)).Scan(
+	query, args := buildPushNotificationStatsQuery(req)
+	if err := r.db.QueryRowContext(ctx, query, args...).Scan(
 		&stats.ActiveDevices,
 		&stats.TotalAttempts,
 		&stats.Candidate,
@@ -6274,6 +6297,55 @@ WHERE (NULLIF($1, '')::uuid IS NULL OR user_id = NULLIF($1, '')::uuid)
 		return PushNotificationStatsView{}, fmt.Errorf("get push notification stats: %w", err)
 	}
 	return stats, nil
+}
+
+func buildPushNotificationStatsQuery(req PushNotificationStatsRequest) (string, []any) {
+	var args []any
+	activeConditions := []string{"status = 'active'"}
+	var attemptConditions []string
+
+	if req.UserID != "" {
+		args = append(args, req.UserID)
+		activeConditions = append(activeConditions, fmt.Sprintf("user_id = $%d::uuid", len(args)))
+		attemptConditions = append(attemptConditions, fmt.Sprintf("user_id = $%d::uuid", len(args)))
+	}
+	if req.MessageID != "" {
+		args = append(args, req.MessageID)
+		attemptConditions = append(attemptConditions, fmt.Sprintf("message_id = $%d::uuid", len(args)))
+	}
+	if req.Platform != "" {
+		args = append(args, req.Platform)
+		activeConditions = append(activeConditions, fmt.Sprintf("platform = $%d", len(args)))
+		attemptConditions = append(attemptConditions, fmt.Sprintf("platform = $%d", len(args)))
+	}
+	if req.DeviceID != "" {
+		args = append(args, req.DeviceID)
+		activeConditions = append(activeConditions, fmt.Sprintf("id = $%d::uuid", len(args)))
+		attemptConditions = append(attemptConditions, fmt.Sprintf("device_id = $%d::uuid", len(args)))
+	}
+	if !req.Since.IsZero() {
+		args = append(args, req.Since.UTC())
+		attemptConditions = append(attemptConditions, fmt.Sprintf("attempted_at >= $%d", len(args)))
+	}
+
+	query := fmt.Sprintf(`
+SELECT
+  COALESCE((
+    SELECT COUNT(*)
+    FROM push_devices
+    WHERE %s
+  ), 0),
+  COALESCE(COUNT(*), 0),
+  COALESCE(COUNT(*) FILTER (WHERE status = 'candidate'), 0),
+  COALESCE(COUNT(*) FILTER (WHERE status = 'queued'), 0),
+  COALESCE(COUNT(*) FILTER (WHERE status = 'delivered'), 0),
+  COALESCE(COUNT(*) FILTER (WHERE status = 'failed'), 0),
+  COALESCE(COUNT(*) FILTER (WHERE status = 'invalid_token'), 0)
+FROM push_notification_attempts`, strings.Join(activeConditions, "\n      AND "))
+	if len(attemptConditions) > 0 {
+		query += "\nWHERE " + strings.Join(attemptConditions, "\n  AND ")
+	}
+	return query, args
 }
 
 func normalizePushNotificationStatsRequest(req PushNotificationStatsRequest) (PushNotificationStatsRequest, error) {

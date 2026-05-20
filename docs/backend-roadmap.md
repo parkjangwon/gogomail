@@ -6415,3 +6415,8 @@ Target outcome:
       sargable predicate builder as the delivery-attempt list, so every
       high-volume delivery-history admin read path avoids `NULLIF(...) OR ...`
       filters and keeps selective queries index-friendly.
+1760. Push-notification attempt list and stats queries now build only the
+      predicates requested by the operator, including message, user, platform,
+      device, provider, and since filters.  This removes optional `OR`
+      predicates from Web Push operations reads before production attempt
+      history grows.
