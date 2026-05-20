@@ -4,12 +4,17 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
 
 	"github.com/gogomail/gogomail/internal/outbound"
 )
+
+// ErrDraftConflict is returned by updateDraft when optimistic locking detects
+// that the draft was modified by another session since the client last read it.
+var ErrDraftConflict = errors.New("draft was modified by another session")
 
 type DraftForSend struct {
 	ID              string
@@ -290,7 +295,10 @@ func (r *Repository) updateDraft(ctx context.Context, req SaveDraftRequest) (Mes
 	}
 
 	now := time.Now().UTC()
-	const query = `
+
+	// Build the WHERE clause: optionally add an optimistic-lock predicate on
+	// draft_updated_at so that concurrent saves from a second tab are rejected.
+	baseQuery := `
 UPDATE messages
 	SET source_message_id = NULLIF($3, '')::uuid,
     compose_intent = $4,
@@ -307,30 +315,60 @@ UPDATE messages
     flags = COALESCE(flags, '{}'::jsonb) || jsonb_build_object('read', true, 'track_opens', $14::boolean, 'scheduled_at', $15::text)
 WHERE user_id = $1
   AND id = $2
-  AND status = 'draft'
+  AND status = 'draft'`
+
+	var (
+		query     string
+		queryArgs []any
+	)
+	if !req.IfUpdatedAt.IsZero() {
+		query = baseQuery + `
+  AND draft_updated_at = $16
 RETURNING id::text, COALESCE(rfc_message_id, ''), subject, from_addr, from_name,
   to_addrs, cc_addrs, bcc_addrs, draft_updated_at, size, has_attachment, flags, storage_path, draft_text_body, html_body`
+		queryArgs = []any{
+			sender.UserID,
+			strings.TrimSpace(req.DraftID),
+			strings.TrimSpace(req.SourceMessageID),
+			normalizeDraftIntent(req.Intent),
+			req.Subject,
+			sender.Address,
+			sender.DisplayName,
+			string(toJSON),
+			string(ccJSON),
+			string(bccJSON),
+			req.TextBody,
+			req.HTMLBody,
+			now,
+			req.TrackOpens,
+			draftScheduledAtText(req.ScheduledAt),
+			req.IfUpdatedAt.UTC(),
+		}
+	} else {
+		query = baseQuery + `
+RETURNING id::text, COALESCE(rfc_message_id, ''), subject, from_addr, from_name,
+  to_addrs, cc_addrs, bcc_addrs, draft_updated_at, size, has_attachment, flags, storage_path, draft_text_body, html_body`
+		queryArgs = []any{
+			sender.UserID,
+			strings.TrimSpace(req.DraftID),
+			strings.TrimSpace(req.SourceMessageID),
+			normalizeDraftIntent(req.Intent),
+			req.Subject,
+			sender.Address,
+			sender.DisplayName,
+			string(toJSON),
+			string(ccJSON),
+			string(bccJSON),
+			req.TextBody,
+			req.HTMLBody,
+			now,
+			req.TrackOpens,
+			draftScheduledAtText(req.ScheduledAt),
+		}
+	}
 
 	var draft MessageDetail
-	if err := tx.QueryRowContext(
-		ctx,
-		query,
-		sender.UserID,
-		strings.TrimSpace(req.DraftID),
-		strings.TrimSpace(req.SourceMessageID),
-		normalizeDraftIntent(req.Intent),
-		req.Subject,
-		sender.Address,
-		sender.DisplayName,
-		string(toJSON),
-		string(ccJSON),
-		string(bccJSON),
-		req.TextBody,
-		req.HTMLBody,
-		now,
-		req.TrackOpens,
-		draftScheduledAtText(req.ScheduledAt),
-	).Scan(
+	if err := tx.QueryRowContext(ctx, query, queryArgs...).Scan(
 		&draft.ID,
 		&draft.MessageID,
 		&draft.Subject,
@@ -348,6 +386,19 @@ RETURNING id::text, COALESCE(rfc_message_id, ''), subject, from_addr, from_name,
 		&draft.HTMLBody,
 	); err != nil {
 		if err == sql.ErrNoRows {
+			if !req.IfUpdatedAt.IsZero() {
+				// The draft exists (or the user_id/status check failed). To distinguish
+				// "not found" from "conflict" we check whether the draft still exists.
+				var exists bool
+				_ = tx.QueryRowContext(ctx, `
+SELECT EXISTS (
+  SELECT 1 FROM messages
+  WHERE user_id = $1 AND id = $2 AND status = 'draft'
+)`, sender.UserID, strings.TrimSpace(req.DraftID)).Scan(&exists)
+				if exists {
+					return MessageDetail{}, ErrDraftConflict
+				}
+			}
 			return MessageDetail{}, fmt.Errorf("draft %q not found", req.DraftID)
 		}
 		return MessageDetail{}, fmt.Errorf("update draft: %w", err)

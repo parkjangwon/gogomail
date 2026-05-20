@@ -24,6 +24,10 @@ type SaveDraftRequest struct {
 	AttachmentIDs   []string           `json:"attachment_ids,omitempty"`
 	TrackOpens      bool               `json:"track_opens,omitempty"`
 	ScheduledAt     time.Time          `json:"scheduled_at,omitempty"`
+	// IfUpdatedAt enables optimistic locking for PATCH /api/v1/drafts/{id}.
+	// When non-zero the server rejects the update with HTTP 409 if
+	// draft_updated_at no longer matches, indicating a concurrent edit.
+	IfUpdatedAt time.Time `json:"if_updated_at,omitempty"`
 }
 
 func ValidateSaveDraftRequest(req SaveDraftRequest) error {

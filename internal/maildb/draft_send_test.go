@@ -1,6 +1,8 @@
 package maildb
 
 import (
+	"errors"
+	"fmt"
 	"testing"
 )
 
@@ -25,5 +27,19 @@ func TestDraftOutboundAddressesAllowsEmptyJSON(t *testing.T) {
 	}
 	if len(addresses) != 0 {
 		t.Fatalf("addresses = %+v", addresses)
+	}
+}
+
+func TestErrDraftConflictIsSentinel(t *testing.T) {
+	t.Parallel()
+
+	// Verify that ErrDraftConflict is a distinct sentinel that can be detected
+	// via errors.Is and is not equal to a generic error.
+	if !errors.Is(ErrDraftConflict, ErrDraftConflict) {
+		t.Fatal("ErrDraftConflict must satisfy errors.Is(err, ErrDraftConflict)")
+	}
+	wrapped := fmt.Errorf("outer: %w", ErrDraftConflict)
+	if !errors.Is(wrapped, ErrDraftConflict) {
+		t.Fatal("wrapped ErrDraftConflict must be detectable with errors.Is")
 	}
 }

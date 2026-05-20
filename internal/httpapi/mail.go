@@ -1458,6 +1458,10 @@ func RegisterMailRoutesWithOptions(mux *http.ServeMux, service MessageService, t
 		}
 		draft, err := service.SaveDraft(r.Context(), req)
 		if err != nil {
+			if errors.Is(err, maildb.ErrDraftConflict) {
+				writeError(w, http.StatusConflict, "Draft was modified by another session")
+				return
+			}
 			writeError(w, http.StatusBadRequest, err.Error())
 			return
 		}
