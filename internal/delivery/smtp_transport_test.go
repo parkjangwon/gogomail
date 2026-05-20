@@ -958,6 +958,9 @@ func startRecipientFailureSMTPSink(t *testing.T) (string, func()) {
 			errCh <- err
 			return
 		}
+		// The transport may not send QUIT if it pools the connection for reuse.
+		// Use a short deadline so the goroutine exits cleanly either way.
+		_ = conn.SetDeadline(time.Now().Add(500 * time.Millisecond))
 		if line, err := reader.ReadString('\n'); err == nil && strings.HasPrefix(line, "QUIT") {
 			_, _ = fmt.Fprintf(conn, "221 bye\r\n")
 		}

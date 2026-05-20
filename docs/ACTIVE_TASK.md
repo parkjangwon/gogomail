@@ -28,6 +28,13 @@
 - Fixed pre-existing test breakage in auth/password_test.go and maildb/admin_contract_test.go
   caused by allowLegacy=false enforcement; updated to allowLegacy=true for admin APIs
 
+**Security/RFC Hardening (OIDC, SAML, SMTP)** ✅ COMPLETE
+- OIDC: `alg=none` and non-RS256 algorithms now rejected when no clientSecret is configured
+- OIDC: audience (`aud`) claim rejected when clientID not configured but token carries non-empty aud
+- SAML: DigestValue verification added to `VerifySAMLSignature` — compares SHA-256 of Assertion
+  bytes against the DigestValue in SignedInfo, blocking XSW attacks
+- SMTP: Received header now uses `\r\n` line endings (RFC 5321 §2.3.8 CRLF compliance)
+
 **Console Admin MFA Implementation** 🔄 IN PROGRESS
 - Task 1 ✅ DONE: Added `AdminMFARequired` config field (env: `GOGOMAIL_ADMIN_MFA_REQUIRED`)
 - Tasks 2-9: Frontend/backend MFA enrollment, verification, CLI break-glass, security settings UI
