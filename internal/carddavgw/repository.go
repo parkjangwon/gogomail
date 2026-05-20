@@ -1465,41 +1465,38 @@ func (r *Repository) PruneAddressBookChanges(ctx context.Context, req PruneAddre
 		DryRun:        req.DryRun,
 	}
 	if req.DryRun {
-		const query = `
-WITH candidates AS (
-  SELECT c.id
-  FROM carddav_addressbook_changes c
-  WHERE c.changed_at < $1
-    AND ($2 = '' OR c.user_id = NULLIF($2, '')::uuid)
-    AND ($3 = '' OR c.addressbook_id = NULLIF($3, '')::uuid)
-    AND EXISTS (
-      SELECT 1
-      FROM carddav_addressbook_changes newer
-      WHERE newer.addressbook_id = c.addressbook_id
-        AND newer.id > c.id
-    )
-    AND NOT EXISTS (
-      SELECT 1
-      FROM carddav_addressbooks a
-      WHERE a.id = c.addressbook_id
-        AND a.sync_token = c.sync_token
-    )
-  ORDER BY c.id ASC
-  LIMIT $4
-)
-SELECT count(*)::bigint FROM candidates`
-		if err := r.db.QueryRowContext(ctx, query, req.Cutoff, req.UserID, req.AddressBookID, req.Limit).Scan(&result.CandidateCount); err != nil {
+		query, args := buildPruneAddressBookChangesSQL(req, true)
+		if err := r.db.QueryRowContext(ctx, query, args...).Scan(&result.CandidateCount); err != nil {
 			return AddressBookChangePruneResult{}, fmt.Errorf("check CardDAV sync change prune candidates: %w", err)
 		}
 		return result, nil
 	}
-	const query = `
+	query, args := buildPruneAddressBookChangesSQL(req, false)
+	if err := r.db.QueryRowContext(ctx, query, args...).Scan(&result.CandidateCount, &result.DeletedCount); err != nil {
+		return AddressBookChangePruneResult{}, fmt.Errorf("prune CardDAV sync changes: %w", err)
+	}
+	return result, nil
+}
+
+func buildPruneAddressBookChangesSQL(req PruneAddressBookChangesRequest, dryRun bool) (string, []any) {
+	args := []any{req.Cutoff}
+	where := []string{"c.changed_at < $1"}
+	if req.UserID != "" {
+		args = append(args, req.UserID)
+		where = append(where, fmt.Sprintf("c.user_id = $%d::uuid", len(args)))
+	}
+	if req.AddressBookID != "" {
+		args = append(args, req.AddressBookID)
+		where = append(where, fmt.Sprintf("c.addressbook_id = $%d::uuid", len(args)))
+	}
+	args = append(args, req.Limit)
+	limitParam := len(args)
+
+	query := fmt.Sprintf(`
 WITH candidates AS (
   SELECT c.id
   FROM carddav_addressbook_changes c
-  WHERE c.changed_at < $1
-    AND ($2 = '' OR c.user_id = NULLIF($2, '')::uuid)
-    AND ($3 = '' OR c.addressbook_id = NULLIF($3, '')::uuid)
+  WHERE %s
     AND EXISTS (
       SELECT 1
       FROM carddav_addressbook_changes newer
@@ -1513,19 +1510,20 @@ WITH candidates AS (
         AND a.sync_token = c.sync_token
     )
   ORDER BY c.id ASC
-  LIMIT $4
-),
+  LIMIT $%d
+)`, strings.Join(where, "\n    AND "), limitParam)
+	if dryRun {
+		return query + `
+SELECT count(*)::bigint FROM candidates`, args
+	}
+	return query + `,
 deleted AS (
   DELETE FROM carddav_addressbook_changes c
   USING candidates
   WHERE c.id = candidates.id
   RETURNING c.id
 )
-SELECT (SELECT count(*)::bigint FROM candidates), (SELECT count(*)::bigint FROM deleted)`
-	if err := r.db.QueryRowContext(ctx, query, req.Cutoff, req.UserID, req.AddressBookID, req.Limit).Scan(&result.CandidateCount, &result.DeletedCount); err != nil {
-		return AddressBookChangePruneResult{}, fmt.Errorf("prune CardDAV sync changes: %w", err)
-	}
-	return result, nil
+SELECT (SELECT count(*)::bigint FROM candidates), (SELECT count(*)::bigint FROM deleted)`, args
 }
 
 func ValidateCreateAddressBookRequest(req CreateAddressBookRequest) (CreateAddressBookRequest, string, string, error) {

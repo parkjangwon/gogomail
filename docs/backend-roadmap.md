@@ -6557,3 +6557,6 @@ Target outcome:
       events and stale processing locks, keeping worker candidate selection
       aligned with `available_at` and `locked_at` predicates as queue history
       grows.
+1802. CalDAV and CardDAV sync-change retention pruning now builds direct
+      user/calendar/addressbook predicates only when those scopes are
+      requested, avoiding optional `OR` guards in scheduled cleanup scans.
