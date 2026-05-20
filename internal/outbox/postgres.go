@@ -161,10 +161,16 @@ func (s *PostgresStore) MarkFailedBatch(ctx context.Context, failures []FailedEv
 		messages = append(messages, publishFailureMessage(failure.Cause))
 	}
 
-	const query = `
+	if _, err := s.db.ExecContext(ctx, markFailedBatchSQL, pq.Array(ids), s.maxAttempts, pq.Array(messages)); err != nil {
+		return fmt.Errorf("mark outbox events failed: %w", err)
+	}
+	return nil
+}
+
+const markFailedBatchSQL = `
 WITH failed(id, last_error) AS (
-  SELECT *
-  FROM unnest($1::uuid[], $3::text[])
+  SELECT id, last_error
+  FROM unnest($1::uuid[], $3::text[]) AS input(id, last_error)
 )
 UPDATE outbox AS o
 SET status = CASE WHEN attempts >= $2 THEN 'failed' ELSE 'pending' END,
@@ -173,12 +179,6 @@ SET status = CASE WHEN attempts >= $2 THEN 'failed' ELSE 'pending' END,
     processed_at = CASE WHEN attempts >= $2 THEN now() ELSE processed_at END
 FROM failed
 WHERE o.id = failed.id`
-
-	if _, err := s.db.ExecContext(ctx, query, pq.Array(ids), s.maxAttempts, pq.Array(messages)); err != nil {
-		return fmt.Errorf("mark outbox events failed: %w", err)
-	}
-	return nil
-}
 
 func publishFailureMessage(cause error) string {
 	message := "publish failed"
