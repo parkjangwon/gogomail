@@ -147,6 +147,20 @@ type OutboxEventView struct {
 
 const outboxEventListErrorPreviewBytes = 512
 
+const listOutboxEventsBaseSQL = `
+SELECT
+  id::text,
+  topic,
+  partition_key,
+  status,
+  attempts,
+  COALESCE(last_error, ''),
+  created_at,
+  available_at,
+  locked_at,
+  processed_at
+FROM outbox`
+
 type CompanyView struct {
 	ID                     string    `json:"id"`
 	Name                   string    `json:"name"`
@@ -3119,27 +3133,8 @@ func (r *Repository) ListOutboxEvents(ctx context.Context, req OutboxEventListRe
 		queryLimit = req.Limit + 1
 	}
 
-	const query = `
-SELECT
-  id::text,
-  topic,
-  partition_key,
-  status,
-  attempts,
-  COALESCE(last_error, ''),
-  created_at,
-  available_at,
-  locked_at,
-  processed_at
-FROM outbox
-WHERE (NULLIF($2, '') IS NULL OR topic = $2)
-  AND (NULLIF($3, '') IS NULL OR partition_key = $3)
-  AND (NULLIF($4, '') IS NULL OR status = $4)
-  AND ($5::timestamptz IS NULL OR created_at >= $5::timestamptz)
-ORDER BY created_at DESC, id DESC
-LIMIT $1`
-
-	rows, err := r.db.QueryContext(ctx, query, queryLimit, req.Topic, req.PartitionKey, req.Status, nullableTime(req.Since))
+	query, args := buildListOutboxEventsQuery(req, queryLimit)
+	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, false, fmt.Errorf("list outbox events: %w", err)
 	}
@@ -3181,6 +3176,38 @@ LIMIT $1`
 		events = events[:req.Limit]
 	}
 	return events, hasMore, nil
+}
+
+func buildListOutboxEventsQuery(req OutboxEventListRequest, queryLimit int) (string, []any) {
+	query := listOutboxEventsBaseSQL
+	var conditions []string
+	var args []any
+
+	if req.Topic != "" {
+		args = append(args, req.Topic)
+		conditions = append(conditions, fmt.Sprintf("topic = $%d", len(args)))
+	}
+	if req.PartitionKey != "" {
+		args = append(args, req.PartitionKey)
+		conditions = append(conditions, fmt.Sprintf("partition_key = $%d", len(args)))
+	}
+	if req.Status != "" {
+		args = append(args, req.Status)
+		conditions = append(conditions, fmt.Sprintf("status = $%d", len(args)))
+	}
+	if !req.Since.IsZero() {
+		args = append(args, req.Since.UTC())
+		conditions = append(conditions, fmt.Sprintf("created_at >= $%d", len(args)))
+	}
+	if len(conditions) > 0 {
+		query += "\nWHERE " + strings.Join(conditions, "\n  AND ")
+	}
+
+	args = append(args, queryLimit)
+	query += fmt.Sprintf(`
+ORDER BY created_at DESC, id DESC
+LIMIT $%d`, len(args))
+	return query, args
 }
 
 func (r *Repository) GetOutboxEvent(ctx context.Context, id string) (OutboxEventView, error) {
