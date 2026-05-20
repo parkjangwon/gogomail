@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/gogomail/gogomail/internal/idprovider"
 	"github.com/gogomail/gogomail/internal/maildb"
@@ -113,23 +114,7 @@ func (p *Provider) ListUsers(ctx context.Context, filter *idprovider.UserFilter)
 
 // ListGroups lists groups matching the filter.
 func (p *Provider) ListGroups(ctx context.Context, filter *idprovider.GroupFilter) ([]*idprovider.Group, error) {
-	query := `
-		SELECT id, domain_id, org_id, name, slug, description, status, settings, created_at, updated_at
-		FROM directory_groups WHERE status = 'active'
-	`
-
-	args := []interface{}{}
-	if filter != nil && filter.OrgID != nil {
-		query += ` AND org_id = $1`
-		args = append(args, *filter.OrgID)
-	}
-
-	limit := 100
-	if filter != nil && filter.Limit > 0 {
-		limit = filter.Limit
-	}
-	query += fmt.Sprintf(` LIMIT %d`, limit)
-
+	query, args := buildListGroupsQuery(filter)
 	rows, err := p.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, err
@@ -158,6 +143,37 @@ func (p *Provider) ListGroups(ctx context.Context, filter *idprovider.GroupFilte
 	}
 
 	return groups, rows.Err()
+}
+
+func buildListGroupsQuery(filter *idprovider.GroupFilter) (string, []any) {
+	query := `
+		SELECT id, domain_id, org_id, name, slug, description, status, settings, created_at, updated_at
+		FROM directory_groups WHERE status = 'active'
+	`
+	args := []any{}
+	if filter != nil && filter.OrgID != nil {
+		args = append(args, *filter.OrgID)
+		query += fmt.Sprintf(" AND org_id = $%d", len(args))
+	}
+	if filter != nil && filter.SearchQuery != nil {
+		search := strings.ToLower(strings.TrimSpace(*filter.SearchQuery))
+		if search != "" {
+			args = append(args, "%"+search+"%")
+			placeholder := fmt.Sprintf("$%d", len(args))
+			query += " AND (lower(name) LIKE " + placeholder + " OR lower(slug) LIKE " + placeholder + " OR lower(description) LIKE " + placeholder + ")"
+		}
+	}
+	limit := 100
+	if filter != nil && filter.Limit > 0 {
+		limit = filter.Limit
+	}
+	args = append(args, limit)
+	query += fmt.Sprintf(" ORDER BY lower(name), id LIMIT $%d", len(args))
+	if filter != nil && filter.Offset > 0 {
+		args = append(args, filter.Offset)
+		query += fmt.Sprintf(" OFFSET $%d", len(args))
+	}
+	return query, args
 }
 
 // CreateUser creates a new user.

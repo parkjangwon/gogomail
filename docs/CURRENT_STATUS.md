@@ -1,6 +1,11 @@
 # gogomail current status
 
-Last updated: 2026-05-21 (SaaS launch hardening continues: TASK-090 identity provider pagination verified)
+Last updated: 2026-05-21 (SaaS launch hardening continues: database identity provider pagination verified)
+
+## Database Identity Provider Group Listing (2026-05-21)
+- Internal database identity-provider group listing now applies search text and offset pagination in SQL instead of ignoring those filter fields.
+- Group list SQL now uses parameter placeholders for org/search/limit/offset and stable `ORDER BY lower(name), id` ordering so paged admin views do not drift.
+- Verification: `go test ./internal/idprovider/database` passes.
 
 ## RDBMS Identity Provider Pagination (2026-05-21)
 - External RDBMS identity-provider user/group list calls now push plain `Limit`/`Offset` pagination into the configured source query when no app-side search or org filter is requested.
