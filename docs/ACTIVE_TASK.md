@@ -366,6 +366,7 @@ Go Backend (`internal/`):
 - Directory delegation 목록 조회도 owner/delegate/scope/role/active 필터를 제공된 경우에만 WHERE에 추가하도록 바꿔 대형 delegation 운영 조회가 optional `OR` predicate를 피하게 함
 - Directory principal search 조회도 요청된 principal kind branch만 UNION에 포함하고 domain/org/query/active 필터를 제공된 경우에만 추가하도록 바꿔 주소록 검색이 optional `OR` predicate와 불필요한 branch scan을 피하게 함
 - CalDAV/CardDAV sync-change retention prune 쿼리도 user/calendar/addressbook scope가 있을 때만 direct UUID predicate를 추가하도록 바꿔 주기적 DAV 보존 정리에서 optional `OR` predicate를 제거함
+- LDAP 빈 `groupOfNames` 방어 fallback이 내부용 `cn=placeholder`를 노출하지 않고, DN 없는 in-memory 그룹에서는 그룹 CN을 RFC 4514 escape한 단일 DN으로 사용하도록 정리함
 
 **System Email Connections & AutoPurge** ✅ COMPLETE
 - `internal/httpapi/admin.go`: Added `systemEmail mailservice.SystemEmailSender` and `publicBaseURL string` fields to `adminRouteConfig`; added `WithSystemEmailSender` and `WithPublicBaseURL` `AdminRouteOption` constructors

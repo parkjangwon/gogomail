@@ -7942,3 +7942,8 @@ Next focus areas:
 - Active-message and draft search SQL now appends query/from/to/cc/bcc/subject predicates only when the corresponding request value is present.
 - Filterless searches no longer carry empty-text optional `OR` guards for all search fields, while relevance ranking/highlighting remains available when a query term is supplied.
 - Verification target: `go test ./internal/maildb -run 'Test(MessageSearchSQL|DraftSearchSQL)'`.
+
+## 2026-05-21 LDAP empty group fallback cleanup
+
+- Empty LDAP `groupOfNames` entries still emit a schema-safe `member` fallback, but defensive in-memory groups without a generated DN now use their escaped CN instead of leaking the internal `cn=placeholder` value.
+- Verification target: `go test ./internal/ldapgw -run TestPrincipalLDAPAttributesSatisfyDeclaredObjectClassRequirements`.

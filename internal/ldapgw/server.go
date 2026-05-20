@@ -1200,7 +1200,7 @@ func principalLDAPAttributes(p PrincipalEntry) map[string][]string {
 		attrs["objectClass"] = []string{"top", "groupOfNames"}
 		members := nonEmptyLDAPValues(p.Members)
 		if len(members) == 0 {
-			members = []string{firstNonEmpty(p.DN, "cn=placeholder")}
+			members = []string{ldapEmptyGroupMemberFallbackDN(p, cn)}
 		}
 		attrs["member"] = members
 	case "resource":
@@ -1225,6 +1225,14 @@ func principalLDAPAttributes(p PrincipalEntry) map[string][]string {
 		attrs[k] = values
 	}
 	return attrs
+}
+
+func ldapEmptyGroupMemberFallbackDN(p PrincipalEntry, cn string) string {
+	if dn := strings.TrimSpace(p.DN); dn != "" {
+		return dn
+	}
+	name := firstNonEmpty(cn, p.DisplayName, p.UID, "empty-group")
+	return "cn=" + escapeNormalizedDNValue(name)
 }
 
 func ldapProxyAddresses(mail string) []string {
