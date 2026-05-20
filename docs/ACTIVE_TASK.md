@@ -238,6 +238,7 @@ Go Backend (`internal/`):
 - thread list의 read/starred/attachment 필터도 제공된 경우에만 직접 predicate를 추가하고, 필터 없는 목록에서는 nullable boolean optional `OR` predicate를 제거함
 - thread list cursor predicate도 커서가 있을 때만 newest/oldest 방향에 맞는 tuple comparison을 추가하고, 첫 페이지 목록에서는 pagination optional `OR`를 제거함
 - IMAP message listing도 first-page/cursor-page 쿼리를 분리해 첫 페이지에서는 UID cursor predicate를 제거하고, cursor 페이지에서는 assigned UID 후보와 lazy UID-assignment 후보를 `UNION ALL`로 나눠 nullable optional `OR` predicate를 제거함
+- IMAP cursor-page listing의 outer query도 `SELECT *` 대신 IMAP summary 응답에 필요한 컬럼을 명시하도록 바꿔 wide projection 회귀를 줄임
 - Admin role assignment read paths도 permanent/future-expiring active assignment를 `UNION ALL`로 분리하고, `0119_admin_user_role_active_indexes.sql`로 role summary/user-role lookup partial index를 추가함
 - Quota reconciliation scoped dry-run/correction 쿼리도 요청 scope별 direct predicate를 생성하도록 바꿔 all-scope correction에서는 `$1 = '' OR ...` guard를 제거함
 - Directory group membership update cycle check도 excluding recursive query를 빌더화해 `ActiveOnly` 요청 때만 direct active predicate를 추가하고 boolean optional `OR` guard를 제거함

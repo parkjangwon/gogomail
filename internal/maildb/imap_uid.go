@@ -286,17 +286,17 @@ func buildListIMAPMessagesQuery(afterUID imapgw.UID) string {
 
 const listIMAPMessagesSelectColumns = `
 SELECT
-  m.id::text,
-  m.folder_id::text,
-  COALESCE(m.rfc_message_id, ''),
-  m.subject,
-  m.from_addr,
-  m.from_name,
-  m.to_addrs,
-  m.cc_addrs,
-  m.bcc_addrs,
+  m.id::text AS id,
+  m.folder_id::text AS folder_id,
+  COALESCE(m.rfc_message_id, '') AS rfc_message_id,
+  m.subject AS subject,
+  m.from_addr AS from_addr,
+  m.from_name AS from_name,
+  m.to_addrs AS to_addrs,
+  m.cc_addrs AS cc_addrs,
+  m.bcc_addrs AS bcc_addrs,
   COALESCE(m.received_at, m.sent_at, m.draft_updated_at, m.created_at) AS internal_date,
-  m.size,
+  m.size AS size,
   COALESCE((m.flags->>'read')::boolean, false) AS read,
   COALESCE((m.flags->>'starred')::boolean, false) AS starred,
   COALESCE((m.flags->>'answered')::boolean, false) AS answered,
@@ -307,9 +307,33 @@ SELECT
     WHEN jsonb_typeof(m.flags->'imap_keywords') = 'array' THEN m.flags->'imap_keywords'
     ELSE '[]'::jsonb
   END AS imap_keywords,
-  m.status,
-  i.uid,
-  i.modseq`
+  m.status AS status,
+  i.uid AS uid,
+  i.modseq AS modseq`
+
+const listIMAPMessagesOuterColumns = `
+SELECT
+  id,
+  folder_id,
+  rfc_message_id,
+  subject,
+  from_addr,
+  from_name,
+  to_addrs,
+  cc_addrs,
+  bcc_addrs,
+  internal_date,
+  size,
+  read,
+  starred,
+  answered,
+  forwarded,
+  draft,
+  deleted,
+  imap_keywords,
+  status,
+  uid,
+  modseq`
 
 const listIMAPMessagesInitialQuery = listIMAPMessagesSelectColumns + `
 FROM messages m
@@ -324,8 +348,7 @@ ORDER BY
   m.id
 LIMIT $4`
 
-const listIMAPMessagesAfterUIDQuery = `
-SELECT *
+const listIMAPMessagesAfterUIDQuery = listIMAPMessagesOuterColumns + `
 FROM (` + listIMAPMessagesSelectColumns + `
   FROM messages m
   JOIN imap_message_uid i ON i.message_id = m.id
