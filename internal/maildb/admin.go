@@ -3391,7 +3391,64 @@ func (r *Repository) ListQuotaUsage(ctx context.Context, req QuotaUsageListReque
 		return nil, err
 	}
 
-	const query = `
+	query, args := buildListQuotaUsageQuery(req)
+	rows, err := r.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("list quota usage: %w", err)
+	}
+	defer rows.Close()
+
+	var usages []QuotaUsageView
+	for rows.Next() {
+		var usage QuotaUsageView
+		if err := rows.Scan(
+			&usage.Scope,
+			&usage.ID,
+			&usage.DomainID,
+			&usage.Name,
+			&usage.QuotaUsed,
+			&usage.QuotaLimit,
+			&usage.AllocatedQuota,
+			&usage.UpdatedAt,
+		); err != nil {
+			return nil, fmt.Errorf("scan quota usage: %w", err)
+		}
+		usage.QuotaRemaining = quotaRemaining(usage.QuotaUsed, usage.QuotaLimit)
+		usage.AllocatableQuota = quotaRemaining(usage.AllocatedQuota, usage.QuotaLimit)
+		usage.UsageRatio = quotaUsageRatio(usage.QuotaUsed, usage.QuotaLimit)
+		usage.AllocationRatio = quotaUsageRatio(usage.AllocatedQuota, usage.QuotaLimit)
+		usage.OverLimit = usage.QuotaLimit > 0 && usage.QuotaUsed >= usage.QuotaLimit
+		usage.OverAllocated = usage.QuotaLimit > 0 && usage.AllocatedQuota > usage.QuotaLimit
+		usages = append(usages, usage)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate quota usage: %w", err)
+	}
+	return usages, nil
+}
+
+func buildListQuotaUsageQuery(req QuotaUsageListRequest) (string, []any) {
+	args := []any{req.Limit}
+	where := make([]string, 0, 4)
+	if req.Scope != "" {
+		args = append(args, req.Scope)
+		where = append(where, fmt.Sprintf("scope = $%d", len(args)))
+	}
+	if req.DomainID != "" {
+		args = append(args, req.DomainID)
+		where = append(where, fmt.Sprintf("domain_id = $%d", len(args)))
+	}
+	if req.OverLimit != nil {
+		args = append(args, *req.OverLimit)
+		where = append(where, fmt.Sprintf("(quota_used >= quota_limit) = $%d::bool", len(args)))
+	}
+	if req.OverAllocated != nil {
+		args = append(args, *req.OverAllocated)
+		where = append(where, fmt.Sprintf("(allocated_quota > quota_limit) = $%d::bool", len(args)))
+	}
+
+	var builder strings.Builder
+	builder.WriteString(`
 SELECT scope, id, domain_id, name, quota_used, quota_limit, allocated_quota, updated_at
 FROM (
   SELECT
@@ -3443,46 +3500,14 @@ FROM (
   JOIN domains ON domains.id = users.domain_id
   WHERE users.quota_limit IS NOT NULL AND users.quota_limit > 0
 ) usage
-WHERE ($2 = '' OR scope = $2)
-  AND ($3 = '' OR domain_id = $3)
-  AND ($4::bool IS NULL OR (quota_used >= quota_limit) = $4)
-  AND ($5::bool IS NULL OR (allocated_quota > quota_limit) = $5)
-ORDER BY (quota_used::double precision / quota_limit::double precision) DESC, updated_at DESC
-LIMIT $1`
-
-	rows, err := r.db.QueryContext(ctx, query, req.Limit, req.Scope, req.DomainID, req.OverLimit, req.OverAllocated)
-	if err != nil {
-		return nil, fmt.Errorf("list quota usage: %w", err)
+`)
+	if len(where) > 0 {
+		builder.WriteString("WHERE ")
+		builder.WriteString(strings.Join(where, "\n  AND "))
+		builder.WriteByte('\n')
 	}
-	defer rows.Close()
-
-	var usages []QuotaUsageView
-	for rows.Next() {
-		var usage QuotaUsageView
-		if err := rows.Scan(
-			&usage.Scope,
-			&usage.ID,
-			&usage.DomainID,
-			&usage.Name,
-			&usage.QuotaUsed,
-			&usage.QuotaLimit,
-			&usage.AllocatedQuota,
-			&usage.UpdatedAt,
-		); err != nil {
-			return nil, fmt.Errorf("scan quota usage: %w", err)
-		}
-		usage.QuotaRemaining = quotaRemaining(usage.QuotaUsed, usage.QuotaLimit)
-		usage.AllocatableQuota = quotaRemaining(usage.AllocatedQuota, usage.QuotaLimit)
-		usage.UsageRatio = quotaUsageRatio(usage.QuotaUsed, usage.QuotaLimit)
-		usage.AllocationRatio = quotaUsageRatio(usage.AllocatedQuota, usage.QuotaLimit)
-		usage.OverLimit = usage.QuotaLimit > 0 && usage.QuotaUsed >= usage.QuotaLimit
-		usage.OverAllocated = usage.QuotaLimit > 0 && usage.AllocatedQuota > usage.QuotaLimit
-		usages = append(usages, usage)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("iterate quota usage: %w", err)
-	}
-	return usages, nil
+	builder.WriteString("ORDER BY (quota_used::double precision / quota_limit::double precision) DESC, updated_at DESC\nLIMIT $1")
+	return builder.String(), args
 }
 
 func normalizeQuotaUsageListRequest(req QuotaUsageListRequest) (QuotaUsageListRequest, error) {

@@ -1224,6 +1224,57 @@ func TestListUsersQueryUsesSargableOptionalFilters(t *testing.T) {
 	}
 }
 
+func TestListQuotaUsageQueryUsesSargableOptionalFilters(t *testing.T) {
+	t.Parallel()
+
+	overLimit := true
+	overAllocated := false
+	query, args := buildListQuotaUsageQuery(QuotaUsageListRequest{
+		Limit:         25,
+		Scope:         "domain",
+		DomainID:      "domain-1",
+		OverLimit:     &overLimit,
+		OverAllocated: &overAllocated,
+	})
+	for _, want := range []string{
+		"FROM (",
+		"WHERE scope = $2",
+		"AND domain_id = $3",
+		"AND (quota_used >= quota_limit) = $4::bool",
+		"AND (allocated_quota > quota_limit) = $5::bool",
+		"ORDER BY (quota_used::double precision / quota_limit::double precision) DESC",
+		"LIMIT $1",
+	} {
+		if !strings.Contains(query, want) {
+			t.Fatalf("list quota usage query missing %q:\n%s", want, query)
+		}
+	}
+	for _, forbidden := range []string{
+		"$2 = '' OR",
+		"$3 = '' OR",
+		"$4::bool IS NULL",
+		"$5::bool IS NULL",
+	} {
+		if strings.Contains(query, forbidden) {
+			t.Fatalf("list quota usage query contains non-sargable optional filter %q:\n%s", forbidden, query)
+		}
+	}
+	if len(args) != 5 {
+		t.Fatalf("args len = %d, want 5", len(args))
+	}
+	if args[0] != 25 || args[1] != "domain" || args[2] != "domain-1" || args[3] != true || args[4] != false {
+		t.Fatalf("args = %#v", args)
+	}
+
+	query, args = buildListQuotaUsageQuery(QuotaUsageListRequest{Limit: MessageListDefaultLimit})
+	if strings.Contains(query, "WHERE scope") || strings.Contains(query, "IS NULL OR") {
+		t.Fatalf("unfiltered list quota usage query unexpectedly includes optional filters:\n%s", query)
+	}
+	if len(args) != 1 || args[0] != MessageListDefaultLimit {
+		t.Fatalf("unfiltered args = %#v", args)
+	}
+}
+
 func TestValidateUpdateUserQuotaRequestRejectsNegativeQuota(t *testing.T) {
 	t.Parallel()
 
