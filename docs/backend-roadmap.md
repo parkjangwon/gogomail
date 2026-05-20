@@ -6317,3 +6317,7 @@ Target outcome:
       reference counts from bulk delete and IMAP EXPUNGE paths.  Both queries
       build target storage paths once, group `messages` references by path, and
       return only paths whose grouped reference count is one.
+1739. TASK-090 legacy stale attachment upload cleanup now uses typed-array batch
+      updates and the shared aggregated quota-decrement CTE, matching upload
+      session cleanup and avoiding one attachment update plus three quota
+      writes per stale attachment.

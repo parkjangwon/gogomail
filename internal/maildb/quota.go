@@ -7,6 +7,7 @@ import (
 	"fmt"
 
 	"github.com/gogomail/gogomail/internal/mail"
+	"github.com/lib/pq"
 )
 
 // checkAndIncrementUserQuota checks whether the company -> domain -> user quota
@@ -134,6 +135,72 @@ SET quota_used = GREATEST(0, quota_used - $2),
     updated_at = now()
 WHERE id = $1`, companyID, size); err != nil {
 		return fmt.Errorf("decrement company quota: %w", err)
+	}
+	return nil
+}
+
+const decrementUserQuotasSQL = `
+WITH input AS (
+  SELECT user_id, bytes
+  FROM unnest($1::uuid[], $2::bigint[]) AS input(user_id, bytes)
+  WHERE bytes > 0
+),
+user_usage AS (
+  SELECT user_id, SUM(bytes)::bigint AS bytes
+  FROM input
+  GROUP BY user_id
+),
+domain_usage AS (
+  SELECT u.domain_id, SUM(user_usage.bytes)::bigint AS bytes
+  FROM user_usage
+  JOIN users u ON u.id = user_usage.user_id
+  GROUP BY u.domain_id
+),
+company_usage AS (
+  SELECT d.company_id, SUM(domain_usage.bytes)::bigint AS bytes
+  FROM domain_usage
+  JOIN domains d ON d.id = domain_usage.domain_id
+  GROUP BY d.company_id
+),
+updated_users AS (
+  UPDATE users u
+  SET quota_used = GREATEST(0, quota_used - user_usage.bytes),
+      updated_at = now()
+  FROM user_usage
+  WHERE u.id = user_usage.user_id
+  RETURNING u.id
+),
+updated_domains AS (
+  UPDATE domains d
+  SET quota_used = GREATEST(0, quota_used - domain_usage.bytes),
+      updated_at = now()
+  FROM domain_usage
+  WHERE d.id = domain_usage.domain_id
+  RETURNING d.id
+),
+updated_companies AS (
+  UPDATE companies c
+  SET quota_used = GREATEST(0, quota_used - company_usage.bytes),
+      updated_at = now()
+  FROM company_usage
+  WHERE c.id = company_usage.company_id
+  RETURNING c.id
+)
+SELECT
+  (SELECT COUNT(*) FROM updated_users),
+  (SELECT COUNT(*) FROM updated_domains),
+  (SELECT COUNT(*) FROM updated_companies)`
+
+func decrementUserQuotas(ctx context.Context, tx *sql.Tx, userIDs []string, sizes []int64) error {
+	if len(userIDs) == 0 || len(sizes) == 0 {
+		return nil
+	}
+	if len(userIDs) != len(sizes) {
+		return fmt.Errorf("quota decrement input length mismatch")
+	}
+	var updatedUsers, updatedDomains, updatedCompanies int64
+	if err := tx.QueryRowContext(ctx, decrementUserQuotasSQL, pq.Array(userIDs), pq.Array(sizes)).Scan(&updatedUsers, &updatedDomains, &updatedCompanies); err != nil {
+		return fmt.Errorf("decrement quota ledgers: %w", err)
 	}
 	return nil
 }

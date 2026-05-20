@@ -249,8 +249,8 @@ func TestExpireAttachmentUploadSessionsSQLUsesBatchUpdates(t *testing.T) {
 		"UPDATE domains d",
 		"UPDATE companies c",
 	} {
-		if !strings.Contains(decrementExpiredAttachmentUploadSessionQuotaSQL, want) {
-			t.Fatalf("decrementExpiredAttachmentUploadSessionQuotaSQL missing %q:\n%s", want, decrementExpiredAttachmentUploadSessionQuotaSQL)
+		if !strings.Contains(decrementUserQuotasSQL, want) {
+			t.Fatalf("decrementUserQuotasSQL missing %q:\n%s", want, decrementUserQuotasSQL)
 		}
 	}
 }

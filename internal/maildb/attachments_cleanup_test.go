@@ -1,6 +1,7 @@
 package maildb
 
 import (
+	"strings"
 	"testing"
 	"time"
 )
@@ -40,6 +41,33 @@ func TestNormalizeAttachmentCleanupLimit(t *testing.T) {
 	for input, want := range tests {
 		if got := NormalizeAttachmentCleanupLimit(input); got != want {
 			t.Fatalf("NormalizeAttachmentCleanupLimit(%d) = %d, want %d", input, got, want)
+		}
+	}
+}
+
+func TestExpireStaleAttachmentUploadsSQLUsesBatchUpdates(t *testing.T) {
+	t.Parallel()
+
+	for _, want := range []string{
+		"unnest($1::uuid[])",
+		"UPDATE attachments a",
+		"FROM input",
+	} {
+		if !strings.Contains(expireStaleAttachmentUploadsSQL, want) {
+			t.Fatalf("expireStaleAttachmentUploadsSQL missing %q:\n%s", want, expireStaleAttachmentUploadsSQL)
+		}
+	}
+	for _, want := range []string{
+		"unnest($1::uuid[], $2::bigint[])",
+		"user_usage AS",
+		"domain_usage AS",
+		"company_usage AS",
+		"UPDATE users u",
+		"UPDATE domains d",
+		"UPDATE companies c",
+	} {
+		if !strings.Contains(decrementUserQuotasSQL, want) {
+			t.Fatalf("decrementUserQuotasSQL missing %q:\n%s", want, decrementUserQuotasSQL)
 		}
 	}
 }

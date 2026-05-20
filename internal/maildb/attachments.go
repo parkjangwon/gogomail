@@ -436,13 +436,9 @@ FOR UPDATE SKIP LOCKED`
 	}
 	defer rows.Close()
 
-	type staleAttachment struct {
-		Attachment
-		UserID string
-	}
-	stale := make([]staleAttachment, 0)
+	stale := make([]staleAttachmentUpload, 0)
 	for rows.Next() {
-		var item staleAttachment
+		var item staleAttachmentUpload
 		if err := rows.Scan(
 			&item.ID,
 			&item.UserID,
@@ -467,17 +463,13 @@ FOR UPDATE SKIP LOCKED`
 	}
 
 	attachments := make([]Attachment, 0)
+	if err := markExpiredStaleAttachmentUploads(ctx, tx, stale); err != nil {
+		return nil, err
+	}
+	if err := decrementExpiredStaleAttachmentUploadQuota(ctx, tx, stale); err != nil {
+		return nil, err
+	}
 	for _, item := range stale {
-		if _, err := tx.ExecContext(ctx, `
-UPDATE attachments
-SET status = 'deleted'
-WHERE id = $1
-  AND status = 'uploading'`, item.ID); err != nil {
-			return nil, fmt.Errorf("expire stale attachment upload: %w", err)
-		}
-		if err := decrementUserQuota(ctx, tx, item.UserID, item.Size); err != nil {
-			return nil, err
-		}
 		item.Status = "deleted"
 		attachments = append(attachments, item.Attachment)
 	}
@@ -485,6 +477,58 @@ WHERE id = $1
 		return nil, fmt.Errorf("commit stale attachment cleanup transaction: %w", err)
 	}
 	return attachments, nil
+}
+
+type staleAttachmentUpload struct {
+	Attachment
+	UserID string
+}
+
+const expireStaleAttachmentUploadsSQL = `
+WITH input AS (
+  SELECT value AS id
+  FROM unnest($1::uuid[]) AS input(value)
+)
+UPDATE attachments a
+SET status = 'deleted'
+FROM input
+WHERE a.id = input.id
+  AND a.status = 'uploading'`
+
+func markExpiredStaleAttachmentUploads(ctx context.Context, tx *sql.Tx, stale []staleAttachmentUpload) error {
+	if len(stale) == 0 {
+		return nil
+	}
+	ids := make([]string, 0, len(stale))
+	for _, item := range stale {
+		ids = append(ids, item.ID)
+	}
+	if _, err := tx.ExecContext(ctx, expireStaleAttachmentUploadsSQL, pq.Array(ids)); err != nil {
+		return fmt.Errorf("expire stale attachment uploads: %w", err)
+	}
+	return nil
+}
+
+func decrementExpiredStaleAttachmentUploadQuota(ctx context.Context, tx *sql.Tx, stale []staleAttachmentUpload) error {
+	if len(stale) == 0 {
+		return nil
+	}
+	userIDs := make([]string, 0, len(stale))
+	sizes := make([]int64, 0, len(stale))
+	for _, item := range stale {
+		if item.Size <= 0 {
+			continue
+		}
+		userIDs = append(userIDs, item.UserID)
+		sizes = append(sizes, item.Size)
+	}
+	if len(userIDs) == 0 {
+		return nil
+	}
+	if err := decrementUserQuotas(ctx, tx, userIDs, sizes); err != nil {
+		return fmt.Errorf("decrement expired stale attachment upload quota: %w", err)
+	}
+	return nil
 }
 
 func (r *Repository) CountStaleAttachmentUploads(ctx context.Context, req ExpireStaleAttachmentUploadsRequest) (StaleAttachmentUploadCount, error) {
