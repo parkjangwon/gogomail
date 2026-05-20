@@ -203,44 +203,7 @@ func (r *Repository) ListIMAPMessages(ctx context.Context, userID string, mailbo
 		return nil, err
 	}
 
-	const query = `
-SELECT
-  m.id::text,
-  m.folder_id::text,
-  COALESCE(m.rfc_message_id, ''),
-  m.subject,
-  m.from_addr,
-  m.from_name,
-  m.to_addrs,
-  m.cc_addrs,
-  m.bcc_addrs,
-  COALESCE(m.received_at, m.sent_at, m.draft_updated_at, m.created_at) AS internal_date,
-  m.size,
-  COALESCE((m.flags->>'read')::boolean, false) AS read,
-  COALESCE((m.flags->>'starred')::boolean, false) AS starred,
-  COALESCE((m.flags->>'answered')::boolean, false) AS answered,
-  COALESCE((m.flags->>'forwarded')::boolean, false) AS forwarded,
-  COALESCE((m.flags->>'draft')::boolean, false) AS draft,
-  COALESCE((m.flags->>'imap_deleted')::boolean, false) AS deleted,
-  CASE
-    WHEN jsonb_typeof(m.flags->'imap_keywords') = 'array' THEN m.flags->'imap_keywords'
-    ELSE '[]'::jsonb
-  END AS imap_keywords,
-  m.status,
-  i.uid,
-  i.modseq
-FROM messages m
-LEFT JOIN imap_message_uid i ON i.message_id = m.id
-WHERE m.user_id = $1::uuid
-  AND m.folder_id = $2::uuid
-  AND m.status = 'active'
-  AND (i.uid IS NULL OR i.uid > $3)
-ORDER BY
-  CASE WHEN i.uid IS NULL THEN 1 ELSE 0 END,
-  i.uid,
-  internal_date,
-  m.id
-LIMIT $4`
+	query := buildListIMAPMessagesQuery(afterUID)
 
 	rows, err := r.db.QueryContext(ctx, query, userID, mailboxID, int64(afterUID), limit)
 	if err != nil {
@@ -313,6 +276,77 @@ LIMIT $4`
 	}
 	return messages, nil
 }
+
+func buildListIMAPMessagesQuery(afterUID imapgw.UID) string {
+	if afterUID > 0 {
+		return listIMAPMessagesAfterUIDQuery
+	}
+	return listIMAPMessagesInitialQuery
+}
+
+const listIMAPMessagesSelectColumns = `
+SELECT
+  m.id::text,
+  m.folder_id::text,
+  COALESCE(m.rfc_message_id, ''),
+  m.subject,
+  m.from_addr,
+  m.from_name,
+  m.to_addrs,
+  m.cc_addrs,
+  m.bcc_addrs,
+  COALESCE(m.received_at, m.sent_at, m.draft_updated_at, m.created_at) AS internal_date,
+  m.size,
+  COALESCE((m.flags->>'read')::boolean, false) AS read,
+  COALESCE((m.flags->>'starred')::boolean, false) AS starred,
+  COALESCE((m.flags->>'answered')::boolean, false) AS answered,
+  COALESCE((m.flags->>'forwarded')::boolean, false) AS forwarded,
+  COALESCE((m.flags->>'draft')::boolean, false) AS draft,
+  COALESCE((m.flags->>'imap_deleted')::boolean, false) AS deleted,
+  CASE
+    WHEN jsonb_typeof(m.flags->'imap_keywords') = 'array' THEN m.flags->'imap_keywords'
+    ELSE '[]'::jsonb
+  END AS imap_keywords,
+  m.status,
+  i.uid,
+  i.modseq`
+
+const listIMAPMessagesInitialQuery = listIMAPMessagesSelectColumns + `
+FROM messages m
+LEFT JOIN imap_message_uid i ON i.message_id = m.id
+WHERE m.user_id = $1::uuid
+  AND m.folder_id = $2::uuid
+  AND m.status = 'active'
+ORDER BY
+  CASE WHEN i.uid IS NULL THEN 1 ELSE 0 END,
+  i.uid,
+  internal_date,
+  m.id
+LIMIT $4`
+
+const listIMAPMessagesAfterUIDQuery = `
+SELECT *
+FROM (` + listIMAPMessagesSelectColumns + `
+  FROM messages m
+  JOIN imap_message_uid i ON i.message_id = m.id
+  WHERE m.user_id = $1::uuid
+    AND m.folder_id = $2::uuid
+    AND m.status = 'active'
+    AND i.uid > $3
+  UNION ALL` + listIMAPMessagesSelectColumns + `
+  FROM messages m
+  LEFT JOIN imap_message_uid i ON i.message_id = m.id
+  WHERE m.user_id = $1::uuid
+    AND m.folder_id = $2::uuid
+    AND m.status = 'active'
+    AND i.message_id IS NULL
+) imap_candidates
+ORDER BY
+  CASE WHEN uid IS NULL THEN 1 ELSE 0 END,
+  uid,
+  internal_date,
+  id
+LIMIT $4`
 
 func (r *Repository) GetIMAPMessage(ctx context.Context, userID string, mailboxID string, uid imapgw.UID) (IMAPStoredMessage, error) {
 	if r.db == nil {

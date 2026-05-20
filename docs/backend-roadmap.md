@@ -6528,3 +6528,7 @@ Target outcome:
 1793. Drive folder/file creation now adds the active parent-folder lookup only
       when `parent_id` is present, leaving root creates free of parent optional
       `OR` guards.
+1794. IMAP message listing now builds separate initial and cursor-page queries:
+      initial reads omit the UID cursor predicate, and cursor reads split
+      assigned UID scans from lazy UID-assignment candidates with `UNION ALL`
+      instead of a nullable optional `OR` guard.
