@@ -64,8 +64,8 @@ type oidcDiscoveryMini struct {
 //   - clientSecret != "": HS256 HMAC verification with the shared secret.
 //   - clientSecret == "" and alg == "RS256": JWKS-based RSA verification using
 //     the issuer's discovery document to locate the JWKS endpoint.
-//   - clientSecret == "" and alg != "RS256": signature is not verified
-//     (legacy / test path); only standard claims (exp, iat, aud) are checked.
+//   - clientSecret == "" and alg != "RS256": rejected — only RS256 is permitted
+//     when no client secret is configured. alg=none is never accepted.
 //
 // In all cases the standard claims (exp, iat, aud, email) are validated.
 func VerifyAndParseIDToken(idToken, clientSecret, clientID string, now time.Time) (string, error) {
@@ -121,9 +121,9 @@ func VerifyAndParseIDToken(idToken, clientSecret, clientID string, now time.Time
 		}
 
 	default:
-		// No clientSecret and non-RS256 alg: skip signature verification.
-		// This path exists for backward compatibility; new deployments should
-		// always configure either a clientSecret (HS256) or RS256 with JWKS.
+		// No clientSecret and non-RS256 alg: reject. alg=none and other
+		// non-RS256 algorithms are never permitted without a client secret.
+		return "", fmt.Errorf("unsupported ID token algorithm %q: only RS256 is accepted without a client secret", header.Alg)
 	}
 
 	// Validate standard claims.
@@ -133,8 +133,14 @@ func VerifyAndParseIDToken(idToken, clientSecret, clientID string, now time.Time
 	if claims.IssuedAt > 0 && now.Unix() < claims.IssuedAt-60 {
 		return "", fmt.Errorf("ID token issued in the future")
 	}
-	if clientID != "" && claims.Audience != clientID {
-		return "", fmt.Errorf("ID token audience mismatch: got %q, want %q", claims.Audience, clientID)
+	if clientID != "" {
+		if claims.Audience != clientID {
+			return "", fmt.Errorf("ID token audience mismatch: got %q, want %q", claims.Audience, clientID)
+		}
+	} else if claims.Audience != "" {
+		// clientID not configured but token carries an audience claim: reject to
+		// prevent accepting tokens intended for a different relying party.
+		return "", fmt.Errorf("ID token has audience claim %q but no clientID is configured for validation", claims.Audience)
 	}
 	if claims.Email == "" {
 		return "", fmt.Errorf("ID token missing email claim")
