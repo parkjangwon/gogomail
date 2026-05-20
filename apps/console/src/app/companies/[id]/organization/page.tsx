@@ -58,6 +58,16 @@ export default function OrganizationSettingsPage() {
 
   const integrationStatus = capabilities?.integrations.organization_sync ?? 'planned';
   const canEdit = integrationStatus === 'available';
+  const integrationStatusLabel =
+    integrationStatus === 'available'
+      ? t('pages.organization_page.integration_status_available')
+      : integrationStatus === 'placeholder'
+        ? t('pages.organization_page.integration_status_config_required')
+        : t('pages.organization_page.integration_status_planned');
+  const integrationStatusMessage =
+    integrationStatus === 'placeholder'
+      ? t('pages.organization_page.integration_status_config_required_message')
+      : t('pages.organization_page.integration_status_planned_message');
 
   if (loading) {
     return (
@@ -100,9 +110,7 @@ export default function OrganizationSettingsPage() {
             type={integrationStatus === 'planned' ? 'warning' : 'info'}
             header={t('pages.organization_page.integration_status_header')}
           >
-            {integrationStatus === 'placeholder'
-              ? t('pages.organization_page.integration_status_placeholder')
-              : 'Organization sync is planned but not available yet.'}
+            {integrationStatusMessage}
           </Alert>
         )}
         {saveError && (
@@ -121,7 +129,7 @@ export default function OrganizationSettingsPage() {
                     { label: t('pages.organization_page.description_label'), value: settings.description || '—' },
                     { label: t('pages.organization_page.max_users'), value: settings.max_users },
                     { label: t('pages.organization_page.max_domains'), value: settings.max_domains },
-                    { label: t('pages.organization_page.integration_status_header'), value: <Badge color={integrationStatus === 'available' ? 'green' : integrationStatus === 'placeholder' ? 'blue' : 'grey'}>{integrationStatus}</Badge> },
+                    { label: t('pages.organization_page.integration_status_header'), value: <Badge color={integrationStatus === 'available' ? 'green' : integrationStatus === 'placeholder' ? 'blue' : 'grey'}>{integrationStatusLabel}</Badge> },
                     { label: t('pages.organization_page.created'), value: formatDateTime(settings.created_at) },
                   ]}
                 />
