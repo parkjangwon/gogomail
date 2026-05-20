@@ -86,7 +86,8 @@ func (r *Repository) SearchMessages(ctx context.Context, query MessageSearchQuer
 	}
 
 	folderID := strings.TrimSpace(query.FolderID)
-	sqlQuery := buildMessageSearchSQL(sortMode, folderID, hasAttachment)
+	cursorID := strings.TrimSpace(query.Cursor.ID)
+	sqlQuery := buildMessageSearchSQL(sortMode, folderID, hasAttachment, cursorID)
 	rows, err := r.db.QueryContext(
 		ctx,
 		sqlQuery,
@@ -103,7 +104,7 @@ func (r *Repository) SearchMessages(ctx context.Context, query MessageSearchQuer
 		query.IncludeRank || sortMode == MessageSearchSortRelevance,
 		query.IncludeHighlights,
 		query.Cursor.At,
-		strings.TrimSpace(query.Cursor.ID),
+		cursorID,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("search messages: %w", err)
@@ -146,7 +147,7 @@ func (r *Repository) SearchMessages(ctx context.Context, query MessageSearchQuer
 	return messages, nil
 }
 
-func buildMessageSearchSQL(sortMode, folderID, hasAttachment string) string {
+func buildMessageSearchSQL(sortMode, folderID, hasAttachment, cursorID string) string {
 	query := messageSearchSQL(sortMode)
 	if folderID == "" {
 		query = strings.Replace(query, "  AND ($3 = '' OR folder_id::text = $3)\n", "", 1)
@@ -154,9 +155,14 @@ func buildMessageSearchSQL(sortMode, folderID, hasAttachment string) string {
 		query = strings.Replace(query, "  AND ($3 = '' OR folder_id::text = $3)", "  AND folder_id = $3::uuid", 1)
 	}
 	if hasAttachment == "" {
-		return strings.Replace(query, "  AND ($9 = '' OR has_attachment = $9::boolean)\n", "", 1)
+		query = strings.Replace(query, "  AND ($9 = '' OR has_attachment = $9::boolean)\n", "", 1)
+	} else {
+		query = strings.Replace(query, "  AND ($9 = '' OR has_attachment = $9::boolean)", "  AND has_attachment = $9::boolean", 1)
 	}
-	return strings.Replace(query, "  AND ($9 = '' OR has_attachment = $9::boolean)", "  AND has_attachment = $9::boolean", 1)
+	if cursorID == "" {
+		return strings.Replace(query, "  AND ($14 = '' OR (COALESCE(received_at, sent_at, draft_updated_at, created_at), id) < ($13::timestamptz, $14::uuid))\n", "", 1)
+	}
+	return strings.Replace(query, "  AND ($14 = '' OR (COALESCE(received_at, sent_at, draft_updated_at, created_at), id) < ($13::timestamptz, $14::uuid))", "  AND (COALESCE(received_at, sent_at, draft_updated_at, created_at), id) < ($13::timestamptz, $14::uuid)", 1)
 }
 
 func (r *Repository) SearchDrafts(ctx context.Context, query DraftSearchQuery) ([]MessageDetail, error) {
@@ -177,9 +183,10 @@ func (r *Repository) SearchDrafts(ctx context.Context, query DraftSearchQuery) (
 		}
 	}
 
+	cursorID := strings.TrimSpace(query.Cursor.ID)
 	rows, err := r.db.QueryContext(
 		ctx,
-		buildDraftSearchSQL(hasAttachment),
+		buildDraftSearchSQL(hasAttachment, cursorID),
 		userID,
 		strings.TrimSpace(query.Query),
 		strings.TrimSpace(query.From),
@@ -189,7 +196,7 @@ func (r *Repository) SearchDrafts(ctx context.Context, query DraftSearchQuery) (
 		strings.TrimSpace(query.Subject),
 		hasAttachment,
 		query.Cursor.At,
-		strings.TrimSpace(query.Cursor.ID),
+		cursorID,
 		limit,
 	)
 	if err != nil {
@@ -373,12 +380,22 @@ ORDER BY draft_at DESC, id DESC
 LIMIT $11`
 }
 
-func buildDraftSearchSQL(hasAttachment string) string {
+func buildDraftSearchSQL(hasAttachment, cursorID string) string {
 	query := draftSearchSQL()
 	if hasAttachment == "" {
-		return strings.Replace(query, "  AND ($8 = '' OR has_attachment = $8::boolean)\n", "", 1)
+		query = strings.Replace(query, "  AND ($8 = '' OR has_attachment = $8::boolean)\n", "", 1)
+	} else {
+		query = strings.Replace(query, "  AND ($8 = '' OR has_attachment = $8::boolean)", "  AND has_attachment = $8::boolean", 1)
 	}
-	return strings.Replace(query, "  AND ($8 = '' OR has_attachment = $8::boolean)", "  AND has_attachment = $8::boolean", 1)
+	cursorPredicate := `  AND (
+    $10 = ''
+    OR (COALESCE(draft_updated_at, updated_at, created_at), id)
+       < ($9::timestamptz, $10::uuid)
+  )`
+	if cursorID == "" {
+		return strings.Replace(query, cursorPredicate+"\n", "", 1)
+	}
+	return strings.Replace(query, cursorPredicate, "  AND (COALESCE(draft_updated_at, updated_at, created_at), id) < ($9::timestamptz, $10::uuid)", 1)
 }
 
 func searchHighlightsFromSQL(subject sql.NullString, from sql.NullString, body sql.NullString) *MessageSearchHighlights {

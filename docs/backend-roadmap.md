@@ -6494,3 +6494,6 @@ Target outcome:
 1782. Message and draft search now emit attachment predicates only when the
       filter is requested, using typed boolean comparisons and omitting
       attachment predicates for attachment-agnostic searches.
+1783. Message and draft search now emit cursor predicates only when a pagination
+      cursor is present, keeping first-page searches free of pagination optional
+      `OR` branches.

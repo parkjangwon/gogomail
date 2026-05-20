@@ -82,7 +82,7 @@ func TestMessageSearchSQLExcludesDraftRows(t *testing.T) {
 func TestMessageSearchSQLUsesSargableFolderFilter(t *testing.T) {
 	t.Parallel()
 
-	query := buildMessageSearchSQL(MessageSearchSortDate, "folder-1", "")
+	query := buildMessageSearchSQL(MessageSearchSortDate, "folder-1", "", "")
 	if !strings.Contains(query, "AND folder_id = $3::uuid") {
 		t.Fatalf("message search query missing sargable folder filter:\n%s", query)
 	}
@@ -90,7 +90,7 @@ func TestMessageSearchSQLUsesSargableFolderFilter(t *testing.T) {
 		t.Fatalf("message search query contains non-sargable folder filter:\n%s", query)
 	}
 
-	query = buildMessageSearchSQL(MessageSearchSortRelevance, "", "")
+	query = buildMessageSearchSQL(MessageSearchSortRelevance, "", "", "")
 	if strings.Contains(query, "AND folder_id") {
 		t.Fatalf("folderless message search query unexpectedly includes folder predicate:\n%s", query)
 	}
@@ -102,7 +102,7 @@ func TestMessageSearchSQLUsesSargableFolderFilter(t *testing.T) {
 func TestMessageSearchSQLUsesSargableAttachmentFilter(t *testing.T) {
 	t.Parallel()
 
-	query := buildMessageSearchSQL(MessageSearchSortDate, "", "true")
+	query := buildMessageSearchSQL(MessageSearchSortDate, "", "true", "")
 	if !strings.Contains(query, "AND has_attachment = $9::boolean") {
 		t.Fatalf("message search query missing sargable attachment filter:\n%s", query)
 	}
@@ -110,9 +110,26 @@ func TestMessageSearchSQLUsesSargableAttachmentFilter(t *testing.T) {
 		t.Fatalf("message search query contains optional attachment OR:\n%s", query)
 	}
 
-	query = buildMessageSearchSQL(MessageSearchSortDate, "", "")
+	query = buildMessageSearchSQL(MessageSearchSortDate, "", "", "")
 	if strings.Contains(query, "AND has_attachment") {
 		t.Fatalf("attachment-agnostic message search query unexpectedly includes attachment predicate:\n%s", query)
+	}
+}
+
+func TestMessageSearchSQLUsesSargableCursorFilter(t *testing.T) {
+	t.Parallel()
+
+	query := buildMessageSearchSQL(MessageSearchSortDate, "", "", "cursor-1")
+	if !strings.Contains(query, "AND (COALESCE(received_at, sent_at, draft_updated_at, created_at), id) < ($13::timestamptz, $14::uuid)") {
+		t.Fatalf("message search query missing direct cursor predicate:\n%s", query)
+	}
+	if strings.Contains(query, "$14 = '' OR") {
+		t.Fatalf("message search query contains optional cursor OR:\n%s", query)
+	}
+
+	query = buildMessageSearchSQL(MessageSearchSortDate, "", "", "")
+	if strings.Contains(query, "$14::uuid") {
+		t.Fatalf("cursorless message search query unexpectedly includes cursor predicate:\n%s", query)
 	}
 }
 
@@ -151,7 +168,7 @@ func TestDraftSearchSQLUsesComposeFocusedDraftFields(t *testing.T) {
 func TestDraftSearchSQLUsesSargableAttachmentFilter(t *testing.T) {
 	t.Parallel()
 
-	query := buildDraftSearchSQL("false")
+	query := buildDraftSearchSQL("false", "")
 	if !strings.Contains(query, "AND has_attachment = $8::boolean") {
 		t.Fatalf("draft search query missing sargable attachment filter:\n%s", query)
 	}
@@ -159,9 +176,26 @@ func TestDraftSearchSQLUsesSargableAttachmentFilter(t *testing.T) {
 		t.Fatalf("draft search query contains optional attachment OR:\n%s", query)
 	}
 
-	query = buildDraftSearchSQL("")
+	query = buildDraftSearchSQL("", "")
 	if strings.Contains(query, "AND has_attachment") {
 		t.Fatalf("attachment-agnostic draft search query unexpectedly includes attachment predicate:\n%s", query)
+	}
+}
+
+func TestDraftSearchSQLUsesSargableCursorFilter(t *testing.T) {
+	t.Parallel()
+
+	query := buildDraftSearchSQL("", "cursor-1")
+	if !strings.Contains(query, "AND (COALESCE(draft_updated_at, updated_at, created_at), id) < ($9::timestamptz, $10::uuid)") {
+		t.Fatalf("draft search query missing direct cursor predicate:\n%s", query)
+	}
+	if strings.Contains(query, "$10 = ''") {
+		t.Fatalf("draft search query contains optional cursor OR:\n%s", query)
+	}
+
+	query = buildDraftSearchSQL("", "")
+	if strings.Contains(query, "$10::uuid") {
+		t.Fatalf("cursorless draft search query unexpectedly includes cursor predicate:\n%s", query)
 	}
 }
 
