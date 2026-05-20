@@ -32,7 +32,7 @@ func TestMessageListPageSQLProjectsBoundedPreview(t *testing.T) {
 func TestMessageListPageQueryUsesSargableFolderFilter(t *testing.T) {
 	t.Parallel()
 
-	query := buildMessageListPageSQL(ListSortNewest, "folder-1", MessageListFilter{})
+	query := buildMessageListPageSQL(ListSortNewest, "folder-1", "", MessageListFilter{})
 	if !strings.Contains(query, "AND messages.folder_id = $2::uuid") {
 		t.Fatalf("message list query missing sargable folder filter:\n%s", query)
 	}
@@ -40,7 +40,7 @@ func TestMessageListPageQueryUsesSargableFolderFilter(t *testing.T) {
 		t.Fatalf("message list query contains non-sargable folder filter:\n%s", query)
 	}
 
-	query = buildMessageListPageSQL(ListSortOldest, "", MessageListFilter{})
+	query = buildMessageListPageSQL(ListSortOldest, "", "", MessageListFilter{})
 	if strings.Contains(query, "AND messages.folder_id") {
 		t.Fatalf("folderless message list query unexpectedly includes folder predicate:\n%s", query)
 	}
@@ -55,7 +55,7 @@ func TestMessageListPageQueryUsesSargableBooleanFilters(t *testing.T) {
 	read := false
 	starred := true
 	hasAttachment := true
-	query := buildMessageListPageSQL(ListSortNewest, "", MessageListFilter{
+	query := buildMessageListPageSQL(ListSortNewest, "", "", MessageListFilter{
 		Read:          &read,
 		Starred:       &starred,
 		HasAttachment: &hasAttachment,
@@ -79,7 +79,7 @@ func TestMessageListPageQueryUsesSargableBooleanFilters(t *testing.T) {
 		}
 	}
 
-	query = buildMessageListPageSQL(ListSortOldest, "", MessageListFilter{})
+	query = buildMessageListPageSQL(ListSortOldest, "", "", MessageListFilter{})
 	for _, forbidden := range []string{
 		"AND COALESCE((messages.flags->>'read')::boolean",
 		"AND COALESCE((messages.flags->>'starred')::boolean",
@@ -91,5 +91,30 @@ func TestMessageListPageQueryUsesSargableBooleanFilters(t *testing.T) {
 	}
 	if !strings.Contains(query, "ORDER BY message_at ASC, id ASC") {
 		t.Fatalf("oldest message list query lost oldest ordering:\n%s", query)
+	}
+}
+
+func TestMessageListPageQueryUsesSargableCursorFilter(t *testing.T) {
+	t.Parallel()
+
+	query := buildMessageListPageSQL(ListSortNewest, "", "message-1", MessageListFilter{})
+	if !strings.Contains(query, "AND (COALESCE(messages.received_at, messages.sent_at, messages.draft_updated_at, messages.created_at), messages.id) < ($3::timestamptz, $4::uuid)") {
+		t.Fatalf("newest message list query missing direct cursor predicate:\n%s", query)
+	}
+	if strings.Contains(query, "$4 = ''") {
+		t.Fatalf("newest message list query contains optional cursor OR:\n%s", query)
+	}
+
+	query = buildMessageListPageSQL(ListSortOldest, "", "message-1", MessageListFilter{})
+	if !strings.Contains(query, "AND (COALESCE(messages.received_at, messages.sent_at, messages.draft_updated_at, messages.created_at), messages.id) > ($3::timestamptz, $4::uuid)") {
+		t.Fatalf("oldest message list query missing direct cursor predicate:\n%s", query)
+	}
+	if strings.Contains(query, "$4 = ''") {
+		t.Fatalf("oldest message list query contains optional cursor OR:\n%s", query)
+	}
+
+	query = buildMessageListPageSQL(ListSortNewest, "", "", MessageListFilter{})
+	if strings.Contains(query, "$4::uuid") {
+		t.Fatalf("cursorless message list query unexpectedly includes cursor predicate:\n%s", query)
 	}
 }
