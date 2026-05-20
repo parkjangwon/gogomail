@@ -76,6 +76,7 @@ type Config struct {
 	SubmissionAllowInsecureAuth         bool
 	DatabaseURL                         string
 	RedisAddr                           string
+	RedisPassword                       string
 	StorageBackend                      string
 	StorageBackendCompatLabels          []string
 	StorageS3Endpoint                   string
@@ -149,6 +150,14 @@ type Config struct {
 	PushNotifyWebhookToken              string
 	PushNotifyWebhookTimeout            time.Duration
 	PushNotifyDeviceLimit               int
+	APNsKeyID                           string
+	APNsTeamID                          string
+	APNsPrivateKey                      string
+	APNsBundleID                        string
+	WebPushVAPIDPublicKey               string
+	WebPushVAPIDPrivateKey              string
+	WebPushContactEmail                 string
+	WebhookDispatchEnabled              bool
 	PushNotifyConsumerGroup             string
 	PushNotifyConsumerName              string
 	PushNotifyConsumerCount             int
@@ -357,6 +366,7 @@ func Load() Config {
 		SubmissionAllowInsecureAuth:         boolEnvOrDefault("GOGOMAIL_SUBMISSION_ALLOW_INSECURE_AUTH", defaultSubmissionAllowInsecureAuth()),
 		DatabaseURL:                         envOrDefault("GOGOMAIL_DATABASE_URL", "postgres://gogomail:gogomail@localhost:5432/gogomail?sslmode=disable"),
 		RedisAddr:                           envOrDefault("GOGOMAIL_REDIS_ADDR", "localhost:6379"),
+		RedisPassword:                       envOrDefault("GOGOMAIL_REDIS_PASSWORD", ""),
 		StorageBackend:                      envOrDefault("GOGOMAIL_STORAGE_BACKEND", "local"),
 		StorageBackendCompatLabels:          splitCSV(os.Getenv("GOGOMAIL_STORAGE_BACKEND_COMPAT_LABELS")),
 		StorageS3Endpoint:                   envOrDefault("GOGOMAIL_STORAGE_S3_ENDPOINT", ""),
@@ -430,6 +440,14 @@ func Load() Config {
 		PushNotifyWebhookToken:              os.Getenv("GOGOMAIL_PUSH_NOTIFICATION_WEBHOOK_TOKEN"),
 		PushNotifyWebhookTimeout:            durationEnvOrDefault("GOGOMAIL_PUSH_NOTIFICATION_WEBHOOK_TIMEOUT", 2*time.Second),
 		PushNotifyDeviceLimit:               intEnvOrDefault("GOGOMAIL_PUSH_NOTIFICATION_DEVICE_LIMIT", 200),
+		APNsKeyID:                           os.Getenv("GOGOMAIL_APNS_KEY_ID"),
+		APNsTeamID:                          os.Getenv("GOGOMAIL_APNS_TEAM_ID"),
+		APNsPrivateKey:                      os.Getenv("GOGOMAIL_APNS_PRIVATE_KEY"),
+		APNsBundleID:                        os.Getenv("GOGOMAIL_APNS_BUNDLE_ID"),
+		WebPushVAPIDPublicKey:               os.Getenv("GOGOMAIL_WEBPUSH_VAPID_PUBLIC_KEY"),
+		WebPushVAPIDPrivateKey:              os.Getenv("GOGOMAIL_WEBPUSH_VAPID_PRIVATE_KEY"),
+		WebPushContactEmail:                 os.Getenv("GOGOMAIL_WEBPUSH_CONTACT_EMAIL"),
+		WebhookDispatchEnabled:              boolEnvOrDefault("GOGOMAIL_WEBHOOK_DISPATCH_ENABLED", true),
 		PushNotifyConsumerGroup:             envOrDefault("GOGOMAIL_PUSH_NOTIFICATION_CONSUMER_GROUP", "gogomail.push-notification-worker"),
 		PushNotifyConsumerName:              envOrDefault("GOGOMAIL_PUSH_NOTIFICATION_CONSUMER_NAME", "push-notification-worker-1"),
 		PushNotifyConsumerCount:             intEnvOrDefault("GOGOMAIL_PUSH_NOTIFICATION_CONSUMER_COUNT", 50),

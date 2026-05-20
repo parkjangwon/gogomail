@@ -420,7 +420,7 @@ func runIMAPGateway(ctx context.Context, cfg config.Config, logger *slog.Logger)
 		return err
 	}
 	repository := maildb.NewRepository(db)
-	redisClient := redis.NewClient(&redis.Options{Addr: cfg.RedisAddr})
+	redisClient := redis.NewClient(&redis.Options{Addr: cfg.RedisAddr, Password: cfg.RedisPassword})
 	if err := redisClient.Ping(runCtx).Err(); err != nil {
 		if err := redisClient.Close(); err != nil {
 			logger.Warn("close redis client", "error", err)
@@ -1825,7 +1825,7 @@ func runReceiveMTA(ctx context.Context, cfg config.Config, logger *slog.Logger, 
 	}
 
 	if opts.EnableDedup && cfg.DedupBackend == "redis" {
-		redisClient = redis.NewClient(&redis.Options{Addr: cfg.RedisAddr})
+		redisClient = redis.NewClient(&redis.Options{Addr: cfg.RedisAddr, Password: cfg.RedisPassword})
 		if err := redisClient.Ping(ctx).Err(); err != nil {
 			if err := redisClient.Close(); err != nil {
 				logger.Warn("close redis client", "error", err)
@@ -1838,7 +1838,7 @@ func runReceiveMTA(ctx context.Context, cfg config.Config, logger *slog.Logger, 
 	}
 	if opts.EnableRateLimit && cfg.RateLimitBackend == "redis" {
 		if redisClient == nil {
-			redisClient = redis.NewClient(&redis.Options{Addr: cfg.RedisAddr})
+			redisClient = redis.NewClient(&redis.Options{Addr: cfg.RedisAddr, Password: cfg.RedisPassword})
 			if err := redisClient.Ping(ctx).Err(); err != nil {
 				if err := redisClient.Close(); err != nil {
 					logger.Warn("close redis client", "error", err)
@@ -1851,7 +1851,7 @@ func runReceiveMTA(ctx context.Context, cfg config.Config, logger *slog.Logger, 
 	}
 	if opts.EnableBackpressure && cfg.BackpressureBackend == "redis" {
 		if redisClient == nil {
-			redisClient = redis.NewClient(&redis.Options{Addr: cfg.RedisAddr})
+			redisClient = redis.NewClient(&redis.Options{Addr: cfg.RedisAddr, Password: cfg.RedisPassword})
 			if err := redisClient.Ping(ctx).Err(); err != nil {
 				if err := redisClient.Close(); err != nil {
 					logger.Warn("close redis client", "error", err)
@@ -2214,7 +2214,7 @@ func runOutboxRelay(ctx context.Context, cfg config.Config, logger *slog.Logger)
 	}
 	defer db.Close()
 
-	redisClient := redis.NewClient(&redis.Options{Addr: cfg.RedisAddr})
+	redisClient := redis.NewClient(&redis.Options{Addr: cfg.RedisAddr, Password: cfg.RedisPassword})
 	if err := redisClient.Ping(ctx).Err(); err != nil {
 		if err := redisClient.Close(); err != nil {
 			logger.Warn("close redis client", "error", err)
@@ -2252,7 +2252,7 @@ func runEventWorker(ctx context.Context, cfg config.Config, logger *slog.Logger)
 	}
 	defer db.Close()
 
-	redisClient := redis.NewClient(&redis.Options{Addr: cfg.RedisAddr})
+	redisClient := redis.NewClient(&redis.Options{Addr: cfg.RedisAddr, Password: cfg.RedisPassword})
 	if err := redisClient.Ping(ctx).Err(); err != nil {
 		if err := redisClient.Close(); err != nil {
 			logger.Warn("close redis client", "error", err)
@@ -2280,17 +2280,34 @@ func runEventWorker(ctx context.Context, cfg config.Config, logger *slog.Logger)
 	if err != nil {
 		return err
 	}
+	// Build webhook dispatcher early so it can be included in MultiHandlers below.
+	var webhookStoredHandler, webhookDeliveredHandler, webhookBouncedHandler eventstream.Handler
+	if cfg.WebhookDispatchEnabled {
+		webhookConfigStore := configstore.NewPostgresConfigStore(db)
+		webhookLoader := webhookguard.NewConfigStoreLoader(webhookConfigStore)
+		webhookDispatcher := webhookguard.NewWebhookDispatcher(webhookguard.WebhookDispatcherOptions{
+			Loader: webhookLoader,
+			Logger: logger,
+		})
+		webhookStoredHandler = webhookguard.NewMailStoredWebhookHandler(webhookDispatcher)
+		webhookDeliveredHandler = webhookguard.NewMailSentWebhookHandler(webhookDispatcher)
+		webhookBouncedHandler = webhookguard.NewMailBouncedWebhookHandler(webhookDispatcher)
+		logger.Info("webhook dispatcher enabled")
+	}
+
 	if err := router.Register("mail.stored", eventstream.MultiHandler{
 		imapnotify.NewMailStoredHandler(maildb.NewRepository(db)),
 		audit.NewMailStoredHandler(auditRepository),
 		mailFlowHandler,
 		inboundfilter.NewHandler(mailservice.New(maildb.NewRepository(db), store)),
+		webhookStoredHandler,
 	}); err != nil {
 		return err
 	}
 	if err := router.Register("mail.delivered", eventstream.MultiHandler{
 		audit.NewDeliveryStatusHandler(auditRepository),
 		mailFlowHandler,
+		webhookDeliveredHandler,
 	}); err != nil {
 		return err
 	}
@@ -2304,6 +2321,7 @@ func runEventWorker(ctx context.Context, cfg config.Config, logger *slog.Logger)
 			Farm:         outbound.FarmGeneral,
 		}),
 		mailFlowHandler,
+		webhookBouncedHandler,
 	}); err != nil {
 		return err
 	}
@@ -2388,7 +2406,7 @@ func runSearchIndexWorker(ctx context.Context, cfg config.Config, logger *slog.L
 	}
 	defer db.Close()
 
-	redisClient := redis.NewClient(&redis.Options{Addr: cfg.RedisAddr})
+	redisClient := redis.NewClient(&redis.Options{Addr: cfg.RedisAddr, Password: cfg.RedisPassword})
 	if err := redisClient.Ping(ctx).Err(); err != nil {
 		if err := redisClient.Close(); err != nil {
 			logger.Warn("close redis client", "error", err)
@@ -2567,7 +2585,7 @@ func runAPIMeteringWorker(ctx context.Context, cfg config.Config, logger *slog.L
 	}
 	defer db.Close()
 
-	redisClient := redis.NewClient(&redis.Options{Addr: cfg.RedisAddr})
+	redisClient := redis.NewClient(&redis.Options{Addr: cfg.RedisAddr, Password: cfg.RedisPassword})
 	if err := redisClient.Ping(ctx).Err(); err != nil {
 		if err := redisClient.Close(); err != nil {
 			logger.Warn("close redis client", "error", err)
@@ -2626,7 +2644,7 @@ func runPushNotificationWorker(ctx context.Context, cfg config.Config, logger *s
 	}
 	defer db.Close()
 
-	redisClient := redis.NewClient(&redis.Options{Addr: cfg.RedisAddr})
+	redisClient := redis.NewClient(&redis.Options{Addr: cfg.RedisAddr, Password: cfg.RedisPassword})
 	if err := redisClient.Ping(ctx).Err(); err != nil {
 		if err := redisClient.Close(); err != nil {
 			logger.Warn("close redis client", "error", err)
@@ -2699,7 +2717,7 @@ func runDeliveryWorker(ctx context.Context, cfg config.Config, logger *slog.Logg
 	}
 	defer db.Close()
 
-	redisClient := redis.NewClient(&redis.Options{Addr: cfg.RedisAddr})
+	redisClient := redis.NewClient(&redis.Options{Addr: cfg.RedisAddr, Password: cfg.RedisPassword})
 	if err := redisClient.Ping(ctx).Err(); err != nil {
 		if err := redisClient.Close(); err != nil {
 			logger.Warn("close redis client", "error", err)
@@ -3051,7 +3069,7 @@ func runHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, mode M
 		apiKeyVerifier = apikeys.NewPostgresVerifier(db)
 		apiKeyVerifierConfigured = true
 		if strings.EqualFold(strings.TrimSpace(cfg.DriveShareRateLimitBackend), "redis") {
-			redisClient := redis.NewClient(&redis.Options{Addr: cfg.RedisAddr})
+			redisClient := redis.NewClient(&redis.Options{Addr: cfg.RedisAddr, Password: cfg.RedisPassword})
 			if err := redisClient.Ping(ctx).Err(); err != nil {
 				if err := redisClient.Close(); err != nil {
 					logger.Warn("close redis client", "error", err)
@@ -3103,7 +3121,7 @@ func runHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, mode M
 		var redisClient *redis.Client
 		var pressure backpressureStore
 		if cfg.BackpressureBackend == "redis" {
-			redisClient = redis.NewClient(&redis.Options{Addr: cfg.RedisAddr})
+			redisClient = redis.NewClient(&redis.Options{Addr: cfg.RedisAddr, Password: cfg.RedisPassword})
 			if err := redisClient.Ping(ctx).Err(); err != nil {
 				if err := redisClient.Close(); err != nil {
 					logger.Warn("close redis client", "error", err)

@@ -57,7 +57,7 @@ func TestValidatePasswordHashAcceptsSupportedFormats(t *testing.T) {
 		"sha256:" + hex.EncodeToString(sha[:]),
 		"plain:dev-password",
 	} {
-		if err := ValidatePasswordHash(encoded); err != nil {
+		if err := ValidatePasswordHash(encoded, true); err != nil {
 			t.Fatalf("ValidatePasswordHash(%q) returned error: %v", encoded, err)
 		}
 	}
@@ -80,7 +80,7 @@ func TestValidatePasswordHashRejectsUnsafeFormats(t *testing.T) {
 		t.Run(encoded, func(t *testing.T) {
 			t.Parallel()
 
-			if err := ValidatePasswordHash(encoded); err == nil {
+			if err := ValidatePasswordHash(encoded, false); err == nil {
 				t.Fatalf("ValidatePasswordHash(%q) returned nil", encoded)
 			}
 		})
