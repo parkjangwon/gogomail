@@ -6602,3 +6602,6 @@ Target outcome:
 1815. OpenSearch Korean analyzer bootstrap failures now include an explicit
       `analysis-nori` plugin hint when the backend rejects the Nori analyzer
       type, shortening production diagnosis for optional Korean search rollout.
+1816. Webmail settings import failures now render inline retryable feedback
+      instead of a blocking browser alert, and the settings export key list no
+      longer includes a duplicate notification-detail key.
