@@ -131,6 +131,19 @@ Go Backend (`internal/`):
 - `GOGOMAIL_SECURITY_VERIFY=1` 설정 시 `verify-backend-release.sh`가 `go vet ./...`와 설치된 `govulncheck ./...`를 보안 릴리즈 게이트로 실행하도록 함
 - 프론트엔드 릴리즈 검증 스크립트를 추가해 webmail/console type-check와 helper test를 기본 실행하고, E2E/build는 명시 환경변수로 켤 수 있게 함
 
+**Draft Optimistic Locking** ✅ COMPLETE
+- `ErrDraftConflict` sentinel added to `internal/maildb`
+- `SaveDraftRequest.IfUpdatedAt` (maildb + mailservice) propagates a last-known timestamp
+- `updateDraft` adds `AND draft_updated_at = $16` predicate when `IfUpdatedAt` is non-zero;
+  if 0 rows affected it distinguishes conflict from not-found with a secondary SELECT
+- PATCH handler returns HTTP 409 + `{"error":{"code":"conflict",...}}` on conflict
+- No DB migration required — uses the existing `draft_updated_at` column
+
+**OpenSearch Korean Nori Analyzer** ✅ COMPLETE
+- `SearchIndexOpenSearchKoreanAnalyzer bool` config field (env: `GOGOMAIL_OPENSEARCH_KOREAN_ANALYZER`)
+- When enabled, `openSearchIndexDefinition` adds `"analysis":{"analyzer":{"korean":{"type":"nori","decompound_mode":"mixed"}}}` to settings and sets `analyzer: "korean"` on `subject` and `body_text` mappings
+- Requires the OpenSearch `analysis-nori` plugin; safe to leave disabled otherwise
+
 다음 단계: Phase 2 (Bulk Delivery Batching) 구현
 
 ### 검증

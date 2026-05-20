@@ -2518,11 +2518,12 @@ func openSearchOptionsForConfig(cfg config.Config) searchindex.OpenSearchOptions
 		timeout = 10 * time.Second
 	}
 	return searchindex.OpenSearchOptions{
-		Endpoint: cfg.SearchIndexOpenSearchEndpoint,
-		Index:    cfg.SearchIndexOpenSearchIndex,
-		Client:   &http.Client{Timeout: timeout},
-		Username: cfg.SearchIndexOpenSearchUsername,
-		Password: cfg.SearchIndexOpenSearchPassword,
+		Endpoint:       cfg.SearchIndexOpenSearchEndpoint,
+		Index:          cfg.SearchIndexOpenSearchIndex,
+		Client:         &http.Client{Timeout: timeout},
+		Username:       cfg.SearchIndexOpenSearchUsername,
+		Password:       cfg.SearchIndexOpenSearchPassword,
+		KoreanAnalyzer: cfg.SearchIndexOpenSearchKoreanAnalyzer,
 	}
 }
 
