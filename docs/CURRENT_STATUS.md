@@ -8001,3 +8001,9 @@ Next focus areas:
 - `docs/ADMIN_CONSOLE_SPEC.md` now documents `POST /admin/v1/auth/refresh` instead of the stale `refresh-token` path.
 - Removed stale `identity-config`, `logs/*`, and base `api-usage` route entries from the spec and replaced them with implemented directory, SSO, mail-flow, audit, spam-filter, and API-usage aggregate/ledger routes.
 - Verification target: `rg 'refresh-token|/admin/v1/identity-config|/admin/v1/logs/|GET    /admin/v1/api-usage$' docs/ADMIN_CONSOLE_SPEC.md`.
+
+## 2026-05-21 Console locale placeholder cleanup
+
+- English, Japanese, and Simplified Chinese console locale files now use specific modal titles and confirmation copy for alerts, aliases, companies, DKIM keys, domain settings, trusted relays, routes, reports, and roles.
+- Removed launch-visible placeholder strings including `Config Modal Title`, `Quota Modal Title`, `Domain Settings Title`, `Delete Modal Title`, bare `Title`, and related placeholder descriptions from shipped locale JSON.
+- Verification target: `rg 'Config Modal Title|Quota Modal Title|Domain Settings Title|Deactivate Modal Title|Delete Modal Title|Add Setting Modal Header|Dns Issues Header|No Domains Desc|Quota Help|Dns Setup Desc|Dns Verification Desc|Manage Dkim Desc|Delete Confirm|Deactivate Confirm|"title": "Title"|Reports Desc|Description Col|Backend Warning|Assigned Users' apps/console/src/messages/*.json`; `pnpm --dir apps/console type-check`.
