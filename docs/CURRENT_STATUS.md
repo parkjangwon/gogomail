@@ -1,6 +1,11 @@
 # gogomail current status
 
-Last updated: 2026-05-21 (SaaS launch hardening continues: LDAP/RDBMS sync pagination metadata verified)
+Last updated: 2026-05-21 (SaaS launch hardening continues: admin audit repository filter totals verified)
+
+## Admin Audit Repository Filter Totals (2026-05-21)
+- The legacy admin audit repository now builds the row query and `COUNT(*)` query from the same filter predicate set, so action/resource/time filters no longer produce mismatched totals.
+- Count query errors are now returned instead of being silently ignored, and audit-log ordering includes `id DESC` as a deterministic tie-breaker for equal timestamps.
+- Verification target: `go test ./internal/admin -run TestBuildAuditLogListQueries`.
 
 ## LDAP/RDBMS Sync Pagination Metadata (2026-05-21)
 - LDAP and RDBMS sync history/conflict admin endpoints now over-fetch one row and return `limit`, `offset`, and `has_more` response metadata.

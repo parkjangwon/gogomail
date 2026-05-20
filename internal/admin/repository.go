@@ -474,50 +474,11 @@ type AuditLogFilter struct {
 
 // ListAuditLogs lists audit logs with filtering.
 func (r *Repository) ListAuditLogs(ctx context.Context, filter AuditLogFilter) ([]AuditLog, int64, error) {
-	query := `SELECT id, company_id, admin_user_id, action, resource_type, resource_id,
-	          changes, ip_address, user_agent, timestamp
-	          FROM audit_logs WHERE company_id = $1`
-	args := []interface{}{filter.CompanyID}
-	argNum := 2
-
-	if filter.AdminUserID != "" {
-		query += ` AND admin_user_id = $` + fmt.Sprintf("%d", argNum)
-		args = append(args, filter.AdminUserID)
-		argNum++
-	}
-	if filter.Action != "" {
-		query += ` AND action = $` + fmt.Sprintf("%d", argNum)
-		args = append(args, filter.Action)
-		argNum++
-	}
-	if filter.ResourceType != "" {
-		query += ` AND resource_type = $` + fmt.Sprintf("%d", argNum)
-		args = append(args, filter.ResourceType)
-		argNum++
-	}
-	if filter.StartTime != nil {
-		query += ` AND timestamp >= $` + fmt.Sprintf("%d", argNum)
-		args = append(args, *filter.StartTime)
-		argNum++
-	}
-	if filter.EndTime != nil {
-		query += ` AND timestamp <= $` + fmt.Sprintf("%d", argNum)
-		args = append(args, *filter.EndTime)
-		argNum++
-	}
-
-	// Count total
-	countQuery := "SELECT COUNT(*) FROM audit_logs WHERE company_id = $1"
-	countArgs := []interface{}{filter.CompanyID}
-	if filter.AdminUserID != "" {
-		countQuery += " AND admin_user_id = $2"
-		countArgs = append(countArgs, filter.AdminUserID)
-	}
+	countQuery, countArgs, query, args := buildAuditLogListQueries(filter)
 	var total int64
-	r.db.QueryRowContext(ctx, countQuery, countArgs...).Scan(&total)
-
-	query += ` ORDER BY timestamp DESC LIMIT $` + fmt.Sprintf("%d", argNum) + ` OFFSET $` + fmt.Sprintf("%d", argNum+1)
-	args = append(args, filter.Limit, filter.Offset)
+	if err := r.db.QueryRowContext(ctx, countQuery, countArgs...).Scan(&total); err != nil {
+		return nil, 0, err
+	}
 
 	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
@@ -536,6 +497,48 @@ func (r *Repository) ListAuditLogs(ctx context.Context, filter AuditLogFilter) (
 		logs = append(logs, log)
 	}
 	return logs, total, rows.Err()
+}
+
+func buildAuditLogListQueries(filter AuditLogFilter) (string, []interface{}, string, []interface{}) {
+	where, filterArgs := buildAuditLogWhereClause(filter)
+	countArgs := append([]interface{}(nil), filterArgs...)
+	listArgs := append([]interface{}(nil), filterArgs...)
+	limitPlaceholder := len(listArgs) + 1
+	offsetPlaceholder := len(listArgs) + 2
+	listArgs = append(listArgs, filter.Limit, filter.Offset)
+
+	countQuery := "SELECT COUNT(*) FROM audit_logs" + where
+	listQuery := `SELECT id, company_id, admin_user_id, action, resource_type, resource_id,
+	          changes, ip_address, user_agent, timestamp
+	          FROM audit_logs` + where + fmt.Sprintf(` ORDER BY timestamp DESC, id DESC LIMIT $%d OFFSET $%d`, limitPlaceholder, offsetPlaceholder)
+	return countQuery, countArgs, listQuery, listArgs
+}
+
+func buildAuditLogWhereClause(filter AuditLogFilter) (string, []interface{}) {
+	where := " WHERE company_id = $1"
+	args := []interface{}{filter.CompanyID}
+
+	if filter.AdminUserID != "" {
+		where += fmt.Sprintf(" AND admin_user_id = $%d", len(args)+1)
+		args = append(args, filter.AdminUserID)
+	}
+	if filter.Action != "" {
+		where += fmt.Sprintf(" AND action = $%d", len(args)+1)
+		args = append(args, filter.Action)
+	}
+	if filter.ResourceType != "" {
+		where += fmt.Sprintf(" AND resource_type = $%d", len(args)+1)
+		args = append(args, filter.ResourceType)
+	}
+	if filter.StartTime != nil {
+		where += fmt.Sprintf(" AND timestamp >= $%d", len(args)+1)
+		args = append(args, *filter.StartTime)
+	}
+	if filter.EndTime != nil {
+		where += fmt.Sprintf(" AND timestamp <= $%d", len(args)+1)
+		args = append(args, *filter.EndTime)
+	}
+	return where, args
 }
 
 // GetAuditLog retrieves a single audit log entry.

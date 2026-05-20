@@ -6636,3 +6636,7 @@ Target outcome:
       placeholders across English, Japanese, and Simplified Chinese messages
       with workflow-specific copy for admin settings, DNS, DKIM, relays, routes,
       reports, and roles.
+1825. Legacy admin audit-log listing now builds row and `COUNT(*)` predicates
+      from one shared company/admin/action/resource/time filter path, returns
+      count-query errors, and adds `id DESC` as a stable timestamp tie-breaker
+      for deterministic filtered audit pages.
