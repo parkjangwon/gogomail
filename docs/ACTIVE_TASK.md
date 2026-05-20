@@ -168,6 +168,7 @@
 - Console shipped locale files no longer expose generic modal/title placeholders such as `Config Modal Title`, `Delete Modal Title`, or bare `Title` in key admin workflows.
 - User address lookup hot paths no longer wrap `user_addresses.address` in `lower()` for exact matches; directory, inbound delivery, SSO, webmail profile, login, SMTP submission, drafts, and sender resolution now use normalized `address_ace` equality with supporting per-user indexes.
 - External RDBMS identity provider list calls now push plain user/group `Limit`/`Offset` pagination into the configured source query when no app-side search/org filter is requested, avoiding full external-table scans for simple admin pages.
+- Database identity provider group listing now honors search text and offset pagination with parameterized SQL and deterministic ordering instead of ignoring those filters.
 
 **Infrastructure & Storage Hardening** ✅ COMPLETE
 - Task 1 (EML GC): Added `LookupDeleteableStoragePaths` and `LookupExpungeStoragePaths` to maildb; service layer now performs two-phase GC (lookup before DB delete, delete from store after commit) for `DeleteMessage`, `BulkDeleteMessages`, `BulkDeleteThreads`, and `ExpungeIMAPMessages`. Reference-count check prevents deletion of paths shared by IMAP COPY.
@@ -234,6 +235,7 @@ Go Backend (`internal/`):
 - [x] 테스트 검증: `go test ./...` 통과
 
 최근 진행:
+- Database identity provider group listing now applies search and offset filters in SQL with stable ordering, removing a pagination correctness gap for internal directory-backed provider pages.
 - External RDBMS identity provider plain list pagination now wraps configured source queries in a DB-side `LIMIT/OFFSET` subquery when no in-memory search/org filtering is required.
 - `user_addresses` exact-match hot paths now compare against normalized `address_ace` and add per-user covering indexes, removing table-side `lower(address)` from login, delivery, SSO, profile, SMTP, draft, sender, and directory lookups.
 - `ListMessagesByIDs` hydration을 `unnest($2::uuid[]) WITH ORDINALITY` 기반으로 바꿔 JSON 배열 파싱을 제거함
