@@ -4,11 +4,39 @@ import (
 	"encoding/json"
 	"reflect"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/gogomail/gogomail/internal/imapgw"
 )
+
+func TestBuildListIMAPMessagesQueryAvoidsNullableUIDOptionalOR(t *testing.T) {
+	firstPageQuery := buildListIMAPMessagesQuery(0)
+	if strings.Contains(firstPageQuery, "i.uid IS NULL OR") {
+		t.Fatalf("first page query still uses nullable optional OR:\n%s", firstPageQuery)
+	}
+	if strings.Contains(firstPageQuery, "UNION ALL") {
+		t.Fatalf("first page query should stay a single ordered scan:\n%s", firstPageQuery)
+	}
+	if strings.Contains(firstPageQuery, "i.uid > $3") {
+		t.Fatalf("first page query should not carry a cursor predicate:\n%s", firstPageQuery)
+	}
+
+	cursorQuery := buildListIMAPMessagesQuery(42)
+	if strings.Contains(cursorQuery, "i.uid IS NULL OR") {
+		t.Fatalf("cursor query still uses nullable optional OR:\n%s", cursorQuery)
+	}
+	if !strings.Contains(cursorQuery, "UNION ALL") {
+		t.Fatalf("cursor query should split assigned and unassigned UID candidates:\n%s", cursorQuery)
+	}
+	if !strings.Contains(cursorQuery, "JOIN imap_message_uid i ON i.message_id = m.id") || !strings.Contains(cursorQuery, "AND i.uid > $3") {
+		t.Fatalf("cursor query should keep assigned UID scans indexable:\n%s", cursorQuery)
+	}
+	if !strings.Contains(cursorQuery, "AND i.message_id IS NULL") {
+		t.Fatalf("cursor query should preserve lazy UID assignment candidates:\n%s", cursorQuery)
+	}
+}
 
 func TestIMAPMessageFromRowMapsEnvelopeFlagsAndUID(t *testing.T) {
 	internalDate := time.Date(2026, 5, 4, 12, 30, 0, 0, time.UTC)

@@ -237,6 +237,7 @@ Go Backend (`internal/`):
 - `SearchMessages`/`SearchDrafts`의 cursor predicate도 커서가 있을 때만 tuple comparison을 추가하고, 첫 페이지 검색에서는 predicate를 제거해 pagination optional `OR`를 줄임
 - thread list의 read/starred/attachment 필터도 제공된 경우에만 직접 predicate를 추가하고, 필터 없는 목록에서는 nullable boolean optional `OR` predicate를 제거함
 - thread list cursor predicate도 커서가 있을 때만 newest/oldest 방향에 맞는 tuple comparison을 추가하고, 첫 페이지 목록에서는 pagination optional `OR`를 제거함
+- IMAP message listing도 first-page/cursor-page 쿼리를 분리해 첫 페이지에서는 UID cursor predicate를 제거하고, cursor 페이지에서는 assigned UID 후보와 lazy UID-assignment 후보를 `UNION ALL`로 나눠 nullable optional `OR` predicate를 제거함
 - IMAP UID copy/expunge/move/hydrate 경로도 typed array unnest로 바꿔 요청당 JSON 직렬화 비용을 제거함
 - `imapUIDArray` 1k/10k 벤치마크를 추가해 UID 전처리 비용을 추적할 수 있게 함
 - IMAP mailbox lookup normalization도 `strings.Fields` 대신 로컬 공백 정리 스캐너를 쓰도록 바꿔 `SELECT`/`LIST` alias 처리의 토큰 슬라이스 비용을 줄임
