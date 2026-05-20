@@ -19,6 +19,7 @@ func TestAdminOperationalListQueriesUseSargableFilters(t *testing.T) {
 		Farm:          "transactional",
 		DomainPattern: "*.example.net",
 	}, 53)
+	adminUsersQuery, adminUsersArgs := buildListAdminUsersQuery("22222222-2222-2222-2222-222222222222", 54)
 
 	tests := []struct {
 		name      string
@@ -61,6 +62,17 @@ func TestAdminOperationalListQueriesUseSargableFilters(t *testing.T) {
 				"LIMIT $4",
 			},
 			forbidden: []string{"$1 = '' OR", "$2 = '' OR", "$3 = '' OR", " OR "},
+		},
+		{
+			name:  "admin users",
+			query: adminUsersQuery,
+			args:  adminUsersArgs,
+			want: []string{
+				"WHERE u.role IN ('system_admin', 'company_admin')",
+				"AND d.company_id = $1::uuid",
+				"LIMIT $2",
+			},
+			forbidden: []string{"$1 = '' OR", "d.company_id::text =", " OR "},
 		},
 	}
 
