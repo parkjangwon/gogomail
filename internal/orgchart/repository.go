@@ -149,6 +149,44 @@ func (r *Repository) GetMembersInUnit(ctx context.Context, unitID string) ([]Org
 	return members, rows.Err()
 }
 
+// ListUnitsForUser lists active organization units currently assigned to a user.
+func (r *Repository) ListUnitsForUser(ctx context.Context, userID string) ([]OrganizationUnit, error) {
+	if userID == "" {
+		return nil, fmt.Errorf("user_id is required")
+	}
+
+	rows, err := r.db.QueryContext(
+		ctx,
+		`SELECT ou.id, ou.company_id, ou.parent_id, ou.name, ou.type, ou.description,
+		        ou.display_name, ou.manager_user_id, ou.status, ou.created_at, ou.updated_at
+		FROM organization_members om
+		JOIN organization_units ou ON ou.id = om.organization_unit_id
+		WHERE om.user_id = $1
+		  AND om.ended_at IS NULL
+		  AND ou.status = 'active'
+		ORDER BY om.is_primary DESC, ou.name, ou.id`,
+		userID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var units []OrganizationUnit
+	for rows.Next() {
+		var unit OrganizationUnit
+		if err := rows.Scan(
+			&unit.ID, &unit.CompanyID, &unit.ParentID, &unit.Name, &unit.Type,
+			&unit.Description, &unit.DisplayName, &unit.ManagerUserID, &unit.Status,
+			&unit.CreatedAt, &unit.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		units = append(units, unit)
+	}
+	return units, rows.Err()
+}
+
 // RemoveUser removes a user from an organization unit.
 func (r *Repository) RemoveUser(ctx context.Context, memberID string) error {
 	_, err := r.db.ExecContext(
