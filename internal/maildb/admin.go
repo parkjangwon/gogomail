@@ -422,6 +422,12 @@ type APIUsageExportBatchListRequest struct {
 	To          time.Time
 }
 
+const listAPIUsageExportBatchesBaseSQL = `
+SELECT id, created_at, completed_at, status, export_format, tenant_id, principal_id,
+  window_start, window_end, event_count, request_count, request_bytes, response_bytes,
+  latency_ms_total, latency_ms_max, first_event_at, last_event_at, manifest
+FROM api_usage_export_batches`
+
 type APIUsageExportArtifactView struct {
 	ID             string          `json:"id"`
 	BatchID        string          `json:"batch_id"`
@@ -4556,6 +4562,44 @@ func isAPIUsageExportBatchStatus(status string) bool {
 	}
 }
 
+func buildListAPIUsageExportBatchesQuery(req APIUsageExportBatchListRequest) (string, []any) {
+	query := listAPIUsageExportBatchesBaseSQL
+	var conditions []string
+	var args []any
+
+	tenantID := strings.TrimSpace(req.TenantID)
+	if tenantID != "" {
+		args = append(args, tenantID)
+		conditions = append(conditions, fmt.Sprintf("tenant_id = $%d", len(args)))
+	}
+	principalID := strings.TrimSpace(req.PrincipalID)
+	if principalID != "" {
+		args = append(args, principalID)
+		conditions = append(conditions, fmt.Sprintf("principal_id = $%d", len(args)))
+	}
+	status := strings.ToLower(strings.TrimSpace(req.Status))
+	if status != "" {
+		args = append(args, status)
+		conditions = append(conditions, fmt.Sprintf("status = $%d", len(args)))
+	}
+	if !req.From.IsZero() {
+		args = append(args, req.From.UTC())
+		conditions = append(conditions, fmt.Sprintf("window_start >= $%d", len(args)))
+	}
+	if !req.To.IsZero() {
+		args = append(args, req.To.UTC())
+		conditions = append(conditions, fmt.Sprintf("window_end < $%d", len(args)))
+	}
+	if len(conditions) > 0 {
+		query += "\nWHERE " + strings.Join(conditions, "\n  AND ")
+	}
+	args = append(args, normalizeLimit(req.Limit))
+	query += fmt.Sprintf(`
+ORDER BY created_at DESC, id DESC
+LIMIT $%d`, len(args))
+	return query, args
+}
+
 func (r *Repository) ListAPIUsageExportBatches(ctx context.Context, req APIUsageExportBatchListRequest) ([]APIUsageExportBatchView, error) {
 	if r.db == nil {
 		return nil, fmt.Errorf("database handle is required")
@@ -4563,23 +4607,8 @@ func (r *Repository) ListAPIUsageExportBatches(ctx context.Context, req APIUsage
 	if err := ValidateAPIUsageExportBatchListRequest(req); err != nil {
 		return nil, err
 	}
-	limit := normalizeLimit(req.Limit)
-	tenantID := strings.TrimSpace(req.TenantID)
-	principalID := strings.TrimSpace(req.PrincipalID)
-	status := strings.ToLower(strings.TrimSpace(req.Status))
-	const query = `
-SELECT id, created_at, completed_at, status, export_format, tenant_id, principal_id,
-  window_start, window_end, event_count, request_count, request_bytes, response_bytes,
-  latency_ms_total, latency_ms_max, first_event_at, last_event_at, manifest
-FROM api_usage_export_batches
-WHERE ($1 = '' OR tenant_id = $1)
-  AND ($2 = '' OR principal_id = $2)
-  AND ($3 = '' OR status = $3)
-  AND ($4::timestamptz IS NULL OR window_start >= $4)
-  AND ($5::timestamptz IS NULL OR window_end < $5)
-ORDER BY created_at DESC, id DESC
-LIMIT $6`
-	rows, err := r.db.QueryContext(ctx, query, tenantID, principalID, status, nullableTime(req.From), nullableTime(req.To), limit)
+	query, args := buildListAPIUsageExportBatchesQuery(req)
+	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("list api usage export batches: %w", err)
 	}

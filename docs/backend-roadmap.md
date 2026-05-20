@@ -6429,3 +6429,7 @@ Target outcome:
       principal, auth source, method, route, status, and time-window filters.
       This keeps SaaS usage and billing analytics queries index-friendly as
       aggregate tables grow.
+1763. API usage export batch listing now uses dynamic sargable predicates for
+      tenant, principal, status, and export-window filters, keeping saved-batch
+      discovery for billing handoff and retention checks index-friendly as
+      export history grows.

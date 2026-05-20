@@ -467,6 +467,54 @@ func TestValidateAPIUsageExportBatchListRequestRejectsUnsafeFilters(t *testing.T
 	}
 }
 
+func TestAPIUsageExportBatchListQueryUsesSargableFilters(t *testing.T) {
+	t.Parallel()
+
+	query, args := buildListAPIUsageExportBatchesQuery(APIUsageExportBatchListRequest{
+		Limit:       100,
+		TenantID:    "tenant-1",
+		PrincipalID: "principal-1",
+		Status:      " Completed ",
+		From:        time.Date(2026, 5, 1, 0, 0, 0, 0, time.FixedZone("KST", 9*60*60)),
+		To:          time.Date(2026, 6, 1, 0, 0, 0, 0, time.FixedZone("KST", 9*60*60)),
+	})
+	for _, want := range []string{
+		"FROM api_usage_export_batches",
+		"WHERE tenant_id = $1",
+		"AND principal_id = $2",
+		"AND status = $3",
+		"AND window_start >= $4",
+		"AND window_end < $5",
+		"ORDER BY created_at DESC, id DESC",
+		"LIMIT $6",
+	} {
+		if !strings.Contains(query, want) {
+			t.Fatalf("api usage export batch query missing %q:\n%s", want, query)
+		}
+	}
+	for _, forbidden := range []string{
+		"$1 = '' OR",
+		"::timestamptz IS NULL",
+		" OR ",
+	} {
+		if strings.Contains(query, forbidden) {
+			t.Fatalf("api usage export batch query contains non-sargable filter %q:\n%s", forbidden, query)
+		}
+	}
+	if len(args) != 6 {
+		t.Fatalf("args len = %d, want 6", len(args))
+	}
+	if args[2] != "completed" {
+		t.Fatalf("status arg = %#v, want completed", args[2])
+	}
+	if got := args[3].(time.Time).Location(); got != time.UTC {
+		t.Fatalf("from arg location = %v, want UTC", got)
+	}
+	if got := args[4].(time.Time).Location(); got != time.UTC {
+		t.Fatalf("to arg location = %v, want UTC", got)
+	}
+}
+
 func TestNormalizeQuotaUsageListRequestRejectsUnsafeFilters(t *testing.T) {
 	t.Parallel()
 
