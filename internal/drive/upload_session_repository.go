@@ -78,7 +78,25 @@ inserted AS (
     finalized_at,
     canceled_at
 )
-SELECT * FROM inserted`
+SELECT
+  id,
+  user_id,
+  parent_id,
+  upload_id,
+  name,
+  declared_size,
+  received_size,
+  mime_type,
+  status,
+  storage_backend,
+  storage_path,
+  checksum_sha256,
+  expires_at,
+  created_at,
+  updated_at,
+  finalized_at,
+  canceled_at
+FROM inserted`
 	var session UploadSession
 	var finalizedAt sql.NullTime
 	var canceledAt sql.NullTime

@@ -6333,3 +6333,7 @@ Target outcome:
 1742. TASK-090 retry scheduling dedupe-key generation now avoids `fmt.Sprint`
       and `strings.Join` intermediate strings, writes into a pre-sized builder,
       and tracks 1k/10k-recipient benchmark cases for large batch retries.
+1743. Storage repository projection tightening now removes remaining
+      `SELECT * FROM updated/inserted` CTE reads from Drive rename, move, and
+      upload-session creation queries, with a regression test guarding explicit
+      result shapes.

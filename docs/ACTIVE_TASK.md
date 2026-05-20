@@ -287,6 +287,8 @@ Go Backend (`internal/`):
 - `TestDSNRecipientOptionsByAddressPreservesFirstNormalizedMatch`를 추가해 DSN recipient option map이 기존 first-match 의미와 빈 주소 제외를 유지하도록 고정함
 - retry dedupe key 생성이 `fmt.Sprint`/`strings.Join` 중간 문자열을 만들지 않고 사전 크기 계산된 `strings.Builder`에 직접 attempt/recipient key를 쓰도록 바꿔 대량 retry scheduling CPU/할당 비용을 낮춤
 - `BenchmarkRetryDedupeKey`에 1k/10k 수신자 케이스를 추가해 대량 수신자 retry key 생성 비용을 계속 추적할 수 있게 함
+- Drive rename/move/upload-session 생성 SQL의 마지막 CTE read가 `SELECT * FROM updated/inserted`를 쓰지 않고 API 응답에 필요한 컬럼을 명시하도록 좁혀 storage read/write 경로의 projection 회귀를 줄임
+- `TestDriveRepositorySQLAvoidsWideCTEProjection`을 추가해 Drive repository SQL이 wide CTE projection으로 되돌아가지 않도록 고정함
 
 **System Email Connections & AutoPurge** ✅ COMPLETE
 - `internal/httpapi/admin.go`: Added `systemEmail mailservice.SystemEmailSender` and `publicBaseURL string` fields to `adminRouteConfig`; added `WithSystemEmailSender` and `WithPublicBaseURL` `AdminRouteOption` constructors
