@@ -6451,3 +6451,6 @@ Target outcome:
 1768. Directory group-membership listing now uses dynamic optional predicates
       for group, member-kind, member-id, role, and active-status filters,
       avoiding broad optional `OR` guards on large membership operations.
+1769. Directory direct and effective group-membership checks now add
+      active-status predicates only when `ActiveOnly` is requested, removing
+      boolean optional `OR` guards from validation hot paths.
