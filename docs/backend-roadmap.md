@@ -6612,3 +6612,7 @@ Target outcome:
       `memberOf` relationships for all returned principals through typed-array
       ordinality queries with per-principal row-number limits, avoiding one
       membership query per search result.
+1819. Scheduling attendee resolution now batch-loads internal users for all
+      requested attendee emails through one typed-array ordinality lookup before
+      preserving existing alias, CardDAV, and external fallbacks, avoiding one
+      user lookup query per attendee on multi-user calendar invites.

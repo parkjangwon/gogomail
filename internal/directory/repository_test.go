@@ -179,6 +179,28 @@ func TestResolveDirectoryLookupQueriesUseSargableActiveFilters(t *testing.T) {
 	if len(inactiveUserArgs) != 1 {
 		t.Fatalf("inactive user args len = %d, want 1", len(inactiveUserArgs))
 	}
+
+	batchUserQuery := buildResolveUsersByEmailsQuery(true)
+	for _, want := range []string{
+		"FROM unnest($1::text[]) WITH ORDINALITY AS req(email, email_order)",
+		"JOIN user_addresses lookup ON lower(lookup.address) = lower(req.email)",
+		"LEFT JOIN user_addresses primary_addr ON primary_addr.user_id = u.id AND primary_addr.is_primary = true",
+		"WHERE (u.status = 'active' AND d.status = 'active' AND c.status = 'active')",
+		"ORDER BY req.email_order",
+	} {
+		if !strings.Contains(batchUserQuery, want) {
+			t.Fatalf("batch resolve user query missing %q:\n%s", want, batchUserQuery)
+		}
+	}
+	for _, forbidden := range []string{
+		"array_position",
+		"SELECT *",
+		"$1 = '' OR",
+	} {
+		if strings.Contains(batchUserQuery, forbidden) {
+			t.Fatalf("batch resolve user query contains forbidden pattern %q:\n%s", forbidden, batchUserQuery)
+		}
+	}
 }
 
 func TestResolvePrincipalQueriesUseSargableActiveFilters(t *testing.T) {
