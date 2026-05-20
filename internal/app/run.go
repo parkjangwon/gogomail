@@ -17,6 +17,7 @@ import (
 	"os"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	gosmtp "github.com/emersion/go-smtp"
@@ -2915,24 +2916,77 @@ func deliveryDomainBackoffFromConfig(cfg config.Config, redisClient *redis.Clien
 }
 
 func smtpMetrics(cfg config.Config, logger *slog.Logger) smtpd.Metrics {
-	if cfg.MetricsBackend == "slog" {
+	switch cfg.MetricsBackend {
+	case "slog":
 		return observability.NewSlogAdapter(logger)
+	case "prometheus":
+		return sharedPrometheusAdapter()
 	}
 	return nil
 }
 
 func deliveryMetrics(cfg config.Config, logger *slog.Logger) delivery.Metrics {
-	if cfg.MetricsBackend == "slog" {
+	switch cfg.MetricsBackend {
+	case "slog":
 		return observability.NewSlogAdapter(logger)
+	case "prometheus":
+		return sharedPrometheusAdapter()
 	}
 	return nil
 }
 
 func ldapMetrics(cfg config.Config, logger *slog.Logger) ldapgw.Metrics {
-	if cfg.MetricsBackend == "slog" {
+	switch cfg.MetricsBackend {
+	case "slog":
 		return observability.NewSlogAdapter(logger)
+	case "prometheus":
+		return sharedPrometheusAdapter()
 	}
 	return nil
+}
+
+var (
+	prometheusAdapterOnce sync.Once
+	prometheusAdapter     *observability.PrometheusAdapter
+)
+
+func sharedPrometheusAdapter() *observability.PrometheusAdapter {
+	prometheusAdapterOnce.Do(func() {
+		prometheusAdapter = observability.NewPrometheusAdapter()
+	})
+	return prometheusAdapter
+}
+
+// serveMetrics starts a lightweight HTTP server on cfg.MetricsAddr that
+// exposes Prometheus-format metrics at /metrics.  It runs until ctx is done.
+func serveMetrics(ctx context.Context, cfg config.Config, logger *slog.Logger) {
+	if strings.ToLower(strings.TrimSpace(cfg.MetricsBackend)) != "prometheus" {
+		return
+	}
+	adapter := sharedPrometheusAdapter()
+	mux := http.NewServeMux()
+	mux.HandleFunc("/metrics", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/plain; version=0.0.4; charset=utf-8")
+		fmt.Fprint(w, adapter.Text())
+	})
+	srv := &http.Server{
+		Addr:              cfg.MetricsAddr,
+		Handler:           mux,
+		ReadTimeout:       5 * time.Second,
+		WriteTimeout:      10 * time.Second,
+		IdleTimeout:       30 * time.Second,
+		ReadHeaderTimeout: 2 * time.Second,
+	}
+	go func() {
+		<-ctx.Done()
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		_ = srv.Shutdown(shutdownCtx)
+	}()
+	logger.Info("metrics server listening", "addr", cfg.MetricsAddr)
+	if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		logger.Error("metrics server error", "error", err)
+	}
 }
 
 func apiUsageExportManifestSigner(cfg config.Config) apimeter.ExportManifestSigner {
@@ -3220,8 +3274,13 @@ func runHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, mode M
 	}
 	handler = httpapi.NewAdminIPRateLimiter(600, time.Minute).Middleware(handler)
 	handler = httpapi.MaxRequestBodyMiddleware(4*1024*1024)(handler)
+	if cfg.CORSAllowedOrigins != "" {
+		handler = httpapi.CORSMiddleware(cfg.CORSAllowedOrigins)(handler)
+	}
 	handler = httpapi.SecurityHeadersMiddleware(handler)
 	server := newHTTPServer(cfg, handler)
+
+	go serveMetrics(ctx, cfg, logger)
 
 	errCh := make(chan error, 1)
 	go func() {

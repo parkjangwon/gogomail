@@ -294,6 +294,12 @@ type Config struct {
 	FarmCoordinatorNodeID               string
 	FarmCoordinatorHeartbeatTTL         time.Duration
 	FarmCoordinatorJobVisibilityTimeout time.Duration
+
+	// HTTP CORS
+	CORSAllowedOrigins string
+
+	// Metrics HTTP endpoint
+	MetricsAddr string
 }
 
 func Load() Config {
@@ -579,6 +585,8 @@ func Load() Config {
 		FarmCoordinatorNodeID:               envOrDefault("GOGOMAIL_FARM_COORDINATOR_NODE_ID", ""),
 		FarmCoordinatorHeartbeatTTL:         durationEnvOrDefault("GOGOMAIL_FARM_COORDINATOR_HEARTBEAT_TTL", 30*time.Second),
 		FarmCoordinatorJobVisibilityTimeout: durationEnvOrDefault("GOGOMAIL_FARM_COORDINATOR_JOB_VISIBILITY_TIMEOUT", 5*time.Minute),
+		CORSAllowedOrigins:                  os.Getenv("GOGOMAIL_CORS_ALLOWED_ORIGINS"),
+		MetricsAddr:                         envOrDefault("GOGOMAIL_METRICS_ADDR", ":9090"),
 	}
 	if cfg.EventConsumerDeadLetterStream == "" {
 		cfg.EventConsumerDeadLetterStream = cfg.EventStream + ".dead"

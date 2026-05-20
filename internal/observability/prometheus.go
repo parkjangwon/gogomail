@@ -8,8 +8,14 @@ import (
 	"sync"
 
 	"github.com/gogomail/gogomail/internal/delivery"
+	"github.com/gogomail/gogomail/internal/ldapgw"
 	smtpd "github.com/gogomail/gogomail/internal/smtp"
 )
+
+// Compile-time interface checks.
+var _ smtpd.Metrics = (*PrometheusAdapter)(nil)
+var _ delivery.Metrics = (*PrometheusAdapter)(nil)
+var _ ldapgw.Metrics = (*PrometheusAdapter)(nil)
 
 type PrometheusAdapter struct {
 	mu       sync.Mutex
@@ -32,6 +38,21 @@ func (a *PrometheusAdapter) ObserveSMTP(_ context.Context, event smtpd.MetricEve
 	})
 }
 
+func (a *PrometheusAdapter) ObserveRFCNonCompliance(compliance smtpd.RFCCompliance) {
+	labels := map[string]string{
+		"rfc5322": boolLabel(compliance.RFC5322Valid),
+		"rfc5321": boolLabel(compliance.RFC5321Valid),
+	}
+	a.inc("gogomail_smtp_rfc_noncompliance_total", labels)
+}
+
+func boolLabel(v bool) string {
+	if v {
+		return "valid"
+	}
+	return "invalid"
+}
+
 func (a *PrometheusAdapter) ObserveDelivery(_ context.Context, event delivery.MetricEvent) {
 	a.inc("gogomail_delivery_events_total", map[string]string{
 		"stage":            string(event.Stage),
@@ -39,6 +60,13 @@ func (a *PrometheusAdapter) ObserveDelivery(_ context.Context, event delivery.Me
 		"farm":             event.Farm,
 		"route_pool":       event.RoutePool,
 		"recipient_bucket": recipientBucket(event.RecipientCount),
+	})
+}
+
+func (a *PrometheusAdapter) ObserveLDAP(_ context.Context, event ldapgw.MetricEvent) {
+	a.inc("gogomail_ldap_events_total", map[string]string{
+		"operation": event.Operation,
+		"result":    string(event.Result),
 	})
 }
 

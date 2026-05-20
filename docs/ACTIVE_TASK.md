@@ -53,6 +53,13 @@
 - Phase 2 (Bulk Delivery Batching): Same-domain batch planning, runtime batch-size tuning, observability, and benchmarks implemented
 - Phase 3 (Message Caching Layer): Parsed EML body LRU cache with runtime tuning and cache snapshots implemented
 
+**Infrastructure & Storage Hardening** ✅ COMPLETE
+- Task 1 (EML GC): Added `LookupDeleteableStoragePaths` and `LookupExpungeStoragePaths` to maildb; service layer now performs two-phase GC (lookup before DB delete, delete from store after commit) for `DeleteMessage`, `BulkDeleteMessages`, `BulkDeleteThreads`, and `ExpungeIMAPMessages`. Reference-count check prevents deletion of paths shared by IMAP COPY.
+- Task 2 (Drive quota): Added `drive_nodes` (active files) to both quota reconciliation CTEs (`ListQuotaReconciliation` and `quotaActualCTE`).
+- Task 3 (CORS): Added `CORSMiddleware` to `httpapi/admin.go`; wired via `GOGOMAIL_CORS_ALLOWED_ORIGINS` env var; handles OPTIONS preflight; added `cors_allowed_origins` config file key.
+- Task 4 (CSP): Added `Content-Security-Policy` header to `SecurityHeadersMiddleware`.
+- Task 5 (Prometheus /metrics): Added `ObserveLDAP` + `ObserveRFCNonCompliance` to `PrometheusAdapter`; wired as "prometheus" backend in `smtpMetrics`/`deliveryMetrics`/`ldapMetrics`; `serveMetrics` goroutine exposes `/metrics` on `GOGOMAIL_METRICS_ADDR` (default :9090) when `GOGOMAIL_METRICS_BACKEND=prometheus`.
+
 ---
 
 ## TASK-090: Message Storage & Delivery Optimization (Bulk Mail Performance)

@@ -109,11 +109,64 @@ func SecurityHeadersMiddleware(next http.Handler) http.Handler {
 		h.Set("Referrer-Policy", "strict-origin-when-cross-origin")
 		h.Set("X-XSS-Protection", "0") // modern browsers ignore this; CSP is the real defence
 		h.Set("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
+		h.Set("Content-Security-Policy", "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; frame-ancestors 'none'")
 		if r.TLS != nil {
 			h.Set("Strict-Transport-Security", "max-age=63072000; includeSubDomains; preload")
 		}
 		next.ServeHTTP(w, r)
 	})
+}
+
+// CORSMiddleware returns a middleware that adds CORS headers to every response.
+// allowedOrigins is a comma-separated list of allowed origins; pass "*" to
+// allow all origins.  OPTIONS preflight requests are answered immediately with
+// 204 No Content.
+func CORSMiddleware(allowedOrigins string) func(http.Handler) http.Handler {
+	origins := parseCORSOrigins(allowedOrigins)
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			origin := r.Header.Get("Origin")
+			if origin != "" && len(origins) > 0 {
+				if allowed, normalized := matchCORSOrigin(origins, origin); allowed {
+					w.Header().Set("Access-Control-Allow-Origin", normalized)
+					w.Header().Set("Vary", "Origin")
+					w.Header().Set("Access-Control-Allow-Credentials", "true")
+					w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
+					w.Header().Set("Access-Control-Allow-Headers", "Authorization, Content-Type, X-Requested-With")
+					w.Header().Set("Access-Control-Max-Age", "86400")
+				}
+			}
+			if r.Method == http.MethodOptions {
+				w.WriteHeader(http.StatusNoContent)
+				return
+			}
+			next.ServeHTTP(w, r)
+		})
+	}
+}
+
+func parseCORSOrigins(raw string) []string {
+	var out []string
+	for _, part := range strings.Split(raw, ",") {
+		part = strings.TrimSpace(part)
+		if part != "" {
+			out = append(out, part)
+		}
+	}
+	return out
+}
+
+func matchCORSOrigin(allowed []string, origin string) (bool, string) {
+	origin = strings.TrimSpace(origin)
+	for _, a := range allowed {
+		if a == "*" {
+			return true, "*"
+		}
+		if strings.EqualFold(a, origin) {
+			return true, a
+		}
+	}
+	return false, ""
 }
 
 // AdminIPRateLimiter provides in-process per-IP rate limiting for admin API endpoints.

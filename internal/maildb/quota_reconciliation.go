@@ -48,7 +48,7 @@ WITH user_actual AS (
     u.domain_id,
     u.username || '@' || d.name_ace AS name,
     u.quota_used AS ledger_used,
-    COALESCE(messages.bytes, 0) + COALESCE(attachments.bytes, 0) AS actual_used
+    COALESCE(messages.bytes, 0) + COALESCE(attachments.bytes, 0) + COALESCE(drive.bytes, 0) AS actual_used
   FROM users u
   JOIN domains d ON d.id = u.domain_id
   LEFT JOIN (
@@ -64,6 +64,13 @@ WITH user_actual AS (
       AND status IN ('uploading', 'stored')
     GROUP BY user_id
   ) attachments ON attachments.user_id = u.id
+  LEFT JOIN (
+    SELECT owner_id AS user_id, SUM(size) AS bytes
+    FROM drive_nodes
+    WHERE node_type = 'file'
+      AND status = 'active'
+    GROUP BY owner_id
+  ) drive ON drive.user_id = u.id
 ),
 domain_actual AS (
   SELECT
@@ -448,7 +455,7 @@ WITH user_actual AS (
     d.company_id,
     u.username || '@' || d.name_ace AS name,
     u.quota_used AS ledger_used,
-    COALESCE(messages.bytes, 0) + COALESCE(attachments.bytes, 0) AS actual_used
+    COALESCE(messages.bytes, 0) + COALESCE(attachments.bytes, 0) + COALESCE(drive.bytes, 0) AS actual_used
   FROM users u
   JOIN domains d ON d.id = u.domain_id
   LEFT JOIN (
@@ -464,6 +471,13 @@ WITH user_actual AS (
       AND status IN ('uploading', 'stored')
     GROUP BY user_id
   ) attachments ON attachments.user_id = u.id
+  LEFT JOIN (
+    SELECT owner_id AS user_id, SUM(size) AS bytes
+    FROM drive_nodes
+    WHERE node_type = 'file'
+      AND status = 'active'
+    GROUP BY owner_id
+  ) drive ON drive.user_id = u.id
 ),
 domain_actual AS (
   SELECT
