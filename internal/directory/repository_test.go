@@ -915,6 +915,70 @@ func TestNormalizeListGroupMembershipsRequestRejectsUnsafeInput(t *testing.T) {
 	}
 }
 
+func TestListGroupMembershipsQueryUsesSargableOptionalFilters(t *testing.T) {
+	t.Parallel()
+
+	req, err := NormalizeListGroupMembershipsRequest(ListGroupMembershipsRequest{
+		CompanyID:  " company-1 ",
+		GroupID:    " group-1 ",
+		MemberKind: " USER ",
+		MemberID:   " user-1 ",
+		Role:       " OWNER ",
+		ActiveOnly: true,
+		Limit:      25,
+	})
+	if err != nil {
+		t.Fatalf("NormalizeListGroupMembershipsRequest returned error: %v", err)
+	}
+	query, args := buildListGroupMembershipsQuery(req)
+	for _, want := range []string{
+		"FROM directory_group_memberships m",
+		"WHERE g.company_id = $1::uuid",
+		"AND m.group_id = $2::uuid",
+		"AND m.member_kind = $3",
+		"AND m.member_id = $4::uuid",
+		"AND m.role = $5",
+		"AND (m.status = 'active' AND g.status = 'active' AND d.status = 'active' AND c.status = 'active')",
+		"ORDER BY m.updated_at DESC, m.id",
+		"LIMIT $6",
+	} {
+		if !strings.Contains(query, want) {
+			t.Fatalf("list group memberships query missing %q:\n%s", want, query)
+		}
+	}
+	for _, forbidden := range []string{
+		"$2 = '' OR",
+		"NULLIF($",
+		"$6::boolean = false OR",
+	} {
+		if strings.Contains(query, forbidden) {
+			t.Fatalf("list group memberships query contains non-sargable optional filter %q:\n%s", forbidden, query)
+		}
+	}
+	if len(args) != 6 {
+		t.Fatalf("args len = %d, want 6", len(args))
+	}
+	if args[0] != "company-1" || args[5] != 25 {
+		t.Fatalf("args = %#v, want company and limit preserved", args)
+	}
+
+	query, args = buildListGroupMembershipsQuery(ListGroupMembershipsRequest{CompanyID: "company-1", Limit: 50})
+	for _, unexpected := range []string{
+		"m.group_id = $2::uuid",
+		"m.member_kind = $",
+		"m.member_id = $",
+		"m.role = $",
+		"status = 'active'",
+	} {
+		if strings.Contains(query, unexpected) {
+			t.Fatalf("minimal list group memberships query unexpectedly contains %q:\n%s", unexpected, query)
+		}
+	}
+	if len(args) != 2 {
+		t.Fatalf("minimal args len = %d, want 2", len(args))
+	}
+}
+
 func TestNormalizeUpdateGroupMembershipRoleRequest(t *testing.T) {
 	t.Parallel()
 
