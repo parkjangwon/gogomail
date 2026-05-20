@@ -74,6 +74,11 @@ type ResolvePrincipalRequest struct {
 	ActiveOnly bool
 }
 
+type PrincipalRef struct {
+	Kind string
+	ID   string
+}
+
 type ResolveUserByEmailRequest struct {
 	Email      string
 	ActiveOnly bool

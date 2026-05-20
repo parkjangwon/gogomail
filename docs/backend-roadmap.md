@@ -6608,3 +6608,7 @@ Target outcome:
 1817. Admin company-level user reads now support a direct `CompanyID` scope on
       `ListUsers`, so bulk export, SCIM status, security posture, seat usage,
       and user-limit checks avoid one user-list query per domain.
+1818. LDAP gateway search membership expansion now batch-loads `member` and
+      `memberOf` relationships for all returned principals through typed-array
+      ordinality queries with per-principal row-number limits, avoiding one
+      membership query per search result.

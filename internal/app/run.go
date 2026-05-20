@@ -981,10 +981,47 @@ func (q *ldapDirectoryQuerier) SearchPrincipals(ctx context.Context, req ldapgw.
 		return nil, err
 	}
 	entries := make([]ldapgw.PrincipalEntry, 0, len(principals))
-	for _, p := range principals {
-		entry, err := q.ldapPrincipalEntry(ctx, p, baseDN, req.Attrs)
+	expandMembers := ldapShouldExpandGroupMembers(req.Attrs)
+	expandMemberOf := ldapShouldExpandMemberOf(req.Attrs)
+	var membershipsByGroup map[string][]directory.GroupMembership
+	var membershipsByMember map[directory.PrincipalRef][]directory.GroupMembership
+	if expandMembers {
+		groupIDs := make([]string, 0, len(principals))
+		for _, p := range principals {
+			if p.Kind == directory.PrincipalKindGroup {
+				groupIDs = append(groupIDs, p.ID)
+			}
+		}
+		membershipsByGroup, err = q.repo.ListGroupMembershipsForGroups(ctx, q.companyID, groupIDs, true, directory.MaxGroupMembershipListLimit)
 		if err != nil {
 			return nil, err
+		}
+	}
+	if expandMemberOf {
+		members := make([]directory.PrincipalRef, 0, len(principals))
+		for _, p := range principals {
+			members = append(members, directory.PrincipalRef{Kind: p.Kind, ID: p.ID})
+		}
+		membershipsByMember, err = q.repo.ListGroupMembershipsForMembers(ctx, q.companyID, members, true, directory.MaxGroupMembershipListLimit)
+		if err != nil {
+			return nil, err
+		}
+	}
+	for _, p := range principals {
+		entry := ldapPrincipalEntry(p, baseDN)
+		if expandMembers && p.Kind == directory.PrincipalKindGroup {
+			for _, membership := range membershipsByGroup[p.ID] {
+				if memberDN := ldapPrincipalKindIDDN(membership.MemberKind, membership.MemberID, baseDN); memberDN != "" {
+					entry.Members = append(entry.Members, memberDN)
+				}
+			}
+		}
+		if expandMemberOf {
+			for _, membership := range membershipsByMember[directory.PrincipalRef{Kind: p.Kind, ID: p.ID}] {
+				if groupDN := ldapPrincipalKindIDDN(directory.PrincipalKindGroup, membership.GroupID, baseDN); groupDN != "" {
+					entry.MemberOf = append(entry.MemberOf, groupDN)
+				}
+			}
 		}
 		entries = append(entries, entry)
 	}

@@ -7964,3 +7964,9 @@ Next focus areas:
 - `UserListRequest` now supports direct `CompanyID` scoping through a sargable `JOIN domains d ON d.id = u.domain_id` predicate.
 - Company-level admin helpers now use one company-scoped user query for bulk export, SCIM status, security posture, seat usage, and max-user limit checks instead of listing users once per domain.
 - Verification target: `go test ./internal/maildb -run TestListUsersQueryUsesSargableOptionalFilters`; `go test ./internal/httpapi -run 'Test(Admin|Company|SCIM|Seat|Security)'`.
+
+## 2026-05-21 LDAP membership expansion batching
+
+- LDAP gateway searches now batch-load requested/default `member` and `memberOf` relationships for all returned principals instead of calling `ListGroupMemberships` once per principal.
+- Directory repository batch membership queries use typed array `unnest(... WITH ORDINALITY)` and per-group/per-member `row_number()` limits to preserve deterministic response ordering without `array_position` rescans.
+- Verification target: `go test ./internal/directory -run 'Test(BatchGroupMembershipQueriesUseOrdinalityAndPerPrincipalLimits|ListGroupMembershipsQueryUsesSargableOptionalFilters)'`; `go test ./internal/app -run TestLDAP`; `go test ./internal/directory`.
