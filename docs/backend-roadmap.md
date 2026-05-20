@@ -6657,3 +6657,7 @@ Target outcome:
 1830. Outbox relay claim selection now orders both candidate and picked locked
       rows by `created_at, id`, making same-timestamp event claims deterministic
       across concurrent workers.
+1831. Password-reset request handling now runs accepted token persistence and
+      best-effort reset email dispatch on a bounded background context, so
+      client disconnects do not cancel reset issuance after the API has
+      returned success.
