@@ -16,6 +16,39 @@ type PostgresStore struct {
 	lockTimeout string
 }
 
+const fetchPendingSQL = `
+WITH candidate AS (
+  SELECT id, created_at
+  FROM (
+    SELECT id, created_at
+    FROM outbox
+    WHERE status = 'pending'
+      AND available_at <= now()
+    UNION ALL
+    SELECT id, created_at
+    FROM outbox
+    WHERE status = 'processing'
+      AND locked_at < now() - $2::interval
+  ) AS candidates
+  ORDER BY created_at
+  LIMIT $1
+),
+picked AS (
+  SELECT o.id
+  FROM outbox AS o
+  JOIN candidate ON candidate.id = o.id
+  ORDER BY candidate.created_at
+  FOR UPDATE OF o SKIP LOCKED
+)
+UPDATE outbox AS o
+SET status = 'processing',
+    attempts = attempts + 1,
+    last_error = NULL,
+    locked_at = now()
+FROM picked
+WHERE o.id = picked.id
+RETURNING o.id::text, o.topic, o.partition_key, o.payload`
+
 func NewPostgresStore(db *sql.DB, maxAttempts int) *PostgresStore {
 	if maxAttempts <= 0 {
 		maxAttempts = 10
@@ -31,38 +64,7 @@ func (s *PostgresStore) FetchPending(ctx context.Context, limit int) ([]Event, e
 		limit = 100
 	}
 
-	const query = `
-WITH candidate AS (
-  SELECT id
-  FROM (
-    SELECT id, created_at
-    FROM outbox
-    WHERE status = 'pending'
-      AND available_at <= now()
-    UNION ALL
-    SELECT id, created_at
-    FROM outbox
-    WHERE status = 'processing'
-      AND locked_at < now() - $2::interval
-  ) AS candidates
-  ORDER BY created_at
-  LIMIT $1
-  FOR UPDATE SKIP LOCKED
-),
-picked AS (
-  SELECT id
-  FROM candidate
-)
-UPDATE outbox AS o
-SET status = 'processing',
-    attempts = attempts + 1,
-    last_error = NULL,
-    locked_at = now()
-FROM picked
-WHERE o.id = picked.id
-RETURNING o.id::text, o.topic, o.partition_key, o.payload`
-
-	rows, err := s.db.QueryContext(ctx, query, limit, s.lockTimeout)
+	rows, err := s.db.QueryContext(ctx, fetchPendingSQL, limit, s.lockTimeout)
 	if err != nil {
 		return nil, fmt.Errorf("claim pending outbox events: %w", err)
 	}
