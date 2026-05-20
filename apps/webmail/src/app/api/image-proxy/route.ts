@@ -5,6 +5,7 @@ import { LEGACY_WEBMAIL_TOKEN_COOKIE, WEBMAIL_TOKEN_COOKIE } from '@/lib/securit
 
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 const MAX_REDIRECTS = 3;
+const DEV_USER_ID = process.env.NODE_ENV !== 'production' ? (process.env.GOGOMAIL_DEV_USER_ID || '') : '';
 
 async function fetchImage(url: URL, redirects = 0): Promise<Response> {
   const upstream = await fetch(url, {
@@ -21,12 +22,44 @@ async function fetchImage(url: URL, redirects = 0): Promise<Response> {
   return upstream;
 }
 
+async function readLimitedArrayBuffer(res: Response): Promise<ArrayBuffer> {
+  if (!res.body) {
+    return res.arrayBuffer();
+  }
+
+  const reader = res.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (!value) continue;
+      total += value.byteLength;
+      if (total > MAX_IMAGE_BYTES) {
+        await reader.cancel();
+        throw new Error('image too large');
+      }
+      chunks.push(value);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+
+  const data = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    data.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return data.buffer;
+}
+
 export async function GET(req: NextRequest) {
   const cookieStore = await cookies();
   const token = cookieStore.get(WEBMAIL_TOKEN_COOKIE)?.value
     ?? cookieStore.get(LEGACY_WEBMAIL_TOKEN_COOKIE)?.value;
-  const devUserId = process.env.GOGOMAIL_DEV_USER_ID || '';
-  if (!token && !devUserId) {
+  if (!token && !DEV_USER_ID) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
@@ -52,8 +85,10 @@ export async function GET(req: NextRequest) {
     if (length > MAX_IMAGE_BYTES) {
       return NextResponse.json({ error: 'Image is too large' }, { status: 413 });
     }
-    const data = await upstream.arrayBuffer();
-    if (data.byteLength > MAX_IMAGE_BYTES) {
+    let data: ArrayBuffer;
+    try {
+      data = await readLimitedArrayBuffer(upstream);
+    } catch {
       return NextResponse.json({ error: 'Image is too large' }, { status: 413 });
     }
     return new NextResponse(data, {

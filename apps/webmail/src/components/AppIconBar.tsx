@@ -21,7 +21,7 @@ const BOTTOM_APPS: { id: AppId; label: string; icon: React.ReactNode; activeIcon
   { id: 'settings', label: '설정', icon: <Cog6ToothIcon style={{ width: '20px', height: '20px' }} />, activeIcon: <Cog6ToothSolid style={{ width: '20px', height: '20px' }} /> },
 ];
 
-const GUIDE_URL = process.env.NEXT_PUBLIC_WEBMAIL_GUIDE_URL ?? 'http://localhost:3005/';
+const GUIDE_URL = process.env.NEXT_PUBLIC_WEBMAIL_GUIDE_URL?.trim() ?? '';
 
 const DEV_TOOL_SAFE_BOTTOM = process.env.NODE_ENV === 'development' ? 56 : 8;
 
@@ -32,7 +32,6 @@ function AppBtn({ app, isActive, onChangeApp, badge }: { app: typeof MAIN_APPS[0
       aria-label={`${app.label}${badgeLabel ? ` (읽지 않음 ${badgeLabel})` : ''}`}
       aria-pressed={isActive}
       title={app.label}
-      tabIndex={-1}
       onClick={() => onChangeApp(app.id)}
       onMouseDown={(e) => { e.currentTarget.blur(); }}
       style={{
@@ -95,7 +94,6 @@ function AppActionBtn({ label, icon, onClick }: { label: string; icon: React.Rea
       aria-label={label}
       title={label}
       type="button"
-      tabIndex={-1}
       onClick={onClick}
       onMouseDown={(e) => { e.currentTarget.blur(); }}
       style={{
@@ -165,14 +163,16 @@ export function AppIconBar({ activeApp, onChangeApp, mailUnread }: AppIconBarPro
         paddingTop: '8px',
         borderTop: '1px solid var(--color-border-subtle)',
       }}>
-        <AppActionBtn
-          label="가이드"
-          icon={<BookOpenIcon style={{ width: '20px', height: '20px' }} />}
-          onClick={() => {
-            if (typeof window === 'undefined') return;
-            window.open(GUIDE_URL, '_blank', 'noopener,noreferrer');
-          }}
-        />
+        {GUIDE_URL && (
+          <AppActionBtn
+            label="가이드"
+            icon={<BookOpenIcon style={{ width: '20px', height: '20px' }} />}
+            onClick={() => {
+              if (typeof window === 'undefined') return;
+              window.open(GUIDE_URL, '_blank', 'noopener,noreferrer');
+            }}
+          />
+        )}
         {BOTTOM_APPS.map((app) => (
           <AppBtn key={app.id} app={app} isActive={activeApp === app.id} onChangeApp={onChangeApp} />
         ))}
