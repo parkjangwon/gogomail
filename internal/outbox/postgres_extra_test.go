@@ -1,6 +1,8 @@
 package outbox
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"unicode/utf8"
@@ -31,6 +33,29 @@ func TestFetchPendingLocksOutboxRowsAfterCandidateUnion(t *testing.T) {
 	} {
 		if !strings.Contains(fetchPendingSQL, want) {
 			t.Fatalf("fetchPendingSQL missing %q:\n%s", want, fetchPendingSQL)
+		}
+	}
+}
+
+func TestFetchPendingHasClaimIndexMigration(t *testing.T) {
+	t.Parallel()
+
+	path := filepath.Join("..", "..", "migrations", "0120_outbox_claim_indexes.sql")
+	body, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read claim index migration: %v", err)
+	}
+	sql := string(body)
+	for _, want := range []string{
+		"idx_outbox_pending_available_claim",
+		"ON outbox (available_at, created_at, id)",
+		"WHERE status = 'pending'",
+		"idx_outbox_processing_locked_claim",
+		"ON outbox (locked_at, created_at, id)",
+		"WHERE status = 'processing'",
+	} {
+		if !strings.Contains(sql, want) {
+			t.Fatalf("claim index migration missing %q:\n%s", want, sql)
 		}
 	}
 }
