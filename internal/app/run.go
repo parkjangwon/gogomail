@@ -2812,6 +2812,7 @@ func runDeliveryWorker(ctx context.Context, cfg config.Config, logger *slog.Logg
 
 	transport := delivery.NewDirectSMTPTransport()
 	transport.Hello = cfg.DeliverySMTPHello
+	transport.TLSReportDomain = cfg.SMTPDomain
 	transport.Timeout = cfg.DeliveryTimeout
 	transport.TLSMode = delivery.DeliveryTLSMode(cfg.DeliveryTLSMode)
 	transport.MaxRecipientsPerBatch = cfg.DeliveryRecipientBatchSize

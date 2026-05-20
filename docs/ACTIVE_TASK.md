@@ -265,6 +265,8 @@ Go Backend (`internal/`):
 - `TestResolveThreadIDSQLUsesOrdinalityArray`, `TestAttachmentsByIDsSQLUsesUuidOrdinality`를 추가해 reply threading/attachment lookup SQL이 ordinality 기반 typed array 경로를 유지하도록 고정함
 - thread list newest/oldest 쿼리에서 `SELECT * FROM thread_summaries`를 제거하고 API 응답에 필요한 10개 컬럼만 명시해 스레드 목록 read model projection을 고정함
 - `TestThreadListSQLUsesLatestMessagePreview`가 명시 컬럼 projection과 `SELECT *` 금지를 함께 검증하도록 확장함
+- delivery worker가 TLS-RPT collector domain을 `localhost` 고정값으로 두지 않고 `GOGOMAIL_SMTP_DOMAIN`에서 주입하도록 바꿔 운영 TLS report identity가 실제 MTA 도메인을 쓰게 함
+- `TestDirectSMTPTransportTLSReportDomainCanBeConfigured`를 추가해 TLS-RPT report domain override가 collector에 반영되는지 검증함
 
 **System Email Connections & AutoPurge** ✅ COMPLETE
 - `internal/httpapi/admin.go`: Added `systemEmail mailservice.SystemEmailSender` and `publicBaseURL string` fields to `adminRouteConfig`; added `WithSystemEmailSender` and `WithPublicBaseURL` `AdminRouteOption` constructors

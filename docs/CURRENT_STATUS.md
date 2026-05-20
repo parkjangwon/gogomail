@@ -7713,3 +7713,9 @@ Next focus areas:
 - Thread list newest/oldest queries now project the 10 API response columns explicitly from `thread_summaries` instead of `SELECT *`.
 - The thread list SQL regression test now rejects `SELECT * FROM thread_summaries` so future read-model changes keep the hot listing projection narrow.
 - Verification: `go test ./internal/maildb -run TestThreadListSQLUsesLatestMessagePreview`.
+
+## 2026-05-21 Delivery TLS-RPT domain identity
+
+- `DirectSMTPTransport` now exposes `TLSReportDomain` and lazily rebuilds its TLS-RPT collector when the configured report domain changes.
+- The delivery worker wires `TLSReportDomain` from `GOGOMAIL_SMTP_DOMAIN`, removing the prior hard-coded `localhost` report identity from production delivery workers.
+- Verification: `go test ./internal/delivery -run TestDirectSMTPTransportTLSReportDomainCanBeConfigured`.
