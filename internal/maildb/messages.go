@@ -845,10 +845,6 @@ func (r *Repository) BulkSetMessageFlag(ctx context.Context, req BulkMessageFlag
 	if err := ValidateBulkMessageFlagRequest(req); err != nil {
 		return 0, err
 	}
-	rawIDs, err := json.Marshal(req.MessageIDs)
-	if err != nil {
-		return 0, fmt.Errorf("encode message ids: %w", err)
-	}
 	flag := strings.TrimSpace(req.Flag)
 
 	const query = `
@@ -856,10 +852,10 @@ UPDATE messages
 SET flags = jsonb_set(COALESCE(flags, '{}'::jsonb), $3::text[], to_jsonb($4::boolean), true),
     updated_at = now()
 WHERE user_id = $1
-  AND id IN (SELECT value::uuid FROM jsonb_array_elements_text($2::jsonb))
+  AND id IN (SELECT value FROM unnest($2::uuid[]) AS requested(value))
   AND status = 'active'`
 
-	result, err := r.db.ExecContext(ctx, query, strings.TrimSpace(req.UserID), string(rawIDs), "{"+flag+"}", req.Value)
+	result, err := r.db.ExecContext(ctx, query, strings.TrimSpace(req.UserID), pq.Array(req.MessageIDs), "{"+flag+"}", req.Value)
 	if err != nil {
 		return 0, fmt.Errorf("bulk set message flag: %w", err)
 	}
@@ -1035,10 +1031,6 @@ func (r *Repository) BulkMoveMessages(ctx context.Context, req BulkMessageMoveRe
 	}
 	userID := strings.TrimSpace(req.UserID)
 	folderID := strings.TrimSpace(req.FolderID)
-	rawIDs, err := json.Marshal(req.MessageIDs)
-	if err != nil {
-		return 0, fmt.Errorf("encode message ids: %w", err)
-	}
 
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -1051,7 +1043,7 @@ UPDATE messages
 SET folder_id = $3,
     updated_at = now()
 WHERE user_id = $1
-  AND id IN (SELECT value::uuid FROM jsonb_array_elements_text($2::jsonb))
+  AND id IN (SELECT value FROM unnest($2::uuid[]) AS requested(value))
   AND status = 'active'
   AND EXISTS (
     SELECT 1
@@ -1061,7 +1053,7 @@ WHERE user_id = $1
   )
 RETURNING id::text`
 
-	rows, err := tx.QueryContext(ctx, query, userID, string(rawIDs), folderID)
+	rows, err := tx.QueryContext(ctx, query, userID, pq.Array(req.MessageIDs), folderID)
 	if err != nil {
 		return 0, fmt.Errorf("bulk move messages: %w", err)
 	}
@@ -1577,15 +1569,11 @@ func deleteIMAPUIDRowsForMessages(ctx context.Context, tx *sql.Tx, userID string
 	if len(messageIDs) == 0 {
 		return nil
 	}
-	rawIDs, err := json.Marshal(messageIDs)
-	if err != nil {
-		return fmt.Errorf("encode imap uid message ids: %w", err)
-	}
 	const query = `
 DELETE FROM imap_message_uid
 WHERE user_id = $1::uuid
-  AND message_id IN (SELECT value::uuid FROM jsonb_array_elements_text($2::jsonb))`
-	if _, err := tx.ExecContext(ctx, query, strings.TrimSpace(userID), string(rawIDs)); err != nil {
+  AND message_id IN (SELECT value FROM unnest($2::uuid[]) AS requested(value))`
+	if _, err := tx.ExecContext(ctx, query, strings.TrimSpace(userID), pq.Array(messageIDs)); err != nil {
 		return fmt.Errorf("delete imap message uid rows: %w", err)
 	}
 	return nil

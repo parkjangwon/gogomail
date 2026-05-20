@@ -108,6 +108,14 @@ func BenchmarkBulkThreadIDsArrayValue10K(b *testing.B) {
 	benchBulkThreadIDsArrayValue(b, 10_000)
 }
 
+func BenchmarkBulkMessageIDsArrayValue1K(b *testing.B) {
+	benchBulkMessageIDsArrayValue(b, 1_000)
+}
+
+func BenchmarkBulkMessageIDsArrayValue10K(b *testing.B) {
+	benchBulkMessageIDsArrayValue(b, 10_000)
+}
+
 func benchValidateBulkThreadIDs(b *testing.B, count int) {
 	b.Helper()
 	threadIDs := benchmarkBulkThreadIDs(count)
@@ -125,6 +133,21 @@ func benchBulkThreadIDsArrayValue(b *testing.B, count int) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		value, err := pq.Array(threadIDs).Value()
+		if err != nil {
+			b.Fatalf("pq.Array.Value returned error: %v", err)
+		}
+		if value == nil {
+			b.Fatal("pq.Array.Value returned nil")
+		}
+	}
+}
+
+func benchBulkMessageIDsArrayValue(b *testing.B, count int) {
+	b.Helper()
+	messageIDs := benchmarkBulkThreadIDs(count)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		value, err := pq.Array(messageIDs).Value()
 		if err != nil {
 			b.Fatalf("pq.Array.Value returned error: %v", err)
 		}

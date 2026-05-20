@@ -258,6 +258,8 @@ Go Backend (`internal/`):
 - outbox pending claim SQL에서 UNION 후보 산출과 실제 `FOR UPDATE OF o SKIP LOCKED` row lock 단계를 분리해 PostgreSQL row locking 제약과 동시 relay 경합에서 더 안정적으로 동작하게 함
 - delivery attempt recorder 벤치마크를 추가해 100 수신자 기준 bulk path가 `1.000 record_calls/op`, fallback individual path가 `100.0 record_calls/op`임을 추적할 수 있게 함
 - `BenchmarkRecordAttemptBatchBulkVsIndividual`: 100 수신자 기준 bulk recorder `~3.18 ns/op`, `1.000 record_calls/op`; fallback individual recorder `~1051 ns/op`, `100.0 record_calls/op`
+- `BulkSetMessageFlag`, `BulkMoveMessages`, `deleteIMAPUIDRowsForMessages`가 JSON 배열 확장 대신 `unnest($2::uuid[])` typed array를 사용하도록 바꿔 메시지 bulk mutation의 JSON 인코딩/파싱 비용을 제거함
+- `BenchmarkBulkMessageIDsArrayValue`: UUID array 준비 비용 1k `~69.3 us/op`, 10k `~689.3 us/op` 기준선을 추가함
 
 **System Email Connections & AutoPurge** ✅ COMPLETE
 - `internal/httpapi/admin.go`: Added `systemEmail mailservice.SystemEmailSender` and `publicBaseURL string` fields to `adminRouteConfig`; added `WithSystemEmailSender` and `WithPublicBaseURL` `AdminRouteOption` constructors
