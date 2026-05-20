@@ -6620,3 +6620,7 @@ Target outcome:
       `FOR UPDATE SKIP LOCKED` and expires them through one set-based
       `UPDATE ... RETURNING`, removing one update round trip per expired upload
       session while preserving cleanup ordering.
+1821. Scheduling attendee CardDAV fallback now searches unresolved attendee
+      emails with one ordinality-preserving lateral batch query, avoiding one
+      vCard contact search query per attendee after internal user and alias
+      resolution.

@@ -7982,3 +7982,9 @@ Next focus areas:
 - Expired drive upload session cleanup now uses a single CTE-backed `UPDATE ... RETURNING` query to claim, expire, and return stale sessions.
 - The query keeps `FOR UPDATE SKIP LOCKED` concurrency behavior and deterministic expiry ordering while removing one UPDATE round trip per stale session.
 - Verification target: `go test ./internal/drive -run TestExpireUploadSessionsQueryUsesSetBasedUpdate`.
+
+## 2026-05-21 Scheduling CardDAV fallback batching
+
+- Calendar scheduling attendee resolution now batch-searches CardDAV contacts for attendees that were not resolved as internal users or directory aliases.
+- The CardDAV repository uses one `unnest(... WITH ORDINALITY)` plus lateral per-email lookup to preserve attendee order and per-email limits without one query per unresolved attendee.
+- Verification target: `go test ./internal/carddavgw -run 'Test(SearchContactsByEmailsQueryUsesSingleLateralBatchLookup|RepositoryRequiresDatabase)'`; `go test ./internal/scheduling`.

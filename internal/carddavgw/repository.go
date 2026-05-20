@@ -996,6 +996,130 @@ LIMIT $3`
 	return objects, nil
 }
 
+func (r *Repository) SearchContactsByEmails(ctx context.Context, req SearchContactsByEmailsRequest) (map[string][]ContactObject, error) {
+	if r == nil || r.db == nil {
+		return nil, fmt.Errorf("database handle is required")
+	}
+	if req.UserID == "" {
+		return nil, fmt.Errorf("user id is required")
+	}
+	emails := normalizeContactEmailList(req.Emails)
+	out := make(map[string][]ContactObject, len(emails))
+	if len(emails) == 0 {
+		return out, nil
+	}
+	limit := req.Limit
+	if limit <= 0 {
+		limit = 1
+	}
+	if limit > 10 {
+		limit = 10
+	}
+	rows, err := r.db.QueryContext(ctx, buildSearchContactsByEmailsQuery(), req.UserID, pq.Array(emails), limit)
+	if err != nil {
+		return nil, fmt.Errorf("search contacts by emails: %w", err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var email string
+		var object ContactObject
+		if err := rows.Scan(
+			&email,
+			&object.ID,
+			&object.UserID,
+			&object.AddressBookID,
+			&object.ObjectName,
+			&object.UID,
+			&object.ETag,
+			&object.Size,
+			&object.VCard,
+			&object.PhotoData,
+			&object.PhotoMediaType,
+			pq.Array(&object.Categories),
+			&object.Group,
+			&object.CreatedAt,
+			&object.UpdatedAt,
+		); err != nil {
+			return nil, fmt.Errorf("scan contact object by email batch: %w", err)
+		}
+		object.VCard = mergePhotoIntoVCard(object.VCard, object.PhotoData, object.PhotoMediaType)
+		object.VCard = mergeCategoriesAndGroupIntoVCard(object.VCard, object.Categories, object.Group)
+		key := strings.ToLower(strings.TrimSpace(email))
+		out[key] = append(out[key], object)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate contact objects by email batch: %w", err)
+	}
+	return out, nil
+}
+
+func buildSearchContactsByEmailsQuery() string {
+	return `
+WITH requested AS (
+  SELECT email, email_order
+  FROM unnest($2::text[]) WITH ORDINALITY AS req(email, email_order)
+)
+SELECT req.email,
+       c.id::text,
+       c.user_id::text,
+       c.addressbook_id::text,
+       c.object_name,
+       c.uid,
+       c.etag,
+       c.size,
+       c.vcard,
+       c.photo_data,
+       c.photo_media_type,
+       c.categories_list,
+       c.group_name,
+       c.created_at,
+       c.updated_at
+FROM requested req
+JOIN LATERAL (
+  SELECT c.id,
+         c.user_id,
+         c.addressbook_id,
+         c.object_name,
+         c.uid,
+         c.etag,
+         c.size,
+         c.vcard,
+         c.photo_data,
+         c.photo_media_type,
+         c.categories_list,
+         c.group_name,
+         c.created_at,
+         c.updated_at
+  FROM carddav_contact_objects c
+  JOIN carddav_addressbooks a ON a.id = c.addressbook_id
+  WHERE a.user_id = $1::uuid
+    AND a.status = 'active'
+    AND c.status = 'active'
+    AND lower(c.vcard::text) LIKE '%' || lower(req.email) || '%'
+  ORDER BY c.updated_at DESC
+  LIMIT $3
+) c ON true
+ORDER BY req.email_order, c.updated_at DESC`
+}
+
+func normalizeContactEmailList(emails []string) []string {
+	out := make([]string, 0, len(emails))
+	seen := make(map[string]struct{}, len(emails))
+	for _, email := range emails {
+		email = strings.TrimSpace(email)
+		if email == "" {
+			continue
+		}
+		key := strings.ToLower(email)
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		seen[key] = struct{}{}
+		out = append(out, email)
+	}
+	return out
+}
+
 func (r *Repository) SearchContacts(ctx context.Context, req SearchContactsRequest) ([]ContactObject, error) {
 	if r == nil || r.db == nil {
 		return nil, fmt.Errorf("database handle is required")
@@ -1371,20 +1495,20 @@ LIMIT $4`
 	for rows.Next() {
 		var item AddressBookChangeWithObject
 		var (
-			objectID            sql.NullString
-			objectUserID        sql.NullString
-			objectAddressBookID sql.NullString
-			objectObjectName    sql.NullString
-			objectUID           sql.NullString
-			objectETag          sql.NullString
-			objectSize          sql.NullInt64
-			objectVCard         sql.NullString
-			objectPhotoData     interface{}
+			objectID             sql.NullString
+			objectUserID         sql.NullString
+			objectAddressBookID  sql.NullString
+			objectObjectName     sql.NullString
+			objectUID            sql.NullString
+			objectETag           sql.NullString
+			objectSize           sql.NullInt64
+			objectVCard          sql.NullString
+			objectPhotoData      interface{}
 			objectPhotoMediaType sql.NullString
 			objectCategoriesList interface{}
-			objectGroupName     sql.NullString
-			objectCreatedAt     sql.NullTime
-			objectUpdatedAt     sql.NullTime
+			objectGroupName      sql.NullString
+			objectCreatedAt      sql.NullTime
+			objectUpdatedAt      sql.NullTime
 		)
 		if err := rows.Scan(
 			&item.Change.ID,
@@ -1423,20 +1547,20 @@ LIMIT $4`
 				categories = objectCategoriesList.([]string)
 			}
 			item.Object = ContactObject{
-				ID:               objectID.String,
-				UserID:           objectUserID.String,
-				AddressBookID:    objectAddressBookID.String,
-				ObjectName:       objectObjectName.String,
-				UID:              objectUID.String,
-				ETag:             objectETag.String,
-				Size:             objectSize.Int64,
-				VCard:            []byte(objectVCard.String),
-				PhotoData:        photoData,
-				PhotoMediaType:   objectPhotoMediaType.String,
-				Categories:       categories,
-				Group:            objectGroupName.String,
-				CreatedAt:        objectCreatedAt.Time,
-				UpdatedAt:        objectUpdatedAt.Time,
+				ID:             objectID.String,
+				UserID:         objectUserID.String,
+				AddressBookID:  objectAddressBookID.String,
+				ObjectName:     objectObjectName.String,
+				UID:            objectUID.String,
+				ETag:           objectETag.String,
+				Size:           objectSize.Int64,
+				VCard:          []byte(objectVCard.String),
+				PhotoData:      photoData,
+				PhotoMediaType: objectPhotoMediaType.String,
+				Categories:     categories,
+				Group:          objectGroupName.String,
+				CreatedAt:      objectCreatedAt.Time,
+				UpdatedAt:      objectUpdatedAt.Time,
 			}
 			item.Object.VCard = mergePhotoIntoVCard(item.Object.VCard, item.Object.PhotoData, item.Object.PhotoMediaType)
 			item.Object.VCard = mergeCategoriesAndGroupIntoVCard(item.Object.VCard, item.Object.Categories, item.Object.Group)
@@ -1912,7 +2036,7 @@ type GetACLRulesRequest struct {
 }
 
 type UpdateACLRuleRequest struct {
-	ACLRuleID      string
+	ACLRuleID       string
 	GrantPrivileges []string
 	DenyPrivileges  []string
 }

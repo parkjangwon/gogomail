@@ -99,7 +99,7 @@ func NewDefaultAttendeeResolver(dirRepo *directory.Repository, carddavRepo *card
 }
 
 func (r *DefaultAttendeeResolver) ResolveAttendees(ctx context.Context, userID string, addresses []string) ([]AttendeeResolution, error) {
-	resolutions := make([]AttendeeResolution, 0, len(addresses))
+	resolutions := make([]AttendeeResolution, len(addresses))
 	internalUsers := map[string]directory.Principal{}
 	if r.directoryRepo != nil {
 		users, err := r.directoryRepo.ResolveUsersByEmails(ctx, addresses, true)
@@ -108,14 +108,16 @@ func (r *DefaultAttendeeResolver) ResolveAttendees(ctx context.Context, userID s
 		}
 	}
 
-	for _, addr := range addresses {
+	cardDAVLookupAddresses := make([]string, 0, len(addresses))
+	cardDAVLookupIndexes := make([]int, 0, len(addresses))
+	for i, addr := range addresses {
 		resolution := AttendeeResolution{Address: addr, Kind: AttendeeKindExternal}
 
 		if principal, ok := internalUsers[strings.ToLower(strings.TrimSpace(addr))]; ok {
 			resolution.Kind = AttendeeKindInternalUser
 			resolution.UserID = principal.ID
 			resolution.Principal = principal
-			resolutions = append(resolutions, resolution)
+			resolutions[i] = resolution
 			continue
 		}
 
@@ -128,27 +130,33 @@ func (r *DefaultAttendeeResolver) ResolveAttendees(ctx context.Context, userID s
 				resolution.Kind = AttendeeKindDirectoryAlias
 				resolution.UserID = alias.TargetPrincipal.ID
 				resolution.Principal = alias.TargetPrincipal
-				resolutions = append(resolutions, resolution)
+				resolutions[i] = resolution
 				continue
 			}
 		}
 
-		if r.carddavRepo != nil {
-			contacts, err := r.carddavRepo.SearchContactsByEmail(ctx, carddavgw.SearchContactsByEmailRequest{
-				UserID: userID,
-				Email:  addr,
-				Limit:  1,
-			})
-			if err == nil && len(contacts) > 0 {
+		resolutions[i] = resolution
+		cardDAVLookupAddresses = append(cardDAVLookupAddresses, addr)
+		cardDAVLookupIndexes = append(cardDAVLookupIndexes, i)
+	}
+
+	if r.carddavRepo != nil && len(cardDAVLookupAddresses) > 0 {
+		contactsByEmail, err := r.carddavRepo.SearchContactsByEmails(ctx, carddavgw.SearchContactsByEmailsRequest{
+			UserID: userID,
+			Emails: cardDAVLookupAddresses,
+			Limit:  1,
+		})
+		if err == nil {
+			for _, idx := range cardDAVLookupIndexes {
+				contacts := contactsByEmail[strings.ToLower(strings.TrimSpace(addresses[idx]))]
+				if len(contacts) == 0 {
+					continue
+				}
 				contact := contacts[0]
-				resolution.Kind = AttendeeKindCardDAVContact
-				resolution.Contact = &contact
-				resolutions = append(resolutions, resolution)
-				continue
+				resolutions[idx].Kind = AttendeeKindCardDAVContact
+				resolutions[idx].Contact = &contact
 			}
 		}
-
-		resolutions = append(resolutions, resolution)
 	}
 
 	return resolutions, nil
