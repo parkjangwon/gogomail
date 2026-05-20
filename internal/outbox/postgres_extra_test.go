@@ -40,3 +40,19 @@ func TestPostgresStoreImplementsBatchStore(t *testing.T) {
 
 	var _ BatchStore = (*PostgresStore)(nil)
 }
+
+func TestMarkFailedBatchSQLProjectsUnnestColumns(t *testing.T) {
+	t.Parallel()
+
+	for _, want := range []string{
+		"SELECT id, last_error",
+		"FROM unnest($1::uuid[], $3::text[]) AS input(id, last_error)",
+	} {
+		if !strings.Contains(markFailedBatchSQL, want) {
+			t.Fatalf("markFailedBatchSQL missing %q:\n%s", want, markFailedBatchSQL)
+		}
+	}
+	if strings.Contains(markFailedBatchSQL, "SELECT *") {
+		t.Fatalf("markFailedBatchSQL still projects all unnest columns:\n%s", markFailedBatchSQL)
+	}
+}

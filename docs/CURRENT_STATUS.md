@@ -7719,3 +7719,9 @@ Next focus areas:
 - `DirectSMTPTransport` now exposes `TLSReportDomain` and lazily rebuilds its TLS-RPT collector when the configured report domain changes.
 - The delivery worker wires `TLSReportDomain` from `GOGOMAIL_SMTP_DOMAIN`, removing the prior hard-coded `localhost` report identity from production delivery workers.
 - Verification: `go test ./internal/delivery -run TestDirectSMTPTransportTLSReportDomainCanBeConfigured`.
+
+## 2026-05-21 Outbox failed-batch projection
+
+- `MarkFailedBatch` now projects `id,last_error` explicitly from the `unnest($1::uuid[], $3::text[])` input instead of using `SELECT *`.
+- Added a SQL-shape regression test so the outbox relay failure batch path keeps its CTE projection narrow.
+- Verification: `go test ./internal/outbox -run TestMarkFailedBatchSQLProjectsUnnestColumns`.
