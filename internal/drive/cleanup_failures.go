@@ -113,24 +113,8 @@ func (r *Repository) ListObjectCleanupFailures(ctx context.Context, req ListObje
 	if err != nil {
 		return nil, err
 	}
-	const query = `
-SELECT
-  id::text,
-  user_id::text,
-  COALESCE(node_id::text, ''),
-  storage_backend,
-  storage_path,
-  status,
-  attempts,
-  last_error,
-  created_at,
-  updated_at
-FROM drive_object_cleanup_failures
-WHERE status = $1
-  AND (NULLIF($2, '') IS NULL OR user_id = $2::uuid)
-ORDER BY updated_at ASC, id ASC
-LIMIT $3`
-	rows, err := r.db.QueryContext(ctx, query, req.Status, req.UserID, req.Limit)
+	query, args := buildListObjectCleanupFailuresQuery(req)
+	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("list drive object cleanup failures: %w", err)
 	}
@@ -159,6 +143,34 @@ LIMIT $3`
 		return nil, fmt.Errorf("iterate drive object cleanup failures: %w", err)
 	}
 	return failures, nil
+}
+
+func buildListObjectCleanupFailuresQuery(req ListObjectCleanupFailuresRequest) (string, []any) {
+	args := []any{req.Status}
+	userPredicate := ""
+	if req.UserID != "" {
+		args = append(args, req.UserID)
+		userPredicate = fmt.Sprintf("  AND user_id = $%d::uuid\n", len(args))
+	}
+	args = append(args, req.Limit)
+
+	query := `
+SELECT
+  id::text,
+  user_id::text,
+  COALESCE(node_id::text, ''),
+  storage_backend,
+  storage_path,
+  status,
+  attempts,
+  last_error,
+  created_at,
+  updated_at
+FROM drive_object_cleanup_failures
+WHERE status = $1
+` + userPredicate + fmt.Sprintf(`ORDER BY updated_at ASC, id ASC
+LIMIT $%d`, len(args))
+	return query, args
 }
 
 func (r *Repository) ResolveObjectCleanupFailure(ctx context.Context, req ResolveObjectCleanupFailureRequest) (ObjectCleanupFailure, error) {

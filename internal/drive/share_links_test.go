@@ -121,6 +121,51 @@ func TestValidateListShareLinksRequest(t *testing.T) {
 	}
 }
 
+func TestListShareLinksQueryUsesSargableOptionalFilters(t *testing.T) {
+	t.Parallel()
+
+	query, args := buildListShareLinksQuery(ListShareLinksRequest{
+		UserID: "user-1",
+		NodeID: "node-1",
+		Status: ShareLinkStatusActive,
+		Limit:  25,
+	})
+	for _, want := range []string{
+		"FROM drive_share_links",
+		"WHERE user_id = $1::uuid",
+		"AND status = $2",
+		"AND node_id = $3::uuid",
+		"ORDER BY updated_at DESC, id DESC",
+		"LIMIT $4",
+	} {
+		if !strings.Contains(query, want) {
+			t.Fatalf("list share links query missing %q:\n%s", want, query)
+		}
+	}
+	for _, forbidden := range []string{
+		"NULLIF($2, '') IS NULL",
+		"OR node_id",
+	} {
+		if strings.Contains(query, forbidden) {
+			t.Fatalf("list share links query contains non-sargable optional filter %q:\n%s", forbidden, query)
+		}
+	}
+	if len(args) != 4 {
+		t.Fatalf("args len = %d, want 4", len(args))
+	}
+	if args[0] != "user-1" || args[1] != ShareLinkStatusActive || args[2] != "node-1" || args[3] != 25 {
+		t.Fatalf("args = %#v", args)
+	}
+
+	query, args = buildListShareLinksQuery(ListShareLinksRequest{UserID: "user-1", Status: ShareLinkStatusRevoked, Limit: 50})
+	if strings.Contains(query, "node_id = $") {
+		t.Fatalf("node-agnostic share link query unexpectedly includes node filter:\n%s", query)
+	}
+	if len(args) != 3 || args[0] != "user-1" || args[1] != ShareLinkStatusRevoked || args[2] != 50 {
+		t.Fatalf("unfiltered args = %#v", args)
+	}
+}
+
 func TestShareLinkRepositoryAndServiceRequireDependencies(t *testing.T) {
 	t.Parallel()
 
