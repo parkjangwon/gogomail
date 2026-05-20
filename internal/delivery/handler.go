@@ -635,7 +635,8 @@ func (h *Handler) recordAttempts(ctx context.Context, job Job, status AttemptSta
 
 func (h *Handler) recordPartialAttempts(ctx context.Context, job Job, partial *PartialDeliveryError) error {
 	attemptedAt := timeNow()
-	if err := h.recordAttemptBatch(ctx, attemptsFor(Job{QueuedMessage: queuedMessageForRecipients(job.QueuedMessage, partial.Delivered)}, AttemptDelivered, nil, attemptedAt)); err != nil {
+	dsnByAddress := dsnRecipientOptionsByAddress(job.DSN.Recipients)
+	if err := h.recordAttemptBatch(ctx, attemptsForRecipients(job, partial.Delivered, AttemptDelivered, nil, attemptedAt, dsnByAddress)); err != nil {
 		return fmt.Errorf("record partial delivered attempt: %w", err)
 	}
 	failedAttempts := make([]Attempt, 0, len(partial.Failed))
@@ -644,7 +645,11 @@ func (h *Handler) recordPartialAttempts(ctx context.Context, job Job, partial *P
 		if IsPermanentFailure(failure.Err) {
 			status = AttemptBounced
 		}
-		failedAttempts = append(failedAttempts, attemptsFor(Job{QueuedMessage: queuedMessageForRecipients(job.QueuedMessage, []outbound.Address{failure.Recipient})}, status, failure.Err, attemptedAt)...)
+		message := ""
+		if failure.Err != nil {
+			message = truncateUTF8Bytes(failure.Err.Error(), 2000)
+		}
+		failedAttempts = append(failedAttempts, attemptForRecipient(job, failure.Recipient, status, failure.Err, message, attemptedAt, dsnByAddress))
 	}
 	if err := h.recordAttemptBatch(ctx, failedAttempts); err != nil {
 		return fmt.Errorf("record partial failed attempt: %w", err)

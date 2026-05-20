@@ -2,10 +2,13 @@ package delivery
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/gogomail/gogomail/internal/outbound"
 )
 
 func BenchmarkRecordAttemptBatchBulkVsIndividual(b *testing.B) {
@@ -36,6 +39,54 @@ func BenchmarkRecordAttemptBatchBulkVsIndividual(b *testing.B) {
 		}
 		b.ReportMetric(float64(recorder.calls)/float64(b.N), "record_calls/op")
 	})
+}
+
+func BenchmarkRecordPartialAttempts1K(b *testing.B) {
+	recipients := benchmarkRecipients(1000, 10)
+	partial := &PartialDeliveryError{
+		Delivered: recipients[:500],
+		Failed:    make([]RecipientDeliveryError, 0, 500),
+	}
+	dsnRecipients := make([]DSNRecipientOptions, 0, len(recipients))
+	for i, recipient := range recipients {
+		dsnRecipients = append(dsnRecipients, DSNRecipientOptions{
+			Address:           recipient.Email,
+			Notify:            []string{"FAILURE", "DELAY"},
+			OriginalRecipient: fmt.Sprintf("rfc822;%s", recipient.Email),
+		})
+		if i >= 500 {
+			partial.Failed = append(partial.Failed, RecipientDeliveryError{
+				Recipient: recipient,
+				Err:       errors.New("temporary smtp failure"),
+			})
+		}
+	}
+	job := Job{QueuedMessage: QueuedMessage{
+		MessageID:    "018f0000-0000-7000-8000-000000000001",
+		RFCMessageID: "<bench@example.com>",
+		Farm:         "general",
+		From:         outboundAddress("sender@example.com"),
+		To:           recipients,
+		DSN: DSNOptions{
+			Return:     "FULL",
+			EnvelopeID: "bench-envelope",
+			Recipients: dsnRecipients,
+		},
+		StoragePath: "messages/bench.eml",
+	}}
+	handler := NewHandler(nil, nil, &benchmarkBulkRecorder{}, nil)
+
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		if err := handler.recordPartialAttempts(context.Background(), job, partial); err != nil {
+			b.Fatalf("recordPartialAttempts returned error: %v", err)
+		}
+	}
+}
+
+func outboundAddress(email string) outbound.Address {
+	return outbound.Address{Email: email}
 }
 
 func benchmarkAttempts(count int) []Attempt {
