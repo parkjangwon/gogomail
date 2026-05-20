@@ -178,6 +178,7 @@
 - Backend startup now honors `APP_MODE` when `--mode` is absent, keeps `--mode` precedence, and the README/env docs now document the same mode and storage-root precedence contract operators actually get.
 - Admin routes now fail closed outside explicit `development`/`test` when no static token or JWT token manager is configured, including standalone audit-log route registration.
 - Console and webmail Next.js proxy routes now require explicit `GOGOMAIL_BACKEND_URL` instead of silently defaulting to `http://localhost:8080` in production-capable paths.
+- Outbox relay claim selection now orders candidate and locked rows by `created_at, id`, making same-timestamp work claims deterministic across workers.
 
 **Infrastructure & Storage Hardening** ✅ COMPLETE
 - Task 1 (EML GC): Added `LookupDeleteableStoragePaths` and `LookupExpungeStoragePaths` to maildb; service layer now performs two-phase GC (lookup before DB delete, delete from store after commit) for `DeleteMessage`, `BulkDeleteMessages`, `BulkDeleteThreads`, and `ExpungeIMAPMessages`. Reference-count check prevents deletion of paths shared by IMAP COPY.
@@ -245,6 +246,7 @@ Go Backend (`internal/`):
 
 최근 진행:
 - Console audit log/domain pages now call `/api/admin/...` instead of direct `/admin/v1/...`, and alert config hooks pass proxy-relative paths to `apiClient`.
+- Outbox relay claim selection now uses `created_at, id` ordering in both candidate and picked-row stages so equal-timestamp rows are claimed deterministically under contention.
 - Backend mode selection now accepts `APP_MODE` as the Docker/env fallback when `--mode` is not passed, and README/env docs clarify `--mode` precedence plus `GOGOMAIL_MAILSTORE_ROOT` over deprecated `GOGOMAIL_STORAGE_ROOT`.
 - Console/webmail server-side proxy routes now fail fast with a config error when `GOGOMAIL_BACKEND_URL` is missing, removing localhost fallback from production-capable paths.
 - Admin auth now rejects empty-auth configuration outside explicit development/test environments instead of silently allowing unauthenticated admin access.

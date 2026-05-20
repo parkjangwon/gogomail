@@ -1,6 +1,11 @@
 # gogomail current status
 
-Last updated: 2026-05-21 (SaaS launch hardening continues: frontend backend URL fallback removed)
+Last updated: 2026-05-21 (SaaS launch hardening continues: outbox claim ordering stabilized)
+
+## Outbox Claim Ordering Stability (2026-05-21)
+- Outbox relay candidate selection and picked-row locking now order by `created_at, id`, avoiding nondeterministic same-timestamp claims under worker contention.
+- Regression coverage locks both candidate and locked-row ordering so future claim-query edits keep the stable tie-breaker.
+- Verification target: `go test ./internal/outbox -run TestFetchPending`.
 
 ## Frontend Backend URL Fail-Fast (2026-05-21)
 - Console and webmail Next.js server proxy routes now require explicit `GOGOMAIL_BACKEND_URL` configuration instead of silently falling back to `http://localhost:8080`.

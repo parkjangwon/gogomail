@@ -37,6 +37,19 @@ func TestFetchPendingLocksOutboxRowsAfterCandidateUnion(t *testing.T) {
 	}
 }
 
+func TestFetchPendingUsesStableClaimOrdering(t *testing.T) {
+	t.Parallel()
+
+	for _, want := range []string{
+		"ORDER BY created_at, id",
+		"ORDER BY candidate.created_at, candidate.id",
+	} {
+		if !strings.Contains(fetchPendingSQL, want) {
+			t.Fatalf("fetchPendingSQL missing stable order %q:\n%s", want, fetchPendingSQL)
+		}
+	}
+}
+
 func TestFetchPendingHasClaimIndexMigration(t *testing.T) {
 	t.Parallel()
 

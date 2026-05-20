@@ -30,14 +30,14 @@ WITH candidate AS (
     WHERE status = 'processing'
       AND locked_at < now() - $2::interval
   ) AS candidates
-  ORDER BY created_at
+  ORDER BY created_at, id
   LIMIT $1
 ),
 picked AS (
   SELECT o.id
   FROM outbox AS o
   JOIN candidate ON candidate.id = o.id
-  ORDER BY candidate.created_at
+  ORDER BY candidate.created_at, candidate.id
   FOR UPDATE OF o SKIP LOCKED
 )
 UPDATE outbox AS o
