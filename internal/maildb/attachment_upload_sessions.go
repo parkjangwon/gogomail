@@ -762,9 +762,58 @@ func (r *Repository) FinalizeAttachmentUploadSession(ctx context.Context, req Fi
 	}
 	defer tx.Rollback()
 
-	const query = `
+	var attachment Attachment
+	var draftID string
+	if err := tx.QueryRowContext(ctx, finalizeAttachmentUploadSessionSQL, strings.TrimSpace(req.UserID), strings.TrimSpace(req.SessionID)).Scan(
+		&attachment.ID,
+		&attachment.MessageID,
+		&attachment.UploadID,
+		&attachment.StoragePath,
+		&attachment.Filename,
+		&attachment.Size,
+		&attachment.MIMEType,
+		&attachment.Status,
+		&attachment.CreatedAt,
+		&draftID,
+	); err != nil {
+		if err == sql.ErrNoRows {
+			return Attachment{}, fmt.Errorf("attachment upload session %q not ready for finalization", req.SessionID)
+		}
+		return Attachment{}, fmt.Errorf("finalize attachment upload session: %w", err)
+	}
+	if strings.TrimSpace(draftID) != "" {
+		if _, err := tx.ExecContext(ctx, `
+UPDATE messages
+SET has_attachment = EXISTS (
+    SELECT 1
+    FROM attachments
+    WHERE user_id = $1
+      AND draft_id = $2
+      AND status = 'uploading'
+  ),
+  updated_at = now()
+WHERE user_id = $1
+  AND id = $2
+  AND status = 'draft'`, strings.TrimSpace(req.UserID), strings.TrimSpace(draftID)); err != nil {
+			return Attachment{}, fmt.Errorf("refresh draft attachment state: %w", err)
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		return Attachment{}, fmt.Errorf("commit attachment upload session finalize transaction: %w", err)
+	}
+	return attachment, nil
+}
+
+const finalizeAttachmentUploadSessionSQL = `
 WITH target AS (
-  SELECT *
+  SELECT
+    user_id,
+    draft_id,
+    upload_id,
+    storage_path,
+    filename,
+    declared_size,
+    mime_type
   FROM attachment_upload_sessions
   WHERE user_id = $1
     AND id = $2
@@ -813,48 +862,6 @@ SELECT
   finalized.draft_id
 FROM inserted
 CROSS JOIN finalized`
-
-	var attachment Attachment
-	var draftID string
-	if err := tx.QueryRowContext(ctx, query, strings.TrimSpace(req.UserID), strings.TrimSpace(req.SessionID)).Scan(
-		&attachment.ID,
-		&attachment.MessageID,
-		&attachment.UploadID,
-		&attachment.StoragePath,
-		&attachment.Filename,
-		&attachment.Size,
-		&attachment.MIMEType,
-		&attachment.Status,
-		&attachment.CreatedAt,
-		&draftID,
-	); err != nil {
-		if err == sql.ErrNoRows {
-			return Attachment{}, fmt.Errorf("attachment upload session %q not ready for finalization", req.SessionID)
-		}
-		return Attachment{}, fmt.Errorf("finalize attachment upload session: %w", err)
-	}
-	if strings.TrimSpace(draftID) != "" {
-		if _, err := tx.ExecContext(ctx, `
-UPDATE messages
-SET has_attachment = EXISTS (
-    SELECT 1
-    FROM attachments
-    WHERE user_id = $1
-      AND draft_id = $2
-      AND status = 'uploading'
-  ),
-  updated_at = now()
-WHERE user_id = $1
-  AND id = $2
-  AND status = 'draft'`, strings.TrimSpace(req.UserID), strings.TrimSpace(draftID)); err != nil {
-			return Attachment{}, fmt.Errorf("refresh draft attachment state: %w", err)
-		}
-	}
-	if err := tx.Commit(); err != nil {
-		return Attachment{}, fmt.Errorf("commit attachment upload session finalize transaction: %w", err)
-	}
-	return attachment, nil
-}
 
 func (r *Repository) ExpireAttachmentUploadSessions(ctx context.Context, req ExpireAttachmentUploadSessionsRequest) ([]AttachmentUploadSession, error) {
 	if r.db == nil {

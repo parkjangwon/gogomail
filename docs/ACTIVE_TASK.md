@@ -271,6 +271,8 @@ Go Backend (`internal/`):
 - `TestMarkFailedBatchSQLProjectsUnnestColumns`를 추가해 outbox batch failure CTE가 명시 projection을 유지하는지 검증함
 - draft attachment binding이 첨부 ID마다 UPDATE를 반복하지 않고 `unnest($3::uuid[])` typed-array 단일 UPDATE로 바인딩하도록 바꿔 draft save/update 첨부 N+1 왕복을 제거함
 - `TestBindDraftAttachmentsSQLUsesSingleTypedArrayUpdate`를 추가해 draft attachment binding SQL이 단일 typed-array update 경로를 유지하도록 고정함
+- attachment upload session finalization의 `target` CTE가 `SELECT *` 대신 attachment 생성과 draft refresh에 필요한 컬럼만 잠그고 전달하도록 축소함
+- `TestFinalizeAttachmentUploadSessionSQLProjectsTargetColumns`를 추가해 finalize CTE가 wide projection으로 되돌아가지 않도록 고정함
 
 **System Email Connections & AutoPurge** ✅ COMPLETE
 - `internal/httpapi/admin.go`: Added `systemEmail mailservice.SystemEmailSender` and `publicBaseURL string` fields to `adminRouteConfig`; added `WithSystemEmailSender` and `WithPublicBaseURL` `AdminRouteOption` constructors
