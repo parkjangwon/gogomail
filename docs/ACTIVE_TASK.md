@@ -316,6 +316,7 @@ Go Backend (`internal/`):
 - 도메인 DNS check 이력 조회도 status/since 필터를 제공된 경우에만 WHERE에 추가하도록 바꿔 도메인 운영 화면의 DNS 검증 이력 조회가 optional `OR` predicate를 피하게 함
 - API usage daily/monthly 집계 조회도 tenant/company/domain/user/key/principal/auth/method/route/status/time 필터를 제공된 경우에만 WHERE에 추가하도록 바꿔 SaaS 사용량/청구 분석 화면의 대형 집계 조회가 인덱스 친화적인 쿼리 모양을 유지하게 함
 - API usage export batch 목록 조회도 tenant/principal/status/window 필터를 제공된 경우에만 WHERE에 추가하도록 바꿔 청구/사용량 export handoff 조회가 optional `OR` predicate를 피하게 함
+- DKIM key 목록 조회도 domain/status 필터를 제공된 경우에만 WHERE에 추가하도록 바꿔 도메인 인증 운영 화면의 optional `OR` predicate를 제거함
 - Directory alias 목록 조회도 domain/target/query/active 필터를 제공된 경우에만 WHERE에 추가하도록 바꿔 대형 주소록에서 alias 운영 조회가 optional `OR` predicate를 피하게 함
 - Directory organization tree 조회도 domain 필터를 제공된 경우에만 WHERE에 추가하도록 바꿔 조직도 로딩 경로가 optional `OR` predicate를 피하게 함
 - Directory alias/user email resolve 조회도 `ActiveOnly`가 켜진 경우에만 active 상태 조건을 추가하도록 바꿔 주소/사용자 exact lookup이 boolean optional `OR` predicate를 피하게 함

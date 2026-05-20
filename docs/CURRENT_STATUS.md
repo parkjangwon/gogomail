@@ -70,6 +70,7 @@ Last updated: 2026-05-21 (SaaS launch hardening continues: attachment cleanup ba
 - Domain DNS check history listing now builds status and since predicates only when present, keeping domain operations history reads index-friendly.
 - API usage daily/monthly aggregate listings now build dynamic sargable predicates for tenant, company, domain, user, key, principal, auth source, method, route, status, and time windows, keeping SaaS usage and billing analytics responsive on large aggregates.
 - API usage export batch listing now builds dynamic sargable predicates for tenant, principal, status, and export-window filters, keeping billing/export handoff discovery index-friendly as saved batches grow.
+- DKIM key listing now builds optional domain and status predicates only when requested, keeping domain-authentication operations clear of broad optional `OR` guards.
 - Directory alias listing now builds optional domain, target-kind, target-id, query, and active-status predicates only when requested, keeping large address-book alias operations aligned with selective indexes.
 - Directory organization-tree listing now emits the domain predicate only when requested, keeping organization navigation reads clear of optional `OR` guards.
 - Directory alias and user-email exact lookups now add active-status predicates only when `ActiveOnly` is requested, avoiding boolean optional `OR` guards in address resolution paths.

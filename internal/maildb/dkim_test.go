@@ -28,6 +28,52 @@ func TestValidateDKIMKeyListRequestAcceptsKnownStatuses(t *testing.T) {
 	}
 }
 
+func TestListDKIMKeysQueryUsesSargableOptionalFilters(t *testing.T) {
+	t.Parallel()
+
+	query, args := buildListDKIMKeysQuery(DKIMKeyListRequest{
+		DomainID: " domain-1 ",
+		Status:   " Active ",
+		Limit:    25,
+	})
+	for _, want := range []string{
+		"FROM dkim_keys",
+		"WHERE domain_id::text = $1",
+		"AND status = $2",
+		"ORDER BY updated_at DESC",
+		"LIMIT $3",
+	} {
+		if !strings.Contains(query, want) {
+			t.Fatalf("list dkim keys query missing %q:\n%s", want, query)
+		}
+	}
+	for _, forbidden := range []string{
+		"$1 = '' OR",
+		"$2 = '' OR",
+	} {
+		if strings.Contains(query, forbidden) {
+			t.Fatalf("list dkim keys query contains non-sargable optional filter %q:\n%s", forbidden, query)
+		}
+	}
+	if len(args) != 3 {
+		t.Fatalf("args len = %d, want 3", len(args))
+	}
+	if args[0] != "domain-1" || args[1] != "active" || args[2] != 25 {
+		t.Fatalf("args = %#v", args)
+	}
+
+	query, args = buildListDKIMKeysQuery(DKIMKeyListRequest{Limit: 0})
+	if strings.Contains(query, "WHERE") {
+		t.Fatalf("unfiltered list query unexpectedly includes WHERE:\n%s", query)
+	}
+	if len(args) != 1 {
+		t.Fatalf("unfiltered args len = %d, want 1", len(args))
+	}
+	if args[0] != MessageListDefaultLimit {
+		t.Fatalf("default limit arg = %#v, want %d", args[0], MessageListDefaultLimit)
+	}
+}
+
 func TestDKIMKeyAuditDetailDoesNotIncludePrivateKeyMaterial(t *testing.T) {
 	t.Parallel()
 
