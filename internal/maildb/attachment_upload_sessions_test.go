@@ -227,3 +227,30 @@ func TestValidateExpireAttachmentUploadSessionsRequest(t *testing.T) {
 		t.Fatal("ValidateExpireAttachmentUploadSessionsRequest accepted negative limit")
 	}
 }
+
+func TestExpireAttachmentUploadSessionsSQLUsesBatchUpdates(t *testing.T) {
+	t.Parallel()
+
+	for _, want := range []string{
+		"unnest($1::uuid[])",
+		"UPDATE attachment_upload_sessions s",
+		"FROM input",
+	} {
+		if !strings.Contains(expireAttachmentUploadSessionsSQL, want) {
+			t.Fatalf("expireAttachmentUploadSessionsSQL missing %q:\n%s", want, expireAttachmentUploadSessionsSQL)
+		}
+	}
+	for _, want := range []string{
+		"unnest($1::uuid[], $2::bigint[])",
+		"user_usage AS",
+		"domain_usage AS",
+		"company_usage AS",
+		"UPDATE users u",
+		"UPDATE domains d",
+		"UPDATE companies c",
+	} {
+		if !strings.Contains(decrementExpiredAttachmentUploadSessionQuotaSQL, want) {
+			t.Fatalf("decrementExpiredAttachmentUploadSessionQuotaSQL missing %q:\n%s", want, decrementExpiredAttachmentUploadSessionQuotaSQL)
+		}
+	}
+}

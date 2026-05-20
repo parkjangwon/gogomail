@@ -275,6 +275,8 @@ Go Backend (`internal/`):
 - `TestFinalizeAttachmentUploadSessionSQLProjectsTargetColumns`를 추가해 finalize CTE가 wide projection으로 되돌아가지 않도록 고정함
 - audit log integrity checker의 최근 로그 subquery가 `SELECT *` 대신 hash-chain 검증에 필요한 audit columns만 읽도록 좁혀 운영 무결성 점검 쿼리 projection을 축소함
 - `TestAuditLogIntegrityQueryProjectsRecentColumns`를 추가해 audit integrity query가 explicit projection을 유지하도록 고정함
+- attachment upload session 만료 정리가 세션별 `UPDATE`와 quota decrement를 반복하지 않고 `unnest($1::uuid[])`/`unnest($1::uuid[], $2::bigint[])` 기반 batched UPDATE로 세션 상태와 user/domain/company quota를 한 번씩 갱신하도록 최적화함
+- `TestExpireAttachmentUploadSessionsSQLUsesBatchUpdates`를 추가해 stale upload cleanup이 per-session write loop로 되돌아가지 않도록 고정함
 
 **System Email Connections & AutoPurge** ✅ COMPLETE
 - `internal/httpapi/admin.go`: Added `systemEmail mailservice.SystemEmailSender` and `publicBaseURL string` fields to `adminRouteConfig`; added `WithSystemEmailSender` and `WithPublicBaseURL` `AdminRouteOption` constructors
