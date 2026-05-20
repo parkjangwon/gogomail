@@ -6394,3 +6394,8 @@ Target outcome:
       supported whole-series edit behavior.  The modal no longer offers a
       single-occurrence option that failed after submit, so users see the
       actual update scope before saving.
+1755. Webmail Web Push registration now decodes the VAPID public key into the
+      standard `Uint8Array` `applicationServerKey` before subscribing, and the
+      mail view only registers the service worker when notifications were
+      already allowed.  Permission prompts remain tied to the explicit Settings
+      opt-in action.

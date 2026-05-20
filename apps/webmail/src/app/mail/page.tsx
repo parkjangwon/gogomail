@@ -980,13 +980,11 @@ export default function MailPage() {
     return () => clearInterval(id);
   }, []);
 
-  // Request notification permission once on mount and register SW for WebPush
+  // Register the service worker only when notifications were already allowed.
+  // The permission prompt stays in Settings so entering webmail never surprises users.
   useEffect(() => {
     if (typeof Notification === 'undefined') return;
     const doSetup = async () => {
-      if (Notification.permission === 'default') {
-        await Notification.requestPermission();
-      }
       if (Notification.permission === 'granted' && 'serviceWorker' in navigator && 'PushManager' in window) {
         try {
           await navigator.serviceWorker.register('/sw.js');

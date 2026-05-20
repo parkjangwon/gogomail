@@ -306,6 +306,7 @@ Go Backend (`internal/`):
 - README/README.ko, Docker env example, console/webmail env examples, backend release readiness 문서를 최신 운영 env 그룹(성능, 백업/복구, push/webhook, storage, API usage, system email)과 동기화함
 - BIMI VMC URL 존재만으로 `vmcVerified=true`를 반환하던 stub 동작을 제거해 실제 인증서 검증 전에는 VMC를 검증됨으로 표시하지 않도록 고정하고, logo cache hash 계산을 실제 SHA-256 body hash로 수정함
 - 웹메일 캘린더 반복 일정 편집 모달에서 지원되지 않는 "이 이벤트만" 선택지를 제거하고, 현재 동작이 전체 반복 시리즈 편집임을 명시해 제출 후 unsupported 오류가 뜨는 어색한 흐름을 없앰
+- 웹메일 Web Push 등록이 VAPID public key를 문자열 그대로 `PushManager.subscribe()`에 넘기지 않고 표준 `Uint8Array` applicationServerKey로 변환하도록 고정하고, 메일 화면 진입 시 알림 권한 프롬프트를 자동 표시하지 않도록 설정 화면의 명시적 opt-in 흐름으로 정리함
 
 **System Email Connections & AutoPurge** ✅ COMPLETE
 - `internal/httpapi/admin.go`: Added `systemEmail mailservice.SystemEmailSender` and `publicBaseURL string` fields to `adminRouteConfig`; added `WithSystemEmailSender` and `WithPublicBaseURL` `AdminRouteOption` constructors
