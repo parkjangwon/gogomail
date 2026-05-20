@@ -74,14 +74,14 @@ type AddressBook struct {
 }
 
 type ACLRule struct {
-	ID               string
-	AddressBookID    string
-	PrincipalID      string
-	GrantPrivileges  []string
-	DenyPrivileges   []string
-	Protected        bool
-	CreatedAt        time.Time
-	UpdatedAt        time.Time
+	ID              string
+	AddressBookID   string
+	PrincipalID     string
+	GrantPrivileges []string
+	DenyPrivileges  []string
+	Protected       bool
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
 }
 
 type ContactObject struct {
@@ -104,6 +104,12 @@ type ContactObject struct {
 type SearchContactsByEmailRequest struct {
 	UserID string
 	Email  string
+	Limit  int
+}
+
+type SearchContactsByEmailsRequest struct {
+	UserID string
+	Emails []string
 	Limit  int
 }
 

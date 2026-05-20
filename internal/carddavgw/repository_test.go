@@ -778,6 +778,10 @@ func TestRepositoryAddressBookMethodsRequireDatabase(t *testing.T) {
 			_, err := repo.SearchContactsByEmail(ctx, SearchContactsByEmailRequest{UserID: "user-1", Email: "test@example.com"})
 			return err
 		}},
+		{name: "search contacts by emails", run: func() error {
+			_, err := repo.SearchContactsByEmails(ctx, SearchContactsByEmailsRequest{UserID: "user-1", Emails: []string{"test@example.com"}})
+			return err
+		}},
 	}
 	for _, tc := range tests {
 		tc := tc
@@ -788,5 +792,33 @@ func TestRepositoryAddressBookMethodsRequireDatabase(t *testing.T) {
 				t.Fatalf("error = %v, want database handle requirement", err)
 			}
 		})
+	}
+}
+
+func TestSearchContactsByEmailsQueryUsesSingleLateralBatchLookup(t *testing.T) {
+	t.Parallel()
+
+	query := buildSearchContactsByEmailsQuery()
+	for _, want := range []string{
+		"FROM unnest($2::text[]) WITH ORDINALITY AS req(email, email_order)",
+		"JOIN LATERAL",
+		"JOIN carddav_addressbooks a ON a.id = c.addressbook_id",
+		"WHERE a.user_id = $1::uuid",
+		"AND lower(c.vcard::text) LIKE '%' || lower(req.email) || '%'",
+		"LIMIT $3",
+		"ORDER BY req.email_order, c.updated_at DESC",
+	} {
+		if !strings.Contains(query, want) {
+			t.Fatalf("search contacts by emails query missing %q:\n%s", want, query)
+		}
+	}
+	for _, forbidden := range []string{
+		"array_position",
+		"SELECT *",
+		"$1 = '' OR",
+	} {
+		if strings.Contains(query, forbidden) {
+			t.Fatalf("search contacts by emails query contains forbidden pattern %q:\n%s", forbidden, query)
+		}
 	}
 }
