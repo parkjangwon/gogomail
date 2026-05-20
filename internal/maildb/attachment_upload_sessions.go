@@ -7,6 +7,8 @@ import (
 	"path"
 	"strings"
 	"time"
+
+	"github.com/lib/pq"
 )
 
 type AttachmentUploadSession struct {
@@ -925,24 +927,121 @@ FOR UPDATE SKIP LOCKED`
 		return nil, fmt.Errorf("close expired attachment upload session rows: %w", err)
 	}
 
+	if err := markExpiredAttachmentUploadSessions(ctx, tx, expired); err != nil {
+		return nil, err
+	}
+	if err := decrementExpiredAttachmentUploadSessionQuota(ctx, tx, expired); err != nil {
+		return nil, err
+	}
 	for i := range expired {
-		if _, err := tx.ExecContext(ctx, `
-UPDATE attachment_upload_sessions
-SET status = 'expired',
-    updated_at = now()
-WHERE id = $1
-  AND status IN ('pending', 'uploading', 'failed')`, expired[i].ID); err != nil {
-			return nil, fmt.Errorf("expire attachment upload session: %w", err)
-		}
-		if err := decrementUserQuota(ctx, tx, expired[i].UserID, expired[i].DeclaredSize); err != nil {
-			return nil, err
-		}
 		expired[i].Status = "expired"
 	}
 	if err := tx.Commit(); err != nil {
 		return nil, fmt.Errorf("commit attachment upload session expiry transaction: %w", err)
 	}
 	return expired, nil
+}
+
+const expireAttachmentUploadSessionsSQL = `
+WITH input AS (
+  SELECT value AS id
+  FROM unnest($1::uuid[]) AS input(value)
+)
+UPDATE attachment_upload_sessions s
+SET status = 'expired',
+    updated_at = now()
+FROM input
+WHERE s.id = input.id
+  AND s.status IN ('pending', 'uploading', 'failed')`
+
+func markExpiredAttachmentUploadSessions(ctx context.Context, tx *sql.Tx, expired []AttachmentUploadSession) error {
+	if len(expired) == 0 {
+		return nil
+	}
+	ids := make([]string, 0, len(expired))
+	for _, session := range expired {
+		ids = append(ids, session.ID)
+	}
+	if _, err := tx.ExecContext(ctx, expireAttachmentUploadSessionsSQL, pq.Array(ids)); err != nil {
+		return fmt.Errorf("expire attachment upload sessions: %w", err)
+	}
+	return nil
+}
+
+const decrementExpiredAttachmentUploadSessionQuotaSQL = `
+WITH input AS (
+  SELECT user_id, bytes
+  FROM unnest($1::uuid[], $2::bigint[]) AS input(user_id, bytes)
+  WHERE bytes > 0
+),
+user_usage AS (
+  SELECT user_id, SUM(bytes)::bigint AS bytes
+  FROM input
+  GROUP BY user_id
+),
+domain_usage AS (
+  SELECT u.domain_id, SUM(user_usage.bytes)::bigint AS bytes
+  FROM user_usage
+  JOIN users u ON u.id = user_usage.user_id
+  GROUP BY u.domain_id
+),
+company_usage AS (
+  SELECT d.company_id, SUM(domain_usage.bytes)::bigint AS bytes
+  FROM domain_usage
+  JOIN domains d ON d.id = domain_usage.domain_id
+  GROUP BY d.company_id
+),
+updated_users AS (
+  UPDATE users u
+  SET quota_used = GREATEST(0, quota_used - user_usage.bytes),
+      updated_at = now()
+  FROM user_usage
+  WHERE u.id = user_usage.user_id
+  RETURNING u.id
+),
+updated_domains AS (
+  UPDATE domains d
+  SET quota_used = GREATEST(0, quota_used - domain_usage.bytes),
+      updated_at = now()
+  FROM domain_usage
+  WHERE d.id = domain_usage.domain_id
+  RETURNING d.id
+),
+updated_companies AS (
+  UPDATE companies c
+  SET quota_used = GREATEST(0, quota_used - company_usage.bytes),
+      updated_at = now()
+  FROM company_usage
+  WHERE c.id = company_usage.company_id
+  RETURNING c.id
+)
+SELECT
+  (SELECT COUNT(*) FROM updated_users),
+  (SELECT COUNT(*) FROM updated_domains),
+  (SELECT COUNT(*) FROM updated_companies)`
+
+func decrementExpiredAttachmentUploadSessionQuota(ctx context.Context, tx *sql.Tx, expired []AttachmentUploadSession) error {
+	if len(expired) == 0 {
+		return nil
+	}
+	userIDs := make([]string, 0, len(expired))
+	sizes := make([]int64, 0, len(expired))
+	for _, session := range expired {
+		if session.DeclaredSize <= 0 {
+			continue
+		}
+		userIDs = append(userIDs, session.UserID)
+		sizes = append(sizes, session.DeclaredSize)
+	}
+	if len(userIDs) == 0 {
+		return nil
+	}
+
+	var updatedUsers, updatedDomains, updatedCompanies int64
+	if err := tx.QueryRowContext(ctx, decrementExpiredAttachmentUploadSessionQuotaSQL, pq.Array(userIDs), pq.Array(sizes)).Scan(&updatedUsers, &updatedDomains, &updatedCompanies); err != nil {
+		return fmt.Errorf("decrement expired attachment upload session quota: %w", err)
+	}
+	return nil
 }
 
 func (r *Repository) CountStaleAttachmentUploadSessions(ctx context.Context, req ExpireAttachmentUploadSessionsRequest) (StaleAttachmentUploadSessionCount, error) {

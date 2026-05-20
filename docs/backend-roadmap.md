@@ -6309,3 +6309,7 @@ Target outcome:
       for posture presets and controlled webhook private-network exceptions,
       keeping enterprise defaults strict while allowing audited tenant-specific
       relaxation where operationally required.
+1737. TASK-090 attachment upload session cleanup now batches stale-session expiry
+      and quota release: expired sessions are marked with one typed UUID-array
+      update, and user/domain/company quota ledgers are decremented through
+      aggregated CTEs instead of one write sequence per expired session.

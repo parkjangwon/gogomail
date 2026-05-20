@@ -1,6 +1,12 @@
 # gogomail current status
 
-Last updated: 2026-05-21 (SaaS launch hardening continues: organization user-unit lookup completed, bulk sender isolation and TASK-090 query optimization verified)
+Last updated: 2026-05-21 (SaaS launch hardening continues: attachment cleanup batching and TASK-090 query optimization verified)
+
+## Attachment Upload Cleanup Batching (2026-05-21)
+- Stale attachment upload session cleanup now batches expiry status updates with typed UUID arrays instead of issuing one `UPDATE attachment_upload_sessions` per expired session.
+- Quota release for expired upload sessions is aggregated per user/domain/company through one CTE-backed SQL statement, reducing cleanup DB round-trips from per-session writes to one session update plus one quota update batch.
+- Regression coverage locks the SQL shape so cleanup cannot silently fall back to per-session update loops.
+- Verification: `go test ./internal/maildb -run 'TestExpireAttachmentUploadSessionsSQLUsesBatchUpdates|TestPostgresExpireAttachmentUploadSessionsReleasesQuota'` passes.
 
 ## SaaS Launch Hardening Continuation (2026-05-21)
 - Organization chart user-unit lookup is now repository-backed instead of returning a placeholder error. `GetUserUnits` validates `user_id`, resolves active `organization_members` assignments through `organization_units`, and ignores ended memberships plus inactive units.
