@@ -114,6 +114,49 @@ func TestValidateListObjectCleanupFailuresRequestRejectsUnsafeInput(t *testing.T
 	}
 }
 
+func TestListObjectCleanupFailuresQueryUsesSargableOptionalFilters(t *testing.T) {
+	t.Parallel()
+
+	query, args := buildListObjectCleanupFailuresQuery(ListObjectCleanupFailuresRequest{
+		UserID: "user-1",
+		Status: ObjectCleanupFailureStatusPending,
+		Limit:  25,
+	})
+	for _, want := range []string{
+		"FROM drive_object_cleanup_failures",
+		"WHERE status = $1",
+		"AND user_id = $2::uuid",
+		"ORDER BY updated_at ASC, id ASC",
+		"LIMIT $3",
+	} {
+		if !strings.Contains(query, want) {
+			t.Fatalf("list cleanup failures query missing %q:\n%s", want, query)
+		}
+	}
+	for _, forbidden := range []string{
+		"NULLIF($2, '') IS NULL",
+		"OR user_id",
+	} {
+		if strings.Contains(query, forbidden) {
+			t.Fatalf("list cleanup failures query contains non-sargable optional filter %q:\n%s", forbidden, query)
+		}
+	}
+	if len(args) != 3 {
+		t.Fatalf("args len = %d, want 3", len(args))
+	}
+	if args[0] != ObjectCleanupFailureStatusPending || args[1] != "user-1" || args[2] != 25 {
+		t.Fatalf("args = %#v", args)
+	}
+
+	query, args = buildListObjectCleanupFailuresQuery(ListObjectCleanupFailuresRequest{Status: ObjectCleanupFailureStatusResolved, Limit: 50})
+	if strings.Contains(query, "user_id = $") {
+		t.Fatalf("user-agnostic cleanup failure query unexpectedly includes user filter:\n%s", query)
+	}
+	if len(args) != 2 || args[0] != ObjectCleanupFailureStatusResolved || args[1] != 50 {
+		t.Fatalf("unfiltered args = %#v", args)
+	}
+}
+
 func TestValidateResolveObjectCleanupFailureRequest(t *testing.T) {
 	t.Parallel()
 

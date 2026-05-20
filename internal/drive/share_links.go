@@ -437,26 +437,8 @@ func (r *Repository) ListShareLinks(ctx context.Context, req ListShareLinksReque
 	if err != nil {
 		return nil, err
 	}
-	const query = `
-SELECT
-  id::text,
-  user_id::text,
-  node_id::text,
-  token_suffix,
-  permission,
-  COALESCE(password_hash, '') <> '',
-  status,
-  expires_at,
-  created_at,
-  updated_at,
-  revoked_at
-FROM drive_share_links
-WHERE user_id = $1::uuid
-  AND status = $3
-  AND (NULLIF($2, '') IS NULL OR node_id = NULLIF($2, '')::uuid)
-ORDER BY updated_at DESC, id DESC
-LIMIT $4`
-	rows, err := r.db.QueryContext(ctx, query, req.UserID, req.NodeID, req.Status, req.Limit)
+	query, args := buildListShareLinksQuery(req)
+	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("list drive share links: %w", err)
 	}
@@ -474,6 +456,36 @@ LIMIT $4`
 		return nil, fmt.Errorf("iterate drive share links: %w", err)
 	}
 	return links, nil
+}
+
+func buildListShareLinksQuery(req ListShareLinksRequest) (string, []any) {
+	args := []any{req.UserID, req.Status}
+	nodePredicate := ""
+	if req.NodeID != "" {
+		args = append(args, req.NodeID)
+		nodePredicate = fmt.Sprintf("  AND node_id = $%d::uuid\n", len(args))
+	}
+	args = append(args, req.Limit)
+
+	query := `
+SELECT
+  id::text,
+  user_id::text,
+  node_id::text,
+  token_suffix,
+  permission,
+  COALESCE(password_hash, '') <> '',
+  status,
+  expires_at,
+  created_at,
+  updated_at,
+  revoked_at
+FROM drive_share_links
+WHERE user_id = $1::uuid
+  AND status = $2
+` + nodePredicate + fmt.Sprintf(`ORDER BY updated_at DESC, id DESC
+LIMIT $%d`, len(args))
+	return query, args
 }
 
 func (r *Repository) RevokeShareLink(ctx context.Context, req RevokeShareLinkRequest) (ShareLink, error) {

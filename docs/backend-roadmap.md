@@ -6522,3 +6522,6 @@ Target outcome:
       open-ended export batch windows and migration
       `0118_api_usage_export_covering_batch_index.sql` adds the matching
       tenant/principal/window/order partial index.
+1792. Drive share link and object cleanup failure list queries now add optional
+      node/user filters only when requested, using typed UUID predicates instead
+      of optional `OR` guards.
