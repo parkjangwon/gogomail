@@ -6515,3 +6515,6 @@ Target outcome:
 1789. Admin quota usage list queries now add scope/domain/over-limit/
       over-allocated predicates only when requested, avoiding optional `OR`
       guards in quota operations views.
+1790. Admin bulk user status updates now add company scope predicates only when
+      requested, avoiding optional `OR` guards in company-admin constrained
+      updates.
