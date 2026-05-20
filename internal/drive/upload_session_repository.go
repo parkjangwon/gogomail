@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/gogomail/gogomail/internal/storage"
@@ -224,7 +225,27 @@ func (r *Repository) ListUploadSessions(ctx context.Context, req ListUploadSessi
 	if err != nil {
 		return nil, err
 	}
-	const query = `
+	query, args := buildListUploadSessionsQuery(req)
+	rows, err := r.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("list drive upload sessions: %w", err)
+	}
+	defer rows.Close()
+	sessions := make([]UploadSession, 0)
+	for rows.Next() {
+		session, err := scanUploadSession(rows)
+		if err != nil {
+			return nil, fmt.Errorf("scan drive upload session: %w", err)
+		}
+		sessions = append(sessions, session)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate drive upload sessions: %w", err)
+	}
+	return sessions, nil
+}
+
+const listUploadSessionsBaseSQL = `
 SELECT
   s.id::text,
   s.user_id::text,
@@ -246,29 +267,23 @@ SELECT
 FROM drive_upload_sessions s
 JOIN users u ON u.id = s.user_id
 JOIN domains d ON d.id = u.domain_id
-WHERE s.user_id = $1::uuid
-  AND u.status = 'active'
-  AND d.status = 'active'
-  AND ($2 = '' OR s.status = $2)
+WHERE s.user_id = $1::uuid`
+
+func buildListUploadSessionsQuery(req ListUploadSessionsRequest) (string, []any) {
+	args := []any{req.UserID}
+	conditions := []string{
+		"u.status = 'active'",
+		"d.status = 'active'",
+	}
+	if req.Status != "" {
+		args = append(args, req.Status)
+		conditions = append(conditions, fmt.Sprintf("s.status = $%d", len(args)))
+	}
+	args = append(args, req.Limit)
+	query := listUploadSessionsBaseSQL + "\n  AND " + strings.Join(conditions, "\n  AND ") + fmt.Sprintf(`
 ORDER BY s.updated_at DESC, s.created_at DESC
-LIMIT $3`
-	rows, err := r.db.QueryContext(ctx, query, req.UserID, req.Status, req.Limit)
-	if err != nil {
-		return nil, fmt.Errorf("list drive upload sessions: %w", err)
-	}
-	defer rows.Close()
-	sessions := make([]UploadSession, 0)
-	for rows.Next() {
-		session, err := scanUploadSession(rows)
-		if err != nil {
-			return nil, fmt.Errorf("scan drive upload session: %w", err)
-		}
-		sessions = append(sessions, session)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("iterate drive upload sessions: %w", err)
-	}
-	return sessions, nil
+LIMIT $%d`, len(args))
+	return query, args
 }
 
 func (r *Repository) CancelUploadSession(ctx context.Context, req CancelUploadSessionRequest) (UploadSession, error) {
