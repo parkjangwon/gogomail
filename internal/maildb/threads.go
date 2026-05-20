@@ -39,7 +39,7 @@ func (r *Repository) ListThreadsPage(ctx context.Context, userID string, limit i
 	}
 
 	folderID := strings.TrimSpace(filter.FolderID)
-	query := buildThreadListPageSQL(sortMode, folderID)
+	query := buildThreadListPageSQL(sortMode, folderID, filter)
 
 	rows, err := r.db.QueryContext(ctx, query, userID, limit, cursor.At, strings.TrimSpace(cursor.ID), filter.Read, filter.Starred, filter.HasAttachment, folderID)
 	if err != nil {
@@ -72,15 +72,45 @@ func (r *Repository) ListThreadsPage(ctx context.Context, userID string, limit i
 	return threads, nil
 }
 
-func buildThreadListPageSQL(sortMode, folderID string) string {
+func buildThreadListPageSQL(sortMode, folderID string, filter ThreadListFilter) string {
 	query := threadListPageNewestSQL
 	if sortMode == ListSortOldest {
 		query = threadListPageOldestSQL
 	}
 	if folderID == "" {
-		return strings.Replace(query, "    AND ($8 = '' OR messages.folder_id::text = $8)\n", "", 1)
+		query = strings.Replace(query, "    AND ($8 = '' OR messages.folder_id::text = $8)\n", "", 1)
+	} else {
+		query = strings.Replace(query, "    AND ($8 = '' OR messages.folder_id::text = $8)", "    AND messages.folder_id = $8::uuid", 1)
 	}
-	return strings.Replace(query, "    AND ($8 = '' OR messages.folder_id::text = $8)", "    AND messages.folder_id = $8::uuid", 1)
+	if filter.Read == nil {
+		query = strings.Replace(query, `AND (
+  $5::boolean IS NULL
+  OR ($5::boolean = false AND unread_count > 0)
+  OR ($5::boolean = true AND unread_count = 0)
+)
+`, "", 1)
+	} else if *filter.Read {
+		query = strings.Replace(query, `AND (
+  $5::boolean IS NULL
+  OR ($5::boolean = false AND unread_count > 0)
+  OR ($5::boolean = true AND unread_count = 0)
+)`, "AND unread_count = 0", 1)
+	} else {
+		query = strings.Replace(query, `AND (
+  $5::boolean IS NULL
+  OR ($5::boolean = false AND unread_count > 0)
+  OR ($5::boolean = true AND unread_count = 0)
+)`, "AND unread_count > 0", 1)
+	}
+	if filter.Starred == nil {
+		query = strings.Replace(query, "AND ($6::boolean IS NULL OR starred = $6::boolean)\n", "", 1)
+	} else {
+		query = strings.Replace(query, "AND ($6::boolean IS NULL OR starred = $6::boolean)", "AND starred = $6::boolean", 1)
+	}
+	if filter.HasAttachment == nil {
+		return strings.Replace(query, "AND ($7::boolean IS NULL OR has_attachment = $7::boolean)\n", "", 1)
+	}
+	return strings.Replace(query, "AND ($7::boolean IS NULL OR has_attachment = $7::boolean)", "AND has_attachment = $7::boolean", 1)
 }
 
 const threadListPageNewestSQL = `

@@ -233,6 +233,7 @@ Go Backend (`internal/`):
 - `SearchMessages`도 folder 필터가 있을 때만 `folder_id = $3::uuid` 조건을 추가하고, 전체 메일 검색에서는 folder predicate를 제거해 메시지 검색 조회의 optional `OR` predicate를 줄임
 - `SearchMessages`/`SearchDrafts`의 attachment 필터도 제공된 경우에만 typed boolean predicate를 추가하고, attachment-agnostic 검색에서는 predicate를 제거해 optional `OR` predicate를 줄임
 - `SearchMessages`/`SearchDrafts`의 cursor predicate도 커서가 있을 때만 tuple comparison을 추가하고, 첫 페이지 검색에서는 predicate를 제거해 pagination optional `OR`를 줄임
+- thread list의 read/starred/attachment 필터도 제공된 경우에만 직접 predicate를 추가하고, 필터 없는 목록에서는 nullable boolean optional `OR` predicate를 제거함
 - IMAP UID copy/expunge/move/hydrate 경로도 typed array unnest로 바꿔 요청당 JSON 직렬화 비용을 제거함
 - `imapUIDArray` 1k/10k 벤치마크를 추가해 UID 전처리 비용을 추적할 수 있게 함
 - IMAP mailbox lookup normalization도 `strings.Fields` 대신 로컬 공백 정리 스캐너를 쓰도록 바꿔 `SELECT`/`LIST` alias 처리의 토큰 슬라이스 비용을 줄임

@@ -6497,3 +6497,6 @@ Target outcome:
 1783. Message and draft search now emit cursor predicates only when a pagination
       cursor is present, keeping first-page searches free of pagination optional
       `OR` branches.
+1784. Thread list read/starred/attachment filters now emit direct predicates only
+      when requested and omit nullable boolean optional `OR` branches for
+      unfiltered lists.
