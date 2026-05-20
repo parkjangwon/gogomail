@@ -6326,3 +6326,7 @@ Target outcome:
       `COALESCE(thread_id, id)` and the thread-list message timestamp
       expression, supporting the existing aggregate query without changing
       pagination semantics.
+1741. TASK-090 delivery attempt preparation now pre-indexes DSN recipient options
+      by normalized address for attempt records and exhausted-event payloads,
+      removing repeated linear scans across DSN metadata for large recipient
+      batches while preserving first-match duplicate handling.

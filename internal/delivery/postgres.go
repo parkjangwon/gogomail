@@ -227,12 +227,13 @@ func exhaustedEventPayload(queued QueuedMessage, causeMsg string) ([]byte, error
 	recipients := make([]string, 0, len(queued.Recipients()))
 	recipientDetails := make([]map[string]any, 0, len(queued.Recipients()))
 	cause := errorFromMessage(causeMsg)
+	dsnByAddress := dsnRecipientOptionsByAddress(queued.DSN.Recipients)
 	for _, r := range queued.Recipients() {
 		if email := strings.TrimSpace(r.Email); email != "" {
 			recipients = append(recipients, email)
 			_, domain, _ := strings.Cut(email, "@")
 			domain = strings.ToLower(strings.TrimSuffix(domain, "."))
-			dsnRecipient := dsnRecipientOptionsForAttempt(queued.DSN.Recipients, email)
+			dsnRecipient := dsnByAddress[strings.ToLower(email)]
 			notify := append([]string(nil), dsnRecipient.Notify...)
 			if notify == nil {
 				notify = []string{}

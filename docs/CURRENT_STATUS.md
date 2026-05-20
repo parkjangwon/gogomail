@@ -20,6 +20,11 @@ Last updated: 2026-05-21 (SaaS launch hardening continues: attachment cleanup ba
 - Both folder-scoped and unscoped thread list scans are covered, matching the webmail thread-list filter behavior without changing pagination semantics.
 - Verification: `go test ./internal/database -run TestThreadListIndexMigrationMatchesThreadQueries` passes.
 
+## Delivery DSN Lookup Scaling (2026-05-21)
+- Delivery attempt creation and delivery-exhausted event payload generation now build a normalized DSN recipient option map once per queued message instead of scanning DSN recipient options for every outbound recipient.
+- The first normalized DSN recipient option still wins, preserving existing duplicate handling while removing O(n²) lookup cost for large recipient lists.
+- Verification: `go test ./internal/delivery -run 'TestAttemptsForCarriesDSNMetadata|TestDSNRecipientOptionsByAddressPreservesFirstNormalizedMatch|TestRecordDeliveryExhausted'` passes.
+
 ## SaaS Launch Hardening Continuation (2026-05-21)
 - Organization chart user-unit lookup is now repository-backed instead of returning a placeholder error. `GetUserUnits` validates `user_id`, resolves active `organization_members` assignments through `organization_units`, and ignores ended memberships plus inactive units.
 - Migration `0115_organization_member_active_user_index.sql` adds a partial active-membership index for user-scoped organization lookups.
