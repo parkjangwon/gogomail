@@ -10,6 +10,7 @@ import (
 
 	"github.com/gogomail/gogomail/internal/audit"
 	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/lib/pq"
 )
 
 type Repository struct {
@@ -970,6 +971,238 @@ func (r *Repository) ListGroupMemberships(ctx context.Context, req ListGroupMemb
 		return nil, fmt.Errorf("list directory group membership rows: %w", err)
 	}
 	return memberships, nil
+}
+
+const listGroupMembershipsForGroupsSQL = `
+SELECT req.group_order,
+       m.updated_at,
+       m.id::text,
+       m.group_id::text,
+       g.company_id::text,
+       m.member_kind,
+       m.member_id::text,
+       m.role,
+       m.status
+FROM directory_group_memberships m
+JOIN directory_groups g ON g.id = m.group_id
+JOIN domains d ON d.id = g.domain_id AND d.company_id = g.company_id
+JOIN companies c ON c.id = g.company_id
+JOIN unnest($2::uuid[]) WITH ORDINALITY AS req(group_id, group_order) ON req.group_id = m.group_id
+WHERE g.company_id = $1::uuid`
+
+func buildListGroupMembershipsForGroupsQuery(activeOnly bool) string {
+	query := `
+WITH ranked_memberships AS (
+` + listGroupMembershipsForGroupsSQL
+	if activeOnly {
+		query += `
+  AND (m.status = 'active' AND g.status = 'active' AND d.status = 'active' AND c.status = 'active')`
+	}
+	query += `
+)
+SELECT id, group_id, company_id, member_kind, member_id, role, status
+FROM (
+  SELECT ranked_memberships.*,
+         row_number() OVER (PARTITION BY group_id ORDER BY updated_at DESC, id) AS rn
+  FROM ranked_memberships
+) limited
+WHERE rn <= $3
+ORDER BY group_order, rn`
+	return query
+}
+
+func (r *Repository) ListGroupMembershipsForGroups(ctx context.Context, companyID string, groupIDs []string, activeOnly bool, perGroupLimit int) (map[string][]GroupMembership, error) {
+	if r == nil || r.db == nil {
+		return nil, fmt.Errorf("database handle is required")
+	}
+	companyID, err := NormalizePrincipalID(companyID)
+	if err != nil {
+		return nil, fmt.Errorf("company id: %w", err)
+	}
+	groupIDs, err = normalizePrincipalIDList(groupIDs)
+	if err != nil {
+		return nil, fmt.Errorf("group ids: %w", err)
+	}
+	perGroupLimit, err = normalizeMembershipBatchLimit(perGroupLimit)
+	if err != nil {
+		return nil, err
+	}
+	out := make(map[string][]GroupMembership, len(groupIDs))
+	if len(groupIDs) == 0 {
+		return out, nil
+	}
+	rows, err := r.db.QueryContext(ctx, buildListGroupMembershipsForGroupsQuery(activeOnly), companyID, pq.Array(groupIDs), perGroupLimit)
+	if err != nil {
+		return nil, fmt.Errorf("list directory group memberships for groups: %w", err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		membership, err := scanGroupMembership(rows)
+		if err != nil {
+			return nil, err
+		}
+		out[membership.GroupID] = append(out[membership.GroupID], membership)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("list directory group memberships for groups rows: %w", err)
+	}
+	return out, nil
+}
+
+const listGroupMembershipsForMembersSQL = `
+SELECT req.member_order,
+       m.updated_at,
+       m.id::text,
+       m.group_id::text,
+       g.company_id::text,
+       m.member_kind,
+       m.member_id::text,
+       m.role,
+       m.status
+FROM directory_group_memberships m
+JOIN directory_groups g ON g.id = m.group_id
+JOIN domains d ON d.id = g.domain_id AND d.company_id = g.company_id
+JOIN companies c ON c.id = g.company_id
+JOIN unnest($2::text[], $3::uuid[]) WITH ORDINALITY AS req(member_kind, member_id, member_order)
+  ON req.member_kind = m.member_kind AND req.member_id = m.member_id
+WHERE g.company_id = $1::uuid`
+
+func buildListGroupMembershipsForMembersQuery(activeOnly bool) string {
+	query := `
+WITH ranked_memberships AS (
+` + listGroupMembershipsForMembersSQL
+	if activeOnly {
+		query += `
+  AND (m.status = 'active' AND g.status = 'active' AND d.status = 'active' AND c.status = 'active')`
+	}
+	query += `
+)
+SELECT id, group_id, company_id, member_kind, member_id, role, status
+FROM (
+  SELECT ranked_memberships.*,
+         row_number() OVER (PARTITION BY member_kind, member_id ORDER BY updated_at DESC, id) AS rn
+  FROM ranked_memberships
+) limited
+WHERE rn <= $4
+ORDER BY member_order, rn`
+	return query
+}
+
+func (r *Repository) ListGroupMembershipsForMembers(ctx context.Context, companyID string, members []PrincipalRef, activeOnly bool, perMemberLimit int) (map[PrincipalRef][]GroupMembership, error) {
+	if r == nil || r.db == nil {
+		return nil, fmt.Errorf("database handle is required")
+	}
+	companyID, err := NormalizePrincipalID(companyID)
+	if err != nil {
+		return nil, fmt.Errorf("company id: %w", err)
+	}
+	members, err = normalizePrincipalRefs(members)
+	if err != nil {
+		return nil, err
+	}
+	perMemberLimit, err = normalizeMembershipBatchLimit(perMemberLimit)
+	if err != nil {
+		return nil, err
+	}
+	out := make(map[PrincipalRef][]GroupMembership, len(members))
+	if len(members) == 0 {
+		return out, nil
+	}
+	kinds := make([]string, 0, len(members))
+	ids := make([]string, 0, len(members))
+	for _, member := range members {
+		kinds = append(kinds, member.Kind)
+		ids = append(ids, member.ID)
+	}
+	rows, err := r.db.QueryContext(ctx, buildListGroupMembershipsForMembersQuery(activeOnly), companyID, pq.Array(kinds), pq.Array(ids), perMemberLimit)
+	if err != nil {
+		return nil, fmt.Errorf("list directory group memberships for members: %w", err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		membership, err := scanGroupMembership(rows)
+		if err != nil {
+			return nil, err
+		}
+		key := PrincipalRef{Kind: membership.MemberKind, ID: membership.MemberID}
+		out[key] = append(out[key], membership)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("list directory group memberships for members rows: %w", err)
+	}
+	return out, nil
+}
+
+type groupMembershipScanner interface {
+	Scan(dest ...any) error
+}
+
+func scanGroupMembership(row groupMembershipScanner) (GroupMembership, error) {
+	var membership GroupMembership
+	if err := row.Scan(
+		&membership.ID,
+		&membership.GroupID,
+		&membership.CompanyID,
+		&membership.MemberKind,
+		&membership.MemberID,
+		&membership.Role,
+		&membership.Status,
+	); err != nil {
+		return GroupMembership{}, fmt.Errorf("scan directory group membership list result: %w", err)
+	}
+	return membership, nil
+}
+
+func normalizePrincipalIDList(ids []string) ([]string, error) {
+	out := make([]string, 0, len(ids))
+	seen := make(map[string]struct{}, len(ids))
+	for _, id := range ids {
+		normalized, err := NormalizePrincipalID(id)
+		if err != nil {
+			return nil, err
+		}
+		if _, ok := seen[normalized]; ok {
+			continue
+		}
+		seen[normalized] = struct{}{}
+		out = append(out, normalized)
+	}
+	return out, nil
+}
+
+func normalizePrincipalRefs(refs []PrincipalRef) ([]PrincipalRef, error) {
+	out := make([]PrincipalRef, 0, len(refs))
+	seen := make(map[PrincipalRef]struct{}, len(refs))
+	for _, ref := range refs {
+		kind, err := NormalizePrincipalKind(ref.Kind)
+		if err != nil {
+			return nil, fmt.Errorf("member kind: %w", err)
+		}
+		id, err := NormalizePrincipalID(ref.ID)
+		if err != nil {
+			return nil, fmt.Errorf("member id: %w", err)
+		}
+		normalized := PrincipalRef{Kind: kind, ID: id}
+		if _, ok := seen[normalized]; ok {
+			continue
+		}
+		seen[normalized] = struct{}{}
+		out = append(out, normalized)
+	}
+	return out, nil
+}
+
+func normalizeMembershipBatchLimit(limit int) (int, error) {
+	if limit < 0 {
+		return 0, fmt.Errorf("group membership list limit must not be negative")
+	}
+	if limit == 0 {
+		return DefaultGroupMembershipListLimit, nil
+	}
+	if limit > MaxGroupMembershipListLimit {
+		return 0, fmt.Errorf("group membership list limit is too large")
+	}
+	return limit, nil
 }
 
 func (r *Repository) createGroupMembershipTx(ctx context.Context, tx *sql.Tx, req CreateGroupMembershipRequest, companyID string) (GroupMembership, error) {

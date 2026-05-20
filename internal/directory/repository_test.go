@@ -1174,6 +1174,58 @@ func TestListGroupMembershipsQueryUsesSargableOptionalFilters(t *testing.T) {
 	}
 }
 
+func TestBatchGroupMembershipQueriesUseOrdinalityAndPerPrincipalLimits(t *testing.T) {
+	t.Parallel()
+
+	groupQuery := buildListGroupMembershipsForGroupsQuery(true)
+	for _, want := range []string{
+		"JOIN unnest($2::uuid[]) WITH ORDINALITY AS req(group_id, group_order)",
+		"ON req.group_id = m.group_id",
+		"WHERE g.company_id = $1::uuid",
+		"row_number() OVER (PARTITION BY group_id ORDER BY updated_at DESC, id) AS rn",
+		"WHERE rn <= $3",
+		"ORDER BY group_order, rn",
+		"AND (m.status = 'active' AND g.status = 'active' AND d.status = 'active' AND c.status = 'active')",
+	} {
+		if !strings.Contains(groupQuery, want) {
+			t.Fatalf("batch group membership query missing %q:\n%s", want, groupQuery)
+		}
+	}
+	for _, forbidden := range []string{
+		"$2 = '' OR",
+		"array_position",
+		"SELECT *",
+	} {
+		if strings.Contains(groupQuery, forbidden) {
+			t.Fatalf("batch group membership query contains forbidden pattern %q:\n%s", forbidden, groupQuery)
+		}
+	}
+
+	memberQuery := buildListGroupMembershipsForMembersQuery(true)
+	for _, want := range []string{
+		"JOIN unnest($2::text[], $3::uuid[]) WITH ORDINALITY AS req(member_kind, member_id, member_order)",
+		"ON req.member_kind = m.member_kind AND req.member_id = m.member_id",
+		"WHERE g.company_id = $1::uuid",
+		"row_number() OVER (PARTITION BY member_kind, member_id ORDER BY updated_at DESC, id) AS rn",
+		"WHERE rn <= $4",
+		"ORDER BY member_order, rn",
+		"AND (m.status = 'active' AND g.status = 'active' AND d.status = 'active' AND c.status = 'active')",
+	} {
+		if !strings.Contains(memberQuery, want) {
+			t.Fatalf("batch member membership query missing %q:\n%s", want, memberQuery)
+		}
+	}
+	for _, forbidden := range []string{
+		"$3 = '' OR",
+		"array_position",
+		"SELECT *",
+	} {
+		if strings.Contains(memberQuery, forbidden) {
+			t.Fatalf("batch member membership query contains forbidden pattern %q:\n%s", forbidden, memberQuery)
+		}
+	}
+}
+
 func TestNormalizeUpdateGroupMembershipRoleRequest(t *testing.T) {
 	t.Parallel()
 
