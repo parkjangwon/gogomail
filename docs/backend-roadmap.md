@@ -6632,3 +6632,7 @@ Target outcome:
       auth refresh, directory management, SSO config, mail-flow/audit/spam
       monitoring, and API-usage aggregate/ledger endpoints instead of listing
       stale identity-config, logs/*, or base api-usage paths.
+1824. Console locale JSON now replaces generic launch-visible modal/title
+      placeholders across English, Japanese, and Simplified Chinese messages
+      with workflow-specific copy for admin settings, DNS, DKIM, relays, routes,
+      reports, and roles.

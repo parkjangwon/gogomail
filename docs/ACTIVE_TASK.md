@@ -165,6 +165,7 @@
 - Scheduling attendee CardDAV fallback no longer searches contacts one attendee at a time; unresolved external-looking attendees now use one ordinality-preserving batch contact search before remaining external.
 - CardDAV org-tree no longer calls principal search once per organization unit; it now batch-loads active users for all returned org IDs and adds org/user indexes for the tree and member lookup order.
 - Admin console spec no longer documents stale auth refresh-token, identity-config, logs/*, or base api-usage endpoints; it now lists the implemented refresh, directory, SSO, mail-flow/audit/spam, and API-usage routes.
+- Console shipped locale files no longer expose generic modal/title placeholders such as `Config Modal Title`, `Delete Modal Title`, or bare `Title` in key admin workflows.
 
 **Infrastructure & Storage Hardening** ✅ COMPLETE
 - Task 1 (EML GC): Added `LookupDeleteableStoragePaths` and `LookupExpungeStoragePaths` to maildb; service layer now performs two-phase GC (lookup before DB delete, delete from store after commit) for `DeleteMessage`, `BulkDeleteMessages`, `BulkDeleteThreads`, and `ExpungeIMAPMessages`. Reference-count check prevents deletion of paths shared by IMAP COPY.
