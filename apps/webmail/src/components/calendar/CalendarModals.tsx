@@ -471,8 +471,6 @@ export function EventCreateModal({
 
 type EventEditModalProps = Omit<EventCreateModalProps, 'showCalSelect'> & {
   isRecurring?: boolean;
-  editScope?: 'this' | 'all';
-  onEditScopeChange?: (scope: 'this' | 'all') => void;
 };
 
 export function EventEditModal({
@@ -497,8 +495,6 @@ export function EventEditModal({
   dayLabels,
   ruleIntervalLabel,
   isRecurring,
-  editScope,
-  onEditScopeChange,
   onClose,
   onSubmit,
   onTitleChange,
@@ -523,16 +519,12 @@ export function EventEditModal({
       <div style={M.card('460px')} onClick={(e) => e.stopPropagation()}>
         <div style={M.header}><span style={M.title}>일정 편집</span></div>
         <div style={M.body}>
-          {isRecurring && onEditScopeChange && (
-            <div style={{ display: 'flex', gap: '8px', padding: '8px 0' }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '13px', cursor: 'pointer' }}>
-                <input type="radio" name="editScope" value="this" checked={editScope === 'this'} onChange={() => onEditScopeChange('this')} />
-                이 이벤트만
-              </label>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '13px', cursor: 'pointer' }}>
-                <input type="radio" name="editScope" value="all" checked={editScope === 'all'} onChange={() => onEditScopeChange('all')} />
-                모든 반복 이벤트
-              </label>
+          {isRecurring && (
+            <div role="note" style={{ padding: '8px 10px', borderRadius: '8px', background: 'var(--color-bg-secondary)', border: '1px solid var(--color-border-subtle)', color: 'var(--color-text-secondary)', fontSize: '12px', lineHeight: 1.5 }}>
+              <div style={{ fontWeight: 600, color: 'var(--color-text-primary)', marginBottom: '2px' }}>
+                반복 일정 전체 편집
+              </div>
+              이 변경사항은 같은 반복 규칙을 공유하는 전체 일정에 적용됩니다.
             </div>
           )}
 

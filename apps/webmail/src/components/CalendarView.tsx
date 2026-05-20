@@ -67,7 +67,6 @@ export function CalendarView() {
   const [editRruleCount, setEditRruleCount] = useState(10);
   const [editRruleUntil, setEditRruleUntil] = useState('');
   const [editRruleDays, setEditRruleDays] = useState<number[]>([]);
-  const [editScope, setEditScope] = useState<'this' | 'all'>('this');
 
   // Calendar management modal
   const [showCalModal, setShowCalModal] = useState(false);
@@ -449,7 +448,6 @@ export function CalendarView() {
     setEditAllDay(ev.allDay);
     setEditCalId(ev.calendarId);
     setEditError('');
-    setEditScope('all');
     // Parse rrule from ICS
     const icsRaw = ev.obj.ICS;
     let rruleStr = '';
@@ -517,10 +515,6 @@ export function CalendarView() {
     try {
       const uid = editingEvent.obj.UID;
       const objectName = editingEvent.obj.ObjectName;
-      if (editRrule !== 'NONE' && editScope === 'this') {
-        setEditError('개별 반복 일정 수정은 아직 지원되지 않습니다. 모든 반복 이벤트로 저장하세요.');
-        return;
-      }
       const sourceCalId = editingEvent.calendarId;
       const targetCalId = editCalId || sourceCalId;
       await updateCalendarEvent(targetCalId, objectName, uid, {
@@ -544,7 +538,7 @@ export function CalendarView() {
       setEditSaving(false);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [editingEvent, editTitle, editAllDay, editStart, editEnd, editLocation, editDesc, editCalId, editRrule, editRruleInterval, editRruleEnd, editRruleCount, editRruleUntil, editRruleDays, editScope, reloadObjects]);
+  }, [editingEvent, editTitle, editAllDay, editStart, editEnd, editLocation, editDesc, editCalId, editRrule, editRruleInterval, editRruleEnd, editRruleCount, editRruleUntil, editRruleDays, reloadObjects]);
 
   const handleDeleteEvent = useCallback(async (ev: import('@/lib/calendar/eventParser').ParsedEvent) => {
     if (!window.confirm(`"${ev.summary}" 일정을 삭제하시겠습니까?`)) return;
@@ -773,8 +767,6 @@ export function CalendarView() {
         dayLabels={['일', '월', '화', '수', '목', '금', '토']}
         ruleIntervalLabel={{ DAILY: '일', WEEKLY: '주', MONTHLY: '개월', YEARLY: '년', NONE: '' }[editRrule]}
         isRecurring={editRrule !== 'NONE'}
-        editScope={editScope}
-        onEditScopeChange={setEditScope}
         onClose={() => { setShowEditModal(false); setEditingEvent(null); }}
         onSubmit={handleEditSubmit}
         onTitleChange={setEditTitle}

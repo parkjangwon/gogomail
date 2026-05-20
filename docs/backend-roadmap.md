@@ -6390,3 +6390,7 @@ Target outcome:
       and general settings back into local caches used by the message-list and
       compose paths, and the filter UI copy now reflects that rules are active
       and server-synced.
+1754. Webmail calendar recurring-event edits now expose only the currently
+      supported whole-series edit behavior.  The modal no longer offers a
+      single-occurrence option that failed after submit, so users see the
+      actual update scope before saving.
