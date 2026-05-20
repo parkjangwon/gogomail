@@ -1166,7 +1166,7 @@ func ValidateCreateUserRequest(req CreateUserRequest) error {
 		return err
 	}
 	if strings.TrimSpace(req.PasswordHash) != "" {
-		if err := auth.ValidatePasswordHash(req.PasswordHash); err != nil {
+		if err := auth.ValidatePasswordHash(req.PasswordHash, true); err != nil {
 			return err
 		}
 	}
@@ -1619,7 +1619,7 @@ func ValidateUpdateUserPasswordHashRequest(req UpdateUserPasswordHashRequest) er
 	if strings.TrimSpace(req.ID) == "" {
 		return fmt.Errorf("user id is required")
 	}
-	if err := auth.ValidatePasswordHash(req.PasswordHash); err != nil {
+	if err := auth.ValidatePasswordHash(req.PasswordHash, true); err != nil {
 		return err
 	}
 	return nil
@@ -2403,6 +2403,109 @@ LIMIT 1`
 	}
 	user.QuotaRemaining = quotaRemaining(user.QuotaUsed, user.QuotaLimit)
 	return user, nil
+}
+
+// AdminUserView is a simplified view of an admin-role user.
+type AdminUserView struct {
+	ID        string    `json:"id"`
+	DomainID  string    `json:"domain_id"`
+	CompanyID string    `json:"company_id"`
+	Username  string    `json:"username"`
+	Email     string    `json:"email"`
+	Role      string    `json:"role"`
+	Status    string    `json:"status"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+// ListAdminUsers returns users whose role is system_admin or company_admin.
+// If companyID is non-empty, only users in domains belonging to that company are returned.
+func (r *Repository) ListAdminUsers(ctx context.Context, companyID string) ([]AdminUserView, error) {
+	if r.db == nil {
+		return nil, fmt.Errorf("database handle is required")
+	}
+	const query = `
+SELECT
+  u.id::text,
+  u.domain_id::text,
+  d.company_id::text,
+  u.username,
+  COALESCE(ua.address, u.username),
+  u.role,
+  u.status,
+  u.created_at
+FROM users u
+JOIN domains d ON d.id = u.domain_id
+LEFT JOIN user_addresses ua ON ua.user_id = u.id AND ua.address LIKE u.username || '@%'
+WHERE u.role IN ('system_admin', 'company_admin')
+  AND ($1 = '' OR d.company_id::text = $1)
+ORDER BY u.created_at DESC
+LIMIT 1000`
+
+	rows, err := r.db.QueryContext(ctx, query, strings.TrimSpace(companyID))
+	if err != nil {
+		return nil, fmt.Errorf("list admin users: %w", err)
+	}
+	defer rows.Close()
+
+	var users []AdminUserView
+	for rows.Next() {
+		var u AdminUserView
+		if err := rows.Scan(
+			&u.ID,
+			&u.DomainID,
+			&u.CompanyID,
+			&u.Username,
+			&u.Email,
+			&u.Role,
+			&u.Status,
+			&u.CreatedAt,
+		); err != nil {
+			return nil, fmt.Errorf("scan admin user: %w", err)
+		}
+		users = append(users, u)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate admin users: %w", err)
+	}
+	if users == nil {
+		users = []AdminUserView{}
+	}
+	return users, nil
+}
+
+// SetUserRole updates the role of a user by ID. The role must be a valid value.
+func (r *Repository) SetUserRole(ctx context.Context, userID, role string) error {
+	if r.db == nil {
+		return fmt.Errorf("database handle is required")
+	}
+	if err := ValidateUpdateUserRoleRequest(UpdateUserRoleRequest{ID: userID, Role: role}); err != nil {
+		return err
+	}
+	_, err := r.db.ExecContext(ctx,
+		`UPDATE users SET role = $2, updated_at = now() WHERE id = $1::uuid`,
+		strings.TrimSpace(userID), role)
+	if err != nil {
+		return fmt.Errorf("set user role: %w", err)
+	}
+	return nil
+}
+
+// ClearUserAdminRole removes admin role from a user, resetting it to the default 'user' role.
+func (r *Repository) ClearUserAdminRole(ctx context.Context, userID string) error {
+	if r.db == nil {
+		return fmt.Errorf("database handle is required")
+	}
+	userID = strings.TrimSpace(userID)
+	if userID == "" {
+		return fmt.Errorf("user id is required")
+	}
+	_, err := r.db.ExecContext(ctx,
+		`UPDATE users SET role = 'user', updated_at = now() WHERE id = $1::uuid AND role IN ('system_admin', 'company_admin')`,
+		userID)
+	if err != nil {
+		return fmt.Errorf("clear admin role: %w", err)
+	}
+	return nil
 }
 
 func (r *Repository) ListDomains(ctx context.Context, req DomainListRequest) ([]DomainView, error) {

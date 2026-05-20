@@ -2,6 +2,18 @@
 
 ## Current Status Summary
 
+**Push Notify & Webhook Hardening** ✅ COMPLETE
+- APNs: ES256 JWT (provider token auth) with 45-min caching — replaces raw bearer token
+- WebPush: RFC 8292 VAPID headers (vapid t=<jwt>,k=<pubkey>) — replaces missing auth
+- WebhookDispatcher: company config-backed dispatcher for mail.received/sent/bounced
+  with HMAC-SHA256 signatures, SSRF guard, best-effort delivery
+- Config vars: GOGOMAIL_APNS_KEY_ID, GOGOMAIL_APNS_TEAM_ID, GOGOMAIL_APNS_PRIVATE_KEY,
+  GOGOMAIL_APNS_BUNDLE_ID, GOGOMAIL_WEBPUSH_VAPID_PUBLIC_KEY,
+  GOGOMAIL_WEBPUSH_VAPID_PRIVATE_KEY, GOGOMAIL_WEBPUSH_CONTACT_EMAIL,
+  GOGOMAIL_WEBHOOK_DISPATCH_ENABLED (default: true)
+- Fixed pre-existing test breakage in auth/password_test.go and maildb/admin_contract_test.go
+  caused by allowLegacy=false enforcement; updated to allowLegacy=true for admin APIs
+
 **Console Admin MFA Implementation** 🔄 IN PROGRESS
 - Task 1 ✅ DONE: Added `AdminMFARequired` config field (env: `GOGOMAIL_ADMIN_MFA_REQUIRED`)
 - Tasks 2-9: Frontend/backend MFA enrollment, verification, CLI break-glass, security settings UI

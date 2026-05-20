@@ -135,6 +135,12 @@ func applyYAMLConfigValue(cfg *Config, key string, value any) error {
 		return setYAMLString(value, &cfg.DatabaseURL, key)
 	case "redis_addr":
 		return setYAMLString(value, &cfg.RedisAddr, key)
+	case "redis_password":
+		return setYAMLString(value, &cfg.RedisPassword, key)
+	case "auth_jwt_secret":
+		return setYAMLString(value, &cfg.AuthJWTSecret, key)
+	case "admin_token":
+		return setYAMLString(value, &cfg.AdminToken, key)
 	case "storage_backend":
 		return setYAMLString(value, &cfg.StorageBackend, key)
 	case "storage_backend_compat_labels":
@@ -213,6 +219,22 @@ func applyYAMLConfigValue(cfg *Config, key string, value any) error {
 		return setYAMLInt(value, &cfg.PushNotifyConsumerCount, key)
 	case "push_notification_consumer_block":
 		return setYAMLDuration(value, &cfg.PushNotifyConsumerBlock, key)
+	case "apns_key_id":
+		return setYAMLString(value, &cfg.APNsKeyID, key)
+	case "apns_team_id":
+		return setYAMLString(value, &cfg.APNsTeamID, key)
+	case "apns_private_key":
+		return setYAMLString(value, &cfg.APNsPrivateKey, key)
+	case "apns_bundle_id":
+		return setYAMLString(value, &cfg.APNsBundleID, key)
+	case "webpush_vapid_public_key":
+		return setYAMLString(value, &cfg.WebPushVAPIDPublicKey, key)
+	case "webpush_vapid_private_key":
+		return setYAMLString(value, &cfg.WebPushVAPIDPrivateKey, key)
+	case "webpush_contact_email":
+		return setYAMLString(value, &cfg.WebPushContactEmail, key)
+	case "webhook_dispatch_enabled":
+		return setYAMLBool(value, &cfg.WebhookDispatchEnabled, key)
 	case "api_metering_backend":
 		return setYAMLString(value, &cfg.APIMeteringBackend, key)
 	case "api_metering_timeout":

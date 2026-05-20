@@ -3,9 +3,13 @@ package pushnotify
 import (
 	"bytes"
 	"context"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
 	"errors"
 	"io"
 	"net/http"
+	"strings"
 	"testing"
 	"time"
 )
@@ -22,6 +26,31 @@ func (m *mockHTTPClient) Do(req *http.Request) (*http.Response, error) {
 		return nil, m.err
 	}
 	return m.response, nil
+}
+
+// newTestAPNsAdapter creates an APNsAdapter with a freshly generated P-256 key for tests.
+func newTestAPNsAdapter(bundleID string, client HTTPClient) *APNsAdapter {
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		panic(err)
+	}
+	return NewAPNsAdapterFromKey(APNsConfig{
+		BundleID: bundleID,
+		KeyID:    "TESTKEYID1",
+		TeamID:   "TESTTEAMID",
+	}, key, client)
+}
+
+// newTestWebPushAdapter creates a WebPushAdapter with a freshly generated P-256 key for tests.
+func newTestWebPushAdapter(contactEmail string, client HTTPClient) *WebPushAdapter {
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		panic(err)
+	}
+	return NewWebPushAdapterFromKey(VAPIDConfig{
+		PublicKey:    "dGVzdA",
+		ContactEmail: contactEmail,
+	}, key, client)
 }
 
 func TestFCMAdapterSend(t *testing.T) {
@@ -75,7 +104,7 @@ func TestAPNsAdapterSend(t *testing.T) {
 			Body:       io.NopCloser(bytes.NewBufferString(``)),
 		},
 	}
-	adapter := NewAPNsAdapter("com.example.app", "fake-cert", client)
+	adapter := newTestAPNsAdapter("com.example.app", client)
 
 	payload := &Payload{
 		Title: "Hello",
@@ -94,8 +123,13 @@ func TestAPNsAdapterSend(t *testing.T) {
 		t.Fatalf("unexpected host: %s", req.URL.Host)
 	}
 	auth := req.Header.Get("authorization")
-	if auth != "bearer fake-cert" {
-		t.Fatalf("unexpected authorization: %s", auth)
+	// APNs JWT has format: bearer <header>.<payload>.<signature>
+	if !strings.HasPrefix(auth, "bearer ") {
+		t.Fatalf("expected bearer JWT, got: %s", auth)
+	}
+	parts := strings.Split(strings.TrimPrefix(auth, "bearer "), ".")
+	if len(parts) != 3 {
+		t.Fatalf("expected 3-part JWT, got %d parts in: %s", len(parts), auth)
 	}
 }
 
@@ -106,7 +140,7 @@ func TestWebPushAdapterSend(t *testing.T) {
 			Body:       io.NopCloser(bytes.NewBufferString(``)),
 		},
 	}
-	adapter := NewWebPushAdapter("mailto:test@example.com", "vapid-key-pair", client)
+	adapter := newTestWebPushAdapter("test@example.com", client)
 
 	payload := &Payload{
 		Title: "Hello",
@@ -124,6 +158,13 @@ func TestWebPushAdapterSend(t *testing.T) {
 	ttl := req.Header.Get("ttl")
 	if ttl == "" {
 		t.Fatalf("expected TTL header")
+	}
+	auth := req.Header.Get("authorization")
+	if !strings.HasPrefix(auth, "vapid t=") {
+		t.Fatalf("expected VAPID authorization header, got: %s", auth)
+	}
+	if !strings.Contains(auth, ",k=") {
+		t.Fatalf("expected public key in authorization header, got: %s", auth)
 	}
 }
 
@@ -157,7 +198,7 @@ func TestMultiSinkSendAll(t *testing.T) {
 	}
 
 	fcm := NewFCMAdapter("proj", "token", fcmClient)
-	apns := NewAPNsAdapter("bundle", "cert", apnsClient)
+	apns := newTestAPNsAdapter("bundle", apnsClient)
 
 	multi := NewMultiSink(fcm, apns)
 	payload := &Payload{Title: "Multi", Body: "Test"}
@@ -229,7 +270,7 @@ func TestAPNsAdapterBadToken(t *testing.T) {
 			Body:       io.NopCloser(bytes.NewBufferString(`{"reason":"Unregistered"}`)),
 		},
 	}
-	adapter := NewAPNsAdapter("bundle", "cert", client)
+	adapter := newTestAPNsAdapter("bundle", client)
 
 	err := adapter.Send(context.Background(), "tok", &Payload{})
 	if err == nil {
