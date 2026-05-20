@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+
+	"github.com/lib/pq"
 )
 
 // Repository manages organization structure in the database.
@@ -147,6 +149,41 @@ func (r *Repository) GetMembersInUnit(ctx context.Context, unitID string) ([]Org
 		members = append(members, member)
 	}
 	return members, rows.Err()
+}
+
+// ListMembersInUnits gets active members grouped by organization unit.
+func (r *Repository) ListMembersInUnits(ctx context.Context, unitIDs []string) (map[string][]OrganizationMember, error) {
+	membersByUnit := make(map[string][]OrganizationMember, len(unitIDs))
+	if len(unitIDs) == 0 {
+		return membersByUnit, nil
+	}
+
+	rows, err := r.db.QueryContext(
+		ctx,
+		`SELECT id, organization_unit_id, user_id, role, title, started_at, ended_at, is_primary, created_at, updated_at
+		FROM organization_members
+		WHERE organization_unit_id = ANY($1)
+		  AND ended_at IS NULL
+		ORDER BY organization_unit_id, is_primary DESC, created_at`,
+		pq.Array(unitIDs),
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var member OrganizationMember
+		if err := rows.Scan(
+			&member.ID, &member.OrganizationUnitID, &member.UserID, &member.Role,
+			&member.Title, &member.StartedAt, &member.EndedAt, &member.IsPrimary,
+			&member.CreatedAt, &member.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		membersByUnit[member.OrganizationUnitID] = append(membersByUnit[member.OrganizationUnitID], member)
+	}
+	return membersByUnit, rows.Err()
 }
 
 // ListUnitsForUser lists active organization units currently assigned to a user.

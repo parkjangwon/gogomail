@@ -158,6 +158,7 @@
 - Phase 3 (Message Caching Layer): Parsed EML body LRU cache with runtime tuning and cache snapshots implemented
 - Mailbox submission isolation hardening: bulk sender role is now correctly bound in both inbound and submission paths, and bulk limiter now yields/pauses between denied attempts to prevent starvation under abusive loops (`TestSubmissionBulkIsolation` now passes).
 - Organization chart user-unit lookup placeholder removed: `GetUserUnits` now resolves active user assignments through repository-backed joins, with an active-member index migration.
+- Organization hierarchy member loading no longer performs one query per unit; `GetHierarchy` now batch-loads active members for all units and groups them in memory.
 
 **Infrastructure & Storage Hardening** ✅ COMPLETE
 - Task 1 (EML GC): Added `LookupDeleteableStoragePaths` and `LookupExpungeStoragePaths` to maildb; service layer now performs two-phase GC (lookup before DB delete, delete from store after commit) for `DeleteMessage`, `BulkDeleteMessages`, `BulkDeleteThreads`, and `ExpungeIMAPMessages`. Reference-count check prevents deletion of paths shared by IMAP COPY.
@@ -242,6 +243,7 @@ Go Backend (`internal/`):
 - Outbox pending/processing 재시도 경로에서 `FOR UPDATE SKIP LOCKED` 대상 집합을 후보 집합(CTE)으로 분리해 정렬/제한 후 일괄 업데이트하도록 변경해 잠재적 잠금 경합과 비효율적 쿼리를 완화함
 - 메시지/재시도 조회 경로용 인덱스 마이그레이션 `0113_delivery_attempt_indexes.sql`, `0114_outbox_query_indexes.sql`를 추가해 `status/attempted_at/topic/partition` 필터 경로의 인덱스 커버리지를 강화함
 - 조직도 서비스의 `GetUserUnits` placeholder를 제거하고 `organization_members` → `organization_units` 활성 배정 조회로 구현했으며, `0115_organization_member_active_user_index.sql`로 사용자별 active membership lookup을 보강함
+- 조직도 `GetHierarchy`의 per-unit `GetMembersInUnit` N+1 조회를 `ListMembersInUnits` 단일 배치 조회로 바꾸고, `0116_organization_members_active_unit_index.sql`로 active unit-member lookup을 보강함
 - 백업/복구 리허설 스크립트를 추가해 PostgreSQL dump를 scratch DB에 복원하고 migration metadata를 확인한 뒤 기본적으로 scratch DB를 삭제하게 함
 - `verify-backend-release.sh`가 `GOGOMAIL_RESTORE_REHEARSAL_DATABASE_URL` 설정 시 백업/복구 리허설을 릴리즈 검증 단계에 포함하도록 연결함
 - `GOGOMAIL_SECURITY_VERIFY=1` 설정 시 `verify-backend-release.sh`가 `go vet ./...`와 설치된 `govulncheck ./...`를 보안 릴리즈 게이트로 실행하도록 함

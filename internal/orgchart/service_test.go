@@ -8,8 +8,10 @@ import (
 )
 
 type mockRepository struct {
-	units   map[string]*OrganizationUnit
-	members map[string]*OrganizationMember
+	units                map[string]*OrganizationUnit
+	members              map[string]*OrganizationMember
+	getMembersInUnitHits int
+	listMembersBatchHits int
 }
 
 func newMockRepository() *mockRepository {
@@ -70,11 +72,28 @@ func (m *mockRepository) AssignUser(ctx context.Context, member *OrganizationMem
 }
 
 func (m *mockRepository) GetMembersInUnit(ctx context.Context, unitID string) ([]OrganizationMember, error) {
+	m.getMembersInUnitHits++
 	var result []OrganizationMember
 	for _, mem := range m.members {
 		if mem.OrganizationUnitID == unitID && mem.EndedAt == nil {
 			result = append(result, *mem)
 		}
+	}
+	return result, nil
+}
+
+func (m *mockRepository) ListMembersInUnits(ctx context.Context, unitIDs []string) (map[string][]OrganizationMember, error) {
+	m.listMembersBatchHits++
+	allowed := make(map[string]struct{}, len(unitIDs))
+	for _, unitID := range unitIDs {
+		allowed[unitID] = struct{}{}
+	}
+	result := make(map[string][]OrganizationMember, len(unitIDs))
+	for _, mem := range m.members {
+		if _, ok := allowed[mem.OrganizationUnitID]; !ok || mem.EndedAt != nil {
+			continue
+		}
+		result[mem.OrganizationUnitID] = append(result[mem.OrganizationUnitID], *mem)
 	}
 	return result, nil
 }
@@ -207,6 +226,12 @@ func TestServiceGetHierarchy(t *testing.T) {
 
 	if hierarchy.Children[0].Unit.ID != child.ID {
 		t.Fatalf("child unit ID mismatch")
+	}
+	if repo.listMembersBatchHits != 1 {
+		t.Fatalf("expected one batch member lookup, got %d", repo.listMembersBatchHits)
+	}
+	if repo.getMembersInUnitHits != 0 {
+		t.Fatalf("expected no per-unit member lookups, got %d", repo.getMembersInUnitHits)
 	}
 }
 
