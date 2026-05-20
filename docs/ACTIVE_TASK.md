@@ -180,7 +180,19 @@ Go Backend (`internal/`):
   - `EmailDispatcher`: `net/smtp` 기반 이메일 알림 (SMTP 주소, From/To 설정 가능)
   - `WebhookDispatcher`: Slack incoming webhook 호환 JSON POST
   - `MultiDispatcher`: 여러 dispatcher 팬아웃
-- `go build ./...` 및 `go test ./internal/config/... ./internal/alert/...` 통과
+
+**Draft Optimistic Locking** ✅ COMPLETE
+- `ErrDraftConflict` sentinel added to `internal/maildb`
+- `SaveDraftRequest.IfUpdatedAt` (maildb + mailservice) propagates a last-known timestamp
+- `updateDraft` adds `AND draft_updated_at = $16` predicate when `IfUpdatedAt` is non-zero;
+  if 0 rows affected it distinguishes conflict from not-found with a secondary SELECT
+- PATCH handler returns HTTP 409 + `{"error":{"code":"conflict",...}}` on conflict
+- No DB migration required — uses the existing `draft_updated_at` column
+
+**OpenSearch Korean Nori Analyzer** ✅ COMPLETE
+- `SearchIndexOpenSearchKoreanAnalyzer bool` config field (env: `GOGOMAIL_OPENSEARCH_KOREAN_ANALYZER`)
+- When enabled, `openSearchIndexDefinition` adds `"analysis":{"analyzer":{"korean":{"type":"nori","decompound_mode":"mixed"}}}` to settings and sets `analyzer: "korean"` on `subject` and `body_text` mappings
+- Requires the OpenSearch `analysis-nori` plugin; safe to leave disabled otherwise
 
 다음 단계: Phase 2 (Bulk Delivery Batching) 구현
 

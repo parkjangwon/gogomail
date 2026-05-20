@@ -21,6 +21,10 @@ type SaveDraftRequest struct {
 	AttachmentIDs   []string
 	TrackOpens      bool
 	ScheduledAt     time.Time
+	// IfUpdatedAt enables optimistic locking: if non-zero, the update only
+	// proceeds when draft_updated_at equals this value. A mismatch returns
+	// ErrDraftConflict (HTTP 409).
+	IfUpdatedAt time.Time
 }
 
 type CreateAttachmentUploadRequest struct {

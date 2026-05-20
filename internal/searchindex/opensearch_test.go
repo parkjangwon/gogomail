@@ -302,3 +302,76 @@ func TestOpenSearchIndexerTrimsUsername(t *testing.T) {
 		t.Fatalf("credentials = %q/%q", indexer.username, indexer.password)
 	}
 }
+
+func TestOpenSearchIndexDefinitionDefaultHasNoAnalyzer(t *testing.T) {
+	t.Parallel()
+
+	def := openSearchIndexDefinition(false)
+	settings := def["settings"].(map[string]any)
+	if _, ok := settings["analysis"]; ok {
+		t.Fatal("default index definition must not include analysis settings")
+	}
+	mappings := def["mappings"].(map[string]any)
+	props := mappings["properties"].(map[string]any)
+	subjectMapping := props["subject"].(map[string]any)
+	if _, ok := subjectMapping["analyzer"]; ok {
+		t.Fatal("subject must not have an analyzer in default mode")
+	}
+}
+
+func TestOpenSearchIndexDefinitionKoreanAnalyzerSetsNori(t *testing.T) {
+	t.Parallel()
+
+	def := openSearchIndexDefinition(true)
+	settings := def["settings"].(map[string]any)
+	analysis, ok := settings["analysis"].(map[string]any)
+	if !ok {
+		t.Fatal("korean mode must include analysis settings")
+	}
+	analyzers := analysis["analyzer"].(map[string]any)
+	korean := analyzers["korean"].(map[string]any)
+	if korean["type"] != "nori" {
+		t.Fatalf("korean analyzer type = %q, want nori", korean["type"])
+	}
+	mappings := def["mappings"].(map[string]any)
+	props := mappings["properties"].(map[string]any)
+	subjectMapping := props["subject"].(map[string]any)
+	if subjectMapping["analyzer"] != "korean" {
+		t.Fatalf("subject analyzer = %q, want korean", subjectMapping["analyzer"])
+	}
+	bodyTextMapping := props["body_text"].(map[string]any)
+	if bodyTextMapping["analyzer"] != "korean" {
+		t.Fatalf("body_text analyzer = %q, want korean", bodyTextMapping["analyzer"])
+	}
+}
+
+func TestOpenSearchIndexerEnsuresIndexWithKoreanAnalyzer(t *testing.T) {
+	t.Parallel()
+
+	var payload map[string]any
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+			t.Fatalf("decode request body: %v", err)
+		}
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	indexer, err := NewOpenSearchIndexer(OpenSearchOptions{
+		Endpoint:       server.URL,
+		Index:          "gogomail-messages",
+		Client:         server.Client(),
+		KoreanAnalyzer: true,
+	})
+	if err != nil {
+		t.Fatalf("NewOpenSearchIndexer returned error: %v", err)
+	}
+	if err := indexer.EnsureIndex(context.Background()); err != nil {
+		t.Fatalf("EnsureIndex returned error: %v", err)
+	}
+
+	settings := payload["settings"].(map[string]any)
+	if _, ok := settings["analysis"]; !ok {
+		t.Fatal("EnsureIndex with KoreanAnalyzer must send analysis settings")
+	}
+}

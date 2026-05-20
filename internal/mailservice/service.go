@@ -1761,6 +1761,7 @@ func (s *Service) SaveDraft(ctx context.Context, req SaveDraftRequest) (maildb.M
 		AttachmentIDs:   req.AttachmentIDs,
 		TrackOpens:      req.TrackOpens,
 		ScheduledAt:     req.ScheduledAt,
+		IfUpdatedAt:     req.IfUpdatedAt,
 	})
 }
 
