@@ -42,6 +42,30 @@ func TestValidateBulkMessageFlagRequestRejectsUnsafeIDs(t *testing.T) {
 	}
 }
 
+func TestStoragePathLookupSQLUsesGroupedReferenceCounts(t *testing.T) {
+	t.Parallel()
+
+	for name, query := range map[string]string{
+		"bulk delete":  lookupDeleteableStoragePathsSQL,
+		"imap expunge": lookupExpungeStoragePathsSQL,
+	} {
+		if strings.Contains(query, "SELECT COUNT(*)\n    FROM messages ref") {
+			t.Fatalf("%s storage path lookup still uses a correlated reference count:\n%s", name, query)
+		}
+		for _, want := range []string{
+			"target AS",
+			"ref_counts AS",
+			"JOIN target ON target.storage_path = ref.storage_path",
+			"GROUP BY ref.storage_path",
+			"WHERE ref_counts.ref_count = 1",
+		} {
+			if !strings.Contains(query, want) {
+				t.Fatalf("%s storage path lookup missing %q:\n%s", name, want, query)
+			}
+		}
+	}
+}
+
 func TestValidateBulkThreadFlagRequestRejectsDuplicateIDs(t *testing.T) {
 	t.Parallel()
 

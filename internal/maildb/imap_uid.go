@@ -1079,25 +1079,7 @@ func (r *Repository) LookupExpungeStoragePaths(ctx context.Context, userID strin
 		return nil, fmt.Errorf("mailbox_id is required")
 	}
 	uidsArray := imapUIDArray(uids)
-	rows, err := r.db.QueryContext(ctx, `
-SELECT DISTINCT m.storage_path
-FROM imap_message_uid i
-JOIN messages m ON m.id = i.message_id
-WHERE i.user_id = $1::uuid
-  AND i.mailbox_id = $2::uuid
-  AND m.user_id = $1::uuid
-  AND m.folder_id = $2::uuid
-  AND m.status = 'active'
-  AND COALESCE((m.flags->>'imap_deleted')::boolean, false) = true
-  AND ($3::bool = false OR i.uid IN (SELECT value::bigint FROM unnest($4::bigint[]) AS input(value)))
-  AND m.storage_path IS NOT NULL
-  AND m.storage_path <> ''
-  AND (
-    SELECT COUNT(*)
-    FROM messages ref
-    WHERE ref.storage_path = m.storage_path
-      AND ref.id != m.id
-  ) = 0`, userID, mailboxID, len(uids) > 0, pq.Array(uidsArray))
+	rows, err := r.db.QueryContext(ctx, lookupExpungeStoragePathsSQL, userID, mailboxID, len(uids) > 0, pq.Array(uidsArray))
 	if err != nil {
 		return nil, fmt.Errorf("lookup expunge storage paths: %w", err)
 	}
@@ -1118,6 +1100,32 @@ WHERE i.user_id = $1::uuid
 	}
 	return paths, nil
 }
+
+const lookupExpungeStoragePathsSQL = `
+WITH target AS (
+  SELECT DISTINCT m.storage_path
+  FROM imap_message_uid i
+  JOIN messages m ON m.id = i.message_id
+  WHERE i.user_id = $1::uuid
+    AND i.mailbox_id = $2::uuid
+    AND m.user_id = $1::uuid
+    AND m.folder_id = $2::uuid
+    AND m.status = 'active'
+    AND COALESCE((m.flags->>'imap_deleted')::boolean, false) = true
+    AND ($3::bool = false OR i.uid IN (SELECT value::bigint FROM unnest($4::bigint[]) AS input(value)))
+    AND m.storage_path IS NOT NULL
+    AND m.storage_path <> ''
+),
+ref_counts AS (
+  SELECT ref.storage_path, COUNT(*) AS ref_count
+  FROM messages ref
+  JOIN target ON target.storage_path = ref.storage_path
+  GROUP BY ref.storage_path
+)
+SELECT target.storage_path
+FROM target
+JOIN ref_counts ON ref_counts.storage_path = target.storage_path
+WHERE ref_counts.ref_count = 1`
 
 func (r *Repository) MoveIMAPMessages(ctx context.Context, userID string, sourceMailboxID string, destMailboxID string, uids []imapgw.UID) ([]imapgw.MoveMessageResult, error) {
 	if r.db == nil {

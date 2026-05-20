@@ -1313,19 +1313,7 @@ func (r *Repository) LookupDeleteableStoragePaths(ctx context.Context, userID st
 	}
 	// Return storage_path values that belong to at least one of the target
 	// messages but are NOT shared by any other message (regardless of user).
-	rows, err := r.db.QueryContext(ctx, `
-SELECT DISTINCT m.storage_path
-FROM messages m
-WHERE m.user_id = $1
-  AND m.id IN (SELECT value FROM unnest($2::uuid[]) AS requested(value))
-  AND m.storage_path IS NOT NULL
-  AND m.storage_path <> ''
-  AND (
-    SELECT COUNT(*)
-    FROM messages ref
-    WHERE ref.storage_path = m.storage_path
-      AND ref.id != m.id
-  ) = 0`, strings.TrimSpace(userID), pq.Array(messageIDs))
+	rows, err := r.db.QueryContext(ctx, lookupDeleteableStoragePathsSQL, strings.TrimSpace(userID), pq.Array(messageIDs))
 	if err != nil {
 		return nil, fmt.Errorf("lookup deleteable storage paths: %w", err)
 	}
@@ -1346,6 +1334,26 @@ WHERE m.user_id = $1
 	}
 	return paths, nil
 }
+
+const lookupDeleteableStoragePathsSQL = `
+WITH target AS (
+  SELECT DISTINCT m.storage_path
+  FROM messages m
+  WHERE m.user_id = $1
+    AND m.id IN (SELECT value FROM unnest($2::uuid[]) AS requested(value))
+    AND m.storage_path IS NOT NULL
+    AND m.storage_path <> ''
+),
+ref_counts AS (
+  SELECT ref.storage_path, COUNT(*) AS ref_count
+  FROM messages ref
+  JOIN target ON target.storage_path = ref.storage_path
+  GROUP BY ref.storage_path
+)
+SELECT target.storage_path
+FROM target
+JOIN ref_counts ON ref_counts.storage_path = target.storage_path
+WHERE ref_counts.ref_count = 1`
 
 func (r *Repository) BulkRestoreMessages(ctx context.Context, req BulkMessageRestoreRequest) (BulkMessageRestoreResult, error) {
 	if r.db == nil {
