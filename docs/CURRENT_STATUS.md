@@ -1,6 +1,12 @@
 # gogomail current status
 
-Last updated: 2026-05-21 (SaaS launch hardening continues: RDBMS sync history seek pagination)
+Last updated: 2026-05-21 (SaaS launch hardening continues: message cursor payload compacted)
+
+## Message Cursor Payload Compaction (2026-05-21)
+- Message-list, search, thread-message, and draft-search cursors now encode the hot path as compact `unix_nano:id` payloads before base64 instead of JSON marshaling every outgoing page cursor.
+- The decoder remains backward compatible with existing JSON cursor payloads already held by clients.
+- Regression coverage asserts new cursors are non-JSON and legacy JSON cursors still decode.
+- Verification target: `go test ./internal/maildb -run MessageListCursor`.
 
 ## RDBMS Sync History Seek Pagination (2026-05-21)
 - RDBMS sync history keeps legacy `offset` pagination but now also accepts an opaque `cursor` that uses `(created_at, id)` seek pagination for deep pages.

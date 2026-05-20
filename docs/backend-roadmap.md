@@ -6679,3 +6679,6 @@ Target outcome:
       ordering, preserves legacy offset pagination for existing clients, and
       adds a matching `(domain_id, created_at DESC, id DESC)` index for deep
       admin history pages.
+1836. Message-list cursor encoding now emits compact base64 `unix_nano:id`
+      payloads instead of JSON-marshaled cursor objects, while the decoder
+      continues to accept legacy JSON cursors already held by clients.
