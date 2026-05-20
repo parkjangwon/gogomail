@@ -15,6 +15,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"os"
 	"runtime"
 	"strconv"
 	"strings"
@@ -204,6 +205,24 @@ func adminClientIP(r *http.Request) string {
 func adminClaimsFromCtx(ctx context.Context) (auth.Claims, bool) {
 	c, ok := ctx.Value(adminContextKey{}).(auth.Claims)
 	return c, ok
+}
+
+// requiresCompanyAccess returns a non-nil error if the caller is a company_admin
+// attempting to access data belonging to a different company.
+// system_admin callers always pass. Callers with no claims in context also pass
+// (static-token or no-auth mode).
+func requiresCompanyAccess(ctx context.Context, companyID string) error {
+	claims, ok := adminClaimsFromCtx(ctx)
+	if !ok {
+		return nil // static token or unauthenticated-dev mode — no restriction
+	}
+	if claims.Role == "system_admin" {
+		return nil
+	}
+	if claims.Role == "company_admin" && claims.CompanyID != companyID {
+		return fmt.Errorf("access denied")
+	}
+	return nil
 }
 
 func adminJWTOrStaticAuth(token string, tokenMgr *auth.TokenManager, next http.HandlerFunc) http.HandlerFunc {
@@ -529,6 +548,21 @@ func registerCompanyRoutes(mux *http.ServeMux, service AdminService, adminAuth f
 		if !ok {
 			return
 		}
+		// company_admin may only see their own company.
+		claims, hasClaims := adminClaimsFromCtx(r.Context())
+		if hasClaims && claims.Role == "company_admin" {
+			if claims.CompanyID == "" {
+				writeJSON(w, http.StatusOK, map[string]any{"companies": []any{}, "has_more": false})
+				return
+			}
+			company, err := service.GetCompany(r.Context(), claims.CompanyID)
+			if err != nil {
+				writeError(w, http.StatusInternalServerError, err.Error())
+				return
+			}
+			writeJSON(w, http.StatusOK, map[string]any{"companies": []any{company}, "has_more": false})
+			return
+		}
 		companies, hasMore, err := service.ListCompanies(r.Context(), maildb.CompanyListRequest{
 			Limit:     limit,
 			Status:    status,
@@ -566,6 +600,10 @@ func registerCompanyRoutes(mux *http.ServeMux, service AdminService, adminAuth f
 		}
 		id, ok := parseBoundedAdminPathValue(w, r, "id")
 		if !ok {
+			return
+		}
+		if err := requiresCompanyAccess(r.Context(), id); err != nil {
+			writeError(w, http.StatusForbidden, "access denied")
 			return
 		}
 		company, err := service.GetCompany(r.Context(), id)
@@ -911,6 +949,14 @@ func registerDomainRoutes(mux *http.ServeMux, service AdminService, adminAuth fu
 		if !ok {
 			return
 		}
+		// company_admin may only list domains within their own company.
+		if claims, ok := adminClaimsFromCtx(r.Context()); ok && claims.Role == "company_admin" {
+			if companyID != "" && companyID != claims.CompanyID {
+				writeError(w, http.StatusForbidden, "access denied")
+				return
+			}
+			companyID = claims.CompanyID
+		}
 		listReq := maildb.DomainListRequest{
 			Limit:     limit,
 			CompanyID: companyID,
@@ -940,6 +986,10 @@ func registerDomainRoutes(mux *http.ServeMux, service AdminService, adminAuth fu
 		domain, err := service.GetDomain(r.Context(), id)
 		if err != nil {
 			writeError(w, http.StatusNotFound, err.Error())
+			return
+		}
+		if err := requiresCompanyAccess(r.Context(), domain.CompanyID); err != nil {
+			writeError(w, http.StatusForbidden, "access denied")
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"domain": domain})
@@ -1025,6 +1075,13 @@ func registerDomainRoutes(mux *http.ServeMux, service AdminService, adminAuth fu
 		if err := decodeJSONBody(r, &req); err != nil {
 			writeError(w, http.StatusBadRequest, "invalid JSON body")
 			return
+		}
+		// Enforce MaxDomains org limit.
+		if req.CompanyID != "" {
+			if limitMsg := checkDomainLimit(r.Context(), service, req.CompanyID); limitMsg != "" {
+				writeError(w, http.StatusForbidden, limitMsg)
+				return
+			}
 		}
 		domain, err := service.CreateDomain(r.Context(), req)
 		if err != nil {
@@ -1433,6 +1490,21 @@ func registerUserAndConfigRoutes(mux *http.ServeMux, service AdminService, token
 		if !ok {
 			return
 		}
+		// company_admin may only list users in domains belonging to their company.
+		if claims, ok := adminClaimsFromCtx(r.Context()); ok && claims.Role == "company_admin" {
+			if domainID != "" {
+				// Verify the requested domain belongs to the company_admin's company.
+				domain, err := service.GetDomain(r.Context(), domainID)
+				if err != nil || domain.CompanyID != claims.CompanyID {
+					writeError(w, http.StatusForbidden, "access denied")
+					return
+				}
+			} else {
+				// Without a domain filter, listing all users would expose cross-company data.
+				writeError(w, http.StatusForbidden, "company_admin must filter by domain_id")
+				return
+			}
+		}
 		listReq := maildb.UserListRequest{
 			DomainID:           domainID,
 			Status:             status,
@@ -1464,6 +1536,14 @@ func registerUserAndConfigRoutes(mux *http.ServeMux, service AdminService, token
 			writeError(w, http.StatusNotFound, err.Error())
 			return
 		}
+		// company_admin may only access users in their own company's domains.
+		if claims, ok := adminClaimsFromCtx(r.Context()); ok && claims.Role == "company_admin" {
+			domain, err := service.GetDomain(r.Context(), user.DomainID)
+			if err != nil || domain.CompanyID != claims.CompanyID {
+				writeError(w, http.StatusForbidden, "access denied")
+				return
+			}
+		}
 		writeJSON(w, http.StatusOK, map[string]any{"user": user})
 	}))
 
@@ -1492,6 +1572,16 @@ func registerUserAndConfigRoutes(mux *http.ServeMux, service AdminService, token
 		if err := decodeJSONBody(r, &req); err != nil {
 			writeError(w, http.StatusBadRequest, "invalid JSON body")
 			return
+		}
+		// Enforce MaxUsers org limit.
+		if req.DomainID != "" {
+			domain, err := service.GetDomain(r.Context(), req.DomainID)
+			if err == nil && domain.CompanyID != "" {
+				if limitMsg := checkUserLimit(r.Context(), service, domain.CompanyID); limitMsg != "" {
+					writeError(w, http.StatusForbidden, limitMsg)
+					return
+				}
+			}
 		}
 		if req.Password != "" && req.PasswordHash == "" {
 			salt := make([]byte, 16)
@@ -4452,6 +4542,9 @@ func registerDeliveryAndMailRoutes(mux *http.ServeMux, service AdminService, adm
 }
 
 func registerAdminUtilityRoutes(mux *http.ServeMux, service AdminService, cfg adminRouteConfig, adminAuth func(http.HandlerFunc) http.HandlerFunc) {
+	// loginLimiter enforces a strict per-IP rate limit for login attempts (5 req/min).
+	loginLimiter := NewAdminIPRateLimiter(5, time.Minute)
+
 	mux.HandleFunc("POST /admin/v1/companies/{id}/alert-rules", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		handleCreateAlertRule(w, r, service)
 	}))
@@ -4492,9 +4585,9 @@ func registerAdminUtilityRoutes(mux *http.ServeMux, service AdminService, cfg ad
 		handleListAlertEvents(w, r, service)
 	}))
 
-	mux.HandleFunc("POST /admin/v1/auth/login", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("POST /admin/v1/auth/login", loginLimiter.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		handleAdminLogin(w, r, service, cfg)
-	})
+	})).ServeHTTP)
 
 	mux.HandleFunc("POST /admin/v1/auth/refresh", func(w http.ResponseWriter, r *http.Request) {
 		handleAdminRefresh(w, r, cfg.tokenMgr)
@@ -4521,7 +4614,7 @@ func registerAdminUtilityRoutes(mux *http.ServeMux, service AdminService, cfg ad
 	}))
 
 	mux.HandleFunc("DELETE /admin/v1/admin-users/{id}", adminAuth(func(w http.ResponseWriter, r *http.Request) {
-		handleDeleteAdminUser(w, r)
+		handleDeleteAdminUser(w, r, service)
 	}))
 
 	mux.HandleFunc("GET /admin/v1/health", adminAuth(func(w http.ResponseWriter, r *http.Request) {
@@ -4939,6 +5032,58 @@ func handleUpdateOrganizationSettings(w http.ResponseWriter, r *http.Request, se
 			"created_at":  company.CreatedAt.UTC().Format(time.RFC3339),
 		},
 	})
+}
+
+// loadOrgSettings returns the orgSettingsConfig for the given companyID, or a zero value if not configured.
+func loadOrgSettings(ctx context.Context, service AdminService, companyID string) orgSettingsConfig {
+	var cfg orgSettingsConfig
+	if entry, err := service.GetCompanyConfig(ctx, companyID, orgSettingsKey); err == nil && entry.Value != nil {
+		_ = json.Unmarshal(entry.Value, &cfg)
+	}
+	return cfg
+}
+
+// checkUserLimit verifies that the company has not reached its MaxUsers limit.
+// Returns an error string (non-empty) if the limit is exceeded.
+func checkUserLimit(ctx context.Context, service AdminService, companyID string) (limitErr string) {
+	cfg := loadOrgSettings(ctx, service, companyID)
+	if cfg.MaxUsers <= 0 {
+		return ""
+	}
+	// Count all users in the company by summing users across all domains.
+	domains, err := service.ListDomains(ctx, maildb.DomainListRequest{CompanyID: companyID, Limit: 10000})
+	if err != nil {
+		return "" // don't block on error
+	}
+	total := 0
+	for _, d := range domains {
+		users, err := service.ListUsers(ctx, maildb.UserListRequest{DomainID: d.ID, Limit: cfg.MaxUsers + 1})
+		if err != nil {
+			continue
+		}
+		total += len(users)
+		if total >= cfg.MaxUsers {
+			return fmt.Sprintf("user limit of %d reached", cfg.MaxUsers)
+		}
+	}
+	return ""
+}
+
+// checkDomainLimit verifies that the company has not reached its MaxDomains limit.
+// Returns an error string (non-empty) if the limit is exceeded.
+func checkDomainLimit(ctx context.Context, service AdminService, companyID string) (limitErr string) {
+	cfg := loadOrgSettings(ctx, service, companyID)
+	if cfg.MaxDomains <= 0 {
+		return ""
+	}
+	domains, err := service.ListDomains(ctx, maildb.DomainListRequest{CompanyID: companyID, Limit: cfg.MaxDomains + 1})
+	if err != nil {
+		return "" // don't block on error
+	}
+	if len(domains) >= cfg.MaxDomains {
+		return fmt.Sprintf("domain limit of %d reached", cfg.MaxDomains)
+	}
+	return ""
 }
 
 func handleListCompliance(w http.ResponseWriter, r *http.Request, service AdminService) {
@@ -5486,8 +5631,13 @@ func handleAdminLogin(w http.ResponseWriter, r *http.Request, service AdminServi
 		})
 	}
 
-	// Bootstrap system admin (no DB user required) — bypasses MFA entirely.
-	if req.Email == "admin@system" && req.Password == "admin1234" && !strings.EqualFold(strings.TrimSpace(cfg.environment), "production") {
+	// Bootstrap system admin via environment variables only.
+	// Set GOGOMAIL_ADMIN_BOOTSTRAP_EMAIL and GOGOMAIL_ADMIN_BOOTSTRAP_PASSWORD to enable.
+	// If either env var is empty, bootstrap is disabled.
+	bootstrapEmail := strings.TrimSpace(os.Getenv("GOGOMAIL_ADMIN_BOOTSTRAP_EMAIL"))
+	bootstrapPassword := os.Getenv("GOGOMAIL_ADMIN_BOOTSTRAP_PASSWORD")
+	if bootstrapEmail != "" && bootstrapPassword != "" &&
+		req.Email == bootstrapEmail && subtle.ConstantTimeCompare([]byte(req.Password), []byte(bootstrapPassword)) == 1 {
 		issueToken(auth.Claims{
 			UserID:    "system-admin",
 			DomainID:  "system",
@@ -5664,10 +5814,6 @@ func verifyAdminJWTClaims(ctx context.Context, tokenMgr *auth.TokenManager, toke
 	if err == nil {
 		return claims, nil
 	}
-	unsignedClaims, verifyErr := tokenMgr.Verify(token)
-	if verifyErr == nil && unsignedClaims.UserID == "system-admin" && unsignedClaims.DomainID == "system" && unsignedClaims.Role == "system_admin" {
-		return unsignedClaims, nil
-	}
 	return auth.Claims{}, err
 }
 
@@ -5753,23 +5899,27 @@ func handleAdminVerify(w http.ResponseWriter, r *http.Request, tokenMgr *auth.To
 func handleListAdminUsers(w http.ResponseWriter, r *http.Request, service AdminService) {
 	defer r.Body.Close()
 
-	if !rejectUnknownQueryKeys(w, r) {
+	if !rejectUnknownQueryKeys(w, r, "company_id") {
 		return
 	}
 
-	// Return mock data - in production, query admin_user_roles joined with users
-	mockUsers := []map[string]any{
-		{
-			"id":         "system-admin-1",
-			"username":   "admin",
-			"email":      "admin@system",
-			"role":       "system_admin",
-			"created_at": "2026-05-10T13:00:00Z",
-			"status":     "active",
-		},
+	companyID, ok := parseBoundedAdminQuery(w, r, "company_id")
+	if !ok {
+		return
 	}
 
-	writeJSON(w, http.StatusOK, map[string]any{"users": mockUsers})
+	// company_admin may only list admins within their own company.
+	if claims, hasClaims := adminClaimsFromCtx(r.Context()); hasClaims && claims.Role == "company_admin" {
+		companyID = claims.CompanyID
+	}
+
+	users, err := service.ListAdminUsers(r.Context(), companyID)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{"users": users})
 }
 
 func handleCreateAdminUser(w http.ResponseWriter, r *http.Request, service AdminService) {
@@ -5780,11 +5930,15 @@ func handleCreateAdminUser(w http.ResponseWriter, r *http.Request, service Admin
 		return
 	}
 
+	// Only system_admin may create admin users.
+	if claims, ok := adminClaimsFromCtx(r.Context()); ok && claims.Role != "system_admin" {
+		writeError(w, http.StatusForbidden, "only system_admin may manage admin users")
+		return
+	}
+
 	var req struct {
-		Username string `json:"username"`
-		Email    string `json:"email"`
-		Role     string `json:"role"`
-		Password string `json:"password"`
+		UserID string `json:"user_id"`
+		Role   string `json:"role"`
 	}
 
 	if err := decodeJSONBody(r, &req); err != nil {
@@ -5792,17 +5946,37 @@ func handleCreateAdminUser(w http.ResponseWriter, r *http.Request, service Admin
 		return
 	}
 
-	// Return mock success
+	req.UserID = strings.TrimSpace(req.UserID)
+	req.Role = strings.TrimSpace(req.Role)
+
+	if req.UserID == "" {
+		writeError(w, http.StatusBadRequest, "user_id is required")
+		return
+	}
+	if req.Role != "system_admin" && req.Role != "company_admin" {
+		writeError(w, http.StatusBadRequest, "role must be system_admin or company_admin")
+		return
+	}
+
+	if err := service.SetUserRole(r.Context(), req.UserID, req.Role); err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	user, err := service.GetUser(r.Context(), req.UserID)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "role assigned but failed to fetch user")
+		return
+	}
+
 	writeJSON(w, http.StatusOK, map[string]any{
-		"id":       "new-admin-user",
-		"username": req.Username,
-		"email":    req.Email,
-		"role":     req.Role,
-		"status":   "active",
+		"id":     user.ID,
+		"role":   user.Role,
+		"status": user.Status,
 	})
 }
 
-func handleDeleteAdminUser(w http.ResponseWriter, r *http.Request) {
+func handleDeleteAdminUser(w http.ResponseWriter, r *http.Request, service AdminService) {
 	defer r.Body.Close()
 
 	if r.Method != "DELETE" {
@@ -5810,8 +5984,25 @@ func handleDeleteAdminUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Only system_admin may remove admin roles.
+	if claims, ok := adminClaimsFromCtx(r.Context()); ok && claims.Role != "system_admin" {
+		writeError(w, http.StatusForbidden, "only system_admin may manage admin users")
+		return
+	}
+
+	id, ok := parseBoundedAdminPathValue(w, r, "id")
+	if !ok {
+		return
+	}
+
+	if err := service.ClearUserAdminRole(r.Context(), id); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
 	writeJSON(w, http.StatusOK, map[string]any{
-		"status": "user deleted",
+		"status": "admin role removed",
+		"id":     id,
 	})
 }
 

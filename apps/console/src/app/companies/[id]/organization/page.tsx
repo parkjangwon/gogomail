@@ -30,15 +30,18 @@ export default function OrganizationSettingsPage() {
   const loading = settingsQuery.isLoading;
   const [saving, setSaving] = useState(false);
   const [editing, setEditing] = useState(false);
+  const [saveError, setSaveError] = useState('');
 
   const handleSave = async () => {
     if (!draft) return;
     setSaving(true);
+    setSaveError('');
     try {
       await updateSettings.mutateAsync(draft);
       setEditing(false);
     } catch (error) {
       console.error('Failed to save organization settings:', error);
+      setSaveError('설정 저장에 실패했습니다. 잠시 후 다시 시도해주세요.');
     } finally {
       setSaving(false);
     }
@@ -100,6 +103,11 @@ export default function OrganizationSettingsPage() {
             {integrationStatus === 'placeholder'
               ? t('pages.organization_page.integration_status_placeholder')
               : 'Organization sync is planned but not available yet.'}
+          </Alert>
+        )}
+        {saveError && (
+          <Alert type="error" dismissible onDismiss={() => setSaveError('')}>
+            {saveError}
           </Alert>
         )}
 

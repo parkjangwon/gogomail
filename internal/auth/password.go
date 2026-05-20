@@ -94,7 +94,10 @@ func VerifyPasswordHash(password string, encoded string) bool {
 	return hmac.Equal(got, want)
 }
 
-func ValidatePasswordHash(encoded string) error {
+// ValidatePasswordHash validates the format of a password hash string.
+// allowLegacy controls whether deprecated plain: and sha256: formats are accepted.
+// Pass allowLegacy=false in production to prevent new credentials using weak hashes.
+func ValidatePasswordHash(encoded string, allowLegacy bool) error {
 	encoded = strings.TrimSpace(encoded)
 	if encoded == "" {
 		return fmt.Errorf("password_hash is required")
@@ -106,12 +109,18 @@ func ValidatePasswordHash(encoded string) error {
 		return fmt.Errorf("password_hash is too long")
 	}
 	if strings.HasPrefix(encoded, "plain:") {
+		if !allowLegacy {
+			return fmt.Errorf("plain: password_hash is not allowed in production; use pbkdf2-sha256")
+		}
 		if strings.TrimPrefix(encoded, "plain:") == "" {
 			return fmt.Errorf("plain password_hash must include a password")
 		}
 		return nil
 	}
 	if strings.HasPrefix(encoded, "sha256:") {
+		if !allowLegacy {
+			return fmt.Errorf("sha256: password_hash is not allowed in production; use pbkdf2-sha256")
+		}
 		digest := strings.TrimPrefix(encoded, "sha256:")
 		if len(digest) != legacySHA256DigestBytes {
 			return fmt.Errorf("sha256 password_hash digest must be %d hex characters", legacySHA256DigestBytes)

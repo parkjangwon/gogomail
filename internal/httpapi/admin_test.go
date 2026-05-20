@@ -5644,43 +5644,57 @@ func TestAdminLoginIssuesSignedAccessAndRefreshTokens(t *testing.T) {
 	}
 }
 
-func TestAdminLoginRejectsBootstrapCredentialsInProduction(t *testing.T) {
-	t.Parallel()
+func TestAdminLoginRejectsHardcodedBootstrapCredentials(t *testing.T) {
+	// Ensure env vars are not set — hardcoded credentials must never work.
+	t.Setenv("GOGOMAIL_ADMIN_BOOTSTRAP_EMAIL", "")
+	t.Setenv("GOGOMAIL_ADMIN_BOOTSTRAP_PASSWORD", "")
 
 	manager, err := auth.NewTokenManager("admin-auth-secret")
 	if err != nil {
 		t.Fatalf("NewTokenManager returned error: %v", err)
 	}
-	mux := http.NewServeMux()
-	RegisterAdminRoutes(mux, &fakeAdminService{}, "", WithTokenManager(manager), WithEnvironment("production"))
+	for _, env := range []string{"production", "test", "development", ""} {
+		mux := http.NewServeMux()
+		RegisterAdminRoutes(mux, &fakeAdminService{}, "", WithTokenManager(manager), WithEnvironment(env))
 
-	req := httptest.NewRequest(http.MethodPost, "/admin/v1/auth/login", strings.NewReader(`{"email":"admin@system","password":"admin1234"}`))
-	req.Header.Set("Content-Type", "application/json")
-	rec := httptest.NewRecorder()
-	mux.ServeHTTP(rec, req)
+		req := httptest.NewRequest(http.MethodPost, "/admin/v1/auth/login", strings.NewReader(`{"email":"admin@system","password":"admin1234"}`))
+		req.Header.Set("Content-Type", "application/json")
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, req)
 
-	if rec.Code != http.StatusUnauthorized {
-		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+		if rec.Code != http.StatusUnauthorized {
+			t.Fatalf("env=%q: expected 401, got status=%d body=%s", env, rec.Code, rec.Body.String())
+		}
 	}
 }
 
-func TestAdminLoginAllowsBootstrapCredentialsOutsideProduction(t *testing.T) {
-	t.Parallel()
+func TestAdminLoginAllowsBootstrapViaEnvVars(t *testing.T) {
+	t.Setenv("GOGOMAIL_ADMIN_BOOTSTRAP_EMAIL", "bootstrap@example.com")
+	t.Setenv("GOGOMAIL_ADMIN_BOOTSTRAP_PASSWORD", "s3cr3t-b00tstrap!")
 
 	manager, err := auth.NewTokenManager("admin-auth-secret")
 	if err != nil {
 		t.Fatalf("NewTokenManager returned error: %v", err)
 	}
 	mux := http.NewServeMux()
-	RegisterAdminRoutes(mux, &fakeAdminService{}, "", WithTokenManager(manager), WithEnvironment("test"))
+	RegisterAdminRoutes(mux, &fakeAdminService{}, "", WithTokenManager(manager))
 
-	req := httptest.NewRequest(http.MethodPost, "/admin/v1/auth/login", strings.NewReader(`{"email":"admin@system","password":"admin1234"}`))
+	// Correct credentials should succeed.
+	req := httptest.NewRequest(http.MethodPost, "/admin/v1/auth/login", strings.NewReader(`{"email":"bootstrap@example.com","password":"s3cr3t-b00tstrap!"}`))
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
-
 	if rec.Code != http.StatusOK {
-		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+		t.Fatalf("correct credentials: status=%d body=%s", rec.Code, rec.Body.String())
+	}
+
+	// Wrong password should fail.
+	req2 := httptest.NewRequest(http.MethodPost, "/admin/v1/auth/login", strings.NewReader(`{"email":"bootstrap@example.com","password":"wrong"}`))
+	req2.Header.Set("Content-Type", "application/json")
+	rec2 := httptest.NewRecorder()
+	mux.ServeHTTP(rec2, req2)
+	if rec2.Code != http.StatusUnauthorized {
+		t.Fatalf("wrong password: status=%d body=%s", rec2.Code, rec2.Body.String())
 	}
 }
 
@@ -10447,6 +10461,18 @@ func (f *fakeAdminService) GetInviteToken(ctx context.Context, token string) (ma
 
 func (f *fakeAdminService) AcceptInviteToken(ctx context.Context, token, passwordHash string) (maildb.UserView, error) {
 	return maildb.UserView{}, nil
+}
+
+func (f *fakeAdminService) ListAdminUsers(_ context.Context, companyID string) ([]maildb.AdminUserView, error) {
+	return []maildb.AdminUserView{}, nil
+}
+
+func (f *fakeAdminService) SetUserRole(_ context.Context, userID, role string) error {
+	return nil
+}
+
+func (f *fakeAdminService) ClearUserAdminRole(_ context.Context, userID string) error {
+	return nil
 }
 
 func (f *fakeAdminService) TriggerLDAPSync(ctx context.Context, domainID, syncType string) (map[string]interface{}, error) {

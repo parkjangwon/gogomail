@@ -14,6 +14,7 @@ import {
   FormField,
   Input,
   Select,
+  Flashbar,
 } from '@cloudscape-design/components';
 import { useState, useEffect } from 'react';
 import { useI18n } from '@/app/i18n-provider';
@@ -31,6 +32,7 @@ export default function AdminUsersPage() {
   const { t } = useI18n();
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [newAdmin, setNewAdmin] = useState({ username: '', email: '', password: '', role: 'admin' });
 
@@ -40,14 +42,18 @@ export default function AdminUsersPage() {
 
   const fetchAdminUsers = async () => {
     setLoading(true);
+    setFetchError('');
     try {
       const res = await fetch('/api/admin/admin-users', { credentials: 'include' });
       if (res.ok) {
         const data = await res.json();
         setUsers(data.users || []);
+      } else {
+        setFetchError('데이터를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.');
       }
     } catch (error) {
       console.error('Failed to fetch admin users:', error);
+      setFetchError('데이터를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.');
     } finally {
       setLoading(false);
     }
@@ -109,6 +115,9 @@ export default function AdminUsersPage() {
       }
     >
       <SpaceBetween size="l">
+        {fetchError && (
+          <Flashbar items={[{ type: 'error', content: fetchError, id: 'fetch-error', dismissible: true, onDismiss: () => setFetchError('') }]} />
+        )}
         <DataTable
           columnDefinitions={[
             { header: t('pages.admin_users_page.username'), cell: (u: AdminUser) => u.username, width: '20%' },

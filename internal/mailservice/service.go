@@ -66,6 +66,15 @@ type DraftSendRepository interface {
 	MarkDraftSent(ctx context.Context, userID string, draftID string, sentMessageID string) error
 }
 
+// AtomicDraftSendRepository is an optional extension of DraftSendRepository
+// whose RecordOutgoingFromDraft combines message insertion, outbox insertion,
+// and draft marking into a single transaction. When the repository implements
+// this interface, SendDraft uses it to eliminate the crash window between
+// RecordOutgoing and MarkDraftSent.
+type AtomicDraftSendRepository interface {
+	RecordOutgoingFromDraft(ctx context.Context, msg maildb.OutgoingMessage, draftID string) (string, error)
+}
+
 type RecipientGroupRepository interface {
 	ExpandOrgRecipients(ctx context.Context, userID string, orgID string, includeChildren bool) ([]outbound.Address, error)
 	ExpandAddressBookRecipients(ctx context.Context, userID string, addressBookID string) ([]outbound.Address, error)
@@ -2455,6 +2464,10 @@ type SendTextRequest struct {
 	Transactional   bool               `json:"transactional"`
 	ScheduledAt     time.Time          `json:"scheduled_at"`
 	TrackOpens      bool               `json:"track_opens,omitempty"`
+	// DraftID, when non-empty, causes RecordOutgoing and MarkDraftSent to run
+	// in a single transaction via RecordOutgoingFromDraft, eliminating the
+	// crash window between the two operations.
+	DraftID string `json:"draft_id,omitempty"`
 }
 
 type SendTextResult struct {
@@ -2496,6 +2509,8 @@ func (s *Service) SendDraft(ctx context.Context, userID string, draftID string) 
 	if err != nil {
 		return SendTextResult{}, err
 	}
+	// Pass DraftID so SendText can use AtomicDraftSendRepository when available,
+	// combining RecordOutgoing and MarkDraftSent into one transaction.
 	result, err := s.SendText(ctx, SendTextRequest{
 		UserID:          userID,
 		Intent:          ComposeIntent(draft.Intent),
@@ -2510,12 +2525,18 @@ func (s *Service) SendDraft(ctx context.Context, userID string, draftID string) 
 		AttachmentIDs:   draft.AttachmentIDs,
 		TrackOpens:      draft.TrackOpens,
 		ScheduledAt:     draft.ScheduledAt,
+		DraftID:         draftID,
 	})
 	if err != nil {
 		return SendTextResult{}, err
 	}
-	if err := repo.MarkDraftSent(ctx, userID, draftID, result.ID); err != nil {
-		return SendTextResult{}, err
+	// If the repository does not implement AtomicDraftSendRepository, the
+	// atomic path was not taken and we must mark the draft sent separately.
+	// This is the legacy two-step path with a small crash window.
+	if _, ok := s.repository.(AtomicDraftSendRepository); !ok {
+		if err := repo.MarkDraftSent(ctx, userID, draftID, result.ID); err != nil {
+			return SendTextResult{}, err
+		}
 	}
 	return result, nil
 }
@@ -2647,7 +2668,7 @@ func (s *Service) SendText(ctx context.Context, req SendTextRequest) (SendTextRe
 		RecipientCount: len(req.To) + len(req.Cc) + len(req.Bcc),
 		ScheduledAt:    req.ScheduledAt,
 	})
-	id, err := s.repository.RecordOutgoing(ctx, maildb.OutgoingMessage{
+	outgoingMsg := maildb.OutgoingMessage{
 		CompanyID:       sender.CompanyID,
 		DomainID:        sender.DomainID,
 		UserID:          sender.UserID,
@@ -2665,7 +2686,20 @@ func (s *Service) SendText(ctx context.Context, req SendTextRequest) (SendTextRe
 		HasAttachment:   len(req.AttachmentIDs) > 0,
 		StoragePath:     path,
 		Farm:            farm,
-	})
+	}
+	var id string
+	if req.DraftID != "" {
+		// Use the atomic variant when available: combines message insertion,
+		// outbox insertion, and draft status update in a single transaction to
+		// eliminate the crash window between RecordOutgoing and MarkDraftSent.
+		if atomicRepo, ok := s.repository.(AtomicDraftSendRepository); ok {
+			id, err = atomicRepo.RecordOutgoingFromDraft(ctx, outgoingMsg, req.DraftID)
+		} else {
+			id, err = s.repository.RecordOutgoing(ctx, outgoingMsg)
+		}
+	} else {
+		id, err = s.repository.RecordOutgoing(ctx, outgoingMsg)
+	}
 	if err != nil {
 		_ = s.store.Delete(ctx, path)
 		return SendTextResult{}, err

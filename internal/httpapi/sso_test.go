@@ -3,14 +3,23 @@ package httpapi_test
 import (
 	"bytes"
 	"context"
+	"crypto"
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/sha256"
+	"crypto/x509"
+	"crypto/x509/pkix"
 	"encoding/base64"
 	"encoding/json"
+	"encoding/pem"
 	"fmt"
+	"math/big"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/gogomail/gogomail/internal/auth"
 	"github.com/gogomail/gogomail/internal/httpapi"
@@ -280,7 +289,82 @@ func TestSSOInitiateDomainNotConfigured(t *testing.T) {
 	}
 }
 
+// testIDPKey holds an RSA key and PEM certificate for use in SAML signing tests.
+type testIDPKey struct {
+	key     *rsa.PrivateKey
+	certPEM string
+}
+
+// newTestIDPKey generates a 2048-bit RSA key and a self-signed certificate for testing.
+func newTestIDPKey(t *testing.T) *testIDPKey {
+	t.Helper()
+	key, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatalf("generate test RSA key: %v", err)
+	}
+	template := &x509.Certificate{
+		SerialNumber: big.NewInt(1),
+		Subject:      pkix.Name{CommonName: "test-idp"},
+		NotBefore:    time.Now().Add(-time.Hour),
+		NotAfter:     time.Now().Add(24 * time.Hour),
+	}
+	der, err := x509.CreateCertificate(rand.Reader, template, template, &key.PublicKey, key)
+	if err != nil {
+		t.Fatalf("create test certificate: %v", err)
+	}
+	var buf bytes.Buffer
+	if err := pem.Encode(&buf, &pem.Block{Type: "CERTIFICATE", Bytes: der}); err != nil {
+		t.Fatalf("PEM encode certificate: %v", err)
+	}
+	return &testIDPKey{key: key, certPEM: buf.String()}
+}
+
+// buildSignedSAMLResponse produces a base64-encoded SAML Response XML that
+// includes a ds:Signature over a ds:SignedInfo block, signed with the given key.
+// This mimics what a real IdP would produce for RSA-SHA256 signed assertions.
+func buildSignedSAMLResponse(t *testing.T, idp *testIDPKey, email string) string {
+	t.Helper()
+
+	// Build the SignedInfo canonical XML (no transforms in our simplified form).
+	signedInfo := fmt.Sprintf(
+		`<ds:SignedInfo xmlns:ds="http://www.w3.org/2000/09/xmldsig#">`+
+			`<ds:CanonicalizationMethod Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#"/>`+
+			`<ds:SignatureMethod Algorithm="http://www.w3.org/2001/04/xmldsig-more#rsa-sha256"/>`+
+			`<ds:Reference URI="#_resp">`+
+			`<ds:DigestMethod Algorithm="http://www.w3.org/2001/04/xmlenc#sha256"/>`+
+			`<ds:DigestValue>placeholder</ds:DigestValue>`+
+			`</ds:Reference>`+
+			`</ds:SignedInfo>`,
+	)
+
+	// Sign the SignedInfo.
+	digest := sha256.Sum256([]byte(signedInfo))
+	sigBytes, err := rsa.SignPKCS1v15(rand.Reader, idp.key, crypto.SHA256, digest[:])
+	if err != nil {
+		t.Fatalf("sign SAML SignedInfo: %v", err)
+	}
+	sigB64 := base64.StdEncoding.EncodeToString(sigBytes)
+
+	// Extract just the DER bytes from the PEM to embed in X509Certificate.
+	block, _ := pem.Decode([]byte(idp.certPEM))
+	certB64 := base64.StdEncoding.EncodeToString(block.Bytes)
+
+	xmlDoc := `<samlp:Response xmlns:samlp="urn:oasis:names:tc:SAML:2.0:protocol" xmlns:saml="urn:oasis:names:tc:SAML:2.0:assertion" ID="_resp">` +
+		`<ds:Signature xmlns:ds="http://www.w3.org/2000/09/xmldsig#">` +
+		signedInfo +
+		`<ds:SignatureValue>` + sigB64 + `</ds:SignatureValue>` +
+		`<ds:KeyInfo><ds:X509Data><ds:X509Certificate>` + certB64 + `</ds:X509Certificate></ds:X509Data></ds:KeyInfo>` +
+		`</ds:Signature>` +
+		`<saml:Assertion>` +
+		`<saml:Subject><saml:NameID Format="urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress">` + email + `</saml:NameID></saml:Subject>` +
+		`</saml:Assertion>` +
+		`</samlp:Response>`
+	return base64.StdEncoding.EncodeToString([]byte(xmlDoc))
+}
+
 // buildMinimalSAMLResponse constructs a base64-encoded SAML Response XML with the given email as NameID.
+// NOTE: this response has no signature and will fail SAML signature verification.
+// Use buildSignedSAMLResponse for tests that exercise the full ACS flow.
 func buildMinimalSAMLResponse(email string) string {
 	const samlNS = "urn:oasis:names:tc:SAML:2.0:assertion"
 	xml := fmt.Sprintf(`<samlp:Response xmlns:samlp="urn:oasis:names:tc:SAML:2.0:protocol" xmlns:saml="%s">`+
@@ -315,13 +399,110 @@ func buildExpiredIDToken(email string) string {
 	return header + "." + payload + "." + sig
 }
 
-func TestSSOSAMLACSKnownUser(t *testing.T) {
+// TestSSOSAMLACSUnsignedResponseRejected verifies that an unsigned SAML Response
+// is rejected with 401 even when the domain has a certificate configured.
+func TestSSOSAMLACSUnsignedResponseRejected(t *testing.T) {
+	idp := newTestIDPKey(t)
 	svc := newFakeSSOFlowService()
 	svc.UpsertSSOConfig(context.Background(), maildb.SSOConfig{ //nolint:errcheck
-		DomainID: "dom-saml",
-		Provider: "saml",
-		SSOURL:   "https://idp.example.com/sso",
-		EntityID: "https://app.example.com",
+		DomainID:        "dom-unsigned",
+		Provider:        "saml",
+		SSOURL:          "https://idp.example.com/sso",
+		EntityID:        "https://app.example.com",
+		Certificate:     idp.certPEM,
+		JITProvisioning: true,
+	})
+
+	srv := newSSOFlowServer(svc, newFakeTM(t))
+	defer srv.Close()
+
+	// buildMinimalSAMLResponse has no signature.
+	form := url.Values{
+		"SAMLResponse": {buildMinimalSAMLResponse("attacker@example.com")},
+		"RelayState":   {"dom-unsigned"},
+	}
+	resp, err := http.Post(srv.URL+"/auth/sso/saml/acs", "application/x-www-form-urlencoded", strings.NewReader(form.Encode()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusUnauthorized {
+		t.Errorf("unsigned SAML response: status = %d, want 401", resp.StatusCode)
+	}
+}
+
+// TestSSOSAMLACSNoCertificateConfigured verifies that the ACS rejects requests
+// when no IDP certificate is configured (Certificate field is empty).
+func TestSSOSAMLACSNoCertificateConfigured(t *testing.T) {
+	svc := newFakeSSOFlowService()
+	svc.UpsertSSOConfig(context.Background(), maildb.SSOConfig{ //nolint:errcheck
+		DomainID:        "dom-nocert",
+		Provider:        "saml",
+		SSOURL:          "https://idp.example.com/sso",
+		EntityID:        "https://app.example.com",
+		JITProvisioning: true,
+		// Certificate intentionally empty
+	})
+
+	srv := newSSOFlowServer(svc, newFakeTM(t))
+	defer srv.Close()
+
+	form := url.Values{
+		"SAMLResponse": {buildMinimalSAMLResponse("attacker@example.com")},
+		"RelayState":   {"dom-nocert"},
+	}
+	resp, err := http.Post(srv.URL+"/auth/sso/saml/acs", "application/x-www-form-urlencoded", strings.NewReader(form.Encode()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusUnauthorized {
+		t.Errorf("no cert configured: status = %d, want 401", resp.StatusCode)
+	}
+}
+
+// TestSSOSAMLACSWrongCertificateRejected verifies that a validly signed response
+// is rejected when the configured certificate does not match the signing key.
+func TestSSOSAMLACSWrongCertificateRejected(t *testing.T) {
+	signingIDP := newTestIDPKey(t) // actually signs the response
+	wrongIDP := newTestIDPKey(t)   // configured cert (different key)
+
+	svc := newFakeSSOFlowService()
+	svc.UpsertSSOConfig(context.Background(), maildb.SSOConfig{ //nolint:errcheck
+		DomainID:        "dom-wrongcert",
+		Provider:        "saml",
+		SSOURL:          "https://idp.example.com/sso",
+		EntityID:        "https://app.example.com",
+		Certificate:     wrongIDP.certPEM, // wrong cert
+		JITProvisioning: true,
+	})
+
+	srv := newSSOFlowServer(svc, newFakeTM(t))
+	defer srv.Close()
+
+	form := url.Values{
+		"SAMLResponse": {buildSignedSAMLResponse(t, signingIDP, "attacker@example.com")},
+		"RelayState":   {"dom-wrongcert"},
+	}
+	resp, err := http.Post(srv.URL+"/auth/sso/saml/acs", "application/x-www-form-urlencoded", strings.NewReader(form.Encode()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusUnauthorized {
+		t.Errorf("wrong cert: status = %d, want 401", resp.StatusCode)
+	}
+}
+
+func TestSSOSAMLACSKnownUser(t *testing.T) {
+	idp := newTestIDPKey(t)
+	svc := newFakeSSOFlowService()
+	svc.UpsertSSOConfig(context.Background(), maildb.SSOConfig{ //nolint:errcheck
+		DomainID:    "dom-saml",
+		Provider:    "saml",
+		SSOURL:      "https://idp.example.com/sso",
+		EntityID:    "https://app.example.com",
+		Certificate: idp.certPEM,
 	})
 	svc.users["alice@example.com"] = maildb.SSOUserInfo{
 		UserID:   "user-alice",
@@ -334,7 +515,7 @@ func TestSSOSAMLACSKnownUser(t *testing.T) {
 	defer srv.Close()
 
 	form := url.Values{
-		"SAMLResponse": {buildMinimalSAMLResponse("alice@example.com")},
+		"SAMLResponse": {buildSignedSAMLResponse(t, idp, "alice@example.com")},
 		"RelayState":   {"dom-saml"},
 	}
 	resp, err := http.Post(srv.URL+"/auth/sso/saml/acs", "application/x-www-form-urlencoded", strings.NewReader(form.Encode()))
@@ -371,6 +552,7 @@ func TestSSOSAMLACSMissingSAMLResponse(t *testing.T) {
 }
 
 func TestSSOSAMLACSJITProvisioning(t *testing.T) {
+	idp := newTestIDPKey(t)
 	svc := newFakeSSOFlowService()
 	svc.UpsertSSOConfig(context.Background(), maildb.SSOConfig{ //nolint:errcheck
 		DomainID:        "dom-jit",
@@ -378,13 +560,14 @@ func TestSSOSAMLACSJITProvisioning(t *testing.T) {
 		SSOURL:          "https://idp.example.com/sso",
 		EntityID:        "https://app.example.com",
 		JITProvisioning: true,
+		Certificate:     idp.certPEM,
 	})
 
 	srv := newSSOFlowServer(svc, newFakeTM(t))
 	defer srv.Close()
 
 	form := url.Values{
-		"SAMLResponse": {buildMinimalSAMLResponse("newuser@example.com")},
+		"SAMLResponse": {buildSignedSAMLResponse(t, idp, "newuser@example.com")},
 		"RelayState":   {"dom-jit"},
 	}
 	resp, err := http.Post(srv.URL+"/auth/sso/saml/acs", "application/x-www-form-urlencoded", strings.NewReader(form.Encode()))
@@ -488,6 +671,7 @@ func TestSSOOIDCCallbackInvalidState(t *testing.T) {
 }
 
 func TestSSOSAMLACSCustomTTL(t *testing.T) {
+	idp := newTestIDPKey(t)
 	svc := newFakeSSOFlowService()
 	svc.UpsertSSOConfig(context.Background(), maildb.SSOConfig{ //nolint:errcheck
 		DomainID:          "dom-ttl",
@@ -495,6 +679,7 @@ func TestSSOSAMLACSCustomTTL(t *testing.T) {
 		SSOURL:            "https://idp.example.com/sso",
 		EntityID:          "https://app.example.com",
 		SessionTTLSeconds: 3600,
+		Certificate:       idp.certPEM,
 	})
 	svc.users["ttl@example.com"] = maildb.SSOUserInfo{
 		UserID:   "user-ttl",
@@ -506,7 +691,7 @@ func TestSSOSAMLACSCustomTTL(t *testing.T) {
 	defer srv.Close()
 
 	form := url.Values{
-		"SAMLResponse": {buildMinimalSAMLResponse("ttl@example.com")},
+		"SAMLResponse": {buildSignedSAMLResponse(t, idp, "ttl@example.com")},
 		"RelayState":   {"dom-ttl"},
 	}
 	resp, err := http.Post(srv.URL+"/auth/sso/saml/acs", "application/x-www-form-urlencoded", strings.NewReader(form.Encode()))
@@ -530,12 +715,14 @@ func TestSSOSAMLACSCustomTTL(t *testing.T) {
 }
 
 func TestSSOSAMLACSDefaultTTL(t *testing.T) {
+	idp := newTestIDPKey(t)
 	svc := newFakeSSOFlowService()
 	svc.UpsertSSOConfig(context.Background(), maildb.SSOConfig{ //nolint:errcheck
-		DomainID: "dom-default-ttl",
-		Provider: "saml",
-		SSOURL:   "https://idp.example.com/sso",
-		EntityID: "https://app.example.com",
+		DomainID:    "dom-default-ttl",
+		Provider:    "saml",
+		SSOURL:      "https://idp.example.com/sso",
+		EntityID:    "https://app.example.com",
+		Certificate: idp.certPEM,
 		// SessionTTLSeconds zero → default 900s
 	})
 	svc.users["default@example.com"] = maildb.SSOUserInfo{
@@ -548,7 +735,7 @@ func TestSSOSAMLACSDefaultTTL(t *testing.T) {
 	defer srv.Close()
 
 	form := url.Values{
-		"SAMLResponse": {buildMinimalSAMLResponse("default@example.com")},
+		"SAMLResponse": {buildSignedSAMLResponse(t, idp, "default@example.com")},
 		"RelayState":   {"dom-default-ttl"},
 	}
 	resp, err := http.Post(srv.URL+"/auth/sso/saml/acs", "application/x-www-form-urlencoded", strings.NewReader(form.Encode()))

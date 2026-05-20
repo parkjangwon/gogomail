@@ -41,6 +41,7 @@ export default function UsersPage() {
   const [users, setUsers] = useState<User[]>([]);
   const [domains, setDomains] = useState<Domain[]>([]);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState('');
   const [filter, setFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
 
@@ -84,9 +85,13 @@ export default function UsersPage() {
 
   const fetchUsers = async () => {
     setLoading(true);
+    setFetchError('');
     try {
       const domainRes = await fetch(`/api/admin/domains?company_id=${encodeURIComponent(companyId)}&limit=200`, { credentials: 'include' });
-      if (!domainRes.ok) return;
+      if (!domainRes.ok) {
+        setFetchError(t('pages.users_page.load_failed') || '데이터를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.');
+        return;
+      }
       const domainData = await domainRes.json();
       const companyDomains: Domain[] = domainData.domains || [];
       const userLists = await Promise.all(
@@ -101,6 +106,7 @@ export default function UsersPage() {
         })));
     } catch (e) {
       console.error('Failed to fetch users:', e);
+      setFetchError('데이터를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.');
     } finally {
       setLoading(false);
     }
@@ -466,6 +472,9 @@ export default function UsersPage() {
     >
       <SpaceBetween size="l">
         {flashItems.length > 0 && <Flashbar items={flashItems} />}
+        {fetchError && (
+          <Flashbar items={[{ type: 'error', content: fetchError, id: 'fetch-error', dismissible: true, onDismiss: () => setFetchError('') }]} />
+        )}
 
         {/* KPI Summary */}
         <ColumnLayout columns={3} variant="text-grid" minColumnWidth={140}>

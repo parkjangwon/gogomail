@@ -1,11 +1,17 @@
 package sso
 
 import (
+	"bytes"
+	gocrypto "crypto"
+	_ "crypto/sha256" // register SHA256 hash
 	"crypto/rand"
+	"crypto/rsa"
 	"crypto/sha256"
+	"crypto/x509"
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"encoding/pem"
 	"encoding/xml"
 	"fmt"
 	"strings"
@@ -201,6 +207,158 @@ func ParseSAMLNameID(xmlData []byte) (string, error) {
 		return "", fmt.Errorf("SAML NameID is empty")
 	}
 	return email, nil
+}
+
+// samlSignatureXML holds the ds:Signature block extracted for verification.
+type samlSignatureXML struct {
+	SignedInfo struct {
+		CanonicalizationMethod struct {
+			Algorithm string `xml:"Algorithm,attr"`
+		} `xml:"http://www.w3.org/2000/09/xmldsig# CanonicalizationMethod"`
+		SignatureMethod struct {
+			Algorithm string `xml:"Algorithm,attr"`
+		} `xml:"http://www.w3.org/2000/09/xmldsig# SignatureMethod"`
+		Reference struct {
+			DigestMethod struct {
+				Algorithm string `xml:"Algorithm,attr"`
+			} `xml:"http://www.w3.org/2000/09/xmldsig# DigestMethod"`
+			DigestValue string `xml:"http://www.w3.org/2000/09/xmldsig# DigestValue"`
+		} `xml:"http://www.w3.org/2000/09/xmldsig# Reference"`
+	} `xml:"http://www.w3.org/2000/09/xmldsig# SignedInfo"`
+	SignatureValue string `xml:"http://www.w3.org/2000/09/xmldsig# SignatureValue"`
+	KeyInfo        struct {
+		X509Data struct {
+			X509Certificate string `xml:"http://www.w3.org/2000/09/xmldsig# X509Certificate"`
+		} `xml:"http://www.w3.org/2000/09/xmldsig# X509Data"`
+	} `xml:"http://www.w3.org/2000/09/xmldsig# KeyInfo"`
+}
+
+// samlResponseWithSig is the top-level envelope for extracting signatures.
+type samlResponseWithSig struct {
+	XMLName   xml.Name         `xml:"urn:oasis:names:tc:SAML:2.0:protocol Response"`
+	Signature samlSignatureXML `xml:"http://www.w3.org/2000/09/xmldsig# Signature"`
+	Assertion struct {
+		Signature samlSignatureXML `xml:"http://www.w3.org/2000/09/xmldsig# Signature"`
+	} `xml:"urn:oasis:names:tc:SAML:2.0:assertion Assertion"`
+}
+
+// VerifySAMLSignature checks the RSA-SHA256 signature on a SAML Response.
+// idpCertPEM must be a PEM-encoded X.509 certificate for the IdP.
+// It checks for a signature at the Assertion level first, then Response level.
+// Returns an error if the certificate is missing, parsing fails, or the
+// signature is invalid.
+func VerifySAMLSignature(xmlData []byte, idpCertPEM string) error {
+	if strings.TrimSpace(idpCertPEM) == "" {
+		return fmt.Errorf("SAML IDP certificate not configured")
+	}
+
+	// Parse the configured IdP certificate.
+	idpKey, err := parsePEMCertPublicKey(idpCertPEM)
+	if err != nil {
+		return fmt.Errorf("parse IDP certificate: %w", err)
+	}
+
+	// Parse the SAML response to extract signatures.
+	var env samlResponseWithSig
+	if err := xml.Unmarshal(xmlData, &env); err != nil {
+		return fmt.Errorf("parse SAML response for signature: %w", err)
+	}
+
+	// Try Assertion-level signature first, then Response-level.
+	sigBlock := env.Assertion.Signature
+	if sigBlock.SignatureValue == "" {
+		sigBlock = env.Signature
+	}
+	if sigBlock.SignatureValue == "" {
+		return fmt.Errorf("SAML response contains no signature")
+	}
+
+	// Decode the signature value.
+	sigBytes, err := base64.StdEncoding.DecodeString(strings.TrimSpace(sigBlock.SignatureValue))
+	if err != nil {
+		// try without whitespace
+		sigBytes, err = base64.StdEncoding.DecodeString(strings.ReplaceAll(sigBlock.SignatureValue, "\n", ""))
+		if err != nil {
+			return fmt.Errorf("decode SAML SignatureValue: %w", err)
+		}
+	}
+
+	// Re-serialize SignedInfo to canonical form for digest.
+	// We extract the raw <ds:SignedInfo>...</ds:SignedInfo> bytes from the XML
+	// using a simple byte search, which handles exclusive C14N adequately for
+	// our use case (the IdP already produced the canonical form).
+	signedInfoBytes, err := extractSignedInfoBytes(xmlData)
+	if err != nil {
+		return fmt.Errorf("extract SignedInfo: %w", err)
+	}
+
+	// Verify RSA-SHA256 signature: SHA256(SignedInfo) verified with IdP public key.
+	digest := sha256.Sum256(signedInfoBytes)
+	if err := rsa.VerifyPKCS1v15(idpKey, gocrypto.SHA256, digest[:], sigBytes); err != nil {
+		return fmt.Errorf("SAML signature verification failed: %w", err)
+	}
+	return nil
+}
+
+// parsePEMCertPublicKey parses a PEM-encoded X.509 certificate and returns its
+// RSA public key. It also accepts a bare base64 DER certificate (no PEM headers).
+func parsePEMCertPublicKey(certPEM string) (*rsa.PublicKey, error) {
+	trimmed := strings.TrimSpace(certPEM)
+
+	var derBytes []byte
+	if strings.HasPrefix(trimmed, "-----") {
+		block, _ := pem.Decode([]byte(trimmed))
+		if block == nil {
+			return nil, fmt.Errorf("failed to decode PEM block")
+		}
+		derBytes = block.Bytes
+	} else {
+		// Bare base64 DER (common in SAML metadata).
+		cleaned := strings.ReplaceAll(trimmed, "\n", "")
+		cleaned = strings.ReplaceAll(cleaned, " ", "")
+		var err error
+		derBytes, err = base64.StdEncoding.DecodeString(cleaned)
+		if err != nil {
+			return nil, fmt.Errorf("decode certificate: %w", err)
+		}
+	}
+
+	cert, err := x509.ParseCertificate(derBytes)
+	if err != nil {
+		return nil, fmt.Errorf("parse certificate: %w", err)
+	}
+	pub, ok := cert.PublicKey.(*rsa.PublicKey)
+	if !ok {
+		return nil, fmt.Errorf("IDP certificate does not contain an RSA public key")
+	}
+	return pub, nil
+}
+
+// extractSignedInfoBytes extracts the raw bytes of the first <ds:SignedInfo> or
+// <SignedInfo> element found in the XML document.
+func extractSignedInfoBytes(xmlData []byte) ([]byte, error) {
+	// Try both namespace-qualified and unqualified forms.
+	starts := [][]byte{
+		[]byte("<ds:SignedInfo"),
+		[]byte("<SignedInfo"),
+	}
+	ends := [][]byte{
+		[]byte("</ds:SignedInfo>"),
+		[]byte("</SignedInfo>"),
+	}
+
+	for i, start := range starts {
+		si := bytes.Index(xmlData, start)
+		if si < 0 {
+			continue
+		}
+		ei := bytes.Index(xmlData[si:], ends[i])
+		if ei < 0 {
+			continue
+		}
+		return xmlData[si : si+ei+len(ends[i])], nil
+	}
+	return nil, fmt.Errorf("SignedInfo element not found in SAML response")
 }
 
 // oidcTokenPayload holds the fields we care about in an OIDC ID token payload.

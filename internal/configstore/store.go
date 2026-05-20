@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"sync"
 	"time"
 
@@ -246,7 +247,9 @@ func (s *PostgresConfigStore) runListenLoop(ctx context.Context) {
 				return err
 			}
 			// Reload on any notification; payload is not used for targeted refresh.
-			_ = s.loadAll(ctx)
+			if err := s.loadAll(ctx); err != nil {
+				slog.ErrorContext(ctx, "failed to reload config cache after notification", "err", err)
+			}
 		}
 	})
 }
@@ -556,7 +559,9 @@ func (s *PostgresConfigStore) writeChangeLog(ctx context.Context, scopeType Scop
 	if changedBy != "" {
 		by = changedBy
 	}
-	_, _ = s.db.ExecContext(ctx, q, string(scopeType), scopeID, key, oldV, newV, by, action)
+	if _, err := s.db.ExecContext(ctx, q, string(scopeType), scopeID, key, oldV, newV, by, action); err != nil {
+		slog.ErrorContext(ctx, "failed to write config audit log", "err", err)
+	}
 }
 
 func (s *PostgresConfigStore) Notify(ctx context.Context, event ConfigChangeEvent) {

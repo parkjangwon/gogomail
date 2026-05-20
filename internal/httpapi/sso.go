@@ -140,6 +140,20 @@ func RegisterSSORoutes(mux *http.ServeMux, svc SSOFlowService, tm *auth.TokenMan
 			return
 		}
 
+		// Load SSO config to obtain the IdP signing certificate for signature verification.
+		samlCfg, cfgErr := svc.GetSSOConfig(r.Context(), domainID)
+		if cfgErr != nil {
+			// Log the attempt; the domain is unknown — reject.
+			http.Error(w, "SSO not configured for this domain", http.StatusUnauthorized)
+			return
+		}
+
+		// Verify SAML Response signature before trusting any claims.
+		if err := sso.VerifySAMLSignature(xmlData, samlCfg.Certificate); err != nil {
+			http.Error(w, fmt.Sprintf("SAML signature verification failed: %v", err), http.StatusUnauthorized)
+			return
+		}
+
 		email, err := sso.ParseSAMLNameID(xmlData)
 		if err != nil {
 			http.Error(w, "could not extract NameID from SAML assertion", http.StatusBadRequest)
@@ -152,7 +166,6 @@ func RegisterSSORoutes(mux *http.ServeMux, svc SSOFlowService, tm *auth.TokenMan
 			return
 		}
 
-		samlCfg, _ := svc.GetSSOConfig(r.Context(), domainID)
 		ttl := ssoSessionTTL(samlCfg)
 		token, err := tm.Sign(auth.Claims{
 			UserID:   info.UserID,

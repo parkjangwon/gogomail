@@ -45,6 +45,7 @@ services:
         --appendfsync everysec
         --maxmemory 512mb
         --maxmemory-policy allkeys-lru
+        --requirepass ${REDIS_PASSWORD:-changeme_in_production}
     volumes:
       - redis-data:/data
       - /etc/localtime:/etc/localtime:ro
@@ -131,6 +132,7 @@ services:
       # Redis
       REDIS_ADDR: redis:6379
       REDIS_DB: 0
+      GOGOMAIL_REDIS_PASSWORD: ${REDIS_PASSWORD:-changeme_in_production}
 
       # MinIO
       MINIO_ENDPOINT: minio:9000

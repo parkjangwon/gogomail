@@ -144,12 +144,21 @@ func (h *Handler) maybeVacationReply(ctx context.Context, ev storedEvent, vac *v
 	}
 	h.vacationSent.Store(key, now)
 
-	msg := vac.Message
+	// Prefer Body/Subject (current webmail format); fall back to legacy Message field.
+	msg := vac.Body
+	if msg == "" {
+		msg = vac.Message
+	}
 	if msg == "" {
 		msg = "자리를 비우고 있습니다."
 	}
-	subject := "Re: " + ev.Subject
-	if ev.Subject == "" {
+	vacSubject := vac.Subject
+	subject := ""
+	if vacSubject != "" {
+		subject = vacSubject
+	} else if ev.Subject != "" {
+		subject = "Re: " + ev.Subject
+	} else {
 		subject = "부재중 자동 응답"
 	}
 
@@ -172,5 +181,8 @@ type vacationSettings struct {
 	Enabled   bool   `json:"enabled"`
 	StartDate string `json:"startDate"`
 	EndDate   string `json:"endDate"`
-	Message   string `json:"message"`
+	Body      string `json:"body"`
+	Subject   string `json:"subject"`
+	// Message is kept for backward-compatibility with older stored prefs.
+	Message string `json:"message"`
 }

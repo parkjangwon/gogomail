@@ -716,6 +716,17 @@ func (c Config) Validate() error {
 	if err := validateBoundedNoCRLF("GOGOMAIL_DELIVERY_CONSUMER_DEAD_LETTER_STREAM", c.DeliveryConsumerDeadLetterStream, 1024); err != nil {
 		return err
 	}
+	if production {
+		if strings.TrimSpace(c.AuthJWTSecret) == "" {
+			return fmt.Errorf("GOGOMAIL_AUTH_JWT_SECRET must not be empty in production")
+		}
+		if strings.TrimSpace(c.AdminToken) == "" {
+			return fmt.Errorf("GOGOMAIL_ADMIN_TOKEN must not be empty in production")
+		}
+		if strings.Contains(c.DatabaseURL, "sslmode=disable") {
+			return fmt.Errorf("GOGOMAIL_DATABASE_URL must not use sslmode=disable in production")
+		}
+	}
 	return nil
 }
 

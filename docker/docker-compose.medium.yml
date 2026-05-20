@@ -81,6 +81,7 @@ services:
         --appendfsync everysec
         --maxmemory 1gb
         --maxmemory-policy allkeys-lru
+        --requirepass ${REDIS_PASSWORD:-changeme_in_production}
     volumes:
       - redis-master-data:/data
     healthcheck:
@@ -109,6 +110,8 @@ services:
         --appendfsync everysec
         --maxmemory 1gb
         --maxmemory-policy allkeys-lru
+        --requirepass ${REDIS_PASSWORD:-changeme_in_production}
+        --masterauth ${REDIS_PASSWORD:-changeme_in_production}
         --slaveof redis-master 6379
     volumes:
       - redis-slave-data:/data
@@ -272,6 +275,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
       POSTGRES_DB: ${POSTGRES_DB:-gogomail}
       REDIS_ADDR: redis-master:6379
+      GOGOMAIL_REDIS_PASSWORD: ${REDIS_PASSWORD:-changeme_in_production}
       MINIO_ENDPOINT: minio-lb:9000
       MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-gogomail}
       MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-changepassword123}
@@ -311,6 +315,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
       POSTGRES_DB: ${POSTGRES_DB:-gogomail}
       REDIS_ADDR: redis-master:6379
+      GOGOMAIL_REDIS_PASSWORD: ${REDIS_PASSWORD:-changeme_in_production}
       MINIO_ENDPOINT: minio-lb:9000
       MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-gogomail}
       MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-changepassword123}

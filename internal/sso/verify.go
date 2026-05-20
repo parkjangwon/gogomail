@@ -1,12 +1,19 @@
 package sso
 
 import (
+	gocrypto "crypto"
+	_ "crypto/sha256" // register SHA256 hash
 	"crypto/hmac"
+	"crypto/rsa"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io"
+	"math/big"
+	"net/http"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -20,14 +27,47 @@ type oidcFullClaims struct {
 	Email    string `json:"email"`
 }
 
-// VerifyAndParseIDToken validates an OIDC ID token's HMAC-SHA256 signature (when
-// clientSecret is non-empty), verifies standard claims (exp, iat, aud), and
-// returns the email address.
+// jwksCache caches JWKS responses keyed by JWKS URI.
+// Entries expire after jwksCacheTTL.
+var (
+	jwksCache    sync.Map // key: jwksURI (string) → *jwksCacheEntry
+	jwksCacheTTL = 10 * time.Minute
+)
+
+type jwksCacheEntry struct {
+	keys      []jwkKey
+	fetchedAt time.Time
+}
+
+// jwkKey represents a single JWK (JSON Web Key) for RSA keys.
+type jwkKey struct {
+	Kid string `json:"kid"`
+	Kty string `json:"kty"`
+	Alg string `json:"alg"`
+	Use string `json:"use"`
+	N   string `json:"n"` // Base64url-encoded modulus
+	E   string `json:"e"` // Base64url-encoded exponent
+}
+
+type jwkSet struct {
+	Keys []jwkKey `json:"keys"`
+}
+
+// oidcDiscoveryMini is a minimal OIDC discovery document for JWKS lookup.
+type oidcDiscoveryMini struct {
+	JWKSURI string `json:"jwks_uri"`
+}
+
+// VerifyAndParseIDToken validates an OIDC ID token and returns the email address.
 //
-// Signature verification: only alg=HS256 with a clientSecret is supported.
-// Tokens using RS256 (the OIDC norm) require JWKS-based verification; pass
-// clientSecret="" to skip signature verification in those cases while still
-// enforcing exp/iat/aud claims.
+// Signature verification behaviour:
+//   - clientSecret != "": HS256 HMAC verification with the shared secret.
+//   - clientSecret == "" and alg == "RS256": JWKS-based RSA verification using
+//     the issuer's discovery document to locate the JWKS endpoint.
+//   - clientSecret == "" and alg != "RS256": signature is not verified
+//     (legacy / test path); only standard claims (exp, iat, aud) are checked.
+//
+// In all cases the standard claims (exp, iat, aud, email) are validated.
 func VerifyAndParseIDToken(idToken, clientSecret, clientID string, now time.Time) (string, error) {
 	parts := strings.Split(idToken, ".")
 	if len(parts) != 3 {
@@ -41,13 +81,25 @@ func VerifyAndParseIDToken(idToken, clientSecret, clientID string, now time.Time
 	}
 	var header struct {
 		Alg string `json:"alg"`
+		Kid string `json:"kid"`
 	}
 	if err := json.Unmarshal(headerRaw, &header); err != nil {
 		return "", fmt.Errorf("parse ID token header: %w", err)
 	}
 
-	// Verify HMAC-SHA256 signature when clientSecret is provided.
-	if clientSecret != "" {
+	// Decode payload first so we can access the issuer for RS256 discovery.
+	payloadRaw, err := base64.RawURLEncoding.DecodeString(parts[1])
+	if err != nil {
+		return "", fmt.Errorf("decode ID token payload: %w", err)
+	}
+	var claims oidcFullClaims
+	if err := json.Unmarshal(payloadRaw, &claims); err != nil {
+		return "", fmt.Errorf("parse ID token claims: %w", err)
+	}
+
+	switch {
+	case clientSecret != "":
+		// HS256 path: verify HMAC-SHA256 signature with shared client secret.
 		if header.Alg != "HS256" {
 			return "", fmt.Errorf("unsupported ID token algorithm %q: only HS256 supported with client secret", header.Alg)
 		}
@@ -58,16 +110,20 @@ func VerifyAndParseIDToken(idToken, clientSecret, clientID string, now time.Time
 		if !hmac.Equal([]byte(expectedSig), []byte(parts[2])) {
 			return "", fmt.Errorf("ID token signature verification failed")
 		}
-	}
 
-	// Decode payload.
-	payloadRaw, err := base64.RawURLEncoding.DecodeString(parts[1])
-	if err != nil {
-		return "", fmt.Errorf("decode ID token payload: %w", err)
-	}
-	var claims oidcFullClaims
-	if err := json.Unmarshal(payloadRaw, &claims); err != nil {
-		return "", fmt.Errorf("parse ID token claims: %w", err)
+	case header.Alg == "RS256":
+		// RS256 path: verify RSA-SHA256 signature via JWKS discovery.
+		if claims.Issuer == "" {
+			return "", fmt.Errorf("ID token missing issuer claim (required for RS256 verification)")
+		}
+		if err := verifyRS256JWT(parts, header.Kid, claims.Issuer); err != nil {
+			return "", fmt.Errorf("RS256 ID token signature verification failed: %w", err)
+		}
+
+	default:
+		// No clientSecret and non-RS256 alg: skip signature verification.
+		// This path exists for backward compatibility; new deployments should
+		// always configure either a clientSecret (HS256) or RS256 with JWKS.
 	}
 
 	// Validate standard claims.
@@ -84,6 +140,149 @@ func VerifyAndParseIDToken(idToken, clientSecret, clientID string, now time.Time
 		return "", fmt.Errorf("ID token missing email claim")
 	}
 	return claims.Email, nil
+}
+
+// verifyRS256JWT verifies the RSA-SHA256 signature of a JWT against the IdP's
+// published JWKS. parts must be the three base64url segments of the JWT.
+// kid is the key ID from the JWT header (may be empty).
+// issuer is used to construct the OIDC discovery URL.
+func verifyRS256JWT(parts []string, kid, issuer string) error {
+	jwksURI, err := fetchJWKSURI(issuer)
+	if err != nil {
+		return fmt.Errorf("fetch JWKS URI for issuer %q: %w", issuer, err)
+	}
+
+	pub, err := fetchRSAPublicKey(jwksURI, kid)
+	if err != nil {
+		// Invalidate cache and retry once in case the key was rotated.
+		jwksCache.Delete(jwksURI)
+		pub, err = fetchRSAPublicKey(jwksURI, kid)
+		if err != nil {
+			return fmt.Errorf("fetch RSA public key (kid=%q): %w", kid, err)
+		}
+	}
+
+	// Verify RSA-SHA256 signature.
+	signingInput := parts[0] + "." + parts[1]
+	digest := sha256.Sum256([]byte(signingInput))
+	sigBytes, err := base64.RawURLEncoding.DecodeString(parts[2])
+	if err != nil {
+		return fmt.Errorf("decode JWT signature: %w", err)
+	}
+	if err := rsa.VerifyPKCS1v15(pub, gocrypto.SHA256, digest[:], sigBytes); err != nil {
+		return fmt.Errorf("RSA signature mismatch: %w", err)
+	}
+	return nil
+}
+
+// fetchJWKSURI retrieves the jwks_uri from the OIDC discovery document at
+// issuer + "/.well-known/openid-configuration".
+func fetchJWKSURI(issuer string) (string, error) {
+	discoveryURL := strings.TrimRight(issuer, "/") + "/.well-known/openid-configuration"
+	resp, err := http.Get(discoveryURL) //nolint:noctx
+	if err != nil {
+		return "", fmt.Errorf("fetch discovery document: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("discovery document returned HTTP %d", resp.StatusCode)
+	}
+	body, err := io.ReadAll(io.LimitReader(resp.Body, 64*1024))
+	if err != nil {
+		return "", fmt.Errorf("read discovery document: %w", err)
+	}
+	var doc oidcDiscoveryMini
+	if err := json.Unmarshal(body, &doc); err != nil {
+		return "", fmt.Errorf("parse discovery document: %w", err)
+	}
+	if doc.JWKSURI == "" {
+		return "", fmt.Errorf("discovery document missing jwks_uri")
+	}
+	return doc.JWKSURI, nil
+}
+
+// fetchRSAPublicKey retrieves the RSA public key matching kid from the JWKS
+// endpoint at jwksURI, using a 10-minute in-process cache.
+func fetchRSAPublicKey(jwksURI, kid string) (*rsa.PublicKey, error) {
+	keys, err := getJWKSKeys(jwksURI)
+	if err != nil {
+		return nil, err
+	}
+	return selectRSAKey(keys, kid)
+}
+
+// getJWKSKeys returns the cached JWKS keys, fetching them if the cache is
+// empty or stale.
+func getJWKSKeys(jwksURI string) ([]jwkKey, error) {
+	now := time.Now()
+	if v, ok := jwksCache.Load(jwksURI); ok {
+		entry := v.(*jwksCacheEntry)
+		if now.Sub(entry.fetchedAt) < jwksCacheTTL {
+			return entry.keys, nil
+		}
+	}
+
+	// Fetch fresh JWKS.
+	resp, err := http.Get(jwksURI) //nolint:noctx
+	if err != nil {
+		return nil, fmt.Errorf("fetch JWKS: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("JWKS endpoint returned HTTP %d", resp.StatusCode)
+	}
+	body, err := io.ReadAll(io.LimitReader(resp.Body, 256*1024))
+	if err != nil {
+		return nil, fmt.Errorf("read JWKS: %w", err)
+	}
+	var set jwkSet
+	if err := json.Unmarshal(body, &set); err != nil {
+		return nil, fmt.Errorf("parse JWKS: %w", err)
+	}
+
+	entry := &jwksCacheEntry{keys: set.Keys, fetchedAt: now}
+	jwksCache.Store(jwksURI, entry)
+	return set.Keys, nil
+}
+
+// selectRSAKey finds the RSA key matching kid in the JWKS key set.
+// When kid is empty, the first RSA key is returned.
+func selectRSAKey(keys []jwkKey, kid string) (*rsa.PublicKey, error) {
+	for _, k := range keys {
+		if k.Kty != "RSA" {
+			continue
+		}
+		if kid != "" && k.Kid != kid {
+			continue
+		}
+		return decodeRSAPublicKey(k)
+	}
+	if kid != "" {
+		return nil, fmt.Errorf("no RSA key with kid=%q found in JWKS", kid)
+	}
+	return nil, fmt.Errorf("no RSA key found in JWKS")
+}
+
+// decodeRSAPublicKey converts a JWK RSA entry into an *rsa.PublicKey.
+func decodeRSAPublicKey(k jwkKey) (*rsa.PublicKey, error) {
+	nBytes, err := base64.RawURLEncoding.DecodeString(k.N)
+	if err != nil {
+		return nil, fmt.Errorf("decode JWK modulus: %w", err)
+	}
+	eBytes, err := base64.RawURLEncoding.DecodeString(k.E)
+	if err != nil {
+		return nil, fmt.Errorf("decode JWK exponent: %w", err)
+	}
+
+	n := new(big.Int).SetBytes(nBytes)
+	eInt := 0
+	for _, b := range eBytes {
+		eInt = eInt<<8 | int(b)
+	}
+	if eInt == 0 {
+		return nil, fmt.Errorf("invalid JWK exponent (zero)")
+	}
+	return &rsa.PublicKey{N: n, E: eInt}, nil
 }
 
 // SAMLMaxResponseBytes is the maximum allowed size of a SAML response payload.

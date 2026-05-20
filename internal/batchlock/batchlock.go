@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"hash/fnv"
+	"log/slog"
 	"sync"
 	"time"
 )
@@ -191,9 +192,21 @@ func (w *Worker) runJob(job *Job) {
 				continue
 			}
 
-			_ = job.Handler()
-
-			_ = lock.Release()
+			w.runJobSafely(job, lock)
 		}
+	}
+}
+
+func (w *Worker) runJobSafely(job *Job, lock JobLock) {
+	defer func() {
+		if r := recover(); r != nil {
+			slog.Error("job handler panicked", "job", job.Name, "panic", r)
+		}
+		if err := lock.Release(); err != nil {
+			slog.Error("failed to release lock", "job", job.Name, "err", err)
+		}
+	}()
+	if err := job.Handler(); err != nil {
+		slog.Error("job handler error", "job", job.Name, "err", err)
 	}
 }

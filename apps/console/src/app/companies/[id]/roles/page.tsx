@@ -27,16 +27,19 @@ export default function RolesPage() {
   const [filter, setFilter] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [newRole, setNewRole] = useState({ name: '', description: '' });
+  const [createError, setCreateError] = useState('');
   const createRole = useCreateRole();
 
   const handleCreate = async () => {
     if (!newRole.name.trim()) return;
+    setCreateError('');
     try {
       await createRole.mutateAsync({ companyId, data: newRole });
       setShowModal(false);
       setNewRole({ name: '', description: '' });
     } catch (error) {
       console.error('Failed to create role:', error);
+      setCreateError('역할 생성에 실패했습니다. 잠시 후 다시 시도해주세요.');
     }
   };
 
@@ -145,6 +148,7 @@ export default function RolesPage() {
         header={t('pages.roles_page.create_role')}
       >
         <SpaceBetween size="m">
+          {createError && <Box color="text-status-error">{createError}</Box>}
           <FormField label={t('pages.roles_page.name')}>
             <Input
               value={newRole.name}
