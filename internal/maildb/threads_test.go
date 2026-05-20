@@ -56,7 +56,7 @@ func TestThreadListSQLUsesLatestMessagePreview(t *testing.T) {
 func TestThreadListQueryUsesSargableFolderFilter(t *testing.T) {
 	t.Parallel()
 
-	query := buildThreadListPageSQL(ListSortNewest, "folder-1", ThreadListFilter{})
+	query := buildThreadListPageSQL(ListSortNewest, "folder-1", "", ThreadListFilter{})
 	if !strings.Contains(query, "AND messages.folder_id = $8::uuid") {
 		t.Fatalf("thread list query missing sargable folder filter:\n%s", query)
 	}
@@ -64,7 +64,7 @@ func TestThreadListQueryUsesSargableFolderFilter(t *testing.T) {
 		t.Fatalf("thread list query contains non-sargable folder filter:\n%s", query)
 	}
 
-	query = buildThreadListPageSQL(ListSortOldest, "", ThreadListFilter{})
+	query = buildThreadListPageSQL(ListSortOldest, "", "", ThreadListFilter{})
 	if strings.Contains(query, "AND messages.folder_id") {
 		t.Fatalf("folderless thread list query unexpectedly includes folder predicate:\n%s", query)
 	}
@@ -79,7 +79,7 @@ func TestThreadListQueryUsesSargableBooleanFilters(t *testing.T) {
 	read := false
 	starred := true
 	hasAttachment := true
-	query := buildThreadListPageSQL(ListSortNewest, "", ThreadListFilter{
+	query := buildThreadListPageSQL(ListSortNewest, "", "", ThreadListFilter{
 		Read:          &read,
 		Starred:       &starred,
 		HasAttachment: &hasAttachment,
@@ -104,12 +104,12 @@ func TestThreadListQueryUsesSargableBooleanFilters(t *testing.T) {
 	}
 
 	read = true
-	query = buildThreadListPageSQL(ListSortOldest, "", ThreadListFilter{Read: &read})
+	query = buildThreadListPageSQL(ListSortOldest, "", "", ThreadListFilter{Read: &read})
 	if !strings.Contains(query, "AND unread_count = 0") {
 		t.Fatalf("read thread filter missing direct read predicate:\n%s", query)
 	}
 
-	query = buildThreadListPageSQL(ListSortNewest, "", ThreadListFilter{})
+	query = buildThreadListPageSQL(ListSortNewest, "", "", ThreadListFilter{})
 	for _, forbidden := range []string{
 		"$5::boolean",
 		"AND starred",
@@ -118,6 +118,34 @@ func TestThreadListQueryUsesSargableBooleanFilters(t *testing.T) {
 		if strings.Contains(query, forbidden) {
 			t.Fatalf("unfiltered thread list query unexpectedly includes boolean filter %q:\n%s", forbidden, query)
 		}
+	}
+}
+
+func TestThreadListQueryUsesSargableCursorFilter(t *testing.T) {
+	t.Parallel()
+
+	query := buildThreadListPageSQL(ListSortNewest, "", "thread-1", ThreadListFilter{})
+	if !strings.Contains(query, "WHERE (latest_at, thread_key) < ($3::timestamptz, $4)") {
+		t.Fatalf("newest thread list query missing direct cursor predicate:\n%s", query)
+	}
+	if strings.Contains(query, "$4 = ''") {
+		t.Fatalf("newest thread list query contains optional cursor OR:\n%s", query)
+	}
+
+	query = buildThreadListPageSQL(ListSortOldest, "", "thread-1", ThreadListFilter{})
+	if !strings.Contains(query, "WHERE (latest_at, thread_key) > ($3::timestamptz, $4)") {
+		t.Fatalf("oldest thread list query missing direct cursor predicate:\n%s", query)
+	}
+	if strings.Contains(query, "$4 = ''") {
+		t.Fatalf("oldest thread list query contains optional cursor OR:\n%s", query)
+	}
+
+	query = buildThreadListPageSQL(ListSortNewest, "", "", ThreadListFilter{})
+	if strings.Contains(query, "$4") {
+		t.Fatalf("cursorless thread list query unexpectedly includes cursor predicate:\n%s", query)
+	}
+	if !strings.Contains(query, "WHERE TRUE") {
+		t.Fatalf("cursorless thread list query should keep a stable WHERE anchor:\n%s", query)
 	}
 }
 

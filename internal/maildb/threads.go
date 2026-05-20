@@ -39,9 +39,10 @@ func (r *Repository) ListThreadsPage(ctx context.Context, userID string, limit i
 	}
 
 	folderID := strings.TrimSpace(filter.FolderID)
-	query := buildThreadListPageSQL(sortMode, folderID, filter)
+	cursorID := strings.TrimSpace(cursor.ID)
+	query := buildThreadListPageSQL(sortMode, folderID, cursorID, filter)
 
-	rows, err := r.db.QueryContext(ctx, query, userID, limit, cursor.At, strings.TrimSpace(cursor.ID), filter.Read, filter.Starred, filter.HasAttachment, folderID)
+	rows, err := r.db.QueryContext(ctx, query, userID, limit, cursor.At, cursorID, filter.Read, filter.Starred, filter.HasAttachment, folderID)
 	if err != nil {
 		return nil, fmt.Errorf("list threads: %w", err)
 	}
@@ -72,15 +73,27 @@ func (r *Repository) ListThreadsPage(ctx context.Context, userID string, limit i
 	return threads, nil
 }
 
-func buildThreadListPageSQL(sortMode, folderID string, filter ThreadListFilter) string {
+func buildThreadListPageSQL(sortMode, folderID, cursorID string, filter ThreadListFilter) string {
 	query := threadListPageNewestSQL
+	cursorOp := "<"
 	if sortMode == ListSortOldest {
 		query = threadListPageOldestSQL
+		cursorOp = ">"
 	}
 	if folderID == "" {
 		query = strings.Replace(query, "    AND ($8 = '' OR messages.folder_id::text = $8)\n", "", 1)
 	} else {
 		query = strings.Replace(query, "    AND ($8 = '' OR messages.folder_id::text = $8)", "    AND messages.folder_id = $8::uuid", 1)
+	}
+	cursorPredicate := fmt.Sprintf(`WHERE (
+  $4 = ''
+  OR (latest_at, thread_key) %s ($3::timestamptz, $4)
+)
+`, cursorOp)
+	if cursorID == "" {
+		query = strings.Replace(query, cursorPredicate, "WHERE TRUE\n", 1)
+	} else {
+		query = strings.Replace(query, strings.TrimSuffix(cursorPredicate, "\n"), fmt.Sprintf("WHERE (latest_at, thread_key) %s ($3::timestamptz, $4)", cursorOp), 1)
 	}
 	if filter.Read == nil {
 		query = strings.Replace(query, `AND (
