@@ -30,6 +30,12 @@ func TestBuildListIMAPMessagesQueryAvoidsNullableUIDOptionalOR(t *testing.T) {
 	if !strings.Contains(cursorQuery, "UNION ALL") {
 		t.Fatalf("cursor query should split assigned and unassigned UID candidates:\n%s", cursorQuery)
 	}
+	if strings.Contains(cursorQuery, "SELECT *") {
+		t.Fatalf("cursor query should explicitly project IMAP summary columns:\n%s", cursorQuery)
+	}
+	if !strings.Contains(cursorQuery, "rfc_message_id") || !strings.Contains(cursorQuery, "imap_keywords") || !strings.Contains(cursorQuery, "modseq") {
+		t.Fatalf("cursor query should keep explicit outer projection aliases:\n%s", cursorQuery)
+	}
 	if !strings.Contains(cursorQuery, "JOIN imap_message_uid i ON i.message_id = m.id") || !strings.Contains(cursorQuery, "AND i.uid > $3") {
 		t.Fatalf("cursor query should keep assigned UID scans indexable:\n%s", cursorQuery)
 	}

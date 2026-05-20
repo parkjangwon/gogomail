@@ -6563,3 +6563,6 @@ Target outcome:
 1803. Admin domain listing now builds company, domain-status, and latest DNS
       status predicates only when requested, avoiding optional `OR` guards on
       tenant domain operations.
+1804. IMAP cursor-page message listing now projects explicit summary columns
+      from the assigned/lazy UID candidate union instead of using an outer
+      `SELECT *`.
