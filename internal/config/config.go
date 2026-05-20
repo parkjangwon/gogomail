@@ -220,6 +220,7 @@ type Config struct {
 	SearchIndexOpenSearchPassword       string
 	SearchIndexOpenSearchBootstrap      bool
 	SearchIndexOpenSearchTimeout        time.Duration
+	SearchIndexOpenSearchKoreanAnalyzer bool
 	MailFlowOpenSearchIndex             string
 	MailFlowOpenSearchBootstrap         bool
 	MailFlowStatsBackend                string
@@ -524,6 +525,7 @@ func Load() Config {
 		SearchIndexOpenSearchPassword:       os.Getenv("GOGOMAIL_SEARCH_INDEX_OPENSEARCH_PASSWORD"),
 		SearchIndexOpenSearchBootstrap:      boolEnvOrDefault("GOGOMAIL_SEARCH_INDEX_OPENSEARCH_BOOTSTRAP", false),
 		SearchIndexOpenSearchTimeout:        durationEnvOrDefault("GOGOMAIL_SEARCH_INDEX_OPENSEARCH_TIMEOUT", 10*time.Second),
+		SearchIndexOpenSearchKoreanAnalyzer: boolEnvOrDefault("GOGOMAIL_OPENSEARCH_KOREAN_ANALYZER", false),
 		MailFlowOpenSearchIndex:             envOrDefault("GOGOMAIL_MAIL_FLOW_OPENSEARCH_INDEX", "mail_flow"),
 		MailFlowOpenSearchBootstrap:         boolEnvOrDefault("GOGOMAIL_MAIL_FLOW_OPENSEARCH_BOOTSTRAP", false),
 		MailFlowStatsBackend:                envOrDefault("GOGOMAIL_MAIL_FLOW_STATS_BACKEND", "auto"),

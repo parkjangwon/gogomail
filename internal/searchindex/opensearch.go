@@ -20,14 +20,20 @@ type OpenSearchOptions struct {
 	Client   *http.Client
 	Username string
 	Password string
+	// KoreanAnalyzer enables the Nori Korean text analyzer for subject and
+	// body_text fields when the index is created via EnsureIndex.
+	// Requires the analysis-nori plugin to be installed on OpenSearch.
+	// Controlled by GOGOMAIL_OPENSEARCH_KOREAN_ANALYZER=true.
+	KoreanAnalyzer bool
 }
 
 type OpenSearchIndexer struct {
-	endpoint *url.URL
-	index    string
-	client   *http.Client
-	username string
-	password string
+	endpoint       *url.URL
+	index          string
+	client         *http.Client
+	username       string
+	password       string
+	koreanAnalyzer bool
 }
 
 const (
@@ -63,11 +69,12 @@ func NewOpenSearchIndexer(opts OpenSearchOptions) (OpenSearchIndexer, error) {
 		client = &http.Client{Timeout: 10 * time.Second}
 	}
 	return OpenSearchIndexer{
-		endpoint: endpoint,
-		index:    index,
-		client:   client,
-		username: username,
-		password: password,
+		endpoint:       endpoint,
+		index:          index,
+		client:         client,
+		username:       username,
+		password:       password,
+		koreanAnalyzer: opts.KoreanAnalyzer,
 	}, nil
 }
 
@@ -136,7 +143,7 @@ func cleanOpenSearchDocumentID(value string) (string, error) {
 }
 
 func (i OpenSearchIndexer) EnsureIndex(ctx context.Context) error {
-	payload, err := json.Marshal(openSearchIndexDefinition())
+	payload, err := json.Marshal(openSearchIndexDefinition(i.koreanAnalyzer))
 	if err != nil {
 		return fmt.Errorf("marshal opensearch index definition: %w", err)
 	}
@@ -174,14 +181,36 @@ func normalizeOpenSearchIndex(index string) (string, error) {
 	return index, nil
 }
 
-func openSearchIndexDefinition() map[string]any {
-	return map[string]any{
-		"settings": map[string]any{
-			"index": map[string]any{
-				"number_of_shards":   1,
-				"number_of_replicas": 1,
-			},
+// openSearchIndexDefinition returns the index settings and mappings.
+// When koreanAnalyzer is true the "korean" (Nori) analyzer is registered and
+// applied to subject and body_text. This requires the analysis-nori plugin.
+func openSearchIndexDefinition(koreanAnalyzer bool) map[string]any {
+	subjectMapping := map[string]any{"type": "text"}
+	bodyTextMapping := map[string]any{"type": "text"}
+
+	settings := map[string]any{
+		"index": map[string]any{
+			"number_of_shards":   1,
+			"number_of_replicas": 1,
 		},
+	}
+
+	if koreanAnalyzer {
+		// TODO: requires the OpenSearch analysis-nori plugin.
+		settings["analysis"] = map[string]any{
+			"analyzer": map[string]any{
+				"korean": map[string]any{
+					"type":            "nori",
+					"decompound_mode": "mixed",
+				},
+			},
+		}
+		subjectMapping["analyzer"] = "korean"
+		bodyTextMapping["analyzer"] = "korean"
+	}
+
+	return map[string]any{
+		"settings": settings,
 		"mappings": map[string]any{
 			"dynamic": "strict",
 			"properties": map[string]any{
@@ -194,7 +223,7 @@ func openSearchIndexDefinition() map[string]any {
 				"user_id":        map[string]any{"type": "keyword"},
 				"folder_id":      map[string]any{"type": "keyword"},
 				"recipient":      map[string]any{"type": "keyword"},
-				"subject":        map[string]any{"type": "text"},
+				"subject":        subjectMapping,
 				"subject_lc":     map[string]any{"type": "keyword"},
 				"from_addr":      map[string]any{"type": "keyword"},
 				"from_addr_lc":   map[string]any{"type": "keyword"},
@@ -206,7 +235,7 @@ func openSearchIndexDefinition() map[string]any {
 				"received_at":    map[string]any{"type": "date"},
 				"size":           map[string]any{"type": "long"},
 				"has_attachment": map[string]any{"type": "boolean"},
-				"body_text":      map[string]any{"type": "text"},
+				"body_text":      bodyTextMapping,
 				"body_truncated": map[string]any{"type": "boolean"},
 				"body_max_bytes": map[string]any{"type": "long"},
 			},
