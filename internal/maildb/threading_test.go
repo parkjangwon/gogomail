@@ -22,3 +22,20 @@ func TestNormalizeThreadCandidatesWrapsAndDeduplicates(t *testing.T) {
 		t.Fatalf("normalizeThreadCandidates = %v", got)
 	}
 }
+
+func TestResolveThreadIDSQLUsesOrdinalityArray(t *testing.T) {
+	t.Parallel()
+
+	for _, want := range []string{
+		"unnest($2::text[]) WITH ORDINALITY",
+		"JOIN requested ON requested.rfc_message_id = messages.rfc_message_id",
+		"ORDER BY requested.ordinality",
+	} {
+		if !strings.Contains(resolveThreadIDSQL, want) {
+			t.Fatalf("resolveThreadIDSQL does not include %q:\n%s", want, resolveThreadIDSQL)
+		}
+	}
+	if strings.Contains(resolveThreadIDSQL, "array_position") {
+		t.Fatalf("resolveThreadIDSQL still asks PostgreSQL to rescan candidate arrays:\n%s", resolveThreadIDSQL)
+	}
+}
