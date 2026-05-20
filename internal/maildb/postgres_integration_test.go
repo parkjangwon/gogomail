@@ -898,7 +898,7 @@ INSERT INTO audit_logs (
 		t.Fatalf("insert filtered audit log: %v", err)
 	}
 
-	logs, err := repo.ListAuditLogs(ctx, AuditLogListRequest{
+	logs, _, err := repo.ListAuditLogs(ctx, AuditLogListRequest{
 		Limit:      10,
 		Category:   "admin",
 		Action:     "quota.reconciliation_correction",

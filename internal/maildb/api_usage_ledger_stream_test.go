@@ -169,7 +169,7 @@ func TestAPIUsageLedgerRetentionRunAuditResult(t *testing.T) {
 func TestAuditLogReadsRejectNilDatabase(t *testing.T) {
 	t.Parallel()
 
-	logs, err := (&Repository{}).ListAuditLogs(context.Background(), AuditLogListRequest{})
+	logs, _, err := (&Repository{}).ListAuditLogs(context.Background(), AuditLogListRequest{})
 	if err == nil || !strings.Contains(err.Error(), "database handle is required") {
 		t.Fatalf("logs = %+v err = %v", logs, err)
 	}
