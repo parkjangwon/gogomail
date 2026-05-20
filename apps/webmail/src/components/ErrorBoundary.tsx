@@ -47,7 +47,7 @@ export class ErrorBoundary extends Component<Props, State> {
             <line x1="12" y1="16" x2="12.01" y2="16" />
           </svg>
           <p style={{ fontSize: '14px', fontWeight: 500, color: 'var(--color-text-primary)' }}>문제가 발생했습니다</p>
-          <p style={{ fontSize: '13px' }}>{this.state.error?.message}</p>
+          <p style={{ fontSize: '13px' }}>예기치 않은 오류가 발생했습니다. 페이지를 새로고침하거나 잠시 후 다시 시도해주세요.</p>
           <button
             onClick={() => this.setState({ hasError: false, error: null })}
             style={{ fontSize: '13px', padding: '6px 16px', borderRadius: '6px', border: '1px solid var(--color-border-default)', background: 'transparent', color: 'var(--color-text-primary)', cursor: 'pointer' }}

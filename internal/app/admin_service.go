@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"sort"
 	"strings"
 	"time"
@@ -1407,7 +1408,9 @@ func (s adminService) CreateDomain(ctx context.Context, req maildb.CreateDomainR
 		return domain, err
 	}
 	if s.configStore != nil {
-		_ = s.configStore.PropagateFromParent(ctx, configstore.ScopeDomain, domain.ID, configstore.ScopeCompany, domain.CompanyID)
+		if err := s.configStore.PropagateFromParent(ctx, configstore.ScopeDomain, domain.ID, configstore.ScopeCompany, domain.CompanyID); err != nil {
+			slog.WarnContext(ctx, "failed to propagate config after domain creation", "err", err, "domainID", domain.ID)
+		}
 	}
 	return domain, nil
 }
@@ -1418,7 +1421,9 @@ func (s adminService) CreateUser(ctx context.Context, req maildb.CreateUserReque
 		return user, err
 	}
 	if s.configStore != nil {
-		_ = s.configStore.PropagateFromParent(ctx, configstore.ScopeUser, user.ID, configstore.ScopeDomain, user.DomainID)
+		if err := s.configStore.PropagateFromParent(ctx, configstore.ScopeUser, user.ID, configstore.ScopeDomain, user.DomainID); err != nil {
+			slog.WarnContext(ctx, "failed to propagate config after user creation", "err", err, "userID", user.ID)
+		}
 	}
 	return user, nil
 }

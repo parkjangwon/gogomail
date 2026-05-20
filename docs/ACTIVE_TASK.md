@@ -2,6 +2,20 @@
 
 ## Current Status Summary
 
+**SaaS Pre-Launch Security & Integrity Hardening** ✅ COMPLETE
+- Security (Critical/High): SAML XML signature verification, OIDC RS256/JWKS verification,
+  removed hardcoded admin credentials, company_admin multi-tenant isolation enforced,
+  admin mock APIs replaced with real DB, login rate limiting, IMAP brute-force protection,
+  user enumeration timing fix, SCIM constant-time compare, MFA VerifyFull, legacy hash block
+- Business logic: vacation body/subject field unification, draft-to-send atomicity,
+  MaxUsers/MaxDomains limit enforcement at creation endpoints
+- Infrastructure: production validation for JWT secret/admin token/DB sslmode,
+  Redis password support, Docker pg-hba.conf created, Redis requirepass in compose
+- Data integrity: batchlock panic recovery + lock release, configstore audit log errors,
+  createSystemFolders error propagation, S3 large-upload timeout fix
+- Frontend: ErrorBoundary generic message, filter rules "not implemented" banner,
+  console pages fetch error UI
+
 **Push Notify & Webhook Hardening** ✅ COMPLETE
 - APNs: ES256 JWT (provider token auth) with 45-min caching — replaces raw bearer token
 - WebPush: RFC 8292 VAPID headers (vapid t=<jwt>,k=<pubkey>) — replaces missing auth

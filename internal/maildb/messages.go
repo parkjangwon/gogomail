@@ -475,7 +475,9 @@ WHERE f.user_id = $1
 ORDER BY type DESC, order_index ASC, full_path ASC`
 
 	// Ensure all system folders exist (idempotent, ON CONFLICT DO NOTHING)
-	_ = createSystemFolders(ctx, r.db, userID)
+	if err := createSystemFolders(ctx, r.db, userID); err != nil {
+		return nil, fmt.Errorf("create system folders: %w", err)
+	}
 
 	rows, err := r.db.QueryContext(ctx, query, userID)
 	if err != nil {
@@ -1539,4 +1541,155 @@ WHERE user_id = $1::uuid
 
 func normalizeLimit(limit int) int {
 	return NormalizeMessageListLimit(limit)
+}
+
+// RecordOutgoingFromDraft records an outgoing message and atomically marks the
+// source draft as sent within a single transaction, eliminating the window
+// where a process crash could leave the draft in a sendable state after the
+// message has already been enqueued for delivery.
+func (r *Repository) RecordOutgoingFromDraft(ctx context.Context, msg OutgoingMessage, draftID string) (string, error) {
+	if r.db == nil {
+		return "", fmt.Errorf("database handle is required")
+	}
+	draftID = strings.TrimSpace(draftID)
+	if draftID == "" {
+		return "", fmt.Errorf("draft_id is required")
+	}
+
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return "", fmt.Errorf("begin outgoing message transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	if err := checkAndIncrementUserQuota(ctx, tx, msg.UserID, msg.Size); err != nil {
+		return "", err
+	}
+
+	folderID, err := sentFolderID(ctx, tx, msg.UserID)
+	if err != nil {
+		return "", err
+	}
+	if err := ensureOutgoingSource(ctx, tx, msg.UserID, msg.SourceMessageID); err != nil {
+		return "", err
+	}
+	threadID, inReplyTo, err := outgoingThread(ctx, tx, msg.UserID, msg.SourceMessageID)
+	if err != nil {
+		return "", err
+	}
+	msg.InReplyTo = inReplyTo
+	msg.ThreadID = threadID
+
+	toJSON, err := outboundAddressesJSON(msg.To)
+	if err != nil {
+		return "", err
+	}
+	ccJSON, err := outboundAddressesJSON(msg.Cc)
+	if err != nil {
+		return "", err
+	}
+	bccJSON, err := outboundAddressesJSON(msg.Bcc)
+	if err != nil {
+		return "", err
+	}
+
+	const insertMessage = `
+INSERT INTO messages (
+  tenant_id, domain_id, user_id, folder_id,
+  compose_intent, source_message_id,
+  rfc_message_id, in_reply_to, thread_id, subject, from_addr, from_name,
+  to_addrs, cc_addrs, bcc_addrs,
+  sent_at, size, has_attachment, storage_path, flags, status
+) VALUES (
+  $1, $2, $3, $4,
+  $5, NULLIF($6, '')::uuid,
+  $7, NULLIF($8, ''), NULLIF($9, '')::uuid, $10, $11, $12,
+  $13::jsonb, $14::jsonb, $15::jsonb,
+  $16, $17, $18, $19, '{"read":true}'::jsonb, 'active'
+) RETURNING id::text`
+
+	var messageID string
+	if err := tx.QueryRowContext(
+		ctx,
+		insertMessage,
+		msg.DomainID,
+		msg.DomainID,
+		msg.UserID,
+		folderID,
+		normalizeOutgoingIntent(msg.ComposeIntent),
+		strings.TrimSpace(msg.SourceMessageID),
+		msg.RFCMessageID,
+		inReplyTo,
+		threadID,
+		msg.Subject,
+		msg.From.Email,
+		msg.From.Name,
+		string(toJSON),
+		string(ccJSON),
+		string(bccJSON),
+		msg.SentAt,
+		msg.Size,
+		msg.HasAttachment,
+		msg.StoragePath,
+	).Scan(&messageID); err != nil {
+		return "", fmt.Errorf("insert outgoing message metadata: %w", err)
+	}
+
+	if err := insertOutgoingOutbox(ctx, tx, messageID, msg); err != nil {
+		return "", err
+	}
+
+	// Atomically mark the draft as sent so no second send can occur even if
+	// the process crashes after this commit.
+	result, err := tx.ExecContext(ctx, `
+UPDATE messages AS draft
+SET status = 'deleted',
+    deleted_at = now(),
+    updated_at = now(),
+    source_message_id = sent.id
+FROM messages AS sent
+WHERE draft.user_id = $1
+  AND draft.id = $2
+  AND draft.status = 'draft'
+  AND sent.user_id = draft.user_id
+  AND sent.id = $3
+  AND sent.status = 'active'`, strings.TrimSpace(msg.UserID), draftID, messageID)
+	if err != nil {
+		return "", fmt.Errorf("mark draft sent: %w", err)
+	}
+	affected, err := result.RowsAffected()
+	if err == nil && affected == 0 {
+		return "", fmt.Errorf("draft %q not found or already sent", draftID)
+	}
+	if _, err := tx.ExecContext(ctx, `
+UPDATE attachments
+SET draft_id = NULL,
+    message_id = $3,
+    status = 'stored'
+WHERE user_id = $1
+  AND draft_id = $2
+  AND message_id IS NULL
+  AND status = 'uploading'`, strings.TrimSpace(msg.UserID), draftID, messageID); err != nil {
+		return "", fmt.Errorf("attach sent draft uploads: %w", err)
+	}
+	if _, err := tx.ExecContext(ctx, `
+UPDATE messages
+SET has_attachment = EXISTS (
+    SELECT 1
+    FROM attachments
+    WHERE message_id = $2
+      AND user_id = $1
+      AND status = 'stored'
+  ),
+  updated_at = now()
+WHERE user_id = $1
+  AND id = $2
+  AND status = 'active'`, strings.TrimSpace(msg.UserID), messageID); err != nil {
+		return "", fmt.Errorf("refresh sent attachment state: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return "", fmt.Errorf("commit outgoing message transaction: %w", err)
+	}
+	return messageID, nil
 }

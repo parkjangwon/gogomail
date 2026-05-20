@@ -10,6 +10,7 @@ import {
   Spinner,
   SpaceBetween,
   Badge,
+  Flashbar,
 } from '@cloudscape-design/components';
 import { useState, useEffect } from 'react';
 import { useI18n } from '@/app/i18n-provider';
@@ -26,6 +27,7 @@ export default function CompliancePage() {
   const { t } = useI18n();
   const [reports, setReports] = useState<ComplianceReport[]>([]);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState('');
 
   useEffect(() => {
     fetchComplianceReports();
@@ -33,6 +35,7 @@ export default function CompliancePage() {
 
   const fetchComplianceReports = async () => {
     setLoading(true);
+    setFetchError('');
     try {
       const res = await fetch('/api/admin/compliance', {
         credentials: 'include'
@@ -40,9 +43,12 @@ export default function CompliancePage() {
       if (res.ok) {
         const data = await res.json();
         setReports(data.reports || []);
+      } else {
+        setFetchError('데이터를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.');
       }
     } catch (error) {
       console.error('Failed to fetch compliance reports:', error);
+      setFetchError('데이터를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.');
     } finally {
       setLoading(false);
     }
@@ -80,6 +86,9 @@ export default function CompliancePage() {
       }
     >
       <SpaceBetween size="l">
+        {fetchError && (
+          <Flashbar items={[{ type: 'error', content: fetchError, id: 'fetch-error', dismissible: true, onDismiss: () => setFetchError('') }]} />
+        )}
         <Container header={<Header variant="h3">{t('pages.compliance_page.frameworks_header')}</Header>}>
           <Box color="text-body-secondary">
             {t('pages.compliance_page.frameworks_desc')}

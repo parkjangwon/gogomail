@@ -43,6 +43,7 @@ type S3Store struct {
 	sessionToken    string
 	forcePathStyle  bool
 	client          *http.Client
+	uploadClient    *http.Client
 	now             func() time.Time
 }
 
@@ -104,6 +105,21 @@ func NewS3Store(opts S3Options) (*S3Store, error) {
 	if client == nil {
 		client = &http.Client{Timeout: 30 * time.Second}
 	}
+	// uploadClient has no overall timeout so large uploads aren't cut short.
+	// Response-header timeout prevents hung connections; body transfer is
+	// bounded by the caller's context instead.
+	// When a custom HTTPClient is provided (e.g. in tests), reuse it for
+	// uploads so mock transports apply uniformly.
+	var uploadClient *http.Client
+	if opts.HTTPClient != nil {
+		uploadClient = opts.HTTPClient
+	} else {
+		uploadClient = &http.Client{
+			Transport: &http.Transport{
+				ResponseHeaderTimeout: 30 * time.Second,
+			},
+		}
+	}
 	forcePathStyle := opts.ForcePathStyle || s3BucketNeedsPathStyle(endpoint, bucket)
 	return &S3Store{
 		endpoint:        endpoint,
@@ -115,6 +131,7 @@ func NewS3Store(opts S3Options) (*S3Store, error) {
 		sessionToken:    opts.SessionToken,
 		forcePathStyle:  forcePathStyle,
 		client:          client,
+		uploadClient:    uploadClient,
 		now:             time.Now,
 	}, nil
 }
@@ -127,7 +144,7 @@ func (s *S3Store) Put(ctx context.Context, objectPath string, body io.Reader) er
 	if err != nil {
 		return err
 	}
-	resp, err := s.client.Do(req)
+	resp, err := s.uploadClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("put s3 object: %w", err)
 	}

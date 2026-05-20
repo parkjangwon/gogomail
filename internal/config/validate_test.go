@@ -10,6 +10,13 @@ import (
 	"time"
 )
 
+// setProductionSecrets applies the minimum required secrets for a production config to pass Validate().
+func setProductionSecrets(cfg *Config) {
+	cfg.AuthJWTSecret = "test-jwt-secret-for-production-tests"
+	cfg.AdminToken = "test-admin-token-for-production-tests"
+	cfg.DatabaseURL = "postgres://gogomail:gogomail@localhost:5432/gogomail?sslmode=require"
+}
+
 func TestValidateRejectsProductionInsecureSubmissionAuth(t *testing.T) {
 	cfg := Load()
 	cfg.Environment = "production"
@@ -55,6 +62,48 @@ func TestValidateRejectsProductionInsecureCardDAVAuth(t *testing.T) {
 	}
 }
 
+func TestValidateRejectsEmptyJWTSecretInProduction(t *testing.T) {
+	cfg := Load()
+	cfg.Environment = "production"
+	cfg.SubmissionAllowInsecureAuth = false
+	cfg.IMAPAllowInsecureAuth = false
+	cfg.CalDAVAllowInsecureAuth = false
+	cfg.CardDAVAllowInsecureAuth = false
+	setProductionSecrets(&cfg)
+	cfg.AuthJWTSecret = ""
+	if err := cfg.Validate(); err == nil || !strings.Contains(err.Error(), "GOGOMAIL_AUTH_JWT_SECRET") {
+		t.Fatalf("Validate() error = %v, want JWT secret rejection in production", err)
+	}
+}
+
+func TestValidateRejectsEmptyAdminTokenInProduction(t *testing.T) {
+	cfg := Load()
+	cfg.Environment = "production"
+	cfg.SubmissionAllowInsecureAuth = false
+	cfg.IMAPAllowInsecureAuth = false
+	cfg.CalDAVAllowInsecureAuth = false
+	cfg.CardDAVAllowInsecureAuth = false
+	setProductionSecrets(&cfg)
+	cfg.AdminToken = ""
+	if err := cfg.Validate(); err == nil || !strings.Contains(err.Error(), "GOGOMAIL_ADMIN_TOKEN") {
+		t.Fatalf("Validate() error = %v, want admin token rejection in production", err)
+	}
+}
+
+func TestValidateRejectsSSLModeDisableInProduction(t *testing.T) {
+	cfg := Load()
+	cfg.Environment = "production"
+	cfg.SubmissionAllowInsecureAuth = false
+	cfg.IMAPAllowInsecureAuth = false
+	cfg.CalDAVAllowInsecureAuth = false
+	cfg.CardDAVAllowInsecureAuth = false
+	setProductionSecrets(&cfg)
+	cfg.DatabaseURL = "postgres://gogomail:gogomail@localhost:5432/gogomail?sslmode=disable"
+	if err := cfg.Validate(); err == nil || !strings.Contains(err.Error(), "sslmode=disable") {
+		t.Fatalf("Validate() error = %v, want sslmode=disable rejection in production", err)
+	}
+}
+
 func TestValidateRejectsInvalidCalDAVTrustedProxies(t *testing.T) {
 	cfg := Load()
 	cfg.CalDAVTrustedProxies = []string{"bad-proxy"}
@@ -94,6 +143,9 @@ func TestValidateAcceptsKnownEnvironmentValues(t *testing.T) {
 			cfg.IMAPAllowInsecureAuth = false
 			cfg.CalDAVAllowInsecureAuth = false
 			cfg.CardDAVAllowInsecureAuth = false
+			if strings.EqualFold(strings.TrimSpace(env), "production") {
+				setProductionSecrets(&cfg)
+			}
 			if err := cfg.Validate(); err != nil {
 				t.Fatalf("Validate() error = %v", err)
 			}
@@ -214,6 +266,7 @@ func TestValidateRequiresExplicitS3EndpointInProduction(t *testing.T) {
 	cfg.IMAPAllowInsecureAuth = false
 	cfg.CalDAVAllowInsecureAuth = false
 	cfg.CardDAVAllowInsecureAuth = false
+	setProductionSecrets(&cfg)
 	cfg.StorageBackend = "s3"
 	cfg.StorageS3Endpoint = ""
 	cfg.StorageS3Region = "us-east-1"
@@ -653,6 +706,7 @@ func TestValidateAcceptsHTTPSWebhooksInProduction(t *testing.T) {
 	cfg.IMAPAllowInsecureAuth = false
 	cfg.CalDAVAllowInsecureAuth = false
 	cfg.CardDAVAllowInsecureAuth = false
+	setProductionSecrets(&cfg)
 	cfg.AttachmentScanBackend = "webhook"
 	cfg.AttachmentScanWebhookURL = "https://scanner.example/scan"
 	cfg.PushNotifyBackend = "webhook"
