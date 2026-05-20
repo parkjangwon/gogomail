@@ -1,6 +1,11 @@
 # gogomail current status
 
-Last updated: 2026-05-21 (SaaS launch hardening continues: admin alert event pagination verified)
+Last updated: 2026-05-21 (SaaS launch hardening continues: drive cleanup retry batching verified)
+
+## Drive Cleanup Retry Batching (2026-05-21)
+- Drive object cleanup retry now accumulates successfully deleted cleanup failure IDs and resolves them with one batched `UPDATE ... WHERE id = ANY($1::uuid[])`.
+- The single-failure resolve path remains available for manual/admin operations, while the retry worker no longer performs one database resolve call per cleaned object.
+- Verification: `go test ./internal/drive` passes.
 
 ## Admin Alert Event Pagination (2026-05-21)
 - Company alert-event listing now uses a `limit + 1` probe and returns `limit`, `offset`, and `has_more` response metadata.

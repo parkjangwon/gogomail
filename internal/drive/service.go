@@ -22,6 +22,7 @@ type ObjectCleanupFailureStore interface {
 	ObjectCleanupFailureRecorder
 	ListObjectCleanupFailures(context.Context, ListObjectCleanupFailuresRequest) ([]ObjectCleanupFailure, error)
 	ResolveObjectCleanupFailure(context.Context, ResolveObjectCleanupFailureRequest) (ObjectCleanupFailure, error)
+	ResolveObjectCleanupFailures(context.Context, []string) (int, error)
 }
 
 type Service struct {
@@ -945,6 +946,7 @@ func (s *Service) RetryObjectCleanupFailures(ctx context.Context, req ListObject
 		return RetryObjectCleanupFailuresResult{}, err
 	}
 	result := RetryObjectCleanupFailuresResult{Scanned: len(failures)}
+	resolvedIDs := make([]string, 0, len(failures))
 	for _, failure := range failures {
 		object := DeletedObject{StorageBackend: failure.StorageBackend, StoragePath: failure.StoragePath}
 		if err := validateDeletedObjectsBelongToUser(failure.UserID, []DeletedObject{object}); err != nil {
@@ -963,10 +965,14 @@ func (s *Service) RetryObjectCleanupFailures(ctx context.Context, req ListObject
 			}
 			continue
 		}
-		if _, err := s.cleanupFailureStore.ResolveObjectCleanupFailure(ctx, ResolveObjectCleanupFailureRequest{ID: failure.ID}); err != nil {
+		resolvedIDs = append(resolvedIDs, failure.ID)
+	}
+	if len(resolvedIDs) > 0 {
+		resolved, err := s.cleanupFailureStore.ResolveObjectCleanupFailures(ctx, resolvedIDs)
+		if err != nil {
 			return result, err
 		}
-		result.Resolved++
+		result.Resolved += resolved
 	}
 	if result.Failed > 0 {
 		return result, fmt.Errorf("retry drive object cleanup: %d failures remain", result.Failed)

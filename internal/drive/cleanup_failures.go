@@ -7,6 +7,8 @@ import (
 	"strings"
 	"time"
 	"unicode/utf8"
+
+	"github.com/lib/pq"
 )
 
 const maxObjectCleanupErrorBytes = 2048
@@ -219,6 +221,49 @@ RETURNING
 		return ObjectCleanupFailure{}, fmt.Errorf("resolve drive object cleanup failure: %w", err)
 	}
 	return failure, nil
+}
+
+func (r *Repository) ResolveObjectCleanupFailures(ctx context.Context, ids []string) (int, error) {
+	if r == nil || r.db == nil {
+		return 0, fmt.Errorf("database handle is required")
+	}
+	ids = normalizeObjectCleanupFailureIDs(ids)
+	if len(ids) == 0 {
+		return 0, nil
+	}
+	const query = `
+UPDATE drive_object_cleanup_failures
+SET status = 'resolved',
+    resolved_at = COALESCE(resolved_at, now()),
+    updated_at = now()
+WHERE id = ANY($1::uuid[])
+  AND status = 'pending'`
+	res, err := r.db.ExecContext(ctx, query, pq.Array(ids))
+	if err != nil {
+		return 0, fmt.Errorf("resolve drive object cleanup failures: %w", err)
+	}
+	affected, err := res.RowsAffected()
+	if err != nil {
+		return 0, fmt.Errorf("resolve drive object cleanup failures rows affected: %w", err)
+	}
+	return int(affected), nil
+}
+
+func normalizeObjectCleanupFailureIDs(ids []string) []string {
+	out := make([]string, 0, len(ids))
+	seen := make(map[string]struct{}, len(ids))
+	for _, id := range ids {
+		clean, err := validateDriveID("id", id, true)
+		if err != nil {
+			continue
+		}
+		if _, ok := seen[clean]; ok {
+			continue
+		}
+		seen[clean] = struct{}{}
+		out = append(out, clean)
+	}
+	return out
 }
 
 func ValidateObjectCleanupFailure(failure ObjectCleanupFailure) (ObjectCleanupFailure, error) {
