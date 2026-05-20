@@ -193,6 +193,23 @@ func TestValidateFinalizeAttachmentUploadSessionRequest(t *testing.T) {
 	}
 }
 
+func TestFinalizeAttachmentUploadSessionSQLProjectsTargetColumns(t *testing.T) {
+	t.Parallel()
+
+	for _, want := range []string{
+		"SELECT\n    user_id,\n    draft_id,\n    upload_id,\n    storage_path,\n    filename,\n    declared_size,\n    mime_type",
+		"FOR UPDATE",
+		"RETURNING COALESCE(target.draft_id::text, '') AS draft_id",
+	} {
+		if !strings.Contains(finalizeAttachmentUploadSessionSQL, want) {
+			t.Fatalf("finalizeAttachmentUploadSessionSQL missing %q:\n%s", want, finalizeAttachmentUploadSessionSQL)
+		}
+	}
+	if strings.Contains(finalizeAttachmentUploadSessionSQL, "SELECT *") {
+		t.Fatalf("finalizeAttachmentUploadSessionSQL still projects every session column:\n%s", finalizeAttachmentUploadSessionSQL)
+	}
+}
+
 func TestValidateExpireAttachmentUploadSessionsRequest(t *testing.T) {
 	t.Parallel()
 

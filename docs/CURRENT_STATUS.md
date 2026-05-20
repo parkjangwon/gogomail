@@ -7732,3 +7732,9 @@ Next focus areas:
 - The repository still reports a not-found error when any requested attachment cannot be rebound, while duplicate attachment IDs are de-duplicated before the batch update.
 - Added a SQL-shape regression test to keep the draft attachment path off per-attachment updates.
 - Verification: `go test ./internal/maildb -run 'TestBindDraftAttachmentsSQLUsesSingleTypedArrayUpdate|TestPostgresCanceledDraftAttachmentCannotBeRebound|TestPostgresDraftToSendMovesAttachmentsAndQueuesOutbox'`.
+
+## 2026-05-21 Attachment finalization projection tightening
+
+- Attachment upload session finalization now projects only `user_id`, `draft_id`, `upload_id`, `storage_path`, `filename`, `declared_size`, and `mime_type` in the locked `target` CTE instead of selecting every session column.
+- Added a SQL-shape regression test to prevent the finalize path from drifting back to `SELECT *`.
+- Verification: `go test ./internal/maildb -run 'TestFinalizeAttachmentUploadSessionSQLProjectsTargetColumns|TestPostgresFinalizeAttachmentUploadSession'`.
