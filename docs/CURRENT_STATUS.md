@@ -7893,3 +7893,9 @@ Next focus areas:
 - Logo cache hashes now store the actual SHA-256 digest of the logo body instead of hashing an empty digest appended to the body bytes.
 - Added tests for both VMC false-positive prevention and cached logo body hashing.
 - Verification: `go test ./internal/bimi`.
+
+## 2026-05-21 Recipient group expansion caching
+
+- Mail send recipient group expansion now caches repeated `org:` and `addressbook:` tokens within a single send request.
+- Repeated group references across To/Cc/Bcc still de-duplicate final recipients, but no longer repeat the same repository expansion query.
+- Verification: `go test ./internal/mailservice -run TestExpandRecipientGroupsCachesRepeatedTokens`.

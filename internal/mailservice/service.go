@@ -11,6 +11,7 @@ import (
 	"io"
 	"log/slog"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -2907,16 +2908,17 @@ func (s *Service) expandRecipientGroups(ctx context.Context, req SendTextRequest
 		return SendTextRequest{}, fmt.Errorf("recipient group repository is required")
 	}
 	seen := make(map[string]struct{})
+	cache := make(map[string][]outbound.Address)
 	var err error
-	req.To, err = s.expandRecipientGroupField(ctx, repo, req.UserID, req.To, seen)
+	req.To, err = s.expandRecipientGroupField(ctx, repo, req.UserID, req.To, seen, cache)
 	if err != nil {
 		return SendTextRequest{}, err
 	}
-	req.Cc, err = s.expandRecipientGroupField(ctx, repo, req.UserID, req.Cc, seen)
+	req.Cc, err = s.expandRecipientGroupField(ctx, repo, req.UserID, req.Cc, seen, cache)
 	if err != nil {
 		return SendTextRequest{}, err
 	}
-	req.Bcc, err = s.expandRecipientGroupField(ctx, repo, req.UserID, req.Bcc, seen)
+	req.Bcc, err = s.expandRecipientGroupField(ctx, repo, req.UserID, req.Bcc, seen, cache)
 	if err != nil {
 		return SendTextRequest{}, err
 	}
@@ -2934,7 +2936,7 @@ func hasRecipientGroupTokens(req SendTextRequest) bool {
 	return false
 }
 
-func (s *Service) expandRecipientGroupField(ctx context.Context, repo RecipientGroupRepository, userID string, addresses []outbound.Address, seen map[string]struct{}) ([]outbound.Address, error) {
+func (s *Service) expandRecipientGroupField(ctx context.Context, repo RecipientGroupRepository, userID string, addresses []outbound.Address, seen map[string]struct{}, cache map[string][]outbound.Address) ([]outbound.Address, error) {
 	expanded := make([]outbound.Address, 0, len(addresses))
 	appendAddress := func(addr outbound.Address) {
 		key := strings.ToLower(strings.TrimSpace(addr.Email))
@@ -2951,18 +2953,30 @@ func (s *Service) expandRecipientGroupField(ctx context.Context, repo RecipientG
 		switch recipientGroupTokenKind(addr.Email) {
 		case "org":
 			orgID, includeChildren := parseOrgRecipientToken(addr.Email)
-			members, err := repo.ExpandOrgRecipients(ctx, userID, orgID, includeChildren)
-			if err != nil {
-				return nil, err
+			cacheKey := "org:" + orgID + ":" + strconv.FormatBool(includeChildren)
+			members, ok := cache[cacheKey]
+			if !ok {
+				var err error
+				members, err = repo.ExpandOrgRecipients(ctx, userID, orgID, includeChildren)
+				if err != nil {
+					return nil, err
+				}
+				cache[cacheKey] = members
 			}
 			for _, member := range members {
 				appendAddress(member)
 			}
 		case "addressbook":
 			bookID := strings.TrimPrefix(strings.TrimSpace(addr.Email), "addressbook:")
-			contacts, err := repo.ExpandAddressBookRecipients(ctx, userID, bookID)
-			if err != nil {
-				return nil, err
+			cacheKey := "addressbook:" + bookID
+			contacts, ok := cache[cacheKey]
+			if !ok {
+				var err error
+				contacts, err = repo.ExpandAddressBookRecipients(ctx, userID, bookID)
+				if err != nil {
+					return nil, err
+				}
+				cache[cacheKey] = contacts
 			}
 			for _, contact := range contacts {
 				appendAddress(contact)
