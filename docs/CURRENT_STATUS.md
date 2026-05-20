@@ -7917,3 +7917,9 @@ Next focus areas:
 - Delivery event handling now computes the normalized, de-duplicated recipient list once per queued message and carries it on `Job`.
 - Transport, retry, throttle, backoff, and delivery attempt paths can reuse the cached list instead of repeatedly merging To/Cc/Bcc and normalizing addresses.
 - Verification: `go test ./internal/delivery -run 'Test(JobRecipientsUsesCachedRecipientList|AttemptsForUsesDeduplicatedRecipients|DecodeQueuedMessageNormalizesAndDeduplicatesRecipients)'`.
+
+## 2026-05-21 Webmail session settings honesty
+
+- Webmail security settings no longer show hardcoded fake historical device sessions.
+- The view now shows only the current session plus the actual all-session revoke action, and revoke failures render as an inline error instead of a blocking browser alert.
+- Verification: `pnpm --dir apps/webmail type-check`; source grep confirms `Chrome on macOS` and `Safari on iPhone` are no longer present.

@@ -15,12 +15,14 @@ import {
 interface SettingsSecuritySectionProps {
   userEmail?: string;
   revokingAll: boolean;
+  revokeAllError?: string;
   onRevokeAll: () => void;
 }
 
 export function SettingsSecuritySection({
   userEmail,
   revokingAll,
+  revokeAllError,
   onRevokeAll,
 }: SettingsSecuritySectionProps) {
   const [mfaStatus, setMfaStatus] = useState<MFAStatus | null>(null);
@@ -79,12 +81,6 @@ export function SettingsSecuritySection({
       setMfaLoading(false);
     }
   }
-
-  const loginHistory = [
-    { device: '현재 기기', location: '서울, 대한민국', time: '지금', current: true },
-    { device: 'Chrome on macOS', location: '서울, 대한민국', time: '2일 전', current: false },
-    { device: 'Safari on iPhone', location: '부산, 대한민국', time: '5일 전', current: false },
-  ];
 
   return (
     <>
@@ -230,18 +226,22 @@ export function SettingsSecuritySection({
 
       <SectionCard>
         <SectionHeader>세션 관리</SectionHeader>
-        {loginHistory.map((session, i) => (
-          <Row key={session.device} label={session.device} description={`${session.location} · ${session.time}`} last={i === loginHistory.length - 1}>
-            {session.current
-              ? <span style={{ fontSize: '11px', color: 'var(--color-success, #22c55e)', fontWeight: 600, background: 'rgba(34,197,94,0.1)', padding: '2px 8px', borderRadius: '10px' }}>현재</span>
-              : <button style={{ fontSize: '12px', color: 'var(--color-destructive)', background: 'transparent', border: '1px solid rgba(220,38,38,0.3)', borderRadius: '5px', padding: '3px 10px', cursor: 'pointer' }}>종료</button>
-            }
-          </Row>
-        ))}
+        <Row
+          label="현재 세션"
+          description="현재 로그인된 브라우저 세션입니다. 모든 기기 로그아웃을 사용하면 다른 활성 세션도 함께 종료됩니다."
+          last
+        >
+          <span style={{ fontSize: '11px', color: 'var(--color-success, #22c55e)', fontWeight: 600, background: 'rgba(34,197,94,0.1)', padding: '2px 8px', borderRadius: '10px' }}>현재</span>
+        </Row>
       </SectionCard>
 
       <SectionCard>
         <SectionHeader>위험 구역</SectionHeader>
+        {revokeAllError && (
+          <div role="alert" style={{ margin: '0 20px 12px', fontSize: '13px', color: 'var(--color-destructive)', background: 'rgba(217,79,61,0.08)', border: '1px solid rgba(217,79,61,0.2)', borderRadius: '6px', padding: '8px 12px' }}>
+            {revokeAllError}
+          </div>
+        )}
         <Row label="모든 기기에서 로그아웃" description="현재 기기를 포함한 모든 활성 세션을 즉시 종료합니다" last>
           <button
             onClick={onRevokeAll}

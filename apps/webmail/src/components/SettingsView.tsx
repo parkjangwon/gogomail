@@ -119,6 +119,7 @@ export function SettingsView({ userEmail, userName, initialSection }: SettingsVi
 
   // Security
   const [revokingAll, setRevokingAll] = useState(false);
+  const [revokeAllError, setRevokeAllError] = useState('');
 
   // Storage / Backup
   const [folderStats, setFolderStats] = useState<FolderStats[]>([]);
@@ -345,6 +346,7 @@ export function SettingsView({ userEmail, userName, initialSection }: SettingsVi
 
   async function handleRevokeAll() {
     if (!window.confirm('모든 기기에서 로그아웃하시겠습니까? 현재 세션도 종료됩니다.')) return;
+    setRevokeAllError('');
     setRevokingAll(true);
     const ok = await revokeAllSessions();
     if (ok) {
@@ -352,7 +354,7 @@ export function SettingsView({ userEmail, userName, initialSection }: SettingsVi
       router.push('/login');
     } else {
       setRevokingAll(false);
-      window.alert('세션 취소에 실패했습니다. 다시 시도해 주세요.');
+      setRevokeAllError('세션 취소에 실패했습니다. 다시 시도해 주세요.');
     }
   }
 
@@ -929,6 +931,7 @@ export function SettingsView({ userEmail, userName, initialSection }: SettingsVi
           <SettingsSecuritySection
             userEmail={userEmail}
             revokingAll={revokingAll}
+            revokeAllError={revokeAllError}
             onRevokeAll={handleRevokeAll}
           />
         );
