@@ -6440,3 +6440,7 @@ Target outcome:
 1765. Directory organization-tree listing now emits the domain predicate only
       when requested, avoiding broad optional `OR` guards on organization
       navigation reads while preserving the same active-unit projection.
+1766. Directory alias and user-email exact lookup queries now add active-status
+      predicates only when `ActiveOnly` is requested, avoiding boolean optional
+      `OR` guards in hot address resolution paths while preserving inactive
+      lookup behavior.
