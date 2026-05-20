@@ -6566,3 +6566,6 @@ Target outcome:
 1804. IMAP cursor-page message listing now projects explicit summary columns
       from the assigned/lazy UID candidate union instead of using an outer
       `SELECT *`.
+1805. Open-tracking pixel creation now writes recipient pixels with one typed
+      array `unnest` INSERT instead of one INSERT per recipient, reducing DB
+      round trips for tracked bulk sends.

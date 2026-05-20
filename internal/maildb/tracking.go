@@ -5,6 +5,8 @@ import (
 	"database/sql"
 	"fmt"
 	"time"
+
+	"github.com/lib/pq"
 )
 
 // TrackingPixel holds one row from message_tracking_pixels.
@@ -30,27 +32,41 @@ func (r *Repository) CreateTrackingPixels(ctx context.Context, pixels []Tracking
 	if len(pixels) == 0 {
 		return nil
 	}
+	pixelIDs := make([]string, 0, len(pixels))
+	messageIDs := make([]string, 0, len(pixels))
+	senderUserIDs := make([]string, 0, len(pixels))
+	recipientEmails := make([]string, 0, len(pixels))
+	for _, p := range pixels {
+		pixelIDs = append(pixelIDs, p.PixelID)
+		messageIDs = append(messageIDs, p.MessageID)
+		senderUserIDs = append(senderUserIDs, p.SenderUserID)
+		recipientEmails = append(recipientEmails, p.RecipientEmail)
+	}
+
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("begin create tracking pixels transaction: %w", err)
 	}
 	defer tx.Rollback()
 
-	const query = `
-INSERT INTO message_tracking_pixels (pixel_id, message_id, sender_user_id, recipient_email)
-VALUES ($1, $2::uuid, $3::uuid, $4)
-ON CONFLICT (pixel_id) DO NOTHING`
-
-	for _, p := range pixels {
-		if _, err := tx.ExecContext(ctx, query, p.PixelID, p.MessageID, p.SenderUserID, p.RecipientEmail); err != nil {
-			return fmt.Errorf("insert tracking pixel for %q: %w", p.RecipientEmail, err)
-		}
+	if _, err := tx.ExecContext(ctx, createTrackingPixelsSQL, pq.Array(pixelIDs), pq.Array(messageIDs), pq.Array(senderUserIDs), pq.Array(recipientEmails)); err != nil {
+		return fmt.Errorf("insert tracking pixels: %w", err)
 	}
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("commit create tracking pixels: %w", err)
 	}
 	return nil
 }
+
+const createTrackingPixelsSQL = `
+INSERT INTO message_tracking_pixels (pixel_id, message_id, sender_user_id, recipient_email)
+SELECT
+  input.pixel_id,
+  input.message_id,
+  input.sender_user_id,
+  input.recipient_email
+FROM unnest($1::text[], $2::uuid[], $3::uuid[], $4::text[]) AS input(pixel_id, message_id, sender_user_id, recipient_email)
+ON CONFLICT (pixel_id) DO NOTHING`
 
 // RecordTrackingOpen inserts a new open event for pixel_id.
 // Returns nil if pixel_id is not found (silently ignored).

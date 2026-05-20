@@ -326,6 +326,7 @@ Go Backend (`internal/`):
 - RDBMS membership sync도 provider schema가 membership query를 지원하지 않는 상태에서 성공 no-op으로 보이지 않도록 `ErrMembershipSyncUnsupported` 실패로 명시함
 - Partial delivery attempt 기록이 실패 수신자마다 DSN recipient map을 재생성하지 않고 요청당 한 번 만든 map을 재사용하도록 바꿔 대량 부분 실패 기록의 O(n²) 비용을 제거함
 - `GetMessage` detail path가 `HasAttachment=false`인 메시지에서 attachment list 조회를 건너뛰도록 바꿔 첨부 없는 읽기 경로의 DB 왕복을 줄이고, cache hit/miss 벤치마크를 추가함
+- open-tracking pixel 생성이 수신자별 INSERT를 반복하지 않고 typed array `unnest` 기반 단일 INSERT로 저장하도록 바꿔 대량 수신자 tracking 설정 메일의 DB 왕복을 줄임
 - `BenchmarkGetMessageBodyCache`: miss `~7.83 us/op`, `10979 B/op`, `85 allocs/op`; hit `~933.6 ns/op`, `568 B/op`, `9 allocs/op`
 - README/README.ko, Docker env example, console/webmail env examples, backend release readiness 문서를 최신 운영 env 그룹(성능, 백업/복구, push/webhook, storage, API usage, system email)과 동기화함
 - BIMI VMC URL 존재만으로 `vmcVerified=true`를 반환하던 stub 동작을 제거해 실제 인증서 검증 전에는 VMC를 검증됨으로 표시하지 않도록 고정하고, logo cache hash 계산을 실제 SHA-256 body hash로 수정함
