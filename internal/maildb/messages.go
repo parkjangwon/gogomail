@@ -647,7 +647,7 @@ func (r *Repository) ListMessagesPage(ctx context.Context, userID string, folder
 	}
 
 	folderID = strings.TrimSpace(folderID)
-	query := buildMessageListPageSQL(sortMode, folderID)
+	query := buildMessageListPageSQL(sortMode, folderID, filter)
 
 	rows, err := r.db.QueryContext(
 		ctx,
@@ -692,15 +692,30 @@ func (r *Repository) ListMessagesPage(ctx context.Context, userID string, folder
 	return messages, nil
 }
 
-func buildMessageListPageSQL(sortMode, folderID string) string {
+func buildMessageListPageSQL(sortMode, folderID string, filter MessageListFilter) string {
 	query := messageListPageNewestSQL
 	if sortMode == ListSortOldest {
 		query = messageListPageOldestSQL
 	}
 	if folderID == "" {
-		return strings.Replace(query, "  AND ($2 = '' OR messages.folder_id::text = $2)\n", "", 1)
+		query = strings.Replace(query, "  AND ($2 = '' OR messages.folder_id::text = $2)\n", "", 1)
+	} else {
+		query = strings.Replace(query, "  AND ($2 = '' OR messages.folder_id::text = $2)", "  AND messages.folder_id = $2::uuid", 1)
 	}
-	return strings.Replace(query, "  AND ($2 = '' OR messages.folder_id::text = $2)", "  AND messages.folder_id = $2::uuid", 1)
+	if filter.Read == nil {
+		query = strings.Replace(query, "  AND ($6::boolean IS NULL OR COALESCE((messages.flags->>'read')::boolean, false) = $6::boolean)\n", "", 1)
+	} else {
+		query = strings.Replace(query, "  AND ($6::boolean IS NULL OR COALESCE((messages.flags->>'read')::boolean, false) = $6::boolean)", "  AND COALESCE((messages.flags->>'read')::boolean, false) = $6::boolean", 1)
+	}
+	if filter.Starred == nil {
+		query = strings.Replace(query, "  AND ($7::boolean IS NULL OR COALESCE((messages.flags->>'starred')::boolean, false) = $7::boolean)\n", "", 1)
+	} else {
+		query = strings.Replace(query, "  AND ($7::boolean IS NULL OR COALESCE((messages.flags->>'starred')::boolean, false) = $7::boolean)", "  AND COALESCE((messages.flags->>'starred')::boolean, false) = $7::boolean", 1)
+	}
+	if filter.HasAttachment == nil {
+		return strings.Replace(query, "  AND ($8::boolean IS NULL OR messages.has_attachment = $8::boolean)\n", "", 1)
+	}
+	return strings.Replace(query, "  AND ($8::boolean IS NULL OR messages.has_attachment = $8::boolean)", "  AND messages.has_attachment = $8::boolean", 1)
 }
 
 const messageListPageNewestSQL = `
