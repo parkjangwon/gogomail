@@ -2715,25 +2715,8 @@ func (r *Repository) ListAdminUsers(ctx context.Context, req AdminUserListReques
 	if req.ProbeMore {
 		queryLimit = limit + 1
 	}
-	const query = `
-SELECT
-  u.id::text,
-  u.domain_id::text,
-  d.company_id::text,
-  u.username,
-  COALESCE(ua.address, u.username),
-  u.role,
-  u.status,
-  u.created_at
-FROM users u
-JOIN domains d ON d.id = u.domain_id
-LEFT JOIN user_addresses ua ON ua.user_id = u.id AND ua.address LIKE u.username || '@%'
-WHERE u.role IN ('system_admin', 'company_admin')
-  AND ($1 = '' OR d.company_id::text = $1)
-ORDER BY u.created_at DESC
-LIMIT $2`
-
-	rows, err := r.db.QueryContext(ctx, query, strings.TrimSpace(req.CompanyID), queryLimit)
+	query, args := buildListAdminUsersQuery(req.CompanyID, queryLimit)
+	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, false, fmt.Errorf("list admin users: %w", err)
 	}
@@ -2767,6 +2750,34 @@ LIMIT $2`
 		users = []AdminUserView{}
 	}
 	return users, hasMore, nil
+}
+
+func buildListAdminUsersQuery(companyID string, queryLimit int) (string, []any) {
+	args := make([]any, 0, 2)
+	where := []string{"u.role IN ('system_admin', 'company_admin')"}
+	if companyID = strings.TrimSpace(companyID); companyID != "" {
+		args = append(args, companyID)
+		where = append(where, fmt.Sprintf("d.company_id = $%d::uuid", len(args)))
+	}
+	args = append(args, queryLimit)
+
+	query := `
+SELECT
+  u.id::text,
+  u.domain_id::text,
+  d.company_id::text,
+  u.username,
+  COALESCE(ua.address, u.username),
+  u.role,
+  u.status,
+  u.created_at
+FROM users u
+JOIN domains d ON d.id = u.domain_id
+LEFT JOIN user_addresses ua ON ua.user_id = u.id AND ua.address LIKE u.username || '@%'
+WHERE ` + strings.Join(where, "\n  AND ") + `
+ORDER BY u.created_at DESC
+LIMIT $` + fmt.Sprint(len(args))
+	return query, args
 }
 
 // SetUserRole updates the role of a user by ID. The role must be a valid value.

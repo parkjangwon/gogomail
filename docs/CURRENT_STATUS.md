@@ -7933,5 +7933,6 @@ Next focus areas:
 ## 2026-05-21 Admin operational list query sargability
 
 - Suppression list, trusted relay, and delivery route admin list queries now build WHERE predicates only for filters supplied by the request.
-- This removes always-present `($1 = '' OR ...)` guards from these operational tables and keeps domain/status/farm/CIDR filters more index-friendly as tenant data grows.
+- Admin-user listing now does the same for company scope, using a direct `d.company_id = $1::uuid` predicate only when scoped.
+- This removes always-present `($1 = '' OR ...)` guards from these operational tables and keeps domain/status/farm/CIDR/company filters more index-friendly as tenant data grows.
 - Verification target: `go test ./internal/maildb -run TestAdminOperationalListQueriesUseSargableFilters`.
