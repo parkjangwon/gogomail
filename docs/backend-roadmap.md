@@ -6354,7 +6354,8 @@ Target outcome:
       as an explicit unavailable operation: admin sync runs are marked failed
       with `ErrSyncNotConfigured`, and `POST /admin/v1/domains/{id}/ldap/sync`
       returns HTTP 501 instead of a pending response that could be mistaken for
-      live synchronization.
+      live synchronization. Direct LDAP provider read/sync methods also return
+      typed unavailable errors instead of implementation placeholder wording.
 1748. RDBMS sync admin routes are now registered instead of falling through to
       404, and requests use the same explicit unavailable contract when no
       external provider is configured: admin sync runs are marked failed with

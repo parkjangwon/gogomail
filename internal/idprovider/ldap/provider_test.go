@@ -2,6 +2,8 @@ package ldap
 
 import (
 	"context"
+	"errors"
+	"strings"
 	"testing"
 
 	"github.com/gogomail/gogomail/internal/idprovider"
@@ -10,6 +12,62 @@ import (
 func TestProviderInterface(t *testing.T) {
 	// Verify that Provider implements IdentityProvider
 	var _ idprovider.IdentityProvider = (*Provider)(nil)
+}
+
+func TestProviderReadMethodsReturnTypedUnavailableErrors(t *testing.T) {
+	provider := New(&Config{
+		Host:    "ldap.example.com",
+		Port:    389,
+		BaseDN:  "dc=example,dc=com",
+		UsersDN: "ou=users,dc=example,dc=com",
+	})
+
+	tests := []struct {
+		name string
+		run  func() error
+	}{
+		{name: "get user", run: func() error {
+			_, err := provider.GetUser(context.Background(), "user-1")
+			return err
+		}},
+		{name: "get group", run: func() error {
+			_, err := provider.GetGroup(context.Background(), "group-1")
+			return err
+		}},
+		{name: "list users", run: func() error {
+			_, err := provider.ListUsers(context.Background(), nil)
+			return err
+		}},
+		{name: "list groups", run: func() error {
+			_, err := provider.ListGroups(context.Background(), nil)
+			return err
+		}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.run()
+			if !errors.Is(err, ErrReadUnavailable) {
+				t.Fatalf("error = %v, want ErrReadUnavailable", err)
+			}
+			if err != nil && contains(err.Error(), "not available yet") {
+				t.Fatalf("error leaked placeholder wording: %v", err)
+			}
+		})
+	}
+}
+
+func TestProviderReadMethodsReturnTypedNotConfiguredErrors(t *testing.T) {
+	provider := New(nil)
+
+	_, err := provider.GetUser(context.Background(), "user-1")
+	if !errors.Is(err, ErrProviderNotConfigured) {
+		t.Fatalf("GetUser error = %v, want ErrProviderNotConfigured", err)
+	}
+	_, err = provider.ListUsers(context.Background(), nil)
+	if !errors.Is(err, ErrProviderNotConfigured) {
+		t.Fatalf("ListUsers error = %v, want ErrProviderNotConfigured", err)
+	}
 }
 
 func TestNewProvider(t *testing.T) {
@@ -165,4 +223,8 @@ func TestRemoveMemberValidation(t *testing.T) {
 	if err == nil {
 		t.Errorf("Expected error for empty member id, got nil")
 	}
+}
+
+func contains(s, substr string) bool {
+	return strings.Contains(s, substr)
 }

@@ -35,7 +35,7 @@ type SyncResult struct {
 // Returns conflict resolution results and sync timestamp for incremental future syncs.
 func (p *Provider) SyncUsers(ctx context.Context, req SyncRequest) (SyncResult, error) {
 	if p.config == nil {
-		return SyncResult{}, fmt.Errorf("ldap provider not configured")
+		return SyncResult{}, ErrProviderNotConfigured
 	}
 	if req.DomainID == "" {
 		return SyncResult{}, fmt.Errorf("domain id required for sync")
@@ -45,14 +45,14 @@ func (p *Provider) SyncUsers(ctx context.Context, req SyncRequest) (SyncResult, 
 		LastSyncTime: time.Now(),
 	}
 
-	return result, placeholderError("user sync")
+	return result, ErrSyncNotConfigured
 }
 
 // SyncGroups syncs groups from LDAP to the local database on-demand.
 // Returns conflict resolution results and sync timestamp for incremental future syncs.
 func (p *Provider) SyncGroups(ctx context.Context, req SyncRequest) (SyncResult, error) {
 	if p.config == nil {
-		return SyncResult{}, fmt.Errorf("ldap provider not configured")
+		return SyncResult{}, ErrProviderNotConfigured
 	}
 	if req.DomainID == "" {
 		return SyncResult{}, fmt.Errorf("domain id required for sync")
@@ -62,14 +62,14 @@ func (p *Provider) SyncGroups(ctx context.Context, req SyncRequest) (SyncResult,
 		LastSyncTime: time.Now(),
 	}
 
-	return result, placeholderError("group sync")
+	return result, ErrSyncNotConfigured
 }
 
 // SyncMemberships syncs group memberships from LDAP to the local database.
 // Links LDAP group DNs to synced members based on member attribute values.
 func (p *Provider) SyncMemberships(ctx context.Context, req SyncRequest) (SyncResult, error) {
 	if p.config == nil {
-		return SyncResult{}, fmt.Errorf("ldap provider not configured")
+		return SyncResult{}, ErrProviderNotConfigured
 	}
 	if req.DomainID == "" {
 		return SyncResult{}, fmt.Errorf("domain id required for sync")
@@ -79,7 +79,7 @@ func (p *Provider) SyncMemberships(ctx context.Context, req SyncRequest) (SyncRe
 		LastSyncTime: time.Now(),
 	}
 
-	return result, placeholderError("membership sync")
+	return result, ErrSyncNotConfigured
 }
 
 // ConflictResolutionStrategy defines how to handle conflicts during sync.

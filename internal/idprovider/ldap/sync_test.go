@@ -2,6 +2,7 @@ package ldap
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 )
@@ -107,5 +108,49 @@ func TestSyncResultTimestamp(t *testing.T) {
 
 	if result.LastSyncTime.Before(before) || result.LastSyncTime.After(after.Add(time.Second)) {
 		t.Errorf("LastSyncTime %v not in expected range [%v, %v]", result.LastSyncTime, before, after)
+	}
+}
+
+func TestSyncMethodsReturnTypedUnavailableErrors(t *testing.T) {
+	provider := New(&Config{
+		Host:      "ldap.example.com",
+		Port:      389,
+		BaseDN:    "dc=example,dc=com",
+		BindDN:    "cn=admin,dc=example,dc=com",
+		BindPass:  "password",
+		UsersDN:   "ou=users,dc=example,dc=com",
+		GroupsDN:  "ou=groups,dc=example,dc=com",
+		UserAttr:  "uid",
+		GroupAttr: "cn",
+	})
+
+	tests := []struct {
+		name string
+		run  func() (SyncResult, error)
+	}{
+		{name: "users", run: func() (SyncResult, error) {
+			return provider.SyncUsers(context.Background(), SyncRequest{DomainID: "domain-1"})
+		}},
+		{name: "groups", run: func() (SyncResult, error) {
+			return provider.SyncGroups(context.Background(), SyncRequest{DomainID: "domain-1"})
+		}},
+		{name: "memberships", run: func() (SyncResult, error) {
+			return provider.SyncMemberships(context.Background(), SyncRequest{DomainID: "domain-1"})
+		}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := tt.run()
+			if !errors.Is(err, ErrSyncNotConfigured) {
+				t.Fatalf("sync error = %v, want ErrSyncNotConfigured", err)
+			}
+			if err != nil && contains(err.Error(), "not available yet") {
+				t.Fatalf("sync error leaked placeholder wording: %v", err)
+			}
+			if result.LastSyncTime.IsZero() {
+				t.Fatal("LastSyncTime should record attempted sync time")
+			}
+		})
 	}
 }
