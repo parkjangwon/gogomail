@@ -9,6 +9,7 @@ import (
 	"hash/fnv"
 	"math"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -141,15 +142,34 @@ func retryDedupeKey(job Job) string {
 	}
 
 	// Use StringBuilder to reduce allocations in concatenation
+	messageID := strings.TrimSpace(job.MessageID)
+	nextAttempt := strconv.Itoa(job.RetryAttempt + 1)
 	var sb strings.Builder
+	sb.Grow(len("retry:::") + len(messageID) + len(nextAttempt) + joinedStringBytes(values))
 	sb.WriteString("retry:")
-	sb.WriteString(strings.TrimSpace(job.MessageID))
+	sb.WriteString(messageID)
 	sb.WriteString(":")
-	sb.WriteString(fmt.Sprint(job.RetryAttempt + 1))
+	sb.WriteString(nextAttempt)
 	sb.WriteString(":")
-	sb.WriteString(strings.Join(values, ","))
+	for i, value := range values {
+		if i > 0 {
+			sb.WriteByte(',')
+		}
+		sb.WriteString(value)
+	}
 
 	return sb.String()
+}
+
+func joinedStringBytes(values []string) int {
+	if len(values) == 0 {
+		return 0
+	}
+	n := len(values) - 1
+	for _, value := range values {
+		n += len(value)
+	}
+	return n
 }
 
 func retryErrorMessage(cause error) string {

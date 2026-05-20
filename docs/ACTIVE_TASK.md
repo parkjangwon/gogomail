@@ -285,6 +285,8 @@ Go Backend (`internal/`):
 - `TestThreadListIndexMigrationMatchesThreadQueries`를 추가해 thread list index migration이 folder-scoped/unscoped active thread-key lookup을 계속 지원하도록 고정함
 - delivery attempt 생성과 exhausted event payload 생성이 수신자마다 DSN recipient 옵션을 선형 검색하지 않고, 요청당 한 번 만든 normalized address map을 재사용하도록 바꿔 대량 수신자 처리의 O(n²) DSN lookup 비용을 제거함
 - `TestDSNRecipientOptionsByAddressPreservesFirstNormalizedMatch`를 추가해 DSN recipient option map이 기존 first-match 의미와 빈 주소 제외를 유지하도록 고정함
+- retry dedupe key 생성이 `fmt.Sprint`/`strings.Join` 중간 문자열을 만들지 않고 사전 크기 계산된 `strings.Builder`에 직접 attempt/recipient key를 쓰도록 바꿔 대량 retry scheduling CPU/할당 비용을 낮춤
+- `BenchmarkRetryDedupeKey`에 1k/10k 수신자 케이스를 추가해 대량 수신자 retry key 생성 비용을 계속 추적할 수 있게 함
 
 **System Email Connections & AutoPurge** ✅ COMPLETE
 - `internal/httpapi/admin.go`: Added `systemEmail mailservice.SystemEmailSender` and `publicBaseURL string` fields to `adminRouteConfig`; added `WithSystemEmailSender` and `WithPublicBaseURL` `AdminRouteOption` constructors

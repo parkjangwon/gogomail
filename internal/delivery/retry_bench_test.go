@@ -19,6 +19,8 @@ func BenchmarkRetryDedupeKey(b *testing.B) {
 		{"5_recipients", 5},
 		{"10_recipients", 10},
 		{"50_recipients", 50},
+		{"1000_recipients", 1000},
+		{"10000_recipients", 10000},
 	}
 
 	for _, tt := range tests {
@@ -30,9 +32,9 @@ func BenchmarkRetryDedupeKey(b *testing.B) {
 
 			job := Job{
 				QueuedMessage: QueuedMessage{
-					MessageID: "msg-123",
+					MessageID:    "msg-123",
 					RetryAttempt: 2,
-					To: recipients,
+					To:           recipients,
 				},
 			}
 
@@ -54,7 +56,7 @@ func BenchmarkScheduleRetryQuery(b *testing.B) {
 	job := Job{
 		QueuedMessage: QueuedMessage{
 			MessageID: "msg-123",
-			From: outbound.Address{Email: "sender@example.com"},
+			From:      outbound.Address{Email: "sender@example.com"},
 			To: []outbound.Address{
 				{Email: "user1@example.com"},
 				{Email: "user2@example.com"},
@@ -80,7 +82,7 @@ func BenchmarkScheduleRetryQuery(b *testing.B) {
 func TestRetryDedupeKeyConsistency(t *testing.T) {
 	job := Job{
 		QueuedMessage: QueuedMessage{
-			MessageID: "msg-123",
+			MessageID:    "msg-123",
 			RetryAttempt: 0,
 			To: []outbound.Address{
 				{Email: "charlie@example.com"},
@@ -108,16 +110,16 @@ func TestRetryDedupeKeyConsistency(t *testing.T) {
 // TestRetrySchedulerWithMockDB tests retry scheduling without real DB
 func TestRetrySchedulerWithMockDB(t *testing.T) {
 	scheduler := &PostgresRetryScheduler{
-		db: nil, // Would fail without DB
+		db:     nil, // Would fail without DB
 		policy: DefaultRetryPolicy(),
-		now: time.Now,
+		now:    time.Now,
 	}
 
 	job := Job{
 		QueuedMessage: QueuedMessage{
 			MessageID: "msg-123",
-			From: outbound.Address{Email: "sender@example.com"},
-			To: []outbound.Address{{Email: "recipient@example.com"}},
+			From:      outbound.Address{Email: "sender@example.com"},
+			To:        []outbound.Address{{Email: "recipient@example.com"}},
 		},
 	}
 

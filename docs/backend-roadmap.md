@@ -6330,3 +6330,6 @@ Target outcome:
       by normalized address for attempt records and exhausted-event payloads,
       removing repeated linear scans across DSN metadata for large recipient
       batches while preserving first-match duplicate handling.
+1742. TASK-090 retry scheduling dedupe-key generation now avoids `fmt.Sprint`
+      and `strings.Join` intermediate strings, writes into a pre-sized builder,
+      and tracks 1k/10k-recipient benchmark cases for large batch retries.
