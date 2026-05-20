@@ -33,6 +33,7 @@ Last updated: 2026-05-21 (SaaS launch hardening continues: attachment cleanup ba
 ## Drive Storage Projection Tightening (2026-05-21)
 - Drive rename, move, and upload-session creation queries now explicitly select their response columns from `updated`/`inserted` CTEs instead of using `SELECT *`.
 - Drive node listing now builds optional query, node-type, and parent-scope predicates dynamically, keeping folder listing and whole-drive searches clear of broad optional `OR` and `NULLIF` guards.
+- Drive upload-session listing now adds the status predicate only when requested, keeping large upload-operation views clear of broad optional `OR` guards.
 - Regression coverage scans the Drive repository SQL files for wide CTE projections so storage-path changes keep explicit result shapes.
 - Verification: `go test ./internal/drive -run 'TestDriveRepositorySQLAvoidsWideCTEProjection|TestValidateRenameNodeRequest|TestValidateMoveNodeRequest|TestValidateCreateUploadSessionRequest'` passes.
 

@@ -6470,3 +6470,6 @@ Target outcome:
 1774. DKIM key listing now uses dynamic optional predicates for domain and
       status filters, avoiding broad optional `OR` guards on domain
       authentication operations.
+1775. Drive upload-session listing now uses a dynamic optional status
+      predicate, avoiding broad optional `OR` guards on large upload-operation
+      views.

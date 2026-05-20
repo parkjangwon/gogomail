@@ -63,6 +63,56 @@ func TestServiceListUploadSessionsRequiresRepository(t *testing.T) {
 	}
 }
 
+func TestListUploadSessionsQueryUsesSargableStatusFilter(t *testing.T) {
+	t.Parallel()
+
+	req, err := ValidateListUploadSessionsRequest(ListUploadSessionsRequest{
+		UserID: " user-1 ",
+		Status: " Uploading ",
+		Limit:  25,
+	})
+	if err != nil {
+		t.Fatalf("ValidateListUploadSessionsRequest returned error: %v", err)
+	}
+	query, args := buildListUploadSessionsQuery(req)
+	for _, want := range []string{
+		"FROM drive_upload_sessions s",
+		"WHERE s.user_id = $1::uuid",
+		"AND u.status = 'active'",
+		"AND d.status = 'active'",
+		"AND s.status = $2",
+		"ORDER BY s.updated_at DESC, s.created_at DESC",
+		"LIMIT $3",
+	} {
+		if !strings.Contains(query, want) {
+			t.Fatalf("list upload sessions query missing %q:\n%s", want, query)
+		}
+	}
+	if strings.Contains(query, "$2 = '' OR") {
+		t.Fatalf("list upload sessions query contains non-sargable status filter:\n%s", query)
+	}
+	if len(args) != 3 {
+		t.Fatalf("args len = %d, want 3", len(args))
+	}
+	if args[0] != "user-1" || args[1] != UploadSessionStatusUploading || args[2] != 25 {
+		t.Fatalf("args = %#v", args)
+	}
+
+	query, args = buildListUploadSessionsQuery(ListUploadSessionsRequest{
+		UserID: "user-1",
+		Limit:  50,
+	})
+	if strings.Contains(query, "s.status = $") {
+		t.Fatalf("unfiltered list upload sessions query unexpectedly includes status predicate:\n%s", query)
+	}
+	if len(args) != 2 {
+		t.Fatalf("unfiltered args len = %d, want 2", len(args))
+	}
+	if args[0] != "user-1" || args[1] != 50 {
+		t.Fatalf("unfiltered args = %#v", args)
+	}
+}
+
 func TestCancelUploadSessionRequiresDatabase(t *testing.T) {
 	t.Parallel()
 
