@@ -6550,3 +6550,6 @@ Target outcome:
       thread-summary predicates directly, removing repeated optional-`OR`
       template rewrites for folder, cursor, read/starred, and attachment
       filters.
+1800. Mail API active-message and draft search SQL generation now appends
+      requested folder, attachment, and cursor predicates directly, avoiding
+      repeated optional-`OR` template rewrites on search requests.
