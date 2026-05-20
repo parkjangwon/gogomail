@@ -549,6 +549,54 @@ func TestValidatePruneCalendarSyncChangesRequestRejectsUnsafeInput(t *testing.T)
 	}
 }
 
+func TestBuildPruneCalendarSyncChangesSQLUsesDirectPredicates(t *testing.T) {
+	t.Parallel()
+
+	query, args := buildPruneCalendarSyncChangesSQL(PruneCalendarSyncChangesRequest{
+		Cutoff:     time.Unix(100, 0),
+		UserID:     "user-1",
+		CalendarID: "calendar-1",
+		Limit:      50,
+	}, false)
+	for _, want := range []string{
+		"c.changed_at < $1",
+		"c.user_id = $2::uuid",
+		"c.calendar_id = $3::uuid",
+		"LIMIT $4",
+		"DELETE FROM caldav_calendar_sync_changes",
+	} {
+		if !strings.Contains(query, want) {
+			t.Fatalf("prune SQL missing %q:\n%s", want, query)
+		}
+	}
+	for _, forbidden := range []string{"$2 = '' OR", "$3 = '' OR", "NULLIF($2", "NULLIF($3"} {
+		if strings.Contains(query, forbidden) {
+			t.Fatalf("prune SQL still contains optional predicate %q:\n%s", forbidden, query)
+		}
+	}
+	if len(args) != 4 {
+		t.Fatalf("args len = %d, want 4", len(args))
+	}
+}
+
+func TestBuildPruneCalendarSyncChangesSQLOmitsEmptyScopePredicates(t *testing.T) {
+	t.Parallel()
+
+	query, args := buildPruneCalendarSyncChangesSQL(PruneCalendarSyncChangesRequest{
+		Cutoff: time.Unix(100, 0),
+		Limit:  50,
+	}, true)
+	if strings.Contains(query, "c.user_id =") || strings.Contains(query, "c.calendar_id =") || strings.Contains(query, "NULLIF") {
+		t.Fatalf("unscoped prune SQL contains scope predicates:\n%s", query)
+	}
+	if !strings.Contains(query, "LIMIT $2") || !strings.Contains(query, "SELECT count(*)::bigint FROM candidates") {
+		t.Fatalf("unscoped dry-run SQL has wrong limit/count shape:\n%s", query)
+	}
+	if len(args) != 2 {
+		t.Fatalf("args len = %d, want 2", len(args))
+	}
+}
+
 func TestValidateCalendarObjectName(t *testing.T) {
 	t.Parallel()
 

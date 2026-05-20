@@ -1420,41 +1420,38 @@ func (r *Repository) PruneCalendarSyncChanges(ctx context.Context, req PruneCale
 		DryRun:     req.DryRun,
 	}
 	if req.DryRun {
-		const query = `
-WITH candidates AS (
-  SELECT c.id
-  FROM caldav_calendar_sync_changes c
-  WHERE c.changed_at < $1
-    AND ($2 = '' OR c.user_id = NULLIF($2, '')::uuid)
-    AND ($3 = '' OR c.calendar_id = NULLIF($3, '')::uuid)
-    AND EXISTS (
-      SELECT 1
-      FROM caldav_calendar_sync_changes newer
-      WHERE newer.calendar_id = c.calendar_id
-        AND newer.id > c.id
-    )
-    AND NOT EXISTS (
-      SELECT 1
-      FROM caldav_calendars cal
-      WHERE cal.id = c.calendar_id
-        AND cal.sync_token = c.sync_token
-    )
-  ORDER BY c.id ASC
-  LIMIT $4
-)
-SELECT count(*)::bigint FROM candidates`
-		if err := r.db.QueryRowContext(ctx, query, req.Cutoff, req.UserID, req.CalendarID, req.Limit).Scan(&result.CandidateCount); err != nil {
+		query, args := buildPruneCalendarSyncChangesSQL(req, true)
+		if err := r.db.QueryRowContext(ctx, query, args...).Scan(&result.CandidateCount); err != nil {
 			return CalendarSyncChangePruneResult{}, fmt.Errorf("check CalDAV sync change prune candidates: %w", err)
 		}
 		return result, nil
 	}
-	const query = `
+	query, args := buildPruneCalendarSyncChangesSQL(req, false)
+	if err := r.db.QueryRowContext(ctx, query, args...).Scan(&result.CandidateCount, &result.DeletedCount); err != nil {
+		return CalendarSyncChangePruneResult{}, fmt.Errorf("prune CalDAV sync changes: %w", err)
+	}
+	return result, nil
+}
+
+func buildPruneCalendarSyncChangesSQL(req PruneCalendarSyncChangesRequest, dryRun bool) (string, []any) {
+	args := []any{req.Cutoff}
+	where := []string{"c.changed_at < $1"}
+	if req.UserID != "" {
+		args = append(args, req.UserID)
+		where = append(where, fmt.Sprintf("c.user_id = $%d::uuid", len(args)))
+	}
+	if req.CalendarID != "" {
+		args = append(args, req.CalendarID)
+		where = append(where, fmt.Sprintf("c.calendar_id = $%d::uuid", len(args)))
+	}
+	args = append(args, req.Limit)
+	limitParam := len(args)
+
+	query := fmt.Sprintf(`
 WITH candidates AS (
   SELECT c.id
   FROM caldav_calendar_sync_changes c
-  WHERE c.changed_at < $1
-    AND ($2 = '' OR c.user_id = NULLIF($2, '')::uuid)
-    AND ($3 = '' OR c.calendar_id = NULLIF($3, '')::uuid)
+  WHERE %s
     AND EXISTS (
       SELECT 1
       FROM caldav_calendar_sync_changes newer
@@ -1468,19 +1465,20 @@ WITH candidates AS (
         AND cal.sync_token = c.sync_token
     )
   ORDER BY c.id ASC
-  LIMIT $4
-),
+  LIMIT $%d
+)`, strings.Join(where, "\n    AND "), limitParam)
+	if dryRun {
+		return query + `
+SELECT count(*)::bigint FROM candidates`, args
+	}
+	return query + `,
 deleted AS (
   DELETE FROM caldav_calendar_sync_changes c
   USING candidates
   WHERE c.id = candidates.id
   RETURNING c.id
 )
-SELECT (SELECT count(*)::bigint FROM candidates), (SELECT count(*)::bigint FROM deleted)`
-	if err := r.db.QueryRowContext(ctx, query, req.Cutoff, req.UserID, req.CalendarID, req.Limit).Scan(&result.CandidateCount, &result.DeletedCount); err != nil {
-		return CalendarSyncChangePruneResult{}, fmt.Errorf("prune CalDAV sync changes: %w", err)
-	}
-	return result, nil
+SELECT (SELECT count(*)::bigint FROM candidates), (SELECT count(*)::bigint FROM deleted)`, args
 }
 
 func (r *Repository) DeliverSchedulingMessage(ctx context.Context, req DeliverSchedulingMessageRequest) (SchedulingMessage, error) {
