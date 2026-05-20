@@ -6407,3 +6407,7 @@ Target outcome:
       topic, partition key, status, and created-at filters.  The query no
       longer uses `NULLIF(...) OR ...` predicates, keeping large outbox
       inspection paths aligned with the queue indexes.
+1758. Admin delivery-attempt listing now uses dynamic sargable predicates for
+      status, attempted-at, recipient domain, message id, farm, and sender
+      filters.  This keeps production delivery-history inspection from routing
+      selective filters through optional `OR` predicates on the hot table.
