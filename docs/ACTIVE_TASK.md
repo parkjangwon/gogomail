@@ -2,6 +2,10 @@
 
 ## Current Status Summary
 
+**Critical Security Fixes** ✅ COMPLETE
+- `internal/maildb/user_auth.go`: `AuthenticateUser` now JOINs `companies` table and returns `ErrCompanySuspended` if company status is `suspended`; callers in `mail.go` map this to HTTP 403
+- `internal/httpapi/admin.go`: Added `requiresCompanyAccess` checks to all mutation endpoints (PATCH/DELETE/POST companies, bulk-import/export, company config/*, domain status/quota/DELETE/settings/config/*, user DELETE/status/password-hash)
+
 **SaaS Pre-Launch Security & Integrity Hardening** ✅ COMPLETE
 - Security (Critical/High): SAML XML signature verification, OIDC RS256/JWKS verification,
   removed hardcoded admin credentials, company_admin multi-tenant isolation enforced,

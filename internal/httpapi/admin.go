@@ -629,6 +629,10 @@ func registerCompanyRoutes(mux *http.ServeMux, service AdminService, adminAuth f
 		if !ok {
 			return
 		}
+		if err := requiresCompanyAccess(r.Context(), id); err != nil {
+			writeError(w, http.StatusForbidden, "access denied")
+			return
+		}
 		req.ID = id
 		if err := service.UpdateCompanyQuota(r.Context(), req); err != nil {
 			writeError(w, http.StatusBadRequest, err.Error())
@@ -651,6 +655,10 @@ func registerCompanyRoutes(mux *http.ServeMux, service AdminService, adminAuth f
 		if !ok {
 			return
 		}
+		if err := requiresCompanyAccess(r.Context(), id); err != nil {
+			writeError(w, http.StatusForbidden, "access denied")
+			return
+		}
 		req.ID = id
 		company, err := service.UpdateCompany(r.Context(), req)
 		if err != nil {
@@ -669,6 +677,10 @@ func registerCompanyRoutes(mux *http.ServeMux, service AdminService, adminAuth f
 		if !ok {
 			return
 		}
+		if err := requiresCompanyAccess(r.Context(), id); err != nil {
+			writeError(w, http.StatusForbidden, "access denied")
+			return
+		}
 		if err := service.DeleteCompany(r.Context(), id); err != nil {
 			writeError(w, http.StatusBadRequest, err.Error())
 			return
@@ -683,8 +695,11 @@ func registerCompanyRoutes(mux *http.ServeMux, service AdminService, adminAuth f
 			return
 		}
 		id, ok := parseBoundedAdminPathValue(w, r, "id")
-		_ = id // company id validated but users are domain-scoped; domain_id comes from payload
 		if !ok {
+			return
+		}
+		if err := requiresCompanyAccess(r.Context(), id); err != nil {
+			writeError(w, http.StatusForbidden, "access denied")
 			return
 		}
 		var req struct {
@@ -752,6 +767,10 @@ func registerCompanyRoutes(mux *http.ServeMux, service AdminService, adminAuth f
 		if !ok {
 			return
 		}
+		if err := requiresCompanyAccess(r.Context(), id); err != nil {
+			writeError(w, http.StatusForbidden, "access denied")
+			return
+		}
 		users, err := listCompanyUsers(r.Context(), service, id, 1000)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, err.Error())
@@ -790,6 +809,10 @@ func registerCompanyRoutes(mux *http.ServeMux, service AdminService, adminAuth f
 		if !ok {
 			return
 		}
+		if err := requiresCompanyAccess(r.Context(), id); err != nil {
+			writeError(w, http.StatusForbidden, "access denied")
+			return
+		}
 		entries, err := service.ListCompanyConfig(r.Context(), id)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, err.Error())
@@ -804,6 +827,10 @@ func registerCompanyRoutes(mux *http.ServeMux, service AdminService, adminAuth f
 		}
 		id, ok := parseBoundedAdminPathValue(w, r, "id")
 		if !ok {
+			return
+		}
+		if err := requiresCompanyAccess(r.Context(), id); err != nil {
+			writeError(w, http.StatusForbidden, "access denied")
 			return
 		}
 		key, ok := parseBoundedAdminPathValue(w, r, "key")
@@ -830,6 +857,10 @@ func registerCompanyRoutes(mux *http.ServeMux, service AdminService, adminAuth f
 		}
 		id, ok := parseBoundedAdminPathValue(w, r, "id")
 		if !ok {
+			return
+		}
+		if err := requiresCompanyAccess(r.Context(), id); err != nil {
+			writeError(w, http.StatusForbidden, "access denied")
 			return
 		}
 		key, ok := parseBoundedAdminPathValue(w, r, "key")
@@ -861,6 +892,10 @@ func registerCompanyRoutes(mux *http.ServeMux, service AdminService, adminAuth f
 		}
 		id, ok := parseBoundedAdminPathValue(w, r, "id")
 		if !ok {
+			return
+		}
+		if err := requiresCompanyAccess(r.Context(), id); err != nil {
+			writeError(w, http.StatusForbidden, "access denied")
 			return
 		}
 		key, ok := parseBoundedAdminPathValue(w, r, "key")
@@ -903,6 +938,10 @@ func registerCompanyRoutes(mux *http.ServeMux, service AdminService, adminAuth f
 		}
 		id, ok := parseBoundedAdminPathValue(w, r, "id")
 		if !ok {
+			return
+		}
+		if err := requiresCompanyAccess(r.Context(), id); err != nil {
+			writeError(w, http.StatusForbidden, "access denied")
 			return
 		}
 		scopeStr := r.URL.Query().Get("scope")
@@ -1114,6 +1153,15 @@ func registerDomainRoutes(mux *http.ServeMux, service AdminService, adminAuth fu
 		if !ok {
 			return
 		}
+		domain, err := service.GetDomain(r.Context(), id)
+		if err != nil {
+			writeError(w, http.StatusNotFound, err.Error())
+			return
+		}
+		if err := requiresCompanyAccess(r.Context(), domain.CompanyID); err != nil {
+			writeError(w, http.StatusForbidden, "access denied")
+			return
+		}
 		req.ID = id
 		if err := service.UpdateDomainStatus(r.Context(), req); err != nil {
 			writeError(w, http.StatusBadRequest, err.Error())
@@ -1137,6 +1185,15 @@ func registerDomainRoutes(mux *http.ServeMux, service AdminService, adminAuth fu
 		if !ok {
 			return
 		}
+		domain, err := service.GetDomain(r.Context(), id)
+		if err != nil {
+			writeError(w, http.StatusNotFound, err.Error())
+			return
+		}
+		if err := requiresCompanyAccess(r.Context(), domain.CompanyID); err != nil {
+			writeError(w, http.StatusForbidden, "access denied")
+			return
+		}
 		req.ID = id
 		if err := service.UpdateDomainQuota(r.Context(), req); err != nil {
 			writeError(w, http.StatusBadRequest, err.Error())
@@ -1154,6 +1211,15 @@ func registerDomainRoutes(mux *http.ServeMux, service AdminService, adminAuth fu
 		if !ok {
 			return
 		}
+		domain, err := service.GetDomain(r.Context(), id)
+		if err != nil {
+			writeError(w, http.StatusNotFound, err.Error())
+			return
+		}
+		if err := requiresCompanyAccess(r.Context(), domain.CompanyID); err != nil {
+			writeError(w, http.StatusForbidden, "access denied")
+			return
+		}
 		if err := service.DeleteDomain(r.Context(), id); err != nil {
 			writeError(w, http.StatusBadRequest, err.Error())
 			return
@@ -1167,6 +1233,15 @@ func registerDomainRoutes(mux *http.ServeMux, service AdminService, adminAuth fu
 		}
 		id, ok := parseBoundedAdminPathValue(w, r, "id")
 		if !ok {
+			return
+		}
+		domain, err := service.GetDomain(r.Context(), id)
+		if err != nil {
+			writeError(w, http.StatusNotFound, err.Error())
+			return
+		}
+		if err := requiresCompanyAccess(r.Context(), domain.CompanyID); err != nil {
+			writeError(w, http.StatusForbidden, "access denied")
 			return
 		}
 		settings, err := service.GetDomainSettings(r.Context(), id)
@@ -1185,6 +1260,15 @@ func registerDomainRoutes(mux *http.ServeMux, service AdminService, adminAuth fu
 		}
 		id, ok := parseBoundedAdminPathValue(w, r, "id")
 		if !ok {
+			return
+		}
+		domain, err := service.GetDomain(r.Context(), id)
+		if err != nil {
+			writeError(w, http.StatusNotFound, err.Error())
+			return
+		}
+		if err := requiresCompanyAccess(r.Context(), domain.CompanyID); err != nil {
+			writeError(w, http.StatusForbidden, "access denied")
 			return
 		}
 		var settings admin.DomainSettings
@@ -1339,6 +1423,15 @@ func registerDomainRoutes(mux *http.ServeMux, service AdminService, adminAuth fu
 		if !ok {
 			return
 		}
+		domain, err := service.GetDomain(r.Context(), id)
+		if err != nil {
+			writeError(w, http.StatusNotFound, err.Error())
+			return
+		}
+		if err := requiresCompanyAccess(r.Context(), domain.CompanyID); err != nil {
+			writeError(w, http.StatusForbidden, "access denied")
+			return
+		}
 		entries, err := service.ListDomainConfig(r.Context(), id)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, err.Error())
@@ -1353,6 +1446,15 @@ func registerDomainRoutes(mux *http.ServeMux, service AdminService, adminAuth fu
 		}
 		id, ok := parseBoundedAdminPathValue(w, r, "id")
 		if !ok {
+			return
+		}
+		domain, err := service.GetDomain(r.Context(), id)
+		if err != nil {
+			writeError(w, http.StatusNotFound, err.Error())
+			return
+		}
+		if err := requiresCompanyAccess(r.Context(), domain.CompanyID); err != nil {
+			writeError(w, http.StatusForbidden, "access denied")
 			return
 		}
 		key, ok := parseBoundedAdminPathValue(w, r, "key")
@@ -1379,6 +1481,15 @@ func registerDomainRoutes(mux *http.ServeMux, service AdminService, adminAuth fu
 		}
 		id, ok := parseBoundedAdminPathValue(w, r, "id")
 		if !ok {
+			return
+		}
+		domain, err := service.GetDomain(r.Context(), id)
+		if err != nil {
+			writeError(w, http.StatusNotFound, err.Error())
+			return
+		}
+		if err := requiresCompanyAccess(r.Context(), domain.CompanyID); err != nil {
+			writeError(w, http.StatusForbidden, "access denied")
 			return
 		}
 		key, ok := parseBoundedAdminPathValue(w, r, "key")
@@ -1410,6 +1521,15 @@ func registerDomainRoutes(mux *http.ServeMux, service AdminService, adminAuth fu
 		}
 		id, ok := parseBoundedAdminPathValue(w, r, "id")
 		if !ok {
+			return
+		}
+		domain, err := service.GetDomain(r.Context(), id)
+		if err != nil {
+			writeError(w, http.StatusNotFound, err.Error())
+			return
+		}
+		if err := requiresCompanyAccess(r.Context(), domain.CompanyID); err != nil {
+			writeError(w, http.StatusForbidden, "access denied")
 			return
 		}
 		key, ok := parseBoundedAdminPathValue(w, r, "key")
@@ -1555,6 +1675,20 @@ func registerUserAndConfigRoutes(mux *http.ServeMux, service AdminService, token
 		if !ok {
 			return
 		}
+		user, err := service.GetUser(r.Context(), id)
+		if err != nil {
+			writeError(w, http.StatusNotFound, err.Error())
+			return
+		}
+		domain, err := service.GetDomain(r.Context(), user.DomainID)
+		if err != nil {
+			writeError(w, http.StatusNotFound, err.Error())
+			return
+		}
+		if err := requiresCompanyAccess(r.Context(), domain.CompanyID); err != nil {
+			writeError(w, http.StatusForbidden, "access denied")
+			return
+		}
 		if err := service.DeleteUser(r.Context(), id); err != nil {
 			writeError(w, http.StatusBadRequest, err.Error())
 			return
@@ -1679,6 +1813,20 @@ func registerUserAndConfigRoutes(mux *http.ServeMux, service AdminService, token
 		if !ok {
 			return
 		}
+		user, err := service.GetUser(r.Context(), id)
+		if err != nil {
+			writeError(w, http.StatusNotFound, err.Error())
+			return
+		}
+		domain, err := service.GetDomain(r.Context(), user.DomainID)
+		if err != nil {
+			writeError(w, http.StatusNotFound, err.Error())
+			return
+		}
+		if err := requiresCompanyAccess(r.Context(), domain.CompanyID); err != nil {
+			writeError(w, http.StatusForbidden, "access denied")
+			return
+		}
 		req.ID = id
 		if err := service.UpdateUserStatus(r.Context(), req); err != nil {
 			writeError(w, http.StatusBadRequest, err.Error())
@@ -1764,6 +1912,20 @@ func registerUserAndConfigRoutes(mux *http.ServeMux, service AdminService, token
 		}
 		id, ok := parseBoundedAdminPathValue(w, r, "id")
 		if !ok {
+			return
+		}
+		user, err := service.GetUser(r.Context(), id)
+		if err != nil {
+			writeError(w, http.StatusNotFound, err.Error())
+			return
+		}
+		domain, err := service.GetDomain(r.Context(), user.DomainID)
+		if err != nil {
+			writeError(w, http.StatusNotFound, err.Error())
+			return
+		}
+		if err := requiresCompanyAccess(r.Context(), domain.CompanyID); err != nil {
+			writeError(w, http.StatusForbidden, "access denied")
 			return
 		}
 		req.ID = id

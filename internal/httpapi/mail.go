@@ -434,6 +434,10 @@ func RegisterMailRoutesWithOptions(mux *http.ServeMux, service MessageService, t
 		}
 		user, err := opts.Authenticator.AuthenticateUser(r.Context(), req.Email, req.Password)
 		if err != nil {
+			if errors.Is(err, maildb.ErrCompanySuspended) {
+				writeError(w, http.StatusForbidden, "account suspended")
+				return
+			}
 			writeError(w, http.StatusUnauthorized, "invalid credentials")
 			return
 		}
