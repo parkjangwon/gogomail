@@ -1,6 +1,12 @@
 # gogomail current status
 
-Last updated: 2026-05-21 (SaaS launch hardening continues: mail auth error boundary tightened)
+Last updated: 2026-05-21 (SaaS launch hardening continues: frontend launch safety tightened)
+
+## Frontend Launch Safety Sweep (2026-05-21)
+- Console login no longer renders hardcoded demo credentials in non-production builds.
+- Webmail development login/user-id bypasses now compile behind `NODE_ENV !== 'production'`, and the guide button no longer falls back to a localhost URL when `NEXT_PUBLIC_WEBMAIL_GUIDE_URL` is unset.
+- Webmail app-switcher buttons are keyboard focusable again, the image proxy enforces the 5 MiB limit while streaming upstream bodies, and a no-op read-only SSO input handler was removed.
+- Verification target: `pnpm --dir apps/webmail type-check`; `pnpm --dir apps/console type-check`.
 
 ## Mail Auth Error Boundary (2026-05-21)
 - Mail API bearer-token verification failures now return a fixed `invalid bearer token` response instead of exposing verifier internals such as token format, signature, expiry, or revocation details.

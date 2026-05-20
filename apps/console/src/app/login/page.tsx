@@ -24,7 +24,6 @@ function LoginPageContent() {
   const [emailError, setEmailError] = useState('');
   const [passwordError, setPasswordError] = useState('');
   const passwordRef = useRef<InputProps.Ref>(null);
-  const showDemoCredentials = process.env.NODE_ENV !== 'production';
 
   // MFA step state
   const [step, setStep] = useState<'password' | 'mfa'>('password');
@@ -254,15 +253,6 @@ function LoginPageContent() {
             </Button>
           </div>
 
-          {showDemoCredentials && (
-            <div className="aws-login-footer">
-              <div className="aws-login-divider"></div>
-              <p className="aws-login-hint">{t('login.demo_credentials')}</p>
-              <div className="aws-login-credentials">
-                <span>admin@system / admin1234</span>
-              </div>
-            </div>
-          )}
         </div>
 
         {/* Copyright */}

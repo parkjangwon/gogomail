@@ -6,8 +6,8 @@ import Link from 'next/link';
 import { loginUser, verifyMFA } from '@/lib/api';
 import { ThemeToggle } from '@/components/ThemeToggle';
 
-const DEV_USER_ID = process.env.NEXT_PUBLIC_GOGOMAIL_DEV_USER_ID || '';
-const DEV_SKIP_LOGIN = process.env.NEXT_PUBLIC_GOGOMAIL_DEV_SKIP_LOGIN === 'true';
+const DEV_USER_ID = process.env.NODE_ENV !== 'production' ? (process.env.NEXT_PUBLIC_GOGOMAIL_DEV_USER_ID || '') : '';
+const DEV_SKIP_LOGIN = process.env.NODE_ENV !== 'production' && process.env.NEXT_PUBLIC_GOGOMAIL_DEV_SKIP_LOGIN === 'true';
 
 const inputStyle: React.CSSProperties = {
   padding: '10px 12px',

@@ -208,7 +208,7 @@ export default function SSOPage() {
             <SpaceBetween size="m">
               <FormField label={t('pages.sso_page.entity_id_label')}>
                 <ColumnLayout columns={1}>
-                  <Input value={config.entity_id || `urn:gogomail:sp:${cid}`} readOnly onChange={() => {}} />
+                  <Input value={config.entity_id || `urn:gogomail:sp:${cid}`} readOnly />
                 </ColumnLayout>
               </FormField>
               <Alert type="info">{t('pages.sso_page.entity_id_hint')}</Alert>

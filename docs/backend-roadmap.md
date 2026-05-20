@@ -6664,3 +6664,9 @@ Target outcome:
 1832. Mail API bearer-token verification failures now return a fixed
       `invalid bearer token` response instead of exposing verifier internals
       such as parser, signature, expiry, or revocation details to clients.
+1833. Console and webmail launch surfaces no longer expose development-only
+      shortcuts in production-capable builds: console login removed hardcoded
+      demo credentials, webmail dev user bypasses are gated to non-production,
+      the guide action has no localhost fallback, app-switcher buttons remain
+      keyboard focusable, and proxied images are rejected while streaming once
+      the size cap is exceeded.

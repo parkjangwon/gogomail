@@ -4,7 +4,7 @@ import { assertSameOriginForMutation, encodeBackendPath, headersForBackend } fro
 import { LEGACY_WEBMAIL_TOKEN_COOKIE, WEBMAIL_TOKEN_COOKIE } from '@/lib/security/cookies';
 import { backendConfigErrorResponse, requiredBackendUrl } from '@/lib/server/backend';
 
-const DEV_USER_ID = process.env.GOGOMAIL_DEV_USER_ID || '';
+const DEV_USER_ID = process.env.NODE_ENV !== 'production' ? (process.env.GOGOMAIL_DEV_USER_ID || '') : '';
 const MAIL_BASE_PREFIXES = new Set(['addressbooks', 'contacts', 'directory']);
 
 function isDrivePublicShareLinkRoute(method: string, segments: string[]): boolean {
@@ -64,7 +64,7 @@ async function handler(
     reqUrl.searchParams.delete('user_id');
   }
 
-  // In dev mode (no JWT configured), inject user_id query param
+  // In local development mode (no JWT configured), inject user_id query param.
   if (!isPublicShareLinkRoute && DEV_USER_ID && !reqUrl.searchParams.has('user_id')) {
     reqUrl.searchParams.set('user_id', DEV_USER_ID);
   }

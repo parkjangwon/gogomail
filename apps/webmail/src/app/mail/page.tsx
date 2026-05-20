@@ -380,8 +380,8 @@ export default function MailPage() {
   const [mustChangePassword, setMustChangePassword] = useState(false);
   const [sessionWarning, setSessionWarning] = useState<string | null>(null);
 
-  const DEV_USER_ID = process.env.NEXT_PUBLIC_GOGOMAIL_DEV_USER_ID || '';
-  const DEV_SKIP_LOGIN = process.env.NEXT_PUBLIC_GOGOMAIL_DEV_SKIP_LOGIN === 'true';
+  const DEV_USER_ID = process.env.NODE_ENV !== 'production' ? (process.env.NEXT_PUBLIC_GOGOMAIL_DEV_USER_ID || '') : '';
+  const DEV_SKIP_LOGIN = process.env.NODE_ENV !== 'production' && process.env.NEXT_PUBLIC_GOGOMAIL_DEV_SKIP_LOGIN === 'true';
 
   // Check auth on mount, load email
   useEffect(() => {
