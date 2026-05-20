@@ -10123,9 +10123,15 @@ paths:
             default: 50
         - name: offset
           in: query
+          description: Legacy offset pagination. Prefer cursor for deep pages.
           schema:
             type: integer
             default: 0
+        - name: cursor
+          in: query
+          description: Opaque seek-pagination cursor from a previous response.
+          schema:
+            type: string
       responses:
         "200":
           description: RDBMS sync history
@@ -10138,6 +10144,7 @@ paths:
                   - limit
                   - offset
                   - has_more
+                  - next_cursor
                 properties:
                   sync_runs:
                     type: array
@@ -10151,6 +10158,9 @@ paths:
                     minimum: 0
                   has_more:
                     type: boolean
+                  next_cursor:
+                    type: string
+                    description: Opaque cursor for the next page, empty on the final page.
         default:
           $ref: "#/components/responses/Error"
   /domains/{id}/rdbms/conflicts:

@@ -85,17 +85,15 @@ func (r *Repository) GetRDBMSSyncRuns(ctx context.Context, req RDBMSSyncRunListR
 		return nil, fmt.Errorf("database handle is required")
 	}
 
-	query := `
-		SELECT id, domain_id, sync_type, status, users_created, users_updated, users_deleted,
-		       groups_created, groups_updated, groups_deleted, conflict_count, error_count, error_message,
-		       started_at, completed_at, created_at
-		FROM rdbms_sync_runs
-		WHERE domain_id = $1
-		ORDER BY created_at DESC
-		LIMIT $2 OFFSET $3
-	`
+	query := buildRDBMSSyncRunsSQL(!req.Cursor.IsZero())
+	args := []any{req.DomainID, req.Limit}
+	if req.Cursor.IsZero() {
+		args = append(args, req.Offset)
+	} else {
+		args = append(args, req.Cursor.CreatedAt, req.Cursor.ID)
+	}
 
-	rows, err := r.db.QueryContext(ctx, query, req.DomainID, req.Limit, req.Offset)
+	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query sync runs: %w", err)
 	}
@@ -133,6 +131,26 @@ func (r *Repository) GetRDBMSSyncRuns(ctx context.Context, req RDBMSSyncRunListR
 	}
 
 	return runs, nil
+}
+
+func buildRDBMSSyncRunsSQL(hasCursor bool) string {
+	where := "WHERE domain_id = $1"
+	if hasCursor {
+		where += "\n\t\t  AND (created_at, id) < ($3::timestamptz, $4::uuid)"
+	}
+	paging := "LIMIT $2 OFFSET $3"
+	if hasCursor {
+		paging = "LIMIT $2"
+	}
+	return `
+		SELECT id, domain_id, sync_type, status, users_created, users_updated, users_deleted,
+		       groups_created, groups_updated, groups_deleted, conflict_count, error_count, error_message,
+		       started_at, completed_at, created_at
+		FROM rdbms_sync_runs
+		` + where + `
+		ORDER BY created_at DESC, id DESC
+		` + paging + `
+	`
 }
 
 // GetRDBMSSyncRun retrieves a single RDBMS sync run by ID.

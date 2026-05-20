@@ -183,6 +183,7 @@
 - Mail API bearer-token verification failures now return a fixed public error, preventing token parser/signature/expiry details from leaking to clients.
 - Console/webmail launch safety tightened: hardcoded demo credential display removed, dev auth bypasses production-gated, webmail localhost guide fallback removed, app icon keyboard focus restored, and image proxy size enforcement now stops while streaming.
 - POP3 login now uses a lightweight id/size-only INBOX metadata page query and streams pages directly into the POP3 mailbox index, avoiding the webmail preview join and the extra all-summary aggregation during authentication.
+- RDBMS sync history now supports opaque `(created_at, id)` seek cursors with a matching domain/created/id index while preserving legacy offset pagination for existing admin clients.
 
 **Infrastructure & Storage Hardening** ✅ COMPLETE
 - Task 1 (EML GC): Added `LookupDeleteableStoragePaths` and `LookupExpungeStoragePaths` to maildb; service layer now performs two-phase GC (lookup before DB delete, delete from store after commit) for `DeleteMessage`, `BulkDeleteMessages`, `BulkDeleteThreads`, and `ExpungeIMAPMessages`. Reference-count check prevents deletion of paths shared by IMAP COPY.

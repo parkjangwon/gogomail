@@ -1158,7 +1158,7 @@ func handleLDAPSyncHistory(w http.ResponseWriter, r *http.Request, service Admin
 	if !rejectBodylessRequestPayload(w, r) {
 		return
 	}
-	if !rejectUnknownQueryKeys(w, r, "limit", "offset") {
+	if !rejectUnknownQueryKeys(w, r, "limit", "offset", "cursor") {
 		return
 	}
 	id, ok := parseBoundedAdminPathValue(w, r, "id")
@@ -1390,7 +1390,7 @@ func handleRDBMSSyncHistory(w http.ResponseWriter, r *http.Request, service Admi
 	if !rejectBodylessRequestPayload(w, r) {
 		return
 	}
-	if !rejectUnknownQueryKeys(w, r, "limit", "offset") {
+	if !rejectUnknownQueryKeys(w, r, "limit", "offset", "cursor") {
 		return
 	}
 	id, ok := parseBoundedAdminPathValue(w, r, "id")
@@ -1410,10 +1410,20 @@ func handleRDBMSSyncHistory(w http.ResponseWriter, r *http.Request, service Admi
 			return
 		}
 	}
+	cursorRaw, ok := singleQueryValue(w, r, "cursor")
+	if !ok {
+		return
+	}
+	cursor, err := maildb.DecodeRDBMSSyncRunCursor(cursorRaw)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid cursor")
+		return
+	}
 	runs, err := service.GetRDBMSSyncRuns(r.Context(), maildb.RDBMSSyncRunListRequest{
 		DomainID: id,
 		Limit:    limit + 1,
 		Offset:   offset,
+		Cursor:   cursor,
 	})
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
@@ -1423,7 +1433,15 @@ func handleRDBMSSyncHistory(w http.ResponseWriter, r *http.Request, service Admi
 	if hasMore {
 		runs = runs[:limit]
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"sync_runs": runs, "limit": limit, "offset": offset, "has_more": hasMore})
+	nextCursor := ""
+	if hasMore && len(runs) > 0 {
+		nextCursor, err = maildb.EncodeRDBMSSyncRunCursor(runs[len(runs)-1])
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "internal server error")
+			return
+		}
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"sync_runs": runs, "limit": limit, "offset": offset, "has_more": hasMore, "next_cursor": nextCursor})
 }
 
 func handleRDBMSSyncConflicts(w http.ResponseWriter, r *http.Request, service AdminService) {

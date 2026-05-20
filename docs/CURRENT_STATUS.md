@@ -1,6 +1,12 @@
 # gogomail current status
 
-Last updated: 2026-05-21 (SaaS launch hardening continues: POP3 login metadata path optimized)
+Last updated: 2026-05-21 (SaaS launch hardening continues: RDBMS sync history seek pagination)
+
+## RDBMS Sync History Seek Pagination (2026-05-21)
+- RDBMS sync history keeps legacy `offset` pagination but now also accepts an opaque `cursor` that uses `(created_at, id)` seek pagination for deep pages.
+- The repository query orders by `created_at DESC, id DESC`, omits `OFFSET` when a cursor is present, and migration `0123_rdbms_sync_run_seek_index.sql` adds the matching `(domain_id, created_at DESC, id DESC)` index.
+- Admin responses now include `next_cursor` alongside `limit`, `offset`, and `has_more`; OpenAPI documents the cursor path.
+- Verification target: `go test ./internal/maildb -run RDBMSSync`; `go test ./internal/httpapi -run RDBMSSyncHistory`.
 
 ## POP3 Inbox Metadata Login Path (2026-05-21)
 - POP3 authentication now loads INBOX message id/size metadata through a POP3-specific lightweight page query instead of the full webmail message-list query with preview text joins.

@@ -25,6 +25,7 @@ import (
 	"github.com/gogomail/gogomail/internal/imapgw"
 	"github.com/gogomail/gogomail/internal/maildb"
 	"github.com/gogomail/gogomail/internal/storage"
+	"github.com/google/uuid"
 )
 
 func TestAdminQueueHandler(t *testing.T) {
@@ -131,6 +132,60 @@ func TestLDAPSyncHistoryReturnsPaginationMetadata(t *testing.T) {
 	}
 	if service.lastLDAPSyncRunsReq.Limit != 2 || service.lastLDAPSyncRunsReq.Offset != 5 {
 		t.Fatalf("request = %+v, want limit+1 probe", service.lastLDAPSyncRunsReq)
+	}
+}
+
+func TestRDBMSSyncHistoryReturnsCursorPaginationMetadata(t *testing.T) {
+	t.Parallel()
+
+	firstID := uuid.MustParse("11111111-1111-1111-1111-111111111111")
+	secondID := uuid.MustParse("22222222-2222-2222-2222-222222222222")
+	cursorID := uuid.MustParse("33333333-3333-3333-3333-333333333333")
+	cursorTime := time.Date(2026, 5, 21, 9, 0, 0, 0, time.UTC)
+	cursor, err := maildb.EncodeRDBMSSyncRunCursor(maildb.RDBMSSyncRunView{ID: cursorID, CreatedAt: cursorTime})
+	if err != nil {
+		t.Fatalf("EncodeRDBMSSyncRunCursor returned error: %v", err)
+	}
+	service := &fakeAdminService{
+		rdbmsSyncRuns: []maildb.RDBMSSyncRunView{
+			{ID: firstID, SyncType: "users", Status: "success", CreatedAt: cursorTime.Add(-time.Minute)},
+			{ID: secondID, SyncType: "groups", Status: "success", CreatedAt: cursorTime.Add(-2 * time.Minute)},
+		},
+	}
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/domains/domain-1/rdbms/sync-history?limit=1&cursor="+cursor, nil)
+	req.SetPathValue("id", "domain-1")
+	rec := httptest.NewRecorder()
+
+	handleRDBMSSyncHistory(rec, req, service)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	var body struct {
+		Runs       []maildb.RDBMSSyncRunView `json:"sync_runs"`
+		Limit      int                       `json:"limit"`
+		Offset     int                       `json:"offset"`
+		HasMore    bool                      `json:"has_more"`
+		NextCursor string                    `json:"next_cursor"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if body.Limit != 1 || body.Offset != 0 || !body.HasMore || len(body.Runs) != 1 || body.NextCursor == "" {
+		t.Fatalf("body = %+v", body)
+	}
+	if service.lastRDBMSSyncRunsReq.Limit != 2 || service.lastRDBMSSyncRunsReq.Offset != 0 {
+		t.Fatalf("request = %+v, want limit+1 cursor probe", service.lastRDBMSSyncRunsReq)
+	}
+	if service.lastRDBMSSyncRunsReq.Cursor.ID != cursorID || !service.lastRDBMSSyncRunsReq.Cursor.CreatedAt.Equal(cursorTime) {
+		t.Fatalf("cursor request = %+v", service.lastRDBMSSyncRunsReq.Cursor)
+	}
+	next, err := maildb.DecodeRDBMSSyncRunCursor(body.NextCursor)
+	if err != nil {
+		t.Fatalf("DecodeRDBMSSyncRunCursor(next) returned error: %v", err)
+	}
+	if next.ID != firstID {
+		t.Fatalf("next cursor ID = %s, want %s", next.ID, firstID)
 	}
 }
 
