@@ -209,25 +209,43 @@ Important environment variables:
 | `GOGOMAIL_DB_CONN_MAX_LIFETIME` | PostgreSQL connection max lifetime, default `30m` |
 | `GOGOMAIL_DB_CONN_MAX_IDLE_TIME` | PostgreSQL connection max idle time, default `5m` |
 | `GOGOMAIL_REDIS_ADDR` | Redis host and port |
+| `GOGOMAIL_REDIS_PASSWORD` | Redis password; required by the medium/large Docker profiles |
+| `GOGOMAIL_REDIS_SENTINEL_ADDRS` / `GOGOMAIL_REDIS_MASTER_NAME` | Optional Redis Sentinel failover configuration |
 | `GOGOMAIL_STORAGE_BACKEND` | `local`, `nfs`, `minio`, or `s3` |
+| `GOGOMAIL_STORAGE_ROOT` / `GOGOMAIL_MAILSTORE_ROOT` | Local/NFS object root; `MAILSTORE_ROOT` remains the legacy alias |
+| `GOGOMAIL_STORAGE_BACKEND_COMPAT_LABELS` | Compatibility labels exposed in storage capabilities during migrations |
+| `GOGOMAIL_STORAGE_S3_*` | S3/MinIO endpoint, region, bucket, prefix, credentials, path-style, and TLS CA options |
 | `GOGOMAIL_AUTH_JWT_SECRET` | Mail API JWT signing secret |
 | `GOGOMAIL_ADMIN_TOKEN` | Admin API bearer token for token-based admin access |
+| `GOGOMAIL_ADMIN_BOOTSTRAP_EMAIL` / `GOGOMAIL_ADMIN_BOOTSTRAP_PASSWORD` | Development-only bootstrap admin credentials; blocked in production |
+| `GOGOMAIL_SYSTEM_EMAIL_FROM` / `GOGOMAIL_SYSTEM_SMTP_*` | System email sender for invites, welcome mail, quota alerts, and password reset |
+| `GOGOMAIL_APNS_*` / `GOGOMAIL_WEBPUSH_*` | Push notification credentials for APNs and Web Push |
+| `GOGOMAIL_WEBHOOK_DISPATCH_ENABLED` | Enables tenant webhook dispatch, default `true` |
+| `GOGOMAIL_CORS_ALLOWED_ORIGINS` | Comma-separated browser origins allowed by admin/mail APIs |
+| `GOGOMAIL_METRICS_BACKEND` / `GOGOMAIL_METRICS_ADDR` | Metrics backend and Prometheus scrape address |
+| `GOGOMAIL_OUTBOX_RELAY_*` | Outbox relay batch size, polling interval, and retry controls |
+| `GOGOMAIL_DELIVERY_*` | Delivery worker stream, consumer, retry, TLS, smart-host, route, throttle, and timeout controls |
 | `GOGOMAIL_DELIVERY_RECIPIENT_BATCH_SIZE` | Max recipients per same-domain SMTP delivery batch, default `100` |
 | `GOGOMAIL_MESSAGE_BODY_CACHE_ENTRIES` | Parsed message body cache capacity, default `256`; set `0` to disable |
 | `GOGOMAIL_MESSAGE_BODY_CACHE_TTL` | Parsed message body cache TTL, default `5m` |
 | `GOGOMAIL_RESTORE_REHEARSAL_DATABASE_URL` | Optional database URL used by release verification for backup/restore rehearsal |
+| `GOGOMAIL_RESTORE_REHEARSAL_DB_URL` / `GOGOMAIL_RESTORE_REHEARSAL_KEEP_DB` | Optional scratch DB override and keep flag for `scripts/backup-restore-rehearsal.sh` |
 | `GOGOMAIL_AUTO_PURGE_ENABLED` | Enables scheduled retention AutoPurge jobs for companies whose retention policy has `auto_purge_enabled` |
 | `GOGOMAIL_AUTO_PURGE_INTERVAL` | Retention AutoPurge scheduler interval, default `24h` |
 | `GOGOMAIL_AUTO_PURGE_BATCH_SIZE` | Max messages/audit rows purged per company per run, default `1000` |
+| `GOGOMAIL_API_METERING_*` / `GOGOMAIL_API_USAGE_*` | API metering stream, aggregation, retention, and export signer controls |
+| `GOGOMAIL_ATTACHMENT_SCAN_*` / `GOGOMAIL_ATTACHMENT_CLEANUP_*` | Attachment scanning backend, ClamAV/webhook options, and stale upload cleanup controls |
+| `GOGOMAIL_PUSH_NOTIFICATION_*` | Push notification backend, webhook, consumer, and device-limit controls |
 | `GOGOMAIL_BACKUP_DIR` | Directory used by `scripts/backup.sh`, default `./backups` |
 | `GOGOMAIL_BACKUP_RETENTION_DAYS` | Local backup retention window, default `7` |
-| `GOGOMAIL_BACKUP_S3_BUCKET` | Optional S3 bucket for backup uploads |
+| `GOGOMAIL_BACKUP_S3_BUCKET` / `GOGOMAIL_BACKUP_S3_PREFIX` | Optional S3 bucket and key prefix for backup uploads |
 | `GOGOMAIL_SECURITY_VERIFY` | Set to `1` to add `go vet` and `govulncheck` to backend release verification |
 | `GOGOMAIL_BACKEND_URL` | Backend URL used by Next.js server routes |
 | `NEXT_PUBLIC_GOGOMAIL_PUBLIC_BASE_URL` | Public origin displayed in browser-facing console copy when needed |
+| `NEXT_PUBLIC_VAPID_PUBLIC_KEY` | Browser-visible Web Push VAPID public key for webmail subscription registration |
 | `GOGOMAIL_ADMIN_MFA_REQUIRED` | Require TOTP MFA enrollment for `system_admin` login; default `false` |
 
-Full configuration details live under `internal/config/` and `configs/`.
+Full configuration details live under `internal/config/`, `internal/config/validate.go`, `configs/`, [`docker/.env.example`](docker/.env.example), [`apps/webmail/.env.example`](apps/webmail/.env.example), and [`apps/console/.env.example`](apps/console/.env.example).
 
 ---
 

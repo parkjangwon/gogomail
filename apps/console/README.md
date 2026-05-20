@@ -118,9 +118,15 @@ helpers that are covered by `pnpm type-check`.
 
 ```bash
 GOGOMAIL_BACKEND_URL=http://localhost:8080  # Backend URL (default)
+NEXT_PUBLIC_GOGOMAIL_PUBLIC_BASE_URL=http://localhost:3001  # Browser-visible public origin
 NODE_ENV=development|production             # Environment
 GIT_SHA=abc123def                           # Git commit SHA (for build ID)
 ```
+
+The console proxies Admin API requests through server routes, so backend
+credentials and internal service URLs must stay server-side. Keep
+`GOGOMAIL_BACKEND_URL` private to the Next.js runtime and use only
+`NEXT_PUBLIC_*` variables for values that are safe to expose in the browser.
 
 ## Performance Optimization
 

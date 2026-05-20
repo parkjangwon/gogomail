@@ -6360,3 +6360,8 @@ Target outcome:
       trip from the common attachment-free detail path.  `BenchmarkGetMessageBodyCache`
       now tracks parsed-body miss/hit costs, with the current sample at miss
       `~7.83 us/op` and hit `~933.6 ns/op`.
+1749. Launch documentation is refreshed across README, README.ko, Docker,
+      webmail, console, and backend release readiness docs so recent
+      performance, storage, backup/restore, push/webhook, system email, API
+      usage, and frontend public-origin environment variables are visible in
+      operator-facing setup surfaces.

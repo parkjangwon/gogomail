@@ -212,25 +212,43 @@ bin/gogomail --migrate --mode=mail-api
 | `GOGOMAIL_DB_CONN_MAX_LIFETIME` | PostgreSQL connection max lifetime, 기본 `30m` |
 | `GOGOMAIL_DB_CONN_MAX_IDLE_TIME` | PostgreSQL connection max idle time, 기본 `5m` |
 | `GOGOMAIL_REDIS_ADDR` | Redis host와 port |
+| `GOGOMAIL_REDIS_PASSWORD` | Redis 비밀번호, medium/large Docker profile에서 필요 |
+| `GOGOMAIL_REDIS_SENTINEL_ADDRS` / `GOGOMAIL_REDIS_MASTER_NAME` | 선택적 Redis Sentinel failover 설정 |
 | `GOGOMAIL_STORAGE_BACKEND` | `local`, `nfs`, `minio`, `s3` |
+| `GOGOMAIL_STORAGE_ROOT` / `GOGOMAIL_MAILSTORE_ROOT` | local/NFS 객체 저장소 root, `MAILSTORE_ROOT`는 legacy alias |
+| `GOGOMAIL_STORAGE_BACKEND_COMPAT_LABELS` | 저장소 migration 중 capability에 노출할 compatibility label |
+| `GOGOMAIL_STORAGE_S3_*` | S3/MinIO endpoint, region, bucket, prefix, credentials, path-style, TLS CA 옵션 |
 | `GOGOMAIL_AUTH_JWT_SECRET` | Mail API JWT 서명 secret |
 | `GOGOMAIL_ADMIN_TOKEN` | token 기반 관리자 API 접근용 bearer token |
+| `GOGOMAIL_ADMIN_BOOTSTRAP_EMAIL` / `GOGOMAIL_ADMIN_BOOTSTRAP_PASSWORD` | 개발 전용 bootstrap admin credential, production에서는 차단 |
+| `GOGOMAIL_SYSTEM_EMAIL_FROM` / `GOGOMAIL_SYSTEM_SMTP_*` | 초대, welcome, quota alert, 비밀번호 재설정용 시스템 메일 발신자 |
+| `GOGOMAIL_APNS_*` / `GOGOMAIL_WEBPUSH_*` | APNs 및 Web Push 알림 credential |
+| `GOGOMAIL_WEBHOOK_DISPATCH_ENABLED` | tenant webhook dispatch 활성화, 기본 `true` |
+| `GOGOMAIL_CORS_ALLOWED_ORIGINS` | admin/mail API가 허용할 browser origin 목록 |
+| `GOGOMAIL_METRICS_BACKEND` / `GOGOMAIL_METRICS_ADDR` | metrics backend와 Prometheus scrape 주소 |
+| `GOGOMAIL_OUTBOX_RELAY_*` | outbox relay batch size, polling interval, retry 제어 |
+| `GOGOMAIL_DELIVERY_*` | delivery worker stream, consumer, retry, TLS, smart-host, route, throttle, timeout 제어 |
 | `GOGOMAIL_DELIVERY_RECIPIENT_BATCH_SIZE` | 같은 도메인 SMTP 전송 배치의 최대 수신자 수, 기본 `100` |
 | `GOGOMAIL_MESSAGE_BODY_CACHE_ENTRIES` | parsed message body 캐시 용량, 기본 `256`, `0`이면 비활성화 |
 | `GOGOMAIL_MESSAGE_BODY_CACHE_TTL` | parsed message body 캐시 TTL, 기본 `5m` |
 | `GOGOMAIL_RESTORE_REHEARSAL_DATABASE_URL` | 릴리즈 검증에서 백업/복구 리허설에 사용할 선택 DB URL |
+| `GOGOMAIL_RESTORE_REHEARSAL_DB_URL` / `GOGOMAIL_RESTORE_REHEARSAL_KEEP_DB` | `scripts/backup-restore-rehearsal.sh`용 scratch DB override와 보존 flag |
 | `GOGOMAIL_AUTO_PURGE_ENABLED` | 회사 retention policy의 `auto_purge_enabled`가 켜진 테넌트에 대해 scheduled AutoPurge 실행 |
 | `GOGOMAIL_AUTO_PURGE_INTERVAL` | retention AutoPurge scheduler interval, 기본 `24h` |
 | `GOGOMAIL_AUTO_PURGE_BATCH_SIZE` | 회사별 1회 실행에서 삭제할 messages/audit rows 최대치, 기본 `1000` |
+| `GOGOMAIL_API_METERING_*` / `GOGOMAIL_API_USAGE_*` | API metering stream, aggregation, retention, export signer 제어 |
+| `GOGOMAIL_ATTACHMENT_SCAN_*` / `GOGOMAIL_ATTACHMENT_CLEANUP_*` | 첨부파일 scanning backend, ClamAV/webhook 옵션, stale upload cleanup 제어 |
+| `GOGOMAIL_PUSH_NOTIFICATION_*` | push notification backend, webhook, consumer, device limit 제어 |
 | `GOGOMAIL_BACKUP_DIR` | `scripts/backup.sh`가 사용할 백업 디렉터리, 기본 `./backups` |
 | `GOGOMAIL_BACKUP_RETENTION_DAYS` | local backup retention 기간, 기본 `7` |
-| `GOGOMAIL_BACKUP_S3_BUCKET` | 설정 시 백업 파일을 업로드할 S3 bucket |
+| `GOGOMAIL_BACKUP_S3_BUCKET` / `GOGOMAIL_BACKUP_S3_PREFIX` | 설정 시 백업 파일을 업로드할 S3 bucket과 key prefix |
 | `GOGOMAIL_SECURITY_VERIFY` | `1`이면 backend release verification에 `go vet`과 `govulncheck` 추가 |
 | `GOGOMAIL_BACKEND_URL` | Next.js 서버 route가 사용할 백엔드 URL |
 | `NEXT_PUBLIC_GOGOMAIL_PUBLIC_BASE_URL` | 브라우저에 표시해야 하는 public origin |
+| `NEXT_PUBLIC_VAPID_PUBLIC_KEY` | 웹메일 push subscription 등록에 쓰는 browser-visible Web Push VAPID public key |
 | `GOGOMAIL_ADMIN_MFA_REQUIRED` | `system_admin` 로그인에 TOTP MFA 등록 강제 여부, 기본 `false` |
 
-전체 설정은 `internal/config/`와 `configs/`를 참고하세요.
+전체 설정은 `internal/config/`, `internal/config/validate.go`, `configs/`, [`docker/.env.example`](docker/.env.example), [`apps/webmail/.env.example`](apps/webmail/.env.example), [`apps/console/.env.example`](apps/console/.env.example)를 참고하세요.
 
 ---
 

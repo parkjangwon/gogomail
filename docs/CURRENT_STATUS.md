@@ -7810,3 +7810,10 @@ Next focus areas:
 - Added a regression test to keep attachment-free reads at zero attachment lookups.
 - Added `BenchmarkGetMessageBodyCache` to track cache miss versus hit cost: miss `~7.83 us/op`, `10979 B/op`, `85 allocs/op`; hit `~933.6 ns/op`, `568 B/op`, `9 allocs/op`.
 - Verification: `go test ./internal/mailservice -run 'TestGetMessage(ParsesTextBodyFromStorage|SkipsAttachmentLookupWhenMessageHasNoAttachments|CachesParsedBodyByStoragePath|ReportsMessageBodyCacheStats)'`; `go test ./internal/mailservice -run '^$' -bench BenchmarkGetMessageBodyCache -benchtime=100ms`.
+
+## 2026-05-21 README and environment documentation refresh
+
+- README and README.ko now group current launch-critical environment variables for Redis/Sentinel, storage/S3 compatibility, system email, push, webhooks, CORS, metrics, outbox/delivery tuning, API usage, attachment scanning/cleanup, backup, restore rehearsal, and frontend public origins.
+- Docker, webmail, and console `.env.example` files now include the recent backend performance/security/notification/session-facing variables instead of only the older minimal backend URL entries.
+- Docker README and backend release readiness now document restore rehearsal scratch-DB overrides and heavier release verification gates.
+- Verification: documentation-only diff plus env-name grep against README, Docker, webmail, console, and release-readiness docs.
