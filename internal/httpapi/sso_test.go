@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto"
+	"crypto/hmac"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/sha256"
@@ -325,6 +326,13 @@ func newTestIDPKey(t *testing.T) *testIDPKey {
 func buildSignedSAMLResponse(t *testing.T, idp *testIDPKey, email string) string {
 	t.Helper()
 
+	// Build the Assertion so we can compute its real SHA-256 digest for DigestValue.
+	assertionXML := `<saml:Assertion>` +
+		`<saml:Subject><saml:NameID Format="urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress">` + email + `</saml:NameID></saml:Subject>` +
+		`</saml:Assertion>`
+	assertionDigest := sha256.Sum256([]byte(assertionXML))
+	digestValueB64 := base64.StdEncoding.EncodeToString(assertionDigest[:])
+
 	// Build the SignedInfo canonical XML (no transforms in our simplified form).
 	signedInfo := fmt.Sprintf(
 		`<ds:SignedInfo xmlns:ds="http://www.w3.org/2000/09/xmldsig#">`+
@@ -332,9 +340,10 @@ func buildSignedSAMLResponse(t *testing.T, idp *testIDPKey, email string) string
 			`<ds:SignatureMethod Algorithm="http://www.w3.org/2001/04/xmldsig-more#rsa-sha256"/>`+
 			`<ds:Reference URI="#_resp">`+
 			`<ds:DigestMethod Algorithm="http://www.w3.org/2001/04/xmlenc#sha256"/>`+
-			`<ds:DigestValue>placeholder</ds:DigestValue>`+
+			`<ds:DigestValue>%s</ds:DigestValue>`+
 			`</ds:Reference>`+
 			`</ds:SignedInfo>`,
+		digestValueB64,
 	)
 
 	// Sign the SignedInfo.
@@ -355,9 +364,7 @@ func buildSignedSAMLResponse(t *testing.T, idp *testIDPKey, email string) string
 		`<ds:SignatureValue>` + sigB64 + `</ds:SignatureValue>` +
 		`<ds:KeyInfo><ds:X509Data><ds:X509Certificate>` + certB64 + `</ds:X509Certificate></ds:X509Data></ds:KeyInfo>` +
 		`</ds:Signature>` +
-		`<saml:Assertion>` +
-		`<saml:Subject><saml:NameID Format="urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress">` + email + `</saml:NameID></saml:Subject>` +
-		`</saml:Assertion>` +
+		assertionXML +
 		`</samlp:Response>`
 	return base64.StdEncoding.EncodeToString([]byte(xmlDoc))
 }
@@ -375,9 +382,12 @@ func buildMinimalSAMLResponse(email string) string {
 	return base64.StdEncoding.EncodeToString([]byte(xml))
 }
 
-// buildMinimalIDToken builds a JWT with a valid exp claim (year 2099).
-// ClientSecret is empty in tests so VerifyAndParseIDToken skips signature verification
-// while still enforcing exp/iat/aud claims.
+// testOIDCClientSecret is the shared HS256 client secret used in OIDC callback tests.
+const testOIDCClientSecret = "test-client-secret-for-hs256"
+
+// buildMinimalIDToken builds a HS256-signed JWT with a valid exp claim (year 2099).
+// The token is signed with testOIDCClientSecret so that VerifyAndParseIDToken
+// can perform full HMAC-SHA256 signature verification.
 func buildMinimalIDToken(email string) string {
 	// 4070908800 = 2099-01-01T00:00:00Z — valid for the foreseeable test future.
 	const exp2099 = 4070908800
@@ -385,8 +395,11 @@ func buildMinimalIDToken(email string) string {
 	payload := base64.RawURLEncoding.EncodeToString([]byte(
 		fmt.Sprintf(`{"sub":"sub123","email":%q,"iss":"https://idp.example.com","aud":"client123","exp":%d}`, email, exp2099),
 	))
-	sig := base64.RawURLEncoding.EncodeToString([]byte("fakesig"))
-	return header + "." + payload + "." + sig
+	sigInput := header + "." + payload
+	mac := hmac.New(sha256.New, []byte(testOIDCClientSecret))
+	mac.Write([]byte(sigInput)) //nolint:errcheck
+	sig := base64.RawURLEncoding.EncodeToString(mac.Sum(nil))
+	return sigInput + "." + sig
 }
 
 // buildExpiredIDToken builds a JWT with exp in the past to test rejection.
@@ -600,6 +613,7 @@ func TestSSOOIDCCallbackKnownUser(t *testing.T) {
 		DomainID:     "dom-oidc",
 		Provider:     "oidc",
 		ClientID:     "client123",
+		ClientSecret: testOIDCClientSecret,
 		SSOURL:       "https://idp.example.com/auth",
 		DiscoveryURL: tokenSrv.URL, // used as token endpoint in tests
 	})
@@ -772,6 +786,7 @@ func TestSSOOIDCCallbackCustomTTL(t *testing.T) {
 		DomainID:          "dom-oidc-ttl",
 		Provider:          "oidc",
 		ClientID:          "client123",
+		ClientSecret:      testOIDCClientSecret,
 		SSOURL:            "https://idp.example.com/auth",
 		DiscoveryURL:      tokenSrv.URL,
 		SessionTTLSeconds: 7200,
