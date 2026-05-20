@@ -642,6 +642,91 @@ func TestPrincipalSearchPatternEscapesLikeWildcards(t *testing.T) {
 	}
 }
 
+func TestSearchPrincipalsQueryUsesSargableOptionalFilters(t *testing.T) {
+	t.Parallel()
+
+	req, err := NormalizeSearchPrincipalsRequest(SearchPrincipalsRequest{
+		CompanyID:      " company-1 ",
+		DomainID:       " domain-1 ",
+		OrganizationID: " org-1 ",
+		Kinds:          []string{" USER ", "resource"},
+		Query:          ` A_%\ `,
+		ActiveOnly:     true,
+		Limit:          25,
+		Offset:         50,
+	})
+	if err != nil {
+		t.Fatalf("NormalizeSearchPrincipalsRequest returned error: %v", err)
+	}
+	query, args := buildSearchPrincipalsQuery(req)
+	for _, want := range []string{
+		"FROM users u",
+		"FROM directory_resources rsrc",
+		"WHERE c.id = $1::uuid",
+		"AND d.id = $2::uuid",
+		"AND u.org_id = $3::uuid",
+		"AND rsrc.org_id = $3::uuid",
+		"LIKE $4 ESCAPE",
+		"AND (u.status = 'active' AND d.status = 'active' AND c.status = 'active')",
+		"AND (rsrc.status = 'active' AND d.status = 'active' AND c.status = 'active')",
+		"ORDER BY kind_rank, lower(display_name), id",
+		"LIMIT $5 OFFSET $6",
+	} {
+		if !strings.Contains(query, want) {
+			t.Fatalf("search principals query missing %q:\n%s", want, query)
+		}
+	}
+	for _, unexpected := range []string{
+		"FROM organizations o",
+		"FROM directory_groups g",
+		"$7::boolean",
+		"NULLIF($",
+		" = '' OR",
+		"COALESCE(u.org_id::text, '') =",
+		"COALESCE(rsrc.org_id::text, '') =",
+	} {
+		if strings.Contains(query, unexpected) {
+			t.Fatalf("search principals query unexpectedly includes %q:\n%s", unexpected, query)
+		}
+	}
+	if len(args) != 6 {
+		t.Fatalf("args len = %d, want 6", len(args))
+	}
+	if args[0] != "company-1" || args[1] != "domain-1" || args[2] != "org-1" || args[3] != `%a\_\%\\%` || args[4] != 25 || args[5] != 50 {
+		t.Fatalf("args = %#v", args)
+	}
+
+	query, args = buildSearchPrincipalsQuery(SearchPrincipalsRequest{
+		CompanyID:  "company-1",
+		Kinds:      []string{PrincipalKindGroup},
+		Limit:      10,
+		Offset:     0,
+		ActiveOnly: false,
+	})
+	if !strings.Contains(query, "FROM directory_groups g") {
+		t.Fatalf("group-only query missing group branch:\n%s", query)
+	}
+	for _, unexpected := range []string{
+		"FROM users u",
+		"FROM organizations o",
+		"FROM directory_resources rsrc",
+		"status = 'active'",
+		"domain_id = $",
+		"org_id = $",
+		"LIKE $",
+	} {
+		if strings.Contains(query, unexpected) {
+			t.Fatalf("group-only query unexpectedly includes %q:\n%s", unexpected, query)
+		}
+	}
+	if len(args) != 3 {
+		t.Fatalf("group-only args len = %d, want 3", len(args))
+	}
+	if args[0] != "company-1" || args[1] != 10 || args[2] != 0 {
+		t.Fatalf("group-only args = %#v", args)
+	}
+}
+
 func TestNormalizeCheckGroupMembershipRequest(t *testing.T) {
 	t.Parallel()
 
