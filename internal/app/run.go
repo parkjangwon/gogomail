@@ -3104,6 +3104,12 @@ func runHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, mode M
 		calendarHandler := httpapi.NewCalendarHandler(caldavgw.NewRepository(db), service)
 		httpapi.RegisterCalendarRoutes(mux, calendarHandler, tokenManager)
 		httpapi.RegisterCalendarSubscriptionRoutes(mux, calendarHandler, tokenManager)
+		httpapi.RegisterPasswordResetRoutes(
+			mux,
+			httpapi.NewMaildbPasswordResetAdapter(repository),
+			mailservice.NewSMTPSystemEmailSenderFromEnv(),
+			cfg.PublicBaseURL,
+		)
 		logger.Info("mail api routes registered")
 	}
 	if modeIncludesAdminAPI(mode) {
