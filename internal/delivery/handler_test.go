@@ -58,6 +58,42 @@ func TestHandlerDeliversQueuedMessage(t *testing.T) {
 	}
 }
 
+func TestHandlerUsesBulkRecorderForMultipleRecipients(t *testing.T) {
+	t.Parallel()
+
+	store := storage.NewLocalStore(t.TempDir())
+	if err := store.Put(context.Background(), "mailstore/msg.eml", strings.NewReader("Subject: hello\r\n\r\nbody")); err != nil {
+		t.Fatalf("Put returned error: %v", err)
+	}
+	transport := &fakeTransport{}
+	recorder := &fakeBulkRecorder{}
+	handler := NewHandler(store, transport, recorder, nil)
+
+	err := handler.HandleEvent(context.Background(), eventstream.Message{
+		ID: "1-0",
+		Payload: []byte(`{
+			"event":"mail.queued",
+			"message_id":"msg-1",
+			"from":{"email":"sender@example.com"},
+			"to":[{"email":"a@example.net"},{"email":"b@example.net"}],
+			"storage_path":"mailstore/msg.eml",
+			"farm":"general"
+		}`),
+	})
+	if err != nil {
+		t.Fatalf("HandleEvent returned error: %v", err)
+	}
+	if len(recorder.batches) != 1 {
+		t.Fatalf("bulk batches = %d, want 1", len(recorder.batches))
+	}
+	if got := recorder.batches[0]; len(got) != 2 || got[0].Recipient != "a@example.net" || got[1].Recipient != "b@example.net" {
+		t.Fatalf("bulk attempts = %+v, want two recipients", got)
+	}
+	if len(recorder.attempts) != 0 {
+		t.Fatalf("individual attempts = %+v, want none", recorder.attempts)
+	}
+}
+
 func TestDecodeQueuedMessageNormalizesStoragePath(t *testing.T) {
 	t.Parallel()
 
@@ -969,6 +1005,16 @@ type fakeRecorder struct {
 
 func (r *fakeRecorder) RecordAttempt(_ context.Context, attempt Attempt) error {
 	r.attempts = append(r.attempts, attempt)
+	return nil
+}
+
+type fakeBulkRecorder struct {
+	fakeRecorder
+	batches [][]Attempt
+}
+
+func (r *fakeBulkRecorder) RecordAttempts(_ context.Context, attempts []Attempt) error {
+	r.batches = append(r.batches, append([]Attempt(nil), attempts...))
 	return nil
 }
 

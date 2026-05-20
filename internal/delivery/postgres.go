@@ -6,6 +6,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"time"
+
+	"github.com/lib/pq"
 )
 
 type PostgresRecorder struct {
@@ -17,19 +20,74 @@ func NewPostgresRecorder(db *sql.DB) *PostgresRecorder {
 }
 
 func (r *PostgresRecorder) RecordAttempt(ctx context.Context, attempt Attempt) error {
+	return r.RecordAttempts(ctx, []Attempt{attempt})
+}
+
+func (r *PostgresRecorder) RecordAttempts(ctx context.Context, attempts []Attempt) error {
 	if r.db == nil {
 		return fmt.Errorf("database handle is required")
 	}
-	diagnostics, err := deliveryAttemptDiagnostics(attempt)
-	if err != nil {
-		return err
+	if len(attempts) == 0 {
+		return nil
 	}
 
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
-		return fmt.Errorf("begin delivery attempt transaction: %w", err)
+		return fmt.Errorf("begin delivery attempts transaction: %w", err)
 	}
 	defer tx.Rollback()
+
+	if err := insertDeliveryAttempts(ctx, tx, attempts); err != nil {
+		return err
+	}
+	if err := suppressBouncedRecipients(ctx, tx, attempts); err != nil {
+		return err
+	}
+	if err := insertDeliveryAttemptEvents(ctx, tx, attempts); err != nil {
+		return err
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit delivery attempts transaction: %w", err)
+	}
+	return nil
+}
+
+func insertDeliveryAttempts(ctx context.Context, tx *sql.Tx, attempts []Attempt) error {
+	messageIDs := make([]string, 0, len(attempts))
+	rfcMessageIDs := make([]string, 0, len(attempts))
+	farms := make([]string, 0, len(attempts))
+	recipients := make([]string, 0, len(attempts))
+	recipientDomains := make([]string, 0, len(attempts))
+	statuses := make([]string, 0, len(attempts))
+	errorMessages := make([]string, 0, len(attempts))
+	senders := make([]string, 0, len(attempts))
+	enhancedStatuses := make([]string, 0, len(attempts))
+	dsnReturns := make([]string, 0, len(attempts))
+	dsnEnvelopeIDs := make([]string, 0, len(attempts))
+	dsnNotifies := make([]string, 0, len(attempts))
+	originalRecipients := make([]string, 0, len(attempts))
+	attemptedAts := make([]time.Time, 0, len(attempts))
+
+	for _, attempt := range attempts {
+		diagnostics, err := deliveryAttemptDiagnostics(attempt)
+		if err != nil {
+			return err
+		}
+		messageIDs = append(messageIDs, attempt.MessageID)
+		rfcMessageIDs = append(rfcMessageIDs, attempt.RFCMessageID)
+		farms = append(farms, attempt.Farm)
+		recipients = append(recipients, attempt.Recipient)
+		recipientDomains = append(recipientDomains, attempt.RecipientDomain)
+		statuses = append(statuses, string(attempt.Status))
+		errorMessages = append(errorMessages, attempt.ErrorMessage)
+		senders = append(senders, diagnostics.Sender)
+		enhancedStatuses = append(enhancedStatuses, diagnostics.EnhancedStatus)
+		dsnReturns = append(dsnReturns, diagnostics.DSNReturn)
+		dsnEnvelopeIDs = append(dsnEnvelopeIDs, diagnostics.DSNEnvelopeID)
+		dsnNotifies = append(dsnNotifies, string(diagnostics.DSNNotify))
+		originalRecipients = append(originalRecipients, diagnostics.OriginalRecipient)
+		attemptedAts = append(attemptedAts, attempt.AttemptedAt)
+	}
 
 	const query = `
 INSERT INTO delivery_attempts (
@@ -38,44 +96,34 @@ INSERT INTO delivery_attempts (
   status, error_message,
   sender, enhanced_status, dsn_return, dsn_envelope_id, dsn_notify, original_recipient,
   attempted_at
-) VALUES (
-  $1, $2, $3,
-  $4, $5,
-  $6, $7,
-  $8, $9, $10, $11, $12::jsonb, $13,
-  $14
+) SELECT
+  message_id::uuid, rfc_message_id, farm,
+  recipient, recipient_domain,
+  status, error_message,
+  sender, enhanced_status, dsn_return, dsn_envelope_id, dsn_notify::jsonb, original_recipient,
+  attempted_at
+FROM unnest(
+  $1::text[], $2::text[], $3::text[],
+  $4::text[], $5::text[],
+  $6::text[], $7::text[],
+  $8::text[], $9::text[], $10::text[], $11::text[], $12::text[], $13::text[],
+  $14::timestamptz[]
+) AS attempt(
+  message_id, rfc_message_id, farm,
+  recipient, recipient_domain,
+  status, error_message,
+  sender, enhanced_status, dsn_return, dsn_envelope_id, dsn_notify, original_recipient,
+  attempted_at
 )`
 
-	if _, err := tx.ExecContext(
-		ctx,
-		query,
-		attempt.MessageID,
-		attempt.RFCMessageID,
-		attempt.Farm,
-		attempt.Recipient,
-		attempt.RecipientDomain,
-		string(attempt.Status),
-		attempt.ErrorMessage,
-		diagnostics.Sender,
-		diagnostics.EnhancedStatus,
-		diagnostics.DSNReturn,
-		diagnostics.DSNEnvelopeID,
-		string(diagnostics.DSNNotify),
-		diagnostics.OriginalRecipient,
-		attempt.AttemptedAt,
+	if _, err := tx.ExecContext(ctx, query,
+		pq.Array(messageIDs), pq.Array(rfcMessageIDs), pq.Array(farms),
+		pq.Array(recipients), pq.Array(recipientDomains),
+		pq.Array(statuses), pq.Array(errorMessages),
+		pq.Array(senders), pq.Array(enhancedStatuses), pq.Array(dsnReturns), pq.Array(dsnEnvelopeIDs), pq.Array(dsnNotifies), pq.Array(originalRecipients),
+		pq.Array(attemptedAts),
 	); err != nil {
-		return fmt.Errorf("insert delivery attempt: %w", err)
-	}
-	if shouldSuppressBouncedRecipient(attempt) {
-		if err := suppressBouncedRecipient(ctx, tx, attempt); err != nil {
-			return err
-		}
-	}
-	if err := insertDeliveryAttemptEvent(ctx, tx, attempt); err != nil {
-		return err
-	}
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("commit delivery attempt transaction: %w", err)
+		return fmt.Errorf("insert delivery attempts: %w", err)
 	}
 	return nil
 }
@@ -84,32 +132,60 @@ func shouldSuppressBouncedRecipient(attempt Attempt) bool {
 	return attempt.Status == AttemptBounced && attempt.Sender != ""
 }
 
-func suppressBouncedRecipient(ctx context.Context, tx *sql.Tx, attempt Attempt) error {
+func suppressBouncedRecipients(ctx context.Context, tx *sql.Tx, attempts []Attempt) error {
+	domainIDs := make([]sql.NullString, 0)
+	emails := make([]string, 0)
+	messageIDs := make([]sql.NullString, 0)
+	for _, attempt := range attempts {
+		if !shouldSuppressBouncedRecipient(attempt) {
+			continue
+		}
+		domainIDs = append(domainIDs, uuidNullString(attempt.DomainID))
+		emails = append(emails, attempt.Recipient)
+		messageIDs = append(messageIDs, uuidNullString(attempt.MessageID))
+	}
+	if len(emails) == 0 {
+		return nil
+	}
+
 	const query = `
 INSERT INTO suppression_list (domain_id, email, reason, source_message_id)
-VALUES ($1, $2, 'hard_bounce', $3)
+SELECT domain_id, email, 'hard_bounce', source_message_id
+FROM unnest($1::uuid[], $2::text[], $3::uuid[]) AS bounced(domain_id, email, source_message_id)
 ON CONFLICT DO NOTHING`
 
-	if _, err := tx.ExecContext(ctx, query, uuidOrNil(attempt.DomainID), attempt.Recipient, uuidOrNil(attempt.MessageID)); err != nil {
-		return fmt.Errorf("insert suppression list entry: %w", err)
+	if _, err := tx.ExecContext(ctx, query, pq.Array(domainIDs), pq.Array(emails), pq.Array(messageIDs)); err != nil {
+		return fmt.Errorf("insert suppression list entries: %w", err)
 	}
 	return nil
 }
 
-func insertDeliveryAttemptEvent(ctx context.Context, tx *sql.Tx, attempt Attempt) error {
-	payload, err := deliveryAttemptEventPayload(attempt)
-	if err != nil {
-		return err
+func insertDeliveryAttemptEvents(ctx context.Context, tx *sql.Tx, attempts []Attempt) error {
+	partitionKeys := make([]string, 0, len(attempts))
+	payloads := make([]string, 0, len(attempts))
+	for _, attempt := range attempts {
+		payload, err := deliveryAttemptEventPayload(attempt)
+		if err != nil {
+			return err
+		}
+		partitionKeys = append(partitionKeys, attempt.MessageID)
+		payloads = append(payloads, string(payload))
 	}
 
 	const query = `
 INSERT INTO outbox (topic, partition_key, payload, status)
-VALUES ('mail.event', $1, $2::jsonb, 'pending')`
+SELECT 'mail.event', partition_key, payload::jsonb, 'pending'
+FROM unnest($1::text[], $2::text[]) AS event(partition_key, payload)`
 
-	if _, err := tx.ExecContext(ctx, query, attempt.MessageID, string(payload)); err != nil {
-		return fmt.Errorf("insert delivery attempt event: %w", err)
+	if _, err := tx.ExecContext(ctx, query, pq.Array(partitionKeys), pq.Array(payloads)); err != nil {
+		return fmt.Errorf("insert delivery attempt events: %w", err)
 	}
 	return nil
+}
+
+func uuidNullString(value string) sql.NullString {
+	value = strings.TrimSpace(value)
+	return sql.NullString{String: value, Valid: value != ""}
 }
 
 func (r *PostgresRecorder) RecordExhausted(ctx context.Context, queued QueuedMessage, cause error) error {
