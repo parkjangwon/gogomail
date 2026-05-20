@@ -6593,3 +6593,6 @@ Target outcome:
       listings now generate sargable WHERE clauses only for supplied filters,
       removing optional `($1 = '' OR ...)` predicates from these operational
       views.
+1813. Active-message and draft search SQL now emits text search predicates only
+      for supplied query/from/to/cc/bcc/subject filters, avoiding empty-filter
+      optional `OR` guards on search requests.

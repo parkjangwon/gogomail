@@ -335,6 +335,7 @@ Go Backend (`internal/`):
 - Admin console capabilities가 미구성 LDAP/organization sync를 `placeholder`로 노출하지 않고 `unavailable`로 명시하도록 OpenAPI/TS client/console 표시를 정리해, 실행 가능한 연동처럼 보이는 런칭 전 허위 상태를 제거함
 - 관리자 suppression/trusted relay/delivery route 목록 조회가 빈 필터용 `($1 = '' OR ...)` 조건을 쓰지 않고 요청된 필터만 WHERE에 추가하도록 바꿔 보안/배송 운영 테이블의 optional `OR` predicate를 제거함
 - 관리자 admin-user 목록의 company scope 필터도 직접 `d.company_id = $1::uuid` predicate로 생성하도록 바꿔 system/company admin 운영 조회의 optional `OR` predicate를 제거함
+- active-message/draft search SQL의 query/from/to/cc/bcc/subject 텍스트 필터도 값이 있을 때만 WHERE에 추가하도록 바꿔 검색 요청의 빈 필터 optional `OR` predicate를 제거함
 - `BenchmarkGetMessageBodyCache`: miss `~7.83 us/op`, `10979 B/op`, `85 allocs/op`; hit `~933.6 ns/op`, `568 B/op`, `9 allocs/op`
 - README/README.ko, Docker env example, console/webmail env examples, backend release readiness 문서를 최신 운영 env 그룹(성능, 백업/복구, push/webhook, storage, API usage, system email)과 동기화함
 - BIMI VMC URL 존재만으로 `vmcVerified=true`를 반환하던 stub 동작을 제거해 실제 인증서 검증 전에는 VMC를 검증됨으로 표시하지 않도록 고정하고, logo cache hash 계산을 실제 SHA-256 body hash로 수정함

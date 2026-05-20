@@ -87,7 +87,7 @@ func (r *Repository) SearchMessages(ctx context.Context, query MessageSearchQuer
 
 	folderID := strings.TrimSpace(query.FolderID)
 	cursorID := strings.TrimSpace(query.Cursor.ID)
-	sqlQuery := buildMessageSearchSQL(sortMode, folderID, hasAttachment, cursorID)
+	sqlQuery := buildMessageSearchSQL(sortMode, query, hasAttachment, cursorID)
 	rows, err := r.db.QueryContext(
 		ctx,
 		sqlQuery,
@@ -147,16 +147,17 @@ func (r *Repository) SearchMessages(ctx context.Context, query MessageSearchQuer
 	return messages, nil
 }
 
-func buildMessageSearchSQL(sortMode, folderID, hasAttachment, cursorID string) string {
-	conditions := messageSearchBaseConditions()
+func buildMessageSearchSQL(sortMode string, query MessageSearchQuery, hasAttachment, cursorID string) string {
+	conditions := messageSearchBaseConditions(query)
+	folderID := strings.TrimSpace(query.FolderID)
 	if folderID != "" {
-		conditions = append(conditions, "folder_id = $3::uuid")
+		conditions = append(conditions, "messages.folder_id = $3::uuid")
 	}
 	if hasAttachment != "" {
-		conditions = append(conditions, "has_attachment = $9::boolean")
+		conditions = append(conditions, "messages.has_attachment = $9::boolean")
 	}
 	if cursorID != "" {
-		conditions = append(conditions, "(COALESCE(received_at, sent_at, draft_updated_at, created_at), id) < ($13::timestamptz, $14::uuid)")
+		conditions = append(conditions, "(COALESCE(messages.received_at, messages.sent_at, messages.draft_updated_at, messages.created_at), messages.id) < ($13::timestamptz, $14::uuid)")
 	}
 	return messageSearchSQLWithConditions(sortMode, conditions)
 }
@@ -182,7 +183,7 @@ func (r *Repository) SearchDrafts(ctx context.Context, query DraftSearchQuery) (
 	cursorID := strings.TrimSpace(query.Cursor.ID)
 	rows, err := r.db.QueryContext(
 		ctx,
-		buildDraftSearchSQL(hasAttachment, cursorID),
+		buildDraftSearchSQL(query, hasAttachment, cursorID),
 		userID,
 		strings.TrimSpace(query.Query),
 		strings.TrimSpace(query.From),
@@ -230,36 +231,50 @@ func (r *Repository) SearchDrafts(ctx context.Context, query DraftSearchQuery) (
 }
 
 func messageSearchSQL(sortMode string) string {
-	return messageSearchSQLWithConditions(sortMode, messageSearchBaseConditions())
+	return messageSearchSQLWithConditions(sortMode, messageSearchBaseConditions(MessageSearchQuery{
+		Query:   "quarterly",
+		From:    "alice",
+		To:      "bob",
+		Cc:      "carol",
+		Bcc:     "dave",
+		Subject: "report",
+	}))
 }
 
-func messageSearchBaseConditions() []string {
-	return []string{
+func messageSearchBaseConditions(query MessageSearchQuery) []string {
+	conditions := []string{
 		"messages.user_id = $1",
 		"messages.status = 'active'",
-		`($2 = '' OR (
+	}
+	if strings.TrimSpace(query.Query) != "" {
+		conditions = append(conditions, `(
     (
-      setweight(to_tsvector('simple', coalesce(subject, '')), 'A') ||
-      setweight(to_tsvector('simple', coalesce(from_addr, '')), 'A') ||
-      setweight(to_tsvector('simple', coalesce(from_name, '')), 'B') ||
+      setweight(to_tsvector('simple', coalesce(messages.subject, '')), 'A') ||
+      setweight(to_tsvector('simple', coalesce(messages.from_addr, '')), 'A') ||
+      setweight(to_tsvector('simple', coalesce(messages.from_name, '')), 'B') ||
       setweight(to_tsvector('simple', coalesce(msd.body_text, '')), 'D')
     ) @@ plainto_tsquery('simple', $2)
-    OR subject ILIKE '%' || $2 || '%'
-    OR from_addr ILIKE '%' || $2 || '%'
+    OR messages.subject ILIKE '%' || $2 || '%'
+    OR messages.from_addr ILIKE '%' || $2 || '%'
     OR msd.body_text ILIKE '%' || $2 || '%'
-  )`,
-		"($4 = '' OR from_addr ILIKE '%' || $4 || '%')",
-		`($5 = '' OR (
-    to_addrs::text ILIKE '%' || $5 || '%'
-  ))`,
-		`($6 = '' OR (
-    cc_addrs::text ILIKE '%' || $6 || '%'
-  ))`,
-		`($7 = '' OR (
-    bcc_addrs::text ILIKE '%' || $7 || '%'
-  ))`,
-		"($8 = '' OR subject ILIKE '%' || $8 || '%')",
+  )`)
 	}
+	if strings.TrimSpace(query.From) != "" {
+		conditions = append(conditions, "messages.from_addr ILIKE '%' || $4 || '%'")
+	}
+	if strings.TrimSpace(query.To) != "" {
+		conditions = append(conditions, "messages.to_addrs::text ILIKE '%' || $5 || '%'")
+	}
+	if strings.TrimSpace(query.Cc) != "" {
+		conditions = append(conditions, "messages.cc_addrs::text ILIKE '%' || $6 || '%'")
+	}
+	if strings.TrimSpace(query.Bcc) != "" {
+		conditions = append(conditions, "messages.bcc_addrs::text ILIKE '%' || $7 || '%'")
+	}
+	if strings.TrimSpace(query.Subject) != "" {
+		conditions = append(conditions, "messages.subject ILIKE '%' || $8 || '%'")
+	}
+	return conditions
 }
 
 func messageSearchSQLWithConditions(sortMode string, conditions []string) string {
@@ -331,14 +346,23 @@ LIMIT $10`, strings.Join(conditions, "\n  AND "))
 }
 
 func draftSearchSQL() string {
-	return draftSearchSQLWithConditions(draftSearchBaseConditions())
+	return draftSearchSQLWithConditions(draftSearchBaseConditions(DraftSearchQuery{
+		Query:   "quarterly",
+		From:    "alice",
+		To:      "bob",
+		Cc:      "carol",
+		Bcc:     "dave",
+		Subject: "report",
+	}))
 }
 
-func draftSearchBaseConditions() []string {
-	return []string{
+func draftSearchBaseConditions(query DraftSearchQuery) []string {
+	conditions := []string{
 		"user_id = $1",
 		"status = 'draft'",
-		`($2 = '' OR (
+	}
+	if strings.TrimSpace(query.Query) != "" {
+		conditions = append(conditions, `(
     subject ILIKE '%' || $2 || '%'
     OR from_addr ILIKE '%' || $2 || '%'
     OR from_name ILIKE '%' || $2 || '%'
@@ -346,22 +370,27 @@ func draftSearchBaseConditions() []string {
     OR cc_addrs::text ILIKE '%' || $2 || '%'
     OR bcc_addrs::text ILIKE '%' || $2 || '%'
     OR draft_text_body ILIKE '%' || $2 || '%'
-  ))`,
-		`($3 = '' OR (
+  )`)
+	}
+	if strings.TrimSpace(query.From) != "" {
+		conditions = append(conditions, `(
     from_addr ILIKE '%' || $3 || '%'
     OR from_name ILIKE '%' || $3 || '%'
-  ))`,
-		`($4 = '' OR (
-    to_addrs::text ILIKE '%' || $4 || '%'
-  ))`,
-		`($5 = '' OR (
-    cc_addrs::text ILIKE '%' || $5 || '%'
-  ))`,
-		`($6 = '' OR (
-    bcc_addrs::text ILIKE '%' || $6 || '%'
-  ))`,
-		"($7 = '' OR subject ILIKE '%' || $7 || '%')",
+  )`)
 	}
+	if strings.TrimSpace(query.To) != "" {
+		conditions = append(conditions, "to_addrs::text ILIKE '%' || $4 || '%'")
+	}
+	if strings.TrimSpace(query.Cc) != "" {
+		conditions = append(conditions, "cc_addrs::text ILIKE '%' || $5 || '%'")
+	}
+	if strings.TrimSpace(query.Bcc) != "" {
+		conditions = append(conditions, "bcc_addrs::text ILIKE '%' || $6 || '%'")
+	}
+	if strings.TrimSpace(query.Subject) != "" {
+		conditions = append(conditions, "subject ILIKE '%' || $7 || '%'")
+	}
+	return conditions
 }
 
 func draftSearchSQLWithConditions(conditions []string) string {
@@ -387,8 +416,8 @@ ORDER BY draft_at DESC, id DESC
 LIMIT $11`, strings.Join(conditions, "\n  AND "))
 }
 
-func buildDraftSearchSQL(hasAttachment, cursorID string) string {
-	conditions := draftSearchBaseConditions()
+func buildDraftSearchSQL(query DraftSearchQuery, hasAttachment, cursorID string) string {
+	conditions := draftSearchBaseConditions(query)
 	if hasAttachment != "" {
 		conditions = append(conditions, "has_attachment = $8::boolean")
 	}

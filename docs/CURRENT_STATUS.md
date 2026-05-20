@@ -7936,3 +7936,9 @@ Next focus areas:
 - Admin-user listing now does the same for company scope, using a direct `d.company_id = $1::uuid` predicate only when scoped.
 - This removes always-present `($1 = '' OR ...)` guards from these operational tables and keeps domain/status/farm/CIDR/company filters more index-friendly as tenant data grows.
 - Verification target: `go test ./internal/maildb -run TestAdminOperationalListQueriesUseSargableFilters`.
+
+## 2026-05-21 Mail search text filter sargability
+
+- Active-message and draft search SQL now appends query/from/to/cc/bcc/subject predicates only when the corresponding request value is present.
+- Filterless searches no longer carry empty-text optional `OR` guards for all search fields, while relevance ranking/highlighting remains available when a query term is supplied.
+- Verification target: `go test ./internal/maildb -run 'Test(MessageSearchSQL|DraftSearchSQL)'`.
