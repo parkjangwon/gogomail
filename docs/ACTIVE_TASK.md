@@ -279,6 +279,8 @@ Go Backend (`internal/`):
 - `TestExpireAttachmentUploadSessionsSQLUsesBatchUpdates`를 추가해 stale upload cleanup이 per-session write loop로 되돌아가지 않도록 고정함
 - bulk delete/IMAP EXPUNGE storage GC lookup이 대상 메시지마다 `messages ref`를 correlated `COUNT(*)`로 재스캔하지 않고, target storage paths를 먼저 뽑은 뒤 grouped `ref_counts` CTE로 공유 여부를 판정하도록 바꿈
 - `TestStoragePathLookupSQLUsesGroupedReferenceCounts`를 추가해 bulk delete와 IMAP EXPUNGE storage path lookup이 grouped reference-count CTE를 유지하도록 고정함
+- legacy attachment upload cleanup도 stale attachment마다 `UPDATE attachments`와 quota decrement를 반복하지 않고 typed UUID-array batch update와 공용 aggregated quota decrement CTE를 쓰도록 바꿈
+- `TestExpireStaleAttachmentUploadsSQLUsesBatchUpdates`를 추가하고 attachment upload session cleanup도 같은 `decrementUserQuotasSQL` 회귀 가드를 공유하도록 정리함
 
 **System Email Connections & AutoPurge** ✅ COMPLETE
 - `internal/httpapi/admin.go`: Added `systemEmail mailservice.SystemEmailSender` and `publicBaseURL string` fields to `adminRouteConfig`; added `WithSystemEmailSender` and `WithPublicBaseURL` `AdminRouteOption` constructors

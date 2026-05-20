@@ -5,8 +5,9 @@ Last updated: 2026-05-21 (SaaS launch hardening continues: attachment cleanup ba
 ## Attachment Upload Cleanup Batching (2026-05-21)
 - Stale attachment upload session cleanup now batches expiry status updates with typed UUID arrays instead of issuing one `UPDATE attachment_upload_sessions` per expired session.
 - Quota release for expired upload sessions is aggregated per user/domain/company through one CTE-backed SQL statement, reducing cleanup DB round-trips from per-session writes to one session update plus one quota update batch.
+- Legacy stale attachment upload cleanup now uses the same batched quota release helper and a typed UUID-array `UPDATE attachments` statement, eliminating per-row cleanup writes on the older upload path too.
 - Regression coverage locks the SQL shape so cleanup cannot silently fall back to per-session update loops.
-- Verification: `go test ./internal/maildb -run 'TestExpireAttachmentUploadSessionsSQLUsesBatchUpdates|TestPostgresExpireAttachmentUploadSessionsReleasesQuota'` passes.
+- Verification: `go test ./internal/maildb -run 'TestExpireStaleAttachmentUploadsSQLUsesBatchUpdates|TestExpireAttachmentUploadSessionsSQLUsesBatchUpdates|TestPostgresExpireAttachmentUploadSessionsReleasesQuota'` passes.
 
 ## Message Storage GC Lookup Optimization (2026-05-21)
 - Bulk delete and IMAP EXPUNGE storage-path lookups now compute target storage paths once and join against grouped reference counts, instead of running a correlated `COUNT(*)` against `messages` for each candidate row.
