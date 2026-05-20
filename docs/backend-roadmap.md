@@ -6661,3 +6661,6 @@ Target outcome:
       best-effort reset email dispatch on a bounded background context, so
       client disconnects do not cancel reset issuance after the API has
       returned success.
+1832. Mail API bearer-token verification failures now return a fixed
+      `invalid bearer token` response instead of exposing verifier internals
+      such as parser, signature, expiry, or revocation details to clients.

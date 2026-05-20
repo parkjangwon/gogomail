@@ -3230,6 +3230,39 @@ func TestMailAuthRejectsOversizedAuthorizationHeader(t *testing.T) {
 	}
 }
 
+func TestMailAuthRejectsInvalidBearerTokenWithGenericError(t *testing.T) {
+	t.Parallel()
+
+	manager, err := auth.NewTokenManager("secret")
+	if err != nil {
+		t.Fatalf("NewTokenManager returned error: %v", err)
+	}
+	service := &fakeMessageService{}
+	mux := http.NewServeMux()
+	RegisterMailRoutes(mux, service, manager)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/messages", nil)
+	req.Header.Set("Authorization", "Bearer not-a-jwt")
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	body := rec.Body.String()
+	if !strings.Contains(body, "invalid bearer token") {
+		t.Fatalf("body = %s, want generic bearer token error", body)
+	}
+	for _, leaked := range []string{"invalid token format", "signature", "malformed", "expired"} {
+		if strings.Contains(strings.ToLower(body), leaked) {
+			t.Fatalf("body leaked auth detail %q: %s", leaked, body)
+		}
+	}
+	if service.lastUserID != "" {
+		t.Fatalf("handler should not dispatch invalid auth header, lastUserID = %q", service.lastUserID)
+	}
+}
+
 func TestMailAuthRejectsDuplicateAuthorizationHeaders(t *testing.T) {
 	t.Parallel()
 
