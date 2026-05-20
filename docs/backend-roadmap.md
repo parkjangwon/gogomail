@@ -6670,3 +6670,7 @@ Target outcome:
       the guide action has no localhost fallback, app-switcher buttons remain
       keyboard focusable, and proxied images are rejected while streaming once
       the size cap is exceeded.
+1834. POP3 authentication now hydrates the mailbox index through a lightweight
+      id/size-only INBOX page query and converts pages directly into POP3
+      entries, avoiding webmail preview joins and the extra full-summary
+      aggregation previously performed during login.

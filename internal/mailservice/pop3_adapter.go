@@ -16,6 +16,10 @@ type POP3StoreAdapter struct {
 	service       *Service
 }
 
+type pop3InboxPageLister interface {
+	ListPOP3InboxMessagesPage(context.Context, string, string, int, maildb.MessageListCursor) ([]maildb.MessageSummary, error)
+}
+
 var _ pop3d.Store = POP3StoreAdapter{}
 
 // NewPOP3StoreAdapter creates a POP3StoreAdapter.
@@ -64,14 +68,9 @@ func (a POP3StoreAdapter) Authenticate(user, pass string) (pop3d.Mailbox, error)
 		return nil, fmt.Errorf("inbox not found")
 	}
 
-	summaries, err := a.listInboxMessages(ctx, userID, inboxID)
+	msgs, err := a.listInboxMessages(ctx, userID, inboxID)
 	if err != nil {
 		return nil, fmt.Errorf("list inbox messages: %w", err)
-	}
-
-	msgs := make([]pop3InboxMsg, len(summaries))
-	for i, s := range summaries {
-		msgs[i] = pop3InboxMsg{id: s.ID, size: normalizePOP3MessageSize(s.Size)}
 	}
 
 	return &pop3Mailbox{
@@ -86,13 +85,14 @@ func (a POP3StoreAdapter) Authenticate(user, pass string) (pop3d.Mailbox, error)
 	}, nil
 }
 
-func (a POP3StoreAdapter) listInboxMessages(ctx context.Context, userID, inboxID string) ([]maildb.MessageSummary, error) {
+func (a POP3StoreAdapter) listInboxMessages(ctx context.Context, userID, inboxID string) ([]pop3InboxMsg, error) {
 	const pageSize = maildb.MessageListMaxLimit
-	var all []maildb.MessageSummary
+	var all []pop3InboxMsg
 	var cursor maildb.MessageListCursor
+	listPage := a.listInboxMessagePage
 
 	for {
-		summaries, err := a.service.ListMessagesPage(ctx, userID, inboxID, pageSize, cursor, maildb.MessageListFilter{})
+		summaries, err := listPage(ctx, userID, inboxID, pageSize, cursor)
 		if err != nil {
 			return nil, err
 		}
@@ -100,7 +100,9 @@ func (a POP3StoreAdapter) listInboxMessages(ctx context.Context, userID, inboxID
 		if err != nil {
 			return nil, err
 		}
-		all = append(all, page.Messages...)
+		for _, s := range page.Messages {
+			all = append(all, pop3InboxMsg{id: s.ID, size: normalizePOP3MessageSize(s.Size)})
+		}
 		if !page.HasMore {
 			return all, nil
 		}
@@ -112,6 +114,15 @@ func (a POP3StoreAdapter) listInboxMessages(ctx context.Context, userID, inboxID
 			return nil, fmt.Errorf("decode inbox cursor: %w", err)
 		}
 	}
+}
+
+func (a POP3StoreAdapter) listInboxMessagePage(ctx context.Context, userID, inboxID string, limit int, cursor maildb.MessageListCursor) ([]maildb.MessageSummary, error) {
+	if a.service != nil && a.service.repository != nil {
+		if lister, ok := a.service.repository.(pop3InboxPageLister); ok {
+			return lister.ListPOP3InboxMessagesPage(ctx, userID, inboxID, limit, cursor)
+		}
+	}
+	return a.service.ListMessagesPage(ctx, userID, inboxID, limit, cursor, maildb.MessageListFilter{})
 }
 
 func normalizePOP3Username(user string) (string, error) {

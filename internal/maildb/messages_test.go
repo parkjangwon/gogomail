@@ -29,6 +29,36 @@ func TestMessageListPageSQLProjectsBoundedPreview(t *testing.T) {
 	}
 }
 
+func TestPOP3InboxMessagePageSQLAvoidsPreviewJoin(t *testing.T) {
+	t.Parallel()
+
+	query := buildPOP3InboxMessagesPageSQL("")
+	for _, forbidden := range []string{
+		"message_search_documents",
+		"regexp_replace",
+		"left(coalesce(msd.body_text",
+	} {
+		if strings.Contains(query, forbidden) {
+			t.Fatalf("pop3 inbox query contains preview work %q:\n%s", forbidden, query)
+		}
+	}
+	for _, want := range []string{
+		"messages.folder_id = $2::uuid",
+		"messages.status = 'active'",
+		"ORDER BY message_at DESC, id DESC",
+		"LIMIT $5",
+	} {
+		if !strings.Contains(query, want) {
+			t.Fatalf("pop3 inbox query missing %q:\n%s", want, query)
+		}
+	}
+
+	query = buildPOP3InboxMessagesPageSQL("message-1")
+	if !strings.Contains(query, "AND (COALESCE(messages.received_at, messages.sent_at, messages.draft_updated_at, messages.created_at), messages.id) < ($3::timestamptz, $4::uuid)") {
+		t.Fatalf("pop3 inbox query missing cursor predicate:\n%s", query)
+	}
+}
+
 func TestMessageListPageQueryUsesSargableFolderFilter(t *testing.T) {
 	t.Parallel()
 

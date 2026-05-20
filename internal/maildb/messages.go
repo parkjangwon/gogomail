@@ -693,6 +693,67 @@ func (r *Repository) ListMessagesPage(ctx context.Context, userID string, folder
 	return messages, nil
 }
 
+func (r *Repository) ListPOP3InboxMessagesPage(ctx context.Context, userID string, folderID string, limit int, cursor MessageListCursor) ([]MessageSummary, error) {
+	if r.db == nil {
+		return nil, fmt.Errorf("database handle is required")
+	}
+	limit = NormalizeMessageListLimit(limit) + 1
+	folderID = strings.TrimSpace(folderID)
+	cursorID := strings.TrimSpace(cursor.ID)
+	query := buildPOP3InboxMessagesPageSQL(cursorID)
+
+	rows, err := r.db.QueryContext(
+		ctx,
+		query,
+		strings.TrimSpace(userID),
+		folderID,
+		cursor.At,
+		cursorID,
+		limit,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("list pop3 inbox message page: %w", err)
+	}
+	defer rows.Close()
+
+	messages := make([]MessageSummary, 0, limit)
+	for rows.Next() {
+		var msg MessageSummary
+		if err := rows.Scan(
+			&msg.ID,
+			&msg.ReceivedAt,
+			&msg.Size,
+		); err != nil {
+			return nil, fmt.Errorf("scan pop3 inbox message summary: %w", err)
+		}
+		messages = append(messages, msg)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate pop3 inbox message summaries: %w", err)
+	}
+	return messages, nil
+}
+
+func buildPOP3InboxMessagesPageSQL(cursorID string) string {
+	conditions := []string{
+		"messages.user_id = $1",
+		"messages.folder_id = $2::uuid",
+		"messages.status = 'active'",
+	}
+	if cursorID != "" {
+		conditions = append(conditions, "(COALESCE(messages.received_at, messages.sent_at, messages.draft_updated_at, messages.created_at), messages.id) < ($3::timestamptz, $4::uuid)")
+	}
+	return `
+SELECT
+  messages.id::text,
+  COALESCE(messages.received_at, messages.sent_at, messages.draft_updated_at, messages.created_at) AS message_at,
+  messages.size
+FROM messages
+WHERE ` + strings.Join(conditions, "\n  AND ") + `
+ORDER BY message_at DESC, id DESC
+LIMIT $5`
+}
+
 func buildMessageListPageSQL(sortMode, folderID, cursorID string, filter MessageListFilter) string {
 	conditions := []string{
 		"messages.user_id = $1",
