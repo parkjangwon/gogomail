@@ -254,6 +254,7 @@ Go Backend (`internal/`):
 - outbox relay가 배치 claim 후 이벤트별 `MarkDone`/`MarkFailed` UPDATE를 반복하던 경로에 선택적 `BatchStore`를 추가하고, PostgreSQL store는 성공/실패 상태를 각각 단일 UPDATE로 묶어 배치 크기 N 기준 DB 상태 갱신 왕복을 최대 N회에서 1~2회로 줄임
 - delivery handler가 다수 수신자 attempt를 수신자별 `RecordAttempt` 트랜잭션으로 기록하던 경로에 선택적 `BulkRecorder`를 추가하고, PostgreSQL recorder는 delivery_attempts/outbox event/suppression insert를 배열 `unnest` 기반 배치 INSERT로 묶어 기록 왕복과 트랜잭션 수를 줄임
 - retry exhausted 기록도 동일한 delivery_attempts 배치 INSERT를 재사용해, 대량 수신자 메시지가 최종 소진될 때 수신자별 INSERT를 반복하지 않도록 함
+- outbox pending claim SQL에서 UNION 후보 산출과 실제 `FOR UPDATE OF o SKIP LOCKED` row lock 단계를 분리해 PostgreSQL row locking 제약과 동시 relay 경합에서 더 안정적으로 동작하게 함
 
 **System Email Connections & AutoPurge** ✅ COMPLETE
 - `internal/httpapi/admin.go`: Added `systemEmail mailservice.SystemEmailSender` and `publicBaseURL string` fields to `adminRouteConfig`; added `WithSystemEmailSender` and `WithPublicBaseURL` `AdminRouteOption` constructors
