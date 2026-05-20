@@ -7803,7 +7803,8 @@ Next focus areas:
 - The admin service records the requested sync run as `failed` with the not-configured reason instead of leaving a false `pending` success response.
 - `POST /admin/v1/domains/{id}/ldap/sync` maps the typed not-configured error to HTTP 501.
 - Direct LDAP provider read/sync methods now return typed unavailable errors (`ErrProviderNotConfigured`, `ErrReadUnavailable`, `ErrSyncNotConfigured`) instead of leaking implementation placeholder wording.
-- Verification: `go test ./internal/httpapi -run TestAdminLDAPSyncUnavailableReturnsNotImplemented`; `go test ./internal/app -run '^$'`; `go test ./internal/idprovider/ldap`.
+- Console organization status copy now avoids internal placeholder/not-available wording and shows localized "configuration required" or "planned" status labels.
+- Verification: `go test ./internal/httpapi -run TestAdminLDAPSyncUnavailableReturnsNotImplemented`; `go test ./internal/app -run '^$'`; `go test ./internal/idprovider/ldap`; `pnpm --dir apps/console type-check`.
 
 ## 2026-05-21 RDBMS sync unavailable hardening
 
