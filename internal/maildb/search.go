@@ -85,13 +85,14 @@ func (r *Repository) SearchMessages(ctx context.Context, query MessageSearchQuer
 		}
 	}
 
-	sqlQuery := messageSearchSQL(sortMode)
+	folderID := strings.TrimSpace(query.FolderID)
+	sqlQuery := buildMessageSearchSQL(sortMode, folderID)
 	rows, err := r.db.QueryContext(
 		ctx,
 		sqlQuery,
 		userID,
 		strings.TrimSpace(query.Query),
-		strings.TrimSpace(query.FolderID),
+		folderID,
 		strings.TrimSpace(query.From),
 		strings.TrimSpace(query.To),
 		strings.TrimSpace(query.Cc),
@@ -143,6 +144,14 @@ func (r *Repository) SearchMessages(ctx context.Context, query MessageSearchQuer
 		return nil, fmt.Errorf("iterate search messages: %w", err)
 	}
 	return messages, nil
+}
+
+func buildMessageSearchSQL(sortMode, folderID string) string {
+	query := messageSearchSQL(sortMode)
+	if folderID == "" {
+		return strings.Replace(query, "  AND ($3 = '' OR folder_id::text = $3)\n", "", 1)
+	}
+	return strings.Replace(query, "  AND ($3 = '' OR folder_id::text = $3)", "  AND folder_id = $3::uuid", 1)
 }
 
 func (r *Repository) SearchDrafts(ctx context.Context, query DraftSearchQuery) ([]MessageDetail, error) {

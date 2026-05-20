@@ -6488,3 +6488,6 @@ Target outcome:
 1780. Thread page listing now emits the folder predicate only for folder-scoped
       reads, using a typed `messages.folder_id = $8::uuid` comparison and
       omitting folder predicates for all-thread reads.
+1781. Message search now emits the folder predicate only for folder-scoped
+      searches, using a typed `folder_id = $3::uuid` comparison and omitting
+      folder predicates for all-mail searches.
