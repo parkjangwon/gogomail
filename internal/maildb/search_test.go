@@ -79,6 +79,26 @@ func TestMessageSearchSQLExcludesDraftRows(t *testing.T) {
 	}
 }
 
+func TestMessageSearchSQLUsesSargableFolderFilter(t *testing.T) {
+	t.Parallel()
+
+	query := buildMessageSearchSQL(MessageSearchSortDate, "folder-1")
+	if !strings.Contains(query, "AND folder_id = $3::uuid") {
+		t.Fatalf("message search query missing sargable folder filter:\n%s", query)
+	}
+	if strings.Contains(query, "$3 = '' OR folder_id::text = $3") {
+		t.Fatalf("message search query contains non-sargable folder filter:\n%s", query)
+	}
+
+	query = buildMessageSearchSQL(MessageSearchSortRelevance, "")
+	if strings.Contains(query, "AND folder_id") {
+		t.Fatalf("folderless message search query unexpectedly includes folder predicate:\n%s", query)
+	}
+	if !strings.Contains(query, "search_rank DESC NULLS LAST") {
+		t.Fatalf("folderless relevance search lost relevance ordering:\n%s", query)
+	}
+}
+
 func TestDraftSearchQueryNormalizesLimit(t *testing.T) {
 	t.Parallel()
 
