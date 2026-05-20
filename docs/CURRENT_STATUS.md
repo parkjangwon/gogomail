@@ -7738,3 +7738,9 @@ Next focus areas:
 - Attachment upload session finalization now projects only `user_id`, `draft_id`, `upload_id`, `storage_path`, `filename`, `declared_size`, and `mime_type` in the locked `target` CTE instead of selecting every session column.
 - Added a SQL-shape regression test to prevent the finalize path from drifting back to `SELECT *`.
 - Verification: `go test ./internal/maildb -run 'TestFinalizeAttachmentUploadSessionSQLProjectsTargetColumns|TestPostgresFinalizeAttachmentUploadSession'`.
+
+## 2026-05-21 Audit integrity projection tightening
+
+- Audit log integrity checks now build their recent-log subquery with explicit hash-chain columns instead of `SELECT *`, keeping operational integrity scans narrower as audit metadata grows.
+- Added a SQL-shape regression test for the integrity query while preserving the PostgreSQL tamper-detection coverage.
+- Verification: `go test ./internal/maildb -run 'TestAuditLogIntegrityQueryProjectsRecentColumns|TestPostgresAuditLogIntegrityCheck|TestAuditLogReadsRejectNilDatabase'`.
