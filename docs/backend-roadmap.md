@@ -6575,3 +6575,6 @@ Target outcome:
 1807. Delivery hard-bounce suppression recording now de-duplicates rows by
       domain scope and normalized email before the batch insert, reducing
       conflict-heavy suppression writes for repeated recipient failures.
+1808. Suppression-list preflight checks now use one ordinality-preserving
+      typed-array lookup for all requested recipients instead of one
+      `SELECT 1 ... LIMIT 1` query per recipient.

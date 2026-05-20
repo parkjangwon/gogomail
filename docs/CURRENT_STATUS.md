@@ -7905,3 +7905,9 @@ Next focus areas:
 - Delivery attempt recording now de-duplicates hard-bounce suppression rows by domain scope and normalized email before issuing the typed-array `suppression_list` insert.
 - The first scoped bounce row is preserved, different domains remain separate, and temporary failures/null reverse-path bounces still do not create suppression entries.
 - Verification: `go test ./internal/delivery -run 'Test(BouncedSuppressionRowsDeduplicatesByScopeAndEmail|ShouldSuppressBouncedRecipientSkipsNullReversePath)'`.
+
+## 2026-05-21 Suppression preflight batch lookup
+
+- Mail send suppression preflight now checks all unique requested recipients with one ordinality-preserving `unnest($2::text[])` lookup instead of one `SELECT 1 ... LIMIT 1` per recipient.
+- The query preserves first-recipient order after normalization and still matches both domain-scoped and global suppression rows.
+- Verification: `go test ./internal/maildb -run TestSuppressedRecipientsSQLUsesSingleOrdinalityBatchLookup`.
