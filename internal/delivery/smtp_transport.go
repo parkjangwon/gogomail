@@ -32,18 +32,20 @@ const (
 )
 
 type DirectSMTPTransport struct {
-	Resolver     MXResolver
-	Router       Router
-	Timeout      time.Duration
-	Hello        string
-	TLSMode      DeliveryTLSMode
-	TLSConfig    *tls.Config
-	Transformers TransformChain
+	Resolver        MXResolver
+	Router          Router
+	Timeout         time.Duration
+	Hello           string
+	TLSReportDomain string
+	TLSMode         DeliveryTLSMode
+	TLSConfig       *tls.Config
+	Transformers    TransformChain
 	// MaxRecipientsPerBatch caps one SMTP transaction's RCPT set. Zero means unlimited.
 	MaxRecipientsPerBatch int
 	daneValidator         *dane.Validator
 	mtastsClient          *mtasts.Client
 	tlsrptCollector       *tlsrpt.Collector
+	tlsrptCollectorDomain string
 	deliverHost           func(context.Context, Job, Route, string, []outbound.Address) error
 	pool                  *SMTPConnectionPool
 	poolOnce              sync.Once // Protect pool initialization
@@ -52,14 +54,16 @@ type DirectSMTPTransport struct {
 func NewDirectSMTPTransport() *DirectSMTPTransport {
 	dnsResolver := &dane.NetResolver{Resolver: net.DefaultResolver}
 	return &DirectSMTPTransport{
-		Resolver:        net.DefaultResolver,
-		Timeout:         30 * time.Second,
-		Hello:           "localhost",
-		TLSMode:         DeliveryTLSOpportunistic,
-		daneValidator:   dane.NewValidator(dnsResolver),
-		mtastsClient:    mtasts.NewClient(),
-		tlsrptCollector: tlsrpt.NewCollector("localhost"), // Domain placeholder
-		pool:            NewSMTPConnectionPool(4, 30*time.Second, 5*time.Minute),
+		Resolver:              net.DefaultResolver,
+		Timeout:               30 * time.Second,
+		Hello:                 "localhost",
+		TLSReportDomain:       "localhost",
+		TLSMode:               DeliveryTLSOpportunistic,
+		daneValidator:         dane.NewValidator(dnsResolver),
+		mtastsClient:          mtasts.NewClient(),
+		tlsrptCollector:       tlsrpt.NewCollector("localhost"),
+		tlsrptCollectorDomain: "localhost",
+		pool:                  NewSMTPConnectionPool(4, 30*time.Second, 5*time.Minute),
 	}
 }
 
@@ -569,6 +573,7 @@ func (t *DirectSMTPTransport) deliveryTLSConfig(host string) *tls.Config {
 
 // recordTLSResult records TLS delivery result for TLS-RPT reporting.
 func (t *DirectSMTPTransport) recordTLSResult(sendingMTA string, tlsVersion string, tlsCipherSuite string, err error) {
+	t.ensureTLSRPTCollector()
 	if t.tlsrptCollector == nil {
 		return
 	}
@@ -588,6 +593,21 @@ func (t *DirectSMTPTransport) recordTLSResult(sendingMTA string, tlsVersion stri
 		}
 		t.tlsrptCollector.RecordSuccess("tlsa", sendingMTA, success)
 	}
+}
+
+func (t *DirectSMTPTransport) ensureTLSRPTCollector() {
+	domain := strings.TrimSpace(t.TLSReportDomain)
+	if domain == "" {
+		domain = strings.TrimSpace(t.Hello)
+	}
+	if domain == "" {
+		domain = "localhost"
+	}
+	if t.tlsrptCollector != nil && t.tlsrptCollectorDomain == domain {
+		return
+	}
+	t.tlsrptCollector = tlsrpt.NewCollector(domain)
+	t.tlsrptCollectorDomain = domain
 }
 
 func (t *DirectSMTPTransport) route(ctx context.Context, job Job, domain string) (Route, error) {

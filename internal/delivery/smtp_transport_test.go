@@ -120,6 +120,19 @@ func TestPlanRecipientBatchesWithLimitSplitsLargeDomainGroups(t *testing.T) {
 	}
 }
 
+func TestDirectSMTPTransportTLSReportDomainCanBeConfigured(t *testing.T) {
+	t.Parallel()
+
+	transport := NewDirectSMTPTransport()
+	transport.TLSReportDomain = "mail.example.com"
+	transport.recordTLSResult("mx.remote.example", "TLSv1.3", "TLS_AES_128_GCM_SHA256", nil)
+
+	report := transport.tlsrptCollector.GenerateReport("Example Corp", "postmaster@example.com")
+	if report.DomainName != "mail.example.com" {
+		t.Fatalf("TLS-RPT report domain = %q, want configured SMTP domain", report.DomainName)
+	}
+}
+
 func TestDirectSMTPTransportHonorsMaxRecipientsPerBatch(t *testing.T) {
 	t.Parallel()
 
