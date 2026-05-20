@@ -712,6 +712,27 @@ LIMIT $6 OFFSET $11`
 	return principals, nil
 }
 
+func buildCheckDirectGroupMembershipQuery(req CheckGroupMembershipRequest) (string, []any) {
+	conditions := []string{
+		"m.group_id = $1::uuid",
+		"m.member_kind = $2",
+		"m.member_id = $3::uuid",
+	}
+	if req.ActiveOnly {
+		conditions = append(conditions, "(m.status = 'active' AND g.status = 'active' AND d.status = 'active' AND c.status = 'active')")
+	}
+	query := `
+SELECT EXISTS (
+  SELECT 1
+  FROM directory_group_memberships m
+  JOIN directory_groups g ON g.id = m.group_id
+  JOIN domains d ON d.id = g.domain_id
+  JOIN companies c ON c.id = g.company_id AND c.id = d.company_id
+  WHERE ` + strings.Join(conditions, "\n    AND ") + `
+)`
+	return query, []any{req.GroupID, req.MemberKind, req.MemberID}
+}
+
 func (r *Repository) CheckDirectGroupMembership(ctx context.Context, req CheckGroupMembershipRequest) (bool, error) {
 	if r == nil || r.db == nil {
 		return false, fmt.Errorf("database handle is required")
@@ -720,20 +741,9 @@ func (r *Repository) CheckDirectGroupMembership(ctx context.Context, req CheckGr
 	if err != nil {
 		return false, err
 	}
-	const query = `
-SELECT EXISTS (
-  SELECT 1
-  FROM directory_group_memberships m
-  JOIN directory_groups g ON g.id = m.group_id
-  JOIN domains d ON d.id = g.domain_id
-  JOIN companies c ON c.id = g.company_id AND c.id = d.company_id
-  WHERE m.group_id = $1::uuid
-    AND m.member_kind = $2
-    AND m.member_id = $3::uuid
-    AND ($4::boolean = false OR (m.status = 'active' AND g.status = 'active' AND d.status = 'active' AND c.status = 'active'))
-)`
+	query, args := buildCheckDirectGroupMembershipQuery(req)
 	var exists bool
-	if err := r.db.QueryRowContext(ctx, query, req.GroupID, req.MemberKind, req.MemberID, req.ActiveOnly).Scan(&exists); err != nil {
+	if err := r.db.QueryRowContext(ctx, query, args...).Scan(&exists); err != nil {
 		return false, fmt.Errorf("check direct group membership: %w", err)
 	}
 	return exists, nil
@@ -781,15 +791,21 @@ func (r *Repository) CreateGroupMembershipWithAudit(ctx context.Context, req Cre
 	return membership, nil
 }
 
-func (r *Repository) CheckEffectiveGroupMembership(ctx context.Context, req CheckGroupMembershipRequest) (bool, error) {
-	if r == nil || r.db == nil {
-		return false, fmt.Errorf("database handle is required")
+func buildCheckEffectiveGroupMembershipQuery(req CheckGroupMembershipRequest) (string, []any) {
+	nestedConditions := []string{
+		"m.member_kind = 'group'",
+		"group_tree.depth < $4",
+		"NOT m.member_id = ANY(group_tree.path)",
 	}
-	req, err := NormalizeCheckGroupMembershipRequest(req)
-	if err != nil {
-		return false, err
+	memberConditions := []string{
+		"m.member_kind = $2",
+		"m.member_id = $3::uuid",
 	}
-	const query = `
+	if req.ActiveOnly {
+		nestedConditions = append(nestedConditions, "(m.status = 'active' AND nested_group.status = 'active' AND d.status = 'active' AND c.status = 'active')")
+		memberConditions = append(memberConditions, "(m.status = 'active' AND owning_group.status = 'active' AND d.status = 'active' AND c.status = 'active')")
+	}
+	query := `
 WITH RECURSIVE group_tree(group_id, depth, path) AS (
   SELECT $1::uuid, 0, ARRAY[$1::uuid]
   UNION ALL
@@ -799,10 +815,7 @@ WITH RECURSIVE group_tree(group_id, depth, path) AS (
   JOIN directory_groups nested_group ON nested_group.id = m.member_id
   JOIN domains d ON d.id = nested_group.domain_id
   JOIN companies c ON c.id = nested_group.company_id AND c.id = d.company_id
-  WHERE m.member_kind = 'group'
-    AND group_tree.depth < $5
-    AND NOT m.member_id = ANY(group_tree.path)
-    AND ($4::boolean = false OR (m.status = 'active' AND nested_group.status = 'active' AND d.status = 'active' AND c.status = 'active'))
+  WHERE ` + strings.Join(nestedConditions, "\n    AND ") + `
 )
 SELECT EXISTS (
   SELECT 1
@@ -811,12 +824,22 @@ SELECT EXISTS (
   JOIN directory_groups owning_group ON owning_group.id = m.group_id
   JOIN domains d ON d.id = owning_group.domain_id
   JOIN companies c ON c.id = owning_group.company_id AND c.id = d.company_id
-  WHERE m.member_kind = $2
-    AND m.member_id = $3::uuid
-    AND ($4::boolean = false OR (m.status = 'active' AND owning_group.status = 'active' AND d.status = 'active' AND c.status = 'active'))
+  WHERE ` + strings.Join(memberConditions, "\n    AND ") + `
 )`
+	return query, []any{req.GroupID, req.MemberKind, req.MemberID, req.MaxDepth}
+}
+
+func (r *Repository) CheckEffectiveGroupMembership(ctx context.Context, req CheckGroupMembershipRequest) (bool, error) {
+	if r == nil || r.db == nil {
+		return false, fmt.Errorf("database handle is required")
+	}
+	req, err := NormalizeCheckGroupMembershipRequest(req)
+	if err != nil {
+		return false, err
+	}
+	query, args := buildCheckEffectiveGroupMembershipQuery(req)
 	var exists bool
-	if err := r.db.QueryRowContext(ctx, query, req.GroupID, req.MemberKind, req.MemberID, req.ActiveOnly, req.MaxDepth).Scan(&exists); err != nil {
+	if err := r.db.QueryRowContext(ctx, query, args...).Scan(&exists); err != nil {
 		return false, fmt.Errorf("check effective group membership: %w", err)
 	}
 	return exists, nil

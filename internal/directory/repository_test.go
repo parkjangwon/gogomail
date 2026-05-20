@@ -743,6 +743,72 @@ func TestNormalizeCheckGroupMembershipRequestRejectsUnsafeInput(t *testing.T) {
 	}
 }
 
+func TestGroupMembershipCheckQueriesUseSargableActiveFilters(t *testing.T) {
+	t.Parallel()
+
+	req, err := NormalizeCheckGroupMembershipRequest(CheckGroupMembershipRequest{
+		GroupID:    " group-1 ",
+		MemberKind: " USER ",
+		MemberID:   " user-1 ",
+		ActiveOnly: true,
+		MaxDepth:   5,
+	})
+	if err != nil {
+		t.Fatalf("NormalizeCheckGroupMembershipRequest returned error: %v", err)
+	}
+	directQuery, directArgs := buildCheckDirectGroupMembershipQuery(req)
+	for _, want := range []string{
+		"m.group_id = $1::uuid",
+		"AND m.member_kind = $2",
+		"AND m.member_id = $3::uuid",
+		"AND (m.status = 'active' AND g.status = 'active' AND d.status = 'active' AND c.status = 'active')",
+	} {
+		if !strings.Contains(directQuery, want) {
+			t.Fatalf("direct membership query missing %q:\n%s", want, directQuery)
+		}
+	}
+	if strings.Contains(directQuery, "$4::boolean = false OR") {
+		t.Fatalf("direct membership query contains non-sargable active filter:\n%s", directQuery)
+	}
+	if len(directArgs) != 3 {
+		t.Fatalf("direct args len = %d, want 3", len(directArgs))
+	}
+
+	effectiveQuery, effectiveArgs := buildCheckEffectiveGroupMembershipQuery(req)
+	for _, want := range []string{
+		"group_tree.depth < $4",
+		"AND (m.status = 'active' AND nested_group.status = 'active' AND d.status = 'active' AND c.status = 'active')",
+		"AND (m.status = 'active' AND owning_group.status = 'active' AND d.status = 'active' AND c.status = 'active')",
+	} {
+		if !strings.Contains(effectiveQuery, want) {
+			t.Fatalf("effective membership query missing %q:\n%s", want, effectiveQuery)
+		}
+	}
+	if strings.Contains(effectiveQuery, "$4::boolean = false OR") ||
+		strings.Contains(effectiveQuery, "group_tree.depth < $5") {
+		t.Fatalf("effective membership query contains stale optional-filter placeholders:\n%s", effectiveQuery)
+	}
+	if len(effectiveArgs) != 4 || effectiveArgs[3] != 5 {
+		t.Fatalf("effective args = %#v, want explicit depth as fourth arg", effectiveArgs)
+	}
+
+	inactiveDirectQuery, _ := buildCheckDirectGroupMembershipQuery(CheckGroupMembershipRequest{
+		GroupID: "group-1", MemberKind: PrincipalKindUser, MemberID: "user-1",
+	})
+	if strings.Contains(inactiveDirectQuery, "status = 'active'") {
+		t.Fatalf("inactive direct membership query unexpectedly includes active predicate:\n%s", inactiveDirectQuery)
+	}
+	inactiveEffectiveQuery, inactiveEffectiveArgs := buildCheckEffectiveGroupMembershipQuery(CheckGroupMembershipRequest{
+		GroupID: "group-1", MemberKind: PrincipalKindUser, MemberID: "user-1", MaxDepth: 3,
+	})
+	if strings.Contains(inactiveEffectiveQuery, "status = 'active'") {
+		t.Fatalf("inactive effective membership query unexpectedly includes active predicate:\n%s", inactiveEffectiveQuery)
+	}
+	if len(inactiveEffectiveArgs) != 4 || inactiveEffectiveArgs[3] != 3 {
+		t.Fatalf("inactive effective args = %#v, want explicit depth", inactiveEffectiveArgs)
+	}
+}
+
 func TestDirectoryDelegationCreateAuditDetail(t *testing.T) {
 	t.Parallel()
 

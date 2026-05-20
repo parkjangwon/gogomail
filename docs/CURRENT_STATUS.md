@@ -74,6 +74,7 @@ Last updated: 2026-05-21 (SaaS launch hardening continues: attachment cleanup ba
 - Directory alias and user-email exact lookups now add active-status predicates only when `ActiveOnly` is requested, avoiding boolean optional `OR` guards in address resolution paths.
 - Directory principal ID lookups for users, organizations, groups, and resources now add active-status predicates only when `ActiveOnly` is requested, keeping delegation and membership validation paths planner-friendly.
 - Directory group-membership listing now builds optional group, member-kind, member-id, role, and active-status predicates only when requested, keeping large membership operations aligned with selective indexes.
+- Directory direct and effective group-membership checks now add active-status predicates only when `ActiveOnly` is requested, avoiding boolean optional `OR` guards in validation hot paths.
 - Verification: `go test ./...`, `pnpm --dir apps/webmail type-check`, and `pnpm --dir apps/console type-check` pass.
 
 ## CLI Break-Glass MFA Reset (2026-05-19)

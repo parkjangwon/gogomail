@@ -320,6 +320,7 @@ Go Backend (`internal/`):
 - Directory alias/user email resolve 조회도 `ActiveOnly`가 켜진 경우에만 active 상태 조건을 추가하도록 바꿔 주소/사용자 exact lookup이 boolean optional `OR` predicate를 피하게 함
 - Directory principal ID resolve 조회도 user/org/group/resource 각각 `ActiveOnly`가 켜진 경우에만 active 상태 조건을 추가하도록 바꿔 delegation/membership 검증 경로의 boolean optional `OR` predicate를 제거함
 - Directory group membership 목록 조회도 group/member/role/active 필터를 제공된 경우에만 WHERE에 추가하도록 바꿔 대형 그룹 멤버십 운영 조회가 optional `OR` predicate를 피하게 함
+- Directory direct/effective group membership 검증 조회도 `ActiveOnly`가 켜진 경우에만 active 상태 조건을 삽입하도록 바꿔 멤버십 validation hot path의 boolean optional `OR` predicate를 제거함
 
 **System Email Connections & AutoPurge** ✅ COMPLETE
 - `internal/httpapi/admin.go`: Added `systemEmail mailservice.SystemEmailSender` and `publicBaseURL string` fields to `adminRouteConfig`; added `WithSystemEmailSender` and `WithPublicBaseURL` `AdminRouteOption` constructors
