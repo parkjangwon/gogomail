@@ -152,6 +152,38 @@ func TestRunRejectsUnknownModeBeforeAppStart(t *testing.T) {
 	}
 }
 
+func TestRunUsesAppModeEnvWhenModeFlagUnset(t *testing.T) {
+	t.Setenv("APP_MODE", "outbox-relay")
+
+	var gotMode app.Mode
+	exitCode := run(nil, &bytes.Buffer{}, &bytes.Buffer{}, func(ctx context.Context, mode app.Mode, cfg config.Config, logger *slog.Logger) error {
+		gotMode = mode
+		return nil
+	})
+	if exitCode != 0 {
+		t.Fatalf("run exit code = %d, want 0", exitCode)
+	}
+	if gotMode != app.ModeOutboxRelay {
+		t.Fatalf("mode = %q, want %q", gotMode, app.ModeOutboxRelay)
+	}
+}
+
+func TestRunModeFlagOverridesAppModeEnv(t *testing.T) {
+	t.Setenv("APP_MODE", "outbox-relay")
+
+	var gotMode app.Mode
+	exitCode := run([]string{"--mode", "mail-api"}, &bytes.Buffer{}, &bytes.Buffer{}, func(ctx context.Context, mode app.Mode, cfg config.Config, logger *slog.Logger) error {
+		gotMode = mode
+		return nil
+	})
+	if exitCode != 0 {
+		t.Fatalf("run exit code = %d, want 0", exitCode)
+	}
+	if gotMode != app.ModeMailAPI {
+		t.Fatalf("mode = %q, want %q", gotMode, app.ModeMailAPI)
+	}
+}
+
 func writeCommandConfig(t *testing.T, raw string) string {
 	t.Helper()
 	path := t.TempDir() + "/gogomail.yaml"

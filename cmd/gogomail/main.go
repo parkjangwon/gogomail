@@ -34,7 +34,13 @@ func run(args []string, stdout io.Writer, stderr io.Writer, runApp func(context.
 		return 2
 	}
 
-	mode, err := app.ParseMode(*modeRaw)
+	modeValue := *modeRaw
+	if !flagWasSet(flags, "mode") {
+		if envMode := os.Getenv("APP_MODE"); envMode != "" {
+			modeValue = envMode
+		}
+	}
+	mode, err := app.ParseMode(modeValue)
 	if err != nil {
 		fmt.Fprintln(stderr, err)
 		return 2
@@ -80,4 +86,14 @@ func run(args []string, stdout io.Writer, stderr io.Writer, runApp func(context.
 		return 1
 	}
 	return 0
+}
+
+func flagWasSet(flags *flag.FlagSet, name string) bool {
+	seen := false
+	flags.Visit(func(f *flag.Flag) {
+		if f.Name == name {
+			seen = true
+		}
+	})
+	return seen
 }

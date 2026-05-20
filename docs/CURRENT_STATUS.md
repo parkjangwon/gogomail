@@ -1,6 +1,11 @@
 # gogomail current status
 
-Last updated: 2026-05-21 (SaaS launch hardening continues: audit-log error responses hardened)
+Last updated: 2026-05-21 (SaaS launch hardening continues: backend mode env contract aligned)
+
+## Backend Mode Env Contract (2026-05-21)
+- The backend binary now honors `APP_MODE` when `--mode` is not passed, while keeping explicit `--mode` as the higher-precedence selector.
+- README and Docker env docs now describe the same runtime contract, and storage-root docs clarify that `GOGOMAIL_MAILSTORE_ROOT` is primary while `GOGOMAIL_STORAGE_ROOT` is the deprecated fallback alias.
+- Verification target: `go test ./cmd/gogomail -run 'AppMode|ModeFlag'`.
 
 ## Audit Log Error Response Hardening (2026-05-21)
 - Standalone admin audit-log handlers now log backend failures server-side and return a generic `internal server error` response instead of including raw database/service error text.

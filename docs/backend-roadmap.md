@@ -6643,3 +6643,7 @@ Target outcome:
 1826. Standalone admin audit-log HTTP handlers now log backend failures
       server-side and return a generic internal-error response, preventing raw
       database or service error text from leaking to clients.
+1827. Backend startup now honors `APP_MODE` when `--mode` is absent, preserving
+      explicit flag precedence while aligning Docker Compose environment
+      examples with real runtime behavior and documenting storage-root
+      precedence.

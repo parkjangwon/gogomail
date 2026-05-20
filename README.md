@@ -191,6 +191,11 @@ bin/gogomail --mode=ldap-gateway
 bin/gogomail --migrate --mode=mail-api
 ```
 
+`--mode` is the primary selector. `APP_MODE` is also honored when `--mode` is
+not passed, which keeps Docker Compose environment files and direct binary
+startup consistent. If both are set, `--mode` wins. Invalid modes fail fast at
+startup; the accepted mode set is defined in `internal/app/mode.go`.
+
 Core runtime dependencies:
 
 - Go module declares `go 1.25.7` and pins toolchain `go1.26.3`.
@@ -203,6 +208,7 @@ Important environment variables:
 | Variable | Purpose |
 |---|---|
 | `GOGOMAIL_ENV` | Use `production` for stricter auth/TLS/security defaults |
+| `APP_MODE` | Backend component mode fallback when `--mode` is not provided; `--mode` takes precedence |
 | `GOGOMAIL_DATABASE_URL` | PostgreSQL connection string |
 | `GOGOMAIL_DB_MAX_OPEN_CONNS` | PostgreSQL max open connections, default `20` |
 | `GOGOMAIL_DB_MAX_IDLE_CONNS` | PostgreSQL max idle connections, default `5` |
@@ -212,7 +218,7 @@ Important environment variables:
 | `GOGOMAIL_REDIS_PASSWORD` | Redis password; required by the medium/large Docker profiles |
 | `GOGOMAIL_REDIS_SENTINEL_ADDRS` / `GOGOMAIL_REDIS_MASTER_NAME` | Optional Redis Sentinel failover configuration |
 | `GOGOMAIL_STORAGE_BACKEND` | `local`, `nfs`, `minio`, or `s3` |
-| `GOGOMAIL_STORAGE_ROOT` / `GOGOMAIL_MAILSTORE_ROOT` | Local/NFS object root; `MAILSTORE_ROOT` remains the legacy alias |
+| `GOGOMAIL_MAILSTORE_ROOT` / `GOGOMAIL_STORAGE_ROOT` | Local/NFS object root. `GOGOMAIL_MAILSTORE_ROOT` is primary; `GOGOMAIL_STORAGE_ROOT` is a deprecated fallback alias |
 | `GOGOMAIL_STORAGE_BACKEND_COMPAT_LABELS` | Compatibility labels exposed in storage capabilities during migrations |
 | `GOGOMAIL_STORAGE_S3_*` | S3/MinIO endpoint, region, bucket, prefix, credentials, path-style, and TLS CA options |
 | `GOGOMAIL_AUTH_JWT_SECRET` | Mail API JWT signing secret |
