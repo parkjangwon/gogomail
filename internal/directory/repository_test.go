@@ -894,6 +894,50 @@ func TestGroupMembershipCheckQueriesUseSargableActiveFilters(t *testing.T) {
 	}
 }
 
+func TestGroupMembershipExcludingQueryUsesSargableActiveFilters(t *testing.T) {
+	t.Parallel()
+
+	req, err := NormalizeCheckGroupMembershipRequest(CheckGroupMembershipRequest{
+		GroupID:    " group-1 ",
+		MemberKind: " Group ",
+		MemberID:   " child-1 ",
+		ActiveOnly: true,
+		MaxDepth:   7,
+	})
+	if err != nil {
+		t.Fatalf("NormalizeCheckGroupMembershipRequest returned error: %v", err)
+	}
+	query, args := buildCheckEffectiveGroupMembershipExcludingQuery(req, "membership-1")
+	for _, want := range []string{
+		"m.id <> $5::uuid",
+		"group_tree.depth < $4",
+		"AND (m.status = 'active' AND nested_group.status = 'active' AND d.status = 'active' AND c.status = 'active')",
+		"AND (m.status = 'active' AND owning_group.status = 'active' AND d.status = 'active' AND c.status = 'active')",
+	} {
+		if !strings.Contains(query, want) {
+			t.Fatalf("excluding effective membership query missing %q:\n%s", want, query)
+		}
+	}
+	if strings.Contains(query, "$4::boolean = false OR") ||
+		strings.Contains(query, "$7::boolean = false OR") ||
+		strings.Contains(query, "group_tree.depth < $5") {
+		t.Fatalf("excluding effective membership query contains stale optional-filter placeholders:\n%s", query)
+	}
+	if len(args) != 5 || args[3] != 7 || args[4] != "membership-1" {
+		t.Fatalf("args = %#v, want explicit depth and excluded membership id", args)
+	}
+
+	inactiveQuery, inactiveArgs := buildCheckEffectiveGroupMembershipExcludingQuery(CheckGroupMembershipRequest{
+		GroupID: "group-1", MemberKind: PrincipalKindGroup, MemberID: "child-1", MaxDepth: 4,
+	}, "membership-1")
+	if strings.Contains(inactiveQuery, "status = 'active'") {
+		t.Fatalf("inactive excluding effective membership query unexpectedly includes active predicate:\n%s", inactiveQuery)
+	}
+	if len(inactiveArgs) != 5 || inactiveArgs[3] != 4 {
+		t.Fatalf("inactive args = %#v, want explicit depth", inactiveArgs)
+	}
+}
+
 func TestDirectoryDelegationCreateAuditDetail(t *testing.T) {
 	t.Parallel()
 

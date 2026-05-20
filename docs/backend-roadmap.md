@@ -6539,3 +6539,7 @@ Target outcome:
 1796. Quota reconciliation scoped dry-run and correction queries now emit direct
       company/domain/user predicates per requested scope, omitting broad
       `$1 = '' OR ...` guards for all-scope corrections.
+1797. Directory group membership update cycle checks now build the
+      excluding-recursive membership query with direct active predicates only
+      when requested, removing the remaining boolean active-filter optional
+      `OR` from that mutation guard.

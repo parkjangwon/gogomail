@@ -1447,7 +1447,31 @@ func (r *Repository) checkEffectiveGroupMembershipExcluding(ctx context.Context,
 	if err != nil {
 		return false, fmt.Errorf("excluded membership id: %w", err)
 	}
-	const query = `
+	query, args := buildCheckEffectiveGroupMembershipExcludingQuery(req, excludeMembershipID)
+	var exists bool
+	if err := r.db.QueryRowContext(ctx, query, args...).Scan(&exists); err != nil {
+		return false, fmt.Errorf("check effective group membership excluding current membership: %w", err)
+	}
+	return exists, nil
+}
+
+func buildCheckEffectiveGroupMembershipExcludingQuery(req CheckGroupMembershipRequest, excludeMembershipID string) (string, []any) {
+	nestedConditions := []string{
+		"m.id <> $5::uuid",
+		"m.member_kind = 'group'",
+		"group_tree.depth < $4",
+		"NOT m.member_id = ANY(group_tree.path)",
+	}
+	memberConditions := []string{
+		"m.id <> $5::uuid",
+		"m.member_kind = $2",
+		"m.member_id = $3::uuid",
+	}
+	if req.ActiveOnly {
+		nestedConditions = append(nestedConditions, "(m.status = 'active' AND nested_group.status = 'active' AND d.status = 'active' AND c.status = 'active')")
+		memberConditions = append(memberConditions, "(m.status = 'active' AND owning_group.status = 'active' AND d.status = 'active' AND c.status = 'active')")
+	}
+	query := `
 WITH RECURSIVE group_tree(group_id, depth, path) AS (
   SELECT $1::uuid, 0, ARRAY[$1::uuid]
   UNION ALL
@@ -1457,11 +1481,7 @@ WITH RECURSIVE group_tree(group_id, depth, path) AS (
   JOIN directory_groups nested_group ON nested_group.id = m.member_id
   JOIN domains d ON d.id = nested_group.domain_id
   JOIN companies c ON c.id = nested_group.company_id AND c.id = d.company_id
-  WHERE m.id <> $6::uuid
-    AND m.member_kind = 'group'
-    AND group_tree.depth < $5
-    AND NOT m.member_id = ANY(group_tree.path)
-    AND ($4::boolean = false OR (m.status = 'active' AND nested_group.status = 'active' AND d.status = 'active' AND c.status = 'active'))
+  WHERE ` + strings.Join(nestedConditions, "\n    AND ") + `
 )
 SELECT EXISTS (
   SELECT 1
@@ -1470,16 +1490,9 @@ SELECT EXISTS (
   JOIN directory_groups owning_group ON owning_group.id = m.group_id
   JOIN domains d ON d.id = owning_group.domain_id
   JOIN companies c ON c.id = owning_group.company_id AND c.id = d.company_id
-  WHERE m.id <> $6::uuid
-    AND m.member_kind = $2
-    AND m.member_id = $3::uuid
-    AND ($4::boolean = false OR (m.status = 'active' AND owning_group.status = 'active' AND d.status = 'active' AND c.status = 'active'))
+  WHERE ` + strings.Join(memberConditions, "\n    AND ") + `
 )`
-	var exists bool
-	if err := r.db.QueryRowContext(ctx, query, req.GroupID, req.MemberKind, req.MemberID, req.ActiveOnly, req.MaxDepth, excludeMembershipID).Scan(&exists); err != nil {
-		return false, fmt.Errorf("check effective group membership excluding current membership: %w", err)
-	}
-	return exists, nil
+	return query, []any{req.GroupID, req.MemberKind, req.MemberID, req.MaxDepth, excludeMembershipID}
 }
 
 func buildCheckDelegationQuery(req CheckDelegationRequest) (string, []any) {
