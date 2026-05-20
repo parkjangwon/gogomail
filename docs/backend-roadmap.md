@@ -6518,3 +6518,7 @@ Target outcome:
 1790. Admin bulk user status updates now add company scope predicates only when
       requested, avoiding optional `OR` guards in company-admin constrained
       updates.
+1791. API usage ledger retention readiness now uses an expression predicate for
+      open-ended export batch windows and migration
+      `0118_api_usage_export_covering_batch_index.sql` adds the matching
+      tenant/principal/window/order partial index.

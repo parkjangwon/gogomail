@@ -73,6 +73,26 @@ func TestAPIUsageLedgerRetentionRunReadsRejectNilDatabase(t *testing.T) {
 	}
 }
 
+func TestAPIUsageLedgerRetentionCoveringBatchSQLUsesExpressionWindowStart(t *testing.T) {
+	t.Parallel()
+
+	for _, want := range []string{
+		"FROM api_usage_export_batches b",
+		"b.tenant_id = $1",
+		"b.principal_id = $2",
+		"COALESCE(b.window_start, '-infinity'::timestamptz) <= $3",
+		"b.window_end >= $4",
+		"ORDER BY b.completed_at DESC, b.id DESC",
+	} {
+		if !strings.Contains(apiUsageLedgerRetentionCoveringBatchSQL, want) {
+			t.Fatalf("covering batch query missing %q:\n%s", want, apiUsageLedgerRetentionCoveringBatchSQL)
+		}
+	}
+	if strings.Contains(apiUsageLedgerRetentionCoveringBatchSQL, "b.window_start IS NULL OR") {
+		t.Fatalf("covering batch query still contains optional window_start OR:\n%s", apiUsageLedgerRetentionCoveringBatchSQL)
+	}
+}
+
 func TestAPIUsageLedgerRetentionRunAuditDetail(t *testing.T) {
 	t.Parallel()
 

@@ -147,3 +147,32 @@ func TestThreadListIndexMigrationMatchesThreadQueries(t *testing.T) {
 		}
 	}
 }
+
+func TestAPIUsageExportCoveringBatchIndexMigrationMatchesReadinessQuery(t *testing.T) {
+	t.Parallel()
+
+	raw, err := os.ReadFile(filepath.Join("..", "..", "migrations", "0118_api_usage_export_covering_batch_index.sql"))
+	if err != nil {
+		t.Fatalf("read api usage export covering batch index migration: %v", err)
+	}
+	text := string(raw)
+
+	required := []string{
+		"idx_api_usage_export_batches_covering_retention",
+		"tenant_id",
+		"principal_id",
+		"COALESCE(window_start, '-infinity'::timestamptz)",
+		"window_end",
+		"completed_at DESC",
+		"id DESC",
+		"WHERE status = 'completed'",
+		"AND completed_at IS NOT NULL",
+		"AND window_end IS NOT NULL",
+		"DROP INDEX IF EXISTS idx_api_usage_export_batches_covering_retention",
+	}
+	for _, fragment := range required {
+		if !strings.Contains(text, fragment) {
+			t.Fatalf("migration 0118 must contain %q", fragment)
+		}
+	}
+}
