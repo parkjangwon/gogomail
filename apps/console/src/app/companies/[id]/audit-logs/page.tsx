@@ -1,7 +1,6 @@
 'use client';
 import { DataTable } from '@/components/DataTable';
 
-
 import {
   ContentLayout,
   Header,
@@ -20,6 +19,7 @@ import {
   FlashbarProps,
 } from '@cloudscape-design/components';
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import { useI18n } from '@/app/i18n-provider';
 import { useCompany } from '@/contexts/CompanyContext';
 import { buildAuditLogsQuery, exportAuditLogsCsv, type AuditLogRow } from '@/lib/auditLogs';
@@ -40,6 +40,9 @@ export default function AuditLogsPage() {
   const { t } = useI18n();
   const { currentCompany } = useCompany();
   const cid = currentCompany?.id;
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
 
   const CATEGORY_OPTIONS: SelectProps.Option[] = [
     { label: t('pages.audit_logs_page.cat_all'), value: '' },
@@ -67,6 +70,7 @@ export default function AuditLogsPage() {
 
   const [logs, setLogs] = useState<AuditLog[]>([]);
   const [loading, setLoading] = useState(true);
+  const [hasMore, setHasMore] = useState(false);
   const [filter, setFilter] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [actionFilter, setActionFilter] = useState('');
@@ -76,32 +80,81 @@ export default function AuditLogsPage() {
   const [limit, setLimit] = useState('100');
   const [flash, setFlash] = useState<FlashbarProps.MessageDefinition[]>([]);
   const [exporting, setExporting] = useState(false);
+  // cursor stack: each entry is the `before` param to use to reach that page
+  // cursorStack[0] = first page (no before), cursorStack[n] = nth page's before cursor
+  const [cursorStack, setCursorStack] = useState<string[]>([]);
 
-  const load = useCallback(async () => {
+  // current cursor from URL
+  const urlCursor = searchParams.get('cursor') ?? '';
+
+  const setCursorInUrl = useCallback((cursor: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (cursor) {
+      params.set('cursor', cursor);
+    } else {
+      params.delete('cursor');
+    }
+    router.replace(`${pathname}?${params.toString()}`);
+  }, [pathname, router, searchParams]);
+
+  const load = useCallback(async (cursor: string) => {
     if (!cid) return;
     setLoading(true);
     try {
+      // Use the pagination cursor if set; otherwise use the toDate filter as the upper bound
+      const beforeParam = cursor || toDate || undefined;
       const query = buildAuditLogsQuery({
         companyId: cid,
         category: categoryFilter,
         action: actionFilter,
         targetType: targetTypeFilter,
         fromDate,
-        toDate,
+        before: beforeParam,
         limit: Number(limit),
-        offset: 0,
       });
       const res = await fetch(`/admin/v1/audit-logs${query ? `?${query}` : ''}`);
       const data = await res.json();
       setLogs(data.audit_logs ?? []);
+      setHasMore(data.has_more ?? false);
     } catch {
       setFlash([{ type: 'error', content: t('pages.audit_logs_page.load_error'), dismissible: true, onDismiss: () => setFlash([]) }]);
     } finally {
       setLoading(false);
     }
-  }, [actionFilter, categoryFilter, cid, fromDate, limit, targetTypeFilter, t, toDate]);
+  }, [actionFilter, categoryFilter, cid, fromDate, limit, targetTypeFilter, t]);
 
-  useEffect(() => { load(); }, [load]);
+  // Load when URL cursor changes or filters change
+  useEffect(() => {
+    load(urlCursor);
+  }, [load, urlCursor]);
+
+  // When filters change, reset to page 1
+  useEffect(() => {
+    setCursorStack([]);
+    setCursorInUrl('');
+    // load is triggered by urlCursor change
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [categoryFilter, actionFilter, targetTypeFilter, fromDate, toDate, limit]);
+
+  const handleNextPage = useCallback(() => {
+    if (!hasMore || logs.length === 0) return;
+    const lastCreatedAt = logs[logs.length - 1].created_at;
+    setCursorStack(prev => [...prev, urlCursor]);
+    setCursorInUrl(lastCreatedAt);
+  }, [hasMore, logs, urlCursor, setCursorInUrl]);
+
+  const handlePrevPage = useCallback(() => {
+    if (cursorStack.length === 0) return;
+    const prevCursors = [...cursorStack];
+    const prevCursor = prevCursors.pop() ?? '';
+    setCursorStack(prevCursors);
+    setCursorInUrl(prevCursor);
+  }, [cursorStack, setCursorInUrl]);
+
+  const handleFirstPage = useCallback(() => {
+    setCursorStack([]);
+    setCursorInUrl('');
+  }, [setCursorInUrl]);
 
   const filtered = useMemo(() => {
     if (!filter) return logs;
@@ -157,6 +210,9 @@ export default function AuditLogsPage() {
     }
   };
 
+  const isFirstPage = cursorStack.length === 0 && !urlCursor;
+  const pageLabel = cursorStack.length + 1;
+
   return (
     <ContentLayout
       header={
@@ -175,7 +231,7 @@ export default function AuditLogsPage() {
               >
                 {t('pages.audit_logs_page.export')}
               </ButtonDropdown>
-              <Button iconName="refresh" onClick={load} loading={loading}>
+              <Button iconName="refresh" onClick={() => load(urlCursor)} loading={loading}>
                 {t('pages.audit_logs_page.refresh')}
               </Button>
             </SpaceBetween>
@@ -202,7 +258,43 @@ export default function AuditLogsPage() {
             { id: 'ip', header: t('pages.audit_logs_page.col_ip'), cell: (l) => l.ip_address || '—' },
           ]}
           header={
-            <Header variant="h2" counter={`(${filtered.length})`}>
+            <Header
+              variant="h2"
+              counter={`(${filtered.length})`}
+              actions={
+                <SpaceBetween size="xs" direction="horizontal">
+                  <Box variant="small" color="text-body-secondary" padding={{ top: 'xs' }}>
+                    {t('pages.audit_logs_page.page', `Page ${pageLabel}`).replace('{{page}}', String(pageLabel))}
+                  </Box>
+                  <Button
+                    iconName="angle-left"
+                    disabled={isFirstPage || loading}
+                    onClick={isFirstPage ? undefined : handlePrevPage}
+                    variant="normal"
+                  >
+                    {t('common.previous', 'Previous')}
+                  </Button>
+                  <Button
+                    iconName="angle-right"
+                    iconAlign="right"
+                    disabled={!hasMore || loading}
+                    onClick={hasMore ? handleNextPage : undefined}
+                    variant="normal"
+                  >
+                    {t('common.next', 'Next')}
+                  </Button>
+                  {!isFirstPage && (
+                    <Button
+                      variant="link"
+                      onClick={handleFirstPage}
+                      disabled={loading}
+                    >
+                      {t('common.first_page', 'First page')}
+                    </Button>
+                  )}
+                </SpaceBetween>
+              }
+            >
               {t('pages.audit_logs_page.audit_trail')}
             </Header>
           }

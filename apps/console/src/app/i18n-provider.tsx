@@ -7,7 +7,7 @@ import enMessages from '@/messages/en.json';
 import jaMessages from '@/messages/ja.json';
 import zhMessages from '@/messages/zh-CN.json';
 
-type Messages = Record<string, any>;
+type Messages = Record<string, unknown>;
 
 interface I18nContextType {
   locale: Locale;
@@ -25,8 +25,13 @@ const messageMap: Record<Locale, Messages> = {
   'zh-CN': zhMessages,
 };
 
-function getNestedValue(obj: any, path: string): any {
-  return path.split('.').reduce((acc, part) => acc?.[part], obj);
+function getNestedValue(obj: Record<string, unknown>, path: string): unknown {
+  return path.split('.').reduce<unknown>((acc, part) => {
+    if (acc !== null && typeof acc === 'object') {
+      return (acc as Record<string, unknown>)[part];
+    }
+    return undefined;
+  }, obj);
 }
 
 export function I18nProvider({ children }: { children: ReactNode }) {
@@ -46,9 +51,9 @@ export function I18nProvider({ children }: { children: ReactNode }) {
 
   const messages = messageMap[locale];
 
-  const t = (key: string, defaultValue = key) => {
+  const t = (key: string, defaultValue = key): string => {
     const value = getNestedValue(messages, key);
-    return value || defaultValue;
+    return typeof value === 'string' ? value : defaultValue;
   };
 
   return (

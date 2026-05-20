@@ -25,7 +25,8 @@ type AuditLogListRequest struct {
 	ActorID      string
 	TargetID     string
 	Since        time.Time
-	ProbeMore    bool // when true the query fetches Limit+1 to detect has_more
+	Before       time.Time // when set, filters created_at < Before (cursor pagination)
+	ProbeMore    bool      // when true the query fetches Limit+1 to detect has_more
 }
 
 type AuditLogView struct {
@@ -140,6 +141,10 @@ FROM audit_logs`
 	if !req.Since.IsZero() {
 		args = append(args, req.Since.UTC())
 		conditions = append(conditions, fmt.Sprintf("created_at >= $%d", len(args)))
+	}
+	if !req.Before.IsZero() {
+		args = append(args, req.Before.UTC())
+		conditions = append(conditions, fmt.Sprintf("created_at < $%d", len(args)))
 	}
 	if len(conditions) > 0 {
 		query += "\nWHERE " + strings.Join(conditions, "\n  AND ")

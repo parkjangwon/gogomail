@@ -147,7 +147,7 @@ func Run(ctx context.Context, mode Mode, cfg config.Config, logger *slog.Logger)
 }
 
 func runBatchWorker(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
-	db, err := database.Open(ctx, cfg.DatabaseURL)
+	db, err := openDatabase(ctx, cfg)
 	if err != nil {
 		return err
 	}
@@ -171,15 +171,46 @@ func runBatchWorker(ctx context.Context, cfg config.Config, logger *slog.Logger)
 	}, 5*time.Minute)
 
 	quotaAlertRepository := maildb.NewRepository(db)
+	quotaSystemEmailSender := mailservice.NewSMTPSystemEmailSenderFromEnv()
 	registry.Register("quota-alert-check", func() error {
 		n, err := quotaAlertRepository.ScanAndRecordQuotaAlerts(ctx, 0.80, 0.95)
 		if err != nil {
 			logger.Error("quota alert check failed", "error", err)
 			return err
 		}
-		logger.Info("quota alert check completed", "alerts", n)
+		emailAlerts, err := quotaAlertRepository.ListPendingUserQuotaAlertEmails(ctx, 100)
+		if err != nil {
+			logger.Error("quota alert email lookup failed", "error", err)
+			return err
+		}
+		sent := 0
+		for _, alert := range emailAlerts {
+			if err := quotaSystemEmailSender.SendQuotaAlert(ctx, alert.Email, alert.Pct); err != nil {
+				logger.Warn("quota alert email failed", "alert_id", alert.ID, "error", err)
+				continue
+			}
+			if err := quotaAlertRepository.MarkQuotaAlertNotified(ctx, alert.ID); err != nil {
+				logger.Warn("quota alert notify mark failed", "alert_id", alert.ID, "error", err)
+				continue
+			}
+			sent++
+		}
+		logger.Info("quota alert check completed", "alerts", n, "emails_sent", sent)
 		return nil
 	}, 15*time.Minute)
+
+	if cfg.AutoPurgeEnabled {
+		autoPurgeRepository := maildb.NewRepository(db)
+		registry.Register("auto-purge", func() error {
+			result, err := autoPurgeRepository.RunAutoPurge(ctx, cfg.AutoPurgeBatchSize)
+			if err != nil {
+				logger.Error("auto purge failed", "error", err)
+				return err
+			}
+			logger.Info("auto purge completed", "companies", result.CompaniesScanned, "messages_deleted", result.MessagesDeleted, "audit_logs_deleted", result.AuditLogsDeleted)
+			return nil
+		}, cfg.AutoPurgeInterval)
+	}
 
 	mfaGraceRepository := maildb.NewRepository(db)
 	registry.Register("mfa-grace-period", func() error {
@@ -411,7 +442,7 @@ func runIMAPGateway(ctx context.Context, cfg config.Config, logger *slog.Logger)
 	runCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	db, err := database.Open(ctx, cfg.DatabaseURL)
+	db, err := openDatabase(ctx, cfg)
 	if err != nil {
 		return err
 	}
@@ -553,7 +584,7 @@ func pop3TLSConfig(cfg config.Config) (*tls.Config, error) {
 }
 
 func runPOP3Gateway(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
-	db, err := database.Open(ctx, cfg.DatabaseURL)
+	db, err := openDatabase(ctx, cfg)
 	if err != nil {
 		return err
 	}
@@ -625,7 +656,7 @@ func pop3ServerForConfig(cfg config.Config, repository *maildb.Repository, servi
 }
 
 func runCalDAVGateway(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
-	db, err := database.Open(ctx, cfg.DatabaseURL)
+	db, err := openDatabase(ctx, cfg)
 	if err != nil {
 		return err
 	}
@@ -686,7 +717,7 @@ func newCalDAVHTTPServer(cfg config.Config, handler http.Handler) *http.Server {
 }
 
 func runCardDAVGateway(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
-	db, err := database.Open(ctx, cfg.DatabaseURL)
+	db, err := openDatabase(ctx, cfg)
 	if err != nil {
 		return err
 	}
@@ -746,7 +777,7 @@ func newCardDAVHTTPServer(cfg config.Config, handler http.Handler) *http.Server 
 }
 
 func runWebDAVGateway(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
-	db, err := database.Open(ctx, cfg.DatabaseURL)
+	db, err := openDatabase(ctx, cfg)
 	if err != nil {
 		return err
 	}
@@ -807,7 +838,7 @@ func newWebDAVHTTPServer(cfg config.Config, handler http.Handler) *http.Server {
 }
 
 func runLDAPGateway(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
-	db, err := database.Open(ctx, cfg.DatabaseURL)
+	db, err := openDatabase(ctx, cfg)
 	if err != nil {
 		return err
 	}
@@ -1307,7 +1338,7 @@ func ldapFilterToQuery(filter string) string {
 }
 
 func runAttachmentCleanupWorker(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
-	db, err := database.Open(ctx, cfg.DatabaseURL)
+	db, err := openDatabase(ctx, cfg)
 	if err != nil {
 		return err
 	}
@@ -1326,7 +1357,7 @@ func runAttachmentCleanupWorker(ctx context.Context, cfg config.Config, logger *
 }
 
 func runDriveCleanupWorker(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
-	db, err := database.Open(ctx, cfg.DatabaseURL)
+	db, err := openDatabase(ctx, cfg)
 	if err != nil {
 		return err
 	}
@@ -1345,7 +1376,7 @@ func runDriveCleanupWorker(ctx context.Context, cfg config.Config, logger *slog.
 }
 
 func runDAVSyncRetentionWorker(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
-	db, err := database.Open(ctx, cfg.DatabaseURL)
+	db, err := openDatabase(ctx, cfg)
 	if err != nil {
 		return err
 	}
@@ -1485,7 +1516,7 @@ func normalizedStorageBackend(value string) string {
 }
 
 func runAPIUsageRetentionWorker(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
-	db, err := database.Open(ctx, cfg.DatabaseURL)
+	db, err := openDatabase(ctx, cfg)
 	if err != nil {
 		return err
 	}
@@ -1853,7 +1884,7 @@ func runReceiveMTA(ctx context.Context, cfg config.Config, logger *slog.Logger, 
 		resolver = staticResolver
 		logger.Info(opts.Component+" using static recipient resolver", "recipients", len(cfg.LocalRecipients))
 	} else {
-		db, err := database.Open(ctx, cfg.DatabaseURL)
+		db, err := openDatabase(ctx, cfg)
 		if err != nil {
 			return err
 		}
@@ -2073,7 +2104,7 @@ func farmCoordinatorFromConfig(cfg config.Config, redisClient *redis.Client) smt
 }
 
 func runSubmissionMTA(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
-	db, err := database.Open(ctx, cfg.DatabaseURL)
+	db, err := openDatabase(ctx, cfg)
 	if err != nil {
 		return err
 	}
@@ -2260,7 +2291,7 @@ func attachmentScanHooksForConfig(cfg config.Config, logger *slog.Logger, compon
 }
 
 func runOutboxRelay(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
-	db, err := database.Open(ctx, cfg.DatabaseURL)
+	db, err := openDatabase(ctx, cfg)
 	if err != nil {
 		return err
 	}
@@ -2298,7 +2329,7 @@ func runOutboxRelay(ctx context.Context, cfg config.Config, logger *slog.Logger)
 }
 
 func runEventWorker(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
-	db, err := database.Open(ctx, cfg.DatabaseURL)
+	db, err := openDatabase(ctx, cfg)
 	if err != nil {
 		return err
 	}
@@ -2452,7 +2483,7 @@ func runSearchIndexWorker(ctx context.Context, cfg config.Config, logger *slog.L
 		return waitForShutdown(ctx, logger, ModeSearchIndexWorker)
 	}
 
-	db, err := database.Open(ctx, cfg.DatabaseURL)
+	db, err := openDatabase(ctx, cfg)
 	if err != nil {
 		return err
 	}
@@ -2632,7 +2663,7 @@ func runAPIMeteringWorker(ctx context.Context, cfg config.Config, logger *slog.L
 		return waitForShutdown(ctx, logger, ModeAPIMeteringWorker)
 	}
 
-	db, err := database.Open(ctx, cfg.DatabaseURL)
+	db, err := openDatabase(ctx, cfg)
 	if err != nil {
 		return err
 	}
@@ -2691,7 +2722,7 @@ func runPushNotificationWorker(ctx context.Context, cfg config.Config, logger *s
 		return err
 	}
 
-	db, err := database.Open(ctx, cfg.DatabaseURL)
+	db, err := openDatabase(ctx, cfg)
 	if err != nil {
 		return err
 	}
@@ -2764,7 +2795,7 @@ func pushNotificationSinkForConfig(cfg config.Config, logger *slog.Logger) (push
 }
 
 func runDeliveryWorker(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
-	db, err := database.Open(ctx, cfg.DatabaseURL)
+	db, err := openDatabase(ctx, cfg)
 	if err != nil {
 		return err
 	}
@@ -3143,7 +3174,7 @@ func runHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, mode M
 	var apiKeyVerifier apikeys.PostgresVerifier
 	var apiKeyVerifierConfigured bool
 	if modeIncludesMailAPI(mode) {
-		db, err := database.Open(ctx, cfg.DatabaseURL)
+		db, err := openDatabase(ctx, cfg)
 		if err != nil {
 			return err
 		}
@@ -3194,10 +3225,11 @@ func runHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, mode M
 			logger.Warn("runtime config store unavailable for mail api", "error", err)
 		}
 		mailOpts := httpapi.MailRouteOptions{
-			SessionRevoker: repository,
-			Authenticator:  repository,
-			MFAStore:       repository,
-			ConfigResolver: mailConfigStore,
+			SessionRevoker:    repository,
+			Authenticator:     repository,
+			MFAStore:          repository,
+			ConfigResolver:    mailConfigStore,
+			RefreshTokenStore: repository,
 		}
 		httpapi.RegisterMailRoutesWithOptions(mux, service, tokenManager, mailOpts)
 		httpapi.RegisterMFARoutes(mux, tokenManager, mailOpts)
@@ -3219,7 +3251,7 @@ func runHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, mode M
 		logger.Info("mail api routes registered")
 	}
 	if modeIncludesAdminAPI(mode) {
-		db, err := database.Open(ctx, cfg.DatabaseURL)
+		db, err := openDatabase(ctx, cfg)
 		if err != nil {
 			return err
 		}
@@ -3273,6 +3305,7 @@ func runHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, mode M
 			httpapi.WithAdminMFAStore(repository),
 			httpapi.WithAdminMFARequired(cfg.AdminMFARequired),
 			httpapi.WithAdminConfigResolver(configStore),
+			httpapi.WithSystemEmailSender(mailservice.NewSMTPSystemEmailSenderFromEnv(), cfg.PublicBaseURL),
 		}
 		if redisClient != nil {
 			if dlqReader, err := eventstream.NewRedisDLQReader(redisClient); err == nil {
@@ -3315,7 +3348,7 @@ func runHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, mode M
 
 	var meteringDB *sql.DB
 	if strings.EqualFold(strings.TrimSpace(cfg.APIMeteringBackend), "outbox") {
-		db, err := database.Open(ctx, cfg.DatabaseURL)
+		db, err := openDatabase(ctx, cfg)
 		if err != nil {
 			return err
 		}
@@ -3331,11 +3364,12 @@ func runHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, mode M
 		handler = apikeys.Middleware(apiKeyVerifier)(handler)
 	}
 	handler = httpapi.NewAdminIPRateLimiter(600, time.Minute).Middleware(handler)
-	handler = httpapi.MaxRequestBodyMiddleware(4*1024*1024)(handler)
+	handler = httpapi.MaxRequestBodyMiddleware(4 * 1024 * 1024)(handler)
 	if cfg.CORSAllowedOrigins != "" {
 		handler = httpapi.CORSMiddleware(cfg.CORSAllowedOrigins)(handler)
 	}
 	handler = httpapi.SecurityHeadersMiddleware(handler)
+	handler = httpapi.RequestIDMiddleware(handler)
 	server := newHTTPServer(cfg, handler)
 
 	go serveMetrics(ctx, cfg, logger)
@@ -3369,6 +3403,15 @@ func newHTTPServer(cfg config.Config, handler http.Handler) *http.Server {
 		ReadHeaderTimeout: cfg.HTTPReadHeaderTimeout,
 		MaxHeaderBytes:    cfg.HTTPMaxHeaderBytes,
 	}
+}
+
+func openDatabase(ctx context.Context, cfg config.Config) (*sql.DB, error) {
+	return database.Open(ctx, cfg.DatabaseURL, database.Options{
+		MaxOpenConns:    cfg.DBMaxOpenConns,
+		MaxIdleConns:    cfg.DBMaxIdleConns,
+		ConnMaxLifetime: cfg.DBConnMaxLifetime,
+		ConnMaxIdleTime: cfg.DBConnMaxIdleTime,
+	})
 }
 
 func tokenManagerForConfig(cfg config.Config, checker auth.RevocationChecker) (*auth.TokenManager, error) {

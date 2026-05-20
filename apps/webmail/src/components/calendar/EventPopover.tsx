@@ -8,9 +8,11 @@ export interface EventPopoverProps {
   event: ParsedEvent;
   anchorRect: DOMRect;
   onClose: () => void;
+  onEdit: (event: ParsedEvent) => void;
+  onDelete: (event: ParsedEvent) => void;
 }
 
-export function EventPopover({ event, anchorRect, onClose }: EventPopoverProps) {
+export function EventPopover({ event, anchorRect, onClose, onEdit, onDelete }: EventPopoverProps) {
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -31,8 +33,18 @@ export function EventPopover({ event, anchorRect, onClose }: EventPopoverProps) 
     padding: '16px',
     minWidth: '220px',
     maxWidth: '320px',
-    top: Math.min(anchorRect.bottom + 6, window.innerHeight - 220),
+    top: Math.min(anchorRect.bottom + 6, window.innerHeight - 260),
     left: Math.min(anchorRect.left, window.innerWidth - 340),
+  };
+
+  const btnBase: React.CSSProperties = {
+    padding: '5px 10px',
+    fontSize: '12px',
+    borderRadius: '6px',
+    cursor: 'pointer',
+    fontWeight: 500,
+    border: '1px solid var(--color-border-default)',
+    background: 'none',
   };
 
   return (
@@ -58,6 +70,20 @@ export function EventPopover({ event, anchorRect, onClose }: EventPopoverProps) 
             {event.description}
           </div>
         )}
+      </div>
+      <div style={{ display: 'flex', gap: '6px', marginTop: '12px', paddingTop: '10px', borderTop: '1px solid var(--color-border-subtle)' }}>
+        <button
+          style={{ ...btnBase, color: 'var(--color-text-primary)' }}
+          onClick={() => { onClose(); onEdit(event); }}
+        >
+          편집
+        </button>
+        <button
+          style={{ ...btnBase, color: 'var(--color-destructive)', borderColor: 'var(--color-destructive)' }}
+          onClick={() => { onDelete(event); }}
+        >
+          삭제
+        </button>
       </div>
     </div>
   );

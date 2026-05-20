@@ -945,6 +945,35 @@ export async function createCalendarEvent(calendarId: string, req: CreateCalenda
   });
 }
 
+export async function updateCalendarEvent(calendarId: string, objectName: string, uid: string, req: CreateCalendarEventRequest): Promise<void> {
+  const lines: string[] = [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//GoGoMail//GoGoMail//EN',
+    'BEGIN:VEVENT',
+    `UID:${uid}`,
+    `SUMMARY:${icsEscape(req.title)}`,
+  ];
+  if (req.allDay) {
+    lines.push(`DTSTART;VALUE=DATE:${toICSAllDay(req.start)}`);
+    const endDate = new Date(req.end);
+    endDate.setDate(endDate.getDate() + 1);
+    lines.push(`DTEND;VALUE=DATE:${toICSAllDay(endDate)}`);
+  } else {
+    lines.push(`DTSTART:${toICSDate(req.start)}`);
+    lines.push(`DTEND:${toICSDate(req.end)}`);
+  }
+  if (req.location) lines.push(`LOCATION:${icsEscape(req.location)}`);
+  if (req.description) lines.push(`DESCRIPTION:${icsEscape(req.description)}`);
+  if (req.rrule) lines.push(`RRULE:${req.rrule}`);
+  lines.push('END:VEVENT', 'END:VCALENDAR');
+  await request<unknown>(`calendars/${encodeURIComponent(calendarId)}/objects/${encodeURIComponent(objectName)}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'text/calendar' },
+    body: lines.join('\r\n'),
+  });
+}
+
 // ── Calendar Todos (VTODO) ───────────────────────────────────────────────────
 
 export interface ParsedVTODOFields {
@@ -1053,6 +1082,29 @@ export async function fetchSubscriptionICS(id: string): Promise<string> {
   const res = await fetch(`/api/mail/calendar-subscriptions/${encodeURIComponent(id)}/events`);
   if (!res.ok) throw new Error(`Failed to fetch subscription events: ${res.status}`);
   return res.text();
+}
+
+// ── WebPush device registration ───────────────────────────────────────────────
+
+export async function registerWebPushDevice(subscription: PushSubscription): Promise<void> {
+  const key = subscription.getKey('p256dh');
+  const auth = subscription.getKey('auth');
+  const encodeKey = (value: ArrayBuffer | null): string => {
+    if (!value) return '';
+    const binary = String.fromCharCode(...new Uint8Array(value));
+    return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+  };
+  const token = JSON.stringify({
+    endpoint: subscription.endpoint,
+    keys: {
+      p256dh: encodeKey(key),
+      auth: encodeKey(auth),
+    },
+  });
+  await request<unknown>('push-devices', {
+    method: 'POST',
+    body: JSON.stringify({ platform: 'webpush', token, label: 'browser' }),
+  });
 }
 
 export interface DirectoryUser {

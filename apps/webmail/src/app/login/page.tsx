@@ -2,6 +2,7 @@
 
 import { useState, useEffect, KeyboardEvent } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { loginUser, verifyMFA } from '@/lib/api';
 import { ThemeToggle } from '@/components/ThemeToggle';
 
@@ -181,6 +182,20 @@ export default function LoginPage() {
             {error && <ErrorAlert message={error} />}
 
             <SubmitButton loading={loading} label="로그인" />
+
+            <Link
+              href="/forgot-password"
+              style={{
+                display: 'block',
+                textAlign: 'center',
+                color: 'var(--color-text-secondary)',
+                fontSize: '13px',
+                textDecoration: 'none',
+                padding: '4px 0',
+              }}
+            >
+              비밀번호를 잊으셨나요?
+            </Link>
           </form>
         ) : (
           <form

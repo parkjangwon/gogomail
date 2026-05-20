@@ -1,5 +1,15 @@
 # gogomail backend roadmap
 
+## Recent launch-readiness closures
+
+- Mail API user sessions now have rotating refresh tokens backed by hashed `user_refresh_tokens`, reducing forced daily re-login while preserving single-use refresh semantics.
+- HTTP runtime has request ID propagation and configurable PostgreSQL pool sizing across app DB open paths.
+- System transactional emails are wired for admin invites, invite acceptance welcome mail, and user quota alerts.
+- Retention AutoPurge has a scheduled execution path guarded by `GOGOMAIL_AUTO_PURGE_ENABLED` and company retention policy config.
+- Operations backup coverage now includes a `pg_dump` backup script and Compose cron profile, with optional S3 upload.
+- Webmail pre-launch gaps closed: password reset UI, server-synced signatures, Web Push service worker registration, and calendar edit/delete controls.
+- Console pre-launch gaps closed: audit-log cursor pagination, delivery-attempt filters/feedback, and targeted TypeScript cleanup.
+
 ## Phase 0: backend foundation
 
 - Single Go binary: `gogomail --mode=<component>`

@@ -39,11 +39,14 @@ LDAP, DKIM, SPF, DMARC, DSN, and OpenAPI-backed REST APIs.
 - DKIM signing, SPF/DMARC verification, DNS checks, queue/backpressure controls, audit logs, API metering
 - Built-in spam policy, DNSBL/RBL checks, tenant spam-filter packs, and optional ClamAV attachment scanning
 - Bulk delivery batching, delivery route observability, and tunable parsed-message body caching
+- Request-ID propagation, configurable PostgreSQL pool sizing, scheduled quota-alert email delivery, and optional retention AutoPurge jobs
+- PostgreSQL backup script and Compose cron profile for scheduled `pg_dump` backups
 - Company/domain/user configuration boundaries and security governance policy
 
 ### Webmail
 
 - Mail list, reading pane, rich compose, folders, search, snooze, labels, reminders, attachments, and Drive picker flows
+- Password reset UI, refresh-token based session renewal, server-synced email signatures, Web Push service worker registration, and calendar edit/delete flows
 - Keyboard-oriented UX: global shortcuts, app switching, Spotlight search, row focus, reading-pane navigation, and message actions
 - Safer rendering for HTML mail, external images, and proxied remote content
 - TOTP MFA login (two-step password → code) and in-settings enrollment with QR code, recovery codes, and disable flow
@@ -200,6 +203,10 @@ Important environment variables:
 |---|---|
 | `GOGOMAIL_ENV` | Use `production` for stricter auth/TLS/security defaults |
 | `GOGOMAIL_DATABASE_URL` | PostgreSQL connection string |
+| `GOGOMAIL_DB_MAX_OPEN_CONNS` | PostgreSQL max open connections, default `20` |
+| `GOGOMAIL_DB_MAX_IDLE_CONNS` | PostgreSQL max idle connections, default `5` |
+| `GOGOMAIL_DB_CONN_MAX_LIFETIME` | PostgreSQL connection max lifetime, default `30m` |
+| `GOGOMAIL_DB_CONN_MAX_IDLE_TIME` | PostgreSQL connection max idle time, default `5m` |
 | `GOGOMAIL_REDIS_ADDR` | Redis host and port |
 | `GOGOMAIL_STORAGE_BACKEND` | `local`, `nfs`, `minio`, or `s3` |
 | `GOGOMAIL_AUTH_JWT_SECRET` | Mail API JWT signing secret |
@@ -208,6 +215,12 @@ Important environment variables:
 | `GOGOMAIL_MESSAGE_BODY_CACHE_ENTRIES` | Parsed message body cache capacity, default `256`; set `0` to disable |
 | `GOGOMAIL_MESSAGE_BODY_CACHE_TTL` | Parsed message body cache TTL, default `5m` |
 | `GOGOMAIL_RESTORE_REHEARSAL_DATABASE_URL` | Optional database URL used by release verification for backup/restore rehearsal |
+| `GOGOMAIL_AUTO_PURGE_ENABLED` | Enables scheduled retention AutoPurge jobs for companies whose retention policy has `auto_purge_enabled` |
+| `GOGOMAIL_AUTO_PURGE_INTERVAL` | Retention AutoPurge scheduler interval, default `24h` |
+| `GOGOMAIL_AUTO_PURGE_BATCH_SIZE` | Max messages/audit rows purged per company per run, default `1000` |
+| `GOGOMAIL_BACKUP_DIR` | Directory used by `scripts/backup.sh`, default `./backups` |
+| `GOGOMAIL_BACKUP_RETENTION_DAYS` | Local backup retention window, default `7` |
+| `GOGOMAIL_BACKUP_S3_BUCKET` | Optional S3 bucket for backup uploads |
 | `GOGOMAIL_SECURITY_VERIFY` | Set to `1` to add `go vet` and `govulncheck` to backend release verification |
 | `GOGOMAIL_BACKEND_URL` | Backend URL used by Next.js server routes |
 | `NEXT_PUBLIC_GOGOMAIL_PUBLIC_BASE_URL` | Public origin displayed in browser-facing console copy when needed |

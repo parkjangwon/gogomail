@@ -40,11 +40,14 @@ CardDAV, WebDAV, LDAP, DKIM, SPF, DMARC, DSN, OpenAPI 기반 REST API처럼
 - DKIM 서명, SPF/DMARC 검증, DNS 점검, 큐/백프레셔, 감사 로그, API 미터링
 - 내장 스팸 정책, DNSBL/RBL 점검, 테넌트 스팸 필터 팩, 선택적 ClamAV 첨부파일 스캔
 - 대량 전송 배치, 전송 route 관찰성, 조정 가능한 parsed message body 캐시
+- Request-ID 전파, PostgreSQL pool sizing 환경변수, quota alert 이메일 발송 job, 선택적 retention AutoPurge job
+- scheduled `pg_dump` 백업용 스크립트와 Compose cron profile
 - 회사/도메인/사용자 설정 경계와 보안 거버넌스 정책
 
 ### 웹메일
 
 - 메일 목록, 읽기 패널, 리치 텍스트 작성, 폴더, 검색, 스누즈, 라벨, 알림, 첨부파일, Drive 선택 흐름
+- 비밀번호 재설정 UI, refresh-token 기반 세션 갱신, 서버 동기화 이메일 서명, Web Push service worker 등록, 캘린더 편집/삭제 흐름
 - 키보드 중심 UX: 전역 단축어, 앱 전환, 스팟라이트 검색, 행 포커스, 읽기창 이동, 메시지 작업
 - HTML 메일, 외부 이미지, 원격 콘텐츠 프록시의 안전 렌더링
 - TOTP MFA 로그인 (비밀번호 → 인증 코드 2단계) 및 설정 화면에서 QR 코드 등록, 복구 코드 발급, 비활성화 흐름
@@ -203,6 +206,10 @@ bin/gogomail --migrate --mode=mail-api
 |---|---|
 | `GOGOMAIL_ENV` | `production`에서 더 엄격한 인증/TLS/보안 기본값 적용 |
 | `GOGOMAIL_DATABASE_URL` | PostgreSQL 연결 문자열 |
+| `GOGOMAIL_DB_MAX_OPEN_CONNS` | PostgreSQL 최대 open connection, 기본 `20` |
+| `GOGOMAIL_DB_MAX_IDLE_CONNS` | PostgreSQL 최대 idle connection, 기본 `5` |
+| `GOGOMAIL_DB_CONN_MAX_LIFETIME` | PostgreSQL connection max lifetime, 기본 `30m` |
+| `GOGOMAIL_DB_CONN_MAX_IDLE_TIME` | PostgreSQL connection max idle time, 기본 `5m` |
 | `GOGOMAIL_REDIS_ADDR` | Redis host와 port |
 | `GOGOMAIL_STORAGE_BACKEND` | `local`, `nfs`, `minio`, `s3` |
 | `GOGOMAIL_AUTH_JWT_SECRET` | Mail API JWT 서명 secret |
@@ -211,6 +218,12 @@ bin/gogomail --migrate --mode=mail-api
 | `GOGOMAIL_MESSAGE_BODY_CACHE_ENTRIES` | parsed message body 캐시 용량, 기본 `256`, `0`이면 비활성화 |
 | `GOGOMAIL_MESSAGE_BODY_CACHE_TTL` | parsed message body 캐시 TTL, 기본 `5m` |
 | `GOGOMAIL_RESTORE_REHEARSAL_DATABASE_URL` | 릴리즈 검증에서 백업/복구 리허설에 사용할 선택 DB URL |
+| `GOGOMAIL_AUTO_PURGE_ENABLED` | 회사 retention policy의 `auto_purge_enabled`가 켜진 테넌트에 대해 scheduled AutoPurge 실행 |
+| `GOGOMAIL_AUTO_PURGE_INTERVAL` | retention AutoPurge scheduler interval, 기본 `24h` |
+| `GOGOMAIL_AUTO_PURGE_BATCH_SIZE` | 회사별 1회 실행에서 삭제할 messages/audit rows 최대치, 기본 `1000` |
+| `GOGOMAIL_BACKUP_DIR` | `scripts/backup.sh`가 사용할 백업 디렉터리, 기본 `./backups` |
+| `GOGOMAIL_BACKUP_RETENTION_DAYS` | local backup retention 기간, 기본 `7` |
+| `GOGOMAIL_BACKUP_S3_BUCKET` | 설정 시 백업 파일을 업로드할 S3 bucket |
 | `GOGOMAIL_SECURITY_VERIFY` | `1`이면 backend release verification에 `go vet`과 `govulncheck` 추가 |
 | `GOGOMAIL_BACKEND_URL` | Next.js 서버 route가 사용할 백엔드 URL |
 | `NEXT_PUBLIC_GOGOMAIL_PUBLIC_BASE_URL` | 브라우저에 표시해야 하는 public origin |

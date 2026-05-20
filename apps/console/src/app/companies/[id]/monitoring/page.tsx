@@ -20,6 +20,7 @@ import {
   useAdminSystemMetrics,
   type QueueStat,
 } from '@/hooks';
+import { type AdminHealthCheck } from '@/hooks/useSystem';
 
 export default function MonitoringPage() {
   const { t } = useI18n();
@@ -40,7 +41,7 @@ export default function MonitoringPage() {
   const memPct = metricsQuery.data?.memory.usage_pct ?? 0;
   const goroutines = metricsQuery.data?.goroutines ?? 0;
 
-  const dbCheck = healthQuery.data?.checks?.find((c: any) => c.service === 'database');
+  const dbCheck = healthQuery.data?.checks?.find((c: AdminHealthCheck) => c.service === 'database');
   const dbStatus = dbCheck?.status === 'healthy' ? 'success' : dbCheck?.status === 'degraded' ? 'warning' : 'pending';
   const dbResponseTime = dbCheck?.response_time_ms != null ? `${dbCheck.response_time_ms}ms` : '—';
 
