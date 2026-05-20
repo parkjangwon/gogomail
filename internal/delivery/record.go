@@ -5,6 +5,8 @@ import (
 	"strings"
 	"time"
 	"unicode/utf8"
+
+	"github.com/gogomail/gogomail/internal/outbound"
 )
 
 type AttemptStatus string
@@ -46,6 +48,10 @@ type BulkRecorder interface {
 }
 
 func attemptsFor(job Job, status AttemptStatus, cause error, attemptedAt time.Time) []Attempt {
+	return attemptsForRecipients(job, job.Recipients(), status, cause, attemptedAt, dsnRecipientOptionsByAddress(job.DSN.Recipients))
+}
+
+func attemptsForRecipients(job Job, recipients []outbound.Address, status AttemptStatus, cause error, attemptedAt time.Time, dsnByAddress map[string]DSNRecipientOptions) []Attempt {
 	if attemptedAt.IsZero() {
 		attemptedAt = time.Now().UTC()
 	}
@@ -55,34 +61,36 @@ func attemptsFor(job Job, status AttemptStatus, cause error, attemptedAt time.Ti
 	}
 	message = truncateUTF8Bytes(message, 2000)
 
-	recipients := job.Recipients()
-	dsnByAddress := dsnRecipientOptionsByAddress(job.DSN.Recipients)
 	attempts := make([]Attempt, 0, len(recipients))
 	for _, recipient := range recipients {
-		_, domain, _ := strings.Cut(strings.TrimSpace(recipient.Email), "@")
-		domain = strings.TrimSuffix(domain, ".")
-		dsnRecipient := dsnByAddress[strings.ToLower(strings.TrimSpace(recipient.Email))]
-		attempts = append(attempts, Attempt{
-			MessageID:         job.MessageID,
-			RFCMessageID:      job.RFCMessageID,
-			CompanyID:         job.CompanyID,
-			DomainID:          job.DomainID,
-			Farm:              string(job.Farm),
-			Sender:            strings.TrimSpace(job.From.Email),
-			Recipient:         recipient.Email,
-			RecipientDomain:   strings.ToLower(domain),
-			Status:            status,
-			EnhancedStatus:    enhancedStatusForAttempt(status, cause),
-			ErrorMessage:      message,
-			AttemptedAt:       attemptedAt,
-			DSNReturn:         job.DSN.Return,
-			DSNEnvelopeID:     job.DSN.EnvelopeID,
-			DSNNotify:         append([]string(nil), dsnRecipient.Notify...),
-			OriginalRecipient: dsnRecipient.OriginalRecipient,
-			StoragePath:       job.StoragePath,
-		})
+		attempts = append(attempts, attemptForRecipient(job, recipient, status, cause, message, attemptedAt, dsnByAddress))
 	}
 	return attempts
+}
+
+func attemptForRecipient(job Job, recipient outbound.Address, status AttemptStatus, cause error, message string, attemptedAt time.Time, dsnByAddress map[string]DSNRecipientOptions) Attempt {
+	_, domain, _ := strings.Cut(strings.TrimSpace(recipient.Email), "@")
+	domain = strings.TrimSuffix(domain, ".")
+	dsnRecipient := dsnByAddress[strings.ToLower(strings.TrimSpace(recipient.Email))]
+	return Attempt{
+		MessageID:         job.MessageID,
+		RFCMessageID:      job.RFCMessageID,
+		CompanyID:         job.CompanyID,
+		DomainID:          job.DomainID,
+		Farm:              string(job.Farm),
+		Sender:            strings.TrimSpace(job.From.Email),
+		Recipient:         recipient.Email,
+		RecipientDomain:   strings.ToLower(domain),
+		Status:            status,
+		EnhancedStatus:    enhancedStatusForAttempt(status, cause),
+		ErrorMessage:      message,
+		AttemptedAt:       attemptedAt,
+		DSNReturn:         job.DSN.Return,
+		DSNEnvelopeID:     job.DSN.EnvelopeID,
+		DSNNotify:         append([]string(nil), dsnRecipient.Notify...),
+		OriginalRecipient: dsnRecipient.OriginalRecipient,
+		StoragePath:       job.StoragePath,
+	}
 }
 
 func dsnRecipientOptionsByAddress(recipients []DSNRecipientOptions) map[string]DSNRecipientOptions {

@@ -6368,12 +6368,15 @@ Target outcome:
       trip from the common attachment-free detail path.  `BenchmarkGetMessageBodyCache`
       now tracks parsed-body miss/hit costs, with the current sample at miss
       `~7.83 us/op` and hit `~933.6 ns/op`.
-1750. Launch documentation is refreshed across README, README.ko, Docker,
+1750. Partial delivery attempt recording now reuses one DSN recipient option map
+      across delivered and failed recipient attempts, removing an O(n²) map
+      rebuild pattern from high-volume partial failure recording.
+1751. Launch documentation is refreshed across README, README.ko, Docker,
       webmail, console, and backend release readiness docs so recent
       performance, storage, backup/restore, push/webhook, system email, API
       usage, and frontend public-origin environment variables are visible in
       operator-facing setup surfaces.
-1751. BIMI validation no longer reports VMC verification from URL presence
+1752. BIMI validation no longer reports VMC verification from URL presence
       alone.  Until full VMC certificate-chain validation exists, `ValidateAndFetch`
       returns `vmcVerified=false`, and the logo cache now records the actual
       SHA-256 body digest for fetched logo bytes.

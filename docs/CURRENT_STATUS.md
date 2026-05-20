@@ -7813,6 +7813,13 @@ Next focus areas:
 - `POST /admin/v1/domains/{id}/rdbms/sync` maps the typed not-configured error to HTTP 501.
 - Verification: `go test ./internal/httpapi -run 'TestAdmin(RDBMSSyncUnavailableReturnsNotImplemented|LDAPSyncUnavailableReturnsNotImplemented)'`; `go test ./internal/app -run '^$'`; `go test ./internal/idprovider/rdbms`.
 
+## 2026-05-21 Partial delivery attempt recording optimization
+
+- Partial delivery attempt recording now builds the DSN recipient option map once per message and reuses it for delivered and failed recipient attempts.
+- Large partial failures no longer rebuild the DSN map once per failed recipient, removing an O(n²) cost from high-volume retry/bounce recording.
+- Added `BenchmarkRecordPartialAttempts1K` to track the 1000-recipient partial delivery path.
+- Verification: `go test ./internal/delivery -run 'TestHandler(FiltersDSNRecipientsForPartialRetry|SchedulesRetryAfterFailure)'`; `go test ./internal/delivery -run '^$' -bench BenchmarkRecordPartialAttempts1K -benchtime=100ms`.
+
 ## 2026-05-21 Message detail attachment lookup pruning
 
 - `GetMessage` now skips `ListAttachments` when the message row reports `HasAttachment=false`, removing one repository round trip from the common attachment-free detail read path.
