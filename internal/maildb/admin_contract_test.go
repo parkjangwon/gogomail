@@ -1271,11 +1271,11 @@ func TestListUsersQueryUsesSargableOptionalFilters(t *testing.T) {
 		PasswordConfigured: &passwordConfigured,
 	}, "active", 26)
 	for _, want := range []string{
-		"FROM users",
-		"WHERE domain_id = $1::uuid",
-		"AND status = $2",
-		"AND (COALESCE(password_hash, '') <> '') = $3::boolean",
-		"ORDER BY created_at DESC",
+		"FROM users u",
+		"WHERE u.domain_id = $1::uuid",
+		"AND u.status = $2",
+		"AND (COALESCE(u.password_hash, '') <> '') = $3::boolean",
+		"ORDER BY u.created_at DESC",
 		"LIMIT $4",
 	} {
 		if !strings.Contains(query, want) {
@@ -1308,6 +1308,26 @@ func TestListUsersQueryUsesSargableOptionalFilters(t *testing.T) {
 	}
 	if len(args) != 1 || args[0] != MessageListDefaultLimit {
 		t.Fatalf("unfiltered args = %#v", args)
+	}
+
+	query, args = buildListUsersQuery(UserListRequest{
+		CompanyID: " 22222222-2222-2222-2222-222222222222 ",
+	}, "", 101)
+	for _, want := range []string{
+		"FROM users u",
+		"JOIN domains d ON d.id = u.domain_id",
+		"WHERE d.company_id = $1::uuid",
+		"LIMIT $2",
+	} {
+		if !strings.Contains(query, want) {
+			t.Fatalf("company-scoped list users query missing %q:\n%s", want, query)
+		}
+	}
+	if strings.Contains(query, "$1 = '' OR") || strings.Contains(query, "d.company_id::text") {
+		t.Fatalf("company-scoped list users query contains non-sargable company filter:\n%s", query)
+	}
+	if len(args) != 2 || args[0] != "22222222-2222-2222-2222-222222222222" || args[1] != 101 {
+		t.Fatalf("company-scoped args = %#v", args)
 	}
 }
 

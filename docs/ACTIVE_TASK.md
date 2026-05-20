@@ -369,6 +369,7 @@ Go Backend (`internal/`):
 - LDAP 빈 `groupOfNames` 방어 fallback이 내부용 `cn=placeholder`를 노출하지 않고, DN 없는 in-memory 그룹에서는 그룹 CN을 RFC 4514 escape한 단일 DN으로 사용하도록 정리함
 - OpenSearch Korean analyzer bootstrap 실패가 `nori` analyzer/type 오류일 때 `analysis-nori` plugin 필요성을 에러 메시지에 직접 포함하도록 정리해 운영 설정 오류를 빠르게 진단할 수 있게 함
 - 웹메일 설정 가져오기 실패가 브라우저 alert로 흐름을 끊지 않고 settings 화면 안의 inline 상태 메시지로 표시되도록 바꾸고, 설정 export key 목록의 중복 항목을 제거함
+- admin 회사 사용자 조회 헬퍼가 domain별 `ListUsers` 반복 호출 대신 `CompanyID` scope를 직접 지원하는 단일 `ListUsers` 쿼리를 사용하도록 바꿔 bulk export/SCIM status/security posture/seat usage/user limit 체크의 N+1 조회를 제거함
 
 **System Email Connections & AutoPurge** ✅ COMPLETE
 - `internal/httpapi/admin.go`: Added `systemEmail mailservice.SystemEmailSender` and `publicBaseURL string` fields to `adminRouteConfig`; added `WithSystemEmailSender` and `WithPublicBaseURL` `AdminRouteOption` constructors

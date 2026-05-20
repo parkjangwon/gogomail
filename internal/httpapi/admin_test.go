@@ -6560,7 +6560,7 @@ func TestAdminCompanyUsersBulkExportScopesUsersByCompanyDomains(t *testing.T) {
 	if strings.Contains(body, "bob") {
 		t.Fatalf("export leaked another company user: %s", body)
 	}
-	if service.lastDomainList.CompanyID != "company-1" || service.lastUserList.DomainID != "domain-1" {
+	if service.lastDomainList.CompanyID != "company-1" || service.lastUserList.CompanyID != "company-1" || service.lastUserList.DomainID != "" {
 		t.Fatalf("domain/user list = %+v/%+v", service.lastDomainList, service.lastUserList)
 	}
 }
@@ -9404,6 +9404,23 @@ func (f *fakeAdminService) ListUsers(_ context.Context, req maildb.UserListReque
 	f.lastUserList = req
 	f.lastDomainID = req.DomainID
 	f.lastLimit = req.Limit
+	if req.CompanyID != "" {
+		companyDomainIDs := make(map[string]struct{})
+		for _, domain := range f.domains {
+			if domain.CompanyID == req.CompanyID {
+				companyDomainIDs[domain.ID] = struct{}{}
+			}
+		}
+		if len(companyDomainIDs) > 0 {
+			users := make([]maildb.UserView, 0, len(f.users))
+			for _, user := range f.users {
+				if _, ok := companyDomainIDs[user.DomainID]; ok {
+					users = append(users, user)
+				}
+			}
+			return users, false, nil
+		}
+	}
 	if req.DomainID == "" {
 		return f.users, false, nil
 	}
