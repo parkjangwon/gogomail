@@ -7817,3 +7817,10 @@ Next focus areas:
 - Docker, webmail, and console `.env.example` files now include the recent backend performance/security/notification/session-facing variables instead of only the older minimal backend URL entries.
 - Docker README and backend release readiness now document restore rehearsal scratch-DB overrides and heavier release verification gates.
 - Verification: documentation-only diff plus env-name grep against README, Docker, webmail, console, and release-readiness docs.
+
+## 2026-05-21 BIMI VMC verification hardening
+
+- BIMI validation no longer treats a present VMC URL as verified. Until real VMC certificate-chain validation is implemented, `ValidateAndFetch` returns `vmcVerified=false`.
+- Logo cache hashes now store the actual SHA-256 digest of the logo body instead of hashing an empty digest appended to the body bytes.
+- Added tests for both VMC false-positive prevention and cached logo body hashing.
+- Verification: `go test ./internal/bimi`.
