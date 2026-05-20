@@ -6605,3 +6605,6 @@ Target outcome:
 1816. Webmail settings import failures now render inline retryable feedback
       instead of a blocking browser alert, and the settings export key list no
       longer includes a duplicate notification-detail key.
+1817. Admin company-level user reads now support a direct `CompanyID` scope on
+      `ListUsers`, so bulk export, SCIM status, security posture, seat usage,
+      and user-limit checks avoid one user-list query per domain.

@@ -5404,21 +5404,12 @@ func checkUserLimit(ctx context.Context, service AdminService, companyID string)
 	if cfg.MaxUsers <= 0 {
 		return ""
 	}
-	// Count all users in the company by summing users across all domains.
-	domains, _, err := service.ListDomains(ctx, maildb.DomainListRequest{CompanyID: companyID, Limit: 10000})
+	users, hasMore, err := service.ListUsers(ctx, maildb.UserListRequest{CompanyID: companyID, Limit: cfg.MaxUsers, ProbeMore: true})
 	if err != nil {
 		return "" // don't block on error
 	}
-	total := 0
-	for _, d := range domains {
-		users, _, err := service.ListUsers(ctx, maildb.UserListRequest{DomainID: d.ID, Limit: cfg.MaxUsers + 1})
-		if err != nil {
-			continue
-		}
-		total += len(users)
-		if total >= cfg.MaxUsers {
-			return fmt.Sprintf("user limit of %d reached", cfg.MaxUsers)
-		}
+	if hasMore || len(users) >= cfg.MaxUsers {
+		return fmt.Sprintf("user limit of %d reached", cfg.MaxUsers)
 	}
 	return ""
 }
@@ -8410,19 +8401,16 @@ func listCompanyUsers(ctx context.Context, service AdminService, companyID strin
 	if err != nil {
 		return nil, err
 	}
-	return listUsersForDomains(ctx, service, domains, perDomainLimit)
+	return listCompanyUsersForDomains(ctx, service, companyID, domains, perDomainLimit)
 }
 
-func listUsersForDomains(ctx context.Context, service AdminService, domains []maildb.DomainView, perDomainLimit int) ([]maildb.UserView, error) {
-	users := []maildb.UserView{}
-	for _, domain := range domains {
-		domainUsers, _, err := service.ListUsers(ctx, maildb.UserListRequest{DomainID: domain.ID, Limit: perDomainLimit})
-		if err != nil {
-			return nil, err
-		}
-		users = append(users, domainUsers...)
+func listCompanyUsersForDomains(ctx context.Context, service AdminService, companyID string, domains []maildb.DomainView, perDomainLimit int) ([]maildb.UserView, error) {
+	if len(domains) == 0 {
+		return nil, nil
 	}
-	return users, nil
+	limit := perDomainLimit * len(domains)
+	users, _, err := service.ListUsers(ctx, maildb.UserListRequest{CompanyID: companyID, Limit: limit})
+	return users, err
 }
 
 // ─── Security Posture ─────────────────────────────────────────────────────────
@@ -8433,7 +8421,7 @@ func handleGetSecurityPosture(w http.ResponseWriter, r *http.Request, service Ad
 	mfaStats, _ := service.GetMFAStats(ctx, companyID)
 	domains, _, _ := service.ListDomains(ctx, maildb.DomainListRequest{CompanyID: companyID, Limit: 200})
 
-	users, _ := listUsersForDomains(ctx, service, domains, 1000)
+	users, _ := listCompanyUsersForDomains(ctx, service, companyID, domains, 1000)
 	usersWithoutPassword := 0
 	for _, u := range users {
 		if !u.PasswordConfigured {
@@ -8680,7 +8668,7 @@ func handleGetSCIMStatus(w http.ResponseWriter, r *http.Request, service AdminSe
 	if len(domains) > 0 {
 		domainID = domains[0].ID
 	}
-	users, _ := listUsersForDomains(ctx, service, domains, 1000)
+	users, _ := listCompanyUsersForDomains(ctx, service, id, domains, 1000)
 	writeJSON(w, http.StatusOK, map[string]any{
 		"endpoint":            "/scim/v2",
 		"supported_resources": []string{"Users"},
@@ -8699,18 +8687,16 @@ func handleGetSeatUsage(w http.ResponseWriter, r *http.Request, service AdminSer
 		return
 	}
 	domains, _, _ := service.ListDomains(ctx, maildb.DomainListRequest{CompanyID: id, Limit: 200})
+	users, _ := listCompanyUsersForDomains(ctx, service, id, domains, 1000)
 	totalUsers := 0
 	activeUsers := 0
 	suspendedUsers := 0
-	for _, d := range domains {
-		us, _, _ := service.ListUsers(ctx, maildb.UserListRequest{DomainID: d.ID, Limit: 1000})
-		totalUsers += len(us)
-		for _, u := range us {
-			if u.Status == "active" {
-				activeUsers++
-			} else {
-				suspendedUsers++
-			}
+	totalUsers = len(users)
+	for _, u := range users {
+		if u.Status == "active" {
+			activeUsers++
+		} else {
+			suspendedUsers++
 		}
 	}
 	company, _ := service.GetCompany(ctx, id)

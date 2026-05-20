@@ -7958,3 +7958,9 @@ Next focus areas:
 - Webmail settings import no longer uses a blocking browser alert for invalid JSON or unreadable files; the About settings section now renders inline status/error feedback and resets the file input for immediate retry.
 - The settings export key list no longer includes `webmail_notif_detail` twice.
 - Verification target: `pnpm --dir apps/webmail type-check`.
+
+## 2026-05-21 Admin company user scope batching
+
+- `UserListRequest` now supports direct `CompanyID` scoping through a sargable `JOIN domains d ON d.id = u.domain_id` predicate.
+- Company-level admin helpers now use one company-scoped user query for bulk export, SCIM status, security posture, seat usage, and max-user limit checks instead of listing users once per domain.
+- Verification target: `go test ./internal/maildb -run TestListUsersQueryUsesSargableOptionalFilters`; `go test ./internal/httpapi -run 'Test(Admin|Company|SCIM|Seat|Security)'`.
