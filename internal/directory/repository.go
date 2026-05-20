@@ -1433,6 +1433,33 @@ SELECT EXISTS (
 	return exists, nil
 }
 
+func buildCheckDelegationQuery(req CheckDelegationRequest) (string, []any) {
+	conditions := []string{
+		"d.company_id = $1::uuid",
+		"d.owner_kind = $2",
+		"d.owner_id = $3::uuid",
+		"d.delegate_kind = $4",
+		"d.delegate_id = $5::uuid",
+		"d.scope = $6",
+	}
+	if req.ActiveOnly {
+		conditions = append(conditions, "(d.status = 'active' AND c.status = 'active')")
+	}
+	query := `
+SELECT d.role
+FROM directory_delegations d
+JOIN companies c ON c.id = d.company_id
+WHERE ` + strings.Join(conditions, "\n  AND ")
+	return query, []any{
+		req.CompanyID,
+		req.OwnerKind,
+		req.OwnerID,
+		req.DelegateKind,
+		req.DelegateID,
+		req.Scope,
+	}
+}
+
 func (r *Repository) CheckDelegation(ctx context.Context, req CheckDelegationRequest) (bool, error) {
 	if r == nil || r.db == nil {
 		return false, fmt.Errorf("database handle is required")
@@ -1447,26 +1474,8 @@ func (r *Repository) CheckDelegation(ctx context.Context, req CheckDelegationReq
 			return false, err
 		}
 	}
-	const query = `
-SELECT d.role
-FROM directory_delegations d
-JOIN companies c ON c.id = d.company_id
-WHERE d.company_id = $1::uuid
-  AND d.owner_kind = $2
-  AND d.owner_id = $3::uuid
-  AND d.delegate_kind = $4
-  AND d.delegate_id = $5::uuid
-  AND d.scope = $6
-  AND ($7::boolean = false OR (d.status = 'active' AND c.status = 'active'))`
-	rows, err := r.db.QueryContext(ctx, query,
-		req.CompanyID,
-		req.OwnerKind,
-		req.OwnerID,
-		req.DelegateKind,
-		req.DelegateID,
-		req.Scope,
-		req.ActiveOnly,
-	)
+	query, args := buildCheckDelegationQuery(req)
+	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return false, fmt.Errorf("check directory delegation: %w", err)
 	}
