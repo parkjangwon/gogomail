@@ -7689,4 +7689,5 @@ Next focus areas:
 - Added optional `delivery.BulkRecorder` support in the delivery handler.
 - `PostgresRecorder` now records multiple delivery attempts in one transaction using `unnest` batch INSERTs for `delivery_attempts`, related outbox events, and hard-bounce suppression rows.
 - Partial delivery failures are collected and recorded as one failed-attempt batch where supported.
+- Retry exhaustion now reuses the same delivery-attempt batch insert path instead of inserting one exhausted attempt per recipient.
 - Verification: `go test ./internal/delivery`.

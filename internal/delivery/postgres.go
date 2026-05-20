@@ -203,45 +203,8 @@ func (r *PostgresRecorder) RecordExhausted(ctx context.Context, queued QueuedMes
 		causeMsg = truncateUTF8Bytes(cause.Error(), 2000)
 	}
 
-	const attemptQuery = `
-INSERT INTO delivery_attempts (
-  message_id, rfc_message_id, farm,
-  recipient, recipient_domain,
-  status, error_message,
-  sender, enhanced_status, dsn_return, dsn_envelope_id, dsn_notify, original_recipient,
-  attempted_at
-) VALUES (
-  $1, $2, $3,
-  $4, $5,
-  'exhausted', $6,
-  $7, $8, $9, $10, $11::jsonb, $12,
-  now()
-)`
-
-	for _, recipient := range queued.Recipients() {
-		_, domain, _ := strings.Cut(strings.TrimSpace(recipient.Email), "@")
-		domain = strings.ToLower(strings.TrimSuffix(domain, "."))
-		dsnRecipient := dsnRecipientOptionsForAttempt(queued.DSN.Recipients, recipient.Email)
-		notify := append([]string(nil), dsnRecipient.Notify...)
-		if notify == nil {
-			notify = []string{}
-		}
-		dsnNotify, err := json.Marshal(notify)
-		if err != nil {
-			return fmt.Errorf("marshal exhausted delivery attempt dsn notify: %w", err)
-		}
-		if _, err := tx.ExecContext(ctx, attemptQuery,
-			queued.MessageID, queued.RFCMessageID, string(queued.Farm),
-			recipient.Email, domain, causeMsg,
-			truncateUTF8Bytes(strings.TrimSpace(queued.From.Email), 320),
-			enhancedStatusForAttempt(AttemptExhausted, cause),
-			truncateUTF8Bytes(strings.TrimSpace(queued.DSN.Return), 16),
-			truncateUTF8Bytes(strings.TrimSpace(queued.DSN.EnvelopeID), 100),
-			string(dsnNotify),
-			truncateUTF8Bytes(strings.TrimSpace(dsnRecipient.OriginalRecipient), 500),
-		); err != nil {
-			return fmt.Errorf("insert exhausted delivery attempt: %w", err)
-		}
+	if err := insertDeliveryAttempts(ctx, tx, attemptsFor(Job{QueuedMessage: queued}, AttemptExhausted, cause, timeNow())); err != nil {
+		return err
 	}
 
 	payload, err := exhaustedEventPayload(queued, causeMsg)
