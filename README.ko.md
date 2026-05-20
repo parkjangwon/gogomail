@@ -194,6 +194,11 @@ bin/gogomail --mode=ldap-gateway
 bin/gogomail --migrate --mode=mail-api
 ```
 
+`--mode`가 기본 실행 모드 선택자입니다. `--mode`를 넘기지 않은 경우에는
+`APP_MODE`도 읽으므로 Docker Compose 환경 파일과 직접 바이너리 실행이 같은
+계약을 사용합니다. 둘 다 설정하면 `--mode`가 우선합니다. 알 수 없는 모드는
+시작 시 즉시 실패하며, 허용 모드 목록은 `internal/app/mode.go`가 기준입니다.
+
 핵심 런타임 의존성:
 
 - Go module은 `go 1.25.7`을 선언하고 toolchain `go1.26.3`을 고정합니다.
@@ -206,6 +211,7 @@ bin/gogomail --migrate --mode=mail-api
 | 변수 | 용도 |
 |---|---|
 | `GOGOMAIL_ENV` | `production`에서 더 엄격한 인증/TLS/보안 기본값 적용 |
+| `APP_MODE` | `--mode`를 제공하지 않았을 때 사용할 백엔드 컴포넌트 모드 fallback. `--mode`가 우선 |
 | `GOGOMAIL_DATABASE_URL` | PostgreSQL 연결 문자열 |
 | `GOGOMAIL_DB_MAX_OPEN_CONNS` | PostgreSQL 최대 open connection, 기본 `20` |
 | `GOGOMAIL_DB_MAX_IDLE_CONNS` | PostgreSQL 최대 idle connection, 기본 `5` |
@@ -215,7 +221,7 @@ bin/gogomail --migrate --mode=mail-api
 | `GOGOMAIL_REDIS_PASSWORD` | Redis 비밀번호, medium/large Docker profile에서 필요 |
 | `GOGOMAIL_REDIS_SENTINEL_ADDRS` / `GOGOMAIL_REDIS_MASTER_NAME` | 선택적 Redis Sentinel failover 설정 |
 | `GOGOMAIL_STORAGE_BACKEND` | `local`, `nfs`, `minio`, `s3` |
-| `GOGOMAIL_STORAGE_ROOT` / `GOGOMAIL_MAILSTORE_ROOT` | local/NFS 객체 저장소 root, `MAILSTORE_ROOT`는 legacy alias |
+| `GOGOMAIL_MAILSTORE_ROOT` / `GOGOMAIL_STORAGE_ROOT` | local/NFS 객체 저장소 root. `GOGOMAIL_MAILSTORE_ROOT`가 우선이고 `GOGOMAIL_STORAGE_ROOT`는 deprecated fallback alias |
 | `GOGOMAIL_STORAGE_BACKEND_COMPAT_LABELS` | 저장소 migration 중 capability에 노출할 compatibility label |
 | `GOGOMAIL_STORAGE_S3_*` | S3/MinIO endpoint, region, bucket, prefix, credentials, path-style, TLS CA 옵션 |
 | `GOGOMAIL_AUTH_JWT_SECRET` | Mail API JWT 서명 secret |
