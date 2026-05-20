@@ -183,3 +183,18 @@ func TestValidateResolveObjectCleanupFailureRequestRejectsUnsafeInput(t *testing
 		})
 	}
 }
+
+func TestNormalizeObjectCleanupFailureIDsDeduplicatesAndDropsUnsafeIDs(t *testing.T) {
+	t.Parallel()
+
+	got := normalizeObjectCleanupFailureIDs([]string{
+		" failure-1 ",
+		"failure-1",
+		"failure-2",
+		"bad\nid",
+		"",
+	})
+	if strings.Join(got, ",") != "failure-1,failure-2" {
+		t.Fatalf("normalizeObjectCleanupFailureIDs = %v, want unique safe ids", got)
+	}
+}

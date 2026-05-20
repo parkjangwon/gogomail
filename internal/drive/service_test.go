@@ -155,6 +155,9 @@ func TestRetryObjectCleanupFailuresDeletesAndResolvesPendingObjects(t *testing.T
 	if queue.resolvedID != "failure-1" {
 		t.Fatalf("resolvedID = %q, want failure-1", queue.resolvedID)
 	}
+	if queue.resolveCalls != 1 {
+		t.Fatalf("resolveCalls = %d, want one batch resolve", queue.resolveCalls)
+	}
 }
 
 func TestRetryObjectCleanupFailuresRecordsRetryFailureAndContinues(t *testing.T) {
@@ -211,6 +214,45 @@ func TestRetryObjectCleanupFailuresRejectsWrongUserObjectPath(t *testing.T) {
 	}
 	if queue.resolvedID != "" {
 		t.Fatalf("resolvedID = %q, want unresolved validation failure", queue.resolvedID)
+	}
+}
+
+func TestRetryObjectCleanupFailuresResolvesSuccessfulRetriesInBatch(t *testing.T) {
+	t.Parallel()
+
+	store := &recordingStore{}
+	queue := &recordingCleanupFailureStore{
+		failures: []ObjectCleanupFailure{
+			{
+				ID:             "failure-1",
+				UserID:         "user-1",
+				NodeID:         "node-1",
+				StorageBackend: "s3",
+				StoragePath:    "drive/users/user-1/objects/node-1",
+			},
+			{
+				ID:             "failure-2",
+				UserID:         "user-1",
+				NodeID:         "node-2",
+				StorageBackend: "s3",
+				StoragePath:    "drive/users/user-1/objects/node-2",
+			},
+		},
+	}
+	service := NewService(nil, map[string]storage.Store{"s3": store}).WithObjectCleanupFailureStore(queue)
+
+	result, err := service.RetryObjectCleanupFailures(context.Background(), ListObjectCleanupFailuresRequest{})
+	if err != nil {
+		t.Fatalf("RetryObjectCleanupFailures returned error: %v", err)
+	}
+	if result.Resolved != 2 || result.Deleted != 2 || result.Failed != 0 {
+		t.Fatalf("result = %+v, want two resolved retries", result)
+	}
+	if strings.Join(queue.resolvedIDs, ",") != "failure-1,failure-2" {
+		t.Fatalf("resolvedIDs = %v, want both failures in one batch", queue.resolvedIDs)
+	}
+	if queue.resolveCalls != 1 {
+		t.Fatalf("resolveCalls = %d, want one batch resolve", queue.resolveCalls)
 	}
 }
 
@@ -272,10 +314,12 @@ func (r *recordingCleanupFailureRecorder) RecordObjectCleanupFailure(_ context.C
 }
 
 type recordingCleanupFailureStore struct {
-	failures   []ObjectCleanupFailure
-	listReq    ListObjectCleanupFailuresRequest
-	resolvedID string
-	recorded   ObjectCleanupFailure
+	failures     []ObjectCleanupFailure
+	listReq      ListObjectCleanupFailuresRequest
+	resolvedID   string
+	resolvedIDs  []string
+	resolveCalls int
+	recorded     ObjectCleanupFailure
 }
 
 func (s *recordingCleanupFailureStore) ListObjectCleanupFailures(_ context.Context, req ListObjectCleanupFailuresRequest) ([]ObjectCleanupFailure, error) {
@@ -286,6 +330,15 @@ func (s *recordingCleanupFailureStore) ListObjectCleanupFailures(_ context.Conte
 func (s *recordingCleanupFailureStore) ResolveObjectCleanupFailure(_ context.Context, req ResolveObjectCleanupFailureRequest) (ObjectCleanupFailure, error) {
 	s.resolvedID = req.ID
 	return ObjectCleanupFailure{ID: req.ID, Status: ObjectCleanupFailureStatusResolved}, nil
+}
+
+func (s *recordingCleanupFailureStore) ResolveObjectCleanupFailures(_ context.Context, ids []string) (int, error) {
+	s.resolveCalls++
+	s.resolvedIDs = append([]string(nil), ids...)
+	if len(ids) == 1 {
+		s.resolvedID = ids[0]
+	}
+	return len(ids), nil
 }
 
 func (s *recordingCleanupFailureStore) RecordObjectCleanupFailure(_ context.Context, failure ObjectCleanupFailure) (ObjectCleanupFailure, error) {
