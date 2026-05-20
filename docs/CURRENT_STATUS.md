@@ -7725,3 +7725,10 @@ Next focus areas:
 - `MarkFailedBatch` now projects `id,last_error` explicitly from the `unnest($1::uuid[], $3::text[])` input instead of using `SELECT *`.
 - Added a SQL-shape regression test so the outbox relay failure batch path keeps its CTE projection narrow.
 - Verification: `go test ./internal/outbox -run TestMarkFailedBatchSQLProjectsUnnestColumns`.
+
+## 2026-05-21 Draft attachment binding batching
+
+- Draft attachment binding now clears old draft links once and binds all requested uploading attachments with a single `unnest($3::uuid[])` typed-array `UPDATE ... RETURNING` query.
+- The repository still reports a not-found error when any requested attachment cannot be rebound, while duplicate attachment IDs are de-duplicated before the batch update.
+- Added a SQL-shape regression test to keep the draft attachment path off per-attachment updates.
+- Verification: `go test ./internal/maildb -run 'TestBindDraftAttachmentsSQLUsesSingleTypedArrayUpdate|TestPostgresCanceledDraftAttachmentCannotBeRebound|TestPostgresDraftToSendMovesAttachmentsAndQueuesOutbox'`.

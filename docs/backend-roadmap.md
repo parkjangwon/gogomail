@@ -312,6 +312,7 @@ Implementation order:
 222. Thread list read models now project only the API response columns from aggregated thread summaries, keeping mailbox conversation listing narrower and guarded against future `SELECT *` drift.
 223. Delivery TLS-RPT report identity now follows the configured SMTP domain instead of a hard-coded localhost collector domain, keeping outbound TLS reporting aligned with production MTA identity.
 224. Outbox relay failed-batch updates now project typed `unnest` input columns explicitly, keeping the high-throughput failure status path narrow and guarded against `SELECT *` drift.
+225. Draft attachment binding now uses one typed-array batch update instead of one UPDATE per attachment ID, removing an N+1 database round trip from draft save/update preparation.
 221. API metering can emit durable `api.usage` events through the generic outbox on topic `api.event`, keeping request handling fail-open while giving future aggregation workers a persistent event source.
 222. Quota reconciliation corrections can be explicitly applied by operators through `POST /admin/v1/quota-reconciliation/corrections`; corrections lock the affected quota hierarchy and set counters from message/attachment source rows.
 223. Domain outbound policy includes `max_attachment_bytes`, and Mail API attachment reservation/direct upload enforce it before quota reservation or object storage writes.

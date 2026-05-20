@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/gogomail/gogomail/internal/outbound"
+	"github.com/lib/pq"
 )
 
 // ErrDraftConflict is returned by updateDraft when optimistic locking detects
@@ -479,31 +480,44 @@ RETURNING id::text`
 }
 
 func bindDraftAttachments(ctx context.Context, tx *sql.Tx, userID string, draftID string, attachmentIDs []string) error {
+	userID = strings.TrimSpace(userID)
+	draftID = strings.TrimSpace(draftID)
 	if _, err := tx.ExecContext(ctx, `
 UPDATE attachments
 SET draft_id = NULL
 WHERE user_id = $1
-  AND draft_id = $2`, strings.TrimSpace(userID), strings.TrimSpace(draftID)); err != nil {
+  AND draft_id = $2`, userID, draftID); err != nil {
 		return fmt.Errorf("clear draft attachments: %w", err)
 	}
 
-	for _, attachmentID := range attachmentIDs {
-		result, err := tx.ExecContext(ctx, `
-UPDATE attachments
-SET draft_id = $3
-WHERE user_id = $1
-  AND id = $2
-  AND message_id IS NULL
-  AND status = 'uploading'`, strings.TrimSpace(userID), strings.TrimSpace(attachmentID), strings.TrimSpace(draftID))
+	attachmentIDs, err := normalizeDraftAttachmentIDs(attachmentIDs)
+	if err != nil {
+		return err
+	}
+	if len(attachmentIDs) > 0 {
+		rows, err := tx.QueryContext(ctx, bindDraftAttachmentsSQL, userID, draftID, pq.Array(attachmentIDs))
 		if err != nil {
-			return fmt.Errorf("bind draft attachment %q: %w", attachmentID, err)
+			return fmt.Errorf("bind draft attachments: %w", err)
 		}
-		affected, err := result.RowsAffected()
-		if err != nil {
-			return fmt.Errorf("inspect draft attachment bind: %w", err)
+		bound := make(map[string]struct{}, len(attachmentIDs))
+		for rows.Next() {
+			var id string
+			if err := rows.Scan(&id); err != nil {
+				rows.Close()
+				return fmt.Errorf("scan bound draft attachment: %w", err)
+			}
+			bound[id] = struct{}{}
 		}
-		if affected == 0 {
-			return fmt.Errorf("attachment %q not found for draft", attachmentID)
+		if err := rows.Close(); err != nil {
+			return fmt.Errorf("close bound draft attachment rows: %w", err)
+		}
+		if err := rows.Err(); err != nil {
+			return fmt.Errorf("iterate bound draft attachments: %w", err)
+		}
+		for _, attachmentID := range attachmentIDs {
+			if _, ok := bound[attachmentID]; !ok {
+				return fmt.Errorf("attachment %q not found for draft", attachmentID)
+			}
 		}
 	}
 
@@ -519,10 +533,41 @@ SET has_attachment = EXISTS (
   updated_at = now()
 WHERE user_id = $1
   AND id = $2
-  AND status = 'draft'`, strings.TrimSpace(userID), strings.TrimSpace(draftID)); err != nil {
+  AND status = 'draft'`, userID, draftID); err != nil {
 		return fmt.Errorf("refresh draft attachment state: %w", err)
 	}
 	return nil
+}
+
+const bindDraftAttachmentsSQL = `
+WITH requested AS (
+  SELECT DISTINCT value AS id
+  FROM unnest($3::uuid[]) AS requested(value)
+)
+UPDATE attachments
+SET draft_id = $2
+FROM requested
+WHERE attachments.user_id = $1
+  AND attachments.id = requested.id
+  AND attachments.message_id IS NULL
+  AND attachments.status = 'uploading'
+RETURNING attachments.id::text`
+
+func normalizeDraftAttachmentIDs(attachmentIDs []string) ([]string, error) {
+	seen := make(map[string]struct{}, len(attachmentIDs))
+	normalized := make([]string, 0, len(attachmentIDs))
+	for _, id := range attachmentIDs {
+		id = strings.TrimSpace(id)
+		if id == "" {
+			return nil, fmt.Errorf("attachment %q not found for draft", id)
+		}
+		if _, ok := seen[id]; ok {
+			continue
+		}
+		seen[id] = struct{}{}
+		normalized = append(normalized, id)
+	}
+	return normalized, nil
 }
 
 func ensureDraftSource(ctx context.Context, tx *sql.Tx, userID string, sourceMessageID string) error {
