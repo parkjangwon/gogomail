@@ -164,25 +164,7 @@ func (r *Repository) ListRoles(ctx context.Context, companyID string) ([]Role, e
 
 func (r *Repository) ListRoleSummaries(ctx context.Context, companyID string) ([]RoleSummary, error) {
 	rows, err := r.db.QueryContext(ctx,
-		`SELECT
-		     ard.id,
-		     ard.company_id,
-		     ard.name,
-		     COALESCE(ard.description, ''),
-		     ard.is_builtin,
-		     COUNT(DISTINCT arp.id)::int AS permissions_count,
-		     COUNT(DISTINCT aur.user_id)::int AS assigned_users,
-		     ard.created_at,
-		     ard.updated_at
-		   FROM admin_role_definitions ard
-		   LEFT JOIN admin_role_permissions arp ON arp.role_id = ard.id
-		   LEFT JOIN admin_user_roles aur
-		     ON aur.role_id = ard.id
-		    AND aur.company_id = ard.company_id
-		    AND (aur.expires_at IS NULL OR aur.expires_at > NOW())
-		   WHERE ard.company_id = $1
-		   GROUP BY ard.id, ard.company_id, ard.name, ard.description, ard.is_builtin, ard.created_at, ard.updated_at
-		   ORDER BY lower(ard.name), ard.id`,
+		listRoleSummariesQuery,
 		companyID,
 	)
 	if err != nil {
@@ -210,6 +192,35 @@ func (r *Repository) ListRoleSummaries(ctx context.Context, companyID string) ([
 	}
 	return roles, rows.Err()
 }
+
+const listRoleSummariesQuery = `
+WITH active_admin_user_roles AS (
+  SELECT company_id, user_id, role_id
+  FROM admin_user_roles
+  WHERE company_id = $1 AND expires_at IS NULL
+  UNION ALL
+  SELECT company_id, user_id, role_id
+  FROM admin_user_roles
+  WHERE company_id = $1 AND expires_at > NOW()
+)
+SELECT
+		     ard.id,
+		     ard.company_id,
+		     ard.name,
+		     COALESCE(ard.description, ''),
+		     ard.is_builtin,
+		     COUNT(DISTINCT arp.id)::int AS permissions_count,
+		     COUNT(DISTINCT aur.user_id)::int AS assigned_users,
+		     ard.created_at,
+		     ard.updated_at
+		   FROM admin_role_definitions ard
+		   LEFT JOIN admin_role_permissions arp ON arp.role_id = ard.id
+		   LEFT JOIN active_admin_user_roles aur
+		     ON aur.role_id = ard.id
+		    AND aur.company_id = ard.company_id
+		   WHERE ard.company_id = $1
+		   GROUP BY ard.id, ard.company_id, ard.name, ard.description, ard.is_builtin, ard.created_at, ard.updated_at
+		   ORDER BY lower(ard.name), ard.id`
 
 // UpdateRole updates a role.
 func (r *Repository) UpdateRole(ctx context.Context, role *Role) error {
@@ -314,11 +325,7 @@ func (r *Repository) RevokeRole(ctx context.Context, id string) error {
 // GetUserRoles gets all active roles for a user in a company.
 func (r *Repository) GetUserRoles(ctx context.Context, userID, companyID string) ([]UserRole, error) {
 	rows, err := r.db.QueryContext(ctx,
-		`SELECT id, company_id, user_id, role_id, assigned_at, assigned_by, expires_at
-		 FROM admin_user_roles
-		 WHERE user_id = $1 AND company_id = $2
-		 AND (expires_at IS NULL OR expires_at > NOW())
-		 ORDER BY assigned_at DESC`,
+		getUserRolesQuery,
 		userID, companyID,
 	)
 	if err != nil {
@@ -338,15 +345,23 @@ func (r *Repository) GetUserRoles(ctx context.Context, userID, companyID string)
 	return userRoles, rows.Err()
 }
 
+const getUserRolesQuery = `
+SELECT id, company_id, user_id, role_id, assigned_at, assigned_by, expires_at
+FROM (
+  SELECT id, company_id, user_id, role_id, assigned_at, assigned_by, expires_at
+  FROM admin_user_roles
+  WHERE user_id = $1 AND company_id = $2 AND expires_at IS NULL
+  UNION ALL
+  SELECT id, company_id, user_id, role_id, assigned_at, assigned_by, expires_at
+  FROM admin_user_roles
+  WHERE user_id = $1 AND company_id = $2 AND expires_at > NOW()
+) active_user_roles
+ORDER BY assigned_at DESC`
+
 // ListRolesForUser gets all role definitions for a user's active assignments.
 func (r *Repository) ListRolesForUser(ctx context.Context, userID string) ([]Role, error) {
 	rows, err := r.db.QueryContext(ctx,
-		`SELECT DISTINCT ard.id, ard.company_id, ard.name, ard.description, ard.is_builtin,
-		        ard.created_by, ard.created_at, ard.updated_at
-		 FROM admin_role_definitions ard
-		 JOIN admin_user_roles aur ON ard.id = aur.role_id
-		 WHERE aur.user_id = $1 AND (aur.expires_at IS NULL OR aur.expires_at > NOW())
-		 ORDER BY ard.name`,
+		listRolesForUserQuery,
 		userID,
 	)
 	if err != nil {
@@ -365,6 +380,21 @@ func (r *Repository) ListRolesForUser(ctx context.Context, userID string) ([]Rol
 	}
 	return roles, rows.Err()
 }
+
+const listRolesForUserQuery = `
+SELECT DISTINCT ard.id, ard.company_id, ard.name, ard.description, ard.is_builtin,
+       ard.created_by, ard.created_at, ard.updated_at
+FROM admin_role_definitions ard
+JOIN (
+  SELECT role_id
+  FROM admin_user_roles
+  WHERE user_id = $1 AND expires_at IS NULL
+  UNION ALL
+  SELECT role_id
+  FROM admin_user_roles
+  WHERE user_id = $1 AND expires_at > NOW()
+) aur ON ard.id = aur.role_id
+ORDER BY ard.name`
 
 // CreateAuditPolicy creates an audit policy for a domain.
 func (r *Repository) CreateAuditPolicy(ctx context.Context, policy *AuditPolicyConfig) error {

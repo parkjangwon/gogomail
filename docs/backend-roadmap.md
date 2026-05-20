@@ -6532,3 +6532,7 @@ Target outcome:
       initial reads omit the UID cursor predicate, and cursor reads split
       assigned UID scans from lazy UID-assignment candidates with `UNION ALL`
       instead of a nullable optional `OR` guard.
+1795. Admin role assignment reads now split permanent and future-expiring active
+      assignments with `UNION ALL`, and migration 0119 adds partial indexes for
+      role summaries, company-scoped user-role lists, and user role-definition
+      lookups.
