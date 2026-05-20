@@ -2069,15 +2069,7 @@ func mapDirectoryDelegationWriteError(operation string, err error) error {
 	return fmt.Errorf("%s: %w", operation, err)
 }
 
-func (r *Repository) ListDelegations(ctx context.Context, req ListDelegationsRequest) ([]Delegation, error) {
-	if r == nil || r.db == nil {
-		return nil, fmt.Errorf("database handle is required")
-	}
-	req, err := NormalizeListDelegationsRequest(req)
-	if err != nil {
-		return nil, err
-	}
-	const query = `
+const listDelegationsBaseSQL = `
 SELECT id::text,
        company_id::text,
        owner_kind,
@@ -2087,28 +2079,55 @@ SELECT id::text,
        scope,
        role,
        status
-FROM directory_delegations
-WHERE company_id = $1::uuid
-  AND ($2 = '' OR owner_kind = $2)
-  AND ($3 = '' OR owner_id = NULLIF($3, '')::uuid)
-  AND ($4 = '' OR delegate_kind = $4)
-  AND ($5 = '' OR delegate_id = NULLIF($5, '')::uuid)
-  AND ($6 = '' OR scope = $6)
-  AND ($7 = '' OR role = $7)
-  AND ($8::boolean = false OR status = 'active')
+FROM directory_delegations`
+
+func buildListDelegationsQuery(req ListDelegationsRequest) (string, []any) {
+	args := []any{req.CompanyID}
+	conditions := []string{"company_id = $1::uuid"}
+	if req.OwnerKind != "" {
+		args = append(args, req.OwnerKind)
+		conditions = append(conditions, fmt.Sprintf("owner_kind = $%d", len(args)))
+	}
+	if req.OwnerID != "" {
+		args = append(args, req.OwnerID)
+		conditions = append(conditions, fmt.Sprintf("owner_id = $%d::uuid", len(args)))
+	}
+	if req.DelegateKind != "" {
+		args = append(args, req.DelegateKind)
+		conditions = append(conditions, fmt.Sprintf("delegate_kind = $%d", len(args)))
+	}
+	if req.DelegateID != "" {
+		args = append(args, req.DelegateID)
+		conditions = append(conditions, fmt.Sprintf("delegate_id = $%d::uuid", len(args)))
+	}
+	if req.Scope != "" {
+		args = append(args, req.Scope)
+		conditions = append(conditions, fmt.Sprintf("scope = $%d", len(args)))
+	}
+	if req.Role != "" {
+		args = append(args, req.Role)
+		conditions = append(conditions, fmt.Sprintf("role = $%d", len(args)))
+	}
+	if req.ActiveOnly {
+		conditions = append(conditions, "status = 'active'")
+	}
+	args = append(args, req.Limit)
+	query := listDelegationsBaseSQL + "\nWHERE " + strings.Join(conditions, "\n  AND ") + fmt.Sprintf(`
 ORDER BY updated_at DESC, id
-LIMIT $9`
-	rows, err := r.db.QueryContext(ctx, query,
-		req.CompanyID,
-		req.OwnerKind,
-		req.OwnerID,
-		req.DelegateKind,
-		req.DelegateID,
-		req.Scope,
-		req.Role,
-		req.ActiveOnly,
-		req.Limit,
-	)
+LIMIT $%d`, len(args))
+	return query, args
+}
+
+func (r *Repository) ListDelegations(ctx context.Context, req ListDelegationsRequest) ([]Delegation, error) {
+	if r == nil || r.db == nil {
+		return nil, fmt.Errorf("database handle is required")
+	}
+	req, err := NormalizeListDelegationsRequest(req)
+	if err != nil {
+		return nil, err
+	}
+	query, args := buildListDelegationsQuery(req)
+	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("list directory delegations: %w", err)
 	}
