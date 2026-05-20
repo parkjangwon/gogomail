@@ -82,7 +82,7 @@ func TestMessageSearchSQLExcludesDraftRows(t *testing.T) {
 func TestMessageSearchSQLUsesSargableFolderFilter(t *testing.T) {
 	t.Parallel()
 
-	query := buildMessageSearchSQL(MessageSearchSortDate, "folder-1")
+	query := buildMessageSearchSQL(MessageSearchSortDate, "folder-1", "")
 	if !strings.Contains(query, "AND folder_id = $3::uuid") {
 		t.Fatalf("message search query missing sargable folder filter:\n%s", query)
 	}
@@ -90,12 +90,29 @@ func TestMessageSearchSQLUsesSargableFolderFilter(t *testing.T) {
 		t.Fatalf("message search query contains non-sargable folder filter:\n%s", query)
 	}
 
-	query = buildMessageSearchSQL(MessageSearchSortRelevance, "")
+	query = buildMessageSearchSQL(MessageSearchSortRelevance, "", "")
 	if strings.Contains(query, "AND folder_id") {
 		t.Fatalf("folderless message search query unexpectedly includes folder predicate:\n%s", query)
 	}
 	if !strings.Contains(query, "search_rank DESC NULLS LAST") {
 		t.Fatalf("folderless relevance search lost relevance ordering:\n%s", query)
+	}
+}
+
+func TestMessageSearchSQLUsesSargableAttachmentFilter(t *testing.T) {
+	t.Parallel()
+
+	query := buildMessageSearchSQL(MessageSearchSortDate, "", "true")
+	if !strings.Contains(query, "AND has_attachment = $9::boolean") {
+		t.Fatalf("message search query missing sargable attachment filter:\n%s", query)
+	}
+	if strings.Contains(query, "$9 = '' OR has_attachment = $9::boolean") {
+		t.Fatalf("message search query contains optional attachment OR:\n%s", query)
+	}
+
+	query = buildMessageSearchSQL(MessageSearchSortDate, "", "")
+	if strings.Contains(query, "AND has_attachment") {
+		t.Fatalf("attachment-agnostic message search query unexpectedly includes attachment predicate:\n%s", query)
 	}
 }
 
@@ -128,6 +145,23 @@ func TestDraftSearchSQLUsesComposeFocusedDraftFields(t *testing.T) {
 	}
 	if strings.Contains(query, "message_search_documents") {
 		t.Fatalf("draft search query should not depend on active-message search index:\n%s", query)
+	}
+}
+
+func TestDraftSearchSQLUsesSargableAttachmentFilter(t *testing.T) {
+	t.Parallel()
+
+	query := buildDraftSearchSQL("false")
+	if !strings.Contains(query, "AND has_attachment = $8::boolean") {
+		t.Fatalf("draft search query missing sargable attachment filter:\n%s", query)
+	}
+	if strings.Contains(query, "$8 = '' OR has_attachment = $8::boolean") {
+		t.Fatalf("draft search query contains optional attachment OR:\n%s", query)
+	}
+
+	query = buildDraftSearchSQL("")
+	if strings.Contains(query, "AND has_attachment") {
+		t.Fatalf("attachment-agnostic draft search query unexpectedly includes attachment predicate:\n%s", query)
 	}
 }
 
