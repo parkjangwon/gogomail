@@ -4,12 +4,34 @@ import (
 	"context"
 	"errors"
 	"io"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/gogomail/gogomail/internal/storage"
 	"github.com/jackc/pgx/v5/pgconn"
 )
+
+func TestDriveRepositorySQLAvoidsWideCTEProjection(t *testing.T) {
+	t.Parallel()
+
+	for _, name := range []string{"repository.go", "upload_session_repository.go"} {
+		raw, err := os.ReadFile(filepath.Join(".", name))
+		if err != nil {
+			t.Fatalf("read %s: %v", name, err)
+		}
+		text := string(raw)
+		for _, forbidden := range []string{
+			"SELECT * FROM updated",
+			"SELECT * FROM inserted",
+		} {
+			if strings.Contains(text, forbidden) {
+				t.Fatalf("%s still contains wide CTE projection %q", name, forbidden)
+			}
+		}
+	}
+}
 
 func TestValidateCreateFolderRequest(t *testing.T) {
 	t.Parallel()

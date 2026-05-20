@@ -30,6 +30,11 @@ Last updated: 2026-05-21 (SaaS launch hardening continues: attachment cleanup ba
 - `BenchmarkRetryDedupeKey` now includes 1k and 10k recipient scenarios so large-recipient retry key cost stays visible.
 - Verification: `go test ./internal/delivery -run 'TestRetryDedupeKeyIncludesAttemptAndRecipients|TestRetryDedupeKeyIsRecipientOrderStable|TestRetryDedupeKeyConsistency'` passes.
 
+## Drive Storage Projection Tightening (2026-05-21)
+- Drive rename, move, and upload-session creation queries now explicitly select their response columns from `updated`/`inserted` CTEs instead of using `SELECT *`.
+- Regression coverage scans the Drive repository SQL files for wide CTE projections so storage-path changes keep explicit result shapes.
+- Verification: `go test ./internal/drive -run 'TestDriveRepositorySQLAvoidsWideCTEProjection|TestValidateRenameNodeRequest|TestValidateMoveNodeRequest|TestValidateCreateUploadSessionRequest'` passes.
+
 ## SaaS Launch Hardening Continuation (2026-05-21)
 - Organization chart user-unit lookup is now repository-backed instead of returning a placeholder error. `GetUserUnits` validates `user_id`, resolves active `organization_members` assignments through `organization_units`, and ignores ended memberships plus inactive units.
 - Migration `0115_organization_member_active_user_index.sql` adds a partial active-membership index for user-scoped organization lookups.

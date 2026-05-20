@@ -897,7 +897,24 @@ updated AS (
     n.created_at,
     n.updated_at
 )
-SELECT * FROM updated`
+SELECT
+  id,
+  company_id,
+  domain_id,
+  user_id,
+  parent_id,
+  node_type,
+  name,
+  normalized_name,
+  mime_type,
+  size,
+  storage_backend,
+  storage_path,
+  checksum_sha256,
+  status,
+  created_at,
+  updated_at
+FROM updated`
 	var node Node
 	err = r.db.QueryRowContext(ctx, query, req.UserID, req.NodeID, req.Name, normalizedName).Scan(
 		&node.ID,
@@ -1001,7 +1018,24 @@ updated AS (
     n.created_at,
     n.updated_at
 )
-SELECT * FROM updated`
+SELECT
+  id,
+  company_id,
+  domain_id,
+  user_id,
+  parent_id,
+  node_type,
+  name,
+  normalized_name,
+  mime_type,
+  size,
+  storage_backend,
+  storage_path,
+  checksum_sha256,
+  status,
+  created_at,
+  updated_at
+FROM updated`
 	var node Node
 	err = r.db.QueryRowContext(ctx, query, req.UserID, req.NodeID, req.ParentID).Scan(
 		&node.ID,
