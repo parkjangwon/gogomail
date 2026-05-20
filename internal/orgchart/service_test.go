@@ -2,6 +2,7 @@ package orgchart
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"testing"
 	"time"
@@ -281,6 +282,26 @@ func TestServiceSyncWithLDAPFailure(t *testing.T) {
 	}
 	if log.ErrorMessage == "" {
 		t.Fatal("ErrorMessage should be set")
+	}
+}
+
+func TestServiceSyncWithLDAPWithoutAdapterFails(t *testing.T) {
+	repo := newMockRepository()
+	svc := NewService(repo, nil)
+	ctx := context.Background()
+
+	log, err := svc.SyncWithLDAP(ctx, "company-1")
+	if err == nil {
+		t.Fatal("SyncWithLDAP should fail when no sync adapter is configured")
+	}
+	if !errors.Is(err, ErrOrgChartSyncNotConfigured) {
+		t.Fatalf("SyncWithLDAP error = %v, want ErrOrgChartSyncNotConfigured", err)
+	}
+	if log.Status != "failed" {
+		t.Fatalf("status = %q, want failed", log.Status)
+	}
+	if log.ErrorMessage != ErrOrgChartSyncNotConfigured.Error() {
+		t.Fatalf("error message = %q, want %q", log.ErrorMessage, ErrOrgChartSyncNotConfigured.Error())
 	}
 }
 

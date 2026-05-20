@@ -7789,3 +7789,10 @@ Next focus areas:
 - Directory principal resolution fallback now uses `unsupported principal kind ...`, matching the normalized request validator.
 - Added CardDAV and CalDAV regression tests that reject `not implemented` in client-facing unsupported REPORT errors.
 - Verification: `go test ./internal/carddavgw -run TestReportResponsesRejectsUnsupportedReportWithProductWording`; `go test ./internal/caldavgw -run TestReportResponsesRejectsUnsupportedReportWithProductWording`; `go test ./internal/directory`.
+
+## 2026-05-21 Organization sync no-op hardening
+
+- `NoopOrgChartAdapter` now returns `ErrOrgChartSyncNotConfigured` instead of reporting success.
+- Manual organization sync now returns HTTP 501 when no external adapter is configured, and the sync log records a failed status instead of a false success.
+- The batch worker skips registering the hourly `org-chart-sync` job until a real adapter is wired.
+- Verification: `go test ./internal/orgchart`; `go test ./internal/httpapi -run 'TestSyncLDAPEndpoint|TestSyncLDAPEndpointReportsUnconfiguredAdapter'`; `go test ./internal/app -run '^$'`.

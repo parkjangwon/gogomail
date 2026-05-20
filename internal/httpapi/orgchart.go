@@ -3,6 +3,7 @@ package httpapi
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 
 	"github.com/gogomail/gogomail/internal/orgchart"
@@ -220,6 +221,10 @@ func RegisterOrgChartRoutes(mux *http.ServeMux, service OrgChartService, adminTo
 
 		log, err := service.SyncWithLDAP(r.Context(), companyID)
 		if err != nil {
+			if errors.Is(err, orgchart.ErrOrgChartSyncNotConfigured) {
+				writeError(w, http.StatusNotImplemented, err.Error())
+				return
+			}
 			writeError(w, http.StatusInternalServerError, err.Error())
 			return
 		}
