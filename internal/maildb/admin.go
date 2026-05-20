@@ -4353,7 +4353,39 @@ RETURNING created_at`
 }
 
 func (r *Repository) findAPIUsageLedgerRetentionCoveringBatch(ctx context.Context, req APIUsageLedgerRetentionRequest, firstCandidateAt *time.Time, view *APIUsageLedgerRetentionReadinessView) error {
-	const query = `
+	var completedAt sql.NullTime
+	var windowStart sql.NullTime
+	var windowEnd sql.NullTime
+	err := r.db.QueryRowContext(ctx, apiUsageLedgerRetentionCoveringBatchSQL, req.TenantID, req.PrincipalID, firstCandidateAt.UTC(), req.Cutoff).Scan(
+		&view.CoveringExportBatchID,
+		&completedAt,
+		&windowStart,
+		&windowEnd,
+		&view.CoveringExportBatchEventCount,
+		&view.CoveringArtifactCount,
+		&view.CoveringArtifactEventCount,
+		&view.CoveringManifestDigestCount,
+		&view.CoveringManifestSignatureCount,
+	)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil
+		}
+		return fmt.Errorf("get api usage ledger retention covering export batch: %w", err)
+	}
+	if completedAt.Valid {
+		view.CoveringExportBatchCompletedAt = &completedAt.Time
+	}
+	if windowStart.Valid {
+		view.CoveringExportBatchWindowStart = &windowStart.Time
+	}
+	if windowEnd.Valid {
+		view.CoveringExportBatchWindowEnd = &windowEnd.Time
+	}
+	return nil
+}
+
+const apiUsageLedgerRetentionCoveringBatchSQL = `
 SELECT
   b.id,
   b.completed_at,
@@ -4384,42 +4416,11 @@ WHERE b.status = 'completed'
   AND b.completed_at IS NOT NULL
   AND b.tenant_id = $1
   AND b.principal_id = $2
-  AND (b.window_start IS NULL OR b.window_start <= $3)
+  AND COALESCE(b.window_start, '-infinity'::timestamptz) <= $3
   AND b.window_end IS NOT NULL
   AND b.window_end >= $4
 ORDER BY b.completed_at DESC, b.id DESC
 LIMIT 1`
-	var completedAt sql.NullTime
-	var windowStart sql.NullTime
-	var windowEnd sql.NullTime
-	err := r.db.QueryRowContext(ctx, query, req.TenantID, req.PrincipalID, firstCandidateAt.UTC(), req.Cutoff).Scan(
-		&view.CoveringExportBatchID,
-		&completedAt,
-		&windowStart,
-		&windowEnd,
-		&view.CoveringExportBatchEventCount,
-		&view.CoveringArtifactCount,
-		&view.CoveringArtifactEventCount,
-		&view.CoveringManifestDigestCount,
-		&view.CoveringManifestSignatureCount,
-	)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil
-		}
-		return fmt.Errorf("get api usage ledger retention covering export batch: %w", err)
-	}
-	if completedAt.Valid {
-		view.CoveringExportBatchCompletedAt = &completedAt.Time
-	}
-	if windowStart.Valid {
-		view.CoveringExportBatchWindowStart = &windowStart.Time
-	}
-	if windowEnd.Valid {
-		view.CoveringExportBatchWindowEnd = &windowEnd.Time
-	}
-	return nil
-}
 
 func applyAPIUsageLedgerRetentionReadiness(view *APIUsageLedgerRetentionReadinessView) {
 	var blocking []string
