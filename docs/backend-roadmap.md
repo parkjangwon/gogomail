@@ -6674,3 +6674,8 @@ Target outcome:
       id/size-only INBOX page query and converts pages directly into POP3
       entries, avoiding webmail preview joins and the extra full-summary
       aggregation previously performed during login.
+1835. RDBMS sync history now supports opaque seek-pagination cursors using
+      `(created_at, id)` with deterministic `created_at DESC, id DESC`
+      ordering, preserves legacy offset pagination for existing clients, and
+      adds a matching `(domain_id, created_at DESC, id DESC)` index for deep
+      admin history pages.
