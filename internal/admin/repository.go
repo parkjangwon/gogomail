@@ -84,7 +84,7 @@ type RepositoryInterface interface {
 
 	// Alert event operations
 	LogAlertEvent(ctx context.Context, event *AlertEvent) error
-	ListAlertEvents(ctx context.Context, filter AlertEventFilter) ([]AlertEvent, error)
+	ListAlertEvents(ctx context.Context, filter AlertEventFilter) ([]AlertEvent, bool, error)
 	ResolveAlertEvent(ctx context.Context, eventID string) error
 }
 

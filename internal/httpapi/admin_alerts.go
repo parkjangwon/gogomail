@@ -3,6 +3,8 @@ package httpapi
 import (
 	"encoding/json"
 	"net/http"
+	"strconv"
+	"strings"
 
 	"github.com/gogomail/gogomail/internal/admin"
 )
@@ -15,13 +17,13 @@ func handleCreateAlertRule(w http.ResponseWriter, r *http.Request, svc AdminServ
 	}
 
 	var req struct {
-		AlertType           string `json:"alert_type"`
-		Name                string `json:"name"`
-		Description         string `json:"description"`
-		Threshold           float64 `json:"threshold"`
-		CheckIntervalMinutes int    `json:"check_interval_minutes"`
-		IsEnabled           bool   `json:"is_enabled"`
-		CreatedBy           string `json:"created_by"`
+		AlertType            string  `json:"alert_type"`
+		Name                 string  `json:"name"`
+		Description          string  `json:"description"`
+		Threshold            float64 `json:"threshold"`
+		CheckIntervalMinutes int     `json:"check_interval_minutes"`
+		IsEnabled            bool    `json:"is_enabled"`
+		CreatedBy            string  `json:"created_by"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -30,14 +32,14 @@ func handleCreateAlertRule(w http.ResponseWriter, r *http.Request, svc AdminServ
 	}
 
 	rule := &admin.AlertRule{
-		CompanyID:           companyID,
-		AlertType:           req.AlertType,
-		Name:                req.Name,
-		Description:         req.Description,
-		Threshold:           req.Threshold,
+		CompanyID:            companyID,
+		AlertType:            req.AlertType,
+		Name:                 req.Name,
+		Description:          req.Description,
+		Threshold:            req.Threshold,
 		CheckIntervalMinutes: req.CheckIntervalMinutes,
-		IsEnabled:           req.IsEnabled,
-		CreatedBy:           req.CreatedBy,
+		IsEnabled:            req.IsEnabled,
+		CreatedBy:            req.CreatedBy,
 	}
 
 	if err := svc.CreateAlertRule(r.Context(), rule); err != nil {
@@ -94,11 +96,11 @@ func handleUpdateAlertRule(w http.ResponseWriter, r *http.Request, svc AdminServ
 	}
 
 	var req struct {
-		Name                string  `json:"name"`
-		Description         string  `json:"description"`
-		Threshold           float64 `json:"threshold"`
-		CheckIntervalMinutes int    `json:"check_interval_minutes"`
-		IsEnabled           bool   `json:"is_enabled"`
+		Name                 string  `json:"name"`
+		Description          string  `json:"description"`
+		Threshold            float64 `json:"threshold"`
+		CheckIntervalMinutes int     `json:"check_interval_minutes"`
+		IsEnabled            bool    `json:"is_enabled"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -153,11 +155,11 @@ func handleCreateAlertChannel(w http.ResponseWriter, r *http.Request, svc AdminS
 	}
 
 	var req struct {
-		ChannelType string                     `json:"channel_type"`
-		Name        string                     `json:"name"`
+		ChannelType string                   `json:"channel_type"`
+		Name        string                   `json:"name"`
 		Config      admin.AlertChannelConfig `json:"config"`
-		IsEnabled   bool                      `json:"is_enabled"`
-		CreatedBy   string                    `json:"created_by"`
+		IsEnabled   bool                     `json:"is_enabled"`
+		CreatedBy   string                   `json:"created_by"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -211,9 +213,9 @@ func handleUpdateAlertChannel(w http.ResponseWriter, r *http.Request, svc AdminS
 	}
 
 	var req struct {
-		Name      string                     `json:"name"`
+		Name      string                   `json:"name"`
 		Config    admin.AlertChannelConfig `json:"config"`
-		IsEnabled bool                      `json:"is_enabled"`
+		IsEnabled bool                     `json:"is_enabled"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -262,17 +264,48 @@ func handleDeleteAlertChannel(w http.ResponseWriter, r *http.Request, svc AdminS
 
 // handleListAlertEvents lists alert events.
 func handleListAlertEvents(w http.ResponseWriter, r *http.Request, svc AdminService) {
+	if !rejectUnknownQueryKeys(w, r, "limit", "offset", "alert_rule_id", "unresolved") {
+		return
+	}
 	companyID, ok := parseBoundedAdminPathValue(w, r, "id")
 	if !ok {
 		return
 	}
+	limit, ok := parseAlertEventLimit(w, r)
+	if !ok {
+		return
+	}
+	offset := 0
+	if raw := strings.TrimSpace(r.URL.Query().Get("offset")); raw != "" {
+		parsed, err := strconv.Atoi(raw)
+		if err != nil || parsed < 0 {
+			writeError(w, http.StatusBadRequest, "invalid offset")
+			return
+		}
+		offset = parsed
+	}
 
 	filter := admin.AlertEventFilter{
 		CompanyID: companyID,
-		Limit:     100,
+		Limit:     limit,
+		Offset:    offset,
+	}
+	if alertRuleID := strings.TrimSpace(r.URL.Query().Get("alert_rule_id")); alertRuleID != "" {
+		filter.AlertRuleID = alertRuleID
+	}
+	if unresolved := strings.TrimSpace(r.URL.Query().Get("unresolved")); unresolved != "" {
+		switch unresolved {
+		case "true", "1":
+			filter.OnlyUnresolved = true
+		case "false", "0":
+			filter.OnlyUnresolved = false
+		default:
+			writeError(w, http.StatusBadRequest, "invalid unresolved")
+			return
+		}
 	}
 
-	events, err := svc.ListAlertEvents(r.Context(), filter)
+	events, hasMore, err := svc.ListAlertEvents(r.Context(), filter)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to list events")
 		return
@@ -280,6 +313,38 @@ func handleListAlertEvents(w http.ResponseWriter, r *http.Request, svc AdminServ
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
-		"events": events,
+		"events":   events,
+		"limit":    limit,
+		"offset":   offset,
+		"has_more": hasMore,
 	})
+}
+
+func parseAlertEventLimit(w http.ResponseWriter, r *http.Request) (int, bool) {
+	raw, ok := singleQueryValue(w, r, "limit")
+	if !ok {
+		return 0, false
+	}
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return 100, true
+	}
+	if len(raw) > maxHTTPControlBytes {
+		writeError(w, http.StatusBadRequest, "limit is too long")
+		return 0, false
+	}
+	limit, err := strconv.Atoi(raw)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "limit must be an integer")
+		return 0, false
+	}
+	if limit <= 0 {
+		writeError(w, http.StatusBadRequest, "limit must be positive")
+		return 0, false
+	}
+	if limit > 200 {
+		writeError(w, http.StatusBadRequest, "limit must be at most 200")
+		return 0, false
+	}
+	return limit, true
 }

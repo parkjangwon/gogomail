@@ -250,7 +250,7 @@ type adminAlertService interface {
 	ListAlertChannels(ctx context.Context, companyID string) ([]admin.AlertChannel, error)
 	UpdateAlertChannel(ctx context.Context, channel *admin.AlertChannel) error
 	DeleteAlertChannel(ctx context.Context, channelID string) error
-	ListAlertEvents(ctx context.Context, filter admin.AlertEventFilter) ([]admin.AlertEvent, error)
+	ListAlertEvents(ctx context.Context, filter admin.AlertEventFilter) ([]admin.AlertEvent, bool, error)
 	LogAlertEvent(ctx context.Context, event *admin.AlertEvent) error
 }
 

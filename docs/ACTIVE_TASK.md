@@ -169,6 +169,7 @@
 - User address lookup hot paths no longer wrap `user_addresses.address` in `lower()` for exact matches; directory, inbound delivery, SSO, webmail profile, login, SMTP submission, drafts, and sender resolution now use normalized `address_ace` equality with supporting per-user indexes.
 - External RDBMS identity provider list calls now push plain user/group `Limit`/`Offset` pagination into the configured source query when no app-side search/org filter is requested, avoiding full external-table scans for simple admin pages.
 - Database identity provider group listing now honors search text and offset pagination with parameterized SQL and deterministic ordering instead of ignoring those filters.
+- Company alert event listing now returns `limit`, `offset`, and `has_more`, and supports alert-rule/unresolved filters so admin alert pages can paginate without guessing from row count.
 
 **Infrastructure & Storage Hardening** ✅ COMPLETE
 - Task 1 (EML GC): Added `LookupDeleteableStoragePaths` and `LookupExpungeStoragePaths` to maildb; service layer now performs two-phase GC (lookup before DB delete, delete from store after commit) for `DeleteMessage`, `BulkDeleteMessages`, `BulkDeleteThreads`, and `ExpungeIMAPMessages`. Reference-count check prevents deletion of paths shared by IMAP COPY.
@@ -235,6 +236,7 @@ Go Backend (`internal/`):
 - [x] 테스트 검증: `go test ./...` 통과
 
 최근 진행:
+- Company alert event listing now uses a limit+1 probe and response pagination metadata (`limit`, `offset`, `has_more`) with OpenAPI docs updated for alert-rule and unresolved filters.
 - Database identity provider group listing now applies search and offset filters in SQL with stable ordering, removing a pagination correctness gap for internal directory-backed provider pages.
 - External RDBMS identity provider plain list pagination now wraps configured source queries in a DB-side `LIMIT/OFFSET` subquery when no in-memory search/org filtering is required.
 - `user_addresses` exact-match hot paths now compare against normalized `address_ace` and add per-user covering indexes, removing table-side `lower(address)` from login, delivery, SSO, profile, SMTP, draft, sender, and directory lookups.

@@ -284,7 +284,11 @@ func (r *Repository) LogAlertEvent(ctx context.Context, event *AlertEvent) error
 }
 
 // ListAlertEvents lists alert events with filtering.
-func (r *Repository) ListAlertEvents(ctx context.Context, filter AlertEventFilter) ([]AlertEvent, error) {
+func (r *Repository) ListAlertEvents(ctx context.Context, filter AlertEventFilter) ([]AlertEvent, bool, error) {
+	limit := filter.Limit
+	if limit <= 0 {
+		limit = 100
+	}
 	query := `SELECT id, company_id, alert_config_id, current_value, threshold,
 		 COALESCE(notification_data->>'message', alert_type) AS message,
 		 created_at, acknowledged_at
@@ -302,9 +306,10 @@ func (r *Repository) ListAlertEvents(ctx context.Context, filter AlertEventFilte
 
 	query += " ORDER BY created_at DESC"
 
-	if filter.Limit > 0 {
+	queryLimit := limit + 1
+	if queryLimit > 0 {
 		query += " LIMIT $" + fmt.Sprintf("%d", len(args)+1)
-		args = append(args, filter.Limit)
+		args = append(args, queryLimit)
 	}
 
 	if filter.Offset > 0 {
@@ -314,7 +319,7 @@ func (r *Repository) ListAlertEvents(ctx context.Context, filter AlertEventFilte
 
 	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
-		return nil, fmt.Errorf("list alert events: %w", err)
+		return nil, false, fmt.Errorf("list alert events: %w", err)
 	}
 	defer rows.Close()
 
@@ -322,11 +327,18 @@ func (r *Repository) ListAlertEvents(ctx context.Context, filter AlertEventFilte
 	for rows.Next() {
 		event := AlertEvent{}
 		if err := rows.Scan(&event.ID, &event.CompanyID, &event.AlertRuleID, &event.CurrentValue, &event.Threshold, &event.Message, &event.TriggeredAt, &event.ResolvedAt); err != nil {
-			return nil, fmt.Errorf("scan alert event: %w", err)
+			return nil, false, fmt.Errorf("scan alert event: %w", err)
 		}
 		events = append(events, event)
 	}
-	return events, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, false, err
+	}
+	hasMore := len(events) > limit
+	if hasMore {
+		events = events[:limit]
+	}
+	return events, hasMore, nil
 }
 
 // ResolveAlertEvent marks an alert event as resolved.

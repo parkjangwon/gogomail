@@ -131,7 +131,7 @@ func (s *Service) DeleteAlertChannel(ctx context.Context, channelID string) erro
 }
 
 // ListAlertEvents lists alert events.
-func (s *Service) ListAlertEvents(ctx context.Context, filter AlertEventFilter) ([]AlertEvent, error) {
+func (s *Service) ListAlertEvents(ctx context.Context, filter AlertEventFilter) ([]AlertEvent, bool, error) {
 	return s.repo.ListAlertEvents(ctx, filter)
 }
 
