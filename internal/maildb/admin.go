@@ -259,6 +259,25 @@ type APIUsageAggregateListRequest struct {
 	To          time.Time
 }
 
+const apiUsageAggregateProjectionSQL = `
+  method,
+  route,
+  status,
+  tenant_id,
+  company_id,
+  domain_id,
+  user_id,
+  api_key_id,
+  principal_id,
+  auth_source,
+  request_count,
+  request_bytes,
+  response_bytes,
+  latency_ms_total,
+  latency_ms_max,
+  first_seen_at,
+  last_seen_at`
+
 type APIUsageLedgerView struct {
 	EventID       string          `json:"event_id"`
 	SchemaVersion string          `json:"schema_version"`
@@ -3463,57 +3482,8 @@ func (r *Repository) ListAPIUsageDaily(ctx context.Context, req APIUsageAggregat
 		return nil, err
 	}
 
-	const query = `
-SELECT
-  day,
-  method,
-  route,
-  status,
-  tenant_id,
-  company_id,
-  domain_id,
-  user_id,
-  api_key_id,
-  principal_id,
-  auth_source,
-  request_count,
-  request_bytes,
-  response_bytes,
-  latency_ms_total,
-  latency_ms_max,
-  first_seen_at,
-  last_seen_at
-FROM api_usage_daily
-WHERE ($2 = '' OR tenant_id = $2)
-  AND ($3 = '' OR company_id = $3)
-  AND ($4 = '' OR domain_id = $4)
-  AND ($5 = '' OR user_id = $5)
-  AND ($6 = '' OR api_key_id = $6)
-  AND ($7 = '' OR principal_id = $7)
-  AND ($8 = '' OR auth_source = $8)
-  AND ($9 = '' OR method = $9)
-  AND ($10 = '' OR route = $10)
-  AND ($11 = 0 OR status = $11)
-  AND ($12::timestamptz IS NULL OR day >= $12::timestamptz)
-  AND ($13::timestamptz IS NULL OR day < $13::timestamptz)
-ORDER BY day DESC, request_count DESC, route, status
-LIMIT $1`
-
-	rows, err := r.db.QueryContext(ctx, query,
-		filters.Limit,
-		filters.TenantID,
-		filters.CompanyID,
-		filters.DomainID,
-		filters.UserID,
-		filters.APIKeyID,
-		filters.PrincipalID,
-		filters.AuthSource,
-		filters.Method,
-		filters.Route,
-		filters.Status,
-		nullableTime(filters.From),
-		nullableTime(filters.To),
-	)
+	query, args := buildAPIUsageAggregateQuery("api_usage_daily", "day", filters)
+	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("list api usage daily: %w", err)
 	}
@@ -3564,57 +3534,8 @@ func (r *Repository) ListAPIUsageMonthly(ctx context.Context, req APIUsageAggreg
 		return nil, err
 	}
 
-	const query = `
-SELECT
-  month,
-  method,
-  route,
-  status,
-  tenant_id,
-  company_id,
-  domain_id,
-  user_id,
-  api_key_id,
-  principal_id,
-  auth_source,
-  request_count,
-  request_bytes,
-  response_bytes,
-  latency_ms_total,
-  latency_ms_max,
-  first_seen_at,
-  last_seen_at
-FROM api_usage_monthly
-WHERE ($2 = '' OR tenant_id = $2)
-  AND ($3 = '' OR company_id = $3)
-  AND ($4 = '' OR domain_id = $4)
-  AND ($5 = '' OR user_id = $5)
-  AND ($6 = '' OR api_key_id = $6)
-  AND ($7 = '' OR principal_id = $7)
-  AND ($8 = '' OR auth_source = $8)
-  AND ($9 = '' OR method = $9)
-  AND ($10 = '' OR route = $10)
-  AND ($11 = 0 OR status = $11)
-  AND ($12::timestamptz IS NULL OR month >= $12::timestamptz)
-  AND ($13::timestamptz IS NULL OR month < $13::timestamptz)
-ORDER BY month DESC, request_count DESC, route, status
-LIMIT $1`
-
-	rows, err := r.db.QueryContext(ctx, query,
-		filters.Limit,
-		filters.TenantID,
-		filters.CompanyID,
-		filters.DomainID,
-		filters.UserID,
-		filters.APIKeyID,
-		filters.PrincipalID,
-		filters.AuthSource,
-		filters.Method,
-		filters.Route,
-		filters.Status,
-		nullableTime(filters.From),
-		nullableTime(filters.To),
-	)
+	query, args := buildAPIUsageAggregateQuery("api_usage_monthly", "month", filters)
+	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("list api usage monthly: %w", err)
 	}
@@ -3654,6 +3575,53 @@ LIMIT $1`
 		return nil, fmt.Errorf("iterate api usage monthly: %w", err)
 	}
 	return usages, nil
+}
+
+func buildAPIUsageAggregateQuery(tableName string, periodColumn string, filters APIUsageAggregateListRequest) (string, []any) {
+	query := fmt.Sprintf("SELECT\n  %s,%s\nFROM %s", periodColumn, apiUsageAggregateProjectionSQL, tableName)
+	var conditions []string
+	var args []any
+
+	for _, filter := range []struct {
+		column string
+		value  string
+	}{
+		{"tenant_id", filters.TenantID},
+		{"company_id", filters.CompanyID},
+		{"domain_id", filters.DomainID},
+		{"user_id", filters.UserID},
+		{"api_key_id", filters.APIKeyID},
+		{"principal_id", filters.PrincipalID},
+		{"auth_source", filters.AuthSource},
+		{"method", filters.Method},
+		{"route", filters.Route},
+	} {
+		if filter.value == "" {
+			continue
+		}
+		args = append(args, filter.value)
+		conditions = append(conditions, fmt.Sprintf("%s = $%d", filter.column, len(args)))
+	}
+	if filters.Status != 0 {
+		args = append(args, filters.Status)
+		conditions = append(conditions, fmt.Sprintf("status = $%d", len(args)))
+	}
+	if !filters.From.IsZero() {
+		args = append(args, filters.From.UTC())
+		conditions = append(conditions, fmt.Sprintf("%s >= $%d", periodColumn, len(args)))
+	}
+	if !filters.To.IsZero() {
+		args = append(args, filters.To.UTC())
+		conditions = append(conditions, fmt.Sprintf("%s < $%d", periodColumn, len(args)))
+	}
+	if len(conditions) > 0 {
+		query += "\nWHERE " + strings.Join(conditions, "\n  AND ")
+	}
+	args = append(args, filters.Limit)
+	query += fmt.Sprintf(`
+ORDER BY %s DESC, request_count DESC, route, status
+LIMIT $%d`, periodColumn, len(args))
+	return query, args
 }
 
 func normalizeAPIUsageAggregateListRequest(req APIUsageAggregateListRequest) (APIUsageAggregateListRequest, error) {

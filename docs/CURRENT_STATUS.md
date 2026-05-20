@@ -67,6 +67,7 @@ Last updated: 2026-05-21 (SaaS launch hardening continues: attachment cleanup ba
 - Admin delivery-attempt listing, stats, and exhausted-message views use the same sargable dynamic query shape for status, time, domain, message, farm, and sender filters, keeping large delivery-history inspection paths aligned with their indexes.
 - Push-notification attempt list and stats views now build dynamic sargable predicates for message, user, platform, device, provider, and since filters, so Web Push operations remain inspectable as provider attempts grow.
 - Domain DNS check history listing now builds status and since predicates only when present, keeping domain operations history reads index-friendly.
+- API usage daily/monthly aggregate listings now build dynamic sargable predicates for tenant, company, domain, user, key, principal, auth source, method, route, status, and time windows, keeping SaaS usage and billing analytics responsive on large aggregates.
 - Verification: `go test ./...`, `pnpm --dir apps/webmail type-check`, and `pnpm --dir apps/console type-check` pass.
 
 ## CLI Break-Glass MFA Reset (2026-05-19)
