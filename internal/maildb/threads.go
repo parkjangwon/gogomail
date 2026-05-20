@@ -74,120 +74,50 @@ func (r *Repository) ListThreadsPage(ctx context.Context, userID string, limit i
 }
 
 func buildThreadListPageSQL(sortMode, folderID, cursorID string, filter ThreadListFilter) string {
-	query := threadListPageNewestSQL
+	activeConditions := []string{
+		"messages.user_id = $1",
+		"messages.status = 'active'",
+	}
+	if folderID != "" {
+		activeConditions = append(activeConditions, "messages.folder_id = $8::uuid")
+	}
+	summaryConditions := []string{"TRUE"}
 	cursorOp := "<"
+	orderBy := "ORDER BY latest_at DESC, thread_key DESC"
 	if sortMode == ListSortOldest {
-		query = threadListPageOldestSQL
 		cursorOp = ">"
+		orderBy = "ORDER BY latest_at ASC, thread_key ASC"
 	}
-	if folderID == "" {
-		query = strings.Replace(query, "    AND ($8 = '' OR messages.folder_id::text = $8)\n", "", 1)
-	} else {
-		query = strings.Replace(query, "    AND ($8 = '' OR messages.folder_id::text = $8)", "    AND messages.folder_id = $8::uuid", 1)
+	if cursorID != "" {
+		summaryConditions[0] = fmt.Sprintf("(latest_at, thread_key) %s ($3::timestamptz, $4)", cursorOp)
 	}
-	cursorPredicate := fmt.Sprintf(`WHERE (
-  $4 = ''
-  OR (latest_at, thread_key) %s ($3::timestamptz, $4)
-)
-`, cursorOp)
-	if cursorID == "" {
-		query = strings.Replace(query, cursorPredicate, "WHERE TRUE\n", 1)
-	} else {
-		query = strings.Replace(query, strings.TrimSuffix(cursorPredicate, "\n"), fmt.Sprintf("WHERE (latest_at, thread_key) %s ($3::timestamptz, $4)", cursorOp), 1)
+	if filter.Read != nil {
+		if *filter.Read {
+			summaryConditions = append(summaryConditions, "unread_count = 0")
+		} else {
+			summaryConditions = append(summaryConditions, "unread_count > 0")
+		}
 	}
-	if filter.Read == nil {
-		query = strings.Replace(query, `AND (
-  $5::boolean IS NULL
-  OR ($5::boolean = false AND unread_count > 0)
-  OR ($5::boolean = true AND unread_count = 0)
-)
-`, "", 1)
-	} else if *filter.Read {
-		query = strings.Replace(query, `AND (
-  $5::boolean IS NULL
-  OR ($5::boolean = false AND unread_count > 0)
-  OR ($5::boolean = true AND unread_count = 0)
-)`, "AND unread_count = 0", 1)
-	} else {
-		query = strings.Replace(query, `AND (
-  $5::boolean IS NULL
-  OR ($5::boolean = false AND unread_count > 0)
-  OR ($5::boolean = true AND unread_count = 0)
-)`, "AND unread_count > 0", 1)
+	if filter.Starred != nil {
+		summaryConditions = append(summaryConditions, "starred = $6::boolean")
 	}
-	if filter.Starred == nil {
-		query = strings.Replace(query, "AND ($6::boolean IS NULL OR starred = $6::boolean)\n", "", 1)
-	} else {
-		query = strings.Replace(query, "AND ($6::boolean IS NULL OR starred = $6::boolean)", "AND starred = $6::boolean", 1)
+	if filter.HasAttachment != nil {
+		summaryConditions = append(summaryConditions, "has_attachment = $7::boolean")
 	}
-	if filter.HasAttachment == nil {
-		return strings.Replace(query, "AND ($7::boolean IS NULL OR has_attachment = $7::boolean)\n", "", 1)
-	}
-	return strings.Replace(query, "AND ($7::boolean IS NULL OR has_attachment = $7::boolean)", "AND has_attachment = $7::boolean", 1)
+
+	return fmt.Sprintf(threadListPageBaseSQL,
+		strings.Join(activeConditions, "\n    AND "),
+		strings.Join(summaryConditions, "\nAND "),
+		orderBy,
+	)
 }
 
-const threadListPageNewestSQL = `
-WITH active_messages AS (
-  SELECT
-    COALESCE(messages.thread_id, messages.id)::text AS thread_key,
-    messages.id::text AS id,
-    messages.subject,
-    left(btrim(regexp_replace(left(coalesce(msd.body_text, ''), 2000), '[[:space:]]+', ' ', 'g')), 280) AS preview,
-    messages.from_addr,
-    COALESCE(messages.received_at, messages.sent_at, messages.draft_updated_at, messages.created_at) AS message_at,
-    messages.has_attachment,
-    COALESCE((messages.flags->>'read')::boolean, false) AS read,
-    COALESCE((messages.flags->>'starred')::boolean, false) AS starred
-  FROM messages
-  LEFT JOIN message_search_documents msd
-    ON msd.message_id = messages.id
-   AND msd.user_id = messages.user_id
-  WHERE messages.user_id = $1
-    AND messages.status = 'active'
-    AND ($8 = '' OR messages.folder_id::text = $8)
-),
-thread_summaries AS (
-SELECT
-  thread_key,
-  (array_agg(subject ORDER BY message_at DESC, id DESC))[1] AS subject,
-  (array_agg(preview ORDER BY message_at DESC, id DESC))[1] AS preview,
-  count(*) AS message_count,
-  count(*) FILTER (WHERE read = false) AS unread_count,
-  (array_agg(id ORDER BY message_at DESC, id DESC))[1] AS latest_message_id,
-  (array_agg(from_addr ORDER BY message_at DESC, id DESC))[1] AS latest_from_addr,
-  max(message_at) AS latest_at,
-  bool_or(has_attachment) AS has_attachment,
-  bool_or(starred) AS starred
-FROM active_messages
-GROUP BY thread_key
+var (
+	threadListPageNewestSQL = buildThreadListPageSQL(ListSortNewest, "", "", ThreadListFilter{})
+	threadListPageOldestSQL = buildThreadListPageSQL(ListSortOldest, "", "", ThreadListFilter{})
 )
-SELECT
-  thread_key,
-  subject,
-  preview,
-  message_count,
-  unread_count,
-  latest_message_id,
-  latest_from_addr,
-  latest_at,
-  has_attachment,
-  starred
-FROM thread_summaries
-WHERE (
-  $4 = ''
-  OR (latest_at, thread_key) < ($3::timestamptz, $4)
-)
-AND (
-  $5::boolean IS NULL
-  OR ($5::boolean = false AND unread_count > 0)
-  OR ($5::boolean = true AND unread_count = 0)
-)
-AND ($6::boolean IS NULL OR starred = $6::boolean)
-AND ($7::boolean IS NULL OR has_attachment = $7::boolean)
-ORDER BY latest_at DESC, thread_key DESC
-LIMIT $2`
 
-const threadListPageOldestSQL = `
+const threadListPageBaseSQL = `
 WITH active_messages AS (
   SELECT
     COALESCE(messages.thread_id, messages.id)::text AS thread_key,
@@ -203,9 +133,7 @@ WITH active_messages AS (
   LEFT JOIN message_search_documents msd
     ON msd.message_id = messages.id
    AND msd.user_id = messages.user_id
-  WHERE messages.user_id = $1
-    AND messages.status = 'active'
-    AND ($8 = '' OR messages.folder_id::text = $8)
+  WHERE %s
 ),
 thread_summaries AS (
 SELECT
@@ -234,18 +162,8 @@ SELECT
   has_attachment,
   starred
 FROM thread_summaries
-WHERE (
-  $4 = ''
-  OR (latest_at, thread_key) > ($3::timestamptz, $4)
-)
-AND (
-  $5::boolean IS NULL
-  OR ($5::boolean = false AND unread_count > 0)
-  OR ($5::boolean = true AND unread_count = 0)
-)
-AND ($6::boolean IS NULL OR starred = $6::boolean)
-AND ($7::boolean IS NULL OR has_attachment = $7::boolean)
-ORDER BY latest_at ASC, thread_key ASC
+WHERE %s
+%s
 LIMIT $2`
 
 func (r *Repository) ListThreadMessages(ctx context.Context, userID string, threadID string, limit int) ([]MessageSummary, error) {

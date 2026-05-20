@@ -6546,3 +6546,7 @@ Target outcome:
 1798. Mail API message list SQL generation now builds the requested folder,
       cursor, read/starred, and attachment predicates directly instead of
       repeatedly rewriting optional-`OR` SQL templates on each list request.
+1799. Mail API thread list SQL generation now builds active-message and
+      thread-summary predicates directly, removing repeated optional-`OR`
+      template rewrites for folder, cursor, read/starred, and attachment
+      filters.
