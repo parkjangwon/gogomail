@@ -53,6 +53,26 @@ func TestThreadListSQLUsesLatestMessagePreview(t *testing.T) {
 	}
 }
 
+func TestThreadListQueryUsesSargableFolderFilter(t *testing.T) {
+	t.Parallel()
+
+	query := buildThreadListPageSQL(ListSortNewest, "folder-1")
+	if !strings.Contains(query, "AND messages.folder_id = $8::uuid") {
+		t.Fatalf("thread list query missing sargable folder filter:\n%s", query)
+	}
+	if strings.Contains(query, "$8 = '' OR messages.folder_id::text = $8") {
+		t.Fatalf("thread list query contains non-sargable folder filter:\n%s", query)
+	}
+
+	query = buildThreadListPageSQL(ListSortOldest, "")
+	if strings.Contains(query, "AND messages.folder_id") {
+		t.Fatalf("folderless thread list query unexpectedly includes folder predicate:\n%s", query)
+	}
+	if !strings.Contains(query, "ORDER BY latest_at ASC, thread_key ASC") {
+		t.Fatalf("oldest thread list query lost oldest ordering:\n%s", query)
+	}
+}
+
 func TestThreadMessagesSQLUsesIndexedThreadMatch(t *testing.T) {
 	t.Parallel()
 

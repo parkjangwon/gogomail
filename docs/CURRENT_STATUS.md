@@ -21,6 +21,7 @@ Last updated: 2026-05-21 (SaaS launch hardening continues: attachment cleanup ba
 ## Thread List Index Coverage (2026-05-21)
 - Migration `0117_thread_list_indexes.sql` adds active-message partial expression indexes for the thread list query's `COALESCE(thread_id, id)` thread key and `COALESCE(received_at, sent_at, draft_updated_at, created_at)` ordering expression.
 - Both folder-scoped and unscoped thread list scans are covered, matching the webmail thread-list filter behavior without changing pagination semantics.
+- Thread listing now emits the folder predicate only when requested, using a typed `messages.folder_id = $8::uuid` comparison for folder-scoped reads and omitting the predicate for all-thread reads.
 - Verification: `go test ./internal/database -run TestThreadListIndexMigrationMatchesThreadQueries` passes.
 
 ## Delivery DSN Lookup Scaling (2026-05-21)
