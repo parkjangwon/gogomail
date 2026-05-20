@@ -5615,3 +5615,23 @@ func TestHandlerSchedulingPostOutboxSendsRequestMethod(t *testing.T) {
 		t.Fatalf("method = %q, want %q", store.sent[0].Method, ScheduleMethodRequest)
 	}
 }
+
+func TestReportResponsesRejectsUnsupportedReportWithProductWording(t *testing.T) {
+	t.Parallel()
+
+	handler := &Handler{}
+	_, err := handler.reportResponses(context.Background(), "user-1", ResourcePath{
+		Kind:       ResourceCalendarCollection,
+		UserID:     "user-1",
+		CalendarID: "work",
+	}, DepthOne, ReportRequest{Kind: "custom-report"}, nil)
+	if err == nil {
+		t.Fatal("reportResponses returned nil error for unsupported REPORT")
+	}
+	if got := err.Error(); got != "unsupported REPORT custom-report" {
+		t.Fatalf("error = %q, want %q", got, "unsupported REPORT custom-report")
+	}
+	if strings.Contains(err.Error(), "not implemented") {
+		t.Fatalf("error exposes implementation status: %q", err.Error())
+	}
+}

@@ -4819,6 +4819,26 @@ func runCardDAVReportWithoutDepth(t *testing.T, path string, body string) *httpt
 	return rec
 }
 
+func TestReportResponsesRejectsUnsupportedReportWithProductWording(t *testing.T) {
+	t.Parallel()
+
+	handler := &Handler{}
+	_, err := handler.reportResponses(context.Background(), "user-1", ResourcePath{
+		Kind:          ResourceAddressBookCollection,
+		UserID:        "user-1",
+		AddressBookID: "personal",
+	}, DepthOne, true, ReportRequest{Kind: "custom-report"}, nil)
+	if err == nil {
+		t.Fatal("reportResponses returned nil error for unsupported REPORT")
+	}
+	if got := err.Error(); got != "unsupported REPORT custom-report" {
+		t.Fatalf("error = %q, want %q", got, "unsupported REPORT custom-report")
+	}
+	if strings.Contains(err.Error(), "not implemented") {
+		t.Fatalf("error exposes implementation status: %q", err.Error())
+	}
+}
+
 func runCardDAVObjectRequest(t *testing.T, method string, path string, body string, headers http.Header) *httptest.ResponseRecorder {
 	t.Helper()
 

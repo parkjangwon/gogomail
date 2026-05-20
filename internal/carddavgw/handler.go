@@ -1576,7 +1576,7 @@ func (h *Handler) reportResponses(ctx context.Context, userID string, resource R
 		}
 		return h.principalPropertySearchResponses(ctx, userID, resource, report, currentUserPrivileges)
 	default:
-		return nil, fmt.Errorf("REPORT %s is not implemented", report.Kind)
+		return nil, fmt.Errorf("unsupported REPORT %s", report.Kind)
 	}
 }
 
