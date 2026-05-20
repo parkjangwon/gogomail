@@ -5,6 +5,7 @@ Last updated: 2026-05-21 (SaaS launch hardening continues: organization user-uni
 ## SaaS Launch Hardening Continuation (2026-05-21)
 - Organization chart user-unit lookup is now repository-backed instead of returning a placeholder error. `GetUserUnits` validates `user_id`, resolves active `organization_members` assignments through `organization_units`, and ignores ended memberships plus inactive units.
 - Migration `0115_organization_member_active_user_index.sql` adds a partial active-membership index for user-scoped organization lookups.
+- Organization hierarchy reads now batch-load all active members for the returned unit set instead of issuing one member query per organization unit. Migration `0116_organization_members_active_unit_index.sql` supports the active unit-member batch path.
 - Verification: `go test ./internal/orgchart` passes.
 
 ## Third Pre-Launch Audit Closure (2026-05-20)

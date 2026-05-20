@@ -21,6 +21,7 @@ type RepositoryInterface interface {
 	DeleteUnit(ctx context.Context, id string) error
 	AssignUser(ctx context.Context, member *OrganizationMember) error
 	GetMembersInUnit(ctx context.Context, unitID string) ([]OrganizationMember, error)
+	ListMembersInUnits(ctx context.Context, unitIDs []string) (map[string][]OrganizationMember, error)
 	ListUnitsForUser(ctx context.Context, userID string) ([]OrganizationUnit, error)
 	RemoveUser(ctx context.Context, memberID string) error
 	LogSync(ctx context.Context, log *SyncLog) error
@@ -82,9 +83,11 @@ func (s *Service) GetHierarchy(ctx context.Context, companyID string) (*Organiza
 	var roots []OrganizationUnit
 	unitByID := make(map[string]*OrganizationUnit)
 	childrenByParent := make(map[string][]OrganizationUnit)
+	unitIDs := make([]string, 0, len(units))
 
 	for i := range units {
 		unitByID[units[i].ID] = &units[i]
+		unitIDs = append(unitIDs, units[i].ID)
 		if units[i].ParentID == nil {
 			roots = append(roots, units[i])
 		} else {
@@ -92,16 +95,16 @@ func (s *Service) GetHierarchy(ctx context.Context, companyID string) (*Organiza
 		}
 	}
 
+	membersByUnit, err := s.repo.ListMembersInUnits(ctx, unitIDs)
+	if err != nil {
+		return nil, err
+	}
+
 	// Build hierarchy recursively
 	var buildHierarchy func(unit *OrganizationUnit) *OrganizationHierarchy
 	buildHierarchy = func(unit *OrganizationUnit) *OrganizationHierarchy {
 		hierarchy := &OrganizationHierarchy{Unit: unit}
-
-		// Get members
-		members, err := s.repo.GetMembersInUnit(ctx, unit.ID)
-		if err == nil {
-			hierarchy.Members = members
-		}
+		hierarchy.Members = membersByUnit[unit.ID]
 
 		// Add children
 		for _, child := range childrenByParent[unit.ID] {
