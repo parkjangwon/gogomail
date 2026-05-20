@@ -25,6 +25,11 @@ Last updated: 2026-05-21 (SaaS launch hardening continues: attachment cleanup ba
 - The first normalized DSN recipient option still wins, preserving existing duplicate handling while removing O(n²) lookup cost for large recipient lists.
 - Verification: `go test ./internal/delivery -run 'TestAttemptsForCarriesDSNMetadata|TestDSNRecipientOptionsByAddressPreservesFirstNormalizedMatch|TestRecordDeliveryExhausted'` passes.
 
+## Retry Dedupe Key Allocation Reduction (2026-05-21)
+- Retry scheduling dedupe key generation now writes directly into a pre-sized `strings.Builder` using `strconv.Itoa`, avoiding `fmt.Sprint` and the extra recipient string created by `strings.Join`.
+- `BenchmarkRetryDedupeKey` now includes 1k and 10k recipient scenarios so large-recipient retry key cost stays visible.
+- Verification: `go test ./internal/delivery -run 'TestRetryDedupeKeyIncludesAttemptAndRecipients|TestRetryDedupeKeyIsRecipientOrderStable|TestRetryDedupeKeyConsistency'` passes.
+
 ## SaaS Launch Hardening Continuation (2026-05-21)
 - Organization chart user-unit lookup is now repository-backed instead of returning a placeholder error. `GetUserUnits` validates `user_id`, resolves active `organization_members` assignments through `organization_units`, and ignores ended memberships plus inactive units.
 - Migration `0115_organization_member_active_user_index.sql` adds a partial active-membership index for user-scoped organization lookups.
