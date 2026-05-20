@@ -285,6 +285,10 @@ func applyYAMLConfigValue(cfg *Config, key string, value any) error {
 		return setYAMLBool(value, &cfg.DeliverySmartHostImplicitTLS, key)
 	case "delivery_smarthost_username":
 		return setYAMLString(value, &cfg.DeliverySmartHostUsername, key)
+	case "cors_allowed_origins":
+		return setYAMLString(value, &cfg.CORSAllowedOrigins, key)
+	case "metrics_addr":
+		return setYAMLString(value, &cfg.MetricsAddr, key)
 	default:
 		return fmt.Errorf("config file has unsupported key %q", key)
 	}

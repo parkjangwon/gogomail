@@ -145,6 +145,13 @@ type TrackingRepository interface {
 	CreateTrackingPixels(ctx context.Context, pixels []maildb.TrackingPixel) error
 }
 
+// StoragePathRepository is an optional repository extension that lets the
+// service look up which EML storage paths are safe to delete before removing
+// the database records.
+type StoragePathRepository interface {
+	LookupDeleteableStoragePaths(ctx context.Context, userID string, messageIDs []string) ([]string, error)
+}
+
 type Service struct {
 	repository        Repository
 	store             storage.Store
@@ -202,6 +209,38 @@ func (s *Service) WithTrackingRepo(repo TrackingRepository, publicBaseURL string
 		s.publicBaseURL = "http://localhost:8080"
 	}
 	return s
+}
+
+// lookupGCStoragePaths returns EML storage paths that are safe to delete for
+// the given message IDs.  It must be called BEFORE the database records are
+// removed so the reference-count check in LookupDeleteableStoragePaths is
+// accurate.  Returns nil (not an error) when the repository does not support
+// the StoragePathRepository interface.
+func (s *Service) lookupGCStoragePaths(ctx context.Context, userID string, messageIDs []string) []string {
+	if s.store == nil || len(messageIDs) == 0 {
+		return nil
+	}
+	repo, ok := s.repository.(StoragePathRepository)
+	if !ok {
+		return nil
+	}
+	paths, err := repo.LookupDeleteableStoragePaths(ctx, userID, messageIDs)
+	if err != nil {
+		slog.Warn("failed to look up message storage paths for gc", "user_id", userID, "error", err)
+		return nil
+	}
+	return paths
+}
+
+// deleteStorageObjects performs a best-effort deletion of EML objects from the
+// backing store.  It should be called AFTER a successful database deletion.
+// Failures are logged but never returned as errors.
+func (s *Service) deleteStorageObjects(ctx context.Context, paths []string) {
+	for _, p := range paths {
+		if err := s.store.Delete(ctx, p); err != nil && !errors.Is(err, os.ErrNotExist) {
+			slog.Warn("failed to delete message eml object", "path", p, "error", err)
+		}
+	}
 }
 
 func (s *Service) emitQuotaWarningIfNeeded(ctx context.Context, userID string) {
@@ -1135,6 +1174,12 @@ func (s *Service) MoveIMAPMessages(ctx context.Context, req imapgw.MoveMessagesR
 	return results, nil
 }
 
+// expungeStoragePathRepository is the optional repository extension used to
+// look up EML paths that are safe to GC before an IMAP EXPUNGE.
+type expungeStoragePathRepository interface {
+	LookupExpungeStoragePaths(ctx context.Context, userID string, mailboxID string, uids []imapgw.UID) ([]string, error)
+}
+
 func (s *Service) ExpungeIMAPMessages(ctx context.Context, req imapgw.ExpungeRequest) ([]imapgw.MessageSummary, error) {
 	repo, ok := s.repository.(interface {
 		ExpungeIMAPMessages(context.Context, string, string, []imapgw.UID) ([]imapgw.MessageSummary, error)
@@ -1153,10 +1198,23 @@ func (s *Service) ExpungeIMAPMessages(ctx context.Context, req imapgw.ExpungeReq
 	if err := validateIMAPUIDs(req.UIDs); err != nil {
 		return nil, err
 	}
+	// Resolve deleteable storage paths BEFORE the DB records are removed.
+	var storagePaths []string
+	if s.store != nil {
+		if spRepo, ok := s.repository.(expungeStoragePathRepository); ok {
+			paths, err := spRepo.LookupExpungeStoragePaths(ctx, userID, mailboxID, req.UIDs)
+			if err != nil {
+				slog.Warn("failed to look up expunge storage paths", "user_id", userID, "error", err)
+			} else {
+				storagePaths = paths
+			}
+		}
+	}
 	summaries, err := repo.ExpungeIMAPMessages(ctx, userID, mailboxID, req.UIDs)
 	if err != nil {
 		return nil, err
 	}
+	s.deleteStorageObjects(ctx, storagePaths)
 	_ = s.publishIMAPSummaryEvents(ctx, imapgw.MailboxEventExpunge, userID, summaries)
 	return summaries, nil
 }
@@ -1536,9 +1594,13 @@ func (s *Service) DeleteMessage(ctx context.Context, userID string, messageID st
 	if err != nil {
 		return err
 	}
+	// Resolve deleteable storage paths BEFORE the DB record is removed so that
+	// the reference-count check in LookupDeleteableStoragePaths is accurate.
+	storagePaths := s.lookupGCStoragePaths(ctx, userID, []string{messageID})
 	if err := s.repository.DeleteMessage(ctx, userID, messageID); err != nil {
 		return err
 	}
+	s.deleteStorageObjects(ctx, storagePaths)
 	_ = s.publishIMAPUIDEvents(ctx, imapgw.MailboxEventExpunge, userID, uids)
 	return nil
 }
@@ -1552,10 +1614,12 @@ func (s *Service) BulkDeleteMessages(ctx context.Context, req maildb.BulkMessage
 	if err != nil {
 		return 0, err
 	}
+	storagePaths := s.lookupGCStoragePaths(ctx, req.UserID, req.MessageIDs)
 	updated, err := s.repository.BulkDeleteMessages(ctx, req)
 	if err != nil {
 		return 0, err
 	}
+	s.deleteStorageObjects(ctx, storagePaths)
 	_ = s.publishIMAPUIDEvents(ctx, imapgw.MailboxEventExpunge, req.UserID, uids)
 	return updated, nil
 }
@@ -1580,10 +1644,12 @@ func (s *Service) BulkDeleteThreads(ctx context.Context, req maildb.BulkThreadDe
 	if err != nil {
 		return 0, err
 	}
+	storagePaths := s.lookupGCStoragePaths(ctx, req.UserID, messageIDs)
 	result, err := repo.BulkDeleteThreads(ctx, req)
 	if err != nil {
 		return 0, err
 	}
+	s.deleteStorageObjects(ctx, storagePaths)
 	_ = s.publishIMAPUIDEvents(ctx, imapgw.MailboxEventExpunge, req.UserID, uids)
 	return result.Updated, nil
 }
