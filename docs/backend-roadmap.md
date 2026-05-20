@@ -6536,3 +6536,6 @@ Target outcome:
       assignments with `UNION ALL`, and migration 0119 adds partial indexes for
       role summaries, company-scoped user-role lists, and user role-definition
       lookups.
+1796. Quota reconciliation scoped dry-run and correction queries now emit direct
+      company/domain/user predicates per requested scope, omitting broad
+      `$1 = '' OR ...` guards for all-scope corrections.

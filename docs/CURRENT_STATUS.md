@@ -294,6 +294,7 @@ Last updated: 2026-05-21 (SaaS launch hardening continues: attachment cleanup ba
 - Frontend release verification now has `scripts/verify-frontend-release.sh` for webmail/console type checks and helper tests, with opt-in E2E and production build gates through `GOGOMAIL_FRONTEND_E2E=1` and `GOGOMAIL_FRONTEND_BUILD=1`.
 - IMAP message listing now splits initial and cursor queries: first-page reads omit the UID cursor predicate, while cursor reads use `UNION ALL` branches for assigned UID candidates and lazy UID-assignment candidates instead of a nullable `i.uid IS NULL OR i.uid > ...` guard.
 - Admin role assignment reads now split permanent and future-expiring active assignments with `UNION ALL`, and migration 0119 adds matching partial indexes for role summaries and user-role lookups.
+- Quota reconciliation scoped dry-run/correction queries now emit direct company/domain/user predicates per requested scope and omit the broad `$1 = '' OR ...` guard for all-scope corrections.
 - **Phase 2 (Bulk Delivery Batching)** In progress / partially implemented:
   - Same-domain recipient batching, batch-size runtime tuning, route-pool observability, and batch-vs-individual benchmarks are implemented.
   - Remaining work should focus on database round-trip reduction and end-to-end bulk delivery soak coverage.
