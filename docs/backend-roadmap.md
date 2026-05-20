@@ -6553,3 +6553,7 @@ Target outcome:
 1800. Mail API active-message and draft search SQL generation now appends
       requested folder, attachment, and cursor predicates directly, avoiding
       repeated optional-`OR` template rewrites on search requests.
+1801. Outbox relay claim scans now have partial claim indexes for due pending
+      events and stale processing locks, keeping worker candidate selection
+      aligned with `available_at` and `locked_at` predicates as queue history
+      grows.

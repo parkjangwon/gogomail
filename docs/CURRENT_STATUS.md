@@ -71,6 +71,7 @@ Last updated: 2026-05-21 (SaaS launch hardening continues: attachment cleanup ba
 - Mail API login now issues durable user refresh tokens when `RefreshTokenStore` is wired, and `POST /api/v1/auth/refresh` rotates the refresh token before returning a new 24-hour access token.
 - User refresh tokens are stored as SHA-256 hashes in `user_refresh_tokens` with a 30-day TTL and single-use rotation semantics.
 - Outbox pending/processing 재시도 경로는 `FetchPending`에서 후보 집합(CTE) 기반 정렬·LIMIT 후 잠금 경합을 줄이도록 개선되었고, delivery attempts/outbox 조회를 위한 마이그레이션 인덱스(`0113`, `0114`)를 추가해 대량 처리 쿼리를 안정화했다.
+- Migration `0120_outbox_claim_indexes.sql` adds partial claim indexes for due pending outbox rows and stale processing locks, so relay workers can find claimable candidates without scanning broad status indexes as queue history grows.
 - HTTP now attaches an `X-Request-ID` to every response and stores it in request context for logging helpers.
 - PostgreSQL pool sizing is runtime-configurable through `GOGOMAIL_DB_MAX_OPEN_CONNS`, `GOGOMAIL_DB_MAX_IDLE_CONNS`, `GOGOMAIL_DB_CONN_MAX_LIFETIME`, and `GOGOMAIL_DB_CONN_MAX_IDLE_TIME`; every app DB open path uses those settings.
 - Quota alert scanning now sends pending user-scope quota alert emails through the system email sender and marks alerts as notified after successful dispatch.

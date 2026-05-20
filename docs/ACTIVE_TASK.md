@@ -244,6 +244,7 @@ Go Backend (`internal/`):
 - Mail API message list SQL generation도 optional-OR 템플릿에 반복 `strings.Replace`를 적용하는 대신 요청된 folder/cursor/read/starred/attachment predicate를 직접 조립하도록 바꿈
 - Mail API thread list SQL generation도 active-message/thread-summary 조건을 직접 조립해 folder/cursor/read/starred/attachment 필터의 반복 템플릿 rewrite 비용을 제거함
 - Mail API active-message/draft search SQL generation도 folder/attachment/cursor predicate를 직접 append하도록 바꿔 검색 요청의 반복 optional-OR 템플릿 rewrite 비용을 제거함
+- outbox relay claim 후보 조회에 `0120_outbox_claim_indexes.sql` partial indexes를 추가해 due pending row와 stale processing lock row를 각각 availability/lock-age 기준으로 찾도록 보강함
 - IMAP UID copy/expunge/move/hydrate 경로도 typed array unnest로 바꿔 요청당 JSON 직렬화 비용을 제거함
 - `imapUIDArray` 1k/10k 벤치마크를 추가해 UID 전처리 비용을 추적할 수 있게 함
 - IMAP mailbox lookup normalization도 `strings.Fields` 대신 로컬 공백 정리 스캐너를 쓰도록 바꿔 `SELECT`/`LIST` alias 처리의 토큰 슬라이스 비용을 줄임
