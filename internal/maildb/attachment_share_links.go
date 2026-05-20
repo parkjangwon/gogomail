@@ -245,28 +245,8 @@ func (r *Repository) ListAttachmentShareLinks(ctx context.Context, req ListAttac
 	if r.db == nil {
 		return nil, fmt.Errorf("database handle is required")
 	}
-	limit := normalizeLimit(req.Limit)
-
-	const query = `
-SELECT
-  id::text,
-  user_id::text,
-  attachment_id::text,
-  token_suffix,
-  permission,
-  status,
-  expires_at,
-  created_at,
-  updated_at,
-  revoked_at
-FROM attachment_share_links
-WHERE user_id = $1::uuid
-  AND ($2 = '' OR attachment_id = $2::uuid)
-  AND ($3 = '' OR status = $3)
-ORDER BY updated_at DESC, id DESC
-LIMIT $4`
-
-	rows, err := r.db.QueryContext(ctx, query, strings.TrimSpace(req.UserID), strings.TrimSpace(req.AttachmentID), strings.TrimSpace(req.Status), limit)
+	query, args := buildListAttachmentShareLinksQuery(req)
+	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("list attachment share links: %w", err)
 	}
@@ -299,6 +279,43 @@ LIMIT $4`
 		return nil, fmt.Errorf("iterate attachment share links: %w", err)
 	}
 	return links, nil
+}
+
+const listAttachmentShareLinksBaseSQL = `
+SELECT
+  id::text,
+  user_id::text,
+  attachment_id::text,
+  token_suffix,
+  permission,
+  status,
+  expires_at,
+  created_at,
+  updated_at,
+  revoked_at
+FROM attachment_share_links
+WHERE user_id = $1::uuid`
+
+func buildListAttachmentShareLinksQuery(req ListAttachmentShareLinksRequest) (string, []any) {
+	args := []any{strings.TrimSpace(req.UserID)}
+	conditions := make([]string, 0, 2)
+	if attachmentID := strings.TrimSpace(req.AttachmentID); attachmentID != "" {
+		args = append(args, attachmentID)
+		conditions = append(conditions, fmt.Sprintf("attachment_id = $%d::uuid", len(args)))
+	}
+	if status := strings.TrimSpace(req.Status); status != "" {
+		args = append(args, status)
+		conditions = append(conditions, fmt.Sprintf("status = $%d", len(args)))
+	}
+	args = append(args, normalizeLimit(req.Limit))
+	query := listAttachmentShareLinksBaseSQL
+	if len(conditions) > 0 {
+		query += "\n  AND " + strings.Join(conditions, "\n  AND ")
+	}
+	query += fmt.Sprintf(`
+ORDER BY updated_at DESC, id DESC
+LIMIT $%d`, len(args))
+	return query, args
 }
 
 func (r *Repository) RevokeAttachmentShareLink(ctx context.Context, req RevokeAttachmentShareLinkRequest) (AttachmentShareLink, error) {

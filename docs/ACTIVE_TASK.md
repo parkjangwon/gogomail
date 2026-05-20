@@ -278,6 +278,7 @@ Go Backend (`internal/`):
 - `TestAuditLogIntegrityQueryProjectsRecentColumns`를 추가해 audit integrity query가 explicit projection을 유지하도록 고정함
 - attachment upload session 만료 정리가 세션별 `UPDATE`와 quota decrement를 반복하지 않고 `unnest($1::uuid[])`/`unnest($1::uuid[], $2::bigint[])` 기반 batched UPDATE로 세션 상태와 user/domain/company quota를 한 번씩 갱신하도록 최적화함
 - `TestExpireAttachmentUploadSessionsSQLUsesBatchUpdates`를 추가해 stale upload cleanup이 per-session write loop로 되돌아가지 않도록 고정함
+- attachment share link 목록 조회도 attachment/status 필터를 제공된 경우에만 WHERE에 추가하도록 바꿔 공유 링크 운영 조회의 optional `OR` predicate를 제거함
 - bulk delete/IMAP EXPUNGE storage GC lookup이 대상 메시지마다 `messages ref`를 correlated `COUNT(*)`로 재스캔하지 않고, target storage paths를 먼저 뽑은 뒤 grouped `ref_counts` CTE로 공유 여부를 판정하도록 바꿈
 - `TestStoragePathLookupSQLUsesGroupedReferenceCounts`를 추가해 bulk delete와 IMAP EXPUNGE storage path lookup이 grouped reference-count CTE를 유지하도록 고정함
 - legacy attachment upload cleanup도 stale attachment마다 `UPDATE attachments`와 quota decrement를 반복하지 않고 typed UUID-array batch update와 공용 aggregated quota decrement CTE를 쓰도록 바꿈

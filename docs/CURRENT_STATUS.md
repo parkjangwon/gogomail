@@ -6,6 +6,7 @@ Last updated: 2026-05-21 (SaaS launch hardening continues: attachment cleanup ba
 - Stale attachment upload session cleanup now batches expiry status updates with typed UUID arrays instead of issuing one `UPDATE attachment_upload_sessions` per expired session.
 - Quota release for expired upload sessions is aggregated per user/domain/company through one CTE-backed SQL statement, reducing cleanup DB round-trips from per-session writes to one session update plus one quota update batch.
 - Legacy stale attachment upload cleanup now uses the same batched quota release helper and a typed UUID-array `UPDATE attachments` statement, eliminating per-row cleanup writes on the older upload path too.
+- Attachment share-link listing now builds optional attachment and status predicates only when requested, keeping share-link operations clear of broad optional `OR` guards.
 - Regression coverage locks the SQL shape so cleanup cannot silently fall back to per-session update loops.
 - Verification: `go test ./internal/maildb -run 'TestExpireStaleAttachmentUploadsSQLUsesBatchUpdates|TestExpireAttachmentUploadSessionsSQLUsesBatchUpdates|TestPostgresExpireAttachmentUploadSessionsReleasesQuota'` passes.
 
