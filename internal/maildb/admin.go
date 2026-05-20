@@ -854,6 +854,16 @@ type DomainDNSCheckListRequest struct {
 	Since    time.Time
 }
 
+const listDomainDNSChecksBaseSQL = `
+SELECT
+  id::text,
+  domain_id::text,
+  status,
+  report,
+  checked_at
+FROM domain_dns_checks
+WHERE domain_id = $1`
+
 type DomainView struct {
 	ID                   string     `json:"id"`
 	CompanyID            string     `json:"company_id"`
@@ -2988,26 +2998,9 @@ func (r *Repository) ListDomainDNSChecks(ctx context.Context, req DomainDNSCheck
 	domainID := strings.TrimSpace(req.DomainID)
 	limit := normalizeLimit(req.Limit)
 	status := strings.ToLower(strings.TrimSpace(req.Status))
-	since := sql.NullTime{}
-	if !req.Since.IsZero() {
-		since = sql.NullTime{Time: req.Since.UTC(), Valid: true}
-	}
 
-	const query = `
-SELECT
-  id::text,
-  domain_id::text,
-  status,
-  report,
-  checked_at
-FROM domain_dns_checks
-WHERE domain_id = $1
-  AND ($2 = '' OR status = $2)
-  AND ($3::timestamptz IS NULL OR checked_at >= $3)
-ORDER BY checked_at DESC
-LIMIT $4`
-
-	rows, err := r.db.QueryContext(ctx, query, domainID, status, since, limit)
+	query, args := buildListDomainDNSChecksQuery(domainID, status, req.Since, limit)
+	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("list domain dns checks: %w", err)
 	}
@@ -3035,6 +3028,25 @@ LIMIT $4`
 		return nil, fmt.Errorf("iterate domain dns checks: %w", err)
 	}
 	return checks, nil
+}
+
+func buildListDomainDNSChecksQuery(domainID string, status string, since time.Time, limit int) (string, []any) {
+	query := listDomainDNSChecksBaseSQL
+	args := []any{domainID}
+
+	if status != "" {
+		args = append(args, status)
+		query += fmt.Sprintf("\n  AND status = $%d", len(args))
+	}
+	if !since.IsZero() {
+		args = append(args, since.UTC())
+		query += fmt.Sprintf("\n  AND checked_at >= $%d", len(args))
+	}
+	args = append(args, limit)
+	query += fmt.Sprintf(`
+ORDER BY checked_at DESC
+LIMIT $%d`, len(args))
+	return query, args
 }
 
 func (r *Repository) VerifyDomainDNS(ctx context.Context, id string) (dnscheck.DomainReport, error) {

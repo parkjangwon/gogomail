@@ -1259,6 +1259,44 @@ func TestValidateDomainDNSCheckListRequestRejectsUnsafeFilters(t *testing.T) {
 	}
 }
 
+func TestListDomainDNSChecksQueryUsesSargableFilters(t *testing.T) {
+	t.Parallel()
+
+	query, args := buildListDomainDNSChecksQuery(
+		"123e4567-e89b-12d3-a456-426614174000",
+		"missing",
+		time.Date(2026, 5, 21, 1, 2, 3, 0, time.FixedZone("KST", 9*60*60)),
+		101,
+	)
+
+	for _, want := range []string{
+		"WHERE domain_id = $1",
+		"AND status = $2",
+		"AND checked_at >= $3",
+		"ORDER BY checked_at DESC",
+		"LIMIT $4",
+	} {
+		if !strings.Contains(query, want) {
+			t.Fatalf("domain dns checks query missing %q:\n%s", want, query)
+		}
+	}
+	for _, forbidden := range []string{
+		"$2 = '' OR",
+		"::timestamptz IS NULL",
+		" OR ",
+	} {
+		if strings.Contains(query, forbidden) {
+			t.Fatalf("domain dns checks query contains non-sargable filter %q:\n%s", forbidden, query)
+		}
+	}
+	if len(args) != 4 {
+		t.Fatalf("args len = %d, want 4", len(args))
+	}
+	if got := args[2].(time.Time).Location(); got != time.UTC {
+		t.Fatalf("since arg location = %v, want UTC", got)
+	}
+}
+
 func TestValidateDeliveryRouteListRequestRejectsUnknownFilters(t *testing.T) {
 	t.Parallel()
 
