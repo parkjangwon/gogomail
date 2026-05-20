@@ -132,6 +132,59 @@ func TestValidateCreateFileFromObjectRequestRejectsUnsafeInput(t *testing.T) {
 	}
 }
 
+func TestDriveCreateQueriesUseSargableParentFilters(t *testing.T) {
+	t.Parallel()
+
+	for name, query := range map[string]string{
+		"folder": buildCreateFolderQuery("parent-1"),
+		"file":   buildInsertDriveFileNodeQuery("parent-1"),
+	} {
+		name := name
+		query := query
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			for _, want := range []string{
+				"parent AS (",
+				"WHERE n.id = $2::uuid",
+				"AND n.node_type = 'folder'",
+				"WHERE EXISTS (SELECT 1 FROM parent)",
+			} {
+				if !strings.Contains(query, want) {
+					t.Fatalf("%s create query missing %q:\n%s", name, want, query)
+				}
+			}
+			for _, forbidden := range []string{
+				"NULLIF($2, '') IS NULL",
+				"NULLIF($2, '')::uuid",
+				"OR EXISTS (SELECT 1 FROM parent)",
+			} {
+				if strings.Contains(query, forbidden) {
+					t.Fatalf("%s create query contains non-sargable parent guard %q:\n%s", name, forbidden, query)
+				}
+			}
+		})
+	}
+
+	for name, query := range map[string]string{
+		"folder": buildCreateFolderQuery(""),
+		"file":   buildInsertDriveFileNodeQuery(""),
+	} {
+		name := name
+		query := query
+		t.Run(name+"_root", func(t *testing.T) {
+			t.Parallel()
+
+			if strings.Contains(query, "parent AS") || strings.Contains(query, "$2::uuid") || strings.Contains(query, "EXISTS (SELECT 1 FROM parent)") {
+				t.Fatalf("%s root create query unexpectedly includes parent lookup:\n%s", name, query)
+			}
+			if !strings.Contains(query, "\n  NULL,\n") {
+				t.Fatalf("%s root create query missing NULL parent projection:\n%s", name, query)
+			}
+		})
+	}
+}
+
 func TestMapDriveFileCreateError(t *testing.T) {
 	t.Parallel()
 

@@ -290,6 +290,7 @@ Go Backend (`internal/`):
 - attachment share link 목록 조회도 attachment/status 필터를 제공된 경우에만 WHERE에 추가하도록 바꿔 공유 링크 운영 조회의 optional `OR` predicate를 제거함
 - attachment upload session 목록 조회도 user/draft/status 필터를 제공된 경우에만 WHERE에 추가하도록 바꿔 대량 첨부 업로드 운영 조회의 optional `OR` predicate를 제거함
 - Drive share link 목록과 object cleanup failure 목록도 node/user 필터를 제공된 경우에만 typed UUID predicate로 추가해 Drive 운영 조회의 optional `OR` predicate를 제거함
+- Drive folder/file 생성 쿼리도 parent_id가 있을 때만 active parent folder CTE와 `EXISTS` predicate를 추가하고, root 생성에서는 parent lookup을 제거해 parent optional `OR` predicate를 제거함
 - bulk delete/IMAP EXPUNGE storage GC lookup이 대상 메시지마다 `messages ref`를 correlated `COUNT(*)`로 재스캔하지 않고, target storage paths를 먼저 뽑은 뒤 grouped `ref_counts` CTE로 공유 여부를 판정하도록 바꿈
 - `TestStoragePathLookupSQLUsesGroupedReferenceCounts`를 추가해 bulk delete와 IMAP EXPUNGE storage path lookup이 grouped reference-count CTE를 유지하도록 고정함
 - legacy attachment upload cleanup도 stale attachment마다 `UPDATE attachments`와 quota decrement를 반복하지 않고 typed UUID-array batch update와 공용 aggregated quota decrement CTE를 쓰도록 바꿈
