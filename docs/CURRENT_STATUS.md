@@ -7691,4 +7691,5 @@ Next focus areas:
 - `PostgresRecorder` now records multiple delivery attempts in one transaction using `unnest` batch INSERTs for `delivery_attempts`, related outbox events, and hard-bounce suppression rows.
 - Partial delivery failures are collected and recorded as one failed-attempt batch where supported.
 - Retry exhaustion now reuses the same delivery-attempt batch insert path instead of inserting one exhausted attempt per recipient.
-- Verification: `go test ./internal/delivery`.
+- Benchmark evidence: `BenchmarkRecordAttemptBatchBulkVsIndividual` records 100 recipients with `1.000 record_calls/op` on the bulk path versus `100.0 record_calls/op` on the fallback individual path.
+- Verification: `go test ./internal/delivery`; `go test ./internal/delivery -run '^$' -bench 'BenchmarkRecordAttemptBatchBulkVsIndividual' -benchtime=100ms`.

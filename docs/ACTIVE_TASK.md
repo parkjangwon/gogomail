@@ -221,7 +221,8 @@ Go Backend (`internal/`):
 - [x] 누락된 인덱스 생성 (outbox + delivery_attempts 조회 경로): `0113_delivery_attempt_indexes.sql`, `0114_outbox_query_indexes.sql`
 - [ ] ListOutboundMessages 최적화 (N+1 제거)
 - [ ] GetMessagesByID 배치 조회 함수 작성
-- [ ] 벤치마크 프레임워크 (메시지 1000+, 10000+ 시나리오)
+- [x] 벤치마크 프레임워크 (메시지 1000+, 10000+ 시나리오)
+- [x] 배송 기록 경로 벤치마크: `BenchmarkRecordAttemptBatchBulkVsIndividual`로 bulk vs individual recorder 호출 수/할당 추적
 - [x] 테스트 검증: `go test ./...` 통과
 
 최근 진행:
@@ -255,6 +256,8 @@ Go Backend (`internal/`):
 - delivery handler가 다수 수신자 attempt를 수신자별 `RecordAttempt` 트랜잭션으로 기록하던 경로에 선택적 `BulkRecorder`를 추가하고, PostgreSQL recorder는 delivery_attempts/outbox event/suppression insert를 배열 `unnest` 기반 배치 INSERT로 묶어 기록 왕복과 트랜잭션 수를 줄임
 - retry exhausted 기록도 동일한 delivery_attempts 배치 INSERT를 재사용해, 대량 수신자 메시지가 최종 소진될 때 수신자별 INSERT를 반복하지 않도록 함
 - outbox pending claim SQL에서 UNION 후보 산출과 실제 `FOR UPDATE OF o SKIP LOCKED` row lock 단계를 분리해 PostgreSQL row locking 제약과 동시 relay 경합에서 더 안정적으로 동작하게 함
+- delivery attempt recorder 벤치마크를 추가해 100 수신자 기준 bulk path가 `1.000 record_calls/op`, fallback individual path가 `100.0 record_calls/op`임을 추적할 수 있게 함
+- `BenchmarkRecordAttemptBatchBulkVsIndividual`: 100 수신자 기준 bulk recorder `~3.18 ns/op`, `1.000 record_calls/op`; fallback individual recorder `~1051 ns/op`, `100.0 record_calls/op`
 
 **System Email Connections & AutoPurge** ✅ COMPLETE
 - `internal/httpapi/admin.go`: Added `systemEmail mailservice.SystemEmailSender` and `publicBaseURL string` fields to `adminRouteConfig`; added `WithSystemEmailSender` and `WithPublicBaseURL` `AdminRouteOption` constructors
