@@ -313,6 +313,7 @@ Go Backend (`internal/`):
 - delivery attempt 통계와 exhausted 목록도 같은 공통 sargable WHERE builder를 재사용하도록 바꿔, 대형 배송 기록 테이블을 읽는 list/stats/exhausted 운영 화면이 모두 optional `OR` predicate를 피하게 함
 - Push notification attempt 목록과 통계 조회도 동적 sargable WHERE로 전환해 Web Push 운영 기록이 커져도 message/user/platform/device/provider 필터가 인덱스 친화적인 쿼리 모양을 유지하게 함
 - 도메인 DNS check 이력 조회도 status/since 필터를 제공된 경우에만 WHERE에 추가하도록 바꿔 도메인 운영 화면의 DNS 검증 이력 조회가 optional `OR` predicate를 피하게 함
+- API usage daily/monthly 집계 조회도 tenant/company/domain/user/key/principal/auth/method/route/status/time 필터를 제공된 경우에만 WHERE에 추가하도록 바꿔 SaaS 사용량/청구 분석 화면의 대형 집계 조회가 인덱스 친화적인 쿼리 모양을 유지하게 함
 
 **System Email Connections & AutoPurge** ✅ COMPLETE
 - `internal/httpapi/admin.go`: Added `systemEmail mailservice.SystemEmailSender` and `publicBaseURL string` fields to `adminRouteConfig`; added `WithSystemEmailSender` and `WithPublicBaseURL` `AdminRouteOption` constructors

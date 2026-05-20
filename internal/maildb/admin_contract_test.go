@@ -380,6 +380,73 @@ func TestNormalizeAPIUsageAggregateListRequestNormalizesFilters(t *testing.T) {
 	}
 }
 
+func TestAPIUsageAggregateQueryUsesSargableFilters(t *testing.T) {
+	t.Parallel()
+
+	filters, err := normalizeAPIUsageAggregateListRequest(APIUsageAggregateListRequest{
+		Limit:       100,
+		TenantID:    "tenant-1",
+		CompanyID:   "company-1",
+		DomainID:    "domain-1",
+		UserID:      "user-1",
+		APIKeyID:    "key-1",
+		PrincipalID: "principal-1",
+		AuthSource:  " Admin ",
+		Method:      "POST",
+		Route:       "/api/v1/messages",
+		Status:      202,
+		From:        time.Date(2026, 5, 1, 0, 0, 0, 0, time.FixedZone("KST", 9*60*60)),
+		To:          time.Date(2026, 6, 1, 0, 0, 0, 0, time.FixedZone("KST", 9*60*60)),
+	})
+	if err != nil {
+		t.Fatalf("normalizeAPIUsageAggregateListRequest returned error: %v", err)
+	}
+
+	query, args := buildAPIUsageAggregateQuery("api_usage_daily", "day", filters)
+	for _, want := range []string{
+		"FROM api_usage_daily",
+		"WHERE tenant_id = $1",
+		"AND company_id = $2",
+		"AND domain_id = $3",
+		"AND user_id = $4",
+		"AND api_key_id = $5",
+		"AND principal_id = $6",
+		"AND auth_source = $7",
+		"AND method = $8",
+		"AND route = $9",
+		"AND status = $10",
+		"AND day >= $11",
+		"AND day < $12",
+		"ORDER BY day DESC, request_count DESC, route, status",
+		"LIMIT $13",
+	} {
+		if !strings.Contains(query, want) {
+			t.Fatalf("api usage aggregate query missing %q:\n%s", want, query)
+		}
+	}
+	for _, forbidden := range []string{
+		"$2 = '' OR",
+		"::timestamptz IS NULL",
+		" OR ",
+	} {
+		if strings.Contains(query, forbidden) {
+			t.Fatalf("api usage aggregate query contains non-sargable filter %q:\n%s", forbidden, query)
+		}
+	}
+	if len(args) != 13 {
+		t.Fatalf("args len = %d, want 13", len(args))
+	}
+	if args[6] != "admin" {
+		t.Fatalf("auth source arg = %#v, want admin", args[6])
+	}
+	if got := args[10].(time.Time).Location(); got != time.UTC {
+		t.Fatalf("from arg location = %v, want UTC", got)
+	}
+	if got := args[11].(time.Time).Location(); got != time.UTC {
+		t.Fatalf("to arg location = %v, want UTC", got)
+	}
+}
+
 func TestValidateAPIUsageExportBatchListRequestRejectsUnsafeFilters(t *testing.T) {
 	t.Parallel()
 

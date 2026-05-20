@@ -6424,3 +6424,8 @@ Target outcome:
       status and checked-at filters, so domain operations pages can inspect DNS
       verification history without routing selective filters through optional
       `OR` predicates.
+1762. API usage daily and monthly aggregate listings now share a dynamic
+      sargable query builder for tenant, company, domain, user, API key,
+      principal, auth source, method, route, status, and time-window filters.
+      This keeps SaaS usage and billing analytics queries index-friendly as
+      aggregate tables grow.
