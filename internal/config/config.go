@@ -77,6 +77,8 @@ type Config struct {
 	DatabaseURL                         string
 	RedisAddr                           string
 	RedisPassword                       string
+	RedisSentinelAddrs                  []string // GOGOMAIL_REDIS_SENTINEL_ADDRS (comma-separated)
+	RedisMasterName                     string   // GOGOMAIL_REDIS_MASTER_NAME
 	StorageBackend                      string
 	StorageBackendCompatLabels          []string
 	StorageS3Endpoint                   string
@@ -289,6 +291,12 @@ type Config struct {
 	SMTPLatencyTrackingEnabled bool
 	SMTPLatencyWindowSize      int
 
+	// Alert dispatcher
+	AlertEmailTo      string // GOGOMAIL_ALERT_EMAIL_TO
+	AlertEmailFrom    string // GOGOMAIL_ALERT_EMAIL_FROM
+	AlertSMTPAddr     string // GOGOMAIL_ALERT_SMTP_ADDR
+	AlertWebhookURL   string // GOGOMAIL_ALERT_WEBHOOK_URL
+
 	// Farm coordinator
 	FarmCoordinatorBackend              string
 	FarmCoordinatorNodeID               string
@@ -367,6 +375,8 @@ func Load() Config {
 		DatabaseURL:                         envOrDefault("GOGOMAIL_DATABASE_URL", "postgres://gogomail:gogomail@localhost:5432/gogomail?sslmode=disable"),
 		RedisAddr:                           envOrDefault("GOGOMAIL_REDIS_ADDR", "localhost:6379"),
 		RedisPassword:                       envOrDefault("GOGOMAIL_REDIS_PASSWORD", ""),
+		RedisSentinelAddrs:                  splitCSV(os.Getenv("GOGOMAIL_REDIS_SENTINEL_ADDRS")),
+		RedisMasterName:                     envOrDefault("GOGOMAIL_REDIS_MASTER_NAME", "mymaster"),
 		StorageBackend:                      envOrDefault("GOGOMAIL_STORAGE_BACKEND", "local"),
 		StorageBackendCompatLabels:          splitCSV(os.Getenv("GOGOMAIL_STORAGE_BACKEND_COMPAT_LABELS")),
 		StorageS3Endpoint:                   envOrDefault("GOGOMAIL_STORAGE_S3_ENDPOINT", ""),
@@ -574,6 +584,11 @@ func Load() Config {
 
 		SMTPLatencyTrackingEnabled: boolEnvOrDefault("GOGOMAIL_SMTP_LATENCY_TRACKING_ENABLED", false),
 		SMTPLatencyWindowSize:      intEnvOrDefault("GOGOMAIL_SMTP_LATENCY_WINDOW_SIZE", 1000),
+
+		AlertEmailTo:      os.Getenv("GOGOMAIL_ALERT_EMAIL_TO"),
+		AlertEmailFrom:    envOrDefault("GOGOMAIL_ALERT_EMAIL_FROM", "alerts@localhost"),
+		AlertSMTPAddr:     envOrDefault("GOGOMAIL_ALERT_SMTP_ADDR", "localhost:25"),
+		AlertWebhookURL:   os.Getenv("GOGOMAIL_ALERT_WEBHOOK_URL"),
 
 		FarmCoordinatorBackend:              envOrDefault("GOGOMAIL_FARM_COORDINATOR_BACKEND", "noop"),
 		FarmCoordinatorNodeID:               envOrDefault("GOGOMAIL_FARM_COORDINATOR_NODE_ID", ""),

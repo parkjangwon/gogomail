@@ -152,6 +152,17 @@ Go Backend (`internal/`):
 - `GOGOMAIL_SECURITY_VERIFY=1` 설정 시 `verify-backend-release.sh`가 `go vet ./...`와 설치된 `govulncheck ./...`를 보안 릴리즈 게이트로 실행하도록 함
 - 프론트엔드 릴리즈 검증 스크립트를 추가해 webmail/console type-check와 helper test를 기본 실행하고, E2E/build는 명시 환경변수로 켤 수 있게 함
 
+**Redis Sentinel Failover & Alert Dispatcher** ✅ COMPLETE
+- `internal/config/config.go`: 새 필드 `RedisSentinelAddrs` (env: `GOGOMAIL_REDIS_SENTINEL_ADDRS`), `RedisMasterName` (env: `GOGOMAIL_REDIS_MASTER_NAME`, 기본: "mymaster") 추가
+- `internal/config/config.go`: 알림 설정 필드 `AlertEmailTo`, `AlertEmailFrom`, `AlertSMTPAddr`, `AlertWebhookURL` 추가
+- `internal/app/run.go`: `newRedisClient(cfg)` 헬퍼 함수 추가 — Sentinel 주소가 있으면 `redis.NewFailoverClient` 사용, 없으면 `redis.NewClient` 사용
+- `internal/app/run.go`: 모든 `redis.NewClient(...)` 호출 (12곳) → `newRedisClient(cfg)` 으로 교체
+- `internal/alert/dispatcher.go`: `Dispatcher` 인터페이스 구현체 3종 추가:
+  - `EmailDispatcher`: `net/smtp` 기반 이메일 알림 (SMTP 주소, From/To 설정 가능)
+  - `WebhookDispatcher`: Slack incoming webhook 호환 JSON POST
+  - `MultiDispatcher`: 여러 dispatcher 팬아웃
+- `go build ./...` 및 `go test ./internal/config/... ./internal/alert/...` 통과
+
 다음 단계: Phase 2 (Bulk Delivery Batching) 구현
 
 ### 검증
