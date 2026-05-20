@@ -6473,3 +6473,6 @@ Target outcome:
 1775. Drive upload-session listing now uses a dynamic optional status
       predicate, avoiding broad optional `OR` guards on large upload-operation
       views.
+1776. Attachment share-link listing now uses dynamic optional attachment and
+      status predicates, avoiding broad optional `OR` guards on share-link
+      operations.
