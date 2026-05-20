@@ -185,6 +185,38 @@ func TestDriveCreateQueriesUseSargableParentFilters(t *testing.T) {
 	}
 }
 
+func TestFindActiveNodeBySiblingNameUsesSargableParentFilters(t *testing.T) {
+	t.Parallel()
+
+	rootQuery, rootArgs := buildFindActiveNodeBySiblingNameQuery("user-1", "", "report.pdf", "file")
+	if len(rootArgs) != 3 {
+		t.Fatalf("root args = %d, want 3", len(rootArgs))
+	}
+	if !strings.Contains(rootQuery, "AND parent_id IS NULL") {
+		t.Fatalf("root sibling query missing parent_id IS NULL:\n%s", rootQuery)
+	}
+	if strings.Contains(rootQuery, "COALESCE(parent_id,") || strings.Contains(rootQuery, "NULLIF($2") || strings.Contains(rootQuery, "$4") {
+		t.Fatalf("root sibling query contains non-sargable/unused parent expression:\n%s", rootQuery)
+	}
+	if !strings.Contains(rootQuery, "AND normalized_name = $2") || !strings.Contains(rootQuery, "AND node_type = $3") {
+		t.Fatalf("root sibling query placeholders drifted:\n%s", rootQuery)
+	}
+
+	childQuery, childArgs := buildFindActiveNodeBySiblingNameQuery("user-1", "parent-1", "report.pdf", "file")
+	if len(childArgs) != 4 {
+		t.Fatalf("child args = %d, want 4", len(childArgs))
+	}
+	if !strings.Contains(childQuery, "AND parent_id = $2::uuid") {
+		t.Fatalf("child sibling query missing direct parent predicate:\n%s", childQuery)
+	}
+	if strings.Contains(childQuery, "COALESCE(parent_id,") || strings.Contains(childQuery, "NULLIF($2") {
+		t.Fatalf("child sibling query contains non-sargable parent expression:\n%s", childQuery)
+	}
+	if !strings.Contains(childQuery, "AND normalized_name = $3") || !strings.Contains(childQuery, "AND node_type = $4") {
+		t.Fatalf("child sibling query placeholders drifted:\n%s", childQuery)
+	}
+}
+
 func TestMapDriveFileCreateError(t *testing.T) {
 	t.Parallel()
 
