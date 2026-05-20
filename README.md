@@ -38,7 +38,7 @@ LDAP, DKIM, SPF, DMARC, DSN, and OpenAPI-backed REST APIs.
 - PostgreSQL metadata, Redis coordination, and local/MinIO/S3-compatible object storage
 - DKIM signing, SPF/DMARC verification, DNS checks, queue/backpressure controls, audit logs, API metering
 - Built-in spam policy, DNSBL/RBL checks, tenant spam-filter packs, and optional ClamAV attachment scanning
-- Bulk delivery batching, delivery route observability, and tunable parsed-message body caching
+- Bulk delivery batching, batched delivery-attempt/outbox status writes, delivery route observability, and tunable parsed-message body caching
 - Request-ID propagation, configurable PostgreSQL pool sizing, scheduled quota-alert email delivery, and optional retention AutoPurge jobs
 - PostgreSQL backup script and Compose cron profile for scheduled `pg_dump` backups
 - Company/domain/user configuration boundaries and security governance policy
@@ -46,7 +46,7 @@ LDAP, DKIM, SPF, DMARC, DSN, and OpenAPI-backed REST APIs.
 ### Webmail
 
 - Mail list, reading pane, rich compose, folders, search, snooze, labels, reminders, attachments, and Drive picker flows
-- Password reset UI, refresh-token based session renewal, server-synced email signatures, Web Push service worker registration, and calendar edit/delete flows
+- Password reset UI, refresh-token based session renewal, server-synced email signatures, Web Push service worker registration, calendar edit/delete flows, and crypto-backed browser ID generation for client-created records
 - Keyboard-oriented UX: global shortcuts, app switching, Spotlight search, row focus, reading-pane navigation, and message actions
 - Safer rendering for HTML mail, external images, and proxied remote content
 - TOTP MFA login (two-step password → code) and in-settings enrollment with QR code, recovery codes, and disable flow

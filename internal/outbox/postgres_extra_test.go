@@ -34,3 +34,9 @@ func TestFetchPendingLocksOutboxRowsAfterCandidateUnion(t *testing.T) {
 		}
 	}
 }
+
+func TestPostgresStoreImplementsBatchStore(t *testing.T) {
+	t.Parallel()
+
+	var _ BatchStore = (*PostgresStore)(nil)
+}
