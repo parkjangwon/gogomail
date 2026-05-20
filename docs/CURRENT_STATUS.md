@@ -35,6 +35,11 @@ Last updated: 2026-05-21 (SaaS launch hardening continues: attachment cleanup ba
 - Regression coverage scans the Drive repository SQL files for wide CTE projections so storage-path changes keep explicit result shapes.
 - Verification: `go test ./internal/drive -run 'TestDriveRepositorySQLAvoidsWideCTEProjection|TestValidateRenameNodeRequest|TestValidateMoveNodeRequest|TestValidateCreateUploadSessionRequest'` passes.
 
+## IMAP Unsupported Command Wording (2026-05-21)
+- Unknown IMAP commands and unknown UID subcommands now return `BAD unsupported command` / `BAD unsupported UID command` instead of exposing an implementation-oriented `not implemented` phrase.
+- Existing UID validation ordering is preserved: malformed or unsupported UID subcommands are rejected before authentication or mailbox-selection checks.
+- Verification: `go test ./internal/imapgw -run 'TestServerValidatesUIDSubcommandBeforeSelectedState|TestServerValidatesUIDSubcommandBeforeAuthentication'` passes.
+
 ## SaaS Launch Hardening Continuation (2026-05-21)
 - Organization chart user-unit lookup is now repository-backed instead of returning a placeholder error. `GetUserUnits` validates `user_id`, resolves active `organization_members` assignments through `organization_units`, and ignores ended memberships plus inactive units.
 - Migration `0115_organization_member_active_user_index.sql` adds a partial active-membership index for user-scoped organization lookups.

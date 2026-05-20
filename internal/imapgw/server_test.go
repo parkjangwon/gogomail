@@ -852,7 +852,7 @@ func TestServerValidatesUIDSubcommandBeforeSelectedState(t *testing.T) {
 		"a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-EXTENDED LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n",
 		"a2 BAD UID requires subcommand\r\n",
 		"a3 BAD malformed command\r\n",
-		"a4 BAD UID command not implemented\r\n",
+		"a4 BAD unsupported UID command\r\n",
 		"a5 BAD UID FETCH requires UID set and data items\r\n",
 		"a6 BAD UID STORE requires UID, mode, and flags\r\n",
 		"a7 BAD UID EXPUNGE requires UID set\r\n",
@@ -900,7 +900,7 @@ func TestServerValidatesUIDSubcommandBeforeAuthentication(t *testing.T) {
 	want := []string{
 		"a1 BAD UID requires subcommand\r\n",
 		"a2 BAD malformed command\r\n",
-		"a3 BAD UID command not implemented\r\n",
+		"a3 BAD unsupported UID command\r\n",
 		"a4 BAD UID FETCH requires UID set and data items\r\n",
 		"a5 BAD UID STORE requires UID, mode, and flags\r\n",
 		"a6 BAD UID STORE flags are unsupported\r\n",
