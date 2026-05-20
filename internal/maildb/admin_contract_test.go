@@ -1174,6 +1174,56 @@ func TestValidateUserListRequestRejectsUnknownStatus(t *testing.T) {
 	}
 }
 
+func TestListUsersQueryUsesSargableOptionalFilters(t *testing.T) {
+	t.Parallel()
+
+	passwordConfigured := true
+	query, args := buildListUsersQuery(UserListRequest{
+		DomainID:           " 11111111-1111-1111-1111-111111111111 ",
+		Status:             " Active ",
+		PasswordConfigured: &passwordConfigured,
+	}, "active", 26)
+	for _, want := range []string{
+		"FROM users",
+		"WHERE domain_id = $1::uuid",
+		"AND status = $2",
+		"AND (COALESCE(password_hash, '') <> '') = $3::boolean",
+		"ORDER BY created_at DESC",
+		"LIMIT $4",
+	} {
+		if !strings.Contains(query, want) {
+			t.Fatalf("list users query missing %q:\n%s", want, query)
+		}
+	}
+	for _, forbidden := range []string{
+		"$1 = '' OR",
+		"$2 = '' OR",
+		"$3::boolean IS NULL",
+		"domain_id::text = $",
+	} {
+		if strings.Contains(query, forbidden) {
+			t.Fatalf("list users query contains non-sargable optional filter %q:\n%s", forbidden, query)
+		}
+	}
+	if len(args) != 4 {
+		t.Fatalf("args len = %d, want 4", len(args))
+	}
+	if args[0] != "11111111-1111-1111-1111-111111111111" || args[1] != "active" || args[2] != true || args[3] != 26 {
+		t.Fatalf("args = %#v", args)
+	}
+
+	query, args = buildListUsersQuery(UserListRequest{}, "", MessageListDefaultLimit)
+	if strings.Contains(query, "WHERE") {
+		t.Fatalf("unfiltered list users query unexpectedly includes WHERE:\n%s", query)
+	}
+	if strings.Contains(query, "IS NULL OR") {
+		t.Fatalf("unfiltered list users query contains optional guard:\n%s", query)
+	}
+	if len(args) != 1 || args[0] != MessageListDefaultLimit {
+		t.Fatalf("unfiltered args = %#v", args)
+	}
+}
+
 func TestValidateUpdateUserQuotaRequestRejectsNegativeQuota(t *testing.T) {
 	t.Parallel()
 
