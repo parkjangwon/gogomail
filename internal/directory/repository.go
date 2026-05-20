@@ -822,15 +822,7 @@ SELECT EXISTS (
 	return exists, nil
 }
 
-func (r *Repository) ListGroupMemberships(ctx context.Context, req ListGroupMembershipsRequest) ([]GroupMembership, error) {
-	if r == nil || r.db == nil {
-		return nil, fmt.Errorf("database handle is required")
-	}
-	req, err := NormalizeListGroupMembershipsRequest(req)
-	if err != nil {
-		return nil, err
-	}
-	const query = `
+const listGroupMembershipsBaseSQL = `
 SELECT m.id::text,
        m.group_id::text,
        g.company_id::text,
@@ -841,24 +833,47 @@ SELECT m.id::text,
 FROM directory_group_memberships m
 JOIN directory_groups g ON g.id = m.group_id
 JOIN domains d ON d.id = g.domain_id AND d.company_id = g.company_id
-JOIN companies c ON c.id = g.company_id
-WHERE g.company_id = $1::uuid
-  AND ($2 = '' OR m.group_id = NULLIF($2, '')::uuid)
-  AND ($3 = '' OR m.member_kind = $3)
-  AND ($4 = '' OR m.member_id = NULLIF($4, '')::uuid)
-  AND ($5 = '' OR m.role = $5)
-  AND ($6::boolean = false OR (m.status = 'active' AND g.status = 'active' AND d.status = 'active' AND c.status = 'active'))
+JOIN companies c ON c.id = g.company_id`
+
+func buildListGroupMembershipsQuery(req ListGroupMembershipsRequest) (string, []any) {
+	args := []any{req.CompanyID}
+	conditions := []string{"g.company_id = $1::uuid"}
+	if req.GroupID != "" {
+		args = append(args, req.GroupID)
+		conditions = append(conditions, fmt.Sprintf("m.group_id = $%d::uuid", len(args)))
+	}
+	if req.MemberKind != "" {
+		args = append(args, req.MemberKind)
+		conditions = append(conditions, fmt.Sprintf("m.member_kind = $%d", len(args)))
+	}
+	if req.MemberID != "" {
+		args = append(args, req.MemberID)
+		conditions = append(conditions, fmt.Sprintf("m.member_id = $%d::uuid", len(args)))
+	}
+	if req.Role != "" {
+		args = append(args, req.Role)
+		conditions = append(conditions, fmt.Sprintf("m.role = $%d", len(args)))
+	}
+	if req.ActiveOnly {
+		conditions = append(conditions, "(m.status = 'active' AND g.status = 'active' AND d.status = 'active' AND c.status = 'active')")
+	}
+	args = append(args, req.Limit)
+	query := listGroupMembershipsBaseSQL + "\nWHERE " + strings.Join(conditions, "\n  AND ") + fmt.Sprintf(`
 ORDER BY m.updated_at DESC, m.id
-LIMIT $7`
-	rows, err := r.db.QueryContext(ctx, query,
-		req.CompanyID,
-		req.GroupID,
-		req.MemberKind,
-		req.MemberID,
-		req.Role,
-		req.ActiveOnly,
-		req.Limit,
-	)
+LIMIT $%d`, len(args))
+	return query, args
+}
+
+func (r *Repository) ListGroupMemberships(ctx context.Context, req ListGroupMembershipsRequest) ([]GroupMembership, error) {
+	if r == nil || r.db == nil {
+		return nil, fmt.Errorf("database handle is required")
+	}
+	req, err := NormalizeListGroupMembershipsRequest(req)
+	if err != nil {
+		return nil, err
+	}
+	query, args := buildListGroupMembershipsQuery(req)
+	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("list directory group memberships: %w", err)
 	}
