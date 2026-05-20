@@ -1425,6 +1425,60 @@ func TestNormalizeCheckDelegationRequestRejectsUnsafeInput(t *testing.T) {
 	}
 }
 
+func TestCheckDelegationQueryUsesSargableActiveFilter(t *testing.T) {
+	t.Parallel()
+
+	req, err := NormalizeCheckDelegationRequest(CheckDelegationRequest{
+		CompanyID:    " company-1 ",
+		OwnerKind:    " Resource ",
+		OwnerID:      " room-1 ",
+		DelegateKind: " GROUP ",
+		DelegateID:   " team-1 ",
+		Scope:        " Calendar ",
+		RequiredRole: " WRITE ",
+		ActiveOnly:   true,
+	})
+	if err != nil {
+		t.Fatalf("NormalizeCheckDelegationRequest returned error: %v", err)
+	}
+	query, args := buildCheckDelegationQuery(req)
+	for _, want := range []string{
+		"FROM directory_delegations d",
+		"WHERE d.company_id = $1::uuid",
+		"AND d.owner_kind = $2",
+		"AND d.owner_id = $3::uuid",
+		"AND d.delegate_kind = $4",
+		"AND d.delegate_id = $5::uuid",
+		"AND d.scope = $6",
+		"AND (d.status = 'active' AND c.status = 'active')",
+	} {
+		if !strings.Contains(query, want) {
+			t.Fatalf("check delegation query missing %q:\n%s", want, query)
+		}
+	}
+	if strings.Contains(query, "$7::boolean = false OR") {
+		t.Fatalf("check delegation query contains non-sargable active filter:\n%s", query)
+	}
+	if len(args) != 6 {
+		t.Fatalf("args len = %d, want 6", len(args))
+	}
+
+	inactiveQuery, inactiveArgs := buildCheckDelegationQuery(CheckDelegationRequest{
+		CompanyID:    "company-1",
+		OwnerKind:    PrincipalKindResource,
+		OwnerID:      "room-1",
+		DelegateKind: PrincipalKindGroup,
+		DelegateID:   "team-1",
+		Scope:        DelegationScopeCalendar,
+	})
+	if strings.Contains(inactiveQuery, "status = 'active'") {
+		t.Fatalf("inactive check delegation query unexpectedly includes active predicate:\n%s", inactiveQuery)
+	}
+	if len(inactiveArgs) != 6 {
+		t.Fatalf("inactive args len = %d, want 6", len(inactiveArgs))
+	}
+}
+
 func TestNormalizeListDelegationsRequest(t *testing.T) {
 	t.Parallel()
 

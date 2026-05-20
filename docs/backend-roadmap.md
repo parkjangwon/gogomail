@@ -6454,3 +6454,6 @@ Target outcome:
 1769. Directory direct and effective group-membership checks now add
       active-status predicates only when `ActiveOnly` is requested, removing
       boolean optional `OR` guards from validation hot paths.
+1770. Directory direct delegation checks now add active-status predicates only
+      when `ActiveOnly` is requested, removing boolean optional `OR` guards from
+      delegation validation paths.
