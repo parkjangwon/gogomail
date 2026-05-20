@@ -1,6 +1,11 @@
 # gogomail current status
 
-Last updated: 2026-05-21 (SaaS launch hardening continues: drive cleanup retry batching verified)
+Last updated: 2026-05-21 (SaaS launch hardening continues: console admin proxy routing verified)
+
+## Console Admin Proxy Routing (2026-05-21)
+- Console audit-log and tenancy domain pages now call the Next.js `/api/admin/...` proxy instead of directly fetching `/admin/v1/...` from the browser.
+- Alert config hooks now pass proxy-relative paths to `apiClient`, fixing the accidental `/api/admin/admin/v1/...` double-prefix path.
+- Verification: `pnpm --dir apps/console type-check` passes; `rg '/admin/v1' apps/console/src -g '*.{ts,tsx}'` now only finds backend proxy route construction, auth bridge routes, and test fixture strings.
 
 ## Drive Cleanup Retry Batching (2026-05-21)
 - Drive object cleanup retry now accumulates successfully deleted cleanup failure IDs and resolves them with one batched `UPDATE ... WHERE id = ANY($1::uuid[])`.
