@@ -6654,3 +6654,6 @@ Target outcome:
 1829. Console and webmail Next.js server proxy routes now require explicit
       `GOGOMAIL_BACKEND_URL` configuration instead of silently falling back to
       localhost in production-capable paths.
+1830. Outbox relay claim selection now orders both candidate and picked locked
+      rows by `created_at, id`, making same-timestamp event claims deterministic
+      across concurrent workers.
