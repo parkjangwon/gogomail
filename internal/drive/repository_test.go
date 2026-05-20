@@ -194,6 +194,98 @@ func TestValidateListNodesRequest(t *testing.T) {
 	}
 }
 
+func TestListNodesQueryUsesSargableOptionalFilters(t *testing.T) {
+	t.Parallel()
+
+	req, err := ValidateListNodesRequest(ListNodesRequest{
+		UserID:   " user-1 ",
+		ParentID: " parent-1 ",
+		Status:   " Trashed ",
+		NodeType: " Folder ",
+		Query:    " Report_% ",
+		Sort:     " Updated ",
+		Limit:    100,
+	})
+	if err != nil {
+		t.Fatalf("ValidateListNodesRequest returned error: %v", err)
+	}
+	query, args := buildListNodesQuery(req)
+	for _, want := range []string{
+		"FROM drive_nodes",
+		"WHERE user_id = $1::uuid",
+		"AND status = $2",
+		"AND normalized_name LIKE '%' || $3 || '%' ESCAPE",
+		"AND node_type = $4",
+		"AND parent_id = $5::uuid",
+		"ORDER BY CASE WHEN node_type = 'folder' THEN 0 ELSE 1 END, updated_at DESC, normalized_name ASC, id ASC",
+		"LIMIT $6",
+	} {
+		if !strings.Contains(query, want) {
+			t.Fatalf("list nodes query missing %q:\n%s", want, query)
+		}
+	}
+	for _, forbidden := range []string{
+		"$5 = '' OR",
+		"$7 = '' OR",
+		"$6::boolean",
+		"NULLIF($",
+	} {
+		if strings.Contains(query, forbidden) {
+			t.Fatalf("list nodes query contains non-sargable optional filter %q:\n%s", forbidden, query)
+		}
+	}
+	if len(args) != 6 {
+		t.Fatalf("args len = %d, want 6", len(args))
+	}
+	if args[0] != "user-1" || args[1] != NodeStatusTrashed || args[2] != `report\_\%` || args[3] != NodeTypeFolder || args[4] != "parent-1" || args[5] != 100 {
+		t.Fatalf("args = %#v", args)
+	}
+
+	rootReq, err := ValidateListNodesRequest(ListNodesRequest{UserID: "user-1"})
+	if err != nil {
+		t.Fatalf("ValidateListNodesRequest root returned error: %v", err)
+	}
+	query, args = buildListNodesQuery(rootReq)
+	if !strings.Contains(query, "AND parent_id IS NULL") {
+		t.Fatalf("root list query missing parent_id IS NULL:\n%s", query)
+	}
+	for _, unexpected := range []string{
+		"normalized_name LIKE",
+		"node_type = $",
+		"AND parent_id = $",
+		"NULLIF($",
+	} {
+		if strings.Contains(query, unexpected) {
+			t.Fatalf("root list query unexpectedly includes %q:\n%s", unexpected, query)
+		}
+	}
+	if len(args) != 3 {
+		t.Fatalf("root args len = %d, want 3", len(args))
+	}
+	if args[0] != "user-1" || args[1] != NodeStatusActive || args[2] != 50 {
+		t.Fatalf("root args = %#v", args)
+	}
+
+	allParentsReq, err := ValidateListNodesRequest(ListNodesRequest{
+		UserID:     "user-1",
+		AllParents: true,
+		Limit:      25,
+	})
+	if err != nil {
+		t.Fatalf("ValidateListNodesRequest all-parents returned error: %v", err)
+	}
+	query, args = buildListNodesQuery(allParentsReq)
+	if strings.Contains(query, "AND parent_id") {
+		t.Fatalf("all-parents query unexpectedly includes parent predicate:\n%s", query)
+	}
+	if len(args) != 3 {
+		t.Fatalf("all-parents args len = %d, want 3", len(args))
+	}
+	if args[0] != "user-1" || args[1] != NodeStatusActive || args[2] != 25 {
+		t.Fatalf("all-parents args = %#v", args)
+	}
+}
+
 func TestValidateListNodesRequestRejectsUnsafeInput(t *testing.T) {
 	t.Parallel()
 

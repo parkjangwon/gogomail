@@ -6464,3 +6464,6 @@ Target outcome:
       branches and dynamic optional predicates for domain, organization, query,
       and active-status filters, avoiding broad optional `OR` guards and
       unnecessary branch scans on large address books.
+1773. Drive node listing now uses dynamic optional predicates for name search,
+      node type, and parent scope, avoiding broad optional `OR` and `NULLIF`
+      guards on large folder and whole-drive listing operations.
