@@ -493,6 +493,9 @@ func TestHandlerRecordsAndRetriesPartialDelivery(t *testing.T) {
 	if len(recipients) != 1 || recipients[0].Email != "temp@example.net" {
 		t.Fatalf("scheduled retry recipients = %+v, want only temp recipient", recipients)
 	}
+	if retry.rawPayload != "" {
+		t.Fatalf("partial retry kept raw payload %q, want cleared after recipient mutation", retry.rawPayload)
+	}
 }
 
 func TestHandlerFiltersDSNRecipientsForPartialRetry(t *testing.T) {
@@ -1079,12 +1082,14 @@ func (r *fakeBulkRecorder) RecordAttempts(_ context.Context, attempts []Attempt)
 }
 
 type fakeRetryScheduler struct {
-	scheduled QueuedMessage
-	err       error
+	scheduled  QueuedMessage
+	rawPayload string
+	err        error
 }
 
 func (s *fakeRetryScheduler) ScheduleRetry(_ context.Context, job Job, _ error) error {
 	s.scheduled = job.QueuedMessage
+	s.rawPayload = string(job.rawPayload)
 	return s.err
 }
 

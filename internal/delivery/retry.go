@@ -1,6 +1,7 @@
 package delivery
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -17,6 +18,8 @@ import (
 )
 
 var ErrRetryExhausted = errors.New("delivery retry attempts exhausted")
+
+var retryAttemptJSONKey = []byte("retry_attempt")
 
 type RetryPolicy struct {
 	Delays      []time.Duration
@@ -96,7 +99,7 @@ func (s *PostgresRetryScheduler) ScheduleRetry(ctx context.Context, job Job, cau
 
 	next := job.QueuedMessage
 	next.RetryAttempt = job.RetryAttempt + 1
-	payload, err := json.Marshal(next)
+	payload, err := retryPayload(job, next)
 	if err != nil {
 		return fmt.Errorf("marshal delivery retry payload: %w", err)
 	}
@@ -114,6 +117,193 @@ ON CONFLICT (dedupe_key) WHERE dedupe_key IS NOT NULL DO NOTHING`
 		return fmt.Errorf("schedule delivery retry: %w", err)
 	}
 	return nil
+}
+
+func retryPayload(job Job, next QueuedMessage) ([]byte, error) {
+	if len(job.rawPayload) > 0 {
+		if payload, ok := patchRetryAttemptPayload(job.rawPayload, next.RetryAttempt); ok {
+			return payload, nil
+		}
+	}
+	return json.Marshal(next)
+}
+
+func patchRetryAttemptPayload(payload json.RawMessage, attempt int) ([]byte, bool) {
+	raw := bytes.TrimSpace(payload)
+	if len(raw) < 2 || raw[0] != '{' || raw[len(raw)-1] != '}' {
+		return nil, false
+	}
+	attemptValue := strconv.AppendInt(nil, int64(attempt), 10)
+	retryAttemptStart := -1
+	retryAttemptEnd := -1
+	for i := 1; i < len(raw)-1; {
+		i = skipJSONSpace(raw, i)
+		if i >= len(raw)-1 {
+			break
+		}
+		if raw[i] == ',' {
+			i++
+			continue
+		}
+		if raw[i] != '"' {
+			return nil, false
+		}
+		keyEnd, ok := skipJSONString(raw, i)
+		if !ok {
+			return nil, false
+		}
+		isRetryAttemptKey, ok := jsonObjectKeyIsRetryAttempt(raw[i:keyEnd])
+		if !ok {
+			return nil, false
+		}
+		i = skipJSONSpace(raw, keyEnd)
+		if i >= len(raw) || raw[i] != ':' {
+			return nil, false
+		}
+		valueStart := skipJSONSpace(raw, i+1)
+		valueEnd, ok := skipJSONValue(raw, valueStart)
+		if !ok {
+			return nil, false
+		}
+		if isRetryAttemptKey {
+			if retryAttemptStart >= 0 {
+				return nil, false
+			}
+			retryAttemptStart = valueStart
+			retryAttemptEnd = valueEnd
+		}
+		i = valueEnd
+	}
+	if retryAttemptStart >= 0 {
+		out := make([]byte, 0, len(raw)+len(attemptValue)-(retryAttemptEnd-retryAttemptStart))
+		out = append(out, raw[:retryAttemptStart]...)
+		out = append(out, attemptValue...)
+		out = append(out, raw[retryAttemptEnd:]...)
+		return out, true
+	}
+	insertAt := len(raw) - 1
+	out := make([]byte, 0, len(raw)+len(`,"retry_attempt":`)+len(attemptValue))
+	out = append(out, raw[:insertAt]...)
+	if !jsonObjectIsEmpty(raw) {
+		out = append(out, ',')
+	}
+	out = append(out, `"retry_attempt":`...)
+	out = append(out, attemptValue...)
+	out = append(out, raw[insertAt:]...)
+	return out, true
+}
+
+func skipJSONSpace(raw []byte, i int) int {
+	for i < len(raw) {
+		switch raw[i] {
+		case ' ', '\n', '\r', '\t':
+			i++
+		default:
+			return i
+		}
+	}
+	return i
+}
+
+func skipJSONString(raw []byte, i int) (int, bool) {
+	if i >= len(raw) || raw[i] != '"' {
+		return 0, false
+	}
+	for i++; i < len(raw); i++ {
+		switch raw[i] {
+		case '\\':
+			i++
+		case '"':
+			return i + 1, true
+		}
+	}
+	return 0, false
+}
+
+func skipJSONValue(raw []byte, i int) (int, bool) {
+	if i >= len(raw) {
+		return 0, false
+	}
+	switch raw[i] {
+	case '"':
+		return skipJSONString(raw, i)
+	case '{':
+		return skipJSONComposite(raw, i, '{', '}')
+	case '[':
+		return skipJSONComposite(raw, i, '[', ']')
+	default:
+		for i < len(raw) {
+			switch raw[i] {
+			case ',', '}', ']':
+				return skipJSONSpaceBack(raw, i), true
+			case ' ', '\n', '\r', '\t':
+				return skipJSONSpaceBack(raw, i), true
+			default:
+				i++
+			}
+		}
+		return i, true
+	}
+}
+
+func jsonObjectKeyIsRetryAttempt(raw []byte) (bool, bool) {
+	if !bytes.Contains(raw, []byte{'\\'}) {
+		if len(raw) < 2 || raw[0] != '"' || raw[len(raw)-1] != '"' {
+			return false, false
+		}
+		return bytes.Equal(raw[1:len(raw)-1], retryAttemptJSONKey), true
+	}
+	var key string
+	if err := json.Unmarshal(raw, &key); err != nil {
+		return false, false
+	}
+	return key == "retry_attempt", true
+}
+
+func skipJSONComposite(raw []byte, i int, open, close byte) (int, bool) {
+	if i >= len(raw) || raw[i] != open {
+		return 0, false
+	}
+	stack := []byte{close}
+	for i++; i < len(raw); i++ {
+		switch raw[i] {
+		case '"':
+			end, ok := skipJSONString(raw, i)
+			if !ok {
+				return 0, false
+			}
+			i = end - 1
+		case '{':
+			stack = append(stack, '}')
+		case '[':
+			stack = append(stack, ']')
+		case '}', ']':
+			if len(stack) == 0 || raw[i] != stack[len(stack)-1] {
+				return 0, false
+			}
+			stack = stack[:len(stack)-1]
+			if len(stack) == 0 {
+				return i + 1, true
+			}
+		}
+	}
+	return 0, false
+}
+
+func skipJSONSpaceBack(raw []byte, i int) int {
+	for i > 0 {
+		switch raw[i-1] {
+		case ' ', '\n', '\r', '\t':
+			i--
+		default:
+			return i
+		}
+	}
+	return i
+}
+
+func jsonObjectIsEmpty(raw []byte) bool {
+	return skipJSONSpace(raw, 1) == len(raw)-1
 }
 
 func normalizeRetryFarm(farm outbound.Farm) outbound.Farm {

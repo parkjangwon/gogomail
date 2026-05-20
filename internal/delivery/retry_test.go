@@ -1,6 +1,7 @@
 package delivery
 
 import (
+	"encoding/json"
 	"errors"
 	"math"
 	"strings"
@@ -120,9 +121,9 @@ func TestAggressiveBulkRetryPolicy(t *testing.T) {
 	policy := AggressiveBulkRetryPolicy()
 
 	tests := []struct {
-		attempt   int
-		minDelay  time.Duration
-		maxDelay  time.Duration
+		attempt  int
+		minDelay time.Duration
+		maxDelay time.Duration
 	}{
 		{0, time.Minute, 3 * time.Minute},       // ~2 min with ±15% jitter
 		{1, 8 * time.Minute, 12 * time.Minute},  // ~10 min with ±15% jitter
@@ -212,5 +213,117 @@ func TestRetryDedupeKeyIsRecipientOrderStable(t *testing.T) {
 	}})
 	if left != right {
 		t.Fatalf("retryDedupeKey order mismatch: %q != %q", left, right)
+	}
+}
+
+func TestRetryPayloadPatchesRawPayloadAttempt(t *testing.T) {
+	t.Parallel()
+
+	job := Job{
+		QueuedMessage: QueuedMessage{MessageID: "msg-1", RetryAttempt: 1},
+		rawPayload: json.RawMessage(`{
+			"event":"mail.queued",
+			"message_id":"msg-1",
+			"retry_attempt":1,
+			"metadata":{"retry_attempt":99},
+			"unknown":{"kept":true}
+		}`),
+	}
+	next := job.QueuedMessage
+	next.RetryAttempt = 2
+
+	payload, err := retryPayload(job, next)
+	if err != nil {
+		t.Fatalf("retryPayload returned error: %v", err)
+	}
+	var got map[string]json.RawMessage
+	if err := json.Unmarshal(payload, &got); err != nil {
+		t.Fatalf("retry payload is invalid JSON: %v", err)
+	}
+	if string(got["retry_attempt"]) != "2" {
+		t.Fatalf("retry_attempt = %s, want 2 in %s", got["retry_attempt"], payload)
+	}
+	if string(got["metadata"]) != `{"retry_attempt":99}` {
+		t.Fatalf("metadata = %s, want nested retry_attempt unchanged", got["metadata"])
+	}
+	if string(got["unknown"]) != `{"kept":true}` {
+		t.Fatalf("unknown = %s, want preserved", got["unknown"])
+	}
+}
+
+func TestRetryPayloadInsertsMissingAttemptInRawPayload(t *testing.T) {
+	t.Parallel()
+
+	job := Job{
+		QueuedMessage: QueuedMessage{MessageID: "msg-1"},
+		rawPayload:    json.RawMessage(`{"event":"mail.queued","message_id":"msg-1"}`),
+	}
+	next := job.QueuedMessage
+	next.RetryAttempt = 1
+
+	payload, err := retryPayload(job, next)
+	if err != nil {
+		t.Fatalf("retryPayload returned error: %v", err)
+	}
+	if !strings.Contains(string(payload), `"retry_attempt":1`) {
+		t.Fatalf("payload = %s, want inserted retry_attempt", payload)
+	}
+}
+
+func TestRetryPayloadFallsBackForMalformedRawPayload(t *testing.T) {
+	t.Parallel()
+
+	job := Job{
+		QueuedMessage: QueuedMessage{
+			Event:        "mail.queued",
+			MessageID:    "msg-1",
+			RetryAttempt: 4,
+			To:           []outbound.Address{{Email: "recipient@example.net"}},
+		},
+		rawPayload: json.RawMessage(`{"event":"mail.queued","message_id"`),
+	}
+	next := job.QueuedMessage
+	next.RetryAttempt = 5
+
+	payload, err := retryPayload(job, next)
+	if err != nil {
+		t.Fatalf("retryPayload returned error: %v", err)
+	}
+	var got QueuedMessage
+	if err := json.Unmarshal(payload, &got); err != nil {
+		t.Fatalf("fallback payload is invalid JSON: %v", err)
+	}
+	if got.RetryAttempt != 5 || len(got.To) != 1 || got.To[0].Email != "recipient@example.net" {
+		t.Fatalf("fallback payload = %+v, want marshaled next queued message", got)
+	}
+}
+
+func TestRetryPayloadFallsBackForDuplicateAttemptKey(t *testing.T) {
+	t.Parallel()
+
+	job := Job{
+		QueuedMessage: QueuedMessage{
+			Event:        "mail.queued",
+			MessageID:    "msg-1",
+			RetryAttempt: 2,
+		},
+		rawPayload: json.RawMessage(`{"event":"mail.queued","retry_attempt":2,"retry_attempt":99}`),
+	}
+	next := job.QueuedMessage
+	next.RetryAttempt = 3
+
+	payload, err := retryPayload(job, next)
+	if err != nil {
+		t.Fatalf("retryPayload returned error: %v", err)
+	}
+	var got QueuedMessage
+	if err := json.Unmarshal(payload, &got); err != nil {
+		t.Fatalf("fallback payload is invalid JSON: %v", err)
+	}
+	if got.RetryAttempt != 3 {
+		t.Fatalf("RetryAttempt = %d, want fallback marshaled attempt 3", got.RetryAttempt)
+	}
+	if strings.Count(string(payload), "retry_attempt") != 1 {
+		t.Fatalf("payload = %s, want duplicate retry_attempt removed by fallback", payload)
 	}
 }

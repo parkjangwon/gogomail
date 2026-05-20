@@ -61,6 +61,7 @@ type Job struct {
 	QueuedMessage
 	OpenMessage    MessageOpener
 	recipientCache []outbound.Address
+	rawPayload     json.RawMessage
 }
 
 type Transport interface {
@@ -171,6 +172,7 @@ func (h *Handler) HandleEvent(ctx context.Context, msg eventstream.Message) erro
 			return h.store.Get(openCtx, queued.StoragePath)
 		},
 		recipientCache: recipients,
+		rawPayload:     append(json.RawMessage(nil), msg.Payload...),
 	}
 
 	if h.backoff != nil {
@@ -231,6 +233,7 @@ func (h *Handler) HandleEvent(ctx context.Context, msg eventstream.Message) erro
 			retryJob := job
 			retryJob.QueuedMessage = queuedMessageForRecipients(job.QueuedMessage, temporary)
 			retryJob.recipientCache = temporary
+			retryJob.rawPayload = nil
 			if h.backoff != nil {
 				h.backoff.ObserveTemporaryFailure(ctx, retryJob, temporary, err)
 			}

@@ -1,6 +1,13 @@
 # gogomail current status
 
-Last updated: 2026-05-21 (SaaS launch hardening continues: auth OpenAPI contract aligned)
+Last updated: 2026-05-21 (SaaS launch hardening continues: delivery retry payload fast path)
+
+## Delivery Retry Payload Fast Path (2026-05-21)
+- Delivery jobs now retain the decoded event's original queued JSON payload so full-message retry scheduling can patch only the top-level `retry_attempt` field instead of marshaling the entire `QueuedMessage` struct again.
+- The raw-payload fast path preserves unknown queue payload fields for forward compatibility and falls back to normal struct marshaling when the JSON shape is malformed or when partial delivery retries mutate the recipient set.
+- Partial delivery retry jobs explicitly clear the raw payload after filtering recipients/DSN metadata, preventing stale delivered or bounced recipients from re-entering retry payloads.
+- Verification target: `go test -count=1 ./internal/delivery -run 'TestRetryPayload|TestHandlerRecordsAndRetriesPartialDelivery|TestHandlerSchedulesRetryAfterFailure'`; `go test ./internal/delivery -run '^$' -bench BenchmarkRetryPayload -benchtime=100ms`.
+- Benchmark sample on Apple M1 Pro: raw patch `~4.44 us/op`, struct marshal `~7.86 us/op` for a 100-recipient queued payload.
 
 ## Auth OpenAPI Contract Alignment (2026-05-21)
 - OpenAPI now documents the implemented Mail API login response fields: `refresh_token`, `client_ip`, MFA pending/setup flags, and password-change state.
