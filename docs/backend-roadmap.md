@@ -6313,3 +6313,7 @@ Target outcome:
       and quota release: expired sessions are marked with one typed UUID-array
       update, and user/domain/company quota ledgers are decremented through
       aggregated CTEs instead of one write sequence per expired session.
+1738. TASK-090 message storage GC lookup now removes correlated per-candidate
+      reference counts from bulk delete and IMAP EXPUNGE paths.  Both queries
+      build target storage paths once, group `messages` references by path, and
+      return only paths whose grouped reference count is one.

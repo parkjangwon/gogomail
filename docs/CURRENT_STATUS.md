@@ -8,6 +8,12 @@ Last updated: 2026-05-21 (SaaS launch hardening continues: attachment cleanup ba
 - Regression coverage locks the SQL shape so cleanup cannot silently fall back to per-session update loops.
 - Verification: `go test ./internal/maildb -run 'TestExpireAttachmentUploadSessionsSQLUsesBatchUpdates|TestPostgresExpireAttachmentUploadSessionsReleasesQuota'` passes.
 
+## Message Storage GC Lookup Optimization (2026-05-21)
+- Bulk delete and IMAP EXPUNGE storage-path lookups now compute target storage paths once and join against grouped reference counts, instead of running a correlated `COUNT(*)` against `messages` for each candidate row.
+- The shared-object safety rule is preserved: only storage paths with exactly one database reference are returned for best-effort object deletion.
+- Regression coverage checks both bulk-delete and IMAP EXPUNGE SQL shapes for grouped `ref_counts` CTEs and rejects the old correlated-count form.
+- Verification: `go test ./internal/maildb -run 'TestStoragePathLookupSQLUsesGroupedReferenceCounts|TestPostgresBulkDeleteMessages|TestPostgresExpungeIMAPMessages'` passes.
+
 ## SaaS Launch Hardening Continuation (2026-05-21)
 - Organization chart user-unit lookup is now repository-backed instead of returning a placeholder error. `GetUserUnits` validates `user_id`, resolves active `organization_members` assignments through `organization_units`, and ignores ended memberships plus inactive units.
 - Migration `0115_organization_member_active_user_index.sql` adds a partial active-membership index for user-scoped organization lookups.
