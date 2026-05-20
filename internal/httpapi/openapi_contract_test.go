@@ -533,7 +533,7 @@ func TestOpenAPIDraftDocumentsAdminConsoleCapabilityLimits(t *testing.T) {
 		"ldap_read",
 		"ldap_sync",
 		"organization_sync",
-		"enum: [available, placeholder, planned]",
+		"enum: [available, unavailable, planned]",
 		"storage",
 		"StorageBackendCapabilities",
 	} {

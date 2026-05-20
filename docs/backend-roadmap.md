@@ -6585,3 +6585,7 @@ Target outcome:
 1810. Webmail security settings no longer render hardcoded fake session
       devices; the UI now presents the current session and real all-session
       revoke action only, with inline revoke failure feedback.
+1811. Admin console integration capabilities now report unconfigured LDAP sync
+      and organization sync as `unavailable` instead of `placeholder`, with the
+      OpenAPI schema, TypeScript client, and console organization status aligned
+      to avoid presenting non-executable sync integrations as launch-ready.

@@ -7,9 +7,9 @@ import (
 )
 
 const (
-	// CapabilityStatusPlaceholder marks organization sync as a product-visible
-	// placeholder until a real external directory adapter is configured.
-	CapabilityStatusPlaceholder = "placeholder"
+	// CapabilityStatusUnavailable marks organization sync as unavailable until
+	// a real external directory adapter is configured.
+	CapabilityStatusUnavailable = "unavailable"
 )
 
 // RepositoryInterface defines organization data access operations.

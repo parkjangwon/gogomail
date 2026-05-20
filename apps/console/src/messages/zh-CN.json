@@ -1590,6 +1590,8 @@
       "integration_status_config_required_message": "目录数据可以在本地管理。外部 LDAP 和组织同步需要先配置集成适配器，然后才能运行。",
       "integration_status_header": "集成状态",
       "integration_status_placeholder": "目录数据可以在本地管理。外部 LDAP 和组织同步需要先配置集成适配器，然后才能运行。",
+      "integration_status_unavailable": "不可用",
+      "integration_status_unavailable_message": "此部署不提供组织同步。本地目录管理仍然可用。",
       "integration_status_planned": "计划中",
       "integration_status_planned_message": "此部署未启用组织同步。本地目录管理仍然可用。",
       "max_domains": "Max Domains",

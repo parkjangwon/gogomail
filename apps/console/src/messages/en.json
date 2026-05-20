@@ -1726,6 +1726,8 @@
       "integration_status_config_required_message": "Directory data can be managed locally. External LDAP and organization sync actions require an integration adapter before operators can run them.",
       "integration_status_header": "Integration status",
       "integration_status_placeholder": "Directory data can be managed locally. External LDAP and organization sync actions require an integration adapter before operators can run them.",
+      "integration_status_unavailable": "Unavailable",
+      "integration_status_unavailable_message": "Organization sync is not available in this deployment. Local directory management remains available.",
       "integration_status_planned": "Planned",
       "integration_status_planned_message": "Organization sync is not enabled for this deployment. Local directory management remains available.",
       "max_domains": "Max Domains",

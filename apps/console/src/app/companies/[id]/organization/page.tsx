@@ -61,12 +61,12 @@ export default function OrganizationSettingsPage() {
   const integrationStatusLabel =
     integrationStatus === 'available'
       ? t('pages.organization_page.integration_status_available')
-      : integrationStatus === 'placeholder'
-        ? t('pages.organization_page.integration_status_config_required')
+      : integrationStatus === 'unavailable'
+        ? t('pages.organization_page.integration_status_unavailable')
         : t('pages.organization_page.integration_status_planned');
   const integrationStatusMessage =
-    integrationStatus === 'placeholder'
-      ? t('pages.organization_page.integration_status_config_required_message')
+    integrationStatus === 'unavailable'
+      ? t('pages.organization_page.integration_status_unavailable_message')
       : t('pages.organization_page.integration_status_planned_message');
 
   if (loading) {
@@ -129,7 +129,7 @@ export default function OrganizationSettingsPage() {
                     { label: t('pages.organization_page.description_label'), value: settings.description || '—' },
                     { label: t('pages.organization_page.max_users'), value: settings.max_users },
                     { label: t('pages.organization_page.max_domains'), value: settings.max_domains },
-                    { label: t('pages.organization_page.integration_status_header'), value: <Badge color={integrationStatus === 'available' ? 'green' : integrationStatus === 'placeholder' ? 'blue' : 'grey'}>{integrationStatusLabel}</Badge> },
+                    { label: t('pages.organization_page.integration_status_header'), value: <Badge color={integrationStatus === 'available' ? 'green' : integrationStatus === 'unavailable' ? 'grey' : 'blue'}>{integrationStatusLabel}</Badge> },
                     { label: t('pages.organization_page.created'), value: formatDateTime(settings.created_at) },
                   ]}
                 />
