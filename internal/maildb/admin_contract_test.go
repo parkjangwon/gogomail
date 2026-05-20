@@ -110,6 +110,54 @@ func TestValidateDomainListRequestRejectsUnknownFilters(t *testing.T) {
 	}
 }
 
+func TestListDomainsQueryUsesSargableFilters(t *testing.T) {
+	t.Parallel()
+
+	query, args := buildListDomainsQuery(DomainListRequest{
+		CompanyID: "company-1",
+	}, "active", "ok", 101)
+
+	for _, want := range []string{
+		"d.company_id::text = $1",
+		"d.status = $2",
+		"COALESCE(latest.status, '') = $3",
+		"ORDER BY d.created_at DESC",
+		"LIMIT $4",
+	} {
+		if !strings.Contains(query, want) {
+			t.Fatalf("domain list query missing %q:\n%s", want, query)
+		}
+	}
+	for _, forbidden := range []string{
+		"$1 = '' OR",
+		"$2 = '' OR",
+		"$3 = '' OR",
+		"NULLIF($",
+	} {
+		if strings.Contains(query, forbidden) {
+			t.Fatalf("domain list query contains non-sargable filter %q:\n%s", forbidden, query)
+		}
+	}
+	if len(args) != 4 {
+		t.Fatalf("args len = %d, want 4", len(args))
+	}
+}
+
+func TestListDomainsQueryOmitsEmptyFilters(t *testing.T) {
+	t.Parallel()
+
+	query, args := buildListDomainsQuery(DomainListRequest{}, "", "", 25)
+	if strings.Contains(query, "\nWHERE d.") || strings.Contains(query, "$1 = '' OR") || strings.Contains(query, "$2 = '' OR") || strings.Contains(query, "$3 = '' OR") {
+		t.Fatalf("unfiltered domain list query contains optional filters:\n%s", query)
+	}
+	if !strings.Contains(query, "LIMIT $1") {
+		t.Fatalf("unfiltered domain list query missing limit placeholder:\n%s", query)
+	}
+	if len(args) != 1 {
+		t.Fatalf("args len = %d, want 1", len(args))
+	}
+}
+
 func TestValidateUpdateDomainQuotaRequestRejectsNegativeQuota(t *testing.T) {
 	t.Parallel()
 

@@ -332,6 +332,7 @@ Go Backend (`internal/`):
 - 웹메일 Web Push 등록이 VAPID public key를 문자열 그대로 `PushManager.subscribe()`에 넘기지 않고 표준 `Uint8Array` applicationServerKey로 변환하도록 고정하고, 메일 화면 진입 시 알림 권한 프롬프트를 자동 표시하지 않도록 설정 화면의 명시적 opt-in 흐름으로 정리함
 - 웹메일 빠른 답장 템플릿을 브라우저 localStorage 전용 상태에서 서버 preferences 동기화 상태로 승격하고, Compose/Settings/Spotlight가 같은 normalized template cache를 보도록 정리함
 - 관리자 outbox event 목록 조회가 `NULLIF(...) OR ...` 조건으로 인덱스 선택성을 흐리지 않도록, 제공된 필터만 WHERE에 추가하는 sargable 동적 쿼리로 전환함
+- 관리자 domain 목록 조회도 company/status/DNS status 필터가 있을 때만 WHERE에 추가하도록 바꿔 도메인 운영 목록의 optional `OR` predicate를 제거함
 - 관리자 delivery attempt 목록 조회도 status/since/domain/message/farm/sender 필터를 제공된 조건만 포함하는 sargable WHERE로 전환해 대형 배송 기록 테이블에서 선택적 조회가 인덱스를 더 잘 타도록 정리함
 - delivery attempt 통계와 exhausted 목록도 같은 공통 sargable WHERE builder를 재사용하도록 바꿔, 대형 배송 기록 테이블을 읽는 list/stats/exhausted 운영 화면이 모두 optional `OR` predicate를 피하게 함
 - 관리자 사용자 목록 조회도 domain/status/password_configured 필터를 제공된 경우에만 WHERE에 추가하고, domain 필터는 typed UUID predicate로 바꿔 사용자 운영 목록의 optional `OR` predicate를 제거함
