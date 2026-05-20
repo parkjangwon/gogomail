@@ -6321,3 +6321,8 @@ Target outcome:
       updates and the shared aggregated quota-decrement CTE, matching upload
       session cleanup and avoiding one attachment update plus three quota
       writes per stale attachment.
+1740. TASK-090 thread list index coverage now includes folder-scoped and
+      unscoped partial expression indexes for active messages keyed by
+      `COALESCE(thread_id, id)` and the thread-list message timestamp
+      expression, supporting the existing aggregate query without changing
+      pagination semantics.

@@ -15,6 +15,11 @@ Last updated: 2026-05-21 (SaaS launch hardening continues: attachment cleanup ba
 - Regression coverage checks both bulk-delete and IMAP EXPUNGE SQL shapes for grouped `ref_counts` CTEs and rejects the old correlated-count form.
 - Verification: `go test ./internal/maildb -run 'TestStoragePathLookupSQLUsesGroupedReferenceCounts|TestPostgresBulkDeleteMessages|TestPostgresExpungeIMAPMessages'` passes.
 
+## Thread List Index Coverage (2026-05-21)
+- Migration `0117_thread_list_indexes.sql` adds active-message partial expression indexes for the thread list query's `COALESCE(thread_id, id)` thread key and `COALESCE(received_at, sent_at, draft_updated_at, created_at)` ordering expression.
+- Both folder-scoped and unscoped thread list scans are covered, matching the webmail thread-list filter behavior without changing pagination semantics.
+- Verification: `go test ./internal/database -run TestThreadListIndexMigrationMatchesThreadQueries` passes.
+
 ## SaaS Launch Hardening Continuation (2026-05-21)
 - Organization chart user-unit lookup is now repository-backed instead of returning a placeholder error. `GetUserUnits` validates `user_id`, resolves active `organization_members` assignments through `organization_units`, and ignores ended memberships plus inactive units.
 - Migration `0115_organization_member_active_user_index.sql` adds a partial active-membership index for user-scoped organization lookups.

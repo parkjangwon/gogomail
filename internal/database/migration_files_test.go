@@ -122,3 +122,28 @@ func TestDAVCollectionPropertyLanguageMigrationMatchesRepositoryColumns(t *testi
 		}
 	}
 }
+
+func TestThreadListIndexMigrationMatchesThreadQueries(t *testing.T) {
+	t.Parallel()
+
+	raw, err := os.ReadFile(filepath.Join("..", "..", "migrations", "0117_thread_list_indexes.sql"))
+	if err != nil {
+		t.Fatalf("read thread list index migration: %v", err)
+	}
+	text := string(raw)
+
+	required := []string{
+		"idx_messages_user_folder_thread_key_active_message_at",
+		"idx_messages_user_thread_key_active_message_at",
+		"COALESCE(thread_id, id)",
+		"COALESCE(received_at, sent_at, draft_updated_at, created_at) DESC",
+		"WHERE status = 'active'",
+		"DROP INDEX IF EXISTS idx_messages_user_thread_key_active_message_at",
+		"DROP INDEX IF EXISTS idx_messages_user_folder_thread_key_active_message_at",
+	}
+	for _, fragment := range required {
+		if !strings.Contains(text, fragment) {
+			t.Fatalf("migration 0117 must contain %q", fragment)
+		}
+	}
+}
