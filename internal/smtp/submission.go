@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"strings"
 	"time"
 
@@ -389,6 +390,25 @@ func (s *submissionSession) Data(r io.Reader) (err error) {
 		size = prefixedSize
 		observedSize = size
 	}
+
+	// Inject List-Unsubscribe for bulk sends (Google 2024 bulk sender policy).
+	// Only added when sending to multiple recipients and not already present.
+	if len(s.recipients) >= bulkRecipientThreshold {
+		if !messageHasListUnsubscribe(spooled, observedSize) {
+			_, fromDomain, _ := strings.Cut(s.from, "@")
+			unsubHeader := "List-Unsubscribe: <mailto:unsubscribe@" + fromDomain + "?subject=unsubscribe>\r\n" +
+				"List-Unsubscribe-Post: List-Unsubscribe=One-Click\r\n"
+			prefixed, prefixedSize, err := insertHeaderAfterTraceHeaders(spooled, unsubHeader)
+			cleanupSpool(spooled)
+			if err != nil {
+				return err
+			}
+			spooled = prefixed
+			size = prefixedSize
+			observedSize = size
+		}
+	}
+
 	if err := s.emit(context.Background(), Event{
 		Stage:          StageParsed,
 		EnvelopeFrom:   s.from,
@@ -479,6 +499,27 @@ func submittedMessageID(id string, fromAddress string) string {
 		id = randomMessageID()
 	}
 	return "<" + id + "@" + strings.ToLower(strings.TrimSpace(domain)) + ">"
+}
+
+// bulkRecipientThreshold is the minimum recipient count that triggers
+// List-Unsubscribe header injection (Google 2024 bulk sender policy).
+const bulkRecipientThreshold = 5
+
+// messageHasListUnsubscribe reports whether the spooled message already
+// contains a List-Unsubscribe header so we do not duplicate it.
+func messageHasListUnsubscribe(spooled *os.File, size int64) bool {
+	if _, err := spooled.Seek(0, io.SeekStart); err != nil {
+		return false
+	}
+	limit := size
+	if limit > 16*1024 { // only scan headers; 16 KiB is more than enough
+		limit = 16 * 1024
+	}
+	buf := make([]byte, limit)
+	n, _ := spooled.Read(buf)
+	lower := strings.ToLower(string(buf[:n]))
+	return strings.Contains(lower, "\nlist-unsubscribe:") ||
+		strings.HasPrefix(lower, "list-unsubscribe:")
 }
 
 func (s *submissionSession) emit(ctx context.Context, event Event) error {

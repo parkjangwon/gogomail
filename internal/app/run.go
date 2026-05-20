@@ -9,6 +9,7 @@ import (
 	"crypto/x509"
 	"database/sql"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -1210,6 +1211,50 @@ func (s *maildbSCIMUserService) ReplaceSCIMUser(ctx context.Context, id string, 
 	}
 	if err := s.repo.UpdateUserStatus(ctx, maildb.UpdateUserStatusRequest{ID: id, Status: status}); err != nil {
 		return scim.UserResource{}, httpapi.ErrSCIMUserNotFound
+	}
+	return s.GetSCIMUser(ctx, id)
+}
+
+func (s *maildbSCIMUserService) PatchSCIMUser(ctx context.Context, id string, ops []scim.PatchOperation) (scim.UserResource, error) {
+	// Verify the user exists first.
+	if _, err := s.repo.GetUser(ctx, id); err != nil {
+		return scim.UserResource{}, httpapi.ErrSCIMUserNotFound
+	}
+	for _, op := range ops {
+		switch strings.ToLower(op.Op) {
+		case "replace":
+			// Handle path-less replace with a value object.
+			if op.Path == "" {
+				var attrs map[string]json.RawMessage
+				if err := json.Unmarshal(op.Value, &attrs); err != nil {
+					continue
+				}
+				if raw, ok := attrs["active"]; ok {
+					var active bool
+					if err := json.Unmarshal(raw, &active); err == nil {
+						status := "active"
+						if !active {
+							status = "suspended"
+						}
+						_ = s.repo.UpdateUserStatus(ctx, maildb.UpdateUserStatusRequest{ID: id, Status: status})
+					}
+				}
+				continue
+			}
+			// Handle path-targeted replace.
+			switch strings.ToLower(op.Path) {
+			case "active":
+				var active bool
+				if err := json.Unmarshal(op.Value, &active); err != nil {
+					continue
+				}
+				status := "active"
+				if !active {
+					status = "suspended"
+				}
+				_ = s.repo.UpdateUserStatus(ctx, maildb.UpdateUserStatusRequest{ID: id, Status: status})
+			}
+		}
 	}
 	return s.GetSCIMUser(ctx, id)
 }

@@ -1,6 +1,7 @@
 package scim
 
 import (
+	"encoding/json"
 	"fmt"
 	"strconv"
 	"strings"
@@ -81,6 +82,13 @@ type ListResponse struct {
 	Resources    []UserResource `json:"Resources"`
 	StartIndex   int            `json:"startIndex,omitempty"`
 	ItemsPerPage int            `json:"itemsPerPage,omitempty"`
+}
+
+// PatchOperation represents a single RFC 7644 PATCH operation.
+type PatchOperation struct {
+	Op    string          `json:"op"`
+	Path  string          `json:"path,omitempty"`
+	Value json.RawMessage `json:"value,omitempty"`
 }
 
 func NewUserResource(id, userName string) UserResource {
