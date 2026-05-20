@@ -12,6 +12,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net"
 	"net/http"
 	"net/url"
@@ -557,7 +558,8 @@ func registerCompanyRoutes(mux *http.ServeMux, service AdminService, adminAuth f
 			}
 			company, err := service.GetCompany(r.Context(), claims.CompanyID)
 			if err != nil {
-				writeError(w, http.StatusInternalServerError, err.Error())
+				slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+				writeError(w, http.StatusInternalServerError, "internal server error")
 				return
 			}
 			writeJSON(w, http.StatusOK, map[string]any{"companies": []any{company}, "has_more": false})
@@ -569,7 +571,8 @@ func registerCompanyRoutes(mux *http.ServeMux, service AdminService, adminAuth f
 			ProbeMore: true,
 		})
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, err.Error())
+			slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+			writeError(w, http.StatusInternalServerError, "internal server error")
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"companies": companies, "has_more": hasMore})
@@ -754,7 +757,8 @@ func registerCompanyRoutes(mux *http.ServeMux, service AdminService, adminAuth f
 		}
 		users, err := listCompanyUsers(r.Context(), service, id, 1000)
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, err.Error())
+			slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+			writeError(w, http.StatusInternalServerError, "internal server error")
 			return
 		}
 		var buf bytes.Buffer
@@ -773,7 +777,8 @@ func registerCompanyRoutes(mux *http.ServeMux, service AdminService, adminAuth f
 		}
 		cw.Flush()
 		if err := cw.Error(); err != nil {
-			writeError(w, http.StatusInternalServerError, err.Error())
+			slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+			writeError(w, http.StatusInternalServerError, "internal server error")
 			return
 		}
 		w.Header().Set("Content-Type", "text/csv")
@@ -792,7 +797,8 @@ func registerCompanyRoutes(mux *http.ServeMux, service AdminService, adminAuth f
 		}
 		entries, err := service.ListCompanyConfig(r.Context(), id)
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, err.Error())
+			slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+			writeError(w, http.StatusInternalServerError, "internal server error")
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"config": entries})
@@ -816,7 +822,8 @@ func registerCompanyRoutes(mux *http.ServeMux, service AdminService, adminAuth f
 				writeError(w, http.StatusNotFound, err.Error())
 				return
 			}
-			writeError(w, http.StatusInternalServerError, err.Error())
+			slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+			writeError(w, http.StatusInternalServerError, "internal server error")
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"config": entry})
@@ -847,7 +854,8 @@ func registerCompanyRoutes(mux *http.ServeMux, service AdminService, adminAuth f
 				writeError(w, http.StatusConflict, err.Error())
 				return
 			}
-			writeError(w, http.StatusInternalServerError, err.Error())
+			slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+			writeError(w, http.StatusInternalServerError, "internal server error")
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"config": entry})
@@ -889,7 +897,8 @@ func registerCompanyRoutes(mux *http.ServeMux, service AdminService, adminAuth f
 				writeError(w, http.StatusConflict, err.Error())
 				return
 			}
-			writeError(w, http.StatusInternalServerError, err.Error())
+			slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+			writeError(w, http.StatusInternalServerError, "internal server error")
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"status": "ok"})
@@ -921,7 +930,8 @@ func registerCompanyRoutes(mux *http.ServeMux, service AdminService, adminAuth f
 			return
 		}
 		if err := service.PropagateCompanyConfig(r.Context(), id, scope, req.Key, req.Value, req.Locked); err != nil {
-			writeError(w, http.StatusInternalServerError, err.Error())
+			slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+			writeError(w, http.StatusInternalServerError, "internal server error")
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"status": "ok"})
@@ -962,17 +972,19 @@ func registerDomainRoutes(mux *http.ServeMux, service AdminService, adminAuth fu
 			CompanyID: companyID,
 			Status:    status,
 			DNSStatus: dnsStatus,
+			ProbeMore: true,
 		}
 		if err := maildb.ValidateDomainListRequest(listReq); err != nil {
 			writeError(w, http.StatusBadRequest, err.Error())
 			return
 		}
-		domains, err := service.ListDomains(r.Context(), listReq)
+		domains, hasMore, err := service.ListDomains(r.Context(), listReq)
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, err.Error())
+			slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+			writeError(w, http.StatusInternalServerError, "internal server error")
 			return
 		}
-		writeJSON(w, http.StatusOK, map[string]any{"domains": domains})
+		writeJSON(w, http.StatusOK, map[string]any{"domains": domains, "has_more": hasMore})
 	}))
 
 	mux.HandleFunc("GET /admin/v1/domains/{id}", adminAuth(func(w http.ResponseWriter, r *http.Request) {
@@ -1289,7 +1301,8 @@ func registerDomainRoutes(mux *http.ServeMux, service AdminService, adminAuth fu
 		}
 		keys, err := service.ListAPIKeys(r.Context(), id)
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, err.Error())
+			slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+			writeError(w, http.StatusInternalServerError, "internal server error")
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"keys": keys})
@@ -1341,7 +1354,8 @@ func registerDomainRoutes(mux *http.ServeMux, service AdminService, adminAuth fu
 		}
 		entries, err := service.ListDomainConfig(r.Context(), id)
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, err.Error())
+			slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+			writeError(w, http.StatusInternalServerError, "internal server error")
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"config": entries})
@@ -1365,7 +1379,8 @@ func registerDomainRoutes(mux *http.ServeMux, service AdminService, adminAuth fu
 				writeError(w, http.StatusNotFound, err.Error())
 				return
 			}
-			writeError(w, http.StatusInternalServerError, err.Error())
+			slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+			writeError(w, http.StatusInternalServerError, "internal server error")
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"config": entry})
@@ -1396,7 +1411,8 @@ func registerDomainRoutes(mux *http.ServeMux, service AdminService, adminAuth fu
 				writeError(w, http.StatusConflict, err.Error())
 				return
 			}
-			writeError(w, http.StatusInternalServerError, err.Error())
+			slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+			writeError(w, http.StatusInternalServerError, "internal server error")
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"config": entry})
@@ -1438,7 +1454,8 @@ func registerDomainRoutes(mux *http.ServeMux, service AdminService, adminAuth fu
 				writeError(w, http.StatusConflict, err.Error())
 				return
 			}
-			writeError(w, http.StatusInternalServerError, err.Error())
+			slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+			writeError(w, http.StatusInternalServerError, "internal server error")
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"status": "ok"})
@@ -1510,17 +1527,19 @@ func registerUserAndConfigRoutes(mux *http.ServeMux, service AdminService, token
 			Status:             status,
 			PasswordConfigured: passwordConfigured,
 			Limit:              limit,
+			ProbeMore:          true,
 		}
 		if err := maildb.ValidateUserListRequest(listReq); err != nil {
 			writeError(w, http.StatusBadRequest, err.Error())
 			return
 		}
-		users, err := service.ListUsers(r.Context(), listReq)
+		users, hasMore, err := service.ListUsers(r.Context(), listReq)
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, err.Error())
+			slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+			writeError(w, http.StatusInternalServerError, "internal server error")
 			return
 		}
-		writeJSON(w, http.StatusOK, map[string]any{"users": users})
+		writeJSON(w, http.StatusOK, map[string]any{"users": users, "has_more": hasMore})
 	}))
 
 	mux.HandleFunc("GET /admin/v1/users/{id}", adminAuth(func(w http.ResponseWriter, r *http.Request) {
@@ -1807,7 +1826,8 @@ func registerUserAndConfigRoutes(mux *http.ServeMux, service AdminService, token
 		}
 		entries, err := service.ListUserConfig(r.Context(), id)
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, err.Error())
+			slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+			writeError(w, http.StatusInternalServerError, "internal server error")
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"config": entries})
@@ -1831,7 +1851,8 @@ func registerUserAndConfigRoutes(mux *http.ServeMux, service AdminService, token
 				writeError(w, http.StatusNotFound, err.Error())
 				return
 			}
-			writeError(w, http.StatusInternalServerError, err.Error())
+			slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+			writeError(w, http.StatusInternalServerError, "internal server error")
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"config": entry})
@@ -1860,7 +1881,8 @@ func registerUserAndConfigRoutes(mux *http.ServeMux, service AdminService, token
 		}
 		status, err := service.GetUserMFAStatus(r.Context(), id)
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, err.Error())
+			slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+			writeError(w, http.StatusInternalServerError, "internal server error")
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"mfa_status": status})
@@ -1889,7 +1911,8 @@ func registerUserAndConfigRoutes(mux *http.ServeMux, service AdminService, token
 		}
 		stats, err := service.GetMFAStats(r.Context(), id)
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, err.Error())
+			slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+			writeError(w, http.StatusInternalServerError, "internal server error")
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"mfa_stats": stats})
@@ -1951,7 +1974,8 @@ func registerOperationsRoutes(mux *http.ServeMux, service AdminService, cfg admi
 		}
 		stats, err := service.ListQueueStats(r.Context())
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, err.Error())
+			slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+			writeError(w, http.StatusInternalServerError, "internal server error")
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"queues": stats})
@@ -1976,7 +2000,8 @@ func registerOperationsRoutes(mux *http.ServeMux, service AdminService, cfg admi
 			}
 			entries, err := cfg.dlqReader.ListDLQ(r.Context(), stream, int64(count))
 			if err != nil {
-				writeError(w, http.StatusInternalServerError, err.Error())
+				slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+				writeError(w, http.StatusInternalServerError, "internal server error")
 				return
 			}
 			writeJSON(w, http.StatusOK, map[string]any{"dlq_entries": entries})
@@ -2070,18 +2095,19 @@ func registerOperationsRoutes(mux *http.ServeMux, service AdminService, cfg admi
 		if !ok {
 			return
 		}
-		events, err := service.ListOutboxEvents(r.Context(), maildb.OutboxEventListRequest{
+		events, hasMore, err := service.ListOutboxEvents(r.Context(), maildb.OutboxEventListRequest{
 			Limit:        limit,
 			Topic:        topic,
 			PartitionKey: partitionKey,
 			Status:       status,
 			Since:        since,
+			ProbeMore:    true,
 		})
 		if err != nil {
 			writeError(w, http.StatusBadRequest, err.Error())
 			return
 		}
-		writeJSON(w, http.StatusOK, map[string]any{"outbox_events": events})
+		writeJSON(w, http.StatusOK, map[string]any{"outbox_events": events, "has_more": hasMore})
 	}))
 
 	mux.HandleFunc("GET /admin/v1/outbox-events/{id}", adminAuth(func(w http.ResponseWriter, r *http.Request) {
@@ -2112,12 +2138,14 @@ func registerOperationsRoutes(mux *http.ServeMux, service AdminService, cfg admi
 		if !ok {
 			return
 		}
-		logs, err := service.ListAuditLogs(r.Context(), req)
+		req.ProbeMore = true
+		logs, hasMore, err := service.ListAuditLogs(r.Context(), req)
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, err.Error())
+			slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+			writeError(w, http.StatusInternalServerError, "internal server error")
 			return
 		}
-		writeJSON(w, http.StatusOK, map[string]any{"audit_logs": logs})
+		writeJSON(w, http.StatusOK, map[string]any{"audit_logs": logs, "has_more": hasMore})
 	}))
 
 	mux.HandleFunc("GET /admin/v1/audit-logs/integrity", adminAuth(func(w http.ResponseWriter, r *http.Request) {
@@ -2137,7 +2165,8 @@ func registerOperationsRoutes(mux *http.ServeMux, service AdminService, cfg admi
 			Since: since,
 		})
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, err.Error())
+			slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+			writeError(w, http.StatusInternalServerError, "internal server error")
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"audit_log_integrity": view})
@@ -2173,7 +2202,8 @@ func registerOperationsRoutes(mux *http.ServeMux, service AdminService, cfg admi
 		}
 		logs, err := service.ListMailFlowLogs(r.Context(), req)
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, err.Error())
+			slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+			writeError(w, http.StatusInternalServerError, "internal server error")
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"mail_flow_logs": logs})
@@ -2189,7 +2219,8 @@ func registerOperationsRoutes(mux *http.ServeMux, service AdminService, cfg admi
 		}
 		stats, err := service.GetMailFlowLogStats(r.Context(), req)
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, err.Error())
+			slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+			writeError(w, http.StatusInternalServerError, "internal server error")
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"mail_flow_stats": stats})
@@ -2205,7 +2236,8 @@ func registerOperationsRoutes(mux *http.ServeMux, service AdminService, cfg admi
 		}
 		stats, err := service.GetMailFlowLogDailyStats(r.Context(), req)
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, err.Error())
+			slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+			writeError(w, http.StatusInternalServerError, "internal server error")
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"mail_flow_daily_stats": stats})
@@ -2537,7 +2569,8 @@ func registerDirectoryRoutes(mux *http.ServeMux, service AdminService, adminAuth
 		}
 		state, err := backpressureService.GetBackpressure(r.Context())
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, err.Error())
+			slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+			writeError(w, http.StatusInternalServerError, "internal server error")
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"backpressure": state})
@@ -2622,22 +2655,26 @@ func registerStorageRoutes(mux *http.ServeMux, service AdminService, adminAuth f
 		}
 		counts, err := service.CountStaleAttachmentUploads(r.Context(), before, req.Limit)
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, err.Error())
+			slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+			writeError(w, http.StatusInternalServerError, "internal server error")
 			return
 		}
 		sessionCounts, err := service.CountStaleAttachmentUploadSessions(r.Context(), before, req.Limit)
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, err.Error())
+			slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+			writeError(w, http.StatusInternalServerError, "internal server error")
 			return
 		}
 		candidates, err := service.ListStaleAttachmentUploads(r.Context(), before, req.Limit)
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, err.Error())
+			slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+			writeError(w, http.StatusInternalServerError, "internal server error")
 			return
 		}
 		sessionCandidates, err := service.ListStaleAttachmentUploadSessions(r.Context(), before, req.Limit)
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, err.Error())
+			slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+			writeError(w, http.StatusInternalServerError, "internal server error")
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{
@@ -2686,7 +2723,8 @@ func registerStorageRoutes(mux *http.ServeMux, service AdminService, adminAuth f
 		}
 		sessions, err := service.ListAttachmentUploadSessions(r.Context(), req)
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, err.Error())
+			slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+			writeError(w, http.StatusInternalServerError, "internal server error")
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"attachment_upload_sessions": sessions})
@@ -2724,7 +2762,8 @@ func registerStorageRoutes(mux *http.ServeMux, service AdminService, adminAuth f
 		}
 		sessions, err := service.ListDriveUploadSessions(r.Context(), req)
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, err.Error())
+			slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+			writeError(w, http.StatusInternalServerError, "internal server error")
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"drive_upload_sessions": sessions})
@@ -2790,7 +2829,8 @@ func registerStorageRoutes(mux *http.ServeMux, service AdminService, adminAuth f
 		}
 		nodes, err := service.ListDriveNodes(r.Context(), req)
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, err.Error())
+			slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+			writeError(w, http.StatusInternalServerError, "internal server error")
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"drive_nodes": nodes})
@@ -2827,7 +2867,8 @@ func registerStorageRoutes(mux *http.ServeMux, service AdminService, adminAuth f
 		}
 		node, err := service.GetDriveNode(r.Context(), req)
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, err.Error())
+			slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+			writeError(w, http.StatusInternalServerError, "internal server error")
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"drive_node": node})
@@ -2855,7 +2896,8 @@ func registerStorageRoutes(mux *http.ServeMux, service AdminService, adminAuth f
 		}
 		summary, err := service.GetDriveUsageSummary(r.Context(), req)
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, err.Error())
+			slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+			writeError(w, http.StatusInternalServerError, "internal server error")
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"drive_usage_summary": summary})
@@ -2876,12 +2918,14 @@ func registerStorageRoutes(mux *http.ServeMux, service AdminService, adminAuth f
 		}
 		counts, err := service.CountStaleDriveUploadSessions(r.Context(), before, req.Limit)
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, err.Error())
+			slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+			writeError(w, http.StatusInternalServerError, "internal server error")
 			return
 		}
 		sessionCandidates, err := service.ListStaleDriveUploadSessions(r.Context(), before, req.Limit)
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, err.Error())
+			slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+			writeError(w, http.StatusInternalServerError, "internal server error")
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{
@@ -2910,12 +2954,14 @@ func registerStorageRoutes(mux *http.ServeMux, service AdminService, adminAuth f
 		}
 		counts, err := service.CountStaleDriveUploadSessions(r.Context(), before, req.Limit)
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, err.Error())
+			slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+			writeError(w, http.StatusInternalServerError, "internal server error")
 			return
 		}
 		expired, err := service.RunDriveUploadSessionCleanup(r.Context(), before, req.Limit)
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, err.Error())
+			slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+			writeError(w, http.StatusInternalServerError, "internal server error")
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{
@@ -2958,7 +3004,8 @@ func registerStorageRoutes(mux *http.ServeMux, service AdminService, adminAuth f
 		}
 		failures, err := service.ListDriveObjectCleanupFailures(r.Context(), req)
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, err.Error())
+			slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+			writeError(w, http.StatusInternalServerError, "internal server error")
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"drive_cleanup_failures": failures})
@@ -3004,7 +3051,8 @@ func registerStorageRoutes(mux *http.ServeMux, service AdminService, adminAuth f
 		}
 		result, err := service.RetryDriveObjectCleanupFailures(r.Context(), req)
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, err.Error())
+			slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+			writeError(w, http.StatusInternalServerError, "internal server error")
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{
@@ -3034,12 +3082,14 @@ func registerStorageRoutes(mux *http.ServeMux, service AdminService, adminAuth f
 		}
 		counts, err := service.CountStaleAttachmentUploads(r.Context(), before, req.Limit)
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, err.Error())
+			slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+			writeError(w, http.StatusInternalServerError, "internal server error")
 			return
 		}
 		sessionCounts, err := service.CountStaleAttachmentUploadSessions(r.Context(), before, req.Limit)
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, err.Error())
+			slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+			writeError(w, http.StatusInternalServerError, "internal server error")
 			return
 		}
 		expiredCount := 0
@@ -3047,13 +3097,15 @@ func registerStorageRoutes(mux *http.ServeMux, service AdminService, adminAuth f
 		if !req.DryRun {
 			expired, err := service.RunAttachmentCleanup(r.Context(), before, req.Limit)
 			if err != nil {
-				writeError(w, http.StatusInternalServerError, err.Error())
+				slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+				writeError(w, http.StatusInternalServerError, "internal server error")
 				return
 			}
 			expiredCount = len(expired)
 			expiredSessions, err := service.RunAttachmentUploadSessionCleanup(r.Context(), before, req.Limit)
 			if err != nil {
-				writeError(w, http.StatusInternalServerError, err.Error())
+				slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+				writeError(w, http.StatusInternalServerError, "internal server error")
 				return
 			}
 			expiredSessionCount = len(expiredSessions)
@@ -3129,7 +3181,8 @@ func registerUsageAndQuotaRoutes(mux *http.ServeMux, service AdminService, admin
 		}
 		usages, err := service.ListAPIUsageLedger(r.Context(), req)
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, err.Error())
+			slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+			writeError(w, http.StatusInternalServerError, "internal server error")
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"api_usage_ledger": usages})
@@ -3149,7 +3202,8 @@ func registerUsageAndQuotaRoutes(mux *http.ServeMux, service AdminService, admin
 		}
 		usages, err := service.ListAPIUsageLedger(r.Context(), req)
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, err.Error())
+			slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+			writeError(w, http.StatusInternalServerError, "internal server error")
 			return
 		}
 		w.Header().Set("Cache-Control", "no-store")
@@ -3166,7 +3220,8 @@ func registerUsageAndQuotaRoutes(mux *http.ServeMux, service AdminService, admin
 		}
 		stats, err := service.GetAPIUsageLedgerStats(r.Context(), req)
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, err.Error())
+			slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+			writeError(w, http.StatusInternalServerError, "internal server error")
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"api_usage_ledger_stats": stats})
@@ -3182,7 +3237,8 @@ func registerUsageAndQuotaRoutes(mux *http.ServeMux, service AdminService, admin
 		}
 		readiness, err := service.GetAPIUsageLedgerRetentionReadiness(r.Context(), req)
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, err.Error())
+			slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+			writeError(w, http.StatusInternalServerError, "internal server error")
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"api_usage_ledger_retention_readiness": readiness})
@@ -3225,7 +3281,8 @@ func registerUsageAndQuotaRoutes(mux *http.ServeMux, service AdminService, admin
 		}
 		runs, err := service.ListAPIUsageLedgerRetentionRuns(r.Context(), req)
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, err.Error())
+			slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+			writeError(w, http.StatusInternalServerError, "internal server error")
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"api_usage_ledger_retention_runs": runs})
@@ -3257,7 +3314,8 @@ func registerUsageAndQuotaRoutes(mux *http.ServeMux, service AdminService, admin
 		}
 		readiness, err := service.GetDAVSyncRetentionReadiness(r.Context(), req)
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, err.Error())
+			slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+			writeError(w, http.StatusInternalServerError, "internal server error")
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"dav_sync_retention_readiness": readiness})
@@ -3300,7 +3358,8 @@ func registerUsageAndQuotaRoutes(mux *http.ServeMux, service AdminService, admin
 		}
 		runs, err := service.ListDAVSyncRetentionRuns(r.Context(), req)
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, err.Error())
+			slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+			writeError(w, http.StatusInternalServerError, "internal server error")
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"dav_sync_retention_runs": runs})
@@ -3328,7 +3387,8 @@ func registerUsageAndQuotaRoutes(mux *http.ServeMux, service AdminService, admin
 		}
 		capabilities, err := service.GetAPIUsageExportCapabilities(r.Context())
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, err.Error())
+			slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+			writeError(w, http.StatusInternalServerError, "internal server error")
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"api_usage_export_capabilities": capabilities})
@@ -3351,7 +3411,8 @@ func registerUsageAndQuotaRoutes(mux *http.ServeMux, service AdminService, admin
 		}
 		batch, err := service.CreateAPIUsageExportBatch(r.Context(), req)
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, err.Error())
+			slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+			writeError(w, http.StatusInternalServerError, "internal server error")
 			return
 		}
 		writeJSON(w, http.StatusCreated, map[string]any{"api_usage_export_batch": batch})
@@ -3371,7 +3432,8 @@ func registerUsageAndQuotaRoutes(mux *http.ServeMux, service AdminService, admin
 		}
 		batches, err := service.ListAPIUsageExportBatches(r.Context(), req)
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, err.Error())
+			slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+			writeError(w, http.StatusInternalServerError, "internal server error")
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"api_usage_export_batches": batches})
@@ -3433,7 +3495,8 @@ func registerUsageAndQuotaRoutes(mux *http.ServeMux, service AdminService, admin
 		req := apiUsageLedgerRequestFromBatch(batch, limit)
 		usages, err := service.ListAPIUsageLedger(r.Context(), req)
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, err.Error())
+			slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+			writeError(w, http.StatusInternalServerError, "internal server error")
 			return
 		}
 		w.Header().Set("Cache-Control", "no-store")
@@ -3477,7 +3540,8 @@ func registerUsageAndQuotaRoutes(mux *http.ServeMux, service AdminService, admin
 		}
 		artifacts, err := service.ListAPIUsageExportArtifacts(r.Context(), id, limit)
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, err.Error())
+			slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+			writeError(w, http.StatusInternalServerError, "internal server error")
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"api_usage_export_artifacts": artifacts})
@@ -3596,7 +3660,8 @@ func registerUsageAndQuotaRoutes(mux *http.ServeMux, service AdminService, admin
 		}
 		digests, err := service.ListAPIUsageExportManifestDigests(r.Context(), id, limit)
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, err.Error())
+			slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+			writeError(w, http.StatusInternalServerError, "internal server error")
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"api_usage_export_manifest_digests": digests})
@@ -3667,7 +3732,8 @@ func registerUsageAndQuotaRoutes(mux *http.ServeMux, service AdminService, admin
 		}
 		signatures, err := service.ListAPIUsageExportManifestSignatures(r.Context(), id, digestID, limit)
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, err.Error())
+			slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+			writeError(w, http.StatusInternalServerError, "internal server error")
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"api_usage_export_manifest_signatures": signatures})
@@ -3715,7 +3781,8 @@ func registerUsageAndQuotaRoutes(mux *http.ServeMux, service AdminService, admin
 		}
 		reconciliation, err := service.ListQuotaReconciliation(r.Context(), limit)
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, err.Error())
+			slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+			writeError(w, http.StatusInternalServerError, "internal server error")
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"quota_reconciliation": reconciliation})
@@ -3762,7 +3829,8 @@ func registerUsageAndQuotaRoutes(mux *http.ServeMux, service AdminService, admin
 			Scope:     scope,
 		})
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, err.Error())
+			slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+			writeError(w, http.StatusInternalServerError, "internal server error")
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"quota_alert_thresholds": thresholds})
@@ -3889,7 +3957,8 @@ func registerUsageAndQuotaRoutes(mux *http.ServeMux, service AdminService, admin
 			Until:     until,
 		})
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, err.Error())
+			slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+			writeError(w, http.StatusInternalServerError, "internal server error")
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"quota_alerts": alerts})
@@ -3945,7 +4014,7 @@ func registerDeliveryAndMailRoutes(mux *http.ServeMux, service AdminService, adm
 		if !ok {
 			return
 		}
-		attempts, err := service.ListDeliveryAttempts(r.Context(), maildb.DeliveryAttemptListRequest{
+		attempts, hasMore, err := service.ListDeliveryAttempts(r.Context(), maildb.DeliveryAttemptListRequest{
 			Limit:           limit,
 			Status:          status,
 			RecipientDomain: recipientDomain,
@@ -3953,12 +4022,13 @@ func registerDeliveryAndMailRoutes(mux *http.ServeMux, service AdminService, adm
 			Farm:            farm,
 			Sender:          sender,
 			Since:           since,
+			ProbeMore:       true,
 		})
 		if err != nil {
 			writeError(w, http.StatusBadRequest, err.Error())
 			return
 		}
-		writeJSON(w, http.StatusOK, map[string]any{"delivery_attempts": attempts})
+		writeJSON(w, http.StatusOK, map[string]any{"delivery_attempts": attempts, "has_more": hasMore})
 	}))
 
 	mux.HandleFunc("GET /admin/v1/delivery-attempts/stats", adminAuth(func(w http.ResponseWriter, r *http.Request) {
@@ -4041,7 +4111,8 @@ func registerDeliveryAndMailRoutes(mux *http.ServeMux, service AdminService, adm
 			Since:           since,
 		})
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, err.Error())
+			slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+			writeError(w, http.StatusInternalServerError, "internal server error")
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"exhausted_attempts": attempts})
@@ -4176,7 +4247,8 @@ func registerDeliveryAndMailRoutes(mux *http.ServeMux, service AdminService, adm
 			Since:     since,
 		})
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, err.Error())
+			slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+			writeError(w, http.StatusInternalServerError, "internal server error")
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"push_notification_stats": stats})
@@ -4214,7 +4286,8 @@ func registerDeliveryAndMailRoutes(mux *http.ServeMux, service AdminService, adm
 		}
 		entries, err := service.ListSuppressionEntries(r.Context(), listReq)
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, err.Error())
+			slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+			writeError(w, http.StatusInternalServerError, "internal server error")
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"suppression_list": entries})
@@ -4247,7 +4320,8 @@ func registerDeliveryAndMailRoutes(mux *http.ServeMux, service AdminService, adm
 		}
 		relays, err := service.ListTrustedRelays(r.Context(), listReq)
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, err.Error())
+			slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+			writeError(w, http.StatusInternalServerError, "internal server error")
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"trusted_relays": relays})
@@ -4304,7 +4378,8 @@ func registerDeliveryAndMailRoutes(mux *http.ServeMux, service AdminService, adm
 		}
 		routes, err := service.ListDeliveryRoutes(r.Context(), listReq)
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, err.Error())
+			slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+			writeError(w, http.StatusInternalServerError, "internal server error")
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"delivery_routes": routes})
@@ -4418,7 +4493,8 @@ func registerDeliveryAndMailRoutes(mux *http.ServeMux, service AdminService, adm
 		}
 		keys, err := service.ListDKIMKeys(r.Context(), listReq)
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, err.Error())
+			slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+			writeError(w, http.StatusInternalServerError, "internal server error")
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"dkim_keys": keys})
@@ -4924,7 +5000,7 @@ func handleAdminHealth(w http.ResponseWriter, r *http.Request, service AdminServ
 	}
 
 	auditStart := time.Now()
-	_, auditErr := service.ListAuditLogs(r.Context(), maildb.AuditLogListRequest{Limit: 1})
+	_, _, auditErr := service.ListAuditLogs(r.Context(), maildb.AuditLogListRequest{Limit: 1})
 	auditElapsed := time.Since(auditStart).Milliseconds()
 	auditStatus := "healthy"
 	if auditErr != nil {
@@ -5010,7 +5086,8 @@ func handleUpdateOrganizationSettings(w http.ResponseWriter, r *http.Request, se
 	if req.Name != "" && req.Name != company.Name {
 		updated, err := service.UpdateCompany(ctx, maildb.UpdateCompanyRequest{ID: company.ID, Name: req.Name})
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, err.Error())
+			slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+			writeError(w, http.StatusInternalServerError, "internal server error")
 			return
 		}
 		company = updated
@@ -5020,7 +5097,8 @@ func handleUpdateOrganizationSettings(w http.ResponseWriter, r *http.Request, se
 	}
 	b, _ := json.Marshal(req)
 	if _, err := service.SetCompanyConfig(ctx, company.ID, orgSettingsKey, json.RawMessage(b), false, 0); err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
+		slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+		writeError(w, http.StatusInternalServerError, "internal server error")
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
@@ -5051,13 +5129,13 @@ func checkUserLimit(ctx context.Context, service AdminService, companyID string)
 		return ""
 	}
 	// Count all users in the company by summing users across all domains.
-	domains, err := service.ListDomains(ctx, maildb.DomainListRequest{CompanyID: companyID, Limit: 10000})
+	domains, _, err := service.ListDomains(ctx, maildb.DomainListRequest{CompanyID: companyID, Limit: 10000})
 	if err != nil {
 		return "" // don't block on error
 	}
 	total := 0
 	for _, d := range domains {
-		users, err := service.ListUsers(ctx, maildb.UserListRequest{DomainID: d.ID, Limit: cfg.MaxUsers + 1})
+		users, _, err := service.ListUsers(ctx, maildb.UserListRequest{DomainID: d.ID, Limit: cfg.MaxUsers + 1})
 		if err != nil {
 			continue
 		}
@@ -5076,7 +5154,7 @@ func checkDomainLimit(ctx context.Context, service AdminService, companyID strin
 	if cfg.MaxDomains <= 0 {
 		return ""
 	}
-	domains, err := service.ListDomains(ctx, maildb.DomainListRequest{CompanyID: companyID, Limit: cfg.MaxDomains + 1})
+	domains, _, err := service.ListDomains(ctx, maildb.DomainListRequest{CompanyID: companyID, Limit: cfg.MaxDomains + 1})
 	if err != nil {
 		return "" // don't block on error
 	}
@@ -5092,7 +5170,7 @@ func handleListCompliance(w http.ResponseWriter, r *http.Request, service AdminS
 	now := time.Now().UTC()
 
 	// Gather real system state for compliance checks.
-	auditLogs, _ := service.ListAuditLogs(ctx, maildb.AuditLogListRequest{Limit: 1})
+	auditLogs, _, _ := service.ListAuditLogs(ctx, maildb.AuditLogListRequest{Limit: 1})
 	auditActive := len(auditLogs) > 0
 
 	companies, _, _ := service.ListCompanies(ctx, maildb.CompanyListRequest{Limit: 1})
@@ -5210,7 +5288,8 @@ func handleListRoles(w http.ResponseWriter, r *http.Request, service AdminServic
 	}
 	roles, err := service.ListAdminRoles(r.Context(), companyID)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
+		slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+		writeError(w, http.StatusInternalServerError, "internal server error")
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"roles": roles})
@@ -5254,9 +5333,9 @@ func handleListReports(w http.ResponseWriter, r *http.Request, service AdminServ
 	defer r.Body.Close()
 	ctx := r.Context()
 
-	auditLogs, _ := service.ListAuditLogs(ctx, maildb.AuditLogListRequest{Limit: 1})
+	auditLogs, _, _ := service.ListAuditLogs(ctx, maildb.AuditLogListRequest{Limit: 1})
 	flowStats, _ := service.GetMailFlowLogStats(ctx, maildb.MailFlowLogStatsRequest{})
-	users, _ := service.ListUsers(ctx, maildb.UserListRequest{Limit: 1})
+	users, _, _ := service.ListUsers(ctx, maildb.UserListRequest{Limit: 1})
 
 	writeJSON(w, http.StatusOK, map[string]any{
 		"reports": []map[string]any{
@@ -5323,7 +5402,8 @@ func handleGetCompanyIPPolicy(w http.ResponseWriter, r *http.Request, service Ad
 			writeJSON(w, http.StatusOK, map[string]any{"policy": defaultIPAccessPolicy()})
 			return
 		}
-		writeError(w, http.StatusInternalServerError, err.Error())
+		slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+		writeError(w, http.StatusInternalServerError, "internal server error")
 		return
 	}
 	var policy ipAccessPolicy
@@ -5351,7 +5431,8 @@ func handlePutCompanyIPPolicy(w http.ResponseWriter, r *http.Request, service Ad
 		return
 	}
 	if _, err := service.SetCompanyConfig(r.Context(), id, ipAccessPolicyKey, json.RawMessage(b), false, 0); err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
+		slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+		writeError(w, http.StatusInternalServerError, "internal server error")
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"policy": policy})
@@ -5389,7 +5470,8 @@ func handleGetCompanyRetentionPolicy(w http.ResponseWriter, r *http.Request, ser
 			writeJSON(w, http.StatusOK, map[string]any{"policy": defaultRetentionPolicy()})
 			return
 		}
-		writeError(w, http.StatusInternalServerError, err.Error())
+		slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+		writeError(w, http.StatusInternalServerError, "internal server error")
 		return
 	}
 	var policy retentionPolicy
@@ -5417,7 +5499,8 @@ func handlePutCompanyRetentionPolicy(w http.ResponseWriter, r *http.Request, ser
 		return
 	}
 	if _, err := service.SetCompanyConfig(r.Context(), id, retentionPolicyKey, json.RawMessage(b), false, 0); err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
+		slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+		writeError(w, http.StatusInternalServerError, "internal server error")
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"policy": policy})
@@ -5435,7 +5518,8 @@ func handleGetDomainRetentionPolicy(w http.ResponseWriter, r *http.Request, serv
 			writeJSON(w, http.StatusOK, map[string]any{"policy": defaultRetentionPolicy()})
 			return
 		}
-		writeError(w, http.StatusInternalServerError, err.Error())
+		slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+		writeError(w, http.StatusInternalServerError, "internal server error")
 		return
 	}
 	var policy retentionPolicy
@@ -5463,7 +5547,8 @@ func handlePutDomainRetentionPolicy(w http.ResponseWriter, r *http.Request, serv
 		return
 	}
 	if _, err := service.SetDomainConfig(r.Context(), id, retentionPolicyKey, json.RawMessage(b), false, 0); err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
+		slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+		writeError(w, http.StatusInternalServerError, "internal server error")
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"policy": policy})
@@ -5481,7 +5566,8 @@ func handleGetDomainIPPolicy(w http.ResponseWriter, r *http.Request, service Adm
 			writeJSON(w, http.StatusOK, map[string]any{"policy": defaultIPAccessPolicy()})
 			return
 		}
-		writeError(w, http.StatusInternalServerError, err.Error())
+		slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+		writeError(w, http.StatusInternalServerError, "internal server error")
 		return
 	}
 	var policy ipAccessPolicy
@@ -5509,7 +5595,8 @@ func handlePutDomainIPPolicy(w http.ResponseWriter, r *http.Request, service Adm
 		return
 	}
 	if _, err := service.SetDomainConfig(r.Context(), id, ipAccessPolicyKey, json.RawMessage(b), false, 0); err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
+		slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+		writeError(w, http.StatusInternalServerError, "internal server error")
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"policy": policy})
@@ -5915,7 +6002,8 @@ func handleListAdminUsers(w http.ResponseWriter, r *http.Request, service AdminS
 
 	users, err := service.ListAdminUsers(r.Context(), companyID)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
+		slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+		writeError(w, http.StatusInternalServerError, "internal server error")
 		return
 	}
 
@@ -5996,7 +6084,8 @@ func handleDeleteAdminUser(w http.ResponseWriter, r *http.Request, service Admin
 	}
 
 	if err := service.ClearUserAdminRole(r.Context(), id); err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
+		slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+		writeError(w, http.StatusInternalServerError, "internal server error")
 		return
 	}
 
@@ -6049,7 +6138,8 @@ func handleGetCompanyAuthPolicy(w http.ResponseWriter, r *http.Request, service 
 			writeJSON(w, http.StatusOK, map[string]any{"policy": defaultAuthPolicy()})
 			return
 		}
-		writeError(w, http.StatusInternalServerError, err.Error())
+		slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+		writeError(w, http.StatusInternalServerError, "internal server error")
 		return
 	}
 	var policy authPolicy
@@ -6077,7 +6167,8 @@ func handlePutCompanyAuthPolicy(w http.ResponseWriter, r *http.Request, service 
 		return
 	}
 	if _, err := service.SetCompanyConfig(r.Context(), id, authPolicyKey, json.RawMessage(b), false, 0); err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
+		slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+		writeError(w, http.StatusInternalServerError, "internal server error")
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"policy": policy})
@@ -6095,7 +6186,8 @@ func handleGetDomainAuthPolicy(w http.ResponseWriter, r *http.Request, service A
 			writeJSON(w, http.StatusOK, map[string]any{"policy": defaultAuthPolicy()})
 			return
 		}
-		writeError(w, http.StatusInternalServerError, err.Error())
+		slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+		writeError(w, http.StatusInternalServerError, "internal server error")
 		return
 	}
 	var policy authPolicy
@@ -6123,7 +6215,8 @@ func handlePutDomainAuthPolicy(w http.ResponseWriter, r *http.Request, service A
 		return
 	}
 	if _, err := service.SetDomainConfig(r.Context(), id, authPolicyKey, json.RawMessage(b), false, 0); err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
+		slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+		writeError(w, http.StatusInternalServerError, "internal server error")
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"policy": policy})
@@ -6166,7 +6259,8 @@ func handleGetCompanyAuditPolicy(w http.ResponseWriter, r *http.Request, service
 			writeJSON(w, http.StatusOK, map[string]any{"policy": policy})
 			return
 		}
-		writeError(w, http.StatusInternalServerError, err.Error())
+		slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+		writeError(w, http.StatusInternalServerError, "internal server error")
 		return
 	}
 	policy := defaultAuditPolicy()
@@ -6196,7 +6290,8 @@ func handlePutCompanyAuditPolicy(w http.ResponseWriter, r *http.Request, service
 		return
 	}
 	if _, err := service.SetCompanyConfig(r.Context(), id, auditPolicyKey, json.RawMessage(b), false, 0); err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
+		slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+		writeError(w, http.StatusInternalServerError, "internal server error")
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"policy": policy})
@@ -6273,7 +6368,8 @@ func handleGetCompanySecurityGovernancePolicy(w http.ResponseWriter, r *http.Req
 	}
 	policy, err := getCompanySecurityGovernancePolicy(r.Context(), service, id)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
+		slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+		writeError(w, http.StatusInternalServerError, "internal server error")
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"policy": policy})
@@ -6301,7 +6397,8 @@ func handlePutCompanySecurityGovernancePolicy(w http.ResponseWriter, r *http.Req
 		return
 	}
 	if _, err := service.SetCompanyConfig(r.Context(), id, securityGovernancePolicyKey, json.RawMessage(b), false, 0); err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
+		slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+		writeError(w, http.StatusInternalServerError, "internal server error")
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"policy": policy})
@@ -6319,7 +6416,8 @@ func handleGetDomainSecurityGovernancePolicy(w http.ResponseWriter, r *http.Requ
 			writeJSON(w, http.StatusOK, map[string]any{"policy": defaultSecurityGovernancePolicy()})
 			return
 		}
-		writeError(w, http.StatusInternalServerError, err.Error())
+		slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+		writeError(w, http.StatusInternalServerError, "internal server error")
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"policy": securityGovernanceFromEntry(entry)})
@@ -6347,7 +6445,8 @@ func handlePutDomainSecurityGovernancePolicy(w http.ResponseWriter, r *http.Requ
 		return
 	}
 	if _, err := service.SetDomainConfig(r.Context(), id, securityGovernancePolicyKey, json.RawMessage(b), false, 0); err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
+		slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+		writeError(w, http.StatusInternalServerError, "internal server error")
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"policy": policy})
@@ -6383,7 +6482,8 @@ func handleGetCompanySessionPolicy(w http.ResponseWriter, r *http.Request, servi
 			writeJSON(w, http.StatusOK, map[string]any{"policy": defaultSessionPolicy()})
 			return
 		}
-		writeError(w, http.StatusInternalServerError, err.Error())
+		slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+		writeError(w, http.StatusInternalServerError, "internal server error")
 		return
 	}
 	var policy sessionPolicy
@@ -6411,7 +6511,8 @@ func handlePutCompanySessionPolicy(w http.ResponseWriter, r *http.Request, servi
 		return
 	}
 	if _, err := service.SetCompanyConfig(r.Context(), id, sessionPolicyKey, json.RawMessage(b), false, 0); err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
+		slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+		writeError(w, http.StatusInternalServerError, "internal server error")
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"policy": policy})
@@ -6479,7 +6580,8 @@ func handleGetCompanyRateLimitPolicy(w http.ResponseWriter, r *http.Request, ser
 			writeJSON(w, http.StatusOK, map[string]any{"policy": defaultRateLimitPolicy()})
 			return
 		}
-		writeError(w, http.StatusInternalServerError, err.Error())
+		slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+		writeError(w, http.StatusInternalServerError, "internal server error")
 		return
 	}
 	var policy rateLimitPolicy
@@ -6507,7 +6609,8 @@ func handlePutCompanyRateLimitPolicy(w http.ResponseWriter, r *http.Request, ser
 		return
 	}
 	if _, err := service.SetCompanyConfig(r.Context(), id, rateLimitPolicyKey, json.RawMessage(b), false, 0); err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
+		slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+		writeError(w, http.StatusInternalServerError, "internal server error")
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"policy": policy})
@@ -6525,7 +6628,8 @@ func handleGetDomainRateLimitPolicy(w http.ResponseWriter, r *http.Request, serv
 			writeJSON(w, http.StatusOK, map[string]any{"policy": defaultRateLimitPolicy()})
 			return
 		}
-		writeError(w, http.StatusInternalServerError, err.Error())
+		slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+		writeError(w, http.StatusInternalServerError, "internal server error")
 		return
 	}
 	var policy rateLimitPolicy
@@ -6553,7 +6657,8 @@ func handlePutDomainRateLimitPolicy(w http.ResponseWriter, r *http.Request, serv
 		return
 	}
 	if _, err := service.SetDomainConfig(r.Context(), id, rateLimitPolicyKey, json.RawMessage(b), false, 0); err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
+		slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+		writeError(w, http.StatusInternalServerError, "internal server error")
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"policy": policy})
@@ -6631,7 +6736,8 @@ func handleGetCompanySpamFilterPolicy(w http.ResponseWriter, r *http.Request, se
 		_ = json.Unmarshal(entry.Value, &policy)
 		policy = spamfilter.NormalizePolicy(policy)
 	} else if !errors.Is(err, configstore.ErrConfigNotFound) {
-		writeError(w, http.StatusInternalServerError, err.Error())
+		slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+		writeError(w, http.StatusInternalServerError, "internal server error")
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"policy": policy})
@@ -6663,7 +6769,8 @@ func handlePutCompanySpamFilterPolicy(w http.ResponseWriter, r *http.Request, se
 		return
 	}
 	if _, err := service.SetCompanyConfig(r.Context(), id, spamFilterPolicyKey, json.RawMessage(b), false, 0); err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
+		slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+		writeError(w, http.StatusInternalServerError, "internal server error")
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"policy": policy})
@@ -6681,7 +6788,8 @@ func handleGetDomainSpamFilterPolicy(w http.ResponseWriter, r *http.Request, ser
 		_ = json.Unmarshal(entry.Value, &policy)
 		policy = spamfilter.NormalizePolicy(policy)
 	} else if !errors.Is(err, configstore.ErrConfigNotFound) {
-		writeError(w, http.StatusInternalServerError, err.Error())
+		slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+		writeError(w, http.StatusInternalServerError, "internal server error")
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"policy": policy})
@@ -6713,7 +6821,8 @@ func handlePutDomainSpamFilterPolicy(w http.ResponseWriter, r *http.Request, ser
 		return
 	}
 	if _, err := service.SetDomainConfig(r.Context(), id, spamFilterPolicyKey, json.RawMessage(b), false, 0); err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
+		slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+		writeError(w, http.StatusInternalServerError, "internal server error")
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"policy": policy})
@@ -6742,7 +6851,8 @@ func handleListCompanySpamFilterEvents(w http.ResponseWriter, r *http.Request, s
 	}
 	logs, err := service.ListMailFlowLogs(r.Context(), req)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
+		slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+		writeError(w, http.StatusInternalServerError, "internal server error")
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"spam_filter_events": logs})
@@ -6764,7 +6874,8 @@ func handleGetCompanySpamFilterStats(w http.ResponseWriter, r *http.Request, ser
 	req.Direction = string(maildb.MailFlowDirectionInbound)
 	stats, err := service.GetMailFlowLogStats(r.Context(), req)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
+		slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+		writeError(w, http.StatusInternalServerError, "internal server error")
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"spam_filter_stats": stats})
@@ -6781,7 +6892,8 @@ func handleGetCompanyQuotaSummary(w http.ResponseWriter, r *http.Request, servic
 
 	quotaItems, err := service.ListQuotaUsage(r.Context(), maildb.QuotaUsageListRequest{Limit: 1000})
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
+		slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+		writeError(w, http.StatusInternalServerError, "internal server error")
 		return
 	}
 
@@ -6854,7 +6966,8 @@ func handleGetCompanyRoutingRules(w http.ResponseWriter, r *http.Request, servic
 			cfg.Rules = []routingRule{}
 		}
 	} else if !errors.Is(err, configstore.ErrConfigNotFound) {
-		writeError(w, http.StatusInternalServerError, err.Error())
+		slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+		writeError(w, http.StatusInternalServerError, "internal server error")
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"rules": cfg.Rules})
@@ -6880,7 +6993,8 @@ func handlePutCompanyRoutingRules(w http.ResponseWriter, r *http.Request, servic
 		return
 	}
 	if _, err := service.SetCompanyConfig(r.Context(), id, routingRulesKey, json.RawMessage(b), false, 0); err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
+		slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+		writeError(w, http.StatusInternalServerError, "internal server error")
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"rules": cfg.Rules})
@@ -6900,7 +7014,8 @@ func handleGetDomainRoutingRules(w http.ResponseWriter, r *http.Request, service
 			cfg.Rules = []routingRule{}
 		}
 	} else if !errors.Is(err, configstore.ErrConfigNotFound) {
-		writeError(w, http.StatusInternalServerError, err.Error())
+		slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+		writeError(w, http.StatusInternalServerError, "internal server error")
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"rules": cfg.Rules})
@@ -6926,7 +7041,8 @@ func handlePutDomainRoutingRules(w http.ResponseWriter, r *http.Request, service
 		return
 	}
 	if _, err := service.SetDomainConfig(r.Context(), id, routingRulesKey, json.RawMessage(b), false, 0); err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
+		slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+		writeError(w, http.StatusInternalServerError, "internal server error")
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"rules": cfg.Rules})
@@ -6978,7 +7094,8 @@ func handleGetCompanySSOConfig(w http.ResponseWriter, r *http.Request, service A
 			writeJSON(w, http.StatusOK, map[string]any{"config": defaultSSOConfig()})
 			return
 		}
-		writeError(w, http.StatusInternalServerError, err.Error())
+		slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+		writeError(w, http.StatusInternalServerError, "internal server error")
 		return
 	}
 	var cfg ssoConfig
@@ -7006,7 +7123,8 @@ func handlePutCompanySSOConfig(w http.ResponseWriter, r *http.Request, service A
 		return
 	}
 	if _, err := service.SetCompanyConfig(r.Context(), id, ssoConfigKey, json.RawMessage(b), false, 0); err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
+		slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+		writeError(w, http.StatusInternalServerError, "internal server error")
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"config": cfg})
@@ -7024,7 +7142,8 @@ func handlePostCompanySSOTest(w http.ResponseWriter, r *http.Request, service Ad
 			writeError(w, http.StatusBadRequest, "SSO is not configured")
 			return
 		}
-		writeError(w, http.StatusInternalServerError, err.Error())
+		slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+		writeError(w, http.StatusInternalServerError, "internal server error")
 		return
 	}
 	var cfg ssoConfig
@@ -7139,7 +7258,8 @@ func handleGetDomainSMTPPolicy(w http.ResponseWriter, r *http.Request, service A
 			policy.DedicatedIPs = []string{}
 		}
 	} else if !errors.Is(err, configstore.ErrConfigNotFound) {
-		writeError(w, http.StatusInternalServerError, err.Error())
+		slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+		writeError(w, http.StatusInternalServerError, "internal server error")
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"policy": policy})
@@ -7169,7 +7289,8 @@ func handlePutDomainSMTPPolicy(w http.ResponseWriter, r *http.Request, service A
 		return
 	}
 	if _, err := service.SetDomainConfig(r.Context(), id, smtpPolicyKey, json.RawMessage(b), false, 0); err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
+		slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+		writeError(w, http.StatusInternalServerError, "internal server error")
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"policy": policy})
@@ -7186,7 +7307,8 @@ func handleGetDomainDmarcSpfPolicy(w http.ResponseWriter, r *http.Request, servi
 	if err == nil {
 		_ = json.Unmarshal(entry.Value, &policy)
 	} else if !errors.Is(err, configstore.ErrConfigNotFound) {
-		writeError(w, http.StatusInternalServerError, err.Error())
+		slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+		writeError(w, http.StatusInternalServerError, "internal server error")
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
@@ -7221,7 +7343,8 @@ func handlePutDomainDmarcSpfPolicy(w http.ResponseWriter, r *http.Request, servi
 		return
 	}
 	if _, err := service.SetDomainConfig(r.Context(), id, dmarcSpfPolicyKey, json.RawMessage(b), false, 0); err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
+		slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+		writeError(w, http.StatusInternalServerError, "internal server error")
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
@@ -7312,7 +7435,8 @@ func handleGetCompanyWebhooks(w http.ResponseWriter, r *http.Request, service Ad
 	}
 	cfg, err := getWebhooksConfig(r.Context(), service, id)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
+		slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+		writeError(w, http.StatusInternalServerError, "internal server error")
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"webhooks": publicWebhooks(cfg.Webhooks)})
@@ -7340,7 +7464,8 @@ func handlePostCompanyWebhook(w http.ResponseWriter, r *http.Request, service Ad
 	}
 	governance, err := getCompanySecurityGovernancePolicy(r.Context(), service, id)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
+		slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+		writeError(w, http.StatusInternalServerError, "internal server error")
 		return
 	}
 	allowPrivateNetwork := governance.WebhookPrivateNetworkAccess == "allow"
@@ -7351,7 +7476,8 @@ func handlePostCompanyWebhook(w http.ResponseWriter, r *http.Request, service Ad
 	}
 	cfg, err := getWebhooksConfig(r.Context(), service, id)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
+		slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+		writeError(w, http.StatusInternalServerError, "internal server error")
 		return
 	}
 	wh := webhook{
@@ -7368,7 +7494,8 @@ func handlePostCompanyWebhook(w http.ResponseWriter, r *http.Request, service Ad
 	}
 	cfg.Webhooks = append(cfg.Webhooks, wh)
 	if err := saveWebhooksConfig(r.Context(), service, id, cfg); err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
+		slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+		writeError(w, http.StatusInternalServerError, "internal server error")
 		return
 	}
 	writeJSON(w, http.StatusCreated, map[string]any{"webhook": wh})
@@ -7387,7 +7514,8 @@ func handleDeleteCompanyWebhook(w http.ResponseWriter, r *http.Request, service 
 	}
 	cfg, err := getWebhooksConfig(r.Context(), service, id)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
+		slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+		writeError(w, http.StatusInternalServerError, "internal server error")
 		return
 	}
 	found := false
@@ -7405,7 +7533,8 @@ func handleDeleteCompanyWebhook(w http.ResponseWriter, r *http.Request, service 
 	}
 	cfg.Webhooks = filtered
 	if err := saveWebhooksConfig(r.Context(), service, id, cfg); err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
+		slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+		writeError(w, http.StatusInternalServerError, "internal server error")
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
@@ -7424,7 +7553,8 @@ func handleTestCompanyWebhook(w http.ResponseWriter, r *http.Request, service Ad
 	}
 	cfg, err := getWebhooksConfig(r.Context(), service, id)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
+		slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+		writeError(w, http.StatusInternalServerError, "internal server error")
 		return
 	}
 	var target *webhook
@@ -7522,7 +7652,8 @@ func handleGetNotifTemplates(w http.ResponseWriter, r *http.Request, service Adm
 	}
 	cfg, err := getNotifTemplatesConfig(r.Context(), service, id)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
+		slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+		writeError(w, http.StatusInternalServerError, "internal server error")
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"templates": cfg.Templates})
@@ -7546,7 +7677,8 @@ func handlePutNotifTemplate(w http.ResponseWriter, r *http.Request, service Admi
 	}
 	cfg, err := getNotifTemplatesConfig(r.Context(), service, id)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
+		slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+		writeError(w, http.StatusInternalServerError, "internal server error")
 		return
 	}
 	found := false
@@ -7568,7 +7700,8 @@ func handlePutNotifTemplate(w http.ResponseWriter, r *http.Request, service Admi
 		return
 	}
 	if _, err := service.SetCompanyConfig(r.Context(), id, notifTemplatesKey, json.RawMessage(b), false, 0); err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
+		slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+		writeError(w, http.StatusInternalServerError, "internal server error")
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"template": input})
@@ -7594,9 +7727,10 @@ func handleExportCompanyAuditLogs(w http.ResponseWriter, r *http.Request, servic
 		Category:     q.Get("category"),
 		ActionPrefix: q.Get("action_prefix"),
 	}
-	logs, err := service.ListAuditLogs(r.Context(), req)
+	logs, _, err := service.ListAuditLogs(r.Context(), req)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
+		slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+		writeError(w, http.StatusInternalServerError, "internal server error")
 		return
 	}
 	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
@@ -7682,9 +7816,10 @@ func handleGetCompanyChangeHistory(w http.ResponseWriter, r *http.Request, servi
 		Category:     q.Get("category"),
 		ActorID:      q.Get("actor_id"),
 	}
-	logs, err := service.ListAuditLogs(r.Context(), req)
+	logs, _, err := service.ListAuditLogs(r.Context(), req)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
+		slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+		writeError(w, http.StatusInternalServerError, "internal server error")
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"changes": logs, "total": len(logs)})
@@ -7746,7 +7881,8 @@ func handleGetPendingApprovals(w http.ResponseWriter, r *http.Request, service A
 	}
 	cfg, err := getApprovalsConfig(r.Context(), service, id)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
+		slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+		writeError(w, http.StatusInternalServerError, "internal server error")
 		return
 	}
 	status := r.URL.Query().Get("status")
@@ -7783,12 +7919,14 @@ func handleCreatePendingApproval(w http.ResponseWriter, r *http.Request, service
 
 	cfg, err := getApprovalsConfig(r.Context(), service, id)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
+		slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+		writeError(w, http.StatusInternalServerError, "internal server error")
 		return
 	}
 	cfg.Items = append(cfg.Items, input)
 	if err := saveApprovalsConfig(r.Context(), service, id, cfg); err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
+		slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+		writeError(w, http.StatusInternalServerError, "internal server error")
 		return
 	}
 	writeJSON(w, http.StatusCreated, map[string]any{"approval": input})
@@ -7809,7 +7947,8 @@ func handleApproveApproval(w http.ResponseWriter, r *http.Request, service Admin
 
 	cfg, err := getApprovalsConfig(r.Context(), service, id)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
+		slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+		writeError(w, http.StatusInternalServerError, "internal server error")
 		return
 	}
 	for i := range cfg.Items {
@@ -7819,7 +7958,8 @@ func handleApproveApproval(w http.ResponseWriter, r *http.Request, service Admin
 			cfg.Items[i].ReviewedAt = time.Now().UTC().Format(time.RFC3339)
 			cfg.Items[i].Comment = input.Comment
 			if err := saveApprovalsConfig(r.Context(), service, id, cfg); err != nil {
-				writeError(w, http.StatusInternalServerError, err.Error())
+				slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+				writeError(w, http.StatusInternalServerError, "internal server error")
 				return
 			}
 			writeJSON(w, http.StatusOK, map[string]any{"approval": cfg.Items[i]})
@@ -7844,7 +7984,8 @@ func handleRejectApproval(w http.ResponseWriter, r *http.Request, service AdminS
 
 	cfg, err := getApprovalsConfig(r.Context(), service, id)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
+		slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+		writeError(w, http.StatusInternalServerError, "internal server error")
 		return
 	}
 	for i := range cfg.Items {
@@ -7854,7 +7995,8 @@ func handleRejectApproval(w http.ResponseWriter, r *http.Request, service AdminS
 			cfg.Items[i].ReviewedAt = time.Now().UTC().Format(time.RFC3339)
 			cfg.Items[i].Comment = input.Comment
 			if err := saveApprovalsConfig(r.Context(), service, id, cfg); err != nil {
-				writeError(w, http.StatusInternalServerError, err.Error())
+				slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+				writeError(w, http.StatusInternalServerError, "internal server error")
 				return
 			}
 			writeJSON(w, http.StatusOK, map[string]any{"approval": cfg.Items[i]})
@@ -7877,7 +8019,7 @@ func handleGetCompanyHealth(w http.ResponseWriter, r *http.Request, service Admi
 		return
 	}
 
-	domains, _ := service.ListDomains(ctx, maildb.DomainListRequest{CompanyID: id, Limit: 200})
+	domains, _, _ := service.ListDomains(ctx, maildb.DomainListRequest{CompanyID: id, Limit: 200})
 
 	activeDomains := 0
 	totalQuotaBytes := int64(0)
@@ -7935,7 +8077,7 @@ func handleGetCompanyHealth(w http.ResponseWriter, r *http.Request, service Admi
 }
 
 func listCompanyUsers(ctx context.Context, service AdminService, companyID string, perDomainLimit int) ([]maildb.UserView, error) {
-	domains, err := service.ListDomains(ctx, maildb.DomainListRequest{CompanyID: companyID, Limit: 200})
+	domains, _, err := service.ListDomains(ctx, maildb.DomainListRequest{CompanyID: companyID, Limit: 200})
 	if err != nil {
 		return nil, err
 	}
@@ -7945,7 +8087,7 @@ func listCompanyUsers(ctx context.Context, service AdminService, companyID strin
 func listUsersForDomains(ctx context.Context, service AdminService, domains []maildb.DomainView, perDomainLimit int) ([]maildb.UserView, error) {
 	users := []maildb.UserView{}
 	for _, domain := range domains {
-		domainUsers, err := service.ListUsers(ctx, maildb.UserListRequest{DomainID: domain.ID, Limit: perDomainLimit})
+		domainUsers, _, err := service.ListUsers(ctx, maildb.UserListRequest{DomainID: domain.ID, Limit: perDomainLimit})
 		if err != nil {
 			return nil, err
 		}
@@ -7960,7 +8102,7 @@ func handleGetSecurityPosture(w http.ResponseWriter, r *http.Request, service Ad
 	ctx := r.Context()
 
 	mfaStats, _ := service.GetMFAStats(ctx, companyID)
-	domains, _ := service.ListDomains(ctx, maildb.DomainListRequest{CompanyID: companyID, Limit: 200})
+	domains, _, _ := service.ListDomains(ctx, maildb.DomainListRequest{CompanyID: companyID, Limit: 200})
 
 	users, _ := listUsersForDomains(ctx, service, domains, 1000)
 	usersWithoutPassword := 0
@@ -8031,7 +8173,8 @@ func handleGetSignature(w http.ResponseWriter, r *http.Request, service AdminSer
 			writeJSON(w, http.StatusOK, map[string]any{"signature": signatureConfig{}})
 			return
 		}
-		writeError(w, http.StatusInternalServerError, err.Error())
+		slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+		writeError(w, http.StatusInternalServerError, "internal server error")
 		return
 	}
 	var cfg signatureConfig
@@ -8059,7 +8202,8 @@ func handlePutSignature(w http.ResponseWriter, r *http.Request, service AdminSer
 		return
 	}
 	if _, err := service.SetCompanyConfig(r.Context(), id, emailSignatureKey, json.RawMessage(b), false, 0); err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
+		slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+		writeError(w, http.StatusInternalServerError, "internal server error")
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"signature": cfg})
@@ -8107,7 +8251,8 @@ func handleGetLegalHolds(w http.ResponseWriter, r *http.Request, service AdminSe
 	}
 	cfg, err := getLegalHoldsConfig(r.Context(), service, id)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
+		slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+		writeError(w, http.StatusInternalServerError, "internal server error")
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"holds": cfg.Holds})
@@ -8129,7 +8274,8 @@ func handleCreateLegalHold(w http.ResponseWriter, r *http.Request, service Admin
 
 	cfg, err := getLegalHoldsConfig(r.Context(), service, id)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
+		slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+		writeError(w, http.StatusInternalServerError, "internal server error")
 		return
 	}
 	cfg.Holds = append(cfg.Holds, input)
@@ -8140,7 +8286,8 @@ func handleCreateLegalHold(w http.ResponseWriter, r *http.Request, service Admin
 		return
 	}
 	if _, err := service.SetCompanyConfig(r.Context(), id, legalHoldsKey, json.RawMessage(b), false, 0); err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
+		slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+		writeError(w, http.StatusInternalServerError, "internal server error")
 		return
 	}
 	writeJSON(w, http.StatusCreated, map[string]any{"hold": input})
@@ -8158,7 +8305,8 @@ func handleDeleteLegalHold(w http.ResponseWriter, r *http.Request, service Admin
 
 	cfg, err := getLegalHoldsConfig(r.Context(), service, id)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
+		slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+		writeError(w, http.StatusInternalServerError, "internal server error")
 		return
 	}
 
@@ -8183,7 +8331,8 @@ func handleDeleteLegalHold(w http.ResponseWriter, r *http.Request, service Admin
 		return
 	}
 	if _, err := service.SetCompanyConfig(r.Context(), id, legalHoldsKey, json.RawMessage(b), false, 0); err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
+		slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+		writeError(w, http.StatusInternalServerError, "internal server error")
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"deleted": true})
@@ -8197,7 +8346,7 @@ func handleGetSCIMStatus(w http.ResponseWriter, r *http.Request, service AdminSe
 	if !ok {
 		return
 	}
-	domains, _ := service.ListDomains(ctx, maildb.DomainListRequest{CompanyID: id, Limit: 200})
+	domains, _, _ := service.ListDomains(ctx, maildb.DomainListRequest{CompanyID: id, Limit: 200})
 	domainID := ""
 	if len(domains) > 0 {
 		domainID = domains[0].ID
@@ -8220,12 +8369,12 @@ func handleGetSeatUsage(w http.ResponseWriter, r *http.Request, service AdminSer
 	if !ok {
 		return
 	}
-	domains, _ := service.ListDomains(ctx, maildb.DomainListRequest{CompanyID: id, Limit: 200})
+	domains, _, _ := service.ListDomains(ctx, maildb.DomainListRequest{CompanyID: id, Limit: 200})
 	totalUsers := 0
 	activeUsers := 0
 	suspendedUsers := 0
 	for _, d := range domains {
-		us, _ := service.ListUsers(ctx, maildb.UserListRequest{DomainID: d.ID, Limit: 1000})
+		us, _, _ := service.ListUsers(ctx, maildb.UserListRequest{DomainID: d.ID, Limit: 1000})
 		totalUsers += len(us)
 		for _, u := range us {
 			if u.Status == "active" {
