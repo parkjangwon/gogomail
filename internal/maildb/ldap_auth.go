@@ -35,7 +35,7 @@ WHERE u.status = 'active'
   AND u.auth_source = 'local'
   AND (
     lower(u.username) = lower($1)
-    OR lower(ua.address) = lower($2)
+    OR ua.address_ace = $2
     OR u.id::text = $3
   )
 ORDER BY ua.is_primary DESC

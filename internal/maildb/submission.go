@@ -48,7 +48,7 @@ WHERE u.status = 'active'
   AND u.auth_source = 'local'
   AND (
     lower(u.username) = lower($1)
-    OR lower(ua.address) = lower($2)
+    OR ua.address_ace = $2
   )
 ORDER BY ua.is_primary DESC
 LIMIT 1`
@@ -94,7 +94,7 @@ func (r *Repository) submissionUserAddresses(ctx context.Context, userID string)
 SELECT ua.address
 FROM user_addresses ua
 WHERE ua.user_id = $1
-ORDER BY ua.is_primary DESC, lower(ua.address)`
+ORDER BY ua.is_primary DESC, ua.address_ace`
 	rows, err := r.db.QueryContext(ctx, query, userID)
 	if err != nil {
 		return nil, fmt.Errorf("list submission user addresses: %w", err)

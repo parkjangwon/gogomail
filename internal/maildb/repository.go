@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/gogomail/gogomail/internal/mail"
 	"github.com/gogomail/gogomail/internal/message"
 	smtpd "github.com/gogomail/gogomail/internal/smtp"
 	"github.com/lib/pq"
@@ -20,9 +21,21 @@ func NewRepository(db *sql.DB) *Repository {
 	return &Repository{db: db}
 }
 
+func normalizeAddressACE(raw string) (string, error) {
+	address, err := mail.NormalizeAddress(raw)
+	if err != nil {
+		return "", err
+	}
+	return strings.ToLower(strings.TrimSpace(address)), nil
+}
+
 func (r *Repository) ResolveRecipient(ctx context.Context, address string) (smtpd.Mailbox, error) {
 	if r.db == nil {
 		return smtpd.Mailbox{}, fmt.Errorf("database handle is required")
+	}
+	addressACE, err := normalizeAddressACE(address)
+	if err != nil {
+		return smtpd.Mailbox{}, err
 	}
 
 	const query = `
@@ -34,13 +47,13 @@ SELECT
 FROM user_addresses ua
 JOIN users u ON u.id = ua.user_id
 JOIN domains d ON d.id = ua.domain_id
-WHERE lower(ua.address) = lower($1)
+WHERE ua.address_ace = $1
   AND u.status = 'active'
   AND d.status = 'active'
 LIMIT 1`
 
 	var mailbox smtpd.Mailbox
-	err := r.db.QueryRowContext(ctx, query, strings.TrimSpace(address)).Scan(
+	err = r.db.QueryRowContext(ctx, query, addressACE).Scan(
 		&mailbox.CompanyID,
 		&mailbox.DomainID,
 		&mailbox.UserID,

@@ -158,7 +158,7 @@ func TestResolveDirectoryLookupQueriesUseSargableActiveFilters(t *testing.T) {
 		ActiveOnly: true,
 	})
 	for _, want := range []string{
-		"JOIN user_addresses a ON a.user_id = u.id AND lower(a.address) = lower($1)",
+		"JOIN user_addresses a ON a.user_id = u.id AND a.address_ace = $1",
 		"WHERE (u.status = 'active' AND d.status = 'active' AND c.status = 'active')",
 	} {
 		if !strings.Contains(userQuery, want) {
@@ -183,7 +183,7 @@ func TestResolveDirectoryLookupQueriesUseSargableActiveFilters(t *testing.T) {
 	batchUserQuery := buildResolveUsersByEmailsQuery(true)
 	for _, want := range []string{
 		"FROM unnest($1::text[]) WITH ORDINALITY AS req(email, email_order)",
-		"JOIN user_addresses lookup ON lower(lookup.address) = lower(req.email)",
+		"JOIN user_addresses lookup ON lookup.address_ace = req.email",
 		"LEFT JOIN user_addresses primary_addr ON primary_addr.user_id = u.id AND primary_addr.is_primary = true",
 		"WHERE (u.status = 'active' AND d.status = 'active' AND c.status = 'active')",
 		"ORDER BY req.email_order",

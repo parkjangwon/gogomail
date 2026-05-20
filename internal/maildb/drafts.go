@@ -703,6 +703,15 @@ ORDER BY created_at ASC, filename ASC`, strings.TrimSpace(userID), strings.TrimS
 }
 
 func senderForDraft(ctx context.Context, tx *sql.Tx, userID string, fromAddress string) (Sender, error) {
+	addressACE := strings.TrimSpace(fromAddress)
+	if addressACE != "" {
+		var err error
+		addressACE, err = normalizeAddressACE(addressACE)
+		if err != nil {
+			return Sender{}, err
+		}
+	}
+
 	const query = `
 SELECT
   d.company_id::text,
@@ -718,13 +727,13 @@ WHERE u.id = $1
   AND d.status = 'active'
   AND (
     ($2 = '' AND ua.is_primary = true)
-    OR lower(ua.address) = lower($2)
+    OR ua.address_ace = $2
   )
 ORDER BY ua.is_primary DESC
 LIMIT 1`
 
 	var sender Sender
-	if err := tx.QueryRowContext(ctx, query, userID, strings.TrimSpace(fromAddress)).Scan(
+	if err := tx.QueryRowContext(ctx, query, userID, addressACE).Scan(
 		&sender.CompanyID,
 		&sender.DomainID,
 		&sender.UserID,

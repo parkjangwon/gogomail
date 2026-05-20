@@ -48,6 +48,15 @@ func (r *Repository) SenderForUser(ctx context.Context, userID string, fromAddre
 		return Sender{}, fmt.Errorf("database handle is required")
 	}
 
+	addressACE := strings.TrimSpace(fromAddress)
+	if addressACE != "" {
+		var err error
+		addressACE, err = normalizeAddressACE(addressACE)
+		if err != nil {
+			return Sender{}, err
+		}
+	}
+
 	const query = `
 SELECT
   d.company_id::text,
@@ -62,13 +71,13 @@ WHERE u.id = $1
   AND u.status = 'active'
   AND (
     ($2 = '' AND ua.is_primary = true)
-    OR lower(ua.address) = lower($2)
+    OR ua.address_ace = $2
   )
 ORDER BY ua.is_primary DESC
 LIMIT 1`
 
 	var sender Sender
-	if err := r.db.QueryRowContext(ctx, query, userID, strings.TrimSpace(fromAddress)).Scan(
+	if err := r.db.QueryRowContext(ctx, query, userID, addressACE).Scan(
 		&sender.CompanyID,
 		&sender.DomainID,
 		&sender.UserID,
