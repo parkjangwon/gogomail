@@ -7803,3 +7803,10 @@ Next focus areas:
 - The admin service records the requested sync run as `failed` with the not-configured reason instead of leaving a false `pending` success response.
 - `POST /admin/v1/domains/{id}/ldap/sync` maps the typed not-configured error to HTTP 501.
 - Verification: `go test ./internal/httpapi -run TestAdminLDAPSyncUnavailableReturnsNotImplemented`; `go test ./internal/app -run '^$'`; `go test ./internal/idprovider/ldap`.
+
+## 2026-05-21 Message detail attachment lookup pruning
+
+- `GetMessage` now skips `ListAttachments` when the message row reports `HasAttachment=false`, removing one repository round trip from the common attachment-free detail read path.
+- Added a regression test to keep attachment-free reads at zero attachment lookups.
+- Added `BenchmarkGetMessageBodyCache` to track cache miss versus hit cost: miss `~7.83 us/op`, `10979 B/op`, `85 allocs/op`; hit `~933.6 ns/op`, `568 B/op`, `9 allocs/op`.
+- Verification: `go test ./internal/mailservice -run 'TestGetMessage(ParsesTextBodyFromStorage|SkipsAttachmentLookupWhenMessageHasNoAttachments|CachesParsedBodyByStoragePath|ReportsMessageBodyCacheStats)'`; `go test ./internal/mailservice -run '^$' -bench BenchmarkGetMessageBodyCache -benchtime=100ms`.
