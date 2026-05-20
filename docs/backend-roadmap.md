@@ -7,6 +7,7 @@
 - System transactional emails are wired for admin invites, invite acceptance welcome mail, and user quota alerts.
 - Retention AutoPurge has a scheduled execution path guarded by `GOGOMAIL_AUTO_PURGE_ENABLED` and company retention policy config.
 - Operations backup coverage now includes a `pg_dump` backup script and Compose cron profile, with optional S3 upload.
+- Delivery retry scheduling now preserves the original queued JSON payload and patches only `retry_attempt` for full-message retries, reducing hot retry CPU while falling back to full marshaling for mutated partial retries.
 - Webmail pre-launch gaps closed: password reset UI, server-synced signatures, Web Push service worker registration, and calendar edit/delete controls.
 - Console pre-launch gaps closed: audit-log cursor pagination, delivery-attempt filters/feedback, and targeted TypeScript cleanup.
 

@@ -2,6 +2,8 @@ package delivery
 
 import (
 	"context"
+	"encoding/json"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -76,6 +78,57 @@ func BenchmarkScheduleRetryQuery(b *testing.B) {
 		_ = delay
 		_ = retryDedupeKey(job)
 	}
+}
+
+func BenchmarkRetryPayload(b *testing.B) {
+	recipients := make([]outbound.Address, 100)
+	for i := 0; i < len(recipients); i++ {
+		recipients[i] = outbound.Address{Email: "recipient" + strconv.Itoa(i) + "@example.net"}
+	}
+	queued := QueuedMessage{
+		Event:        "mail.queued",
+		MessageID:    "msg-123",
+		RFCMessageID: "<msg-123@example.net>",
+		From:         outbound.Address{Email: "sender@example.net"},
+		To:           recipients,
+		Subject:      strings.Repeat("bulk status ", 10),
+		StoragePath:  "mailstore/msg-123.eml",
+		Size:         128 * 1024,
+		RetryAttempt: 2,
+	}
+	raw, err := json.Marshal(queued)
+	if err != nil {
+		b.Fatalf("marshal queued payload: %v", err)
+	}
+	next := queued
+	next.RetryAttempt = 3
+
+	b.Run("raw_patch", func(b *testing.B) {
+		job := Job{QueuedMessage: queued, rawPayload: raw}
+		b.ReportAllocs()
+		for i := 0; i < b.N; i++ {
+			payload, err := retryPayload(job, next)
+			if err != nil {
+				b.Fatal(err)
+			}
+			if len(payload) == 0 {
+				b.Fatal("empty payload")
+			}
+		}
+	})
+	b.Run("struct_marshal", func(b *testing.B) {
+		job := Job{QueuedMessage: queued}
+		b.ReportAllocs()
+		for i := 0; i < b.N; i++ {
+			payload, err := retryPayload(job, next)
+			if err != nil {
+				b.Fatal(err)
+			}
+			if len(payload) == 0 {
+				b.Fatal("empty payload")
+			}
+		}
+	})
 }
 
 // TestRetryDedupeKeyConsistency verifies deterministic ordering
