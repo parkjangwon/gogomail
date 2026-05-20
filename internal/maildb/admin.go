@@ -2532,29 +2532,8 @@ func (r *Repository) ListUsers(ctx context.Context, req UserListRequest) ([]User
 		queryLimit = limit + 1
 	}
 
-	const query = `
-SELECT
-  id::text,
-  domain_id::text,
-  username,
-  display_name,
-  COALESCE(recovery_email, ''),
-  role,
-  status,
-  COALESCE(password_hash, '') <> '' AS password_configured,
-  must_change_password,
-  quota_used,
-  COALESCE(quota_limit, 0),
-  quota_source,
-  created_at
-FROM users
-WHERE ($1 = '' OR domain_id::text = $1)
-  AND ($2 = '' OR status = $2)
-  AND ($3::boolean IS NULL OR (COALESCE(password_hash, '') <> '') = $3)
-ORDER BY created_at DESC
-LIMIT $4`
-
-	rows, err := r.db.QueryContext(ctx, query, strings.TrimSpace(req.DomainID), status, req.PasswordConfigured, queryLimit)
+	query, args := buildListUsersQuery(req, status, queryLimit)
+	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, false, fmt.Errorf("list users: %w", err)
 	}
@@ -2591,6 +2570,50 @@ LIMIT $4`
 		users = users[:limit]
 	}
 	return users, hasMore, nil
+}
+
+func buildListUsersQuery(req UserListRequest, status string, queryLimit int) (string, []any) {
+	args := make([]any, 0, 4)
+	where := make([]string, 0, 3)
+	if domainID := strings.TrimSpace(req.DomainID); domainID != "" {
+		args = append(args, domainID)
+		where = append(where, fmt.Sprintf("domain_id = $%d::uuid", len(args)))
+	}
+	if status != "" {
+		args = append(args, status)
+		where = append(where, fmt.Sprintf("status = $%d", len(args)))
+	}
+	if req.PasswordConfigured != nil {
+		args = append(args, *req.PasswordConfigured)
+		where = append(where, fmt.Sprintf("(COALESCE(password_hash, '') <> '') = $%d::boolean", len(args)))
+	}
+	args = append(args, queryLimit)
+
+	var builder strings.Builder
+	builder.WriteString(`
+SELECT
+  id::text,
+  domain_id::text,
+  username,
+  display_name,
+  COALESCE(recovery_email, ''),
+  role,
+  status,
+  COALESCE(password_hash, '') <> '' AS password_configured,
+  must_change_password,
+  quota_used,
+  COALESCE(quota_limit, 0),
+  quota_source,
+  created_at
+FROM users
+`)
+	if len(where) > 0 {
+		builder.WriteString("WHERE ")
+		builder.WriteString(strings.Join(where, "\n  AND "))
+		builder.WriteByte('\n')
+	}
+	builder.WriteString(fmt.Sprintf("ORDER BY created_at DESC\nLIMIT $%d", len(args)))
+	return builder.String(), args
 }
 
 func (r *Repository) GetUser(ctx context.Context, id string) (UserView, error) {

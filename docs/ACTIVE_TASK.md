@@ -324,6 +324,7 @@ Go Backend (`internal/`):
 - 관리자 outbox event 목록 조회가 `NULLIF(...) OR ...` 조건으로 인덱스 선택성을 흐리지 않도록, 제공된 필터만 WHERE에 추가하는 sargable 동적 쿼리로 전환함
 - 관리자 delivery attempt 목록 조회도 status/since/domain/message/farm/sender 필터를 제공된 조건만 포함하는 sargable WHERE로 전환해 대형 배송 기록 테이블에서 선택적 조회가 인덱스를 더 잘 타도록 정리함
 - delivery attempt 통계와 exhausted 목록도 같은 공통 sargable WHERE builder를 재사용하도록 바꿔, 대형 배송 기록 테이블을 읽는 list/stats/exhausted 운영 화면이 모두 optional `OR` predicate를 피하게 함
+- 관리자 사용자 목록 조회도 domain/status/password_configured 필터를 제공된 경우에만 WHERE에 추가하고, domain 필터는 typed UUID predicate로 바꿔 사용자 운영 목록의 optional `OR` predicate를 제거함
 - 관리자 company 목록 조회도 status 필터를 제공된 경우에만 WHERE에 추가하도록 바꿔 SaaS 테넌트 운영 목록의 optional `OR` predicate를 제거함
 - Push notification attempt 목록과 통계 조회도 동적 sargable WHERE로 전환해 Web Push 운영 기록이 커져도 message/user/platform/device/provider 필터가 인덱스 친화적인 쿼리 모양을 유지하게 함
 - 도메인 DNS check 이력 조회도 status/since 필터를 제공된 경우에만 WHERE에 추가하도록 바꿔 도메인 운영 화면의 DNS 검증 이력 조회가 optional `OR` predicate를 피하게 함

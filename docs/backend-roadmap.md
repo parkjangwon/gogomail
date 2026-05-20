@@ -6509,3 +6509,6 @@ Target outcome:
 1787. Message page cursor predicates now emit direct newest/oldest tuple
       comparisons only when a pagination cursor is present and omit pagination
       optional `OR` branches for first-page lists.
+1788. Admin user list queries now add domain/status/password-configured
+      predicates only when requested, with domain filters using typed UUID
+      comparison instead of optional `OR` guards.
