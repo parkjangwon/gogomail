@@ -251,6 +251,7 @@ Go Backend (`internal/`):
 - `GOGOMAIL_SECURITY_VERIFY=1` 설정 시 `verify-backend-release.sh`가 `go vet ./...`와 설치된 `govulncheck ./...`를 보안 릴리즈 게이트로 실행하도록 함
 - 프론트엔드 릴리즈 검증 스크립트를 추가해 webmail/console type-check와 helper test를 기본 실행하고, E2E/build는 명시 환경변수로 켤 수 있게 함
 - 웹메일의 캘린더 UID, 임시 첨부 ID, 토스트 ID, 필터 규칙 ID, vCard fallback filename 생성을 `Math.random()`에서 `crypto.randomUUID()` 기반 공통 헬퍼로 교체해 충돌 가능성과 비결정적 fallback을 줄임
+- outbox relay가 배치 claim 후 이벤트별 `MarkDone`/`MarkFailed` UPDATE를 반복하던 경로에 선택적 `BatchStore`를 추가하고, PostgreSQL store는 성공/실패 상태를 각각 단일 UPDATE로 묶어 배치 크기 N 기준 DB 상태 갱신 왕복을 최대 N회에서 1~2회로 줄임
 
 **System Email Connections & AutoPurge** ✅ COMPLETE
 - `internal/httpapi/admin.go`: Added `systemEmail mailservice.SystemEmailSender` and `publicBaseURL string` fields to `adminRouteConfig`; added `WithSystemEmailSender` and `WithPublicBaseURL` `AdminRouteOption` constructors

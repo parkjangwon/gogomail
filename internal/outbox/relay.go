@@ -21,6 +21,17 @@ type Store interface {
 	MarkFailed(ctx context.Context, id string, cause error) error
 }
 
+type FailedEvent struct {
+	ID    string
+	Cause error
+}
+
+type BatchStore interface {
+	Store
+	MarkDoneBatch(ctx context.Context, ids []string) error
+	MarkFailedBatch(ctx context.Context, failures []FailedEvent) error
+}
+
 type Publisher interface {
 	Publish(ctx context.Context, event Event) error
 }
@@ -90,6 +101,14 @@ func (r *Relay) ProcessOnce(ctx context.Context) (int, error) {
 		return 0, fmt.Errorf("fetch pending outbox events: %w", err)
 	}
 
+	if batchStore, ok := r.store.(BatchStore); ok {
+		return r.processBatch(ctx, batchStore, events)
+	}
+
+	return r.processIndividually(ctx, events)
+}
+
+func (r *Relay) processIndividually(ctx context.Context, events []Event) (int, error) {
 	processed := 0
 	for _, event := range events {
 		if err := r.publisher.Publish(ctx, event); err != nil {
@@ -105,4 +124,30 @@ func (r *Relay) ProcessOnce(ctx context.Context) (int, error) {
 		processed++
 	}
 	return processed, nil
+}
+
+func (r *Relay) processBatch(ctx context.Context, store BatchStore, events []Event) (int, error) {
+	doneIDs := make([]string, 0, len(events))
+	failures := make([]FailedEvent, 0)
+	for _, event := range events {
+		if err := r.publisher.Publish(ctx, event); err != nil {
+			failures = append(failures, FailedEvent{ID: event.ID, Cause: err})
+			r.logger.Warn("outbox event publish failed", "id", event.ID, "topic", event.Topic, "error", err)
+			continue
+		}
+		doneIDs = append(doneIDs, event.ID)
+	}
+
+	if len(failures) > 0 {
+		if err := store.MarkFailedBatch(ctx, failures); err != nil {
+			return 0, fmt.Errorf("mark outbox event failures: %w", err)
+		}
+	}
+	if len(doneIDs) == 0 {
+		return 0, nil
+	}
+	if err := store.MarkDoneBatch(ctx, doneIDs); err != nil {
+		return 0, fmt.Errorf("mark outbox events done: %w", err)
+	}
+	return len(doneIDs), nil
 }

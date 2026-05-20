@@ -7677,3 +7677,9 @@ Next focus areas:
 - Replaced remaining production `Math.random()` ID generation in webmail with a shared `stableId()` helper backed by `crypto.randomUUID()`.
 - Calendar event/todo UIDs, compose attachment temp IDs, toast IDs, filter rule IDs, and vCard fallback filenames now use the same collision-resistant path.
 - Verification: `pnpm --dir apps/webmail type-check`; no remaining `Math.random()` production hits in `apps/webmail/src` or `apps/console/src`.
+
+## 2026-05-21 Outbox relay batch status updates
+
+- Added an optional `outbox.BatchStore` fast path so stores can mark all successful publishes and all failed publishes in batch after a relay claim.
+- `PostgresStore` now implements `MarkDoneBatch` and `MarkFailedBatch`, reducing relay status-update round trips from one UPDATE per event to one UPDATE per status class.
+- Verification: `go test ./internal/outbox`.
