@@ -6355,17 +6355,23 @@ Target outcome:
       with `ErrSyncNotConfigured`, and `POST /admin/v1/domains/{id}/ldap/sync`
       returns HTTP 501 instead of a pending response that could be mistaken for
       live synchronization.
-1748. TASK-090 message detail reads now skip attachment-list hydration when the
+1748. RDBMS sync admin routes are now registered instead of falling through to
+      404, and requests use the same explicit unavailable contract when no
+      external provider is configured: admin sync runs are marked failed with
+      typed `ErrSyncNotConfigured`, and
+      `POST /admin/v1/domains/{id}/rdbms/sync` returns HTTP 501 instead of
+      presenting a false pending run.
+1749. TASK-090 message detail reads now skip attachment-list hydration when the
       message row reports `HasAttachment=false`, removing a repository round
       trip from the common attachment-free detail path.  `BenchmarkGetMessageBodyCache`
       now tracks parsed-body miss/hit costs, with the current sample at miss
       `~7.83 us/op` and hit `~933.6 ns/op`.
-1749. Launch documentation is refreshed across README, README.ko, Docker,
+1750. Launch documentation is refreshed across README, README.ko, Docker,
       webmail, console, and backend release readiness docs so recent
       performance, storage, backup/restore, push/webhook, system email, API
       usage, and frontend public-origin environment variables are visible in
       operator-facing setup surfaces.
-1750. BIMI validation no longer reports VMC verification from URL presence
+1751. BIMI validation no longer reports VMC verification from URL presence
       alone.  Until full VMC certificate-chain validation exists, `ValidateAndFetch`
       returns `vmcVerified=false`, and the logo cache now records the actual
       SHA-256 body digest for fetched logo bytes.

@@ -24,6 +24,7 @@ import (
 	"github.com/gogomail/gogomail/internal/directory"
 	"github.com/gogomail/gogomail/internal/drive"
 	ldapidp "github.com/gogomail/gogomail/internal/idprovider/ldap"
+	rdbmsidp "github.com/gogomail/gogomail/internal/idprovider/rdbms"
 	"github.com/gogomail/gogomail/internal/maildb"
 	"github.com/gogomail/gogomail/internal/mailflow"
 	"github.com/google/uuid"
@@ -1682,10 +1683,8 @@ func (s adminService) TriggerRDBMSSync(ctx context.Context, domainID, syncType s
 		return nil, fmt.Errorf("failed to create sync run: %w", err)
 	}
 
-	// For now, return a pending status
-	// Full sync implementation will be added when RDBMS provider sync methods are implemented
-	status := "pending"
-	errMsg := "RDBMS sync implementation pending"
+	status := "failed"
+	errMsg := rdbmsidp.ErrSyncNotConfigured.Error()
 
 	err = s.Repository.UpdateRDBMSSyncRun(ctx, runID, status,
 		0, 0, 0, 0, 0, 0,
@@ -1694,16 +1693,7 @@ func (s adminService) TriggerRDBMSSync(ctx context.Context, domainID, syncType s
 		return nil, fmt.Errorf("failed to update sync run: %w", err)
 	}
 
-	return map[string]interface{}{
-		"sync_run_id":    runID.String(),
-		"status":         status,
-		"created_count":  0,
-		"updated_count":  0,
-		"deleted_count":  0,
-		"conflict_count": 0,
-		"error_count":    0,
-		"error":          errMsg,
-	}, nil
+	return nil, rdbmsidp.ErrSyncNotConfigured
 }
 
 func (s adminService) GetRDBMSSyncRuns(ctx context.Context, req maildb.RDBMSSyncRunListRequest) ([]maildb.RDBMSSyncRunView, error) {

@@ -2,9 +2,12 @@ package rdbms
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 )
+
+var ErrSyncNotConfigured = errors.New("rdbms sync provider is not configured")
 
 // SyncRequest contains parameters for syncing RDBMS data to the local database.
 type SyncRequest struct {
@@ -30,7 +33,7 @@ type SyncResult struct {
 // SyncUsers syncs users from the external RDBMS to the local database on-demand.
 func (p *Provider) SyncUsers(ctx context.Context, req SyncRequest) (SyncResult, error) {
 	if p.config == nil {
-		return SyncResult{}, fmt.Errorf("rdbms provider not configured")
+		return SyncResult{}, ErrSyncNotConfigured
 	}
 	if p.db == nil {
 		return SyncResult{}, fmt.Errorf("rdbms provider not connected")
@@ -54,7 +57,7 @@ func (p *Provider) SyncUsers(ctx context.Context, req SyncRequest) (SyncResult, 
 // SyncGroups syncs groups from the external RDBMS to the local database on-demand.
 func (p *Provider) SyncGroups(ctx context.Context, req SyncRequest) (SyncResult, error) {
 	if p.config == nil {
-		return SyncResult{}, fmt.Errorf("rdbms provider not configured")
+		return SyncResult{}, ErrSyncNotConfigured
 	}
 	if p.db == nil {
 		return SyncResult{}, fmt.Errorf("rdbms provider not connected")
@@ -78,7 +81,7 @@ func (p *Provider) SyncGroups(ctx context.Context, req SyncRequest) (SyncResult,
 // SyncMemberships syncs group memberships from the external RDBMS to the local database.
 func (p *Provider) SyncMemberships(ctx context.Context, req SyncRequest) (SyncResult, error) {
 	if p.config == nil {
-		return SyncResult{}, fmt.Errorf("rdbms provider not configured")
+		return SyncResult{}, ErrSyncNotConfigured
 	}
 	if p.db == nil {
 		return SyncResult{}, fmt.Errorf("rdbms provider not connected")
