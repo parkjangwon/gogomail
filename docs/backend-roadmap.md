@@ -6616,3 +6616,7 @@ Target outcome:
       requested attendee emails through one typed-array ordinality lookup before
       preserving existing alias, CardDAV, and external fallbacks, avoiding one
       user lookup query per attendee on multi-user calendar invites.
+1820. Drive upload session expiry now claims stale sessions with
+      `FOR UPDATE SKIP LOCKED` and expires them through one set-based
+      `UPDATE ... RETURNING`, removing one update round trip per expired upload
+      session while preserving cleanup ordering.
