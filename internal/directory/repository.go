@@ -379,16 +379,7 @@ func directoryAliasDeleteAuditDetail(alias Alias) (json.RawMessage, error) {
 	return detail, nil
 }
 
-func (r *Repository) ListAliases(ctx context.Context, req ListAliasesRequest) ([]Alias, error) {
-	if r == nil || r.db == nil {
-		return nil, fmt.Errorf("database handle is required")
-	}
-	req, err := NormalizeListAliasesRequest(req)
-	if err != nil {
-		return nil, err
-	}
-	pattern := principalSearchPattern(req.Query)
-	const query = `
+const listAliasesBaseSQL = `
 SELECT a.id::text,
        a.company_id::text,
        a.domain_id::text,
@@ -399,24 +390,47 @@ SELECT a.id::text,
        a.status
 FROM directory_aliases a
 JOIN domains d ON d.id = a.domain_id
-JOIN companies c ON c.id = a.company_id AND c.id = d.company_id
-WHERE a.company_id = $1::uuid
-  AND ($2 = '' OR a.domain_id = NULLIF($2, '')::uuid)
-  AND ($3 = '' OR a.target_kind = $3)
-  AND ($4 = '' OR a.target_id = NULLIF($4, '')::uuid)
-  AND ($5 = '' OR lower(a.alias_address) LIKE $5 ESCAPE '\' OR lower(a.alias_address_ace) LIKE $5 ESCAPE '\')
-  AND ($6::boolean = false OR (a.status = 'active' AND d.status = 'active' AND c.status = 'active'))
+JOIN companies c ON c.id = a.company_id AND c.id = d.company_id`
+
+func buildListAliasesQuery(req ListAliasesRequest) (string, []any) {
+	args := []any{req.CompanyID}
+	conditions := []string{"a.company_id = $1::uuid"}
+	if req.DomainID != "" {
+		args = append(args, req.DomainID)
+		conditions = append(conditions, fmt.Sprintf("a.domain_id = $%d::uuid", len(args)))
+	}
+	if req.TargetKind != "" {
+		args = append(args, req.TargetKind)
+		conditions = append(conditions, fmt.Sprintf("a.target_kind = $%d", len(args)))
+	}
+	if req.TargetID != "" {
+		args = append(args, req.TargetID)
+		conditions = append(conditions, fmt.Sprintf("a.target_id = $%d::uuid", len(args)))
+	}
+	if pattern := principalSearchPattern(req.Query); pattern != "" {
+		args = append(args, pattern)
+		conditions = append(conditions, fmt.Sprintf("(lower(a.alias_address) LIKE $%d ESCAPE '\\' OR lower(a.alias_address_ace) LIKE $%d ESCAPE '\\')", len(args), len(args)))
+	}
+	if req.ActiveOnly {
+		conditions = append(conditions, "(a.status = 'active' AND d.status = 'active' AND c.status = 'active')")
+	}
+	args = append(args, req.Limit)
+	query := listAliasesBaseSQL + "\nWHERE " + strings.Join(conditions, "\n  AND ") + fmt.Sprintf(`
 ORDER BY lower(a.alias_address_ace), a.id
-LIMIT $7`
-	rows, err := r.db.QueryContext(ctx, query,
-		req.CompanyID,
-		req.DomainID,
-		req.TargetKind,
-		req.TargetID,
-		pattern,
-		req.ActiveOnly,
-		req.Limit,
-	)
+LIMIT $%d`, len(args))
+	return query, args
+}
+
+func (r *Repository) ListAliases(ctx context.Context, req ListAliasesRequest) ([]Alias, error) {
+	if r == nil || r.db == nil {
+		return nil, fmt.Errorf("database handle is required")
+	}
+	req, err := NormalizeListAliasesRequest(req)
+	if err != nil {
+		return nil, err
+	}
+	query, args := buildListAliasesQuery(req)
+	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("list directory aliases: %w", err)
 	}
