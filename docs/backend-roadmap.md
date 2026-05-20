@@ -6628,3 +6628,7 @@ Target outcome:
       organization units through one typed-array ordinality query with per-org
       row-number limits, and migration 0121 adds supporting organization tree
       and user-by-org lookup indexes.
+1823. Admin console API documentation now matches implemented route names for
+      auth refresh, directory management, SSO config, mail-flow/audit/spam
+      monitoring, and API-usage aggregate/ledger endpoints instead of listing
+      stale identity-config, logs/*, or base api-usage paths.

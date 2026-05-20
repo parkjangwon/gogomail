@@ -7995,3 +7995,9 @@ Next focus areas:
 - Directory batch member lookup uses typed-array ordinality plus per-org `row_number()` limits, preserving org response order and the prior 100-member cap per unit.
 - Migration 0121 adds indexes for active organization tree ordering and active user member lookup by org/domain/display order.
 - Verification target: `go test ./internal/directory -run TestListOrgMembersByOrgIDsQueryUsesSingleOrdinalityBatchLookup`; `go test ./internal/httpapi -run CardDAV`.
+
+## 2026-05-21 Admin console API spec route alignment
+
+- `docs/ADMIN_CONSOLE_SPEC.md` now documents `POST /admin/v1/auth/refresh` instead of the stale `refresh-token` path.
+- Removed stale `identity-config`, `logs/*`, and base `api-usage` route entries from the spec and replaced them with implemented directory, SSO, mail-flow, audit, spam-filter, and API-usage aggregate/ledger routes.
+- Verification target: `rg 'refresh-token|/admin/v1/identity-config|/admin/v1/logs/|GET    /admin/v1/api-usage$' docs/ADMIN_CONSOLE_SPEC.md`.
