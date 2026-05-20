@@ -647,7 +647,8 @@ func (r *Repository) ListMessagesPage(ctx context.Context, userID string, folder
 	}
 
 	folderID = strings.TrimSpace(folderID)
-	query := buildMessageListPageSQL(sortMode, folderID, filter)
+	cursorID := strings.TrimSpace(cursor.ID)
+	query := buildMessageListPageSQL(sortMode, folderID, cursorID, filter)
 
 	rows, err := r.db.QueryContext(
 		ctx,
@@ -655,7 +656,7 @@ func (r *Repository) ListMessagesPage(ctx context.Context, userID string, folder
 		strings.TrimSpace(userID),
 		folderID,
 		cursor.At,
-		strings.TrimSpace(cursor.ID),
+		cursorID,
 		limit,
 		filter.Read,
 		filter.Starred,
@@ -692,10 +693,12 @@ func (r *Repository) ListMessagesPage(ctx context.Context, userID string, folder
 	return messages, nil
 }
 
-func buildMessageListPageSQL(sortMode, folderID string, filter MessageListFilter) string {
+func buildMessageListPageSQL(sortMode, folderID, cursorID string, filter MessageListFilter) string {
 	query := messageListPageNewestSQL
+	cursorOp := "<"
 	if sortMode == ListSortOldest {
 		query = messageListPageOldestSQL
+		cursorOp = ">"
 	}
 	if folderID == "" {
 		query = strings.Replace(query, "  AND ($2 = '' OR messages.folder_id::text = $2)\n", "", 1)
@@ -713,9 +716,20 @@ func buildMessageListPageSQL(sortMode, folderID string, filter MessageListFilter
 		query = strings.Replace(query, "  AND ($7::boolean IS NULL OR COALESCE((messages.flags->>'starred')::boolean, false) = $7::boolean)", "  AND COALESCE((messages.flags->>'starred')::boolean, false) = $7::boolean", 1)
 	}
 	if filter.HasAttachment == nil {
-		return strings.Replace(query, "  AND ($8::boolean IS NULL OR messages.has_attachment = $8::boolean)\n", "", 1)
+		query = strings.Replace(query, "  AND ($8::boolean IS NULL OR messages.has_attachment = $8::boolean)\n", "", 1)
+	} else {
+		query = strings.Replace(query, "  AND ($8::boolean IS NULL OR messages.has_attachment = $8::boolean)", "  AND messages.has_attachment = $8::boolean", 1)
 	}
-	return strings.Replace(query, "  AND ($8::boolean IS NULL OR messages.has_attachment = $8::boolean)", "  AND messages.has_attachment = $8::boolean", 1)
+	cursorPredicate := fmt.Sprintf(`  AND (
+    $4 = ''
+    OR (COALESCE(messages.received_at, messages.sent_at, messages.draft_updated_at, messages.created_at), messages.id)
+       %s ($3::timestamptz, $4::uuid)
+  )
+`, cursorOp)
+	if cursorID == "" {
+		return strings.Replace(query, cursorPredicate, "", 1)
+	}
+	return strings.Replace(query, strings.TrimSuffix(cursorPredicate, "\n"), fmt.Sprintf("  AND (COALESCE(messages.received_at, messages.sent_at, messages.draft_updated_at, messages.created_at), messages.id) %s ($3::timestamptz, $4::uuid)", cursorOp), 1)
 }
 
 const messageListPageNewestSQL = `

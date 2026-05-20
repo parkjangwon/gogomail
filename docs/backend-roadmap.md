@@ -6506,3 +6506,6 @@ Target outcome:
 1786. Message page read/starred/attachment filters now emit direct predicates
       only when requested and omit nullable boolean optional `OR` branches for
       unfiltered lists.
+1787. Message page cursor predicates now emit direct newest/oldest tuple
+      comparisons only when a pagination cursor is present and omit pagination
+      optional `OR` branches for first-page lists.

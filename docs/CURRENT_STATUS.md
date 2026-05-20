@@ -14,6 +14,7 @@ Last updated: 2026-05-21 (SaaS launch hardening continues: attachment cleanup ba
 ## Message Storage GC Lookup Optimization (2026-05-21)
 - Message page listing now emits the folder predicate only when requested, using a typed `messages.folder_id = $2::uuid` comparison for folder-scoped reads and omitting the predicate for all-folder reads.
 - Message page read/starred/attachment filters now emit direct predicates only when requested and omit nullable boolean optional `OR` branches for unfiltered lists.
+- Message page cursor predicates now emit direct newest/oldest tuple comparisons only when a pagination cursor is present and omit pagination optional `OR` branches for first-page lists.
 - Message search now emits the folder predicate only when requested, using a typed `folder_id = $3::uuid` comparison for folder-scoped searches and omitting it for all-mail searches.
 - Message and draft search now emit attachment predicates only when requested, using typed boolean comparisons and omitting the predicate for attachment-agnostic searches.
 - Message and draft search now emit cursor predicates only when a pagination cursor is present, leaving first-page searches without pagination optional `OR` branches.
