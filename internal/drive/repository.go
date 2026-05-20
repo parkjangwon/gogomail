@@ -552,15 +552,7 @@ RETURNING
 	return node, nil
 }
 
-func (r *Repository) ListNodes(ctx context.Context, req ListNodesRequest) ([]Node, error) {
-	if r == nil || r.db == nil {
-		return nil, fmt.Errorf("database handle is required")
-	}
-	req, err := ValidateListNodesRequest(req)
-	if err != nil {
-		return nil, err
-	}
-	query := `
+const listNodesBaseSQL = `
 SELECT
   id::text,
   company_id::text,
@@ -578,19 +570,42 @@ SELECT
   status,
   created_at,
   updated_at
-FROM drive_nodes
-WHERE user_id = $1::uuid
-  AND status = $3
-  AND ($5 = '' OR normalized_name LIKE '%' || $5 || '%' ESCAPE '\')
-  AND ($7 = '' OR node_type = $7)
-  AND (
-    $6::boolean
-    OR (NULLIF($2, '') IS NULL AND parent_id IS NULL)
-    OR parent_id = NULLIF($2, '')::uuid
-  )
-ORDER BY ` + driveNodeListOrderBy(req.Sort) + `
-LIMIT $4`
-	rows, err := r.db.QueryContext(ctx, query, req.UserID, req.ParentID, req.Status, req.Limit, escapeDriveNodeLikeQuery(req.Query), req.AllParents, req.NodeType)
+FROM drive_nodes`
+
+func buildListNodesQuery(req ListNodesRequest) (string, []any) {
+	args := []any{req.UserID, req.Status}
+	conditions := []string{"user_id = $1::uuid", "status = $2"}
+	if req.Query != "" {
+		args = append(args, escapeDriveNodeLikeQuery(req.Query))
+		conditions = append(conditions, fmt.Sprintf("normalized_name LIKE '%%' || $%d || '%%' ESCAPE '\\'", len(args)))
+	}
+	if req.NodeType != "" {
+		args = append(args, req.NodeType)
+		conditions = append(conditions, fmt.Sprintf("node_type = $%d", len(args)))
+	}
+	if !req.AllParents {
+		if req.ParentID == "" {
+			conditions = append(conditions, "parent_id IS NULL")
+		} else {
+			args = append(args, req.ParentID)
+			conditions = append(conditions, fmt.Sprintf("parent_id = $%d::uuid", len(args)))
+		}
+	}
+	args = append(args, req.Limit)
+	query := listNodesBaseSQL + "\nWHERE " + strings.Join(conditions, "\n  AND ") + "\nORDER BY " + driveNodeListOrderBy(req.Sort) + fmt.Sprintf("\nLIMIT $%d", len(args))
+	return query, args
+}
+
+func (r *Repository) ListNodes(ctx context.Context, req ListNodesRequest) ([]Node, error) {
+	if r == nil || r.db == nil {
+		return nil, fmt.Errorf("database handle is required")
+	}
+	req, err := ValidateListNodesRequest(req)
+	if err != nil {
+		return nil, err
+	}
+	query, args := buildListNodesQuery(req)
+	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("list drive nodes: %w", err)
 	}
