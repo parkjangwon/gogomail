@@ -273,6 +273,8 @@ Go Backend (`internal/`):
 - `TestBindDraftAttachmentsSQLUsesSingleTypedArrayUpdate`를 추가해 draft attachment binding SQL이 단일 typed-array update 경로를 유지하도록 고정함
 - attachment upload session finalization의 `target` CTE가 `SELECT *` 대신 attachment 생성과 draft refresh에 필요한 컬럼만 잠그고 전달하도록 축소함
 - `TestFinalizeAttachmentUploadSessionSQLProjectsTargetColumns`를 추가해 finalize CTE가 wide projection으로 되돌아가지 않도록 고정함
+- audit log integrity checker의 최근 로그 subquery가 `SELECT *` 대신 hash-chain 검증에 필요한 audit columns만 읽도록 좁혀 운영 무결성 점검 쿼리 projection을 축소함
+- `TestAuditLogIntegrityQueryProjectsRecentColumns`를 추가해 audit integrity query가 explicit projection을 유지하도록 고정함
 
 **System Email Connections & AutoPurge** ✅ COMPLETE
 - `internal/httpapi/admin.go`: Added `systemEmail mailservice.SystemEmailSender` and `publicBaseURL string` fields to `adminRouteConfig`; added `WithSystemEmailSender` and `WithPublicBaseURL` `AdminRouteOption` constructors

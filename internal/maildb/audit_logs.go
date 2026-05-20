@@ -227,40 +227,7 @@ func (r *Repository) CheckAuditLogIntegrity(ctx context.Context, req AuditLogInt
 	}
 	req = normalizeAuditLogIntegrityRequest(req)
 
-	query := `
-SELECT
-  id::text,
-  COALESCE(company_id::text, ''),
-  COALESCE(domain_id::text, ''),
-  COALESCE(user_id::text, ''),
-  COALESCE(actor_id::text, ''),
-  category,
-  action,
-  target_type,
-  COALESCE(target_id::text, ''),
-  COALESCE(ip_address::text, ''),
-  user_agent,
-  result,
-  detail,
-  prev_hash,
-  hash,
-  created_at
-FROM (
-  SELECT *
-  FROM audit_logs`
-	var args []any
-	if !req.Since.IsZero() {
-		args = append(args, req.Since.UTC())
-		query += fmt.Sprintf(`
-  WHERE created_at >= $%d`, len(args))
-	}
-	args = append(args, req.Limit)
-	query += fmt.Sprintf(`
-  ORDER BY created_at DESC, id DESC
-  LIMIT $%d
-) recent
-ORDER BY created_at ASC, id ASC`, len(args))
-
+	query, args := auditLogIntegrityQuery(req)
 	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return AuditLogIntegrityView{}, fmt.Errorf("check audit log integrity: %w", err)
@@ -331,6 +298,59 @@ ORDER BY created_at ASC, id ASC`, len(args))
 		}
 	}
 	return view, nil
+}
+
+func auditLogIntegrityQuery(req AuditLogIntegrityRequest) (string, []any) {
+	query := `
+SELECT
+  id::text,
+  COALESCE(company_id::text, ''),
+  COALESCE(domain_id::text, ''),
+  COALESCE(user_id::text, ''),
+  COALESCE(actor_id::text, ''),
+  category,
+  action,
+  target_type,
+  COALESCE(target_id::text, ''),
+  COALESCE(ip_address::text, ''),
+  user_agent,
+  result,
+  detail,
+  prev_hash,
+  hash,
+  created_at
+FROM (
+  SELECT
+    id,
+    company_id,
+    domain_id,
+    user_id,
+    actor_id,
+    category,
+    action,
+    target_type,
+    target_id,
+    ip_address,
+    user_agent,
+    result,
+    detail,
+    prev_hash,
+    hash,
+    created_at
+  FROM audit_logs`
+	var args []any
+	if !req.Since.IsZero() {
+		args = append(args, req.Since.UTC())
+		query += fmt.Sprintf(`
+  WHERE created_at >= $%d`, len(args))
+	}
+	args = append(args, req.Limit)
+	query += fmt.Sprintf(`
+  ORDER BY created_at DESC, id DESC
+  LIMIT $%d
+) recent
+ORDER BY created_at ASC, id ASC`, len(args))
+	return query, args
 }
 
 func normalizeAuditLogListRequest(req AuditLogListRequest) AuditLogListRequest {
