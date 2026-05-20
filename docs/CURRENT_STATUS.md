@@ -297,6 +297,7 @@ Last updated: 2026-05-21 (SaaS launch hardening continues: attachment cleanup ba
 - Quota reconciliation scoped dry-run/correction queries now emit direct company/domain/user predicates per requested scope and omit the broad `$1 = '' OR ...` guard for all-scope corrections.
 - Directory group membership update cycle checks now build the excluding-recursive query with direct active predicates only when `ActiveOnly` is requested, removing the remaining boolean active-filter `OR` from that mutation guard.
 - Mail API message list SQL generation now builds conditions directly from requested folder, cursor, read/starred, and attachment filters instead of performing repeated template `strings.Replace` passes on optional-OR SQL.
+- Mail API thread list SQL generation now uses direct active-message and thread-summary condition assembly, removing the repeated template rewrites for folder, cursor, read/starred, and attachment filters.
 - **Phase 2 (Bulk Delivery Batching)** In progress / partially implemented:
   - Same-domain recipient batching, batch-size runtime tuning, route-pool observability, and batch-vs-individual benchmarks are implemented.
   - Remaining work should focus on database round-trip reduction and end-to-end bulk delivery soak coverage.
