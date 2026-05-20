@@ -281,8 +281,8 @@ func (t *DirectSMTPTransport) deliverHostDefault(ctx context.Context, job Job, r
 		return fmt.Errorf("open queued message: %w", err)
 	}
 
-	// Inject RFC 5321 Received header
-	receivedHeader := fmt.Sprintf("Received: from %s by %s with SMTP\n\t%s\n",
+	// Inject RFC 5321 Received header (RFC 5321 §2.3.8 requires CRLF line endings)
+	receivedHeader := fmt.Sprintf("Received: from %s by %s with SMTP\r\n\t%s\r\n",
 		t.Hello, host, time.Now().Format(time.RFC1123Z))
 	message = newHeaderInjector(receivedHeader, message)
 	_, copyErr := io.Copy(writer, message)

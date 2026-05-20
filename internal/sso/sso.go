@@ -292,6 +292,25 @@ func VerifySAMLSignature(xmlData []byte, idpCertPEM string) error {
 		return fmt.Errorf("extract SignedInfo: %w", err)
 	}
 
+	// Verify the DigestValue in SignedInfo against the actual Assertion content.
+	// This prevents XML Signature Wrapping (XSW) attacks where an attacker
+	// substitutes the Assertion body while keeping the signature valid.
+	digestValueRaw := strings.TrimSpace(sigBlock.SignedInfo.Reference.DigestValue)
+	if digestValueRaw != "" {
+		assertionBytes, err := extractAssertionBytes(xmlData)
+		if err != nil {
+			return fmt.Errorf("extract Assertion for DigestValue check: %w", err)
+		}
+		assertionDigest := sha256.Sum256(assertionBytes)
+		expectedDigest, err := base64.StdEncoding.DecodeString(digestValueRaw)
+		if err != nil {
+			return fmt.Errorf("decode SAML DigestValue: %w", err)
+		}
+		if !bytes.Equal(assertionDigest[:], expectedDigest) {
+			return fmt.Errorf("SAML DigestValue mismatch: assertion content does not match signed digest")
+		}
+	}
+
 	// Verify RSA-SHA256 signature: SHA256(SignedInfo) verified with IdP public key.
 	digest := sha256.Sum256(signedInfoBytes)
 	if err := rsa.VerifyPKCS1v15(idpKey, gocrypto.SHA256, digest[:], sigBytes); err != nil {
@@ -359,6 +378,33 @@ func extractSignedInfoBytes(xmlData []byte) ([]byte, error) {
 		return xmlData[si : si+ei+len(ends[i])], nil
 	}
 	return nil, fmt.Errorf("SignedInfo element not found in SAML response")
+}
+
+// extractAssertionBytes extracts the raw bytes of the first <saml:Assertion> or
+// <Assertion> element found in the XML document. These bytes are used to
+// compute the SHA-256 digest for DigestValue verification.
+func extractAssertionBytes(xmlData []byte) ([]byte, error) {
+	starts := [][]byte{
+		[]byte("<saml:Assertion"),
+		[]byte("<Assertion"),
+	}
+	ends := [][]byte{
+		[]byte("</saml:Assertion>"),
+		[]byte("</Assertion>"),
+	}
+
+	for i, start := range starts {
+		si := bytes.Index(xmlData, start)
+		if si < 0 {
+			continue
+		}
+		ei := bytes.Index(xmlData[si:], ends[i])
+		if ei < 0 {
+			continue
+		}
+		return xmlData[si : si+ei+len(ends[i])], nil
+	}
+	return nil, fmt.Errorf("Assertion element not found in SAML response")
 }
 
 // oidcTokenPayload holds the fields we care about in an OIDC ID token payload.
