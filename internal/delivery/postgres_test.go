@@ -125,6 +125,51 @@ func TestShouldSuppressBouncedRecipientSkipsNullReversePath(t *testing.T) {
 	}
 }
 
+func TestBouncedSuppressionRowsDeduplicatesByScopeAndEmail(t *testing.T) {
+	t.Parallel()
+
+	domainIDs, emails, messageIDs := bouncedSuppressionRows([]Attempt{
+		{
+			DomainID:  "018f0000-0000-7000-8000-000000000001",
+			MessageID: "018f0000-0000-7000-8000-000000000011",
+			Sender:    "sender@example.com",
+			Recipient: " User@Example.net ",
+			Status:    AttemptBounced,
+		},
+		{
+			DomainID:  "018f0000-0000-7000-8000-000000000001",
+			MessageID: "018f0000-0000-7000-8000-000000000012",
+			Sender:    "sender@example.com",
+			Recipient: "user@example.net",
+			Status:    AttemptBounced,
+		},
+		{
+			DomainID:  "018f0000-0000-7000-8000-000000000002",
+			MessageID: "018f0000-0000-7000-8000-000000000013",
+			Sender:    "sender@example.com",
+			Recipient: "user@example.net",
+			Status:    AttemptBounced,
+		},
+		{
+			DomainID:  "018f0000-0000-7000-8000-000000000001",
+			MessageID: "018f0000-0000-7000-8000-000000000014",
+			Sender:    "sender@example.com",
+			Recipient: "retry@example.net",
+			Status:    AttemptFailed,
+		},
+	})
+
+	if len(emails) != 2 || len(domainIDs) != 2 || len(messageIDs) != 2 {
+		t.Fatalf("rows = domains:%v emails:%v messages:%v, want two scoped unique bounce rows", domainIDs, emails, messageIDs)
+	}
+	if emails[0] != "User@Example.net" || emails[1] != "user@example.net" {
+		t.Fatalf("emails = %v, want first scoped duplicate preserved and second domain retained", emails)
+	}
+	if domainIDs[0].String == domainIDs[1].String {
+		t.Fatalf("domainIDs = %v, want duplicate email retained for a different domain", domainIDs)
+	}
+}
+
 func TestDeliveryAttemptDiagnosticsBoundsFields(t *testing.T) {
 	t.Parallel()
 
