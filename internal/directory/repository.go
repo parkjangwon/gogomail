@@ -121,7 +121,7 @@ SELECT u.id::text,
 FROM users u
 JOIN domains d ON d.id = u.domain_id
 JOIN companies c ON c.id = d.company_id
-JOIN user_addresses a ON a.user_id = u.id AND lower(a.address) = lower($1)`
+JOIN user_addresses a ON a.user_id = u.id AND a.address_ace = $1`
 
 func buildResolveUserByEmailQuery(req ResolveUserByEmailRequest) (string, []any) {
 	conditions := []string{}
@@ -132,7 +132,7 @@ func buildResolveUserByEmailQuery(req ResolveUserByEmailRequest) (string, []any)
 	if len(conditions) > 0 {
 		query += "\nWHERE " + strings.Join(conditions, "\n  AND ")
 	}
-	return query, []any{req.Email}
+	return query, []any{strings.ToLower(strings.TrimSpace(req.Email))}
 }
 
 func (r *Repository) ResolveUserByEmail(ctx context.Context, req ResolveUserByEmailRequest) (Principal, error) {
@@ -172,7 +172,7 @@ SELECT req.email,
        COALESCE(primary_addr.address, ''),
        u.status
 FROM unnest($1::text[]) WITH ORDINALITY AS req(email, email_order)
-JOIN user_addresses lookup ON lower(lookup.address) = lower(req.email)
+JOIN user_addresses lookup ON lookup.address_ace = req.email
 JOIN users u ON u.id = lookup.user_id
 JOIN domains d ON d.id = u.domain_id
 JOIN companies c ON c.id = d.company_id
@@ -231,15 +231,14 @@ func normalizeEmailList(emails []string) []string {
 	out := make([]string, 0, len(emails))
 	seen := make(map[string]struct{}, len(emails))
 	for _, email := range emails {
-		email = strings.TrimSpace(email)
+		email = strings.ToLower(strings.TrimSpace(email))
 		if email == "" {
 			continue
 		}
-		key := strings.ToLower(email)
-		if _, ok := seen[key]; ok {
+		if _, ok := seen[email]; ok {
 			continue
 		}
-		seen[key] = struct{}{}
+		seen[email] = struct{}{}
 		out = append(out, email)
 	}
 	return out

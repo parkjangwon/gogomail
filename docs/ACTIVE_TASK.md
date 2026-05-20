@@ -166,6 +166,7 @@
 - CardDAV org-tree no longer calls principal search once per organization unit; it now batch-loads active users for all returned org IDs and adds org/user indexes for the tree and member lookup order.
 - Admin console spec no longer documents stale auth refresh-token, identity-config, logs/*, or base api-usage endpoints; it now lists the implemented refresh, directory, SSO, mail-flow/audit/spam, and API-usage routes.
 - Console shipped locale files no longer expose generic modal/title placeholders such as `Config Modal Title`, `Delete Modal Title`, or bare `Title` in key admin workflows.
+- User address lookup hot paths no longer wrap `user_addresses.address` in `lower()` for exact matches; directory, inbound delivery, SSO, webmail profile, login, SMTP submission, drafts, and sender resolution now use normalized `address_ace` equality with supporting per-user indexes.
 
 **Infrastructure & Storage Hardening** ✅ COMPLETE
 - Task 1 (EML GC): Added `LookupDeleteableStoragePaths` and `LookupExpungeStoragePaths` to maildb; service layer now performs two-phase GC (lookup before DB delete, delete from store after commit) for `DeleteMessage`, `BulkDeleteMessages`, `BulkDeleteThreads`, and `ExpungeIMAPMessages`. Reference-count check prevents deletion of paths shared by IMAP COPY.
@@ -224,7 +225,7 @@ Go Backend (`internal/`):
 
 구현 대상:
 - [ ] EXPLAIN ANALYZE로 메시지 조회 쿼리 성능 분석
-- [x] 누락된 인덱스 생성 (outbox + delivery_attempts 조회 경로): `0113_delivery_attempt_indexes.sql`, `0114_outbox_query_indexes.sql`
+- [x] 누락된 인덱스 생성 (outbox + delivery_attempts + user address 조회 경로): `0113_delivery_attempt_indexes.sql`, `0114_outbox_query_indexes.sql`, `0122_user_address_lookup_indexes.sql`
 - [ ] ListOutboundMessages 최적화 (N+1 제거)
 - [ ] GetMessagesByID 배치 조회 함수 작성
 - [x] 벤치마크 프레임워크 (메시지 1000+, 10000+ 시나리오)
@@ -232,6 +233,7 @@ Go Backend (`internal/`):
 - [x] 테스트 검증: `go test ./...` 통과
 
 최근 진행:
+- `user_addresses` exact-match hot paths now compare against normalized `address_ace` and add per-user covering indexes, removing table-side `lower(address)` from login, delivery, SSO, profile, SMTP, draft, sender, and directory lookups.
 - `ListMessagesByIDs` hydration을 `unnest($2::uuid[]) WITH ORDINALITY` 기반으로 바꿔 JSON 배열 파싱을 제거함
 - `ListMessageIDsForThreads`와 `BulkSetThreadFlag`도 UUID 배열 `unnest` 경로로 바꿔 thread 배치 처리의 JSON 파싱을 제거함
 - `ListThreadMessagesPage`는 `COALESCE(thread_id, id)` 비교를 UUID 친화적인 `thread_id = ... OR id = ...`로 분해함

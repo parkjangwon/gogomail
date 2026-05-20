@@ -1,6 +1,12 @@
 # gogomail current status
 
-Last updated: 2026-05-21 (SaaS launch hardening continues: attachment cleanup batching and TASK-090 query optimization verified)
+Last updated: 2026-05-21 (SaaS launch hardening continues: TASK-090 address lookup sargability verified)
+
+## User Address Lookup Sargability (2026-05-21)
+- Exact user-address lookup hot paths now compare normalized input against `user_addresses.address_ace` instead of wrapping table columns with `lower(address)`.
+- The change covers directory attendee resolution, inbound recipient delivery, SSO user lookup, webmail profile lookup, user login, LDAP fallback auth, SMTP submission auth, draft sender resolution, and outbound sender resolution.
+- Migration `0122_user_address_lookup_indexes.sql` adds per-user `address_ace` covering indexes for sender selection and primary-address listing order.
+- Verification: `go test ./internal/directory ./internal/maildb` passes.
 
 ## Attachment Upload Cleanup Batching (2026-05-21)
 - Stale attachment upload session cleanup now batches expiry status updates with typed UUID arrays instead of issuing one `UPDATE attachment_upload_sessions` per expired session.

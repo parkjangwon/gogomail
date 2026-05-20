@@ -69,7 +69,7 @@ Add `ResolveUserByEmail` to `directory.Repository`:
 func (r *Repository) ResolveUserByEmail(ctx context.Context, address string, activeOnly bool) (Principal, error)
 ```
 
-Query: exact match on `lower(user_addresses.address) = lower($1)` joined to `users`,
+Query: exact match on `user_addresses.address_ace = $1` joined to `users`,
 `domains`, `companies` with status checks. Returns the user `Principal` or
 `ErrPrincipalNotFound`.
 

@@ -20,17 +20,21 @@ func (r *Repository) GetUserByEmail(ctx context.Context, email string) (SSOUserI
 	if r.db == nil {
 		return SSOUserInfo{}, fmt.Errorf("database handle is required")
 	}
+	addressACE, err := normalizeAddressACE(email)
+	if err != nil {
+		return SSOUserInfo{}, err
+	}
 	const query = `
 SELECT ua.user_id::text, ua.domain_id::text, d.company_id::text, ua.address
 FROM user_addresses ua
 JOIN users u ON u.id = ua.user_id
 JOIN domains d ON d.id = ua.domain_id
-WHERE lower(ua.address) = lower($1)
+WHERE ua.address_ace = $1
   AND u.status = 'active'
   AND d.status = 'active'
 LIMIT 1`
 	var info SSOUserInfo
-	err := r.db.QueryRowContext(ctx, query, strings.TrimSpace(email)).Scan(
+	err = r.db.QueryRowContext(ctx, query, addressACE).Scan(
 		&info.UserID, &info.DomainID, &info.CompanyID, &info.Email,
 	)
 	if err == sql.ErrNoRows {

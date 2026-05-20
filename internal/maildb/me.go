@@ -61,16 +61,20 @@ func (r *Repository) GetUserProfileByEmail(ctx context.Context, email string) (U
 	if email == "" {
 		return UserProfile{}, fmt.Errorf("email is required")
 	}
+	addressACE, err := normalizeAddressACE(email)
+	if err != nil {
+		return UserProfile{}, err
+	}
 	const query = `
 SELECT u.id::text, u.domain_id::text, u.display_name, primary_addr.address, COALESCE(u.recovery_email, ''), u.quota_used, u.quota_limit
 FROM user_addresses lookup
 JOIN users u ON u.id = lookup.user_id
 JOIN user_addresses primary_addr ON primary_addr.user_id = u.id AND primary_addr.is_primary = true
-WHERE lower(lookup.address) = lower($1)
+WHERE lookup.address_ace = $1
 LIMIT 1`
 
 	var p UserProfile
-	err := r.db.QueryRowContext(ctx, query, email).Scan(
+	err = r.db.QueryRowContext(ctx, query, addressACE).Scan(
 		&p.UserID,
 		&p.DomainID,
 		&p.DisplayName,
