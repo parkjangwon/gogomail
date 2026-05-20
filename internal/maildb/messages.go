@@ -1298,6 +1298,58 @@ WHERE user_id = $1
 	return affected, nil
 }
 
+// LookupDeleteableStoragePaths returns unique non-empty storage paths for the
+// given message IDs where no other active message shares the same path.
+// This is used to perform best-effort GC of EML objects after a message is
+// deleted from the database: paths that are still referenced by another message
+// must not be removed.
+func (r *Repository) LookupDeleteableStoragePaths(ctx context.Context, userID string, messageIDs []string) ([]string, error) {
+	if r.db == nil {
+		return nil, fmt.Errorf("database handle is required")
+	}
+	if len(messageIDs) == 0 {
+		return nil, nil
+	}
+	rawIDs, err := json.Marshal(messageIDs)
+	if err != nil {
+		return nil, fmt.Errorf("encode message ids: %w", err)
+	}
+	// Return storage_path values that belong to at least one of the target
+	// messages but are NOT shared by any other message (regardless of user).
+	rows, err := r.db.QueryContext(ctx, `
+SELECT DISTINCT m.storage_path
+FROM messages m
+WHERE m.user_id = $1
+  AND m.id IN (SELECT value::uuid FROM jsonb_array_elements_text($2::jsonb))
+  AND m.storage_path IS NOT NULL
+  AND m.storage_path <> ''
+  AND (
+    SELECT COUNT(*)
+    FROM messages ref
+    WHERE ref.storage_path = m.storage_path
+      AND ref.id != m.id
+  ) = 0`, strings.TrimSpace(userID), string(rawIDs))
+	if err != nil {
+		return nil, fmt.Errorf("lookup deleteable storage paths: %w", err)
+	}
+	defer rows.Close()
+	var paths []string
+	for rows.Next() {
+		var p string
+		if err := rows.Scan(&p); err != nil {
+			return nil, fmt.Errorf("scan storage path: %w", err)
+		}
+		p = strings.TrimSpace(p)
+		if p != "" {
+			paths = append(paths, p)
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate storage paths: %w", err)
+	}
+	return paths, nil
+}
+
 func (r *Repository) BulkRestoreMessages(ctx context.Context, req BulkMessageRestoreRequest) (BulkMessageRestoreResult, error) {
 	if r.db == nil {
 		return BulkMessageRestoreResult{}, fmt.Errorf("database handle is required")

@@ -1061,6 +1061,64 @@ WHERE user_id = $1::uuid
 	return summaries, nil
 }
 
+// LookupExpungeStoragePaths returns unique non-empty storage paths for IMAP
+// messages that are flagged as \Deleted in the given mailbox and would be
+// removed by an EXPUNGE command.  Only paths not shared with any other message
+// record are returned, so the caller can safely delete those objects from the
+// backing store after the database records are removed.  Pass a nil or empty
+// uids slice to match all \Deleted messages in the mailbox.
+func (r *Repository) LookupExpungeStoragePaths(ctx context.Context, userID string, mailboxID string, uids []imapgw.UID) ([]string, error) {
+	if r.db == nil {
+		return nil, fmt.Errorf("database handle is required")
+	}
+	userID = strings.TrimSpace(userID)
+	if userID == "" {
+		return nil, fmt.Errorf("user_id is required")
+	}
+	if strings.TrimSpace(mailboxID) == "" {
+		return nil, fmt.Errorf("mailbox_id is required")
+	}
+	uidsArray := imapUIDArray(uids)
+	rows, err := r.db.QueryContext(ctx, `
+SELECT DISTINCT m.storage_path
+FROM imap_message_uid i
+JOIN messages m ON m.id = i.message_id
+WHERE i.user_id = $1::uuid
+  AND i.mailbox_id = $2::uuid
+  AND m.user_id = $1::uuid
+  AND m.folder_id = $2::uuid
+  AND m.status = 'active'
+  AND COALESCE((m.flags->>'imap_deleted')::boolean, false) = true
+  AND ($3::bool = false OR i.uid IN (SELECT value::bigint FROM unnest($4::bigint[]) AS input(value)))
+  AND m.storage_path IS NOT NULL
+  AND m.storage_path <> ''
+  AND (
+    SELECT COUNT(*)
+    FROM messages ref
+    WHERE ref.storage_path = m.storage_path
+      AND ref.id != m.id
+  ) = 0`, userID, mailboxID, len(uids) > 0, pq.Array(uidsArray))
+	if err != nil {
+		return nil, fmt.Errorf("lookup expunge storage paths: %w", err)
+	}
+	defer rows.Close()
+	var paths []string
+	for rows.Next() {
+		var p string
+		if err := rows.Scan(&p); err != nil {
+			return nil, fmt.Errorf("scan expunge storage path: %w", err)
+		}
+		p = strings.TrimSpace(p)
+		if p != "" {
+			paths = append(paths, p)
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate expunge storage paths: %w", err)
+	}
+	return paths, nil
+}
+
 func (r *Repository) MoveIMAPMessages(ctx context.Context, userID string, sourceMailboxID string, destMailboxID string, uids []imapgw.UID) ([]imapgw.MoveMessageResult, error) {
 	if r.db == nil {
 		return nil, fmt.Errorf("database handle is required")
