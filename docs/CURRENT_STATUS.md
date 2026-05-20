@@ -1,6 +1,12 @@
 # gogomail current status
 
-Last updated: 2026-05-21 (SaaS launch hardening continues: delivery retry payload fast path)
+Last updated: 2026-05-21 (SaaS launch hardening continues: Drive sibling lookup sargability)
+
+## Drive Sibling Lookup Sargability (2026-05-21)
+- Drive active sibling-name lookup now builds separate root and child-parent SQL predicates instead of comparing `COALESCE(parent_id, sentinel)` to a nullable request value.
+- Root lookups use `parent_id IS NULL`; child lookups use `parent_id = $2::uuid`, matching the active sibling-name index shape more directly during folder/file conflict checks.
+- Regression coverage locks the root/child query shapes and prevents the sentinel `COALESCE(parent_id, ...)` expression from returning.
+- Verification target: `go test -count=1 ./internal/drive -run 'TestFindActiveNodeBySiblingNameUsesSargableParentFilters|TestDriveCreateQueriesUseSargableParentFilters'`.
 
 ## Delivery Retry Payload Fast Path (2026-05-21)
 - Delivery jobs now retain the decoded event's original queued JSON payload so full-message retry scheduling can patch only the top-level `retry_attempt` field instead of marshaling the entire `QueuedMessage` struct again.

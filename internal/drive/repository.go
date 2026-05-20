@@ -1585,32 +1585,9 @@ func (r *Repository) findActiveNodeBySiblingName(ctx context.Context, userID, pa
 	if r == nil || r.db == nil {
 		return Node{}, fmt.Errorf("database handle is required")
 	}
-	const query = `
-SELECT
-  id::text,
-  company_id::text,
-  domain_id::text,
-  user_id::text,
-  COALESCE(parent_id::text, ''),
-  node_type,
-  name,
-  normalized_name,
-  mime_type,
-  size,
-  storage_backend,
-  storage_path,
-  checksum_sha256,
-  status,
-  created_at,
-  updated_at
-FROM drive_nodes
-WHERE user_id = $1::uuid
-  AND status = 'active'
-  AND COALESCE(parent_id, '00000000-0000-0000-0000-000000000000'::uuid) = COALESCE(NULLIF($2, '')::uuid, '00000000-0000-0000-0000-000000000000'::uuid)
-  AND normalized_name = $3
-  AND node_type = $4`
+	query, args := buildFindActiveNodeBySiblingNameQuery(userID, parentID, normalizedName, nodeType)
 	var node Node
-	err := r.db.QueryRowContext(ctx, query, userID, parentID, normalizedName, nodeType).Scan(
+	err := r.db.QueryRowContext(ctx, query, args...).Scan(
 		&node.ID,
 		&node.CompanyID,
 		&node.DomainID,
@@ -1635,6 +1612,45 @@ WHERE user_id = $1::uuid
 		return Node{}, fmt.Errorf("lookup existing drive node: %w", err)
 	}
 	return node, nil
+}
+
+func buildFindActiveNodeBySiblingNameQuery(userID, parentID, normalizedName, nodeType string) (string, []any) {
+	args := []any{userID}
+	parentPredicate := "parent_id IS NULL"
+	nameArg := 2
+	typeArg := 3
+	if strings.TrimSpace(parentID) != "" {
+		args = append(args, parentID)
+		parentPredicate = "parent_id = $2::uuid"
+		nameArg = 3
+		typeArg = 4
+	}
+	args = append(args, normalizedName, nodeType)
+	query := fmt.Sprintf(`
+SELECT
+  id::text,
+  company_id::text,
+  domain_id::text,
+  user_id::text,
+  COALESCE(parent_id::text, ''),
+  node_type,
+  name,
+  normalized_name,
+  mime_type,
+  size,
+  storage_backend,
+  storage_path,
+  checksum_sha256,
+  status,
+  created_at,
+  updated_at
+FROM drive_nodes
+WHERE user_id = $1::uuid
+  AND status = 'active'
+  AND %s
+  AND normalized_name = $%d
+  AND node_type = $%d`, parentPredicate, nameArg, typeArg)
+	return query, args
 }
 
 func isDriveNodeSiblingNameConflict(err error) bool {
