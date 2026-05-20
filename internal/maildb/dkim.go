@@ -100,26 +100,8 @@ func (r *Repository) ListDKIMKeys(ctx context.Context, req DKIMKeyListRequest) (
 	if err := ValidateDKIMKeyListRequest(req); err != nil {
 		return nil, err
 	}
-	limit := normalizeLimit(req.Limit)
-	status := normalizeDKIMKeyStatus(req.Status)
-
-	const query = `
-SELECT
-  id::text,
-  domain_id::text,
-  selector,
-  public_key_dns,
-  status,
-  dns_verified_at,
-  created_at,
-  updated_at
-FROM dkim_keys
-WHERE ($1 = '' OR domain_id::text = $1)
-  AND ($2 = '' OR status = $2)
-ORDER BY updated_at DESC
-LIMIT $3`
-
-	rows, err := r.db.QueryContext(ctx, query, strings.TrimSpace(req.DomainID), status, limit)
+	query, args := buildListDKIMKeysQuery(req)
+	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("list dkim keys: %w", err)
 	}
@@ -146,6 +128,40 @@ LIMIT $3`
 		return nil, fmt.Errorf("iterate dkim keys: %w", err)
 	}
 	return keys, nil
+}
+
+const listDKIMKeysBaseSQL = `
+SELECT
+  id::text,
+  domain_id::text,
+  selector,
+  public_key_dns,
+  status,
+  dns_verified_at,
+  created_at,
+  updated_at
+FROM dkim_keys`
+
+func buildListDKIMKeysQuery(req DKIMKeyListRequest) (string, []any) {
+	args := make([]any, 0, 3)
+	conditions := make([]string, 0, 2)
+	if domainID := strings.TrimSpace(req.DomainID); domainID != "" {
+		args = append(args, domainID)
+		conditions = append(conditions, fmt.Sprintf("domain_id::text = $%d", len(args)))
+	}
+	if status := normalizeDKIMKeyStatus(req.Status); status != "" {
+		args = append(args, status)
+		conditions = append(conditions, fmt.Sprintf("status = $%d", len(args)))
+	}
+	args = append(args, normalizeLimit(req.Limit))
+	query := listDKIMKeysBaseSQL
+	if len(conditions) > 0 {
+		query += "\nWHERE " + strings.Join(conditions, "\n  AND ")
+	}
+	query += fmt.Sprintf(`
+ORDER BY updated_at DESC
+LIMIT $%d`, len(args))
+	return query, args
 }
 
 func ValidateDKIMKeyListRequest(req DKIMKeyListRequest) error {

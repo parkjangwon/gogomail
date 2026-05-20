@@ -6467,3 +6467,6 @@ Target outcome:
 1773. Drive node listing now uses dynamic optional predicates for name search,
       node type, and parent scope, avoiding broad optional `OR` and `NULLIF`
       guards on large folder and whole-drive listing operations.
+1774. DKIM key listing now uses dynamic optional predicates for domain and
+      status filters, avoiding broad optional `OR` guards on domain
+      authentication operations.
