@@ -578,6 +578,25 @@ type DeliveryAttemptListRequest struct {
 	ProbeMore       bool // when true the query fetches Limit+1 to detect has_more
 }
 
+const listDeliveryAttemptsBaseSQL = `
+SELECT
+  id::text,
+  message_id::text,
+  rfc_message_id,
+  farm,
+  sender,
+  recipient,
+  recipient_domain,
+  status,
+  enhanced_status,
+  error_message,
+  dsn_return,
+  dsn_envelope_id,
+  dsn_notify,
+  original_recipient,
+  attempted_at
+FROM delivery_attempts`
+
 type DeliveryAttemptStatsRequest struct {
 	Status          string
 	RecipientDomain string
@@ -5640,34 +5659,8 @@ func (r *Repository) ListDeliveryAttempts(ctx context.Context, req DeliveryAttem
 		queryLimit = req.Limit + 1
 	}
 
-	const query = `
-SELECT
-  id::text,
-  message_id::text,
-  rfc_message_id,
-  farm,
-  sender,
-  recipient,
-  recipient_domain,
-  status,
-  enhanced_status,
-  error_message,
-  dsn_return,
-  dsn_envelope_id,
-  dsn_notify,
-  original_recipient,
-  attempted_at
-FROM delivery_attempts
-WHERE (NULLIF($2, '') IS NULL OR status = $2)
-  AND ($3::timestamptz IS NULL OR attempted_at >= $3::timestamptz)
-  AND (NULLIF($4, '') IS NULL OR recipient_domain = $4)
-  AND (NULLIF($5, '') IS NULL OR message_id::text = $5)
-  AND (NULLIF($6, '') IS NULL OR farm = $6)
-  AND (NULLIF($7, '') IS NULL OR lower(sender) = $7)
-ORDER BY attempted_at DESC, id DESC
-LIMIT $1`
-
-	rows, err := r.db.QueryContext(ctx, query, queryLimit, filters.Status, nullableTime(req.Since), filters.RecipientDomain, filters.MessageID, filters.Farm, filters.Sender)
+	query, args := buildListDeliveryAttemptsQuery(filters, req.Since, queryLimit)
+	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, false, fmt.Errorf("list delivery attempts: %w", err)
 	}
@@ -5689,6 +5682,46 @@ LIMIT $1`
 		attempts = attempts[:req.Limit]
 	}
 	return attempts, hasMore, nil
+}
+
+func buildListDeliveryAttemptsQuery(filters deliveryAttemptFilters, since time.Time, queryLimit int) (string, []any) {
+	query := listDeliveryAttemptsBaseSQL
+	var conditions []string
+	var args []any
+
+	if filters.Status != "" {
+		args = append(args, filters.Status)
+		conditions = append(conditions, fmt.Sprintf("status = $%d", len(args)))
+	}
+	if !since.IsZero() {
+		args = append(args, since.UTC())
+		conditions = append(conditions, fmt.Sprintf("attempted_at >= $%d", len(args)))
+	}
+	if filters.RecipientDomain != "" {
+		args = append(args, filters.RecipientDomain)
+		conditions = append(conditions, fmt.Sprintf("recipient_domain = $%d", len(args)))
+	}
+	if filters.MessageID != "" {
+		args = append(args, filters.MessageID)
+		conditions = append(conditions, fmt.Sprintf("message_id::text = $%d", len(args)))
+	}
+	if filters.Farm != "" {
+		args = append(args, filters.Farm)
+		conditions = append(conditions, fmt.Sprintf("farm = $%d", len(args)))
+	}
+	if filters.Sender != "" {
+		args = append(args, filters.Sender)
+		conditions = append(conditions, fmt.Sprintf("lower(sender) = $%d", len(args)))
+	}
+	if len(conditions) > 0 {
+		query += "\nWHERE " + strings.Join(conditions, "\n  AND ")
+	}
+
+	args = append(args, queryLimit)
+	query += fmt.Sprintf(`
+ORDER BY attempted_at DESC, id DESC
+LIMIT $%d`, len(args))
+	return query, args
 }
 
 type deliveryAttemptFilters struct {

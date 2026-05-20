@@ -64,6 +64,7 @@ Last updated: 2026-05-21 (SaaS launch hardening continues: attachment cleanup ba
 - Webmail Web Push subscription now converts the VAPID public key to the required `Uint8Array` form, and mail view startup no longer prompts for notification permission outside the explicit Settings opt-in flow.
 - Webmail quick reply templates now sync through server preferences and keep a normalized local cache for compose and Spotlight search, so templates survive browser/device changes instead of living only in localStorage.
 - Admin outbox event listing now builds sargable WHERE clauses only for provided filters, avoiding the previous `NULLIF(...) OR ...` predicate shape that could blur index selectivity on large queues.
+- Admin delivery-attempt listing uses the same sargable dynamic query shape for status, time, domain, message, farm, and sender filters, keeping large delivery-history inspection paths aligned with their indexes.
 - Verification: `go test ./...`, `pnpm --dir apps/webmail type-check`, and `pnpm --dir apps/console type-check` pass.
 
 ## CLI Break-Glass MFA Reset (2026-05-19)
