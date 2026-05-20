@@ -236,11 +236,12 @@ VALUES ('mail.event', $1, $2::jsonb, 'pending')`
 }
 
 func exhaustedEventPayload(queued QueuedMessage, causeMsg string) ([]byte, error) {
-	recipients := make([]string, 0, len(queued.Recipients()))
-	recipientDetails := make([]map[string]any, 0, len(queued.Recipients()))
+	queuedRecipients := queued.Recipients()
+	recipients := make([]string, 0, len(queuedRecipients))
+	recipientDetails := make([]map[string]any, 0, len(queuedRecipients))
 	cause := errorFromMessage(causeMsg)
 	dsnByAddress := dsnRecipientOptionsByAddress(queued.DSN.Recipients)
-	for _, r := range queued.Recipients() {
+	for _, r := range queuedRecipients {
 		if email := strings.TrimSpace(r.Email); email != "" {
 			recipients = append(recipients, email)
 			_, domain, _ := strings.Cut(email, "@")

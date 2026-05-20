@@ -59,7 +59,8 @@ type MessageOpener func(ctx context.Context) (io.ReadCloser, error)
 
 type Job struct {
 	QueuedMessage
-	OpenMessage MessageOpener
+	OpenMessage    MessageOpener
+	recipientCache []outbound.Address
 }
 
 type Transport interface {
@@ -159,12 +160,17 @@ func (h *Handler) HandleEvent(ctx context.Context, msg eventstream.Message) erro
 	if queued.StoragePath == "" {
 		return fmt.Errorf("mail.queued payload is missing storage_path")
 	}
+	recipients := queued.Recipients()
+	if len(recipients) == 0 {
+		return fmt.Errorf("mail.queued payload has no recipients")
+	}
 
 	job := Job{
 		QueuedMessage: queued,
 		OpenMessage: func(openCtx context.Context) (io.ReadCloser, error) {
 			return h.store.Get(openCtx, queued.StoragePath)
 		},
+		recipientCache: recipients,
 	}
 
 	if h.backoff != nil {
@@ -224,6 +230,7 @@ func (h *Handler) HandleEvent(ctx context.Context, msg eventstream.Message) erro
 			}
 			retryJob := job
 			retryJob.QueuedMessage = queuedMessageForRecipients(job.QueuedMessage, temporary)
+			retryJob.recipientCache = temporary
 			if h.backoff != nil {
 				h.backoff.ObserveTemporaryFailure(ctx, retryJob, temporary, err)
 			}
@@ -270,6 +277,13 @@ func (h *Handler) HandleEvent(ctx context.Context, msg eventstream.Message) erro
 	}
 	h.observe(ctx, metricEvent(queued, MetricTransportDelivered, MetricOK, nil))
 	return h.recordAttempts(ctx, job, AttemptDelivered, nil)
+}
+
+func (j Job) Recipients() []outbound.Address {
+	if j.recipientCache != nil {
+		return j.recipientCache
+	}
+	return j.QueuedMessage.Recipients()
 }
 
 func queuedMessageForRecipients(queued QueuedMessage, recipients []outbound.Address) QueuedMessage {
@@ -352,7 +366,7 @@ func DecodeQueuedMessage(payload json.RawMessage) (QueuedMessage, error) {
 		return QueuedMessage{}, err
 	}
 	queued.StoragePath = storagePath
-	if len(queued.Recipients()) == 0 {
+	if queuedRawRecipientCount(queued) == 0 {
 		return QueuedMessage{}, fmt.Errorf("mail.queued payload has no recipients")
 	}
 	return queued, nil

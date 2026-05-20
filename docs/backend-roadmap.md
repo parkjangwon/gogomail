@@ -6578,3 +6578,7 @@ Target outcome:
 1808. Suppression-list preflight checks now use one ordinality-preserving
       typed-array lookup for all requested recipients instead of one
       `SELECT 1 ... LIMIT 1` query per recipient.
+1809. Delivery jobs now cache the normalized/deduplicated recipient list after
+      queued-message decode, avoiding repeated To/Cc/Bcc merge and address
+      normalization work across transport, retry, throttle, backoff, and
+      attempt-recording paths.
