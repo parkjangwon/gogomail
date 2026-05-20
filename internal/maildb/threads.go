@@ -109,7 +109,17 @@ SELECT
 FROM active_messages
 GROUP BY thread_key
 )
-SELECT *
+SELECT
+  thread_key,
+  subject,
+  preview,
+  message_count,
+  unread_count,
+  latest_message_id,
+  latest_from_addr,
+  latest_at,
+  has_attachment,
+  starred
 FROM thread_summaries
 WHERE (
   $4 = ''
@@ -160,7 +170,17 @@ SELECT
 FROM active_messages
 GROUP BY thread_key
 )
-SELECT *
+SELECT
+  thread_key,
+  subject,
+  preview,
+  message_count,
+  unread_count,
+  latest_message_id,
+  latest_from_addr,
+  latest_at,
+  has_attachment,
+  starred
 FROM thread_summaries
 WHERE (
   $4 = ''

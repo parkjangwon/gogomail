@@ -7707,3 +7707,9 @@ Next focus areas:
 - Draft attachment lookup now expands attachment IDs with `unnest($2::uuid[]) WITH ORDINALITY`, preserving requested order through a typed array join instead of per-row array-position scans.
 - Added SQL-shape regression tests for both lookup paths.
 - Verification: `go test ./internal/maildb -run 'TestResolveThreadIDSQLUsesOrdinalityArray|TestAttachmentsByIDsSQLUsesUuidOrdinality'`.
+
+## 2026-05-21 Thread list projection tightening
+
+- Thread list newest/oldest queries now project the 10 API response columns explicitly from `thread_summaries` instead of `SELECT *`.
+- The thread list SQL regression test now rejects `SELECT * FROM thread_summaries` so future read-model changes keep the hot listing projection narrow.
+- Verification: `go test ./internal/maildb -run TestThreadListSQLUsesLatestMessagePreview`.

@@ -40,10 +40,14 @@ func TestThreadListSQLUsesLatestMessagePreview(t *testing.T) {
 				"LEFT JOIN message_search_documents msd",
 				"left(btrim(regexp_replace(left(coalesce(msd.body_text, ''), 2000), '[[:space:]]+', ' ', 'g')), 280) AS preview",
 				"(array_agg(preview ORDER BY message_at DESC, id DESC))[1] AS preview",
+				"SELECT\n  thread_key,\n  subject,\n  preview,\n  message_count,\n  unread_count,\n  latest_message_id,\n  latest_from_addr,\n  latest_at,\n  has_attachment,\n  starred\nFROM thread_summaries",
 			} {
 				if !strings.Contains(query, want) {
 					t.Fatalf("thread list query does not include %q:\n%s", want, query)
 				}
+			}
+			if strings.Contains(query, "SELECT *\nFROM thread_summaries") {
+				t.Fatalf("thread list query still projects all thread summary columns:\n%s", query)
 			}
 		})
 	}
