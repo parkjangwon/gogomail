@@ -94,6 +94,50 @@ func TestHandlerUsesBulkRecorderForMultipleRecipients(t *testing.T) {
 	}
 }
 
+func TestHandlerUsesBulkRecorderForPartialFailures(t *testing.T) {
+	t.Parallel()
+
+	store := storage.NewLocalStore(t.TempDir())
+	if err := store.Put(context.Background(), "mailstore/msg.eml", strings.NewReader("Subject: hello\r\n\r\nbody")); err != nil {
+		t.Fatalf("Put returned error: %v", err)
+	}
+	recorder := &fakeBulkRecorder{}
+	handler := NewHandler(store, &fakeTransport{err: &PartialDeliveryError{
+		Delivered: []outbound.Address{{Email: "ok@example.net"}},
+		Failed: []RecipientDeliveryError{
+			{Recipient: outbound.Address{Email: "temp@example.net"}, Err: &SMTPStatusError{Op: "rcpt", Code: 451, Message: "4.3.0 try later"}},
+			{Recipient: outbound.Address{Email: "gone@example.net"}, Err: &SMTPStatusError{Op: "rcpt", Code: 550, Message: "5.1.1 no user"}},
+		},
+	}}, recorder, &fakeRetryScheduler{})
+
+	err := handler.HandleEvent(context.Background(), eventstream.Message{
+		ID: "1-0",
+		Payload: []byte(`{
+			"event":"mail.queued",
+			"message_id":"msg-1",
+			"from":{"email":"sender@example.com"},
+			"to":[{"email":"ok@example.net"},{"email":"temp@example.net"},{"email":"gone@example.net"}],
+			"storage_path":"mailstore/msg.eml",
+			"farm":"general"
+		}`),
+	})
+	if err != nil {
+		t.Fatalf("HandleEvent returned error: %v", err)
+	}
+	if len(recorder.batches) != 2 {
+		t.Fatalf("bulk batches = %d, want delivered batch + failed batch", len(recorder.batches))
+	}
+	if got := recorder.batches[0]; len(got) != 1 || got[0].Recipient != "ok@example.net" || got[0].Status != AttemptDelivered {
+		t.Fatalf("delivered batch = %+v", got)
+	}
+	if got := recorder.batches[1]; len(got) != 2 || got[0].Status != AttemptFailed || got[1].Status != AttemptBounced {
+		t.Fatalf("failed batch = %+v, want temporary failed + permanent bounced", got)
+	}
+	if len(recorder.attempts) != 0 {
+		t.Fatalf("individual attempts = %+v, want none", recorder.attempts)
+	}
+}
+
 func TestDecodeQueuedMessageNormalizesStoragePath(t *testing.T) {
 	t.Parallel()
 
