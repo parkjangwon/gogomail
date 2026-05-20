@@ -2092,24 +2092,8 @@ func (r *Repository) BulkUpdateUserStatus(ctx context.Context, req BulkUpdateUse
 	}
 	defer tx.Rollback()
 
-	rows, err := tx.QueryContext(ctx, `
-WITH input AS (
-  SELECT id::uuid
-  FROM unnest($1::text[]) AS id
-),
-updated AS (
-  UPDATE users u
-  SET status = $2,
-      updated_at = now()
-  FROM domains d, input i
-  WHERE u.domain_id = d.id
-    AND u.id = i.id
-    AND (NULLIF($3, '')::uuid IS NULL OR d.company_id = NULLIF($3, '')::uuid)
-  RETURNING u.id::text, u.domain_id::text, d.company_id::text, u.username, u.status
-)
-SELECT id, domain_id, company_id, username, status
-FROM updated
-ORDER BY id`, stringArray(ids), status, companyID)
+	query, args := buildBulkUpdateUserStatusQuery(ids, status, companyID)
+	rows, err := tx.QueryContext(ctx, query, args...)
 	if err != nil {
 		return BulkUpdateUserStatusResult{}, fmt.Errorf("bulk update user status: %w", err)
 	}
@@ -2154,6 +2138,34 @@ ORDER BY id`, stringArray(ids), status, companyID)
 		return BulkUpdateUserStatusResult{}, fmt.Errorf("commit bulk user status transaction: %w", err)
 	}
 	return result, nil
+}
+
+func buildBulkUpdateUserStatusQuery(ids []string, status, companyID string) (string, []any) {
+	args := []any{stringArray(ids), status}
+	companyPredicate := ""
+	if companyID != "" {
+		args = append(args, companyID)
+		companyPredicate = fmt.Sprintf("    AND d.company_id = $%d::uuid\n", len(args))
+	}
+
+	query := `
+WITH input AS (
+  SELECT id::uuid
+  FROM unnest($1::text[]) AS id
+),
+updated AS (
+  UPDATE users u
+  SET status = $2,
+      updated_at = now()
+  FROM domains d, input i
+  WHERE u.domain_id = d.id
+    AND u.id = i.id
+` + companyPredicate + `  RETURNING u.id::text, u.domain_id::text, d.company_id::text, u.username, u.status
+)
+SELECT id, domain_id, company_id, username, status
+FROM updated
+ORDER BY id`
+	return query, args
 }
 
 func (r *Repository) UpdateUserQuota(ctx context.Context, req UpdateUserQuotaRequest) error {

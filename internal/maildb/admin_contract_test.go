@@ -1103,6 +1103,45 @@ func TestValidateBulkUpdateUserStatusRequestRejectsInvalidIDs(t *testing.T) {
 	}
 }
 
+func TestBulkUpdateUserStatusQueryUsesSargableCompanyFilter(t *testing.T) {
+	t.Parallel()
+
+	query, args := buildBulkUpdateUserStatusQuery([]string{"user-1", "user-2"}, "active", "company-1")
+	for _, want := range []string{
+		"FROM domains d, input i",
+		"u.id = i.id",
+		"AND d.company_id = $3::uuid",
+		"RETURNING u.id::text",
+		"ORDER BY id",
+	} {
+		if !strings.Contains(query, want) {
+			t.Fatalf("bulk user status query missing %q:\n%s", want, query)
+		}
+	}
+	for _, forbidden := range []string{
+		"NULLIF($3, '')::uuid IS NULL",
+		"OR d.company_id",
+	} {
+		if strings.Contains(query, forbidden) {
+			t.Fatalf("bulk user status query contains non-sargable company filter %q:\n%s", forbidden, query)
+		}
+	}
+	if len(args) != 3 {
+		t.Fatalf("args len = %d, want 3", len(args))
+	}
+	if args[1] != "active" || args[2] != "company-1" {
+		t.Fatalf("args = %#v", args)
+	}
+
+	query, args = buildBulkUpdateUserStatusQuery([]string{"user-1"}, "disabled", "")
+	if strings.Contains(query, "AND d.company_id") {
+		t.Fatalf("unscoped bulk user status query unexpectedly includes company filter:\n%s", query)
+	}
+	if len(args) != 2 || args[1] != "disabled" {
+		t.Fatalf("unscoped args = %#v", args)
+	}
+}
+
 func TestValidateDeleteUserRequestRejectsBlankID(t *testing.T) {
 	t.Parallel()
 
