@@ -1677,15 +1677,28 @@ export async function getPreferences(): Promise<WebmailPreferences> {
   } catch { return {}; }
 }
 
+function mergePreferences(current: WebmailPreferences, next: WebmailPreferences): WebmailPreferences {
+  const merged: WebmailPreferences = { ...current, ...next };
+  if (current.settings || next.settings) {
+    merged.settings = { ...(current.settings ?? {}), ...(next.settings ?? {}) };
+  }
+  if (current.signatures || next.signatures) {
+    merged.signatures = { ...(current.signatures ?? {}), ...(next.signatures ?? {}) };
+  }
+  return merged;
+}
+
 export async function setPreferences(prefs: WebmailPreferences): Promise<WebmailPreferences> {
+  const current = await getPreferences();
+  const merged = mergePreferences(current, prefs);
   try {
     const res = await fetch('/api/mail/preferences', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(prefs),
+      body: JSON.stringify(merged),
     });
-    if (!res.ok) return prefs;
+    if (!res.ok) return merged;
     const data = await res.json() as { preferences?: WebmailPreferences };
-    return data.preferences ?? prefs;
-  } catch { return prefs; }
+    return data.preferences ?? merged;
+  } catch { return merged; }
 }

@@ -86,9 +86,9 @@ export function FilterRulesSection({ filterRules, setFilterRules }: FilterRulesS
 
   return (
     <>
-      <div style={{ background: '#fefce8', border: '1px solid #fde68a', borderRadius: '8px', padding: '12px 16px', marginBottom: '16px', fontSize: '13px', color: '#92400e', display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
-        <span style={{ flexShrink: 0 }}>⚠️</span>
-        <span>필터 규칙은 현재 개발 중입니다. 설정은 저장되지만 실제 메일 필터링은 적용되지 않습니다.</span>
+      <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '8px', padding: '12px 16px', marginBottom: '16px', fontSize: '13px', color: '#1e40af', display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
+        <span style={{ flexShrink: 0 }}>i</span>
+        <span>필터 규칙은 새로 불러온 메일에 적용되며, 설정은 이 브라우저와 서버 환경설정에 함께 저장됩니다.</span>
       </div>
       <SectionCard>
         <SectionHeader>메일 필터 규칙</SectionHeader>

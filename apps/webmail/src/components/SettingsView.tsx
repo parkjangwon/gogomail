@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { CheckIcon, ExclamationTriangleIcon, NoSymbolIcon, ArrowDownTrayIcon } from '@heroicons/react/24/outline';
 import { revokeAllSessions, getFolderStats, exportFolderEml, exportFolderZip, getPreferences, setPreferences, getUserProfile, updateUserProfile, changePassword, registerWebPushDevice, type FolderStats, type WebmailPreferences, type UserProfile } from '@/lib/api';
-import { ReadMark, ExternalImages, SendDelay, Theme, FontSize, ACCENT_COLORS, FilterRule, migrateFilterRule, loadFilterRules } from '@/lib/settings/settingsUtils';
+import { ReadMark, ExternalImages, SendDelay, Theme, FontSize, ACCENT_COLORS, FilterRule, migrateFilterRule, loadFilterRules, saveFilterRules } from '@/lib/settings/settingsUtils';
 import { NAV_ITEMS, SHORTCUT_GROUPS, type SectionId } from '@/components/settings-view/settingsViewConfig';
 import { Kbd, MiniEditor, Row, SectionCard, SectionHeader, Segment, Toggle, loadWmSettings, saveWmSetting } from '@/components/settings-view/settingsViewPrimitives';
 import { FilterRulesSection } from '@/components/settings-view/FilterRulesSection';
@@ -168,7 +168,11 @@ export function SettingsView({ userEmail, userName, initialSection }: SettingsVi
           if (s.dndStart) setDndStart(s.dndStart as string);
           if (s.dndEnd) setDndEnd(s.dndEnd as string);
         }
-        if (prefs.filter_rules) setFilterRules((prefs.filter_rules as Record<string, unknown>[]).map(migrateFilterRule));
+        if (prefs.filter_rules) {
+          const serverRules = (prefs.filter_rules as Record<string, unknown>[]).map(migrateFilterRule);
+          setFilterRules(serverRules);
+          saveFilterRules(serverRules);
+        }
         if (prefs.blocked_senders) setBlockedSenders(prefs.blocked_senders);
         if (prefs.vacation) {
           const v = prefs.vacation;
