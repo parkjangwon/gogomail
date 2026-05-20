@@ -6543,3 +6543,6 @@ Target outcome:
       excluding-recursive membership query with direct active predicates only
       when requested, removing the remaining boolean active-filter optional
       `OR` from that mutation guard.
+1798. Mail API message list SQL generation now builds the requested folder,
+      cursor, read/starred, and attachment predicates directly instead of
+      repeatedly rewriting optional-`OR` SQL templates on each list request.

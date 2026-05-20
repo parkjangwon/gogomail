@@ -694,76 +694,44 @@ func (r *Repository) ListMessagesPage(ctx context.Context, userID string, folder
 }
 
 func buildMessageListPageSQL(sortMode, folderID, cursorID string, filter MessageListFilter) string {
-	query := messageListPageNewestSQL
+	conditions := []string{
+		"messages.user_id = $1",
+		"messages.status = 'active'",
+	}
+	if folderID != "" {
+		conditions = append(conditions, "messages.folder_id = $2::uuid")
+	}
+	if filter.Read != nil {
+		conditions = append(conditions, "COALESCE((messages.flags->>'read')::boolean, false) = $6::boolean")
+	}
+	if filter.Starred != nil {
+		conditions = append(conditions, "COALESCE((messages.flags->>'starred')::boolean, false) = $7::boolean")
+	}
+	if filter.HasAttachment != nil {
+		conditions = append(conditions, "messages.has_attachment = $8::boolean")
+	}
 	cursorOp := "<"
+	orderBy := "ORDER BY message_at DESC, id DESC"
 	if sortMode == ListSortOldest {
-		query = messageListPageOldestSQL
 		cursorOp = ">"
+		orderBy = "ORDER BY message_at ASC, id ASC"
 	}
-	if folderID == "" {
-		query = strings.Replace(query, "  AND ($2 = '' OR messages.folder_id::text = $2)\n", "", 1)
-	} else {
-		query = strings.Replace(query, "  AND ($2 = '' OR messages.folder_id::text = $2)", "  AND messages.folder_id = $2::uuid", 1)
+	if cursorID != "" {
+		conditions = append(conditions, fmt.Sprintf("(COALESCE(messages.received_at, messages.sent_at, messages.draft_updated_at, messages.created_at), messages.id) %s ($3::timestamptz, $4::uuid)", cursorOp))
 	}
-	if filter.Read == nil {
-		query = strings.Replace(query, "  AND ($6::boolean IS NULL OR COALESCE((messages.flags->>'read')::boolean, false) = $6::boolean)\n", "", 1)
-	} else {
-		query = strings.Replace(query, "  AND ($6::boolean IS NULL OR COALESCE((messages.flags->>'read')::boolean, false) = $6::boolean)", "  AND COALESCE((messages.flags->>'read')::boolean, false) = $6::boolean", 1)
-	}
-	if filter.Starred == nil {
-		query = strings.Replace(query, "  AND ($7::boolean IS NULL OR COALESCE((messages.flags->>'starred')::boolean, false) = $7::boolean)\n", "", 1)
-	} else {
-		query = strings.Replace(query, "  AND ($7::boolean IS NULL OR COALESCE((messages.flags->>'starred')::boolean, false) = $7::boolean)", "  AND COALESCE((messages.flags->>'starred')::boolean, false) = $7::boolean", 1)
-	}
-	if filter.HasAttachment == nil {
-		query = strings.Replace(query, "  AND ($8::boolean IS NULL OR messages.has_attachment = $8::boolean)\n", "", 1)
-	} else {
-		query = strings.Replace(query, "  AND ($8::boolean IS NULL OR messages.has_attachment = $8::boolean)", "  AND messages.has_attachment = $8::boolean", 1)
-	}
-	cursorPredicate := fmt.Sprintf(`  AND (
-    $4 = ''
-    OR (COALESCE(messages.received_at, messages.sent_at, messages.draft_updated_at, messages.created_at), messages.id)
-       %s ($3::timestamptz, $4::uuid)
-  )
-`, cursorOp)
-	if cursorID == "" {
-		return strings.Replace(query, cursorPredicate, "", 1)
-	}
-	return strings.Replace(query, strings.TrimSuffix(cursorPredicate, "\n"), fmt.Sprintf("  AND (COALESCE(messages.received_at, messages.sent_at, messages.draft_updated_at, messages.created_at), messages.id) %s ($3::timestamptz, $4::uuid)", cursorOp), 1)
+
+	return messageListPageBaseSQL + `
+WHERE ` + strings.Join(conditions, "\n  AND ") + `
+` + orderBy + `
+LIMIT $5`
 }
 
-const messageListPageNewestSQL = `
-SELECT
-  messages.id::text,
-  messages.folder_id::text,
-  messages.subject,
-  left(btrim(regexp_replace(left(coalesce(msd.body_text, ''), 2000), '[[:space:]]+', ' ', 'g')), 280) AS preview,
-  messages.from_addr,
-  messages.from_name,
-  COALESCE(messages.received_at, messages.sent_at, messages.draft_updated_at, messages.created_at) AS message_at,
-  messages.size,
-  messages.has_attachment,
-  COALESCE((messages.flags->>'read')::boolean, false) AS read,
-  COALESCE((messages.flags->>'starred')::boolean, false) AS starred
-FROM messages
-LEFT JOIN message_search_documents msd
-  ON msd.message_id = messages.id
- AND msd.user_id = messages.user_id
-WHERE messages.user_id = $1
-  AND messages.status = 'active'
-  AND ($2 = '' OR messages.folder_id::text = $2)
-  AND ($6::boolean IS NULL OR COALESCE((messages.flags->>'read')::boolean, false) = $6::boolean)
-  AND ($7::boolean IS NULL OR COALESCE((messages.flags->>'starred')::boolean, false) = $7::boolean)
-  AND ($8::boolean IS NULL OR messages.has_attachment = $8::boolean)
-  AND (
-    $4 = ''
-    OR (COALESCE(messages.received_at, messages.sent_at, messages.draft_updated_at, messages.created_at), messages.id)
-       < ($3::timestamptz, $4::uuid)
-  )
-ORDER BY message_at DESC, id DESC
-LIMIT $5`
+var (
+	messageListPageNewestSQL = buildMessageListPageSQL(ListSortNewest, "", "", MessageListFilter{})
+	messageListPageOldestSQL = buildMessageListPageSQL(ListSortOldest, "", "", MessageListFilter{})
+)
 
-const messageListPageOldestSQL = `
+const messageListPageBaseSQL = `
 SELECT
   messages.id::text,
   messages.folder_id::text,
@@ -779,20 +747,7 @@ SELECT
 FROM messages
 LEFT JOIN message_search_documents msd
   ON msd.message_id = messages.id
- AND msd.user_id = messages.user_id
-WHERE messages.user_id = $1
-  AND messages.status = 'active'
-  AND ($2 = '' OR messages.folder_id::text = $2)
-  AND ($6::boolean IS NULL OR COALESCE((messages.flags->>'read')::boolean, false) = $6::boolean)
-  AND ($7::boolean IS NULL OR COALESCE((messages.flags->>'starred')::boolean, false) = $7::boolean)
-  AND ($8::boolean IS NULL OR messages.has_attachment = $8::boolean)
-  AND (
-    $4 = ''
-    OR (COALESCE(messages.received_at, messages.sent_at, messages.draft_updated_at, messages.created_at), messages.id)
-       > ($3::timestamptz, $4::uuid)
-  )
-ORDER BY message_at ASC, id ASC
-LIMIT $5`
+ AND msd.user_id = messages.user_id`
 
 func (r *Repository) GetMessage(ctx context.Context, userID string, messageID string) (MessageDetail, error) {
 	if r.db == nil {
