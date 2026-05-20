@@ -295,6 +295,7 @@ Last updated: 2026-05-21 (SaaS launch hardening continues: attachment cleanup ba
 - IMAP message listing now splits initial and cursor queries: first-page reads omit the UID cursor predicate, while cursor reads use `UNION ALL` branches for assigned UID candidates and lazy UID-assignment candidates instead of a nullable `i.uid IS NULL OR i.uid > ...` guard.
 - Admin role assignment reads now split permanent and future-expiring active assignments with `UNION ALL`, and migration 0119 adds matching partial indexes for role summaries and user-role lookups.
 - Quota reconciliation scoped dry-run/correction queries now emit direct company/domain/user predicates per requested scope and omit the broad `$1 = '' OR ...` guard for all-scope corrections.
+- Directory group membership update cycle checks now build the excluding-recursive query with direct active predicates only when `ActiveOnly` is requested, removing the remaining boolean active-filter `OR` from that mutation guard.
 - **Phase 2 (Bulk Delivery Batching)** In progress / partially implemented:
   - Same-domain recipient batching, batch-size runtime tuning, route-pool observability, and batch-vs-individual benchmarks are implemented.
   - Remaining work should focus on database round-trip reduction and end-to-end bulk delivery soak coverage.
