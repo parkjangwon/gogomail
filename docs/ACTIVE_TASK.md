@@ -269,6 +269,8 @@ Go Backend (`internal/`):
 - `TestDirectSMTPTransportTLSReportDomainCanBeConfigured`를 추가해 TLS-RPT report domain override가 collector에 반영되는지 검증함
 - outbox relay `MarkFailedBatch` SQL이 `SELECT *` 대신 `unnest` 결과의 `id,last_error` 컬럼을 명시 투영하도록 바꿔 배치 실패 갱신 경로의 SQL shape를 고정함
 - `TestMarkFailedBatchSQLProjectsUnnestColumns`를 추가해 outbox batch failure CTE가 명시 projection을 유지하는지 검증함
+- draft attachment binding이 첨부 ID마다 UPDATE를 반복하지 않고 `unnest($3::uuid[])` typed-array 단일 UPDATE로 바인딩하도록 바꿔 draft save/update 첨부 N+1 왕복을 제거함
+- `TestBindDraftAttachmentsSQLUsesSingleTypedArrayUpdate`를 추가해 draft attachment binding SQL이 단일 typed-array update 경로를 유지하도록 고정함
 
 **System Email Connections & AutoPurge** ✅ COMPLETE
 - `internal/httpapi/admin.go`: Added `systemEmail mailservice.SystemEmailSender` and `publicBaseURL string` fields to `adminRouteConfig`; added `WithSystemEmailSender` and `WithPublicBaseURL` `AdminRouteOption` constructors
