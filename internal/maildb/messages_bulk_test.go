@@ -208,14 +208,18 @@ func TestBulkMoveThreadsSQLUpdatesActiveThreadMessages(t *testing.T) {
 	t.Parallel()
 
 	for _, want := range []string{
-		"COALESCE(thread_id, id)::text IN",
-		"jsonb_array_elements_text($2::jsonb)",
+		"unnest($2::uuid[])",
+		"JOIN requested ON messages.thread_id = requested.id",
+		"JOIN requested ON messages.id = requested.id",
 		"EXISTS (",
 		"RETURNING id::text",
 	} {
 		if !strings.Contains(bulkMoveThreadsSQL, want) {
 			t.Fatalf("bulk thread move SQL does not include %q:\n%s", want, bulkMoveThreadsSQL)
 		}
+	}
+	if strings.Contains(bulkMoveThreadsSQL, "jsonb_array_elements_text") {
+		t.Fatalf("bulkMoveThreadsSQL still uses JSON array expansion:\n%s", bulkMoveThreadsSQL)
 	}
 }
 
@@ -243,14 +247,18 @@ func TestBulkDeleteThreadsSQLDeletesActiveThreadMessages(t *testing.T) {
 	t.Parallel()
 
 	for _, want := range []string{
-		"COALESCE(thread_id, id)::text IN",
-		"jsonb_array_elements_text($2::jsonb)",
+		"unnest($2::uuid[])",
+		"JOIN requested ON messages.thread_id = requested.id",
+		"JOIN requested ON messages.id = requested.id",
 		"status = 'deleted'",
 		"RETURNING id::text, COALESCE(size, 0)",
 	} {
 		if !strings.Contains(bulkDeleteThreadsSQL, want) {
 			t.Fatalf("bulk thread delete SQL does not include %q:\n%s", want, bulkDeleteThreadsSQL)
 		}
+	}
+	if strings.Contains(bulkDeleteThreadsSQL, "jsonb_array_elements_text") {
+		t.Fatalf("bulkDeleteThreadsSQL still uses JSON array expansion:\n%s", bulkDeleteThreadsSQL)
 	}
 }
 
@@ -278,14 +286,18 @@ func TestBulkRestoreThreadsSQLLocksDeletedThreadMessages(t *testing.T) {
 	t.Parallel()
 
 	for _, want := range []string{
-		"COALESCE(thread_id, id)::text IN",
-		"jsonb_array_elements_text($2::jsonb)",
+		"unnest($2::uuid[])",
+		"JOIN requested ON messages.thread_id = requested.id",
+		"JOIN requested ON messages.id = requested.id",
 		"status = 'deleted'",
 		"FOR UPDATE",
 	} {
 		if !strings.Contains(bulkRestoreThreadsSQL, want) {
 			t.Fatalf("bulk thread restore SQL does not include %q:\n%s", want, bulkRestoreThreadsSQL)
 		}
+	}
+	if strings.Contains(bulkRestoreThreadsSQL, "jsonb_array_elements_text") {
+		t.Fatalf("bulkRestoreThreadsSQL still uses JSON array expansion:\n%s", bulkRestoreThreadsSQL)
 	}
 }
 
