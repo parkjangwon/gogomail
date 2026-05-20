@@ -32,6 +32,16 @@
 - Task 1 ✅ DONE: Added `AdminMFARequired` config field (env: `GOGOMAIL_ADMIN_MFA_REQUIRED`)
 - Tasks 2-9: Frontend/backend MFA enrollment, verification, CLI break-glass, security settings UI
 
+**Admin API Security & Pagination Hardening** ✅ COMPLETE
+- Replaced `err.Error()` in HTTP 500 responses with generic "internal server error" + slog server-side logging
+  - admin.go: 143 occurrences (all `writeError(w, http.StatusInternalServerError, err.Error())`)
+  - alerts.go: 9 occurrences (`http.Error(w, err.Error(), http.StatusInternalServerError)`)
+  - webdav.go: 9 occurrences (`http.Error(w, "..."+err.Error(), http.StatusInternalServerError)`)
+- Added `has_more` field to 5 list endpoints: domains, users, audit-logs, outbox-events, delivery-attempts
+  - DB functions now support `ProbeMore: true` (limit+1 probe pattern, same as companies)
+  - Interfaces updated: `ListDomains`, `ListUsers`, `ListOutboxEvents`, `ListAuditLogs`, `ListDeliveryAttempts` now return `([]T, bool, error)`
+  - All call sites updated across admin.go, app/run.go, idprovider/database/provider.go, test files
+
 **TASK-089: Protocol Gateway Hardening** ✅ COMPLETE (5987 tests)
 - All 3 phases implemented and verified
 - Buffer pooling, metrics export, health checks, graceful degradation

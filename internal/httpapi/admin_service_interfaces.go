@@ -44,7 +44,7 @@ type adminCompanyService interface {
 }
 
 type adminDomainService interface {
-	ListDomains(ctx context.Context, req maildb.DomainListRequest) ([]maildb.DomainView, error)
+	ListDomains(ctx context.Context, req maildb.DomainListRequest) ([]maildb.DomainView, bool, error)
 	GetDomain(ctx context.Context, id string) (maildb.DomainView, error)
 	GetDomainStats(ctx context.Context, id string) (maildb.DomainStatsView, error)
 	VerifyDomainDNS(ctx context.Context, id string) (dnscheck.DomainReport, error)
@@ -70,7 +70,7 @@ type adminRoleService interface {
 }
 
 type adminUserService interface {
-	ListUsers(ctx context.Context, req maildb.UserListRequest) ([]maildb.UserView, error)
+	ListUsers(ctx context.Context, req maildb.UserListRequest) ([]maildb.UserView, bool, error)
 	GetUser(ctx context.Context, id string) (maildb.UserView, error)
 	CreateUser(ctx context.Context, req maildb.CreateUserRequest) (maildb.UserView, error)
 	DeleteUser(ctx context.Context, id string) error
@@ -91,13 +91,13 @@ type adminUserService interface {
 
 type adminQueueService interface {
 	ListQueueStats(ctx context.Context) ([]maildb.QueueStat, error)
-	ListOutboxEvents(ctx context.Context, req maildb.OutboxEventListRequest) ([]maildb.OutboxEventView, error)
+	ListOutboxEvents(ctx context.Context, req maildb.OutboxEventListRequest) ([]maildb.OutboxEventView, bool, error)
 	GetOutboxEvent(ctx context.Context, id string) (maildb.OutboxEventView, error)
 	RetryOutbox(ctx context.Context, id string) error
 }
 
 type adminAuditService interface {
-	ListAuditLogs(ctx context.Context, req maildb.AuditLogListRequest) ([]maildb.AuditLogView, error)
+	ListAuditLogs(ctx context.Context, req maildb.AuditLogListRequest) ([]maildb.AuditLogView, bool, error)
 	GetAuditLog(ctx context.Context, id string) (maildb.AuditLogView, error)
 	CheckAuditLogIntegrity(ctx context.Context, req maildb.AuditLogIntegrityRequest) (maildb.AuditLogIntegrityView, error)
 }
@@ -195,7 +195,7 @@ type adminUsageService interface {
 }
 
 type adminDeliveryService interface {
-	ListDeliveryAttempts(ctx context.Context, req maildb.DeliveryAttemptListRequest) ([]maildb.DeliveryAttemptView, error)
+	ListDeliveryAttempts(ctx context.Context, req maildb.DeliveryAttemptListRequest) ([]maildb.DeliveryAttemptView, bool, error)
 	GetDeliveryAttemptStats(ctx context.Context, req maildb.DeliveryAttemptStatsRequest) (maildb.DeliveryAttemptStatsView, error)
 	ListExhaustedAttempts(ctx context.Context, req maildb.ExhaustedAttemptListRequest) ([]maildb.DeliveryAttemptView, error)
 	ListPushNotificationAttempts(ctx context.Context, req maildb.PushNotificationAttemptListRequest) ([]maildb.PushNotificationAttemptView, error)

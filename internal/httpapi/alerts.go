@@ -2,6 +2,7 @@ package httpapi
 
 import (
 	"encoding/json"
+	"log/slog"
 	"net/http"
 
 	"github.com/google/uuid"
@@ -94,7 +95,8 @@ func makeListAlertConfigsHandler(repo alert.Repository) http.HandlerFunc {
 
 		configs, err := repo.ListConfigs(ctx, companyID)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			slog.ErrorContext(r.Context(), "alert handler error", "error", err)
+			http.Error(w, "internal server error", http.StatusInternalServerError)
 			return
 		}
 
@@ -135,7 +137,8 @@ func makeCreateAlertConfigHandler(repo alert.Repository) http.HandlerFunc {
 		}
 
 		if err := repo.CreateConfig(ctx, cfg); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			slog.ErrorContext(r.Context(), "alert handler error", "error", err)
+			http.Error(w, "internal server error", http.StatusInternalServerError)
 			return
 		}
 
@@ -148,7 +151,8 @@ func makeCreateAlertConfigHandler(repo alert.Repository) http.HandlerFunc {
 				IsEnabled:   chReq.IsEnabled,
 			}
 			if err := repo.CreateChannel(ctx, channel); err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
+				slog.ErrorContext(r.Context(), "alert handler error", "error", err)
+				http.Error(w, "internal server error", http.StatusInternalServerError)
 				return
 			}
 			cfg.Channels = append(cfg.Channels, *channel)
@@ -172,7 +176,8 @@ func makeGetAlertConfigHandler(repo alert.Repository) http.HandlerFunc {
 
 		cfg, err := repo.GetConfig(ctx, id)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			slog.ErrorContext(r.Context(), "alert handler error", "error", err)
+			http.Error(w, "internal server error", http.StatusInternalServerError)
 			return
 		}
 		if cfg == nil {
@@ -197,7 +202,8 @@ func makeUpdateAlertConfigHandler(repo alert.Repository) http.HandlerFunc {
 
 		cfg, err := repo.GetConfig(ctx, id)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			slog.ErrorContext(r.Context(), "alert handler error", "error", err)
+			http.Error(w, "internal server error", http.StatusInternalServerError)
 			return
 		}
 		if cfg == nil {
@@ -219,7 +225,8 @@ func makeUpdateAlertConfigHandler(repo alert.Repository) http.HandlerFunc {
 		cfg.IsEnabled = req.IsEnabled
 
 		if err := repo.UpdateConfig(ctx, cfg); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			slog.ErrorContext(r.Context(), "alert handler error", "error", err)
+			http.Error(w, "internal server error", http.StatusInternalServerError)
 			return
 		}
 
@@ -239,7 +246,8 @@ func makeDeleteAlertConfigHandler(repo alert.Repository) http.HandlerFunc {
 		}
 
 		if err := repo.DeleteConfig(ctx, id); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			slog.ErrorContext(r.Context(), "alert handler error", "error", err)
+			http.Error(w, "internal server error", http.StatusInternalServerError)
 			return
 		}
 
@@ -259,7 +267,8 @@ func makeListNotificationsHandler(repo alert.Repository) http.HandlerFunc {
 
 		notifications, err := repo.ListNotifications(ctx, companyID, 100)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			slog.ErrorContext(r.Context(), "alert handler error", "error", err)
+			http.Error(w, "internal server error", http.StatusInternalServerError)
 			return
 		}
 
@@ -284,7 +293,8 @@ func makeAcknowledgeNotificationHandler(repo alert.Repository) http.HandlerFunc 
 		}
 
 		if err := repo.AcknowledgeNotification(ctx, id); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			slog.ErrorContext(r.Context(), "alert handler error", "error", err)
+			http.Error(w, "internal server error", http.StatusInternalServerError)
 			return
 		}
 

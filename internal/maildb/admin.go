@@ -128,6 +128,7 @@ type OutboxEventListRequest struct {
 	PartitionKey string
 	Status       string
 	Since        time.Time
+	ProbeMore    bool // when true the query fetches Limit+1 to detect has_more
 }
 
 type OutboxEventView struct {
@@ -559,6 +560,7 @@ type DeliveryAttemptListRequest struct {
 	Farm            string
 	Sender          string
 	Since           time.Time
+	ProbeMore       bool // when true the query fetches Limit+1 to detect has_more
 }
 
 type DeliveryAttemptStatsRequest struct {
@@ -811,6 +813,7 @@ type DomainListRequest struct {
 	CompanyID string
 	Status    string
 	DNSStatus string
+	ProbeMore bool // when true the query fetches Limit+1 to detect has_more
 }
 
 type UserView struct {
@@ -835,6 +838,7 @@ type UserListRequest struct {
 	Status             string
 	PasswordConfigured *bool
 	Limit              int
+	ProbeMore          bool // when true the query fetches Limit+1 to detect has_more
 }
 
 type DomainPolicyView struct {
@@ -2285,15 +2289,19 @@ func domainPolicyAuditDetail(view domainPolicyAuditView) (json.RawMessage, error
 	return detail, nil
 }
 
-func (r *Repository) ListUsers(ctx context.Context, req UserListRequest) ([]UserView, error) {
+func (r *Repository) ListUsers(ctx context.Context, req UserListRequest) ([]UserView, bool, error) {
 	if r.db == nil {
-		return nil, fmt.Errorf("database handle is required")
+		return nil, false, fmt.Errorf("database handle is required")
 	}
 	if err := ValidateUserListRequest(req); err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	limit := normalizeLimit(req.Limit)
 	status := normalizeAdminStatus(req.Status)
+	queryLimit := limit
+	if req.ProbeMore {
+		queryLimit = limit + 1
+	}
 
 	const query = `
 SELECT
@@ -2317,9 +2325,9 @@ WHERE ($1 = '' OR domain_id::text = $1)
 ORDER BY created_at DESC
 LIMIT $4`
 
-	rows, err := r.db.QueryContext(ctx, query, strings.TrimSpace(req.DomainID), status, req.PasswordConfigured, limit)
+	rows, err := r.db.QueryContext(ctx, query, strings.TrimSpace(req.DomainID), status, req.PasswordConfigured, queryLimit)
 	if err != nil {
-		return nil, fmt.Errorf("list users: %w", err)
+		return nil, false, fmt.Errorf("list users: %w", err)
 	}
 	defer rows.Close()
 
@@ -2341,15 +2349,19 @@ LIMIT $4`
 			&user.QuotaSource,
 			&user.CreatedAt,
 		); err != nil {
-			return nil, fmt.Errorf("scan user: %w", err)
+			return nil, false, fmt.Errorf("scan user: %w", err)
 		}
 		user.QuotaRemaining = quotaRemaining(user.QuotaUsed, user.QuotaLimit)
 		users = append(users, user)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("iterate users: %w", err)
+		return nil, false, fmt.Errorf("iterate users: %w", err)
 	}
-	return users, nil
+	hasMore := req.ProbeMore && len(users) > limit
+	if hasMore {
+		users = users[:limit]
+	}
+	return users, hasMore, nil
 }
 
 func (r *Repository) GetUser(ctx context.Context, id string) (UserView, error) {
@@ -2508,16 +2520,20 @@ func (r *Repository) ClearUserAdminRole(ctx context.Context, userID string) erro
 	return nil
 }
 
-func (r *Repository) ListDomains(ctx context.Context, req DomainListRequest) ([]DomainView, error) {
+func (r *Repository) ListDomains(ctx context.Context, req DomainListRequest) ([]DomainView, bool, error) {
 	if r.db == nil {
-		return nil, fmt.Errorf("database handle is required")
+		return nil, false, fmt.Errorf("database handle is required")
 	}
 	if err := ValidateDomainListRequest(req); err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	limit := normalizeLimit(req.Limit)
 	status := normalizeAdminStatus(req.Status)
 	dnsStatus := normalizeDNSStatus(req.DNSStatus)
+	queryLimit := limit
+	if req.ProbeMore {
+		queryLimit = limit + 1
+	}
 
 	const query = `
 SELECT
@@ -2555,9 +2571,9 @@ WHERE ($1 = '' OR d.company_id::text = $1)
 ORDER BY d.created_at DESC
 LIMIT $4`
 
-	rows, err := r.db.QueryContext(ctx, query, strings.TrimSpace(req.CompanyID), status, dnsStatus, limit)
+	rows, err := r.db.QueryContext(ctx, query, strings.TrimSpace(req.CompanyID), status, dnsStatus, queryLimit)
 	if err != nil {
-		return nil, fmt.Errorf("list domains: %w", err)
+		return nil, false, fmt.Errorf("list domains: %w", err)
 	}
 	defer rows.Close()
 
@@ -2580,7 +2596,7 @@ LIMIT $4`
 			&lastDNSCheckedAt,
 			&domain.CreatedAt,
 		); err != nil {
-			return nil, fmt.Errorf("scan domain: %w", err)
+			return nil, false, fmt.Errorf("scan domain: %w", err)
 		}
 		domain.QuotaRemaining = quotaRemaining(domain.QuotaUsed, domain.QuotaLimit)
 		domain.AllocatableUserQuota = quotaRemaining(domain.AllocatedUserQuota, domain.QuotaLimit)
@@ -2591,9 +2607,13 @@ LIMIT $4`
 		domains = append(domains, domain)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("iterate domains: %w", err)
+		return nil, false, fmt.Errorf("iterate domains: %w", err)
 	}
-	return domains, nil
+	hasMore := req.ProbeMore && len(domains) > limit
+	if hasMore {
+		domains = domains[:limit]
+	}
+	return domains, hasMore, nil
 }
 
 func (r *Repository) GetDomain(ctx context.Context, id string) (DomainView, error) {
@@ -2930,9 +2950,9 @@ ORDER BY topic, status`
 	return stats, nil
 }
 
-func (r *Repository) ListOutboxEvents(ctx context.Context, req OutboxEventListRequest) ([]OutboxEventView, error) {
+func (r *Repository) ListOutboxEvents(ctx context.Context, req OutboxEventListRequest) ([]OutboxEventView, bool, error) {
 	if r.db == nil {
-		return nil, fmt.Errorf("database handle is required")
+		return nil, false, fmt.Errorf("database handle is required")
 	}
 	req.Limit = normalizeLimit(req.Limit)
 	req.Topic = strings.TrimSpace(req.Topic)
@@ -2942,7 +2962,11 @@ func (r *Repository) ListOutboxEvents(ctx context.Context, req OutboxEventListRe
 		req.Since = req.Since.UTC()
 	}
 	if req.Status != "" && !allowedOutboxStatus(req.Status) {
-		return nil, fmt.Errorf("unsupported outbox status")
+		return nil, false, fmt.Errorf("unsupported outbox status")
+	}
+	queryLimit := req.Limit
+	if req.ProbeMore {
+		queryLimit = req.Limit + 1
 	}
 
 	const query = `
@@ -2965,9 +2989,9 @@ WHERE (NULLIF($2, '') IS NULL OR topic = $2)
 ORDER BY created_at DESC, id DESC
 LIMIT $1`
 
-	rows, err := r.db.QueryContext(ctx, query, req.Limit, req.Topic, req.PartitionKey, req.Status, nullableTime(req.Since))
+	rows, err := r.db.QueryContext(ctx, query, queryLimit, req.Topic, req.PartitionKey, req.Status, nullableTime(req.Since))
 	if err != nil {
-		return nil, fmt.Errorf("list outbox events: %w", err)
+		return nil, false, fmt.Errorf("list outbox events: %w", err)
 	}
 	defer rows.Close()
 
@@ -2988,7 +3012,7 @@ LIMIT $1`
 			&lockedAt,
 			&processedAt,
 		); err != nil {
-			return nil, fmt.Errorf("scan outbox event: %w", err)
+			return nil, false, fmt.Errorf("scan outbox event: %w", err)
 		}
 		event.LastError = truncateUTF8Bytes(event.LastError, outboxEventListErrorPreviewBytes)
 		if lockedAt.Valid {
@@ -3000,9 +3024,13 @@ LIMIT $1`
 		events = append(events, event)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("iterate outbox events: %w", err)
+		return nil, false, fmt.Errorf("iterate outbox events: %w", err)
 	}
-	return events, nil
+	hasMore := req.ProbeMore && len(events) > req.Limit
+	if hasMore {
+		events = events[:req.Limit]
+	}
+	return events, hasMore, nil
 }
 
 func (r *Repository) GetOutboxEvent(ctx context.Context, id string) (OutboxEventView, error) {
@@ -5412,9 +5440,9 @@ func quotaRemaining(used int64, limit int64) int64 {
 	return remaining
 }
 
-func (r *Repository) ListDeliveryAttempts(ctx context.Context, req DeliveryAttemptListRequest) ([]DeliveryAttemptView, error) {
+func (r *Repository) ListDeliveryAttempts(ctx context.Context, req DeliveryAttemptListRequest) ([]DeliveryAttemptView, bool, error) {
 	if r.db == nil {
-		return nil, fmt.Errorf("database handle is required")
+		return nil, false, fmt.Errorf("database handle is required")
 	}
 	req.Limit = normalizeLimit(req.Limit)
 	filters, err := normalizeDeliveryAttemptFilters(deliveryAttemptFilters{
@@ -5425,10 +5453,14 @@ func (r *Repository) ListDeliveryAttempts(ctx context.Context, req DeliveryAttem
 		Sender:          req.Sender,
 	})
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	if !req.Since.IsZero() {
 		req.Since = req.Since.UTC()
+	}
+	queryLimit := req.Limit
+	if req.ProbeMore {
+		queryLimit = req.Limit + 1
 	}
 
 	const query = `
@@ -5458,9 +5490,9 @@ WHERE (NULLIF($2, '') IS NULL OR status = $2)
 ORDER BY attempted_at DESC, id DESC
 LIMIT $1`
 
-	rows, err := r.db.QueryContext(ctx, query, req.Limit, filters.Status, nullableTime(req.Since), filters.RecipientDomain, filters.MessageID, filters.Farm, filters.Sender)
+	rows, err := r.db.QueryContext(ctx, query, queryLimit, filters.Status, nullableTime(req.Since), filters.RecipientDomain, filters.MessageID, filters.Farm, filters.Sender)
 	if err != nil {
-		return nil, fmt.Errorf("list delivery attempts: %w", err)
+		return nil, false, fmt.Errorf("list delivery attempts: %w", err)
 	}
 	defer rows.Close()
 
@@ -5468,14 +5500,18 @@ LIMIT $1`
 	for rows.Next() {
 		var attempt DeliveryAttemptView
 		if err := scanDeliveryAttempt(rows, &attempt); err != nil {
-			return nil, fmt.Errorf("scan delivery attempt: %w", err)
+			return nil, false, fmt.Errorf("scan delivery attempt: %w", err)
 		}
 		attempts = append(attempts, attempt)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("iterate delivery attempts: %w", err)
+		return nil, false, fmt.Errorf("iterate delivery attempts: %w", err)
 	}
-	return attempts, nil
+	hasMore := req.ProbeMore && len(attempts) > req.Limit
+	if hasMore {
+		attempts = attempts[:req.Limit]
+	}
+	return attempts, hasMore, nil
 }
 
 type deliveryAttemptFilters struct {

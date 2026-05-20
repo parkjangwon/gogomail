@@ -86,7 +86,7 @@ func (p *Provider) ListUsers(ctx context.Context, filter *idprovider.UserFilter)
 		req.Limit = filter.Limit
 	}
 
-	views, err := p.mr.ListUsers(ctx, req)
+	views, _, err := p.mr.ListUsers(ctx, req)
 	if err != nil {
 		return nil, err
 	}
