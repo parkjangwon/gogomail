@@ -25,6 +25,7 @@ type AuditLogListRequest struct {
 	ActorID      string
 	TargetID     string
 	Since        time.Time
+	ProbeMore    bool // when true the query fetches Limit+1 to detect has_more
 }
 
 type AuditLogView struct {
@@ -69,9 +70,9 @@ type AuditLogIntegrityBreak struct {
 	ActualHash       string    `json:"actual_hash,omitempty"`
 }
 
-func (r *Repository) ListAuditLogs(ctx context.Context, req AuditLogListRequest) ([]AuditLogView, error) {
+func (r *Repository) ListAuditLogs(ctx context.Context, req AuditLogListRequest) ([]AuditLogView, bool, error) {
 	if r.db == nil {
-		return nil, fmt.Errorf("database handle is required")
+		return nil, false, fmt.Errorf("database handle is required")
 	}
 	req = normalizeAuditLogListRequest(req)
 
@@ -143,14 +144,19 @@ FROM audit_logs`
 	if len(conditions) > 0 {
 		query += "\nWHERE " + strings.Join(conditions, "\n  AND ")
 	}
-	args = append(args, req.Limit)
+	limit := req.Limit
+	queryLimit := limit
+	if req.ProbeMore {
+		queryLimit = limit + 1
+	}
+	args = append(args, queryLimit)
 	query += fmt.Sprintf(`
 ORDER BY created_at DESC, id DESC
 LIMIT $%d`, len(args))
 
 	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
-		return nil, fmt.Errorf("list audit logs: %w", err)
+		return nil, false, fmt.Errorf("list audit logs: %w", err)
 	}
 	defer rows.Close()
 
@@ -158,14 +164,18 @@ LIMIT $%d`, len(args))
 	for rows.Next() {
 		log, err := scanAuditLog(rows)
 		if err != nil {
-			return nil, err
+			return nil, false, err
 		}
 		logs = append(logs, log)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("iterate audit logs: %w", err)
+		return nil, false, fmt.Errorf("iterate audit logs: %w", err)
 	}
-	return logs, nil
+	hasMore := req.ProbeMore && len(logs) > limit
+	if hasMore {
+		logs = logs[:limit]
+	}
+	return logs, hasMore, nil
 }
 
 func (r *Repository) GetAuditLog(ctx context.Context, id string) (AuditLogView, error) {

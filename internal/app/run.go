@@ -1166,7 +1166,7 @@ func (s *maildbSCIMUserService) GetSCIMUser(ctx context.Context, id string) (sci
 }
 
 func (s *maildbSCIMUserService) ListSCIMUsers(ctx context.Context, filter *scim.Filter, _, count int) ([]scim.UserResource, int, error) {
-	users, err := s.repo.ListUsers(ctx, maildb.UserListRequest{
+	users, _, err := s.repo.ListUsers(ctx, maildb.UserListRequest{
 		DomainID: s.defaultDomainID,
 		Limit:    count,
 	})

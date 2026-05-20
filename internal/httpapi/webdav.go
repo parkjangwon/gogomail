@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -234,7 +235,8 @@ func (h *webdavHandler) handlePropfind(w http.ResponseWriter, r *http.Request) {
 		Limit:    1000,
 	})
 	if err != nil {
-		http.Error(w, "failed to list nodes: "+err.Error(), http.StatusInternalServerError)
+		slog.ErrorContext(ctx, "webdav handler error", "error", err)
+		http.Error(w, "internal server error", http.StatusInternalServerError)
 		h.observe(ctx, WebDAVMethodPropfind, userID, path, WebDAVResultError, err.Error())
 		return
 	}
@@ -275,7 +277,8 @@ func (h *webdavHandler) handlePropfind(w http.ResponseWriter, r *http.Request) {
 	// Marshal as WebDAV multistatus XML
 	body, err := webdavgw.MarshalPropfindResponse(resources)
 	if err != nil {
-		http.Error(w, "marshal failed: "+err.Error(), http.StatusInternalServerError)
+		slog.ErrorContext(ctx, "webdav handler error", "error", err)
+		http.Error(w, "internal server error", http.StatusInternalServerError)
 		h.observe(ctx, WebDAVMethodPropfind, userID, path, WebDAVResultError, err.Error())
 		return
 	}
@@ -324,7 +327,8 @@ func (h *webdavHandler) handleMkcol(w http.ResponseWriter, r *http.Request) {
 			h.observe(ctx, WebDAVMethodMkcol, userID, path, WebDAVResultRejected, "already_exists")
 			return
 		}
-		http.Error(w, "create folder failed: "+err.Error(), http.StatusInternalServerError)
+		slog.ErrorContext(ctx, "webdav handler error", "error", err)
+		http.Error(w, "internal server error", http.StatusInternalServerError)
 		h.observe(ctx, WebDAVMethodMkcol, userID, path, WebDAVResultError, err.Error())
 		return
 	}
@@ -352,7 +356,8 @@ func (h *webdavHandler) handleGet(w http.ResponseWriter, r *http.Request) {
 		NodeID: nodeID,
 	})
 	if err != nil {
-		http.Error(w, "open file failed: "+err.Error(), http.StatusInternalServerError)
+		slog.ErrorContext(ctx, "webdav handler error", "error", err)
+		http.Error(w, "internal server error", http.StatusInternalServerError)
 		h.observe(ctx, WebDAVMethodGet, userID, path, WebDAVResultError, err.Error())
 		return
 	}
@@ -441,7 +446,8 @@ func (h *webdavHandler) handlePut(w http.ResponseWriter, r *http.Request) {
 			h.observe(ctx, WebDAVMethodPut, userID, path, WebDAVResultRejected, "already_exists")
 			return
 		}
-		http.Error(w, "create file failed: "+err.Error(), http.StatusInternalServerError)
+		slog.ErrorContext(ctx, "webdav handler error", "error", err)
+		http.Error(w, "internal server error", http.StatusInternalServerError)
 		h.observe(ctx, WebDAVMethodPut, userID, path, WebDAVResultError, err.Error())
 		return
 	}
@@ -479,7 +485,8 @@ func (h *webdavHandler) handleDelete(w http.ResponseWriter, r *http.Request) {
 		NodeID: nodeID,
 	})
 	if err != nil {
-		http.Error(w, "trash failed: "+err.Error(), http.StatusInternalServerError)
+		slog.ErrorContext(ctx, "webdav handler error", "error", err)
+		http.Error(w, "internal server error", http.StatusInternalServerError)
 		h.observe(ctx, WebDAVMethodDelete, userID, path, WebDAVResultError, err.Error())
 		return
 	}
@@ -526,7 +533,8 @@ func (h *webdavHandler) handleMove(w http.ResponseWriter, r *http.Request) {
 		ParentID: parentID,
 	})
 	if err != nil {
-		http.Error(w, "move failed: "+err.Error(), http.StatusInternalServerError)
+		slog.ErrorContext(ctx, "webdav handler error", "error", err)
+		http.Error(w, "internal server error", http.StatusInternalServerError)
 		h.observe(ctx, WebDAVMethodMove, userID, path, WebDAVResultError, err.Error())
 		return
 	}
@@ -576,7 +584,8 @@ func (h *webdavHandler) handleCopy(w http.ResponseWriter, r *http.Request) {
 		Name:     name,
 	})
 	if err != nil {
-		http.Error(w, "copy failed: "+err.Error(), http.StatusInternalServerError)
+		slog.ErrorContext(ctx, "webdav handler error", "error", err)
+		http.Error(w, "internal server error", http.StatusInternalServerError)
 		h.observe(ctx, WebDAVMethodCopy, userID, path, WebDAVResultError, err.Error())
 		return
 	}
@@ -614,7 +623,8 @@ func (h *webdavHandler) handleProppatch(w http.ResponseWriter, r *http.Request) 
 			Name:   newName,
 		})
 		if err != nil {
-			http.Error(w, "rename failed: "+err.Error(), http.StatusInternalServerError)
+			slog.ErrorContext(ctx, "webdav handler error", "error", err)
+			http.Error(w, "internal server error", http.StatusInternalServerError)
 			h.observe(ctx, WebDAVMethodProppatch, userID, path, WebDAVResultError, err.Error())
 			return
 		}

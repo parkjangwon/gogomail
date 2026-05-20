@@ -9274,11 +9274,11 @@ func (f *fakeAdminService) DeleteCompany(_ context.Context, id string) error {
 	return nil
 }
 
-func (f *fakeAdminService) ListDomains(_ context.Context, req maildb.DomainListRequest) ([]maildb.DomainView, error) {
+func (f *fakeAdminService) ListDomains(_ context.Context, req maildb.DomainListRequest) ([]maildb.DomainView, bool, error) {
 	f.lastDomainList = req
 	f.lastLimit = req.Limit
 	if req.CompanyID == "" {
-		return f.domains, nil
+		return f.domains, false, nil
 	}
 	hasCompanyIDs := false
 	for _, domain := range f.domains {
@@ -9288,7 +9288,7 @@ func (f *fakeAdminService) ListDomains(_ context.Context, req maildb.DomainListR
 		}
 	}
 	if !hasCompanyIDs {
-		return f.domains, nil
+		return f.domains, false, nil
 	}
 	domains := make([]maildb.DomainView, 0, len(f.domains))
 	for _, domain := range f.domains {
@@ -9296,7 +9296,7 @@ func (f *fakeAdminService) ListDomains(_ context.Context, req maildb.DomainListR
 			domains = append(domains, domain)
 		}
 	}
-	return domains, nil
+	return domains, false, nil
 }
 
 func (f *fakeAdminService) CreateDomain(_ context.Context, req maildb.CreateDomainRequest) (maildb.DomainView, error) {
@@ -9357,12 +9357,12 @@ func (f *fakeAdminService) UpdateDomainPolicy(_ context.Context, req maildb.Upda
 	}, nil
 }
 
-func (f *fakeAdminService) ListUsers(_ context.Context, req maildb.UserListRequest) ([]maildb.UserView, error) {
+func (f *fakeAdminService) ListUsers(_ context.Context, req maildb.UserListRequest) ([]maildb.UserView, bool, error) {
 	f.lastUserList = req
 	f.lastDomainID = req.DomainID
 	f.lastLimit = req.Limit
 	if req.DomainID == "" {
-		return f.users, nil
+		return f.users, false, nil
 	}
 	hasDomainIDs := false
 	for _, user := range f.users {
@@ -9372,7 +9372,7 @@ func (f *fakeAdminService) ListUsers(_ context.Context, req maildb.UserListReque
 		}
 	}
 	if !hasDomainIDs {
-		return f.users, nil
+		return f.users, false, nil
 	}
 	users := make([]maildb.UserView, 0, len(f.users))
 	for _, user := range f.users {
@@ -9380,7 +9380,7 @@ func (f *fakeAdminService) ListUsers(_ context.Context, req maildb.UserListReque
 			users = append(users, user)
 		}
 	}
-	return users, nil
+	return users, false, nil
 }
 
 func (f *fakeAdminService) CreateUser(_ context.Context, req maildb.CreateUserRequest) (maildb.UserView, error) {
@@ -9457,12 +9457,12 @@ func (f *fakeAdminService) ListQueueStats(context.Context) ([]maildb.QueueStat, 
 	return f.queueStats, nil
 }
 
-func (f *fakeAdminService) ListOutboxEvents(_ context.Context, req maildb.OutboxEventListRequest) ([]maildb.OutboxEventView, error) {
+func (f *fakeAdminService) ListOutboxEvents(_ context.Context, req maildb.OutboxEventListRequest) ([]maildb.OutboxEventView, bool, error) {
 	f.lastOutboxEventList = req
 	if req.Status != "" && req.Status != "pending" && req.Status != "processing" && req.Status != "done" && req.Status != "failed" {
-		return nil, fmt.Errorf("unsupported outbox status")
+		return nil, false, fmt.Errorf("unsupported outbox status")
 	}
-	return f.outboxEvents, nil
+	return f.outboxEvents, false, nil
 }
 
 func (f *fakeAdminService) GetOutboxEvent(_ context.Context, id string) (maildb.OutboxEventView, error) {
@@ -9473,9 +9473,9 @@ func (f *fakeAdminService) GetOutboxEvent(_ context.Context, id string) (maildb.
 	return f.outboxEvent, nil
 }
 
-func (f *fakeAdminService) ListAuditLogs(_ context.Context, req maildb.AuditLogListRequest) ([]maildb.AuditLogView, error) {
+func (f *fakeAdminService) ListAuditLogs(_ context.Context, req maildb.AuditLogListRequest) ([]maildb.AuditLogView, bool, error) {
 	f.lastAuditLogList = req
-	return f.auditLogs, nil
+	return f.auditLogs, false, nil
 }
 
 func (f *fakeAdminService) GetAuditLog(_ context.Context, id string) (maildb.AuditLogView, error) {
@@ -9940,13 +9940,13 @@ func (f *fakeAdminService) CorrectQuotaReconciliation(_ context.Context, req mai
 	return f.quotaCorrection, nil
 }
 
-func (f *fakeAdminService) ListDeliveryAttempts(_ context.Context, req maildb.DeliveryAttemptListRequest) ([]maildb.DeliveryAttemptView, error) {
+func (f *fakeAdminService) ListDeliveryAttempts(_ context.Context, req maildb.DeliveryAttemptListRequest) ([]maildb.DeliveryAttemptView, bool, error) {
 	f.lastLimit = req.Limit
 	f.lastDeliveryAttemptList = req
 	if req.Status != "" && req.Status != "delivered" && req.Status != "failed" && req.Status != "bounced" && req.Status != "exhausted" {
-		return nil, fmt.Errorf("unsupported delivery attempt status")
+		return nil, false, fmt.Errorf("unsupported delivery attempt status")
 	}
-	return f.attempts, nil
+	return f.attempts, false, nil
 }
 
 func (f *fakeAdminService) GetDeliveryAttemptStats(_ context.Context, req maildb.DeliveryAttemptStatsRequest) (maildb.DeliveryAttemptStatsView, error) {
