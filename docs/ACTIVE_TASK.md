@@ -23,7 +23,7 @@
 
 **Webmail: 캘린더 이벤트 편집/삭제 UI + WebPush Service Worker** ✅ COMPLETE
 - `EventPopover.tsx`: 팝오버에 "편집"/"삭제" 버튼 추가
-- `CalendarModals.tsx`: `EventEditModal` 컴포넌트 추가 (반복 이벤트 범위 선택 포함)
+- `CalendarModals.tsx`: `EventEditModal` 컴포넌트 추가 (반복 일정은 현재 지원되는 전체 시리즈 편집으로 명시)
 - `CalendarView.tsx`: `openEditModal`, `handleEditSubmit`, `handleDeleteEvent` 핸들러 추가; `updateCalendarEvent` API 연동
 - `api.ts`: `updateCalendarEvent(calendarId, objectName, uid, req)` 함수 추가
 - `api.ts`: `registerWebPushDevice(subscription)` 함수 추가 (`POST /api/v1/push-devices`)
@@ -305,6 +305,7 @@ Go Backend (`internal/`):
 - `BenchmarkGetMessageBodyCache`: miss `~7.83 us/op`, `10979 B/op`, `85 allocs/op`; hit `~933.6 ns/op`, `568 B/op`, `9 allocs/op`
 - README/README.ko, Docker env example, console/webmail env examples, backend release readiness 문서를 최신 운영 env 그룹(성능, 백업/복구, push/webhook, storage, API usage, system email)과 동기화함
 - BIMI VMC URL 존재만으로 `vmcVerified=true`를 반환하던 stub 동작을 제거해 실제 인증서 검증 전에는 VMC를 검증됨으로 표시하지 않도록 고정하고, logo cache hash 계산을 실제 SHA-256 body hash로 수정함
+- 웹메일 캘린더 반복 일정 편집 모달에서 지원되지 않는 "이 이벤트만" 선택지를 제거하고, 현재 동작이 전체 반복 시리즈 편집임을 명시해 제출 후 unsupported 오류가 뜨는 어색한 흐름을 없앰
 
 **System Email Connections & AutoPurge** ✅ COMPLETE
 - `internal/httpapi/admin.go`: Added `systemEmail mailservice.SystemEmailSender` and `publicBaseURL string` fields to `adminRouteConfig`; added `WithSystemEmailSender` and `WithPublicBaseURL` `AdminRouteOption` constructors

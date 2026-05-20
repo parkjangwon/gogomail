@@ -60,6 +60,7 @@ Last updated: 2026-05-21 (SaaS launch hardening continues: attachment cleanup ba
 - Webmail now includes forgot/reset password pages, password-reset proxy routes, server-synced email signatures and filter rules across both settings surfaces, Web Push registration with base64url keys, service worker support, and calendar edit/delete controls.
 - Console audit logs now support cursor pagination through the backend `before` filter, and delivery attempts show filterable feedback instead of silent console errors.
 - Operational backup support now includes `scripts/backup.sh` plus `docker/docker-compose.backup.yml` for scheduled PostgreSQL dump backups with optional S3 upload.
+- Webmail calendar recurring-event edits now present the supported whole-series edit behavior directly instead of offering an unsupported single-occurrence option that failed on submit.
 - Verification: `go test ./...`, `pnpm --dir apps/webmail type-check`, and `pnpm --dir apps/console type-check` pass.
 
 ## CLI Break-Glass MFA Reset (2026-05-19)
