@@ -7929,3 +7929,9 @@ Next focus areas:
 - Admin console capabilities no longer expose unconfigured LDAP sync and organization sync as `placeholder`; the API, OpenAPI schema, generated TypeScript client, and console UI now use `unavailable`.
 - The organization settings page now labels unavailable sync as unavailable rather than configuration-required, keeping local directory management visible without implying an executable external sync path.
 - Verification target: `go test ./internal/httpapi -run 'TestAdminConsoleCapabilities|TestOpenAPIAdminConsoleCapabilitiesSchema'`; `pnpm --dir apps/console type-check`.
+
+## 2026-05-21 Admin operational list query sargability
+
+- Suppression list, trusted relay, and delivery route admin list queries now build WHERE predicates only for filters supplied by the request.
+- This removes always-present `($1 = '' OR ...)` guards from these operational tables and keeps domain/status/farm/CIDR filters more index-friendly as tenant data grows.
+- Verification target: `go test ./internal/maildb -run TestAdminOperationalListQueriesUseSargableFilters`.
