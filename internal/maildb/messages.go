@@ -646,16 +646,14 @@ func (r *Repository) ListMessagesPage(ctx context.Context, userID string, folder
 		return nil, fmt.Errorf("unsupported list sort %q", filter.Sort)
 	}
 
-	query := messageListPageNewestSQL
-	if sortMode == ListSortOldest {
-		query = messageListPageOldestSQL
-	}
+	folderID = strings.TrimSpace(folderID)
+	query := buildMessageListPageSQL(sortMode, folderID)
 
 	rows, err := r.db.QueryContext(
 		ctx,
 		query,
 		strings.TrimSpace(userID),
-		strings.TrimSpace(folderID),
+		folderID,
 		cursor.At,
 		strings.TrimSpace(cursor.ID),
 		limit,
@@ -692,6 +690,17 @@ func (r *Repository) ListMessagesPage(ctx context.Context, userID string, folder
 		return nil, fmt.Errorf("iterate message page summaries: %w", err)
 	}
 	return messages, nil
+}
+
+func buildMessageListPageSQL(sortMode, folderID string) string {
+	query := messageListPageNewestSQL
+	if sortMode == ListSortOldest {
+		query = messageListPageOldestSQL
+	}
+	if folderID == "" {
+		return strings.Replace(query, "  AND ($2 = '' OR messages.folder_id::text = $2)\n", "", 1)
+	}
+	return strings.Replace(query, "  AND ($2 = '' OR messages.folder_id::text = $2)", "  AND messages.folder_id = $2::uuid", 1)
 }
 
 const messageListPageNewestSQL = `

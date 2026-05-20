@@ -12,6 +12,7 @@ Last updated: 2026-05-21 (SaaS launch hardening continues: attachment cleanup ba
 - Verification: `go test ./internal/maildb -run 'TestExpireStaleAttachmentUploadsSQLUsesBatchUpdates|TestExpireAttachmentUploadSessionsSQLUsesBatchUpdates|TestPostgresExpireAttachmentUploadSessionsReleasesQuota'` passes.
 
 ## Message Storage GC Lookup Optimization (2026-05-21)
+- Message page listing now emits the folder predicate only when requested, using a typed `messages.folder_id = $2::uuid` comparison for folder-scoped reads and omitting the predicate for all-folder reads.
 - Bulk delete and IMAP EXPUNGE storage-path lookups now compute target storage paths once and join against grouped reference counts, instead of running a correlated `COUNT(*)` against `messages` for each candidate row.
 - The shared-object safety rule is preserved: only storage paths with exactly one database reference are returned for best-effort object deletion.
 - Regression coverage checks both bulk-delete and IMAP EXPUNGE SQL shapes for grouped `ref_counts` CTEs and rejects the old correlated-count form.
