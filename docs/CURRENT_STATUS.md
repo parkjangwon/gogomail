@@ -23,6 +23,7 @@ Last updated: 2026-05-21 (SaaS launch hardening continues: attachment cleanup ba
 - Admin bulk user status updates now add company scope predicates only when requested, avoiding optional `OR` guards in company-admin constrained updates.
 - API usage ledger retention readiness now uses an expression predicate for open-ended export batch windows and migration `0118_api_usage_export_covering_batch_index.sql` adds the matching tenant/principal/window/order partial index.
 - Drive share link and object cleanup failure list queries now add optional node/user filters only when requested, using typed UUID predicates instead of optional `OR` guards.
+- Drive folder/file creation now adds the active parent-folder lookup only when `parent_id` is present, leaving root creates free of parent optional `OR` guards.
 - Thread list read/starred/attachment filters now emit direct predicates only when requested and omit nullable boolean optional `OR` branches for unfiltered lists.
 - Thread list cursor predicates now emit direct newest/oldest tuple comparisons only when a pagination cursor is present and omit pagination optional `OR` branches for first-page lists.
 - Bulk delete and IMAP EXPUNGE storage-path lookups now compute target storage paths once and join against grouped reference counts, instead of running a correlated `COUNT(*)` against `messages` for each candidate row.

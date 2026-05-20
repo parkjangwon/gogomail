@@ -459,63 +459,7 @@ func (r *Repository) CreateFolder(ctx context.Context, req CreateFolderRequest) 
 		return Node{}, err
 	}
 
-	const query = `
-WITH owner AS (
-  SELECT u.id AS user_id, d.id AS domain_id, d.company_id
-  FROM users u
-  JOIN domains d ON d.id = u.domain_id
-  WHERE u.id = $1::uuid
-    AND u.status = 'active'
-    AND d.status = 'active'
-),
-parent AS (
-  SELECT n.id
-  FROM drive_nodes n
-  JOIN owner ON owner.user_id = n.user_id
-  WHERE n.id = NULLIF($2, '')::uuid
-    AND n.node_type = 'folder'
-    AND n.status = 'active'
-)
-INSERT INTO drive_nodes (
-  id,
-  company_id,
-  domain_id,
-  user_id,
-  parent_id,
-  node_type,
-  name,
-  normalized_name,
-  status
-)
-SELECT
-  gen_random_uuid(),
-  owner.company_id,
-  owner.domain_id,
-  owner.user_id,
-  CASE WHEN NULLIF($2, '') IS NULL THEN NULL ELSE (SELECT id FROM parent) END,
-  'folder',
-  $3,
-  $4,
-  'active'
-FROM owner
-WHERE NULLIF($2, '') IS NULL OR EXISTS (SELECT 1 FROM parent)
-RETURNING
-  id::text,
-  company_id::text,
-  domain_id::text,
-  user_id::text,
-  COALESCE(parent_id::text, ''),
-  node_type,
-  name,
-  normalized_name,
-  mime_type,
-  size,
-  storage_backend,
-  storage_path,
-  checksum_sha256,
-  status,
-  created_at,
-  updated_at`
+	query := buildCreateFolderQuery(req.ParentID)
 
 	var node Node
 	err = r.db.QueryRowContext(ctx, query, req.UserID, req.ParentID, req.Name, normalizedName).Scan(
@@ -550,6 +494,75 @@ RETURNING
 		return Node{}, fmt.Errorf("create drive folder: %w", err)
 	}
 	return node, nil
+}
+
+func buildCreateFolderQuery(parentID string) string {
+	parentCTE, parentIDExpr, parentWhere := driveParentFolderInsertFragments(parentID)
+	return fmt.Sprintf(`
+WITH owner AS (
+  SELECT u.id AS user_id, d.id AS domain_id, d.company_id
+  FROM users u
+  JOIN domains d ON d.id = u.domain_id
+  WHERE u.id = $1::uuid
+    AND u.status = 'active'
+    AND d.status = 'active'
+)
+%s
+INSERT INTO drive_nodes (
+  id,
+  company_id,
+  domain_id,
+  user_id,
+  parent_id,
+  node_type,
+  name,
+  normalized_name,
+  status
+)
+SELECT
+  gen_random_uuid(),
+  owner.company_id,
+  owner.domain_id,
+  owner.user_id,
+  %s,
+  'folder',
+  $3,
+  $4,
+  'active'
+FROM owner
+%s
+RETURNING
+  id::text,
+  company_id::text,
+  domain_id::text,
+  user_id::text,
+  COALESCE(parent_id::text, ''),
+  node_type,
+  name,
+  normalized_name,
+  mime_type,
+  size,
+  storage_backend,
+  storage_path,
+  checksum_sha256,
+  status,
+  created_at,
+  updated_at`, parentCTE, parentIDExpr, parentWhere)
+}
+
+func driveParentFolderInsertFragments(parentID string) (string, string, string) {
+	if parentID == "" {
+		return "", "NULL", ""
+	}
+	return `,
+parent AS (
+  SELECT n.id
+  FROM drive_nodes n
+  JOIN owner ON owner.user_id = n.user_id
+  WHERE n.id = $2::uuid
+    AND n.node_type = 'folder'
+    AND n.status = 'active'
+)`, "(SELECT id FROM parent)", "WHERE EXISTS (SELECT 1 FROM parent)"
 }
 
 const listNodesBaseSQL = `
@@ -1465,71 +1478,7 @@ WHERE id IN (SELECT id FROM tree)`
 }
 
 func insertDriveFileNode(ctx context.Context, tx *sql.Tx, req CreateFileFromObjectRequest, normalizedName string, size int64) (Node, error) {
-	const query = `
-WITH owner AS (
-  SELECT u.id AS user_id, d.id AS domain_id, d.company_id
-  FROM users u
-  JOIN domains d ON d.id = u.domain_id
-  WHERE u.id = $1::uuid
-    AND u.status = 'active'
-    AND d.status = 'active'
-),
-parent AS (
-  SELECT n.id
-  FROM drive_nodes n
-  JOIN owner ON owner.user_id = n.user_id
-  WHERE n.id = NULLIF($2, '')::uuid
-    AND n.node_type = 'folder'
-    AND n.status = 'active'
-)
-INSERT INTO drive_nodes (
-  company_id,
-  domain_id,
-  user_id,
-  parent_id,
-  node_type,
-  name,
-  normalized_name,
-  mime_type,
-  size,
-  storage_backend,
-  storage_path,
-  checksum_sha256,
-  status
-)
-SELECT
-  owner.company_id,
-  owner.domain_id,
-  owner.user_id,
-  CASE WHEN NULLIF($2, '') IS NULL THEN NULL ELSE (SELECT id FROM parent) END,
-  'file',
-  $3,
-  $4,
-  $5,
-  $6,
-  $7,
-  $8,
-  $9,
-  'active'
-FROM owner
-WHERE NULLIF($2, '') IS NULL OR EXISTS (SELECT 1 FROM parent)
-RETURNING
-  id::text,
-  company_id::text,
-  domain_id::text,
-  user_id::text,
-  COALESCE(parent_id::text, ''),
-  node_type,
-  name,
-  normalized_name,
-  mime_type,
-  size,
-  storage_backend,
-  storage_path,
-  checksum_sha256,
-  status,
-  created_at,
-  updated_at`
+	query := buildInsertDriveFileNodeQuery(req.ParentID)
 	var node Node
 	err := tx.QueryRowContext(
 		ctx,
@@ -1568,6 +1517,68 @@ RETURNING
 		return Node{}, mapDriveFileCreateError(err)
 	}
 	return node, nil
+}
+
+func buildInsertDriveFileNodeQuery(parentID string) string {
+	parentCTE, parentIDExpr, parentWhere := driveParentFolderInsertFragments(parentID)
+	return fmt.Sprintf(`
+WITH owner AS (
+  SELECT u.id AS user_id, d.id AS domain_id, d.company_id
+  FROM users u
+  JOIN domains d ON d.id = u.domain_id
+  WHERE u.id = $1::uuid
+    AND u.status = 'active'
+    AND d.status = 'active'
+)
+%s
+INSERT INTO drive_nodes (
+  company_id,
+  domain_id,
+  user_id,
+  parent_id,
+  node_type,
+  name,
+  normalized_name,
+  mime_type,
+  size,
+  storage_backend,
+  storage_path,
+  checksum_sha256,
+  status
+)
+SELECT
+  owner.company_id,
+  owner.domain_id,
+  owner.user_id,
+  %s,
+  'file',
+  $3,
+  $4,
+  $5,
+  $6,
+  $7,
+  $8,
+  $9,
+  'active'
+FROM owner
+%s
+RETURNING
+  id::text,
+  company_id::text,
+  domain_id::text,
+  user_id::text,
+  COALESCE(parent_id::text, ''),
+  node_type,
+  name,
+  normalized_name,
+  mime_type,
+  size,
+  storage_backend,
+  storage_path,
+  checksum_sha256,
+  status,
+  created_at,
+  updated_at`, parentCTE, parentIDExpr, parentWhere)
 }
 
 func (r *Repository) findActiveNodeBySiblingName(ctx context.Context, userID, parentID, normalizedName, nodeType string) (Node, error) {

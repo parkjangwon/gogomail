@@ -6525,3 +6525,6 @@ Target outcome:
 1792. Drive share link and object cleanup failure list queries now add optional
       node/user filters only when requested, using typed UUID predicates instead
       of optional `OR` guards.
+1793. Drive folder/file creation now adds the active parent-folder lookup only
+      when `parent_id` is present, leaving root creates free of parent optional
+      `OR` guards.
