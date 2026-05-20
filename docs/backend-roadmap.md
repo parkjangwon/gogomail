@@ -6411,3 +6411,7 @@ Target outcome:
       status, attempted-at, recipient domain, message id, farm, and sender
       filters.  This keeps production delivery-history inspection from routing
       selective filters through optional `OR` predicates on the hot table.
+1759. Delivery-attempt stats and exhausted-attempt views now reuse the same
+      sargable predicate builder as the delivery-attempt list, so every
+      high-volume delivery-history admin read path avoids `NULLIF(...) OR ...`
+      filters and keeps selective queries index-friendly.
