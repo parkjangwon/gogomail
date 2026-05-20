@@ -241,6 +241,7 @@ Go Backend (`internal/`):
 - Admin role assignment read paths도 permanent/future-expiring active assignment를 `UNION ALL`로 분리하고, `0119_admin_user_role_active_indexes.sql`로 role summary/user-role lookup partial index를 추가함
 - Quota reconciliation scoped dry-run/correction 쿼리도 요청 scope별 direct predicate를 생성하도록 바꿔 all-scope correction에서는 `$1 = '' OR ...` guard를 제거함
 - Directory group membership update cycle check도 excluding recursive query를 빌더화해 `ActiveOnly` 요청 때만 direct active predicate를 추가하고 boolean optional `OR` guard를 제거함
+- Mail API message list SQL generation도 optional-OR 템플릿에 반복 `strings.Replace`를 적용하는 대신 요청된 folder/cursor/read/starred/attachment predicate를 직접 조립하도록 바꿈
 - IMAP UID copy/expunge/move/hydrate 경로도 typed array unnest로 바꿔 요청당 JSON 직렬화 비용을 제거함
 - `imapUIDArray` 1k/10k 벤치마크를 추가해 UID 전처리 비용을 추적할 수 있게 함
 - IMAP mailbox lookup normalization도 `strings.Fields` 대신 로컬 공백 정리 스캐너를 쓰도록 바꿔 `SELECT`/`LIST` alias 처리의 토큰 슬라이스 비용을 줄임
