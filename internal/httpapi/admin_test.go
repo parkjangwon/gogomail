@@ -21,6 +21,7 @@ import (
 	"github.com/gogomail/gogomail/internal/dnscheck"
 	"github.com/gogomail/gogomail/internal/drive"
 	ldapidp "github.com/gogomail/gogomail/internal/idprovider/ldap"
+	rdbmsidp "github.com/gogomail/gogomail/internal/idprovider/rdbms"
 	"github.com/gogomail/gogomail/internal/imapgw"
 	"github.com/gogomail/gogomail/internal/maildb"
 	"github.com/gogomail/gogomail/internal/storage"
@@ -132,6 +133,25 @@ func TestAdminLDAPSyncUnavailableReturnsNotImplemented(t *testing.T) {
 		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
 	}
 	if !strings.Contains(rec.Body.String(), ldapidp.ErrSyncNotConfigured.Error()) {
+		t.Fatalf("body = %q, want not-configured error", rec.Body.String())
+	}
+}
+
+func TestAdminRDBMSSyncUnavailableReturnsNotImplemented(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeAdminService{rdbmsSyncErr: rdbmsidp.ErrSyncNotConfigured}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "")
+
+	req := httptest.NewRequest(http.MethodPost, "/admin/v1/domains/domain-1/rdbms/sync?sync_type=users", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusNotImplemented {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), rdbmsidp.ErrSyncNotConfigured.Error()) {
 		t.Fatalf("body = %q, want not-configured error", rec.Body.String())
 	}
 }
@@ -9042,6 +9062,7 @@ type fakeAdminService struct {
 	attempts                                    []maildb.DeliveryAttemptView
 	deliveryAttemptStats                        maildb.DeliveryAttemptStatsView
 	ldapSyncErr                                 error
+	rdbmsSyncErr                                error
 	lastDeliveryAttemptList                     maildb.DeliveryAttemptListRequest
 	lastDeliveryAttemptStats                    maildb.DeliveryAttemptStatsRequest
 	lastExhaustedAttemptList                    maildb.ExhaustedAttemptListRequest
@@ -10533,6 +10554,9 @@ func (f *fakeAdminService) ResolveLDAPSyncConflict(ctx context.Context, conflict
 }
 
 func (f *fakeAdminService) TriggerRDBMSSync(ctx context.Context, domainID, syncType string) (map[string]interface{}, error) {
+	if f.rdbmsSyncErr != nil {
+		return nil, f.rdbmsSyncErr
+	}
 	return map[string]interface{}{
 		"sync_run_id": "test-sync-run-id",
 		"status":      "running",

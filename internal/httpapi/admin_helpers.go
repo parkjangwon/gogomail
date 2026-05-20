@@ -12,6 +12,7 @@ import (
 	"github.com/gogomail/gogomail/internal/davsyncretention"
 	"github.com/gogomail/gogomail/internal/directory"
 	ldapidp "github.com/gogomail/gogomail/internal/idprovider/ldap"
+	rdbmsidp "github.com/gogomail/gogomail/internal/idprovider/rdbms"
 	"github.com/gogomail/gogomail/internal/maildb"
 )
 
@@ -1367,6 +1368,10 @@ func handleRDBMSSync(w http.ResponseWriter, r *http.Request, service AdminServic
 	}
 	result, err := service.TriggerRDBMSSync(r.Context(), id, syncType)
 	if err != nil {
+		if errors.Is(err, rdbmsidp.ErrSyncNotConfigured) {
+			writeError(w, http.StatusNotImplemented, err.Error())
+			return
+		}
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}

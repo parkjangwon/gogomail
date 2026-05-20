@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/gogomail/gogomail/internal/maildb"
+	"github.com/google/uuid"
 )
 
 // AdminService provides admin operations for RDBMS sync.
@@ -68,15 +68,15 @@ func (s *AdminService) TriggerRDBMSSync(ctx context.Context, domainID string, sy
 	}
 
 	return map[string]interface{}{
-		"sync_run_id":     runID.String(),
-		"status":          status,
-		"created_count":   syncResult.UsersCreated,
-		"updated_count":   syncResult.UsersUpdated,
-		"deleted_count":   syncResult.UsersDeleted,
-		"conflict_count":  syncResult.ConflictCount,
-		"error_count":     syncResult.ErrorCount,
-		"last_sync_time":  syncResult.LastSyncTime,
-		"error":           syncErr,
+		"sync_run_id":    runID.String(),
+		"status":         status,
+		"created_count":  syncResult.UsersCreated,
+		"updated_count":  syncResult.UsersUpdated,
+		"deleted_count":  syncResult.UsersDeleted,
+		"conflict_count": syncResult.ConflictCount,
+		"error_count":    syncResult.ErrorCount,
+		"last_sync_time": syncResult.LastSyncTime,
+		"error":          syncErr,
 	}, nil
 }
 
@@ -165,6 +165,10 @@ func (s *AdminService) ValidateRDBMSQuery(ctx context.Context, queryType string)
 
 // executeRDBMSSync runs the actual sync operation based on type.
 func (s *AdminService) executeRDBMSSync(ctx context.Context, domainID uuid.UUID, syncType string) (SyncResult, error) {
+	if s.provider == nil {
+		return SyncResult{}, ErrSyncNotConfigured
+	}
+
 	req := SyncRequest{
 		DomainID:  domainID.String(),
 		Timestamp: time.Now(),
