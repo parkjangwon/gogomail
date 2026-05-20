@@ -6582,3 +6582,6 @@ Target outcome:
       queued-message decode, avoiding repeated To/Cc/Bcc merge and address
       normalization work across transport, retry, throttle, backoff, and
       attempt-recording paths.
+1810. Webmail security settings no longer render hardcoded fake session
+      devices; the UI now presents the current session and real all-session
+      revoke action only, with inline revoke failure feedback.
