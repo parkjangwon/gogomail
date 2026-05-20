@@ -21,6 +21,7 @@ type RepositoryInterface interface {
 	DeleteUnit(ctx context.Context, id string) error
 	AssignUser(ctx context.Context, member *OrganizationMember) error
 	GetMembersInUnit(ctx context.Context, unitID string) ([]OrganizationMember, error)
+	ListUnitsForUser(ctx context.Context, userID string) ([]OrganizationUnit, error)
 	RemoveUser(ctx context.Context, memberID string) error
 	LogSync(ctx context.Context, log *SyncLog) error
 	UpdateSyncLog(ctx context.Context, log *SyncLog) error
@@ -179,7 +180,10 @@ func (s *Service) RemoveUserFromUnit(ctx context.Context, memberID string) error
 
 // GetUserUnits gets all units a user is assigned to.
 func (s *Service) GetUserUnits(ctx context.Context, userID string) ([]OrganizationUnit, error) {
-	return nil, fmt.Errorf("organization chart placeholder: user-unit lookup is not available yet")
+	if userID == "" {
+		return nil, fmt.Errorf("user_id is required")
+	}
+	return s.repo.ListUnitsForUser(ctx, userID)
 }
 
 // UpdateUnit updates an organization unit.

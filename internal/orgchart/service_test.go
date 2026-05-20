@@ -79,6 +79,21 @@ func (m *mockRepository) GetMembersInUnit(ctx context.Context, unitID string) ([
 	return result, nil
 }
 
+func (m *mockRepository) ListUnitsForUser(ctx context.Context, userID string) ([]OrganizationUnit, error) {
+	var result []OrganizationUnit
+	for _, mem := range m.members {
+		if mem.UserID != userID || mem.EndedAt != nil {
+			continue
+		}
+		unit, ok := m.units[mem.OrganizationUnitID]
+		if !ok || unit.Status != "active" {
+			continue
+		}
+		result = append(result, *unit)
+	}
+	return result, nil
+}
+
 func (m *mockRepository) RemoveUser(ctx context.Context, memberID string) error {
 	if mem, ok := m.members[memberID]; ok {
 		now := time.Now()
@@ -320,6 +335,45 @@ func TestServiceRemoveUserFromUnit(t *testing.T) {
 	members, _ = repo.GetMembersInUnit(ctx, unit.ID)
 	if len(members) != 0 {
 		t.Fatalf("expected 0 members after removal, got %d", len(members))
+	}
+}
+
+func TestServiceGetUserUnits(t *testing.T) {
+	repo := newMockRepository()
+	svc := NewService(repo, nil)
+	ctx := context.Background()
+
+	unit := &OrganizationUnit{
+		CompanyID: "company-1",
+		Name:      "Engineering",
+		Type:      "department",
+		Status:    "active",
+	}
+	if err := svc.CreateUnit(ctx, unit); err != nil {
+		t.Fatalf("CreateUnit failed: %v", err)
+	}
+	if err := svc.AssignUserToUnit(ctx, unit.ID, "user-1", "member"); err != nil {
+		t.Fatalf("AssignUserToUnit failed: %v", err)
+	}
+
+	units, err := svc.GetUserUnits(ctx, "user-1")
+	if err != nil {
+		t.Fatalf("GetUserUnits failed: %v", err)
+	}
+	if len(units) != 1 {
+		t.Fatalf("expected 1 unit, got %d", len(units))
+	}
+	if units[0].ID != unit.ID {
+		t.Fatalf("unit id mismatch: got %s want %s", units[0].ID, unit.ID)
+	}
+}
+
+func TestServiceGetUserUnitsRejectsMissingUserID(t *testing.T) {
+	repo := newMockRepository()
+	svc := NewService(repo, nil)
+
+	if _, err := svc.GetUserUnits(context.Background(), ""); err == nil {
+		t.Fatal("expected missing user_id to fail")
 	}
 }
 

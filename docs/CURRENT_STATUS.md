@@ -1,6 +1,11 @@
 # gogomail current status
 
-Last updated: 2026-05-20 (Third pre-launch audit closure: auth refresh, retention, ops, webmail/console polish, bulk sender isolation hardening, TASK-090 message-store index/query optimization)
+Last updated: 2026-05-21 (SaaS launch hardening continues: organization user-unit lookup completed, bulk sender isolation and TASK-090 query optimization verified)
+
+## SaaS Launch Hardening Continuation (2026-05-21)
+- Organization chart user-unit lookup is now repository-backed instead of returning a placeholder error. `GetUserUnits` validates `user_id`, resolves active `organization_members` assignments through `organization_units`, and ignores ended memberships plus inactive units.
+- Migration `0115_organization_member_active_user_index.sql` adds a partial active-membership index for user-scoped organization lookups.
+- Verification: `go test ./internal/orgchart` passes.
 
 ## Third Pre-Launch Audit Closure (2026-05-20)
 - Admin MFA is fully implemented for the console: login challenge flags (`mfa_required` / `mfa_setup_required`), `/admin/v1/auth/mfa/*` endpoints, security settings enrollment/verification/disable UX, setup-required gate, and break-glass recovery command.
