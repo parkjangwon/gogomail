@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"strings"
 	"unicode/utf8"
+
+	"github.com/lib/pq"
 )
 
 type PostgresStore struct {
@@ -99,17 +101,34 @@ WHERE id = $1`
 	return nil
 }
 
+func (s *PostgresStore) MarkDoneBatch(ctx context.Context, ids []string) error {
+	if s.db == nil {
+		return fmt.Errorf("database handle is required")
+	}
+	if len(ids) == 0 {
+		return nil
+	}
+
+	const query = `
+UPDATE outbox
+SET status = 'done',
+    last_error = NULL,
+    locked_at = NULL,
+    processed_at = now()
+WHERE id = ANY($1::uuid[])`
+
+	if _, err := s.db.ExecContext(ctx, query, pq.Array(ids)); err != nil {
+		return fmt.Errorf("mark outbox events done: %w", err)
+	}
+	return nil
+}
+
 func (s *PostgresStore) MarkFailed(ctx context.Context, id string, cause error) error {
 	if s.db == nil {
 		return fmt.Errorf("database handle is required")
 	}
 
-	message := "publish failed"
-	if cause != nil {
-		message = cause.Error()
-	}
-	message = strings.TrimSpace(message)
-	message = truncateUTF8Bytes(message, 2000)
+	message := publishFailureMessage(cause)
 
 	const query = `
 UPDATE outbox
@@ -123,6 +142,49 @@ WHERE id = $1`
 		return fmt.Errorf("mark outbox event failed: %w", err)
 	}
 	return nil
+}
+
+func (s *PostgresStore) MarkFailedBatch(ctx context.Context, failures []FailedEvent) error {
+	if s.db == nil {
+		return fmt.Errorf("database handle is required")
+	}
+	if len(failures) == 0 {
+		return nil
+	}
+
+	ids := make([]string, 0, len(failures))
+	messages := make([]string, 0, len(failures))
+	for _, failure := range failures {
+		ids = append(ids, failure.ID)
+		messages = append(messages, publishFailureMessage(failure.Cause))
+	}
+
+	const query = `
+WITH failed(id, last_error) AS (
+  SELECT *
+  FROM unnest($1::uuid[], $3::text[])
+)
+UPDATE outbox AS o
+SET status = CASE WHEN attempts >= $2 THEN 'failed' ELSE 'pending' END,
+    last_error = failed.last_error,
+    locked_at = NULL,
+    processed_at = CASE WHEN attempts >= $2 THEN now() ELSE processed_at END
+FROM failed
+WHERE o.id = failed.id`
+
+	if _, err := s.db.ExecContext(ctx, query, pq.Array(ids), s.maxAttempts, pq.Array(messages)); err != nil {
+		return fmt.Errorf("mark outbox events failed: %w", err)
+	}
+	return nil
+}
+
+func publishFailureMessage(cause error) string {
+	message := "publish failed"
+	if cause != nil {
+		message = cause.Error()
+	}
+	message = strings.TrimSpace(message)
+	return truncateUTF8Bytes(message, 2000)
 }
 
 func truncateUTF8Bytes(value string, maxBytes int) string {
