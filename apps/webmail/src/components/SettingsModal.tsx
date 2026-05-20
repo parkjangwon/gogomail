@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import { SettingsModalContent } from './SettingsModalContent';
+import { getPreferences, setPreferences, type WebmailPreferences } from '@/lib/api';
 import {
   ACCENT_PRESETS,
   CATEGORIES,
@@ -17,6 +18,7 @@ import {
   createEmptyRule,
   loadFilterRules,
   loadSettings,
+  migrateRule,
   saveFilterRules,
   saveSettings,
 } from './settings/settingsConfig';
@@ -32,6 +34,7 @@ export function SettingsModal({ onClose, userEmail }: SettingsModalProps) {
   const [hoveredCategory, setHoveredCategory] = useState<Category | null>(null);
   const [avatarUrl, setAvatarUrl] = useState('');
   const [filterRules, setFilterRules] = useState<FilterRule[]>([]);
+  const [prefsLoaded, setPrefsLoaded] = useState(false);
   const [editingRule, setEditingRule] = useState<FilterRule | null>(null);
   const [newRule, setNewRule] = useState<Omit<FilterRule, 'id'>>(createEmptyRule());
 
@@ -39,11 +42,27 @@ export function SettingsModal({ onClose, userEmail }: SettingsModalProps) {
     setSettings(loadSettings());
     setFilterRules(loadFilterRules());
     try { setAvatarUrl(localStorage.getItem('webmail_avatar') ?? ''); } catch { /* */ }
+    getPreferences().then((prefs: WebmailPreferences) => {
+      if (prefs.filter_rules) {
+        const serverRules = (prefs.filter_rules as Record<string, unknown>[]).map(migrateRule);
+        setFilterRules(serverRules);
+        saveFilterRules(serverRules);
+      }
+      setPrefsLoaded(true);
+    }).catch(() => setPrefsLoaded(true));
   }, []);
 
   useEffect(() => {
     if (settings.accentColor) applyAccent(settings.accentColor);
   }, [settings.accentColor]);
+
+  useEffect(() => {
+    if (!prefsLoaded) return;
+    const timer = setTimeout(() => {
+      setPreferences({ filter_rules: filterRules as unknown[] }).catch(() => {});
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [filterRules, prefsLoaded]);
 
   function update<K extends keyof WebmailSettings>(key: K, value: WebmailSettings[K]) {
     setSettings((prev) => {

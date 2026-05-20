@@ -6383,3 +6383,9 @@ Target outcome:
       alone.  Until full VMC certificate-chain validation exists, `ValidateAndFetch`
       returns `vmcVerified=false`, and the logo cache now records the actual
       SHA-256 body digest for fetched logo bytes.
+1753. Webmail preferences saves now merge with the existing server-side
+      preference document before replacing `settings->webmail`, preventing
+      signature, filter-rule, and general-settings saves from erasing sibling
+      keys.  Both settings surfaces hydrate server filter rules back into the
+      local cache used by the message-list filter application path, and the
+      filter UI copy now reflects that rules are active and server-synced.
