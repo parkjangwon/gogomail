@@ -99,6 +99,77 @@ func TestHandleListAlertEventsReturnsPaginationMetadata(t *testing.T) {
 	}
 }
 
+func TestLDAPSyncHistoryReturnsPaginationMetadata(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeAdminService{
+		ldapSyncRuns: []maildb.LDAPSyncRunView{
+			{SyncType: "users", Status: "success"},
+			{SyncType: "groups", Status: "success"},
+		},
+	}
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/domains/domain-1/ldap/sync-history?limit=1&offset=5", nil)
+	req.SetPathValue("id", "domain-1")
+	rec := httptest.NewRecorder()
+
+	handleLDAPSyncHistory(rec, req, service)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	var body struct {
+		Runs    []maildb.LDAPSyncRunView `json:"sync_runs"`
+		Limit   int                      `json:"limit"`
+		Offset  int                      `json:"offset"`
+		HasMore bool                     `json:"has_more"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if body.Limit != 1 || body.Offset != 5 || !body.HasMore || len(body.Runs) != 1 {
+		t.Fatalf("body = %+v", body)
+	}
+	if service.lastLDAPSyncRunsReq.Limit != 2 || service.lastLDAPSyncRunsReq.Offset != 5 {
+		t.Fatalf("request = %+v, want limit+1 probe", service.lastLDAPSyncRunsReq)
+	}
+}
+
+func TestRDBMSSyncConflictsReturnsPaginationMetadata(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeAdminService{
+		rdbmsSyncConflicts: []maildb.RDBMSSyncConflictView{
+			{ConflictType: "duplicate_key"},
+			{ConflictType: "schema_mismatch"},
+		},
+	}
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/domains/domain-1/rdbms/conflicts?limit=1&offset=3&unresolved_only=true", nil)
+	req.SetPathValue("id", "domain-1")
+	rec := httptest.NewRecorder()
+
+	handleRDBMSSyncConflicts(rec, req, service)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	var body struct {
+		Conflicts []maildb.RDBMSSyncConflictView `json:"conflicts"`
+		Limit     int                            `json:"limit"`
+		Offset    int                            `json:"offset"`
+		HasMore   bool                           `json:"has_more"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if body.Limit != 1 || body.Offset != 3 || !body.HasMore || len(body.Conflicts) != 1 {
+		t.Fatalf("body = %+v", body)
+	}
+	reqSeen := service.lastRDBMSSyncConflictsReq
+	if reqSeen.Limit != 2 || reqSeen.Offset != 3 || !reqSeen.UnresolvedOnly {
+		t.Fatalf("request = %+v, want limit+1 unresolved probe", reqSeen)
+	}
+}
+
 func TestAdminConsoleCapabilitiesHandler(t *testing.T) {
 	t.Parallel()
 
@@ -9280,6 +9351,14 @@ type fakeAdminService struct {
 	authErr                                     error
 	sessionVersions                             map[string]int64
 	lastSessionRevokedUserID                    string
+	ldapSyncRuns                                []maildb.LDAPSyncRunView
+	ldapSyncConflicts                           []maildb.LDAPSyncConflictView
+	rdbmsSyncRuns                               []maildb.RDBMSSyncRunView
+	rdbmsSyncConflicts                          []maildb.RDBMSSyncConflictView
+	lastLDAPSyncRunsReq                         maildb.LDAPSyncRunListRequest
+	lastLDAPSyncConflictsReq                    maildb.LDAPSyncConflictListRequest
+	lastRDBMSSyncRunsReq                        maildb.RDBMSSyncRunListRequest
+	lastRDBMSSyncConflictsReq                   maildb.RDBMSSyncConflictListRequest
 }
 
 func (f *fakeAdminService) ListCompanies(_ context.Context, req maildb.CompanyListRequest) ([]maildb.CompanyView, bool, error) {
@@ -10592,7 +10671,8 @@ func (f *fakeAdminService) TriggerLDAPSync(ctx context.Context, domainID, syncTy
 }
 
 func (f *fakeAdminService) GetLDAPSyncRuns(ctx context.Context, req maildb.LDAPSyncRunListRequest) ([]maildb.LDAPSyncRunView, error) {
-	return []maildb.LDAPSyncRunView{}, nil
+	f.lastLDAPSyncRunsReq = req
+	return f.ldapSyncRuns, nil
 }
 
 func (f *fakeAdminService) GetLDAPSyncRun(ctx context.Context, runID string) (*maildb.LDAPSyncRunView, error) {
@@ -10600,7 +10680,8 @@ func (f *fakeAdminService) GetLDAPSyncRun(ctx context.Context, runID string) (*m
 }
 
 func (f *fakeAdminService) GetLDAPSyncConflicts(ctx context.Context, req maildb.LDAPSyncConflictListRequest) ([]maildb.LDAPSyncConflictView, error) {
-	return []maildb.LDAPSyncConflictView{}, nil
+	f.lastLDAPSyncConflictsReq = req
+	return f.ldapSyncConflicts, nil
 }
 
 func (f *fakeAdminService) GetLDAPSyncConflict(ctx context.Context, conflictID string) (*maildb.LDAPSyncConflictView, error) {
@@ -10622,7 +10703,8 @@ func (f *fakeAdminService) TriggerRDBMSSync(ctx context.Context, domainID, syncT
 }
 
 func (f *fakeAdminService) GetRDBMSSyncRuns(ctx context.Context, req maildb.RDBMSSyncRunListRequest) ([]maildb.RDBMSSyncRunView, error) {
-	return []maildb.RDBMSSyncRunView{}, nil
+	f.lastRDBMSSyncRunsReq = req
+	return f.rdbmsSyncRuns, nil
 }
 
 func (f *fakeAdminService) GetRDBMSSyncRun(ctx context.Context, runID string) (*maildb.RDBMSSyncRunView, error) {
@@ -10630,7 +10712,8 @@ func (f *fakeAdminService) GetRDBMSSyncRun(ctx context.Context, runID string) (*
 }
 
 func (f *fakeAdminService) GetRDBMSSyncConflicts(ctx context.Context, req maildb.RDBMSSyncConflictListRequest) ([]maildb.RDBMSSyncConflictView, error) {
-	return []maildb.RDBMSSyncConflictView{}, nil
+	f.lastRDBMSSyncConflictsReq = req
+	return f.rdbmsSyncConflicts, nil
 }
 
 func (f *fakeAdminService) GetRDBMSSyncConflict(ctx context.Context, conflictID string) (*maildb.RDBMSSyncConflictView, error) {

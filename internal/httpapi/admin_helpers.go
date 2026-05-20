@@ -1180,14 +1180,18 @@ func handleLDAPSyncHistory(w http.ResponseWriter, r *http.Request, service Admin
 	}
 	runs, err := service.GetLDAPSyncRuns(r.Context(), maildb.LDAPSyncRunListRequest{
 		DomainID: id,
-		Limit:    limit,
+		Limit:    limit + 1,
 		Offset:   offset,
 	})
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"sync_runs": runs})
+	hasMore := len(runs) > limit
+	if hasMore {
+		runs = runs[:limit]
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"sync_runs": runs, "limit": limit, "offset": offset, "has_more": hasMore})
 }
 
 func handleLDAPSyncConflicts(w http.ResponseWriter, r *http.Request, service AdminService) {
@@ -1220,14 +1224,18 @@ func handleLDAPSyncConflicts(w http.ResponseWriter, r *http.Request, service Adm
 		DomainID:       id,
 		SyncRunID:      syncRunID,
 		UnresolvedOnly: unresolvedOnly,
-		Limit:          limit,
+		Limit:          limit + 1,
 		Offset:         offset,
 	})
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"conflicts": conflicts})
+	hasMore := len(conflicts) > limit
+	if hasMore {
+		conflicts = conflicts[:limit]
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"conflicts": conflicts, "limit": limit, "offset": offset, "has_more": hasMore})
 }
 
 func handleResolveLDAPConflict(w http.ResponseWriter, r *http.Request, service AdminService) {
@@ -1404,14 +1412,18 @@ func handleRDBMSSyncHistory(w http.ResponseWriter, r *http.Request, service Admi
 	}
 	runs, err := service.GetRDBMSSyncRuns(r.Context(), maildb.RDBMSSyncRunListRequest{
 		DomainID: id,
-		Limit:    limit,
+		Limit:    limit + 1,
 		Offset:   offset,
 	})
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"sync_runs": runs})
+	hasMore := len(runs) > limit
+	if hasMore {
+		runs = runs[:limit]
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"sync_runs": runs, "limit": limit, "offset": offset, "has_more": hasMore})
 }
 
 func handleRDBMSSyncConflicts(w http.ResponseWriter, r *http.Request, service AdminService) {
@@ -1442,14 +1454,18 @@ func handleRDBMSSyncConflicts(w http.ResponseWriter, r *http.Request, service Ad
 	conflicts, err := service.GetRDBMSSyncConflicts(r.Context(), maildb.RDBMSSyncConflictListRequest{
 		DomainID:       id,
 		UnresolvedOnly: unresolvedOnly,
-		Limit:          limit,
+		Limit:          limit + 1,
 		Offset:         offset,
 	})
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"conflicts": conflicts})
+	hasMore := len(conflicts) > limit
+	if hasMore {
+		conflicts = conflicts[:limit]
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"conflicts": conflicts, "limit": limit, "offset": offset, "has_more": hasMore})
 }
 
 func handleResolveRDBMSConflict(w http.ResponseWriter, r *http.Request, service AdminService) {

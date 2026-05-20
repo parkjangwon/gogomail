@@ -1,6 +1,11 @@
 # gogomail current status
 
-Last updated: 2026-05-21 (SaaS launch hardening continues: console admin proxy routing verified)
+Last updated: 2026-05-21 (SaaS launch hardening continues: LDAP/RDBMS sync pagination metadata verified)
+
+## LDAP/RDBMS Sync Pagination Metadata (2026-05-21)
+- LDAP and RDBMS sync history/conflict admin endpoints now over-fetch one row and return `limit`, `offset`, and `has_more` response metadata.
+- The OpenAPI contract now documents the implemented response shape, avoiding the stale `total` field on endpoints that do not run a count query.
+- Verification target: `go test ./internal/httpapi -run 'Sync(History|Conflicts)ReturnsPaginationMetadata'`.
 
 ## Console Admin Proxy Routing (2026-05-21)
 - Console audit-log and tenancy domain pages now call the Next.js `/api/admin/...` proxy instead of directly fetching `/admin/v1/...` from the browser.
