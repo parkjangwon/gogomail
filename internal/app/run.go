@@ -2039,11 +2039,17 @@ func runReceiveMTA(ctx context.Context, cfg config.Config, logger *slog.Logger, 
 		LatencyTracker: latencyTracker,
 	})
 
+	tlsCfg, err := smtpTLSConfig(cfg)
+	if err != nil {
+		return fmt.Errorf("receive MTA TLS config: %w", err)
+	}
+
 	return smtpd.RunServer(ctx, smtpd.ServerOptions{
 		Addr:             opts.Addr,
 		Domain:           cfg.SMTPDomain,
 		Receiver:         receiver,
 		Logger:           logger,
+		TLSConfig:        tlsCfg,
 		ReadTimeout:      cfg.SMTPReadTimeout,
 		WriteTimeout:     cfg.SMTPWriteTimeout,
 		MaxConnections:   cfg.SMTPMaxConnections,

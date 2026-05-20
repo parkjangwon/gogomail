@@ -1411,6 +1411,8 @@ func backfillIMAPMailboxUIDsTx(ctx context.Context, tx *sql.Tx, userID string, m
 		return 0, err
 	}
 
+	// Process in bounded batches to avoid long-held locks and OOM on large mailboxes.
+	const backfillBatchSize = 1000
 	const selectMessages = `
 SELECT m.id::text
 FROM messages m
@@ -1423,8 +1425,9 @@ WHERE m.user_id = $1::uuid
   AND m.status = 'active'
   AND i.message_id IS NULL
 ORDER BY COALESCE(m.received_at, m.sent_at, m.draft_updated_at, m.created_at), m.id
+LIMIT $3
 FOR UPDATE OF m`
-	rows, err := tx.QueryContext(ctx, selectMessages, userID, mailboxID)
+	rows, err := tx.QueryContext(ctx, selectMessages, userID, mailboxID, backfillBatchSize)
 	if err != nil {
 		return 0, fmt.Errorf("select imap destination uid backfill messages: %w", err)
 	}

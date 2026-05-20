@@ -2,6 +2,11 @@
 
 ## Current Status Summary
 
+**3차 감사 수정 사항** ✅ COMPLETE
+- Inbound MTA STARTTLS: `runReceiveMTA`에서 `smtpTLSConfig` 호출 누락 수정 — 인바운드 포트 25에서 STARTTLS 활성화
+- IMAP 백필 OOM 방지: `backfillIMAPMailboxUIDsTx` 쿼리에 `LIMIT 1000` 추가 — 대형 메일박스 잠금 전체 로드 방지
+- `audit_logs.user_id` 인덱스 추가 (migration 0110) — user_id 필터 full table scan 방지
+
 **3차 감사 즉시 수정 사항** ✅ COMPLETE
 - Console: `companies/"[id]"/alerts/page.tsx` → `companies/[id]/alerts/page.tsx` 라우팅 버그 수정 (페이지가 404였음)
 - Login rate limit: `POST /api/v1/auth/token`에 10/min per-IP 제한 추가 (기존: 없음)
