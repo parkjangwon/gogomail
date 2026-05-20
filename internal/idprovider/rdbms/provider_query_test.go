@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"database/sql/driver"
+	"errors"
 	"fmt"
 	"io"
 	"strings"
@@ -275,7 +276,7 @@ func TestSyncGroupsCountsFetchedRows(t *testing.T) {
 	}
 }
 
-func TestSyncMembershipsIsNoopWithConfiguredProvider(t *testing.T) {
+func TestSyncMembershipsUnsupportedWithConfiguredProvider(t *testing.T) {
 	p := New(&Config{
 		UserQuery:  "SELECT employee_id, email_address, full_name FROM employees",
 		GroupQuery: "SELECT group_id, group_name, group_slug FROM groups",
@@ -289,11 +290,8 @@ func TestSyncMembershipsIsNoopWithConfiguredProvider(t *testing.T) {
 	})
 	p.db = registerScriptedRDBMSDriver(t, nil)
 
-	result, err := p.SyncMemberships(context.Background(), SyncRequest{DomainID: "domain-1"})
-	if err != nil {
-		t.Fatalf("SyncMemberships() error = %v", err)
-	}
-	if result.UsersCreated != 0 || result.GroupsCreated != 0 || result.ConflictCount != 0 || result.ErrorCount != 0 {
-		t.Fatalf("SyncMemberships() = %+v, want zero-value counts", result)
+	_, err := p.SyncMemberships(context.Background(), SyncRequest{DomainID: "domain-1"})
+	if !errors.Is(err, ErrMembershipSyncUnsupported) {
+		t.Fatalf("SyncMemberships() error = %v, want ErrMembershipSyncUnsupported", err)
 	}
 }

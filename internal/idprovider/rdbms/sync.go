@@ -7,7 +7,10 @@ import (
 	"time"
 )
 
-var ErrSyncNotConfigured = errors.New("rdbms sync provider is not configured")
+var (
+	ErrSyncNotConfigured         = errors.New("rdbms sync provider is not configured")
+	ErrMembershipSyncUnsupported = errors.New("rdbms membership sync is not supported by the current provider schema")
+)
 
 // SyncRequest contains parameters for syncing RDBMS data to the local database.
 type SyncRequest struct {
@@ -90,12 +93,5 @@ func (p *Provider) SyncMemberships(ctx context.Context, req SyncRequest) (SyncRe
 		return SyncResult{}, fmt.Errorf("domain id required for sync")
 	}
 
-	result := SyncResult{
-		LastSyncTime: time.Now(),
-	}
-
-	// Membership mappings are not yet exposed in the RDBMS config schema.
-	// Keep the sync boundary operational and return a successful no-op so
-	// admin scheduling/history can record the run deterministically.
-	return result, nil
+	return SyncResult{LastSyncTime: time.Now()}, ErrMembershipSyncUnsupported
 }

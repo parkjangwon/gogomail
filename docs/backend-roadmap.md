@@ -6360,7 +6360,9 @@ Target outcome:
       external provider is configured: admin sync runs are marked failed with
       typed `ErrSyncNotConfigured`, and
       `POST /admin/v1/domains/{id}/rdbms/sync` returns HTTP 501 instead of
-      presenting a false pending run.
+      presenting a false pending run. Membership sync also returns typed
+      `ErrMembershipSyncUnsupported` instead of a successful no-op while the
+      provider schema has no membership query.
 1749. TASK-090 message detail reads now skip attachment-list hydration when the
       message row reports `HasAttachment=false`, removing a repository round
       trip from the common attachment-free detail path.  `BenchmarkGetMessageBodyCache`

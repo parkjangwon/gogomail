@@ -7808,9 +7808,10 @@ Next focus areas:
 
 - RDBMS sync admin routes are now registered; requests no longer fall through to 404.
 - RDBMS sync requests now fail explicitly with `ErrSyncNotConfigured` when no external provider is wired.
+- RDBMS membership sync now returns `ErrMembershipSyncUnsupported` instead of a successful no-op while the provider schema lacks a membership query.
 - The app admin service records a failed sync run with the not-configured reason instead of returning a false `pending` response.
 - `POST /admin/v1/domains/{id}/rdbms/sync` maps the typed not-configured error to HTTP 501.
-- Verification: `go test ./internal/httpapi -run TestAdminRDBMSSyncUnavailableReturnsNotImplemented`; `go test ./internal/app -run '^$'`; `go test ./internal/idprovider/rdbms`.
+- Verification: `go test ./internal/httpapi -run 'TestAdmin(RDBMSSyncUnavailableReturnsNotImplemented|LDAPSyncUnavailableReturnsNotImplemented)'`; `go test ./internal/app -run '^$'`; `go test ./internal/idprovider/rdbms`.
 
 ## 2026-05-21 Message detail attachment lookup pruning
 
