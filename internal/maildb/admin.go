@@ -6505,22 +6505,8 @@ func (r *Repository) ListSuppressionEntries(ctx context.Context, req Suppression
 	}
 	limit := normalizeLimit(req.Limit)
 
-	const query = `
-SELECT
-  id::text,
-  COALESCE(domain_id::text, ''),
-  email,
-  reason,
-  COALESCE(source_message_id::text, ''),
-  created_at
-FROM suppression_list
-WHERE ($1 = '' OR domain_id::text = $1)
-  AND ($2 = '' OR email = $2)
-  AND ($3 = '' OR reason = $3)
-ORDER BY created_at DESC
-LIMIT $4`
-
-	rows, err := r.db.QueryContext(ctx, query, strings.TrimSpace(req.DomainID), strings.TrimSpace(req.Email), strings.TrimSpace(req.Reason), limit)
+	query, args := buildListSuppressionEntriesQuery(req, limit)
+	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("list suppression entries: %w", err)
 	}
@@ -6545,6 +6531,44 @@ LIMIT $4`
 		return nil, fmt.Errorf("iterate suppression entries: %w", err)
 	}
 	return entries, nil
+}
+
+func buildListSuppressionEntriesQuery(req SuppressionEntryListRequest, limit int) (string, []any) {
+	args := make([]any, 0, 4)
+	conditions := make([]string, 0, 3)
+	if domainID := strings.TrimSpace(req.DomainID); domainID != "" {
+		args = append(args, domainID)
+		conditions = append(conditions, fmt.Sprintf("domain_id = $%d::uuid", len(args)))
+	}
+	if email := strings.TrimSpace(req.Email); email != "" {
+		args = append(args, email)
+		conditions = append(conditions, fmt.Sprintf("email = $%d", len(args)))
+	}
+	if reason := strings.TrimSpace(req.Reason); reason != "" {
+		args = append(args, reason)
+		conditions = append(conditions, fmt.Sprintf("reason = $%d", len(args)))
+	}
+	args = append(args, limit)
+	limitPlaceholder := fmt.Sprintf("$%d", len(args))
+
+	where := ""
+	if len(conditions) > 0 {
+		where = "\nWHERE " + strings.Join(conditions, "\n  AND ")
+	}
+
+	query := `
+SELECT
+  id::text,
+  COALESCE(domain_id::text, ''),
+  email,
+  reason,
+  COALESCE(source_message_id::text, ''),
+  created_at
+FROM suppression_list
+` + strings.TrimPrefix(where, "\n") + `
+ORDER BY created_at DESC
+LIMIT ` + limitPlaceholder
+	return query, args
 }
 
 func ValidateSuppressionEntryListRequest(req SuppressionEntryListRequest) error {
@@ -6578,19 +6602,8 @@ func (r *Repository) ListTrustedRelays(ctx context.Context, req TrustedRelayList
 	}
 	description := strings.TrimSpace(req.Description)
 
-	const query = `
-SELECT
-  id::text,
-  cidr::text,
-  description,
-  created_at
-FROM trusted_relays
-WHERE ($1 = '' OR cidr = $1::cidr)
-  AND ($2 = '' OR description ILIKE '%' || $2 || '%')
-ORDER BY created_at DESC
-LIMIT $3`
-
-	rows, err := r.db.QueryContext(ctx, query, cidr, description, limit)
+	query, args := buildListTrustedRelaysQuery(cidr, description, limit)
+	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("list trusted relays: %w", err)
 	}
@@ -6608,6 +6621,37 @@ LIMIT $3`
 		return nil, fmt.Errorf("iterate trusted relays: %w", err)
 	}
 	return relays, nil
+}
+
+func buildListTrustedRelaysQuery(cidr string, description string, limit int) (string, []any) {
+	args := make([]any, 0, 3)
+	conditions := make([]string, 0, 2)
+	if cidr = strings.TrimSpace(cidr); cidr != "" {
+		args = append(args, cidr)
+		conditions = append(conditions, fmt.Sprintf("cidr = $%d::cidr", len(args)))
+	}
+	if description = strings.TrimSpace(description); description != "" {
+		args = append(args, description)
+		conditions = append(conditions, fmt.Sprintf("description ILIKE '%%' || $%d || '%%'", len(args)))
+	}
+	args = append(args, limit)
+	limitPlaceholder := fmt.Sprintf("$%d", len(args))
+
+	where := ""
+	if len(conditions) > 0 {
+		where = "\nWHERE " + strings.Join(conditions, "\n  AND ")
+	}
+
+	query := `
+SELECT
+  id::text,
+  cidr::text,
+  description,
+  created_at
+FROM trusted_relays` + where + `
+ORDER BY created_at DESC
+LIMIT ` + limitPlaceholder
+	return query, args
 }
 
 func (r *Repository) CreateTrustedRelay(ctx context.Context, req CreateTrustedRelayRequest) (TrustedRelayView, error) {
@@ -6736,33 +6780,9 @@ func (r *Repository) ListDeliveryRoutes(ctx context.Context, req DeliveryRouteLi
 		return nil, err
 	}
 	limit := normalizeLimit(req.Limit)
-	status := strings.ToLower(strings.TrimSpace(req.Status))
 
-	const query = `
-SELECT
-  id::text,
-  domain_pattern,
-  farm,
-  hosts,
-  port,
-  tls_mode,
-  implicit_tls,
-  smtp_hello,
-  pool_name,
-  auth_identity,
-  auth_username,
-  status,
-  description,
-  created_at,
-  updated_at
-FROM delivery_routes
-WHERE ($1 = '' OR status = $1)
-  AND ($2 = '' OR farm = $2)
-  AND ($3 = '' OR domain_pattern = $3)
-ORDER BY created_at DESC
-LIMIT $4`
-
-	rows, err := r.db.QueryContext(ctx, query, status, strings.TrimSpace(req.Farm), strings.TrimSpace(req.DomainPattern), limit)
+	query, args := buildListDeliveryRoutesQuery(req, limit)
+	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("list delivery routes: %w", err)
 	}
@@ -6796,6 +6816,52 @@ LIMIT $4`
 		return nil, fmt.Errorf("iterate delivery routes: %w", err)
 	}
 	return routes, nil
+}
+
+func buildListDeliveryRoutesQuery(req DeliveryRouteListRequest, limit int) (string, []any) {
+	args := make([]any, 0, 4)
+	conditions := make([]string, 0, 3)
+	if status := strings.ToLower(strings.TrimSpace(req.Status)); status != "" {
+		args = append(args, status)
+		conditions = append(conditions, fmt.Sprintf("status = $%d", len(args)))
+	}
+	if farm := strings.TrimSpace(req.Farm); farm != "" {
+		args = append(args, farm)
+		conditions = append(conditions, fmt.Sprintf("farm = $%d", len(args)))
+	}
+	if domainPattern := strings.TrimSpace(req.DomainPattern); domainPattern != "" {
+		args = append(args, domainPattern)
+		conditions = append(conditions, fmt.Sprintf("domain_pattern = $%d", len(args)))
+	}
+	args = append(args, limit)
+	limitPlaceholder := fmt.Sprintf("$%d", len(args))
+
+	where := ""
+	if len(conditions) > 0 {
+		where = "\nWHERE " + strings.Join(conditions, "\n  AND ")
+	}
+
+	query := `
+SELECT
+  id::text,
+  domain_pattern,
+  farm,
+  hosts,
+  port,
+  tls_mode,
+  implicit_tls,
+  smtp_hello,
+  pool_name,
+  auth_identity,
+  auth_username,
+  status,
+  description,
+  created_at,
+  updated_at
+FROM delivery_routes` + where + `
+ORDER BY created_at DESC
+LIMIT ` + limitPlaceholder
+	return query, args
 }
 
 func (r *Repository) CreateDeliveryRoute(ctx context.Context, req CreateDeliveryRouteRequest) (DeliveryRouteView, error) {

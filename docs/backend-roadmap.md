@@ -6589,3 +6589,6 @@ Target outcome:
       and organization sync as `unavailable` instead of `placeholder`, with the
       OpenAPI schema, TypeScript client, and console organization status aligned
       to avoid presenting non-executable sync integrations as launch-ready.
+1812. Admin suppression list, trusted relay, and delivery route listings now
+      generate sargable WHERE clauses only for supplied filters, removing
+      optional `($1 = '' OR ...)` predicates from these operational views.
