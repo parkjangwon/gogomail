@@ -6403,3 +6403,7 @@ Target outcome:
       only in browser `localStorage`.  Settings, compose, and Spotlight search
       share a normalized template cache with stable ids, preserving offline
       lookup while making templates portable across browsers and devices.
+1757. Admin outbox event listing now builds dynamic sargable WHERE clauses for
+      topic, partition key, status, and created-at filters.  The query no
+      longer uses `NULLIF(...) OR ...` predicates, keeping large outbox
+      inspection paths aligned with the queue indexes.

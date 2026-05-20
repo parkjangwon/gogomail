@@ -63,6 +63,7 @@ Last updated: 2026-05-21 (SaaS launch hardening continues: attachment cleanup ba
 - Webmail calendar recurring-event edits now present the supported whole-series edit behavior directly instead of offering an unsupported single-occurrence option that failed on submit.
 - Webmail Web Push subscription now converts the VAPID public key to the required `Uint8Array` form, and mail view startup no longer prompts for notification permission outside the explicit Settings opt-in flow.
 - Webmail quick reply templates now sync through server preferences and keep a normalized local cache for compose and Spotlight search, so templates survive browser/device changes instead of living only in localStorage.
+- Admin outbox event listing now builds sargable WHERE clauses only for provided filters, avoiding the previous `NULLIF(...) OR ...` predicate shape that could blur index selectivity on large queues.
 - Verification: `go test ./...`, `pnpm --dir apps/webmail type-check`, and `pnpm --dir apps/console type-check` pass.
 
 ## CLI Break-Glass MFA Reset (2026-05-19)

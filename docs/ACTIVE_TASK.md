@@ -308,6 +308,7 @@ Go Backend (`internal/`):
 - 웹메일 캘린더 반복 일정 편집 모달에서 지원되지 않는 "이 이벤트만" 선택지를 제거하고, 현재 동작이 전체 반복 시리즈 편집임을 명시해 제출 후 unsupported 오류가 뜨는 어색한 흐름을 없앰
 - 웹메일 Web Push 등록이 VAPID public key를 문자열 그대로 `PushManager.subscribe()`에 넘기지 않고 표준 `Uint8Array` applicationServerKey로 변환하도록 고정하고, 메일 화면 진입 시 알림 권한 프롬프트를 자동 표시하지 않도록 설정 화면의 명시적 opt-in 흐름으로 정리함
 - 웹메일 빠른 답장 템플릿을 브라우저 localStorage 전용 상태에서 서버 preferences 동기화 상태로 승격하고, Compose/Settings/Spotlight가 같은 normalized template cache를 보도록 정리함
+- 관리자 outbox event 목록 조회가 `NULLIF(...) OR ...` 조건으로 인덱스 선택성을 흐리지 않도록, 제공된 필터만 WHERE에 추가하는 sargable 동적 쿼리로 전환함
 
 **System Email Connections & AutoPurge** ✅ COMPLETE
 - `internal/httpapi/admin.go`: Added `systemEmail mailservice.SystemEmailSender` and `publicBaseURL string` fields to `adminRouteConfig`; added `WithSystemEmailSender` and `WithPublicBaseURL` `AdminRouteOption` constructors
