@@ -19,6 +19,7 @@ Last updated: 2026-05-21 (SaaS launch hardening continues: attachment cleanup ba
 - Message and draft search now emit attachment predicates only when requested, using typed boolean comparisons and omitting the predicate for attachment-agnostic searches.
 - Message and draft search now emit cursor predicates only when a pagination cursor is present, leaving first-page searches without pagination optional `OR` branches.
 - Admin user list queries now add domain/status/password-configured predicates only when requested, with domain filters using typed UUID comparison instead of optional `OR` guards.
+- Admin quota usage list queries now add scope/domain/over-limit/over-allocated predicates only when requested, avoiding optional `OR` guards in quota operations views.
 - Thread list read/starred/attachment filters now emit direct predicates only when requested and omit nullable boolean optional `OR` branches for unfiltered lists.
 - Thread list cursor predicates now emit direct newest/oldest tuple comparisons only when a pagination cursor is present and omit pagination optional `OR` branches for first-page lists.
 - Bulk delete and IMAP EXPUNGE storage-path lookups now compute target storage paths once and join against grouped reference counts, instead of running a correlated `COUNT(*)` against `messages` for each candidate row.

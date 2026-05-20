@@ -6512,3 +6512,6 @@ Target outcome:
 1788. Admin user list queries now add domain/status/password-configured
       predicates only when requested, with domain filters using typed UUID
       comparison instead of optional `OR` guards.
+1789. Admin quota usage list queries now add scope/domain/over-limit/
+      over-allocated predicates only when requested, avoiding optional `OR`
+      guards in quota operations views.
