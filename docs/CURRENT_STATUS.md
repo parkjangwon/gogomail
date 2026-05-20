@@ -7923,3 +7923,9 @@ Next focus areas:
 - Webmail security settings no longer show hardcoded fake historical device sessions.
 - The view now shows only the current session plus the actual all-session revoke action, and revoke failures render as an inline error instead of a blocking browser alert.
 - Verification: `pnpm --dir apps/webmail type-check`; source grep confirms `Chrome on macOS` and `Safari on iPhone` are no longer present.
+
+## 2026-05-21 Integration capability honesty
+
+- Admin console capabilities no longer expose unconfigured LDAP sync and organization sync as `placeholder`; the API, OpenAPI schema, generated TypeScript client, and console UI now use `unavailable`.
+- The organization settings page now labels unavailable sync as unavailable rather than configuration-required, keeping local directory management visible without implying an executable external sync path.
+- Verification target: `go test ./internal/httpapi -run 'TestAdminConsoleCapabilities|TestOpenAPIAdminConsoleCapabilitiesSchema'`; `pnpm --dir apps/console type-check`.

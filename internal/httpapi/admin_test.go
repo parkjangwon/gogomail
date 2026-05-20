@@ -101,7 +101,7 @@ func TestAdminConsoleCapabilitiesHandler(t *testing.T) {
 	if !got.Security.AdminTokenHeader || !got.Security.BearerToken || !got.Security.RejectsAmbiguousAuth || !got.Security.NoStoreJSON {
 		t.Fatalf("security capabilities = %#v", got.Security)
 	}
-	if got.Integrations.LDAPRead != "available" || got.Integrations.LDAPSync != "placeholder" || got.Integrations.OrganizationSync != "placeholder" {
+	if got.Integrations.LDAPRead != "available" || got.Integrations.LDAPSync != "unavailable" || got.Integrations.OrganizationSync != "unavailable" {
 		t.Fatalf("integration capabilities = %#v", got.Integrations)
 	}
 	if got.Storage.ConfiguredBackend != "local" || !got.Storage.LocalFilesystem || !got.Storage.SecretsRedacted || len(got.Storage.ActiveLabels) != 1 || got.Storage.ActiveLabels[0] != "local" || !got.Storage.SupportsLocalNFS || got.Storage.SupportsMinIO || got.Storage.SupportsAWSCompatible {

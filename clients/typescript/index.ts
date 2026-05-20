@@ -16748,17 +16748,17 @@ export enum PathsUsersBulkPostRequestBodyContentApplicationJsonAction {
 }
 export enum AdminConsoleCapabilitiesIntegrationsLdap_read {
     available = "available",
-    placeholder = "placeholder",
+    unavailable = "unavailable",
     planned = "planned"
 }
 export enum AdminConsoleCapabilitiesIntegrationsLdap_sync {
     available = "available",
-    placeholder = "placeholder",
+    unavailable = "unavailable",
     planned = "planned"
 }
 export enum AdminConsoleCapabilitiesIntegrationsOrganization_sync {
     available = "available",
-    placeholder = "placeholder",
+    unavailable = "unavailable",
     planned = "planned"
 }
 export enum AdminConsoleCapabilitiesModulesAdmin {

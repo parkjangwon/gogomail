@@ -9,10 +9,9 @@ import (
 )
 
 const (
-	// CapabilityStatusPlaceholder marks the LDAP provider as a typed integration
-	// placeholder. The package exposes provider contracts, but external LDAP
-	// reads and sync are not wired to a live backend yet.
-	CapabilityStatusPlaceholder = "placeholder"
+	// CapabilityStatusUnavailable marks LDAP sync as unavailable until a live
+	// external LDAP backend is configured and wired.
+	CapabilityStatusUnavailable = "unavailable"
 )
 
 var (

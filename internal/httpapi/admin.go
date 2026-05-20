@@ -507,8 +507,8 @@ func currentAdminConsoleCapabilities(storageCapabilities storage.BackendCapabili
 		},
 		Integrations: adminConsoleIntegrationCapabilities{
 			LDAPRead:         "available",
-			LDAPSync:         "placeholder",
-			OrganizationSync: "placeholder",
+			LDAPSync:         "unavailable",
+			OrganizationSync: "unavailable",
 		},
 		Storage: storageCapabilities,
 	}

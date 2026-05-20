@@ -13246,15 +13246,15 @@ components:
           properties:
             ldap_read:
               type: string
-              enum: [available, placeholder, planned]
+              enum: [available, unavailable, planned]
               description: LDAP directory read provider status.
             ldap_sync:
               type: string
-              enum: [available, placeholder, planned]
+              enum: [available, unavailable, planned]
               description: LDAP sync execution status.
             organization_sync:
               type: string
-              enum: [available, placeholder, planned]
+              enum: [available, unavailable, planned]
               description: Organization sync adapter status.
         storage:
           $ref: "#/components/schemas/StorageBackendCapabilities"
