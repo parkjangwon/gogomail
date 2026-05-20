@@ -6460,3 +6460,7 @@ Target outcome:
 1771. Directory delegation listing now uses dynamic optional predicates for
       owner, delegate, scope, role, and active-status filters, avoiding broad
       optional `OR` guards on large delegation operations.
+1772. Directory principal search now emits only requested principal-kind UNION
+      branches and dynamic optional predicates for domain, organization, query,
+      and active-status filters, avoiding broad optional `OR` guards and
+      unnecessary branch scans on large address books.

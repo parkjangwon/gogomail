@@ -573,117 +573,8 @@ func (r *Repository) SearchPrincipals(ctx context.Context, req SearchPrincipalsR
 	if err != nil {
 		return nil, err
 	}
-	allowUser := searchPrincipalKindAllowed(req.Kinds, PrincipalKindUser)
-	allowOrganization := searchPrincipalKindAllowed(req.Kinds, PrincipalKindOrganization)
-	allowGroup := searchPrincipalKindAllowed(req.Kinds, PrincipalKindGroup)
-	allowResource := searchPrincipalKindAllowed(req.Kinds, PrincipalKindResource)
-	pattern := principalSearchPattern(req.Query)
-	const query = `
-WITH principals AS (
-  SELECT u.id::text AS id,
-         'user' AS kind,
-         c.id::text AS company_id,
-         d.id::text AS domain_id,
-         COALESCE(u.org_id::text, '') AS organization_id,
-         u.display_name AS display_name,
-         COALESCE(primary_addr.address, '') AS primary_email,
-         u.status AS status,
-         '' AS resource_type,
-         1 AS kind_rank
-  FROM users u
-  JOIN domains d ON d.id = u.domain_id
-  JOIN companies c ON c.id = d.company_id
-  LEFT JOIN LATERAL (
-    SELECT address
-    FROM user_addresses
-    WHERE user_id = u.id
-    ORDER BY is_primary DESC, created_at ASC, id ASC
-    LIMIT 1
-  ) primary_addr ON TRUE
-  WHERE $7::boolean
-    AND c.id = $1::uuid
-    AND ($2 = '' OR d.id = NULLIF($2, '')::uuid)
-    AND ($3 = '' OR COALESCE(u.org_id::text, '') = $3)
-    AND ($4::boolean = false OR (u.status = 'active' AND d.status = 'active' AND c.status = 'active'))
-    AND ($5 = '' OR lower(u.display_name) LIKE $5 ESCAPE '\' OR lower(u.username) LIKE $5 ESCAPE '\' OR lower(COALESCE(primary_addr.address, '')) LIKE $5 ESCAPE '\')
-  UNION ALL
-  SELECT o.id::text,
-         'organization',
-         c.id::text,
-         d.id::text,
-         o.id::text,
-         o.name,
-         '',
-         o.status,
-         '',
-         2
-  FROM organizations o
-  JOIN domains d ON d.id = o.domain_id
-  JOIN companies c ON c.id = d.company_id
-  WHERE $8::boolean
-    AND c.id = $1::uuid
-    AND ($2 = '' OR d.id = NULLIF($2, '')::uuid)
-    AND ($3 = '' OR o.id::text = $3)
-    AND ($4::boolean = false OR (o.status = 'active' AND d.status = 'active' AND c.status = 'active'))
-    AND ($5 = '' OR lower(o.name) LIKE $5 ESCAPE '\' OR lower(o.code) LIKE $5 ESCAPE '\')
-  UNION ALL
-  SELECT g.id::text,
-         'group',
-         g.company_id::text,
-         g.domain_id::text,
-         COALESCE(g.org_id::text, ''),
-         g.name,
-         '',
-         g.status,
-         '',
-         3
-  FROM directory_groups g
-  JOIN domains d ON d.id = g.domain_id
-  JOIN companies c ON c.id = g.company_id AND c.id = d.company_id
-  WHERE $9::boolean
-    AND g.company_id = $1::uuid
-    AND ($2 = '' OR g.domain_id = NULLIF($2, '')::uuid)
-    AND ($3 = '' OR COALESCE(g.org_id::text, '') = $3)
-    AND ($4::boolean = false OR (g.status = 'active' AND d.status = 'active' AND c.status = 'active'))
-    AND ($5 = '' OR lower(g.name) LIKE $5 ESCAPE '\' OR lower(g.slug) LIKE $5 ESCAPE '\')
-  UNION ALL
-  SELECT rsrc.id::text,
-         'resource',
-         rsrc.company_id::text,
-         rsrc.domain_id::text,
-         COALESCE(rsrc.org_id::text, ''),
-         rsrc.name,
-         '',
-         rsrc.status,
-         rsrc.resource_type,
-         4
-  FROM directory_resources rsrc
-  JOIN domains d ON d.id = rsrc.domain_id
-  JOIN companies c ON c.id = rsrc.company_id AND c.id = d.company_id
-  WHERE $10::boolean
-    AND rsrc.company_id = $1::uuid
-    AND ($2 = '' OR rsrc.domain_id = NULLIF($2, '')::uuid)
-    AND ($3 = '' OR COALESCE(rsrc.org_id::text, '') = $3)
-    AND ($4::boolean = false OR (rsrc.status = 'active' AND d.status = 'active' AND c.status = 'active'))
-    AND ($5 = '' OR lower(rsrc.name) LIKE $5 ESCAPE '\' OR lower(rsrc.slug) LIKE $5 ESCAPE '\' OR lower(rsrc.resource_type) LIKE $5 ESCAPE '\')
-)
-SELECT id, kind, company_id, domain_id, organization_id, display_name, primary_email, status, resource_type
-FROM principals
-ORDER BY kind_rank, lower(display_name), id
-LIMIT $6 OFFSET $11`
-	rows, err := r.db.QueryContext(ctx, query,
-		req.CompanyID,
-		req.DomainID,
-		req.OrganizationID,
-		req.ActiveOnly,
-		pattern,
-		req.Limit,
-		allowUser,
-		allowOrganization,
-		allowGroup,
-		allowResource,
-		req.Offset,
-	)
+	query, args := buildSearchPrincipalsQuery(req)
+	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("search directory principals: %w", err)
 	}
@@ -710,6 +601,164 @@ LIMIT $6 OFFSET $11`
 		return nil, fmt.Errorf("search directory principal rows: %w", err)
 	}
 	return principals, nil
+}
+
+func buildSearchPrincipalsQuery(req SearchPrincipalsRequest) (string, []any) {
+	args := []any{req.CompanyID}
+	var domainArg, orgArg, patternArg int
+	if req.DomainID != "" {
+		args = append(args, req.DomainID)
+		domainArg = len(args)
+	}
+	if req.OrganizationID != "" {
+		args = append(args, req.OrganizationID)
+		orgArg = len(args)
+	}
+	if pattern := principalSearchPattern(req.Query); pattern != "" {
+		args = append(args, pattern)
+		patternArg = len(args)
+	}
+
+	branches := make([]string, 0, len(req.Kinds))
+	if searchPrincipalKindAllowed(req.Kinds, PrincipalKindUser) {
+		conditions := []string{"c.id = $1::uuid"}
+		if domainArg != 0 {
+			conditions = append(conditions, fmt.Sprintf("d.id = $%d::uuid", domainArg))
+		}
+		if orgArg != 0 {
+			conditions = append(conditions, fmt.Sprintf("u.org_id = $%d::uuid", orgArg))
+		}
+		if req.ActiveOnly {
+			conditions = append(conditions, "(u.status = 'active' AND d.status = 'active' AND c.status = 'active')")
+		}
+		if patternArg != 0 {
+			conditions = append(conditions, fmt.Sprintf("(lower(u.display_name) LIKE $%d ESCAPE '\\' OR lower(u.username) LIKE $%d ESCAPE '\\' OR lower(COALESCE(primary_addr.address, '')) LIKE $%d ESCAPE '\\')", patternArg, patternArg, patternArg))
+		}
+		branches = append(branches, fmt.Sprintf(`
+  SELECT u.id::text AS id,
+         'user' AS kind,
+         c.id::text AS company_id,
+         d.id::text AS domain_id,
+         COALESCE(u.org_id::text, '') AS organization_id,
+         u.display_name AS display_name,
+         COALESCE(primary_addr.address, '') AS primary_email,
+         u.status AS status,
+         '' AS resource_type,
+         1 AS kind_rank
+  FROM users u
+  JOIN domains d ON d.id = u.domain_id
+  JOIN companies c ON c.id = d.company_id
+  LEFT JOIN LATERAL (
+    SELECT address
+    FROM user_addresses
+    WHERE user_id = u.id
+    ORDER BY is_primary DESC, created_at ASC, id ASC
+    LIMIT 1
+  ) primary_addr ON TRUE
+  WHERE %s`, strings.Join(conditions, "\n    AND ")))
+	}
+	if searchPrincipalKindAllowed(req.Kinds, PrincipalKindOrganization) {
+		conditions := []string{"c.id = $1::uuid"}
+		if domainArg != 0 {
+			conditions = append(conditions, fmt.Sprintf("d.id = $%d::uuid", domainArg))
+		}
+		if orgArg != 0 {
+			conditions = append(conditions, fmt.Sprintf("o.id = $%d::uuid", orgArg))
+		}
+		if req.ActiveOnly {
+			conditions = append(conditions, "(o.status = 'active' AND d.status = 'active' AND c.status = 'active')")
+		}
+		if patternArg != 0 {
+			conditions = append(conditions, fmt.Sprintf("(lower(o.name) LIKE $%d ESCAPE '\\' OR lower(o.code) LIKE $%d ESCAPE '\\')", patternArg, patternArg))
+		}
+		branches = append(branches, fmt.Sprintf(`
+  SELECT o.id::text,
+         'organization',
+         c.id::text,
+         d.id::text,
+         o.id::text,
+         o.name,
+         '',
+         o.status,
+         '',
+         2
+  FROM organizations o
+  JOIN domains d ON d.id = o.domain_id
+  JOIN companies c ON c.id = d.company_id
+  WHERE %s`, strings.Join(conditions, "\n    AND ")))
+	}
+	if searchPrincipalKindAllowed(req.Kinds, PrincipalKindGroup) {
+		conditions := []string{"g.company_id = $1::uuid"}
+		if domainArg != 0 {
+			conditions = append(conditions, fmt.Sprintf("g.domain_id = $%d::uuid", domainArg))
+		}
+		if orgArg != 0 {
+			conditions = append(conditions, fmt.Sprintf("g.org_id = $%d::uuid", orgArg))
+		}
+		if req.ActiveOnly {
+			conditions = append(conditions, "(g.status = 'active' AND d.status = 'active' AND c.status = 'active')")
+		}
+		if patternArg != 0 {
+			conditions = append(conditions, fmt.Sprintf("(lower(g.name) LIKE $%d ESCAPE '\\' OR lower(g.slug) LIKE $%d ESCAPE '\\')", patternArg, patternArg))
+		}
+		branches = append(branches, fmt.Sprintf(`
+  SELECT g.id::text,
+         'group',
+         g.company_id::text,
+         g.domain_id::text,
+         COALESCE(g.org_id::text, ''),
+         g.name,
+         '',
+         g.status,
+         '',
+         3
+  FROM directory_groups g
+  JOIN domains d ON d.id = g.domain_id
+  JOIN companies c ON c.id = g.company_id AND c.id = d.company_id
+  WHERE %s`, strings.Join(conditions, "\n    AND ")))
+	}
+	if searchPrincipalKindAllowed(req.Kinds, PrincipalKindResource) {
+		conditions := []string{"rsrc.company_id = $1::uuid"}
+		if domainArg != 0 {
+			conditions = append(conditions, fmt.Sprintf("rsrc.domain_id = $%d::uuid", domainArg))
+		}
+		if orgArg != 0 {
+			conditions = append(conditions, fmt.Sprintf("rsrc.org_id = $%d::uuid", orgArg))
+		}
+		if req.ActiveOnly {
+			conditions = append(conditions, "(rsrc.status = 'active' AND d.status = 'active' AND c.status = 'active')")
+		}
+		if patternArg != 0 {
+			conditions = append(conditions, fmt.Sprintf("(lower(rsrc.name) LIKE $%d ESCAPE '\\' OR lower(rsrc.slug) LIKE $%d ESCAPE '\\' OR lower(rsrc.resource_type) LIKE $%d ESCAPE '\\')", patternArg, patternArg, patternArg))
+		}
+		branches = append(branches, fmt.Sprintf(`
+  SELECT rsrc.id::text,
+         'resource',
+         rsrc.company_id::text,
+         rsrc.domain_id::text,
+         COALESCE(rsrc.org_id::text, ''),
+         rsrc.name,
+         '',
+         rsrc.status,
+         rsrc.resource_type,
+         4
+  FROM directory_resources rsrc
+  JOIN domains d ON d.id = rsrc.domain_id
+  JOIN companies c ON c.id = rsrc.company_id AND c.id = d.company_id
+  WHERE %s`, strings.Join(conditions, "\n    AND ")))
+	}
+
+	args = append(args, req.Limit, req.Offset)
+	limitArg := len(args) - 1
+	offsetArg := len(args)
+	query := `
+WITH principals AS (` + strings.Join(branches, "\n  UNION ALL") + `
+)
+SELECT id, kind, company_id, domain_id, organization_id, display_name, primary_email, status, resource_type
+FROM principals
+ORDER BY kind_rank, lower(display_name), id
+LIMIT $%d OFFSET $%d`
+	return fmt.Sprintf(query, limitArg, offsetArg), args
 }
 
 func buildCheckDirectGroupMembershipQuery(req CheckGroupMembershipRequest) (string, []any) {

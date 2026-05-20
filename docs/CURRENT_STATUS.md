@@ -77,6 +77,7 @@ Last updated: 2026-05-21 (SaaS launch hardening continues: attachment cleanup ba
 - Directory direct and effective group-membership checks now add active-status predicates only when `ActiveOnly` is requested, avoiding boolean optional `OR` guards in validation hot paths.
 - Directory direct delegation checks now add active-status predicates only when `ActiveOnly` is requested, avoiding boolean optional `OR` guards in delegation validation paths.
 - Directory delegation listing now builds optional owner, delegate, scope, role, and active-status predicates only when requested, keeping delegation administration aligned with selective indexes.
+- Directory principal search now emits only requested principal-kind UNION branches and optional domain, organization, query, and active-status predicates, keeping address-book lookup paths aligned with selective indexes.
 - Verification: `go test ./...`, `pnpm --dir apps/webmail type-check`, and `pnpm --dir apps/console type-check` pass.
 
 ## CLI Break-Glass MFA Reset (2026-05-19)
