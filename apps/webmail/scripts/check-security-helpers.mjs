@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { isPrivateAddress, assertImageContentType } from '../src/lib/security/outboundUrl.ts';
 import { assertSameOriginForMutation, encodeBackendPath, headersForBackend } from '../src/lib/security/proxy.ts';
+import { arrayBufferToBase64URL, webPushPublicKeyToUint8Array } from '../src/lib/webpush.ts';
 
 for (const addr of ['127.0.0.1', '10.1.2.3', '172.16.0.1', '192.168.1.5', '169.254.169.254', '::1', 'fe80::1']) {
   assert.equal(isPrivateAddress(addr), true, `${addr} should be private`);
@@ -26,5 +27,13 @@ const proxiedHeaders = headersForBackend(new Headers({
 assert.equal(proxiedHeaders.get('authorization'), 'Bearer trusted-token');
 assert.equal(proxiedHeaders.get('cookie'), null);
 assert.equal(proxiedHeaders.get('content-type'), 'application/json');
+
+const vapidBytes = webPushPublicKeyToUint8Array('AQIDBA');
+assert.deepEqual(Array.from(vapidBytes), [1, 2, 3, 4]);
+assert.deepEqual(Array.from(webPushPublicKeyToUint8Array('AQIDBA==')), [1, 2, 3, 4]);
+assert.throws(() => webPushPublicKeyToUint8Array(''));
+
+assert.equal(arrayBufferToBase64URL(new Uint8Array([251, 255, 238]).buffer), '-__u');
+assert.equal(arrayBufferToBase64URL(null), '');
 
 console.log('webmail security helper checks passed');

@@ -61,6 +61,7 @@ Last updated: 2026-05-21 (SaaS launch hardening continues: attachment cleanup ba
 - Console audit logs now support cursor pagination through the backend `before` filter, and delivery attempts show filterable feedback instead of silent console errors.
 - Operational backup support now includes `scripts/backup.sh` plus `docker/docker-compose.backup.yml` for scheduled PostgreSQL dump backups with optional S3 upload.
 - Webmail calendar recurring-event edits now present the supported whole-series edit behavior directly instead of offering an unsupported single-occurrence option that failed on submit.
+- Webmail Web Push subscription now converts the VAPID public key to the required `Uint8Array` form, and mail view startup no longer prompts for notification permission outside the explicit Settings opt-in flow.
 - Verification: `go test ./...`, `pnpm --dir apps/webmail type-check`, and `pnpm --dir apps/console type-check` pass.
 
 ## CLI Break-Glass MFA Reset (2026-05-19)

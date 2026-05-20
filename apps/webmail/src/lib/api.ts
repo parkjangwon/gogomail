@@ -1,4 +1,5 @@
 import { calendarUID } from './stableId';
+import { arrayBufferToBase64URL } from './webpush';
 
 export interface Folder {
   id: string;
@@ -1091,16 +1092,11 @@ export async function fetchSubscriptionICS(id: string): Promise<string> {
 export async function registerWebPushDevice(subscription: PushSubscription): Promise<void> {
   const key = subscription.getKey('p256dh');
   const auth = subscription.getKey('auth');
-  const encodeKey = (value: ArrayBuffer | null): string => {
-    if (!value) return '';
-    const binary = String.fromCharCode(...new Uint8Array(value));
-    return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
-  };
   const token = JSON.stringify({
     endpoint: subscription.endpoint,
     keys: {
-      p256dh: encodeKey(key),
-      auth: encodeKey(auth),
+      p256dh: arrayBufferToBase64URL(key),
+      auth: arrayBufferToBase64URL(auth),
     },
   });
   await request<unknown>('push-devices', {

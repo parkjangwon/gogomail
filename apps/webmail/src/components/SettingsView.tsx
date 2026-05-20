@@ -14,6 +14,7 @@ import { SettingsPrivacySection } from '@/components/settings-view/SettingsPriva
 import { SettingsNotificationsSection } from '@/components/settings-view/SettingsNotificationsSection';
 import { SettingsSecuritySection } from '@/components/settings-view/SettingsSecuritySection';
 import { handleVerticalNavKeyDown } from '@/lib/navKeyboard';
+import { webPushPublicKeyToUint8Array } from '@/lib/webpush';
 
 export interface SettingsViewProps {
   userEmail?: string;
@@ -359,7 +360,7 @@ export function SettingsView({ userEmail, userName, initialSection }: SettingsVi
         if (vapidKey) {
           const sub = await reg.pushManager.subscribe({
             userVisibleOnly: true,
-            applicationServerKey: vapidKey,
+            applicationServerKey: webPushPublicKeyToUint8Array(vapidKey),
           });
           await registerWebPushDevice(sub);
         }
