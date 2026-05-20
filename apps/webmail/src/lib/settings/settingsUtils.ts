@@ -1,3 +1,5 @@
+import { stableId } from '@/lib/stableId';
+
 export type ReadMark = 'instant' | '2s' | 'manual';
 export type ExternalImages = 'always' | 'ask' | 'never';
 export type SendDelay = 0 | 5 | 10 | 30;
@@ -48,7 +50,7 @@ export const LABEL_COLORS = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f
 export function migrateFilterRule(r: Record<string, unknown>): FilterRule {
   if (Array.isArray(r.conditions)) return { enabled: true, ...r } as unknown as FilterRule;
   return {
-    id: (r.id as string) ?? Math.random().toString(36).slice(2),
+    id: (r.id as string) ?? stableId('filter'),
     name: (r.name as string) ?? '',
     enabled: true,
     logic: 'and',

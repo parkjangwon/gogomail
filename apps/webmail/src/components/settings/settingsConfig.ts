@@ -1,3 +1,5 @@
+import { stableId } from '@/lib/stableId';
+
 export interface WebmailSettings {
   readMark: 'instant' | '2s' | 'manual';
   listDensity: 'default' | 'compact';
@@ -116,7 +118,7 @@ export const FILTER_RULES_KEY = 'webmail_filter_rules';
 export function migrateRule(r: Record<string, unknown>): FilterRule {
   if (Array.isArray(r.conditions)) return { enabled: true, ...r } as unknown as FilterRule;
   return {
-    id: (r.id as string) ?? Math.random().toString(36).slice(2),
+    id: (r.id as string) ?? stableId('filter'),
     name: (r.name as string) ?? '',
     enabled: true,
     logic: 'and',

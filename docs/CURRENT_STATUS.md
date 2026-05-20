@@ -7671,3 +7671,9 @@ Next focus areas:
 
 - ValidateOutboundHTTPURL called in NewWebhookSink to reject private IPs at startup
 - AllowPrivateNetwork option added for test overrides
+
+## 2026-05-21 Webmail browser ID hardening
+
+- Replaced remaining production `Math.random()` ID generation in webmail with a shared `stableId()` helper backed by `crypto.randomUUID()`.
+- Calendar event/todo UIDs, compose attachment temp IDs, toast IDs, filter rule IDs, and vCard fallback filenames now use the same collision-resistant path.
+- Verification: `pnpm --dir apps/webmail type-check`; no remaining `Math.random()` production hits in `apps/webmail/src` or `apps/console/src`.

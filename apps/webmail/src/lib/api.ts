@@ -1,3 +1,5 @@
+import { calendarUID } from './stableId';
+
 export interface Folder {
   id: string;
   parent_id?: string;
@@ -914,7 +916,7 @@ function toICSAllDay(d: Date): string {
 function icsEscape(s: string): string { return s.replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\n/g, '\\n'); }
 
 export async function createCalendarEvent(calendarId: string, req: CreateCalendarEventRequest): Promise<void> {
-  const uid = `${Date.now()}-${Math.random().toString(36).slice(2)}@gogomail`;
+  const uid = calendarUID();
   const objectName = `${uid}.ics`;
   const lines: string[] = [
     'BEGIN:VCALENDAR',
@@ -1006,7 +1008,7 @@ export interface CreateTodoRequest {
 }
 
 export async function createCalendarTodo(req: CreateTodoRequest): Promise<void> {
-  const uid = `${Date.now()}-${Math.random().toString(36).slice(2)}@gogomail`;
+  const uid = calendarUID();
   const objectName = `${uid}.ics`;
   const lines: string[] = [
     'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//GoGoMail//GoGoMail//EN',

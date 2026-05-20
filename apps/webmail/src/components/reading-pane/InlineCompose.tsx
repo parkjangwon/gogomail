@@ -23,6 +23,7 @@ import { parseToPickerItems, pickerItemsToString } from '@/lib/mail-address';
 import { RecipientChips } from '@/components/RecipientChips';
 import { OrgPickerModal } from '@/components/OrgPickerModal';
 import { uploadAttachment, sendMessage } from '@/lib/api';
+import { stableId } from '@/lib/stableId';
 import { buildInlineQuoteHTML, toolbarBtnStyleInline, backendComposeIntent } from './readingPaneHelpers';
 
 interface InlineComposeProps {
@@ -101,7 +102,7 @@ export function InlineCompose({
 
   async function handleFileAttach(files: FileList) {
     for (const file of Array.from(files)) {
-      const tempId = `tmp-${Math.random().toString(36).slice(2)}`;
+      const tempId = stableId('tmp');
       setAttachments((prev) => [...prev, { id: tempId, filename: file.name, size: file.size, uploading: true }]);
       try {
         const att = await uploadAttachment(file);

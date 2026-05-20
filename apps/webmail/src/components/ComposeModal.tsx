@@ -17,6 +17,7 @@ import { composeSendButtonLabel } from '@/lib/composeSendButtonLabel';
 import { toDateTimeLocalValue } from '@/lib/dateTimeLocal';
 import { formatSendResultLabel } from '@/lib/sendResultLabel';
 import { DriveNodeIcon } from '@/lib/driveNodeIcon';
+import { stableId } from '@/lib/stableId';
 import { escapeHtml, parseAddrs, EmailTemplate, backendComposeIntent } from '@/lib/compose/composeUtils';
 import { buildQuoteHTML, emailOf, invalidRecipientAddresses, parseToPickerItems, pickerItemsToString } from '@/lib/mail-address';
 import { SLASH_COMMANDS, type SlashCommand } from '@/lib/compose/slashCommands';
@@ -181,7 +182,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
   const handleFileSelect = useCallback(async (files: FileList) => {
     const newFiles = Array.from(files);
     for (const file of newFiles) {
-      const tempId = `tmp-${Math.random().toString(36).slice(2)}`;
+      const tempId = stableId('tmp');
       setUploadedAttachments((prev) => [...prev, { id: tempId, filename: file.name, size: file.size, uploading: true, file }]);
       try {
         const att = await uploadAttachment(file, draftIdRef.current || undefined);

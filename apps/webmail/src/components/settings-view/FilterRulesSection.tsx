@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { LABEL_COLORS, type FilterAction, type FilterCondition, type FilterRule, saveFilterRules } from '@/lib/settings/settingsUtils';
 import { SectionCard, SectionHeader, Toggle } from '@/components/settings-view/settingsViewPrimitives';
+import { stableId } from '@/lib/stableId';
 
 interface FilterRulesSectionProps {
   filterRules: FilterRule[];
@@ -45,7 +46,7 @@ export function FilterRulesSection({ filterRules, setFilterRules }: FilterRulesS
     const clean = { ...rule, conditions: validConds };
     const updated = id
       ? filterRules.map((r) => r.id === id ? { ...clean, id } : r)
-      : [...filterRules, { ...clean, id: Math.random().toString(36).slice(2) }];
+      : [...filterRules, { ...clean, id: stableId('filter') }];
     setFilterRules(updated);
     saveFilterRules(updated);
     setEditingRule(null);

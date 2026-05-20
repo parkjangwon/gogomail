@@ -26,6 +26,7 @@ import {
   CheckIcon,
 } from '@heroicons/react/24/outline';
 import { ContactsSidebar } from './ContactsSidebar';
+import { stableId } from '@/lib/stableId';
 
 interface ContactsViewProps {
   onCompose?: (email: string) => void;
@@ -628,7 +629,7 @@ export function ContactsView({ onCompose }: ContactsViewProps) {
                         setSaving(true); setSaveError('');
                         try {
                           const objectName = isNewContact
-                            ? `${Date.now()}-${Math.random().toString(36).slice(2)}.vcf`
+                            ? `${stableId('contact')}.vcf`
                             : (selectedContact?.ObjectName ?? `${Date.now()}.vcf`);
                           await upsertContact(selectedBookId, objectName, editFields);
                           const updated = await listContacts(selectedBookId);
