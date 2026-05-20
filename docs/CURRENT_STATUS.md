@@ -7952,3 +7952,9 @@ Next focus areas:
 
 - OpenSearch index bootstrap now adds an explicit `analysis-nori plugin` hint when Korean analyzer mode fails with a Nori analyzer/type error, making production configuration mistakes actionable from logs.
 - Verification target: `go test ./internal/searchindex -run 'TestOpenSearch(IndexerKoreanAnalyzerFailureMentionsNoriPlugin|IndexDefinitionKoreanAnalyzerSetsNori|IndexerEnsuresIndexWithKoreanAnalyzer)'`.
+
+## 2026-05-21 Webmail settings import feedback
+
+- Webmail settings import no longer uses a blocking browser alert for invalid JSON or unreadable files; the About settings section now renders inline status/error feedback and resets the file input for immediate retry.
+- The settings export key list no longer includes `webmail_notif_detail` twice.
+- Verification target: `pnpm --dir apps/webmail type-check`.

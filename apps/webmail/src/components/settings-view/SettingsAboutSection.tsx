@@ -1,8 +1,12 @@
 'use client';
 
+import { useState } from 'react';
+
 import { SectionCard, SectionHeader, Row } from '@/components/settings-view/settingsViewPrimitives';
 
 export function SettingsAboutSection() {
+  const [importStatus, setImportStatus] = useState<{ type: 'error' | 'success'; message: string } | null>(null);
+
   return (
     <>
       <SectionCard>
@@ -20,7 +24,7 @@ export function SettingsAboutSection() {
         <Row label="설정 내보내기" description="현재 모든 설정을 JSON 파일로 저장합니다">
           <button
             onClick={() => {
-              const keys = ['webmail_settings', 'webmail_filter_rules', 'webmail_blocked_senders', 'webmail_vacation', 'webmail_templates', 'webmail_theme', 'webmail_accent', 'webmail_compact', 'webmail_conv_mode', 'webmail_display_name', 'webmail_signature', 'webmail_notif_sound', 'webmail_notif_detail', 'webmail_notif_detail', 'webmail_dnd', 'webmail_dnd_start', 'webmail_dnd_end', 'webmail_focus_mode', 'webmail_importance_markers', 'webmail_swipe_left', 'webmail_swipe_right', 'webmail_cc_self', 'webmail_default_bcc', 'webmail_confirm_before_send', 'webmail_spell_check', 'webmail_smart_reply', 'webmail_reading_time', 'webmail_reading_pane', 'webmail_pinned', 'webmail_important', 'webmail_snoozed', 'webmail_labels', 'webmail_tasks', 'webmail_notes', 'webmail_recent_recipients'];
+              const keys = ['webmail_settings', 'webmail_filter_rules', 'webmail_blocked_senders', 'webmail_vacation', 'webmail_templates', 'webmail_theme', 'webmail_accent', 'webmail_compact', 'webmail_conv_mode', 'webmail_display_name', 'webmail_signature', 'webmail_notif_sound', 'webmail_notif_detail', 'webmail_dnd', 'webmail_dnd_start', 'webmail_dnd_end', 'webmail_focus_mode', 'webmail_importance_markers', 'webmail_swipe_left', 'webmail_swipe_right', 'webmail_cc_self', 'webmail_default_bcc', 'webmail_confirm_before_send', 'webmail_spell_check', 'webmail_smart_reply', 'webmail_reading_time', 'webmail_reading_pane', 'webmail_pinned', 'webmail_important', 'webmail_snoozed', 'webmail_labels', 'webmail_tasks', 'webmail_notes', 'webmail_recent_recipients'];
               const data: Record<string, unknown> = { _version: 1, _exportedAt: new Date().toISOString() };
               keys.forEach((k) => { try { const v = localStorage.getItem(k); if (v !== null) data[k] = JSON.parse(v); } catch { /* ignore */ } });
               const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -39,6 +43,7 @@ export function SettingsAboutSection() {
               accept=".json"
               style={{ display: 'none' }}
               onChange={(e) => {
+                setImportStatus(null);
                 const file = e.target.files?.[0];
                 if (!file) return;
                 const reader = new FileReader();
@@ -48,16 +53,40 @@ export function SettingsAboutSection() {
                     Object.entries(data).forEach(([k, v]) => {
                       if (k.startsWith('webmail_')) localStorage.setItem(k, JSON.stringify(v));
                     });
+                    setImportStatus({ type: 'success', message: '설정을 가져왔습니다. 화면을 새로고침합니다.' });
                     window.location.reload();
                   } catch {
-                    window.alert('올바르지 않은 설정 파일입니다.');
+                    setImportStatus({ type: 'error', message: '올바르지 않은 설정 파일입니다. JSON 형식과 파일 내용을 확인해 주세요.' });
+                  } finally {
+                    e.target.value = '';
                   }
+                };
+                reader.onerror = () => {
+                  setImportStatus({ type: 'error', message: '설정 파일을 읽지 못했습니다. 다시 선택해 주세요.' });
+                  e.target.value = '';
                 };
                 reader.readAsText(file);
               }}
             />
           </label>
         </Row>
+        {importStatus && (
+          <div
+            role={importStatus.type === 'error' ? 'alert' : 'status'}
+            style={{
+              margin: '0 20px 16px',
+              padding: '9px 12px',
+              borderRadius: '6px',
+              border: `1px solid ${importStatus.type === 'error' ? 'var(--color-danger, #dc2626)' : 'var(--color-border-default)'}`,
+              color: importStatus.type === 'error' ? 'var(--color-danger, #dc2626)' : 'var(--color-text-secondary)',
+              background: 'var(--color-bg-secondary)',
+              fontSize: '12px',
+              lineHeight: 1.5,
+            }}
+          >
+            {importStatus.message}
+          </div>
+        )}
       </SectionCard>
     </>
   );
