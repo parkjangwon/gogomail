@@ -172,6 +172,7 @@
 - Company alert event listing now returns `limit`, `offset`, and `has_more`, and supports alert-rule/unresolved filters so admin alert pages can paginate without guessing from row count.
 - Drive object cleanup retry now resolves all successfully deleted cleanup failures in one batched update instead of issuing one resolve query per object.
 - Console admin pages/hooks now route through the Next.js `/api/admin` proxy consistently; alert config hooks no longer double-prefix `/api/admin/admin/v1`.
+- LDAP/RDBMS sync history and conflict endpoints now use a `limit + 1` probe and return `limit`, `offset`, and `has_more`, so admin clients can page sync operations without relying on exact-limit row counts or stale `total` fields.
 
 **Infrastructure & Storage Hardening** ✅ COMPLETE
 - Task 1 (EML GC): Added `LookupDeleteableStoragePaths` and `LookupExpungeStoragePaths` to maildb; service layer now performs two-phase GC (lookup before DB delete, delete from store after commit) for `DeleteMessage`, `BulkDeleteMessages`, `BulkDeleteThreads`, and `ExpungeIMAPMessages`. Reference-count check prevents deletion of paths shared by IMAP COPY.

@@ -9948,19 +9948,24 @@ paths:
             application/json:
               schema:
                 type: object
+                required:
+                  - sync_runs
+                  - limit
+                  - offset
+                  - has_more
                 properties:
-                  domain_id:
-                    type: string
                   sync_runs:
                     type: array
                     items:
                       type: object
                   limit:
                     type: integer
+                    minimum: 1
                   offset:
                     type: integer
-                  total:
-                    type: integer
+                    minimum: 0
+                  has_more:
+                    type: boolean
         default:
           $ref: "#/components/responses/Error"
   /domains/{id}/ldap/conflicts:
@@ -9992,19 +9997,24 @@ paths:
             application/json:
               schema:
                 type: object
+                required:
+                  - conflicts
+                  - limit
+                  - offset
+                  - has_more
                 properties:
-                  domain_id:
-                    type: string
                   conflicts:
                     type: array
                     items:
                       type: object
                   limit:
                     type: integer
+                    minimum: 1
                   offset:
                     type: integer
-                  total:
-                    type: integer
+                    minimum: 0
+                  has_more:
+                    type: boolean
         default:
           $ref: "#/components/responses/Error"
   /domains/{id}/ldap/conflicts/{conflictId}/resolve:
@@ -10123,19 +10133,24 @@ paths:
             application/json:
               schema:
                 type: object
+                required:
+                  - sync_runs
+                  - limit
+                  - offset
+                  - has_more
                 properties:
-                  domain_id:
-                    type: string
                   sync_runs:
                     type: array
                     items:
                       type: object
                   limit:
                     type: integer
+                    minimum: 1
                   offset:
                     type: integer
-                  total:
-                    type: integer
+                    minimum: 0
+                  has_more:
+                    type: boolean
         default:
           $ref: "#/components/responses/Error"
   /domains/{id}/rdbms/conflicts:
@@ -10167,19 +10182,24 @@ paths:
             application/json:
               schema:
                 type: object
+                required:
+                  - conflicts
+                  - limit
+                  - offset
+                  - has_more
                 properties:
-                  domain_id:
-                    type: string
                   conflicts:
                     type: array
                     items:
                       type: object
                   limit:
                     type: integer
+                    minimum: 1
                   offset:
                     type: integer
-                  total:
-                    type: integer
+                    minimum: 0
+                  has_more:
+                    type: boolean
         default:
           $ref: "#/components/responses/Error"
   /domains/{id}/rdbms/conflicts/{conflictId}/resolve:
