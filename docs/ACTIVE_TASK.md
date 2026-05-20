@@ -297,6 +297,7 @@ Go Backend (`internal/`):
 - LDAP sync API가 미구성 상태에서 `pending` 성공처럼 보이던 경로를 제거함: sync run은 `failed`로 기록하고 `ErrSyncNotConfigured`를 반환하며 admin HTTP endpoint는 501로 노출함
 - `GetMessage` detail path가 `HasAttachment=false`인 메시지에서 attachment list 조회를 건너뛰도록 바꿔 첨부 없는 읽기 경로의 DB 왕복을 줄이고, cache hit/miss 벤치마크를 추가함
 - `BenchmarkGetMessageBodyCache`: miss `~7.83 us/op`, `10979 B/op`, `85 allocs/op`; hit `~933.6 ns/op`, `568 B/op`, `9 allocs/op`
+- README/README.ko, Docker env example, console/webmail env examples, backend release readiness 문서를 최신 운영 env 그룹(성능, 백업/복구, push/webhook, storage, API usage, system email)과 동기화함
 
 **System Email Connections & AutoPurge** ✅ COMPLETE
 - `internal/httpapi/admin.go`: Added `systemEmail mailservice.SystemEmailSender` and `publicBaseURL string` fields to `adminRouteConfig`; added `WithSystemEmailSender` and `WithPublicBaseURL` `AdminRouteOption` constructors
