@@ -7988,3 +7988,10 @@ Next focus areas:
 - Calendar scheduling attendee resolution now batch-searches CardDAV contacts for attendees that were not resolved as internal users or directory aliases.
 - The CardDAV repository uses one `unnest(... WITH ORDINALITY)` plus lateral per-email lookup to preserve attendee order and per-email limits without one query per unresolved attendee.
 - Verification target: `go test ./internal/carddavgw -run 'Test(SearchContactsByEmailsQueryUsesSingleLateralBatchLookup|RepositoryRequiresDatabase)'`; `go test ./internal/scheduling`.
+
+## 2026-05-21 CardDAV org-tree member batching
+
+- The `/api/mail/directory/org-tree` route now calls one directory batch member lookup for all returned organization units instead of running `SearchPrincipals` once per unit.
+- Directory batch member lookup uses typed-array ordinality plus per-org `row_number()` limits, preserving org response order and the prior 100-member cap per unit.
+- Migration 0121 adds indexes for active organization tree ordering and active user member lookup by org/domain/display order.
+- Verification target: `go test ./internal/directory -run TestListOrgMembersByOrgIDsQueryUsesSingleOrdinalityBatchLookup`; `go test ./internal/httpapi -run CardDAV`.

@@ -163,6 +163,7 @@
 - Scheduling attendee resolution no longer calls `ResolveUserByEmail` once per attendee for internal users; it now performs one typed-array email lookup before preserving the existing alias/CardDAV/external fallbacks.
 - Drive upload session expiry no longer performs one UPDATE per expired session; the cleanup repository now claims and expires stale sessions with one set-based `UPDATE ... RETURNING`.
 - Scheduling attendee CardDAV fallback no longer searches contacts one attendee at a time; unresolved external-looking attendees now use one ordinality-preserving batch contact search before remaining external.
+- CardDAV org-tree no longer calls principal search once per organization unit; it now batch-loads active users for all returned org IDs and adds org/user indexes for the tree and member lookup order.
 
 **Infrastructure & Storage Hardening** ✅ COMPLETE
 - Task 1 (EML GC): Added `LookupDeleteableStoragePaths` and `LookupExpungeStoragePaths` to maildb; service layer now performs two-phase GC (lookup before DB delete, delete from store after commit) for `DeleteMessage`, `BulkDeleteMessages`, `BulkDeleteThreads`, and `ExpungeIMAPMessages`. Reference-count check prevents deletion of paths shared by IMAP COPY.

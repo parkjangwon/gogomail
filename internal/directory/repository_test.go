@@ -583,6 +583,45 @@ func TestListOrgTreeQueryUsesSargableDomainFilter(t *testing.T) {
 	}
 }
 
+func TestListOrgMembersByOrgIDsQueryUsesSingleOrdinalityBatchLookup(t *testing.T) {
+	t.Parallel()
+
+	query := buildListOrgMembersByOrgIDsQuery("domain-1")
+	for _, want := range []string{
+		"FROM unnest($3::text[]) WITH ORDINALITY AS req(org_id, org_order)",
+		"JOIN organizations o ON o.id = req.org_id",
+		"JOIN users u ON u.org_id = o.id AND u.domain_id = d.id",
+		"LEFT JOIN user_addresses primary_addr ON primary_addr.user_id = u.id AND primary_addr.is_primary = true",
+		"WHERE c.id = $1::uuid",
+		"AND d.id = $2::uuid",
+		"row_number() OVER (PARTITION BY req.org_id ORDER BY lower(u.display_name), u.id)",
+		"WHERE member_rank <= $4",
+		"ORDER BY org_order, member_rank",
+	} {
+		if !strings.Contains(query, want) {
+			t.Fatalf("org members query missing %q:\n%s", want, query)
+		}
+	}
+	for _, forbidden := range []string{
+		"array_position",
+		"SELECT *",
+		"$1 = '' OR",
+	} {
+		if strings.Contains(query, forbidden) {
+			t.Fatalf("org members query contains forbidden pattern %q:\n%s", forbidden, query)
+		}
+	}
+
+	query = buildListOrgMembersByOrgIDsQuery("")
+	if strings.Contains(query, "AND d.id = $2::uuid") {
+		t.Fatalf("empty-domain org members query unexpectedly includes domain predicate:\n%s", query)
+	}
+	if !strings.Contains(query, "FROM unnest($2::text[]) WITH ORDINALITY AS req(org_id, org_order)") ||
+		!strings.Contains(query, "WHERE member_rank <= $3") {
+		t.Fatalf("empty-domain org members query uses wrong argument positions:\n%s", query)
+	}
+}
+
 func TestNormalizeSearchPrincipalsRequest(t *testing.T) {
 	t.Parallel()
 

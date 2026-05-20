@@ -649,6 +649,111 @@ func (r *Repository) ListOrgTree(ctx context.Context, companyID, domainID string
 	return result, rows.Err()
 }
 
+func buildListOrgMembersByOrgIDsQuery(domainID string) string {
+	domainPredicate := ""
+	orgIDsArg := 2
+	limitArg := 3
+	if strings.TrimSpace(domainID) != "" {
+		domainPredicate = "\n    AND d.id = $2::uuid"
+		orgIDsArg = 3
+		limitArg = 4
+	}
+	return fmt.Sprintf(`
+WITH requested AS (
+  SELECT org_id::uuid, org_order
+  FROM unnest($%d::text[]) WITH ORDINALITY AS req(org_id, org_order)
+),
+ranked AS (
+  SELECT
+    req.org_id::text AS organization_id,
+    u.id::text AS id,
+    c.id::text AS company_id,
+    d.id::text AS domain_id,
+    COALESCE(u.org_id::text, '') AS user_org_id,
+    u.display_name,
+    COALESCE(primary_addr.address, '') AS primary_email,
+    u.status,
+    row_number() OVER (PARTITION BY req.org_id ORDER BY lower(u.display_name), u.id) AS member_rank,
+    req.org_order
+  FROM requested req
+  JOIN organizations o ON o.id = req.org_id
+  JOIN domains d ON d.id = o.domain_id
+  JOIN companies c ON c.id = d.company_id
+  JOIN users u ON u.org_id = o.id AND u.domain_id = d.id
+  LEFT JOIN user_addresses primary_addr ON primary_addr.user_id = u.id AND primary_addr.is_primary = true
+  WHERE c.id = $1::uuid%s
+    AND o.status = 'active'
+    AND u.status = 'active'
+    AND d.status = 'active'
+    AND c.status = 'active'
+)
+SELECT organization_id, id, company_id, domain_id, user_org_id, display_name, primary_email, status
+FROM ranked
+WHERE member_rank <= $%d
+ORDER BY org_order, member_rank`, orgIDsArg, domainPredicate, limitArg)
+}
+
+func (r *Repository) ListOrgMembersByOrgIDs(ctx context.Context, companyID, domainID string, orgIDs []string, limitPerOrg int) (map[string][]Principal, error) {
+	if r == nil || r.db == nil {
+		return nil, fmt.Errorf("database handle is required")
+	}
+	companyID, err := NormalizePrincipalID(companyID)
+	if err != nil {
+		return nil, fmt.Errorf("company id: %w", err)
+	}
+	if strings.TrimSpace(domainID) != "" {
+		domainID, err = NormalizePrincipalID(domainID)
+		if err != nil {
+			return nil, fmt.Errorf("domain id: %w", err)
+		}
+	}
+	orgIDs, err = normalizePrincipalIDList(orgIDs)
+	if err != nil {
+		return nil, fmt.Errorf("organization ids: %w", err)
+	}
+	out := make(map[string][]Principal, len(orgIDs))
+	if len(orgIDs) == 0 {
+		return out, nil
+	}
+	if limitPerOrg <= 0 {
+		limitPerOrg = MaxPrincipalSearchLimit
+	}
+	if limitPerOrg > MaxPrincipalSearchLimit {
+		limitPerOrg = MaxPrincipalSearchLimit
+	}
+	args := []any{companyID}
+	if domainID != "" {
+		args = append(args, domainID)
+	}
+	args = append(args, pq.Array(orgIDs), limitPerOrg)
+	rows, err := r.db.QueryContext(ctx, buildListOrgMembersByOrgIDsQuery(domainID), args...)
+	if err != nil {
+		return nil, fmt.Errorf("list org members by org ids: %w", err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var orgID string
+		principal := Principal{Kind: PrincipalKindUser}
+		if err := rows.Scan(
+			&orgID,
+			&principal.ID,
+			&principal.CompanyID,
+			&principal.DomainID,
+			&principal.OrganizationID,
+			&principal.DisplayName,
+			&principal.PrimaryEmail,
+			&principal.Status,
+		); err != nil {
+			return nil, fmt.Errorf("scan org member: %w", err)
+		}
+		out[orgID] = append(out[orgID], principal)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("list org members rows: %w", err)
+	}
+	return out, nil
+}
+
 func (r *Repository) SearchPrincipals(ctx context.Context, req SearchPrincipalsRequest) ([]Principal, error) {
 	if r == nil || r.db == nil {
 		return nil, fmt.Errorf("database handle is required")
