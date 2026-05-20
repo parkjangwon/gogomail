@@ -7899,3 +7899,9 @@ Next focus areas:
 - Mail send recipient group expansion now caches repeated `org:` and `addressbook:` tokens within a single send request.
 - Repeated group references across To/Cc/Bcc still de-duplicate final recipients, but no longer repeat the same repository expansion query.
 - Verification: `go test ./internal/mailservice -run TestExpandRecipientGroupsCachesRepeatedTokens`.
+
+## 2026-05-21 Hard-bounce suppression dedupe
+
+- Delivery attempt recording now de-duplicates hard-bounce suppression rows by domain scope and normalized email before issuing the typed-array `suppression_list` insert.
+- The first scoped bounce row is preserved, different domains remain separate, and temporary failures/null reverse-path bounces still do not create suppression entries.
+- Verification: `go test ./internal/delivery -run 'Test(BouncedSuppressionRowsDeduplicatesByScopeAndEmail|ShouldSuppressBouncedRecipientSkipsNullReversePath)'`.

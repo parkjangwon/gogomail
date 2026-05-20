@@ -328,6 +328,7 @@ Go Backend (`internal/`):
 - `GetMessage` detail path가 `HasAttachment=false`인 메시지에서 attachment list 조회를 건너뛰도록 바꿔 첨부 없는 읽기 경로의 DB 왕복을 줄이고, cache hit/miss 벤치마크를 추가함
 - open-tracking pixel 생성이 수신자별 INSERT를 반복하지 않고 typed array `unnest` 기반 단일 INSERT로 저장하도록 바꿔 대량 수신자 tracking 설정 메일의 DB 왕복을 줄임
 - 수신자 그룹 확장이 같은 발송 요청 안에서 반복된 `org:`/`addressbook:` 토큰을 요청당 캐시에 저장해 To/Cc/Bcc 중복 그룹 참조가 repository expansion DB 조회를 반복하지 않도록 정리함
+- hard-bounce suppression list 기록이 같은 배치 안의 동일 domain/email bounce를 DB로 보내기 전에 제거해 `ON CONFLICT`에 의존하던 중복 suppression row 작업을 줄임
 - `BenchmarkGetMessageBodyCache`: miss `~7.83 us/op`, `10979 B/op`, `85 allocs/op`; hit `~933.6 ns/op`, `568 B/op`, `9 allocs/op`
 - README/README.ko, Docker env example, console/webmail env examples, backend release readiness 문서를 최신 운영 env 그룹(성능, 백업/복구, push/webhook, storage, API usage, system email)과 동기화함
 - BIMI VMC URL 존재만으로 `vmcVerified=true`를 반환하던 stub 동작을 제거해 실제 인증서 검증 전에는 VMC를 검증됨으로 표시하지 않도록 고정하고, logo cache hash 계산을 실제 SHA-256 body hash로 수정함

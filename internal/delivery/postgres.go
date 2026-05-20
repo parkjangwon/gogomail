@@ -133,17 +133,7 @@ func shouldSuppressBouncedRecipient(attempt Attempt) bool {
 }
 
 func suppressBouncedRecipients(ctx context.Context, tx *sql.Tx, attempts []Attempt) error {
-	domainIDs := make([]sql.NullString, 0)
-	emails := make([]string, 0)
-	messageIDs := make([]sql.NullString, 0)
-	for _, attempt := range attempts {
-		if !shouldSuppressBouncedRecipient(attempt) {
-			continue
-		}
-		domainIDs = append(domainIDs, uuidNullString(attempt.DomainID))
-		emails = append(emails, attempt.Recipient)
-		messageIDs = append(messageIDs, uuidNullString(attempt.MessageID))
-	}
+	domainIDs, emails, messageIDs := bouncedSuppressionRows(attempts)
 	if len(emails) == 0 {
 		return nil
 	}
@@ -158,6 +148,28 @@ ON CONFLICT DO NOTHING`
 		return fmt.Errorf("insert suppression list entries: %w", err)
 	}
 	return nil
+}
+
+func bouncedSuppressionRows(attempts []Attempt) ([]sql.NullString, []string, []sql.NullString) {
+	domainIDs := make([]sql.NullString, 0, len(attempts))
+	emails := make([]string, 0, len(attempts))
+	messageIDs := make([]sql.NullString, 0, len(attempts))
+	seen := make(map[string]struct{}, len(attempts))
+	for _, attempt := range attempts {
+		if !shouldSuppressBouncedRecipient(attempt) {
+			continue
+		}
+		email := strings.TrimSpace(attempt.Recipient)
+		key := strings.TrimSpace(attempt.DomainID) + "\x00" + strings.ToLower(email)
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		seen[key] = struct{}{}
+		domainIDs = append(domainIDs, uuidNullString(attempt.DomainID))
+		emails = append(emails, email)
+		messageIDs = append(messageIDs, uuidNullString(attempt.MessageID))
+	}
+	return domainIDs, emails, messageIDs
 }
 
 func insertDeliveryAttemptEvents(ctx context.Context, tx *sql.Tx, attempts []Attempt) error {

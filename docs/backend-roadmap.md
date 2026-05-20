@@ -6572,3 +6572,6 @@ Target outcome:
 1806. Recipient group expansion now caches repeated `org:` and `addressbook:`
       tokens within each send request, avoiding duplicate repository expansion
       queries when the same group appears across To/Cc/Bcc.
+1807. Delivery hard-bounce suppression recording now de-duplicates rows by
+      domain scope and normalized email before the batch insert, reducing
+      conflict-heavy suppression writes for repeated recipient failures.
