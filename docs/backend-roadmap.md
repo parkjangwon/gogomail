@@ -6624,3 +6624,7 @@ Target outcome:
       emails with one ordinality-preserving lateral batch query, avoiding one
       vCard contact search query per attendee after internal user and alias
       resolution.
+1822. CardDAV org-tree now batch-loads active user members for all returned
+      organization units through one typed-array ordinality query with per-org
+      row-number limits, and migration 0121 adds supporting organization tree
+      and user-by-org lookup indexes.

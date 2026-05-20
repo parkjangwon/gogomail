@@ -30,10 +30,11 @@ type DirectoryRepo interface {
 	SearchPrincipals(ctx context.Context, req directory.SearchPrincipalsRequest) ([]directory.Principal, error)
 	ResolvePrincipal(ctx context.Context, req directory.ResolvePrincipalRequest) (directory.Principal, error)
 	ListOrgTree(ctx context.Context, companyID, domainID string) ([]directory.OrgTreeItem, error)
+	ListOrgMembersByOrgIDs(ctx context.Context, companyID, domainID string, orgIDs []string, limitPerOrg int) (map[string][]directory.Principal, error)
 }
 
 type ContactHandler struct {
-	repo        ContactRepo
+	repo          ContactRepo
 	directoryRepo DirectoryRepo
 }
 
@@ -61,7 +62,7 @@ type AutocompleteResult struct {
 	Type          string `json:"type"`
 	ID            string `json:"id"`
 	DisplayName   string `json:"display_name"`
-	Email        string `json:"email"`
+	Email         string `json:"email"`
 	AddressBookID string `json:"address_book_id,omitempty"`
 }
 
@@ -288,8 +289,8 @@ func RegisterContactRoutes(mux *http.ServeMux, handler *ContactHandler, tokenMan
 			UserID:        userID,
 			AddressBookID: addressBookID,
 			ObjectName:    objectName,
-			VCard:        body,
-			ObservedETag: etag,
+			VCard:         body,
+			ObservedETag:  etag,
 		})
 		if err != nil {
 			writeError(w, http.StatusBadRequest, fmt.Errorf("upsert contact: %w", err).Error())
@@ -322,7 +323,7 @@ func RegisterContactRoutes(mux *http.ServeMux, handler *ContactHandler, tokenMan
 			UserID:        userID,
 			AddressBookID: addressBookID,
 			ObjectName:    objectName,
-			ObservedETag: etag,
+			ObservedETag:  etag,
 		})
 		if err != nil {
 			writeError(w, http.StatusBadRequest, fmt.Errorf("delete contact: %w", err).Error())
@@ -583,16 +584,17 @@ func RegisterContactRoutes(mux *http.ServeMux, handler *ContactHandler, tokenMan
 			Depth       int         `json:"depth"`
 			Members     []OrgMember `json:"members"`
 		}
+		orgIDs := make([]string, 0, len(orgs))
+		for _, org := range orgs {
+			orgIDs = append(orgIDs, org.ID)
+		}
+		membersByOrgID, err := handler.directoryRepo.ListOrgMembersByOrgIDs(r.Context(), companyID, domainID, orgIDs, 100)
+		if err != nil {
+			membersByOrgID = map[string][]directory.Principal{}
+		}
 		units := make([]OrgUnit, 0, len(orgs))
 		for _, org := range orgs {
-			members, _ := handler.directoryRepo.SearchPrincipals(r.Context(), directory.SearchPrincipalsRequest{
-				CompanyID:      companyID,
-				DomainID:       domainID,
-				OrganizationID: org.ID,
-				Kinds:          []string{directory.PrincipalKindUser},
-				ActiveOnly:     true,
-				Limit:          100,
-			})
+			members := membersByOrgID[org.ID]
 			mList := make([]OrgMember, 0, len(members))
 			for _, m := range members {
 				mList = append(mList, OrgMember{ID: m.ID, DisplayName: m.DisplayName, Email: m.PrimaryEmail})
