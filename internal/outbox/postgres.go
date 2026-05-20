@@ -30,14 +30,26 @@ func (s *PostgresStore) FetchPending(ctx context.Context, limit int) ([]Event, e
 	}
 
 	const query = `
-WITH picked AS (
+WITH candidate AS (
   SELECT id
-  FROM outbox
-  WHERE (status = 'pending' AND available_at <= now())
-     OR (status = 'processing' AND locked_at < now() - $2::interval)
+  FROM (
+    SELECT id, created_at
+    FROM outbox
+    WHERE status = 'pending'
+      AND available_at <= now()
+    UNION ALL
+    SELECT id, created_at
+    FROM outbox
+    WHERE status = 'processing'
+      AND locked_at < now() - $2::interval
+  ) AS candidates
   ORDER BY created_at
   LIMIT $1
   FOR UPDATE SKIP LOCKED
+),
+picked AS (
+  SELECT id
+  FROM candidate
 )
 UPDATE outbox AS o
 SET status = 'processing',

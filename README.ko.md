@@ -87,7 +87,8 @@ CardDAV, WebDAV, LDAP, DKIM, SPF, DMARC, DSN, OpenAPI 기반 REST API처럼
 - Go toolchain `go1.26.3` 고정, 프론트엔드 PostCSS patched line override
 - 회사/도메인 `/security/governance`로 typed operational exception을 관리하되 platform invariant는 전역 고정
 - 웹메일 로그인에서 회사/도메인 `auth_policy`에 MFA가 필요하면 TOTP를 강제합니다. 이미 등록한 사용자는 정책과 관계없이 항상 TOTP 챌린지를 받습니다. `mfa_exempt_cidrs`로 IP 기반 면제를 설정할 수 있습니다.
-- 관리자 콘솔 로그인에서 TOTP MFA를 강제할 수 있습니다. `company_admin`의 MFA 여부는 테넌트별 `auth_policy` 설정 키로 제어하고, `system_admin` 강제 등록은 `GOGOMAIL_ADMIN_MFA_REQUIRED`로 제어합니다. 잠금 해제(break-glass): `bin/gogomail admin mfa-reset --email <주소>` (`DATABASE_URL` 환경 변수 필요).
+- 관리자 콘솔 로그인에서 TOTP MFA를 강제할 수 있습니다. `company_admin`의 MFA 여부는 테넌트별 `auth_policy` 설정 키로 제어하고, `system_admin` 강제 등록은 `GOGOMAIL_ADMIN_MFA_REQUIRED`로 제어합니다.
+- 관리자 MFA는 로그인 챌린지, `/admin/v1/auth/mfa/*` API, 설정 화면의 등록/인증/해제 플로우, 그리고 `console_mfa_setup_required` 강제 등록 가드를 모두 포함한 end-to-end로 구성되어 있습니다. 잠금 해제(break-glass): `bin/gogomail admin mfa-reset --email <주소>` (`DATABASE_URL` 환경 변수 필요).
 
 검증 명령:
 

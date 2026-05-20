@@ -22,6 +22,7 @@ type SubmissionUser struct {
 	DomainID            string
 	UserID              string
 	Address             string
+	Role                string
 	DisplayName         string
 	AuthorizedAddresses []string
 	MustChangePassword  bool
@@ -213,7 +214,7 @@ func (s *submissionSession) Mail(from string, opts *gosmtp.MailOptions) (err err
 		return smtpPolicyReject("mail from %q is not allowed for authenticated user", normalized)
 	}
 	if s.receiver.bulkSenderLimiter != nil && s.user.UserID != "" {
-		if !s.receiver.bulkSenderLimiter.AllowSubmission(s.user.UserID, s.user.UserID) {
+		if !s.receiver.bulkSenderLimiter.AllowSubmission(s.user.UserID, s.user.Role) {
 			return smtpRateLimited(from)
 		}
 	}

@@ -98,9 +98,16 @@
   bytes against the DigestValue in SignedInfo, blocking XSW attacks
 - SMTP: Received header now uses `\r\n` line endings (RFC 5321 §2.3.8 CRLF compliance)
 
-**Console Admin MFA Implementation** 🔄 IN PROGRESS
+**Console Admin MFA Implementation** ✅ COMPLETE
 - Task 1 ✅ DONE: Added `AdminMFARequired` config field (env: `GOGOMAIL_ADMIN_MFA_REQUIRED`)
-- Tasks 2-9: Frontend/backend MFA enrollment, verification, CLI break-glass, security settings UI
+- Task 2 ✅ DONE: Added MFA status check to admin login with `mfa_required` and `mfa_setup_required` flows
+- Task 3 ✅ DONE: Added `/admin/v1/auth/mfa/` endpoints (`verify`, `status`, `setup`, `setup/confirm`, `DELETE`)
+- Task 4 ✅ DONE: Added `admin` CLI break-glass command `gogomail admin mfa-reset --email <email>`
+- Task 5 ✅ DONE: Registered MFA routes in admin router and wired `adminMFAStore` / `adminMFARequired` / config resolver
+- Task 6 ✅ DONE: Implemented console login MFA step and recovery-code support
+- Task 7 ✅ DONE: Added full MFA flow in console security settings (setup, confirm, disable)
+- Task 8 ✅ DONE: Added localStorage-based `console_mfa_setup_required` gate in company layout
+- Task 9 ✅ DONE: Added runtime policy integration and status/refresh behavior for forced setup
 
 **Admin API Security & Pagination Hardening** ✅ COMPLETE
 - Replaced `err.Error()` in HTTP 500 responses with generic "internal server error" + slog server-side logging
@@ -149,6 +156,7 @@
 - Phase 1 (Database Query Optimization): Partial indexes, UUID array hydration, and batch lookup improvements implemented
 - Phase 2 (Bulk Delivery Batching): Same-domain batch planning, runtime batch-size tuning, observability, and benchmarks implemented
 - Phase 3 (Message Caching Layer): Parsed EML body LRU cache with runtime tuning and cache snapshots implemented
+- Mailbox submission isolation hardening: bulk sender role is now correctly bound in both inbound and submission paths, and bulk limiter now yields/pauses between denied attempts to prevent starvation under abusive loops (`TestSubmissionBulkIsolation` now passes).
 
 **Infrastructure & Storage Hardening** ✅ COMPLETE
 - Task 1 (EML GC): Added `LookupDeleteableStoragePaths` and `LookupExpungeStoragePaths` to maildb; service layer now performs two-phase GC (lookup before DB delete, delete from store after commit) for `DeleteMessage`, `BulkDeleteMessages`, `BulkDeleteThreads`, and `ExpungeIMAPMessages`. Reference-count check prevents deletion of paths shared by IMAP COPY.
@@ -207,11 +215,11 @@ Go Backend (`internal/`):
 
 구현 대상:
 - [ ] EXPLAIN ANALYZE로 메시지 조회 쿼리 성능 분석
-- [ ] 누락된 인덱스 생성 (delivery_state, scheduled_at, recipient_count)
+- [x] 누락된 인덱스 생성 (outbox + delivery_attempts 조회 경로): `0113_delivery_attempt_indexes.sql`, `0114_outbox_query_indexes.sql`
 - [ ] ListOutboundMessages 최적화 (N+1 제거)
 - [ ] GetMessagesByID 배치 조회 함수 작성
 - [ ] 벤치마크 프레임워크 (메시지 1000+, 10000+ 시나리오)
-- [ ] 테스트 검증: go test ./... 통과
+- [x] 테스트 검증: `go test ./...` 통과
 
 최근 진행:
 - `ListMessagesByIDs` hydration을 `unnest($2::uuid[]) WITH ORDINALITY` 기반으로 바꿔 JSON 배열 파싱을 제거함
@@ -230,6 +238,8 @@ Go Backend (`internal/`):
 - message body cache snapshot에 enabled/entries/capacity/TTL/hit/miss/eviction/expired 카운터를 추가해 read-path 캐시 효과와 만료 정리를 낮은 cardinality로 관찰할 수 있게 함
 - cache write 경로가 새 body 삽입 전에 만료 항목을 정리하도록 해 stale body가 capacity를 장시간 점유하지 않게 함
 - Delivery observability sink에 route pool과 bounded recipient-count bucket을 추가해 대량 발송 배치 효과를 낮은 cardinality로 추적할 수 있게 함
+- Outbox pending/processing 재시도 경로에서 `FOR UPDATE SKIP LOCKED` 대상 집합을 후보 집합(CTE)으로 분리해 정렬/제한 후 일괄 업데이트하도록 변경해 잠재적 잠금 경합과 비효율적 쿼리를 완화함
+- 메시지/재시도 조회 경로용 인덱스 마이그레이션 `0113_delivery_attempt_indexes.sql`, `0114_outbox_query_indexes.sql`를 추가해 `status/attempted_at/topic/partition` 필터 경로의 인덱스 커버리지를 강화함
 - 백업/복구 리허설 스크립트를 추가해 PostgreSQL dump를 scratch DB에 복원하고 migration metadata를 확인한 뒤 기본적으로 scratch DB를 삭제하게 함
 - `verify-backend-release.sh`가 `GOGOMAIL_RESTORE_REHEARSAL_DATABASE_URL` 설정 시 백업/복구 리허설을 릴리즈 검증 단계에 포함하도록 연결함
 - `GOGOMAIL_SECURITY_VERIFY=1` 설정 시 `verify-backend-release.sh`가 `go vet ./...`와 설치된 `govulncheck ./...`를 보안 릴리즈 게이트로 실행하도록 함

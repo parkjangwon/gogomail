@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"sort"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -1549,10 +1550,13 @@ func (a multiSubmissionAuthenticator) AuthenticatePlain(_ context.Context, _ str
 }
 
 type submissionRecorder struct {
+	mu       sync.Mutex
 	messages []SubmittedMessage
 }
 
 func (r *submissionRecorder) RecordSubmitted(_ context.Context, msg SubmittedMessage) (string, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
 	r.messages = append(r.messages, msg)
 	return "message-1", nil
 }
@@ -1722,6 +1726,7 @@ func TestSubmissionBulkIsolation(t *testing.T) {
 	recorder := &submissionRecorder{}
 	metrics := &recordingMetrics{}
 	store := storage.NewLocalStore(t.TempDir())
+	limiter := NewBulkSenderLimiter(1, "bulk_user")
 
 	receiver := NewSubmissionReceiver(SubmissionOptions{
 		Store: store,
@@ -1730,16 +1735,17 @@ func TestSubmissionBulkIsolation(t *testing.T) {
 			users: map[string]SubmissionUser{
 				"bulk@example.com": {
 					CompanyID: "company-1", DomainID: "domain-1", UserID: "user-bulk",
-					Address: "bulk@example.com", DisplayName: "Bulk Sender",
+					Address: "bulk@example.com", DisplayName: "Bulk Sender", Role: "bulk_user",
 				},
 				"regular@example.com": {
 					CompanyID: "company-1", DomainID: "domain-1", UserID: "user-regular",
-					Address: "regular@example.com", DisplayName: "Regular User",
+					Address: "regular@example.com", DisplayName: "Regular User", Role: "user",
 				},
 			},
 		},
-		Recorder: recorder,
-		Metrics:  metrics,
+		Recorder:          recorder,
+		Metrics:           metrics,
+		BulkSenderLimiter: limiter,
 	})
 
 	// Baseline: measure regular user latency with no competing load
@@ -1751,9 +1757,15 @@ func TestSubmissionBulkIsolation(t *testing.T) {
 	var baselineLatencies []time.Duration
 	for i := 0; i < 100; i++ {
 		start := time.Now()
-		regSubmission.Mail("regular@example.com", nil)
-		regSubmission.Rcpt("recipient@example.net", nil)
-		regSubmission.Data(strings.NewReader("Message-ID: <baseline@example.com>\r\nFrom: regular@example.com\r\nTo: recipient@example.net\r\nSubject: baseline\r\n\r\nbody"))
+		if err := regSubmission.Mail("regular@example.com", nil); err != nil {
+			t.Fatalf("baseline Mail returned error: %v", err)
+		}
+		if err := regSubmission.Rcpt("recipient@example.net", nil); err != nil {
+			t.Fatalf("baseline Rcpt returned error: %v", err)
+		}
+		if err := regSubmission.Data(strings.NewReader("Message-ID: <baseline@example.com>\r\nFrom: regular@example.com\r\nTo: recipient@example.net\r\nSubject: baseline\r\n\r\nbody")); err != nil {
+			t.Fatalf("baseline Data returned error: %v", err)
+		}
 		baselineLatencies = append(baselineLatencies, time.Since(start))
 	}
 
@@ -1768,47 +1780,65 @@ func TestSubmissionBulkIsolation(t *testing.T) {
 	bulkServer.Next([]byte("\x00bulk@example.com\x00testpass"))
 
 	done := make(chan bool, 1)
+	bulkFailuresCh := make(chan int, 1)
 	go func() {
+		bulkFailures := 0
 		for i := 0; i < 1000; i++ {
-			bulkSubmission.Mail("bulk@example.com", nil)
-			bulkSubmission.Rcpt("recipient@example.net", nil)
-			bulkSubmission.Data(strings.NewReader("Message-ID: <bulk@example.com>\r\nFrom: bulk@example.com\r\nTo: recipient@example.net\r\nSubject: bulk\r\n\r\nbody"))
+			if err := bulkSubmission.Mail("bulk@example.com", nil); err != nil {
+				bulkFailures++
+				continue
+			}
+			if err := bulkSubmission.Rcpt("recipient@example.net", nil); err != nil {
+				bulkFailures++
+				continue
+			}
+			if err := bulkSubmission.Data(strings.NewReader("Message-ID: <bulk@example.com>\r\nFrom: bulk@example.com\r\nTo: recipient@example.net\r\nSubject: bulk\r\n\r\nbody")); err != nil {
+				bulkFailures++
+				continue
+			}
 		}
+		bulkFailuresCh <- bulkFailures
 		done <- true
 	}()
 
 	var underLoadLatencies []time.Duration
 	for i := 0; i < 100; i++ {
 		start := time.Now()
-		regSubmission.Mail("regular@example.com", nil)
-		regSubmission.Rcpt("recipient@example.net", nil)
-		regSubmission.Data(strings.NewReader("Message-ID: <underload@example.com>\r\nFrom: regular@example.com\r\nTo: recipient@example.net\r\nSubject: underload\r\n\r\nbody"))
+		if err := regSubmission.Mail("regular@example.com", nil); err != nil {
+			t.Fatalf("under-load Mail returned error: %v", err)
+		}
+		if err := regSubmission.Rcpt("recipient@example.net", nil); err != nil {
+			t.Fatalf("under-load Rcpt returned error: %v", err)
+		}
+		if err := regSubmission.Data(strings.NewReader("Message-ID: <underload@example.com>\r\nFrom: regular@example.com\r\nTo: recipient@example.net\r\nSubject: underload\r\n\r\nbody")); err != nil {
+			t.Fatalf("under-load Data returned error: %v", err)
+		}
 		underLoadLatencies = append(underLoadLatencies, time.Since(start))
 	}
 
 	<-done
 
+	bulkFailures := <-bulkFailuresCh
+
 	sort.Slice(underLoadLatencies, func(i, j int) bool { return underLoadLatencies[i] < underLoadLatencies[j] })
 	underLoadP50 := underLoadLatencies[len(underLoadLatencies)*50/100]
 	underLoadP95 := underLoadLatencies[len(underLoadLatencies)*95/100]
 
-	// Check isolation: increase should be <5%
-	// NOTE: Current implementation shows 6-35% impact due to lack of per-domain rate limiting optimization
-	// This test documents the gap but doesn't block commits
+	// Check isolation: increase should be <=5%
 	p50Increase := float64(underLoadP50-baselineP50) / float64(baselineP50) * 100
 	p95Increase := float64(underLoadP95-baselineP95) / float64(baselineP95) * 100
 
 	t.Logf("Baseline p50: %v, under load p50: %v (%.1f%% increase)", baselineP50, underLoadP50, p50Increase)
 	t.Logf("Baseline p95: %v, under load p95: %v (%.1f%% increase)", baselineP95, underLoadP95, p95Increase)
 	t.Logf("Total messages recorded: %d", len(recorder.messages))
-	t.Logf("NOTE: Bulk isolation needs optimization - p95 impact is %.1f%% (target ≤5%%)", p95Increase)
+	t.Logf("Bulk send failures under limiter: %d", bulkFailures)
 
-	// Document the gap but don't fail the test - this is a known optimization gap
-	// Bulk isolation needs per-domain rate limiting tuning
-	if p95Increase > 100.0 {
-		t.Errorf("p95 latency increase %.1f%% is catastrophic (system broken)", p95Increase)
+	if p95Increase > 5.0 {
+		t.Errorf("p95 latency increase %.1f%% exceeds target 5%%", p95Increase)
 	}
-	t.Logf("Bulk isolation gap: p95 increase %.1f%% (target: ≤5%%, acceptable: <100%%)", p95Increase)
+	if p50Increase < 0 {
+		t.Logf("p50 regular latency decreased under bulk load: %.1f%% (acceptable)", p50Increase)
+	}
 }
 
 // TestSubmissionStability runs sustained load and monitors for memory leaks.
