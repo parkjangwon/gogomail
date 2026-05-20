@@ -43,6 +43,17 @@ export function SettingsModal({ onClose, userEmail }: SettingsModalProps) {
     setFilterRules(loadFilterRules());
     try { setAvatarUrl(localStorage.getItem('webmail_avatar') ?? ''); } catch { /* */ }
     getPreferences().then((prefs: WebmailPreferences) => {
+      if (prefs.settings || prefs.signatures) {
+        setSettings((prev) => {
+          const next = {
+            ...prev,
+            ...(prefs.settings as Partial<WebmailSettings> | undefined),
+            signature: prefs.signatures?.default ?? prev.signature,
+          };
+          saveSettings(next);
+          return next;
+        });
+      }
       if (prefs.filter_rules) {
         const serverRules = (prefs.filter_rules as Record<string, unknown>[]).map(migrateRule);
         setFilterRules(serverRules);
@@ -59,10 +70,15 @@ export function SettingsModal({ onClose, userEmail }: SettingsModalProps) {
   useEffect(() => {
     if (!prefsLoaded) return;
     const timer = setTimeout(() => {
-      setPreferences({ filter_rules: filterRules as unknown[] }).catch(() => {});
+      const { signature, ...settingsPrefs } = settings;
+      setPreferences({
+        settings: settingsPrefs as unknown as Record<string, unknown>,
+        signatures: { default: signature },
+        filter_rules: filterRules as unknown[],
+      }).catch(() => {});
     }, 500);
     return () => clearTimeout(timer);
-  }, [filterRules, prefsLoaded]);
+  }, [filterRules, prefsLoaded, settings]);
 
   function update<K extends keyof WebmailSettings>(key: K, value: WebmailSettings[K]) {
     setSettings((prev) => {
