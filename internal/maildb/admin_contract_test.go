@@ -253,6 +253,45 @@ func TestValidateCompanyListRequestAcceptsLifecycleStatus(t *testing.T) {
 	}
 }
 
+func TestListCompaniesQueryUsesSargableStatusFilter(t *testing.T) {
+	t.Parallel()
+
+	query, args := buildListCompaniesQuery(CompanyListRequest{
+		Status: " Suspended ",
+		Limit:  25,
+	})
+	for _, want := range []string{
+		"FROM companies",
+		"WHERE status = $1",
+		"ORDER BY created_at DESC",
+		"LIMIT $2",
+	} {
+		if !strings.Contains(query, want) {
+			t.Fatalf("list companies query missing %q:\n%s", want, query)
+		}
+	}
+	if strings.Contains(query, "$1 = '' OR") {
+		t.Fatalf("list companies query contains non-sargable status filter:\n%s", query)
+	}
+	if len(args) != 2 {
+		t.Fatalf("args len = %d, want 2", len(args))
+	}
+	if args[0] != "suspended" || args[1] != 25 {
+		t.Fatalf("args = %#v", args)
+	}
+
+	query, args = buildListCompaniesQuery(CompanyListRequest{Limit: 51})
+	if strings.Contains(query, "FROM companies\nWHERE") {
+		t.Fatalf("unfiltered list companies query unexpectedly includes WHERE:\n%s", query)
+	}
+	if len(args) != 1 {
+		t.Fatalf("unfiltered args len = %d, want 1", len(args))
+	}
+	if args[0] != 51 {
+		t.Fatalf("unfiltered args = %#v", args)
+	}
+}
+
 func TestValidateCorrectQuotaReconciliationRequestDefaultsAll(t *testing.T) {
 	t.Parallel()
 
