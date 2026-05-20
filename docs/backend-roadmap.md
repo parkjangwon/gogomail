@@ -6596,3 +6596,6 @@ Target outcome:
 1813. Active-message and draft search SQL now emits text search predicates only
       for supplied query/from/to/cc/bcc/subject filters, avoiding empty-filter
       optional `OR` guards on search requests.
+1814. LDAP empty `groupOfNames` fallback values now avoid internal
+      `cn=placeholder` data; defensive groups without generated DNs use their
+      escaped CN as a schema-safe single-member DN fallback.

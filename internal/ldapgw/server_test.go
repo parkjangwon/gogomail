@@ -4586,6 +4586,15 @@ func TestPrincipalLDAPAttributesSatisfyDeclaredObjectClassRequirements(t *testin
 		t.Fatalf("group member = %#v, want DN fallback for groupOfNames MUST member", groupAttrs["member"])
 	}
 	groupAttrs = principalLDAPAttributes(PrincipalEntry{
+		Kind:        "group",
+		CN:          "Team, Ops",
+		UID:         "team-ops",
+		DisplayName: "Team, Ops",
+	})
+	if groupAttrs["member"][0] != `cn=Team\2c Ops` {
+		t.Fatalf("group member = %#v, want escaped CN fallback without placeholder data", groupAttrs["member"])
+	}
+	groupAttrs = principalLDAPAttributes(PrincipalEntry{
 		DN:      "cn=team,ou=groups,dc=example,dc=com",
 		Kind:    "group",
 		CN:      "Team",
