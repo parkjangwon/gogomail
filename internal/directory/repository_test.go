@@ -328,6 +328,57 @@ func TestNormalizeListAliasesRequestRejectsUnsafeInput(t *testing.T) {
 	}
 }
 
+func TestListAliasesQueryUsesSargableOptionalFilters(t *testing.T) {
+	t.Parallel()
+
+	req, err := NormalizeListAliasesRequest(ListAliasesRequest{
+		CompanyID:  " company-1 ",
+		DomainID:   " domain-1 ",
+		TargetKind: " GROUP ",
+		TargetID:   " group-1 ",
+		Query:      " Ops_Alias ",
+		ActiveOnly: true,
+		Limit:      25,
+	})
+	if err != nil {
+		t.Fatalf("NormalizeListAliasesRequest returned error: %v", err)
+	}
+	query, args := buildListAliasesQuery(req)
+	for _, want := range []string{
+		"FROM directory_aliases a",
+		"WHERE a.company_id = $1::uuid",
+		"AND a.domain_id = $2::uuid",
+		"AND a.target_kind = $3",
+		"AND a.target_id = $4::uuid",
+		"lower(a.alias_address) LIKE $5 ESCAPE",
+		"AND (a.status = 'active' AND d.status = 'active' AND c.status = 'active')",
+		"ORDER BY lower(a.alias_address_ace), a.id",
+		"LIMIT $6",
+	} {
+		if !strings.Contains(query, want) {
+			t.Fatalf("list aliases query missing %q:\n%s", want, query)
+		}
+	}
+	for _, forbidden := range []string{
+		"$2 = '' OR",
+		"NULLIF($",
+		"$6::boolean = false OR",
+	} {
+		if strings.Contains(query, forbidden) {
+			t.Fatalf("list aliases query contains non-sargable optional filter %q:\n%s", forbidden, query)
+		}
+	}
+	if len(args) != 6 {
+		t.Fatalf("args len = %d, want 6", len(args))
+	}
+	if args[4] != `%ops\_alias%` {
+		t.Fatalf("query arg = %#v, want escaped alias pattern", args[4])
+	}
+	if args[5] != 25 {
+		t.Fatalf("limit arg = %#v, want 25", args[5])
+	}
+}
+
 func TestNormalizeSearchPrincipalsRequest(t *testing.T) {
 	t.Parallel()
 

@@ -6433,3 +6433,7 @@ Target outcome:
       tenant, principal, status, and export-window filters, keeping saved-batch
       discovery for billing handoff and retention checks index-friendly as
       export history grows.
+1764. Directory alias listing now uses dynamic optional predicates for domain,
+      target-kind, target-id, query, and active-status filters, avoiding broad
+      optional `OR` guards on address-book alias operations as tenant directory
+      data grows.
