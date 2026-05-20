@@ -48,6 +48,17 @@
 - `Set()` and `Delete()` now write to `config_change_log` audit table
 - 16 unit tests covering locked resolution, tree traversal, cycle protection, fan-out, concurrency
 
+**Email Protocol Compliance Hardening** ✅ COMPLETE
+- Task 1 (DMARC): New domain default DMARC policy changed from `p=none` to `p=quarantine`
+  (`internal/httpapi/admin.go` → `defaultDmarcSpfPolicy()`)
+- Task 2 (List-Unsubscribe): Outbound bulk sends (≥5 recipients) now auto-inject
+  `List-Unsubscribe` and `List-Unsubscribe-Post` headers if not already present
+  (`internal/smtp/submission.go` → `bulkRecipientThreshold`, `messageHasListUnsubscribe`)
+- Task 3 (SCIM PATCH): Implemented RFC 7644 `PATCH /scim/v2/Users/{id}` endpoint
+  supporting `replace` op on `active` (path-targeted and path-less value object form);
+  `SCIMUserService.PatchSCIMUser()` added to interface and `maildbSCIMUserService`;
+  `ServiceProviderConfig` updated to report `patch.supported: true`
+
 **TASK-090: Message Storage & Delivery Optimization** 🔄 IN PROGRESS
 - Phase 1 (Database Query Optimization): Partial indexes, UUID array hydration, and batch lookup improvements implemented
 - Phase 2 (Bulk Delivery Batching): Same-domain batch planning, runtime batch-size tuning, observability, and benchmarks implemented

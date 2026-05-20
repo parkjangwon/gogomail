@@ -20,6 +20,7 @@ type SCIMUserService interface {
 	ListSCIMUsers(ctx context.Context, filter *scim.Filter, startIndex, count int) ([]scim.UserResource, int, error)
 	CreateSCIMUser(ctx context.Context, req scim.UserResource) (scim.UserResource, error)
 	ReplaceSCIMUser(ctx context.Context, id string, req scim.UserResource) (scim.UserResource, error)
+	PatchSCIMUser(ctx context.Context, id string, ops []scim.PatchOperation) (scim.UserResource, error)
 	DeleteSCIMUser(ctx context.Context, id string) error
 }
 
@@ -117,6 +118,28 @@ func RegisterSCIMRoutes(mux *http.ServeMux, svc SCIMUserService, token string) {
 		writeSCIMJSON(w, http.StatusOK, updated)
 	}))
 
+	mux.HandleFunc("PATCH /scim/v2/Users/{id}", scimAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		id := r.PathValue("id")
+		var body struct {
+			Schemas    []string              `json:"schemas"`
+			Operations []scim.PatchOperation `json:"Operations"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			writeSCIMError(w, http.StatusBadRequest, "invalidValue", "invalid request body")
+			return
+		}
+		updated, err := svc.PatchSCIMUser(r.Context(), id, body.Operations)
+		if err != nil {
+			if errors.Is(err, ErrSCIMUserNotFound) {
+				writeSCIMError(w, http.StatusNotFound, "notFound", "user not found")
+				return
+			}
+			writeSCIMError(w, http.StatusInternalServerError, "internalError", err.Error())
+			return
+		}
+		writeSCIMJSON(w, http.StatusOK, updated)
+	}))
+
 	mux.HandleFunc("DELETE /scim/v2/Users/{id}", scimAuth(token, func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
 		if err := svc.DeleteSCIMUser(r.Context(), id); err != nil {
@@ -163,7 +186,7 @@ func scimServiceProviderConfig() any {
 	return map[string]any{
 		"schemas":          []string{"urn:ietf:params:scim:schemas:core:2.0:ServiceProviderConfig"},
 		"documentationUri": "",
-		"patch":            map[string]any{"supported": false},
+		"patch":            map[string]any{"supported": true},
 		"bulk":             map[string]any{"supported": false, "maxOperations": 0, "maxPayloadSize": 0},
 		"filter":           map[string]any{"supported": true, "maxResults": 200},
 		"changePassword":   map[string]any{"supported": false},

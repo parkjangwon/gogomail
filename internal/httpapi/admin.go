@@ -6575,7 +6575,7 @@ type dmarcSpfPolicy struct {
 
 func defaultDmarcSpfPolicy() dmarcSpfPolicy {
 	return dmarcSpfPolicy{
-		DMARCPolicy:     "none",
+		DMARCPolicy:     "quarantine",
 		DMARCPct:        100,
 		DMARCSubdomains: "none",
 		DMARCAlignMode:  "r",

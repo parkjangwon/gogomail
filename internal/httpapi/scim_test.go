@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/gogomail/gogomail/internal/httpapi"
@@ -62,6 +63,62 @@ func (f *fakeSCIMUserService) ReplaceSCIMUser(_ context.Context, id string, req 
 	req.ID = id
 	f.users[id] = req
 	return req, nil
+}
+
+func (f *fakeSCIMUserService) PatchSCIMUser(_ context.Context, id string, ops []scim.PatchOperation) (scim.UserResource, error) {
+	u, ok := f.users[id]
+	if !ok {
+		return scim.UserResource{}, httpapi.ErrSCIMUserNotFound
+	}
+	for _, op := range ops {
+		switch strings.ToLower(op.Op) {
+		case "replace":
+			if op.Path == "" {
+				var attrs map[string]json.RawMessage
+				if err := json.Unmarshal(op.Value, &attrs); err != nil {
+					continue
+				}
+				if raw, ok2 := attrs["active"]; ok2 {
+					var active bool
+					if err := json.Unmarshal(raw, &active); err == nil {
+						u.Active = active
+					}
+				}
+				if raw, ok2 := attrs["displayName"]; ok2 {
+					var dn string
+					if err := json.Unmarshal(raw, &dn); err == nil {
+						u.Name.Formatted = dn
+					}
+				}
+				if raw, ok2 := attrs["userName"]; ok2 {
+					var un string
+					if err := json.Unmarshal(raw, &un); err == nil {
+						u.UserName = un
+					}
+				}
+				continue
+			}
+			switch strings.ToLower(op.Path) {
+			case "active":
+				var active bool
+				if err := json.Unmarshal(op.Value, &active); err == nil {
+					u.Active = active
+				}
+			case "displayname":
+				var dn string
+				if err := json.Unmarshal(op.Value, &dn); err == nil {
+					u.Name.Formatted = dn
+				}
+			case "username":
+				var un string
+				if err := json.Unmarshal(op.Value, &un); err == nil {
+					u.UserName = un
+				}
+			}
+		}
+	}
+	f.users[id] = u
+	return u, nil
 }
 
 func (f *fakeSCIMUserService) DeleteSCIMUser(_ context.Context, id string) error {
@@ -299,3 +356,95 @@ func TestSCIMGetUserNotFound(t *testing.T) {
 		t.Errorf("status = %d, want 404", resp.StatusCode)
 	}
 }
+
+func TestSCIMPatchUserActive(t *testing.T) {
+	svc := newFakeSCIMUserService()
+	srv := newSCIMServer(svc)
+	defer srv.Close()
+
+	// Create a user that starts active.
+	createResp := scimRequest(t, srv, http.MethodPost, "/scim/v2/Users", map[string]any{
+		"schemas":  []string{scim.SchemaUser},
+		"userName": "alice@example.com",
+		"active":   true,
+	})
+	var created scim.UserResource
+	json.NewDecoder(createResp.Body).Decode(&created)
+	createResp.Body.Close()
+
+	// PATCH to deactivate using path-less replace.
+	patchBody := map[string]any{
+		"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
+		"Operations": []map[string]any{
+			{"op": "replace", "value": map[string]any{"active": false}},
+		},
+	}
+	patchResp := scimRequest(t, srv, http.MethodPatch, "/scim/v2/Users/"+created.ID, patchBody)
+	defer patchResp.Body.Close()
+	if patchResp.StatusCode != http.StatusOK {
+		t.Fatalf("patch status = %d, want 200", patchResp.StatusCode)
+	}
+	var patched scim.UserResource
+	if err := json.NewDecoder(patchResp.Body).Decode(&patched); err != nil {
+		t.Fatalf("decode patch response: %v", err)
+	}
+	if patched.Active {
+		t.Errorf("after PATCH active=false, user is still active")
+	}
+
+	// PATCH to reactivate using path-targeted replace.
+	patchReactivate := map[string]any{
+		"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
+		"Operations": []map[string]any{
+			{"op": "replace", "path": "active", "value": true},
+		},
+	}
+	reactResp := scimRequest(t, srv, http.MethodPatch, "/scim/v2/Users/"+created.ID, patchReactivate)
+	defer reactResp.Body.Close()
+	if reactResp.StatusCode != http.StatusOK {
+		t.Fatalf("reactivate patch status = %d, want 200", reactResp.StatusCode)
+	}
+	var reactivated scim.UserResource
+	if err := json.NewDecoder(reactResp.Body).Decode(&reactivated); err != nil {
+		t.Fatalf("decode reactivate response: %v", err)
+	}
+	if !reactivated.Active {
+		t.Errorf("after PATCH active=true, user is still inactive")
+	}
+}
+
+func TestSCIMPatchUserNotFound(t *testing.T) {
+	srv := newSCIMServer(newFakeSCIMUserService())
+	defer srv.Close()
+
+	patchBody := map[string]any{
+		"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
+		"Operations": []map[string]any{
+			{"op": "replace", "value": map[string]any{"active": false}},
+		},
+	}
+	resp := scimRequest(t, srv, http.MethodPatch, "/scim/v2/Users/does-not-exist", patchBody)
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusNotFound {
+		t.Errorf("status = %d, want 404", resp.StatusCode)
+	}
+}
+
+func TestSCIMServiceProviderConfigPatchSupported(t *testing.T) {
+	srv := newSCIMServer(newFakeSCIMUserService())
+	defer srv.Close()
+
+	resp := scimRequest(t, srv, http.MethodGet, "/scim/v2/ServiceProviderConfig", nil)
+	defer resp.Body.Close()
+	var body map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	patch, _ := body["patch"].(map[string]any)
+	if supported, _ := patch["supported"].(bool); !supported {
+		t.Errorf("patch.supported = false, want true")
+	}
+}
+
+// Ensure strings import is used (compile guard).
+var _ = strings.ToLower
