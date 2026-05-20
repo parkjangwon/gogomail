@@ -2819,43 +2819,8 @@ func (r *Repository) ListDomains(ctx context.Context, req DomainListRequest) ([]
 		queryLimit = limit + 1
 	}
 
-	const query = `
-SELECT
-  d.id::text,
-  d.company_id::text,
-  COALESCE(c.name, ''),
-  d.name,
-  d.name_ace,
-  d.status,
-  d.quota_used,
-  COALESCE(d.quota_limit, 0),
-  COALESCE((d.settings #>> '{policy,default_user_quota}')::bigint, 0),
-  COALESCE((
-    SELECT SUM(child.quota_limit)
-    FROM users child
-    WHERE child.domain_id = d.id
-      AND child.quota_limit IS NOT NULL
-      AND child.quota_limit > 0
-  ), 0) AS allocated_user_quota,
-  COALESCE(latest.status, ''),
-  latest.checked_at,
-  d.created_at
-FROM domains d
-LEFT JOIN companies c ON c.id = d.company_id
-LEFT JOIN LATERAL (
-  SELECT status, checked_at
-  FROM domain_dns_checks
-  WHERE domain_id = d.id
-  ORDER BY checked_at DESC
-  LIMIT 1
-) latest ON true
-WHERE ($1 = '' OR d.company_id::text = $1)
-  AND ($2 = '' OR d.status = $2)
-  AND ($3 = '' OR COALESCE(latest.status, '') = $3)
-ORDER BY d.created_at DESC
-LIMIT $4`
-
-	rows, err := r.db.QueryContext(ctx, query, strings.TrimSpace(req.CompanyID), status, dnsStatus, queryLimit)
+	query, args := buildListDomainsQuery(req, status, dnsStatus, queryLimit)
+	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, false, fmt.Errorf("list domains: %w", err)
 	}
@@ -2898,6 +2863,64 @@ LIMIT $4`
 		domains = domains[:limit]
 	}
 	return domains, hasMore, nil
+}
+
+func buildListDomainsQuery(req DomainListRequest, status string, dnsStatus string, queryLimit int) (string, []any) {
+	args := make([]any, 0, 4)
+	where := make([]string, 0, 3)
+	if companyID := strings.TrimSpace(req.CompanyID); companyID != "" {
+		args = append(args, companyID)
+		where = append(where, fmt.Sprintf("d.company_id::text = $%d", len(args)))
+	}
+	if status != "" {
+		args = append(args, status)
+		where = append(where, fmt.Sprintf("d.status = $%d", len(args)))
+	}
+	if dnsStatus != "" {
+		args = append(args, dnsStatus)
+		where = append(where, fmt.Sprintf("COALESCE(latest.status, '') = $%d", len(args)))
+	}
+	args = append(args, queryLimit)
+
+	var builder strings.Builder
+	builder.WriteString(`
+SELECT
+  d.id::text,
+  d.company_id::text,
+  COALESCE(c.name, ''),
+  d.name,
+  d.name_ace,
+  d.status,
+  d.quota_used,
+  COALESCE(d.quota_limit, 0),
+  COALESCE((d.settings #>> '{policy,default_user_quota}')::bigint, 0),
+  COALESCE((
+    SELECT SUM(child.quota_limit)
+    FROM users child
+    WHERE child.domain_id = d.id
+      AND child.quota_limit IS NOT NULL
+      AND child.quota_limit > 0
+  ), 0) AS allocated_user_quota,
+  COALESCE(latest.status, ''),
+  latest.checked_at,
+  d.created_at
+FROM domains d
+LEFT JOIN companies c ON c.id = d.company_id
+LEFT JOIN LATERAL (
+  SELECT status, checked_at
+  FROM domain_dns_checks
+  WHERE domain_id = d.id
+  ORDER BY checked_at DESC
+  LIMIT 1
+) latest ON true
+`)
+	if len(where) > 0 {
+		builder.WriteString("WHERE ")
+		builder.WriteString(strings.Join(where, "\n  AND "))
+		builder.WriteByte('\n')
+	}
+	builder.WriteString(fmt.Sprintf("ORDER BY d.created_at DESC\nLIMIT $%d", len(args)))
+	return builder.String(), args
 }
 
 func (r *Repository) GetDomain(ctx context.Context, id string) (DomainView, error) {

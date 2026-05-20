@@ -6560,3 +6560,6 @@ Target outcome:
 1802. CalDAV and CardDAV sync-change retention pruning now builds direct
       user/calendar/addressbook predicates only when those scopes are
       requested, avoiding optional `OR` guards in scheduled cleanup scans.
+1803. Admin domain listing now builds company, domain-status, and latest DNS
+      status predicates only when requested, avoiding optional `OR` guards on
+      tenant domain operations.
