@@ -84,7 +84,8 @@ Implemented controls include:
 - Go builds are pinned to patched toolchain `go1.26.3`; frontend apps override PostCSS to a patched line.
 - Company/domain `/security/governance` controls allow typed operational exceptions while platform invariants remain fixed.
 - Webmail login enforces TOTP MFA when required by company/domain `auth_policy`; enrolled users always receive a TOTP challenge. IP-based exemptions are supported via `mfa_exempt_cidrs`.
-- Admin console login enforces TOTP MFA when enabled; `company_admin` MFA is controlled by the per-tenant `auth_policy` config key, and `system_admin` forced enrollment is controlled by `GOGOMAIL_ADMIN_MFA_REQUIRED`. Break-glass reset: `bin/gogomail admin mfa-reset --email <address>` (reads `DATABASE_URL`).
+- Admin console login enforces TOTP MFA when enabled; `company_admin` MFA is controlled by the per-tenant `auth_policy` config key, and `system_admin` forced enrollment is controlled by `GOGOMAIL_ADMIN_MFA_REQUIRED`.
+- Admin MFA is fully wired end-to-end (login challenge, `/admin/v1/auth/mfa/*` endpoints, security settings setup/verify/disable flow, and `console_mfa_setup_required` setup gate). Break-glass reset: `bin/gogomail admin mfa-reset --email <address>` (reads `DATABASE_URL`).
 
 Verification commands:
 

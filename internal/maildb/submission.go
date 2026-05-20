@@ -35,6 +35,7 @@ SELECT
   u.id::text,
   ua.address,
   u.display_name,
+  u.role,
   u.must_change_password,
   COALESCE(u.password_hash, '')
 FROM users u
@@ -60,6 +61,7 @@ LIMIT 1`
 		&user.UserID,
 		&user.Address,
 		&user.DisplayName,
+		&user.Role,
 		&user.MustChangePassword,
 		&passwordHash,
 	); err != nil {
@@ -77,6 +79,14 @@ LIMIT 1`
 	}
 	user.AuthorizedAddresses = addresses
 	return user, nil
+}
+
+func (r *Repository) AuthenticatePlainWithRole(ctx context.Context, identity string, username string, password string) (string, error) {
+	user, err := r.AuthenticatePlain(ctx, identity, username, password)
+	if err != nil {
+		return "", err
+	}
+	return user.Role, nil
 }
 
 func (r *Repository) submissionUserAddresses(ctx context.Context, userID string) ([]string, error) {

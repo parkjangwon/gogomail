@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -1706,10 +1707,13 @@ func (a plainAuthenticator) AuthenticatePlain(_ context.Context, _ string, usern
 var errAuthTestFailed = errors.New("auth failed")
 
 type recordingRecorder struct {
+	mu       sync.Mutex
 	messages []ReceivedMessage
 }
 
 func (r *recordingRecorder) Record(_ context.Context, msg ReceivedMessage) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
 	r.messages = append(r.messages, msg)
 	return nil
 }
@@ -1845,10 +1849,13 @@ func (v *recordingAuthVerifier) VerifyAuthentication(_ context.Context, req Auth
 }
 
 type recordingMetrics struct {
+	mu     sync.Mutex
 	events []MetricEvent
 }
 
 func (m *recordingMetrics) ObserveSMTP(_ context.Context, event MetricEvent) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	m.events = append(m.events, event)
 }
 
@@ -1857,6 +1864,8 @@ func (m *recordingMetrics) ObserveRFCNonCompliance(RFCCompliance) {
 }
 
 func (m *recordingMetrics) has(stage Stage, result MetricResult) bool {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	for _, event := range m.events {
 		if event.Stage == stage && event.Result == result {
 			return true

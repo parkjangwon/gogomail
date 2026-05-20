@@ -1,6 +1,7 @@
 package smtpd
 
 import (
+	"runtime"
 	"sync"
 	"time"
 )
@@ -8,19 +9,19 @@ import (
 // BulkSenderLimiter isolates bulk senders from regular users by rate limiting.
 // Regular users get priority; bulk senders are capped at lower rate.
 type BulkSenderLimiter struct {
-	mu                    sync.RWMutex
-	regularUserRateLimit  int                      // msg/sec for regular users (unlimited by default)
-	bulkUserRateLimit     int                      // msg/sec for bulk users (e.g., 100)
-	bulkUserRole          string                   // role name that identifies bulk users
-	userRateLimiters      map[string]*TokenBucket
+	mu                   sync.RWMutex
+	regularUserRateLimit int    // msg/sec for regular users (unlimited by default)
+	bulkUserRateLimit    int    // msg/sec for bulk users (e.g., 100)
+	bulkUserRole         string // role name that identifies bulk users
+	userRateLimiters     map[string]*TokenBucket
 }
 
 type TokenBucket struct {
-	mu           sync.Mutex
-	lastRefresh  time.Time
-	tokensLeft   int
-	maxTokens    int
-	refillRate   int // tokens per second
+	mu          sync.Mutex
+	lastRefresh time.Time
+	tokensLeft  int
+	maxTokens   int
+	refillRate  int // tokens per second
 }
 
 // NewBulkSenderLimiter creates a bulk sender rate limiter.
@@ -75,8 +76,6 @@ func NewTokenBucket(maxRate int) *TokenBucket {
 // Returns true if a token was available, false otherwise.
 func (rl *TokenBucket) Allow() bool {
 	rl.mu.Lock()
-	defer rl.mu.Unlock()
-
 	now := time.Now()
 	elapsed := now.Sub(rl.lastRefresh).Seconds()
 	rl.lastRefresh = now
@@ -91,9 +90,13 @@ func (rl *TokenBucket) Allow() bool {
 	// Try to consume one token
 	if rl.tokensLeft > 0 {
 		rl.tokensLeft--
+		rl.mu.Unlock()
 		return true
 	}
+	rl.mu.Unlock()
 
+	runtime.Gosched()
+	time.Sleep(500 * time.Microsecond) // modest backoff on denied attempts to avoid abusive tight loops
 	return false
 }
 

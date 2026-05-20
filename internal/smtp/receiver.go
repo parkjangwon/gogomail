@@ -69,6 +69,10 @@ type Authenticator interface {
 	AuthenticatePlain(ctx context.Context, identity string, username string, password string) error
 }
 
+type AuthenticatorWithRole interface {
+	AuthenticatePlainWithRole(ctx context.Context, identity string, username string, password string) (string, error)
+}
+
 type RelayAuthorizer interface {
 	AllowRelay(ctx context.Context, remoteAddr string) (bool, error)
 }
@@ -214,18 +218,19 @@ func (r *Receiver) NewSession(conn *gosmtp.Conn) (gosmtp.Session, error) {
 }
 
 type session struct {
-	receiver          *Receiver
-	ctx               context.Context
-	cancel            context.CancelFunc
-	from              string
-	mailStarted       bool
-	recipients        []Mailbox
-	dsn               DSNOptions
-	smtpUTF8          bool
-	remoteAddr        string
-	authenticated     bool
-	authenticatedUser string // set after successful PLAIN auth
-	domainPolicy      *InboundDomainPolicy
+	receiver              *Receiver
+	ctx                   context.Context
+	cancel                context.CancelFunc
+	from                  string
+	mailStarted           bool
+	recipients            []Mailbox
+	dsn                   DSNOptions
+	smtpUTF8              bool
+	remoteAddr            string
+	authenticated         bool
+	authenticatedUser     string // set after successful PLAIN auth
+	authenticatedUserRole string
+	domainPolicy          *InboundDomainPolicy
 }
 
 func (s *session) Mail(from string, opts *gosmtp.MailOptions) (err error) {
@@ -244,7 +249,7 @@ func (s *session) Mail(from string, opts *gosmtp.MailOptions) (err error) {
 		return err
 	}
 	if s.receiver.bulkSenderLimiter != nil && s.authenticatedUser != "" {
-		if !s.receiver.bulkSenderLimiter.AllowSubmission(s.authenticatedUser, s.authenticatedUser) {
+		if !s.receiver.bulkSenderLimiter.AllowSubmission(s.authenticatedUser, s.authenticatedUserRole) {
 			return smtpRateLimited(from)
 		}
 	}
@@ -774,6 +779,7 @@ func (s *session) clearEnvelope() {
 func (s *session) Logout() error {
 	s.Reset()
 	s.authenticated = false
+	s.authenticatedUserRole = ""
 	// Cancel the current context (signals any in-flight work to stop),
 	// then replace it so the session remains usable if reused.
 	s.cancel()
@@ -807,7 +813,15 @@ func (s *session) Auth(mech string) (sasl.Server, error) {
 				Error:  metricError(authErr),
 			})
 		}()
-		if err := s.receiver.authenticator.AuthenticatePlain(s.ctx, identity, username, password); err != nil {
+		if withRole, ok := s.receiver.authenticator.(AuthenticatorWithRole); ok {
+			userRole, err := withRole.AuthenticatePlainWithRole(s.ctx, identity, username, password)
+			if err != nil {
+				authErr = gosmtp.ErrAuthFailed
+				s.receiver.authFailures.record(s.remoteAddr)
+				return gosmtp.ErrAuthFailed
+			}
+			s.authenticatedUserRole = userRole
+		} else if err := s.receiver.authenticator.AuthenticatePlain(s.ctx, identity, username, password); err != nil {
 			authErr = gosmtp.ErrAuthFailed
 			s.receiver.authFailures.record(s.remoteAddr)
 			return gosmtp.ErrAuthFailed
@@ -970,10 +984,10 @@ func randomMessageID() string {
 // It tracks per-IP failure timestamps and rejects attempts that exceed the
 // threshold within the window. The map is cleaned up lazily on every check.
 type authFailureTracker struct {
-	mu        sync.Mutex
-	failures  map[string][]time.Time
-	window    time.Duration
-	maxFails  int
+	mu       sync.Mutex
+	failures map[string][]time.Time
+	window   time.Duration
+	maxFails int
 }
 
 func newAuthFailureTracker() *authFailureTracker {
