@@ -232,7 +232,7 @@ bin/gogomail --migrate --mode=mail-api
 | `GOGOMAIL_WEBHOOK_DISPATCH_ENABLED` | tenant webhook dispatch 활성화, 기본 `true` |
 | `GOGOMAIL_CORS_ALLOWED_ORIGINS` | admin/mail API가 허용할 browser origin 목록 |
 | `GOGOMAIL_METRICS_BACKEND` / `GOGOMAIL_METRICS_ADDR` | metrics backend와 Prometheus scrape 주소 |
-| `GOGOMAIL_PUBLIC_BASE_URL` | 시스템 메일 링크와 오픈 추적 픽셀에 쓰는 public HTTPS origin. production에서는 localhost 계열을 사용할 수 없음 |
+| `GOGOMAIL_PUBLIC_BASE_URL` | 시스템 메일 링크와 오픈 추적 픽셀에 쓰는 public HTTPS origin. 기본값은 없고 production에서는 localhost 계열을 사용할 수 없음 |
 | `GOGOMAIL_OUTBOX_RELAY_*` | outbox relay batch size, polling interval, retry 제어 |
 | `GOGOMAIL_DELIVERY_*` | delivery worker stream, consumer, retry, TLS, smart-host, route, throttle, timeout 제어 |
 | `GOGOMAIL_DELIVERY_RECIPIENT_BATCH_SIZE` | 같은 도메인 SMTP 전송 배치의 최대 수신자 수, 기본 `100` |
