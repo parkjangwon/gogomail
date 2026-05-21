@@ -1448,7 +1448,7 @@ func handleRDBMSSyncConflicts(w http.ResponseWriter, r *http.Request, service Ad
 	if !rejectBodylessRequestPayload(w, r) {
 		return
 	}
-	if !rejectUnknownQueryKeys(w, r, "unresolved_only", "limit", "offset") {
+	if !rejectUnknownQueryKeys(w, r, "unresolved_only", "limit", "offset", "cursor") {
 		return
 	}
 	id, ok := parseBoundedAdminPathValue(w, r, "id")
@@ -1468,12 +1468,22 @@ func handleRDBMSSyncConflicts(w http.ResponseWriter, r *http.Request, service Ad
 			return
 		}
 	}
+	cursorRaw, ok := singleQueryValue(w, r, "cursor")
+	if !ok {
+		return
+	}
+	cursor, err := maildb.DecodeRDBMSSyncConflictCursor(cursorRaw)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid cursor")
+		return
+	}
 	unresolvedOnly := r.URL.Query().Get("unresolved_only") == "true"
 	conflicts, err := service.GetRDBMSSyncConflicts(r.Context(), maildb.RDBMSSyncConflictListRequest{
 		DomainID:       id,
 		UnresolvedOnly: unresolvedOnly,
 		Limit:          limit + 1,
 		Offset:         offset,
+		Cursor:         cursor,
 	})
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
@@ -1483,7 +1493,15 @@ func handleRDBMSSyncConflicts(w http.ResponseWriter, r *http.Request, service Ad
 	if hasMore {
 		conflicts = conflicts[:limit]
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"conflicts": conflicts, "limit": limit, "offset": offset, "has_more": hasMore})
+	nextCursor := ""
+	if hasMore && len(conflicts) > 0 {
+		nextCursor, err = maildb.EncodeRDBMSSyncConflictCursor(conflicts[len(conflicts)-1])
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "internal server error")
+			return
+		}
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"conflicts": conflicts, "limit": limit, "offset": offset, "has_more": hasMore, "next_cursor": nextCursor})
 }
 
 func handleResolveRDBMSConflict(w http.ResponseWriter, r *http.Request, service AdminService) {

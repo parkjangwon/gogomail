@@ -26,6 +26,24 @@ func TestRDBMSSyncRunCursorRoundTrip(t *testing.T) {
 	}
 }
 
+func TestRDBMSSyncConflictCursorRoundTrip(t *testing.T) {
+	t.Parallel()
+
+	conflictID := uuid.MustParse("22222222-2222-2222-2222-222222222222")
+	createdAt := time.Date(2026, 5, 21, 10, 15, 0, 0, time.UTC)
+	encoded, err := EncodeRDBMSSyncConflictCursor(RDBMSSyncConflictView{ID: conflictID, CreatedAt: createdAt})
+	if err != nil {
+		t.Fatalf("EncodeRDBMSSyncConflictCursor returned error: %v", err)
+	}
+	decoded, err := DecodeRDBMSSyncConflictCursor(encoded)
+	if err != nil {
+		t.Fatalf("DecodeRDBMSSyncConflictCursor returned error: %v", err)
+	}
+	if decoded.ID != conflictID || !decoded.CreatedAt.Equal(createdAt) {
+		t.Fatalf("decoded cursor = %+v", decoded)
+	}
+}
+
 func TestRDBMSSyncRunsSQLUsesSeekCursorWhenPresent(t *testing.T) {
 	t.Parallel()
 
@@ -44,6 +62,33 @@ func TestRDBMSSyncRunsSQLUsesSeekCursorWhenPresent(t *testing.T) {
 	}
 
 	query = buildRDBMSSyncRunsSQL(false)
+	if !strings.Contains(query, "LIMIT $2 OFFSET $3") {
+		t.Fatalf("offset query missing legacy pagination:\n%s", query)
+	}
+	if strings.Contains(query, "$4::uuid") {
+		t.Fatalf("offset query unexpectedly includes cursor predicate:\n%s", query)
+	}
+}
+
+func TestRDBMSSyncConflictsSQLUsesSeekCursorWhenPresent(t *testing.T) {
+	t.Parallel()
+
+	query := buildRDBMSSyncConflictsSQL(true, true)
+	for _, want := range []string{
+		"AND resolution IS NULL",
+		"AND (created_at, id) < ($3::timestamptz, $4::uuid)",
+		"ORDER BY created_at DESC, id DESC",
+		"LIMIT $2",
+	} {
+		if !strings.Contains(query, want) {
+			t.Fatalf("cursor query missing %q:\n%s", want, query)
+		}
+	}
+	if strings.Contains(query, "OFFSET") {
+		t.Fatalf("cursor query should not use OFFSET:\n%s", query)
+	}
+
+	query = buildRDBMSSyncConflictsSQL(false, false)
 	if !strings.Contains(query, "LIMIT $2 OFFSET $3") {
 		t.Fatalf("offset query missing legacy pagination:\n%s", query)
 	}

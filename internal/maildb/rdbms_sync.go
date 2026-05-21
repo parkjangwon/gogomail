@@ -63,9 +63,20 @@ type RDBMSSyncConflictListRequest struct {
 	UnresolvedOnly bool
 	Limit          int
 	Offset         int
+	Cursor         RDBMSSyncConflictCursor
+}
+
+// RDBMSSyncConflictCursor is an opaque seek-pagination cursor for sync conflicts.
+type RDBMSSyncConflictCursor struct {
+	CreatedAt time.Time `json:"created_at"`
+	ID        uuid.UUID `json:"id"`
 }
 
 func (c RDBMSSyncRunCursor) IsZero() bool {
+	return c.CreatedAt.IsZero() || c.ID == uuid.Nil
+}
+
+func (c RDBMSSyncConflictCursor) IsZero() bool {
 	return c.CreatedAt.IsZero() || c.ID == uuid.Nil
 }
 
@@ -104,6 +115,45 @@ func DecodeRDBMSSyncRunCursor(value string) (RDBMSSyncRunCursor, error) {
 	}
 	if cursor.ID == uuid.Nil {
 		return RDBMSSyncRunCursor{}, fmt.Errorf("sync run cursor id is required")
+	}
+	return cursor, nil
+}
+
+func EncodeRDBMSSyncConflictCursor(conflict RDBMSSyncConflictView) (string, error) {
+	if conflict.CreatedAt.IsZero() {
+		return "", fmt.Errorf("sync conflict cursor timestamp is required")
+	}
+	if conflict.ID == uuid.Nil {
+		return "", fmt.Errorf("sync conflict cursor id is required")
+	}
+	raw, err := json.Marshal(RDBMSSyncConflictCursor{CreatedAt: conflict.CreatedAt, ID: conflict.ID})
+	if err != nil {
+		return "", fmt.Errorf("marshal sync conflict cursor: %w", err)
+	}
+	return base64.RawURLEncoding.EncodeToString(raw), nil
+}
+
+func DecodeRDBMSSyncConflictCursor(value string) (RDBMSSyncConflictCursor, error) {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return RDBMSSyncConflictCursor{}, nil
+	}
+	if len(value) > MessageListCursorMaxBytes {
+		return RDBMSSyncConflictCursor{}, fmt.Errorf("sync conflict cursor is too long")
+	}
+	raw, err := base64.RawURLEncoding.DecodeString(value)
+	if err != nil {
+		return RDBMSSyncConflictCursor{}, fmt.Errorf("decode sync conflict cursor: %w", err)
+	}
+	var cursor RDBMSSyncConflictCursor
+	if err := json.Unmarshal(raw, &cursor); err != nil {
+		return RDBMSSyncConflictCursor{}, fmt.Errorf("unmarshal sync conflict cursor: %w", err)
+	}
+	if cursor.CreatedAt.IsZero() {
+		return RDBMSSyncConflictCursor{}, fmt.Errorf("sync conflict cursor timestamp is required")
+	}
+	if cursor.ID == uuid.Nil {
+		return RDBMSSyncConflictCursor{}, fmt.Errorf("sync conflict cursor id is required")
 	}
 	return cursor, nil
 }

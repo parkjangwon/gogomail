@@ -2,6 +2,11 @@
 
 Last updated: 2026-05-21 (SaaS launch hardening continues: production public URL guardrails)
 
+## RDBMS Sync Conflict Seek Pagination (2026-05-21)
+- RDBMS sync conflict listing now supports opaque `(created_at, id)` cursor pagination while preserving legacy offset pagination for existing clients.
+- Added conflict seek indexes for both all-conflict and unresolved-only admin views, matching the `ORDER BY created_at DESC, id DESC` access pattern.
+- Verification target: `go test -count=1 ./internal/maildb ./internal/httpapi -run 'RDBMSSyncConflict|RDBMSSyncConflicts'`.
+
 ## Admin Sync Error Contract Hardening (2026-05-21)
 - Admin LDAP/RDBMS/domain organization sync endpoints now keep HTTP 501 for unavailable integrations while returning fixed public messages instead of backend sentinel error strings.
 - Shared JSON error responses now classify HTTP 501 as `not_implemented` rather than the generic `internal_error` code, making client handling less ambiguous.

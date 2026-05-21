@@ -234,20 +234,13 @@ func (r *Repository) GetRDBMSSyncConflicts(ctx context.Context, req RDBMSSyncCon
 		return nil, fmt.Errorf("database handle is required")
 	}
 
-	query := `
-		SELECT id, domain_id, sync_run_id, conflict_type, local_data, remote_data, resolution, resolved_at, created_at
-		FROM rdbms_sync_conflicts
-		WHERE domain_id = $1
-	`
-
-	args := []interface{}{req.DomainID}
-
-	if req.UnresolvedOnly {
-		query += " AND resolution IS NULL"
+	query := buildRDBMSSyncConflictsSQL(req.UnresolvedOnly, !req.Cursor.IsZero())
+	args := []any{req.DomainID, req.Limit}
+	if req.Cursor.IsZero() {
+		args = append(args, req.Offset)
+	} else {
+		args = append(args, req.Cursor.CreatedAt, req.Cursor.ID)
 	}
-
-	query += " ORDER BY created_at DESC LIMIT $2 OFFSET $3"
-	args = append(args, req.Limit, req.Offset)
 
 	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
@@ -280,6 +273,27 @@ func (r *Repository) GetRDBMSSyncConflicts(ctx context.Context, req RDBMSSyncCon
 	}
 
 	return conflicts, nil
+}
+
+func buildRDBMSSyncConflictsSQL(unresolvedOnly, hasCursor bool) string {
+	where := "WHERE domain_id = $1"
+	if unresolvedOnly {
+		where += "\n\t\t  AND resolution IS NULL"
+	}
+	if hasCursor {
+		where += "\n\t\t  AND (created_at, id) < ($3::timestamptz, $4::uuid)"
+	}
+	paging := "LIMIT $2 OFFSET $3"
+	if hasCursor {
+		paging = "LIMIT $2"
+	}
+	return `
+		SELECT id, domain_id, sync_run_id, conflict_type, local_data, remote_data, resolution, resolved_at, created_at
+		FROM rdbms_sync_conflicts
+		` + where + `
+		ORDER BY created_at DESC, id DESC
+		` + paging + `
+	`
 }
 
 // GetRDBMSSyncConflict retrieves a single RDBMS sync conflict by ID.
