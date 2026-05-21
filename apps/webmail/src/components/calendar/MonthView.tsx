@@ -1,5 +1,6 @@
 'use client';
 
+import { useMemo } from 'react';
 import { startOfMonth, startOfWeek, isSameDay, addDays } from '@/lib/calendar/dateUtils';
 import { ParsedEvent, ParsedTodo } from '@/lib/calendar/eventParser';
 
@@ -14,6 +15,8 @@ export interface MonthViewProps {
   onTodoToggle: (t: ParsedTodo) => void;
 }
 
+const toDateKey = (d: Date) => `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+
 export function MonthView({ currentDate, events, todos, today, onDayClick, onCellClick, onEventClick, onTodoToggle }: MonthViewProps) {
   const month = currentDate.getMonth();
   const firstDay = startOfMonth(currentDate);
@@ -24,6 +27,38 @@ export function MonthView({ currentDate, events, todos, today, onDayClick, onCel
   const cellCount = Math.ceil(Math.max(needed, 28) / 7) * 7;
   const visibleDays = days.slice(0, cellCount);
   const weekDays = ['월', '화', '수', '목', '금', '토', '일'];
+
+  // Pre-bucket events/todos by day key to avoid O(days × events) per render.
+  const eventsByDay = useMemo(() => {
+    const map = new Map<string, ParsedEvent[]>();
+    for (const ev of events) {
+      const s = new Date(ev.start); s.setHours(0, 0, 0, 0);
+      const e = new Date(ev.end); e.setHours(23, 59, 59, 999);
+      for (const day of visibleDays) {
+        const d = new Date(day); d.setHours(12, 0, 0, 0);
+        if (d >= s && d <= e) {
+          const key = toDateKey(day);
+          const bucket = map.get(key) ?? [];
+          bucket.push(ev);
+          map.set(key, bucket);
+        }
+      }
+    }
+    return map;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [events, visibleDays.length, month]);
+
+  const todosByDay = useMemo(() => {
+    const map = new Map<string, ParsedTodo[]>();
+    for (const todo of todos) {
+      if (!todo.dueDate) continue;
+      const key = toDateKey(todo.dueDate);
+      const bucket = map.get(key) ?? [];
+      bucket.push(todo);
+      map.set(key, bucket);
+    }
+    return map;
+  }, [todos]);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
@@ -40,13 +75,9 @@ export function MonthView({ currentDate, events, todos, today, onDayClick, onCel
         {visibleDays.map((day, idx) => {
           const isCurrentMonth = day.getMonth() === month;
           const isToday = isSameDay(day, today);
-          const dayEvents = events.filter((ev) => {
-            const s = new Date(ev.start); s.setHours(0, 0, 0, 0);
-            const e = new Date(ev.end); e.setHours(23, 59, 59, 999);
-            const d = new Date(day); d.setHours(12, 0, 0, 0);
-            return d >= s && d <= e;
-          });
-          const dayTodos = todos.filter((t) => t.dueDate && isSameDay(t.dueDate, day));
+          const dayKey = toDateKey(day);
+          const dayEvents = eventsByDay.get(dayKey) ?? [];
+          const dayTodos = todosByDay.get(dayKey) ?? [];
           const maxItems = 3;
           const overflow = dayEvents.length + dayTodos.length - maxItems;
 

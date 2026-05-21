@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 interface SafeHTMLBodyProps {
   html: string;
@@ -9,18 +9,18 @@ interface SafeHTMLBodyProps {
 }
 
 export function SafeHTMLBody({ html, onMailto, externalImages = 'ask' }: SafeHTMLBodyProps) {
-  const blockTrackingPixels = (() => {
+  const blockTrackingPixels = useMemo(() => {
     try {
       return JSON.parse(localStorage.getItem('webmail_settings') ?? '{}').blockTrackingPixels !== false;
     } catch {
       return true;
     }
-  })();
+  }, []);
   const ref = useRef<HTMLDivElement>(null);
   const [showImages, setShowImages] = useState(externalImages === 'always');
   const [showQuoted, setShowQuoted] = useState(false);
-  const hasImages = /<img\s/i.test(html);
-  const hasQuoted = /<blockquote/i.test(html);
+  const hasImages = useMemo(() => /<img\s/i.test(html), [html]);
+  const hasQuoted = useMemo(() => /<blockquote/i.test(html), [html]);
 
   useEffect(() => {
     setShowQuoted(false);
