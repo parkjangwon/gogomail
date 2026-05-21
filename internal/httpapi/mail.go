@@ -142,6 +142,9 @@ type MailRouteOptions struct {
 	// LoginLimiter guards POST /api/v1/auth/token against brute-force attacks.
 	// When nil a default in-process limiter of 10 attempts per IP per minute is used.
 	LoginLimiter *AdminIPRateLimiter
+	// APIKeyLimiter guards API-key-authenticated mutation endpoints against abuse.
+	// When nil a default in-process limiter of 120 requests per API key per minute is used.
+	APIKeyLimiter *AdminIPRateLimiter
 }
 
 type MailMutationLimiter interface {
@@ -410,6 +413,23 @@ func mailMutationRateLimitKey(userID string, action string) string {
 	return "user=" + userID + " action=" + strings.ToLower(strings.TrimSpace(action))
 }
 
+// allowAPIKeyRequest enforces per-API-key rate limiting for mutation endpoints.
+// Returns true to continue, false when the limit is exceeded (response already written).
+func allowAPIKeyRequest(w http.ResponseWriter, r *http.Request, limiter *AdminIPRateLimiter) bool {
+	if limiter == nil {
+		return true
+	}
+	info, ok := apikeys.KeyInfoFromContext(r.Context())
+	if !ok || info == nil || strings.TrimSpace(info.ID) == "" {
+		return true
+	}
+	if !limiter.allow(info.ID) {
+		writeError(w, http.StatusTooManyRequests, "api key rate limit exceeded")
+		return false
+	}
+	return true
+}
+
 func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager *auth.TokenManager) {
 	RegisterMailRoutesWithOptions(mux, service, tokenManager, MailRouteOptions{})
 }
@@ -417,6 +437,9 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 func RegisterMailRoutesWithOptions(mux *http.ServeMux, service MessageService, tokenManager *auth.TokenManager, opts MailRouteOptions) {
 	if opts.LoginLimiter == nil {
 		opts.LoginLimiter = NewAdminIPRateLimiter(10, time.Minute)
+	}
+	if opts.APIKeyLimiter == nil {
+		opts.APIKeyLimiter = NewAdminIPRateLimiter(120, time.Minute)
 	}
 	mux.HandleFunc("POST /api/v1/auth/token", func(w http.ResponseWriter, r *http.Request) {
 		if !opts.LoginLimiter.allow(adminClientIP(r)) {
@@ -1411,6 +1434,9 @@ func RegisterMailRoutesWithOptions(mux *http.ServeMux, service MessageService, t
 			writeError(w, http.StatusBadRequest, "invalid JSON body")
 			return
 		}
+		if !allowAPIKeyRequest(w, r, opts.APIKeyLimiter) {
+			return
+		}
 		if !bindRequestUserID(w, r, tokenManager, service, &req.UserID, req.UserEmail) {
 			return
 		}
@@ -1522,6 +1548,9 @@ func RegisterMailRoutesWithOptions(mux *http.ServeMux, service MessageService, t
 			return
 		}
 		req.DraftID = draftID
+		if !allowAPIKeyRequest(w, r, opts.APIKeyLimiter) {
+			return
+		}
 		if !bindRequestUserID(w, r, tokenManager, service, &req.UserID, req.UserEmail) {
 			return
 		}
@@ -1619,6 +1648,9 @@ func RegisterMailRoutesWithOptions(mux *http.ServeMux, service MessageService, t
 		var req mailservice.CreateAttachmentUploadRequest
 		if err := decodeJSONBody(r, &req); err != nil {
 			writeError(w, http.StatusBadRequest, "invalid JSON body")
+			return
+		}
+		if !allowAPIKeyRequest(w, r, opts.APIKeyLimiter) {
 			return
 		}
 		if !bindRequestUserID(w, r, tokenManager, service, &req.UserID, req.UserEmail) {
@@ -2020,6 +2052,9 @@ func RegisterMailRoutesWithOptions(mux *http.ServeMux, service MessageService, t
 		var req mailservice.SendTextRequest
 		if err := decodeJSONBody(r, &req); err != nil {
 			writeError(w, http.StatusBadRequest, "invalid JSON body")
+			return
+		}
+		if !allowAPIKeyRequest(w, r, opts.APIKeyLimiter) {
 			return
 		}
 		if !bindRequestUserID(w, r, tokenManager, service, &req.UserID, req.UserEmail) {
