@@ -15,6 +15,7 @@
 - RDBMS sync conflict listing now supports opaque `(created_at, id)` cursor pagination and adds conflict seek indexes for all-conflict and unresolved-only views, reducing deep-page admin scan cost.
 - LDAP sync conflict listing now supports opaque `(created_at, id)` cursor pagination and adds conflict seek indexes for domain, unresolved-only, and sync-run views, reducing deep-page admin scan cost.
 - Active message free-text search now uses indexed `UNION` candidate branches for metadata FTS, metadata substring, body FTS, and body substring matching, with trigram indexes for active subject/from/body fallback paths.
+- Draft free-text search now uses draft-only `UNION` candidate branches for subject/from/recipient/body matching, with trigram indexes for compose search fields.
 - Webmail pre-launch gaps closed: password reset UI, server-synced signatures, Web Push service worker registration, and calendar edit/delete controls.
 - Console pre-launch gaps closed: audit-log cursor pagination, delivery-attempt filters/feedback, and targeted TypeScript cleanup.
 

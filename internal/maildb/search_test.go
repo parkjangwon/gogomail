@@ -205,6 +205,9 @@ func TestDraftSearchSQLUsesComposeFocusedDraftFields(t *testing.T) {
 
 	query := draftSearchSQL()
 	for _, want := range []string{
+		"WITH draft_matches AS (",
+		"id IN (SELECT id FROM draft_matches)",
+		"UNION",
 		"status = 'draft'",
 		"draft_text_body ILIKE",
 		"to_addrs::text ILIKE",
@@ -218,6 +221,16 @@ func TestDraftSearchSQLUsesComposeFocusedDraftFields(t *testing.T) {
 	}
 	if strings.Contains(query, "message_search_documents") {
 		t.Fatalf("draft search query should not depend on active-message search index:\n%s", query)
+	}
+	for _, forbidden := range []string{
+		"OR from_addr ILIKE '%' || $2 || '%'",
+		"OR from_name ILIKE '%' || $2 || '%'",
+		"OR to_addrs::text ILIKE '%' || $2 || '%'",
+		"OR draft_text_body ILIKE '%' || $2 || '%'",
+	} {
+		if strings.Contains(query, forbidden) {
+			t.Fatalf("draft search query contains broad query OR %q:\n%s", forbidden, query)
+		}
 	}
 }
 
@@ -289,6 +302,9 @@ func TestDraftSearchSQLUsesDirectTextFilters(t *testing.T) {
 		if strings.Contains(query, absent) {
 			t.Fatalf("filterless draft search query contains %q:\n%s", absent, query)
 		}
+	}
+	if strings.Contains(query, "draft_matches AS") {
+		t.Fatalf("filterless draft search query unexpectedly includes draft_matches CTE:\n%s", query)
 	}
 }
 
