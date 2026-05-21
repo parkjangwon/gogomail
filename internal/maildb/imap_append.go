@@ -44,6 +44,10 @@ func (r *Repository) ResolveIMAPAppendTarget(ctx context.Context, userID string,
 	}
 	exactMailboxName := strings.ToLower(mailboxID)
 	compatMailboxName, allowCompatMailboxLookup := normalizeIMAPMailboxLookupName(mailboxID)
+	var mailboxIDUUID any
+	if isUUIDLike(mailboxID) {
+		mailboxIDUUID = strings.TrimSpace(mailboxID)
+	}
 
 	const query = `
 SELECT
@@ -60,7 +64,7 @@ WHERE f.user_id = $1::uuid
   AND u.status = 'active'
   AND d.status = 'active'
   AND (
-    f.id::text = $2
+    ($2::uuid IS NOT NULL AND f.id = $2::uuid)
     OR lower(f.name) = $3
     OR (
       $5
@@ -78,7 +82,7 @@ ORDER BY
 LIMIT 1`
 
 	var target IMAPAppendTarget
-	if err := r.db.QueryRowContext(ctx, query, userID, mailboxID, exactMailboxName, compatMailboxName, allowCompatMailboxLookup).Scan(
+	if err := r.db.QueryRowContext(ctx, query, userID, mailboxIDUUID, exactMailboxName, compatMailboxName, allowCompatMailboxLookup).Scan(
 		&target.UserID,
 		&target.MailboxID,
 		&target.CompanyID,

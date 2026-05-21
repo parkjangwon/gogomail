@@ -18,7 +18,7 @@ type QuotaWarningEmitterInterface interface {
 var _ QuotaWarningEmitterInterface = (*QuotaWarningEmitter)(nil)
 
 const (
-	QuotaWarningEventTopic  = "mail.quota_warning"
+	QuotaWarningEventTopic = "mail.quota_warning"
 	QuotaWarningWindow     = 24 * time.Hour
 )
 
@@ -40,16 +40,16 @@ func NewQuotaWarningEmitter(db *sql.DB, redisClient *redis.Client, eventStream s
 }
 
 type QuotaWarningPayload struct {
-	Event       string  `json:"event"`
-	SchemaVersion string `json:"schema_version"`
-	CompanyID   string  `json:"company_id"`
-	DomainID    string  `json:"domain_id,omitempty"`
-	UserID      string  `json:"user_id,omitempty"`
-	Scope       string  `json:"scope"`
-	AlertType   string  `json:"alert_type"`
-	QuotaUsed   int64   `json:"quota_used"`
-	QuotaLimit  int64   `json:"quota_limit"`
-	UsageRatio  float64 `json:"usage_ratio"`
+	Event         string  `json:"event"`
+	SchemaVersion string  `json:"schema_version"`
+	CompanyID     string  `json:"company_id"`
+	DomainID      string  `json:"domain_id,omitempty"`
+	UserID        string  `json:"user_id,omitempty"`
+	Scope         string  `json:"scope"`
+	AlertType     string  `json:"alert_type"`
+	QuotaUsed     int64   `json:"quota_used"`
+	QuotaLimit    int64   `json:"quota_limit"`
+	UsageRatio    float64 `json:"usage_ratio"`
 }
 
 func (e *QuotaWarningEmitter) EmitIfNeeded(ctx context.Context, userID string) error {
@@ -131,10 +131,10 @@ type quotaUsageInfo struct {
 
 func (e *QuotaWarningEmitter) evaluateAndEmit(ctx context.Context, usage *quotaUsageInfo) error {
 	scopes := []struct {
-		scope       QuotaAlertScope
-		scopeID     string
-		quotaUsed   int64
-		quotaLimit  int64
+		scope      QuotaAlertScope
+		scopeID    string
+		quotaUsed  int64
+		quotaLimit int64
 	}{
 		{QuotaAlertScopeUser, usage.UserID, usage.UserUsed, usage.UserLimit},
 		{QuotaAlertScopeDomain, usage.DomainID, usage.DomainUsed, usage.DomainLimit},
@@ -196,7 +196,7 @@ WHERE company_id = $1`
 	argIdx++
 
 	if scope == QuotaAlertScopeUser || scope == QuotaAlertScopeDomain {
-		query += fmt.Sprintf(" AND scope_id::text = $%d", argIdx)
+		query += fmt.Sprintf(" AND scope_id = $%d::uuid", argIdx)
 		args = append(args, scopeID)
 	} else {
 		query += " AND scope_id IS NULL"
@@ -260,14 +260,14 @@ func (e *QuotaWarningEmitter) emitEvent(ctx context.Context, usage *quotaUsageIn
 	}
 
 	payload := QuotaWarningPayload{
-		Event:        "mail.quota_warning",
+		Event:         "mail.quota_warning",
 		SchemaVersion: "2026-05-08.quota-warning.v1",
-		CompanyID:    usage.CompanyID,
-		Scope:        string(scope),
-		AlertType:    string(alertType),
-		QuotaUsed:    quotaUsed,
-		QuotaLimit:   quotaLimit,
-		UsageRatio:   usageRatio,
+		CompanyID:     usage.CompanyID,
+		Scope:         string(scope),
+		AlertType:     string(alertType),
+		QuotaUsed:     quotaUsed,
+		QuotaLimit:    quotaLimit,
+		UsageRatio:    usageRatio,
 	}
 
 	switch scope {
@@ -295,9 +295,9 @@ func (e *QuotaWarningEmitter) emitEvent(ctx context.Context, usage *quotaUsageIn
 	}
 
 	values := map[string]any{
-		"outbox_id":      uuid.New().String(),
+		"outbox_id":     uuid.New().String(),
 		"partition_key": partitionKey,
-		"payload":        string(rawPayload),
+		"payload":       string(rawPayload),
 	}
 
 	if err := e.redisClient.XAdd(ctx, &redis.XAddArgs{

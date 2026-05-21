@@ -1,6 +1,13 @@
 # gogomail current status
 
-Last updated: 2026-05-21 (SaaS launch hardening continues: operational UUID filter sargability)
+Last updated: 2026-05-21 (SaaS launch hardening continues: identity/mailbox UUID fast paths)
+
+## Identity And Mailbox UUID Fast Paths (2026-05-21)
+- LDAP authentication keeps username/address lookup behavior while using a typed `u.id = $n::uuid` predicate only when the supplied identity is UUID-like.
+- IMAP mailbox resolution for status reads and APPEND targets keeps name/path compatibility but uses a typed `folders.id = $n::uuid` fast path for UUID mailbox ids.
+- Quota warning threshold lookup now compares `scope_id` with a typed UUID predicate instead of casting the indexed threshold column.
+- Regression tests scan these query sources to prevent `u.id::text`, `folders.id::text`, and `scope_id::text` predicate casts from returning.
+- Verification target: `go test -count=1 ./internal/maildb -run 'AuthenticateLDAP|IMAPMailboxLookup|QuotaWarningEmitter'`.
 
 ## Operational UUID Filter Sargability (2026-05-21)
 - DKIM active-key and key-list lookups now compare `domain_id` with typed UUID predicates while keeping the existing stable `updated_at DESC, id DESC` ordering.
