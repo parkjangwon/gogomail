@@ -10361,6 +10361,89 @@ paths:
                     format: date-time
         default:
           $ref: "#/components/responses/Error"
+  /domains/{id}/idp-config:
+    get:
+      operationId: getDomainIdPConfig
+      summary: Get identity provider configuration for a domain
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+      responses:
+        "200":
+          description: IdP configuration
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  domain_id:
+                    type: string
+                  provider_type:
+                    type: string
+                    enum: [database, ldap, azure_ad, external_rdbms]
+                  settings:
+                    type: object
+        default:
+          $ref: "#/components/responses/Error"
+    put:
+      operationId: setDomainIdPConfig
+      summary: Create or update identity provider configuration for a domain
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [provider_type]
+              properties:
+                provider_type:
+                  type: string
+                  enum: [database, ldap, azure_ad, external_rdbms]
+                settings:
+                  type: object
+      responses:
+        "200":
+          description: IdP configuration updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  domain_id:
+                    type: string
+                  provider_type:
+                    type: string
+        default:
+          $ref: "#/components/responses/Error"
+    delete:
+      operationId: deleteDomainIdPConfig
+      summary: Disable custom identity provider configuration (revert to local database)
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+      responses:
+        "204":
+          description: IdP configuration disabled
+        default:
+          $ref: "#/components/responses/Error"
 components:
   securitySchemes:
     bearerAuth:

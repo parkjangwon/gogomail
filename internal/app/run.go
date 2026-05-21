@@ -3423,7 +3423,13 @@ func runHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, mode M
 			FailureThreshold:    cfg.AttachmentScanFailureThreshold,
 			CircuitOpenDuration: cfg.AttachmentScanCircuitOpenDuration,
 		}); err2 == nil {
-			readinessChecks = append(readinessChecks, sc.Ping)
+			sc := sc
+			readinessChecks = append(readinessChecks, func(ctx context.Context) httpapi.ReadinessCheck {
+				if err := sc.Ping(ctx); err != nil {
+					return httpapi.ReadinessCheck{Name: "clamav", Status: "unhealthy", Detail: err.Error()}
+				}
+				return httpapi.ReadinessCheck{Name: "clamav", Status: "healthy"}
+			})
 			logger.Info("clamav readiness check registered", "addr", cfg.AttachmentScanClamAVAddr)
 		}
 	}
