@@ -192,10 +192,11 @@ func TestRDBMSSyncHistoryReturnsCursorPaginationMetadata(t *testing.T) {
 func TestRDBMSSyncConflictsReturnsPaginationMetadata(t *testing.T) {
 	t.Parallel()
 
+	now := time.Date(2026, 5, 21, 10, 30, 0, 0, time.UTC)
 	service := &fakeAdminService{
 		rdbmsSyncConflicts: []maildb.RDBMSSyncConflictView{
-			{ConflictType: "duplicate_key"},
-			{ConflictType: "schema_mismatch"},
+			{ID: uuid.MustParse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"), ConflictType: "duplicate_key", CreatedAt: now},
+			{ID: uuid.MustParse("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"), ConflictType: "schema_mismatch", CreatedAt: now.Add(-time.Minute)},
 		},
 	}
 	req := httptest.NewRequest(http.MethodGet, "/admin/v1/domains/domain-1/rdbms/conflicts?limit=1&offset=3&unresolved_only=true", nil)
@@ -222,6 +223,61 @@ func TestRDBMSSyncConflictsReturnsPaginationMetadata(t *testing.T) {
 	reqSeen := service.lastRDBMSSyncConflictsReq
 	if reqSeen.Limit != 2 || reqSeen.Offset != 3 || !reqSeen.UnresolvedOnly {
 		t.Fatalf("request = %+v, want limit+1 unresolved probe", reqSeen)
+	}
+}
+
+func TestRDBMSSyncConflictsReturnsCursorPaginationMetadata(t *testing.T) {
+	t.Parallel()
+
+	firstID := uuid.MustParse("44444444-4444-4444-4444-444444444444")
+	secondID := uuid.MustParse("55555555-5555-5555-5555-555555555555")
+	cursorID := uuid.MustParse("66666666-6666-6666-6666-666666666666")
+	cursorTime := time.Date(2026, 5, 21, 11, 0, 0, 0, time.UTC)
+	cursor, err := maildb.EncodeRDBMSSyncConflictCursor(maildb.RDBMSSyncConflictView{ID: cursorID, CreatedAt: cursorTime})
+	if err != nil {
+		t.Fatalf("EncodeRDBMSSyncConflictCursor returned error: %v", err)
+	}
+	service := &fakeAdminService{
+		rdbmsSyncConflicts: []maildb.RDBMSSyncConflictView{
+			{ID: firstID, ConflictType: "duplicate_key", CreatedAt: cursorTime.Add(-time.Minute)},
+			{ID: secondID, ConflictType: "schema_mismatch", CreatedAt: cursorTime.Add(-2 * time.Minute)},
+		},
+	}
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/domains/domain-1/rdbms/conflicts?limit=1&cursor="+cursor+"&unresolved_only=true", nil)
+	req.SetPathValue("id", "domain-1")
+	rec := httptest.NewRecorder()
+
+	handleRDBMSSyncConflicts(rec, req, service)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	var body struct {
+		Conflicts  []maildb.RDBMSSyncConflictView `json:"conflicts"`
+		Limit      int                            `json:"limit"`
+		Offset     int                            `json:"offset"`
+		HasMore    bool                           `json:"has_more"`
+		NextCursor string                         `json:"next_cursor"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if body.Limit != 1 || body.Offset != 0 || !body.HasMore || len(body.Conflicts) != 1 || body.NextCursor == "" {
+		t.Fatalf("body = %+v", body)
+	}
+	reqSeen := service.lastRDBMSSyncConflictsReq
+	if reqSeen.Limit != 2 || reqSeen.Offset != 0 || !reqSeen.UnresolvedOnly {
+		t.Fatalf("request = %+v, want limit+1 unresolved cursor probe", reqSeen)
+	}
+	if reqSeen.Cursor.ID != cursorID || !reqSeen.Cursor.CreatedAt.Equal(cursorTime) {
+		t.Fatalf("cursor request = %+v", reqSeen.Cursor)
+	}
+	next, err := maildb.DecodeRDBMSSyncConflictCursor(body.NextCursor)
+	if err != nil {
+		t.Fatalf("DecodeRDBMSSyncConflictCursor(next) returned error: %v", err)
+	}
+	if next.ID != firstID {
+		t.Fatalf("next cursor ID = %s, want %s", next.ID, firstID)
 	}
 }
 
