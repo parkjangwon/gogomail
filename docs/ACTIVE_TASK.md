@@ -211,6 +211,7 @@
 - Legacy Mail API message list helpers now use the same message_at expression and `id DESC` tie-breaker as cursor pages, keeping equal-timestamp inbox and folder pages deterministic.
 - Production config now rejects `GOGOMAIL_FARM_COORDINATOR_BACKEND=noop` and validates Redis-backed farm coordinator settings so multi-instance SMTP deployments cannot silently launch without distributed coordination.
 - SMTP delivery pipelining now precomputes DSN RCPT option parameters by normalized address once per batch, avoiding repeated linear DSN recipient scans on large DSN-enabled sends.
+- Redis-backed SMTP farm healthy-node discovery now uses SCAN plus pipelined TTL/hash reads instead of blocking KEYS, reducing production Redis keyspace risk.
 
 **Infrastructure & Storage Hardening** ✅ COMPLETE
 - Task 1 (EML GC): Added `LookupDeleteableStoragePaths` and `LookupExpungeStoragePaths` to maildb; service layer now performs two-phase GC (lookup before DB delete, delete from store after commit) for `DeleteMessage`, `BulkDeleteMessages`, `BulkDeleteThreads`, and `ExpungeIMAPMessages`. Reference-count check prevents deletion of paths shared by IMAP COPY.

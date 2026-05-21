@@ -1,6 +1,12 @@
 # gogomail current status
 
-Last updated: 2026-05-21 (SaaS launch hardening continues: DSN RCPT option lookup optimization)
+Last updated: 2026-05-21 (SaaS launch hardening continues: Redis farm node discovery)
+
+## Redis Farm Node Discovery Scaling (2026-05-21)
+- Redis-backed SMTP farm healthy-node discovery now uses cursor-based `SCAN` instead of the blocking `KEYS` command for `node:*` lookup.
+- Node TTL and hash reads are pipelined after key discovery, reducing per-node Redis round trips while preserving TTL-based health filtering.
+- Regression coverage rejects reintroducing `KEYS` in the Redis farm coordinator.
+- Verification target: `go test -count=1 ./internal/smtp -run 'RedisFarmCoordinator'`.
 
 ## DSN RCPT Option Lookup Optimization (2026-05-21)
 - SMTP delivery pipelining now precomputes DSN recipient RCPT parameters by normalized address once per recipient batch instead of linearly scanning the DSN option slice for every RCPT command.

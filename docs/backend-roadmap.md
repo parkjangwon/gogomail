@@ -6760,3 +6760,7 @@ Target outcome:
       normalized recipient address once per batch, preserving first-match DSN
       semantics while avoiding repeated linear scans across large
       DSN-enabled recipient lists.
+1851. Redis-backed SMTP farm healthy-node discovery now uses cursor-based
+      `SCAN` plus pipelined TTL/hash reads instead of the blocking `KEYS`
+      command, reducing Redis keyspace risk as production farm node counts and
+      adjacent gogomail keys grow.
