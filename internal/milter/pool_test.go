@@ -3,6 +3,7 @@ package milter
 import (
 	"context"
 	"net"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -113,14 +114,14 @@ func TestPoolReusesConns(t *testing.T) {
 	}
 	defer ln.Close()
 
-	connCount := 0
+	var connCount atomic.Int32
 	go func() {
 		for {
 			conn, err := ln.Accept()
 			if err != nil {
 				return
 			}
-			connCount++
+			connCount.Add(1)
 			go stubServer(t, conn, respAccept)
 		}
 	}()
@@ -151,7 +152,7 @@ func TestPoolReusesConns(t *testing.T) {
 	pool.Put(c2)
 
 	// Should only have 1 connection, not 2
-	if connCount > 1 {
-		t.Fatalf("expected ≤1 connection, got %d", connCount)
+	if got := connCount.Load(); got > 1 {
+		t.Fatalf("expected ≤1 connection, got %d", got)
 	}
 }
