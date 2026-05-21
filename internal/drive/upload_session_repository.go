@@ -281,7 +281,7 @@ func buildListUploadSessionsQuery(req ListUploadSessionsRequest) (string, []any)
 	}
 	args = append(args, req.Limit)
 	query := listUploadSessionsBaseSQL + "\n  AND " + strings.Join(conditions, "\n  AND ") + fmt.Sprintf(`
-ORDER BY s.updated_at DESC, s.created_at DESC
+ORDER BY s.updated_at DESC, s.created_at DESC, s.id DESC
 LIMIT $%d`, len(args))
 	return query, args
 }

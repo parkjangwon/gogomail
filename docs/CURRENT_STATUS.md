@@ -1,6 +1,11 @@
 # gogomail current status
 
-Last updated: 2026-05-21 (SaaS launch hardening continues: identity/mailbox UUID fast paths)
+Last updated: 2026-05-21 (SaaS launch hardening continues: drive upload session stable ordering)
+
+## Drive Upload Session Stable Ordering (2026-05-21)
+- Drive upload session listing now orders by `updated_at DESC, created_at DESC, id DESC`, preventing equal-timestamp pages from drifting.
+- Added user and user+status upload-session indexes matching the new stable ordering.
+- Verification target: `go test -count=1 ./internal/drive -run 'ListUploadSessionsQuery|UploadSession'`.
 
 ## Identity And Mailbox UUID Fast Paths (2026-05-21)
 - LDAP authentication keeps username/address lookup behavior while using a typed `u.id = $n::uuid` predicate only when the supplied identity is UUID-like.

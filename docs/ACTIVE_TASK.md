@@ -206,6 +206,7 @@
 - Quota reconciliation correction updates and quota alert scanner duplicate checks now keep company/domain/user UUID predicates typed on indexed columns.
 - DKIM, attachment upload session, and delivery-attempt operations filters now keep domain/user/message UUID predicates typed with matching upload/delivery indexes.
 - LDAP auth, IMAP mailbox resolution, and quota warning threshold lookups now keep UUID fast paths typed while preserving username/mailbox-name compatibility.
+- Drive upload session listing now uses stable `updated_at DESC, created_at DESC, id DESC` ordering with matching user/status indexes.
 
 **Infrastructure & Storage Hardening** ✅ COMPLETE
 - Task 1 (EML GC): Added `LookupDeleteableStoragePaths` and `LookupExpungeStoragePaths` to maildb; service layer now performs two-phase GC (lookup before DB delete, delete from store after commit) for `DeleteMessage`, `BulkDeleteMessages`, `BulkDeleteThreads`, and `ExpungeIMAPMessages`. Reference-count check prevents deletion of paths shared by IMAP COPY.
