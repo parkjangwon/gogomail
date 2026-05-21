@@ -18,6 +18,7 @@
 - Draft free-text search now uses draft-only `UNION` candidate branches for subject/from/recipient/body matching, with trigram indexes for compose search fields.
 - Company, suppression-list, trusted-relay, and delivery-route admin lists now use stable `created_at DESC, id DESC` ordering with matching indexes, preventing equal-timestamp page jitter.
 - DKIM active-key lookup and admin key listing now use stable `updated_at DESC, id DESC` ordering with matching indexes, preventing equal-timestamp signing/list ambiguity.
+- LDAP sync history and last-success lookup now use stable `started_at/last_success_at DESC, id DESC` ordering with matching history/status/success indexes, preventing equal-timestamp sync run drift.
 - Webmail pre-launch gaps closed: password reset UI, server-synced signatures, Web Push service worker registration, and calendar edit/delete controls.
 - Console pre-launch gaps closed: audit-log cursor pagination, delivery-attempt filters/feedback, and targeted TypeScript cleanup.
 
@@ -6697,3 +6698,7 @@ Target outcome:
       fields, refresh-token rotation behavior, Admin API refresh response, and
       password-reset request/confirm endpoints, with a regression test locking
       those launch-critical paths into the contract draft.
+1838. LDAP sync history and last-success lookup now add `id DESC` tie-breakers
+      to their timestamp ordering and ship matching history/status/success
+      indexes, preventing equal-timestamp admin pages or sync baselines from
+      drifting between requests.

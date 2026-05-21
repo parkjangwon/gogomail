@@ -61,3 +61,36 @@ func TestLDAPSyncConflictsSQLUsesSeekCursorWhenPresent(t *testing.T) {
 		t.Fatalf("offset query unexpectedly includes cursor predicate:\n%s", query)
 	}
 }
+
+func TestLDAPSyncRunsSQLUsesStableOrdering(t *testing.T) {
+	t.Parallel()
+
+	query, args := buildLDAPSyncRunsSQL(LDAPSyncRunListRequest{
+		DomainID: "11111111-1111-1111-1111-111111111111",
+		Status:   "success",
+		Limit:    50,
+		Offset:   100,
+	})
+	for _, want := range []string{
+		"WHERE domain_id = $1",
+		"AND status = $2",
+		"ORDER BY started_at DESC, id DESC",
+		"LIMIT $3",
+		"OFFSET $4",
+	} {
+		if !strings.Contains(query, want) {
+			t.Fatalf("sync run query missing %q:\n%s", want, query)
+		}
+	}
+	if len(args) != 4 {
+		t.Fatalf("args length = %d, want 4", len(args))
+	}
+}
+
+func TestLastLDAPSyncTimeSQLUsesStableOrdering(t *testing.T) {
+	t.Parallel()
+
+	if !strings.Contains(lastLDAPSyncTimeSQL, "ORDER BY last_success_at DESC, id DESC") {
+		t.Fatalf("last sync query missing id tie-breaker:\n%s", lastLDAPSyncTimeSQL)
+	}
+}

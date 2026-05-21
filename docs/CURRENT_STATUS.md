@@ -1,6 +1,12 @@
 # gogomail current status
 
-Last updated: 2026-05-21 (SaaS launch hardening continues: production public URL guardrails)
+Last updated: 2026-05-21 (SaaS launch hardening continues: LDAP sync run stable ordering)
+
+## LDAP Sync Run Stable Ordering (2026-05-21)
+- LDAP sync history now orders runs by `started_at DESC, id DESC`, preventing equal-timestamp admin pages from drifting between requests.
+- Last-success LDAP sync lookup now orders by `last_success_at DESC, id DESC`, making resume/delta baselines deterministic when success timestamps collide.
+- Added matching LDAP sync run indexes for domain history, status-filtered history, and successful last-sync lookups so the stable tie-breakers stay index-backed.
+- Verification target: `go test -count=1 ./internal/maildb -run 'LDAPSyncRuns|LastLDAPSyncTime|LDAPSyncConflict'`.
 
 ## Active Message Search Candidate Split (2026-05-21)
 - Active message free-text search now collects candidate message IDs through separate `UNION` branches for indexed metadata FTS, metadata substring matches, body FTS, and body substring matches instead of evaluating one broad `OR` predicate across joined message/body rows.

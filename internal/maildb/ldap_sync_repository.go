@@ -62,34 +62,7 @@ func (r *Repository) GetLDAPSyncRuns(ctx context.Context, req LDAPSyncRunListReq
 		return nil, fmt.Errorf("database handle is required")
 	}
 
-	query := `
-SELECT id, domain_id, sync_type, status, created_count, updated_count, deleted_count,
-       conflict_count, error_count, resolution_strategy, started_at, completed_at,
-       last_success_at, duration_ms, error_message
-FROM ldap_sync_runs
-WHERE domain_id = $1`
-
-	args := []interface{}{req.DomainID}
-	argNum := 2
-
-	if req.Status != "" {
-		query += fmt.Sprintf(" AND status = $%d", argNum)
-		args = append(args, req.Status)
-		argNum++
-	}
-
-	query += " ORDER BY started_at DESC"
-
-	if req.Limit > 0 {
-		query += fmt.Sprintf(" LIMIT $%d", argNum)
-		args = append(args, req.Limit)
-		argNum++
-	}
-	if req.Offset > 0 {
-		query += fmt.Sprintf(" OFFSET $%d", argNum)
-		args = append(args, req.Offset)
-	}
-
+	query, args := buildLDAPSyncRunsSQL(req)
 	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, err
@@ -108,6 +81,38 @@ WHERE domain_id = $1`
 		runs = append(runs, run)
 	}
 	return runs, rows.Err()
+}
+
+func buildLDAPSyncRunsSQL(req LDAPSyncRunListRequest) (string, []interface{}) {
+	query := `
+SELECT id, domain_id, sync_type, status, created_count, updated_count, deleted_count,
+       conflict_count, error_count, resolution_strategy, started_at, completed_at,
+       last_success_at, duration_ms, error_message
+FROM ldap_sync_runs
+WHERE domain_id = $1`
+
+	args := []interface{}{req.DomainID}
+	argNum := 2
+
+	if req.Status != "" {
+		query += fmt.Sprintf(" AND status = $%d", argNum)
+		args = append(args, req.Status)
+		argNum++
+	}
+
+	query += " ORDER BY started_at DESC, id DESC"
+
+	if req.Limit > 0 {
+		query += fmt.Sprintf(" LIMIT $%d", argNum)
+		args = append(args, req.Limit)
+		argNum++
+	}
+	if req.Offset > 0 {
+		query += fmt.Sprintf(" OFFSET $%d", argNum)
+		args = append(args, req.Offset)
+	}
+
+	return query, args
 }
 
 // AddLDAPSyncConflict records a conflict detected during sync.
@@ -266,12 +271,7 @@ func (r *Repository) GetLastLDAPSyncTime(ctx context.Context, domainID uuid.UUID
 		return nil, fmt.Errorf("database handle is required")
 	}
 
-	const query = `
-SELECT last_success_at
-FROM ldap_sync_runs
-WHERE domain_id = $1 AND sync_type = $2 AND status = 'success'
-ORDER BY last_success_at DESC
-LIMIT 1`
+	const query = lastLDAPSyncTimeSQL
 
 	var lastSync *time.Time
 	err := r.db.QueryRowContext(ctx, query, domainID, syncType).Scan(&lastSync)
@@ -283,3 +283,10 @@ LIMIT 1`
 	}
 	return lastSync, nil
 }
+
+const lastLDAPSyncTimeSQL = `
+SELECT last_success_at
+FROM ldap_sync_runs
+WHERE domain_id = $1 AND sync_type = $2 AND status = 'success'
+ORDER BY last_success_at DESC, id DESC
+LIMIT 1`
