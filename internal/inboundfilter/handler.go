@@ -32,6 +32,8 @@ type Handler struct {
 	service Service
 	// vacationSent tracks when we last sent a vacation reply: key = "userID:senderNorm"
 	vacationSent sync.Map
+	// trashCache caches system trash folder IDs per user: key = userID, value = string (folderID)
+	trashCache sync.Map
 }
 
 func NewHandler(svc Service) *Handler {
@@ -93,16 +95,35 @@ func (h *Handler) HandleEvent(ctx context.Context, msg eventstream.Message) erro
 }
 
 func (h *Handler) moveToTrash(ctx context.Context, userID, messageID string) error {
-	folders, err := h.service.ListFolders(ctx, userID)
+	trashID, err := h.resolveTrashFolderID(ctx, userID)
 	if err != nil {
 		return err
 	}
+	if trashID == "" {
+		return nil // no trash folder — do nothing
+	}
+	return h.service.MoveMessage(ctx, userID, messageID, trashID)
+}
+
+// resolveTrashFolderID returns the system trash folder ID for userID, caching
+// the result to avoid a ListFolders call on every blocked-sender event.
+func (h *Handler) resolveTrashFolderID(ctx context.Context, userID string) (string, error) {
+	if v, ok := h.trashCache.Load(userID); ok {
+		return v.(string), nil
+	}
+	folders, err := h.service.ListFolders(ctx, userID)
+	if err != nil {
+		return "", err
+	}
+	id := ""
 	for _, f := range folders {
 		if f.SystemType == "trash" {
-			return h.service.MoveMessage(ctx, userID, messageID, f.ID)
+			id = f.ID
+			break
 		}
 	}
-	return nil // no trash folder — do nothing
+	h.trashCache.Store(userID, id)
+	return id, nil
 }
 
 func (h *Handler) maybeVacationReply(ctx context.Context, ev storedEvent, vac *vacationSettings) {
@@ -143,6 +164,7 @@ func (h *Handler) maybeVacationReply(ctx context.Context, ev storedEvent, vac *v
 		}
 	}
 	h.vacationSent.Store(key, now)
+	h.pruneVacationSent(now)
 
 	// Prefer Body/Subject (current webmail format); fall back to legacy Message field.
 	msg := vac.Body
@@ -169,6 +191,16 @@ func (h *Handler) maybeVacationReply(ctx context.Context, ev storedEvent, vac *v
 		Subject:       subject,
 		TextBody:      msg,
 		Transactional: true,
+	})
+}
+
+// pruneVacationSent removes expired entries from vacationSent to prevent unbounded growth.
+func (h *Handler) pruneVacationSent(now time.Time) {
+	h.vacationSent.Range(func(k, v any) bool {
+		if sentAt, ok := v.(time.Time); ok && now.Sub(sentAt) >= vacationCooldown {
+			h.vacationSent.Delete(k)
+		}
+		return true
 	})
 }
 

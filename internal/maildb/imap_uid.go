@@ -52,15 +52,65 @@ func (r *Repository) ListIMAPMailboxes(ctx context.Context, userID string) ([]im
 	if err != nil {
 		return nil, err
 	}
+	if len(folders) == 0 {
+		return nil, nil
+	}
+
+	states, err := r.ensureIMAPMailboxStates(ctx, userID, folders)
+	if err != nil {
+		return nil, err
+	}
+
 	mailboxes := make([]imapgw.Mailbox, 0, len(folders))
 	for _, folder := range folders {
-		state, err := r.EnsureIMAPMailboxState(ctx, userID, folder.ID)
-		if err != nil {
-			return nil, err
+		state, ok := states[folder.ID]
+		if !ok {
+			return nil, fmt.Errorf("imap mailbox state missing for folder %q", folder.ID)
 		}
 		mailboxes = append(mailboxes, imapMailboxFromFolder(folder, state))
 	}
 	return mailboxes, nil
+}
+
+// ensureIMAPMailboxStates upserts imap_mailbox_state rows for all given folders
+// in a single query and returns a map of folderID → IMAPUIDState.
+func (r *Repository) ensureIMAPMailboxStates(ctx context.Context, userID string, folders []Folder) (map[string]IMAPUIDState, error) {
+	folderIDs := make([]string, len(folders))
+	for i, f := range folders {
+		folderIDs[i] = f.ID
+	}
+
+	const query = `
+INSERT INTO imap_mailbox_state (mailbox_id, user_id)
+SELECT id, user_id
+FROM folders
+WHERE user_id = $1::uuid
+  AND id = ANY($2::uuid[])
+ON CONFLICT (mailbox_id) DO UPDATE
+SET updated_at = imap_mailbox_state.updated_at
+RETURNING mailbox_id::text, uidvalidity, uidnext, highest_modseq`
+
+	rows, err := r.db.QueryContext(ctx, query, userID, pq.Array(folderIDs))
+	if err != nil {
+		return nil, fmt.Errorf("ensure imap mailbox states: %w", err)
+	}
+	defer rows.Close()
+
+	states := make(map[string]IMAPUIDState, len(folders))
+	for rows.Next() {
+		var state IMAPUIDState
+		if err := rows.Scan(&state.MailboxID, &state.UIDValidity, &state.UIDNext, &state.HighestModSeq); err != nil {
+			return nil, fmt.Errorf("scan imap mailbox state: %w", err)
+		}
+		if err := imapgw.ValidateUIDState(state); err != nil {
+			return nil, err
+		}
+		states[string(state.MailboxID)] = state
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate imap mailbox states: %w", err)
+	}
+	return states, nil
 }
 
 func (r *Repository) GetIMAPMailbox(ctx context.Context, userID string, mailboxID string) (imapgw.Mailbox, error) {

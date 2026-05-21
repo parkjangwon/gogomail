@@ -314,10 +314,10 @@ func IsValidReportAddress(addr string) bool {
 }
 
 // LookupPolicy queries DNS for TLS-RPT policy at _tlsrpt.domain.
-func LookupPolicy(domain string) (*Policy, error) {
+func LookupPolicy(ctx context.Context, domain string) (*Policy, error) {
 	tlsrptDomain := "_tlsrpt." + domain
 	resolver := net.Resolver{}
-	txts, err := resolver.LookupTXT(context.Background(), tlsrptDomain)
+	txts, err := resolver.LookupTXT(ctx, tlsrptDomain)
 	if err != nil {
 		return nil, fmt.Errorf("dns lookup: %w", err)
 	}

@@ -2,6 +2,7 @@ package apimeter
 
 import (
 	"bytes"
+	"context"
 	"crypto/ed25519"
 	"crypto/hmac"
 	"crypto/sha256"
@@ -197,7 +198,9 @@ func (s RemoteEd25519ExportManifestSigner) SignExportManifestDigest(digestHex st
 	if err != nil {
 		return ExportManifestSignature{}, fmt.Errorf("encode remote signer request: %w", err)
 	}
-	req, err := http.NewRequest(http.MethodPost, endpoint, bytes.NewReader(body))
+	reqCtx, reqCancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer reqCancel()
+	req, err := http.NewRequestWithContext(reqCtx, http.MethodPost, endpoint, bytes.NewReader(body))
 	if err != nil {
 		return ExportManifestSignature{}, fmt.Errorf("create remote signer request: %w", err)
 	}
