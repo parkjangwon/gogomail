@@ -24,15 +24,15 @@ func TestQuotaReconciliationScopedQueriesUseDirectPredicates(t *testing.T) {
 		},
 		"update users domain": {
 			query: quotaCorrectionUpdateUsersSQL("domain"),
-			want:  []string{"AND user_actual.domain_id::text = $1"},
+			want:  []string{"AND user_actual.domain_id = $1::uuid"},
 		},
 		"update domains user": {
 			query: quotaCorrectionUpdateDomainsSQL("user"),
-			want:  []string{"EXISTS (SELECT 1 FROM users u WHERE u.id::text = $1 AND u.domain_id = d.id)"},
+			want:  []string{"EXISTS (SELECT 1 FROM users u WHERE u.id = $1::uuid AND u.domain_id = d.id)"},
 		},
 		"update companies user": {
 			query: quotaCorrectionUpdateCompaniesSQL("user"),
-			want:  []string{"WHERE u.id::text = $1 AND d.company_id = c.id"},
+			want:  []string{"WHERE u.id = $1::uuid AND d.company_id = c.id"},
 		},
 	}
 
@@ -42,6 +42,7 @@ func TestQuotaReconciliationScopedQueriesUseDirectPredicates(t *testing.T) {
 				"$1 = '' OR",
 				"AND ($1 = '' OR",
 				"` = '",
+				"::text = $1",
 			} {
 				if strings.Contains(tt.query, forbidden) {
 					t.Fatalf("query contains optional scope OR %q:\n%s", forbidden, tt.query)

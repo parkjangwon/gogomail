@@ -1,6 +1,12 @@
 # gogomail current status
 
-Last updated: 2026-05-21 (SaaS launch hardening continues: audit-log query sargability)
+Last updated: 2026-05-21 (SaaS launch hardening continues: quota maintenance sargability)
+
+## Quota Maintenance UUID Sargability (2026-05-21)
+- Quota reconciliation correction updates now use typed UUID predicates for company/domain/user scoped repairs instead of casting updated table columns to text.
+- Quota alert scanner duplicate checks now compare `quota_alerts` company/user/domain columns with typed UUID values, keeping the recent-alert lookup aligned with quota alert indexes.
+- Regression tests now reject column-side `::text` predicates in quota correction and quota alert scan SQL paths.
+- Verification target: `go test -count=1 ./internal/maildb -run 'Quota(Reconciliation|Alert)'`.
 
 ## Audit Log UUID Filter Sargability (2026-05-21)
 - Audit-log list filters now compare company/domain/user/actor/target UUID columns with typed UUID predicates instead of wrapping indexed columns in `::text`.
