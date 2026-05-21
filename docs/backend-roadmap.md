@@ -6751,3 +6751,8 @@ Target outcome:
       expression as cursor pages and add `id DESC` as a final tie-breaker,
       preventing equal-timestamp inbox and folder pages from drifting while
       staying aligned with existing active-message indexes.
+1849. Runtime config now rejects `GOGOMAIL_FARM_COORDINATOR_BACKEND=noop` in
+      production, validates the farm coordinator backend/heartbeat/visibility
+      settings, and requires Redis address or Sentinel configuration for the
+      Redis coordinator so multi-instance SMTP deployments cannot silently
+      launch without distributed coordination.

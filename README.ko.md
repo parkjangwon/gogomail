@@ -220,6 +220,8 @@ bin/gogomail --migrate --mode=mail-api
 | `GOGOMAIL_REDIS_ADDR` | Redis host와 port |
 | `GOGOMAIL_REDIS_PASSWORD` | Redis 비밀번호, medium/large Docker profile에서 필요 |
 | `GOGOMAIL_REDIS_SENTINEL_ADDRS` / `GOGOMAIL_REDIS_MASTER_NAME` | 선택적 Redis Sentinel failover 설정 |
+| `GOGOMAIL_FARM_COORDINATOR_BACKEND` | SMTP farm coordinator backend, `noop` 또는 `redis`; production에서는 `redis` 필수 |
+| `GOGOMAIL_FARM_COORDINATOR_NODE_ID` / `GOGOMAIL_FARM_COORDINATOR_HEARTBEAT_TTL` / `GOGOMAIL_FARM_COORDINATOR_JOB_VISIBILITY_TIMEOUT` | 분산 SMTP farm node 식별자, heartbeat TTL, delivery job visibility timeout |
 | `GOGOMAIL_STORAGE_BACKEND` | `local`, `nfs`, `minio`, `s3` |
 | `GOGOMAIL_MAILSTORE_ROOT` / `GOGOMAIL_STORAGE_ROOT` | local/NFS 객체 저장소 root. `GOGOMAIL_MAILSTORE_ROOT`가 우선이고 `GOGOMAIL_STORAGE_ROOT`는 deprecated fallback alias |
 | `GOGOMAIL_STORAGE_BACKEND_COMPAT_LABELS` | 저장소 migration 중 capability에 노출할 compatibility label |

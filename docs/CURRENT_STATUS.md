@@ -1,6 +1,12 @@
 # gogomail current status
 
-Last updated: 2026-05-21 (SaaS launch hardening continues: legacy message list stable ordering)
+Last updated: 2026-05-21 (SaaS launch hardening continues: production farm coordinator guard)
+
+## Production Farm Coordinator Guard (2026-05-21)
+- Runtime config now validates `GOGOMAIL_FARM_COORDINATOR_BACKEND` as `noop|redis`, rejects nonpositive heartbeat/visibility timeouts, and requires Redis address or Sentinel configuration when Redis coordination is selected.
+- Production startup now rejects `GOGOMAIL_FARM_COORDINATOR_BACKEND=noop`, preventing multi-instance SMTP deployments from silently running without distributed coordination.
+- README and Docker environment examples document the farm coordinator backend, node identity, heartbeat TTL, and job visibility timeout.
+- Verification target: `go test -count=1 ./internal/config -run 'FarmCoordinator|Production|DefaultConfig'`.
 
 ## Legacy Message List Stable Ordering (2026-05-21)
 - Legacy Mail API message list helpers now order by the same `received_at/sent_at/draft_updated_at/created_at` message timestamp expression used by cursor pages.

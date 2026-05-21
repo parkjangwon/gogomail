@@ -277,6 +277,14 @@ func applyYAMLConfigValue(cfg *Config, key string, value any) error {
 		return setYAMLDuration(value, &cfg.DeliveryDomainBackoffBaseDelay, key)
 	case "delivery_domain_backoff_max_delay":
 		return setYAMLDuration(value, &cfg.DeliveryDomainBackoffMaxDelay, key)
+	case "farm_coordinator_backend":
+		return setYAMLString(value, &cfg.FarmCoordinatorBackend, key)
+	case "farm_coordinator_node_id":
+		return setYAMLString(value, &cfg.FarmCoordinatorNodeID, key)
+	case "farm_coordinator_heartbeat_ttl":
+		return setYAMLDuration(value, &cfg.FarmCoordinatorHeartbeatTTL, key)
+	case "farm_coordinator_job_visibility_timeout":
+		return setYAMLDuration(value, &cfg.FarmCoordinatorJobVisibilityTimeout, key)
 	case "delivery_smarthost":
 		return setYAMLString(value, &cfg.DeliverySmartHost, key)
 	case "delivery_smarthost_port":

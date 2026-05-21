@@ -692,6 +692,22 @@ func (c Config) Validate() error {
 	if c.DeliveryThrottleEnabled && c.DeliveryDefaultConcurrency == 0 && len(c.DeliveryFarmConcurrency) == 0 && len(c.DeliveryDomainConcurrency) == 0 {
 		return fmt.Errorf("delivery throttling requires at least one default, farm, or domain concurrency limit")
 	}
+	farmCoordinatorBackend := strings.ToLower(strings.TrimSpace(c.FarmCoordinatorBackend))
+	if err := validateEnum("GOGOMAIL_FARM_COORDINATOR_BACKEND", farmCoordinatorBackend, "noop", "redis"); err != nil {
+		return err
+	}
+	if production && farmCoordinatorBackend == "noop" {
+		return fmt.Errorf("GOGOMAIL_FARM_COORDINATOR_BACKEND must be redis in production")
+	}
+	if farmCoordinatorBackend == "redis" && strings.TrimSpace(c.RedisAddr) == "" && len(c.RedisSentinelAddrs) == 0 {
+		return fmt.Errorf("GOGOMAIL_REDIS_ADDR or GOGOMAIL_REDIS_SENTINEL_ADDRS is required when GOGOMAIL_FARM_COORDINATOR_BACKEND=redis")
+	}
+	if c.FarmCoordinatorHeartbeatTTL <= 0 {
+		return fmt.Errorf("GOGOMAIL_FARM_COORDINATOR_HEARTBEAT_TTL must be positive")
+	}
+	if c.FarmCoordinatorJobVisibilityTimeout <= 0 {
+		return fmt.Errorf("GOGOMAIL_FARM_COORDINATOR_JOB_VISIBILITY_TIMEOUT must be positive")
+	}
 	if c.DeliveryConsumerCount <= 0 {
 		return fmt.Errorf("GOGOMAIL_DELIVERY_CONSUMER_COUNT must be positive")
 	}
