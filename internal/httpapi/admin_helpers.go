@@ -1145,7 +1145,7 @@ func handleLDAPSync(w http.ResponseWriter, r *http.Request, service AdminService
 	result, err := service.TriggerLDAPSync(r.Context(), id, syncType)
 	if err != nil {
 		if errors.Is(err, ldapidp.ErrSyncNotConfigured) {
-			writeError(w, http.StatusNotImplemented, err.Error())
+			writeError(w, http.StatusNotImplemented, "ldap sync is not configured")
 			return
 		}
 		writeError(w, http.StatusBadRequest, err.Error())
@@ -1377,7 +1377,7 @@ func handleRDBMSSync(w http.ResponseWriter, r *http.Request, service AdminServic
 	result, err := service.TriggerRDBMSSync(r.Context(), id, syncType)
 	if err != nil {
 		if errors.Is(err, rdbmsidp.ErrSyncNotConfigured) || errors.Is(err, rdbmsidp.ErrMembershipSyncUnsupported) {
-			writeError(w, http.StatusNotImplemented, err.Error())
+			writeError(w, http.StatusNotImplemented, "rdbms sync is not configured")
 			return
 		}
 		writeError(w, http.StatusBadRequest, err.Error())

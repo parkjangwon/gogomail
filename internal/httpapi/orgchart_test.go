@@ -333,7 +333,10 @@ func TestSyncLDAPEndpointReportsUnconfiguredAdapter(t *testing.T) {
 	if w.Code != http.StatusNotImplemented {
 		t.Fatalf("expected 501, got %d, body = %s", w.Code, w.Body.String())
 	}
-	if !bytes.Contains(w.Body.Bytes(), []byte(orgchart.ErrOrgChartSyncNotConfigured.Error())) {
-		t.Fatalf("response body = %q, want not-configured error", w.Body.String())
+	if bytes.Contains(w.Body.Bytes(), []byte(orgchart.ErrOrgChartSyncNotConfigured.Error())) {
+		t.Fatalf("response body = %q, leaked backend sentinel error", w.Body.String())
+	}
+	if !bytes.Contains(w.Body.Bytes(), []byte("organization sync is not configured")) {
+		t.Fatalf("response body = %q, want public not-configured error", w.Body.String())
 	}
 }

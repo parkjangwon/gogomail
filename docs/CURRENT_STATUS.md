@@ -2,6 +2,11 @@
 
 Last updated: 2026-05-21 (SaaS launch hardening continues: production public URL guardrails)
 
+## Admin Sync Error Contract Hardening (2026-05-21)
+- Admin LDAP/RDBMS/domain organization sync endpoints now keep HTTP 501 for unavailable integrations while returning fixed public messages instead of backend sentinel error strings.
+- Shared JSON error responses now classify HTTP 501 as `not_implemented` rather than the generic `internal_error` code, making client handling less ambiguous.
+- Verification target: `go test -count=1 ./internal/httpapi -run 'TestAdmin(LDAPSyncUnavailableReturnsNotImplemented|RDBMSSyncUnavailableReturnsNotImplemented)|TestSyncLDAPEndpointReportsUnconfiguredAdapter'`.
+
 ## Production Public URL Guardrails (2026-05-21)
 - Production config validation now rejects empty, HTTP, localhost, loopback, or unspecified `GOGOMAIL_PUBLIC_BASE_URL`, preventing system-email links and tracking URLs from pointing at local development origins.
 - Open-tracking pixel injection no longer falls back to `http://localhost:8080` when the public base URL is missing; it skips pixel generation instead of emitting unsafe URLs.

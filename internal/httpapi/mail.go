@@ -2858,6 +2858,8 @@ func writeError(w http.ResponseWriter, status int, message string) {
 		code = "insufficient_storage"
 	case http.StatusRequestedRangeNotSatisfiable:
 		code = "range_not_satisfiable"
+	case http.StatusNotImplemented:
+		code = "not_implemented"
 	}
 	writeJSON(w, status, map[string]any{
 		"error": map[string]any{
