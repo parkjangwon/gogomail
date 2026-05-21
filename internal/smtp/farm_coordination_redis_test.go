@@ -2,11 +2,29 @@ package smtpd
 
 import (
 	"context"
+	"os"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/redis/go-redis/v9"
 )
+
+func TestRedisFarmCoordinatorHealthyNodeLookupAvoidsKeysCommand(t *testing.T) {
+	t.Parallel()
+
+	source, err := os.ReadFile("farm_coordination_redis.go")
+	if err != nil {
+		t.Fatalf("read redis farm coordinator source: %v", err)
+	}
+	text := string(source)
+	if strings.Contains(text, ".Keys(ctx") || strings.Contains(text, " KEYS ") {
+		t.Fatalf("Redis farm coordinator healthy-node lookup must not use blocking KEYS command")
+	}
+	if !strings.Contains(text, ".Scan(ctx") {
+		t.Fatalf("Redis farm coordinator healthy-node lookup should use SCAN")
+	}
+}
 
 func redisClientForFarmTest(t *testing.T) *redis.Client {
 	t.Helper()

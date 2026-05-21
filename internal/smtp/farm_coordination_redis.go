@@ -95,19 +95,32 @@ func (r *RedisFarmCoordinator) UnregisterNode(ctx context.Context, nodeID string
 // GetHealthyNodes returns all nodes that still have a valid TTL (i.e., have sent a heartbeat recently).
 func (r *RedisFarmCoordinator) GetHealthyNodes(ctx context.Context) ([]FarmNode, error) {
 	pattern := r.opts.KeyPrefix + ":node:*"
-	keys, err := r.client.Keys(ctx, pattern).Result()
+	keys, err := r.scanNodeKeys(ctx, pattern)
 	if err != nil {
+		return nil, err
+	}
+	if len(keys) == 0 {
+		return []FarmNode{}, nil
+	}
+
+	pipe := r.client.Pipeline()
+	ttlCommands := make([]*redis.DurationCmd, 0, len(keys))
+	hashCommands := make([]*redis.MapStringStringCmd, 0, len(keys))
+	for _, key := range keys {
+		ttlCommands = append(ttlCommands, pipe.TTL(ctx, key))
+		hashCommands = append(hashCommands, pipe.HGetAll(ctx, key))
+	}
+	if _, err := pipe.Exec(ctx); err != nil && err != redis.Nil {
 		return nil, fmt.Errorf("get healthy farm nodes: %w", err)
 	}
 
 	nodes := make([]FarmNode, 0, len(keys))
-	for _, key := range keys {
-		// Check TTL — only include nodes with remaining TTL
-		ttl, err := r.client.TTL(ctx, key).Result()
+	for i := range keys {
+		ttl, err := ttlCommands[i].Result()
 		if err != nil || ttl <= 0 {
 			continue
 		}
-		fields, err := r.client.HGetAll(ctx, key).Result()
+		fields, err := hashCommands[i].Result()
 		if err != nil || len(fields) == 0 {
 			continue
 		}
@@ -118,6 +131,23 @@ func (r *RedisFarmCoordinator) GetHealthyNodes(ctx context.Context) ([]FarmNode,
 		nodes = append(nodes, node)
 	}
 	return nodes, nil
+}
+
+func (r *RedisFarmCoordinator) scanNodeKeys(ctx context.Context, pattern string) ([]string, error) {
+	const scanCount = 100
+	var cursor uint64
+	keys := make([]string, 0)
+	for {
+		batch, next, err := r.client.Scan(ctx, cursor, pattern, scanCount).Result()
+		if err != nil {
+			return nil, fmt.Errorf("scan healthy farm nodes: %w", err)
+		}
+		keys = append(keys, batch...)
+		if next == 0 {
+			return keys, nil
+		}
+		cursor = next
+	}
 }
 
 func farmNodeFromHash(fields map[string]string) FarmNode {
@@ -385,8 +415,8 @@ func (r *RedisFarmCoordinator) GetQueueStats(ctx context.Context) (map[string]in
 		nodeCount = len(nodes)
 	}
 	return map[string]interface{}{
-		"queue_length": pendingCount,
-		"mode":         "redis",
+		"queue_length":  pendingCount,
+		"mode":          "redis",
 		"healthy_nodes": nodeCount,
 	}, nil
 }
