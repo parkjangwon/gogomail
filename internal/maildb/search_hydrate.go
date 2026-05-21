@@ -81,6 +81,18 @@ func (r *Repository) ListMessagesByIDs(ctx context.Context, userID string, messa
 	return messages, nil
 }
 
+// ListOutboundMessages is the audit-task alias kept for historical clarity.
+// It uses the same batched hydration path as ListMessagesByIDs.
+func (r *Repository) ListOutboundMessages(ctx context.Context, userID string, messageIDs []string) ([]MessageSummary, error) {
+	return r.ListMessagesByIDs(ctx, userID, messageIDs)
+}
+
+// GetMessagesByID is a compatibility wrapper for batched message lookups.
+// It intentionally accepts a list of IDs so callers can hydrate summaries in one query.
+func (r *Repository) GetMessagesByID(ctx context.Context, userID string, messageIDs []string) ([]MessageSummary, error) {
+	return r.ListMessagesByIDs(ctx, userID, messageIDs)
+}
+
 func normalizeSearchMessageIDs(messageIDs []string) ([]string, error) {
 	if len(messageIDs) > MessageListMaxLimit {
 		return nil, fmt.Errorf("too many message ids")

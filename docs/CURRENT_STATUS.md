@@ -2,6 +2,14 @@
 
 Last updated: 2026-05-21 (SaaS launch hardening continues: Redis farm node discovery)
 
+## Message Storage & Delivery Optimization (2026-05-21, TASK-090)
+- `ListOutboundMessages`와 `GetMessagesByID`가 `ListMessagesByIDs` 배치 hydration 경로를 그대로 재사용하도록 래퍼로 정리되어 N+1 후보 경로의 명칭 불일치가 제거됨 (`internal/maildb/search_hydrate.go`).
+- 메시지 수신자 필터 경로에 `status='active'` 대상 `pg_trgm` 인덱스(migrations `0138_message_active_recipient_trgm_indexes.sql`)가 반영되어 수신자-heavy 검색 경로의 선별 성능이 개선됨.
+- Phase 1/2/3의 나머지 대규모 성능 검증은 운영/스테이징 PostgreSQL에서 `EXPLAIN ANALYZE` 기반 쿼리 스냅샷 수집 단계로 이어질 예정이며, 현재 코어 최적화 및 벤치 마커는 반영된 상태.
+- 운영/스테이징 검증 가이드: `TASK_090_DATABASE_URL='<pgsql>' scripts/verify-task-090-message-explain.sh`  
+  (`/tmp/task090-explain-YYYYMMDD-HHMMSS.log`에 각 쿼리의 EXPLAIN ANALYZE 결과 저장)
+- Verification: `go test ./internal/maildb` and `go test ./internal/delivery`.
+
 ## Redis Farm Node Discovery Scaling (2026-05-21)
 - Redis-backed SMTP farm healthy-node discovery now uses cursor-based `SCAN` instead of the blocking `KEYS` command for `node:*` lookup.
 - Node TTL and hash reads are pipelined after key discovery, reducing per-node Redis round trips while preserving TTL-based health filtering.
@@ -553,6 +561,7 @@ Last updated: 2026-05-21 (SaaS launch hardening continues: Redis farm node disco
 - Mail API message list SQL generation now builds conditions directly from requested folder, cursor, read/starred, and attachment filters instead of performing repeated template `strings.Replace` passes on optional-OR SQL.
 - Mail API thread list SQL generation now uses direct active-message and thread-summary condition assembly, removing the repeated template rewrites for folder, cursor, read/starred, and attachment filters.
 - Mail API active-message and draft search SQL generation now directly appends requested folder, attachment, and cursor predicates, avoiding repeated optional-OR template rewrites on search requests.
+- Active-message recipient JSONB search now uses `status='active'` partial trigram expression indexes for `to_addrs`, `cc_addrs`, and `bcc_addrs` text casts to make broad `ILIKE` recipient filters sargable for `search` paths (`0138_message_active_recipient_trgm_indexes.sql`).
 - **Phase 2 (Bulk Delivery Batching)** In progress / partially implemented:
   - Same-domain recipient batching, batch-size runtime tuning, route-pool observability, and batch-vs-individual benchmarks are implemented.
   - Remaining work should focus on database round-trip reduction and end-to-end bulk delivery soak coverage.

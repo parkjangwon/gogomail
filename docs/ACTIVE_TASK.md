@@ -268,11 +268,17 @@ Go Backend (`internal/`):
 
 **TASK-090 진행 중: Message Storage & Delivery Optimization**
 
+TASK-090 검증 운영 가이드:
+- 운영/스테이징에서 메시지 조회 성능 스냅샷은 다음 스크립트로 수집:
+  - `TASK_090_DATABASE_URL='<pgsql>' scripts/verify-task-090-message-explain.sh`
+  - 기본 로그 파일: `/tmp/task090-explain-YYYYMMDD-HHMMSS.log`
+- 스크립트는 `LIST BY IDS` hydration / `LIST IN FOLDER` / `SEARCH` 경로에 대한 `EXPLAIN ANALYZE`를 모두 수집한다.
+
 구현 대상:
-- [ ] EXPLAIN ANALYZE로 메시지 조회 쿼리 성능 분석
+- [ ] EXPLAIN ANALYZE로 메시지 조회 쿼리 성능 분석 (운영/스테이징 PostgreSQL에서 추적 실행 대기)
 - [x] 누락된 인덱스 생성 (outbox + delivery_attempts + user address 조회 경로): `0113_delivery_attempt_indexes.sql`, `0114_outbox_query_indexes.sql`, `0122_user_address_lookup_indexes.sql`
-- [ ] ListOutboundMessages 최적화 (N+1 제거)
-- [ ] GetMessagesByID 배치 조회 함수 작성
+- [x] ListOutboundMessages 최적화 (N+1 제거): legacy 메서드를 `ListMessagesByIDs` 배치 hydration 경로에 위임
+- [x] GetMessagesByID 배치 조회 함수 작성: `GetMessagesByID`를 `ListMessagesByIDs` 래퍼로 구현
 - [x] 벤치마크 프레임워크 (메시지 1000+, 10000+ 시나리오)
 - [x] 배송 기록 경로 벤치마크: `BenchmarkRecordAttemptBatchBulkVsIndividual`로 bulk vs individual recorder 호출 수/할당 추적
 - [x] 테스트 검증: `go test ./...` 통과
@@ -300,6 +306,7 @@ Go Backend (`internal/`):
 - `SearchMessages`도 folder 필터가 있을 때만 `folder_id = $3::uuid` 조건을 추가하고, 전체 메일 검색에서는 folder predicate를 제거해 메시지 검색 조회의 optional `OR` predicate를 줄임
 - `SearchMessages`/`SearchDrafts`의 attachment 필터도 제공된 경우에만 typed boolean predicate를 추가하고, attachment-agnostic 검색에서는 predicate를 제거해 optional `OR` predicate를 줄임
 - `SearchMessages`/`SearchDrafts`의 cursor predicate도 커서가 있을 때만 tuple comparison을 추가하고, 첫 페이지 검색에서는 predicate를 제거해 pagination optional `OR`를 줄임
+- 메시지 검색의 수신자 필터(`to_addrs`, `cc_addrs`, `bcc_addrs`)도 `jsonb::text` 단일 `ILIKE` 경로에 맞춘 `pg_trgm` expression 인덱스(`status='active'`)를 추가해 대량 수신자 검색에서 메시지 검색 latency를 줄임 (`0138_message_active_recipient_trgm_indexes.sql`)
 - thread list의 read/starred/attachment 필터도 제공된 경우에만 직접 predicate를 추가하고, 필터 없는 목록에서는 nullable boolean optional `OR` predicate를 제거함
 - thread list cursor predicate도 커서가 있을 때만 newest/oldest 방향에 맞는 tuple comparison을 추가하고, 첫 페이지 목록에서는 pagination optional `OR`를 제거함
 - IMAP message listing도 first-page/cursor-page 쿼리를 분리해 첫 페이지에서는 UID cursor predicate를 제거하고, cursor 페이지에서는 assigned UID 후보와 lazy UID-assignment 후보를 `UNION ALL`로 나눠 nullable optional `OR` predicate를 제거함

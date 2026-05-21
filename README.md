@@ -100,6 +100,7 @@ pnpm --dir apps/console exec vitest run src/lib/__tests__/adminProxy.test.ts
 pnpm --dir apps/console audit --prod
 pnpm --dir apps/docs type-check
 pnpm --dir apps/docs build
+TASK_090_DATABASE_URL='<pg_url>' scripts/verify-task-090-message-explain.sh
 ```
 
 ---
