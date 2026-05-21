@@ -141,6 +141,8 @@ func applyYAMLConfigValue(cfg *Config, key string, value any) error {
 		return setYAMLString(value, &cfg.AuthJWTSecret, key)
 	case "admin_token":
 		return setYAMLString(value, &cfg.AdminToken, key)
+	case "public_base_url":
+		return setYAMLString(value, &cfg.PublicBaseURL, key)
 	case "storage_backend":
 		return setYAMLString(value, &cfg.StorageBackend, key)
 	case "storage_backend_compat_labels":

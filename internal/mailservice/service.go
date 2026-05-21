@@ -202,13 +202,10 @@ func (s *Service) WithQuotaAlertEmitter(emitter maildb.QuotaWarningEmitterInterf
 
 // WithTrackingRepo enables open-tracking pixel injection on outgoing mail.
 // publicBaseURL is the externally reachable base URL of this server
-// (e.g. "https://mail.example.com"). If empty, "http://localhost:8080" is used.
+// (e.g. "https://mail.example.com"). If empty, open-tracking pixels are skipped.
 func (s *Service) WithTrackingRepo(repo TrackingRepository, publicBaseURL string) *Service {
 	s.trackingRepo = repo
 	s.publicBaseURL = strings.TrimRight(strings.TrimSpace(publicBaseURL), "/")
-	if s.publicBaseURL == "" {
-		s.publicBaseURL = "http://localhost:8080"
-	}
 	return s
 }
 
@@ -2662,7 +2659,7 @@ func (s *Service) SendText(ctx context.Context, req SendTextRequest) (SendTextRe
 	}
 	var pixels []pixelEntry
 	finalHTMLBody := req.HTMLBody
-	if req.TrackOpens && s.trackingRepo != nil {
+	if req.TrackOpens && s.trackingRepo != nil && s.publicBaseURL != "" {
 		allRecipients := make([]outbound.Address, 0, len(req.To)+len(req.Cc)+len(req.Bcc))
 		allRecipients = append(allRecipients, req.To...)
 		allRecipients = append(allRecipients, req.Cc...)

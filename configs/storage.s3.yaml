@@ -6,6 +6,8 @@ auth_jwt_secret: CHANGE_ME_JWT_SECRET
 admin_token: CHANGE_ME_ADMIN_TOKEN
 # Required in production — sslmode=disable is blocked. Set a proper connection string.
 database_url: postgres://gogomail:CHANGE_ME_DB_PASSWORD@localhost:5432/gogomail?sslmode=require
+# Required in production — used for system email links and tracking pixels.
+public_base_url: https://mail.example.com
 submission_allow_insecure_auth: false
 imap_allow_insecure_auth: false
 caldav_allow_insecure_auth: false

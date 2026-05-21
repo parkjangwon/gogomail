@@ -3018,6 +3018,15 @@ type fakeRepository struct {
 	storeUploadSessionBodyErr      error
 }
 
+type fakeTrackingRepository struct {
+	pixels []maildb.TrackingPixel
+}
+
+func (f *fakeTrackingRepository) CreateTrackingPixels(_ context.Context, pixels []maildb.TrackingPixel) error {
+	f.pixels = append(f.pixels, pixels...)
+	return nil
+}
+
 type fakeSubmissionAuthenticator struct {
 	user     smtpd.SubmissionUser
 	username string
@@ -3876,6 +3885,81 @@ func TestSendTextStoresOutgoingMessage(t *testing.T) {
 	}
 	if repo.lastOutgoing.ComposeIntent != "new" || repo.lastOutgoing.To[0].Email != "user@example.net" || repo.lastOutgoing.To[0].Name != "User" || !repo.lastOutgoing.HasAttachment {
 		t.Fatalf("lastOutgoing = %+v", repo.lastOutgoing)
+	}
+}
+
+func TestSendTextSkipsOpenTrackingWhenPublicBaseURLMissing(t *testing.T) {
+	t.Parallel()
+
+	store := storage.NewLocalStore(t.TempDir())
+	repo := &fakeRepository{}
+	tracking := &fakeTrackingRepository{}
+	service := New(repo, store).WithTrackingRepo(tracking, "")
+
+	_, err := service.SendText(context.Background(), SendTextRequest{
+		UserID:     "user-1",
+		To:         []outbound.Address{{Email: "user@example.net"}},
+		Subject:    "hello",
+		TextBody:   "body",
+		HTMLBody:   "<html><body><p>body</p></body></html>",
+		TrackOpens: true,
+	})
+	if err != nil {
+		t.Fatalf("SendText returned error: %v", err)
+	}
+	if len(tracking.pixels) != 0 {
+		t.Fatalf("tracking pixels = %+v, want none without public base URL", tracking.pixels)
+	}
+	body, err := store.Get(context.Background(), repo.lastOutgoing.StoragePath)
+	if err != nil {
+		t.Fatalf("Get stored message returned error: %v", err)
+	}
+	defer body.Close()
+	raw, err := io.ReadAll(body)
+	if err != nil {
+		t.Fatalf("ReadAll returned error: %v", err)
+	}
+	if strings.Contains(string(raw), "http://localhost:8080/t/") || strings.Contains(string(raw), `<img src="/t/`) {
+		t.Fatalf("stored message contains unsafe tracking URL:\n%s", raw)
+	}
+}
+
+func TestSendTextOpenTrackingUsesConfiguredPublicBaseURL(t *testing.T) {
+	t.Parallel()
+
+	store := storage.NewLocalStore(t.TempDir())
+	repo := &fakeRepository{}
+	tracking := &fakeTrackingRepository{}
+	service := New(repo, store).WithTrackingRepo(tracking, " https://mail.example.com/ ")
+
+	_, err := service.SendText(context.Background(), SendTextRequest{
+		UserID:     "user-1",
+		To:         []outbound.Address{{Email: "user@example.net"}},
+		Subject:    "hello",
+		TextBody:   "body",
+		HTMLBody:   "<html><body><p>body</p></body></html>",
+		TrackOpens: true,
+	})
+	if err != nil {
+		t.Fatalf("SendText returned error: %v", err)
+	}
+	if len(tracking.pixels) != 1 || tracking.pixels[0].RecipientEmail != "user@example.net" {
+		t.Fatalf("tracking pixels = %+v, want one recipient pixel", tracking.pixels)
+	}
+	body, err := store.Get(context.Background(), repo.lastOutgoing.StoragePath)
+	if err != nil {
+		t.Fatalf("Get stored message returned error: %v", err)
+	}
+	defer body.Close()
+	raw, err := io.ReadAll(body)
+	if err != nil {
+		t.Fatalf("ReadAll returned error: %v", err)
+	}
+	if !strings.Contains(string(raw), "https://mail.example.com/t/") {
+		t.Fatalf("stored message missing configured tracking URL:\n%s", raw)
+	}
+	if strings.Contains(string(raw), "https://mail.example.com//t/") {
+		t.Fatalf("stored message contains double-slash tracking URL:\n%s", raw)
 	}
 }
 
