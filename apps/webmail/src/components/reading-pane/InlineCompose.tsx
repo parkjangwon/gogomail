@@ -71,6 +71,7 @@ export function InlineCompose({
       Image,
     ],
     content: sourceText ? buildInlineQuoteHTML(intent, sourceText) : '<p></p>',
+    immediatelyRender: false,
     autofocus: 'start',
   });
 

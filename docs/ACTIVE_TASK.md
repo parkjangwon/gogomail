@@ -178,6 +178,7 @@
 - Backend startup now honors `APP_MODE` when `--mode` is absent, keeps `--mode` precedence, and the README/env docs now document the same mode and storage-root precedence contract operators actually get.
 - Admin routes now fail closed outside explicit `development`/`test` when no static token or JWT token manager is configured, including standalone audit-log route registration.
 - Console and webmail Next.js proxy routes now require explicit `GOGOMAIL_BACKEND_URL` instead of silently defaulting to `http://localhost:8080` in production-capable paths.
+- Frontend release verification now runs browser-only webmail/console E2E plus production builds without a live backend by using scoped local session/API stubs; `GOGOMAIL_FRONTEND_E2E=1 GOGOMAIL_FRONTEND_BUILD=1 ./scripts/verify-frontend-release.sh` passed.
 - Outbox relay claim selection now orders candidate and locked rows by `created_at, id`, making same-timestamp work claims deterministic across workers.
 - Password-reset token issuance now runs on a bounded background context after request acceptance, so client disconnects do not cancel token persistence or best-effort reset email dispatch.
 - Mail API bearer-token verification failures now return a fixed public error, preventing token parser/signature/expiry details from leaking to clients.

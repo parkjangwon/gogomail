@@ -14,6 +14,7 @@
 - Production validation now rejects local `GOGOMAIL_SMTP_DOMAIN` and `GOGOMAIL_DELIVERY_SMTP_HELLO` values, preventing SMTP/DSN/TLS-RPT identities from launching with development hostnames.
 - SCIM internal errors now return fixed public 500 details instead of backend/database error text.
 - Mail/Admin auxiliary HTTP, OrgChart, Drive internal public-link, CalDAV/CardDAV internal XML/path, SSO verifier, and POP3 internal failure paths now use fixed public error text instead of raw backend/runtime errors.
+- Frontend release verification now passes full local type-check, browser E2E, and production-build gates for webmail and console without a live backend, using scoped E2E auth/API stubs instead of production fallbacks.
 - Admin LDAP/RDBMS/organization sync unavailable responses now use fixed public 501 messages and the shared `not_implemented` error code instead of exposing backend sentinel error text.
 - RDBMS sync conflict listing now supports opaque `(created_at, id)` cursor pagination and adds conflict seek indexes for all-conflict and unresolved-only views, reducing deep-page admin scan cost.
 - LDAP sync conflict listing now supports opaque `(created_at, id)` cursor pagination and adds conflict seek indexes for domain, unresolved-only, and sync-run views, reducing deep-page admin scan cost.

@@ -2,6 +2,7 @@ import { test, expect } from '@playwright/test';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { loginAsSeedUser } from './helpers';
 
 function makeTempFile(name: string, sizeBytes: number): string {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'gogomail-drive-upload-'));
@@ -20,11 +21,7 @@ test.describe('Drive upload queue', () => {
   test.setTimeout(120_000);
 
   test('accepts three files in one batch and shows them in the modal', async ({ page }) => {
-    await page.goto('/login');
-    await page.getByLabel('이메일').fill('pjw@parkjw.org');
-    await page.getByLabel('비밀번호').fill('pass1234');
-    await page.getByRole('button', { name: '로그인' }).click();
-    await page.waitForURL(/\/mail/, { timeout: 15_000 });
+    await loginAsSeedUser(page);
 
     await page.getByRole('button', { name: '드라이브' }).click();
     await expect(page.getByRole('button', { name: '업로드' }).or(page.getByRole('button', { name: /업로드 창/ }))).toBeVisible();
@@ -51,11 +48,7 @@ test.describe('Drive upload queue', () => {
   });
 
   test('accepts a multi-file drop as a single batch', async ({ page }) => {
-    await page.goto('/login');
-    await page.getByLabel('이메일').fill('pjw@parkjw.org');
-    await page.getByLabel('비밀번호').fill('pass1234');
-    await page.getByRole('button', { name: '로그인' }).click();
-    await page.waitForURL(/\/mail/, { timeout: 15_000 });
+    await loginAsSeedUser(page);
 
     await page.getByRole('button', { name: '드라이브' }).click();
 
@@ -80,11 +73,7 @@ test.describe('Drive upload queue', () => {
   });
 
   test('accepts multi-file drops while the upload modal is open', async ({ page }) => {
-    await page.goto('/login');
-    await page.getByLabel('이메일').fill('pjw@parkjw.org');
-    await page.getByLabel('비밀번호').fill('pass1234');
-    await page.getByRole('button', { name: '로그인' }).click();
-    await page.waitForURL(/\/mail/, { timeout: 15_000 });
+    await loginAsSeedUser(page);
 
     await page.getByRole('button', { name: '드라이브' }).click();
 
@@ -114,11 +103,7 @@ test.describe('Drive upload queue', () => {
   });
 
   test('keeps the selected app after refresh', async ({ page }) => {
-    await page.goto('/login');
-    await page.getByLabel('이메일').fill('pjw@parkjw.org');
-    await page.getByLabel('비밀번호').fill('pass1234');
-    await page.getByRole('button', { name: '로그인' }).click();
-    await page.waitForURL(/\/mail/, { timeout: 15_000 });
+    await loginAsSeedUser(page);
 
     const driveTab = page.getByRole('button', { name: '드라이브', exact: true });
     await driveTab.click();

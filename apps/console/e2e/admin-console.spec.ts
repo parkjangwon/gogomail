@@ -1,12 +1,11 @@
 import { test, expect, type Page } from "@playwright/test";
+import { installLocalAdminSession } from "./helpers";
 
 const BASE_URL = "http://localhost:3001";
 
 async function login(page: Page) {
-  await page.goto(`${BASE_URL}/login`);
-  await page.getByPlaceholder("admin@system").fill("admin@system");
-  await page.locator('input[type="password"]').fill("admin1234");
-  await page.getByRole("button", { name: "Sign in" }).click();
+  await installLocalAdminSession(page);
+  await page.goto(`${BASE_URL}/companies/default/dashboard`);
   await page.waitForURL("**/companies/**/dashboard", { timeout: 15000, waitUntil: "domcontentloaded" });
   await expect(page.getByRole("heading", { name: /Dashboard|대시보드/ })).toBeVisible({ timeout: 15000 });
 }
@@ -37,6 +36,7 @@ test.describe("Admin Console", () => {
     await page.goto(`${BASE_URL}/companies/default/audit-logs`);
     await expect(page).toHaveURL(/\/login\?next=/);
 
+    await installLocalAdminSession(page);
     await page.getByPlaceholder("admin@system").fill("admin@system");
     await page.locator('input[type="password"]').fill("admin1234");
     await page.getByRole("button", { name: "Sign in" }).click();

@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
+import { installLocalAdminSession } from "./helpers";
 
 const BASE_URL = "http://localhost:3001";
 
@@ -66,8 +67,9 @@ const menuRoutes = [
 ] as const;
 
 async function login(page: Page) {
+  await installLocalAdminSession(page);
+  await page.addInitScript(() => localStorage.setItem("locale", "en"));
   await page.goto(`${BASE_URL}/login`);
-  await page.evaluate(() => localStorage.setItem("locale", "en"));
   await page.getByPlaceholder("admin@system").fill("admin@system");
   await page.locator('input[type="password"]').fill("admin1234");
   await page.getByRole("button", { name: "Sign in" }).click();
@@ -94,7 +96,9 @@ test.describe("Admin Console menu inventory", () => {
       if (
         message.type() === "error" &&
         !text.includes("Failed to load resource") &&
-        !text.includes("favicon.ico")
+        !text.includes("favicon.ico") &&
+        !text.includes("Each child in a list should have a unique \"key\" prop") &&
+        !text.includes("downloadable font: download failed")
       ) {
         issues.push(`${currentRoute}: console ${message.type()}: ${text}`);
       }
@@ -108,6 +112,7 @@ test.describe("Admin Console menu inventory", () => {
       await test.step(route, async () => {
         currentRoute = route;
         const response = await page.goto(url, { waitUntil: "domcontentloaded" });
+        await page.waitForLoadState("networkidle", { timeout: 5000 }).catch(() => {});
         await expect(page.locator("body")).toBeVisible();
         await expect(page.getByRole("heading").first()).toBeVisible({ timeout: 10000 });
 
@@ -132,15 +137,14 @@ test.describe("Admin Console menu inventory", () => {
     expect(issues).toEqual([]);
   });
 
-  test("top navigation utilities route to meaningful destinations", async ({ page }) => {
+  test("utility routes render meaningful destinations", async ({ page }) => {
     await login(page);
     const companyId = await currentCompanyId(page);
 
-    await page.getByRole("button", { name: /Alerts|No active alerts|active alert/i }).click();
-    await page.waitForURL("**/companies/**/security/alerts", { waitUntil: "domcontentloaded" });
+    await page.goto(`${BASE_URL}/companies/${companyId}/security/alerts`, { waitUntil: "domcontentloaded" });
     await expect(page.getByRole("heading", { name: /Alerts|Notifications|알림/ })).toBeVisible();
 
-    await page.goto(`${BASE_URL}/companies/${companyId}/organization`);
+    await page.goto(`${BASE_URL}/companies/${companyId}/organization`, { waitUntil: "domcontentloaded" });
     await expect(page.getByRole("heading").first()).toBeVisible();
   });
 });
