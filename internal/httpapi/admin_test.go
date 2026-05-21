@@ -135,6 +135,62 @@ func TestLDAPSyncHistoryReturnsPaginationMetadata(t *testing.T) {
 	}
 }
 
+func TestLDAPSyncConflictsReturnsCursorPaginationMetadata(t *testing.T) {
+	t.Parallel()
+
+	firstID := uuid.MustParse("77777777-7777-7777-7777-777777777777")
+	secondID := uuid.MustParse("88888888-8888-8888-8888-888888888888")
+	cursorID := uuid.MustParse("99999999-9999-9999-9999-999999999999")
+	syncRunID := uuid.MustParse("aaaaaaaa-1111-1111-1111-aaaaaaaaaaaa")
+	cursorTime := time.Date(2026, 5, 21, 12, 45, 0, 0, time.UTC)
+	cursor, err := maildb.EncodeLDAPSyncConflictCursor(maildb.LDAPSyncConflictView{ID: cursorID, CreatedAt: cursorTime})
+	if err != nil {
+		t.Fatalf("EncodeLDAPSyncConflictCursor returned error: %v", err)
+	}
+	service := &fakeAdminService{
+		ldapSyncConflicts: []maildb.LDAPSyncConflictView{
+			{ID: firstID, SyncRunID: syncRunID, ConflictType: "duplicate_key", CreatedAt: cursorTime.Add(-time.Minute)},
+			{ID: secondID, SyncRunID: syncRunID, ConflictType: "attr_mismatch", CreatedAt: cursorTime.Add(-2 * time.Minute)},
+		},
+	}
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/domains/domain-1/ldap/conflicts?limit=1&cursor="+cursor+"&sync_run_id="+syncRunID.String()+"&unresolved_only=true", nil)
+	req.SetPathValue("id", "domain-1")
+	rec := httptest.NewRecorder()
+
+	handleLDAPSyncConflicts(rec, req, service)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	var body struct {
+		Conflicts  []maildb.LDAPSyncConflictView `json:"conflicts"`
+		Limit      int                           `json:"limit"`
+		Offset     int                           `json:"offset"`
+		HasMore    bool                          `json:"has_more"`
+		NextCursor string                        `json:"next_cursor"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if body.Limit != 1 || body.Offset != 0 || !body.HasMore || len(body.Conflicts) != 1 || body.NextCursor == "" {
+		t.Fatalf("body = %+v", body)
+	}
+	reqSeen := service.lastLDAPSyncConflictsReq
+	if reqSeen.Limit != 2 || reqSeen.Offset != 0 || reqSeen.SyncRunID != syncRunID.String() || !reqSeen.UnresolvedOnly {
+		t.Fatalf("request = %+v, want limit+1 filtered cursor probe", reqSeen)
+	}
+	if reqSeen.Cursor.ID != cursorID || !reqSeen.Cursor.CreatedAt.Equal(cursorTime) {
+		t.Fatalf("cursor request = %+v", reqSeen.Cursor)
+	}
+	next, err := maildb.DecodeLDAPSyncConflictCursor(body.NextCursor)
+	if err != nil {
+		t.Fatalf("DecodeLDAPSyncConflictCursor(next) returned error: %v", err)
+	}
+	if next.ID != firstID {
+		t.Fatalf("next cursor ID = %s, want %s", next.ID, firstID)
+	}
+}
+
 func TestRDBMSSyncHistoryReturnsCursorPaginationMetadata(t *testing.T) {
 	t.Parallel()
 

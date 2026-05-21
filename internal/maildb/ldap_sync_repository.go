@@ -130,35 +130,15 @@ func (r *Repository) GetLDAPSyncConflicts(ctx context.Context, req LDAPSyncConfl
 		return nil, fmt.Errorf("database handle is required")
 	}
 
-	query := `
-SELECT id, domain_id, sync_run_id, object_type, object_id, ldap_dn, conflict_type,
-       local_value, ldap_value, resolution, resolved_at, created_at
-FROM ldap_sync_conflicts
-WHERE domain_id = $1`
-
-	args := []interface{}{req.DomainID}
-	argNum := 2
-
+	query := buildLDAPSyncConflictsSQL(req)
+	args := []any{req.DomainID, req.Limit}
 	if req.SyncRunID != "" {
-		query += fmt.Sprintf(" AND sync_run_id = $%d", argNum)
 		args = append(args, req.SyncRunID)
-		argNum++
 	}
-
-	if req.UnresolvedOnly {
-		query += " AND resolved_at IS NULL"
-	}
-
-	query += " ORDER BY created_at DESC"
-
-	if req.Limit > 0 {
-		query += fmt.Sprintf(" LIMIT $%d", argNum)
-		args = append(args, req.Limit)
-		argNum++
-	}
-	if req.Offset > 0 {
-		query += fmt.Sprintf(" OFFSET $%d", argNum)
+	if req.Cursor.IsZero() {
 		args = append(args, req.Offset)
+	} else {
+		args = append(args, req.Cursor.CreatedAt, req.Cursor.ID)
 	}
 
 	rows, err := r.db.QueryContext(ctx, query, args...)
@@ -178,6 +158,30 @@ WHERE domain_id = $1`
 		conflicts = append(conflicts, conflict)
 	}
 	return conflicts, rows.Err()
+}
+
+func buildLDAPSyncConflictsSQL(req LDAPSyncConflictListRequest) string {
+	where := "WHERE domain_id = $1"
+	nextArg := 3
+	if req.SyncRunID != "" {
+		where += fmt.Sprintf("\n  AND sync_run_id = $%d::uuid", nextArg)
+		nextArg++
+	}
+	if req.UnresolvedOnly {
+		where += "\n  AND resolved_at IS NULL"
+	}
+	paging := fmt.Sprintf("LIMIT $2 OFFSET $%d", nextArg)
+	if !req.Cursor.IsZero() {
+		where += fmt.Sprintf("\n  AND (created_at, id) < ($%d::timestamptz, $%d::uuid)", nextArg, nextArg+1)
+		paging = "LIMIT $2"
+	}
+	return `
+SELECT id, domain_id, sync_run_id, object_type, object_id, ldap_dn, conflict_type,
+       local_value, ldap_value, resolution, resolved_at, created_at
+FROM ldap_sync_conflicts
+` + where + `
+ORDER BY created_at DESC, id DESC
+` + paging
 }
 
 // ResolveLDAPSyncConflict updates a conflict resolution.

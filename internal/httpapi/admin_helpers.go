@@ -1198,7 +1198,7 @@ func handleLDAPSyncConflicts(w http.ResponseWriter, r *http.Request, service Adm
 	if !rejectBodylessRequestPayload(w, r) {
 		return
 	}
-	if !rejectUnknownQueryKeys(w, r, "unresolved_only", "sync_run_id", "limit", "offset") {
+	if !rejectUnknownQueryKeys(w, r, "unresolved_only", "sync_run_id", "limit", "offset", "cursor") {
 		return
 	}
 	id, ok := parseBoundedAdminPathValue(w, r, "id")
@@ -1218,6 +1218,15 @@ func handleLDAPSyncConflicts(w http.ResponseWriter, r *http.Request, service Adm
 			return
 		}
 	}
+	cursorRaw, ok := singleQueryValue(w, r, "cursor")
+	if !ok {
+		return
+	}
+	cursor, err := maildb.DecodeLDAPSyncConflictCursor(cursorRaw)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid cursor")
+		return
+	}
 	unresolvedOnly := r.URL.Query().Get("unresolved_only") == "true"
 	syncRunID := r.URL.Query().Get("sync_run_id")
 	conflicts, err := service.GetLDAPSyncConflicts(r.Context(), maildb.LDAPSyncConflictListRequest{
@@ -1226,6 +1235,7 @@ func handleLDAPSyncConflicts(w http.ResponseWriter, r *http.Request, service Adm
 		UnresolvedOnly: unresolvedOnly,
 		Limit:          limit + 1,
 		Offset:         offset,
+		Cursor:         cursor,
 	})
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
@@ -1235,7 +1245,15 @@ func handleLDAPSyncConflicts(w http.ResponseWriter, r *http.Request, service Adm
 	if hasMore {
 		conflicts = conflicts[:limit]
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"conflicts": conflicts, "limit": limit, "offset": offset, "has_more": hasMore})
+	nextCursor := ""
+	if hasMore && len(conflicts) > 0 {
+		nextCursor, err = maildb.EncodeLDAPSyncConflictCursor(conflicts[len(conflicts)-1])
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "internal server error")
+			return
+		}
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"conflicts": conflicts, "limit": limit, "offset": offset, "has_more": hasMore, "next_cursor": nextCursor})
 }
 
 func handleResolveLDAPConflict(w http.ResponseWriter, r *http.Request, service AdminService) {
