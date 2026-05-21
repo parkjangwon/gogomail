@@ -21,7 +21,7 @@ func TestListDeliveryAttemptsQueryUsesSargableFilters(t *testing.T) {
 		"WHERE status = $1",
 		"AND attempted_at >= $2",
 		"AND recipient_domain = $3",
-		"AND message_id::text = $4",
+		"AND message_id = $4::uuid",
 		"AND farm = $5",
 		"AND lower(sender) = $6",
 		"ORDER BY attempted_at DESC, id DESC",
@@ -35,6 +35,7 @@ func TestListDeliveryAttemptsQueryUsesSargableFilters(t *testing.T) {
 		"NULLIF",
 		" OR ",
 		"::timestamptz IS NULL",
+		"message_id::text =",
 	} {
 		if strings.Contains(query, forbidden) {
 			t.Fatalf("list delivery attempts query contains non-sargable filter %q:\n%s", forbidden, query)
@@ -64,7 +65,7 @@ func TestDeliveryAttemptStatsQueryUsesSargableFilters(t *testing.T) {
 		"WHERE status = $1",
 		"AND attempted_at >= $2",
 		"AND recipient_domain = $3",
-		"AND message_id::text = $4",
+		"AND message_id = $4::uuid",
 		"AND farm = $5",
 		"AND lower(sender) = $6",
 	} {
@@ -76,6 +77,7 @@ func TestDeliveryAttemptStatsQueryUsesSargableFilters(t *testing.T) {
 		"NULLIF",
 		" OR ",
 		"::timestamptz IS NULL",
+		"message_id::text =",
 	} {
 		if strings.Contains(query, forbidden) {
 			t.Fatalf("delivery attempt stats query contains non-sargable filter %q:\n%s", forbidden, query)

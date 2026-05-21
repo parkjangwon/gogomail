@@ -38,7 +38,7 @@ func TestListDKIMKeysQueryUsesSargableOptionalFilters(t *testing.T) {
 	})
 	for _, want := range []string{
 		"FROM dkim_keys",
-		"WHERE domain_id::text = $1",
+		"WHERE domain_id = $1::uuid",
 		"AND status = $2",
 		"ORDER BY updated_at DESC, id DESC",
 		"LIMIT $3",
@@ -50,6 +50,7 @@ func TestListDKIMKeysQueryUsesSargableOptionalFilters(t *testing.T) {
 	for _, forbidden := range []string{
 		"$1 = '' OR",
 		"$2 = '' OR",
+		"domain_id::text =",
 	} {
 		if strings.Contains(query, forbidden) {
 			t.Fatalf("list dkim keys query contains non-sargable optional filter %q:\n%s", forbidden, query)
