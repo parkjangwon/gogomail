@@ -6746,3 +6746,8 @@ Target outcome:
 1847. Admin quota usage pressure listing now adds `id DESC` after usage ratio
       and `updated_at`, and ships company/domain/user expression indexes that
       match quota-pressure ordering and domain-scoped filters.
+1848. Legacy Mail API message list helpers now order by the same
+      `received_at/sent_at/draft_updated_at/created_at` message timestamp
+      expression as cursor pages and add `id DESC` as a final tie-breaker,
+      preventing equal-timestamp inbox and folder pages from drifting while
+      staying aligned with existing active-message indexes.

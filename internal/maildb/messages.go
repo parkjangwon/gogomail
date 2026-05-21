@@ -518,29 +518,7 @@ func (r *Repository) ListMessages(ctx context.Context, userID string, limit int)
 	}
 	limit = normalizeLimit(limit)
 
-	const query = `
-SELECT
-  m.id::text,
-  m.folder_id::text,
-  m.subject,
-  left(btrim(regexp_replace(left(coalesce(msd.body_text, ''), 2000), '[[:space:]]+', ' ', 'g')), 280) AS preview,
-  m.from_addr,
-  m.from_name,
-  COALESCE(m.received_at, m.created_at),
-  m.size,
-  m.has_attachment,
-  COALESCE((m.flags->>'read')::boolean, false) AS read,
-  COALESCE((m.flags->>'starred')::boolean, false) AS starred
-FROM messages m
-LEFT JOIN message_search_documents msd
-  ON msd.message_id = m.id
- AND msd.user_id = m.user_id
-WHERE m.user_id = $1
-  AND m.status = 'active'
-ORDER BY COALESCE(m.received_at, m.created_at) DESC
-LIMIT $2`
-
-	rows, err := r.db.QueryContext(ctx, query, userID, limit)
+	rows, err := r.db.QueryContext(ctx, listMessagesSQL, userID, limit)
 	if err != nil {
 		return nil, fmt.Errorf("list messages: %w", err)
 	}
@@ -572,16 +550,7 @@ LIMIT $2`
 	return messages, nil
 }
 
-func (r *Repository) ListMessagesInFolder(ctx context.Context, userID string, folderID string, limit int) ([]MessageSummary, error) {
-	if r.db == nil {
-		return nil, fmt.Errorf("database handle is required")
-	}
-	if strings.TrimSpace(folderID) == "" {
-		return nil, fmt.Errorf("folder_id is required")
-	}
-	limit = normalizeLimit(limit)
-
-	const query = `
+const listMessagesSQL = `
 SELECT
   m.id::text,
   m.folder_id::text,
@@ -589,7 +558,7 @@ SELECT
   left(btrim(regexp_replace(left(coalesce(msd.body_text, ''), 2000), '[[:space:]]+', ' ', 'g')), 280) AS preview,
   m.from_addr,
   m.from_name,
-  COALESCE(m.received_at, m.created_at),
+  COALESCE(m.received_at, m.sent_at, m.draft_updated_at, m.created_at),
   m.size,
   m.has_attachment,
   COALESCE((m.flags->>'read')::boolean, false) AS read,
@@ -599,12 +568,20 @@ LEFT JOIN message_search_documents msd
   ON msd.message_id = m.id
  AND msd.user_id = m.user_id
 WHERE m.user_id = $1
-  AND m.folder_id = $2
   AND m.status = 'active'
-ORDER BY COALESCE(m.received_at, m.created_at) DESC
-LIMIT $3`
+ORDER BY COALESCE(m.received_at, m.sent_at, m.draft_updated_at, m.created_at) DESC, m.id DESC
+LIMIT $2`
 
-	rows, err := r.db.QueryContext(ctx, query, userID, folderID, limit)
+func (r *Repository) ListMessagesInFolder(ctx context.Context, userID string, folderID string, limit int) ([]MessageSummary, error) {
+	if r.db == nil {
+		return nil, fmt.Errorf("database handle is required")
+	}
+	if strings.TrimSpace(folderID) == "" {
+		return nil, fmt.Errorf("folder_id is required")
+	}
+	limit = normalizeLimit(limit)
+
+	rows, err := r.db.QueryContext(ctx, listMessagesInFolderSQL, userID, folderID, limit)
 	if err != nil {
 		return nil, fmt.Errorf("list folder messages: %w", err)
 	}
@@ -635,6 +612,29 @@ LIMIT $3`
 	}
 	return messages, nil
 }
+
+const listMessagesInFolderSQL = `
+SELECT
+  m.id::text,
+  m.folder_id::text,
+  m.subject,
+  left(btrim(regexp_replace(left(coalesce(msd.body_text, ''), 2000), '[[:space:]]+', ' ', 'g')), 280) AS preview,
+  m.from_addr,
+  m.from_name,
+  COALESCE(m.received_at, m.sent_at, m.draft_updated_at, m.created_at),
+  m.size,
+  m.has_attachment,
+  COALESCE((m.flags->>'read')::boolean, false) AS read,
+  COALESCE((m.flags->>'starred')::boolean, false) AS starred
+FROM messages m
+LEFT JOIN message_search_documents msd
+  ON msd.message_id = m.id
+ AND msd.user_id = m.user_id
+WHERE m.user_id = $1
+  AND m.folder_id = $2
+  AND m.status = 'active'
+ORDER BY COALESCE(m.received_at, m.sent_at, m.draft_updated_at, m.created_at) DESC, m.id DESC
+LIMIT $3`
 
 func (r *Repository) ListMessagesPage(ctx context.Context, userID string, folderID string, limit int, cursor MessageListCursor, filter MessageListFilter) ([]MessageSummary, error) {
 	if r.db == nil {
