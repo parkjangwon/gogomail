@@ -3562,7 +3562,7 @@ FROM (
 		builder.WriteString(strings.Join(where, "\n  AND "))
 		builder.WriteByte('\n')
 	}
-	builder.WriteString("ORDER BY (quota_used::double precision / quota_limit::double precision) DESC, updated_at DESC\nLIMIT $1")
+	builder.WriteString("ORDER BY (quota_used::double precision / quota_limit::double precision) DESC, updated_at DESC, id DESC\nLIMIT $1")
 	return builder.String(), args
 }
 

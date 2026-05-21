@@ -1,6 +1,11 @@
 # gogomail current status
 
-Last updated: 2026-05-21 (SaaS launch hardening continues: drive upload session stable ordering)
+Last updated: 2026-05-21 (SaaS launch hardening continues: quota usage stable ordering)
+
+## Admin Quota Usage Stable Ordering (2026-05-21)
+- Admin quota usage pressure list now orders by usage ratio, `updated_at DESC`, and `id DESC`, preventing equal-ratio/equal-timestamp pages from drifting.
+- Added company/domain/user quota-pressure expression indexes aligned with the ratio/update/id ordering and domain-scoped filters.
+- Verification target: `go test -count=1 ./internal/maildb -run 'ListQuotaUsageQuery|QuotaUsage'`.
 
 ## Drive Upload Session Stable Ordering (2026-05-21)
 - Drive upload session listing now orders by `updated_at DESC, created_at DESC, id DESC`, preventing equal-timestamp pages from drifting.

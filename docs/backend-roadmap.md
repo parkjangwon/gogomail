@@ -27,6 +27,7 @@
 - DKIM, attachment upload session, and delivery-attempt operations filters now keep domain/user/message UUID predicates typed, with matching upload and delivery read indexes.
 - LDAP auth, IMAP mailbox resolution, and quota warning threshold lookups now use typed UUID fast paths while preserving username/address and mailbox-name compatibility.
 - Drive upload session listing now uses stable `updated_at DESC, created_at DESC, id DESC` ordering with matching user/status indexes.
+- Admin quota usage pressure list now uses stable ratio/updated/id ordering with matching company/domain/user pressure indexes.
 - Webmail pre-launch gaps closed: password reset UI, server-synced signatures, Web Push service worker registration, and calendar edit/delete controls.
 - Console pre-launch gaps closed: audit-log cursor pagination, delivery-attempt filters/feedback, and targeted TypeScript cleanup.
 
@@ -6742,3 +6743,6 @@ Target outcome:
 1846. Drive upload session listing now adds `id DESC` as the final tie-breaker
       after `updated_at` and `created_at`, with user and user/status indexes
       matching the stable ordering for large upload-operation pages.
+1847. Admin quota usage pressure listing now adds `id DESC` after usage ratio
+      and `updated_at`, and ships company/domain/user expression indexes that
+      match quota-pressure ordering and domain-scoped filters.
