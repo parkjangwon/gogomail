@@ -2,6 +2,7 @@ package maildb
 
 import (
 	"encoding/json"
+	"os"
 	"reflect"
 	"strconv"
 	"strings"
@@ -292,6 +293,28 @@ func TestNormalizeIMAPMailboxLookupName(t *testing.T) {
 		if got != tc.want || allow != tc.wantAllow {
 			t.Fatalf("normalizeIMAPMailboxLookupName(%q) = %q/%v, want %q/%v", input, got, allow, tc.want, tc.wantAllow)
 		}
+	}
+}
+
+func TestIMAPMailboxLookupUsesTypedMailboxIDFastPath(t *testing.T) {
+	t.Parallel()
+
+	for _, path := range []string{"imap_uid.go", "imap_append.go"} {
+		path := path
+		t.Run(path, func(t *testing.T) {
+			t.Parallel()
+			source, err := os.ReadFile(path)
+			if err != nil {
+				t.Fatalf("read %s: %v", path, err)
+			}
+			text := string(source)
+			if !strings.Contains(text, "f.id = $2::uuid") {
+				t.Fatalf("%s query does not use typed mailbox id predicate", path)
+			}
+			if strings.Contains(text, "f.id::text = $2") {
+				t.Fatalf("%s query casts indexed mailbox id column", path)
+			}
+		})
 	}
 }
 

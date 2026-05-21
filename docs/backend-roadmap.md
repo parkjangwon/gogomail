@@ -25,6 +25,7 @@
 - Audit-log operations reads now use typed UUID predicates for company/domain/user/actor/target filters with matching read indexes and direct SQL shape regression coverage.
 - Quota reconciliation repairs and quota alert scanner duplicate checks now keep company/domain/user UUID predicates typed on indexed columns.
 - DKIM, attachment upload session, and delivery-attempt operations filters now keep domain/user/message UUID predicates typed, with matching upload and delivery read indexes.
+- LDAP auth, IMAP mailbox resolution, and quota warning threshold lookups now use typed UUID fast paths while preserving username/address and mailbox-name compatibility.
 - Webmail pre-launch gaps closed: password reset UI, server-synced signatures, Web Push service worker registration, and calendar edit/delete controls.
 - Console pre-launch gaps closed: audit-log cursor pagination, delivery-attempt filters/feedback, and targeted TypeScript cleanup.
 
@@ -6733,3 +6734,7 @@ Target outcome:
       filters now keep domain/user/message UUID comparisons typed on indexed
       columns. Attachment uploads and delivery attempts also gained matching
       timestamp/id read indexes for those hot filters.
+1845. LDAP authentication, IMAP mailbox lookup, and quota warning threshold
+      lookup now avoid text-casting indexed UUID columns. UUID-like identity or
+      mailbox inputs take typed fast paths, while username/address and mailbox
+      name compatibility remains intact.

@@ -25,6 +25,10 @@ func (r *Repository) AuthenticateLDAP(ctx context.Context, username, password st
 			normalizedAddress = addr
 		}
 	}
+	var normalizedUserID any
+	if isUUIDLike(normalized) {
+		normalizedUserID = normalized
+	}
 	const query = `
 SELECT COALESCE(u.password_hash, '')
 FROM users u
@@ -36,12 +40,12 @@ WHERE u.status = 'active'
   AND (
     lower(u.username) = lower($1)
     OR ua.address_ace = $2
-    OR u.id::text = $3
+    OR ($3::uuid IS NOT NULL AND u.id = $3::uuid)
   )
 ORDER BY ua.is_primary DESC
 LIMIT 1`
 	var passwordHash string
-	err := r.db.QueryRowContext(ctx, query, normalized, normalizedAddress, normalized).Scan(&passwordHash)
+	err := r.db.QueryRowContext(ctx, query, normalized, normalizedAddress, normalizedUserID).Scan(&passwordHash)
 	if err == sql.ErrNoRows {
 		return false, nil
 	}

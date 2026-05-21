@@ -76,6 +76,10 @@ func (r *Repository) GetIMAPMailbox(ctx context.Context, userID string, mailboxI
 	}
 	exactMailboxName := strings.ToLower(mailboxID)
 	compatMailboxName, allowCompatMailboxLookup := normalizeIMAPMailboxLookupName(mailboxID)
+	var mailboxIDUUID any
+	if isUUIDLike(mailboxID) {
+		mailboxIDUUID = strings.TrimSpace(mailboxID)
+	}
 
 	const query = `
 SELECT
@@ -111,7 +115,7 @@ LEFT JOIN (
 ) c ON c.folder_id = f.id
 WHERE f.user_id = $1::uuid
   AND (
-    f.id::text = $2
+    ($2::uuid IS NOT NULL AND f.id = $2::uuid)
     OR lower(f.name) = $3
     OR (
       $5
@@ -129,7 +133,7 @@ ORDER BY
 LIMIT 1`
 
 	var folder Folder
-	if err := r.db.QueryRowContext(ctx, query, userID, mailboxID, exactMailboxName, compatMailboxName, allowCompatMailboxLookup).Scan(
+	if err := r.db.QueryRowContext(ctx, query, userID, mailboxIDUUID, exactMailboxName, compatMailboxName, allowCompatMailboxLookup).Scan(
 		&folder.ID,
 		&folder.ParentID,
 		&folder.Name,
