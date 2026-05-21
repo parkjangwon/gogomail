@@ -77,6 +77,32 @@ func (r *Repository) ListAuditLogs(ctx context.Context, req AuditLogListRequest)
 	}
 	req = normalizeAuditLogListRequest(req)
 
+	query, args := buildAuditLogListQuery(req)
+	rows, err := r.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, false, fmt.Errorf("list audit logs: %w", err)
+	}
+	defer rows.Close()
+
+	var logs []AuditLogView
+	for rows.Next() {
+		log, err := scanAuditLog(rows)
+		if err != nil {
+			return nil, false, err
+		}
+		logs = append(logs, log)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, false, fmt.Errorf("iterate audit logs: %w", err)
+	}
+	hasMore := req.ProbeMore && len(logs) > req.Limit
+	if hasMore {
+		logs = logs[:req.Limit]
+	}
+	return logs, hasMore, nil
+}
+
+func buildAuditLogListQuery(req AuditLogListRequest) (string, []any) {
 	query := `
 SELECT
   id::text,
@@ -120,23 +146,23 @@ FROM audit_logs`
 	}
 	if req.CompanyID != "" {
 		args = append(args, req.CompanyID)
-		conditions = append(conditions, fmt.Sprintf("company_id::text = $%d", len(args)))
+		conditions = append(conditions, fmt.Sprintf("company_id = $%d::uuid", len(args)))
 	}
 	if req.DomainID != "" {
 		args = append(args, req.DomainID)
-		conditions = append(conditions, fmt.Sprintf("domain_id::text = $%d", len(args)))
+		conditions = append(conditions, fmt.Sprintf("domain_id = $%d::uuid", len(args)))
 	}
 	if req.UserID != "" {
 		args = append(args, req.UserID)
-		conditions = append(conditions, fmt.Sprintf("user_id::text = $%d", len(args)))
+		conditions = append(conditions, fmt.Sprintf("user_id = $%d::uuid", len(args)))
 	}
 	if req.ActorID != "" {
 		args = append(args, req.ActorID)
-		conditions = append(conditions, fmt.Sprintf("actor_id::text = $%d", len(args)))
+		conditions = append(conditions, fmt.Sprintf("actor_id = $%d::uuid", len(args)))
 	}
 	if req.TargetID != "" {
 		args = append(args, req.TargetID)
-		conditions = append(conditions, fmt.Sprintf("target_id::text = $%d", len(args)))
+		conditions = append(conditions, fmt.Sprintf("target_id = $%d::uuid", len(args)))
 	}
 	if !req.Since.IsZero() {
 		args = append(args, req.Since.UTC())
@@ -149,38 +175,16 @@ FROM audit_logs`
 	if len(conditions) > 0 {
 		query += "\nWHERE " + strings.Join(conditions, "\n  AND ")
 	}
-	limit := req.Limit
-	queryLimit := limit
+	queryLimit := req.Limit
 	if req.ProbeMore {
-		queryLimit = limit + 1
+		queryLimit = req.Limit + 1
 	}
 	args = append(args, queryLimit)
 	query += fmt.Sprintf(`
 ORDER BY created_at DESC, id DESC
 LIMIT $%d`, len(args))
 
-	rows, err := r.db.QueryContext(ctx, query, args...)
-	if err != nil {
-		return nil, false, fmt.Errorf("list audit logs: %w", err)
-	}
-	defer rows.Close()
-
-	var logs []AuditLogView
-	for rows.Next() {
-		log, err := scanAuditLog(rows)
-		if err != nil {
-			return nil, false, err
-		}
-		logs = append(logs, log)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, false, fmt.Errorf("iterate audit logs: %w", err)
-	}
-	hasMore := req.ProbeMore && len(logs) > limit
-	if hasMore {
-		logs = logs[:limit]
-	}
-	return logs, hasMore, nil
+	return query, args
 }
 
 func (r *Repository) GetAuditLog(ctx context.Context, id string) (AuditLogView, error) {

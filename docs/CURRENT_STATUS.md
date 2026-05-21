@@ -1,6 +1,12 @@
 # gogomail current status
 
-Last updated: 2026-05-21 (SaaS launch hardening continues: mail-flow query sargability)
+Last updated: 2026-05-21 (SaaS launch hardening continues: audit-log query sargability)
+
+## Audit Log UUID Filter Sargability (2026-05-21)
+- Audit-log list filters now compare company/domain/user/actor/target UUID columns with typed UUID predicates instead of wrapping indexed columns in `::text`.
+- List query construction is split into `buildAuditLogListQuery` so SQL shape is regression-tested directly.
+- Added matching company/domain/actor/target audit-log read indexes aligned with `created_at DESC, id DESC` ordering.
+- Verification target: `go test -count=1 ./internal/maildb -run 'AuditLog'`.
 
 ## Mail Flow Log UUID Filter Sargability (2026-05-21)
 - Mail-flow list, aggregate stats, and daily stats filters now compare company/domain/user/message UUID columns with typed UUID predicates instead of `::text` casts.
