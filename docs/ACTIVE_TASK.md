@@ -277,6 +277,7 @@ TASK-090 검증 운영 가이드:
 
 구현 대상:
 - [ ] EXPLAIN ANALYZE로 메시지 조회 쿼리 성능 분석 (운영/스테이징 PostgreSQL에서 추적 실행 대기; 스크립트는 psql/Go 모두 지원)
+  - 현재 로컬 환경은 PostgreSQL 접근이 없어(도커/psql 미가동, DSN 미설정) 단계 보류 상태입니다.
 - [x] 누락된 인덱스 생성 (outbox + delivery_attempts + user address 조회 경로): `0113_delivery_attempt_indexes.sql`, `0114_outbox_query_indexes.sql`, `0122_user_address_lookup_indexes.sql`
 - [x] ListOutboundMessages 최적화 (N+1 제거): legacy 메서드를 `ListMessagesByIDs` 배치 hydration 경로에 위임
 - [x] GetMessagesByID 배치 조회 함수 작성: `GetMessagesByID`를 `ListMessagesByIDs` 래퍼로 구현
@@ -480,11 +481,12 @@ TASK-090 검증 운영 가이드:
 - When enabled, `openSearchIndexDefinition` adds `"analysis":{"analyzer":{"korean":{"type":"nori","decompound_mode":"mixed"}}}` to settings and sets `analyzer: "korean"` on `subject` and `body_text` mappings
 - Requires the OpenSearch `analysis-nori` plugin; safe to leave disabled otherwise
 
-다음 단계: Phase 2 (Bulk Delivery Batching) 구현
+다음 단계: 운영/스테이징 PostgreSQL에서 `TASK_090_DATABASE_URL=... scripts/verify-task-090-message-explain.sh` 실행
 
 ### 검증
 
 - `go test ./...` 통과
 - `go build ./...` 성공
+- `TASK_090_DATABASE_URL` 또는 `GOGOMAIL_TEST_DATABASE_URL` 미설정으로 `scripts/verify-task-090-message-explain.sh`는 실행 대기 상태
 - 집중 검증: `go test ./internal/mailservice -run 'TestGetMessage(CachesParsedBodyByStoragePath|ReportsMessageBodyCacheStats|CanDisableMessageBodyCache)'`, `go test ./internal/config -run 'TestLoad|TestValidateRejectsInvalidMessageBodyCacheSettings|TestValidateRejectsNonpositiveDeliveryRecipientBatchSize'`, `go test ./internal/app -run '^$'` 통과
 - 벤치마크 결과 기록 (쿼리/sec, 레이턴시, 메모리)
