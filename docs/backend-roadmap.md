@@ -6756,3 +6756,7 @@ Target outcome:
       settings, and requires Redis address or Sentinel configuration for the
       Redis coordinator so multi-instance SMTP deployments cannot silently
       launch without distributed coordination.
+1850. SMTP delivery pipelining now precomputes DSN RCPT option parameters by
+      normalized recipient address once per batch, preserving first-match DSN
+      semantics while avoiding repeated linear scans across large
+      DSN-enabled recipient lists.

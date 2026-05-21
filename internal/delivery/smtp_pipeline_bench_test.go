@@ -56,6 +56,32 @@ func BenchmarkPlanRecipientBatches(b *testing.B) {
 	}
 }
 
+func BenchmarkDSNRCPTOptionsLookup(b *testing.B) {
+	recipients := make([]DSNRecipientOptions, 10_000)
+	for i := range recipients {
+		recipients[i] = DSNRecipientOptions{
+			Address:           fmt.Sprintf("user%d@example.test", i),
+			Notify:            []string{"FAILURE", "DELAY"},
+			OriginalRecipient: fmt.Sprintf("rfc822;user%d+40example.test", i),
+		}
+	}
+	optionsByAddress := dsnRCPTOptionsByAddress(recipients)
+	addresses := make([]string, len(recipients))
+	for i := range addresses {
+		addresses[i] = fmt.Sprintf("USER%d@example.test", i)
+	}
+
+	b.ReportAllocs()
+	b.SetBytes(int64(len(addresses)))
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		options := dsnOptionsForRecipientMap(optionsByAddress, addresses[i%len(addresses)])
+		if len(options) != 2 {
+			b.Fatalf("options = %+v, want DSN parameters", options)
+		}
+	}
+}
+
 func benchmarkRecipients(count int, domains int) []outbound.Address {
 	recipients := make([]outbound.Address, count)
 	for i := 0; i < count; i++ {
