@@ -1,6 +1,7 @@
 'use client';
 
 import { type Dispatch, type SetStateAction } from 'react';
+import { useTranslations } from 'next-intl';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import {
   ACCENT_PRESETS,
@@ -49,6 +50,8 @@ export function SettingsModalContent({
   newRule,
   setNewRule,
 }: SettingsModalContentProps) {
+  const t = useTranslations('settingsModal');
+  const tFilter = useTranslations('filterRules');
   const labelStyle: React.CSSProperties = {
     fontSize: '13px',
     fontWeight: 500,
@@ -61,14 +64,20 @@ export function SettingsModalContent({
   const radioGroupStyle: React.CSSProperties = { display: 'flex', flexDirection: 'column', gap: '6px' };
   const radioLabelStyle: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: 'var(--color-text-secondary)', cursor: 'pointer' };
 
+  const readMarkOpts: Array<[WebmailSettings['readMark'], string]> = [['instant', t('readMarkInstant')], ['2s', t('readMark2s')], ['manual', t('readMarkManual')]];
+  const listDensityOpts: Array<[WebmailSettings['listDensity'], string]> = [['default', t('listDensityDefault')], ['compact', t('listDensityCompact')]];
+  const defaultSortOpts: Array<[WebmailSettings['defaultSort'], string]> = [['newest', t('sortNewest')], ['oldest', t('sortOldest')]];
+  const sendDelayOpts: Array<['0' | '5' | '10' | '30', string]> = [['0', t('sendDelayOff')], ['5', t('sendDelay5s')], ['10', t('sendDelay10s')], ['30', t('sendDelay30s')]];
+  const themeOpts: Array<[WebmailSettings['theme'], string]> = [['light', t('themeLight')], ['dark', t('themeDark')], ['system', t('themeSystem')]];
+
   switch (activeCategory) {
     case 'mailbox':
       return (
         <>
           <div style={sectionStyle}>
-            <span style={labelStyle}>읽음 처리</span>
+            <span style={labelStyle}>{t('readMark')}</span>
             <div style={radioGroupStyle}>
-              {([['instant', '즉시'], ['2s', '2초 후'], ['manual', '수동']] as const).map(([val, lbl]) => (
+              {readMarkOpts.map(([val, lbl]) => (
                 <label key={val} style={radioLabelStyle}>
                   <input type="radio" name="readMark" value={val} checked={settings.readMark === val} onChange={() => update('readMark', val)} />
                   {lbl}
@@ -77,9 +86,9 @@ export function SettingsModalContent({
             </div>
           </div>
           <div style={sectionStyle}>
-            <span style={labelStyle}>목록 밀도</span>
+            <span style={labelStyle}>{t('listDensity')}</span>
             <div style={radioGroupStyle}>
-              {([['default', '기본'], ['compact', '컴팩트']] as const).map(([val, lbl]) => (
+              {listDensityOpts.map(([val, lbl]) => (
                 <label key={val} style={radioLabelStyle}>
                   <input type="radio" name="listDensity" value={val} checked={settings.listDensity === val} onChange={() => update('listDensity', val)} />
                   {lbl}
@@ -88,9 +97,9 @@ export function SettingsModalContent({
             </div>
           </div>
           <div style={sectionStyle}>
-            <span style={labelStyle}>기본 정렬</span>
+            <span style={labelStyle}>{t('defaultSort')}</span>
             <div style={radioGroupStyle}>
-              {([['newest', '최신순'], ['oldest', '오래된순']] as const).map(([val, lbl]) => (
+              {defaultSortOpts.map(([val, lbl]) => (
                 <label key={val} style={radioLabelStyle}>
                   <input type="radio" name="defaultSort" value={val} checked={settings.defaultSort === val} onChange={() => update('defaultSort', val)} />
                   {lbl}
@@ -101,13 +110,13 @@ export function SettingsModalContent({
           <div style={sectionStyle}>
             <label style={{ ...radioLabelStyle, cursor: 'pointer' }}>
               <input type="checkbox" checked={settings.showPreview ?? true} onChange={(e) => update('showPreview', e.target.checked)} />
-              <span style={{ fontSize: '13px', color: 'var(--color-text-primary)', fontWeight: 500 }}>본문 미리보기</span>
+              <span style={{ fontSize: '13px', color: 'var(--color-text-primary)', fontWeight: 500 }}>{t('showPreview')}</span>
             </label>
           </div>
           <div style={sectionStyle}>
             <label style={{ ...radioLabelStyle, cursor: 'pointer' }}>
               <input type="checkbox" checked={settings.threadView ?? true} onChange={(e) => update('threadView', e.target.checked)} />
-              <span style={{ fontSize: '13px', color: 'var(--color-text-primary)', fontWeight: 500 }}>대화 묶음 보기</span>
+              <span style={{ fontSize: '13px', color: 'var(--color-text-primary)', fontWeight: 500 }}>{t('threadView')}</span>
             </label>
           </div>
         </>
@@ -118,17 +127,17 @@ export function SettingsModalContent({
           <div style={sectionStyle}>
             <label style={{ ...radioLabelStyle, cursor: 'pointer' }}>
               <input type="checkbox" checked={settings.quoteOnReply} onChange={(e) => update('quoteOnReply', e.target.checked)} />
-              <span style={{ fontSize: '13px', color: 'var(--color-text-primary)', fontWeight: 500 }}>회신 시 인용문 포함</span>
+              <span style={{ fontSize: '13px', color: 'var(--color-text-primary)', fontWeight: 500 }}>{t('quoteOnReply')}</span>
             </label>
           </div>
           <div style={sectionStyle}>
-            <span style={labelStyle}>서명</span>
+            <span style={labelStyle}>{t('signature')}</span>
             <textarea
               value={settings.signature}
               onChange={(e) => update('signature', e.target.value)}
               maxLength={500}
               rows={5}
-              placeholder="서명을 입력하세요..."
+              placeholder={t('signaturePlaceholder')}
               style={{
                 width: '100%',
                 fontSize: '13px',
@@ -148,9 +157,9 @@ export function SettingsModalContent({
             </div>
           </div>
           <div style={sectionStyle}>
-            <span style={labelStyle}>전송 취소 시간</span>
+            <span style={labelStyle}>{t('sendDelay')}</span>
             <div style={radioGroupStyle}>
-              {([['0', '사용 안 함'], ['5', '5초'], ['10', '10초'], ['30', '30초']] as const).map(([val, lbl]) => (
+              {sendDelayOpts.map(([val, lbl]) => (
                 <label key={val} style={radioLabelStyle}>
                   <input type="radio" name="sendDelay" value={val} checked={String(settings.sendDelay ?? 0) === val} onChange={() => update('sendDelay', Number(val) as 0 | 5 | 10 | 30)} />
                   {lbl}
@@ -161,7 +170,7 @@ export function SettingsModalContent({
           <div style={sectionStyle}>
             <label style={{ ...radioLabelStyle, cursor: 'pointer' }}>
               <input type="checkbox" checked={settings.autoSaveDraft ?? true} onChange={(e) => update('autoSaveDraft', e.target.checked)} />
-              <span style={{ fontSize: '13px', color: 'var(--color-text-primary)', fontWeight: 500 }}>자동 임시 저장</span>
+              <span style={{ fontSize: '13px', color: 'var(--color-text-primary)', fontWeight: 500 }}>{t('autoSaveDraft')}</span>
             </label>
           </div>
         </>
@@ -170,9 +179,9 @@ export function SettingsModalContent({
       return (
         <>
           <div style={sectionStyle}>
-            <span style={labelStyle}>테마</span>
+            <span style={labelStyle}>{t('theme')}</span>
             <div style={radioGroupStyle}>
-              {([['light', '라이트'], ['dark', '다크'], ['system', '시스템']] as const).map(([val, lbl]) => (
+              {themeOpts.map(([val, lbl]) => (
                 <label key={val} style={radioLabelStyle}>
                   <input type="radio" name="theme" value={val} data-theme={val} checked={settings.theme === val} onChange={() => applyTheme(val)} />
                   {lbl}
@@ -181,7 +190,7 @@ export function SettingsModalContent({
             </div>
           </div>
           <div style={sectionStyle}>
-            <span style={labelStyle}>프라이머리 색상</span>
+            <span style={labelStyle}>{t('primaryColor')}</span>
             <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
               {ACCENT_PRESETS.map((preset) => (
                 <button
@@ -203,7 +212,7 @@ export function SettingsModalContent({
             </div>
           </div>
           <div style={sectionStyle}>
-            <span style={labelStyle}>언어</span>
+            <span style={labelStyle}>{t('language')}</span>
             <div style={radioGroupStyle}>
               {([['ko', '한국어'], ['en', 'English'], ['ja', '日本語'], ['zh-CN', '中文(简体)']] as const).map(([code, label]) => (
                 <label key={code} style={radioLabelStyle}>
@@ -220,10 +229,10 @@ export function SettingsModalContent({
         <div style={sectionStyle}>
           <label style={{ ...radioLabelStyle, cursor: 'pointer' }}>
             <input type="checkbox" checked={settings.notifications} onChange={(e) => handleNotificationToggle(e.target.checked)} />
-            <span style={{ fontSize: '13px', color: 'var(--color-text-primary)', fontWeight: 500 }}>새 메일 알림</span>
+            <span style={{ fontSize: '13px', color: 'var(--color-text-primary)', fontWeight: 500 }}>{t('notifications')}</span>
           </label>
           {settings.notifications && (
-            <p style={{ fontSize: '12px', color: 'var(--color-text-tertiary)', marginTop: '8px', marginLeft: '24px' }}>브라우저 알림이 활성화되어 있습니다.</p>
+            <p style={{ fontSize: '12px', color: 'var(--color-text-tertiary)', marginTop: '8px', marginLeft: '24px' }}>{t('notificationsActive')}</p>
           )}
         </div>
       );
@@ -231,14 +240,14 @@ export function SettingsModalContent({
       return (
         <>
           <div style={sectionStyle}>
-            <span style={labelStyle}>프로필 사진</span>
+            <span style={labelStyle}>{t('profilePicture')}</span>
             <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
               <div style={{ width: '72px', height: '72px', borderRadius: '50%', background: avatarUrl ? 'transparent' : 'var(--color-accent)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px', fontWeight: 700, overflow: 'hidden', flexShrink: 0, border: '2px solid var(--color-border-subtle)' }}>
-                {avatarUrl ? <img src={avatarUrl} alt="프로필" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : (userEmail ?? '?').charAt(0).toUpperCase()}
+                {avatarUrl ? <img src={avatarUrl} alt={t('profileAlt')} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : (userEmail ?? '?').charAt(0).toUpperCase()}
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 <label style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '7px 14px', background: 'var(--color-bg-tertiary)', border: '1px solid var(--color-border-default)', borderRadius: '6px', fontSize: '13px', cursor: 'pointer', color: 'var(--color-text-primary)', fontWeight: 500 }}>
-                  사진 업로드
+                  {t('uploadPhoto')}
                   <input type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => {
                     const file = e.target.files?.[0];
                     if (!file) return;
@@ -253,18 +262,18 @@ export function SettingsModalContent({
                 </label>
                 {avatarUrl && (
                   <button onClick={() => { setAvatarUrl(''); setWebmailAvatar(''); }} style={{ padding: '7px 14px', background: 'transparent', border: '1px solid var(--color-border-default)', borderRadius: '6px', fontSize: '13px', cursor: 'pointer', color: 'var(--color-destructive)' }}>
-                    사진 제거
+                    {t('removePhoto')}
                   </button>
                 )}
               </div>
             </div>
           </div>
           <div style={sectionStyle}>
-            <span style={labelStyle}>이메일</span>
+            <span style={labelStyle}>{t('email')}</span>
             <input type="email" readOnly value={userEmail ?? ''} style={{ width: '100%', fontSize: '13px', padding: '8px 10px', border: '1px solid var(--color-border-default)', borderRadius: '6px', background: 'var(--color-bg-tertiary)', color: 'var(--color-text-secondary)', outline: 'none', boxSizing: 'border-box', cursor: 'default' }} />
           </div>
           <div style={sectionStyle}>
-            <span style={labelStyle}>표시 이름</span>
+            <span style={labelStyle}>{t('displayName')}</span>
             <input type="text" readOnly value={userEmail ? userEmail.split('@')[0] : ''} style={{ width: '100%', fontSize: '13px', padding: '8px 10px', border: '1px solid var(--color-border-default)', borderRadius: '6px', background: 'var(--color-bg-tertiary)', color: 'var(--color-text-secondary)', outline: 'none', boxSizing: 'border-box', cursor: 'default' }} />
           </div>
         </>
@@ -273,12 +282,12 @@ export function SettingsModalContent({
       return (
         <>
           <div style={sectionStyle}>
-            <span style={labelStyle}>세션 정보</span>
+            <span style={labelStyle}>{t('sessionInfo')}</span>
             <div style={{ fontSize: '13px', color: 'var(--color-text-secondary)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
               {[
-                ['최근 로그인', (() => { try { const v = localStorage.getItem('webmail_login_at'); return v ? new Intl.DateTimeFormat('ko-KR', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(v)) : '-'; } catch { return '-'; } })()],
-                ['최근 접속 IP', (() => { try { return localStorage.getItem('webmail_login_ip') ?? '-'; } catch { return '-'; } })()],
-                ['세션 만료', (() => { try { const v = localStorage.getItem('webmail_token_expires_at'); return v ? new Intl.DateTimeFormat('ko-KR', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(v)) : '-'; } catch { return '-'; } })()],
+                [t('lastLogin'), (() => { try { const v = localStorage.getItem('webmail_login_at'); return v ? new Intl.DateTimeFormat('ko-KR', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(v)) : '-'; } catch { return '-'; } })()],
+                [t('lastIp'), (() => { try { return localStorage.getItem('webmail_login_ip') ?? '-'; } catch { return '-'; } })()],
+                [t('sessionExpiry'), (() => { try { const v = localStorage.getItem('webmail_token_expires_at'); return v ? new Intl.DateTimeFormat('ko-KR', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(v)) : '-'; } catch { return '-'; } })()],
               ].map(([label, val]) => (
                 <div key={label} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 12px', background: 'var(--color-bg-secondary)', borderRadius: '6px' }}>
                   <span style={{ color: 'var(--color-text-tertiary)' }}>{label}</span>
@@ -331,7 +340,7 @@ export function SettingsModalContent({
           <div style={sectionStyle}>
             <label style={{ ...radioLabelStyle, cursor: 'pointer' }}>
               <input type="checkbox" checked={settings.threadView ?? true} onChange={(e) => update('threadView', e.target.checked)} />
-              <span style={{ fontSize: '13px', color: 'var(--color-text-primary)', fontWeight: 500 }}>대화 묶음 보기</span>
+              <span style={{ fontSize: '13px', color: 'var(--color-text-primary)', fontWeight: 500 }}>{t('threadView')}</span>
             </label>
             <p style={{ fontSize: '12px', color: 'var(--color-text-tertiary)', marginTop: '4px', marginLeft: '24px' }}>같은 주제의 메일을 하나의 대화로 묶어서 표시합니다.</p>
           </div>
@@ -350,9 +359,9 @@ export function SettingsModalContent({
             <p style={{ fontSize: '12px', color: 'var(--color-text-tertiary)', marginTop: '4px', marginLeft: '24px' }}>메일 작성 중 일정 시간마다 자동으로 임시 저장합니다.</p>
           </div>
           <div style={sectionStyle}>
-            <span style={labelStyle}>전송 취소 시간</span>
+            <span style={labelStyle}>{t('sendDelay')}</span>
             <div style={radioGroupStyle}>
-              {([['0', '사용 안 함'], ['5', '5초'], ['10', '10초'], ['30', '30초']] as const).map(([val, lbl]) => (
+              {sendDelayOpts.map(([val, lbl]) => (
                 <label key={val} style={radioLabelStyle}>
                   <input type="radio" name="sendDelay" value={val} checked={String(settings.sendDelay ?? 0) === val} onChange={() => update('sendDelay', Number(val) as 0 | 5 | 10 | 30)} />
                   {lbl}

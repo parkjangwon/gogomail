@@ -11,7 +11,7 @@ import (
 func TestTokenManagerSignVerify(t *testing.T) {
 	t.Parallel()
 
-	manager, err := NewTokenManager("secret")
+	manager, err := NewTokenManager("this-is-a-test-secret-at-least-32b")
 	if err != nil {
 		t.Fatalf("NewTokenManager returned error: %v", err)
 	}
@@ -35,7 +35,7 @@ func TestTokenManagerSignVerify(t *testing.T) {
 func TestTokenManagerRejectsExpiredToken(t *testing.T) {
 	t.Parallel()
 
-	manager, err := NewTokenManager("secret")
+	manager, err := NewTokenManager("this-is-a-test-secret-at-least-32b")
 	if err != nil {
 		t.Fatalf("NewTokenManager returned error: %v", err)
 	}
@@ -54,7 +54,7 @@ func TestTokenManagerRejectsExpiredToken(t *testing.T) {
 func TestTokenManagerNormalizesJWTSubjectUserID(t *testing.T) {
 	t.Parallel()
 
-	manager, err := NewTokenManager("secret")
+	manager, err := NewTokenManager("this-is-a-test-secret-at-least-32b")
 	if err != nil {
 		t.Fatalf("NewTokenManager returned error: %v", err)
 	}
@@ -77,7 +77,7 @@ func TestTokenManagerNormalizesJWTSubjectUserID(t *testing.T) {
 func TestTokenManagerRejectsBlankJWTIdentity(t *testing.T) {
 	t.Parallel()
 
-	manager, err := NewTokenManager("secret")
+	manager, err := NewTokenManager("this-is-a-test-secret-at-least-32b")
 	if err != nil {
 		t.Fatalf("NewTokenManager returned error: %v", err)
 	}
@@ -99,7 +99,7 @@ func TestTokenManagerRejectsBlankJWTIdentity(t *testing.T) {
 func TestTokenManagerRejectsUnsafeJWTIdentityOnSign(t *testing.T) {
 	t.Parallel()
 
-	manager, err := NewTokenManager("secret")
+	manager, err := NewTokenManager("this-is-a-test-secret-at-least-32b")
 	if err != nil {
 		t.Fatalf("NewTokenManager returned error: %v", err)
 	}
@@ -136,7 +136,7 @@ func TestTokenManagerRejectsUnsafeJWTIdentityOnSign(t *testing.T) {
 func TestTokenManagerRejectsUnsafeJWTIdentityOnVerify(t *testing.T) {
 	t.Parallel()
 
-	manager, err := NewTokenManager("secret")
+	manager, err := NewTokenManager("this-is-a-test-secret-at-least-32b")
 	if err != nil {
 		t.Fatalf("NewTokenManager returned error: %v", err)
 	}
@@ -180,7 +180,7 @@ func TestTokenManagerRejectsUnsafeJWTIdentityOnVerify(t *testing.T) {
 func TestTokenManagerRejectsOversizedJWTSegmentsBeforeDecode(t *testing.T) {
 	t.Parallel()
 
-	manager, err := NewTokenManager("secret")
+	manager, err := NewTokenManager("this-is-a-test-secret-at-least-32b")
 	if err != nil {
 		t.Fatalf("NewTokenManager returned error: %v", err)
 	}
@@ -228,7 +228,7 @@ func TestTokenManagerRejectsOversizedJWTSegmentsBeforeDecode(t *testing.T) {
 func TestTokenManagerRejectsFutureIssuedAt(t *testing.T) {
 	t.Parallel()
 
-	manager, err := NewTokenManager("secret")
+	manager, err := NewTokenManager("this-is-a-test-secret-at-least-32b")
 	if err != nil {
 		t.Fatalf("NewTokenManager returned error: %v", err)
 	}
@@ -248,7 +248,7 @@ func TestTokenManagerRejectsFutureIssuedAt(t *testing.T) {
 func TestTokenManagerRejectsUnsupportedJWTHeader(t *testing.T) {
 	t.Parallel()
 
-	manager, err := NewTokenManager("secret")
+	manager, err := NewTokenManager("this-is-a-test-secret-at-least-32b")
 	if err != nil {
 		t.Fatalf("NewTokenManager returned error: %v", err)
 	}

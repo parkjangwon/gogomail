@@ -214,7 +214,7 @@ func (r *Receiver) NewSession(conn *gosmtp.Conn) (gosmtp.Session, error) {
 		return nil, fmt.Errorf("smtp receiver resolver is required")
 	}
 	ctx, cancel := context.WithCancel(context.Background())
-	return &session{receiver: r, remoteAddr: remoteAddrFromConn(conn), ctx: ctx, cancel: cancel}, nil
+	return &session{receiver: r, remoteAddr: remoteAddrFromConn(conn), ctx: ctx, cancel: cancel, startedAt: time.Now()}, nil
 }
 
 type session struct {
@@ -231,6 +231,7 @@ type session struct {
 	authenticatedUser     string // set after successful PLAIN auth
 	authenticatedUserRole string
 	domainPolicy          *InboundDomainPolicy
+	startedAt             time.Time
 }
 
 func (s *session) Mail(from string, opts *gosmtp.MailOptions) (err error) {
@@ -780,6 +781,12 @@ func (s *session) Logout() error {
 	s.Reset()
 	s.authenticated = false
 	s.authenticatedUserRole = ""
+	dur := time.Since(s.startedAt).Seconds()
+	s.observe(s.ctx, MetricEvent{
+		Stage:    StageLogout,
+		Result:   MetricAccepted,
+		Duration: dur,
+	})
 	// Cancel the current context (signals any in-flight work to stop),
 	// then replace it so the session remains usable if reused.
 	s.cancel()

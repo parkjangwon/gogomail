@@ -3446,6 +3446,9 @@ func runHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, mode M
 	}
 	handler = httpapi.SecurityHeadersMiddleware(handler)
 	handler = httpapi.RequestIDMiddleware(handler)
+	if strings.EqualFold(strings.TrimSpace(cfg.MetricsBackend), "prometheus") {
+		handler = httpapi.MetricsMiddleware(sharedPrometheusAdapter(), handler)
+	}
 	server := newHTTPServer(cfg, handler)
 
 	go serveMetrics(ctx, cfg, logger)

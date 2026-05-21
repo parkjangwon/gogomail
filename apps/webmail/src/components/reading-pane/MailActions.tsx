@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { useTranslations } from 'next-intl';
 import type { MessageDetail, Folder } from '@/lib/api';
 import { emailOf } from '@/lib/message/messageUtils';
 import {
@@ -90,6 +91,7 @@ export function MailActions({
   onIncreaseFontSize,
   onDecreaseFontSize,
 }: MailActionsProps) {
+  const t = useTranslations('mail');
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const moreMenuRef = useRef<HTMLDivElement>(null);
 
@@ -141,19 +143,19 @@ export function MailActions({
     () => [
       {
         icon: <ArrowUturnLeftIcon style={{ width: '16px', height: '16px' }} />,
-        label: '답장 (R)',
+        label: t('reply') + ' (R)',
         action: onReply,
         intent: 'reply' as const,
       },
       {
         icon: <ArrowUturnLeftIcon style={{ width: '16px', height: '16px', opacity: 0.7 }} />,
-        label: '전체 답장 (A)',
+        label: t('replyAll') + ' (A)',
         action: onReplyAll,
         intent: 'reply_all' as const,
       },
       {
         icon: <ArrowUturnRightIcon style={{ width: '16px', height: '16px' }} />,
-        label: '전달 (F)',
+        label: t('forward') + ' (F)',
         action: onForward,
         intent: 'forward' as const,
       },
@@ -175,16 +177,16 @@ export function MailActions({
     >
       {onBack && (
         <button
-          aria-label="뒤로"
+          aria-label={t('back')}
           onClick={onBack}
           style={{ ...iconButtonStyle, marginRight: 'auto', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
-        ><ArrowLeftIcon style={{ width: '16px', height: '16px' }} /> 뒤로</button>
+        ><ArrowLeftIcon style={{ width: '16px', height: '16px' }} /> {t('back')}</button>
       )}
       {(onPrev || onNext) && !onBack && <div style={{ marginRight: 'auto' }} />}
       {onPrev && (
         <button
-          aria-label="이전 메일"
-          title="이전 메일 (k)"
+          aria-label={t('prevMessage')}
+          title={`${t('prevMessage')} (k)`}
           onClick={onPrev}
           style={{ ...iconButtonStyle, border: 'none', padding: '5px' }}
           onMouseEnter={(e) => {
@@ -202,8 +204,8 @@ export function MailActions({
       )}
       {onNext && (
         <button
-          aria-label="다음 메일"
-          title="다음 메일 (j)"
+          aria-label={t('nextMessage')}
+          title={`${t('nextMessage')} (j)`}
           onClick={onNext}
           style={{ ...iconButtonStyle, border: 'none', padding: '5px' }}
           onMouseEnter={(e) => {
@@ -235,8 +237,8 @@ export function MailActions({
 
       {onStar && (
         <button
-          aria-label={isStarred ? '별표 해제' : '별표'}
-          title={isStarred ? '별표 해제 (S)' : '별표 (S)'}
+          aria-label={isStarred ? t('unstar') : t('star')}
+          title={isStarred ? t('unstar') + ' (S)' : t('star') + ' (S)'}
           onClick={onStar}
           style={{
             ...iconButtonStyle,
@@ -261,8 +263,8 @@ export function MailActions({
 
       {onArchive && (
         <button
-          aria-label="아카이브"
-          title="아카이브 (E)"
+          aria-label={t('archive')}
+          title={`${t('archive')} (E)`}
           onClick={onArchive}
           style={{ ...iconButtonStyle, border: 'none', padding: '5px 8px' }}
           onMouseEnter={(e) => {
@@ -281,8 +283,8 @@ export function MailActions({
         const url = match[1].replace(/&amp;/g, '&');
         return (
           <button
-            aria-label="구독 취소"
-            title="구독 취소"
+            aria-label={t('unsubscribe')}
+            title={t('unsubscribe')}
             onClick={() => window.open(url, '_blank', 'noopener,noreferrer')}
             style={{
               ...iconButtonStyle,
@@ -299,14 +301,14 @@ export function MailActions({
             onMouseLeave={(e) => {
               (e.currentTarget as HTMLButtonElement).style.background = 'rgba(220,38,38,0.04)';
             }}
-          ><NoSymbolIcon style={{ width: 13, height: 13 }} /> 구독 취소</button>
+          ><NoSymbolIcon style={{ width: 13, height: 13 }} /> {t('unsubscribe')}</button>
         );
       })()}
 
       {onOpenInWindow && (
         <button
-          aria-label="새 창으로 열기"
-          title="새 창으로 열기"
+          aria-label={t('openInWindow')}
+          title={t('openInWindow')}
           onClick={onOpenInWindow}
           style={{ ...iconButtonStyle, border: 'none', padding: '5px 8px' }}
           onMouseEnter={(e) => {
@@ -320,8 +322,8 @@ export function MailActions({
 
       <div ref={moreMenuRef} style={{ position: 'relative' }}>
         <button
-          aria-label="더 보기"
-          title="더 보기"
+          aria-label={t('moreActions')}
+          title={t('moreActions')}
           onClick={() => setShowMoreMenu((v) => !v)}
           style={{ ...iconButtonStyle, border: 'none', padding: '5px 8px' }}
           onMouseEnter={(e) => {
@@ -349,7 +351,7 @@ export function MailActions({
           >
             {onMove && folders.length > 0 && (
               <>
-                <div style={{ padding: '6px 14px 2px', fontSize: '11px', color: 'var(--color-text-tertiary)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>이동</div>
+                <div style={{ padding: '6px 14px 2px', fontSize: '11px', color: 'var(--color-text-tertiary)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{t('moveTo')}</div>
                 {folders.map((folder) => (
                   <button
                     key={folder.id}
@@ -372,12 +374,12 @@ export function MailActions({
 
             {onSnooze && (
               <>
-                <div style={{ padding: '6px 14px 2px', fontSize: '11px', color: 'var(--color-text-tertiary)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>스누즈</div>
+                <div style={{ padding: '6px 14px 2px', fontSize: '11px', color: 'var(--color-text-tertiary)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{t('snooze')}</div>
                 {[
-                  { label: '1시간 후', ms: 60 * 60 * 1000 },
-                  { label: '4시간 후', ms: 4 * 60 * 60 * 1000 },
-                  { label: '오늘 저녁 (18:00)', ms: (() => { const d = new Date(); d.setHours(18, 0, 0, 0); return d.getTime() > Date.now() ? d.getTime() - Date.now() : 24 * 3600000; })() },
-                  { label: '내일 오전 (09:00)', ms: (() => { const d = new Date(); d.setDate(d.getDate() + 1); d.setHours(9, 0, 0, 0); return d.getTime() - Date.now(); })() },
+                  { label: t('snooze1h'), ms: 60 * 60 * 1000 },
+                  { label: t('snooze4h'), ms: 4 * 60 * 60 * 1000 },
+                  { label: t('snoozeTonight'), ms: (() => { const d = new Date(); d.setHours(18, 0, 0, 0); return d.getTime() > Date.now() ? d.getTime() - Date.now() : 24 * 3600000; })() },
+                  { label: t('snoozeTomorrow'), ms: (() => { const d = new Date(); d.setDate(d.getDate() + 1); d.setHours(9, 0, 0, 0); return d.getTime() - Date.now(); })() },
                 ].map((option) => (
                   <button
                     key={option.label}
@@ -399,7 +401,7 @@ export function MailActions({
             )}
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 14px' }}>
-              <span style={{ fontSize: '12px', color: 'var(--color-text-secondary)', flex: 1 }}>글자 크기</span>
+              <span style={{ fontSize: '12px', color: 'var(--color-text-secondary)', flex: 1 }}>{t('fontSize')}</span>
               <button onClick={onDecreaseFontSize} style={{ fontSize: '12px', padding: '2px 7px', border: '1px solid var(--color-border-default)', borderRadius: '4px', background: 'transparent', color: 'var(--color-text-secondary)', cursor: 'pointer' }}>A-</button>
               <span style={{ fontSize: '12px', color: 'var(--color-text-primary)', minWidth: '20px', textAlign: 'center' }}>{fontSize}</span>
               <button onClick={onIncreaseFontSize} style={{ fontSize: '12px', padding: '2px 7px', border: '1px solid var(--color-border-default)', borderRadius: '4px', background: 'transparent', color: 'var(--color-text-secondary)', cursor: 'pointer' }}>A+</button>
@@ -418,7 +420,7 @@ export function MailActions({
                 onMouseLeave={(e) => {
                   (e.currentTarget as HTMLButtonElement).style.background = 'transparent';
                 }}
-              >인쇄</button>
+              >{t('print')}</button>
             )}
 
             {onToggleRead && (
@@ -434,20 +436,20 @@ export function MailActions({
                 onMouseLeave={(e) => {
                   (e.currentTarget as HTMLButtonElement).style.background = 'transparent';
                 }}
-              >{isRead ? '안읽음으로 표시' : '읽음으로 표시'}</button>
+              >{isRead ? t('markUnread') : t('markRead')}</button>
             )}
 
             {(onSpam || onNotSpam || onRestore) && <div style={{ height: '1px', background: 'var(--color-border-subtle)', margin: '4px 0' }} />}
-            {onSpam && <button onClick={() => { onSpam(); setShowMoreMenu(false); }} style={{ display: 'block', width: '100%', textAlign: 'left', padding: '7px 14px', border: 'none', background: 'transparent', color: 'var(--color-destructive)', fontSize: '13px', cursor: 'pointer' }} onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-secondary)'; }} onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}>스팸 신고</button>}
-            {onNotSpam && <button onClick={() => { onNotSpam(); setShowMoreMenu(false); }} style={{ display: 'block', width: '100%', textAlign: 'left', padding: '7px 14px', border: 'none', background: 'transparent', color: 'var(--color-text-primary)', fontSize: '13px', cursor: 'pointer' }} onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-secondary)'; }} onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}>스팸 아님</button>}
-            {onRestore && <button onClick={() => { onRestore(); setShowMoreMenu(false); }} style={{ display: 'block', width: '100%', textAlign: 'left', padding: '7px 14px', border: 'none', background: 'transparent', color: 'var(--color-text-primary)', fontSize: '13px', cursor: 'pointer' }} onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-secondary)'; }} onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}>복구</button>}
+            {onSpam && <button onClick={() => { onSpam(); setShowMoreMenu(false); }} style={{ display: 'block', width: '100%', textAlign: 'left', padding: '7px 14px', border: 'none', background: 'transparent', color: 'var(--color-destructive)', fontSize: '13px', cursor: 'pointer' }} onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-secondary)'; }} onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}>{t('reportSpam')}</button>}
+            {onNotSpam && <button onClick={() => { onNotSpam(); setShowMoreMenu(false); }} style={{ display: 'block', width: '100%', textAlign: 'left', padding: '7px 14px', border: 'none', background: 'transparent', color: 'var(--color-text-primary)', fontSize: '13px', cursor: 'pointer' }} onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-secondary)'; }} onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}>{t('notSpam')}</button>}
+            {onRestore && <button onClick={() => { onRestore(); setShowMoreMenu(false); }} style={{ display: 'block', width: '100%', textAlign: 'left', padding: '7px 14px', border: 'none', background: 'transparent', color: 'var(--color-text-primary)', fontSize: '13px', cursor: 'pointer' }} onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-secondary)'; }} onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}>{t('restore')}</button>}
 
             {unsubscribeUrl && (
               <>
                 <div style={{ height: '1px', background: 'var(--color-border-subtle)', margin: '4px 0' }} />
                 <button
                   onClick={() => {
-                    if (window.confirm('수신거부 링크를 열겠습니까?')) {
+                    if (window.confirm(t('unsubscribeConfirm'))) {
                       window.open(unsubscribeUrl, '_blank', 'noopener,noreferrer');
                     }
                     setShowMoreMenu(false);
@@ -459,7 +461,7 @@ export function MailActions({
                   onMouseLeave={(e) => {
                     (e.currentTarget as HTMLButtonElement).style.background = 'transparent';
                   }}
-                >수신거부</button>
+                >{t('unsubscribe')}</button>
               </>
             )}
           </div>

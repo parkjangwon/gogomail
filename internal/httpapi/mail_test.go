@@ -3181,7 +3181,7 @@ func TestSendReplyHandlerPassesSourceMessageID(t *testing.T) {
 func TestListMessagesHandlerUsesJWTUser(t *testing.T) {
 	t.Parallel()
 
-	manager, err := auth.NewTokenManager("secret")
+	manager, err := auth.NewTokenManager("test-secret-httpapi-mail-at-least-32b")
 	if err != nil {
 		t.Fatalf("NewTokenManager returned error: %v", err)
 	}
@@ -3209,7 +3209,7 @@ func TestListMessagesHandlerUsesJWTUser(t *testing.T) {
 func TestMailAuthRejectsOversizedAuthorizationHeader(t *testing.T) {
 	t.Parallel()
 
-	manager, err := auth.NewTokenManager("secret")
+	manager, err := auth.NewTokenManager("test-secret-httpapi-mail-at-least-32b")
 	if err != nil {
 		t.Fatalf("NewTokenManager returned error: %v", err)
 	}
@@ -3233,7 +3233,7 @@ func TestMailAuthRejectsOversizedAuthorizationHeader(t *testing.T) {
 func TestMailAuthRejectsInvalidBearerTokenWithGenericError(t *testing.T) {
 	t.Parallel()
 
-	manager, err := auth.NewTokenManager("secret")
+	manager, err := auth.NewTokenManager("test-secret-httpapi-mail-at-least-32b")
 	if err != nil {
 		t.Fatalf("NewTokenManager returned error: %v", err)
 	}
@@ -3266,7 +3266,7 @@ func TestMailAuthRejectsInvalidBearerTokenWithGenericError(t *testing.T) {
 func TestMailAuthRejectsDuplicateAuthorizationHeaders(t *testing.T) {
 	t.Parallel()
 
-	manager, err := auth.NewTokenManager("secret")
+	manager, err := auth.NewTokenManager("test-secret-httpapi-mail-at-least-32b")
 	if err != nil {
 		t.Fatalf("NewTokenManager returned error: %v", err)
 	}
@@ -3439,7 +3439,7 @@ func TestMailRoutesRejectUnsafePathIDs(t *testing.T) {
 func TestMailRoutesRequireJWTWhenConfigured(t *testing.T) {
 	t.Parallel()
 
-	manager, err := auth.NewTokenManager("secret")
+	manager, err := auth.NewTokenManager("test-secret-httpapi-mail-at-least-32b")
 	if err != nil {
 		t.Fatalf("NewTokenManager returned error: %v", err)
 	}
@@ -3459,7 +3459,7 @@ func TestMailRoutesRequireJWTWhenConfigured(t *testing.T) {
 func TestMailRoutesAllowAPIKeyReadForDomainUser(t *testing.T) {
 	t.Parallel()
 
-	manager, err := auth.NewTokenManager("secret")
+	manager, err := auth.NewTokenManager("test-secret-httpapi-mail-at-least-32b")
 	if err != nil {
 		t.Fatalf("NewTokenManager returned error: %v", err)
 	}
@@ -3493,7 +3493,7 @@ func TestMailRoutesAllowAPIKeyReadForDomainUser(t *testing.T) {
 func TestMailRoutesAllowAPIKeyUserHeader(t *testing.T) {
 	t.Parallel()
 
-	manager, err := auth.NewTokenManager("secret")
+	manager, err := auth.NewTokenManager("test-secret-httpapi-mail-at-least-32b")
 	if err != nil {
 		t.Fatalf("NewTokenManager returned error: %v", err)
 	}
@@ -3524,7 +3524,7 @@ func TestMailRoutesAllowAPIKeyUserHeader(t *testing.T) {
 func TestMailRoutesAllowAPIKeyUserEmailHeader(t *testing.T) {
 	t.Parallel()
 
-	manager, err := auth.NewTokenManager("secret")
+	manager, err := auth.NewTokenManager("test-secret-httpapi-mail-at-least-32b")
 	if err != nil {
 		t.Fatalf("NewTokenManager returned error: %v", err)
 	}

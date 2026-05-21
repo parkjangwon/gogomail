@@ -109,6 +109,27 @@ services:
     networks:
       - gogomail
 
+  # Nginx reverse proxy / TLS terminator
+  nginx:
+    image: nginx:alpine
+    container_name: gogomail-nginx
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx-single.conf:/etc/nginx/nginx.conf:ro
+      - ./certs:/etc/nginx/certs:ro
+    depends_on:
+      - backend
+    networks:
+      - gogomail
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
   # GoGoMail Backend
   backend:
     image: ${BACKEND_IMAGE:-gogomail:latest}
@@ -144,8 +165,8 @@ services:
       APP_MODE: all-in-one
       APP_LOG_LEVEL: info
       APP_PORT: 8080
-    ports:
-      - "8080:8080"
+    expose:
+      - "8080"
     volumes:
       - /etc/localtime:/etc/localtime:ro
     healthcheck:

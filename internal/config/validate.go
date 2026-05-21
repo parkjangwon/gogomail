@@ -745,6 +745,9 @@ func (c Config) Validate() error {
 		if strings.TrimSpace(c.AuthJWTSecret) == "" {
 			return fmt.Errorf("GOGOMAIL_AUTH_JWT_SECRET must not be empty in production")
 		}
+		if len([]byte(strings.TrimSpace(c.AuthJWTSecret))) < 32 {
+			return fmt.Errorf("GOGOMAIL_AUTH_JWT_SECRET must be at least 32 bytes in production")
+		}
 		if strings.TrimSpace(c.AdminToken) == "" {
 			return fmt.Errorf("GOGOMAIL_ADMIN_TOKEN must not be empty in production")
 		}

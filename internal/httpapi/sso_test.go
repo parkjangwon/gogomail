@@ -203,7 +203,7 @@ func (f *fakeSSOFlowService) JITCreateSSOUser(_ context.Context, email, domainID
 
 func newFakeTM(t *testing.T) *auth.TokenManager {
 	t.Helper()
-	tm, err := auth.NewTokenManager("test-secret-for-sso-unit-tests")
+	tm, err := auth.NewTokenManager("test-secret-for-sso-unit-tests-32b!!")
 	if err != nil {
 		t.Fatalf("NewTokenManager: %v", err)
 	}

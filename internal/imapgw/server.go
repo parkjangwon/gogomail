@@ -40,10 +40,11 @@ type ServerOptions struct {
 }
 
 type Server struct {
-	options  ServerOptions
-	mu       sync.Mutex
-	listener net.Listener
-	metrics  interface{} // GatewayMetrics (optional, typed as interface{} to avoid import)
+	options     ServerOptions
+	mu          sync.Mutex
+	listener    net.Listener
+	metrics     interface{} // GatewayMetrics (optional, typed as interface{} to avoid import)
+	authTracker *authFailureTracker
 }
 
 var ErrServerClosed = errors.New("imap server closed")
@@ -78,7 +79,7 @@ func NewServer(opts ServerOptions) (*Server, error) {
 		return nil, fmt.Errorf("imap idle timeout must not be negative")
 	}
 	opts.Addr = addr
-	return &Server{options: opts}, nil
+	return &Server{options: opts, authTracker: newAuthFailureTracker()}, nil
 }
 
 func (s *Server) Options() ServerOptions {
@@ -278,6 +279,7 @@ func (s *Server) ServeConn(conn net.Conn) error {
 	state := imapConnState{}
 	state.ctx = connCtx
 	_, state.tlsActive = conn.(*tls.Conn)
+	state.remoteIP = imapRemoteAddrIP(conn.RemoteAddr())
 
 	// Initial connection tracking (unauth'd)
 	s.recordConnect("unauthenticated")
@@ -615,6 +617,7 @@ type imapConnState struct {
 	events                <-chan MailboxEvent
 	cancelEvents          func()
 	userID                string // For metrics tracking
+	remoteIP              string
 }
 
 func (s *Server) handleLine(writer *bufio.Writer, line string, state *imapConnState) (bool, error) {
@@ -1495,8 +1498,13 @@ func (s *Server) handleLogin(writer *bufio.Writer, tag string, fields []string, 
 		_, err := writer.WriteString(tag + " NO [PRIVACYREQUIRED] TLS is required for LOGIN\r\n")
 		return false, err
 	}
+	if s.authTracker.isLocked(state.remoteIP) {
+		_, err := writer.WriteString(tag + " NO [AUTHENTICATIONFAILED] LOGIN failed\r\n")
+		return false, err
+	}
 	authSession, err := s.options.Backend.Authenticate(state.ctx, fields[2], fields[3])
 	if err != nil {
+		s.authTracker.record(state.remoteIP)
 		_, writeErr := writer.WriteString(tag + " NO [AUTHENTICATIONFAILED] LOGIN failed\r\n")
 		return false, writeErr
 	}
@@ -2235,8 +2243,13 @@ func (s *Server) completeAuthenticatePlain(writer *bufio.Writer, tag string, val
 		_, err := writer.WriteString(tag + " BAD AUTHENTICATE PLAIN response is malformed\r\n")
 		return false, err
 	}
+	if s.authTracker.isLocked(state.remoteIP) {
+		_, writeErr := writer.WriteString(tag + " NO [AUTHENTICATIONFAILED] AUTHENTICATE failed\r\n")
+		return false, writeErr
+	}
 	authSession, err := s.options.Backend.Authenticate(state.ctx, username, password)
 	if err != nil {
+		s.authTracker.record(state.remoteIP)
 		_, writeErr := writer.WriteString(tag + " NO [AUTHENTICATIONFAILED] AUTHENTICATE failed\r\n")
 		return false, writeErr
 	}
@@ -9477,4 +9490,62 @@ func imapCommandLiteralSize(line string) (int, bool, bool, error) {
 		}
 	}
 	return int(size), nonSync, true, nil
+}
+
+// authFailureTracker tracks per-IP auth failures for brute-force protection.
+type authFailureTracker struct {
+	mu       sync.Mutex
+	failures map[string][]time.Time
+	window   time.Duration
+	maxFails int
+}
+
+func newAuthFailureTracker() *authFailureTracker {
+	return &authFailureTracker{
+		failures: make(map[string][]time.Time),
+		window:   10 * time.Minute,
+		maxFails: 10,
+	}
+}
+
+func (t *authFailureTracker) record(ip string) bool {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	now := time.Now()
+	cutoff := now.Add(-t.window)
+	prev := t.failures[ip]
+	fresh := prev[:0]
+	for _, ts := range prev {
+		if ts.After(cutoff) {
+			fresh = append(fresh, ts)
+		}
+	}
+	fresh = append(fresh, now)
+	t.failures[ip] = fresh
+	return len(fresh) > t.maxFails
+}
+
+func (t *authFailureTracker) isLocked(ip string) bool {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	now := time.Now()
+	cutoff := now.Add(-t.window)
+	var count int
+	for _, ts := range t.failures[ip] {
+		if ts.After(cutoff) {
+			count++
+		}
+	}
+	return count >= t.maxFails
+}
+
+func imapRemoteAddrIP(addr net.Addr) string {
+	if addr == nil {
+		return ""
+	}
+	host, _, err := net.SplitHostPort(addr.String())
+	if err != nil {
+		return addr.String()
+	}
+	return host
 }

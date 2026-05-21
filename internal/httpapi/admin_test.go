@@ -5915,7 +5915,7 @@ func TestAdminWebhooksListRedactsSecret(t *testing.T) {
 func TestAdminLoginIssuesSignedAccessAndRefreshTokens(t *testing.T) {
 	t.Parallel()
 
-	manager, err := auth.NewTokenManager("admin-auth-secret")
+	manager, err := auth.NewTokenManager("admin-auth-secret-at-least-32bytes")
 	if err != nil {
 		t.Fatalf("NewTokenManager returned error: %v", err)
 	}
@@ -5971,7 +5971,7 @@ func TestAdminLoginRejectsHardcodedBootstrapCredentials(t *testing.T) {
 	t.Setenv("GOGOMAIL_ADMIN_BOOTSTRAP_EMAIL", "")
 	t.Setenv("GOGOMAIL_ADMIN_BOOTSTRAP_PASSWORD", "")
 
-	manager, err := auth.NewTokenManager("admin-auth-secret")
+	manager, err := auth.NewTokenManager("admin-auth-secret-at-least-32bytes")
 	if err != nil {
 		t.Fatalf("NewTokenManager returned error: %v", err)
 	}
@@ -5994,7 +5994,7 @@ func TestAdminLoginAllowsBootstrapViaEnvVars(t *testing.T) {
 	t.Setenv("GOGOMAIL_ADMIN_BOOTSTRAP_EMAIL", "bootstrap@example.com")
 	t.Setenv("GOGOMAIL_ADMIN_BOOTSTRAP_PASSWORD", "s3cr3t-b00tstrap!")
 
-	manager, err := auth.NewTokenManager("admin-auth-secret")
+	manager, err := auth.NewTokenManager("admin-auth-secret-at-least-32bytes")
 	if err != nil {
 		t.Fatalf("NewTokenManager returned error: %v", err)
 	}
@@ -6023,7 +6023,7 @@ func TestAdminLoginAllowsBootstrapViaEnvVars(t *testing.T) {
 func TestAdminVerifyRequiresValidBearerJWT(t *testing.T) {
 	t.Parallel()
 
-	manager, err := auth.NewTokenManager("admin-auth-secret")
+	manager, err := auth.NewTokenManager("admin-auth-secret-at-least-32bytes")
 	if err != nil {
 		t.Fatalf("NewTokenManager returned error: %v", err)
 	}
@@ -6078,7 +6078,7 @@ func TestAdminVerifyRequiresValidBearerJWT(t *testing.T) {
 func TestAdminRefreshIssuesNewAccessToken(t *testing.T) {
 	t.Parallel()
 
-	manager, err := auth.NewTokenManager("admin-auth-secret")
+	manager, err := auth.NewTokenManager("admin-auth-secret-at-least-32bytes")
 	if err != nil {
 		t.Fatalf("NewTokenManager returned error: %v", err)
 	}
@@ -6117,7 +6117,7 @@ func TestAdminRefreshIssuesNewAccessToken(t *testing.T) {
 func TestAdminLogoutRevokesBearerSession(t *testing.T) {
 	t.Parallel()
 
-	manager, err := auth.NewTokenManager("admin-auth-secret")
+	manager, err := auth.NewTokenManager("admin-auth-secret-at-least-32bytes")
 	if err != nil {
 		t.Fatalf("NewTokenManager returned error: %v", err)
 	}

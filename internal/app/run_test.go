@@ -1186,7 +1186,7 @@ func TestAPIMeteringHandlerRequiresOutboxDB(t *testing.T) {
 func TestMeteringIdentityResolverUsesJWTClaims(t *testing.T) {
 	t.Parallel()
 
-	manager, err := auth.NewTokenManager("secret")
+	manager, err := auth.NewTokenManager("test-secret-app-run-test-at-least-32b")
 	if err != nil {
 		t.Fatalf("NewTokenManager returned error: %v", err)
 	}
@@ -1210,7 +1210,7 @@ func TestTokenManagerForConfigAttachesRevocationChecker(t *testing.T) {
 	t.Parallel()
 
 	checker := &staticSessionVersionChecker{version: 5}
-	manager, err := tokenManagerForConfig(config.Config{AuthJWTSecret: "admin-secret"}, checker)
+	manager, err := tokenManagerForConfig(config.Config{AuthJWTSecret: "admin-secret-at-least-32-bytes!!"}, checker)
 	if err != nil {
 		t.Fatalf("tokenManagerForConfig returned error: %v", err)
 	}
