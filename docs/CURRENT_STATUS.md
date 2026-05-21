@@ -1,6 +1,12 @@
 # gogomail current status
 
-Last updated: 2026-05-21 (SaaS launch hardening continues: LDAP sync run stable ordering)
+Last updated: 2026-05-21 (SaaS launch hardening continues: admin operations query stability)
+
+## Admin Domain And DNS Stable Ordering (2026-05-21)
+- Admin user, admin-user, and domain list queries now order by `created_at DESC, id DESC`, preventing equal-timestamp admin pages from drifting.
+- Domain list company filtering now uses `d.company_id = $n::uuid` instead of casting the indexed column to text.
+- Latest-domain-DNS and DNS-check history queries now order by `checked_at DESC, id DESC`, with matching domain/status/check-time indexes.
+- Verification target: `go test -count=1 ./internal/maildb -run 'ListDomainsQuery|ListUsersQuery|ListDomainDNSChecksQuery'`.
 
 ## Quota Alert Query Stability (2026-05-21)
 - Quota alert and threshold list queries now order by `created_at DESC, id DESC`, preventing equal-timestamp operations pages from drifting.

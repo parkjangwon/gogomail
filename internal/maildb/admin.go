@@ -887,7 +887,7 @@ SELECT
   report,
   checked_at
 FROM domain_dns_checks
-WHERE domain_id = $1`
+WHERE domain_id = $1::uuid`
 
 type DomainView struct {
 	ID                   string     `json:"id"`
@@ -2634,7 +2634,7 @@ FROM users u
 		builder.WriteString(strings.Join(where, "\n  AND "))
 		builder.WriteByte('\n')
 	}
-	builder.WriteString(fmt.Sprintf("ORDER BY u.created_at DESC\nLIMIT $%d", len(args)))
+	builder.WriteString(fmt.Sprintf("ORDER BY u.created_at DESC, u.id DESC\nLIMIT $%d", len(args)))
 	return builder.String(), args
 }
 
@@ -2785,7 +2785,7 @@ FROM users u
 JOIN domains d ON d.id = u.domain_id
 LEFT JOIN user_addresses ua ON ua.user_id = u.id AND ua.address LIKE u.username || '@%'
 WHERE ` + strings.Join(where, "\n  AND ") + `
-ORDER BY u.created_at DESC
+ORDER BY u.created_at DESC, u.id DESC
 LIMIT $` + fmt.Sprint(len(args))
 	return query, args
 }
@@ -2891,7 +2891,7 @@ func buildListDomainsQuery(req DomainListRequest, status string, dnsStatus strin
 	where := make([]string, 0, 3)
 	if companyID := strings.TrimSpace(req.CompanyID); companyID != "" {
 		args = append(args, companyID)
-		where = append(where, fmt.Sprintf("d.company_id::text = $%d", len(args)))
+		where = append(where, fmt.Sprintf("d.company_id = $%d::uuid", len(args)))
 	}
 	if status != "" {
 		args = append(args, status)
@@ -2931,7 +2931,7 @@ LEFT JOIN LATERAL (
   SELECT status, checked_at
   FROM domain_dns_checks
   WHERE domain_id = d.id
-  ORDER BY checked_at DESC
+  ORDER BY checked_at DESC, id DESC
   LIMIT 1
 ) latest ON true
 `)
@@ -2940,7 +2940,7 @@ LEFT JOIN LATERAL (
 		builder.WriteString(strings.Join(where, "\n  AND "))
 		builder.WriteByte('\n')
 	}
-	builder.WriteString(fmt.Sprintf("ORDER BY d.created_at DESC\nLIMIT $%d", len(args)))
+	builder.WriteString(fmt.Sprintf("ORDER BY d.created_at DESC, d.id DESC\nLIMIT $%d", len(args)))
 	return builder.String(), args
 }
 
@@ -2978,7 +2978,7 @@ LEFT JOIN LATERAL (
   SELECT status, checked_at
   FROM domain_dns_checks
   WHERE domain_id = d.id
-  ORDER BY checked_at DESC
+  ORDER BY checked_at DESC, id DESC
   LIMIT 1
 ) latest ON true
 WHERE d.id = $1
@@ -3148,7 +3148,7 @@ func buildListDomainDNSChecksQuery(domainID string, status string, since time.Ti
 	}
 	args = append(args, limit)
 	query += fmt.Sprintf(`
-ORDER BY checked_at DESC
+ORDER BY checked_at DESC, id DESC
 LIMIT $%d`, len(args))
 	return query, args
 }

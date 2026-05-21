@@ -118,10 +118,10 @@ func TestListDomainsQueryUsesSargableFilters(t *testing.T) {
 	}, "active", "ok", 101)
 
 	for _, want := range []string{
-		"d.company_id::text = $1",
+		"d.company_id = $1::uuid",
 		"d.status = $2",
 		"COALESCE(latest.status, '') = $3",
-		"ORDER BY d.created_at DESC",
+		"ORDER BY d.created_at DESC, d.id DESC",
 		"LIMIT $4",
 	} {
 		if !strings.Contains(query, want) {
@@ -133,6 +133,7 @@ func TestListDomainsQueryUsesSargableFilters(t *testing.T) {
 		"$2 = '' OR",
 		"$3 = '' OR",
 		"NULLIF($",
+		"d.company_id::text =",
 	} {
 		if strings.Contains(query, forbidden) {
 			t.Fatalf("domain list query contains non-sargable filter %q:\n%s", forbidden, query)
@@ -1275,7 +1276,7 @@ func TestListUsersQueryUsesSargableOptionalFilters(t *testing.T) {
 		"WHERE u.domain_id = $1::uuid",
 		"AND u.status = $2",
 		"AND (COALESCE(u.password_hash, '') <> '') = $3::boolean",
-		"ORDER BY u.created_at DESC",
+		"ORDER BY u.created_at DESC, u.id DESC",
 		"LIMIT $4",
 	} {
 		if !strings.Contains(query, want) {
@@ -1632,10 +1633,10 @@ func TestListDomainDNSChecksQueryUsesSargableFilters(t *testing.T) {
 	)
 
 	for _, want := range []string{
-		"WHERE domain_id = $1",
+		"WHERE domain_id = $1::uuid",
 		"AND status = $2",
 		"AND checked_at >= $3",
-		"ORDER BY checked_at DESC",
+		"ORDER BY checked_at DESC, id DESC",
 		"LIMIT $4",
 	} {
 		if !strings.Contains(query, want) {
