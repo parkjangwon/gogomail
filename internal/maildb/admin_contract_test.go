@@ -311,7 +311,7 @@ func TestListCompaniesQueryUsesSargableStatusFilter(t *testing.T) {
 	for _, want := range []string{
 		"FROM companies",
 		"WHERE status = $1",
-		"ORDER BY created_at DESC",
+		"ORDER BY created_at DESC, id DESC",
 		"LIMIT $2",
 	} {
 		if !strings.Contains(query, want) {

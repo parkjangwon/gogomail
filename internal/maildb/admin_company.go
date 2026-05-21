@@ -95,7 +95,7 @@ func buildListCompaniesQuery(req CompanyListRequest) (string, []any) {
 	if len(conditions) > 0 {
 		query += "WHERE " + strings.Join(conditions, "\n  AND ") + "\n"
 	}
-	query += fmt.Sprintf(`ORDER BY created_at DESC
+	query += fmt.Sprintf(`ORDER BY created_at DESC, id DESC
 LIMIT $%d`, len(args))
 	return query, args
 }
