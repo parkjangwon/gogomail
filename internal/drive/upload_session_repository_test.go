@@ -81,7 +81,7 @@ func TestListUploadSessionsQueryUsesSargableStatusFilter(t *testing.T) {
 		"AND u.status = 'active'",
 		"AND d.status = 'active'",
 		"AND s.status = $2",
-		"ORDER BY s.updated_at DESC, s.created_at DESC",
+		"ORDER BY s.updated_at DESC, s.created_at DESC, s.id DESC",
 		"LIMIT $3",
 	} {
 		if !strings.Contains(query, want) {
