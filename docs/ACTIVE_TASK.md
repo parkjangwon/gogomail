@@ -201,6 +201,7 @@
 - LDAP sync history and last-success lookup now use `started_at/last_success_at DESC, id DESC` ordering with matching history/status/success indexes for deterministic equal-timestamp sync runs.
 - Quota alert/threshold reads now use stable `created_at DESC, id DESC` ordering, UUID-sargable filters, scope-specific duplicate checks, and matching operational indexes.
 - Admin user/domain/DNS operations reads now use stable `created_at/checked_at DESC, id DESC` ordering, typed company filters, and matching list/history indexes.
+- Mail-flow operations list/stats reads now use typed UUID filters for company/domain/user/message dimensions with matching high-volume filter indexes.
 
 **Infrastructure & Storage Hardening** ✅ COMPLETE
 - Task 1 (EML GC): Added `LookupDeleteableStoragePaths` and `LookupExpungeStoragePaths` to maildb; service layer now performs two-phase GC (lookup before DB delete, delete from store after commit) for `DeleteMessage`, `BulkDeleteMessages`, `BulkDeleteThreads`, and `ExpungeIMAPMessages`. Reference-count check prevents deletion of paths shared by IMAP COPY.

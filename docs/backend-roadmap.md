@@ -21,6 +21,7 @@
 - LDAP sync history and last-success lookup now use stable `started_at/last_success_at DESC, id DESC` ordering with matching history/status/success indexes, preventing equal-timestamp sync run drift.
 - Quota alert and threshold operations reads now use stable `created_at DESC, id DESC` ordering, typed UUID predicates, scope-specific duplicate checks, and matching indexes.
 - Admin user/domain/DNS operations reads now use stable `created_at/checked_at DESC, id DESC` ordering with typed company filters and matching list/history indexes.
+- Mail-flow operations list/stats reads now use typed UUID predicates for company/domain/user/message dimensions with matching high-volume filter indexes.
 - Webmail pre-launch gaps closed: password reset UI, server-synced signatures, Web Push service worker registration, and calendar edit/delete controls.
 - Console pre-launch gaps closed: audit-log cursor pagination, delivery-attempt filters/feedback, and targeted TypeScript cleanup.
 
@@ -6713,3 +6714,7 @@ Target outcome:
       use deterministic timestamp-plus-id ordering. Domain company filters use
       typed UUID predicates, and matching user/domain/DNS list indexes keep
       operations pages stable without adding sort-heavy scans.
+1841. Mail-flow list, aggregate stats, and daily stats queries now keep
+      company/domain/user/message UUID filters typed on the column side instead
+      of casting indexed columns to text. Matching high-volume filter indexes
+      cover the operational list and stats dimensions.

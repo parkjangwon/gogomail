@@ -1,6 +1,8 @@
 package maildb
 
 import (
+	"os"
+	"strings"
 	"testing"
 	"time"
 )
@@ -9,34 +11,34 @@ func TestNormalizeMailFlowLogListRequest(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		name  string
-		req   MailFlowLogListRequest
-		want  MailFlowLogListRequest
+		name string
+		req  MailFlowLogListRequest
+		want MailFlowLogListRequest
 	}{
 		{
-			name:  "zero limit defaults to 50",
-			req:   MailFlowLogListRequest{},
-			want:  MailFlowLogListRequest{Limit: 50},
+			name: "zero limit defaults to 50",
+			req:  MailFlowLogListRequest{},
+			want: MailFlowLogListRequest{Limit: 50},
 		},
 		{
-			name:  "negative limit defaults to 50",
-			req:   MailFlowLogListRequest{Limit: -1},
-			want:  MailFlowLogListRequest{Limit: 50},
+			name: "negative limit defaults to 50",
+			req:  MailFlowLogListRequest{Limit: -1},
+			want: MailFlowLogListRequest{Limit: 50},
 		},
 		{
-			name:  "limit over 200 caps at 200",
-			req:   MailFlowLogListRequest{Limit: 1000},
-			want:  MailFlowLogListRequest{Limit: 200},
+			name: "limit over 200 caps at 200",
+			req:  MailFlowLogListRequest{Limit: 1000},
+			want: MailFlowLogListRequest{Limit: 200},
 		},
 		{
-			name:  "valid limit unchanged",
-			req:   MailFlowLogListRequest{Limit: 100},
-			want:  MailFlowLogListRequest{Limit: 100},
+			name: "valid limit unchanged",
+			req:  MailFlowLogListRequest{Limit: 100},
+			want: MailFlowLogListRequest{Limit: 100},
 		},
 		{
-			name:  "trims whitespace",
-			req:   MailFlowLogListRequest{Direction: " inbound ", CompanyID: " 123 ", DomainID: " 456 "},
-			want:  MailFlowLogListRequest{Limit: 50, Direction: "inbound", CompanyID: "123", DomainID: "456"},
+			name: "trims whitespace",
+			req:  MailFlowLogListRequest{Direction: " inbound ", CompanyID: " 123 ", DomainID: " 456 "},
+			want: MailFlowLogListRequest{Limit: 50, Direction: "inbound", CompanyID: "123", DomainID: "456"},
 		},
 	}
 
@@ -56,24 +58,24 @@ func TestNormalizeMailFlowLogStatsRequest(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		name  string
-		req   MailFlowLogStatsRequest
-		want  MailFlowLogStatsRequest
+		name string
+		req  MailFlowLogStatsRequest
+		want MailFlowLogStatsRequest
 	}{
 		{
-			name:  "empty request",
-			req:   MailFlowLogStatsRequest{},
-			want:  MailFlowLogStatsRequest{},
+			name: "empty request",
+			req:  MailFlowLogStatsRequest{},
+			want: MailFlowLogStatsRequest{},
 		},
 		{
-			name:  "trims whitespace",
-			req:   MailFlowLogStatsRequest{Direction: " inbound ", CompanyID: " 123 ", DomainID: " 456 ", UserID: " 789 "},
-			want:  MailFlowLogStatsRequest{Direction: "inbound", CompanyID: "123", DomainID: "456", UserID: "789"},
+			name: "trims whitespace",
+			req:  MailFlowLogStatsRequest{Direction: " inbound ", CompanyID: " 123 ", DomainID: " 456 ", UserID: " 789 "},
+			want: MailFlowLogStatsRequest{Direction: "inbound", CompanyID: "123", DomainID: "456", UserID: "789"},
 		},
 		{
-			name:  "preserves time values",
-			req:   MailFlowLogStatsRequest{Since: time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC), Until: time.Date(2026, 12, 31, 23, 59, 59, 0, time.UTC)},
-			want:  MailFlowLogStatsRequest{Since: time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC), Until: time.Date(2026, 12, 31, 23, 59, 59, 0, time.UTC)},
+			name: "preserves time values",
+			req:  MailFlowLogStatsRequest{Since: time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC), Until: time.Date(2026, 12, 31, 23, 59, 59, 0, time.UTC)},
+			want: MailFlowLogStatsRequest{Since: time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC), Until: time.Date(2026, 12, 31, 23, 59, 59, 0, time.UTC)},
 		},
 	}
 
@@ -93,24 +95,24 @@ func TestNormalizeMailFlowLogDailyStatsRequest(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		name  string
-		req   MailFlowLogDailyStatsRequest
-		want  MailFlowLogDailyStatsRequest
+		name string
+		req  MailFlowLogDailyStatsRequest
+		want MailFlowLogDailyStatsRequest
 	}{
 		{
-			name:  "empty request",
-			req:   MailFlowLogDailyStatsRequest{},
-			want:  MailFlowLogDailyStatsRequest{},
+			name: "empty request",
+			req:  MailFlowLogDailyStatsRequest{},
+			want: MailFlowLogDailyStatsRequest{},
 		},
 		{
-			name:  "trims whitespace",
-			req:   MailFlowLogDailyStatsRequest{Direction: " outbound ", CompanyID: " abc ", DomainID: " def ", UserID: " ghi "},
-			want:  MailFlowLogDailyStatsRequest{Direction: "outbound", CompanyID: "abc", DomainID: "def", UserID: "ghi"},
+			name: "trims whitespace",
+			req:  MailFlowLogDailyStatsRequest{Direction: " outbound ", CompanyID: " abc ", DomainID: " def ", UserID: " ghi "},
+			want: MailFlowLogDailyStatsRequest{Direction: "outbound", CompanyID: "abc", DomainID: "def", UserID: "ghi"},
 		},
 		{
-			name:  "preserves time values",
-			req:   MailFlowLogDailyStatsRequest{Since: time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC), Until: time.Date(2026, 12, 31, 23, 59, 59, 0, time.UTC)},
-			want:  MailFlowLogDailyStatsRequest{Since: time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC), Until: time.Date(2026, 12, 31, 23, 59, 59, 0, time.UTC)},
+			name: "preserves time values",
+			req:  MailFlowLogDailyStatsRequest{Since: time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC), Until: time.Date(2026, 12, 31, 23, 59, 59, 0, time.UTC)},
+			want: MailFlowLogDailyStatsRequest{Since: time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC), Until: time.Date(2026, 12, 31, 23, 59, 59, 0, time.UTC)},
 		},
 	}
 
@@ -156,6 +158,25 @@ func TestMailFlowStatusConstants(t *testing.T) {
 	for _, tt := range tests {
 		if string(tt.status) != tt.want {
 			t.Errorf("MailFlowStatus = %q, want %q", tt.status, tt.want)
+		}
+	}
+}
+
+func TestMailFlowLogQueriesKeepUUIDFiltersSargable(t *testing.T) {
+	t.Parallel()
+
+	source, err := os.ReadFile("mail_flow_logs.go")
+	if err != nil {
+		t.Fatalf("read mail_flow_logs.go: %v", err)
+	}
+	for _, forbidden := range []string{
+		"company_id::text =",
+		"domain_id::text =",
+		"user_id::text =",
+		"message_id::text =",
+	} {
+		if strings.Contains(string(source), forbidden) {
+			t.Fatalf("mail flow log query still casts indexed UUID column in predicate: %s", forbidden)
 		}
 	}
 }
