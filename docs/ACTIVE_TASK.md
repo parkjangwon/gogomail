@@ -199,6 +199,7 @@
 - Company, suppression-list, trusted-relay, and delivery-route admin lists now use `created_at DESC, id DESC` ordering with matching indexes for deterministic equal-timestamp pages.
 - DKIM active-key lookup and admin key listing now use `updated_at DESC, id DESC` ordering with matching indexes for deterministic equal-timestamp keys.
 - LDAP sync history and last-success lookup now use `started_at/last_success_at DESC, id DESC` ordering with matching history/status/success indexes for deterministic equal-timestamp sync runs.
+- Quota alert/threshold reads now use stable `created_at DESC, id DESC` ordering, UUID-sargable filters, scope-specific duplicate checks, and matching operational indexes.
 
 **Infrastructure & Storage Hardening** ✅ COMPLETE
 - Task 1 (EML GC): Added `LookupDeleteableStoragePaths` and `LookupExpungeStoragePaths` to maildb; service layer now performs two-phase GC (lookup before DB delete, delete from store after commit) for `DeleteMessage`, `BulkDeleteMessages`, `BulkDeleteThreads`, and `ExpungeIMAPMessages`. Reference-count check prevents deletion of paths shared by IMAP COPY.

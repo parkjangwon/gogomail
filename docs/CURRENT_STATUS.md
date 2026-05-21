@@ -2,6 +2,13 @@
 
 Last updated: 2026-05-21 (SaaS launch hardening continues: LDAP sync run stable ordering)
 
+## Quota Alert Query Stability (2026-05-21)
+- Quota alert and threshold list queries now order by `created_at DESC, id DESC`, preventing equal-timestamp operations pages from drifting.
+- Quota alert filters now compare UUID columns with typed UUID predicates instead of wrapping indexed columns in `::text`, improving index eligibility for company/domain/user/scope reads.
+- `CheckQuotaAlertSent` now uses the scope-specific domain/user UUID column and the correct placeholder when checking recent duplicate alerts.
+- Added matching quota alert and threshold indexes for stable list ordering and recent duplicate checks.
+- Verification target: `go test -count=1 ./internal/maildb -run 'QuotaAlert'`.
+
 ## LDAP Sync Run Stable Ordering (2026-05-21)
 - LDAP sync history now orders runs by `started_at DESC, id DESC`, preventing equal-timestamp admin pages from drifting between requests.
 - Last-success LDAP sync lookup now orders by `last_success_at DESC, id DESC`, making resume/delta baselines deterministic when success timestamps collide.

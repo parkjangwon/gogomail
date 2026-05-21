@@ -20,20 +20,20 @@ const (
 type QuotaAlertType string
 
 const (
-	QuotaAlertTypeWarning    QuotaAlertType = "warning"
+	QuotaAlertTypeWarning   QuotaAlertType = "warning"
 	QuotaAlertTypeCritical  QuotaAlertType = "critical"
 	QuotaAlertTypeExhausted QuotaAlertType = "exhausted"
 )
 
 type QuotaAlertThresholdView struct {
-	ID             string         `json:"id"`
-	Scope          QuotaAlertScope `json:"scope"`
-	ScopeID        string         `json:"scope_id,omitempty"`
-	CompanyID      string         `json:"company_id"`
-	WarningRatio   float64        `json:"warning_ratio"`
-	CriticalRatio  float64        `json:"critical_ratio"`
-	CreatedAt      time.Time      `json:"created_at"`
-	UpdatedAt      time.Time      `json:"updated_at"`
+	ID            string          `json:"id"`
+	Scope         QuotaAlertScope `json:"scope"`
+	ScopeID       string          `json:"scope_id,omitempty"`
+	CompanyID     string          `json:"company_id"`
+	WarningRatio  float64         `json:"warning_ratio"`
+	CriticalRatio float64         `json:"critical_ratio"`
+	CreatedAt     time.Time       `json:"created_at"`
+	UpdatedAt     time.Time       `json:"updated_at"`
 }
 
 type QuotaAlertView struct {
@@ -269,29 +269,7 @@ func (r *Repository) ListQuotaAlertThresholds(ctx context.Context, req QuotaAler
 	}
 	req = normalizeQuotaAlertThresholdListRequest(req)
 
-	var conditions []string
-	var args []any
-
-	if req.CompanyID != "" {
-		args = append(args, req.CompanyID)
-		conditions = append(conditions, fmt.Sprintf("company_id::text = $%d", len(args)))
-	}
-	if req.Scope != "" {
-		args = append(args, req.Scope)
-		conditions = append(conditions, fmt.Sprintf("scope = $%d", len(args)))
-	}
-
-	query := `
-SELECT id::text, scope, COALESCE(scope_id::text, ''), company_id::text, warning_ratio, critical_ratio, created_at, updated_at
-FROM quota_alert_thresholds`
-	if len(conditions) > 0 {
-		query += "\nWHERE " + strings.Join(conditions, "\n  AND ")
-	}
-	query += "\nORDER BY created_at DESC"
-
-	args = append(args, req.Limit)
-	query += fmt.Sprintf("\nLIMIT $%d", len(args))
-
+	query, args := buildQuotaAlertThresholdListSQL(req)
 	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("list quota alert thresholds: %w", err)
@@ -321,55 +299,40 @@ FROM quota_alert_thresholds`
 	return thresholds, nil
 }
 
+func buildQuotaAlertThresholdListSQL(req QuotaAlertThresholdListRequest) (string, []any) {
+	var conditions []string
+	var args []any
+
+	if req.CompanyID != "" {
+		args = append(args, req.CompanyID)
+		conditions = append(conditions, fmt.Sprintf("company_id = $%d::uuid", len(args)))
+	}
+	if req.Scope != "" {
+		args = append(args, req.Scope)
+		conditions = append(conditions, fmt.Sprintf("scope = $%d", len(args)))
+	}
+
+	query := `
+SELECT id::text, scope, COALESCE(scope_id::text, ''), company_id::text, warning_ratio, critical_ratio, created_at, updated_at
+FROM quota_alert_thresholds`
+	if len(conditions) > 0 {
+		query += "\nWHERE " + strings.Join(conditions, "\n  AND ")
+	}
+	query += "\nORDER BY created_at DESC, id DESC"
+
+	args = append(args, req.Limit)
+	query += fmt.Sprintf("\nLIMIT $%d", len(args))
+
+	return query, args
+}
+
 func (r *Repository) ListQuotaAlerts(ctx context.Context, req QuotaAlertListRequest) ([]QuotaAlertView, error) {
 	if r.db == nil {
 		return nil, fmt.Errorf("database handle is required")
 	}
 	req = normalizeQuotaAlertListRequest(req)
 
-	var conditions []string
-	var args []any
-
-	if req.CompanyID != "" {
-		args = append(args, req.CompanyID)
-		conditions = append(conditions, fmt.Sprintf("company_id::text = $%d", len(args)))
-	}
-	if req.DomainID != "" {
-		args = append(args, req.DomainID)
-		conditions = append(conditions, fmt.Sprintf("domain_id::text = $%d", len(args)))
-	}
-	if req.UserID != "" {
-		args = append(args, req.UserID)
-		conditions = append(conditions, fmt.Sprintf("user_id::text = $%d", len(args)))
-	}
-	if req.Scope != "" {
-		args = append(args, req.Scope)
-		conditions = append(conditions, fmt.Sprintf("scope = $%d", len(args)))
-	}
-	if req.AlertType != "" {
-		args = append(args, req.AlertType)
-		conditions = append(conditions, fmt.Sprintf("alert_type = $%d", len(args)))
-	}
-	if !req.Since.IsZero() {
-		args = append(args, req.Since.UTC())
-		conditions = append(conditions, fmt.Sprintf("created_at >= $%d", len(args)))
-	}
-	if !req.Until.IsZero() {
-		args = append(args, req.Until.UTC())
-		conditions = append(conditions, fmt.Sprintf("created_at <= $%d", len(args)))
-	}
-
-	query := `
-SELECT id::text, company_id::text, COALESCE(domain_id::text, ''), COALESCE(user_id::text, ''), scope, alert_type, quota_used, quota_limit, usage_ratio, event_id::text, created_at
-FROM quota_alerts`
-	if len(conditions) > 0 {
-		query += "\nWHERE " + strings.Join(conditions, "\n  AND ")
-	}
-	query += "\nORDER BY created_at DESC"
-
-	args = append(args, req.Limit)
-	query += fmt.Sprintf("\nLIMIT $%d", len(args))
-
+	query, args := buildQuotaAlertListSQL(req)
 	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("list quota alerts: %w", err)
@@ -400,6 +363,53 @@ FROM quota_alerts`
 		return nil, fmt.Errorf("iterate quota alerts: %w", err)
 	}
 	return alerts, nil
+}
+
+func buildQuotaAlertListSQL(req QuotaAlertListRequest) (string, []any) {
+	var conditions []string
+	var args []any
+
+	if req.CompanyID != "" {
+		args = append(args, req.CompanyID)
+		conditions = append(conditions, fmt.Sprintf("company_id = $%d::uuid", len(args)))
+	}
+	if req.DomainID != "" {
+		args = append(args, req.DomainID)
+		conditions = append(conditions, fmt.Sprintf("domain_id = $%d::uuid", len(args)))
+	}
+	if req.UserID != "" {
+		args = append(args, req.UserID)
+		conditions = append(conditions, fmt.Sprintf("user_id = $%d::uuid", len(args)))
+	}
+	if req.Scope != "" {
+		args = append(args, req.Scope)
+		conditions = append(conditions, fmt.Sprintf("scope = $%d", len(args)))
+	}
+	if req.AlertType != "" {
+		args = append(args, req.AlertType)
+		conditions = append(conditions, fmt.Sprintf("alert_type = $%d", len(args)))
+	}
+	if !req.Since.IsZero() {
+		args = append(args, req.Since.UTC())
+		conditions = append(conditions, fmt.Sprintf("created_at >= $%d", len(args)))
+	}
+	if !req.Until.IsZero() {
+		args = append(args, req.Until.UTC())
+		conditions = append(conditions, fmt.Sprintf("created_at <= $%d", len(args)))
+	}
+
+	query := `
+SELECT id::text, company_id::text, COALESCE(domain_id::text, ''), COALESCE(user_id::text, ''), scope, alert_type, quota_used, quota_limit, usage_ratio, event_id::text, created_at
+FROM quota_alerts`
+	if len(conditions) > 0 {
+		query += "\nWHERE " + strings.Join(conditions, "\n  AND ")
+	}
+	query += "\nORDER BY created_at DESC, id DESC"
+
+	args = append(args, req.Limit)
+	query += fmt.Sprintf("\nLIMIT $%d", len(args))
+
+	return query, args
 }
 
 func (r *Repository) GetQuotaAlert(ctx context.Context, id string) (QuotaAlertView, error) {
@@ -441,14 +451,14 @@ WHERE id = $1`
 
 type QuotaAlertRecord struct {
 	CompanyID  string
-	DomainID  string
-	UserID    string
-	Scope     QuotaAlertScope
-	AlertType QuotaAlertType
-	QuotaUsed int64
+	DomainID   string
+	UserID     string
+	Scope      QuotaAlertScope
+	AlertType  QuotaAlertType
+	QuotaUsed  int64
 	QuotaLimit int64
 	UsageRatio float64
-	EventID   string
+	EventID    string
 }
 
 func (r *Repository) RecordQuotaAlert(ctx context.Context, record QuotaAlertRecord) error {
@@ -491,28 +501,7 @@ func (r *Repository) GetQuotaAlertThresholdsForScope(ctx context.Context, compan
 	}
 
 	var thresholds []QuotaAlertThresholdView
-	var args []any
-	var conditions []string
-
-	args = append(args, companyID)
-	conditions = append(conditions, fmt.Sprintf("company_id::text = $%d", len(args)))
-
-	args = append(args, scope)
-	conditions = append(conditions, fmt.Sprintf("scope = $%d", len(args)))
-
-	if scope == QuotaAlertScopeUser || scope == QuotaAlertScopeDomain {
-		args = append(args, scopeID)
-		conditions = append(conditions, fmt.Sprintf("scope_id::text = $%d", len(args)))
-	} else {
-		conditions = append(conditions, "scope_id IS NULL")
-	}
-
-	query := `
-SELECT id::text, scope, COALESCE(scope_id::text, ''), company_id::text, warning_ratio, critical_ratio, created_at, updated_at
-FROM quota_alert_thresholds
-WHERE ` + strings.Join(conditions, " AND ") + `
-ORDER BY created_at DESC`
-
+	query, args := buildQuotaAlertThresholdsForScopeSQL(companyID, scope, scopeID)
 	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("get quota alert thresholds for scope: %w", err)
@@ -541,11 +530,47 @@ ORDER BY created_at DESC`
 	return thresholds, nil
 }
 
+func buildQuotaAlertThresholdsForScopeSQL(companyID string, scope QuotaAlertScope, scopeID string) (string, []any) {
+	var args []any
+	var conditions []string
+
+	args = append(args, companyID)
+	conditions = append(conditions, fmt.Sprintf("company_id = $%d::uuid", len(args)))
+
+	args = append(args, scope)
+	conditions = append(conditions, fmt.Sprintf("scope = $%d", len(args)))
+
+	if scope == QuotaAlertScopeUser || scope == QuotaAlertScopeDomain {
+		args = append(args, scopeID)
+		conditions = append(conditions, fmt.Sprintf("scope_id = $%d::uuid", len(args)))
+	} else {
+		conditions = append(conditions, "scope_id IS NULL")
+	}
+
+	query := `
+SELECT id::text, scope, COALESCE(scope_id::text, ''), company_id::text, warning_ratio, critical_ratio, created_at, updated_at
+FROM quota_alert_thresholds
+WHERE ` + strings.Join(conditions, " AND ") + `
+ORDER BY created_at DESC, id DESC`
+
+	return query, args
+}
+
 func (r *Repository) CheckQuotaAlertSent(ctx context.Context, companyID string, scope QuotaAlertScope, scopeID string, alertType QuotaAlertType, since time.Duration) (bool, error) {
 	if r.db == nil {
 		return false, fmt.Errorf("database handle is required")
 	}
 
+	query, args := buildQuotaAlertSentSQL(companyID, scope, scopeID, alertType, since)
+	var exists bool
+	err := r.db.QueryRowContext(ctx, query, args...).Scan(&exists)
+	if err != nil {
+		return false, fmt.Errorf("check quota alert sent: %w", err)
+	}
+	return exists, nil
+}
+
+func buildQuotaAlertSentSQL(companyID string, scope QuotaAlertScope, scopeID string, alertType QuotaAlertType, since time.Duration) (string, []any) {
 	var scopeCondition string
 	var args []any
 
@@ -556,7 +581,14 @@ func (r *Repository) CheckQuotaAlertSent(ctx context.Context, companyID string, 
 
 	if scopeID != "" {
 		args = append(args, scopeID)
-		scopeCondition = "AND user_id::text = $" + fmt.Sprintf("%d", len(args)-1)
+		switch scope {
+		case QuotaAlertScopeUser:
+			scopeCondition = fmt.Sprintf("AND user_id = $%d::uuid", len(args))
+		case QuotaAlertScopeDomain:
+			scopeCondition = fmt.Sprintf("AND domain_id = $%d::uuid", len(args))
+		default:
+			scopeCondition = fmt.Sprintf("AND company_id = $%d::uuid", len(args))
+		}
 	} else {
 		if scope == QuotaAlertScopeUser || scope == QuotaAlertScopeDomain {
 			scopeCondition = "AND user_id IS NULL AND domain_id IS NULL"
@@ -568,19 +600,14 @@ func (r *Repository) CheckQuotaAlertSent(ctx context.Context, companyID string, 
 	query := fmt.Sprintf(`
 SELECT EXISTS(
   SELECT 1 FROM quota_alerts
-  WHERE company_id::text = $1
+  WHERE company_id = $1::uuid
     AND scope = $2
     AND alert_type = $3
     AND created_at >= $4
     %s
 )`, scopeCondition)
 
-	var exists bool
-	err := r.db.QueryRowContext(ctx, query, args...).Scan(&exists)
-	if err != nil {
-		return false, fmt.Errorf("check quota alert sent: %w", err)
-	}
-	return exists, nil
+	return query, args
 }
 
 func normalizeQuotaAlertThresholdListRequest(req QuotaAlertThresholdListRequest) QuotaAlertThresholdListRequest {
