@@ -197,6 +197,7 @@
 - Active message free-text search now splits broad metadata/body `OR` matching into indexed `UNION` candidate branches and adds trigram indexes for active subject/from/body substring fallback.
 - Draft free-text search now splits subject/from/recipient/body matching into draft-only `UNION` candidate branches and adds draft trigram indexes for compose search.
 - Company, suppression-list, trusted-relay, and delivery-route admin lists now use `created_at DESC, id DESC` ordering with matching indexes for deterministic equal-timestamp pages.
+- DKIM active-key lookup and admin key listing now use `updated_at DESC, id DESC` ordering with matching indexes for deterministic equal-timestamp keys.
 
 **Infrastructure & Storage Hardening** ✅ COMPLETE
 - Task 1 (EML GC): Added `LookupDeleteableStoragePaths` and `LookupExpungeStoragePaths` to maildb; service layer now performs two-phase GC (lookup before DB delete, delete from store after commit) for `DeleteMessage`, `BulkDeleteMessages`, `BulkDeleteThreads`, and `ExpungeIMAPMessages`. Reference-count check prevents deletion of paths shared by IMAP COPY.
