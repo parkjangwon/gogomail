@@ -20,6 +20,7 @@
 - DKIM active-key lookup and admin key listing now use stable `updated_at DESC, id DESC` ordering with matching indexes, preventing equal-timestamp signing/list ambiguity.
 - LDAP sync history and last-success lookup now use stable `started_at/last_success_at DESC, id DESC` ordering with matching history/status/success indexes, preventing equal-timestamp sync run drift.
 - Quota alert and threshold operations reads now use stable `created_at DESC, id DESC` ordering, typed UUID predicates, scope-specific duplicate checks, and matching indexes.
+- Admin user/domain/DNS operations reads now use stable `created_at/checked_at DESC, id DESC` ordering with typed company filters and matching list/history indexes.
 - Webmail pre-launch gaps closed: password reset UI, server-synced signatures, Web Push service worker registration, and calendar edit/delete controls.
 - Console pre-launch gaps closed: audit-log cursor pagination, delivery-attempt filters/feedback, and targeted TypeScript cleanup.
 
@@ -6708,3 +6709,7 @@ Target outcome:
       wrapping indexed columns in `::text`. Recent duplicate-alert checks also
       use the scope-specific user/domain column with the correct placeholder,
       backed by matching quota alert and threshold indexes.
+1840. Admin user, domain, latest-domain-DNS, and DNS-check history reads now
+      use deterministic timestamp-plus-id ordering. Domain company filters use
+      typed UUID predicates, and matching user/domain/DNS list indexes keep
+      operations pages stable without adding sort-heavy scans.
