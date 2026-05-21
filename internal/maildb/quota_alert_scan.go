@@ -116,11 +116,11 @@ inserted AS (
     SELECT 1 FROM quota_alerts qa
     WHERE qa.scope      = c.scope
       AND qa.alert_type = c.alert_type
-      AND qa.company_id::text = c.company_id
+      AND qa.company_id = c.company_id::uuid
       AND CASE c.scope
-            WHEN 'user'    THEN qa.user_id::text   = c.entity_id
-            WHEN 'domain'  THEN qa.domain_id::text = c.entity_id
-            WHEN 'company' THEN qa.company_id::text = c.entity_id
+            WHEN 'user'    THEN qa.user_id = c.entity_id::uuid
+            WHEN 'domain'  THEN qa.domain_id = c.entity_id::uuid
+            WHEN 'company' THEN qa.company_id = c.entity_id::uuid
             ELSE false
           END
       AND qa.created_at >= now() - interval '24 hours'

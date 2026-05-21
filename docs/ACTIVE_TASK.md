@@ -203,6 +203,7 @@
 - Admin user/domain/DNS operations reads now use stable `created_at/checked_at DESC, id DESC` ordering, typed company filters, and matching list/history indexes.
 - Mail-flow operations list/stats reads now use typed UUID filters for company/domain/user/message dimensions with matching high-volume filter indexes.
 - Audit-log operations reads now use typed UUID filters for company/domain/user/actor/target dimensions with matching read indexes and SQL shape regression coverage.
+- Quota reconciliation correction updates and quota alert scanner duplicate checks now keep company/domain/user UUID predicates typed on indexed columns.
 
 **Infrastructure & Storage Hardening** ✅ COMPLETE
 - Task 1 (EML GC): Added `LookupDeleteableStoragePaths` and `LookupExpungeStoragePaths` to maildb; service layer now performs two-phase GC (lookup before DB delete, delete from store after commit) for `DeleteMessage`, `BulkDeleteMessages`, `BulkDeleteThreads`, and `ExpungeIMAPMessages`. Reference-count check prevents deletion of paths shared by IMAP COPY.

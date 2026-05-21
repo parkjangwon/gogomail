@@ -532,11 +532,11 @@ WHERE u.id = user_actual.id
 func quotaCorrectionUpdateUsersWhere(scope string) string {
 	switch scope {
 	case "company":
-		return "  AND user_actual.company_id::text = $1"
+		return "  AND user_actual.company_id = $1::uuid"
 	case "domain":
-		return "  AND user_actual.domain_id::text = $1"
+		return "  AND user_actual.domain_id = $1::uuid"
 	case "user":
-		return "  AND u.id::text = $1"
+		return "  AND u.id = $1::uuid"
 	default:
 		return ""
 	}
@@ -556,11 +556,11 @@ WHERE d.id = domain_actual.id
 func quotaCorrectionUpdateDomainsWhere(scope string) string {
 	switch scope {
 	case "company":
-		return "  AND d.company_id::text = $1"
+		return "  AND d.company_id = $1::uuid"
 	case "domain":
-		return "  AND d.id::text = $1"
+		return "  AND d.id = $1::uuid"
 	case "user":
-		return "  AND EXISTS (SELECT 1 FROM users u WHERE u.id::text = $1 AND u.domain_id = d.id)"
+		return "  AND EXISTS (SELECT 1 FROM users u WHERE u.id = $1::uuid AND u.domain_id = d.id)"
 	default:
 		return ""
 	}
@@ -580,15 +580,15 @@ WHERE c.id = company_actual.id
 func quotaCorrectionUpdateCompaniesWhere(scope string) string {
 	switch scope {
 	case "company":
-		return "  AND c.id::text = $1"
+		return "  AND c.id = $1::uuid"
 	case "domain":
-		return "  AND EXISTS (SELECT 1 FROM domains d WHERE d.id::text = $1 AND d.company_id = c.id)"
+		return "  AND EXISTS (SELECT 1 FROM domains d WHERE d.id = $1::uuid AND d.company_id = c.id)"
 	case "user":
 		return `  AND EXISTS (
       SELECT 1
       FROM users u
       JOIN domains d ON d.id = u.domain_id
-      WHERE u.id::text = $1 AND d.company_id = c.id
+      WHERE u.id = $1::uuid AND d.company_id = c.id
     )`
 	default:
 		return ""
