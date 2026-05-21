@@ -21,7 +21,7 @@ import {
   FormField,
   Input,
 } from '@cloudscape-design/components';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useCompany } from '@/contexts/CompanyContext';
 import { useI18n } from '@/app/i18n-provider';
@@ -79,7 +79,7 @@ export default function CompanyOverviewPage() {
       .finally(() => setLoadingDomains(false));
   }, [company]);
 
-  const fetchConfigs = () => {
+  const fetchConfigs = useCallback(() => {
     if (!company) return;
     setLoadingConfigs(true);
     fetch(`/api/admin/companies/${company.id}/config`, { credentials: 'include' })
@@ -87,7 +87,7 @@ export default function CompanyOverviewPage() {
       .then(d => setConfigs(d.config || d.entries || []))
       .catch((err) => { console.error('Failed to load configs:', err); setConfigs([]); })
       .finally(() => setLoadingConfigs(false));
-  };
+  }, [company]);
 
   useEffect(() => {
     if (activeTab === 'settings') fetchConfigs();
@@ -133,14 +133,14 @@ export default function CompanyOverviewPage() {
     }
   };
 
-  const handleDeleteConfig = async (key: string) => {
+  const handleDeleteConfig = useCallback(async (key: string) => {
     if (!company) return;
     const res = await fetch(`/api/admin/companies/${company.id}/config/${encodeURIComponent(key)}`, {
       method: 'DELETE',
       credentials: 'include',
     });
     if (res.ok) fetchConfigs();
-  };
+  }, [company, fetchConfigs]);
 
   if (!company) {
     return (
@@ -153,8 +153,69 @@ export default function CompanyOverviewPage() {
   const quotaLimit = company.quota_limit ?? 0;
   const quotaUsed = company.quota_used ?? 0;
   const quotaPct = quotaLimit > 0 ? Math.round((quotaUsed / quotaLimit) * 100) : 0;
-  const dnsIssues = domains.filter(d => d.last_dns_check_status !== 'pass' && d.last_dns_check_status !== '');
-  const activeDomains = domains.filter(d => d.status === 'active');
+  const dnsIssues = useMemo(() => domains.filter(d => d.last_dns_check_status !== 'pass' && d.last_dns_check_status !== ''), [domains]);
+  const activeDomains = useMemo(() => domains.filter(d => d.status === 'active'), [domains]);
+
+  const domainColumnDefs = useMemo(() => [
+    {
+      header: t('pages.company_overview.domain'),
+      cell: (d: Domain) => (
+        <Button
+          variant="inline-link"
+          onClick={() => router.push(`/companies/${companyId}/domains/${d.id}`)}
+        >
+          {d.name}
+        </Button>
+      ),
+      width: '30%',
+    },
+    {
+      header: t('pages.company_overview.status'),
+      cell: (d: Domain) => (
+        <Badge color={d.status === 'active' ? 'green' : 'grey'}>{d.status}</Badge>
+      ),
+      width: '15%',
+    },
+    {
+      header: t('pages.company_overview.dns'),
+      cell: (d: Domain) => {
+        const s = d.last_dns_check_status;
+        return <Badge color={s === 'pass' ? 'green' : s === 'fail' ? 'red' : 'grey'}>{s || t('pages.company_overview.unchecked')}</Badge>;
+      },
+      width: '15%',
+    },
+    {
+      header: t('pages.company_overview.storage_col'),
+      cell: (d: Domain) => {
+        const limit = d.quota_limit ?? 0;
+        const used = d.quota_used ?? 0;
+        return limit > 0
+          ? `${(used / 1073741824).toFixed(1)} / ${(limit / 1073741824).toFixed(1)} GB`
+          : `${(used / 1073741824).toFixed(1)} GB`;
+      },
+      width: '25%',
+    },
+    {
+      header: t('pages.company_overview.added'),
+      cell: (d: Domain) => new Date(d.created_at).toLocaleDateString(),
+      width: '15%',
+    },
+  ], [t, router, companyId]);
+
+  const configColumnDefs = useMemo(() => [
+    { header: t('pages.company_overview.config_key'), cell: (c: ConfigEntry) => <Box fontWeight="bold">{c.key}</Box>, width: '30%' },
+    { header: t('pages.company_overview.config_value'), cell: (c: ConfigEntry) => c.value, width: '40%' },
+    { header: t('pages.company_overview.config_updated'), cell: (c: ConfigEntry) => c.last_updated ? new Date(c.last_updated).toLocaleString() : '—', width: '20%' },
+    {
+      header: t('pages.company_overview.config_actions'),
+      cell: (c: ConfigEntry) => (
+        <Button variant="inline-link" onClick={() => handleDeleteConfig(c.key)}>
+          {t('pages.company_overview.delete')}
+        </Button>
+      ),
+      width: '10%',
+    },
+  ], [t, handleDeleteConfig]);
 
   const overviewTab = (
     <SpaceBetween size="l">
@@ -220,51 +281,7 @@ export default function CompanyOverviewPage() {
     <DataTable
       loading={loadingDomains}
       loadingText={t('pages.company_overview.loading_domains')}
-      columnDefinitions={[
-        {
-          header: t('pages.company_overview.domain'),
-          cell: (d: Domain) => (
-            <Button
-              variant="inline-link"
-              onClick={() => router.push(`/companies/${companyId}/domains/${d.id}`)}
-            >
-              {d.name}
-            </Button>
-          ),
-          width: '30%',
-        },
-        {
-          header: t('pages.company_overview.status'),
-          cell: (d: Domain) => (
-            <Badge color={d.status === 'active' ? 'green' : 'grey'}>{d.status}</Badge>
-          ),
-          width: '15%',
-        },
-        {
-          header: t('pages.company_overview.dns'),
-          cell: (d: Domain) => {
-            const s = d.last_dns_check_status;
-            return <Badge color={s === 'pass' ? 'green' : s === 'fail' ? 'red' : 'grey'}>{s || t('pages.company_overview.unchecked')}</Badge>;
-          },
-          width: '15%',
-        },
-        {
-          header: t('pages.company_overview.storage_col'),
-          cell: (d: Domain) => {
-            const limit = d.quota_limit ?? 0;
-            const used = d.quota_used ?? 0;
-            return limit > 0
-              ? `${(used / 1073741824).toFixed(1)} / ${(limit / 1073741824).toFixed(1)} GB`
-              : `${(used / 1073741824).toFixed(1)} GB`;
-          },
-          width: '25%',
-        },
-        {
-          header: t('pages.company_overview.added'),
-          cell: (d: Domain) => new Date(d.created_at).toLocaleDateString(),
-          width: '15%',
-        },
-      ]}
+      columnDefinitions={domainColumnDefs}
       items={domains}
       header={
         <Header
@@ -350,20 +367,7 @@ export default function CompanyOverviewPage() {
       <DataTable
         loading={loadingConfigs}
         items={configs}
-        columnDefinitions={[
-          { header: t('pages.company_overview.config_key'), cell: (c: ConfigEntry) => <Box fontWeight="bold">{c.key}</Box>, width: '30%' },
-          { header: t('pages.company_overview.config_value'), cell: (c: ConfigEntry) => c.value, width: '40%' },
-          { header: t('pages.company_overview.config_updated'), cell: (c: ConfigEntry) => c.last_updated ? new Date(c.last_updated).toLocaleString() : '—', width: '20%' },
-          {
-            header: t('pages.company_overview.config_actions'),
-            cell: (c: ConfigEntry) => (
-              <Button variant="inline-link" onClick={() => handleDeleteConfig(c.key)}>
-                {t('pages.company_overview.delete')}
-              </Button>
-            ),
-            width: '10%',
-          },
-        ]}
+        columnDefinitions={configColumnDefs}
         header={
           <Header
             variant="h2"
