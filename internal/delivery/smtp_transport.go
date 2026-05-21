@@ -400,21 +400,40 @@ func shouldSendOutboundDSNRcptOptions(job Job) bool {
 }
 
 func dsnOptionsForRecipient(recipients []DSNRecipientOptions, address string) []string {
-	normalized := strings.ToLower(strings.TrimSpace(address))
-	for _, recipient := range recipients {
-		if strings.ToLower(strings.TrimSpace(recipient.Address)) != normalized {
-			continue
-		}
-		options := make([]string, 0, 2)
-		if len(recipient.Notify) > 0 {
-			options = append(options, "NOTIFY="+strings.Join(recipient.Notify, ","))
-		}
-		if recipient.OriginalRecipient != "" {
-			options = append(options, "ORCPT="+recipient.OriginalRecipient)
-		}
-		return options
+	return dsnOptionsForRecipientMap(dsnRCPTOptionsByAddress(recipients), address)
+}
+
+func dsnRCPTOptionsByAddress(recipients []DSNRecipientOptions) map[string][]string {
+	dsnByAddress := dsnRecipientOptionsByAddress(recipients)
+	if len(dsnByAddress) == 0 {
+		return nil
 	}
-	return nil
+	optionsByAddress := make(map[string][]string, len(dsnByAddress))
+	for address, recipient := range dsnByAddress {
+		options := dsnRCPTOptionParameters(recipient)
+		if len(options) > 0 {
+			optionsByAddress[address] = options
+		}
+	}
+	return optionsByAddress
+}
+
+func dsnRCPTOptionParameters(recipient DSNRecipientOptions) []string {
+	options := make([]string, 0, 2)
+	if len(recipient.Notify) > 0 {
+		options = append(options, "NOTIFY="+strings.Join(recipient.Notify, ","))
+	}
+	if recipient.OriginalRecipient != "" {
+		options = append(options, "ORCPT="+recipient.OriginalRecipient)
+	}
+	return options
+}
+
+func dsnOptionsForRecipientMap(optionsByAddress map[string][]string, address string) []string {
+	if len(optionsByAddress) == 0 {
+		return nil
+	}
+	return optionsByAddress[strings.ToLower(strings.TrimSpace(address))]
 }
 
 func smtpClientSupports(client *smtp.Client, extension string) bool {
@@ -458,6 +477,8 @@ func pipelineRCPTs(client *smtp.Client, job Job, recipients []outbound.Address) 
 
 	// Send all RCPT commands without waiting for responses
 	rcptCmds := make([]string, 0, len(recipients))
+	dsnByAddress := dsnRCPTOptionsByAddress(job.DSN.Recipients)
+	sendDSNOptions := shouldSendOutboundDSNRcptOptions(job) && smtpClientSupports(client, "DSN")
 	for _, recipient := range recipients {
 		if containsNonASCIIByte(recipient.Email) && !smtpClientSupports(client, "SMTPUTF8") {
 			return []outbound.Address{}, []RecipientDeliveryError{
@@ -465,9 +486,9 @@ func pipelineRCPTs(client *smtp.Client, job Job, recipients []outbound.Address) 
 			}
 		}
 
-		options := dsnOptionsForRecipient(job.DSN.Recipients, recipient.Email)
+		options := dsnOptionsForRecipientMap(dsnByAddress, recipient.Email)
 		cmd := "RCPT TO:<" + recipient.Email + ">"
-		if shouldSendOutboundDSNRcptOptions(job) && smtpClientSupports(client, "DSN") && len(options) > 0 {
+		if sendDSNOptions && len(options) > 0 {
 			cmd += " " + strings.Join(options, " ")
 		}
 		rcptCmds = append(rcptCmds, cmd)

@@ -690,6 +690,27 @@ func TestDSNOptionsForRecipientSkipsUnmatchedRecipient(t *testing.T) {
 	}
 }
 
+func TestDSNRCPTOptionsByAddressPreservesFirstNormalizedMatch(t *testing.T) {
+	t.Parallel()
+
+	optionsByAddress := dsnRCPTOptionsByAddress([]DSNRecipientOptions{
+		{
+			Address:           " User@Example.NET ",
+			Notify:            []string{"SUCCESS"},
+			OriginalRecipient: "rfc822;first@example.net",
+		},
+		{
+			Address:           "user@example.net",
+			Notify:            []string{"FAILURE"},
+			OriginalRecipient: "rfc822;second@example.net",
+		},
+	})
+	options := dsnOptionsForRecipientMap(optionsByAddress, "USER@example.net")
+	if strings.Join(options, " ") != "NOTIFY=SUCCESS ORCPT=rfc822;first@example.net" {
+		t.Fatalf("options = %+v, want first normalized match", options)
+	}
+}
+
 func TestNullReversePathSuppressesOutboundDSNMailOptions(t *testing.T) {
 	t.Parallel()
 

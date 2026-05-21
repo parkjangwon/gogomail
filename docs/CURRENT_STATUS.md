@@ -1,6 +1,12 @@
 # gogomail current status
 
-Last updated: 2026-05-21 (SaaS launch hardening continues: production farm coordinator guard)
+Last updated: 2026-05-21 (SaaS launch hardening continues: DSN RCPT option lookup optimization)
+
+## DSN RCPT Option Lookup Optimization (2026-05-21)
+- SMTP delivery pipelining now precomputes DSN recipient RCPT parameters by normalized address once per recipient batch instead of linearly scanning the DSN option slice for every RCPT command.
+- The lookup preserves first-match semantics for duplicate normalized DSN recipient entries while reducing DSN-enabled large-batch command construction from repeated scans to map lookups.
+- Added a 10k-recipient DSN RCPT option lookup benchmark to keep this hot path visible.
+- Verification target: `go test -count=1 ./internal/delivery -run 'DSN|SMTP|Recipient'`.
 
 ## Production Farm Coordinator Guard (2026-05-21)
 - Runtime config now validates `GOGOMAIL_FARM_COORDINATOR_BACKEND` as `noop|redis`, rejects nonpositive heartbeat/visibility timeouts, and requires Redis address or Sentinel configuration when Redis coordination is selected.
