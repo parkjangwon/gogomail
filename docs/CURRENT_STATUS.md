@@ -12,6 +12,11 @@ Last updated: 2026-05-21 (SaaS launch hardening continues: production public URL
 - Added draft-only trigram indexes for subject/from/recipient arrays and draft text body so large compose folders keep substring search on indexed paths.
 - Verification target: `go test -count=1 ./internal/maildb -run 'DraftSearchSQL|DraftSearchQuery'`.
 
+## Admin List Stable Ordering (2026-05-21)
+- Company, suppression-list, trusted-relay, and delivery-route admin lists now order by `created_at DESC, id DESC` instead of timestamp alone, making equal-timestamp pages deterministic.
+- Added matching created/id indexes for these admin list views so the stable tie-breaker does not trade correctness for scan cost.
+- Verification target: `go test -count=1 ./internal/maildb -run 'ListCompaniesQuery|AdminOperationalListQueriesUseSargableFilters'`.
+
 ## RDBMS Sync Conflict Seek Pagination (2026-05-21)
 - RDBMS sync conflict listing now supports opaque `(created_at, id)` cursor pagination while preserving legacy offset pagination for existing clients.
 - Added conflict seek indexes for both all-conflict and unresolved-only admin views, matching the `ORDER BY created_at DESC, id DESC` access pattern.

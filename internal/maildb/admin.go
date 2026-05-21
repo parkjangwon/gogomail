@@ -6587,7 +6587,7 @@ SELECT
   created_at
 FROM suppression_list
 ` + strings.TrimPrefix(where, "\n") + `
-ORDER BY created_at DESC
+ORDER BY created_at DESC, id DESC
 LIMIT ` + limitPlaceholder
 	return query, args
 }
@@ -6670,7 +6670,7 @@ SELECT
   description,
   created_at
 FROM trusted_relays` + where + `
-ORDER BY created_at DESC
+ORDER BY created_at DESC, id DESC
 LIMIT ` + limitPlaceholder
 	return query, args
 }
@@ -6880,7 +6880,7 @@ SELECT
   created_at,
   updated_at
 FROM delivery_routes` + where + `
-ORDER BY created_at DESC
+ORDER BY created_at DESC, id DESC
 LIMIT ` + limitPlaceholder
 	return query, args
 }

@@ -36,6 +36,7 @@ func TestAdminOperationalListQueriesUseSargableFilters(t *testing.T) {
 				"WHERE domain_id = $1::uuid",
 				"AND email = $2",
 				"AND reason = $3",
+				"ORDER BY created_at DESC, id DESC",
 				"LIMIT $4",
 			},
 			forbidden: []string{"$1 = '' OR", "domain_id::text =", " OR "},
@@ -47,6 +48,7 @@ func TestAdminOperationalListQueriesUseSargableFilters(t *testing.T) {
 			want: []string{
 				"WHERE cidr = $1::cidr",
 				"AND description ILIKE '%' || $2 || '%'",
+				"ORDER BY created_at DESC, id DESC",
 				"LIMIT $3",
 			},
 			forbidden: []string{"$1 = '' OR", "$2 = '' OR", " OR "},
@@ -59,6 +61,7 @@ func TestAdminOperationalListQueriesUseSargableFilters(t *testing.T) {
 				"WHERE status = $1",
 				"AND farm = $2",
 				"AND domain_pattern = $3",
+				"ORDER BY created_at DESC, id DESC",
 				"LIMIT $4",
 			},
 			forbidden: []string{"$1 = '' OR", "$2 = '' OR", "$3 = '' OR", " OR "},
