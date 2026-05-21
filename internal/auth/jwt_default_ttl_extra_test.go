@@ -6,7 +6,7 @@ import (
 )
 
 func TestTokenManagerSignUsesDefaultTTLWhenNonPositive(t *testing.T) {
-	manager, err := NewTokenManager("secret")
+	manager, err := NewTokenManager("test-secret-auth-pkg-at-least-32bytes")
 	if err != nil {
 		t.Fatalf("NewTokenManager returned error: %v", err)
 	}

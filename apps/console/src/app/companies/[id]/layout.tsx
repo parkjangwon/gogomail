@@ -5,6 +5,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { Spinner } from '@cloudscape-design/components';
 import { AdminLayout } from '@/components/AdminLayout';
 import { CompanyProvider } from '@/contexts/CompanyContext';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 
 export default function CompanyLayout({
   children,
@@ -71,8 +72,10 @@ export default function CompanyLayout({
   if (!authorized) return null;
 
   return (
-    <CompanyProvider initialCompanyId={companyId}>
-      <AdminLayout>{children}</AdminLayout>
-    </CompanyProvider>
+    <ErrorBoundary>
+      <CompanyProvider initialCompanyId={companyId}>
+        <AdminLayout>{children}</AdminLayout>
+      </CompanyProvider>
+    </ErrorBoundary>
   );
 }

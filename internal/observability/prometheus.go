@@ -3,9 +3,11 @@ package observability
 import (
 	"context"
 	"fmt"
+	"math"
 	"sort"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/gogomail/gogomail/internal/delivery"
 	"github.com/gogomail/gogomail/internal/ldapgw"
@@ -17,9 +19,12 @@ var _ smtpd.Metrics = (*PrometheusAdapter)(nil)
 var _ delivery.Metrics = (*PrometheusAdapter)(nil)
 var _ ldapgw.Metrics = (*PrometheusAdapter)(nil)
 
+var durationBuckets = []float64{.005, .01, .025, .05, .1, .25, .5, 1, 2.5, 5, 10}
+
 type PrometheusAdapter struct {
-	mu       sync.Mutex
-	counters map[promCounterKey]uint64
+	mu         sync.Mutex
+	counters   map[promCounterKey]uint64
+	histograms map[string]*promHistogram
 }
 
 type promCounterKey struct {
@@ -28,7 +33,10 @@ type promCounterKey struct {
 }
 
 func NewPrometheusAdapter() *PrometheusAdapter {
-	return &PrometheusAdapter{counters: make(map[promCounterKey]uint64)}
+	return &PrometheusAdapter{
+		counters:   make(map[promCounterKey]uint64),
+		histograms: make(map[string]*promHistogram),
+	}
 }
 
 func (a *PrometheusAdapter) ObserveSMTP(_ context.Context, event smtpd.MetricEvent) {
@@ -36,6 +44,9 @@ func (a *PrometheusAdapter) ObserveSMTP(_ context.Context, event smtpd.MetricEve
 		"stage":  string(event.Stage),
 		"result": string(event.Result),
 	})
+	if event.Duration > 0 {
+		a.observe("gogomail_smtp_session_duration_seconds", durationBuckets, event.Duration, nil)
+	}
 }
 
 func (a *PrometheusAdapter) ObserveRFCNonCompliance(compliance smtpd.RFCCompliance) {
@@ -70,6 +81,16 @@ func (a *PrometheusAdapter) ObserveLDAP(_ context.Context, event ldapgw.MetricEv
 	})
 }
 
+// ObserveHTTPRequest records HTTP request duration as a histogram.
+func (a *PrometheusAdapter) ObserveHTTPRequest(method, route, status string, dur time.Duration) {
+	labels := map[string]string{
+		"method": method,
+		"route":  route,
+		"status": status,
+	}
+	a.observe("gogomail_http_request_duration_seconds", durationBuckets, dur.Seconds(), labels)
+}
+
 func (a *PrometheusAdapter) Text() string {
 	a.mu.Lock()
 	defer a.mu.Unlock()
@@ -86,6 +107,18 @@ func (a *PrometheusAdapter) Text() string {
 		b.WriteString(promLine(key, a.counters[key]))
 		b.WriteByte('\n')
 	}
+
+	// Emit histograms.
+	histNames := make([]string, 0, len(a.histograms))
+	for name := range a.histograms {
+		histNames = append(histNames, name)
+	}
+	sort.Strings(histNames)
+	for _, name := range histNames {
+		h := a.histograms[name]
+		b.WriteString(h.text(name))
+	}
+
 	return b.String()
 }
 
@@ -96,6 +129,24 @@ func (a *PrometheusAdapter) inc(name string, labels map[string]string) {
 		a.counters = make(map[promCounterKey]uint64)
 	}
 	a.counters[promCounterKey{Name: name, Labels: promLabels(labels)}]++
+}
+
+func (a *PrometheusAdapter) observe(name string, buckets []float64, value float64, labels map[string]string) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.histograms == nil {
+		a.histograms = make(map[string]*promHistogram)
+	}
+	key := name
+	if len(labels) > 0 {
+		key = name + "{" + promLabels(labels) + "}"
+	}
+	h, ok := a.histograms[key]
+	if !ok {
+		h = newPromHistogram(buckets, labels)
+		a.histograms[key] = h
+	}
+	h.record(value)
 }
 
 func promLine(key promCounterKey, value uint64) string {
@@ -138,4 +189,68 @@ func recipientBucket(count int) string {
 	default:
 		return "100+"
 	}
+}
+
+// promHistogram is a simple in-process histogram.
+type promHistogram struct {
+	buckets []float64
+	counts  []uint64
+	inf     uint64
+	sum     float64
+	total   uint64
+	labels  map[string]string
+}
+
+func newPromHistogram(buckets []float64, labels map[string]string) *promHistogram {
+	b := make([]float64, len(buckets))
+	copy(b, buckets)
+	sort.Float64s(b)
+	return &promHistogram{
+		buckets: b,
+		counts:  make([]uint64, len(b)),
+		labels:  labels,
+	}
+}
+
+func (h *promHistogram) record(value float64) {
+	h.sum += value
+	h.total++
+	for i, upper := range h.buckets {
+		if value <= upper {
+			h.counts[i]++
+		}
+	}
+	h.inf++
+}
+
+func (h *promHistogram) text(name string) string {
+	labelStr := promLabels(h.labels)
+	var b strings.Builder
+	for i, upper := range h.buckets {
+		leLabel := fmt.Sprintf(`le="%s"`, formatFloat(upper))
+		if labelStr != "" {
+			b.WriteString(fmt.Sprintf("%s_bucket{%s,%s} %d\n", name, labelStr, leLabel, h.counts[i]))
+		} else {
+			b.WriteString(fmt.Sprintf("%s_bucket{%s} %d\n", name, leLabel, h.counts[i]))
+		}
+	}
+	leInf := `le="+Inf"`
+	if labelStr != "" {
+		b.WriteString(fmt.Sprintf("%s_bucket{%s,%s} %d\n", name, labelStr, leInf, h.inf))
+		b.WriteString(fmt.Sprintf("%s_sum{%s} %g\n", name, labelStr, h.sum))
+		b.WriteString(fmt.Sprintf("%s_count{%s} %d\n", name, labelStr, h.total))
+	} else {
+		b.WriteString(fmt.Sprintf("%s_bucket{%s} %d\n", name, leInf, h.inf))
+		b.WriteString(fmt.Sprintf("%s_sum %g\n", name, h.sum))
+		b.WriteString(fmt.Sprintf("%s_count %d\n", name, h.total))
+	}
+	return b.String()
+}
+
+func formatFloat(f float64) string {
+	if f == math.Trunc(f) {
+		return fmt.Sprintf("%.1f", f)
+	}
+	s := fmt.Sprintf("%g", f)
+	return s
 }

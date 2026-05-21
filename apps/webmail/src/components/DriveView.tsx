@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { useTranslations } from 'next-intl';
 import {
   DriveNode, DriveUsage,
   listDriveNodes, listTrashedDriveNodes, getDriveUsage, createDriveFolder,
@@ -53,16 +54,6 @@ type DriveUploadItem = {
   source?: DriveUploadSource;
 };
 
-const DRIVE_UPLOAD_STATUS_LABELS: Record<DriveUploadStatus, string> = {
-  queued: '대기 중',
-  creating_session: '준비 중',
-  uploading: '업로드 중',
-  paused: '일시정지',
-  finalizing: '마무리 중',
-  done: '완료',
-  error: '실패',
-  canceled: '취소됨',
-};
 
 function getDriveNodeDragPayload(dataTransfer: DataTransfer): string | null {
   const raw = dataTransfer.getData(DRIVE_NODE_DRAG_MIME);
@@ -117,7 +108,7 @@ function isDriveNodeDrag(dataTransfer: DataTransfer): boolean {
   );
 }
 
-function createDriveDragGhost(count: number, names: string[]): HTMLElement {
+function createDriveDragGhost(count: number, names: string[], tFn: (key: string, values?: Record<string, string | number | Date>) => string): HTMLElement {
   const wrap = document.createElement('div');
   wrap.style.position = 'absolute';
   wrap.style.top = '-9999px';
@@ -137,7 +128,7 @@ function createDriveDragGhost(count: number, names: string[]): HTMLElement {
   wrap.style.animation = 'driveMultiDragPulse 1s ease-in-out infinite';
 
   const title = document.createElement('div');
-  title.textContent = `${count}개 항목 이동`;
+  title.textContent = tFn('draggingItems', { count });
   title.style.fontWeight = '600';
   title.style.marginBottom = '4px';
   title.style.letterSpacing = '0.01em';
@@ -147,7 +138,7 @@ function createDriveDragGhost(count: number, names: string[]): HTMLElement {
   const visible = names.length > 0 ? names.slice(0, 2) : [];
   detail.textContent = visible.length > 0
     ? `${visible.join(', ')}${names.length > 2 ? ', ...' : ''}`
-    : '선택 항목';
+    : tFn('selectedItems');
   detail.style.opacity = '0.92';
   wrap.appendChild(detail);
 
@@ -158,14 +149,14 @@ function normalizeDroppedPath(path: string): string {
   return path.replace(/[\\/]+/g, '/').replace(/^\/+|\/+$/g, '');
 }
 
-function getDriveUploadSourceLabel(source: DriveUploadSource): string {
+function getDriveUploadSourceLabel(source: DriveUploadSource, tFn: (key: string) => string): string {
   switch (source) {
     case 'picker':
-      return '파일 선택';
+      return tFn('sourceFilePicker');
     case 'folder':
-      return '폴더 선택';
+      return tFn('sourceFolderPicker');
     case 'drop':
-      return '드롭';
+      return tFn('sourceDrop');
   }
 }
 
@@ -174,8 +165,8 @@ function driveUploadNeedsFreshSession(message: string): boolean {
   return lower.includes('storage store') && lower.includes('is required');
 }
 
-function formatDriveUploadError(error: unknown): string {
-  const message = error instanceof Error ? error.message : String(error ?? '업로드 실패');
+function formatDriveUploadError(error: unknown, tFn: (key: string) => string): string {
+  const message = error instanceof Error ? error.message : String(error ?? tFn('uploadFailed'));
   const lower = message.toLowerCase();
   if (
     lower.includes('duplicate key') ||
@@ -183,9 +174,9 @@ function formatDriveUploadError(error: unknown): string {
     lower.includes('conflict') ||
     lower.includes('same name')
   ) {
-    return '같은 이름의 파일이 이미 있습니다. 이름을 바꾸거나 기존 파일을 정리한 뒤 다시 시도하세요.';
+    return tFn('duplicateFileError');
   }
-  return message || '업로드 실패';
+  return message || tFn('uploadFailed');
 }
 
 async function readAllEntries(reader: DirectoryReaderLike): Promise<FileSystemEntryLike[]> {
@@ -308,8 +299,19 @@ async function collectDroppedFiles(dataTransfer: DataTransfer): Promise<DroppedF
 }
 
 export function DriveView() {
+  const t = useTranslations('drive');
+  const DRIVE_UPLOAD_STATUS_LABELS: Record<DriveUploadStatus, string> = {
+    queued: t('upload.status.queued'),
+    creating_session: t('upload.status.creatingSession'),
+    uploading: t('upload.status.uploading'),
+    paused: t('upload.status.paused'),
+    finalizing: t('upload.status.finalizing'),
+    done: t('upload.status.done'),
+    error: t('upload.status.error'),
+    canceled: t('upload.status.canceled'),
+  };
   const [activeSection, setActiveSection] = useState<'drive' | 'trash'>('drive');
-  const [breadcrumb, setBreadcrumb] = useState<BreadcrumbItem[]>([{ id: '', name: '내 드라이브' }]);
+  const [breadcrumb, setBreadcrumb] = useState<BreadcrumbItem[]>([{ id: '', name: t('myDrive') }]);
   const [nodes, setNodes] = useState<DriveNode[]>([]);
   const [trashNodes, setTrashNodes] = useState<DriveNode[]>([]);
   const [usage, setUsage] = useState<DriveUsage | null>(null);
@@ -521,7 +523,7 @@ export function DriveView() {
   }
 
   async function handlePermanentDelete(nodeId: string) {
-    if (!confirm('영구 삭제하면 복원할 수 없습니다. 계속하시겠습니까?')) return;
+    if (!confirm(t('deleteConfirm'))) return;
     const ok = await deleteDriveNodePermanently(nodeId);
     if (ok) {
       setTrashNodes((prev) => prev.filter((n) => n.id !== nodeId));
@@ -530,7 +532,7 @@ export function DriveView() {
   }
 
   async function handleEmptyTrash() {
-    if (!confirm(`휴지통을 비우면 ${trashNodes.length}개 항목이 영구 삭제됩니다. 계속하시겠습니까?`)) return;
+    if (!confirm(t('emptyTrashConfirm', { count: trashNodes.length }))) return;
     await Promise.all(trashNodes.map((n) => deleteDriveNodePermanently(n.id)));
     setTrashNodes([]);
     getDriveUsage().then(setUsage);
@@ -650,7 +652,7 @@ export function DriveView() {
           error: undefined,
         }));
       } else {
-        const message = formatDriveUploadError(error);
+        const message = formatDriveUploadError(error, t);
         updateDriveUpload(next.id, (item) => ({
           ...item,
           status: 'error',
@@ -867,7 +869,7 @@ export function DriveView() {
       <div>
         {isLoading && children.length === 0 && (
           <div style={{ marginLeft: `${depth * 12}px`, padding: '6px 8px', fontSize: '11px', color: 'var(--color-text-tertiary)' }}>
-            폴더 로딩중...
+            {t('loadingFolder')}
           </div>
         )}
         {children.map((folder) => {
@@ -948,7 +950,7 @@ export function DriveView() {
                 <FolderIcon style={{ width: '14px', height: '14px', flexShrink: 0 }} />
                 <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {folder.name}
-                  {childLoading && !hasKnownChildren ? ' · 로딩...' : ''}
+                  {childLoading && !hasKnownChildren ? t('loadingSuffix') : ''}
                 </span>
               </div>
               {isExpanded && (
@@ -985,7 +987,7 @@ export function DriveView() {
           <button
             onClick={() => {
               setActiveSection('drive');
-              setBreadcrumb([{ id: '', name: '내 드라이브' }]);
+              setBreadcrumb([{ id: '', name: t('myDrive') }]);
             }}
             onDragOver={(e) => {
               e.preventDefault();
@@ -1014,10 +1016,10 @@ export function DriveView() {
             onMouseLeave={(e) => { if (activeSection !== 'drive') (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
           >
             <FolderSolid style={{ width: '16px', height: '16px', flexShrink: 0 }} />
-            내 드라이브
+            {t('myDrive')}
           </button>
           <div style={{ marginTop: '6px' }}>
-            {renderSidebarFolders('', 1, [{ id: '', name: '내 드라이브' }])}
+            {renderSidebarFolders('', 1, [{ id: '', name: t('myDrive') }])}
           </div>
         </div>
         <div style={{ padding: '0 8px', marginBottom: '16px' }}>
@@ -1028,7 +1030,7 @@ export function DriveView() {
             onMouseLeave={(e) => { if (activeSection !== 'trash') (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
           >
             <TrashSolid style={{ width: '16px', height: '16px', flexShrink: 0 }} />
-            휴지통
+            {t('trash')}
             {trashNodes.length > 0 && (
               <span style={{ marginLeft: 'auto', fontSize: '11px', background: 'var(--color-bg-tertiary)', color: 'var(--color-text-tertiary)', borderRadius: '10px', padding: '1px 6px' }}>{trashNodes.length}</span>
             )}
@@ -1041,17 +1043,17 @@ export function DriveView() {
         {/* Storage bar */}
         {usage && (
           <div style={{ padding: '12px 14px', borderTop: '1px solid var(--color-border-subtle)' }}>
-            <div style={{ fontSize: '11px', color: 'var(--color-text-tertiary)', marginBottom: '6px', fontWeight: 500 }}>저장공간</div>
+            <div style={{ fontSize: '11px', color: 'var(--color-text-tertiary)', marginBottom: '6px', fontWeight: 500 }}>{t('storage')}</div>
             <div style={{ height: '6px', borderRadius: '3px', background: 'var(--color-bg-tertiary)', overflow: 'hidden', marginBottom: '6px' }}>
               <div style={{ height: '100%', borderRadius: '3px', width: `${usedPct}%`, background: barColor, transition: 'width 400ms ease' }} />
             </div>
             <div style={{ fontSize: '11px', color: 'var(--color-text-secondary)', lineHeight: 1.4 }}>
               <span style={{ fontWeight: 500, color: barColor }}>{formatBytes(usage.quota_used)}</span>
-              <span style={{ color: 'var(--color-text-tertiary)' }}> / {formatBytes(usage.quota_limit)} 사용 중</span>
+              <span style={{ color: 'var(--color-text-tertiary)' }}> / {formatBytes(usage.quota_limit)}{t('storageUsedSuffix')}</span>
             </div>
             {usedPct >= 70 && (
               <div style={{ marginTop: '4px', fontSize: '10px', color: barColor, fontWeight: 500 }}>
-                {usedPct >= 90 ? '저장공간이 거의 가득 찼습니다' : '저장공간이 70% 이상 사용됨'}
+                {usedPct >= 90 ? t('storageNearFull') : t('storageHighUsage')}
               </div>
             )}
           </div>
@@ -1065,8 +1067,8 @@ export function DriveView() {
           {/* Trash toolbar */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px 20px', borderBottom: '1px solid var(--color-border-subtle)', flexShrink: 0 }}>
             <TrashSolid style={{ width: '18px', height: '18px', color: 'var(--color-text-tertiary)' }} />
-            <span style={{ fontSize: '15px', fontWeight: 600, color: 'var(--color-text-primary)', flex: 1 }}>휴지통</span>
-            <button onClick={loadTrashNodes} title="새로고침"
+            <span style={{ fontSize: '15px', fontWeight: 600, color: 'var(--color-text-primary)', flex: 1 }}>{t('trash')}</span>
+            <button onClick={loadTrashNodes} title={t('refresh')}
               style={{ padding: '5px 8px', borderRadius: '5px', border: '1px solid var(--color-border-default)', background: 'transparent', cursor: 'pointer', color: 'var(--color-text-secondary)', display: 'flex', alignItems: 'center' }}>
               <ArrowPathIcon style={{ width: '15px', height: '15px' }} />
             </button>
@@ -1074,7 +1076,7 @@ export function DriveView() {
               <button onClick={handleEmptyTrash}
                 style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '5px 14px', borderRadius: '6px', border: '1px solid var(--color-destructive)', background: 'transparent', color: 'var(--color-destructive)', fontSize: '13px', fontWeight: 500, cursor: 'pointer' }}>
                 <TrashIcon style={{ width: '14px', height: '14px' }} />
-                휴지통 비우기
+                {t('emptyTrash')}
               </button>
             )}
           </div>
@@ -1090,7 +1092,7 @@ export function DriveView() {
             ) : trashNodes.length === 0 ? (
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '300px', gap: '12px', color: 'var(--color-text-tertiary)' }}>
                 <TrashIcon style={{ width: '48px', height: '48px', opacity: 0.3 }} />
-                <div style={{ fontSize: '14px' }}>휴지통이 비어 있습니다</div>
+                <div style={{ fontSize: '14px' }}>{t('trashEmpty')}</div>
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
@@ -1236,7 +1238,7 @@ export function DriveView() {
             </div>
 
             {/* Actions */}
-            <button onClick={() => loadNodes(currentParentId)} title="새로고침"
+            <button onClick={() => loadNodes(currentParentId)} title={t('refresh')}
               style={{ padding: '5px 8px', borderRadius: '5px', border: '1px solid var(--color-border-default)', background: 'transparent', cursor: 'pointer', color: 'var(--color-text-secondary)', display: 'flex', alignItems: 'center' }}>
               <ArrowPathIcon style={{ width: '15px', height: '15px' }} />
             </button>
@@ -1369,7 +1371,7 @@ export function DriveView() {
                 {driveUploadBatch && (
                   <div style={{ padding: '14px 20px', borderBottom: '1px solid var(--color-border-subtle)', background: 'linear-gradient(180deg, rgba(148, 163, 184, 0.06), rgba(148, 163, 184, 0.02))' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px', flexWrap: 'wrap', fontSize: '11px', color: 'var(--color-text-tertiary)' }}>
-                      <span>{getDriveUploadSourceLabel(driveUploadBatch.source)}</span>
+                      <span>{getDriveUploadSourceLabel(driveUploadBatch.source, t)}</span>
                       <span>{formatBytes(driveUploadBatch.totalBytes)}</span>
                       <span>{driveUploadBatch.fileCount}개 파일</span>
                     </div>
@@ -1559,7 +1561,7 @@ export function DriveView() {
                         e.dataTransfer.setData('text/plain', `${DRIVE_NODE_DRAG_TEXT}:${idsToDrag.join(',')}\n${idsToDrag.length}개 항목 이동`);
                         e.dataTransfer.effectAllowed = 'move';
                         if (idsToDrag.length > 1) {
-                          const ghost = createDriveDragGhost(idsToDrag.length, dragNodeNames);
+                          const ghost = createDriveDragGhost(idsToDrag.length, dragNodeNames, t);
                           document.body.appendChild(ghost);
                           e.dataTransfer.setDragImage(ghost, 18, 18);
                           requestAnimationFrame(() => {

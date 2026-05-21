@@ -78,6 +78,9 @@ func NewTokenManager(secret string) (*TokenManager, error) {
 	if secret == "" {
 		return nil, fmt.Errorf("jwt secret is required")
 	}
+	if len([]byte(secret)) < 32 {
+		return nil, fmt.Errorf("jwt secret must be at least 32 bytes")
+	}
 	return &TokenManager{secret: []byte(secret), now: time.Now}, nil
 }
 

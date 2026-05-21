@@ -16,7 +16,7 @@ import (
 
 func newTestTokenManager(t *testing.T) *auth.TokenManager {
 	t.Helper()
-	tm, err := auth.NewTokenManager("test-secret-webdav-test")
+	tm, err := auth.NewTokenManager("test-secret-webdav-test-at-least-32bytes")
 	if err != nil {
 		t.Fatalf("NewTokenManager: %v", err)
 	}

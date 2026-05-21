@@ -15,7 +15,7 @@ import (
 func TestAuthWebDAVBearerTokenRequired(t *testing.T) {
 	t.Parallel()
 
-	tm, err := auth.NewTokenManager("test-secret-webdav-auth")
+	tm, err := auth.NewTokenManager("test-secret-webdav-auth-at-least-32bytes")
 	if err != nil {
 		t.Fatalf("NewTokenManager: %v", err)
 	}
@@ -39,7 +39,7 @@ func TestAuthWebDAVBearerTokenRequired(t *testing.T) {
 func TestAuthWebDAVInvalidTokenRejected(t *testing.T) {
 	t.Parallel()
 
-	tm, err := auth.NewTokenManager("test-secret-webdav-auth")
+	tm, err := auth.NewTokenManager("test-secret-webdav-auth-at-least-32bytes")
 	if err != nil {
 		t.Fatalf("NewTokenManager: %v", err)
 	}
@@ -64,7 +64,7 @@ func TestAuthWebDAVInvalidTokenRejected(t *testing.T) {
 func TestAuthWebDAVValidTokenAccepted(t *testing.T) {
 	t.Parallel()
 
-	tm, err := auth.NewTokenManager("test-secret-webdav-auth")
+	tm, err := auth.NewTokenManager("test-secret-webdav-auth-at-least-32bytes")
 	if err != nil {
 		t.Fatalf("NewTokenManager: %v", err)
 	}
@@ -99,7 +99,7 @@ func TestAuthWebDAVValidTokenAccepted(t *testing.T) {
 func TestAuthWebDAVPutRequiresBearerToken(t *testing.T) {
 	t.Parallel()
 
-	tm, err := auth.NewTokenManager("test-secret-webdav-auth")
+	tm, err := auth.NewTokenManager("test-secret-webdav-auth-at-least-32bytes")
 	if err != nil {
 		t.Fatalf("NewTokenManager: %v", err)
 	}
@@ -123,7 +123,7 @@ func TestAuthWebDAVPutRequiresBearerToken(t *testing.T) {
 func TestAuthWebDAVBasicAuthHTTPSRequired(t *testing.T) {
 	t.Parallel()
 
-	tm, err := auth.NewTokenManager("test-secret-webdav-auth")
+	tm, err := auth.NewTokenManager("test-secret-webdav-auth-at-least-32bytes")
 	if err != nil {
 		t.Fatalf("NewTokenManager: %v", err)
 	}
@@ -155,7 +155,7 @@ func TestAuthWebDAVBasicAuthHTTPSRequired(t *testing.T) {
 func TestAuthWebDAVBasicAuthMissingPassword(t *testing.T) {
 	t.Parallel()
 
-	tm, err := auth.NewTokenManager("test-secret-webdav-auth")
+	tm, err := auth.NewTokenManager("test-secret-webdav-auth-at-least-32bytes")
 	if err != nil {
 		t.Fatalf("NewTokenManager: %v", err)
 	}

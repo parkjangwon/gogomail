@@ -18,6 +18,7 @@ type MetricEvent struct {
 	Recipients   []string
 	Size         int64
 	Error        string
+	Duration     float64 // session duration in seconds, optional
 }
 
 type Metrics interface {

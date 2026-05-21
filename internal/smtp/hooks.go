@@ -20,6 +20,7 @@ const (
 	StageDedupChecked          Stage = "dedup_checked"
 	StageStored                Stage = "stored"
 	StageRecorded              Stage = "recorded"
+	StageLogout                Stage = "logout"
 )
 
 type Event struct {

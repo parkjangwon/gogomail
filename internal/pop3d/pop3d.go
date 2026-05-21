@@ -47,6 +47,7 @@ type Server struct {
 	mu             sync.Mutex
 	listeners      []net.Listener
 	maildrops      map[string]struct{}
+	authTracker    *pop3AuthFailureTracker
 }
 
 // Serve accepts connections on the listener.
@@ -346,8 +347,15 @@ func (sess *session) handleAuth(cmd, arg1, arg2 string, argc int) {
 }
 
 func (sess *session) authenticate(user, pass string) {
+	ip := pop3RemoteAddrIP(sess.conn.RemoteAddr())
+	tracker := sess.server.getAuthTracker()
+	if tracker.isLocked(ip) {
+		sess.writeERR("authentication failed")
+		return
+	}
 	mb, err := sess.server.Store.Authenticate(user, pass)
 	if err != nil {
+		tracker.record(ip)
 		sess.writeERR("authentication failed")
 		return
 	}
@@ -759,4 +767,70 @@ func pop3UpperASCII(s string) string {
 		}
 	}
 	return s
+}
+
+func (s *Server) getAuthTracker() *pop3AuthFailureTracker {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.authTracker == nil {
+		s.authTracker = newPOP3AuthFailureTracker()
+	}
+	return s.authTracker
+}
+
+type pop3AuthFailureTracker struct {
+	mu       sync.Mutex
+	failures map[string][]time.Time
+	window   time.Duration
+	maxFails int
+}
+
+func newPOP3AuthFailureTracker() *pop3AuthFailureTracker {
+	return &pop3AuthFailureTracker{
+		failures: make(map[string][]time.Time),
+		window:   10 * time.Minute,
+		maxFails: 10,
+	}
+}
+
+func (t *pop3AuthFailureTracker) record(ip string) bool {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	now := time.Now()
+	cutoff := now.Add(-t.window)
+	prev := t.failures[ip]
+	fresh := prev[:0]
+	for _, ts := range prev {
+		if ts.After(cutoff) {
+			fresh = append(fresh, ts)
+		}
+	}
+	fresh = append(fresh, now)
+	t.failures[ip] = fresh
+	return len(fresh) > t.maxFails
+}
+
+func (t *pop3AuthFailureTracker) isLocked(ip string) bool {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	now := time.Now()
+	cutoff := now.Add(-t.window)
+	var count int
+	for _, ts := range t.failures[ip] {
+		if ts.After(cutoff) {
+			count++
+		}
+	}
+	return count >= t.maxFails
+}
+
+func pop3RemoteAddrIP(addr net.Addr) string {
+	if addr == nil {
+		return ""
+	}
+	host, _, err := net.SplitHostPort(addr.String())
+	if err != nil {
+		return addr.String()
+	}
+	return host
 }
