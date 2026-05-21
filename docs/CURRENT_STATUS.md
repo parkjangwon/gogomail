@@ -1,6 +1,12 @@
 # gogomail current status
 
-Last updated: 2026-05-21 (SaaS launch hardening continues: admin operations query stability)
+Last updated: 2026-05-21 (SaaS launch hardening continues: mail-flow query sargability)
+
+## Mail Flow Log UUID Filter Sargability (2026-05-21)
+- Mail-flow list, aggregate stats, and daily stats filters now compare company/domain/user/message UUID columns with typed UUID predicates instead of `::text` casts.
+- Added UUID/filter ordering indexes for company, domain, user, company+domain, and message mail-flow operations reads.
+- Regression coverage scans the mail-flow query source so UUID predicate casts do not creep back into high-volume operations filters.
+- Verification target: `go test -count=1 ./internal/maildb -run 'MailFlow'`.
 
 ## Admin Domain And DNS Stable Ordering (2026-05-21)
 - Admin user, admin-user, and domain list queries now order by `created_at DESC, id DESC`, preventing equal-timestamp admin pages from drifting.

@@ -170,19 +170,19 @@ FROM mail_flow_logs`
 	}
 	if req.CompanyID != "" {
 		args = append(args, req.CompanyID)
-		conditions = append(conditions, fmt.Sprintf("company_id::text = $%d", len(args)))
+		conditions = append(conditions, fmt.Sprintf("company_id = $%d::uuid", len(args)))
 	}
 	if req.DomainID != "" {
 		args = append(args, req.DomainID)
-		conditions = append(conditions, fmt.Sprintf("domain_id::text = $%d", len(args)))
+		conditions = append(conditions, fmt.Sprintf("domain_id = $%d::uuid", len(args)))
 	}
 	if req.UserID != "" {
 		args = append(args, req.UserID)
-		conditions = append(conditions, fmt.Sprintf("user_id::text = $%d", len(args)))
+		conditions = append(conditions, fmt.Sprintf("user_id = $%d::uuid", len(args)))
 	}
 	if req.MessageID != "" {
 		args = append(args, req.MessageID)
-		conditions = append(conditions, fmt.Sprintf("message_id::text = $%d", len(args)))
+		conditions = append(conditions, fmt.Sprintf("message_id = $%d::uuid", len(args)))
 	}
 	if req.RFCMessageID != "" {
 		args = append(args, req.RFCMessageID)
@@ -303,15 +303,15 @@ func (r *Repository) GetMailFlowLogStats(ctx context.Context, req MailFlowLogSta
 	}
 	if req.CompanyID != "" {
 		args = append(args, req.CompanyID)
-		conditions = append(conditions, fmt.Sprintf("company_id::text = $%d", len(args)))
+		conditions = append(conditions, fmt.Sprintf("company_id = $%d::uuid", len(args)))
 	}
 	if req.DomainID != "" {
 		args = append(args, req.DomainID)
-		conditions = append(conditions, fmt.Sprintf("domain_id::text = $%d", len(args)))
+		conditions = append(conditions, fmt.Sprintf("domain_id = $%d::uuid", len(args)))
 	}
 	if req.UserID != "" {
 		args = append(args, req.UserID)
-		conditions = append(conditions, fmt.Sprintf("user_id::text = $%d", len(args)))
+		conditions = append(conditions, fmt.Sprintf("user_id = $%d::uuid", len(args)))
 	}
 	if !req.Since.IsZero() {
 		args = append(args, req.Since.UTC())
@@ -398,15 +398,15 @@ func (r *Repository) GetMailFlowLogDailyStats(ctx context.Context, req MailFlowL
 	}
 	if req.CompanyID != "" {
 		args = append(args, req.CompanyID)
-		conditions = append(conditions, fmt.Sprintf("company_id::text = $%d", len(args)))
+		conditions = append(conditions, fmt.Sprintf("company_id = $%d::uuid", len(args)))
 	}
 	if req.DomainID != "" {
 		args = append(args, req.DomainID)
-		conditions = append(conditions, fmt.Sprintf("domain_id::text = $%d", len(args)))
+		conditions = append(conditions, fmt.Sprintf("domain_id = $%d::uuid", len(args)))
 	}
 	if req.UserID != "" {
 		args = append(args, req.UserID)
-		conditions = append(conditions, fmt.Sprintf("user_id::text = $%d", len(args)))
+		conditions = append(conditions, fmt.Sprintf("user_id = $%d::uuid", len(args)))
 	}
 	if !hasBounds && !req.Since.IsZero() {
 		args = append(args, req.Since.UTC())
