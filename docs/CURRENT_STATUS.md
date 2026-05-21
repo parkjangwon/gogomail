@@ -2,6 +2,11 @@
 
 Last updated: 2026-05-21 (SaaS launch hardening continues: production public URL guardrails)
 
+## Active Message Search Candidate Split (2026-05-21)
+- Active message free-text search now collects candidate message IDs through separate `UNION` branches for indexed metadata FTS, metadata substring matches, body FTS, and body substring matches instead of evaluating one broad `OR` predicate across joined message/body rows.
+- Added trigram indexes for active message subject/from fields and search-document body text so fallback substring search can use GIN-backed branches.
+- Verification target: `go test -count=1 ./internal/maildb -run 'MessageSearchSQL|MessageSearchQuery'`.
+
 ## RDBMS Sync Conflict Seek Pagination (2026-05-21)
 - RDBMS sync conflict listing now supports opaque `(created_at, id)` cursor pagination while preserving legacy offset pagination for existing clients.
 - Added conflict seek indexes for both all-conflict and unresolved-only admin views, matching the `ORDER BY created_at DESC, id DESC` access pattern.

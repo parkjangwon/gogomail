@@ -159,7 +159,7 @@ func buildMessageSearchSQL(sortMode string, query MessageSearchQuery, hasAttachm
 	if cursorID != "" {
 		conditions = append(conditions, "(COALESCE(messages.received_at, messages.sent_at, messages.draft_updated_at, messages.created_at), messages.id) < ($13::timestamptz, $14::uuid)")
 	}
-	return messageSearchSQLWithConditions(sortMode, conditions)
+	return messageSearchSQLWithConditions(sortMode, conditions, messageSearchUsesQueryMatches(query))
 }
 
 func (r *Repository) SearchDrafts(ctx context.Context, query DraftSearchQuery) ([]MessageDetail, error) {
@@ -231,14 +231,15 @@ func (r *Repository) SearchDrafts(ctx context.Context, query DraftSearchQuery) (
 }
 
 func messageSearchSQL(sortMode string) string {
-	return messageSearchSQLWithConditions(sortMode, messageSearchBaseConditions(MessageSearchQuery{
+	query := MessageSearchQuery{
 		Query:   "quarterly",
 		From:    "alice",
 		To:      "bob",
 		Cc:      "carol",
 		Bcc:     "dave",
 		Subject: "report",
-	}))
+	}
+	return messageSearchSQLWithConditions(sortMode, messageSearchBaseConditions(query), messageSearchUsesQueryMatches(query))
 }
 
 func messageSearchBaseConditions(query MessageSearchQuery) []string {
@@ -247,17 +248,7 @@ func messageSearchBaseConditions(query MessageSearchQuery) []string {
 		"messages.status = 'active'",
 	}
 	if strings.TrimSpace(query.Query) != "" {
-		conditions = append(conditions, `(
-    (
-      setweight(to_tsvector('simple', coalesce(messages.subject, '')), 'A') ||
-      setweight(to_tsvector('simple', coalesce(messages.from_addr, '')), 'A') ||
-      setweight(to_tsvector('simple', coalesce(messages.from_name, '')), 'B') ||
-      setweight(to_tsvector('simple', coalesce(msd.body_text, '')), 'D')
-    ) @@ plainto_tsquery('simple', $2)
-    OR messages.subject ILIKE '%' || $2 || '%'
-    OR messages.from_addr ILIKE '%' || $2 || '%'
-    OR msd.body_text ILIKE '%' || $2 || '%'
-  )`)
+		conditions = append(conditions, "messages.id IN (SELECT id FROM query_matches)")
 	}
 	if strings.TrimSpace(query.From) != "" {
 		conditions = append(conditions, "messages.from_addr ILIKE '%' || $4 || '%'")
@@ -277,15 +268,77 @@ func messageSearchBaseConditions(query MessageSearchQuery) []string {
 	return conditions
 }
 
-func messageSearchSQLWithConditions(sortMode string, conditions []string) string {
+func messageSearchUsesQueryMatches(query MessageSearchQuery) bool {
+	return strings.TrimSpace(query.Query) != ""
+}
+
+func messageSearchQueryMatchesCTE(include bool) string {
+	if !include {
+		return ""
+	}
+	return `,
+query_matches AS (
+  SELECT messages.id
+  FROM messages
+  CROSS JOIN search_input
+  WHERE messages.user_id = $1
+    AND messages.status = 'active'
+    AND to_tsvector(
+      'simple',
+      coalesce(messages.subject, '') || ' ' ||
+      coalesce(messages.from_addr, '') || ' ' ||
+      coalesce(messages.from_name, '')
+    ) @@ search_input.tsq
+  UNION
+  SELECT messages.id
+  FROM messages
+  WHERE messages.user_id = $1
+    AND messages.status = 'active'
+    AND messages.subject ILIKE '%%' || $2 || '%%'
+  UNION
+  SELECT messages.id
+  FROM messages
+  WHERE messages.user_id = $1
+    AND messages.status = 'active'
+    AND messages.from_addr ILIKE '%%' || $2 || '%%'
+  UNION
+  SELECT messages.id
+  FROM messages
+  WHERE messages.user_id = $1
+    AND messages.status = 'active'
+    AND messages.from_name ILIKE '%%' || $2 || '%%'
+  UNION
+  SELECT msd.message_id AS id
+  FROM message_search_documents msd
+  JOIN messages
+    ON messages.id = msd.message_id
+   AND messages.user_id = msd.user_id
+  CROSS JOIN search_input
+  WHERE msd.user_id = $1
+    AND messages.status = 'active'
+    AND to_tsvector('simple', msd.body_text) @@ search_input.tsq
+  UNION
+  SELECT msd.message_id AS id
+  FROM message_search_documents msd
+  JOIN messages
+    ON messages.id = msd.message_id
+   AND messages.user_id = msd.user_id
+  WHERE msd.user_id = $1
+    AND messages.status = 'active'
+    AND msd.body_text ILIKE '%%' || $2 || '%%'
+)`
+}
+
+func messageSearchSQLWithConditions(sortMode string, conditions []string, includeQueryMatches bool) string {
 	orderBy := "message_at DESC, id DESC"
 	if sortMode == MessageSearchSortRelevance {
 		orderBy = "search_rank DESC NULLS LAST, message_at DESC, id DESC"
 	}
+	queryMatchesCTE := messageSearchQueryMatchesCTE(includeQueryMatches)
 	return fmt.Sprintf(`
 WITH search_input AS (
   SELECT plainto_tsquery('simple', $2) AS tsq
-),
+)`+queryMatchesCTE+`,
 ranked_messages AS (
 SELECT
   messages.id::text AS id,

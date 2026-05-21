@@ -145,7 +145,13 @@ func TestMessageSearchSQLUsesDirectTextFilters(t *testing.T) {
 		Subject: "report",
 	}, "", "")
 	for _, want := range []string{
+		"messages.id IN (SELECT id FROM query_matches)",
+		"query_matches AS (",
+		"UNION",
+		"to_tsvector('simple', msd.body_text) @@ search_input.tsq",
 		"messages.subject ILIKE '%' || $2 || '%'",
+		"messages.from_name ILIKE '%' || $2 || '%'",
+		"msd.body_text ILIKE '%' || $2 || '%'",
 		"messages.from_addr ILIKE '%' || $4 || '%'",
 		"messages.to_addrs::text ILIKE '%' || $5 || '%'",
 		"messages.cc_addrs::text ILIKE '%' || $6 || '%'",
@@ -161,12 +167,25 @@ func TestMessageSearchSQLUsesDirectTextFilters(t *testing.T) {
 			t.Fatalf("message search query contains optional OR %q:\n%s", forbidden, query)
 		}
 	}
+	for _, forbidden := range []string{
+		") @@ plainto_tsquery('simple', $2)\n    OR",
+		"OR messages.subject ILIKE '%' || $2 || '%'",
+		"OR messages.from_addr ILIKE '%' || $2 || '%'",
+		"OR msd.body_text ILIKE '%' || $2 || '%'",
+	} {
+		if strings.Contains(query, forbidden) {
+			t.Fatalf("message search query contains broad query OR %q:\n%s", forbidden, query)
+		}
+	}
 
 	query = buildMessageSearchSQL(MessageSearchSortDate, MessageSearchQuery{}, "", "")
 	for _, absent := range []string{"@@ plainto_tsquery", "ILIKE '%' || $4", "ILIKE '%' || $5", "ILIKE '%' || $6", "ILIKE '%' || $7", "ILIKE '%' || $8"} {
 		if strings.Contains(query, absent) {
 			t.Fatalf("filterless message search query contains %q:\n%s", absent, query)
 		}
+	}
+	if strings.Contains(query, "query_matches AS") {
+		t.Fatalf("filterless message search query unexpectedly includes query_matches CTE:\n%s", query)
 	}
 }
 

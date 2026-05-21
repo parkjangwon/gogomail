@@ -194,6 +194,7 @@
 - Admin LDAP/RDBMS/organization sync unavailable responses now keep 501 while returning fixed public messages and `not_implemented` error codes instead of backend sentinel strings.
 - RDBMS sync conflict listing now supports opaque `(created_at, id)` cursor pagination with matching conflict seek indexes while keeping legacy offset pagination.
 - LDAP sync conflict listing now supports opaque `(created_at, id)` cursor pagination with matching domain/unresolved/sync-run conflict seek indexes while keeping legacy offset pagination.
+- Active message free-text search now splits broad metadata/body `OR` matching into indexed `UNION` candidate branches and adds trigram indexes for active subject/from/body substring fallback.
 
 **Infrastructure & Storage Hardening** ✅ COMPLETE
 - Task 1 (EML GC): Added `LookupDeleteableStoragePaths` and `LookupExpungeStoragePaths` to maildb; service layer now performs two-phase GC (lookup before DB delete, delete from store after commit) for `DeleteMessage`, `BulkDeleteMessages`, `BulkDeleteThreads`, and `ExpungeIMAPMessages`. Reference-count check prevents deletion of paths shared by IMAP COPY.
