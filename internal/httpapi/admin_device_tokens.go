@@ -15,7 +15,7 @@ func registerAdminDeviceTokenRoutes(mux *http.ServeMux, service AdminService, to
 		}
 		devices, err := service.ListPushDevices(r.Context(), userID, 0)
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, err.Error())
+			writeInternalServerError(w)
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"devices": devices})
@@ -30,7 +30,7 @@ func registerAdminDeviceTokenRoutes(mux *http.ServeMux, service AdminService, to
 			return
 		}
 		if err := service.DeletePushDevice(r.Context(), userID, deviceID); err != nil {
-			writeError(w, http.StatusInternalServerError, err.Error())
+			writeInternalServerError(w)
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"deleted": true})
@@ -46,7 +46,7 @@ func registerAdminDeviceTokenRoutes(mux *http.ServeMux, service AdminService, to
 		}
 		count, err := service.DeleteAllPushDevices(r.Context(), userID)
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, err.Error())
+			writeInternalServerError(w)
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"deleted": count})

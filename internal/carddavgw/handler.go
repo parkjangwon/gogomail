@@ -311,7 +311,7 @@ func (h *Handler) serveMkcol(w http.ResponseWriter, r *http.Request) {
 	if req.InvalidResourceType || len(req.Unsupported) > 0 {
 		body, err := BuildMKCOLResponseXML(mkcolFailurePropStats(req))
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			http.Error(w, "internal server error", http.StatusInternalServerError)
 			return
 		}
 		w.Header().Set("Content-Type", "application/xml; charset=utf-8")
@@ -340,7 +340,7 @@ func (h *Handler) serveMkcol(w http.ResponseWriter, r *http.Request) {
 	}
 	location, err := AddressBookCollectionPath(userID, book.ID)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
 	w.Header().Set("Location", location)
@@ -442,13 +442,13 @@ func (h *Handler) serveProppatch(w http.ResponseWriter, r *http.Request) {
 	}
 	href, err := AddressBookCollectionPath(userID, resource.AddressBookID)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
 	if len(patch.Unsupported) > 0 || len(patch.Protected) > 0 {
 		body, err := BuildMultiStatusXML([]MultiStatusResponse{proppatchFailureResponse(href, patch)})
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			http.Error(w, "internal server error", http.StatusInternalServerError)
 			return
 		}
 		w.Header().Set("Content-Type", "application/xml; charset=utf-8")
@@ -478,12 +478,12 @@ func (h *Handler) serveProppatch(w http.ResponseWriter, r *http.Request) {
 	}
 	href, err = AddressBookCollectionPath(userID, book.ID)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
 	body, err := BuildMultiStatusXML([]MultiStatusResponse{proppatchResponse(href, book, patch.Properties)})
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
 	w.Header().Set("Content-Type", "application/xml; charset=utf-8")
@@ -962,7 +962,7 @@ func (h *Handler) serveReport(w http.ResponseWriter, r *http.Request) {
 		body, err = BuildMultiStatusXML(responses)
 	}
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
 	w.Header().Set("Content-Type", "application/xml; charset=utf-8")
@@ -1021,7 +1021,7 @@ func (h *Handler) servePropfind(w http.ResponseWriter, r *http.Request) {
 	}
 	body, err := BuildMultiStatusXML(responses)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
 	w.Header().Set("Content-Type", "application/xml; charset=utf-8")

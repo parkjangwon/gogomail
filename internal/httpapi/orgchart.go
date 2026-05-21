@@ -35,7 +35,7 @@ func RegisterOrgChartRoutes(mux *http.ServeMux, service OrgChartService, adminTo
 
 		units, err := service.ListUnits(r.Context(), companyID)
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, err.Error())
+			writeInternalServerError(w)
 			return
 		}
 
@@ -107,7 +107,7 @@ func RegisterOrgChartRoutes(mux *http.ServeMux, service OrgChartService, adminTo
 
 		req.ID = id
 		if err := service.UpdateUnit(r.Context(), &req); err != nil {
-			writeError(w, http.StatusInternalServerError, err.Error())
+			writeInternalServerError(w)
 			return
 		}
 
@@ -129,7 +129,7 @@ func RegisterOrgChartRoutes(mux *http.ServeMux, service OrgChartService, adminTo
 		}
 
 		if err := service.DeleteUnit(r.Context(), id); err != nil {
-			writeError(w, http.StatusInternalServerError, err.Error())
+			writeInternalServerError(w)
 			return
 		}
 
@@ -199,7 +199,7 @@ func RegisterOrgChartRoutes(mux *http.ServeMux, service OrgChartService, adminTo
 		}
 
 		if err := service.RemoveUserFromUnit(r.Context(), id); err != nil {
-			writeError(w, http.StatusInternalServerError, err.Error())
+			writeInternalServerError(w)
 			return
 		}
 
@@ -225,7 +225,7 @@ func RegisterOrgChartRoutes(mux *http.ServeMux, service OrgChartService, adminTo
 				writeError(w, http.StatusNotImplemented, "organization sync is not configured")
 				return
 			}
-			writeError(w, http.StatusInternalServerError, err.Error())
+			writeInternalServerError(w)
 			return
 		}
 

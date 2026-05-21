@@ -12,6 +12,11 @@ Last updated: 2026-05-21 (SaaS launch hardening continues: SMTP identity product
 - Regression coverage verifies a simulated PostgreSQL failure does not leak relation names or raw `pq:` details through `/scim/v2/Users`.
 - Verification target: `go test -count=1 ./internal/httpapi -run 'TestSCIMInternalErrorsDoNotLeakBackendDetails|TestSCIM'`.
 
+## Public Error Surface Hardening (2026-05-21)
+- Mail/Admin auxiliary HTTP handlers, OrgChart, Drive public-link internals, CalDAV/CardDAV internal XML/path failures, SSO callback failures, and POP3 STLS/QUIT failure replies now use fixed public error text for internal/server-side failures.
+- Validation and protocol-specific client errors remain specific where clients need actionable feedback, while 500/auth verifier surfaces no longer echo raw backend, verifier, XML builder, or storage errors.
+- Verification target: `go test -count=1 ./internal/httpapi ./internal/pop3d ./internal/caldavgw ./internal/carddavgw`.
+
 ## Message Storage & Delivery Optimization (2026-05-21, TASK-090)
 - `ListOutboundMessages`와 `GetMessagesByID`가 `ListMessagesByIDs` 배치 hydration 경로를 그대로 재사용하도록 래퍼로 정리되어 N+1 후보 경로의 명칭 불일치가 제거됨 (`internal/maildb/search_hydrate.go`).
 - 메시지 수신자 필터 경로에 `status='active'` 대상 `pg_trgm` 인덱스(migrations `0138_message_active_recipient_trgm_indexes.sql`)가 반영되어 수신자-heavy 검색 경로의 선별 성능이 개선됨.

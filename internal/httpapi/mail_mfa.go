@@ -199,7 +199,7 @@ func RegisterMFARoutes(mux *http.ServeMux, tokenManager *auth.TokenManager, opts
 		}
 		status, err := opts.MFAStore.GetUserMFAStatus(r.Context(), claims.UserID)
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, err.Error())
+			writeInternalServerError(w)
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"mfa_status": status})
