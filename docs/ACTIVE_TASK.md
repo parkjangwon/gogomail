@@ -191,6 +191,7 @@
 - Console personal MFA settings now use shared i18n messages for setup/confirm/disable/recovery-copy across English, Korean, Japanese, and Simplified Chinese.
 - Production config now rejects empty/HTTP/local `GOGOMAIL_PUBLIC_BASE_URL`, and open-tracking skips pixel injection when no public base URL is configured instead of emitting localhost URLs.
 - `GOGOMAIL_PUBLIC_BASE_URL` no longer defaults to localhost, preventing staging/dev-like deployments with unset env from generating localhost tracking pixels.
+- Admin LDAP/RDBMS/organization sync unavailable responses now keep 501 while returning fixed public messages and `not_implemented` error codes instead of backend sentinel strings.
 
 **Infrastructure & Storage Hardening** ✅ COMPLETE
 - Task 1 (EML GC): Added `LookupDeleteableStoragePaths` and `LookupExpungeStoragePaths` to maildb; service layer now performs two-phase GC (lookup before DB delete, delete from store after commit) for `DeleteMessage`, `BulkDeleteMessages`, `BulkDeleteThreads`, and `ExpungeIMAPMessages`. Reference-count check prevents deletion of paths shared by IMAP COPY.

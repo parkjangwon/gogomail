@@ -295,8 +295,11 @@ func TestAdminLDAPSyncUnavailableReturnsNotImplemented(t *testing.T) {
 	if rec.Code != http.StatusNotImplemented {
 		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
 	}
-	if !strings.Contains(rec.Body.String(), ldapidp.ErrSyncNotConfigured.Error()) {
-		t.Fatalf("body = %q, want not-configured error", rec.Body.String())
+	if strings.Contains(rec.Body.String(), ldapidp.ErrSyncNotConfigured.Error()) {
+		t.Fatalf("body = %q, leaked backend sentinel error", rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "ldap sync is not configured") {
+		t.Fatalf("body = %q, want public not-configured error", rec.Body.String())
 	}
 }
 
@@ -314,8 +317,11 @@ func TestAdminRDBMSSyncUnavailableReturnsNotImplemented(t *testing.T) {
 	if rec.Code != http.StatusNotImplemented {
 		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
 	}
-	if !strings.Contains(rec.Body.String(), rdbmsidp.ErrSyncNotConfigured.Error()) {
-		t.Fatalf("body = %q, want not-configured error", rec.Body.String())
+	if strings.Contains(rec.Body.String(), rdbmsidp.ErrSyncNotConfigured.Error()) {
+		t.Fatalf("body = %q, leaked backend sentinel error", rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "rdbms sync is not configured") {
+		t.Fatalf("body = %q, want public not-configured error", rec.Body.String())
 	}
 }
 

@@ -222,7 +222,7 @@ func RegisterOrgChartRoutes(mux *http.ServeMux, service OrgChartService, adminTo
 		log, err := service.SyncWithLDAP(r.Context(), companyID)
 		if err != nil {
 			if errors.Is(err, orgchart.ErrOrgChartSyncNotConfigured) {
-				writeError(w, http.StatusNotImplemented, err.Error())
+				writeError(w, http.StatusNotImplemented, "organization sync is not configured")
 				return
 			}
 			writeError(w, http.StatusInternalServerError, err.Error())
