@@ -70,7 +70,7 @@ FROM dkim_keys
 JOIN domains d ON d.id = dkim_keys.domain_id
 WHERE dkim_keys.domain_id::text = $1
   AND dkim_keys.status = 'active'
-ORDER BY updated_at DESC
+ORDER BY updated_at DESC, dkim_keys.id DESC
 LIMIT 1`
 
 	var key DKIMKey
@@ -159,7 +159,7 @@ func buildListDKIMKeysQuery(req DKIMKeyListRequest) (string, []any) {
 		query += "\nWHERE " + strings.Join(conditions, "\n  AND ")
 	}
 	query += fmt.Sprintf(`
-ORDER BY updated_at DESC
+ORDER BY updated_at DESC, id DESC
 LIMIT $%d`, len(args))
 	return query, args
 }

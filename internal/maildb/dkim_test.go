@@ -40,7 +40,7 @@ func TestListDKIMKeysQueryUsesSargableOptionalFilters(t *testing.T) {
 		"FROM dkim_keys",
 		"WHERE domain_id::text = $1",
 		"AND status = $2",
-		"ORDER BY updated_at DESC",
+		"ORDER BY updated_at DESC, id DESC",
 		"LIMIT $3",
 	} {
 		if !strings.Contains(query, want) {

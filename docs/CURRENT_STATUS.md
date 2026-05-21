@@ -17,6 +17,11 @@ Last updated: 2026-05-21 (SaaS launch hardening continues: production public URL
 - Added matching created/id indexes for these admin list views so the stable tie-breaker does not trade correctness for scan cost.
 - Verification target: `go test -count=1 ./internal/maildb -run 'ListCompaniesQuery|AdminOperationalListQueriesUseSargableFilters'`.
 
+## DKIM Key Stable Ordering (2026-05-21)
+- DKIM active-key lookup and admin key listing now order by `updated_at DESC, id DESC`, preventing equal-timestamp keys from producing non-deterministic signing/list results.
+- Added matching DKIM updated/id indexes for domain/status lookups and unfiltered admin lists.
+- Verification target: `go test -count=1 ./internal/maildb -run 'DKIMKey|ListDKIMKeys'`.
+
 ## RDBMS Sync Conflict Seek Pagination (2026-05-21)
 - RDBMS sync conflict listing now supports opaque `(created_at, id)` cursor pagination while preserving legacy offset pagination for existing clients.
 - Added conflict seek indexes for both all-conflict and unresolved-only admin views, matching the `ORDER BY created_at DESC, id DESC` access pattern.
