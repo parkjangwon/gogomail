@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { installLocalAdminSession } from './helpers';
 
 test('Verify Korean i18n translations on Dashboard', async ({ page }) => {
   const BASE_URL = 'http://localhost:3001';
@@ -6,12 +7,9 @@ test('Verify Korean i18n translations on Dashboard', async ({ page }) => {
   await page.addInitScript(() => {
     window.localStorage.setItem('locale', 'ko');
   });
+  await installLocalAdminSession(page);
 
-  // Login
-  await page.goto(`${BASE_URL}/login`);
-  await page.fill('input[type="email"]', 'admin@system');
-  await page.fill('input[type="password"]', 'admin1234');
-  await page.getByRole('button', { name: /Sign in|로그인/ }).click();
+  await page.goto(`${BASE_URL}/companies/default/dashboard`);
   await page.waitForURL('**/companies/**/dashboard', { timeout: 15000, waitUntil: 'domcontentloaded' });
   await expect(page.getByRole('heading', { name: '대시보드' })).toBeVisible();
   await expect(page.getByText('빠른 작업')).toBeVisible({ timeout: 15000 });

@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { installLocalAdminSession } from './helpers';
 
 const BASE_URL = 'http://localhost:3001';
 
@@ -75,6 +76,7 @@ test.describe('Admin Console E2E Tests', () => {
       });
 
       try {
+        if (pageConfig.requiresAuth) await installLocalAdminSession(page);
         await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 20000 });
         await page.waitForTimeout(300);
 

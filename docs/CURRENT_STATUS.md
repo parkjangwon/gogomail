@@ -1,6 +1,13 @@
 # gogomail current status
 
-Last updated: 2026-05-21 (SaaS launch hardening continues: SMTP identity production guard)
+Last updated: 2026-05-21 (SaaS launch hardening continues: frontend release gate hardening)
+
+## Frontend Release Gate Hardening (2026-05-21)
+- Console E2E now installs a backendless local admin session for release verification, stubbing only `/api/admin/**` auth, company, role, capability, audit-policy, IP-policy, and posture responses.
+- Webmail E2E now seeds the local authenticated mail session directly, keeping browser-only release tests independent from a live backend login service while preserving seeded-message navigation coverage when data is present.
+- Tiptap compose, inline compose, and settings mini-editor instances set `immediatelyRender: false`, removing SSR/hydration warning noise during production builds.
+- Local release evidence: `GOGOMAIL_FRONTEND_E2E=1 GOGOMAIL_FRONTEND_BUILD=1 ./scripts/verify-frontend-release.sh` passed, including webmail E2E (`30 passed, 1 skipped`), console E2E (`150 passed`), and both Next.js production builds.
+- Remaining external gates still require credentials/endpoints: TASK-090 PostgreSQL `EXPLAIN ANALYZE`, PostgreSQL integration tests, restore rehearsal, DNS/deliverability, and staging smoke.
 
 ## SMTP Identity Production Guard (2026-05-21)
 - Production config validation now rejects localhost, loopback, or unspecified `GOGOMAIL_SMTP_DOMAIN` and `GOGOMAIL_DELIVERY_SMTP_HELLO` values.

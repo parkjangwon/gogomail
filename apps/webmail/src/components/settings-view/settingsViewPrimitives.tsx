@@ -131,6 +131,7 @@ export function MiniEditor({ value, onChange, placeholder }: { value: string; on
       Placeholder.configure({ placeholder: placeholder ?? '' }),
     ],
     content: value,
+    immediatelyRender: false,
     onUpdate: ({ editor }) => onChange(editor.getHTML()),
   });
 

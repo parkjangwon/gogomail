@@ -462,6 +462,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
       Image.configure({ inline: true, allowBase64: true }),
     ],
     content: initialContent,
+    immediatelyRender: false,
     editorProps: {
       attributes: {
         style: [
@@ -547,7 +548,6 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
         setImageResizeToolbar(null);
       }
     },
-    immediatelyRender: false,
   });
 
   // Move cursor to start so user types above the quoted text
