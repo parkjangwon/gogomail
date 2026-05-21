@@ -85,7 +85,7 @@ func registerAdminMFARoutes(mux *http.ServeMux, cfg adminRouteConfig, adminAuth 
 		}
 		status, err := cfg.adminMFAStore.GetUserMFAStatus(r.Context(), claims.UserID)
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, err.Error())
+			writeInternalServerError(w)
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"mfa_status": status})

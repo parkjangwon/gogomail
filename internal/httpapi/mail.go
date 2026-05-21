@@ -606,7 +606,7 @@ func RegisterMailRoutesWithOptions(mux *http.ServeMux, service MessageService, t
 		}
 		folders, err := service.ListFolders(r.Context(), userID)
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, err.Error())
+			writeInternalServerError(w)
 			return
 		}
 		writeJSON(w, http.StatusOK, mailboxOverviewEnvelope{MailboxOverview: buildMailboxOverview(folders)})
@@ -626,7 +626,7 @@ func RegisterMailRoutesWithOptions(mux *http.ServeMux, service MessageService, t
 
 		folders, err := service.ListFolders(r.Context(), userID)
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, err.Error())
+			writeInternalServerError(w)
 			return
 		}
 
@@ -774,13 +774,13 @@ func RegisterMailRoutesWithOptions(mux *http.ServeMux, service MessageService, t
 			Sort:          sortMode,
 		})
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, err.Error())
+			writeInternalServerError(w)
 			return
 		}
 
 		page, err := maildb.NewMessageListPage(messages, limit)
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, err.Error())
+			writeInternalServerError(w)
 			return
 		}
 
@@ -924,12 +924,12 @@ func RegisterMailRoutesWithOptions(mux *http.ServeMux, service MessageService, t
 			IncludeHighlights: includeHighlights,
 		})
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, err.Error())
+			writeInternalServerError(w)
 			return
 		}
 		page, err := maildb.NewMessageListPage(messages, limit)
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, err.Error())
+			writeInternalServerError(w)
 			return
 		}
 		if sortMode == maildb.MessageSearchSortRelevance {
@@ -1000,12 +1000,12 @@ func RegisterMailRoutesWithOptions(mux *http.ServeMux, service MessageService, t
 			Sort:          sortMode,
 		})
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, err.Error())
+			writeInternalServerError(w)
 			return
 		}
 		page, err := maildb.NewThreadListPage(threads, limit)
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, err.Error())
+			writeInternalServerError(w)
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{
@@ -1051,7 +1051,7 @@ func RegisterMailRoutesWithOptions(mux *http.ServeMux, service MessageService, t
 		}
 		page, err := maildb.NewMessageListPage(messages, limit)
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, err.Error())
+			writeInternalServerError(w)
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{
@@ -1490,12 +1490,12 @@ func RegisterMailRoutesWithOptions(mux *http.ServeMux, service MessageService, t
 			Cursor:        cursor,
 		})
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, err.Error())
+			writeInternalServerError(w)
 			return
 		}
 		page, err := maildb.NewDraftListPage(drafts, limit)
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, err.Error())
+			writeInternalServerError(w)
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{
@@ -1603,7 +1603,7 @@ func RegisterMailRoutesWithOptions(mux *http.ServeMux, service MessageService, t
 		}
 		attachments, err := service.ListAttachments(r.Context(), userID, messageID)
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, err.Error())
+			writeInternalServerError(w)
 			return
 		}
 
@@ -1959,7 +1959,7 @@ func RegisterMailRoutesWithOptions(mux *http.ServeMux, service MessageService, t
 		}
 		devices, err := service.ListPushDevices(r.Context(), userID, limit)
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, err.Error())
+			writeInternalServerError(w)
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"push_devices": devices})
@@ -2870,6 +2870,10 @@ func writeError(w http.ResponseWriter, status int, message string) {
 		},
 		"error_message": message,
 	})
+}
+
+func writeInternalServerError(w http.ResponseWriter) {
+	writeError(w, http.StatusInternalServerError, "internal server error")
 }
 
 func writeMailServiceError(w http.ResponseWriter, err error) {

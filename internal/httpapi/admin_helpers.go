@@ -1184,7 +1184,7 @@ func handleLDAPSyncHistory(w http.ResponseWriter, r *http.Request, service Admin
 		Offset:   offset,
 	})
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
+		writeInternalServerError(w)
 		return
 	}
 	hasMore := len(runs) > limit
@@ -1238,7 +1238,7 @@ func handleLDAPSyncConflicts(w http.ResponseWriter, r *http.Request, service Adm
 		Cursor:         cursor,
 	})
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
+		writeInternalServerError(w)
 		return
 	}
 	hasMore := len(conflicts) > limit
@@ -1336,7 +1336,7 @@ func handleCompanyLoginAudits(service loginAuditLister) http.HandlerFunc {
 		filter.CompanyID = companyID
 		logs, err := service.ListLoginAttempts(r.Context(), filter)
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, err.Error())
+			writeInternalServerError(w)
 			return
 		}
 		items := make([]loginAuditResponse, len(logs))
@@ -1444,7 +1444,7 @@ func handleRDBMSSyncHistory(w http.ResponseWriter, r *http.Request, service Admi
 		Cursor:   cursor,
 	})
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
+		writeInternalServerError(w)
 		return
 	}
 	hasMore := len(runs) > limit
@@ -1504,7 +1504,7 @@ func handleRDBMSSyncConflicts(w http.ResponseWriter, r *http.Request, service Ad
 		Cursor:         cursor,
 	})
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
+		writeInternalServerError(w)
 		return
 	}
 	hasMore := len(conflicts) > limit

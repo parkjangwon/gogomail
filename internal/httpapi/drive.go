@@ -1367,7 +1367,7 @@ func checkDriveDelegatedAccess(ctx context.Context, w http.ResponseWriter, r *ht
 		RequiredRole: requiredRole,
 	})
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
+		writeInternalServerError(w)
 		return "", false
 	}
 	if !decision.Allowed {

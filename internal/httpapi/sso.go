@@ -162,7 +162,7 @@ func RegisterSSORoutes(mux *http.ServeMux, svc SSOFlowService, tm *auth.TokenMan
 
 		info, err := ssoLookupOrProvision(r.Context(), svc, email, domainID)
 		if err != nil {
-			http.Error(w, fmt.Sprintf("SSO user resolution failed: %v", err), http.StatusUnauthorized)
+			http.Error(w, "SSO user resolution failed", http.StatusUnauthorized)
 			return
 		}
 
@@ -211,19 +211,19 @@ func RegisterSSORoutes(mux *http.ServeMux, svc SSOFlowService, tm *auth.TokenMan
 
 		idToken, err := exchangeOIDCCode(r.Context(), tokenEndpoint, cfg.ClientID, cfg.ClientSecret, code, codeVerifier)
 		if err != nil {
-			http.Error(w, fmt.Sprintf("OIDC code exchange failed: %v", err), http.StatusUnauthorized)
+			http.Error(w, "OIDC code exchange failed", http.StatusUnauthorized)
 			return
 		}
 
 		email, err := sso.VerifyAndParseIDToken(idToken, cfg.ClientSecret, cfg.ClientID, time.Now())
 		if err != nil {
-			http.Error(w, "could not verify ID token: "+err.Error(), http.StatusUnauthorized)
+			http.Error(w, "could not verify ID token", http.StatusUnauthorized)
 			return
 		}
 
 		info, err := ssoLookupOrProvision(r.Context(), svc, email, domainID)
 		if err != nil {
-			http.Error(w, fmt.Sprintf("SSO user resolution failed: %v", err), http.StatusUnauthorized)
+			http.Error(w, "SSO user resolution failed", http.StatusUnauthorized)
 			return
 		}
 
@@ -280,9 +280,9 @@ type oidcCodeResponse struct {
 // used in the authorization request (RFC 7636 §4.5).
 func exchangeOIDCCode(ctx context.Context, tokenURL, clientID, clientSecret, code, codeVerifier string) (string, error) {
 	form := url.Values{
-		"grant_type":   {"authorization_code"},
-		"code":         {code},
-		"client_id":    {clientID},
+		"grant_type":    {"authorization_code"},
+		"code":          {code},
+		"client_id":     {clientID},
 		"client_secret": {clientSecret},
 	}
 	if codeVerifier != "" {

@@ -395,13 +395,13 @@ func (h *Handler) serveProppatch(w http.ResponseWriter, r *http.Request) {
 	}
 	href, err := CalendarCollectionPath(userID, resource.CalendarID)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
 	if len(patch.Unsupported) > 0 || len(patch.Protected) > 0 {
 		body, err := BuildMultiStatusXML([]MultiStatusResponse{proppatchFailureResponse(href, patch)})
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			http.Error(w, "internal server error", http.StatusInternalServerError)
 			return
 		}
 		w.Header().Set("Content-Type", "application/xml; charset=utf-8")
@@ -434,12 +434,12 @@ func (h *Handler) serveProppatch(w http.ResponseWriter, r *http.Request) {
 	}
 	href, err = CalendarCollectionPath(userID, calendar.ID)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
 	body, err := BuildMultiStatusXML([]MultiStatusResponse{proppatchResponse(href, calendar, patch.Properties)})
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
 	w.Header().Set("Content-Type", "application/xml; charset=utf-8")
@@ -506,7 +506,7 @@ func (h *Handler) serveMkcalendar(w http.ResponseWriter, r *http.Request) {
 	if len(req.Unsupported) > 0 || len(invalidProperties) > 0 {
 		body, err := BuildMKCalendarResponseXML(mkcalendarFailurePropStats(req, invalidProperties))
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			http.Error(w, "internal server error", http.StatusInternalServerError)
 			return
 		}
 		w.Header().Set("Content-Type", "application/xml; charset=utf-8")
@@ -546,7 +546,7 @@ func (h *Handler) serveMkcalendar(w http.ResponseWriter, r *http.Request) {
 	}
 	location, err := CalendarCollectionPath(userID, calendar.ID)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
 	w.Header().Set("Location", location)
@@ -1800,7 +1800,7 @@ func (h *Handler) serveReport(w http.ResponseWriter, r *http.Request) {
 		body, err = BuildMultiStatusXML(responses)
 	}
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
 	w.Header().Set("Content-Type", "application/xml; charset=utf-8")
@@ -1873,7 +1873,7 @@ func (h *Handler) servePropfind(w http.ResponseWriter, r *http.Request) {
 	}
 	body, err := BuildMultiStatusXML(responses)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
 	w.Header().Set("Content-Type", "application/xml; charset=utf-8")
