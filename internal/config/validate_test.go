@@ -16,6 +16,7 @@ func setProductionSecrets(cfg *Config) {
 	cfg.AdminToken = "test-admin-token-for-production-tests"
 	cfg.DatabaseURL = "postgres://gogomail:gogomail@localhost:5432/gogomail?sslmode=require"
 	cfg.PublicBaseURL = "https://mail.example.com"
+	cfg.FarmCoordinatorBackend = "redis"
 }
 
 func TestValidateRejectsProductionInsecureSubmissionAuth(t *testing.T) {
@@ -151,6 +152,34 @@ func TestValidateRejectsSSLModeDisableInProduction(t *testing.T) {
 	cfg.DatabaseURL = "postgres://gogomail:gogomail@localhost:5432/gogomail?sslmode=disable"
 	if err := cfg.Validate(); err == nil || !strings.Contains(err.Error(), "sslmode=disable") {
 		t.Fatalf("Validate() error = %v, want sslmode=disable rejection in production", err)
+	}
+}
+
+func TestValidateRejectsNoopFarmCoordinatorInProduction(t *testing.T) {
+	cfg := Load()
+	cfg.Environment = "production"
+	cfg.SubmissionAllowInsecureAuth = false
+	cfg.IMAPAllowInsecureAuth = false
+	cfg.CalDAVAllowInsecureAuth = false
+	cfg.CardDAVAllowInsecureAuth = false
+	setProductionSecrets(&cfg)
+	cfg.FarmCoordinatorBackend = "noop"
+	if err := cfg.Validate(); err == nil || !strings.Contains(err.Error(), "GOGOMAIL_FARM_COORDINATOR_BACKEND") {
+		t.Fatalf("Validate() error = %v, want production farm coordinator rejection", err)
+	}
+}
+
+func TestValidateAcceptsRedisFarmCoordinatorInProduction(t *testing.T) {
+	cfg := Load()
+	cfg.Environment = "production"
+	cfg.SubmissionAllowInsecureAuth = false
+	cfg.IMAPAllowInsecureAuth = false
+	cfg.CalDAVAllowInsecureAuth = false
+	cfg.CardDAVAllowInsecureAuth = false
+	setProductionSecrets(&cfg)
+	cfg.FarmCoordinatorBackend = "redis"
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("Validate() error = %v", err)
 	}
 }
 
@@ -1115,6 +1144,33 @@ func TestValidateAcceptsRedisDeliveryThrottleBackend(t *testing.T) {
 	cfg.DeliveryDefaultConcurrency = 1
 	if err := cfg.Validate(); err != nil {
 		t.Fatalf("Validate() error = %v", err)
+	}
+}
+
+func TestValidateRejectsInvalidFarmCoordinatorSettings(t *testing.T) {
+	tests := []struct {
+		name   string
+		mutate func(*Config)
+	}{
+		{name: "unknown backend", mutate: func(cfg *Config) { cfg.FarmCoordinatorBackend = "etcd" }},
+		{name: "redis without address", mutate: func(cfg *Config) {
+			cfg.FarmCoordinatorBackend = "redis"
+			cfg.RedisAddr = ""
+			cfg.RedisSentinelAddrs = nil
+		}},
+		{name: "zero heartbeat ttl", mutate: func(cfg *Config) { cfg.FarmCoordinatorHeartbeatTTL = 0 }},
+		{name: "zero visibility timeout", mutate: func(cfg *Config) { cfg.FarmCoordinatorJobVisibilityTimeout = 0 }},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := Load()
+			tt.mutate(&cfg)
+			if err := cfg.Validate(); err == nil {
+				t.Fatal("Validate() error = nil, want farm coordinator setting rejection")
+			}
+		})
 	}
 }
 

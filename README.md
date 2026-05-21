@@ -217,6 +217,8 @@ Important environment variables:
 | `GOGOMAIL_REDIS_ADDR` | Redis host and port |
 | `GOGOMAIL_REDIS_PASSWORD` | Redis password; required by the medium/large Docker profiles |
 | `GOGOMAIL_REDIS_SENTINEL_ADDRS` / `GOGOMAIL_REDIS_MASTER_NAME` | Optional Redis Sentinel failover configuration |
+| `GOGOMAIL_FARM_COORDINATOR_BACKEND` | SMTP farm coordinator backend, `noop` or `redis`; production requires `redis` |
+| `GOGOMAIL_FARM_COORDINATOR_NODE_ID` / `GOGOMAIL_FARM_COORDINATOR_HEARTBEAT_TTL` / `GOGOMAIL_FARM_COORDINATOR_JOB_VISIBILITY_TIMEOUT` | Distributed SMTP farm node identity, heartbeat TTL, and delivery-job visibility timeout |
 | `GOGOMAIL_STORAGE_BACKEND` | `local`, `nfs`, `minio`, or `s3` |
 | `GOGOMAIL_MAILSTORE_ROOT` / `GOGOMAIL_STORAGE_ROOT` | Local/NFS object root. `GOGOMAIL_MAILSTORE_ROOT` is primary; `GOGOMAIL_STORAGE_ROOT` is a deprecated fallback alias |
 | `GOGOMAIL_STORAGE_BACKEND_COMPAT_LABELS` | Compatibility labels exposed in storage capabilities during migrations |
