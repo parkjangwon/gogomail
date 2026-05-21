@@ -1918,3 +1918,63 @@ type rejectBackpressure struct{}
 func (rejectBackpressure) Accept(context.Context) (bool, error) {
 	return false, nil
 }
+
+func TestAuthFailureTrackerLockoutAfterMaxFails(t *testing.T) {
+	t.Parallel()
+	tracker := &authFailureTracker{
+		failures: make(map[string][]time.Time),
+		window:   10 * time.Minute,
+		maxFails: 3,
+	}
+	const ip = "192.0.2.1"
+	for i := 0; i < 3; i++ {
+		if tracker.isLocked(ip) {
+			t.Fatalf("should not be locked after %d failures", i)
+		}
+		locked := tracker.record(ip)
+		if i < 2 && locked {
+			t.Fatalf("record returned locked=true after only %d failures", i+1)
+		}
+	}
+	if !tracker.isLocked(ip) {
+		t.Fatal("isLocked should return true after maxFails failures")
+	}
+}
+
+func TestAuthFailureTrackerIsolatesIPs(t *testing.T) {
+	t.Parallel()
+	tracker := &authFailureTracker{
+		failures: make(map[string][]time.Time),
+		window:   10 * time.Minute,
+		maxFails: 3,
+	}
+	for i := 0; i < 5; i++ {
+		tracker.record("10.0.0.1")
+	}
+	if !tracker.isLocked("10.0.0.1") {
+		t.Fatal("10.0.0.1 should be locked")
+	}
+	if tracker.isLocked("10.0.0.2") {
+		t.Fatal("10.0.0.2 should not be locked due to other IP failures")
+	}
+}
+
+func TestAuthFailureTrackerWindowExpiry(t *testing.T) {
+	t.Parallel()
+	tracker := &authFailureTracker{
+		failures: make(map[string][]time.Time),
+		window:   100 * time.Millisecond,
+		maxFails: 3,
+	}
+	const ip = "192.0.2.2"
+	for i := 0; i < 5; i++ {
+		tracker.record(ip)
+	}
+	if !tracker.isLocked(ip) {
+		t.Fatal("should be locked before window expiry")
+	}
+	time.Sleep(150 * time.Millisecond)
+	if tracker.isLocked(ip) {
+		t.Fatal("should not be locked after window expiry")
+	}
+}

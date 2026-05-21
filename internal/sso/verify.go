@@ -3,6 +3,7 @@ package sso
 import (
 	gocrypto "crypto"
 	_ "crypto/sha256" // register SHA256 hash
+	"context"
 	"crypto/hmac"
 	"crypto/rsa"
 	"crypto/sha256"
@@ -185,7 +186,13 @@ func verifyRS256JWT(parts []string, kid, issuer string) error {
 // issuer + "/.well-known/openid-configuration".
 func fetchJWKSURI(issuer string) (string, error) {
 	discoveryURL := strings.TrimRight(issuer, "/") + "/.well-known/openid-configuration"
-	resp, err := http.Get(discoveryURL) //nolint:noctx
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, discoveryURL, nil)
+	if err != nil {
+		return "", fmt.Errorf("build discovery request: %w", err)
+	}
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return "", fmt.Errorf("fetch discovery document: %w", err)
 	}
@@ -229,7 +236,13 @@ func getJWKSKeys(jwksURI string) ([]jwkKey, error) {
 	}
 
 	// Fetch fresh JWKS.
-	resp, err := http.Get(jwksURI) //nolint:noctx
+	fetchCtx, fetchCancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer fetchCancel()
+	jwksReq, err := http.NewRequestWithContext(fetchCtx, http.MethodGet, jwksURI, nil)
+	if err != nil {
+		return nil, fmt.Errorf("build JWKS request: %w", err)
+	}
+	resp, err := http.DefaultClient.Do(jwksReq)
 	if err != nil {
 		return nil, fmt.Errorf("fetch JWKS: %w", err)
 	}

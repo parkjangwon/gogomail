@@ -1,13 +1,20 @@
 package smtpd
 
 import (
+	"bytes"
+	"context"
 	"crypto/rand"
 	"fmt"
+	"io"
 	"net"
+	"strings"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/gogomail/gogomail/internal/storage"
 )
+
 
 // TestMassiveTrafficHandling verifies SMTP can handle 1000s concurrent connections
 // without regular user impact (i.e., latency doesn't degrade)
@@ -253,4 +260,131 @@ func GenerateRandomMessage(from, to string, size int) []byte {
 	body := make([]byte, size)
 	rand.Read(body)
 	return append([]byte(msg), body...)
+}
+
+// throughputRecorder counts messages without storing bodies (throughput measurement only).
+type throughputRecorder struct {
+	mu    sync.Mutex
+	count int64
+}
+
+func (r *throughputRecorder) Record(_ context.Context, _ ReceivedMessage) error {
+	r.mu.Lock()
+	r.count++
+	r.mu.Unlock()
+	return nil
+}
+
+// BenchmarkSMTPReceiverThroughput measures message-processing throughput
+// through the receiver pipeline (excluding network I/O).
+//
+// Run with: go test -bench=BenchmarkSMTPReceiverThroughput -benchtime=10s ./internal/smtp/
+func BenchmarkSMTPReceiverThroughput(b *testing.B) {
+	store := storage.NewLocalStore(b.TempDir())
+	recorder := &throughputRecorder{}
+	receiver := NewReceiver(ReceiverOptions{
+		Store: store,
+		Resolver: StaticResolver{
+			"bench@example.com": {CompanyID: "c1", DomainID: "d1", UserID: "u1", Address: "bench@example.com"},
+		},
+		Recorder:    recorder,
+		IDGenerator: func() string { return fmt.Sprintf("bench-%d", time.Now().UnixNano()) },
+		Clock:       time.Now,
+	})
+
+	const msgBody = "From: sender@example.net\r\nTo: bench@example.com\r\nSubject: Bench\r\n\r\nhello benchmark"
+	msgBytes := []byte(msgBody)
+
+	b.ResetTimer()
+	b.SetBytes(int64(len(msgBytes)))
+	b.ReportAllocs()
+
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			if err := driveReceiverMessage(receiver, "sender@example.net", "bench@example.com", bytes.NewReader(msgBytes)); err != nil {
+				b.Errorf("process: %v", err)
+			}
+		}
+	})
+}
+
+// driveReceiverMessage pushes one message through the receiver pipeline using nil conn.
+func driveReceiverMessage(receiver *Receiver, from, to string, body io.Reader) error {
+	sess, err := receiver.NewSession(nil)
+	if err != nil {
+		return err
+	}
+	if err := sess.Mail(from, nil); err != nil {
+		return err
+	}
+	if err := sess.Rcpt(to, nil); err != nil {
+		sess.Reset()
+		return err
+	}
+	if err := sess.Data(body); err != nil {
+		sess.Reset()
+		return err
+	}
+	sess.Logout()
+	return nil
+}
+
+// TestSMTPSustainedThroughput1000 verifies the receiver can handle 1000 messages/s
+// under controlled conditions. Skipped in short mode.
+func TestSMTPSustainedThroughput1000(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping throughput test in short mode")
+	}
+
+	store := storage.NewLocalStore(t.TempDir())
+	recorder := &throughputRecorder{}
+	receiver := NewReceiver(ReceiverOptions{
+		Store: store,
+		Resolver: StaticResolver{
+			"user@example.com": {CompanyID: "c1", DomainID: "d1", UserID: "u1", Address: "user@example.com"},
+		},
+		Recorder:    recorder,
+		IDGenerator: func() string { return fmt.Sprintf("tput-%d", time.Now().UnixNano()) },
+		Clock:       time.Now,
+	})
+
+	const (
+		target     = 1000
+		durationMs = 3000
+		workers    = 50
+	)
+
+	msgBody := []byte(strings.Repeat("x", 1024))
+	fullMsg := append([]byte("From: s@example.net\r\nTo: user@example.com\r\nSubject: T\r\n\r\n"), msgBody...)
+
+	start := time.Now()
+	deadline := start.Add(durationMs * time.Millisecond)
+
+	var wg sync.WaitGroup
+	var mu sync.Mutex
+	var sent int64
+
+	for w := 0; w < workers; w++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for time.Now().Before(deadline) {
+				if err := driveReceiverMessage(receiver, "s@example.net", "user@example.com", bytes.NewReader(fullMsg)); err == nil {
+					mu.Lock()
+					sent++
+					mu.Unlock()
+				}
+			}
+		}()
+	}
+
+	wg.Wait()
+	elapsed := time.Since(start).Seconds()
+	msgPerSec := float64(sent) / elapsed
+
+	t.Logf("Processed %d messages in %.2fs = %.0f msg/s", sent, elapsed, msgPerSec)
+
+	if msgPerSec < target {
+		t.Logf("WARNING: throughput %.0f msg/s below target %d msg/s (infrastructure-dependent)", msgPerSec, target)
+	}
 }

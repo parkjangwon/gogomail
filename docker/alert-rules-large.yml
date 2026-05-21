@@ -1,0 +1,91 @@
+groups:
+  - name: gogomail.smtp
+    rules:
+      - alert: SMTPDeliveryErrorRateHigh
+        expr: |
+          rate(gogomail_smtp_events_total{result="rejected"}[5m])
+            / (rate(gogomail_smtp_events_total[5m]) + 1) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "SMTP rejection rate above 5%"
+          description: "SMTP rejection rate is {{ $value | humanizePercentage }} over 5m."
+
+      - alert: SMTPAuthFailureRateHigh
+        expr: rate(gogomail_smtp_events_total{stage="auth",result="rejected"}[5m]) > 5
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High SMTP auth failure rate"
+          description: "More than 5 SMTP auth failures/s for 2 minutes — possible brute-force."
+
+      - alert: SMTPRFCNonComplianceRateHigh
+        expr: rate(gogomail_smtp_rfc_noncompliance_total[10m]) > 10
+        for: 10m
+        labels:
+          severity: info
+        annotations:
+          summary: "Elevated RFC non-compliance in received mail"
+          description: "More than 10 RFC non-compliant messages/s for 10m."
+
+  - name: gogomail.delivery
+    rules:
+      - alert: OutboundDeliveryFailureRateHigh
+        expr: |
+          rate(gogomail_delivery_events_total{result="failed"}[10m])
+            / (rate(gogomail_delivery_events_total[10m]) + 1) > 0.10
+        for: 10m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Outbound delivery failure rate above 10%"
+          description: "Outbound delivery failures: {{ $value | humanizePercentage }} over 10m."
+
+      - alert: OutboundDeliveryStalled
+        expr: rate(gogomail_delivery_events_total[10m]) == 0
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "No outbound delivery events for 15 minutes"
+          description: "The outbound delivery pipeline may be stalled."
+
+  - name: gogomail.infrastructure
+    rules:
+      - alert: BackendInstanceDown
+        expr: up{job="gogomail-backend"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Backend instance {{ $labels.instance }} down"
+          description: "Prometheus cannot scrape {{ $labels.instance }}."
+
+      - alert: PostgresPrimaryDown
+        expr: up{job="postgres"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "PostgreSQL {{ $labels.instance }} unreachable"
+          description: "Prometheus cannot reach {{ $labels.instance }}."
+
+      - alert: RedisMasterDown
+        expr: up{job="redis"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Redis {{ $labels.instance }} unreachable"
+          description: "Prometheus cannot reach {{ $labels.instance }}."
+
+      - alert: MinIONodeDown
+        expr: up{job="minio"} == 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "MinIO node {{ $labels.instance }} unreachable"
+          description: "Prometheus cannot scrape MinIO metrics from {{ $labels.instance }}."

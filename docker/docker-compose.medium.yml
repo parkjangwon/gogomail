@@ -279,7 +279,7 @@ services:
       MINIO_ENDPOINT: minio-lb:9000
       MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-gogomail}
       MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-changepassword123}
-      MINIO_USE_SSL: "false"
+      MINIO_USE_SSL: ${MINIO_USE_SSL:-false}
       APP_MODE: all-in-one
       APP_LOG_LEVEL: info
       APP_PORT: 8080
@@ -319,7 +319,7 @@ services:
       MINIO_ENDPOINT: minio-lb:9000
       MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-gogomail}
       MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-changepassword123}
-      MINIO_USE_SSL: "false"
+      MINIO_USE_SSL: ${MINIO_USE_SSL:-false}
       APP_MODE: all-in-one
       APP_LOG_LEVEL: info
       APP_PORT: 8080

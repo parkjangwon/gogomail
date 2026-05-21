@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"net/http"
 	"strconv"
 	"strings"
@@ -168,7 +169,9 @@ func scimAuth(token string, next http.HandlerFunc) http.HandlerFunc {
 func writeSCIMJSON(w http.ResponseWriter, code int, v any) {
 	w.Header().Set("Content-Type", "application/scim+json")
 	w.WriteHeader(code)
-	json.NewEncoder(w).Encode(v) //nolint:errcheck
+	if err := json.NewEncoder(w).Encode(v); err != nil {
+		slog.Warn("scim: encode response failed", "code", code, "error", err)
+	}
 }
 
 func writeSCIMInternalError(w http.ResponseWriter) {
@@ -178,12 +181,14 @@ func writeSCIMInternalError(w http.ResponseWriter) {
 func writeSCIMError(w http.ResponseWriter, code int, scimType, detail string) {
 	w.Header().Set("Content-Type", "application/scim+json")
 	w.WriteHeader(code)
-	json.NewEncoder(w).Encode(map[string]any{ //nolint:errcheck
+	if err := json.NewEncoder(w).Encode(map[string]any{
 		"schemas":  []string{"urn:ietf:params:scim:api:messages:2.0:Error"},
 		"scimType": scimType,
 		"detail":   detail,
 		"status":   strconv.Itoa(code),
-	})
+	}); err != nil {
+		slog.Warn("scim: encode error response failed", "code", code, "error", err)
+	}
 }
 
 func scimServiceProviderConfig() any {

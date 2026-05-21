@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -602,7 +603,11 @@ func (r *Repository) StoreUploadSessionBody(ctx context.Context, req RecordUploa
 	if err != nil {
 		return UploadSession{}, "", fmt.Errorf("begin store upload session body transaction: %w", err)
 	}
-	defer tx.Rollback() //nolint:errcheck
+	defer func() {
+		if rbErr := tx.Rollback(); rbErr != nil && rbErr != sql.ErrTxDone {
+			slog.Warn("drive: upload session body tx rollback failed", "error", rbErr)
+		}
+	}()
 
 	locked, err := lockWritableUploadSession(ctx, tx, req.UserID, req.SessionID)
 	if err != nil {

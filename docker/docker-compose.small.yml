@@ -134,11 +134,11 @@ services:
       REDIS_DB: 0
       GOGOMAIL_REDIS_PASSWORD: ${REDIS_PASSWORD:-changeme_in_production}
 
-      # MinIO
+      # MinIO — set GOGOMAIL_STORAGE_S3_ENDPOINT=https://minio:9000 in production
       MINIO_ENDPOINT: minio:9000
       MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-gogomail}
       MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-changepassword123}
-      MINIO_USE_SSL: "false"
+      MINIO_USE_SSL: ${MINIO_USE_SSL:-false}
 
       # App
       APP_MODE: all-in-one

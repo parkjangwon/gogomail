@@ -46,5 +46,5 @@ alerting:
         - targets: []
 
 rule_files:
-  # - "alert-rules.yml"
+  - "alert-rules.yml"
   # - "record-rules.yml"

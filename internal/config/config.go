@@ -151,6 +151,8 @@ type Config struct {
 	DAVSyncRetentionConfirmReady        bool
 	DriveShareRateLimitBackend          string
 	DriveShareRateLimitPerMinute        int
+	MailMutationRateLimitBackend        string
+	MailMutationRateLimitPerMinute      int
 	PushNotifyBackend                   string
 	PushNotifyWebhookURL                string
 	PushNotifyWebhookToken              string
@@ -463,6 +465,8 @@ func Load() Config {
 		DAVSyncRetentionConfirmReady:        boolEnvOrDefault("GOGOMAIL_DAV_SYNC_RETENTION_CONFIRM_READY", false),
 		DriveShareRateLimitBackend:          envOrDefault("GOGOMAIL_DRIVE_SHARE_RATELIMIT_BACKEND", "none"),
 		DriveShareRateLimitPerMinute:        intEnvOrDefault("GOGOMAIL_DRIVE_SHARE_RATELIMIT_PER_MINUTE", 120),
+		MailMutationRateLimitBackend:        envOrDefault("GOGOMAIL_MAIL_MUTATION_RATELIMIT_BACKEND", "none"),
+		MailMutationRateLimitPerMinute:      intEnvOrDefault("GOGOMAIL_MAIL_MUTATION_RATELIMIT_PER_MINUTE", 300),
 		PushNotifyBackend:                   envOrDefault("GOGOMAIL_PUSH_NOTIFICATION_BACKEND", "none"),
 		PushNotifyWebhookURL:                envOrDefault("GOGOMAIL_PUSH_NOTIFICATION_WEBHOOK_URL", ""),
 		PushNotifyWebhookToken:              os.Getenv("GOGOMAIL_PUSH_NOTIFICATION_WEBHOOK_TOKEN"),
