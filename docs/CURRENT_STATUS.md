@@ -1,6 +1,11 @@
 # gogomail current status
 
-Last updated: 2026-05-21 (SaaS launch hardening continues: Drive sibling lookup sargability)
+Last updated: 2026-05-21 (SaaS launch hardening continues: Console MFA settings localization)
+
+## Console MFA Settings Localization (2026-05-21)
+- Console personal security settings now use the shared i18n provider for MFA setup, confirmation, disable, status, recovery-code, loading, and error copy instead of hard-coded English strings.
+- Added matching English, Korean, Japanese, and Simplified Chinese catalog entries for the MFA settings flow so forced MFA enrollment no longer drops users into an English-only page.
+- Verification target: `pnpm --dir apps/console type-check`.
 
 ## Drive Sibling Lookup Sargability (2026-05-21)
 - Drive active sibling-name lookup now builds separate root and child-parent SQL predicates instead of comparing `COALESCE(parent_id, sentinel)` to a nullable request value.

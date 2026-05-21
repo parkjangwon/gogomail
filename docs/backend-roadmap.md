@@ -9,6 +9,7 @@
 - Operations backup coverage now includes a `pg_dump` backup script and Compose cron profile, with optional S3 upload.
 - Delivery retry scheduling now preserves the original queued JSON payload and patches only `retry_attempt` for full-message retries, reducing hot retry CPU while falling back to full marshaling for mutated partial retries.
 - Drive folder/file conflict checks now use direct root/child parent predicates instead of sentinel `COALESCE(parent_id, ...)` comparisons, keeping sibling-name lookups aligned with active parent/name indexes.
+- Console personal MFA settings copy now goes through the shared locale catalog in English, Korean, Japanese, and Simplified Chinese, removing an English-only forced-enrollment surface.
 - Webmail pre-launch gaps closed: password reset UI, server-synced signatures, Web Push service worker registration, and calendar edit/delete controls.
 - Console pre-launch gaps closed: audit-log cursor pagination, delivery-attempt filters/feedback, and targeted TypeScript cleanup.
 

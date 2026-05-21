@@ -32,6 +32,9 @@
     "disabled": "已禁用",
     "yes": "是",
     "no": "否",
+    "status": "状态",
+    "confirm": "确认",
+    "done": "完成",
     "confirm_delete": "确定要删除此项目吗？"
   },
   "alerts": {
@@ -232,7 +235,24 @@
     "theme": "主题"
   },
   "security": {
-    "api_keys": "API 密钥"
+    "api_keys": "API 密钥",
+    "settings": {
+      "mfa_header": "双因素认证 (MFA)",
+      "not_enabled": "未启用",
+      "enable_mfa": "启用 MFA",
+      "disable_mfa": "禁用 MFA",
+      "disable_confirm": "要禁用 MFA 吗？下次登录将不再要求额外验证。",
+      "mfa_setup_failed": "无法开始 MFA 设置",
+      "invalid_code": "验证码无效，请重试。",
+      "setup_instructions": "使用认证器应用扫描此二维码，然后输入 6 位验证码完成确认。",
+      "qr_alt": "TOTP 二维码",
+      "secret_label": "密钥",
+      "confirmation_code": "验证码",
+      "confirmation_desc": "输入认证器应用中的 6 位验证码",
+      "enabled_success": "MFA 已成功启用。",
+      "recovery_codes": "恢复代码",
+      "recovery_desc": "如果无法访问认证器，每个代码可使用一次。请保存在安全位置。"
+    }
   },
   "forms": {
     "submit": "提交",

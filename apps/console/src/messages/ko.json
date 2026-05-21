@@ -32,6 +32,9 @@
     "disabled": "사용 안 함",
     "yes": "예",
     "no": "아니요",
+    "status": "상태",
+    "confirm": "확인",
+    "done": "완료",
     "confirm_delete": "이 항목을 삭제할까요?"
   },
   "alerts": {
@@ -2996,7 +2999,24 @@
     "backpressure": "백프레셔"
   },
   "security": {
-    "api_keys": "API 키"
+    "api_keys": "API 키",
+    "settings": {
+      "mfa_header": "2단계 인증 (MFA)",
+      "not_enabled": "사용 안 함",
+      "enable_mfa": "MFA 사용",
+      "disable_mfa": "MFA 해제",
+      "disable_confirm": "MFA를 해제할까요? 다음 로그인부터 추가 인증을 요구하지 않습니다.",
+      "mfa_setup_failed": "MFA 설정을 시작하지 못했습니다",
+      "invalid_code": "인증 코드가 올바르지 않습니다. 다시 시도하세요.",
+      "setup_instructions": "인증 앱으로 QR 코드를 스캔한 뒤 6자리 코드를 입력해 설정을 완료하세요.",
+      "qr_alt": "TOTP QR 코드",
+      "secret_label": "비밀키",
+      "confirmation_code": "인증 코드",
+      "confirmation_desc": "인증 앱에 표시된 6자리 코드를 입력하세요",
+      "enabled_success": "MFA가 활성화되었습니다.",
+      "recovery_codes": "복구 코드",
+      "recovery_desc": "인증 앱에 접근할 수 없을 때 각 코드를 한 번씩 사용할 수 있습니다. 안전한 곳에 보관하세요."
+    }
   },
   "settings": {
     "title": "설정",

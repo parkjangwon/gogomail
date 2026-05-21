@@ -188,6 +188,7 @@
 - OpenAPI auth contracts now match implemented login refresh-token/MFA fields, shared mail/admin refresh semantics, and password-reset request/confirm endpoints.
 - Delivery retry scheduling now retains the original queued JSON payload and patches only top-level `retry_attempt` for full-message retries, while clearing the raw payload for partial retries that mutate recipients/DSN metadata.
 - Drive active sibling-name lookup now uses direct `parent_id IS NULL` or `parent_id = $2::uuid` predicates instead of sentinel `COALESCE(parent_id, ...)` comparisons during folder/file conflict checks.
+- Console personal MFA settings now use shared i18n messages for setup/confirm/disable/recovery-copy across English, Korean, Japanese, and Simplified Chinese.
 
 **Infrastructure & Storage Hardening** ✅ COMPLETE
 - Task 1 (EML GC): Added `LookupDeleteableStoragePaths` and `LookupExpungeStoragePaths` to maildb; service layer now performs two-phase GC (lookup before DB delete, delete from store after commit) for `DeleteMessage`, `BulkDeleteMessages`, `BulkDeleteThreads`, and `ExpungeIMAPMessages`. Reference-count check prevents deletion of paths shared by IMAP COPY.

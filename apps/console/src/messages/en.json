@@ -32,6 +32,9 @@
     "disabled": "Disabled",
     "yes": "Yes",
     "no": "No",
+    "status": "Status",
+    "confirm": "Confirm",
+    "done": "Done",
     "confirm_delete": "Are you sure you want to delete this item?"
   },
   "alerts": {
@@ -232,7 +235,24 @@
     "theme": "Theme"
   },
   "security": {
-    "api_keys": "API Keys"
+    "api_keys": "API Keys",
+    "settings": {
+      "mfa_header": "Two-factor authentication (MFA)",
+      "not_enabled": "Not enabled",
+      "enable_mfa": "Enable MFA",
+      "disable_mfa": "Disable MFA",
+      "disable_confirm": "Disable MFA? You will no longer be challenged at login.",
+      "mfa_setup_failed": "Failed to start MFA setup",
+      "invalid_code": "Invalid code. Try again.",
+      "setup_instructions": "Scan this QR code with your authenticator app, then enter the 6-digit code to confirm.",
+      "qr_alt": "TOTP QR code",
+      "secret_label": "Secret",
+      "confirmation_code": "Confirmation code",
+      "confirmation_desc": "Enter the 6-digit code from your authenticator app",
+      "enabled_success": "MFA enabled successfully.",
+      "recovery_codes": "Recovery codes",
+      "recovery_desc": "Each code can be used once if you lose access to your authenticator. Save these somewhere safe."
+    }
   },
   "forms": {
     "submit": "Submit",
