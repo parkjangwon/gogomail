@@ -5859,7 +5859,7 @@ func buildDeliveryAttemptWhereClause(filters deliveryAttemptFilters, since time.
 	}
 	if filters.MessageID != "" {
 		args = append(args, filters.MessageID)
-		conditions = append(conditions, fmt.Sprintf("message_id::text = $%d", len(args)))
+		conditions = append(conditions, fmt.Sprintf("message_id = $%d::uuid", len(args)))
 	}
 	if filters.Farm != "" {
 		args = append(args, filters.Farm)

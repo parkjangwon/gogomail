@@ -24,6 +24,7 @@
 - Mail-flow operations list/stats reads now use typed UUID predicates for company/domain/user/message dimensions with matching high-volume filter indexes.
 - Audit-log operations reads now use typed UUID predicates for company/domain/user/actor/target filters with matching read indexes and direct SQL shape regression coverage.
 - Quota reconciliation repairs and quota alert scanner duplicate checks now keep company/domain/user UUID predicates typed on indexed columns.
+- DKIM, attachment upload session, and delivery-attempt operations filters now keep domain/user/message UUID predicates typed, with matching upload and delivery read indexes.
 - Webmail pre-launch gaps closed: password reset UI, server-synced signatures, Web Push service worker registration, and calendar edit/delete controls.
 - Console pre-launch gaps closed: audit-log cursor pagination, delivery-attempt filters/feedback, and targeted TypeScript cleanup.
 
@@ -6728,3 +6729,7 @@ Target outcome:
       checks now compare company/domain/user UUIDs with typed predicates on the
       indexed column side, avoiding text casts in recurring quota maintenance
       jobs while preserving the existing indexed access paths.
+1844. DKIM key, attachment upload-session, and delivery-attempt operations
+      filters now keep domain/user/message UUID comparisons typed on indexed
+      columns. Attachment uploads and delivery attempts also gained matching
+      timestamp/id read indexes for those hot filters.

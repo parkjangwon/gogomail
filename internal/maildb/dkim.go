@@ -68,7 +68,7 @@ SELECT
   updated_at
 FROM dkim_keys
 JOIN domains d ON d.id = dkim_keys.domain_id
-WHERE dkim_keys.domain_id::text = $1
+WHERE dkim_keys.domain_id = $1::uuid
   AND dkim_keys.status = 'active'
 ORDER BY updated_at DESC, dkim_keys.id DESC
 LIMIT 1`
@@ -147,7 +147,7 @@ func buildListDKIMKeysQuery(req DKIMKeyListRequest) (string, []any) {
 	conditions := make([]string, 0, 2)
 	if domainID := strings.TrimSpace(req.DomainID); domainID != "" {
 		args = append(args, domainID)
-		conditions = append(conditions, fmt.Sprintf("domain_id::text = $%d", len(args)))
+		conditions = append(conditions, fmt.Sprintf("domain_id = $%d::uuid", len(args)))
 	}
 	if status := normalizeDKIMKeyStatus(req.Status); status != "" {
 		args = append(args, status)

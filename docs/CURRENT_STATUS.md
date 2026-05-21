@@ -1,6 +1,12 @@
 # gogomail current status
 
-Last updated: 2026-05-21 (SaaS launch hardening continues: quota maintenance sargability)
+Last updated: 2026-05-21 (SaaS launch hardening continues: operational UUID filter sargability)
+
+## Operational UUID Filter Sargability (2026-05-21)
+- DKIM active-key and key-list lookups now compare `domain_id` with typed UUID predicates while keeping the existing stable `updated_at DESC, id DESC` ordering.
+- Attachment upload session list filters now compare `user_id` as a typed UUID and have a matching `user_id, created_at DESC, id DESC` index.
+- Delivery-attempt list and stats filters now compare `message_id` as a typed UUID with message/time and message/status/time indexes aligned to operations queries.
+- Verification target: `go test -count=1 ./internal/maildb -run 'DKIM|AttachmentUploadSessionsQuery|DeliveryAttempt'`.
 
 ## Quota Maintenance UUID Sargability (2026-05-21)
 - Quota reconciliation correction updates now use typed UUID predicates for company/domain/user scoped repairs instead of casting updated table columns to text.

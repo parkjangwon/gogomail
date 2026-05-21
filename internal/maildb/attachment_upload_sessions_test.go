@@ -115,7 +115,7 @@ func TestListAttachmentUploadSessionsQueryUsesSargableOptionalFilters(t *testing
 	})
 	for _, want := range []string{
 		"FROM attachment_upload_sessions",
-		"WHERE user_id::text = $1",
+		"WHERE user_id = $1::uuid",
 		"AND draft_id = $2::uuid",
 		"AND status = $3",
 		"ORDER BY created_at DESC, id DESC",
@@ -130,6 +130,7 @@ func TestListAttachmentUploadSessionsQueryUsesSargableOptionalFilters(t *testing
 		"$2 = '' OR",
 		"$3 = '' OR",
 		"COALESCE(draft_id::text, '') =",
+		"user_id::text =",
 	} {
 		if strings.Contains(query, forbidden) {
 			t.Fatalf("list attachment upload sessions query contains non-sargable optional filter %q:\n%s", forbidden, query)

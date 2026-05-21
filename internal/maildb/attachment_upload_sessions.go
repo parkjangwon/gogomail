@@ -355,7 +355,7 @@ func buildListAttachmentUploadSessionsQuery(req AttachmentUploadSessionListReque
 	conditions := make([]string, 0, 3)
 	if userID := strings.TrimSpace(req.UserID); userID != "" {
 		args = append(args, userID)
-		conditions = append(conditions, fmt.Sprintf("user_id::text = $%d", len(args)))
+		conditions = append(conditions, fmt.Sprintf("user_id = $%d::uuid", len(args)))
 	}
 	if draftID := strings.TrimSpace(req.DraftID); draftID != "" {
 		args = append(args, draftID)
