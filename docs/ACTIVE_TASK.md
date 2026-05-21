@@ -359,6 +359,10 @@ TASK-090 검증 운영 가이드:
 - thread list newest/oldest 쿼리도 folder 필터가 있을 때만 `messages.folder_id = $8::uuid` 조건을 추가하고, 전체 스레드 목록에서는 folder predicate를 제거해 스레드 목록 조회의 optional `OR` predicate를 줄임
 - delivery worker가 TLS-RPT collector domain을 `localhost` 고정값으로 두지 않고 `GOGOMAIL_SMTP_DOMAIN`에서 주입하도록 바꿔 운영 TLS report identity가 실제 MTA 도메인을 쓰게 함
 - `TestDirectSMTPTransportTLSReportDomainCanBeConfigured`를 추가해 TLS-RPT report domain override가 collector에 반영되는지 검증함
+- production config가 `GOGOMAIL_SMTP_DOMAIN`과 `GOGOMAIL_DELIVERY_SMTP_HELLO`의 localhost/loopback/unspecified 값을 거부하도록 막아 SMTP banner, Received/DSN/TLS-RPT identity, outbound EHLO가 개발용 hostname으로 출시되지 않게 함
+- `TestValidateRejectsLocalSMTPIdentitiesInProduction`을 추가해 production SMTP identity guard를 회귀 고정함
+- SCIM 내부 서비스 실패 응답이 DB/backend error text를 그대로 `detail`에 싣지 않고 고정된 `internal server error`만 반환하도록 막음
+- `TestSCIMInternalErrorsDoNotLeakBackendDetails`를 추가해 `/scim/v2/Users` 500 응답이 raw `pq:`/relation detail을 노출하지 않도록 고정함
 - outbox relay `MarkFailedBatch` SQL이 `SELECT *` 대신 `unnest` 결과의 `id,last_error` 컬럼을 명시 투영하도록 바꿔 배치 실패 갱신 경로의 SQL shape를 고정함
 - 웹메일 preferences 저장을 서버 기존 값과 병합한 뒤 PUT하도록 바꿔 서명/필터/일반 설정 저장이 서로의 키를 지우지 않게 했고, `SettingsView`와 사이드바 `SettingsModal` 모두 서버값을 로컬 캐시에 반영해 메일 목록의 클라이언트 필터 적용 경로와 설정 화면이 같은 규칙/서명/일반 설정을 보게 함
 - `TestMarkFailedBatchSQLProjectsUnnestColumns`를 추가해 outbox batch failure CTE가 명시 projection을 유지하는지 검증함

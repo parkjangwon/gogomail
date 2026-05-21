@@ -16,6 +16,8 @@ func setProductionSecrets(cfg *Config) {
 	cfg.AdminToken = "test-admin-token-for-production-tests"
 	cfg.DatabaseURL = "postgres://gogomail:gogomail@localhost:5432/gogomail?sslmode=require"
 	cfg.PublicBaseURL = "https://mail.example.com"
+	cfg.SMTPDomain = "mail.example.com"
+	cfg.DeliverySMTPHello = "mx.example.com"
 	cfg.FarmCoordinatorBackend = "redis"
 }
 
@@ -130,6 +132,63 @@ func TestValidateAcceptsHTTPSPublicBaseURLInProduction(t *testing.T) {
 	cfg.PublicBaseURL = "https://mail.example.com"
 	if err := cfg.Validate(); err != nil {
 		t.Fatalf("Validate() error = %v", err)
+	}
+}
+
+func TestValidateRejectsLocalSMTPIdentitiesInProduction(t *testing.T) {
+	tests := []struct {
+		name    string
+		mutate  func(*Config)
+		wantErr string
+	}{
+		{
+			name: "smtp domain localhost",
+			mutate: func(cfg *Config) {
+				cfg.SMTPDomain = "localhost"
+				cfg.DeliverySMTPHello = "mx.example.com"
+			},
+			wantErr: "GOGOMAIL_SMTP_DOMAIN",
+		},
+		{
+			name: "smtp domain loopback",
+			mutate: func(cfg *Config) {
+				cfg.SMTPDomain = "127.0.0.1"
+				cfg.DeliverySMTPHello = "mx.example.com"
+			},
+			wantErr: "GOGOMAIL_SMTP_DOMAIN",
+		},
+		{
+			name: "delivery hello localhost",
+			mutate: func(cfg *Config) {
+				cfg.SMTPDomain = "mail.example.com"
+				cfg.DeliverySMTPHello = "localhost"
+			},
+			wantErr: "GOGOMAIL_DELIVERY_SMTP_HELLO",
+		},
+		{
+			name: "delivery hello unspecified",
+			mutate: func(cfg *Config) {
+				cfg.SMTPDomain = "mail.example.com"
+				cfg.DeliverySMTPHello = "0.0.0.0"
+			},
+			wantErr: "GOGOMAIL_DELIVERY_SMTP_HELLO",
+		},
+	}
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := Load()
+			cfg.Environment = "production"
+			cfg.SubmissionAllowInsecureAuth = false
+			cfg.IMAPAllowInsecureAuth = false
+			cfg.CalDAVAllowInsecureAuth = false
+			cfg.CardDAVAllowInsecureAuth = false
+			setProductionSecrets(&cfg)
+			tt.mutate(&cfg)
+			if err := cfg.Validate(); err == nil || !strings.Contains(err.Error(), tt.wantErr) {
+				t.Fatalf("Validate() error = %v, want %s rejection", err, tt.wantErr)
+			}
+		})
 	}
 }
 

@@ -320,6 +320,9 @@ func (c Config) Validate() error {
 	if strings.TrimSpace(c.SMTPDomain) == "" || strings.ContainsAny(c.SMTPDomain, " \t\r\n") {
 		return fmt.Errorf("GOGOMAIL_SMTP_DOMAIN must be a non-empty hostname without whitespace")
 	}
+	if production && isLocalProductionHostname(c.SMTPDomain) {
+		return fmt.Errorf("GOGOMAIL_SMTP_DOMAIN must not be localhost, loopback, or unspecified in production")
+	}
 	if c.DeliveryTimeout <= 0 {
 		return fmt.Errorf("GOGOMAIL_DELIVERY_TIMEOUT must be positive")
 	}
@@ -334,6 +337,9 @@ func (c Config) Validate() error {
 	}
 	if strings.TrimSpace(c.DeliverySMTPHello) == "" || strings.ContainsAny(c.DeliverySMTPHello, " \t\r\n") {
 		return fmt.Errorf("GOGOMAIL_DELIVERY_SMTP_HELLO must be a non-empty hostname without whitespace")
+	}
+	if production && isLocalProductionHostname(c.DeliverySMTPHello) {
+		return fmt.Errorf("GOGOMAIL_DELIVERY_SMTP_HELLO must not be localhost, loopback, or unspecified in production")
 	}
 	if c.SMTPMaxDKIMVerifications <= 0 {
 		return fmt.Errorf("GOGOMAIL_SMTP_MAX_DKIM_VERIFICATIONS must be positive")
@@ -777,6 +783,10 @@ func validatePublicBaseURL(value string, production bool) error {
 }
 
 func isLocalPublicBaseURLHost(host string) bool {
+	return isLocalProductionHostname(host)
+}
+
+func isLocalProductionHostname(host string) bool {
 	host = strings.Trim(strings.ToLower(strings.TrimSpace(host)), "[]")
 	if host == "localhost" || host == "localhost.localdomain" {
 		return true

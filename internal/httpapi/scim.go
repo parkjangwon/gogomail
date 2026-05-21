@@ -57,7 +57,7 @@ func RegisterSCIMRoutes(mux *http.ServeMux, svc SCIMUserService, token string) {
 		}
 		users, total, err := svc.ListSCIMUsers(r.Context(), filter, startIndex, count)
 		if err != nil {
-			writeSCIMError(w, http.StatusInternalServerError, "internalError", err.Error())
+			writeSCIMInternalError(w)
 			return
 		}
 		resp := scim.NewListResponse(users)
@@ -79,7 +79,7 @@ func RegisterSCIMRoutes(mux *http.ServeMux, svc SCIMUserService, token string) {
 		}
 		created, err := svc.CreateSCIMUser(r.Context(), req)
 		if err != nil {
-			writeSCIMError(w, http.StatusInternalServerError, "internalError", err.Error())
+			writeSCIMInternalError(w)
 			return
 		}
 		writeSCIMJSON(w, http.StatusCreated, created)
@@ -93,7 +93,7 @@ func RegisterSCIMRoutes(mux *http.ServeMux, svc SCIMUserService, token string) {
 				writeSCIMError(w, http.StatusNotFound, "notFound", "user not found")
 				return
 			}
-			writeSCIMError(w, http.StatusInternalServerError, "internalError", err.Error())
+			writeSCIMInternalError(w)
 			return
 		}
 		writeSCIMJSON(w, http.StatusOK, user)
@@ -112,7 +112,7 @@ func RegisterSCIMRoutes(mux *http.ServeMux, svc SCIMUserService, token string) {
 				writeSCIMError(w, http.StatusNotFound, "notFound", "user not found")
 				return
 			}
-			writeSCIMError(w, http.StatusInternalServerError, "internalError", err.Error())
+			writeSCIMInternalError(w)
 			return
 		}
 		writeSCIMJSON(w, http.StatusOK, updated)
@@ -134,7 +134,7 @@ func RegisterSCIMRoutes(mux *http.ServeMux, svc SCIMUserService, token string) {
 				writeSCIMError(w, http.StatusNotFound, "notFound", "user not found")
 				return
 			}
-			writeSCIMError(w, http.StatusInternalServerError, "internalError", err.Error())
+			writeSCIMInternalError(w)
 			return
 		}
 		writeSCIMJSON(w, http.StatusOK, updated)
@@ -147,7 +147,7 @@ func RegisterSCIMRoutes(mux *http.ServeMux, svc SCIMUserService, token string) {
 				writeSCIMError(w, http.StatusNotFound, "notFound", "user not found")
 				return
 			}
-			writeSCIMError(w, http.StatusInternalServerError, "internalError", err.Error())
+			writeSCIMInternalError(w)
 			return
 		}
 		w.WriteHeader(http.StatusNoContent)
@@ -169,6 +169,10 @@ func writeSCIMJSON(w http.ResponseWriter, code int, v any) {
 	w.Header().Set("Content-Type", "application/scim+json")
 	w.WriteHeader(code)
 	json.NewEncoder(w).Encode(v) //nolint:errcheck
+}
+
+func writeSCIMInternalError(w http.ResponseWriter) {
+	writeSCIMError(w, http.StatusInternalServerError, "internalError", "internal server error")
 }
 
 func writeSCIMError(w http.ResponseWriter, code int, scimType, detail string) {

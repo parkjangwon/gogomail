@@ -1,6 +1,16 @@
 # gogomail current status
 
-Last updated: 2026-05-21 (SaaS launch hardening continues: Redis farm node discovery)
+Last updated: 2026-05-21 (SaaS launch hardening continues: SMTP identity production guard)
+
+## SMTP Identity Production Guard (2026-05-21)
+- Production config validation now rejects localhost, loopback, or unspecified `GOGOMAIL_SMTP_DOMAIN` and `GOGOMAIL_DELIVERY_SMTP_HELLO` values.
+- This prevents production SMTP banners, Received headers, DSN reporting identities, outbound EHLO, and TLS-RPT identities from falling back to local development names.
+- Verification target: `go test -count=1 ./internal/config -run 'TestValidateRejectsLocalSMTPIdentitiesInProduction|TestValidateAcceptsHTTPSPublicBaseURLInProduction|TestValidateRejectsLocalPublicBaseURLInProduction'`.
+
+## SCIM Error Surface Hardening (2026-05-21)
+- SCIM internal service failures now return a fixed `internal server error` detail instead of exposing backend/database error text.
+- Regression coverage verifies a simulated PostgreSQL failure does not leak relation names or raw `pq:` details through `/scim/v2/Users`.
+- Verification target: `go test -count=1 ./internal/httpapi -run 'TestSCIMInternalErrorsDoNotLeakBackendDetails|TestSCIM'`.
 
 ## Message Storage & Delivery Optimization (2026-05-21, TASK-090)
 - `ListOutboundMessages`와 `GetMessagesByID`가 `ListMessagesByIDs` 배치 hydration 경로를 그대로 재사용하도록 래퍼로 정리되어 N+1 후보 경로의 명칭 불일치가 제거됨 (`internal/maildb/search_hydrate.go`).
