@@ -1574,11 +1574,15 @@ FOR UPDATE OF m`
 
 	const insertUID = `
 INSERT INTO imap_message_uid (message_id, mailbox_id, user_id, uid, modseq)
-VALUES ($1::uuid, $2::uuid, $3::uuid, $4, $5)`
-	for i, messageID := range messageIDs {
-		if _, err := tx.ExecContext(ctx, insertUID, messageID, mailboxID, userID, int64(uidNext+imapgw.UID(i)), int64(highestModSeq+uint64(i)+1)); err != nil {
-			return 0, fmt.Errorf("insert imap destination uid backfill row: %w", err)
-		}
+SELECT
+  m.id::uuid,
+  $2::uuid,
+  $3::uuid,
+  $4 + (m.ord - 1),
+  $5 + m.ord
+FROM unnest($1::uuid[]) WITH ORDINALITY AS m(id, ord)`
+	if _, err := tx.ExecContext(ctx, insertUID, pq.Array(messageIDs), mailboxID, userID, int64(uidNext), int64(highestModSeq)); err != nil {
+		return 0, fmt.Errorf("insert imap destination uid backfill rows: %w", err)
 	}
 	return len(messageIDs), nil
 }
