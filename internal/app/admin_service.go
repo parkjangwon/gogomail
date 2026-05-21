@@ -23,6 +23,7 @@ import (
 	"github.com/gogomail/gogomail/internal/davsyncretention"
 	"github.com/gogomail/gogomail/internal/directory"
 	"github.com/gogomail/gogomail/internal/drive"
+	"github.com/gogomail/gogomail/internal/idprovider"
 	ldapidp "github.com/gogomail/gogomail/internal/idprovider/ldap"
 	rdbmsidp "github.com/gogomail/gogomail/internal/idprovider/rdbms"
 	"github.com/gogomail/gogomail/internal/maildb"
@@ -95,8 +96,9 @@ type adminService struct {
 		CountStaleAttachmentUploadSessions(ctx context.Context, before time.Time, limit int) (maildb.StaleAttachmentUploadSessionCount, error)
 		ListStaleAttachmentUploadSessions(ctx context.Context, before time.Time, limit int) ([]maildb.StaleAttachmentUploadSessionCandidate, error)
 	}
-	mailFlowStats mailflow.MailFlowStatsProvider
-	configStore   interface {
+	mailFlowStats  mailflow.MailFlowStatsProvider
+	idpConfigRepo  *idprovider.ConfigRepository
+	configStore    interface {
 		Get(ctx context.Context, scopeType configstore.ScopeType, scopeID, key string) (*configstore.ConfigEntry, error)
 		Set(ctx context.Context, scopeType configstore.ScopeType, scopeID, key string, value json.RawMessage, locked bool, expectedVersion int64) (*configstore.ConfigEntry, error)
 		Delete(ctx context.Context, scopeType configstore.ScopeType, scopeID, key string, expectedVersion int64) error
@@ -1726,4 +1728,32 @@ func (s adminService) ResolveRDBMSSyncConflict(ctx context.Context, conflictID, 
 		return fmt.Errorf("invalid conflict id: %w", err)
 	}
 	return s.Repository.ResolveRDBMSSyncConflict(ctx, id, resolution)
+}
+
+func (s adminService) GetDomainIdPConfig(ctx context.Context, domainID string) (*idprovider.Config, error) {
+	if s.idpConfigRepo == nil {
+		return &idprovider.Config{DomainID: domainID, ProviderType: "database", Settings: map[string]interface{}{}}, nil
+	}
+	return s.idpConfigRepo.GetConfigByDomain(ctx, domainID)
+}
+
+func (s adminService) SetDomainIdPConfig(ctx context.Context, cfg *idprovider.Config) error {
+	if s.idpConfigRepo == nil {
+		return fmt.Errorf("idp config repository is not configured")
+	}
+	existing, err := s.idpConfigRepo.GetConfigByDomain(ctx, cfg.DomainID)
+	if err != nil {
+		return err
+	}
+	if existing.ProviderType == "database" {
+		return s.idpConfigRepo.CreateConfig(ctx, cfg)
+	}
+	return s.idpConfigRepo.UpdateConfig(ctx, cfg)
+}
+
+func (s adminService) DeleteDomainIdPConfig(ctx context.Context, domainID string) error {
+	if s.idpConfigRepo == nil {
+		return fmt.Errorf("idp config repository is not configured")
+	}
+	return s.idpConfigRepo.DeleteConfig(ctx, domainID)
 }

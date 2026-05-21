@@ -146,7 +146,8 @@
     "legal_holds": "법적 보관",
     "seat_usage": "좌석 사용량",
     "global_signature": "전역 서명",
-    "scim_provisioning": "SCIM 프로비저닝"
+    "scim_provisioning": "SCIM 프로비저닝",
+    "idp_config": "IdP 구성"
   },
   "dashboard": {
     "title": "대시보드",
@@ -2887,6 +2888,34 @@
       "no_pending_approvals": "대기 중인 승인이 없습니다",
       "submit": "제출",
       "requested_by_hint": "이름 또는 이메일"
+    },
+    "idp_config": {
+      "title": "IdP 구성",
+      "description": "도메인의 사용자 인증 및 디렉터리 동기화에 사용할 ID 공급자를 구성합니다.",
+      "provider_section": "공급자 설정",
+      "provider_type_label": "공급자 유형",
+      "provider_type_desc": "이 도메인의 디렉터리 또는 ID 소스를 선택하세요.",
+      "database_hint": "로컬 데이터베이스가 기본값입니다. 사용자는 저장된 자격 증명으로 인증합니다. 추가 구성이 필요하지 않습니다.",
+      "ldap_host": "LDAP 호스트",
+      "ldap_port": "LDAP 포트",
+      "ldap_bind_dn": "Bind DN",
+      "ldap_bind_password": "Bind 비밀번호",
+      "ldap_base_dn": "Base DN",
+      "ldap_user_filter": "사용자 필터",
+      "azure_tenant_id": "테넌트 ID",
+      "azure_client_id": "클라이언트 ID",
+      "azure_client_secret": "클라이언트 시크릿",
+      "rdbms_dsn": "DSN (연결 문자열)",
+      "rdbms_query": "사용자 조회 쿼리",
+      "rdbms_query_desc": "최소한 이메일 컬럼과 표시 이름 컬럼을 반환하는 SQL 쿼리입니다.",
+      "sync_interval": "동기화 간격 (분)",
+      "write_only_hint": "기존 값을 유지하려면 비워두세요.",
+      "save": "저장",
+      "reset_to_database": "로컬 데이터베이스로 초기화",
+      "save_success": "IdP 구성이 저장되었습니다.",
+      "save_error": "IdP 구성 저장에 실패했습니다.",
+      "reset_success": "로컬 데이터베이스로 초기화되었습니다.",
+      "reset_error": "IdP 구성 초기화에 실패했습니다."
     }
   },
   "buttons": {

@@ -49,6 +49,7 @@ import (
 	dsnpkg "github.com/gogomail/gogomail/internal/dsn"
 	"github.com/gogomail/gogomail/internal/eventstream"
 	"github.com/gogomail/gogomail/internal/httpapi"
+	"github.com/gogomail/gogomail/internal/idprovider"
 	"github.com/gogomail/gogomail/internal/imapgw"
 	"github.com/gogomail/gogomail/internal/imapnotify"
 	"github.com/gogomail/gogomail/internal/inboundfilter"
@@ -3383,6 +3384,7 @@ func runHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, mode M
 			cardDAVSyncRetention:        carddavgw.NewRepository(db),
 			attachmentCleanup:           mailservice.New(repository, store),
 			mailFlowStats:               mailFlowStatsProvider,
+			idpConfigRepo:               idprovider.NewConfigRepository(db),
 			configStore:                 configStore,
 		}, cfg.AdminToken, adminRouteOpts...)
 		logger.Info("admin api routes registered")
@@ -3412,6 +3414,19 @@ func runHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, mode M
 		readinessChecks = append(readinessChecks, databaseReadinessCheck("api_metering_database", db, cfg.MigrationDir))
 	}
 	httpapi.RegisterWellKnownRoutes(mux, cfg.WellKnownCalDAVURL, cfg.WellKnownCardDAVURL)
+	if strings.EqualFold(strings.TrimSpace(cfg.AttachmentScanBackend), "clamav") {
+		if sc, err2 := attachmentscan.NewClamAVScanner(attachmentscan.ClamAVOptions{
+			Addr:                cfg.AttachmentScanClamAVAddr,
+			Timeout:             cfg.AttachmentScanTimeout,
+			MaxConcurrency:      cfg.AttachmentScanMaxConcurrency,
+			MaxScanBytes:        cfg.AttachmentScanMaxBytes,
+			FailureThreshold:    cfg.AttachmentScanFailureThreshold,
+			CircuitOpenDuration: cfg.AttachmentScanCircuitOpenDuration,
+		}); err2 == nil {
+			readinessChecks = append(readinessChecks, sc.Ping)
+			logger.Info("clamav readiness check registered", "addr", cfg.AttachmentScanClamAVAddr)
+		}
+	}
 	httpapi.RegisterHealthRoutesWithChecks(mux, readinessChecks...)
 
 	handler := apiMeteringHandler(mux, cfg, logger, meteringDB, tokenManager, cfg.AdminToken)

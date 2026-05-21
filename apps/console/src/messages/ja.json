@@ -146,7 +146,8 @@
     "legal_holds": "リーガルホールド",
     "seat_usage": "シート使用状況",
     "global_signature": "グローバル署名",
-    "scim_provisioning": "SCIMプロビジョニング"
+    "scim_provisioning": "SCIMプロビジョニング",
+    "idp_config": "IdP設定"
   },
   "dashboard": {
     "title": "ダッシュボード",
@@ -3005,6 +3006,34 @@
       "no_pending_approvals": "保留中の承認はありません",
       "submit": "送信",
       "requested_by_hint": "名前またはメール"
+    },
+    "idp_config": {
+      "title": "IdP設定",
+      "description": "ドメインのユーザー認証とディレクトリ同期に使用するIDプロバイダーを設定します。",
+      "provider_section": "プロバイダー設定",
+      "provider_type_label": "プロバイダーの種類",
+      "provider_type_desc": "このドメインのディレクトリまたはIDソースを選択してください。",
+      "database_hint": "ローカルデータベースがデフォルトです。ユーザーは保存された認証情報で認証します。追加設定は不要です。",
+      "ldap_host": "LDAPホスト",
+      "ldap_port": "LDAPポート",
+      "ldap_bind_dn": "Bind DN",
+      "ldap_bind_password": "Bindパスワード",
+      "ldap_base_dn": "Base DN",
+      "ldap_user_filter": "ユーザーフィルター",
+      "azure_tenant_id": "テナントID",
+      "azure_client_id": "クライアントID",
+      "azure_client_secret": "クライアントシークレット",
+      "rdbms_dsn": "DSN（接続文字列）",
+      "rdbms_query": "ユーザークエリ",
+      "rdbms_query_desc": "少なくともメールカラムと表示名カラムを返すSQLクエリです。",
+      "sync_interval": "同期間隔（分）",
+      "write_only_hint": "既存の値を保持する場合は空白のままにしてください。",
+      "save": "保存",
+      "reset_to_database": "ローカルデータベースにリセット",
+      "save_success": "IdP設定を保存しました。",
+      "save_error": "IdP設定の保存に失敗しました。",
+      "reset_success": "ローカルデータベースにリセットしました。",
+      "reset_error": "IdP設定のリセットに失敗しました。"
     }
   },
   "buttons": {

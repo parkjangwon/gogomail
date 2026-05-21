@@ -11,6 +11,7 @@ import (
 	"github.com/gogomail/gogomail/internal/admin"
 	"github.com/gogomail/gogomail/internal/davsyncretention"
 	"github.com/gogomail/gogomail/internal/directory"
+	"github.com/gogomail/gogomail/internal/idprovider"
 	ldapidp "github.com/gogomail/gogomail/internal/idprovider/ldap"
 	rdbmsidp "github.com/gogomail/gogomail/internal/idprovider/rdbms"
 	"github.com/gogomail/gogomail/internal/maildb"
@@ -1556,4 +1557,81 @@ func handleResolveRDBMSConflict(w http.ResponseWriter, r *http.Request, service 
 		"domain_id":   id,
 		"resolution":  req.Resolution,
 	})
+}
+
+// ─── IdP Config ───────────────────────────────────────────────────────────────
+
+func registerIdPConfigRoutes(mux *http.ServeMux, adminAuth func(http.HandlerFunc) http.HandlerFunc, service AdminService) {
+	mux.HandleFunc("GET /admin/v1/domains/{id}/idp-config", adminAuth(func(w http.ResponseWriter, r *http.Request) {
+		handleGetIdPConfig(w, r, service)
+	}))
+	mux.HandleFunc("PUT /admin/v1/domains/{id}/idp-config", adminAuth(func(w http.ResponseWriter, r *http.Request) {
+		handleSetIdPConfig(w, r, service)
+	}))
+	mux.HandleFunc("DELETE /admin/v1/domains/{id}/idp-config", adminAuth(func(w http.ResponseWriter, r *http.Request) {
+		handleDeleteIdPConfig(w, r, service)
+	}))
+}
+
+func handleGetIdPConfig(w http.ResponseWriter, r *http.Request, service AdminService) {
+	if !rejectBodylessRequestPayload(w, r) {
+		return
+	}
+	if !rejectUnknownQueryKeys(w, r) {
+		return
+	}
+	id, ok := parseBoundedAdminPathValue(w, r, "id")
+	if !ok {
+		return
+	}
+	cfg, err := service.GetDomainIdPConfig(r.Context(), id)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, cfg)
+}
+
+func handleSetIdPConfig(w http.ResponseWriter, r *http.Request, service AdminService) {
+	defer r.Body.Close()
+	if !rejectUnknownQueryKeys(w, r) {
+		return
+	}
+	id, ok := parseBoundedAdminPathValue(w, r, "id")
+	if !ok {
+		return
+	}
+	var cfg idprovider.Config
+	if err := decodeJSONBody(r, &cfg); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid JSON body")
+		return
+	}
+	cfg.DomainID = id
+	if cfg.ProviderType == "" {
+		writeError(w, http.StatusBadRequest, "provider_type is required")
+		return
+	}
+	if err := service.SetDomainIdPConfig(r.Context(), &cfg); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, cfg)
+}
+
+func handleDeleteIdPConfig(w http.ResponseWriter, r *http.Request, service AdminService) {
+	if !rejectBodylessRequestPayload(w, r) {
+		return
+	}
+	if !rejectUnknownQueryKeys(w, r) {
+		return
+	}
+	id, ok := parseBoundedAdminPathValue(w, r, "id")
+	if !ok {
+		return
+	}
+	if err := service.DeleteDomainIdPConfig(r.Context(), id); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"domain_id": id, "status": "disabled"})
 }

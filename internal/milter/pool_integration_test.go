@@ -81,11 +81,14 @@ func TestPoolHealthCheckTransitionsHalfOpen(t *testing.T) {
 	// Force circuit open
 	pool.breaker.RecordFailure()
 
-	// Wait for health check to run and transition to HALF_OPEN
-	// First health check at ~50ms triggers OPEN→HALF_OPEN and fails (connection closed)
-	// Circuit should be HALF_OPEN
-	time.Sleep(150 * time.Millisecond)
-
+	// Poll until health check transitions circuit to HALF_OPEN (up to 1s).
+	deadline := time.Now().Add(1 * time.Second)
+	for time.Now().Before(deadline) {
+		if pool.breaker.State() == StateHalfOpen {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
 	if pool.breaker.State() != StateHalfOpen {
 		t.Fatalf("health check should transition circuit to HALF_OPEN, got %v", pool.breaker.State())
 	}
