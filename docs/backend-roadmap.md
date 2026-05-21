@@ -11,6 +11,8 @@
 - Drive folder/file conflict checks now use direct root/child parent predicates instead of sentinel `COALESCE(parent_id, ...)` comparisons, keeping sibling-name lookups aligned with active parent/name indexes.
 - Console personal MFA settings copy now goes through the shared locale catalog in English, Korean, Japanese, and Simplified Chinese, removing an English-only forced-enrollment surface.
 - Production validation now requires `GOGOMAIL_PUBLIC_BASE_URL` to be HTTPS and non-local, the default is empty rather than localhost, and open-tracking skips pixel injection when no public base URL is configured instead of emitting localhost URLs.
+- Production validation now rejects local `GOGOMAIL_SMTP_DOMAIN` and `GOGOMAIL_DELIVERY_SMTP_HELLO` values, preventing SMTP/DSN/TLS-RPT identities from launching with development hostnames.
+- SCIM internal errors now return fixed public 500 details instead of backend/database error text.
 - Admin LDAP/RDBMS/organization sync unavailable responses now use fixed public 501 messages and the shared `not_implemented` error code instead of exposing backend sentinel error text.
 - RDBMS sync conflict listing now supports opaque `(created_at, id)` cursor pagination and adds conflict seek indexes for all-conflict and unresolved-only views, reducing deep-page admin scan cost.
 - LDAP sync conflict listing now supports opaque `(created_at, id)` cursor pagination and adds conflict seek indexes for domain, unresolved-only, and sync-run views, reducing deep-page admin scan cost.

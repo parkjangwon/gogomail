@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -16,8 +17,9 @@ import (
 
 // fakeSCIMUserService is an in-memory SCIMUserService for tests.
 type fakeSCIMUserService struct {
-	users map[string]scim.UserResource
-	seq   int
+	users   map[string]scim.UserResource
+	seq     int
+	listErr error
 }
 
 func newFakeSCIMUserService() *fakeSCIMUserService {
@@ -38,6 +40,9 @@ func (f *fakeSCIMUserService) GetSCIMUser(_ context.Context, id string) (scim.Us
 }
 
 func (f *fakeSCIMUserService) ListSCIMUsers(_ context.Context, filter *scim.Filter, _, _ int) ([]scim.UserResource, int, error) {
+	if f.listErr != nil {
+		return nil, 0, f.listErr
+	}
 	var result []scim.UserResource
 	for _, u := range f.users {
 		if filter == nil || scim.MatchesFilter(u, filter) {
@@ -300,6 +305,30 @@ func TestSCIMListUsersWithFilter(t *testing.T) {
 	}
 	if len(body.Resources) > 0 && body.Resources[0].UserName != "alice@example.com" {
 		t.Errorf("userName = %q, want alice@example.com", body.Resources[0].UserName)
+	}
+}
+
+func TestSCIMInternalErrorsDoNotLeakBackendDetails(t *testing.T) {
+	svc := newFakeSCIMUserService()
+	svc.listErr = errors.New(`pq: relation "users" does not exist`)
+	srv := newSCIMServer(svc)
+	defer srv.Close()
+
+	resp := scimRequest(t, srv, http.MethodGet, "/scim/v2/Users", nil)
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusInternalServerError {
+		t.Fatalf("status = %d, want 500", resp.StatusCode)
+	}
+	var body map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	detail, _ := body["detail"].(string)
+	if detail != "internal server error" {
+		t.Fatalf("detail = %q, want generic internal server error", detail)
+	}
+	if strings.Contains(detail, "pq:") || strings.Contains(detail, "users") {
+		t.Fatalf("detail leaked backend error: %q", detail)
 	}
 }
 

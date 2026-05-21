@@ -8,6 +8,9 @@ admin_token: CHANGE_ME_ADMIN_TOKEN
 database_url: postgres://gogomail:CHANGE_ME_DB_PASSWORD@localhost:5432/gogomail?sslmode=require
 # Required in production — used for system email links and tracking pixels.
 public_base_url: https://mail.example.com
+# Required in production — used for SMTP banner, Received/DSN identities, TLS-RPT, and outbound EHLO.
+smtp_domain: mail.example.com
+delivery_smtp_hello: mx.example.com
 farm_coordinator_backend: redis
 farm_coordinator_node_id: prod-node-1
 farm_coordinator_heartbeat_ttl: 30s

@@ -171,6 +171,8 @@ func applyYAMLConfigValue(cfg *Config, key string, value any) error {
 		return setYAMLString(value, &cfg.MigrationDir, key)
 	case "smtp_domain":
 		return setYAMLString(value, &cfg.SMTPDomain, key)
+	case "delivery_smtp_hello":
+		return setYAMLString(value, &cfg.DeliverySMTPHello, key)
 	case "smtp_max_connections":
 		return setYAMLInt(value, &cfg.SMTPMaxConnections, key)
 	case "smtp_auth_verification_enabled":
