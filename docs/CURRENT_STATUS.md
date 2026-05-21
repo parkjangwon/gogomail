@@ -5,7 +5,8 @@ Last updated: 2026-05-21 (SaaS launch hardening continues: Redis farm node disco
 ## Message Storage & Delivery Optimization (2026-05-21, TASK-090)
 - `ListOutboundMessages`와 `GetMessagesByID`가 `ListMessagesByIDs` 배치 hydration 경로를 그대로 재사용하도록 래퍼로 정리되어 N+1 후보 경로의 명칭 불일치가 제거됨 (`internal/maildb/search_hydrate.go`).
 - 메시지 수신자 필터 경로에 `status='active'` 대상 `pg_trgm` 인덱스(migrations `0138_message_active_recipient_trgm_indexes.sql`)가 반영되어 수신자-heavy 검색 경로의 선별 성능이 개선됨.
-- Phase 1/2/3의 나머지 대규모 성능 검증은 운영/스테이징 PostgreSQL에서 `EXPLAIN ANALYZE` 기반 쿼리 스냅샷 수집 단계로 이어질 예정이며, 현재 코어 최적화 및 벤치 마커는 반영된 상태.
+- Phase 1/2/3의 남은 검증은 운영/스테이징 PostgreSQL에서 `EXPLAIN ANALYZE` 기반 스냅샷으로 마무리될 예정입니다.
+- `scripts/verify-task-090-message-explain.sh`가 psql이 없어도 Go/pgx 폴백으로 같은 스냅샷 경로를 실행하도록 보강되어, 환경 제약 없이 운영 DSN만으로 단계 종료가 가능해졌습니다.
 - 운영/스테이징 검증 가이드: `TASK_090_DATABASE_URL='<pgsql>' scripts/verify-task-090-message-explain.sh`  
   (`/tmp/task090-explain-YYYYMMDD-HHMMSS.log`에 각 쿼리의 EXPLAIN ANALYZE 결과 저장)
 - Verification: `go test ./internal/maildb` and `go test ./internal/delivery`.
