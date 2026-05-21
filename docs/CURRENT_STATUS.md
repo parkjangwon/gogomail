@@ -1,6 +1,12 @@
 # gogomail current status
 
-Last updated: 2026-05-21 (SaaS launch hardening continues: Console MFA settings localization)
+Last updated: 2026-05-21 (SaaS launch hardening continues: production public URL guardrails)
+
+## Production Public URL Guardrails (2026-05-21)
+- Production config validation now rejects empty, HTTP, localhost, loopback, or unspecified `GOGOMAIL_PUBLIC_BASE_URL`, preventing system-email links and tracking URLs from pointing at local development origins.
+- Open-tracking pixel injection no longer falls back to `http://localhost:8080` when the public base URL is missing; it skips pixel generation instead of emitting unsafe URLs.
+- README/README.ko and Docker env examples now document `GOGOMAIL_PUBLIC_BASE_URL` as the backend public origin used for email links and tracking pixels.
+- Verification target: `go test -count=1 ./internal/config -run 'PublicBaseURL|DefaultConfig'`; `go test -count=1 ./internal/mailservice -run 'TestSendText(SkipsOpenTrackingWhenPublicBaseURLMissing|OpenTrackingUsesConfiguredPublicBaseURL)'`.
 
 ## Console MFA Settings Localization (2026-05-21)
 - Console personal security settings now use the shared i18n provider for MFA setup, confirmation, disable, status, recovery-code, loading, and error copy instead of hard-coded English strings.

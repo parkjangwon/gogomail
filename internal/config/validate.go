@@ -716,6 +716,9 @@ func (c Config) Validate() error {
 	if err := validateBoundedNoCRLF("GOGOMAIL_DELIVERY_CONSUMER_DEAD_LETTER_STREAM", c.DeliveryConsumerDeadLetterStream, 1024); err != nil {
 		return err
 	}
+	if err := validatePublicBaseURL(c.PublicBaseURL, production); err != nil {
+		return err
+	}
 	if production {
 		if strings.TrimSpace(c.AuthJWTSecret) == "" {
 			return fmt.Errorf("GOGOMAIL_AUTH_JWT_SECRET must not be empty in production")
@@ -728,6 +731,45 @@ func (c Config) Validate() error {
 		}
 	}
 	return nil
+}
+
+func validatePublicBaseURL(value string, production bool) error {
+	value = strings.TrimRight(strings.TrimSpace(value), "/")
+	if value == "" {
+		if production {
+			return fmt.Errorf("GOGOMAIL_PUBLIC_BASE_URL must not be empty in production")
+		}
+		return nil
+	}
+	parsed, err := url.Parse(value)
+	if err != nil || parsed.Scheme == "" || parsed.Host == "" || parsed.RawQuery != "" || parsed.Fragment != "" {
+		return fmt.Errorf("GOGOMAIL_PUBLIC_BASE_URL must be an absolute URL without query or fragment")
+	}
+	switch parsed.Scheme {
+	case "http":
+		if production {
+			return fmt.Errorf("GOGOMAIL_PUBLIC_BASE_URL must use https in production")
+		}
+	case "https":
+	default:
+		return fmt.Errorf("GOGOMAIL_PUBLIC_BASE_URL must use http or https")
+	}
+	if production && isLocalPublicBaseURLHost(parsed.Hostname()) {
+		return fmt.Errorf("GOGOMAIL_PUBLIC_BASE_URL must not point to localhost in production")
+	}
+	return nil
+}
+
+func isLocalPublicBaseURLHost(host string) bool {
+	host = strings.Trim(strings.ToLower(strings.TrimSpace(host)), "[]")
+	if host == "localhost" || host == "localhost.localdomain" {
+		return true
+	}
+	ip := net.ParseIP(host)
+	if ip == nil {
+		return false
+	}
+	return ip.IsLoopback() || ip.IsUnspecified()
 }
 
 func validateEnum(name string, value string, allowed ...string) error {

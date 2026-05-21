@@ -229,6 +229,7 @@ Important environment variables:
 | `GOGOMAIL_WEBHOOK_DISPATCH_ENABLED` | Enables tenant webhook dispatch, default `true` |
 | `GOGOMAIL_CORS_ALLOWED_ORIGINS` | Comma-separated browser origins allowed by admin/mail APIs |
 | `GOGOMAIL_METRICS_BACKEND` / `GOGOMAIL_METRICS_ADDR` | Metrics backend and Prometheus scrape address |
+| `GOGOMAIL_PUBLIC_BASE_URL` | Public HTTPS origin used in system email links and open-tracking pixels; required to be non-local in production |
 | `GOGOMAIL_OUTBOX_RELAY_*` | Outbox relay batch size, polling interval, and retry controls |
 | `GOGOMAIL_DELIVERY_*` | Delivery worker stream, consumer, retry, TLS, smart-host, route, throttle, and timeout controls |
 | `GOGOMAIL_DELIVERY_RECIPIENT_BATCH_SIZE` | Max recipients per same-domain SMTP delivery batch, default `100` |

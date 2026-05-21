@@ -15,6 +15,7 @@ func setProductionSecrets(cfg *Config) {
 	cfg.AuthJWTSecret = "test-jwt-secret-for-production-tests"
 	cfg.AdminToken = "test-admin-token-for-production-tests"
 	cfg.DatabaseURL = "postgres://gogomail:gogomail@localhost:5432/gogomail?sslmode=require"
+	cfg.PublicBaseURL = "https://mail.example.com"
 }
 
 func TestValidateRejectsProductionInsecureSubmissionAuth(t *testing.T) {
@@ -87,6 +88,47 @@ func TestValidateRejectsEmptyAdminTokenInProduction(t *testing.T) {
 	cfg.AdminToken = ""
 	if err := cfg.Validate(); err == nil || !strings.Contains(err.Error(), "GOGOMAIL_ADMIN_TOKEN") {
 		t.Fatalf("Validate() error = %v, want admin token rejection in production", err)
+	}
+}
+
+func TestValidateRejectsLocalPublicBaseURLInProduction(t *testing.T) {
+	tests := []string{
+		"",
+		"http://mail.example.com",
+		"https://localhost:8080",
+		"https://127.0.0.1:8080",
+		"https://[::1]:8080",
+		"https://0.0.0.0:8080",
+	}
+	for _, publicURL := range tests {
+		publicURL := publicURL
+		t.Run(publicURL, func(t *testing.T) {
+			cfg := Load()
+			cfg.Environment = "production"
+			cfg.SubmissionAllowInsecureAuth = false
+			cfg.IMAPAllowInsecureAuth = false
+			cfg.CalDAVAllowInsecureAuth = false
+			cfg.CardDAVAllowInsecureAuth = false
+			setProductionSecrets(&cfg)
+			cfg.PublicBaseURL = publicURL
+			if err := cfg.Validate(); err == nil || !strings.Contains(err.Error(), "GOGOMAIL_PUBLIC_BASE_URL") {
+				t.Fatalf("Validate() error = %v, want public base URL rejection", err)
+			}
+		})
+	}
+}
+
+func TestValidateAcceptsHTTPSPublicBaseURLInProduction(t *testing.T) {
+	cfg := Load()
+	cfg.Environment = "production"
+	cfg.SubmissionAllowInsecureAuth = false
+	cfg.IMAPAllowInsecureAuth = false
+	cfg.CalDAVAllowInsecureAuth = false
+	cfg.CardDAVAllowInsecureAuth = false
+	setProductionSecrets(&cfg)
+	cfg.PublicBaseURL = "https://mail.example.com"
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("Validate() error = %v", err)
 	}
 }
 
