@@ -22,6 +22,7 @@
 - Quota alert and threshold operations reads now use stable `created_at DESC, id DESC` ordering, typed UUID predicates, scope-specific duplicate checks, and matching indexes.
 - Admin user/domain/DNS operations reads now use stable `created_at/checked_at DESC, id DESC` ordering with typed company filters and matching list/history indexes.
 - Mail-flow operations list/stats reads now use typed UUID predicates for company/domain/user/message dimensions with matching high-volume filter indexes.
+- Audit-log operations reads now use typed UUID predicates for company/domain/user/actor/target filters with matching read indexes and direct SQL shape regression coverage.
 - Webmail pre-launch gaps closed: password reset UI, server-synced signatures, Web Push service worker registration, and calendar edit/delete controls.
 - Console pre-launch gaps closed: audit-log cursor pagination, delivery-attempt filters/feedback, and targeted TypeScript cleanup.
 
@@ -6718,3 +6719,7 @@ Target outcome:
       company/domain/user/message UUID filters typed on the column side instead
       of casting indexed columns to text. Matching high-volume filter indexes
       cover the operational list and stats dimensions.
+1842. Audit-log list queries now keep company/domain/user/actor/target UUID
+      filters typed on indexed columns, with a split SQL builder and regression
+      coverage for the predicate shape. Additional read indexes cover company,
+      domain, actor, and target filters in timestamp/id order.
