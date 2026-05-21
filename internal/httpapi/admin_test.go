@@ -10946,3 +10946,194 @@ func (f *fakeAdminService) SetDomainIdPConfig(_ context.Context, cfg *idprovider
 func (f *fakeAdminService) DeleteDomainIdPConfig(_ context.Context, domainID string) error {
 	return nil
 }
+
+// ─── Multi-tenancy Isolation Tests ───────────────────────────────────────────
+
+// TestRequiresCompanyAccessUnit exercises the requiresCompanyAccess guard directly.
+func TestRequiresCompanyAccessUnit(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name      string
+		claims    auth.Claims
+		hasClaims bool
+		companyID string
+		wantErr   bool
+	}{
+		{
+			name:      "system_admin passes any company",
+			hasClaims: true,
+			claims:    auth.Claims{Role: "system_admin", CompanyID: "company-1"},
+			companyID: "company-2",
+			wantErr:   false,
+		},
+		{
+			name:      "company_admin passes own company",
+			hasClaims: true,
+			claims:    auth.Claims{Role: "company_admin", CompanyID: "company-1"},
+			companyID: "company-1",
+			wantErr:   false,
+		},
+		{
+			name:      "company_admin blocked from other company",
+			hasClaims: true,
+			claims:    auth.Claims{Role: "company_admin", CompanyID: "company-1"},
+			companyID: "company-2",
+			wantErr:   true,
+		},
+		{
+			name:      "no claims (static token) passes",
+			hasClaims: false,
+			companyID: "company-any",
+			wantErr:   false,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := context.Background()
+			if tc.hasClaims {
+				ctx = context.WithValue(ctx, adminContextKey{}, tc.claims)
+			}
+			err := requiresCompanyAccess(ctx, tc.companyID)
+			if tc.wantErr && err == nil {
+				t.Errorf("expected access denied error, got nil")
+			}
+			if !tc.wantErr && err != nil {
+				t.Errorf("expected nil error, got %v", err)
+			}
+		})
+	}
+}
+
+// TestMultiTenancyIsolationHTTP verifies that company_admin JWT holders receive
+// 403 when accessing another tenant's resources, 200 for their own, and that
+// system_admin can access any tenant.
+func TestMultiTenancyIsolationHTTP(t *testing.T) {
+	t.Parallel()
+
+	const secret = "test-secret-32-bytes-long-enough!"
+	tm, err := auth.NewTokenManager(secret)
+	if err != nil {
+		t.Fatalf("NewTokenManager: %v", err)
+	}
+
+	issueToken := func(role, companyID, userID string) string {
+		token, err := tm.Sign(auth.Claims{
+			UserID:    userID,
+			CompanyID: companyID,
+			Role:      role,
+		}, 15*time.Minute)
+		if err != nil {
+			t.Fatalf("Sign: %v", err)
+		}
+		return token
+	}
+
+	companyAdminA := issueToken("company_admin", "company-a", "admin-a")
+	companyAdminB := issueToken("company_admin", "company-b", "admin-b")
+	systemAdmin := issueToken("system_admin", "company-a", "sysadmin")
+
+	service := &fakeAdminService{
+		companies: []maildb.CompanyView{
+			{ID: "company-a", Name: "Tenant A", Status: "active"},
+			{ID: "company-b", Name: "Tenant B", Status: "active"},
+		},
+		domains: []maildb.DomainView{
+			{ID: "domain-a", CompanyID: "company-a", Name: "a.example.com", Status: "active"},
+			{ID: "domain-b", CompanyID: "company-b", Name: "b.example.com", Status: "active"},
+		},
+	}
+
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "",
+		WithTokenManager(tm),
+		WithEnvironment("production"),
+	)
+
+	do := func(method, path, token string) int {
+		req := httptest.NewRequest(method, path, nil)
+		req.Header.Set("Authorization", "Bearer "+token)
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, req)
+		return rec.Code
+	}
+
+	// ── Company-level isolation ──────────────────────────────────────────────
+	t.Run("company_admin can read own company", func(t *testing.T) {
+		if got := do("GET", "/admin/v1/companies/company-a", companyAdminA); got != http.StatusOK {
+			t.Errorf("want 200, got %d", got)
+		}
+	})
+
+	t.Run("company_admin blocked from other company GET", func(t *testing.T) {
+		if got := do("GET", "/admin/v1/companies/company-b", companyAdminA); got != http.StatusForbidden {
+			t.Errorf("want 403, got %d", got)
+		}
+	})
+
+	t.Run("company_admin blocked from other company quota PATCH", func(t *testing.T) {
+		req := httptest.NewRequest("PATCH", "/admin/v1/companies/company-b/quota", strings.NewReader(`{"quota_limit":1000}`))
+		req.Header.Set("Authorization", "Bearer "+companyAdminA)
+		req.Header.Set("Content-Type", "application/json")
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, req)
+		if rec.Code != http.StatusForbidden {
+			t.Errorf("want 403, got %d", rec.Code)
+		}
+	})
+
+	t.Run("system_admin can read any company", func(t *testing.T) {
+		if got := do("GET", "/admin/v1/companies/company-b", systemAdmin); got != http.StatusOK {
+			t.Errorf("want 200, got %d", got)
+		}
+	})
+
+	t.Run("company_admin B blocked from company A", func(t *testing.T) {
+		if got := do("GET", "/admin/v1/companies/company-a", companyAdminB); got != http.StatusForbidden {
+			t.Errorf("want 403, got %d", got)
+		}
+	})
+
+	// ── Domain-level isolation (domain belongs to different tenant) ──────────
+	t.Run("company_admin blocked from other tenant domain settings", func(t *testing.T) {
+		req := httptest.NewRequest("GET", "/admin/v1/domains/domain-b/settings", nil)
+		req.SetPathValue("id", "domain-b")
+		req.Header.Set("Authorization", "Bearer "+companyAdminA)
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, req)
+		if rec.Code != http.StatusForbidden {
+			t.Errorf("want 403, got %d", rec.Code)
+		}
+	})
+
+	t.Run("company_admin can access own domain settings", func(t *testing.T) {
+		req := httptest.NewRequest("GET", "/admin/v1/domains/domain-a/settings", nil)
+		req.SetPathValue("id", "domain-a")
+		req.Header.Set("Authorization", "Bearer "+companyAdminA)
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, req)
+		// 200 or 404 acceptable — what matters is NOT 403
+		if rec.Code == http.StatusForbidden {
+			t.Errorf("should not be 403 for own-tenant domain, got %d", rec.Code)
+		}
+	})
+
+	t.Run("system_admin can access any domain", func(t *testing.T) {
+		req := httptest.NewRequest("GET", "/admin/v1/domains/domain-b/settings", nil)
+		req.SetPathValue("id", "domain-b")
+		req.Header.Set("Authorization", "Bearer "+systemAdmin)
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, req)
+		if rec.Code == http.StatusForbidden {
+			t.Errorf("system_admin should not be 403, got %d", rec.Code)
+		}
+	})
+
+	// ── Invalid token is rejected ────────────────────────────────────────────
+	t.Run("invalid token returns 401", func(t *testing.T) {
+		if got := do("GET", "/admin/v1/companies/company-a", "bad-token"); got != http.StatusUnauthorized {
+			t.Errorf("want 401, got %d", got)
+		}
+	})
+}
