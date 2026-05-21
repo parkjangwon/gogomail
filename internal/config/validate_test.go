@@ -132,6 +132,14 @@ func TestValidateAcceptsHTTPSPublicBaseURLInProduction(t *testing.T) {
 	}
 }
 
+func TestLoadDefaultsPublicBaseURLToEmpty(t *testing.T) {
+	t.Setenv("GOGOMAIL_PUBLIC_BASE_URL", "")
+	cfg := Load()
+	if cfg.PublicBaseURL != "" {
+		t.Fatalf("PublicBaseURL = %q, want empty default", cfg.PublicBaseURL)
+	}
+}
+
 func TestValidateRejectsSSLModeDisableInProduction(t *testing.T) {
 	cfg := Load()
 	cfg.Environment = "production"

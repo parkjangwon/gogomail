@@ -580,7 +580,7 @@ func Load() Config {
 		AdminToken:                          envOrDefault("GOGOMAIL_ADMIN_TOKEN", ""),
 		AuthJWTSecret:                       envOrDefault("GOGOMAIL_AUTH_JWT_SECRET", ""),
 		AdminMFARequired:                    boolEnvOrDefault("GOGOMAIL_ADMIN_MFA_REQUIRED", false),
-		PublicBaseURL:                       envOrDefault("GOGOMAIL_PUBLIC_BASE_URL", "http://localhost:8080"),
+		PublicBaseURL:                       envOrDefault("GOGOMAIL_PUBLIC_BASE_URL", ""),
 		AutoPurgeEnabled:                    boolEnvOrDefault("GOGOMAIL_AUTO_PURGE_ENABLED", false),
 		AutoPurgeInterval:                   durationEnvOrDefault("GOGOMAIL_AUTO_PURGE_INTERVAL", 24*time.Hour),
 		AutoPurgeBatchSize:                  intEnvOrDefault("GOGOMAIL_AUTO_PURGE_BATCH_SIZE", 1000),
