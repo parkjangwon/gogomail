@@ -383,6 +383,16 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
   }, []);
 
   useEffect(() => {
+    function handleBeforeUnload(e: BeforeUnloadEvent) {
+      if (saveStatus === 'saving') {
+        e.preventDefault();
+      }
+    }
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [saveStatus]);
+
+  useEffect(() => {
     listUserAddresses().then((addrs) => {
       setAvailableAddresses(addrs);
       const primary = addrs.find((a) => a.is_primary);

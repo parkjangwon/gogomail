@@ -2,6 +2,7 @@ package imapgw
 
 import (
 	"bufio"
+	"io"
 	"net"
 	"strings"
 	"testing"
@@ -242,14 +243,132 @@ func TestAppleMailMultiFetchSequence(t *testing.T) {
 
 func TestK9MailFetchBodyPeek(t *testing.T) {
 	t.Parallel()
-	// TODO: net.Pipe literal synchronization issue - server waits for client to consume literal bytes
-	// Skipping for now, will fix after other tests pass
-	t.Skip("net.Pipe literal sync issue - server blocks waiting for literal consumption")
+
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: fakeBackend{}, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SELECT inbox\r\n")); err != nil {
+		t.Fatalf("write login/select: %v", err)
+	}
+	// login response
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read login response: %v", err)
+	}
+	// 7 select response lines
+	for i := 0; i < 7; i++ {
+		if _, err := reader.ReadString('\n'); err != nil {
+			t.Fatalf("read select response: %v", err)
+		}
+	}
+
+	// K-9 Mail uses UID FETCH with BODY.PEEK[TEXT] to fetch body without setting \Seen
+	// UID 9: "Subject: Hello\r\nFrom: sender@test\r\n\r\nhello header body" — TEXT = "hello header body" (17 bytes)
+	if _, err := client.Write([]byte("a3 UID FETCH 9 BODY.PEEK[TEXT]\r\n")); err != nil {
+		t.Fatalf("write peek body: %v", err)
+	}
+	line, err := reader.ReadString('\n')
+	if err != nil {
+		t.Fatalf("read fetch literal header: %v", err)
+	}
+	if line != "* 3 FETCH (UID 9 FLAGS (\\Seen \\Flagged) RFC822.SIZE 54 BODY[TEXT] {17}\r\n" {
+		t.Fatalf("fetch literal header = %q", line)
+	}
+	body := make([]byte, 17)
+	if _, err := io.ReadFull(reader, body); err != nil {
+		t.Fatalf("read body literal: %v", err)
+	}
+	if string(body) != "hello header body" {
+		t.Fatalf("body = %q", body)
+	}
+	if line, err = reader.ReadString('\n'); err != nil || line != ")\r\n" {
+		t.Fatalf("literal close = %q err = %v", line, err)
+	}
+	if line, err = reader.ReadString('\n'); err != nil || line != "a3 OK UID FETCH completed\r\n" {
+		t.Fatalf("completion = %q err = %v", line, err)
+	}
+
+	if _, err := client.Write([]byte("a4 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write logout: %v", err)
+	}
+	_, _ = reader.ReadString('\n')
+	_, _ = reader.ReadString('\n')
+	<-errCh
 }
 
 func TestK9MailUIDFetchBody(t *testing.T) {
 	t.Parallel()
-	t.Skip("net.Pipe literal sync issue with BODY[TEXT] partial responses")
+
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: fakeBackend{}, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SELECT inbox\r\n")); err != nil {
+		t.Fatalf("write login/select: %v", err)
+	}
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read login response: %v", err)
+	}
+	for i := 0; i < 7; i++ {
+		if _, err := reader.ReadString('\n'); err != nil {
+			t.Fatalf("read select response: %v", err)
+		}
+	}
+
+	// K-9 Mail UID FETCH for body text (UID 9: "Subject: Hello\r\nFrom: sender@test\r\n\r\nhello header body")
+	// TEXT part = "hello header body" (17 bytes)
+	if _, err := client.Write([]byte("a3 UID FETCH 9 BODY[TEXT]\r\n")); err != nil {
+		t.Fatalf("write uid fetch body: %v", err)
+	}
+	line, err := reader.ReadString('\n')
+	if err != nil {
+		t.Fatalf("read uid fetch literal header: %v", err)
+	}
+	if line != "* 3 FETCH (UID 9 FLAGS (\\Seen \\Flagged) RFC822.SIZE 54 BODY[TEXT] {17}\r\n" {
+		t.Fatalf("uid fetch literal header = %q", line)
+	}
+	textBody := make([]byte, 17)
+	if _, err := io.ReadFull(reader, textBody); err != nil {
+		t.Fatalf("read uid fetch literal: %v", err)
+	}
+	if string(textBody) != "hello header body" {
+		t.Fatalf("text body = %q", textBody)
+	}
+	if line, err = reader.ReadString('\n'); err != nil || line != ")\r\n" {
+		t.Fatalf("literal close = %q err = %v", line, err)
+	}
+	if line, err = reader.ReadString('\n'); err != nil || line != "a3 OK UID FETCH completed\r\n" {
+		t.Fatalf("completion = %q err = %v", line, err)
+	}
+
+	if _, err := client.Write([]byte("a4 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write logout: %v", err)
+	}
+	_, _ = reader.ReadString('\n')
+	_, _ = reader.ReadString('\n')
+	<-errCh
 }
 
 func TestThunderbirdEnvelopeFetch(t *testing.T) {
@@ -464,7 +583,67 @@ func TestThunderbirdBodystructureFetch(t *testing.T) {
 
 func TestAppleMailPeekHeaderFields(t *testing.T) {
 	t.Parallel()
-	t.Skip("net.Pipe literal sync issue with HEADER.FIELDS responses")
+
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: fakeBackend{}, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SELECT inbox\r\n")); err != nil {
+		t.Fatalf("write login/select: %v", err)
+	}
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read login response: %v", err)
+	}
+	for i := 0; i < 7; i++ {
+		if _, err := reader.ReadString('\n'); err != nil {
+			t.Fatalf("read select response: %v", err)
+		}
+	}
+
+	// Apple Mail fetches headers via BODY.PEEK[HEADER.FIELDS (FROM TO SUBJECT DATE)]
+	// UID 9: "Subject: Hello\r\nFrom: sender@test\r\n\r\nhello header body" (54 bytes)
+	// Present headers: Subject (16 bytes) + From (20 bytes) + CRLF terminator (2) = 38 bytes
+	if _, err := client.Write([]byte("a3 UID FETCH 9 BODY.PEEK[HEADER.FIELDS (FROM TO SUBJECT DATE)]\r\n")); err != nil {
+		t.Fatalf("write apple header fields: %v", err)
+	}
+	line, err := reader.ReadString('\n')
+	if err != nil {
+		t.Fatalf("read header fields literal header: %v", err)
+	}
+	if line != "* 3 FETCH (UID 9 FLAGS (\\Seen \\Flagged) RFC822.SIZE 54 BODY[HEADER.FIELDS (FROM TO SUBJECT DATE)] {37}\r\n" {
+		t.Fatalf("header fields literal header = %q", line)
+	}
+	headers := make([]byte, 37)
+	if _, err := io.ReadFull(reader, headers); err != nil {
+		t.Fatalf("read header fields literal: %v", err)
+	}
+	if string(headers) != "Subject: Hello\r\nFrom: sender@test\r\n\r\n" {
+		t.Fatalf("header fields = %q", headers)
+	}
+	if line, err = reader.ReadString('\n'); err != nil || line != ")\r\n" {
+		t.Fatalf("literal close = %q err = %v", line, err)
+	}
+	if line, err = reader.ReadString('\n'); err != nil || line != "a3 OK UID FETCH completed\r\n" {
+		t.Fatalf("completion = %q err = %v", line, err)
+	}
+
+	if _, err := client.Write([]byte("a4 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write logout: %v", err)
+	}
+	_, _ = reader.ReadString('\n')
+	_, _ = reader.ReadString('\n')
+	<-errCh
 }
 
 func TestK9MailGmailExtensionFetch(t *testing.T) {
@@ -774,6 +953,64 @@ func TestAppleMailMIMELoading(t *testing.T) {
 
 func TestK9MailPartialWithOffset(t *testing.T) {
 	t.Parallel()
-	// TODO: net.Pipe literal synchronization issue - partial BODY<TEXT> response requires reading literal bytes
-	t.Skip("net.Pipe literal sync issue with partial fetch responses")
+
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: fakeBackend{}, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SELECT inbox\r\n")); err != nil {
+		t.Fatalf("write login/select: %v", err)
+	}
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read login response: %v", err)
+	}
+	for i := 0; i < 7; i++ {
+		if _, err := reader.ReadString('\n'); err != nil {
+			t.Fatalf("read select response: %v", err)
+		}
+	}
+
+	// K-9 Mail partial fetch: BODY.PEEK[TEXT]<6.6> on UID 9
+	// TEXT = "hello header body" (17 bytes), offset 6, max 6 bytes → "header"
+	if _, err := client.Write([]byte("a3 UID FETCH 9 BODY.PEEK[TEXT]<6.6>\r\n")); err != nil {
+		t.Fatalf("write partial fetch: %v", err)
+	}
+	line, err := reader.ReadString('\n')
+	if err != nil {
+		t.Fatalf("read partial fetch literal header: %v", err)
+	}
+	if line != "* 3 FETCH (UID 9 FLAGS (\\Seen \\Flagged) RFC822.SIZE 54 BODY[TEXT]<6> {6}\r\n" {
+		t.Fatalf("partial fetch literal header = %q", line)
+	}
+	partialBody := make([]byte, 6)
+	if _, err := io.ReadFull(reader, partialBody); err != nil {
+		t.Fatalf("read partial fetch literal: %v", err)
+	}
+	if string(partialBody) != "header" {
+		t.Fatalf("partial body = %q", partialBody)
+	}
+	if line, err = reader.ReadString('\n'); err != nil || line != ")\r\n" {
+		t.Fatalf("literal close = %q err = %v", line, err)
+	}
+	if line, err = reader.ReadString('\n'); err != nil || line != "a3 OK UID FETCH completed\r\n" {
+		t.Fatalf("completion = %q err = %v", line, err)
+	}
+
+	if _, err := client.Write([]byte("a4 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write logout: %v", err)
+	}
+	_, _ = reader.ReadString('\n')
+	_, _ = reader.ReadString('\n')
+	<-errCh
 }

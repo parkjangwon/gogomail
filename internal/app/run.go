@@ -3273,6 +3273,19 @@ func runHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, mode M
 			ConfigResolver:    mailConfigStore,
 			RefreshTokenStore: repository,
 		}
+		if strings.EqualFold(strings.TrimSpace(cfg.MailMutationRateLimitBackend), "redis") {
+			mailRedisClient := newRedisClient(cfg)
+			if err := mailRedisClient.Ping(ctx).Err(); err != nil {
+				if err := mailRedisClient.Close(); err != nil {
+					logger.Warn("close mail mutation redis client", "error", err)
+				}
+				return err
+			}
+			defer mailRedisClient.Close()
+			readinessChecks = append(readinessChecks, redisReadinessCheck("mail_mutation_rate_limit_redis", mailRedisClient))
+			mailOpts.MutationLimiter = ratelimit.NewRedisFixedWindowLimiter(mailRedisClient, "mail_mutation", int64(cfg.MailMutationRateLimitPerMinute), time.Minute)
+			logger.Info("mail mutation rate limiting enabled", "backend", "redis", "per_minute", cfg.MailMutationRateLimitPerMinute)
+		}
 		httpapi.RegisterMailRoutesWithOptions(mux, service, tokenManager, mailOpts)
 		httpapi.RegisterMFARoutes(mux, tokenManager, mailOpts)
 		httpapi.RegisterTrackingRoutes(mux, trackingRepo, tokenManager)

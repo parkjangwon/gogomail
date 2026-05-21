@@ -2787,8 +2787,7 @@ func (s *Service) SendText(ctx context.Context, req SendTextRequest) (SendTextRe
 			})
 		}
 		if err := s.trackingRepo.CreateTrackingPixels(ctx, dbPixels); err != nil {
-			// Log but don't fail the send.
-			_ = err
+			slog.Warn("failed to create tracking pixels", "message_id", id, "error", err)
 		}
 	}
 
