@@ -399,14 +399,15 @@ LIMIT $10`, strings.Join(conditions, "\n  AND "))
 }
 
 func draftSearchSQL() string {
-	return draftSearchSQLWithConditions(draftSearchBaseConditions(DraftSearchQuery{
+	query := DraftSearchQuery{
 		Query:   "quarterly",
 		From:    "alice",
 		To:      "bob",
 		Cc:      "carol",
 		Bcc:     "dave",
 		Subject: "report",
-	}))
+	}
+	return draftSearchSQLWithConditions(draftSearchBaseConditions(query), draftSearchUsesQueryMatches(query))
 }
 
 func draftSearchBaseConditions(query DraftSearchQuery) []string {
@@ -415,15 +416,7 @@ func draftSearchBaseConditions(query DraftSearchQuery) []string {
 		"status = 'draft'",
 	}
 	if strings.TrimSpace(query.Query) != "" {
-		conditions = append(conditions, `(
-    subject ILIKE '%' || $2 || '%'
-    OR from_addr ILIKE '%' || $2 || '%'
-    OR from_name ILIKE '%' || $2 || '%'
-    OR to_addrs::text ILIKE '%' || $2 || '%'
-    OR cc_addrs::text ILIKE '%' || $2 || '%'
-    OR bcc_addrs::text ILIKE '%' || $2 || '%'
-    OR draft_text_body ILIKE '%' || $2 || '%'
-  )`)
+		conditions = append(conditions, "id IN (SELECT id FROM draft_matches)")
 	}
 	if strings.TrimSpace(query.From) != "" {
 		conditions = append(conditions, `(
@@ -446,8 +439,65 @@ func draftSearchBaseConditions(query DraftSearchQuery) []string {
 	return conditions
 }
 
-func draftSearchSQLWithConditions(conditions []string) string {
+func draftSearchUsesQueryMatches(query DraftSearchQuery) bool {
+	return strings.TrimSpace(query.Query) != ""
+}
+
+func draftSearchQueryMatchesCTE(include bool) string {
+	if !include {
+		return ""
+	}
+	return `
+WITH draft_matches AS (
+  SELECT id
+  FROM messages
+  WHERE user_id = $1
+    AND status = 'draft'
+    AND subject ILIKE '%%' || $2 || '%%'
+  UNION
+  SELECT id
+  FROM messages
+  WHERE user_id = $1
+    AND status = 'draft'
+    AND from_addr ILIKE '%%' || $2 || '%%'
+  UNION
+  SELECT id
+  FROM messages
+  WHERE user_id = $1
+    AND status = 'draft'
+    AND from_name ILIKE '%%' || $2 || '%%'
+  UNION
+  SELECT id
+  FROM messages
+  WHERE user_id = $1
+    AND status = 'draft'
+    AND to_addrs::text ILIKE '%%' || $2 || '%%'
+  UNION
+  SELECT id
+  FROM messages
+  WHERE user_id = $1
+    AND status = 'draft'
+    AND cc_addrs::text ILIKE '%%' || $2 || '%%'
+  UNION
+  SELECT id
+  FROM messages
+  WHERE user_id = $1
+    AND status = 'draft'
+    AND bcc_addrs::text ILIKE '%%' || $2 || '%%'
+  UNION
+  SELECT id
+  FROM messages
+  WHERE user_id = $1
+    AND status = 'draft'
+    AND draft_text_body ILIKE '%%' || $2 || '%%'
+)
+`
+}
+
+func draftSearchSQLWithConditions(conditions []string, includeQueryMatches bool) string {
+	queryMatchesCTE := draftSearchQueryMatchesCTE(includeQueryMatches)
 	return fmt.Sprintf(`
+`+queryMatchesCTE+`
 SELECT
   id::text,
   COALESCE(rfc_message_id, ''),
@@ -477,7 +527,7 @@ func buildDraftSearchSQL(query DraftSearchQuery, hasAttachment, cursorID string)
 	if cursorID != "" {
 		conditions = append(conditions, "(COALESCE(draft_updated_at, updated_at, created_at), id) < ($9::timestamptz, $10::uuid)")
 	}
-	return draftSearchSQLWithConditions(conditions)
+	return draftSearchSQLWithConditions(conditions, draftSearchUsesQueryMatches(query))
 }
 
 func searchHighlightsFromSQL(subject sql.NullString, from sql.NullString, body sql.NullString) *MessageSearchHighlights {

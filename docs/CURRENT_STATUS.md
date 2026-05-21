@@ -7,6 +7,11 @@ Last updated: 2026-05-21 (SaaS launch hardening continues: production public URL
 - Added trigram indexes for active message subject/from fields and search-document body text so fallback substring search can use GIN-backed branches.
 - Verification target: `go test -count=1 ./internal/maildb -run 'MessageSearchSQL|MessageSearchQuery'`.
 
+## Draft Search Candidate Split (2026-05-21)
+- Draft free-text search now uses a `draft_matches` candidate CTE with field-specific `UNION` branches instead of one broad `OR` predicate across subject/from/recipient/body fields.
+- Added draft-only trigram indexes for subject/from/recipient arrays and draft text body so large compose folders keep substring search on indexed paths.
+- Verification target: `go test -count=1 ./internal/maildb -run 'DraftSearchSQL|DraftSearchQuery'`.
+
 ## RDBMS Sync Conflict Seek Pagination (2026-05-21)
 - RDBMS sync conflict listing now supports opaque `(created_at, id)` cursor pagination while preserving legacy offset pagination for existing clients.
 - Added conflict seek indexes for both all-conflict and unresolved-only admin views, matching the `ORDER BY created_at DESC, id DESC` access pattern.
