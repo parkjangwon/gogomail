@@ -208,6 +208,7 @@
 - LDAP auth, IMAP mailbox resolution, and quota warning threshold lookups now keep UUID fast paths typed while preserving username/mailbox-name compatibility.
 - Drive upload session listing now uses stable `updated_at DESC, created_at DESC, id DESC` ordering with matching user/status indexes.
 - Admin quota usage pressure list now uses stable ratio/updated/id ordering with matching company/domain/user pressure indexes.
+- Legacy Mail API message list helpers now use the same message_at expression and `id DESC` tie-breaker as cursor pages, keeping equal-timestamp inbox and folder pages deterministic.
 
 **Infrastructure & Storage Hardening** ✅ COMPLETE
 - Task 1 (EML GC): Added `LookupDeleteableStoragePaths` and `LookupExpungeStoragePaths` to maildb; service layer now performs two-phase GC (lookup before DB delete, delete from store after commit) for `DeleteMessage`, `BulkDeleteMessages`, `BulkDeleteThreads`, and `ExpungeIMAPMessages`. Reference-count check prevents deletion of paths shared by IMAP COPY.

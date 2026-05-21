@@ -29,6 +29,33 @@ func TestMessageListPageSQLProjectsBoundedPreview(t *testing.T) {
 	}
 }
 
+func TestLegacyMessageListSQLUsesStableMessageAtOrdering(t *testing.T) {
+	t.Parallel()
+
+	for name, query := range map[string]string{
+		"all":    listMessagesSQL,
+		"folder": listMessagesInFolderSQL,
+	} {
+		name := name
+		query := query
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			for _, want := range []string{
+				"COALESCE(m.received_at, m.sent_at, m.draft_updated_at, m.created_at)",
+				"ORDER BY COALESCE(m.received_at, m.sent_at, m.draft_updated_at, m.created_at) DESC, m.id DESC",
+			} {
+				if !strings.Contains(query, want) {
+					t.Fatalf("legacy message list query missing stable ordering fragment %q:\n%s", want, query)
+				}
+			}
+			if strings.Contains(query, "ORDER BY COALESCE(m.received_at, m.created_at) DESC") {
+				t.Fatalf("legacy message list query still uses received/created-only ordering:\n%s", query)
+			}
+		})
+	}
+}
+
 func TestPOP3InboxMessagePageSQLAvoidsPreviewJoin(t *testing.T) {
 	t.Parallel()
 

@@ -1,6 +1,11 @@
 # gogomail current status
 
-Last updated: 2026-05-21 (SaaS launch hardening continues: quota usage stable ordering)
+Last updated: 2026-05-21 (SaaS launch hardening continues: legacy message list stable ordering)
+
+## Legacy Message List Stable Ordering (2026-05-21)
+- Legacy Mail API message list helpers now order by the same `received_at/sent_at/draft_updated_at/created_at` message timestamp expression used by cursor pages.
+- Both all-folder and single-folder legacy list paths add `id DESC` as the deterministic tie-breaker, keeping equal-timestamp inbox views stable while matching existing active-message indexes.
+- Verification target: `go test -count=1 ./internal/maildb -run 'MessageList'`.
 
 ## Admin Quota Usage Stable Ordering (2026-05-21)
 - Admin quota usage pressure list now orders by usage ratio, `updated_at DESC`, and `id DESC`, preventing equal-ratio/equal-timestamp pages from drifting.
