@@ -273,9 +273,10 @@ TASK-090 검증 운영 가이드:
   - `TASK_090_DATABASE_URL='<pgsql>' scripts/verify-task-090-message-explain.sh`
   - 기본 로그 파일: `/tmp/task090-explain-YYYYMMDD-HHMMSS.log`
 - 스크립트는 `LIST BY IDS` hydration / `LIST IN FOLDER` / `SEARCH` 경로에 대한 `EXPLAIN ANALYZE`를 모두 수집한다.
+- psql 미설치 환경에서도 Go/pgx 폴백 경로로 바로 실행 가능(출력 형식/로그 경로 동일).
 
 구현 대상:
-- [ ] EXPLAIN ANALYZE로 메시지 조회 쿼리 성능 분석 (운영/스테이징 PostgreSQL에서 추적 실행 대기)
+- [ ] EXPLAIN ANALYZE로 메시지 조회 쿼리 성능 분석 (운영/스테이징 PostgreSQL에서 추적 실행 대기; 스크립트는 psql/Go 모두 지원)
 - [x] 누락된 인덱스 생성 (outbox + delivery_attempts + user address 조회 경로): `0113_delivery_attempt_indexes.sql`, `0114_outbox_query_indexes.sql`, `0122_user_address_lookup_indexes.sql`
 - [x] ListOutboundMessages 최적화 (N+1 제거): legacy 메서드를 `ListMessagesByIDs` 배치 hydration 경로에 위임
 - [x] GetMessagesByID 배치 조회 함수 작성: `GetMessagesByID`를 `ListMessagesByIDs` 래퍼로 구현

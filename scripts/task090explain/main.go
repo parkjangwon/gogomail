@@ -1,55 +1,87 @@
-#!/usr/bin/env bash
+package main
 
-set -euo pipefail
+import (
+	"context"
+	"flag"
+	"fmt"
+	"io"
+	"log"
+	"os"
+	"time"
 
-DSN="${GOGOMAIL_TEST_DATABASE_URL:-${TASK_090_DATABASE_URL:-${1:-}}}"
-if [[ -z "${DSN}" ]]; then
-  echo "Usage: TASK_090_DATABASE_URL=<psql-url> $0" >&2
-  echo "   or: GOGOMAIL_TEST_DATABASE_URL=<psql-url> $0" >&2
-  echo "   or: pass DSN as first arg" >&2
-  exit 1
-fi
+	"github.com/jackc/pgx/v5"
+)
 
-TMP_EXPLAIN_FILE="${TASK_090_EXPLAIN_OUT:-/tmp/task090-explain-$(date +%Y%m%d-%H%M%S).log}"
-HAS_PSQL=0
+func must(err error, msg string) {
+	if err != nil {
+		log.Fatalf("%s: %v", msg, err)
+	}
+}
 
-if command -v psql >/dev/null 2>&1; then
-  HAS_PSQL=1
-fi
+func runExplain(ctx context.Context, conn *pgx.Conn, query string, out io.Writer) error {
+	rows, err := conn.Query(ctx, query)
+	must(err, "querying explain")
+	defer rows.Close()
 
-if [[ "${HAS_PSQL}" -eq 0 ]]; then
-  if ! command -v go >/dev/null 2>&1; then
-    echo "go is required when psql is unavailable: install PostgreSQL client or Go" >&2
-    exit 1
-  fi
-  echo "[TASK-090] psql unavailable; using Go/pgx fallback."
-  go run ./scripts/task090explain -dsn "${DSN}" -out "${TMP_EXPLAIN_FILE}"
-  echo "Saved explain snapshots to ${TMP_EXPLAIN_FILE}"
-  exit 0
-fi
+	for rows.Next() {
+		var line string
+		must(rows.Scan(&line), "scanning explain row")
+		fmt.Fprintln(out, line)
+	}
+	must(rows.Err(), "reading explain rows")
+	return nil
+}
 
-if [[ "${HAS_PSQL}" -eq 1 ]]; then
-  has_target=$(
-    psql -Atq "${DSN}" <<'SQL'
+func main() {
+	dsn := flag.String("dsn", "", "PostgreSQL DSN URL")
+	outPath := flag.String("out", "", "output file")
+	flag.Parse()
+
+	if *dsn == "" {
+		log.Fatal("dsn is required: set --dsn")
+	}
+
+	var out io.Writer = os.Stdout
+	if *outPath == "" {
+		*outPath = fmt.Sprintf("/tmp/task090-explain-%s.log", time.Now().Format("20060102-150405"))
+	}
+
+	f, err := os.Create(*outPath)
+	must(err, "opening output file")
+	defer f.Close()
+
+	multi := io.MultiWriter(os.Stdout, f)
+	out = multi
+
+	ctx := context.Background()
+	conn, err := pgx.Connect(ctx, *dsn)
+	must(err, "connecting to database")
+	defer conn.Close(ctx)
+
+	var hasTarget bool
+	err = conn.QueryRow(ctx, `
 SELECT EXISTS (
   SELECT 1
   FROM messages
   WHERE status = 'active' AND user_id IS NOT NULL
   LIMIT 1
 );
-SQL
-  )
+`).Scan(&hasTarget)
+	must(err, "checking messages")
+	if !hasTarget {
+		fmt.Fprintln(out, "No active messages found; skip EXPLAIN ANALYZE baseline for TASK-090.")
+		return
+	}
 
-  if [[ "${has_target}" != "t" ]]; then
-    echo "No active messages found; skip EXPLAIN ANALYZE baseline for TASK-090." >&2
-    exit 0
-  fi
+	fmt.Fprintf(out, "[TASK-090] EXPLAIN ANALYZE snapshots -> %s\n", *outPath)
 
-  echo "[TASK-090] EXPLAIN ANALYZE snapshots -> ${TMP_EXPLAIN_FILE}"
-
-  {
-    echo "-- TASK-090: LIST BY IDS hydration"
-    psql "${DSN}" <<'SQL'
+	queries := []struct {
+		label string
+		sql   string
+	}{
+		{
+			label: "-- TASK-090: LIST BY IDS hydration",
+			sql: `
 EXPLAIN (ANALYZE, BUFFERS, WAL)
 WITH sample_user AS (
   SELECT user_id
@@ -97,10 +129,12 @@ LEFT JOIN message_search_documents msd
 WHERE m.user_id = (SELECT user_id FROM sample_user)
   AND m.status = 'active'
 ORDER BY requested.ordinality;
-SQL
-
-    printf '\n-- TASK-090: LIST MESSAGES IN FOLDER\n'
-    psql "${DSN}" <<'SQL'
+`,
+		},
+		{
+			label: "\n-- TASK-090: LIST MESSAGES IN FOLDER",
+			sql: `
+EXPLAIN (ANALYZE, BUFFERS, WAL)
 WITH sample_user AS (
   SELECT user_id
   FROM messages
@@ -119,7 +153,6 @@ sample_folder AS (
   ORDER BY COUNT(*) DESC
   LIMIT 1
 )
-EXPLAIN (ANALYZE, BUFFERS, WAL)
 SELECT
   m.id::text,
   m.folder_id::text,
@@ -141,10 +174,12 @@ WHERE m.user_id = (SELECT user_id FROM sample_user)
   AND m.status = 'active'
 ORDER BY COALESCE(m.received_at, m.sent_at, m.draft_updated_at, m.created_at) DESC, m.id DESC
 LIMIT 200;
-SQL
-
-    printf '\n-- TASK-090: MESSAGE SEARCH PATH (sample query)\n'
-    psql "${DSN}" <<'SQL'
+`,
+		},
+		{
+			label: "\n-- TASK-090: MESSAGE SEARCH PATH (sample query)",
+			sql: `
+EXPLAIN (ANALYZE, BUFFERS, WAL)
 WITH sample_user AS (
   SELECT user_id
   FROM messages
@@ -230,7 +265,6 @@ ranked_messages AS (
     AND messages.status = 'active'
     AND messages.id IN (SELECT id FROM query_matches)
 )
-EXPLAIN (ANALYZE, BUFFERS, WAL)
 SELECT
   id,
   folder_id,
@@ -247,9 +281,14 @@ SELECT
 FROM ranked_messages
 ORDER BY message_at DESC, id DESC
 LIMIT 200;
-SQL
-} | tee "${TMP_EXPLAIN_FILE}"
+`,
+		},
+	}
 
-  echo "Saved explain snapshots to ${TMP_EXPLAIN_FILE}"
-  exit 0
-fi
+	for _, q := range queries {
+		fmt.Fprintln(out, q.label)
+		must(runExplain(ctx, conn, q.sql, out), "running query")
+	}
+
+	fmt.Fprintf(out, "Saved explain snapshots to %s\n", *outPath)
+}

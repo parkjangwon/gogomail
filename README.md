@@ -103,6 +103,8 @@ pnpm --dir apps/docs build
 TASK_090_DATABASE_URL='<pg_url>' scripts/verify-task-090-message-explain.sh
 ```
 
+`verify-task-090-message-explain.sh`는 기본적으로 `psql`을 사용하지만, 로컬에 PostgreSQL 클라이언트가 없으면 Go/pgx 경로로 자동 전환됩니다.
+
 ---
 
 ## Quick Start
