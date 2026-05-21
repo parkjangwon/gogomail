@@ -12,6 +12,7 @@ import (
 	"github.com/gogomail/gogomail/internal/directory"
 	"github.com/gogomail/gogomail/internal/dnscheck"
 	"github.com/gogomail/gogomail/internal/drive"
+	"github.com/gogomail/gogomail/internal/idprovider"
 	"github.com/gogomail/gogomail/internal/maildb"
 )
 
@@ -274,4 +275,7 @@ type adminSyncService interface {
 	GetRDBMSSyncConflicts(ctx context.Context, req maildb.RDBMSSyncConflictListRequest) ([]maildb.RDBMSSyncConflictView, error)
 	GetRDBMSSyncConflict(ctx context.Context, conflictID string) (*maildb.RDBMSSyncConflictView, error)
 	ResolveRDBMSSyncConflict(ctx context.Context, conflictID, resolution string) error
+	GetDomainIdPConfig(ctx context.Context, domainID string) (*idprovider.Config, error)
+	SetDomainIdPConfig(ctx context.Context, cfg *idprovider.Config) error
+	DeleteDomainIdPConfig(ctx context.Context, domainID string) error
 }

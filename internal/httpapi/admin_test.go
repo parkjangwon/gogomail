@@ -20,6 +20,7 @@ import (
 	"github.com/gogomail/gogomail/internal/directory"
 	"github.com/gogomail/gogomail/internal/dnscheck"
 	"github.com/gogomail/gogomail/internal/drive"
+	"github.com/gogomail/gogomail/internal/idprovider"
 	ldapidp "github.com/gogomail/gogomail/internal/idprovider/ldap"
 	rdbmsidp "github.com/gogomail/gogomail/internal/idprovider/rdbms"
 	"github.com/gogomail/gogomail/internal/imapgw"
@@ -10931,5 +10932,17 @@ func (f *fakeAdminService) GetRDBMSSyncConflict(ctx context.Context, conflictID 
 }
 
 func (f *fakeAdminService) ResolveRDBMSSyncConflict(ctx context.Context, conflictID, resolution string) error {
+	return nil
+}
+
+func (f *fakeAdminService) GetDomainIdPConfig(_ context.Context, domainID string) (*idprovider.Config, error) {
+	return &idprovider.Config{DomainID: domainID, ProviderType: "database", Settings: map[string]interface{}{}}, nil
+}
+
+func (f *fakeAdminService) SetDomainIdPConfig(_ context.Context, cfg *idprovider.Config) error {
+	return nil
+}
+
+func (f *fakeAdminService) DeleteDomainIdPConfig(_ context.Context, domainID string) error {
 	return nil
 }

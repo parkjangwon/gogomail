@@ -5249,6 +5249,7 @@ func registerAdminUtilityRoutes(mux *http.ServeMux, service AdminService, cfg ad
 	registerSeatUsageRoutes(mux, adminAuth, service)
 	registerLDAPSyncRoutes(mux, adminAuth, service)
 	registerRDBMSSyncRoutes(mux, adminAuth, service)
+	registerIdPConfigRoutes(mux, adminAuth, service)
 }
 
 func registerConsoleRoutes(mux *http.ServeMux, cfg adminRouteConfig, adminAuth func(http.HandlerFunc) http.HandlerFunc) {

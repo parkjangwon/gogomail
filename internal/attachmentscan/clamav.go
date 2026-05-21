@@ -173,6 +173,31 @@ func (s *ClamAVScanner) scanStream(ctx context.Context, name string, file *os.Fi
 	return parseClamAVResponse(response), nil
 }
 
+// Ping sends a PING command and verifies the PONG response.
+func (s *ClamAVScanner) Ping(ctx context.Context) error {
+	ctx, cancel := context.WithTimeout(ctx, s.timeout)
+	defer cancel()
+	conn, err := s.dialer(ctx, "tcp", s.addr)
+	if err != nil {
+		return fmt.Errorf("clamav ping: connect: %w", err)
+	}
+	defer conn.Close()
+	if deadline, ok := ctx.Deadline(); ok {
+		_ = conn.SetDeadline(deadline)
+	}
+	if _, err := io.WriteString(conn, "zPING\x00"); err != nil {
+		return fmt.Errorf("clamav ping: write: %w", err)
+	}
+	resp, err := bufio.NewReader(io.LimitReader(conn, 16)).ReadString('\n')
+	if err != nil && err != io.EOF {
+		return fmt.Errorf("clamav ping: read: %w", err)
+	}
+	if strings.TrimSpace(resp) != "PONG" {
+		return fmt.Errorf("clamav ping: unexpected response %q", resp)
+	}
+	return nil
+}
+
 func (s *ClamAVScanner) circuitOpen() bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()

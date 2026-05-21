@@ -78,6 +78,7 @@ export function Sidebar() {
         { type: 'link', text: t('nav.notif_templates'), href: p('/organization/notification-templates') },
         { type: 'link', text: t('nav.global_signature'), href: p('/organization/signature') },
         { type: 'link', text: t('nav.scim_provisioning'), href: p('/organization/scim-status') },
+        { type: 'link', text: t('nav.idp_config'), href: p('/organization/idp-config') },
         { type: 'link', text: t('nav.user_config'), href: p('/config/user') },
       ],
     },

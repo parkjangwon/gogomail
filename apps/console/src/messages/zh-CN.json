@@ -146,7 +146,8 @@
     "legal_holds": "法律保留",
     "seat_usage": "席位使用量",
     "global_signature": "全局签名",
-    "scim_provisioning": "SCIM配置"
+    "scim_provisioning": "SCIM配置",
+    "idp_config": "IdP配置"
   },
   "dashboard": {
     "title": "仪表板",
@@ -3005,6 +3006,34 @@
       "no_pending_approvals": "没有待审批请求",
       "submit": "提交",
       "requested_by_hint": "姓名或邮箱"
+    },
+    "idp_config": {
+      "title": "IdP配置",
+      "description": "配置用于域用户认证和目录同步的身份提供商。",
+      "provider_section": "提供商设置",
+      "provider_type_label": "提供商类型",
+      "provider_type_desc": "选择此域的目录或身份来源。",
+      "database_hint": "本地数据库为默认选项。用户使用存储的凭据进行身份验证，无需额外配置。",
+      "ldap_host": "LDAP主机",
+      "ldap_port": "LDAP端口",
+      "ldap_bind_dn": "绑定DN",
+      "ldap_bind_password": "绑定密码",
+      "ldap_base_dn": "基础DN",
+      "ldap_user_filter": "用户过滤器",
+      "azure_tenant_id": "租户ID",
+      "azure_client_id": "客户端ID",
+      "azure_client_secret": "客户端密钥",
+      "rdbms_dsn": "DSN（连接字符串）",
+      "rdbms_query": "用户查询",
+      "rdbms_query_desc": "至少返回邮件列和显示名称列的SQL查询。",
+      "sync_interval": "同步间隔（分钟）",
+      "write_only_hint": "留空以保留现有值。",
+      "save": "保存",
+      "reset_to_database": "重置为本地数据库",
+      "save_success": "IdP配置已保存。",
+      "save_error": "IdP配置保存失败。",
+      "reset_success": "已重置为本地数据库。",
+      "reset_error": "IdP配置重置失败。"
     }
   },
   "buttons": {

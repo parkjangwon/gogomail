@@ -146,7 +146,8 @@
     "admin_activity": "Admin Activity",
     "security_posture": "Security Posture",
     "legal_holds": "Legal Holds",
-    "seat_usage": "Seat Usage"
+    "seat_usage": "Seat Usage",
+    "idp_config": "IdP Configuration"
   },
   "dashboard": {
     "title": "Dashboard",
@@ -3006,6 +3007,34 @@
       "no_pending_approvals": "No pending approvals",
       "submit": "Submit",
       "requested_by_hint": "Your name or email"
+    },
+    "idp_config": {
+      "title": "IdP Configuration",
+      "description": "Configure the Identity Provider used for user authentication and directory sync.",
+      "provider_section": "Provider Settings",
+      "provider_type_label": "Provider Type",
+      "provider_type_desc": "Select the directory or identity source for this domain.",
+      "database_hint": "Local database is the default. Users authenticate with stored credentials. No extra configuration required.",
+      "ldap_host": "LDAP Host",
+      "ldap_port": "LDAP Port",
+      "ldap_bind_dn": "Bind DN",
+      "ldap_bind_password": "Bind Password",
+      "ldap_base_dn": "Base DN",
+      "ldap_user_filter": "User Filter",
+      "azure_tenant_id": "Tenant ID",
+      "azure_client_id": "Client ID",
+      "azure_client_secret": "Client Secret",
+      "rdbms_dsn": "DSN (Connection String)",
+      "rdbms_query": "User Query",
+      "rdbms_query_desc": "SQL query returning at minimum an email column and a display name column.",
+      "sync_interval": "Sync Interval (minutes)",
+      "write_only_hint": "Leave blank to keep the existing value.",
+      "save": "Save",
+      "reset_to_database": "Reset to Local Database",
+      "save_success": "IdP configuration saved.",
+      "save_error": "Failed to save IdP configuration.",
+      "reset_success": "Reset to local database.",
+      "reset_error": "Failed to reset IdP configuration."
     }
   },
   "buttons": {
