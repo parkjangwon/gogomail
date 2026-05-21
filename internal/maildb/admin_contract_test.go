@@ -1350,7 +1350,7 @@ func TestListQuotaUsageQueryUsesSargableOptionalFilters(t *testing.T) {
 		"AND domain_id = $3",
 		"AND (quota_used >= quota_limit) = $4::bool",
 		"AND (allocated_quota > quota_limit) = $5::bool",
-		"ORDER BY (quota_used::double precision / quota_limit::double precision) DESC",
+		"ORDER BY (quota_used::double precision / quota_limit::double precision) DESC, updated_at DESC, id DESC",
 		"LIMIT $1",
 	} {
 		if !strings.Contains(query, want) {
