@@ -273,7 +273,10 @@ func (s *Server) ServeConn(conn net.Conn) error {
 	defer conn.Close()
 	reader := bufio.NewReaderSize(conn, 8192)
 	writer := bufio.NewWriter(conn)
+	connCtx, connCancel := context.WithCancel(context.Background())
+	defer connCancel()
 	state := imapConnState{}
+	state.ctx = connCtx
 	_, state.tlsActive = conn.(*tls.Conn)
 
 	// Initial connection tracking (unauth'd)
@@ -595,6 +598,7 @@ func imapLineHasCRLF(line string) bool {
 }
 
 type imapConnState struct {
+	ctx                   context.Context
 	session               *Session
 	selectedMailbox       MailboxID
 	selectedMessages      uint32
@@ -1332,7 +1336,7 @@ func (s *Server) handleSelect(writer *bufio.Writer, tag string, command string, 
 		_, err := writer.WriteString(tag + " NO authentication required\r\n")
 		return false, err
 	}
-	mailboxState, err := s.options.Backend.SelectMailbox(context.Background(), SelectMailboxRequest{
+	mailboxState, err := s.options.Backend.SelectMailbox(state.ctx, SelectMailboxRequest{
 		UserID:    state.session.UserID,
 		MailboxID: MailboxID(mailboxName),
 		ReadOnly:  command == "EXAMINE",
@@ -1345,7 +1349,7 @@ func (s *Server) handleSelect(writer *bufio.Writer, tag string, command string, 
 		_, writeErr := writer.WriteString(tag + " NO " + command + " failed\r\n")
 		return false, writeErr
 	}
-	events, cancel, err := s.options.Backend.Subscribe(context.Background(), state.session.UserID, mailboxState.ID)
+	events, cancel, err := s.options.Backend.Subscribe(state.ctx, state.session.UserID, mailboxState.ID)
 	if err != nil {
 		_, writeErr := writer.WriteString(tag + " NO " + command + " failed\r\n")
 		return false, writeErr
@@ -1366,7 +1370,7 @@ func (s *Server) handleSelect(writer *bufio.Writer, tag string, command string, 
 	if err := writeIMAPUintLine(writer, "* ", uint64(mailboxState.Recent), " RECENT\r\n"); err != nil {
 		return false, err
 	}
-	if unseenSequence := s.firstUnseenSequenceNumber(context.Background(), state.session.UserID, mailboxState); unseenSequence > 0 {
+	if unseenSequence := s.firstUnseenSequenceNumber(state.ctx, state.session.UserID, mailboxState); unseenSequence > 0 {
 		if err := writeIMAPUnseenLine(writer, unseenSequence); err != nil {
 			return false, err
 		}
@@ -1457,7 +1461,7 @@ func (s *Server) handleStatus(writer *bufio.Writer, tag string, fields []string,
 	if imapStatusRequestsItem(statusItems, "HIGHESTMODSEQ") {
 		state.condstoreAware = true
 	}
-	mailbox, err := s.options.Backend.GetMailbox(context.Background(), state.session.UserID, MailboxID(mailboxName))
+	mailbox, err := s.options.Backend.GetMailbox(state.ctx, state.session.UserID, MailboxID(mailboxName))
 	if err != nil {
 		if errors.Is(err, ErrMailboxNotFound) {
 			_, writeErr := writer.WriteString(imapMailboxNotFoundResponse(tag, "STATUS"))
@@ -1491,7 +1495,7 @@ func (s *Server) handleLogin(writer *bufio.Writer, tag string, fields []string, 
 		_, err := writer.WriteString(tag + " NO [PRIVACYREQUIRED] TLS is required for LOGIN\r\n")
 		return false, err
 	}
-	authSession, err := s.options.Backend.Authenticate(context.Background(), fields[2], fields[3])
+	authSession, err := s.options.Backend.Authenticate(state.ctx, fields[2], fields[3])
 	if err != nil {
 		_, writeErr := writer.WriteString(tag + " NO [AUTHENTICATIONFAILED] LOGIN failed\r\n")
 		return false, writeErr
@@ -1664,7 +1668,7 @@ func (s *Server) handleList(writer *bufio.Writer, tag string, fields []string, s
 		_, err := writer.WriteString(tag + " BAD " + command + " mailbox pattern is invalid\r\n")
 		return false, err
 	}
-	mailboxes, err := s.options.Backend.ListMailboxes(context.Background(), ListMailboxesRequest{UserID: state.session.UserID})
+	mailboxes, err := s.options.Backend.ListMailboxes(state.ctx, ListMailboxesRequest{UserID: state.session.UserID})
 	if err != nil {
 		_, writeErr := writer.WriteString(tag + " NO " + command + " failed\r\n")
 		return false, writeErr
@@ -1672,7 +1676,7 @@ func (s *Server) handleList(writer *bufio.Writer, tag string, fields []string, s
 	subscribedNames := map[string]struct{}{}
 	if listOptions.subscribedReturn {
 		var err error
-		subscribedNames, err = s.subscribedMailboxWireNames(context.Background(), state)
+		subscribedNames, err = s.subscribedMailboxWireNames(state.ctx, state)
 		if err != nil {
 			_, writeErr := writer.WriteString(tag + " NO " + command + " failed\r\n")
 			return false, writeErr
@@ -1717,7 +1721,7 @@ func (s *Server) handleList(writer *bufio.Writer, tag string, fields []string, s
 }
 
 func (s *Server) writeSubscribedListResponses(writer *bufio.Writer, tag string, state *imapConnState, patterns []string, command string, listOptions imapListOptions) (bool, error) {
-	subscriptions, err := s.options.Backend.ListSubscribedMailboxes(context.Background(), ListMailboxesRequest{UserID: state.session.UserID})
+	subscriptions, err := s.options.Backend.ListSubscribedMailboxes(state.ctx, ListMailboxesRequest{UserID: state.session.UserID})
 	if err != nil {
 		_, writeErr := writer.WriteString(tag + " NO " + command + " failed\r\n")
 		return false, writeErr
@@ -1848,7 +1852,7 @@ func (s *Server) handleCreate(writer *bufio.Writer, tag string, fields []string,
 		_, err := writer.WriteString(tag + " NO CREATE cannot create INBOX\r\n")
 		return false, err
 	}
-	if _, err := s.options.Backend.CreateMailbox(context.Background(), state.session.UserID, MailboxID(mailboxName)); err != nil {
+	if _, err := s.options.Backend.CreateMailbox(state.ctx, state.session.UserID, MailboxID(mailboxName)); err != nil {
 		_, writeErr := writer.WriteString(tag + " NO CREATE failed\r\n")
 		return false, writeErr
 	}
@@ -1878,7 +1882,7 @@ func (s *Server) handleDeleteMailbox(writer *bufio.Writer, tag string, fields []
 		_, err := writer.WriteString(tag + " NO DELETE cannot delete INBOX\r\n")
 		return false, err
 	}
-	mailbox, err := s.options.Backend.GetMailbox(context.Background(), state.session.UserID, MailboxID(mailboxName))
+	mailbox, err := s.options.Backend.GetMailbox(state.ctx, state.session.UserID, MailboxID(mailboxName))
 	if err != nil {
 		if errors.Is(err, ErrMailboxNotFound) {
 			_, writeErr := writer.WriteString(imapMailboxNotFoundResponse(tag, "DELETE"))
@@ -1887,7 +1891,7 @@ func (s *Server) handleDeleteMailbox(writer *bufio.Writer, tag string, fields []
 		_, writeErr := writer.WriteString(tag + " NO DELETE failed\r\n")
 		return false, writeErr
 	}
-	if err := s.options.Backend.DeleteMailbox(context.Background(), state.session.UserID, mailbox.ID); err != nil {
+	if err := s.options.Backend.DeleteMailbox(state.ctx, state.session.UserID, mailbox.ID); err != nil {
 		if errors.Is(err, ErrMailboxNotFound) {
 			_, writeErr := writer.WriteString(imapMailboxNotFoundResponse(tag, "DELETE"))
 			return false, writeErr
@@ -1929,7 +1933,7 @@ func (s *Server) handleRenameMailbox(writer *bufio.Writer, tag string, fields []
 		_, err := writer.WriteString(tag + " NO RENAME cannot rename to INBOX\r\n")
 		return false, err
 	}
-	mailbox, err := s.options.Backend.GetMailbox(context.Background(), state.session.UserID, MailboxID(sourceName))
+	mailbox, err := s.options.Backend.GetMailbox(state.ctx, state.session.UserID, MailboxID(sourceName))
 	if err != nil {
 		if errors.Is(err, ErrMailboxNotFound) {
 			_, writeErr := writer.WriteString(imapMailboxNotFoundResponse(tag, "RENAME"))
@@ -1938,7 +1942,7 @@ func (s *Server) handleRenameMailbox(writer *bufio.Writer, tag string, fields []
 		_, writeErr := writer.WriteString(tag + " NO RENAME failed\r\n")
 		return false, writeErr
 	}
-	renamed, err := s.options.Backend.RenameMailbox(context.Background(), state.session.UserID, mailbox.ID, MailboxID(destName))
+	renamed, err := s.options.Backend.RenameMailbox(state.ctx, state.session.UserID, mailbox.ID, MailboxID(destName))
 	if err != nil {
 		if errors.Is(err, ErrMailboxNotFound) {
 			_, writeErr := writer.WriteString(imapMailboxNotFoundResponse(tag, "RENAME"))
@@ -1952,7 +1956,7 @@ func (s *Server) handleRenameMailbox(writer *bufio.Writer, tag string, fields []
 		state.selectedMailbox = renamed.ID
 		state.selectedHighestModSeq = renamed.HighestModSeq
 		state.selectedNoModSeq = renamed.HighestModSeq == 0 && state.condstoreAware
-		if events, cancel, err := s.options.Backend.Subscribe(context.Background(), state.session.UserID, renamed.ID); err == nil {
+		if events, cancel, err := s.options.Backend.Subscribe(state.ctx, state.session.UserID, renamed.ID); err == nil {
 			state.events = events
 			state.cancelEvents = cancel
 		}
@@ -1989,9 +1993,9 @@ func (s *Server) handleSubscriptionCommand(writer *bufio.Writer, tag string, fie
 		return false, err
 	}
 	if command == "SUBSCRIBE" {
-		_, err = s.options.Backend.SubscribeMailbox(context.Background(), state.session.UserID, MailboxID(mailboxName))
+		_, err = s.options.Backend.SubscribeMailbox(state.ctx, state.session.UserID, MailboxID(mailboxName))
 	} else {
-		err = s.options.Backend.UnsubscribeMailbox(context.Background(), state.session.UserID, MailboxID(mailboxName))
+		err = s.options.Backend.UnsubscribeMailbox(state.ctx, state.session.UserID, MailboxID(mailboxName))
 	}
 	if err != nil {
 		_, writeErr := writer.WriteString(tag + " NO " + command + " failed\r\n")
@@ -2154,7 +2158,7 @@ func (s *Server) writeMailboxEvent(writer *bufio.Writer, state *imapConnState, e
 		state.removeExpungedFromSavedSearch([]MessageSummary{{SequenceNumber: sequenceNumber}})
 		return writeIMAPUintLine(writer, "* ", uint64(sequenceNumber), " EXPUNGE\r\n")
 	case MailboxEventFlags:
-		message, err := s.options.Backend.FetchMessage(context.Background(), FetchMessageRequest{
+		message, err := s.options.Backend.FetchMessage(state.ctx, FetchMessageRequest{
 			UserID:    state.session.UserID,
 			MailboxID: state.selectedMailbox,
 			UID:       event.UID,
@@ -2231,7 +2235,7 @@ func (s *Server) completeAuthenticatePlain(writer *bufio.Writer, tag string, val
 		_, err := writer.WriteString(tag + " BAD AUTHENTICATE PLAIN response is malformed\r\n")
 		return false, err
 	}
-	authSession, err := s.options.Backend.Authenticate(context.Background(), username, password)
+	authSession, err := s.options.Backend.Authenticate(state.ctx, username, password)
 	if err != nil {
 		_, writeErr := writer.WriteString(tag + " NO [AUTHENTICATIONFAILED] AUTHENTICATE failed\r\n")
 		return false, writeErr
@@ -2550,7 +2554,7 @@ func (s *Server) handleSearch(writer *bufio.Writer, tag string, fields []string,
 		_, err := writer.WriteString(tag + " NO mailbox must be selected\r\n")
 		return false, err
 	}
-	messages, err := s.options.Backend.ListMessages(context.Background(), ListMessagesRequest{
+	messages, err := s.options.Backend.ListMessages(state.ctx, ListMessagesRequest{
 		UserID:    state.session.UserID,
 		MailboxID: state.selectedMailbox,
 		Limit:     int(state.selectedMessages),
@@ -2569,7 +2573,7 @@ func (s *Server) handleSearch(writer *bufio.Writer, tag string, fields []string,
 		}
 		state.condstoreAware = true
 	}
-	results, highestModSeq, ok, err := s.imapSearchResults(context.Background(), state, criteria, messages, uidMode, requestsModSeq)
+	results, highestModSeq, ok, err := s.imapSearchResults(state.ctx, state, criteria, messages, uidMode, requestsModSeq)
 	if err != nil {
 		if returnOptions.save {
 			state.savedSearch = nil
@@ -2647,7 +2651,7 @@ func (s *Server) handleSort(writer *bufio.Writer, tag string, fields []string, s
 		_, err := writer.WriteString(tag + " NO mailbox must be selected\r\n")
 		return false, err
 	}
-	messages, err := s.options.Backend.ListMessages(context.Background(), ListMessagesRequest{
+	messages, err := s.options.Backend.ListMessages(state.ctx, ListMessagesRequest{
 		UserID:    state.session.UserID,
 		MailboxID: state.selectedMailbox,
 		Limit:     int(state.selectedMessages),
@@ -2666,7 +2670,7 @@ func (s *Server) handleSort(writer *bufio.Writer, tag string, fields []string, s
 		}
 		state.condstoreAware = true
 	}
-	results, _, ok, err := s.imapSearchResults(context.Background(), state, searchFields, messages, uidMode, false)
+	results, _, ok, err := s.imapSearchResults(state.ctx, state, searchFields, messages, uidMode, false)
 	if err != nil {
 		if save {
 			state.savedSearch = nil
@@ -2743,7 +2747,7 @@ func (s *Server) handleThread(writer *bufio.Writer, tag string, fields []string,
 		_, err := writer.WriteString(tag + " NO mailbox must be selected\r\n")
 		return false, err
 	}
-	messages, err := s.options.Backend.ListMessages(context.Background(), ListMessagesRequest{
+	messages, err := s.options.Backend.ListMessages(state.ctx, ListMessagesRequest{
 		UserID:    state.session.UserID,
 		MailboxID: state.selectedMailbox,
 		Limit:     int(state.selectedMessages),
@@ -2762,7 +2766,7 @@ func (s *Server) handleThread(writer *bufio.Writer, tag string, fields []string,
 		}
 		state.condstoreAware = true
 	}
-	results, _, ok, err := s.imapSearchResults(context.Background(), state, searchFields, messages, uidMode, false)
+	results, _, ok, err := s.imapSearchResults(state.ctx, state, searchFields, messages, uidMode, false)
 	if err != nil {
 		if save {
 			state.savedSearch = nil
@@ -4600,7 +4604,7 @@ func (s *Server) handleUIDFetch(writer *bufio.Writer, tag string, fields []strin
 		_, err := writer.WriteString(tag + " BAD UID FETCH requires UID set and data items\r\n")
 		return false, err
 	}
-	uids, ok, err := s.uidsForUIDSet(context.Background(), state, fields[3])
+	uids, ok, err := s.uidsForUIDSet(state.ctx, state, fields[3])
 	if err != nil {
 		_, writeErr := writer.WriteString(tag + " NO UID FETCH failed\r\n")
 		return false, writeErr
@@ -4626,7 +4630,7 @@ func (s *Server) handleUIDCopy(writer *bufio.Writer, tag string, fields []string
 		_, err := writer.WriteString(tag + " BAD UID COPY destination mailbox name is empty\r\n")
 		return false, err
 	}
-	uids, ok, err := s.uidsForUIDSet(context.Background(), state, fields[3])
+	uids, ok, err := s.uidsForUIDSet(state.ctx, state, fields[3])
 	if err != nil {
 		_, writeErr := writer.WriteString(tag + " NO UID COPY failed\r\n")
 		return false, writeErr
@@ -4652,7 +4656,7 @@ func (s *Server) handleUIDMove(writer *bufio.Writer, tag string, fields []string
 		_, err := writer.WriteString(tag + " BAD UID MOVE destination mailbox name is empty\r\n")
 		return false, err
 	}
-	uids, ok, err := s.uidsForUIDSet(context.Background(), state, fields[3])
+	uids, ok, err := s.uidsForUIDSet(state.ctx, state, fields[3])
 	if err != nil {
 		_, writeErr := writer.WriteString(tag + " NO UID MOVE failed\r\n")
 		return false, writeErr
@@ -4673,7 +4677,7 @@ func (s *Server) handleUIDExpunge(writer *bufio.Writer, tag string, fields []str
 		_, err := writer.WriteString(tag + " BAD UID EXPUNGE requires UID set\r\n")
 		return false, err
 	}
-	uids, ok, err := s.uidsForUIDSet(context.Background(), state, fields[3])
+	uids, ok, err := s.uidsForUIDSet(state.ctx, state, fields[3])
 	if err != nil {
 		_, writeErr := writer.WriteString(tag + " NO UID EXPUNGE failed\r\n")
 		return false, writeErr
@@ -4715,7 +4719,7 @@ func (s *Server) handleFetch(writer *bufio.Writer, tag string, fields []string, 
 		_, err := writer.WriteString(tag + " BAD FETCH requires a valid message sequence set\r\n")
 		return false, err
 	}
-	uids, err := s.uidsForSequenceNumbers(context.Background(), state, sequenceNumbers)
+	uids, err := s.uidsForSequenceNumbers(state.ctx, state, sequenceNumbers)
 	if err != nil {
 		_, writeErr := writer.WriteString(tag + " NO FETCH failed\r\n")
 		return false, writeErr
@@ -4754,7 +4758,7 @@ func (s *Server) handleCopy(writer *bufio.Writer, tag string, fields []string, s
 		_, err := writer.WriteString(tag + " BAD COPY requires a valid message sequence set\r\n")
 		return false, err
 	}
-	uids, err := s.uidsForSequenceNumbers(context.Background(), state, sequenceNumbers)
+	uids, err := s.uidsForSequenceNumbers(state.ctx, state, sequenceNumbers)
 	if err != nil {
 		_, writeErr := writer.WriteString(tag + " NO COPY failed\r\n")
 		return false, writeErr
@@ -4797,7 +4801,7 @@ func (s *Server) handleMove(writer *bufio.Writer, tag string, fields []string, s
 		_, err := writer.WriteString(tag + " NO mailbox is read-only\r\n")
 		return false, err
 	}
-	uids, err := s.uidsForSequenceNumbers(context.Background(), state, sequenceNumbers)
+	uids, err := s.uidsForSequenceNumbers(state.ctx, state, sequenceNumbers)
 	if err != nil {
 		_, writeErr := writer.WriteString(tag + " NO MOVE failed\r\n")
 		return false, writeErr
@@ -4832,7 +4836,7 @@ func (s *Server) handleAppend(writer *bufio.Writer, tag string, fields []string,
 		_, err := writer.WriteString(tag + " NO authentication required\r\n")
 		return false, err
 	}
-	mailbox, err := s.options.Backend.GetMailbox(context.Background(), state.session.UserID, MailboxID(mailboxName))
+	mailbox, err := s.options.Backend.GetMailbox(state.ctx, state.session.UserID, MailboxID(mailboxName))
 	if err != nil {
 		if errors.Is(err, ErrMailboxNotFound) {
 			_, writeErr := writer.WriteString(tag + " NO [TRYCREATE] APPEND mailbox does not exist\r\n")
@@ -4846,7 +4850,7 @@ func (s *Server) handleAppend(writer *bufio.Writer, tag string, fields []string,
 		return false, err
 	}
 	body := literals[len(literals)-1]
-	result, err := s.options.Backend.AppendMessage(context.Background(), AppendMessageRequest{
+	result, err := s.options.Backend.AppendMessage(state.ctx, AppendMessageRequest{
 		UserID:       state.session.UserID,
 		MailboxID:    mailbox.ID,
 		Flags:        flags,
@@ -5024,7 +5028,7 @@ func imapASCIILower(value byte) byte {
 
 func (s *Server) handleClose(writer *bufio.Writer, tag string, state *imapConnState) (bool, error) {
 	if !state.readOnly {
-		if _, err := s.options.Backend.Expunge(context.Background(), ExpungeRequest{
+		if _, err := s.options.Backend.Expunge(state.ctx, ExpungeRequest{
 			UserID:    state.session.UserID,
 			MailboxID: state.selectedMailbox,
 		}); err != nil {
@@ -5038,7 +5042,7 @@ func (s *Server) handleClose(writer *bufio.Writer, tag string, state *imapConnSt
 }
 
 func (s *Server) writeCopyResponse(writer *bufio.Writer, tag string, state *imapConnState, uids []UID, destMailboxID MailboxID, completionCommand string) (bool, error) {
-	destMailbox, err := s.options.Backend.GetMailbox(context.Background(), state.session.UserID, destMailboxID)
+	destMailbox, err := s.options.Backend.GetMailbox(state.ctx, state.session.UserID, destMailboxID)
 	if err != nil {
 		if errors.Is(err, ErrMailboxNotFound) {
 			_, writeErr := writer.WriteString(tag + " NO [TRYCREATE] " + completionCommand + " destination mailbox does not exist\r\n")
@@ -5051,7 +5055,7 @@ func (s *Server) writeCopyResponse(writer *bufio.Writer, tag string, state *imap
 		_, err := writer.WriteString(tag + " OK " + completionCommand + " completed\r\n")
 		return false, err
 	}
-	results, err := s.options.Backend.CopyMessages(context.Background(), CopyMessagesRequest{
+	results, err := s.options.Backend.CopyMessages(state.ctx, CopyMessagesRequest{
 		UserID:          state.session.UserID,
 		SourceMailboxID: state.selectedMailbox,
 		DestMailboxID:   destMailbox.ID,
@@ -5086,7 +5090,7 @@ func (s *Server) writeMoveResponse(writer *bufio.Writer, tag string, state *imap
 		_, err := writer.WriteString(tag + " OK " + completionCommand + " completed\r\n")
 		return false, err
 	}
-	destMailbox, err := s.options.Backend.GetMailbox(context.Background(), state.session.UserID, destMailboxID)
+	destMailbox, err := s.options.Backend.GetMailbox(state.ctx, state.session.UserID, destMailboxID)
 	if err != nil {
 		if errors.Is(err, ErrMailboxNotFound) {
 			_, writeErr := writer.WriteString(tag + " NO [TRYCREATE] " + completionCommand + " destination mailbox does not exist\r\n")
@@ -5095,7 +5099,7 @@ func (s *Server) writeMoveResponse(writer *bufio.Writer, tag string, state *imap
 		_, writeErr := writer.WriteString(tag + " NO " + completionCommand + " failed\r\n")
 		return false, writeErr
 	}
-	summaries, err := s.options.Backend.MoveMessages(context.Background(), MoveMessagesRequest{
+	summaries, err := s.options.Backend.MoveMessages(state.ctx, MoveMessagesRequest{
 		UserID:          state.session.UserID,
 		SourceMailboxID: state.selectedMailbox,
 		DestMailboxID:   destMailbox.ID,
@@ -5135,7 +5139,7 @@ func (s *Server) writeExpungeResponses(writer *bufio.Writer, tag string, state *
 		_, err := writer.WriteString(tag + " OK " + completionCommand + " completed\r\n")
 		return false, err
 	}
-	summaries, err := s.options.Backend.Expunge(context.Background(), ExpungeRequest{
+	summaries, err := s.options.Backend.Expunge(state.ctx, ExpungeRequest{
 		UserID:    state.session.UserID,
 		MailboxID: state.selectedMailbox,
 		UIDs:      uids,
@@ -5447,7 +5451,7 @@ func (s *Server) writeFetchResponses(writer *bufio.Writer, tag string, items []s
 			MailboxID: state.selectedMailbox,
 			UID:       uid,
 		}
-		message, err := s.options.Backend.FetchMessage(context.Background(), fetchReq)
+		message, err := s.options.Backend.FetchMessage(state.ctx, fetchReq)
 		if err != nil {
 			_, writeErr := writer.WriteString(tag + " NO " + completionCommand + " failed\r\n")
 			return false, writeErr
@@ -5471,7 +5475,7 @@ func (s *Server) writeFetchResponses(writer *bufio.Writer, tag string, items []s
 			structureMessage := message
 			if requestsLiteral {
 				var err error
-				structureMessage, err = s.options.Backend.FetchMessage(context.Background(), fetchReq)
+				structureMessage, err = s.options.Backend.FetchMessage(state.ctx, fetchReq)
 				if err != nil {
 					structureMessage = Message{}
 				}
@@ -5527,7 +5531,7 @@ func (s *Server) writeFetchResponses(writer *bufio.Writer, tag string, items []s
 			}
 			if setsSeen {
 				var err error
-				summary, err = s.markFetchSeen(context.Background(), state, summary)
+				summary, err = s.markFetchSeen(state.ctx, state, summary)
 				if err != nil {
 					_ = body.Close()
 					_, writeErr := writer.WriteString(tag + " NO " + completionCommand + " failed\r\n")
@@ -7773,7 +7777,7 @@ func (s *Server) handleUIDStore(writer *bufio.Writer, tag string, fields []strin
 		_, err := writer.WriteString(tag + " BAD UID STORE requires UID, mode, and flags\r\n")
 		return false, err
 	}
-	uids, ok, err := s.uidsForUIDSet(context.Background(), state, fields[3])
+	uids, ok, err := s.uidsForUIDSet(state.ctx, state, fields[3])
 	if err != nil {
 		_, writeErr := writer.WriteString(tag + " NO UID STORE failed\r\n")
 		return false, writeErr
@@ -7863,7 +7867,7 @@ func (s *Server) handleStore(writer *bufio.Writer, tag string, fields []string, 
 		_, err := writer.WriteString(tag + " NO STORE flags are not permitted\r\n")
 		return false, err
 	}
-	uids, err := s.uidsForSequenceNumbers(context.Background(), state, sequenceNumbers)
+	uids, err := s.uidsForSequenceNumbers(state.ctx, state, sequenceNumbers)
 	if err != nil {
 		_, writeErr := writer.WriteString(tag + " NO STORE failed\r\n")
 		return false, writeErr
@@ -7893,7 +7897,7 @@ func (s *Server) writeStoreResponses(writer *bufio.Writer, tag string, state *im
 		_, err := writer.WriteString(tag + " OK " + completionCommand + " completed\r\n")
 		return false, err
 	}
-	summaries, err := s.options.Backend.StoreFlags(context.Background(), StoreFlagsRequest{
+	summaries, err := s.options.Backend.StoreFlags(state.ctx, StoreFlagsRequest{
 		UserID:            state.session.UserID,
 		MailboxID:         state.selectedMailbox,
 		UIDs:              uids,
@@ -7910,7 +7914,7 @@ func (s *Server) writeStoreResponses(writer *bufio.Writer, tag string, state *im
 			if err := s.writeStoreFetchResponses(writer, tag, successfulSummaries, state.condstoreAware, completionCommand); err != nil {
 				return false, err
 			}
-			modifiedSet, err := s.storeModifiedSetResponse(context.Background(), state, modified.UIDs, completionCommand == "UID STORE")
+			modifiedSet, err := s.storeModifiedSetResponse(state.ctx, state, modified.UIDs, completionCommand == "UID STORE")
 			if err != nil {
 				_, writeErr := writer.WriteString(tag + " NO " + completionCommand + " failed\r\n")
 				return false, writeErr
