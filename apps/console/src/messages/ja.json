@@ -32,6 +32,9 @@
     "disabled": "無効",
     "yes": "はい",
     "no": "いいえ",
+    "status": "ステータス",
+    "confirm": "確認",
+    "done": "完了",
     "confirm_delete": "この項目を削除しますか？"
   },
   "alerts": {
@@ -232,7 +235,24 @@
     "theme": "テーマ"
   },
   "security": {
-    "api_keys": "APIキー"
+    "api_keys": "APIキー",
+    "settings": {
+      "mfa_header": "二要素認証 (MFA)",
+      "not_enabled": "未有効",
+      "enable_mfa": "MFAを有効化",
+      "disable_mfa": "MFAを無効化",
+      "disable_confirm": "MFAを無効化しますか？次回ログインから追加認証は求められません。",
+      "mfa_setup_failed": "MFA設定を開始できませんでした",
+      "invalid_code": "コードが正しくありません。もう一度お試しください。",
+      "setup_instructions": "認証アプリでQRコードをスキャンし、6桁のコードを入力して確認してください。",
+      "qr_alt": "TOTP QRコード",
+      "secret_label": "シークレット",
+      "confirmation_code": "確認コード",
+      "confirmation_desc": "認証アプリに表示された6桁のコードを入力してください",
+      "enabled_success": "MFAが有効になりました。",
+      "recovery_codes": "リカバリーコード",
+      "recovery_desc": "認証アプリにアクセスできない場合、各コードを一度だけ使用できます。安全な場所に保存してください。"
+    }
   },
   "forms": {
     "submit": "送信",

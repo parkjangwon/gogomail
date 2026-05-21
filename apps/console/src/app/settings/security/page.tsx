@@ -13,12 +13,14 @@ import {
   FormField,
   Alert,
 } from '@cloudscape-design/components';
+import { useI18n } from '@/app/i18n-provider';
 
 type MFAStatus = { enabled: boolean };
 type SetupData = { secret: string; qr_image: string; recovery_codes: string[] };
 type View = 'idle' | 'setup' | 'codes';
 
 export default function SecurityPage() {
+  const { t } = useI18n();
   const [status, setStatus] = useState<MFAStatus | null>(null);
   const [view, setView] = useState<View>('idle');
   const [setupData, setSetupData] = useState<SetupData | null>(null);
@@ -47,7 +49,7 @@ export default function SecurityPage() {
         body: JSON.stringify({}),
       });
       if (!res.ok) {
-        setError('Failed to start MFA setup');
+        setError(t('security.settings.mfa_setup_failed'));
         return;
       }
       const data = await res.json() as SetupData;
@@ -70,7 +72,7 @@ export default function SecurityPage() {
         body: JSON.stringify({ code: confirmCode }),
       });
       if (!res.ok) {
-        setError('Invalid code — try again');
+        setError(t('security.settings.invalid_code'));
         return;
       }
       localStorage.removeItem('console_mfa_setup_required');
@@ -82,7 +84,7 @@ export default function SecurityPage() {
   }
 
   async function disableMFA() {
-    if (!confirm('Disable MFA? You will no longer be challenged at login.')) return;
+    if (!confirm(t('security.settings.disable_confirm'))) return;
     setLoading(true);
     setError('');
     try {
@@ -96,7 +98,7 @@ export default function SecurityPage() {
 
   const renderContent = () => {
     if (status === null) {
-      return <StatusIndicator type="loading">Loading…</StatusIndicator>;
+      return <StatusIndicator type="loading">{t('common.loading')}</StatusIndicator>;
     }
 
     if (view === 'idle') {
@@ -104,17 +106,17 @@ export default function SecurityPage() {
         <SpaceBetween size="m">
           <ColumnLayout columns={2}>
             <div>
-              <Box variant="awsui-key-label">Status</Box>
+              <Box variant="awsui-key-label">{t('common.status')}</Box>
               <StatusIndicator type={status.enabled ? 'success' : 'stopped'}>
-                {status.enabled ? 'Enabled' : 'Not enabled'}
+                {status.enabled ? t('common.enabled') : t('security.settings.not_enabled')}
               </StatusIndicator>
             </div>
           </ColumnLayout>
           {error && <Alert type="error" onDismiss={() => setError('')} dismissible>{error}</Alert>}
           {status.enabled ? (
-            <Button onClick={disableMFA} loading={loading}>Disable MFA</Button>
+            <Button onClick={disableMFA} loading={loading}>{t('security.settings.disable_mfa')}</Button>
           ) : (
-            <Button variant="primary" onClick={startSetup} loading={loading}>Enable MFA</Button>
+            <Button variant="primary" onClick={startSetup} loading={loading}>{t('security.settings.enable_mfa')}</Button>
           )}
         </SpaceBetween>
       );
@@ -123,11 +125,11 @@ export default function SecurityPage() {
     if (view === 'setup' && setupData) {
       return (
         <SpaceBetween size="m">
-          <Box>Scan this QR code with your authenticator app, then enter the 6-digit code to confirm.</Box>
+          <Box>{t('security.settings.setup_instructions')}</Box>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={setupData.qr_image} alt="TOTP QR code" width={180} height={180} />
-          <Box variant="code">Secret: {setupData.secret}</Box>
-          <FormField label="Confirmation code" description="Enter the 6-digit code from your authenticator app">
+          <img src={setupData.qr_image} alt={t('security.settings.qr_alt')} width={180} height={180} />
+          <Box variant="code">{t('security.settings.secret_label')}: {setupData.secret}</Box>
+          <FormField label={t('security.settings.confirmation_code')} description={t('security.settings.confirmation_desc')}>
             <Input
               value={confirmCode}
               onChange={({ detail }) => setConfirmCode(detail.value)}
@@ -138,8 +140,8 @@ export default function SecurityPage() {
           </FormField>
           {error && <Alert type="error" onDismiss={() => setError('')} dismissible>{error}</Alert>}
           <SpaceBetween direction="horizontal" size="xs">
-            <Button onClick={() => { setView('idle'); setError(''); setConfirmCode(''); }}>Cancel</Button>
-            <Button variant="primary" onClick={confirmSetup} loading={loading}>Confirm</Button>
+            <Button onClick={() => { setView('idle'); setError(''); setConfirmCode(''); }}>{t('common.cancel')}</Button>
+            <Button variant="primary" onClick={confirmSetup} loading={loading}>{t('common.confirm')}</Button>
           </SpaceBetween>
         </SpaceBetween>
       );
@@ -148,15 +150,15 @@ export default function SecurityPage() {
     if (view === 'codes' && setupData) {
       return (
         <SpaceBetween size="m">
-          <Alert type="success">MFA enabled successfully.</Alert>
-          <Box variant="h3">Recovery codes</Box>
-          <Box>Each code can be used once if you lose access to your authenticator. Save these somewhere safe.</Box>
+          <Alert type="success">{t('security.settings.enabled_success')}</Alert>
+          <Box variant="h3">{t('security.settings.recovery_codes')}</Box>
+          <Box>{t('security.settings.recovery_desc')}</Box>
           <SpaceBetween size="xs">
             {setupData.recovery_codes.map((c) => (
               <Box key={c} variant="code">{c}</Box>
             ))}
           </SpaceBetween>
-          <Button onClick={() => setView('idle')}>Done</Button>
+          <Button onClick={() => setView('idle')}>{t('common.done')}</Button>
         </SpaceBetween>
       );
     }
@@ -166,8 +168,8 @@ export default function SecurityPage() {
 
   return (
     <SpaceBetween size="l">
-      <Header variant="h1">Security</Header>
-      <Container header={<Header variant="h2">Two-factor authentication (MFA)</Header>}>
+      <Header variant="h1">{t('nav.security')}</Header>
+      <Container header={<Header variant="h2">{t('security.settings.mfa_header')}</Header>}>
         {renderContent()}
       </Container>
     </SpaceBetween>
