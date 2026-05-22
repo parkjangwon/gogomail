@@ -96,3 +96,5 @@ apps/*/tsconfig.tsbuildinfo
 .crew/artifacts/
 .crew/worktrees/
 .crew/imports/
+
+.codegraph/
