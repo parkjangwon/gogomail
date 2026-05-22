@@ -1460,29 +1460,52 @@ WHERE user_id = $1::uuid
 		return nil, fmt.Errorf("move imap messages: %w", err)
 	}
 
+	destUIDValues := make([]int64, len(sourceSummaries))
+	destModSeqValues := make([]int64, len(sourceSummaries))
+	for i := range sourceSummaries {
+		destUIDValues[i] = int64(destState.uidNext + imapgw.UID(i))
+		destModSeqValues[i] = int64(destState.highestModSeq + uint64(i) + 1)
+	}
+	const bulkUpdateUID = `
+UPDATE imap_message_uid AS t
+SET mailbox_id = $3::uuid,
+    uid = u.new_uid,
+    modseq = u.new_modseq,
+    updated_at = now()
+FROM unnest($4::uuid[], $5::bigint[], $6::bigint[])
+  WITH ORDINALITY AS u(message_id, new_uid, new_modseq, ord)
+WHERE t.message_id = u.message_id
+  AND t.user_id = $1::uuid
+  AND t.mailbox_id = $2::uuid`
+	res, err := tx.ExecContext(ctx, bulkUpdateUID,
+		userID,
+		sourceMailboxID,
+		destMailboxID,
+		pq.Array(messageIDs),
+		pq.Array(destUIDValues),
+		pq.Array(destModSeqValues),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("move imap message uid: %w", err)
+	}
+	if affected, err := res.RowsAffected(); err != nil {
+		return nil, fmt.Errorf("read moved imap uid count: %w", err)
+	} else if affected != int64(len(messageIDs)) {
+		return nil, fmt.Errorf("move imap message uid affected %d rows (expected %d)", affected, len(messageIDs))
+	}
+
+	// Compute sequence numbers for all moved UIDs in the destination mailbox in
+	// a single window-function query.
+	destSequenceNumbers, err := imapSequenceNumbersForUIDs(ctx, tx, userID, destMailboxID, destUIDValues)
+	if err != nil {
+		return nil, err
+	}
+
 	results := make([]imapgw.MoveMessageResult, 0, len(sourceSummaries))
 	for i, source := range sourceSummaries {
 		sourceHighestModSeq := sourceState.highestModSeq + uint64(i) + 1
-		destUID := destState.uidNext + imapgw.UID(i)
-		destModSeq := destState.highestModSeq + uint64(i) + 1
-		const updateUID = `
-UPDATE imap_message_uid
-SET mailbox_id = $4::uuid,
-    uid = $5,
-    modseq = $6,
-    updated_at = now()
-WHERE message_id = $1::uuid
-  AND user_id = $2::uuid
-  AND mailbox_id = $3::uuid`
-		res, err := tx.ExecContext(ctx, updateUID, string(source.ID), userID, sourceMailboxID, destMailboxID, int64(destUID), int64(destModSeq))
-		if err != nil {
-			return nil, fmt.Errorf("move imap message uid: %w", err)
-		}
-		if affected, err := res.RowsAffected(); err != nil {
-			return nil, fmt.Errorf("read moved imap uid count: %w", err)
-		} else if affected != 1 {
-			return nil, fmt.Errorf("move imap message uid affected %d rows", affected)
-		}
+		destUID := imapgw.UID(destUIDValues[i])
+		destModSeq := uint64(destModSeqValues[i])
 
 		destUIDRecord := IMAPMessageUID{
 			MessageID: imapgw.MessageID(sourceRows[i].ID),
@@ -1493,9 +1516,9 @@ WHERE message_id = $1::uuid
 		destRow := sourceRows[i]
 		destRow.MailboxID = destMailboxID
 		destination := imapMessageFromRow(destRow, destUIDRecord)
-		sequenceNumber, err := imapSequenceNumberForUID(ctx, tx, userID, destMailboxID, destUID)
-		if err != nil {
-			return nil, err
+		sequenceNumber, ok := destSequenceNumbers[int64(destUID)]
+		if !ok {
+			return nil, fmt.Errorf("imap sequence number unavailable for uid %d", destUID)
 		}
 		destination.SequenceNumber = sequenceNumber
 		results = append(results, imapgw.MoveMessageResult{Source: source, Destination: destination, SourceHighestModSeq: sourceHighestModSeq})
@@ -2680,6 +2703,55 @@ WHERE i.user_id = $1::uuid
 		return 0, fmt.Errorf("imap sequence number unavailable for uid %d", uid)
 	}
 	return uint32(count), nil
+}
+
+// imapSequenceNumbersForUIDs returns the IMAP sequence numbers for the given
+// UIDs in a single query using a window function.  The returned map is keyed by
+// UID (as int64).  All requested UIDs must exist in the mailbox; missing UIDs
+// are reported via the absence of a map entry — callers must check `ok` when
+// looking up values.
+func imapSequenceNumbersForUIDs(ctx context.Context, querier interface {
+	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
+}, userID string, mailboxID string, uids []int64) (map[int64]uint32, error) {
+	if len(uids) == 0 {
+		return map[int64]uint32{}, nil
+	}
+	const query = `
+SELECT uid, seq
+FROM (
+  SELECT
+    i.uid,
+    row_number() OVER (ORDER BY i.uid) AS seq
+  FROM imap_message_uid i
+  JOIN messages m ON m.id = i.message_id
+  WHERE i.user_id = $1::uuid
+    AND i.mailbox_id = $2::uuid
+    AND m.user_id = $1::uuid
+    AND m.folder_id = $2::uuid
+    AND m.status = 'active'
+) ranked
+WHERE uid = ANY($3::bigint[])`
+	rows, err := querier.QueryContext(ctx, query, userID, mailboxID, pq.Array(uids))
+	if err != nil {
+		return nil, fmt.Errorf("get imap sequence numbers: %w", err)
+	}
+	defer rows.Close()
+	out := make(map[int64]uint32, len(uids))
+	for rows.Next() {
+		var uid int64
+		var seq int64
+		if err := rows.Scan(&uid, &seq); err != nil {
+			return nil, fmt.Errorf("scan imap sequence number: %w", err)
+		}
+		if seq <= 0 || seq > math.MaxUint32 {
+			return nil, fmt.Errorf("imap sequence number unavailable for uid %d", uid)
+		}
+		out[uid] = uint32(seq)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate imap sequence numbers: %w", err)
+	}
+	return out, nil
 }
 
 func imapSequenceBaseForAfterUID(ctx context.Context, querier imapSequenceQuerier, userID string, mailboxID string, afterUID imapgw.UID) (uint32, error) {

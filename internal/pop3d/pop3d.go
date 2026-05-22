@@ -138,7 +138,7 @@ func (s *Server) handleConn(conn net.Conn) {
 	if idle == 0 {
 		idle = 30 * time.Minute
 	}
-	conn.SetDeadline(time.Now().Add(idle))
+	_ = conn.SetDeadline(time.Now().Add(idle))
 
 	sess := &session{
 		server:    s,
@@ -166,7 +166,7 @@ func (s *Server) handleConn(conn net.Conn) {
 			return
 		}
 		line = strings.TrimRight(line, "\r\n")
-		conn.SetDeadline(time.Now().Add(idle))
+		_ = conn.SetDeadline(time.Now().Add(idle))
 		sess.handleCommand(line)
 	}
 }
