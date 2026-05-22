@@ -169,6 +169,20 @@ type Receiver struct {
 	bulkSenderLimiter  *BulkSenderLimiter
 	latencyTracker     *LatencyTracker
 	authFailures       *authFailureTracker
+	// baseCtx is the parent context for all sessions created by NewSession.
+	// When set via SetBaseContext (e.g. wired to the server's shutdown ctx),
+	// in-flight session work is cancelled when the server starts shutting down.
+	baseCtx context.Context
+}
+
+// SetBaseContext sets the parent context for all subsequently-created sessions.
+// Pass the server's lifecycle/shutdown context so in-flight sessions are
+// notified when the server begins shutting down.
+func (r *Receiver) SetBaseContext(ctx context.Context) {
+	if ctx == nil {
+		return
+	}
+	r.baseCtx = ctx
 }
 
 func NewReceiver(opts ReceiverOptions) *Receiver {
@@ -213,7 +227,11 @@ func (r *Receiver) NewSession(conn *gosmtp.Conn) (gosmtp.Session, error) {
 	if r.resolver == nil {
 		return nil, fmt.Errorf("smtp receiver resolver is required")
 	}
-	ctx, cancel := context.WithCancel(context.Background())
+	parent := r.baseCtx
+	if parent == nil {
+		parent = context.Background()
+	}
+	ctx, cancel := context.WithCancel(parent)
 	return &session{receiver: r, remoteAddr: remoteAddrFromConn(conn), ctx: ctx, cancel: cancel, startedAt: time.Now()}, nil
 }
 
@@ -788,9 +806,14 @@ func (s *session) Logout() error {
 		Duration: dur,
 	})
 	// Cancel the current context (signals any in-flight work to stop),
-	// then replace it so the session remains usable if reused.
+	// then replace it so the session remains usable if reused. Parent on the
+	// receiver's base context so shutdown still propagates to the replacement.
 	s.cancel()
-	s.ctx, s.cancel = context.WithCancel(context.Background())
+	parent := s.receiver.baseCtx
+	if parent == nil {
+		parent = context.Background()
+	}
+	s.ctx, s.cancel = context.WithCancel(parent)
 	return nil
 }
 

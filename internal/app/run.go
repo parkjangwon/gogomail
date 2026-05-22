@@ -686,7 +686,7 @@ func runCalDAVGateway(ctx context.Context, cfg config.Config, logger *slog.Logge
 
 	select {
 	case <-ctx.Done():
-		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 		if err := server.Shutdown(shutdownCtx); err != nil {
 			return err
@@ -746,7 +746,7 @@ func runCardDAVGateway(ctx context.Context, cfg config.Config, logger *slog.Logg
 
 	select {
 	case <-ctx.Done():
-		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 		if err := server.Shutdown(shutdownCtx); err != nil {
 			return err
@@ -807,7 +807,7 @@ func runWebDAVGateway(ctx context.Context, cfg config.Config, logger *slog.Logge
 
 	select {
 	case <-ctx.Done():
-		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 		if err := server.Shutdown(shutdownCtx); err != nil {
 			return err
@@ -2108,6 +2108,8 @@ func runReceiveMTA(ctx context.Context, cfg config.Config, logger *slog.Logger, 
 		return fmt.Errorf("receive MTA TLS config: %w", err)
 	}
 
+	receiver.SetBaseContext(ctx)
+
 	return smtpd.RunServer(ctx, smtpd.ServerOptions{
 		Addr:             opts.Addr,
 		Domain:           cfg.SMTPDomain,
@@ -3096,7 +3098,7 @@ func serveMetrics(ctx context.Context, cfg config.Config, logger *slog.Logger) {
 	}
 	go func() {
 		<-ctx.Done()
-		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 		_ = srv.Shutdown(shutdownCtx)
 	}()
@@ -3452,7 +3454,7 @@ func runHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, mode M
 
 	select {
 	case <-ctx.Done():
-		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 		return server.Shutdown(shutdownCtx)
 	case err := <-errCh:
