@@ -135,7 +135,12 @@ func RegisterPasswordResetRoutes(
 
 	// POST /api/v1/auth/password-reset/confirm
 	//   Body: {"token": "<hex-encoded raw token>", "new_password": "..."}
+	confirmLimiter := NewAdminIPRateLimiter(10, time.Minute)
 	mux.HandleFunc("POST /api/v1/auth/password-reset/confirm", func(w http.ResponseWriter, r *http.Request) {
+		if !confirmLimiter.allow(adminClientIP(r)) {
+			writeError(w, http.StatusTooManyRequests, "too many requests")
+			return
+		}
 		defer r.Body.Close()
 		if !rejectUnknownQueryKeys(w, r) {
 			return

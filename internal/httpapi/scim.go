@@ -158,7 +158,12 @@ func RegisterSCIMRoutes(mux *http.ServeMux, svc SCIMUserService, token string) {
 func scimAuth(token string, next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		auth := r.Header.Get("Authorization")
-		if !strings.HasPrefix(auth, "Bearer ") || strings.TrimPrefix(auth, "Bearer ") != token {
+		if !strings.HasPrefix(auth, "Bearer ") {
+			writeSCIMError(w, http.StatusUnauthorized, "unauthorized", "invalid or missing bearer token")
+			return
+		}
+		got := strings.TrimPrefix(auth, "Bearer ")
+		if !constantTimeTokenEqual(got, token) {
 			writeSCIMError(w, http.StatusUnauthorized, "unauthorized", "invalid or missing bearer token")
 			return
 		}
