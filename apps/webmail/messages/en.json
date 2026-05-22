@@ -160,8 +160,16 @@
       "cancel": "Cancel",
       "addFiles": "Add files",
       "addFolder": "Add folder",
-      "footerHint": "Adding files appends to the queue. Folder drops are handled as-is."
+      "footerHint": "Adding files appends to the queue. Folder drops are handled as-is.",
+      "closeWindow": "Close window",
+      "filesCount": "{count} files",
+      "moreCount": "+{count} more"
     },
+    "newFolderPlaceholder": "Folder name",
+    "createFolder": "Create",
+    "emptyFolderTitle": "No files",
+    "emptyFolderHint": "Drag files here or click the upload button",
+    "moveNodesText": "Move {count} items",
     "upload": {
       "status": {
         "queued": "Queued",

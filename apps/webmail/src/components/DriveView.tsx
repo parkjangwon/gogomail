@@ -1362,7 +1362,7 @@ export function DriveView() {
                       driveUploadModalDismissedRef.current = true;
                       setDriveUploadModalOpen(false);
                     }}
-                    title="창 닫기"
+                    title={t('uploadModal.closeWindow')}
                     style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', borderRadius: '8px', border: '1px solid var(--color-border-default)', background: 'var(--color-bg-primary)', color: 'var(--color-text-secondary)', flexShrink: 0 }}
                   >
                     <XMarkIcon style={{ width: '14px', height: '14px' }} />
@@ -1373,7 +1373,7 @@ export function DriveView() {
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px', flexWrap: 'wrap', fontSize: '11px', color: 'var(--color-text-tertiary)' }}>
                       <span>{getDriveUploadSourceLabel(driveUploadBatch.source, t)}</span>
                       <span>{formatBytes(driveUploadBatch.totalBytes)}</span>
-                      <span>{driveUploadBatch.fileCount}개 파일</span>
+                      <span>{t('uploadModal.filesCount', { count: driveUploadBatch.fileCount })}</span>
                     </div>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
                       {uploadBatchNames.map((item, index) => (
@@ -1384,7 +1384,7 @@ export function DriveView() {
                       ))}
                       {driveUploadBatch.fileCount > uploadBatchNames.length && (
                         <span style={{ display: 'inline-flex', alignItems: 'center', padding: '6px 10px', borderRadius: '999px', border: '1px dashed var(--color-border-default)', color: 'var(--color-text-tertiary)', fontSize: '11px' }}>
-                          +{driveUploadBatch.fileCount - uploadBatchNames.length}개 더
+                          {t('uploadModal.moreCount', { count: driveUploadBatch.fileCount - uploadBatchNames.length })}
                         </span>
                       )}
                     </div>
@@ -1515,10 +1515,10 @@ export function DriveView() {
                   value={newFolderName}
                   onChange={(e) => setNewFolderName(e.target.value)}
                   onKeyDown={(e) => { if (e.key === 'Enter') handleCreateFolder(); if (e.key === 'Escape') { setNewFolderMode(false); setNewFolderName(''); } }}
-                  placeholder="폴더 이름"
+                  placeholder={t('newFolderPlaceholder')}
                   style={{ flex: 1, border: 'none', background: 'transparent', outline: 'none', fontSize: '13px', color: 'var(--color-text-primary)' }}
                 />
-                <button onClick={handleCreateFolder} style={{ padding: '3px 10px', borderRadius: '5px', border: 'none', background: 'var(--color-accent)', color: '#fff', fontSize: '12px', cursor: 'pointer' }}>만들기</button>
+                <button onClick={handleCreateFolder} style={{ padding: '3px 10px', borderRadius: '5px', border: 'none', background: 'var(--color-accent)', color: '#fff', fontSize: '12px', cursor: 'pointer' }}>{t('createFolder')}</button>
                 <button onClick={() => { setNewFolderMode(false); setNewFolderName(''); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-tertiary)', display: 'flex' }}><XMarkIcon style={{ width: '16px', height: '16px' }} /></button>
               </div>
             )}
@@ -1532,8 +1532,8 @@ export function DriveView() {
             ) : nodes.length === 0 && !newFolderMode ? (
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '300px', gap: '12px', color: 'var(--color-text-tertiary)' }}>
                 <FolderIcon style={{ width: '48px', height: '48px', opacity: 0.4 }} />
-                <div style={{ fontSize: '14px' }}>파일이 없습니다</div>
-                <div style={{ fontSize: '12px', opacity: 0.8 }}>파일을 드래그하거나 업로드 버튼을 클릭하세요</div>
+                <div style={{ fontSize: '14px' }}>{t('emptyFolderTitle')}</div>
+                <div style={{ fontSize: '12px', opacity: 0.8 }}>{t('emptyFolderHint')}</div>
               </div>
             ) : (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: '12px' }}>
@@ -1558,7 +1558,7 @@ export function DriveView() {
                         const payload = JSON.stringify({ nodeIds: [...new Set(idsToDrag)] });
                         e.dataTransfer.setData(DRIVE_NODE_DRAG_MIME, payload);
                         e.dataTransfer.setData(DRIVE_NODE_DRAG_TEXT, `nodes:${idsToDrag.join(',')}`);
-                        e.dataTransfer.setData('text/plain', `${DRIVE_NODE_DRAG_TEXT}:${idsToDrag.join(',')}\n${idsToDrag.length}개 항목 이동`);
+                        e.dataTransfer.setData('text/plain', `${DRIVE_NODE_DRAG_TEXT}:${idsToDrag.join(',')}\n${t('moveNodesText', { count: idsToDrag.length })}`);
                         e.dataTransfer.effectAllowed = 'move';
                         if (idsToDrag.length > 1) {
                           const ghost = createDriveDragGhost(idsToDrag.length, dragNodeNames, t);

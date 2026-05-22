@@ -160,8 +160,16 @@
       "cancel": "キャンセル",
       "addFiles": "ファイル追加",
       "addFolder": "フォルダ追加",
-      "footerHint": "ファイルを追加するとキューに追加されます。フォルダのドロップもそのまま処理されます。"
+      "footerHint": "ファイルを追加するとキューに追加されます。フォルダのドロップもそのまま処理されます。",
+      "closeWindow": "ウィンドウを閉じる",
+      "filesCount": "{count} ファイル",
+      "moreCount": "+{count} 件"
     },
+    "newFolderPlaceholder": "フォルダ名",
+    "createFolder": "作成",
+    "emptyFolderTitle": "ファイルがありません",
+    "emptyFolderHint": "ファイルをドラッグするか、アップロードボタンをクリックしてください",
+    "moveNodesText": "{count} 項目を移動",
     "upload": {
       "status": {
         "queued": "待機中",

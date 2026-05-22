@@ -160,8 +160,16 @@
       "cancel": "취소",
       "addFiles": "파일 추가",
       "addFolder": "폴더 추가",
-      "footerHint": "파일을 추가하면 대기열에 이어 붙습니다. 폴더 드롭도 그대로 처리됩니다."
+      "footerHint": "파일을 추가하면 대기열에 이어 붙습니다. 폴더 드롭도 그대로 처리됩니다.",
+      "closeWindow": "창 닫기",
+      "filesCount": "{count}개 파일",
+      "moreCount": "+{count}개 더"
     },
+    "newFolderPlaceholder": "폴더 이름",
+    "createFolder": "만들기",
+    "emptyFolderTitle": "파일이 없습니다",
+    "emptyFolderHint": "파일을 드래그하거나 업로드 버튼을 클릭하세요",
+    "moveNodesText": "{count}개 항목 이동",
     "upload": {
       "status": {
         "queued": "대기 중",

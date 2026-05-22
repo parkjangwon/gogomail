@@ -221,7 +221,13 @@ func RegisterDriveRoutesWithOptions(mux *http.ServeMux, service DriveService, to
 			writeError(w, http.StatusBadRequest, err.Error())
 			return
 		}
-		writeJSON(w, http.StatusOK, map[string]any{"drive_nodes": nodes})
+		// Approximate has_more from full-page indication; exact pagination uses cursor on subsequent calls.
+		hasMore := limit > 0 && len(nodes) >= limit
+		writeJSON(w, http.StatusOK, map[string]any{
+			"drive_nodes": nodes,
+			"count":       len(nodes),
+			"has_more":    hasMore,
+		})
 	})
 
 	mux.HandleFunc("GET /api/v1/drive/nodes/{id}", func(w http.ResponseWriter, r *http.Request) {
@@ -454,7 +460,12 @@ func RegisterDriveRoutesWithOptions(mux *http.ServeMux, service DriveService, to
 			writeError(w, http.StatusBadRequest, err.Error())
 			return
 		}
-		writeJSON(w, http.StatusOK, map[string]any{"drive_upload_sessions": sessions})
+		hasMore := limit > 0 && len(sessions) >= limit
+		writeJSON(w, http.StatusOK, map[string]any{
+			"drive_upload_sessions": sessions,
+			"count":                 len(sessions),
+			"has_more":              hasMore,
+		})
 	})
 
 	mux.HandleFunc("GET /api/v1/drive/upload-sessions/{id}", func(w http.ResponseWriter, r *http.Request) {

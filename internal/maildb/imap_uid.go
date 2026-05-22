@@ -578,13 +578,118 @@ FOR UPDATE`
 		row        imapMessageRow
 		messageUID IMAPMessageUID
 	}
-	candidates := make([]storeCandidate, 0, len(uids))
-	for _, uid := range uids {
-		row, messageUID, err := scanIMAPMessageByUID(ctx, tx, userID, mailboxID, uid)
-		if err != nil {
+	// Batch SELECT all rows for the requested UIDs in one query (preserving
+	// FOR UPDATE locking on i and m), preserving caller order via WITH
+	// ORDINALITY on the input UID array.
+	uidsArray := imapUIDArray(uids)
+	const batchSelect = `
+WITH input AS (
+  SELECT value::bigint AS uid, ordinality
+  FROM unnest($3::bigint[]) WITH ORDINALITY AS input(value, ordinality)
+)
+SELECT
+  m.id::text,
+  m.folder_id::text,
+  COALESCE(m.rfc_message_id, ''),
+  m.subject,
+  m.from_addr,
+  m.from_name,
+  m.to_addrs,
+  m.cc_addrs,
+  m.bcc_addrs,
+  COALESCE(m.received_at, m.sent_at, m.draft_updated_at, m.created_at) AS internal_date,
+  m.size,
+  COALESCE((m.flags->>'read')::boolean, false) AS read,
+  COALESCE((m.flags->>'starred')::boolean, false) AS starred,
+  COALESCE((m.flags->>'answered')::boolean, false) AS answered,
+  COALESCE((m.flags->>'forwarded')::boolean, false) AS forwarded,
+  COALESCE((m.flags->>'draft')::boolean, false) AS draft,
+  COALESCE((m.flags->>'imap_deleted')::boolean, false) AS deleted,
+  CASE
+    WHEN jsonb_typeof(m.flags->'imap_keywords') = 'array' THEN m.flags->'imap_keywords'
+    ELSE '[]'::jsonb
+  END AS imap_keywords,
+  m.status,
+  i.uid,
+  i.modseq
+FROM input
+JOIN imap_message_uid i
+  ON i.uid = input.uid
+ AND i.user_id = $1::uuid
+ AND i.mailbox_id = $2::uuid
+JOIN messages m
+  ON m.id = i.message_id
+ AND m.user_id = $1::uuid
+ AND m.folder_id = $2::uuid
+ AND m.status = 'active'
+ORDER BY input.ordinality
+FOR UPDATE OF i, m`
+	rows, err := tx.QueryContext(ctx, batchSelect, userID, mailboxID, pq.Array(uidsArray))
+	if err != nil {
+		return nil, fmt.Errorf("list imap store flags messages: %w", err)
+	}
+	candidatesByUID := make(map[imapgw.UID]storeCandidate, len(uids))
+	for rows.Next() {
+		var row imapMessageRow
+		var messageUID IMAPMessageUID
+		if err := rows.Scan(
+			&row.ID,
+			&row.MailboxID,
+			&row.RFCMessageID,
+			&row.Subject,
+			&row.FromAddr,
+			&row.FromName,
+			&row.ToAddrs,
+			&row.CcAddrs,
+			&row.BccAddrs,
+			&row.InternalDate,
+			&row.Size,
+			&row.Read,
+			&row.Starred,
+			&row.Answered,
+			&row.Forwarded,
+			&row.Draft,
+			&row.Deleted,
+			&row.Keywords,
+			&row.Status,
+			&messageUID.UID,
+			&messageUID.ModSeq,
+		); err != nil {
+			rows.Close()
+			return nil, fmt.Errorf("scan imap store flags message: %w", err)
+		}
+		messageUID.MessageID = imapgw.MessageID(row.ID)
+		messageUID.MailboxID = imapgw.MailboxID(row.MailboxID)
+		if err := imapgw.ValidateMessageUID(messageUID); err != nil {
+			rows.Close()
 			return nil, err
 		}
-		candidates = append(candidates, storeCandidate{uid: uid, row: row, messageUID: messageUID})
+		candidatesByUID[messageUID.UID] = storeCandidate{uid: messageUID.UID, row: row, messageUID: messageUID}
+	}
+	if err := rows.Close(); err != nil {
+		return nil, fmt.Errorf("close imap store flags rows: %w", err)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate imap store flags rows: %w", err)
+	}
+	candidates := make([]storeCandidate, 0, len(uids))
+	for _, uid := range uids {
+		c, ok := candidatesByUID[uid]
+		if !ok {
+			return nil, fmt.Errorf("imap message uid %d not found", uid)
+		}
+		candidates = append(candidates, c)
+	}
+
+	// Compute sequence numbers for all candidate UIDs in one window-function
+	// query, mirroring MoveIMAPMessages.
+	seqUIDValues := make([]int64, 0, len(candidates))
+	for _, c := range candidates {
+		seqUIDValues = append(seqUIDValues, int64(c.uid))
+	}
+	sequenceNumbers, err := imapSequenceNumbersForUIDs(ctx, tx, userID, mailboxID, seqUIDValues)
+	if err != nil {
+		return nil, err
 	}
 
 	summaries := make([]imapgw.MessageSummary, 0, len(candidates))
@@ -608,9 +713,9 @@ FOR UPDATE`
 			row = next
 		}
 		summary := imapMessageFromRow(row, messageUID)
-		sequenceNumber, err := imapSequenceNumberForUID(ctx, tx, userID, mailboxID, candidate.uid)
-		if err != nil {
-			return nil, err
+		sequenceNumber, ok := sequenceNumbers[int64(candidate.uid)]
+		if !ok {
+			return nil, fmt.Errorf("imap sequence number unavailable for uid %d", candidate.uid)
 		}
 		summary.SequenceNumber = sequenceNumber
 		summaries = append(summaries, summary)

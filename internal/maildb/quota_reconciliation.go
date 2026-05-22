@@ -340,13 +340,15 @@ func quotaDriftAbsDeltaSum(views []QuotaReconciliationView) int64 {
 func lockQuotaCorrectionScope(ctx context.Context, tx *sql.Tx, req CorrectQuotaReconciliationRequest) error {
 	switch req.Scope {
 	case "all":
-		if _, err := tx.ExecContext(ctx, `SELECT id FROM companies FOR UPDATE`); err != nil {
+		// SKIP LOCKED prevents blocking concurrent writes; rows that are currently
+		// locked by other transactions will be skipped this run and reconciled later.
+		if _, err := tx.ExecContext(ctx, `SELECT id FROM companies FOR UPDATE SKIP LOCKED`); err != nil {
 			return fmt.Errorf("lock company quota rows: %w", err)
 		}
-		if _, err := tx.ExecContext(ctx, `SELECT id FROM domains FOR UPDATE`); err != nil {
+		if _, err := tx.ExecContext(ctx, `SELECT id FROM domains FOR UPDATE SKIP LOCKED`); err != nil {
 			return fmt.Errorf("lock domain quota rows: %w", err)
 		}
-		if _, err := tx.ExecContext(ctx, `SELECT id FROM users FOR UPDATE`); err != nil {
+		if _, err := tx.ExecContext(ctx, `SELECT id FROM users FOR UPDATE SKIP LOCKED`); err != nil {
 			return fmt.Errorf("lock user quota rows: %w", err)
 		}
 	case "company":
