@@ -1,6 +1,7 @@
 package batchlock
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"hash/fnv"
@@ -54,8 +55,10 @@ func (l *PostgresJobLock) Acquire() (bool, error) {
 	}
 
 	lockID := l.lockID()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
 	var acquired bool
-	err := l.db.QueryRow("SELECT pg_try_advisory_lock($1)", lockID).Scan(&acquired)
+	err := l.db.QueryRowContext(ctx, "SELECT pg_try_advisory_lock($1)", lockID).Scan(&acquired)
 	if err != nil {
 		return false, fmt.Errorf("try advisory lock: %w", err)
 	}
@@ -85,7 +88,9 @@ func (l *PostgresJobLock) Release() error {
 	}
 
 	lockID := l.lockID()
-	_, err := l.db.Exec("SELECT pg_advisory_unlock($1)", lockID)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	_, err := l.db.ExecContext(ctx, "SELECT pg_advisory_unlock($1)", lockID)
 	if err != nil {
 		return fmt.Errorf("advisory unlock: %w", err)
 	}

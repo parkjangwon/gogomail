@@ -384,23 +384,23 @@ export function SettingsModalContent({
       );
     case 'filters': {
       const fieldOpts: { value: FilterCondition['field']; label: string; noValue?: boolean }[] = [
-        { value: 'from', label: '보낸사람' },
-        { value: 'to', label: '받는사람' },
-        { value: 'cc', label: '참조(CC)' },
-        { value: 'subject', label: '제목' },
-        { value: 'body', label: '본문' },
-        { value: 'has_attachment', label: '첨부파일 있음', noValue: true },
-        { value: 'is_unread', label: '읽지 않음', noValue: true },
-        { value: 'size_larger', label: '크기 초과(KB)' },
-        { value: 'size_smaller', label: '크기 이하(KB)' },
+        { value: 'from', label: tFilter('fieldFrom') },
+        { value: 'to', label: tFilter('fieldTo') },
+        { value: 'cc', label: tFilter('fieldCc') },
+        { value: 'subject', label: tFilter('fieldSubject') },
+        { value: 'body', label: tFilter('fieldBody') },
+        { value: 'has_attachment', label: tFilter('fieldHasAttachment'), noValue: true },
+        { value: 'is_unread', label: tFilter('fieldIsUnread'), noValue: true },
+        { value: 'size_larger', label: tFilter('fieldSizeLarger') },
+        { value: 'size_smaller', label: tFilter('fieldSizeSmaller') },
       ];
       const matchOpts: { value: FilterCondition['matchType']; label: string }[] = [
-        { value: 'contains', label: '포함' },
-        { value: 'not_contains', label: '포함 안 함' },
-        { value: 'equals', label: '일치' },
-        { value: 'starts_with', label: '시작' },
-        { value: 'ends_with', label: '끝' },
-        { value: 'regex', label: '정규식' },
+        { value: 'contains', label: tFilter('opContains') },
+        { value: 'not_contains', label: tFilter('opNotContains') },
+        { value: 'equals', label: tFilter('opEquals') },
+        { value: 'starts_with', label: tFilter('opStartsWith') },
+        { value: 'ends_with', label: tFilter('opEndsWith') },
+        { value: 'regex', label: tFilter('opRegex') },
       ];
       const ist: React.CSSProperties = { border: '1px solid var(--color-border-default)', borderRadius: '6px', padding: '5px 8px', fontSize: '12px', background: 'var(--color-bg-primary)', color: 'var(--color-text-primary)', outline: 'none' };
       const sst: React.CSSProperties = { ...ist, cursor: 'pointer', flexShrink: 0 };

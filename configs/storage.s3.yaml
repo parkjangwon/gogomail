@@ -12,6 +12,8 @@ public_base_url: https://mail.example.com
 smtp_domain: mail.example.com
 delivery_smtp_hello: mx.example.com
 farm_coordinator_backend: redis
+redis_addr: redis.example.com:6379
+redis_password: CHANGE_ME_REDIS_PASSWORD_AT_LEAST_32_BYTES
 farm_coordinator_node_id: prod-node-1
 farm_coordinator_heartbeat_ttl: 30s
 farm_coordinator_job_visibility_timeout: 5m

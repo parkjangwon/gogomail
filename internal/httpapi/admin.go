@@ -153,9 +153,7 @@ func SecurityHeadersMiddleware(next http.Handler) http.Handler {
 		h.Set("X-XSS-Protection", "0") // modern browsers ignore this; CSP is the real defence
 		h.Set("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
 		h.Set("Content-Security-Policy", "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; frame-ancestors 'none'")
-		if r.TLS != nil {
-			h.Set("Strict-Transport-Security", "max-age=63072000; includeSubDomains; preload")
-		}
+		h.Set("Strict-Transport-Security", "max-age=63072000; includeSubDomains; preload")
 		next.ServeHTTP(w, r)
 	})
 }
@@ -247,6 +245,10 @@ func (l *AdminIPRateLimiter) allow(ip string) bool {
 	if len(fresh) >= l.limit {
 		l.windows[ip] = fresh
 		return false
+	}
+	// Evict map entry when all timestamps expired to prevent unbounded growth.
+	if len(fresh) == 0 {
+		delete(l.windows, ip)
 	}
 	l.windows[ip] = append(fresh, now)
 	return true

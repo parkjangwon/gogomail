@@ -1011,7 +1011,6 @@ func (t *authFailureTracker) record(ip string) bool {
 	defer t.mu.Unlock()
 	now := time.Now()
 	cutoff := now.Add(-t.window)
-	// Trim old entries while appending new one.
 	prev := t.failures[ip]
 	fresh := prev[:0]
 	for _, ts := range prev {
@@ -1020,7 +1019,12 @@ func (t *authFailureTracker) record(ip string) bool {
 		}
 	}
 	fresh = append(fresh, now)
-	t.failures[ip] = fresh
+	// Release old backing array when all prior entries expired.
+	if len(prev) > 0 && len(fresh) == 1 {
+		t.failures[ip] = []time.Time{now}
+	} else {
+		t.failures[ip] = fresh
+	}
 	return len(fresh) > t.maxFails
 }
 
@@ -1035,6 +1039,9 @@ func (t *authFailureTracker) isLocked(ip string) bool {
 		if ts.After(cutoff) {
 			count++
 		}
+	}
+	if count == 0 {
+		delete(t.failures, ip)
 	}
 	return count >= t.maxFails
 }
