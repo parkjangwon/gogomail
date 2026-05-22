@@ -109,7 +109,9 @@ func (h *Handler) moveToTrash(ctx context.Context, userID, messageID string) err
 // the result to avoid a ListFolders call on every blocked-sender event.
 func (h *Handler) resolveTrashFolderID(ctx context.Context, userID string) (string, error) {
 	if v, ok := h.trashCache.Load(userID); ok {
-		return v.(string), nil
+		if s, ok := v.(string); ok {
+			return s, nil
+		}
 	}
 	folders, err := h.service.ListFolders(ctx, userID)
 	if err != nil {
