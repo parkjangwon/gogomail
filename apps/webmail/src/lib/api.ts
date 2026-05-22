@@ -195,6 +195,7 @@ async function request<T>(
   const res = await fetch(`/api/mail/${path}`, {
     ...options,
     headers,
+    signal: options.signal ?? AbortSignal.timeout(30_000),
   });
 
   if (res.status === 401) {

@@ -19,6 +19,8 @@ func setProductionSecrets(cfg *Config) {
 	cfg.SMTPDomain = "mail.example.com"
 	cfg.DeliverySMTPHello = "mx.example.com"
 	cfg.FarmCoordinatorBackend = "redis"
+	cfg.RedisAddr = "redis.example.com:6379"
+	cfg.RedisPassword = "test-redis-password-for-production"
 }
 
 func TestValidateRejectsProductionInsecureSubmissionAuth(t *testing.T) {

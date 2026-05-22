@@ -708,6 +708,9 @@ func (c Config) Validate() error {
 	if farmCoordinatorBackend == "redis" && strings.TrimSpace(c.RedisAddr) == "" && len(c.RedisSentinelAddrs) == 0 {
 		return fmt.Errorf("GOGOMAIL_REDIS_ADDR or GOGOMAIL_REDIS_SENTINEL_ADDRS is required when GOGOMAIL_FARM_COORDINATOR_BACKEND=redis")
 	}
+	if production && farmCoordinatorBackend == "redis" && strings.TrimSpace(c.RedisPassword) == "" {
+		return fmt.Errorf("GOGOMAIL_REDIS_PASSWORD must not be empty in production when GOGOMAIL_FARM_COORDINATOR_BACKEND=redis")
+	}
 	if c.FarmCoordinatorHeartbeatTTL <= 0 {
 		return fmt.Errorf("GOGOMAIL_FARM_COORDINATOR_HEARTBEAT_TTL must be positive")
 	}

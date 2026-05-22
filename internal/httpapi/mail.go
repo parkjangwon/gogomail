@@ -534,6 +534,10 @@ func RegisterMailRoutesWithOptions(mux *http.ServeMux, service MessageService, t
 	})
 
 	mux.HandleFunc("POST /api/v1/auth/refresh", func(w http.ResponseWriter, r *http.Request) {
+		if !opts.LoginLimiter.allow(adminClientIP(r)) {
+			writeError(w, http.StatusTooManyRequests, "too many requests")
+			return
+		}
 		if opts.RefreshTokenStore == nil || tokenManager == nil {
 			writeError(w, http.StatusServiceUnavailable, "token refresh not configured")
 			return
@@ -840,7 +844,12 @@ func RegisterMailRoutesWithOptions(mux *http.ServeMux, service MessageService, t
 		writeJSON(w, http.StatusOK, map[string]any{"message": message})
 	})
 
+	searchLimiter := NewAdminIPRateLimiter(30, time.Minute)
 	mux.HandleFunc("GET /api/v1/search", func(w http.ResponseWriter, r *http.Request) {
+		if !searchLimiter.allow(adminClientIP(r)) {
+			writeError(w, http.StatusTooManyRequests, "too many search requests")
+			return
+		}
 		if !rejectBodylessRequestPayload(w, r) {
 			return
 		}
@@ -1452,6 +1461,10 @@ func RegisterMailRoutesWithOptions(mux *http.ServeMux, service MessageService, t
 	})
 
 	mux.HandleFunc("GET /api/v1/drafts/search", func(w http.ResponseWriter, r *http.Request) {
+		if !searchLimiter.allow(adminClientIP(r)) {
+			writeError(w, http.StatusTooManyRequests, "too many search requests")
+			return
+		}
 		if !rejectBodylessRequestPayload(w, r) {
 			return
 		}
@@ -2185,6 +2198,10 @@ func RegisterMailRoutesWithOptions(mux *http.ServeMux, service MessageService, t
 	})
 
 	mux.HandleFunc("POST /api/v1/me/password", func(w http.ResponseWriter, r *http.Request) {
+		if !opts.LoginLimiter.allow(adminClientIP(r)) {
+			writeError(w, http.StatusTooManyRequests, "too many requests")
+			return
+		}
 		defer r.Body.Close()
 		if !rejectUnknownQueryKeys(w, r, "user_id", "user_email") {
 			return

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   DriveNode, DriveUsage,
@@ -300,7 +300,7 @@ async function collectDroppedFiles(dataTransfer: DataTransfer): Promise<DroppedF
 
 export function DriveView() {
   const t = useTranslations('drive');
-  const DRIVE_UPLOAD_STATUS_LABELS: Record<DriveUploadStatus, string> = {
+  const DRIVE_UPLOAD_STATUS_LABELS = useMemo<Record<DriveUploadStatus, string>>(() => ({
     queued: t('upload.status.queued'),
     creating_session: t('upload.status.creatingSession'),
     uploading: t('upload.status.uploading'),
@@ -309,7 +309,7 @@ export function DriveView() {
     done: t('upload.status.done'),
     error: t('upload.status.error'),
     canceled: t('upload.status.canceled'),
-  };
+  }), [t]);
   const [activeSection, setActiveSection] = useState<'drive' | 'trash'>('drive');
   const [breadcrumb, setBreadcrumb] = useState<BreadcrumbItem[]>([{ id: '', name: t('myDrive') }]);
   const [nodes, setNodes] = useState<DriveNode[]>([]);
@@ -431,7 +431,7 @@ export function DriveView() {
 
   useEffect(() => {
     loadNodes(currentParentId);
-    getDriveUsage().then(setUsage);
+    getDriveUsage().then(setUsage).catch(() => {});
   }, [currentParentId, loadNodes]);
 
   useEffect(() => {
@@ -511,14 +511,14 @@ export function DriveView() {
   async function handleTrash(nodeId: string) {
     const ok = await trashDriveNode(nodeId);
     if (ok) setNodes((prev) => prev.filter((n) => n.id !== nodeId));
-    getDriveUsage().then(setUsage);
+    getDriveUsage().then(setUsage).catch(() => {});
   }
 
   async function handleRestore(nodeId: string) {
     const ok = await restoreDriveNode(nodeId);
     if (ok) {
       setTrashNodes((prev) => prev.filter((n) => n.id !== nodeId));
-      getDriveUsage().then(setUsage);
+      getDriveUsage().then(setUsage).catch(() => {});
     }
   }
 
@@ -527,7 +527,7 @@ export function DriveView() {
     const ok = await deleteDriveNodePermanently(nodeId);
     if (ok) {
       setTrashNodes((prev) => prev.filter((n) => n.id !== nodeId));
-      getDriveUsage().then(setUsage);
+      getDriveUsage().then(setUsage).catch(() => {});
     }
   }
 
@@ -535,7 +535,7 @@ export function DriveView() {
     if (!confirm(t('emptyTrashConfirm', { count: trashNodes.length }))) return;
     await Promise.all(trashNodes.map((n) => deleteDriveNodePermanently(n.id)));
     setTrashNodes([]);
-    getDriveUsage().then(setUsage);
+    getDriveUsage().then(setUsage).catch(() => {});
   }
 
   function getFolderCache(): Map<string, string> {
@@ -595,7 +595,7 @@ export function DriveView() {
 
   const refreshDriveNodes = useCallback(async () => {
     await loadNodes(currentParentId);
-    getDriveUsage().then(setUsage);
+    getDriveUsage().then(setUsage).catch(() => {});
   }, [currentParentId, loadNodes]);
 
   const runDriveUpload = useCallback(async (uploadId: string) => {
@@ -812,7 +812,7 @@ export function DriveView() {
 
     if (movedAny) {
       loadNodes(currentParentId);
-      getDriveUsage().then(setUsage);
+      getDriveUsage().then(setUsage).catch(() => {});
     }
     setSelectedNodeIds((prev) => prev.filter((id) => !movedNodeIds.includes(id)));
     reloadSidebarCurrentPath();

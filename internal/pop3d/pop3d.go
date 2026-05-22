@@ -806,7 +806,11 @@ func (t *pop3AuthFailureTracker) record(ip string) bool {
 		}
 	}
 	fresh = append(fresh, now)
-	t.failures[ip] = fresh
+	if len(prev) > 0 && len(fresh) == 1 {
+		t.failures[ip] = []time.Time{now}
+	} else {
+		t.failures[ip] = fresh
+	}
 	return len(fresh) > t.maxFails
 }
 
@@ -820,6 +824,9 @@ func (t *pop3AuthFailureTracker) isLocked(ip string) bool {
 		if ts.After(cutoff) {
 			count++
 		}
+	}
+	if count == 0 {
+		delete(t.failures, ip)
 	}
 	return count >= t.maxFails
 }

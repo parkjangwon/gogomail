@@ -160,7 +160,7 @@ export function MailActions({
         intent: 'forward' as const,
       },
     ],
-    [onForward, onReply, onReplyAll]
+    [onForward, onReply, onReplyAll, t]
   );
 
   return (
