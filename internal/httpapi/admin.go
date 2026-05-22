@@ -273,12 +273,18 @@ func (l *AdminIPRateLimiter) Middleware(next http.Handler) http.Handler {
 // MaxRequestBodyMiddleware returns a middleware that enforces a max request body size.
 // Requests with a body larger than maxBytes receive 413 Entity Too Large.
 // Pass 0 to use the default of 4 MiB.
+// Upload-body endpoints (attachment / drive upload-session PUT bodies) are
+// exempted because they enforce their own per-endpoint MaxBytesReader limits.
 func MaxRequestBodyMiddleware(maxBytes int64) func(http.Handler) http.Handler {
 	if maxBytes <= 0 {
 		maxBytes = 4 * 1024 * 1024
 	}
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if isUploadBodyPath(r.Method, r.URL.Path) {
+				next.ServeHTTP(w, r)
+				return
+			}
 			if r.ContentLength > maxBytes {
 				http.Error(w, `{"error":"request body too large"}`, http.StatusRequestEntityTooLarge)
 				return
@@ -287,6 +293,25 @@ func MaxRequestBodyMiddleware(maxBytes int64) func(http.Handler) http.Handler {
 			next.ServeHTTP(w, r)
 		})
 	}
+}
+
+// isUploadBodyPath returns true for endpoints that accept large binary bodies
+// and enforce their own size limit via MaxBytesReader.
+func isUploadBodyPath(method, path string) bool {
+	if method != http.MethodPut && method != http.MethodPost {
+		return false
+	}
+	// Attachment upload bodies and drive upload-session bodies / staged objects.
+	if strings.Contains(path, "/attachments/upload-sessions/") && strings.HasSuffix(path, "/body") {
+		return true
+	}
+	if strings.Contains(path, "/drive/upload-sessions/") && strings.HasSuffix(path, "/body") {
+		return true
+	}
+	if strings.Contains(path, "/drive/staged-objects") {
+		return true
+	}
+	return false
 }
 
 // adminClientIP extracts the best client IP from the request.

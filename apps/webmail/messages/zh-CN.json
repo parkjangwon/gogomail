@@ -160,8 +160,16 @@
       "cancel": "取消",
       "addFiles": "添加文件",
       "addFolder": "添加文件夹",
-      "footerHint": "添加文件会追加到队列中。拖放文件夹也会按原样处理。"
+      "footerHint": "添加文件会追加到队列中。拖放文件夹也会按原样处理。",
+      "closeWindow": "关闭窗口",
+      "filesCount": "{count} 个文件",
+      "moreCount": "+{count} 项"
     },
+    "newFolderPlaceholder": "文件夹名称",
+    "createFolder": "创建",
+    "emptyFolderTitle": "没有文件",
+    "emptyFolderHint": "拖放文件到此处或点击上传按钮",
+    "moveNodesText": "移动 {count} 项",
     "upload": {
       "status": {
         "queued": "排队中",
