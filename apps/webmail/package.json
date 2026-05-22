@@ -13,7 +13,11 @@
     "test:security-helpers": "node --experimental-strip-types scripts/check-security-helpers.mjs",
     "test:datetime-local": "pnpm test:compose-helpers",
     "test:e2e": "playwright test",
-    "test:e2e:ui": "playwright test --ui"
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:headed": "playwright test --headed",
+    "test:e2e:chromium": "playwright test --project=chromium",
+    "test:e2e:firefox": "playwright test --project=firefox",
+    "test:e2e:webkit": "playwright test --project=webkit"
   },
   "dependencies": {
     "@heroicons/react": "^2.2.0",
