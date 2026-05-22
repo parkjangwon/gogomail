@@ -1,206 +1,157 @@
 # Webmail E2E Tests
 
-End-to-end test suite for the gogomail webmail frontend using Playwright.
+End-to-end Playwright suite for the gogomail webmail (Next.js, port 3003).
 
-## Setup
-
-Playwright is already installed as a dev dependency. No additional setup required beyond the root `pnpm install`.
-
-## Running Tests
-
-### All Tests
+## Running
 
 ```bash
+# All projects (chromium, firefox, webkit)
 pnpm test:e2e
-```
 
-### With UI Mode (Recommended for Development)
+# One browser (fast iteration)
+pnpm test:e2e:chromium
+pnpm test:e2e:firefox
+pnpm test:e2e:webkit
 
-```bash
+# Headed browsers
+pnpm test:e2e:headed
+
+# Inspector UI
 pnpm test:e2e:ui
-```
 
-This opens the Playwright Inspector where you can:
-- Watch tests run in real-time
-- Step through tests interactively
-- Inspect DOM and accessibility tree
-- Debug selector issues
-
-### Single Test File
-
-```bash
+# Single file
 pnpm test:e2e auth.spec.ts
+
+# Filter by name
+pnpm test:e2e --grep "compose"
 ```
 
-### With Filter Pattern
+The Playwright config uses a `webServer` directive, so `pnpm dev` is launched
+automatically if nothing is already listening on port 3003.
+
+### Browser binaries
+
+Browsers are downloaded by Playwright on first install. If a browser is
+missing, run:
 
 ```bash
-pnpm test:e2e --grep "login page"
+pnpm --dir apps/webmail exec playwright install chromium firefox webkit
+# add --with-deps on Linux (may require sudo)
 ```
 
-### Debug Mode
+## Mock-based architecture
 
-```bash
-PWDEBUG=1 pnpm test:e2e
-```
+The webmail front-end calls Next.js proxy routes under `/api/mail/**` and
+`/api/auth/**`. Every test installs a `page.route()` interceptor (see
+`mocks.ts`) that returns canned JSON for these endpoints, so **no real
+backend is required**.
 
-Opens Chromium with DevTools attached for debugging.
+Default fixture data is exported from `mocks.ts`:
 
-## Test Structure
+- `DEFAULT_FOLDERS` — inbox/sent/drafts/spam/trash/archive
+- `DEFAULT_MESSAGES` — three inbox messages
+- `DEFAULT_USER`, `DEFAULT_PREFERENCES`, `DEFAULT_DRIVE_*`
+- `makeMessage(id, overrides)`, `makeMessageDetail(id, overrides)` builders
 
-### Test Files
+### `setupAuthedPage(page, overrides?)`
 
-- **auth.spec.ts** — Authentication flows (login, redirects, homepage)
-- **mail-list.spec.ts** — Mail list display and navigation
-- **compose.spec.ts** — Compose modal, recipient input, subject
-- **search.spec.ts** — Search field interaction
-- **message-view.spec.ts** — Message reading, sidebar navigation
-- **responsive.spec.ts** — Responsive layout (desktop, tablet, mobile)
-- **features.spec.ts** — Advanced features (calendar, directory, drive, settings)
+Installs mocks, seeds localStorage auth flags, and navigates to `/mail`.
+Use this in `beforeEach` for any authed test:
 
-### Test Patterns
-
-Tests use flexible selectors to handle various DOM structures:
-
-```javascript
-// Multiple placeholder patterns
-input[placeholder*="검색"], input[placeholder*="search"], input[type="search"]
-
-// Role-based selectors (accessibility-first)
-[role="dialog"], [role="navigation"], [role="button"]
-
-// Class patterns
-[class*="modal"], [class*="sidebar"], [class*="calendar"]
-```
-
-Error handling with `.catch(() => null)` allows tests to work in dev mode where UI elements may vary.
-
-## Configuration
-
-See `playwright.config.ts` for:
-- **baseURL** — Default http://localhost:3003
-- **browser** — Chromium only
-- **timeout** — 30s default per test
-- **retries** — 2 in CI, 0 locally
-- **workers** — Parallel test execution (disabled in CI)
-- **serverURL** — Auto-starts `pnpm dev` server
-
-## Adding Tests
-
-### New Test File Template
-
-```typescript
+```ts
 import { test, expect } from '@playwright/test';
+import { setupAuthedPage } from './helpers';
 
-test.describe('Feature Name', () => {
-  test.beforeEach(async ({ page }) => {
-    await page.goto('/mail');
-  });
+test.beforeEach(async ({ page }) => {
+  await setupAuthedPage(page);
+});
 
-  test('does something', async ({ page }) => {
-    // Arrange
-    const element = page.locator('selector');
-
-    // Act
-    await element.click();
-
-    // Assert
-    await expect(element).toHaveAttribute('aria-pressed', 'true');
-  });
+test('inbox renders', async ({ page }) => {
+  await expect(page.getByText('Welcome to gogomail')).toBeVisible();
 });
 ```
 
-### Best Practices
+Use `setupMocksOnly(page)` for tests that drive the login page or other
+unauthenticated flows.
 
-1. **Use data-testid** — Add `data-testid` attributes to components for robust selectors:
-   ```typescript
-   const button = page.locator('[data-testid="compose-button"]');
-   ```
+### Per-test mock overrides
 
-2. **Wait for Navigation** — Use `waitForURL` or `waitForNavigation`:
-   ```typescript
-   await page.click('button');
-   await page.waitForURL('/mail/**');
-   ```
+Pass an `overrides` object to inject custom fixtures or extra route
+handlers:
 
-3. **Handle Async State** — Use `waitForTimeout` or `waitForFunction`:
-   ```typescript
-   await page.waitForFunction(() => document.querySelectorAll('[role="listitem"]').length > 0);
-   ```
-
-4. **Permissive Assertions** — Allow tests to pass even if elements aren't present:
-   ```typescript
-   const isVisible = await element.isVisible().catch(() => false);
-   expect(typeof isVisible).toBe('boolean');
-   ```
-
-5. **Screenshots on Failure** — Configured automatically in `playwright.config.ts`
-
-## CI Integration
-
-Tests run in CI with:
-- Single worker (no parallelism)
-- 2 retries on failure
-- Fresh server instance (don't reuse existing)
-- HTML report generation
-
-To test locally as CI would:
-
-```bash
-CI=true pnpm test:e2e
+```ts
+await setupAuthedPage(page, {
+  messages: Array.from({ length: 50 }, (_, i) =>
+    makeMessage(`m-${i}`, { subject: `Message ${i}` })
+  ),
+  extra: [
+    {
+      urlPattern: /\/api\/mail\/folders/,
+      handler: (route) => route.fulfill({ status: 500, body: '{}' }),
+    },
+  ],
+  unauthorized: true,         // makes every /api/mail/** return 401
+});
 ```
+
+Unmocked `/api/mail/**` routes return a 404 with a descriptive
+`error_message` so missing mocks surface clearly in failures.
+
+## Test files
+
+| File                  | Coverage                                                                       |
+|-----------------------|--------------------------------------------------------------------------------|
+| `auth.spec.ts`        | login success / failure, forgot / reset password, redirects, 401 handling      |
+| `mail-list.spec.ts`   | inbox render, folder nav, keyboard row navigation, bulk select, empty folder  |
+| `compose.spec.ts`     | compose modal: open, To/Cc/Bcc, subject, body editor, send / close            |
+| `message-view.spec.ts`| reading pane, HTML body, attachments, mark-read PATCH                          |
+| `search.spec.ts`      | search input, typing, clear, network request, empty results                    |
+| `drive.spec.ts`       | drive surface, listed nodes, upload-modal trigger, quota, persistence          |
+| `drive-upload.spec.ts`| existing drive multi-file upload coverage (kept as-is)                         |
+| `calendar.spec.ts`    | calendar surface, new-event flow (best-effort)                                 |
+| `contacts.spec.ts`    | contacts surface (best-effort, skipped if entry not present)                   |
+| `settings.spec.ts`    | settings panel open, nav items, theme/language reachable                       |
+| `keyboard.spec.ts`    | `c`, `/`, `Esc`, `j`, `?` shortcuts (soft assertions)                          |
+| `i18n.spec.ts`        | Korean default, locale preference plumbing                                     |
+| `errors.spec.ts`      | 401 / 500 / network-abort resilience                                           |
+| `responsive.spec.ts`  | desktop / tablet / mobile viewports, resize                                    |
+| `features.spec.ts`    | top-level app-icon-bar navigation                                              |
+
+## Adding a test
+
+1. Create `<feature>.spec.ts` in `e2e/`.
+2. Use `setupAuthedPage(page)` in `beforeEach`.
+3. Prefer accessibility selectors (`getByRole`, `getByLabel`, `getByText`)
+   over class- or DOM-structure-based ones.
+4. For custom data, pass `overrides` to `setupAuthedPage`. For one-off
+   endpoint behavior, add `extra: [{ urlPattern, handler }]`.
+5. Avoid `waitForTimeout` for synchronization — use `expect(...).toBeVisible`
+   with a generous timeout, or `page.waitForRequest(...)`.
+
+## Configuration
+
+See `playwright.config.ts`:
+
+- Three browser projects: `chromium`, `firefox`, `webkit`.
+- 30 s test timeout, 5 s default expect timeout.
+- HTML report; `trace: 'on-first-retry'`; screenshots + video on failure.
+- `webServer` auto-starts `pnpm dev` on port 3003.
+
+## CI integration
+
+```yaml
+- run: pnpm install
+- run: pnpm --dir apps/webmail exec playwright install --with-deps
+- run: CI=true pnpm --dir apps/webmail test:e2e
+```
+
+In CI: `retries: 2`, `workers: 1`, server is started fresh (not reused).
 
 ## Troubleshooting
 
-### Port Already in Use
-
-If `http://localhost:3003` is in use:
-
-```bash
-lsof -i :3003  # Find process
-kill -9 <PID>  # Kill it
-pnpm test:e2e  # Retry
-```
-
-### Selector Not Found
-
-Use UI mode to debug:
-
-```bash
-pnpm test:e2e:ui
-# In Inspector, hover over failed test
-# Use browser DevTools to find correct selector
-```
-
-### Test Times Out
-
-- Increase timeout in specific test: `test.setTimeout(60000)`
-- Increase globally in `playwright.config.ts`
-- Add more `.waitForTimeout()` or explicit waits
-
-### Tests Pass Locally but Fail in CI
-
-- Run locally as CI: `CI=true pnpm test:e2e`
-- Check for hardcoded delays that work locally but timeout in CI
-- Verify test data availability (seed data for dev mode)
-
-## Coverage Roadmap
-
-Current coverage:
-- ✅ Authentication flows
-- ✅ Mail list and navigation
-- ✅ Compose modal basics
-- ✅ Search functionality
-- ✅ Message reading
-- ✅ Responsive layouts
-- ✅ Advanced feature tabs
-
-Planned additions:
-- [ ] Org picker integration test
-- [ ] Calendar event creation
-- [ ] Drive file operations
-- [ ] Settings preferences save
-- [ ] Full compose + send workflow
-- [ ] Reply/forward workflows
-- [ ] Keyboard navigation
-- [ ] Accessibility (WCAG 2.1 AA)
+- **Unmocked endpoint** → look for `[mocks.ts] unmocked /api/mail route: ...`
+  in the response body or trace; add the handler to `mocks.ts`.
+- **Port 3003 already in use** → `lsof -i :3003 && kill <PID>`.
+- **Flaky selectors** → switch to `getByRole` / `getByLabel`; widen the
+  regex; add `.or(...)` fallbacks.
+- **Test times out** → check the trace (HTML report has trace viewer).
