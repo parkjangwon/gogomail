@@ -2,12 +2,27 @@ package httpapi
 
 import (
 	"encoding/json"
+	"errors"
 	"log/slog"
 	"net/http"
 
 	"github.com/google/uuid"
 	"github.com/gogomail/gogomail/internal/alert"
 )
+
+// validateAlertConfigRequest enforces length bounds on user-supplied strings.
+func validateAlertConfigRequest(req *AlertConfigRequest) error {
+	if len(req.Name) > 200 {
+		return errors.New("name must be 200 characters or fewer")
+	}
+	if len(req.Description) > 2000 {
+		return errors.New("description must be 2000 characters or fewer")
+	}
+	if len(req.AlertType) > 200 {
+		return errors.New("alert_type must be 200 characters or fewer")
+	}
+	return nil
+}
 
 type alertContextKey struct{}
 
@@ -122,6 +137,11 @@ func makeCreateAlertConfigHandler(repo alert.Repository) http.HandlerFunc {
 
 		var req AlertConfigRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			slog.WarnContext(r.Context(), "decode alert config create request failed", "error", err)
+			http.Error(w, "invalid JSON body", http.StatusBadRequest)
+			return
+		}
+		if err := validateAlertConfigRequest(&req); err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
@@ -213,6 +233,11 @@ func makeUpdateAlertConfigHandler(repo alert.Repository) http.HandlerFunc {
 
 		var req AlertConfigRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			slog.WarnContext(r.Context(), "decode alert config update request failed", "error", err)
+			http.Error(w, "invalid JSON body", http.StatusBadRequest)
+			return
+		}
+		if err := validateAlertConfigRequest(&req); err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
