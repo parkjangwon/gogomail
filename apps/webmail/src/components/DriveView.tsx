@@ -1105,7 +1105,7 @@ export function DriveView() {
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: '13px', fontWeight: 500, color: 'var(--color-text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{node.name}</div>
                       <div style={{ fontSize: '11px', color: 'var(--color-text-tertiary)', marginTop: '2px' }}>
-                        {node.node_type === 'file' ? formatBytes(node.size) : '폴더'} · {formatDate(node.updated_at)}
+                        {node.node_type === 'file' ? formatBytes(node.size) : t('folderLabel')} · {formatDate(node.updated_at)}
                       </div>
                     </div>
                     <button onClick={() => handleRestore(node.id)}
@@ -1114,7 +1114,7 @@ export function DriveView() {
                       onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
                     >
                       <ArrowUturnLeftIcon style={{ width: '13px', height: '13px' }} />
-                      복원
+                      {t('restore')}
                     </button>
                     <button onClick={() => handlePermanentDelete(node.id)}
                       style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '5px 12px', borderRadius: '6px', border: '1px solid var(--color-destructive)', background: 'transparent', color: 'var(--color-destructive)', fontSize: '12px', cursor: 'pointer', flexShrink: 0 }}
@@ -1122,7 +1122,7 @@ export function DriveView() {
                       onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
                     >
                       <TrashIcon style={{ width: '13px', height: '13px' }} />
-                      영구 삭제
+                      {t('permanentDelete')}
                     </button>
                   </div>
                 ))}
@@ -1154,7 +1154,7 @@ export function DriveView() {
         >
           {dragOver && (
             <div aria-hidden="true" style={{ position: 'absolute', inset: 0, background: 'var(--color-accent-subtle)', border: '2px dashed var(--color-accent)', borderRadius: '4px', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px', fontWeight: 600, color: 'var(--color-accent)', pointerEvents: 'none' }}>
-              파일을 여기에 놓으세요
+              {t('dropOverlay')}
             </div>
           )}
 
@@ -1242,9 +1242,9 @@ export function DriveView() {
               style={{ padding: '5px 8px', borderRadius: '5px', border: '1px solid var(--color-border-default)', background: 'transparent', cursor: 'pointer', color: 'var(--color-text-secondary)', display: 'flex', alignItems: 'center' }}>
               <ArrowPathIcon style={{ width: '15px', height: '15px' }} />
             </button>
-            <button onClick={() => setNewFolderMode(true)} title="새 폴더"
+            <button onClick={() => setNewFolderMode(true)} title={t('newFolder')}
               style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '5px 12px', borderRadius: '6px', border: '1px solid var(--color-border-default)', background: 'transparent', color: 'var(--color-text-secondary)', fontSize: '13px', cursor: 'pointer' }}>
-              <FolderPlusIcon style={{ width: '15px', height: '15px' }} /> 새 폴더
+              <FolderPlusIcon style={{ width: '15px', height: '15px' }} /> {t('newFolder')}
             </button>
             <button
               onClick={(e) => {
@@ -1256,9 +1256,9 @@ export function DriveView() {
                 if (e.shiftKey) folderInputRef.current?.click();
                 else fileInputRef.current?.click();
               }}
-              title={driveUploads.length > 0 ? '업로드 창 열기' : '클릭: 파일 업로드, Shift+클릭: 폴더 업로드'}
+              title={driveUploads.length > 0 ? t('openUploadWindow') : t('uploadTooltip')}
               style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '5px 14px', borderRadius: '6px', border: 'none', background: 'var(--color-accent)', color: '#fff', fontSize: '13px', fontWeight: 500, cursor: 'pointer' }}>
-              <ArrowUpTrayIcon style={{ width: '15px', height: '15px' }} /> {driveUploads.length > 0 ? `업로드 창 (${driveUploads.length})` : '업로드'}
+              <ArrowUpTrayIcon style={{ width: '15px', height: '15px' }} /> {driveUploads.length > 0 ? t('uploadWindow', { count: driveUploads.length }) : t('uploadButton')}
             </button>
             {draggingNodeIds.length > 1 && (
               <div
@@ -1282,7 +1282,7 @@ export function DriveView() {
                 }}
                 title={draggingNodeNames.join(', ')}
               >
-                주렁주렁 이동 중: {draggingNodeIds.length}개 선택
+                {t('multiDragBadge', { count: draggingNodeIds.length })}
               </div>
             )}
             <input ref={fileInputRef} type="file" multiple style={{ display: 'none' }} onChange={(e) => { if (e.target.files) { handleUploadFromList(e.target.files, currentParentId || undefined, 'picker'); e.target.value = ''; } }} />
@@ -1305,7 +1305,7 @@ export function DriveView() {
               data-testid="drive-upload-modal"
               role="dialog"
               aria-modal="true"
-              aria-label="파일 업로드"
+              aria-label={t('uploadModal.title')}
               onDragOver={(e) => {
                 if (Array.from(e.dataTransfer.types).includes('Files')) {
                   e.preventDefault();
@@ -1339,21 +1339,21 @@ export function DriveView() {
                 <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px', padding: '18px 20px', borderBottom: '1px solid var(--color-border-subtle)' }}>
                   <div style={{ minWidth: 0, flex: 1 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-                      <div style={{ fontSize: '15px', fontWeight: 700, color: 'var(--color-text-primary)' }}>파일 업로드</div>
+                      <div style={{ fontSize: '15px', fontWeight: 700, color: 'var(--color-text-primary)' }}>{t('uploadModal.title')}</div>
                       <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '3px 8px', borderRadius: '999px', background: 'var(--color-bg-secondary)', color: 'var(--color-text-secondary)', fontSize: '11px', fontWeight: 500 }}>
-                        {driveUploadBatch?.fileCount ?? driveUploads.length}개 선택
+                        {t('uploadModal.selectedCount', { count: driveUploadBatch?.fileCount ?? driveUploads.length })}
                       </span>
                       <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '3px 8px', borderRadius: '999px', background: 'var(--color-accent-subtle)', color: 'var(--color-accent)', fontSize: '11px', fontWeight: 500 }}>
-                        동시 {activeDriveUploads.length}/{DRIVE_UPLOAD_CONCURRENCY}
+                        {t('uploadModal.concurrent', { active: activeDriveUploads.length, max: DRIVE_UPLOAD_CONCURRENCY })}
                       </span>
                       <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '3px 8px', borderRadius: '999px', background: 'rgba(34, 197, 94, 0.10)', color: '#15803d', fontSize: '11px', fontWeight: 500 }}>
-                        {driveUploadResumable ? '재개 가능' : '재개 비활성'}
+                        {driveUploadResumable ? t('uploadModal.resumableOn') : t('uploadModal.resumableOff')}
                       </span>
                     </div>
                     <div style={{ marginTop: '6px', fontSize: '12px', lineHeight: 1.5, color: 'var(--color-text-tertiary)' }}>
                       {driveUploadResumable
-                        ? '큰 파일은 청크로 나눠 병렬 처리하고, 중단된 업로드는 이어서 진행합니다.'
-                        : '지원이 제한되면 전체 파일 업로드로 자동 전환합니다.'}
+                        ? t('uploadModal.descResumable')
+                        : t('uploadModal.descNonResumable')}
                     </div>
                   </div>
                   <button
@@ -1392,10 +1392,10 @@ export function DriveView() {
                 )}
                 <div style={{ padding: '12px 20px', borderBottom: '1px solid var(--color-border-subtle)' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '10px', flexWrap: 'wrap', fontSize: '11px', color: 'var(--color-text-tertiary)' }}>
-                    <span>진행 중 {activeDriveUploads.length}</span>
-                    <span>대기 {queuedDriveUploads.length}</span>
-                    <span>완료 {completedDriveUploads.length}</span>
-                    <span>실패 {erroredDriveUploads.length}</span>
+                    <span>{t('uploadModal.inProgress', { count: activeDriveUploads.length })}</span>
+                    <span>{t('uploadModal.queued', { count: queuedDriveUploads.length })}</span>
+                    <span>{t('uploadModal.completed', { count: completedDriveUploads.length })}</span>
+                    <span>{t('uploadModal.failed', { count: erroredDriveUploads.length })}</span>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                     <div style={{ flex: 1, minWidth: 0 }}>
@@ -1432,7 +1432,7 @@ export function DriveView() {
                             </div>
                             <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px', marginTop: '8px', fontSize: '11px', color: 'var(--color-text-tertiary)' }}>
                               <span>{formatBytes(item.uploadedBytes)} / {formatBytes(item.totalBytes)}</span>
-                              <span>{item.resumable ? '재개 지원' : '재개 미지원'}</span>
+                              <span>{item.resumable ? t('uploadModal.itemResumable') : t('uploadModal.itemNonResumable')}</span>
                             </div>
                             {item.error && (
                               <div style={{ marginTop: '8px', fontSize: '11px', color: 'var(--color-destructive)', lineHeight: 1.45 }}>
@@ -1445,7 +1445,7 @@ export function DriveView() {
                               <button
                                 type="button"
                                 onClick={() => pauseDriveUpload(item.id)}
-                                title="일시정지"
+                                title={t('uploadModal.pause')}
                                 style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '30px', height: '30px', borderRadius: '8px', border: '1px solid var(--color-border-default)', background: 'transparent', color: 'var(--color-text-secondary)' }}
                               >
                                 <PauseIcon style={{ width: '14px', height: '14px' }} />
@@ -1455,7 +1455,7 @@ export function DriveView() {
                               <button
                                 type="button"
                                 onClick={() => { void resumeDriveUpload(item.id); }}
-                                title="이어 업로드"
+                                title={t('uploadModal.resume')}
                                 style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '30px', height: '30px', borderRadius: '8px', border: '1px solid var(--color-border-default)', background: 'transparent', color: 'var(--color-text-secondary)' }}
                               >
                                 <PlayIcon style={{ width: '14px', height: '14px' }} />
@@ -1465,7 +1465,7 @@ export function DriveView() {
                               <button
                                 type="button"
                                 onClick={() => { void cancelDriveUpload(item.id); }}
-                                title="취소"
+                                title={t('uploadModal.cancel')}
                                 style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '30px', height: '30px', borderRadius: '8px', border: '1px solid var(--color-destructive)', background: 'transparent', color: 'var(--color-destructive)' }}
                               >
                                 <XMarkIcon style={{ width: '14px', height: '14px' }} />
@@ -1479,7 +1479,7 @@ export function DriveView() {
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', padding: '14px 20px', borderTop: '1px solid var(--color-border-subtle)', background: 'var(--color-bg-secondary)' }}>
                   <div style={{ fontSize: '11px', color: 'var(--color-text-tertiary)', lineHeight: 1.5 }}>
-                    파일을 추가하면 대기열에 이어 붙습니다. 폴더 드롭도 그대로 처리됩니다.
+                    {t('uploadModal.footerHint')}
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
                     <button
@@ -1488,7 +1488,7 @@ export function DriveView() {
                       style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '7px 12px', borderRadius: '8px', border: '1px solid var(--color-border-default)', background: 'var(--color-bg-primary)', color: 'var(--color-text-secondary)', fontSize: '12px', fontWeight: 500 }}
                     >
                       <ArrowUpTrayIcon style={{ width: '14px', height: '14px' }} />
-                      파일 추가
+                      {t('uploadModal.addFiles')}
                     </button>
                     <button
                       type="button"
@@ -1496,7 +1496,7 @@ export function DriveView() {
                       style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '7px 12px', borderRadius: '8px', border: '1px solid var(--color-border-default)', background: 'var(--color-bg-primary)', color: 'var(--color-text-secondary)', fontSize: '12px', fontWeight: 500 }}
                     >
                       <FolderPlusIcon style={{ width: '14px', height: '14px' }} />
-                      폴더 추가
+                      {t('uploadModal.addFolder')}
                     </button>
                   </div>
                 </div>
@@ -1659,7 +1659,7 @@ export function DriveView() {
                         <div style={{ fontSize: '12px', fontWeight: 500, color: 'var(--color-text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: '4px' }}>{node.name}</div>
                       )}
                       <div style={{ fontSize: '11px', color: 'var(--color-text-tertiary)' }}>
-                        {node.node_type === 'file' ? formatBytes(node.size) : '폴더'} · {formatDate(node.updated_at)}
+                        {node.node_type === 'file' ? formatBytes(node.size) : t('folderLabel')} · {formatDate(node.updated_at)}
                       </div>
                     </div>
                   );

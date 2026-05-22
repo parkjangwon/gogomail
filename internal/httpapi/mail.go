@@ -1936,7 +1936,12 @@ func RegisterMailRoutesWithOptions(mux *http.ServeMux, service MessageService, t
 		writeJSON(w, http.StatusCreated, map[string]any{"attachment": attachment})
 	})
 
+	attachmentDownloadLimiter := NewAdminIPRateLimiter(60, time.Minute)
 	mux.HandleFunc("GET /api/v1/messages/{id}/attachments/{attachment_id}/download", func(w http.ResponseWriter, r *http.Request) {
+		if !attachmentDownloadLimiter.allow(adminClientIP(r)) {
+			writeError(w, http.StatusTooManyRequests, "too many download requests")
+			return
+		}
 		if !rejectBodylessRequestPayload(w, r) {
 			return
 		}

@@ -171,9 +171,12 @@ func CORSMiddleware(allowedOrigins string) func(http.Handler) http.Handler {
 				if allowed, normalized := matchCORSOrigin(origins, origin); allowed {
 					w.Header().Set("Access-Control-Allow-Origin", normalized)
 					w.Header().Set("Vary", "Origin")
-					w.Header().Set("Access-Control-Allow-Credentials", "true")
+					// Browsers reject credentials with wildcard origin; only emit when origin is explicit.
+					if normalized != "*" {
+						w.Header().Set("Access-Control-Allow-Credentials", "true")
+					}
 					w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
-					w.Header().Set("Access-Control-Allow-Headers", "Authorization, Content-Type, X-Requested-With")
+					w.Header().Set("Access-Control-Allow-Headers", "Authorization, Content-Type, X-Requested-With, X-Admin-Token, X-Gogomail-User-ID, X-Gogomail-User-Email")
 					w.Header().Set("Access-Control-Max-Age", "86400")
 				}
 			}
@@ -286,18 +289,44 @@ func MaxRequestBodyMiddleware(maxBytes int64) func(http.Handler) http.Handler {
 	}
 }
 
-// adminClientIP extracts the best client IP from the request, preferring X-Real-IP.
+// adminClientIP extracts the best client IP from the request.
+// X-Real-IP and X-Forwarded-For are only honored when the TCP peer is a loopback
+// or RFC1918 private address (i.e., a trusted reverse proxy on the same host or
+// internal network). Public peers cannot spoof their client IP via these headers.
 func adminClientIP(r *http.Request) string {
-	if xri := strings.TrimSpace(r.Header.Get("X-Real-IP")); xri != "" {
-		if ip := net.ParseIP(xri); ip != nil {
-			return ip.String()
-		}
-	}
 	host, _, err := net.SplitHostPort(r.RemoteAddr)
 	if err != nil {
-		return r.RemoteAddr
+		host = r.RemoteAddr
+	}
+	peer := net.ParseIP(host)
+	if peer != nil && isTrustedProxyIP(peer) {
+		if xri := strings.TrimSpace(r.Header.Get("X-Real-IP")); xri != "" {
+			if ip := net.ParseIP(xri); ip != nil {
+				return ip.String()
+			}
+		}
+		if xff := strings.TrimSpace(r.Header.Get("X-Forwarded-For")); xff != "" {
+			// leftmost entry is the original client
+			if comma := strings.Index(xff, ","); comma > 0 {
+				xff = strings.TrimSpace(xff[:comma])
+			}
+			if ip := net.ParseIP(xff); ip != nil {
+				return ip.String()
+			}
+		}
 	}
 	return host
+}
+
+// isTrustedProxyIP returns true for loopback and RFC1918 private addresses.
+func isTrustedProxyIP(ip net.IP) bool {
+	if ip == nil {
+		return false
+	}
+	if ip.IsLoopback() || ip.IsPrivate() {
+		return true
+	}
+	return false
 }
 
 func adminClaimsFromCtx(ctx context.Context) (auth.Claims, bool) {

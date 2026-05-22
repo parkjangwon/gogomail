@@ -297,9 +297,9 @@ export function SettingsModalContent({
             </div>
           </div>
           <div style={sectionStyle}>
-            <span style={labelStyle}>외부 이미지 로드</span>
+            <span style={labelStyle}>{t('externalImages')}</span>
             <div style={radioGroupStyle}>
-              {([['always', '항상 표시'], ['ask', '확인 후 표시'], ['never', '차단']] as const).map(([val, lbl]) => (
+              {([['always', t('externalImagesAlways')], ['ask', t('externalImagesAsk')], ['never', t('externalImagesNever')]] as const).map(([val, lbl]) => (
                 <label key={val} style={radioLabelStyle}>
                   <input type="radio" name="externalImages" value={val} checked={settings.externalImages === val} onChange={() => update('externalImages', val)} />
                   {lbl}
@@ -313,21 +313,21 @@ export function SettingsModalContent({
       return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
           {[
-            ['s', '새 메일 작성'],
-            ['r', '회신'],
-            ['a', '전체 회신'],
-            ['f', '전달'],
-            ['/', '검색 포커스'],
-            ['[', '사이드바 접기/펼치기'],
-            ['j / k', '다음/이전 메일'],
-            ['e', '보관'],
-            ['Delete', '삭제'],
-            ['m', '읽음으로 표시'],
-            ['u', '안읽음으로 표시'],
-            ['s', '중요 표시 토글'],
-            ['Esc', '메일 닫기'],
+            ['c', t('shortcuts.compose')],
+            ['r', t('shortcuts.reply')],
+            ['a', t('shortcuts.replyAll')],
+            ['f', t('shortcuts.forward')],
+            ['/', t('shortcuts.searchFocus')],
+            ['[', t('shortcuts.toggleSidebar')],
+            ['j / k', t('shortcuts.nextPrev')],
+            ['e', t('shortcuts.archive')],
+            ['Delete', t('shortcuts.delete')],
+            ['m', t('shortcuts.markRead')],
+            ['u', t('shortcuts.markUnread')],
+            ['s', t('shortcuts.toggleStar')],
+            ['Esc', t('shortcuts.close')],
           ].map(([key, desc]) => (
-            <div key={key} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', borderRadius: '6px', background: 'var(--color-bg-secondary)', marginBottom: '2px' }}>
+            <div key={desc} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', borderRadius: '6px', background: 'var(--color-bg-secondary)', marginBottom: '2px' }}>
               <span style={{ fontSize: '13px', color: 'var(--color-text-secondary)' }}>{desc}</span>
               <kbd style={{ fontSize: '11px', fontFamily: 'monospace', padding: '2px 8px', background: 'var(--color-bg-primary)', border: '1px solid var(--color-border-default)', borderRadius: '4px', color: 'var(--color-text-primary)', fontWeight: 600 }}>{key}</kbd>
             </div>
@@ -342,21 +342,21 @@ export function SettingsModalContent({
               <input type="checkbox" checked={settings.threadView ?? true} onChange={(e) => update('threadView', e.target.checked)} />
               <span style={{ fontSize: '13px', color: 'var(--color-text-primary)', fontWeight: 500 }}>{t('threadView')}</span>
             </label>
-            <p style={{ fontSize: '12px', color: 'var(--color-text-tertiary)', marginTop: '4px', marginLeft: '24px' }}>같은 주제의 메일을 하나의 대화로 묶어서 표시합니다.</p>
+            <p style={{ fontSize: '12px', color: 'var(--color-text-tertiary)', marginTop: '4px', marginLeft: '24px' }}>{t('threadViewDesc')}</p>
           </div>
           <div style={sectionStyle}>
             <label style={{ ...radioLabelStyle, cursor: 'pointer' }}>
               <input type="checkbox" checked={settings.showPreview ?? true} onChange={(e) => update('showPreview', e.target.checked)} />
-              <span style={{ fontSize: '13px', color: 'var(--color-text-primary)', fontWeight: 500 }}>미리보기 표시</span>
+              <span style={{ fontSize: '13px', color: 'var(--color-text-primary)', fontWeight: 500 }}>{t('showPreviewLabel')}</span>
             </label>
-            <p style={{ fontSize: '12px', color: 'var(--color-text-tertiary)', marginTop: '4px', marginLeft: '24px' }}>메일 목록에서 본문 일부를 미리 표시합니다.</p>
+            <p style={{ fontSize: '12px', color: 'var(--color-text-tertiary)', marginTop: '4px', marginLeft: '24px' }}>{t('showPreviewDesc')}</p>
           </div>
           <div style={sectionStyle}>
             <label style={{ ...radioLabelStyle, cursor: 'pointer' }}>
               <input type="checkbox" checked={settings.autoSaveDraft ?? true} onChange={(e) => update('autoSaveDraft', e.target.checked)} />
-              <span style={{ fontSize: '13px', color: 'var(--color-text-primary)', fontWeight: 500 }}>임시 저장 자동 저장</span>
+              <span style={{ fontSize: '13px', color: 'var(--color-text-primary)', fontWeight: 500 }}>{t('autoSaveDraft')}</span>
             </label>
-            <p style={{ fontSize: '12px', color: 'var(--color-text-tertiary)', marginTop: '4px', marginLeft: '24px' }}>메일 작성 중 일정 시간마다 자동으로 임시 저장합니다.</p>
+            <p style={{ fontSize: '12px', color: 'var(--color-text-tertiary)', marginTop: '4px', marginLeft: '24px' }}>{t('autoSaveDraftDesc')}</p>
           </div>
           <div style={sectionStyle}>
             <span style={labelStyle}>{t('sendDelay')}</span>
@@ -370,9 +370,9 @@ export function SettingsModalContent({
             </div>
           </div>
           <div style={sectionStyle}>
-            <span style={labelStyle}>글꼴 크기</span>
+            <span style={labelStyle}>{t('fontSize')}</span>
             <div style={radioGroupStyle}>
-              {([['small', '작게'], ['medium', '보통'], ['large', '크게']] as const).map(([val, lbl]) => (
+              {([['small', t('fontSizeSmall')], ['medium', t('fontSizeMedium')], ['large', t('fontSizeLarge')]] as const).map(([val, lbl]) => (
                 <label key={val} style={radioLabelStyle}>
                   <input type="radio" name="fontSize" value={val} checked={(settings.fontSize ?? 'medium') === val} onChange={() => update('fontSize', val)} />
                   {lbl}
