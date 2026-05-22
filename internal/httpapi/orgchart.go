@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"net/http"
 
 	"github.com/gogomail/gogomail/internal/orgchart"
@@ -77,7 +78,8 @@ func RegisterOrgChartRoutes(mux *http.ServeMux, service OrgChartService, adminTo
 		}
 
 		if err := service.CreateUnit(r.Context(), &req); err != nil {
-			writeError(w, http.StatusBadRequest, err.Error())
+			slog.ErrorContext(r.Context(), "create org unit failed", "error", err)
+			writeError(w, http.StatusBadRequest, "invalid org unit request")
 			return
 		}
 
@@ -175,7 +177,8 @@ func RegisterOrgChartRoutes(mux *http.ServeMux, service OrgChartService, adminTo
 		}
 
 		if err := service.AssignUserToUnit(r.Context(), req.UnitID, req.UserID, req.Role); err != nil {
-			writeError(w, http.StatusBadRequest, err.Error())
+			slog.ErrorContext(r.Context(), "assign user to unit failed", "error", err, "unit_id", req.UnitID, "user_id", req.UserID)
+			writeError(w, http.StatusBadRequest, "failed to assign user")
 			return
 		}
 

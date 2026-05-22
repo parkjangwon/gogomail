@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"strings"
@@ -52,13 +53,15 @@ func RegisterSSOAdminRoutes(mux *http.ServeMux, svc SSOAdminService, token strin
 	mux.HandleFunc("PUT /admin/v1/sso-configurations/{domain_id}", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
 		domainID := r.PathValue("domain_id")
 		var cfg maildb.SSOConfig
-		if err := json.NewDecoder(r.Body).Decode(&cfg); err != nil {
+		if err := decodeJSONBody(r, &cfg); err != nil {
+			slog.WarnContext(r.Context(), "decode sso config request failed", "error", err, "domain_id", domainID)
 			writeError(w, http.StatusBadRequest, "invalid request body")
 			return
 		}
 		cfg.DomainID = domainID
 		if err := svc.UpsertSSOConfig(r.Context(), cfg); err != nil {
-			writeError(w, http.StatusBadRequest, err.Error())
+			slog.ErrorContext(r.Context(), "upsert sso config failed", "error", err, "domain_id", domainID)
+			writeError(w, http.StatusBadRequest, "failed to upsert sso configuration")
 			return
 		}
 		w.WriteHeader(http.StatusNoContent)

@@ -2,6 +2,7 @@ package httpapi
 
 import (
 	"encoding/json"
+	"log/slog"
 	"net/http"
 	"strconv"
 	"strings"
@@ -31,6 +32,19 @@ func handleCreateAlertRule(w http.ResponseWriter, r *http.Request, svc AdminServ
 		return
 	}
 
+	if len(req.Name) > 200 {
+		writeError(w, http.StatusBadRequest, "name must be 200 characters or fewer")
+		return
+	}
+	if len(req.Description) > 2000 {
+		writeError(w, http.StatusBadRequest, "description must be 2000 characters or fewer")
+		return
+	}
+	if len(req.CreatedBy) > 200 {
+		writeError(w, http.StatusBadRequest, "created_by must be 200 characters or fewer")
+		return
+	}
+
 	rule := &admin.AlertRule{
 		CompanyID:            companyID,
 		AlertType:            req.AlertType,
@@ -43,7 +57,8 @@ func handleCreateAlertRule(w http.ResponseWriter, r *http.Request, svc AdminServ
 	}
 
 	if err := svc.CreateAlertRule(r.Context(), rule); err != nil {
-		writeError(w, http.StatusBadRequest, err.Error())
+		slog.ErrorContext(r.Context(), "create alert rule failed", "error", err, "company_id", companyID)
+		writeError(w, http.StatusBadRequest, "failed to create alert rule")
 		return
 	}
 
@@ -108,6 +123,15 @@ func handleUpdateAlertRule(w http.ResponseWriter, r *http.Request, svc AdminServ
 		return
 	}
 
+	if len(req.Name) > 200 {
+		writeError(w, http.StatusBadRequest, "name must be 200 characters or fewer")
+		return
+	}
+	if len(req.Description) > 2000 {
+		writeError(w, http.StatusBadRequest, "description must be 2000 characters or fewer")
+		return
+	}
+
 	rule := &admin.AlertRule{
 		ID:                   ruleID,
 		Name:                 req.Name,
@@ -118,7 +142,8 @@ func handleUpdateAlertRule(w http.ResponseWriter, r *http.Request, svc AdminServ
 	}
 
 	if err := svc.UpdateAlertRule(r.Context(), rule); err != nil {
-		writeError(w, http.StatusBadRequest, err.Error())
+		slog.ErrorContext(r.Context(), "update alert rule failed", "error", err, "rule_id", ruleID)
+		writeError(w, http.StatusBadRequest, "failed to update alert rule")
 		return
 	}
 
@@ -177,7 +202,8 @@ func handleCreateAlertChannel(w http.ResponseWriter, r *http.Request, svc AdminS
 	}
 
 	if err := svc.CreateAlertChannel(r.Context(), channel); err != nil {
-		writeError(w, http.StatusBadRequest, err.Error())
+		slog.ErrorContext(r.Context(), "create alert channel failed", "error", err, "company_id", companyID)
+		writeError(w, http.StatusBadRequest, "failed to create alert channel")
 		return
 	}
 
@@ -236,7 +262,8 @@ func handleUpdateAlertChannel(w http.ResponseWriter, r *http.Request, svc AdminS
 	}
 
 	if err := svc.UpdateAlertChannel(r.Context(), channel); err != nil {
-		writeError(w, http.StatusBadRequest, err.Error())
+		slog.ErrorContext(r.Context(), "update alert channel failed", "error", err, "channel_id", channelID)
+		writeError(w, http.StatusBadRequest, "failed to update alert channel")
 		return
 	}
 

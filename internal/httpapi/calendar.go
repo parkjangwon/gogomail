@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"strings"
@@ -144,13 +145,15 @@ func RegisterCalendarRoutes(mux *http.ServeMux, handler *CalendarHandler, tokenM
 		}
 		var req caldavgw.CreateCalendarRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeError(w, http.StatusBadRequest, fmt.Errorf("decode calendar create request: %w", err).Error())
+			slog.WarnContext(r.Context(), "decode calendar create request failed", "error", err)
+			writeError(w, http.StatusBadRequest, "invalid calendar request")
 			return
 		}
 		req.UserID = userID
 		calendar, err := handler.repo.CreateCalendar(r.Context(), req)
 		if err != nil {
-			writeError(w, http.StatusBadRequest, fmt.Errorf("create calendar: %w", err).Error())
+			slog.ErrorContext(r.Context(), "create calendar failed", "error", err, "user_id", userID)
+			writeError(w, http.StatusBadRequest, "invalid calendar request")
 			return
 		}
 		w.Header().Set("Location", fmt.Sprintf("/api/v1/calendars/%s", calendar.ID))
@@ -200,14 +203,16 @@ func RegisterCalendarRoutes(mux *http.ServeMux, handler *CalendarHandler, tokenM
 		}
 		var req caldavgw.UpdateCalendarRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeError(w, http.StatusBadRequest, fmt.Errorf("decode calendar update request: %w", err).Error())
+			slog.WarnContext(r.Context(), "decode calendar update request failed", "error", err)
+			writeError(w, http.StatusBadRequest, "invalid calendar request")
 			return
 		}
 		req.UserID = userID
 		req.CalendarID = calendarID
 		calendar, err := handler.repo.UpdateCalendarProperties(r.Context(), req)
 		if err != nil {
-			writeError(w, http.StatusBadRequest, fmt.Errorf("update calendar: %w", err).Error())
+			slog.ErrorContext(r.Context(), "update calendar failed", "error", err, "user_id", userID, "calendar_id", calendarID)
+			writeError(w, http.StatusBadRequest, "invalid calendar request")
 			return
 		}
 		writeJSON(w, http.StatusOK, CalendarEnvelope{Calendar: calendar})
