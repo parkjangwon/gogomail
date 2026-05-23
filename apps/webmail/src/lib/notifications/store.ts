@@ -148,6 +148,34 @@ function isNotificationSoundEnabled(): boolean {
   }
 }
 
+function playNotificationSound(): void {
+  if (typeof window === 'undefined') return;
+  if (!isNotificationSoundEnabled()) return;
+  if (isQuietHoursActive(new Date())) return;
+  try {
+    const AudioContextCtor = window.AudioContext
+      ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!AudioContextCtor) return;
+    const ctx = new AudioContextCtor();
+    const oscillator = ctx.createOscillator();
+    const gain = ctx.createGain();
+    oscillator.type = 'sine';
+    oscillator.frequency.setValueAtTime(880, ctx.currentTime);
+    gain.gain.setValueAtTime(0.0001, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.08, ctx.currentTime + 0.015);
+    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.18);
+    oscillator.connect(gain);
+    gain.connect(ctx.destination);
+    oscillator.start();
+    oscillator.stop(ctx.currentTime + 0.2);
+    window.setTimeout(() => {
+      void ctx.close().catch(() => {});
+    }, 300);
+  } catch {
+    // Browser autoplay policy or unsupported audio contexts must not break notifications.
+  }
+}
+
 type State = { notifications: Notification[] };
 
 type Action =
@@ -268,6 +296,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
       metadata: input.metadata,
     };
     dispatch({ type: 'push', notification, dedupe: input.dedupe });
+    playNotificationSound();
     // Mirror to OS-level browser notification (gated by permission + toggle).
     fireBrowserNotification(notification, (markId) => dispatch({ type: 'markRead', id: markId }));
     return notification;

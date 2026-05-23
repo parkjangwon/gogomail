@@ -242,6 +242,53 @@ test.describe('Notification center', () => {
     expect(count).toBe(0);
   });
 
+  test('plays in-app notification sound when enabled', async ({ page }) => {
+    await page.addInitScript(() => {
+      localStorage.setItem('webmail_notif_sound', '1');
+      (window as unknown as { __notificationSoundStarts: number }).__notificationSoundStarts = 0;
+      class FakeOscillator {
+        type = 'sine';
+        frequency = { setValueAtTime() { /* noop */ } };
+        connect() { return this; }
+        start() {
+          (window as unknown as { __notificationSoundStarts: number }).__notificationSoundStarts++;
+        }
+        stop() { /* noop */ }
+      }
+      class FakeGain {
+        gain = {
+          setValueAtTime() { /* noop */ },
+          exponentialRampToValueAtTime() { /* noop */ },
+        };
+        connect() { return this; }
+      }
+      class FakeAudioContext {
+        currentTime = 0;
+        destination = {};
+        createOscillator() { return new FakeOscillator(); }
+        createGain() { return new FakeGain(); }
+        close() { return Promise.resolve(); }
+      }
+      Object.defineProperty(window, 'AudioContext', { value: FakeAudioContext, configurable: true });
+    });
+    await setupAuthedPage(page);
+    await page.evaluate(() => {
+      const w = window as unknown as {
+        __webmailNotifications?: { push: (input: Record<string, unknown>) => unknown };
+      };
+      w.__webmailNotifications?.push({
+        category: 'system',
+        severity: 'info',
+        title: 'Sound check',
+      });
+    });
+
+    await expect.poll(
+      () => page.evaluate(() => (window as unknown as { __notificationSoundStarts: number }).__notificationSoundStarts),
+      { timeout: 5_000 },
+    ).toBe(1);
+  });
+
   test('persists across reload', async ({ page }) => {
     await pushNotification(page, { title: 'Persisted item' });
     await expect.poll(() => unreadBadgeText(page)).toBe('1');

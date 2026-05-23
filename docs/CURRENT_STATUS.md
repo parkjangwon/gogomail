@@ -1,6 +1,12 @@
 # gogomail current status
 
-Last updated: 2026-05-23 (per-folder notification controls)
+Last updated: 2026-05-23 (notification sound enforcement)
+
+## Notification Sound Enforcement (2026-05-23)
+- The webmail notification store now plays a short Web Audio chime for in-app notifications when the user enables notification sound.
+- Sound playback follows the same quiet-hours suppression as browser notification mirroring and gracefully no-ops when browser audio policy blocks playback.
+- Regression coverage verifies notification pushes start the audio path only when the sound setting is enabled.
+- Verification target: `pnpm -C apps/webmail exec playwright test e2e/notifications.spec.ts --project=chromium --grep "notification sound"`; `pnpm -C apps/webmail type-check`.
 
 ## Per-Folder Notification Controls (2026-05-23)
 - Webmail Settings now renders per-folder notification switches from the mailbox folder list and persists disabled folders into the backend `folder_overrides` notification-preference document.
