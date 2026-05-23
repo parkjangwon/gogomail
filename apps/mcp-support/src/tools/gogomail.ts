@@ -332,6 +332,51 @@ export const toolDefinitions: Tool[] = [
     },
   },
   {
+    name: "gogomail_update_user_recovery_email",
+    description:
+      "Update the recovery email address for a user account. Used when a customer loses access to their recovery email. Provide ticketId to attach audit memo to an existing Suppo ticket; omit to auto-create a standalone audit ticket.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        userId: { type: "string" },
+        recoveryEmail: { type: "string", description: "New recovery email address" },
+        ticketId: { type: "string" },
+      },
+      required: ["userId", "recoveryEmail"],
+    },
+  },
+  {
+    name: "gogomail_create_user",
+    description:
+      "Create a new user account in a domain. If password is provided, the user will be prompted to change it on first login. Provide ticketId to attach audit memo to an existing Suppo ticket; omit to auto-create a standalone audit ticket.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        domainId: { type: "string" },
+        username: { type: "string", description: "Local part of the email address (before @)" },
+        displayName: { type: "string", description: "User's full display name" },
+        recoveryEmail: { type: "string", description: "Recovery email (optional)" },
+        password: { type: "string", description: "Initial password — user will be required to change it on first login" },
+        quotaLimit: { type: "number", description: "Storage quota in bytes (optional, uses domain default)" },
+        ticketId: { type: "string" },
+      },
+      required: ["domainId", "username", "displayName"],
+    },
+  },
+  {
+    name: "gogomail_delete_user",
+    description:
+      "Permanently delete a user account. THIS IS IRREVERSIBLE. PREREQUISITE: call gogomail_get_user first to confirm identity. Provide ticketId to attach audit memo to an existing Suppo ticket; omit to auto-create a standalone audit ticket.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        userId: { type: "string" },
+        ticketId: { type: "string" },
+      },
+      required: ["userId"],
+    },
+  },
+  {
     name: "gogomail_update_domain_settings",
     description:
       "Update domain configuration (catch-all, SPF, DKIM, DMARC, max message size). PREREQUISITE: call gogomail_get_domain_settings first. Provide ticketId to attach audit memo to an existing Suppo ticket; omit to auto-create a standalone audit ticket.",
@@ -584,6 +629,24 @@ const UpdateRoleSchema = z.object({
   role: z.string(),
   ticketId: z.string().optional(),
 });
+const UpdateRecoveryEmailSchema = z.object({
+  userId: z.string(),
+  recoveryEmail: z.string().email(),
+  ticketId: z.string().optional(),
+});
+const CreateUserSchema = z.object({
+  domainId: z.string(),
+  username: z.string(),
+  displayName: z.string(),
+  recoveryEmail: z.string().optional(),
+  password: z.string().optional(),
+  quotaLimit: z.number().optional(),
+  ticketId: z.string().optional(),
+});
+const DeleteUserSchema = z.object({
+  userId: z.string(),
+  ticketId: z.string().optional(),
+});
 const UpdateDomainSchema = z.object({
   domainId: z.string(),
   settings: z.record(z.unknown()),
@@ -796,6 +859,51 @@ export async function callTool(
         console.error("[audit] failed to write comment:", e),
       );
       return result;
+    }
+    case "gogomail_update_user_recovery_email": {
+      const { userId, recoveryEmail, ticketId } = UpdateRecoveryEmailSchema.parse(args);
+      const user = await gogomail.getUser(userId);
+      await gogomail.updateUserRecoveryEmail(userId, recoveryEmail);
+      writeAuditComment(
+        suppo,
+        ticketId,
+        "gogomail_update_user_recovery_email",
+        `${user.email} (userId: ${userId})`,
+        `복구 이메일 변경 → ${recoveryEmail}`,
+      ).catch((e: unknown) =>
+        console.error("[audit] failed to write comment:", e),
+      );
+      return { status: "ok", userId, recoveryEmail };
+    }
+    case "gogomail_create_user": {
+      const { domainId, username, displayName, recoveryEmail, password, quotaLimit, ticketId } =
+        CreateUserSchema.parse(args);
+      const user = await gogomail.createUser({ domainId, username, displayName, recoveryEmail, password, quotaLimit });
+      writeAuditComment(
+        suppo,
+        ticketId,
+        "gogomail_create_user",
+        `${user.email} (userId: ${user.id})`,
+        `신규 사용자 생성 — domainId: ${domainId}`,
+      ).catch((e: unknown) =>
+        console.error("[audit] failed to write comment:", e),
+      );
+      return user;
+    }
+    case "gogomail_delete_user": {
+      const { userId, ticketId } = DeleteUserSchema.parse(args);
+      const user = await gogomail.getUser(userId);
+      await gogomail.deleteUser(userId);
+      writeAuditComment(
+        suppo,
+        ticketId,
+        "gogomail_delete_user",
+        `${user.email} (userId: ${userId})`,
+        "사용자 계정 영구 삭제",
+      ).catch((e: unknown) =>
+        console.error("[audit] failed to write comment:", e),
+      );
+      return { status: "ok", deletedUserId: userId, email: user.email };
     }
     case "gogomail_update_domain_settings": {
       const { domainId, settings, ticketId } = UpdateDomainSchema.parse(args);

@@ -586,4 +586,34 @@ export class GogomailClient {
   async updateUserRole(userId: string, role: string): Promise<GogomailUser> {
     return this.request<GogomailUser>("PATCH", `/users/${userId}/role`, { role });
   }
+
+  async updateUserRecoveryEmail(userId: string, recoveryEmail: string): Promise<void> {
+    await this.request<void>("PATCH", `/users/${userId}/recovery-email`, {
+      recovery_email: recoveryEmail,
+    });
+  }
+
+  async createUser(params: {
+    domainId: string;
+    username: string;
+    displayName: string;
+    recoveryEmail?: string;
+    password?: string;
+    quotaLimit?: number;
+  }): Promise<GogomailUser> {
+    const res = await this.request<{ user: GogomailUser }>("POST", "/users", {
+      domain_id: params.domainId,
+      username: params.username,
+      display_name: params.displayName,
+      recovery_email: params.recoveryEmail,
+      password: params.password,
+      must_change_password: !!params.password,
+      quota_limit: params.quotaLimit,
+    });
+    return res.user;
+  }
+
+  async deleteUser(userId: string): Promise<void> {
+    await this.request<void>("DELETE", `/users/${userId}`);
+  }
 }
