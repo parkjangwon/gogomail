@@ -204,6 +204,15 @@ test.describe('Notification center', () => {
     await expect(dialog).toContainText('KeepMe');
   });
 
+  test('names item dismiss buttons with the notification title', async ({ page }) => {
+    await pushNotification(page, { title: 'Targeted alert' });
+
+    const { dialog } = await openCenter(page);
+    await expect(
+      dialog.getByRole('button', { name: /알림 닫기: Targeted alert|Dismiss notification: Targeted alert/i }),
+    ).toBeVisible();
+  });
+
   test('clear-all empties the list', async ({ page }) => {
     await pushNotification(page, { title: 'one' });
     await pushNotification(page, { title: 'two' });

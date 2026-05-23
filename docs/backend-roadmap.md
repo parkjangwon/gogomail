@@ -6817,3 +6817,7 @@ Target outcome:
       malformed-entry filtering and 500-item cap as initial localStorage load,
       preventing another tab from injecting invalid or oversized notification
       state into the active notification center.
+1863. Webmail notification row dismiss controls now include the notification
+      title in their localized accessible names, making repeated close buttons
+      distinguishable for assistive-technology users in dense notification
+      lists.

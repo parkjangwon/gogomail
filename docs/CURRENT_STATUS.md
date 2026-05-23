@@ -1,6 +1,12 @@
 # gogomail current status
 
-Last updated: 2026-05-23 (notification storage hydration hardening)
+Last updated: 2026-05-23 (notification item dismiss accessibility)
+
+## Notification Item Dismiss Accessibility (2026-05-23)
+- Each notification row dismiss button now includes the notification title in its accessible name, so assistive-technology users can distinguish repeated close buttons.
+- Locale catalogs now include contextual dismiss labels for English, Korean, Japanese, and Simplified Chinese.
+- E2E coverage verifies a `Targeted alert` notification exposes `알림 닫기: Targeted alert` / `Dismiss notification: Targeted alert`.
+- Verification target: `pnpm -C apps/webmail exec playwright test e2e/notifications.spec.ts --project=chromium -g "names item dismiss"`; `pnpm -C apps/webmail type-check`.
 
 ## Notification Storage Hydration Hardening (2026-05-23)
 - Cross-tab notification storage events now reuse the same validation and 500-item cap as initial localStorage hydration.
