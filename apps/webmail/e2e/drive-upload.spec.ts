@@ -47,7 +47,10 @@ test.describe('Drive upload queue', () => {
     await dialog.getByRole('button', { name: '취소' }).first().click();
   });
 
-  test('accepts a multi-file drop as a single batch', async ({ page }) => {
+  test('accepts a multi-file drop as a single batch', async ({ page, browserName }) => {
+    // WebKit's synthetic DragEvent does not populate DataTransfer.files
+    // through `items.add(File)`, so the drop handler never sees the files.
+    test.skip(browserName === 'webkit', 'WebKit drag/drop simulation gap');
     await loginAsSeedUser(page);
 
     await page.getByRole('button', { name: '드라이브' }).click();
@@ -72,7 +75,8 @@ test.describe('Drive upload queue', () => {
     await dialog.getByRole('button', { name: '취소' }).first().click();
   });
 
-  test('accepts multi-file drops while the upload modal is open', async ({ page }) => {
+  test('accepts multi-file drops while the upload modal is open', async ({ page, browserName }) => {
+    test.skip(browserName === 'webkit', 'WebKit drag/drop simulation gap');
     await loginAsSeedUser(page);
 
     await page.getByRole('button', { name: '드라이브' }).click();
