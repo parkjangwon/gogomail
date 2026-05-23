@@ -74,6 +74,23 @@ docker compose -f docker-compose.small.yml up -d
 [`docker/DEPLOYMENT.md`](docker/DEPLOYMENT.md) (한국어:
 [`docker/DEPLOYMENT.ko.md`](docker/DEPLOYMENT.ko.md))를 참고하세요.
 
+## AI 에이전트 지원 (MCP 서버)
+
+`apps/mcp-support`는 AI 에이전트에게 GoGoMail Admin API에 대한 구조화된 직접 접근을 제공하는 [Model Context Protocol](https://modelcontextprotocol.io/) 서버입니다. **무인 24/7 운영**을 목표로 설계됐습니다 — 에이전트가 배송 오류 진단, 사용자 관리, 큐 확인, 지원 티켓 처리 등을 사람 없이 처리할 수 있습니다.
+
+```
+자연어 요청
+    → AI 에이전트 (Claude, GPT-4, …)
+        → MCP 툴 (apps/mcp-support)
+            → GoGoMail Admin API  /admin/v1/…
+            → Suppo 헬프데스크    (선택)
+            → GitHub Issues       (선택)
+```
+
+세 영역에 걸쳐 **53개 툴** — GoGoMail Admin 37개, Suppo 헬프데스크 10개, GitHub Issues 6개. `GOGOMAIL_ADMIN_URL`과 `GOGOMAIL_ADMIN_KEY`만 필수이며 Suppo와 GitHub는 선택 연동입니다.
+
+→ 상세 문서: [apps/mcp-support/README.md](apps/mcp-support/README.md) · [apps/mcp-support/README.ko.md](apps/mcp-support/README.ko.md)
+
 ## 문서
 
 | 주제 | 파일 |
@@ -86,6 +103,7 @@ docker compose -f docker-compose.small.yml up -d
 | 토폴로지 패턴 | [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) |
 | OpenAPI 계약 | [docs/openapi.yaml](docs/openapi.yaml) |
 | 로드맵 | [docs/backend-roadmap.md](docs/backend-roadmap.md) |
+| AI 에이전트 / MCP 서버 | [apps/mcp-support/README.ko.md](apps/mcp-support/README.ko.md) |
 
 ## 소스 빌드
 
