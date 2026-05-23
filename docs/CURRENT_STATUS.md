@@ -1,6 +1,12 @@
 # gogomail current status
 
-Last updated: 2026-05-23 (webpush mail-window targeting)
+Last updated: 2026-05-23 (notification unread filter guard)
+
+## Notification Unread Filter Guard (2026-05-23)
+- Notification center now disables the unread filter when there are no unread notifications.
+- This prevents users from entering an empty unread-only view while read notifications still exist in the all view.
+- E2E coverage verifies read-only notification lists keep their visible rows and do not show the filtered-empty state when the unread filter is unavailable.
+- Verification target: `pnpm -C apps/webmail exec playwright test e2e/notifications.spec.ts --project=chromium -g "does not enter unread filter|returns to all notifications after marking all unread-filtered|unread filtering hides categories"`; `pnpm -C apps/webmail type-check`.
 
 ## WebPush Mail-Window Targeting (2026-05-23)
 - WebPush notification clicks now identify reusable mail windows by URL pathname instead of substring matching.

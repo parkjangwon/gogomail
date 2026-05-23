@@ -6932,3 +6932,6 @@ Target outcome:
       windows by parsed URL pathname (`/mail` or `/mail/...`) instead of broad
       substring matching, so unrelated app pages that only mention `/mail` in
       query strings are not hijacked by notification navigation.
+1894. Webmail notification center now disables the unread filter when no
+      unread notifications exist, preventing users from hiding read
+      notifications behind an empty unread-only view.
