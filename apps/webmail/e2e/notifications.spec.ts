@@ -1,5 +1,6 @@
 import { test, expect, type Page } from '@playwright/test';
 import { setupAuthedPage } from './helpers';
+import { makeMessage } from './mocks';
 
 /**
  * The notification store exposes `window.__webmailNotifications` for tests
@@ -240,5 +241,48 @@ test.describe('Notification center', () => {
     await expect.poll(() => unreadBadgeText(page), { timeout: 5_000 }).toBe('1');
     const { dialog } = await openCenter(page);
     await expect(dialog).toContainText('Persisted item');
+  });
+});
+
+test.describe('Mail arrival notifications', () => {
+  test('respects browser-notification toggle during message refresh', async ({ page }) => {
+    await page.addInitScript(() => {
+      try {
+        Object.defineProperty(window.Notification, 'permission', { value: 'granted', configurable: true });
+        Object.defineProperty(document, 'hidden', { get: () => true, configurable: true });
+        Object.defineProperty(document, 'visibilityState', { get: () => 'hidden', configurable: true });
+      } catch {
+        // ignore
+      }
+      localStorage.setItem('webmail_browser_notifications_enabled', 'false');
+      (window as unknown as { __notificationsCreated: number }).__notificationsCreated = 0;
+      const Orig = window.Notification;
+      window.Notification = new Proxy(Orig, {
+        construct(target, args) {
+          (window as unknown as { __notificationsCreated: number }).__notificationsCreated++;
+          return new (target as unknown as new (...a: unknown[]) => Notification)(...args);
+        },
+      }) as typeof window.Notification;
+    });
+
+    const messages = [
+      makeMessage('refresh-seed', { read: true, subject: 'Already seen' }),
+    ];
+    await setupAuthedPage(page, { messages });
+    await page.evaluate(() => localStorage.removeItem('webmail_notifications'));
+
+    messages.unshift(makeMessage('refresh-new', {
+      read: false,
+      subject: 'Fresh launch mail',
+      from_name: 'Launch Desk',
+    }));
+    await page.getByRole('button', { name: /새로고침|Refresh|更新|刷新/i }).click();
+
+    await expect.poll(
+      () => page.evaluate(() => (window as unknown as { __notificationsCreated: number }).__notificationsCreated),
+      { timeout: 5_000 },
+    ).toBe(0);
+
+    await expect.poll(() => unreadBadgeText(page), { timeout: 5_000 }).toBe('1');
   });
 });
