@@ -1,6 +1,12 @@
 # gogomail current status
 
-Last updated: 2026-05-23 (notification reopen filter recovery)
+Last updated: 2026-05-23 (webpush notification click URL hardening)
+
+## WebPush Notification Click URL Hardening (2026-05-23)
+- Webmail service worker notification clicks now open only safe relative app URLs and fall back to `/mail` for external, protocol-relative, or non-string payload targets.
+- This keeps closed-tab WebPush notification click behavior aligned with in-app notification action URL hardening.
+- E2E coverage evaluates `/sw.js` with mocked service worker clients and verifies unsafe click URLs fall back to `/mail` while safe relative app URLs are preserved.
+- Verification target: `pnpm -C apps/webmail exec playwright test e2e/notifications.spec.ts --project=chromium -g "service worker notification clicks"`; `pnpm -C apps/webmail type-check`.
 
 ## Notification Search Reopen Recovery (2026-05-23)
 - Notification center now clears stale search, unread, and category filters each time the panel is opened.

@@ -52,6 +52,45 @@ async function unreadBadgeText(page: Page): Promise<string | null> {
   });
 }
 
+async function serviceWorkerOpenedUrls(page: Page, notificationData: Record<string, unknown>) {
+  return await page.evaluate(async (data) => {
+    const source = await fetch('/sw.js').then((response) => response.text());
+    const listeners: Record<string, (event: unknown) => void> = {};
+    const openedUrls: unknown[] = [];
+    const fakeSelf = {
+      addEventListener(type: string, handler: (event: unknown) => void) {
+        listeners[type] = handler;
+      },
+      registration: {
+        showNotification: () => Promise.resolve(),
+      },
+    };
+    const fakeClients = {
+      matchAll: async () => [],
+      openWindow: async (url: unknown) => {
+        openedUrls.push(url);
+        return null;
+      },
+    };
+    new Function('self', 'clients', source)(fakeSelf, fakeClients);
+
+    let waited: Promise<unknown> | undefined;
+    const event = {
+      notification: {
+        close: () => undefined,
+        data,
+      },
+      waitUntil: (promise: Promise<unknown>) => {
+        waited = Promise.resolve(promise);
+      },
+    };
+
+    listeners.notificationclick(event);
+    await waited;
+    return openedUrls;
+  }, notificationData);
+}
+
 test.describe('Notification center', () => {
   test.beforeEach(async ({ page }) => {
     await setupAuthedPage(page);
@@ -294,6 +333,13 @@ test.describe('Notification center', () => {
       ['runtime-good-action', '/mail?from=runtime'],
       ['runtime-bad-action', null],
     ]);
+  });
+
+  test('service worker notification clicks fall back for unsafe target URLs', async ({ page }) => {
+    await expect(serviceWorkerOpenedUrls(page, { url: 'https://evil.example/phish' })).resolves.toEqual(['/mail']);
+    await expect(serviceWorkerOpenedUrls(page, { url: '//evil.example/phish' })).resolves.toEqual(['/mail']);
+    await expect(serviceWorkerOpenedUrls(page, { url: { href: '/mail' } })).resolves.toEqual(['/mail']);
+    await expect(serviceWorkerOpenedUrls(page, { url: '/mail?from=webpush' })).resolves.toEqual(['/mail?from=webpush']);
   });
 
   test('normalizes malformed runtime notification fields before rendering', async ({ page }) => {

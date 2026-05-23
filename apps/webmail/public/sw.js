@@ -1,6 +1,12 @@
 // Service Worker for GoGoMail WebPush notifications
 'use strict';
 
+function safeNotificationClickUrl(value) {
+  if (typeof value !== 'string') return '/mail';
+  if (!value.startsWith('/') || value.startsWith('//')) return '/mail';
+  return value;
+}
+
 self.addEventListener('push', (event) => {
   let data = {};
   try {
@@ -26,7 +32,7 @@ self.addEventListener('push', (event) => {
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  const url = event.notification.data?.url ?? '/mail';
+  const url = safeNotificationClickUrl(event.notification.data?.url);
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
       for (const client of clientList) {
