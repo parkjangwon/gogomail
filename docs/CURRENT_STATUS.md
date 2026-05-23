@@ -1,6 +1,12 @@
 # gogomail current status
 
-Last updated: 2026-05-23 (notification center keyboard focus)
+Last updated: 2026-05-23 (notification center focus return)
+
+## Notification Center Focus Return (2026-05-23)
+- Closing the notification center with Escape or the close button now returns focus to the notification bell, preserving a complete keyboard navigation loop.
+- Outside-click closes still avoid stealing focus from the clicked target.
+- E2E coverage verifies Escape closes the panel and restores focus to the bell.
+- Verification target: `pnpm -C apps/webmail exec playwright test e2e/notifications.spec.ts --project=chromium -g "returns focus"`; `pnpm -C apps/webmail type-check`.
 
 ## Notification Center Keyboard Focus (2026-05-23)
 - Opening the notification center now moves focus directly to the search field, so keyboard users can immediately filter a busy notification list.

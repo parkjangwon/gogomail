@@ -6800,3 +6800,6 @@ Target outcome:
 1857. Webmail notification center keyboard usability now focuses the search
       field as soon as the panel opens, letting operators immediately filter
       high-volume notification lists without an extra tab stop from the bell.
+1858. Webmail notification center close flows now restore focus to the bell
+      when the panel is dismissed by keyboard or close button, while
+      outside-click dismissal keeps the user's clicked target in control.

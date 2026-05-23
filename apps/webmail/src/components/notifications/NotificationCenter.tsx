@@ -15,7 +15,7 @@ type CategoryFilter = 'all' | NotificationCategory;
 
 interface NotificationCenterProps {
   open: boolean;
-  onClose: () => void;
+  onClose: (options?: { restoreFocus?: boolean }) => void;
 }
 
 export function NotificationCenter({ open, onClose }: NotificationCenterProps) {
@@ -58,7 +58,7 @@ export function NotificationCenter({ open, onClose }: NotificationCenterProps) {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         e.preventDefault();
-        onClose();
+        onClose({ restoreFocus: true });
       }
     };
     document.addEventListener('keydown', onKey);
@@ -149,8 +149,8 @@ export function NotificationCenter({ open, onClose }: NotificationCenterProps) {
         </h2>
         <button
           type="button"
-          aria-label="close"
-          onClick={onClose}
+            aria-label="close"
+          onClick={() => onClose({ restoreFocus: true })}
           style={{
             border: 'none',
             background: 'transparent',
