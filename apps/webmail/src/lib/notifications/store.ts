@@ -48,6 +48,9 @@ const NOTIF_SOUND_KEY = 'webmail_notif_sound';
 const MAX_NOTIFICATIONS = 500;
 const MAX_TITLE_LENGTH = 160;
 const MAX_BODY_LENGTH = 500;
+const MAX_METADATA_KEYS = 20;
+const MAX_METADATA_KEY_LENGTH = 64;
+const MAX_METADATA_STRING_LENGTH = 200;
 const FALLBACK_TITLE = 'Notification';
 const UNSAFE_ACTION_URL_CHARS = /[\u0000-\u001F\u007F\\]/;
 const VALID_CATEGORIES = new Set<NotificationCategory>([
@@ -267,6 +270,27 @@ function safeOptionalString(value: unknown): string | undefined {
   return typeof value === 'string' ? value : undefined;
 }
 
+function safeNotificationMetadata(value: unknown): Record<string, unknown> | undefined {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined;
+  const output: Record<string, string | number | boolean> = {};
+  for (const [key, raw] of Object.entries(value as Record<string, unknown>)) {
+    if (Object.keys(output).length >= MAX_METADATA_KEYS) break;
+    if (!key || key.length > MAX_METADATA_KEY_LENGTH) continue;
+    if (typeof raw === 'string') {
+      output[key] = truncateText(raw, MAX_METADATA_STRING_LENGTH);
+      continue;
+    }
+    if (typeof raw === 'number' && Number.isFinite(raw)) {
+      output[key] = raw;
+      continue;
+    }
+    if (typeof raw === 'boolean') {
+      output[key] = raw;
+    }
+  }
+  return Object.keys(output).length > 0 ? output : undefined;
+}
+
 function safeNotificationId(value: unknown): string {
   return typeof value === 'string' && value.trim() !== '' ? value : makeId();
 }
@@ -399,7 +423,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
       read: false,
       actionUrl: safeActionUrl(rawInput.actionUrl),
       iconName: safeOptionalString(rawInput.iconName),
-      metadata: input.metadata,
+      metadata: safeNotificationMetadata(rawInput.metadata),
     };
     notificationsByIDRef.current = indexNotifications(
       [notification, ...Array.from(notificationsByIDRef.current.values()).filter((n) => n.id !== id)]
