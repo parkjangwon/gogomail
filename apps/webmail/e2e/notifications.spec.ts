@@ -390,6 +390,22 @@ test.describe('Notification center', () => {
     await expect(dialog).not.toContainText('Deployment finished');
   });
 
+  test('clears a selected category filter when its last notification is dismissed', async ({ page }) => {
+    await pushNotification(page, { title: 'Persistent system alert', category: 'system' });
+    await pushNotification(page, { title: 'Only inbox alert', category: 'mail_received' });
+
+    const { dialog } = await openCenter(page);
+    await dialog.getByRole('button', { name: /^(Mail|메일|メール|邮件) \(1\)$/i }).click();
+    await expect(dialog).toContainText('Only inbox alert');
+    await expect(dialog).not.toContainText('Persistent system alert');
+
+    const mailRow = dialog.locator('[aria-label="Only inbox alert"]').first();
+    await mailRow.getByRole('button', { name: /dismiss|닫기|閉じる|关闭/i }).click();
+
+    await expect(dialog).toContainText('Persistent system alert');
+    await expect(dialog).not.toContainText(/no notifications match|조건에 맞는 알림|一致する通知|没有符合/i);
+  });
+
   test('mark-all-read clears badge but keeps items', async ({ page }) => {
     await pushNotification(page, { title: 'A' });
     await pushNotification(page, { title: 'B' });
