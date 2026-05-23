@@ -1,12 +1,12 @@
 # gogomail current status
 
-Last updated: 2026-05-23 (notification search reopen recovery)
+Last updated: 2026-05-23 (notification reopen filter recovery)
 
 ## Notification Search Reopen Recovery (2026-05-23)
-- Notification center now clears stale search text each time the panel is opened.
-- This prevents an old query from hiding fresh notifications after the user closes and later reopens the center.
-- E2E coverage verifies a previous `deploy` search is cleared on reopen so a new billing notification is immediately visible.
-- Verification target: `pnpm -C apps/webmail exec playwright test e2e/notifications.spec.ts --project=chromium -g "clears stale search"`; `pnpm -C apps/webmail type-check`.
+- Notification center now clears stale search, unread, and category filters each time the panel is opened.
+- This prevents old queries or category filters from hiding fresh notifications after the user closes and later reopens the center.
+- E2E coverage verifies a previous `deploy` search and a previous mail category filter are cleared on reopen so new notifications are immediately visible.
+- Verification target: `pnpm -C apps/webmail exec playwright test e2e/notifications.spec.ts --project=chromium -g "clears stale search|clears stale category filter"`; `pnpm -C apps/webmail type-check`.
 
 ## Notification Unread Filter Recovery (2026-05-23)
 - Notification center now returns to the full list whenever unread filtering becomes stale because the unread count reaches zero.

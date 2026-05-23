@@ -73,6 +73,8 @@ export function NotificationCenter({ open, onClose }: NotificationCenterProps) {
   useEffect(() => {
     if (!open) return;
     setQuery('');
+    setFilter('all');
+    setCategoryFilter('all');
     const id = window.setTimeout(() => searchRef.current?.focus(), 0);
     return () => window.clearTimeout(id);
   }, [open]);

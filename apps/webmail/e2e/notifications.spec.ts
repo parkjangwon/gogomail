@@ -414,6 +414,24 @@ test.describe('Notification center', () => {
     await expect(dialog).toContainText('Old deploy notice');
   });
 
+  test('clears stale category filter when the notification center is reopened', async ({ page }) => {
+    await pushNotification(page, { title: 'Old mail notice', category: 'mail_received' });
+
+    const { bell, dialog } = await openCenter(page);
+    await dialog.getByRole('button', { name: /^(Mail|메일|メール|邮件) \(1\)$/i }).click();
+    await expect(dialog).toContainText('Old mail notice');
+    await page.keyboard.press('Escape');
+    await expect(dialog).not.toBeVisible();
+    await expect(bell).toBeFocused();
+
+    await pushNotification(page, { title: 'Fresh system notice', category: 'system' });
+    await bell.click();
+
+    await expect(dialog.getByRole('button', { name: /^(all|전체|すべて|全部)$/i })).toHaveAttribute('aria-pressed', 'true');
+    await expect(dialog).toContainText('Fresh system notice');
+    await expect(dialog).toContainText('Old mail notice');
+  });
+
   test('clears a selected category filter when its last notification is dismissed', async ({ page }) => {
     await pushNotification(page, { title: 'Persistent system alert', category: 'system' });
     await pushNotification(page, { title: 'Only inbox alert', category: 'mail_received' });
