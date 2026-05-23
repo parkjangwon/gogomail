@@ -105,6 +105,40 @@ func TestValidateNotificationPreferencesRejectsBadFolderID(t *testing.T) {
 	}
 }
 
+func TestValidateNotificationPreferencesAcceptsThreadOverrides(t *testing.T) {
+	t.Parallel()
+	threadID := "00000000-0000-0000-0000-000000000002"
+	out, err := ValidateNotificationPreferences(NotificationPreferences{
+		UserID: "00000000-0000-0000-0000-000000000001",
+		ThreadOverrides: map[string]ThreadNotificationOverride{
+			threadID: {Enabled: false},
+		},
+	})
+	if err != nil {
+		t.Fatalf("thread override should be valid: %v", err)
+	}
+	override, ok := out.ThreadOverrides[threadID]
+	if !ok {
+		t.Fatalf("missing normalized thread override for %s", threadID)
+	}
+	if override.Enabled {
+		t.Fatalf("thread override enabled = true, want false")
+	}
+}
+
+func TestValidateNotificationPreferencesRejectsBadThreadID(t *testing.T) {
+	t.Parallel()
+	prefs := NotificationPreferences{
+		UserID: "00000000-0000-0000-0000-000000000001",
+		ThreadOverrides: map[string]ThreadNotificationOverride{
+			"not-a-uuid": {Enabled: false},
+		},
+	}
+	if _, err := ValidateNotificationPreferences(prefs); err == nil {
+		t.Fatal("non-uuid thread id should be rejected")
+	}
+}
+
 func TestValidateNotificationPreferencesRejectsTooManyFolders(t *testing.T) {
 	t.Parallel()
 	prefs := NotificationPreferences{

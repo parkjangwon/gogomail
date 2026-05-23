@@ -71,6 +71,8 @@
     "fontSize": "글자 크기",
     "print": "인쇄",
     "markRead": "읽음으로 표시",
+    "muteThread": "이 스레드 알림 끄기",
+    "unmuteThread": "이 스레드 알림 켜기",
     "reportSpam": "스팸 신고",
     "restore": "복구"
   },

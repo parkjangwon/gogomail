@@ -6785,3 +6785,10 @@ Target outcome:
       for the document title and favicon badge, calls `setAppBadge` for
       positive counts, clears the native badge for zero/disabled counts, and
       keeps the existing favicon fallback for unsupported browsers.
+1855. Webmail muted-thread notification controls now persist in the server
+      notification-preferences document as `thread_overrides`. Migration 0150
+      adds the JSONB column, the API validates and round-trips thread override
+      UUIDs, the mail view caches the policy locally, and reading-pane actions
+      can mute/unmute a thread so future unread arrivals in that thread skip
+      notification-center and browser-alert creation while still appearing in
+      the inbox.

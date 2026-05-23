@@ -71,6 +71,8 @@
     "fontSize": "Font size",
     "print": "Print",
     "markRead": "Mark as read",
+    "muteThread": "Mute thread notifications",
+    "unmuteThread": "Unmute thread notifications",
     "reportSpam": "Report spam",
     "restore": "Restore"
   },

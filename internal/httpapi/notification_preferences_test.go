@@ -114,6 +114,7 @@ func TestNotificationPreferencesPutThenGetRoundTrip(t *testing.T) {
 	token := notifTestToken(t, manager, notifTestUserID)
 
 	const folderID = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
+	const threadID = "bbbbbbbb-cccc-dddd-eeee-ffffffffffff"
 	putBody := `{
 		"global_dnd_enabled": true,
 		"global_dnd_schedule": {
@@ -123,6 +124,9 @@ func TestNotificationPreferencesPutThenGetRoundTrip(t *testing.T) {
 		},
 		"folder_overrides": {
 			"` + folderID + `": {"enabled": false, "dnd_inherit": true, "dnd_schedule": {}}
+		},
+		"thread_overrides": {
+			"` + threadID + `": {"enabled": false}
 		}
 	}`
 	req := httptest.NewRequest(http.MethodPut, "/api/v1/me/notification-preferences", strings.NewReader(putBody))
@@ -155,6 +159,13 @@ func TestNotificationPreferencesPutThenGetRoundTrip(t *testing.T) {
 	if _, ok := folders[folderID]; !ok {
 		t.Fatalf("missing folder override for %s", folderID)
 	}
+	threads, ok := body["thread_overrides"].(map[string]any)
+	if !ok {
+		t.Fatalf("thread_overrides type = %T", body["thread_overrides"])
+	}
+	if _, ok := threads[threadID]; !ok {
+		t.Fatalf("missing thread override for %s", threadID)
+	}
 }
 
 func TestNotificationPreferencesPutRejectsMalformed(t *testing.T) {
@@ -170,6 +181,7 @@ func TestNotificationPreferencesPutRejectsMalformed(t *testing.T) {
 		{"bad time", `{"global_dnd_schedule":{"time_ranges":[{"start":"99:99","end":"00:00"}]}}`},
 		{"bad tz", `{"global_dnd_schedule":{"timezone":"Mars/Olympus"}}`},
 		{"bad folder id", `{"folder_overrides":{"not-a-uuid":{"enabled":true,"dnd_inherit":true,"dnd_schedule":{}}}}`},
+		{"bad thread id", `{"thread_overrides":{"not-a-uuid":{"enabled":false}}}`},
 		{"unknown field", `{"global_dnd_enabled":true,"unknown":1}`},
 	}
 	for _, c := range cases {

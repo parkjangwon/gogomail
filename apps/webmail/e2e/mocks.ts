@@ -156,6 +156,7 @@ export async function installMocks(page: Page, overrides: MockOverrides = {}) {
     global_dnd_enabled: false,
     global_dnd_schedule: { weekdays: [], time_ranges: [], timezone: 'Asia/Seoul' },
     folder_overrides: {},
+    thread_overrides: {},
     updated_at: '2026-05-23T00:00:00Z',
   };
   const driveNodes = overrides.driveNodes ?? DEFAULT_DRIVE_NODES;
@@ -232,7 +233,8 @@ export async function installMocks(page: Page, overrides: MockOverrides = {}) {
       return json(route, { messages: filtered, has_more: false, next_cursor: '' });
     }
     if (segments[0] === 'messages' && segments.length === 2 && method === 'GET') {
-      return json(route, makeMessageDetail(segments[1]));
+      const summary = messages.find((m) => m.id === segments[1]);
+      return json(route, makeMessageDetail(segments[1], summary ?? {}));
     }
     if (segments[0] === 'messages' && segments.length === 3 && segments[2] === 'flags' && method === 'PATCH') {
       return json(route, { status: 'ok' });

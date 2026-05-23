@@ -57,6 +57,8 @@ interface ReadingPaneProps {
   isRead?: boolean;
   onStar?: () => void;
   isStarred?: boolean;
+  onToggleThreadMute?: () => void;
+  isThreadMuted?: boolean;
   threadMessages?: MessageSummary[];
   onSelectThread?: (id: string) => void;
   userEmail?: string;
@@ -90,6 +92,8 @@ export function ReadingPane({
   isRead,
   onStar,
   isStarred,
+  onToggleThreadMute,
+  isThreadMuted,
   threadMessages,
   onSelectThread,
   userEmail,
@@ -683,6 +687,8 @@ export function ReadingPane({
         onPrint={onPrint}
         onToggleRead={onToggleRead}
         isRead={isRead}
+        onToggleThreadMute={onToggleThreadMute}
+        isThreadMuted={isThreadMuted}
         onSnooze={onSnooze}
         onSpam={onSpam}
         onNotSpam={onNotSpam}

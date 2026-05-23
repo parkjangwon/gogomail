@@ -1,6 +1,13 @@
 # gogomail current status
 
-Last updated: 2026-05-23 (native app badging)
+Last updated: 2026-05-23 (muted thread notification controls)
+
+## Muted Thread Notification Controls (2026-05-23)
+- Notification preferences now include server-synced `thread_overrides`, backed by migration 0150 and validated alongside folder overrides.
+- Webmail caches `webmail_notification_thread_overrides` on mail load and suppresses new-message notification-center/browser alert creation for muted thread ids.
+- Reading pane message actions now expose mute/unmute thread notifications, persist the preference through `/api/v1/me/notification-preferences`, and optimistically update the local policy cache.
+- E2E coverage verifies reading-pane mute/unmute saves the expected thread override and that new unread mail in a muted thread does not create a notification-center entry.
+- Verification target: `go test ./internal/maildb ./internal/httpapi -run 'Test.*NotificationPreferences'`; `pnpm -C apps/webmail exec playwright test e2e/notifications.spec.ts --project=chromium`; `go test ./...`.
 
 ## Native App Badging (2026-05-23)
 - Webmail now mirrors the selected badge-count mode to the browser's native Badging API when `navigator.setAppBadge` / `clearAppBadge` are available.
