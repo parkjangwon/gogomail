@@ -298,6 +298,10 @@ function makeId(): string {
   return stableId('n');
 }
 
+function indexNotifications(notifications: Notification[]): Map<string, Notification> {
+  return new Map(notifications.map((n) => [n.id, n]));
+}
+
 export interface NotificationsContextValue {
   notifications: Notification[];
   unreadCount: number;
@@ -313,10 +317,10 @@ const NotificationsContext = createContext<NotificationsContextValue | null>(nul
 export function NotificationProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(reducer, undefined, () => ({ notifications: loadInitial() }));
   const hydratedRef = useRef(false);
-  const notificationsByIDRef = useRef(new Map(state.notifications.map((n) => [n.id, n])));
+  const notificationsByIDRef = useRef(indexNotifications(state.notifications));
 
   useEffect(() => {
-    notificationsByIDRef.current = new Map(state.notifications.map((n) => [n.id, n]));
+    notificationsByIDRef.current = indexNotifications(state.notifications);
   }, [state.notifications]);
 
   // Persist to localStorage (debounce-free; the reducer is cheap and writes are small)
@@ -367,7 +371,10 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
       iconName: safeOptionalString(rawInput.iconName),
       metadata: input.metadata,
     };
-    notificationsByIDRef.current.set(id, notification);
+    notificationsByIDRef.current = indexNotifications(
+      [notification, ...Array.from(notificationsByIDRef.current.values()).filter((n) => n.id !== id)]
+        .slice(0, MAX_NOTIFICATIONS),
+    );
     dispatch({ type: 'push', notification, dedupe: input.dedupe });
     playNotificationSound();
     // Mirror to OS-level browser notification (gated by permission + toggle).

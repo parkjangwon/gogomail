@@ -544,6 +544,49 @@ test.describe('Notification center', () => {
     await expect(dialog).not.toContainText('Second copy');
   });
 
+  test('allows deduped notifications to return after they were evicted by the retention limit', async ({ page }) => {
+    await page.evaluate(() => {
+      const w = window as unknown as {
+        __webmailNotifications?: { push: (input: Record<string, unknown>) => unknown };
+      };
+      if (!w.__webmailNotifications) throw new Error('notifications store not available');
+      for (let i = 0; i < 501; i++) {
+        w.__webmailNotifications.push({
+          id: `retention-${i}`,
+          category: 'system',
+          severity: 'info',
+          title: `Retention notice ${i}`,
+          dedupe: true,
+        });
+      }
+      w.__webmailNotifications.push({
+        id: 'retention-0',
+        category: 'system',
+        severity: 'info',
+        title: 'Retention notice returned',
+        dedupe: true,
+      });
+    });
+
+    await expect.poll(
+      () => page.evaluate(() => {
+        const notifications = (window as unknown as {
+          __webmailNotifications?: { notifications: Array<{ id: string; title: string }> };
+        }).__webmailNotifications?.notifications ?? [];
+        return {
+          count: notifications.length,
+          first: notifications[0]?.title ?? null,
+          hasReturned: notifications.some((n) => n.id === 'retention-0' && n.title === 'Retention notice returned'),
+        };
+      }),
+      { timeout: 5_000 },
+    ).toEqual({
+      count: 500,
+      first: 'Retention notice returned',
+      hasReturned: true,
+    });
+  });
+
   test('deduplicates browser notification mirroring by id', async ({ page }) => {
     await page.addInitScript(() => {
       try {
