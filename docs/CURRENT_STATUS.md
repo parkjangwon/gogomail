@@ -1,6 +1,12 @@
 # gogomail current status
 
-Last updated: 2026-05-23 (notification action URL character hardening)
+Last updated: 2026-05-23 (notification storage field pruning)
+
+## Notification Storage Field Pruning (2026-05-23)
+- Notification storage hydration now reconstructs notifications from the allowed public fields instead of retaining the parsed localStorage object wholesale.
+- This drops unknown injected fields while preserving validated id/category/severity/title/body/actionUrl/timestamp/read values.
+- E2E coverage verifies a stored notification containing extra scalar and nested fields hydrates into the fixed notification shape only.
+- Verification target: `pnpm -C apps/webmail exec playwright test e2e/notifications.spec.ts --project=chromium -g "drops unknown fields|sanitizes cross-tab storage notification hydration|rejects unsafe action URLs"`; `pnpm -C apps/webmail type-check`.
 
 ## Notification Action URL Character Hardening (2026-05-23)
 - Notification action URLs now reject backslashes and ASCII control characters in addition to external, protocol-relative, and non-string values.

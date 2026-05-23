@@ -6920,3 +6920,7 @@ Target outcome:
       control characters across storage hydration, runtime pushes, and
       WebPush service-worker click targets, preventing protocol-smuggling or
       header-shaped payloads from being retained or opened.
+1891. Webmail notification storage hydration now reconstructs sanitized
+      notification objects from the allowed public fields only, so unknown
+      injected localStorage fields are dropped instead of being retained in
+      client state or re-persisted.
