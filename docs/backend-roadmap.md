@@ -7006,3 +7006,7 @@ Target outcome:
       `NotificationOptions.tag` values at 128 characters after deriving the
       `category-id` replacement key, aligning focused-tab browser mirrors with
       the WebPush service-worker tag boundary.
+1914. Webmail notification truncation now avoids cutting UTF-16 surrogate
+      pairs at title, body, metadata, browser mirror tag, and WebPush tag
+      boundaries, preventing oversized internationalized notification payloads
+      from persisting or displaying dangling-surrogate replacement text.

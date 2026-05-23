@@ -1,6 +1,13 @@
 # gogomail current status
 
-Last updated: 2026-05-23 (browser notification tag length hardening)
+Last updated: 2026-05-23 (notification surrogate-boundary truncation)
+
+## Notification Surrogate-Boundary Truncation (2026-05-23)
+- Webmail notification truncation now avoids leaving dangling UTF-16 high surrogates when oversized strings are cut at the title, body, metadata, browser mirror tag, or WebPush tag boundary.
+- Runtime notification state/localStorage and service-worker WebPush display payloads now drop the incomplete surrogate instead of persisting or showing replacement-character text.
+- Existing 160-character title, 500-character body, 200-character metadata string, and 128-character tag caps remain in force.
+- E2E coverage verifies runtime notification title/body and service-worker title/body/tag truncation preserve valid surrogate boundaries while existing truncation coverage still passes.
+- Verification target: `pnpm -C apps/webmail exec playwright test e2e/notifications.spec.ts --project=chromium -g "truncates notification text without dangling surrogate pairs|service worker push truncates text fields without dangling surrogate pairs|truncates oversized notification text"`; `pnpm -C apps/webmail type-check`.
 
 ## Browser Notification Tag Length Hardening (2026-05-23)
 - Webmail browser notification mirroring now caps native `NotificationOptions.tag` values at 128 characters.

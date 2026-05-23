@@ -2,19 +2,19 @@
 
 ## Current Task
 
-**TASK-WEBMAIL-NOTIFICATION-BROWSER-TAG-LENGTH — Browser notification tag length hardening**
+**TASK-WEBMAIL-NOTIFICATION-TEXT-SURROGATE-TRUNCATION — Notification text surrogate-boundary truncation**
 
 ## Background
 
-Runtime notification ids are capped before state, storage, dedupe, and browser mirroring. Browser notification mirroring builds the native `NotificationOptions.tag` from `category-id`, which can exceed the id cap once the category prefix is added.
+Notification display text, metadata strings, browser mirror tags, and WebPush display/tag strings are capped before state, localStorage persistence, or browser notification creation. JavaScript `slice()` can cut UTF-16 surrogate pairs in the middle when an oversized string ends with an emoji or another supplementary-plane character at the cap boundary.
 
-This task continues the notification hardening track in `docs/backend-roadmap.md` by aligning browser mirror replacement-key length with the service-worker WebPush tag boundary.
+This task continues the notification hardening track in `docs/backend-roadmap.md` by keeping truncated notification strings valid for internationalized launch-day payloads.
 
 ## Scope
 
-- Add failing E2E coverage for native browser notification tags generated from max-length runtime ids.
-- Cap browser mirror `NotificationOptions.tag` at 128 characters.
-- Preserve existing browser notification mirroring and dedupe behavior.
+- Add failing E2E coverage for oversized runtime notification and service-worker WebPush strings that would cut an emoji surrogate pair.
+- Truncate notification strings without leaving a dangling high surrogate.
+- Preserve existing title/body/metadata/browser-tag/WebPush-tag length caps.
 - Update `docs/CURRENT_STATUS.md` and `docs/backend-roadmap.md`.
 
 ## Completion Checklist

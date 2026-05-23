@@ -271,7 +271,12 @@ function safeActionUrl(value: unknown): string | undefined {
 }
 
 function truncateText(value: string, maxLength: number): string {
-  return value.length > maxLength ? value.slice(0, maxLength) : value;
+  if (value.length <= maxLength) return value;
+  const truncated = value.slice(0, maxLength);
+  const lastCodeUnit = truncated.charCodeAt(truncated.length - 1);
+  return lastCodeUnit >= 0xD800 && lastCodeUnit <= 0xDBFF
+    ? truncated.slice(0, -1)
+    : truncated;
 }
 
 function safeNotificationBody(value: unknown): string | undefined {
