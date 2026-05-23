@@ -6884,3 +6884,7 @@ Target outcome:
       current all/unread filter is applied, so the unread-only view no longer
       offers read-only categories that would strand users on an empty filtered
       notification list while unread notifications remain elsewhere.
+1882. Webmail service worker notification clicks now navigate an existing
+      mail `WindowClient` to the safe notification target URL before focusing
+      it, preventing message-specific WebPush clicks from merely foregrounding
+      a stale mail view when a mail tab is already open.
