@@ -68,6 +68,8 @@
     "fontSize": "字体大小",
     "print": "打印",
     "markRead": "标为已读",
+    "muteThread": "关闭此会话通知",
+    "unmuteThread": "开启此会话通知",
     "reportSpam": "举报垃圾邮件",
     "restore": "恢复",
     "moveTo": "移动",

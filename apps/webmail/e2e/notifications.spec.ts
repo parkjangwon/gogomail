@@ -303,6 +303,44 @@ test.describe('Notification center', () => {
 });
 
 test.describe('Mail arrival notifications', () => {
+  test('mutes and unmutes a thread from the reading pane actions', async ({ page }) => {
+    const threadId = '22222222-3333-4444-5555-666666666666';
+    let savedBody: Record<string, unknown> | null = null;
+    await setupAuthedPage(page, {
+      messages: [
+        makeMessage('thread-action-message', {
+          subject: 'Thread action target',
+          thread_id: threadId,
+        }),
+      ],
+      notificationPreferences: {
+        global_dnd_enabled: false,
+        global_dnd_schedule: { weekdays: [], time_ranges: [], timezone: 'Asia/Seoul' },
+        folder_overrides: {},
+        thread_overrides: {},
+        updated_at: '2026-05-23T00:00:00Z',
+      },
+      onNotificationPreferencesPut: (body) => { savedBody = body; },
+    });
+
+    await page.getByText('Thread action target').first().click();
+    await page.getByRole('button', { name: /더 보기|More actions|その他の操作|更多操作/i }).last().click();
+    await page.getByRole('button', { name: /스레드 알림 끄기|Mute thread notifications/i }).click();
+
+    await expect.poll(() => savedBody, { timeout: 5_000 }).toMatchObject({
+      thread_overrides: {
+        [threadId]: { enabled: false },
+      },
+    });
+
+    await page.getByRole('button', { name: /더 보기|More actions|その他の操作|更多操作/i }).last().click();
+    await page.getByRole('button', { name: /스레드 알림 켜기|Unmute thread notifications/i }).click();
+
+    await expect.poll(() => savedBody, { timeout: 5_000 }).toMatchObject({
+      thread_overrides: {},
+    });
+  });
+
   test('mirrors badge count mode to the native Badging API when available', async ({ page }) => {
     await page.addInitScript(() => {
       const calls: Array<{ method: string; count?: number }> = [];
@@ -424,5 +462,40 @@ test.describe('Mail arrival notifications', () => {
     await expect.poll(() => unreadBadgeText(page), { timeout: 5_000 }).toBeNull();
     const { dialog } = await openCenter(page);
     await expect(dialog).not.toContainText('Muted Sender');
+  });
+
+  test('skips notification-center entry for muted threads during message refresh', async ({ page }) => {
+    const threadId = '11111111-2222-3333-4444-555555555555';
+    const messages = [
+      makeMessage('muted-thread-seed', { read: true, subject: 'Already seen muted thread', thread_id: threadId }),
+    ];
+    await setupAuthedPage(page, {
+      messages,
+      notificationPreferences: {
+        global_dnd_enabled: false,
+        global_dnd_schedule: { weekdays: [], time_ranges: [], timezone: 'Asia/Seoul' },
+        folder_overrides: {},
+        thread_overrides: {
+          [threadId]: { enabled: false },
+        },
+        updated_at: '2026-05-23T00:00:00Z',
+      },
+    });
+    await page.evaluate(() => localStorage.removeItem('webmail_notifications'));
+    await expect.poll(() => page.evaluate(() => localStorage.getItem('webmail_notification_thread_overrides')), {
+      timeout: 5_000,
+    }).toContain(threadId);
+
+    messages.unshift(makeMessage('muted-thread-new', {
+      read: false,
+      subject: 'Muted thread arrival',
+      from_name: 'Muted Thread Sender',
+      thread_id: threadId,
+    }));
+    await page.getByRole('button', { name: /새로고침|Refresh|更新|刷新/i }).click();
+
+    await expect.poll(() => unreadBadgeText(page), { timeout: 5_000 }).toBeNull();
+    const { dialog } = await openCenter(page);
+    await expect(dialog).not.toContainText('Muted Thread Sender');
   });
 });

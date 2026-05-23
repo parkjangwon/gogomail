@@ -43,6 +43,7 @@ type notificationPreferencePUTRequest struct {
 	GlobalDNDEnabled  bool                                      `json:"global_dnd_enabled"`
 	GlobalDNDSchedule notificationPrefDNDScheduleDTO            `json:"global_dnd_schedule"`
 	FolderOverrides   map[string]notificationPrefFolderOverride `json:"folder_overrides"`
+	ThreadOverrides   map[string]notificationPrefThreadOverride `json:"thread_overrides"`
 }
 
 type notificationPrefDNDScheduleDTO struct {
@@ -60,6 +61,10 @@ type notificationPrefFolderOverride struct {
 	Enabled     bool                           `json:"enabled"`
 	DNDInherit  bool                           `json:"dnd_inherit"`
 	DNDSchedule notificationPrefDNDScheduleDTO `json:"dnd_schedule"`
+}
+
+type notificationPrefThreadOverride struct {
+	Enabled bool `json:"enabled"`
 }
 
 func (s notificationPrefDNDScheduleDTO) toMaildb() maildb.DNDSchedule {
@@ -95,10 +100,15 @@ func notificationPrefsResponseBody(prefs *maildb.NotificationPreferences) map[st
 			DNDSchedule: dndScheduleFromMaildb(o.DNDSchedule),
 		}
 	}
+	threads := make(map[string]notificationPrefThreadOverride, len(prefs.ThreadOverrides))
+	for id, o := range prefs.ThreadOverrides {
+		threads[id] = notificationPrefThreadOverride{Enabled: o.Enabled}
+	}
 	body := map[string]any{
 		"global_dnd_enabled":  prefs.GlobalDNDEnabled,
 		"global_dnd_schedule": dndScheduleFromMaildb(prefs.GlobalDNDSchedule),
 		"folder_overrides":    folders,
+		"thread_overrides":    threads,
 	}
 	if !prefs.UpdatedAt.IsZero() {
 		body["updated_at"] = prefs.UpdatedAt.UTC().Format(time.RFC3339)
@@ -171,11 +181,16 @@ func RegisterNotificationPreferenceRoutes(mux *http.ServeMux, service Notificati
 				DNDSchedule: o.DNDSchedule.toMaildb(),
 			}
 		}
+		threads := make(map[string]maildb.ThreadNotificationOverride, len(req.ThreadOverrides))
+		for id, o := range req.ThreadOverrides {
+			threads[id] = maildb.ThreadNotificationOverride{Enabled: o.Enabled}
+		}
 		prefs := maildb.NotificationPreferences{
 			UserID:            userID,
 			GlobalDNDEnabled:  req.GlobalDNDEnabled,
 			GlobalDNDSchedule: req.GlobalDNDSchedule.toMaildb(),
 			FolderOverrides:   folders,
+			ThreadOverrides:   threads,
 		}
 		if err := service.UpsertNotificationPreferences(r.Context(), prefs); err != nil {
 			slog.Info("notification preferences upsert failed", "err", err, "user_id", userID)

@@ -36,18 +36,25 @@ type FolderNotificationOverride struct {
 	DNDSchedule DNDSchedule `json:"dnd_schedule"`
 }
 
+// ThreadNotificationOverride captures per-thread notification settings.
+type ThreadNotificationOverride struct {
+	Enabled bool `json:"enabled"`
+}
+
 // NotificationPreferences represents a user's full notification preference document.
 type NotificationPreferences struct {
 	UserID            string                                `json:"user_id"`
 	GlobalDNDEnabled  bool                                  `json:"global_dnd_enabled"`
 	GlobalDNDSchedule DNDSchedule                           `json:"global_dnd_schedule"`
 	FolderOverrides   map[string]FolderNotificationOverride `json:"folder_overrides"`
+	ThreadOverrides   map[string]ThreadNotificationOverride `json:"thread_overrides"`
 	UpdatedAt         time.Time                             `json:"updated_at"`
 }
 
 const (
 	maxNotificationTimeRanges    = 8
 	maxNotificationFolderEntries = 200
+	maxNotificationThreadEntries = 500
 )
 
 var (
@@ -118,6 +125,9 @@ func ValidateNotificationPreferences(prefs NotificationPreferences) (Notificatio
 	if len(prefs.FolderOverrides) > maxNotificationFolderEntries {
 		return prefs, fmt.Errorf("folder_overrides exceeds limit (%d)", maxNotificationFolderEntries)
 	}
+	if len(prefs.ThreadOverrides) > maxNotificationThreadEntries {
+		return prefs, fmt.Errorf("thread_overrides exceeds limit (%d)", maxNotificationThreadEntries)
+	}
 
 	normalizedFolders := make(map[string]FolderNotificationOverride, len(prefs.FolderOverrides))
 	for folderID, override := range prefs.FolderOverrides {
@@ -135,12 +145,20 @@ func ValidateNotificationPreferences(prefs NotificationPreferences) (Notificatio
 			DNDSchedule: sched,
 		}
 	}
+	normalizedThreads := make(map[string]ThreadNotificationOverride, len(prefs.ThreadOverrides))
+	for threadID, override := range prefs.ThreadOverrides {
+		if !uuidRegexp.MatchString(threadID) {
+			return prefs, fmt.Errorf("thread_overrides key %q is not a uuid", threadID)
+		}
+		normalizedThreads[threadID] = ThreadNotificationOverride{Enabled: override.Enabled}
+	}
 
 	return NotificationPreferences{
 		UserID:            prefs.UserID,
 		GlobalDNDEnabled:  prefs.GlobalDNDEnabled,
 		GlobalDNDSchedule: global,
 		FolderOverrides:   normalizedFolders,
+		ThreadOverrides:   normalizedThreads,
 		UpdatedAt:         prefs.UpdatedAt,
 	}, nil
 }
@@ -164,6 +182,7 @@ SELECT
   global_dnd_enabled,
   COALESCE(global_dnd_schedule, '{}'::jsonb),
   COALESCE(folder_overrides, '{}'::jsonb),
+  COALESCE(thread_overrides, '{}'::jsonb),
   updated_at
 FROM notification_preferences
 WHERE user_id = $1::uuid`
@@ -172,14 +191,16 @@ WHERE user_id = $1::uuid`
 		globalEnabled  bool
 		globalSchedRaw []byte
 		folderOverRaw  []byte
+		threadOverRaw  []byte
 		updatedAt      time.Time
 	)
-	err := r.db.QueryRowContext(ctx, query, userID).Scan(&globalEnabled, &globalSchedRaw, &folderOverRaw, &updatedAt)
+	err := r.db.QueryRowContext(ctx, query, userID).Scan(&globalEnabled, &globalSchedRaw, &folderOverRaw, &threadOverRaw, &updatedAt)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return &NotificationPreferences{
 				UserID:          userID,
 				FolderOverrides: map[string]FolderNotificationOverride{},
+				ThreadOverrides: map[string]ThreadNotificationOverride{},
 			}, nil
 		}
 		return nil, fmt.Errorf("get notification preferences: %w", err)
@@ -189,6 +210,7 @@ WHERE user_id = $1::uuid`
 		UserID:           userID,
 		GlobalDNDEnabled: globalEnabled,
 		FolderOverrides:  map[string]FolderNotificationOverride{},
+		ThreadOverrides:  map[string]ThreadNotificationOverride{},
 		UpdatedAt:        updatedAt,
 	}
 	if len(globalSchedRaw) > 0 {
@@ -202,6 +224,14 @@ WHERE user_id = $1::uuid`
 		}
 		if out.FolderOverrides == nil {
 			out.FolderOverrides = map[string]FolderNotificationOverride{}
+		}
+	}
+	if len(threadOverRaw) > 0 {
+		if err := json.Unmarshal(threadOverRaw, &out.ThreadOverrides); err != nil {
+			return nil, fmt.Errorf("decode thread_overrides: %w", err)
+		}
+		if out.ThreadOverrides == nil {
+			out.ThreadOverrides = map[string]ThreadNotificationOverride{}
 		}
 	}
 	return out, nil
@@ -227,17 +257,22 @@ func (r *Repository) UpsertNotificationPreferences(ctx context.Context, prefs No
 	if err != nil {
 		return fmt.Errorf("marshal folder_overrides: %w", err)
 	}
+	threadRaw, err := json.Marshal(normalized.ThreadOverrides)
+	if err != nil {
+		return fmt.Errorf("marshal thread_overrides: %w", err)
+	}
 
 	const query = `
-INSERT INTO notification_preferences (user_id, global_dnd_enabled, global_dnd_schedule, folder_overrides, updated_at)
-VALUES ($1::uuid, $2, $3::jsonb, $4::jsonb, now())
+INSERT INTO notification_preferences (user_id, global_dnd_enabled, global_dnd_schedule, folder_overrides, thread_overrides, updated_at)
+VALUES ($1::uuid, $2, $3::jsonb, $4::jsonb, $5::jsonb, now())
 ON CONFLICT (user_id) DO UPDATE
 SET global_dnd_enabled = EXCLUDED.global_dnd_enabled,
     global_dnd_schedule = EXCLUDED.global_dnd_schedule,
     folder_overrides = EXCLUDED.folder_overrides,
+    thread_overrides = EXCLUDED.thread_overrides,
     updated_at = now()`
 
-	if _, err := r.db.ExecContext(ctx, query, normalized.UserID, normalized.GlobalDNDEnabled, string(globalRaw), string(folderRaw)); err != nil {
+	if _, err := r.db.ExecContext(ctx, query, normalized.UserID, normalized.GlobalDNDEnabled, string(globalRaw), string(folderRaw), string(threadRaw)); err != nil {
 		return fmt.Errorf("upsert notification preferences: %w", err)
 	}
 	return nil

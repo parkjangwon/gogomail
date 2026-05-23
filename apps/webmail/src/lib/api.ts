@@ -1674,10 +1674,15 @@ export interface FolderNotificationOverride {
   dnd_schedule: NotificationDNDSchedule;
 }
 
+export interface ThreadNotificationOverride {
+  enabled: boolean;
+}
+
 export interface NotificationPreferences {
   global_dnd_enabled: boolean;
   global_dnd_schedule: NotificationDNDSchedule;
   folder_overrides: Record<string, FolderNotificationOverride>;
+  thread_overrides?: Record<string, ThreadNotificationOverride>;
   updated_at?: string;
 }
 
@@ -1692,6 +1697,7 @@ export async function setNotificationPreferences(prefs: NotificationPreferences)
       global_dnd_enabled: prefs.global_dnd_enabled,
       global_dnd_schedule: prefs.global_dnd_schedule,
       folder_overrides: prefs.folder_overrides,
+      thread_overrides: prefs.thread_overrides ?? {},
     }),
   });
 }

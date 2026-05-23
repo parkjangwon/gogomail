@@ -50,6 +50,7 @@ function quietHoursPreferences(
       timezone: base?.global_dnd_schedule?.timezone || currentTimeZone(),
     },
     folder_overrides: folderOverrides ?? base?.folder_overrides ?? {},
+    thread_overrides: base?.thread_overrides ?? {},
   };
 }
 

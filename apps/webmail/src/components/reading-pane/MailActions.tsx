@@ -37,6 +37,8 @@ interface MailActionsProps {
   onPrint?: () => void;
   onToggleRead?: () => void;
   isRead?: boolean;
+  onToggleThreadMute?: () => void;
+  isThreadMuted?: boolean;
   onSnooze?: (messageId: string, until: Date) => void;
   onSpam?: () => void;
   onNotSpam?: () => void;
@@ -81,6 +83,8 @@ export function MailActions({
   onPrint,
   onToggleRead,
   isRead = false,
+  onToggleThreadMute,
+  isThreadMuted = false,
   onSnooze,
   onSpam,
   onNotSpam,
@@ -437,6 +441,22 @@ export function MailActions({
                   (e.currentTarget as HTMLButtonElement).style.background = 'transparent';
                 }}
               >{isRead ? t('markUnread') : t('markRead')}</button>
+            )}
+
+            {onToggleThreadMute && (
+              <button
+                onClick={() => {
+                  onToggleThreadMute();
+                  setShowMoreMenu(false);
+                }}
+                style={{ display: 'block', width: '100%', textAlign: 'left', padding: '7px 14px', border: 'none', background: 'transparent', color: 'var(--color-text-primary)', fontSize: '13px', cursor: 'pointer' }}
+                onMouseEnter={(e) => {
+                  (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-secondary)';
+                }}
+                onMouseLeave={(e) => {
+                  (e.currentTarget as HTMLButtonElement).style.background = 'transparent';
+                }}
+              >{isThreadMuted ? t('unmuteThread') : t('muteThread')}</button>
             )}
 
             {(onSpam || onNotSpam || onRestore) && <div style={{ height: '1px', background: 'var(--color-border-subtle)', margin: '4px 0' }} />}

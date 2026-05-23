@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { deleteMessage, restoreMessage, bulkRestoreMessages, createFolder, renameFolder, deleteFolder, starMessage, markRead, moveMessage, bulkMarkRead, searchMessages, sendMessage, listThreads, listThreadMessages, getNotificationPreferences, UIComposeIntent, MessageAddress, MessageDetail, MessageSummary, ThreadSummary } from '@/lib/api';
+import { deleteMessage, restoreMessage, bulkRestoreMessages, createFolder, renameFolder, deleteFolder, starMessage, markRead, moveMessage, bulkMarkRead, searchMessages, sendMessage, listThreads, listThreadMessages, getNotificationPreferences, setNotificationPreferences, UIComposeIntent, MessageAddress, MessageDetail, MessageSummary, ThreadSummary, type ThreadNotificationOverride } from '@/lib/api';
 import { AdvancedFilters, VIRTUAL_ALL, VIRTUAL_STARRED, VIRTUAL_ATTACHMENTS, VIRTUAL_UNREAD, VIRTUAL_SNOOZED, VIRTUAL_PINNED, VIRTUAL_IMPORTANT, VIRTUAL_TASKS } from '@/components/Sidebar';
 import { useMailList, type RefreshIntervalSeconds } from '@/hooks/useMailList';
 import { useMessage } from '@/hooks/useMessage';
@@ -41,6 +41,7 @@ import { useNotifications } from '@/lib/notifications/store';
 
 const WEBMAIL_ACTIVE_APP_KEY = 'webmail_active_app';
 const NOTIFICATION_FOLDER_OVERRIDES_KEY = 'webmail_notification_folder_overrides';
+const NOTIFICATION_THREAD_OVERRIDES_KEY = 'webmail_notification_thread_overrides';
 const BADGE_COUNT_MODE_KEY = 'webmail_badge_count_mode';
 const REFRESH_INTERVAL_KEY = 'webmail_refresh_interval';
 type BadgeCountMode = 'unread' | 'all' | 'none';
@@ -73,6 +74,20 @@ function folderNotificationsEnabled(folderId: string): boolean {
     if (!raw) return true;
     const overrides = JSON.parse(raw) as Record<string, { enabled?: boolean }>;
     return overrides[folderId]?.enabled !== false;
+  } catch {
+    return true;
+  }
+}
+
+function threadNotificationsEnabled(threadId: string | undefined, messageId: string): boolean {
+  if (typeof window === 'undefined') return true;
+  const key = threadId || messageId;
+  if (!key) return true;
+  try {
+    const raw = window.localStorage.getItem(NOTIFICATION_THREAD_OVERRIDES_KEY);
+    if (!raw) return true;
+    const overrides = JSON.parse(raw) as Record<string, { enabled?: boolean }>;
+    return overrides[key]?.enabled !== false;
   } catch {
     return true;
   }
@@ -187,6 +202,7 @@ export default function MailPage() {
   const [activeApp, setActiveApp] = useState<AppId>(getInitialActiveApp);
   const [badgeCountMode, setBadgeCountMode] = useState<BadgeCountMode>(readBadgeCountMode);
   const [refreshIntervalSeconds, setRefreshIntervalSeconds] = useState<RefreshIntervalSeconds>(readRefreshIntervalSeconds);
+  const [threadNotificationOverrides, setThreadNotificationOverrides] = useState<Record<string, ThreadNotificationOverride>>({});
   const [settingsInitialSection, setSettingsInitialSection] = useState<SectionId | undefined>(undefined);
   const [showSpotlight, setShowSpotlight] = useState(false);
   const [spotlightMoveId, setSpotlightMoveId] = useState<string | null>(null);
@@ -352,6 +368,8 @@ export default function MailPage() {
     ? threads.find((t) => (t.latest_message_id || t.id) === selectedMessageId) ?? null
     : null;
   const selectedThreadId = selectedMessageSummary?.id ?? null;
+  const selectedNotificationThreadId = selectedThreadId ?? selectedMessage?.thread_id ?? selectedMessage?.id ?? '';
+  const selectedThreadMuted = !!selectedNotificationThreadId && threadNotificationOverrides[selectedNotificationThreadId]?.enabled === false;
 
   useEffect(() => {
     // If viewing a thread from thread-view mode, fetch via thread API
@@ -1072,7 +1090,10 @@ export default function MailPage() {
     getNotificationPreferences()
       .then((prefs) => {
         try {
+          const threadOverrides = prefs.thread_overrides ?? {};
+          setThreadNotificationOverrides(threadOverrides);
           window.localStorage.setItem(NOTIFICATION_FOLDER_OVERRIDES_KEY, JSON.stringify(prefs.folder_overrides ?? {}));
+          window.localStorage.setItem(NOTIFICATION_THREAD_OVERRIDES_KEY, JSON.stringify(threadOverrides));
           window.localStorage.setItem('webmail_dnd', prefs.global_dnd_enabled ? '1' : '0');
           const firstRange = prefs.global_dnd_schedule?.time_ranges?.[0];
           if (firstRange?.start) window.localStorage.setItem('webmail_dnd_start', firstRange.start);
@@ -1084,6 +1105,37 @@ export default function MailPage() {
       .catch(() => {});
   }, []);
 
+  const handleToggleThreadMute = useCallback(async () => {
+    if (!selectedNotificationThreadId) return;
+    const nextMuted = !selectedThreadMuted;
+    const previous = threadNotificationOverrides;
+    const next = { ...previous };
+    if (nextMuted) {
+      next[selectedNotificationThreadId] = { enabled: false };
+    } else {
+      delete next[selectedNotificationThreadId];
+    }
+    setThreadNotificationOverrides(next);
+    try {
+      window.localStorage.setItem(NOTIFICATION_THREAD_OVERRIDES_KEY, JSON.stringify(next));
+      const base = await getNotificationPreferences();
+      const saved = await setNotificationPreferences({
+        ...base,
+        thread_overrides: next,
+      });
+      const savedThreads = saved.thread_overrides ?? next;
+      setThreadNotificationOverrides(savedThreads);
+      window.localStorage.setItem(NOTIFICATION_THREAD_OVERRIDES_KEY, JSON.stringify(savedThreads));
+    } catch {
+      setThreadNotificationOverrides(previous);
+      try {
+        window.localStorage.setItem(NOTIFICATION_THREAD_OVERRIDES_KEY, JSON.stringify(previous));
+      } catch {
+        // local notification policy cache is best-effort
+      }
+    }
+  }, [selectedNotificationThreadId, selectedThreadMuted, threadNotificationOverrides]);
+
   // Detect new unread messages after refresh and notify
   const seenMsgIdsRef = useRef<Set<string> | null>(null);
   useEffect(() => {
@@ -1092,7 +1144,12 @@ export default function MailPage() {
       seenMsgIdsRef.current = new Set(messages.map((m) => m.id));
       return;
     }
-    const newUnread = messages.filter((m) => !m.read && !seenMsgIdsRef.current!.has(m.id) && folderNotificationsEnabled(m.folder_id));
+    const newUnread = messages.filter((m) =>
+      !m.read &&
+      !seenMsgIdsRef.current!.has(m.id) &&
+      folderNotificationsEnabled(m.folder_id) &&
+      threadNotificationsEnabled(m.thread_id, m.id)
+    );
     messages.forEach((m) => seenMsgIdsRef.current!.add(m.id));
     // In-app notification center push is independent of OS-level permission/DnD.
     // Browser mirroring is centralized in the notification store so user toggles,
@@ -1697,6 +1754,8 @@ export default function MailPage() {
                 isRead={selectedMessageId ? findVisibleMessage(selectedMessageId)?.read : undefined}
                 onStar={selectedMessageId ? () => { const m = findVisibleMessage(selectedMessageId); if (m) handleStar(m.id, !m.starred); } : undefined}
                 isStarred={selectedMessageId ? findVisibleMessage(selectedMessageId)?.starred : undefined}
+                onToggleThreadMute={selectedNotificationThreadId ? handleToggleThreadMute : undefined}
+                isThreadMuted={selectedThreadMuted}
                 threadMessages={threadMessages.length > 1 ? threadMessages : undefined}
                 onSelectThread={handleSelectMessage}
                 userEmail={userEmail || undefined}

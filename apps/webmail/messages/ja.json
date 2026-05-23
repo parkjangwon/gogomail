@@ -68,6 +68,8 @@
     "fontSize": "文字サイズ",
     "print": "印刷",
     "markRead": "既読にする",
+    "muteThread": "このスレッドの通知をミュート",
+    "unmuteThread": "このスレッドの通知を解除",
     "reportSpam": "スパム報告",
     "restore": "復元",
     "moveTo": "移動",
