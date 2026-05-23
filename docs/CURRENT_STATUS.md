@@ -1,6 +1,12 @@
 # gogomail current status
 
-Last updated: 2026-05-23 (notification runtime shape hardening)
+Last updated: 2026-05-23 (notification category filter recovery)
+
+## Notification Category Filter Recovery (2026-05-23)
+- Notification center category filters now recover automatically when the selected category disappears.
+- This prevents users from getting stuck on an empty filtered view after dismissing the last notification in that category while other notifications remain.
+- E2E coverage verifies dismissing the last selected mail notification reveals the remaining system notification instead of leaving a stale empty-filter state.
+- Verification target: `pnpm -C apps/webmail exec playwright test e2e/notifications.spec.ts --project=chromium -g "clears a selected category filter"`; `pnpm -C apps/webmail type-check`.
 
 ## Notification Runtime Shape Hardening (2026-05-23)
 - Notification creation now normalizes malformed runtime fields before they reach rendering or filter controls.

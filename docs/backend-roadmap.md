@@ -6854,3 +6854,7 @@ Target outcome:
       categories, severities, titles, and bodies before rendering, preventing
       future server-driven events from causing missing localized filter labels
       or React child render errors.
+1874. Webmail notification category filtering now resets stale selected
+      categories when their last notification disappears, preventing users from
+      being stranded on an empty filtered notification center while other
+      notifications remain.

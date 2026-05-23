@@ -109,6 +109,12 @@ export function NotificationCenter({ open, onClose }: NotificationCenterProps) {
     return Array.from(counts.entries()).sort(([a], [b]) => categoryOrder(a) - categoryOrder(b));
   }, [notifications]);
 
+  useEffect(() => {
+    if (categoryFilter === 'all') return;
+    if (categoryCounts.some(([category]) => category === categoryFilter)) return;
+    setCategoryFilter('all');
+  }, [categoryCounts, categoryFilter]);
+
   return (
     <div
       ref={panelRef}
