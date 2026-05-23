@@ -6842,3 +6842,7 @@ Target outcome:
 1870. Webmail notification storage hydration now rejects non-string optional
       bodies, preventing corrupted persisted records from crashing notification
       item rendering with non-renderable object payloads.
+1871. Webmail notification storage hydration now rejects non-string or unsafe
+      action URLs, keeping persisted notification clicks constrained to
+      relative app routes and preventing protocol-relative or script-like
+      corrupted payloads from entering the notification center.

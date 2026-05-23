@@ -247,6 +247,31 @@ test.describe('Notification center', () => {
     await expect(dialog).not.toContainText('Bad body');
   });
 
+  test('rejects unsafe action URLs during storage hydration', async ({ page }) => {
+    await page.evaluate(() => {
+      const now = Date.now();
+      const raw = JSON.stringify([
+        { id: 'bad-action-object', category: 'system', severity: 'info', title: 'Bad action object', actionUrl: { href: '/mail' }, timestamp: now, read: false },
+        { id: 'bad-action-scheme', category: 'system', severity: 'info', title: 'Bad action scheme', actionUrl: 'javascript:alert(1)', timestamp: now, read: false },
+        { id: 'bad-action-host', category: 'system', severity: 'info', title: 'Bad action host', actionUrl: '//evil.example/path', timestamp: now, read: false },
+        { id: 'good-action', category: 'system', severity: 'info', title: 'Good action URL', actionUrl: '/mail?from=notification', timestamp: now, read: false },
+      ]);
+      localStorage.setItem('webmail_notifications', raw);
+      window.dispatchEvent(new StorageEvent('storage', { key: 'webmail_notifications', newValue: raw }));
+    });
+
+    await expect.poll(
+      () => page.evaluate(() => (window as unknown as { __webmailNotifications?: { notifications: unknown[] } }).__webmailNotifications?.notifications.length ?? -1),
+      { timeout: 5_000 },
+    ).toBe(1);
+
+    const { dialog } = await openCenter(page);
+    await expect(dialog).toContainText('Good action URL');
+    await expect(dialog).not.toContainText('Bad action object');
+    await expect(dialog).not.toContainText('Bad action scheme');
+    await expect(dialog).not.toContainText('Bad action host');
+  });
+
   test('deduplicates repeated event notifications by id', async ({ page }) => {
     await pushNotification(page, { id: 'mail-42', title: 'First copy', body: 'original body', category: 'mail_received', dedupe: true });
     await pushNotification(page, { id: 'mail-42', title: 'Second copy', body: 'duplicate body', category: 'mail_received', dedupe: true });
