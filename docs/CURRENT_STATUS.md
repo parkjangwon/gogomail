@@ -1,6 +1,13 @@
 # gogomail current status
 
-Last updated: 2026-05-23 (centralized browser notification policy)
+Last updated: 2026-05-23 (notification preferences sync)
+
+## Notification Preferences Sync (2026-05-23)
+- Webmail Settings now loads and saves the backend `/api/v1/me/notification-preferences` document through the existing `/api/mail/me/notification-preferences` proxy path.
+- The Do Not Disturb controls persist the global DND flag and quiet-hours range server-side while preserving existing per-folder notification overrides.
+- Settings notification toggles now expose accessible switch labels, making DND and sound controls easier to target by screen readers and tests.
+- Webmail E2E mocks cover notification preference GET/PUT so future settings tests can verify server-backed behavior without a live backend.
+- Verification: `pnpm -C apps/webmail exec playwright test e2e/settings.spec.ts e2e/notifications.spec.ts --project=chromium` and `pnpm -C apps/webmail type-check` pass.
 
 ## Centralized Browser Notification Policy (2026-05-23)
 - Webmail new-message refresh, background mail polling, and send-failure paths no longer instantiate native browser notifications directly.

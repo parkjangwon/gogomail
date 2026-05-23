@@ -127,6 +127,8 @@ export interface MockOverrides {
   user?: typeof DEFAULT_USER;
   driveNodes?: typeof DEFAULT_DRIVE_NODES;
   driveUsage?: typeof DEFAULT_DRIVE_USAGE;
+  notificationPreferences?: Json;
+  onNotificationPreferencesPut?: (body: Record<string, unknown>) => void;
   /** Extra raw route handlers — pattern is matched first; falls back to defaults */
   extra?: Array<{ urlPattern: string | RegExp; handler: RouteHandler }>;
   /** If true, /api/mail/folders returns 401 (auth failure) */
@@ -150,6 +152,12 @@ export async function installMocks(page: Page, overrides: MockOverrides = {}) {
   const messages = overrides.messages ?? DEFAULT_MESSAGES;
   const user = overrides.user ?? DEFAULT_USER;
   const preferences = overrides.preferences ?? DEFAULT_PREFERENCES;
+  const notificationPreferences = overrides.notificationPreferences ?? {
+    global_dnd_enabled: false,
+    global_dnd_schedule: { weekdays: [], time_ranges: [], timezone: 'Asia/Seoul' },
+    folder_overrides: {},
+    updated_at: '2026-05-23T00:00:00Z',
+  };
   const driveNodes = overrides.driveNodes ?? DEFAULT_DRIVE_NODES;
   const driveUsage = overrides.driveUsage ?? DEFAULT_DRIVE_USAGE;
 
@@ -201,6 +209,12 @@ export async function installMocks(page: Page, overrides: MockOverrides = {}) {
     if (path === 'preferences' && method === 'GET') return json(route, preferences);
     if (path === 'preferences' && method === 'PUT') return json(route, preferences);
     if (path === 'preferences' && method === 'PATCH') return json(route, preferences);
+    if (path === 'me/notification-preferences' && method === 'GET') return json(route, notificationPreferences);
+    if (path === 'me/notification-preferences' && method === 'PUT') {
+      const body = (req.postDataJSON?.() ?? {}) as Record<string, unknown>;
+      overrides.onNotificationPreferencesPut?.(body);
+      return json(route, { ...body, updated_at: '2026-05-23T00:01:00Z' });
+    }
 
     // folders
     if (path === 'folders' && method === 'GET') return json(route, { folders });
