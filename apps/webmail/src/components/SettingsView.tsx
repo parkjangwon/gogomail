@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { CheckIcon, ExclamationTriangleIcon, NoSymbolIcon, ArrowDownTrayIcon } from '@heroicons/react/24/outline';
 import { revokeAllSessions, getFolderStats, exportFolderEml, exportFolderZip, getPreferences, setPreferences, getUserProfile, updateUserProfile, changePassword, registerWebPushDevice, type FolderStats, type WebmailPreferences, type UserProfile } from '@/lib/api';
 import { ReadMark, ExternalImages, SendDelay, Theme, FontSize, ACCENT_COLORS, FilterRule, migrateFilterRule, loadFilterRules, saveFilterRules } from '@/lib/settings/settingsUtils';
@@ -28,6 +29,7 @@ export interface SettingsViewProps {
 
 export function SettingsView({ userEmail, userName, initialSection }: SettingsViewProps) {
   const router = useRouter();
+  const t = useTranslations('settingsView');
   const [activeSection, setActiveSection] = useState<SectionId>(initialSection ?? 'account');
   const contentRef = useRef<HTMLDivElement>(null);
 
@@ -106,7 +108,7 @@ export function SettingsView({ userEmail, userName, initialSection }: SettingsVi
   const [vacEnabled, setVacEnabled] = useState(false);
   const [vacStartDate, setVacStartDate] = useState('');
   const [vacEndDate, setVacEndDate] = useState('');
-  const [vacSubject, setVacSubject] = useState('부재중입니다');
+  const [vacSubject, setVacSubject] = useState('');
   const [vacBody, setVacBody] = useState('');
   const [vacSaved, setVacSaved] = useState(false);
 
@@ -263,11 +265,11 @@ export function SettingsView({ userEmail, userName, initialSection }: SettingsVi
       setVacEnabled(vac.enabled === true);
       setVacStartDate((vac.startDate as string) ?? '');
       setVacEndDate((vac.endDate as string) ?? '');
-      setVacSubject((vac.subject as string) ?? '부재중입니다');
+      setVacSubject((vac.subject as string) ?? t('vacSubjectDefault'));
       setVacBody((vac.body as string) ?? '');
     } catch { /* ignore */ }
     if (typeof Notification !== 'undefined') setNotifPerm(Notification.permission);
-  }, [userName]);
+  }, [userName, t]);
 
   // ── Handlers ──────────────────────────────────────────────────────────────────
 
@@ -315,7 +317,7 @@ export function SettingsView({ userEmail, userName, initialSection }: SettingsVi
       setRecoverySaved(true);
       setTimeout(() => setRecoverySaved(false), 2000);
     } catch (err) {
-      setRecoveryError(err instanceof Error ? err.message : '백업 이메일 저장에 실패했습니다.');
+      setRecoveryError(err instanceof Error ? err.message : t('recoverySaveError'));
     }
   }
 
@@ -328,9 +330,9 @@ export function SettingsView({ userEmail, userName, initialSection }: SettingsVi
 
   async function handleChangePassword() {
     setPwError('');
-    if (!pwCurrent || !pwNew || !pwConfirm) { setPwError('모든 항목을 입력하세요.'); return; }
-    if (pwNew.length < 8) { setPwError('새 비밀번호는 8자 이상이어야 합니다.'); return; }
-    if (pwNew !== pwConfirm) { setPwError('새 비밀번호가 일치하지 않습니다.'); return; }
+    if (!pwCurrent || !pwNew || !pwConfirm) { setPwError(t('pwAllRequired')); return; }
+    if (pwNew.length < 8) { setPwError(t('pwMinLength')); return; }
+    if (pwNew !== pwConfirm) { setPwError(t('pwMismatch')); return; }
     setPwSaving(true);
     try {
       await changePassword(pwCurrent, pwNew);
@@ -338,14 +340,14 @@ export function SettingsView({ userEmail, userName, initialSection }: SettingsVi
       setPwSaved(true);
       setTimeout(() => setPwSaved(false), 3000);
     } catch (err) {
-      setPwError(err instanceof Error ? err.message : '비밀번호 변경에 실패했습니다.');
+      setPwError(err instanceof Error ? err.message : t('pwChangeFailed'));
     } finally {
       setPwSaving(false);
     }
   }
 
   async function handleRevokeAll() {
-    if (!window.confirm('모든 기기에서 로그아웃하시겠습니까? 현재 세션도 종료됩니다.')) return;
+    if (!window.confirm(t('revokeAllConfirm'))) return;
     setRevokeAllError('');
     setRevokingAll(true);
     const ok = await revokeAllSessions();
@@ -354,7 +356,7 @@ export function SettingsView({ userEmail, userName, initialSection }: SettingsVi
       router.push('/login');
     } else {
       setRevokingAll(false);
-      setRevokeAllError('세션 취소에 실패했습니다. 다시 시도해 주세요.');
+      setRevokeAllError(t('revokeFailed'));
     }
   }
 
@@ -375,7 +377,7 @@ export function SettingsView({ userEmail, userName, initialSection }: SettingsVi
           await registerWebPushDevice(sub);
         }
       } catch {
-        setNotifSyncError('푸시 디바이스 등록에 실패했습니다. 새 메일 폴링 알림은 계속 동작합니다.');
+        setNotifSyncError(t('pushRegisterFailed'));
       }
     }
   }
@@ -393,24 +395,24 @@ export function SettingsView({ userEmail, userName, initialSection }: SettingsVi
                 {(displayName || userEmail || '?')[0].toUpperCase()}
               </div>
               <div>
-                <div style={{ fontSize: '15px', fontWeight: 600, color: 'var(--color-text-primary)' }}>{displayName || userName || '(이름 없음)'}</div>
+                <div style={{ fontSize: '15px', fontWeight: 600, color: 'var(--color-text-primary)' }}>{displayName || userName || t('nameEmpty')}</div>
                 <div style={{ fontSize: '12px', color: 'var(--color-text-tertiary)', marginTop: '3px' }}>{userEmail}</div>
               </div>
             </div>
             <SectionCard>
-              <SectionHeader>프로필</SectionHeader>
-              <Row label="표시 이름" description="메일 발송 시 발신자 이름으로 표시됩니다">
+              <SectionHeader>{t('sectionProfile')}</SectionHeader>
+              <Row label={t('displayName')} description={t('displayNameDesc')}>
                 <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                  <input value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="이름 입력" style={{ padding: '6px 11px', borderRadius: '6px', border: '1px solid var(--color-border-default)', background: 'var(--color-bg-primary)', color: 'var(--color-text-primary)', fontSize: '13px', width: '170px', outline: 'none' }} />
+                  <input value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder={t('namePlaceholder')} style={{ padding: '6px 11px', borderRadius: '6px', border: '1px solid var(--color-border-default)', background: 'var(--color-bg-primary)', color: 'var(--color-text-primary)', fontSize: '13px', width: '170px', outline: 'none' }} />
                   <button onClick={saveDisplayName} style={{ padding: '6px 14px', borderRadius: '6px', border: 'none', background: 'var(--color-accent)', color: '#fff', fontSize: '12px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap' }}>
-                    {nameSaved ? <><CheckIcon style={{ width: 13, height: 13 }} />저장됨</> : '저장'}
+                    {nameSaved ? <><CheckIcon style={{ width: 13, height: 13 }} />{t('saved')}</> : t('save')}
                   </button>
                 </div>
               </Row>
-              <Row label="이메일 주소" description="변경하려면 관리자에게 문의하세요">
+              <Row label={t('emailAddress')} description={t('emailAddressDesc')}>
                 <span style={{ fontSize: '13px', color: 'var(--color-text-tertiary)', fontFamily: 'monospace' }}>{userEmail}</span>
               </Row>
-              <Row label="백업 이메일" description="비밀번호 재설정 링크를 받을 개인 이메일 주소입니다" last>
+              <Row label={t('recoveryEmail')} description={t('recoveryEmailDesc')} last>
                 <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                   <input
                     type="email"
@@ -420,31 +422,31 @@ export function SettingsView({ userEmail, userName, initialSection }: SettingsVi
                     style={{ padding: '6px 11px', borderRadius: '6px', border: '1px solid var(--color-border-default)', background: 'var(--color-bg-primary)', color: 'var(--color-text-primary)', fontSize: '13px', width: '220px', outline: 'none' }}
                   />
                   <button onClick={saveRecoveryEmail} style={{ padding: '6px 14px', borderRadius: '6px', border: 'none', background: 'var(--color-accent)', color: '#fff', fontSize: '12px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap' }}>
-                    {recoverySaved ? <><CheckIcon style={{ width: 13, height: 13 }} />저장됨</> : '저장'}
+                    {recoverySaved ? <><CheckIcon style={{ width: 13, height: 13 }} />{t('saved')}</> : t('save')}
                   </button>
                   {recoveryError && <span style={{ fontSize: '12px', color: 'var(--color-danger, #dc2626)', width: '100%', textAlign: 'right' }}>{recoveryError}</span>}
                 </div>
               </Row>
             </SectionCard>
             <SectionCard>
-              <SectionHeader>서명</SectionHeader>
+              <SectionHeader>{t('sectionSignature')}</SectionHeader>
               <div style={{ padding: '16px 20px', background: 'var(--color-bg-primary)' }}>
-                <div style={{ fontSize: '12px', color: 'var(--color-text-tertiary)', marginBottom: '10px' }}>메일 작성 시 자동으로 추가됩니다.</div>
+                <div style={{ fontSize: '12px', color: 'var(--color-text-tertiary)', marginBottom: '10px' }}>{t('signatureAutoAdd')}</div>
                 <MiniEditor
                   value={signature}
                   onChange={(html) => { setSignature(html); }}
-                  placeholder="서명을 입력하세요..."
+                  placeholder={t('signaturePlaceholder')}
                 />
                 <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '10px' }}>
                   <button onClick={saveSignature} style={{ padding: '6px 16px', borderRadius: '6px', border: 'none', background: 'var(--color-accent)', color: '#fff', fontSize: '12px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                    {sigSaved ? <><CheckIcon style={{ width: 13, height: 13 }} />저장됨</> : '서명 저장'}
+                    {sigSaved ? <><CheckIcon style={{ width: 13, height: 13 }} />{t('saved')}</> : t('saveSignature')}
                   </button>
                 </div>
               </div>
             </SectionCard>
             {profile && (
               <SectionCard>
-                <SectionHeader>용량</SectionHeader>
+                <SectionHeader>{t('sectionQuota')}</SectionHeader>
                 <div style={{ padding: '16px 20px' }}>
                   {(() => {
                     const used = profile.quota_used;
@@ -454,7 +456,7 @@ export function SettingsView({ userEmail, userName, initialSection }: SettingsVi
                     return (
                       <>
                         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: 'var(--color-text-secondary)', marginBottom: '8px' }}>
-                          <span>{fmt(used)} 사용 중{limit ? ` / ${fmt(limit)}` : ''}</span>
+                          <span>{fmt(used)} {t('quotaUsed')}{limit ? ` / ${fmt(limit)}` : ''}</span>
                           {pct !== null && <span>{pct}%</span>}
                         </div>
                         {pct !== null && (
@@ -469,9 +471,9 @@ export function SettingsView({ userEmail, userName, initialSection }: SettingsVi
               </SectionCard>
             )}
             <SectionCard>
-              <SectionHeader>비밀번호 변경</SectionHeader>
+              <SectionHeader>{t('sectionChangePassword')}</SectionHeader>
               <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                {(['현재 비밀번호', '새 비밀번호', '새 비밀번호 확인'] as const).map((label, i) => (
+                {([t('currentPassword'), t('newPassword'), t('confirmNewPassword')] as const).map((label, i) => (
                   <div key={label} style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
                     <label style={{ fontSize: '12px', color: 'var(--color-text-secondary)', fontWeight: 500 }}>{label}</label>
                     <input
@@ -483,10 +485,10 @@ export function SettingsView({ userEmail, userName, initialSection }: SettingsVi
                   </div>
                 ))}
                 {pwError && <div style={{ fontSize: '12px', color: 'var(--color-destructive)', padding: '6px 10px', background: 'rgba(217,79,61,0.08)', borderRadius: '5px' }}>{pwError}</div>}
-                {pwSaved && <div style={{ fontSize: '12px', color: 'var(--color-success, #22c55e)', padding: '6px 10px', background: 'rgba(34,197,94,0.08)', borderRadius: '5px' }}>비밀번호가 변경되었습니다. 다시 로그인해 주세요.</div>}
+                {pwSaved && <div style={{ fontSize: '12px', color: 'var(--color-success, #22c55e)', padding: '6px 10px', background: 'rgba(34,197,94,0.08)', borderRadius: '5px' }}>{t('pwChanged')}</div>}
                 <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
                   <button onClick={handleChangePassword} disabled={pwSaving} style={{ padding: '7px 18px', borderRadius: '6px', border: 'none', background: pwSaving ? 'var(--color-bg-tertiary)' : 'var(--color-accent)', color: '#fff', fontSize: '13px', fontWeight: 600, cursor: pwSaving ? 'not-allowed' : 'pointer' }}>
-                    {pwSaving ? '변경 중...' : '비밀번호 변경'}
+                    {pwSaving ? t('pwChanging') : t('pwChange')}
                   </button>
                 </div>
               </div>
@@ -497,42 +499,42 @@ export function SettingsView({ userEmail, userName, initialSection }: SettingsVi
       case 'inbox':
         return (
           <SectionCard>
-            <SectionHeader>받은편지함 설정</SectionHeader>
-            <Row label="대화 모드" description="같은 제목의 메일을 하나의 대화로 묶어 표시합니다">
+            <SectionHeader>{t('sectionInboxSettings')}</SectionHeader>
+            <Row label={t('convMode')} description={t('convModeDesc')}>
               <Toggle value={convMode} onChange={(v) => { setConvMode(v); try { localStorage.setItem('webmail_conv_mode', v ? '1' : '0'); } catch { /* */ } }} />
             </Row>
-            <Row label="컴팩트 보기" description="행 높이를 줄여 더 많은 메일을 한 화면에 표시합니다">
+            <Row label={t('compactView')} description={t('compactViewDesc')}>
               <Toggle value={compact} onChange={(v) => { setCompact(v); try { localStorage.setItem('webmail_compact', v ? '1' : '0'); } catch { /* */ } }} />
             </Row>
-            <Row label="미리보기 텍스트" description="메일 목록에서 본문 첫 줄을 미리 표시합니다">
+            <Row label={t('previewText')} description={t('previewTextDesc')}>
               <Toggle value={showPreview} onChange={(v) => { setShowPreview(v); saveWmSetting('showPreview', v); }} />
             </Row>
-            <Row label="자동 새로고침" description="받은편지함을 주기적으로 자동 업데이트합니다">
+            <Row label={t('autoRefresh')} description={t('autoRefreshDesc')}>
               <Segment
-                options={[{ value: 30 as 30, label: '30초' }, { value: 60 as 60, label: '1분' }, { value: 300 as 300, label: '5분' }]}
+                options={[{ value: 30 as 30, label: t('sec30') }, { value: 60 as 60, label: t('min1') }, { value: 300 as 300, label: t('min5') }]}
                 value={refreshInterval}
                 onChange={(v) => { setRefreshInterval(v); try { localStorage.setItem('webmail_refresh_interval', String(v)); } catch { /* */ } }}
               />
             </Row>
-            <Row label="날짜별 그룹" description="메일 목록을 오늘·어제·지난 7일 등으로 묶어 표시합니다">
+            <Row label={t('groupByDate')} description={t('groupByDateDesc')}>
               <Toggle value={groupByDate} onChange={(v) => { setGroupByDate(v); try { localStorage.setItem('webmail_group_by_date', v ? '1' : '0'); } catch { /* */ } }} />
             </Row>
-            <Row label="중요도 마커" description="자동 분류된 메일에 카테고리 칩(알림·뉴스레터 등)을 표시합니다">
+            <Row label={t('importanceMarkers')} description={t('importanceMarkersDesc')}>
               <Toggle value={importanceMarkers} onChange={(v) => { setImportanceMarkers(v); try { localStorage.setItem('webmail_importance_markers', v ? '1' : '0'); } catch { /* */ } }} />
             </Row>
-            <Row label="집중 모드" description="별표·핀·안읽음 메일만 표시하여 중요한 메일에 집중합니다">
+            <Row label={t('focusMode')} description={t('focusModeDesc')}>
               <Toggle value={focusMode} onChange={(v) => { setFocusMode(v); try { localStorage.setItem('webmail_focus_mode', v ? '1' : '0'); } catch { /* */ } }} />
             </Row>
-            <Row label="모바일 왼쪽 스와이프" description="메일 목록에서 왼쪽으로 스와이프할 때 동작">
+            <Row label={t('swipeLeft')} description={t('swipeLeftDesc')}>
               <Segment
-                options={[{ value: 'archive' as const, label: '보관' }, { value: 'delete' as const, label: '삭제' }, { value: 'snooze' as const, label: '스누즈' }, { value: 'star' as const, label: '별표' }]}
+                options={[{ value: 'archive' as const, label: t('swipeArchive') }, { value: 'delete' as const, label: t('swipeDelete') }, { value: 'snooze' as const, label: t('swipeSnooze') }, { value: 'star' as const, label: t('swipeStar') }]}
                 value={swipeLeft}
                 onChange={(v) => { setSwipeLeft(v); try { localStorage.setItem('webmail_swipe_left', v); } catch { /* */ } }}
               />
             </Row>
-            <Row label="모바일 오른쪽 스와이프" description="메일 목록에서 오른쪽으로 스와이프할 때 동작" last>
+            <Row label={t('swipeRight')} description={t('swipeRightDesc')} last>
               <Segment
-                options={[{ value: 'archive' as const, label: '보관' }, { value: 'delete' as const, label: '삭제' }, { value: 'snooze' as const, label: '스누즈' }, { value: 'star' as const, label: '별표' }]}
+                options={[{ value: 'archive' as const, label: t('swipeArchive') }, { value: 'delete' as const, label: t('swipeDelete') }, { value: 'snooze' as const, label: t('swipeSnooze') }, { value: 'star' as const, label: t('swipeStar') }]}
                 value={swipeRight}
                 onChange={(v) => { setSwipeRight(v); try { localStorage.setItem('webmail_swipe_right', v); } catch { /* */ } }}
               />
@@ -543,33 +545,33 @@ export function SettingsView({ userEmail, userName, initialSection }: SettingsVi
       case 'reading':
         return (
           <SectionCard>
-            <SectionHeader>읽기 설정</SectionHeader>
-            <Row label="읽음 처리 시점" description="메일을 열었을 때 읽음으로 표시하는 시점">
+            <SectionHeader>{t('sectionReadingSettings')}</SectionHeader>
+            <Row label={t('readMark')} description={t('readMarkDesc')}>
               <Segment
-                options={[{ value: 'instant' as ReadMark, label: '즉시' }, { value: '2s' as ReadMark, label: '2초 후' }, { value: 'manual' as ReadMark, label: '수동' }]}
+                options={[{ value: 'instant' as ReadMark, label: t('readMarkInstant') }, { value: '2s' as ReadMark, label: t('readMark2s') }, { value: 'manual' as ReadMark, label: t('readMarkManual') }]}
                 value={readMark}
                 onChange={(v) => { setReadMark(v); saveWmSetting('readMark', v); }}
               />
             </Row>
-            <Row label="외부 이미지" description="외부 서버에서 불러오는 이미지의 표시 방식입니다. '차단'하면 발신자가 읽음 여부를 추적하지 못합니다">
+            <Row label={t('externalImages')} description={t('externalImagesDesc')}>
               <Segment
-                options={[{ value: 'always' as ExternalImages, label: '항상 표시' }, { value: 'ask' as ExternalImages, label: '매번 확인' }, { value: 'never' as ExternalImages, label: '차단' }]}
+                options={[{ value: 'always' as ExternalImages, label: t('externalImagesAlways') }, { value: 'ask' as ExternalImages, label: t('externalImagesAsk') }, { value: 'never' as ExternalImages, label: t('externalImagesNever') }]}
                 value={externalImages}
                 onChange={(v) => { setExternalImages(v); saveWmSetting('externalImages', v); }}
               />
             </Row>
-            <Row label="인라인 이미지 미리보기" description="첨부 이미지를 메일 본문 하단에 미리 표시합니다">
+            <Row label={t('inlineImagePreview')} description={t('inlineImagePreviewDesc')}>
               <Toggle value={inlineImagePreview} onChange={(v) => { setInlineImagePreview(v); saveWmSetting('inlineImagePreview', v); }} />
             </Row>
-            <Row label="스마트 답장 제안" description="메일 내용을 분석해 자주 쓰는 답장 문구를 자동 제안합니다">
+            <Row label={t('smartReply')} description={t('smartReplyDesc')}>
               <Toggle value={smartReplySuggestions} onChange={(v) => { setSmartReplySuggestions(v); try { localStorage.setItem('webmail_smart_reply', v ? '1' : '0'); } catch { /* */ } }} />
             </Row>
-            <Row label="읽기 소요 시간 표시" description="메일 목록에서 예상 읽기 시간을 표시합니다">
+            <Row label={t('readingTime')} description={t('readingTimeDesc')}>
               <Toggle value={showReadingTime} onChange={(v) => { setShowReadingTime(v); try { localStorage.setItem('webmail_reading_time', v ? '1' : '0'); } catch { /* */ } }} />
             </Row>
-            <Row label="읽기 창 위치" description="메일 읽기 창을 오른쪽 또는 아래쪽에 배치합니다" last>
+            <Row label={t('readingPane')} description={t('readingPaneDesc')} last>
               <Segment
-                options={[{ value: 'right' as const, label: '오른쪽' }, { value: 'bottom' as const, label: '아래쪽' }, { value: 'hidden' as const, label: '숨김' }]}
+                options={[{ value: 'right' as const, label: t('paneRight') }, { value: 'bottom' as const, label: t('paneBottom') }, { value: 'hidden' as const, label: t('paneHidden') }]}
                 value={readingPanePosition}
                 onChange={(v) => { setReadingPanePosition(v); try { localStorage.setItem('webmail_reading_pane', v); } catch { /* */ } }}
               />
@@ -598,34 +600,34 @@ export function SettingsView({ userEmail, userName, initialSection }: SettingsVi
         return (
           <>
             <SectionCard>
-              <SectionHeader>작성 설정</SectionHeader>
-              <Row label="전송 지연" description="전송 버튼을 누른 후 실제 발송까지 대기합니다. 시간 내에 '실행 취소'가 가능합니다">
+              <SectionHeader>{t('sectionComposeSettings')}</SectionHeader>
+              <Row label={t('sendDelay')} description={t('sendDelayDesc')}>
                 <Segment
-                  options={[{ value: 0 as SendDelay, label: '없음' }, { value: 5 as SendDelay, label: '5초' }, { value: 10 as SendDelay, label: '10초' }, { value: 30 as SendDelay, label: '30초' }]}
+                  options={[{ value: 0 as SendDelay, label: t('sendDelayNone') }, { value: 5 as SendDelay, label: t('sendDelay5s') }, { value: 10 as SendDelay, label: t('sendDelay10s') }, { value: 30 as SendDelay, label: t('sendDelay30s') }]}
                   value={sendDelay}
                   onChange={(v) => { setSendDelay(v); saveWmSetting('sendDelay', v); }}
                 />
               </Row>
-              <Row label="답장 시 원문 인용" description="회신/전달 시 원본 메일 내용을 포함합니다">
+              <Row label={t('quoteOnReply')} description={t('quoteOnReplyDesc')}>
                 <Toggle value={quoteOnReply} onChange={(v) => { setQuoteOnReply(v); saveWmSetting('quoteOnReply', v); }} />
               </Row>
-              <Row label="본문 기본 글꼴 크기" description="새 메일 작성 시 기본 글꼴 크기">
+              <Row label={t('fontSizeDefault')} description={t('fontSizeDefaultDesc')}>
                 <Segment
-                  options={[{ value: 'small' as FontSize, label: '소' }, { value: 'medium' as FontSize, label: '중' }, { value: 'large' as FontSize, label: '대' }]}
+                  options={[{ value: 'small' as FontSize, label: t('fontSizeSmall') }, { value: 'medium' as FontSize, label: t('fontSizeMedium') }, { value: 'large' as FontSize, label: t('fontSizeLarge') }]}
                   value={fontSize}
                   onChange={(v) => applyFontSize(v)}
                 />
               </Row>
-              <Row label="발송 전 확인" description="전송 버튼 클릭 시 수신자·제목·첨부파일을 확인하는 다이얼로그를 표시합니다">
+              <Row label={t('confirmBeforeSend')} description={t('confirmBeforeSendDesc')}>
                 <Toggle value={confirmBeforeSend} onChange={(v) => { setConfirmBeforeSend(v); try { localStorage.setItem('webmail_confirm_before_send', v ? '1' : '0'); } catch { /* */ } }} />
               </Row>
-              <Row label="나에게 참조 (CC)" description="보내는 모든 메일에 자신을 참조로 자동 추가합니다">
+              <Row label={t('ccSelf')} description={t('ccSelfDesc')}>
                 <Toggle value={ccSelf} onChange={(v) => { setCcSelf(v); try { localStorage.setItem('webmail_cc_self', v ? '1' : '0'); } catch { /* */ } }} />
               </Row>
-              <Row label="맞춤법 검사" description="작성 중 맞춤법 오류를 브라우저 맞춤법 검사기로 표시합니다">
+              <Row label={t('spellCheck')} description={t('spellCheckDesc')}>
                 <Toggle value={spellCheck} onChange={(v) => { setSpellCheck(v); try { localStorage.setItem('webmail_spell_check', v ? '1' : '0'); } catch { /* */ } }} />
               </Row>
-              <Row label="기본 BCC 주소" description="모든 발송 메일에 자동으로 숨은 참조 추가 (비워두면 비활성)" last>
+              <Row label={t('defaultBcc')} description={t('defaultBccDesc')} last>
                 <input
                   type="email"
                   value={defaultBcc}
@@ -636,35 +638,35 @@ export function SettingsView({ userEmail, userName, initialSection }: SettingsVi
               </Row>
             </SectionCard>
             <SectionCard>
-              <SectionHeader>빠른 답장 템플릿</SectionHeader>
+              <SectionHeader>{t('sectionQuickReplyTemplates')}</SectionHeader>
               {templates.length === 0 && !showNewTpl && (
                 <div style={{ padding: '16px 20px', fontSize: '13px', color: 'var(--color-text-tertiary)', background: 'var(--color-bg-primary)' }}>
-                  저장된 템플릿이 없습니다. 자주 사용하는 답장 내용을 저장해 두세요.
+                  {t('noTemplates')}
                 </div>
               )}
-              {templates.map((t, i) => (
-                <div key={t.name} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 20px', borderBottom: i < templates.length - 1 || showNewTpl ? '1px solid var(--color-border-subtle)' : 'none', background: 'var(--color-bg-primary)' }}>
+              {templates.map((tpl, i) => (
+                <div key={tpl.name} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 20px', borderBottom: i < templates.length - 1 || showNewTpl ? '1px solid var(--color-border-subtle)' : 'none', background: 'var(--color-bg-primary)' }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-text-primary)' }}>{t.name}</div>
-                    {t.subject && <div style={{ fontSize: '12px', color: 'var(--color-text-tertiary)', marginTop: '2px' }}>제목: {t.subject}</div>}
+                    <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-text-primary)' }}>{tpl.name}</div>
+                    {tpl.subject && <div style={{ fontSize: '12px', color: 'var(--color-text-tertiary)', marginTop: '2px' }}>{t('templateSubjectLabel')}: {tpl.subject}</div>}
                   </div>
-                  <button onClick={() => deleteTpl(t.name)} style={{ padding: '4px 10px', borderRadius: '5px', border: '1px solid rgba(220,38,38,0.3)', background: 'transparent', color: 'var(--color-destructive)', fontSize: '12px', cursor: 'pointer' }}>삭제</button>
+                  <button onClick={() => deleteTpl(tpl.name)} style={{ padding: '4px 10px', borderRadius: '5px', border: '1px solid rgba(220,38,38,0.3)', background: 'transparent', color: 'var(--color-destructive)', fontSize: '12px', cursor: 'pointer' }}>{t('delete')}</button>
                 </div>
               ))}
               {showNewTpl && (
                 <div style={{ padding: '14px 20px', background: 'var(--color-bg-secondary)', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  <input value={newTplName} onChange={(e) => setNewTplName(e.target.value)} placeholder="템플릿 이름 (필수)" style={{ padding: '7px 11px', borderRadius: '6px', border: '1px solid var(--color-border-default)', background: 'var(--color-bg-primary)', color: 'var(--color-text-primary)', fontSize: '13px', outline: 'none' }} />
-                  <input value={newTplSubject} onChange={(e) => setNewTplSubject(e.target.value)} placeholder="기본 제목 (선택)" style={{ padding: '7px 11px', borderRadius: '6px', border: '1px solid var(--color-border-default)', background: 'var(--color-bg-primary)', color: 'var(--color-text-primary)', fontSize: '13px', outline: 'none' }} />
-                  <textarea value={newTplBody} onChange={(e) => setNewTplBody(e.target.value)} placeholder="본문 내용" rows={4} style={{ padding: '8px 11px', borderRadius: '6px', border: '1px solid var(--color-border-default)', background: 'var(--color-bg-primary)', color: 'var(--color-text-primary)', fontSize: '13px', resize: 'vertical', fontFamily: 'inherit', outline: 'none' }} />
+                  <input value={newTplName} onChange={(e) => setNewTplName(e.target.value)} placeholder={t('tplNamePlaceholder')} style={{ padding: '7px 11px', borderRadius: '6px', border: '1px solid var(--color-border-default)', background: 'var(--color-bg-primary)', color: 'var(--color-text-primary)', fontSize: '13px', outline: 'none' }} />
+                  <input value={newTplSubject} onChange={(e) => setNewTplSubject(e.target.value)} placeholder={t('tplSubjectPlaceholder')} style={{ padding: '7px 11px', borderRadius: '6px', border: '1px solid var(--color-border-default)', background: 'var(--color-bg-primary)', color: 'var(--color-text-primary)', fontSize: '13px', outline: 'none' }} />
+                  <textarea value={newTplBody} onChange={(e) => setNewTplBody(e.target.value)} placeholder={t('tplBodyPlaceholder')} rows={4} style={{ padding: '8px 11px', borderRadius: '6px', border: '1px solid var(--color-border-default)', background: 'var(--color-bg-primary)', color: 'var(--color-text-primary)', fontSize: '13px', resize: 'vertical', fontFamily: 'inherit', outline: 'none' }} />
                   <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-                    <button onClick={() => setShowNewTpl(false)} style={{ padding: '6px 14px', borderRadius: '6px', border: '1px solid var(--color-border-default)', background: 'transparent', color: 'var(--color-text-secondary)', fontSize: '12px', cursor: 'pointer' }}>취소</button>
-                    <button onClick={saveTpl} style={{ padding: '6px 14px', borderRadius: '6px', border: 'none', background: 'var(--color-accent)', color: '#fff', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}>저장</button>
+                    <button onClick={() => setShowNewTpl(false)} style={{ padding: '6px 14px', borderRadius: '6px', border: '1px solid var(--color-border-default)', background: 'transparent', color: 'var(--color-text-secondary)', fontSize: '12px', cursor: 'pointer' }}>{t('cancel')}</button>
+                    <button onClick={saveTpl} style={{ padding: '6px 14px', borderRadius: '6px', border: 'none', background: 'var(--color-accent)', color: '#fff', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}>{t('save')}</button>
                   </div>
                 </div>
               )}
               {!showNewTpl && (
                 <div style={{ padding: '10px 20px', background: 'var(--color-bg-primary)', borderTop: templates.length > 0 ? '1px solid var(--color-border-subtle)' : 'none' }}>
-                  <button onClick={() => setShowNewTpl(true)} style={{ fontSize: '13px', color: 'var(--color-accent)', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 500, padding: 0 }}>+ 새 템플릿 추가</button>
+                  <button onClick={() => setShowNewTpl(true)} style={{ fontSize: '13px', color: 'var(--color-accent)', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 500, padding: 0 }}>{t('newTemplate')}</button>
                 </div>
               )}
             </SectionCard>
@@ -695,12 +697,12 @@ export function SettingsView({ userEmail, userName, initialSection }: SettingsVi
         return (
           <>
             <SectionCard>
-              <SectionHeader>차단된 발신자</SectionHeader>
+              <SectionHeader>{t('sectionBlockedSenders')}</SectionHeader>
               <div style={{ padding: '0 20px 12px', fontSize: '12px', color: 'var(--color-text-tertiary)' }}>
-                차단된 이메일 주소 또는 도메인(@example.com)에서 받은 메일은 자동으로 스팸으로 분류됩니다.
+                {t('blockedSendersDesc')}
               </div>
               {blockedSenders.length === 0 && (
-                <div style={{ padding: '8px 20px 16px', fontSize: '13px', color: 'var(--color-text-tertiary)' }}>차단된 발신자가 없습니다.</div>
+                <div style={{ padding: '8px 20px 16px', fontSize: '13px', color: 'var(--color-text-tertiary)' }}>{t('noBlocked')}</div>
               )}
               {blockedSenders.map((addr, idx) => (
                 <div key={addr} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '9px 20px', borderTop: idx === 0 ? 'none' : '1px solid var(--color-border-subtle)' }}>
@@ -709,26 +711,26 @@ export function SettingsView({ userEmail, userName, initialSection }: SettingsVi
                   <button
                     onClick={() => saveBlocked(blockedSenders.filter((a) => a !== addr))}
                     style={{ fontSize: '12px', padding: '2px 10px', borderRadius: '5px', border: 'none', background: 'transparent', color: 'var(--color-destructive)', cursor: 'pointer', flexShrink: 0 }}
-                  >차단 해제</button>
+                  >{t('unblock')}</button>
                 </div>
               ))}
             </SectionCard>
 
             <SectionCard>
-              <SectionHeader>발신자 차단 추가</SectionHeader>
+              <SectionHeader>{t('sectionAddBlockedSender')}</SectionHeader>
               <div style={{ padding: '0 20px 16px', display: 'flex', gap: '8px', alignItems: 'center' }}>
                 <input
                   value={newBlockedInput}
                   onChange={(e) => setNewBlockedInput(e.target.value)}
                   onKeyDown={(e) => { if (e.key === 'Enter') addBlocked(); }}
-                  placeholder="이메일 주소 또는 도메인 (예: @spam.com)"
+                  placeholder={t('blockedInputPlaceholder')}
                   style={blockInSt}
                 />
                 <button
                   onClick={addBlocked}
                   disabled={!newBlockedInput.trim()}
                   style={{ padding: '7px 18px', borderRadius: '6px', border: 'none', background: 'var(--color-accent)', color: '#fff', fontSize: '13px', fontWeight: 600, cursor: newBlockedInput.trim() ? 'pointer' : 'default', opacity: newBlockedInput.trim() ? 1 : 0.45, flexShrink: 0 }}
-                >차단</button>
+                >{t('block')}</button>
               </div>
             </SectionCard>
           </>
@@ -754,57 +756,57 @@ export function SettingsView({ userEmail, userName, initialSection }: SettingsVi
         return (
           <>
             <SectionCard>
-              <SectionHeader>자동 응답 (부재중)</SectionHeader>
-              <Row label="자동 응답 사용" description="이 기간 동안 받은 메일에 자동으로 응답 메일을 전송합니다">
+              <SectionHeader>{t('sectionVacationResponder')}</SectionHeader>
+              <Row label={t('vacEnabled')} description={t('vacEnabledDesc')}>
                 <Toggle value={vacEnabled} onChange={setVacEnabled} />
               </Row>
-              <Row label="시작일" last={false}>
+              <Row label={t('vacStart')} last={false}>
                 <input type="date" value={vacStartDate} onChange={(e) => setVacStartDate(e.target.value)} style={{ ...inSt, width: '160px' }} disabled={!vacEnabled} />
               </Row>
-              <Row label="종료일" last>
+              <Row label={t('vacEnd')} last>
                 <input type="date" value={vacEndDate} onChange={(e) => setVacEndDate(e.target.value)} style={{ ...inSt, width: '160px' }} disabled={!vacEnabled} />
               </Row>
             </SectionCard>
 
             <SectionCard>
-              <SectionHeader>응답 메시지</SectionHeader>
+              <SectionHeader>{t('sectionVacationMessage')}</SectionHeader>
               <div style={{ padding: '0 20px 16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 <div>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 500, color: 'var(--color-text-secondary)', marginBottom: '5px' }}>제목</label>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 500, color: 'var(--color-text-secondary)', marginBottom: '5px' }}>{t('subject')}</label>
                   <input
                     value={vacSubject}
                     onChange={(e) => setVacSubject(e.target.value)}
                     disabled={!vacEnabled}
                     style={inSt}
-                    placeholder="부재중입니다"
+                    placeholder={t('vacSubjectDefault')}
                   />
                 </div>
                 <div>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 500, color: 'var(--color-text-secondary)', marginBottom: '5px' }}>본문</label>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 500, color: 'var(--color-text-secondary)', marginBottom: '5px' }}>{t('body')}</label>
                   <div style={{ opacity: vacEnabled ? 1 : 0.5, pointerEvents: vacEnabled ? 'auto' : 'none' }}>
                     <MiniEditor
                       value={vacBody}
                       onChange={(html) => { setVacBody(html); }}
-                      placeholder="안녕하세요, 현재 부재중으로 메일 확인이 어렵습니다..."
+                      placeholder={t('vacBodyPlaceholder')}
                     />
                   </div>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   {vacEnabled && vacStartDate && vacEndDate && (
                     <span style={{ fontSize: '12px', color: 'var(--color-text-tertiary)' }}>
-                      {vacStartDate} ~ {vacEndDate} 동안 자동 응답이 전송됩니다
+                      {t('vacDateRange', { start: vacStartDate, end: vacEndDate })}
                     </span>
                   )}
                   <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '10px' }}>
                     {vacSaved && (
                       <span style={{ fontSize: '12px', color: 'var(--color-accent)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        <CheckIcon style={{ width: 13, height: 13 }} /> 저장됨
+                        <CheckIcon style={{ width: 13, height: 13 }} /> {t('saved')}
                       </span>
                     )}
                     <button
                       onClick={saveVac}
                       style={{ padding: '6px 18px', borderRadius: '6px', border: 'none', background: 'var(--color-accent)', color: '#fff', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}
-                    >저장</button>
+                    >{t('save')}</button>
                   </div>
                 </div>
               </div>
@@ -831,19 +833,19 @@ export function SettingsView({ userEmail, userName, initialSection }: SettingsVi
         return (
           <>
             <SectionCard>
-              <SectionHeader>테마</SectionHeader>
-              <Row label="테마 모드" description="라이트, 다크, 또는 시스템 설정에 따라 자동 전환" last>
+              <SectionHeader>{t('sectionTheme')}</SectionHeader>
+              <Row label={t('themeMode')} description={t('themeModeDesc')} last>
                 <Segment
-                  options={[{ value: 'light' as Theme, label: '라이트' }, { value: 'dark' as Theme, label: '다크' }, { value: 'system' as Theme, label: '시스템' }]}
+                  options={[{ value: 'light' as Theme, label: t('themeLight') }, { value: 'dark' as Theme, label: t('themeDark') }, { value: 'system' as Theme, label: t('themeSystem') }]}
                   value={theme}
                   onChange={applyTheme}
                 />
               </Row>
             </SectionCard>
             <SectionCard>
-              <SectionHeader>강조 색상</SectionHeader>
+              <SectionHeader>{t('sectionAccent')}</SectionHeader>
               <div style={{ padding: '16px 20px', background: 'var(--color-bg-primary)' }}>
-                <div style={{ fontSize: '12px', color: 'var(--color-text-tertiary)', marginBottom: '14px' }}>버튼, 링크, 선택 영역에 사용되는 색상입니다.</div>
+                <div style={{ fontSize: '12px', color: 'var(--color-text-tertiary)', marginBottom: '14px' }}>{t('accentDesc')}</div>
                 <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
                   {ACCENT_COLORS.map((c) => (
                     <button
@@ -854,7 +856,7 @@ export function SettingsView({ userEmail, userName, initialSection }: SettingsVi
                     />
                   ))}
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginLeft: '4px' }}>
-                    <span style={{ fontSize: '12px', color: 'var(--color-text-tertiary)' }}>직접 입력</span>
+                    <span style={{ fontSize: '12px', color: 'var(--color-text-tertiary)' }}>{t('accentCustom')}</span>
                     <input
                       type="text"
                       value={customAccent}
@@ -873,13 +875,13 @@ export function SettingsView({ userEmail, userName, initialSection }: SettingsVi
               </div>
             </SectionCard>
             <SectionCard>
-              <SectionHeader>밀도 및 폰트</SectionHeader>
-              <Row label="컴팩트 보기" description="메일 목록 행 높이를 줄여 더 많은 메일을 표시합니다">
+              <SectionHeader>{t('sectionDensityFont')}</SectionHeader>
+              <Row label={t('compactView')} description={t('compactViewDesc')}>
                 <Toggle value={compact} onChange={(v) => { setCompact(v); try { localStorage.setItem('webmail_compact', v ? '1' : '0'); } catch { /* */ } }} />
               </Row>
-              <Row label="본문 글꼴 크기" description="메일 목록 및 UI 전반의 기본 글꼴 크기" last>
+              <Row label={t('fontSizeBody')} description={t('fontSizeBodyDesc')} last>
                 <Segment
-                  options={[{ value: 'small' as FontSize, label: '소 (13px)' }, { value: 'medium' as FontSize, label: '중 (14px)' }, { value: 'large' as FontSize, label: '대 (15px)' }]}
+                  options={[{ value: 'small' as FontSize, label: t('fontSizeSmallPx') }, { value: 'medium' as FontSize, label: t('fontSizeMediumPx') }, { value: 'large' as FontSize, label: t('fontSizeLargePx') }]}
                   value={fontSize}
                   onChange={applyFontSize}
                 />
@@ -911,12 +913,12 @@ export function SettingsView({ userEmail, userName, initialSection }: SettingsVi
         return (
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
             {SHORTCUT_GROUPS.map((group) => (
-              <SectionCard key={group.title}>
-                <SectionHeader>{group.title}</SectionHeader>
+              <SectionCard key={group.titleKey}>
+                <SectionHeader>{t(group.titleKey)}</SectionHeader>
                 <div style={{ background: 'var(--color-bg-primary)' }}>
-                  {group.items.map(([key, desc], i) => (
+                  {group.items.map(([key, descKey], i) => (
                     <div key={key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', padding: '9px 16px', borderBottom: i < group.items.length - 1 ? '1px solid var(--color-border-subtle)' : 'none' }}>
-                      <span style={{ fontSize: '12px', color: 'var(--color-text-secondary)', flex: 1 }}>{desc}</span>
+                      <span style={{ fontSize: '12px', color: 'var(--color-text-secondary)', flex: 1 }}>{t(descKey)}</span>
                       <Kbd k={key} />
                     </div>
                   ))}
@@ -941,16 +943,16 @@ export function SettingsView({ userEmail, userName, initialSection }: SettingsVi
         return (
           <>
             <SectionCard>
-              <SectionHeader>시각 보조</SectionHeader>
-              <Row label="고대비 모드" description="텍스트와 배경 사이의 대비를 높여 가독성을 향상시킵니다">
+              <SectionHeader>{t('sectionVisualAids')}</SectionHeader>
+              <Row label={t('highContrast')} description={t('highContrastDesc')}>
                 <Toggle value={highContrast} onChange={(v) => { setHighContrast(v); try { localStorage.setItem('webmail_high_contrast', v ? '1' : '0'); if (v) document.documentElement.classList.add('high-contrast'); else document.documentElement.classList.remove('high-contrast'); } catch { /* */ } }} />
               </Row>
-              <Row label="움직임 줄이기" description="전환 애니메이션과 모션 효과를 최소화합니다">
+              <Row label={t('reducedMotion')} description={t('reducedMotionDesc')}>
                 <Toggle value={reducedMotion} onChange={(v) => { setReducedMotion(v); try { localStorage.setItem('webmail_reduced_motion', v ? '1' : '0'); document.documentElement.style.setProperty('--motion-duration', v ? '0ms' : ''); } catch { /* */ } }} />
               </Row>
-              <Row label="글꼴 종류" description="UI 전반에 사용할 글꼴 패밀리">
+              <Row label={t('fontFamily')} description={t('fontFamilyDesc')}>
                 <Segment
-                  options={[{ value: 'system' as const, label: '시스템' }, { value: 'serif' as const, label: '명조' }, { value: 'mono' as const, label: '고정폭' }]}
+                  options={[{ value: 'system' as const, label: t('fontFamilySystem') }, { value: 'serif' as const, label: t('fontFamilySerif') }, { value: 'mono' as const, label: t('fontFamilyMono') }]}
                   value={fontFamily}
                   onChange={(v) => {
                     setFontFamily(v);
@@ -962,13 +964,13 @@ export function SettingsView({ userEmail, userName, initialSection }: SettingsVi
                   }}
                 />
               </Row>
-              <Row label="클릭 영역 확장" description="버튼과 링크의 클릭 영역을 넓혀 조작을 쉽게 합니다" last>
+              <Row label={t('largerClickTargets')} description={t('largerClickTargetsDesc')} last>
                 <Toggle value={largerClickTargets} onChange={(v) => { setLargerClickTargets(v); try { localStorage.setItem('webmail_larger_targets', v ? '1' : '0'); } catch { /* */ } }} />
               </Row>
             </SectionCard>
             <SectionCard>
-              <SectionHeader>스크린 리더 지원</SectionHeader>
-              <Row label="스크린 리더 최적화 모드" description="ARIA 레이블과 라이브 영역을 강화해 보조 기술과의 호환성을 높입니다" last>
+              <SectionHeader>{t('sectionScreenReader')}</SectionHeader>
+              <Row label={t('screenReaderMode')} description={t('screenReaderModeDesc')} last>
                 <Toggle value={screenReaderMode} onChange={(v) => { setScreenReaderMode(v); try { localStorage.setItem('webmail_screen_reader', v ? '1' : '0'); } catch { /* */ } }} />
               </Row>
             </SectionCard>
@@ -1015,7 +1017,7 @@ export function SettingsView({ userEmail, userName, initialSection }: SettingsVi
     <div style={{ flex: 1, minWidth: 0, height: '100%', display: 'flex', overflow: 'hidden', background: 'var(--color-bg-primary)' }}>
       {/* Left sidebar nav */}
       <div style={{ width: '200px', flexShrink: 0, height: '100%', overflowY: 'auto', borderRight: '1px solid var(--color-border-subtle)', background: 'var(--color-bg-secondary)', padding: '20px 0' }}>
-        <div style={{ padding: '0 12px 16px', fontSize: '11px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--color-text-tertiary)' }}>설정</div>
+        <div style={{ padding: '0 12px 16px', fontSize: '11px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--color-text-tertiary)' }}>{t('settingsTitle')}</div>
         {NAV_ITEMS.map((item) => {
           const active = item.id === activeSection;
           return (
@@ -1038,7 +1040,7 @@ export function SettingsView({ userEmail, userName, initialSection }: SettingsVi
               onMouseLeave={(e) => { if (!active) { (e.currentTarget).style.background = 'transparent'; (e.currentTarget).style.color = 'var(--color-text-secondary)'; } }}
             >
               <span style={{ flexShrink: 0, opacity: active ? 1 : 0.7 }}>{item.icon}</span>
-              {item.label}
+              {t(item.labelKey)}
             </button>
           );
         })}
@@ -1048,7 +1050,7 @@ export function SettingsView({ userEmail, userName, initialSection }: SettingsVi
       <div ref={contentRef} style={{ flex: 1, minWidth: 0, height: '100%', overflowY: 'auto', padding: '32px 40px' }}>
         <h2 style={{ fontSize: '17px', fontWeight: 700, color: 'var(--color-text-primary)', marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '8px' }}>
           <span style={{ color: 'var(--color-text-tertiary)', display: 'flex' }}>{currentNav?.icon}</span>
-          {currentNav?.label}
+          {currentNav ? t(currentNav.labelKey) : null}
         </h2>
         {renderContent()}
       </div>

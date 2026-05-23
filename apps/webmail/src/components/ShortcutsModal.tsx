@@ -1,64 +1,67 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 
 interface ShortcutsModalProps {
   onClose: () => void;
 }
 
-const SHORTCUTS: { category: string; items: { key: string; desc: string }[] }[] = [
+type SectionDef = { id: string; items: { key: string; descId: string }[] };
+
+const SHORTCUTS: SectionDef[] = [
   {
-    category: '전역',
+    id: 'global',
     items: [
-      { key: '?', desc: '단축키 도움말' },
-      { key: 'Ctrl + k', desc: '검색창 포커스' },
-      { key: '[', desc: '사이드바 접기/펼치기' },
+      { key: '?', descId: 'help' },
+      { key: 'Ctrl + k', descId: 'searchFocus' },
+      { key: '[', descId: 'toggleSidebar' },
     ],
   },
   {
-    category: '앱 전환',
+    id: 'appSwitch',
     items: [
-      { key: 'g  m', desc: '메일' },
-      { key: 'g  c', desc: '캘린더' },
-      { key: 'g  a', desc: '연락처' },
-      { key: 'g  d', desc: '드라이브' },
+      { key: 'g  m', descId: 'mail' },
+      { key: 'g  c', descId: 'calendar' },
+      { key: 'g  a', descId: 'contacts' },
+      { key: 'g  d', descId: 'drive' },
     ],
   },
   {
-    category: '메일 목록',
+    id: 'mailList',
     items: [
-      { key: 'c', desc: '새 메일 작성' },
-      { key: 'j / k', desc: '다음 / 이전 메일' },
-      { key: '↑ / ↓', desc: '목록 이동' },
-      { key: 'o', desc: '선택 메일 열기' },
-      { key: 'u', desc: '목록으로 / 메일 닫기' },
-      { key: '/', desc: '검색창 포커스' },
-      { key: 'Esc', desc: '검색 닫기 / 뒤로' },
-      { key: 'Space', desc: '체크박스 토글' },
-      { key: 'Home / End', desc: '첫/마지막 메일' },
-      { key: '* a', desc: '전체 선택' },
-      { key: '* n', desc: '전체 해제' },
+      { key: 'c', descId: 'composeC' },
+      { key: 'j / k', descId: 'nextPrev' },
+      { key: '↑ / ↓', descId: 'listMove' },
+      { key: 'o', descId: 'openSelected' },
+      { key: 'u', descId: 'backOrClose' },
+      { key: '/', descId: 'searchFocus' },
+      { key: 'Esc', descId: 'escClose' },
+      { key: 'Space', descId: 'checkboxToggle' },
+      { key: 'Home / End', descId: 'firstLast' },
+      { key: '* a', descId: 'selectAll' },
+      { key: '* n', descId: 'deselectAll' },
     ],
   },
   {
-    category: '메일 동작',
+    id: 'mailActions',
     items: [
-      { key: 'r', desc: '회신' },
-      { key: 'a', desc: '전체 회신' },
-      { key: 'f', desc: '전달' },
-      { key: 'e', desc: '보관' },
-      { key: '#', desc: '삭제' },
-      { key: '!', desc: '스팸으로 이동' },
-      { key: 'm', desc: '읽음 표시' },
-      { key: 'Shift + m', desc: '안읽음 표시' },
+      { key: 'r', descId: 'reply' },
+      { key: 'a', descId: 'replyAll' },
+      { key: 'f', descId: 'forward' },
+      { key: 'e', descId: 'archive' },
+      { key: '#', descId: 'delete' },
+      { key: '!', descId: 'spam' },
+      { key: 'm', descId: 'markRead' },
+      { key: 'Shift + m', descId: 'markUnread' },
     ],
   },
   {
-    category: '메일 작성',
+    id: 'mailCompose',
     items: [
-      { key: 'Ctrl + Enter', desc: '전송' },
-      { key: 'Ctrl + s', desc: '임시저장' },
-      { key: 'Esc', desc: '작성창 닫기' },
+      { key: 'Ctrl + Enter', descId: 'send' },
+      { key: 'Ctrl + s', descId: 'saveDraft' },
+      { key: 'Esc', descId: 'composeClose' },
     ],
   },
 ];
@@ -94,11 +97,12 @@ function Kbd({ children }: { children: string }) {
 }
 
 export function ShortcutsModal({ onClose }: ShortcutsModalProps) {
+  const t = useTranslations('modals.shortcuts');
   return (
     <div
       role="dialog"
       aria-modal="true"
-      aria-label="키보드 단축키"
+      aria-label={t('ariaLabel')}
       style={{
         position: 'fixed',
         inset: 0,
@@ -129,11 +133,11 @@ export function ShortcutsModal({ onClose }: ShortcutsModalProps) {
           padding: '16px 20px', borderBottom: '1px solid var(--color-border-subtle)', flexShrink: 0,
         }}>
           <div>
-            <span style={{ fontSize: '16px', fontWeight: 600, color: 'var(--color-text-primary)' }}>키보드 단축키</span>
-            <span style={{ marginLeft: '10px', fontSize: '12px', color: 'var(--color-text-tertiary)' }}>? 키로 열고 닫기</span>
+            <span style={{ fontSize: '16px', fontWeight: 600, color: 'var(--color-text-primary)' }}>{t('title')}</span>
+            <span style={{ marginLeft: '10px', fontSize: '12px', color: 'var(--color-text-tertiary)' }}>{t('hint')}</span>
           </div>
           <button
-            aria-label="닫기"
+            aria-label={t('closeAria')}
             onClick={onClose}
             style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-tertiary)', display: 'flex', padding: '4px', borderRadius: '6px' }}
             onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; (e.currentTarget).style.color = 'var(--color-text-primary)'; }}
@@ -146,9 +150,9 @@ export function ShortcutsModal({ onClose }: ShortcutsModalProps) {
         {/* Content — two-column grid */}
         <div style={{ overflowY: 'auto', padding: '20px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
           {SHORTCUTS.map((section) => (
-            <div key={section.category}>
+            <div key={section.id}>
               <div style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--color-text-tertiary)', marginBottom: '8px' }}>
-                {section.category}
+                {t(`sections.${section.id}`)}
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                 {section.items.map((item) => (
@@ -156,7 +160,7 @@ export function ShortcutsModal({ onClose }: ShortcutsModalProps) {
                     onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-secondary)'; }}
                     onMouseLeave={(e) => { (e.currentTarget).style.background = 'transparent'; }}
                   >
-                    <span style={{ fontSize: '13px', color: 'var(--color-text-secondary)', flex: 1 }}>{item.desc}</span>
+                    <span style={{ fontSize: '13px', color: 'var(--color-text-secondary)', flex: 1 }}>{t(`items.${item.descId}`)}</span>
                     <Kbd>{item.key}</Kbd>
                   </div>
                 ))}

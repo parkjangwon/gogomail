@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ErrorBoundary } from './ErrorBoundary';
+import { NotificationProvider } from '@/lib/notifications/store';
 
 function ThemeInitializer() {
   useEffect(() => {
@@ -35,7 +36,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
         <ThemeInitializer />
-        {children}
+        <NotificationProvider>{children}</NotificationProvider>
       </QueryClientProvider>
     </ErrorBoundary>
   );

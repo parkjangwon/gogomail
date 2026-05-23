@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { useTranslations } from 'next-intl';
 
 export interface QuickCreatePopoverProps {
   day: Date;
@@ -12,6 +13,7 @@ export interface QuickCreatePopoverProps {
 }
 
 export function QuickCreatePopover({ day, anchorRect, onClose, onSaveEvent, onSaveTodo, onMoreOptions }: QuickCreatePopoverProps) {
+  const t = useTranslations();
   const [title, setTitle] = useState('');
   const [mode, setMode] = useState<'event' | 'todo'>('event');
   const [saving, setSaving] = useState(false);
@@ -35,8 +37,12 @@ export function QuickCreatePopover({ day, anchorRect, onClose, onSaveEvent, onSa
     } finally { setSaving(false); }
   };
 
-  const dayLabels = ['일', '월', '화', '수', '목', '금', '토'];
-  const dateStr = `${day.getMonth() + 1}월 ${day.getDate()}일 (${dayLabels[day.getDay()]}요일)`;
+  const dayLabels = (t.raw('misc.quickCreate.weekdays') as string[]) ?? ['일', '월', '화', '수', '목', '금', '토'];
+  const dateStr = t('misc.quickCreate.dayFormat', {
+    month: day.getMonth() + 1,
+    day: day.getDate(),
+    weekday: dayLabels[day.getDay()],
+  });
 
   const top = Math.min(anchorRect.bottom + 4, window.innerHeight - 230);
   const left = Math.min(Math.max(anchorRect.left - 40, 8), window.innerWidth - 328);
@@ -57,7 +63,7 @@ export function QuickCreatePopover({ day, anchorRect, onClose, onSaveEvent, onSa
       <input
         autoFocus
         type="text"
-        placeholder="제목 추가"
+        placeholder={t('misc.quickCreate.placeholderTitle')}
         value={title}
         onChange={(e) => setTitle(e.target.value)}
         onKeyDown={(e) => { if (e.key === 'Enter') handleSave(); if (e.key === 'Escape') onClose(); }}
@@ -77,17 +83,17 @@ export function QuickCreatePopover({ day, anchorRect, onClose, onSaveEvent, onSa
             borderBottom: mode === m ? '2px solid var(--color-accent)' : '2px solid transparent',
             marginBottom: '-1px',
           }}>
-            {m === 'event' ? '일정' : '할 일'}
+            {m === 'event' ? t('misc.quickCreate.tabEvent') : t('misc.quickCreate.tabTodo')}
           </button>
         ))}
       </div>
       <div style={{ fontSize: '13px', color: 'var(--color-text-secondary)', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
         <span>📅</span>
-        <span>{dateStr}{mode === 'event' ? ' · 하루 종일' : ''}</span>
+        <span>{dateStr}{mode === 'event' ? t('misc.quickCreate.allDay') : ''}</span>
       </div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <button onClick={() => { onMoreOptions(day, mode); onClose(); }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '13px', color: 'var(--color-text-secondary)', padding: '6px 0' }}>
-          더보기
+          {t('misc.quickCreate.more')}
         </button>
         <button onClick={handleSave} disabled={!title.trim() || saving} style={{
           padding: '8px 20px', borderRadius: '6px', border: 'none',
@@ -96,7 +102,7 @@ export function QuickCreatePopover({ day, anchorRect, onClose, onSaveEvent, onSa
           fontSize: '13px', fontWeight: 500,
           cursor: title.trim() && !saving ? 'pointer' : 'default',
         }}>
-          {saving ? '저장 중...' : '저장'}
+          {saving ? t('misc.quickCreate.saving') : t('misc.quickCreate.save')}
         </button>
       </div>
     </div>

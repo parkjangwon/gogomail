@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import { Calendar } from '@/lib/api';
 
 type SubscriptionModalProps = {
@@ -97,16 +98,18 @@ export function SubscriptionAddModal({
   onNameChange,
   onColorChange,
 }: SubscriptionModalProps) {
+  const t = useTranslations('calendarFull.subscription');
+  const tc = useTranslations('calendarFull.common');
   const M = createCalendarModalStyles();
   if (!show) return null;
 
   return (
     <div style={M.overlay} onClick={onClose}>
       <div style={M.card('400px')} onClick={(e) => e.stopPropagation()}>
-        <div style={M.header}><span style={M.title}>캘린더 구독 추가</span></div>
+        <div style={M.header}><span style={M.title}>{t('addTitle')}</span></div>
         <div style={M.body}>
           <div>
-            <label style={M.label}>ICS/iCal URL *</label>
+            <label style={M.label}>{t('urlLabel')}</label>
             <input
               autoFocus
               type="url"
@@ -118,17 +121,17 @@ export function SubscriptionAddModal({
             />
           </div>
           <div>
-            <label style={M.label}>이름 (선택)</label>
+            <label style={M.label}>{t('nameLabel')}</label>
             <input
               type="text"
-              placeholder="캘린더 이름"
+              placeholder={t('namePlaceholder')}
               value={subName}
               onChange={(e) => onNameChange(e.target.value)}
               style={M.input}
             />
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <label style={M.label}>색상</label>
+            <label style={M.label}>{t('colorLabel')}</label>
             <input
               type="color"
               value={subColor}
@@ -147,9 +150,9 @@ export function SubscriptionAddModal({
           {subError && <div style={M.error}>{subError}</div>}
         </div>
         <div style={M.footer}>
-          <button onClick={onClose} style={M.cancelBtn}>취소</button>
+          <button onClick={onClose} style={M.cancelBtn}>{tc('cancel')}</button>
           <button onClick={onSubmit} disabled={subSaving || !subUrl.trim()} style={M.primaryBtn(!subUrl.trim() || subSaving)}>
-            {subSaving ? '추가 중...' : '구독 추가'}
+            {subSaving ? t('addingButton') : t('addButton')}
           </button>
         </div>
       </div>
@@ -174,35 +177,37 @@ export function CalendarManagementModal({
   onColorChange,
   onColorQuickSelect,
 }: CalendarManagementModalProps) {
+  const t = useTranslations('calendarFull.management');
+  const tc = useTranslations('calendarFull.common');
   const M = createCalendarModalStyles();
   if (!show) return null;
 
   return (
     <div style={M.overlay} onClick={() => { if (!calSaving) onClose(); }}>
       <div style={M.card('400px')} onClick={(e) => e.stopPropagation()}>
-        <div style={M.header}><span style={M.title}>{editingCal ? '캘린더 편집' : '새 캘린더'}</span></div>
+        <div style={M.header}><span style={M.title}>{editingCal ? t('editTitle') : t('newTitle')}</span></div>
         <div style={M.body}>
           <div>
-            <label style={M.label}>캘린더 이름 *</label>
+            <label style={M.label}>{t('nameLabel')}</label>
             <input
               autoFocus
-              placeholder="내 캘린더"
+              placeholder={t('namePlaceholder')}
               value={calName}
               onChange={(e) => onNameChange(e.target.value)}
               style={M.input}
             />
           </div>
           <div>
-            <label style={M.label}>설명 (선택)</label>
+            <label style={M.label}>{t('descLabel')}</label>
             <input
-              placeholder="설명 추가"
+              placeholder={t('descPlaceholder')}
               value={calDesc}
               onChange={(e) => onDescChange(e.target.value)}
               style={M.input}
             />
           </div>
           <div>
-            <label style={M.label}>색상</label>
+            <label style={M.label}>{t('colorLabel')}</label>
             <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
               {colors.map((c) => (
                 <button
@@ -226,7 +231,7 @@ export function CalendarManagementModal({
                 type="color"
                 value={calColor}
                 onChange={(e) => onColorChange(e.target.value)}
-                title="직접 선택"
+                title={t('colorPickerTitle')}
                 style={{
                   width: '24px',
                   height: '24px',
@@ -243,12 +248,12 @@ export function CalendarManagementModal({
         </div>
         <div style={M.footerSplit}>
           {editingCal
-            ? <button onClick={onDelete} disabled={calSaving} style={M.dangerBtn}>삭제</button>
+            ? <button onClick={onDelete} disabled={calSaving} style={M.dangerBtn}>{t('deleteButton')}</button>
             : <span />}
           <div style={{ display: 'flex', gap: '8px' }}>
-            <button onClick={onClose} disabled={calSaving} style={M.cancelBtn}>취소</button>
+            <button onClick={onClose} disabled={calSaving} style={M.cancelBtn}>{tc('cancel')}</button>
             <button onClick={onSave} disabled={calSaving || !calName.trim()} style={M.primaryBtn(calSaving || !calName.trim())}>
-              {calSaving ? '저장 중...' : '저장'}
+              {calSaving ? t('savingButton') : t('saveButton')}
             </button>
           </div>
         </div>
@@ -295,20 +300,22 @@ export function EventCreateModal({
   onRruleUntilChange,
   onToggleRruleDay,
 }: EventCreateModalProps) {
+  const t = useTranslations('calendarFull.event');
+  const tc = useTranslations('calendarFull.common');
   const M = createCalendarModalStyles();
   if (!show) return null;
 
   return (
     <div style={M.overlay} onClick={() => { if (!createSaving) onClose(); }}>
       <div style={M.card('460px')} onClick={(e) => e.stopPropagation()}>
-        <div style={M.header}><span style={M.title}>새 일정</span></div>
+        <div style={M.header}><span style={M.title}>{t('newTitle')}</span></div>
         <div style={M.body}>
           <div>
-            <label style={M.label}>제목 *</label>
+            <label style={M.label}>{t('titleLabel')}</label>
             <input
               autoFocus
               type="text"
-              placeholder="일정 제목"
+              placeholder={t('titlePlaceholder')}
               value={createTitle}
               onChange={(e) => onTitleChange(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') onSubmit(); }}
@@ -318,21 +325,21 @@ export function EventCreateModal({
 
           {showCalSelect && (
             <div>
-              <label style={M.label}>캘린더</label>
+              <label style={M.label}>{t('calendarLabel')}</label>
               <select value={createCalId} onChange={(e) => onCalIdChange(e.target.value)} style={M.select}>
-                {calendars.map((c) => <option key={c.ID} value={c.ID ?? ''}>{c.Name ?? '(캘린더)'}</option>)}
+                {calendars.map((c) => <option key={c.ID} value={c.ID ?? ''}>{c.Name ?? t('defaultCalName')}</option>)}
               </select>
             </div>
           )}
 
           <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: 'var(--color-text-secondary)', cursor: 'pointer' }}>
             <input type="checkbox" checked={createAllDay} onChange={(e) => onAllDayToggle(e.target.checked)} />
-            하루 종일
+            {t('allDay')}
           </label>
 
           <div style={{ display: 'flex', gap: '10px' }}>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <label style={M.label}>시작</label>
+              <label style={M.label}>{t('startLabel')}</label>
               <input
                 type={createAllDay ? 'date' : 'datetime-local'}
                 value={createStart}
@@ -341,7 +348,7 @@ export function EventCreateModal({
               />
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <label style={M.label}>종료</label>
+              <label style={M.label}>{t('endLabel')}</label>
               <input
                 type={createAllDay ? 'date' : 'datetime-local'}
                 value={createEnd}
@@ -352,10 +359,10 @@ export function EventCreateModal({
           </div>
 
           <div>
-            <label style={M.label}>장소 (선택)</label>
+            <label style={M.label}>{t('locationLabel')}</label>
             <input
               type="text"
-              placeholder="장소 추가"
+              placeholder={t('locationPlaceholder')}
               value={createLocation}
               onChange={(e) => onLocationChange(e.target.value)}
               style={M.input}
@@ -363,9 +370,9 @@ export function EventCreateModal({
           </div>
 
           <div>
-            <label style={M.label}>메모 (선택)</label>
+            <label style={M.label}>{t('memoLabel')}</label>
             <textarea
-              placeholder="메모 추가"
+              placeholder={t('memoPlaceholder')}
               value={createDesc}
               onChange={(e) => onDescChange(e.target.value)}
               rows={2}
@@ -375,17 +382,17 @@ export function EventCreateModal({
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '10px', borderRadius: '8px', background: 'var(--color-bg-secondary)', border: '1px solid var(--color-border-subtle)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-              <span style={{ fontSize: '12px', color: 'var(--color-text-secondary)', width: '36px', flexShrink: 0 }}>반복</span>
+              <span style={{ fontSize: '12px', color: 'var(--color-text-secondary)', width: '36px', flexShrink: 0 }}>{t('repeatLabel')}</span>
               <select value={createRrule} onChange={(e) => onRruleChange(e.target.value as EventCreateModalProps['createRrule'])} style={{ padding: '4px 8px', fontSize: '12px', border: '1px solid var(--color-border-default)', borderRadius: '5px', background: 'var(--color-bg-primary)', color: 'var(--color-text-primary)', cursor: 'pointer' }}>
-                <option value="NONE">없음</option>
-                <option value="DAILY">매일</option>
-                <option value="WEEKLY">매주</option>
-                <option value="MONTHLY">매월</option>
-                <option value="YEARLY">매년</option>
+                <option value="NONE">{t('recurNone')}</option>
+                <option value="DAILY">{t('recurDaily')}</option>
+                <option value="WEEKLY">{t('recurWeekly')}</option>
+                <option value="MONTHLY">{t('recurMonthly')}</option>
+                <option value="YEARLY">{t('recurYearly')}</option>
               </select>
               {createRrule !== 'NONE' && (
                 <>
-                  <span style={{ fontSize: '12px', color: 'var(--color-text-tertiary)' }}>마다</span>
+                  <span style={{ fontSize: '12px', color: 'var(--color-text-tertiary)' }}>{t('repeatEvery')}</span>
                   <input
                     type="number"
                     min={1}
@@ -425,11 +432,11 @@ export function EventCreateModal({
             )}
             {createRrule !== 'NONE' && (
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', paddingLeft: '44px' }}>
-                <span style={{ fontSize: '12px', color: 'var(--color-text-secondary)', flexShrink: 0 }}>종료</span>
+                <span style={{ fontSize: '12px', color: 'var(--color-text-secondary)', flexShrink: 0 }}>{t('endLabel2')}</span>
                 <select value={createRruleEnd} onChange={(e) => onRruleEndChange(e.target.value as EventCreateModalProps['createRruleEnd'])} style={{ padding: '4px 8px', fontSize: '12px', border: '1px solid var(--color-border-default)', borderRadius: '5px', background: 'var(--color-bg-primary)', color: 'var(--color-text-primary)', cursor: 'pointer' }}>
-                  <option value="never">계속 반복</option>
-                  <option value="count">횟수 지정</option>
-                  <option value="until">날짜 지정</option>
+                  <option value="never">{t('endNever')}</option>
+                  <option value="count">{t('endCount')}</option>
+                  <option value="until">{t('endUntil')}</option>
                 </select>
                 {createRruleEnd === 'count' && (
                   <>
@@ -441,7 +448,7 @@ export function EventCreateModal({
                       onChange={(e) => onRruleCountChange(Math.max(1, Number(e.target.value)))}
                       style={{ width: '52px', padding: '4px 6px', fontSize: '12px', border: '1px solid var(--color-border-default)', borderRadius: '5px', background: 'var(--color-bg-primary)', color: 'var(--color-text-primary)', outline: 'none' }}
                     />
-                    <span style={{ fontSize: '12px', color: 'var(--color-text-tertiary)' }}>회</span>
+                    <span style={{ fontSize: '12px', color: 'var(--color-text-tertiary)' }}>{t('endCountSuffix')}</span>
                   </>
                 )}
                 {createRruleEnd === 'until' && (
@@ -459,9 +466,9 @@ export function EventCreateModal({
           {createError && <div style={M.error}>{createError}</div>}
         </div>
         <div style={M.footer}>
-          <button onClick={onClose} disabled={createSaving} style={M.cancelBtn}>취소</button>
+          <button onClick={onClose} disabled={createSaving} style={M.cancelBtn}>{tc('cancel')}</button>
           <button onClick={onSubmit} disabled={createSaving || !canSubmit} style={M.primaryBtn(createSaving || !canSubmit)}>
-            {createSaving ? '저장 중...' : '저장'}
+            {createSaving ? t('savingButton') : t('saveButton')}
           </button>
         </div>
       </div>
@@ -511,29 +518,31 @@ export function EventEditModal({
   onRruleUntilChange,
   onToggleRruleDay,
 }: EventEditModalProps) {
+  const t = useTranslations('calendarFull.event');
+  const tc = useTranslations('calendarFull.common');
   const M = createCalendarModalStyles();
   if (!show) return null;
 
   return (
     <div style={M.overlay} onClick={() => { if (!createSaving) onClose(); }}>
       <div style={M.card('460px')} onClick={(e) => e.stopPropagation()}>
-        <div style={M.header}><span style={M.title}>일정 편집</span></div>
+        <div style={M.header}><span style={M.title}>{t('editTitle')}</span></div>
         <div style={M.body}>
           {isRecurring && (
             <div role="note" style={{ padding: '8px 10px', borderRadius: '8px', background: 'var(--color-bg-secondary)', border: '1px solid var(--color-border-subtle)', color: 'var(--color-text-secondary)', fontSize: '12px', lineHeight: 1.5 }}>
               <div style={{ fontWeight: 600, color: 'var(--color-text-primary)', marginBottom: '2px' }}>
-                반복 일정 전체 편집
+                {t('recurringNote')}
               </div>
-              이 변경사항은 같은 반복 규칙을 공유하는 전체 일정에 적용됩니다.
+              {t('recurringDesc')}
             </div>
           )}
 
           <div>
-            <label style={M.label}>제목 *</label>
+            <label style={M.label}>{t('titleLabel')}</label>
             <input
               autoFocus
               type="text"
-              placeholder="일정 제목"
+              placeholder={t('titlePlaceholder')}
               value={createTitle}
               onChange={(e) => onTitleChange(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') onSubmit(); }}
@@ -543,21 +552,21 @@ export function EventEditModal({
 
           {calendars.length > 1 && (
             <div>
-              <label style={M.label}>캘린더</label>
+              <label style={M.label}>{t('calendarLabel')}</label>
               <select value={createCalId} onChange={(e) => onCalIdChange(e.target.value)} style={M.select}>
-                {calendars.map((c) => <option key={c.ID} value={c.ID ?? ''}>{c.Name ?? '(캘린더)'}</option>)}
+                {calendars.map((c) => <option key={c.ID} value={c.ID ?? ''}>{c.Name ?? t('defaultCalName')}</option>)}
               </select>
             </div>
           )}
 
           <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: 'var(--color-text-secondary)', cursor: 'pointer' }}>
             <input type="checkbox" checked={createAllDay} onChange={(e) => onAllDayToggle(e.target.checked)} />
-            하루 종일
+            {t('allDay')}
           </label>
 
           <div style={{ display: 'flex', gap: '10px' }}>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <label style={M.label}>시작</label>
+              <label style={M.label}>{t('startLabel')}</label>
               <input
                 type={createAllDay ? 'date' : 'datetime-local'}
                 value={createStart}
@@ -566,7 +575,7 @@ export function EventEditModal({
               />
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <label style={M.label}>종료</label>
+              <label style={M.label}>{t('endLabel')}</label>
               <input
                 type={createAllDay ? 'date' : 'datetime-local'}
                 value={createEnd}
@@ -577,10 +586,10 @@ export function EventEditModal({
           </div>
 
           <div>
-            <label style={M.label}>장소 (선택)</label>
+            <label style={M.label}>{t('locationLabel')}</label>
             <input
               type="text"
-              placeholder="장소 추가"
+              placeholder={t('locationPlaceholder')}
               value={createLocation}
               onChange={(e) => onLocationChange(e.target.value)}
               style={M.input}
@@ -588,9 +597,9 @@ export function EventEditModal({
           </div>
 
           <div>
-            <label style={M.label}>메모 (선택)</label>
+            <label style={M.label}>{t('memoLabel')}</label>
             <textarea
-              placeholder="메모 추가"
+              placeholder={t('memoPlaceholder')}
               value={createDesc}
               onChange={(e) => onDescChange(e.target.value)}
               rows={2}
@@ -600,17 +609,17 @@ export function EventEditModal({
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '10px', borderRadius: '8px', background: 'var(--color-bg-secondary)', border: '1px solid var(--color-border-subtle)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-              <span style={{ fontSize: '12px', color: 'var(--color-text-secondary)', width: '36px', flexShrink: 0 }}>반복</span>
+              <span style={{ fontSize: '12px', color: 'var(--color-text-secondary)', width: '36px', flexShrink: 0 }}>{t('repeatLabel')}</span>
               <select value={createRrule} onChange={(e) => onRruleChange(e.target.value as EventCreateModalProps['createRrule'])} style={{ padding: '4px 8px', fontSize: '12px', border: '1px solid var(--color-border-default)', borderRadius: '5px', background: 'var(--color-bg-primary)', color: 'var(--color-text-primary)', cursor: 'pointer' }}>
-                <option value="NONE">없음</option>
-                <option value="DAILY">매일</option>
-                <option value="WEEKLY">매주</option>
-                <option value="MONTHLY">매월</option>
-                <option value="YEARLY">매년</option>
+                <option value="NONE">{t('recurNone')}</option>
+                <option value="DAILY">{t('recurDaily')}</option>
+                <option value="WEEKLY">{t('recurWeekly')}</option>
+                <option value="MONTHLY">{t('recurMonthly')}</option>
+                <option value="YEARLY">{t('recurYearly')}</option>
               </select>
               {createRrule !== 'NONE' && (
                 <>
-                  <span style={{ fontSize: '12px', color: 'var(--color-text-tertiary)' }}>마다</span>
+                  <span style={{ fontSize: '12px', color: 'var(--color-text-tertiary)' }}>{t('repeatEvery')}</span>
                   <input
                     type="number"
                     min={1}
@@ -650,11 +659,11 @@ export function EventEditModal({
             )}
             {createRrule !== 'NONE' && (
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', paddingLeft: '44px' }}>
-                <span style={{ fontSize: '12px', color: 'var(--color-text-secondary)', flexShrink: 0 }}>종료</span>
+                <span style={{ fontSize: '12px', color: 'var(--color-text-secondary)', flexShrink: 0 }}>{t('endLabel2')}</span>
                 <select value={createRruleEnd} onChange={(e) => onRruleEndChange(e.target.value as EventCreateModalProps['createRruleEnd'])} style={{ padding: '4px 8px', fontSize: '12px', border: '1px solid var(--color-border-default)', borderRadius: '5px', background: 'var(--color-bg-primary)', color: 'var(--color-text-primary)', cursor: 'pointer' }}>
-                  <option value="never">계속 반복</option>
-                  <option value="count">횟수 지정</option>
-                  <option value="until">날짜 지정</option>
+                  <option value="never">{t('endNever')}</option>
+                  <option value="count">{t('endCount')}</option>
+                  <option value="until">{t('endUntil')}</option>
                 </select>
                 {createRruleEnd === 'count' && (
                   <>
@@ -666,7 +675,7 @@ export function EventEditModal({
                       onChange={(e) => onRruleCountChange(Math.max(1, Number(e.target.value)))}
                       style={{ width: '52px', padding: '4px 6px', fontSize: '12px', border: '1px solid var(--color-border-default)', borderRadius: '5px', background: 'var(--color-bg-primary)', color: 'var(--color-text-primary)', outline: 'none' }}
                     />
-                    <span style={{ fontSize: '12px', color: 'var(--color-text-tertiary)' }}>회</span>
+                    <span style={{ fontSize: '12px', color: 'var(--color-text-tertiary)' }}>{t('endCountSuffix')}</span>
                   </>
                 )}
                 {createRruleEnd === 'until' && (
@@ -684,9 +693,9 @@ export function EventEditModal({
           {createError && <div style={M.error}>{createError}</div>}
         </div>
         <div style={M.footer}>
-          <button onClick={onClose} disabled={createSaving} style={M.cancelBtn}>취소</button>
+          <button onClick={onClose} disabled={createSaving} style={M.cancelBtn}>{tc('cancel')}</button>
           <button onClick={onSubmit} disabled={createSaving || !canSubmit} style={M.primaryBtn(createSaving || !canSubmit)}>
-            {createSaving ? '저장 중...' : '수정'}
+            {createSaving ? t('savingButton') : t('editButton')}
           </button>
         </div>
       </div>
@@ -704,6 +713,8 @@ export function TodoCreateModal({
   onClose,
   canSubmit,
 }: TodoModalProps) {
+  const t = useTranslations('calendarFull.todo');
+  const tc = useTranslations('calendarFull.common');
   const M = createCalendarModalStyles();
   if (!show) return null;
 
@@ -716,14 +727,14 @@ export function TodoCreateModal({
   return (
     <div style={M.overlay} onClick={onClose}>
       <div style={M.card('400px')} onClick={(e) => e.stopPropagation()}>
-        <div style={M.header}><span style={M.title}>할 일 추가</span></div>
+        <div style={M.header}><span style={M.title}>{t('addTitle')}</span></div>
         <div style={M.body}>
           <div>
-            <label style={M.label}>제목 *</label>
+            <label style={M.label}>{t('titleLabel')}</label>
             <input
               autoFocus
               type="text"
-              placeholder="할 일 제목"
+              placeholder={t('titlePlaceholder')}
               value={todoDraft}
               onChange={(e) => onDraftChange(e.target.value)}
               onKeyDown={(e) => {
@@ -737,7 +748,7 @@ export function TodoCreateModal({
             />
           </div>
           <div>
-            <label style={M.label}>마감일 (선택)</label>
+            <label style={M.label}>{t('dueLabel')}</label>
             <input
               type="date"
               value={todoDueDate}
@@ -751,10 +762,10 @@ export function TodoCreateModal({
             onClick={closeAndReset}
             style={M.cancelBtn}
           >
-            취소
+            {tc('cancel')}
           </button>
           <button onClick={() => { void onSubmit(); onClose(); }} disabled={!canSubmit} style={M.primaryBtn(!canSubmit)}>
-            추가
+            {t('addButton')}
           </button>
         </div>
       </div>

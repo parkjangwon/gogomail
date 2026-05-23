@@ -1,7 +1,9 @@
 import { CalendarObject, CalendarSubscription, parseICS, icalDateToDate } from '@/lib/api';
 import { ParsedEvent } from '@/lib/calendar/eventParser';
 
-export function parseSubscriptionEvents(rawICS: string, sub: CalendarSubscription): ParsedEvent[] {
+type TFn = (key: string) => string;
+
+export function parseSubscriptionEvents(rawICS: string, sub: CalendarSubscription, t?: TFn): ParsedEvent[] {
   const events: ParsedEvent[] = [];
   const blocks = rawICS.split(/BEGIN:VEVENT/i).slice(1);
 
@@ -31,7 +33,7 @@ export function parseSubscriptionEvents(rawICS: string, sub: CalendarSubscriptio
         CreatedAt: '',
         UpdatedAt: '',
       } as unknown as CalendarObject,
-      summary: ics.summary || '(제목 없음)',
+      summary: ics.summary || (t ? t('misc.calendarParser.noTitle') : '(제목 없음)'),
       description: ics.description,
       location: ics.location,
       start,

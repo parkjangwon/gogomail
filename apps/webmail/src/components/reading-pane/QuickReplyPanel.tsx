@@ -94,7 +94,7 @@ export function QuickReplyPanel({ message, onQuickReply }: QuickReplyPanelProps)
             style={{ width: '100%', padding: '12px 14px', border: 'none', outline: 'none', resize: 'vertical', fontSize: '14px', lineHeight: 1.6, background: 'var(--color-bg-primary)', color: 'var(--color-text-primary)', boxSizing: 'border-box' }}
           />
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', background: 'var(--color-bg-secondary)', borderTop: '1px solid var(--color-border-subtle)' }}>
-            <span style={{ fontSize: '11px', color: 'var(--color-text-tertiary)' }}>Ctrl+Enter로 전송 · Escape로 취소</span>
+            <span style={{ fontSize: '11px', color: 'var(--color-text-tertiary)' }}>{t('hint')}</span>
             <div style={{ display: 'flex', gap: '8px' }}>
               <button
                 onClick={() => {
@@ -102,13 +102,13 @@ export function QuickReplyPanel({ message, onQuickReply }: QuickReplyPanelProps)
                   setQuickReplyText('');
                 }}
                 style={{ padding: '5px 12px', borderRadius: '5px', border: '1px solid var(--color-border-default)', background: 'transparent', color: 'var(--color-text-secondary)', fontSize: '13px', cursor: 'pointer' }}
-              >취소</button>
+              >{t('cancel')}</button>
               <button
                 disabled={quickReplySending || !quickReplyText.trim()}
                 onClick={() => void sendQuickReply()}
                 style={{ padding: '5px 14px', borderRadius: '5px', border: 'none', background: quickReplySending || !quickReplyText.trim() ? 'var(--color-border-default)' : 'var(--color-accent)', color: '#fff', fontSize: '13px', fontWeight: 500, cursor: quickReplySending || !quickReplyText.trim() ? 'not-allowed' : 'pointer' }}
               >
-                {quickReplySent ? '전송됨 ✓' : quickReplySending ? '전송 중...' : '보내기'}
+                {quickReplySent ? t('sent') : quickReplySending ? t('sending') : t('send')}
               </button>
             </div>
           </div>

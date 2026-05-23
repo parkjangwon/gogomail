@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { useTranslations } from 'next-intl';
 import { listOrgTree, listAddressBooks, listContacts, parseVCard, OrgUnit, AddressBook, getUserProfile } from '@/lib/api';
 import { parseToPickerItems, pickerItemsToString } from '@/lib/mail-address';
 import type { PickerItem } from '@/lib/mail-address';
@@ -112,8 +113,6 @@ function RenderOrgTree({
 
 // ── Component ──────────────────────────────────────────────────────────────────
 
-const FIELD_LABELS = { to: '받는 사람', cc: '참조', bcc: '숨은 참조' } as const;
-
 export function OrgPickerModal({
   initialTo = [],
   initialCc = [],
@@ -121,6 +120,8 @@ export function OrgPickerModal({
   onClose,
   onConfirm,
 }: OrgPickerModalProps) {
+  const tr = useTranslations('modals.orgPicker');
+  const FIELD_LABELS = { to: tr('fields.to'), cc: tr('fields.cc'), bcc: tr('fields.bcc') } as const;
   const [tab, setTab] = useState<'org' | 'contacts'>('org');
 
   // Org tree
@@ -435,7 +436,7 @@ export function OrgPickerModal({
           {list.size > 0 && (
             <button type="button" onClick={(e) => { e.stopPropagation(); clearList(field); }}
               style={{ fontSize: '11px', color: 'var(--color-text-tertiary)', background: 'none', border: 'none', cursor: 'pointer', padding: '0 2px' }}>
-              전체 삭제
+              {tr('clearAll')}
             </button>
           )}
         </div>
@@ -483,7 +484,7 @@ export function OrgPickerModal({
                 borderBottom: tab === t ? '2px solid var(--color-accent)' : '2px solid transparent',
                 marginBottom: '-1px', whiteSpace: 'nowrap',
               }}>
-              {t === 'org' ? '조직도' : '주소록'}
+              {t === 'org' ? tr('tabOrg') : tr('tabContacts')}
             </button>
           ))}
         </div>
@@ -500,7 +501,7 @@ export function OrgPickerModal({
                 <input
                   ref={orgSearchRef}
                   type="text" value={orgSearch} onChange={(e) => setOrgSearch(e.target.value)}
-                  placeholder="조직명, 이름, 이메일 검색"
+                  placeholder={tr('orgSearchPlaceholder')}
                   style={{ width: '100%', border: '1px solid var(--color-border-default)', borderRadius: '6px', padding: '5px 8px', fontSize: '12px', outline: 'none', background: 'var(--color-bg-secondary)', color: 'var(--color-text-primary)', boxSizing: 'border-box' }}
                 />
               </div>
@@ -511,7 +512,7 @@ export function OrgPickerModal({
               <div style={{ padding: '8px 10px', borderBottom: '1px solid var(--color-border-subtle)', flexShrink: 0 }}>
                 <input
                   type="text" value={contactsSearch} onChange={(e) => setContactsSearch(e.target.value)}
-                  placeholder="이름, 이메일 검색"
+                  placeholder={tr('contactsSearchPlaceholder')}
                   style={{ width: '100%', border: '1px solid var(--color-border-default)', borderRadius: '6px', padding: '5px 8px', fontSize: '12px', outline: 'none', background: 'var(--color-bg-secondary)', color: 'var(--color-text-primary)', boxSizing: 'border-box' }}
                 />
               </div>
@@ -520,13 +521,13 @@ export function OrgPickerModal({
             <div style={{ flex: 1, overflowY: 'auto' }}>
               {/* Org tab tree */}
               {tab === 'org' && treeLoading && (
-                <div style={{ padding: '20px', textAlign: 'center', fontSize: '13px', color: 'var(--color-text-tertiary)' }}>불러오는 중...</div>
+                <div style={{ padding: '20px', textAlign: 'center', fontSize: '13px', color: 'var(--color-text-tertiary)' }}>{tr('loading')}</div>
               )}
               {tab === 'org' && !treeLoading && orgTree.length === 0 && (
-                <div style={{ padding: '20px', textAlign: 'center', fontSize: '13px', color: 'var(--color-text-tertiary)' }}>조직 정보 없음</div>
+                <div style={{ padding: '20px', textAlign: 'center', fontSize: '13px', color: 'var(--color-text-tertiary)' }}>{tr('noOrg')}</div>
               )}
               {tab === 'org' && !treeLoading && (q ? orgTree.filter(matchesSearch).length === 0 : getRootOrgs().length === 0) && q && (
-                <div style={{ padding: '20px', textAlign: 'center', fontSize: '13px', color: 'var(--color-text-tertiary)' }}>결과 없음</div>
+                <div style={{ padding: '20px', textAlign: 'center', fontSize: '13px', color: 'var(--color-text-tertiary)' }}>{tr('noResults')}</div>
               )}
 
               {/* Recursive tree renderer */}
@@ -587,10 +588,10 @@ export function OrgPickerModal({
 
               {/* Contacts tab address books */}
               {tab === 'contacts' && booksLoading && (
-                <div style={{ padding: '20px', textAlign: 'center', fontSize: '13px', color: 'var(--color-text-tertiary)' }}>불러오는 중...</div>
+                <div style={{ padding: '20px', textAlign: 'center', fontSize: '13px', color: 'var(--color-text-tertiary)' }}>{tr('loading')}</div>
               )}
               {tab === 'contacts' && !booksLoading && addressBooks.length === 0 && (
-                <div style={{ padding: '20px', textAlign: 'center', fontSize: '13px', color: 'var(--color-text-tertiary)' }}>주소록 없음</div>
+                <div style={{ padding: '20px', textAlign: 'center', fontSize: '13px', color: 'var(--color-text-tertiary)' }}>{tr('noAddressBooks')}</div>
               )}
               {tab === 'contacts' && addressBooks.map((book) => {
                 const isSelected = selectedBook?.ID === book.ID;
@@ -620,25 +621,25 @@ export function OrgPickerModal({
           <div style={{ flex: 1, overflowY: 'auto', borderRight: '1px solid var(--color-border-subtle)', display: 'flex', flexDirection: 'column' }}>
             {/* Empty states */}
             {tab === 'org' && !treeLoading && !q && !selectedOrg && (
-              <div style={{ padding: '40px 20px', textAlign: 'center', fontSize: '13px', color: 'var(--color-text-tertiary)' }}>왼쪽에서 조직을 선택하세요</div>
+              <div style={{ padding: '40px 20px', textAlign: 'center', fontSize: '13px', color: 'var(--color-text-tertiary)' }}>{tr('selectOrgHint')}</div>
             )}
             {tab === 'org' && !treeLoading && !q && selectedOrg && middleItems.length === 0 && (
-              <div style={{ padding: '40px 20px', textAlign: 'center', fontSize: '13px', color: 'var(--color-text-tertiary)' }}>구성원 없음</div>
+              <div style={{ padding: '40px 20px', textAlign: 'center', fontSize: '13px', color: 'var(--color-text-tertiary)' }}>{tr('noMembers')}</div>
             )}
             {tab === 'org' && q && middleItems.length === 0 && (
-              <div style={{ padding: '40px 20px', textAlign: 'center', fontSize: '13px', color: 'var(--color-text-tertiary)' }}>결과 없음</div>
+              <div style={{ padding: '40px 20px', textAlign: 'center', fontSize: '13px', color: 'var(--color-text-tertiary)' }}>{tr('noResults')}</div>
             )}
             {tab === 'contacts' && bookLoading && (
-              <div style={{ padding: '40px 20px', textAlign: 'center', fontSize: '13px', color: 'var(--color-text-tertiary)' }}>불러오는 중...</div>
+              <div style={{ padding: '40px 20px', textAlign: 'center', fontSize: '13px', color: 'var(--color-text-tertiary)' }}>{tr('loading')}</div>
             )}
             {tab === 'contacts' && !bookLoading && !selectedBook && (
-              <div style={{ padding: '40px 20px', textAlign: 'center', fontSize: '13px', color: 'var(--color-text-tertiary)' }}>왼쪽에서 주소록을 선택하세요</div>
+              <div style={{ padding: '40px 20px', textAlign: 'center', fontSize: '13px', color: 'var(--color-text-tertiary)' }}>{tr('selectBookHint')}</div>
             )}
             {tab === 'contacts' && !bookLoading && selectedBook && bookContacts.length === 0 && contactsSearch.trim() && filteredContacts.length === 0 && (
-              <div style={{ padding: '40px 20px', textAlign: 'center', fontSize: '13px', color: 'var(--color-text-tertiary)' }}>연락처 없음</div>
+              <div style={{ padding: '40px 20px', textAlign: 'center', fontSize: '13px', color: 'var(--color-text-tertiary)' }}>{tr('noContacts')}</div>
             )}
             {tab === 'contacts' && !bookLoading && selectedBook && bookContacts.length > 0 && filteredContacts.length === 0 && (
-              <div style={{ padding: '40px 20px', textAlign: 'center', fontSize: '13px', color: 'var(--color-text-tertiary)' }}>결과 없음</div>
+              <div style={{ padding: '40px 20px', textAlign: 'center', fontSize: '13px', color: 'var(--color-text-tertiary)' }}>{tr('noResults')}</div>
             )}
 
             {tab === 'org' && selectedOrg && (
@@ -648,7 +649,7 @@ export function OrgPickerModal({
                   checked={includeChildOrgs}
                   onChange={(e) => setIncludeChildOrgs(e.target.checked)}
                 />
-                조직 선택 시 하위 조직 포함
+                {tr('includeChildren')}
               </label>
             )}
 
@@ -662,14 +663,14 @@ export function OrgPickerModal({
                   ...avatarStyle,
                   borderRadius: item.kind === 'user' || !item.kind ? '50%' : '8px',
                   background: item.kind === 'org' ? 'var(--color-accent-subtle)' : item.kind === 'addressbook' ? 'var(--color-bg-tertiary)' : avatarStyle.background,
-                }}>{item.kind === 'org' ? '조' : item.kind === 'addressbook' ? '록' : (item.display_name || item.email)[0].toUpperCase()}</div>
+                }}>{item.kind === 'org' ? tr('orgBadge') : item.kind === 'addressbook' ? tr('bookBadge') : (item.display_name || item.email)[0].toUpperCase()}</div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: '13px', fontWeight: 500, color: 'var(--color-text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {item.display_name}
                   </div>
                   {item.kind === 'org' || item.kind === 'addressbook' ? (
                     <div style={{ fontSize: '11px', color: 'var(--color-text-tertiary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {item.count ?? 0}명으로 발송 시 확장
+                      {tr('expandTo', { count: item.count ?? 0 })}
                     </div>
                   ) : item.display_name !== item.email && (
                     <div style={{ fontSize: '11px', color: 'var(--color-text-tertiary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -678,7 +679,7 @@ export function OrgPickerModal({
                   )}
                 </div>
                 <button type="button" onClick={() => addToActive(item)}
-                  title={`${FIELD_LABELS[activeField]}에 추가`}
+                  title={tr('addTooltip', { field: FIELD_LABELS[activeField] })}
                   style={{ padding: '6px 12px', fontSize: '12px', color: 'var(--color-accent)', border: '1px solid var(--color-accent)', borderRadius: '4px', background: 'transparent', cursor: 'pointer', flexShrink: 0, fontWeight: 500 }}>
                   &gt;
                 </button>
@@ -697,16 +698,16 @@ export function OrgPickerModal({
         {/* Footer */}
         <div style={{ display: 'flex', alignItems: 'center', padding: '10px 16px', borderTop: '1px solid var(--color-border-subtle)', flexShrink: 0, gap: '8px' }}>
           <span style={{ fontSize: '12px', color: 'var(--color-text-tertiary)', flex: 1 }}>
-            클릭 시 <strong>{FIELD_LABELS[activeField]}</strong>에 추가
+            {tr('footerHint', { field: FIELD_LABELS[activeField] })}
           </span>
           <button type="button" onClick={onClose}
             style={{ padding: '6px 14px', borderRadius: '6px', border: '1px solid var(--color-border-default)', background: 'transparent', color: 'var(--color-text-secondary)', fontSize: '13px', cursor: 'pointer' }}>
-            취소
+            {tr('cancel')}
           </button>
           <button type="button"
             onClick={() => onConfirm({ to: Array.from(toList.values()), cc: Array.from(ccList.values()), bcc: Array.from(bccList.values()) })}
             style={{ padding: '6px 14px', borderRadius: '6px', border: 'none', background: 'var(--color-accent)', color: '#fff', fontSize: '13px', fontWeight: 500, cursor: 'pointer' }}>
-            확인
+            {tr('confirm')}
           </button>
         </div>
       </div>

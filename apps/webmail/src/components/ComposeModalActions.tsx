@@ -1,6 +1,7 @@
 'use client';
 
 import { type CSSProperties, type Dispatch, type RefObject, type SetStateAction } from 'react';
+import { useTranslations } from 'next-intl';
 import { type Editor } from '@tiptap/react';
 import type { DriveNode } from '@/lib/api';
 import { DriveNodeIcon } from '@/lib/driveNodeIcon';
@@ -65,8 +66,6 @@ interface ComposeModalActionsProps {
   imageResizeToolbar: { top: number; left: number } | null;
 }
 
-const SCHEDULE_INPUT_HELP = '예약 전송은 현재 시각 이후만 선택할 수 있습니다.';
-
 const toolbarBtnStyle = (active?: boolean): CSSProperties => ({
   width: '28px',
   height: '28px',
@@ -84,12 +83,12 @@ const toolbarBtnStyle = (active?: boolean): CSSProperties => ({
 });
 
 const EMOJI_GROUPS = [
-  { label: '😊 자주 쓰는', emojis: ['😀', '😂', '🥰', '😍', '🤔', '😮', '😢', '😎', '🙏', '👍', '👎', '❤️', '🎉', '✨', '🔥', '💯', '😁', '🤣', '😇', '🥳'] },
-  { label: '🐾 자연', emojis: ['🐶', '🐱', '🐭', '🐹', '🐰', '🦊', '🐻', '🐼', '🐨', '🐯', '🦁', '🐮', '🌸', '🌺', '🍀', '🌈', '⭐', '🌙', '☀️', '❄️'] },
-  { label: '🍕 음식', emojis: ['🍕', '🍔', '🌮', '🍜', '🍣', '🍰', '☕', '🍺', '🎂', '🍎', '🥑', '🍓', '🍦', '🧁', '🍩', '🧇', '🥐', '🍿', '🍫', '🥤'] },
-  { label: '✈️ 여행', emojis: ['✈️', '🚀', '🚗', '🚂', '⛵', '🏖️', '🏔️', '🌏', '🗺️', '🗼', '🎡', '🏰', '🎠', '🚁', '🛸', '🚢', '🛶', '🚌', '🚲', '🏄'] },
-  { label: '🎵 활동', emojis: ['⚽', '🏀', '🎾', '🎯', '🎮', '🎵', '🎸', '📚', '💻', '📱', '🎨', '🎭', '🏋️', '🤸', '🧘', '🎲', '♟️', '🎻', '🎺', '🥁'] },
-  { label: '💡 기호', emojis: ['✅', '❌', '⚠️', '💡', '🔑', '📌', '📍', '🔒', '🔓', '💰', '📧', '📞', '🔔', '💬', '📊', '📈', '📉', '🏆', '🎁', '🎗️'] },
+  { labelKey: 'emojiFrequent', emojis: ['😀', '😂', '🥰', '😍', '🤔', '😮', '😢', '😎', '🙏', '👍', '👎', '❤️', '🎉', '✨', '🔥', '💯', '😁', '🤣', '😇', '🥳'] },
+  { labelKey: 'emojiNature', emojis: ['🐶', '🐱', '🐭', '🐹', '🐰', '🦊', '🐻', '🐼', '🐨', '🐯', '🦁', '🐮', '🌸', '🌺', '🍀', '🌈', '⭐', '🌙', '☀️', '❄️'] },
+  { labelKey: 'emojiFood', emojis: ['🍕', '🍔', '🌮', '🍜', '🍣', '🍰', '☕', '🍺', '🎂', '🍎', '🥑', '🍓', '🍦', '🧁', '🍩', '🧇', '🥐', '🍿', '🍫', '🥤'] },
+  { labelKey: 'emojiTravel', emojis: ['✈️', '🚀', '🚗', '🚂', '⛵', '🏖️', '🏔️', '🌏', '🗺️', '🗼', '🎡', '🏰', '🎠', '🚁', '🛸', '🚢', '🛶', '🚌', '🚲', '🏄'] },
+  { labelKey: 'emojiActivity', emojis: ['⚽', '🏀', '🎾', '🎯', '🎮', '🎵', '🎸', '📚', '💻', '📱', '🎨', '🎭', '🏋️', '🤸', '🧘', '🎲', '♟️', '🎻', '🎺', '🥁'] },
+  { labelKey: 'emojiSymbols', emojis: ['✅', '❌', '⚠️', '💡', '🔑', '📌', '📍', '🔒', '🔓', '💰', '📧', '📞', '🔔', '💬', '📊', '📈', '📉', '🏆', '🎁', '🎗️'] },
 ] as const;
 
 export function ComposeModalActions({
@@ -131,6 +130,7 @@ export function ComposeModalActions({
   scheduleOptions,
   imageResizeToolbar,
 }: ComposeModalActionsProps) {
+  const t = useTranslations('composeFull');
   return (
     <>
       <input
@@ -147,23 +147,23 @@ export function ComposeModalActions({
         style={{ display: 'none' }}
         onChange={(e) => { if (e.target.files?.[0]) { void handleImageFileSelect(e.target.files[0]); e.target.value = ''; } }}
       />
-      <button type="button" aria-label="굵게" title="굵게" style={toolbarBtnStyle(editor?.isActive('bold'))} onClick={() => editor?.chain().focus().toggleBold().run()} onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }} onMouseLeave={(e) => { (e.currentTarget).style.background = editor?.isActive('bold') ? 'var(--color-bg-tertiary)' : 'transparent'; }}><b>B</b></button>
-      <button type="button" aria-label="기울임" title="기울임" style={toolbarBtnStyle(editor?.isActive('italic'))} onClick={() => editor?.chain().focus().toggleItalic().run()} onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }} onMouseLeave={(e) => { (e.currentTarget).style.background = editor?.isActive('italic') ? 'var(--color-bg-tertiary)' : 'transparent'; }}><i>I</i></button>
-      <button type="button" aria-label="밑줄" title="밑줄" style={toolbarBtnStyle(editor?.isActive('underline'))} onClick={() => editor?.chain().focus().toggleUnderline().run()} onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }} onMouseLeave={(e) => { (e.currentTarget).style.background = editor?.isActive('underline') ? 'var(--color-bg-tertiary)' : 'transparent'; }}><u>U</u></button>
-      <button type="button" aria-label="글머리 목록" title="글머리 목록" style={toolbarBtnStyle(editor?.isActive('bulletList'))} onClick={() => editor?.chain().focus().toggleBulletList().run()} onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }} onMouseLeave={(e) => { (e.currentTarget).style.background = editor?.isActive('bulletList') ? 'var(--color-bg-tertiary)' : 'transparent'; }}><ListBulletIcon style={{ width: '14px', height: '14px' }} /></button>
-      <button type="button" aria-label="번호 목록" title="번호 목록" style={toolbarBtnStyle(editor?.isActive('orderedList'))} onClick={() => editor?.chain().focus().toggleOrderedList().run()} onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }} onMouseLeave={(e) => { (e.currentTarget).style.background = editor?.isActive('orderedList') ? 'var(--color-bg-tertiary)' : 'transparent'; }}><NumberedListIcon style={{ width: '14px', height: '14px' }} /></button>
-      <button type="button" aria-label="링크" title="링크" style={toolbarBtnStyle(editor?.isActive('link'))} onClick={() => {
-        const url = window.prompt('링크 URL을 입력하세요:');
+      <button type="button" aria-label={t('bold')} title={t('bold')} style={toolbarBtnStyle(editor?.isActive('bold'))} onClick={() => editor?.chain().focus().toggleBold().run()} onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }} onMouseLeave={(e) => { (e.currentTarget).style.background = editor?.isActive('bold') ? 'var(--color-bg-tertiary)' : 'transparent'; }}><b>B</b></button>
+      <button type="button" aria-label={t('italic')} title={t('italic')} style={toolbarBtnStyle(editor?.isActive('italic'))} onClick={() => editor?.chain().focus().toggleItalic().run()} onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }} onMouseLeave={(e) => { (e.currentTarget).style.background = editor?.isActive('italic') ? 'var(--color-bg-tertiary)' : 'transparent'; }}><i>I</i></button>
+      <button type="button" aria-label={t('underline')} title={t('underline')} style={toolbarBtnStyle(editor?.isActive('underline'))} onClick={() => editor?.chain().focus().toggleUnderline().run()} onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }} onMouseLeave={(e) => { (e.currentTarget).style.background = editor?.isActive('underline') ? 'var(--color-bg-tertiary)' : 'transparent'; }}><u>U</u></button>
+      <button type="button" aria-label={t('bulletList')} title={t('bulletList')} style={toolbarBtnStyle(editor?.isActive('bulletList'))} onClick={() => editor?.chain().focus().toggleBulletList().run()} onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }} onMouseLeave={(e) => { (e.currentTarget).style.background = editor?.isActive('bulletList') ? 'var(--color-bg-tertiary)' : 'transparent'; }}><ListBulletIcon style={{ width: '14px', height: '14px' }} /></button>
+      <button type="button" aria-label={t('numberedList')} title={t('numberedList')} style={toolbarBtnStyle(editor?.isActive('orderedList'))} onClick={() => editor?.chain().focus().toggleOrderedList().run()} onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }} onMouseLeave={(e) => { (e.currentTarget).style.background = editor?.isActive('orderedList') ? 'var(--color-bg-tertiary)' : 'transparent'; }}><NumberedListIcon style={{ width: '14px', height: '14px' }} /></button>
+      <button type="button" aria-label={t('link')} title={t('link')} style={toolbarBtnStyle(editor?.isActive('link'))} onClick={() => {
+        const url = window.prompt(t('linkPrompt'));
         if (url && editor) editor.chain().focus().setLink({ href: url }).run();
       }} onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }} onMouseLeave={(e) => { (e.currentTarget).style.background = editor?.isActive('link') ? 'var(--color-bg-tertiary)' : 'transparent'; }}><LinkIcon style={{ width: '14px', height: '14px' }} /></button>
 
       <div style={{ position: 'relative' }}>
-        <button type="button" onClick={() => setShowEmojiPicker((value) => !value)} title="이모지" style={toolbarBtnStyle(showEmojiPicker)} onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }} onMouseLeave={(e) => { (e.currentTarget).style.background = showEmojiPicker ? 'var(--color-bg-tertiary)' : 'transparent'; }}><FaceSmileIcon style={{ width: '14px', height: '14px' }} /></button>
+        <button type="button" onClick={() => setShowEmojiPicker((value) => !value)} title={t('emoji')} style={toolbarBtnStyle(showEmojiPicker)} onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }} onMouseLeave={(e) => { (e.currentTarget).style.background = showEmojiPicker ? 'var(--color-bg-tertiary)' : 'transparent'; }}><FaceSmileIcon style={{ width: '14px', height: '14px' }} /></button>
         {showEmojiPicker && (
           <div style={{ position: 'absolute', bottom: '100%', left: 0, marginBottom: '4px', background: 'var(--color-bg-primary)', border: '1px solid var(--color-border-default)', borderRadius: '8px', boxShadow: '0 8px 24px rgba(0,0,0,0.16)', zIndex: 400, width: '260px', padding: '8px' }}>
             {EMOJI_GROUPS.map((cat) => (
-              <div key={cat.label} style={{ marginBottom: '6px' }}>
-                <div style={{ fontSize: '10px', color: 'var(--color-text-tertiary)', fontWeight: 600, marginBottom: '4px', letterSpacing: '0.05em' }}>{cat.label}</div>
+              <div key={cat.labelKey} style={{ marginBottom: '6px' }}>
+                <div style={{ fontSize: '10px', color: 'var(--color-text-tertiary)', fontWeight: 600, marginBottom: '4px', letterSpacing: '0.05em' }}>{t(cat.labelKey)}</div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2px' }}>
                   {cat.emojis.map((em) => (
                     <button
@@ -184,13 +184,13 @@ export function ComposeModalActions({
         )}
       </div>
 
-      <button type="button" onClick={() => imageInputRef.current?.click()} title="이미지 삽입" style={toolbarBtnStyle()} onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }} onMouseLeave={(e) => { (e.currentTarget).style.background = 'transparent'; }}><PhotoIcon style={{ width: '14px', height: '14px' }} /></button>
+      <button type="button" onClick={() => imageInputRef.current?.click()} title={t('insertImage')} style={toolbarBtnStyle()} onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }} onMouseLeave={(e) => { (e.currentTarget).style.background = 'transparent'; }}><PhotoIcon style={{ width: '14px', height: '14px' }} /></button>
 
       <div style={{ width: '1px', height: '16px', background: 'var(--color-border-subtle)' }} />
 
-      <button type="button" onClick={() => fileInputRef.current?.click()} title="파일 첨부" style={toolbarBtnStyle()} onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }} onMouseLeave={(e) => { (e.currentTarget).style.background = 'transparent'; }}><PaperClipIcon style={{ width: '14px', height: '14px' }} /></button>
+      <button type="button" onClick={() => fileInputRef.current?.click()} title={t('attachFile')} style={toolbarBtnStyle()} onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }} onMouseLeave={(e) => { (e.currentTarget).style.background = 'transparent'; }}><PaperClipIcon style={{ width: '14px', height: '14px' }} /></button>
       <div style={{ position: 'relative' }}>
-        <button type="button" onClick={() => { if (!showDrivePicker) { openDrivePicker(undefined, [{ id: undefined, name: '드라이브' }]); } else { setShowDrivePicker(false); } }} title="드라이브에서 첨부" style={toolbarBtnStyle(showDrivePicker)} onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }} onMouseLeave={(e) => { (e.currentTarget).style.background = showDrivePicker ? 'var(--color-bg-tertiary)' : 'transparent'; }}><CloudIcon style={{ width: '14px', height: '14px' }} /></button>
+        <button type="button" onClick={() => { if (!showDrivePicker) { openDrivePicker(undefined, [{ id: undefined, name: t('drive') }]); } else { setShowDrivePicker(false); } }} title={t('attachFromDrive')} style={toolbarBtnStyle(showDrivePicker)} onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }} onMouseLeave={(e) => { (e.currentTarget).style.background = showDrivePicker ? 'var(--color-bg-tertiary)' : 'transparent'; }}><CloudIcon style={{ width: '14px', height: '14px' }} /></button>
         {showDrivePicker && (
           <div style={{ position: 'absolute', bottom: '100%', left: 0, marginBottom: '4px', background: 'var(--color-bg-primary)', border: '1px solid var(--color-border-default)', borderRadius: '8px', boxShadow: '0 8px 24px rgba(0,0,0,0.16)', zIndex: 400, width: '280px', overflow: 'hidden' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '2px', padding: '8px 10px', borderBottom: '1px solid var(--color-border-subtle)', flexWrap: 'wrap' }}>
@@ -205,9 +205,9 @@ export function ComposeModalActions({
             </div>
             <div style={{ maxHeight: '240px', overflowY: 'auto' }}>
               {drivePickerLoading ? (
-                <div style={{ padding: '20px', textAlign: 'center', fontSize: '12px', color: 'var(--color-text-tertiary)' }}>불러오는 중...</div>
+                <div style={{ padding: '20px', textAlign: 'center', fontSize: '12px', color: 'var(--color-text-tertiary)' }}>{t('fileLoading')}</div>
               ) : drivePickerNodes.length === 0 ? (
-                <div style={{ padding: '20px', textAlign: 'center', fontSize: '12px', color: 'var(--color-text-tertiary)' }}>파일 없음</div>
+                <div style={{ padding: '20px', textAlign: 'center', fontSize: '12px', color: 'var(--color-text-tertiary)' }}>{t('noFiles')}</div>
               ) : drivePickerNodes.map((node) => (
                 <button
                   key={node.id}
@@ -221,19 +221,19 @@ export function ComposeModalActions({
                   <DriveNodeIcon node={node} size={14} />
                   <span style={{ fontSize: '13px', color: 'var(--color-text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>{node.name}</span>
                   {node.node_type === 'folder' && <ChevronRightIcon style={{ width: '12px', height: '12px', color: 'var(--color-text-tertiary)', flexShrink: 0 }} />}
-                  {attachingDriveId === node.id && <span style={{ fontSize: '11px', color: 'var(--color-text-tertiary)' }}>첨부 중...</span>}
+                  {attachingDriveId === node.id && <span style={{ fontSize: '11px', color: 'var(--color-text-tertiary)' }}>{t('attaching')}</span>}
                 </button>
               ))}
             </div>
           </div>
         )}
       </div>
-      <button type="button" onClick={() => setShowSigEditor((value) => !value)} title="서명" style={toolbarBtnStyle(showSigEditor)} onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }} onMouseLeave={(e) => { (e.currentTarget).style.background = showSigEditor ? 'var(--color-bg-tertiary)' : 'transparent'; }}><PencilSquareIconHero style={{ width: '14px', height: '14px' }} /></button>
+      <button type="button" onClick={() => setShowSigEditor((value) => !value)} title={t('signatureToggle')} style={toolbarBtnStyle(showSigEditor)} onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }} onMouseLeave={(e) => { (e.currentTarget).style.background = showSigEditor ? 'var(--color-bg-tertiary)' : 'transparent'; }}><PencilSquareIconHero style={{ width: '14px', height: '14px' }} /></button>
       <div style={{ position: 'relative' }}>
         <button
           type="button"
           onClick={() => { setShowTemplates((value) => !value); setShowTemplateSave(false); }}
-          title="템플릿"
+          title={t('template')}
           style={toolbarBtnStyle(showTemplates)}
           onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }}
           onMouseLeave={(e) => { (e.currentTarget).style.background = showTemplates ? 'var(--color-bg-tertiary)' : 'transparent'; }}
@@ -243,7 +243,7 @@ export function ComposeModalActions({
         {showTemplates && (
           <div style={{ position: 'absolute', bottom: '100%', left: 0, marginBottom: '4px', background: 'var(--color-bg-primary)', border: '1px solid var(--color-border-default)', borderRadius: '8px', boxShadow: '0 8px 24px rgba(0,0,0,0.16)', zIndex: 400, width: '220px', overflow: 'hidden' }}>
             {templates.length === 0 && !showTemplateSave && (
-              <div style={{ padding: '12px 14px', fontSize: '12px', color: 'var(--color-text-tertiary)' }}>저장된 템플릿이 없습니다</div>
+              <div style={{ padding: '12px 14px', fontSize: '12px', color: 'var(--color-text-tertiary)' }}>{t('noSavedTemplates')}</div>
             )}
             {templates.map((template) => (
               <div key={template.id} style={{ position: 'relative', display: 'flex', alignItems: 'center' }} onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.background = 'var(--color-bg-secondary)'; }} onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.background = 'transparent'; }}>
@@ -255,7 +255,7 @@ export function ComposeModalActions({
                   <span style={{ fontSize: '13px', fontWeight: 500, color: 'var(--color-text-primary)' }}>{template.name}</span>
                   {template.subject && <span style={{ fontSize: '11px', color: 'var(--color-text-tertiary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '160px' }}>{template.subject}</span>}
                 </button>
-                <button type="button" onClick={(e) => { e.stopPropagation(); deleteTemplate(template.id); }} title="삭제" style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px 8px', color: 'var(--color-text-tertiary)', display: 'inline-flex', flexShrink: 0 }} onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.color = 'var(--color-destructive)'; }} onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.color = 'var(--color-text-tertiary)'; }}><XMarkIcon style={{ width: '12px', height: '12px' }} /></button>
+                <button type="button" onClick={(e) => { e.stopPropagation(); deleteTemplate(template.id); }} title={t('templateDelete')} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px 8px', color: 'var(--color-text-tertiary)', display: 'inline-flex', flexShrink: 0 }} onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.color = 'var(--color-destructive)'; }} onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.color = 'var(--color-text-tertiary)'; }}><XMarkIcon style={{ width: '12px', height: '12px' }} /></button>
               </div>
             ))}
             {templates.length > 0 && <div style={{ height: '1px', background: 'var(--color-border-subtle)', margin: '2px 0' }} />}
@@ -267,7 +267,7 @@ export function ComposeModalActions({
                 onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-secondary)'; }}
                 onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
               >
-                + 현재 내용을 템플릿으로 저장
+                {t('saveCurrentAsTemplate')}
               </button>
             ) : (
               <div style={{ padding: '8px 14px', display: 'flex', gap: '6px' }}>
@@ -276,10 +276,10 @@ export function ComposeModalActions({
                   value={templateSaveName}
                   onChange={(e) => setTemplateSaveName(e.target.value)}
                   onKeyDown={(e) => { if (e.key === 'Enter') saveTemplate(); if (e.key === 'Escape') { setShowTemplateSave(false); setTemplateSaveName(''); } }}
-                  placeholder="템플릿 이름"
+                  placeholder={t('templateNamePlaceholder')}
                   style={{ flex: 1, padding: '4px 8px', borderRadius: '4px', border: '1px solid var(--color-border-default)', background: 'var(--color-bg-primary)', color: 'var(--color-text-primary)', fontSize: '12px', outline: 'none' }}
                 />
-                <button type="button" onClick={saveTemplate} style={{ padding: '4px 10px', borderRadius: '4px', border: 'none', background: 'var(--color-accent)', color: '#fff', fontSize: '12px', cursor: 'pointer' }}>저장</button>
+                <button type="button" onClick={saveTemplate} style={{ padding: '4px 10px', borderRadius: '4px', border: 'none', background: 'var(--color-accent)', color: '#fff', fontSize: '12px', cursor: 'pointer' }}>{t('save')}</button>
               </div>
             )}
           </div>
@@ -292,17 +292,17 @@ export function ComposeModalActions({
           onChange={(e) => setTrackOpens(e.target.checked)}
           style={{ width: '12px', height: '12px', cursor: 'pointer', accentColor: 'var(--color-accent)' }}
         />
-        수신확인
+        {t('trackOpens')}
       </label>
       {showSchedule && (
         <>
-          <input type="datetime-local" value={scheduledAt} onChange={(e) => setScheduledAt(e.target.value)} min={scheduleMinDateTime} aria-label="예약 전송 시간" aria-describedby="compose-schedule-help" style={{ fontSize: '12px', padding: '3px 6px', borderRadius: '4px', border: '1px solid var(--color-border-default)', background: 'var(--color-bg-secondary)', color: 'var(--color-text-primary)', outline: 'none' }} />
-          <span id="compose-schedule-help" style={{ fontSize: '11px', color: 'var(--color-text-tertiary)', whiteSpace: 'nowrap' }}>{SCHEDULE_INPUT_HELP}</span>
+          <input type="datetime-local" value={scheduledAt} onChange={(e) => setScheduledAt(e.target.value)} min={scheduleMinDateTime} aria-label={t('scheduleAria')} aria-describedby="compose-schedule-help" style={{ fontSize: '12px', padding: '3px 6px', borderRadius: '4px', border: '1px solid var(--color-border-default)', background: 'var(--color-bg-secondary)', color: 'var(--color-text-primary)', outline: 'none' }} />
+          <span id="compose-schedule-help" style={{ fontSize: '11px', color: 'var(--color-text-tertiary)', whiteSpace: 'nowrap' }}>{t('scheduleHelp')}</span>
           <button
             type="button"
             onClick={() => { setScheduledAt(''); setShowSchedule(false); }}
             style={{ fontSize: '12px', padding: '3px 6px', borderRadius: '4px', border: '1px solid var(--color-border-default)', background: 'transparent', color: 'var(--color-text-secondary)', cursor: 'pointer' }}
-          >예약 해제</button>
+          >{t('unschedule')}</button>
         </>
       )}
       {!showSchedule && scheduledAt && (
@@ -310,7 +310,7 @@ export function ComposeModalActions({
           type="button"
           onClick={() => setScheduledAt('')}
           style={{ fontSize: '12px', padding: '3px 6px', borderRadius: '4px', border: '1px solid var(--color-border-default)', background: 'transparent', color: 'var(--color-text-secondary)', cursor: 'pointer' }}
-        >예약 해제</button>
+        >{t('unschedule')}</button>
       )}
       {imageResizeToolbar && editor?.isActive('image') && (
         <div
@@ -328,7 +328,7 @@ export function ComposeModalActions({
             padding: '3px',
           }}
         >
-          {([['소', '25%'], ['중', '50%'], ['대', '75%'], ['원본', '100%']] as const).map(([label, pct]) => (
+          {([[t('imgSmall'), '25%'], [t('imgMedium'), '50%'], [t('imgLarge'), '75%'], [t('imgOriginal'), '100%']] as const).map(([label, pct]) => (
             <button
               key={label}
               type="button"

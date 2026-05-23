@@ -2,6 +2,7 @@
 
 import { useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { useMessage } from '@/hooks/useMessage';
 import { ReadingPane } from '@/components/ReadingPane';
 import { deleteMessage } from '@/lib/api';
@@ -10,6 +11,7 @@ import { LocaleSelector } from '@/components/common/LocaleSelector';
 
 export default function MessagePage() {
   const router = useRouter();
+  const t = useTranslations();
   const params = useParams();
   const messageId = params?.messageId as string;
 
@@ -73,7 +75,7 @@ export default function MessagePage() {
             (e.currentTarget as HTMLButtonElement).style.background = 'transparent';
           }}
         >
-          ← 받은 편지함
+          {t('misc.messagePage.backToInbox')}
         </button>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>

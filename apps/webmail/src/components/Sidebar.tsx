@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import type { CSSProperties, ReactNode } from 'react';
+import { useTranslations } from 'next-intl';
 import { Folder } from '@/lib/api';
 import {
   PencilSquareIcon,
@@ -41,23 +42,23 @@ export const VIRTUAL_PINNED = '__pinned__';
 export const VIRTUAL_IMPORTANT = '__important__';
 export const VIRTUAL_TASKS = '__tasks__';
 
-const VIRTUAL_NAV: { id: string; label: string; icon: ReactNode }[] = [
-  { id: VIRTUAL_ALL, label: '모든 편지함', icon: <InboxIcon style={{ width: '16px', height: '16px', flexShrink: 0 }} /> },
-  { id: VIRTUAL_STARRED, label: '별표 편지함', icon: <StarIcon style={{ width: '16px', height: '16px', flexShrink: 0 }} /> },
-  { id: VIRTUAL_IMPORTANT, label: '중요 메일', icon: <ExclamationCircleIcon style={{ width: '16px', height: '16px', flexShrink: 0 }} /> },
-  { id: VIRTUAL_UNREAD, label: '읽지 않은 메일', icon: <EnvelopeIcon style={{ width: '16px', height: '16px', flexShrink: 0 }} /> },
-  { id: VIRTUAL_ATTACHMENTS, label: '첨부 편지함', icon: <PaperClipIcon style={{ width: '16px', height: '16px', flexShrink: 0 }} /> },
-  { id: VIRTUAL_SNOOZED, label: '다시 알림', icon: <ClockIcon style={{ width: '16px', height: '16px', flexShrink: 0 }} /> },
-  { id: VIRTUAL_PINNED, label: '핀 고정', icon: <BookmarkIcon style={{ width: '16px', height: '16px', flexShrink: 0 }} /> },
-  { id: VIRTUAL_TASKS, label: '할 일', icon: <ClipboardDocumentListIcon style={{ width: '16px', height: '16px', flexShrink: 0 }} /> },
+const VIRTUAL_NAV: { id: string; labelKey: string; icon: ReactNode }[] = [
+  { id: VIRTUAL_ALL, labelKey: 'virtual.all', icon: <InboxIcon style={{ width: '16px', height: '16px', flexShrink: 0 }} /> },
+  { id: VIRTUAL_STARRED, labelKey: 'virtual.starred', icon: <StarIcon style={{ width: '16px', height: '16px', flexShrink: 0 }} /> },
+  { id: VIRTUAL_IMPORTANT, labelKey: 'virtual.important', icon: <ExclamationCircleIcon style={{ width: '16px', height: '16px', flexShrink: 0 }} /> },
+  { id: VIRTUAL_UNREAD, labelKey: 'virtual.unread', icon: <EnvelopeIcon style={{ width: '16px', height: '16px', flexShrink: 0 }} /> },
+  { id: VIRTUAL_ATTACHMENTS, labelKey: 'virtual.attachments', icon: <PaperClipIcon style={{ width: '16px', height: '16px', flexShrink: 0 }} /> },
+  { id: VIRTUAL_SNOOZED, labelKey: 'virtual.snoozed', icon: <ClockIcon style={{ width: '16px', height: '16px', flexShrink: 0 }} /> },
+  { id: VIRTUAL_PINNED, labelKey: 'virtual.pinned', icon: <BookmarkIcon style={{ width: '16px', height: '16px', flexShrink: 0 }} /> },
+  { id: VIRTUAL_TASKS, labelKey: 'virtual.tasks', icon: <ClipboardDocumentListIcon style={{ width: '16px', height: '16px', flexShrink: 0 }} /> },
 ];
 
-const SYSTEM_FOLDER_META: { systemType: string; label: string }[] = [
-  { systemType: 'inbox', label: '받은 편지함' },
-  { systemType: 'sent', label: '보낸 편지함' },
-  { systemType: 'drafts', label: '임시 보관함' },
-  { systemType: 'spam', label: '스팸 편지함' },
-  { systemType: 'trash', label: '휴지통' },
+const SYSTEM_FOLDER_META: { systemType: string; labelKey: string }[] = [
+  { systemType: 'inbox', labelKey: 'system.inbox' },
+  { systemType: 'sent', labelKey: 'system.sent' },
+  { systemType: 'drafts', labelKey: 'system.drafts' },
+  { systemType: 'spam', labelKey: 'system.spam' },
+  { systemType: 'trash', labelKey: 'system.trash' },
 ];
 
 function formatBadge(count: number): string {
@@ -122,7 +123,7 @@ export function Sidebar({
   activeFolderId,
   onSelectFolder,
   onCompose,
-  userName = '사용자',
+  userName,
   userEmailAddress,
   onLogout,
   isMobile,
@@ -147,6 +148,8 @@ export function Sidebar({
   const [hoveredFolderId, setHoveredFolderId] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const avatarUrl = useWebmailAvatar();
+  const t = useTranslations('sidebar');
+  const resolvedUserName = userName ?? t('defaultUser');
 
   const systemFoldersByType = new Map(folders.map((f) => {
     const key = f.system_type === 'junk' ? 'spam' : (f.system_type ?? '');
@@ -200,16 +203,16 @@ export function Sidebar({
         />
       )}
       <aside
-        aria-label="메일 탐색"
+        aria-label={t('asideLabel')}
         style={asideStyle}
       >
         {collapsed && !isMobile ? (
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', height: '100%', padding: '8px 0', gap: '2px' }}>
             {onToggleCollapse && (
               <button
-                aria-label="사이드바 확장"
+                aria-label={t('expandSidebar')}
                 onClick={onToggleCollapse}
-                title="사이드바 확장"
+                title={t('expandSidebar')}
                 style={{ width: '36px', height: '36px', borderRadius: '6px', border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--color-text-tertiary)', fontSize: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '4px' }}
                 onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--color-bg-tertiary)'; }}
                 onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
@@ -218,22 +221,22 @@ export function Sidebar({
               </button>
             )}
             <button
-              aria-label="편지 쓰기"
+              aria-label={t('compose')}
               onClick={onCompose}
               data-nav-group="sidebar-nav"
               onKeyDown={(e) => handleVerticalNavKeyDown(e, 'sidebar-nav')}
-              title="편지 쓰기"
+              title={t('compose')}
               style={{ width: '36px', height: '36px', borderRadius: '6px', border: 'none', background: 'var(--color-accent)', cursor: 'pointer', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
             >
               <PencilSquareIcon style={{ width: '16px', height: '16px' }} />
             </button>
             {onComposeInNewWindow && (
               <button
-                aria-label="새창으로 쓰기"
+                aria-label={t('composeNewWindow')}
                 onClick={onComposeInNewWindow}
                 data-nav-group="sidebar-nav"
                 onKeyDown={(e) => handleVerticalNavKeyDown(e, 'sidebar-nav')}
-                title="새창으로 쓰기"
+                title={t('composeNewWindow')}
                 style={{ width: '36px', height: '36px', borderRadius: '6px', border: '1px solid var(--color-border-default)', background: 'transparent', cursor: 'pointer', color: 'var(--color-text-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '8px' }}
               >
                 <ArrowTopRightOnSquareIcon style={{ width: '16px', height: '16px' }} />
@@ -245,6 +248,7 @@ export function Sidebar({
               const folderId = serverFolder?.id ?? sf.systemType;
               const isActive = activeFolderId === folderId;
               const icon = SYSTEM_FOLDER_ICONS[sf.systemType] ?? <InboxIcon style={{ width: '16px', height: '16px' }} />;
+              const sfLabel = t(sf.labelKey);
               return (
                 <button
                   key={sf.systemType}
@@ -252,8 +256,8 @@ export function Sidebar({
                   data-nav-group="sidebar-nav"
                   data-nav-current={isActive ? 'true' : undefined}
                   onKeyDown={(e) => handleVerticalNavKeyDown(e, 'sidebar-nav')}
-                  title={sf.label}
-                  aria-label={`${sf.label}${unread > 0 ? ` (읽지 않음 ${unread})` : ''}`}
+                  title={sfLabel}
+                  aria-label={`${sfLabel}${unread > 0 ? t('unreadAriaSuffix', { count: unread }) : ''}`}
                   style={{ position: 'relative', width: '36px', height: '36px', borderRadius: '6px', border: dragOverFolderId === folderId ? '2px solid var(--color-accent)' : 'none', background: isActive ? 'var(--color-bg-tertiary)' : 'transparent', cursor: 'pointer', fontSize: '18px', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'border 80ms ease' }}
                   onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.background = 'var(--color-bg-overlay)'; }}
                   onMouseLeave={(e) => { if (!isActive) e.currentTarget.style.background = 'transparent'; }}
@@ -274,7 +278,7 @@ export function Sidebar({
         ) : (
           <>
             <SidebarUserMenu
-              userName={userName}
+              userName={resolvedUserName}
               userEmailAddress={userEmailAddress}
               avatarUrl={avatarUrl}
               isMobile={isMobile}
@@ -301,7 +305,7 @@ export function Sidebar({
                     onMouseLeave={(e) => { if (!isActive) e.currentTarget.style.background = 'transparent'; }}
                   >
                     <span style={{ fontSize: '14px', lineHeight: 1 }}>{vf.icon}</span>
-                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{vf.label}</span>
+                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t(vf.labelKey)}</span>
                   </button>
                 );
               })}
@@ -356,11 +360,11 @@ export function Sidebar({
                   >
                     <span style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, minWidth: 0, overflow: 'hidden' }}>
                       <span style={{ flexShrink: 0, display: 'inline-flex', opacity: 0.6 }}>{SYSTEM_FOLDER_ICONS[sf.systemType]}</span>
-                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{sf.label}</span>
+                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t(sf.labelKey)}</span>
                     </span>
                     {badge && (
                       <span
-                        aria-label={`읽지 않은 메일 ${badge}개`}
+                        aria-label={t('unreadBadgeAria', { count: badge })}
                         style={{
                           fontSize: '12px',
                           fontWeight: 500,
@@ -381,7 +385,7 @@ export function Sidebar({
 
               {folders.filter((f) => !systemFolderIds.has(f.id)).length > 0 || onCreateFolder ? (
                 <div style={{ padding: '12px 16px 4px', fontSize: '11px', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--color-text-tertiary)' }}>
-                  <span>개인 편지함</span>
+                  <span>{t('personalFolders')}</span>
                 </div>
               ) : null}
 
@@ -449,8 +453,8 @@ export function Sidebar({
                           </span>
                           {isHovered && (onRenameFolder || onDeleteFolder) ? (
                             <span style={{ display: 'flex', gap: '2px', flexShrink: 0, marginInlineStart: '4px' }}>
-                              {onRenameFolder && <span onClick={(e) => { e.stopPropagation(); setRenamingValue(f.name); setRenamingFolderId(f.id); }} style={{ padding: '2px 4px', borderRadius: '3px', cursor: 'pointer', color: 'var(--color-text-tertiary)', display: 'inline-flex', alignItems: 'center' }} title="이름 변경"><PencilIcon style={{ width: '12px', height: '12px' }} /></span>}
-                              {onDeleteFolder && <span onClick={(e) => { e.stopPropagation(); if (window.confirm(`"${f.name}" 편지함을 삭제하시겠습니까?`)) onDeleteFolder(f.id); }} style={{ padding: '2px 4px', borderRadius: '3px', cursor: 'pointer', color: 'var(--color-destructive)', display: 'inline-flex', alignItems: 'center' }} title="삭제"><TrashIcon style={{ width: '12px', height: '12px' }} /></span>}
+                              {onRenameFolder && <span onClick={(e) => { e.stopPropagation(); setRenamingValue(f.name); setRenamingFolderId(f.id); }} style={{ padding: '2px 4px', borderRadius: '3px', cursor: 'pointer', color: 'var(--color-text-tertiary)', display: 'inline-flex', alignItems: 'center' }} title={t('rename')}><PencilIcon style={{ width: '12px', height: '12px' }} /></span>}
+                              {onDeleteFolder && <span onClick={(e) => { e.stopPropagation(); if (window.confirm(t('deleteFolderConfirm', { name: f.name }))) onDeleteFolder(f.id); }} style={{ padding: '2px 4px', borderRadius: '3px', cursor: 'pointer', color: 'var(--color-destructive)', display: 'inline-flex', alignItems: 'center' }} title={t('delete')}><TrashIcon style={{ width: '12px', height: '12px' }} /></span>}
                             </span>
                           ) : badge ? (
                             <span style={{ fontSize: '12px', color: 'var(--color-text-secondary)', background: 'var(--color-bg-tertiary)', borderRadius: '10px', padding: '1px 6px', flexShrink: 0, marginInlineStart: '8px' }}>{badge}</span>
@@ -469,7 +473,7 @@ export function Sidebar({
                         autoFocus
                         value={newFolderInput}
                         onChange={(e) => setNewFolderInput(e.target.value)}
-                        placeholder="편지함 이름"
+                        placeholder={t('folderNamePlaceholder')}
                         onKeyDown={(e) => {
                           if (e.key === 'Enter' && newFolderInput.trim()) { onCreateFolder(newFolderInput.trim()); setNewFolderInput(''); setShowNewFolder(false); }
                           if (e.key === 'Escape') { setShowNewFolder(false); setNewFolderInput(''); }
@@ -488,7 +492,7 @@ export function Sidebar({
                       onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--color-text-secondary)'; }}
                       onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--color-text-tertiary)'; }}
                     >
-                      <span>+</span> 편지함 추가
+                      <span>+</span> {t('addFolder')}
                     </button>
                   )}
                 </div>

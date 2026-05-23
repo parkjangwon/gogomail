@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { deleteMessage, restoreMessage, bulkRestoreMessages, createFolder, renameFolder, deleteFolder, starMessage, markRead, moveMessage, bulkMarkRead, searchMessages, sendMessage, listThreads, listThreadMessages, UIComposeIntent, MessageAddress, MessageDetail, MessageSummary, ThreadSummary } from '@/lib/api';
 import { AdvancedFilters, VIRTUAL_ALL, VIRTUAL_STARRED, VIRTUAL_ATTACHMENTS, VIRTUAL_UNREAD, VIRTUAL_SNOOZED, VIRTUAL_PINNED, VIRTUAL_IMPORTANT, VIRTUAL_TASKS } from '@/components/Sidebar';
 import { useMailList } from '@/hooks/useMailList';
@@ -36,6 +37,7 @@ import {
 } from '@/lib/mail/mailPageUtils';
 import { focusNavGroup } from '@/lib/navKeyboard';
 import { stableId } from '@/lib/stableId';
+import { useNotifications } from '@/lib/notifications/store';
 
 const WEBMAIL_ACTIVE_APP_KEY = 'webmail_active_app';
 
@@ -79,6 +81,9 @@ function moveMailPanelFocus(direction: 'prev' | 'next', readingPaneOpen: boolean
 
 export default function MailPage() {
   const router = useRouter();
+  const t = useTranslations();
+  const tNotif = useTranslations('notifications');
+  const { push: pushNotification } = useNotifications();
 
   const [activeFolderId, setActiveFolderId] = useState('');
   const [selectedMessageId, setSelectedMessageId] = useState<string | null>(null);
@@ -207,7 +212,7 @@ export default function MailPage() {
       try { localStorage.setItem('webmail_labels', JSON.stringify(next)); } catch { /* */ }
       return next;
     });
-    addToast(color ? `${ids.length}개에 라벨을 지정했습니다` : `${ids.length}개의 라벨을 제거했습니다`, 'info');
+    addToast(color ? t('misc.mailPage.labelAdded', { count: ids.length }) : t('misc.mailPage.labelRemoved', { count: ids.length }), 'info');
   }, [addToast]);
 
   const { folders, messages, setMessages, foldersLoading, messagesLoading, hasMore, loadingMore, loadMore, adjustUnread, refresh, refreshing } =
@@ -401,9 +406,9 @@ export default function MailPage() {
       const expiresAt = localStorage.getItem('webmail_token_expires_at');
       if (!expiresAt) { setSessionWarning(null); return; }
       const msLeft = new Date(expiresAt).getTime() - Date.now();
-      if (msLeft <= 0) { setSessionWarning('세션이 만료되었습니다. 다시 로그인해 주세요.'); return; }
+      if (msLeft <= 0) { setSessionWarning(t('misc.mailPage.sessionExpired')); return; }
       const minsLeft = Math.floor(msLeft / 60000);
-      if (minsLeft < 10) setSessionWarning(`세션이 ${minsLeft}분 후 만료됩니다.`);
+      if (minsLeft < 10) setSessionWarning(t('misc.mailPage.sessionExpiresIn', { mins: minsLeft }));
       else setSessionWarning(null);
     }
     check();
@@ -458,7 +463,7 @@ export default function MailPage() {
     if (!selectedMessageId) return;
     patchVisibleMessages([selectedMessageId], { read: false });
     adjustUnread(activeFolderId, 1);
-    addToast('읽지 않음으로 표시했습니다', 'info');
+    addToast(t('misc.mailPage.markedUnread'), 'info');
     markRead(selectedMessageId, false).catch(() => {
       patchVisibleMessages([selectedMessageId], { read: true });
       adjustUnread(activeFolderId, -1);
@@ -471,7 +476,7 @@ export default function MailPage() {
     if (msg?.read) return;
     patchVisibleMessages([selectedMessageId], { read: true });
     adjustUnread(activeFolderId, -1);
-    addToast('읽음으로 표시했습니다', 'info');
+    addToast(t('misc.mailPage.markedRead'), 'info');
     markRead(selectedMessageId, true).catch(() => {
       patchVisibleMessages([selectedMessageId], { read: false });
       adjustUnread(activeFolderId, 1);
@@ -550,10 +555,10 @@ export default function MailPage() {
     }, 5000);
     pendingDeletesRef.current.set(id, timer);
 
-    addToast('메일을 삭제했습니다', 'info', {
+    addToast(t('misc.mailPage.deleted'), 'info', {
       duration: 5000,
       action: {
-        label: '실행 취소',
+        label: t('misc.mailPage.undo'),
         onClick: () => {
           const t = pendingDeletesRef.current.get(id);
           if (t) { clearTimeout(t); pendingDeletesRef.current.delete(id); }
@@ -576,9 +581,9 @@ export default function MailPage() {
     const results = await Promise.allSettled(ids.map((id) => deleteMessage(id)));
     const failed = results.filter((r) => r.status === 'rejected').length;
     if (failed > 0) {
-      addToast(`${ids.length - failed}개 삭제, ${failed}개 실패`, 'error');
+      addToast(t('misc.mailPage.bulkDeleteMixed', { ok: ids.length - failed, failed }), 'error');
     } else {
-      addToast(`${ids.length}개 삭제했습니다`);
+      addToast(t('misc.mailPage.bulkDeleted', { count: ids.length }));
     }
   }, [selectedMessageId, setMessages, addToast]);
 
@@ -586,15 +591,15 @@ export default function MailPage() {
     const nextId = getNextId(id);
     setMessages((prev) => prev.filter((m) => m.id !== id));
     if (selectedMessageId === id) setSelectedMessageId(nextId);
-    try { await restoreMessage(id); addToast('메일을 복구했습니다'); }
-    catch { addToast('복구에 실패했습니다', 'error'); }
+    try { await restoreMessage(id); addToast(t('misc.mailPage.restored')); }
+    catch { addToast(t('misc.mailPage.restoreFailed'), 'error'); }
   }, [selectedMessageId, getNextId, setMessages, addToast]);
 
   const handleBulkRestore = useCallback(async (ids: string[]) => {
     setMessages((prev) => prev.filter((m) => !ids.includes(m.id)));
     if (ids.includes(selectedMessageId ?? '')) setSelectedMessageId(null);
-    try { await bulkRestoreMessages(ids); addToast(`${ids.length}개를 복구했습니다`); }
-    catch { addToast('복구에 실패했습니다', 'error'); }
+    try { await bulkRestoreMessages(ids); addToast(t('misc.mailPage.bulkRestored', { count: ids.length })); }
+    catch { addToast(t('misc.mailPage.restoreFailed'), 'error'); }
   }, [selectedMessageId, setMessages, addToast]);
 
   const handleBulkMarkRead = useCallback(async (ids: string[]) => {
@@ -603,18 +608,18 @@ export default function MailPage() {
     if (unreadCount > 0) adjustUnread(activeFolderId, -unreadCount);
     try {
       await bulkMarkRead(ids, true);
-      addToast(`${ids.length}개를 읽음으로 표시했습니다`, 'info');
+      addToast(t('misc.mailPage.bulkMarkedRead', { count: ids.length }), 'info');
     } catch {
       patchVisibleMessages(ids, { read: false });
       if (unreadCount > 0) adjustUnread(activeFolderId, unreadCount);
-      addToast('읽음 표시에 실패했습니다', 'error');
+      addToast(t('misc.mailPage.markReadFailed'), 'error');
     }
   }, [messages, countUnreadVisible, patchVisibleMessages, adjustUnread, activeFolderId, addToast]);
 
   const handleBulkStar = useCallback(async (ids: string[], starred: boolean) => {
     patchVisibleMessages(ids, { starred });
     await Promise.allSettled(ids.map((id) => starMessage(id, starred)));
-    addToast(starred ? `${ids.length}개에 별표를 추가했습니다` : `${ids.length}개의 별표를 제거했습니다`, 'info');
+    addToast(starred ? t('misc.mailPage.starAdded', { count: ids.length }) : t('misc.mailPage.starRemoved', { count: ids.length }), 'info');
   }, [patchVisibleMessages, addToast]);
 
   const handleMarkAllRead = useCallback(async () => {
@@ -624,11 +629,11 @@ export default function MailPage() {
     adjustUnread(activeFolderId, -unreadIds.length);
     try {
       await bulkMarkRead(unreadIds, true);
-      addToast(`${unreadIds.length}개를 읽음으로 표시했습니다`, 'info');
+      addToast(t('misc.mailPage.bulkMarkedRead', { count: unreadIds.length }), 'info');
     } catch {
       patchVisibleMessages(unreadIds, { read: false });
       adjustUnread(activeFolderId, unreadIds.length);
-      addToast('읽음 표시에 실패했습니다', 'error');
+      addToast(t('misc.mailPage.markReadFailed'), 'error');
     }
   }, [messages, patchVisibleMessages, adjustUnread, activeFolderId, addToast]);
 
@@ -640,9 +645,9 @@ export default function MailPage() {
     const nextId = getNextId(id);
     setMessages((prev) => prev.filter((m) => m.id !== id));
     if (selectedMessageId === id) setSelectedMessageId(nextId);
-    addToast('아카이브했습니다', 'info', {
+    addToast(t('misc.mailPage.archived'), 'info', {
       action: {
-        label: '실행 취소',
+        label: t('misc.mailPage.undo'),
         onClick: () => {
           if (msgToArchive) {
             setMessages((prev) => [msgToArchive, ...prev]);
@@ -671,15 +676,15 @@ export default function MailPage() {
     const nextId = getNextId(id);
     setMessages((prev) => prev.filter((m) => m.id !== id));
     setSelectedMessageId(nextId);
-    addToast('스팸으로 이동했습니다', 'info', {
+    addToast(t('misc.mailPage.movedToSpam'), 'info', {
       action: {
-        label: '실행 취소',
+        label: t('misc.mailPage.undo'),
         onClick: () => { if (spamMsg) { setMessages((prev) => [spamMsg, ...prev]); if (spamMsg && !spamMsg.read) adjustUnread(activeFolderId, 1); } },
       },
     });
     void moveMessage(id, spamFolder.id).catch(() => {
       if (spamMsg) setMessages((prev) => [spamMsg, ...prev]);
-      addToast('이동에 실패했습니다', 'error');
+      addToast(t('misc.mailPage.moveFailed'), 'error');
     });
   }, [selectedMessageId, folders, getNextId, setMessages, addToast, messages, adjustUnread, activeFolderId]);
 
@@ -694,8 +699,8 @@ export default function MailPage() {
     void moveMessage(id, inboxFolder.id).then(() => {
       setMessages((prev) => prev.filter((m) => m.id !== id));
       setSelectedMessageId(nextId);
-      addToast('받은 편지함으로 이동했습니다', 'info');
-    }).catch(() => addToast('이동에 실패했습니다', 'error'));
+      addToast(t('misc.mailPage.movedToInbox'), 'info');
+    }).catch(() => addToast(t('misc.mailPage.moveFailed'), 'error'));
   }, [selectedMessageId, folders, getNextId, setMessages, addToast]);
 
   const handleMove = useCallback(async (folderId: string) => {
@@ -707,8 +712,8 @@ export default function MailPage() {
     setMessages((prev) => prev.filter((m) => m.id !== id));
     setSelectedMessageId(nextId);
     moveMessage(id, folderId)
-      .then(() => addToast('메일을 이동했습니다'))
-      .catch(() => addToast('이동에 실패했습니다', 'error'));
+      .then(() => addToast(t('misc.mailPage.moved')))
+      .catch(() => addToast(t('misc.mailPage.moveFailed'), 'error'));
   }, [selectedMessageId, getNextId, setMessages, addToast]);
 
   const handleStar = useCallback(async (id: string, starred: boolean) => {
@@ -920,7 +925,7 @@ export default function MailPage() {
         case 'i': {
           if (selectedMessageId && !composeContext) {
             handleImportant(selectedMessageId);
-            addToast(importantIds.has(selectedMessageId) ? '중요 표시 해제했습니다' : '중요 메일로 표시했습니다', 'info');
+            addToast(importantIds.has(selectedMessageId) ? t('misc.mailPage.importantUnmarked') : t('misc.mailPage.importantMarked'), 'info');
           }
           break;
         }
@@ -928,9 +933,9 @@ export default function MailPage() {
           if (selectedMessageId && !composeContext && selectedMessage) {
             try {
               const tasks: unknown[] = JSON.parse(localStorage.getItem('webmail_tasks') ?? '[]');
-              tasks.unshift({ id: crypto.randomUUID(), subject: selectedMessage.subject || '(제목 없음)', from: selectedMessage.from_addr, messageId: selectedMessageId, done: false, createdAt: new Date().toISOString() });
+              tasks.unshift({ id: crypto.randomUUID(), subject: selectedMessage.subject || t('misc.mailPage.noSubject'), from: selectedMessage.from_addr, messageId: selectedMessageId, done: false, createdAt: new Date().toISOString() });
               localStorage.setItem('webmail_tasks', JSON.stringify(tasks));
-              addToast(`할 일 추가: "${selectedMessage.subject || '(제목 없음)'}"`, 'success');
+              addToast(t('misc.mailPage.taskAdded', { subject: selectedMessage.subject || t('misc.mailPage.noSubject') }), 'success');
             } catch { /* */ }
           }
           break;
@@ -1025,15 +1030,31 @@ export default function MailPage() {
     })();
     if (!dndActive && newUnread.length > 0 && typeof Notification !== 'undefined' && Notification.permission === 'granted' && document.visibilityState !== 'visible') {
       const title = newUnread.length === 1
-        ? `새 메일: ${newUnread[0].from_name || newUnread[0].from_addr}`
-        : `새 메일 ${newUnread.length}개`;
+        ? t('misc.mailPage.newTitleSingle', { sender: newUnread[0].from_name || newUnread[0].from_addr })
+        : t('misc.mailPage.newTitleMany', { count: newUnread.length });
       const n = new Notification(title, {
-        body: newUnread.length === 1 ? (newUnread[0].subject || '(제목 없음)') : undefined,
+        body: newUnread.length === 1 ? (newUnread[0].subject || t('misc.mailPage.noSubject')) : undefined,
         icon: '/favicon.ico',
       });
       n.onclick = () => window.focus();
     }
-  }, [messages]);
+    // In-app notification center push (independent of OS-level permission/DnD)
+    if (!dndActive && newUnread.length > 0) {
+      for (const m of newUnread) {
+        const sender = m.from_name || m.from_addr || '';
+        const preview = (m.subject || '').slice(0, 80);
+        pushNotification({
+          id: `mail_received_${m.id}`,
+          category: 'mail_received',
+          severity: 'info',
+          title: tNotif('mailReceived', { sender }),
+          body: preview || undefined,
+          actionUrl: `/mail/${m.id}`,
+          metadata: { messageId: m.id },
+        });
+      }
+    }
+  }, [messages, pushNotification, tNotif]);
 
   // Reset seen IDs when folder changes (avoid false notifications on folder switch)
   useEffect(() => { seenMsgIdsRef.current = null; }, [activeFolderId]);
@@ -1134,7 +1155,7 @@ export default function MailPage() {
       setMessages((prev) => prev.filter((m) => m.id !== id));
       if (selectedMessageId === id) setSelectedMessageId(null);
     }
-    addToast(`스누즈: ${until.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}에 다시 알립니다`, 'info', { duration: 4000 });
+    addToast(t('misc.mailPage.snoozeNotifyAt', { time: until.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }) }), 'info', { duration: 4000 });
   }, [activeFolderId, selectedMessageId, setMessages, addToast]);
 
   // Check every 60s if any snoozed message should reappear
@@ -1149,7 +1170,7 @@ export default function MailPage() {
         expired.forEach(([id]) => delete remaining[id]);
         localStorage.setItem('webmail_snoozed', JSON.stringify(remaining));
         // Only show toast — message reappears on next folder refresh
-        addToast(`스누즈 알림: ${expired.length}개 메일이 돌아왔습니다`, 'info');
+        addToast(t('misc.mailPage.snoozeReturned', { count: expired.length }), 'info');
         refresh();
       } catch { /* ignore */ }
     };
@@ -1170,7 +1191,7 @@ export default function MailPage() {
         const remaining = followups.filter((f) => new Date(f.remindAt).getTime() > now);
         localStorage.setItem('webmail_followups', JSON.stringify(remaining));
         overdue.forEach((f) => {
-          addToast(`팔로업 알림: "${f.subject || '(제목 없음)'}"에 대한 답장이 없습니다`, 'info', { duration: 8000 });
+          addToast(t('misc.mailPage.followUpReminder', { subject: f.subject || t('misc.mailPage.noSubject') }), 'info', { duration: 8000 });
         });
       } catch { /* ignore */ }
     };
@@ -1227,7 +1248,7 @@ export default function MailPage() {
           <path d="M21 12a9 9 0 1 1-6.219-8.56" />
         </svg>
         <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-        로딩 중...
+        {t('misc.mailPage.loading')}
       </div>
     );
   }
@@ -1287,11 +1308,11 @@ export default function MailPage() {
             fontWeight: 500,
           }}
         >
-          보안을 위해 비밀번호를 변경해 주세요.
+          {t('misc.mailPage.mustChangePassword')}
           <button
             onClick={() => { localStorage.removeItem('webmail_must_change_password'); setMustChangePassword(false); }}
             style={{ marginLeft: '12px', background: 'none', border: '1px solid rgba(255,255,255,0.6)', color: '#fff', borderRadius: '4px', fontSize: '12px', padding: '2px 8px', cursor: 'pointer' }}
-          >닫기</button>
+          >{t('misc.mailPage.close')}</button>
         </div>
       )}
 
@@ -1316,11 +1337,11 @@ export default function MailPage() {
           <button
             onClick={handleLogout}
             style={{ marginLeft: '12px', background: 'none', border: '1px solid rgba(255,255,255,0.6)', color: '#fff', borderRadius: '4px', fontSize: '12px', padding: '2px 8px', cursor: 'pointer' }}
-          >다시 로그인</button>
+          >{t('misc.mailPage.loginAgain')}</button>
           <button
             onClick={() => setSessionWarning(null)}
             style={{ marginLeft: '8px', background: 'none', border: '1px solid rgba(255,255,255,0.6)', color: '#fff', borderRadius: '4px', fontSize: '12px', padding: '2px 8px', cursor: 'pointer' }}
-          >닫기</button>
+          >{t('misc.mailPage.close')}</button>
         </div>
       )}
 
@@ -1342,7 +1363,7 @@ export default function MailPage() {
             fontWeight: 500,
           }}
         >
-          오프라인 상태입니다. 네트워크 연결을 확인하세요.
+          {t('misc.mailPage.offline')}
         </div>
       )}
 
@@ -1356,7 +1377,7 @@ export default function MailPage() {
             onSelectFolder={(id) => { handleSelectFolder(id); setMobileSidebarOpen(false); }}
             onCompose={() => { openCompose({ intent: 'new' }); setMobileSidebarOpen(false); }}
             onComposeInNewWindow={() => window.open('/compose', '_blank', 'width=620,height=720,menubar=no,toolbar=no,resizable=yes')}
-            userName={userEmail || '사용자'}
+            userName={userEmail || t('misc.mailPage.defaultUser')}
             userEmailAddress={userEmail || undefined}
             width={sidebarWidth}
             onLogout={handleLogout}
@@ -1369,20 +1390,20 @@ export default function MailPage() {
               setMessages((prev) => prev.filter((m) => m.id !== messageId));
               if (selectedMessageId === messageId) setSelectedMessageId(null);
               moveMessage(messageId, folderId)
-                .then(() => addToast('메일을 이동했습니다'))
-                .catch(() => addToast('이동에 실패했습니다', 'error'));
+                .then(() => addToast(t('misc.mailPage.moved')))
+                .catch(() => addToast(t('misc.mailPage.moveFailed'), 'error'));
             }}
             onCreateFolder={async (name) => {
-              try { await createFolder(name); refresh(); addToast(`"${name}" 폴더를 만들었습니다`); }
-              catch { addToast('폴더 생성에 실패했습니다', 'error'); }
+              try { await createFolder(name); refresh(); addToast(t('misc.mailPage.folderCreated', { name })); }
+              catch { addToast(t('misc.mailPage.folderCreateFailed'), 'error'); }
             }}
             onRenameFolder={async (id, name) => {
-              try { await renameFolder(id, name); refresh(); addToast('편지함 이름을 변경했습니다'); }
-              catch { addToast('이름 변경에 실패했습니다', 'error'); }
+              try { await renameFolder(id, name); refresh(); addToast(t('misc.mailPage.folderRenamed')); }
+              catch { addToast(t('misc.mailPage.folderRenameFailed'), 'error'); }
             }}
             onDeleteFolder={async (id) => {
-              try { await deleteFolder(id); if (activeFolderId === id) setActiveFolderId(''); refresh(); addToast('편지함을 삭제했습니다'); }
-              catch { addToast('편지함 삭제에 실패했습니다', 'error'); }
+              try { await deleteFolder(id); if (activeFolderId === id) setActiveFolderId(''); refresh(); addToast(t('misc.mailPage.folderDeleted')); }
+              catch { addToast(t('misc.mailPage.folderDeleteFailed'), 'error'); }
             }}
           />
 
@@ -1420,7 +1441,7 @@ export default function MailPage() {
               selectedId={selectedMessageId}
               onSelect={handleSelectMessage}
               loading={searchResults !== null ? searchLoading : messagesLoading}
-              emptyLabel={searchResults !== null ? (searchQuery ? `"${searchQuery}" 검색 결과가 없습니다` : '검색 결과가 없습니다') : getEmptyFolderLabel(activeFolderSystemType)}
+              emptyLabel={searchResults !== null ? (searchQuery ? t('misc.mailPage.searchEmptyQuery', { query: searchQuery }) : t('misc.mailPage.searchEmpty')) : getEmptyFolderLabel(activeFolderSystemType, t)}
               hasMore={searchResults === null ? hasMore : false}
               loadingMore={loadingMore}
               onLoadMore={loadMore}
@@ -1432,7 +1453,7 @@ export default function MailPage() {
                 setMessages((prev) => prev.filter((m) => !ids.includes(m.id)));
                 if (ids.includes(selectedMessageId ?? '')) setSelectedMessageId(null);
                 await Promise.allSettled(ids.map((id) => moveMessage(id, folderId)));
-                addToast(`${ids.length}개를 이동했습니다`);
+                addToast(t('misc.mailPage.bulkMoved', { count: ids.length }));
               }}
               onRefresh={refresh}
               refreshing={refreshing}
@@ -1441,7 +1462,7 @@ export default function MailPage() {
               onContextMenuMessage={(id, x, y) => setContextMenu({ id, x, y })}
               onMarkAllRead={activeFolderSystemType !== 'trash' ? handleMarkAllRead : undefined}
               searchQuery={searchResults !== null ? searchQuery : undefined}
-              emptyFolderLabel={activeFolderSystemType === 'trash' ? '휴지통 비우기' : undefined}
+              emptyFolderLabel={activeFolderSystemType === 'trash' ? t('misc.mailPage.emptyTrashAction') : undefined}
               onEmptyFolder={activeFolderSystemType === 'trash' ? () => handleBulkDelete(messages.map((m) => m.id)) : undefined}
               onDeleteMessage={handleDeleteById}
               onArchiveMessage={activeFolderSystemType !== 'archive' && activeFolderSystemType !== 'trash' ? handleArchiveById : undefined}
@@ -1501,7 +1522,7 @@ export default function MailPage() {
             />
             <div
               role="region"
-              aria-label="메일 읽기"
+              aria-label={t('misc.mailPage.readingRegion')}
               onTouchStart={isMobile ? (e) => { swipeTouchStartRef.current = e.touches[0].clientX; } : undefined}
               onTouchMove={isMobile ? (e) => {
                 if (swipeTouchStartRef.current === null) return;
@@ -1577,7 +1598,11 @@ export default function MailPage() {
                     ? `<div>${msg.html_body}</div>`
                     : (msg.text_body || '').split('\n').map((l) => `<p style="margin:0 0 4px">${l || '&nbsp;'}</p>`).join('');
                   const emailOf = (a: MessageAddress) => a.email || a.address || '';
-                  w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${msg.subject || '(제목 없음)'}</title><style>body{font-family:-apple-system,sans-serif;font-size:14px;color:#111;max-width:720px;margin:0 auto;padding:24px}h1{font-size:20px;margin:0 0 12px}table{border-collapse:collapse;margin-bottom:16px;font-size:13px}td{padding:3px 8px 3px 0;vertical-align:top}td:first-child{color:#555;white-space:nowrap;min-width:80px}hr{border:none;border-top:1px solid #ddd;margin:16px 0}@media print{body{padding:0}}</style></head><body><h1>${msg.subject || '(제목 없음)'}</h1><table><tr><td>보낸 사람</td><td><b>${msg.from_name ? `${msg.from_name} &lt;${msg.from_addr}&gt;` : msg.from_addr}</b></td></tr><tr><td>받는 사람</td><td>${(msg.to_addrs ?? []).map((a) => a.name ? `${a.name} &lt;${emailOf(a)}&gt;` : emailOf(a)).join(', ')}</td></tr><tr><td>날짜</td><td>${date}</td></tr></table><hr>${body}</body></html>`);
+                  const subjectStr = msg.subject || t('misc.mailPage.noSubject');
+                  const fromLbl = t('mail.from');
+                  const toLbl = t('mail.to');
+                  const dateLbl = t('mail.date');
+                  w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${subjectStr}</title><style>body{font-family:-apple-system,sans-serif;font-size:14px;color:#111;max-width:720px;margin:0 auto;padding:24px}h1{font-size:20px;margin:0 0 12px}table{border-collapse:collapse;margin-bottom:16px;font-size:13px}td{padding:3px 8px 3px 0;vertical-align:top}td:first-child{color:#555;white-space:nowrap;min-width:80px}hr{border:none;border-top:1px solid #ddd;margin:16px 0}@media print{body{padding:0}}</style></head><body><h1>${subjectStr}</h1><table><tr><td>${fromLbl}</td><td><b>${msg.from_name ? `${msg.from_name} &lt;${msg.from_addr}&gt;` : msg.from_addr}</b></td></tr><tr><td>${toLbl}</td><td>${(msg.to_addrs ?? []).map((a) => a.name ? `${a.name} &lt;${emailOf(a)}&gt;` : emailOf(a)).join(', ')}</td></tr><tr><td>${dateLbl}</td><td>${date}</td></tr></table><hr>${body}</body></html>`);
                   w.document.close();
                   w.onload = () => w.print();
                 } : undefined}
@@ -1595,7 +1620,7 @@ export default function MailPage() {
                     intent: 'reply',
                     source_message_id: selectedMessage.id,
                   });
-                  addToast('답장을 전송했습니다');
+                  addToast(t('misc.mailPage.replySent'));
                 } : undefined}
                 onRestore={activeFolderSystemType === 'trash' && selectedMessageId ? () => handleRestore(selectedMessageId) : undefined}
                 onComposeToAddress={(address) => openCompose({ intent: 'new', to: address })}
@@ -1636,7 +1661,7 @@ export default function MailPage() {
       {isMobile && !selectedMessageId && !composeContext && (
 
         <button
-          aria-label="새 메일 작성"
+          aria-label={t('misc.mailPage.composeMail')}
           onClick={() => openCompose({ intent: 'new' })}
           style={{
             position: 'fixed',
@@ -1670,48 +1695,48 @@ export default function MailPage() {
             onClose={() => setContextMenu(null)}
             items={[
               {
-                label: '답장',
+                label: t('misc.mailPage.ctx.reply'),
                 onClick: () => {
                   handleSelectMessage(contextMenu.id);
                   setPendingCompose({ intent: 'reply', messageId: contextMenu.id });
                 },
               },
               {
-                label: '전달',
+                label: t('misc.mailPage.ctx.forward'),
                 onClick: () => {
                   handleSelectMessage(contextMenu.id);
                   setPendingCompose({ intent: 'forward', messageId: contextMenu.id });
                 },
               },
               {
-                label: ctxMsg?.starred ? '별표 해제' : '별표 추가',
+                label: ctxMsg?.starred ? t('misc.mailPage.ctx.unstar') : t('misc.mailPage.ctx.star'),
                 onClick: () => ctxMsg && handleStar(contextMenu.id, !ctxMsg.starred),
               },
               ctxMsg?.read
                 ? {
-                    label: '읽지 않음으로',
+                    label: t('misc.mailPage.ctx.markUnread'),
                     onClick: () => handleToggleReadMessage(contextMenu.id, false),
                   }
                 : {
-                    label: '읽음으로',
+                    label: t('misc.mailPage.ctx.markRead'),
                     onClick: () => handleToggleReadMessage(contextMenu.id, true),
                   },
               {
-                label: '라벨',
+                label: t('misc.mailPage.ctx.label'),
                 children: ([
-                  { color: '#ef4444', name: '빨강' },
-                  { color: '#f97316', name: '주황' },
-                  { color: '#eab308', name: '노랑' },
-                  { color: '#22c55e', name: '초록' },
-                  { color: '#3b82f6', name: '파랑' },
-                  { color: '#a855f7', name: '보라' },
-                ] as const).map(({ color, name }) => ({
+                  { color: '#ef4444', name: t('misc.mailPage.ctx.labelRed') },
+                  { color: '#f97316', name: t('misc.mailPage.ctx.labelOrange') },
+                  { color: '#eab308', name: t('misc.mailPage.ctx.labelYellow') },
+                  { color: '#22c55e', name: t('misc.mailPage.ctx.labelGreen') },
+                  { color: '#3b82f6', name: t('misc.mailPage.ctx.labelBlue') },
+                  { color: '#a855f7', name: t('misc.mailPage.ctx.labelPurple') },
+                ]).map(({ color, name }) => ({
                   label: `${messageLabels[contextMenu.id] === color ? '✓ ' : '   '}${name}`,
                   onClick: () => setLabel(contextMenu.id, messageLabels[contextMenu.id] === color ? null : color),
                 })),
               },
               {
-                label: '폴더로 이동',
+                label: t('misc.mailPage.ctx.moveToFolder'),
                 children: folders
                   .filter((f) => f.id !== activeFolderId && f.system_type !== 'drafts')
                   .map((f) => ({
@@ -1722,14 +1747,14 @@ export default function MailPage() {
                       setMessages((prev) => prev.filter((m) => m.id !== contextMenu.id));
                       if (selectedMessageId === contextMenu.id) setSelectedMessageId(null);
                       moveMessage(contextMenu.id, f.id)
-                        .then(() => addToast(`"${f.name}"(으)로 이동했습니다`))
-                        .catch(() => addToast('이동에 실패했습니다', 'error'));
+                        .then(() => addToast(t('misc.mailPage.movedTo', { name: f.name })))
+                        .catch(() => addToast(t('misc.mailPage.moveFailed'), 'error'));
                     },
                   })),
               },
               { separator: true } as { separator: true; label: string; onClick: () => void },
               {
-                label: '삭제',
+                label: t('misc.mailPage.ctx.delete'),
                 danger: true,
                 onClick: () => handleDeleteById(contextMenu.id),
               },

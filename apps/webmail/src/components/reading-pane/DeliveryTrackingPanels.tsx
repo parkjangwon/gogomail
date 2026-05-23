@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import type { MessageDeliveryStatus, TrackingEvent } from '@/lib/api';
 
 interface DeliveryTrackingPanelsProps {
@@ -21,6 +22,7 @@ export function DeliveryTrackingPanels({
   trackingOpen,
   setTrackingOpen,
 }: DeliveryTrackingPanelsProps) {
+  const t = useTranslations();
   if (!isSent) return null;
 
   return (
@@ -32,21 +34,21 @@ export function DeliveryTrackingPanels({
             style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontSize: '12px', fontWeight: 600, color: 'var(--color-text-tertiary)', letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: deliveryOpen ? '8px' : 0 }}
           >
             <span style={{ fontSize: '11px', transform: deliveryOpen ? 'rotate(90deg)' : 'rotate(0deg)', display: 'inline-block', transition: 'transform 150ms' }}>▶</span>
-            배달 현황
+            {t('misc.delivery.title')}
             <span style={{ fontWeight: 400, textTransform: 'none', letterSpacing: 0, fontSize: '12px', color: deliveryStatus.delivery_status === 'delivered' ? 'var(--color-success, #22c55e)' : deliveryStatus.delivery_status === 'failed' ? 'var(--color-destructive)' : 'var(--color-text-tertiary)' }}>
-              ({deliveryStatus.delivery_status === 'delivered' ? '전달됨' : deliveryStatus.delivery_status === 'failed' ? '실패' : deliveryStatus.delivery_status === 'partial' ? '일부 실패' : '대기 중'})
+              ({deliveryStatus.delivery_status === 'delivered' ? t('misc.delivery.statusDelivered') : deliveryStatus.delivery_status === 'failed' ? t('misc.delivery.statusFailed') : deliveryStatus.delivery_status === 'partial' ? t('misc.delivery.statusPartial') : t('misc.delivery.statusPending')})
             </span>
           </button>
           {deliveryOpen && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
               {deliveryStatus.attempts.length === 0 ? (
-                <div style={{ fontSize: '13px', color: 'var(--color-text-tertiary)', padding: '6px 0' }}>배달 기록이 없습니다.</div>
+                <div style={{ fontSize: '13px', color: 'var(--color-text-tertiary)', padding: '6px 0' }}>{t('misc.delivery.noAttempts')}</div>
               ) : (
                 deliveryStatus.attempts.map((attempt, index) => {
                   const isOk = attempt.status === 'delivered' || attempt.status === 'success';
                   const isFail = attempt.status === 'failed' || attempt.status === 'bounced' || attempt.status === 'error';
                   const statusColor = isOk ? 'var(--color-success, #22c55e)' : isFail ? 'var(--color-destructive)' : 'var(--color-text-tertiary)';
-                  const statusLabel = isOk ? '전달됨' : isFail ? '실패' : attempt.status === 'pending' ? '대기 중' : attempt.status;
+                  const statusLabel = isOk ? t('misc.delivery.statusDelivered') : isFail ? t('misc.delivery.statusFailed') : attempt.status === 'pending' ? t('misc.delivery.statusPending') : attempt.status;
                   const dot = isOk ? '●' : isFail ? '●' : '○';
 
                   return (
@@ -80,9 +82,9 @@ export function DeliveryTrackingPanels({
             style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontSize: '12px', fontWeight: 600, color: 'var(--color-text-tertiary)', letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: trackingOpen ? '8px' : 0 }}
           >
             <span style={{ fontSize: '11px', transform: trackingOpen ? 'rotate(90deg)' : 'rotate(0deg)', display: 'inline-block', transition: 'transform 150ms' }}>▶</span>
-            수신확인
+            {t('misc.delivery.trackingTitle')}
             <span style={{ fontWeight: 400, textTransform: 'none', letterSpacing: 0, fontSize: '12px', color: 'var(--color-text-tertiary)' }}>
-              ({trackingEvents.filter((event) => event.open_count > 0).length}/{trackingEvents.length} 열람)
+              ({t('misc.delivery.trackingOpenCount', { opened: trackingEvents.filter((event) => event.open_count > 0).length, total: trackingEvents.length })})
             </span>
           </button>
           {trackingOpen && (
@@ -96,11 +98,11 @@ export function DeliveryTrackingPanels({
                     {opened && event.opened_at && (
                       <span style={{ color: 'var(--color-text-tertiary)', fontSize: '12px', whiteSpace: 'nowrap' }}>
                         {new Intl.DateTimeFormat('ko-KR', { dateStyle: 'short', timeStyle: 'short', hour12: false }).format(new Date(event.opened_at))}
-                        {event.open_count > 1 && ` (${event.open_count}회)`}
+                        {event.open_count > 1 && ` ${t('misc.delivery.openCount', { count: event.open_count })}`}
                       </span>
                     )}
                     {!opened && (
-                      <span style={{ color: 'var(--color-text-tertiary)', fontSize: '12px' }}>미열람</span>
+                      <span style={{ color: 'var(--color-text-tertiary)', fontSize: '12px' }}>{t('misc.delivery.notOpened')}</span>
                     )}
                   </div>
                 );

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useTranslations } from 'next-intl';
 import { ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 import { Row, SectionCard, SectionHeader } from '@/components/settings-view/settingsViewPrimitives';
 import {
@@ -25,6 +26,7 @@ export function SettingsSecuritySection({
   revokeAllError,
   onRevokeAll,
 }: SettingsSecuritySectionProps) {
+  const t = useTranslations('settingsView');
   const [mfaStatus, setMfaStatus] = useState<MFAStatus | null>(null);
   const [mfaPanel, setMfaPanel] = useState<'idle' | 'setup' | 'confirm' | 'codes' | 'disable'>('idle');
   const [setupData, setSetupData] = useState<MFASetupResponse | null>(null);
@@ -44,7 +46,7 @@ export function SettingsSecuritySection({
       setSetupData(data);
       setMfaPanel('setup');
     } catch (e: unknown) {
-      setMfaError(e instanceof Error ? e.message : 'MFA 설정을 시작할 수 없습니다.');
+      setMfaError(e instanceof Error ? e.message : t('mfaSetupStartFailed'));
     } finally {
       setMfaLoading(false);
     }
@@ -53,14 +55,14 @@ export function SettingsSecuritySection({
   async function handleConfirm() {
     setMfaError('');
     const code = confirmCode.trim();
-    if (!code) { setMfaError('코드를 입력하세요.'); return; }
+    if (!code) { setMfaError(t('mfaCodeRequired')); return; }
     setMfaLoading(true);
     try {
       await confirmMFASetup(code);
       setMfaPanel('codes');
       setMfaStatus({ enrolled: true, enabled: true });
     } catch (e: unknown) {
-      setMfaError(e instanceof Error ? e.message : '코드 확인에 실패했습니다.');
+      setMfaError(e instanceof Error ? e.message : t('mfaCodeConfirmFailed'));
     } finally {
       setMfaLoading(false);
     }
@@ -76,7 +78,7 @@ export function SettingsSecuritySection({
       setSetupData(null);
       setConfirmCode('');
     } catch (e: unknown) {
-      setMfaError(e instanceof Error ? e.message : 'MFA를 비활성화할 수 없습니다.');
+      setMfaError(e instanceof Error ? e.message : t('mfaDisableFailed'));
     } finally {
       setMfaLoading(false);
     }
@@ -85,14 +87,12 @@ export function SettingsSecuritySection({
   return (
     <>
       <SectionCard>
-        <SectionHeader>2단계 인증 (MFA)</SectionHeader>
+        <SectionHeader>{t('sectionMfa')}</SectionHeader>
 
         {mfaPanel === 'idle' && (
           <Row
-            label={mfaStatus?.enabled ? 'TOTP 인증 활성화됨' : '2단계 인증 비활성화됨'}
-            description={mfaStatus?.enabled
-              ? '로그인 시 인증 앱 코드가 필요합니다.'
-              : 'TOTP 앱을 사용한 추가 인증 레이어를 활성화하세요.'}
+            label={mfaStatus?.enabled ? t('mfaEnabled') : t('mfaDisabled')}
+            description={mfaStatus?.enabled ? t('mfaEnabledDesc') : t('mfaDisabledDesc')}
             last
           >
             {mfaStatus?.enabled
@@ -101,7 +101,7 @@ export function SettingsSecuritySection({
                   onClick={() => { setMfaPanel('disable'); setMfaError(''); }}
                   style={{ fontSize: '12px', padding: '5px 14px', borderRadius: '6px', border: '1px solid rgba(220,38,38,0.35)', background: 'transparent', color: 'var(--color-destructive)', cursor: 'pointer' }}
                 >
-                  비활성화
+                  {t('mfaDisable')}
                 </button>
               )
               : (
@@ -110,7 +110,7 @@ export function SettingsSecuritySection({
                   disabled={mfaLoading}
                   style={{ fontSize: '12px', padding: '5px 14px', borderRadius: '6px', border: '1px solid var(--color-accent)', background: 'transparent', color: 'var(--color-accent)', cursor: mfaLoading ? 'wait' : 'pointer', fontWeight: 600 }}
                 >
-                  {mfaLoading ? '준비 중...' : '설정하기'}
+                  {mfaLoading ? t('mfaPreparing') : t('mfaSetupBtn')}
                 </button>
               )
             }
@@ -120,7 +120,7 @@ export function SettingsSecuritySection({
         {mfaPanel === 'setup' && setupData && (
           <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
             <p style={{ fontSize: '13px', color: 'var(--color-text-secondary)', margin: 0 }}>
-              인증 앱(Google Authenticator, Authy 등)으로 아래 QR 코드를 스캔하거나 비밀 키를 직접 입력하세요.
+              {t('mfaScanInstructions')}
             </p>
             <div style={{ textAlign: 'center' }}>
               <img
@@ -132,13 +132,13 @@ export function SettingsSecuritySection({
               />
             </div>
             <div>
-              <div style={{ fontSize: '12px', color: 'var(--color-text-tertiary)', marginBottom: '4px' }}>비밀 키 (수동 입력용)</div>
+              <div style={{ fontSize: '12px', color: 'var(--color-text-tertiary)', marginBottom: '4px' }}>{t('mfaSecretLabel')}</div>
               <code style={{ fontSize: '12px', fontFamily: 'monospace', background: 'var(--color-bg-tertiary)', padding: '6px 10px', borderRadius: '4px', display: 'block', wordBreak: 'break-all', color: 'var(--color-text-secondary)' }}>
                 {setupData.secret}
               </code>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              <label style={{ fontSize: '13px', fontWeight: 500, color: 'var(--color-text-primary)' }}>인증 앱의 6자리 코드 입력</label>
+              <label style={{ fontSize: '13px', fontWeight: 500, color: 'var(--color-text-primary)' }}>{t('mfaSixDigitLabel')}</label>
               <input
                 type="text"
                 inputMode="numeric"
@@ -160,13 +160,13 @@ export function SettingsSecuritySection({
                 disabled={mfaLoading}
                 style={{ flex: 1, padding: '10px', borderRadius: '6px', border: 'none', background: 'var(--color-accent)', color: '#fff', fontSize: '14px', fontWeight: 500, cursor: mfaLoading ? 'not-allowed' : 'pointer' }}
               >
-                {mfaLoading ? '확인 중...' : '확인 및 활성화'}
+                {mfaLoading ? t('mfaConfirming') : t('mfaConfirmActivate')}
               </button>
               <button
                 onClick={() => { setMfaPanel('idle'); setMfaError(''); setConfirmCode(''); }}
                 style={{ padding: '10px 16px', borderRadius: '6px', border: '1px solid var(--color-border-default)', background: 'transparent', color: 'var(--color-text-secondary)', fontSize: '14px', cursor: 'pointer' }}
               >
-                취소
+                {t('cancel')}
               </button>
             </div>
           </div>
@@ -175,7 +175,7 @@ export function SettingsSecuritySection({
         {mfaPanel === 'codes' && setupData && (
           <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
             <p style={{ fontSize: '13px', color: 'var(--color-text-secondary)', margin: 0 }}>
-              MFA가 활성화되었습니다. 아래 복구 코드를 안전한 곳에 저장하세요. 인증 앱을 분실한 경우 사용할 수 있습니다.
+              {t('mfaCodesIntro')}
             </p>
             <div style={{ background: 'var(--color-bg-tertiary)', borderRadius: '8px', padding: '16px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
               {setupData.recovery_codes.map((code) => (
@@ -188,13 +188,13 @@ export function SettingsSecuritySection({
               }}
               style={{ padding: '8px 16px', borderRadius: '6px', border: '1px solid var(--color-border-default)', background: 'transparent', color: 'var(--color-text-secondary)', fontSize: '13px', cursor: 'pointer' }}
             >
-              복사
+              {t('mfaCopy')}
             </button>
             <button
               onClick={() => setMfaPanel('idle')}
               style={{ padding: '10px', borderRadius: '6px', border: 'none', background: 'var(--color-accent)', color: '#fff', fontSize: '14px', fontWeight: 500, cursor: 'pointer' }}
             >
-              완료
+              {t('mfaDone')}
             </button>
           </div>
         )}
@@ -202,7 +202,7 @@ export function SettingsSecuritySection({
         {mfaPanel === 'disable' && (
           <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
             <p style={{ fontSize: '13px', color: 'var(--color-text-secondary)', margin: 0 }}>
-              2단계 인증을 비활성화하면 비밀번호만으로 로그인할 수 있게 됩니다. 계속하시겠습니까?
+              {t('mfaDisableWarning')}
             </p>
             {mfaError && <div role="alert" style={{ fontSize: '13px', color: 'var(--color-destructive)', background: 'rgba(217,79,61,0.08)', border: '1px solid rgba(217,79,61,0.2)', borderRadius: '6px', padding: '8px 12px' }}>{mfaError}</div>}
             <div style={{ display: 'flex', gap: '8px' }}>
@@ -211,13 +211,13 @@ export function SettingsSecuritySection({
                 disabled={mfaLoading}
                 style={{ flex: 1, padding: '10px', borderRadius: '6px', border: 'none', background: 'rgba(220,38,38,0.85)', color: '#fff', fontSize: '14px', fontWeight: 500, cursor: mfaLoading ? 'not-allowed' : 'pointer' }}
               >
-                {mfaLoading ? '처리 중...' : '비활성화 확인'}
+                {mfaLoading ? t('mfaProcessing') : t('mfaConfirmDisable')}
               </button>
               <button
                 onClick={() => { setMfaPanel('idle'); setMfaError(''); }}
                 style={{ padding: '10px 16px', borderRadius: '6px', border: '1px solid var(--color-border-default)', background: 'transparent', color: 'var(--color-text-secondary)', fontSize: '14px', cursor: 'pointer' }}
               >
-                취소
+                {t('cancel')}
               </button>
             </div>
           </div>
@@ -225,31 +225,31 @@ export function SettingsSecuritySection({
       </SectionCard>
 
       <SectionCard>
-        <SectionHeader>세션 관리</SectionHeader>
+        <SectionHeader>{t('sectionSessions')}</SectionHeader>
         <Row
-          label="현재 세션"
-          description="현재 로그인된 브라우저 세션입니다. 모든 기기 로그아웃을 사용하면 다른 활성 세션도 함께 종료됩니다."
+          label={t('currentSession')}
+          description={t('currentSessionDesc')}
           last
         >
-          <span style={{ fontSize: '11px', color: 'var(--color-success, #22c55e)', fontWeight: 600, background: 'rgba(34,197,94,0.1)', padding: '2px 8px', borderRadius: '10px' }}>현재</span>
+          <span style={{ fontSize: '11px', color: 'var(--color-success, #22c55e)', fontWeight: 600, background: 'rgba(34,197,94,0.1)', padding: '2px 8px', borderRadius: '10px' }}>{t('currentBadge')}</span>
         </Row>
       </SectionCard>
 
       <SectionCard>
-        <SectionHeader>위험 구역</SectionHeader>
+        <SectionHeader>{t('sectionDangerZone')}</SectionHeader>
         {revokeAllError && (
           <div role="alert" style={{ margin: '0 20px 12px', fontSize: '13px', color: 'var(--color-destructive)', background: 'rgba(217,79,61,0.08)', border: '1px solid rgba(217,79,61,0.2)', borderRadius: '6px', padding: '8px 12px' }}>
             {revokeAllError}
           </div>
         )}
-        <Row label="모든 기기에서 로그아웃" description="현재 기기를 포함한 모든 활성 세션을 즉시 종료합니다" last>
+        <Row label={t('revokeAll')} description={t('revokeAllDesc')} last>
           <button
             onClick={onRevokeAll}
             disabled={revokingAll}
             style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '6px 14px', borderRadius: '6px', border: '1px solid rgba(220,38,38,0.35)', background: 'rgba(220,38,38,0.04)', color: 'var(--color-destructive)', fontSize: '12px', fontWeight: 600, cursor: revokingAll ? 'wait' : 'pointer' }}
           >
             <ExclamationTriangleIcon style={{ width: 13, height: 13 }} />
-            {revokingAll ? '처리 중...' : '전체 로그아웃'}
+            {revokingAll ? t('revokeAllProcessing') : t('revokeAllBtn')}
           </button>
         </Row>
       </SectionCard>

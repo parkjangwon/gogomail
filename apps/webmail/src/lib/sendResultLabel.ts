@@ -1,43 +1,45 @@
 import type { SendMessageResult } from './api';
 
-export function sendStatusLabel(status?: string): string {
+type TFn = (key: string, values?: Record<string, unknown>) => string;
+
+export function sendStatusLabel(status?: string, t?: TFn): string {
   switch (status) {
     case 'sent':
-      return '발송 요청 완료';
+      return t ? t('misc.sendResult.sent') : 'Send requested';
     case 'scheduled':
-      return '예약 등록';
+      return t ? t('misc.sendResult.scheduled') : 'Scheduled';
     case 'failed':
-      return '발송 실패';
+      return t ? t('misc.sendResult.failed') : 'Send failed';
     case 'queued':
     case undefined:
-      return '대기열 등록';
+      return t ? t('misc.sendResult.queued') : 'Queued';
     default:
       return status;
   }
 }
 
-export function deliveryStatusLabel(status?: string): string {
+export function deliveryStatusLabel(status?: string, t?: TFn): string {
   switch (status) {
     case 'delivered':
-      return '배송 완료';
+      return t ? t('misc.sendResult.deliverDelivered') : 'Delivered';
     case 'deferred':
-      return '재시도 중';
+      return t ? t('misc.sendResult.deliverDeferred') : 'Retrying';
     case 'failed':
-      return '배송 실패';
+      return t ? t('misc.sendResult.deliverFailed') : 'Delivery failed';
     case 'pending':
     case undefined:
-      return '배송 대기';
+      return t ? t('misc.sendResult.deliverPending') : 'Delivery pending';
     default:
       return status;
   }
 }
 
-export function bounceStatusLabel(status?: string): string {
+export function bounceStatusLabel(status?: string, t?: TFn): string {
   switch (status) {
     case 'bounced':
-      return '반송됨';
+      return t ? t('misc.sendResult.bounced') : 'Bounced';
     case 'complained':
-      return '스팸 신고';
+      return t ? t('misc.sendResult.complained') : 'Spam reported';
     case 'none':
     case '':
     case undefined:
@@ -47,12 +49,21 @@ export function bounceStatusLabel(status?: string): string {
   }
 }
 
-export function formatSendResultLabel(result: SendMessageResult | null): string {
+export function formatSendResultLabel(result: SendMessageResult | null, t?: TFn): string {
   if (!result) return '';
-  const bounce = bounceStatusLabel(result.bounce_status);
+  const bounce = bounceStatusLabel(result.bounce_status, t);
+  const sendLabel = sendStatusLabel(result.send_status, t);
+  const deliverLabel = deliveryStatusLabel(result.delivery_status, t);
+  if (t) {
+    return [
+      t('misc.sendResult.sendPrefix', { label: sendLabel }),
+      t('misc.sendResult.deliverPrefix', { label: deliverLabel }),
+      bounce && t('misc.sendResult.bouncePrefix', { label: bounce }),
+    ].filter(Boolean).join(' · ');
+  }
   return [
-    `전송: ${sendStatusLabel(result.send_status)}`,
-    `배송: ${deliveryStatusLabel(result.delivery_status)}`,
-    bounce && `반송: ${bounce}`,
+    `Send: ${sendLabel}`,
+    `Delivery: ${deliverLabel}`,
+    bounce && `Bounce: ${bounce}`,
   ].filter(Boolean).join(' · ');
 }

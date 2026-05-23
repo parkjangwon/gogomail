@@ -1,3 +1,6 @@
-export function composeCloseSaveButtonAriaLabel(inProgress: boolean): string {
-  return inProgress ? '임시저장 중입니다' : '임시저장 후 작성창 닫기';
+export function composeCloseSaveButtonAriaLabel(
+  inProgress: boolean,
+  t: (key: string) => string,
+): string {
+  return inProgress ? t('misc.compose.closeSaveAriaInProgress') : t('misc.compose.closeSaveAria');
 }

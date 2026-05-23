@@ -1,7 +1,8 @@
 import { composeCloseSaveButtonAriaLabel } from './composeCloseSaveButtonAriaLabel';
 
-const idleAriaLabel: string = composeCloseSaveButtonAriaLabel(false);
-const savingAriaLabel: string = composeCloseSaveButtonAriaLabel(true);
+const t = (k: string) => k;
+const idleAriaLabel: string = composeCloseSaveButtonAriaLabel(false, t);
+const savingAriaLabel: string = composeCloseSaveButtonAriaLabel(true, t);
 
 export const composeCloseSaveButtonAriaLabelContract = {
   idleAriaLabel,

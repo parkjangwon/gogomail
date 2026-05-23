@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { useTranslations } from 'next-intl';
 import { ThemeToggle } from '@/components/ThemeToggle';
 
 const inputStyle: React.CSSProperties = {
@@ -16,6 +17,7 @@ const inputStyle: React.CSSProperties = {
 };
 
 export default function ForgotPasswordPage() {
+  const t = useTranslations();
   const [email, setEmail] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -24,7 +26,7 @@ export default function ForgotPasswordPage() {
   async function handleSubmit(e: { preventDefault(): void }) {
     e.preventDefault();
     if (!email.trim()) {
-      setError('이메일을 입력하세요.');
+      setError(t('misc.forgotPassword.emailEmpty'));
       return;
     }
     setError('');
@@ -37,11 +39,11 @@ export default function ForgotPasswordPage() {
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({})) as { error?: string };
-        throw new Error(data.error ?? '요청에 실패했습니다. 다시 시도해 주세요.');
+        throw new Error(data.error ?? t('misc.forgotPassword.requestFailed'));
       }
       setSent(true);
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : '요청에 실패했습니다. 다시 시도해 주세요.';
+      const message = err instanceof Error ? err.message : t('misc.forgotPassword.requestFailed');
       setError(message);
     } finally {
       setLoading(false);
@@ -73,7 +75,7 @@ export default function ForgotPasswordPage() {
             GoGoMail
           </span>
           <p style={{ marginTop: '8px', fontSize: '14px', color: 'var(--color-text-secondary)' }}>
-            비밀번호 찾기
+            {t('misc.forgotPassword.title')}
           </p>
         </div>
 
@@ -90,9 +92,9 @@ export default function ForgotPasswordPage() {
                 lineHeight: 1.6,
               }}
             >
-              <strong>이메일을 확인하세요.</strong>
+              <strong>{t('misc.forgotPassword.checkEmailTitle')}</strong>
               <br />
-              비밀번호 재설정 링크를 이메일로 발송했습니다. 메일함을 확인해 주세요.
+              {t('misc.forgotPassword.checkEmailBody')}
             </div>
             <Link
               href="/login"
@@ -105,7 +107,7 @@ export default function ForgotPasswordPage() {
                 padding: '8px 0',
               }}
             >
-              ← 로그인으로 돌아가기
+              {t('misc.forgotPassword.backToLogin')}
             </Link>
           </div>
         ) : (
@@ -114,7 +116,7 @@ export default function ForgotPasswordPage() {
             style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}
           >
             <p style={{ fontSize: '13px', color: 'var(--color-text-secondary)', margin: 0 }}>
-              가입 시 사용한 이메일 주소를 입력하시면 비밀번호 재설정 링크를 보내드립니다.
+              {t('misc.forgotPassword.instructions')}
             </p>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
@@ -122,7 +124,7 @@ export default function ForgotPasswordPage() {
                 htmlFor="email"
                 style={{ fontSize: '13px', fontWeight: 500, color: 'var(--color-text-primary)' }}
               >
-                이메일
+                {t('misc.forgotPassword.labelEmail')}
               </label>
               <input
                 id="email"
@@ -176,7 +178,7 @@ export default function ForgotPasswordPage() {
                 if (!loading) (e.target as HTMLButtonElement).style.background = 'var(--color-accent)';
               }}
             >
-              {loading ? '처리 중...' : '재설정 링크 보내기'}
+              {loading ? t('misc.forgotPassword.processing') : t('misc.forgotPassword.submit')}
             </button>
 
             <Link
@@ -190,7 +192,7 @@ export default function ForgotPasswordPage() {
                 padding: '4px 0',
               }}
             >
-              ← 로그인으로 돌아가기
+              {t('misc.forgotPassword.backToLogin')}
             </Link>
           </form>
         )}

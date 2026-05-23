@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
+import { useTranslations } from 'next-intl';
 import {
   ArchiveBoxIcon,
   ArrowPathIcon,
@@ -81,14 +82,14 @@ type MessageListHeaderProps = {
   showCategoryTabs: boolean;
 };
 
-const FILTER_OPTIONS: { mode: FilterMode; label: string }[] = [
-  { mode: 'all', label: '전체' },
-  { mode: 'unread', label: '읽지 않음' },
-  { mode: 'read', label: '읽음' },
-  { mode: 'starred', label: '별표' },
-  { mode: 'unstarred', label: '별표 없음' },
-  { mode: 'attachment', label: '첨부 파일 있음' },
-  { mode: 'noattachment', label: '첨부 파일 없음' },
+const FILTER_OPTIONS: { mode: FilterMode; labelKey: string }[] = [
+  { mode: 'all', labelKey: 'filter.all' },
+  { mode: 'unread', labelKey: 'filter.unread' },
+  { mode: 'read', labelKey: 'filter.read' },
+  { mode: 'starred', labelKey: 'filter.starred' },
+  { mode: 'unstarred', labelKey: 'filter.unstarred' },
+  { mode: 'attachment', labelKey: 'filter.attachment' },
+  { mode: 'noattachment', labelKey: 'filter.noattachment' },
 ];
 
 export function MessageListHeader({
@@ -147,6 +148,7 @@ export function MessageListHeader({
   categoryUnreadCounts,
   showCategoryTabs,
 }: MessageListHeaderProps) {
+  const t = useTranslations('mailListFull');
   const filterDropdownRef = useRef<HTMLDivElement>(null);
   const moreMenuRef = useRef<HTMLDivElement>(null);
 
@@ -174,7 +176,7 @@ export function MessageListHeader({
 
   const filterTabs = hasBulk ? (
     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 12px', borderBottom: '1px solid var(--color-border-subtle)', flexShrink: 0, background: 'var(--color-accent-subtle)' }}>
-      <span style={{ fontSize: '13px', color: 'var(--color-text-primary)', flex: 1 }}>{bulkSelectedSize}개 선택됨</span>
+      <span style={{ fontSize: '13px', color: 'var(--color-text-primary)', flex: 1 }}>{t('bulk.selectedCount', { count: bulkSelectedSize })}</span>
       {(onBulkToggleRead || onBulkMarkRead) && (
         <button
           onClick={() => {
@@ -183,36 +185,36 @@ export function MessageListHeader({
             else if (bulkReadTarget) onBulkMarkRead?.(ids);
             clearAll();
           }}
-          title={bulkReadTarget ? '읽음으로 (M)' : '읽지 않음으로 (M)'}
+          title={bulkReadTarget ? t('bulk.markRead') : t('bulk.markUnread')}
           style={{ padding: '4px 8px', borderRadius: '12px', border: '1px solid var(--color-border-default)', background: 'transparent', color: 'var(--color-text-secondary)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}
         >
           {bulkReadTarget ? <EnvelopeIcon style={{ width: '13px', height: '13px' }} /> : <EnvelopeOpenIcon style={{ width: '13px', height: '13px' }} />}
         </button>
       )}
       {onBulkStar && (
-        <button onClick={() => { onBulkStar([...bulkSelected], bulkStarTarget); clearAll(); }} title={bulkStarTarget ? '별표 추가' : '별표 제거'} style={{ padding: '4px 8px', borderRadius: '12px', border: '1px solid var(--color-border-default)', background: 'transparent', cursor: 'pointer', color: bulkStarTarget ? '#f59e0b' : 'var(--color-text-tertiary)', display: 'inline-flex', alignItems: 'center' }}>
+        <button onClick={() => { onBulkStar([...bulkSelected], bulkStarTarget); clearAll(); }} title={bulkStarTarget ? t('bulk.addStar') : t('bulk.removeStar')} style={{ padding: '4px 8px', borderRadius: '12px', border: '1px solid var(--color-border-default)', background: 'transparent', cursor: 'pointer', color: bulkStarTarget ? '#f59e0b' : 'var(--color-text-tertiary)', display: 'inline-flex', alignItems: 'center' }}>
           {bulkStarTarget ? <StarIconSolid style={{ width: '13px', height: '13px' }} /> : <StarIcon style={{ width: '13px', height: '13px' }} />}
         </button>
       )}
       {onBulkArchive && (
-        <button onClick={() => { onBulkArchive([...bulkSelected]); clearAll(); }} title="아카이브 (E)" style={{ padding: '4px 8px', borderRadius: '12px', border: '1px solid var(--color-border-default)', background: 'transparent', color: 'var(--color-text-secondary)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}>
+        <button onClick={() => { onBulkArchive([...bulkSelected]); clearAll(); }} title={t('bulk.archive')} style={{ padding: '4px 8px', borderRadius: '12px', border: '1px solid var(--color-border-default)', background: 'transparent', color: 'var(--color-text-secondary)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}>
           <ArchiveBoxIcon style={{ width: '13px', height: '13px' }} />
         </button>
       )}
       {onBulkSnooze && (
-        <button onClick={() => { onBulkSnooze([...bulkSelected], new Date(Date.now() + 60 * 60 * 1000)); clearAll(); }} title="1시간 다시 알림 (Z)" style={{ padding: '4px 8px', borderRadius: '12px', border: '1px solid var(--color-border-default)', background: 'transparent', color: 'var(--color-text-secondary)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}>
+        <button onClick={() => { onBulkSnooze([...bulkSelected], new Date(Date.now() + 60 * 60 * 1000)); clearAll(); }} title={t('bulk.snooze1h')} style={{ padding: '4px 8px', borderRadius: '12px', border: '1px solid var(--color-border-default)', background: 'transparent', color: 'var(--color-text-secondary)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}>
           <ClockIcon style={{ width: '13px', height: '13px' }} />
         </button>
       )}
       {onBulkPin && (
-        <button onClick={() => { onBulkPin([...bulkSelected]); clearAll(); }} title={bulkPinned ? '핀 해제 (P)' : '핀 고정 (P)'} style={{ padding: '4px 8px', borderRadius: '12px', border: '1px solid var(--color-border-default)', background: 'transparent', color: bulkPinned ? 'var(--color-accent)' : 'var(--color-text-tertiary)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}>
+        <button onClick={() => { onBulkPin([...bulkSelected]); clearAll(); }} title={bulkPinned ? t('bulk.unpin') : t('bulk.pin')} style={{ padding: '4px 8px', borderRadius: '12px', border: '1px solid var(--color-border-default)', background: 'transparent', color: bulkPinned ? 'var(--color-accent)' : 'var(--color-text-tertiary)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}>
           {bulkPinned ? <BookmarkIconSolid style={{ width: '13px', height: '13px' }} /> : <BookmarkIcon style={{ width: '13px', height: '13px' }} />}
         </button>
       )}
       {onBulkMove && folders && folders.length > 0 && (
         <div style={{ position: 'relative' }}>
           <button onClick={() => setBulkMoveOpen(!bulkMoveOpen)} style={{ fontSize: '12px', padding: '3px 10px', borderRadius: '12px', border: '1px solid var(--color-border-default)', background: 'transparent', color: 'var(--color-text-secondary)', cursor: 'pointer' }}>
-            이동
+            {t('bulk.move')}
           </button>
           {bulkMoveOpen && (
             <div style={{ position: 'absolute', top: '100%', left: 0, marginTop: '4px', background: 'var(--color-bg-primary)', border: '1px solid var(--color-border-default)', borderRadius: '6px', boxShadow: '0 4px 16px rgba(0,0,0,0.12)', zIndex: 200, minWidth: '140px', overflow: 'hidden' }}>
@@ -233,7 +235,7 @@ export function MessageListHeader({
       )}
       {onBulkRestore && (
         <button onClick={() => { onBulkRestore([...bulkSelected]); clearAll(); }} style={{ fontSize: '12px', padding: '3px 10px', borderRadius: '12px', border: '1px solid var(--color-border-default)', background: 'transparent', color: 'var(--color-text-secondary)', cursor: 'pointer' }}>
-          복구
+          {t('bulk.restore')}
         </button>
       )}
       {onBulkLabel && (
@@ -241,13 +243,13 @@ export function MessageListHeader({
           {['#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6', '#a855f7'].map((color) => (
             <button
               key={color}
-              title="라벨 지정"
+              title={t('bulk.applyLabel')}
               onClick={() => { onBulkLabel([...bulkSelected], color); clearAll(); }}
               style={{ width: '14px', height: '14px', borderRadius: '50%', background: color, border: 'none', cursor: 'pointer', flexShrink: 0 }}
             />
           ))}
           <button
-            title="라벨 제거"
+            title={t('bulk.removeLabel')}
             onClick={() => { onBulkLabel([...bulkSelected], null); clearAll(); }}
             style={{ padding: '3px 6px', borderRadius: '10px', border: '1px solid var(--color-border-default)', background: 'transparent', color: 'var(--color-text-secondary)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}
           >
@@ -256,26 +258,26 @@ export function MessageListHeader({
         </div>
       )}
       {onBulkDelete && (
-        <button onClick={() => { onBulkDelete([...bulkSelected]); clearAll(); }} title="삭제 (# / Delete)" style={{ padding: '4px 8px', borderRadius: '12px', border: '1px solid rgba(217,79,61,0.4)', background: 'transparent', color: 'var(--color-destructive)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}>
+        <button onClick={() => { onBulkDelete([...bulkSelected]); clearAll(); }} title={t('bulk.deleteTitle')} style={{ padding: '4px 8px', borderRadius: '12px', border: '1px solid rgba(217,79,61,0.4)', background: 'transparent', color: 'var(--color-destructive)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}>
           <TrashIcon style={{ width: '13px', height: '13px' }} />
         </button>
       )}
       <button onClick={clearAll} style={{ fontSize: '12px', padding: '3px 10px', borderRadius: '12px', border: '1px solid var(--color-border-default)', background: 'transparent', color: 'var(--color-text-secondary)', cursor: 'pointer' }}>
-        취소
+        {t('bulk.cancel')}
       </button>
     </div>
   ) : (
     <div style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '8px 12px', borderBottom: '1px solid var(--color-border-subtle)', flexShrink: 0 }}>
       {isMobile && onOpenSidebar && (
-        <button aria-label="메뉴 열기" onClick={onOpenSidebar} style={{ padding: '3px 8px', borderRadius: '4px', border: 'none', background: 'transparent', color: 'var(--color-text-secondary)', cursor: 'pointer', marginRight: '4px', display: 'inline-flex', alignItems: 'center' }}>
+        <button aria-label={t('header.openMenu')} onClick={onOpenSidebar} style={{ padding: '3px 8px', borderRadius: '4px', border: 'none', background: 'transparent', color: 'var(--color-text-secondary)', cursor: 'pointer', marginRight: '4px', display: 'inline-flex', alignItems: 'center' }}>
           <Bars3Icon style={{ width: '18px', height: '18px' }} />
         </button>
       )}
       <div ref={filterDropdownRef} style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', marginRight: '4px', flexShrink: 0 }}>
         <button
-          aria-label="전체 선택"
+          aria-label={t('header.selectAllAria')}
           onClick={() => { bulkSelectedSize === filteredMessagesLength && filteredMessagesLength > 0 ? clearAll() : selectAll(); }}
-          title="전체 선택/해제 (Ctrl+A)"
+          title={t('header.selectAllTitle')}
           style={{ padding: '4px 5px', border: '1px solid var(--color-border-default)', borderRight: 'none', borderRadius: '4px 0 0 4px', background: 'transparent', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-text-tertiary)' }}
           onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-tertiary)'; }}
           onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
@@ -290,9 +292,9 @@ export function MessageListHeader({
           </div>
         </button>
         <button
-          aria-label="필터 선택"
+          aria-label={t('header.filterAria')}
           onClick={() => setShowFilterDropdown(!showFilterDropdown)}
-          title="필터"
+          title={t('header.filterTitle')}
           style={{ padding: '4px 4px', border: '1px solid var(--color-border-default)', borderRadius: '0 4px 4px 0', background: showFilterDropdown ? 'var(--color-bg-tertiary)' : 'transparent', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', color: 'var(--color-text-tertiary)' }}
           onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-tertiary)'; }}
           onMouseLeave={(e) => { if (!showFilterDropdown) (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
@@ -301,7 +303,7 @@ export function MessageListHeader({
         </button>
         {showFilterDropdown && (
           <div style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, zIndex: 200, background: 'var(--color-bg-primary)', border: '1px solid var(--color-border-default)', borderRadius: '6px', boxShadow: '0 4px 16px rgba(0,0,0,0.12)', minWidth: '160px', padding: '4px 0' }}>
-            {FILTER_OPTIONS.map(({ mode, label }) => (
+            {FILTER_OPTIONS.map(({ mode, labelKey }) => (
               <button
                 key={mode}
                 onClick={() => { setFilterMode(mode); setShowFilterDropdown(false); }}
@@ -312,32 +314,32 @@ export function MessageListHeader({
                 <span style={{ width: '14px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                   {filterMode === mode && <CheckIconOutline style={{ width: '13px', height: '13px', color: 'var(--color-accent)' }} />}
                 </span>
-                {label}
+                {t(labelKey)}
               </button>
             ))}
           </div>
         )}
       </div>
       {onRefresh && (
-        <button aria-label="새로고침" onClick={onRefresh} disabled={refreshing} title="새로고침" style={{ padding: '4px 8px', borderRadius: '4px', border: 'none', background: 'transparent', color: 'var(--color-text-tertiary)', cursor: refreshing ? 'not-allowed' : 'pointer', display: 'inline-flex', alignItems: 'center' }}>
+        <button aria-label={t('header.refreshAria')} onClick={onRefresh} disabled={refreshing} title={t('header.refreshTitle')} style={{ padding: '4px 8px', borderRadius: '4px', border: 'none', background: 'transparent', color: 'var(--color-text-tertiary)', cursor: refreshing ? 'not-allowed' : 'pointer', display: 'inline-flex', alignItems: 'center' }}>
           <ArrowPathIcon style={{ width: '16px', height: '16px', animation: refreshing ? 'spin 1s linear infinite' : 'none' }} />
         </button>
       )}
       <div ref={moreMenuRef} style={{ position: 'relative' }}>
-        <button aria-label="더 보기" onClick={() => setShowMoreMenu(!showMoreMenu)} style={{ padding: '4px 8px', borderRadius: '4px', border: 'none', background: showMoreMenu ? 'var(--color-bg-tertiary)' : 'transparent', color: 'var(--color-text-tertiary)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}>
+        <button aria-label={t('header.moreAria')} onClick={() => setShowMoreMenu(!showMoreMenu)} style={{ padding: '4px 8px', borderRadius: '4px', border: 'none', background: showMoreMenu ? 'var(--color-bg-tertiary)' : 'transparent', color: 'var(--color-text-tertiary)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}>
           <EllipsisVerticalIcon style={{ width: '16px', height: '16px' }} />
         </button>
         {showMoreMenu && (
           <div style={{ position: 'absolute', top: '100%', left: 0, marginTop: '2px', background: 'var(--color-bg-primary)', border: '1px solid var(--color-border-default)', borderRadius: '8px', boxShadow: '0 4px 16px rgba(0,0,0,0.12)', zIndex: 200, minWidth: '180px', overflow: 'hidden', padding: '4px 0' }}>
             <button onClick={() => { toggleCompact(); setShowMoreMenu(false); }} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', textAlign: 'left', padding: '8px 16px', border: 'none', background: 'transparent', color: 'var(--color-text-primary)', fontSize: '13px', cursor: 'pointer' }} onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-secondary)'; }} onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}>
-              <span>컴팩트 보기</span>
+              <span>{t('header.compactView')}</span>
               <span style={{ width: '28px', height: '16px', borderRadius: '8px', background: compact ? 'var(--color-accent)' : 'var(--color-border-default)', display: 'inline-flex', alignItems: 'center', transition: 'background 150ms ease', flexShrink: 0 }}>
                 <span style={{ width: '12px', height: '12px', borderRadius: '50%', background: '#fff', marginLeft: compact ? '14px' : '2px', transition: 'margin-left 150ms ease', display: 'block', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }} />
               </span>
             </button>
             {onMarkAllRead && messagesHaveUnread && (
               <button onClick={() => { onMarkAllRead(); setShowMoreMenu(false); }} style={{ display: 'block', width: '100%', textAlign: 'left', padding: '8px 16px', border: 'none', background: 'transparent', color: 'var(--color-text-primary)', fontSize: '13px', cursor: 'pointer' }} onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-secondary)'; }} onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}>
-                모두 읽음으로 표시
+                {t('header.markAllRead')}
               </button>
             )}
             {emptyFolderLabel && onEmptyFolder && filteredCount > 0 && (
@@ -350,7 +352,7 @@ export function MessageListHeader({
       </div>
       {filterMode !== 'all' && (
         <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '10px', background: 'var(--color-accent-subtle)', color: 'var(--color-accent)', fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
-          {filterMode === 'unread' ? '읽지 않음' : filterMode === 'read' ? '읽음' : filterMode === 'starred' ? '별표' : filterMode === 'unstarred' ? '별표 없음' : filterMode === 'attachment' ? '첨부 있음' : '첨부 없음'}
+          {filterMode === 'unread' ? t('filter.unread') : filterMode === 'read' ? t('filter.read') : filterMode === 'starred' ? t('filter.starred') : filterMode === 'unstarred' ? t('filter.unstarred') : filterMode === 'attachment' ? t('filter.attachmentShort') : t('filter.noattachmentShort')}
           <button onClick={() => setFilterMode('all')} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'inline-flex', color: 'var(--color-accent)' }}>
             <XMarkIcon style={{ width: '11px', height: '11px' }} />
           </button>
@@ -361,7 +363,7 @@ export function MessageListHeader({
           {activeLabelColors.map((color) => (
             <button
               key={color}
-              title={filterLabel === color ? '라벨 필터 해제' : '이 라벨로 필터'}
+              title={filterLabel === color ? t('header.removeLabelFilter') : t('header.filterByLabel')}
               onClick={() => setFilterLabel(filterLabel === color ? null : color)}
               style={{ width: '12px', height: '12px', borderRadius: '50%', background: color, border: filterLabel === color ? '2px solid var(--color-text-primary)' : '2px solid transparent', cursor: 'pointer', flexShrink: 0, padding: 0, boxShadow: filterLabel === color ? '0 0 0 1px ' + color : 'none', transition: 'border-color 100ms ease' }}
             />
@@ -369,7 +371,7 @@ export function MessageListHeader({
         </div>
       )}
       <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '2px' }}>
-        <button aria-label={sortAsc ? '최신순으로 정렬' : '오래된순으로 정렬'} title={sortAsc ? '오래된순 (클릭: 최신순)' : '최신순 (클릭: 오래된순)'} onClick={() => setSortAsc(!sortAsc)} style={{ padding: '4px 6px', borderRadius: '4px', border: 'none', background: 'transparent', color: 'var(--color-text-tertiary)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }} onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.color = 'var(--color-text-secondary)'; (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-tertiary)'; }} onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.color = 'var(--color-text-tertiary)'; (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}>
+        <button aria-label={sortAsc ? t('header.sortNewestAria') : t('header.sortOldestAria')} title={sortAsc ? t('header.sortNewestTitle') : t('header.sortOldestTitle')} onClick={() => setSortAsc(!sortAsc)} style={{ padding: '4px 6px', borderRadius: '4px', border: 'none', background: 'transparent', color: 'var(--color-text-tertiary)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }} onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.color = 'var(--color-text-secondary)'; (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-tertiary)'; }} onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.color = 'var(--color-text-tertiary)'; (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}>
           {sortAsc ? <BarsArrowUpIcon style={{ width: '15px', height: '15px' }} /> : <BarsArrowDownIcon style={{ width: '15px', height: '15px' }} />}
         </button>
         {filteredMessagesLength > 0 && (
@@ -377,10 +379,10 @@ export function MessageListHeader({
             {`${pageStart + 1}–${Math.min(pageEnd, filteredMessagesLength)}`}{hasMore ? '+' : ` / ${filteredMessagesLength}`}
           </span>
         )}
-        <button aria-label="이전 페이지" onClick={() => setPage(Math.max(0, page - 1))} disabled={page === 0} style={{ padding: '4px 6px', borderRadius: '4px', border: 'none', background: 'transparent', color: 'var(--color-text-secondary)', cursor: page === 0 ? 'not-allowed' : 'pointer', display: 'inline-flex', alignItems: 'center', opacity: page === 0 ? 0.35 : 1 }}>
+        <button aria-label={t('header.prevPage')} onClick={() => setPage(Math.max(0, page - 1))} disabled={page === 0} style={{ padding: '4px 6px', borderRadius: '4px', border: 'none', background: 'transparent', color: 'var(--color-text-secondary)', cursor: page === 0 ? 'not-allowed' : 'pointer', display: 'inline-flex', alignItems: 'center', opacity: page === 0 ? 0.35 : 1 }}>
           <ChevronLeftIcon style={{ width: '16px', height: '16px' }} />
         </button>
-        <button aria-label="다음 페이지" onClick={() => {
+        <button aria-label={t('header.nextPage')} onClick={() => {
           const next = page + 1;
           if (next * 50 >= filteredMessagesLength && hasMore && onLoadMore) onLoadMore();
           if (next * 50 < filteredMessagesLength || hasMore) setPage(next);

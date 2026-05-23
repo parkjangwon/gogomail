@@ -1,0 +1,276 @@
+'use client';
+
+/*
+ * Notification center store.
+ *
+ * Future-feature integration:
+ *
+ *   1. import { useNotifications } from '@/lib/notifications/store';
+ *   2. const { push } = useNotifications();
+ *   3. push({
+ *        category: 'drive_share',
+ *        severity: 'info',
+ *        title: 'Alice shared "Q4 plan"',
+ *        body: 'Tap to open the file',
+ *        actionUrl: '/drive/abc123',
+ *      });
+ *
+ * Adding new categories: extend `NotificationCategory` in `./types.ts`.
+ * Store, bell, and item components handle unknown categories gracefully.
+ *
+ * TODO(server-stream): a future task will add SSE/WebSocket subscription
+ *   to a backend endpoint (planned shape):
+ *     GET  /api/notifications/stream    text/event-stream
+ *     POST /api/notifications/ack       { id }   // mark read server-side
+ *   The handler will simply call `push(...)` per incoming event.
+ */
+
+import {
+  createContext,
+  createElement,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useReducer,
+  useRef,
+  type ReactNode,
+} from 'react';
+import type { Notification, NotificationInput } from './types';
+
+const STORAGE_KEY = 'webmail_notifications';
+const BROWSER_NOTIF_ENABLED_KEY = 'webmail_browser_notifications_enabled';
+const MAX_NOTIFICATIONS = 500;
+
+/**
+ * Attempt to fire an OS-level browser Notification mirroring an in-app one.
+ *
+ * Gated by:
+ *   - Notification API is available
+ *   - permission === 'granted'
+ *   - localStorage toggle (default true)
+ *   - document.hidden OR severity is 'warning' / 'error' (errors always show)
+ *
+ * Safe to call from any environment — short-circuits on SSR / unsupported.
+ */
+function fireBrowserNotification(
+  n: Notification,
+  markAsRead: (id: string) => void,
+): void {
+  if (typeof window === 'undefined') return;
+  // `Notification` (imported above) shadows the DOM type name; access the
+  // browser API via window to avoid the collision.
+  const NotificationCtor = (window as unknown as { Notification?: typeof window.Notification }).Notification;
+  if (!NotificationCtor) return;
+  try {
+    if (NotificationCtor.permission !== 'granted') return;
+    let enabled = true;
+    try {
+      const raw = window.localStorage.getItem(BROWSER_NOTIF_ENABLED_KEY);
+      if (raw === 'false') enabled = false;
+    } catch {
+      // localStorage may be blocked; fall back to enabled=true
+    }
+    if (!enabled) return;
+
+    const severity = n.severity;
+    const shouldShow =
+      severity === 'warning' || severity === 'error' || (typeof document !== 'undefined' && document.hidden);
+    if (!shouldShow) return;
+
+    const browserNotif = new NotificationCtor(n.title, {
+      body: n.body,
+      tag: `${n.category}-${n.id}`,
+      icon: '/favicon.ico',
+      data: { actionUrl: n.actionUrl, id: n.id },
+      silent: severity === 'info',
+    });
+
+    browserNotif.onclick = () => {
+      try {
+        window.focus();
+        const data = browserNotif.data as { actionUrl?: string; id?: string } | undefined;
+        if (data?.id) markAsRead(data.id);
+        if (data?.actionUrl) {
+          window.location.assign(data.actionUrl);
+        }
+        browserNotif.close();
+      } catch {
+        // ignore handler errors
+      }
+    };
+  } catch (err) {
+    // Some browsers reject construction in certain states (e.g. mobile Safari
+    // requires Push API, focused-tab restrictions). Don't break the in-app
+    // notification flow.
+    // eslint-disable-next-line no-console
+    console.warn('[notifications] failed to create browser Notification:', err);
+  }
+}
+
+type State = { notifications: Notification[] };
+
+type Action =
+  | { type: 'hydrate'; notifications: Notification[] }
+  | { type: 'push'; notification: Notification }
+  | { type: 'markRead'; id: string }
+  | { type: 'markAllRead' }
+  | { type: 'dismiss'; id: string }
+  | { type: 'clearAll' };
+
+function reducer(state: State, action: Action): State {
+  switch (action.type) {
+    case 'hydrate':
+      return { notifications: action.notifications };
+    case 'push': {
+      // newest-first
+      const next = [action.notification, ...state.notifications].slice(0, MAX_NOTIFICATIONS);
+      return { notifications: next };
+    }
+    case 'markRead':
+      return {
+        notifications: state.notifications.map((n) => (n.id === action.id ? { ...n, read: true } : n)),
+      };
+    case 'markAllRead':
+      return { notifications: state.notifications.map((n) => (n.read ? n : { ...n, read: true })) };
+    case 'dismiss':
+      return { notifications: state.notifications.filter((n) => n.id !== action.id) };
+    case 'clearAll':
+      return { notifications: [] };
+    default:
+      return state;
+  }
+}
+
+function loadInitial(): Notification[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter((n): n is Notification => {
+        if (!n || typeof n !== 'object') return false;
+        const o = n as Record<string, unknown>;
+        return typeof o.id === 'string' && typeof o.title === 'string' && typeof o.timestamp === 'number';
+      })
+      .slice(0, MAX_NOTIFICATIONS);
+  } catch {
+    return [];
+  }
+}
+
+function makeId(): string {
+  // Avoid extra deps — short random id is enough for client-only store.
+  return `n_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+}
+
+export interface NotificationsContextValue {
+  notifications: Notification[];
+  unreadCount: number;
+  push: (input: NotificationInput) => Notification;
+  markAsRead: (id: string) => void;
+  markAllRead: () => void;
+  dismiss: (id: string) => void;
+  clearAll: () => void;
+}
+
+const NotificationsContext = createContext<NotificationsContextValue | null>(null);
+
+export function NotificationProvider({ children }: { children: ReactNode }) {
+  const [state, dispatch] = useReducer(reducer, undefined, () => ({ notifications: loadInitial() }));
+  const hydratedRef = useRef(false);
+
+  // Persist to localStorage (debounce-free; the reducer is cheap and writes are small)
+  useEffect(() => {
+    if (!hydratedRef.current) {
+      hydratedRef.current = true;
+      return;
+    }
+    try {
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state.notifications));
+    } catch {
+      // localStorage may be unavailable or full — ignore
+    }
+  }, [state.notifications]);
+
+  // Cross-tab sync
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const onStorage = (e: StorageEvent) => {
+      if (e.key !== STORAGE_KEY) return;
+      try {
+        const parsed = e.newValue ? (JSON.parse(e.newValue) as Notification[]) : [];
+        dispatch({ type: 'hydrate', notifications: Array.isArray(parsed) ? parsed : [] });
+      } catch {
+        // ignore
+      }
+    };
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
+  }, []);
+
+  const push = useCallback<NotificationsContextValue['push']>((input) => {
+    const id = input.id ?? makeId();
+    const notification: Notification = {
+      id,
+      category: input.category,
+      severity: input.severity,
+      title: input.title,
+      body: input.body,
+      timestamp: Date.now(),
+      read: false,
+      actionUrl: input.actionUrl,
+      iconName: input.iconName,
+      metadata: input.metadata,
+    };
+    dispatch({ type: 'push', notification });
+    // Mirror to OS-level browser notification (gated by permission + toggle).
+    fireBrowserNotification(notification, (markId) => dispatch({ type: 'markRead', id: markId }));
+    return notification;
+  }, []);
+
+  const markAsRead = useCallback((id: string) => dispatch({ type: 'markRead', id }), []);
+  const markAllRead = useCallback(() => dispatch({ type: 'markAllRead' }), []);
+  const dismiss = useCallback((id: string) => dispatch({ type: 'dismiss', id }), []);
+  const clearAll = useCallback(() => dispatch({ type: 'clearAll' }), []);
+
+  const value = useMemo<NotificationsContextValue>(() => {
+    const unreadCount = state.notifications.reduce((acc, n) => acc + (n.read ? 0 : 1), 0);
+    return {
+      notifications: state.notifications,
+      unreadCount,
+      push,
+      markAsRead,
+      markAllRead,
+      dismiss,
+      clearAll,
+    };
+  }, [state.notifications, push, markAsRead, markAllRead, dismiss, clearAll]);
+
+  // Expose a tiny window helper for E2E + future server-pushed events.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const w = window as unknown as { __webmailNotifications?: NotificationsContextValue };
+    w.__webmailNotifications = value;
+    return () => {
+      if (w.__webmailNotifications === value) delete w.__webmailNotifications;
+    };
+  }, [value]);
+
+  return createElement(NotificationsContext.Provider, { value }, children);
+}
+
+export function useNotifications(): NotificationsContextValue {
+  const ctx = useContext(NotificationsContext);
+  if (!ctx) {
+    throw new Error('useNotifications must be used within <NotificationProvider>');
+  }
+  return ctx;
+}
+
+/** Read-only access that does not throw outside the provider. */
+export function useOptionalNotifications(): NotificationsContextValue | null {
+  return useContext(NotificationsContext);
+}

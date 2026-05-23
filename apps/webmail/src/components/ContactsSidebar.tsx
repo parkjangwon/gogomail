@@ -1,6 +1,7 @@
 'use client';
 
 import type { Dispatch, SetStateAction } from 'react';
+import { useTranslations } from 'next-intl';
 import type { AddressBook } from '@/lib/api';
 import {
   UserGroupIcon,
@@ -52,6 +53,7 @@ export function ContactsSidebar({
   onRenameBook,
   onDeleteBook,
 }: ContactsSidebarProps) {
+  const t = useTranslations();
   return (
     <div
       style={{
@@ -74,10 +76,10 @@ export function ContactsSidebar({
         }}
       >
         <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-text-primary)' }}>
-          그룹
+          {t('misc.contactsSidebar.groups')}
         </span>
         <button
-          title="새 그룹"
+          title={t('misc.contactsSidebar.newGroup')}
           disabled={bookActionLoading}
           onClick={() => { setShowNewBookInput(true); setNewBookName(''); }}
           style={{
@@ -102,7 +104,7 @@ export function ContactsSidebar({
           <input
             autoFocus
             type="text"
-            placeholder="그룹 이름..."
+            placeholder={t('misc.contactsSidebar.groupNamePlaceholder')}
             value={newBookName}
             onChange={(e) => setNewBookName(e.target.value)}
             onKeyDown={(e) => {
@@ -131,7 +133,7 @@ export function ContactsSidebar({
                 opacity: (!newBookName.trim() || bookActionLoading) ? 0.5 : 1,
               }}
             >
-              추가
+              {t('misc.contactsSidebar.add')}
             </button>
             <button
               onClick={() => { setShowNewBookInput(false); setNewBookName(''); }}
@@ -141,7 +143,7 @@ export function ContactsSidebar({
                 cursor: 'pointer', color: 'var(--color-text-secondary)',
               }}
             >
-              취소
+              {t('misc.contactsSidebar.cancel')}
             </button>
           </div>
         </div>
@@ -150,11 +152,11 @@ export function ContactsSidebar({
       <div style={{ flex: 1, overflowY: 'auto' }}>
         {booksLoading ? (
           <div style={{ padding: '16px', fontSize: '12px', color: 'var(--color-text-tertiary)', textAlign: 'center' }}>
-            로딩 중...
+            {t('misc.contactsSidebar.loading')}
           </div>
         ) : addressBooks.length === 0 && !showNewBookInput ? (
           <div style={{ padding: '16px', fontSize: '12px', color: 'var(--color-text-tertiary)', textAlign: 'center' }}>
-            + 버튼으로 그룹을 추가하세요
+            {t('misc.contactsSidebar.addHint')}
           </div>
         ) : (
           addressBooks.map((book) => {
@@ -228,7 +230,7 @@ export function ContactsSidebar({
                   >
                     <UserGroupIcon style={{ width: '14px', height: '14px', flexShrink: 0, opacity: 0.6 }} />
                     <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {book.Name || '기본 주소록'}
+                      {book.Name || t('misc.contactsSidebar.defaultBookName')}
                     </span>
                   </button>
                 )}
@@ -244,7 +246,7 @@ export function ContactsSidebar({
                     }}
                   >
                     <button
-                      title="이름 변경"
+                      title={t('misc.contactsSidebar.rename')}
                       onClick={(e) => {
                         e.stopPropagation();
                         setRenameValue(book.Name || '');
@@ -261,10 +263,10 @@ export function ContactsSidebar({
                       <PencilIcon style={{ width: '12px', height: '12px' }} />
                     </button>
                     <button
-                      title="삭제"
+                      title={t('misc.contactsSidebar.delete')}
                       onClick={(e) => {
                         e.stopPropagation();
-                        onDeleteBook(book.ID, book.Name || '기본 주소록');
+                        onDeleteBook(book.ID, book.Name || t('misc.contactsSidebar.defaultBookName'));
                       }}
                       style={{
                         background: 'none', border: 'none', cursor: 'pointer',

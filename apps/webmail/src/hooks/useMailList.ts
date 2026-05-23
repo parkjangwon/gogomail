@@ -1,9 +1,11 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { useTranslations } from 'next-intl';
 import { Folder, MessageSummary, getFolders, getMessages } from '@/lib/api';
 
 export function useMailList(folderId: string) {
+  const t = useTranslations();
   const [folders, setFolders] = useState<Folder[]>([]);
   const [messages, setMessages] = useState<MessageSummary[]>([]);
   const [foldersLoading, setFoldersLoading] = useState(true);
@@ -106,8 +108,8 @@ export function useMailList(folderId: string) {
           const firstUnread = incoming.find((m) => !m.read);
           if (firstUnread && typeof Notification !== 'undefined') {
             const notify = () => {
-              const title = `새 메일: ${firstUnread.from_name || firstUnread.from_addr}`;
-              const body = firstUnread.subject || '(제목 없음)';
+              const title = t('misc.mailPage.newTitleSingle', { sender: firstUnread.from_name || firstUnread.from_addr });
+              const body = firstUnread.subject || t('misc.mailPage.noSubject');
               new Notification(title, { body, icon: '/favicon.ico' });
             };
             if (Notification.permission === 'granted') notify();

@@ -1,3 +1,4 @@
+import { useTranslations } from 'next-intl';
 import { CalendarDaysIcon, CheckIcon, FolderPlusIcon, LinkIcon } from '@heroicons/react/24/outline';
 import { Calendar, CalendarSubscription, CalendarObject } from '@/lib/api';
 import { ParsedTodo } from '@/lib/calendar/eventParser';
@@ -85,10 +86,11 @@ export function CalendarSidebar({
   onToggleSubscription,
   onDeleteSubscription,
 }: CalendarSidebarProps) {
+  const t = useTranslations('calendarFull.sidebar');
   const createMenuItems = [
     {
       Icon: CalendarDaysIcon,
-      label: '일정',
+      label: t('menuEvent'),
       action: () => {
         setShowAddMenu(false);
         openCreateModal(currentDate);
@@ -96,7 +98,7 @@ export function CalendarSidebar({
     },
     {
       Icon: CheckIcon,
-      label: '할 일',
+      label: t('menuTodo'),
       action: () => {
         setShowAddMenu(false);
         onShowTodo();
@@ -104,7 +106,7 @@ export function CalendarSidebar({
     },
     {
       Icon: FolderPlusIcon,
-      label: '새 캘린더',
+      label: t('menuCalendar'),
       action: () => {
         setShowAddMenu(false);
         openCalendarModal();
@@ -112,7 +114,7 @@ export function CalendarSidebar({
     },
     {
       Icon: LinkIcon,
-      label: '캘린더 구독',
+      label: t('menuSubscription'),
       action: () => {
         setShowAddMenu(false);
         openSubscriptionModal();
@@ -158,7 +160,7 @@ export function CalendarSidebar({
           }}
         >
           <span style={{ fontSize: '18px', lineHeight: 1, fontWeight: 300, color: 'var(--color-accent)' }}>+</span>
-          <span>만들기</span>
+          <span>{t('createButton')}</span>
           <span style={{ marginLeft: 'auto', fontSize: '10px', color: 'var(--color-text-tertiary)', transition: 'transform 150ms', transform: showAddMenu ? 'rotate(180deg)' : 'rotate(0deg)' }}>▾</span>
         </button>
 
@@ -201,14 +203,14 @@ export function CalendarSidebar({
 
       <div style={{ padding: '0 8px', display: 'flex', flexDirection: 'column', gap: '2px', flex: 1 }}>
         <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-text-tertiary)', padding: '4px 6px 2px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-          내 캘린더
+          {t('myCalendars')}
         </div>
 
         {loading && calendars.length === 0 && (
-          <div style={{ fontSize: '12px', color: 'var(--color-text-tertiary)', padding: '6px' }}>로딩 중...</div>
+          <div style={{ fontSize: '12px', color: 'var(--color-text-tertiary)', padding: '6px' }}>{t('loading')}</div>
         )}
         {calendars.length === 0 && !loading && (
-          <div style={{ fontSize: '12px', color: 'var(--color-text-tertiary)', padding: '6px' }}>캘린더 없음</div>
+          <div style={{ fontSize: '12px', color: 'var(--color-text-tertiary)', padding: '6px' }}>{t('noCalendars')}</div>
         )}
 
         {calendars.map((cal) => {
@@ -231,7 +233,7 @@ export function CalendarSidebar({
                 {cal.Name}
               </span>
               {hovered && (
-                <button onClick={(e) => { e.stopPropagation(); onOpenCalendarModal(cal); }} style={{ padding: '2px 4px', border: 'none', background: 'transparent', color: 'var(--color-text-tertiary)', cursor: 'pointer', fontSize: '12px', lineHeight: 1, borderRadius: '3px', flexShrink: 0 }} title="편집">
+                <button onClick={(e) => { e.stopPropagation(); onOpenCalendarModal(cal); }} style={{ padding: '2px 4px', border: 'none', background: 'transparent', color: 'var(--color-text-tertiary)', cursor: 'pointer', fontSize: '12px', lineHeight: 1, borderRadius: '3px', flexShrink: 0 }} title={t('editTitle')}>
                   ···
                 </button>
               )}
@@ -241,7 +243,7 @@ export function CalendarSidebar({
 
         <div style={{ marginTop: '8px' }}>
           <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-text-tertiary)', padding: '6px 6px 4px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-            할일
+            {t('todos')}
           </div>
 
           {todos.map((todo) => {
@@ -258,7 +260,7 @@ export function CalendarSidebar({
                 <button
                   onClick={() => onToggleTodo(todo)}
                   disabled={isToggling || isDeleting}
-                  title={todo.completed ? '완료 취소' : '완료 표시'}
+                  title={todo.completed ? t('completeUndo') : t('completeMark')}
                   style={{
                     background: todo.completed ? 'var(--color-accent)' : 'transparent',
                     border: `1.5px solid ${todo.completed ? 'var(--color-accent)' : 'var(--color-text-tertiary)'}`,
@@ -276,7 +278,7 @@ export function CalendarSidebar({
                   </div>
                   {todo.dueDate && (
                     <div style={{ fontSize: '11px', color: 'var(--color-text-tertiary)', marginTop: '1px' }}>
-                      {todo.dueDate.getMonth() + 1}월 {todo.dueDate.getDate()}일
+                      {t('dueDate', { month: todo.dueDate.getMonth() + 1, day: todo.dueDate.getDate() })}
                     </div>
                   )}
                 </div>
@@ -293,7 +295,7 @@ export function CalendarSidebar({
               <input
                 autoFocus
                 type="text"
-                placeholder="새 할 일"
+                placeholder={t('todoPlaceholder')}
                 value={todoDraft}
                 onChange={(e) => setTodoDraft(e.target.value)}
                 onKeyDown={(e) => {
@@ -315,11 +317,11 @@ export function CalendarSidebar({
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '6px', padding: '8px 10px' }}>
                 <button onClick={onCancelTodoInline}
                   style={{ padding: '5px 12px', borderRadius: '6px', border: '1px solid var(--color-border-default)', background: 'none', color: 'var(--color-text-secondary)', fontSize: '12px', cursor: 'pointer', fontWeight: 500 }}>
-                  취소
+                  {t('cancel')}
                 </button>
                 <button onClick={onCreateTodo} disabled={!todoDraft.trim()}
                   style={{ padding: '5px 14px', borderRadius: '6px', border: 'none', background: todoDraft.trim() ? 'var(--color-accent)' : 'var(--color-bg-tertiary)', color: todoDraft.trim() ? '#fff' : 'var(--color-text-tertiary)', fontSize: '12px', cursor: todoDraft.trim() ? 'pointer' : 'default', fontWeight: 500 }}>
-                  저장
+                  {t('save')}
                 </button>
               </div>
             </div>
@@ -329,11 +331,11 @@ export function CalendarSidebar({
         <div style={{ marginTop: '12px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '4px 6px 2px' }}>
             <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              다른 캘린더
+              {t('otherCalendars')}
             </div>
             <button
               onClick={openSubscriptionModal}
-              title="캘린더 구독 추가"
+              title={t('subscriptionAdd')}
               style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-tertiary)', fontSize: '16px', lineHeight: 1, padding: '1px 4px', borderRadius: '4px' }}
             >+</button>
           </div>
@@ -358,14 +360,14 @@ export function CalendarSidebar({
                   {sub.name}
                 </span>
                 {hovered && (
-                  <button onClick={() => onDeleteSubscription(sub.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-tertiary)', fontSize: '14px', padding: '0 2px', flexShrink: 0, lineHeight: 1 }} title="구독 취소">×</button>
+                  <button onClick={() => onDeleteSubscription(sub.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-tertiary)', fontSize: '14px', padding: '0 2px', flexShrink: 0, lineHeight: 1 }} title={t('unsubscribe')}>×</button>
                 )}
               </div>
             );
           })}
 
           {subscriptions.length === 0 && (
-            <div style={{ fontSize: '12px', color: 'var(--color-text-tertiary)', padding: '4px 6px' }}>구독 캘린더 없음</div>
+            <div style={{ fontSize: '12px', color: 'var(--color-text-tertiary)', padding: '4px 6px' }}>{t('noSubscriptions')}</div>
           )}
         </div>
       </div>

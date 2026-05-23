@@ -2,6 +2,7 @@
 import { EnvelopeIcon, CalendarDaysIcon, UserGroupIcon, Cog6ToothIcon, CloudIcon, BookOpenIcon } from '@heroicons/react/24/outline';
 import { EnvelopeIcon as EnvelopeIconSolid, CalendarDaysIcon as CalendarSolid, UserGroupIcon as UserGroupSolid, Cog6ToothIcon as Cog6ToothSolid, CloudIcon as CloudSolid } from '@heroicons/react/24/solid';
 import { useTranslations } from 'next-intl';
+import { NotificationBell } from './notifications/NotificationBell';
 
 export type AppId = 'mail' | 'calendar' | 'contacts' | 'drive' | 'settings';
 
@@ -167,6 +168,7 @@ export function AppIconBar({ activeApp, onChangeApp, mailUnread }: AppIconBarPro
         paddingTop: '8px',
         borderTop: '1px solid var(--color-border-subtle)',
       }}>
+        <NotificationBell />
         {GUIDE_URL && (
           <AppActionBtn
             label={t('guide')}

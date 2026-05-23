@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { useTranslations } from 'next-intl';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Link from '@tiptap/extension-link';
@@ -18,6 +19,7 @@ import { toDateTimeLocalValue } from '@/lib/dateTimeLocal';
 import { formatSendResultLabel } from '@/lib/sendResultLabel';
 import { DriveNodeIcon } from '@/lib/driveNodeIcon';
 import { stableId } from '@/lib/stableId';
+import { useOptionalNotifications } from '@/lib/notifications/store';
 import { escapeHtml, parseAddrs, EmailTemplate, backendComposeIntent } from '@/lib/compose/composeUtils';
 import { loadLocalEmailTemplates, normalizeEmailTemplates, saveLocalEmailTemplates } from '@/lib/emailTemplates';
 import { buildQuoteHTML, emailOf, invalidRecipientAddresses, parseToPickerItems, pickerItemsToString } from '@/lib/mail-address';
@@ -61,9 +63,11 @@ interface ComposeModalProps {
   onArchiveSource?: () => void;
 }
 
-const SCHEDULE_INPUT_HELP = '예약 전송은 현재 시각 이후만 선택할 수 있습니다.';
-
 export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMessage, userEmail, initialTo, initialSubject, initialBody, isMobile, windowOffset = 0, onArchiveSource }: ComposeModalProps) {
+  const t = useTranslations('composeFull');
+  const tMisc = useTranslations('misc.compose');
+  const tNotif = useTranslations('notifications');
+  const notifications = useOptionalNotifications();
   const replyTo = intent === 'reply' || intent === 'reply_all'
     ? sourceMessage?.from_addr ?? ''
     : '';
@@ -171,7 +175,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
   const [showDrivePicker, setShowDrivePicker] = useState(false);
   const [drivePickerNodes, setDrivePickerNodes] = useState<DriveNode[]>([]);
   const [drivePickerLoading, setDrivePickerLoading] = useState(false);
-  const [drivePickerCrumbs, setDrivePickerCrumbs] = useState<Array<{ id: string | undefined; name: string }>>([{ id: undefined, name: '드라이브' }]);
+  const [drivePickerCrumbs, setDrivePickerCrumbs] = useState<Array<{ id: string | undefined; name: string }>>([{ id: undefined, name: t('drive') }]);
   const [attachingDriveId, setAttachingDriveId] = useState<string | null>(null);
 
   const [showOrgPicker, setShowOrgPicker] = useState(false);
@@ -205,10 +209,10 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
         const att = await uploadAttachment(file, draftIdRef.current || undefined);
         setUploadedAttachments((prev) => prev.map((a) => a.id === tempId ? { id: att.id, filename: att.filename, size: att.size } : a));
       } catch {
-        setUploadedAttachments((prev) => prev.map((a) => a.id === tempId ? { ...a, uploading: false, error: '업로드 실패' } : a));
+        setUploadedAttachments((prev) => prev.map((a) => a.id === tempId ? { ...a, uploading: false, error: t('uploadFailed') } : a));
       }
     }
-  }, []);
+  }, [t]);
 
   const retryAttachmentUpload = useCallback(async (attachmentId: string) => {
     const failedAttachment = uploadedAttachments.find((attachment) => attachment.id === attachmentId && attachment.error && attachment.file);
@@ -225,10 +229,10 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
       ));
     } catch {
       setUploadedAttachments((prev) => prev.map((attachment) =>
-        attachment.id === attachmentId ? { ...attachment, uploading: false, error: '업로드 실패' } : attachment,
+        attachment.id === attachmentId ? { ...attachment, uploading: false, error: t('uploadFailed') } : attachment,
       ));
     }
-  }, [uploadedAttachments]);
+  }, [uploadedAttachments, t]);
 
   const openDrivePicker = useCallback(async (parentId?: string, crumbs?: Array<{ id: string | undefined; name: string }>) => {
     setShowDrivePicker(true);
@@ -273,15 +277,16 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
   const sendResultLabel = formatSendResultLabel(sendResult);
   const sendButtonUploading = uploadedAttachments.some((a) => a.uploading);
   const sendButtonDisabled = sending || sent || sendButtonUploading;
+  const miscT = (k: string) => tMisc(k.replace(/^misc\.compose\./, ''));
   const sendButtonLabel = composeSendButtonLabel({
     sending,
     sent,
     scheduled: !!scheduledAt,
     uploading: sendButtonUploading,
-  });
-  const closeSavePrompt = composeCloseSavePrompt(!!scheduledAt);
-  const closeSaveButtonAriaLabel = composeCloseSaveButtonAriaLabel(closeSaveInProgress);
-  const closeSaveButtonLabel = composeCloseSaveButtonLabel(closeSaveInProgress);
+  }, miscT);
+  const closeSavePrompt = composeCloseSavePrompt(!!scheduledAt, miscT);
+  const closeSaveButtonAriaLabel = composeCloseSaveButtonAriaLabel(closeSaveInProgress, miscT);
+  const closeSaveButtonLabel = composeCloseSaveButtonLabel(closeSaveInProgress, miscT);
   const scheduleMinDateTime = toDateTimeLocalValue(new Date(Date.now() + 60000));
   const closeSendDropdown = useCallback(() => setShowSendDropdown(false), []);
   const cancelCloseConfirmation = useCallback(() => setConfirmClose(false), []);
@@ -308,6 +313,20 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
     await clearSentDraft(!useDraftSend);
     pendingDraftSendRef.current = false;
     setSent(true);
+    if (notifications) {
+      const firstRecipient = msg.to?.[0];
+      const recipientLabel = firstRecipient
+        ? (firstRecipient.name ? `${firstRecipient.name} <${firstRecipient.address}>` : firstRecipient.address)
+        : '';
+      notifications.push({
+        category: 'mail_sent',
+        severity: 'success',
+        title: tNotif('mailSent'),
+        body: msg.subject ? `${msg.subject}${recipientLabel ? ` — ${recipientLabel}` : ''}` : recipientLabel || undefined,
+        actionUrl: result?.id ? `/mail/${result.id}` : undefined,
+        metadata: { messageId: result?.id },
+      });
+    }
     setTimeout(() => {
       if (sendAndArchiveRef.current) {
         onArchiveSource?.();
@@ -315,21 +334,36 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
       }
       onClose();
     }, 1500);
-  }, [clearSentDraft, onArchiveSource, onClose, persistSuccessfulSendLocalState, rememberSendResult]);
+  }, [clearSentDraft, onArchiveSource, onClose, persistSuccessfulSendLocalState, rememberSendResult, notifications, tNotif]);
 
   const handleSendFailure = useCallback((err: unknown, clearCountdown = false) => {
-    const message = err instanceof Error ? err.message : '전송에 실패했습니다.';
-    setError(`${message} 초안은 보존되어 다시 전송할 수 있습니다.`);
+    const message = err instanceof Error ? err.message : t('errSendFailed');
+    setError(t('draftPreserved', { message }));
     pendingDraftSendRef.current = false;
     if (clearCountdown) setSendCountdown(null);
-  }, []);
+    if (notifications) {
+      notifications.push({
+        category: 'mail_send_failed',
+        severity: 'error',
+        title: tNotif('mailSendFailed'),
+        body: message,
+      });
+      // Surface in OS notification too for high-severity items, if allowed.
+      if (typeof Notification !== 'undefined' && Notification.permission === 'granted' && document.visibilityState !== 'visible') {
+        try {
+          const n = new Notification(tNotif('mailSendFailed'), { body: message, icon: '/favicon.ico' });
+          n.onclick = () => window.focus();
+        } catch { /* ignore */ }
+      }
+    }
+  }, [t, notifications, tNotif]);
 
   const handleSendPreparationFailure = useCallback((err: unknown) => {
-    const message = err instanceof Error ? err.message : '초안 전송 준비에 실패했습니다.';
+    const message = err instanceof Error ? err.message : t('draftPrepFailed');
     pendingMsgRef.current = null;
     pendingDraftSendRef.current = false;
-    setError(`${message} 전송은 시작되지 않았습니다. 내용을 확인한 뒤 다시 저장하거나 전송해 주세요.`);
-  }, []);
+    setError(t('sendNotStarted', { message }));
+  }, [t]);
 
   const shouldSendSavedDraft = useCallback(() => pendingDraftSendRef.current && !!draftIdRef.current, []);
 
@@ -468,7 +502,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
       Underline,
       Link.configure({ openOnClick: false }),
       TextAlign.configure({ types: ['heading', 'paragraph'] }),
-      Placeholder.configure({ placeholder: '메시지를 입력하세요...' }),
+      Placeholder.configure({ placeholder: t('bodyPlaceholder') }),
       Image.configure({ inline: true, allowBase64: true }),
     ],
     content: initialContent,
@@ -484,7 +518,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
           'color: var(--color-text-primary)',
           'font-family: inherit',
         ].join(';'),
-        'aria-label': '메일 본문',
+        'aria-label': t('bodyAria'),
         role: 'textbox',
         'aria-multiline': 'true',
       },
@@ -599,7 +633,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
       setSendCountdown(null);
       pendingMsgRef.current = null;
       pendingDraftSendRef.current = false;
-      setError('첨부파일 상태가 변경되어 전송 예약을 취소했습니다. 다시 확인 후 전송해 주세요.');
+      setError(t('errAttachmentChanged'));
     }
   }, [sendCountdown, uploadedAttachments, readyAttachmentIds]);
 
@@ -662,42 +696,42 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
     e.preventDefault();
     if (sending || sent) return;
     if (sendCountdown !== null) {
-      setError('이미 전송 대기 중입니다. 취소 후 다시 전송해 주세요.');
+      setError(t('alreadyScheduled'));
       return;
     }
     if (!to.trim()) {
-      setError('받는 사람 주소를 입력하세요.');
+      setError(t('errToRequired'));
       return;
     }
     const bodyText = editor?.getText() ?? '';
     if (!bodyText.trim() && !subject.trim()) {
-      setError('제목 또는 본문을 입력하세요.');
+      setError(t('errSubjectOrBody'));
       return;
     }
     setError('');
     const invalidRecipients = invalidRecipientAddresses(to, cc, bcc);
     if (invalidRecipients.length > 0) {
-      setError(`주소 형식을 확인해 주세요: ${invalidRecipients.join(', ')}`);
+      setError(t('errAddressFormat', { addrs: invalidRecipients.join(', ') }));
       return;
     }
     const hasUploadingAttachments = uploadedAttachments.some((attachment) => attachment.uploading);
     if (hasUploadingAttachments) {
-      setError('첨부파일 업로드가 완료될 때까지 기다려 주세요.');
+      setError(t('errAttachmentUploading'));
       return;
     }
     const hasFailedAttachments = uploadedAttachments.some((attachment) => attachment.error);
     if (hasFailedAttachments) {
-      setError('업로드에 실패한 첨부파일을 제거하거나 다시 업로드해 주세요.');
+      setError(t('errAttachmentFailed'));
       return;
     }
     if (scheduledAt) {
       const scheduledTime = new Date(scheduledAt).getTime();
       if (!Number.isFinite(scheduledTime)) {
-        setError('예약 전송 시간을 확인해 주세요.');
+        setError(t('errScheduleInvalid'));
         return;
       }
       if (scheduledTime <= Date.now()) {
-        setError('예약 전송 시간은 현재 시각 이후여야 합니다.');
+        setError(t('errSchedulePast'));
         return;
       }
     }
@@ -889,9 +923,9 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
     const fmt = (d: Date) => new Intl.DateTimeFormat('ko-KR', { month: 'numeric', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true }).format(d);
     const dayFmt = (d: Date) => new Intl.DateTimeFormat('ko-KR', { weekday: 'short' }).format(d);
     return [
-      { label: '내일 아침', sub: fmt(tomorrowMorning), date: tomorrowMorning },
-      { label: '내일 오후', sub: fmt(tomorrowAfternoon), date: tomorrowAfternoon },
-      { label: `${dayFmt(nextMonday)}요일 오전`, sub: fmt(nextMonday), date: nextMonday },
+      { label: t('tmrMorning'), sub: fmt(tomorrowMorning), date: tomorrowMorning },
+      { label: t('tmrAfternoon'), sub: fmt(tomorrowAfternoon), date: tomorrowAfternoon },
+      { label: t('weekdayMorning', { weekday: dayFmt(nextMonday) }), sub: fmt(nextMonday), date: nextMonday },
     ];
   }
 
@@ -902,7 +936,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
       <div
         ref={dialogRef}
         role="dialog"
-        aria-label="새 메시지 작성"
+        aria-label={t('newMessageAria')}
         aria-modal="true"
         onDragEnter={(e) => { e.preventDefault(); dragCounterRef.current++; setDragOver(true); }}
         onDragLeave={() => { dragCounterRef.current--; if (dragCounterRef.current <= 0) { dragCounterRef.current = 0; setDragOver(false); } }}
@@ -960,7 +994,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
           <div style={{ position: 'absolute', inset: 0, zIndex: 200, background: 'var(--color-accent-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none', borderRadius: '8px' }}>
             <div style={{ textAlign: 'center', color: 'var(--color-accent)', fontSize: '15px', fontWeight: 500 }}>
               <PaperClipIcon style={{ width: '40px', height: '40px', marginBottom: '8px' }} />
-              파일을 여기에 놓으세요
+              {t('dropFilesHere')}
             </div>
           </div>
         )}
@@ -1002,14 +1036,14 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
           }}
         >
           <span style={{ fontSize: '13px', fontWeight: 500, color: 'var(--color-text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, minWidth: 0 }}>
-            {minimized && subject ? subject : (intent === 'reply' || intent === 'reply_all' ? '답장' : intent === 'forward' ? '전달' : '새 메시지')}
+            {minimized && subject ? subject : (intent === 'reply' || intent === 'reply_all' ? t('titleReply') : intent === 'forward' ? t('titleForward') : t('titleNew'))}
           </span>
           <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0, marginLeft: '8px' }}>
             {!isMobile && <>
             <button
               onClick={(e) => { e.stopPropagation(); setFullscreen((v) => !v); if (minimized) setMinimized(false); }}
-              aria-label={fullscreen ? '창 축소' : '전체화면'}
-              title={fullscreen ? '창 축소' : '전체화면'}
+              aria-label={fullscreen ? t('shrinkWindow') : t('fullscreen')}
+              title={fullscreen ? t('shrinkWindow') : t('fullscreen')}
               style={{
                 width: '24px', height: '24px', borderRadius: '4px', border: 'none',
                 background: 'transparent', color: 'var(--color-text-secondary)',
@@ -1021,7 +1055,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
             >{fullscreen ? '⊡' : '⊞'}</button>
             <button
               onClick={(e) => { e.stopPropagation(); setMinimized((v) => !v); }}
-              aria-label={minimized ? '창 복원' : '창 최소화'}
+              aria-label={minimized ? t('restoreWindow') : t('minimizeWindow')}
               style={{
                 width: '24px', height: '24px', borderRadius: '4px', border: 'none',
                 background: 'transparent', color: 'var(--color-text-secondary)',
@@ -1037,7 +1071,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
                 const hasContent = !sent && (to.trim() || subject.trim() || (editor && editor.getText().trim()));
                 if (hasContent) setConfirmClose(true); else onClose();
               }}
-              aria-label="창 닫기"
+              aria-label={t('closeWindow')}
               style={{
                 width: '24px', height: '24px', borderRadius: '4px', border: 'none',
                 background: 'transparent', color: 'var(--color-text-secondary)',
@@ -1076,18 +1110,18 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
             >{closeSaveButtonLabel}</button>
             <button
               type="button"
-              aria-label="저장하지 않고 작성창 닫기"
+              aria-label={t('discardAria')}
               disabled={closeSaveInProgress}
               onClick={discardDraftAndClose}
               style={{ fontSize: '12px', padding: '4px 10px', borderRadius: '5px', border: '1px solid rgba(217,79,61,0.4)', background: 'transparent', color: 'var(--color-destructive)', cursor: closeSaveInProgress ? 'not-allowed' : 'pointer' }}
-            >버리기</button>
+            >{t('discard')}</button>
             <button
               type="button"
-              aria-label="닫기 취소하고 작성 계속하기"
+              aria-label={t('cancelCloseAria')}
               disabled={closeSaveInProgress}
               onClick={cancelCloseConfirmation}
               style={{ fontSize: '12px', padding: '4px 10px', borderRadius: '5px', border: '1px solid var(--color-border-default)', background: 'transparent', color: 'var(--color-text-secondary)', cursor: closeSaveInProgress ? 'not-allowed' : 'pointer' }}
-            >취소</button>
+            >{t('cancel')}</button>
           </div>
         )}
 
@@ -1104,7 +1138,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
           {/* From */}
           {(userEmail || availableAddresses.length > 0) && (
             <div style={{ display: 'flex', alignItems: 'center', borderBottom: '1px solid var(--color-border-subtle)', padding: '6px 16px', gap: '8px', flexShrink: 0, background: 'var(--color-bg-secondary)' }}>
-              <span style={{ fontSize: '11px', color: 'var(--color-text-tertiary)', flexShrink: 0 }}>보내는 사람</span>
+              <span style={{ fontSize: '11px', color: 'var(--color-text-tertiary)', flexShrink: 0 }}>{t('from')}</span>
               {availableAddresses.length > 1 ? (
                 <select
                   value={fromAddress}
@@ -1122,19 +1156,19 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
           )}
 
           {/* To */}
-          <div style={{ display: 'flex', alignItems: 'center', borderBottom: `1px solid ${error.includes('받는 사람') ? 'var(--color-destructive)' : 'var(--color-border-subtle)'}`, padding: '0 16px', flexShrink: 0 }}>
-            <label htmlFor="compose-to" style={{ fontSize: '13px', color: error.includes('받는 사람') ? 'var(--color-destructive)' : 'var(--color-text-secondary)', flexShrink: 0, paddingRight: '8px' }}>받는 사람</label>
+          <div style={{ display: 'flex', alignItems: 'center', borderBottom: `1px solid ${error === t('errToRequired') ? 'var(--color-destructive)' : 'var(--color-border-subtle)'}`, padding: '0 16px', flexShrink: 0 }}>
+            <label htmlFor="compose-to" style={{ fontSize: '13px', color: error === t('errToRequired') ? 'var(--color-destructive)' : 'var(--color-text-secondary)', flexShrink: 0, paddingRight: '8px' }}>{t('to')}</label>
             <RecipientChips
               id="compose-to"
               value={to}
               onChange={(v) => { setTo(v); toRef.current = v; if (error) setError(''); triggerAutoSave(v, ccRef.current, bccRef.current, subjectRef.current, editor?.getText() ?? '', editor?.getHTML() ?? ''); }}
               placeholder="example@domain.com"
               autoFocus
-              hasError={error.includes('받는 사람')}
+              hasError={error === t('errToRequired')}
               suggestions={recentRecipients}
             />
             <div style={{ display: 'flex', gap: '4px', flexShrink: 0, marginLeft: '4px' }}>
-              <button type="button" onClick={() => setShowOrgPicker(true)} title="조직도에서 선택"
+              <button type="button" onClick={() => setShowOrgPicker(true)} title={t('orgPickerTitle')}
                 style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-tertiary)', padding: '2px 4px', display: 'inline-flex', flexShrink: 0 }}>
                 <UsersIcon style={{ width: '15px', height: '15px' }} />
               </button>
@@ -1164,7 +1198,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
                 placeholder="example@domain.com, ..."
                 suggestions={recentRecipients}
               />
-              <button type="button" onClick={() => setShowOrgPicker(true)} title="조직도에서 선택"
+              <button type="button" onClick={() => setShowOrgPicker(true)} title={t('orgPickerTitle')}
                 style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-tertiary)', padding: '2px 4px', display: 'inline-flex', flexShrink: 0 }}>
                 <UsersIcon style={{ width: '15px', height: '15px' }} />
               </button>
@@ -1183,7 +1217,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
                 placeholder="example@domain.com, ..."
                 suggestions={recentRecipients}
               />
-              <button type="button" onClick={() => setShowOrgPicker(true)} title="조직도에서 선택"
+              <button type="button" onClick={() => setShowOrgPicker(true)} title={t('orgPickerTitle')}
                 style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-tertiary)', padding: '2px 4px', display: 'inline-flex', flexShrink: 0 }}>
                 <UsersIcon style={{ width: '15px', height: '15px' }} />
               </button>
@@ -1198,7 +1232,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
               type="text"
               value={subject}
               onChange={(e) => { setSubject(e.target.value); subjectRef.current = e.target.value; triggerAutoSave(toRef.current, ccRef.current, bccRef.current, e.target.value, editor?.getText() ?? '', editor?.getHTML() ?? ''); }}
-              placeholder="제목"
+              placeholder={t('subjectPlaceholder')}
               style={{ flex: 1, padding: '10px 0', border: 'none', outline: 'none', fontSize: '14px', background: 'transparent', color: 'var(--color-text-primary)', fontWeight: 500 }}
             />
           </div>
@@ -1211,16 +1245,16 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
           {/* Signature editor */}
           {showSigEditor && (
             <div style={{ padding: '8px 16px', borderTop: '1px solid var(--color-border-subtle)', background: 'var(--color-bg-secondary)' }}>
-              <div style={{ fontSize: '11px', color: 'var(--color-text-tertiary)', marginBottom: '4px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>서명</div>
+              <div style={{ fontSize: '11px', color: 'var(--color-text-tertiary)', marginBottom: '4px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{t('signatureLabel')}</div>
               <textarea
                 value={signature}
                 onChange={(e) => setSignature(e.target.value)}
                 onBlur={() => { try { localStorage.setItem('webmail_signature', signature); } catch { /* ignore */ } }}
-                placeholder="서명을 입력하세요..."
+                placeholder={t('signaturePlaceholder')}
                 rows={3}
                 style={{ width: '100%', padding: '6px 8px', borderRadius: '4px', border: '1px solid var(--color-border-default)', background: 'var(--color-bg-primary)', color: 'var(--color-text-primary)', fontSize: '13px', resize: 'vertical', outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' }}
               />
-              <div style={{ fontSize: '11px', color: 'var(--color-text-tertiary)', marginTop: '2px' }}>변경 사항은 다음 메시지 작성 시 적용됩니다</div>
+              <div style={{ fontSize: '11px', color: 'var(--color-text-tertiary)', marginTop: '2px' }}>{t('signatureHint')}</div>
             </div>
           )}
 
@@ -1239,7 +1273,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
                         type="button"
                         onClick={() => retryAttachmentUpload(att.id)}
                         style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-accent)', lineHeight: 1, padding: '0 2px', fontSize: '11px', fontWeight: 600 }}
-                      >재시도</button>
+                      >{t('retry')}</button>
                     )}
                     <button
                       type="button"
@@ -1367,7 +1401,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
             padding: '3px',
           }}
         >
-          {([['소', '25%'], ['중', '50%'], ['대', '75%'], ['원본', '100%']] as const).map(([label, pct]) => (
+          {([[t('imgSmall'), '25%'], [t('imgMedium'), '50%'], [t('imgLarge'), '75%'], [t('imgOriginal'), '100%']] as const).map(([label, pct]) => (
             <button
               key={label}
               type="button"

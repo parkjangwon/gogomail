@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { useTranslations } from 'next-intl';
 import {
   autocompleteContacts,
   Calendar,
@@ -76,28 +77,30 @@ const SYSTEM_ICONS: Record<string, ReactNode> = {
   archive: <ArchiveBoxIcon style={{ width: 16, height: 16 }} />,
 };
 
-function sectionLabel(type: SpotlightItem['type']): string {
+type SpotlightT = ReturnType<typeof useTranslations>;
+
+function sectionLabel(t: SpotlightT, type: SpotlightItem['type']): string {
   switch (type) {
-    case 'action': return '빠른 실행';
-    case 'folder': return '폴더';
-    case 'mail': return '메일';
-    case 'contact': return '연락처';
-    case 'calendar': return '일정';
-    case 'drive': return '드라이브';
-    case 'template': return '템플릿';
+    case 'action': return t('section.action');
+    case 'folder': return t('section.folder');
+    case 'mail': return t('section.mail');
+    case 'contact': return t('section.contact');
+    case 'calendar': return t('section.calendar');
+    case 'drive': return t('section.drive');
+    case 'template': return t('section.template');
   }
 }
 
-function relativeTime(iso: string): string {
+function relativeTime(t: SpotlightT, iso: string): string {
   const diff = Date.now() - new Date(iso).getTime();
   const m = Math.floor(diff / 60000);
-  if (m < 1) return '방금';
-  if (m < 60) return `${m}분 전`;
+  if (m < 1) return t('time.justNow');
+  if (m < 60) return t('time.minutesAgo', { n: m });
   const h = Math.floor(m / 60);
-  if (h < 24) return `${h}시간 전`;
+  if (h < 24) return t('time.hoursAgo', { n: h });
   const d = Math.floor(h / 24);
-  if (d < 7) return `${d}일 전`;
-  return new Intl.DateTimeFormat('ko-KR', { month: 'short', day: 'numeric' }).format(new Date(iso));
+  if (d < 7) return t('time.daysAgo', { n: d });
+  return new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' }).format(new Date(iso));
 }
 
 function formatDriveSize(bytes: number): string {
@@ -128,6 +131,7 @@ export function SpotlightSearch({
   onMoveMessage,
   onComposeWithTemplate,
 }: SpotlightSearchProps) {
+  const t = useTranslations('spotlight');
   const isMoveMode = !!movingMessageId;
   const [query, setQuery] = useState('');
   const [scope, setScope] = useState<'all' | 'mail' | 'contacts' | 'calendar' | 'drive' | 'folders' | 'commands'>('all');
@@ -148,22 +152,22 @@ export function SpotlightSearch({
     for (const f of folders) {
       if (f.system_type === 'drafts' || f.system_type === 'spam') continue; // skip for move
       const icon = f.system_type ? (SYSTEM_ICONS[f.system_type] ?? <FolderIcon style={{ width: 16, height: 16 }} />) : <FolderIcon style={{ width: 16, height: 16 }} />;
-      const label = f.system_type === 'inbox' ? '받은 편지함' : f.system_type === 'sent' ? '보낸 편지함' : f.system_type === 'drafts' ? '임시 보관함' : f.system_type === 'trash' ? '휴지통' : f.system_type === 'spam' ? '스팸 편지함' : f.name;
+      const label = f.system_type === 'inbox' ? t('folder.inbox') : f.system_type === 'sent' ? t('folder.sent') : f.system_type === 'drafts' ? t('folder.drafts') : f.system_type === 'trash' ? t('folder.trash') : f.system_type === 'spam' ? t('folder.spam') : f.name;
       const onSelect = isMoveMode && onMoveMessage
         ? () => { onMoveMessage(f.id); onClose(); }
         : () => { onSelectFolder(f.id); onClose(); };
-      systemFolderItems.push({ type: 'folder', id: f.id, title: label, subtitle: f.unread ? `읽지 않음 ${f.unread}` : undefined, icon, onSelect });
+      systemFolderItems.push({ type: 'folder', id: f.id, title: label, subtitle: f.unread ? t('folder.unreadSubtitle', { count: f.unread }) : undefined, icon, onSelect });
     }
     if (isMoveMode) return systemFolderItems;
     return [
-      { type: 'action', id: 'compose', title: '새 메일 작성', subtitle: 'S', icon: <PencilSquareIcon style={{ width: 16, height: 16 }} />, onSelect: () => { onCompose(); onClose(); } },
-      { type: 'action', id: 'starred', title: '별표 메일', icon: <StarIcon style={{ width: 16, height: 16 }} />, onSelect: () => { onSelectFolder('__starred__'); onClose(); } },
-      { type: 'action', id: 'unread', title: '읽지 않은 메일', icon: <EnvelopeIcon style={{ width: 16, height: 16 }} />, onSelect: () => { onSelectFolder('__unread__'); onClose(); } },
-      { type: 'action', id: 'attach', title: '첨부파일 메일', icon: <PaperClipIcon style={{ width: 16, height: 16 }} />, onSelect: () => { onSelectFolder('__attachments__'); onClose(); } },
-      { type: 'action', id: 'settings', title: '설정 열기', subtitle: ',', icon: <Cog6ToothIcon style={{ width: 16, height: 16 }} />, onSelect: () => { onOpenSettings(); onClose(); } },
+      { type: 'action', id: 'compose', title: t('action.compose'), subtitle: 'S', icon: <PencilSquareIcon style={{ width: 16, height: 16 }} />, onSelect: () => { onCompose(); onClose(); } },
+      { type: 'action', id: 'starred', title: t('action.starred'), icon: <StarIcon style={{ width: 16, height: 16 }} />, onSelect: () => { onSelectFolder('__starred__'); onClose(); } },
+      { type: 'action', id: 'unread', title: t('action.unread'), icon: <EnvelopeIcon style={{ width: 16, height: 16 }} />, onSelect: () => { onSelectFolder('__unread__'); onClose(); } },
+      { type: 'action', id: 'attach', title: t('action.attachments'), icon: <PaperClipIcon style={{ width: 16, height: 16 }} />, onSelect: () => { onSelectFolder('__attachments__'); onClose(); } },
+      { type: 'action', id: 'settings', title: t('action.settings'), subtitle: ',', icon: <Cog6ToothIcon style={{ width: 16, height: 16 }} />, onSelect: () => { onOpenSettings(); onClose(); } },
       ...systemFolderItems,
     ];
-  }, [folders, onSelectFolder, onCompose, onOpenSettings, onClose, isMoveMode, onMoveMessage]);
+  }, [folders, onSelectFolder, onCompose, onOpenSettings, onClose, isMoveMode, onMoveMessage, t]);
 
   // Build contact items from localStorage
   const buildContactItems = useCallback((q: string): SpotlightItem[] => {
@@ -238,11 +242,11 @@ export function SpotlightSearch({
         title: event.summary,
         subtitle: [
           event.allDay
-            ? new Intl.DateTimeFormat('ko-KR', { dateStyle: 'medium' }).format(event.start)
-            : new Intl.DateTimeFormat('ko-KR', { dateStyle: 'medium', timeStyle: 'short' }).format(event.start),
+            ? new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(event.start)
+            : new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(event.start),
           event.location,
         ].filter(Boolean).join(' · '),
-        badge: '일정',
+        badge: t('calendar.event'),
         icon: <CalendarDaysIcon style={{ width: 16, height: 16 }} />,
         onSelect: () => { onOpenCalendar(); onClose(); },
       }));
@@ -250,8 +254,8 @@ export function SpotlightSearch({
         type: 'calendar' as const,
         id: `calendar-todo-${todo.obj.ID}`,
         title: todo.summary,
-        subtitle: [todo.dueDate ? new Intl.DateTimeFormat('ko-KR', { dateStyle: 'medium' }).format(todo.dueDate) : '', todo.description].filter(Boolean).join(' · '),
-        badge: todo.completed ? '완료' : '할 일',
+        subtitle: [todo.dueDate ? new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(todo.dueDate) : '', todo.description].filter(Boolean).join(' · '),
+        badge: todo.completed ? t('calendar.completed') : t('calendar.todo'),
         icon: <CheckCircleIcon style={{ width: 16, height: 16 }} />,
         onSelect: () => { onOpenCalendar(); onClose(); },
       }));
@@ -260,7 +264,7 @@ export function SpotlightSearch({
     return calendarCacheRef.current
       .filter((item) => !ql || `${item.title} ${item.subtitle ?? ''}`.toLowerCase().includes(ql))
       .slice(0, 8);
-  }, [onClose, onOpenCalendar]);
+  }, [onClose, onOpenCalendar, t]);
 
   const buildDriveItems = useCallback(async (q: string): Promise<SpotlightItem[]> => {
     const ql = q.toLowerCase();
@@ -284,7 +288,7 @@ export function SpotlightSearch({
         type: 'drive' as const,
         id: `drive-${node.id}`,
         title: node.name,
-        subtitle: node.node_type === 'folder' ? '폴더' : node.mime_type || '파일',
+        subtitle: node.node_type === 'folder' ? t('drive.folder') : node.mime_type || t('drive.file'),
         badge: node.node_type === 'file' && node.size ? formatDriveSize(node.size) : undefined,
         icon: node.node_type === 'folder' ? <FolderIcon style={{ width: 16, height: 16 }} /> : <DocumentIcon style={{ width: 16, height: 16 }} />,
         onSelect: () => { onOpenDrive(); onClose(); },
@@ -293,7 +297,7 @@ export function SpotlightSearch({
     return driveCacheRef.current
       .filter((item) => !ql || `${item.title} ${item.subtitle ?? ''}`.toLowerCase().includes(ql))
       .slice(0, 8);
-  }, [onClose, onOpenDrive]);
+  }, [onClose, onOpenDrive, t]);
 
   // Parse Gmail-style operators from a query string
   function parseQuery(raw: string): { params: Record<string, string | boolean>; freeText: string; operators: string[] } {
@@ -318,18 +322,18 @@ export function SpotlightSearch({
     try {
       const templates = loadLocalEmailTemplates();
       return templates
-        .filter((t) => !q || t.name.toLowerCase().includes(q.toLowerCase()) || t.subject.toLowerCase().includes(q.toLowerCase()))
+        .filter((tpl) => !q || tpl.name.toLowerCase().includes(q.toLowerCase()) || tpl.subject.toLowerCase().includes(q.toLowerCase()))
         .slice(0, 5)
-        .map((t) => ({
+        .map((tpl) => ({
           type: 'template' as const,
-          id: `tpl-${t.name}`,
-          title: t.name,
-          subtitle: t.subject || '(제목 없음)',
+          id: `tpl-${tpl.name}`,
+          title: tpl.name,
+          subtitle: tpl.subject || t('noSubject'),
           icon: <DocumentTextIcon style={{ width: 16, height: 16 }} />,
-          onSelect: () => { onComposeWithTemplate(t); onClose(); },
+          onSelect: () => { onComposeWithTemplate(tpl); onClose(); },
         }));
     } catch { return []; }
-  }, [onComposeWithTemplate, onClose]);
+  }, [onComposeWithTemplate, onClose, t]);
 
   const recentSearchKey = 'webmail_recent_searches';
   const recentSearches: string[] = (() => {
@@ -389,17 +393,17 @@ export function SpotlightSearch({
         const mailItems: SpotlightItem[] = (res.messages ?? []).map((m: MessageSummary) => ({
           type: 'mail' as const,
           id: m.id,
-          title: m.subject || '(제목 없음)',
+          title: m.subject || t('noSubject'),
           subtitle: m.from_name || m.from_addr,
-          badge: relativeTime(m.received_at),
+          badge: relativeTime(t, m.received_at),
           icon: <EnvelopeIcon style={{ width: 16, height: 16, opacity: m.read ? 0.5 : 1 }} />,
           onSelect: () => { onSelectMessage(m.id); onClose(); },
         }));
-        // "전체 검색" action at the end
+        // "search all" action at the end
         const searchAll: SpotlightItem = {
           type: 'action',
           id: '__search_all__',
-          title: `"${q}" 메일 전체 검색`,
+          title: t('searchAll', { q }),
           icon: <MagnifyingGlassIcon style={{ width: 16, height: 16 }} />,
           onSelect: () => { onSearch(q); onClose(); },
         };
@@ -410,7 +414,7 @@ export function SpotlightSearch({
     }, 200);
 
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
-  }, [query, buildQuickActions, buildContactItems, buildTemplateItems, buildRemoteContactItems, buildCalendarItems, buildDriveItems, onSelectMessage, onSearch, onClose, isMoveMode]);
+  }, [query, buildQuickActions, buildContactItems, buildTemplateItems, buildRemoteContactItems, buildCalendarItems, buildDriveItems, onSelectMessage, onSearch, onClose, isMoveMode, t]);
 
   // Apply scope filter to items
   const scopeTypeMap: Record<typeof scope, SpotlightItem['type'][] | null> = {
@@ -454,7 +458,7 @@ export function SpotlightSearch({
   for (const item of visibleItems) {
     if (!seen.has(item.type)) {
       seen.add(item.type);
-      grouped.push({ label: sectionLabel(item.type), items: [] });
+      grouped.push({ label: sectionLabel(t, item.type), items: [] });
     }
     grouped[grouped.length - 1].items.push({ ...item, idx: globalIdx++ });
   }
@@ -463,7 +467,7 @@ export function SpotlightSearch({
     <div
       aria-modal="true"
       role="dialog"
-      aria-label="통합 검색"
+      aria-label={t('dialogLabel')}
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
       style={{
         position: 'fixed', inset: 0, zIndex: 900,
@@ -492,7 +496,7 @@ export function SpotlightSearch({
         {isMoveMode && (
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 18px 0', borderBottom: 'none' }}>
             <ArrowRightIcon style={{ width: 13, height: 13, color: 'var(--color-accent)' }} />
-            <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-accent)' }}>폴더로 이동</span>
+            <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-accent)' }}>{t('moveBadge')}</span>
           </div>
         )}
 
@@ -506,8 +510,8 @@ export function SpotlightSearch({
             ref={inputRef}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder={isMoveMode ? '폴더 이름으로 이동...' : '메일, 연락처, 일정, 드라이브 검색...'}
-            aria-label={isMoveMode ? '폴더로 이동' : '통합 검색 입력'}
+            placeholder={isMoveMode ? t('placeholderMove') : t('placeholderSearch')}
+            aria-label={isMoveMode ? t('ariaMove') : t('ariaSearch')}
             style={{
               flex: 1,
               border: 'none',
@@ -525,7 +529,7 @@ export function SpotlightSearch({
         {!isMoveMode && (
           <div style={{ display: 'flex', gap: '6px', padding: '6px 16px', borderBottom: '1px solid var(--color-border-subtle)', flexShrink: 0, flexWrap: 'wrap' }}>
             {(['all', 'mail', 'contacts', 'calendar', 'drive', 'folders', 'commands'] as const).map((s) => {
-              const labels: Record<typeof s, string> = { all: '전체', mail: '메일', contacts: '연락처', calendar: '일정', drive: '드라이브', folders: '편지함', commands: '명령' };
+              const labels: Record<typeof s, string> = { all: t('scope.all'), mail: t('scope.mail'), contacts: t('scope.contacts'), calendar: t('scope.calendar'), drive: t('scope.drive'), folders: t('scope.folders'), commands: t('scope.commands') };
               return (
                 <button key={s} type="button" onClick={() => setScope(s)}
                   style={{ padding: '3px 10px', borderRadius: '12px', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: 500,
@@ -553,7 +557,7 @@ export function SpotlightSearch({
         {/* Recent searches (shown only when empty + no query, not in move mode) */}
         {!query && recentSearches.length > 0 && !isMoveMode && (
           <div style={{ padding: '8px 12px 0' }}>
-            <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-text-tertiary)', padding: '4px 6px', letterSpacing: '0.05em', textTransform: 'uppercase' }}>최근 검색</div>
+            <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-text-tertiary)', padding: '4px 6px', letterSpacing: '0.05em', textTransform: 'uppercase' }}>{t('recentSearches')}</div>
             {recentSearches.map((q) => (
               <button
                 key={q}
@@ -573,7 +577,7 @@ export function SpotlightSearch({
         <div ref={listRef} style={{ maxHeight: '420px', overflowY: 'auto', padding: '8px 12px 12px' }}>
           {visibleItems.length === 0 && query && !searching && (
             <div style={{ padding: '32px', textAlign: 'center', fontSize: '14px', color: 'var(--color-text-tertiary)' }}>
-              결과가 없습니다
+              {t('noResults')}
             </div>
           )}
           {grouped.map((group) => (
@@ -636,10 +640,10 @@ export function SpotlightSearch({
 
         {/* Footer hint */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '8px 18px', borderTop: '1px solid var(--color-border-subtle)', fontSize: '11px', color: 'var(--color-text-tertiary)' }}>
-          <span><kbd style={kbdStyle}>↑↓</kbd> 이동</span>
-          <span><kbd style={kbdStyle}>↵</kbd> 선택</span>
-          <span><kbd style={kbdStyle}>Esc</kbd> 닫기</span>
-          <span style={{ marginLeft: 'auto' }}>GoGoMail 통합 검색</span>
+          <span><kbd style={kbdStyle}>↑↓</kbd> {t('footer.navigate')}</span>
+          <span><kbd style={kbdStyle}>↵</kbd> {t('footer.select')}</span>
+          <span><kbd style={kbdStyle}>Esc</kbd> {t('footer.close')}</span>
+          <span style={{ marginLeft: 'auto' }}>{t('footer.brand')}</span>
         </div>
       </div>
 
