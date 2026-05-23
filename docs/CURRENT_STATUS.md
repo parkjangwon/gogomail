@@ -1,6 +1,12 @@
 # gogomail current status
 
-Last updated: 2026-05-23 (notification storage ref sync hardening)
+Last updated: 2026-05-23 (notification action URL character hardening)
+
+## Notification Action URL Character Hardening (2026-05-23)
+- Notification action URLs now reject backslashes and ASCII control characters in addition to external, protocol-relative, and non-string values.
+- The same character guard is applied to localStorage hydration, runtime notification pushes, and WebPush service-worker click targets.
+- This prevents protocol-smuggling or header/control-character shaped payloads from being retained in the notification center or opened from browser notifications.
+- Verification target: `pnpm -C apps/webmail exec playwright test e2e/notifications.spec.ts --project=chromium -g "unsafe action URLs|unsafe target URLs"`; `pnpm -C apps/webmail type-check`.
 
 ## Notification Storage Ref Sync Hardening (2026-05-23)
 - Notification storage hydration now updates the internal id index before dispatching hydrated state.

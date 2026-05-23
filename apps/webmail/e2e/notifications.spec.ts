@@ -444,6 +444,8 @@ test.describe('Notification center', () => {
         { id: 'bad-action-object', category: 'system', severity: 'info', title: 'Bad action object', actionUrl: { href: '/mail' }, timestamp: now, read: false },
         { id: 'bad-action-scheme', category: 'system', severity: 'info', title: 'Bad action scheme', actionUrl: 'javascript:alert(1)', timestamp: now, read: false },
         { id: 'bad-action-host', category: 'system', severity: 'info', title: 'Bad action host', actionUrl: '//evil.example/path', timestamp: now, read: false },
+        { id: 'bad-action-backslash', category: 'system', severity: 'info', title: 'Bad action backslash', actionUrl: '/\\\\evil.example/path', timestamp: now, read: false },
+        { id: 'bad-action-control', category: 'system', severity: 'info', title: 'Bad action control', actionUrl: '/mail\nSet-Cookie:x', timestamp: now, read: false },
         { id: 'good-action', category: 'system', severity: 'info', title: 'Good action URL', actionUrl: '/mail?from=notification', timestamp: now, read: false },
       ]);
       localStorage.setItem('webmail_notifications', raw);
@@ -460,10 +462,14 @@ test.describe('Notification center', () => {
     await expect(dialog).not.toContainText('Bad action object');
     await expect(dialog).not.toContainText('Bad action scheme');
     await expect(dialog).not.toContainText('Bad action host');
+    await expect(dialog).not.toContainText('Bad action backslash');
+    await expect(dialog).not.toContainText('Bad action control');
   });
 
   test('drops unsafe action URLs when notifications are pushed', async ({ page }) => {
     await pushNotification(page, { id: 'runtime-bad-action', title: 'Runtime unsafe action', actionUrl: 'javascript:alert(1)' });
+    await pushNotification(page, { id: 'runtime-bad-backslash', title: 'Runtime unsafe backslash action', actionUrl: '/\\evil.example/path' });
+    await pushNotification(page, { id: 'runtime-bad-control', title: 'Runtime unsafe control action', actionUrl: '/mail\nSet-Cookie:x' });
     await pushNotification(page, { id: 'runtime-good-action', title: 'Runtime safe action', actionUrl: '/mail?from=runtime' });
 
     await expect.poll(
@@ -477,6 +483,8 @@ test.describe('Notification center', () => {
       { timeout: 5_000 },
     ).toEqual([
       ['runtime-good-action', '/mail?from=runtime'],
+      ['runtime-bad-control', null],
+      ['runtime-bad-backslash', null],
       ['runtime-bad-action', null],
     ]);
   });
@@ -484,6 +492,8 @@ test.describe('Notification center', () => {
   test('service worker notification clicks fall back for unsafe target URLs', async ({ page }) => {
     await expect(serviceWorkerOpenedUrls(page, { url: 'https://evil.example/phish' })).resolves.toEqual(['/mail']);
     await expect(serviceWorkerOpenedUrls(page, { url: '//evil.example/phish' })).resolves.toEqual(['/mail']);
+    await expect(serviceWorkerOpenedUrls(page, { url: '/\\evil.example/phish' })).resolves.toEqual(['/mail']);
+    await expect(serviceWorkerOpenedUrls(page, { url: '/mail\nSet-Cookie:x' })).resolves.toEqual(['/mail']);
     await expect(serviceWorkerOpenedUrls(page, { url: { href: '/mail' } })).resolves.toEqual(['/mail']);
     await expect(serviceWorkerOpenedUrls(page, { url: '/mail?from=webpush' })).resolves.toEqual(['/mail?from=webpush']);
   });
