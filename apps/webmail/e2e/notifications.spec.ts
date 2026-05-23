@@ -61,6 +61,12 @@ test.describe('Notification center', () => {
     await expect(dialog).toContainText(/no notifications|아직 알림|通知はまだ|暂无通知/i);
   });
 
+  test('focuses search field when opened for keyboard filtering', async ({ page }) => {
+    const { dialog } = await openCenter(page);
+    const search = dialog.getByPlaceholder(/Search notifications|알림 검색|通知を検索|搜索通知/i);
+    await expect(search).toBeFocused();
+  });
+
   test('pushed notification appears in list and increments badge', async ({ page }) => {
     await pushNotification(page, { title: 'Hello world', body: 'first body' });
 

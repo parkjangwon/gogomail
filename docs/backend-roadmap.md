@@ -6797,3 +6797,6 @@ Target outcome:
       Migration 0151 adds a partial active-local `lower(username), id` index so
       local auth, LDAP auth, and SMTP submission username logins have matching
       index coverage while address-based logins continue to use `address_ace`.
+1857. Webmail notification center keyboard usability now focuses the search
+      field as soon as the panel opens, letting operators immediately filter
+      high-volume notification lists without an extra tab stop from the bell.
