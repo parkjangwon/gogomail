@@ -1,6 +1,13 @@
 # gogomail current status
 
-Last updated: 2026-05-23 (notification surrogate-boundary truncation)
+Last updated: 2026-05-23 (browser notification tag collision hardening)
+
+## Browser Notification Tag Collision Hardening (2026-05-23)
+- Webmail browser notification mirroring now keeps overlong native `NotificationOptions.tag` values distinct by appending a stable 8-character hash suffix after truncation.
+- Browser mirror tags remain capped at 128 characters, while distinct max-length runtime ids with the same long prefix no longer collapse into the same native replacement key.
+- Existing exact-id browser mirror dedupe behavior remains intact.
+- E2E coverage verifies capped long tags stay distinct, max-length browser tags stay bounded, and existing browser mirror dedupe still passes.
+- Verification target: `pnpm -C apps/webmail exec playwright test e2e/notifications.spec.ts --project=chromium -g "keeps capped browser notification mirror tags distinct for long ids|caps browser notification mirror tags|deduplicates browser notification mirroring by id"`; `pnpm -C apps/webmail type-check`.
 
 ## Notification Surrogate-Boundary Truncation (2026-05-23)
 - Webmail notification truncation now avoids leaving dangling UTF-16 high surrogates when oversized strings are cut at the title, body, metadata, browser mirror tag, or WebPush tag boundary.
