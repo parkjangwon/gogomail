@@ -2,6 +2,7 @@
 
 import { type Dispatch, type MutableRefObject, type RefObject, type SetStateAction } from 'react';
 import { ArchiveBoxIcon, CalendarIcon, ChevronUpIcon } from '@heroicons/react/24/outline';
+import { useTranslations, useLocale } from 'next-intl';
 import type { SendMessageRequest } from '@/lib/api';
 import { toDateTimeLocalValue } from '@/lib/dateTimeLocal';
 import { type ComposeScheduleOption } from './ComposeModalActions';
@@ -59,6 +60,8 @@ export function ComposeModalFooter({
   onArchiveSource,
   setSendCountdown,
 }: ComposeModalFooterProps) {
+  const t = useTranslations('composeFooter');
+  const locale = useLocale();
   return (
     <>
       <div style={{
@@ -95,7 +98,7 @@ export function ComposeModalFooter({
             aria-haspopup="menu"
             aria-expanded={showSendDropdown}
             aria-controls={showSendDropdown ? 'compose-send-options-menu' : undefined}
-            aria-label="전송 옵션 열기"
+            aria-label={t('sendOptionsAria')}
             style={{
               padding: '7px 10px',
               borderRadius: '0 20px 20px 0',
@@ -133,7 +136,7 @@ export function ComposeModalFooter({
                 zIndex: 200,
               }}
             >
-              <div style={{ padding: '12px 16px 8px', fontSize: '13px', fontWeight: 600, color: 'var(--color-text-primary)' }}>예약 전송</div>
+              <div style={{ padding: '12px 16px 8px', fontSize: '13px', fontWeight: 600, color: 'var(--color-text-primary)' }}>{t('scheduleSendTitle')}</div>
               {scheduleOptions.map((opt) => (
                 <button
                   key={opt.label}
@@ -149,7 +152,7 @@ export function ComposeModalFooter({
                   onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
                 >
                   <div style={{ width: '32px', height: '32px', borderRadius: '6px', border: '1px solid var(--color-border-default)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                    <span style={{ fontSize: '9px', color: 'var(--color-destructive)', fontWeight: 600, lineHeight: 1 }}>{new Intl.DateTimeFormat('ko-KR', { weekday: 'short' }).format(opt.date)}</span>
+                    <span style={{ fontSize: '9px', color: 'var(--color-destructive)', fontWeight: 600, lineHeight: 1 }}>{new Intl.DateTimeFormat(locale, { weekday: 'short' }).format(opt.date)}</span>
                     <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--color-text-primary)', lineHeight: 1.2 }}>{opt.date.getDate()}</span>
                   </div>
                   <div>
@@ -162,7 +165,7 @@ export function ComposeModalFooter({
                 <button
                   type="button"
                   role="menuitem"
-                  aria-label="보내고 보관, 전송 후 원본 메일을 보관함으로 이동"
+                  aria-label={t('sendAndArchiveAria')}
                   onClick={() => { closeSendDropdown(); sendAndArchiveRef.current = true; handleSend({ preventDefault: () => {} }); }}
                   style={{ display: 'flex', alignItems: 'center', gap: '10px', width: '100%', padding: '6px 14px', border: 'none', background: 'transparent', cursor: 'pointer', textAlign: 'left' }}
                   onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-secondary)'; }}
@@ -172,15 +175,15 @@ export function ComposeModalFooter({
                     <ArchiveBoxIcon style={{ width: '16px', height: '16px', color: 'var(--color-accent)' }} />
                   </div>
                   <div>
-                    <div style={{ fontSize: '13px', fontWeight: 500, color: 'var(--color-text-primary)' }}>보내고 보관</div>
-                    <div style={{ fontSize: '11px', color: 'var(--color-text-tertiary)' }}>전송 후 원본 메일을 보관함으로 이동</div>
+                    <div style={{ fontSize: '13px', fontWeight: 500, color: 'var(--color-text-primary)' }}>{t('sendAndArchive')}</div>
+                    <div style={{ fontSize: '11px', color: 'var(--color-text-tertiary)' }}>{t('sendAndArchiveDesc')}</div>
                   </div>
                 </button>
               )}
               <button
                 type="button"
                 role="menuitem"
-                aria-label="사용자 지정 날짜로 예약 전송"
+                aria-label={t('customDateAria')}
                 onClick={() => {
                   closeSendDropdown();
                   setShowSchedule(true);
@@ -195,7 +198,7 @@ export function ComposeModalFooter({
                 <div style={{ width: '32px', height: '32px', borderRadius: '6px', border: '1px solid var(--color-border-default)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                   <CalendarIcon style={{ width: '16px', height: '16px', color: 'var(--color-accent)' }} />
                 </div>
-                <div style={{ fontSize: '13px', fontWeight: 500, color: 'var(--color-text-primary)' }}>사용자 지정 날짜</div>
+                <div style={{ fontSize: '13px', fontWeight: 500, color: 'var(--color-text-primary)' }}>{t('customDate')}</div>
               </button>
             </div>
           )}
@@ -203,8 +206,8 @@ export function ComposeModalFooter({
 
         {error && <span role="alert" style={{ fontSize: '12px', color: 'var(--color-destructive)', flex: 1 }}>{error}</span>}
         {!error && sent && sendResultLabel && <span id="compose-send-status" role="status" aria-live="polite" style={{ fontSize: '11px', color: 'var(--color-text-tertiary)' }}>{sendResultLabel}</span>}
-        {!error && !sent && saveStatus === 'saving' && <span role="status" aria-live="polite" style={{ fontSize: '11px', color: 'var(--color-text-tertiary)' }}>저장 중...</span>}
-        {!error && !sent && saveStatus === 'saved' && <span role="status" aria-live="polite" style={{ fontSize: '11px', color: 'var(--color-text-tertiary)' }}>임시저장 {savedAt}</span>}
+        {!error && !sent && saveStatus === 'saving' && <span role="status" aria-live="polite" style={{ fontSize: '11px', color: 'var(--color-text-tertiary)' }}>{t('saving')}</span>}
+        {!error && !sent && saveStatus === 'saved' && <span role="status" aria-live="polite" style={{ fontSize: '11px', color: 'var(--color-text-tertiary)' }}>{t('savedAt', { time: savedAt })}</span>}
         <div style={{ flex: 1 }} />
       </div>
 
@@ -215,11 +218,11 @@ export function ComposeModalFooter({
           borderTop: '1px solid var(--color-border-default)',
           fontSize: '13px', color: 'var(--color-text-primary)',
         }}>
-          <span>{sendCountdown}초 후 전송됩니다...</span>
+          <span>{t('countdown', { seconds: sendCountdown })}</span>
           <button
             onClick={() => { setSendCountdown(null); pendingMsgRef.current = null; pendingDraftSendRef.current = false; }}
             style={{ padding: '4px 12px', borderRadius: '5px', border: '1px solid var(--color-border-default)', background: 'transparent', cursor: 'pointer', fontSize: '13px', color: 'var(--color-text-primary)' }}
-          >취소</button>
+          >{t('cancel')}</button>
         </div>
       )}
     </>

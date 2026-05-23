@@ -2,6 +2,7 @@
 
 import { ChevronRightIcon } from '@heroicons/react/24/outline';
 import { useEffect, useRef, useState } from 'react';
+import { useTranslations } from 'next-intl';
 
 interface ContextMenuItem {
   label: string;
@@ -121,6 +122,7 @@ function MenuItem({ item, onClose }: { item: ContextMenuItem; onClose: () => voi
 }
 
 export function ContextMenu({ x, y, items, onClose }: ContextMenuProps) {
+  const t = useTranslations('contextMenu');
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -148,7 +150,7 @@ export function ContextMenu({ x, y, items, onClose }: ContextMenuProps) {
     <div
       ref={menuRef}
       role="menu"
-      aria-label="메시지 작업"
+      aria-label={t('messageActionsAria')}
       style={{
         position: 'fixed',
         top: adjustedY,

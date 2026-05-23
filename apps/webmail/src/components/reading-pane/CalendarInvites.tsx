@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations, useLocale } from 'next-intl';
 import type { ICSEvent } from './readingPaneTypes';
 
 interface CalendarInvitesProps {
@@ -15,6 +16,8 @@ export function CalendarInvites({
   addingCalendarId,
   calendarAdded,
 }: CalendarInvitesProps) {
+  const t = useTranslations('calendar');
+  const locale = useLocale();
   return (
     <div style={{ marginBottom: '16px', maxWidth: '680px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
       {events.map((event) => {
@@ -24,7 +27,7 @@ export function CalendarInvites({
             const d = value.length === 8
               ? new Date(`${value.slice(0, 4)}-${value.slice(4, 6)}-${value.slice(6, 8)}`)
               : new Date(`${clean.slice(0, 4)}-${clean.slice(4, 6)}-${clean.slice(6, 8)}T${clean.slice(9, 11)}:${clean.slice(11, 13)}:${clean.slice(13, 15)}`);
-            return new Intl.DateTimeFormat('ko-KR', {
+            return new Intl.DateTimeFormat(locale, {
               dateStyle: 'medium',
               timeStyle: value.length === 8 ? undefined : 'short',
               hour12: false,
@@ -48,7 +51,7 @@ export function CalendarInvites({
               disabled={adding || added}
               style={{ flexShrink: 0, padding: '5px 12px', borderRadius: '6px', border: '1px solid var(--color-border-default)', background: added ? 'var(--color-accent-subtle)' : 'transparent', color: added ? 'var(--color-accent)' : 'var(--color-text-primary)', fontSize: '12px', cursor: adding || added ? 'default' : 'pointer', fontWeight: 500, whiteSpace: 'nowrap' }}
             >
-              {adding ? '추가 중...' : added ? '✓ 추가됨' : '캘린더에 추가'}
+              {adding ? t('adding') : added ? t('added') : t('addToCalendar')}
             </button>
           </div>
         );

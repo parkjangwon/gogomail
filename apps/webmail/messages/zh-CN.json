@@ -246,6 +246,139 @@
     "editRuleTitle": "编辑规则",
     "newRuleTitle": "新建规则"
   },
+  "nav": {
+    "mail": "邮件",
+    "calendar": "日历",
+    "contacts": "联系人",
+    "drive": "云盘",
+    "settings": "设置",
+    "appSwitcher": "应用切换",
+    "unread": "未读",
+    "guide": "指南",
+    "closeMenu": "关闭菜单",
+    "accountMenu": "账户菜单",
+    "collapseSidebar": "折叠侧边栏",
+    "collapseSidebarHint": "折叠侧边栏 ([)",
+    "composeMail": "撰写邮件",
+    "composeMailHint": "撰写邮件 (c)",
+    "logout": "退出登录",
+    "defaultUser": "用户"
+  },
+  "placeholders": {
+    "notReady": "即将推出",
+    "contacts": "联系人",
+    "calendar": "日历",
+    "orgChart": "组织架构"
+  },
+  "accent": {
+    "selectAria": "选择主题色",
+    "themeTitle": "主题色",
+    "selectLabel": "选择颜色",
+    "blue": "蓝色",
+    "teal": "青色",
+    "purple": "紫色",
+    "orange": "橙色",
+    "pink": "粉色"
+  },
+  "snooze": {
+    "title": "再次提醒",
+    "in1h": "1小时后",
+    "tonight": "今晚",
+    "tonightTime": "晚上9:00",
+    "tomorrow": "明天上午",
+    "morning8": "上午8:00",
+    "morning9": "上午9:00",
+    "thisWeekend": "本周末",
+    "nextWeek": "下周"
+  },
+  "mfa": {
+    "title": "需要设置双重身份验证",
+    "description": "管理员已要求此账户启用 MFA 验证。要继续使用，请注册身份验证应用（Google Authenticator、Authy 等）。",
+    "setupNow": "立即设置 MFA →",
+    "later": "稍后再说"
+  },
+  "localeSelector": {
+    "aria": "选择语言"
+  },
+  "recipients": {
+    "removeAria": "移除 {chip}",
+    "groupBadge": "群组"
+  },
+  "composeFooter": {
+    "sendOptionsAria": "打开发送选项",
+    "scheduleSendTitle": "定时发送",
+    "sendAndArchive": "发送并归档",
+    "sendAndArchiveDesc": "发送后将原邮件移至归档",
+    "sendAndArchiveAria": "发送并归档，发送后将原邮件移至归档",
+    "customDate": "自定义日期",
+    "customDateAria": "使用自定义日期定时发送",
+    "saving": "保存中...",
+    "savedAt": "草稿已保存 {time}",
+    "cancel": "取消",
+    "countdown": "{seconds}秒后发送..."
+  },
+  "calendar": {
+    "wkMon": "一", "wkTue": "二", "wkWed": "三", "wkThu": "四", "wkFri": "五", "wkSat": "六", "wkSun": "日",
+    "prevMonth": "上个月",
+    "nextMonth": "下个月",
+    "prev": "上一个",
+    "next": "下一个",
+    "today": "今天",
+    "dayWeekday": "星期{weekday}",
+    "viewDay": "日",
+    "viewWeek": "周",
+    "viewMonth": "月",
+    "moreEvents": "+{count} 个",
+    "edit": "编辑",
+    "delete": "删除",
+    "yearMonth": "{year}年{month}月",
+    "addToCalendar": "添加到日历",
+    "adding": "添加中...",
+    "added": "✓ 已添加"
+  },
+  "driveMenu": {
+    "download": "下载",
+    "rename": "重命名",
+    "shareLink": "共享链接",
+    "trash": "移至垃圾箱"
+  },
+  "thread": {
+    "conversationCount": "会话 {count} 条",
+    "noContent": "（无内容）"
+  },
+  "readingPaneSafe": {
+    "remoteImagesBlocked": "远程图片已屏蔽",
+    "showImages": "显示图片",
+    "showQuoted": "查看原始消息 ···",
+    "hideQuoted": "隐藏引用"
+  },
+  "readingPaneOverlay": {
+    "download": "下载",
+    "close": "关闭"
+  },
+  "composeSlash": {
+    "formatting": "格式"
+  },
+  "contextMenu": {
+    "messageActionsAria": "邮件操作"
+  },
+  "quickReply": {
+    "replyButton": "← 回复...",
+    "placeholder": "输入回复内容...",
+    "hint": "Ctrl+Enter 发送 · Escape 取消",
+    "cancel": "取消",
+    "sending": "发送中...",
+    "sent": "已发送 ✓",
+    "send": "发送"
+  },
+  "settingsPrimitives": {
+    "bulletList": "• 列表",
+    "orderedList": "1. 列表"
+  },
+  "contactHover": {
+    "inboxCount": "收件箱有 {count} 封邮件",
+    "newMail": "+ 新建邮件"
+  },
   "settingsModal": {
     "readMark": "已读处理",
     "readMarkInstant": "立即",

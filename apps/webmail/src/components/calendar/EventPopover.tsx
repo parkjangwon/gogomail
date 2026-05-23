@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
+import { useTranslations } from 'next-intl';
 import { ParsedEvent } from '@/lib/calendar/eventParser';
 import { formatDate, formatTime } from '@/lib/calendar/dateUtils';
 
@@ -13,6 +14,7 @@ export interface EventPopoverProps {
 }
 
 export function EventPopover({ event, anchorRect, onClose, onEdit, onDelete }: EventPopoverProps) {
+  const t = useTranslations('calendar');
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -76,13 +78,13 @@ export function EventPopover({ event, anchorRect, onClose, onEdit, onDelete }: E
           style={{ ...btnBase, color: 'var(--color-text-primary)' }}
           onClick={() => { onClose(); onEdit(event); }}
         >
-          편집
+          {t('edit')}
         </button>
         <button
           style={{ ...btnBase, color: 'var(--color-destructive)', borderColor: 'var(--color-destructive)' }}
           onClick={() => { onDelete(event); }}
         >
-          삭제
+          {t('delete')}
         </button>
       </div>
     </div>

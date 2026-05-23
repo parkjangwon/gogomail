@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { ShieldExclamationIcon } from '@heroicons/react/24/outline';
+import { useTranslations } from 'next-intl';
 
 const STORAGE_KEY = 'webmail_mfa_setup_required';
 const DISMISSED_KEY = 'webmail_mfa_setup_dismissed_at';
@@ -12,6 +13,7 @@ interface MFASetupPromptModalProps {
 }
 
 export function MFASetupPromptModal({ onGoToSettings }: MFASetupPromptModalProps) {
+  const t = useTranslations('mfa');
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
@@ -87,11 +89,10 @@ export function MFASetupPromptModal({ onGoToSettings }: MFASetupPromptModalProps
           </div>
           <div>
             <h2 id="mfa-prompt-title" style={{ margin: 0, fontSize: '15px', fontWeight: 600, color: 'var(--color-text-primary)' }}>
-              2단계 인증 설정이 필요합니다
+              {t('title')}
             </h2>
             <p style={{ margin: '6px 0 0', fontSize: '13px', color: 'var(--color-text-secondary)', lineHeight: 1.5 }}>
-              관리자가 이 계정에 MFA 인증을 요구하도록 설정했습니다.
-              계속 사용하려면 인증 앱(Google Authenticator, Authy 등)을 등록해 주세요.
+              {t('description')}
             </p>
           </div>
         </div>
@@ -115,7 +116,7 @@ export function MFASetupPromptModal({ onGoToSettings }: MFASetupPromptModalProps
             onMouseEnter={(e) => { (e.target as HTMLButtonElement).style.opacity = '0.88'; }}
             onMouseLeave={(e) => { (e.target as HTMLButtonElement).style.opacity = '1'; }}
           >
-            지금 MFA 설정하기 →
+            {t('setupNow')}
           </button>
           <button
             onClick={handleDismiss}
@@ -130,7 +131,7 @@ export function MFASetupPromptModal({ onGoToSettings }: MFASetupPromptModalProps
               cursor: 'pointer',
             }}
           >
-            나중에 하기
+            {t('later')}
           </button>
         </div>
       </div>

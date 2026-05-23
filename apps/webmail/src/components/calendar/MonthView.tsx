@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo } from 'react';
+import { useTranslations } from 'next-intl';
 import { startOfMonth, startOfWeek, isSameDay, addDays } from '@/lib/calendar/dateUtils';
 import { ParsedEvent, ParsedTodo } from '@/lib/calendar/eventParser';
 
@@ -18,6 +19,7 @@ export interface MonthViewProps {
 const toDateKey = (d: Date) => `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
 
 export function MonthView({ currentDate, events, todos, today, onDayClick, onCellClick, onEventClick, onTodoToggle }: MonthViewProps) {
+  const t = useTranslations('calendar');
   const month = currentDate.getMonth();
   const firstDay = startOfMonth(currentDate);
   const gridStart = startOfWeek(firstDay);
@@ -26,7 +28,7 @@ export function MonthView({ currentDate, events, todos, today, onDayClick, onCel
   const needed = days.findLastIndex((d) => d.getMonth() === month || d <= firstDay) + 1;
   const cellCount = Math.ceil(Math.max(needed, 28) / 7) * 7;
   const visibleDays = days.slice(0, cellCount);
-  const weekDays = ['월', '화', '수', '목', '금', '토', '일'];
+  const weekDays = [t('wkMon'), t('wkTue'), t('wkWed'), t('wkThu'), t('wkFri'), t('wkSat'), t('wkSun')];
 
   // Pre-bucket events/todos by day key to avoid O(days × events) per render.
   const eventsByDay = useMemo(() => {
@@ -153,7 +155,7 @@ export function MonthView({ currentDate, events, todos, today, onDayClick, onCel
               ))}
               {overflow > 0 && (
                 <div style={{ fontSize: '11px', color: 'var(--color-text-tertiary)', paddingLeft: '2px', fontWeight: 500 }}>
-                  +{overflow}개 더
+                  {t('moreEvents', { count: overflow })}
                 </div>
               )}
             </div>

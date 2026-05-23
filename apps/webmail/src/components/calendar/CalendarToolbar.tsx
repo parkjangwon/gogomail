@@ -1,3 +1,6 @@
+'use client';
+import { useTranslations } from 'next-intl';
+
 type CalendarViewType = 'month' | 'week' | 'day';
 
 interface CalendarToolbarProps {
@@ -17,6 +20,7 @@ export function CalendarToolbar({
   onNavigate,
   onSetView,
 }: CalendarToolbarProps) {
+  const t = useTranslations('calendar');
   return (
     <div
       style={{
@@ -43,11 +47,11 @@ export function CalendarToolbar({
             fontWeight: 500,
           }}
         >
-          오늘
+          {t('today')}
         </button>
         <button
           onClick={() => onNavigate(-1)}
-          aria-label="이전"
+          aria-label={t('prev')}
           style={{
             padding: '5px 8px',
             borderRadius: '5px',
@@ -63,7 +67,7 @@ export function CalendarToolbar({
         </button>
         <button
           onClick={() => onNavigate(1)}
-          aria-label="다음"
+          aria-label={t('next')}
           style={{
             padding: '5px 8px',
             borderRadius: '5px',
@@ -85,7 +89,7 @@ export function CalendarToolbar({
 
       <div style={{ display: 'flex', borderRadius: '6px', border: '1px solid var(--color-border-default)', overflow: 'hidden' }}>
         {viewButtons.map((v) => {
-          const labels = { day: '일', week: '주', month: '월' };
+          const labels = { day: t('viewDay'), week: t('viewWeek'), month: t('viewMonth') };
           return (
             <button
               key={v}

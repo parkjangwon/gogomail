@@ -1,6 +1,7 @@
 'use client';
 
 import { useRef, useEffect } from 'react';
+import { useTranslations } from 'next-intl';
 import { isSameDay, formatHour, formatTime } from '@/lib/calendar/dateUtils';
 import { ParsedEvent } from '@/lib/calendar/eventParser';
 
@@ -15,6 +16,7 @@ const HOUR_HEIGHT = 48;
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
 
 export function DayView({ currentDate, events, today, onEventClick }: DayViewProps) {
+  const t = useTranslations('calendar');
   const isToday = isSameDay(currentDate, today);
   const scrollRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -49,7 +51,7 @@ export function DayView({ currentDate, events, today, onEventClick }: DayViewPro
           {currentDate.getDate()}
         </div>
         <div style={{ fontSize: '14px', color: 'var(--color-text-secondary)' }}>
-          {['일', '월', '화', '수', '목', '금', '토'][currentDate.getDay()]}요일
+          {t('dayWeekday', { weekday: [t('wkSun'), t('wkMon'), t('wkTue'), t('wkWed'), t('wkThu'), t('wkFri'), t('wkSat')][currentDate.getDay()] })}
         </div>
       </div>
       {/* Grid */}

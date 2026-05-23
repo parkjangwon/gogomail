@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import type { Attachment } from '@/lib/api';
 
 interface ReadingPaneOverlaysProps {
@@ -21,6 +22,7 @@ export function ReadingPaneOverlays({
   lightbox,
   setLightbox,
 }: ReadingPaneOverlaysProps) {
+  const t = useTranslations('readingPaneOverlay');
   return (
     <>
       {driveToast && (
@@ -87,14 +89,14 @@ export function ReadingPaneOverlays({
                 }}
                 style={{ padding: '5px 14px', borderRadius: '6px', border: '1px solid var(--color-border-default)', background: 'transparent', color: 'var(--color-text-primary)', fontSize: '12px', cursor: 'pointer' }}
               >
-                다운로드
+                {t('download')}
               </button>
               <button
                 onClick={() => setPdfPreview(null)}
-                aria-label="닫기"
+                aria-label={t('close')}
                 style={{ padding: '5px 14px', borderRadius: '6px', border: '1px solid var(--color-border-default)', background: 'transparent', color: 'var(--color-text-primary)', fontSize: '12px', cursor: 'pointer' }}
               >
-                닫기
+                {t('close')}
               </button>
             </div>
             <iframe src={pdfPreview.url} title={pdfPreview.filename} style={{ flex: 1, border: 'none', background: '#fff' }} />
@@ -162,7 +164,7 @@ export function ReadingPaneOverlays({
                   (event.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.1)';
                 }}
               >
-                다운로드
+                {t('download')}
               </button>
             </div>
           </div>

@@ -1,0 +1,39 @@
+.git
+.github
+.claude
+.codegraph
+
+# Frontend apps - not part of Go server image
+apps/
+clients/
+
+# Documentation / scripts not needed in image
+docs/
+README*.md
+DESIGN.md
+PROJECT_HARNESS.md
+AGENTS.md
+CLAUDE.md
+scripts/
+*.md
+
+# Test / development artifacts
+*_test.go
+testdata/
+**/node_modules
+**/dist
+**/.next
+**/coverage
+**/playwright-report
+**/test-results
+
+# Editor / OS
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# Build artifacts
+gogomail
+*.tar
+*.tar.gz

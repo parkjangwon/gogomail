@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import type { SlashCommand } from '@/lib/compose/slashCommands';
 
 interface ComposeSlashCommandMenuProps {
@@ -17,6 +18,7 @@ export function ComposeSlashCommandMenu({
   onSelect,
   onHover,
 }: ComposeSlashCommandMenuProps) {
+  const t = useTranslations('composeSlash');
   if (!menu || commands.length === 0) return null;
 
   return (
@@ -36,7 +38,7 @@ export function ComposeSlashCommandMenu({
         overflow: 'hidden',
       }}
     >
-      <div style={{ padding: '4px 10px 2px', fontSize: '10px', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--color-text-tertiary)' }}>서식</div>
+      <div style={{ padding: '4px 10px 2px', fontSize: '10px', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--color-text-tertiary)' }}>{t('formatting')}</div>
       {commands.map((cmd, i) => (
         <div
           key={cmd.id}

@@ -246,6 +246,139 @@
     "editRuleTitle": "Edit rule",
     "newRuleTitle": "New rule"
   },
+  "nav": {
+    "mail": "Mail",
+    "calendar": "Calendar",
+    "contacts": "Contacts",
+    "drive": "Drive",
+    "settings": "Settings",
+    "appSwitcher": "App switcher",
+    "unread": "unread",
+    "guide": "Guide",
+    "closeMenu": "Close menu",
+    "accountMenu": "Account menu",
+    "collapseSidebar": "Collapse sidebar",
+    "collapseSidebarHint": "Collapse sidebar ([)",
+    "composeMail": "Compose mail",
+    "composeMailHint": "Compose mail (c)",
+    "logout": "Sign out",
+    "defaultUser": "User"
+  },
+  "placeholders": {
+    "notReady": "Coming soon",
+    "contacts": "Contacts",
+    "calendar": "Calendar",
+    "orgChart": "Org chart"
+  },
+  "accent": {
+    "selectAria": "Select color theme",
+    "themeTitle": "Color theme",
+    "selectLabel": "Pick a color",
+    "blue": "Blue",
+    "teal": "Teal",
+    "purple": "Purple",
+    "orange": "Orange",
+    "pink": "Pink"
+  },
+  "snooze": {
+    "title": "Remind me",
+    "in1h": "In 1 hour",
+    "tonight": "Tonight",
+    "tonightTime": "9:00 PM",
+    "tomorrow": "Tomorrow morning",
+    "morning8": "8:00 AM",
+    "morning9": "9:00 AM",
+    "thisWeekend": "This weekend",
+    "nextWeek": "Next week"
+  },
+  "mfa": {
+    "title": "Two-factor authentication setup required",
+    "description": "Your administrator requires MFA for this account. To continue, please register an authenticator app (Google Authenticator, Authy, etc.).",
+    "setupNow": "Set up MFA now →",
+    "later": "Later"
+  },
+  "localeSelector": {
+    "aria": "Select language"
+  },
+  "recipients": {
+    "removeAria": "Remove {chip}",
+    "groupBadge": "Group"
+  },
+  "composeFooter": {
+    "sendOptionsAria": "Open send options",
+    "scheduleSendTitle": "Schedule send",
+    "sendAndArchive": "Send and archive",
+    "sendAndArchiveDesc": "Move original mail to archive after sending",
+    "sendAndArchiveAria": "Send and archive, move original mail to archive after sending",
+    "customDate": "Custom date",
+    "customDateAria": "Schedule send with custom date",
+    "saving": "Saving...",
+    "savedAt": "Draft saved {time}",
+    "cancel": "Cancel",
+    "countdown": "Sending in {seconds}s..."
+  },
+  "calendar": {
+    "wkMon": "Mon", "wkTue": "Tue", "wkWed": "Wed", "wkThu": "Thu", "wkFri": "Fri", "wkSat": "Sat", "wkSun": "Sun",
+    "prevMonth": "Previous month",
+    "nextMonth": "Next month",
+    "prev": "Previous",
+    "next": "Next",
+    "today": "Today",
+    "dayWeekday": "{weekday}",
+    "viewDay": "Day",
+    "viewWeek": "Week",
+    "viewMonth": "Month",
+    "moreEvents": "+{count} more",
+    "edit": "Edit",
+    "delete": "Delete",
+    "yearMonth": "{year} / {month}",
+    "addToCalendar": "Add to calendar",
+    "adding": "Adding...",
+    "added": "✓ Added"
+  },
+  "driveMenu": {
+    "download": "Download",
+    "rename": "Rename",
+    "shareLink": "Share link",
+    "trash": "Move to trash"
+  },
+  "thread": {
+    "conversationCount": "Conversation {count}",
+    "noContent": "(no content)"
+  },
+  "readingPaneSafe": {
+    "remoteImagesBlocked": "Remote images blocked",
+    "showImages": "Show images",
+    "showQuoted": "Show original message ···",
+    "hideQuoted": "Hide quoted text"
+  },
+  "readingPaneOverlay": {
+    "download": "Download",
+    "close": "Close"
+  },
+  "composeSlash": {
+    "formatting": "Formatting"
+  },
+  "contextMenu": {
+    "messageActionsAria": "Message actions"
+  },
+  "quickReply": {
+    "replyButton": "← Reply...",
+    "placeholder": "Type your reply...",
+    "hint": "Ctrl+Enter to send · Escape to cancel",
+    "cancel": "Cancel",
+    "sending": "Sending...",
+    "sent": "Sent ✓",
+    "send": "Send"
+  },
+  "settingsPrimitives": {
+    "bulletList": "• List",
+    "orderedList": "1. List"
+  },
+  "contactHover": {
+    "inboxCount": "{count} messages in inbox",
+    "newMail": "+ New mail"
+  },
   "settingsModal": {
     "readMark": "Mark as read",
     "readMarkInstant": "Immediately",

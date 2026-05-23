@@ -246,6 +246,139 @@
     "editRuleTitle": "규칙 편집",
     "newRuleTitle": "새 규칙 추가"
   },
+  "nav": {
+    "mail": "메일",
+    "calendar": "캘린더",
+    "contacts": "연락처",
+    "drive": "드라이브",
+    "settings": "설정",
+    "appSwitcher": "앱 전환",
+    "unread": "읽지 않음",
+    "guide": "가이드",
+    "closeMenu": "메뉴 닫기",
+    "accountMenu": "계정 메뉴",
+    "collapseSidebar": "사이드바 접기",
+    "collapseSidebarHint": "사이드바 접기 ([)",
+    "composeMail": "편지 쓰기",
+    "composeMailHint": "편지 쓰기 (c)",
+    "logout": "로그아웃",
+    "defaultUser": "사용자"
+  },
+  "placeholders": {
+    "notReady": "준비 중입니다",
+    "contacts": "연락처",
+    "calendar": "캘린더",
+    "orgChart": "조직도"
+  },
+  "accent": {
+    "selectAria": "색상 테마 선택",
+    "themeTitle": "색상 테마",
+    "selectLabel": "색상 선택",
+    "blue": "블루",
+    "teal": "틸",
+    "purple": "보라",
+    "orange": "주황",
+    "pink": "핑크"
+  },
+  "snooze": {
+    "title": "다시 알림",
+    "in1h": "1시간 후",
+    "tonight": "오늘 저녁",
+    "tonightTime": "오후 9:00",
+    "tomorrow": "내일 아침",
+    "morning8": "오전 8:00",
+    "morning9": "오전 9:00",
+    "thisWeekend": "이번 주말",
+    "nextWeek": "다음 주"
+  },
+  "mfa": {
+    "title": "2단계 인증 설정이 필요합니다",
+    "description": "관리자가 이 계정에 MFA 인증을 요구하도록 설정했습니다. 계속 사용하려면 인증 앱(Google Authenticator, Authy 등)을 등록해 주세요.",
+    "setupNow": "지금 MFA 설정하기 →",
+    "later": "나중에 하기"
+  },
+  "localeSelector": {
+    "aria": "언어 선택"
+  },
+  "recipients": {
+    "removeAria": "{chip} 제거",
+    "groupBadge": "그룹"
+  },
+  "composeFooter": {
+    "sendOptionsAria": "전송 옵션 열기",
+    "scheduleSendTitle": "예약 전송",
+    "sendAndArchive": "보내고 보관",
+    "sendAndArchiveDesc": "전송 후 원본 메일을 보관함으로 이동",
+    "sendAndArchiveAria": "보내고 보관, 전송 후 원본 메일을 보관함으로 이동",
+    "customDate": "사용자 지정 날짜",
+    "customDateAria": "사용자 지정 날짜로 예약 전송",
+    "saving": "저장 중...",
+    "savedAt": "임시저장 {time}",
+    "cancel": "취소",
+    "countdown": "{seconds}초 후 전송됩니다..."
+  },
+  "calendar": {
+    "wkMon": "월", "wkTue": "화", "wkWed": "수", "wkThu": "목", "wkFri": "금", "wkSat": "토", "wkSun": "일",
+    "prevMonth": "이전 달",
+    "nextMonth": "다음 달",
+    "prev": "이전",
+    "next": "다음",
+    "today": "오늘",
+    "dayWeekday": "{weekday}요일",
+    "viewDay": "일",
+    "viewWeek": "주",
+    "viewMonth": "월",
+    "moreEvents": "+{count}개 더",
+    "edit": "편집",
+    "delete": "삭제",
+    "yearMonth": "{year}년 {month}월",
+    "addToCalendar": "캘린더에 추가",
+    "adding": "추가 중...",
+    "added": "✓ 추가됨"
+  },
+  "driveMenu": {
+    "download": "다운로드",
+    "rename": "이름 변경",
+    "shareLink": "공유 링크",
+    "trash": "휴지통"
+  },
+  "thread": {
+    "conversationCount": "대화 {count}개",
+    "noContent": "(내용 없음)"
+  },
+  "readingPaneSafe": {
+    "remoteImagesBlocked": "원격 이미지가 차단됨",
+    "showImages": "이미지 표시",
+    "showQuoted": "원본 메시지 보기 ···",
+    "hideQuoted": "인용문 숨기기"
+  },
+  "readingPaneOverlay": {
+    "download": "다운로드",
+    "close": "닫기"
+  },
+  "composeSlash": {
+    "formatting": "서식"
+  },
+  "contextMenu": {
+    "messageActionsAria": "메시지 작업"
+  },
+  "quickReply": {
+    "replyButton": "← 답장하기...",
+    "placeholder": "답장 내용을 입력하세요...",
+    "hint": "Ctrl+Enter로 전송 · Escape로 취소",
+    "cancel": "취소",
+    "sending": "전송 중...",
+    "sent": "전송됨 ✓",
+    "send": "보내기"
+  },
+  "settingsPrimitives": {
+    "bulletList": "• 목록",
+    "orderedList": "1. 목록"
+  },
+  "contactHover": {
+    "inboxCount": "받은 편지함에 {count}개 메일",
+    "newMail": "+ 새 메일 작성"
+  },
   "settingsModal": {
     "readMark": "읽음 처리",
     "readMarkInstant": "즉시",
