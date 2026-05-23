@@ -2282,6 +2282,107 @@ paths:
           $ref: "#/components/responses/IDStatus"
         default:
           $ref: "#/components/responses/Error"
+  /config/web-push:
+    get:
+      operationId: getWebPushConfig
+      summary: Get Web Push VAPID public key
+      security: []
+      servers:
+        - url: /api/v1
+          description: Mail API
+      responses:
+        "200":
+          description: Web Push configuration
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  vapidPublicKey:
+                    type: string
+                    nullable: true
+                    description: VAPID public key for Web Push, or null if not configured
+        default:
+          $ref: "#/components/responses/Error"
+  /me/push-subscriptions:
+    get:
+      operationId: listWebPushSubscriptions
+      summary: List Web Push subscriptions for the authenticated user
+      servers:
+        - url: /api/v1
+          description: Mail API
+      parameters:
+        - $ref: "#/components/parameters/UserIDFallback"
+        - $ref: "#/components/parameters/UserEmailFallback"
+      responses:
+        "200":
+          description: List of active Web Push subscriptions
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  subscriptions:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/WebPushSubscription"
+        default:
+          $ref: "#/components/responses/Error"
+    post:
+      operationId: upsertWebPushSubscription
+      summary: Register or refresh a Web Push subscription
+      servers:
+        - url: /api/v1
+          description: Mail API
+      parameters:
+        - $ref: "#/components/parameters/UserIDFallback"
+        - $ref: "#/components/parameters/UserEmailFallback"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [endpoint, p256dh, auth]
+              properties:
+                endpoint:
+                  type: string
+                  format: uri
+                  maxLength: 2048
+                p256dh:
+                  type: string
+                auth:
+                  type: string
+                userAgent:
+                  type: string
+      responses:
+        "201":
+          description: Web Push subscription created or updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  subscription:
+                    $ref: "#/components/schemas/WebPushSubscription"
+        default:
+          $ref: "#/components/responses/Error"
+  /me/push-subscriptions/{id}:
+    delete:
+      operationId: deleteWebPushSubscription
+      summary: Delete a Web Push subscription
+      servers:
+        - url: /api/v1
+          description: Mail API
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+        - $ref: "#/components/parameters/UserIDFallback"
+        - $ref: "#/components/parameters/UserEmailFallback"
+      responses:
+        "200":
+          $ref: "#/components/responses/IDStatus"
+        default:
+          $ref: "#/components/responses/Error"
   /dlq:
     get:
       operationId: listAdminDLQEntries
@@ -13504,6 +13605,32 @@ components:
       properties:
         admin_console_capabilities:
           $ref: "#/components/schemas/AdminConsoleCapabilities"
+    WebPushSubscription:
+      type: object
+      required: [id, user_id, endpoint, status, created_at, updated_at]
+      properties:
+        id:
+          type: string
+        user_id:
+          type: string
+        endpoint:
+          type: string
+          format: uri
+        p256dh:
+          type: string
+        auth:
+          type: string
+        user_agent:
+          type: string
+        status:
+          type: string
+          enum: [active, deleted]
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
     PushDevice:
       type: object
       required: [id, platform, status, created_at, updated_at]

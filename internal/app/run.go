@@ -3300,11 +3300,12 @@ func runHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, mode M
 			logger.Warn("runtime config store unavailable for mail api", "error", err)
 		}
 		mailOpts := httpapi.MailRouteOptions{
-			SessionRevoker:    repository,
-			Authenticator:     repository,
-			MFAStore:          repository,
-			ConfigResolver:    mailConfigStore,
-			RefreshTokenStore: repository,
+			SessionRevoker:        repository,
+			Authenticator:         repository,
+			MFAStore:              repository,
+			ConfigResolver:        mailConfigStore,
+			RefreshTokenStore:     repository,
+			WebPushVAPIDPublicKey: cfg.WebPushVAPIDPublicKey,
 		}
 		if strings.EqualFold(strings.TrimSpace(cfg.MailMutationRateLimitBackend), "redis") {
 			mailRedisClient := newRedisClient(cfg)

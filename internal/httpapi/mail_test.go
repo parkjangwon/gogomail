@@ -2257,6 +2257,87 @@ func TestPushDeviceHandlers(t *testing.T) {
 	}
 }
 
+func TestWebPushSubscriptionHandlers(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeMessageService{
+		webPushSubscriptions: []maildb.WebPushSubscription{
+			{ID: "sub-1", UserID: "user-1", Endpoint: "https://example.com/push/1", P256DH: "key1", Auth: "auth1", Status: "active"},
+		},
+	}
+	mux := http.NewServeMux()
+	RegisterMailRoutesWithOptions(mux, service, nil, MailRouteOptions{
+		WebPushVAPIDPublicKey: "BExampleVAPIDPublicKey==",
+	})
+
+	// GET /api/v1/config/web-push — no auth, returns vapidPublicKey
+	configReq := httptest.NewRequest(http.MethodGet, "/api/v1/config/web-push", nil)
+	configRec := httptest.NewRecorder()
+	mux.ServeHTTP(configRec, configReq)
+	if configRec.Code != http.StatusOK {
+		t.Fatalf("config status = %d body=%s", configRec.Code, configRec.Body.String())
+	}
+	if !strings.Contains(configRec.Body.String(), "BExampleVAPIDPublicKey") {
+		t.Fatalf("config body missing vapidPublicKey: %s", configRec.Body.String())
+	}
+
+	// GET /api/v1/config/web-push — empty key returns null
+	mux2 := http.NewServeMux()
+	RegisterMailRoutesWithOptions(mux2, service, nil, MailRouteOptions{})
+	configReq2 := httptest.NewRequest(http.MethodGet, "/api/v1/config/web-push", nil)
+	configRec2 := httptest.NewRecorder()
+	mux2.ServeHTTP(configRec2, configReq2)
+	if configRec2.Code != http.StatusOK {
+		t.Fatalf("config2 status = %d body=%s", configRec2.Code, configRec2.Body.String())
+	}
+	if !strings.Contains(configRec2.Body.String(), "null") {
+		t.Fatalf("config2 body should have null vapidPublicKey: %s", configRec2.Body.String())
+	}
+
+	// POST /api/v1/me/push-subscriptions — create subscription
+	createReq := httptest.NewRequest(http.MethodPost, "/api/v1/me/push-subscriptions?user_id=user-1", strings.NewReader(`{"endpoint":"https://example.com/push/2","p256dh":"key2","auth":"auth2","userAgent":"Mozilla"}`))
+	createReq.Header.Set("Content-Type", "application/json")
+	createRec := httptest.NewRecorder()
+	mux.ServeHTTP(createRec, createReq)
+	if createRec.Code != http.StatusCreated {
+		t.Fatalf("create status = %d body=%s", createRec.Code, createRec.Body.String())
+	}
+	if !strings.Contains(createRec.Body.String(), "subscription") {
+		t.Fatalf("create body = %s", createRec.Body.String())
+	}
+
+	// GET /api/v1/me/push-subscriptions — list subscriptions
+	listReq := httptest.NewRequest(http.MethodGet, "/api/v1/me/push-subscriptions?user_id=user-1", nil)
+	listRec := httptest.NewRecorder()
+	mux.ServeHTTP(listRec, listReq)
+	if listRec.Code != http.StatusOK {
+		t.Fatalf("list status = %d body=%s", listRec.Code, listRec.Body.String())
+	}
+	if !strings.Contains(listRec.Body.String(), "subscriptions") {
+		t.Fatalf("list body = %s", listRec.Body.String())
+	}
+
+	// DELETE /api/v1/me/push-subscriptions/{id}
+	deleteReq := httptest.NewRequest(http.MethodDelete, "/api/v1/me/push-subscriptions/sub-1?user_id=user-1", nil)
+	deleteRec := httptest.NewRecorder()
+	mux.ServeHTTP(deleteRec, deleteReq)
+	if deleteRec.Code != http.StatusOK {
+		t.Fatalf("delete status = %d body=%s", deleteRec.Code, deleteRec.Body.String())
+	}
+	if service.lastDeleteWebPushSubID != "sub-1" {
+		t.Fatalf("lastDeleteWebPushSubID = %q", service.lastDeleteWebPushSubID)
+	}
+
+	// POST with bad JSON returns 400
+	badReq := httptest.NewRequest(http.MethodPost, "/api/v1/me/push-subscriptions?user_id=user-1", strings.NewReader(`not-json`))
+	badReq.Header.Set("Content-Type", "application/json")
+	badRec := httptest.NewRecorder()
+	mux.ServeHTTP(badRec, badReq)
+	if badRec.Code != http.StatusBadRequest {
+		t.Fatalf("bad request status = %d body=%s", badRec.Code, badRec.Body.String())
+	}
+}
+
 func TestCreateAttachmentUploadHandlerMapsQuotaFull(t *testing.T) {
 	t.Parallel()
 
@@ -3734,6 +3815,7 @@ type fakeMessageService struct {
 	threads                     []maildb.ThreadSummary
 	attachments                 []maildb.Attachment
 	pushDevices                 []maildb.PushDevice
+	webPushSubscriptions        []maildb.WebPushSubscription
 	download                    mailservice.AttachmentDownload
 	attachmentMetadata          mailservice.AttachmentMetadata
 	detail                      maildb.MessageDetail
@@ -3768,6 +3850,7 @@ type fakeMessageService struct {
 	lastRestoredID              string
 	lastDeletedDraftID          string
 	lastDeletePushDeviceID      string
+	lastDeleteWebPushSubID      string
 	lastFlag                    string
 	lastFlagValue               bool
 	lastBulkFlag                maildb.BulkMessageFlagRequest
@@ -4158,5 +4241,25 @@ func (f *fakeMessageService) UpdateOwnRecoveryEmail(_ context.Context, _, _ stri
 }
 
 func (f *fakeMessageService) ChangeUserPassword(_ context.Context, _, _, _ string) error {
+	return nil
+}
+
+func (f *fakeMessageService) UpsertWebPushSubscription(_ context.Context, req maildb.UpsertWebPushSubscriptionRequest) (maildb.WebPushSubscription, error) {
+	return maildb.WebPushSubscription{
+		ID:       "sub-1",
+		UserID:   req.UserID,
+		Endpoint: req.Endpoint,
+		P256DH:   req.P256DH,
+		Auth:     req.Auth,
+		Status:   "active",
+	}, nil
+}
+
+func (f *fakeMessageService) ListActiveWebPushSubscriptions(_ context.Context, userID string) ([]maildb.WebPushSubscription, error) {
+	return f.webPushSubscriptions, nil
+}
+
+func (f *fakeMessageService) DeleteWebPushSubscription(_ context.Context, userID string, id string) error {
+	f.lastDeleteWebPushSubID = id
 	return nil
 }

@@ -76,6 +76,9 @@ type MessageService interface {
 	ListPushDevices(ctx context.Context, userID string, limit int) ([]maildb.PushDevice, error)
 	UpsertPushDevice(ctx context.Context, req maildb.UpsertPushDeviceRequest) (maildb.PushDevice, error)
 	DeletePushDevice(ctx context.Context, userID string, id string) error
+	UpsertWebPushSubscription(ctx context.Context, req maildb.UpsertWebPushSubscriptionRequest) (maildb.WebPushSubscription, error)
+	ListActiveWebPushSubscriptions(ctx context.Context, userID string) ([]maildb.WebPushSubscription, error)
+	DeleteWebPushSubscription(ctx context.Context, userID, id string) error
 	SaveDraft(ctx context.Context, req mailservice.SaveDraftRequest) (maildb.MessageDetail, error)
 	DeleteDraft(ctx context.Context, userID string, draftID string) error
 	SendDraft(ctx context.Context, userID string, draftID string) (mailservice.SendTextResult, error)
@@ -145,6 +148,9 @@ type MailRouteOptions struct {
 	// APIKeyLimiter guards API-key-authenticated mutation endpoints against abuse.
 	// When nil a default in-process limiter of 120 requests per API key per minute is used.
 	APIKeyLimiter *AdminIPRateLimiter
+	// WebPushVAPIDPublicKey is the VAPID public key exposed to clients via
+	// GET /api/v1/config/web-push. When empty the endpoint returns null.
+	WebPushVAPIDPublicKey string
 }
 
 type MailMutationLimiter interface {
@@ -2055,6 +2061,99 @@ func RegisterMailRoutesWithOptions(mux *http.ServeMux, service MessageService, t
 			return
 		}
 		if err := service.DeletePushDevice(r.Context(), userID, id); err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"status": "ok", "id": id})
+	})
+
+	// Web Push subscription routes
+	mux.HandleFunc("GET /api/v1/config/web-push", func(w http.ResponseWriter, r *http.Request) {
+		if !rejectBodylessRequestPayload(w, r) {
+			return
+		}
+		if !rejectUnknownQueryKeys(w, r) {
+			return
+		}
+		key := strings.TrimSpace(opts.WebPushVAPIDPublicKey)
+		var keyVal any
+		if key != "" {
+			keyVal = key
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"vapidPublicKey": keyVal})
+	})
+
+	mux.HandleFunc("GET /api/v1/me/push-subscriptions", func(w http.ResponseWriter, r *http.Request) {
+		if !rejectBodylessRequestPayload(w, r) {
+			return
+		}
+		if !rejectUnknownQueryKeys(w, r, "user_id", "user_email") {
+			return
+		}
+		userID, ok := userIDFromRequest(w, r, tokenManager, service)
+		if !ok {
+			return
+		}
+		subs, err := service.ListActiveWebPushSubscriptions(r.Context(), userID)
+		if err != nil {
+			writeInternalServerError(w)
+			return
+		}
+		if subs == nil {
+			subs = []maildb.WebPushSubscription{}
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"subscriptions": subs})
+	})
+
+	mux.HandleFunc("POST /api/v1/me/push-subscriptions", func(w http.ResponseWriter, r *http.Request) {
+		defer r.Body.Close()
+		if !rejectUnknownQueryKeys(w, r, "user_id", "user_email") {
+			return
+		}
+		userID, ok := userIDFromRequest(w, r, tokenManager, service)
+		if !ok {
+			return
+		}
+		var body struct {
+			Endpoint  string `json:"endpoint"`
+			P256DH    string `json:"p256dh"`
+			Auth      string `json:"auth"`
+			UserAgent string `json:"userAgent"`
+		}
+		if err := decodeJSONBody(r, &body); err != nil {
+			writeError(w, http.StatusBadRequest, "invalid JSON body")
+			return
+		}
+		sub, err := service.UpsertWebPushSubscription(r.Context(), maildb.UpsertWebPushSubscriptionRequest{
+			UserID:    userID,
+			Endpoint:  body.Endpoint,
+			P256DH:    body.P256DH,
+			Auth:      body.Auth,
+			UserAgent: body.UserAgent,
+		})
+		if err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusCreated, map[string]any{"subscription": sub})
+	})
+
+	mux.HandleFunc("DELETE /api/v1/me/push-subscriptions/{id}", func(w http.ResponseWriter, r *http.Request) {
+		if !rejectBodylessRequestPayload(w, r) {
+			return
+		}
+		if !rejectUnknownQueryKeys(w, r, "user_id", "user_email") {
+			return
+		}
+		userID, ok := userIDFromRequest(w, r, tokenManager, service)
+		if !ok {
+			return
+		}
+		id, ok := parseBoundedHTTPPathValue(w, r, "id")
+		if !ok {
+			return
+		}
+		if err := service.DeleteWebPushSubscription(r.Context(), userID, id); err != nil {
 			writeError(w, http.StatusBadRequest, err.Error())
 			return
 		}
