@@ -6949,3 +6949,6 @@ Target outcome:
       primitive values before state or localStorage persistence, preserving
       client context such as message ids while dropping nested or oversized
       payload fragments.
+1899. Webmail notification ids are now capped before storage, dedupe, and
+      browser notification tag use; oversized stored ids are rejected and
+      oversized runtime ids receive generated bounded replacements.

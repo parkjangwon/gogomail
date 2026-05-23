@@ -1,6 +1,13 @@
 # gogomail current status
 
-Last updated: 2026-05-23 (notification metadata hardening)
+Last updated: 2026-05-23 (notification identifier hardening)
+
+## Notification Identifier Hardening (2026-05-23)
+- Notification ids are now capped at 128 characters before they enter storage, dedupe maps, or browser notification tags.
+- Stored notifications with oversized ids are rejected during hydration, while runtime pushes with oversized ids receive a generated bounded `n-...` id instead of persisting the raw value.
+- This prevents malformed notification events from bloating localStorage and native notification tags while preserving valid client-supplied ids for normal dedupe.
+- E2E coverage verifies oversized stored ids are dropped, oversized runtime ids are regenerated, and existing blank-id/dedupe storage behavior still works.
+- Verification target: `pnpm -C apps/webmail exec playwright test e2e/notifications.spec.ts --project=chromium -g "bounds oversized notification identifiers|rejects blank identifiers|deduplicates repeated identifiers"`; `pnpm -C apps/webmail type-check`.
 
 ## Notification Metadata Hardening (2026-05-23)
 - Runtime notification pushes now sanitize `metadata` before it enters in-memory state or localStorage persistence.

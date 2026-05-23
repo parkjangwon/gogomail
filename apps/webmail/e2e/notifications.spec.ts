@@ -315,6 +315,47 @@ test.describe('Notification center', () => {
     await expect(dialog).not.toContainText('Blank id');
   });
 
+  test('bounds oversized notification identifiers during runtime pushes and storage hydration', async ({ page }) => {
+    await page.evaluate(() => {
+      const oversizedId = `stored-${'x'.repeat(220)}`;
+      const now = Date.now();
+      const raw = JSON.stringify([
+        { id: oversizedId, category: 'system', severity: 'info', title: 'Oversized stored id', timestamp: now, read: false },
+        { id: 'valid-id', category: 'system', severity: 'info', title: 'Valid stored id', timestamp: now, read: false },
+      ]);
+      localStorage.setItem('webmail_notifications', raw);
+      window.dispatchEvent(new StorageEvent('storage', { key: 'webmail_notifications', newValue: raw }));
+
+      const w = window as unknown as {
+        __webmailNotifications?: { push: (input: Record<string, unknown>) => unknown };
+      };
+      w.__webmailNotifications?.push({
+        id: `runtime-${'y'.repeat(220)}`,
+        category: 'system',
+        severity: 'info',
+        title: 'Oversized runtime id',
+      });
+    });
+
+    await expect.poll(
+      () => page.evaluate(() => {
+        const notifications = (window as unknown as {
+          __webmailNotifications?: { notifications: Array<{ id: string; title: string }> };
+        }).__webmailNotifications?.notifications ?? [];
+        return notifications.map((n) => ({ id: n.id, idLength: n.id.length, title: n.title }));
+      }),
+      { timeout: 5_000 },
+    ).toEqual([
+      { id: expect.stringMatching(/^n-/), idLength: 38, title: 'Oversized runtime id' },
+      { id: 'valid-id', idLength: 8, title: 'Valid stored id' },
+    ]);
+
+    const { dialog } = await openCenter(page);
+    await expect(dialog).toContainText('Valid stored id');
+    await expect(dialog).toContainText('Oversized runtime id');
+    await expect(dialog).not.toContainText('Oversized stored id');
+  });
+
   test('deduplicates repeated identifiers during storage hydration', async ({ page }) => {
     await page.evaluate(() => {
       const now = Date.now();
