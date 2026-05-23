@@ -7,20 +7,32 @@ import { toDateTimeLocalValue } from '../src/lib/dateTimeLocal.ts';
 import { normalizeEmailTemplates } from '../src/lib/emailTemplates.ts';
 import { buildQuoteHTML, invalidRecipientAddresses, parseAddressList, parseToPickerItems, pickerItemsToString } from '../src/lib/mail-address.ts';
 
+const koMessages = {
+  'misc.compose.savePrompt': '임시저장 후 닫으시겠습니까?',
+  'misc.compose.savePromptScheduled': '예약 설정을 포함해 임시저장 후 닫으시겠습니까?',
+  'misc.compose.closeSaveLabel': '임시저장',
+  'misc.compose.closeSaveSaving': '저장 중...',
+  'misc.compose.closeSaveAria': '임시저장 후 작성창 닫기',
+  'misc.compose.closeSaveAriaInProgress': '임시저장 중입니다',
+  'misc.compose.sendScheduledLabel': '예약 전송',
+  'misc.compose.sendScheduled': '예약됨 ✓',
+};
+const t = (key) => koMessages[key] ?? key;
+
 // Keep these assertions focused on pure compose helpers that are easy to
 // regress through copy or datetime formatting changes.
 assert.equal(toDateTimeLocalValue(new Date(2026, 0, 2, 3, 4)), '2026-01-02T03:04');
 assert.equal(toDateTimeLocalValue(new Date(2026, 10, 12, 13, 45)), '2026-11-12T13:45');
 
-assert.equal(composeCloseSavePrompt(false), '임시저장 후 닫으시겠습니까?');
-assert.equal(composeCloseSavePrompt(true), '예약 설정을 포함해 임시저장 후 닫으시겠습니까?');
-assert.equal(composeCloseSaveButtonLabel(false), '임시저장');
-assert.equal(composeCloseSaveButtonLabel(true), '저장 중...');
-assert.equal(composeCloseSaveButtonAriaLabel(false), '임시저장 후 작성창 닫기');
-assert.equal(composeCloseSaveButtonAriaLabel(true), '임시저장 중입니다');
+assert.equal(composeCloseSavePrompt(false, t), '임시저장 후 닫으시겠습니까?');
+assert.equal(composeCloseSavePrompt(true, t), '예약 설정을 포함해 임시저장 후 닫으시겠습니까?');
+assert.equal(composeCloseSaveButtonLabel(false, t), '임시저장');
+assert.equal(composeCloseSaveButtonLabel(true, t), '저장 중...');
+assert.equal(composeCloseSaveButtonAriaLabel(false, t), '임시저장 후 작성창 닫기');
+assert.equal(composeCloseSaveButtonAriaLabel(true, t), '임시저장 중입니다');
 
-assert.equal(composeSendButtonLabel({ sending: false, sent: false, scheduled: true, uploading: false }), '예약 전송');
-assert.equal(composeSendButtonLabel({ sending: false, sent: true, scheduled: true, uploading: false }), '예약됨 ✓');
+assert.equal(composeSendButtonLabel({ sending: false, sent: false, scheduled: true, uploading: false }, t), '예약 전송');
+assert.equal(composeSendButtonLabel({ sending: false, sent: true, scheduled: true, uploading: false }, t), '예약됨 ✓');
 
 const normalizedTemplates = normalizeEmailTemplates([
   { name: ' Follow up ', subject: ' Next step ', body: '<p>Thanks</p>' },
