@@ -809,6 +809,21 @@ test.describe('Notification center', () => {
     });
   });
 
+  test('service worker push truncates oversized notification text fields', async ({ page }) => {
+    const shown = await serviceWorkerShownNotification(page, {
+      title: `T${'i'.repeat(220)}`,
+      body: `B${'o'.repeat(720)}`,
+      tag: `tag-${'x'.repeat(220)}`,
+    });
+
+    expect(String(shown?.title ?? '')).toHaveLength(160);
+    expect(String(shown?.title ?? '')).toBe(`T${'i'.repeat(159)}`);
+    expect(String(shown?.options.body ?? '')).toHaveLength(500);
+    expect(String(shown?.options.body ?? '')).toBe(`B${'o'.repeat(499)}`);
+    expect(String(shown?.options.tag ?? '')).toHaveLength(128);
+    expect(String(shown?.options.tag ?? '')).toBe(`tag-${'x'.repeat(124)}`);
+  });
+
   test('service worker push stores only sanitized click data', async ({ page }) => {
     const safeShown = await serviceWorkerShownNotification(page, {
       title: 'Click payload',
