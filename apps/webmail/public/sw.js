@@ -25,6 +25,15 @@ function safeNotificationData(payload) {
   return { url: safeNotificationClickUrl(payload.url) };
 }
 
+function isMailClientUrl(value) {
+  try {
+    const url = new URL(value);
+    return url.pathname === '/mail' || url.pathname.startsWith('/mail/');
+  } catch {
+    return false;
+  }
+}
+
 self.addEventListener('push', (event) => {
   let data = {};
   try {
@@ -54,7 +63,7 @@ self.addEventListener('notificationclick', (event) => {
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
       for (const client of clientList) {
-        if (client.url.includes('/mail') && 'focus' in client) {
+        if (isMailClientUrl(client.url) && 'focus' in client) {
           if ('navigate' in client) {
             return client.navigate(url).then((navigatedClient) => {
               if (navigatedClient && 'focus' in navigatedClient) {
