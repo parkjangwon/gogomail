@@ -99,4 +99,15 @@ test.describe('Settings', () => {
       { timeout: 5_000 },
     ).toBe('none');
   });
+
+  test('updates browser notification mirroring from settings', async ({ page }) => {
+    await openSettings(page);
+    await page.getByRole('button', { name: /^(알림|Notifications)$/i }).click();
+    await page.getByRole('switch', { name: /데스크톱 알림|Desktop alerts/i }).click();
+
+    await expect.poll(
+      () => page.evaluate(() => localStorage.getItem('webmail_browser_notifications_enabled')),
+      { timeout: 5_000 },
+    ).toBe('false');
+  });
 });
