@@ -1,6 +1,12 @@
 # gogomail current status
 
-Last updated: 2026-05-23 (notification identity hydration hardening)
+Last updated: 2026-05-23 (notification read-state hydration hardening)
+
+## Notification Read-State Hydration Hardening (2026-05-23)
+- Notification storage hydration now rejects records whose `read` flag is not a boolean.
+- This prevents corrupted truthy string values such as `"false"` from hiding unread notifications from the badge count.
+- E2E coverage verifies a payload with a string read flag is dropped while a valid unread notification still increments the badge.
+- Verification target: `pnpm -C apps/webmail exec playwright test e2e/notifications.spec.ts --project=chromium -g "non-boolean read"`; `pnpm -C apps/webmail type-check`.
 
 ## Notification Identity Hydration Hardening (2026-05-23)
 - Notification storage hydration now rejects records with blank ids or blank titles.

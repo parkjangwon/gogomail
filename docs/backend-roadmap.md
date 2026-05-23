@@ -6833,3 +6833,6 @@ Target outcome:
 1867. Webmail notification storage hydration now rejects blank ids and blank
       titles, preventing corrupted rows from producing empty accessible names,
       ambiguous dismiss controls, or unstable notification identity.
+1868. Webmail notification storage hydration now rejects non-boolean read
+      flags, preventing corrupted truthy string values from hiding unread
+      notifications from badge counts and unread filters.
