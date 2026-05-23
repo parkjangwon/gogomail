@@ -49,6 +49,7 @@ const MAX_NOTIFICATIONS = 500;
 const MAX_ID_LENGTH = 128;
 const MAX_TITLE_LENGTH = 160;
 const MAX_BODY_LENGTH = 500;
+const MAX_ICON_NAME_LENGTH = 64;
 const MAX_STORED_AGE_MS = 90 * 24 * 60 * 60 * 1000;
 const MAX_STORED_FUTURE_SKEW_MS = 24 * 60 * 60 * 1000;
 const MAX_METADATA_KEYS = 20;
@@ -269,8 +270,8 @@ function safeNotificationBody(value: unknown): string | undefined {
   return typeof value === 'string' ? truncateText(value, MAX_BODY_LENGTH) : undefined;
 }
 
-function safeOptionalString(value: unknown): string | undefined {
-  return typeof value === 'string' ? value : undefined;
+function safeIconName(value: unknown): string | undefined {
+  return typeof value === 'string' && value.length <= MAX_ICON_NAME_LENGTH ? value : undefined;
 }
 
 function safeNotificationMetadata(value: unknown): Record<string, unknown> | undefined {
@@ -433,7 +434,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
       timestamp: Date.now(),
       read: false,
       actionUrl: safeActionUrl(rawInput.actionUrl),
-      iconName: safeOptionalString(rawInput.iconName),
+      iconName: safeIconName(rawInput.iconName),
       metadata: safeNotificationMetadata(rawInput.metadata),
     };
     notificationsByIDRef.current = indexNotifications(

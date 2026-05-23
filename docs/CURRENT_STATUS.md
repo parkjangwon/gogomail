@@ -1,6 +1,13 @@
 # gogomail current status
 
-Last updated: 2026-05-23 (notification timestamp hardening)
+Last updated: 2026-05-23 (notification icon name hardening)
+
+## Notification Icon Name Hardening (2026-05-23)
+- Runtime notification `iconName` values are now capped at 64 characters before state or localStorage persistence.
+- Oversized icon names are dropped while valid short names remain available for future icon lookup extensions.
+- This prevents unused future-facing icon metadata from becoming another localStorage bloat path.
+- E2E coverage verifies oversized runtime icon names are absent from both `window.__webmailNotifications` state and `webmail_notifications`, while a short icon name persists.
+- Verification target: `pnpm -C apps/webmail exec playwright test e2e/notifications.spec.ts --project=chromium -g "drops oversized runtime notification icon names|normalizes malformed runtime notification fields"`; `pnpm -C apps/webmail type-check`.
 
 ## Notification Timestamp Hardening (2026-05-23)
 - Stored notification hydration now rejects timestamps older than 90 days or more than 24 hours in the future.
