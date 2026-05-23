@@ -8,6 +8,8 @@ interface SettingsNotificationsSectionProps {
   notifPerm: NotificationPermission;
   notifSyncError: string;
   onRequestNotif: () => void;
+  browserNotificationsEnabled: boolean;
+  setBrowserNotificationsEnabled: (value: boolean) => void;
   notifSound: boolean;
   setNotifSound: (value: boolean) => void;
   notifDetail: 'sender' | 'subject' | 'preview';
@@ -29,6 +31,8 @@ export function SettingsNotificationsSection({
   notifPerm,
   notifSyncError,
   onRequestNotif,
+  browserNotificationsEnabled,
+  setBrowserNotificationsEnabled,
   notifSound,
   setNotifSound,
   notifDetail,
@@ -63,6 +67,9 @@ export function SettingsNotificationsSection({
           {notifSyncError}
         </div>
       )}
+      <Row label={t('misc.settingsNotif.desktopLabel')} description={notifPerm === 'denied' ? t('misc.settingsNotif.desktopDeniedDesc') : t('misc.settingsNotif.desktopDesc')}>
+        <Toggle value={browserNotificationsEnabled} onChange={setBrowserNotificationsEnabled} ariaLabel={t('misc.settingsNotif.desktopLabel')} />
+      </Row>
       <Row label={t('misc.settingsNotif.soundLabel')} description={t('misc.settingsNotif.soundDesc')}>
         <Toggle value={notifSound} onChange={setNotifSound} ariaLabel={t('misc.settingsNotif.soundLabel')} />
       </Row>

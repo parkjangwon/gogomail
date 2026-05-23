@@ -1,6 +1,13 @@
 # gogomail current status
 
-Last updated: 2026-05-23 (notification badge count mode)
+Last updated: 2026-05-23 (browser notification settings toggle)
+
+## Browser Notification Settings Toggle (2026-05-23)
+- Webmail Settings now exposes a dedicated Desktop alerts switch for the existing browser notification mirroring policy.
+- The switch writes `webmail_browser_notifications_enabled`, dispatches a same-window storage event, and is included in the server-synced webmail settings blob so the notification store, notification banner, and Settings screen share one preference.
+- Granting browser notification permission from Settings re-enables mirroring as an explicit opt-in while blocked browser permission still shows an explanatory disabled-permission description.
+- Regression coverage verifies Settings can turn desktop alert mirroring off and persist the existing local policy key.
+- Verification target: `pnpm -C apps/webmail exec playwright test e2e/settings.spec.ts e2e/notifications.spec.ts --project=chromium`; `pnpm -C apps/webmail type-check`.
 
 ## Notification Badge Count Mode (2026-05-23)
 - Webmail Settings now exposes the roadmap badge-count mode: unread count, all-message count, or no title/favicon badge.

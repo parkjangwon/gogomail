@@ -55,6 +55,7 @@ function quietHoursPreferences(
 
 const NOTIFICATION_FOLDER_OVERRIDES_KEY = 'webmail_notification_folder_overrides';
 const BADGE_COUNT_MODE_KEY = 'webmail_badge_count_mode';
+const BROWSER_NOTIF_ENABLED_KEY = 'webmail_browser_notifications_enabled';
 type BadgeCountMode = 'unread' | 'all' | 'none';
 
 function emptyDNDSchedule() {
@@ -112,6 +113,7 @@ export function SettingsView({ userEmail, userName, initialSection }: SettingsVi
   // Notifications
   const [notifPerm, setNotifPerm] = useState<NotificationPermission>('default');
   const [notifSyncError, setNotifSyncError] = useState('');
+  const [browserNotificationsEnabled, setBrowserNotificationsEnabled] = useState(true);
   const [notifSound, setNotifSound] = useState(false);
   const [notifDetail, setNotifDetail] = useState<'sender' | 'subject' | 'preview'>('subject');
   const [badgeCountMode, setBadgeCountMode] = useState<BadgeCountMode>('unread');
@@ -208,6 +210,11 @@ export function SettingsView({ userEmail, userName, initialSection }: SettingsVi
           if (s.swipeLeft) setSwipeLeft(s.swipeLeft as typeof swipeLeft);
           if (s.swipeRight) setSwipeRight(s.swipeRight as typeof swipeRight);
           if (s.refreshInterval) setRefreshInterval(s.refreshInterval as 30 | 60 | 300);
+          if (s.browserNotificationsEnabled !== undefined) {
+            const enabled = s.browserNotificationsEnabled as boolean;
+            setBrowserNotificationsEnabled(enabled);
+            try { localStorage.setItem(BROWSER_NOTIF_ENABLED_KEY, enabled ? 'true' : 'false'); } catch { /* ignore */ }
+          }
           if (s.notifSound !== undefined) setNotifSound(s.notifSound as boolean);
           if (s.notifDetail) setNotifDetail(s.notifDetail as typeof notifDetail);
           if (s.badgeCountMode === 'all' || s.badgeCountMode === 'none' || s.badgeCountMode === 'unread') {
@@ -313,7 +320,7 @@ export function SettingsView({ userEmail, userName, initialSection }: SettingsVi
           quoteOnReply, fontSize, inlineImagePreview, blockTrackingPixels,
           requestReadReceipt, linkPreview, followUpDays, focusMode,
           swipeLeft, swipeRight, refreshInterval, importanceMarkers, groupByDate,
-          notifSound, notifDetail, badgeCountMode, dndEnabled, dndStart, dndEnd,
+          browserNotificationsEnabled, notifSound, notifDetail, badgeCountMode, dndEnabled, dndStart, dndEnd,
         },
         filter_rules: filterRules as unknown[],
         blocked_senders: blockedSenders,
@@ -329,7 +336,7 @@ export function SettingsView({ userEmail, userName, initialSection }: SettingsVi
     quoteOnReply, fontSize, inlineImagePreview, blockTrackingPixels,
     requestReadReceipt, linkPreview, followUpDays, focusMode,
     swipeLeft, swipeRight, refreshInterval, importanceMarkers, groupByDate,
-    notifSound, notifDetail, badgeCountMode, dndEnabled, dndStart, dndEnd,
+    browserNotificationsEnabled, notifSound, notifDetail, badgeCountMode, dndEnabled, dndStart, dndEnd,
     filterRules, blockedSenders, templates,
     vacEnabled, vacStartDate, vacEndDate, vacSubject, vacBody,
   ]);
@@ -353,6 +360,7 @@ export function SettingsView({ userEmail, userName, initialSection }: SettingsVi
       setFontSize((wm.fontSize as FontSize) ?? 'medium');
       setInlineImagePreview((wm.inlineImagePreview as boolean) !== false);
       setNotifSound(localStorage.getItem('webmail_notif_sound') === '1');
+      setBrowserNotificationsEnabled(localStorage.getItem(BROWSER_NOTIF_ENABLED_KEY) !== 'false');
       setNotifDetail((localStorage.getItem('webmail_notif_detail') as 'sender' | 'subject' | 'preview') ?? 'subject');
       const storedBadgeMode = localStorage.getItem(BADGE_COUNT_MODE_KEY);
       setBadgeCountMode(storedBadgeMode === 'all' || storedBadgeMode === 'none' ? storedBadgeMode : 'unread');
@@ -468,6 +476,15 @@ export function SettingsView({ userEmail, userName, initialSection }: SettingsVi
     const p = await Notification.requestPermission();
     setNotifPerm(p);
     setNotifSyncError('');
+    if (p === 'granted') {
+      setBrowserNotificationsEnabled(true);
+      try {
+        localStorage.setItem(BROWSER_NOTIF_ENABLED_KEY, 'true');
+        window.dispatchEvent(new StorageEvent('storage', { key: BROWSER_NOTIF_ENABLED_KEY, newValue: 'true' }));
+      } catch {
+        // local settings cache is best-effort
+      }
+    }
     if (p === 'granted' && 'serviceWorker' in navigator && 'PushManager' in window) {
       try {
         const reg = await navigator.serviceWorker.register('/sw.js');
@@ -1019,11 +1036,22 @@ export function SettingsView({ userEmail, userName, initialSection }: SettingsVi
             return next;
           });
         };
+        const setBrowserMirroring = (enabled: boolean) => {
+          setBrowserNotificationsEnabled(enabled);
+          try {
+            localStorage.setItem(BROWSER_NOTIF_ENABLED_KEY, enabled ? 'true' : 'false');
+            window.dispatchEvent(new StorageEvent('storage', { key: BROWSER_NOTIF_ENABLED_KEY, newValue: enabled ? 'true' : 'false' }));
+          } catch {
+            // local settings cache is best-effort
+          }
+        };
         return (
           <SettingsNotificationsSection
             notifPerm={notifPerm}
             notifSyncError={notifSyncError}
             onRequestNotif={requestNotif}
+            browserNotificationsEnabled={browserNotificationsEnabled}
+            setBrowserNotificationsEnabled={setBrowserMirroring}
             notifSound={notifSound}
             setNotifSound={(v) => { setNotifSound(v); try { localStorage.setItem('webmail_notif_sound', v ? '1' : '0'); } catch { /* */ } }}
             notifDetail={notifDetail}
