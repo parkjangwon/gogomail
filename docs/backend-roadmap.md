@@ -6956,3 +6956,7 @@ Target outcome:
       90 days or more than 24 hours in the future, preventing corrupted
       localStorage entries from surfacing confusing relative-time labels or
       pinned future notifications.
+1901. Webmail runtime notification icon names are now capped before state or
+      localStorage persistence, preserving short future-facing icon hints while
+      dropping oversized strings that would otherwise bloat stored notification
+      payloads.

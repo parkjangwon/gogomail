@@ -843,6 +843,57 @@ test.describe('Notification center', () => {
     ).toEqual(expected);
   });
 
+  test('drops oversized runtime notification icon names before storage persistence', async ({ page }) => {
+    await page.evaluate(() => {
+      const w = window as unknown as {
+        __webmailNotifications?: { push: (input: Record<string, unknown>) => unknown };
+      };
+      w.__webmailNotifications?.push({
+        id: 'runtime-long-icon',
+        category: 'system',
+        severity: 'info',
+        title: 'Runtime long icon',
+        iconName: 'i'.repeat(180),
+      });
+      w.__webmailNotifications?.push({
+        id: 'runtime-short-icon',
+        category: 'system',
+        severity: 'info',
+        title: 'Runtime short icon',
+        iconName: 'mail',
+      });
+    });
+
+    await expect.poll(
+      () => page.evaluate(() => {
+        const notifications = (window as unknown as {
+          __webmailNotifications?: { notifications: Array<{ id: string; iconName?: string }> };
+        }).__webmailNotifications?.notifications ?? [];
+        return notifications
+          .filter((n) => n.id.startsWith('runtime-') && n.id.endsWith('-icon'))
+          .map((n) => [n.id, n.iconName ?? null]);
+      }),
+      { timeout: 5_000 },
+    ).toEqual([
+      ['runtime-short-icon', 'mail'],
+      ['runtime-long-icon', null],
+    ]);
+
+    await expect.poll(
+      () => page.evaluate(() => {
+        const raw = localStorage.getItem('webmail_notifications');
+        const notifications = raw ? JSON.parse(raw) as Array<{ id: string; iconName?: string }> : [];
+        return notifications
+          .filter((n) => n.id.startsWith('runtime-') && n.id.endsWith('-icon'))
+          .map((n) => [n.id, n.iconName ?? null]);
+      }),
+      { timeout: 5_000 },
+    ).toEqual([
+      ['runtime-short-icon', 'mail'],
+      ['runtime-long-icon', null],
+    ]);
+  });
+
   test('truncates oversized notification text during runtime pushes and storage hydration', async ({ page }) => {
     await page.evaluate(() => {
       const longTitle = 'T'.repeat(220);
