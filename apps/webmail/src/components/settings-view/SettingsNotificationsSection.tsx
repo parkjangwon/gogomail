@@ -25,6 +25,9 @@ interface SettingsNotificationsSectionProps {
   folders: Folder[];
   folderOverrides: Record<string, FolderNotificationOverride>;
   setFolderNotificationEnabled: (folderId: string, enabled: boolean) => void;
+  webPushEnabled: boolean;
+  setWebPushEnabled: (value: boolean) => void;
+  webPushSupported: boolean;
 }
 
 export function SettingsNotificationsSection({
@@ -48,6 +51,9 @@ export function SettingsNotificationsSection({
   folders,
   folderOverrides,
   setFolderNotificationEnabled,
+  webPushEnabled,
+  setWebPushEnabled,
+  webPushSupported,
 }: SettingsNotificationsSectionProps) {
   const t = useTranslations();
   const visibleFolders = folders.filter((folder) => folder.type !== 'virtual');
@@ -69,6 +75,27 @@ export function SettingsNotificationsSection({
       )}
       <Row label={t('misc.settingsNotif.desktopLabel')} description={notifPerm === 'denied' ? t('misc.settingsNotif.desktopDeniedDesc') : t('misc.settingsNotif.desktopDesc')}>
         <Toggle value={browserNotificationsEnabled} onChange={setBrowserNotificationsEnabled} ariaLabel={t('misc.settingsNotif.desktopLabel')} />
+      </Row>
+      <Row
+        label={t('misc.settingsNotif.pushLabel')}
+        description={
+          !webPushSupported
+            ? t('misc.settingsNotif.pushUnsupported')
+            : notifPerm === 'denied'
+            ? t('misc.settingsNotif.desktopDeniedDesc')
+            : t('misc.settingsNotif.pushDesc')
+        }
+      >
+        {webPushSupported
+          ? <Toggle
+              value={webPushEnabled}
+              onChange={setWebPushEnabled}
+              ariaLabel={t('misc.settingsNotif.pushLabel')}
+            />
+          : <span style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>
+              {t('misc.settingsNotif.pushUnsupported')}
+            </span>
+        }
       </Row>
       <Row label={t('misc.settingsNotif.soundLabel')} description={t('misc.settingsNotif.soundDesc')}>
         <Toggle value={notifSound} onChange={setNotifSound} ariaLabel={t('misc.settingsNotif.soundLabel')} />

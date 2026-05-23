@@ -121,6 +121,13 @@ export function SettingsView({ userEmail, userName, initialSection }: SettingsVi
   const [dndEnabled, setDndEnabled] = useState(false);
   const [dndStart, setDndStart] = useState('22:00');
   const [dndEnd, setDndEnd] = useState('08:00');
+  const [webPushEnabled, setWebPushEnabled] = useState<boolean>(() => {
+    try { return localStorage.getItem('webmail_webpush_enabled') === 'true'; } catch { return false; }
+  });
+  const [webPushSupported] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    return 'serviceWorker' in navigator && 'PushManager' in window;
+  });
   const [notificationPrefsLoaded, setNotificationPrefsLoaded] = useState(false);
   const notificationPrefsBaseRef = useRef<NotificationPreferences | null>(null);
   const skipNotificationPrefsInitialSaveRef = useRef(true);
@@ -1074,6 +1081,12 @@ export function SettingsView({ userEmail, userName, initialSection }: SettingsVi
             folders={notificationFolders}
             folderOverrides={notificationFolderOverrides}
             setFolderNotificationEnabled={setFolderNotificationEnabled}
+            webPushEnabled={webPushEnabled}
+            setWebPushEnabled={(v) => {
+              setWebPushEnabled(v);
+              try { localStorage.setItem('webmail_webpush_enabled', v ? 'true' : 'false'); } catch { /* */ }
+            }}
+            webPushSupported={webPushSupported}
           />
         );
 
