@@ -6858,6 +6858,7 @@ Target outcome:
       categories when their last notification disappears, preventing users from
       being stranded on an empty filtered notification center while other
       notifications remain.
-1875. Webmail notification unread filtering now returns to the full list after
-      mark-all-read clears unread state, preventing read notifications from
-      being hidden behind a stale empty unread-filter view.
+1875. Webmail notification unread filtering now returns to the full list when
+      unread state reaches zero, covering both mark-all-read and direct opening
+      of the last unread item so read notifications are not hidden behind a
+      stale empty unread-filter view.

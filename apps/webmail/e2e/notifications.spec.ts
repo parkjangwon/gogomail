@@ -433,6 +433,28 @@ test.describe('Notification center', () => {
     await expect(dialog).not.toContainText(/no notifications match|조건에 맞는 알림|一致する通知|没有符合/i);
   });
 
+  test('returns to all notifications after opening the last unread-filtered item', async ({ page }) => {
+    await pushNotification(page, { id: 'already-read-notification', title: 'Already read fallback' });
+    await pushNotification(page, { id: 'last-unread-notification', title: 'Last unread item' });
+    await page.evaluate(() => {
+      (window as unknown as {
+        __webmailNotifications?: { markAsRead: (id: string) => void };
+      }).__webmailNotifications?.markAsRead('already-read-notification');
+    });
+
+    const { dialog } = await openCenter(page);
+    await dialog.getByRole('button', { name: /^(unread|읽지 않음|未読|未读)( \(1\))?$/i }).click();
+    await expect(dialog).toContainText('Last unread item');
+    await expect(dialog).not.toContainText('Already read fallback');
+
+    await dialog.locator('[aria-label="Last unread item"]').first().click();
+
+    await expect.poll(() => unreadBadgeText(page)).toBeNull();
+    await expect(dialog).toContainText('Already read fallback');
+    await expect(dialog).toContainText('Last unread item');
+    await expect(dialog).not.toContainText(/no notifications match|조건에 맞는 알림|一致する通知|没有符合/i);
+  });
+
   test('dismiss removes a single item', async ({ page }) => {
     await pushNotification(page, { title: 'KeepMe' });
     await pushNotification(page, { title: 'RemoveMe' });
