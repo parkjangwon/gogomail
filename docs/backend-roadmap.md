@@ -6945,3 +6945,7 @@ Target outcome:
       localStorage notification list immediately after initial hydration, so
       unknown injected fields are pruned even before the next notification
       mutation.
+1898. Webmail runtime notification metadata is now reduced to bounded flat
+      primitive values before state or localStorage persistence, preserving
+      client context such as message ids while dropping nested or oversized
+      payload fragments.

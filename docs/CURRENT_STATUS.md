@@ -1,6 +1,13 @@
 # gogomail current status
 
-Last updated: 2026-05-23 (notification initial storage pruning)
+Last updated: 2026-05-23 (notification metadata hardening)
+
+## Notification Metadata Hardening (2026-05-23)
+- Runtime notification pushes now sanitize `metadata` before it enters in-memory state or localStorage persistence.
+- Flat string, finite number, and boolean metadata are preserved for client context such as `messageId`, while nested objects/arrays are dropped and long strings are capped at 200 characters.
+- This prevents oversized or structured runtime payloads from bloating persisted notification state while keeping existing mail notification context usable.
+- E2E coverage verifies sanitized metadata is reflected in both `window.__webmailNotifications` state and `webmail_notifications` storage.
+- Verification target: `pnpm -C apps/webmail exec playwright test e2e/notifications.spec.ts --project=chromium -g "sanitizes runtime notification metadata|normalizes malformed runtime notification fields"`; `pnpm -C apps/webmail type-check`.
 
 ## Notification Initial Storage Pruning (2026-05-23)
 - Notification provider startup now immediately re-persists the sanitized notification list read from localStorage instead of leaving the raw stored payload untouched.

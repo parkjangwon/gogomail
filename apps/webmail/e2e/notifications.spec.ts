@@ -703,6 +703,56 @@ test.describe('Notification center', () => {
     await expect(dialog).not.toContainText('object body');
   });
 
+  test('sanitizes runtime notification metadata before storage persistence', async ({ page }) => {
+    await page.evaluate(() => {
+      const w = window as unknown as {
+        __webmailNotifications?: { push: (input: Record<string, unknown>) => unknown };
+      };
+      w.__webmailNotifications?.push({
+        id: 'runtime-metadata-sanitize',
+        category: 'mail_received',
+        severity: 'info',
+        title: 'Runtime metadata sanitize',
+        metadata: {
+          messageId: 'message-123',
+          enabled: true,
+          retryCount: 2,
+          token: 'T'.repeat(260),
+          nested: { leak: true },
+          arrayValue: ['leak'],
+          blankKey: 'kept through object key syntax',
+        },
+      });
+    });
+
+    const expected = {
+      blankKey: 'kept through object key syntax',
+      enabled: true,
+      messageId: 'message-123',
+      retryCount: 2,
+      token: 'T'.repeat(200),
+    };
+
+    await expect.poll(
+      () => page.evaluate(() => {
+        const notification = (window as unknown as {
+          __webmailNotifications?: { notifications: Array<{ id: string; metadata?: Record<string, unknown> }> };
+        }).__webmailNotifications?.notifications.find((n) => n.id === 'runtime-metadata-sanitize');
+        return notification?.metadata ?? null;
+      }),
+      { timeout: 5_000 },
+    ).toEqual(expected);
+
+    await expect.poll(
+      () => page.evaluate(() => {
+        const raw = localStorage.getItem('webmail_notifications');
+        const notifications = raw ? JSON.parse(raw) as Array<{ id: string; metadata?: Record<string, unknown> }> : [];
+        return notifications.find((n) => n.id === 'runtime-metadata-sanitize')?.metadata ?? null;
+      }),
+      { timeout: 5_000 },
+    ).toEqual(expected);
+  });
+
   test('truncates oversized notification text during runtime pushes and storage hydration', async ({ page }) => {
     await page.evaluate(() => {
       const longTitle = 'T'.repeat(220);
