@@ -91,6 +91,56 @@ async function serviceWorkerOpenedUrls(page: Page, notificationData: Record<stri
   }, notificationData);
 }
 
+async function serviceWorkerExistingClientClickResult(page: Page, notificationData: Record<string, unknown>) {
+  return await page.evaluate(async (data) => {
+    const source = await fetch('/sw.js').then((response) => response.text());
+    const listeners: Record<string, (event: unknown) => void> = {};
+    const result = { focused: 0, navigatedTo: null as unknown, opened: [] as unknown[] };
+    const fakeSelf = {
+      addEventListener(type: string, handler: (event: unknown) => void) {
+        listeners[type] = handler;
+      },
+      registration: {
+        showNotification: () => Promise.resolve(),
+      },
+    };
+    const fakeWindowClient = {
+      url: 'https://app.example/mail',
+      focus: async () => {
+        result.focused++;
+        return fakeWindowClient;
+      },
+      navigate: async (url: unknown) => {
+        result.navigatedTo = url;
+        return fakeWindowClient;
+      },
+    };
+    const fakeClients = {
+      matchAll: async () => [fakeWindowClient],
+      openWindow: async (url: unknown) => {
+        result.opened.push(url);
+        return null;
+      },
+    };
+    new Function('self', 'clients', source)(fakeSelf, fakeClients);
+
+    let waited: Promise<unknown> | undefined;
+    const event = {
+      notification: {
+        close: () => undefined,
+        data,
+      },
+      waitUntil: (promise: Promise<unknown>) => {
+        waited = Promise.resolve(promise);
+      },
+    };
+
+    listeners.notificationclick(event);
+    await waited;
+    return result;
+  }, notificationData);
+}
+
 async function serviceWorkerShownNotification(page: Page, pushData: unknown) {
   return await page.evaluate(async (data) => {
     const source = await fetch('/sw.js').then((response) => response.text());
@@ -377,6 +427,14 @@ test.describe('Notification center', () => {
     await expect(serviceWorkerOpenedUrls(page, { url: '//evil.example/phish' })).resolves.toEqual(['/mail']);
     await expect(serviceWorkerOpenedUrls(page, { url: { href: '/mail' } })).resolves.toEqual(['/mail']);
     await expect(serviceWorkerOpenedUrls(page, { url: '/mail?from=webpush' })).resolves.toEqual(['/mail?from=webpush']);
+  });
+
+  test('service worker notification clicks navigate an existing mail window to the target URL', async ({ page }) => {
+    await expect(serviceWorkerExistingClientClickResult(page, { url: '/mail/thread-123' })).resolves.toEqual({
+      focused: 1,
+      navigatedTo: '/mail/thread-123',
+      opened: [],
+    });
   });
 
   test('service worker push payload fields are normalized before showing notifications', async ({ page }) => {

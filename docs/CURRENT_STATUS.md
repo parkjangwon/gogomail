@@ -1,6 +1,13 @@
 # gogomail current status
 
-Last updated: 2026-05-23 (notification unread category filter hardening)
+Last updated: 2026-05-23 (webpush existing-window navigation)
+
+## WebPush Existing-Window Navigation (2026-05-23)
+- WebPush notification clicks now navigate an already-open mail window to the notification target URL before focusing it.
+- This prevents clicks on message-specific browser notifications from merely focusing a stale `/mail` view when a mail tab is already open.
+- The service worker still falls back to focusing the existing window when navigation is unavailable or fails, and opens a new window when no mail client exists.
+- E2E coverage evaluates `/sw.js` with a mocked existing `WindowClient` and verifies safe target URLs call `navigate()` and avoid opening a duplicate window.
+- Verification target: `pnpm -C apps/webmail exec playwright test e2e/notifications.spec.ts --project=chromium -g "navigate an existing mail window"`; `pnpm -C apps/webmail type-check`.
 
 ## Notification Unread Category Filter Hardening (2026-05-23)
 - Notification category chips now count categories after applying the current all/unread filter.

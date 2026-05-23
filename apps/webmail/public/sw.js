@@ -48,6 +48,14 @@ self.addEventListener('notificationclick', (event) => {
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
       for (const client of clientList) {
         if (client.url.includes('/mail') && 'focus' in client) {
+          if ('navigate' in client) {
+            return client.navigate(url).then((navigatedClient) => {
+              if (navigatedClient && 'focus' in navigatedClient) {
+                return navigatedClient.focus();
+              }
+              return client.focus();
+            }).catch(() => client.focus());
+          }
           return client.focus();
         }
       }
