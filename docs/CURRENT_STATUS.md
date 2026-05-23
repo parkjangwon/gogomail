@@ -1,6 +1,12 @@
 # gogomail current status
 
-Last updated: 2026-05-21 (SaaS launch hardening continues: frontend release gate hardening)
+Last updated: 2026-05-23 (frontend release verification cleanup)
+
+## Frontend Release Verification Cleanup (2026-05-23)
+- `scripts/verify-frontend-release.sh` now snapshots and restores Next-generated type files (`next-env.d.ts`, app `tsconfig.json`, and console `tsconfig.tsbuildinfo`) around type-check/build runs, so production build verification no longer leaves the working tree dirty.
+- The webmail compose helper check now follows the current i18n-injected helper contract instead of calling compose labels/prompts without a translator.
+- Regression coverage in `scripts/verify_frontend_release_script_test.go` keeps the generated-file restore hook in place.
+- Verification: `go test ./scripts`, `pnpm -C apps/webmail test:compose-helpers`, and `GOGOMAIL_FRONTEND_BUILD=1 ./scripts/verify-frontend-release.sh` pass.
 
 ## Frontend Release Gate Hardening (2026-05-21)
 - Console E2E now installs a backendless local admin session for release verification, stubbing only `/api/admin/**` auth, company, role, capability, audit-policy, IP-policy, and posture responses.
