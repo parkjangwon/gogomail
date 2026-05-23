@@ -180,6 +180,28 @@ test.describe('Notification center', () => {
     await expect(dialog).not.toContainText('Blank id');
   });
 
+  test('rejects non-boolean read flags during storage hydration', async ({ page }) => {
+    await page.evaluate(() => {
+      const now = Date.now();
+      const raw = JSON.stringify([
+        { id: 'bad-read', category: 'system', severity: 'info', title: 'Bad read flag', timestamp: now, read: 'false' },
+        { id: 'good-read', category: 'system', severity: 'info', title: 'Good unread flag', timestamp: now, read: false },
+      ]);
+      localStorage.setItem('webmail_notifications', raw);
+      window.dispatchEvent(new StorageEvent('storage', { key: 'webmail_notifications', newValue: raw }));
+    });
+
+    await expect.poll(
+      () => page.evaluate(() => (window as unknown as { __webmailNotifications?: { notifications: unknown[] } }).__webmailNotifications?.notifications.length ?? -1),
+      { timeout: 5_000 },
+    ).toBe(1);
+    await expect.poll(() => unreadBadgeText(page), { timeout: 5_000 }).toBe('1');
+
+    const { dialog } = await openCenter(page);
+    await expect(dialog).toContainText('Good unread flag');
+    await expect(dialog).not.toContainText('Bad read flag');
+  });
+
   test('deduplicates repeated event notifications by id', async ({ page }) => {
     await pushNotification(page, { id: 'mail-42', title: 'First copy', body: 'original body', category: 'mail_received', dedupe: true });
     await pushNotification(page, { id: 'mail-42', title: 'Second copy', body: 'duplicate body', category: 'mail_received', dedupe: true });

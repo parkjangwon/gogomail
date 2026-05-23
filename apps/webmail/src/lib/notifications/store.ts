@@ -235,7 +235,8 @@ function sanitizeNotifications(input: unknown): Notification[] {
         && typeof o.title === 'string'
         && o.title.trim() !== ''
         && typeof o.timestamp === 'number'
-        && Number.isFinite(o.timestamp);
+        && Number.isFinite(o.timestamp)
+        && typeof o.read === 'boolean';
     })
     .slice(0, MAX_NOTIFICATIONS);
 }
