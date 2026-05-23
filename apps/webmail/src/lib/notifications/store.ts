@@ -46,6 +46,7 @@ const DND_START_KEY = 'webmail_dnd_start';
 const DND_END_KEY = 'webmail_dnd_end';
 const NOTIF_SOUND_KEY = 'webmail_notif_sound';
 const MAX_NOTIFICATIONS = 500;
+const MAX_ID_LENGTH = 128;
 const MAX_TITLE_LENGTH = 160;
 const MAX_BODY_LENGTH = 500;
 const MAX_METADATA_KEYS = 20;
@@ -292,7 +293,7 @@ function safeNotificationMetadata(value: unknown): Record<string, unknown> | und
 }
 
 function safeNotificationId(value: unknown): string {
-  return typeof value === 'string' && value.trim() !== '' ? value : makeId();
+  return typeof value === 'string' && value.trim() !== '' && value.length <= MAX_ID_LENGTH ? value : makeId();
 }
 
 function safeNotificationTitle(value: unknown): string {
@@ -321,6 +322,7 @@ function sanitizeNotifications(input: unknown): Notification[] {
     const o = n as Record<string, unknown>;
     if (!(typeof o.id === 'string'
       && o.id.trim() !== ''
+      && o.id.length <= MAX_ID_LENGTH
       && typeof o.title === 'string'
       && o.title.trim() !== ''
       && typeof o.category === 'string'
