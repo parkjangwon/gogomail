@@ -1,6 +1,12 @@
 # gogomail current status
 
-Last updated: 2026-05-23 (browser notification prompt dismiss accessibility)
+Last updated: 2026-05-23 (notification storage parse fallback hardening)
+
+## Notification Storage Parse Fallback Hardening (2026-05-23)
+- Cross-tab notification storage events now clear live notification state on invalid JSON, matching the initial localStorage load fallback.
+- This prevents stale unread badges and notification rows from lingering after another tab writes a corrupted `webmail_notifications` value.
+- E2E coverage verifies a stale notification is cleared when the storage event carries invalid JSON.
+- Verification target: `pnpm -C apps/webmail exec playwright test e2e/notifications.spec.ts --project=chromium -g "invalid JSON"`; `pnpm -C apps/webmail type-check`.
 
 ## Browser Notification Prompt Dismiss Accessibility (2026-05-23)
 - The browser-notification permission prompt dismiss button now uses a contextual accessible name instead of a generic close label.
