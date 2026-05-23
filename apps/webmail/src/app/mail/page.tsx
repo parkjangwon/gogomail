@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { deleteMessage, restoreMessage, bulkRestoreMessages, createFolder, renameFolder, deleteFolder, starMessage, markRead, moveMessage, bulkMarkRead, searchMessages, sendMessage, listThreads, listThreadMessages, getNotificationPreferences, UIComposeIntent, MessageAddress, MessageDetail, MessageSummary, ThreadSummary } from '@/lib/api';
 import { AdvancedFilters, VIRTUAL_ALL, VIRTUAL_STARRED, VIRTUAL_ATTACHMENTS, VIRTUAL_UNREAD, VIRTUAL_SNOOZED, VIRTUAL_PINNED, VIRTUAL_IMPORTANT, VIRTUAL_TASKS } from '@/components/Sidebar';
-import { useMailList } from '@/hooks/useMailList';
+import { useMailList, type RefreshIntervalSeconds } from '@/hooks/useMailList';
 import { useMessage } from '@/hooks/useMessage';
 import { useIsMobile } from '@/hooks/useIsMobile';
 import { useIsOnline } from '@/hooks/useIsOnline';
@@ -42,6 +42,7 @@ import { useNotifications } from '@/lib/notifications/store';
 const WEBMAIL_ACTIVE_APP_KEY = 'webmail_active_app';
 const NOTIFICATION_FOLDER_OVERRIDES_KEY = 'webmail_notification_folder_overrides';
 const BADGE_COUNT_MODE_KEY = 'webmail_badge_count_mode';
+const REFRESH_INTERVAL_KEY = 'webmail_refresh_interval';
 type BadgeCountMode = 'unread' | 'all' | 'none';
 
 function isAppId(value: string | null): value is AppId {
@@ -80,6 +81,16 @@ function readBadgeCountMode(): BadgeCountMode {
     return value === 'all' || value === 'none' ? value : 'unread';
   } catch {
     return 'unread';
+  }
+}
+
+function readRefreshIntervalSeconds(): RefreshIntervalSeconds {
+  if (typeof window === 'undefined') return 30;
+  try {
+    const value = Number(window.localStorage.getItem(REFRESH_INTERVAL_KEY) ?? 30);
+    return value === 60 || value === 300 ? value : 30;
+  } catch {
+    return 30;
   }
 }
 
@@ -171,6 +182,7 @@ export default function MailPage() {
 
   const [activeApp, setActiveApp] = useState<AppId>(getInitialActiveApp);
   const [badgeCountMode, setBadgeCountMode] = useState<BadgeCountMode>(readBadgeCountMode);
+  const [refreshIntervalSeconds, setRefreshIntervalSeconds] = useState<RefreshIntervalSeconds>(readRefreshIntervalSeconds);
   const [settingsInitialSection, setSettingsInitialSection] = useState<SectionId | undefined>(undefined);
   const [showSpotlight, setShowSpotlight] = useState(false);
   const [spotlightMoveId, setSpotlightMoveId] = useState<string | null>(null);
@@ -242,7 +254,7 @@ export default function MailPage() {
   }, [addToast]);
 
   const { folders, messages, setMessages, foldersLoading, messagesLoading, hasMore, loadingMore, loadMore, adjustUnread, refresh, refreshing } =
-    useMailList(activeFolderId);
+    useMailList(activeFolderId, refreshIntervalSeconds);
   const [threadMessages, setThreadMessages] = useState<MessageSummary[]>([]);
 
   const patchVisibleMessages = useCallback((ids: string[], patch: Partial<MessageSummary>) => {
@@ -375,6 +387,14 @@ export default function MailPage() {
     };
     window.addEventListener('storage', onBadgeModeChange);
     return () => window.removeEventListener('storage', onBadgeModeChange);
+  }, []);
+
+  useEffect(() => {
+    const onRefreshIntervalChange = (event: StorageEvent) => {
+      if (event.key === REFRESH_INTERVAL_KEY) setRefreshIntervalSeconds(readRefreshIntervalSeconds());
+    };
+    window.addEventListener('storage', onRefreshIntervalChange);
+    return () => window.removeEventListener('storage', onRefreshIntervalChange);
   }, []);
 
   // Update document title + favicon badge according to the selected badge mode.
@@ -1017,9 +1037,9 @@ export default function MailPage() {
   useEffect(() => {
     const id = setInterval(() => {
       if (document.visibilityState === 'visible') refreshRef.current();
-    }, 30_000);
+    }, refreshIntervalSeconds * 1000);
     return () => clearInterval(id);
-  }, []);
+  }, [refreshIntervalSeconds]);
 
   // Register the service worker only when notifications were already allowed.
   // The permission prompt stays in Settings so entering webmail never surprises users.

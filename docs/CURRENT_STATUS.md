@@ -1,6 +1,13 @@
 # gogomail current status
 
-Last updated: 2026-05-23 (browser notification settings toggle)
+Last updated: 2026-05-23 (webmail refresh interval enforcement)
+
+## Webmail Refresh Interval Enforcement (2026-05-23)
+- The Inbox auto-refresh setting now drives both `useMailList` new-message polling and the mail page's visible-tab refresh timer instead of leaving both paths hard-coded to 30 seconds.
+- Mail page refresh interval state hydrates from `webmail_refresh_interval` and listens for Settings changes, so switching between 30 seconds, 1 minute, and 5 minutes takes effect without a reload.
+- Settings now dispatches a same-window storage event when the refresh interval changes, matching the existing badge/notification preference sync pattern.
+- Regression coverage verifies the refresh interval setting is wired into the mail hook and page timers rather than being saved but unused.
+- Verification target: `go test ./scripts -run TestWebmailRefreshIntervalSettingDrivesMailPolling`; `pnpm -C apps/webmail type-check`; `go test ./...`.
 
 ## Browser Notification Settings Toggle (2026-05-23)
 - Webmail Settings now exposes a dedicated Desktop alerts switch for the existing browser notification mirroring policy.
