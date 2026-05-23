@@ -158,6 +158,28 @@ test.describe('Notification center', () => {
     await expect(dialog).not.toContainText('Bad infinite timestamp');
   });
 
+  test('rejects blank identifiers and titles during storage hydration', async ({ page }) => {
+    await page.evaluate(() => {
+      const now = Date.now();
+      const raw = JSON.stringify([
+        { id: '', category: 'system', severity: 'info', title: 'Blank id', timestamp: now, read: false },
+        { id: 'blank-title', category: 'system', severity: 'info', title: '   ', timestamp: now, read: false },
+        { id: 'valid-title', category: 'system', severity: 'info', title: 'Valid stored alert', timestamp: now, read: false },
+      ]);
+      localStorage.setItem('webmail_notifications', raw);
+      window.dispatchEvent(new StorageEvent('storage', { key: 'webmail_notifications', newValue: raw }));
+    });
+
+    await expect.poll(
+      () => page.evaluate(() => (window as unknown as { __webmailNotifications?: { notifications: unknown[] } }).__webmailNotifications?.notifications.length ?? -1),
+      { timeout: 5_000 },
+    ).toBe(1);
+
+    const { dialog } = await openCenter(page);
+    await expect(dialog).toContainText('Valid stored alert');
+    await expect(dialog).not.toContainText('Blank id');
+  });
+
   test('deduplicates repeated event notifications by id', async ({ page }) => {
     await pushNotification(page, { id: 'mail-42', title: 'First copy', body: 'original body', category: 'mail_received', dedupe: true });
     await pushNotification(page, { id: 'mail-42', title: 'Second copy', body: 'duplicate body', category: 'mail_received', dedupe: true });
