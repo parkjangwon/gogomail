@@ -1,6 +1,12 @@
 # gogomail current status
 
-Last updated: 2026-05-23 (notification filtered mark-read hardening)
+Last updated: 2026-05-23 (notification retention dedupe hardening)
+
+## Notification Retention Dedupe Hardening (2026-05-23)
+- Notification store dedupe bookkeeping now stays bounded to the same newest-first 500 entries as the rendered notification list.
+- This prevents high-volume notification bursts from leaving evicted ids in the internal dedupe index and suppressing a later valid notification with the same id.
+- E2E coverage verifies an id evicted by the retention limit can be pushed again with `dedupe: true` and returns as the newest visible notification.
+- Verification target: `pnpm -C apps/webmail exec playwright test e2e/notifications.spec.ts --project=chromium -g "deduplicates repeated event|allows deduped notifications"`; `pnpm -C apps/webmail type-check`.
 
 ## Notification Filtered Mark-Read Hardening (2026-05-23)
 - Notification center mark-all-read now marks only the currently visible unread rows when search, unread, or category filters are active.

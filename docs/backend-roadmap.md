@@ -6900,3 +6900,7 @@ Target outcome:
       unread rows when search, unread, or category filters are active, while
       preserving full-list mark-all-read behavior in the unfiltered all view
       so hidden unread notifications are not accidentally acknowledged.
+1886. Webmail notification dedupe bookkeeping now stays bounded to the same
+      newest-first 500 entries as the rendered list, so ids evicted during
+      high-volume notification bursts can be pushed again with `dedupe: true`
+      instead of being suppressed by stale in-memory index state.
