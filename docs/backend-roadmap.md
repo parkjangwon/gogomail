@@ -6830,3 +6830,6 @@ Target outcome:
 1866. Webmail notification storage hydration now rejects non-finite timestamps,
       preventing corrupted records that parse to `Infinity` from entering
       relative-time rendering, unread counts, or notification lists.
+1867. Webmail notification storage hydration now rejects blank ids and blank
+      titles, preventing corrupted rows from producing empty accessible names,
+      ambiguous dismiss controls, or unstable notification identity.

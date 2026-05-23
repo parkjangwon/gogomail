@@ -231,7 +231,9 @@ function sanitizeNotifications(input: unknown): Notification[] {
       if (!n || typeof n !== 'object') return false;
       const o = n as Record<string, unknown>;
       return typeof o.id === 'string'
+        && o.id.trim() !== ''
         && typeof o.title === 'string'
+        && o.title.trim() !== ''
         && typeof o.timestamp === 'number'
         && Number.isFinite(o.timestamp);
     })

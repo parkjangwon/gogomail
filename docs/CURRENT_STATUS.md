@@ -1,6 +1,12 @@
 # gogomail current status
 
-Last updated: 2026-05-23 (notification timestamp hydration hardening)
+Last updated: 2026-05-23 (notification identity hydration hardening)
+
+## Notification Identity Hydration Hardening (2026-05-23)
+- Notification storage hydration now rejects records with blank ids or blank titles.
+- This keeps corrupted rows out of notification lists, row accessible names, and contextual dismiss labels.
+- E2E coverage verifies a storage payload with blank id/title records hydrates only the valid alert.
+- Verification target: `pnpm -C apps/webmail exec playwright test e2e/notifications.spec.ts --project=chromium -g "blank identifiers"`; `pnpm -C apps/webmail type-check`.
 
 ## Notification Timestamp Hydration Hardening (2026-05-23)
 - Notification storage hydration now rejects non-finite timestamps such as JSON values that parse to `Infinity`.
