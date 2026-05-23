@@ -1,6 +1,12 @@
 # gogomail current status
 
-Last updated: 2026-05-23 (notification retention dedupe hardening)
+Last updated: 2026-05-23 (notification runtime id uniqueness hardening)
+
+## Notification Runtime ID Uniqueness Hardening (2026-05-23)
+- Notification runtime pushes now keep notification ids unique even when callers reuse an id without `dedupe: true`.
+- A later notification with the same id replaces the older row and stays newest-first, preventing duplicate React keys and inconsistent read/dismiss behavior.
+- E2E coverage verifies repeated runtime ids collapse to the updated visible notification and do not render the stale copy.
+- Verification target: `pnpm -C apps/webmail exec playwright test e2e/notifications.spec.ts --project=chromium -g "deduplicates repeated event|keeps runtime notification identifiers unique|allows deduped notifications"`; `pnpm -C apps/webmail type-check`.
 
 ## Notification Retention Dedupe Hardening (2026-05-23)
 - Notification store dedupe bookkeeping now stays bounded to the same newest-first 500 entries as the rendered notification list.

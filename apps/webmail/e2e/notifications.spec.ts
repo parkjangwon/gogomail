@@ -587,6 +587,27 @@ test.describe('Notification center', () => {
     });
   });
 
+  test('keeps runtime notification identifiers unique even without explicit dedupe', async ({ page }) => {
+    await pushNotification(page, { id: 'runtime-repeat', title: 'First runtime copy', category: 'system' });
+    await pushNotification(page, { id: 'runtime-repeat', title: 'Updated runtime copy', category: 'system' });
+
+    await expect.poll(
+      () => page.evaluate(() => {
+        const notifications = (window as unknown as {
+          __webmailNotifications?: { notifications: Array<{ id: string; title: string }> };
+        }).__webmailNotifications?.notifications ?? [];
+        return notifications
+          .filter((n) => n.id === 'runtime-repeat')
+          .map((n) => n.title);
+      }),
+      { timeout: 5_000 },
+    ).toEqual(['Updated runtime copy']);
+
+    const { dialog } = await openCenter(page);
+    await expect(dialog).toContainText('Updated runtime copy');
+    await expect(dialog).not.toContainText('First runtime copy');
+  });
+
   test('deduplicates browser notification mirroring by id', async ({ page }) => {
     await page.addInitScript(() => {
       try {

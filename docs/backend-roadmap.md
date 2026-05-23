@@ -6904,3 +6904,7 @@ Target outcome:
       newest-first 500 entries as the rendered list, so ids evicted during
       high-volume notification bursts can be pushed again with `dedupe: true`
       instead of being suppressed by stale in-memory index state.
+1887. Webmail notification runtime pushes now enforce unique ids in the
+      rendered list even when callers reuse an id without `dedupe: true`,
+      replacing the older row with the newest payload to avoid duplicate React
+      keys and inconsistent read or dismiss behavior.
