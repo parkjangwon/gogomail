@@ -6896,3 +6896,7 @@ Target outcome:
       rows when search, unread, or category filters are active, while
       preserving full-list clearing in the unfiltered all view so hidden
       notifications are not accidentally removed from filtered result sets.
+1885. Webmail notification mark-all-read now marks only the currently visible
+      unread rows when search, unread, or category filters are active, while
+      preserving full-list mark-all-read behavior in the unfiltered all view
+      so hidden unread notifications are not accidentally acknowledged.

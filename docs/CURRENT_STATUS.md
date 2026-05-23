@@ -1,6 +1,13 @@
 # gogomail current status
 
-Last updated: 2026-05-23 (notification filtered clear hardening)
+Last updated: 2026-05-23 (notification filtered mark-read hardening)
+
+## Notification Filtered Mark-Read Hardening (2026-05-23)
+- Notification center mark-all-read now marks only the currently visible unread rows when search, unread, or category filters are active.
+- In the unfiltered all view it keeps the existing full mark-all-read behavior.
+- This prevents users from accidentally acknowledging hidden unread notifications while clearing a filtered result set.
+- E2E coverage verifies a searched notification can be marked read while a hidden unread notification remains unread and visible in the unread filter.
+- Verification target: `pnpm -C apps/webmail exec playwright test e2e/notifications.spec.ts --project=chromium -g "mark-all-read only marks visible|returns to all notifications after marking all"`; `pnpm -C apps/webmail type-check`.
 
 ## Notification Filtered Clear Hardening (2026-05-23)
 - Notification center clear-all now clears only the currently visible notification rows when search, unread, or category filters are active.
