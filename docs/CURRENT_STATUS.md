@@ -1,6 +1,12 @@
 # gogomail current status
 
-Last updated: 2026-05-23 (notification item accessibility hardening)
+Last updated: 2026-05-23 (webpush non-object payload hardening)
+
+## WebPush Non-Object Payload Hardening (2026-05-23)
+- Webmail service worker push events now coerce non-object JSON payloads such as arrays or `null` to an empty object before showing browser notifications.
+- This keeps `NotificationOptions.data` stable for closed-tab WebPush notifications and prevents malformed payload shapes from leaking into click handling state.
+- E2E coverage evaluates `/sw.js` with mocked push events and verifies `null` and array JSON payloads fall back to the default notification title/body/tag with `{}` notification data.
+- Verification target: `pnpm -C apps/webmail exec playwright test e2e/notifications.spec.ts --project=chromium -g "non-object JSON payloads"`; `pnpm -C apps/webmail type-check`.
 
 ## Notification Item Accessibility Hardening (2026-05-23)
 - Webmail notification rows now render the primary notification action and the dismiss control as sibling buttons inside a labeled group instead of nesting a dismiss button inside a row-level button.

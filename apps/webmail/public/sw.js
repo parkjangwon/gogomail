@@ -13,10 +13,15 @@ function safeNotificationText(value, fallback) {
   return value;
 }
 
+function safeNotificationPayload(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  return value;
+}
+
 self.addEventListener('push', (event) => {
   let data = {};
   try {
-    data = event.data?.json() ?? {};
+    data = safeNotificationPayload(event.data?.json());
   } catch {
     data = { title: event.data?.text() ?? '새 메일' };
   }

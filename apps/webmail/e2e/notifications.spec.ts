@@ -91,7 +91,7 @@ async function serviceWorkerOpenedUrls(page: Page, notificationData: Record<stri
   }, notificationData);
 }
 
-async function serviceWorkerShownNotification(page: Page, pushData: Record<string, unknown>) {
+async function serviceWorkerShownNotification(page: Page, pushData: unknown) {
   return await page.evaluate(async (data) => {
     const source = await fetch('/sw.js').then((response) => response.text());
     const listeners: Record<string, (event: unknown) => void> = {};
@@ -407,6 +407,28 @@ test.describe('Notification center', () => {
         tag: 'custom-tag',
       },
     });
+  });
+
+  test('service worker push handles non-object JSON payloads before showing notifications', async ({ page }) => {
+    await expect(serviceWorkerShownNotification(page, null)).resolves.toMatchObject({
+      title: '새 메일',
+      options: {
+        body: '',
+        data: {},
+        tag: 'gogomail-notification',
+      },
+    });
+
+    const shown = await serviceWorkerShownNotification(page, ['not', 'an', 'object']);
+    expect(shown).toMatchObject({
+      title: '새 메일',
+      options: {
+        body: '',
+        tag: 'gogomail-notification',
+      },
+    });
+    expect(Array.isArray(shown?.options.data)).toBe(false);
+    expect(shown?.options.data).toEqual({});
   });
 
   test('normalizes malformed runtime notification fields before rendering', async ({ page }) => {
