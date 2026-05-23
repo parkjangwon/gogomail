@@ -26,11 +26,12 @@ export function saveWmSetting(key: string, value: unknown) {
   }
 }
 
-export function Toggle({ value, onChange }: { value: boolean; onChange: (v: boolean) => void }) {
+export function Toggle({ value, onChange, ariaLabel }: { value: boolean; onChange: (v: boolean) => void; ariaLabel?: string }) {
   return (
     <button
       role="switch"
       aria-checked={value}
+      aria-label={ariaLabel}
       onClick={() => onChange(!value)}
       style={{ width: '36px', height: '20px', borderRadius: '10px', background: value ? 'var(--color-accent)' : 'var(--color-bg-tertiary)', border: 'none', cursor: 'pointer', position: 'relative', flexShrink: 0, transition: 'background 150ms ease' }}
     >

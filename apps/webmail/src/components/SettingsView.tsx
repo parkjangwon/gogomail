@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { CheckIcon, ExclamationTriangleIcon, NoSymbolIcon, ArrowDownTrayIcon } from '@heroicons/react/24/outline';
-import { revokeAllSessions, getFolderStats, exportFolderEml, exportFolderZip, getPreferences, setPreferences, getUserProfile, updateUserProfile, changePassword, registerWebPushDevice, type FolderStats, type WebmailPreferences, type UserProfile } from '@/lib/api';
+import { revokeAllSessions, getFolderStats, exportFolderEml, exportFolderZip, getPreferences, setPreferences, getUserProfile, updateUserProfile, changePassword, registerWebPushDevice, getNotificationPreferences, setNotificationPreferences, type FolderStats, type WebmailPreferences, type UserProfile, type NotificationPreferences } from '@/lib/api';
 import { ReadMark, ExternalImages, SendDelay, Theme, FontSize, ACCENT_COLORS, FilterRule, migrateFilterRule, loadFilterRules, saveFilterRules } from '@/lib/settings/settingsUtils';
 import { NAV_ITEMS, SHORTCUT_GROUPS, type SectionId } from '@/components/settings-view/settingsViewConfig';
 import { Kbd, MiniEditor, Row, SectionCard, SectionHeader, Segment, Toggle, loadWmSettings, saveWmSetting } from '@/components/settings-view/settingsViewPrimitives';
@@ -26,6 +26,31 @@ export interface SettingsViewProps {
 }
 
 // ─── Main component ────────────────────────────────────────────────────────────
+
+function currentTimeZone(): string {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+  } catch {
+    return 'UTC';
+  }
+}
+
+function quietHoursPreferences(
+  base: NotificationPreferences | null,
+  enabled: boolean,
+  start: string,
+  end: string,
+): NotificationPreferences {
+  return {
+    global_dnd_enabled: enabled,
+    global_dnd_schedule: {
+      weekdays: enabled ? [0, 1, 2, 3, 4, 5, 6] : [],
+      time_ranges: enabled ? [{ start, end }] : [],
+      timezone: base?.global_dnd_schedule?.timezone || currentTimeZone(),
+    },
+    folder_overrides: base?.folder_overrides ?? {},
+  };
+}
 
 export function SettingsView({ userEmail, userName, initialSection }: SettingsViewProps) {
   const router = useRouter();
@@ -83,6 +108,9 @@ export function SettingsView({ userEmail, userName, initialSection }: SettingsVi
   const [dndEnabled, setDndEnabled] = useState(false);
   const [dndStart, setDndStart] = useState('22:00');
   const [dndEnd, setDndEnd] = useState('08:00');
+  const [notificationPrefsLoaded, setNotificationPrefsLoaded] = useState(false);
+  const notificationPrefsBaseRef = useRef<NotificationPreferences | null>(null);
+  const skipNotificationPrefsInitialSaveRef = useRef(true);
 
   // Templates
   const [templates, setTemplates] = useState<StoredEmailTemplate[]>([]);
@@ -201,6 +229,48 @@ export function SettingsView({ userEmail, userName, initialSection }: SettingsVi
       setPrefsLoaded(true);
     }).catch(() => setPrefsLoaded(true));
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    let cancelled = false;
+    getNotificationPreferences()
+      .then((prefs) => {
+        if (cancelled) return;
+        notificationPrefsBaseRef.current = prefs;
+        setDndEnabled(prefs.global_dnd_enabled);
+        const firstRange = prefs.global_dnd_schedule?.time_ranges?.[0];
+        if (firstRange?.start) setDndStart(firstRange.start);
+        if (firstRange?.end) setDndEnd(firstRange.end);
+        try {
+          localStorage.setItem('webmail_dnd', prefs.global_dnd_enabled ? '1' : '0');
+          if (firstRange?.start) localStorage.setItem('webmail_dnd_start', firstRange.start);
+          if (firstRange?.end) localStorage.setItem('webmail_dnd_end', firstRange.end);
+        } catch {
+          // local settings cache is best-effort
+        }
+      })
+      .catch(() => {
+        // Older backends may not expose server-side notification preferences.
+      })
+      .finally(() => {
+        if (!cancelled) setNotificationPrefsLoaded(true);
+      });
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    if (!notificationPrefsLoaded) return;
+    if (skipNotificationPrefsInitialSaveRef.current) {
+      skipNotificationPrefsInitialSaveRef.current = false;
+      return;
+    }
+    const timer = setTimeout(() => {
+      const next = quietHoursPreferences(notificationPrefsBaseRef.current, dndEnabled, dndStart, dndEnd);
+      setNotificationPreferences(next)
+        .then((saved) => { notificationPrefsBaseRef.current = saved; })
+        .catch(() => {});
+    }, 800);
+    return () => clearTimeout(timer);
+  }, [notificationPrefsLoaded, dndEnabled, dndStart, dndEnd]);
 
   // ── Debounced server save (2s after any setting change) ───────────────────────
   useEffect(() => {

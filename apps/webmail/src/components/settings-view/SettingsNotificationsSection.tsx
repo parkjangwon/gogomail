@@ -52,7 +52,7 @@ export function SettingsNotificationsSection({
         </div>
       )}
       <Row label={t('misc.settingsNotif.soundLabel')} description={t('misc.settingsNotif.soundDesc')}>
-        <Toggle value={notifSound} onChange={setNotifSound} />
+        <Toggle value={notifSound} onChange={setNotifSound} ariaLabel={t('misc.settingsNotif.soundLabel')} />
       </Row>
       <Row label={t('misc.settingsNotif.detailLabel')} description={t('misc.settingsNotif.detailDesc')}>
         <Segment
@@ -62,7 +62,7 @@ export function SettingsNotificationsSection({
         />
       </Row>
       <Row label={t('misc.settingsNotif.dndLabel')} description={t('misc.settingsNotif.dndDesc')}>
-        <Toggle value={dndEnabled} onChange={setDndEnabled} />
+        <Toggle value={dndEnabled} onChange={setDndEnabled} ariaLabel={t('misc.settingsNotif.dndLabel')} />
       </Row>
       {dndEnabled && (
         <Row label={t('misc.settingsNotif.dndTimeLabel')} description={t('misc.settingsNotif.dndTimeDesc')} last>

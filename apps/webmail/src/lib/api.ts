@@ -1655,6 +1655,47 @@ export async function changePassword(currentPassword: string, newPassword: strin
   }
 }
 
+// ─── Server-side notification preferences ───────────────────────────────────
+
+export interface NotificationTimeRange {
+  start: string;
+  end: string;
+}
+
+export interface NotificationDNDSchedule {
+  weekdays: number[];
+  time_ranges: NotificationTimeRange[];
+  timezone: string;
+}
+
+export interface FolderNotificationOverride {
+  enabled: boolean;
+  dnd_inherit: boolean;
+  dnd_schedule: NotificationDNDSchedule;
+}
+
+export interface NotificationPreferences {
+  global_dnd_enabled: boolean;
+  global_dnd_schedule: NotificationDNDSchedule;
+  folder_overrides: Record<string, FolderNotificationOverride>;
+  updated_at?: string;
+}
+
+export async function getNotificationPreferences(): Promise<NotificationPreferences> {
+  return request<NotificationPreferences>('me/notification-preferences');
+}
+
+export async function setNotificationPreferences(prefs: NotificationPreferences): Promise<NotificationPreferences> {
+  return request<NotificationPreferences>('me/notification-preferences', {
+    method: 'PUT',
+    body: JSON.stringify({
+      global_dnd_enabled: prefs.global_dnd_enabled,
+      global_dnd_schedule: prefs.global_dnd_schedule,
+      folder_overrides: prefs.folder_overrides,
+    }),
+  });
+}
+
 // ─── Server-side user preferences ────────────────────────────────────────────
 
 export interface WebmailPreferences {
