@@ -40,10 +40,13 @@ export default function CompanyLayout({
           if (companiesRes.ok) {
             const data = await companiesRes.json() as { companies?: Array<{ id?: string }> };
             const resolvedCompanyId = data.companies?.[0]?.id;
-            if (resolvedCompanyId) {
+            if (resolvedCompanyId && resolvedCompanyId !== 'default') {
               const nextPath = pathname.replace('/companies/default', `/companies/${resolvedCompanyId}`);
               router.replace(nextPath);
               return;
+            }
+            if (resolvedCompanyId) {
+              setCompanyId(resolvedCompanyId);
             }
           }
         }

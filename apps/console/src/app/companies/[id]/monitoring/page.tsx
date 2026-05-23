@@ -38,7 +38,7 @@ export default function MonitoringPage() {
     return { total, pending, delayed, stale };
   }, [queues]);
 
-  const memPct = metricsQuery.data?.memory.usage_pct ?? 0;
+  const memPct = metricsQuery.data?.memory?.usage_pct ?? 0;
   const goroutines = metricsQuery.data?.goroutines ?? 0;
 
   const dbCheck = healthQuery.data?.checks?.find((c: AdminHealthCheck) => c.service === 'database');
