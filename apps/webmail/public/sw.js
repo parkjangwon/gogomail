@@ -21,19 +21,28 @@ function safeNotificationClickUrl(value) {
   return value;
 }
 
+function truncateText(value, maxLength) {
+  if (value.length <= maxLength) return value;
+  const truncated = value.slice(0, maxLength);
+  const lastCodeUnit = truncated.charCodeAt(truncated.length - 1);
+  return lastCodeUnit >= 0xD800 && lastCodeUnit <= 0xDBFF
+    ? truncated.slice(0, -1)
+    : truncated;
+}
+
 function safeNotificationText(value, fallback, maxLength) {
   if (typeof value !== 'string') return fallback;
   if (value.trim() === '') return fallback;
   const normalized = value.replace(UNSAFE_DISPLAY_TEXT_CHARS, ' ');
   if (normalized.trim() === '') return fallback;
-  return normalized.length > maxLength ? normalized.slice(0, maxLength) : normalized;
+  return truncateText(normalized, maxLength);
 }
 
 function safeNotificationTag(value) {
   if (typeof value !== 'string') return DEFAULT_TAG;
   if (value.trim() === '') return DEFAULT_TAG;
   if (UNSAFE_TAG_CHARS.test(value)) return DEFAULT_TAG;
-  return value.length > MAX_TAG_LENGTH ? value.slice(0, MAX_TAG_LENGTH) : value;
+  return truncateText(value, MAX_TAG_LENGTH);
 }
 
 function safeNotificationPayload(value) {

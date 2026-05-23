@@ -824,6 +824,31 @@ test.describe('Notification center', () => {
     expect(String(shown?.options.tag ?? '')).toBe(`tag-${'x'.repeat(124)}`);
   });
 
+  test('service worker push truncates text fields without dangling surrogate pairs', async ({ page }) => {
+    const shown = await serviceWorkerShownNotification(page, {
+      title: `${'T'.repeat(159)}💌`,
+      body: `${'B'.repeat(499)}💌`,
+      tag: `${'g'.repeat(127)}💌`,
+    });
+
+    const hasSurrogate = /[\uD800-\uDFFF]/;
+    expect({
+      titleLength: String(shown?.title ?? '').length,
+      bodyLength: String(shown?.options.body ?? '').length,
+      tagLength: String(shown?.options.tag ?? '').length,
+      titleHasDanglingSurrogate: hasSurrogate.test(String(shown?.title ?? '')),
+      bodyHasDanglingSurrogate: hasSurrogate.test(String(shown?.options.body ?? '')),
+      tagHasDanglingSurrogate: hasSurrogate.test(String(shown?.options.tag ?? '')),
+    }).toEqual({
+      titleLength: 159,
+      bodyLength: 499,
+      tagLength: 127,
+      titleHasDanglingSurrogate: false,
+      bodyHasDanglingSurrogate: false,
+      tagHasDanglingSurrogate: false,
+    });
+  });
+
   test('service worker push normalizes control characters in display text', async ({ page }) => {
     const shown = await serviceWorkerShownNotification(page, {
       title: 'Invoice\nready\u007fnow',
@@ -1214,6 +1239,44 @@ test.describe('Notification center', () => {
       { id: 'runtime-long-text', titleLength: 160, bodyLength: 500 },
       { id: 'stored-long-text', titleLength: 160, bodyLength: 500 },
     ]);
+  });
+
+  test('truncates notification text without dangling surrogate pairs', async ({ page }) => {
+    await page.evaluate(() => {
+      const w = window as unknown as {
+        __webmailNotifications?: { push: (input: Record<string, unknown>) => unknown };
+      };
+      if (!w.__webmailNotifications) throw new Error('notifications store not available');
+      w.__webmailNotifications.push({
+        id: 'runtime-surrogate-text',
+        category: 'system',
+        severity: 'info',
+        title: `${'T'.repeat(159)}💌`,
+        body: `${'B'.repeat(499)}💌`,
+      });
+    });
+
+    await expect.poll(
+      () => page.evaluate(() => {
+        const hasSurrogate = /[\uD800-\uDFFF]/;
+        const notification = (window as unknown as {
+          __webmailNotifications?: { notifications: Array<{ id: string; title: string; body?: string }> };
+        }).__webmailNotifications?.notifications.find((n) => n.id === 'runtime-surrogate-text');
+        if (!notification) return null;
+        return {
+          titleLength: notification.title.length,
+          bodyLength: notification.body?.length ?? 0,
+          titleHasDanglingSurrogate: hasSurrogate.test(notification.title),
+          bodyHasDanglingSurrogate: hasSurrogate.test(notification.body ?? ''),
+        };
+      }),
+      { timeout: 5_000 },
+    ).toEqual({
+      titleLength: 159,
+      bodyLength: 499,
+      titleHasDanglingSurrogate: false,
+      bodyHasDanglingSurrogate: false,
+    });
   });
 
   test('normalizes control characters in notification text during runtime pushes and storage hydration', async ({ page }) => {
