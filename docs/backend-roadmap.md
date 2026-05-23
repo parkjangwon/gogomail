@@ -6880,3 +6880,7 @@ Target outcome:
 1880. Webmail service worker push events now coerce non-object JSON payloads
       such as arrays or `null` to `{}` before showing browser notifications,
       keeping closed-tab WebPush notification data stable for click handling.
+1881. Webmail notification category chips now count categories after the
+      current all/unread filter is applied, so the unread-only view no longer
+      offers read-only categories that would strand users on an empty filtered
+      notification list while unread notifications remain elsewhere.

@@ -1,6 +1,12 @@
 # gogomail current status
 
-Last updated: 2026-05-23 (webpush non-object payload hardening)
+Last updated: 2026-05-23 (notification unread category filter hardening)
+
+## Notification Unread Category Filter Hardening (2026-05-23)
+- Notification category chips now count categories after applying the current all/unread filter.
+- This prevents the unread-only view from offering categories that only contain read notifications, avoiding empty filtered states while unread notifications remain elsewhere.
+- E2E coverage verifies a read-only mail category disappears from the category chips when the unread filter is active and an unread system notification remains visible.
+- Verification target: `pnpm -C apps/webmail exec playwright test e2e/notifications.spec.ts --project=chromium -g "unread filtering hides categories"`; `pnpm -C apps/webmail type-check`.
 
 ## WebPush Non-Object Payload Hardening (2026-05-23)
 - Webmail service worker push events now coerce non-object JSON payloads such as arrays or `null` to an empty object before showing browser notifications.
