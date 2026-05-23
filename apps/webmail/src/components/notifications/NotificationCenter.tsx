@@ -206,7 +206,7 @@ export function NotificationCenter({ open, onClose }: NotificationCenterProps) {
           </div>
           <button
             type="button"
-            aria-label={t('browser.dismiss')}
+            aria-label={t('browser.dismissPrompt')}
             onClick={dismissBanner}
             style={{
               border: 'none',
