@@ -1,18 +1,12 @@
 # gogomail current status
 
-Last updated: 2026-05-23 (webpush config validation + push worker wiring)
+Last updated: 2026-05-23 (delivery exhausted push handler + webpush worker wiring)
 
-## Web Push Subscriptions DB Layer (2026-05-23)
-- Added `internal/maildb/web_push_subscriptions.go` with `UpsertWebPushSubscription`, `ListActiveWebPushSubscriptions`, `DeleteWebPushSubscription`, and `SoftDeleteWebPushSubscriptionByEndpoint` on `maildb.Repository`.
-- `UpsertWebPushSubscription` uses INSERT ON CONFLICT UPDATE keyed on endpoint (partial index, status = 'active').
-- `DeleteWebPushSubscription` soft-deletes by user_id + id; returns error if no active row matched.
-- `SoftDeleteWebPushSubscriptionByEndpoint` handles 410 Gone push-service responses.
-- Validation rejects missing fields, non-HTTPS endpoints, endpoints > 2048 chars, and embedded line breaks.
-
-## WebPushSink — aes128gcm Encrypted Web Push (2026-05-23)
-- Added `github.com/SherClockHolmes/webpush-go` dependency for RFC 8291 aes128gcm push encryption.
-- Added `EnvelopeFrom` field to `Event` (`json:"envelope_from"`) and `Notification`, mapped in `notificationFromEvent()`.
-- Implemented `WebPushSink` satisfying the `Sink` interface: fetches active subscriptions per user, encrypts and sends push notifications, auto-soft-deletes subscriptions on 410 Gone.
+## Delivery Exhausted Push Notification Handler (2026-05-23)
+- Added `DeliveryExhaustedHandler` in `internal/pushnotify/delivery_handler.go` that consumes `mail.delivery_exhausted` events.
+- Handler parses the event, looks up the sender's `user_id` via `GetMessageSenderUserID`, and enqueues a push notification.
+- If no `user_id` is found (message doesn't exist), the notification is silently skipped.
+- Handler registered in `runPushNotificationWorker` alongside the existing `mail.stored` handler.
 
 ## Browser Notification Tag Collision Hardening (2026-05-23)
 - Webmail browser notification mirroring now keeps overlong native `NotificationOptions.tag` values distinct by appending a stable 8-character hash suffix after truncation.
