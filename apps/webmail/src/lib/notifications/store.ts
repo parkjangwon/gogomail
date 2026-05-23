@@ -218,18 +218,21 @@ function loadInitial(): Notification[] {
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
     if (!raw) return [];
-    const parsed = JSON.parse(raw) as unknown;
-    if (!Array.isArray(parsed)) return [];
-    return parsed
-      .filter((n): n is Notification => {
-        if (!n || typeof n !== 'object') return false;
-        const o = n as Record<string, unknown>;
-        return typeof o.id === 'string' && typeof o.title === 'string' && typeof o.timestamp === 'number';
-      })
-      .slice(0, MAX_NOTIFICATIONS);
+    return sanitizeNotifications(JSON.parse(raw) as unknown);
   } catch {
     return [];
   }
+}
+
+function sanitizeNotifications(input: unknown): Notification[] {
+  if (!Array.isArray(input)) return [];
+  return input
+    .filter((n): n is Notification => {
+      if (!n || typeof n !== 'object') return false;
+      const o = n as Record<string, unknown>;
+      return typeof o.id === 'string' && typeof o.title === 'string' && typeof o.timestamp === 'number';
+    })
+    .slice(0, MAX_NOTIFICATIONS);
 }
 
 function makeId(): string {
@@ -276,8 +279,8 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     const onStorage = (e: StorageEvent) => {
       if (e.key !== STORAGE_KEY) return;
       try {
-        const parsed = e.newValue ? (JSON.parse(e.newValue) as Notification[]) : [];
-        dispatch({ type: 'hydrate', notifications: Array.isArray(parsed) ? parsed : [] });
+        const parsed = e.newValue ? JSON.parse(e.newValue) as unknown : [];
+        dispatch({ type: 'hydrate', notifications: sanitizeNotifications(parsed) });
       } catch {
         // ignore
       }

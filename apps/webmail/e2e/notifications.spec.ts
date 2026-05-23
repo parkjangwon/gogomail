@@ -101,6 +101,28 @@ test.describe('Notification center', () => {
     ).toBeVisible();
   });
 
+  test('sanitizes cross-tab storage notification hydration', async ({ page }) => {
+    await page.evaluate(() => {
+      const payload = Array.from({ length: 501 }, (_, i) => ({
+        id: `storage-${i}`,
+        category: 'system',
+        severity: 'info',
+        title: `Storage item ${i}`,
+        timestamp: Date.now() - i,
+        read: false,
+      }));
+      payload.unshift({ id: 'broken', category: 'system', severity: 'info', title: '', timestamp: Number.NaN, read: false });
+      const raw = JSON.stringify(payload);
+      localStorage.setItem('webmail_notifications', raw);
+      window.dispatchEvent(new StorageEvent('storage', { key: 'webmail_notifications', newValue: raw }));
+    });
+
+    await expect.poll(
+      () => page.evaluate(() => (window as unknown as { __webmailNotifications?: { notifications: unknown[] } }).__webmailNotifications?.notifications.length ?? -1),
+      { timeout: 5_000 },
+    ).toBe(500);
+  });
+
   test('deduplicates repeated event notifications by id', async ({ page }) => {
     await pushNotification(page, { id: 'mail-42', title: 'First copy', body: 'original body', category: 'mail_received', dedupe: true });
     await pushNotification(page, { id: 'mail-42', title: 'Second copy', body: 'duplicate body', category: 'mail_received', dedupe: true });
