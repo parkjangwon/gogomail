@@ -1,6 +1,12 @@
 # gogomail current status
 
-Last updated: 2026-05-23 (notification storage id uniqueness hardening)
+Last updated: 2026-05-23 (notification storage ref sync hardening)
+
+## Notification Storage Ref Sync Hardening (2026-05-23)
+- Notification storage hydration now updates the internal id index before dispatching hydrated state.
+- This prevents a same-tick `dedupe: true` runtime push from being suppressed by stale pre-hydration ids after storage removed that id.
+- E2E coverage verifies a notification removed by storage sync can be pushed again immediately with the same id and `dedupe: true`.
+- Verification target: `pnpm -C apps/webmail exec playwright test e2e/notifications.spec.ts --project=chromium -g "does not suppress a deduped push immediately|deduplicates repeated event notifications by id|deduplicates repeated identifiers during storage hydration"`; `pnpm -C apps/webmail type-check`.
 
 ## Notification Storage ID Uniqueness Hardening (2026-05-23)
 - Notification storage hydration now deduplicates repeated ids while preserving newest-first order and the 500-row retention limit.

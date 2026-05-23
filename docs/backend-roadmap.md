@@ -6912,3 +6912,7 @@ Target outcome:
       while preserving newest-first order and the 500-row retention limit, so
       localStorage or cross-tab payloads cannot reintroduce duplicate rendered
       notification keys after runtime pushes enforce id uniqueness.
+1889. Webmail notification storage hydration now synchronizes the internal id
+      index before dispatching hydrated state, so a same-tick `dedupe: true`
+      runtime push is not suppressed by stale pre-hydration ids after storage
+      removes or replaces a notification.
