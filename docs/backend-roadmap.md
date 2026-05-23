@@ -6970,3 +6970,6 @@ Target outcome:
       `NotificationOptions.data` storage, existing-client navigation, or
       `clients.openWindow()`, falling oversized WebPush payload targets back to
       `/mail` while preserving normal safe relative click URLs.
+1905. Webmail service worker push notification title, body, and tag strings are
+      now capped before `registration.showNotification()`, aligning closed-tab
+      WebPush display payloads with the bounded in-app notification policy.

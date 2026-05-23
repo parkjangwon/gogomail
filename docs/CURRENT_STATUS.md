@@ -1,6 +1,14 @@
 # gogomail current status
 
-Last updated: 2026-05-23 (WebPush notification click URL length hardening)
+Last updated: 2026-05-23 (WebPush notification text length hardening)
+
+## WebPush Notification Text Length Hardening (2026-05-23)
+- Webmail service worker push payload `title`, `body`, and `tag` fields are now capped before `registration.showNotification()`.
+- Closed-tab WebPush notifications now use the same 160-character title and 500-character body bounds as the in-app notification center, with tags capped at 128 characters.
+- Existing blank and malformed payload fallback behavior is preserved.
+- This prevents oversized push payload strings from bloating browser notification state while preserving useful display text.
+- E2E coverage verifies oversized WebPush title/body/tag values are truncated and existing malformed/non-object fallback behavior remains intact.
+- Verification target: `pnpm -C apps/webmail exec playwright test e2e/notifications.spec.ts --project=chromium -g "service worker push truncates oversized notification text fields|service worker push payload fields are normalized before showing notifications|service worker push handles non-object JSON payloads"`; `pnpm -C apps/webmail type-check`.
 
 ## WebPush Notification Click URL Length Hardening (2026-05-23)
 - Webmail service worker notification click URLs are now capped at 2048 characters before `NotificationOptions.data` storage, existing-client navigation, or `clients.openWindow()`.
