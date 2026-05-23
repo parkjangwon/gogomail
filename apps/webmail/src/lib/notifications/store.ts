@@ -59,6 +59,7 @@ const MAX_METADATA_STRING_LENGTH = 200;
 const FALLBACK_TITLE = 'Notification';
 const UNSAFE_ID_CHARS = /[\u0000-\u001F\u007F\\]/;
 const UNSAFE_ACTION_URL_CHARS = /[\u0000-\u001F\u007F\\]/;
+const UNSAFE_ICON_NAME_CHARS = /[\u0000-\u001F\u007F\\]/;
 const UNSAFE_METADATA_KEY_CHARS = /[\u0000-\u001F\u007F\\]/;
 const UNSAFE_METADATA_STRING_CHARS = /\\/;
 const UNSAFE_DISPLAY_TEXT_CHARS = /[\u0000-\u001F\u007F]+/g;
@@ -280,7 +281,11 @@ function safeNotificationBody(value: unknown): string | undefined {
 }
 
 function safeIconName(value: unknown): string | undefined {
-  return typeof value === 'string' && value.length <= MAX_ICON_NAME_LENGTH ? value : undefined;
+  return typeof value === 'string'
+    && value.length <= MAX_ICON_NAME_LENGTH
+    && !UNSAFE_ICON_NAME_CHARS.test(value)
+    ? value
+    : undefined;
 }
 
 function safeNotificationMetadata(value: unknown): Record<string, unknown> | undefined {
