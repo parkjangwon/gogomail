@@ -6839,3 +6839,6 @@ Target outcome:
 1869. Webmail notification storage hydration now rejects unsupported category
       and severity enum values, preventing missing localized filter labels and
       misleading fallback severity styling from corrupted persisted records.
+1870. Webmail notification storage hydration now rejects non-string optional
+      bodies, preventing corrupted persisted records from crashing notification
+      item rendering with non-renderable object payloads.

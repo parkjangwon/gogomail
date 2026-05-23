@@ -1,6 +1,12 @@
 # gogomail current status
 
-Last updated: 2026-05-23 (notification enum hydration hardening)
+Last updated: 2026-05-23 (notification body hydration hardening)
+
+## Notification Body Hydration Hardening (2026-05-23)
+- Notification storage hydration now rejects records whose optional `body` field is not a string.
+- This prevents corrupted persisted records from crashing notification item rendering with non-renderable object bodies.
+- E2E coverage verifies an object body is dropped while a valid string body remains visible.
+- Verification target: `pnpm -C apps/webmail exec playwright test e2e/notifications.spec.ts --project=chromium -g "non-string bodies"`; `pnpm -C apps/webmail type-check`.
 
 ## Notification Enum Hydration Hardening (2026-05-23)
 - Notification storage hydration now rejects unsupported categories and severities instead of accepting arbitrary strings.
