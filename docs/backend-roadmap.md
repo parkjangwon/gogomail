@@ -6877,3 +6877,6 @@ Target outcome:
       rendering the primary notification action and dismiss control as sibling
       buttons in a labeled group, preserving item navigation/dismiss behavior
       while improving keyboard and assistive-technology semantics.
+1880. Webmail service worker push events now coerce non-object JSON payloads
+      such as arrays or `null` to `{}` before showing browser notifications,
+      keeping closed-tab WebPush notification data stable for click handling.
