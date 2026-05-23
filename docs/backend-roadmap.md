@@ -6990,3 +6990,7 @@ Target outcome:
       falling blank-after-normalization titles back to `Notification` and
       dropping blank optional bodies before state, persistence, or browser
       notification mirroring.
+1910. Webmail runtime notification metadata now rejects unsafe keys and
+      backslash-containing string values, normalizes ASCII control-character
+      runs in safe string values, and preserves bounded primitive metadata
+      before state or localStorage persistence.

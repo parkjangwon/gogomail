@@ -1,6 +1,14 @@
 # gogomail current status
 
-Last updated: 2026-05-23 (notification center display text character hardening)
+Last updated: 2026-05-23 (notification metadata character hardening)
+
+## Notification Metadata Character Hardening (2026-05-23)
+- Runtime notification metadata now drops keys containing ASCII control characters or backslashes before state or localStorage persistence.
+- Metadata string values now normalize ASCII control-character runs to spaces, drop blank-after-normalization values, reject backslash-containing strings, and keep the existing 200-character bound.
+- Safe string, finite number, and boolean metadata continue to be preserved for client context such as message ids and flags.
+- This prevents malformed metadata from becoming another persisted notification payload surface while keeping useful primitive context available.
+- E2E coverage verifies unsafe metadata keys and string values are removed or normalized in both `window.__webmailNotifications` state and `webmail_notifications` storage, while existing metadata sanitization behavior still passes.
+- Verification target: `pnpm -C apps/webmail exec playwright test e2e/notifications.spec.ts --project=chromium -g "sanitizes runtime notification metadata keys and string characters|sanitizes runtime notification metadata before storage persistence|normalizes malformed runtime notification fields"`; `pnpm -C apps/webmail type-check`.
 
 ## Notification Center Display Text Character Hardening (2026-05-23)
 - In-app notification titles and bodies now normalize ASCII control-character runs to single spaces during runtime pushes and localStorage hydration.
