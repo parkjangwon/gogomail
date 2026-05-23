@@ -112,12 +112,14 @@ export function NotificationCenter({ open, onClose }: NotificationCenterProps) {
   }, [notifications, filter, categoryFilter, query]);
 
   const categoryCounts = useMemo(() => {
+    const q = query.trim().toLocaleLowerCase();
     const counts = new Map<NotificationCategory, number>();
     notifications
       .filter((n) => filter === 'all' || !n.read)
+      .filter((n) => !q || `${n.title} ${n.body ?? ''}`.toLocaleLowerCase().includes(q))
       .forEach((n) => counts.set(n.category, (counts.get(n.category) ?? 0) + 1));
     return Array.from(counts.entries()).sort(([a], [b]) => categoryOrder(a) - categoryOrder(b));
-  }, [filter, notifications]);
+  }, [filter, notifications, query]);
 
   useEffect(() => {
     if (categoryFilter === 'all') return;
