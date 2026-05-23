@@ -244,6 +244,27 @@ test.describe('Notification center', () => {
     ).toBeVisible();
   });
 
+  test('uses contextual accessible name for browser notification banner dismiss', async ({ page }) => {
+    await page.addInitScript(() => {
+      try {
+        Object.defineProperty(window.Notification, 'permission', { value: 'default', configurable: true });
+      } catch {
+        // ignore in browsers that disallow override
+      }
+      try {
+        localStorage.removeItem('webmail_browser_banner_dismissed');
+      } catch {
+        // ignore
+      }
+    });
+    await setupAuthedPage(page);
+
+    const { dialog } = await openCenter(page);
+    await expect(
+      dialog.getByRole('button', { name: /브라우저 알림 안내 닫기|Dismiss browser notification prompt/i }),
+    ).toBeVisible();
+  });
+
   test('respects browser-notifications toggle when permission is granted', async ({ page }) => {
     await page.addInitScript(() => {
       try {

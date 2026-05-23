@@ -1766,7 +1766,8 @@
       "denied": "浏览器通知已被阻止",
       "deniedHint": "若需接收桌面通知，请在浏览器设置中允许此站点的通知。",
       "toggle": "浏览器通知",
-      "dismiss": "关闭"
+      "dismiss": "关闭",
+      "dismissPrompt": "关闭浏览器通知提示"
     }
   }
 }

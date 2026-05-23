@@ -1,6 +1,12 @@
 # gogomail current status
 
-Last updated: 2026-05-23 (notification item dismiss accessibility)
+Last updated: 2026-05-23 (browser notification prompt dismiss accessibility)
+
+## Browser Notification Prompt Dismiss Accessibility (2026-05-23)
+- The browser-notification permission prompt dismiss button now uses a contextual accessible name instead of a generic close label.
+- Locale catalogs now include browser prompt dismiss labels for English, Korean, Japanese, and Simplified Chinese.
+- E2E coverage verifies the prompt exposes `브라우저 알림 안내 닫기` / `Dismiss browser notification prompt`.
+- Verification target: `pnpm -C apps/webmail exec playwright test e2e/notifications.spec.ts --project=chromium -g "contextual accessible name"`; `pnpm -C apps/webmail type-check`.
 
 ## Notification Item Dismiss Accessibility (2026-05-23)
 - Each notification row dismiss button now includes the notification title in its accessible name, so assistive-technology users can distinguish repeated close buttons.

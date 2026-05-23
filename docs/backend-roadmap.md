@@ -6821,3 +6821,6 @@ Target outcome:
       title in their localized accessible names, making repeated close buttons
       distinguishable for assistive-technology users in dense notification
       lists.
+1864. Webmail browser-notification permission prompt dismissal now uses
+      contextual localized accessible names, so the prompt close control is
+      distinguishable from panel and row close actions.

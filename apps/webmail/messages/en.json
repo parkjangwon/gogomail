@@ -1766,7 +1766,8 @@
       "denied": "Browser notifications blocked",
       "deniedHint": "Allow notifications for this site in your browser settings to receive desktop alerts.",
       "toggle": "Browser notifications",
-      "dismiss": "Dismiss"
+      "dismiss": "Dismiss",
+      "dismissPrompt": "Dismiss browser notification prompt"
     }
   }
 }
