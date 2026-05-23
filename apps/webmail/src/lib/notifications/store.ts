@@ -46,6 +46,7 @@ const DND_START_KEY = 'webmail_dnd_start';
 const DND_END_KEY = 'webmail_dnd_end';
 const NOTIF_SOUND_KEY = 'webmail_notif_sound';
 const MAX_NOTIFICATIONS = 500;
+const FALLBACK_TITLE = 'Notification';
 const VALID_CATEGORIES = new Set<NotificationCategory>([
   'mail_received',
   'mail_sent',
@@ -246,6 +247,30 @@ function safeActionUrl(value: unknown): string | undefined {
   return isSafeActionUrl(value) && typeof value === 'string' ? value : undefined;
 }
 
+function safeOptionalString(value: unknown): string | undefined {
+  return typeof value === 'string' ? value : undefined;
+}
+
+function safeNotificationId(value: unknown): string {
+  return typeof value === 'string' && value.trim() !== '' ? value : makeId();
+}
+
+function safeNotificationTitle(value: unknown): string {
+  return typeof value === 'string' && value.trim() !== '' ? value : FALLBACK_TITLE;
+}
+
+function safeNotificationCategory(value: unknown): NotificationCategory {
+  return typeof value === 'string' && VALID_CATEGORIES.has(value as NotificationCategory)
+    ? value as NotificationCategory
+    : 'system';
+}
+
+function safeNotificationSeverity(value: unknown): NotificationSeverity {
+  return typeof value === 'string' && VALID_SEVERITIES.has(value as NotificationSeverity)
+    ? value as NotificationSeverity
+    : 'info';
+}
+
 function sanitizeNotifications(input: unknown): Notification[] {
   if (!Array.isArray(input)) return [];
   return input
@@ -324,21 +349,22 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const push = useCallback<NotificationsContextValue['push']>((input) => {
-    const id = input.id ?? makeId();
+    const rawInput = input as Record<string, unknown>;
+    const id = safeNotificationId(rawInput.id);
     const existing = notificationsByIDRef.current.get(id);
     if (input.dedupe && existing) {
       return existing;
     }
     const notification: Notification = {
       id,
-      category: input.category,
-      severity: input.severity,
-      title: input.title,
-      body: input.body,
+      category: safeNotificationCategory(rawInput.category),
+      severity: safeNotificationSeverity(rawInput.severity),
+      title: safeNotificationTitle(rawInput.title),
+      body: safeOptionalString(rawInput.body),
       timestamp: Date.now(),
       read: false,
-      actionUrl: safeActionUrl(input.actionUrl),
-      iconName: input.iconName,
+      actionUrl: safeActionUrl(rawInput.actionUrl),
+      iconName: safeOptionalString(rawInput.iconName),
       metadata: input.metadata,
     };
     notificationsByIDRef.current.set(id, notification);
