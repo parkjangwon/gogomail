@@ -1,6 +1,11 @@
 # gogomail current status
 
-Last updated: 2026-05-23 (notification dedupe side effects)
+Last updated: 2026-05-23 (notification center close label)
+
+## Notification Center Close Label (2026-05-23)
+- The notification center header close icon now uses localized accessible names in English, Korean, Japanese, and Simplified Chinese instead of a hard-coded English `close`.
+- E2E coverage verifies the Korean panel exposes `알림 닫기` as the close button name.
+- Verification target: `pnpm -C apps/webmail exec playwright test e2e/notifications.spec.ts --project=chromium -g "localized accessible name"`; `pnpm -C apps/webmail type-check`.
 
 ## Notification Dedupe Side Effects (2026-05-23)
 - Deduplicated notification pushes now short-circuit before in-app sound and browser notification mirroring, so repeated server/event ids do not disturb users twice.

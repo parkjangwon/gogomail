@@ -1724,6 +1724,7 @@
       "empty": "아직 알림이 없습니다",
       "emptyFiltered": "조건에 맞는 알림이 없습니다",
       "searchPlaceholder": "알림 검색",
+      "close": "알림 닫기",
       "markAllRead": "모두 읽음으로",
       "clearAll": "모두 지우기",
       "filters": {

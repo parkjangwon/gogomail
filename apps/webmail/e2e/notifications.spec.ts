@@ -77,6 +77,11 @@ test.describe('Notification center', () => {
     await expect(bell).toBeFocused();
   });
 
+  test('uses localized accessible name for the panel close button', async ({ page }) => {
+    const { dialog } = await openCenter(page);
+    await expect(dialog.getByRole('button', { name: /^알림 닫기$/ })).toBeVisible();
+  });
+
   test('pushed notification appears in list and increments badge', async ({ page }) => {
     await pushNotification(page, { title: 'Hello world', body: 'first body' });
 

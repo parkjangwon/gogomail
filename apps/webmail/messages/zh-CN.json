@@ -1724,6 +1724,7 @@
       "empty": "暂无通知",
       "emptyFiltered": "没有符合条件的通知",
       "searchPlaceholder": "搜索通知",
+      "close": "关闭通知",
       "markAllRead": "全部标记为已读",
       "clearAll": "全部清除",
       "filters": {
