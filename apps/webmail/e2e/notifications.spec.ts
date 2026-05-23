@@ -91,6 +91,43 @@ async function serviceWorkerOpenedUrls(page: Page, notificationData: Record<stri
   }, notificationData);
 }
 
+async function serviceWorkerShownNotification(page: Page, pushData: Record<string, unknown>) {
+  return await page.evaluate(async (data) => {
+    const source = await fetch('/sw.js').then((response) => response.text());
+    const listeners: Record<string, (event: unknown) => void> = {};
+    let shown: { title: unknown; options: Record<string, unknown> } | undefined;
+    const fakeSelf = {
+      addEventListener(type: string, handler: (event: unknown) => void) {
+        listeners[type] = handler;
+      },
+      registration: {
+        showNotification: async (title: unknown, options: Record<string, unknown>) => {
+          shown = { title, options };
+        },
+      },
+    };
+    const fakeClients = {
+      matchAll: async () => [],
+      openWindow: async () => null,
+    };
+    new Function('self', 'clients', source)(fakeSelf, fakeClients);
+
+    let waited: Promise<unknown> | undefined;
+    const event = {
+      data: {
+        json: () => data,
+      },
+      waitUntil: (promise: Promise<unknown>) => {
+        waited = Promise.resolve(promise);
+      },
+    };
+
+    listeners.push(event);
+    await waited;
+    return shown;
+  }, pushData);
+}
+
 test.describe('Notification center', () => {
   test.beforeEach(async ({ page }) => {
     await setupAuthedPage(page);
@@ -340,6 +377,36 @@ test.describe('Notification center', () => {
     await expect(serviceWorkerOpenedUrls(page, { url: '//evil.example/phish' })).resolves.toEqual(['/mail']);
     await expect(serviceWorkerOpenedUrls(page, { url: { href: '/mail' } })).resolves.toEqual(['/mail']);
     await expect(serviceWorkerOpenedUrls(page, { url: '/mail?from=webpush' })).resolves.toEqual(['/mail?from=webpush']);
+  });
+
+  test('service worker push payload fields are normalized before showing notifications', async ({ page }) => {
+    await expect(
+      serviceWorkerShownNotification(page, {
+        title: { text: 'object title' },
+        body: { text: 'object body' },
+        tag: { value: 'object-tag' },
+      }),
+    ).resolves.toMatchObject({
+      title: '새 메일',
+      options: {
+        body: '',
+        tag: 'gogomail-notification',
+      },
+    });
+
+    await expect(
+      serviceWorkerShownNotification(page, {
+        title: '  ',
+        body: 'Body text',
+        tag: 'custom-tag',
+      }),
+    ).resolves.toMatchObject({
+      title: '새 메일',
+      options: {
+        body: 'Body text',
+        tag: 'custom-tag',
+      },
+    });
   });
 
   test('normalizes malformed runtime notification fields before rendering', async ({ page }) => {

@@ -1,6 +1,13 @@
 # gogomail current status
 
-Last updated: 2026-05-23 (webpush notification click URL hardening)
+Last updated: 2026-05-23 (webpush notification payload hardening)
+
+## WebPush Notification Payload Hardening (2026-05-23)
+- Webmail service worker push events now normalize notification `title`, `body`, and `tag` fields before calling the browser notification API.
+- Non-string or blank titles fall back to `새 메일`, non-string bodies are dropped, and invalid tags fall back to `gogomail-notification`.
+- This prevents malformed WebPush payloads from surfacing object-shaped text or unstable notification tags in closed-tab browser notifications.
+- E2E coverage evaluates `/sw.js` with mocked push events and verifies malformed payload fields are normalized while valid strings are preserved.
+- Verification target: `pnpm -C apps/webmail exec playwright test e2e/notifications.spec.ts --project=chromium -g "service worker push payload fields"`; `pnpm -C apps/webmail type-check`.
 
 ## WebPush Notification Click URL Hardening (2026-05-23)
 - Webmail service worker notification clicks now open only safe relative app URLs and fall back to `/mail` for external, protocol-relative, or non-string payload targets.
