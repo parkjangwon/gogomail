@@ -91,8 +91,12 @@ async function serviceWorkerOpenedUrls(page: Page, notificationData: Record<stri
   }, notificationData);
 }
 
-async function serviceWorkerExistingClientClickResult(page: Page, notificationData: Record<string, unknown>) {
-  return await page.evaluate(async (data) => {
+async function serviceWorkerExistingClientClickResult(
+  page: Page,
+  notificationData: Record<string, unknown>,
+  clientUrl = 'https://app.example/mail',
+) {
+  return await page.evaluate(async ({ data, existingClientUrl }) => {
     const source = await fetch('/sw.js').then((response) => response.text());
     const listeners: Record<string, (event: unknown) => void> = {};
     const result = { focused: 0, navigatedTo: null as unknown, opened: [] as unknown[] };
@@ -105,7 +109,7 @@ async function serviceWorkerExistingClientClickResult(page: Page, notificationDa
       },
     };
     const fakeWindowClient = {
-      url: 'https://app.example/mail',
+      url: existingClientUrl,
       focus: async () => {
         result.focused++;
         return fakeWindowClient;
@@ -138,7 +142,7 @@ async function serviceWorkerExistingClientClickResult(page: Page, notificationDa
     listeners.notificationclick(event);
     await waited;
     return result;
-  }, notificationData);
+  }, { data: notificationData, existingClientUrl: clientUrl });
 }
 
 async function serviceWorkerShownNotification(page: Page, pushData: unknown) {
@@ -534,6 +538,20 @@ test.describe('Notification center', () => {
       focused: 1,
       navigatedTo: '/mail/thread-123',
       opened: [],
+    });
+  });
+
+  test('service worker notification clicks ignore non-mail windows that only mention mail in the URL', async ({ page }) => {
+    await expect(
+      serviceWorkerExistingClientClickResult(
+        page,
+        { url: '/mail/thread-123' },
+        'https://app.example/settings?next=/mail',
+      ),
+    ).resolves.toEqual({
+      focused: 0,
+      navigatedTo: null,
+      opened: ['/mail/thread-123'],
     });
   });
 

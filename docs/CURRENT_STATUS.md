@@ -1,6 +1,12 @@
 # gogomail current status
 
-Last updated: 2026-05-23 (webpush notification data pruning)
+Last updated: 2026-05-23 (webpush mail-window targeting)
+
+## WebPush Mail-Window Targeting (2026-05-23)
+- WebPush notification clicks now identify reusable mail windows by URL pathname instead of substring matching.
+- Existing `/mail` and `/mail/...` clients are still navigated and focused, while non-mail pages such as settings URLs that merely mention `/mail` are ignored and a mail target is opened separately.
+- This prevents notification clicks from unexpectedly hijacking unrelated app windows while preserving the existing no-duplicate-mail-window behavior.
+- Verification target: `pnpm -C apps/webmail exec playwright test e2e/notifications.spec.ts --project=chromium -g "ignore non-mail windows|navigate an existing mail window|unsafe target URLs"`; `pnpm -C apps/webmail type-check`.
 
 ## WebPush Notification Data Pruning (2026-05-23)
 - Webmail service worker push handling now stores only sanitized click data in `NotificationOptions.data`.

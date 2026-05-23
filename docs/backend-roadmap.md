@@ -6928,3 +6928,7 @@ Target outcome:
       data in `NotificationOptions.data`, preserving safe relative `url`
       targets, falling unsafe targets back to `/mail`, and dropping unrelated
       WebPush payload fields from browser notification click state.
+1893. Webmail service worker notification clicks now identify reusable mail
+      windows by parsed URL pathname (`/mail` or `/mail/...`) instead of broad
+      substring matching, so unrelated app pages that only mention `/mail` in
+      query strings are not hijacked by notification navigation.
