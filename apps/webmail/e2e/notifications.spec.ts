@@ -567,6 +567,25 @@ test.describe('Notification center', () => {
     });
   });
 
+  test('service worker push stores only sanitized click data', async ({ page }) => {
+    const safeShown = await serviceWorkerShownNotification(page, {
+      title: 'Click payload',
+      body: 'Body text',
+      tag: 'tag-1',
+      url: '/mail/thread-123',
+      admin: true,
+      nested: { leak: true },
+    });
+    expect(safeShown?.options.data).toEqual({ url: '/mail/thread-123' });
+
+    const unsafeShown = await serviceWorkerShownNotification(page, {
+      title: 'Unsafe click payload',
+      url: '/\\evil.example/phish',
+      nested: { leak: true },
+    });
+    expect(unsafeShown?.options.data).toEqual({ url: '/mail' });
+  });
+
   test('service worker push handles non-object JSON payloads before showing notifications', async ({ page }) => {
     await expect(serviceWorkerShownNotification(page, null)).resolves.toMatchObject({
       title: '새 메일',

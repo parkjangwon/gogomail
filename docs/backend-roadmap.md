@@ -6924,3 +6924,7 @@ Target outcome:
       notification objects from the allowed public fields only, so unknown
       injected localStorage fields are dropped instead of being retained in
       client state or re-persisted.
+1892. Webmail service worker push handling now stores only sanitized click
+      data in `NotificationOptions.data`, preserving safe relative `url`
+      targets, falling unsafe targets back to `/mail`, and dropping unrelated
+      WebPush payload fields from browser notification click state.

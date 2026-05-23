@@ -20,6 +20,11 @@ function safeNotificationPayload(value) {
   return value;
 }
 
+function safeNotificationData(payload) {
+  if (typeof payload.url !== 'string') return {};
+  return { url: safeNotificationClickUrl(payload.url) };
+}
+
 self.addEventListener('push', (event) => {
   let data = {};
   try {
@@ -33,7 +38,7 @@ self.addEventListener('push', (event) => {
     body: safeNotificationText(data.body, ''),
     icon: '/favicon.ico',
     badge: '/favicon.ico',
-    data: data,
+    data: safeNotificationData(data),
     tag: safeNotificationText(data.tag, 'gogomail-notification'),
     renotify: true,
   };
