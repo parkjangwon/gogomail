@@ -123,6 +123,21 @@ test.describe('Notification center', () => {
     ).toBe(500);
   });
 
+  test('clears stale state when cross-tab notification storage is invalid JSON', async ({ page }) => {
+    await pushNotification(page, { title: 'Stale before corrupt sync' });
+    await expect.poll(() => unreadBadgeText(page), { timeout: 5_000 }).toBe('1');
+
+    await page.evaluate(() => {
+      localStorage.setItem('webmail_notifications', '{not-json');
+      window.dispatchEvent(new StorageEvent('storage', { key: 'webmail_notifications', newValue: '{not-json' }));
+    });
+
+    await expect.poll(
+      () => page.evaluate(() => (window as unknown as { __webmailNotifications?: { notifications: unknown[] } }).__webmailNotifications?.notifications.length ?? -1),
+      { timeout: 5_000 },
+    ).toBe(0);
+  });
+
   test('deduplicates repeated event notifications by id', async ({ page }) => {
     await pushNotification(page, { id: 'mail-42', title: 'First copy', body: 'original body', category: 'mail_received', dedupe: true });
     await pushNotification(page, { id: 'mail-42', title: 'Second copy', body: 'duplicate body', category: 'mail_received', dedupe: true });

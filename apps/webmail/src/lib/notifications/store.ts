@@ -282,7 +282,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
         const parsed = e.newValue ? JSON.parse(e.newValue) as unknown : [];
         dispatch({ type: 'hydrate', notifications: sanitizeNotifications(parsed) });
       } catch {
-        // ignore
+        dispatch({ type: 'hydrate', notifications: [] });
       }
     };
     window.addEventListener('storage', onStorage);

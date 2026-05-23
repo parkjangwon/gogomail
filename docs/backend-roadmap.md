@@ -6824,3 +6824,6 @@ Target outcome:
 1864. Webmail browser-notification permission prompt dismissal now uses
       contextual localized accessible names, so the prompt close control is
       distinguishable from panel and row close actions.
+1865. Webmail notification cross-tab storage sync now treats invalid JSON the
+      same way as initial localStorage hydration by clearing live notification
+      state, preventing stale unread badges after corrupted storage writes.
