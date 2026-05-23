@@ -1,6 +1,12 @@
 # gogomail current status
 
-Last updated: 2026-05-23 (notification center usability hardening)
+Last updated: 2026-05-23 (notification quiet-hours mirroring)
+
+## Notification Quiet-Hours Mirroring (2026-05-23)
+- Webmail notification store browser mirroring now respects the same Settings quiet-hours local state used by mail-page notification polling.
+- Warning/error notifications still appear in the in-app notification center, but native browser notifications are suppressed while Do Not Disturb is active, including overnight quiet-hour windows.
+- Regression coverage verifies a granted browser-notification permission and enabled mirror toggle still create no native notification during quiet hours.
+- Verification: `pnpm -C apps/webmail exec playwright test e2e/notifications.spec.ts --project=chromium --grep "quiet hours"`, `pnpm -C apps/webmail exec playwright test e2e/notifications.spec.ts --project=chromium`, and `pnpm -C apps/webmail type-check` pass.
 
 ## Notification Center Usability Hardening (2026-05-23)
 - Webmail notification center now supports text search across title/body and dynamic category chips with per-category counts, so busy launch-day notification streams can be narrowed without clearing history.

@@ -192,6 +192,44 @@ test.describe('Notification center', () => {
     expect(count).toBe(0); // toggle off => no browser notification
   });
 
+  test('respects quiet hours for browser notification mirroring', async ({ page }) => {
+    await page.addInitScript(() => {
+      try {
+        Object.defineProperty(window.Notification, 'permission', { value: 'granted', configurable: true });
+      } catch {
+        // ignore
+      }
+      localStorage.setItem('webmail_browser_notifications_enabled', 'true');
+      localStorage.setItem('webmail_dnd', '1');
+      localStorage.setItem('webmail_dnd_start', '00:00');
+      localStorage.setItem('webmail_dnd_end', '23:59');
+      (window as unknown as { __notificationsCreated: number }).__notificationsCreated = 0;
+      const Orig = window.Notification;
+      window.Notification = new Proxy(Orig, {
+        construct(target, args) {
+          (window as unknown as { __notificationsCreated: number }).__notificationsCreated++;
+          return new (target as unknown as new (...a: unknown[]) => Notification)(...args);
+        },
+      }) as typeof window.Notification;
+    });
+    await setupAuthedPage(page);
+    await page.evaluate(() => {
+      const w = window as unknown as {
+        __webmailNotifications?: { push: (input: Record<string, unknown>) => unknown };
+      };
+      w.__webmailNotifications?.push({
+        category: 'system',
+        severity: 'error',
+        title: 'Quiet hours should suppress this',
+      });
+    });
+    await page.waitForTimeout(200);
+    const count = await page.evaluate(
+      () => (window as unknown as { __notificationsCreated: number }).__notificationsCreated,
+    );
+    expect(count).toBe(0);
+  });
+
   test('persists across reload', async ({ page }) => {
     await pushNotification(page, { title: 'Persisted item' });
     await expect.poll(() => unreadBadgeText(page)).toBe('1');
