@@ -1,6 +1,7 @@
 'use client';
 
 import { useRef, useEffect } from 'react';
+import { useTranslations } from 'next-intl';
 import { startOfWeek, isSameDay, addDays, formatHour, formatTime } from '@/lib/calendar/dateUtils';
 import { ParsedEvent } from '@/lib/calendar/eventParser';
 
@@ -15,9 +16,10 @@ const HOUR_HEIGHT = 48;
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
 
 export function WeekView({ currentDate, events, today, onEventClick }: WeekViewProps) {
+  const t = useTranslations('calendar');
   const mon = startOfWeek(currentDate);
   const days = Array.from({ length: 7 }, (_, i) => addDays(mon, i));
-  const weekDayLabels = ['월', '화', '수', '목', '금', '토', '일'];
+  const weekDayLabels = [t('wkMon'), t('wkTue'), t('wkWed'), t('wkThu'), t('wkFri'), t('wkSat'), t('wkSun')];
   const isWeekend = (d: Date) => d.getDay() === 0 || d.getDay() === 6;
 
   const scrollRef = useRef<HTMLDivElement>(null);

@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect, KeyboardEvent, ClipboardEvent } from 'react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
+import { useTranslations } from 'next-intl';
 import { autocompleteContacts, ContactSuggestion } from '@/lib/api';
 import { parseAddressList } from '@/lib/mail-address';
 
@@ -21,6 +22,7 @@ function formatSuggestion(s: ContactSuggestion): string {
 }
 
 export function RecipientChips({ value, onChange, placeholder, id, autoFocus, hasError, suggestions = [] }: RecipientChipsProps) {
+  const t = useTranslations('recipients');
   const [chips, setChips] = useState<string[]>(() => (value ? parseAddressList(value).map((addr) => addr.address) : []));
   const [input, setInput] = useState('');
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -148,7 +150,7 @@ export function RecipientChips({ value, onChange, placeholder, id, autoFocus, ha
           <button
             type="button"
             onClick={(e) => { e.stopPropagation(); removeChip(i); }}
-            aria-label={`${chip} 제거`}
+            aria-label={t('removeAria', { chip })}
             style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-secondary)', padding: '0 1px', lineHeight: 1, flexShrink: 0, display: 'inline-flex' }}
           ><XMarkIcon style={{ width: '12px', height: '12px' }} /></button>
         </span>
@@ -216,7 +218,7 @@ export function RecipientChips({ value, onChange, placeholder, id, autoFocus, ha
                   )}
                 </div>
                 {item.type === 'group' && (
-                  <span style={{ fontSize: '10px', padding: '1px 6px', borderRadius: '8px', background: 'var(--color-accent-subtle, rgba(47,110,224,0.1))', color: 'var(--color-accent)', fontWeight: 600, flexShrink: 0 }}>그룹</span>
+                  <span style={{ fontSize: '10px', padding: '1px 6px', borderRadius: '8px', background: 'var(--color-accent-subtle, rgba(47,110,224,0.1))', color: 'var(--color-accent)', fontWeight: 600, flexShrink: 0 }}>{t('groupBadge')}</span>
                 )}
               </div>
             </button>

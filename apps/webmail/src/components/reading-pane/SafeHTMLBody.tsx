@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslations } from 'next-intl';
 
 interface SafeHTMLBodyProps {
   html: string;
@@ -9,6 +10,7 @@ interface SafeHTMLBodyProps {
 }
 
 export function SafeHTMLBody({ html, onMailto, externalImages = 'ask' }: SafeHTMLBodyProps) {
+  const t = useTranslations('readingPaneSafe');
   const blockTrackingPixels = useMemo(() => {
     try {
       return JSON.parse(localStorage.getItem('webmail_settings') ?? '{}').blockTrackingPixels !== false;
@@ -106,7 +108,7 @@ export function SafeHTMLBody({ html, onMailto, externalImages = 'ask' }: SafeHTM
             color: 'var(--color-text-secondary)',
           }}
         >
-          <span>원격 이미지가 차단됨</span>
+          <span>{t('remoteImagesBlocked')}</span>
           <button
             type="button"
             onClick={() => setShowImages(true)}
@@ -120,7 +122,7 @@ export function SafeHTMLBody({ html, onMailto, externalImages = 'ask' }: SafeHTM
               fontWeight: 500,
             }}
           >
-            이미지 표시
+            {t('showImages')}
           </button>
         </div>
       )}
@@ -140,7 +142,7 @@ export function SafeHTMLBody({ html, onMailto, externalImages = 'ask' }: SafeHTM
             padding: '3px 10px',
           }}
         >
-          {showQuoted ? '인용문 숨기기' : '원본 메시지 보기 ···'}
+          {showQuoted ? t('hideQuoted') : t('showQuoted')}
         </button>
       )}
     </>

@@ -8,6 +8,8 @@
     "build": "next build",
     "start": "next start",
     "type-check": "tsc --noEmit",
+    "lint": "tsc --noEmit",
+    "test": "pnpm type-check",
     "test:compose-helpers": "node --experimental-strip-types scripts/check-compose-helpers.mjs",
     "test:mail-page-helpers": "node --experimental-strip-types scripts/check-mail-page-helpers.mjs",
     "test:security-helpers": "node --experimental-strip-types scripts/check-security-helpers.mjs",

@@ -1,20 +1,21 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useTranslations } from 'next-intl';
 
 interface AccentPreset {
-  name: string;
+  nameKey: 'blue' | 'teal' | 'purple' | 'orange' | 'pink';
   swatch: string;
   light: { accent: string; hover: string; subtle: string };
   dark: { accent: string; hover: string; subtle: string };
 }
 
 const PRESETS: AccentPreset[] = [
-  { name: '블루', swatch: '#2F6EE0', light: { accent: '#2F6EE0', hover: '#2560C8', subtle: '#EBF1FD' }, dark: { accent: '#5B8EF0', hover: '#6B9AF4', subtle: '#1E2B45' } },
-  { name: '틸', swatch: '#0D9488', light: { accent: '#0D9488', hover: '#0F766E', subtle: '#CCFBF1' }, dark: { accent: '#14B8A6', hover: '#2DD4BF', subtle: '#1A3D38' } },
-  { name: '보라', swatch: '#7C3AED', light: { accent: '#7C3AED', hover: '#6D28D9', subtle: '#EDE9FE' }, dark: { accent: '#A78BFA', hover: '#C4B5FD', subtle: '#2E1B4E' } },
-  { name: '주황', swatch: '#EA580C', light: { accent: '#EA580C', hover: '#C2410C', subtle: '#FFEDD5' }, dark: { accent: '#FB923C', hover: '#FDBA74', subtle: '#451A03' } },
-  { name: '핑크', swatch: '#DB2777', light: { accent: '#DB2777', hover: '#BE185D', subtle: '#FCE7F3' }, dark: { accent: '#F472B6', hover: '#FBCFE8', subtle: '#4A1032' } },
+  { nameKey: 'blue', swatch: '#2F6EE0', light: { accent: '#2F6EE0', hover: '#2560C8', subtle: '#EBF1FD' }, dark: { accent: '#5B8EF0', hover: '#6B9AF4', subtle: '#1E2B45' } },
+  { nameKey: 'teal', swatch: '#0D9488', light: { accent: '#0D9488', hover: '#0F766E', subtle: '#CCFBF1' }, dark: { accent: '#14B8A6', hover: '#2DD4BF', subtle: '#1A3D38' } },
+  { nameKey: 'purple', swatch: '#7C3AED', light: { accent: '#7C3AED', hover: '#6D28D9', subtle: '#EDE9FE' }, dark: { accent: '#A78BFA', hover: '#C4B5FD', subtle: '#2E1B4E' } },
+  { nameKey: 'orange', swatch: '#EA580C', light: { accent: '#EA580C', hover: '#C2410C', subtle: '#FFEDD5' }, dark: { accent: '#FB923C', hover: '#FDBA74', subtle: '#451A03' } },
+  { nameKey: 'pink', swatch: '#DB2777', light: { accent: '#DB2777', hover: '#BE185D', subtle: '#FCE7F3' }, dark: { accent: '#F472B6', hover: '#FBCFE8', subtle: '#4A1032' } },
 ];
 
 const STORAGE_KEY = 'webmail_accent';
@@ -42,6 +43,7 @@ function applyAccent(preset: AccentPreset) {
 }
 
 export function AccentPicker() {
+  const t = useTranslations('accent');
   const [open, setOpen] = useState(false);
   const [activeIdx, setActiveIdx] = useState(() => {
     try {
@@ -63,8 +65,8 @@ export function AccentPicker() {
   return (
     <div style={{ position: 'relative' }}>
       <button
-        aria-label="색상 테마 선택"
-        title="색상 테마"
+        aria-label={t('selectAria')}
+        title={t('themeTitle')}
         onClick={() => setOpen((v) => !v)}
         style={{
           width: '22px',
@@ -100,13 +102,13 @@ export function AccentPicker() {
             gap: '8px',
             minWidth: '120px',
           }}>
-            <span style={{ fontSize: '11px', color: 'var(--color-text-tertiary)', fontWeight: 500, marginBottom: '2px' }}>색상 선택</span>
+            <span style={{ fontSize: '11px', color: 'var(--color-text-tertiary)', fontWeight: 500, marginBottom: '2px' }}>{t('selectLabel')}</span>
             <div style={{ display: 'flex', gap: '8px' }}>
               {PRESETS.map((p, i) => (
                 <button
-                  key={p.name}
-                  aria-label={p.name}
-                  title={p.name}
+                  key={p.nameKey}
+                  aria-label={t(p.nameKey)}
+                  title={t(p.nameKey)}
                   onClick={() => select(i)}
                   style={{
                     width: '22px',

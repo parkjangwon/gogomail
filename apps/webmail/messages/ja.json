@@ -246,6 +246,139 @@
     "editRuleTitle": "ルールを編集",
     "newRuleTitle": "新しいルール"
   },
+  "nav": {
+    "mail": "メール",
+    "calendar": "カレンダー",
+    "contacts": "連絡先",
+    "drive": "ドライブ",
+    "settings": "設定",
+    "appSwitcher": "アプリ切替",
+    "unread": "未読",
+    "guide": "ガイド",
+    "closeMenu": "メニューを閉じる",
+    "accountMenu": "アカウントメニュー",
+    "collapseSidebar": "サイドバーを折りたたむ",
+    "collapseSidebarHint": "サイドバーを折りたたむ ([)",
+    "composeMail": "メールを作成",
+    "composeMailHint": "メールを作成 (c)",
+    "logout": "ログアウト",
+    "defaultUser": "ユーザー"
+  },
+  "placeholders": {
+    "notReady": "準備中です",
+    "contacts": "連絡先",
+    "calendar": "カレンダー",
+    "orgChart": "組織図"
+  },
+  "accent": {
+    "selectAria": "カラーテーマを選択",
+    "themeTitle": "カラーテーマ",
+    "selectLabel": "色を選択",
+    "blue": "ブルー",
+    "teal": "ティール",
+    "purple": "パープル",
+    "orange": "オレンジ",
+    "pink": "ピンク"
+  },
+  "snooze": {
+    "title": "再通知",
+    "in1h": "1時間後",
+    "tonight": "今夜",
+    "tonightTime": "午後9:00",
+    "tomorrow": "明日の朝",
+    "morning8": "午前8:00",
+    "morning9": "午前9:00",
+    "thisWeekend": "今週末",
+    "nextWeek": "来週"
+  },
+  "mfa": {
+    "title": "2要素認証の設定が必要です",
+    "description": "管理者がこのアカウントにMFA認証を要求するように設定しました。引き続きご利用いただくには、認証アプリ(Google Authenticator、Authyなど)を登録してください。",
+    "setupNow": "今すぐMFAを設定 →",
+    "later": "後で行う"
+  },
+  "localeSelector": {
+    "aria": "言語を選択"
+  },
+  "recipients": {
+    "removeAria": "{chip} を削除",
+    "groupBadge": "グループ"
+  },
+  "composeFooter": {
+    "sendOptionsAria": "送信オプションを開く",
+    "scheduleSendTitle": "予約送信",
+    "sendAndArchive": "送信してアーカイブ",
+    "sendAndArchiveDesc": "送信後、元のメールをアーカイブに移動",
+    "sendAndArchiveAria": "送信してアーカイブ、送信後に元のメールをアーカイブに移動",
+    "customDate": "日時を指定",
+    "customDateAria": "日時を指定して予約送信",
+    "saving": "保存中...",
+    "savedAt": "下書き保存 {time}",
+    "cancel": "キャンセル",
+    "countdown": "{seconds}秒後に送信されます..."
+  },
+  "calendar": {
+    "wkMon": "月", "wkTue": "火", "wkWed": "水", "wkThu": "木", "wkFri": "金", "wkSat": "土", "wkSun": "日",
+    "prevMonth": "前の月",
+    "nextMonth": "次の月",
+    "prev": "前へ",
+    "next": "次へ",
+    "today": "今日",
+    "dayWeekday": "{weekday}曜日",
+    "viewDay": "日",
+    "viewWeek": "週",
+    "viewMonth": "月",
+    "moreEvents": "+{count}件",
+    "edit": "編集",
+    "delete": "削除",
+    "yearMonth": "{year}年{month}月",
+    "addToCalendar": "カレンダーに追加",
+    "adding": "追加中...",
+    "added": "✓ 追加済み"
+  },
+  "driveMenu": {
+    "download": "ダウンロード",
+    "rename": "名前を変更",
+    "shareLink": "共有リンク",
+    "trash": "ゴミ箱"
+  },
+  "thread": {
+    "conversationCount": "会話 {count}件",
+    "noContent": "（内容なし）"
+  },
+  "readingPaneSafe": {
+    "remoteImagesBlocked": "外部画像がブロックされました",
+    "showImages": "画像を表示",
+    "showQuoted": "元のメッセージを表示 ···",
+    "hideQuoted": "引用文を隠す"
+  },
+  "readingPaneOverlay": {
+    "download": "ダウンロード",
+    "close": "閉じる"
+  },
+  "composeSlash": {
+    "formatting": "書式"
+  },
+  "contextMenu": {
+    "messageActionsAria": "メッセージ操作"
+  },
+  "quickReply": {
+    "replyButton": "← 返信する...",
+    "placeholder": "返信内容を入力...",
+    "hint": "Ctrl+Enterで送信 · Escapeでキャンセル",
+    "cancel": "キャンセル",
+    "sending": "送信中...",
+    "sent": "送信済み ✓",
+    "send": "送信"
+  },
+  "settingsPrimitives": {
+    "bulletList": "• 箇条書き",
+    "orderedList": "1. 番号付き"
+  },
+  "contactHover": {
+    "inboxCount": "受信トレイに {count}件のメール",
+    "newMail": "+ 新規メール作成"
+  },
   "settingsModal": {
     "readMark": "既読処理",
     "readMarkInstant": "即時",

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useTranslations } from 'next-intl';
 import { startOfMonth, startOfWeek, isSameDay, addDays } from '@/lib/calendar/dateUtils';
 
 export interface MiniCalendarProps {
@@ -10,6 +11,7 @@ export interface MiniCalendarProps {
 }
 
 export function MiniCalendar({ selectedDate, today, onDateSelect }: MiniCalendarProps) {
+  const t = useTranslations('calendar');
   const [viewMonth, setViewMonth] = useState<Date>(() => {
     const d = new Date(selectedDate);
     d.setDate(1);
@@ -38,7 +40,7 @@ export function MiniCalendar({ selectedDate, today, onDateSelect }: MiniCalendar
   const needed = days.findLastIndex((d) => d.getMonth() === month || d <= firstDay) + 1;
   const cellCount = Math.ceil(Math.max(needed, 28) / 7) * 7;
   const visibleDays = days.slice(0, cellCount);
-  const weekDays = ['월', '화', '수', '목', '금', '토', '일'];
+  const weekDays = [t('wkMon'), t('wkTue'), t('wkWed'), t('wkThu'), t('wkFri'), t('wkSat'), t('wkSun')];
 
   return (
     <div style={{ padding: '10px 8px 6px', userSelect: 'none' }}>
@@ -46,15 +48,15 @@ export function MiniCalendar({ selectedDate, today, onDateSelect }: MiniCalendar
         <button
           onClick={() => setViewMonth((d) => { const c = new Date(d); c.setMonth(c.getMonth() - 1); return c; })}
           style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-tertiary)', fontSize: '16px', padding: '2px 6px', borderRadius: '4px', lineHeight: 1 }}
-          aria-label="이전 달"
+          aria-label={t('prevMonth')}
         >‹</button>
         <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-text-secondary)' }}>
-          {viewMonth.getFullYear()}년 {viewMonth.getMonth() + 1}월
+          {t('yearMonth', { year: viewMonth.getFullYear(), month: viewMonth.getMonth() + 1 })}
         </span>
         <button
           onClick={() => setViewMonth((d) => { const c = new Date(d); c.setMonth(c.getMonth() + 1); return c; })}
           style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-tertiary)', fontSize: '16px', padding: '2px 6px', borderRadius: '4px', lineHeight: 1 }}
-          aria-label="다음 달"
+          aria-label={t('nextMonth')}
         >›</button>
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', marginBottom: '2px' }}>

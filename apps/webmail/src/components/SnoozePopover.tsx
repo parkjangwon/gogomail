@@ -2,6 +2,7 @@
 
 import { useRef, useEffect } from 'react';
 import { ClockIcon } from '@heroicons/react/24/outline';
+import { useTranslations } from 'next-intl';
 
 export const SNOOZE_KEY = 'webmail_snoozed';
 
@@ -28,24 +29,26 @@ export function isCurrentlySnoozed(id: string, snoozed: Record<string, string>):
   return new Date(until) > new Date();
 }
 
-function buildPresets(): { label: string; sub: string; date: Date }[] {
+type SnoozeT = (key: string) => string;
+
+function buildPresets(t: SnoozeT): { label: string; sub: string; date: Date }[] {
   const now = new Date();
   const presets: { label: string; sub: string; date: Date }[] = [];
 
   // 1 hour from now
   const in1h = new Date(now.getTime() + 60 * 60 * 1000);
-  presets.push({ label: '1시간 후', sub: formatTime(in1h), date: in1h });
+  presets.push({ label: t('in1h'), sub: formatTime(in1h), date: in1h });
 
   // Tonight 9pm
   const tonight = new Date(now);
   tonight.setHours(21, 0, 0, 0);
-  if (tonight > now) presets.push({ label: '오늘 저녁', sub: '오후 9:00', date: tonight });
+  if (tonight > now) presets.push({ label: t('tonight'), sub: t('tonightTime'), date: tonight });
 
   // Tomorrow morning 8am
   const tomorrow = new Date(now);
   tomorrow.setDate(tomorrow.getDate() + 1);
   tomorrow.setHours(8, 0, 0, 0);
-  presets.push({ label: '내일 아침', sub: formatDate(tomorrow) + ' 오전 8:00', date: tomorrow });
+  presets.push({ label: t('tomorrow'), sub: formatDate(tomorrow) + ' ' + t('morning8'), date: tomorrow });
 
   // This weekend (next Saturday 9am)
   const weekend = new Date(now);
@@ -53,14 +56,14 @@ function buildPresets(): { label: string; sub: string; date: Date }[] {
   const daysToSat = (6 - dow + 7) % 7 || 7;
   weekend.setDate(weekend.getDate() + daysToSat);
   weekend.setHours(9, 0, 0, 0);
-  presets.push({ label: '이번 주말', sub: formatDate(weekend) + ' 오전 9:00', date: weekend });
+  presets.push({ label: t('thisWeekend'), sub: formatDate(weekend) + ' ' + t('morning9'), date: weekend });
 
   // Next Monday 8am
   const nextMon = new Date(now);
   const daysToMon = (8 - nextMon.getDay()) % 7 || 7;
   nextMon.setDate(nextMon.getDate() + daysToMon);
   nextMon.setHours(8, 0, 0, 0);
-  presets.push({ label: '다음 주', sub: formatDate(nextMon) + ' 오전 8:00', date: nextMon });
+  presets.push({ label: t('nextWeek'), sub: formatDate(nextMon) + ' ' + t('morning8'), date: nextMon });
 
   return presets;
 }
@@ -79,8 +82,9 @@ interface SnoozePopoverProps {
 }
 
 export function SnoozePopover({ onSnooze, onClose, align = 'right' }: SnoozePopoverProps) {
+  const t = useTranslations('snooze');
   const ref = useRef<HTMLDivElement>(null);
-  const presets = buildPresets();
+  const presets = buildPresets(t);
 
   useEffect(() => {
     function onDown(e: MouseEvent) {
@@ -109,7 +113,7 @@ export function SnoozePopover({ onSnooze, onClose, align = 'right' }: SnoozePopo
     >
       <div style={{ padding: '8px 12px 4px', display: 'flex', alignItems: 'center', gap: '6px', borderBottom: '1px solid var(--color-border-subtle)' }}>
         <ClockIcon style={{ width: 13, height: 13, color: 'var(--color-text-tertiary)' }} />
-        <span style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--color-text-tertiary)' }}>다시 알림</span>
+        <span style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--color-text-tertiary)' }}>{t('title')}</span>
       </div>
       {presets.map((p) => (
         <button

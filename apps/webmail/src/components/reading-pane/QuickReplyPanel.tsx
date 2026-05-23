@@ -1,6 +1,7 @@
 'use client';
 
 import { useRef, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import type { MessageDetail } from '@/lib/api';
 import { getSmartReplies } from './readingPaneHelpers';
 
@@ -10,6 +11,7 @@ interface QuickReplyPanelProps {
 }
 
 export function QuickReplyPanel({ message, onQuickReply }: QuickReplyPanelProps) {
+  const t = useTranslations('quickReply');
   const [quickReplyOpen, setQuickReplyOpen] = useState(false);
   const [quickReplyText, setQuickReplyText] = useState('');
   const [quickReplySending, setQuickReplySending] = useState(false);
@@ -66,7 +68,7 @@ export function QuickReplyPanel({ message, onQuickReply }: QuickReplyPanelProps)
             }}
             style={{ width: '100%', maxWidth: '680px', textAlign: 'left', padding: '10px 14px', borderRadius: '6px', border: '1px solid var(--color-border-default)', background: 'var(--color-bg-secondary)', color: 'var(--color-text-tertiary)', fontSize: '14px', cursor: 'text' }}
           >
-            ← 답장하기...
+            {t('replyButton')}
           </button>
         </>
       ) : (
@@ -75,7 +77,7 @@ export function QuickReplyPanel({ message, onQuickReply }: QuickReplyPanelProps)
             ref={quickReplyRef}
             value={quickReplyText}
             onChange={(e) => setQuickReplyText(e.target.value)}
-            placeholder="답장 내용을 입력하세요..."
+            placeholder={t('placeholder')}
             rows={4}
             onKeyDown={(e) => {
               if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {

@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations, useLocale } from 'next-intl';
 import type { MessageSummary } from '@/lib/api';
 
 interface ThreadConversationProps {
@@ -10,19 +11,21 @@ interface ThreadConversationProps {
 }
 
 export function ThreadConversation({ messages, currentMessageId, userEmail, onSelectThread }: ThreadConversationProps) {
+  const t = useTranslations('thread');
+  const locale = useLocale();
   if (!messages.length) return null;
 
   return (
     <div style={{ marginTop: '32px', borderTop: '1px solid var(--color-border-subtle)', paddingTop: '16px', maxWidth: '680px' }}>
       <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '12px' }}>
-        대화 {messages.length}개
+        {t('conversationCount', { count: messages.length })}
       </div>
       <div style={{ position: 'relative' }}>
         <div style={{ position: 'absolute', left: '15px', top: '16px', bottom: '16px', width: '1px', background: 'var(--color-border-subtle)' }} />
         {messages.map((message) => {
           const isCurrent = message.id === currentMessageId;
           const isMine = userEmail ? message.from_addr.toLowerCase() === userEmail.toLowerCase() : false;
-          const date = new Intl.DateTimeFormat('ko-KR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date(message.received_at));
+          const date = new Intl.DateTimeFormat(locale, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date(message.received_at));
           const initial = (message.from_name || message.from_addr)[0]?.toUpperCase() ?? '?';
 
           return (
@@ -59,7 +62,7 @@ export function ThreadConversation({ messages, currentMessageId, userEmail, onSe
                   <span style={{ fontSize: '10px', color: isCurrent ? 'rgba(255,255,255,0.7)' : 'var(--color-text-tertiary)', marginLeft: 'auto' }}>{date}</span>
                 </div>
                 <div style={{ fontSize: '12px', color: isCurrent ? '#fff' : 'var(--color-text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '280px' }}>
-                  {message.preview || message.subject || '(내용 없음)'}
+                  {message.preview || message.subject || t('noContent')}
                 </div>
               </div>
             </div>

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { useTranslations } from 'next-intl';
 
 const LOCALES = [
   { code: 'ko', label: '한국어' },
@@ -16,6 +17,7 @@ function getStoredLocale(): string {
 }
 
 export function LocaleSelector() {
+  const t = useTranslations('localeSelector');
   const [current, setCurrent] = useState('ko');
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -48,7 +50,7 @@ export function LocaleSelector() {
     <div ref={ref} style={{ position: 'relative' }}>
       <button
         onClick={() => setOpen((o) => !o)}
-        aria-label="언어 선택"
+        aria-label={t('aria')}
         aria-expanded={open}
         style={{
           height: '34px',
@@ -82,7 +84,7 @@ export function LocaleSelector() {
       {open && (
         <div
           role="listbox"
-          aria-label="언어 선택"
+          aria-label={t('aria')}
           style={{
             position: 'absolute',
             top: 'calc(100% + 6px)',

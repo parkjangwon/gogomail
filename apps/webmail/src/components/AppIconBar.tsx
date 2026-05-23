@@ -1,6 +1,7 @@
 'use client';
 import { EnvelopeIcon, CalendarDaysIcon, UserGroupIcon, Cog6ToothIcon, CloudIcon, BookOpenIcon } from '@heroicons/react/24/outline';
 import { EnvelopeIcon as EnvelopeIconSolid, CalendarDaysIcon as CalendarSolid, UserGroupIcon as UserGroupSolid, Cog6ToothIcon as Cog6ToothSolid, CloudIcon as CloudSolid } from '@heroicons/react/24/solid';
+import { useTranslations } from 'next-intl';
 
 export type AppId = 'mail' | 'calendar' | 'contacts' | 'drive' | 'settings';
 
@@ -10,26 +11,17 @@ interface AppIconBarProps {
   mailUnread?: number;
 }
 
-const MAIN_APPS: { id: AppId; label: string; icon: React.ReactNode; activeIcon: React.ReactNode }[] = [
-  { id: 'mail', label: '메일', icon: <EnvelopeIcon style={{ width: '20px', height: '20px' }} />, activeIcon: <EnvelopeIconSolid style={{ width: '20px', height: '20px' }} /> },
-  { id: 'calendar', label: '캘린더', icon: <CalendarDaysIcon style={{ width: '20px', height: '20px' }} />, activeIcon: <CalendarSolid style={{ width: '20px', height: '20px' }} /> },
-  { id: 'contacts', label: '연락처', icon: <UserGroupIcon style={{ width: '20px', height: '20px' }} />, activeIcon: <UserGroupSolid style={{ width: '20px', height: '20px' }} /> },
-  { id: 'drive', label: '드라이브', icon: <CloudIcon style={{ width: '20px', height: '20px' }} />, activeIcon: <CloudSolid style={{ width: '20px', height: '20px' }} /> },
-];
-
-const BOTTOM_APPS: { id: AppId; label: string; icon: React.ReactNode; activeIcon: React.ReactNode }[] = [
-  { id: 'settings', label: '설정', icon: <Cog6ToothIcon style={{ width: '20px', height: '20px' }} />, activeIcon: <Cog6ToothSolid style={{ width: '20px', height: '20px' }} /> },
-];
-
 const GUIDE_URL = process.env.NEXT_PUBLIC_WEBMAIL_GUIDE_URL?.trim() ?? '';
 
 const DEV_TOOL_SAFE_BOTTOM = process.env.NODE_ENV === 'development' ? 56 : 8;
 
-function AppBtn({ app, isActive, onChangeApp, badge }: { app: typeof MAIN_APPS[0]; isActive: boolean; onChangeApp: (id: AppId) => void; badge?: number }) {
+interface AppItem { id: AppId; label: string; icon: React.ReactNode; activeIcon: React.ReactNode }
+
+function AppBtn({ app, isActive, onChangeApp, badge, unreadLabel }: { app: AppItem; isActive: boolean; onChangeApp: (id: AppId) => void; badge?: number; unreadLabel: string }) {
   const badgeLabel = badge && badge > 0 ? (badge > 99 ? '99+' : String(badge)) : '';
   return (
     <button
-      aria-label={`${app.label}${badgeLabel ? ` (읽지 않음 ${badgeLabel})` : ''}`}
+      aria-label={`${app.label}${badgeLabel ? ` (${unreadLabel} ${badgeLabel})` : ''}`}
       aria-pressed={isActive}
       title={app.label}
       onClick={() => onChangeApp(app.id)}
@@ -125,10 +117,21 @@ function AppActionBtn({ label, icon, onClick }: { label: string; icon: React.Rea
 }
 
 export function AppIconBar({ activeApp, onChangeApp, mailUnread }: AppIconBarProps) {
+  const t = useTranslations('nav');
+  const MAIN_APPS: AppItem[] = [
+    { id: 'mail', label: t('mail'), icon: <EnvelopeIcon style={{ width: '20px', height: '20px' }} />, activeIcon: <EnvelopeIconSolid style={{ width: '20px', height: '20px' }} /> },
+    { id: 'calendar', label: t('calendar'), icon: <CalendarDaysIcon style={{ width: '20px', height: '20px' }} />, activeIcon: <CalendarSolid style={{ width: '20px', height: '20px' }} /> },
+    { id: 'contacts', label: t('contacts'), icon: <UserGroupIcon style={{ width: '20px', height: '20px' }} />, activeIcon: <UserGroupSolid style={{ width: '20px', height: '20px' }} /> },
+    { id: 'drive', label: t('drive'), icon: <CloudIcon style={{ width: '20px', height: '20px' }} />, activeIcon: <CloudSolid style={{ width: '20px', height: '20px' }} /> },
+  ];
+  const BOTTOM_APPS: AppItem[] = [
+    { id: 'settings', label: t('settings'), icon: <Cog6ToothIcon style={{ width: '20px', height: '20px' }} />, activeIcon: <Cog6ToothSolid style={{ width: '20px', height: '20px' }} /> },
+  ];
+  const unreadLabel = t('unread');
   return (
     <div
       role="navigation"
-      aria-label="앱 전환"
+      aria-label={t('appSwitcher')}
       style={{
         width: '44px',
         flexShrink: 0,
@@ -150,6 +153,7 @@ export function AppIconBar({ activeApp, onChangeApp, mailUnread }: AppIconBarPro
             isActive={activeApp === app.id}
             onChangeApp={onChangeApp}
             badge={app.id === 'mail' ? mailUnread : undefined}
+            unreadLabel={unreadLabel}
           />
         ))}
       </div>
@@ -165,7 +169,7 @@ export function AppIconBar({ activeApp, onChangeApp, mailUnread }: AppIconBarPro
       }}>
         {GUIDE_URL && (
           <AppActionBtn
-            label="가이드"
+            label={t('guide')}
             icon={<BookOpenIcon style={{ width: '20px', height: '20px' }} />}
             onClick={() => {
               if (typeof window === 'undefined') return;
@@ -174,7 +178,7 @@ export function AppIconBar({ activeApp, onChangeApp, mailUnread }: AppIconBarPro
           />
         )}
         {BOTTOM_APPS.map((app) => (
-          <AppBtn key={app.id} app={app} isActive={activeApp === app.id} onChangeApp={onChangeApp} />
+          <AppBtn key={app.id} app={app} isActive={activeApp === app.id} onChangeApp={onChangeApp} unreadLabel={unreadLabel} />
         ))}
       </div>
     </div>

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 import { ArrowDownTrayIcon, LinkIcon, PencilIcon, TrashIcon } from '@heroicons/react/24/outline';
+import { useTranslations } from 'next-intl';
 import type { DriveNode } from '@/lib/api';
 
 interface DriveNodeMenuProps {
@@ -14,6 +15,7 @@ interface DriveNodeMenuProps {
 }
 
 export function DriveNodeMenu({ node, onDownload, onRename, onShare, onTrash, onClose }: DriveNodeMenuProps) {
+  const t = useTranslations('driveMenu');
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -73,11 +75,11 @@ export function DriveNodeMenu({ node, onDownload, onRename, onShare, onTrash, on
         padding: '4px 0',
       }}
     >
-      {node.node_type === 'file' && item('다운로드', <ArrowDownTrayIcon style={{ width: '14px', height: '14px' }} />, onDownload)}
-      {item('이름 변경', <PencilIcon style={{ width: '14px', height: '14px' }} />, onRename)}
-      {item('공유 링크', <LinkIcon style={{ width: '14px', height: '14px' }} />, onShare)}
+      {node.node_type === 'file' && item(t('download'), <ArrowDownTrayIcon style={{ width: '14px', height: '14px' }} />, onDownload)}
+      {item(t('rename'), <PencilIcon style={{ width: '14px', height: '14px' }} />, onRename)}
+      {item(t('shareLink'), <LinkIcon style={{ width: '14px', height: '14px' }} />, onShare)}
       <div style={{ height: '1px', background: 'var(--color-border-subtle)', margin: '4px 0' }} />
-      {item('휴지통', <TrashIcon style={{ width: '14px', height: '14px' }} />, onTrash, true)}
+      {item(t('trash'), <TrashIcon style={{ width: '14px', height: '14px' }} />, onTrash, true)}
     </div>
   );
 }

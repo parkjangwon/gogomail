@@ -1,10 +1,13 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useTranslations } from 'next-intl';
 
 type Theme = 'light' | 'dark';
 
 export function ThemeToggle({ inline = false }: { inline?: boolean }) {
+  const t = useTranslations('settings');
+  const tModal = useTranslations('settingsModal');
   const [theme, setTheme] = useState<Theme>('dark');
 
   useEffect(() => {
@@ -26,8 +29,8 @@ export function ThemeToggle({ inline = false }: { inline?: boolean }) {
   return (
     <button
       onClick={toggle}
-      aria-label={isDark ? '라이트 모드로 전환' : '다크 모드로 전환'}
-      title={isDark ? '라이트 모드' : '다크 모드'}
+      aria-label={isDark ? t('lightMode') : t('darkMode')}
+      title={isDark ? tModal('themeLight') : tModal('themeDark')}
       style={{
         ...(inline
           ? {}

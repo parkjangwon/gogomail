@@ -308,7 +308,19 @@ See [`PROJECT_HARNESS.md`](PROJECT_HARNESS.md).
 
 ---
 
-## Key Documents
+## Documentation
+
+Operator and architecture references (start here):
+
+| Document | Contents |
+|---|---|
+| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Single-binary multi-mode design, Outbox Pattern, multi-tenancy, protocol matrix, data-flow diagrams |
+| [`docs/MODES.md`](docs/MODES.md) | Reference for all 24 backend modes: env vars, dependencies, replicas, scaling, metrics |
+| [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) | Four deployment patterns (single-node → multi-DC) with topology diagrams and compose examples |
+| [`docs/SECURITY.md`](docs/SECURITY.md) | Threat model, authentication, authorization, rate limits, transport, email security |
+| [`docs/OPERATIONS.md`](docs/OPERATIONS.md) | Health checks, Prometheus metrics, alerts, graceful shutdown, backup/restore, capacity planning |
+
+Project status and contracts:
 
 | Document | Contents |
 |---|---|
