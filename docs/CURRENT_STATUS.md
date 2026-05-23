@@ -1,6 +1,13 @@
 # gogomail current status
 
-Last updated: 2026-05-23 (WebPush notification display text character hardening)
+Last updated: 2026-05-23 (WebPush notification display text blank fallback hardening)
+
+## WebPush Notification Display Text Blank Fallback Hardening (2026-05-23)
+- Webmail service worker push payload titles and bodies now re-check blankness after control-character normalization.
+- Titles that normalize to whitespace fall back to `새 메일`, and bodies that normalize to whitespace fall back to an empty string before `registration.showNotification()`.
+- This prevents malformed closed-tab WebPush payloads made only of control characters from producing blank native notification titles or whitespace-only bodies.
+- E2E coverage verifies blank-after-normalization title/body fallback while existing display-text normalization and malformed payload fallback behavior remain intact.
+- Verification target: `pnpm -C apps/webmail exec playwright test e2e/notifications.spec.ts --project=chromium -g "service worker push falls back when display text normalizes to blank|service worker push normalizes control characters in display text|service worker push payload fields are normalized before showing notifications"`; `pnpm -C apps/webmail type-check`.
 
 ## WebPush Notification Display Text Character Hardening (2026-05-23)
 - Webmail service worker push payload titles and bodies now normalize ASCII control-character runs to single spaces before `registration.showNotification()`.
