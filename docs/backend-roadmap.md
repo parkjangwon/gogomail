@@ -6780,3 +6780,8 @@ Target outcome:
       `useMailList`, and derives the visible-tab refresh timer from the same
       setting so users can trade notification responsiveness for lower network
       activity without reloading.
+1854. Webmail badge-count mode now mirrors to the browser native Badging API
+      when supported. The app uses the same unread/all/none count calculated
+      for the document title and favicon badge, calls `setAppBadge` for
+      positive counts, clears the native badge for zero/disabled counts, and
+      keeps the existing favicon fallback for unsupported browsers.

@@ -1,6 +1,12 @@
 # gogomail current status
 
-Last updated: 2026-05-23 (webmail refresh interval enforcement)
+Last updated: 2026-05-23 (native app badging)
+
+## Native App Badging (2026-05-23)
+- Webmail now mirrors the selected badge-count mode to the browser's native Badging API when `navigator.setAppBadge` / `clearAppBadge` are available.
+- The native app badge uses the same unread/all/none calculation as the tab title and favicon badge, and unsupported browsers continue to rely on the favicon fallback.
+- Regression coverage stubs the Badging API and verifies unread counts call `setAppBadge(2)` while switching badge mode to none clears the native badge.
+- Verification target: `pnpm -C apps/webmail exec playwright test e2e/notifications.spec.ts --project=chromium -g "mirrors badge count mode"`; `pnpm -C apps/webmail type-check`.
 
 ## Webmail Refresh Interval Enforcement (2026-05-23)
 - The Inbox auto-refresh setting now drives both `useMailList` new-message polling and the mail page's visible-tab refresh timer instead of leaving both paths hard-coded to 30 seconds.
