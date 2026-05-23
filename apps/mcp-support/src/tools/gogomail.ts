@@ -407,6 +407,7 @@ export async function callTool(
     }
     case "gogomail_update_domain_settings": {
       const { domainId, settings, ticketId } = UpdateDomainSchema.parse(args);
+      const before = await gogomail.getDomainSettings(domainId);
       const result = await gogomail.updateDomainSettings(
         domainId,
         settings as Partial<GogomailDomainSettings>,
@@ -415,8 +416,8 @@ export async function callTool(
         suppo,
         ticketId,
         "gogomail_update_domain_settings",
-        `domainId: ${domainId}`,
-        JSON.stringify(settings),
+        `${before.domain} (domainId: ${domainId})`,
+        `변경 전: ${JSON.stringify(before)}\n- 변경 후: ${JSON.stringify(settings)}`,
       );
       return result;
     }
