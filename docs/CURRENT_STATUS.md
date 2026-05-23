@@ -1,6 +1,12 @@
 # gogomail current status
 
-Last updated: 2026-05-23 (notification storage parse fallback hardening)
+Last updated: 2026-05-23 (notification timestamp hydration hardening)
+
+## Notification Timestamp Hydration Hardening (2026-05-23)
+- Notification storage hydration now rejects non-finite timestamps such as JSON values that parse to `Infinity`.
+- This keeps corrupted notification records out of relative-time rendering and unread badge state while preserving valid records from the same payload.
+- E2E coverage verifies a storage payload with one infinite timestamp and one finite timestamp hydrates only the valid notification.
+- Verification target: `pnpm -C apps/webmail exec playwright test e2e/notifications.spec.ts --project=chromium -g "non-finite timestamps"`; `pnpm -C apps/webmail type-check`.
 
 ## Notification Storage Parse Fallback Hardening (2026-05-23)
 - Cross-tab notification storage events now clear live notification state on invalid JSON, matching the initial localStorage load fallback.

@@ -230,7 +230,10 @@ function sanitizeNotifications(input: unknown): Notification[] {
     .filter((n): n is Notification => {
       if (!n || typeof n !== 'object') return false;
       const o = n as Record<string, unknown>;
-      return typeof o.id === 'string' && typeof o.title === 'string' && typeof o.timestamp === 'number';
+      return typeof o.id === 'string'
+        && typeof o.title === 'string'
+        && typeof o.timestamp === 'number'
+        && Number.isFinite(o.timestamp);
     })
     .slice(0, MAX_NOTIFICATIONS);
 }

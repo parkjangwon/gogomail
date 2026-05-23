@@ -6827,3 +6827,6 @@ Target outcome:
 1865. Webmail notification cross-tab storage sync now treats invalid JSON the
       same way as initial localStorage hydration by clearing live notification
       state, preventing stale unread badges after corrupted storage writes.
+1866. Webmail notification storage hydration now rejects non-finite timestamps,
+      preventing corrupted records that parse to `Infinity` from entering
+      relative-time rendering, unread counts, or notification lists.
