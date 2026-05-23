@@ -2,19 +2,19 @@
 
 ## Current Task
 
-**TASK-WEBMAIL-NOTIFICATION-ICON-CHARS — Notification icon name character hardening**
+**TASK-WEBMAIL-NOTIFICATION-DEDUPE-TYPE — Runtime notification dedupe flag type hardening**
 
 ## Background
 
-Notification icon names are already capped before runtime state and localStorage persistence, but the sanitizer still accepts control characters and backslashes. Even though icon names are currently future-facing metadata, malformed values should not be retained in persisted notification payloads.
+The notification store accepts future server-driven runtime events through `window.__webmailNotifications.push`. The public input type documents `dedupe` as a boolean, but malformed runtime payloads can still carry string/object values. Non-boolean truthy values must not suppress notification insertion or side effects as if the caller had explicitly requested dedupe.
 
-This task continues the notification hardening track in `docs/backend-roadmap.md` by aligning `iconName` handling with the existing identifier/tag character policy.
+This task continues the notification hardening track in `docs/backend-roadmap.md` by tightening the runtime trust boundary around dedupe semantics.
 
 ## Scope
 
-- Add failing E2E coverage for runtime notification `iconName` values containing control characters or backslashes.
-- Drop unsafe `iconName` values before state and localStorage persistence.
-- Preserve valid short icon names and the existing length cap.
+- Add failing E2E coverage for non-boolean runtime `dedupe` values.
+- Treat only literal `dedupe: true` as a dedupe request.
+- Preserve existing boolean dedupe behavior and unique-id replacement behavior.
 - Update `docs/CURRENT_STATUS.md` and `docs/backend-roadmap.md`.
 
 ## Completion Checklist
