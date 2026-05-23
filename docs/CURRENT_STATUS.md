@@ -1,6 +1,12 @@
 # gogomail current status
 
-Last updated: 2026-05-23 (webpush existing-window navigation)
+Last updated: 2026-05-23 (notification search category filter hardening)
+
+## Notification Search Category Filter Hardening (2026-05-23)
+- Notification category chips now count categories after applying the current search query as well as the all/unread filter.
+- This prevents search results from offering category chips that have no matching notifications and would lead to an avoidable empty state.
+- E2E coverage verifies a mail-only category disappears while searching for a system notification and preserves the existing search/category narrowing flow after the query is cleared.
+- Verification target: `pnpm -C apps/webmail exec playwright test e2e/notifications.spec.ts --project=chromium -g "search filtering hides categories|search and category filters narrow"`; `pnpm -C apps/webmail type-check`.
 
 ## WebPush Existing-Window Navigation (2026-05-23)
 - WebPush notification clicks now navigate an already-open mail window to the notification target URL before focusing it.

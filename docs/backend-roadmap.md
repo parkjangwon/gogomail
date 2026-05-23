@@ -6888,3 +6888,7 @@ Target outcome:
       mail `WindowClient` to the safe notification target URL before focusing
       it, preventing message-specific WebPush clicks from merely foregrounding
       a stale mail view when a mail tab is already open.
+1883. Webmail notification category chips now count only notifications that
+      match the current search query in addition to the all/unread filter, so
+      searched notification lists no longer offer categories that would lead to
+      an avoidable empty filtered state.
