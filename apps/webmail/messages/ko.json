@@ -1751,6 +1751,7 @@
     "calendarInvite": "{sender} 님의 일정 초대",
     "system": "시스템 알림",
     "dismiss": "닫기",
+    "dismissItem": "알림 닫기: {title}",
     "timeAgo": {
       "now": "방금 전",
       "minute": "{count}분 전",

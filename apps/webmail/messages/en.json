@@ -1751,6 +1751,7 @@
     "calendarInvite": "Calendar invitation from {sender}",
     "system": "System notification",
     "dismiss": "Dismiss",
+    "dismissItem": "Dismiss notification: {title}",
     "timeAgo": {
       "now": "just now",
       "minute": "{count}m ago",

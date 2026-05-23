@@ -130,7 +130,7 @@ export function NotificationItem({ notification, onRead, onDismiss, onAfterNavig
       </div>
       <button
         type="button"
-        aria-label={t('dismiss')}
+        aria-label={t('dismissItem', { title: notification.title })}
         onClick={handleDismiss}
         style={{
           border: 'none',

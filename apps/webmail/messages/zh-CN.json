@@ -1751,6 +1751,7 @@
     "calendarInvite": "{sender} 的日程邀请",
     "system": "系统通知",
     "dismiss": "关闭",
+    "dismissItem": "关闭通知：{title}",
     "timeAgo": {
       "now": "刚刚",
       "minute": "{count}分钟前",
