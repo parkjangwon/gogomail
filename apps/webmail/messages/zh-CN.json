@@ -1708,11 +1708,24 @@
     "center": {
       "title": "通知",
       "empty": "暂无通知",
+      "emptyFiltered": "没有符合条件的通知",
+      "searchPlaceholder": "搜索通知",
       "markAllRead": "全部标记为已读",
       "clearAll": "全部清除",
       "filters": {
         "all": "全部",
         "unread": "未读"
+      },
+      "categories": {
+        "mail_received": "邮件",
+        "mail_sent": "已发送",
+        "mail_send_failed": "发送失败",
+        "mail_bounced": "退信",
+        "calendar_reminder": "日历",
+        "calendar_invite": "邀请",
+        "drive_share": "网盘",
+        "system": "系统",
+        "custom": "自定义"
       }
     },
     "mailReceived": "{sender} 发来的新邮件",

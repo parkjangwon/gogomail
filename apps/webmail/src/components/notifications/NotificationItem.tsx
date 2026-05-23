@@ -47,9 +47,16 @@ export function NotificationItem({ notification, onRead, onDismiss, onAfterNavig
   };
 
   return (
-    <button
-      type="button"
+    <div
+      role="button"
+      tabIndex={0}
       onClick={handleClick}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          handleClick();
+        }
+      }}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
       aria-label={notification.title}
@@ -68,7 +75,7 @@ export function NotificationItem({ notification, onRead, onDismiss, onAfterNavig
           : notification.read
             ? 'transparent'
             : 'var(--color-accent-subtle, rgba(99,102,241,0.06))',
-        cursor: notification.actionUrl ? 'pointer' : 'default',
+        cursor: 'pointer',
         transition: 'background 100ms ease',
         color: 'var(--color-text-primary)',
       }}
@@ -121,19 +128,13 @@ export function NotificationItem({ notification, onRead, onDismiss, onAfterNavig
         )}
         <div style={{ marginTop: '4px', fontSize: '11px', color: 'var(--color-text-tertiary)' }}>{relativeTime}</div>
       </div>
-      <span
-        role="button"
-        tabIndex={0}
+      <button
+        type="button"
         aria-label={t('dismiss')}
         onClick={handleDismiss}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            e.stopPropagation();
-            onDismiss(notification.id);
-          }
-        }}
         style={{
+          border: 'none',
+          background: 'transparent',
           flexShrink: 0,
           display: 'inline-flex',
           alignItems: 'center',
@@ -147,7 +148,7 @@ export function NotificationItem({ notification, onRead, onDismiss, onAfterNavig
         }}
       >
         <XMarkIcon style={{ width: 14, height: 14 }} />
-      </span>
-    </button>
+      </button>
+    </div>
   );
 }

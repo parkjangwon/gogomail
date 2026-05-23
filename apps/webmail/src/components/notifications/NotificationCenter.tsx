@@ -4,12 +4,14 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { BellIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import { useNotifications } from '@/lib/notifications/store';
+import type { NotificationCategory } from '@/lib/notifications/types';
 import { useBrowserNotifications } from '@/lib/notifications/browser';
 import { NotificationItem } from './NotificationItem';
 
 const BANNER_DISMISSED_KEY = 'webmail_browser_banner_dismissed';
 
 type FilterMode = 'all' | 'unread';
+type CategoryFilter = 'all' | NotificationCategory;
 
 interface NotificationCenterProps {
   open: boolean;
@@ -21,6 +23,8 @@ export function NotificationCenter({ open, onClose }: NotificationCenterProps) {
   const { notifications, unreadCount, markAsRead, markAllRead, dismiss, clearAll } = useNotifications();
   const browser = useBrowserNotifications();
   const [filter, setFilter] = useState<FilterMode>('all');
+  const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>('all');
+  const [query, setQuery] = useState('');
   const [bannerDismissed, setBannerDismissed] = useState<boolean>(false);
   const panelRef = useRef<HTMLDivElement | null>(null);
 
@@ -83,9 +87,20 @@ export function NotificationCenter({ open, onClose }: NotificationCenterProps) {
   }, [open, onClose]);
 
   const visible = useMemo(() => {
-    if (filter === 'unread') return notifications.filter((n) => !n.read);
-    return notifications;
-  }, [notifications, filter]);
+    const q = query.trim().toLocaleLowerCase();
+    return notifications.filter((n) => {
+      if (filter === 'unread' && n.read) return false;
+      if (categoryFilter !== 'all' && n.category !== categoryFilter) return false;
+      if (!q) return true;
+      return `${n.title} ${n.body ?? ''}`.toLocaleLowerCase().includes(q);
+    });
+  }, [notifications, filter, categoryFilter, query]);
+
+  const categoryCounts = useMemo(() => {
+    const counts = new Map<NotificationCategory, number>();
+    notifications.forEach((n) => counts.set(n.category, (counts.get(n.category) ?? 0) + 1));
+    return Array.from(counts.entries()).sort(([a], [b]) => categoryOrder(a) - categoryOrder(b));
+  }, [notifications]);
 
   return (
     <div
@@ -214,6 +229,26 @@ export function NotificationCenter({ open, onClose }: NotificationCenterProps) {
         </div>
       )}
 
+      <div style={{ padding: '10px 12px', borderBottom: '1px solid var(--color-border-subtle)' }}>
+        <input
+          type="search"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder={t('center.searchPlaceholder')}
+          style={{
+            width: '100%',
+            height: 34,
+            border: '1px solid var(--color-border-default)',
+            borderRadius: 8,
+            background: 'var(--color-bg-secondary)',
+            color: 'var(--color-text-primary)',
+            fontSize: '13px',
+            outline: 'none',
+            padding: '0 10px',
+          }}
+        />
+      </div>
+
       {/* Filters + actions */}
       <div
         style={{
@@ -235,6 +270,14 @@ export function NotificationCenter({ open, onClose }: NotificationCenterProps) {
           onClick={() => setFilter('unread')}
           label={`${t('center.filters.unread')}${unreadCount > 0 ? ` (${unreadCount})` : ''}`}
         />
+        {categoryCounts.map(([category, count]) => (
+          <FilterButton
+            key={category}
+            active={categoryFilter === category}
+            onClick={() => setCategoryFilter((current) => (current === category ? 'all' : category))}
+            label={`${t(`center.categories.${category}`)} (${count})`}
+          />
+        ))}
         <div style={{ flex: 1 }} />
         <button
           type="button"
@@ -293,7 +336,9 @@ export function NotificationCenter({ open, onClose }: NotificationCenterProps) {
             }}
           >
             <BellIcon style={{ width: 36, height: 36, opacity: 0.5 }} />
-            <div style={{ fontSize: '13px' }}>{t('center.empty')}</div>
+            <div style={{ fontSize: '13px' }}>
+              {notifications.length === 0 ? t('center.empty') : t('center.emptyFiltered')}
+            </div>
           </div>
         ) : (
           visible.map((n) => (
@@ -309,6 +354,21 @@ export function NotificationCenter({ open, onClose }: NotificationCenterProps) {
       </div>
     </div>
   );
+}
+
+function categoryOrder(category: NotificationCategory): number {
+  const order: NotificationCategory[] = [
+    'mail_received',
+    'mail_sent',
+    'mail_send_failed',
+    'mail_bounced',
+    'calendar_reminder',
+    'calendar_invite',
+    'drive_share',
+    'system',
+    'custom',
+  ];
+  return order.indexOf(category) === -1 ? order.length : order.indexOf(category);
 }
 
 function miniButtonStyle(disabled: boolean): React.CSSProperties {

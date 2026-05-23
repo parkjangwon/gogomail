@@ -17,7 +17,7 @@ async function openCenter(page: Page) {
 
 async function pushNotification(
   page: Page,
-  data: { title: string; body?: string; category?: string; severity?: string; actionUrl?: string },
+  data: { id?: string; title: string; body?: string; category?: string; severity?: string; actionUrl?: string; dedupe?: boolean },
 ) {
   await page.evaluate((d) => {
     const w = window as unknown as {
@@ -27,11 +27,13 @@ async function pushNotification(
     };
     if (!w.__webmailNotifications) throw new Error('notifications store not available');
     return w.__webmailNotifications.push({
+      id: d.id,
       category: d.category ?? 'system',
       severity: d.severity ?? 'info',
       title: d.title,
       body: d.body,
       actionUrl: d.actionUrl,
+      dedupe: d.dedupe,
     });
   }, data);
 }
@@ -69,6 +71,33 @@ test.describe('Notification center', () => {
     await expect(dialog).toContainText('first body');
   });
 
+  test('deduplicates repeated event notifications by id', async ({ page }) => {
+    await pushNotification(page, { id: 'mail-42', title: 'First copy', body: 'original body', category: 'mail_received', dedupe: true });
+    await pushNotification(page, { id: 'mail-42', title: 'Second copy', body: 'duplicate body', category: 'mail_received', dedupe: true });
+
+    await expect.poll(() => unreadBadgeText(page), { timeout: 5_000 }).toBe('1');
+    const { dialog } = await openCenter(page);
+    await expect(dialog).toContainText('First copy');
+    await expect(dialog).not.toContainText('Second copy');
+  });
+
+  test('search and category filters narrow a busy notification list', async ({ page }) => {
+    await pushNotification(page, { title: 'Quarterly report uploaded', body: 'Drive file is ready', category: 'drive_share' });
+    await pushNotification(page, { title: 'Deployment finished', body: 'System job succeeded', category: 'system' });
+    await pushNotification(page, { title: 'Inbox delivery', body: 'Mail from Finance', category: 'mail_received' });
+
+    const { dialog } = await openCenter(page);
+    const search = dialog.getByPlaceholder(/Search notifications|알림 검색|通知を検索|搜索通知/i);
+    await search.fill('deploy');
+    await expect(dialog).toContainText('Deployment finished');
+    await expect(dialog).not.toContainText('Quarterly report uploaded');
+
+    await search.fill('');
+    await dialog.getByRole('button', { name: /Mail|메일|メール|邮件/i }).click();
+    await expect(dialog).toContainText('Inbox delivery');
+    await expect(dialog).not.toContainText('Deployment finished');
+  });
+
   test('mark-all-read clears badge but keeps items', async ({ page }) => {
     await pushNotification(page, { title: 'A' });
     await pushNotification(page, { title: 'B' });
@@ -89,13 +118,8 @@ test.describe('Notification center', () => {
     const { dialog } = await openCenter(page);
     await expect(dialog).toContainText('RemoveMe');
 
-    // The item button has aria-label of its title; dismiss is the inner X
-    // with aria-label = t('dismiss').
-    const dismissBtns = dialog.locator('[aria-label="Dismiss"], [aria-label="닫기"], [aria-label="閉じる"], [aria-label="关闭"]');
-    // The dialog also has a top-level close button (aria-label="close"). Filter to those inside the item list.
-    const itemDismiss = dismissBtns.filter({ hasNot: page.locator('svg[role=img]') });
-    // Click the first item-level dismiss (note: items are newest-first, so RemoveMe is on top)
-    await dialog.locator('button:has-text("RemoveMe")').first().locator('[role="button"]').first().click();
+    const removeRow = dialog.locator('[aria-label="RemoveMe"]').first();
+    await removeRow.getByRole('button', { name: /dismiss|닫기|閉じる|关闭/i }).click();
 
     await expect(dialog).not.toContainText('RemoveMe');
     await expect(dialog).toContainText('KeepMe');

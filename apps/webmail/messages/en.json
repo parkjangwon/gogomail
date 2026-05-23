@@ -1708,11 +1708,24 @@
     "center": {
       "title": "Notifications",
       "empty": "No notifications yet",
+      "emptyFiltered": "No notifications match these filters",
+      "searchPlaceholder": "Search notifications",
       "markAllRead": "Mark all read",
       "clearAll": "Clear all",
       "filters": {
         "all": "All",
         "unread": "Unread"
+      },
+      "categories": {
+        "mail_received": "Mail",
+        "mail_sent": "Sent",
+        "mail_send_failed": "Send failed",
+        "mail_bounced": "Bounced",
+        "calendar_reminder": "Calendar",
+        "calendar_invite": "Invites",
+        "drive_share": "Drive",
+        "system": "System",
+        "custom": "Custom"
       }
     },
     "mailReceived": "New mail from {sender}",

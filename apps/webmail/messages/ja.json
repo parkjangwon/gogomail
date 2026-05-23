@@ -1708,11 +1708,24 @@
     "center": {
       "title": "通知",
       "empty": "通知はまだありません",
+      "emptyFiltered": "条件に一致する通知はありません",
+      "searchPlaceholder": "通知を検索",
       "markAllRead": "すべて既読にする",
       "clearAll": "すべて消去",
       "filters": {
         "all": "すべて",
         "unread": "未読"
+      },
+      "categories": {
+        "mail_received": "メール",
+        "mail_sent": "送信済み",
+        "mail_send_failed": "送信失敗",
+        "mail_bounced": "バウンス",
+        "calendar_reminder": "カレンダー",
+        "calendar_invite": "招待",
+        "drive_share": "ドライブ",
+        "system": "システム",
+        "custom": "カスタム"
       }
     },
     "mailReceived": "{sender} さんから新しいメール",
