@@ -120,6 +120,13 @@ export function NotificationCenter({ open, onClose }: NotificationCenterProps) {
     setCategoryFilter('all');
   }, [categoryCounts, categoryFilter]);
 
+  useEffect(() => {
+    if (filter !== 'unread') return;
+    if (unreadCount > 0) return;
+    if (notifications.length === 0) return;
+    setFilter('all');
+  }, [filter, notifications.length, unreadCount]);
+
   return (
     <div
       ref={panelRef}
