@@ -293,6 +293,55 @@ test.describe('Notification center', () => {
     await expect(dialog).not.toContainText('Bad infinite timestamp');
   });
 
+  test('rejects stale and far-future timestamps during storage hydration', async ({ page }) => {
+    await page.evaluate(() => {
+      const now = Date.now();
+      const raw = JSON.stringify([
+        {
+          id: 'stale-timestamp',
+          category: 'system',
+          severity: 'info',
+          title: 'Stale timestamp',
+          timestamp: now - 91 * 24 * 60 * 60 * 1000,
+          read: false,
+        },
+        {
+          id: 'future-timestamp',
+          category: 'system',
+          severity: 'info',
+          title: 'Far future timestamp',
+          timestamp: now + 25 * 60 * 60 * 1000,
+          read: false,
+        },
+        {
+          id: 'fresh-timestamp',
+          category: 'system',
+          severity: 'info',
+          title: 'Fresh timestamp',
+          timestamp: now - 60_000,
+          read: false,
+        },
+      ]);
+      localStorage.setItem('webmail_notifications', raw);
+      window.dispatchEvent(new StorageEvent('storage', { key: 'webmail_notifications', newValue: raw }));
+    });
+
+    await expect.poll(
+      () => page.evaluate(() => {
+        const notifications = (window as unknown as {
+          __webmailNotifications?: { notifications: Array<{ id: string; title: string }> };
+        }).__webmailNotifications?.notifications ?? [];
+        return notifications.map((n) => [n.id, n.title]);
+      }),
+      { timeout: 5_000 },
+    ).toEqual([['fresh-timestamp', 'Fresh timestamp']]);
+
+    const { dialog } = await openCenter(page);
+    await expect(dialog).toContainText('Fresh timestamp');
+    await expect(dialog).not.toContainText('Stale timestamp');
+    await expect(dialog).not.toContainText('Far future timestamp');
+  });
+
   test('rejects blank identifiers and titles during storage hydration', async ({ page }) => {
     await page.evaluate(() => {
       const now = Date.now();

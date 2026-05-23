@@ -49,6 +49,8 @@ const MAX_NOTIFICATIONS = 500;
 const MAX_ID_LENGTH = 128;
 const MAX_TITLE_LENGTH = 160;
 const MAX_BODY_LENGTH = 500;
+const MAX_STORED_AGE_MS = 90 * 24 * 60 * 60 * 1000;
+const MAX_STORED_FUTURE_SKEW_MS = 24 * 60 * 60 * 1000;
 const MAX_METADATA_KEYS = 20;
 const MAX_METADATA_KEY_LENGTH = 64;
 const MAX_METADATA_STRING_LENGTH = 200;
@@ -312,10 +314,18 @@ function safeNotificationSeverity(value: unknown): NotificationSeverity {
     : 'info';
 }
 
+function isSafeStoredTimestamp(value: unknown, now: number): value is number {
+  return typeof value === 'number'
+    && Number.isFinite(value)
+    && value >= now - MAX_STORED_AGE_MS
+    && value <= now + MAX_STORED_FUTURE_SKEW_MS;
+}
+
 function sanitizeNotifications(input: unknown): Notification[] {
   if (!Array.isArray(input)) return [];
   const seen = new Set<string>();
   const sanitized: Notification[] = [];
+  const now = Date.now();
   for (const n of input) {
     if (sanitized.length >= MAX_NOTIFICATIONS) break;
     if (!n || typeof n !== 'object') continue;
@@ -331,8 +341,7 @@ function sanitizeNotifications(input: unknown): Notification[] {
       && VALID_SEVERITIES.has(o.severity as NotificationSeverity)
       && (o.body === undefined || typeof o.body === 'string')
       && isSafeActionUrl(o.actionUrl)
-      && typeof o.timestamp === 'number'
-      && Number.isFinite(o.timestamp)
+      && isSafeStoredTimestamp(o.timestamp, now)
       && typeof o.read === 'boolean')) {
       continue;
     }
