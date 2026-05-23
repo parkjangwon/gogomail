@@ -175,3 +175,23 @@ func (r *Repository) SoftDeleteWebPushSubscriptionByEndpoint(ctx context.Context
 func webPushSubscriptionExists(err error) bool {
 	return !errors.Is(err, sql.ErrNoRows)
 }
+
+// GetMessageSenderUserID returns the user_id of the sender of the message identified by messageID.
+// Returns ("", nil) if the message does not exist.
+func (r *Repository) GetMessageSenderUserID(ctx context.Context, messageID string) (string, error) {
+	messageID = strings.TrimSpace(messageID)
+	if messageID == "" {
+		return "", fmt.Errorf("message_id is required")
+	}
+	var userID string
+	err := r.db.QueryRowContext(ctx, `
+		SELECT user_id FROM messages WHERE id = $1 LIMIT 1
+	`, messageID).Scan(&userID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", nil
+	}
+	if err != nil {
+		return "", fmt.Errorf("get message sender user_id: %w", err)
+	}
+	return userID, nil
+}

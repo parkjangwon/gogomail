@@ -2784,6 +2784,11 @@ func runPushNotificationWorker(ctx context.Context, cfg config.Config, logger *s
 	)); err != nil {
 		return err
 	}
+	if err := router.Register(pushnotify.EventMailDeliveryExhausted,
+		pushnotify.NewDeliveryExhaustedHandler(sink, repository),
+	); err != nil {
+		return err
+	}
 
 	consumer, err := eventstream.NewRedisConsumer(eventstream.RedisConsumerOptions{
 		Client:           redisClient,
