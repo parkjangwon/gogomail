@@ -52,11 +52,6 @@ export function NotificationCenter({ open, onClose }: NotificationCenterProps) {
     await browser.request();
   }, [browser]);
 
-  const handleMarkAllRead = useCallback(() => {
-    markAllRead();
-    setFilter('all');
-  }, [markAllRead]);
-
   // Close on Escape
   useEffect(() => {
     if (!open) return;
@@ -121,18 +116,33 @@ export function NotificationCenter({ open, onClose }: NotificationCenterProps) {
     return Array.from(counts.entries()).sort(([a], [b]) => categoryOrder(a) - categoryOrder(b));
   }, [filter, notifications, query]);
 
-  const clearActionDisabled = (filter !== 'all' || categoryFilter !== 'all' || query.trim() !== '')
+  const hasActiveFilter = filter !== 'all' || categoryFilter !== 'all' || query.trim() !== '';
+  const visibleUnread = useMemo(() => visible.filter((n) => !n.read), [visible]);
+  const markReadActionDisabled = hasActiveFilter ? visibleUnread.length === 0 : unreadCount === 0;
+  const clearActionDisabled = hasActiveFilter
     ? visible.length === 0
     : notifications.length === 0;
 
+  const handleMarkAllRead = useCallback(() => {
+    if (!hasActiveFilter) {
+      markAllRead();
+      setFilter('all');
+      return;
+    }
+
+    visibleUnread.forEach((n) => markAsRead(n.id));
+    if (filter === 'unread' && unreadCount === visibleUnread.length) {
+      setFilter('all');
+    }
+  }, [filter, hasActiveFilter, markAllRead, markAsRead, unreadCount, visibleUnread]);
+
   const handleClear = useCallback(() => {
-    const hasActiveFilter = filter !== 'all' || categoryFilter !== 'all' || query.trim() !== '';
     if (!hasActiveFilter) {
       clearAll();
       return;
     }
     visible.forEach((n) => dismiss(n.id));
-  }, [categoryFilter, clearAll, dismiss, filter, query, visible]);
+  }, [clearAll, dismiss, hasActiveFilter, visible]);
 
   useEffect(() => {
     if (categoryFilter === 'all') return;
@@ -328,8 +338,8 @@ export function NotificationCenter({ open, onClose }: NotificationCenterProps) {
         <button
           type="button"
           onClick={handleMarkAllRead}
-          disabled={unreadCount === 0}
-          style={miniButtonStyle(unreadCount === 0)}
+          disabled={markReadActionDisabled}
+          style={miniButtonStyle(markReadActionDisabled)}
         >
           {t('center.markAllRead')}
         </button>

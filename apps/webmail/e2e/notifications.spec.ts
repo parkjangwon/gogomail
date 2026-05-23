@@ -668,6 +668,27 @@ test.describe('Notification center', () => {
     await expect(dialog).not.toContainText(/no notifications match|조건에 맞는 알림|一致する通知|没有符合/i);
   });
 
+  test('mark-all-read only marks visible notifications when filters are active', async ({ page }) => {
+    await pushNotification(page, { title: 'Deployment finished', body: 'System job succeeded', category: 'system' });
+    await pushNotification(page, { title: 'Inbox delivery', body: 'Mail from Finance', category: 'mail_received' });
+    await expect.poll(() => unreadBadgeText(page)).toBe('2');
+
+    const { dialog } = await openCenter(page);
+    const search = dialog.getByPlaceholder(/Search notifications|알림 검색|通知を検索|搜索通知/i);
+    await search.fill('deploy');
+    await expect(dialog).toContainText('Deployment finished');
+    await expect(dialog).not.toContainText('Inbox delivery');
+
+    await dialog.getByRole('button', { name: /mark all read|모두 읽음|すべて既読|全部标记为已读/i }).click();
+    await expect.poll(() => unreadBadgeText(page)).toBe('1');
+
+    await search.fill('');
+    await expect(dialog).toContainText('Inbox delivery');
+    await dialog.getByRole('button', { name: /^(unread|읽지 않음|未読|未读)( \(1\))?$/i }).click();
+    await expect(dialog).toContainText('Inbox delivery');
+    await expect(dialog).not.toContainText('Deployment finished');
+  });
+
   test('returns to all notifications after opening the last unread-filtered item', async ({ page }) => {
     await pushNotification(page, { id: 'already-read-notification', title: 'Already read fallback' });
     await pushNotification(page, { id: 'last-unread-notification', title: 'Last unread item' });
