@@ -7002,3 +7002,7 @@ Target outcome:
       `dedupe: true` as a dedupe request, so malformed truthy payload values
       cannot suppress later notification insertion, sound, or browser-mirror
       side effects.
+1913. Webmail browser notification mirroring now caps native
+      `NotificationOptions.tag` values at 128 characters after deriving the
+      `category-id` replacement key, aligning focused-tab browser mirrors with
+      the WebPush service-worker tag boundary.

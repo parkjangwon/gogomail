@@ -51,6 +51,7 @@ const MAX_TITLE_LENGTH = 160;
 const MAX_BODY_LENGTH = 500;
 const MAX_ACTION_URL_LENGTH = 2048;
 const MAX_ICON_NAME_LENGTH = 64;
+const MAX_BROWSER_NOTIFICATION_TAG_LENGTH = 128;
 const MAX_STORED_AGE_MS = 90 * 24 * 60 * 60 * 1000;
 const MAX_STORED_FUTURE_SKEW_MS = 24 * 60 * 60 * 1000;
 const MAX_METADATA_KEYS = 20;
@@ -115,7 +116,7 @@ function fireBrowserNotification(
 
     const browserNotif = new NotificationCtor(n.title, {
       body: n.body,
-      tag: `${n.category}-${n.id}`,
+      tag: truncateText(`${n.category}-${n.id}`, MAX_BROWSER_NOTIFICATION_TAG_LENGTH),
       icon: '/favicon.ico',
       data: { actionUrl: n.actionUrl, id: n.id },
       silent: !isNotificationSoundEnabled(),

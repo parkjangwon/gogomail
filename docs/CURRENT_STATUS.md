@@ -1,6 +1,13 @@
 # gogomail current status
 
-Last updated: 2026-05-23 (notification dedupe flag type hardening)
+Last updated: 2026-05-23 (browser notification tag length hardening)
+
+## Browser Notification Tag Length Hardening (2026-05-23)
+- Webmail browser notification mirroring now caps native `NotificationOptions.tag` values at 128 characters.
+- Runtime ids remain capped at 128 characters, and the derived `category-id` browser replacement key is truncated after prefixing so max-length ids cannot create oversized native tags.
+- Existing browser mirror dedupe behavior remains intact for repeated event ids.
+- E2E coverage verifies max-length runtime ids produce capped browser notification tags while existing browser mirror dedupe still passes.
+- Verification target: `pnpm -C apps/webmail exec playwright test e2e/notifications.spec.ts --project=chromium -g "caps browser notification mirror tags|deduplicates browser notification mirroring by id"`; `pnpm -C apps/webmail type-check`.
 
 ## Notification Dedupe Flag Type Hardening (2026-05-23)
 - Runtime notification pushes now treat only literal `dedupe: true` as a dedupe request.
