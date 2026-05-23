@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { BellIcon } from '@heroicons/react/24/outline';
 import { BellIcon as BellIconSolid } from '@heroicons/react/24/solid';
@@ -11,12 +11,20 @@ export function NotificationBell() {
   const t = useTranslations('notifications');
   const { unreadCount } = useNotifications();
   const [open, setOpen] = useState(false);
+  const buttonRef = useRef<HTMLButtonElement | null>(null);
   const badgeLabel = unreadCount > 0 ? (unreadCount > 99 ? '99+' : String(unreadCount)) : '';
+  const closeCenter = useCallback((options?: { restoreFocus?: boolean }) => {
+    setOpen(false);
+    if (options?.restoreFocus) {
+      window.setTimeout(() => buttonRef.current?.focus(), 0);
+    }
+  }, []);
 
   return (
     <>
       <button
         type="button"
+        ref={buttonRef}
         data-notification-trigger
         aria-label={t('openCenter')}
         title={t('openCenter')}
@@ -83,7 +91,7 @@ export function NotificationBell() {
           </span>
         )}
       </button>
-      <NotificationCenter open={open} onClose={() => setOpen(false)} />
+      <NotificationCenter open={open} onClose={closeCenter} />
     </>
   );
 }

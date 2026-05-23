@@ -67,6 +67,16 @@ test.describe('Notification center', () => {
     await expect(search).toBeFocused();
   });
 
+  test('returns focus to the bell when closed with Escape', async ({ page }) => {
+    const { bell, dialog } = await openCenter(page);
+    const search = dialog.getByPlaceholder(/Search notifications|알림 검색|通知を検索|搜索通知/i);
+    await expect(search).toBeFocused();
+
+    await page.keyboard.press('Escape');
+    await expect(dialog).not.toBeVisible();
+    await expect(bell).toBeFocused();
+  });
+
   test('pushed notification appears in list and increments badge', async ({ page }) => {
     await pushNotification(page, { title: 'Hello world', body: 'first body' });
 
