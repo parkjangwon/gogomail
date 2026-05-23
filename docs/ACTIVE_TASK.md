@@ -2,20 +2,20 @@
 
 ## Current Task
 
-**TASK-WEBMAIL-NOTIFICATION-TEXT-CHARS — Notification center display text character hardening**
+**TASK-WEBMAIL-NOTIFICATION-METADATA-CHARS — Notification metadata character hardening**
 
 ## Background
 
-Closed-tab WebPush display text is now normalized, but the in-app notification store still accepts control characters in notification titles and bodies from runtime pushes and localStorage hydration. These strings are rendered in the notification center and mirrored into browser notifications, so CR/LF-style payload text should be normalized before it enters notification state.
+Notification titles, bodies, ids, action URLs, tags, and WebPush display text now reject or normalize malformed characters. Runtime notification metadata is bounded to flat primitive values, but metadata keys and string values can still retain ASCII control characters or backslashes before entering state and localStorage.
 
-This task continues the notification hardening track in `docs/backend-roadmap.md` by aligning in-app notification title/body handling with the WebPush display text policy.
+This task continues the notification hardening track in `docs/backend-roadmap.md` by making runtime metadata safe for persisted notification state.
 
 ## Scope
 
-- Add failing E2E coverage for runtime and stored notification titles/bodies containing control characters.
-- Normalize control-character runs in notification title/body display text to single spaces before length caps.
-- Fall back to the default notification title when title text becomes blank after normalization.
-- Drop optional bodies that become blank after normalization.
+- Add failing E2E coverage for runtime notification metadata keys and string values containing control characters or backslashes.
+- Drop unsafe metadata keys instead of persisting malformed key names.
+- Normalize control-character runs in metadata string values to spaces, reject backslash-containing string values, and preserve existing string length bounds.
+- Preserve safe string, number, and boolean metadata behavior.
 - Update `docs/CURRENT_STATUS.md` and `docs/backend-roadmap.md`.
 
 ## Completion Checklist

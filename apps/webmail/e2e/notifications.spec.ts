@@ -1012,6 +1012,53 @@ test.describe('Notification center', () => {
     ).toEqual(expected);
   });
 
+  test('sanitizes runtime notification metadata keys and string characters', async ({ page }) => {
+    await page.evaluate(() => {
+      const w = window as unknown as {
+        __webmailNotifications?: { push: (input: Record<string, unknown>) => unknown };
+      };
+      w.__webmailNotifications?.push({
+        id: 'runtime-metadata-character-sanitize',
+        category: 'mail_received',
+        severity: 'info',
+        title: 'Runtime metadata character sanitize',
+        metadata: {
+          messageId: 'message\n123\u007fready',
+          safeFlag: true,
+          safeCount: 3,
+          'bad\nkey': 'drop-key',
+          'bad\\key': 'drop-backslash-key',
+          unsafeValue: 'token\\secret',
+        },
+      });
+    });
+
+    const expected = {
+      messageId: 'message 123 ready',
+      safeCount: 3,
+      safeFlag: true,
+    };
+
+    await expect.poll(
+      () => page.evaluate(() => {
+        const notification = (window as unknown as {
+          __webmailNotifications?: { notifications: Array<{ id: string; metadata?: Record<string, unknown> }> };
+        }).__webmailNotifications?.notifications.find((n) => n.id === 'runtime-metadata-character-sanitize');
+        return notification?.metadata ?? null;
+      }),
+      { timeout: 5_000 },
+    ).toEqual(expected);
+
+    await expect.poll(
+      () => page.evaluate(() => {
+        const raw = localStorage.getItem('webmail_notifications');
+        const notifications = raw ? JSON.parse(raw) as Array<{ id: string; metadata?: Record<string, unknown> }> : [];
+        return notifications.find((n) => n.id === 'runtime-metadata-character-sanitize')?.metadata ?? null;
+      }),
+      { timeout: 5_000 },
+    ).toEqual(expected);
+  });
+
   test('drops oversized runtime notification icon names before storage persistence', async ({ page }) => {
     await page.evaluate(() => {
       const w = window as unknown as {

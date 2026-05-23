@@ -59,6 +59,8 @@ const MAX_METADATA_STRING_LENGTH = 200;
 const FALLBACK_TITLE = 'Notification';
 const UNSAFE_ID_CHARS = /[\u0000-\u001F\u007F\\]/;
 const UNSAFE_ACTION_URL_CHARS = /[\u0000-\u001F\u007F\\]/;
+const UNSAFE_METADATA_KEY_CHARS = /[\u0000-\u001F\u007F\\]/;
+const UNSAFE_METADATA_STRING_CHARS = /\\/;
 const UNSAFE_DISPLAY_TEXT_CHARS = /[\u0000-\u001F\u007F]+/g;
 const VALID_CATEGORIES = new Set<NotificationCategory>([
   'mail_received',
@@ -286,9 +288,12 @@ function safeNotificationMetadata(value: unknown): Record<string, unknown> | und
   const output: Record<string, string | number | boolean> = {};
   for (const [key, raw] of Object.entries(value as Record<string, unknown>)) {
     if (Object.keys(output).length >= MAX_METADATA_KEYS) break;
-    if (!key || key.length > MAX_METADATA_KEY_LENGTH) continue;
+    if (!key || key.length > MAX_METADATA_KEY_LENGTH || UNSAFE_METADATA_KEY_CHARS.test(key)) continue;
     if (typeof raw === 'string') {
-      output[key] = truncateText(raw, MAX_METADATA_STRING_LENGTH);
+      if (UNSAFE_METADATA_STRING_CHARS.test(raw)) continue;
+      const normalized = raw.replace(UNSAFE_DISPLAY_TEXT_CHARS, ' ');
+      if (normalized.trim() === '') continue;
+      output[key] = truncateText(normalized, MAX_METADATA_STRING_LENGTH);
       continue;
     }
     if (typeof raw === 'number' && Number.isFinite(raw)) {
