@@ -1,6 +1,12 @@
 # gogomail current status
 
-Last updated: 2026-05-23 (notification read-state hydration hardening)
+Last updated: 2026-05-23 (notification enum hydration hardening)
+
+## Notification Enum Hydration Hardening (2026-05-23)
+- Notification storage hydration now rejects unsupported categories and severities instead of accepting arbitrary strings.
+- This prevents corrupted categories from triggering missing i18n messages in notification filters and prevents unknown severities from being rendered with misleading default styling.
+- E2E coverage verifies bad category/severity records are dropped while a valid warning notification remains visible.
+- Verification target: `pnpm -C apps/webmail exec playwright test e2e/notifications.spec.ts --project=chromium -g "unsupported categories"`; `pnpm -C apps/webmail type-check`.
 
 ## Notification Read-State Hydration Hardening (2026-05-23)
 - Notification storage hydration now rejects records whose `read` flag is not a boolean.

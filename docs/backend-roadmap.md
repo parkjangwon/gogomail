@@ -6836,3 +6836,6 @@ Target outcome:
 1868. Webmail notification storage hydration now rejects non-boolean read
       flags, preventing corrupted truthy string values from hiding unread
       notifications from badge counts and unread filters.
+1869. Webmail notification storage hydration now rejects unsupported category
+      and severity enum values, preventing missing localized filter labels and
+      misleading fallback severity styling from corrupted persisted records.

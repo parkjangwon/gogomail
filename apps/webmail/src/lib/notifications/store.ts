@@ -37,7 +37,7 @@ import {
   type ReactNode,
 } from 'react';
 import { stableId } from '@/lib/stableId';
-import type { Notification, NotificationInput } from './types';
+import type { Notification, NotificationCategory, NotificationInput, NotificationSeverity } from './types';
 
 const STORAGE_KEY = 'webmail_notifications';
 const BROWSER_NOTIF_ENABLED_KEY = 'webmail_browser_notifications_enabled';
@@ -46,6 +46,18 @@ const DND_START_KEY = 'webmail_dnd_start';
 const DND_END_KEY = 'webmail_dnd_end';
 const NOTIF_SOUND_KEY = 'webmail_notif_sound';
 const MAX_NOTIFICATIONS = 500;
+const VALID_CATEGORIES = new Set<NotificationCategory>([
+  'mail_received',
+  'mail_sent',
+  'mail_send_failed',
+  'mail_bounced',
+  'calendar_reminder',
+  'calendar_invite',
+  'drive_share',
+  'system',
+  'custom',
+]);
+const VALID_SEVERITIES = new Set<NotificationSeverity>(['info', 'success', 'warning', 'error']);
 
 /**
  * Attempt to fire an OS-level browser Notification mirroring an in-app one.
@@ -234,6 +246,10 @@ function sanitizeNotifications(input: unknown): Notification[] {
         && o.id.trim() !== ''
         && typeof o.title === 'string'
         && o.title.trim() !== ''
+        && typeof o.category === 'string'
+        && VALID_CATEGORIES.has(o.category as NotificationCategory)
+        && typeof o.severity === 'string'
+        && VALID_SEVERITIES.has(o.severity as NotificationSeverity)
         && typeof o.timestamp === 'number'
         && Number.isFinite(o.timestamp)
         && typeof o.read === 'boolean';
