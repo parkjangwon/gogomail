@@ -47,6 +47,7 @@ const DND_END_KEY = 'webmail_dnd_end';
 const NOTIF_SOUND_KEY = 'webmail_notif_sound';
 const MAX_NOTIFICATIONS = 500;
 const FALLBACK_TITLE = 'Notification';
+const UNSAFE_ACTION_URL_CHARS = /[\u0000-\u001F\u007F\\]/;
 const VALID_CATEGORIES = new Set<NotificationCategory>([
   'mail_received',
   'mail_sent',
@@ -243,7 +244,9 @@ function loadInitial(): Notification[] {
 function isSafeActionUrl(value: unknown): boolean {
   if (value === undefined) return true;
   if (typeof value !== 'string') return false;
-  return value.startsWith('/') && !value.startsWith('//');
+  return value.startsWith('/')
+    && !value.startsWith('//')
+    && !UNSAFE_ACTION_URL_CHARS.test(value);
 }
 
 function safeActionUrl(value: unknown): string | undefined {

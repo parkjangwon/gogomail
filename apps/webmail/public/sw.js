@@ -1,9 +1,11 @@
 // Service Worker for GoGoMail WebPush notifications
 'use strict';
 
+const UNSAFE_CLICK_URL_CHARS = /[\u0000-\u001F\u007F\\]/;
+
 function safeNotificationClickUrl(value) {
   if (typeof value !== 'string') return '/mail';
-  if (!value.startsWith('/') || value.startsWith('//')) return '/mail';
+  if (!value.startsWith('/') || value.startsWith('//') || UNSAFE_CLICK_URL_CHARS.test(value)) return '/mail';
   return value;
 }
 

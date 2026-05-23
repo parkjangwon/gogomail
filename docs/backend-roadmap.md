@@ -6916,3 +6916,7 @@ Target outcome:
       index before dispatching hydrated state, so a same-tick `dedupe: true`
       runtime push is not suppressed by stale pre-hydration ids after storage
       removes or replaces a notification.
+1890. Webmail notification action URLs now reject backslashes and ASCII
+      control characters across storage hydration, runtime pushes, and
+      WebPush service-worker click targets, preventing protocol-smuggling or
+      header-shaped payloads from being retained or opened.
