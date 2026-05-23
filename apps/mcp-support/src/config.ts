@@ -7,17 +7,21 @@ function requireEnv(name: string): string {
   return val;
 }
 
+function optionalEnv(name: string): string | undefined {
+  return process.env[name] || undefined;
+}
+
 export const config = {
   gogomail: {
     adminUrl: requireEnv("GOGOMAIL_ADMIN_URL"),
     adminKey: requireEnv("GOGOMAIL_ADMIN_KEY"),
   },
   suppo: {
-    apiUrl: requireEnv("SUPPO_API_URL"),
-    apiKey: requireEnv("SUPPO_API_KEY"),
+    apiUrl: optionalEnv("SUPPO_API_URL"),
+    apiKey: optionalEnv("SUPPO_API_KEY"),
   },
   github: {
-    token: requireEnv("GITHUB_TOKEN"),
+    token: optionalEnv("GITHUB_TOKEN"),
     repo: process.env["GITHUB_REPO"] ?? "parkjangwon/gogomail",
   },
   transport: (process.env["MCP_TRANSPORT"] ?? "stdio") as "stdio" | "sse",

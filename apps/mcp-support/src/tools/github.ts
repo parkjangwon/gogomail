@@ -2,6 +2,10 @@ import type { Tool } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
 import type { GithubClient } from "../clients/github.js";
 
+export type OptionalGithub = GithubClient | null;
+
+const NOT_CONFIGURED = "GitHub is not configured. Set GITHUB_TOKEN environment variable to enable GitHub Issues integration.";
+
 export const toolDefinitions: Tool[] = [
   {
     name: "github_search_issues",
@@ -106,10 +110,11 @@ const UpdateSchema = z.object({
 });
 
 export async function callTool(
-  client: GithubClient,
+  client: OptionalGithub,
   name: string,
   args: Record<string, unknown>,
 ): Promise<unknown> {
+  if (!client) throw new Error(NOT_CONFIGURED);
   switch (name) {
     case "github_search_issues": {
       const p = SearchSchema.parse(args);

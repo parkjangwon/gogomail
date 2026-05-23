@@ -12,9 +12,39 @@ npm install
 npm run build
 ```
 
-### Claude Desktop (stdio)
+### Environment Variables
 
-Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
+| Variable | Required | Description |
+|---|---|---|
+| `GOGOMAIL_ADMIN_URL` | **Yes** | GoGoMail admin server base URL |
+| `GOGOMAIL_ADMIN_KEY` | **Yes** | GoGoMail admin Bearer token |
+| `SUPPO_API_URL` | No | Suppo helpdesk base URL — enables helpdesk tools and audit trail |
+| `SUPPO_API_KEY` | No | Suppo public API key (`crn_live_...`) |
+| `GITHUB_TOKEN` | No | GitHub personal access token — enables GitHub Issues tools |
+| `GITHUB_REPO` | No | `owner/repo` (default: `parkjangwon/gogomail`) |
+| `MCP_TRANSPORT` | No | `stdio` (default) or `sse` |
+| `MCP_PORT` | No | SSE port (default: `3100`) |
+
+Only `GOGOMAIL_ADMIN_URL` and `GOGOMAIL_ADMIN_KEY` are required. The server starts without Suppo or GitHub — those tool groups return a "not configured" error when called. Audit memos for GoGoMail actions fall back to `stderr` logging when Suppo is absent.
+
+### Claude Desktop (stdio) — GoGoMail only
+
+```json
+{
+  "mcpServers": {
+    "gogomail-support": {
+      "command": "node",
+      "args": ["/absolute/path/to/apps/mcp-support/dist/index.js"],
+      "env": {
+        "GOGOMAIL_ADMIN_URL": "https://admin.gogomail.io",
+        "GOGOMAIL_ADMIN_KEY": "..."
+      }
+    }
+  }
+}
+```
+
+### Claude Desktop (stdio) — Full stack
 
 ```json
 {

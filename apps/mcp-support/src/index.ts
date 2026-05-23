@@ -16,8 +16,26 @@ const gogomailClient = new GogomailClient(
   config.gogomail.adminUrl,
   config.gogomail.adminKey,
 );
-const suppoClient = new SuppoClient(config.suppo.apiUrl, config.suppo.apiKey);
-const githubClient = new GithubClient(config.github.token, config.github.repo);
+
+const suppoClient =
+  config.suppo.apiUrl && config.suppo.apiKey
+    ? new SuppoClient(config.suppo.apiUrl, config.suppo.apiKey)
+    : null;
+
+const githubClient = config.github.token
+  ? new GithubClient(config.github.token, config.github.repo)
+  : null;
+
+if (!suppoClient) {
+  console.error(
+    "[mcp-support] Suppo not configured — helpdesk tools disabled; audit trail will be logged to stderr only",
+  );
+}
+if (!githubClient) {
+  console.error(
+    "[mcp-support] GitHub not configured — GitHub Issues tools disabled",
+  );
+}
 
 const allTools = [
   ...suppoTools.toolDefinitions,

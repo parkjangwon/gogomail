@@ -3,6 +3,8 @@ import { z } from "zod";
 import type { GogomailClient, GogomailDomainSettings } from "../clients/gogomail.js";
 import type { SuppoClient } from "../clients/suppo.js";
 
+export type OptionalSuppo = SuppoClient | null;
+
 // ── Tool definitions ────────────────────────────────────────────
 
 export const toolDefinitions: Tool[] = [
@@ -491,7 +493,7 @@ export const toolDefinitions: Tool[] = [
 // ── Audit helper ────────────────────────────────────────────────
 
 async function writeAuditComment(
-  suppo: SuppoClient,
+  suppo: OptionalSuppo,
   ticketId: string | undefined,
   toolName: string,
   targetInfo: string,
@@ -503,6 +505,11 @@ async function writeAuditComment(
     `- 변경: ${change}`,
     `- 실행 시각: ${new Date().toISOString()}`,
   ].join("\n");
+
+  if (!suppo) {
+    console.error(`[audit] ${body}`);
+    return;
+  }
 
   if (ticketId) {
     await suppo.addComment(ticketId, { body, internal: true });
@@ -676,7 +683,7 @@ const AuditLogsSchema = z.object({
 
 export async function callTool(
   gogomail: GogomailClient,
-  suppo: SuppoClient,
+  suppo: OptionalSuppo,
   name: string,
   args: Record<string, unknown>,
 ): Promise<unknown> {

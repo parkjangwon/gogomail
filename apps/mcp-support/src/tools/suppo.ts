@@ -2,6 +2,10 @@ import type { Tool } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
 import type { SuppoClient } from "../clients/suppo.js";
 
+export type OptionalSuppo = SuppoClient | null;
+
+const NOT_CONFIGURED = "Suppo is not configured. Set SUPPO_API_URL and SUPPO_API_KEY environment variables to enable helpdesk integration.";
+
 export const toolDefinitions: Tool[] = [
   {
     name: "suppo_list_tickets",
@@ -166,10 +170,11 @@ const CreateKbArticleSchema = z.object({
 });
 
 export async function callTool(
-  client: SuppoClient,
+  client: OptionalSuppo,
   name: string,
   args: Record<string, unknown>,
 ): Promise<unknown> {
+  if (!client) throw new Error(NOT_CONFIGURED);
   switch (name) {
     case "suppo_list_tickets": {
       const p = ListTicketsSchema.parse(args);
