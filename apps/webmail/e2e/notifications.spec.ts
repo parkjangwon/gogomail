@@ -93,6 +93,14 @@ test.describe('Notification center', () => {
     await expect(dialog).toContainText('first body');
   });
 
+  test('announces unread count on the notification bell', async ({ page }) => {
+    await pushNotification(page, { title: 'Accessible unread count' });
+
+    await expect(
+      page.getByRole('button', { name: /알림 열기, 읽지 않음 1개|Open notifications, 1 unread/i }).first(),
+    ).toBeVisible();
+  });
+
   test('deduplicates repeated event notifications by id', async ({ page }) => {
     await pushNotification(page, { id: 'mail-42', title: 'First copy', body: 'original body', category: 'mail_received', dedupe: true });
     await pushNotification(page, { id: 'mail-42', title: 'Second copy', body: 'duplicate body', category: 'mail_received', dedupe: true });

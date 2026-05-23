@@ -1719,6 +1719,7 @@
   },
   "notifications": {
     "openCenter": "打开通知",
+    "openCenterUnread": "打开通知，{count} 条未读",
     "center": {
       "title": "通知",
       "empty": "暂无通知",

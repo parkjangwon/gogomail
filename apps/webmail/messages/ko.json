@@ -1719,6 +1719,7 @@
   },
   "notifications": {
     "openCenter": "알림 열기",
+    "openCenterUnread": "알림 열기, 읽지 않음 {count}개",
     "center": {
       "title": "알림",
       "empty": "아직 알림이 없습니다",
