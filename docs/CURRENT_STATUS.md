@@ -1,6 +1,12 @@
 # gogomail current status
 
-Last updated: 2026-05-23 (notification unread filter guard)
+Last updated: 2026-05-23 (notification filtered clear reset)
+
+## Notification Filtered Clear Reset (2026-05-23)
+- Notification center now resets search, unread, and category filters after a filtered clear leaves hidden notifications behind.
+- This keeps clear-all scoped to the visible rows while immediately returning users to the remaining notifications instead of stranding them on an empty filtered state.
+- E2E coverage verifies a searched clear removes only the matched notification, clears the query, returns to the all filter, and shows the hidden notification.
+- Verification target: `pnpm -C apps/webmail exec playwright test e2e/notifications.spec.ts --project=chromium -g "clear-all returns to all notifications|clear-all only clears visible|clear-all empties"`; `pnpm -C apps/webmail type-check`.
 
 ## Notification Unread Filter Guard (2026-05-23)
 - Notification center now disables the unread filter when there are no unread notifications.

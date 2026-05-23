@@ -6935,3 +6935,6 @@ Target outcome:
 1894. Webmail notification center now disables the unread filter when no
       unread notifications exist, preventing users from hiding read
       notifications behind an empty unread-only view.
+1895. Webmail notification filtered clear now resets search, unread, and
+      category filters when hidden notifications remain, preserving scoped
+      clearing while returning users to the remaining all-notifications list.

@@ -142,7 +142,12 @@ export function NotificationCenter({ open, onClose }: NotificationCenterProps) {
       return;
     }
     visible.forEach((n) => dismiss(n.id));
-  }, [clearAll, dismiss, hasActiveFilter, visible]);
+    if (notifications.length > visible.length) {
+      setQuery('');
+      setFilter('all');
+      setCategoryFilter('all');
+    }
+  }, [clearAll, dismiss, hasActiveFilter, notifications.length, visible]);
 
   useEffect(() => {
     if (categoryFilter === 'all') return;

@@ -980,6 +980,24 @@ test.describe('Notification center', () => {
     await expect(dialog).toContainText('Inbox delivery');
   });
 
+  test('clear-all returns to all notifications when filtered clear leaves hidden items', async ({ page }) => {
+    await pushNotification(page, { title: 'Deployment finished', body: 'System job succeeded', category: 'system' });
+    await pushNotification(page, { title: 'Inbox delivery', body: 'Mail from Finance', category: 'mail_received' });
+
+    const { dialog } = await openCenter(page);
+    const search = dialog.getByPlaceholder(/Search notifications|알림 검색|通知を検索|搜索通知/i);
+    await search.fill('deploy');
+    await expect(dialog).toContainText('Deployment finished');
+    await expect(dialog).not.toContainText('Inbox delivery');
+
+    await dialog.getByRole('button', { name: /clear all|모두 지우기|すべて消去|全部清除/i }).click();
+
+    await expect(search).toHaveValue('');
+    await expect(dialog.getByRole('button', { name: /^(all|전체|すべて|全部)$/i })).toHaveAttribute('aria-pressed', 'true');
+    await expect(dialog).toContainText('Inbox delivery');
+    await expect(dialog).not.toContainText(/no notifications match|조건에 맞는 알림|一致する通知|没有符合/i);
+  });
+
   test('dismiss removes a single item', async ({ page }) => {
     await pushNotification(page, { title: 'KeepMe' });
     await pushNotification(page, { title: 'RemoveMe' });
