@@ -6952,3 +6952,7 @@ Target outcome:
 1899. Webmail notification ids are now capped before storage, dedupe, and
       browser notification tag use; oversized stored ids are rejected and
       oversized runtime ids receive generated bounded replacements.
+1900. Webmail stored notification hydration now rejects timestamps older than
+      90 days or more than 24 hours in the future, preventing corrupted
+      localStorage entries from surfacing confusing relative-time labels or
+      pinned future notifications.

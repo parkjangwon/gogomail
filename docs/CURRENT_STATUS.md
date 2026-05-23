@@ -1,6 +1,13 @@
 # gogomail current status
 
-Last updated: 2026-05-23 (notification identifier hardening)
+Last updated: 2026-05-23 (notification timestamp hardening)
+
+## Notification Timestamp Hardening (2026-05-23)
+- Stored notification hydration now rejects timestamps older than 90 days or more than 24 hours in the future.
+- This keeps corrupted localStorage from surfacing very stale or future-dated notifications with confusing relative-time labels or pinned list positions.
+- Fresh stored notifications still hydrate normally, and non-finite timestamp rejection remains covered.
+- E2E coverage verifies stale, far-future, and non-finite stored timestamps are excluded while a fresh timestamp remains visible.
+- Verification target: `pnpm -C apps/webmail exec playwright test e2e/notifications.spec.ts --project=chromium -g "rejects stale and far-future timestamps|rejects non-finite timestamps"`; `pnpm -C apps/webmail type-check`.
 
 ## Notification Identifier Hardening (2026-05-23)
 - Notification ids are now capped at 128 characters before they enter storage, dedupe maps, or browser notification tags.
