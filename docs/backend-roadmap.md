@@ -6873,3 +6873,7 @@ Target outcome:
       and tag fields before calling the browser notification API, falling back
       from non-string or blank titles to `새 메일`, dropping non-string bodies,
       and using the stable default notification tag for malformed tags.
+1879. Webmail notification rows now avoid nested interactive controls by
+      rendering the primary notification action and dismiss control as sibling
+      buttons in a labeled group, preserving item navigation/dismiss behavior
+      while improving keyboard and assistive-technology semantics.
