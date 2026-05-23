@@ -132,7 +132,14 @@ export function getNextMessageId(messages: MessageSummary[], id: string): string
   return (messages[idx + 1] ?? messages[idx - 1])?.id ?? null;
 }
 
-export function getEmptyFolderLabel(systemType?: string) {
+export function getEmptyFolderLabel(systemType?: string, t?: (key: string) => string) {
+  if (t) {
+    if (systemType === 'drafts') return t('misc.mailEmpty.drafts');
+    if (systemType === 'sent') return t('misc.mailEmpty.sent');
+    if (systemType === 'trash') return t('misc.mailEmpty.trash');
+    if (systemType === 'inbox') return t('misc.mailEmpty.inbox');
+    return undefined;
+  }
   if (systemType === 'drafts') return '임시 보관된 메일이 없습니다';
   if (systemType === 'sent') return '보낸 메일이 없습니다';
   if (systemType === 'trash') return '휴지통이 비어있습니다';

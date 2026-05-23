@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { useTranslations } from 'next-intl';
 import { Calendar, CalendarObject, listCalendars, listCalendarObjects, createCalendarEvent, updateCalendarEvent, createCalendar, updateCalendar, deleteCalendar, createCalendarTodo, setTodoStatus, deleteCalendarObject, CalendarSubscription, listCalendarSubscriptions, addCalendarSubscription, deleteCalendarSubscription, fetchSubscriptionICS } from '@/lib/api';
 import { formatDate, formatMonthYear, formatWeekRange } from '@/lib/calendar/dateUtils';
 import { ParsedEvent, ParsedTodo, parseEvents, parseTodos } from '@/lib/calendar/eventParser';
@@ -17,6 +18,7 @@ import { DayView } from './calendar/DayView';
   // ── CalendarView (main) ───────────────────────────────────────────────────────
 
 export function CalendarView() {
+  const t = useTranslations('calendarFull');
   const [view, setView] = useState<'month' | 'week' | 'day'>('month');
   const [currentDate, setCurrentDate] = useState<Date>(() => {
     const d = new Date(); d.setHours(0, 0, 0, 0); return d;
@@ -281,7 +283,7 @@ export function CalendarView() {
   };
 
   const handleCalSave = async () => {
-    if (!calName.trim()) { setCalError('캘린더 이름을 입력하세요'); return; }
+    if (!calName.trim()) { setCalError(t('management.nameRequired')); return; }
     setCalSaving(true); setCalError('');
     try {
       if (editingCal) {
@@ -294,7 +296,7 @@ export function CalendarView() {
       }
       setShowCalModal(false);
     } catch (e) {
-      setCalError(e instanceof Error ? e.message : '저장 실패');
+      setCalError(e instanceof Error ? e.message : t('management.saveFailed'));
     } finally {
       setCalSaving(false);
     }
@@ -302,7 +304,7 @@ export function CalendarView() {
 
   const handleCalDelete = async () => {
     if (!editingCal) return;
-    if (!window.confirm(`"${editingCal.Name}" 캘린더를 삭제하면 포함된 모든 일정도 삭제됩니다. 계속하시겠습니까?`)) return;
+    if (!window.confirm(t('management.confirmDelete', { name: editingCal.Name }))) return;
     setCalSaving(true);
     try {
       await deleteCalendar(editingCal.ID);
@@ -311,7 +313,7 @@ export function CalendarView() {
       setSelectedCalIds((prev) => { const next = new Set(prev); next.delete(editingCal.ID); return next; });
       setShowCalModal(false);
     } catch (e) {
-      setCalError(e instanceof Error ? e.message : '삭제 실패');
+      setCalError(e instanceof Error ? e.message : t('management.deleteFailed'));
     } finally {
       setCalSaving(false);
     }
@@ -350,12 +352,12 @@ export function CalendarView() {
   };
 
   const handleCreateSubmit = async () => {
-    if (!createTitle.trim()) { setCreateError('제목을 입력하세요'); return; }
-    if (!createCalId) { setCreateError('캘린더를 선택하세요'); return; }
+    if (!createTitle.trim()) { setCreateError(t('event.titleRequired')); return; }
+    if (!createCalId) { setCreateError(t('event.calRequired')); return; }
     const startDate = new Date(createAllDay ? createStart + 'T00:00:00' : createStart);
     const endDate = new Date(createAllDay ? createEnd + 'T00:00:00' : createEnd);
-    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) { setCreateError('날짜를 확인하세요'); return; }
-    if (endDate <= startDate) { setCreateError('종료 시간이 시작 시간보다 늦어야 합니다'); return; }
+    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) { setCreateError(t('event.invalidDate')); return; }
+    if (endDate <= startDate) { setCreateError(t('event.endBeforeStart')); return; }
     setCreateSaving(true); setCreateError('');
     try {
       await createCalendarEvent(createCalId, {
@@ -374,7 +376,7 @@ export function CalendarView() {
       }));
       setObjects(allObjects);
     } catch (e) {
-      setCreateError(e instanceof Error ? e.message : '저장 실패');
+      setCreateError(e instanceof Error ? e.message : t('event.saveFailed'));
     } finally {
       setCreateSaving(false);
     }
@@ -421,7 +423,7 @@ export function CalendarView() {
       setSubName('');
       setSubColor('#4285f4');
     } catch {
-      setSubError('구독 추가에 실패했습니다.');
+      setSubError(t('subscription.failed'));
     } finally {
       setSubSaving(false);
     }
@@ -442,7 +444,7 @@ export function CalendarView() {
 
   const openEditModal = useCallback((ev: import('@/lib/calendar/eventParser').ParsedEvent) => {
     setEditingEvent(ev);
-    setEditTitle(ev.summary === '(제목 없음)' ? '' : ev.summary);
+    setEditTitle(ev.summary === t('event.untitled') ? '' : ev.summary);
     setEditLocation(ev.location ?? '');
     setEditDesc(ev.description ?? '');
     setEditAllDay(ev.allDay);
@@ -506,11 +508,11 @@ export function CalendarView() {
   };
 
   const handleEditSubmit = useCallback(async () => {
-    if (!editingEvent || !editTitle.trim()) { setEditError('제목을 입력하세요'); return; }
+    if (!editingEvent || !editTitle.trim()) { setEditError(t('event.titleRequired')); return; }
     const startDate = new Date(editAllDay ? editStart + 'T00:00:00' : editStart);
     const endDate = new Date(editAllDay ? editEnd + 'T00:00:00' : editEnd);
-    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) { setEditError('날짜를 확인하세요'); return; }
-    if (endDate <= startDate) { setEditError('종료 시간이 시작 시간보다 늦어야 합니다'); return; }
+    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) { setEditError(t('event.invalidDate')); return; }
+    if (endDate <= startDate) { setEditError(t('event.endBeforeStart')); return; }
     setEditSaving(true); setEditError('');
     try {
       const uid = editingEvent.obj.UID;
@@ -533,7 +535,7 @@ export function CalendarView() {
       setEditingEvent(null);
       await reloadObjects();
     } catch (e) {
-      setEditError(e instanceof Error ? e.message : '수정 실패');
+      setEditError(e instanceof Error ? e.message : t('event.editFailed'));
     } finally {
       setEditSaving(false);
     }
@@ -541,7 +543,7 @@ export function CalendarView() {
   }, [editingEvent, editTitle, editAllDay, editStart, editEnd, editLocation, editDesc, editCalId, editRrule, editRruleInterval, editRruleEnd, editRruleCount, editRruleUntil, editRruleDays, reloadObjects]);
 
   const handleDeleteEvent = useCallback(async (ev: import('@/lib/calendar/eventParser').ParsedEvent) => {
-    if (!window.confirm(`"${ev.summary}" 일정을 삭제하시겠습니까?`)) return;
+    if (!window.confirm(t('event.confirmDelete', { summary: ev.summary }))) return;
     setPopover(null);
     try {
       await deleteCalendarObject(ev.calendarId, ev.obj.ObjectName);
@@ -554,7 +556,9 @@ export function CalendarView() {
     setView('day');
   };
 
-  const recurrenceLabel = { DAILY: '일', WEEKLY: '주', MONTHLY: '개월', YEARLY: '년', NONE: '' }[createRrule];
+  const recurrenceLabel = createRrule === 'NONE' ? '' : t(`intervalLabel.${createRrule}`);
+  const editRecurrenceLabel = editRrule === 'NONE' ? '' : t(`intervalLabel.${editRrule}`);
+  const localizedDayLabels = [0, 1, 2, 3, 4, 5, 6].map((i) => t(`dayLabels.${i}`));
   const canSubmitCreateEvent = Boolean(createTitle.trim());
 
   return (
@@ -632,7 +636,7 @@ export function CalendarView() {
         {/* Calendar body */}
         {loading && objects.length === 0 ? (
           <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-text-tertiary)', fontSize: '14px' }}>
-            로딩 중...
+            {t('view.loading')}
           </div>
         ) : view === 'month' ? (
           <MonthView
@@ -726,7 +730,7 @@ export function CalendarView() {
         createRruleDays={createRruleDays}
         canSubmit={canSubmitCreateEvent}
         showCalSelect={calendars.length > 1}
-        dayLabels={['일', '월', '화', '수', '목', '금', '토']}
+        dayLabels={localizedDayLabels}
         ruleIntervalLabel={recurrenceLabel}
         onClose={() => setShowCreateModal(false)}
         onSubmit={handleCreateSubmit}
@@ -764,8 +768,8 @@ export function CalendarView() {
         createRruleUntil={editRruleUntil}
         createRruleDays={editRruleDays}
         canSubmit={Boolean(editTitle.trim())}
-        dayLabels={['일', '월', '화', '수', '목', '금', '토']}
-        ruleIntervalLabel={{ DAILY: '일', WEEKLY: '주', MONTHLY: '개월', YEARLY: '년', NONE: '' }[editRrule]}
+        dayLabels={localizedDayLabels}
+        ruleIntervalLabel={editRecurrenceLabel}
         isRecurring={editRrule !== 'NONE'}
         onClose={() => { setShowEditModal(false); setEditingEvent(null); }}
         onSubmit={handleEditSubmit}

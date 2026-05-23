@@ -1,6 +1,7 @@
 'use client';
 
 import { ArrowDownTrayIcon } from '@heroicons/react/24/outline';
+import { useTranslations } from 'next-intl';
 import type { FolderStats } from '@/lib/api';
 import { SectionCard, SectionHeader } from '@/components/settings-view/settingsViewPrimitives';
 
@@ -26,6 +27,7 @@ export function SettingsStorageSection({
   onLoadStats,
   onStartBackup,
 }: SettingsStorageSectionProps) {
+  const t = useTranslations();
   const QUOTA_BYTES = 10 * 1024 * 1024 * 1024;
   const totalUsed = folderStats.reduce((s, f) => s + f.size_bytes, 0);
   const usedPct = Math.min((totalUsed / QUOTA_BYTES) * 100, 100);
@@ -40,24 +42,24 @@ export function SettingsStorageSection({
   return (
     <>
       <SectionCard>
-        <SectionHeader>사용자 용량 현황</SectionHeader>
+        <SectionHeader>{t('misc.settingsStorage.quotaSection')}</SectionHeader>
         <div style={{ padding: '0 20px 20px' }}>
-          {statsLoading && <div style={{ fontSize: '13px', color: 'var(--color-text-tertiary)', padding: '12px 0' }}>불러오는 중...</div>}
+          {statsLoading && <div style={{ fontSize: '13px', color: 'var(--color-text-tertiary)', padding: '12px 0' }}>{t('misc.settingsStorage.loading')}</div>}
           {!statsLoading && folderStats.length === 0 && (
             <button onClick={onLoadStats} style={{ marginTop: '8px', padding: '6px 16px', borderRadius: '6px', border: 'none', background: 'var(--color-accent)', color: '#fff', fontSize: '13px', cursor: 'pointer', fontWeight: 600 }}>
-              용량 정보 불러오기
+              {t('misc.settingsStorage.loadStats')}
             </button>
           )}
           {folderStats.length > 0 && (
             <>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '6px' }}>
-                <span style={{ fontSize: '13px', color: 'var(--color-text-primary)', fontWeight: 500 }}>{fmt(totalUsed)} 사용 중</span>
-                <span style={{ fontSize: '12px', color: 'var(--color-text-tertiary)' }}>총 {fmt(QUOTA_BYTES)} 중</span>
+                <span style={{ fontSize: '13px', color: 'var(--color-text-primary)', fontWeight: 500 }}>{t('misc.settingsStorage.usedSuffix', { size: fmt(totalUsed) })}</span>
+                <span style={{ fontSize: '12px', color: 'var(--color-text-tertiary)' }}>{t('misc.settingsStorage.totalOf', { size: fmt(QUOTA_BYTES) })}</span>
               </div>
               <div style={{ height: '8px', borderRadius: '4px', background: 'var(--color-bg-tertiary)', overflow: 'hidden', marginBottom: '4px' }}>
                 <div style={{ height: '100%', width: `${usedPct}%`, background: barColor, borderRadius: '4px', transition: 'width 0.5s ease' }} />
               </div>
-              <div style={{ fontSize: '11px', color: usedPct > 85 ? '#ef4444' : 'var(--color-text-tertiary)', textAlign: 'right' }}>{usedPct.toFixed(1)}% 사용</div>
+              <div style={{ fontSize: '11px', color: usedPct > 85 ? '#ef4444' : 'var(--color-text-tertiary)', textAlign: 'right' }}>{t('misc.settingsStorage.usedPercent', { pct: usedPct.toFixed(1) })}</div>
             </>
           )}
         </div>
@@ -65,12 +67,12 @@ export function SettingsStorageSection({
 
       {folderStats.length > 0 && (
         <SectionCard>
-          <SectionHeader>편지함별 현황</SectionHeader>
+          <SectionHeader>{t('misc.settingsStorage.perFolder')}</SectionHeader>
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
               <thead>
                 <tr style={{ borderBottom: '1px solid var(--color-border-subtle)' }}>
-                  {['편지함', '메일 수', '안읽음', '별표', '용량', 'EML 백업', 'ZIP 백업'].map((h) => (
+                  {[t('misc.settingsStorage.columnFolder'), t('misc.settingsStorage.columnTotal'), t('misc.settingsStorage.columnUnread'), t('misc.settingsStorage.columnStarred'), t('misc.settingsStorage.columnSize'), t('misc.settingsStorage.columnEml'), t('misc.settingsStorage.columnZip')].map((h) => (
                     <th key={h} style={{ padding: '8px 16px', textAlign: 'left', fontSize: '11px', fontWeight: 600, color: 'var(--color-text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>{h}</th>
                   ))}
                 </tr>
@@ -83,8 +85,8 @@ export function SettingsStorageSection({
                   const zipState = backupStates[zipKey] ?? { status: 'idle' };
                   const BtnLabel = ({ state, format }: { state: BackupState; format: 'EML' | 'ZIP' }) => {
                     if (state.status === 'running') return <>{state.total > 0 ? `${state.fetched}/${state.total}` : '...'}</>;
-                    if (state.status === 'done') return <>완료 ✓</>;
-                    if (state.status === 'error') return <>오류</>;
+                    if (state.status === 'done') return <>{t('misc.settingsStorage.done')}</>;
+                    if (state.status === 'error') return <>{t('misc.settingsStorage.errorShort')}</>;
                     return <>{format}</>;
                   };
                   return (
@@ -120,7 +122,7 @@ export function SettingsStorageSection({
               </tbody>
               <tfoot>
                 <tr style={{ borderTop: '2px solid var(--color-border-default)' }}>
-                  <td style={{ padding: '8px 16px', fontWeight: 600, fontSize: '12px', color: 'var(--color-text-primary)' }}>합계</td>
+                  <td style={{ padding: '8px 16px', fontWeight: 600, fontSize: '12px', color: 'var(--color-text-primary)' }}>{t('misc.settingsStorage.sum')}</td>
                   <td style={{ padding: '8px 16px', textAlign: 'right', fontWeight: 600 }}>{folderStats.reduce((s, f) => s + f.total, 0).toLocaleString()}</td>
                   <td style={{ padding: '8px 16px', textAlign: 'right', fontWeight: 600, color: 'var(--color-accent)' }}>{folderStats.reduce((s, f) => s + f.unread, 0).toLocaleString()}</td>
                   <td style={{ padding: '8px 16px', textAlign: 'right', fontWeight: 600 }}>{folderStats.reduce((s, f) => s + f.starred, 0).toLocaleString()}</td>

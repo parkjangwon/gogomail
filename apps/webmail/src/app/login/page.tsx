@@ -3,6 +3,7 @@
 import { useState, useEffect, KeyboardEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { useTranslations } from 'next-intl';
 import { loginUser, verifyMFA } from '@/lib/api';
 import { ThemeToggle } from '@/components/ThemeToggle';
 
@@ -22,6 +23,7 @@ const inputStyle: React.CSSProperties = {
 
 export default function LoginPage() {
   const router = useRouter();
+  const t = useTranslations();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -45,7 +47,7 @@ export default function LoginPage() {
   async function handlePasswordSubmit(e: { preventDefault(): void }) {
     e.preventDefault();
     if (!email.trim() || !password.trim()) {
-      setError('이메일과 비밀번호를 입력하세요.');
+      setError(t('misc.login.emptyFieldsError'));
       return;
     }
     setError('');
@@ -72,7 +74,7 @@ export default function LoginPage() {
       }
       router.push('/mail');
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : '로그인에 실패했습니다.';
+      const message = err instanceof Error ? err.message : t('misc.login.loginFailed');
       setError(message);
     } finally {
       setLoading(false);
@@ -83,7 +85,7 @@ export default function LoginPage() {
     e.preventDefault();
     const code = mfaCode.trim();
     if (!code) {
-      setError(useRecovery ? '복구 코드를 입력하세요.' : '인증 코드를 입력하세요.');
+      setError(useRecovery ? t('misc.login.recoveryCodeEmpty') : t('misc.login.mfaCodeEmpty'));
       return;
     }
     setError('');
@@ -96,7 +98,7 @@ export default function LoginPage() {
       if (result.expires_at) localStorage.setItem('webmail_token_expires_at', result.expires_at);
       router.push('/mail');
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'MFA 인증에 실패했습니다.';
+      const message = err instanceof Error ? err.message : t('misc.login.mfaFailed');
       setError(message);
     } finally {
       setLoading(false);
@@ -134,7 +136,7 @@ export default function LoginPage() {
             GoGoMail
           </span>
           <p style={{ marginTop: '8px', fontSize: '14px', color: 'var(--color-text-secondary)' }}>
-            {step === 'password' ? '계정에 로그인하세요' : '2단계 인증'}
+            {step === 'password' ? t('misc.login.subtitleLogin') : t('misc.login.subtitleMfa')}
           </p>
         </div>
 
@@ -146,7 +148,7 @@ export default function LoginPage() {
           >
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
               <label htmlFor="email" style={{ fontSize: '13px', fontWeight: 500, color: 'var(--color-text-primary)' }}>
-                이메일
+                {t('misc.login.labelEmail')}
               </label>
               <input
                 id="email"
@@ -164,7 +166,7 @@ export default function LoginPage() {
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
               <label htmlFor="password" style={{ fontSize: '13px', fontWeight: 500, color: 'var(--color-text-primary)' }}>
-                비밀번호
+                {t('misc.login.labelPassword')}
               </label>
               <input
                 id="password"
@@ -181,7 +183,7 @@ export default function LoginPage() {
 
             {error && <ErrorAlert message={error} />}
 
-            <SubmitButton loading={loading} label="로그인" />
+            <SubmitButton loading={loading} label={t('misc.login.loginButton')} processingLabel={t('misc.login.processing')} />
 
             <Link
               href="/forgot-password"
@@ -194,7 +196,7 @@ export default function LoginPage() {
                 padding: '4px 0',
               }}
             >
-              비밀번호를 잊으셨나요?
+              {t('misc.login.forgotPassword')}
             </Link>
           </form>
         ) : (
@@ -204,14 +206,12 @@ export default function LoginPage() {
             style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}
           >
             <p style={{ fontSize: '13px', color: 'var(--color-text-secondary)', margin: 0 }}>
-              {useRecovery
-                ? '계정에 저장된 복구 코드를 입력하세요.'
-                : '인증 앱의 6자리 코드를 입력하세요.'}
+              {useRecovery ? t('misc.login.mfaRecoveryHint') : t('misc.login.mfaCodeHint')}
             </p>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
               <label htmlFor="mfa-code" style={{ fontSize: '13px', fontWeight: 500, color: 'var(--color-text-primary)' }}>
-                {useRecovery ? '복구 코드' : '인증 코드'}
+                {useRecovery ? t('misc.login.labelRecoveryCode') : t('misc.login.labelMfaCode')}
               </label>
               <input
                 id="mfa-code"
@@ -232,7 +232,7 @@ export default function LoginPage() {
 
             {error && <ErrorAlert message={error} />}
 
-            <SubmitButton loading={loading} label={useRecovery ? '복구 코드로 로그인' : '인증'} />
+            <SubmitButton loading={loading} label={useRecovery ? t('misc.login.submitRecovery') : t('misc.login.submitMfa')} processingLabel={t('misc.login.processing')} />
 
             <button
               type="button"
@@ -247,7 +247,7 @@ export default function LoginPage() {
                 padding: '4px 0',
               }}
             >
-              {useRecovery ? '인증 앱 코드로 전환' : '복구 코드 사용'}
+              {useRecovery ? t('misc.login.switchToMfa') : t('misc.login.switchToRecovery')}
             </button>
 
             <button
@@ -263,7 +263,7 @@ export default function LoginPage() {
                 padding: '2px 0',
               }}
             >
-              ← 처음으로 돌아가기
+              {t('misc.login.backToStart')}
             </button>
           </form>
         )}
@@ -290,7 +290,7 @@ function ErrorAlert({ message }: { message: string }) {
   );
 }
 
-function SubmitButton({ loading, label }: { loading: boolean; label: string }) {
+function SubmitButton({ loading, label, processingLabel }: { loading: boolean; label: string; processingLabel: string }) {
   return (
     <button
       type="submit"
@@ -314,7 +314,7 @@ function SubmitButton({ loading, label }: { loading: boolean; label: string }) {
         if (!loading) (e.target as HTMLButtonElement).style.background = 'var(--color-accent)';
       }}
     >
-      {loading ? '처리 중...' : label}
+      {loading ? processingLabel : label}
     </button>
   );
 }

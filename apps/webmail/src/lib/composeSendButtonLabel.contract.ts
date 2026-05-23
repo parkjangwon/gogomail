@@ -7,12 +7,14 @@ const baseState = {
   uploading: false,
 } satisfies ComposeSendButtonLabelState;
 
-const sendingLabel: string = composeSendButtonLabel({ ...baseState, sending: true });
-const immediateSentLabel: string = composeSendButtonLabel({ ...baseState, sent: true });
-const scheduledSentLabel: string = composeSendButtonLabel({ ...baseState, sent: true, scheduled: true });
-const uploadingLabel: string = composeSendButtonLabel({ ...baseState, uploading: true });
-const scheduledReadyLabel: string = composeSendButtonLabel({ ...baseState, scheduled: true });
-const defaultLabel: string = composeSendButtonLabel(baseState);
+const t = (k: string) => k;
+
+const sendingLabel: string = composeSendButtonLabel({ ...baseState, sending: true }, t);
+const immediateSentLabel: string = composeSendButtonLabel({ ...baseState, sent: true }, t);
+const scheduledSentLabel: string = composeSendButtonLabel({ ...baseState, sent: true, scheduled: true }, t);
+const uploadingLabel: string = composeSendButtonLabel({ ...baseState, uploading: true }, t);
+const scheduledReadyLabel: string = composeSendButtonLabel({ ...baseState, scheduled: true }, t);
+const defaultLabel: string = composeSendButtonLabel(baseState, t);
 
 export const composeSendButtonLabelContract = {
   sendingLabel,

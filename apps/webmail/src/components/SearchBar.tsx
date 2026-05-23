@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
+import { useTranslations } from 'next-intl';
 import { MagnifyingGlassIcon, XMarkIcon, AdjustmentsHorizontalIcon } from '@heroicons/react/24/outline';
 import { AdvancedFilters } from '@/components/Sidebar';
 
@@ -27,6 +28,7 @@ interface SearchBarProps {
 }
 
 export function SearchBar({ value, onChange, advancedFilters = {}, onAdvancedFilterChange }: SearchBarProps) {
+  const t = useTranslations();
   const [focused, setFocused] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -108,8 +110,8 @@ export function SearchBar({ value, onChange, advancedFilters = {}, onAdvancedFil
         <input
           ref={inputRef}
           type="search"
-          placeholder="메일 검색"
-          aria-label="메일 검색"
+          placeholder={t('misc.searchBar.placeholder')}
+          aria-label={t('misc.searchBar.aria')}
           value={value}
           onChange={(e) => {
             onChange(e.target.value);
@@ -132,7 +134,7 @@ export function SearchBar({ value, onChange, advancedFilters = {}, onAdvancedFil
         {hasActive && (
           <button
             onClick={handleClear}
-            aria-label="검색 지우기"
+            aria-label={t('misc.searchBar.clear')}
             style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-tertiary)', padding: 0, display: 'inline-flex', flexShrink: 0 }}
           >
             <XMarkIcon style={{ width: '18px', height: '18px' }} />
@@ -140,8 +142,8 @@ export function SearchBar({ value, onChange, advancedFilters = {}, onAdvancedFil
         )}
         <button
           onClick={() => { setShowAdvanced((v) => !v); setShowSuggestions(false); }}
-          aria-label="상세 검색 필터"
-          title="상세 검색"
+          aria-label={t('misc.searchBar.advancedAria')}
+          title={t('misc.searchBar.advancedTitle')}
           style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px', color: showAdvanced ? 'var(--color-accent)' : 'var(--color-text-tertiary)', display: 'inline-flex', flexShrink: 0 }}
         >
           <AdjustmentsHorizontalIcon style={{ width: '18px', height: '18px' }} />
@@ -158,7 +160,7 @@ export function SearchBar({ value, onChange, advancedFilters = {}, onAdvancedFil
           boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
           overflow: 'hidden',
         }}>
-          <div style={{ padding: '8px 20px 4px', fontSize: '11px', color: 'var(--color-text-tertiary)', fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase' }}>최근 검색</div>
+          <div style={{ padding: '8px 20px 4px', fontSize: '11px', color: 'var(--color-text-tertiary)', fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase' }}>{t('misc.searchBar.recent')}</div>
           {recentSearches.map((q) => (
             <button
               key={q}
@@ -185,7 +187,7 @@ export function SearchBar({ value, onChange, advancedFilters = {}, onAdvancedFil
           padding: '4px 24px 20px',
         }}>
           <div style={fieldRow}>
-            <span style={fieldLabel}>보낸사람</span>
+            <span style={fieldLabel}>{t('misc.searchBar.from')}</span>
             <input
               type="text"
               value={draft.from ?? ''}
@@ -194,7 +196,7 @@ export function SearchBar({ value, onChange, advancedFilters = {}, onAdvancedFil
             />
           </div>
           <div style={fieldRow}>
-            <span style={fieldLabel}>받는사람</span>
+            <span style={fieldLabel}>{t('misc.searchBar.to')}</span>
             <input
               type="text"
               value={draft.to ?? ''}
@@ -203,7 +205,7 @@ export function SearchBar({ value, onChange, advancedFilters = {}, onAdvancedFil
             />
           </div>
           <div style={fieldRow}>
-            <span style={fieldLabel}>제목</span>
+            <span style={fieldLabel}>{t('misc.searchBar.subject')}</span>
             <input
               type="text"
               value={draft.subject ?? ''}
@@ -212,7 +214,7 @@ export function SearchBar({ value, onChange, advancedFilters = {}, onAdvancedFil
             />
           </div>
           <div style={fieldRow}>
-            <span style={fieldLabel}>포함하는 단어</span>
+            <span style={fieldLabel}>{t('misc.searchBar.wordsContains')}</span>
             <input
               type="text"
               value={value}
@@ -221,7 +223,7 @@ export function SearchBar({ value, onChange, advancedFilters = {}, onAdvancedFil
             />
           </div>
           <div style={fieldRow}>
-            <span style={fieldLabel}>기간</span>
+            <span style={fieldLabel}>{t('misc.searchBar.dateRange')}</span>
             <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
               <input
                 type="date"
@@ -246,7 +248,7 @@ export function SearchBar({ value, onChange, advancedFilters = {}, onAdvancedFil
                 checked={draft.has_attachment ?? false}
                 onChange={(e) => setDraft((d) => ({ ...d, has_attachment: e.target.checked || undefined }))}
               />
-              첨부파일 있음
+              {t('misc.searchBar.hasAttachment')}
             </label>
           </div>
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', paddingTop: '12px', borderTop: '1px solid var(--color-border-subtle)' }}>
@@ -254,13 +256,13 @@ export function SearchBar({ value, onChange, advancedFilters = {}, onAdvancedFil
               onClick={() => { setShowAdvanced(false); setDraft(advancedFilters); }}
               style={{ padding: '8px 20px', borderRadius: '20px', border: '1px solid var(--color-border-default)', background: 'transparent', color: 'var(--color-text-secondary)', fontSize: '13px', cursor: 'pointer' }}
             >
-              취소
+              {t('misc.searchBar.cancel')}
             </button>
             <button
               onClick={handleSubmitAdvanced}
               style={{ padding: '8px 28px', borderRadius: '20px', border: 'none', background: 'var(--color-accent)', color: '#fff', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}
             >
-              검색
+              {t('misc.searchBar.search')}
             </button>
           </div>
         </div>

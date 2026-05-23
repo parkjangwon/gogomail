@@ -3287,6 +3287,7 @@ func runHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, mode M
 		}
 		httpapi.RegisterMailRoutesWithOptions(mux, service, tokenManager, mailOpts)
 		httpapi.RegisterMFARoutes(mux, tokenManager, mailOpts)
+		httpapi.RegisterNotificationPreferenceRoutes(mux, httpapi.NewMaildbNotificationPreferenceAdapter(maildb.NewRepository(db)), tokenManager)
 		httpapi.RegisterTrackingRoutes(mux, trackingRepo, tokenManager)
 		httpapi.RegisterDriveRoutesWithOptions(mux, driveServiceForConfig(db, cfg, store), tokenManager, driveRouteOptions)
 		httpapi.RegisterContactRoutes(mux, httpapi.NewContactHandler(

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { useTranslations } from 'next-intl';
 import { MagnifyingGlassIcon, EnvelopeIcon, UserIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import { listDirectoryUsers, DirectoryUser } from '@/lib/api';
 
@@ -71,6 +72,7 @@ function UserCard({ user, selected, onClick }: { user: DirectoryUser; selected: 
 }
 
 function DetailPanel({ user, onCompose, onClose }: { user: DirectoryUser; onCompose?: (email: string) => void; onClose: () => void }) {
+  const t = useTranslations();
   return (
     <div style={{
       width: '280px', flexShrink: 0, borderLeft: '1px solid var(--color-border-subtle)',
@@ -80,7 +82,7 @@ function DetailPanel({ user, onCompose, onClose }: { user: DirectoryUser; onComp
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         padding: '12px 16px', borderBottom: '1px solid var(--color-border-subtle)',
       }}>
-        <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-text-primary)' }}>상세 정보</span>
+        <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-text-primary)' }}>{t('misc.orgChart.detail')}</span>
         <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-tertiary)', padding: '2px', display: 'flex', borderRadius: '4px' }}
           onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }}
           onMouseLeave={(e) => { (e.currentTarget).style.background = 'none'; }}>
@@ -111,12 +113,12 @@ function DetailPanel({ user, onCompose, onClose }: { user: DirectoryUser; onComp
             onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.opacity = '1'; }}
           >
             <EnvelopeIcon style={{ width: '15px', height: '15px' }} />
-            메일 쓰기
+            {t('misc.orgChart.composeMail')}
           </button>
         )}
 
         <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          <InfoRow label="이메일" value={user.email} />
+          <InfoRow label={t('misc.orgChart.labelEmail')} value={user.email} />
           <InfoRow label="ID" value={user.id} />
         </div>
       </div>
@@ -135,6 +137,7 @@ function InfoRow({ label, value }: { label: string; value: string }) {
 }
 
 export function OrgChartView({ onCompose }: OrgChartViewProps) {
+  const t = useTranslations();
   const [users, setUsers] = useState<DirectoryUser[]>([]);
   const [query, setQuery] = useState('');
   const [selected, setSelected] = useState<DirectoryUser | null>(null);
@@ -183,7 +186,7 @@ export function OrgChartView({ onCompose }: OrgChartViewProps) {
         display: 'flex', alignItems: 'center', gap: '12px',
         padding: '12px 20px', borderBottom: '1px solid var(--color-border-subtle)', flexShrink: 0,
       }}>
-        <span style={{ fontSize: '15px', fontWeight: 600, color: 'var(--color-text-primary)' }}>조직도</span>
+        <span style={{ fontSize: '15px', fontWeight: 600, color: 'var(--color-text-primary)' }}>{t('misc.orgChart.title')}</span>
         <div style={{ flex: 1, maxWidth: '340px', position: 'relative' }}>
           <MagnifyingGlassIcon style={{
             width: '15px', height: '15px', position: 'absolute', left: '10px', top: '50%',
@@ -192,7 +195,7 @@ export function OrgChartView({ onCompose }: OrgChartViewProps) {
           <input
             ref={searchRef}
             type="text"
-            placeholder="이름 또는 이메일 검색... (/)"
+            placeholder={t('misc.orgChart.searchPlaceholder')}
             value={query}
             onChange={(e) => handleQueryChange(e.target.value)}
             style={{
@@ -205,7 +208,7 @@ export function OrgChartView({ onCompose }: OrgChartViewProps) {
           />
         </div>
         <span style={{ fontSize: '12px', color: 'var(--color-text-tertiary)', marginLeft: 'auto' }}>
-          {loading ? '검색 중...' : `${users.length}명`}
+          {loading ? t('misc.orgChart.searching') : t('misc.orgChart.countPeople', { count: users.length })}
         </span>
       </div>
 
@@ -216,7 +219,7 @@ export function OrgChartView({ onCompose }: OrgChartViewProps) {
           {users.length === 0 && !loading && (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '200px', gap: '8px', color: 'var(--color-text-tertiary)' }}>
               <UserIcon style={{ width: '36px', height: '36px', opacity: 0.4 }} />
-              <span style={{ fontSize: '14px' }}>{query ? '검색 결과가 없습니다' : '구성원이 없습니다'}</span>
+              <span style={{ fontSize: '14px' }}>{query ? t('misc.orgChart.emptySearch') : t('misc.orgChart.emptyAll')}</span>
             </div>
           )}
           <div style={{

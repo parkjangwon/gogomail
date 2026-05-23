@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import { avatarColor } from './messageListTypes';
 
 type ContactHoverCardProps = {
@@ -13,6 +14,7 @@ type ContactHoverCardProps = {
 };
 
 export function ContactHoverCard({ name, addr, count, x, y, onClose, onComposeTo }: ContactHoverCardProps) {
+  const t = useTranslations('contactHover');
   const initials = (name || addr).charAt(0).toUpperCase();
   const color = avatarColor(name || addr);
   const cardW = 224;
@@ -31,7 +33,7 @@ export function ContactHoverCard({ name, addr, count, x, y, onClose, onComposeTo
         </div>
       </div>
       <div style={{ fontSize: '11px', color: 'var(--color-text-secondary)', marginBottom: '10px', paddingBottom: '10px', borderBottom: '1px solid var(--color-border-subtle)' }}>
-        받은 편지함에 {count}개 메일
+        {t('inboxCount', { count })}
       </div>
       {onComposeTo && (
         <button type="button" onClick={() => { onComposeTo(addr, name); onClose(); }}
@@ -39,7 +41,7 @@ export function ContactHoverCard({ name, addr, count, x, y, onClose, onComposeTo
           onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-secondary)'; }}
           onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
         >
-          + 새 메일 작성
+          {t('newMail')}
         </button>
       )}
     </div>

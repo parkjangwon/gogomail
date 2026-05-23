@@ -41,19 +41,20 @@ export const DEFAULT_SETTINGS: WebmailSettings = {
 export type Category = 'mailbox' | 'compose' | 'theme' | 'notifications' | 'account' | 'security' | 'shortcuts' | 'advanced' | 'filters';
 
 export type AccentPreset = {
-  name: string;
+  // nameKey references a key in the `settingsView` translation namespace.
+  nameKey: string;
   swatch: string;
   light: { accent: string; hover: string; subtle: string };
   dark: { accent: string; hover: string; subtle: string };
 };
 
 export const ACCENT_PRESETS: AccentPreset[] = [
-  { name: '블루', swatch: '#2F6EE0', light: { accent: '#2F6EE0', hover: '#2560C8', subtle: '#EBF1FD' }, dark: { accent: '#5B8EF0', hover: '#6B9AF4', subtle: '#1E2B45' } },
-  { name: '틸', swatch: '#0D9488', light: { accent: '#0D9488', hover: '#0F766E', subtle: '#CCFBF1' }, dark: { accent: '#14B8A6', hover: '#2DD4BF', subtle: '#1A3D38' } },
-  { name: '보라', swatch: '#7C3AED', light: { accent: '#7C3AED', hover: '#6D28D9', subtle: '#EDE9FE' }, dark: { accent: '#A78BFA', hover: '#C4B5FD', subtle: '#2E1B4E' } },
-  { name: '주황', swatch: '#EA580C', light: { accent: '#EA580C', hover: '#C2410C', subtle: '#FFEDD5' }, dark: { accent: '#FB923C', hover: '#FDBA74', subtle: '#451A03' } },
-  { name: '핑크', swatch: '#DB2777', light: { accent: '#DB2777', hover: '#BE185D', subtle: '#FCE7F3' }, dark: { accent: '#F472B6', hover: '#FBCFE8', subtle: '#4A1032' } },
-  { name: '그린', swatch: '#059669', light: { accent: '#059669', hover: '#047857', subtle: '#D1FAE5' }, dark: { accent: '#34D399', hover: '#6EE7B7', subtle: '#1A3B30' } },
+  { nameKey: 'accentBlue', swatch: '#2F6EE0', light: { accent: '#2F6EE0', hover: '#2560C8', subtle: '#EBF1FD' }, dark: { accent: '#5B8EF0', hover: '#6B9AF4', subtle: '#1E2B45' } },
+  { nameKey: 'accentTeal', swatch: '#0D9488', light: { accent: '#0D9488', hover: '#0F766E', subtle: '#CCFBF1' }, dark: { accent: '#14B8A6', hover: '#2DD4BF', subtle: '#1A3D38' } },
+  { nameKey: 'accentPurple', swatch: '#7C3AED', light: { accent: '#7C3AED', hover: '#6D28D9', subtle: '#EDE9FE' }, dark: { accent: '#A78BFA', hover: '#C4B5FD', subtle: '#2E1B4E' } },
+  { nameKey: 'accentOrange', swatch: '#EA580C', light: { accent: '#EA580C', hover: '#C2410C', subtle: '#FFEDD5' }, dark: { accent: '#FB923C', hover: '#FDBA74', subtle: '#451A03' } },
+  { nameKey: 'accentPink', swatch: '#DB2777', light: { accent: '#DB2777', hover: '#BE185D', subtle: '#FCE7F3' }, dark: { accent: '#F472B6', hover: '#FBCFE8', subtle: '#4A1032' } },
+  { nameKey: 'accentGreen', swatch: '#059669', light: { accent: '#059669', hover: '#047857', subtle: '#D1FAE5' }, dark: { accent: '#34D399', hover: '#6EE7B7', subtle: '#1A3B30' } },
 ];
 
 export function applyAccent(swatch: string) {
@@ -135,16 +136,17 @@ export function saveFilterRules(rules: FilterRule[]) {
   try { localStorage.setItem(FILTER_RULES_KEY, JSON.stringify(rules)); } catch { /* */ }
 }
 
-export const CATEGORIES: { id: Category; label: string }[] = [
-  { id: 'mailbox', label: '메일함' },
-  { id: 'compose', label: '메일 쓰기' },
-  { id: 'filters', label: '필터' },
-  { id: 'theme', label: '테마' },
-  { id: 'notifications', label: '알림' },
-  { id: 'account', label: '계정' },
-  { id: 'security', label: '보안' },
-  { id: 'shortcuts', label: '단축키' },
-  { id: 'advanced', label: '고급' },
+// labelKey references a key in the `settingsView` translation namespace.
+export const CATEGORIES: { id: Category; labelKey: string }[] = [
+  { id: 'mailbox', labelKey: 'catMailbox' },
+  { id: 'compose', labelKey: 'catComposeMenu' },
+  { id: 'filters', labelKey: 'catFilters' },
+  { id: 'theme', labelKey: 'catTheme' },
+  { id: 'notifications', labelKey: 'catNotifications' },
+  { id: 'account', labelKey: 'catAccount' },
+  { id: 'security', labelKey: 'catSecurity' },
+  { id: 'shortcuts', labelKey: 'catShortcuts' },
+  { id: 'advanced', labelKey: 'catAdvanced' },
 ];
 
 export const LABEL_COLORS = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6', '#8b5cf6', '#ec4899', '#6b7280'];

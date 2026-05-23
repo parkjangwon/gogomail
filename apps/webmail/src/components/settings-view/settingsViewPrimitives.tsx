@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import type { CSSProperties } from 'react';
+import { useTranslations } from 'next-intl';
 import { EditorContent, useEditor } from '@tiptap/react';
 import Placeholder from '@tiptap/extension-placeholder';
 import StarterKit from '@tiptap/starter-kit';
@@ -123,6 +124,7 @@ export function Kbd({ k }: { k: string }) {
 }
 
 export function MiniEditor({ value, onChange, placeholder }: { value: string; onChange: (html: string) => void; placeholder?: string }) {
+  const t = useTranslations('settingsPrimitives');
   const editor = useEditor({
     extensions: [
       StarterKit,
@@ -174,8 +176,8 @@ export function MiniEditor({ value, onChange, placeholder }: { value: string; on
         <button type="button" style={btnStyle(editor?.isActive('italic'))} onClick={() => editor?.chain().focus().toggleItalic().run()}><i>I</i></button>
         <button type="button" style={btnStyle(editor?.isActive('underline'))} onClick={() => editor?.chain().focus().toggleUnderline().run()}><u>U</u></button>
         <span style={{ width: '1px', background: 'var(--color-border-subtle)', margin: '0 2px' }} />
-        <button type="button" style={btnStyle(editor?.isActive('bulletList'))} onClick={() => editor?.chain().focus().toggleBulletList().run()}>• 목록</button>
-        <button type="button" style={btnStyle(editor?.isActive('orderedList'))} onClick={() => editor?.chain().focus().toggleOrderedList().run()}>1. 목록</button>
+        <button type="button" style={btnStyle(editor?.isActive('bulletList'))} onClick={() => editor?.chain().focus().toggleBulletList().run()}>{t('bulletList')}</button>
+        <button type="button" style={btnStyle(editor?.isActive('orderedList'))} onClick={() => editor?.chain().focus().toggleOrderedList().run()}>{t('orderedList')}</button>
       </div>
       <div className="mini-editor" style={{ minHeight: '80px', padding: '6px 10px', fontSize: '13px', color: 'var(--color-text-primary)' }}>
         <EditorContent editor={editor} />

@@ -26,7 +26,9 @@ export interface ParsedTodo {
   color: string;
 }
 
-export function parseEvents(objects: CalendarObject[], calendars: Calendar[]): ParsedEvent[] {
+type TFn = (key: string) => string;
+
+export function parseEvents(objects: CalendarObject[], calendars: Calendar[], t?: TFn): ParsedEvent[] {
   const calMap = new Map(calendars.map((c) => [c.ID, c]));
   const events: ParsedEvent[] = [];
 
@@ -49,7 +51,7 @@ export function parseEvents(objects: CalendarObject[], calendars: Calendar[]): P
 
     events.push({
       obj,
-      summary: ics.summary || obj.UID || '(제목 없음)',
+      summary: ics.summary || obj.UID || (t ? t('misc.calendarParser.noTitle') : '(제목 없음)'),
       description: ics.description,
       location: ics.location,
       start,
@@ -63,7 +65,7 @@ export function parseEvents(objects: CalendarObject[], calendars: Calendar[]): P
   return events;
 }
 
-export function parseTodos(objects: CalendarObject[], calendars: Calendar[]): ParsedTodo[] {
+export function parseTodos(objects: CalendarObject[], calendars: Calendar[], t?: TFn): ParsedTodo[] {
   const calMap = new Map(calendars.map((c) => [c.ID, c]));
   const todos: ParsedTodo[] = [];
 
@@ -78,7 +80,7 @@ export function parseTodos(objects: CalendarObject[], calendars: Calendar[]): Pa
 
     todos.push({
       obj,
-      summary: ics.summary || obj.UID || '(제목 없음)',
+      summary: ics.summary || obj.UID || (t ? t('misc.calendarParser.noTitle') : '(제목 없음)'),
       description: ics.description,
       dueDate,
       completedDate: null,

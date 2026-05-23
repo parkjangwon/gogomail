@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
+import { useTranslations } from 'next-intl';
 import {
   Attachment,
   MessageDeliveryStatus,
@@ -94,6 +95,7 @@ export function ReadingPane({
   userEmail,
   externalImages = 'ask',
 }: ReadingPaneProps) {
+  const t = useTranslations();
   const [fontSize, setFontSize] = useState(() => {
     try { return parseInt(localStorage.getItem('webmail_font_size') ?? '14', 10) || 14; } catch { return 14; }
   });
@@ -393,10 +395,10 @@ export function ReadingPane({
     setSavingToDriveId(att.id);
     try {
       const node = await saveAttachmentToDrive(message.id, att.id, att.filename, att.mime_type);
-      setDriveToast(node ? `"${att.filename}" 드라이브에 저장됨` : '드라이브 저장 실패');
+      setDriveToast(node ? t('misc.readingPane.savedToDrive', { filename: att.filename }) : t('misc.readingPane.driveSaveFailed'));
       setTimeout(() => setDriveToast(''), 3000);
     } catch {
-      setDriveToast('드라이브 저장 실패');
+      setDriveToast(t('misc.readingPane.driveSaveFailed'));
       setTimeout(() => setDriveToast(''), 3000);
     } finally {
       setSavingToDriveId(null);
@@ -546,7 +548,8 @@ export function ReadingPane({
   if (loading) {
     return (
       <main
-        aria-label="메일 읽기"
+        aria-label={t('misc.readingPane.region')}
+        data-print-reading-pane
         style={{
           flex: 1,
           minWidth: 0,
@@ -577,7 +580,8 @@ export function ReadingPane({
   if (!message) {
     return (
       <main
-        aria-label="메일 읽기"
+        aria-label={t('misc.readingPane.region')}
+        data-print-reading-pane
         style={{
           flex: 1,
           minWidth: 0,
@@ -605,7 +609,7 @@ export function ReadingPane({
           <rect x="2" y="4" width="20" height="16" rx="2" />
           <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
         </svg>
-        <p style={{ fontSize: '14px' }}>메시지를 선택하세요</p>
+        <p style={{ fontSize: '14px' }}>{t('misc.readingPane.selectMessage')}</p>
       </main>
     );
   }
@@ -627,7 +631,8 @@ export function ReadingPane({
   return (
     <main
       ref={scrollContainerRef}
-      aria-label="메일 읽기"
+      aria-label={t('misc.readingPane.region')}
+      data-print-reading-pane
       tabIndex={0}
       data-nav-group="reading-pane"
       onKeyDown={handleReadingPaneKeyDown}
@@ -745,7 +750,7 @@ export function ReadingPane({
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
             <button
               onClick={() => setEmailDarkMode((value) => !value)}
-              title={emailDarkMode ? '라이트 모드로 보기' : '다크 모드로 보기'}
+              title={emailDarkMode ? t('misc.readingPane.lightTooltip') : t('misc.readingPane.darkTooltip')}
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
@@ -765,7 +770,7 @@ export function ReadingPane({
                 (event.currentTarget as HTMLButtonElement).style.background = emailDarkMode ? 'var(--color-bg-tertiary)' : 'transparent';
               }}
             >
-              {emailDarkMode ? '☀ 라이트' : '🌙 다크'}
+              {emailDarkMode ? t('misc.readingPane.light') : t('misc.readingPane.dark')}
             </button>
           </div>
         )}
@@ -797,7 +802,7 @@ export function ReadingPane({
                 margin: 0,
               }}
             >
-              {linkify(message.text_body || '(내용 없음)')}
+              {linkify(message.text_body || t('misc.readingPane.noContent'))}
             </pre>
           )}
         </div>

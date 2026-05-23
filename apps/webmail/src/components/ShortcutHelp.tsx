@@ -1,77 +1,80 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 
-const SECTIONS = [
+type SectionDef = { id: string; items: { key: string; descId: string }[] };
+
+const SECTIONS: SectionDef[] = [
   {
-    title: '전역',
+    id: 'global',
     items: [
-      { key: '?', desc: '단축키 도움말' },
-      { key: 'Cmd+k / Ctrl+k', desc: '스팟라이트 통합 검색' },
-      { key: '/', desc: '스팟라이트 통합 검색' },
-      { key: '[', desc: '사이드바 접기/펼치기' },
+      { key: '?', descId: 'help' },
+      { key: 'Cmd+k / Ctrl+k', descId: 'spotlight' },
+      { key: '/', descId: 'spotlightSlash' },
+      { key: '[', descId: 'toggleSidebar' },
     ],
   },
   {
-    title: '앱 전환',
+    id: 'appSwitch',
     items: [
-      { key: 'g  m', desc: '메일' },
-      { key: 'g  c', desc: '캘린더' },
-      { key: 'g  a', desc: '연락처' },
-      { key: 'g  d', desc: '드라이브' },
-      { key: 'g  ,', desc: '설정' },
+      { key: 'g  m', descId: 'mail' },
+      { key: 'g  c', descId: 'calendar' },
+      { key: 'g  a', descId: 'contacts' },
+      { key: 'g  d', descId: 'drive' },
+      { key: 'g  ,', descId: 'settings' },
     ],
   },
   {
-    title: '메일 목록',
+    id: 'mailList',
     items: [
-      { key: 's', desc: '새 메일 작성' },
-      { key: 'j / k', desc: '다음 / 이전 메일' },
-      { key: '↑ / ↓', desc: '목록 이동' },
-      { key: 'n / N', desc: '다음 / 이전 읽지 않은 메일' },
-      { key: 'o', desc: '선택 메일 열기' },
-      { key: 'Space', desc: '체크박스 토글' },
-      { key: 'Home / End', desc: '첫 / 마지막 메일' },
-      { key: 'Esc', desc: '읽기창 닫기 / 선택 해제' },
+      { key: 's', descId: 'compose' },
+      { key: 'j / k', descId: 'nextPrev' },
+      { key: '↑ / ↓', descId: 'listMove' },
+      { key: 'n / N', descId: 'nextPrevUnread' },
+      { key: 'o', descId: 'openSelected' },
+      { key: 'Space', descId: 'checkboxToggle' },
+      { key: 'Home / End', descId: 'firstLast' },
+      { key: 'Esc', descId: 'escCloseReader' },
     ],
   },
   {
-    title: '메일 동작',
+    id: 'mailActions',
     items: [
-      { key: 'r', desc: '회신' },
-      { key: 'a', desc: '전체 회신' },
-      { key: 'f', desc: '전달' },
-      { key: 'e', desc: '보관' },
-      { key: 'v', desc: '편지함으로 이동 (스팟라이트)' },
-      { key: '#  /  Del', desc: '삭제' },
-      { key: '!', desc: '스팸으로 이동' },
-      { key: 'm', desc: '읽음 표시' },
-      { key: 'Shift+m', desc: '안읽음 표시' },
-      { key: 'z', desc: '1시간 스누즈' },
-      { key: 'p', desc: '핀 고정 / 해제' },
-      { key: 'i', desc: '중요 표시 / 해제' },
-      { key: 't', desc: '이 메일을 할 일로 추가' },
-      { key: 'l', desc: '라벨 색상 순환' },
+      { key: 'r', descId: 'reply' },
+      { key: 'a', descId: 'replyAll' },
+      { key: 'f', descId: 'forward' },
+      { key: 'e', descId: 'archive' },
+      { key: 'v', descId: 'moveSpotlight' },
+      { key: '#  /  Del', descId: 'delete' },
+      { key: '!', descId: 'spam' },
+      { key: 'm', descId: 'markRead' },
+      { key: 'Shift+m', descId: 'markUnread' },
+      { key: 'z', descId: 'snooze' },
+      { key: 'p', descId: 'pin' },
+      { key: 'i', descId: 'important' },
+      { key: 't', descId: 'addTodo' },
+      { key: 'l', descId: 'labelCycle' },
     ],
   },
   {
-    title: '폴더 이동',
+    id: 'folderNav',
     items: [
-      { key: 'g  i', desc: '받은 편지함' },
-      { key: 'g  s', desc: '보낸 편지함' },
-      { key: 'g  t', desc: '휴지통' },
-      { key: 'g  p', desc: '스팸 편지함' },
-      { key: 'g  u', desc: '첫 읽지 않은 메일' },
-      { key: 'g  x', desc: '중요 메일함' },
-      { key: 'g  w', desc: '할 일 목록' },
+      { key: 'g  i', descId: 'inbox' },
+      { key: 'g  s', descId: 'sent' },
+      { key: 'g  t', descId: 'trash' },
+      { key: 'g  p', descId: 'spamFolder' },
+      { key: 'g  u', descId: 'firstUnread' },
+      { key: 'g  x', descId: 'important2' },
+      { key: 'g  w', descId: 'todoList' },
     ],
   },
   {
-    title: '메일 작성',
+    id: 'mailCompose',
     items: [
-      { key: 'Ctrl+Enter', desc: '전송' },
-      { key: 'Ctrl+s', desc: '임시저장' },
-      { key: 'Esc', desc: '작성창 닫기' },
+      { key: 'Ctrl+Enter', descId: 'send' },
+      { key: 'Ctrl+s', descId: 'saveDraft' },
+      { key: 'Esc', descId: 'composeClose' },
     ],
   },
 ];
@@ -107,12 +110,13 @@ interface ShortcutHelpProps {
 }
 
 export function ShortcutHelp({ onClose }: ShortcutHelpProps) {
+  const t = useTranslations('modals.shortcuts');
   return (
     <>
       <div aria-hidden="true" onClick={onClose}
         style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 590 }} />
       <div
-        role="dialog" aria-modal="true" aria-label="키보드 단축키"
+        role="dialog" aria-modal="true" aria-label={t('ariaLabel')}
         style={{
           position: 'fixed', top: '50%', left: '50%',
           transform: 'translate(-50%, -50%)',
@@ -130,10 +134,10 @@ export function ShortcutHelp({ onClose }: ShortcutHelpProps) {
           padding: '16px 20px', borderBottom: '1px solid var(--color-border-subtle)', flexShrink: 0,
         }}>
           <div>
-            <span style={{ fontSize: '15px', fontWeight: 600, color: 'var(--color-text-primary)' }}>키보드 단축키</span>
-            <span style={{ marginLeft: '10px', fontSize: '12px', color: 'var(--color-text-tertiary)' }}>? 키로 열고 닫기</span>
+            <span style={{ fontSize: '15px', fontWeight: 600, color: 'var(--color-text-primary)' }}>{t('title')}</span>
+            <span style={{ marginLeft: '10px', fontSize: '12px', color: 'var(--color-text-tertiary)' }}>{t('hint')}</span>
           </div>
-          <button aria-label="닫기" onClick={onClose}
+          <button aria-label={t('closeAria')} onClick={onClose}
             style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-tertiary)', display: 'flex', padding: '4px', borderRadius: '6px' }}
             onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; (e.currentTarget).style.color = 'var(--color-text-primary)'; }}
             onMouseLeave={(e) => { (e.currentTarget).style.background = 'none'; (e.currentTarget).style.color = 'var(--color-text-tertiary)'; }}
@@ -145,14 +149,14 @@ export function ShortcutHelp({ onClose }: ShortcutHelpProps) {
         {/* Body: 2-column grid */}
         <div style={{ overflowY: 'auto', padding: '20px 24px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px 32px' }}>
           {SECTIONS.map((section) => (
-            <div key={section.title}>
+            <div key={section.id}>
               <div style={{
                 fontSize: '10px', fontWeight: 700, letterSpacing: '0.08em',
                 textTransform: 'uppercase', color: 'var(--color-text-tertiary)',
                 marginBottom: '8px', paddingBottom: '4px',
                 borderBottom: '1px solid var(--color-border-subtle)',
               }}>
-                {section.title}
+                {t(`sections.${section.id}`)}
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                 {section.items.map((item) => (
@@ -163,7 +167,7 @@ export function ShortcutHelp({ onClose }: ShortcutHelpProps) {
                     onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-secondary)'; }}
                     onMouseLeave={(e) => { (e.currentTarget).style.background = 'transparent'; }}
                   >
-                    <span style={{ fontSize: '12px', color: 'var(--color-text-secondary)', flex: 1, minWidth: 0 }}>{item.desc}</span>
+                    <span style={{ fontSize: '12px', color: 'var(--color-text-secondary)', flex: 1, minWidth: 0 }}>{t(`items.${item.descId}`)}</span>
                     <KbdItem value={item.key} />
                   </div>
                 ))}

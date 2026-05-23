@@ -5,10 +5,13 @@ export interface ComposeSendButtonLabelState {
   uploading: boolean;
 }
 
-export function composeSendButtonLabel(state: ComposeSendButtonLabelState): string {
-  if (state.sending) return '전송 중...';
-  if (state.sent) return state.scheduled ? '예약됨 ✓' : '전송됨 ✓';
-  if (state.uploading) return '업로드 중...';
-  if (state.scheduled) return '예약 전송';
-  return '전송';
+export function composeSendButtonLabel(
+  state: ComposeSendButtonLabelState,
+  t: (key: string) => string,
+): string {
+  if (state.sending) return t('misc.compose.sendSending');
+  if (state.sent) return state.scheduled ? t('misc.compose.sendScheduled') : t('misc.compose.sendDone');
+  if (state.uploading) return t('misc.compose.sendUploading');
+  if (state.scheduled) return t('misc.compose.sendScheduledLabel');
+  return t('misc.compose.send');
 }

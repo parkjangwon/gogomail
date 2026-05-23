@@ -225,7 +225,7 @@ export async function loginUser(
   });
 
   if (!res.ok) {
-    throw new Error(await responseErrorMessage(res, '로그인에 실패했습니다.'));
+    throw new Error(await responseErrorMessage(res, 'Sign-in failed.'));
   }
 
   return res.json() as Promise<AuthTokenResponse>;
@@ -272,7 +272,7 @@ export async function verifyMFA(
   });
 
   if (!res.ok) {
-    throw new Error(await responseErrorMessage(res, 'MFA 인증에 실패했습니다.'));
+    throw new Error(await responseErrorMessage(res, 'MFA verification failed.'));
   }
 
   return res.json() as Promise<MFAVerifyResponse>;
@@ -1639,7 +1639,7 @@ export async function updateUserProfile(fields: { display_name?: string; recover
     body: JSON.stringify(fields),
   });
   if (!res.ok) {
-    throw new Error(await responseErrorMessage(res, '프로필 업데이트에 실패했습니다.'));
+    throw new Error(await responseErrorMessage(res, 'Failed to update profile.'));
   }
 }
 
@@ -1651,7 +1651,7 @@ export async function changePassword(currentPassword: string, newPassword: strin
   });
   if (!res.ok) {
     const data = await res.json().catch(() => ({})) as { error?: string };
-    throw new Error(data.error ?? '비밀번호 변경에 실패했습니다.');
+    throw new Error(data.error ?? 'Failed to change password.');
   }
 }
 

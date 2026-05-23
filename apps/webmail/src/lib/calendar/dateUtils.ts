@@ -28,19 +28,40 @@ export function addDays(d: Date, n: number): Date {
   return c;
 }
 
-export function formatDate(d: Date): string {
+type TFn = (key: string, values?: Record<string, unknown>) => string;
+
+export function formatDate(d: Date, t?: TFn): string {
+  if (t) {
+    return t('misc.calendarDate.ymdFormat', { year: d.getFullYear(), month: d.getMonth() + 1, day: d.getDate() });
+  }
   return `${d.getFullYear()}년 ${d.getMonth() + 1}월 ${d.getDate()}일`;
 }
 
-export function formatMonthYear(d: Date): string {
+export function formatMonthYear(d: Date, t?: TFn): string {
+  if (t) {
+    return t('misc.calendarDate.ymFormat', { year: d.getFullYear(), month: d.getMonth() + 1 });
+  }
   return `${d.getFullYear()}년 ${d.getMonth() + 1}월`;
 }
 
-export function formatWeekRange(d: Date): string {
+export function formatWeekRange(d: Date, t?: TFn): string {
   const mon = startOfWeek(d);
   const sun = addDays(mon, 6);
   if (mon.getMonth() === sun.getMonth()) {
+    if (t) {
+      return t('misc.calendarDate.weekSame', {
+        year: mon.getFullYear(), month: mon.getMonth() + 1,
+        startDay: mon.getDate(), endDay: sun.getDate(),
+      });
+    }
     return `${mon.getFullYear()}년 ${mon.getMonth() + 1}월 ${mon.getDate()}일 – ${sun.getDate()}일`;
+  }
+  if (t) {
+    return t('misc.calendarDate.weekDifferent', {
+      year: mon.getFullYear(),
+      startMonth: mon.getMonth() + 1, startDay: mon.getDate(),
+      endMonth: sun.getMonth() + 1, endDay: sun.getDate(),
+    });
   }
   return `${mon.getFullYear()}년 ${mon.getMonth() + 1}월 ${mon.getDate()}일 – ${sun.getMonth() + 1}월 ${sun.getDate()}일`;
 }

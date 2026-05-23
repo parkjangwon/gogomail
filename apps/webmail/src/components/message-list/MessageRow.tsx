@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { SnoozePopover } from '../SnoozePopover';
 import { MessageRowProps } from './messageListTypes';
 import { useWebmailAvatar } from '@/lib/webmailAvatar';
@@ -52,6 +53,7 @@ export function MessageRow({
   onAvatarLeave,
   onHoverChange,
 }: MessageRowProps) {
+  const t = useTranslations('mailListFull');
   const q = searchQuery ?? '';
   const isUnread = !message.read;
   const swipeRef = useRef<{ startX: number; startY: number } | null>(null);
@@ -90,12 +92,12 @@ export function MessageRow({
     >
       {onArchiveRow && swipeX > 20 && (
         <div aria-hidden="true" style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: Math.min(120, swipeX), background: 'var(--color-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '13px', fontWeight: 600, pointerEvents: 'none' }}>
-          {swipeX > 70 ? '아카이브' : '→'}
+          {swipeX > 70 ? t('row.swipeArchive') : '→'}
         </div>
       )}
       {onDelete && swipeX < -20 && (
         <div aria-hidden="true" style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: Math.min(120, -swipeX), background: 'var(--color-destructive)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '13px', fontWeight: 600, pointerEvents: 'none' }}>
-          {-swipeX > 70 ? '삭제' : '←'}
+          {-swipeX > 70 ? t('row.swipeDelete') : '←'}
         </div>
       )}
       <div
@@ -146,8 +148,8 @@ export function MessageRow({
         <button
           type="button"
           onClick={(e) => { e.stopPropagation(); onToggleBulk(message.id, e.shiftKey); }}
-          title={isBulkChecked ? '선택 해제' : '선택'}
-          aria-label={isBulkChecked ? '선택 해제' : '선택'}
+          title={isBulkChecked ? t('row.deselect') : t('row.select')}
+          aria-label={isBulkChecked ? t('row.deselect') : t('row.select')}
           style={{
             width: '18px',
             height: '18px',
@@ -215,20 +217,20 @@ export function MessageRow({
 
         <div style={{ width: '16px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', alignSelf: 'center' }}>
           {message.has_attachment && (
-            <PaperClipIcon aria-label="첨부파일" style={{ width: '13px', height: '13px', color: 'var(--color-text-tertiary)' }} />
+            <PaperClipIcon aria-label={t('row.attachment')} style={{ width: '13px', height: '13px', color: 'var(--color-text-tertiary)' }} />
           )}
         </div>
 
         <div style={{ flex: 1, minWidth: 0, overflow: 'hidden', alignSelf: 'center' }}>
           <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: '13px' }}>
-            {isImportant && <span title="중요 메일 (I)" aria-label="중요" style={{ color: '#eab308', marginRight: '4px', fontSize: '10px', verticalAlign: 'middle' }}>▶</span>}
-            {message.starred && <StarIconSolid aria-label="별표" title="별표" style={{ width: '12px', height: '12px', color: '#f59e0b', marginRight: '4px', verticalAlign: '-1px', display: 'inline-block' }} />}
-            {folderLabel && <span title={`편지함: ${folderLabel}`} style={{ display: 'inline-block', marginRight: '5px', padding: '1px 5px', borderRadius: '999px', background: 'var(--color-bg-tertiary)', color: 'var(--color-text-tertiary)', fontSize: '10px', fontWeight: 600, verticalAlign: '1px' }}>{folderLabel}</span>}
+            {isImportant && <span title={t('row.importantTitle')} aria-label={t('row.important')} style={{ color: '#eab308', marginRight: '4px', fontSize: '10px', verticalAlign: 'middle' }}>▶</span>}
+            {message.starred && <StarIconSolid aria-label={t('row.starred')} title={t('row.starred')} style={{ width: '12px', height: '12px', color: '#f59e0b', marginRight: '4px', verticalAlign: '-1px', display: 'inline-block' }} />}
+            {folderLabel && <span title={t('row.folderBadgeTitle', { label: folderLabel })} style={{ display: 'inline-block', marginRight: '5px', padding: '1px 5px', borderRadius: '999px', background: 'var(--color-bg-tertiary)', color: 'var(--color-text-tertiary)', fontSize: '10px', fontWeight: 600, verticalAlign: '1px' }}>{folderLabel}</span>}
             <span style={{ fontWeight: isUnread ? 600 : 400, color: 'var(--color-text-primary)' }}>
-              {highlight(message.subject || '(제목 없음)', q)}
+              {highlight(message.subject || t('row.noSubject'), q)}
             </span>
             {threadCount && threadCount > 1 && (
-              <span aria-label={`${threadCount}개 메시지`} style={{ marginLeft: '5px', fontSize: '11px', color: (message.unread_count ?? 0) > 0 ? 'var(--color-accent)' : 'var(--color-text-tertiary)', background: (message.unread_count ?? 0) > 0 ? 'var(--color-accent-subtle)' : 'var(--color-bg-tertiary)', borderRadius: '10px', padding: '1px 6px', verticalAlign: 'middle', fontWeight: 500 }}>{threadCount}</span>
+              <span aria-label={t('row.threadCountAria', { count: threadCount })} style={{ marginLeft: '5px', fontSize: '11px', color: (message.unread_count ?? 0) > 0 ? 'var(--color-accent)' : 'var(--color-text-tertiary)', background: (message.unread_count ?? 0) > 0 ? 'var(--color-accent-subtle)' : 'var(--color-bg-tertiary)', borderRadius: '10px', padding: '1px 6px', verticalAlign: 'middle', fontWeight: 500 }}>{threadCount}</span>
             )}
             {(() => {
               const cat = getAutoCategory(message.from_addr, message.subject);
@@ -248,8 +250,8 @@ export function MessageRow({
               {onStar && (
                 <button
                   type="button"
-                  aria-label={message.starred ? '별표 해제' : '별표 추가'}
-                  title={message.starred ? '별표 해제' : '별표 추가'}
+                  aria-label={message.starred ? t('row.starRemoveTitle') : t('row.starAddTitle')}
+                  title={message.starred ? t('row.starRemoveTitle') : t('row.starAddTitle')}
                   draggable={false}
                   onMouseDown={(e) => e.stopPropagation()}
                   onClick={(e) => { e.stopPropagation(); onStar(message.id, !message.starred); }}
@@ -263,8 +265,8 @@ export function MessageRow({
               {onHoverToggleRead && (
                 <button
                   type="button"
-                  aria-label={message.read ? '읽지 않음으로' : '읽음으로'}
-                  title={message.read ? '읽지 않음으로 (M)' : '읽음으로 (M)'}
+                  aria-label={message.read ? t('row.toggleReadToUnread') : t('row.toggleReadToRead')}
+                  title={message.read ? t('row.toggleReadTitleToUnread') : t('row.toggleReadTitleToRead')}
                   draggable={false}
                   onMouseDown={(e) => e.stopPropagation()}
                   onClick={(e) => { e.stopPropagation(); onHoverToggleRead(message.id, !message.read); }}
@@ -279,8 +281,8 @@ export function MessageRow({
               {onHoverArchive && (
                 <button
                   type="button"
-                  aria-label="아카이브"
-                  title="아카이브 (E)"
+                  aria-label={t('row.archive')}
+                  title={t('row.archiveTitle')}
                   draggable={false}
                   onMouseDown={(e) => e.stopPropagation()}
                   onClick={(e) => { e.stopPropagation(); onHoverArchive(message.id); }}
@@ -296,8 +298,8 @@ export function MessageRow({
                 <div style={{ position: 'relative' }}>
                   <button
                     type="button"
-                    aria-label="다시 알림"
-                    title="다시 알림 (Z)"
+                    aria-label={t('row.snooze')}
+                    title={t('row.snoozeTitle')}
                     draggable={false}
                     onMouseDown={(e) => e.stopPropagation()}
                     onClick={(e) => { e.stopPropagation(); setShowSnoozePopover((v) => !v); }}
@@ -320,8 +322,8 @@ export function MessageRow({
               {onHoverPin && (
                 <button
                   type="button"
-                  aria-label={isPinned ? '핀 해제' : '핀 고정'}
-                  title={isPinned ? '핀 해제 (P)' : '핀 고정 (P)'}
+                  aria-label={isPinned ? t('row.unpin') : t('row.pin')}
+                  title={isPinned ? t('row.unpinTitle') : t('row.pinTitle')}
                   draggable={false}
                   onMouseDown={(e) => e.stopPropagation()}
                   onClick={(e) => { e.stopPropagation(); onHoverPin(message.id); }}
@@ -336,8 +338,8 @@ export function MessageRow({
               {onHoverDelete && (
                 <button
                   type="button"
-                  aria-label="삭제"
-                  title="삭제 (#)"
+                  aria-label={t('row.delete')}
+                  title={t('row.deleteTitle')}
                   draggable={false}
                   onMouseDown={(e) => e.stopPropagation()}
                   onClick={(e) => { e.stopPropagation(); onHoverDelete(message.id); }}
@@ -354,10 +356,10 @@ export function MessageRow({
             <>
               {isPinned && <BookmarkIconSolid style={{ width: '12px', height: '12px', color: 'var(--color-accent)', marginRight: '2px', flexShrink: 0 }} />}
               {message.starred && <StarIconSolid style={{ width: '12px', height: '12px', color: '#f59e0b', marginRight: '2px', flexShrink: 0 }} />}
-              {hasNote && <span title="메모 있음" style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#a78bfa', display: 'inline-block', marginRight: '3px', flexShrink: 0 }} />}
+              {hasNote && <span title={t('row.noteHover')} style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#a78bfa', display: 'inline-block', marginRight: '3px', flexShrink: 0 }} />}
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '1px' }}>
                 <span style={{ fontSize: '12px', color: 'var(--color-text-secondary)', whiteSpace: 'nowrap' }}
-                  title={new Intl.DateTimeFormat('ko-KR', { dateStyle: 'full', timeStyle: 'short' }).format(new Date(message.received_at))}>
+                  title={new Intl.DateTimeFormat(undefined, { dateStyle: 'full', timeStyle: 'short' }).format(new Date(message.received_at))}>
                   {formatDate(message.received_at)}
                 </span>
                 {!compact && message.preview && (

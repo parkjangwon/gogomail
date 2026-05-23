@@ -97,7 +97,9 @@ export function pickerItemsToString(items: PickerItem[]): string {
     .join(', ');
 }
 
-export function buildQuoteHTML(intent: string, source: MessageDetail): string {
+type TFn = (key: string, values?: Record<string, unknown>) => string;
+
+export function buildQuoteHTML(intent: string, source: MessageDetail, t?: TFn): string {
   const from = source.from_name
     ? `${escapeHtml(source.from_name)} &lt;${escapeHtml(source.from_addr)}&gt;`
     : escapeHtml(source.from_addr);
@@ -113,8 +115,14 @@ export function buildQuoteHTML(intent: string, source: MessageDetail): string {
     .split('\n')
     .map((line) => `<p>${escapeHtml(line) || '&nbsp;'}</p>`)
     .join('');
+  const forwardedHeader = t ? t('misc.compose.forwardedHeader') : '---------- 전달된 메시지 ----------';
+  const originalHeader = t ? t('misc.compose.originalHeader') : '--- 원본 메시지 ---';
   const header = intent === 'forward'
-    ? '<p><strong>---------- 전달된 메시지 ----------</strong></p>'
-    : '<p><strong>--- 원본 메시지 ---</strong></p>';
-  return `<p></p>${header}<blockquote><p><strong>보낸 사람:</strong> ${from}</p><p><strong>날짜:</strong> ${escapeHtml(date)}</p><p><strong>제목:</strong> ${escapeHtml(source.subject || '(제목 없음)')}</p><p>&nbsp;</p>${bodyLines}</blockquote>`;
+    ? `<p><strong>${escapeHtml(forwardedHeader)}</strong></p>`
+    : `<p><strong>${escapeHtml(originalHeader)}</strong></p>`;
+  const fromLabel = t ? t('misc.compose.fromLabel') : '보낸 사람:';
+  const dateLabel = t ? t('misc.compose.dateLabel') : '날짜:';
+  const subjectLabel = t ? t('misc.compose.subjectLabel') : '제목:';
+  const noSubject = t ? t('misc.compose.noSubject') : '(제목 없음)';
+  return `<p></p>${header}<blockquote><p><strong>${escapeHtml(fromLabel)}</strong> ${from}</p><p><strong>${escapeHtml(dateLabel)}</strong> ${escapeHtml(date)}</p><p><strong>${escapeHtml(subjectLabel)}</strong> ${escapeHtml(source.subject || noSubject)}</p><p>&nbsp;</p>${bodyLines}</blockquote>`;
 }

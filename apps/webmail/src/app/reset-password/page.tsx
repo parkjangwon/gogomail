@@ -3,6 +3,7 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import { useTranslations } from 'next-intl';
 import { ThemeToggle } from '@/components/ThemeToggle';
 
 const inputStyle: React.CSSProperties = {
@@ -18,6 +19,7 @@ const inputStyle: React.CSSProperties = {
 
 function ResetPasswordForm() {
   const router = useRouter();
+  const t = useTranslations();
   const searchParams = useSearchParams();
   const token = searchParams.get('token') ?? '';
 
@@ -28,26 +30,26 @@ function ResetPasswordForm() {
 
   useEffect(() => {
     if (!token) {
-      setError('유효하지 않거나 만료된 토큰입니다. 비밀번호 찾기 페이지에서 다시 시도해 주세요.');
+      setError(t('misc.resetPassword.tokenInvalid'));
     }
   }, [token]);
 
   async function handleSubmit(e: { preventDefault(): void }) {
     e.preventDefault();
     if (!newPassword || !confirmPassword) {
-      setError('모든 항목을 입력하세요.');
+      setError(t('misc.resetPassword.fillAll'));
       return;
     }
     if (newPassword.length < 8) {
-      setError('새 비밀번호는 8자 이상이어야 합니다.');
+      setError(t('misc.resetPassword.minLength'));
       return;
     }
     if (newPassword !== confirmPassword) {
-      setError('비밀번호가 일치하지 않습니다.');
+      setError(t('misc.resetPassword.mismatch'));
       return;
     }
     if (!token) {
-      setError('유효하지 않거나 만료된 토큰입니다.');
+      setError(t('misc.resetPassword.tokenInvalidShort'));
       return;
     }
     setError('');
@@ -60,11 +62,11 @@ function ResetPasswordForm() {
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({})) as { error?: string };
-        throw new Error(data.error ?? '유효하지 않거나 만료된 토큰입니다.');
+        throw new Error(data.error ?? t('misc.resetPassword.tokenInvalidShort'));
       }
       router.push('/login');
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : '유효하지 않거나 만료된 토큰입니다.';
+      const message = err instanceof Error ? err.message : t('misc.resetPassword.tokenInvalidShort');
       setError(message);
     } finally {
       setLoading(false);
@@ -81,7 +83,7 @@ function ResetPasswordForm() {
           htmlFor="new-password"
           style={{ fontSize: '13px', fontWeight: 500, color: 'var(--color-text-primary)' }}
         >
-          새 비밀번호
+          {t('misc.resetPassword.labelNewPassword')}
         </label>
         <input
           id="new-password"
@@ -90,7 +92,7 @@ function ResetPasswordForm() {
           autoFocus
           value={newPassword}
           onChange={(e) => setNewPassword(e.target.value)}
-          placeholder="8자 이상"
+          placeholder={t('misc.resetPassword.placeholderNewPassword')}
           style={inputStyle}
           disabled={!token}
           onFocus={(e) => { e.target.style.borderColor = 'var(--color-accent)'; }}
@@ -103,7 +105,7 @@ function ResetPasswordForm() {
           htmlFor="confirm-password"
           style={{ fontSize: '13px', fontWeight: 500, color: 'var(--color-text-primary)' }}
         >
-          새 비밀번호 확인
+          {t('misc.resetPassword.labelConfirmPassword')}
         </label>
         <input
           id="confirm-password"
@@ -111,7 +113,7 @@ function ResetPasswordForm() {
           autoComplete="new-password"
           value={confirmPassword}
           onChange={(e) => setConfirmPassword(e.target.value)}
-          placeholder="비밀번호 재입력"
+          placeholder={t('misc.resetPassword.placeholderConfirmPassword')}
           style={inputStyle}
           disabled={!token}
           onFocus={(e) => { e.target.style.borderColor = 'var(--color-accent)'; }}
@@ -157,7 +159,7 @@ function ResetPasswordForm() {
           if (!loading && token) (e.target as HTMLButtonElement).style.background = 'var(--color-accent)';
         }}
       >
-        {loading ? '처리 중...' : '비밀번호 재설정'}
+        {loading ? t('misc.resetPassword.processing') : t('misc.resetPassword.submit')}
       </button>
 
       <Link
@@ -171,13 +173,14 @@ function ResetPasswordForm() {
           padding: '4px 0',
         }}
       >
-        ← 비밀번호 찾기로 돌아가기
+        {t('misc.resetPassword.backToForgot')}
       </Link>
     </form>
   );
 }
 
 export default function ResetPasswordPage() {
+  const t = useTranslations();
   return (
     <div
       style={{
@@ -203,11 +206,11 @@ export default function ResetPasswordPage() {
             GoGoMail
           </span>
           <p style={{ marginTop: '8px', fontSize: '14px', color: 'var(--color-text-secondary)' }}>
-            새 비밀번호 설정
+            {t('misc.resetPassword.title')}
           </p>
         </div>
 
-        <Suspense fallback={<div style={{ textAlign: 'center', color: 'var(--color-text-secondary)', fontSize: '14px' }}>로딩 중...</div>}>
+        <Suspense fallback={<div style={{ textAlign: 'center', color: 'var(--color-text-secondary)', fontSize: '14px' }}>{t('misc.resetPassword.loading')}</div>}>
           <ResetPasswordForm />
         </Suspense>
       </div>

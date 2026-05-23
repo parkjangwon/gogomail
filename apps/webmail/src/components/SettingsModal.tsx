@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
+import { useTranslations } from 'next-intl';
 import { SettingsModalContent } from './SettingsModalContent';
 import { getPreferences, setPreferences, type WebmailPreferences } from '@/lib/api';
 import {
@@ -29,6 +30,9 @@ interface SettingsModalProps {
 }
 
 export function SettingsModal({ onClose, userEmail }: SettingsModalProps) {
+  const tNav = useTranslations('nav');
+  const tCommon = useTranslations('common');
+  const tSettingsView = useTranslations('settingsView');
   const [activeCategory, setActiveCategory] = useState<Category>('mailbox');
   const [settings, setSettings] = useState<WebmailSettings>(DEFAULT_SETTINGS);
   const [hoveredCategory, setHoveredCategory] = useState<Category | null>(null);
@@ -114,7 +118,7 @@ export function SettingsModal({ onClose, userEmail }: SettingsModalProps) {
     <div
       role="dialog"
       aria-modal="true"
-      aria-label="설정"
+      aria-label={tNav('settings')}
       style={{
         position: 'fixed',
         inset: 0,
@@ -149,9 +153,9 @@ export function SettingsModal({ onClose, userEmail }: SettingsModalProps) {
             flexShrink: 0,
           }}
         >
-          <span style={{ fontSize: '16px', fontWeight: 600, color: 'var(--color-text-primary)' }}>설정</span>
+          <span style={{ fontSize: '16px', fontWeight: 600, color: 'var(--color-text-primary)' }}>{tNav('settings')}</span>
           <button
-            aria-label="닫기"
+            aria-label={tCommon('close')}
             onClick={onClose}
             style={{
               background: 'none',
@@ -183,7 +187,7 @@ export function SettingsModal({ onClose, userEmail }: SettingsModalProps) {
               overflowY: 'auto',
             }}
           >
-            {CATEGORIES.map(({ id, label }) => {
+            {CATEGORIES.map(({ id, labelKey }) => {
               const isActive = activeCategory === id;
               const isHovered = hoveredCategory === id;
               return (
@@ -209,7 +213,7 @@ export function SettingsModal({ onClose, userEmail }: SettingsModalProps) {
                     transition: 'background 100ms ease',
                   }}
                 >
-                  {label}
+                  {tSettingsView(labelKey)}
                 </button>
               );
             })}

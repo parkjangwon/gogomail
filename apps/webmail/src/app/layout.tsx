@@ -4,7 +4,7 @@ import { NextIntlClientProvider } from 'next-intl';
 import { Providers } from '@/components/Providers';
 
 export const metadata = {
-  title: 'GoGoMail 웹메일',
+  title: 'GoGoMail Webmail',
   description: 'Webmail',
 };
 
@@ -45,10 +45,9 @@ export default async function RootLayout({
         <style dangerouslySetInnerHTML={{ __html: `
           @media print {
             body { background: white !important; color: black !important; }
-            nav, aside, [role="navigation"], [aria-label="폴더 목록"],
-            [aria-label="메일 목록"], [aria-label="사이드바"], header,
-            button, .compose-modal, [role="toolbar"] { display: none !important; }
-            [aria-label="메일 읽기"] {
+            nav, aside, [role="navigation"], [data-print-hide],
+            header, button, .compose-modal, [role="toolbar"] { display: none !important; }
+            [data-print-reading-pane] {
               position: static !important;
               width: 100% !important;
               height: auto !important;

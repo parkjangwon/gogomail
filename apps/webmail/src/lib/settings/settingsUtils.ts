@@ -7,13 +7,13 @@ export type Theme = 'light' | 'dark' | 'system';
 export type FontSize = 'small' | 'medium' | 'large';
 
 export const ACCENT_COLORS = [
-  { value: '#2563eb', label: '파랑' },
-  { value: '#7c3aed', label: '보라' },
-  { value: '#0d9488', label: '청록' },
-  { value: '#16a34a', label: '초록' },
-  { value: '#dc2626', label: '빨강' },
-  { value: '#ea580c', label: '주황' },
-  { value: '#d97706', label: '황금' },
+  { value: '#2563eb', label: 'Blue', labelKey: 'misc.settingsAccent.blue' },
+  { value: '#7c3aed', label: 'Purple', labelKey: 'misc.settingsAccent.purple' },
+  { value: '#0d9488', label: 'Teal', labelKey: 'misc.settingsAccent.teal' },
+  { value: '#16a34a', label: 'Green', labelKey: 'misc.settingsAccent.green' },
+  { value: '#dc2626', label: 'Red', labelKey: 'misc.settingsAccent.red' },
+  { value: '#ea580c', label: 'Orange', labelKey: 'misc.settingsAccent.orange' },
+  { value: '#d97706', label: 'Gold', labelKey: 'misc.settingsAccent.gold' },
 ];
 
 export interface FilterCondition {

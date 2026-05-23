@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { useTranslations } from 'next-intl';
 import {
   AddressBook,
   ContactObject,
@@ -65,6 +66,7 @@ function useContactsParsed(contacts: ContactObject[]): ParsedContact[] {
 }
 
 export function ContactsView({ onCompose }: ContactsViewProps) {
+  const t = useTranslations('contacts');
   const [addressBooks, setAddressBooks] = useState<AddressBook[]>([]);
   const [selectedBookId, setSelectedBookId] = useState<string | null>(null);
   const [contacts, setContacts] = useState<ContactObject[]>([]);
@@ -142,11 +144,11 @@ export function ContactsView({ onCompose }: ContactsViewProps) {
   const handleDelete = useCallback(async () => {
     if (!selectedContact || !selectedBookId) return;
     const name = selectedParsed?.fn || selectedContact.ObjectName;
-    if (!confirm(`"${name}" 연락처를 삭제하시겠습니까?`)) return;
+    if (!confirm(t('deleteConfirm', { name }))) return;
     await deleteContact(selectedBookId, selectedContact.ObjectName);
     setContacts((prev) => prev.filter((c) => c.ID !== selectedContact.ID));
     setSelectedContactIdx(null);
-  }, [selectedContact, selectedBookId, selectedParsed]);
+  }, [selectedContact, selectedBookId, selectedParsed, t]);
 
   const handleEditStart = useCallback(() => {
     if (!selectedParsed) return;
@@ -194,7 +196,7 @@ export function ContactsView({ onCompose }: ContactsViewProps) {
   }, [renameValue]);
 
   const handleDeleteBook = useCallback(async (id: string, name: string) => {
-    if (!confirm(`"${name}" 주소록을 삭제하시겠습니까? 포함된 연락처도 모두 삭제됩니다.`)) return;
+    if (!confirm(t('deleteBookConfirm', { name }))) return;
     setBookActionLoading(true);
     try {
       await deleteAddressBook(id);
@@ -209,7 +211,7 @@ export function ContactsView({ onCompose }: ContactsViewProps) {
     } finally {
       setBookActionLoading(false);
     }
-  }, [selectedBookId]);
+  }, [selectedBookId, t]);
 
   // j/k/c/Delete keyboard shortcuts
   const containerRef = useRef<HTMLDivElement>(null);
@@ -243,7 +245,7 @@ export function ContactsView({ onCompose }: ContactsViewProps) {
 
   const displayName = (idx: number) => {
     const p = parsed[contacts.indexOf(filtered[idx])];
-    return p?.fn || filtered[idx]?.ObjectName || '이름 없음';
+    return p?.fn || filtered[idx]?.ObjectName || t('noName');
   };
 
   const displayEmail = (idx: number) => {
@@ -315,7 +317,7 @@ export function ContactsView({ onCompose }: ContactsViewProps) {
             <MagnifyingGlassIcon style={{ width: '14px', height: '14px', color: 'var(--color-text-tertiary)', flexShrink: 0 }} />
             <input
               type="search"
-              placeholder="연락처 검색..."
+              placeholder={t('searchPlaceholder')}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               style={{
@@ -346,7 +348,7 @@ export function ContactsView({ onCompose }: ContactsViewProps) {
               onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'none'; }}
             >
               <PlusIcon style={{ width: '13px', height: '13px' }} />
-              새 연락처
+              {t('newContact')}
             </button>
           </div>
         )}
@@ -355,15 +357,15 @@ export function ContactsView({ onCompose }: ContactsViewProps) {
         <div style={{ flex: 1, overflowY: 'auto' }}>
           {!selectedBookId ? (
             <div style={{ padding: '32px 16px', textAlign: 'center', color: 'var(--color-text-tertiary)', fontSize: '13px' }}>
-              주소록을 선택하세요
+              {t('selectAddressBook')}
             </div>
           ) : loading ? (
             <div style={{ padding: '32px 16px', textAlign: 'center', color: 'var(--color-text-tertiary)', fontSize: '13px' }}>
-              로딩 중...
+              {t('loading')}
             </div>
           ) : filtered.length === 0 ? (
             <div style={{ padding: '32px 16px', textAlign: 'center', color: 'var(--color-text-tertiary)', fontSize: '13px' }}>
-              {searchQuery ? '검색 결과가 없습니다' : '연락처가 없습니다. 새로 추가하세요.'}
+              {searchQuery ? t('noContactsSearch') : t('noContacts')}
             </div>
           ) : (
             filtered.map((_, idx) => {
@@ -440,7 +442,7 @@ export function ContactsView({ onCompose }: ContactsViewProps) {
             }}
           >
             <UserGroupIcon style={{ width: '48px', height: '48px', opacity: 0.3 }} />
-            <span style={{ fontSize: '14px' }}>주소록을 선택하세요</span>
+            <span style={{ fontSize: '14px' }}>{t('selectAddressBook')}</span>
           </div>
         ) : (
           <>
@@ -475,7 +477,7 @@ export function ContactsView({ onCompose }: ContactsViewProps) {
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: '18px', fontWeight: 600, color: 'var(--color-text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {selectedParsed.fn || selectedContact.ObjectName || '이름 없음'}
+                  {selectedParsed.fn || selectedContact.ObjectName || t('noName')}
                 </div>
                 {selectedParsed.org && (
                   <div style={{ fontSize: '13px', color: 'var(--color-text-tertiary)', marginTop: '2px' }}>
@@ -505,13 +507,13 @@ export function ContactsView({ onCompose }: ContactsViewProps) {
                     onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.opacity = '1'; }}
                   >
                     <EnvelopeIcon style={{ width: '14px', height: '14px' }} />
-                    메일 쓰기
+                    {t('composeButton')}
                   </button>
                 )}
                 {!editMode && (
                   <button
                     onClick={handleEditStart}
-                    title="편집"
+                    title={t('editTitle')}
                     style={{
                       display: 'flex',
                       alignItems: 'center',
@@ -530,7 +532,7 @@ export function ContactsView({ onCompose }: ContactsViewProps) {
                 )}
                 <button
                   onClick={handleDelete}
-                  title="삭제"
+                  title={t('deleteTitle')}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
@@ -556,17 +558,17 @@ export function ContactsView({ onCompose }: ContactsViewProps) {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', maxWidth: '480px' }}>
                   {(
                     [
-                      { label: '이름', field: 'fn' as const },
-                      { label: '이메일', field: 'email' as const },
-                      { label: '전화', field: 'tel' as const },
-                      { label: '회사', field: 'org' as const },
-                      { label: '직함', field: 'title' as const },
-                      { label: '메모', field: 'note' as const },
-                    ] as { label: string; field: keyof ParsedContact }[]
-                  ).map(({ label, field }) => (
+                      { fieldKey: 'name' as const, field: 'fn' as const },
+                      { fieldKey: 'email' as const, field: 'email' as const },
+                      { fieldKey: 'tel' as const, field: 'tel' as const },
+                      { fieldKey: 'org' as const, field: 'org' as const },
+                      { fieldKey: 'title' as const, field: 'title' as const },
+                      { fieldKey: 'note' as const, field: 'note' as const },
+                    ] as { fieldKey: string; field: keyof ParsedContact }[]
+                  ).map(({ fieldKey, field }) => (
                     <div key={field} style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                       <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                        {label}
+                        {t(`fields.${fieldKey}`)}
                       </label>
                       {field === 'note' ? (
                         <textarea
@@ -619,13 +621,13 @@ export function ContactsView({ onCompose }: ContactsViewProps) {
                       }}
                     >
                       <XMarkIcon style={{ width: '14px', height: '14px' }} />
-                      취소
+                      {t('cancel')}
                     </button>
                     <button
                       disabled={saving}
                       onClick={async () => {
-                        if (!editFields.fn.trim()) { setSaveError('이름은 필수입니다'); return; }
-                        if (!selectedBookId) { setSaveError('주소록을 선택하세요'); return; }
+                        if (!editFields.fn.trim()) { setSaveError(t('saveErrorName')); return; }
+                        if (!selectedBookId) { setSaveError(t('saveErrorBook')); return; }
                         setSaving(true); setSaveError('');
                         try {
                           const objectName = isNewContact
@@ -638,7 +640,7 @@ export function ContactsView({ onCompose }: ContactsViewProps) {
                           setEditMode(false);
                           if (isNewContact) setSelectedContactIdx(updated.length - 1);
                         } catch (e) {
-                          setSaveError(e instanceof Error ? e.message : '저장 실패');
+                          setSaveError(e instanceof Error ? e.message : t('saveErrorGeneric'));
                         } finally { setSaving(false); }
                       }}
                       style={{
@@ -655,7 +657,7 @@ export function ContactsView({ onCompose }: ContactsViewProps) {
                       }}
                     >
                       <CheckIcon style={{ width: '14px', height: '14px' }} />
-                      {saving ? '저장 중...' : '저장'}
+                      {saving ? t('saving') : t('save')}
                     </button>
                   </div>
                 </div>
@@ -664,17 +666,17 @@ export function ContactsView({ onCompose }: ContactsViewProps) {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0' }}>
                   {(
                     [
-                      { label: '이메일', value: selectedParsed.email, icon: <EnvelopeIcon style={{ width: '14px', height: '14px' }} /> },
-                      { label: '전화', value: selectedParsed.tel, icon: <PhoneIcon style={{ width: '14px', height: '14px' }} /> },
-                      { label: '회사', value: selectedParsed.org, icon: <BuildingOfficeIcon style={{ width: '14px', height: '14px' }} /> },
-                      { label: '직함', value: selectedParsed.title, icon: null },
-                      { label: '메모', value: selectedParsed.note, icon: null },
-                    ] as { label: string; value: string; icon: React.ReactNode }[]
+                      { fieldKey: 'email' as const, value: selectedParsed.email, icon: <EnvelopeIcon style={{ width: '14px', height: '14px' }} /> },
+                      { fieldKey: 'tel' as const, value: selectedParsed.tel, icon: <PhoneIcon style={{ width: '14px', height: '14px' }} /> },
+                      { fieldKey: 'org' as const, value: selectedParsed.org, icon: <BuildingOfficeIcon style={{ width: '14px', height: '14px' }} /> },
+                      { fieldKey: 'title' as const, value: selectedParsed.title, icon: null },
+                      { fieldKey: 'note' as const, value: selectedParsed.note, icon: null },
+                    ] as { fieldKey: string; value: string; icon: React.ReactNode }[]
                   )
                     .filter((row) => row.value)
                     .map((row) => (
                       <div
-                        key={row.label}
+                        key={row.fieldKey}
                         style={{
                           display: 'flex',
                           alignItems: 'flex-start',
@@ -685,10 +687,10 @@ export function ContactsView({ onCompose }: ContactsViewProps) {
                       >
                         <div style={{ width: '80px', flexShrink: 0, fontSize: '12px', fontWeight: 600, color: 'var(--color-text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.04em', paddingTop: '1px', display: 'flex', alignItems: 'center', gap: '5px' }}>
                           {row.icon}
-                          {row.label}
+                          {t(`fields.${row.fieldKey}`)}
                         </div>
                         <div style={{ flex: 1, fontSize: '14px', color: 'var(--color-text-primary)', wordBreak: 'break-all' }}>
-                          {row.label === '이메일' && onCompose ? (
+                          {row.fieldKey === 'email' && onCompose ? (
                             <button
                               onClick={() => onCompose(row.value)}
                               style={{ background: 'none', border: 'none', padding: 0, color: 'var(--color-accent)', cursor: 'pointer', fontSize: '14px', textDecoration: 'underline' }}

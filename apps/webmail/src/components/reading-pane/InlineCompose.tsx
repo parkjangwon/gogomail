@@ -1,6 +1,7 @@
 'use client';
 
 import { useRef, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { parseAddrs } from '@/lib/message/messageUtils';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
@@ -47,6 +48,7 @@ export function InlineCompose({
   onOpenFullModal,
   userEmail,
 }: InlineComposeProps) {
+  const t = useTranslations('readingFull');
   const [to, setTo] = useState(initTo);
   const [subject, setSubject] = useState(initSubject);
   const [cc, setCc] = useState('');
@@ -67,7 +69,7 @@ export function InlineCompose({
       Link.configure({ openOnClick: false }),
       Underline,
       TextAlign.configure({ types: ['heading', 'paragraph'] }),
-      Placeholder.configure({ placeholder: '답장 내용을 입력하세요...' }),
+      Placeholder.configure({ placeholder: t('compose.replyPlaceholder') }),
       Image,
     ],
     content: sourceText ? buildInlineQuoteHTML(intent, sourceText) : '<p></p>',
@@ -76,7 +78,7 @@ export function InlineCompose({
   });
 
   function handleLinkInsert() {
-    const url = window.prompt('링크 URL을 입력하세요:');
+    const url = window.prompt(t('compose.linkPrompt'));
     if (url && editor) editor.chain().focus().setLink({ href: url }).run();
   }
 
@@ -142,7 +144,7 @@ export function InlineCompose({
       .finally(() => setSending(false));
   }
 
-  const intentLabel = intent === 'reply' ? '답장' : intent === 'reply_all' ? '전체 답장' : '전달';
+  const intentLabel = intent === 'reply' ? t('compose.replyLabel') : intent === 'reply_all' ? t('compose.replyAllLabel') : t('compose.forwardLabel');
   const T = toolbarBtnStyleInline;
 
   function fmtSize(bytes: number): string {
@@ -158,8 +160,8 @@ export function InlineCompose({
         <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
           <button
             type="button"
-            aria-label="새창으로 열기"
-            title="새창으로 열기"
+            aria-label={t('compose.openNewWindow')}
+            title={t('compose.openNewWindow')}
             onClick={onOpenFullModal}
             style={{
               width: '24px',
@@ -180,7 +182,7 @@ export function InlineCompose({
           </button>
           <button
             type="button"
-            aria-label="닫기"
+            aria-label={t('compose.close')}
             onClick={onClose}
             style={{
               width: '24px',
@@ -206,19 +208,19 @@ export function InlineCompose({
 
       {userEmail && (
         <div style={{ display: 'flex', alignItems: 'center', borderBottom: '1px solid var(--color-border-subtle)', padding: '6px 16px', gap: '8px', background: 'var(--color-bg-secondary)' }}>
-          <span style={{ fontSize: '11px', color: 'var(--color-text-tertiary)', flexShrink: 0 }}>보내는 사람</span>
+          <span style={{ fontSize: '11px', color: 'var(--color-text-tertiary)', flexShrink: 0 }}>{t('compose.fromLabel')}</span>
           <span style={{ fontSize: '13px', color: 'var(--color-text-secondary)' }}>{userEmail}</span>
         </div>
       )}
 
       <div style={{ display: 'flex', alignItems: 'center', borderBottom: '1px solid var(--color-border-subtle)', padding: '0 16px' }}>
-        <label style={{ fontSize: '13px', color: 'var(--color-text-secondary)', flexShrink: 0, paddingRight: '8px' }}>받는 사람</label>
+        <label style={{ fontSize: '13px', color: 'var(--color-text-secondary)', flexShrink: 0, paddingRight: '8px' }}>{t('compose.toLabel')}</label>
         <RecipientChips value={to} onChange={setTo} placeholder="example@domain.com" autoFocus />
         <div style={{ display: 'flex', gap: '2px', flexShrink: 0, alignItems: 'center' }}>
           <button
             type="button"
             onClick={() => setOrgPickerOpen(true)}
-            title="조직도에서 선택"
+            title={t('compose.orgPicker')}
             style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-tertiary)', padding: '2px 4px', display: 'inline-flex', flexShrink: 0 }}
           >
             <UsersIcon style={{ width: '15px', height: '15px' }} />
@@ -251,7 +253,7 @@ export function InlineCompose({
           <button
             type="button"
             onClick={() => setOrgPickerOpen(true)}
-            title="조직도에서 선택"
+            title={t('compose.orgPicker')}
             style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-tertiary)', padding: '2px 4px', display: 'inline-flex', flexShrink: 0 }}
           >
             <UsersIcon style={{ width: '15px', height: '15px' }} />
@@ -273,7 +275,7 @@ export function InlineCompose({
           <button
             type="button"
             onClick={() => setOrgPickerOpen(true)}
-            title="조직도에서 선택"
+            title={t('compose.orgPicker')}
             style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-tertiary)', padding: '2px 4px', display: 'inline-flex', flexShrink: 0 }}
           >
             <UsersIcon style={{ width: '15px', height: '15px' }} />
@@ -311,7 +313,7 @@ export function InlineCompose({
           type="text"
           value={subject}
           onChange={(e) => setSubject(e.target.value)}
-          placeholder="제목"
+          placeholder={t('compose.subjectPlaceholder')}
           style={{ flex: 1, padding: '10px 0', border: 'none', outline: 'none', fontSize: '14px', background: 'transparent', color: 'var(--color-text-primary)', fontWeight: 500 }}
         />
       </div>
@@ -353,7 +355,7 @@ export function InlineCompose({
               }}
             >
               <PaperClipIcon style={{ width: '12px', height: '12px' }} />
-              {att.filename} {att.uploading ? '(업로드 중...)' : `(${fmtSize(att.size)})`}
+              {att.filename} {att.uploading ? `(${t('compose.uploading')})` : `(${fmtSize(att.size)})`}
               {!att.uploading && (
                 <button
                   type="button"
@@ -385,12 +387,12 @@ export function InlineCompose({
             flexShrink: 0,
           }}
         >
-          {sent ? '전송됨 ✓' : sending ? '전송 중...' : '전송'}
+          {sent ? t('compose.sentDone') : sending ? t('compose.sending') : t('compose.send')}
         </button>
         <div style={{ flex: 1 }} />
         <button
           type="button"
-          title="굵게"
+          title={t('compose.bold')}
           style={T(editor?.isActive('bold'))}
           onClick={() => editor?.chain().focus().toggleBold().run()}
           onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }}
@@ -400,7 +402,7 @@ export function InlineCompose({
         </button>
         <button
           type="button"
-          title="기울임"
+          title={t('compose.italic')}
           style={T(editor?.isActive('italic'))}
           onClick={() => editor?.chain().focus().toggleItalic().run()}
           onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }}
@@ -410,7 +412,7 @@ export function InlineCompose({
         </button>
         <button
           type="button"
-          title="밑줄"
+          title={t('compose.underline')}
           style={T(editor?.isActive('underline'))}
           onClick={() => editor?.chain().focus().toggleUnderline().run()}
           onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }}
@@ -420,7 +422,7 @@ export function InlineCompose({
         </button>
         <button
           type="button"
-          title="글머리 목록"
+          title={t('compose.bulletList')}
           style={T(editor?.isActive('bulletList'))}
           onClick={() => editor?.chain().focus().toggleBulletList().run()}
           onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }}
@@ -430,7 +432,7 @@ export function InlineCompose({
         </button>
         <button
           type="button"
-          title="번호 목록"
+          title={t('compose.orderedList')}
           style={T(editor?.isActive('orderedList'))}
           onClick={() => editor?.chain().focus().toggleOrderedList().run()}
           onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }}
@@ -440,7 +442,7 @@ export function InlineCompose({
         </button>
         <button
           type="button"
-          title="링크"
+          title={t('compose.link')}
           style={T(editor?.isActive('link'))}
           onClick={handleLinkInsert}
           onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }}
@@ -450,7 +452,7 @@ export function InlineCompose({
         </button>
         <button
           type="button"
-          title="이미지 삽입"
+          title={t('compose.insertImage')}
           style={T()}
           onClick={() => imageInputRef.current?.click()}
           onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }}
@@ -461,7 +463,7 @@ export function InlineCompose({
         <div style={{ width: '1px', height: '16px', background: 'var(--color-border-subtle)' }} />
         <button
           type="button"
-          title="파일 첨부"
+          title={t('compose.fileAttach')}
           style={T()}
           onClick={() => fileInputRef.current?.click()}
           onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }}

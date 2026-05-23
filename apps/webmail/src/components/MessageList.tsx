@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useMemo, useCallback, type KeyboardEvent as ReactKeyboardEvent } from 'react';
+import { useTranslations } from 'next-intl';
 import { MessageSummary } from '@/lib/api';
 import {
   StarIcon,
@@ -33,20 +34,23 @@ import {
   CATEGORY_TABS,
 } from './message-list/messageListTypes';
 
-function getDateGroup(receivedAt: string): string {
+type DateGroupKey = 'today' | 'yesterday' | 'lastWeek' | 'thisMonth';
+
+function getDateGroup(receivedAt: string): DateGroupKey {
   const date = new Date(receivedAt);
   const now = new Date();
   const diffMs = now.getTime() - date.getTime();
   const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
 
-  if (diffDays === 0) return '오늘';
-  if (diffDays === 1) return '어제';
-  if (diffDays < 7) return '지난 7일';
-  return '이번 달';
+  if (diffDays === 0) return 'today';
+  if (diffDays === 1) return 'yesterday';
+  if (diffDays < 7) return 'lastWeek';
+  return 'thisMonth';
 }
 
 
 export function MessageList({ messages, selectedId, onSelect, loading, emptyLabel, hasMore, loadingMore, onLoadMore, onStar, onBulkDelete, onBulkMarkRead, onRefresh, refreshing, isMobile, onOpenSidebar, onContextMenuMessage, onMarkAllRead, emptyFolderLabel, onEmptyFolder, folders, onBulkMove, paneWidth, fullWidth, bottomLayout, searchQuery, onDeleteMessage, onBulkRestore, onBulkLabel, onBulkStar, onArchiveMessage, onToggleReadMessage, onSnoozeMessage, onPinMessage, pinnedIds = new Set(), importantIds = new Set(), messageLabels = {}, userEmail, showPreview = true, showCategoryTabs = false }: MessageListProps) {
+  const t = useTranslations('mailListFull');
   const [filterMode, setFilterMode] = useState<FilterMode>('all');
   const [filterLabel, setFilterLabel] = useState<string | null>(null);
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
@@ -449,17 +453,17 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
   const bulkStarTarget = bulkMessages.some((m) => !m.starred);
   const bulkPinned = bulkMessages.length > 0 && bulkMessages.every((m) => pinnedIds.has(m.id));
   const folderLabelById = new Map((folders ?? []).map((folder) => [folder.id, folder.system_type === 'inbox'
-    ? '받은 편지함'
+    ? t('folder.inbox')
     : folder.system_type === 'sent'
-      ? '보낸 편지함'
+      ? t('folder.sent')
       : folder.system_type === 'drafts'
-        ? '임시 보관함'
+        ? t('folder.drafts')
         : folder.system_type === 'trash'
-          ? '휴지통'
+          ? t('folder.trash')
           : folder.system_type === 'spam' || folder.system_type === 'junk'
-            ? '스팸'
+            ? t('folder.spam')
             : folder.system_type === 'archive'
-              ? '아카이브'
+              ? t('folder.archive')
               : folder.name]));
   const header = (
     <MessageListHeader
@@ -529,12 +533,12 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
           {isInboxZero ? (
             <>
               <div style={{ fontSize: '36px', lineHeight: 1 }}>✓</div>
-              <div style={{ fontSize: '16px', fontWeight: 600, color: 'var(--color-text-primary)' }}>받은 편지함이 깨끗합니다</div>
-              <div style={{ fontSize: '13px', color: 'var(--color-text-tertiary)', textAlign: 'center', maxWidth: '240px', lineHeight: 1.5 }}>모든 메일을 처리했습니다. 잠시 여유를 즐기세요.</div>
+              <div style={{ fontSize: '16px', fontWeight: 600, color: 'var(--color-text-primary)' }}>{t('inboxZeroTitle')}</div>
+              <div style={{ fontSize: '13px', color: 'var(--color-text-tertiary)', textAlign: 'center', maxWidth: '240px', lineHeight: 1.5 }}>{t('inboxZeroDesc')}</div>
             </>
           ) : (
             <div style={{ color: 'var(--color-text-tertiary)', fontSize: '14px' }}>
-              {emptyLabel ?? (filterMode === 'unread' ? '읽지 않은 메일이 없습니다' : filterMode === 'starred' ? '별표 메일이 없습니다' : '메일이 없습니다')}
+              {emptyLabel ?? (filterMode === 'unread' ? t('emptyNoUnread') : filterMode === 'starred' ? t('emptyNoStarred') : t('emptyDefault'))}
             </div>
           )}
         </div>
@@ -543,9 +547,9 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
   }
 
   // Group messages by date
-  const groups: { label: string; messages: MessageSummary[] }[] = [];
-  const groupOrder = ['오늘', '어제', '지난 7일', '이번 달'];
-  const groupMap = new Map<string, MessageSummary[]>();
+  const groups: { key: string; label: string; messages: MessageSummary[] }[] = [];
+  const groupOrder: DateGroupKey[] = ['today', 'yesterday', 'lastWeek', 'thisMonth'];
+  const groupMap = new Map<DateGroupKey, MessageSummary[]>();
 
   for (const msg of pagedMessages) {
     const group = getDateGroup(msg.received_at);
@@ -555,16 +559,9 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
 
   const groupOrderDisplay = sortAsc ? [...groupOrder].reverse() : groupOrder;
 
-  for (const label of groupOrderDisplay) {
-    if (groupMap.has(label)) {
-      groups.push({ label, messages: groupMap.get(label)! });
-    }
-  }
-
-  // Any remaining groups not in order
-  for (const [label, msgs] of groupMap) {
-    if (!groupOrderDisplay.includes(label)) {
-      groups.push({ label, messages: msgs });
+  for (const key of groupOrderDisplay) {
+    if (groupMap.has(key)) {
+      groups.push({ key, label: t(`dateGroup.${key}`), messages: groupMap.get(key)! });
     }
   }
 
@@ -595,7 +592,7 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
       <div
         ref={scrollContainerRef}
         role="list"
-        aria-label="메일 목록"
+        aria-label={t('listAria')}
         onKeyDownCapture={handleRowKeyDownCapture}
         style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', overscrollBehavior: 'contain' }}
         onTouchStart={isMobile && onRefresh ? (e) => {
@@ -616,7 +613,7 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
         } : undefined}
       >
       {groups.map((group) => (
-        <div key={group.label} role="group" aria-label={group.label}>
+        <div key={group.key} role="group" aria-label={group.label}>
           <div
             aria-hidden="true"
             style={{
@@ -671,7 +668,7 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
       <div ref={sentinelRef} style={{ height: '1px' }} aria-hidden="true" />
       {loadingMore && (
         <div style={{ padding: '12px 16px', textAlign: 'center', fontSize: '13px', color: 'var(--color-text-tertiary)' }}>
-          불러오는 중...
+          {t('loadingMore')}
         </div>
       )}
       {contactCard && (

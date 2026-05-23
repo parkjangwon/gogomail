@@ -33,24 +33,28 @@ export function highlight(text: string, query: string): ReactNode {
   ));
 }
 
-export function readingTimeLabel(preview: string): string | null {
+export function readingTimeLabel(preview: string, t?: (key: string, values?: Record<string, unknown>) => string): string | null {
   if (!preview) return null;
   const words = Math.round((preview.length / 5) * 8);
   const mins = Math.max(1, Math.round(words / 200));
+  if (t) {
+    return mins === 1 ? t('misc.messageListTypes.readingApprox1') : t('misc.messageListTypes.readingApproxN', { n: mins });
+  }
   return mins === 1 ? '~1분' : `~${mins}분`;
 }
 
-export function getAutoCategory(fromAddr: string, subject: string): { label: string; color: string } | null {
+export function getAutoCategory(fromAddr: string, subject: string, t?: (key: string) => string): { label: string; color: string } | null {
   const from = (fromAddr ?? '').toLowerCase();
   const subj = (subject ?? '').toLowerCase();
-  if (/no.?reply|noreply|automated?@|do.not.reply|donotreply/.test(from)) return { label: '알림', color: '#6b7280' };
-  if (/newsletter|hello@|hi@|info@|updates?@|news@|digest@/.test(from)) return { label: '뉴스레터', color: '#3b82f6' };
-  if (/주문|order|purchase|receipt|배송|shipped|delivered|tracking/.test(subj)) return { label: '주문', color: '#16a34a' };
-  if (/invoice|청구|영수증|payment|결제|billing/.test(subj)) return { label: '청구서', color: '#f97316' };
+  const tr = (k: string, fallback: string) => (t ? t(k) : fallback);
+  if (/no.?reply|noreply|automated?@|do.not.reply|donotreply/.test(from)) return { label: tr('misc.messageListTypes.noticeCategory', '알림'), color: '#6b7280' };
+  if (/newsletter|hello@|hi@|info@|updates?@|news@|digest@/.test(from)) return { label: tr('misc.messageListTypes.newsletterCategory', '뉴스레터'), color: '#3b82f6' };
+  if (/주문|order|purchase|receipt|배송|shipped|delivered|tracking/.test(subj)) return { label: tr('misc.messageListTypes.orderCategory', '주문'), color: '#16a34a' };
+  if (/invoice|청구|영수증|payment|결제|billing/.test(subj)) return { label: tr('misc.messageListTypes.invoiceCategory', '청구서'), color: '#f97316' };
   return null;
 }
 
-export function formatDate(receivedAt: string): string {
+export function formatDate(receivedAt: string, t?: (key: string, values?: Record<string, unknown>) => string): string {
   const date = new Date(receivedAt);
   const now = new Date();
   const diffMs = now.getTime() - date.getTime();
@@ -58,9 +62,9 @@ export function formatDate(receivedAt: string): string {
   const diffHours = Math.floor(diffMs / 3600000);
   const diffDays = Math.floor(diffMs / 86400000);
 
-  if (diffMins < 1) return '방금 전';
-  if (diffMins < 60) return `${diffMins}분 전`;
-  if (diffHours < 12 && date.getDate() === now.getDate()) return `${diffHours}시간 전`;
+  if (diffMins < 1) return t ? t('misc.messageListTypes.justNow') : '방금 전';
+  if (diffMins < 60) return t ? t('misc.messageListTypes.minutesAgo', { n: diffMins }) : `${diffMins}분 전`;
+  if (diffHours < 12 && date.getDate() === now.getDate()) return t ? t('misc.messageListTypes.hoursAgo', { n: diffHours }) : `${diffHours}시간 전`;
   if (diffDays === 0) {
     return new Intl.DateTimeFormat('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false }).format(date);
   }

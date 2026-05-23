@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import type { MessageDetail } from '@/lib/api';
 import { emailOf } from '@/lib/message/messageUtils';
 import { formatFullDate, readingTime } from './readingPaneHelpers';
@@ -27,6 +28,7 @@ export function MessageHeader({
   savedContact,
   onSaveContact,
 }: MessageHeaderProps) {
+  const t = useTranslations('readingFull');
   return (
     <>
       <h1
@@ -38,14 +40,14 @@ export function MessageHeader({
           marginBottom: '16px',
         }}
       >
-        {message.subject || '(제목 없음)'}
+        {message.subject || t('header.noSubject')}
       </h1>
 
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px', marginBottom: '8px' }}>
         <div>
           <div style={{ fontSize: '14px', fontWeight: 500, color: 'var(--color-text-primary)' }}>
             <span
-              title="클릭하면 주소 복사"
+              title={t('header.copyTitle')}
               onClick={() => onCopyEmail(message.from_addr)}
               style={{ cursor: 'pointer', borderRadius: '3px', padding: '0 2px' }}
               onMouseEnter={(e) => {
@@ -55,11 +57,11 @@ export function MessageHeader({
                 (e.currentTarget as HTMLSpanElement).style.background = 'transparent';
               }}
             >
-              {copiedEmail === message.from_addr ? '복사됨 ✓' : (message.from_name || message.from_addr)}
+              {copiedEmail === message.from_addr ? t('header.copiedSuffix') : (message.from_name || message.from_addr)}
             </span>
             {message.from_name && (
               <span
-                title="클릭하면 주소 복사"
+                title={t('header.copyTitle')}
                 onClick={() => onCopyEmail(message.from_addr)}
                 style={{ fontSize: '13px', fontWeight: 400, color: 'var(--color-text-secondary)', marginInlineStart: '6px', cursor: 'pointer', borderRadius: '3px', padding: '0 2px' }}
                 onMouseEnter={(e) => {
@@ -75,7 +77,7 @@ export function MessageHeader({
             {onComposeToAddress && (
               <button
                 onClick={() => onComposeToAddress(message.from_addr)}
-                title={`${message.from_addr}에게 새 메일 작성`}
+                title={t('header.composeToTitle', { addr: message.from_addr })}
                 style={{ background: 'none', border: '1px solid var(--color-border-default)', borderRadius: '4px', cursor: 'pointer', fontSize: '11px', color: 'var(--color-text-tertiary)', padding: '1px 6px', marginInlineStart: '6px', lineHeight: 1.4 }}
                 onMouseEnter={(e) => {
                   (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-secondary)';
@@ -83,12 +85,12 @@ export function MessageHeader({
                 onMouseLeave={(e) => {
                   (e.currentTarget as HTMLButtonElement).style.background = 'transparent';
                 }}
-              >메일 보내기</button>
+              >{t('header.composeToLabel')}</button>
             )}
             {!isContactSaved && (
               <button
                 onClick={onSaveContact}
-                title="연락처에 추가"
+                title={t('header.addContactTitle')}
                 style={{ background: 'none', border: '1px solid var(--color-border-default)', borderRadius: '4px', cursor: 'pointer', fontSize: '11px', color: savedContact ? 'var(--color-accent)' : 'var(--color-text-tertiary)', padding: '1px 6px', marginInlineStart: '4px', lineHeight: 1.4 }}
                 onMouseEnter={(e) => {
                   (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-secondary)';
@@ -96,18 +98,18 @@ export function MessageHeader({
                 onMouseLeave={(e) => {
                   (e.currentTarget as HTMLButtonElement).style.background = 'transparent';
                 }}
-              >{savedContact ? '저장됨 ✓' : '연락처에 추가'}</button>
+              >{savedContact ? t('header.savedContactLabel') : t('header.addContactLabel')}</button>
             )}
           </div>
 
           {toList && (
             <div style={{ fontSize: '13px', color: 'var(--color-text-secondary)', marginTop: '2px' }}>
-              받는 사람:{' '}
+              {t('header.toLabel')}:{' '}
               {(message.to_addrs ?? []).map((target, index) => (
                 <span key={emailOf(target)}>
                   {index > 0 && ', '}
                   <span
-                    title="클릭하면 주소 복사"
+                    title={t('header.copyTitle')}
                     onClick={() => onCopyEmail(emailOf(target))}
                     style={{ cursor: 'pointer', borderRadius: '3px', padding: '0 2px' }}
                     onMouseEnter={(e) => {
@@ -117,7 +119,7 @@ export function MessageHeader({
                       (e.currentTarget as HTMLSpanElement).style.background = 'transparent';
                     }}
                   >
-                    {copiedEmail === emailOf(target) ? '복사됨 ✓' : (target.name ? `${target.name} <${emailOf(target)}>` : emailOf(target))}
+                    {copiedEmail === emailOf(target) ? t('header.copiedSuffix') : (target.name ? `${target.name} <${emailOf(target)}>` : emailOf(target))}
                   </span>
                 </span>
               ))}
@@ -125,12 +127,12 @@ export function MessageHeader({
           )}
           {ccList && (
             <div style={{ fontSize: '13px', color: 'var(--color-text-secondary)', marginTop: '2px' }}>
-              참조:{' '}
+              {t('header.ccLabel')}:{' '}
               {(message.cc_addrs ?? []).map((target, index) => (
                 <span key={emailOf(target)}>
                   {index > 0 && ', '}
                   <span
-                    title="클릭하면 주소 복사"
+                    title={t('header.copyTitle')}
                     onClick={() => onCopyEmail(emailOf(target))}
                     style={{ cursor: 'pointer', borderRadius: '3px', padding: '0 2px' }}
                     onMouseEnter={(e) => {
@@ -140,7 +142,7 @@ export function MessageHeader({
                       (e.currentTarget as HTMLSpanElement).style.background = 'transparent';
                     }}
                   >
-                    {copiedEmail === emailOf(target) ? '복사됨 ✓' : (target.name ? `${target.name} <${emailOf(target)}>` : emailOf(target))}
+                    {copiedEmail === emailOf(target) ? t('header.copiedSuffix') : (target.name ? `${target.name} <${emailOf(target)}>` : emailOf(target))}
                   </span>
                 </span>
               ))}
@@ -153,7 +155,7 @@ export function MessageHeader({
           </span>
           {(message.text_body || '').trim().length > 50 && (
             <span style={{ fontSize: '11px', color: 'var(--color-text-tertiary)' }}>
-              읽기 {readingTime(message.text_body || '')}
+              {t('header.readingPrefix')} {readingTime(message.text_body || '')}
             </span>
           )}
         </div>

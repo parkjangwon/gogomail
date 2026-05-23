@@ -1,27 +1,29 @@
 'use client';
 
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 
 import { SectionCard, SectionHeader, Row } from '@/components/settings-view/settingsViewPrimitives';
 
 export function SettingsAboutSection() {
+  const t = useTranslations();
   const [importStatus, setImportStatus] = useState<{ type: 'error' | 'success'; message: string } | null>(null);
 
   return (
     <>
       <SectionCard>
-        <SectionHeader>정보</SectionHeader>
-        <Row label="GoGoMail Webmail" description="오픈소스 엔터프라이즈 메일 클라이언트" last>
+        <SectionHeader>{t('misc.settingsAbout.section')}</SectionHeader>
+        <Row label={t('misc.settingsAbout.productName')} description={t('misc.settingsAbout.productDesc')} last>
           <span style={{ fontSize: '12px', color: 'var(--color-text-tertiary)', fontFamily: 'monospace' }}>Next.js 15 · TS · Tailwind v4</span>
         </Row>
       </SectionCard>
 
       <SectionCard>
-        <SectionHeader>설정 내보내기 / 가져오기</SectionHeader>
+        <SectionHeader>{t('misc.settingsAbout.exportSection')}</SectionHeader>
         <div style={{ padding: '0 20px 12px', fontSize: '12px', color: 'var(--color-text-tertiary)' }}>
-          설정을 JSON 파일로 저장하거나 다른 기기에서 가져올 수 있습니다. 필터, 차단 목록, 템플릿 등 모든 설정이 포함됩니다.
+          {t('misc.settingsAbout.exportIntro')}
         </div>
-        <Row label="설정 내보내기" description="현재 모든 설정을 JSON 파일로 저장합니다">
+        <Row label={t('misc.settingsAbout.exportLabel')} description={t('misc.settingsAbout.exportDesc')}>
           <button
             onClick={() => {
               const keys = ['webmail_settings', 'webmail_filter_rules', 'webmail_blocked_senders', 'webmail_vacation', 'webmail_templates', 'webmail_theme', 'webmail_accent', 'webmail_compact', 'webmail_conv_mode', 'webmail_display_name', 'webmail_signature', 'webmail_notif_sound', 'webmail_notif_detail', 'webmail_dnd', 'webmail_dnd_start', 'webmail_dnd_end', 'webmail_focus_mode', 'webmail_importance_markers', 'webmail_swipe_left', 'webmail_swipe_right', 'webmail_cc_self', 'webmail_default_bcc', 'webmail_confirm_before_send', 'webmail_spell_check', 'webmail_smart_reply', 'webmail_reading_time', 'webmail_reading_pane', 'webmail_pinned', 'webmail_important', 'webmail_snoozed', 'webmail_labels', 'webmail_tasks', 'webmail_notes', 'webmail_recent_recipients'];
@@ -33,11 +35,11 @@ export function SettingsAboutSection() {
               URL.revokeObjectURL(url);
             }}
             style={{ padding: '6px 16px', borderRadius: '6px', border: '1px solid var(--color-border-default)', background: 'transparent', color: 'var(--color-text-primary)', fontSize: '13px', cursor: 'pointer', fontWeight: 500 }}
-          >내보내기</button>
+          >{t('misc.settingsAbout.exportButton')}</button>
         </Row>
-        <Row label="설정 가져오기" description="gogomail-settings.json 파일에서 설정을 불러옵니다. 현재 설정이 대체됩니다." last>
+        <Row label={t('misc.settingsAbout.importLabel')} description={t('misc.settingsAbout.importDesc')} last>
           <label style={{ padding: '6px 16px', borderRadius: '6px', border: '1px solid var(--color-border-default)', background: 'transparent', color: 'var(--color-text-primary)', fontSize: '13px', cursor: 'pointer', fontWeight: 500, display: 'inline-block' }}>
-            가져오기
+            {t('misc.settingsAbout.importButton')}
             <input
               type="file"
               accept=".json"
@@ -53,16 +55,16 @@ export function SettingsAboutSection() {
                     Object.entries(data).forEach(([k, v]) => {
                       if (k.startsWith('webmail_')) localStorage.setItem(k, JSON.stringify(v));
                     });
-                    setImportStatus({ type: 'success', message: '설정을 가져왔습니다. 화면을 새로고침합니다.' });
+                    setImportStatus({ type: 'success', message: t('misc.settingsAbout.importSuccess') });
                     window.location.reload();
                   } catch {
-                    setImportStatus({ type: 'error', message: '올바르지 않은 설정 파일입니다. JSON 형식과 파일 내용을 확인해 주세요.' });
+                    setImportStatus({ type: 'error', message: t('misc.settingsAbout.importInvalid') });
                   } finally {
                     e.target.value = '';
                   }
                 };
                 reader.onerror = () => {
-                  setImportStatus({ type: 'error', message: '설정 파일을 읽지 못했습니다. 다시 선택해 주세요.' });
+                  setImportStatus({ type: 'error', message: t('misc.settingsAbout.importReadFailed') });
                   e.target.value = '';
                 };
                 reader.readAsText(file);
