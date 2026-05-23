@@ -172,19 +172,23 @@ jobs:
 
       - name: Upload Playwright HTML report
         if: always()
+        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
           name: playwright-report
           path: apps/webmail/playwright-report/
-          retention-days: 14
+          retention-days: 7
+          if-no-files-found: ignore
 
       - name: Upload trace / screenshot artifacts
         if: failure()
+        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
           name: playwright-test-results
           path: apps/webmail/test-results/
-          retention-days: 14
+          retention-days: 7
+          if-no-files-found: ignore
 
   console-e2e:
     name: Admin console E2E (Playwright)
@@ -236,16 +240,20 @@ jobs:
 
       - name: Upload Playwright HTML report
         if: always()
+        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
           name: console-playwright-report
           path: apps/console/playwright-report/
-          retention-days: 14
+          retention-days: 7
+          if-no-files-found: ignore
 
       - name: Upload trace / screenshot artifacts
         if: failure()
+        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
           name: console-playwright-test-results
           path: apps/console/test-results/
-          retention-days: 14
+          retention-days: 7
+          if-no-files-found: ignore
