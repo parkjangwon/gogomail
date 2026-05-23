@@ -27,6 +27,7 @@ type Event struct {
 	Recipient     string `json:"recipient"`
 	Subject       string `json:"subject"`
 	ReceivedAt    string `json:"received_at"`
+	EnvelopeFrom  string `json:"envelope_from"`
 }
 
 type Notification struct {
@@ -38,6 +39,7 @@ type Notification struct {
 	Recipient    string
 	Subject      string
 	ReceivedAt   string
+	EnvelopeFrom string
 	Targets      []Target
 }
 
@@ -269,6 +271,7 @@ func notificationFromEvent(event Event) Notification {
 		Recipient:    event.Recipient,
 		Subject:      event.Subject,
 		ReceivedAt:   event.ReceivedAt,
+		EnvelopeFrom: event.EnvelopeFrom,
 	}
 }
 
