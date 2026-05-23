@@ -1,6 +1,13 @@
 # gogomail current status
 
-Last updated: 2026-05-23 (notification sound enforcement)
+Last updated: 2026-05-23 (notification badge count mode)
+
+## Notification Badge Count Mode (2026-05-23)
+- Webmail Settings now exposes the roadmap badge-count mode: unread count, all-message count, or no title/favicon badge.
+- Mail page title and favicon badge rendering now respects `webmail_badge_count_mode`, including same-window Settings changes via a storage event dispatch.
+- The badge count mode is included in the server-synced webmail preferences blob while remaining cached locally for immediate mail-page rendering.
+- Regression coverage verifies both Settings selection and the `none` mode suppressing document-title counts.
+- Verification target: `pnpm -C apps/webmail exec playwright test e2e/settings.spec.ts e2e/notifications.spec.ts --project=chromium`; `pnpm -C apps/webmail type-check`.
 
 ## Notification Sound Enforcement (2026-05-23)
 - The webmail notification store now plays a short Web Audio chime for in-app notifications when the user enables notification sound.

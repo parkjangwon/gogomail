@@ -54,6 +54,8 @@ function quietHoursPreferences(
 }
 
 const NOTIFICATION_FOLDER_OVERRIDES_KEY = 'webmail_notification_folder_overrides';
+const BADGE_COUNT_MODE_KEY = 'webmail_badge_count_mode';
+type BadgeCountMode = 'unread' | 'all' | 'none';
 
 function emptyDNDSchedule() {
   return { weekdays: [], time_ranges: [], timezone: '' };
@@ -112,6 +114,7 @@ export function SettingsView({ userEmail, userName, initialSection }: SettingsVi
   const [notifSyncError, setNotifSyncError] = useState('');
   const [notifSound, setNotifSound] = useState(false);
   const [notifDetail, setNotifDetail] = useState<'sender' | 'subject' | 'preview'>('subject');
+  const [badgeCountMode, setBadgeCountMode] = useState<BadgeCountMode>('unread');
   const [dndEnabled, setDndEnabled] = useState(false);
   const [dndStart, setDndStart] = useState('22:00');
   const [dndEnd, setDndEnd] = useState('08:00');
@@ -207,6 +210,10 @@ export function SettingsView({ userEmail, userName, initialSection }: SettingsVi
           if (s.refreshInterval) setRefreshInterval(s.refreshInterval as 30 | 60 | 300);
           if (s.notifSound !== undefined) setNotifSound(s.notifSound as boolean);
           if (s.notifDetail) setNotifDetail(s.notifDetail as typeof notifDetail);
+          if (s.badgeCountMode === 'all' || s.badgeCountMode === 'none' || s.badgeCountMode === 'unread') {
+            setBadgeCountMode(s.badgeCountMode);
+            try { localStorage.setItem(BADGE_COUNT_MODE_KEY, s.badgeCountMode); } catch { /* ignore */ }
+          }
           if (s.dndEnabled !== undefined) setDndEnabled(s.dndEnabled as boolean);
           if (s.dndStart) setDndStart(s.dndStart as string);
           if (s.dndEnd) setDndEnd(s.dndEnd as string);
@@ -306,7 +313,7 @@ export function SettingsView({ userEmail, userName, initialSection }: SettingsVi
           quoteOnReply, fontSize, inlineImagePreview, blockTrackingPixels,
           requestReadReceipt, linkPreview, followUpDays, focusMode,
           swipeLeft, swipeRight, refreshInterval, importanceMarkers, groupByDate,
-          notifSound, notifDetail, dndEnabled, dndStart, dndEnd,
+          notifSound, notifDetail, badgeCountMode, dndEnabled, dndStart, dndEnd,
         },
         filter_rules: filterRules as unknown[],
         blocked_senders: blockedSenders,
@@ -322,7 +329,7 @@ export function SettingsView({ userEmail, userName, initialSection }: SettingsVi
     quoteOnReply, fontSize, inlineImagePreview, blockTrackingPixels,
     requestReadReceipt, linkPreview, followUpDays, focusMode,
     swipeLeft, swipeRight, refreshInterval, importanceMarkers, groupByDate,
-    notifSound, notifDetail, dndEnabled, dndStart, dndEnd,
+    notifSound, notifDetail, badgeCountMode, dndEnabled, dndStart, dndEnd,
     filterRules, blockedSenders, templates,
     vacEnabled, vacStartDate, vacEndDate, vacSubject, vacBody,
   ]);
@@ -347,6 +354,8 @@ export function SettingsView({ userEmail, userName, initialSection }: SettingsVi
       setInlineImagePreview((wm.inlineImagePreview as boolean) !== false);
       setNotifSound(localStorage.getItem('webmail_notif_sound') === '1');
       setNotifDetail((localStorage.getItem('webmail_notif_detail') as 'sender' | 'subject' | 'preview') ?? 'subject');
+      const storedBadgeMode = localStorage.getItem(BADGE_COUNT_MODE_KEY);
+      setBadgeCountMode(storedBadgeMode === 'all' || storedBadgeMode === 'none' ? storedBadgeMode : 'unread');
       setTemplates(loadLocalEmailTemplates());
       setFilterRules(loadFilterRules());
       setBlockedSenders(JSON.parse(localStorage.getItem('webmail_blocked_senders') ?? '[]') as string[]);
@@ -985,6 +994,15 @@ export function SettingsView({ userEmail, userName, initialSection }: SettingsVi
         );
 
       case 'notifications':
+        const setBadgeMode = (mode: BadgeCountMode) => {
+          setBadgeCountMode(mode);
+          try {
+            localStorage.setItem(BADGE_COUNT_MODE_KEY, mode);
+            window.dispatchEvent(new StorageEvent('storage', { key: BADGE_COUNT_MODE_KEY, newValue: mode }));
+          } catch {
+            // local settings cache is best-effort
+          }
+        };
         const setFolderNotificationEnabled = (folderId: string, enabled: boolean) => {
           setNotificationFolderOverrides((prev) => {
             const next = { ...prev };
@@ -1010,6 +1028,8 @@ export function SettingsView({ userEmail, userName, initialSection }: SettingsVi
             setNotifSound={(v) => { setNotifSound(v); try { localStorage.setItem('webmail_notif_sound', v ? '1' : '0'); } catch { /* */ } }}
             notifDetail={notifDetail}
             setNotifDetail={(v) => { setNotifDetail(v); try { localStorage.setItem('webmail_notif_detail', v); } catch { /* */ } }}
+            badgeCountMode={badgeCountMode}
+            setBadgeCountMode={setBadgeMode}
             dndEnabled={dndEnabled}
             setDndEnabled={(v) => { setDndEnabled(v); try { localStorage.setItem('webmail_dnd', v ? '1' : '0'); } catch { /* */ } }}
             dndStart={dndStart}

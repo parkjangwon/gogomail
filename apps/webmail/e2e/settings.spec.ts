@@ -88,4 +88,15 @@ test.describe('Settings', () => {
       },
     });
   });
+
+  test('updates notification badge count mode from settings', async ({ page }) => {
+    await openSettings(page);
+    await page.getByRole('button', { name: /^(알림|Notifications)$/i }).click();
+    await page.getByRole('button', { name: /없음|None/i }).click();
+
+    await expect.poll(
+      () => page.evaluate(() => localStorage.getItem('webmail_badge_count_mode')),
+      { timeout: 5_000 },
+    ).toBe('none');
+  });
 });

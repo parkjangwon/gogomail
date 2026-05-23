@@ -303,6 +303,15 @@ test.describe('Notification center', () => {
 });
 
 test.describe('Mail arrival notifications', () => {
+  test('respects badge count mode none in document title', async ({ page }) => {
+    await page.addInitScript(() => {
+      localStorage.setItem('webmail_badge_count_mode', 'none');
+    });
+    await setupAuthedPage(page);
+
+    await expect.poll(() => page.title(), { timeout: 5_000 }).toBe('GoGoMail');
+  });
+
   test('respects browser-notification toggle during message refresh', async ({ page }) => {
     await page.addInitScript(() => {
       try {
