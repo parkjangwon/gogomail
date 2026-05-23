@@ -487,6 +487,11 @@ TASK-090 검증 운영 가이드:
 - When enabled, `openSearchIndexDefinition` adds `"analysis":{"analyzer":{"korean":{"type":"nori","decompound_mode":"mixed"}}}` to settings and sets `analyzer: "korean"` on `subject` and `body_text` mappings
 - Requires the OpenSearch `analysis-nori` plugin; safe to leave disabled otherwise
 
+**Auth Username Lookup Index** ✅ COMPLETE
+- `AuthenticateUser`, `AuthenticateLDAP`, and SMTP `AuthenticatePlain` now lower-case the username bind value in Go and compare it directly to `lower(u.username)`.
+- `migrations/0151_user_username_lookup_index.sql` adds a partial active-local `lower(username), id` index for username login lookup paths.
+- Static regression coverage in `internal/maildb/auth_lookup_indexes_test.go` guards the SQL predicate shape and migration contents.
+
 다음 단계: 운영/스테이징 PostgreSQL에서 `TASK_090_DATABASE_URL=... scripts/verify-task-090-message-explain.sh` 실행
 
 ### 검증
