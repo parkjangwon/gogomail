@@ -323,7 +323,10 @@ export function NotificationCenter({ open, onClose }: NotificationCenterProps) {
         />
         <FilterButton
           active={filter === 'unread'}
-          onClick={() => setFilter('unread')}
+          disabled={unreadCount === 0}
+          onClick={() => {
+            if (unreadCount > 0) setFilter('unread');
+          }}
           label={`${t('center.filters.unread')}${unreadCount > 0 ? ` (${unreadCount})` : ''}`}
         />
         {categoryCounts.map(([category, count]) => (
@@ -440,21 +443,33 @@ function miniButtonStyle(disabled: boolean): React.CSSProperties {
   };
 }
 
-function FilterButton({ active, onClick, label }: { active: boolean; onClick: () => void; label: string }) {
+function FilterButton({
+  active,
+  disabled = false,
+  onClick,
+  label,
+}: {
+  active: boolean;
+  disabled?: boolean;
+  onClick: () => void;
+  label: string;
+}) {
   return (
     <button
       type="button"
+      disabled={disabled}
       onClick={onClick}
       aria-pressed={active}
       style={{
         border: 'none',
         background: active ? 'var(--color-accent-subtle, rgba(99,102,241,0.12))' : 'transparent',
-        color: active ? 'var(--color-accent)' : 'var(--color-text-secondary)',
+        color: disabled ? 'var(--color-text-tertiary)' : active ? 'var(--color-accent)' : 'var(--color-text-secondary)',
         fontSize: '12px',
         fontWeight: 500,
-        cursor: 'pointer',
+        cursor: disabled ? 'default' : 'pointer',
         padding: '4px 10px',
         borderRadius: 999,
+        opacity: disabled ? 0.5 : 1,
       }}
     >
       {label}

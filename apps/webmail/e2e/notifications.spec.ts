@@ -855,6 +855,27 @@ test.describe('Notification center', () => {
     await expect(dialog).toContainText('B');
   });
 
+  test('does not enter unread filter when there are no unread notifications', async ({ page }) => {
+    await pushNotification(page, { title: 'Read-only A' });
+    await pushNotification(page, { title: 'Read-only B' });
+
+    await page.evaluate(() => {
+      const w = window as unknown as {
+        __webmailNotifications?: { markAllRead: () => void };
+      };
+      w.__webmailNotifications?.markAllRead();
+    });
+    await expect.poll(() => unreadBadgeText(page)).toBeNull();
+
+    const { dialog } = await openCenter(page);
+    const unreadFilter = dialog.getByRole('button', { name: /^(unread|읽지 않음|未読|未读)$/i });
+    await expect(unreadFilter).toBeDisabled();
+
+    await expect(dialog).toContainText('Read-only A');
+    await expect(dialog).toContainText('Read-only B');
+    await expect(dialog).not.toContainText(/no notifications match|조건에 맞는 알림|一致する通知|没有符合/i);
+  });
+
   test('returns to all notifications after marking all unread-filtered items read', async ({ page }) => {
     await pushNotification(page, { title: 'Unread filtered A' });
     await pushNotification(page, { title: 'Unread filtered B' });
@@ -1305,6 +1326,7 @@ test.describe('Mail arrival notifications', () => {
       makeMessage('refresh-seed', { read: true, subject: 'Already seen' }),
     ];
     await setupAuthedPage(page, { messages });
+    await expect(page.getByText('Already seen')).toBeVisible({ timeout: 5_000 });
     await page.evaluate(() => localStorage.removeItem('webmail_notifications'));
 
     messages.unshift(makeMessage('refresh-new', {
@@ -1341,6 +1363,7 @@ test.describe('Mail arrival notifications', () => {
         updated_at: '2026-05-23T00:00:00Z',
       },
     });
+    await expect(page.getByText('Already seen muted folder')).toBeVisible({ timeout: 5_000 });
     await page.evaluate(() => localStorage.removeItem('webmail_notifications'));
     await expect.poll(() => page.evaluate(() => localStorage.getItem('webmail_notification_folder_overrides')), {
       timeout: 5_000,
@@ -1375,6 +1398,7 @@ test.describe('Mail arrival notifications', () => {
         updated_at: '2026-05-23T00:00:00Z',
       },
     });
+    await expect(page.getByText('Already seen muted thread')).toBeVisible({ timeout: 5_000 });
     await page.evaluate(() => localStorage.removeItem('webmail_notifications'));
     await expect.poll(() => page.evaluate(() => localStorage.getItem('webmail_notification_thread_overrides')), {
       timeout: 5_000,
