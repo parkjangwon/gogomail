@@ -6998,3 +6998,7 @@ Target outcome:
       characters and backslashes before state or localStorage persistence,
       preserving valid short future-facing icon hints while dropping malformed
       payload strings.
+1912. Webmail runtime notification dedupe handling now treats only literal
+      `dedupe: true` as a dedupe request, so malformed truthy payload values
+      cannot suppress later notification insertion, sound, or browser-mirror
+      side effects.

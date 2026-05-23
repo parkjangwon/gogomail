@@ -1,6 +1,13 @@
 # gogomail current status
 
-Last updated: 2026-05-23 (notification icon name character hardening)
+Last updated: 2026-05-23 (notification dedupe flag type hardening)
+
+## Notification Dedupe Flag Type Hardening (2026-05-23)
+- Runtime notification pushes now treat only literal `dedupe: true` as a dedupe request.
+- Malformed truthy `dedupe` values such as strings no longer suppress later notification payloads or their side effects.
+- Existing boolean dedupe behavior remains intact, and repeated non-deduped ids still follow the current unique-id replacement policy.
+- E2E coverage verifies non-boolean runtime dedupe flags are ignored while boolean dedupe and runtime id replacement behavior continue to pass.
+- Verification target: `pnpm -C apps/webmail exec playwright test e2e/notifications.spec.ts --project=chromium -g "ignores non-boolean runtime dedupe flags|deduplicates repeated event notifications by id|keeps runtime notification identifiers unique even without explicit dedupe"`; `pnpm -C apps/webmail type-check`.
 
 ## Notification Icon Name Character Hardening (2026-05-23)
 - Runtime notification `iconName` values now reject ASCII control characters and backslashes before state or localStorage persistence.

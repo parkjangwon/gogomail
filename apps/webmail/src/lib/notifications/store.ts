@@ -446,8 +446,9 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
   const push = useCallback<NotificationsContextValue['push']>((input) => {
     const rawInput = input as Record<string, unknown>;
     const id = safeNotificationId(rawInput.id);
+    const shouldDedupe = rawInput.dedupe === true;
     const existing = notificationsByIDRef.current.get(id);
-    if (input.dedupe && existing) {
+    if (shouldDedupe && existing) {
       return existing;
     }
     const notification: Notification = {
@@ -466,7 +467,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
       [notification, ...Array.from(notificationsByIDRef.current.values()).filter((n) => n.id !== id)]
         .slice(0, MAX_NOTIFICATIONS),
     );
-    dispatch({ type: 'push', notification, dedupe: input.dedupe });
+    dispatch({ type: 'push', notification, dedupe: shouldDedupe });
     playNotificationSound();
     // Mirror to OS-level browser notification (gated by permission + toggle).
     fireBrowserNotification(notification, (markId) => dispatch({ type: 'markRead', id: markId }));

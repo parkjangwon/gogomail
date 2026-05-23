@@ -1288,6 +1288,55 @@ test.describe('Notification center', () => {
     await expect(dialog).not.toContainText('Second copy');
   });
 
+  test('ignores non-boolean runtime dedupe flags', async ({ page }) => {
+    await page.evaluate(() => {
+      const w = window as unknown as {
+        __webmailNotifications?: { push: (input: Record<string, unknown>) => unknown };
+      };
+      if (!w.__webmailNotifications) throw new Error('notifications store not available');
+      w.__webmailNotifications.push({
+        id: 'runtime-string-dedupe',
+        category: 'system',
+        severity: 'info',
+        title: 'First malformed dedupe',
+        dedupe: 'true',
+      });
+      w.__webmailNotifications.push({
+        id: 'runtime-string-dedupe',
+        category: 'system',
+        severity: 'info',
+        title: 'Second malformed dedupe',
+        dedupe: 'true',
+      });
+      w.__webmailNotifications.push({
+        id: 'runtime-boolean-dedupe',
+        category: 'system',
+        severity: 'info',
+        title: 'First boolean dedupe',
+        dedupe: true,
+      });
+      w.__webmailNotifications.push({
+        id: 'runtime-boolean-dedupe',
+        category: 'system',
+        severity: 'info',
+        title: 'Second boolean dedupe',
+        dedupe: true,
+      });
+    });
+
+    await expect.poll(
+      () => page.evaluate(() => {
+        const notifications = (window as unknown as {
+          __webmailNotifications?: { notifications: Array<{ title: string }> };
+        }).__webmailNotifications?.notifications ?? [];
+        return notifications
+          .map((n) => n.title)
+          .filter((title) => title.endsWith('dedupe'));
+      }),
+      { timeout: 5_000 },
+    ).toEqual(['First boolean dedupe', 'Second malformed dedupe']);
+  });
+
   test('allows deduped notifications to return after they were evicted by the retention limit', async ({ page }) => {
     await page.evaluate(() => {
       const w = window as unknown as {
