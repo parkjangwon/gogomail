@@ -19,6 +19,7 @@ func (r *Repository) AuthenticatePlain(ctx context.Context, _ string, username s
 	}
 
 	normalizedUsername := strings.TrimSpace(username)
+	normalizedUsernameLower := strings.ToLower(normalizedUsername)
 	normalizedAddress := normalizedUsername
 	if strings.Contains(normalizedUsername, "@") {
 		var err error
@@ -47,7 +48,7 @@ WHERE u.status = 'active'
   AND d.status = 'active'
   AND u.auth_source = 'local'
   AND (
-    lower(u.username) = lower($1)
+    lower(u.username) = $1
     OR ua.address_ace = $2
   )
 ORDER BY ua.is_primary DESC
@@ -55,7 +56,7 @@ LIMIT 1`
 
 	var user smtpd.SubmissionUser
 	var passwordHash string
-	if err := r.db.QueryRowContext(ctx, query, normalizedUsername, normalizedAddress).Scan(
+	if err := r.db.QueryRowContext(ctx, query, normalizedUsernameLower, normalizedAddress).Scan(
 		&user.CompanyID,
 		&user.DomainID,
 		&user.UserID,

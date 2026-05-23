@@ -1,6 +1,12 @@
 # gogomail current status
 
-Last updated: 2026-05-23 (muted thread notification controls)
+Last updated: 2026-05-23 (auth username lookup index)
+
+## Auth Username Lookup Index (2026-05-23, TASK-090)
+- Local auth, LDAP auth, and SMTP submission auth now pre-normalize the username bind value in Go and compare it to `lower(u.username)` directly.
+- Migration 0151 adds a partial `lower(username), id` index for active local users, backing case-insensitive username login lookups without relying only on the domain-scoped unique username constraint.
+- Static regression coverage verifies the auth SQL no longer calls `lower($1)` and that the migration includes the active-local username lookup index.
+- Verification target: `go test ./internal/maildb -run 'TestAuthUsername|TestAuthenticateLDAPUsesTypedUserIDFastPath'`; `go test ./...`.
 
 ## Muted Thread Notification Controls (2026-05-23)
 - Notification preferences now include server-synced `thread_overrides`, backed by migration 0150 and validated alongside folder overrides.

@@ -25,6 +25,7 @@ type AuthenticatedUser struct {
 
 func (r *Repository) AuthenticateUser(ctx context.Context, email, password string) (AuthenticatedUser, error) {
 	normalized := strings.TrimSpace(email)
+	normalizedUsername := strings.ToLower(normalized)
 	normalizedAddress := normalized
 	if strings.Contains(normalized, "@") {
 		addr, err := mail.NormalizeAddress(normalized)
@@ -43,7 +44,7 @@ WHERE u.status = 'active'
   AND d.status = 'active'
   AND u.auth_source = 'local'
   AND (
-    lower(u.username) = lower($1)
+    lower(u.username) = $1
     OR ua.address_ace = $2
   )
 ORDER BY ua.is_primary DESC
@@ -52,7 +53,7 @@ LIMIT 1`
 	var user AuthenticatedUser
 	var passwordHash string
 	var companyStatus string
-	err := r.db.QueryRowContext(ctx, query, normalized, normalizedAddress).Scan(
+	err := r.db.QueryRowContext(ctx, query, normalizedUsername, normalizedAddress).Scan(
 		&user.UserID,
 		&user.DomainID,
 		&user.CompanyID,

@@ -18,6 +18,7 @@ func (r *Repository) AuthenticateLDAP(ctx context.Context, username, password st
 		return false, nil
 	}
 	normalized := strings.TrimSpace(username)
+	normalizedUsername := strings.ToLower(normalized)
 	normalizedAddress := normalized
 	if strings.Contains(normalized, "@") {
 		addr, err := mail.NormalizeAddress(normalized)
@@ -38,14 +39,14 @@ WHERE u.status = 'active'
   AND d.status = 'active'
   AND u.auth_source = 'local'
   AND (
-    lower(u.username) = lower($1)
+    lower(u.username) = $1
     OR ua.address_ace = $2
     OR ($3::uuid IS NOT NULL AND u.id = $3::uuid)
   )
 ORDER BY ua.is_primary DESC
 LIMIT 1`
 	var passwordHash string
-	err := r.db.QueryRowContext(ctx, query, normalized, normalizedAddress, normalizedUserID).Scan(&passwordHash)
+	err := r.db.QueryRowContext(ctx, query, normalizedUsername, normalizedAddress, normalizedUserID).Scan(&passwordHash)
 	if err == sql.ErrNoRows {
 		return false, nil
 	}

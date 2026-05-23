@@ -38,14 +38,14 @@ ACTIVE_TASK.md가 COMPLETE이면 여기서 첫 번째 항목을 선택해 ACTIVE
 | TASK-065 | User Management CRUD | 완료 |
 | TASK-066 | Organization Management | 완료 |
 | TASK-067 | Audit Logs (Level 1 + 2) | 완료 |
-| TASK-068 | Identity Provider Abstraction | 대기 |
-| TASK-069 | Database Identity Mode | 대기 |
-| TASK-070 | LDAP Identity Config & Sync | 대기 |
-| TASK-071 | LDAP Sync UI & Logs | 대기 |
-| TASK-072 | External RDBMS Config & Sync | 대기 |
-| TASK-073 | External RDBMS Sync UI | 대기 |
-| TASK-074 | Mail Log Queries & UI | 대기 |
-| TASK-075 | Login/Security Audit Logs | 대기 |
+| TASK-068 | Identity Provider Abstraction | 완료 |
+| TASK-069 | Database Identity Mode | 완료 |
+| TASK-070 | LDAP Identity Config & Sync | 완료 |
+| TASK-071 | LDAP Sync UI & Logs | 완료 |
+| TASK-072 | External RDBMS Config & Sync | 완료 |
+| TASK-073 | External RDBMS Sync UI | 완료 |
+| TASK-074 | Mail Log Queries & UI | 완료 |
+| TASK-075 | Login/Security Audit Logs | 완료 |
 | TASK-076 | Statistics & Dashboard | 완료 |
 | TASK-077 | API Metering | 완료 |
 | TASK-078 | Dashboard UI | 완료 |

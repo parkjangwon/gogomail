@@ -6792,3 +6792,8 @@ Target outcome:
       can mute/unmute a thread so future unread arrivals in that thread skip
       notification-center and browser-alert creation while still appearing in
       the inbox.
+1856. TASK-090 auth username lookup hot paths now pre-normalize the username
+      bind value in Go and compare it directly against `lower(u.username)`.
+      Migration 0151 adds a partial active-local `lower(username), id` index so
+      local auth, LDAP auth, and SMTP submission username logins have matching
+      index coverage while address-based logins continue to use `address_ace`.
