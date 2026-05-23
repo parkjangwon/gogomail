@@ -311,6 +311,34 @@ test.describe('Notification center', () => {
     await expect(dialog).not.toContainText('Blank id');
   });
 
+  test('deduplicates repeated identifiers during storage hydration', async ({ page }) => {
+    await page.evaluate(() => {
+      const now = Date.now();
+      const raw = JSON.stringify([
+        { id: 'stored-repeat', category: 'system', severity: 'info', title: 'Newest stored copy', timestamp: now, read: false },
+        { id: 'stored-repeat', category: 'system', severity: 'info', title: 'Stale stored copy', timestamp: now - 1, read: false },
+      ]);
+      localStorage.setItem('webmail_notifications', raw);
+      window.dispatchEvent(new StorageEvent('storage', { key: 'webmail_notifications', newValue: raw }));
+    });
+
+    await expect.poll(
+      () => page.evaluate(() => {
+        const notifications = (window as unknown as {
+          __webmailNotifications?: { notifications: Array<{ id: string; title: string }> };
+        }).__webmailNotifications?.notifications ?? [];
+        return notifications
+          .filter((n) => n.id === 'stored-repeat')
+          .map((n) => n.title);
+      }),
+      { timeout: 5_000 },
+    ).toEqual(['Newest stored copy']);
+
+    const { dialog } = await openCenter(page);
+    await expect(dialog).toContainText('Newest stored copy');
+    await expect(dialog).not.toContainText('Stale stored copy');
+  });
+
   test('rejects non-boolean read flags during storage hydration', async ({ page }) => {
     await page.evaluate(() => {
       const now = Date.now();

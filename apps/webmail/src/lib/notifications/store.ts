@@ -276,25 +276,32 @@ function safeNotificationSeverity(value: unknown): NotificationSeverity {
 
 function sanitizeNotifications(input: unknown): Notification[] {
   if (!Array.isArray(input)) return [];
-  return input
-    .filter((n): n is Notification => {
-      if (!n || typeof n !== 'object') return false;
-      const o = n as Record<string, unknown>;
-      return typeof o.id === 'string'
-        && o.id.trim() !== ''
-        && typeof o.title === 'string'
-        && o.title.trim() !== ''
-        && typeof o.category === 'string'
-        && VALID_CATEGORIES.has(o.category as NotificationCategory)
-        && typeof o.severity === 'string'
-        && VALID_SEVERITIES.has(o.severity as NotificationSeverity)
-        && (o.body === undefined || typeof o.body === 'string')
-        && isSafeActionUrl(o.actionUrl)
-        && typeof o.timestamp === 'number'
-        && Number.isFinite(o.timestamp)
-        && typeof o.read === 'boolean';
-    })
-    .slice(0, MAX_NOTIFICATIONS);
+  const seen = new Set<string>();
+  const sanitized: Notification[] = [];
+  for (const n of input) {
+    if (sanitized.length >= MAX_NOTIFICATIONS) break;
+    if (!n || typeof n !== 'object') continue;
+    const o = n as Record<string, unknown>;
+    if (!(typeof o.id === 'string'
+      && o.id.trim() !== ''
+      && typeof o.title === 'string'
+      && o.title.trim() !== ''
+      && typeof o.category === 'string'
+      && VALID_CATEGORIES.has(o.category as NotificationCategory)
+      && typeof o.severity === 'string'
+      && VALID_SEVERITIES.has(o.severity as NotificationSeverity)
+      && (o.body === undefined || typeof o.body === 'string')
+      && isSafeActionUrl(o.actionUrl)
+      && typeof o.timestamp === 'number'
+      && Number.isFinite(o.timestamp)
+      && typeof o.read === 'boolean')) {
+      continue;
+    }
+    if (seen.has(o.id)) continue;
+    seen.add(o.id);
+    sanitized.push(n as Notification);
+  }
+  return sanitized;
 }
 
 function makeId(): string {

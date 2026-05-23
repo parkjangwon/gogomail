@@ -1,6 +1,12 @@
 # gogomail current status
 
-Last updated: 2026-05-23 (notification runtime id uniqueness hardening)
+Last updated: 2026-05-23 (notification storage id uniqueness hardening)
+
+## Notification Storage ID Uniqueness Hardening (2026-05-23)
+- Notification storage hydration now deduplicates repeated ids while preserving newest-first order and the 500-row retention limit.
+- This prevents localStorage or cross-tab payloads from reintroducing duplicate React keys after runtime pushes already enforce unique ids.
+- E2E coverage verifies duplicated stored ids hydrate to the newest visible notification and drop the stale copy.
+- Verification target: `pnpm -C apps/webmail exec playwright test e2e/notifications.spec.ts --project=chromium -g "deduplicates repeated identifiers during storage hydration|sanitizes cross-tab storage notification hydration|keeps runtime notification identifiers unique"`; `pnpm -C apps/webmail type-check`.
 
 ## Notification Runtime ID Uniqueness Hardening (2026-05-23)
 - Notification runtime pushes now keep notification ids unique even when callers reuse an id without `dedupe: true`.
