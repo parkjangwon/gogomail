@@ -12,6 +12,8 @@ interface SettingsNotificationsSectionProps {
   setNotifSound: (value: boolean) => void;
   notifDetail: 'sender' | 'subject' | 'preview';
   setNotifDetail: (value: 'sender' | 'subject' | 'preview') => void;
+  badgeCountMode: 'unread' | 'all' | 'none';
+  setBadgeCountMode: (value: 'unread' | 'all' | 'none') => void;
   dndEnabled: boolean;
   setDndEnabled: (value: boolean) => void;
   dndStart: string;
@@ -31,6 +33,8 @@ export function SettingsNotificationsSection({
   setNotifSound,
   notifDetail,
   setNotifDetail,
+  badgeCountMode,
+  setBadgeCountMode,
   dndEnabled,
   setDndEnabled,
   dndStart,
@@ -67,6 +71,17 @@ export function SettingsNotificationsSection({
           options={[{ value: 'sender' as const, label: t('misc.settingsNotif.detailSender') }, { value: 'subject' as const, label: t('misc.settingsNotif.detailSubject') }, { value: 'preview' as const, label: t('misc.settingsNotif.detailPreview') }]}
           value={notifDetail}
           onChange={setNotifDetail}
+        />
+      </Row>
+      <Row label={t('misc.settingsNotif.badgeLabel')} description={t('misc.settingsNotif.badgeDesc')}>
+        <Segment
+          options={[
+            { value: 'unread' as const, label: t('misc.settingsNotif.badgeUnread') },
+            { value: 'all' as const, label: t('misc.settingsNotif.badgeAll') },
+            { value: 'none' as const, label: t('misc.settingsNotif.badgeNone') },
+          ]}
+          value={badgeCountMode}
+          onChange={setBadgeCountMode}
         />
       </Row>
       <Row label={t('misc.settingsNotif.dndLabel')} description={t('misc.settingsNotif.dndDesc')}>

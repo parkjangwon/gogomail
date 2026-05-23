@@ -41,6 +41,8 @@ import { useNotifications } from '@/lib/notifications/store';
 
 const WEBMAIL_ACTIVE_APP_KEY = 'webmail_active_app';
 const NOTIFICATION_FOLDER_OVERRIDES_KEY = 'webmail_notification_folder_overrides';
+const BADGE_COUNT_MODE_KEY = 'webmail_badge_count_mode';
+type BadgeCountMode = 'unread' | 'all' | 'none';
 
 function isAppId(value: string | null): value is AppId {
   return value === 'mail' || value === 'calendar' || value === 'contacts' || value === 'drive' || value === 'settings';
@@ -68,6 +70,16 @@ function folderNotificationsEnabled(folderId: string): boolean {
     return overrides[folderId]?.enabled !== false;
   } catch {
     return true;
+  }
+}
+
+function readBadgeCountMode(): BadgeCountMode {
+  if (typeof window === 'undefined') return 'unread';
+  try {
+    const value = window.localStorage.getItem(BADGE_COUNT_MODE_KEY);
+    return value === 'all' || value === 'none' ? value : 'unread';
+  } catch {
+    return 'unread';
   }
 }
 
@@ -158,6 +170,7 @@ export default function MailPage() {
   }, []);
 
   const [activeApp, setActiveApp] = useState<AppId>(getInitialActiveApp);
+  const [badgeCountMode, setBadgeCountMode] = useState<BadgeCountMode>(readBadgeCountMode);
   const [settingsInitialSection, setSettingsInitialSection] = useState<SectionId | undefined>(undefined);
   const [showSpotlight, setShowSpotlight] = useState(false);
   const [spotlightMoveId, setSpotlightMoveId] = useState<string | null>(null);
@@ -356,10 +369,20 @@ export default function MailPage() {
     return () => { cancelled = true; };
   }, [selectedThreadId, selectedMessage?.id, selectedMessage?.subject]);
 
-  // Update document title + favicon badge with total unread count
+  useEffect(() => {
+    const onBadgeModeChange = (event: StorageEvent) => {
+      if (event.key === BADGE_COUNT_MODE_KEY) setBadgeCountMode(readBadgeCountMode());
+    };
+    window.addEventListener('storage', onBadgeModeChange);
+    return () => window.removeEventListener('storage', onBadgeModeChange);
+  }, []);
+
+  // Update document title + favicon badge according to the selected badge mode.
   useEffect(() => {
     const totalUnread = folders.reduce((sum, f) => sum + (f.unread ?? 0), 0);
-    document.title = totalUnread > 0 ? `GoGoMail (${totalUnread})` : 'GoGoMail';
+    const totalMessages = folders.reduce((sum, f) => sum + (f.total ?? 0), 0);
+    const badgeCount = badgeCountMode === 'none' ? 0 : badgeCountMode === 'all' ? totalMessages : totalUnread;
+    document.title = badgeCount > 0 ? `GoGoMail (${badgeCount})` : 'GoGoMail';
 
     // Draw favicon with optional badge on 32x32 canvas
     try {
@@ -378,8 +401,8 @@ export default function MailPage() {
       ctx.moveTo(2, 8); ctx.lineTo(16, 18); ctx.lineTo(30, 8);
       ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke();
       // Badge
-      if (totalUnread > 0) {
-        const label = totalUnread > 99 ? '99+' : String(totalUnread);
+      if (badgeCount > 0) {
+        const label = badgeCount > 99 ? '99+' : String(badgeCount);
         const badgeR = label.length > 2 ? 9 : 7;
         const bx = size - badgeR - 1, by = badgeR + 1;
         ctx.fillStyle = '#ef4444';
@@ -393,7 +416,7 @@ export default function MailPage() {
       if (!link) { link = document.createElement('link'); link.rel = 'icon'; document.head.appendChild(link); }
       link.href = canvas.toDataURL('image/png');
     } catch { /* canvas not supported */ }
-  }, [folders]);
+  }, [folders, badgeCountMode]);
 
   const [mustChangePassword, setMustChangePassword] = useState(false);
   const [sessionWarning, setSessionWarning] = useState<string | null>(null);
