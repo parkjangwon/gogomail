@@ -2752,16 +2752,19 @@ func runPushNotificationWorker(ctx context.Context, cfg config.Config, logger *s
 	if backend == "" || backend == "none" {
 		return waitForShutdown(ctx, logger, ModePushWorker)
 	}
-	sink, err := pushNotificationSinkForConfig(cfg, logger)
-	if err != nil {
-		return err
-	}
 
 	db, err := openDatabase(ctx, cfg)
 	if err != nil {
 		return err
 	}
 	defer db.Close()
+
+	repository := maildb.NewRepository(db)
+
+	sink, err := pushNotificationSinkForConfig(cfg, logger, repository)
+	if err != nil {
+		return err
+	}
 
 	redisClient := newRedisClient(cfg)
 	if err := redisClient.Ping(ctx).Err(); err != nil {
@@ -2771,8 +2774,6 @@ func runPushNotificationWorker(ctx context.Context, cfg config.Config, logger *s
 		return err
 	}
 	defer redisClient.Close()
-
-	repository := maildb.NewRepository(db)
 	pushRecorder := pushnotify.NewPostgresRecorder(db)
 	router := eventstream.NewRouter()
 	if err := router.Register(pushnotify.EventMailStored, pushnotify.NewHandler(
@@ -2814,7 +2815,7 @@ func runPushNotificationWorker(ctx context.Context, cfg config.Config, logger *s
 	return consumer.Run(ctx)
 }
 
-func pushNotificationSinkForConfig(cfg config.Config, logger *slog.Logger) (pushnotify.Sink, error) {
+func pushNotificationSinkForConfig(cfg config.Config, logger *slog.Logger, repo *maildb.Repository) (pushnotify.Sink, error) {
 	switch strings.ToLower(strings.TrimSpace(cfg.PushNotifyBackend)) {
 	case "slog":
 		return pushnotify.SlogSink{Logger: logger}, nil
@@ -2824,9 +2825,42 @@ func pushNotificationSinkForConfig(cfg config.Config, logger *slog.Logger) (push
 			Token:    cfg.PushNotifyWebhookToken,
 			Client:   webhookguard.GuardedHTTPClient(&http.Client{Timeout: cfg.PushNotifyWebhookTimeout}, webhookguard.OutboundURLGuardOptions{}),
 		})
+	case "webpush":
+		return pushnotify.NewWebPushSink(pushnotify.WebPushSinkOptions{
+			VAPIDPublicKey:  cfg.WebPushVAPIDPublicKey,
+			VAPIDPrivateKey: cfg.WebPushVAPIDPrivateKey,
+			ContactEmail:    cfg.WebPushContactEmail,
+			DB:              &webPushSubReaderAdapter{repo: repo},
+			Logger:          logger,
+		})
 	default:
 		return nil, errors.New("unsupported push notification backend")
 	}
+}
+
+type webPushSubReaderAdapter struct {
+	repo *maildb.Repository
+}
+
+func (a *webPushSubReaderAdapter) ListActiveWebPushSubscriptions(ctx context.Context, userID string) ([]pushnotify.WebPushSubData, error) {
+	subs, err := a.repo.ListActiveWebPushSubscriptions(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]pushnotify.WebPushSubData, len(subs))
+	for i, s := range subs {
+		out[i] = pushnotify.WebPushSubData{
+			ID:       s.ID,
+			Endpoint: s.Endpoint,
+			P256DH:   s.P256DH,
+			Auth:     s.Auth,
+		}
+	}
+	return out, nil
+}
+
+func (a *webPushSubReaderAdapter) SoftDeleteWebPushSubscriptionByEndpoint(ctx context.Context, endpoint string) error {
+	return a.repo.SoftDeleteWebPushSubscriptionByEndpoint(ctx, endpoint)
 }
 
 func runDeliveryWorker(ctx context.Context, cfg config.Config, logger *slog.Logger) error {

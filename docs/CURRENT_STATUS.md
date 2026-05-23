@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-23 (WebPushSink aes128gcm implementation + DB layer)
+Last updated: 2026-05-23 (webpush config validation + push worker wiring)
 
 ## Web Push Subscriptions DB Layer (2026-05-23)
 - Added `internal/maildb/web_push_subscriptions.go` with `UpsertWebPushSubscription`, `ListActiveWebPushSubscriptions`, `DeleteWebPushSubscription`, and `SoftDeleteWebPushSubscriptionByEndpoint` on `maildb.Repository`.
