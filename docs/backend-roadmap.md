@@ -6981,3 +6981,7 @@ Target outcome:
       ASCII control-character runs to single spaces before
       `registration.showNotification()`, preventing malformed closed-tab
       WebPush display text from visually splitting native notifications.
+1908. Webmail service worker push notification titles and bodies now re-check
+      blankness after control-character normalization, falling malformed
+      whitespace-only display payloads back to the default title or empty body
+      before `registration.showNotification()`.

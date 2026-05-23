@@ -836,6 +836,18 @@ test.describe('Notification center', () => {
     expect(shown?.options.tag).toBe('display-text-safe');
   });
 
+  test('service worker push falls back when display text normalizes to blank', async ({ page }) => {
+    const shown = await serviceWorkerShownNotification(page, {
+      title: '\u0000\u001f\u007f',
+      body: '\r\n\t',
+      tag: 'blank-display-safe',
+    });
+
+    expect(shown?.title).toBe('새 메일');
+    expect(shown?.options.body).toBe('');
+    expect(shown?.options.tag).toBe('blank-display-safe');
+  });
+
   test('service worker push rejects unsafe notification tags', async ({ page }) => {
     await expect(serviceWorkerShownNotification(page, { title: 'Control tag', tag: 'mail\nreceived' })).resolves.toMatchObject({
       options: { tag: 'gogomail-notification' },

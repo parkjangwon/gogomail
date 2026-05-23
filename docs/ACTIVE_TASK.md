@@ -2,19 +2,19 @@
 
 ## Current Task
 
-**TASK-WEBMAIL-NOTIFICATION-SW-TEXT-CHARS — WebPush notification display text character hardening**
+**TASK-WEBMAIL-NOTIFICATION-SW-TEXT-BLANK-FALLBACK — WebPush notification display text blank fallback hardening**
 
 ## Background
 
-The WebPush service worker now bounds title/body/tag length and rejects unsafe tag values, but notification title and body strings can still contain ASCII control characters. Closed-tab browser notifications should not display CR/LF-style payload text that can visually split or spoof native notification content.
+The WebPush service worker now normalizes control characters in notification title/body display text, but a string made only of control characters can normalize to whitespace and still reach `registration.showNotification()`. Closed-tab notifications should use the same fallback behavior after normalization that they use for initially blank strings.
 
-This task continues the notification hardening track in `docs/backend-roadmap.md` by normalizing service-worker display text before `registration.showNotification()`.
+This task continues the notification hardening track in `docs/backend-roadmap.md` by ensuring malformed display text cannot produce blank native notification titles or whitespace-only bodies.
 
 ## Scope
 
-- Add failing E2E coverage for WebPush payload titles and bodies containing control characters.
-- Normalize control characters in service-worker notification display text to spaces before length caps are applied.
-- Preserve valid title/body text, blank/malformed fallbacks, and existing length bounds.
+- Add failing E2E coverage for WebPush title/body strings that become blank after control-character normalization.
+- Apply title/body fallback checks after display-text normalization and before length caps.
+- Preserve normal text, malformed non-string fallbacks, existing length bounds, and tag handling.
 - Update `docs/CURRENT_STATUS.md` and `docs/backend-roadmap.md`.
 
 ## Completion Checklist

@@ -25,6 +25,7 @@ function safeNotificationText(value, fallback, maxLength) {
   if (typeof value !== 'string') return fallback;
   if (value.trim() === '') return fallback;
   const normalized = value.replace(UNSAFE_DISPLAY_TEXT_CHARS, ' ');
+  if (normalized.trim() === '') return fallback;
   return normalized.length > maxLength ? normalized.slice(0, maxLength) : normalized;
 }
 
