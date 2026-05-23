@@ -1,6 +1,14 @@
 # gogomail current status
 
-Last updated: 2026-05-23 (browser notification tag collision hardening)
+Last updated: 2026-05-23 (delivery exhausted push notification handler)
+
+## Delivery Exhausted Push Notification Handler (2026-05-23)
+- Added `DeliveryExhaustedHandler` in `internal/pushnotify/delivery_handler.go` that consumes `mail.delivery_exhausted` events.
+- Handler parses the event, looks up the sender's `user_id` via `GetMessageSenderUserID` on the maildb repository, and enqueues a push notification via the configured Sink.
+- If no `user_id` is found (message doesn't exist), the notification is silently skipped.
+- `GetMessageSenderUserID` added to `internal/maildb/web_push_subscriptions.go`.
+- Handler registered in `runPushNotificationWorker` alongside the existing `mail.stored` handler.
+- Verification target: `go test ./internal/pushnotify/... -run TestDeliveryExhaustedHandler -v`.
 
 ## Browser Notification Tag Collision Hardening (2026-05-23)
 - Webmail browser notification mirroring now keeps overlong native `NotificationOptions.tag` values distinct by appending a stable 8-character hash suffix after truncation.
