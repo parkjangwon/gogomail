@@ -632,6 +632,23 @@ test.describe('Notification center', () => {
     await expect(dialog).not.toContainText(/no notifications match|조건에 맞는 알림|一致する通知|没有符合/i);
   });
 
+  test('unread filtering hides categories that only contain read notifications', async ({ page }) => {
+    await pushNotification(page, { id: 'read-mail-category', title: 'Read mail category', category: 'mail_received' });
+    await pushNotification(page, { id: 'unread-system-category', title: 'Unread system category', category: 'system' });
+    await page.evaluate(() => {
+      (window as unknown as {
+        __webmailNotifications?: { markAsRead: (id: string) => void };
+      }).__webmailNotifications?.markAsRead('read-mail-category');
+    });
+
+    const { dialog } = await openCenter(page);
+    await dialog.getByRole('button', { name: /^(unread|읽지 않음|未読|未读)( \(1\))?$/i }).click();
+
+    await expect(dialog).toContainText('Unread system category');
+    await expect(dialog).not.toContainText('Read mail category');
+    await expect(dialog.getByRole('button', { name: /^(Mail|메일|メール|邮件) \(1\)$/i })).toHaveCount(0);
+  });
+
   test('dismiss removes a single item', async ({ page }) => {
     await pushNotification(page, { title: 'KeepMe' });
     await pushNotification(page, { title: 'RemoveMe' });

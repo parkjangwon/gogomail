@@ -113,9 +113,11 @@ export function NotificationCenter({ open, onClose }: NotificationCenterProps) {
 
   const categoryCounts = useMemo(() => {
     const counts = new Map<NotificationCategory, number>();
-    notifications.forEach((n) => counts.set(n.category, (counts.get(n.category) ?? 0) + 1));
+    notifications
+      .filter((n) => filter === 'all' || !n.read)
+      .forEach((n) => counts.set(n.category, (counts.get(n.category) ?? 0) + 1));
     return Array.from(counts.entries()).sort(([a], [b]) => categoryOrder(a) - categoryOrder(b));
-  }, [notifications]);
+  }, [filter, notifications]);
 
   useEffect(() => {
     if (categoryFilter === 'all') return;
