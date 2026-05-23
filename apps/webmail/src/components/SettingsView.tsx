@@ -633,7 +633,13 @@ export function SettingsView({ userEmail, userName, initialSection }: SettingsVi
               <Segment
                 options={[{ value: 30 as 30, label: t('sec30') }, { value: 60 as 60, label: t('min1') }, { value: 300 as 300, label: t('min5') }]}
                 value={refreshInterval}
-                onChange={(v) => { setRefreshInterval(v); try { localStorage.setItem('webmail_refresh_interval', String(v)); } catch { /* */ } }}
+                onChange={(v) => {
+                  setRefreshInterval(v);
+                  try {
+                    localStorage.setItem('webmail_refresh_interval', String(v));
+                    window.dispatchEvent(new StorageEvent('storage', { key: 'webmail_refresh_interval', newValue: String(v) }));
+                  } catch { /* */ }
+                }}
               />
             </Row>
             <Row label={t('groupByDate')} description={t('groupByDateDesc')}>

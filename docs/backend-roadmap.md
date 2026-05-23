@@ -6458,12 +6458,6 @@ Target outcome:
       tenant, principal, status, and export-window filters, keeping saved-batch
       discovery for billing handoff and retention checks index-friendly as
       export history grows.
-1764. Webmail notification settings now expose the existing browser
-      notification mirroring policy as a first-class Desktop alerts switch.
-      The setting persists through the same local key used by the centralized
-      notification store, dispatches same-window storage updates, and syncs in
-      the webmail preferences blob so users can disable OS-level alerts without
-      disabling the in-app notification center.
 1764. Directory alias listing now uses dynamic optional predicates for domain,
       target-kind, target-id, query, and active-status filters, avoiding broad
       optional `OR` guards on address-book alias operations as tenant directory
@@ -6774,3 +6768,15 @@ Target outcome:
       `SCAN` plus pipelined TTL/hash reads instead of the blocking `KEYS`
       command, reducing Redis keyspace risk as production farm node counts and
       adjacent gogomail keys grow.
+1852. Webmail notification settings now expose the existing browser
+      notification mirroring policy as a first-class Desktop alerts switch.
+      The setting persists through the same local key used by the centralized
+      notification store, dispatches same-window storage updates, and syncs in
+      the webmail preferences blob so users can disable OS-level alerts without
+      disabling the in-app notification center.
+1853. Webmail's Inbox auto-refresh setting now controls the actual mail
+      polling intervals. The mail page hydrates `webmail_refresh_interval`,
+      listens for same-window Settings updates, passes the value into
+      `useMailList`, and derives the visible-tab refresh timer from the same
+      setting so users can trade notification responsiveness for lower network
+      activity without reloading.

@@ -3,7 +3,9 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Folder, MessageSummary, getFolders, getMessages } from '@/lib/api';
 
-export function useMailList(folderId: string) {
+export type RefreshIntervalSeconds = 30 | 60 | 300;
+
+export function useMailList(folderId: string, refreshIntervalSeconds: RefreshIntervalSeconds) {
   const [folders, setFolders] = useState<Folder[]>([]);
   const [messages, setMessages] = useState<MessageSummary[]>([]);
   const [foldersLoading, setFoldersLoading] = useState(true);
@@ -84,7 +86,7 @@ export function useMailList(folderId: string) {
     );
   }, []);
 
-  // Poll for new messages every 30s
+  // Poll for new messages using the user's Settings interval.
   useEffect(() => {
     if (!folderId || folderId.startsWith('__')) return;
     const id = setInterval(async () => {
@@ -107,9 +109,9 @@ export function useMailList(folderId: string) {
       } catch {
         // ignore poll errors silently
       }
-    }, 30_000);
+    }, refreshIntervalSeconds * 1000);
     return () => clearInterval(id);
-  }, [folderId]);
+  }, [folderId, refreshIntervalSeconds]);
 
   const [refreshing, setRefreshing] = useState(false);
 
