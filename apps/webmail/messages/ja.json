@@ -1556,7 +1556,11 @@
       "dndLabel": "オフモード",
       "dndDesc": "指定した時間帯に通知をミュートします",
       "dndTimeLabel": "オフモードの時間帯",
-      "dndTimeDesc": "通知を抑制する開始・終了時刻"
+      "dndTimeDesc": "通知を抑制する開始・終了時刻",
+      "folderSection": "フォルダー別通知",
+      "folderDesc": "このフォルダーに未読の新着メールが届いたら通知します",
+      "folderEmpty": "表示できるフォルダーがありません",
+      "folderToggleAria": "{name} の通知"
     },
     "settingsAbout": {
       "section": "アプリ情報",

@@ -63,4 +63,29 @@ test.describe('Settings', () => {
       },
     });
   });
+
+  test('syncs per-folder notification mute to server preferences', async ({ page }) => {
+    let savedBody: Record<string, unknown> | null = null;
+    await setupAuthedPage(page, {
+      notificationPreferences: {
+        global_dnd_enabled: false,
+        global_dnd_schedule: { weekdays: [], time_ranges: [], timezone: 'Asia/Seoul' },
+        folder_overrides: {},
+        updated_at: '2026-05-23T00:00:00Z',
+      },
+      onNotificationPreferencesPut: (body) => { savedBody = body; },
+    });
+    await openSettings(page);
+    await page.getByRole('button', { name: /^(알림|Notifications)$/i }).click();
+    await page.getByRole('switch', { name: /INBOX/ }).click();
+
+    await expect.poll(() => savedBody, { timeout: 5_000 }).toMatchObject({
+      folder_overrides: {
+        'folder-inbox': {
+          enabled: false,
+          dnd_inherit: true,
+        },
+      },
+    });
+  });
 });

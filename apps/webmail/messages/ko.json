@@ -1556,7 +1556,11 @@
       "dndLabel": "방해 금지 모드",
       "dndDesc": "지정한 시간대에 알림을 무음으로 처리합니다",
       "dndTimeLabel": "방해 금지 시간대",
-      "dndTimeDesc": "알림을 억제할 시작·종료 시간"
+      "dndTimeDesc": "알림을 억제할 시작·종료 시간",
+      "folderSection": "폴더별 알림",
+      "folderDesc": "이 폴더에 새 읽지 않은 메일이 도착하면 알립니다",
+      "folderEmpty": "표시할 폴더가 없습니다",
+      "folderToggleAria": "{name} 알림"
     },
     "settingsAbout": {
       "section": "정보",

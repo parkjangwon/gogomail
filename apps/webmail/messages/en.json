@@ -1556,7 +1556,11 @@
       "dndLabel": "Do not disturb",
       "dndDesc": "Silence notifications during set hours",
       "dndTimeLabel": "Quiet hours",
-      "dndTimeDesc": "Start and end time to suppress notifications"
+      "dndTimeDesc": "Start and end time to suppress notifications",
+      "folderSection": "Folder notifications",
+      "folderDesc": "Notify when new unread mail arrives in this folder",
+      "folderEmpty": "No folders available",
+      "folderToggleAria": "Notifications for {name}"
     },
     "settingsAbout": {
       "section": "About",
