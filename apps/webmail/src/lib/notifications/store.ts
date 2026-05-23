@@ -236,6 +236,12 @@ function loadInitial(): Notification[] {
   }
 }
 
+function isSafeActionUrl(value: unknown): boolean {
+  if (value === undefined) return true;
+  if (typeof value !== 'string') return false;
+  return value.startsWith('/') && !value.startsWith('//');
+}
+
 function sanitizeNotifications(input: unknown): Notification[] {
   if (!Array.isArray(input)) return [];
   return input
@@ -251,6 +257,7 @@ function sanitizeNotifications(input: unknown): Notification[] {
         && typeof o.severity === 'string'
         && VALID_SEVERITIES.has(o.severity as NotificationSeverity)
         && (o.body === undefined || typeof o.body === 'string')
+        && isSafeActionUrl(o.actionUrl)
         && typeof o.timestamp === 'number'
         && Number.isFinite(o.timestamp)
         && typeof o.read === 'boolean';

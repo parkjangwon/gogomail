@@ -1,6 +1,12 @@
 # gogomail current status
 
-Last updated: 2026-05-23 (notification body hydration hardening)
+Last updated: 2026-05-23 (notification action URL hydration hardening)
+
+## Notification Action URL Hydration Hardening (2026-05-23)
+- Notification storage hydration now rejects records with non-string or unsafe `actionUrl` values.
+- This keeps corrupted persisted records from sending notification clicks through non-app, protocol-relative, or script-like URLs.
+- E2E coverage verifies object, `javascript:`, and protocol-relative action URLs are dropped while a relative app URL remains.
+- Verification target: `pnpm -C apps/webmail exec playwright test e2e/notifications.spec.ts --project=chromium -g "unsafe action URLs"`; `pnpm -C apps/webmail type-check`.
 
 ## Notification Body Hydration Hardening (2026-05-23)
 - Notification storage hydration now rejects records whose optional `body` field is not a string.
