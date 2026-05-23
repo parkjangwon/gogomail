@@ -44,6 +44,10 @@ const NOTIFICATION_FOLDER_OVERRIDES_KEY = 'webmail_notification_folder_overrides
 const BADGE_COUNT_MODE_KEY = 'webmail_badge_count_mode';
 const REFRESH_INTERVAL_KEY = 'webmail_refresh_interval';
 type BadgeCountMode = 'unread' | 'all' | 'none';
+type NavigatorWithBadging = Navigator & {
+  setAppBadge?: (contents?: number) => Promise<void>;
+  clearAppBadge?: () => Promise<void>;
+};
 
 function isAppId(value: string | null): value is AppId {
   return value === 'mail' || value === 'calendar' || value === 'contacts' || value === 'drive' || value === 'settings';
@@ -403,6 +407,12 @@ export default function MailPage() {
     const totalMessages = folders.reduce((sum, f) => sum + (f.total ?? 0), 0);
     const badgeCount = badgeCountMode === 'none' ? 0 : badgeCountMode === 'all' ? totalMessages : totalUnread;
     document.title = badgeCount > 0 ? `GoGoMail (${badgeCount})` : 'GoGoMail';
+    const badging = navigator as NavigatorWithBadging;
+    if (badgeCount > 0 && typeof badging.setAppBadge === 'function') {
+      void badging.setAppBadge(badgeCount).catch(() => {});
+    } else if (badgeCount === 0 && typeof badging.clearAppBadge === 'function') {
+      void badging.clearAppBadge().catch(() => {});
+    }
 
     // Draw favicon with optional badge on 32x32 canvas
     try {

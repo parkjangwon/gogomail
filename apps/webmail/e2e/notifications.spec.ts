@@ -303,6 +303,43 @@ test.describe('Notification center', () => {
 });
 
 test.describe('Mail arrival notifications', () => {
+  test('mirrors badge count mode to the native Badging API when available', async ({ page }) => {
+    await page.addInitScript(() => {
+      const calls: Array<{ method: string; count?: number }> = [];
+      (window as unknown as { __badgeCalls: typeof calls }).__badgeCalls = calls;
+      Object.defineProperty(navigator, 'setAppBadge', {
+        configurable: true,
+        value: (count?: number) => {
+          calls.push({ method: 'setAppBadge', count });
+          return Promise.resolve();
+        },
+      });
+      Object.defineProperty(navigator, 'clearAppBadge', {
+        configurable: true,
+        value: () => {
+          calls.push({ method: 'clearAppBadge' });
+          return Promise.resolve();
+        },
+      });
+    });
+    await setupAuthedPage(page);
+
+    await expect.poll(
+      () => page.evaluate(() => (window as unknown as { __badgeCalls: Array<{ method: string; count?: number }> }).__badgeCalls),
+      { timeout: 5_000 },
+    ).toContainEqual({ method: 'setAppBadge', count: 2 });
+
+    await page.evaluate(() => {
+      localStorage.setItem('webmail_badge_count_mode', 'none');
+      window.dispatchEvent(new StorageEvent('storage', { key: 'webmail_badge_count_mode', newValue: 'none' }));
+    });
+
+    await expect.poll(
+      () => page.evaluate(() => (window as unknown as { __badgeCalls: Array<{ method: string; count?: number }> }).__badgeCalls),
+      { timeout: 5_000 },
+    ).toContainEqual({ method: 'clearAppBadge' });
+  });
+
   test('respects badge count mode none in document title', async ({ page }) => {
     await page.addInitScript(() => {
       localStorage.setItem('webmail_badge_count_mode', 'none');
