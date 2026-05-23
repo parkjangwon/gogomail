@@ -52,6 +52,11 @@ export function NotificationCenter({ open, onClose }: NotificationCenterProps) {
     await browser.request();
   }, [browser]);
 
+  const handleMarkAllRead = useCallback(() => {
+    markAllRead();
+    setFilter('all');
+  }, [markAllRead]);
+
   // Close on Escape
   useEffect(() => {
     if (!open) return;
@@ -295,7 +300,7 @@ export function NotificationCenter({ open, onClose }: NotificationCenterProps) {
         <div style={{ flex: 1 }} />
         <button
           type="button"
-          onClick={markAllRead}
+          onClick={handleMarkAllRead}
           disabled={unreadCount === 0}
           style={miniButtonStyle(unreadCount === 0)}
         >
