@@ -98,6 +98,33 @@ test.describe('Notification center', () => {
     await expect(dialog).not.toContainText('Second copy');
   });
 
+  test('deduplicates browser notification mirroring by id', async ({ page }) => {
+    await page.addInitScript(() => {
+      try {
+        Object.defineProperty(window.Notification, 'permission', { value: 'granted', configurable: true });
+      } catch {
+        // ignore
+      }
+      localStorage.setItem('webmail_browser_notifications_enabled', 'true');
+      (window as unknown as { __notificationsCreated: number }).__notificationsCreated = 0;
+      const Orig = window.Notification;
+      window.Notification = new Proxy(Orig, {
+        construct(target, args) {
+          (window as unknown as { __notificationsCreated: number }).__notificationsCreated++;
+          return new (target as unknown as new (...a: unknown[]) => Notification)(...args);
+        },
+      }) as typeof window.Notification;
+    });
+    await setupAuthedPage(page);
+
+    await pushNotification(page, { id: 'dedupe-browser-1', title: 'First urgent copy', category: 'system', severity: 'error', dedupe: true });
+    await pushNotification(page, { id: 'dedupe-browser-1', title: 'Duplicate urgent copy', category: 'system', severity: 'error', dedupe: true });
+
+    await expect.poll(
+      () => page.evaluate(() => (window as unknown as { __notificationsCreated: number }).__notificationsCreated),
+    ).toBe(1);
+  });
+
   test('search and category filters narrow a busy notification list', async ({ page }) => {
     await pushNotification(page, { title: 'Quarterly report uploaded', body: 'Drive file is ready', category: 'drive_share' });
     await pushNotification(page, { title: 'Deployment finished', body: 'System job succeeded', category: 'system' });

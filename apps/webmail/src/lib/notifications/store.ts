@@ -251,6 +251,11 @@ const NotificationsContext = createContext<NotificationsContextValue | null>(nul
 export function NotificationProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(reducer, undefined, () => ({ notifications: loadInitial() }));
   const hydratedRef = useRef(false);
+  const notificationsByIDRef = useRef(new Map(state.notifications.map((n) => [n.id, n])));
+
+  useEffect(() => {
+    notificationsByIDRef.current = new Map(state.notifications.map((n) => [n.id, n]));
+  }, [state.notifications]);
 
   // Persist to localStorage (debounce-free; the reducer is cheap and writes are small)
   useEffect(() => {
@@ -283,6 +288,10 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
 
   const push = useCallback<NotificationsContextValue['push']>((input) => {
     const id = input.id ?? makeId();
+    const existing = notificationsByIDRef.current.get(id);
+    if (input.dedupe && existing) {
+      return existing;
+    }
     const notification: Notification = {
       id,
       category: input.category,
@@ -295,6 +304,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
       iconName: input.iconName,
       metadata: input.metadata,
     };
+    notificationsByIDRef.current.set(id, notification);
     dispatch({ type: 'push', notification, dedupe: input.dedupe });
     playNotificationSound();
     // Mirror to OS-level browser notification (gated by permission + toggle).
@@ -302,10 +312,25 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     return notification;
   }, []);
 
-  const markAsRead = useCallback((id: string) => dispatch({ type: 'markRead', id }), []);
-  const markAllRead = useCallback(() => dispatch({ type: 'markAllRead' }), []);
-  const dismiss = useCallback((id: string) => dispatch({ type: 'dismiss', id }), []);
-  const clearAll = useCallback(() => dispatch({ type: 'clearAll' }), []);
+  const markAsRead = useCallback((id: string) => {
+    const current = notificationsByIDRef.current.get(id);
+    if (current) notificationsByIDRef.current.set(id, { ...current, read: true });
+    dispatch({ type: 'markRead', id });
+  }, []);
+  const markAllRead = useCallback(() => {
+    notificationsByIDRef.current = new Map(
+      Array.from(notificationsByIDRef.current.entries()).map(([id, n]) => [id, n.read ? n : { ...n, read: true }]),
+    );
+    dispatch({ type: 'markAllRead' });
+  }, []);
+  const dismiss = useCallback((id: string) => {
+    notificationsByIDRef.current.delete(id);
+    dispatch({ type: 'dismiss', id });
+  }, []);
+  const clearAll = useCallback(() => {
+    notificationsByIDRef.current.clear();
+    dispatch({ type: 'clearAll' });
+  }, []);
 
   const value = useMemo<NotificationsContextValue>(() => {
     const unreadCount = state.notifications.reduce((acc, n) => acc + (n.read ? 0 : 1), 0);
