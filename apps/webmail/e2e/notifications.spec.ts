@@ -20,6 +20,11 @@ async function pushNotification(
   page: Page,
   data: { id?: string; title: string; body?: string; category?: string; severity?: string; actionUrl?: string; dedupe?: boolean },
 ) {
+  await expect.poll(
+    () => page.evaluate(() => Boolean((window as unknown as { __webmailNotifications?: unknown }).__webmailNotifications)),
+    { timeout: 5_000 },
+  ).toBe(true);
+
   await page.evaluate((d) => {
     const w = window as unknown as {
       __webmailNotifications?: {
@@ -388,6 +393,25 @@ test.describe('Notification center', () => {
     await dialog.getByRole('button', { name: /Mail|메일|メール|邮件/i }).click();
     await expect(dialog).toContainText('Inbox delivery');
     await expect(dialog).not.toContainText('Deployment finished');
+  });
+
+  test('clears stale search when the notification center is reopened', async ({ page }) => {
+    await pushNotification(page, { title: 'Old deploy notice' });
+
+    const { bell, dialog } = await openCenter(page);
+    const search = dialog.getByPlaceholder(/Search notifications|알림 검색|通知を検索|搜索通知/i);
+    await search.fill('deploy');
+    await page.keyboard.press('Escape');
+    await expect(dialog).not.toBeVisible();
+    await expect(bell).toBeFocused();
+
+    await pushNotification(page, { title: 'Fresh billing notice' });
+    await bell.click();
+
+    await expect(search).toBeFocused();
+    await expect(search).toHaveValue('');
+    await expect(dialog).toContainText('Fresh billing notice');
+    await expect(dialog).toContainText('Old deploy notice');
   });
 
   test('clears a selected category filter when its last notification is dismissed', async ({ page }) => {

@@ -6862,3 +6862,6 @@ Target outcome:
       unread state reaches zero, covering both mark-all-read and direct opening
       of the last unread item so read notifications are not hidden behind a
       stale empty unread-filter view.
+1876. Webmail notification search now clears on panel reopen, preventing stale
+      search text from hiding fresh notifications after users close and later
+      return to the notification center.
