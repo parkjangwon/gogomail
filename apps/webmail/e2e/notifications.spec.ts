@@ -291,6 +291,51 @@ test.describe('Notification center', () => {
     ]);
   });
 
+  test('normalizes malformed runtime notification fields before rendering', async ({ page }) => {
+    await page.evaluate(() => {
+      const w = window as unknown as {
+        __webmailNotifications?: { push: (input: Record<string, unknown>) => unknown };
+      };
+      w.__webmailNotifications?.push({
+        id: { nested: 'bad-id' },
+        category: 'unsupported-category',
+        severity: 'critical',
+        title: '   ',
+        body: { text: 'object body' },
+      });
+    });
+
+    await expect.poll(
+      () => page.evaluate(() => {
+        const notification = (window as unknown as {
+          __webmailNotifications?: {
+            notifications: Array<{ id: unknown; category: unknown; severity: unknown; title: unknown; body?: unknown }>;
+          };
+        }).__webmailNotifications?.notifications[0];
+        return notification
+          ? {
+              idType: typeof notification.id,
+              category: notification.category,
+              severity: notification.severity,
+              title: notification.title,
+              body: notification.body ?? null,
+            }
+          : null;
+      }),
+      { timeout: 5_000 },
+    ).toEqual({
+      idType: 'string',
+      category: 'system',
+      severity: 'info',
+      title: 'Notification',
+      body: null,
+    });
+
+    const { dialog } = await openCenter(page);
+    await expect(dialog).toContainText('Notification');
+    await expect(dialog).not.toContainText('object body');
+  });
+
   test('deduplicates repeated event notifications by id', async ({ page }) => {
     await pushNotification(page, { id: 'mail-42', title: 'First copy', body: 'original body', category: 'mail_received', dedupe: true });
     await pushNotification(page, { id: 'mail-42', title: 'Second copy', body: 'duplicate body', category: 'mail_received', dedupe: true });

@@ -1,6 +1,13 @@
 # gogomail current status
 
-Last updated: 2026-05-23 (notification runtime action URL hardening)
+Last updated: 2026-05-23 (notification runtime shape hardening)
+
+## Notification Runtime Shape Hardening (2026-05-23)
+- Notification creation now normalizes malformed runtime fields before they reach rendering or filter controls.
+- Invalid ids are replaced with generated ids, unsupported categories/severities fall back to `system`/`info`, blank titles fall back to `Notification`, and non-string bodies are dropped.
+- This prevents future server-driven or app-code notification events from causing missing localized category labels or React child render errors.
+- E2E coverage verifies malformed runtime fields normalize to safe values and do not render object bodies.
+- Verification target: `pnpm -C apps/webmail exec playwright test e2e/notifications.spec.ts --project=chromium -g "malformed runtime notification"`; `pnpm -C apps/webmail type-check`.
 
 ## Notification Runtime Action URL Hardening (2026-05-23)
 - Notification creation now drops unsafe `actionUrl` values before they reach in-app rows, persisted state, or browser notification click data.

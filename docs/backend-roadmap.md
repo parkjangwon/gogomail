@@ -6850,3 +6850,7 @@ Target outcome:
       they reach in-app rows, persisted notification state, or browser
       notification click data, keeping future server-driven events constrained
       to relative app routes.
+1873. Webmail notification creation now normalizes malformed runtime ids,
+      categories, severities, titles, and bodies before rendering, preventing
+      future server-driven events from causing missing localized filter labels
+      or React child render errors.
