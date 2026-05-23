@@ -49,6 +49,7 @@ const MAX_NOTIFICATIONS = 500;
 const MAX_ID_LENGTH = 128;
 const MAX_TITLE_LENGTH = 160;
 const MAX_BODY_LENGTH = 500;
+const MAX_ACTION_URL_LENGTH = 2048;
 const MAX_ICON_NAME_LENGTH = 64;
 const MAX_STORED_AGE_MS = 90 * 24 * 60 * 60 * 1000;
 const MAX_STORED_FUTURE_SKEW_MS = 24 * 60 * 60 * 1000;
@@ -256,6 +257,7 @@ function isSafeActionUrl(value: unknown): boolean {
   if (typeof value !== 'string') return false;
   return value.startsWith('/')
     && !value.startsWith('//')
+    && value.length <= MAX_ACTION_URL_LENGTH
     && !UNSAFE_ACTION_URL_CHARS.test(value);
 }
 

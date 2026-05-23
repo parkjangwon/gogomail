@@ -686,6 +686,68 @@ test.describe('Notification center', () => {
     ]);
   });
 
+  test('drops oversized action URLs during runtime pushes and storage hydration', async ({ page }) => {
+    await page.evaluate(() => {
+      const longActionUrl = `/mail?token=${'a'.repeat(2_100)}`;
+      const raw = JSON.stringify([
+        {
+          id: 'stored-long-action',
+          category: 'system',
+          severity: 'info',
+          title: 'Stored long action',
+          actionUrl: longActionUrl,
+          timestamp: Date.now(),
+          read: false,
+        },
+        {
+          id: 'stored-safe-action',
+          category: 'system',
+          severity: 'info',
+          title: 'Stored safe action',
+          actionUrl: '/mail?from=stored-safe',
+          timestamp: Date.now(),
+          read: false,
+        },
+      ]);
+      localStorage.setItem('webmail_notifications', raw);
+      window.dispatchEvent(new StorageEvent('storage', { key: 'webmail_notifications', newValue: raw }));
+
+      const w = window as unknown as {
+        __webmailNotifications?: { push: (input: Record<string, unknown>) => unknown };
+      };
+      w.__webmailNotifications?.push({
+        id: 'runtime-long-action',
+        category: 'system',
+        severity: 'info',
+        title: 'Runtime long action',
+        actionUrl: longActionUrl,
+      });
+      w.__webmailNotifications?.push({
+        id: 'runtime-safe-action',
+        category: 'system',
+        severity: 'info',
+        title: 'Runtime safe action',
+        actionUrl: '/mail?from=runtime-safe',
+      });
+    });
+
+    await expect.poll(
+      () => page.evaluate(() => {
+        const notifications = (window as unknown as {
+          __webmailNotifications?: { notifications: Array<{ id: string; actionUrl?: string }> };
+        }).__webmailNotifications?.notifications ?? [];
+        return notifications
+          .filter((n) => n.id.endsWith('-action'))
+          .map((n) => [n.id, n.actionUrl ?? null]);
+      }),
+      { timeout: 5_000 },
+    ).toEqual([
+      ['runtime-safe-action', '/mail?from=runtime-safe'],
+      ['runtime-long-action', null],
+      ['stored-safe-action', '/mail?from=stored-safe'],
+    ]);
+  });
+
   test('service worker notification clicks fall back for unsafe target URLs', async ({ page }) => {
     await expect(serviceWorkerOpenedUrls(page, { url: 'https://evil.example/phish' })).resolves.toEqual(['/mail']);
     await expect(serviceWorkerOpenedUrls(page, { url: '//evil.example/phish' })).resolves.toEqual(['/mail']);

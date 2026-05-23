@@ -1,6 +1,14 @@
 # gogomail current status
 
-Last updated: 2026-05-23 (notification identifier character hardening)
+Last updated: 2026-05-23 (notification action URL length hardening)
+
+## Notification Action URL Length Hardening (2026-05-23)
+- Notification action URLs are now capped at 2048 characters before storage hydration, runtime state, localStorage persistence, or click handling.
+- Oversized relative action URLs are dropped from runtime notifications, while stored notifications with oversized action URLs are rejected during hydration under the existing unsafe-action policy.
+- Normal safe relative URLs continue to work for runtime and stored notifications.
+- This prevents malformed notification events from bloating stored notification payloads or browser click state.
+- E2E coverage verifies oversized stored/runtime action URLs are removed while safe action URLs remain available.
+- Verification target: `pnpm -C apps/webmail exec playwright test e2e/notifications.spec.ts --project=chromium -g "drops oversized action URLs|drops unsafe action URLs|rejects unsafe action URLs"`; `pnpm -C apps/webmail type-check`.
 
 ## Notification Identifier Character Hardening (2026-05-23)
 - Notification ids now reject control characters and backslashes before storage, dedupe maps, or browser notification tag use.
