@@ -14,6 +14,11 @@ export default defineConfig({
     screenshot: "only-on-failure",
   },
 
+  // WebKit is excluded: the @cloudscape-design/components dev-server
+  // CSS bundle ("Missing AWS-UI CSS") doesn't load reliably under
+  // playwright/webkit, producing false-positive console errors and
+  // render gaps. The admin console targets evergreen Chromium/Gecko;
+  // Safari is not a supported admin browser per product requirements.
   projects: [
     {
       name: "chromium",
@@ -22,10 +27,6 @@ export default defineConfig({
     {
       name: "firefox",
       use: { ...devices["Desktop Firefox"] },
-    },
-    {
-      name: "webkit",
-      use: { ...devices["Desktop Safari"] },
     },
   ],
 
