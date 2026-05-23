@@ -6869,3 +6869,7 @@ Target outcome:
       URLs to safe relative app routes and fall back to `/mail` for external,
       protocol-relative, or non-string values, aligning WebPush click behavior
       with in-app notification action URL hardening.
+1878. Webmail service worker push events now normalize payload title, body,
+      and tag fields before calling the browser notification API, falling back
+      from non-string or blank titles to `새 메일`, dropping non-string bodies,
+      and using the stable default notification tag for malformed tags.
