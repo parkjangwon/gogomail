@@ -272,6 +272,25 @@ test.describe('Notification center', () => {
     await expect(dialog).not.toContainText('Bad action host');
   });
 
+  test('drops unsafe action URLs when notifications are pushed', async ({ page }) => {
+    await pushNotification(page, { id: 'runtime-bad-action', title: 'Runtime unsafe action', actionUrl: 'javascript:alert(1)' });
+    await pushNotification(page, { id: 'runtime-good-action', title: 'Runtime safe action', actionUrl: '/mail?from=runtime' });
+
+    await expect.poll(
+      () => page.evaluate(() => {
+        const notifications = (window as unknown as { __webmailNotifications?: { notifications: Array<{ id: string; actionUrl?: string }> } })
+          .__webmailNotifications?.notifications ?? [];
+        return notifications
+          .filter((n) => n.id.startsWith('runtime-'))
+          .map((n) => [n.id, n.actionUrl ?? null]);
+      }),
+      { timeout: 5_000 },
+    ).toEqual([
+      ['runtime-good-action', '/mail?from=runtime'],
+      ['runtime-bad-action', null],
+    ]);
+  });
+
   test('deduplicates repeated event notifications by id', async ({ page }) => {
     await pushNotification(page, { id: 'mail-42', title: 'First copy', body: 'original body', category: 'mail_received', dedupe: true });
     await pushNotification(page, { id: 'mail-42', title: 'Second copy', body: 'duplicate body', category: 'mail_received', dedupe: true });

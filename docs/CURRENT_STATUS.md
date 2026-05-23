@@ -1,6 +1,12 @@
 # gogomail current status
 
-Last updated: 2026-05-23 (notification action URL hydration hardening)
+Last updated: 2026-05-23 (notification runtime action URL hardening)
+
+## Notification Runtime Action URL Hardening (2026-05-23)
+- Notification creation now drops unsafe `actionUrl` values before they reach in-app rows, persisted state, or browser notification click data.
+- This extends the storage-hydration URL guard to live notifications pushed by app code or future server-driven events.
+- E2E coverage verifies a `javascript:` runtime action URL is removed while a relative app URL remains available.
+- Verification target: `pnpm -C apps/webmail exec playwright test e2e/notifications.spec.ts --project=chromium -g "unsafe action URLs when notifications are pushed"`; `pnpm -C apps/webmail type-check`.
 
 ## Notification Action URL Hydration Hardening (2026-05-23)
 - Notification storage hydration now rejects records with non-string or unsafe `actionUrl` values.

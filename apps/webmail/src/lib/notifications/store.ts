@@ -242,6 +242,10 @@ function isSafeActionUrl(value: unknown): boolean {
   return value.startsWith('/') && !value.startsWith('//');
 }
 
+function safeActionUrl(value: unknown): string | undefined {
+  return isSafeActionUrl(value) && typeof value === 'string' ? value : undefined;
+}
+
 function sanitizeNotifications(input: unknown): Notification[] {
   if (!Array.isArray(input)) return [];
   return input
@@ -333,7 +337,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
       body: input.body,
       timestamp: Date.now(),
       read: false,
-      actionUrl: input.actionUrl,
+      actionUrl: safeActionUrl(input.actionUrl),
       iconName: input.iconName,
       metadata: input.metadata,
     };

@@ -6846,3 +6846,7 @@ Target outcome:
       action URLs, keeping persisted notification clicks constrained to
       relative app routes and preventing protocol-relative or script-like
       corrupted payloads from entering the notification center.
+1872. Webmail notification creation now drops unsafe runtime action URLs before
+      they reach in-app rows, persisted notification state, or browser
+      notification click data, keeping future server-driven events constrained
+      to relative app routes.
