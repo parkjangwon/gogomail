@@ -50,6 +50,7 @@ type adminRouteConfig struct {
 	dlqReader           eventstream.DLQReader
 	systemEmailSender   mailservice.SystemEmailSender
 	publicBaseURL       string
+	bgTracker           *BackgroundTracker
 }
 
 // AdminRouteOption configures optional capabilities for RegisterAdminRoutes.
@@ -104,6 +105,13 @@ func WithSystemEmailSender(sender mailservice.SystemEmailSender, publicBaseURL s
 		cfg.systemEmailSender = sender
 		cfg.publicBaseURL = strings.TrimRight(strings.TrimSpace(publicBaseURL), "/")
 	}
+}
+
+// WithBackgroundTracker wires a BackgroundTracker that the admin handlers use
+// to track fire-and-forget goroutines (invite/welcome email sends). Without it
+// such goroutines run unsupervised and may be dropped on graceful shutdown.
+func WithBackgroundTracker(t *BackgroundTracker) AdminRouteOption {
+	return func(cfg *adminRouteConfig) { cfg.bgTracker = t }
 }
 
 type adminContextKey struct{}
@@ -6348,9 +6356,7 @@ func sendInviteEmailAsync(ctx context.Context, cfg adminRouteConfig, service Adm
 	if cfg.systemEmailSender == nil || cfg.publicBaseURL == "" {
 		return
 	}
-	go func() {
-		emailCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
+	work := func(emailCtx context.Context) {
 		email, err := userPrimaryEmail(emailCtx, service, userID)
 		if err != nil {
 			slog.WarnContext(ctx, "send invite email lookup failed", "error", err)
@@ -6360,6 +6366,15 @@ func sendInviteEmailAsync(ctx context.Context, cfg adminRouteConfig, service Adm
 		if err := cfg.systemEmailSender.SendInvite(emailCtx, email, inviteURL); err != nil {
 			slog.WarnContext(ctx, "send invite email failed", "error", err)
 		}
+	}
+	if cfg.bgTracker != nil {
+		cfg.bgTracker.Track(ctx, 10*time.Second, work)
+		return
+	}
+	go func() {
+		emailCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		work(emailCtx)
 	}()
 }
 
@@ -6367,9 +6382,7 @@ func sendWelcomeEmailAsync(ctx context.Context, cfg adminRouteConfig, service Ad
 	if cfg.systemEmailSender == nil {
 		return
 	}
-	go func() {
-		emailCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
+	work := func(emailCtx context.Context) {
 		email, err := userEmailFromView(emailCtx, service, user)
 		if err != nil {
 			slog.WarnContext(ctx, "send welcome email lookup failed", "error", err)
@@ -6378,6 +6391,15 @@ func sendWelcomeEmailAsync(ctx context.Context, cfg adminRouteConfig, service Ad
 		if err := cfg.systemEmailSender.SendWelcome(emailCtx, email, user.DisplayName); err != nil {
 			slog.WarnContext(ctx, "send welcome email failed", "error", err)
 		}
+	}
+	if cfg.bgTracker != nil {
+		cfg.bgTracker.Track(ctx, 10*time.Second, work)
+		return
+	}
+	go func() {
+		emailCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		work(emailCtx)
 	}()
 }
 

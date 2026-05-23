@@ -87,8 +87,13 @@ func RegisterPasswordResetRoutes(
 	store PasswordResetStore,
 	emailSender mailservice.SystemEmailSender,
 	baseURL string,
+	trackers ...*BackgroundTracker,
 ) {
 	baseURL = strings.TrimRight(baseURL, "/")
+	var tracker *BackgroundTracker
+	if len(trackers) > 0 {
+		tracker = trackers[0]
+	}
 	// 5 requests per IP per 15 minutes to prevent token exhaustion attacks.
 	limiter := NewAdminIPRateLimiter(5, 15*time.Minute)
 
@@ -121,14 +126,23 @@ func RegisterPasswordResetRoutes(
 		// timing-uniform (no enumeration via response latency). Use a bounded
 		// background context so client disconnects do not interrupt token
 		// persistence or best-effort email dispatch after the request is
-		// accepted.
-		go func() {
-			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-			defer cancel()
-			if err := issuePasswordResetToken(ctx, store, emailSender, baseURL, req.Email); err != nil {
+		// accepted. When a BackgroundTracker is wired in, graceful shutdown
+		// waits for the goroutine to finish.
+		email := req.Email
+		work := func(workCtx context.Context) {
+			if err := issuePasswordResetToken(workCtx, store, emailSender, baseURL, email); err != nil {
 				slog.Info("password reset token issue failed", "err", err)
 			}
-		}()
+		}
+		if tracker != nil {
+			tracker.Track(r.Context(), 30*time.Second, work)
+		} else {
+			go func() {
+				workCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+				defer cancel()
+				work(workCtx)
+			}()
+		}
 
 		writeJSON(w, http.StatusOK, map[string]any{"status": "ok"})
 	})

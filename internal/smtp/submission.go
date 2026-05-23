@@ -85,6 +85,20 @@ type SubmissionReceiver struct {
 	idGenerator        IDGenerator
 	clock              func() time.Time
 	bulkSenderLimiter  *BulkSenderLimiter
+	// baseCtx is the parent context for all sessions created by NewSession.
+	// When set via SetBaseContext (e.g. wired to the server's shutdown ctx),
+	// in-flight session work is cancelled when the server starts shutting down.
+	baseCtx context.Context
+}
+
+// SetBaseContext sets the parent context for all subsequently-created sessions.
+// Pass the server's lifecycle/shutdown context so in-flight sessions are
+// notified when the server begins shutting down.
+func (r *SubmissionReceiver) SetBaseContext(ctx context.Context) {
+	if ctx == nil {
+		return
+	}
+	r.baseCtx = ctx
 }
 
 func NewSubmissionReceiver(opts SubmissionOptions) *SubmissionReceiver {
@@ -122,11 +136,18 @@ func (r *SubmissionReceiver) NewSession(conn *gosmtp.Conn) (gosmtp.Session, erro
 	if r.recorder == nil {
 		return nil, fmt.Errorf("submission recorder is required")
 	}
-	return &submissionSession{receiver: r, remoteAddr: remoteAddrFromConn(conn)}, nil
+	parent := r.baseCtx
+	if parent == nil {
+		parent = context.Background()
+	}
+	ctx, cancel := context.WithCancel(parent)
+	return &submissionSession{receiver: r, remoteAddr: remoteAddrFromConn(conn), ctx: ctx, cancel: cancel}, nil
 }
 
 type submissionSession struct {
 	receiver           *SubmissionReceiver
+	ctx                context.Context
+	cancel             context.CancelFunc
 	user               SubmissionUser
 	from               string
 	recipients         []string
@@ -151,13 +172,13 @@ func (s *submissionSession) Auth(mech string) (sasl.Server, error) {
 	return sasl.NewPlainServer(func(identity, username, password string) error {
 		var authErr error
 		defer func() {
-			s.observe(context.Background(), MetricEvent{
+			s.observe(s.ctx, MetricEvent{
 				Stage:  StageAuthenticated,
 				Result: metricResult(authErr),
 				Error:  metricError(authErr),
 			})
 		}()
-		user, err := s.receiver.authenticator.AuthenticatePlain(context.Background(), identity, username, password)
+		user, err := s.receiver.authenticator.AuthenticatePlain(s.ctx, identity, username, password)
 		if err != nil {
 			authErr = gosmtp.ErrAuthFailed
 			return gosmtp.ErrAuthFailed
@@ -166,7 +187,7 @@ func (s *submissionSession) Auth(mech string) (sasl.Server, error) {
 			authErr = gosmtp.ErrAuthFailed
 			return gosmtp.ErrAuthFailed
 		}
-		if err := s.emit(context.Background(), Event{
+		if err := s.emit(s.ctx, Event{
 			Stage:          StageAuthenticated,
 			SubmissionUser: user,
 		}); err != nil {
@@ -181,7 +202,7 @@ func (s *submissionSession) Auth(mech string) (sasl.Server, error) {
 
 func (s *submissionSession) Mail(from string, opts *gosmtp.MailOptions) (err error) {
 	defer func() {
-		s.observe(context.Background(), MetricEvent{
+		s.observe(s.ctx, MetricEvent{
 			Stage:        StageMailFrom,
 			Result:       metricResult(err),
 			EnvelopeFrom: from,
@@ -222,7 +243,7 @@ func (s *submissionSession) Mail(from string, opts *gosmtp.MailOptions) (err err
 	s.smtpUTF8 = mailOptionsUTF8(opts)
 	s.dsn.Return = normalizeDSNReturn(opts)
 	s.dsn.EnvelopeID = normalizeDSNEnvelopeID(opts)
-	if err := s.emit(context.Background(), Event{
+	if err := s.emit(s.ctx, Event{
 		Stage:          StageMailFrom,
 		EnvelopeFrom:   s.from,
 		SubmissionUser: s.user,
@@ -247,7 +268,7 @@ func submissionSenderAllowed(address string, user SubmissionUser) bool {
 
 func (s *submissionSession) Rcpt(to string, opts *gosmtp.RcptOptions) (err error) {
 	defer func() {
-		s.observe(context.Background(), MetricEvent{
+		s.observe(s.ctx, MetricEvent{
 			Stage:        StageRcpt,
 			Result:       metricResult(err),
 			EnvelopeFrom: s.from,
@@ -264,7 +285,7 @@ func (s *submissionSession) Rcpt(to string, opts *gosmtp.RcptOptions) (err error
 	if err := validateRcptOptions(opts, extensionSupport{DSN: s.receiver.supportDSN}); err != nil {
 		return err
 	}
-	maxRecipients := effectiveMaxRecipients(s.receiver.policy.MaxRecipientsPerMessage, s.currentDomainPolicy(context.Background()))
+	maxRecipients := effectiveMaxRecipients(s.receiver.policy.MaxRecipientsPerMessage, s.currentDomainPolicy(s.ctx))
 	if len(s.recipients) >= maxRecipients {
 		return smtpTooManyRecipients(maxRecipients)
 	}
@@ -277,7 +298,7 @@ func (s *submissionSession) Rcpt(to string, opts *gosmtp.RcptOptions) (err error
 	}
 	s.recipients = append(s.recipients, normalized)
 	s.dsn.Recipients = upsertDSNRecipientOption(s.dsn.Recipients, normalizeDSNRecipientOptions(normalized, opts))
-	if err := s.emit(context.Background(), Event{
+	if err := s.emit(s.ctx, Event{
 		Stage:          StageRcpt,
 		EnvelopeFrom:   s.from,
 		SubmissionUser: s.user,
@@ -294,7 +315,7 @@ func (s *submissionSession) Data(r io.Reader) (err error) {
 	recipients := append([]string(nil), s.recipients...)
 	var observedSize int64
 	defer func() {
-		s.observe(context.Background(), MetricEvent{
+		s.observe(s.ctx, MetricEvent{
 			Stage:        StageRecorded,
 			Result:       metricResult(err),
 			EnvelopeFrom: envelopeFrom,
@@ -317,12 +338,12 @@ func (s *submissionSession) Data(r io.Reader) (err error) {
 	defer s.Reset()
 
 	// Apply per-domain recipient cap against what was already collected.
-	maxRecipients := effectiveMaxRecipients(s.receiver.policy.MaxRecipientsPerMessage, s.currentDomainPolicy(context.Background()))
+	maxRecipients := effectiveMaxRecipients(s.receiver.policy.MaxRecipientsPerMessage, s.currentDomainPolicy(s.ctx))
 	if len(s.recipients) > maxRecipients {
 		return smtpTooManyRecipients(maxRecipients)
 	}
 
-	spooled, size, err := spoolMessage(r, effectiveMaxBytes(s.receiver.policy.MaxMessageBytes, s.currentDomainPolicy(context.Background())))
+	spooled, size, err := spoolMessage(r, effectiveMaxBytes(s.receiver.policy.MaxMessageBytes, s.currentDomainPolicy(s.ctx)))
 	if err != nil {
 		return err
 	}
@@ -340,7 +361,7 @@ func (s *submissionSession) Data(r io.Reader) (err error) {
 		observedSize = size
 	}
 	defer cleanupSpool(spooled)
-	if err := s.emit(context.Background(), Event{
+	if err := s.emit(s.ctx, Event{
 		Stage:          StageSpooled,
 		EnvelopeFrom:   s.from,
 		SubmissionUser: s.user,
@@ -410,7 +431,7 @@ func (s *submissionSession) Data(r io.Reader) (err error) {
 		}
 	}
 
-	if err := s.emit(context.Background(), Event{
+	if err := s.emit(s.ctx, Event{
 		Stage:          StageParsed,
 		EnvelopeFrom:   s.from,
 		SubmissionUser: s.user,
@@ -432,10 +453,10 @@ func (s *submissionSession) Data(r io.Reader) (err error) {
 	if _, err := spooled.Seek(0, io.SeekStart); err != nil {
 		return fmt.Errorf("rewind submitted message for store: %w", err)
 	}
-	if err := s.receiver.store.Put(context.Background(), path, spooled); err != nil {
+	if err := s.receiver.store.Put(s.ctx, path, spooled); err != nil {
 		return fmt.Errorf("store submitted message: %w", err)
 	}
-	if err := s.emit(context.Background(), Event{
+	if err := s.emit(s.ctx, Event{
 		Stage:          StageStored,
 		EnvelopeFrom:   s.from,
 		SubmissionUser: s.user,
@@ -449,7 +470,7 @@ func (s *submissionSession) Data(r io.Reader) (err error) {
 		s.deleteStoredMessage(path)
 		return err
 	}
-	_, err = s.receiver.recorder.RecordSubmitted(context.Background(), SubmittedMessage{
+	_, err = s.receiver.recorder.RecordSubmitted(s.ctx, SubmittedMessage{
 		EnvelopeFrom:  s.from,
 		User:          s.user,
 		Recipients:    append([]string(nil), s.recipients...),
@@ -467,7 +488,7 @@ func (s *submissionSession) Data(r io.Reader) (err error) {
 		}
 		return fmt.Errorf("record submitted message: %w", err)
 	}
-	if err := s.emit(context.Background(), Event{
+	if err := s.emit(s.ctx, Event{
 		Stage:          StageRecorded,
 		EnvelopeFrom:   s.from,
 		SubmissionUser: s.user,
@@ -487,7 +508,7 @@ func (s *submissionSession) deleteStoredMessage(path string) {
 	if strings.TrimSpace(path) == "" || s.receiver.store == nil {
 		return
 	}
-	_ = s.receiver.store.Delete(context.Background(), path)
+	_ = s.receiver.store.Delete(s.ctx, path)
 }
 
 func submittedMessageID(id string, fromAddress string) string {
@@ -580,5 +601,16 @@ func (s *submissionSession) Logout() error {
 	s.Reset()
 	s.user = SubmissionUser{}
 	s.clearDomainPolicy()
+	// Cancel the current context (signals any in-flight work to stop),
+	// then replace it so the session remains usable if reused. Parent on the
+	// receiver's base context so shutdown still propagates to the replacement.
+	if s.cancel != nil {
+		s.cancel()
+	}
+	parent := s.receiver.baseCtx
+	if parent == nil {
+		parent = context.Background()
+	}
+	s.ctx, s.cancel = context.WithCancel(parent)
 	return nil
 }
