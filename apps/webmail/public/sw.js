@@ -2,10 +2,12 @@
 'use strict';
 
 const UNSAFE_CLICK_URL_CHARS = /[\u0000-\u001F\u007F\\]/;
+const UNSAFE_TAG_CHARS = /[\u0000-\u001F\u007F\\]/;
 const MAX_CLICK_URL_LENGTH = 2048;
 const MAX_TITLE_LENGTH = 160;
 const MAX_BODY_LENGTH = 500;
 const MAX_TAG_LENGTH = 128;
+const DEFAULT_TAG = 'gogomail-notification';
 
 function safeNotificationClickUrl(value) {
   if (typeof value !== 'string') return '/mail';
@@ -22,6 +24,11 @@ function safeNotificationText(value, fallback, maxLength) {
   if (typeof value !== 'string') return fallback;
   if (value.trim() === '') return fallback;
   return value.length > maxLength ? value.slice(0, maxLength) : value;
+}
+
+function safeNotificationTag(value) {
+  const tag = safeNotificationText(value, DEFAULT_TAG, MAX_TAG_LENGTH);
+  return UNSAFE_TAG_CHARS.test(tag) ? DEFAULT_TAG : tag;
 }
 
 function safeNotificationPayload(value) {
@@ -57,7 +64,7 @@ self.addEventListener('push', (event) => {
     icon: '/favicon.ico',
     badge: '/favicon.ico',
     data: safeNotificationData(data),
-    tag: safeNotificationText(data.tag, 'gogomail-notification', MAX_TAG_LENGTH),
+    tag: safeNotificationTag(data.tag),
     renotify: true,
   };
 

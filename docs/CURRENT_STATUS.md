@@ -1,6 +1,13 @@
 # gogomail current status
 
-Last updated: 2026-05-23 (WebPush notification text length hardening)
+Last updated: 2026-05-23 (WebPush notification tag character hardening)
+
+## WebPush Notification Tag Character Hardening (2026-05-23)
+- Webmail service worker push payload tags now reject control characters and backslashes before `registration.showNotification()`.
+- Unsafe WebPush tags fall back to the stable `gogomail-notification` tag, while valid custom tags continue to work and existing length bounds remain in place.
+- This keeps closed-tab browser notification replacement keys from retaining malformed payload text.
+- E2E coverage verifies control-character and backslash tags are replaced, valid tags remain available, and existing payload normalization/tag truncation behavior still passes.
+- Verification target: `pnpm -C apps/webmail exec playwright test e2e/notifications.spec.ts --project=chromium -g "service worker push rejects unsafe notification tags|service worker push truncates oversized notification text fields|service worker push payload fields are normalized before showing notifications"`; `pnpm -C apps/webmail type-check`.
 
 ## WebPush Notification Text Length Hardening (2026-05-23)
 - Webmail service worker push payload `title`, `body`, and `tag` fields are now capped before `registration.showNotification()`.
