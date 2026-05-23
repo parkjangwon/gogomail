@@ -1,6 +1,12 @@
 # gogomail current status
 
-Last updated: 2026-05-23 (browser notification tag collision hardening)
+Last updated: 2026-05-23 (WebPushSink aes128gcm implementation)
+
+## WebPushSink — aes128gcm Encrypted Web Push (2026-05-23)
+- Added `github.com/SherClockHolmes/webpush-go` dependency for RFC 8291 aes128gcm push encryption.
+- Added `EnvelopeFrom` field to `Event` (`json:"envelope_from"`) and `Notification`, mapped in `notificationFromEvent()`.
+- Implemented `WebPushSink` satisfying the `Sink` interface: fetches active subscriptions per user, encrypts and sends push notifications, auto-soft-deletes subscriptions on 410 Gone.
+- Verification target: `go test ./internal/pushnotify/... -run TestWebPushSink -v`.
 
 ## Browser Notification Tag Collision Hardening (2026-05-23)
 - Webmail browser notification mirroring now keeps overlong native `NotificationOptions.tag` values distinct by appending a stable 8-character hash suffix after truncation.
