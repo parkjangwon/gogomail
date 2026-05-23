@@ -671,6 +671,52 @@ test.describe('Notification center', () => {
     await expect(dialog).not.toContainText('object body');
   });
 
+  test('truncates oversized notification text during runtime pushes and storage hydration', async ({ page }) => {
+    await page.evaluate(() => {
+      const longTitle = 'T'.repeat(220);
+      const longBody = 'B'.repeat(640);
+      const raw = JSON.stringify([
+        {
+          id: 'stored-long-text',
+          category: 'system',
+          severity: 'info',
+          title: longTitle,
+          body: longBody,
+          timestamp: Date.now(),
+          read: false,
+        },
+      ]);
+      localStorage.setItem('webmail_notifications', raw);
+      window.dispatchEvent(new StorageEvent('storage', { key: 'webmail_notifications', newValue: raw }));
+
+      const w = window as unknown as {
+        __webmailNotifications?: { push: (input: Record<string, unknown>) => unknown };
+      };
+      w.__webmailNotifications?.push({
+        id: 'runtime-long-text',
+        category: 'system',
+        severity: 'info',
+        title: longTitle,
+        body: longBody,
+      });
+    });
+
+    await expect.poll(
+      () => page.evaluate(() => {
+        const notifications = (window as unknown as {
+          __webmailNotifications?: { notifications: Array<{ id: string; title: string; body?: string }> };
+        }).__webmailNotifications?.notifications ?? [];
+        return notifications
+          .filter((n) => n.id.endsWith('long-text'))
+          .map((n) => ({ id: n.id, titleLength: n.title.length, bodyLength: n.body?.length ?? 0 }));
+      }),
+      { timeout: 5_000 },
+    ).toEqual([
+      { id: 'runtime-long-text', titleLength: 160, bodyLength: 500 },
+      { id: 'stored-long-text', titleLength: 160, bodyLength: 500 },
+    ]);
+  });
+
   test('deduplicates repeated event notifications by id', async ({ page }) => {
     await pushNotification(page, { id: 'mail-42', title: 'First copy', body: 'original body', category: 'mail_received', dedupe: true });
     await pushNotification(page, { id: 'mail-42', title: 'Second copy', body: 'duplicate body', category: 'mail_received', dedupe: true });

@@ -46,6 +46,8 @@ const DND_START_KEY = 'webmail_dnd_start';
 const DND_END_KEY = 'webmail_dnd_end';
 const NOTIF_SOUND_KEY = 'webmail_notif_sound';
 const MAX_NOTIFICATIONS = 500;
+const MAX_TITLE_LENGTH = 160;
+const MAX_BODY_LENGTH = 500;
 const FALLBACK_TITLE = 'Notification';
 const UNSAFE_ACTION_URL_CHARS = /[\u0000-\u001F\u007F\\]/;
 const VALID_CATEGORIES = new Set<NotificationCategory>([
@@ -253,6 +255,14 @@ function safeActionUrl(value: unknown): string | undefined {
   return isSafeActionUrl(value) && typeof value === 'string' ? value : undefined;
 }
 
+function truncateText(value: string, maxLength: number): string {
+  return value.length > maxLength ? value.slice(0, maxLength) : value;
+}
+
+function safeNotificationBody(value: unknown): string | undefined {
+  return typeof value === 'string' ? truncateText(value, MAX_BODY_LENGTH) : undefined;
+}
+
 function safeOptionalString(value: unknown): string | undefined {
   return typeof value === 'string' ? value : undefined;
 }
@@ -262,7 +272,7 @@ function safeNotificationId(value: unknown): string {
 }
 
 function safeNotificationTitle(value: unknown): string {
-  return typeof value === 'string' && value.trim() !== '' ? value : FALLBACK_TITLE;
+  return typeof value === 'string' && value.trim() !== '' ? truncateText(value, MAX_TITLE_LENGTH) : FALLBACK_TITLE;
 }
 
 function safeNotificationCategory(value: unknown): NotificationCategory {
@@ -306,8 +316,8 @@ function sanitizeNotifications(input: unknown): Notification[] {
       id: o.id,
       category: o.category as NotificationCategory,
       severity: o.severity as NotificationSeverity,
-      title: o.title,
-      body: safeOptionalString(o.body),
+      title: safeNotificationTitle(o.title),
+      body: safeNotificationBody(o.body),
       actionUrl: safeActionUrl(o.actionUrl),
       timestamp: o.timestamp,
       read: o.read,
@@ -389,7 +399,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
       category: safeNotificationCategory(rawInput.category),
       severity: safeNotificationSeverity(rawInput.severity),
       title: safeNotificationTitle(rawInput.title),
-      body: safeOptionalString(rawInput.body),
+      body: safeNotificationBody(rawInput.body),
       timestamp: Date.now(),
       read: false,
       actionUrl: safeActionUrl(rawInput.actionUrl),
