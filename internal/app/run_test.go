@@ -1050,7 +1050,7 @@ func TestPushNotificationSinkForConfigWebhook(t *testing.T) {
 		PushNotifyBackend:        "webhook",
 		PushNotifyWebhookURL:     "http://push.example.test/send",
 		PushNotifyWebhookTimeout: time.Second,
-	}, nil)
+	}, nil, nil)
 	if err != nil {
 		t.Fatalf("pushNotificationSinkForConfig returned error: %v", err)
 	}
@@ -1062,7 +1062,7 @@ func TestPushNotificationSinkForConfigWebhook(t *testing.T) {
 func TestPushNotificationSinkForConfigRejectsUnknownBackend(t *testing.T) {
 	t.Parallel()
 
-	if _, err := pushNotificationSinkForConfig(config.Config{PushNotifyBackend: "direct"}, nil); err == nil {
+	if _, err := pushNotificationSinkForConfig(config.Config{PushNotifyBackend: "direct"}, nil, nil); err == nil {
 		t.Fatal("pushNotificationSinkForConfig accepted unknown backend")
 	}
 }

@@ -414,8 +414,19 @@ func (c Config) Validate() error {
 	if !c.DAVSyncRetentionDryRun && !c.DAVSyncRetentionConfirmReady {
 		return fmt.Errorf("GOGOMAIL_DAV_SYNC_RETENTION_CONFIRM_READY must be true when DAV sync retention dry-run is disabled")
 	}
-	if err := validateEnum("GOGOMAIL_PUSH_NOTIFICATION_BACKEND", c.PushNotifyBackend, "none", "slog", "webhook"); err != nil {
+	if err := validateEnum("GOGOMAIL_PUSH_NOTIFICATION_BACKEND", c.PushNotifyBackend, "none", "slog", "webhook", "webpush"); err != nil {
 		return err
+	}
+	if strings.EqualFold(strings.TrimSpace(c.PushNotifyBackend), "webpush") {
+		if strings.TrimSpace(c.WebPushVAPIDPublicKey) == "" {
+			return fmt.Errorf("GOGOMAIL_WEBPUSH_VAPID_PUBLIC_KEY is required when GOGOMAIL_PUSH_NOTIFICATION_BACKEND=webpush")
+		}
+		if strings.TrimSpace(c.WebPushVAPIDPrivateKey) == "" {
+			return fmt.Errorf("GOGOMAIL_WEBPUSH_VAPID_PRIVATE_KEY is required when GOGOMAIL_PUSH_NOTIFICATION_BACKEND=webpush")
+		}
+		if strings.TrimSpace(c.WebPushContactEmail) == "" {
+			return fmt.Errorf("GOGOMAIL_WEBPUSH_CONTACT_EMAIL is required when GOGOMAIL_PUSH_NOTIFICATION_BACKEND=webpush")
+		}
 	}
 	if strings.EqualFold(strings.TrimSpace(c.PushNotifyBackend), "webhook") {
 		if err := validateWebhookURL("GOGOMAIL_PUSH_NOTIFICATION_WEBHOOK_URL", c.PushNotifyWebhookURL, production); err != nil {
