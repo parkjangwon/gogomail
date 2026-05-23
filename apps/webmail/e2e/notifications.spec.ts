@@ -824,6 +824,18 @@ test.describe('Notification center', () => {
     expect(String(shown?.options.tag ?? '')).toBe(`tag-${'x'.repeat(124)}`);
   });
 
+  test('service worker push rejects unsafe notification tags', async ({ page }) => {
+    await expect(serviceWorkerShownNotification(page, { title: 'Control tag', tag: 'mail\nreceived' })).resolves.toMatchObject({
+      options: { tag: 'gogomail-notification' },
+    });
+    await expect(serviceWorkerShownNotification(page, { title: 'Backslash tag', tag: 'mail\\received' })).resolves.toMatchObject({
+      options: { tag: 'gogomail-notification' },
+    });
+    await expect(serviceWorkerShownNotification(page, { title: 'Safe tag', tag: 'mail-received' })).resolves.toMatchObject({
+      options: { tag: 'mail-received' },
+    });
+  });
+
   test('service worker push stores only sanitized click data', async ({ page }) => {
     const safeShown = await serviceWorkerShownNotification(page, {
       title: 'Click payload',

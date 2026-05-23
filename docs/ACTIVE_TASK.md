@@ -2,19 +2,19 @@
 
 ## Current Task
 
-**TASK-WEBMAIL-NOTIFICATION-SW-TEXT-LENGTH — WebPush notification text length hardening**
+**TASK-WEBMAIL-NOTIFICATION-SW-TAG-CHARS — WebPush notification tag character hardening**
 
 ## Background
 
-The in-app notification store already caps notification titles and bodies before state, storage, and browser notification mirroring. The WebPush service worker still accepts arbitrary string lengths for closed-tab push `title`, `body`, and `tag` fields before passing them to `registration.showNotification()`. Oversized push payloads can therefore bloat browser notification state even after the in-app notification center is protected.
+The WebPush service worker now bounds notification display strings, but it still accepts any non-blank string as a `tag` after truncation. Browser notification tags are used for replacement/deduplication, so control characters and backslashes should not be retained in closed-tab push notification state.
 
-This task continues the notification hardening track in `docs/backend-roadmap.md` and aligns closed-tab WebPush display payloads with the bounded in-app notification policy.
+This task continues the notification hardening track in `docs/backend-roadmap.md` and aligns service-worker notification tags with the existing safe identifier/tag policy used elsewhere in the notification center.
 
 ## Scope
 
-- Add failing E2E coverage for oversized WebPush `title`, `body`, and `tag` fields.
-- Cap service-worker notification title/body/tag strings before `showNotification()`.
-- Preserve existing fallback behavior for blank and malformed title/body/tag values.
+- Add failing E2E coverage for WebPush payload tags containing control characters and backslashes.
+- Replace unsafe service-worker notification tags with the default `gogomail-notification` tag.
+- Preserve valid custom tags and existing malformed/blank fallback behavior.
 - Update `docs/CURRENT_STATUS.md` and `docs/backend-roadmap.md`.
 
 ## Completion Checklist

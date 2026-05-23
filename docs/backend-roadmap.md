@@ -6973,3 +6973,7 @@ Target outcome:
 1905. Webmail service worker push notification title, body, and tag strings are
       now capped before `registration.showNotification()`, aligning closed-tab
       WebPush display payloads with the bounded in-app notification policy.
+1906. Webmail service worker push notification tags now reject control
+      characters and backslashes before `registration.showNotification()`,
+      falling malformed closed-tab WebPush replacement keys back to the stable
+      default tag while preserving valid custom tags.
