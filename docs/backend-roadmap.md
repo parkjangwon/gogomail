@@ -6865,3 +6865,7 @@ Target outcome:
 1876. Webmail notification search, unread, and category filters now clear on
       panel reopen, preventing stale filters from hiding fresh notifications
       after users close and later return to the notification center.
+1877. Webmail service worker notification clicks now constrain payload target
+      URLs to safe relative app routes and fall back to `/mail` for external,
+      protocol-relative, or non-string values, aligning WebPush click behavior
+      with in-app notification action URL hardening.
