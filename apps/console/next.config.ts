@@ -7,6 +7,9 @@ const scriptSrc = isProduction
 
 const config: NextConfig = {
   reactStrictMode: true,
+  // Workspace package @gogomail/api-types exports raw .ts files; Turbopack
+  // requires explicit transpile config to consume them in production builds.
+  transpilePackages: ["@gogomail/api-types"],
   typescript: {
     tsconfigPath: "./tsconfig.json",
   },
