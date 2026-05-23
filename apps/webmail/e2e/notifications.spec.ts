@@ -339,6 +339,37 @@ test.describe('Notification center', () => {
     await expect(dialog).not.toContainText('Stale stored copy');
   });
 
+  test('does not suppress a deduped push immediately after storage removes that id', async ({ page }) => {
+    await pushNotification(page, { id: 'storage-race', title: 'Before storage removal', category: 'system', dedupe: true });
+    await expect.poll(() => unreadBadgeText(page), { timeout: 5_000 }).toBe('1');
+
+    await page.evaluate(() => {
+      const raw = JSON.stringify([]);
+      localStorage.setItem('webmail_notifications', raw);
+      window.dispatchEvent(new StorageEvent('storage', { key: 'webmail_notifications', newValue: raw }));
+      const w = window as unknown as {
+        __webmailNotifications?: { push: (input: Record<string, unknown>) => unknown };
+      };
+      w.__webmailNotifications?.push({
+        id: 'storage-race',
+        category: 'system',
+        severity: 'info',
+        title: 'After storage removal',
+        dedupe: true,
+      });
+    });
+
+    await expect.poll(
+      () => page.evaluate(() => {
+        const notifications = (window as unknown as {
+          __webmailNotifications?: { notifications: Array<{ id: string; title: string }> };
+        }).__webmailNotifications?.notifications ?? [];
+        return notifications.map((n) => [n.id, n.title]);
+      }),
+      { timeout: 5_000 },
+    ).toEqual([['storage-race', 'After storage removal']]);
+  });
+
   test('rejects non-boolean read flags during storage hydration', async ({ page }) => {
     await page.evaluate(() => {
       const now = Date.now();

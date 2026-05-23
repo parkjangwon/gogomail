@@ -353,8 +353,11 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
       if (e.key !== STORAGE_KEY) return;
       try {
         const parsed = e.newValue ? JSON.parse(e.newValue) as unknown : [];
-        dispatch({ type: 'hydrate', notifications: sanitizeNotifications(parsed) });
+        const notifications = sanitizeNotifications(parsed);
+        notificationsByIDRef.current = indexNotifications(notifications);
+        dispatch({ type: 'hydrate', notifications });
       } catch {
+        notificationsByIDRef.current = new Map();
         dispatch({ type: 'hydrate', notifications: [] });
       }
     };
