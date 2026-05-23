@@ -540,6 +540,30 @@ func (s *LocalStore) ensureObjectParentDir(objectPath string) error {
 			return fmt.Errorf("storage path component is not a directory")
 		}
 	}
+	// TOCTOU hardening: after per-segment Lstat traversal an attacker with
+	// local FS write access could swap a directory for a symlink between our
+	// last Lstat and the caller's subsequent Put/Rename. EvalSymlinks resolves
+	// the final parent and we verify it is still strictly contained within
+	// the storage root. This is a narrower defense than an openat-based
+	// traversal (which would race-proof every segment) but catches the common
+	// swap-and-redirect attack with a much smaller change.
+	if current != s.root {
+		resolvedParent, err := filepath.EvalSymlinks(current)
+		if err != nil {
+			return fmt.Errorf("resolve storage parent directory: %w", err)
+		}
+		resolvedRoot, err := filepath.EvalSymlinks(s.root)
+		if err != nil {
+			return fmt.Errorf("resolve storage root: %w", err)
+		}
+		rel, err := filepath.Rel(resolvedRoot, resolvedParent)
+		if err != nil {
+			return fmt.Errorf("resolve storage parent directory: %w", err)
+		}
+		if rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+			return fmt.Errorf("storage path component escapes storage root")
+		}
+	}
 	return nil
 }
 

@@ -3206,6 +3206,11 @@ func runHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, mode M
 	mux := http.NewServeMux()
 	var readinessChecks []httpapi.ReadinessCheckFunc
 
+	// bgTracker tracks fire-and-forget goroutines spawned by HTTP handlers
+	// (invite/welcome email sends, password reset token issue) so graceful
+	// shutdown can drain them before http.Server.Shutdown returns.
+	bgTracker := httpapi.NewBackgroundTracker(logger)
+
 	var tokenManager *auth.TokenManager
 	var apiKeyVerifier apikeys.PostgresVerifier
 	var apiKeyVerifierConfigured bool
@@ -3296,6 +3301,7 @@ func runHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, mode M
 			httpapi.NewMaildbPasswordResetAdapter(repository),
 			mailservice.NewSMTPSystemEmailSenderFromEnv(),
 			cfg.PublicBaseURL,
+			bgTracker,
 		)
 		logger.Info("mail api routes registered")
 	}
@@ -3355,6 +3361,7 @@ func runHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, mode M
 			httpapi.WithAdminMFARequired(cfg.AdminMFARequired),
 			httpapi.WithAdminConfigResolver(configStore),
 			httpapi.WithSystemEmailSender(mailservice.NewSMTPSystemEmailSenderFromEnv(), cfg.PublicBaseURL),
+			httpapi.WithBackgroundTracker(bgTracker),
 		}
 		if redisClient != nil {
 			if dlqReader, err := eventstream.NewRedisDLQReader(redisClient); err == nil {
@@ -3456,6 +3463,11 @@ func runHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, mode M
 	case <-ctx.Done():
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
+		// Drain background goroutines (invite/welcome/password-reset emails)
+		// before closing the HTTP server so in-flight sends are not lost.
+		if err := bgTracker.Wait(shutdownCtx); err != nil {
+			logger.Warn("background tracker drain incomplete", "error", err)
+		}
 		return server.Shutdown(shutdownCtx)
 	case err := <-errCh:
 		if errors.Is(err, http.ErrServerClosed) {

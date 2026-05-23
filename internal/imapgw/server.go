@@ -2033,7 +2033,7 @@ type idleLineResult struct {
 	err  error
 }
 
-func (s *Server) serveIdle(conn net.Conn, reader *bufio.Reader, writer *bufio.Writer, state *imapConnState) error {
+func (s *Server) serveIdle(conn net.Conn, reader *bufio.Reader, writer *bufio.Writer, state *imapConnState) (retErr error) {
 	if err := s.setReadDeadline(conn, s.options.IdleTimeout); err != nil {
 		return err
 	}
@@ -2042,9 +2042,24 @@ func (s *Server) serveIdle(conn net.Conn, reader *bufio.Reader, writer *bufio.Wr
 		line, err := readIMAPLine(reader, maxIMAPCommandLineBytes)
 		lineCh <- idleLineResult{line: line, err: err}
 	}()
+	readerConsumed := false
+	// On error return, the reader goroutine above may still be blocked on
+	// the socket read. Force its read to unblock by setting a read
+	// deadline in the past so the reader exits promptly instead of
+	// lingering until the connection is finally closed. This prevents
+	// goroutine pile-up under error storms with many concurrent IDLE
+	// clients.
+	defer func() {
+		if retErr != nil && !readerConsumed && conn != nil {
+			_ = conn.SetReadDeadline(time.Now().Add(-time.Second))
+			// Drain the reader goroutine so it can exit before we return.
+			<-lineCh
+		}
+	}()
 	for state.pendingIdleTag != "" {
 		select {
 		case result := <-lineCh:
+			readerConsumed = true
 			if result.err != nil {
 				if errors.Is(result.err, io.EOF) {
 					return nil

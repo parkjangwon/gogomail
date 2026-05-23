@@ -3,6 +3,7 @@ package pop3d
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"crypto/tls"
 	"encoding/base64"
 	"net"
@@ -48,10 +49,25 @@ type Server struct {
 	listeners      []net.Listener
 	maildrops      map[string]struct{}
 	authTracker    *pop3AuthFailureTracker
+	wg             sync.WaitGroup
+	ctx            context.Context
+	cancel         context.CancelFunc
+}
+
+// shutdownCtx returns the server's shutdown context, lazily initializing it on
+// first use so zero-value Server instances (e.g. in tests) keep working.
+func (s *Server) shutdownCtx() context.Context {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.ctx == nil {
+		s.ctx, s.cancel = context.WithCancel(context.Background())
+	}
+	return s.ctx
 }
 
 // Serve accepts connections on the listener.
 func (s *Server) Serve(ln net.Listener) error {
+	srvCtx := s.shutdownCtx()
 	s.mu.Lock()
 	s.listeners = append(s.listeners, ln)
 	s.mu.Unlock()
@@ -72,9 +88,11 @@ func (s *Server) Serve(ln net.Listener) error {
 			rejectConnectionLimit(conn)
 			continue
 		}
+		s.wg.Add(1)
 		go func() {
+			defer s.wg.Done()
 			defer releaseConnectionSlot(slots)
-			s.handleConn(conn)
+			s.handleConn(srvCtx, conn)
 		}()
 	}
 }
@@ -107,12 +125,34 @@ func rejectConnectionLimit(conn net.Conn) {
 // Close closes all active listeners.
 func (s *Server) Close() error {
 	s.mu.Lock()
-	defer s.mu.Unlock()
 	for _, ln := range s.listeners {
 		ln.Close()
 	}
 	s.listeners = nil
+	cancel := s.cancel
+	s.mu.Unlock()
+	if cancel != nil {
+		cancel()
+	}
 	return nil
+}
+
+// Shutdown closes listeners, signals active connections to drain, and waits for
+// in-flight handleConn goroutines to finish. It returns ctx.Err() if the given
+// context expires before all goroutines exit.
+func (s *Server) Shutdown(ctx context.Context) error {
+	_ = s.Close()
+	done := make(chan struct{})
+	go func() {
+		s.wg.Wait()
+		close(done)
+	}()
+	select {
+	case <-done:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 }
 
 const (
@@ -133,7 +173,7 @@ type session struct {
 	release   func()
 }
 
-func (s *Server) handleConn(conn net.Conn) {
+func (s *Server) handleConn(ctx context.Context, conn net.Conn) {
 	idle := s.IdleTimeout
 	if idle == 0 {
 		idle = 30 * time.Minute
@@ -154,6 +194,21 @@ func (s *Server) handleConn(conn net.Conn) {
 	}()
 	sess.textConn = textproto.NewConn(conn)
 
+	// On server shutdown, force the connection to unblock by tightening its
+	// deadline. The defer below stops the watcher goroutine when handleConn
+	// returns normally.
+	watchDone := make(chan struct{})
+	if ctx != nil {
+		go func() {
+			select {
+			case <-ctx.Done():
+				_ = sess.conn.SetDeadline(time.Now().Add(5 * time.Second))
+			case <-watchDone:
+			}
+		}()
+	}
+	defer close(watchDone)
+
 	greeting := s.Greeting
 	if greeting == "" {
 		greeting = "POP3 server ready"
@@ -166,6 +221,13 @@ func (s *Server) handleConn(conn net.Conn) {
 			return
 		}
 		line = strings.TrimRight(line, "\r\n")
+		if ctx != nil {
+			select {
+			case <-ctx.Done():
+				return
+			default:
+			}
+		}
 		_ = conn.SetDeadline(time.Now().Add(idle))
 		sess.handleCommand(line)
 	}
