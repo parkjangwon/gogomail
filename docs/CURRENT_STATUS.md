@@ -1,6 +1,12 @@
 # gogomail current status
 
-Last updated: 2026-05-23 (notification storage field pruning)
+Last updated: 2026-05-23 (webpush notification data pruning)
+
+## WebPush Notification Data Pruning (2026-05-23)
+- Webmail service worker push handling now stores only sanitized click data in `NotificationOptions.data`.
+- Browser notifications keep a safe relative `url` when provided, fall back unsafe click targets to `/mail`, and drop unrelated payload fields before display.
+- This prevents arbitrary WebPush payload fields from being retained in browser notification click state while preserving existing title/body/tag normalization.
+- Verification target: `pnpm -C apps/webmail exec playwright test e2e/notifications.spec.ts --project=chromium -g "stores only sanitized click data|handles non-object JSON payloads|unsafe target URLs"`; `pnpm -C apps/webmail type-check`.
 
 ## Notification Storage Field Pruning (2026-05-23)
 - Notification storage hydration now reconstructs notifications from the allowed public fields instead of retaining the parsed localStorage object wholesale.
