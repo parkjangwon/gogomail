@@ -97,7 +97,7 @@ export const toolDefinitions: Tool[] = [
   // Action tools
   {
     name: "gogomail_reset_password",
-    description: "Send a password reset invitation email to the user. PREREQUISITE: call gogomail_get_user first to verify the current account state. Requires ticketId for audit trail.",
+    description: "Send a password reset invitation email to the user. PREREQUISITE: call gogomail_get_user first to verify the current account state. Provide ticketId to attach the audit memo to an existing Suppo ticket; omit to auto-create a standalone audit ticket.",
     inputSchema: {
       type: "object",
       properties: {
@@ -109,7 +109,7 @@ export const toolDefinitions: Tool[] = [
   },
   {
     name: "gogomail_update_user_status",
-    description: "Change account status. PREREQUISITE: call gogomail_get_user to confirm current status first. status must be 'active' | 'suspended' | 'disabled'. Requires ticketId for audit trail.",
+    description: "Change account status. PREREQUISITE: call gogomail_get_user to confirm current status first. status must be 'active' | 'suspended' | 'disabled'. Provide ticketId to attach the audit memo to an existing Suppo ticket; omit to auto-create a standalone audit ticket.",
     inputSchema: {
       type: "object",
       properties: {
@@ -122,7 +122,7 @@ export const toolDefinitions: Tool[] = [
   },
   {
     name: "gogomail_update_user_quota",
-    description: "Adjust user storage quota in bytes. PREREQUISITE: call gogomail_get_user_quota first. Requires ticketId for audit trail.",
+    description: "Adjust user storage quota in bytes. PREREQUISITE: call gogomail_get_user_quota first. Provide ticketId to attach the audit memo to an existing Suppo ticket; omit to auto-create a standalone audit ticket.",
     inputSchema: {
       type: "object",
       properties: {
@@ -135,7 +135,7 @@ export const toolDefinitions: Tool[] = [
   },
   {
     name: "gogomail_revoke_sessions",
-    description: "Force-logout all active sessions for a user. PREREQUISITE: call gogomail_list_user_sessions first. Requires ticketId for audit trail.",
+    description: "Force-logout all active sessions for a user. PREREQUISITE: call gogomail_list_user_sessions first. Provide ticketId to attach the audit memo to an existing Suppo ticket; omit to auto-create a standalone audit ticket.",
     inputSchema: {
       type: "object",
       properties: {
@@ -147,7 +147,7 @@ export const toolDefinitions: Tool[] = [
   },
   {
     name: "gogomail_update_user_role",
-    description: "Change a user's role. PREREQUISITE: call gogomail_get_user first. Requires ticketId for audit trail.",
+    description: "Change a user's role. PREREQUISITE: call gogomail_get_user first. Provide ticketId to attach the audit memo to an existing Suppo ticket; omit to auto-create a standalone audit ticket.",
     inputSchema: {
       type: "object",
       properties: {
@@ -178,7 +178,7 @@ export const toolDefinitions: Tool[] = [
   },
   {
     name: "gogomail_update_domain_settings",
-    description: "Update domain configuration. PREREQUISITE: call gogomail_get_domain_settings first. Requires ticketId for audit trail.",
+    description: "Update domain configuration. PREREQUISITE: call gogomail_get_domain_settings first. Provide ticketId to attach the audit memo to an existing Suppo ticket; omit to auto-create a standalone audit ticket.",
     inputSchema: {
       type: "object",
       properties: {
@@ -337,12 +337,14 @@ export async function callTool(
     case "gogomail_reset_password": {
       const { userId, ticketId } = ResetPasswordSchema.parse(args);
       const result = await gogomail.resetPassword(userId);
-      await writeAuditComment(
+      writeAuditComment(
         suppo,
         ticketId,
         "gogomail_reset_password",
         `userId: ${userId}`,
         "비밀번호 재설정 메일 발송",
+      ).catch((e: unknown) =>
+        console.error("[audit] failed to write comment:", e),
       );
       return result;
     }
@@ -350,12 +352,14 @@ export async function callTool(
       const { userId, status, ticketId } = UpdateStatusSchema.parse(args);
       const before = await gogomail.getUser(userId);
       const result = await gogomail.updateUserStatus(userId, status);
-      await writeAuditComment(
+      writeAuditComment(
         suppo,
         ticketId,
         "gogomail_update_user_status",
         `${before.email} (userId: ${userId})`,
         `${before.status} → ${status}`,
+      ).catch((e: unknown) =>
+        console.error("[audit] failed to write comment:", e),
       );
       return result;
     }
@@ -363,24 +367,28 @@ export async function callTool(
       const { userId, quotaBytes, ticketId } = UpdateQuotaSchema.parse(args);
       const before = await gogomail.getUserQuota(userId);
       const result = await gogomail.updateUserQuota(userId, quotaBytes);
-      await writeAuditComment(
+      writeAuditComment(
         suppo,
         ticketId,
         "gogomail_update_user_quota",
         `userId: ${userId}`,
         `${before.allocatedBytes} → ${quotaBytes} bytes`,
+      ).catch((e: unknown) =>
+        console.error("[audit] failed to write comment:", e),
       );
       return result;
     }
     case "gogomail_revoke_sessions": {
       const { userId, ticketId } = RevokeSessionsSchema.parse(args);
       const result = await gogomail.revokeSessions(userId);
-      await writeAuditComment(
+      writeAuditComment(
         suppo,
         ticketId,
         "gogomail_revoke_sessions",
         `userId: ${userId}`,
         `${result.revoked}개 세션 강제 종료`,
+      ).catch((e: unknown) =>
+        console.error("[audit] failed to write comment:", e),
       );
       return result;
     }
@@ -388,12 +396,14 @@ export async function callTool(
       const { userId, role, ticketId } = UpdateRoleSchema.parse(args);
       const before = await gogomail.getUser(userId);
       const result = await gogomail.updateUserRole(userId, role);
-      await writeAuditComment(
+      writeAuditComment(
         suppo,
         ticketId,
         "gogomail_update_user_role",
         `${before.email} (userId: ${userId})`,
         `${before.role} → ${role}`,
+      ).catch((e: unknown) =>
+        console.error("[audit] failed to write comment:", e),
       );
       return result;
     }
@@ -412,12 +422,14 @@ export async function callTool(
         domainId,
         settings as Partial<GogomailDomainSettings>,
       );
-      await writeAuditComment(
+      writeAuditComment(
         suppo,
         ticketId,
         "gogomail_update_domain_settings",
         `${before.domain} (domainId: ${domainId})`,
         `변경 전: ${JSON.stringify(before)}\n- 변경 후: ${JSON.stringify(settings)}`,
+      ).catch((e: unknown) =>
+        console.error("[audit] failed to write comment:", e),
       );
       return result;
     }

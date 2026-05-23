@@ -48,6 +48,8 @@ MCP_PORT=3100 \
 node apps/mcp-support/dist/index.js
 ```
 
+> **Security note:** The SSE endpoint has no built-in authentication. Bind to a private interface or firewall the port. Do not expose port 3100 to the public internet.
+
 ## Tools (34 total)
 
 ### Suppo (10)
