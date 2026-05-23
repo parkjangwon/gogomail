@@ -208,7 +208,10 @@ function reducer(state: State, action: Action): State {
         return state;
       }
       // newest-first
-      const next = [action.notification, ...state.notifications].slice(0, MAX_NOTIFICATIONS);
+      const next = [
+        action.notification,
+        ...state.notifications.filter((n) => n.id !== action.notification.id),
+      ].slice(0, MAX_NOTIFICATIONS);
       return { notifications: next };
     }
     case 'markRead':
