@@ -8,10 +8,14 @@ export default defineConfig({
     globals: true,
     environment: "jsdom",
     setupFiles: [],
+    // Exclude Playwright E2E and Next.js build artifacts; vitest only runs
+    // unit tests under src/.
+    include: ["src/**/*.{test,spec}.{ts,tsx}"],
+    exclude: ["node_modules/**", "e2e/**", ".next/**", "dist/**"],
     coverage: {
       provider: "v8",
       reporter: ["text", "json", "html"],
-      exclude: ["node_modules/", "src/**/*.d.ts"],
+      exclude: ["node_modules/", "src/**/*.d.ts", "e2e/**"],
     },
   },
   resolve: {
