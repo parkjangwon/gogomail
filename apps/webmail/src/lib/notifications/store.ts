@@ -348,7 +348,6 @@ const NotificationsContext = createContext<NotificationsContextValue | null>(nul
 
 export function NotificationProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(reducer, undefined, () => ({ notifications: loadInitial() }));
-  const hydratedRef = useRef(false);
   const notificationsByIDRef = useRef(indexNotifications(state.notifications));
 
   useEffect(() => {
@@ -357,10 +356,6 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
 
   // Persist to localStorage (debounce-free; the reducer is cheap and writes are small)
   useEffect(() => {
-    if (!hydratedRef.current) {
-      hydratedRef.current = true;
-      return;
-    }
     try {
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state.notifications));
     } catch {

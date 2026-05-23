@@ -6941,3 +6941,7 @@ Target outcome:
 1896. Webmail notification runtime pushes and storage hydration now cap title
       and body text lengths, preventing oversized notification payloads from
       bloating client state, localStorage, and browser notification mirroring.
+1897. Webmail notification provider startup now re-persists the sanitized
+      localStorage notification list immediately after initial hydration, so
+      unknown injected fields are pruned even before the next notification
+      mutation.
