@@ -1012,43 +1012,28 @@ export default function MailPage() {
     }
     const newUnread = messages.filter((m) => !m.read && !seenMsgIdsRef.current!.has(m.id));
     messages.forEach((m) => seenMsgIdsRef.current!.add(m.id));
-    const dndActive = (() => {
-      try {
-        if (localStorage.getItem('webmail_dnd') !== '1') return false;
-        const start = localStorage.getItem('webmail_dnd_start') ?? '22:00';
-        const end = localStorage.getItem('webmail_dnd_end') ?? '08:00';
-        const now = new Date();
-        const [sh, sm] = start.split(':').map(Number);
-        const [eh, em] = end.split(':').map(Number);
-        const nowMins = now.getHours() * 60 + now.getMinutes();
-        const startMins = sh * 60 + sm;
-        const endMins = eh * 60 + em;
-        return startMins > endMins
-          ? (nowMins >= startMins || nowMins < endMins)
-          : (nowMins >= startMins && nowMins < endMins);
-      } catch { return false; }
-    })();
-    if (!dndActive && newUnread.length > 0 && typeof Notification !== 'undefined' && Notification.permission === 'granted' && document.visibilityState !== 'visible') {
-      const title = newUnread.length === 1
-        ? t('misc.mailPage.newTitleSingle', { sender: newUnread[0].from_name || newUnread[0].from_addr })
-        : t('misc.mailPage.newTitleMany', { count: newUnread.length });
-      const n = new Notification(title, {
-        body: newUnread.length === 1 ? (newUnread[0].subject || t('misc.mailPage.noSubject')) : undefined,
-        icon: '/favicon.ico',
-      });
-      n.onclick = () => window.focus();
-    }
-    // In-app notification center push (independent of OS-level permission/DnD)
-    if (!dndActive && newUnread.length > 0) {
+    // In-app notification center push is independent of OS-level permission/DnD.
+    // Browser mirroring is centralized in the notification store so user toggles,
+    // quiet hours, and click handling stay consistent across event sources.
+    if (newUnread.length > 0) {
       for (const m of newUnread) {
         const sender = m.from_name || m.from_addr || '';
-        const preview = (m.subject || '').slice(0, 80);
+        let detail: 'sender' | 'subject' | 'preview' = 'subject';
+        try {
+          const stored = localStorage.getItem('webmail_notif_detail');
+          if (stored === 'sender' || stored === 'subject' || stored === 'preview') detail = stored;
+        } catch {
+          // keep default detail
+        }
+        const body = detail === 'sender'
+          ? undefined
+          : ((detail === 'preview' ? m.preview : m.subject) || t('misc.mailPage.noSubject')).slice(0, 120);
         pushNotification({
           id: `mail_received_${m.id}`,
           category: 'mail_received',
           severity: 'info',
           title: tNotif('mailReceived', { sender }),
-          body: preview || undefined,
+          body,
           actionUrl: `/mail/${m.id}`,
           metadata: { messageId: m.id },
         });

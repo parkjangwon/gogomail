@@ -44,6 +44,7 @@ const BROWSER_NOTIF_ENABLED_KEY = 'webmail_browser_notifications_enabled';
 const DND_ENABLED_KEY = 'webmail_dnd';
 const DND_START_KEY = 'webmail_dnd_start';
 const DND_END_KEY = 'webmail_dnd_end';
+const NOTIF_SOUND_KEY = 'webmail_notif_sound';
 const MAX_NOTIFICATIONS = 500;
 
 /**
@@ -88,7 +89,7 @@ function fireBrowserNotification(
       tag: `${n.category}-${n.id}`,
       icon: '/favicon.ico',
       data: { actionUrl: n.actionUrl, id: n.id },
-      silent: severity === 'info',
+      silent: !isNotificationSoundEnabled(),
     });
 
     browserNotif.onclick = () => {
@@ -133,6 +134,15 @@ function isQuietHoursActive(now: Date): boolean {
     if (start === end) return true;
     if (start < end) return current >= start && current <= end;
     return current >= start || current <= end;
+  } catch {
+    return false;
+  }
+}
+
+function isNotificationSoundEnabled(): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    return window.localStorage.getItem(NOTIF_SOUND_KEY) === '1';
   } catch {
     return false;
   }

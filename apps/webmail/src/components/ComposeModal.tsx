@@ -348,13 +348,6 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
         title: tNotif('mailSendFailed'),
         body: message,
       });
-      // Surface in OS notification too for high-severity items, if allowed.
-      if (typeof Notification !== 'undefined' && Notification.permission === 'granted' && document.visibilityState !== 'visible') {
-        try {
-          const n = new Notification(tNotif('mailSendFailed'), { body: message, icon: '/favicon.ico' });
-          n.onclick = () => window.focus();
-        } catch { /* ignore */ }
-      }
     }
   }, [t, notifications, tNotif]);
 

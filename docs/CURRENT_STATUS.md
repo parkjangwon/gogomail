@@ -1,6 +1,13 @@
 # gogomail current status
 
-Last updated: 2026-05-23 (notification quiet-hours mirroring)
+Last updated: 2026-05-23 (centralized browser notification policy)
+
+## Centralized Browser Notification Policy (2026-05-23)
+- Webmail new-message refresh, background mail polling, and send-failure paths no longer instantiate native browser notifications directly.
+- All native browser notification mirroring now flows through the notification store, so the browser-notification toggle, quiet-hours suppression, click behavior, notification sound setting, and in-app history stay consistent across event sources.
+- Mail-arrival notification body text now honors the existing detail preference: sender-only, subject, or preview.
+- Regression coverage verifies message refresh respects the browser-notification toggle and a script-level guard prevents direct `new Notification(...)` calls from returning to mail UI paths.
+- Verification: `go test ./scripts -run TestWebmailNativeNotificationsUseCentralStore`, `pnpm -C apps/webmail exec playwright test e2e/notifications.spec.ts --project=chromium`, and `pnpm -C apps/webmail type-check` pass.
 
 ## Notification Quiet-Hours Mirroring (2026-05-23)
 - Webmail notification store browser mirroring now respects the same Settings quiet-hours local state used by mail-page notification polling.
