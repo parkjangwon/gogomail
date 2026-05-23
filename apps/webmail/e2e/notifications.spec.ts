@@ -202,6 +202,29 @@ test.describe('Notification center', () => {
     await expect(dialog).not.toContainText('Bad read flag');
   });
 
+  test('rejects unsupported categories and severities during storage hydration', async ({ page }) => {
+    await page.evaluate(() => {
+      const now = Date.now();
+      const raw = JSON.stringify([
+        { id: 'bad-category', category: 'billing', severity: 'info', title: 'Bad category', timestamp: now, read: false },
+        { id: 'bad-severity', category: 'system', severity: 'critical', title: 'Bad severity', timestamp: now, read: false },
+        { id: 'good-category-severity', category: 'system', severity: 'warning', title: 'Good category severity', timestamp: now, read: false },
+      ]);
+      localStorage.setItem('webmail_notifications', raw);
+      window.dispatchEvent(new StorageEvent('storage', { key: 'webmail_notifications', newValue: raw }));
+    });
+
+    await expect.poll(
+      () => page.evaluate(() => (window as unknown as { __webmailNotifications?: { notifications: unknown[] } }).__webmailNotifications?.notifications.length ?? -1),
+      { timeout: 5_000 },
+    ).toBe(1);
+
+    const { dialog } = await openCenter(page);
+    await expect(dialog).toContainText('Good category severity');
+    await expect(dialog).not.toContainText('Bad category');
+    await expect(dialog).not.toContainText('Bad severity');
+  });
+
   test('deduplicates repeated event notifications by id', async ({ page }) => {
     await pushNotification(page, { id: 'mail-42', title: 'First copy', body: 'original body', category: 'mail_received', dedupe: true });
     await pushNotification(page, { id: 'mail-42', title: 'Second copy', body: 'duplicate body', category: 'mail_received', dedupe: true });
