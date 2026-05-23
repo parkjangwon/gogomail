@@ -6966,3 +6966,7 @@ Target outcome:
 1903. Webmail notification action URLs are now capped before storage,
       runtime state, localStorage persistence, and click handling, dropping
       oversized relative targets while preserving normal safe relative URLs.
+1904. Webmail service worker notification click URLs are now capped before
+      `NotificationOptions.data` storage, existing-client navigation, or
+      `clients.openWindow()`, falling oversized WebPush payload targets back to
+      `/mail` while preserving normal safe relative click URLs.

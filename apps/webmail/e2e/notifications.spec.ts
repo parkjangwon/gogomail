@@ -828,6 +828,22 @@ test.describe('Notification center', () => {
     expect(unsafeShown?.options.data).toEqual({ url: '/mail' });
   });
 
+  test('service worker push and clicks fall back for oversized target URLs', async ({ page }) => {
+    const longUrl = `/mail/thread-${'a'.repeat(2_100)}`;
+
+    const shown = await serviceWorkerShownNotification(page, {
+      title: 'Oversized click payload',
+      url: longUrl,
+    });
+    expect(shown?.options.data).toEqual({ url: '/mail' });
+
+    await expect(serviceWorkerOpenedUrls(page, { url: longUrl })).resolves.toEqual(['/mail']);
+    await expect(serviceWorkerExistingClientClickResult(page, { url: longUrl })).resolves.toMatchObject({
+      navigatedTo: '/mail',
+      opened: [],
+    });
+  });
+
   test('service worker push handles non-object JSON payloads before showing notifications', async ({ page }) => {
     await expect(serviceWorkerShownNotification(page, null)).resolves.toMatchObject({
       title: '새 메일',

@@ -1,6 +1,13 @@
 # gogomail current status
 
-Last updated: 2026-05-23 (notification action URL length hardening)
+Last updated: 2026-05-23 (WebPush notification click URL length hardening)
+
+## WebPush Notification Click URL Length Hardening (2026-05-23)
+- Webmail service worker notification click URLs are now capped at 2048 characters before `NotificationOptions.data` storage, existing-client navigation, or `clients.openWindow()`.
+- Oversized push payload URLs fall back to `/mail`, matching the in-app notification action URL length policy.
+- Normal safe relative WebPush URLs continue to navigate existing mail windows or open a mail target as before.
+- E2E coverage verifies oversized push payload URLs and notification-click data fall back to `/mail` while existing unsafe URL and safe navigation behavior remain intact.
+- Verification target: `pnpm -C apps/webmail exec playwright test e2e/notifications.spec.ts --project=chromium -g "service worker push and clicks fall back for oversized target URLs|service worker push stores only sanitized click data|service worker notification clicks fall back for unsafe target URLs|service worker notification clicks navigate"`; `pnpm -C apps/webmail type-check`.
 
 ## Notification Action URL Length Hardening (2026-05-23)
 - Notification action URLs are now capped at 2048 characters before storage hydration, runtime state, localStorage persistence, or click handling.

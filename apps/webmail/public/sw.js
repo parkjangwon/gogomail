@@ -2,10 +2,16 @@
 'use strict';
 
 const UNSAFE_CLICK_URL_CHARS = /[\u0000-\u001F\u007F\\]/;
+const MAX_CLICK_URL_LENGTH = 2048;
 
 function safeNotificationClickUrl(value) {
   if (typeof value !== 'string') return '/mail';
-  if (!value.startsWith('/') || value.startsWith('//') || UNSAFE_CLICK_URL_CHARS.test(value)) return '/mail';
+  if (
+    !value.startsWith('/')
+    || value.startsWith('//')
+    || value.length > MAX_CLICK_URL_LENGTH
+    || UNSAFE_CLICK_URL_CHARS.test(value)
+  ) return '/mail';
   return value;
 }
 
