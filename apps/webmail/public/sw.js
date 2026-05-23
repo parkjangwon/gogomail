@@ -3,6 +3,7 @@
 
 const UNSAFE_CLICK_URL_CHARS = /[\u0000-\u001F\u007F\\]/;
 const UNSAFE_TAG_CHARS = /[\u0000-\u001F\u007F\\]/;
+const UNSAFE_DISPLAY_TEXT_CHARS = /[\u0000-\u001F\u007F]+/g;
 const MAX_CLICK_URL_LENGTH = 2048;
 const MAX_TITLE_LENGTH = 160;
 const MAX_BODY_LENGTH = 500;
@@ -23,12 +24,15 @@ function safeNotificationClickUrl(value) {
 function safeNotificationText(value, fallback, maxLength) {
   if (typeof value !== 'string') return fallback;
   if (value.trim() === '') return fallback;
-  return value.length > maxLength ? value.slice(0, maxLength) : value;
+  const normalized = value.replace(UNSAFE_DISPLAY_TEXT_CHARS, ' ');
+  return normalized.length > maxLength ? normalized.slice(0, maxLength) : normalized;
 }
 
 function safeNotificationTag(value) {
-  const tag = safeNotificationText(value, DEFAULT_TAG, MAX_TAG_LENGTH);
-  return UNSAFE_TAG_CHARS.test(tag) ? DEFAULT_TAG : tag;
+  if (typeof value !== 'string') return DEFAULT_TAG;
+  if (value.trim() === '') return DEFAULT_TAG;
+  if (UNSAFE_TAG_CHARS.test(value)) return DEFAULT_TAG;
+  return value.length > MAX_TAG_LENGTH ? value.slice(0, MAX_TAG_LENGTH) : value;
 }
 
 function safeNotificationPayload(value) {

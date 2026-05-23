@@ -824,6 +824,18 @@ test.describe('Notification center', () => {
     expect(String(shown?.options.tag ?? '')).toBe(`tag-${'x'.repeat(124)}`);
   });
 
+  test('service worker push normalizes control characters in display text', async ({ page }) => {
+    const shown = await serviceWorkerShownNotification(page, {
+      title: 'Invoice\nready\u007fnow',
+      body: 'Line one\r\nLine\ttwo',
+      tag: 'display-text-safe',
+    });
+
+    expect(shown?.title).toBe('Invoice ready now');
+    expect(shown?.options.body).toBe('Line one Line two');
+    expect(shown?.options.tag).toBe('display-text-safe');
+  });
+
   test('service worker push rejects unsafe notification tags', async ({ page }) => {
     await expect(serviceWorkerShownNotification(page, { title: 'Control tag', tag: 'mail\nreceived' })).resolves.toMatchObject({
       options: { tag: 'gogomail-notification' },

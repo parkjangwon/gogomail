@@ -6977,3 +6977,7 @@ Target outcome:
       characters and backslashes before `registration.showNotification()`,
       falling malformed closed-tab WebPush replacement keys back to the stable
       default tag while preserving valid custom tags.
+1907. Webmail service worker push notification titles and bodies now normalize
+      ASCII control-character runs to single spaces before
+      `registration.showNotification()`, preventing malformed closed-tab
+      WebPush display text from visually splitting native notifications.

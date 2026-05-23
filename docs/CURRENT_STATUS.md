@@ -1,6 +1,13 @@
 # gogomail current status
 
-Last updated: 2026-05-23 (WebPush notification tag character hardening)
+Last updated: 2026-05-23 (WebPush notification display text character hardening)
+
+## WebPush Notification Display Text Character Hardening (2026-05-23)
+- Webmail service worker push payload titles and bodies now normalize ASCII control-character runs to single spaces before `registration.showNotification()`.
+- This prevents closed-tab browser notifications from rendering CR/LF-style malformed payload text while preserving ordinary display copy and existing length bounds.
+- WebPush tag character rejection remains separate so malformed replacement keys still fall back to the stable default tag instead of being normalized into custom tags.
+- E2E coverage verifies title/body control characters are normalized and existing text truncation, tag rejection, and payload fallback behavior remain intact.
+- Verification target: `pnpm -C apps/webmail exec playwright test e2e/notifications.spec.ts --project=chromium -g "service worker push normalizes control characters in display text|service worker push rejects unsafe notification tags|service worker push truncates oversized notification text fields|service worker push payload fields are normalized before showing notifications"`; `pnpm -C apps/webmail type-check`.
 
 ## WebPush Notification Tag Character Hardening (2026-05-23)
 - Webmail service worker push payload tags now reject control characters and backslashes before `registration.showNotification()`.
