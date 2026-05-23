@@ -125,48 +125,48 @@ export const toolDefinitions: Tool[] = [
 ];
 
 const ListTicketsSchema = z.object({
-  status: z.string().optional(),
-  priority: z.string().optional(),
+  status: z.string().max(32).optional(),
+  priority: z.string().max(32).optional(),
   limit: z.number().optional(),
 });
 
-const TicketIdSchema = z.object({ ticketId: z.string() });
+const TicketIdSchema = z.object({ ticketId: z.string().max(128) });
 
 const SearchTicketsSchema = z.object({
-  customerEmail: z.string().optional(),
-  query: z.string().optional(),
+  customerEmail: z.string().email().max(254).optional(),
+  query: z.string().max(500).optional(),
 });
 
 const CreateTicketSchema = z.object({
-  customerName: z.string(),
-  customerEmail: z.string(),
-  subject: z.string(),
-  description: z.string(),
-  priority: z.string().optional(),
+  customerName: z.string().max(256),
+  customerEmail: z.string().email().max(254),
+  subject: z.string().max(512),
+  description: z.string().max(10_000),
+  priority: z.string().max(32).optional(),
 });
 
 const UpdateTicketSchema = z.object({
-  ticketId: z.string(),
-  status: z.string().optional(),
-  priority: z.string().optional(),
+  ticketId: z.string().max(128),
+  status: z.string().max(32).optional(),
+  priority: z.string().max(32).optional(),
 });
 
 const AddCommentSchema = z.object({
-  ticketId: z.string(),
-  body: z.string(),
+  ticketId: z.string().max(128),
+  body: z.string().max(10_000),
   internal: z.boolean().optional(),
 });
 
 const AssignTicketSchema = z.object({
-  ticketId: z.string(),
-  assigneeId: z.string(),
+  ticketId: z.string().max(128),
+  assigneeId: z.string().max(128),
 });
 
-const SearchKbSchema = z.object({ query: z.string() });
+const SearchKbSchema = z.object({ query: z.string().max(500) });
 
 const CreateKbArticleSchema = z.object({
-  title: z.string(),
-  content: z.string(),
+  title: z.string().max(512),
+  content: z.string().max(100_000),
 });
 
 export async function callTool(

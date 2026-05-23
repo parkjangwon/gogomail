@@ -526,91 +526,96 @@ async function writeAuditComment(
 
 // ── Zod schemas ─────────────────────────────────────────────────
 
+const id = () => z.string().max(128);
+const email = () => z.string().email().max(254);
+const status32 = () => z.string().max(32);
+const ts = () => z.string().max(64);
+
 const SearchPrincipalsSchema = z.object({
-  q: z.string(),
-  companyId: z.string().optional(),
-  domainId: z.string().optional(),
+  q: z.string().max(200),
+  companyId: id().optional(),
+  domainId: id().optional(),
   limit: z.number().optional(),
 });
 const ListUsersSchema = z.object({
-  domainId: z.string().optional(),
-  status: z.string().optional(),
+  domainId: id().optional(),
+  status: status32().optional(),
   limit: z.number().optional(),
 });
-const UserIdSchema = z.object({ userId: z.string() });
-const CompanyIdSchema = z.object({ companyId: z.string() });
+const UserIdSchema = z.object({ userId: id() });
+const CompanyIdSchema = z.object({ companyId: id() });
 const ListCompaniesSchema = z.object({
-  status: z.string().optional(),
+  status: status32().optional(),
   limit: z.number().optional(),
 });
 const ListDomainsSchema = z.object({
-  companyId: z.string().optional(),
-  status: z.string().optional(),
-  dnsStatus: z.string().optional(),
+  companyId: id().optional(),
+  status: status32().optional(),
+  dnsStatus: status32().optional(),
   limit: z.number().optional(),
 });
-const DomainIdSchema = z.object({ domainId: z.string() });
+const DomainIdSchema = z.object({ domainId: id() });
 const ListMailFlowLogsSchema = z.object({
-  userId: z.string().optional(),
-  companyId: z.string().optional(),
-  domainId: z.string().optional(),
-  messageId: z.string().optional(),
-  fromAddr: z.string().optional(),
-  toAddr: z.string().optional(),
-  direction: z.string().optional(),
-  flowStatus: z.string().optional(),
-  since: z.string().optional(),
-  until: z.string().optional(),
+  userId: id().optional(),
+  companyId: id().optional(),
+  domainId: id().optional(),
+  messageId: z.string().max(256).optional(),
+  fromAddr: email().optional(),
+  toAddr: email().optional(),
+  direction: z.string().max(16).optional(),
+  flowStatus: status32().optional(),
+  since: ts().optional(),
+  until: ts().optional(),
   limit: z.number().optional(),
 });
 const MailFlowStatsSchema = z.object({
-  userId: z.string().optional(),
-  companyId: z.string().optional(),
-  domainId: z.string().optional(),
-  direction: z.string().optional(),
-  since: z.string().optional(),
-  until: z.string().optional(),
+  userId: id().optional(),
+  companyId: id().optional(),
+  domainId: id().optional(),
+  direction: z.string().max(16).optional(),
+  since: ts().optional(),
+  until: ts().optional(),
 });
 const ListDeliveryAttemptsSchema = z.object({
-  messageId: z.string().optional(),
-  status: z.string().optional(),
-  recipientDomain: z.string().optional(),
-  sender: z.string().optional(),
-  since: z.string().optional(),
+  messageId: z.string().max(256).optional(),
+  status: status32().optional(),
+  recipientDomain: z.string().max(253).optional(),
+  sender: email().optional(),
+  since: ts().optional(),
   limit: z.number().optional(),
 });
 const ListExhaustedSchema = z.object({
-  messageId: z.string().optional(),
-  recipientDomain: z.string().optional(),
-  sender: z.string().optional(),
-  since: z.string().optional(),
+  messageId: z.string().max(256).optional(),
+  recipientDomain: z.string().max(253).optional(),
+  sender: email().optional(),
+  since: ts().optional(),
   limit: z.number().optional(),
 });
 const DlqListSchema = z.object({
-  stream: z.string(),
+  stream: z.string().max(128),
   count: z.number().optional(),
 });
 const DlqDeleteSchema = z.object({
-  stream: z.string(),
-  id: z.string(),
-  ticketId: z.string().optional(),
+  stream: z.string().max(128),
+  id: id(),
+  ticketId: id().optional(),
 });
 const RetryOutboxSchema = z.object({
-  id: z.string(),
-  ticketId: z.string().optional(),
+  id: id(),
+  ticketId: id().optional(),
 });
 const ListSuppressionSchema = z.object({
-  email: z.string().optional(),
-  domainId: z.string().optional(),
-  reason: z.string().optional(),
+  email: email().optional(),
+  domainId: id().optional(),
+  reason: status32().optional(),
   limit: z.number().optional(),
 });
 const RemoveSuppressionSchema = z.object({
-  id: z.string(),
-  ticketId: z.string().optional(),
+  id: id(),
+  ticketId: id().optional(),
 });
 const ListQuotaUsageSchema = z.object({
-  domainId: z.string().optional(),
+  domainId: id().optional(),
   overLimit: z.boolean().optional(),
   limit: z.number().optional(),
 });
@@ -618,64 +623,64 @@ const ListQuotaAlertsSchema = z.object({
   limit: z.number().optional(),
 });
 const SendInviteSchema = z.object({
-  userId: z.string(),
-  ticketId: z.string().optional(),
+  userId: id(),
+  ticketId: id().optional(),
 });
 const UpdateStatusSchema = z.object({
-  userId: z.string(),
+  userId: id(),
   status: z.enum(["active", "suspended", "disabled"]),
-  ticketId: z.string().optional(),
+  ticketId: id().optional(),
 });
 const UpdateQuotaSchema = z.object({
-  userId: z.string(),
+  userId: id(),
   quotaBytes: z.number(),
-  ticketId: z.string().optional(),
+  ticketId: id().optional(),
 });
 const UpdateRoleSchema = z.object({
-  userId: z.string(),
-  role: z.string(),
-  ticketId: z.string().optional(),
+  userId: id(),
+  role: z.string().max(64),
+  ticketId: id().optional(),
 });
 const UpdateRecoveryEmailSchema = z.object({
-  userId: z.string(),
-  recoveryEmail: z.string().email(),
-  ticketId: z.string().optional(),
+  userId: id(),
+  recoveryEmail: email(),
+  ticketId: id().optional(),
 });
 const CreateUserSchema = z.object({
-  domainId: z.string(),
-  username: z.string(),
-  displayName: z.string(),
-  recoveryEmail: z.string().optional(),
-  password: z.string().optional(),
+  domainId: id(),
+  username: z.string().max(64),
+  displayName: z.string().max(256),
+  recoveryEmail: email().optional(),
+  password: z.string().max(256).optional(),
   quotaLimit: z.number().optional(),
-  ticketId: z.string().optional(),
+  ticketId: id().optional(),
 });
 const DeleteUserSchema = z.object({
-  userId: z.string(),
-  ticketId: z.string().optional(),
+  userId: id(),
+  ticketId: id().optional(),
 });
 const UpdateDomainSchema = z.object({
-  domainId: z.string(),
+  domainId: id(),
   settings: z.record(z.unknown()),
-  ticketId: z.string().optional(),
+  ticketId: id().optional(),
 });
-const ListCompanySessionsSchema = z.object({ companyId: z.string() });
+const ListCompanySessionsSchema = z.object({ companyId: id() });
 const RevokeSessionSchema = z.object({
-  companyId: z.string(),
-  userId: z.string(),
-  ticketId: z.string().optional(),
+  companyId: id(),
+  userId: id(),
+  ticketId: id().optional(),
 });
-const GetSpamFilterSchema = z.object({ companyId: z.string() });
-const ListDkimSchema = z.object({ domainId: z.string().optional() });
+const GetSpamFilterSchema = z.object({ companyId: id() });
+const ListDkimSchema = z.object({ domainId: id().optional() });
 const AlertEventsSchema = z.object({
-  companyId: z.string(),
+  companyId: id(),
   limit: z.number().optional(),
 });
 const AuditLogsSchema = z.object({
-  userId: z.string().optional(),
-  companyId: z.string().optional(),
-  from: z.string().optional(),
-  to: z.string().optional(),
+  userId: id().optional(),
+  companyId: id().optional(),
+  from: ts().optional(),
+  to: ts().optional(),
   limit: z.number().optional(),
 });
 
@@ -759,7 +764,7 @@ export async function callTool(
         `stream: ${stream}, id: ${id}`,
         "DLQ 항목 삭제",
       ).catch((e: unknown) =>
-        console.error("[audit] failed to write comment:", e),
+        console.error("[audit] failed to write comment:", e instanceof Error ? e.message : String(e)),
       );
       return { status: "ok", stream, id };
     }
@@ -774,7 +779,7 @@ export async function callTool(
         `outbox id: ${id}`,
         "발송 재시도",
       ).catch((e: unknown) =>
-        console.error("[audit] failed to write comment:", e),
+        console.error("[audit] failed to write comment:", e instanceof Error ? e.message : String(e)),
       );
       return result;
     }
@@ -793,7 +798,7 @@ export async function callTool(
         `suppression id: ${id}`,
         "수신 거부 해제",
       ).catch((e: unknown) =>
-        console.error("[audit] failed to write comment:", e),
+        console.error("[audit] failed to write comment:", e instanceof Error ? e.message : String(e)),
       );
       return { status: "ok", id };
     }
@@ -818,7 +823,7 @@ export async function callTool(
         `${user.email} (userId: ${userId})`,
         "초대 이메일 발송 (비밀번호 설정 링크)",
       ).catch((e: unknown) =>
-        console.error("[audit] failed to write comment:", e),
+        console.error("[audit] failed to write comment:", e instanceof Error ? e.message : String(e)),
       );
       return result;
     }
@@ -833,7 +838,7 @@ export async function callTool(
         `${before.email} (userId: ${userId})`,
         `${before.status} → ${status}`,
       ).catch((e: unknown) =>
-        console.error("[audit] failed to write comment:", e),
+        console.error("[audit] failed to write comment:", e instanceof Error ? e.message : String(e)),
       );
       return result;
     }
@@ -848,7 +853,7 @@ export async function callTool(
         `userId: ${userId}`,
         `${before.allocatedBytes} → ${quotaBytes} bytes`,
       ).catch((e: unknown) =>
-        console.error("[audit] failed to write comment:", e),
+        console.error("[audit] failed to write comment:", e instanceof Error ? e.message : String(e)),
       );
       return result;
     }
@@ -863,7 +868,7 @@ export async function callTool(
         `${before.email} (userId: ${userId})`,
         `${before.role} → ${role}`,
       ).catch((e: unknown) =>
-        console.error("[audit] failed to write comment:", e),
+        console.error("[audit] failed to write comment:", e instanceof Error ? e.message : String(e)),
       );
       return result;
     }
@@ -878,7 +883,7 @@ export async function callTool(
         `${user.email} (userId: ${userId})`,
         `복구 이메일 변경 → ${recoveryEmail}`,
       ).catch((e: unknown) =>
-        console.error("[audit] failed to write comment:", e),
+        console.error("[audit] failed to write comment:", e instanceof Error ? e.message : String(e)),
       );
       return { status: "ok", userId, recoveryEmail };
     }
@@ -893,7 +898,7 @@ export async function callTool(
         `${user.email} (userId: ${user.id})`,
         `신규 사용자 생성 — domainId: ${domainId}`,
       ).catch((e: unknown) =>
-        console.error("[audit] failed to write comment:", e),
+        console.error("[audit] failed to write comment:", e instanceof Error ? e.message : String(e)),
       );
       return user;
     }
@@ -908,7 +913,7 @@ export async function callTool(
         `${user.email} (userId: ${userId})`,
         "사용자 계정 영구 삭제",
       ).catch((e: unknown) =>
-        console.error("[audit] failed to write comment:", e),
+        console.error("[audit] failed to write comment:", e instanceof Error ? e.message : String(e)),
       );
       return { status: "ok", deletedUserId: userId, email: user.email };
     }
@@ -926,7 +931,7 @@ export async function callTool(
         `${before.domain} (domainId: ${domainId})`,
         `변경 전: ${JSON.stringify(before)}\n- 변경 후: ${JSON.stringify(settings)}`,
       ).catch((e: unknown) =>
-        console.error("[audit] failed to write comment:", e),
+        console.error("[audit] failed to write comment:", e instanceof Error ? e.message : String(e)),
       );
       return result;
     }
@@ -945,7 +950,7 @@ export async function callTool(
         `companyId: ${companyId}, userId: ${userId}`,
         "세션 강제 종료",
       ).catch((e: unknown) =>
-        console.error("[audit] failed to write comment:", e),
+        console.error("[audit] failed to write comment:", e instanceof Error ? e.message : String(e)),
       );
       return { status: "ok" };
     }

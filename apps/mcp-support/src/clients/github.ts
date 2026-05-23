@@ -67,7 +67,7 @@ export class GithubClient {
       params.query,
     ];
     if (params.labels) {
-      parts.push(...params.labels.map((l) => `label:"${l}"`));
+      parts.push(...params.labels.map((l) => `label:"${l.replace(/"/g, "")}"`));
     }
     if (params.state) parts.push(`state:${params.state}`);
     const { data } = await this.octokit.search.issuesAndPullRequests({

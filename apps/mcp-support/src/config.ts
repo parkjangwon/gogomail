@@ -11,19 +11,55 @@ function optionalEnv(name: string): string | undefined {
   return process.env[name] || undefined;
 }
 
+function validateUrl(val: string, name: string): string {
+  let parsed: URL;
+  try {
+    parsed = new URL(val);
+  } catch {
+    console.error(`[mcp-support] ${name} is not a valid URL: ${val}`);
+    process.exit(1);
+  }
+  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+    console.error(`[mcp-support] ${name} must use http or https scheme: ${val}`);
+    process.exit(1);
+  }
+  return val;
+}
+
+// Guard against newline injection in header values (CWE-93)
+function validateNoNewlines(val: string | undefined, name: string): string | undefined {
+  if (val && /[\r\n]/.test(val)) {
+    console.error(`[mcp-support] ${name} must not contain newline characters`);
+    process.exit(1);
+  }
+  return val;
+}
+
+const gogomailAdminUrl = validateUrl(requireEnv("GOGOMAIL_ADMIN_URL"), "GOGOMAIL_ADMIN_URL");
+const gogomailAdminKey = validateNoNewlines(requireEnv("GOGOMAIL_ADMIN_KEY"), "GOGOMAIL_ADMIN_KEY")!;
+
+const suppoApiUrl = process.env["SUPPO_API_URL"] || undefined;
+const suppoApiKey = validateNoNewlines(process.env["SUPPO_API_KEY"] || undefined, "SUPPO_API_KEY");
+
+if (suppoApiUrl) validateUrl(suppoApiUrl, "SUPPO_API_URL");
+
+const githubToken = validateNoNewlines(process.env["GITHUB_TOKEN"] || undefined, "GITHUB_TOKEN");
+
 export const config = {
   gogomail: {
-    adminUrl: requireEnv("GOGOMAIL_ADMIN_URL"),
-    adminKey: requireEnv("GOGOMAIL_ADMIN_KEY"),
+    adminUrl: gogomailAdminUrl,
+    adminKey: gogomailAdminKey,
   },
   suppo: {
-    apiUrl: optionalEnv("SUPPO_API_URL"),
-    apiKey: optionalEnv("SUPPO_API_KEY"),
+    apiUrl: suppoApiUrl,
+    apiKey: suppoApiKey,
   },
   github: {
-    token: optionalEnv("GITHUB_TOKEN"),
+    token: githubToken,
     repo: process.env["GITHUB_REPO"] ?? "parkjangwon/gogomail",
   },
+  // When set, all SSE connections must send: Authorization: Bearer <mcpSecret>
+  mcpSecret: optionalEnv("MCP_SECRET"),
   transport: (process.env["MCP_TRANSPORT"] ?? "stdio") as "stdio" | "sse",
   port: parseInt(process.env["MCP_PORT"] ?? "3100", 10),
 };

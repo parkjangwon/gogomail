@@ -84,29 +84,29 @@ export const toolDefinitions: Tool[] = [
 ];
 
 const SearchSchema = z.object({
-  query: z.string(),
-  labels: z.array(z.string()).optional(),
-  state: z.string().optional(),
+  query: z.string().max(1000),
+  labels: z.array(z.string().max(128)).max(20).optional(),
+  state: z.string().max(16).optional(),
 });
 const IssueNumberSchema = z.object({ issueNumber: z.number() });
 const ListSchema = z.object({
-  labels: z.array(z.string()).optional(),
-  milestone: z.string().optional(),
-  state: z.string().optional(),
+  labels: z.array(z.string().max(128)).max(20).optional(),
+  milestone: z.string().max(256).optional(),
+  state: z.string().max(16).optional(),
 });
 const CreateSchema = z.object({
-  title: z.string(),
-  body: z.string(),
-  labels: z.array(z.string()).optional(),
+  title: z.string().max(512),
+  body: z.string().max(65_535),
+  labels: z.array(z.string().max(128)).max(20).optional(),
 });
 const AddCommentSchema = z.object({
   issueNumber: z.number(),
-  body: z.string(),
+  body: z.string().max(65_535),
 });
 const UpdateSchema = z.object({
   issueNumber: z.number(),
-  labels: z.array(z.string()).optional(),
-  state: z.string().optional(),
+  labels: z.array(z.string().max(128)).max(20).optional(),
+  state: z.string().max(16).optional(),
 });
 
 export async function callTool(

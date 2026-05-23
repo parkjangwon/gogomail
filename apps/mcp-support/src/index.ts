@@ -4,6 +4,7 @@ import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
+import type { IncomingMessage, ServerResponse } from "http";
 import { config } from "./config.js";
 import { GogomailClient } from "./clients/gogomail.js";
 import { SuppoClient } from "./clients/suppo.js";
@@ -11,6 +12,14 @@ import { GithubClient } from "./clients/github.js";
 import * as suppoTools from "./tools/suppo.js";
 import * as gogomailTools from "./tools/gogomail.js";
 import * as githubTools from "./tools/github.js";
+
+// ── Constants ────────────────────────────────────────────────────
+
+const MAX_BODY_BYTES = 1 * 1024 * 1024; // 1 MB
+const MAX_SESSIONS = 100; // prevent session map unbounded growth
+const MAX_SESSION_ID_LENGTH = 128;
+
+// ── Clients ──────────────────────────────────────────────────────
 
 const gogomailClient = new GogomailClient(
   config.gogomail.adminUrl,
@@ -36,6 +45,44 @@ if (!githubClient) {
     "[mcp-support] GitHub not configured — GitHub Issues tools disabled",
   );
 }
+if (config.mcpSecret) {
+  console.error("[mcp-support] MCP_SECRET is set — SSE endpoints require Bearer auth");
+} else if (config.transport === "sse") {
+  console.error("[mcp-support] WARNING: MCP_SECRET is not set — SSE endpoint is unauthenticated");
+}
+
+// ── Auth middleware ───────────────────────────────────────────────
+
+function checkAuth(req: IncomingMessage, res: ServerResponse): boolean {
+  if (!config.mcpSecret) return true;
+  const auth = req.headers["authorization"];
+  if (!auth || auth !== `Bearer ${config.mcpSecret}`) {
+    res.writeHead(401, { "Content-Type": "application/json", "X-Content-Type-Options": "nosniff" })
+      .end(JSON.stringify({ error: "Unauthorized" }));
+    return false;
+  }
+  return true;
+}
+
+// ── Security headers ─────────────────────────────────────────────
+
+function securityHeaders(): Record<string, string> {
+  return {
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "DENY",
+    "Cache-Control": "no-store",
+  };
+}
+
+// ── Error sanitization ───────────────────────────────────────────
+
+function sanitizeError(err: unknown): string {
+  const raw = err instanceof Error ? err.message : String(err);
+  // Truncate to 500 chars to prevent info leakage from verbose upstream errors
+  return raw.length > 500 ? raw.slice(0, 500) + " [truncated]" : raw;
+}
+
+// ── MCP server ───────────────────────────────────────────────────
 
 const allTools = [
   ...suppoTools.toolDefinitions,
@@ -78,13 +125,14 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
     };
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
     return {
-      content: [{ type: "text", text: `Error: ${message}` }],
+      content: [{ type: "text", text: `Error: ${sanitizeError(err)}` }],
       isError: true,
     };
   }
 });
+
+// ── Transport ────────────────────────────────────────────────────
 
 async function main(): Promise<void> {
   if (config.transport === "sse") {
@@ -96,7 +144,15 @@ async function main(): Promise<void> {
     const sessions = new Map<string, InstanceType<typeof SSEServerTransport>>();
 
     const httpServer = createServer((req, res) => {
+      // GET /sse — establish SSE stream
       if (req.method === "GET" && req.url === "/sse") {
+        if (!checkAuth(req, res)) return;
+
+        if (sessions.size >= MAX_SESSIONS) {
+          res.writeHead(503, securityHeaders()).end("Too many sessions");
+          return;
+        }
+
         const transport = new SSEServerTransport("/messages", res);
         sessions.set(transport.sessionId, transport);
         server.connect(transport).catch(console.error);
@@ -104,23 +160,60 @@ async function main(): Promise<void> {
         return;
       }
 
+      // POST /messages — tool call from agent
       if (req.method === "POST" && req.url?.startsWith("/messages")) {
-        const url = new URL(req.url, `http://localhost`);
-        const sessionId = url.searchParams.get("sessionId") ?? "";
-        const transport = sessions.get(sessionId);
-        if (!transport) {
-          res.writeHead(404).end("Session not found");
+        if (!checkAuth(req, res)) return;
+
+        // Validate Content-Type
+        const ct = req.headers["content-type"] ?? "";
+        if (!ct.includes("application/json")) {
+          res.writeHead(415, securityHeaders()).end("Unsupported Media Type — use application/json");
           return;
         }
+
+        const url = new URL(req.url, `http://localhost`);
+        const sessionId = url.searchParams.get("sessionId") ?? "";
+
+        // Reject obviously invalid session IDs before Map lookup
+        if (!sessionId || sessionId.length > MAX_SESSION_ID_LENGTH || !/^[\w-]+$/.test(sessionId)) {
+          res.writeHead(400, securityHeaders()).end("Invalid sessionId");
+          return;
+        }
+
+        const transport = sessions.get(sessionId);
+        if (!transport) {
+          res.writeHead(404, securityHeaders()).end("Session not found");
+          return;
+        }
+
+        // Enforce body size limit to prevent OOM
         let body = "";
-        req.on("data", (chunk: Buffer) => (body += chunk));
-        req.on("end", () => {
-          transport.handlePostMessage(req, res, body).catch(console.error);
+        let bytesRead = 0;
+        let limitExceeded = false;
+
+        req.on("data", (chunk: Buffer) => {
+          if (limitExceeded) return;
+          bytesRead += chunk.length;
+          if (bytesRead > MAX_BODY_BYTES) {
+            limitExceeded = true;
+            res.writeHead(413, securityHeaders()).end("Payload Too Large");
+            req.destroy();
+            return;
+          }
+          body += chunk;
         });
+
+        req.on("end", () => {
+          if (limitExceeded) return;
+          transport.handlePostMessage(req, res, body).catch((e: unknown) => {
+            console.error("[mcp-support] handlePostMessage error:", e instanceof Error ? e.message : String(e));
+          });
+        });
+
         return;
       }
 
-      res.writeHead(404).end();
+      res.writeHead(404, securityHeaders()).end();
     });
 
     httpServer.listen(config.port, () => {
@@ -136,6 +229,6 @@ async function main(): Promise<void> {
 }
 
 main().catch((err) => {
-  console.error("[mcp-support] Fatal error:", err);
+  console.error("[mcp-support] Fatal error:", err instanceof Error ? err.message : String(err));
   process.exit(1);
 });
