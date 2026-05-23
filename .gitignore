@@ -101,3 +101,5 @@ apps/*/tsconfig.tsbuildinfo
 apps/docs/node_modules/
 apps/docs/.vitepress/cache/
 apps/docs/package-lock.json
+apps/mcp-support/node_modules/
+apps/mcp-support/dist/
