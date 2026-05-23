@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ErrorBoundary } from './ErrorBoundary';
 import { NotificationProvider } from '@/lib/notifications/store';
+import { useWebPush } from '@/hooks/useWebPush';
 
 function ThemeInitializer() {
   useEffect(() => {
@@ -22,6 +23,11 @@ function ThemeInitializer() {
   return null;
 }
 
+function WebPushInitializer() {
+  useWebPush();
+  return null;
+}
+
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(
     () =>
@@ -36,6 +42,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
         <ThemeInitializer />
+        <WebPushInitializer />
         <NotificationProvider>{children}</NotificationProvider>
       </QueryClientProvider>
     </ErrorBoundary>
