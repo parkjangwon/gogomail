@@ -149,7 +149,7 @@ export function NotificationCenter({ open, onClose }: NotificationCenterProps) {
         </h2>
         <button
           type="button"
-            aria-label="close"
+          aria-label={t('center.close')}
           onClick={() => onClose({ restoreFocus: true })}
           style={{
             border: 'none',

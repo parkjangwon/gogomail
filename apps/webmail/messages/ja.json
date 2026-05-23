@@ -1724,6 +1724,7 @@
       "empty": "通知はまだありません",
       "emptyFiltered": "条件に一致する通知はありません",
       "searchPlaceholder": "通知を検索",
+      "close": "通知を閉じる",
       "markAllRead": "すべて既読にする",
       "clearAll": "すべて消去",
       "filters": {

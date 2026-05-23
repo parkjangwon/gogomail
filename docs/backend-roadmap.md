@@ -6807,3 +6807,6 @@ Target outcome:
       as list insertion. A synchronous notification-id map prevents duplicate
       pushes in the same JavaScript turn from replaying sounds or browser
       notification mirrors for the same event id.
+1860. Webmail notification center close controls now use localized accessible
+      names across English, Korean, Japanese, and Simplified Chinese instead
+      of a hard-coded English `close` label.

@@ -1724,6 +1724,7 @@
       "empty": "No notifications yet",
       "emptyFiltered": "No notifications match these filters",
       "searchPlaceholder": "Search notifications",
+      "close": "Close notifications",
       "markAllRead": "Mark all read",
       "clearAll": "Clear all",
       "filters": {
