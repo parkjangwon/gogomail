@@ -6892,3 +6892,7 @@ Target outcome:
       match the current search query in addition to the all/unread filter, so
       searched notification lists no longer offer categories that would lead to
       an avoidable empty filtered state.
+1884. Webmail notification clear-all now clears only the currently visible
+      rows when search, unread, or category filters are active, while
+      preserving full-list clearing in the unfiltered all view so hidden
+      notifications are not accidentally removed from filtered result sets.
