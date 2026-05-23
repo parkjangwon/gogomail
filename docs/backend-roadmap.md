@@ -6960,3 +6960,6 @@ Target outcome:
       localStorage persistence, preserving short future-facing icon hints while
       dropping oversized strings that would otherwise bloat stored notification
       payloads.
+1902. Webmail notification ids now reject control characters and backslashes
+      before storage, dedupe, or browser notification tag use; unsafe stored ids
+      are dropped and unsafe runtime ids receive generated replacements.

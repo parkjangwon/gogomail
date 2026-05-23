@@ -56,6 +56,7 @@ const MAX_METADATA_KEYS = 20;
 const MAX_METADATA_KEY_LENGTH = 64;
 const MAX_METADATA_STRING_LENGTH = 200;
 const FALLBACK_TITLE = 'Notification';
+const UNSAFE_ID_CHARS = /[\u0000-\u001F\u007F\\]/;
 const UNSAFE_ACTION_URL_CHARS = /[\u0000-\u001F\u007F\\]/;
 const VALID_CATEGORIES = new Set<NotificationCategory>([
   'mail_received',
@@ -296,7 +297,12 @@ function safeNotificationMetadata(value: unknown): Record<string, unknown> | und
 }
 
 function safeNotificationId(value: unknown): string {
-  return typeof value === 'string' && value.trim() !== '' && value.length <= MAX_ID_LENGTH ? value : makeId();
+  return typeof value === 'string'
+    && value.trim() !== ''
+    && value.length <= MAX_ID_LENGTH
+    && !UNSAFE_ID_CHARS.test(value)
+    ? value
+    : makeId();
 }
 
 function safeNotificationTitle(value: unknown): string {
@@ -334,6 +340,7 @@ function sanitizeNotifications(input: unknown): Notification[] {
     if (!(typeof o.id === 'string'
       && o.id.trim() !== ''
       && o.id.length <= MAX_ID_LENGTH
+      && !UNSAFE_ID_CHARS.test(o.id)
       && typeof o.title === 'string'
       && o.title.trim() !== ''
       && typeof o.category === 'string'
