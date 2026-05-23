@@ -1428,6 +1428,43 @@ test.describe('Notification center', () => {
     ).toBe(1);
   });
 
+  test('caps browser notification mirror tags', async ({ page }) => {
+    await page.addInitScript(() => {
+      try {
+        Object.defineProperty(window.Notification, 'permission', { value: 'granted', configurable: true });
+      } catch {
+        // ignore
+      }
+      localStorage.setItem('webmail_browser_notifications_enabled', 'true');
+      (window as unknown as { __browserNotificationTags: unknown[] }).__browserNotificationTags = [];
+      const Orig = window.Notification;
+      window.Notification = new Proxy(Orig, {
+        construct(target, args) {
+          const options = args[1] as { tag?: unknown } | undefined;
+          (window as unknown as { __browserNotificationTags: unknown[] }).__browserNotificationTags.push(options?.tag);
+          return new (target as unknown as new (...a: unknown[]) => Notification)(...args);
+        },
+      }) as typeof window.Notification;
+    });
+    await setupAuthedPage(page);
+
+    await pushNotification(page, {
+      id: 'b'.repeat(128),
+      title: 'Long browser tag',
+      category: 'system',
+      severity: 'error',
+    });
+
+    await expect.poll(
+      () => page.evaluate(() => (window as unknown as { __browserNotificationTags: string[] }).__browserNotificationTags),
+      { timeout: 5_000 },
+    ).toEqual([expect.stringMatching(/^system-b+$/)]);
+    const tagLength = await page.evaluate(() => (
+      (window as unknown as { __browserNotificationTags: string[] }).__browserNotificationTags[0]?.length ?? 0
+    ));
+    expect(tagLength).toBeLessThanOrEqual(128);
+  });
+
   test('search and category filters narrow a busy notification list', async ({ page }) => {
     await pushNotification(page, { title: 'Quarterly report uploaded', body: 'Drive file is ready', category: 'drive_share' });
     await pushNotification(page, { title: 'Deployment finished', body: 'System job succeeded', category: 'system' });
