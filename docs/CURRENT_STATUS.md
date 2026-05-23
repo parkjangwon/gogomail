@@ -1,6 +1,11 @@
 # gogomail current status
 
-Last updated: 2026-05-23 (auth username lookup index)
+Last updated: 2026-05-23 (notification center keyboard focus)
+
+## Notification Center Keyboard Focus (2026-05-23)
+- Opening the notification center now moves focus directly to the search field, so keyboard users can immediately filter a busy notification list.
+- E2E coverage verifies the search input receives focus when the panel opens from the notification bell.
+- Verification target: `pnpm -C apps/webmail exec playwright test e2e/notifications.spec.ts --project=chromium -g "focuses search field"`; `pnpm -C apps/webmail type-check`.
 
 ## Auth Username Lookup Index (2026-05-23, TASK-090)
 - Local auth, LDAP auth, and SMTP submission auth now pre-normalize the username bind value in Go and compare it to `lower(u.username)` directly.

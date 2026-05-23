@@ -27,6 +27,7 @@ export function NotificationCenter({ open, onClose }: NotificationCenterProps) {
   const [query, setQuery] = useState('');
   const [bannerDismissed, setBannerDismissed] = useState<boolean>(false);
   const panelRef = useRef<HTMLDivElement | null>(null);
+  const searchRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -63,6 +64,12 @@ export function NotificationCenter({ open, onClose }: NotificationCenterProps) {
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
   }, [open, onClose]);
+
+  useEffect(() => {
+    if (!open) return;
+    const id = window.setTimeout(() => searchRef.current?.focus(), 0);
+    return () => window.clearTimeout(id);
+  }, [open]);
 
   // Click outside to close
   useEffect(() => {
@@ -231,6 +238,7 @@ export function NotificationCenter({ open, onClose }: NotificationCenterProps) {
 
       <div style={{ padding: '10px 12px', borderBottom: '1px solid var(--color-border-subtle)' }}>
         <input
+          ref={searchRef}
           type="search"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
