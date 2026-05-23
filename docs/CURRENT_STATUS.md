@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-23 (web_push_subscriptions DB layer)
+Last updated: 2026-05-23 (WebPushSink aes128gcm implementation + DB layer)
 
 ## Web Push Subscriptions DB Layer (2026-05-23)
 - Added `internal/maildb/web_push_subscriptions.go` with `UpsertWebPushSubscription`, `ListActiveWebPushSubscriptions`, `DeleteWebPushSubscription`, and `SoftDeleteWebPushSubscriptionByEndpoint` on `maildb.Repository`.
@@ -8,10 +8,11 @@ Last updated: 2026-05-23 (web_push_subscriptions DB layer)
 - `DeleteWebPushSubscription` soft-deletes by user_id + id; returns error if no active row matched.
 - `SoftDeleteWebPushSubscriptionByEndpoint` handles 410 Gone push-service responses.
 - Validation rejects missing fields, non-HTTPS endpoints, endpoints > 2048 chars, and embedded line breaks.
-- Unit tests cover all validation paths; no DB connection required.
-- Verification target: `go test ./internal/maildb/... -run TestWebPushSubscription -v`.
 
-Last updated: 2026-05-23 (browser notification tag collision hardening)
+## WebPushSink — aes128gcm Encrypted Web Push (2026-05-23)
+- Added `github.com/SherClockHolmes/webpush-go` dependency for RFC 8291 aes128gcm push encryption.
+- Added `EnvelopeFrom` field to `Event` (`json:"envelope_from"`) and `Notification`, mapped in `notificationFromEvent()`.
+- Implemented `WebPushSink` satisfying the `Sink` interface: fetches active subscriptions per user, encrypts and sends push notifications, auto-soft-deletes subscriptions on 410 Gone.
 
 ## Browser Notification Tag Collision Hardening (2026-05-23)
 - Webmail browser notification mirroring now keeps overlong native `NotificationOptions.tag` values distinct by appending a stable 8-character hash suffix after truncation.
