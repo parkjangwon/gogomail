@@ -38,8 +38,8 @@ export function buildAuditLogsQuery(filters: AuditLogQueryFilters): string {
   if (filters.category?.trim()) params.set('category', filters.category.trim());
   if (filters.action?.trim()) params.set('action', filters.action.trim());
   if (filters.targetType?.trim()) params.set('target_type', filters.targetType.trim());
-  if (filters.fromDate?.trim()) params.set('since', filters.fromDate.trim());
-  if (filters.before?.trim()) params.set('before', filters.before.trim());
+  if (filters.fromDate?.trim()) params.set('from_date', filters.fromDate.trim());
+  if (filters.toDate?.trim()) params.set('to_date', filters.toDate.trim());
   if (typeof filters.limit === 'number' && filters.limit > 0) params.set('limit', String(filters.limit));
   if (typeof filters.offset === 'number' && filters.offset >= 0) params.set('offset', String(filters.offset));
 
