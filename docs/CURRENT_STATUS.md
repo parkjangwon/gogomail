@@ -1,6 +1,13 @@
 # gogomail current status
 
-Last updated: 2026-05-23 (frontend release verification cleanup)
+Last updated: 2026-05-23 (notification center usability hardening)
+
+## Notification Center Usability Hardening (2026-05-23)
+- Webmail notification center now supports text search across title/body and dynamic category chips with per-category counts, so busy launch-day notification streams can be narrowed without clearing history.
+- Client notification pushes now honor the documented `dedupe` option for repeated event IDs and use the shared `stableId()` generator instead of local `Math.random()` IDs.
+- Notification rows no longer nest an interactive dismiss control inside a `<button>`; rows keep keyboard activation while dismiss uses a separate accessible button.
+- New/updated E2E coverage verifies dedupe, search, category filtering, dismiss behavior, persistence, browser-permission hints, and browser-notification toggle behavior.
+- Verification: `pnpm -C apps/webmail type-check` and `pnpm -C apps/webmail exec playwright test e2e/notifications.spec.ts --project=chromium` pass.
 
 ## Frontend Release Verification Cleanup (2026-05-23)
 - `scripts/verify-frontend-release.sh` now snapshots and restores Next-generated type files (`next-env.d.ts`, app `tsconfig.json`, and console `tsconfig.tsbuildinfo`) around type-check/build runs, so production build verification no longer leaves the working tree dirty.

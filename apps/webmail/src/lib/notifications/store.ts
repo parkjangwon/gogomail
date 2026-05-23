@@ -36,6 +36,7 @@ import {
   useRef,
   type ReactNode,
 } from 'react';
+import { stableId } from '@/lib/stableId';
 import type { Notification, NotificationInput } from './types';
 
 const STORAGE_KEY = 'webmail_notifications';
@@ -112,7 +113,7 @@ type State = { notifications: Notification[] };
 
 type Action =
   | { type: 'hydrate'; notifications: Notification[] }
-  | { type: 'push'; notification: Notification }
+  | { type: 'push'; notification: Notification; dedupe?: boolean }
   | { type: 'markRead'; id: string }
   | { type: 'markAllRead' }
   | { type: 'dismiss'; id: string }
@@ -123,6 +124,9 @@ function reducer(state: State, action: Action): State {
     case 'hydrate':
       return { notifications: action.notifications };
     case 'push': {
+      if (action.dedupe && state.notifications.some((n) => n.id === action.notification.id)) {
+        return state;
+      }
       // newest-first
       const next = [action.notification, ...state.notifications].slice(0, MAX_NOTIFICATIONS);
       return { notifications: next };
@@ -162,8 +166,7 @@ function loadInitial(): Notification[] {
 }
 
 function makeId(): string {
-  // Avoid extra deps — short random id is enough for client-only store.
-  return `n_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+  return stableId('n');
 }
 
 export interface NotificationsContextValue {
@@ -225,7 +228,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
       iconName: input.iconName,
       metadata: input.metadata,
     };
-    dispatch({ type: 'push', notification });
+    dispatch({ type: 'push', notification, dedupe: input.dedupe });
     // Mirror to OS-level browser notification (gated by permission + toggle).
     fireBrowserNotification(notification, (markId) => dispatch({ type: 'markRead', id: markId }));
     return notification;

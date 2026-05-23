@@ -1708,11 +1708,24 @@
     "center": {
       "title": "알림",
       "empty": "아직 알림이 없습니다",
+      "emptyFiltered": "조건에 맞는 알림이 없습니다",
+      "searchPlaceholder": "알림 검색",
       "markAllRead": "모두 읽음으로",
       "clearAll": "모두 지우기",
       "filters": {
         "all": "전체",
         "unread": "읽지 않음"
+      },
+      "categories": {
+        "mail_received": "메일",
+        "mail_sent": "발송",
+        "mail_send_failed": "발송 실패",
+        "mail_bounced": "반송",
+        "calendar_reminder": "일정",
+        "calendar_invite": "초대",
+        "drive_share": "드라이브",
+        "system": "시스템",
+        "custom": "사용자"
       }
     },
     "mailReceived": "{sender} 님에게서 새 메일",
