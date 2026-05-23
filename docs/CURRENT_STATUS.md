@@ -1,6 +1,12 @@
 # gogomail current status
 
-Last updated: 2026-05-23 (notification text length hardening)
+Last updated: 2026-05-23 (notification initial storage pruning)
+
+## Notification Initial Storage Pruning (2026-05-23)
+- Notification provider startup now immediately re-persists the sanitized notification list read from localStorage instead of leaving the raw stored payload untouched.
+- This closes the initial-load gap where unknown injected fields were hidden from UI state but remained in localStorage until a later notification mutation.
+- E2E coverage verifies extra scalar and nested fields are pruned from `webmail_notifications` after a page reload hydration.
+- Verification target: `pnpm -C apps/webmail exec playwright test e2e/notifications.spec.ts --project=chromium -g "prunes unknown stored notification fields after initial page hydration|drops unknown fields"`; `pnpm -C apps/webmail type-check`.
 
 ## Notification Text Length Hardening (2026-05-23)
 - Notification runtime pushes and storage hydration now cap titles at 160 characters and bodies at 500 characters.
