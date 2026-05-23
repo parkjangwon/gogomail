@@ -6963,3 +6963,6 @@ Target outcome:
 1902. Webmail notification ids now reject control characters and backslashes
       before storage, dedupe, or browser notification tag use; unsafe stored ids
       are dropped and unsafe runtime ids receive generated replacements.
+1903. Webmail notification action URLs are now capped before storage,
+      runtime state, localStorage persistence, and click handling, dropping
+      oversized relative targets while preserving normal safe relative URLs.
