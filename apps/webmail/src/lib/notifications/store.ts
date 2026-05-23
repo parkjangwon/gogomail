@@ -116,7 +116,7 @@ function fireBrowserNotification(
 
     const browserNotif = new NotificationCtor(n.title, {
       body: n.body,
-      tag: truncateText(`${n.category}-${n.id}`, MAX_BROWSER_NOTIFICATION_TAG_LENGTH),
+      tag: browserNotificationTag(n),
       icon: '/favicon.ico',
       data: { actionUrl: n.actionUrl, id: n.id },
       silent: !isNotificationSoundEnabled(),
@@ -277,6 +277,22 @@ function truncateText(value: string, maxLength: number): string {
   return lastCodeUnit >= 0xD800 && lastCodeUnit <= 0xDBFF
     ? truncated.slice(0, -1)
     : truncated;
+}
+
+function stableHexHash(value: string): string {
+  let hash = 0x811c9dc5;
+  for (let i = 0; i < value.length; i++) {
+    hash ^= value.charCodeAt(i);
+    hash = Math.imul(hash, 0x01000193);
+  }
+  return (hash >>> 0).toString(16).padStart(8, '0');
+}
+
+function browserNotificationTag(notification: Notification): string {
+  const raw = `${notification.category}-${notification.id}`;
+  if (raw.length <= MAX_BROWSER_NOTIFICATION_TAG_LENGTH) return raw;
+  const suffix = `-${stableHexHash(raw)}`;
+  return `${truncateText(raw, MAX_BROWSER_NOTIFICATION_TAG_LENGTH - suffix.length)}${suffix}`;
 }
 
 function safeNotificationBody(value: unknown): string | undefined {

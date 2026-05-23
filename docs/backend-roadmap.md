@@ -7010,3 +7010,7 @@ Target outcome:
       pairs at title, body, metadata, browser mirror tag, and WebPush tag
       boundaries, preventing oversized internationalized notification payloads
       from persisting or displaying dangling-surrogate replacement text.
+1915. Webmail browser notification mirroring now appends a stable hash suffix
+      when derived `category-id` tags exceed the 128-character native tag cap,
+      preserving bounded tags without collapsing distinct long event ids into
+      the same browser replacement key.

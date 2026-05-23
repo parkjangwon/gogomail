@@ -1521,11 +1521,61 @@ test.describe('Notification center', () => {
     await expect.poll(
       () => page.evaluate(() => (window as unknown as { __browserNotificationTags: string[] }).__browserNotificationTags),
       { timeout: 5_000 },
-    ).toEqual([expect.stringMatching(/^system-b+$/)]);
+    ).toEqual([expect.stringMatching(/^system-b+-[0-9a-f]{8}$/)]);
     const tagLength = await page.evaluate(() => (
       (window as unknown as { __browserNotificationTags: string[] }).__browserNotificationTags[0]?.length ?? 0
     ));
     expect(tagLength).toBeLessThanOrEqual(128);
+  });
+
+  test('keeps capped browser notification mirror tags distinct for long ids', async ({ page }) => {
+    await page.addInitScript(() => {
+      try {
+        Object.defineProperty(window.Notification, 'permission', { value: 'granted', configurable: true });
+      } catch {
+        // ignore
+      }
+      localStorage.setItem('webmail_browser_notifications_enabled', 'true');
+      (window as unknown as { __browserNotificationTags: unknown[] }).__browserNotificationTags = [];
+      const Orig = window.Notification;
+      window.Notification = new Proxy(Orig, {
+        construct(target, args) {
+          const options = args[1] as { tag?: unknown } | undefined;
+          (window as unknown as { __browserNotificationTags: unknown[] }).__browserNotificationTags.push(options?.tag);
+          return new (target as unknown as new (...a: unknown[]) => Notification)(...args);
+        },
+      }) as typeof window.Notification;
+    });
+    await setupAuthedPage(page);
+
+    await pushNotification(page, {
+      id: `${'c'.repeat(127)}a`,
+      title: 'Long browser tag A',
+      category: 'system',
+      severity: 'error',
+    });
+    await pushNotification(page, {
+      id: `${'c'.repeat(127)}b`,
+      title: 'Long browser tag B',
+      category: 'system',
+      severity: 'error',
+    });
+
+    await expect.poll(
+      () => page.evaluate(() => {
+        const tags = (window as unknown as { __browserNotificationTags: string[] }).__browserNotificationTags;
+        return {
+          tags,
+          maxLength: Math.max(...tags.map((tag) => tag.length)),
+          uniqueCount: new Set(tags).size,
+        };
+      }),
+      { timeout: 5_000 },
+    ).toEqual({
+      tags: [expect.stringMatching(/^system-c+/), expect.stringMatching(/^system-c+/)],
+      maxLength: 128,
+      uniqueCount: 2,
+    });
   });
 
   test('search and category filters narrow a busy notification list', async ({ page }) => {
