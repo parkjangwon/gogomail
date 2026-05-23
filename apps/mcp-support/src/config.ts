@@ -45,6 +45,14 @@ if (suppoApiUrl) validateUrl(suppoApiUrl, "SUPPO_API_URL");
 
 const githubToken = validateNoNewlines(process.env["GITHUB_TOKEN"] || undefined, "GITHUB_TOKEN");
 
+const portRaw = parseInt(process.env["MCP_PORT"] ?? "3100", 10);
+if (isNaN(portRaw) || portRaw < 1 || portRaw > 65535) {
+  console.error(
+    `[mcp-support] MCP_PORT must be a valid port number (1-65535), got: ${process.env["MCP_PORT"] ?? "(unset)"}`,
+  );
+  process.exit(1);
+}
+
 export const config = {
   gogomail: {
     adminUrl: gogomailAdminUrl,
@@ -61,5 +69,5 @@ export const config = {
   // When set, all SSE connections must send: Authorization: Bearer <mcpSecret>
   mcpSecret: optionalEnv("MCP_SECRET"),
   transport: (process.env["MCP_TRANSPORT"] ?? "stdio") as "stdio" | "sse",
-  port: parseInt(process.env["MCP_PORT"] ?? "3100", 10),
+  port: portRaw,
 };

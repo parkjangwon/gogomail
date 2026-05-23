@@ -1,3 +1,4 @@
+import { timingSafeEqual } from "crypto";
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import {
@@ -55,8 +56,19 @@ if (config.mcpSecret) {
 
 function checkAuth(req: IncomingMessage, res: ServerResponse): boolean {
   if (!config.mcpSecret) return true;
-  const auth = req.headers["authorization"];
-  if (!auth || auth !== `Bearer ${config.mcpSecret}`) {
+  const auth = req.headers["authorization"] ?? "";
+  const expected = `Bearer ${config.mcpSecret}`;
+  // Constant-time comparison prevents timing-based token enumeration
+  let valid = false;
+  try {
+    const a = Buffer.from(auth);
+    const b = Buffer.from(expected);
+    // timingSafeEqual requires equal-length buffers; mismatched length → reject
+    valid = a.length === b.length && timingSafeEqual(a, b);
+  } catch {
+    valid = false;
+  }
+  if (!valid) {
     res.writeHead(401, { "Content-Type": "application/json", "X-Content-Type-Options": "nosniff" })
       .end(JSON.stringify({ error: "Unauthorized" }));
     return false;

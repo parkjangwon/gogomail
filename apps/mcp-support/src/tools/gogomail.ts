@@ -1,6 +1,6 @@
 import type { Tool } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
-import type { GogomailClient, GogomailDomainSettings } from "../clients/gogomail.js";
+import type { GogomailClient } from "../clients/gogomail.js";
 import type { SuppoClient } from "../clients/suppo.js";
 
 export type OptionalSuppo = SuppoClient | null;
@@ -492,6 +492,9 @@ export const toolDefinitions: Tool[] = [
 
 // ── Audit helper ────────────────────────────────────────────────
 
+// Strip newlines so audit fields can't inject extra lines into the comment body
+const sanitizeAuditField = (s: string) => s.replace(/[\r\n]/g, " ").slice(0, 500);
+
 async function writeAuditComment(
   suppo: OptionalSuppo,
   ticketId: string | undefined,
@@ -501,8 +504,8 @@ async function writeAuditComment(
 ): Promise<void> {
   const body = [
     `[자동 실행] ${toolName}`,
-    `- 대상: ${targetInfo}`,
-    `- 변경: ${change}`,
+    `- 대상: ${sanitizeAuditField(targetInfo)}`,
+    `- 변경: ${sanitizeAuditField(change)}`,
     `- 실행 시각: ${new Date().toISOString()}`,
   ].join("\n");
 
@@ -530,29 +533,31 @@ const id = () => z.string().max(128);
 const email = () => z.string().email().max(254);
 const status32 = () => z.string().max(32);
 const ts = () => z.string().max(64);
+// Bounded page limit — prevents agents from issuing unbounded backend queries
+const pageLimit = () => z.number().int().min(1).max(200).optional();
 
 const SearchPrincipalsSchema = z.object({
   q: z.string().max(200),
   companyId: id().optional(),
   domainId: id().optional(),
-  limit: z.number().optional(),
+  limit: pageLimit(),
 });
 const ListUsersSchema = z.object({
   domainId: id().optional(),
   status: status32().optional(),
-  limit: z.number().optional(),
+  limit: pageLimit(),
 });
 const UserIdSchema = z.object({ userId: id() });
 const CompanyIdSchema = z.object({ companyId: id() });
 const ListCompaniesSchema = z.object({
   status: status32().optional(),
-  limit: z.number().optional(),
+  limit: pageLimit(),
 });
 const ListDomainsSchema = z.object({
   companyId: id().optional(),
   status: status32().optional(),
   dnsStatus: status32().optional(),
-  limit: z.number().optional(),
+  limit: pageLimit(),
 });
 const DomainIdSchema = z.object({ domainId: id() });
 const ListMailFlowLogsSchema = z.object({
@@ -566,7 +571,7 @@ const ListMailFlowLogsSchema = z.object({
   flowStatus: status32().optional(),
   since: ts().optional(),
   until: ts().optional(),
-  limit: z.number().optional(),
+  limit: pageLimit(),
 });
 const MailFlowStatsSchema = z.object({
   userId: id().optional(),
@@ -582,18 +587,18 @@ const ListDeliveryAttemptsSchema = z.object({
   recipientDomain: z.string().max(253).optional(),
   sender: email().optional(),
   since: ts().optional(),
-  limit: z.number().optional(),
+  limit: pageLimit(),
 });
 const ListExhaustedSchema = z.object({
   messageId: z.string().max(256).optional(),
   recipientDomain: z.string().max(253).optional(),
   sender: email().optional(),
   since: ts().optional(),
-  limit: z.number().optional(),
+  limit: pageLimit(),
 });
 const DlqListSchema = z.object({
   stream: z.string().max(128),
-  count: z.number().optional(),
+  count: z.number().int().min(1).max(500).optional(),
 });
 const DlqDeleteSchema = z.object({
   stream: z.string().max(128),
@@ -608,7 +613,7 @@ const ListSuppressionSchema = z.object({
   email: email().optional(),
   domainId: id().optional(),
   reason: status32().optional(),
-  limit: z.number().optional(),
+  limit: pageLimit(),
 });
 const RemoveSuppressionSchema = z.object({
   id: id(),
@@ -617,10 +622,10 @@ const RemoveSuppressionSchema = z.object({
 const ListQuotaUsageSchema = z.object({
   domainId: id().optional(),
   overLimit: z.boolean().optional(),
-  limit: z.number().optional(),
+  limit: pageLimit(),
 });
 const ListQuotaAlertsSchema = z.object({
-  limit: z.number().optional(),
+  limit: pageLimit(),
 });
 const SendInviteSchema = z.object({
   userId: id(),
@@ -633,7 +638,8 @@ const UpdateStatusSchema = z.object({
 });
 const UpdateQuotaSchema = z.object({
   userId: id(),
-  quotaBytes: z.number(),
+  // 0 bytes (remove quota) up to 10 TiB per user
+  quotaBytes: z.number().int().min(0).max(10_995_116_277_760),
   ticketId: id().optional(),
 });
 const UpdateRoleSchema = z.object({
@@ -652,16 +658,25 @@ const CreateUserSchema = z.object({
   displayName: z.string().max(256),
   recoveryEmail: email().optional(),
   password: z.string().max(256).optional(),
-  quotaLimit: z.number().optional(),
+  // 0 = domain default; max 10 TiB
+  quotaLimit: z.number().int().min(0).max(10_995_116_277_760).optional(),
   ticketId: id().optional(),
 });
 const DeleteUserSchema = z.object({
   userId: id(),
   ticketId: id().optional(),
 });
+// Restrict to known GogomailDomainSettings fields — prevents prototype pollution
+// via arbitrary key injection through z.record()
 const UpdateDomainSchema = z.object({
   domainId: id(),
-  settings: z.record(z.unknown()),
+  settings: z.object({
+    catchAll: z.boolean().optional(),
+    spfEnabled: z.boolean().optional(),
+    dkimEnabled: z.boolean().optional(),
+    dmarcEnabled: z.boolean().optional(),
+    maxMessageSize: z.number().int().min(0).max(157_286_400).optional(), // max 150 MiB
+  }),
   ticketId: id().optional(),
 });
 const ListCompanySessionsSchema = z.object({ companyId: id() });
@@ -674,14 +689,14 @@ const GetSpamFilterSchema = z.object({ companyId: id() });
 const ListDkimSchema = z.object({ domainId: id().optional() });
 const AlertEventsSchema = z.object({
   companyId: id(),
-  limit: z.number().optional(),
+  limit: pageLimit(),
 });
 const AuditLogsSchema = z.object({
   userId: id().optional(),
   companyId: id().optional(),
   from: ts().optional(),
   to: ts().optional(),
-  limit: z.number().optional(),
+  limit: pageLimit(),
 });
 
 // ── callTool dispatcher ─────────────────────────────────────────
@@ -920,10 +935,7 @@ export async function callTool(
     case "gogomail_update_domain_settings": {
       const { domainId, settings, ticketId } = UpdateDomainSchema.parse(args);
       const before = await gogomail.getDomainSettings(domainId);
-      const result = await gogomail.updateDomainSettings(
-        domainId,
-        settings as Partial<GogomailDomainSettings>,
-      );
+      const result = await gogomail.updateDomainSettings(domainId, settings);
       writeAuditComment(
         suppo,
         ticketId,

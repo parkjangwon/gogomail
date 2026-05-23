@@ -127,7 +127,7 @@ export const toolDefinitions: Tool[] = [
 const ListTicketsSchema = z.object({
   status: z.string().max(32).optional(),
   priority: z.string().max(32).optional(),
-  limit: z.number().optional(),
+  limit: z.number().int().min(1).max(200).optional(),
 });
 
 const TicketIdSchema = z.object({ ticketId: z.string().max(128) });
