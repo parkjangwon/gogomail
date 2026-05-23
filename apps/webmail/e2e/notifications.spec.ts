@@ -1109,6 +1109,68 @@ test.describe('Notification center', () => {
     ]);
   });
 
+  test('normalizes control characters in notification text during runtime pushes and storage hydration', async ({ page }) => {
+    await page.evaluate(() => {
+      const raw = JSON.stringify([
+        {
+          id: 'stored-control-text',
+          category: 'system',
+          severity: 'info',
+          title: 'Stored\nready\u007fnow',
+          body: 'Stored\r\nbody\tline',
+          timestamp: Date.now(),
+          read: false,
+        },
+        {
+          id: 'stored-blank-control-text',
+          category: 'system',
+          severity: 'info',
+          title: '\u0000\u001f\u007f',
+          body: '\r\n\t',
+          timestamp: Date.now(),
+          read: false,
+        },
+      ]);
+      localStorage.setItem('webmail_notifications', raw);
+      window.dispatchEvent(new StorageEvent('storage', { key: 'webmail_notifications', newValue: raw }));
+
+      const w = window as unknown as {
+        __webmailNotifications?: { push: (input: Record<string, unknown>) => unknown };
+      };
+      w.__webmailNotifications?.push({
+        id: 'runtime-control-text',
+        category: 'system',
+        severity: 'info',
+        title: 'Runtime\nready\u007fnow',
+        body: 'Runtime\r\nbody\tline',
+      });
+      w.__webmailNotifications?.push({
+        id: 'runtime-blank-control-text',
+        category: 'system',
+        severity: 'info',
+        title: '\u0000\u001f\u007f',
+        body: '\r\n\t',
+      });
+    });
+
+    await expect.poll(
+      () => page.evaluate(() => {
+        const notifications = (window as unknown as {
+          __webmailNotifications?: { notifications: Array<{ id: string; title: string; body?: string }> };
+        }).__webmailNotifications?.notifications ?? [];
+        return notifications
+          .filter((n) => n.id.endsWith('control-text'))
+          .map((n) => ({ id: n.id, title: n.title, body: n.body ?? null }));
+      }),
+      { timeout: 5_000 },
+    ).toEqual([
+      { id: 'runtime-blank-control-text', title: 'Notification', body: null },
+      { id: 'runtime-control-text', title: 'Runtime ready now', body: 'Runtime body line' },
+      { id: 'stored-control-text', title: 'Stored ready now', body: 'Stored body line' },
+      { id: 'stored-blank-control-text', title: 'Notification', body: null },
+    ]);
+  });
+
   test('deduplicates repeated event notifications by id', async ({ page }) => {
     await pushNotification(page, { id: 'mail-42', title: 'First copy', body: 'original body', category: 'mail_received', dedupe: true });
     await pushNotification(page, { id: 'mail-42', title: 'Second copy', body: 'duplicate body', category: 'mail_received', dedupe: true });

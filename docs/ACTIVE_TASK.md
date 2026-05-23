@@ -2,19 +2,20 @@
 
 ## Current Task
 
-**TASK-WEBMAIL-NOTIFICATION-SW-TEXT-BLANK-FALLBACK — WebPush notification display text blank fallback hardening**
+**TASK-WEBMAIL-NOTIFICATION-TEXT-CHARS — Notification center display text character hardening**
 
 ## Background
 
-The WebPush service worker now normalizes control characters in notification title/body display text, but a string made only of control characters can normalize to whitespace and still reach `registration.showNotification()`. Closed-tab notifications should use the same fallback behavior after normalization that they use for initially blank strings.
+Closed-tab WebPush display text is now normalized, but the in-app notification store still accepts control characters in notification titles and bodies from runtime pushes and localStorage hydration. These strings are rendered in the notification center and mirrored into browser notifications, so CR/LF-style payload text should be normalized before it enters notification state.
 
-This task continues the notification hardening track in `docs/backend-roadmap.md` by ensuring malformed display text cannot produce blank native notification titles or whitespace-only bodies.
+This task continues the notification hardening track in `docs/backend-roadmap.md` by aligning in-app notification title/body handling with the WebPush display text policy.
 
 ## Scope
 
-- Add failing E2E coverage for WebPush title/body strings that become blank after control-character normalization.
-- Apply title/body fallback checks after display-text normalization and before length caps.
-- Preserve normal text, malformed non-string fallbacks, existing length bounds, and tag handling.
+- Add failing E2E coverage for runtime and stored notification titles/bodies containing control characters.
+- Normalize control-character runs in notification title/body display text to single spaces before length caps.
+- Fall back to the default notification title when title text becomes blank after normalization.
+- Drop optional bodies that become blank after normalization.
 - Update `docs/CURRENT_STATUS.md` and `docs/backend-roadmap.md`.
 
 ## Completion Checklist
