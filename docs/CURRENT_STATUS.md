@@ -1,6 +1,12 @@
 # gogomail current status
 
-Last updated: 2026-05-23 (webpush notification payload hardening)
+Last updated: 2026-05-23 (notification item accessibility hardening)
+
+## Notification Item Accessibility Hardening (2026-05-23)
+- Webmail notification rows now render the primary notification action and the dismiss control as sibling buttons inside a labeled group instead of nesting a dismiss button inside a row-level button.
+- This removes invalid nested interactive controls while preserving click-to-read/navigation behavior and contextual dismiss labels for assistive technology.
+- E2E coverage verifies notification item dismiss controls are no longer nested inside notification action buttons and that single-item dismissal still works.
+- Verification target: `pnpm -C apps/webmail exec playwright test e2e/notifications.spec.ts --project=chromium -g "dismiss removes a single item|does not nest item dismiss"`; `pnpm -C apps/webmail type-check`.
 
 ## WebPush Notification Payload Hardening (2026-05-23)
 - Webmail service worker push events now normalize notification `title`, `body`, and `tag` fields before calling the browser notification API.

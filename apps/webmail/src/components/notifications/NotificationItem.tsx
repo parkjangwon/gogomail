@@ -48,18 +48,10 @@ export function NotificationItem({ notification, onRead, onDismiss, onAfterNavig
 
   return (
     <div
-      role="button"
-      tabIndex={0}
-      onClick={handleClick}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          handleClick();
-        }
-      }}
+      role="group"
+      aria-label={notification.title}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
-      aria-label={notification.title}
       style={{
         position: 'relative',
         display: 'flex',
@@ -75,7 +67,6 @@ export function NotificationItem({ notification, onRead, onDismiss, onAfterNavig
           : notification.read
             ? 'transparent'
             : 'var(--color-accent-subtle, rgba(99,102,241,0.06))',
-        cursor: 'pointer',
         transition: 'background 100ms ease',
         color: 'var(--color-text-primary)',
       }}
@@ -94,40 +85,59 @@ export function NotificationItem({ notification, onRead, onDismiss, onAfterNavig
           }}
         />
       )}
-      <div style={{ flexShrink: 0, marginTop: '2px' }}>
-        <CategoryIcon category={notification.category} severity={notification.severity} />
-      </div>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div
-          style={{
-            fontSize: '13px',
-            fontWeight: notification.read ? 500 : 700,
-            color: 'var(--color-text-primary)',
-            whiteSpace: 'nowrap',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-          }}
-        >
-          {notification.title}
+      <button
+        type="button"
+        onClick={handleClick}
+        aria-label={notification.title}
+        style={{
+          border: 'none',
+          background: 'transparent',
+          color: 'inherit',
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'flex-start',
+          gap: '10px',
+          flex: 1,
+          minWidth: 0,
+          padding: 0,
+          textAlign: 'left',
+        }}
+      >
+        <div style={{ flexShrink: 0, marginTop: '2px' }}>
+          <CategoryIcon category={notification.category} severity={notification.severity} />
         </div>
-        {notification.body && (
+        <div style={{ flex: 1, minWidth: 0 }}>
           <div
             style={{
-              marginTop: '2px',
-              fontSize: '12px',
-              color: 'var(--color-text-secondary)',
-              display: '-webkit-box',
-              WebkitLineClamp: 2,
-              WebkitBoxOrient: 'vertical',
+              fontSize: '13px',
+              fontWeight: notification.read ? 500 : 700,
+              color: 'var(--color-text-primary)',
+              whiteSpace: 'nowrap',
               overflow: 'hidden',
-              lineHeight: 1.4,
+              textOverflow: 'ellipsis',
             }}
           >
-            {notification.body}
+            {notification.title}
           </div>
-        )}
-        <div style={{ marginTop: '4px', fontSize: '11px', color: 'var(--color-text-tertiary)' }}>{relativeTime}</div>
-      </div>
+          {notification.body && (
+            <div
+              style={{
+                marginTop: '2px',
+                fontSize: '12px',
+                color: 'var(--color-text-secondary)',
+                display: '-webkit-box',
+                WebkitLineClamp: 2,
+                WebkitBoxOrient: 'vertical',
+                overflow: 'hidden',
+                lineHeight: 1.4,
+              }}
+            >
+              {notification.body}
+            </div>
+          )}
+          <div style={{ marginTop: '4px', fontSize: '11px', color: 'var(--color-text-tertiary)' }}>{relativeTime}</div>
+        </div>
+      </button>
       <button
         type="button"
         aria-label={t('dismissItem', { title: notification.title })}

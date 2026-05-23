@@ -633,6 +633,23 @@ test.describe('Notification center', () => {
     ).toBeVisible();
   });
 
+  test('does not nest item dismiss buttons inside notification action buttons', async ({ page }) => {
+    await pushNotification(page, { title: 'Nested action guard' });
+
+    const { dialog } = await openCenter(page);
+    await expect
+      .poll(
+        () =>
+          dialog.evaluate((el) =>
+            Array.from(el.querySelectorAll('[role="button"], button')).some((candidate) =>
+              candidate.querySelector('button'),
+            ),
+          ),
+        { timeout: 5_000 },
+      )
+      .toBe(false);
+  });
+
   test('clear-all empties the list', async ({ page }) => {
     await pushNotification(page, { title: 'one' });
     await pushNotification(page, { title: 'two' });
