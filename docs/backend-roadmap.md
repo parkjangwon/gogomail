@@ -6908,3 +6908,7 @@ Target outcome:
       rendered list even when callers reuse an id without `dedupe: true`,
       replacing the older row with the newest payload to avoid duplicate React
       keys and inconsistent read or dismiss behavior.
+1888. Webmail notification storage hydration now deduplicates repeated ids
+      while preserving newest-first order and the 500-row retention limit, so
+      localStorage or cross-tab payloads cannot reintroduce duplicate rendered
+      notification keys after runtime pushes enforce id uniqueness.
