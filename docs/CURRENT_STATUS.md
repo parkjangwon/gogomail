@@ -1,6 +1,12 @@
 # gogomail current status
 
-Last updated: 2026-05-23 (notification filtered clear reset)
+Last updated: 2026-05-23 (notification text length hardening)
+
+## Notification Text Length Hardening (2026-05-23)
+- Notification runtime pushes and storage hydration now cap titles at 160 characters and bodies at 500 characters.
+- This keeps malformed or oversized notification payloads from bloating in-memory state, localStorage persistence, and browser notification mirroring while preserving visible message context.
+- E2E coverage verifies both runtime and stored oversized notification text are truncated to the fixed limits.
+- Verification target: `pnpm -C apps/webmail exec playwright test e2e/notifications.spec.ts --project=chromium -g "truncates oversized notification text|normalizes malformed runtime notification fields|drops unknown fields"`; `pnpm -C apps/webmail type-check`.
 
 ## Notification Filtered Clear Reset (2026-05-23)
 - Notification center now resets search, unread, and category filters after a filtered clear leaves hidden notifications behind.

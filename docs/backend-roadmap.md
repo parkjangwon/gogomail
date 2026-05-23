@@ -6938,3 +6938,6 @@ Target outcome:
 1895. Webmail notification filtered clear now resets search, unread, and
       category filters when hidden notifications remain, preserving scoped
       clearing while returning users to the remaining all-notifications list.
+1896. Webmail notification runtime pushes and storage hydration now cap title
+      and body text lengths, preventing oversized notification payloads from
+      bloating client state, localStorage, and browser notification mirroring.
