@@ -419,6 +419,20 @@ test.describe('Notification center', () => {
     await expect(dialog).toContainText('B');
   });
 
+  test('returns to all notifications after marking all unread-filtered items read', async ({ page }) => {
+    await pushNotification(page, { title: 'Unread filtered A' });
+    await pushNotification(page, { title: 'Unread filtered B' });
+
+    const { dialog } = await openCenter(page);
+    await dialog.getByRole('button', { name: /^(unread|읽지 않음|未読|未读)( \(2\))?$/i }).click();
+    await dialog.getByRole('button', { name: /mark all read|모두 읽음|すべて既読|全部标记为已读/i }).click();
+
+    await expect.poll(() => unreadBadgeText(page)).toBeNull();
+    await expect(dialog).toContainText('Unread filtered A');
+    await expect(dialog).toContainText('Unread filtered B');
+    await expect(dialog).not.toContainText(/no notifications match|조건에 맞는 알림|一致する通知|没有符合/i);
+  });
+
   test('dismiss removes a single item', async ({ page }) => {
     await pushNotification(page, { title: 'KeepMe' });
     await pushNotification(page, { title: 'RemoveMe' });

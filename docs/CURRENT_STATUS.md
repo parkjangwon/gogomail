@@ -1,6 +1,12 @@
 # gogomail current status
 
-Last updated: 2026-05-23 (notification category filter recovery)
+Last updated: 2026-05-23 (notification unread filter recovery)
+
+## Notification Unread Filter Recovery (2026-05-23)
+- Notification center now returns to the full list after users mark all notifications read while the unread filter is active.
+- This prevents a stale empty filtered view from hiding the read notifications that still remain in the center.
+- E2E coverage verifies unread-filtered notifications stay visible after the mark-all-read action clears the unread badge.
+- Verification target: `pnpm -C apps/webmail exec playwright test e2e/notifications.spec.ts --project=chromium -g "returns to all notifications"`; `pnpm -C apps/webmail type-check`.
 
 ## Notification Category Filter Recovery (2026-05-23)
 - Notification center category filters now recover automatically when the selected category disappears.

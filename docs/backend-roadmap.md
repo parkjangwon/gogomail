@@ -6858,3 +6858,6 @@ Target outcome:
       categories when their last notification disappears, preventing users from
       being stranded on an empty filtered notification center while other
       notifications remain.
+1875. Webmail notification unread filtering now returns to the full list after
+      mark-all-read clears unread state, preventing read notifications from
+      being hidden behind a stale empty unread-filter view.
