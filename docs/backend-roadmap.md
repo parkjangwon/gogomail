@@ -6985,3 +6985,8 @@ Target outcome:
       blankness after control-character normalization, falling malformed
       whitespace-only display payloads back to the default title or empty body
       before `registration.showNotification()`.
+1909. Webmail in-app notification titles and bodies now normalize ASCII
+      control-character runs during runtime pushes and localStorage hydration,
+      falling blank-after-normalization titles back to `Notification` and
+      dropping blank optional bodies before state, persistence, or browser
+      notification mirroring.

@@ -59,6 +59,7 @@ const MAX_METADATA_STRING_LENGTH = 200;
 const FALLBACK_TITLE = 'Notification';
 const UNSAFE_ID_CHARS = /[\u0000-\u001F\u007F\\]/;
 const UNSAFE_ACTION_URL_CHARS = /[\u0000-\u001F\u007F\\]/;
+const UNSAFE_DISPLAY_TEXT_CHARS = /[\u0000-\u001F\u007F]+/g;
 const VALID_CATEGORIES = new Set<NotificationCategory>([
   'mail_received',
   'mail_sent',
@@ -270,7 +271,10 @@ function truncateText(value: string, maxLength: number): string {
 }
 
 function safeNotificationBody(value: unknown): string | undefined {
-  return typeof value === 'string' ? truncateText(value, MAX_BODY_LENGTH) : undefined;
+  if (typeof value !== 'string') return undefined;
+  const normalized = value.replace(UNSAFE_DISPLAY_TEXT_CHARS, ' ');
+  if (normalized.trim() === '') return undefined;
+  return truncateText(normalized, MAX_BODY_LENGTH);
 }
 
 function safeIconName(value: unknown): string | undefined {
@@ -308,7 +312,9 @@ function safeNotificationId(value: unknown): string {
 }
 
 function safeNotificationTitle(value: unknown): string {
-  return typeof value === 'string' && value.trim() !== '' ? truncateText(value, MAX_TITLE_LENGTH) : FALLBACK_TITLE;
+  if (typeof value !== 'string') return FALLBACK_TITLE;
+  const normalized = value.replace(UNSAFE_DISPLAY_TEXT_CHARS, ' ');
+  return normalized.trim() !== '' ? truncateText(normalized, MAX_TITLE_LENGTH) : FALLBACK_TITLE;
 }
 
 function safeNotificationCategory(value: unknown): NotificationCategory {
