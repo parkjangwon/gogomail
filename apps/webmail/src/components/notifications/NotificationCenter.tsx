@@ -121,6 +121,19 @@ export function NotificationCenter({ open, onClose }: NotificationCenterProps) {
     return Array.from(counts.entries()).sort(([a], [b]) => categoryOrder(a) - categoryOrder(b));
   }, [filter, notifications, query]);
 
+  const clearActionDisabled = (filter !== 'all' || categoryFilter !== 'all' || query.trim() !== '')
+    ? visible.length === 0
+    : notifications.length === 0;
+
+  const handleClear = useCallback(() => {
+    const hasActiveFilter = filter !== 'all' || categoryFilter !== 'all' || query.trim() !== '';
+    if (!hasActiveFilter) {
+      clearAll();
+      return;
+    }
+    visible.forEach((n) => dismiss(n.id));
+  }, [categoryFilter, clearAll, dismiss, filter, query, visible]);
+
   useEffect(() => {
     if (categoryFilter === 'all') return;
     if (categoryCounts.some(([category]) => category === categoryFilter)) return;
@@ -322,9 +335,9 @@ export function NotificationCenter({ open, onClose }: NotificationCenterProps) {
         </button>
         <button
           type="button"
-          onClick={clearAll}
-          disabled={notifications.length === 0}
-          style={miniButtonStyle(notifications.length === 0)}
+          onClick={handleClear}
+          disabled={clearActionDisabled}
+          style={miniButtonStyle(clearActionDisabled)}
         >
           {t('center.clearAll')}
         </button>

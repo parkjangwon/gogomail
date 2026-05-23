@@ -1,6 +1,13 @@
 # gogomail current status
 
-Last updated: 2026-05-23 (notification search category filter hardening)
+Last updated: 2026-05-23 (notification filtered clear hardening)
+
+## Notification Filtered Clear Hardening (2026-05-23)
+- Notification center clear-all now clears only the currently visible notification rows when search, unread, or category filters are active.
+- In the unfiltered all view it keeps the existing full clear behavior.
+- This prevents users from losing hidden notifications when they clear a filtered result set.
+- E2E coverage verifies filtered clear removes a searched notification while preserving a hidden notification, and that unfiltered clear still empties the full list.
+- Verification target: `pnpm -C apps/webmail exec playwright test e2e/notifications.spec.ts --project=chromium -g "clear-all only clears visible|clear-all empties"`; `pnpm -C apps/webmail type-check`.
 
 ## Notification Search Category Filter Hardening (2026-05-23)
 - Notification category chips now count categories after applying the current search query as well as the all/unread filter.
