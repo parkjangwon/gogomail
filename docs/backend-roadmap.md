@@ -6994,3 +6994,7 @@ Target outcome:
       backslash-containing string values, normalizes ASCII control-character
       runs in safe string values, and preserves bounded primitive metadata
       before state or localStorage persistence.
+1911. Webmail runtime notification icon names now reject ASCII control
+      characters and backslashes before state or localStorage persistence,
+      preserving valid short future-facing icon hints while dropping malformed
+      payload strings.

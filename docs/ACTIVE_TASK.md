@@ -2,20 +2,19 @@
 
 ## Current Task
 
-**TASK-WEBMAIL-NOTIFICATION-METADATA-CHARS — Notification metadata character hardening**
+**TASK-WEBMAIL-NOTIFICATION-ICON-CHARS — Notification icon name character hardening**
 
 ## Background
 
-Notification titles, bodies, ids, action URLs, tags, and WebPush display text now reject or normalize malformed characters. Runtime notification metadata is bounded to flat primitive values, but metadata keys and string values can still retain ASCII control characters or backslashes before entering state and localStorage.
+Notification icon names are already capped before runtime state and localStorage persistence, but the sanitizer still accepts control characters and backslashes. Even though icon names are currently future-facing metadata, malformed values should not be retained in persisted notification payloads.
 
-This task continues the notification hardening track in `docs/backend-roadmap.md` by making runtime metadata safe for persisted notification state.
+This task continues the notification hardening track in `docs/backend-roadmap.md` by aligning `iconName` handling with the existing identifier/tag character policy.
 
 ## Scope
 
-- Add failing E2E coverage for runtime notification metadata keys and string values containing control characters or backslashes.
-- Drop unsafe metadata keys instead of persisting malformed key names.
-- Normalize control-character runs in metadata string values to spaces, reject backslash-containing string values, and preserve existing string length bounds.
-- Preserve safe string, number, and boolean metadata behavior.
+- Add failing E2E coverage for runtime notification `iconName` values containing control characters or backslashes.
+- Drop unsafe `iconName` values before state and localStorage persistence.
+- Preserve valid short icon names and the existing length cap.
 - Update `docs/CURRENT_STATUS.md` and `docs/backend-roadmap.md`.
 
 ## Completion Checklist

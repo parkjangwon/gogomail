@@ -1,6 +1,13 @@
 # gogomail current status
 
-Last updated: 2026-05-23 (notification metadata character hardening)
+Last updated: 2026-05-23 (notification icon name character hardening)
+
+## Notification Icon Name Character Hardening (2026-05-23)
+- Runtime notification `iconName` values now reject ASCII control characters and backslashes before state or localStorage persistence.
+- Valid short icon names continue to be preserved, and the existing 64-character cap remains in place.
+- This prevents future-facing icon lookup hints from retaining malformed payload strings in persisted notification state.
+- E2E coverage verifies unsafe runtime icon names are dropped from both `window.__webmailNotifications` state and `webmail_notifications` storage, while valid icon names and oversized icon rejection continue to work.
+- Verification target: `pnpm -C apps/webmail exec playwright test e2e/notifications.spec.ts --project=chromium -g "drops unsafe runtime notification icon names|drops oversized runtime notification icon names|normalizes malformed runtime notification fields"`; `pnpm -C apps/webmail type-check`.
 
 ## Notification Metadata Character Hardening (2026-05-23)
 - Runtime notification metadata now drops keys containing ASCII control characters or backslashes before state or localStorage persistence.

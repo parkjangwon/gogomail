@@ -1110,6 +1110,66 @@ test.describe('Notification center', () => {
     ]);
   });
 
+  test('drops unsafe runtime notification icon names before storage persistence', async ({ page }) => {
+    await page.evaluate(() => {
+      const w = window as unknown as {
+        __webmailNotifications?: { push: (input: Record<string, unknown>) => unknown };
+      };
+      w.__webmailNotifications?.push({
+        id: 'runtime-control-icon',
+        category: 'system',
+        severity: 'info',
+        title: 'Runtime control icon',
+        iconName: 'mail\nalert',
+      });
+      w.__webmailNotifications?.push({
+        id: 'runtime-backslash-icon',
+        category: 'system',
+        severity: 'info',
+        title: 'Runtime backslash icon',
+        iconName: 'mail\\alert',
+      });
+      w.__webmailNotifications?.push({
+        id: 'runtime-safe-icon',
+        category: 'system',
+        severity: 'info',
+        title: 'Runtime safe icon',
+        iconName: 'mail-alert',
+      });
+    });
+
+    await expect.poll(
+      () => page.evaluate(() => {
+        const notifications = (window as unknown as {
+          __webmailNotifications?: { notifications: Array<{ id: string; iconName?: string }> };
+        }).__webmailNotifications?.notifications ?? [];
+        return notifications
+          .filter((n) => n.id.startsWith('runtime-') && n.id.endsWith('-icon'))
+          .map((n) => [n.id, n.iconName ?? null]);
+      }),
+      { timeout: 5_000 },
+    ).toEqual([
+      ['runtime-safe-icon', 'mail-alert'],
+      ['runtime-backslash-icon', null],
+      ['runtime-control-icon', null],
+    ]);
+
+    await expect.poll(
+      () => page.evaluate(() => {
+        const raw = localStorage.getItem('webmail_notifications');
+        const notifications = raw ? JSON.parse(raw) as Array<{ id: string; iconName?: string }> : [];
+        return notifications
+          .filter((n) => n.id.startsWith('runtime-') && n.id.endsWith('-icon'))
+          .map((n) => [n.id, n.iconName ?? null]);
+      }),
+      { timeout: 5_000 },
+    ).toEqual([
+      ['runtime-safe-icon', 'mail-alert'],
+      ['runtime-backslash-icon', null],
+      ['runtime-control-icon', null],
+    ]);
+  });
+
   test('truncates oversized notification text during runtime pushes and storage hydration', async ({ page }) => {
     await page.evaluate(() => {
       const longTitle = 'T'.repeat(220);
