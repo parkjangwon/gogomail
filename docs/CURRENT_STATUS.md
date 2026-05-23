@@ -1,6 +1,13 @@
 # gogomail current status
 
-Last updated: 2026-05-23 (notification icon name hardening)
+Last updated: 2026-05-23 (notification identifier character hardening)
+
+## Notification Identifier Character Hardening (2026-05-23)
+- Notification ids now reject control characters and backslashes before storage, dedupe maps, or browser notification tag use.
+- Stored notifications with unsafe ids are dropped during hydration, while runtime pushes with unsafe ids receive generated bounded `n-...` replacements.
+- This keeps malformed event ids from leaking CR/LF-style control data into localStorage or native notification tags.
+- E2E coverage verifies control-character stored ids are excluded, runtime control-character ids are regenerated, and existing blank/oversized id behavior remains intact.
+- Verification target: `pnpm -C apps/webmail exec playwright test e2e/notifications.spec.ts --project=chromium -g "rejects control-character notification identifiers|bounds oversized notification identifiers|rejects blank identifiers"`; `pnpm -C apps/webmail type-check`.
 
 ## Notification Icon Name Hardening (2026-05-23)
 - Runtime notification `iconName` values are now capped at 64 characters before state or localStorage persistence.

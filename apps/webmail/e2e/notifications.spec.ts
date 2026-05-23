@@ -405,6 +405,46 @@ test.describe('Notification center', () => {
     await expect(dialog).not.toContainText('Oversized stored id');
   });
 
+  test('rejects control-character notification identifiers during runtime pushes and storage hydration', async ({ page }) => {
+    await page.evaluate(() => {
+      const now = Date.now();
+      const raw = JSON.stringify([
+        { id: 'stored\ncontrol', category: 'system', severity: 'info', title: 'Stored control id', timestamp: now, read: false },
+        { id: 'valid-control-peer', category: 'system', severity: 'info', title: 'Valid control peer', timestamp: now, read: false },
+      ]);
+      localStorage.setItem('webmail_notifications', raw);
+      window.dispatchEvent(new StorageEvent('storage', { key: 'webmail_notifications', newValue: raw }));
+
+      const w = window as unknown as {
+        __webmailNotifications?: { push: (input: Record<string, unknown>) => unknown };
+      };
+      w.__webmailNotifications?.push({
+        id: 'runtime\rcontrol',
+        category: 'system',
+        severity: 'info',
+        title: 'Runtime control id',
+      });
+    });
+
+    await expect.poll(
+      () => page.evaluate(() => {
+        const notifications = (window as unknown as {
+          __webmailNotifications?: { notifications: Array<{ id: string; title: string }> };
+        }).__webmailNotifications?.notifications ?? [];
+        return notifications.map((n) => ({ id: n.id, title: n.title }));
+      }),
+      { timeout: 5_000 },
+    ).toEqual([
+      { id: expect.stringMatching(/^n-/), title: 'Runtime control id' },
+      { id: 'valid-control-peer', title: 'Valid control peer' },
+    ]);
+
+    const { dialog } = await openCenter(page);
+    await expect(dialog).toContainText('Runtime control id');
+    await expect(dialog).toContainText('Valid control peer');
+    await expect(dialog).not.toContainText('Stored control id');
+  });
+
   test('deduplicates repeated identifiers during storage hydration', async ({ page }) => {
     await page.evaluate(() => {
       const now = Date.now();
