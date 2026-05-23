@@ -1737,6 +1737,39 @@ func (s *Service) DeletePushDevice(ctx context.Context, userID string, id string
 	return repo.DeletePushDevice(ctx, userID, id)
 }
 
+func (s *Service) UpsertWebPushSubscription(ctx context.Context, req maildb.UpsertWebPushSubscriptionRequest) (maildb.WebPushSubscription, error) {
+	repo, ok := s.repository.(interface {
+		UpsertWebPushSubscription(context.Context, maildb.UpsertWebPushSubscriptionRequest) (maildb.WebPushSubscription, error)
+	})
+	if !ok {
+		return maildb.WebPushSubscription{}, fmt.Errorf("web push subscription repository is required")
+	}
+	return repo.UpsertWebPushSubscription(ctx, req)
+}
+
+func (s *Service) ListActiveWebPushSubscriptions(ctx context.Context, userID string) ([]maildb.WebPushSubscription, error) {
+	repo, ok := s.repository.(interface {
+		ListActiveWebPushSubscriptions(context.Context, string) ([]maildb.WebPushSubscription, error)
+	})
+	if !ok {
+		return nil, fmt.Errorf("web push subscription repository is required")
+	}
+	userID = strings.TrimSpace(userID)
+	return repo.ListActiveWebPushSubscriptions(ctx, userID)
+}
+
+func (s *Service) DeleteWebPushSubscription(ctx context.Context, userID, id string) error {
+	repo, ok := s.repository.(interface {
+		DeleteWebPushSubscription(context.Context, string, string) error
+	})
+	if !ok {
+		return fmt.Errorf("web push subscription repository is required")
+	}
+	userID = strings.TrimSpace(userID)
+	id = strings.TrimSpace(id)
+	return repo.DeleteWebPushSubscription(ctx, userID, id)
+}
+
 func (s *Service) SaveDraft(ctx context.Context, req SaveDraftRequest) (maildb.MessageDetail, error) {
 	req = normalizeSaveDraftRequest(req)
 	if err := ValidateSaveDraftRequest(req); err != nil {
