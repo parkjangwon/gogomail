@@ -1,70 +1,83 @@
-import type { Page } from "@playwright/test";
+/**
+ * Helpers for the admin console E2E suite.
+ *
+ * The canonical entry point is `setupAuthedAdminPage(page, overrides?)`
+ * which installs the mock API + auth localStorage + navigates to a
+ * default page.  Tests can override the start path via `gotoPath`.
+ *
+ * The legacy `installLocalAdminSession(page)` from the original suite is
+ * preserved (re-exported from mocks.ts) so the existing spec files keep
+ * working unchanged.
+ */
+import { expect, type Page } from '@playwright/test';
+import { installMocks, type MockOverrides, DEFAULT_COMPANY_ID } from './mocks';
 
-const AUTH_OK = { ok: true, user: { id: "admin", role: "owner", company_id: "default" } };
-const EMPTY_ADMIN_RESPONSE = {
-  ok: true,
-  alerts: [],
-  api_keys: [],
-  audit_logs: [],
-  companies: [],
-  data: [],
-  domains: [],
-  events: [],
-  items: [],
-  logs: [],
-  mail_flow_logs: [],
-  relays: [],
-  routes: [],
-  capabilities: {},
-  policy: {
-    enabled: false,
-    allowlist: [],
-    denylist: [],
-    protocols: ["smtp", "imap", "api"],
-    action: "deny",
-  },
-  roles: [],
-  stats: {},
-  total: 0,
-  users: [],
-};
-const AUDIT_POLICY = {
-  company_id: "default",
-  audit_level: "level_2",
-  audit_admin_actions: true,
-  audit_security_events: true,
-  retention_days: 90,
-  mask_mail_content: true,
-  mask_recipient_emails: false,
-};
-const POSTURE = {
-  score: 0,
-  mfa: { total: 0, enabled: 0, rate: 0 },
-  ip_policy_configured: false,
-  users_without_password: 0,
-  domain_count: 0,
-  active_domains: 0,
-};
-const CAPABILITIES = {
-  integrations: { organization_sync: "planned" },
-};
+export { installMocks, installLocalAdminSession } from './mocks';
+export type { MockOverrides } from './mocks';
 
-export async function installLocalAdminSession(page: Page) {
-  await page.route("**/api/admin/**", async route => {
-    const path = new URL(route.request().url()).pathname;
-    let body: unknown = EMPTY_ADMIN_RESPONSE;
-    if (path.endsWith("/auth/verify")) body = AUTH_OK;
-    if (path.endsWith("/auth/login")) body = { ok: true };
-    if (path.endsWith("/companies")) body = { ...EMPTY_ADMIN_RESPONSE, companies: [] };
-    if (path.endsWith("/security/ip-policy")) body = EMPTY_ADMIN_RESPONSE;
-    if (path.endsWith("/security/audit-policy")) body = { policy: AUDIT_POLICY };
-    if (path.endsWith("/security/posture")) body = POSTURE;
-    if (path.endsWith("/console/capabilities")) body = { admin_console_capabilities: CAPABILITIES };
-    if (path.endsWith("/roles")) body = { roles: [] };
-    await route.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify(body),
-    });
-  });
+export interface SetupOptions extends MockOverrides {
+  /** Path to navigate to after auth is installed. Defaults to the company dashboard. */
+  gotoPath?: string;
+  /** Skip navigation entirely — useful for tests that drive /login themselves. */
+  noNavigate?: boolean;
+  /** Locale to seed in localStorage (default: 'en' for stable English assertions). */
+  locale?: 'en' | 'ko' | 'ja' | 'zh-CN';
+}
+
+/**
+ * Install API mocks + auth localStorage/cookie + navigate to a sensible
+ * default page.  Use this in `beforeEach` for any authed-console test.
+ */
+export async function setupAuthedAdminPage(page: Page, options: SetupOptions = {}) {
+  const { gotoPath, noNavigate, locale = 'en', ...overrides } = options;
+  await installMocks(page, overrides);
+
+  // Seed locale + auth markers BEFORE first navigation so React state matches.
+  await page.addInitScript((loc) => {
+    try {
+      window.localStorage.setItem('locale', loc);
+      window.localStorage.setItem('console_authenticated', '1');
+      window.localStorage.setItem('console_user_email', 'admin@system');
+      window.localStorage.setItem('console_login_at', new Date().toISOString());
+    } catch {
+      /* ignore */
+    }
+  }, locale);
+
+  // Also set a cookie so middleware that checks cookies sees an authed session.
+  try {
+    await page.context().addCookies([
+      {
+        name: 'admin_session',
+        value: 'test-session',
+        domain: 'localhost',
+        path: '/',
+        httpOnly: false,
+        sameSite: 'Lax',
+      },
+    ]);
+  } catch {
+    /* ignore */
+  }
+
+  if (noNavigate) return;
+
+  const target = gotoPath ?? `/companies/${DEFAULT_COMPANY_ID}/dashboard`;
+  await page.goto(target, { waitUntil: 'domcontentloaded' });
+
+  if (overrides.unauthorized) {
+    // Tests that intentionally force 401 expect a redirect to /login.
+    await page.waitForURL(/\/login|companies/, { timeout: 15_000 }).catch(() => null);
+    return;
+  }
+
+  await expect(page.locator('body')).toBeVisible();
+}
+
+/**
+ * Install mocks only (no auth, no navigation) — for tests that drive
+ * the login page or test unauthenticated flows.
+ */
+export async function setupMocksOnly(page: Page, overrides: MockOverrides = {}) {
+  await installMocks(page, overrides);
 }

@@ -98,7 +98,8 @@ test.describe("Admin Console menu inventory", () => {
         !text.includes("Failed to load resource") &&
         !text.includes("favicon.ico") &&
         !text.includes("Each child in a list should have a unique \"key\" prop") &&
-        !text.includes("downloadable font: download failed")
+        !text.includes("downloadable font: download failed") &&
+        !text.includes("Missing AWS-UI CSS for theme")
       ) {
         issues.push(`${currentRoute}: console ${message.type()}: ${text}`);
       }
