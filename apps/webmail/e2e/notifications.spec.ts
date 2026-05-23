@@ -339,6 +339,37 @@ test.describe('Notification center', () => {
     await expect(dialog).not.toContainText('Stale stored copy');
   });
 
+  test('drops unknown fields during storage hydration', async ({ page }) => {
+    await page.evaluate(() => {
+      const raw = JSON.stringify([
+        {
+          id: 'extra-field-storage',
+          category: 'system',
+          severity: 'info',
+          title: 'Sanitized stored notification',
+          body: 'Known body',
+          actionUrl: '/mail?from=storage',
+          timestamp: Date.now(),
+          read: false,
+          admin: true,
+          nested: { leak: true },
+        },
+      ]);
+      localStorage.setItem('webmail_notifications', raw);
+      window.dispatchEvent(new StorageEvent('storage', { key: 'webmail_notifications', newValue: raw }));
+    });
+
+    await expect.poll(
+      () => page.evaluate(() => {
+        const notification = (window as unknown as {
+          __webmailNotifications?: { notifications: Array<Record<string, unknown>> };
+        }).__webmailNotifications?.notifications[0];
+        return notification ? Object.keys(notification).sort() : [];
+      }),
+      { timeout: 5_000 },
+    ).toEqual(['actionUrl', 'body', 'category', 'id', 'read', 'severity', 'timestamp', 'title']);
+  });
+
   test('does not suppress a deduped push immediately after storage removes that id', async ({ page }) => {
     await pushNotification(page, { id: 'storage-race', title: 'Before storage removal', category: 'system', dedupe: true });
     await expect.poll(() => unreadBadgeText(page), { timeout: 5_000 }).toBe('1');

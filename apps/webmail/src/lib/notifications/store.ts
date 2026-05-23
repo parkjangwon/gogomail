@@ -302,7 +302,16 @@ function sanitizeNotifications(input: unknown): Notification[] {
     }
     if (seen.has(o.id)) continue;
     seen.add(o.id);
-    sanitized.push(n as Notification);
+    sanitized.push({
+      id: o.id,
+      category: o.category as NotificationCategory,
+      severity: o.severity as NotificationSeverity,
+      title: o.title,
+      body: safeOptionalString(o.body),
+      actionUrl: safeActionUrl(o.actionUrl),
+      timestamp: o.timestamp,
+      read: o.read,
+    });
   }
   return sanitized;
 }
