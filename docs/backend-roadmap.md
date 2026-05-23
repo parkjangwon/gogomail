@@ -6813,3 +6813,7 @@ Target outcome:
 1861. Webmail notification bell accessible names and tooltips now include the
       unread notification count when present, keeping the visual badge and
       screen-reader announcement aligned across supported locales.
+1862. Webmail notification cross-tab storage hydration now applies the same
+      malformed-entry filtering and 500-item cap as initial localStorage load,
+      preventing another tab from injecting invalid or oversized notification
+      state into the active notification center.

@@ -1,6 +1,12 @@
 # gogomail current status
 
-Last updated: 2026-05-23 (notification bell unread accessibility)
+Last updated: 2026-05-23 (notification storage hydration hardening)
+
+## Notification Storage Hydration Hardening (2026-05-23)
+- Cross-tab notification storage events now reuse the same validation and 500-item cap as initial localStorage hydration.
+- Malformed notification entries from another tab are ignored instead of entering the live notification center state.
+- E2E coverage verifies a storage event with one malformed entry plus 501 valid entries hydrates to exactly 500 notifications.
+- Verification target: `pnpm -C apps/webmail exec playwright test e2e/notifications.spec.ts --project=chromium -g "sanitizes cross-tab storage"`; `pnpm -C apps/webmail type-check`.
 
 ## Notification Bell Unread Accessibility (2026-05-23)
 - The notification bell accessible name and tooltip now include the unread notification count when unread items exist.
