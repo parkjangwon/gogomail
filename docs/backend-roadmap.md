@@ -6810,3 +6810,6 @@ Target outcome:
 1860. Webmail notification center close controls now use localized accessible
       names across English, Korean, Japanese, and Simplified Chinese instead
       of a hard-coded English `close` label.
+1861. Webmail notification bell accessible names and tooltips now include the
+      unread notification count when present, keeping the visual badge and
+      screen-reader announcement aligned across supported locales.

@@ -1719,6 +1719,7 @@
   },
   "notifications": {
     "openCenter": "Open notifications",
+    "openCenterUnread": "Open notifications, {count} unread",
     "center": {
       "title": "Notifications",
       "empty": "No notifications yet",

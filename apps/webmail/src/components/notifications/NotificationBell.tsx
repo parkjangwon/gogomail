@@ -13,6 +13,7 @@ export function NotificationBell() {
   const [open, setOpen] = useState(false);
   const buttonRef = useRef<HTMLButtonElement | null>(null);
   const badgeLabel = unreadCount > 0 ? (unreadCount > 99 ? '99+' : String(unreadCount)) : '';
+  const buttonLabel = unreadCount > 0 ? t('openCenterUnread', { count: unreadCount }) : t('openCenter');
   const closeCenter = useCallback((options?: { restoreFocus?: boolean }) => {
     setOpen(false);
     if (options?.restoreFocus) {
@@ -26,8 +27,8 @@ export function NotificationBell() {
         type="button"
         ref={buttonRef}
         data-notification-trigger
-        aria-label={t('openCenter')}
-        title={t('openCenter')}
+        aria-label={buttonLabel}
+        title={buttonLabel}
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
         onMouseDown={(e) => {

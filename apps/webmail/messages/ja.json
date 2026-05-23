@@ -1719,6 +1719,7 @@
   },
   "notifications": {
     "openCenter": "通知を開く",
+    "openCenterUnread": "通知を開く、未読 {count} 件",
     "center": {
       "title": "通知",
       "empty": "通知はまだありません",

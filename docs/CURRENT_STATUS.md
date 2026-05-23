@@ -1,6 +1,12 @@
 # gogomail current status
 
-Last updated: 2026-05-23 (notification center close label)
+Last updated: 2026-05-23 (notification bell unread accessibility)
+
+## Notification Bell Unread Accessibility (2026-05-23)
+- The notification bell accessible name and tooltip now include the unread notification count when unread items exist.
+- Locale catalogs now include unread-count bell labels for English, Korean, Japanese, and Simplified Chinese.
+- E2E coverage verifies the Korean bell exposes `알림 열기, 읽지 않음 1개` after a new unread notification.
+- Verification target: `pnpm -C apps/webmail exec playwright test e2e/notifications.spec.ts --project=chromium -g "announces unread count"`; `pnpm -C apps/webmail type-check`.
 
 ## Notification Center Close Label (2026-05-23)
 - The notification center header close icon now uses localized accessible names in English, Korean, Japanese, and Simplified Chinese instead of a hard-coded English `close`.
