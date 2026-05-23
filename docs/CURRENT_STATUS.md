@@ -1,5 +1,16 @@
 # gogomail current status
 
+Last updated: 2026-05-23 (web_push_subscriptions DB layer)
+
+## Web Push Subscriptions DB Layer (2026-05-23)
+- Added `internal/maildb/web_push_subscriptions.go` with `UpsertWebPushSubscription`, `ListActiveWebPushSubscriptions`, `DeleteWebPushSubscription`, and `SoftDeleteWebPushSubscriptionByEndpoint` on `maildb.Repository`.
+- `UpsertWebPushSubscription` uses INSERT ON CONFLICT UPDATE keyed on endpoint (partial index, status = 'active').
+- `DeleteWebPushSubscription` soft-deletes by user_id + id; returns error if no active row matched.
+- `SoftDeleteWebPushSubscriptionByEndpoint` handles 410 Gone push-service responses.
+- Validation rejects missing fields, non-HTTPS endpoints, endpoints > 2048 chars, and embedded line breaks.
+- Unit tests cover all validation paths; no DB connection required.
+- Verification target: `go test ./internal/maildb/... -run TestWebPushSubscription -v`.
+
 Last updated: 2026-05-23 (browser notification tag collision hardening)
 
 ## Browser Notification Tag Collision Hardening (2026-05-23)
