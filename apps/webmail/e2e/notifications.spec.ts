@@ -213,7 +213,18 @@ test.describe('Notification center', () => {
         },
       }) as typeof window.Notification;
     });
-    await setupAuthedPage(page);
+    await setupAuthedPage(page, {
+      notificationPreferences: {
+        global_dnd_enabled: true,
+        global_dnd_schedule: {
+          weekdays: [0, 1, 2, 3, 4, 5, 6],
+          time_ranges: [{ start: '00:00', end: '23:59' }],
+          timezone: 'Asia/Seoul',
+        },
+        folder_overrides: {},
+        updated_at: '2026-05-23T00:00:00Z',
+      },
+    });
     await page.evaluate(() => {
       const w = window as unknown as {
         __webmailNotifications?: { push: (input: Record<string, unknown>) => unknown };
@@ -284,5 +295,41 @@ test.describe('Mail arrival notifications', () => {
     ).toBe(0);
 
     await expect.poll(() => unreadBadgeText(page), { timeout: 5_000 }).toBe('1');
+  });
+
+  test('skips notification-center entry for muted folders during message refresh', async ({ page }) => {
+    const messages = [
+      makeMessage('muted-seed', { read: true, subject: 'Already seen muted folder' }),
+    ];
+    await setupAuthedPage(page, {
+      messages,
+      notificationPreferences: {
+        global_dnd_enabled: false,
+        global_dnd_schedule: { weekdays: [], time_ranges: [], timezone: 'Asia/Seoul' },
+        folder_overrides: {
+          'folder-inbox': {
+            enabled: false,
+            dnd_inherit: true,
+            dnd_schedule: { weekdays: [], time_ranges: [], timezone: '' },
+          },
+        },
+        updated_at: '2026-05-23T00:00:00Z',
+      },
+    });
+    await page.evaluate(() => localStorage.removeItem('webmail_notifications'));
+    await expect.poll(() => page.evaluate(() => localStorage.getItem('webmail_notification_folder_overrides')), {
+      timeout: 5_000,
+    }).toContain('"folder-inbox"');
+
+    messages.unshift(makeMessage('muted-new', {
+      read: false,
+      subject: 'Muted folder arrival',
+      from_name: 'Muted Sender',
+    }));
+    await page.getByRole('button', { name: /새로고침|Refresh|更新|刷新/i }).click();
+
+    await expect.poll(() => unreadBadgeText(page), { timeout: 5_000 }).toBeNull();
+    const { dialog } = await openCenter(page);
+    await expect(dialog).not.toContainText('Muted Sender');
   });
 });

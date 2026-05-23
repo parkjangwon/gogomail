@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { CheckIcon, ExclamationTriangleIcon, NoSymbolIcon, ArrowDownTrayIcon } from '@heroicons/react/24/outline';
-import { revokeAllSessions, getFolderStats, exportFolderEml, exportFolderZip, getPreferences, setPreferences, getUserProfile, updateUserProfile, changePassword, registerWebPushDevice, getNotificationPreferences, setNotificationPreferences, type FolderStats, type WebmailPreferences, type UserProfile, type NotificationPreferences } from '@/lib/api';
+import { revokeAllSessions, getFolderStats, exportFolderEml, exportFolderZip, getPreferences, setPreferences, getUserProfile, updateUserProfile, changePassword, registerWebPushDevice, getNotificationPreferences, setNotificationPreferences, getFolders, type FolderStats, type WebmailPreferences, type UserProfile, type NotificationPreferences, type FolderNotificationOverride, type Folder } from '@/lib/api';
 import { ReadMark, ExternalImages, SendDelay, Theme, FontSize, ACCENT_COLORS, FilterRule, migrateFilterRule, loadFilterRules, saveFilterRules } from '@/lib/settings/settingsUtils';
 import { NAV_ITEMS, SHORTCUT_GROUPS, type SectionId } from '@/components/settings-view/settingsViewConfig';
 import { Kbd, MiniEditor, Row, SectionCard, SectionHeader, Segment, Toggle, loadWmSettings, saveWmSetting } from '@/components/settings-view/settingsViewPrimitives';
@@ -37,6 +37,7 @@ function currentTimeZone(): string {
 
 function quietHoursPreferences(
   base: NotificationPreferences | null,
+  folderOverrides: Record<string, FolderNotificationOverride>,
   enabled: boolean,
   start: string,
   end: string,
@@ -48,8 +49,14 @@ function quietHoursPreferences(
       time_ranges: enabled ? [{ start, end }] : [],
       timezone: base?.global_dnd_schedule?.timezone || currentTimeZone(),
     },
-    folder_overrides: base?.folder_overrides ?? {},
+    folder_overrides: folderOverrides ?? base?.folder_overrides ?? {},
   };
+}
+
+const NOTIFICATION_FOLDER_OVERRIDES_KEY = 'webmail_notification_folder_overrides';
+
+function emptyDNDSchedule() {
+  return { weekdays: [], time_ranges: [], timezone: '' };
 }
 
 export function SettingsView({ userEmail, userName, initialSection }: SettingsViewProps) {
@@ -111,6 +118,8 @@ export function SettingsView({ userEmail, userName, initialSection }: SettingsVi
   const [notificationPrefsLoaded, setNotificationPrefsLoaded] = useState(false);
   const notificationPrefsBaseRef = useRef<NotificationPreferences | null>(null);
   const skipNotificationPrefsInitialSaveRef = useRef(true);
+  const [notificationFolderOverrides, setNotificationFolderOverrides] = useState<Record<string, FolderNotificationOverride>>({});
+  const [notificationFolders, setNotificationFolders] = useState<Folder[]>([]);
 
   // Templates
   const [templates, setTemplates] = useState<StoredEmailTemplate[]>([]);
@@ -231,17 +240,25 @@ export function SettingsView({ userEmail, userName, initialSection }: SettingsVi
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
+    getFolders()
+      .then((data) => setNotificationFolders(data.folders ?? []))
+      .catch(() => setNotificationFolders([]));
+  }, []);
+
+  useEffect(() => {
     let cancelled = false;
     getNotificationPreferences()
       .then((prefs) => {
         if (cancelled) return;
         notificationPrefsBaseRef.current = prefs;
+        setNotificationFolderOverrides(prefs.folder_overrides ?? {});
         setDndEnabled(prefs.global_dnd_enabled);
         const firstRange = prefs.global_dnd_schedule?.time_ranges?.[0];
         if (firstRange?.start) setDndStart(firstRange.start);
         if (firstRange?.end) setDndEnd(firstRange.end);
         try {
           localStorage.setItem('webmail_dnd', prefs.global_dnd_enabled ? '1' : '0');
+          localStorage.setItem(NOTIFICATION_FOLDER_OVERRIDES_KEY, JSON.stringify(prefs.folder_overrides ?? {}));
           if (firstRange?.start) localStorage.setItem('webmail_dnd_start', firstRange.start);
           if (firstRange?.end) localStorage.setItem('webmail_dnd_end', firstRange.end);
         } catch {
@@ -264,13 +281,20 @@ export function SettingsView({ userEmail, userName, initialSection }: SettingsVi
       return;
     }
     const timer = setTimeout(() => {
-      const next = quietHoursPreferences(notificationPrefsBaseRef.current, dndEnabled, dndStart, dndEnd);
+      const next = quietHoursPreferences(notificationPrefsBaseRef.current, notificationFolderOverrides, dndEnabled, dndStart, dndEnd);
       setNotificationPreferences(next)
-        .then((saved) => { notificationPrefsBaseRef.current = saved; })
+        .then((saved) => {
+          notificationPrefsBaseRef.current = saved;
+          try {
+            localStorage.setItem(NOTIFICATION_FOLDER_OVERRIDES_KEY, JSON.stringify(saved.folder_overrides ?? {}));
+          } catch {
+            // local settings cache is best-effort
+          }
+        })
         .catch(() => {});
     }, 800);
     return () => clearTimeout(timer);
-  }, [notificationPrefsLoaded, dndEnabled, dndStart, dndEnd]);
+  }, [notificationPrefsLoaded, notificationFolderOverrides, dndEnabled, dndStart, dndEnd]);
 
   // ── Debounced server save (2s after any setting change) ───────────────────────
   useEffect(() => {
@@ -961,6 +985,22 @@ export function SettingsView({ userEmail, userName, initialSection }: SettingsVi
         );
 
       case 'notifications':
+        const setFolderNotificationEnabled = (folderId: string, enabled: boolean) => {
+          setNotificationFolderOverrides((prev) => {
+            const next = { ...prev };
+            if (enabled) {
+              delete next[folderId];
+            } else {
+              next[folderId] = { enabled: false, dnd_inherit: true, dnd_schedule: emptyDNDSchedule() };
+            }
+            try {
+              localStorage.setItem(NOTIFICATION_FOLDER_OVERRIDES_KEY, JSON.stringify(next));
+            } catch {
+              // local settings cache is best-effort
+            }
+            return next;
+          });
+        };
         return (
           <SettingsNotificationsSection
             notifPerm={notifPerm}
@@ -976,6 +1016,9 @@ export function SettingsView({ userEmail, userName, initialSection }: SettingsVi
             setDndStart={(v) => { setDndStart(v); try { localStorage.setItem('webmail_dnd_start', v); } catch { /* */ } }}
             dndEnd={dndEnd}
             setDndEnd={(v) => { setDndEnd(v); try { localStorage.setItem('webmail_dnd_end', v); } catch { /* */ } }}
+            folders={notificationFolders}
+            folderOverrides={notificationFolderOverrides}
+            setFolderNotificationEnabled={setFolderNotificationEnabled}
           />
         );
 

@@ -1,6 +1,13 @@
 # gogomail current status
 
-Last updated: 2026-05-23 (notification preferences sync)
+Last updated: 2026-05-23 (per-folder notification controls)
+
+## Per-Folder Notification Controls (2026-05-23)
+- Webmail Settings now renders per-folder notification switches from the mailbox folder list and persists disabled folders into the backend `folder_overrides` notification-preference document.
+- Mail arrival notification generation now caches server notification preferences on mail-page load and suppresses notification-center entries for folders whose override has `enabled: false`.
+- The local notification policy cache uses `webmail_notification_folder_overrides`, keeping refreshed mail pages aligned with the server-backed mute choices without requiring Settings to be open.
+- Regression coverage verifies both the Settings save payload and muted-folder mail-arrival behavior.
+- Verification target: `pnpm -C apps/webmail exec playwright test e2e/settings.spec.ts e2e/notifications.spec.ts --project=chromium`; `pnpm -C apps/webmail type-check`.
 
 ## Notification Preferences Sync (2026-05-23)
 - Webmail Settings now loads and saves the backend `/api/v1/me/notification-preferences` document through the existing `/api/mail/me/notification-preferences` proxy path.

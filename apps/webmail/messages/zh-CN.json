@@ -1556,7 +1556,11 @@
       "dndLabel": "勿打扰模式",
       "dndDesc": "在指定时段静音通知",
       "dndTimeLabel": "安静时段",
-      "dndTimeDesc": "抑制通知的起始与结束时间"
+      "dndTimeDesc": "抑制通知的起始与结束时间",
+      "folderSection": "按文件夹通知",
+      "folderDesc": "此文件夹收到新的未读邮件时通知",
+      "folderEmpty": "没有可显示的文件夹",
+      "folderToggleAria": "{name} 通知"
     },
     "settingsAbout": {
       "section": "关于",

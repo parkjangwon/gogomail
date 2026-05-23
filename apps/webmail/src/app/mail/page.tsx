@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { deleteMessage, restoreMessage, bulkRestoreMessages, createFolder, renameFolder, deleteFolder, starMessage, markRead, moveMessage, bulkMarkRead, searchMessages, sendMessage, listThreads, listThreadMessages, UIComposeIntent, MessageAddress, MessageDetail, MessageSummary, ThreadSummary } from '@/lib/api';
+import { deleteMessage, restoreMessage, bulkRestoreMessages, createFolder, renameFolder, deleteFolder, starMessage, markRead, moveMessage, bulkMarkRead, searchMessages, sendMessage, listThreads, listThreadMessages, getNotificationPreferences, UIComposeIntent, MessageAddress, MessageDetail, MessageSummary, ThreadSummary } from '@/lib/api';
 import { AdvancedFilters, VIRTUAL_ALL, VIRTUAL_STARRED, VIRTUAL_ATTACHMENTS, VIRTUAL_UNREAD, VIRTUAL_SNOOZED, VIRTUAL_PINNED, VIRTUAL_IMPORTANT, VIRTUAL_TASKS } from '@/components/Sidebar';
 import { useMailList } from '@/hooks/useMailList';
 import { useMessage } from '@/hooks/useMessage';
@@ -40,6 +40,7 @@ import { stableId } from '@/lib/stableId';
 import { useNotifications } from '@/lib/notifications/store';
 
 const WEBMAIL_ACTIVE_APP_KEY = 'webmail_active_app';
+const NOTIFICATION_FOLDER_OVERRIDES_KEY = 'webmail_notification_folder_overrides';
 
 function isAppId(value: string | null): value is AppId {
   return value === 'mail' || value === 'calendar' || value === 'contacts' || value === 'drive' || value === 'settings';
@@ -56,6 +57,18 @@ function getInitialActiveApp(): AppId {
     // ignore
   }
   return 'mail';
+}
+
+function folderNotificationsEnabled(folderId: string): boolean {
+  if (!folderId || typeof window === 'undefined') return true;
+  try {
+    const raw = window.localStorage.getItem(NOTIFICATION_FOLDER_OVERRIDES_KEY);
+    if (!raw) return true;
+    const overrides = JSON.parse(raw) as Record<string, { enabled?: boolean }>;
+    return overrides[folderId]?.enabled !== false;
+  } catch {
+    return true;
+  }
 }
 
 function getFocusedNavGroup(): string | null {
@@ -1002,6 +1015,22 @@ export default function MailPage() {
     doSetup().catch(() => {});
   }, []);
 
+  useEffect(() => {
+    getNotificationPreferences()
+      .then((prefs) => {
+        try {
+          window.localStorage.setItem(NOTIFICATION_FOLDER_OVERRIDES_KEY, JSON.stringify(prefs.folder_overrides ?? {}));
+          window.localStorage.setItem('webmail_dnd', prefs.global_dnd_enabled ? '1' : '0');
+          const firstRange = prefs.global_dnd_schedule?.time_ranges?.[0];
+          if (firstRange?.start) window.localStorage.setItem('webmail_dnd_start', firstRange.start);
+          if (firstRange?.end) window.localStorage.setItem('webmail_dnd_end', firstRange.end);
+        } catch {
+          // local notification policy cache is best-effort
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   // Detect new unread messages after refresh and notify
   const seenMsgIdsRef = useRef<Set<string> | null>(null);
   useEffect(() => {
@@ -1010,7 +1039,7 @@ export default function MailPage() {
       seenMsgIdsRef.current = new Set(messages.map((m) => m.id));
       return;
     }
-    const newUnread = messages.filter((m) => !m.read && !seenMsgIdsRef.current!.has(m.id));
+    const newUnread = messages.filter((m) => !m.read && !seenMsgIdsRef.current!.has(m.id) && folderNotificationsEnabled(m.folder_id));
     messages.forEach((m) => seenMsgIdsRef.current!.add(m.id));
     // In-app notification center push is independent of OS-level permission/DnD.
     // Browser mirroring is centralized in the notification store so user toggles,

@@ -2,6 +2,7 @@
 
 import { useTranslations } from 'next-intl';
 import { Row, SectionCard, SectionHeader, Segment, Toggle } from '@/components/settings-view/settingsViewPrimitives';
+import type { Folder, FolderNotificationOverride } from '@/lib/api';
 
 interface SettingsNotificationsSectionProps {
   notifPerm: NotificationPermission;
@@ -17,6 +18,9 @@ interface SettingsNotificationsSectionProps {
   setDndStart: (value: string) => void;
   dndEnd: string;
   setDndEnd: (value: string) => void;
+  folders: Folder[];
+  folderOverrides: Record<string, FolderNotificationOverride>;
+  setFolderNotificationEnabled: (folderId: string, enabled: boolean) => void;
 }
 
 export function SettingsNotificationsSection({
@@ -33,8 +37,12 @@ export function SettingsNotificationsSection({
   setDndStart,
   dndEnd,
   setDndEnd,
+  folders,
+  folderOverrides,
+  setFolderNotificationEnabled,
 }: SettingsNotificationsSectionProps) {
   const t = useTranslations();
+  const visibleFolders = folders.filter((folder) => folder.type !== 'virtual');
   return (
     <SectionCard>
       <SectionHeader>{t('misc.settingsNotif.section')}</SectionHeader>
@@ -75,7 +83,28 @@ export function SettingsNotificationsSection({
           </div>
         </Row>
       )}
-      {!dndEnabled && <div style={{ height: '1px' }} />}
+      <SectionHeader>{t('misc.settingsNotif.folderSection')}</SectionHeader>
+      {visibleFolders.length === 0 ? (
+        <div style={{ padding: '14px 20px', fontSize: '12px', color: 'var(--color-text-tertiary)', background: 'var(--color-bg-primary)' }}>
+          {t('misc.settingsNotif.folderEmpty')}
+        </div>
+      ) : visibleFolders.map((folder, index) => {
+        const enabled = folderOverrides[folder.id]?.enabled !== false;
+        return (
+          <Row
+            key={folder.id}
+            label={folder.name}
+            description={t('misc.settingsNotif.folderDesc')}
+            last={index === visibleFolders.length - 1}
+          >
+            <Toggle
+              value={enabled}
+              onChange={(next) => setFolderNotificationEnabled(folder.id, next)}
+              ariaLabel={t('misc.settingsNotif.folderToggleAria', { name: folder.name })}
+            />
+          </Row>
+        );
+      })}
     </SectionCard>
   );
 }
