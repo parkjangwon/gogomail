@@ -1,6 +1,12 @@
 # gogomail current status
 
-Last updated: 2026-05-23 (notification center focus return)
+Last updated: 2026-05-23 (notification dedupe side effects)
+
+## Notification Dedupe Side Effects (2026-05-23)
+- Deduplicated notification pushes now short-circuit before in-app sound and browser notification mirroring, so repeated server/event ids do not disturb users twice.
+- The notification store keeps a synchronous id map so duplicate pushes in the same JavaScript turn are suppressed before React state commits.
+- E2E coverage verifies repeated deduped error notifications create only one browser `Notification`.
+- Verification target: `pnpm -C apps/webmail exec playwright test e2e/notifications.spec.ts --project=chromium -g "deduplicates browser notification"`; `pnpm -C apps/webmail type-check`.
 
 ## Notification Center Focus Return (2026-05-23)
 - Closing the notification center with Escape or the close button now returns focus to the notification bell, preserving a complete keyboard navigation loop.

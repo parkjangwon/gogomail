@@ -6803,3 +6803,7 @@ Target outcome:
 1858. Webmail notification center close flows now restore focus to the bell
       when the panel is dismissed by keyboard or close button, while
       outside-click dismissal keeps the user's clicked target in control.
+1859. Webmail notification deduplication now suppresses side effects as well
+      as list insertion. A synchronous notification-id map prevents duplicate
+      pushes in the same JavaScript turn from replaying sounds or browser
+      notification mirrors for the same event id.
