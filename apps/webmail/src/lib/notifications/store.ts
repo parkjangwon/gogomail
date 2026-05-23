@@ -250,6 +250,7 @@ function sanitizeNotifications(input: unknown): Notification[] {
         && VALID_CATEGORIES.has(o.category as NotificationCategory)
         && typeof o.severity === 'string'
         && VALID_SEVERITIES.has(o.severity as NotificationSeverity)
+        && (o.body === undefined || typeof o.body === 'string')
         && typeof o.timestamp === 'number'
         && Number.isFinite(o.timestamp)
         && typeof o.read === 'boolean';
