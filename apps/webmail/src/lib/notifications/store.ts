@@ -41,6 +41,9 @@ import type { Notification, NotificationInput } from './types';
 
 const STORAGE_KEY = 'webmail_notifications';
 const BROWSER_NOTIF_ENABLED_KEY = 'webmail_browser_notifications_enabled';
+const DND_ENABLED_KEY = 'webmail_dnd';
+const DND_START_KEY = 'webmail_dnd_start';
+const DND_END_KEY = 'webmail_dnd_end';
 const MAX_NOTIFICATIONS = 500;
 
 /**
@@ -73,6 +76,7 @@ function fireBrowserNotification(
       // localStorage may be blocked; fall back to enabled=true
     }
     if (!enabled) return;
+    if (isQuietHoursActive(new Date())) return;
 
     const severity = n.severity;
     const shouldShow =
@@ -106,6 +110,31 @@ function fireBrowserNotification(
     // notification flow.
     // eslint-disable-next-line no-console
     console.warn('[notifications] failed to create browser Notification:', err);
+  }
+}
+
+function parseHHMM(value: string | null): number | null {
+  if (!value) return null;
+  const match = /^(\d{2}):(\d{2})$/.exec(value);
+  if (!match) return null;
+  const hours = Number(match[1]);
+  const minutes = Number(match[2]);
+  if (!Number.isInteger(hours) || !Number.isInteger(minutes) || hours > 23 || minutes > 59) return null;
+  return hours * 60 + minutes;
+}
+
+function isQuietHoursActive(now: Date): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    if (window.localStorage.getItem(DND_ENABLED_KEY) !== '1') return false;
+    const start = parseHHMM(window.localStorage.getItem(DND_START_KEY)) ?? 22 * 60;
+    const end = parseHHMM(window.localStorage.getItem(DND_END_KEY)) ?? 8 * 60;
+    const current = now.getHours() * 60 + now.getMinutes();
+    if (start === end) return true;
+    if (start < end) return current >= start && current <= end;
+    return current >= start || current <= end;
+  } catch {
+    return false;
   }
 }
 
