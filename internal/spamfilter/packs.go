@@ -1,6 +1,8 @@
 package spamfilter
 
 import (
+	"net"
+	"net/url"
 	"path/filepath"
 	"regexp"
 	"slices"
@@ -16,6 +18,9 @@ const (
 	RuleTypeAttachmentExtension = "attachment_extension"
 	RuleTypeBulkRecipient       = "bulk_recipient"
 	RuleTypeAuthFailure         = "auth_failure"
+	RuleTypeSenderDomain        = "sender_domain"
+	RuleTypeURLHost             = "url_host"
+	RuleTypeHeaderAnomaly       = "header_anomaly"
 
 	RuleTargetSubject     = "subject"
 	RuleTargetBody        = "body"
@@ -32,6 +37,8 @@ const (
 )
 
 var filterPackIDPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9._-]{0,119}$`)
+var hrefURLPattern = regexp.MustCompile(`(?is)<a\b[^>]*\bhref\s*=\s*["']?([^"'\s>]+)["']?[^>]*>(.*?)</a>`)
+var plainURLPattern = regexp.MustCompile(`(?i)\bhttps?://[^\s<>"']+`)
 
 type FilterPackBundle struct {
 	EnabledPackIDs []string     `json:"enabled_pack_ids"`
@@ -66,6 +73,8 @@ func DefaultFilterPackBundle() FilterPackBundle {
 			"gogomail-core-malware",
 			"gogomail-core-phishing-ko",
 			"gogomail-core-bulk",
+			"gogomail-core-url",
+			"gogomail-core-sender",
 		},
 		CustomPacks: []FilterPack{},
 	}
@@ -123,6 +132,34 @@ func BuiltinFilterPacks() []FilterPack {
 				{ID: "recipient-fanout", Type: RuleTypeBulkRecipient, Score: 1.5, Enabled: true},
 			},
 		},
+		{
+			ID:          "gogomail-core-url",
+			Version:     "2026.05.25",
+			Name:        "Core URL and credential phishing defense",
+			Description: "Scores disguised links, credential forms, raw IP links, and IDN/punycode link lures.",
+			Category:    "phishing",
+			Source:      "system",
+			Enabled:     true,
+			Rules: []FilterRuleDefinition{
+				{ID: "link-text-mismatch", Type: RuleTypeHeaderAnomaly, Patterns: []string{"url_mismatch"}, Score: 3, Enabled: true},
+				{ID: "credential-form", Type: RuleTypeHeaderAnomaly, Patterns: []string{"html_form"}, Score: 3, Enabled: true},
+				{ID: "raw-ip-url", Type: RuleTypeHeaderAnomaly, Patterns: []string{"raw_ip_url"}, Score: 2, Enabled: true},
+				{ID: "punycode-url", Type: RuleTypeHeaderAnomaly, Patterns: []string{"punycode_url"}, Score: 2, Enabled: true},
+			},
+		},
+		{
+			ID:          "gogomail-core-sender",
+			Version:     "2026.05.25",
+			Name:        "Core sender impersonation defense",
+			Description: "Scores envelope/header sender mismatches and obfuscated credential-lure text.",
+			Category:    "impersonation",
+			Source:      "system",
+			Enabled:     true,
+			Rules: []FilterRuleDefinition{
+				{ID: "from-envelope-mismatch", Type: RuleTypeHeaderAnomaly, Patterns: []string{"from_envelope_mismatch"}, Score: 2, Enabled: true},
+				{ID: "text-obfuscation", Type: RuleTypeHeaderAnomaly, Patterns: []string{"text_obfuscation"}, Score: 2, Enabled: true},
+			},
+		},
 	}
 }
 
@@ -160,6 +197,7 @@ func FilterPackCatalog(bundle FilterPackBundle) []FilterPack {
 
 func evaluateFilterPacks(policy Policy, event smtpd.Event) (float64, []string) {
 	catalog := FilterPackCatalog(policy.FilterPacks)
+	ctx := &filterEvaluationContext{policy: policy, event: event}
 	score := 0.0
 	var rules []string
 	for _, pack := range catalog {
@@ -170,7 +208,7 @@ func evaluateFilterPacks(policy Policy, event smtpd.Event) (float64, []string) {
 			if !rule.Enabled || rule.Score <= 0 {
 				continue
 			}
-			if filterRuleMatches(rule, policy, event) {
+			if filterRuleMatches(rule, ctx) {
 				score += rule.Score
 				rules = append(rules, "PACK:"+pack.ID+":"+rule.ID)
 				if rule.Action == ActionReject {
@@ -182,10 +220,31 @@ func evaluateFilterPacks(policy Policy, event smtpd.Event) (float64, []string) {
 	return score, rules
 }
 
-func filterRuleMatches(rule FilterRuleDefinition, policy Policy, event smtpd.Event) bool {
+type filterEvaluationContext struct {
+	policy    Policy
+	event     smtpd.Event
+	anomalies map[string]bool
+	urlHosts  []string
+}
+
+func (ctx *filterEvaluationContext) messageAnomalies() map[string]bool {
+	if ctx.anomalies == nil {
+		ctx.anomalies = messageAnomalies(ctx.event)
+	}
+	return ctx.anomalies
+}
+
+func (ctx *filterEvaluationContext) messageURLHosts() []string {
+	if ctx.urlHosts == nil {
+		ctx.urlHosts = messageURLHosts(ctx.event)
+	}
+	return ctx.urlHosts
+}
+
+func filterRuleMatches(rule FilterRuleDefinition, ctx *filterEvaluationContext) bool {
 	switch rule.Type {
 	case RuleTypePhrase:
-		haystack := strings.ToLower(filterRuleText(rule.Target, event))
+		haystack := strings.ToLower(filterRuleText(rule.Target, ctx.event))
 		if haystack == "" {
 			return false
 		}
@@ -196,39 +255,56 @@ func filterRuleMatches(rule FilterRuleDefinition, policy Policy, event smtpd.Eve
 		}
 	case RuleTypeAttachmentExtension:
 		patterns := normalizeExts(rule.Patterns)
-		for _, attachment := range event.Parsed.Attachments {
+		for _, attachment := range ctx.event.Parsed.Attachments {
 			ext := filepath.Ext(strings.ToLower(strings.TrimSpace(attachment.Filename)))
 			if ext != "" && contains(patterns, ext) {
 				return true
 			}
 		}
 	case RuleTypeBulkRecipient:
-		limit := policy.BulkRecipientLimit
+		limit := ctx.policy.BulkRecipientLimit
 		if len(rule.Patterns) > 0 {
 			if parsed, err := strconv.Atoi(rule.Patterns[0]); err == nil && parsed > 0 {
 				limit = parsed
 			}
 		}
-		return limit > 0 && len(event.Recipients) > limit
+		return limit > 0 && len(ctx.event.Recipients) > limit
 	case RuleTypeAuthFailure:
 		for _, pattern := range rule.Patterns {
 			switch pattern {
 			case "dmarc_fail":
-				if event.Authentication.DMARC.Result == smtpd.AuthResultFail {
+				if ctx.event.Authentication.DMARC.Result == smtpd.AuthResultFail {
 					return true
 				}
 			case "spf_fail":
-				if event.Authentication.SPF.Result == smtpd.AuthResultFail {
+				if ctx.event.Authentication.SPF.Result == smtpd.AuthResultFail {
 					return true
 				}
 			case "dkim_fail":
-				if event.Authentication.DKIM.Result == smtpd.AuthResultFail {
+				if ctx.event.Authentication.DKIM.Result == smtpd.AuthResultFail {
 					return true
 				}
 			case "no_auth_pass":
-				if event.Authentication.SPF.Result != smtpd.AuthResultPass && event.Authentication.DKIM.Result != smtpd.AuthResultPass && event.Authentication.DMARC.Result != smtpd.AuthResultPass {
+				if ctx.event.Authentication.SPF.Result != smtpd.AuthResultPass && ctx.event.Authentication.DKIM.Result != smtpd.AuthResultPass && ctx.event.Authentication.DMARC.Result != smtpd.AuthResultPass {
 					return true
 				}
+			}
+		}
+	case RuleTypeSenderDomain:
+		from := firstNonEmpty(ctx.event.Parsed.From.Address, ctx.event.EnvelopeFrom)
+		_, domain, _ := strings.Cut(strings.ToLower(strings.TrimSpace(strings.Trim(from, "<>"))), "@")
+		return domain != "" && stringPatternMatchesDomain(domain, rule.Patterns)
+	case RuleTypeURLHost:
+		for _, host := range ctx.messageURLHosts() {
+			if stringPatternMatchesDomain(host, rule.Patterns) {
+				return true
+			}
+		}
+	case RuleTypeHeaderAnomaly:
+		anomalies := ctx.messageAnomalies()
+		for _, pattern := range rule.Patterns {
+			if anomalies[strings.ToLower(strings.TrimSpace(pattern))] {
+				return true
 			}
 		}
 	}
@@ -382,7 +458,7 @@ func normalizeRulePatterns(ruleType string, values []string) []string {
 
 func validRuleType(value string) bool {
 	switch value {
-	case RuleTypePhrase, RuleTypeAttachmentExtension, RuleTypeBulkRecipient, RuleTypeAuthFailure:
+	case RuleTypePhrase, RuleTypeAttachmentExtension, RuleTypeBulkRecipient, RuleTypeAuthFailure, RuleTypeSenderDomain, RuleTypeURLHost, RuleTypeHeaderAnomaly:
 		return true
 	default:
 		return false
@@ -401,6 +477,155 @@ func validPhraseTarget(value string) bool {
 func requiresPatterns(ruleType string) bool {
 	return ruleType != RuleTypeBulkRecipient
 }
+
+func messageAnomalies(event smtpd.Event) map[string]bool {
+	anomalies := map[string]bool{}
+	fromDomain := addressDomain(event.Parsed.From.Address)
+	envelopeDomain := addressDomain(event.EnvelopeFrom)
+	if fromDomain != "" && envelopeDomain != "" && fromDomain != envelopeDomain {
+		anomalies["from_envelope_mismatch"] = true
+	}
+	html := strings.ToLower(event.Parsed.HTMLBody)
+	if strings.Contains(html, "<form") || strings.Contains(html, "type=\"password\"") || strings.Contains(html, "type='password'") {
+		anomalies["html_form"] = true
+	}
+	for _, pair := range htmlLinkPairs(event.Parsed.HTMLBody) {
+		textHost := firstURLHost(pair.text)
+		hrefHost := normalizedHost(pair.href)
+		if textHost != "" && hrefHost != "" && registrableDomain(textHost) != registrableDomain(hrefHost) {
+			anomalies["url_mismatch"] = true
+		}
+	}
+	for _, host := range messageURLHosts(event) {
+		if strings.Contains(host, "xn--") {
+			anomalies["punycode_url"] = true
+		}
+		if net.ParseIP(host) != nil {
+			anomalies["raw_ip_url"] = true
+		}
+	}
+	if containsObfuscation(event.Parsed.Subject) || containsObfuscation(event.Parsed.TextBody) || containsObfuscation(event.Parsed.HTMLBody) {
+		anomalies["text_obfuscation"] = true
+	}
+	return anomalies
+}
+
+type htmlLinkPair struct {
+	href string
+	text string
+}
+
+func htmlLinkPairs(html string) []htmlLinkPair {
+	matches := hrefURLPattern.FindAllStringSubmatch(html, 50)
+	out := make([]htmlLinkPair, 0, len(matches))
+	for _, match := range matches {
+		if len(match) >= 3 {
+			out = append(out, htmlLinkPair{href: match[1], text: stripHTML(match[2])})
+		}
+	}
+	return out
+}
+
+func messageURLHosts(event smtpd.Event) []string {
+	seen := map[string]struct{}{}
+	out := make([]string, 0, 8)
+	for _, body := range []string{event.Parsed.TextBody, event.Parsed.HTMLBody} {
+		for _, raw := range plainURLPattern.FindAllString(body, 50) {
+			host := normalizedHost(raw)
+			if host == "" {
+				continue
+			}
+			if _, ok := seen[host]; ok {
+				continue
+			}
+			seen[host] = struct{}{}
+			out = append(out, host)
+		}
+	}
+	return out
+}
+
+func firstURLHost(text string) string {
+	raw := plainURLPattern.FindString(text)
+	if raw == "" {
+		return ""
+	}
+	return normalizedHost(raw)
+}
+
+func normalizedHost(raw string) string {
+	u, err := url.Parse(strings.TrimSpace(raw))
+	if err != nil {
+		return ""
+	}
+	host := strings.ToLower(strings.Trim(u.Hostname(), "[]"))
+	if host == "" || len(host) > 253 {
+		return ""
+	}
+	return strings.TrimSuffix(host, ".")
+}
+
+func stringPatternMatchesDomain(domain string, patterns []string) bool {
+	domain = strings.ToLower(strings.TrimSpace(strings.TrimPrefix(domain, "@")))
+	for _, pattern := range patterns {
+		pattern = strings.ToLower(strings.TrimSpace(strings.TrimPrefix(pattern, "*@")))
+		pattern = strings.TrimPrefix(pattern, "@")
+		if pattern == "" {
+			continue
+		}
+		if domain == pattern || strings.HasSuffix(domain, "."+pattern) {
+			return true
+		}
+	}
+	return false
+}
+
+func addressDomain(addr string) string {
+	addr = strings.ToLower(strings.TrimSpace(strings.Trim(addr, "<>")))
+	_, domain, ok := strings.Cut(addr, "@")
+	if !ok {
+		return ""
+	}
+	return strings.TrimSuffix(domain, ".")
+}
+
+func registrableDomain(host string) string {
+	host = strings.ToLower(strings.TrimSuffix(host, "."))
+	parts := strings.Split(host, ".")
+	if len(parts) <= 2 || net.ParseIP(host) != nil {
+		return host
+	}
+	return parts[len(parts)-2] + "." + parts[len(parts)-1]
+}
+
+func stripHTML(value string) string {
+	var b strings.Builder
+	inTag := false
+	for _, r := range value {
+		switch r {
+		case '<':
+			inTag = true
+			b.WriteByte(' ')
+		case '>':
+			inTag = false
+			b.WriteByte(' ')
+		default:
+			if !inTag {
+				b.WriteRune(r)
+			}
+		}
+	}
+	return htmlEntityReplacer.Replace(b.String())
+}
+
+var htmlEntityReplacer = strings.NewReplacer(
+	"&amp;", "&",
+	"&lt;", "<",
+	"&gt;", ">",
+	"&quot;", `"`,
+	"&#39;", "'",
+	"&nbsp;", " ",
+)
 
 func sanitizePackText(value string, maxBytes int) string {
 	value = strings.TrimSpace(value)

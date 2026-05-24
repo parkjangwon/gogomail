@@ -15124,7 +15124,7 @@ components:
           pattern: "^[a-z0-9][a-z0-9._-]{0,119}$"
         type:
           type: string
-          enum: [phrase, attachment_extension, bulk_recipient, auth_failure]
+          enum: [phrase, attachment_extension, bulk_recipient, auth_failure, sender_domain, url_host, header_anomaly]
         target:
           type: string
           enum: [subject, body, subject_body]

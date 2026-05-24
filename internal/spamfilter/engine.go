@@ -5,6 +5,7 @@ import (
 	"net"
 	"path/filepath"
 	"strings"
+	"unicode"
 
 	smtpd "github.com/gogomail/gogomail/internal/smtp"
 )
@@ -158,7 +159,7 @@ func matchesAddressList(addr string, patterns []string) bool {
 }
 
 func isSuspiciousSubject(subject string) bool {
-	subject = strings.ToLower(strings.TrimSpace(subject))
+	subject = spamTextFold(subject)
 	if subject == "" {
 		return false
 	}
@@ -172,7 +173,7 @@ func isSuspiciousSubject(subject string) bool {
 }
 
 func isSuspiciousBody(body string) bool {
-	body = strings.ToLower(strings.TrimSpace(body))
+	body = spamTextFold(stripHTML(body))
 	if body == "" {
 		return false
 	}
@@ -230,4 +231,75 @@ func firstNonEmpty(values ...string) string {
 		}
 	}
 	return ""
+}
+
+func spamTextFold(value string) string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return ""
+	}
+	var b strings.Builder
+	b.Grow(len(value))
+	for _, r := range value {
+		if isZeroWidth(r) {
+			continue
+		}
+		if mapped, ok := confusableRune(r); ok {
+			r = mapped
+		}
+		if unicode.IsSpace(r) {
+			b.WriteByte(' ')
+			continue
+		}
+		b.WriteRune(unicode.ToLower(r))
+	}
+	return strings.Join(strings.Fields(b.String()), " ")
+}
+
+func isZeroWidth(r rune) bool {
+	switch r {
+	case '\u200b', '\u200c', '\u200d', '\u2060', '\ufeff':
+		return true
+	default:
+		return false
+	}
+}
+
+func containsObfuscation(value string) bool {
+	for _, r := range value {
+		if isZeroWidth(r) {
+			return true
+		}
+		if _, ok := confusableRune(r); ok {
+			return true
+		}
+	}
+	return false
+}
+
+func confusableRune(r rune) (rune, bool) {
+	switch r {
+	case 'а', 'А', 'α', 'Α':
+		return 'a', true
+	case 'е', 'Е', 'ε', 'Ε':
+		return 'e', true
+	case 'о', 'О', 'ο', 'Ο':
+		return 'o', true
+	case 'р', 'Р', 'ρ', 'Ρ':
+		return 'p', true
+	case 'с', 'С':
+		return 'c', true
+	case 'х', 'Х', 'χ', 'Χ':
+		return 'x', true
+	case 'у', 'У':
+		return 'y', true
+	case 'і', 'І':
+		return 'i', true
+	case 'ѕ', 'Ѕ':
+		return 's', true
+	case 'ӏ':
+		return 'l', true
+	default:
+		return 0, false
+	}
 }

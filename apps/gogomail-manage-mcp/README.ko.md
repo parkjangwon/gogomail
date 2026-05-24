@@ -4,7 +4,7 @@ English / 영어: [README.md](README.md)
 
 `gogomail-manage-mcp`는 AI 에이전트에게 GoGoMail Admin API, Suppo 헬프데스크(선택), GitHub Issues(선택)에 대한 구조화된 관리 접근을 제공하는 [MCP(Model Context Protocol)](https://modelcontextprotocol.io/) 서버입니다. **무인 24/7 메일 서비스 운영**을 목표로 설계됐습니다 — 에이전트가 배송 오류 진단·수정, 사용자 계정 관리, 메일 큐 확인, 지원 티켓 처리를 사람 없이 수행할 수 있습니다.
 
-현재 GoGoMail Admin 커버리지는 **49개 툴**입니다. 사용자/도메인 운영, 배송·큐 진단, 조직 소속/직책 메타데이터, 보안 및 스팸 필터 정책 typed 툴과, 아직 전용 wrapper가 필요하지 않은 문서화된 어드민 콘솔 라우트를 위한 제한된 `gogomail_admin_api_request` bridge를 포함합니다.
+현재 GoGoMail Admin 커버리지는 **50개 툴**입니다. 사용자/도메인 운영, 배송·큐 진단, 조직 소속/직책 메타데이터, 보안 및 스팸 필터 정책 typed 툴과, 아직 전용 wrapper가 필요하지 않은 문서화된 어드민 콘솔 라우트를 위한 제한된 `gogomail_admin_api_request` bridge를 포함합니다.
 
 ---
 
@@ -18,7 +18,7 @@ English / 영어: [README.md](README.md)
   - [Claude Desktop (stdio)](#claude-desktop-stdio)
   - [자율 에이전트 (HTTP + SSE)](#자율-에이전트-http--sse)
 - [툴 레퍼런스](#툴-레퍼런스)
-  - [GoGoMail Admin (49개)](#gogomail-admin-49개)
+  - [GoGoMail Admin (50개)](#gogomail-admin-50개)
   - [Suppo 헬프데스크 (10개)](#suppo-헬프데스크-10개)
   - [GitHub Issues (6개)](#github-issues-6개)
 - [워크플로우 예시](#워크플로우-예시)
@@ -42,7 +42,7 @@ English / 영어: [README.md](README.md)
   │                             │
   │  ┌──────────────────────┐   │
   │  │  GoGoMail Admin      │   │──► GET/PATCH/POST/DELETE /admin/v1/…
-  │  │  49개 툴  [필수]      │   │    Bearer: GOGOMAIL_ADMIN_KEY
+  │  │  50개 툴  [필수]      │   │    Bearer: GOGOMAIL_ADMIN_KEY
   │  └──────────────────────┘   │
   │  ┌──────────────────────┐   │
   │  │  Suppo 헬프데스크     │   │──► /api/public/…
@@ -196,7 +196,7 @@ node dist/index.js
 
 툴 이름은 `{공급자}_{동작}_{대상}` 패턴을 따릅니다. GoGoMail **액션** 툴(쓰기 작업)은 사람이 읽을 수 있는 `reason`을 필수로 받고 모두 감사 로그가 기록됩니다 — `ticketId`가 지정되면 해당 Suppo 티켓에 내부 댓글로 기록되고, 생략하면 자동으로 별도 감사 티켓이 생성됩니다. 되돌릴 수 없는 삭제는 정확한 `confirm` 문구도 필요합니다. Suppo가 설정되지 않은 경우 감사 기록은 stderr에 출력됩니다.
 
-### GoGoMail Admin (49개)
+### GoGoMail Admin (50개)
 
 #### 사용자 및 디렉터리
 
@@ -310,7 +310,8 @@ node dist/index.js
 | `gogomail_update_security_policy` | `PUT /admin/v1/{companies|domains}/{id}/security/...` | 회사/도메인 보안 정책 JSON 문서 변경. *(감사 로그 기록)* |
 | `gogomail_get_spam_filter_policy` | `GET /admin/v1/{companies|domains}/{id}/security/spam-filter` | 회사 또는 도메인 범위 스팸 필터 정책 조회. |
 | `gogomail_update_spam_filter_policy` | `PUT /admin/v1/{companies|domains}/{id}/security/spam-filter` | 회사 또는 도메인 범위 스팸 필터 정책 변경. *(감사 로그 기록)* |
-| `gogomail_get_spam_filter_stats` | `GET /admin/v1/companies/{id}/security/spam-filter/stats` | 스팸 필터 통계 조회. 도메인 필터 선택 가능. |
+| `gogomail_get_spam_filter_stats` | `GET /admin/v1/companies/{id}/security/spam-filter/stats` | 스팸 필터 통계 조회. 도메인, 사용자, 기간 필터 선택 가능. |
+| `gogomail_list_spam_filter_events` | `GET /admin/v1/companies/{id}/security/spam-filter/events` | 상태, 발신자, 수신자, 제목, 도메인, 사용자, 기간 조건으로 스팸 필터 판정 로그 조회. |
 
 ---
 
