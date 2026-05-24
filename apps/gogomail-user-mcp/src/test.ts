@@ -1,5 +1,8 @@
 import { describe, test } from "node:test";
 import assert from "node:assert/strict";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { withMCPNotice } from "./client.js";
 import { callTool } from "./tools.js";
 
@@ -88,6 +91,41 @@ describe("GoGoMail API contract alignment", () => {
     assert.equal(calls[0]?.headers?.["X-Gogomail-MCP-Confirm"], "delete message msg-1");
   });
 
+  test("typed context and bulk-mail tools map to documented user APIs", async () => {
+    const calls: CapturedCall[] = [];
+    const fake = {
+      settings: async () => ({ permission_mode: "basic" as const }),
+      request: async (method: string, path: string, body?: unknown, headers?: Record<string, string>) => {
+        calls.push({ method, path, body, headers });
+        return { ok: true };
+      },
+    };
+
+    await callTool(fake as never, "gogomail_webmail_get_capabilities", {}, "basic");
+    await callTool(fake as never, "gogomail_mailbox_get_overview", {}, "basic");
+    await callTool(fake as never, "gogomail_account_get_profile", {}, "basic");
+    await callTool(fake as never, "gogomail_account_list_addresses", {}, "basic");
+    await callTool(fake as never, "gogomail_preferences_get", {}, "basic");
+    await callTool(fake as never, "gogomail_mail_bulk_update_flags", { message_ids: ["m1", "m2"], flag: "answered", value: true }, "basic");
+    await callTool(fake as never, "gogomail_mail_bulk_move_messages", { message_ids: ["m1"], folder_id: "archive" }, "basic");
+    await callTool(fake as never, "gogomail_mail_bulk_delete_messages", { message_ids: ["m1"], confirm: "POST /api/v1/messages/bulk/delete" }, "basic");
+    await callTool(fake as never, "gogomail_mail_bulk_update_thread_flags", { thread_ids: ["t1"], flag: "forwarded", value: false }, "basic");
+    await callTool(fake as never, "gogomail_mail_bulk_move_threads", { thread_ids: ["t1"], folder_id: "archive" }, "basic");
+    await callTool(fake as never, "gogomail_mail_bulk_delete_threads", { thread_ids: ["t1"], confirm: "POST /api/v1/threads/bulk/delete" }, "basic");
+
+    assert.equal(calls[0]?.path, "/api/v1/webmail/capabilities");
+    assert.equal(calls[1]?.path, "/api/v1/mailbox/overview");
+    assert.equal(calls[2]?.path, "/api/v1/me");
+    assert.equal(calls[3]?.path, "/api/v1/me/addresses");
+    assert.equal(calls[4]?.path, "/api/v1/preferences");
+    assert.deepEqual(calls[5], { method: "PATCH", path: "/api/v1/messages/bulk/flags", body: { message_ids: ["m1", "m2"], flag: "answered", value: true }, headers: undefined });
+    assert.deepEqual(calls[6]?.body, { message_ids: ["m1"], folder_id: "archive" });
+    assert.equal(calls[7]?.headers?.["X-Gogomail-MCP-Confirm"], "POST /api/v1/messages/bulk/delete");
+    assert.deepEqual(calls[8]?.body, { thread_ids: ["t1"], flag: "forwarded", value: false });
+    assert.equal(calls[9]?.method, "PATCH");
+    assert.equal(calls[10]?.headers?.["X-Gogomail-MCP-Confirm"], "POST /api/v1/threads/bulk/delete");
+  });
+
   test("generic API bridge blocks account and key-management routes", async () => {
     const fake = {
       settings: async () => ({ permission_mode: "bypass" as const }),
@@ -124,6 +162,27 @@ describe("GoGoMail API contract alignment", () => {
 
     assert.equal(calls[0]?.headers?.["Content-Type"], "text/calendar");
     assert.equal(calls[0]?.body, "BEGIN:VCALENDAR\nEND:VCALENDAR");
+  });
+
+  test("generic API bridge accepts documented PATCH bulk routes", async () => {
+    const calls: CapturedCall[] = [];
+    const fake = {
+      settings: async () => ({ permission_mode: "basic" as const }),
+      request: async (method: string, path: string, body?: unknown, headers?: Record<string, string>) => {
+        calls.push({ method, path, body, headers });
+        return { ok: true };
+      },
+    };
+
+    await callTool(fake as never, "gogomail_api_request", {
+      method: "PATCH",
+      path: "/api/v1/messages/bulk/flags",
+      body_json: { message_ids: ["m1"], flag: "read", value: true },
+      confirm: "PATCH /api/v1/messages/bulk/flags",
+    }, "basic");
+
+    assert.equal(calls[0]?.method, "PATCH");
+    assert.deepEqual(calls[0]?.body, { message_ids: ["m1"], flag: "read", value: true });
   });
 
   test("mail send forwards granular backend confirmation headers", async () => {
@@ -181,6 +240,50 @@ describe("GoGoMail API contract alignment", () => {
     assert.equal(calls[5]?.headers?.["Content-Type"], "text/plain; charset=utf-8");
     assert.match(calls[5]?.headers?.["X-Content-SHA256"] ?? "", /^[0-9a-f]{64}$/);
     assert.equal(calls[6]?.path, "/api/v1/attachments/upload-sessions/session-1/finalize");
+  });
+
+  test("agent-native contact, calendar, Drive session, share, and download helpers work", async () => {
+    const calls: CapturedCall[] = [];
+    const tmp = await mkdtemp(join(tmpdir(), "gogomail-user-mcp-"));
+    const downloadPath = join(tmp, "download.txt");
+    const fake = {
+      settings: async () => ({ permission_mode: "basic" as const }),
+      request: async (method: string, path: string, body?: unknown, headers?: Record<string, string>) => {
+        calls.push({ method, path, body, headers });
+        if (path.includes("/download")) {
+          return { body_text: "hello", body_base64: Buffer.from("hello", "utf8").toString("base64"), content_type: "text/plain" };
+        }
+        return { ok: true };
+      },
+    };
+
+    try {
+      await callTool(fake as never, "gogomail_contacts_upsert_simple", { addressbook_id: "book-1", full_name: "Park JW", email: "pjw@example.com", organization: "GoGoMail" }, "basic");
+      await callTool(fake as never, "gogomail_calendar_upsert_event_simple", { calendar_id: "cal-1", summary: "Planning", starts_at: "2026-05-24T01:00:00Z", ends_at: "2026-05-24T02:00:00Z", location: "Seoul" }, "basic");
+      await callTool(fake as never, "gogomail_drive_list_upload_sessions", { status: "open", limit: 5 }, "basic");
+      await callTool(fake as never, "gogomail_drive_get_upload_session", { id: "up-1" }, "basic");
+      await callTool(fake as never, "gogomail_drive_cancel_upload_session", { id: "up-1", confirm: "DELETE /api/v1/drive/upload-sessions/up-1" }, "basic");
+      await callTool(fake as never, "gogomail_drive_get_share_link", { id: "share-1" }, "basic");
+      await callTool(fake as never, "gogomail_drive_download_share_link", { id: "share-1", password: "pw" }, "basic");
+      const saved = await callTool(fake as never, "gogomail_drive_download", { id: "node-1", save_to_path: downloadPath, confirm: `save download ${downloadPath}` }, "basic");
+
+      assert.equal(calls[0]?.method, "PUT");
+      assert.match(String(calls[0]?.body), /BEGIN:VCARD/);
+      assert.match(String(calls[0]?.body), /FN:Park JW/);
+      assert.equal(calls[0]?.headers?.["Content-Type"], "text/vcard");
+      assert.equal(calls[1]?.method, "PUT");
+      assert.match(String(calls[1]?.body), /BEGIN:VCALENDAR/);
+      assert.match(String(calls[1]?.body), /SUMMARY:Planning/);
+      assert.equal(calls[2]?.path, "/api/v1/drive/upload-sessions?status=open&limit=5");
+      assert.equal(calls[3]?.path, "/api/v1/drive/upload-sessions/up-1");
+      assert.equal(calls[4]?.headers?.["X-Gogomail-MCP-Confirm"], "DELETE /api/v1/drive/upload-sessions/up-1");
+      assert.equal(calls[5]?.path, "/api/v1/drive/share-links/share-1");
+      assert.deepEqual(calls[6]?.body, { password: "pw" });
+      assert.equal(await readFile(downloadPath, "utf8"), "hello");
+      assert.equal((saved as { saved_bytes?: number }).saved_bytes, 5);
+    } finally {
+      await rm(tmp, { recursive: true, force: true });
+    }
   });
 });
 

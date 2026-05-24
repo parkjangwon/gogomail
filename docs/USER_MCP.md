@@ -53,12 +53,20 @@ In `basic` mode, sensitive user-key API calls must include `X-Gogomail-MCP-Confi
 
 The user MCP server only calls existing GoGoMail user APIs:
 
+- Account/context: webmail capabilities, mailbox overview, profile, sender addresses, user MCP settings, and read-only webmail preferences.
 - Mail: messages, drafts, folders, threads, attachments, delivery status, bulk routes, and search.
 - Contacts and directory: address books, contacts, autocomplete, directory users, and organization tree.
 - Drive: nodes, folders, downloads, upload sessions, usage, and share links.
 - Calendar: calendars, calendar objects, calendar subscriptions, and subscription events.
 
-For agent-native coverage, `gogomail_api_request` can call the documented user API surface through an exact method/path manifest. It blocks admin, auth, password, session, and MCP key-management routes and denies undocumented future routes until the manifest is intentionally updated.
+For agent-native coverage, `gogomail_api_request` can call the documented user API surface through an exact method/path manifest. It blocks admin, auth, password, session, and MCP key-management routes and denies undocumented future routes until the manifest is intentionally updated. Full-object preference writes stay behind this generic bridge so agents must intentionally preserve unknown preference fields instead of clobbering them through a broad typed setter.
+
+Convenience tools are layered on top of those real contracts:
+
+- Bulk mail actions accept capped unique message/thread ID lists and use the documented PATCH/POST bulk routes.
+- `gogomail_contacts_upsert_simple` builds a vCard from structured fields; raw vCard upsert remains available.
+- `gogomail_calendar_upsert_event_simple` builds a single VEVENT ICS object; raw ICS upsert remains available.
+- Drive downloads return text plus base64 and may save to a local path only when basic mode receives `confirm="save download <path>"`.
 
 Drive text-file creation uses the real upload-session API. If `storage_backend` is omitted, the backend selects the configured storage backend; clients should only pass an explicit backend label when they know it is enabled for that environment. Permanent Drive delete applies to already-trashed nodes, so agents should call `gogomail_drive_trash` before `gogomail_drive_delete` for active files.
 
