@@ -830,8 +830,12 @@
       "savedContactLabel": "저장됨 ✓",
       "toLabel": "받는 사람",
       "ccLabel": "참조",
-      "readingPrefix": "읽기"
-    }
+      "readingPrefix": "읽기",
+      "blockSenderTitle": "{addr} 발신자 차단",
+      "blockSenderLabel": "차단"
+    },
+    "notSpamBannerText": "이 메일이 스팸으로 분류되었습니다. 스팸이 아닌가요?",
+    "notSpamBannerAction": "받은 편지함으로 이동"
   },
   "sidebar": {
     "asideLabel": "메일 탐색",
@@ -1555,7 +1559,12 @@
         "labelGreen": "초록",
         "labelBlue": "파랑",
         "labelPurple": "보라"
-      }
+      },
+      "spamAutoDelete": "스팸 메일은 30일 후 자동으로 삭제됩니다.",
+      "markAllNotSpam": "전체 스팸 아님",
+      "allNotSpam": "{count}개를 받은 편지함으로 이동했습니다",
+      "emptySpam": "스팸 모두 삭제",
+      "senderBlocked": "{addr}을(를) 차단했습니다"
     },
     "messagePage": {
       "backToInbox": "← 받은 편지함"
@@ -1905,5 +1914,18 @@
       "dismissPrompt": "브라우저 알림 안내 닫기"
     },
     "unread": "읽지 않음"
+  },
+  "spamDialog": {
+    "ariaLabel": "스팸 신고",
+    "title": "스팸 신고",
+    "cancelAria": "취소",
+    "sender": "발신자",
+    "description": "이 메일을 스팸으로 신고하고 스팸 편지함으로 이동합니다.",
+    "blockSenderLabel": "이 발신자 차단",
+    "blockSenderDesc": "{addr}에서 오는 메일을 차단합니다",
+    "blockDomainLabel": "이 도메인 전체 차단",
+    "blockDomainDesc": "@{domain} 에서 오는 모든 메일을 차단합니다",
+    "cancel": "취소",
+    "confirm": "스팸 신고"
   }
 }

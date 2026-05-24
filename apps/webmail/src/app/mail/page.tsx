@@ -26,6 +26,7 @@ import { DriveView } from '@/components/DriveView';
 import { loadFilterRules } from '@/components/settings/settingsConfig';
 import { SpotlightSearch } from '@/components/SpotlightSearch';
 import { MFASetupPromptModal } from '@/components/MFASetupPromptModal';
+import { SpamReportDialog } from '@/components/spam/SpamReportDialog';
 import {
   buildThreadMessages,
   getEmptyFolderLabel,
@@ -206,6 +207,7 @@ export default function MailPage() {
   const [settingsInitialSection, setSettingsInitialSection] = useState<SectionId | undefined>(undefined);
   const [showSpotlight, setShowSpotlight] = useState(false);
   const [spotlightMoveId, setSpotlightMoveId] = useState<string | null>(null);
+  const [spamDialogMessageId, setSpamDialogMessageId] = useState<string | null>(null);
 
   useEffect(() => {
     try {
@@ -821,14 +823,30 @@ export default function MailPage() {
 
   const handleSpam = useCallback(() => {
     if (!selectedMessageId) return;
+    setSpamDialogMessageId(selectedMessageId);
+  }, [selectedMessageId]);
+
+  const executeSpam = useCallback((id: string, opts: { blockSender: boolean; blockDomain: boolean }) => {
     const spamFolder = folders.find((f) => f.system_type === 'spam' || f.system_type === 'junk');
     if (!spamFolder) return;
-    const id = selectedMessageId;
     const spamMsg = messages.find((m) => m.id === id) ?? searchResults?.find((m) => m.id === id);
     if (spamMsg && !spamMsg.read) adjustUnread(activeFolderId, -1);
     const nextId = getNextId(id);
     removeVisibleMessages([id]);
     setSelectedMessageId(nextId);
+    // Block sender/domain if requested
+    if (opts.blockSender) {
+      try {
+        const blocked: string[] = JSON.parse(localStorage.getItem('webmail_blocked_senders') ?? '[]');
+        const fromAddr = spamMsg ? (spamMsg as { from_addr?: string }).from_addr ?? '' : '';
+        const toBlock: string[] = [fromAddr];
+        if (opts.blockDomain && fromAddr.includes('@')) {
+          toBlock.push('@' + fromAddr.split('@')[1]);
+        }
+        const next = [...new Set([...blocked, ...toBlock.filter(Boolean)])];
+        localStorage.setItem('webmail_blocked_senders', JSON.stringify(next));
+      } catch { /* ignore */ }
+    }
     addToast(t('misc.mailPage.movedToSpam'), 'info', {
       action: {
         label: t('misc.mailPage.undo'),
@@ -848,7 +866,18 @@ export default function MailPage() {
       }
       addToast(t('misc.mailPage.moveFailed'), 'error');
     });
-  }, [selectedMessageId, folders, getNextId, removeVisibleMessages, setMessages, addToast, messages, searchResults, adjustUnread, activeFolderId]);
+  }, [folders, getNextId, removeVisibleMessages, setMessages, addToast, messages, searchResults, adjustUnread, activeFolderId]);
+
+  const handleBlockSender = useCallback((addr: string) => {
+    if (!addr) return;
+    try {
+      const blocked: string[] = JSON.parse(localStorage.getItem('webmail_blocked_senders') ?? '[]');
+      if (!blocked.includes(addr)) {
+        localStorage.setItem('webmail_blocked_senders', JSON.stringify([...blocked, addr]));
+      }
+    } catch { /* ignore */ }
+    addToast(t('misc.mailPage.senderBlocked', { addr }), 'info');
+  }, [addToast]);
 
   const handleNotSpam = useCallback(() => {
     if (!selectedMessageId) return;
@@ -1665,6 +1694,54 @@ export default function MailPage() {
 
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
 
+            {/* Spam folder info banner */}
+            {(activeFolderSystemType === 'spam' || activeFolderSystemType === 'junk') && (
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap',
+                padding: '9px 16px',
+                background: 'color-mix(in srgb, var(--color-warning) 10%, transparent)',
+                borderBottom: '1px solid color-mix(in srgb, var(--color-warning) 25%, transparent)',
+                flexShrink: 0,
+              }}>
+                <span style={{ fontSize: '12px', color: 'var(--color-text-secondary)', flex: 1, minWidth: 120 }}>
+                  {t('misc.mailPage.spamAutoDelete')}
+                </span>
+                <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
+                  {messages.length > 0 && (
+                    <button
+                      onClick={async () => {
+                        const inboxFolder = folders.find((f) => f.system_type === 'inbox');
+                        if (!inboxFolder) return;
+                        const ids = messages.map((m) => m.id);
+                        removeVisibleMessages(ids);
+                        setSelectedMessageId(null);
+                        await Promise.allSettled(ids.map((id) => moveMessage(id, inboxFolder.id)));
+                        addToast(t('misc.mailPage.allNotSpam', { count: ids.length }), 'info');
+                      }}
+                      style={{ padding: '4px 12px', borderRadius: '5px', border: '1px solid var(--color-border-default)', background: 'transparent', color: 'var(--color-text-secondary)', fontSize: '12px', cursor: 'pointer', whiteSpace: 'nowrap' }}
+                      onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-secondary)'; }}
+                      onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
+                    >
+                      {t('misc.mailPage.markAllNotSpam')}
+                    </button>
+                  )}
+                  {messages.length > 0 && (
+                    <button
+                      onClick={() => {
+                        const ids = messages.map((m) => m.id);
+                        handleBulkDelete(ids);
+                      }}
+                      style={{ padding: '4px 12px', borderRadius: '5px', border: '1px solid var(--color-destructive)', background: 'transparent', color: 'var(--color-destructive)', fontSize: '12px', cursor: 'pointer', whiteSpace: 'nowrap' }}
+                      onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'color-mix(in srgb, var(--color-destructive) 10%, transparent)'; }}
+                      onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
+                    >
+                      {t('misc.mailPage.emptySpam')}
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+
             <MessageList
               messages={visibleMessages}
               selectedId={selectedMessageId}
@@ -1853,6 +1930,7 @@ export default function MailPage() {
                 } : undefined}
                 onRestore={selectedMessageId && (activeFolderSystemType === 'trash' || activeFolderSystemType === 'archive') ? () => activeFolderSystemType === 'archive' ? handleRestoreFromArchive(selectedMessageId) : handleRestore(selectedMessageId) : undefined}
                 onComposeToAddress={(address) => openCompose({ intent: 'new', to: address })}
+                onBlockSender={handleBlockSender}
                 onSnooze={activeFolderSystemType !== 'trash' ? handleSnooze : undefined}
                 onOpenInWindow={selectedMessageId ? () => window.open(`/mail/${selectedMessageId}`, '_blank', 'width=900,height=700,menubar=no,toolbar=no') : undefined}
                 onToggleRead={selectedMessageId ? () => { const m = findVisibleMessage(selectedMessageId); if (m?.read) handleMarkUnread(); else void handleMarkRead(); } : undefined}
@@ -1868,6 +1946,25 @@ export default function MailPage() {
               />
             </div>
           </>
+        );
+      })()}
+
+      {/* Spam Report Dialog */}
+      {spamDialogMessageId && (() => {
+        const spamTargetMsg = findVisibleMessage(spamDialogMessageId);
+        const fromAddr = spamTargetMsg?.from_addr ?? '';
+        const fromName = spamTargetMsg?.from_name ?? '';
+        return (
+          <SpamReportDialog
+            fromAddr={fromAddr}
+            fromName={fromName}
+            onConfirm={(opts) => {
+              const id = spamDialogMessageId;
+              setSpamDialogMessageId(null);
+              executeSpam(id, opts);
+            }}
+            onCancel={() => setSpamDialogMessageId(null)}
+          />
         );
       })()}
 

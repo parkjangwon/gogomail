@@ -50,6 +50,7 @@ interface ReadingPaneProps {
   messageIndex?: number;
   messageTotal?: number;
   onComposeToAddress?: (address: string) => void;
+  onBlockSender?: (addr: string) => void;
   onRestore?: () => void;
   onSnooze?: (messageId: string, until: Date) => void;
   onOpenInWindow?: () => void;
@@ -85,6 +86,7 @@ export function ReadingPane({
   messageIndex,
   messageTotal,
   onComposeToAddress,
+  onBlockSender,
   onRestore,
   onSnooze,
   onOpenInWindow,
@@ -706,6 +708,33 @@ export function ReadingPane({
         onDecreaseFontSize={decreaseFontSize}
       />
 
+      {/* "스팸 아님" banner — shown when viewing email in spam folder */}
+      {onNotSpam && (
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px',
+          padding: '10px 20px',
+          background: 'color-mix(in srgb, var(--color-warning) 12%, transparent)',
+          borderBottom: '1px solid color-mix(in srgb, var(--color-warning) 30%, transparent)',
+          flexShrink: 0,
+        }}>
+          <span style={{ fontSize: '13px', color: 'var(--color-text-primary)', lineHeight: 1.4 }}>
+            {t('readingFull.notSpamBannerText')}
+          </span>
+          <button
+            onClick={onNotSpam}
+            style={{
+              padding: '5px 14px', borderRadius: '6px', border: 'none',
+              background: 'var(--color-accent)', color: '#fff',
+              fontSize: '12px', fontWeight: 600, cursor: 'pointer', flexShrink: 0, whiteSpace: 'nowrap',
+            }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.opacity = '0.88'; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.opacity = '1'; }}
+          >
+            {t('readingFull.notSpamBannerAction')}
+          </button>
+        </div>
+      )}
+
       <div style={{ padding: '20px 24px', flex: 1 }}>
         <MessageHeader
           message={message}
@@ -714,6 +743,7 @@ export function ReadingPane({
           copiedEmail={copiedEmail}
           onCopyEmail={copyEmail}
           onComposeToAddress={onComposeToAddress}
+          onBlockSender={onBlockSender}
           isContactSaved={isContactSaved}
           savedContact={savedContact}
           onSaveContact={handleSaveContact}
