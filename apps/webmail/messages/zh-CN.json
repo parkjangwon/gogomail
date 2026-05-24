@@ -1371,7 +1371,11 @@
     "blockedColDate": "屏蔽时间",
     "blockedColAction": "移除",
     "blockedInputHint": "输入邮箱地址或域名（如@example.com），然后按回车或点击添加按钮。",
-    "blockedAlready": "此地址已在屏蔽列表中。"
+    "blockedAlready": "此地址已在屏蔽列表中。",
+    "blockedSearchPlaceholder": "搜索地址...",
+    "blockedSearchClear": "清除搜索",
+    "blockedSearchCount": "{found} / 共{total}条",
+    "blockedSearchEmpty": "无匹配结果。"
   },
   "composeFull": {
     "titleNew": "新邮件",
