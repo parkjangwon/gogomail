@@ -246,7 +246,11 @@
     "save": "Save",
     "add": "Add",
     "editRuleTitle": "Edit rule",
-    "newRuleTitle": "New rule"
+    "newRuleTitle": "New rule",
+    "applyNow": "Apply now",
+    "applying": "Applying...",
+    "applyDone": "Applied to {count} messages",
+    "applyDoneNone": "No matching messages found"
   },
   "nav": {
     "mail": "Mail",

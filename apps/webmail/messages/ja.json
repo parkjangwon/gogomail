@@ -246,7 +246,11 @@
     "save": "保存",
     "add": "追加",
     "editRuleTitle": "ルールを編集",
-    "newRuleTitle": "新しいルール"
+    "newRuleTitle": "新しいルール",
+    "applyNow": "今すぐ適用",
+    "applying": "適用中...",
+    "applyDone": "{count}件のメールに適用しました",
+    "applyDoneNone": "条件に一致するメールはありません"
   },
   "nav": {
     "mail": "メール",

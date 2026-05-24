@@ -246,7 +246,11 @@
     "save": "저장",
     "add": "추가",
     "editRuleTitle": "규칙 편집",
-    "newRuleTitle": "새 규칙 추가"
+    "newRuleTitle": "새 규칙 추가",
+    "applyNow": "지금 적용",
+    "applying": "적용 중...",
+    "applyDone": "{count}개 메일에 적용됨",
+    "applyDoneNone": "조건에 맞는 메일이 없습니다"
   },
   "nav": {
     "mail": "메일",
