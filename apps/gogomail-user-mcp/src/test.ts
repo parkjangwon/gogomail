@@ -70,6 +70,118 @@ describe("GoGoMail API contract alignment", () => {
     assert.deepEqual(calls[1], { method: "PATCH", path: "/api/mail/addressbooks/book-1", body: { name: "Team 2", description: undefined } });
     assert.deepEqual(calls[2], { method: "PATCH", path: "/api/v1/calendars/cal-1", body: { name: "Work", description: undefined, color: "#2563eb" } });
   });
+
+  test("generic API bridge reaches user APIs and forwards sensitive confirmation", async () => {
+    const calls: CapturedCall[] = [];
+    const fake = {
+      settings: async () => ({ permission_mode: "basic" as const }),
+      request: async (method: string, path: string, body?: unknown, headers?: Record<string, string>) => {
+        calls.push({ method, path, body, headers });
+        return { ok: true };
+      },
+    };
+
+    await callTool(fake as never, "gogomail_api_request", { method: "DELETE", path: "/api/v1/messages/msg-1", confirm: "delete message msg-1" }, "basic");
+
+    assert.equal(calls[0]?.method, "DELETE");
+    assert.equal(calls[0]?.path, "/api/v1/messages/msg-1");
+    assert.equal(calls[0]?.headers?.["X-Gogomail-MCP-Confirm"], "delete message msg-1");
+  });
+
+  test("generic API bridge blocks account and key-management routes", async () => {
+    const fake = {
+      settings: async () => ({ permission_mode: "bypass" as const }),
+      request: async () => ({ ok: true }),
+    };
+
+    await assert.rejects(
+      () => callTool(fake as never, "gogomail_api_request", { method: "GET", path: "/api/v1/me/mcp/access-keys" }, "basic"),
+      /not allowed/,
+    );
+    await assert.rejects(
+      () => callTool(fake as never, "gogomail_api_request", { method: "POST", path: "/api/v1/auth/token", body_json: { email: "a@example.com" } }, "basic"),
+      /not allowed/,
+    );
+  });
+
+  test("generic API bridge supports text bodies for CalDAV and CardDAV routes", async () => {
+    const calls: CapturedCall[] = [];
+    const fake = {
+      settings: async () => ({ permission_mode: "bypass" as const }),
+      request: async (method: string, path: string, body?: unknown, headers?: Record<string, string>) => {
+        calls.push({ method, path, body, headers });
+        return { ok: true };
+      },
+    };
+
+    await callTool(fake as never, "gogomail_api_request", {
+      method: "PUT",
+      path: "/api/v1/calendars/cal-1/objects/event.ics",
+      body_text: "BEGIN:VCALENDAR\nEND:VCALENDAR",
+      content_type: "text/calendar",
+      confirm: "PUT /api/v1/calendars/cal-1/objects/event.ics",
+    }, "basic");
+
+    assert.equal(calls[0]?.headers?.["Content-Type"], "text/calendar");
+    assert.equal(calls[0]?.body, "BEGIN:VCALENDAR\nEND:VCALENDAR");
+  });
+
+  test("mail send forwards granular backend confirmation headers", async () => {
+    const calls: CapturedCall[] = [];
+    const fake = {
+      settings: async () => ({ permission_mode: "basic" as const, generated_mail_notice_enabled: false }),
+      request: async (method: string, path: string, body?: unknown, headers?: Record<string, string>) => {
+        calls.push({ method, path, body, headers });
+        return { ok: true };
+      },
+    };
+
+    await callTool(fake as never, "gogomail_mail_send", {
+      to: [{ email: "external@example.net" }],
+      attachment_ids: ["att-1"],
+      text_body: "body",
+      confirm: "send message",
+      confirm_external_recipients: "external recipients",
+      confirm_attachments: "send attachments",
+    }, "basic");
+
+    assert.equal(calls[0]?.headers?.["X-Gogomail-MCP-Confirm"], "send message");
+    assert.equal(calls[0]?.headers?.["X-Gogomail-MCP-External-Confirm"], "external recipients");
+    assert.equal(calls[0]?.headers?.["X-Gogomail-MCP-Attachment-Confirm"], "send attachments");
+    assert.equal((calls[0]?.body as { confirm_external_recipients?: unknown }).confirm_external_recipients, undefined);
+  });
+
+  test("typed coverage reaches folders, threads, directory, subscriptions, and attachment sessions", async () => {
+    const calls: CapturedCall[] = [];
+    const fake = {
+      settings: async () => ({ permission_mode: "bypass" as const }),
+      request: async (method: string, path: string, body?: unknown, headers?: Record<string, string>) => {
+        calls.push({ method, path, body, headers });
+        if (method === "POST" && path === "/api/v1/attachments/upload-sessions") {
+          return { attachment_upload_session: { id: "session-1" } };
+        }
+        return { ok: true };
+      },
+    };
+
+    await callTool(fake as never, "gogomail_mail_create_folder", { name: "Projects" }, "basic");
+    await callTool(fake as never, "gogomail_mail_get_thread_messages", { id: "thread-1", limit: 10 }, "basic");
+    await callTool(fake as never, "gogomail_directory_search_users", { q: "kim", limit: 5 }, "basic");
+    await callTool(fake as never, "gogomail_calendar_get_subscription_events", { id: "sub-1", since: "2026-01-01T00:00:00Z" }, "basic");
+    await callTool(fake as never, "gogomail_mail_create_text_attachment", { draft_id: "draft-1", filename: "note.txt", content: "hello" }, "basic");
+
+    assert.deepEqual(calls[0], { method: "POST", path: "/api/v1/folders", body: { name: "Projects" }, headers: undefined });
+    assert.equal(calls[1]?.path, "/api/v1/threads/thread-1/messages?limit=10");
+    assert.equal(calls[2]?.path, "/api/mail/directory/users?q=kim&limit=5");
+    assert.equal(calls[3]?.path, "/api/v1/calendar-subscriptions/sub-1/events?since=2026-01-01T00%3A00%3A00Z");
+    assert.equal(calls[4]?.path, "/api/v1/attachments/upload-sessions");
+    assert.deepEqual(calls[4]?.body, { draft_id: "draft-1", filename: "note.txt", declared_size: 5, mime_type: "text/plain; charset=utf-8" });
+    assert.equal(calls[5]?.method, "PUT");
+    assert.equal(calls[5]?.path, "/api/v1/attachments/upload-sessions/session-1/body");
+    assert.equal(calls[5]?.headers?.["Content-Type"], "text/plain; charset=utf-8");
+    assert.match(calls[5]?.headers?.["X-Content-SHA256"] ?? "", /^[0-9a-f]{64}$/);
+    assert.equal(calls[6]?.path, "/api/v1/attachments/upload-sessions/session-1/finalize");
+  });
 });
 
 describe("sensitive action confirmation", () => {

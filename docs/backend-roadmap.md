@@ -7015,3 +7015,8 @@ Target outcome:
       when derived `category-id` tags exceed the 128-character native tag cap,
       preserving bounded tags without collapsing distinct long event ids into
       the same browser replacement key.
+1916. User MCP automation now has an exact documented-route API bridge plus
+      typed folder, thread, attachment, directory, Drive share/usage, and
+      calendar subscription tools; backend enforcement keeps send scope,
+      generated notices, granular send settings, and trusted-proxy CIDR checks
+      authoritative for user-scoped `gmu_` keys.

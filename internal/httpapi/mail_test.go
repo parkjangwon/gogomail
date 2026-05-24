@@ -3500,6 +3500,98 @@ func TestUserMCPDirectSendAppliesGeneratedNoticeServerSide(t *testing.T) {
 	}
 }
 
+func TestUserMCPDraftSendAppliesGeneratedNoticeServerSide(t *testing.T) {
+	service := &fakeMessageService{
+		webmailPreferences: json.RawMessage(`{"mcp":{"enabled":true,"permission_mode":"basic","generated_mail_notice_enabled":true,"generated_mail_notice_text":"Automated via MCP."}}`),
+	}
+	mux := http.NewServeMux()
+	RegisterMailRoutes(mux, service, nil)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/drafts/draft-1/send", nil)
+	req.Header.Set("X-Gogomail-MCP-Confirm", "send draft draft-1")
+	req = req.WithContext(apikeys.ContextWithKeyInfo(req.Context(), &apikeys.KeyInfo{
+		ID:             "key-1",
+		UserID:         "user-1",
+		DomainID:       "domain-1",
+		Scopes:         []string{"mail:send"},
+		PermissionMode: maildb.MCPPermissionModeBasic,
+	}))
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusAccepted {
+		t.Fatalf("status = %d, want 202; body = %s", rec.Code, rec.Body.String())
+	}
+	if service.lastMCPGeneratedNotice != "Automated via MCP." {
+		t.Fatalf("lastMCPGeneratedNotice = %q", service.lastMCPGeneratedNotice)
+	}
+}
+
+func TestUserMCPWriteScopeDoesNotGrantSend(t *testing.T) {
+	info := &apikeys.KeyInfo{UserID: "user-1", DomainID: "domain-1", Scopes: []string{"mail:write"}}
+	if apiKeyHasScope(info, "mail:send") {
+		t.Fatal("mail:write must not satisfy mail:send")
+	}
+	if !apiKeyHasScope(info, "mail:read") {
+		t.Fatal("mail:write should still satisfy mail:read")
+	}
+}
+
+func TestUserMCPSendPolicyEnforcesMailSettings(t *testing.T) {
+	service := &fakeMessageService{
+		webmailPreferences: json.RawMessage(`{"mcp":{"enabled":true,"permission_mode":"basic","generated_mail_notice_enabled":false,"mail":{"send_enabled":true,"confirm_external_recipients":true,"confirm_attachments":true,"daily_send_limit":10}}}`),
+		userProfile:        maildb.UserProfile{UserID: "user-1", DomainID: "domain-1", Email: "sender@example.com"},
+	}
+	mux := http.NewServeMux()
+	RegisterMailRoutes(mux, service, nil)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/messages/send", strings.NewReader(`{
+		"to":[{"email":"recipient@example.net"}],
+		"subject":"hello",
+		"text_body":"body",
+		"attachment_ids":["att-1"]
+	}`))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Gogomail-MCP-Confirm", "send message")
+	req = req.WithContext(apikeys.ContextWithKeyInfo(req.Context(), &apikeys.KeyInfo{
+		ID:             "key-policy-1",
+		UserID:         "user-1",
+		DomainID:       "domain-1",
+		Scopes:         []string{"mail:send"},
+		PermissionMode: maildb.MCPPermissionModeBasic,
+	}))
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("status = %d, want 403; body = %s", rec.Code, rec.Body.String())
+	}
+
+	req = httptest.NewRequest(http.MethodPost, "/api/v1/messages/send", strings.NewReader(`{
+		"to":[{"email":"recipient@example.net"}],
+		"subject":"hello",
+		"text_body":"body",
+		"attachment_ids":["att-1"]
+	}`))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Gogomail-MCP-Confirm", "send message")
+	req.Header.Set("X-Gogomail-MCP-External-Confirm", "external recipients")
+	req.Header.Set("X-Gogomail-MCP-Attachment-Confirm", "send attachments")
+	req = req.WithContext(apikeys.ContextWithKeyInfo(req.Context(), &apikeys.KeyInfo{
+		ID:             "key-policy-1",
+		UserID:         "user-1",
+		DomainID:       "domain-1",
+		Scopes:         []string{"mail:send"},
+		PermissionMode: maildb.MCPPermissionModeBasic,
+	}))
+	rec = httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusAccepted {
+		t.Fatalf("status = %d, want 202; body = %s", rec.Code, rec.Body.String())
+	}
+}
+
 func TestMailAuthRejectsOversizedAuthorizationHeader(t *testing.T) {
 	t.Parallel()
 
@@ -4053,6 +4145,7 @@ type fakeMessageService struct {
 	lastAttachmentBody          string
 	lastUploadSessionBody       string
 	lastUploadSessionChecksum   string
+	lastMCPGeneratedNotice      string
 	attachmentErr               error
 	lastUserID                  string
 	lastFolderName              string
@@ -4270,9 +4363,12 @@ func (f *fakeMessageService) DeleteDraft(_ context.Context, userID string, draft
 	return nil
 }
 
-func (f *fakeMessageService) SendDraft(_ context.Context, userID string, draftID string) (mailservice.SendTextResult, error) {
+func (f *fakeMessageService) SendDraft(ctx context.Context, userID string, draftID string) (mailservice.SendTextResult, error) {
 	f.lastUserID = userID
 	f.lastDeletedDraftID = draftID
+	if notice, ok := mailservice.MCPGeneratedNoticeFromContext(ctx); ok {
+		f.lastMCPGeneratedNotice = notice
+	}
 	return f.sendResult, nil
 }
 

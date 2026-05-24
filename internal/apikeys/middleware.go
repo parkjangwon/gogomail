@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"os"
 	"strings"
 )
 
@@ -83,6 +84,11 @@ func Middleware(verifier KeyVerifier) func(http.Handler) http.Handler {
 }
 
 func parseClientIP(r *http.Request) net.IP {
+	host, _, _ := net.SplitHostPort(r.RemoteAddr)
+	remoteIP := net.ParseIP(host)
+	if !isTrustedForwardingProxy(remoteIP) {
+		return remoteIP
+	}
 	xff := r.Header.Get("X-Forwarded-For")
 	if xff != "" {
 		parts := strings.Split(xff, ",")
@@ -93,8 +99,30 @@ func parseClientIP(r *http.Request) net.IP {
 			}
 		}
 	}
-	host, _, _ := net.SplitHostPort(r.RemoteAddr)
-	return net.ParseIP(host)
+	return remoteIP
+}
+
+func isTrustedForwardingProxy(ip net.IP) bool {
+	if ip == nil {
+		return false
+	}
+	if ip.IsLoopback() {
+		return true
+	}
+	for _, raw := range strings.Split(os.Getenv("GOGOMAIL_TRUSTED_PROXY_CIDRS"), ",") {
+		raw = strings.TrimSpace(raw)
+		if raw == "" {
+			continue
+		}
+		if candidate := net.ParseIP(raw); candidate != nil && candidate.Equal(ip) {
+			return true
+		}
+		_, cidr, err := net.ParseCIDR(raw)
+		if err == nil && cidr.Contains(ip) {
+			return true
+		}
+	}
+	return false
 }
 
 func writeError(w http.ResponseWriter, status int, message string) {

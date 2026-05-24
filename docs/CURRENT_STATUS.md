@@ -7,6 +7,8 @@ Last updated: 2026-05-24 (User MCP automation)
 - Added user MCP access keys with `gmu_` tokens, hashed storage, suffix-only listing, permission mode, scopes, CIDR allowlists, expiry, revocation, and last-used tracking.
 - Added webmail MCP settings and key-management APIs under `/api/v1/me/mcp/*`, plus domain admin policy APIs under `/admin/v1/domains/{id}/mcp-policy`.
 - Domain policy can disable user MCP, block user-issued keys, block bypass mode, and constrain allowed scopes.
+- Expanded the user MCP server with an exact-manifest `gogomail_api_request` bridge plus typed folder, thread, attachment, directory, Drive share/usage, and calendar subscription tools for agent-native automation over documented user APIs.
+- Hardened user MCP send authority: `mail:write` no longer grants `mail:send`, draft sends receive the same generated-mail notice as direct sends, granular send settings are enforced server-side, and API-key CIDR checks trust `X-Forwarded-For` only from loopback or configured trusted proxies.
 - Verification: `go test ./internal/apikeys ./internal/httpapi ./internal/maildb ./internal/mailservice`; `go test -timeout=240s ./...`; `npm test`, `npm run type-check`, and `npm run build` in `apps/gogomail-user-mcp`; `pnpm run type-check` in `apps/webmail` and `apps/console`.
 
 ## MCP Support Security Hardening (2026-05-24)

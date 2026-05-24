@@ -2620,6 +2620,109 @@ type SendTextResult struct {
 	BounceStatus   string        `json:"bounce_status"`
 }
 
+type mcpGeneratedNoticeContextKey struct{}
+type mcpSendPolicyContextKey struct{}
+
+type MCPSendPolicy struct {
+	SenderDomain                string
+	ConfirmExternalRecipients   bool
+	ExternalRecipientsConfirmed bool
+	ConfirmAttachments          bool
+	AttachmentsConfirmed        bool
+}
+
+func ContextWithMCPGeneratedNotice(ctx context.Context, notice string) context.Context {
+	notice = strings.TrimSpace(notice)
+	if notice == "" {
+		return ctx
+	}
+	return context.WithValue(ctx, mcpGeneratedNoticeContextKey{}, notice)
+}
+
+func MCPGeneratedNoticeFromContext(ctx context.Context) (string, bool) {
+	notice, ok := ctx.Value(mcpGeneratedNoticeContextKey{}).(string)
+	notice = strings.TrimSpace(notice)
+	return notice, ok && notice != ""
+}
+
+func ContextWithMCPSendPolicy(ctx context.Context, policy MCPSendPolicy) context.Context {
+	return context.WithValue(ctx, mcpSendPolicyContextKey{}, policy)
+}
+
+func MCPSendPolicyFromContext(ctx context.Context) (MCPSendPolicy, bool) {
+	policy, ok := ctx.Value(mcpSendPolicyContextKey{}).(MCPSendPolicy)
+	return policy, ok
+}
+
+func ApplyGeneratedNoticeToSendTextRequest(req *SendTextRequest, notice string) {
+	if req == nil {
+		return
+	}
+	notice = strings.TrimSpace(notice)
+	if notice == "" {
+		return
+	}
+	if strings.TrimSpace(req.TextBody) != "" && !strings.HasPrefix(req.TextBody, notice) {
+		req.TextBody = notice + "\n\n" + req.TextBody
+	}
+	if strings.TrimSpace(req.HTMLBody) != "" && !strings.Contains(req.HTMLBody[:min(len(req.HTMLBody), 2048)], notice) {
+		req.HTMLBody = `<p style="color:#8a8a8a;font-size:12px;margin:0 0 12px">` + htmlEscape(notice) + `</p>` + req.HTMLBody
+	}
+}
+
+func EnforceMCPSendPolicy(ctx context.Context, req SendTextRequest) error {
+	policy, ok := MCPSendPolicyFromContext(ctx)
+	if !ok {
+		return nil
+	}
+	if policy.ConfirmAttachments && len(req.AttachmentIDs) > 0 && !policy.AttachmentsConfirmed {
+		return fmt.Errorf("mcp attachment confirmation is required")
+	}
+	if policy.ConfirmExternalRecipients && sendTextRequestHasExternalRecipient(req, policy.SenderDomain) && !policy.ExternalRecipientsConfirmed {
+		return fmt.Errorf("mcp external-recipient confirmation is required")
+	}
+	return nil
+}
+
+func sendTextRequestHasExternalRecipient(req SendTextRequest, fallbackSenderDomain string) bool {
+	domain := emailDomain(req.From)
+	if domain == "" {
+		domain = emailDomain(fallbackSenderDomain)
+	}
+	if domain == "" {
+		return false
+	}
+	for _, recipient := range append(append(req.To, req.Cc...), req.Bcc...) {
+		if candidate := emailDomain(recipient.Email); candidate != "" && candidate != domain {
+			return true
+		}
+	}
+	return false
+}
+
+func emailDomain(addressOrDomain string) string {
+	addressOrDomain = strings.TrimSpace(addressOrDomain)
+	if addressOrDomain == "" {
+		return ""
+	}
+	if _, domain, ok := strings.Cut(addressOrDomain, "@"); ok {
+		return strings.ToLower(strings.TrimSpace(domain))
+	}
+	if strings.Contains(addressOrDomain, ".") && !strings.ContainsAny(addressOrDomain, " \t\r\n") {
+		return strings.ToLower(addressOrDomain)
+	}
+	return ""
+}
+
+func htmlEscape(value string) string {
+	value = strings.ReplaceAll(value, "&", "&amp;")
+	value = strings.ReplaceAll(value, "<", "&lt;")
+	value = strings.ReplaceAll(value, ">", "&gt;")
+	value = strings.ReplaceAll(value, `"`, "&quot;")
+	value = strings.ReplaceAll(value, `'`, "&#39;")
+	return value
+}
+
 func NormalizeSendTextResult(result SendTextResult) SendTextResult {
 	if strings.TrimSpace(result.SendStatus) == "" {
 		result.SendStatus = "queued"
@@ -2652,7 +2755,7 @@ func (s *Service) SendDraft(ctx context.Context, userID string, draftID string) 
 	}
 	// Pass DraftID so SendText can use AtomicDraftSendRepository when available,
 	// combining RecordOutgoing and MarkDraftSent into one transaction.
-	result, err := s.SendText(ctx, SendTextRequest{
+	req := SendTextRequest{
 		UserID:          userID,
 		Intent:          ComposeIntent(draft.Intent),
 		SourceMessageID: draft.SourceMessageID,
@@ -2667,7 +2770,14 @@ func (s *Service) SendDraft(ctx context.Context, userID string, draftID string) 
 		TrackOpens:      draft.TrackOpens,
 		ScheduledAt:     draft.ScheduledAt,
 		DraftID:         draftID,
-	})
+	}
+	if notice, ok := MCPGeneratedNoticeFromContext(ctx); ok {
+		ApplyGeneratedNoticeToSendTextRequest(&req, notice)
+	}
+	if err := EnforceMCPSendPolicy(ctx, req); err != nil {
+		return SendTextResult{}, err
+	}
+	result, err := s.SendText(ctx, req)
 	if err != nil {
 		return SendTextResult{}, err
 	}

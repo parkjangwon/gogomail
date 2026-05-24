@@ -2,6 +2,7 @@ package apikeys
 
 import (
 	"net"
+	"net/http"
 	"strings"
 	"testing"
 	"time"
@@ -78,6 +79,32 @@ func TestCheckCIDREmptyAllowsAll(t *testing.T) {
 	ip := net.ParseIP("10.0.0.1")
 	if !CheckCIDR(ip, nil) {
 		t.Error("CheckCIDR with empty list should allow all")
+	}
+}
+
+func TestParseClientIPIgnoresForwardedForFromUntrustedRemote(t *testing.T) {
+	req, err := http.NewRequest(http.MethodGet, "http://example.test/", nil)
+	if err != nil {
+		t.Fatalf("NewRequest returned error: %v", err)
+	}
+	req.RemoteAddr = "203.0.113.10:4567"
+	req.Header.Set("X-Forwarded-For", "192.0.2.50")
+
+	if got := parseClientIP(req); got == nil || got.String() != "203.0.113.10" {
+		t.Fatalf("parseClientIP = %v, want untrusted remote address", got)
+	}
+}
+
+func TestParseClientIPAllowsForwardedForFromLoopbackProxy(t *testing.T) {
+	req, err := http.NewRequest(http.MethodGet, "http://example.test/", nil)
+	if err != nil {
+		t.Fatalf("NewRequest returned error: %v", err)
+	}
+	req.RemoteAddr = "127.0.0.1:4567"
+	req.Header.Set("X-Forwarded-For", "192.0.2.50")
+
+	if got := parseClientIP(req); got == nil || got.String() != "192.0.2.50" {
+		t.Fatalf("parseClientIP = %v, want forwarded client address", got)
 	}
 }
 
