@@ -23,6 +23,12 @@ function validateUrl(val: string, name: string): string {
     console.error(`[mcp-support] ${name} must use http or https scheme: ${val}`);
     process.exit(1);
   }
+  // Embedded credentials in URLs (https://user:pass@host) would be stored in
+  // baseUrl and could appear in network-level error messages.
+  if (parsed.username || parsed.password) {
+    console.error(`[mcp-support] ${name} must not contain embedded credentials`);
+    process.exit(1);
+  }
   return val;
 }
 
@@ -64,7 +70,7 @@ export const config = {
   },
   github: {
     token: githubToken,
-    repo: process.env["GITHUB_REPO"] ?? "parkjangwon/gogomail",
+    repo: validateNoNewlines(process.env["GITHUB_REPO"] ?? "parkjangwon/gogomail", "GITHUB_REPO")!,
   },
   // When set, all SSE connections must send: Authorization: Bearer <mcpSecret>
   mcpSecret: optionalEnv("MCP_SECRET"),

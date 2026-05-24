@@ -529,7 +529,14 @@ async function writeAuditComment(
 
 // ── Zod schemas ─────────────────────────────────────────────────
 
-const id = () => z.string().max(128);
+// Allowlist ensures IDs used as URL path segments cannot contain traversal sequences.
+// Real GoGoMail IDs are UUIDs or short slugs: alphanumeric + hyphen + underscore only.
+const id = () =>
+  z.string().max(128).regex(/^[A-Za-z0-9_-]+$/, "ID must be alphanumeric with hyphens/underscores only");
+// Stream names (DLQ, outbox) — same character set; only used in query params but
+// applying the same allowlist for defense in depth.
+const stream = () =>
+  z.string().max(128).regex(/^[A-Za-z0-9_-]+$/, "stream name must be alphanumeric with hyphens/underscores only");
 const email = () => z.string().email().max(254);
 const status32 = () => z.string().max(32);
 const ts = () => z.string().max(64);
@@ -597,11 +604,11 @@ const ListExhaustedSchema = z.object({
   limit: pageLimit(),
 });
 const DlqListSchema = z.object({
-  stream: z.string().max(128),
+  stream: stream(),
   count: z.number().int().min(1).max(500).optional(),
 });
 const DlqDeleteSchema = z.object({
-  stream: z.string().max(128),
+  stream: stream(),
   id: id(),
   ticketId: id().optional(),
 });

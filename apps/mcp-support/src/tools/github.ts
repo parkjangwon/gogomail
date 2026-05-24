@@ -83,12 +83,13 @@ export const toolDefinitions: Tool[] = [
   },
 ];
 
+const issueNum = () => z.number().int().min(1);
 const SearchSchema = z.object({
   query: z.string().max(1000),
   labels: z.array(z.string().max(128)).max(20).optional(),
   state: z.string().max(16).optional(),
 });
-const IssueNumberSchema = z.object({ issueNumber: z.number() });
+const IssueNumberSchema = z.object({ issueNumber: issueNum() });
 const ListSchema = z.object({
   labels: z.array(z.string().max(128)).max(20).optional(),
   milestone: z.string().max(256).optional(),
@@ -100,11 +101,11 @@ const CreateSchema = z.object({
   labels: z.array(z.string().max(128)).max(20).optional(),
 });
 const AddCommentSchema = z.object({
-  issueNumber: z.number(),
+  issueNumber: issueNum(),
   body: z.string().max(65_535),
 });
 const UpdateSchema = z.object({
-  issueNumber: z.number(),
+  issueNumber: issueNum(),
   labels: z.array(z.string().max(128)).max(20).optional(),
   state: z.string().max(16).optional(),
 });
