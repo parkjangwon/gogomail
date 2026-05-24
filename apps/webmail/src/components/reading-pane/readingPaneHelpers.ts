@@ -46,15 +46,19 @@ export const readingTime = (text: string, t?: TFn): string => {
   return mins <= 1 ? '약 1분' : `약 ${mins}분`;
 };
 
-export const formatFullDate = (receivedAt: string): string =>
-  new Intl.DateTimeFormat('ko-KR', {
+export const formatFullDate = (receivedAt: string): string => {
+  let tz: string | undefined;
+  try { tz = localStorage.getItem('webmail_timezone') || undefined; } catch { /* ignore */ }
+  return new Intl.DateTimeFormat('ko-KR', {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
     hour12: false,
+    ...(tz ? { timeZone: tz } : {}),
   }).format(new Date(receivedAt));
+};
 
 export const toolbarBtnStyleInline = (active?: boolean): CSSProperties => ({
   width: '28px',

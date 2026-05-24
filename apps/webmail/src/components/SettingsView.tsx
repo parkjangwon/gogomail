@@ -9,6 +9,7 @@ import { ReadMark, ExternalImages, SendDelay, Theme, FontSize, ACCENT_COLORS, Fi
 import { NAV_ITEMS, SHORTCUT_GROUPS, type SectionId } from '@/components/settings-view/settingsViewConfig';
 import { Kbd, MiniEditor, Row, SectionCard, SectionHeader, Segment, Toggle, loadWmSettings, saveWmSetting } from '@/components/settings-view/settingsViewPrimitives';
 import { FilterRulesSection } from '@/components/settings-view/FilterRulesSection';
+import { TimezoneSelect } from '@/components/settings-view/TimezoneSelect';
 import { SettingsAboutSection } from '@/components/settings-view/SettingsAboutSection';
 import { SettingsStorageSection, type BackupState } from '@/components/settings-view/SettingsStorageSection';
 import { SettingsPrivacySection } from '@/components/settings-view/SettingsPrivacySection';
@@ -197,6 +198,11 @@ export function SettingsView({ userEmail, userName, initialSection }: SettingsVi
   const [uiFontSize, setUiFontSize] = useState<'sm' | 'md' | 'lg' | 'xl'>('md');
   const [lineSpacing, setLineSpacing] = useState<'normal' | 'relaxed' | 'loose'>('normal');
   const [letterSpacing, setLetterSpacing] = useState<'normal' | 'wide'>('normal');
+
+  // Timezone
+  const [timezone, setTimezone] = useState<string>(() => {
+    try { return localStorage.getItem('webmail_timezone') || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'; } catch { return 'UTC'; }
+  });
 
   // Security
   const [revokingAll, setRevokingAll] = useState(false);
@@ -674,7 +680,7 @@ export function SettingsView({ userEmail, userName, initialSection }: SettingsVi
               <Row label={t('emailAddress')} description={t('emailAddressDesc')}>
                 <span style={{ fontSize: '13px', color: 'var(--color-text-tertiary)', fontFamily: 'monospace' }}>{userEmail}</span>
               </Row>
-              <Row label={t('recoveryEmail')} description={t('recoveryEmailDesc')} last>
+              <Row label={t('recoveryEmail')} description={t('recoveryEmailDesc')}>
                 <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                   <input
                     type="email"
@@ -688,6 +694,16 @@ export function SettingsView({ userEmail, userName, initialSection }: SettingsVi
                   </button>
                   {recoveryError && <span style={{ fontSize: '12px', color: 'var(--color-danger, #dc2626)', width: '100%', textAlign: 'right' }}>{recoveryError}</span>}
                 </div>
+              </Row>
+              <Row label={t('timezone')} description={t('timezoneDesc')} last>
+                <TimezoneSelect
+                  value={timezone}
+                  onChange={(v) => {
+                    setTimezone(v);
+                    try { localStorage.setItem('webmail_timezone', v); } catch { /* */ }
+                  }}
+                  placeholder={t('timezonePlaceholder')}
+                />
               </Row>
             </SectionCard>
             <SectionCard>
