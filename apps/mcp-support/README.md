@@ -375,7 +375,11 @@ Agent:
   2. gogomail_get_user(userId: "usr_def456")
      → status: "active" — safe to send invite
 
-  3. gogomail_send_invite_email(userId: "usr_def456", ticketId: "tkt-789")
+  3. gogomail_send_invite_email(
+       userId: "usr_def456",
+       reason: "Verified active account and customer requested password reset",
+       ticketId: "tkt-789"
+     )
      → invite_token created; email dispatched
      → audit memo written to ticket tkt-789 automatically
 
@@ -430,6 +434,7 @@ Agent:
   3. gogomail_revoke_company_session(
        companyId: "co_123",
        userId: "usr_ghi789",
+       reason: "Suspected account compromise; unknown active session observed",
        ticketId: "tkt-900"
      )
      → session revoked, audit logged to ticket tkt-900
@@ -437,7 +442,11 @@ Agent:
   4. gogomail_get_audit_logs(userId: "usr_ghi789", from: "2026-05-20T00:00:00Z")
      → 14 login events, 9 from the foreign IP
 
-  5. gogomail_send_invite_email(userId: "usr_ghi789", ticketId: "tkt-900")
+  5. gogomail_send_invite_email(
+       userId: "usr_ghi789",
+       reason: "Credential reset after suspected account compromise",
+       ticketId: "tkt-900"
+     )
      → password reset email sent
 
   Agent response: "Charlie's sessions have been revoked and a password reset

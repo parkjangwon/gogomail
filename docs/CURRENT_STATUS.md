@@ -3,6 +3,7 @@
 Last updated: 2026-05-24 (MCP support security hardening)
 
 ## MCP Support Security Hardening (2026-05-24)
+- Follow-up hardening tightened GoGoMail MCP timestamp filters to complete ISO-8601 values with timezone, rejects inverted time ranges, validates domain IP allowlists as real IP/CIDR entries, and updated workflow examples to include required `reason` fields.
 - SSE transport now binds to `127.0.0.1` by default via `MCP_HOST`, requires a 32-byte `MCP_SECRET`, rejects browser `Origin` headers unless explicitly allowlisted with `MCP_ALLOWED_ORIGINS`, and no longer accepts non-loopback `http://` upstreams unless `MCP_ALLOW_INSECURE_UPSTREAMS=true`.
 - Config validation now trims and rejects blank/header-injection secrets, validates `GITHUB_REPO` as `owner/repo`, and requires Suppo URL/key to be configured as a pair.
 - GoGoMail mutation tools now require an operator-readable `reason`; irreversible user/DLQ deletes also require exact `confirm` phrases to reduce accidental autonomous destructive actions.

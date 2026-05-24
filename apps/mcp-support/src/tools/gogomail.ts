@@ -1,4 +1,5 @@
 import type { Tool } from "@modelcontextprotocol/sdk/types.js";
+import { isIP } from "node:net";
 import { z } from "zod";
 import type { GogomailClient } from "../clients/gogomail.js";
 import type { SuppoClient } from "../clients/suppo.js";
@@ -589,6 +590,8 @@ const singleLine = (name: string, max: number) =>
   z.string().trim().min(1).max(max).regex(/^[^\r\n]+$/, `${name} must be a single line`);
 const reason = () => singleLine("reason", 500);
 const confirm = () => singleLine("confirm", 160);
+const isoTimestampPattern =
+  /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,9})?(?:Z|[+-]\d{2}:\d{2})$/;
 const userStatus = z.enum(["active", "suspended", "disabled"]);
 const companyStatus = z.enum(["active", "suspended"]);
 const domainStatus = z.enum(["active", "suspended"]);
@@ -599,7 +602,28 @@ const deliveryStatus = z.enum(["pending", "success", "failed", "exhausted"]);
 const suppressionReason = z.enum(["bounce", "complaint", "manual"]);
 const role = z.enum(["user", "company_admin", "system_admin"]);
 const ts = () =>
-  z.string().max(64).refine((value) => !Number.isNaN(Date.parse(value)), "must be a valid ISO 8601 timestamp");
+  z.string()
+    .max(64)
+    .regex(isoTimestampPattern, "must be a complete ISO 8601 timestamp with timezone")
+    .refine((value) => !Number.isNaN(Date.parse(value)), "must be a valid ISO 8601 timestamp");
+const ipOrCidr = () =>
+  singleLine("ip whitelist entry", 128).refine((value) => {
+    const parts = value.split("/");
+    if (parts.length > 2) return false;
+    const version = isIP(parts[0] ?? "");
+    if (!version) return false;
+    if (parts.length === 1) return true;
+    const prefix = parts[1] ?? "";
+    if (!/^\d+$/.test(prefix)) return false;
+    const prefixNumber = Number(prefix);
+    return version === 4
+      ? prefixNumber >= 0 && prefixNumber <= 32
+      : prefixNumber >= 0 && prefixNumber <= 128;
+  }, "must be an IPv4/IPv6 address or CIDR range");
+const validSinceUntil = (p: { since?: string; until?: string }) =>
+  !p.since || !p.until || Date.parse(p.since) <= Date.parse(p.until);
+const validFromTo = (p: { from?: string; to?: string }) =>
+  !p.from || !p.to || Date.parse(p.from) <= Date.parse(p.to);
 // Bounded page limit — prevents agents from issuing unbounded backend queries
 const pageLimit = () => z.number().int().min(1).max(200).optional();
 
@@ -639,6 +663,8 @@ const ListMailFlowLogsSchema = z.object({
   since: ts().optional(),
   until: ts().optional(),
   limit: pageLimit(),
+}).refine(validSinceUntil, {
+  message: "since must be earlier than or equal to until",
 });
 const MailFlowStatsSchema = z.object({
   userId: id().optional(),
@@ -647,6 +673,8 @@ const MailFlowStatsSchema = z.object({
   direction: direction.optional(),
   since: ts().optional(),
   until: ts().optional(),
+}).refine(validSinceUntil, {
+  message: "since must be earlier than or equal to until",
 });
 const ListDeliveryAttemptsSchema = z.object({
   messageId: singleLine("messageId", 256).optional(),
@@ -753,7 +781,7 @@ const UpdateDomainSchema = z.object({
     tls_policy: z.enum(["opportunistic", "require", "disable"]).optional(),
     quota_per_user: z.number().int().min(1).max(10_995_116_277_760).optional(),
     ip_whitelist_enabled: z.boolean().optional(),
-    ip_whitelist: z.array(z.string().max(128)).max(200).optional(),
+    ip_whitelist: z.array(ipOrCidr()).max(200).optional(),
     require_2fa: z.boolean().optional(),
     session_timeout_minutes: z.number().int().min(1).max(10_080).optional(),
     password_min_length: z.number().int().min(1).max(256).optional(),
@@ -788,6 +816,8 @@ const AuditLogsSchema = z.object({
   from: ts().optional(),
   to: ts().optional(),
   limit: pageLimit(),
+}).refine(validFromTo, {
+  message: "from must be earlier than or equal to to",
 });
 
 // ── callTool dispatcher ─────────────────────────────────────────

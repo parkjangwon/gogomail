@@ -484,6 +484,45 @@ describe("Zod validation: rejects out-of-range input before hitting API", () => 
     );
   });
 
+  test("gogomail_list_mail_flow_logs: rejects incomplete date strings", async () => {
+    await assert.rejects(
+      () => gogomailCallTool(mockGogomail, mockSuppo, "gogomail_list_mail_flow_logs", {
+        since: "2026-05-24",
+      }),
+      (err: Error) => {
+        assert.equal(err.constructor.name, "ZodError");
+        return true;
+      },
+    );
+  });
+
+  test("gogomail_list_mail_flow_logs: rejects inverted time ranges", async () => {
+    await assert.rejects(
+      () => gogomailCallTool(mockGogomail, mockSuppo, "gogomail_list_mail_flow_logs", {
+        since: "2026-05-25T00:00:00Z",
+        until: "2026-05-24T00:00:00Z",
+      }),
+      (err: Error) => {
+        assert.equal(err.constructor.name, "ZodError");
+        return true;
+      },
+    );
+  });
+
+  test("gogomail_update_domain_settings: rejects invalid IP allowlist entries", async () => {
+    await assert.rejects(
+      () => gogomailCallTool(mockGogomail, mockSuppo, "gogomail_update_domain_settings", {
+        domainId: "dom_1",
+        settings: { ip_whitelist: ["999.1.1.1"] },
+        reason: "test",
+      }),
+      (err: Error) => {
+        assert.equal(err.constructor.name, "ZodError");
+        return true;
+      },
+    );
+  });
+
   test("suppo_update_ticket: rejects empty updates before hitting API", async () => {
     await assert.rejects(
       () => suppoCallTool(mockSuppo, "suppo_update_ticket", { ticketId: "t_1" }),
