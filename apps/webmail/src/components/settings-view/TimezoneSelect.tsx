@@ -13,9 +13,10 @@ interface TimezoneSelectProps {
 export function TimezoneSelect({ value, onChange, placeholder = '타임존 검색…' }: TimezoneSelectProps) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
-  const containerRef = useRef<HTMLDivElement>(null);
+  // Fixed-position coordinates computed from trigger's bounding rect
+  const [dropPos, setDropPos] = useState<{ top: number; left: number; width: number } | null>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const listRef = useRef<HTMLDivElement>(null);
 
   const allZones = useMemo(() => getAllTimezones(), []);
 
@@ -27,8 +28,8 @@ export function TimezoneSelect({ value, onChange, placeholder = '타임존 검�
   );
 
   const filteredOptions = useMemo(() => {
-    if (!search.trim()) return null; // null = show popular
-    const q = search.toLowerCase().replace(/\s/g, '_');
+    const q = search.trim().toLowerCase().replace(/\s/g, '_');
+    if (!q) return null; // null = show popular
     return allZones.filter((z) =>
       z.value.toLowerCase().includes(q) || z.label.toLowerCase().includes(q),
     ).slice(0, 80);
@@ -37,36 +38,59 @@ export function TimezoneSelect({ value, onChange, placeholder = '타임존 검�
   const displayOptions = filteredOptions ?? popularOptions;
   const selectedLabel = allZones.find((z) => z.value === value)?.label ?? value;
 
-  useEffect(() => {
-    if (!open) return;
-    function onDown(e: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setOpen(false);
-        setSearch('');
-      }
-    }
-    document.addEventListener('mousedown', onDown);
-    return () => document.removeEventListener('mousedown', onDown);
-  }, [open]);
-
   function handleOpen() {
+    if (triggerRef.current) {
+      const r = triggerRef.current.getBoundingClientRect();
+      setDropPos({ top: r.bottom + 4, left: r.left, width: Math.max(r.width, 300) });
+    }
     setOpen(true);
     setSearch('');
     setTimeout(() => inputRef.current?.focus(), 0);
   }
 
-  function handleSelect(tz: string) {
-    onChange(tz);
+  function handleClose() {
     setOpen(false);
     setSearch('');
   }
 
+  function handleSelect(tz: string) {
+    onChange(tz);
+    handleClose();
+  }
+
+  // Close on outside click or scroll
+  useEffect(() => {
+    if (!open) return;
+    function onDown(e: MouseEvent) {
+      const target = e.target as Node;
+      if (triggerRef.current?.contains(target)) return;
+      // Check dropdown portal element
+      const portal = document.getElementById('tz-select-portal');
+      if (portal?.contains(target)) return;
+      handleClose();
+    }
+    function onScroll() {
+      // Reposition on scroll
+      if (triggerRef.current) {
+        const r = triggerRef.current.getBoundingClientRect();
+        setDropPos({ top: r.bottom + 4, left: r.left, width: Math.max(r.width, 300) });
+      }
+    }
+    document.addEventListener('mousedown', onDown);
+    window.addEventListener('scroll', onScroll, true);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      window.removeEventListener('scroll', onScroll, true);
+    };
+  }, [open]);
+
   return (
-    <div ref={containerRef} style={{ position: 'relative', minWidth: '260px' }}>
-      {/* Trigger button */}
+    <div style={{ position: 'relative', minWidth: '260px' }}>
+      {/* Trigger */}
       <button
+        ref={triggerRef}
         type="button"
-        onClick={handleOpen}
+        onClick={open ? handleClose : handleOpen}
         style={{
           width: '100%', textAlign: 'left',
           padding: '6px 10px', borderRadius: '6px',
@@ -80,23 +104,29 @@ export function TimezoneSelect({ value, onChange, placeholder = '타임존 검�
         <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {selectedLabel}
         </span>
-        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{ flexShrink: 0, opacity: 0.5 }}>
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{ flexShrink: 0, opacity: 0.5, transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 150ms' }}>
           <path d="M2 4l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       </button>
 
-      {/* Dropdown */}
-      {open && (
-        <div style={{
-          position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0,
-          background: 'var(--color-bg-primary)',
-          border: '1px solid var(--color-border-default)',
-          borderRadius: '8px',
-          boxShadow: '0 8px 24px rgba(0,0,0,0.14)',
-          zIndex: 500, overflow: 'hidden',
-          minWidth: '300px',
-        }}>
-          {/* Search input */}
+      {/* Dropdown — rendered via fixed position to escape overflow:hidden parents */}
+      {open && dropPos && (
+        <div
+          id="tz-select-portal"
+          style={{
+            position: 'fixed',
+            top: dropPos.top,
+            left: dropPos.left,
+            width: dropPos.width,
+            background: 'var(--color-bg-primary)',
+            border: '1px solid var(--color-border-default)',
+            borderRadius: '8px',
+            boxShadow: '0 8px 24px rgba(0,0,0,0.16)',
+            zIndex: 9999,
+            overflow: 'hidden',
+          }}
+        >
+          {/* Search */}
           <div style={{ padding: '8px 10px', borderBottom: '1px solid var(--color-border-subtle)' }}>
             <input
               ref={inputRef}
@@ -117,21 +147,18 @@ export function TimezoneSelect({ value, onChange, placeholder = '타임존 검�
 
           {/* Section label */}
           {!filteredOptions && (
-            <div style={{ padding: '4px 12px 2px', fontSize: '10px', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--color-text-tertiary)' }}>
+            <div style={{ padding: '5px 12px 2px', fontSize: '10px', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--color-text-tertiary)' }}>
               주요 타임존
             </div>
           )}
-          {filteredOptions && filteredOptions.length === 0 && (
+          {filteredOptions?.length === 0 && (
             <div style={{ padding: '14px 12px', fontSize: '12px', color: 'var(--color-text-tertiary)', textAlign: 'center' }}>
               검색 결과 없음
             </div>
           )}
 
-          {/* Options list */}
-          <div
-            ref={listRef}
-            style={{ maxHeight: '240px', overflowY: 'auto' }}
-          >
+          {/* List */}
+          <div style={{ maxHeight: '240px', overflowY: 'auto' }}>
             {displayOptions.map((tz) => {
               const isSelected = tz.value === value;
               return (
