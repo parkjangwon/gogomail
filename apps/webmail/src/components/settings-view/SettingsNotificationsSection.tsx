@@ -1,8 +1,18 @@
 'use client';
 
+import { useCallback } from 'react';
 import { useTranslations } from 'next-intl';
 import { Row, SectionCard, SectionHeader, Segment, Toggle } from '@/components/settings-view/settingsViewPrimitives';
 import type { Folder, FolderNotificationOverride } from '@/lib/api';
+
+const SYSTEM_TYPE_KEYS: Record<string, string> = {
+  inbox: 'system.inbox',
+  sent: 'system.sent',
+  drafts: 'system.drafts',
+  trash: 'system.trash',
+  spam: 'system.spam',
+  archive: 'system.archive',
+};
 
 interface SettingsNotificationsSectionProps {
   notifPerm: NotificationPermission;
@@ -56,6 +66,16 @@ export function SettingsNotificationsSection({
   webPushSupported,
 }: SettingsNotificationsSectionProps) {
   const t = useTranslations();
+  const tSidebar = useTranslations('sidebar');
+
+  const localizedFolderName = useCallback((f: Folder): string => {
+    if (f.system_type && SYSTEM_TYPE_KEYS[f.system_type]) {
+      try { return tSidebar(SYSTEM_TYPE_KEYS[f.system_type] as Parameters<typeof tSidebar>[0]); } catch { /* */ }
+    }
+    return f.name || f.full_path;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tSidebar]);
+
   const visibleFolders = folders.filter((folder) => folder.type !== 'virtual');
   return (
     <SectionCard>
@@ -142,14 +162,14 @@ export function SettingsNotificationsSection({
         return (
           <Row
             key={folder.id}
-            label={folder.name}
+            label={localizedFolderName(folder)}
             description={t('misc.settingsNotif.folderDesc')}
             last={index === visibleFolders.length - 1}
           >
             <Toggle
               value={enabled}
               onChange={(next) => setFolderNotificationEnabled(folder.id, next)}
-              ariaLabel={t('misc.settingsNotif.folderToggleAria', { name: folder.name })}
+              ariaLabel={t('misc.settingsNotif.folderToggleAria', { name: localizedFolderName(folder) })}
             />
           </Row>
         );
