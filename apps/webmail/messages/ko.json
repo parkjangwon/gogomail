@@ -1375,7 +1375,18 @@
     "blockedSearchPlaceholder": "주소 검색...",
     "blockedSearchClear": "검색 지우기",
     "blockedSearchCount": "{found}개 / 전체 {total}개",
-    "blockedSearchEmpty": "검색 결과가 없습니다."
+    "blockedSearchEmpty": "검색 결과가 없습니다.",
+    "sectionAllowedSenders": "허용된 발신자",
+    "allowedSendersDesc": "허용 목록의 발신자는 스팸 필터를 우선 통과하여 받은 편지함으로 배달됩니다.",
+    "noAllowed": "허용된 발신자가 없습니다.",
+    "allowedColAddr": "발신자 / 도메인",
+    "allowedColDate": "허용 일시",
+    "disallow": "해제",
+    "sectionAddAllowedSender": "허용 발신자 추가",
+    "allowedInputHint": "이메일 주소 또는 도메인(@example.com)을 입력하세요. 해당 발신자의 메일은 스팸으로 분류되더라도 받은 편지함으로 전달됩니다.",
+    "allowedInputPlaceholder": "예: newsletter@example.com 또는 @trusted.com",
+    "allow": "허용",
+    "allowedAlready": "이미 허용된 주소입니다."
   },
   "composeFull": {
     "titleNew": "새 메시지",

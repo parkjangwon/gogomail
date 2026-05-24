@@ -1375,7 +1375,18 @@
     "blockedSearchPlaceholder": "アドレスを検索...",
     "blockedSearchClear": "検索をクリア",
     "blockedSearchCount": "{found}件 / 全{total}件",
-    "blockedSearchEmpty": "一致する結果がありません。"
+    "blockedSearchEmpty": "一致する結果がありません。",
+    "sectionAllowedSenders": "許可された送信者",
+    "allowedSendersDesc": "許可リストの送信者からのメールは、スパムフィルターを通過して受信トレイに配信されます。",
+    "noAllowed": "許可された送信者はいません。",
+    "allowedColAddr": "送信者 / ドメイン",
+    "allowedColDate": "許可日時",
+    "disallow": "解除",
+    "sectionAddAllowedSender": "許可送信者を追加",
+    "allowedInputHint": "メールアドレスまたはドメイン（@example.com）を入力してください。この送信者からのメールはスパムフィルターをバイパスします。",
+    "allowedInputPlaceholder": "例: newsletter@example.com または @trusted.com",
+    "allow": "許可",
+    "allowedAlready": "このアドレスはすでに許可されています。"
   },
   "composeFull": {
     "titleNew": "新規メッセージ",

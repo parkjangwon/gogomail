@@ -1743,6 +1743,7 @@ export interface WebmailPreferences {
   settings?: Record<string, unknown>;
   filter_rules?: unknown[];
   blocked_senders?: string[];
+  allowed_senders?: string[];
   vacation?: Record<string, unknown>;
   signatures?: Record<string, string>;
   templates?: unknown[];

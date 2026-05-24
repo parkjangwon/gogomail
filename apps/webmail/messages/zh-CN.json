@@ -1375,7 +1375,18 @@
     "blockedSearchPlaceholder": "搜索地址...",
     "blockedSearchClear": "清除搜索",
     "blockedSearchCount": "{found} / 共{total}条",
-    "blockedSearchEmpty": "无匹配结果。"
+    "blockedSearchEmpty": "无匹配结果。",
+    "sectionAllowedSenders": "允许的发件人",
+    "allowedSendersDesc": "来自允许列表中发件人的邮件将绕过垃圾邮件过滤器，直接投递到收件箱。",
+    "noAllowed": "暂无允许的发件人。",
+    "allowedColAddr": "发件人 / 域名",
+    "allowedColDate": "允许时间",
+    "disallow": "移除",
+    "sectionAddAllowedSender": "添加允许发件人",
+    "allowedInputHint": "输入邮箱地址或域名（@example.com）。来自此发件人的邮件将绕过垃圾邮件过滤器。",
+    "allowedInputPlaceholder": "例如: newsletter@example.com 或 @trusted.com",
+    "allow": "允许",
+    "allowedAlready": "此地址已在允许列表中。"
   },
   "composeFull": {
     "titleNew": "新邮件",
