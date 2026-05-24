@@ -92,7 +92,7 @@ All configuration is via environment variables.
 | `GITHUB_REPO` | No | `owner/repo` to use for Issues (default: `parkjangwon/gogomail`) |
 | `MCP_TRANSPORT` | No | `stdio` (default) or `sse` |
 | `MCP_PORT` | No | HTTP port when using SSE transport (default: `3100`) |
-| `MCP_SECRET` | No | When set, all SSE connections must include `Authorization: Bearer <value>`. Use a strong random secret (≥ 32 chars). |
+| `MCP_SECRET` | Required for `MCP_TRANSPORT=sse` | All SSE connections must include `Authorization: Bearer <value>`. Use a strong random secret (≥ 32 chars). |
 
 ### Minimal setup (GoGoMail only)
 
@@ -181,9 +181,8 @@ The server exposes:
 - `GET  http://localhost:3100/sse` — SSE stream; the agent connects here first
 - `POST http://localhost:3100/messages?sessionId=<id>` — the agent sends tool calls here
 
-> **Security:** Set `MCP_SECRET` to require Bearer token authentication on all SSE connections.
+> **Security:** `MCP_SECRET` is required in SSE mode; the server refuses to start without it.
 > Every request must include `Authorization: Bearer <MCP_SECRET>`.
-> Without `MCP_SECRET` the endpoint is unauthenticated — only use that in trusted private networks.
 
 ---
 
@@ -209,7 +208,7 @@ All tool names follow the pattern `{provider}_{action}_{object}`. Every GoGoMail
 | `gogomail_list_companies` | `GET /admin/v1/companies` | List all tenant companies. |
 | `gogomail_get_company` | `GET /admin/v1/companies/{id}` | Get company details by ID. |
 | `gogomail_list_domains` | `GET /admin/v1/domains` | List domains; filter by `companyId`, `status`, `dnsStatus`. |
-| `gogomail_get_domain_settings` | `GET /admin/v1/domains/{id}/settings` | Get domain config: SPF, DKIM, DMARC, catch-all, max message size. |
+| `gogomail_get_domain_settings` | `GET /admin/v1/domains/{id}/settings` | Get domain config: TLS policy, per-user quota, IP allowlist, 2FA, session timeout, password policy, and invite/reset policy. |
 | `gogomail_check_domain_dns` | `GET /admin/v1/domains/{id}/dns-check` | Check DNS record verification (SPF, DKIM, DMARC, MX). Use to diagnose mail failures caused by DNS misconfiguration. |
 
 #### Mail Flow Diagnostics
@@ -264,7 +263,7 @@ All tool names follow the pattern `{provider}_{action}_{object}`. Every GoGoMail
 | `gogomail_update_user_recovery_email` | `PATCH /admin/v1/users/{id}/recovery-email` | Update the recovery email address. |
 | `gogomail_create_user` | `POST /admin/v1/users` | Create a new user account in a domain. |
 | `gogomail_delete_user` | `DELETE /admin/v1/users/{id}` | Permanently delete a user. **Irreversible.** |
-| `gogomail_update_domain_settings` | `PUT /admin/v1/domains/{id}/settings` | Update domain config: catch-all, SPF/DKIM/DMARC toggles, max message size. |
+| `gogomail_update_domain_settings` | `PUT /admin/v1/domains/{id}/settings` | Update domain config: TLS policy, per-user quota, IP allowlist, 2FA, session timeout, password policy, and invite/reset policy. Omitted fields are preserved by merging with current settings first. |
 
 #### Session Management
 
@@ -462,7 +461,7 @@ Every GoGoMail **action** tool (write operation) automatically records an audit 
 | `ticketId` omitted + Suppo configured | Standalone audit ticket created automatically |
 | Suppo not configured (any case) | Memo written to `stderr` as structured log |
 
-The audit write is fire-and-forget — a failure to write the memo does **not** cause the action itself to fail or be retried. This prevents duplicate mutations if the MCP client retries on error.
+Audit writes are awaited but best-effort: a failure to write the memo does **not** roll back or fail the already-completed action. The tool result includes an `audit` object (`written` or `failed`) so the agent can escalate missing evidence without retrying a duplicate mutation.
 
 ---
 
@@ -474,13 +473,11 @@ The `GOGOMAIL_ADMIN_KEY` grants full Admin API access. Treat it like a root pass
 - Rotate it if it is ever exposed.
 
 **SSE endpoint authentication**
-Set `MCP_SECRET` to enable Bearer token authentication. All SSE connections (`GET /sse`) and tool call requests (`POST /messages`) must then include:
+`MCP_SECRET` enables Bearer token authentication and is mandatory when `MCP_TRANSPORT=sse`. All SSE connections (`GET /sse`) and tool call requests (`POST /messages`) must include:
 ```
 Authorization: Bearer <MCP_SECRET>
 ```
-Token comparison uses `crypto.timingSafeEqual` to prevent timing attacks. Without `MCP_SECRET`:
-- The endpoint is unauthenticated — any process that can reach the port can invoke all 53 tools
-- Acceptable only when bound to `localhost` with no external access
+Token comparison uses `crypto.timingSafeEqual` to prevent timing attacks. Without `MCP_SECRET`, SSE mode exits during startup.
 
 Recommended for production:
 - Set a strong `MCP_SECRET` (≥ 32 random bytes, base64-encoded)

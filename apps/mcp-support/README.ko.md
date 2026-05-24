@@ -92,7 +92,7 @@ npm run build        # TypeScript → dist/ 컴파일
 | `GITHUB_REPO` | 선택 | Issues에 사용할 `owner/repo` (기본값: `parkjangwon/gogomail`) |
 | `MCP_TRANSPORT` | 선택 | `stdio` (기본값) 또는 `sse` |
 | `MCP_PORT` | 선택 | SSE 전송 시 HTTP 포트 (기본값: `3100`) |
-| `MCP_SECRET` | 선택 | 설정 시 모든 SSE 연결에 `Authorization: Bearer <값>` 헤더가 필요합니다. 강력한 랜덤 시크릿(32자 이상)을 사용하세요. |
+| `MCP_SECRET` | `MCP_TRANSPORT=sse`일 때 필수 | 모든 SSE 연결에 `Authorization: Bearer <값>` 헤더가 필요합니다. 강력한 랜덤 시크릿(32자 이상)을 사용하세요. |
 
 ### 최소 설정 (GoGoMail만)
 
@@ -181,9 +181,8 @@ node dist/index.js
 - `GET  http://localhost:3100/sse` — SSE 스트림. 에이전트가 먼저 여기에 연결합니다.
 - `POST http://localhost:3100/messages?sessionId=<id>` — 에이전트가 툴 호출을 여기로 전송합니다.
 
-> **보안:** `MCP_SECRET`을 설정하면 모든 SSE 연결에 Bearer 토큰 인증이 적용됩니다.
+> **보안:** SSE 모드에서는 `MCP_SECRET`이 필수이며, 없으면 서버가 시작되지 않습니다.
 > 모든 요청에 `Authorization: Bearer <MCP_SECRET>` 헤더가 포함되어야 합니다.
-> `MCP_SECRET`이 없으면 엔드포인트는 미인증 상태입니다 — 신뢰할 수 있는 내부 망에서만 사용하세요.
 
 ---
 
@@ -209,7 +208,7 @@ node dist/index.js
 | `gogomail_list_companies` | `GET /admin/v1/companies` | 전체 테넌트 회사 목록. |
 | `gogomail_get_company` | `GET /admin/v1/companies/{id}` | ID로 회사 상세 정보 조회. |
 | `gogomail_list_domains` | `GET /admin/v1/domains` | 도메인 목록. `companyId`, `status`, `dnsStatus`로 필터링. |
-| `gogomail_get_domain_settings` | `GET /admin/v1/domains/{id}/settings` | 도메인 설정 조회: SPF, DKIM, DMARC, catch-all, 최대 메시지 크기. |
+| `gogomail_get_domain_settings` | `GET /admin/v1/domains/{id}/settings` | 도메인 설정 조회: TLS 정책, 사용자별 쿼터, IP 허용 목록, 2FA, 세션 타임아웃, 비밀번호 정책, 초대/재설정 정책. |
 | `gogomail_check_domain_dns` | `GET /admin/v1/domains/{id}/dns-check` | DNS 레코드 검증 상태 확인 (SPF, DKIM, DMARC, MX). DNS 오설정으로 인한 메일 오류 진단에 활용. |
 
 #### 메일 흐름 진단
@@ -264,7 +263,7 @@ node dist/index.js
 | `gogomail_update_user_recovery_email` | `PATCH /admin/v1/users/{id}/recovery-email` | 복구 이메일 주소 변경. |
 | `gogomail_create_user` | `POST /admin/v1/users` | 도메인에 새 사용자 계정 생성. |
 | `gogomail_delete_user` | `DELETE /admin/v1/users/{id}` | 사용자 영구 삭제. **되돌릴 수 없음.** |
-| `gogomail_update_domain_settings` | `PUT /admin/v1/domains/{id}/settings` | 도메인 설정 변경: catch-all, SPF/DKIM/DMARC 토글, 최대 메시지 크기. |
+| `gogomail_update_domain_settings` | `PUT /admin/v1/domains/{id}/settings` | 도메인 설정 변경: TLS 정책, 사용자별 쿼터, IP 허용 목록, 2FA, 세션 타임아웃, 비밀번호 정책, 초대/재설정 정책. 생략 필드는 현재 설정과 병합해 보존합니다. |
 
 #### 세션 관리
 
@@ -461,7 +460,7 @@ GoGoMail **액션** 툴(쓰기 작업)은 모두 실행 후 자동으로 감사 
 | `ticketId` 생략 + Suppo 설정됨 | 자동으로 별도 감사 티켓 생성 |
 | Suppo 미설정 (모든 경우) | `stderr`에 구조화된 로그로 출력 |
 
-감사 쓰기는 fire-and-forget으로 처리됩니다 — 메모 기록에 실패해도 **액션 자체는 실패하거나 재시도되지 않습니다**. MCP 클라이언트가 오류 시 재시도할 경우 중복 변경을 방지하기 위한 설계입니다.
+감사 쓰기는 대기하지만 best-effort로 처리됩니다. 메모 기록에 실패해도 이미 완료된 **액션 자체를 롤백하거나 실패 처리하지 않습니다**. 대신 툴 결과에 `audit` 객체(`written` 또는 `failed`)가 포함되어 에이전트가 중복 변경 재시도 없이 증적 누락을 에스컬레이션할 수 있습니다.
 
 ---
 
@@ -475,13 +474,11 @@ GoGoMail **액션** 툴(쓰기 작업)은 모두 실행 후 자동으로 감사 
 
 **SSE 엔드포인트 인증**
 
-`MCP_SECRET`을 설정하면 Bearer 토큰 인증이 활성화됩니다. 이후 모든 SSE 연결(`GET /sse`)과 툴 호출 요청(`POST /messages`)에 다음 헤더가 필요합니다:
+`MCP_SECRET`은 Bearer 토큰 인증을 활성화하며 `MCP_TRANSPORT=sse`일 때 필수입니다. 모든 SSE 연결(`GET /sse`)과 툴 호출 요청(`POST /messages`)에 다음 헤더가 필요합니다:
 ```
 Authorization: Bearer <MCP_SECRET>
 ```
-토큰 비교는 타이밍 공격을 방지하기 위해 `crypto.timingSafeEqual`을 사용합니다. `MCP_SECRET`이 없는 경우:
-- 엔드포인트는 미인증 상태 — 포트에 접근 가능한 모든 프로세스가 53개 전체 툴을 호출할 수 있습니다
-- `localhost`에 바인딩하고 외부 접근이 없는 경우에만 허용 가능
+토큰 비교는 타이밍 공격을 방지하기 위해 `crypto.timingSafeEqual`을 사용합니다. `MCP_SECRET`이 없으면 SSE 모드는 시작 단계에서 종료됩니다.
 
 프로덕션 권장 사항:
 - 강력한 `MCP_SECRET` 설정 (32바이트 이상의 랜덤 값, base64 인코딩)

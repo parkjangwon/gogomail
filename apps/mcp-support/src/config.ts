@@ -59,6 +59,18 @@ if (isNaN(portRaw) || portRaw < 1 || portRaw > 65535) {
   process.exit(1);
 }
 
+const transport = process.env["MCP_TRANSPORT"] ?? "stdio";
+if (transport !== "stdio" && transport !== "sse") {
+  console.error(`[mcp-support] MCP_TRANSPORT must be "stdio" or "sse", got: ${transport}`);
+  process.exit(1);
+}
+
+const mcpSecret = validateNoNewlines(optionalEnv("MCP_SECRET"), "MCP_SECRET");
+if (transport === "sse" && !mcpSecret) {
+  console.error("[mcp-support] MCP_SECRET is required when MCP_TRANSPORT=sse");
+  process.exit(1);
+}
+
 export const config = {
   gogomail: {
     adminUrl: gogomailAdminUrl,
@@ -73,7 +85,7 @@ export const config = {
     repo: validateNoNewlines(process.env["GITHUB_REPO"] ?? "parkjangwon/gogomail", "GITHUB_REPO")!,
   },
   // When set, all SSE connections must send: Authorization: Bearer <mcpSecret>
-  mcpSecret: optionalEnv("MCP_SECRET"),
-  transport: (process.env["MCP_TRANSPORT"] ?? "stdio") as "stdio" | "sse",
+  mcpSecret,
+  transport: transport as "stdio" | "sse",
   port: portRaw,
 };

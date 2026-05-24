@@ -92,7 +92,7 @@ export const toolDefinitions: Tool[] = [
   {
     name: "gogomail_get_domain_settings",
     description:
-      "Get domain configuration: SPF, DKIM, DMARC, catch-all, and max message size.",
+      "Get domain configuration: TLS policy, per-user quota, IP allowlist, 2FA, session timeout, password policy, and invite/reset policy.",
     inputSchema: {
       type: "object",
       properties: { domainId: { type: "string", description: "Domain entity ID", pattern: "^[A-Za-z0-9_-]+$", maxLength: 128 } },
@@ -381,14 +381,14 @@ export const toolDefinitions: Tool[] = [
   {
     name: "gogomail_update_domain_settings",
     description:
-      "Update domain configuration (catch-all, SPF, DKIM, DMARC, max message size). PREREQUISITE: call gogomail_get_domain_settings first. Provide ticketId to attach audit memo to an existing Suppo ticket; omit to auto-create a standalone audit ticket.",
+      "Update domain configuration. Settings are merged with the current server-side domain settings before PUT so omitted fields are preserved. PREREQUISITE: call gogomail_get_domain_settings first. Provide ticketId to attach audit memo to an existing Suppo ticket; omit to auto-create a standalone audit ticket.",
     inputSchema: {
       type: "object",
       properties: {
         domainId: { type: "string", description: "Domain entity ID", pattern: "^[A-Za-z0-9_-]+$", maxLength: 128 },
         settings: {
           type: "object",
-          description: "Partial domain settings to update",
+          description: "Partial domain settings to update. Supported keys: tls_policy, quota_per_user, ip_whitelist_enabled, ip_whitelist, require_2fa, session_timeout_minutes, password_min_length, password_require_uppercase, password_require_numbers, password_require_special_chars, password_expiry_days, user_registration_mode, password_reset_token_ttl_minutes.",
         },
         ticketId: { type: "string", description: "Suppo ticket ID to attach audit memo to", pattern: "^[A-Za-z0-9_-]+$", maxLength: 128 },
       },
@@ -492,8 +492,28 @@ export const toolDefinitions: Tool[] = [
 
 // ── Audit helper ────────────────────────────────────────────────
 
+type AuditResult =
+  | { status: "written"; destination: "suppo_ticket"; ticketId: string }
+  | { status: "written"; destination: "suppo_audit_ticket" }
+  | { status: "written"; destination: "stderr" }
+  | { status: "failed"; error: string };
+
 // Strip newlines so audit fields can't inject extra lines into the comment body
 const sanitizeAuditField = (s: string) => s.replace(/[\r\n]/g, " ").slice(0, 500);
+const auditErrorMessage = (e: unknown) =>
+  (e instanceof Error ? e.message : String(e)).replace(/[\r\n]/g, " ").slice(0, 500);
+
+function withAudit<T>(result: T, audit: AuditResult): unknown {
+  if (result && typeof result === "object" && !Array.isArray(result)) {
+    return { ...(result as Record<string, unknown>), audit };
+  }
+  return { result, audit };
+}
+
+function describeUser(user: { username?: string; display_name?: string; id: string }): string {
+  const label = user.display_name ? `${user.username ?? "(unknown)"} / ${user.display_name}` : (user.username ?? "(unknown)");
+  return `${label} (userId: ${user.id})`;
+}
 
 async function writeAuditComment(
   suppo: OptionalSuppo,
@@ -501,7 +521,7 @@ async function writeAuditComment(
   toolName: string,
   targetInfo: string,
   change: string,
-): Promise<void> {
+): Promise<AuditResult> {
   const body = [
     `[자동 실행] ${toolName}`,
     `- 대상: ${sanitizeAuditField(targetInfo)}`,
@@ -511,12 +531,14 @@ async function writeAuditComment(
 
   if (!suppo) {
     console.error(`[audit] ${body}`);
-    return;
+    return { status: "written", destination: "stderr" };
   }
 
-  if (ticketId) {
-    await suppo.addComment(ticketId, { body, internal: true });
-  } else {
+  try {
+    if (ticketId) {
+      await suppo.addComment(ticketId, { body, internal: true });
+      return { status: "written", destination: "suppo_ticket", ticketId };
+    }
     await suppo.createTicket({
       customerName: "System",
       customerEmail: "system@gogomail.io",
@@ -524,6 +546,11 @@ async function writeAuditComment(
       description: body,
       priority: "low",
     });
+    return { status: "written", destination: "suppo_audit_ticket" };
+  } catch (e) {
+    const error = auditErrorMessage(e);
+    console.error("[audit] failed to write comment:", error);
+    return { status: "failed", error };
   }
 }
 
@@ -673,16 +700,24 @@ const DeleteUserSchema = z.object({
   userId: id(),
   ticketId: id().optional(),
 });
-// Restrict to known GogomailDomainSettings fields — prevents prototype pollution
-// via arbitrary key injection through z.record()
+// Restrict to known Admin DomainSettings fields — prevents prototype pollution
+// via arbitrary key injection through z.record().
 const UpdateDomainSchema = z.object({
   domainId: id(),
   settings: z.object({
-    catchAll: z.boolean().optional(),
-    spfEnabled: z.boolean().optional(),
-    dkimEnabled: z.boolean().optional(),
-    dmarcEnabled: z.boolean().optional(),
-    maxMessageSize: z.number().int().min(0).max(157_286_400).optional(), // max 150 MiB
+    tls_policy: z.enum(["opportunistic", "require", "disable"]).optional(),
+    quota_per_user: z.number().int().min(1).max(10_995_116_277_760).optional(),
+    ip_whitelist_enabled: z.boolean().optional(),
+    ip_whitelist: z.array(z.string().max(128)).max(200).optional(),
+    require_2fa: z.boolean().optional(),
+    session_timeout_minutes: z.number().int().min(1).max(10_080).optional(),
+    password_min_length: z.number().int().min(1).max(256).optional(),
+    password_require_uppercase: z.boolean().optional(),
+    password_require_numbers: z.boolean().optional(),
+    password_require_special_chars: z.boolean().optional(),
+    password_expiry_days: z.number().int().min(0).max(3650).optional(),
+    user_registration_mode: z.enum(["temp_password", "email_invite"]).optional(),
+    password_reset_token_ttl_minutes: z.number().int().min(1).max(10_080).optional(),
   }),
   ticketId: id().optional(),
 });
@@ -779,31 +814,27 @@ export async function callTool(
     case "gogomail_delete_dlq_entry": {
       const { stream, id, ticketId } = DlqDeleteSchema.parse(args);
       await gogomail.deleteDlqEntry(stream, id);
-      writeAuditComment(
+      const audit = await writeAuditComment(
         suppo,
         ticketId,
         "gogomail_delete_dlq_entry",
         `stream: ${stream}, id: ${id}`,
         "DLQ 항목 삭제",
-      ).catch((e: unknown) =>
-        console.error("[audit] failed to write comment:", e instanceof Error ? e.message : String(e)),
       );
-      return { status: "ok", stream, id };
+      return { status: "ok", stream, id, audit };
     }
     // ── Outbox retry ─────────────────────────────────────────
     case "gogomail_retry_outbox": {
       const { id, ticketId } = RetryOutboxSchema.parse(args);
       const result = await gogomail.retryOutbox(id);
-      writeAuditComment(
+      const audit = await writeAuditComment(
         suppo,
         ticketId,
         "gogomail_retry_outbox",
         `outbox id: ${id}`,
         "발송 재시도",
-      ).catch((e: unknown) =>
-        console.error("[audit] failed to write comment:", e instanceof Error ? e.message : String(e)),
       );
-      return result;
+      return withAudit(result, audit);
     }
     // ── Suppression list ─────────────────────────────────────
     case "gogomail_list_suppression_list": {
@@ -813,16 +844,14 @@ export async function callTool(
     case "gogomail_remove_suppression_entry": {
       const { id, ticketId } = RemoveSuppressionSchema.parse(args);
       await gogomail.removeSuppressionEntry(id);
-      writeAuditComment(
+      const audit = await writeAuditComment(
         suppo,
         ticketId,
         "gogomail_remove_suppression_entry",
         `suppression id: ${id}`,
         "수신 거부 해제",
-      ).catch((e: unknown) =>
-        console.error("[audit] failed to write comment:", e instanceof Error ? e.message : String(e)),
       );
-      return { status: "ok", id };
+      return { status: "ok", id, audit };
     }
     // ── Quota management ─────────────────────────────────────
     case "gogomail_list_quota_usage": {
@@ -838,121 +867,106 @@ export async function callTool(
       const { userId, ticketId } = SendInviteSchema.parse(args);
       const user = await gogomail.getUser(userId);
       const result = await gogomail.sendInviteEmail(userId);
-      writeAuditComment(
+      const audit = await writeAuditComment(
         suppo,
         ticketId,
         "gogomail_send_invite_email",
-        `${user.email} (userId: ${userId})`,
+        describeUser(user),
         "초대 이메일 발송 (비밀번호 설정 링크)",
-      ).catch((e: unknown) =>
-        console.error("[audit] failed to write comment:", e instanceof Error ? e.message : String(e)),
       );
-      return result;
+      return withAudit(result, audit);
     }
     case "gogomail_update_user_status": {
       const { userId, status, ticketId } = UpdateStatusSchema.parse(args);
       const before = await gogomail.getUser(userId);
       const result = await gogomail.updateUserStatus(userId, status);
-      writeAuditComment(
+      const audit = await writeAuditComment(
         suppo,
         ticketId,
         "gogomail_update_user_status",
-        `${before.email} (userId: ${userId})`,
+        describeUser(before),
         `${before.status} → ${status}`,
-      ).catch((e: unknown) =>
-        console.error("[audit] failed to write comment:", e instanceof Error ? e.message : String(e)),
       );
-      return result;
+      return withAudit(result, audit);
     }
     case "gogomail_update_user_quota": {
       const { userId, quotaBytes, ticketId } = UpdateQuotaSchema.parse(args);
       const before = await gogomail.getUserQuota(userId);
       const result = await gogomail.updateUserQuota(userId, quotaBytes);
-      writeAuditComment(
+      const audit = await writeAuditComment(
         suppo,
         ticketId,
         "gogomail_update_user_quota",
         `userId: ${userId}`,
         `${before.allocatedBytes} → ${quotaBytes} bytes`,
-      ).catch((e: unknown) =>
-        console.error("[audit] failed to write comment:", e instanceof Error ? e.message : String(e)),
       );
-      return result;
+      return withAudit(result, audit);
     }
     case "gogomail_update_user_role": {
       const { userId, role, ticketId } = UpdateRoleSchema.parse(args);
       const before = await gogomail.getUser(userId);
       const result = await gogomail.updateUserRole(userId, role);
-      writeAuditComment(
+      const audit = await writeAuditComment(
         suppo,
         ticketId,
         "gogomail_update_user_role",
-        `${before.email} (userId: ${userId})`,
+        describeUser(before),
         `${before.role} → ${role}`,
-      ).catch((e: unknown) =>
-        console.error("[audit] failed to write comment:", e instanceof Error ? e.message : String(e)),
       );
-      return result;
+      return withAudit(result, audit);
     }
     case "gogomail_update_user_recovery_email": {
       const { userId, recoveryEmail, ticketId } = UpdateRecoveryEmailSchema.parse(args);
       const user = await gogomail.getUser(userId);
       await gogomail.updateUserRecoveryEmail(userId, recoveryEmail);
-      writeAuditComment(
+      const audit = await writeAuditComment(
         suppo,
         ticketId,
         "gogomail_update_user_recovery_email",
-        `${user.email} (userId: ${userId})`,
+        describeUser(user),
         `복구 이메일 변경 → ${recoveryEmail}`,
-      ).catch((e: unknown) =>
-        console.error("[audit] failed to write comment:", e instanceof Error ? e.message : String(e)),
       );
-      return { status: "ok", userId, recoveryEmail };
+      return { status: "ok", userId, recoveryEmail, audit };
     }
     case "gogomail_create_user": {
       const { domainId, username, displayName, recoveryEmail, password, quotaLimit, ticketId } =
         CreateUserSchema.parse(args);
       const user = await gogomail.createUser({ domainId, username, displayName, recoveryEmail, password, quotaLimit });
-      writeAuditComment(
+      const audit = await writeAuditComment(
         suppo,
         ticketId,
         "gogomail_create_user",
-        `${user.email} (userId: ${user.id})`,
+        describeUser(user),
         `신규 사용자 생성 — domainId: ${domainId}`,
-      ).catch((e: unknown) =>
-        console.error("[audit] failed to write comment:", e instanceof Error ? e.message : String(e)),
       );
-      return user;
+      return withAudit(user, audit);
     }
     case "gogomail_delete_user": {
       const { userId, ticketId } = DeleteUserSchema.parse(args);
       const user = await gogomail.getUser(userId);
       await gogomail.deleteUser(userId);
-      writeAuditComment(
+      const audit = await writeAuditComment(
         suppo,
         ticketId,
         "gogomail_delete_user",
-        `${user.email} (userId: ${userId})`,
+        describeUser(user),
         "사용자 계정 영구 삭제",
-      ).catch((e: unknown) =>
-        console.error("[audit] failed to write comment:", e instanceof Error ? e.message : String(e)),
       );
-      return { status: "ok", deletedUserId: userId, email: user.email };
+      return { status: "ok", deletedUserId: userId, username: user.username, audit };
     }
     case "gogomail_update_domain_settings": {
       const { domainId, settings, ticketId } = UpdateDomainSchema.parse(args);
       const before = await gogomail.getDomainSettings(domainId);
-      const result = await gogomail.updateDomainSettings(domainId, settings);
-      writeAuditComment(
+      const mergedSettings = { ...before, ...settings };
+      const result = await gogomail.updateDomainSettings(domainId, mergedSettings);
+      const audit = await writeAuditComment(
         suppo,
         ticketId,
         "gogomail_update_domain_settings",
-        `${before.domain} (domainId: ${domainId})`,
-        `변경 전: ${JSON.stringify(before)}\n- 변경 후: ${JSON.stringify(settings)}`,
-      ).catch((e: unknown) =>
-        console.error("[audit] failed to write comment:", e instanceof Error ? e.message : String(e)),
+        `domainId: ${domainId}`,
+        `변경 전: ${JSON.stringify(before)}\n- 변경 요청: ${JSON.stringify(settings)}`,
       );
-      return result;
+      return withAudit(result, audit);
     }
     // ── Session management ───────────────────────────────────
     case "gogomail_list_company_sessions": {
@@ -962,16 +976,14 @@ export async function callTool(
     case "gogomail_revoke_company_session": {
       const { companyId, userId, ticketId } = RevokeSessionSchema.parse(args);
       await gogomail.revokeCompanySession(companyId, userId);
-      writeAuditComment(
+      const audit = await writeAuditComment(
         suppo,
         ticketId,
         "gogomail_revoke_company_session",
         `companyId: ${companyId}, userId: ${userId}`,
         "세션 강제 종료",
-      ).catch((e: unknown) =>
-        console.error("[audit] failed to write comment:", e instanceof Error ? e.message : String(e)),
       );
-      return { status: "ok" };
+      return { status: "ok", audit };
     }
     // ── Security & monitoring ────────────────────────────────
     case "gogomail_get_spam_filter": {

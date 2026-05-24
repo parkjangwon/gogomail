@@ -1,20 +1,25 @@
 export interface GogomailUser {
   id: string;
-  email: string;
-  name: string;
+  domain_id: string;
+  username: string;
+  display_name: string;
+  recovery_email?: string;
   status: "active" | "suspended" | "disabled";
   role: string;
-  companyId: string;
-  domainId: string;
-  quotaBytes: number;
-  createdAt: string;
+  password_configured: boolean;
+  must_change_password: boolean;
+  quota_used: number;
+  quota_limit?: number;
+  quota_remaining: number;
+  quota_source: "default" | "custom";
+  created_at: string;
 }
 
 export interface GogomailQuota {
   userId: string;
   allocatedBytes: number;
   usedBytes: number;
-  updatedAt: string;
+  quotaSource: string;
 }
 
 export interface GogomailMailFlowLog {
@@ -83,13 +88,27 @@ export interface GogomailDomain {
 }
 
 export interface GogomailDomainSettings {
-  domainId: string;
-  domain: string;
-  catchAll: boolean;
-  spfEnabled: boolean;
-  dkimEnabled: boolean;
-  dmarcEnabled: boolean;
-  maxMessageSize: number;
+  domain_id: string;
+  tls_policy: "opportunistic" | "require" | "disable";
+  quota_per_user: number;
+  ip_whitelist_enabled: boolean;
+  ip_whitelist: string[];
+  require_2fa: boolean;
+  session_timeout_minutes: number;
+  password_min_length: number;
+  password_require_uppercase: boolean;
+  password_require_numbers: boolean;
+  password_require_special_chars: boolean;
+  password_expiry_days: number;
+  user_registration_mode?: "temp_password" | "email_invite";
+  password_reset_token_ttl_minutes: number;
+  updated_at?: string;
+  updated_by?: string;
+}
+
+export interface GogomailIDStatus {
+  status: string;
+  id: string;
 }
 
 export interface GogomailAlertEvent {
@@ -239,11 +258,18 @@ export class GogomailClient {
   }
 
   async getUser(userId: string): Promise<GogomailUser> {
-    return this.request<GogomailUser>("GET", `/users/${userId}`);
+    const res = await this.request<{ user: GogomailUser }>("GET", `/users/${userId}`);
+    return res.user;
   }
 
   async getUserQuota(userId: string): Promise<GogomailQuota> {
-    return this.request<GogomailQuota>("GET", `/users/${userId}/quota`);
+    const user = await this.getUser(userId);
+    return {
+      userId: user.id,
+      allocatedBytes: user.quota_limit ?? 0,
+      usedBytes: user.quota_used,
+      quotaSource: user.quota_source,
+    };
   }
 
   // ── Companies ───────────────────────────────────────────────────
@@ -291,21 +317,23 @@ export class GogomailClient {
   }
 
   async getDomainSettings(domainId: string): Promise<GogomailDomainSettings> {
-    return this.request<GogomailDomainSettings>(
+    const res = await this.request<{ settings: GogomailDomainSettings }>(
       "GET",
       `/domains/${domainId}/settings`,
     );
+    return res.settings;
   }
 
   async updateDomainSettings(
     domainId: string,
     settings: Partial<GogomailDomainSettings>,
   ): Promise<GogomailDomainSettings> {
-    return this.request<GogomailDomainSettings>(
+    await this.request<GogomailIDStatus>(
       "PUT",
       `/domains/${domainId}/settings`,
-      settings,
+      { ...settings, domain_id: domainId },
     );
+    return this.getDomainSettings(domainId);
   }
 
   async checkDomainDns(domainId: string): Promise<unknown> {
@@ -491,9 +519,11 @@ export class GogomailClient {
   }
 
   async updateUserQuota(userId: string, quotaBytes: number): Promise<GogomailQuota> {
-    return this.request<GogomailQuota>("PATCH", `/users/${userId}/quota`, {
-      quotaBytes,
+    await this.request<GogomailIDStatus>("PATCH", `/users/${userId}/quota`, {
+      quota_limit: quotaBytes,
+      quota_source: quotaBytes > 0 ? "custom" : "default",
     });
+    return this.getUserQuota(userId);
   }
 
   // ── Sessions ────────────────────────────────────────────────────
@@ -595,13 +625,15 @@ export class GogomailClient {
     userId: string,
     status: "active" | "suspended" | "disabled",
   ): Promise<GogomailUser> {
-    return this.request<GogomailUser>("PATCH", `/users/${userId}/status`, {
+    await this.request<GogomailIDStatus>("PATCH", `/users/${userId}/status`, {
       status,
     });
+    return this.getUser(userId);
   }
 
   async updateUserRole(userId: string, role: string): Promise<GogomailUser> {
-    return this.request<GogomailUser>("PATCH", `/users/${userId}/role`, { role });
+    await this.request<GogomailIDStatus>("PATCH", `/users/${userId}/role`, { role });
+    return this.getUser(userId);
   }
 
   async updateUserRecoveryEmail(userId: string, recoveryEmail: string): Promise<void> {

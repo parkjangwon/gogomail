@@ -161,6 +161,81 @@ describe("SuppoClient: 5xx response body masking", () => {
   });
 });
 
+describe("GogomailClient: Admin API contract mapping", () => {
+  test("getUser unwraps the { user } response envelope", async () => {
+    const client = new GogomailClient("https://admin.example.com", "test-key");
+    const origFetch = globalThis.fetch;
+    globalThis.fetch = async () =>
+      new Response(JSON.stringify({
+        user: {
+          id: "usr_1",
+          domain_id: "dom_1",
+          username: "alice",
+          display_name: "Alice",
+          role: "user",
+          status: "active",
+          password_configured: true,
+          must_change_password: false,
+          quota_used: 10,
+          quota_limit: 100,
+          quota_remaining: 90,
+          quota_source: "custom",
+          created_at: "2026-05-24T00:00:00Z",
+        },
+      }), { status: 200, headers: { "Content-Type": "application/json" } });
+
+    try {
+      const user = await client.getUser("usr_1");
+      assert.equal(user.id, "usr_1");
+      assert.equal(user.username, "alice");
+      assert.equal(user.quota_limit, 100);
+    } finally {
+      globalThis.fetch = origFetch;
+    }
+  });
+
+  test("updateUserQuota sends quota_limit and quota_source, then derives quota from refreshed user", async () => {
+    const client = new GogomailClient("https://admin.example.com", "test-key");
+    const origFetch = globalThis.fetch;
+    const bodies: unknown[] = [];
+    globalThis.fetch = async (_input, init) => {
+      if (init?.method === "PATCH") {
+        bodies.push(JSON.parse(String(init.body)));
+        return new Response(JSON.stringify({ status: "ok", id: "usr_1" }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+      return new Response(JSON.stringify({
+        user: {
+          id: "usr_1",
+          domain_id: "dom_1",
+          username: "alice",
+          display_name: "Alice",
+          role: "user",
+          status: "active",
+          password_configured: true,
+          must_change_password: false,
+          quota_used: 25,
+          quota_limit: 200,
+          quota_remaining: 175,
+          quota_source: "custom",
+          created_at: "2026-05-24T00:00:00Z",
+        },
+      }), { status: 200, headers: { "Content-Type": "application/json" } });
+    };
+
+    try {
+      const quota = await client.updateUserQuota("usr_1", 200);
+      assert.deepEqual(bodies[0], { quota_limit: 200, quota_source: "custom" });
+      assert.equal(quota.allocatedBytes, 200);
+      assert.equal(quota.usedBytes, 25);
+    } finally {
+      globalThis.fetch = origFetch;
+    }
+  });
+});
+
 // ── 3. inputSchema JSON Schema constraints ────────────────────────────
 
 describe("gogomail toolDefinitions: ID field constraints", () => {
