@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { deleteMessage, restoreMessage, bulkRestoreMessages, createFolder, renameFolder, deleteFolder, starMessage, markRead, moveMessage, bulkMarkRead, searchMessages, getMessages, sendMessage, listThreads, listThreadMessages, getNotificationPreferences, setNotificationPreferences, UIComposeIntent, MessageAddress, MessageDetail, MessageSummary, ThreadSummary, type ThreadNotificationOverride } from '@/lib/api';
+import { deleteMessage, restoreMessage, bulkRestoreMessages, createFolder, renameFolder, deleteFolder, starMessage, markRead, moveMessage, bulkMarkRead, searchMessages, getMessages, getMessage, sendMessage, listThreads, listThreadMessages, getNotificationPreferences, setNotificationPreferences, UIComposeIntent, MessageAddress, MessageDetail, MessageSummary, ThreadSummary, type ThreadNotificationOverride } from '@/lib/api';
 import { AdvancedFilters, VIRTUAL_ALL, VIRTUAL_STARRED, VIRTUAL_ATTACHMENTS, VIRTUAL_UNREAD, VIRTUAL_SNOOZED, VIRTUAL_PINNED, VIRTUAL_IMPORTANT, VIRTUAL_TASKS } from '@/components/Sidebar';
 import { useMailList, type RefreshIntervalSeconds } from '@/hooks/useMailList';
 import { useMessage } from '@/hooks/useMessage';
@@ -339,35 +339,44 @@ export default function MailPage() {
         const data = await getMessages('', '', MAX, { has_attachment: true });
         return data.messages ?? [];
       }
-      // localStorage-based virtual folders: fetch a broad recent pool and filter.
-      const data = await searchMessages({ limit: MAX });
-      let msgs = data.messages ?? [];
+      // localStorage-based virtual folders: fetch each stored ID directly so we
+      // never miss messages that fall outside any arbitrary page-size limit.
+      const fetchByIds = async (ids: string[]): Promise<MessageSummary[]> => {
+        if (ids.length === 0) return [];
+        const results = await Promise.allSettled(ids.slice(0, 50).map((id) => getMessage(id)));
+        return results
+          .filter((r): r is PromiseFulfilledResult<MessageDetail> => r.status === 'fulfilled')
+          .map((r) => r.value);
+      };
       if (activeFolderId === VIRTUAL_SNOOZED) {
         try {
           const snoozed: Record<string, string> = JSON.parse(localStorage.getItem('webmail_snoozed') ?? '{}');
           const now = Date.now();
-          msgs = msgs.filter((m) => snoozed[m.id] && new Date(snoozed[m.id]).getTime() > now);
-        } catch { /* ignore */ }
-      } else if (activeFolderId === VIRTUAL_PINNED) {
+          const ids = Object.entries(snoozed)
+            .filter(([, until]) => new Date(until).getTime() > now)
+            .map(([id]) => id);
+          return fetchByIds(ids);
+        } catch { return []; }
+      }
+      if (activeFolderId === VIRTUAL_PINNED) {
         try {
           const pinned: string[] = JSON.parse(localStorage.getItem('webmail_pinned') ?? '[]');
-          const pinnedSet = new Set(pinned);
-          msgs = msgs.filter((m) => pinnedSet.has(m.id));
-        } catch { /* ignore */ }
-      } else if (activeFolderId === VIRTUAL_IMPORTANT) {
+          return fetchByIds(pinned);
+        } catch { return []; }
+      }
+      if (activeFolderId === VIRTUAL_IMPORTANT) {
         try {
           const important: string[] = JSON.parse(localStorage.getItem('webmail_important') ?? '[]');
-          const importantSet = new Set(important);
-          msgs = msgs.filter((m) => importantSet.has(m.id));
-        } catch { /* ignore */ }
-      } else if (activeFolderId === VIRTUAL_TASKS) {
+          return fetchByIds(important);
+        } catch { return []; }
+      }
+      if (activeFolderId === VIRTUAL_TASKS) {
         try {
           const tasks: { messageId: string }[] = JSON.parse(localStorage.getItem('webmail_tasks') ?? '[]');
-          const taskIds = new Set(tasks.map((t) => t.messageId));
-          msgs = msgs.filter((m) => taskIds.has(m.id));
-        } catch { /* ignore */ }
+          return fetchByIds(tasks.map((t) => t.messageId));
+        } catch { return []; }
       }
-      return msgs;
+      return [];
     };
 
     load()

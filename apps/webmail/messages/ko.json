@@ -848,7 +848,7 @@
       "all": "모든 편지함",
       "starred": "별표 편지함",
       "important": "중요 메일",
-      "unread": "읽지 않은 메일",
+      "unread": "읽지 않은 편지",
       "attachments": "첨부 편지함",
       "snoozed": "다시 알림",
       "pinned": "핀 고정",
@@ -889,7 +889,7 @@
     "action": {
       "compose": "새 메일 작성",
       "starred": "별표 메일",
-      "unread": "읽지 않은 메일",
+      "unread": "읽지 않은 편지",
       "attachments": "첨부파일 메일",
       "settings": "설정 열기"
     },
