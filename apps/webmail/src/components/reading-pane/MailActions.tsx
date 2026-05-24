@@ -96,6 +96,19 @@ export function MailActions({
   onDecreaseFontSize,
 }: MailActionsProps) {
   const t = useTranslations('mail');
+  const tSidebar = useTranslations('sidebar');
+  const SYSTEM_TYPE_KEYS: Record<string, string> = {
+    inbox: 'system.inbox', sent: 'system.sent', drafts: 'system.drafts',
+    trash: 'system.trash', spam: 'system.spam', archive: 'system.archive',
+  };
+  const localizedFolderName = useCallback((f: Folder): string => {
+    if (f.system_type && SYSTEM_TYPE_KEYS[f.system_type]) {
+      try { return tSidebar(SYSTEM_TYPE_KEYS[f.system_type] as Parameters<typeof tSidebar>[0]); } catch { /* */ }
+    }
+    return f.name || f.full_path;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tSidebar]);
+
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const moreMenuRef = useRef<HTMLDivElement>(null);
 
@@ -370,7 +383,7 @@ export function MailActions({
                     onMouseLeave={(e) => {
                       (e.currentTarget as HTMLButtonElement).style.background = 'transparent';
                     }}
-                  >{folder.name}</button>
+                  >{localizedFolderName(folder)}</button>
                 ))}
                 <div style={{ height: '1px', background: 'var(--color-border-subtle)', margin: '4px 0' }} />
               </>

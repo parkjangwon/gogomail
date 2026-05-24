@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   ArchiveBoxIcon,
@@ -39,7 +39,7 @@ type MessageListHeaderProps = {
   onBulkRestore?: (ids: string[]) => void;
   onBulkLabel?: (ids: string[], color: string | null) => void;
   onBulkDelete?: (ids: string[]) => void;
-  folders?: { id: string; name: string }[];
+  folders?: { id: string; name: string; system_type?: string }[];
   bulkSelected: Set<string>;
   clearAll: () => void;
   selectAll: () => void;
@@ -149,6 +149,19 @@ export function MessageListHeader({
   showCategoryTabs,
 }: MessageListHeaderProps) {
   const t = useTranslations('mailListFull');
+  const tSidebar = useTranslations('sidebar');
+  const SYSTEM_TYPE_KEYS: Record<string, string> = {
+    inbox: 'system.inbox', sent: 'system.sent', drafts: 'system.drafts',
+    trash: 'system.trash', spam: 'system.spam', archive: 'system.archive',
+  };
+  const localizedFolderName = useCallback((f: { name: string; system_type?: string }): string => {
+    if (f.system_type && SYSTEM_TYPE_KEYS[f.system_type]) {
+      try { return tSidebar(SYSTEM_TYPE_KEYS[f.system_type] as Parameters<typeof tSidebar>[0]); } catch { /* */ }
+    }
+    return f.name;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tSidebar]);
+
   const filterDropdownRef = useRef<HTMLDivElement>(null);
   const moreMenuRef = useRef<HTMLDivElement>(null);
 
@@ -226,7 +239,7 @@ export function MessageListHeader({
                   onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-secondary)'; }}
                   onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
                 >
-                  {f.name}
+                  {localizedFolderName(f)}
                 </button>
               ))}
             </div>
