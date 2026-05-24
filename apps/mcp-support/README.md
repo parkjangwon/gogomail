@@ -91,8 +91,11 @@ All configuration is via environment variables.
 | `GITHUB_TOKEN` | No | GitHub personal access token (PAT) with `repo` scope |
 | `GITHUB_REPO` | No | `owner/repo` to use for Issues (default: `parkjangwon/gogomail`) |
 | `MCP_TRANSPORT` | No | `stdio` (default) or `sse` |
+| `MCP_HOST` | No | Bind address for SSE transport (default: `127.0.0.1`). Set explicitly if a reverse proxy or private network listener is required. |
 | `MCP_PORT` | No | HTTP port when using SSE transport (default: `3100`) |
 | `MCP_SECRET` | Required for `MCP_TRANSPORT=sse` | All SSE connections must include `Authorization: Bearer <value>`. Use a strong random secret (≥ 32 chars). |
+| `MCP_ALLOWED_ORIGINS` | No | Comma-separated browser origins allowed to call SSE endpoints. Requests with an `Origin` header are rejected unless listed. |
+| `MCP_ALLOW_INSECURE_UPSTREAMS` | No | Defaults to `false`. Allows non-loopback `http://` upstream URLs only when explicitly set to `true`. |
 
 ### Minimal setup (GoGoMail only)
 
@@ -183,12 +186,13 @@ The server exposes:
 
 > **Security:** `MCP_SECRET` is required in SSE mode; the server refuses to start without it.
 > Every request must include `Authorization: Bearer <MCP_SECRET>`.
+> By default the SSE server binds to `127.0.0.1`; set `MCP_HOST` deliberately when exposing it through a private interface or reverse proxy.
 
 ---
 
 ## Tool Reference
 
-All tool names follow the pattern `{provider}_{action}_{object}`. Every GoGoMail action (write operation) is audit-logged — either as an internal comment on the Suppo ticket referenced by `ticketId`, or as a standalone audit ticket created automatically when `ticketId` is omitted. When Suppo is not configured, the audit record is written to stderr.
+All tool names follow the pattern `{provider}_{action}_{object}`. Every GoGoMail action (write operation) requires a human-readable `reason` and is audit-logged — either as an internal comment on the Suppo ticket referenced by `ticketId`, or as a standalone audit ticket created automatically when `ticketId` is omitted. Irreversible deletes also require an exact `confirm` phrase. When Suppo is not configured, the audit record is written to stderr.
 
 ### GoGoMail Admin (37)
 
@@ -230,7 +234,7 @@ All tool names follow the pattern `{provider}_{action}_{object}`. Every GoGoMail
 | Tool | Method + Path | Description |
 |---|---|---|
 | `gogomail_list_dlq` | `GET /admin/v1/dlq?stream=` | List entries in a DLQ stream. `stream` is required. |
-| `gogomail_delete_dlq_entry` | `DELETE /admin/v1/dlq/{id}?stream=` | Discard a stuck DLQ entry. *(audit logged)* |
+| `gogomail_delete_dlq_entry` | `DELETE /admin/v1/dlq/{id}?stream=` | Discard a stuck DLQ entry. Requires `reason` and `confirm="delete <stream>/<id>"`. *(audit logged)* |
 
 #### Outbox Recovery
 
@@ -262,7 +266,7 @@ All tool names follow the pattern `{provider}_{action}_{object}`. Every GoGoMail
 | `gogomail_update_user_role` | `PATCH /admin/v1/users/{id}/role` | Change role: `user`, `company_admin`, or `system_admin`. |
 | `gogomail_update_user_recovery_email` | `PATCH /admin/v1/users/{id}/recovery-email` | Update the recovery email address. |
 | `gogomail_create_user` | `POST /admin/v1/users` | Create a new user account in a domain. |
-| `gogomail_delete_user` | `DELETE /admin/v1/users/{id}` | Permanently delete a user. **Irreversible.** |
+| `gogomail_delete_user` | `DELETE /admin/v1/users/{id}` | Permanently delete a user. Requires `reason` and `confirm="delete <userId>"`. **Irreversible.** |
 | `gogomail_update_domain_settings` | `PUT /admin/v1/domains/{id}/settings` | Update domain config: TLS policy, per-user quota, IP allowlist, 2FA, session timeout, password policy, and invite/reset policy. Omitted fields are preserved by merging with current settings first. |
 
 #### Session Management
@@ -446,10 +450,11 @@ Agent:
 
 ## Audit Trail
 
-Every GoGoMail **action** tool (write operation) automatically records an audit memo after execution. The memo contains:
+Every GoGoMail **action** tool (write operation) requires a `reason` input and automatically records an audit memo after execution. The memo contains:
 
 - Tool name
 - Target entity (email, userId, domainId, etc.)
+- Operator/agent-provided reason
 - Before → after state where applicable
 - UTC timestamp
 
@@ -462,6 +467,10 @@ Every GoGoMail **action** tool (write operation) automatically records an audit 
 | Suppo not configured (any case) | Memo written to `stderr` as structured log |
 
 Audit writes are awaited but best-effort: a failure to write the memo does **not** roll back or fail the already-completed action. The tool result includes an `audit` object (`written` or `failed`) so the agent can escalate missing evidence without retrying a duplicate mutation.
+
+Irreversible delete tools require a second confirmation field:
+- `gogomail_delete_user`: `confirm` must exactly equal `delete <userId>`.
+- `gogomail_delete_dlq_entry`: `confirm` must exactly equal `delete <stream>/<id>`.
 
 ---
 
@@ -481,7 +490,9 @@ Token comparison uses `crypto.timingSafeEqual` to prevent timing attacks. Withou
 
 Recommended for production:
 - Set a strong `MCP_SECRET` (≥ 32 random bytes, base64-encoded)
-- Bind to a private interface or use a reverse proxy
+- Keep the default `MCP_HOST=127.0.0.1`, or bind only to a private interface behind a reverse proxy
+- Set `MCP_ALLOWED_ORIGINS` if browser-based agents must call the SSE endpoint
+- Use HTTPS upstream URLs; non-loopback `http://` upstreams are rejected unless `MCP_ALLOW_INSECURE_UPSTREAMS=true`
 - Never expose the port to the public internet
 
 **Principle of least privilege**

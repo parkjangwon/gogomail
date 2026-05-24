@@ -36,6 +36,10 @@ export interface SuppoKbArticle {
   createdAt: string;
 }
 
+function safeErrorBody(text: string): string {
+  return text.replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, "").slice(0, 500);
+}
+
 export class SuppoClient {
   private readonly baseUrl: string;
   private readonly apiKey: string;
@@ -54,13 +58,16 @@ export class SuppoClient {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 30_000);
     let res: Response;
+    const headers: Record<string, string> = {
+      Authorization: `Bearer ${this.apiKey}`,
+    };
+    if (body !== undefined) {
+      headers["Content-Type"] = "application/json";
+    }
     try {
       res = await fetch(url, {
         method,
-        headers: {
-          Authorization: `Bearer ${this.apiKey}`,
-          "Content-Type": "application/json",
-        },
+        headers,
         body: body !== undefined ? JSON.stringify(body) : undefined,
         signal: controller.signal,
       });
@@ -74,7 +81,7 @@ export class SuppoClient {
         console.error(`[suppo] ${method} ${path} → ${res.status}: ${text.slice(0, 300)}`);
         throw new Error(`Suppo API ${method} ${path} → ${res.status} (internal server error)`);
       }
-      throw new Error(`Suppo API ${method} ${path} → ${res.status}: ${text}`);
+      throw new Error(`Suppo API ${method} ${path} → ${res.status}: ${safeErrorBody(text)}`);
     }
     return res.json() as Promise<T>;
   }

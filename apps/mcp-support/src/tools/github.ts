@@ -5,6 +5,7 @@ import type { GithubClient } from "../clients/github.js";
 export type OptionalGithub = GithubClient | null;
 
 const NOT_CONFIGURED = "GitHub is not configured. Set GITHUB_TOKEN environment variable to enable GitHub Issues integration.";
+const labelSchema = z.string().trim().min(1).max(128).regex(/^[^\r\n]+$/, "label must be a single line");
 
 export const toolDefinitions: Tool[] = [
   {
@@ -85,29 +86,31 @@ export const toolDefinitions: Tool[] = [
 
 const issueNum = () => z.number().int().min(1);
 const SearchSchema = z.object({
-  query: z.string().max(1000),
-  labels: z.array(z.string().max(128)).max(20).optional(),
-  state: z.string().max(16).optional(),
+  query: z.string().trim().min(1).max(1000),
+  labels: z.array(labelSchema).max(20).optional(),
+  state: z.enum(["open", "closed", "all"]).optional(),
 });
 const IssueNumberSchema = z.object({ issueNumber: issueNum() });
 const ListSchema = z.object({
-  labels: z.array(z.string().max(128)).max(20).optional(),
-  milestone: z.string().max(256).optional(),
-  state: z.string().max(16).optional(),
+  labels: z.array(labelSchema).max(20).optional(),
+  milestone: z.string().trim().min(1).max(256).optional(),
+  state: z.enum(["open", "closed", "all"]).optional(),
 });
 const CreateSchema = z.object({
-  title: z.string().max(512),
-  body: z.string().max(65_535),
-  labels: z.array(z.string().max(128)).max(20).optional(),
+  title: z.string().trim().min(1).max(512),
+  body: z.string().trim().min(1).max(65_535),
+  labels: z.array(labelSchema).max(20).optional(),
 });
 const AddCommentSchema = z.object({
   issueNumber: issueNum(),
-  body: z.string().max(65_535),
+  body: z.string().trim().min(1).max(65_535),
 });
 const UpdateSchema = z.object({
   issueNumber: issueNum(),
-  labels: z.array(z.string().max(128)).max(20).optional(),
-  state: z.string().max(16).optional(),
+  labels: z.array(labelSchema).max(20).optional(),
+  state: z.enum(["open", "closed"]).optional(),
+}).refine((p) => p.labels !== undefined || p.state !== undefined, {
+  message: "labels or state is required",
 });
 
 export async function callTool(

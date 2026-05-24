@@ -77,7 +77,7 @@ export const toolDefinitions: Tool[] = [
       properties: {
         ticketId: { type: "string", pattern: "^[A-Za-z0-9_-]+$", maxLength: 128 },
         body: { type: "string", maxLength: 10000 },
-        internal: { type: "boolean", description: "true = internal memo, false = customer-visible reply" },
+        internal: { type: "boolean", description: "true = internal memo, false = customer-visible reply. Defaults to true." },
       },
       required: ["ticketId", "body"],
     },
@@ -125,10 +125,13 @@ export const toolDefinitions: Tool[] = [
 ];
 
 const safeId = () => z.string().regex(/^[A-Za-z0-9_-]+$/).max(128);
+const ticketStatus = z.enum(["open", "pending", "resolved", "closed"]);
+const priority = z.enum(["low", "normal", "high", "urgent"]);
+const nonEmptyText = (max: number) => z.string().trim().min(1).max(max);
 
 const ListTicketsSchema = z.object({
-  status: z.string().max(32).optional(),
-  priority: z.string().max(32).optional(),
+  status: ticketStatus.optional(),
+  priority: priority.optional(),
   limit: z.number().int().min(1).max(200).optional(),
 });
 
@@ -136,27 +139,31 @@ const TicketIdSchema = z.object({ ticketId: safeId() });
 
 const SearchTicketsSchema = z.object({
   customerEmail: z.string().email().max(254).optional(),
-  query: z.string().max(500).optional(),
+  query: nonEmptyText(500).optional(),
+}).refine((p) => p.customerEmail || p.query, {
+  message: "customerEmail or query is required",
 });
 
 const CreateTicketSchema = z.object({
-  customerName: z.string().max(256),
+  customerName: nonEmptyText(256),
   customerEmail: z.string().email().max(254),
-  subject: z.string().max(512),
-  description: z.string().max(10_000),
-  priority: z.string().max(32).optional(),
+  subject: nonEmptyText(512),
+  description: nonEmptyText(10_000),
+  priority: priority.optional(),
 });
 
 const UpdateTicketSchema = z.object({
   ticketId: safeId(),
-  status: z.string().max(32).optional(),
-  priority: z.string().max(32).optional(),
+  status: ticketStatus.optional(),
+  priority: priority.optional(),
+}).refine((p) => p.status || p.priority, {
+  message: "status or priority is required",
 });
 
 const AddCommentSchema = z.object({
   ticketId: safeId(),
-  body: z.string().max(10_000),
-  internal: z.boolean().optional(),
+  body: nonEmptyText(10_000),
+  internal: z.boolean().default(true),
 });
 
 const AssignTicketSchema = z.object({
@@ -164,11 +171,11 @@ const AssignTicketSchema = z.object({
   assigneeId: safeId(),
 });
 
-const SearchKbSchema = z.object({ query: z.string().max(500) });
+const SearchKbSchema = z.object({ query: nonEmptyText(500) });
 
 const CreateKbArticleSchema = z.object({
-  title: z.string().max(512),
-  content: z.string().max(100_000),
+  title: nonEmptyText(512),
+  content: nonEmptyText(100_000),
 });
 
 export async function callTool(

@@ -206,9 +206,11 @@ export const toolDefinitions: Tool[] = [
       properties: {
         stream: { type: "string", description: "DLQ stream name", pattern: "^[A-Za-z0-9_-]+$", maxLength: 128 },
         id: { type: "string", description: "DLQ entry ID", pattern: "^[A-Za-z0-9_-]+$", maxLength: 128 },
+        confirm: { type: "string", description: "Must exactly equal: delete <stream>/<id>", maxLength: 160 },
+        reason: { type: "string", description: "Operational reason for this destructive change", maxLength: 500 },
         ticketId: { type: "string", description: "Suppo ticket ID to attach audit memo to", pattern: "^[A-Za-z0-9_-]+$", maxLength: 128 },
       },
-      required: ["stream", "id"],
+      required: ["stream", "id", "confirm", "reason"],
     },
   },
   // ── Outbox retry ─────────────────────────────────────────────
@@ -220,9 +222,10 @@ export const toolDefinitions: Tool[] = [
       type: "object",
       properties: {
         id: { type: "string", description: "Outbox message ID", pattern: "^[A-Za-z0-9_-]+$", maxLength: 128 },
+        reason: { type: "string", description: "Operational reason for this retry", maxLength: 500 },
         ticketId: { type: "string", description: "Suppo ticket ID to attach audit memo to", pattern: "^[A-Za-z0-9_-]+$", maxLength: 128 },
       },
-      required: ["id"],
+      required: ["id", "reason"],
     },
   },
   // ── Suppression list ─────────────────────────────────────────
@@ -248,9 +251,10 @@ export const toolDefinitions: Tool[] = [
       type: "object",
       properties: {
         id: { type: "string", description: "Suppression entry ID from list_suppression_list", pattern: "^[A-Za-z0-9_-]+$", maxLength: 128 },
+        reason: { type: "string", description: "Operational reason for this removal", maxLength: 500 },
         ticketId: { type: "string", description: "Suppo ticket ID to attach audit memo to", pattern: "^[A-Za-z0-9_-]+$", maxLength: 128 },
       },
-      required: ["id"],
+      required: ["id", "reason"],
     },
   },
   // ── Quota management ─────────────────────────────────────────
@@ -286,9 +290,10 @@ export const toolDefinitions: Tool[] = [
       type: "object",
       properties: {
         userId: { type: "string", description: "User entity ID", pattern: "^[A-Za-z0-9_-]+$", maxLength: 128 },
+        reason: { type: "string", description: "Operational reason for sending the invite", maxLength: 500 },
         ticketId: { type: "string", description: "Suppo ticket ID to attach audit memo to", pattern: "^[A-Za-z0-9_-]+$", maxLength: 128 },
       },
-      required: ["userId"],
+      required: ["userId", "reason"],
     },
   },
   {
@@ -300,9 +305,10 @@ export const toolDefinitions: Tool[] = [
       properties: {
         userId: { type: "string", description: "User entity ID", pattern: "^[A-Za-z0-9_-]+$", maxLength: 128 },
         status: { type: "string", description: "New user account status", enum: ["active", "suspended", "disabled"] },
+        reason: { type: "string", description: "Operational reason for the status change", maxLength: 500 },
         ticketId: { type: "string", description: "Suppo ticket ID to attach audit memo to", pattern: "^[A-Za-z0-9_-]+$", maxLength: 128 },
       },
-      required: ["userId", "status"],
+      required: ["userId", "status", "reason"],
     },
   },
   {
@@ -314,9 +320,10 @@ export const toolDefinitions: Tool[] = [
       properties: {
         userId: { type: "string", description: "User entity ID", pattern: "^[A-Za-z0-9_-]+$", maxLength: 128 },
         quotaBytes: { type: "number", description: "New quota in bytes", minimum: 0, maximum: 10995116277760 },
+        reason: { type: "string", description: "Operational reason for the quota change", maxLength: 500 },
         ticketId: { type: "string", description: "Suppo ticket ID to attach audit memo to", pattern: "^[A-Za-z0-9_-]+$", maxLength: 128 },
       },
-      required: ["userId", "quotaBytes"],
+      required: ["userId", "quotaBytes", "reason"],
     },
   },
   {
@@ -327,10 +334,11 @@ export const toolDefinitions: Tool[] = [
       type: "object",
       properties: {
         userId: { type: "string", description: "User entity ID", pattern: "^[A-Za-z0-9_-]+$", maxLength: 128 },
-        role: { type: "string", description: "New role to assign to the user" },
+        role: { type: "string", description: "New role to assign to the user", enum: ["user", "company_admin", "system_admin"] },
+        reason: { type: "string", description: "Operational reason for the role change", maxLength: 500 },
         ticketId: { type: "string", description: "Suppo ticket ID to attach audit memo to", pattern: "^[A-Za-z0-9_-]+$", maxLength: 128 },
       },
-      required: ["userId", "role"],
+      required: ["userId", "role", "reason"],
     },
   },
   {
@@ -342,9 +350,10 @@ export const toolDefinitions: Tool[] = [
       properties: {
         userId: { type: "string", description: "User entity ID", pattern: "^[A-Za-z0-9_-]+$", maxLength: 128 },
         recoveryEmail: { type: "string", description: "New recovery email address", format: "email", maxLength: 254 },
+        reason: { type: "string", description: "Operational reason for the recovery email change", maxLength: 500 },
         ticketId: { type: "string", description: "Suppo ticket ID to attach audit memo to", pattern: "^[A-Za-z0-9_-]+$", maxLength: 128 },
       },
-      required: ["userId", "recoveryEmail"],
+      required: ["userId", "recoveryEmail", "reason"],
     },
   },
   {
@@ -358,11 +367,12 @@ export const toolDefinitions: Tool[] = [
         username: { type: "string", description: "Local part of the email address (before @)", maxLength: 64 },
         displayName: { type: "string", description: "User's full display name", maxLength: 256 },
         recoveryEmail: { type: "string", description: "Recovery email (optional)", format: "email", maxLength: 254 },
-        password: { type: "string", description: "Initial password — user will be required to change it on first login", maxLength: 256 },
+        password: { type: "string", description: "Initial password — user will be required to change it on first login", minLength: 8, maxLength: 256 },
         quotaLimit: { type: "number", description: "Storage quota in bytes (optional, uses domain default)", minimum: 0, maximum: 10995116277760 },
+        reason: { type: "string", description: "Operational reason for creating the user", maxLength: 500 },
         ticketId: { type: "string", description: "Suppo ticket ID to attach audit memo to", pattern: "^[A-Za-z0-9_-]+$", maxLength: 128 },
       },
-      required: ["domainId", "username", "displayName"],
+      required: ["domainId", "username", "displayName", "reason"],
     },
   },
   {
@@ -373,9 +383,11 @@ export const toolDefinitions: Tool[] = [
       type: "object",
       properties: {
         userId: { type: "string", description: "User entity ID to permanently delete", pattern: "^[A-Za-z0-9_-]+$", maxLength: 128 },
+        confirm: { type: "string", description: "Must exactly equal: delete <userId>", maxLength: 160 },
+        reason: { type: "string", description: "Operational reason for this irreversible deletion", maxLength: 500 },
         ticketId: { type: "string", description: "Suppo ticket ID to attach audit memo to", pattern: "^[A-Za-z0-9_-]+$", maxLength: 128 },
       },
-      required: ["userId"],
+      required: ["userId", "confirm", "reason"],
     },
   },
   {
@@ -390,9 +402,10 @@ export const toolDefinitions: Tool[] = [
           type: "object",
           description: "Partial domain settings to update. Supported keys: tls_policy, quota_per_user, ip_whitelist_enabled, ip_whitelist, require_2fa, session_timeout_minutes, password_min_length, password_require_uppercase, password_require_numbers, password_require_special_chars, password_expiry_days, user_registration_mode, password_reset_token_ttl_minutes.",
         },
+        reason: { type: "string", description: "Operational reason for the domain settings change", maxLength: 500 },
         ticketId: { type: "string", description: "Suppo ticket ID to attach audit memo to", pattern: "^[A-Za-z0-9_-]+$", maxLength: 128 },
       },
-      required: ["domainId", "settings"],
+      required: ["domainId", "settings", "reason"],
     },
   },
   // ── Session management ───────────────────────────────────────
@@ -415,9 +428,10 @@ export const toolDefinitions: Tool[] = [
       properties: {
         companyId: { type: "string", description: "Company entity ID", pattern: "^[A-Za-z0-9_-]+$", maxLength: 128 },
         userId: { type: "string", description: "User entity ID whose session to revoke", pattern: "^[A-Za-z0-9_-]+$", maxLength: 128 },
+        reason: { type: "string", description: "Operational reason for revoking the session", maxLength: 500 },
         ticketId: { type: "string", description: "Suppo ticket ID to attach audit memo to", pattern: "^[A-Za-z0-9_-]+$", maxLength: 128 },
       },
-      required: ["companyId", "userId"],
+      required: ["companyId", "userId", "reason"],
     },
   },
   // ── Security & monitoring ────────────────────────────────────
@@ -515,6 +529,12 @@ function describeUser(user: { username?: string; display_name?: string; id: stri
   return `${label} (userId: ${user.id})`;
 }
 
+function requireConfirm(actual: string, expected: string): void {
+  if (actual !== expected) {
+    throw new Error(`confirm must exactly equal "${expected}"`);
+  }
+}
+
 async function writeAuditComment(
   suppo: OptionalSuppo,
   ticketId: string | undefined,
@@ -565,32 +585,45 @@ const id = () =>
 const stream = () =>
   z.string().max(128).regex(/^[A-Za-z0-9_-]+$/, "stream name must be alphanumeric with hyphens/underscores only");
 const email = () => z.string().email().max(254);
-const status32 = () => z.string().max(32);
-const ts = () => z.string().max(64);
+const singleLine = (name: string, max: number) =>
+  z.string().trim().min(1).max(max).regex(/^[^\r\n]+$/, `${name} must be a single line`);
+const reason = () => singleLine("reason", 500);
+const confirm = () => singleLine("confirm", 160);
+const userStatus = z.enum(["active", "suspended", "disabled"]);
+const companyStatus = z.enum(["active", "suspended"]);
+const domainStatus = z.enum(["active", "suspended"]);
+const dnsStatus = z.enum(["verified", "unverified", "partial"]);
+const direction = z.enum(["inbound", "outbound"]);
+const mailFlowStatus = z.enum(["delivered", "bounced", "deferred", "rejected", "quarantined", "expired"]);
+const deliveryStatus = z.enum(["pending", "success", "failed", "exhausted"]);
+const suppressionReason = z.enum(["bounce", "complaint", "manual"]);
+const role = z.enum(["user", "company_admin", "system_admin"]);
+const ts = () =>
+  z.string().max(64).refine((value) => !Number.isNaN(Date.parse(value)), "must be a valid ISO 8601 timestamp");
 // Bounded page limit — prevents agents from issuing unbounded backend queries
 const pageLimit = () => z.number().int().min(1).max(200).optional();
 
 const SearchPrincipalsSchema = z.object({
-  q: z.string().max(200),
+  q: singleLine("query", 200),
   companyId: id().optional(),
   domainId: id().optional(),
   limit: pageLimit(),
 });
 const ListUsersSchema = z.object({
   domainId: id().optional(),
-  status: status32().optional(),
+  status: userStatus.optional(),
   limit: pageLimit(),
 });
 const UserIdSchema = z.object({ userId: id() });
 const CompanyIdSchema = z.object({ companyId: id() });
 const ListCompaniesSchema = z.object({
-  status: status32().optional(),
+  status: companyStatus.optional(),
   limit: pageLimit(),
 });
 const ListDomainsSchema = z.object({
   companyId: id().optional(),
-  status: status32().optional(),
-  dnsStatus: status32().optional(),
+  status: domainStatus.optional(),
+  dnsStatus: dnsStatus.optional(),
   limit: pageLimit(),
 });
 const DomainIdSchema = z.object({ domainId: id() });
@@ -598,11 +631,11 @@ const ListMailFlowLogsSchema = z.object({
   userId: id().optional(),
   companyId: id().optional(),
   domainId: id().optional(),
-  messageId: z.string().max(256).optional(),
+  messageId: singleLine("messageId", 256).optional(),
   fromAddr: email().optional(),
   toAddr: email().optional(),
-  direction: z.string().max(16).optional(),
-  flowStatus: status32().optional(),
+  direction: direction.optional(),
+  flowStatus: mailFlowStatus.optional(),
   since: ts().optional(),
   until: ts().optional(),
   limit: pageLimit(),
@@ -611,21 +644,21 @@ const MailFlowStatsSchema = z.object({
   userId: id().optional(),
   companyId: id().optional(),
   domainId: id().optional(),
-  direction: z.string().max(16).optional(),
+  direction: direction.optional(),
   since: ts().optional(),
   until: ts().optional(),
 });
 const ListDeliveryAttemptsSchema = z.object({
-  messageId: z.string().max(256).optional(),
-  status: status32().optional(),
-  recipientDomain: z.string().max(253).optional(),
+  messageId: singleLine("messageId", 256).optional(),
+  status: deliveryStatus.optional(),
+  recipientDomain: singleLine("recipientDomain", 253).optional(),
   sender: email().optional(),
   since: ts().optional(),
   limit: pageLimit(),
 });
 const ListExhaustedSchema = z.object({
-  messageId: z.string().max(256).optional(),
-  recipientDomain: z.string().max(253).optional(),
+  messageId: singleLine("messageId", 256).optional(),
+  recipientDomain: singleLine("recipientDomain", 253).optional(),
   sender: email().optional(),
   since: ts().optional(),
   limit: pageLimit(),
@@ -637,20 +670,24 @@ const DlqListSchema = z.object({
 const DlqDeleteSchema = z.object({
   stream: stream(),
   id: id(),
+  confirm: confirm(),
+  reason: reason(),
   ticketId: id().optional(),
 });
 const RetryOutboxSchema = z.object({
   id: id(),
+  reason: reason(),
   ticketId: id().optional(),
 });
 const ListSuppressionSchema = z.object({
   email: email().optional(),
   domainId: id().optional(),
-  reason: status32().optional(),
+  reason: suppressionReason.optional(),
   limit: pageLimit(),
 });
 const RemoveSuppressionSchema = z.object({
   id: id(),
+  reason: reason(),
   ticketId: id().optional(),
 });
 const ListQuotaUsageSchema = z.object({
@@ -663,41 +700,49 @@ const ListQuotaAlertsSchema = z.object({
 });
 const SendInviteSchema = z.object({
   userId: id(),
+  reason: reason(),
   ticketId: id().optional(),
 });
 const UpdateStatusSchema = z.object({
   userId: id(),
-  status: z.enum(["active", "suspended", "disabled"]),
+  status: userStatus,
+  reason: reason(),
   ticketId: id().optional(),
 });
 const UpdateQuotaSchema = z.object({
   userId: id(),
   // 0 bytes (remove quota) up to 10 TiB per user
   quotaBytes: z.number().int().min(0).max(10_995_116_277_760),
+  reason: reason(),
   ticketId: id().optional(),
 });
 const UpdateRoleSchema = z.object({
   userId: id(),
-  role: z.string().max(64),
+  role,
+  reason: reason(),
   ticketId: id().optional(),
 });
 const UpdateRecoveryEmailSchema = z.object({
   userId: id(),
   recoveryEmail: email(),
+  reason: reason(),
   ticketId: id().optional(),
 });
 const CreateUserSchema = z.object({
   domainId: id(),
-  username: z.string().max(64),
-  displayName: z.string().max(256),
+  username: singleLine("username", 64).regex(/^[A-Za-z0-9._+-]+$/, "username contains unsupported characters"),
+  displayName: singleLine("displayName", 256),
   recoveryEmail: email().optional(),
-  password: z.string().max(256).optional(),
+  password: z.string().min(8).max(256).optional(),
   // 0 = domain default; max 10 TiB
   quotaLimit: z.number().int().min(0).max(10_995_116_277_760).optional(),
+  reason: reason(),
   ticketId: id().optional(),
 });
 const DeleteUserSchema = z.object({
   userId: id(),
+  confirm: confirm(),
+  reason: reason(),
   ticketId: id().optional(),
 });
 // Restrict to known Admin DomainSettings fields — prevents prototype pollution
@@ -718,13 +763,17 @@ const UpdateDomainSchema = z.object({
     password_expiry_days: z.number().int().min(0).max(3650).optional(),
     user_registration_mode: z.enum(["temp_password", "email_invite"]).optional(),
     password_reset_token_ttl_minutes: z.number().int().min(1).max(10_080).optional(),
+  }).refine((settings) => Object.keys(settings).length > 0, {
+    message: "settings must include at least one supported field",
   }),
+  reason: reason(),
   ticketId: id().optional(),
 });
 const ListCompanySessionsSchema = z.object({ companyId: id() });
 const RevokeSessionSchema = z.object({
   companyId: id(),
   userId: id(),
+  reason: reason(),
   ticketId: id().optional(),
 });
 const GetSpamFilterSchema = z.object({ companyId: id() });
@@ -812,27 +861,28 @@ export async function callTool(
       return gogomail.listDlq(stream, count);
     }
     case "gogomail_delete_dlq_entry": {
-      const { stream, id, ticketId } = DlqDeleteSchema.parse(args);
+      const { stream, id, confirm, reason, ticketId } = DlqDeleteSchema.parse(args);
+      requireConfirm(confirm, `delete ${stream}/${id}`);
       await gogomail.deleteDlqEntry(stream, id);
       const audit = await writeAuditComment(
         suppo,
         ticketId,
         "gogomail_delete_dlq_entry",
         `stream: ${stream}, id: ${id}`,
-        "DLQ 항목 삭제",
+        `DLQ 항목 삭제 / 사유: ${reason}`,
       );
       return { status: "ok", stream, id, audit };
     }
     // ── Outbox retry ─────────────────────────────────────────
     case "gogomail_retry_outbox": {
-      const { id, ticketId } = RetryOutboxSchema.parse(args);
+      const { id, reason, ticketId } = RetryOutboxSchema.parse(args);
       const result = await gogomail.retryOutbox(id);
       const audit = await writeAuditComment(
         suppo,
         ticketId,
         "gogomail_retry_outbox",
         `outbox id: ${id}`,
-        "발송 재시도",
+        `발송 재시도 / 사유: ${reason}`,
       );
       return withAudit(result, audit);
     }
@@ -842,14 +892,14 @@ export async function callTool(
       return gogomail.listSuppressionList(p);
     }
     case "gogomail_remove_suppression_entry": {
-      const { id, ticketId } = RemoveSuppressionSchema.parse(args);
+      const { id, reason, ticketId } = RemoveSuppressionSchema.parse(args);
       await gogomail.removeSuppressionEntry(id);
       const audit = await writeAuditComment(
         suppo,
         ticketId,
         "gogomail_remove_suppression_entry",
         `suppression id: ${id}`,
-        "수신 거부 해제",
+        `수신 거부 해제 / 사유: ${reason}`,
       );
       return { status: "ok", id, audit };
     }
@@ -864,7 +914,7 @@ export async function callTool(
     }
     // ── User actions ─────────────────────────────────────────
     case "gogomail_send_invite_email": {
-      const { userId, ticketId } = SendInviteSchema.parse(args);
+      const { userId, reason, ticketId } = SendInviteSchema.parse(args);
       const user = await gogomail.getUser(userId);
       const result = await gogomail.sendInviteEmail(userId);
       const audit = await writeAuditComment(
@@ -872,12 +922,12 @@ export async function callTool(
         ticketId,
         "gogomail_send_invite_email",
         describeUser(user),
-        "초대 이메일 발송 (비밀번호 설정 링크)",
+        `초대 이메일 발송 (비밀번호 설정 링크) / 사유: ${reason}`,
       );
       return withAudit(result, audit);
     }
     case "gogomail_update_user_status": {
-      const { userId, status, ticketId } = UpdateStatusSchema.parse(args);
+      const { userId, status, reason, ticketId } = UpdateStatusSchema.parse(args);
       const before = await gogomail.getUser(userId);
       const result = await gogomail.updateUserStatus(userId, status);
       const audit = await writeAuditComment(
@@ -885,12 +935,12 @@ export async function callTool(
         ticketId,
         "gogomail_update_user_status",
         describeUser(before),
-        `${before.status} → ${status}`,
+        `${before.status} → ${status} / 사유: ${reason}`,
       );
       return withAudit(result, audit);
     }
     case "gogomail_update_user_quota": {
-      const { userId, quotaBytes, ticketId } = UpdateQuotaSchema.parse(args);
+      const { userId, quotaBytes, reason, ticketId } = UpdateQuotaSchema.parse(args);
       const before = await gogomail.getUserQuota(userId);
       const result = await gogomail.updateUserQuota(userId, quotaBytes);
       const audit = await writeAuditComment(
@@ -898,12 +948,12 @@ export async function callTool(
         ticketId,
         "gogomail_update_user_quota",
         `userId: ${userId}`,
-        `${before.allocatedBytes} → ${quotaBytes} bytes`,
+        `${before.allocatedBytes} → ${quotaBytes} bytes / 사유: ${reason}`,
       );
       return withAudit(result, audit);
     }
     case "gogomail_update_user_role": {
-      const { userId, role, ticketId } = UpdateRoleSchema.parse(args);
+      const { userId, role, reason, ticketId } = UpdateRoleSchema.parse(args);
       const before = await gogomail.getUser(userId);
       const result = await gogomail.updateUserRole(userId, role);
       const audit = await writeAuditComment(
@@ -911,12 +961,12 @@ export async function callTool(
         ticketId,
         "gogomail_update_user_role",
         describeUser(before),
-        `${before.role} → ${role}`,
+        `${before.role} → ${role} / 사유: ${reason}`,
       );
       return withAudit(result, audit);
     }
     case "gogomail_update_user_recovery_email": {
-      const { userId, recoveryEmail, ticketId } = UpdateRecoveryEmailSchema.parse(args);
+      const { userId, recoveryEmail, reason, ticketId } = UpdateRecoveryEmailSchema.parse(args);
       const user = await gogomail.getUser(userId);
       await gogomail.updateUserRecoveryEmail(userId, recoveryEmail);
       const audit = await writeAuditComment(
@@ -924,12 +974,12 @@ export async function callTool(
         ticketId,
         "gogomail_update_user_recovery_email",
         describeUser(user),
-        `복구 이메일 변경 → ${recoveryEmail}`,
+        `복구 이메일 변경 → ${recoveryEmail} / 사유: ${reason}`,
       );
       return { status: "ok", userId, recoveryEmail, audit };
     }
     case "gogomail_create_user": {
-      const { domainId, username, displayName, recoveryEmail, password, quotaLimit, ticketId } =
+      const { domainId, username, displayName, recoveryEmail, password, quotaLimit, reason, ticketId } =
         CreateUserSchema.parse(args);
       const user = await gogomail.createUser({ domainId, username, displayName, recoveryEmail, password, quotaLimit });
       const audit = await writeAuditComment(
@@ -937,12 +987,13 @@ export async function callTool(
         ticketId,
         "gogomail_create_user",
         describeUser(user),
-        `신규 사용자 생성 — domainId: ${domainId}`,
+        `신규 사용자 생성 / domainId: ${domainId} / 사유: ${reason}`,
       );
       return withAudit(user, audit);
     }
     case "gogomail_delete_user": {
-      const { userId, ticketId } = DeleteUserSchema.parse(args);
+      const { userId, confirm, reason, ticketId } = DeleteUserSchema.parse(args);
+      requireConfirm(confirm, `delete ${userId}`);
       const user = await gogomail.getUser(userId);
       await gogomail.deleteUser(userId);
       const audit = await writeAuditComment(
@@ -950,12 +1001,12 @@ export async function callTool(
         ticketId,
         "gogomail_delete_user",
         describeUser(user),
-        "사용자 계정 영구 삭제",
+        `사용자 계정 영구 삭제 / 사유: ${reason}`,
       );
       return { status: "ok", deletedUserId: userId, username: user.username, audit };
     }
     case "gogomail_update_domain_settings": {
-      const { domainId, settings, ticketId } = UpdateDomainSchema.parse(args);
+      const { domainId, settings, reason, ticketId } = UpdateDomainSchema.parse(args);
       const before = await gogomail.getDomainSettings(domainId);
       const mergedSettings = { ...before, ...settings };
       const result = await gogomail.updateDomainSettings(domainId, mergedSettings);
@@ -964,7 +1015,7 @@ export async function callTool(
         ticketId,
         "gogomail_update_domain_settings",
         `domainId: ${domainId}`,
-        `변경 전: ${JSON.stringify(before)}\n- 변경 요청: ${JSON.stringify(settings)}`,
+        `변경 전: ${JSON.stringify(before)}\n- 변경 요청: ${JSON.stringify(settings)}\n- 사유: ${reason}`,
       );
       return withAudit(result, audit);
     }
@@ -974,14 +1025,14 @@ export async function callTool(
       return gogomail.listCompanySessions(companyId);
     }
     case "gogomail_revoke_company_session": {
-      const { companyId, userId, ticketId } = RevokeSessionSchema.parse(args);
+      const { companyId, userId, reason, ticketId } = RevokeSessionSchema.parse(args);
       await gogomail.revokeCompanySession(companyId, userId);
       const audit = await writeAuditComment(
         suppo,
         ticketId,
         "gogomail_revoke_company_session",
         `companyId: ${companyId}, userId: ${userId}`,
-        "세션 강제 종료",
+        `세션 강제 종료 / 사유: ${reason}`,
       );
       return { status: "ok", audit };
     }

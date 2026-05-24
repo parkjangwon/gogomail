@@ -56,15 +56,27 @@ if (!githubClient) {
 }
 if (config.mcpSecret) {
   console.error("[mcp-support] MCP_SECRET is set — SSE endpoints require Bearer auth");
-} else if (config.transport === "sse") {
-  console.error("[mcp-support] WARNING: MCP_SECRET is not set — SSE endpoint is unauthenticated");
 }
 
 // ── Auth middleware ───────────────────────────────────────────────
 
+function getSingleHeader(req: IncomingMessage, name: string): string | undefined {
+  const val = req.headers[name.toLowerCase()];
+  if (Array.isArray(val)) {
+    throw new Error(`duplicate ${name} headers are not allowed`);
+  }
+  return val;
+}
+
 function checkAuth(req: IncomingMessage, res: ServerResponse): boolean {
   if (!config.mcpSecret) return true;
-  const auth = req.headers["authorization"] ?? "";
+  let auth = "";
+  try {
+    auth = getSingleHeader(req, "authorization") ?? "";
+  } catch {
+    res.writeHead(400, securityHeaders()).end("Bad Request");
+    return false;
+  }
   const expected = `Bearer ${config.mcpSecret}`;
   // Constant-time comparison prevents timing-based token enumeration
   let valid = false;
@@ -84,6 +96,22 @@ function checkAuth(req: IncomingMessage, res: ServerResponse): boolean {
   return true;
 }
 
+function checkOrigin(req: IncomingMessage, res: ServerResponse): boolean {
+  let origin: string | undefined;
+  try {
+    origin = getSingleHeader(req, "origin");
+  } catch {
+    res.writeHead(400, securityHeaders()).end("Bad Request");
+    return false;
+  }
+  if (!origin) return true;
+  if (!config.mcpAllowedOrigins.includes(origin)) {
+    res.writeHead(403, securityHeaders()).end("Forbidden origin");
+    return false;
+  }
+  return true;
+}
+
 // ── Security headers ─────────────────────────────────────────────
 
 function securityHeaders(): Record<string, string> {
@@ -91,6 +119,8 @@ function securityHeaders(): Record<string, string> {
     "X-Content-Type-Options": "nosniff",
     "X-Frame-Options": "DENY",
     "Cache-Control": "no-store",
+    "Referrer-Policy": "no-referrer",
+    "Permissions-Policy": "interest-cohort=()",
   };
 }
 
@@ -184,6 +214,7 @@ async function main(): Promise<void> {
       // GET /sse — establish SSE stream
       if (req.method === "GET" && req.url === "/sse") {
         if (!checkAuth(req, res)) return;
+        if (!checkOrigin(req, res)) return;
 
         if (isShuttingDown) {
           res.writeHead(503, securityHeaders()).end("Server is shutting down");
@@ -210,9 +241,16 @@ async function main(): Promise<void> {
       // POST /messages — tool call from agent
       if (req.method === "POST" && req.url?.startsWith("/messages")) {
         if (!checkAuth(req, res)) return;
+        if (!checkOrigin(req, res)) return;
 
         // Validate Content-Type
-        const ct = req.headers["content-type"] ?? "";
+        let ct = "";
+        try {
+          ct = getSingleHeader(req, "content-type") ?? "";
+        } catch {
+          res.writeHead(400, securityHeaders()).end("Bad Request");
+          return;
+        }
         if (!ct.includes("application/json")) {
           res.writeHead(415, securityHeaders()).end("Unsupported Media Type — use application/json");
           return;
@@ -240,7 +278,7 @@ async function main(): Promise<void> {
         sessionActivity.set(sessionId, Date.now());
 
         // Enforce body size limit to prevent OOM
-        let body = "";
+        const chunks: Buffer[] = [];
         let bytesRead = 0;
         let limitExceeded = false;
 
@@ -253,14 +291,24 @@ async function main(): Promise<void> {
             req.destroy();
             return;
           }
-          body += chunk;
+          chunks.push(chunk);
         });
 
         req.on("end", () => {
           if (limitExceeded) return;
+          const body = Buffer.concat(chunks, bytesRead).toString("utf8");
           transport.handlePostMessage(req, res, body).catch((e: unknown) => {
             console.error("[mcp-support] handlePostMessage error:", e instanceof Error ? e.message : String(e));
+            if (!res.headersSent) {
+              res.writeHead(500, securityHeaders()).end("Internal Server Error");
+            }
           });
+        });
+
+        req.on("error", () => {
+          if (!res.headersSent) {
+            res.writeHead(400, securityHeaders()).end("Bad Request");
+          }
         });
 
         return;
@@ -269,9 +317,9 @@ async function main(): Promise<void> {
       res.writeHead(404, securityHeaders()).end();
     });
 
-    httpServer.listen(config.port, () => {
+    httpServer.listen(config.port, config.host, () => {
       console.error(
-        `[mcp-support] SSE transport listening on port ${config.port}`,
+        `[mcp-support] SSE transport listening on ${config.host}:${config.port}`,
       );
     });
 

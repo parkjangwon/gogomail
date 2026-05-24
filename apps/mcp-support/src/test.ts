@@ -12,7 +12,7 @@ import { GogomailClient } from "./clients/gogomail.js";
 import { SuppoClient } from "./clients/suppo.js";
 import { toolDefinitions as gogomailDefs, callTool as gogomailCallTool } from "./tools/gogomail.js";
 import { toolDefinitions as suppoDefs, callTool as suppoCallTool } from "./tools/suppo.js";
-import { toolDefinitions as githubDefs } from "./tools/github.js";
+import { toolDefinitions as githubDefs, callTool as githubCallTool } from "./tools/github.js";
 import type { Tool } from "@modelcontextprotocol/sdk/types.js";
 
 // ── Helper ───────────────────────────────────────────────────────────
@@ -155,6 +155,22 @@ describe("SuppoClient: 5xx response body masking", () => {
           return true;
         },
       );
+    } finally {
+      globalThis.fetch = origFetch;
+    }
+  });
+
+  test("GET requests do not send Content-Type when there is no request body", async () => {
+    const origFetch = globalThis.fetch;
+    const contentTypes: (string | null)[] = [];
+    globalThis.fetch = async (_input, init) => {
+      contentTypes.push(new Headers(init?.headers).get("Content-Type"));
+      return new Response(JSON.stringify([]), { status: 200, headers: { "Content-Type": "application/json" } });
+    };
+
+    try {
+      await client.listAgents();
+      assert.equal(contentTypes[0], null);
     } finally {
       globalThis.fetch = origFetch;
     }
@@ -365,6 +381,18 @@ describe("github toolDefinitions: constraints", () => {
     assert.deepEqual(p["enum"], ["open", "closed"]);
     assert.ok(!(p["enum"] as string[]).includes("all"), "'all' must not be valid for update");
   });
+
+  test("gogomail_delete_user: requires confirm and reason", () => {
+    const tool = findTool(gogomailDefs, "gogomail_delete_user");
+    const required = (tool.inputSchema as { required?: string[] }).required ?? [];
+    assert.ok(required.includes("confirm"));
+    assert.ok(required.includes("reason"));
+  });
+
+  test("gogomail_update_user_role: role enum is constrained", () => {
+    const p = prop(findTool(gogomailDefs, "gogomail_update_user_role"), "role");
+    assert.deepEqual(p["enum"], ["user", "company_admin", "system_admin"]);
+  });
 });
 
 // ── 4. Zod runtime validation via callTool ────────────────────────────
@@ -413,6 +441,78 @@ describe("Zod validation: rejects out-of-range input before hitting API", () => 
       (err: Error) => {
         assert.ok(err.constructor.name === "ZodError",
           `Expected ZodError, got: ${err.message}`);
+        return true;
+      },
+    );
+  });
+
+  test("gogomail_update_user_role: rejects unknown roles before hitting API", async () => {
+    await assert.rejects(
+      () => gogomailCallTool(mockGogomail, mockSuppo, "gogomail_update_user_role", {
+        userId: "usr_1",
+        role: "root",
+        reason: "test",
+      }),
+      (err: Error) => {
+        assert.equal(err.constructor.name, "ZodError");
+        return true;
+      },
+    );
+  });
+
+  test("gogomail_delete_user: rejects missing confirmation before hitting API", async () => {
+    await assert.rejects(
+      () => gogomailCallTool(mockGogomail, mockSuppo, "gogomail_delete_user", {
+        userId: "usr_1",
+        reason: "test",
+      }),
+      (err: Error) => {
+        assert.equal(err.constructor.name, "ZodError");
+        return true;
+      },
+    );
+  });
+
+  test("gogomail_delete_user: rejects mismatched confirmation before hitting API", async () => {
+    await assert.rejects(
+      () => gogomailCallTool(mockGogomail, mockSuppo, "gogomail_delete_user", {
+        userId: "usr_1",
+        confirm: "delete usr_2",
+        reason: "test",
+      }),
+      /confirm must exactly equal "delete usr_1"/,
+    );
+  });
+
+  test("suppo_update_ticket: rejects empty updates before hitting API", async () => {
+    await assert.rejects(
+      () => suppoCallTool(mockSuppo, "suppo_update_ticket", { ticketId: "t_1" }),
+      (err: Error) => {
+        assert.equal(err.constructor.name, "ZodError");
+        return true;
+      },
+    );
+  });
+
+  test("suppo_add_comment: defaults to internal=true", async () => {
+    let captured: unknown;
+    const suppo = {
+      addComment: async (_ticketId: string, data: unknown) => {
+        captured = data;
+        return { id: "c_1", ticketId: "t_1", body: "memo", internal: true, authorId: null, createdAt: "now" };
+      },
+    } as InstanceType<typeof SuppoClient>;
+
+    await suppoCallTool(suppo, "suppo_add_comment", { ticketId: "t_1", body: "memo" });
+    assert.deepEqual(captured, { body: "memo", internal: true });
+  });
+
+  test("github_update_issue: rejects empty updates before hitting API", async () => {
+    const mockGithub = {} as Parameters<typeof githubCallTool>[0];
+    await assert.rejects(
+      () => githubCallTool(mockGithub, "github_update_issue", { issueNumber: 1 }),
+      (err: Error) => {
+        assert.equal(err.constructor.name, "ZodError");
         return true;
       },
     );

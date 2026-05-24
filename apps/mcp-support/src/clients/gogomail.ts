@@ -170,6 +170,10 @@ export interface GogomailDkimKey {
   createdAt: string;
 }
 
+function safeErrorBody(text: string): string {
+  return text.replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, "").slice(0, 500);
+}
+
 export class GogomailClient {
   private readonly baseUrl: string;
   private readonly apiKey: string;
@@ -216,7 +220,7 @@ export class GogomailClient {
         );
       }
       throw new Error(
-        `GoGoMail Admin API ${method} /admin/v1${path} → ${res.status}: ${text}`,
+        `GoGoMail Admin API ${method} /admin/v1${path} → ${res.status}: ${safeErrorBody(text)}`,
       );
     }
     if (method === "DELETE" && res.status === 204) {
