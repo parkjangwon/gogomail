@@ -106,3 +106,5 @@ apps/docs/.vitepress/cache/
 apps/docs/package-lock.json
 apps/gogomail-manage-mcp/node_modules/
 apps/gogomail-manage-mcp/dist/
+apps/gogomail-user-mcp/node_modules/
+apps/gogomail-user-mcp/dist/

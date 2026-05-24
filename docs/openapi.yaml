@@ -2234,6 +2234,143 @@ paths:
                     additionalProperties: true
         default:
           $ref: "#/components/responses/Error"
+  /me/mcp/settings:
+    get:
+      operationId: getUserMCPSettings
+      summary: Get user MCP automation preferences
+      servers:
+        - url: /api/v1
+          description: Mail API
+      parameters:
+        - $ref: "#/components/parameters/UserIDFallback"
+        - $ref: "#/components/parameters/UserEmailFallback"
+      responses:
+        "200":
+          description: User MCP settings
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [mcp]
+                properties:
+                  mcp:
+                    type: object
+                    additionalProperties: true
+        default:
+          $ref: "#/components/responses/Error"
+    put:
+      operationId: setUserMCPSettings
+      summary: Replace user MCP automation preferences
+      servers:
+        - url: /api/v1
+          description: Mail API
+      parameters:
+        - $ref: "#/components/parameters/UserIDFallback"
+        - $ref: "#/components/parameters/UserEmailFallback"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        "200":
+          description: Updated user MCP settings
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [mcp]
+                properties:
+                  mcp:
+                    type: object
+                    additionalProperties: true
+        default:
+          $ref: "#/components/responses/Error"
+  /me/mcp/access-keys:
+    get:
+      operationId: listUserMCPAccessKeys
+      summary: List current user's MCP access keys
+      servers:
+        - url: /api/v1
+          description: Mail API
+      parameters:
+        - $ref: "#/components/parameters/UserIDFallback"
+        - $ref: "#/components/parameters/UserEmailFallback"
+      responses:
+        "200":
+          description: User MCP access keys
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [mcp_access_keys]
+                properties:
+                  mcp_access_keys:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: true
+        default:
+          $ref: "#/components/responses/Error"
+    post:
+      operationId: createUserMCPAccessKey
+      summary: Create a user-scoped MCP access key
+      servers:
+        - url: /api/v1
+          description: Mail API
+      parameters:
+        - $ref: "#/components/parameters/UserIDFallback"
+        - $ref: "#/components/parameters/UserEmailFallback"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        "201":
+          description: Created MCP access key. The raw token is returned once.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [mcp_access_key, token]
+                properties:
+                  mcp_access_key:
+                    type: object
+                    additionalProperties: true
+                  token:
+                    type: string
+        default:
+          $ref: "#/components/responses/Error"
+  /me/mcp/access-keys/{id}:
+    delete:
+      operationId: revokeUserMCPAccessKey
+      summary: Revoke a user-scoped MCP access key
+      servers:
+        - url: /api/v1
+          description: Mail API
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+        - $ref: "#/components/parameters/UserIDFallback"
+        - $ref: "#/components/parameters/UserEmailFallback"
+      responses:
+        "200":
+          description: Revoked MCP access key
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [mcp_access_key]
+                properties:
+                  mcp_access_key:
+                    type: object
+                    additionalProperties: true
+        default:
+          $ref: "#/components/responses/Error"
   /push-devices:
     get:
       operationId: listPushDevices
@@ -6552,6 +6689,67 @@ paths:
       responses:
         "200":
           $ref: "#/components/responses/IDStatus"
+        default:
+          $ref: "#/components/responses/Error"
+  /domains/{id}/mcp-policy:
+    get:
+      operationId: getAdminDomainMCPPolicy
+      summary: Admin get domain MCP automation policy
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+      responses:
+        "200":
+          description: Domain MCP policy
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [mcp_policy]
+                properties:
+                  mcp_policy:
+                    type: object
+                    additionalProperties: true
+                  config:
+                    $ref: "#/components/schemas/ConfigEntry"
+        default:
+          $ref: "#/components/responses/Error"
+    put:
+      operationId: setAdminDomainMCPPolicy
+      summary: Admin set domain MCP automation policy
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ConfigSetRequest"
+      responses:
+        "200":
+          description: Updated domain MCP policy
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [mcp_policy, config]
+                properties:
+                  mcp_policy:
+                    type: object
+                    additionalProperties: true
+                  config:
+                    $ref: "#/components/schemas/ConfigEntry"
         default:
           $ref: "#/components/responses/Error"
   /users:

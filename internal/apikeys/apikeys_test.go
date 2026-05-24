@@ -105,3 +105,44 @@ func TestHashKey(t *testing.T) {
 		t.Error("HashKey should return different hash for different key")
 	}
 }
+
+func TestScopesAllowedByDomainPolicy(t *testing.T) {
+	tests := []struct {
+		name          string
+		keyScopes     []string
+		allowedScopes []string
+		want          bool
+	}{
+		{
+			name:          "exact scopes allowed",
+			keyScopes:     []string{"mail:read", "drive:write"},
+			allowedScopes: []string{"mail:read", "drive:write"},
+			want:          true,
+		},
+		{
+			name:          "policy narrowing blocks existing key scope",
+			keyScopes:     []string{"drive:manage"},
+			allowedScopes: []string{"drive:read", "drive:write"},
+			want:          false,
+		},
+		{
+			name:          "manage allowed covers family shorthand",
+			keyScopes:     []string{"drive"},
+			allowedScopes: []string{"drive:manage"},
+			want:          true,
+		},
+		{
+			name:          "empty policy allows no scopes",
+			keyScopes:     []string{"mail:read"},
+			allowedScopes: nil,
+			want:          false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := scopesAllowedByDomainPolicy(tt.keyScopes, tt.allowedScopes); got != tt.want {
+				t.Fatalf("scopesAllowedByDomainPolicy() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

@@ -2,6 +2,7 @@
 
 ## Recent launch-readiness closures
 
+- User-facing MCP automation now has a separate user-scoped access-key contract, domain MCP policy controls, webmail preference storage, and a dedicated MCP server surface over the existing mail, contacts, Drive, and calendar user APIs.
 - Mail API user sessions now have rotating refresh tokens backed by hashed `user_refresh_tokens`, reducing forced daily re-login while preserving single-use refresh semantics.
 - HTTP runtime has request ID propagation and configurable PostgreSQL pool sizing across app DB open paths.
 - System transactional emails are wired for admin invites, invite acceptance welcome mail, and user quota alerts.

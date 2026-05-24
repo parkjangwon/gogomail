@@ -1770,6 +1770,37 @@ func (s *Service) DeleteWebPushSubscription(ctx context.Context, userID, id stri
 	return repo.DeleteWebPushSubscription(ctx, userID, id)
 }
 
+func (s *Service) ListUserMCPAccessKeys(ctx context.Context, userID string) ([]maildb.UserMCPAccessKey, error) {
+	repo, ok := s.repository.(interface {
+		ListUserMCPAccessKeys(context.Context, string) ([]maildb.UserMCPAccessKey, error)
+	})
+	if !ok {
+		return nil, fmt.Errorf("user mcp access key repository is required")
+	}
+	return repo.ListUserMCPAccessKeys(ctx, strings.TrimSpace(userID))
+}
+
+func (s *Service) CreateUserMCPAccessKey(ctx context.Context, req maildb.CreateUserMCPAccessKeyRequest) (maildb.CreatedUserMCPAccessKey, error) {
+	repo, ok := s.repository.(interface {
+		CreateUserMCPAccessKey(context.Context, maildb.CreateUserMCPAccessKeyRequest) (maildb.CreatedUserMCPAccessKey, error)
+	})
+	if !ok {
+		return maildb.CreatedUserMCPAccessKey{}, fmt.Errorf("user mcp access key repository is required")
+	}
+	req.UserID = strings.TrimSpace(req.UserID)
+	return repo.CreateUserMCPAccessKey(ctx, req)
+}
+
+func (s *Service) RevokeUserMCPAccessKey(ctx context.Context, userID, id string) (maildb.UserMCPAccessKey, error) {
+	repo, ok := s.repository.(interface {
+		RevokeUserMCPAccessKey(context.Context, string, string) (maildb.UserMCPAccessKey, error)
+	})
+	if !ok {
+		return maildb.UserMCPAccessKey{}, fmt.Errorf("user mcp access key repository is required")
+	}
+	return repo.RevokeUserMCPAccessKey(ctx, strings.TrimSpace(userID), strings.TrimSpace(id))
+}
+
 func (s *Service) SaveDraft(ctx context.Context, req SaveDraftRequest) (maildb.MessageDetail, error) {
 	req = normalizeSaveDraftRequest(req)
 	if err := ValidateSaveDraftRequest(req); err != nil {

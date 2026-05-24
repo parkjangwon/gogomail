@@ -651,6 +651,8 @@ type adminConfigPropagateRequest struct {
 	Locked bool            `json:"locked"`
 }
 
+var defaultDomainMCPPolicy = json.RawMessage(`{"enabled":true,"allow_bypass_mode":true,"allow_user_access_keys":true,"allowed_scopes":["mail:read","mail:write","mail:send","mail:manage","contacts:read","contacts:write","contacts:manage","drive:read","drive:write","drive:manage","calendar:read","calendar:write","calendar:manage"],"force_generated_mail_notice":false,"external_recipient_confirmation":"basic","public_drive_share_confirmation":"basic","audit_level":"full"}`)
+
 func inheritCompanyDomainSettings(ctx context.Context, service AdminService, domain maildb.DomainView) error {
 	if domain.CompanyID == "" || domain.ID == "" {
 		return nil
@@ -1694,6 +1696,79 @@ func registerDomainRoutes(mux *http.ServeMux, service AdminService, adminAuth fu
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"config": entry})
+	}))
+
+	mux.HandleFunc("GET /admin/v1/domains/{id}/mcp-policy", adminAuth(func(w http.ResponseWriter, r *http.Request) {
+		if !rejectUnknownQueryKeys(w, r) {
+			return
+		}
+		id, ok := parseBoundedAdminPathValue(w, r, "id")
+		if !ok {
+			return
+		}
+		domain, err := service.GetDomain(r.Context(), id)
+		if err != nil {
+			writeError(w, http.StatusNotFound, err.Error())
+			return
+		}
+		if err := requiresCompanyAccess(r.Context(), domain.CompanyID); err != nil {
+			writeError(w, http.StatusForbidden, "access denied")
+			return
+		}
+		entry, err := service.GetDomainConfig(r.Context(), id, "mcp.policy")
+		if err != nil {
+			if errors.Is(err, configstore.ErrConfigNotFound) {
+				writeJSON(w, http.StatusOK, map[string]any{"mcp_policy": defaultDomainMCPPolicy})
+				return
+			}
+			slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+			writeError(w, http.StatusInternalServerError, "internal server error")
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"mcp_policy": json.RawMessage(entry.Value), "config": entry})
+	}))
+
+	mux.HandleFunc("PUT /admin/v1/domains/{id}/mcp-policy", adminAuth(func(w http.ResponseWriter, r *http.Request) {
+		defer r.Body.Close()
+		if !rejectUnknownQueryKeys(w, r) {
+			return
+		}
+		id, ok := parseBoundedAdminPathValue(w, r, "id")
+		if !ok {
+			return
+		}
+		domain, err := service.GetDomain(r.Context(), id)
+		if err != nil {
+			writeError(w, http.StatusNotFound, err.Error())
+			return
+		}
+		if err := requiresCompanyAccess(r.Context(), domain.CompanyID); err != nil {
+			writeError(w, http.StatusForbidden, "access denied")
+			return
+		}
+		var req adminConfigSetRequest
+		if err := decodeJSONBody(r, &req); err != nil {
+			writeError(w, http.StatusBadRequest, "invalid JSON body")
+			return
+		}
+		if len(req.Value) == 0 {
+			req.Value = defaultDomainMCPPolicy
+		}
+		if !json.Valid(req.Value) {
+			writeError(w, http.StatusBadRequest, "mcp policy must be valid JSON")
+			return
+		}
+		entry, err := service.SetDomainConfig(r.Context(), id, "mcp.policy", req.Value, req.Locked, req.Version)
+		if err != nil {
+			if errors.Is(err, configstore.ErrVersionConflict) {
+				writeError(w, http.StatusConflict, err.Error())
+				return
+			}
+			slog.ErrorContext(r.Context(), "admin handler error", "error", err)
+			writeError(w, http.StatusInternalServerError, "internal server error")
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"mcp_policy": json.RawMessage(entry.Value), "config": entry})
 	}))
 
 	mux.HandleFunc("DELETE /admin/v1/domains/{id}/config/{key}", adminAuth(func(w http.ResponseWriter, r *http.Request) {

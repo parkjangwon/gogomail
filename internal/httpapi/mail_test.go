@@ -3287,6 +3287,67 @@ func TestListMessagesHandlerUsesJWTUser(t *testing.T) {
 	}
 }
 
+func TestUserAPIKeyWriteScopeDoesNotGrantManage(t *testing.T) {
+	info := &apikeys.KeyInfo{UserID: "user-1", DomainID: "domain-1", Scopes: []string{"drive:write"}}
+	if !apiKeyHasScope(info, "drive:write") {
+		t.Fatal("drive:write should satisfy drive:write")
+	}
+	if !apiKeyHasScope(info, "drive:read") {
+		t.Fatal("drive:write should satisfy drive:read")
+	}
+	if apiKeyHasScope(info, "drive:manage") {
+		t.Fatal("drive:write must not satisfy drive:manage")
+	}
+}
+
+func TestUserMCPAccessKeyLifecycleRequiresSession(t *testing.T) {
+	manager, err := auth.NewTokenManager("test-secret-httpapi-mail-at-least-32b")
+	if err != nil {
+		t.Fatalf("NewTokenManager returned error: %v", err)
+	}
+	service := &fakeMessageService{}
+	mux := http.NewServeMux()
+	RegisterMailRoutes(mux, service, manager)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/me/mcp/access-keys", nil)
+	req.Header.Set("Authorization", "Bearer gmu_testkey123456789")
+	req = req.WithContext(apikeys.ContextWithKeyInfo(req.Context(), &apikeys.KeyInfo{
+		ID:       "key-1",
+		UserID:   "user-1",
+		DomainID: "domain-1",
+		Scopes:   []string{"mail:manage", "drive:manage", "contacts:manage", "calendar:manage"},
+	}))
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("status = %d, want 401; body = %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestUserMCPAccessKeyLifecycleAllowsSession(t *testing.T) {
+	manager, err := auth.NewTokenManager("test-secret-httpapi-mail-at-least-32b")
+	if err != nil {
+		t.Fatalf("NewTokenManager returned error: %v", err)
+	}
+	token, err := manager.Sign(auth.Claims{UserID: "jwt-user"}, time.Minute)
+	if err != nil {
+		t.Fatalf("Sign returned error: %v", err)
+	}
+	service := &fakeMessageService{}
+	mux := http.NewServeMux()
+	RegisterMailRoutes(mux, service, manager)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/me/mcp/access-keys", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200; body = %s", rec.Code, rec.Body.String())
+	}
+}
+
 func TestMailAuthRejectsOversizedAuthorizationHeader(t *testing.T) {
 	t.Parallel()
 
@@ -4204,6 +4265,21 @@ func (f *fakeMessageService) GetWebmailPreferences(_ context.Context, _ string) 
 
 func (f *fakeMessageService) SetWebmailPreferences(_ context.Context, _ string, _ json.RawMessage) error {
 	return nil
+}
+
+func (f *fakeMessageService) ListUserMCPAccessKeys(_ context.Context, userID string) ([]maildb.UserMCPAccessKey, error) {
+	return []maildb.UserMCPAccessKey{{ID: "key-1", UserID: userID, DomainID: "domain-1", Name: "test", TokenSuffix: "abcd1234", Scopes: []string{"mail:read"}, PermissionMode: "basic"}}, nil
+}
+
+func (f *fakeMessageService) CreateUserMCPAccessKey(_ context.Context, req maildb.CreateUserMCPAccessKeyRequest) (maildb.CreatedUserMCPAccessKey, error) {
+	return maildb.CreatedUserMCPAccessKey{
+		Key:   maildb.UserMCPAccessKey{ID: "key-1", UserID: req.UserID, DomainID: "domain-1", Name: req.Name, TokenSuffix: "abcd1234", Scopes: req.Scopes, PermissionMode: req.PermissionMode},
+		Token: "gmu_secret",
+	}, nil
+}
+
+func (f *fakeMessageService) RevokeUserMCPAccessKey(_ context.Context, userID, id string) (maildb.UserMCPAccessKey, error) {
+	return maildb.UserMCPAccessKey{ID: id, UserID: userID, DomainID: "domain-1", Name: "test", Revoked: true}, nil
 }
 
 func (f *fakeMessageService) GetUserProfile(_ context.Context, userID string) (maildb.UserProfile, error) {
