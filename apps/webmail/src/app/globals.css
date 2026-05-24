@@ -110,6 +110,93 @@ textarea {
   }
 }
 
+/* ─── Accessibility: High Contrast ─────────────────────────────────────── */
+html.high-contrast {
+  --color-bg-primary: #ffffff;
+  --color-bg-secondary: #f0f0f0;
+  --color-bg-tertiary: #dcdcdc;
+  --color-bg-overlay: rgba(0, 0, 0, 0.08);
+  --color-text-primary: #000000;
+  --color-text-secondary: #1a1a1a;
+  --color-text-tertiary: #404040;
+  --color-border-subtle: #888888;
+  --color-border-default: #555555;
+  --color-accent: #0044cc;
+  --color-accent-hover: #003399;
+  --color-accent-subtle: #d0e0ff;
+  --color-destructive: #cc0000;
+  --color-success: #006600;
+  --color-warning: #884400;
+}
+html[data-theme="dark"].high-contrast {
+  --color-bg-primary: #000000;
+  --color-bg-secondary: #111111;
+  --color-bg-tertiary: #222222;
+  --color-bg-overlay: rgba(255, 255, 255, 0.08);
+  --color-text-primary: #ffffff;
+  --color-text-secondary: #eeeeee;
+  --color-text-tertiary: #bbbbbb;
+  --color-border-subtle: #777777;
+  --color-border-default: #aaaaaa;
+  --color-accent: #77aaff;
+  --color-accent-hover: #99bbff;
+  --color-accent-subtle: #112244;
+  --color-destructive: #ff6666;
+  --color-success: #66ee66;
+  --color-warning: #ffcc44;
+}
+
+/* ─── Accessibility: Reduced Motion ─────────────────────────────────────── */
+html.reduced-motion *,
+html.reduced-motion *::before,
+html.reduced-motion *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}
+
+/* ─── Accessibility: Larger Click Targets ──────────────────────────────── */
+html.larger-targets button,
+html.larger-targets [role="button"],
+html.larger-targets select,
+html.larger-targets label {
+  min-height: 36px;
+}
+html.larger-targets input[type="checkbox"],
+html.larger-targets input[type="radio"] {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+}
+
+/* ─── Accessibility: Screen Reader Mode ────────────────────────────────── */
+html.screen-reader-mode :focus-visible {
+  outline: 3px solid var(--color-accent) !important;
+  outline-offset: 3px !important;
+  box-shadow: 0 0 0 5px rgba(47, 110, 224, 0.3) !important;
+  border-radius: 3px;
+}
+html.screen-reader-mode [aria-live="polite"],
+html.screen-reader-mode [aria-live="assertive"] {
+  border: 1px dashed var(--color-border-default);
+}
+/* Make sr-only skip links visible in screen reader mode */
+html.screen-reader-mode .sr-skip-link:focus {
+  position: fixed !important;
+  top: 8px !important;
+  left: 8px !important;
+  z-index: 9999 !important;
+  padding: 8px 16px !important;
+  background: var(--color-accent) !important;
+  color: #fff !important;
+  border-radius: 6px !important;
+  font-weight: 600 !important;
+  clip: auto !important;
+  width: auto !important;
+  height: auto !important;
+}
+
 @media print {
   /* Hide navigation and list, show only message content */
   aside[aria-label="메일 탐색"],

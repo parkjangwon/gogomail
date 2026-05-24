@@ -420,6 +420,13 @@ export function SettingsView({ userEmail, userName, initialSection }: SettingsVi
       setVacEndDate((vac.endDate as string) ?? '');
       setVacSubject((vac.subject as string) ?? t('vacSubjectDefault'));
       setVacBody((vac.body as string) ?? '');
+      // Accessibility
+      setHighContrast(localStorage.getItem('webmail_high_contrast') === '1');
+      setReducedMotion(localStorage.getItem('webmail_reduced_motion') === '1');
+      setLargerClickTargets(localStorage.getItem('webmail_larger_targets') === '1');
+      setScreenReaderMode(localStorage.getItem('webmail_screen_reader') === '1');
+      const storedFf = localStorage.getItem('webmail_font_family');
+      if (storedFf === 'serif' || storedFf === 'mono') setFontFamily(storedFf);
     } catch { /* ignore */ }
     if (typeof Notification !== 'undefined') setNotifPerm(Notification.permission);
   }, [userName, t]);
@@ -1246,10 +1253,10 @@ export function SettingsView({ userEmail, userName, initialSection }: SettingsVi
             <SectionCard>
               <SectionHeader>{t('sectionVisualAids')}</SectionHeader>
               <Row label={t('highContrast')} description={t('highContrastDesc')}>
-                <Toggle value={highContrast} onChange={(v) => { setHighContrast(v); try { localStorage.setItem('webmail_high_contrast', v ? '1' : '0'); if (v) document.documentElement.classList.add('high-contrast'); else document.documentElement.classList.remove('high-contrast'); } catch { /* */ } }} />
+                <Toggle value={highContrast} onChange={(v) => { setHighContrast(v); try { localStorage.setItem('webmail_high_contrast', v ? '1' : '0'); document.documentElement.classList.toggle('high-contrast', v); } catch { /* */ } }} />
               </Row>
               <Row label={t('reducedMotion')} description={t('reducedMotionDesc')}>
-                <Toggle value={reducedMotion} onChange={(v) => { setReducedMotion(v); try { localStorage.setItem('webmail_reduced_motion', v ? '1' : '0'); document.documentElement.style.setProperty('--motion-duration', v ? '0ms' : ''); } catch { /* */ } }} />
+                <Toggle value={reducedMotion} onChange={(v) => { setReducedMotion(v); try { localStorage.setItem('webmail_reduced_motion', v ? '1' : '0'); document.documentElement.classList.toggle('reduced-motion', v); } catch { /* */ } }} />
               </Row>
               <Row label={t('fontFamily')} description={t('fontFamilyDesc')}>
                 <Segment
@@ -1259,20 +1266,20 @@ export function SettingsView({ userEmail, userName, initialSection }: SettingsVi
                     setFontFamily(v);
                     try {
                       localStorage.setItem('webmail_font_family', v);
-                      const map = { system: 'system-ui, sans-serif', serif: 'Georgia, serif', mono: '"JetBrains Mono", "Fira Code", monospace' };
-                      document.documentElement.style.setProperty('font-family', map[v]);
+                      const map: Record<string, string> = { system: '', serif: 'Georgia, serif', mono: '"JetBrains Mono", "Fira Code", monospace' };
+                      document.documentElement.style.fontFamily = map[v] ?? '';
                     } catch { /* */ }
                   }}
                 />
               </Row>
               <Row label={t('largerClickTargets')} description={t('largerClickTargetsDesc')} last>
-                <Toggle value={largerClickTargets} onChange={(v) => { setLargerClickTargets(v); try { localStorage.setItem('webmail_larger_targets', v ? '1' : '0'); } catch { /* */ } }} />
+                <Toggle value={largerClickTargets} onChange={(v) => { setLargerClickTargets(v); try { localStorage.setItem('webmail_larger_targets', v ? '1' : '0'); document.documentElement.classList.toggle('larger-targets', v); } catch { /* */ } }} />
               </Row>
             </SectionCard>
             <SectionCard>
               <SectionHeader>{t('sectionScreenReader')}</SectionHeader>
               <Row label={t('screenReaderMode')} description={t('screenReaderModeDesc')} last>
-                <Toggle value={screenReaderMode} onChange={(v) => { setScreenReaderMode(v); try { localStorage.setItem('webmail_screen_reader', v ? '1' : '0'); } catch { /* */ } }} />
+                <Toggle value={screenReaderMode} onChange={(v) => { setScreenReaderMode(v); try { localStorage.setItem('webmail_screen_reader', v ? '1' : '0'); document.documentElement.classList.toggle('screen-reader-mode', v); } catch { /* */ } }} />
               </Row>
             </SectionCard>
           </>

@@ -39,7 +39,19 @@ export default async function RootLayout({
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{var s=localStorage.getItem('webmail_theme');var d=window.matchMedia('(prefers-color-scheme: dark)').matches;document.documentElement.setAttribute('data-theme',s||(d?'dark':'light'));}catch(e){}})();`,
+            __html: `(function(){try{
+var el=document.documentElement;
+var s=localStorage.getItem('webmail_theme');
+var d=window.matchMedia('(prefers-color-scheme: dark)').matches;
+el.setAttribute('data-theme',s||(d?'dark':'light'));
+if(localStorage.getItem('webmail_high_contrast')==='1')el.classList.add('high-contrast');
+if(localStorage.getItem('webmail_reduced_motion')==='1')el.classList.add('reduced-motion');
+if(localStorage.getItem('webmail_larger_targets')==='1')el.classList.add('larger-targets');
+if(localStorage.getItem('webmail_screen_reader')==='1')el.classList.add('screen-reader-mode');
+var ff=localStorage.getItem('webmail_font_family');
+var fm={serif:'Georgia,serif',mono:'"JetBrains Mono","Fira Code",monospace'};
+if(ff&&fm[ff])el.style.fontFamily=fm[ff];
+}catch(e){}})();`,
           }}
         />
         <style dangerouslySetInnerHTML={{ __html: `
