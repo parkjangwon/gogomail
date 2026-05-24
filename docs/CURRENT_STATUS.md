@@ -1,6 +1,13 @@
 # gogomail current status
 
-Last updated: 2026-05-24 (Webmail settings message-list wording)
+Last updated: 2026-05-24 (Webmail settings category organization)
+
+## Webmail settings category organization (2026-05-24)
+- Reordered the webmail settings sidebar so active product preferences come first: account, compose, reading, message list, contacts, Drive, filters, auto-reply, blocked senders, storage, notifications, appearance, privacy, security, MCP, accessibility, shortcuts, and about.
+- Added Contacts settings for default contact sort order, list density, and company-name display; the Contacts view now reads those preferences and updates on settings changes.
+- Added Drive settings for default file-list sorting; the Drive view now applies the chosen sort mode and reloads the active folder when it changes.
+- Added English, Korean, Japanese, and Simplified Chinese labels for the new settings sections and controls.
+- Verification: `pnpm -C apps/webmail type-check`; `go test -short ./...`.
 
 ## Webmail settings message-list wording (2026-05-24)
 - Renamed the webmail settings navigation item formerly labeled as Inbox/받은편지함 to Message list/메일 목록 because the section controls list density, preview text, grouping, refresh, focus, and swipe behavior rather than the Inbox mailbox itself.

@@ -59,6 +59,9 @@ const NOTIFICATION_FOLDER_OVERRIDES_KEY = 'webmail_notification_folder_overrides
 const BADGE_COUNT_MODE_KEY = 'webmail_badge_count_mode';
 const BROWSER_NOTIF_ENABLED_KEY = 'webmail_browser_notifications_enabled';
 type BadgeCountMode = 'unread' | 'all' | 'none';
+type ContactsSort = 'name' | 'email' | 'company';
+type ContactsDensity = 'comfortable' | 'compact';
+type DriveSort = 'typeName' | 'name' | 'updated' | 'size';
 
 function emptyDNDSchedule() {
   return { weekdays: [], time_ranges: [], timezone: '' };
@@ -89,6 +92,14 @@ export function SettingsView({ userEmail, userName, initialSection }: SettingsVi
   const [focusMode, setFocusMode] = useState(false);
   const [swipeLeft, setSwipeLeft] = useState<'archive' | 'delete' | 'snooze' | 'star'>('archive');
   const [swipeRight, setSwipeRight] = useState<'archive' | 'delete' | 'snooze' | 'star'>('star');
+
+  // Contacts
+  const [contactsSort, setContactsSort] = useState<ContactsSort>('name');
+  const [contactsDensity, setContactsDensity] = useState<ContactsDensity>('comfortable');
+  const [contactsShowCompany, setContactsShowCompany] = useState(true);
+
+  // Drive
+  const [driveSort, setDriveSort] = useState<DriveSort>('typeName');
 
   // Reading
   const [readMark, setReadMark] = useState<ReadMark>('instant');
@@ -219,6 +230,10 @@ export function SettingsView({ userEmail, userName, initialSection }: SettingsVi
           if (s.swipeLeft) setSwipeLeft(s.swipeLeft as typeof swipeLeft);
           if (s.swipeRight) setSwipeRight(s.swipeRight as typeof swipeRight);
           if (s.refreshInterval) setRefreshInterval(s.refreshInterval as 30 | 60 | 300);
+          if (s.contactsSort) setContactsSort(s.contactsSort as ContactsSort);
+          if (s.contactsDensity) setContactsDensity(s.contactsDensity as ContactsDensity);
+          if (s.contactsShowCompany !== undefined) setContactsShowCompany(s.contactsShowCompany as boolean);
+          if (s.driveSort) setDriveSort(s.driveSort as DriveSort);
           if (s.browserNotificationsEnabled !== undefined) {
             const enabled = s.browserNotificationsEnabled as boolean;
             setBrowserNotificationsEnabled(enabled);
@@ -329,6 +344,7 @@ export function SettingsView({ userEmail, userName, initialSection }: SettingsVi
           quoteOnReply, fontSize, inlineImagePreview, blockTrackingPixels,
           requestReadReceipt, linkPreview, followUpDays, focusMode,
           swipeLeft, swipeRight, refreshInterval, importanceMarkers, groupByDate,
+          contactsSort, contactsDensity, contactsShowCompany, driveSort,
           browserNotificationsEnabled, notifSound, notifDetail, badgeCountMode, dndEnabled, dndStart, dndEnd,
         },
         filter_rules: filterRules as unknown[],
@@ -345,6 +361,7 @@ export function SettingsView({ userEmail, userName, initialSection }: SettingsVi
     quoteOnReply, fontSize, inlineImagePreview, blockTrackingPixels,
     requestReadReceipt, linkPreview, followUpDays, focusMode,
     swipeLeft, swipeRight, refreshInterval, importanceMarkers, groupByDate,
+    contactsSort, contactsDensity, contactsShowCompany, driveSort,
     browserNotificationsEnabled, notifSound, notifDetail, badgeCountMode, dndEnabled, dndStart, dndEnd,
     filterRules, blockedSenders, templates,
     vacEnabled, vacStartDate, vacEndDate, vacSubject, vacBody,
@@ -381,6 +398,10 @@ export function SettingsView({ userEmail, userName, initialSection }: SettingsVi
       setRequestReadReceipt((priv.requestReadReceipt as boolean) === true);
       setLinkPreview((priv.linkPreview as boolean) !== false);
       setFollowUpDays(((priv.followUpDays as number) ?? 0) as 0 | 1 | 3 | 7);
+      setContactsSort((wm.contactsSort as ContactsSort) ?? 'name');
+      setContactsDensity((wm.contactsDensity as ContactsDensity) ?? 'comfortable');
+      setContactsShowCompany((wm.contactsShowCompany as boolean) !== false);
+      setDriveSort((wm.driveSort as DriveSort) ?? 'typeName');
       const vac = JSON.parse(localStorage.getItem('webmail_vacation') ?? '{}') as Record<string, unknown>;
       setVacEnabled(vac.enabled === true);
       setVacStartDate((vac.startDate as string) ?? '');
@@ -672,6 +693,44 @@ export function SettingsView({ userEmail, userName, initialSection }: SettingsVi
                 options={[{ value: 'archive' as const, label: t('swipeArchive') }, { value: 'delete' as const, label: t('swipeDelete') }, { value: 'snooze' as const, label: t('swipeSnooze') }, { value: 'star' as const, label: t('swipeStar') }]}
                 value={swipeRight}
                 onChange={(v) => { setSwipeRight(v); try { localStorage.setItem('webmail_swipe_right', v); } catch { /* */ } }}
+              />
+            </Row>
+          </SectionCard>
+        );
+
+      case 'contacts':
+        return (
+          <SectionCard>
+            <SectionHeader>{t('sectionContactsSettings')}</SectionHeader>
+            <Row label={t('contactsSort')} description={t('contactsSortDesc')}>
+              <Segment
+                options={[{ value: 'name' as ContactsSort, label: t('contactsSortName') }, { value: 'email' as ContactsSort, label: t('contactsSortEmail') }, { value: 'company' as ContactsSort, label: t('contactsSortCompany') }]}
+                value={contactsSort}
+                onChange={(v) => { setContactsSort(v); saveWmSetting('contactsSort', v); }}
+              />
+            </Row>
+            <Row label={t('contactsDensity')} description={t('contactsDensityDesc')}>
+              <Segment
+                options={[{ value: 'comfortable' as ContactsDensity, label: t('densityComfortable') }, { value: 'compact' as ContactsDensity, label: t('densityCompact') }]}
+                value={contactsDensity}
+                onChange={(v) => { setContactsDensity(v); saveWmSetting('contactsDensity', v); }}
+              />
+            </Row>
+            <Row label={t('contactsShowCompany')} description={t('contactsShowCompanyDesc')} last>
+              <Toggle value={contactsShowCompany} onChange={(v) => { setContactsShowCompany(v); saveWmSetting('contactsShowCompany', v); }} />
+            </Row>
+          </SectionCard>
+        );
+
+      case 'drive':
+        return (
+          <SectionCard>
+            <SectionHeader>{t('sectionDriveSettings')}</SectionHeader>
+            <Row label={t('driveSort')} description={t('driveSortDesc')} last>
+              <Segment
+                options={[{ value: 'typeName' as DriveSort, label: t('driveSortTypeName') }, { value: 'name' as DriveSort, label: t('driveSortName') }, { value: 'updated' as DriveSort, label: t('driveSortUpdated') }, { value: 'size' as DriveSort, label: t('driveSortSize') }]}
+                value={driveSort}
+                onChange={(v) => { setDriveSort(v); saveWmSetting('driveSort', v); }}
               />
             </Row>
           </SectionCard>

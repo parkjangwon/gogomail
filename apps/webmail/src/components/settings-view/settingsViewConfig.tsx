@@ -16,6 +16,8 @@ import {
   LockClosedIcon,
   EyeIcon,
   CircleStackIcon,
+  FolderIcon,
+  UserGroupIcon,
 } from '@heroicons/react/24/outline';
 
 export type SectionId =
@@ -23,6 +25,8 @@ export type SectionId =
   | 'inbox'
   | 'reading'
   | 'compose'
+  | 'contacts'
+  | 'drive'
   | 'filters'
   | 'storage'
   | 'blocked'
@@ -39,20 +43,22 @@ export type SectionId =
 // labelKey references a key in the `settingsView` translation namespace.
 export const NAV_ITEMS: { id: SectionId; labelKey: string; icon: ReactNode }[] = [
   { id: 'account', labelKey: 'navAccount', icon: <UserCircleIcon style={{ width: 16, height: 16 }} /> },
-  { id: 'inbox', labelKey: 'navInbox', icon: <InboxIcon style={{ width: 16, height: 16 }} /> },
-  { id: 'reading', labelKey: 'navReading', icon: <BookOpenIcon style={{ width: 16, height: 16 }} /> },
   { id: 'compose', labelKey: 'navCompose', icon: <PencilSquareIcon style={{ width: 16, height: 16 }} /> },
+  { id: 'reading', labelKey: 'navReading', icon: <BookOpenIcon style={{ width: 16, height: 16 }} /> },
+  { id: 'inbox', labelKey: 'navInbox', icon: <InboxIcon style={{ width: 16, height: 16 }} /> },
+  { id: 'contacts', labelKey: 'navContacts', icon: <UserGroupIcon style={{ width: 16, height: 16 }} /> },
+  { id: 'drive', labelKey: 'navDrive', icon: <FolderIcon style={{ width: 16, height: 16 }} /> },
   { id: 'filters', labelKey: 'navFilters', icon: <FunnelIcon style={{ width: 16, height: 16 }} /> },
-  { id: 'storage', labelKey: 'navStorage', icon: <CircleStackIcon style={{ width: 16, height: 16 }} /> },
-  { id: 'blocked', labelKey: 'navBlocked', icon: <NoSymbolIcon style={{ width: 16, height: 16 }} /> },
   { id: 'vacation', labelKey: 'navVacation', icon: <CalendarDaysIcon style={{ width: 16, height: 16 }} /> },
-  { id: 'privacy', labelKey: 'navPrivacy', icon: <LockClosedIcon style={{ width: 16, height: 16 }} /> },
-  { id: 'appearance', labelKey: 'navAppearance', icon: <SwatchIcon style={{ width: 16, height: 16 }} /> },
+  { id: 'blocked', labelKey: 'navBlocked', icon: <NoSymbolIcon style={{ width: 16, height: 16 }} /> },
+  { id: 'storage', labelKey: 'navStorage', icon: <CircleStackIcon style={{ width: 16, height: 16 }} /> },
   { id: 'notifications', labelKey: 'navNotifications', icon: <BellIcon style={{ width: 16, height: 16 }} /> },
-  { id: 'shortcuts', labelKey: 'navShortcuts', icon: <KeyIcon style={{ width: 16, height: 16 }} /> },
+  { id: 'appearance', labelKey: 'navAppearance', icon: <SwatchIcon style={{ width: 16, height: 16 }} /> },
+  { id: 'privacy', labelKey: 'navPrivacy', icon: <LockClosedIcon style={{ width: 16, height: 16 }} /> },
   { id: 'security', labelKey: 'navSecurity', icon: <ShieldCheckIcon style={{ width: 16, height: 16 }} /> },
   { id: 'mcp', labelKey: 'navMcp', icon: <CommandLineIcon style={{ width: 16, height: 16 }} /> },
   { id: 'accessibility', labelKey: 'navAccessibility', icon: <EyeIcon style={{ width: 16, height: 16 }} /> },
+  { id: 'shortcuts', labelKey: 'navShortcuts', icon: <KeyIcon style={{ width: 16, height: 16 }} /> },
   { id: 'about', labelKey: 'navAbout', icon: <InformationCircleIcon style={{ width: 16, height: 16 }} /> },
 ];
 
