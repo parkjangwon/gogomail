@@ -346,10 +346,17 @@ export function getFolders(): Promise<{ folders: Folder[] }> {
   return apiGet<{ folders: Folder[] }>('folders');
 }
 
+export interface GetMessagesOptions {
+  starred?: boolean;
+  read?: boolean;
+  has_attachment?: boolean;
+}
+
 export function getMessages(
   folderId: string,
   cursor = '',
-  limit = 50
+  limit = 50,
+  options: GetMessagesOptions = {}
 ): Promise<{ messages: MessageSummary[]; has_more: boolean; next_cursor: string }> {
   const params: Record<string, string> = {
     limit: String(limit),
@@ -357,6 +364,9 @@ export function getMessages(
   const trimmedFolderId = folderId.trim();
   if (trimmedFolderId) params.folder_id = trimmedFolderId;
   if (cursor) params.cursor = cursor;
+  if (options.starred !== undefined) params.starred = String(options.starred);
+  if (options.read !== undefined) params.read = String(options.read);
+  if (options.has_attachment !== undefined) params.has_attachment = String(options.has_attachment);
   return apiGet<{ messages: MessageSummary[]; has_more: boolean; next_cursor: string }>(
     'messages',
     params
