@@ -2,6 +2,7 @@
 
 ## Recent launch-readiness closures
 
+- Webmail settings now label the list-behavior preference section as Message list/메일 목록 instead of Inbox/받은편지함, keeping actual mailbox labels reserved for mailbox navigation.
 - Webmail user MCP settings now present a simpler default configuration surface, hide dependent controls until relevant, and localize access-key scope labels across supported webmail locales instead of exposing raw scope ids such as `drive:read`.
 - Webmail compose duplicate-send hardening now guards the full send lifecycle before React state settles and clears undo countdown execution before dispatch, preventing rapid repeated submit events from creating many sent/outbox copies.
 - Frontend auth/MFA local smoke hardening now gives admin and webmail authenticator apps email-based labels, redirects after admin MFA setup, removes the MFA setup key warning, exposes web-push config through the webmail proxy, and avoids development `user_id` injection when a JWT cookie is present.

@@ -1,6 +1,11 @@
 # gogomail current status
 
-Last updated: 2026-05-24 (Webmail MCP settings cleanup)
+Last updated: 2026-05-24 (Webmail settings message-list wording)
+
+## Webmail settings message-list wording (2026-05-24)
+- Renamed the webmail settings navigation item formerly labeled as Inbox/받은편지함 to Message list/메일 목록 because the section controls list density, preview text, grouping, refresh, focus, and swipe behavior rather than the Inbox mailbox itself.
+- Updated the matching section heading and auto-refresh description across English, Korean, Japanese, and Simplified Chinese while leaving real mailbox labels and inbox shortcut labels unchanged.
+- Verification target: `pnpm -C apps/webmail type-check`.
 
 ## Webmail MCP settings cleanup (2026-05-24)
 - User MCP settings now remove the duplicate global permission-mode/bypass controls from the default preference surface, leaving the user-facing flow focused on enabling MCP, sensitive-action confirmation, generated-mail notices, and mail-send safeguards.
