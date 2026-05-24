@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { CheckIcon, ExclamationTriangleIcon, NoSymbolIcon, ArrowDownTrayIcon } from '@heroicons/react/24/outline';
+import { CheckIcon, ExclamationTriangleIcon, NoSymbolIcon, ArrowDownTrayIcon, GlobeAltIcon } from '@heroicons/react/24/outline';
 import { revokeAllSessions, getFolderStats, exportFolderEml, exportFolderZip, getPreferences, setPreferences, getUserProfile, updateUserProfile, uploadUserAvatar, deleteUserAvatar, changePassword, registerWebPushDevice, getNotificationPreferences, setNotificationPreferences, getFolders, type FolderStats, type WebmailPreferences, type UserProfile, type NotificationPreferences, type FolderNotificationOverride, type Folder } from '@/lib/api';
 import { ReadMark, ExternalImages, SendDelay, Theme, FontSize, ACCENT_COLORS, FilterRule, migrateFilterRule, loadFilterRules, saveFilterRules } from '@/lib/settings/settingsUtils';
 import { NAV_ITEMS, SHORTCUT_GROUPS, type SectionId } from '@/components/settings-view/settingsViewConfig';
@@ -175,7 +175,9 @@ export function SettingsView({ userEmail, userName, initialSection }: SettingsVi
 
   // Blocked senders / Spam settings
   const [blockedSenders, setBlockedSenders] = useState<string[]>([]);
+  const [blockedMeta, setBlockedMeta] = useState<Record<string, string>>({}); // addr → ISO date
   const [newBlockedInput, setNewBlockedInput] = useState('');
+  const [blockedPage, setBlockedPage] = useState(0);
   const [spamAutoDeleteDays, setSpamAutoDeleteDays] = useState<number>(30);
   const [spamAutoBlock, setSpamAutoBlock] = useState(true);
 
@@ -281,7 +283,18 @@ export function SettingsView({ userEmail, userName, initialSection }: SettingsVi
           setFilterRules(serverRules);
           saveFilterRules(serverRules);
         }
-        if (prefs.blocked_senders) setBlockedSenders(prefs.blocked_senders);
+        if (prefs.blocked_senders) {
+          setBlockedSenders(prefs.blocked_senders);
+          // Backfill meta timestamps for entries that have no recorded date
+          try {
+            const meta = JSON.parse(localStorage.getItem('webmail_blocked_meta') ?? '{}') as Record<string, string>;
+            let changed = false;
+            prefs.blocked_senders.forEach((addr) => {
+              if (!meta[addr]) { meta[addr] = new Date().toISOString(); changed = true; }
+            });
+            if (changed) { localStorage.setItem('webmail_blocked_meta', JSON.stringify(meta)); setBlockedMeta(meta); }
+          } catch { /* */ }
+        }
         if (prefs.vacation) {
           const v = prefs.vacation;
           if (v.enabled !== undefined) setVacEnabled(v.enabled as boolean);
@@ -420,6 +433,7 @@ export function SettingsView({ userEmail, userName, initialSection }: SettingsVi
       setTemplates(loadLocalEmailTemplates());
       setFilterRules(loadFilterRules());
       setBlockedSenders(JSON.parse(localStorage.getItem('webmail_blocked_senders') ?? '[]') as string[]);
+      setBlockedMeta(JSON.parse(localStorage.getItem('webmail_blocked_meta') ?? '{}') as Record<string, string>);
       const spamDays = parseInt(localStorage.getItem('webmail_spam_autodelete_days') ?? '30', 10);
       setSpamAutoDeleteDays([14, 30, 60, 90, 0].includes(spamDays) ? spamDays : 30);
       setSpamAutoBlock(localStorage.getItem('webmail_spam_auto_block') !== 'false');
@@ -1006,23 +1020,47 @@ export function SettingsView({ userEmail, userName, initialSection }: SettingsVi
       }
 
       case 'blocked': {
-        const blockInSt: React.CSSProperties = {
-          border: '1px solid var(--color-border-default)', borderRadius: '6px',
-          padding: '7px 10px', fontSize: '13px', background: 'var(--color-bg-primary)',
-          color: 'var(--color-text-primary)', outline: 'none', flex: 1,
-        };
-        function saveBlocked(next: string[]) {
+        const PAGE_SIZE = 5;
+        const totalPages = Math.ceil(blockedSenders.length / PAGE_SIZE);
+        const safePage = Math.min(blockedPage, Math.max(0, totalPages - 1));
+        const pageItems = blockedSenders.slice(safePage * PAGE_SIZE, (safePage + 1) * PAGE_SIZE);
+
+        function saveBlocked(next: string[], meta?: Record<string, string>) {
           try { localStorage.setItem('webmail_blocked_senders', JSON.stringify(next)); } catch { /* ignore */ }
           setBlockedSenders(next);
-          // Immediately sync to server (not waiting for debounced save)
+          if (meta !== undefined) {
+            try { localStorage.setItem('webmail_blocked_meta', JSON.stringify(meta)); } catch { /* ignore */ }
+            setBlockedMeta(meta);
+          }
           void setPreferences({ blocked_senders: next });
         }
         function addBlocked() {
           const val = newBlockedInput.trim().toLowerCase();
           if (!val || blockedSenders.includes(val)) return;
-          saveBlocked([...blockedSenders, val]);
+          const now = new Date().toISOString();
+          const nextMeta = { ...blockedMeta, [val]: now };
+          saveBlocked([...blockedSenders, val], nextMeta);
           setNewBlockedInput('');
+          // Jump to last page to show newly added entry
+          setBlockedPage(Math.floor(blockedSenders.length / PAGE_SIZE));
         }
+        function removeBlocked(addr: string) {
+          const next = blockedSenders.filter((a) => a !== addr);
+          const nextMeta = { ...blockedMeta };
+          delete nextMeta[addr];
+          saveBlocked(next, nextMeta);
+          // Keep page in range
+          const newTotal = Math.ceil(next.length / PAGE_SIZE);
+          if (safePage >= newTotal && safePage > 0) setBlockedPage(safePage - 1);
+        }
+        function formatBlockedDate(addr: string): string {
+          const iso = blockedMeta[addr];
+          if (!iso) return '—';
+          try {
+            return new Intl.DateTimeFormat(undefined, { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date(iso));
+          } catch { return iso.slice(0, 10); }
+        }
+
         const autoDeleteOptions: { value: number; labelKey: string }[] = [
           { value: 14, labelKey: 'spamDelete14' },
           { value: 30, labelKey: 'spamDelete30' },
@@ -1030,6 +1068,21 @@ export function SettingsView({ userEmail, userName, initialSection }: SettingsVi
           { value: 90, labelKey: 'spamDelete90' },
           { value: 0, labelKey: 'spamDeleteNever' },
         ];
+
+        const thSt: React.CSSProperties = {
+          padding: '8px 14px', textAlign: 'left', fontSize: '11px', fontWeight: 700,
+          letterSpacing: '0.06em', textTransform: 'uppercase',
+          color: 'var(--color-text-tertiary)',
+          borderBottom: '1px solid var(--color-border-default)',
+          whiteSpace: 'nowrap', background: 'var(--color-bg-secondary)',
+        };
+        const tdSt: React.CSSProperties = {
+          padding: '9px 14px', fontSize: '13px',
+          color: 'var(--color-text-primary)',
+          borderBottom: '1px solid var(--color-border-subtle)',
+          verticalAlign: 'middle',
+        };
+
         return (
           <>
             {/* ── 스팸 필터 설정 ── */}
@@ -1057,43 +1110,147 @@ export function SettingsView({ userEmail, userName, initialSection }: SettingsVi
               </Row>
             </SectionCard>
 
-            {/* ── 차단된 발신자 목록 ── */}
+            {/* ── 차단된 발신자 목록 (table + pagination) ── */}
             <SectionCard>
-              <SectionHeader>{t('sectionBlockedSenders')}</SectionHeader>
-              <div style={{ padding: '0 20px 12px', fontSize: '12px', color: 'var(--color-text-tertiary)' }}>
-                {t('blockedSendersDesc')}
-              </div>
-              {blockedSenders.length === 0 && (
-                <div style={{ padding: '8px 20px 16px', fontSize: '13px', color: 'var(--color-text-tertiary)' }}>{t('noBlocked')}</div>
-              )}
-              {blockedSenders.map((addr, idx) => (
-                <div key={addr} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '9px 20px', borderTop: idx === 0 ? 'none' : '1px solid var(--color-border-subtle)' }}>
-                  <NoSymbolIcon style={{ width: 13, height: 13, color: 'var(--color-destructive)', flexShrink: 0 }} />
-                  <span style={{ flex: 1, fontSize: '13px', color: 'var(--color-text-primary)', fontFamily: 'monospace' }}>{addr}</span>
-                  <button
-                    onClick={() => saveBlocked(blockedSenders.filter((a) => a !== addr))}
-                    style={{ fontSize: '12px', padding: '2px 10px', borderRadius: '5px', border: 'none', background: 'transparent', color: 'var(--color-destructive)', cursor: 'pointer', flexShrink: 0 }}
-                  >{t('unblock')}</button>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px 0' }}>
+                <div>
+                  <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-text-primary)' }}>{t('sectionBlockedSenders')}</div>
+                  <div style={{ fontSize: '12px', color: 'var(--color-text-tertiary)', marginTop: '2px' }}>{t('blockedSendersDesc')}</div>
                 </div>
-              ))}
+                {blockedSenders.length > 0 && (
+                  <span style={{ fontSize: '12px', color: 'var(--color-text-tertiary)', flexShrink: 0 }}>
+                    {t('blockedCount', { count: blockedSenders.length })}
+                  </span>
+                )}
+              </div>
+
+              <div style={{ overflowX: 'auto', margin: '12px 0 0' }}>
+                {blockedSenders.length === 0 ? (
+                  <div style={{ padding: '20px', textAlign: 'center', fontSize: '13px', color: 'var(--color-text-tertiary)' }}>
+                    {t('noBlocked')}
+                  </div>
+                ) : (
+                  <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+                    <colgroup>
+                      <col style={{ width: '40px' }} />
+                      <col />
+                      <col style={{ width: '160px' }} />
+                      <col style={{ width: '72px' }} />
+                    </colgroup>
+                    <thead>
+                      <tr>
+                        <th style={thSt} />
+                        <th style={thSt}>{t('blockedColAddr')}</th>
+                        <th style={thSt}>{t('blockedColDate')}</th>
+                        <th style={{ ...thSt, textAlign: 'center' }}>{t('blockedColAction')}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {pageItems.map((addr) => {
+                        const isDomain = addr.startsWith('@');
+                        return (
+                          <tr key={addr}
+                            onMouseEnter={(e) => { (e.currentTarget as HTMLTableRowElement).style.background = 'var(--color-bg-secondary)'; }}
+                            onMouseLeave={(e) => { (e.currentTarget as HTMLTableRowElement).style.background = 'transparent'; }}
+                          >
+                            <td style={{ ...tdSt, textAlign: 'center' }}>
+                              {isDomain
+                                ? <GlobeAltIcon style={{ width: 14, height: 14, color: 'var(--color-warning)', display: 'inline-block' }} />
+                                : <NoSymbolIcon style={{ width: 14, height: 14, color: 'var(--color-destructive)', display: 'inline-block' }} />
+                              }
+                            </td>
+                            <td style={{ ...tdSt, fontFamily: 'monospace', fontSize: '12px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {addr}
+                            </td>
+                            <td style={{ ...tdSt, fontSize: '12px', color: 'var(--color-text-secondary)', whiteSpace: 'nowrap' }}>
+                              {formatBlockedDate(addr)}
+                            </td>
+                            <td style={{ ...tdSt, textAlign: 'center' }}>
+                              <button
+                                onClick={() => removeBlocked(addr)}
+                                style={{ fontSize: '12px', padding: '3px 10px', borderRadius: '5px', border: '1px solid var(--color-border-default)', background: 'transparent', color: 'var(--color-destructive)', cursor: 'pointer' }}
+                                onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'color-mix(in srgb, var(--color-destructive) 10%, transparent)'; }}
+                                onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
+                              >{t('unblock')}</button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '6px', padding: '10px 16px', borderTop: '1px solid var(--color-border-subtle)' }}>
+                  <button
+                    onClick={() => setBlockedPage((p) => Math.max(0, p - 1))}
+                    disabled={safePage === 0}
+                    style={{ padding: '4px 10px', borderRadius: '5px', border: '1px solid var(--color-border-default)', background: 'transparent', color: safePage === 0 ? 'var(--color-text-tertiary)' : 'var(--color-text-secondary)', cursor: safePage === 0 ? 'default' : 'pointer', fontSize: '12px' }}
+                  >‹</button>
+                  <span style={{ fontSize: '12px', color: 'var(--color-text-tertiary)', minWidth: '80px', textAlign: 'center' }}>
+                    {safePage + 1} / {totalPages}
+                  </span>
+                  <button
+                    onClick={() => setBlockedPage((p) => Math.min(totalPages - 1, p + 1))}
+                    disabled={safePage === totalPages - 1}
+                    style={{ padding: '4px 10px', borderRadius: '5px', border: '1px solid var(--color-border-default)', background: 'transparent', color: safePage === totalPages - 1 ? 'var(--color-text-tertiary)' : 'var(--color-text-secondary)', cursor: safePage === totalPages - 1 ? 'default' : 'pointer', fontSize: '12px' }}
+                  >›</button>
+                </div>
+              )}
             </SectionCard>
 
             {/* ── 발신자/도메인 차단 추가 ── */}
             <SectionCard>
               <SectionHeader>{t('sectionAddBlockedSender')}</SectionHeader>
-              <div style={{ padding: '0 20px 16px', display: 'flex', gap: '8px', alignItems: 'center' }}>
-                <input
-                  value={newBlockedInput}
-                  onChange={(e) => setNewBlockedInput(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === 'Enter') addBlocked(); }}
-                  placeholder={t('blockedInputPlaceholder')}
-                  style={blockInSt}
-                />
-                <button
-                  onClick={addBlocked}
-                  disabled={!newBlockedInput.trim()}
-                  style={{ padding: '7px 18px', borderRadius: '6px', border: 'none', background: 'var(--color-accent)', color: '#fff', fontSize: '13px', fontWeight: 600, cursor: newBlockedInput.trim() ? 'pointer' : 'default', opacity: newBlockedInput.trim() ? 1 : 0.45, flexShrink: 0 }}
-                >{t('block')}</button>
+              <div style={{ padding: '4px 20px 8px', fontSize: '12px', color: 'var(--color-text-tertiary)' }}>
+                {t('blockedInputHint')}
+              </div>
+              <div style={{ padding: '0 20px 20px' }}>
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'stretch' }}>
+                  <div style={{ flex: 1, position: 'relative' }}>
+                    <input
+                      value={newBlockedInput}
+                      onChange={(e) => setNewBlockedInput(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === 'Enter') addBlocked(); }}
+                      placeholder={t('blockedInputPlaceholder')}
+                      style={{
+                        width: '100%', boxSizing: 'border-box',
+                        padding: '9px 12px',
+                        border: '1px solid var(--color-border-default)',
+                        borderRadius: '7px',
+                        background: 'var(--color-bg-primary)',
+                        color: 'var(--color-text-primary)',
+                        fontSize: '13px', outline: 'none',
+                        fontFamily: 'monospace',
+                        transition: 'border-color 120ms',
+                      }}
+                      onFocus={(e) => { (e.currentTarget as HTMLInputElement).style.borderColor = 'var(--color-accent)'; }}
+                      onBlur={(e) => { (e.currentTarget as HTMLInputElement).style.borderColor = 'var(--color-border-default)'; }}
+                    />
+                  </div>
+                  <button
+                    onClick={addBlocked}
+                    disabled={!newBlockedInput.trim() || blockedSenders.includes(newBlockedInput.trim().toLowerCase())}
+                    style={{
+                      padding: '9px 20px', borderRadius: '7px', border: 'none',
+                      background: 'var(--color-accent)', color: '#fff',
+                      fontSize: '13px', fontWeight: 600,
+                      cursor: newBlockedInput.trim() && !blockedSenders.includes(newBlockedInput.trim().toLowerCase()) ? 'pointer' : 'default',
+                      opacity: newBlockedInput.trim() && !blockedSenders.includes(newBlockedInput.trim().toLowerCase()) ? 1 : 0.4,
+                      flexShrink: 0, whiteSpace: 'nowrap',
+                      transition: 'opacity 120ms',
+                    }}
+                    onMouseEnter={(e) => { if (!(!newBlockedInput.trim() || blockedSenders.includes(newBlockedInput.trim().toLowerCase()))) (e.currentTarget as HTMLButtonElement).style.opacity = '0.88'; }}
+                    onMouseLeave={(e) => { if (!(!newBlockedInput.trim() || blockedSenders.includes(newBlockedInput.trim().toLowerCase()))) (e.currentTarget as HTMLButtonElement).style.opacity = '1'; }}
+                  >{t('block')}</button>
+                </div>
+                {newBlockedInput.trim() && blockedSenders.includes(newBlockedInput.trim().toLowerCase()) && (
+                  <div style={{ marginTop: '6px', fontSize: '12px', color: 'var(--color-warning)' }}>
+                    {t('blockedAlready')}
+                  </div>
+                )}
               </div>
             </SectionCard>
           </>

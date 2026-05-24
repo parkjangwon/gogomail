@@ -1365,7 +1365,13 @@
     "spamDelete90": "90天",
     "spamDeleteNever": "不自动删除",
     "spamAutoBlock": "举报垃圾邮件时自动屏蔽",
-    "spamAutoBlockDesc": "举报垃圾邮件时自动将发件人添加到屏蔽列表"
+    "spamAutoBlockDesc": "举报垃圾邮件时自动将发件人添加到屏蔽列表",
+    "blockedCount": "{count}条",
+    "blockedColAddr": "发件人 / 域名",
+    "blockedColDate": "屏蔽时间",
+    "blockedColAction": "移除",
+    "blockedInputHint": "输入邮箱地址或域名（如@example.com），然后按回车或点击添加按钮。",
+    "blockedAlready": "此地址已在屏蔽列表中。"
   },
   "composeFull": {
     "titleNew": "新邮件",

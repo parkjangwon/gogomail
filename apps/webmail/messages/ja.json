@@ -1365,7 +1365,13 @@
     "spamDelete90": "90日",
     "spamDeleteNever": "削除しない",
     "spamAutoBlock": "スパム報告時に自動ブロック",
-    "spamAutoBlockDesc": "スパムとして報告する際に自動的にブロックリストに追加します"
+    "spamAutoBlockDesc": "スパムとして報告する際に自動的にブロックリストに追加します",
+    "blockedCount": "{count}件",
+    "blockedColAddr": "送信者 / ドメイン",
+    "blockedColDate": "ブロック日時",
+    "blockedColAction": "解除",
+    "blockedInputHint": "メールアドレスまたはドメイン(@example.com)を入力してEnterを押すか、追加ボタンをクリックしてください。",
+    "blockedAlready": "このアドレスはすでにブロックされています。"
   },
   "composeFull": {
     "titleNew": "新規メッセージ",

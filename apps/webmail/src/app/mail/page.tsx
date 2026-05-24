@@ -845,6 +845,11 @@ export default function MailPage() {
         }
         const next = [...new Set([...blocked, ...toBlock.filter(Boolean)])];
         localStorage.setItem('webmail_blocked_senders', JSON.stringify(next));
+        // Record timestamp metadata for newly blocked addresses
+        const meta: Record<string, string> = JSON.parse(localStorage.getItem('webmail_blocked_meta') ?? '{}');
+        const now = new Date().toISOString();
+        toBlock.filter(Boolean).forEach((a) => { if (!meta[a]) meta[a] = now; });
+        localStorage.setItem('webmail_blocked_meta', JSON.stringify(meta));
         void setPreferences({ blocked_senders: next });
       } catch { /* ignore */ }
     }
@@ -876,6 +881,10 @@ export default function MailPage() {
       if (blocked.includes(addr)) return;
       const next = [...blocked, addr];
       localStorage.setItem('webmail_blocked_senders', JSON.stringify(next));
+      // Record timestamp metadata
+      const meta: Record<string, string> = JSON.parse(localStorage.getItem('webmail_blocked_meta') ?? '{}');
+      meta[addr] = new Date().toISOString();
+      localStorage.setItem('webmail_blocked_meta', JSON.stringify(meta));
       void setPreferences({ blocked_senders: next });
     } catch { /* ignore */ }
     addToast(t('misc.mailPage.senderBlocked', { addr }), 'info');

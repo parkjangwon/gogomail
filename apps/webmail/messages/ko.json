@@ -1365,7 +1365,13 @@
     "spamDelete90": "90일",
     "spamDeleteNever": "삭제 안 함",
     "spamAutoBlock": "스팸 신고 시 자동 차단",
-    "spamAutoBlockDesc": "스팸으로 신고할 때 해당 발신자를 자동으로 차단 목록에 추가합니다"
+    "spamAutoBlockDesc": "스팸으로 신고할 때 해당 발신자를 자동으로 차단 목록에 추가합니다",
+    "blockedCount": "{count}개",
+    "blockedColAddr": "발신자 / 도메인",
+    "blockedColDate": "차단 일시",
+    "blockedColAction": "해제",
+    "blockedInputHint": "이메일 주소 또는 도메인(@example.com) 입력 후 엔터를 누르거나 추가 버튼을 누르세요.",
+    "blockedAlready": "이미 차단된 주소입니다."
   },
   "composeFull": {
     "titleNew": "새 메시지",
