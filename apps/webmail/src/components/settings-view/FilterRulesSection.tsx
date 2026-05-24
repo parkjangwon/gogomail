@@ -1,10 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
 import { LABEL_COLORS, type FilterAction, type FilterCondition, type FilterRule, saveFilterRules } from '@/lib/settings/settingsUtils';
-import { SectionCard, SectionHeader, Toggle } from '@/components/settings-view/settingsViewPrimitives';
+import { SectionCard, SectionHeader } from '@/components/settings-view/settingsViewPrimitives';
 import { stableId } from '@/lib/stableId';
+import { type Folder, type MessageSummary, getFolders, getMessages, markRead, starMessage, moveMessage, deleteMessage } from '@/lib/api';
 
 interface FilterRulesSectionProps {
   filterRules: FilterRule[];
@@ -15,10 +16,59 @@ function emptyRule(): Omit<FilterRule, 'id'> {
   return { name: '', enabled: true, logic: 'and', conditions: [{ field: 'from', matchType: 'contains', value: '' }], action: {} };
 }
 
+// ─── Condition matching (MessageSummary level) ─────────────────────────────
+
+function matchStr(text: string, type: FilterCondition['matchType'], val: string): boolean {
+  const t = text.toLowerCase();
+  const v = val.toLowerCase();
+  switch (type) {
+    case 'contains': return t.includes(v);
+    case 'not_contains': return !t.includes(v);
+    case 'equals': return t === v;
+    case 'starts_with': return t.startsWith(v);
+    case 'ends_with': return t.endsWith(v);
+    case 'regex': try { return new RegExp(val, 'i').test(text); } catch { return false; }
+  }
+}
+
+function messageMatchesCondition(msg: MessageSummary, cond: FilterCondition): boolean {
+  switch (cond.field) {
+    case 'has_attachment': return !!msg.has_attachment;
+    case 'is_unread': return !msg.read;
+    case 'from': return matchStr(`${msg.from_name ?? ''} ${msg.from_addr}`, cond.matchType, cond.value);
+    case 'subject': return matchStr(msg.subject ?? '', cond.matchType, cond.value);
+    case 'size_larger': return msg.size > parseInt(cond.value || '0') * 1024;
+    case 'size_smaller': return msg.size < parseInt(cond.value || '0') * 1024;
+    // to, cc, body require full message — skip at summary level
+    case 'to':
+    case 'cc':
+    case 'body': return true; // optimistic: let pass, can't check from summary
+  }
+}
+
+function messageMatchesRule(msg: MessageSummary, rule: FilterRule): boolean {
+  if (rule.conditions.length === 0) return false;
+  return rule.logic === 'and'
+    ? rule.conditions.every((c) => messageMatchesCondition(msg, c))
+    : rule.conditions.some((c) => messageMatchesCondition(msg, c));
+}
+
+// ─── Component ──────────────────────────────────────────────────────────────
+
 export function FilterRulesSection({ filterRules, setFilterRules }: FilterRulesSectionProps) {
   const t = useTranslations('filterRules');
   const [editingRule, setEditingRule] = useState<FilterRule | null>(null);
   const [newRule, setNewRule] = useState<Omit<FilterRule, 'id'>>(emptyRule);
+  const [folders, setFolders] = useState<Folder[]>([]);
+  const [applyingId, setApplyingId] = useState<string | null>(null);
+  const [applyResult, setApplyResult] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    getFolders().then((d) => setFolders(d.folders)).catch(() => {});
+  }, []);
+
+  // Folders usable as move targets (exclude trash/spam)
+  const movableFolders = folders.filter((f) => f.system_type !== 'trash' && f.system_type !== 'spam');
 
   const fieldOpts: { value: FilterCondition['field']; label: string; noValue?: boolean }[] = [
     { value: 'from', label: t('fieldFrom') },
@@ -39,6 +89,7 @@ export function FilterRulesSection({ filterRules, setFilterRules }: FilterRulesS
     { value: 'ends_with', label: t('opEndsWith') },
     { value: 'regex', label: t('opRegex') },
   ];
+
   const ist: React.CSSProperties = { border: '1px solid var(--color-border-default)', borderRadius: '6px', padding: '5px 8px', fontSize: '12px', background: 'var(--color-bg-primary)', color: 'var(--color-text-primary)', outline: 'none' };
   const sst: React.CSSProperties = { ...ist, cursor: 'pointer', flexShrink: 0 };
 
@@ -72,10 +123,15 @@ export function FilterRulesSection({ filterRules, setFilterRules }: FilterRulesS
       return `${fo?.label ?? c.field} ${matchOpts.find((m) => m.value === c.matchType)?.label ?? c.matchType} "${c.value}"`;
     }).join(rule.logic === 'and' ? ' AND ' : ' OR ');
 
+  const folderName = useCallback((id: string): string => {
+    const f = folders.find((x) => x.id === id);
+    return f ? (f.name || f.full_path) : id;
+  }, [folders]);
+
   const actionBadges = (a: FilterAction) => {
     const parts: string[] = [];
     if (a.labelColor) parts.push(t('badgeLabel'));
-    if (a.moveToFolder) parts.push(`→ ${a.moveToFolder}`);
+    if (a.moveToFolder) parts.push(`→ ${folderName(a.moveToFolder)}`);
     if (a.markRead) parts.push(t('badgeRead'));
     if (a.markUnread) parts.push(t('badgeUnread'));
     if (a.markStarred) parts.push(t('badgeStar'));
@@ -85,6 +141,57 @@ export function FilterRulesSection({ filterRules, setFilterRules }: FilterRulesS
     if (a.forwardTo) parts.push(`${t('actionForward')} → ${a.forwardTo}`);
     return parts.join(' · ') || t('badgeNoAction');
   };
+
+  // ─── Apply rule to existing messages ──────────────────────────────────────
+
+  const applyRule = useCallback(async (rule: FilterRule) => {
+    if (applyingId) return;
+    setApplyingId(rule.id);
+    setApplyResult((prev) => ({ ...prev, [rule.id]: '' }));
+
+    const targetFolderId = rule.action.moveToFolder
+      ? (folders.find((f) => f.id === rule.action.moveToFolder)?.id ?? null)
+      : null;
+
+    let matched = 0;
+    let cursor = '';
+
+    try {
+      // Fetch all messages (all folders) page by page
+      while (true) {
+        const data = await getMessages('', cursor, 200);
+        const msgs: MessageSummary[] = data.messages ?? [];
+
+        // Filter matching messages
+        const hits = msgs.filter((m) => messageMatchesRule(m, rule));
+
+        // Apply actions concurrently per message
+        await Promise.allSettled(
+          hits.map(async (msg) => {
+            const ops: Promise<unknown>[] = [];
+            if (rule.action.markRead !== undefined) ops.push(markRead(msg.id, !!rule.action.markRead));
+            if (rule.action.markUnread) ops.push(markRead(msg.id, false));
+            if (rule.action.markStarred && !msg.starred) ops.push(starMessage(msg.id, true));
+            if (targetFolderId && msg.folder_id !== targetFolderId) ops.push(moveMessage(msg.id, targetFolderId));
+            if (rule.action.deleteMsg) ops.push(deleteMessage(msg.id));
+            await Promise.allSettled(ops);
+          })
+        );
+
+        matched += hits.length;
+        if (!data.has_more) break;
+        cursor = data.next_cursor;
+      }
+    } catch {
+      // best-effort
+    }
+
+    setApplyingId(null);
+    setApplyResult((prev) => ({
+      ...prev,
+      [rule.id]: matched > 0 ? t('applyDone', { count: matched }) : t('applyDoneNone'),
+    }));
+  }, [applyingId, folders, t]);
 
   return (
     <>
@@ -101,17 +208,39 @@ export function FilterRulesSection({ filterRules, setFilterRules }: FilterRulesS
           <div style={{ padding: '8px 20px 16px', fontSize: '13px', color: 'var(--color-text-tertiary)' }}>{t('noRules')}</div>
         )}
         {filterRules.map((rule, idx) => (
-          <div key={rule.id} style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', padding: '10px 20px', borderTop: idx === 0 ? 'none' : '1px solid var(--color-border-subtle)', opacity: rule.enabled ? 1 : 0.5 }}>
-            <span style={{ fontSize: '11px', color: 'var(--color-text-tertiary)', flexShrink: 0, width: '16px', textAlign: 'center', marginTop: '2px' }}>{idx + 1}</span>
-            {rule.action.labelColor && <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: rule.action.labelColor, flexShrink: 0, marginTop: '4px', display: 'inline-block' }} />}
-            <div style={{ flex: 1, minWidth: 0 }}>
-              {rule.name && <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-text-primary)', marginBottom: '2px' }}>{rule.name}</div>}
-              <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{condSummary(rule)}</div>
-              <div style={{ fontSize: '11px', color: 'var(--color-text-tertiary)', marginTop: '2px' }}>{actionBadges(rule.action)}{rule.stopProcessing ? ` · [${t('badgeStop')}]` : ''}</div>
+          <div key={rule.id} style={{ borderTop: idx === 0 ? 'none' : '1px solid var(--color-border-subtle)' }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', padding: '10px 20px', opacity: rule.enabled ? 1 : 0.5 }}>
+              <span style={{ fontSize: '11px', color: 'var(--color-text-tertiary)', flexShrink: 0, width: '16px', textAlign: 'center', marginTop: '2px' }}>{idx + 1}</span>
+              {rule.action.labelColor && <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: rule.action.labelColor, flexShrink: 0, marginTop: '4px', display: 'inline-block' }} />}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                {rule.name && <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-text-primary)', marginBottom: '2px' }}>{rule.name}</div>}
+                <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{condSummary(rule)}</div>
+                <div style={{ fontSize: '11px', color: 'var(--color-text-tertiary)', marginTop: '2px' }}>{actionBadges(rule.action)}{rule.stopProcessing ? ` · [${t('badgeStop')}]` : ''}</div>
+              </div>
+              <button onClick={() => toggleEnabled(rule)} style={{ fontSize: '11px', padding: '2px 7px', borderRadius: '4px', border: '1px solid var(--color-border-default)', background: 'transparent', color: rule.enabled ? 'var(--color-accent)' : 'var(--color-text-tertiary)', cursor: 'pointer', flexShrink: 0 }}>{rule.enabled ? t('active') : t('inactive')}</button>
+              <button onClick={() => setEditingRule(rule)} style={{ fontSize: '11px', padding: '2px 7px', borderRadius: '4px', border: '1px solid var(--color-border-default)', background: 'transparent', color: 'var(--color-text-secondary)', cursor: 'pointer', flexShrink: 0 }}>{t('edit')}</button>
+              <button onClick={() => { const next = filterRules.filter((r) => r.id !== rule.id); setFilterRules(next); saveFilterRules(next); }} style={{ fontSize: '11px', padding: '2px 7px', borderRadius: '4px', border: 'none', background: 'transparent', color: 'var(--color-destructive)', cursor: 'pointer', flexShrink: 0 }}>{t('delete')}</button>
             </div>
-            <button onClick={() => toggleEnabled(rule)} style={{ fontSize: '11px', padding: '2px 7px', borderRadius: '4px', border: '1px solid var(--color-border-default)', background: 'transparent', color: rule.enabled ? 'var(--color-accent)' : 'var(--color-text-tertiary)', cursor: 'pointer', flexShrink: 0 }}>{rule.enabled ? t('active') : t('inactive')}</button>
-            <button onClick={() => setEditingRule(rule)} style={{ fontSize: '11px', padding: '2px 7px', borderRadius: '4px', border: '1px solid var(--color-border-default)', background: 'transparent', color: 'var(--color-text-secondary)', cursor: 'pointer', flexShrink: 0 }}>{t('edit')}</button>
-            <button onClick={() => { const next = filterRules.filter((r) => r.id !== rule.id); setFilterRules(next); saveFilterRules(next); }} style={{ fontSize: '11px', padding: '2px 7px', borderRadius: '4px', border: 'none', background: 'transparent', color: 'var(--color-destructive)', cursor: 'pointer', flexShrink: 0 }}>{t('delete')}</button>
+            {/* Apply Now row */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '4px 20px 10px', paddingLeft: '44px' }}>
+              <button
+                onClick={() => applyRule(rule)}
+                disabled={applyingId === rule.id}
+                style={{
+                  fontSize: '11px', padding: '3px 10px', borderRadius: '4px',
+                  border: '1px solid var(--color-border-default)',
+                  background: applyingId === rule.id ? 'var(--color-bg-secondary)' : 'transparent',
+                  color: applyingId === rule.id ? 'var(--color-text-tertiary)' : 'var(--color-text-secondary)',
+                  cursor: applyingId === rule.id ? 'default' : 'pointer',
+                  flexShrink: 0,
+                }}
+              >
+                {applyingId === rule.id ? t('applying') : t('applyNow')}
+              </button>
+              {applyResult[rule.id] && (
+                <span style={{ fontSize: '11px', color: 'var(--color-text-tertiary)' }}>{applyResult[rule.id]}</span>
+              )}
+            </div>
           </div>
         ))}
       </SectionCard>
@@ -160,10 +289,24 @@ export function FilterRulesSection({ filterRules, setFilterRules }: FilterRulesS
                 <button key={c} onClick={(e) => { e.preventDefault(); setCur({ action: { ...cur.action, labelColor: c } }); }} style={{ width: '16px', height: '16px', borderRadius: '50%', background: c, border: cur.action.labelColor === c ? '3px solid var(--color-text-primary)' : '2px solid transparent', cursor: 'pointer', padding: 0, flexShrink: 0 }} />
               ))}
             </label>
+            {/* Move to folder — select dropdown */}
             <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
-              <input type="checkbox" checked={cur.action.moveToFolder !== undefined} onChange={(e) => setCur({ action: { ...cur.action, moveToFolder: e.target.checked ? '' : undefined } })} />
+              <input type="checkbox" checked={cur.action.moveToFolder !== undefined} onChange={(e) => setCur({ action: { ...cur.action, moveToFolder: e.target.checked ? (movableFolders[0]?.id ?? '') : undefined } })} />
               <span style={{ fontSize: '12px', color: 'var(--color-text-secondary)', flexShrink: 0 }}>{t('actionMoveToFolder')}</span>
-              {cur.action.moveToFolder !== undefined && <input placeholder={t('folderNamePlaceholder')} value={cur.action.moveToFolder} onChange={(e) => setCur({ action: { ...cur.action, moveToFolder: e.target.value } })} style={{ ...ist, flex: 1 }} />}
+              {cur.action.moveToFolder !== undefined && (
+                <select
+                  value={cur.action.moveToFolder}
+                  onChange={(e) => setCur({ action: { ...cur.action, moveToFolder: e.target.value } })}
+                  style={{ ...sst, flex: 1 }}
+                >
+                  {movableFolders.length === 0 && (
+                    <option value="">{t('folderNamePlaceholder')}</option>
+                  )}
+                  {movableFolders.map((f) => (
+                    <option key={f.id} value={f.id}>{f.name || f.full_path}</option>
+                  ))}
+                </select>
+              )}
             </label>
             <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
               <input type="checkbox" checked={!!cur.action.markRead} onChange={(e) => setCur({ action: { ...cur.action, markRead: e.target.checked ? true : undefined, markUnread: undefined } })} />

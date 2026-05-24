@@ -246,7 +246,11 @@
     "save": "保存",
     "add": "添加",
     "editRuleTitle": "编辑规则",
-    "newRuleTitle": "新建规则"
+    "newRuleTitle": "新建规则",
+    "applyNow": "立即应用",
+    "applying": "应用中...",
+    "applyDone": "已应用到 {count} 封邮件",
+    "applyDoneNone": "没有符合条件的邮件"
   },
   "nav": {
     "mail": "邮件",
