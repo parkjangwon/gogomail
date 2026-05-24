@@ -275,6 +275,8 @@ export default function MailPage() {
 
   const { folders, messages, setMessages, foldersLoading, messagesLoading, setMessagesLoading, hasMore, loadingMore, loadMore, adjustUnread, refresh, refreshing } =
     useMailList(activeFolderId, refreshIntervalSeconds);
+  // Version counter to force re-run of the virtual-folder load effect
+  const [virtualRefreshKey, setVirtualRefreshKey] = useState(0);
   const [threadMessages, setThreadMessages] = useState<MessageSummary[]>([]);
 
   const patchVisibleMessages = useCallback((ids: string[], patch: Partial<MessageSummary>) => {
@@ -378,7 +380,7 @@ export default function MailPage() {
       .catch(() => { if (!cancelled) setMessagesLoading(false); });
 
     return () => { cancelled = true; };
-  }, [activeFolderId, setMessages, setMessagesLoading]);
+  }, [activeFolderId, setMessages, setMessagesLoading, virtualRefreshKey]);
 
   // Thread view: fetch threads when enabled and folder changes
   useEffect(() => {
@@ -1134,14 +1136,43 @@ export default function MailPage() {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [messages, searchResults, selectedMessageId, selectedMessage, composeContext, openCompose, showShortcuts, handleDelete, handleArchive, handleSpam, handleMarkRead, handleMarkUnread, handleStar, getNextId, folders, messageLabels, setLabel, activeFolderSystemType, setActiveApp, showSpotlight, handleMove, handlePin, activeApp, isMobile, handleGlobalEscape]);
 
-  const refreshRef = useRef(refresh);
-  useEffect(() => { refreshRef.current = refresh; }, [refresh]);
+  // Unified refresh: works for both real folders (useMailList) and virtual folders.
+  const isVirtualFolder = activeFolderId.startsWith('__') && activeFolderId !== VIRTUAL_ALL;
+  const handleRefresh = useCallback(() => {
+    if (isVirtualFolder) {
+      setVirtualRefreshKey((k) => k + 1);
+    } else {
+      refresh();
+    }
+  }, [isVirtualFolder, refresh]);
+
+  const refreshRef = useRef(handleRefresh);
+  useEffect(() => { refreshRef.current = handleRefresh; }, [handleRefresh]);
+
+  // Periodic background poll
   useEffect(() => {
     const id = setInterval(() => {
       if (document.visibilityState === 'visible') refreshRef.current();
     }, refreshIntervalSeconds * 1000);
     return () => clearInterval(id);
   }, [refreshIntervalSeconds]);
+
+  // Immediate refresh when the tab becomes visible (e.g. user returns after
+  // seeing a push notification in another tab/OS notification).
+  useEffect(() => {
+    let lastRefresh = Date.now();
+    function onVisible() {
+      if (document.visibilityState !== 'visible') return;
+      // Only refresh if it's been more than 10 s since the last poll/refresh
+      // to avoid a double-hit when the page first loads.
+      if (Date.now() - lastRefresh > 10_000) {
+        lastRefresh = Date.now();
+        refreshRef.current();
+      }
+    }
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  }, []);
 
   // Register the service worker only when notifications were already allowed.
   // The permission prompt stays in Settings so entering webmail never surprises users.
@@ -1653,8 +1684,8 @@ export default function MailPage() {
                 await Promise.allSettled(ids.map((id) => moveMessage(id, folderId)));
                 addToast(t('misc.mailPage.bulkMoved', { count: ids.length }));
               }}
-              onRefresh={refresh}
-              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              refreshing={refreshing || (isVirtualFolder && messagesLoading)}
               isMobile={isMobile}
               onOpenSidebar={() => setMobileSidebarOpen(true)}
               onContextMenuMessage={(id, x, y) => setContextMenu({ id, x, y })}

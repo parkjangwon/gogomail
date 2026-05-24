@@ -202,16 +202,22 @@ export function ReadingPane({
   }, [attachments, message]);
 
   useEffect(() => {
-    const isSent = message?.from_addr && userEmail
+    // Delivery tracking is only meaningful when viewing an outgoing message
+    // from the Sent folder. Avoid showing it for self-sent emails sitting in
+    // the inbox — the sender/recipient coincidence makes isSent=true even though
+    // the user is reading it as a recipient, not as the original sender.
+    const senderMatch = message?.from_addr && userEmail
       ? message.from_addr.toLowerCase() === userEmail.toLowerCase()
       : false;
+    const folderSystemType = folders?.find((f) => f.id === message?.folder_id)?.system_type;
+    const isSentView = senderMatch && folderSystemType === 'sent';
 
     setDeliveryStatus(null);
     setDeliveryOpen(false);
     setTrackingEvents(null);
     setTrackingOpen(false);
 
-    if (!message?.id || !isSent) return;
+    if (!message?.id || !isSentView) return;
 
     getMessageDeliveryStatus(message.id)
       .then(setDeliveryStatus)
@@ -310,9 +316,9 @@ export function ReadingPane({
     return null;
   }, [message?.id, message?.html_body, message?.text_body]);
 
-  const isSent = userEmail && message?.from_addr
+  const isSent = (userEmail && message?.from_addr
     ? message.from_addr.toLowerCase() === userEmail.toLowerCase()
-    : false;
+    : false) && folders?.find((f) => f.id === message?.folder_id)?.system_type === 'sent';
 
   const increaseFontSize = useCallback(() => {
     setFontSize((current) => Math.min(24, current + 1));
