@@ -13,9 +13,11 @@ type KeyVerifier interface {
 }
 
 type KeyInfo struct {
-	ID       string
-	DomainID string
-	Scopes   []string
+	ID             string
+	UserID         string
+	DomainID       string
+	Scopes         []string
+	PermissionMode string
 }
 
 type contextKey struct{}
@@ -47,7 +49,7 @@ func Middleware(verifier KeyVerifier) func(http.Handler) http.Handler {
 			}
 
 			token := parts[1]
-			if !strings.HasPrefix(token, keyPrefix) {
+			if !IsManagedAPIKey(token) {
 				next.ServeHTTP(w, r)
 				return
 			}
@@ -71,6 +73,9 @@ func Middleware(verifier KeyVerifier) func(http.Handler) http.Handler {
 			}
 			if strings.TrimSpace(info.DomainID) != "" {
 				r.Header.Set("X-Gogomail-Domain-ID", strings.TrimSpace(info.DomainID))
+			}
+			if strings.TrimSpace(info.UserID) != "" {
+				r.Header.Set("X-Gogomail-Resolved-User-ID", strings.TrimSpace(info.UserID))
 			}
 			next.ServeHTTP(w, r.WithContext(ContextWithKeyInfo(r.Context(), info)))
 		})

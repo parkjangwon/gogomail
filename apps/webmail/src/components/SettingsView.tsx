@@ -14,6 +14,7 @@ import { SettingsStorageSection, type BackupState } from '@/components/settings-
 import { SettingsPrivacySection } from '@/components/settings-view/SettingsPrivacySection';
 import { SettingsNotificationsSection } from '@/components/settings-view/SettingsNotificationsSection';
 import { SettingsSecuritySection } from '@/components/settings-view/SettingsSecuritySection';
+import { SettingsMCPSection } from '@/components/settings-view/SettingsMCPSection';
 import { handleVerticalNavKeyDown } from '@/lib/navKeyboard';
 import { webPushPublicKeyToUint8Array } from '@/lib/webpush';
 import { loadLocalEmailTemplates, normalizeEmailTemplates, saveLocalEmailTemplates, type StoredEmailTemplate } from '@/lib/emailTemplates';
@@ -1119,6 +1120,9 @@ export function SettingsView({ userEmail, userName, initialSection }: SettingsVi
           />
         );
       }
+
+      case 'mcp':
+        return <SettingsMCPSection />;
 
       case 'accessibility':
         return (

@@ -1711,6 +1711,85 @@ export interface WebmailPreferences {
   vacation?: Record<string, unknown>;
   signatures?: Record<string, string>;
   templates?: unknown[];
+  mcp?: MCPSettings;
+}
+
+export type MCPPermissionMode = 'basic' | 'bypass';
+
+export interface MCPMailSettings {
+  send_enabled: boolean;
+  confirm_external_recipients: boolean;
+  confirm_attachments: boolean;
+  daily_send_limit: number;
+}
+
+export type MCPSettingsScopes = Record<'mail' | 'contacts' | 'drive' | 'calendar', string[]>;
+
+export interface MCPSettings {
+  enabled: boolean;
+  permission_mode: MCPPermissionMode;
+  generated_mail_notice_enabled: boolean;
+  generated_mail_notice_text: string;
+  require_confirmation_for_sensitive_actions: boolean;
+  bypass_mode_allowed: boolean;
+  mail: MCPMailSettings;
+  scopes: MCPSettingsScopes;
+}
+
+export interface MCPAccessKey {
+  id: string;
+  user_id: string;
+  domain_id: string;
+  name: string;
+  token_suffix: string;
+  scopes: string[];
+  permission_mode: MCPPermissionMode;
+  allowed_cidrs?: string[];
+  expires_at?: string;
+  created_at: string;
+  last_used_at?: string;
+  revoked: boolean;
+}
+
+export interface CreateMCPAccessKeyRequest {
+  name: string;
+  scopes: string[];
+  permission_mode: MCPPermissionMode;
+  allowed_cidrs?: string[];
+  expires_at?: string | null;
+}
+
+export async function getMCPSettings(): Promise<MCPSettings> {
+  const data = await request<{ mcp: MCPSettings }>('me/mcp/settings');
+  return data.mcp;
+}
+
+export async function setMCPSettings(settings: MCPSettings): Promise<MCPSettings> {
+  const data = await request<{ mcp: MCPSettings }>('me/mcp/settings', {
+    method: 'PUT',
+    body: JSON.stringify(settings),
+  });
+  return data.mcp;
+}
+
+export async function listMCPAccessKeys(): Promise<MCPAccessKey[]> {
+  const data = await request<{ mcp_access_keys?: MCPAccessKey[] }>('me/mcp/access-keys');
+  return data.mcp_access_keys ?? [];
+}
+
+export async function createMCPAccessKey(req: CreateMCPAccessKeyRequest): Promise<{ key: MCPAccessKey; token: string }> {
+  const data = await request<{ mcp_access_key: MCPAccessKey; token: string }>('me/mcp/access-keys', {
+    method: 'POST',
+    body: JSON.stringify(req),
+  });
+  return { key: data.mcp_access_key, token: data.token };
+}
+
+export async function revokeMCPAccessKey(id: string): Promise<MCPAccessKey> {
+  const data = await request<{ mcp_access_key: MCPAccessKey }>(`me/mcp/access-keys/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+  });
+  return data.mcp_access_key;
 }
 
 export async function getPreferences(): Promise<WebmailPreferences> {

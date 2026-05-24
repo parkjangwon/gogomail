@@ -1,6 +1,13 @@
 # gogomail current status
 
-Last updated: 2026-05-24 (MCP support security hardening)
+Last updated: 2026-05-24 (User MCP automation)
+
+## User MCP Automation (2026-05-24)
+- Added the user-facing `apps/gogomail-user-mcp` server so end users can automate mail, contacts, Drive, and calendar through user-scoped APIs instead of the admin/support MCP.
+- Added user MCP access keys with `gmu_` tokens, hashed storage, suffix-only listing, permission mode, scopes, CIDR allowlists, expiry, revocation, and last-used tracking.
+- Added webmail MCP settings and key-management APIs under `/api/v1/me/mcp/*`, plus domain admin policy APIs under `/admin/v1/domains/{id}/mcp-policy`.
+- Domain policy can disable user MCP, block user-issued keys, block bypass mode, and constrain allowed scopes.
+- Verification: `go test ./internal/apikeys ./internal/httpapi ./internal/maildb ./internal/mailservice`; `go test -timeout=240s ./...`; `npm test`, `npm run type-check`, and `npm run build` in `apps/gogomail-user-mcp`; `pnpm run type-check` in `apps/webmail` and `apps/console`.
 
 ## MCP Support Security Hardening (2026-05-24)
 - Renamed the exposed MCP identity to `gogomail-manage-mcp` and package metadata to `@gogomail/manage-mcp` so agent/client configurations clearly signal operational management scope.

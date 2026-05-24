@@ -11,6 +11,7 @@ import {
   KeyIcon,
   FunnelIcon,
   CalendarDaysIcon,
+  CommandLineIcon,
   NoSymbolIcon,
   LockClosedIcon,
   EyeIcon,
@@ -31,6 +32,7 @@ export type SectionId =
   | 'notifications'
   | 'shortcuts'
   | 'security'
+  | 'mcp'
   | 'accessibility'
   | 'about';
 
@@ -49,6 +51,7 @@ export const NAV_ITEMS: { id: SectionId; labelKey: string; icon: ReactNode }[] =
   { id: 'notifications', labelKey: 'navNotifications', icon: <BellIcon style={{ width: 16, height: 16 }} /> },
   { id: 'shortcuts', labelKey: 'navShortcuts', icon: <KeyIcon style={{ width: 16, height: 16 }} /> },
   { id: 'security', labelKey: 'navSecurity', icon: <ShieldCheckIcon style={{ width: 16, height: 16 }} /> },
+  { id: 'mcp', labelKey: 'navMcp', icon: <CommandLineIcon style={{ width: 16, height: 16 }} /> },
   { id: 'accessibility', labelKey: 'navAccessibility', icon: <EyeIcon style={{ width: 16, height: 16 }} /> },
   { id: 'about', labelKey: 'navAbout', icon: <InformationCircleIcon style={{ width: 16, height: 16 }} /> },
 ];

@@ -21,6 +21,9 @@ import {
   Input,
   Modal,
   Select,
+  Toggle,
+  Checkbox,
+  type SelectProps,
 } from '@cloudscape-design/components';
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
@@ -71,10 +74,74 @@ interface DailyCount {
   failed: number;
 }
 
+interface DomainMCPPolicy {
+  enabled: boolean;
+  allow_user_access_keys: boolean;
+  allow_bypass_mode: boolean;
+  force_generated_mail_notice: boolean;
+  audit_level: string;
+  allowed_scopes: string[];
+  external_recipient_confirmation?: string;
+  public_drive_share_confirmation?: string;
+  [key: string]: unknown;
+}
+
+interface DomainMCPPolicyConfig {
+  Locked?: boolean;
+  Version?: number;
+  UpdatedAt?: string;
+}
+
 const STATUS_OPTIONS = [
   { label: 'active', value: 'active' },
   { label: 'suspended', value: 'suspended' },
 ];
+
+const DEFAULT_MCP_SCOPES = [
+  'mail:read',
+  'mail:write',
+  'mail:send',
+  'mail:manage',
+  'contacts:read',
+  'contacts:write',
+  'contacts:manage',
+  'drive:read',
+  'drive:write',
+  'drive:manage',
+  'calendar:read',
+  'calendar:write',
+  'calendar:manage',
+];
+
+const DEFAULT_MCP_POLICY: DomainMCPPolicy = {
+  enabled: true,
+  allow_user_access_keys: true,
+  allow_bypass_mode: true,
+  force_generated_mail_notice: false,
+  audit_level: 'full',
+  allowed_scopes: DEFAULT_MCP_SCOPES,
+  external_recipient_confirmation: 'basic',
+  public_drive_share_confirmation: 'basic',
+};
+
+const MCP_AUDIT_LEVEL_OPTIONS: SelectProps.Option[] = [
+  { label: 'Off', value: 'off' },
+  { label: 'Basic', value: 'basic' },
+  { label: 'Full', value: 'full' },
+];
+
+function normalizeMCPPolicy(policy?: Partial<DomainMCPPolicy> | null): DomainMCPPolicy {
+  return {
+    ...DEFAULT_MCP_POLICY,
+    ...(policy ?? {}),
+    enabled: policy?.enabled ?? DEFAULT_MCP_POLICY.enabled,
+    allow_user_access_keys: policy?.allow_user_access_keys ?? DEFAULT_MCP_POLICY.allow_user_access_keys,
+    allow_bypass_mode: policy?.allow_bypass_mode ?? DEFAULT_MCP_POLICY.allow_bypass_mode,
+    force_generated_mail_notice: policy?.force_generated_mail_notice ?? DEFAULT_MCP_POLICY.force_generated_mail_notice,
+    audit_level: policy?.audit_level ?? DEFAULT_MCP_POLICY.audit_level,
+    allowed_scopes: Array.isArray(policy?.allowed_scopes) ? policy.allowed_scopes : DEFAULT_MCP_POLICY.allowed_scopes,
+  };
+}
 
 export default function DomainDetailPage() {
   const { t } = useI18n();
@@ -112,12 +179,21 @@ export default function DomainDetailPage() {
   const [statsLoading, setStatsLoading] = useState(false);
   const [statsFetched, setStatsFetched] = useState(false);
 
+  // MCP policy
+  const [mcpPolicy, setMcpPolicy] = useState<DomainMCPPolicy>(DEFAULT_MCP_POLICY);
+  const [mcpPolicyConfig, setMcpPolicyConfig] = useState<DomainMCPPolicyConfig | null>(null);
+  const [mcpPolicyLoading, setMcpPolicyLoading] = useState(false);
+  const [mcpPolicySaving, setMcpPolicySaving] = useState(false);
+  const [mcpPolicyError, setMcpPolicyError] = useState('');
+  const [mcpPolicySaved, setMcpPolicySaved] = useState(false);
+
   useEffect(() => {
     Promise.all([
       fetch(`/api/admin/domains/${domainId}`, { credentials: 'include' }).then(r => r.ok ? r.json() : null),
       fetch(`/api/admin/users?domain_id=${domainId}&limit=100`, { credentials: 'include' }).then(r => r.ok ? r.json() : { users: [] }),
       fetch(`/api/admin/domains/${domainId}/config`, { credentials: 'include' }).then(r => r.ok ? r.json() : { config: [] }),
-    ]).then(([domainData, usersData, settingsData]) => {
+      fetch(`/api/admin/domains/${domainId}/mcp-policy`, { credentials: 'include' }).then(r => r.ok ? r.json() : null).catch(() => null),
+    ]).then(([domainData, usersData, settingsData, mcpPolicyData]) => {
       if (domainData?.domain) {
         setDomain(domainData.domain);
         setEditForm({
@@ -127,6 +203,11 @@ export default function DomainDetailPage() {
       }
       setUsers(usersData.users || []);
       setSettings(settingsData.config || []);
+      setMcpPolicy(normalizeMCPPolicy(mcpPolicyData?.mcp_policy));
+      setMcpPolicyConfig(mcpPolicyData?.config ?? null);
+      if (!mcpPolicyData) {
+        setMcpPolicyError(t('pages.domain_detail.mcp_policy_load_error', 'Failed to load MCP policy. Defaults are shown until refreshed.'));
+      }
     }).catch((err) => {
       console.error('Failed to load domain details:', err);
       setLoadError('Failed to load domain details. Please refresh the page.');
@@ -226,6 +307,69 @@ export default function DomainDetailPage() {
     } finally {
       setSavingSetting(false);
     }
+  };
+
+  const refreshMCPPolicy = async () => {
+    setMcpPolicyLoading(true);
+    setMcpPolicyError('');
+    setMcpPolicySaved(false);
+    try {
+      const res = await fetch(`/api/admin/domains/${domainId}/mcp-policy`, { credentials: 'include' });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({})) as { error?: { message?: string } };
+        setMcpPolicyError(data.error?.message ?? t('pages.domain_detail.mcp_policy_load_error', 'Failed to load MCP policy.'));
+        return;
+      }
+      const data = await res.json();
+      setMcpPolicy(normalizeMCPPolicy(data.mcp_policy));
+      setMcpPolicyConfig(data.config ?? null);
+    } finally {
+      setMcpPolicyLoading(false);
+    }
+  };
+
+  const handleSaveMCPPolicy = async () => {
+    setMcpPolicySaving(true);
+    setMcpPolicyError('');
+    setMcpPolicySaved(false);
+    try {
+      const res = await fetch(`/api/admin/domains/${domainId}/mcp-policy`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          value: mcpPolicy,
+          locked: mcpPolicyConfig?.Locked ?? false,
+          ...(mcpPolicyConfig?.Version ? { version: mcpPolicyConfig.Version } : {}),
+        }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({})) as { error?: { message?: string } };
+        setMcpPolicyError(data.error?.message ?? t('pages.domain_detail.mcp_policy_save_error', 'Failed to save MCP policy.'));
+        return;
+      }
+      const data = await res.json();
+      setMcpPolicy(normalizeMCPPolicy(data.mcp_policy));
+      setMcpPolicyConfig(data.config ?? null);
+      setMcpPolicySaved(true);
+    } finally {
+      setMcpPolicySaving(false);
+    }
+  };
+
+  const setMCPPolicyScope = (scope: string, checked: boolean) => {
+    setMcpPolicy((current) => {
+      const scopes = new Set(current.allowed_scopes);
+      if (checked) scopes.add(scope);
+      else scopes.delete(scope);
+      return { ...current, allowed_scopes: DEFAULT_MCP_SCOPES.filter((item) => scopes.has(item)) };
+    });
+    setMcpPolicySaved(false);
+  };
+
+  const updateMCPPolicy = (patch: Partial<DomainMCPPolicy>) => {
+    setMcpPolicy((current) => ({ ...current, ...patch }));
+    setMcpPolicySaved(false);
   };
 
   const fetchMailStats = async (_domainName: string, force = false) => {
@@ -502,6 +646,155 @@ export default function DomainDetailPage() {
                       </Button>
                     </SpaceBetween>
                   </Container>
+                </SpaceBetween>
+              ),
+            },
+            {
+              id: 'mcp-policy',
+              label: t('pages.domain_detail.mcp_policy_tab', 'MCP Policy'),
+              content: (
+                <SpaceBetween size="l">
+                  {mcpPolicyError ? (
+                    <Alert type="error" dismissible onDismiss={() => setMcpPolicyError('')}>
+                      {mcpPolicyError}
+                    </Alert>
+                  ) : null}
+                  {mcpPolicySaved ? (
+                    <Alert type="success" dismissible onDismiss={() => setMcpPolicySaved(false)}>
+                      {t('pages.domain_detail.mcp_policy_saved', 'MCP policy saved.')}
+                    </Alert>
+                  ) : null}
+
+                  <Container
+                    header={
+                      <Header
+                        variant="h2"
+                        description={t('pages.domain_detail.mcp_policy_desc', 'Control user-facing MCP automation for this domain.')}
+                        actions={
+                          <SpaceBetween direction="horizontal" size="xs">
+                            <Button iconName="refresh" onClick={refreshMCPPolicy} loading={mcpPolicyLoading}>
+                              {t('common.refresh')}
+                            </Button>
+                            <Button variant="primary" onClick={handleSaveMCPPolicy} loading={mcpPolicySaving}>
+                              {t('common.save')}
+                            </Button>
+                          </SpaceBetween>
+                        }
+                      >
+                        {t('pages.domain_detail.mcp_policy_title', 'Domain MCP policy')}
+                      </Header>
+                    }
+                  >
+                    {mcpPolicyLoading ? (
+                      <Box textAlign="center" padding="xl"><Spinner /></Box>
+                    ) : (
+                      <SpaceBetween size="m">
+                        <ColumnLayout columns={2}>
+                          <FormField
+                            label={t('pages.domain_detail.mcp_enabled', 'Domain MCP enabled')}
+                            description={t('pages.domain_detail.mcp_enabled_desc', 'Disable to block all user MCP automation for this domain.')}
+                          >
+                            <Toggle
+                              checked={mcpPolicy.enabled}
+                              onChange={(e) => updateMCPPolicy({ enabled: e.detail.checked })}
+                            >
+                              {mcpPolicy.enabled ? t('common.enabled') : t('common.disabled')}
+                            </Toggle>
+                          </FormField>
+
+                          <FormField
+                            label={t('pages.domain_detail.mcp_user_keys', 'Allow user access keys')}
+                            description={t('pages.domain_detail.mcp_user_keys_desc', 'Permit users to issue user-scoped MCP keys.')}
+                          >
+                            <Toggle
+                              checked={mcpPolicy.allow_user_access_keys}
+                              onChange={(e) => updateMCPPolicy({ allow_user_access_keys: e.detail.checked })}
+                            >
+                              {mcpPolicy.allow_user_access_keys ? t('common.enabled') : t('common.disabled')}
+                            </Toggle>
+                          </FormField>
+
+                          <FormField
+                            label={t('pages.domain_detail.mcp_bypass_mode', 'Allow bypass mode')}
+                            description={t('pages.domain_detail.mcp_bypass_mode_desc', 'Permit keys that bypass per-tool confirmations where users select bypass mode.')}
+                          >
+                            <Toggle
+                              checked={mcpPolicy.allow_bypass_mode}
+                              onChange={(e) => updateMCPPolicy({ allow_bypass_mode: e.detail.checked })}
+                            >
+                              {mcpPolicy.allow_bypass_mode ? t('common.enabled') : t('common.disabled')}
+                            </Toggle>
+                          </FormField>
+
+                          <FormField
+                            label={t('pages.domain_detail.mcp_force_notice', 'Force generated-mail notice')}
+                            description={t('pages.domain_detail.mcp_force_notice_desc', 'Require MCP-written outbound mail to carry the generated-mail notice.')}
+                          >
+                            <Toggle
+                              checked={mcpPolicy.force_generated_mail_notice}
+                              onChange={(e) => updateMCPPolicy({ force_generated_mail_notice: e.detail.checked })}
+                            >
+                              {mcpPolicy.force_generated_mail_notice ? t('common.enabled') : t('common.disabled')}
+                            </Toggle>
+                          </FormField>
+                        </ColumnLayout>
+
+                        <FormField
+                          label={t('pages.domain_detail.mcp_audit_level', 'Audit level')}
+                          description={t('pages.domain_detail.mcp_audit_level_desc', 'Set expected audit verbosity for MCP activity.')}
+                        >
+                          <Select
+                            selectedOption={MCP_AUDIT_LEVEL_OPTIONS.find((option) => option.value === mcpPolicy.audit_level) ?? {
+                              label: mcpPolicy.audit_level,
+                              value: mcpPolicy.audit_level,
+                            }}
+                            options={MCP_AUDIT_LEVEL_OPTIONS}
+                            onChange={(e) => updateMCPPolicy({ audit_level: e.detail.selectedOption.value ?? 'full' })}
+                          />
+                        </FormField>
+                      </SpaceBetween>
+                    )}
+                  </Container>
+
+                  <Container
+                    header={
+                      <Header
+                        variant="h2"
+                        counter={`(${mcpPolicy.allowed_scopes.length}/${DEFAULT_MCP_SCOPES.length})`}
+                        actions={
+                          <SpaceBetween direction="horizontal" size="xs">
+                            <Button onClick={() => updateMCPPolicy({ allowed_scopes: [] })}>
+                              {t('pages.domain_detail.mcp_clear_scopes', 'Clear')}
+                            </Button>
+                            <Button onClick={() => updateMCPPolicy({ allowed_scopes: DEFAULT_MCP_SCOPES })}>
+                              {t('pages.domain_detail.mcp_select_all_scopes', 'Select all')}
+                            </Button>
+                          </SpaceBetween>
+                        }
+                      >
+                        {t('pages.domain_detail.mcp_allowed_scopes', 'Allowed scopes')}
+                      </Header>
+                    }
+                  >
+                    <ColumnLayout columns={3}>
+                      {DEFAULT_MCP_SCOPES.map((scope) => (
+                        <Checkbox
+                          key={scope}
+                          checked={mcpPolicy.allowed_scopes.includes(scope)}
+                          onChange={(e) => setMCPPolicyScope(scope, e.detail.checked)}
+                        >
+                          <Box variant="code">{scope}</Box>
+                        </Checkbox>
+                      ))}
+                    </ColumnLayout>
+                  </Container>
+
+                  {mcpPolicyConfig?.UpdatedAt ? (
+                    <Box color="text-body-secondary" fontSize="body-s">
+                      {t('pages.domain_detail.mcp_policy_last_updated', 'Last updated')}: {new Date(mcpPolicyConfig.UpdatedAt).toLocaleString()}
+                      {typeof mcpPolicyConfig.Version === 'number' ? ` · v${mcpPolicyConfig.Version}` : ''}
+                    </Box>
+                  ) : null}
                 </SpaceBetween>
               ),
             },

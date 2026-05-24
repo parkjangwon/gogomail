@@ -12,25 +12,38 @@ import (
 )
 
 const keyPrefix = "gm_"
+const userMCPKeyPrefix = "gmu_"
 const keyEntropyBytes = 32
 const defaultTTL = 30 * 24 * time.Hour
 
 func GenerateKey() (string, error) {
+	return generateKeyWithPrefix(keyPrefix)
+}
+
+func GenerateUserMCPKey() (string, error) {
+	return generateKeyWithPrefix(userMCPKeyPrefix)
+}
+
+func generateKeyWithPrefix(prefix string) (string, error) {
 	b := make([]byte, keyEntropyBytes)
 	if _, err := rand.Read(b); err != nil {
 		return "", fmt.Errorf("generate key entropy: %w", err)
 	}
-	return keyPrefix + base64.RawURLEncoding.EncodeToString(b), nil
+	return prefix + base64.RawURLEncoding.EncodeToString(b), nil
 }
 
 func VerifyKeyFormat(key string) bool {
-	if !strings.HasPrefix(key, keyPrefix) {
+	if !strings.HasPrefix(key, keyPrefix) && !strings.HasPrefix(key, userMCPKeyPrefix) {
 		return false
 	}
 	if len(key) < len(keyPrefix)+8 {
 		return false
 	}
 	return true
+}
+
+func IsManagedAPIKey(key string) bool {
+	return strings.HasPrefix(key, keyPrefix) || strings.HasPrefix(key, userMCPKeyPrefix)
 }
 
 func HashKey(key string) string {
