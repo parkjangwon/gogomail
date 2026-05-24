@@ -1,6 +1,12 @@
 # gogomail current status
 
-Last updated: 2026-05-24 (Webmail compose duplicate-send guard)
+Last updated: 2026-05-24 (Webmail MCP settings cleanup)
+
+## Webmail MCP settings cleanup (2026-05-24)
+- User MCP settings now remove the duplicate global permission-mode/bypass controls from the default preference surface, leaving the user-facing flow focused on enabling MCP, sensitive-action confirmation, generated-mail notices, and mail-send safeguards.
+- Dependent controls are now shown only when relevant: generated notice text appears only when notice insertion is enabled, and external-recipient/attachment/daily-limit send controls appear only when MCP mail sending is enabled.
+- Access-key scope selection is grouped by Mail, Contacts, Drive, and Calendar and renders localized labels instead of raw scope ids such as `drive:read`; existing key summaries use the same localized labels while preserving raw ids as hover titles during creation.
+- Verification: `pnpm -C apps/webmail type-check`.
 
 ## Webmail compose duplicate-send guard (2026-05-24)
 - Webmail compose now uses a synchronous in-flight guard across draft preparation, undo countdown, scheduled sends, and immediate sends so rapid repeated submit events cannot create many sent copies before React state updates.
