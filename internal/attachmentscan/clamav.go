@@ -192,7 +192,7 @@ func (s *ClamAVScanner) Ping(ctx context.Context) error {
 	if err != nil && err != io.EOF {
 		return fmt.Errorf("clamav ping: read: %w", err)
 	}
-	if strings.TrimSpace(resp) != "PONG" {
+	if strings.Trim(resp, "\x00\r\n\t ") != "PONG" {
 		return fmt.Errorf("clamav ping: unexpected response %q", resp)
 	}
 	return nil

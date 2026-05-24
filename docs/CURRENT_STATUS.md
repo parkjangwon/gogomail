@@ -1,6 +1,14 @@
 # gogomail current status
 
-Last updated: 2026-05-24 (web_push_subscriptions migration)
+Last updated: 2026-05-24 (dev infra and MCP support smoke hardening)
+
+## Dev Infra and MCP Support Smoke Hardening (2026-05-24)
+- Fixed the dev Air build target to compile the whole `cmd/gogomail` package so the Docker Compose backend includes all command files.
+- Made `docker/docker-compose.dev.yml` portable by mounting the repository with a relative path and providing development secrets that satisfy runtime validation.
+- Fixed migration `0110_audit_log_user_id_index.sql` by marking the concurrent index migration as non-transactional, with a regression test that guards future `CONCURRENTLY` migrations.
+- Fixed ClamAV readiness by accepting null-terminated `PONG` responses and returning the readiness status value expected by `/health/ready`.
+- Fixed MCP Admin API compatibility by omitting `Content-Type` on bodyless GET requests, then verified real MCP stdio calls against the dev backend.
+- Verification: `go test -timeout=240s ./...`, MCP `type-check`/`test`/`build`, fresh migration `0001` to `0152`, Docker Compose backend `/health/ready`, and MCP smoke calls.
 
 ## Web Push Subscriptions Migration (2026-05-24)
 - Added `migrations/0152_web_push_subscriptions.sql` which creates the `web_push_subscriptions` table.

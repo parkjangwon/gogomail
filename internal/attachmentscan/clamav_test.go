@@ -53,6 +53,33 @@ func TestClamAVScannerRejectsFoundStream(t *testing.T) {
 	}
 }
 
+func TestClamAVScannerPingAcceptsNullTerminatedPong(t *testing.T) {
+	t.Parallel()
+
+	scanner, err := NewClamAVScanner(ClamAVOptions{
+		Addr:    "127.0.0.1:3310",
+		Timeout: time.Second,
+		Dialer: func(context.Context, string, string) (net.Conn, error) {
+			server, client := net.Pipe()
+			go func() {
+				defer server.Close()
+				command := make([]byte, len("zPING\x00"))
+				if _, err := io.ReadFull(server, command); err != nil {
+					return
+				}
+				_, _ = server.Write([]byte("PONG\x00"))
+			}()
+			return client, nil
+		},
+	})
+	if err != nil {
+		t.Fatalf("NewClamAVScanner returned error: %v", err)
+	}
+	if err := scanner.Ping(context.Background()); err != nil {
+		t.Fatalf("Ping returned error: %v", err)
+	}
+}
+
 func TestStreamHookScansSpooledFile(t *testing.T) {
 	t.Parallel()
 

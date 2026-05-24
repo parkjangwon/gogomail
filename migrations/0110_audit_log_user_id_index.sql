@@ -1,4 +1,5 @@
 -- +goose Up
+-- +goose NO TRANSACTION
 -- Add index for user_id filtering on audit_logs.
 -- Without this, queries filtered by user_id perform a full table scan
 -- as the existing indexes only cover (company_id, created_at) and (actor_id, created_at).
