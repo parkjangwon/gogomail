@@ -114,6 +114,42 @@ func (m *mockRepository) ListUnitsForUser(ctx context.Context, userID string) ([
 	return result, nil
 }
 
+func (m *mockRepository) GetMembershipsForUser(ctx context.Context, userID string) ([]MembershipDetail, error) {
+	var result []MembershipDetail
+	for _, mem := range m.members {
+		if mem.UserID != userID || mem.EndedAt != nil {
+			continue
+		}
+		unit, ok := m.units[mem.OrganizationUnitID]
+		if !ok {
+			continue
+		}
+		name := unit.DisplayName
+		if name == "" {
+			name = unit.Name
+		}
+		result = append(result, MembershipDetail{
+			MemberID:  mem.ID,
+			UnitID:    mem.OrganizationUnitID,
+			UnitName:  name,
+			Title:     mem.Title,
+			Role:      mem.Role,
+			IsPrimary: mem.IsPrimary,
+		})
+	}
+	return result, nil
+}
+
+func (m *mockRepository) UpdateMember(ctx context.Context, memberID, title, role string) error {
+	mem, ok := m.members[memberID]
+	if !ok {
+		return fmt.Errorf("not found")
+	}
+	mem.Title = title
+	mem.Role = role
+	return nil
+}
+
 func (m *mockRepository) RemoveUser(ctx context.Context, memberID string) error {
 	if mem, ok := m.members[memberID]; ok {
 		now := time.Now()
@@ -318,7 +354,7 @@ func TestServiceAssignUserToUnit(t *testing.T) {
 	}
 	svc.CreateUnit(ctx, unit)
 
-	err := svc.AssignUserToUnit(ctx, unit.ID, "user-1", "manager")
+	err := svc.AssignUserToUnit(ctx, unit.ID, "user-1", "manager", "")
 	if err != nil {
 		t.Fatalf("AssignUserToUnit failed: %v", err)
 	}
@@ -345,7 +381,7 @@ func TestServiceAssignUserToUnitDefaults(t *testing.T) {
 	}
 	svc.CreateUnit(ctx, unit)
 
-	err := svc.AssignUserToUnit(ctx, unit.ID, "user-1", "")
+	err := svc.AssignUserToUnit(ctx, unit.ID, "user-1", "", "")
 	if err != nil {
 		t.Fatalf("AssignUserToUnit failed: %v", err)
 	}
@@ -368,7 +404,7 @@ func TestServiceRemoveUserFromUnit(t *testing.T) {
 		Status:    "active",
 	}
 	svc.CreateUnit(ctx, unit)
-	svc.AssignUserToUnit(ctx, unit.ID, "user-1", "member")
+	svc.AssignUserToUnit(ctx, unit.ID, "user-1", "member", "")
 
 	members, _ := repo.GetMembersInUnit(ctx, unit.ID)
 	memberID := members[0].ID
@@ -398,7 +434,7 @@ func TestServiceGetUserUnits(t *testing.T) {
 	if err := svc.CreateUnit(ctx, unit); err != nil {
 		t.Fatalf("CreateUnit failed: %v", err)
 	}
-	if err := svc.AssignUserToUnit(ctx, unit.ID, "user-1", "member"); err != nil {
+	if err := svc.AssignUserToUnit(ctx, unit.ID, "user-1", "member", ""); err != nil {
 		t.Fatalf("AssignUserToUnit failed: %v", err)
 	}
 

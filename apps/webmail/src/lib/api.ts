@@ -1159,6 +1159,22 @@ export async function listOrgTree(): Promise<OrgUnit[]> {
   } catch { return []; }
 }
 
+export interface DirectoryProfile {
+  found: boolean;
+  display_name?: string;
+  org_unit_name?: string;
+  title?: string;
+}
+
+export async function getDirectoryProfile(email: string): Promise<DirectoryProfile | null> {
+  try {
+    const params = new URLSearchParams({ email });
+    const res = await fetch(`/api/mail/directory/profile?${params}`);
+    if (!res.ok) return null;
+    return await res.json() as DirectoryProfile;
+  } catch { return null; }
+}
+
 // ── Threads ──────────────────────────────────────────────────────────────────
 
 export interface ThreadSummary {

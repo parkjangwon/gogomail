@@ -46,6 +46,16 @@ type SyncLog struct {
 	CreatedAt      time.Time  `json:"created_at"`
 }
 
+// MembershipDetail is a user's active membership in an org unit, including resolved unit name.
+type MembershipDetail struct {
+	MemberID  string `json:"member_id"`
+	UnitID    string `json:"unit_id"`
+	UnitName  string `json:"unit_name"`
+	Title     string `json:"title,omitempty"`
+	Role      string `json:"role"`
+	IsPrimary bool   `json:"is_primary"`
+}
+
 // OrganizationHierarchy represents a full org tree node.
 type OrganizationHierarchy struct {
 	Unit        *OrganizationUnit        `json:"unit"`

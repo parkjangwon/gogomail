@@ -675,6 +675,8 @@ export default function UsersPage() {
 
       <EditUserModal
         visible={!!editUser}
+        userId={editUser?.id ?? ''}
+        companyId={companyId}
         username={editUser?.username ?? ''}
         editForm={editForm}
         setEditForm={setEditForm}

@@ -133,6 +133,10 @@ func (f *fakeDirectoryRepo) ListOrgMembersByOrgIDs(_ context.Context, companyID,
 	return map[string][]directory.Principal{"org-1": []directory.Principal{{ID: "user-1", DisplayName: "Jangwon Park", PrimaryEmail: "pjw@parkjw.org"}}}, nil
 }
 
+func (f *fakeDirectoryRepo) ResolveUserByEmail(_ context.Context, req directory.ResolveUserByEmailRequest) (directory.Principal, error) {
+	return directory.Principal{ID: "user-1", CompanyID: "company-1", DomainID: "domain-1", DisplayName: "Jangwon Park", PrimaryEmail: req.Email}, nil
+}
+
 func TestContactListAddressBooks(t *testing.T) {
 	t.Parallel()
 

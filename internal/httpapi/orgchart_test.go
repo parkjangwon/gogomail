@@ -70,12 +70,13 @@ func (m *mockOrgChartService) DeleteUnit(ctx context.Context, id string) error {
 	return nil
 }
 
-func (m *mockOrgChartService) AssignUserToUnit(ctx context.Context, unitID, userID string, role string) error {
+func (m *mockOrgChartService) AssignUserToUnit(ctx context.Context, unitID, userID, role, title string) error {
 	member := &orgchart.OrganizationMember{
 		ID:                 fmt.Sprintf("member-%d", len(m.members)),
 		OrganizationUnitID: unitID,
 		UserID:             userID,
 		Role:               role,
+		Title:              title,
 		StartedAt:          time.Now(),
 		IsPrimary:          true,
 		CreatedAt:          time.Now(),
@@ -83,6 +84,29 @@ func (m *mockOrgChartService) AssignUserToUnit(ctx context.Context, unitID, user
 	}
 	m.members[member.ID] = member
 	return nil
+}
+
+func (m *mockOrgChartService) UpdateMemberTitle(_ context.Context, memberID, title, role string) error {
+	mem, ok := m.members[memberID]
+	if !ok {
+		return fmt.Errorf("not found")
+	}
+	mem.Title = title
+	mem.Role = role
+	return nil
+}
+
+func (m *mockOrgChartService) GetMembershipsForUser(_ context.Context, userID string) ([]orgchart.MembershipDetail, error) {
+	var result []orgchart.MembershipDetail
+	for _, mem := range m.members {
+		if mem.UserID == userID && mem.EndedAt == nil {
+			result = append(result, orgchart.MembershipDetail{
+				MemberID: mem.ID, UnitID: mem.OrganizationUnitID,
+				Title: mem.Title, Role: mem.Role, IsPrimary: mem.IsPrimary,
+			})
+		}
+	}
+	return result, nil
 }
 
 func (m *mockOrgChartService) RemoveUserFromUnit(ctx context.Context, memberID string) error {
