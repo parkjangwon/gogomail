@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -250,7 +251,7 @@ func RegisterMFARoutes(mux *http.ServeMux, tokenManager *auth.TokenManager, opts
 
 		qrURI := fmt.Sprintf(
 			"otpauth://totp/%s:%s?secret=%s&issuer=%s&digits=6&period=30",
-			req.Issuer, req.Email, secret, req.Issuer,
+			url.PathEscape(req.Issuer), url.PathEscape(req.Email), url.QueryEscape(secret), url.QueryEscape(req.Issuer),
 		)
 		qrPNG, err := qrcode.Encode(qrURI, qrcode.Medium, 180)
 		if err != nil {

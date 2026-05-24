@@ -3,7 +3,7 @@
 Last updated: 2026-05-24 (Frontend auth/MFA local smoke hardening)
 
 ## Frontend auth/MFA local smoke hardening (2026-05-24)
-- Admin console MFA enrollment now labels authenticator entries with the user email instead of the opaque user id, URL-encodes the otpauth label/issuer, remembers the login email for setup requests, and redirects to `/` after successful setup confirmation.
+- Admin console and webmail MFA enrollment now label authenticator entries with the user email instead of opaque user ids, URL-encode the otpauth label/issuer, and the admin console remembers the login email for setup requests before redirecting to `/` after successful setup confirmation.
 - Admin console MFA settings SpaceBetween children now carry stable keys, removing the first-login MFA registration React key warning.
 - Webmail and console server-side API helpers now fall back to `http://localhost:8080` only in non-production when `GOGOMAIL_BACKEND_URL` is absent, preserving production config failure behavior while making local Docker smoke resilient.
 - Webmail now proxies `/api/v1/config/web-push` through Next.js and only injects the development `user_id` query when no JWT cookie is present, so authenticated folders and notification preferences use the bearer token contract.
