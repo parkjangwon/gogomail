@@ -1,6 +1,12 @@
 # gogomail current status
 
-Last updated: 2026-05-25 (user MCP webmail feature gap closure)
+Last updated: 2026-05-25 (manage MCP admin console feature gap closure)
+
+## Manage MCP admin console feature gap closure (2026-05-25)
+- `apps/gogomail-manage-mcp` now exposes 49 GoGoMail Admin tools, adding typed organization membership/title tools, generic security/spam-policy tools, spam filter stats, and a guarded `gogomail_admin_api_request` bridge for documented admin-console Admin API routes.
+- Gap analysis found admin console API surfaces not represented by the previous 37-tool MCP server: admin users, company/domain config, organization hierarchy/memberships, security policies, routing/legal hold/quota summary, bulk user import/export, delivery routes, trusted relays, attachment cleanup, drive nodes, and quota reconciliation.
+- The bridge is allowlisted to documented `/admin/v1` routes, blocks auth-style endpoints and path traversal, requires `reason` for writes, exact `DELETE <path>` confirmation for deletes, and records the same Suppo/stderr audit memo as other GoGoMail mutation tools.
+- Verification: `npm run type-check`, `npm test`, and `npm run build` in `apps/gogomail-manage-mcp`.
 
 ## User MCP webmail feature gap closure (2026-05-25)
 - `apps/gogomail-user-mcp` now exposes 96 user tools, closing the recent webmail gap for profile updates, profile photo upload/remove, directory profile lookup with org unit/title, spam report/not-spam flows, and blocked/allowed sender list management.

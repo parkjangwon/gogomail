@@ -16,7 +16,7 @@ Korean / 한국어: [README.ko.md](README.ko.md)
   - [Claude Desktop (stdio)](#claude-desktop-stdio)
   - [Autonomous Agent (HTTP + SSE)](#autonomous-agent-http--sse)
 - [Tool Reference](#tool-reference)
-  - [GoGoMail Admin (37)](#gogomail-admin-37)
+  - [GoGoMail Admin (49)](#gogomail-admin-49)
   - [Suppo Helpdesk (10)](#suppo-helpdesk-10)
   - [GitHub Issues (6)](#github-issues-6)
 - [Workflow Examples](#workflow-examples)
@@ -40,7 +40,7 @@ Natural-language request (human or ticket system)
   │                             │
   │  ┌──────────────────────┐   │
   │  │  GoGoMail Admin      │   │──► GET/PATCH/POST/DELETE /admin/v1/…
-  │  │  37 tools  [required]│   │    Bearer: GOGOMAIL_ADMIN_KEY
+  │  │  49 tools  [required]│   │    Bearer: GOGOMAIL_ADMIN_KEY
   │  └──────────────────────┘   │
   │  ┌──────────────────────┐   │
   │  │  Suppo helpdesk      │   │──► /api/public/…
@@ -194,7 +194,7 @@ The server exposes:
 
 All tool names follow the pattern `{provider}_{action}_{object}`. Every GoGoMail action (write operation) requires a human-readable `reason` and is audit-logged — either as an internal comment on the Suppo ticket referenced by `ticketId`, or as a standalone audit ticket created automatically when `ticketId` is omitted. Irreversible deletes also require an exact `confirm` phrase. When Suppo is not configured, the audit record is written to stderr.
 
-### GoGoMail Admin (37)
+### GoGoMail Admin (49)
 
 #### User & Directory
 
@@ -292,6 +292,23 @@ All tool names follow the pattern `{provider}_{action}_{object}`. Every GoGoMail
 |---|---|---|
 | `gogomail_check_health` | `GET /admin/v1/health` | Check system health and component availability. |
 | `gogomail_get_queue_stats` | `GET /admin/v1/queue` | Get mail queue depth and processing stats. High depth indicates a backlog. |
+
+#### Admin Console Parity
+
+| Tool | Method + Path | Description |
+|---|---|---|
+| `gogomail_admin_api_request` | Allowlisted `/admin/v1/...` | Guarded bridge for documented admin-console routes not yet represented by a dedicated typed tool. Read calls are direct; writes require `reason` and audit logging; deletes require `confirm="DELETE <path>"`. |
+| `gogomail_list_org_units` | `GET /admin/v1/organization/units` | List organization units for a company. |
+| `gogomail_get_org_hierarchy` | `GET /admin/v1/organization/hierarchy` | Get the organization hierarchy tree for a company. |
+| `gogomail_list_user_org_memberships` | `GET /admin/v1/organization/members` | List a user's organization memberships, including role/title metadata. |
+| `gogomail_assign_user_org_membership` | `POST /admin/v1/organization/members` | Assign a user to an organization unit with optional role/title. *(audit logged)* |
+| `gogomail_update_org_membership` | `PATCH /admin/v1/organization/members/{id}` | Update organization membership role/title metadata. *(audit logged)* |
+| `gogomail_remove_org_membership` | `DELETE /admin/v1/organization/members/{id}` | Remove an organization membership. Requires `confirm="remove org membership <membershipId>"`. *(audit logged)* |
+| `gogomail_get_security_policy` | `GET /admin/v1/{companies|domains}/{id}/security/...` | Get company/domain security policy documents including IP, auth, retention, session, rate-limit, DMARC/SPF, SMTP, MCP, and spam-filter policy. |
+| `gogomail_update_security_policy` | `PUT /admin/v1/{companies|domains}/{id}/security/...` | Update a company/domain security policy JSON document. *(audit logged)* |
+| `gogomail_get_spam_filter_policy` | `GET /admin/v1/{companies|domains}/{id}/security/spam-filter` | Get company- or domain-scoped spam filter policy. |
+| `gogomail_update_spam_filter_policy` | `PUT /admin/v1/{companies|domains}/{id}/security/spam-filter` | Update company- or domain-scoped spam filter policy. *(audit logged)* |
+| `gogomail_get_spam_filter_stats` | `GET /admin/v1/companies/{id}/security/spam-filter/stats` | Get spam filter statistics, optionally filtered by domain. |
 
 ---
 

@@ -281,6 +281,26 @@ describe("GogomailClient: Admin API contract mapping", () => {
       globalThis.fetch = origFetch;
     }
   });
+
+  test("adminRequest preserves non-JSON Admin API responses for export endpoints", async () => {
+    const client = new GogomailClient("https://admin.example.com", "test-key");
+    const origFetch = globalThis.fetch;
+    globalThis.fetch = async () =>
+      new Response("email,status\nalice@example.com,active\n", {
+        status: 200,
+        headers: { "Content-Type": "text/csv" },
+      });
+
+    try {
+      const res = await client.adminRequest("GET", "/companies/co_1/users/bulk-export");
+      assert.deepEqual(res, {
+        content_type: "text/csv",
+        body_text: "email,status\nalice@example.com,active\n",
+      });
+    } finally {
+      globalThis.fetch = origFetch;
+    }
+  });
 });
 
 // ── 3. inputSchema JSON Schema constraints ────────────────────────────
@@ -603,6 +623,69 @@ describe("Zod validation: rejects out-of-range input before hitting API", () => 
         return true;
       },
     );
+  });
+
+  test("gogomail_admin_api_request rejects routes outside the admin console allowlist", async () => {
+    await assert.rejects(
+      () => gogomailCallTool(mockGogomail, mockSuppo, "gogomail_admin_api_request", {
+        method: "GET",
+        path: "/auth/login",
+      }),
+      /not in the documented MCP allowlist/,
+    );
+  });
+
+  test("gogomail_admin_api_request requires reason for writes", async () => {
+    await assert.rejects(
+      () => gogomailCallTool(mockGogomail, mockSuppo, "gogomail_admin_api_request", {
+        method: "PATCH",
+        path: "/users/usr_1/status",
+        bodyJson: { status: "suspended" },
+      }),
+      /reason is required/,
+    );
+  });
+
+  test("gogomail_admin_api_request requires exact DELETE confirmation", async () => {
+    await assert.rejects(
+      () => gogomailCallTool(mockGogomail, mockSuppo, "gogomail_admin_api_request", {
+        method: "DELETE",
+        path: "/organization/members/mem_1",
+        reason: "test",
+        confirm: "delete mem_1",
+      }),
+      /confirm must exactly equal "DELETE \/organization\/members\/mem_1"/,
+    );
+  });
+
+  test("gogomail_assign_user_org_membership maps to organization members API and audits", async () => {
+    const calls: unknown[] = [];
+    const mockAdmin = {
+      adminRequest: async (method: string, path: string, body?: unknown) => {
+        calls.push({ method, path, body });
+        return { membership: { id: "mem_1" } };
+      },
+    } as InstanceType<typeof GogomailClient>;
+
+    const result = await gogomailCallTool(mockAdmin, null, "gogomail_assign_user_org_membership", {
+      unitId: "ou_1",
+      userId: "usr_1",
+      role: "lead",
+      title: "Director",
+      reason: "admin console parity test",
+    });
+
+    assert.deepEqual(calls[0], {
+      method: "POST",
+      path: "/organization/members",
+      body: {
+        unit_id: "ou_1",
+        user_id: "usr_1",
+        role: "lead",
+        title: "Director",
+      },
+    });
+    assert.equal((result as { audit?: { destination?: string } }).audit?.destination, "stderr");
   });
 
   test("suppo_update_ticket: rejects empty updates before hitting API", async () => {
