@@ -1,3 +1,6 @@
+overrides:
+  postcss: ^8.5.14
+
 allowBuilds:
   '@parcel/watcher': true
   '@swc/core': true

@@ -1,0 +1,313 @@
+# Split-mode GoGoMail deployment template.
+#
+# Goal: clone the repo, build/pull one backend image, then scale modes with
+# Docker Compose/env changes only. Do not set container_name on scalable
+# services; Compose needs generated names for --scale.
+#
+# Local evaluation:
+#   cp env.scale.example .env
+#   docker compose -f docker-compose.scale.yml --profile local-infra --profile protocols up -d
+#
+# External managed infra:
+#   cp env.scale.example .env
+#   edit GOGOMAIL_DATABASE_URL, Redis, S3/OpenSearch settings
+#   docker compose -f docker-compose.scale.yml up -d
+#
+# Scale stateless modes:
+#   docker compose -f docker-compose.scale.yml up -d --scale mail-api=4 --scale delivery-worker=3
+
+x-gogomail-env: &gogomail-env
+  GOGOMAIL_ENV: ${GOGOMAIL_ENV:-development}
+  GOGOMAIL_PUBLIC_BASE_URL: ${GOGOMAIL_PUBLIC_BASE_URL:-http://localhost:8080}
+  GOGOMAIL_CORS_ALLOWED_ORIGINS: ${GOGOMAIL_CORS_ALLOWED_ORIGINS:-http://localhost:3000,http://localhost:3001}
+  GOGOMAIL_AUTH_JWT_SECRET: ${GOGOMAIL_AUTH_JWT_SECRET:-gogomail-dev-jwt-secret-at-least-32-bytes}
+  GOGOMAIL_ADMIN_TOKEN: ${GOGOMAIL_ADMIN_TOKEN:-change-this-admin-token}
+  GOGOMAIL_ADMIN_MFA_REQUIRED: ${GOGOMAIL_ADMIN_MFA_REQUIRED:-false}
+
+  GOGOMAIL_DATABASE_URL: ${GOGOMAIL_DATABASE_URL:-postgres://gogomail:gogomail@postgres:5432/gogomail?sslmode=disable}
+  GOGOMAIL_DB_MAX_OPEN_CONNS: ${GOGOMAIL_DB_MAX_OPEN_CONNS:-20}
+  GOGOMAIL_DB_MAX_IDLE_CONNS: ${GOGOMAIL_DB_MAX_IDLE_CONNS:-5}
+  GOGOMAIL_DB_CONN_MAX_LIFETIME: ${GOGOMAIL_DB_CONN_MAX_LIFETIME:-30m}
+  GOGOMAIL_DB_CONN_MAX_IDLE_TIME: ${GOGOMAIL_DB_CONN_MAX_IDLE_TIME:-5m}
+
+  GOGOMAIL_REDIS_ADDR: ${GOGOMAIL_REDIS_ADDR:-redis:6379}
+  GOGOMAIL_REDIS_PASSWORD: ${GOGOMAIL_REDIS_PASSWORD:-gogomail}
+  GOGOMAIL_REDIS_SENTINEL_ADDRS: ${GOGOMAIL_REDIS_SENTINEL_ADDRS:-}
+  GOGOMAIL_REDIS_MASTER_NAME: ${GOGOMAIL_REDIS_MASTER_NAME:-mymaster}
+
+  GOGOMAIL_STORAGE_BACKEND: ${GOGOMAIL_STORAGE_BACKEND:-minio}
+  GOGOMAIL_STORAGE_S3_ENDPOINT: ${GOGOMAIL_STORAGE_S3_ENDPOINT:-http://minio:9000}
+  GOGOMAIL_STORAGE_S3_REGION: ${GOGOMAIL_STORAGE_S3_REGION:-us-east-1}
+  GOGOMAIL_STORAGE_S3_BUCKET: ${GOGOMAIL_STORAGE_S3_BUCKET:-gogomail}
+  GOGOMAIL_STORAGE_S3_PREFIX: ${GOGOMAIL_STORAGE_S3_PREFIX:-}
+  GOGOMAIL_STORAGE_S3_ACCESS_KEY_ID: ${GOGOMAIL_STORAGE_S3_ACCESS_KEY_ID:-gogomail}
+  GOGOMAIL_STORAGE_S3_SECRET_ACCESS_KEY: ${GOGOMAIL_STORAGE_S3_SECRET_ACCESS_KEY:-gogomail123}
+  GOGOMAIL_STORAGE_S3_FORCE_PATH_STYLE: ${GOGOMAIL_STORAGE_S3_FORCE_PATH_STYLE:-true}
+  GOGOMAIL_STORAGE_S3_INSECURE_SKIP_VERIFY: ${GOGOMAIL_STORAGE_S3_INSECURE_SKIP_VERIFY:-false}
+
+  GOGOMAIL_HTTP_ADDR: :8080
+  GOGOMAIL_SMTP_ADDR: :2525
+  GOGOMAIL_INBOUND_SMTP_ADDR: :2526
+  GOGOMAIL_SUBMISSION_ADDR: :2587
+  GOGOMAIL_SUBMISSION_SMTPS_ADDR: ${GOGOMAIL_SUBMISSION_SMTPS_ADDR:-}
+  GOGOMAIL_IMAP_ADDR: :1143
+  GOGOMAIL_POP3_ADDR: :1110
+  GOGOMAIL_CALDAV_ADDR: :8081
+  GOGOMAIL_CARDDAV_ADDR: :8082
+  GOGOMAIL_WEBDAV_ADDR: :8083
+  GOGOMAIL_LDAP_ADDR: :1389
+
+  GOGOMAIL_SMTP_DOMAIN: ${GOGOMAIL_SMTP_DOMAIN:-localhost}
+  GOGOMAIL_DELIVERY_SMTP_HELLO: ${GOGOMAIL_DELIVERY_SMTP_HELLO:-localhost}
+  GOGOMAIL_DELIVERY_TLS_MODE: ${GOGOMAIL_DELIVERY_TLS_MODE:-opportunistic}
+  GOGOMAIL_DELIVERY_THROTTLE_ENABLED: ${GOGOMAIL_DELIVERY_THROTTLE_ENABLED:-true}
+  GOGOMAIL_DELIVERY_THROTTLE_BACKEND: ${GOGOMAIL_DELIVERY_THROTTLE_BACKEND:-redis}
+  GOGOMAIL_DELIVERY_DOMAIN_BACKOFF_ENABLED: ${GOGOMAIL_DELIVERY_DOMAIN_BACKOFF_ENABLED:-true}
+  GOGOMAIL_DELIVERY_DOMAIN_BACKOFF_BACKEND: ${GOGOMAIL_DELIVERY_DOMAIN_BACKOFF_BACKEND:-redis}
+
+  GOGOMAIL_FARM_COORDINATOR_BACKEND: ${GOGOMAIL_FARM_COORDINATOR_BACKEND:-redis}
+  GOGOMAIL_FARM_COORDINATOR_NODE_ID: node-{hostname}
+  GOGOMAIL_EVENT_CONSUMER_NAME: event-{hostname}
+  GOGOMAIL_SEARCH_INDEX_CONSUMER_NAME: search-{hostname}
+  GOGOMAIL_PUSH_NOTIFICATION_CONSUMER_NAME: push-{hostname}
+  GOGOMAIL_API_METERING_CONSUMER_NAME: api-meter-{hostname}
+  GOGOMAIL_DELIVERY_CONSUMER_NAME: delivery-{hostname}
+  GOGOMAIL_IMAP_NOTIFY_CONSUMER_NAME: imap-{hostname}
+  GOGOMAIL_AUTO_BACKPRESSURE_INSTANCE_ID: pressure-{hostname}
+
+  GOGOMAIL_OUTBOX_RELAY_BATCH_SIZE: ${GOGOMAIL_OUTBOX_RELAY_BATCH_SIZE:-100}
+  GOGOMAIL_OUTBOX_RELAY_POLL_INTERVAL: ${GOGOMAIL_OUTBOX_RELAY_POLL_INTERVAL:-1s}
+  GOGOMAIL_OUTBOX_RELAY_MAX_ATTEMPTS: ${GOGOMAIL_OUTBOX_RELAY_MAX_ATTEMPTS:-10}
+  GOGOMAIL_DELIVERY_CONSUMER_COUNT: ${GOGOMAIL_DELIVERY_CONSUMER_COUNT:-50}
+  GOGOMAIL_EVENT_CONSUMER_COUNT: ${GOGOMAIL_EVENT_CONSUMER_COUNT:-100}
+  GOGOMAIL_SEARCH_INDEX_CONSUMER_COUNT: ${GOGOMAIL_SEARCH_INDEX_CONSUMER_COUNT:-50}
+  GOGOMAIL_PUSH_NOTIFICATION_CONSUMER_COUNT: ${GOGOMAIL_PUSH_NOTIFICATION_CONSUMER_COUNT:-50}
+  GOGOMAIL_API_METERING_CONSUMER_COUNT: ${GOGOMAIL_API_METERING_CONSUMER_COUNT:-100}
+
+  GOGOMAIL_SEARCH_INDEX_BACKEND: ${GOGOMAIL_SEARCH_INDEX_BACKEND:-disabled}
+  GOGOMAIL_SEARCH_INDEX_OPENSEARCH_ENDPOINT: ${GOGOMAIL_SEARCH_INDEX_OPENSEARCH_ENDPOINT:-}
+  GOGOMAIL_SEARCH_INDEX_OPENSEARCH_INDEX: ${GOGOMAIL_SEARCH_INDEX_OPENSEARCH_INDEX:-gogomail-messages}
+
+  GOGOMAIL_API_METERING_BACKEND: ${GOGOMAIL_API_METERING_BACKEND:-redis}
+  GOGOMAIL_API_METERING_AGGREGATE_BACKEND: ${GOGOMAIL_API_METERING_AGGREGATE_BACKEND:-postgres}
+  GOGOMAIL_DRIVE_SHARE_RATELIMIT_BACKEND: ${GOGOMAIL_DRIVE_SHARE_RATELIMIT_BACKEND:-redis}
+  GOGOMAIL_MAIL_MUTATION_RATELIMIT_BACKEND: ${GOGOMAIL_MAIL_MUTATION_RATELIMIT_BACKEND:-redis}
+  GOGOMAIL_METRICS_BACKEND: ${GOGOMAIL_METRICS_BACKEND:-prometheus}
+  GOGOMAIL_METRICS_ADDR: :9090
+
+x-gogomail-service: &gogomail-service
+  image: ${BACKEND_IMAGE:-gogomail:latest}
+  restart: unless-stopped
+  environment: *gogomail-env
+  networks:
+    - gogomail
+  stop_grace_period: 45s
+
+services:
+  # Optional local infrastructure. Disable this profile and point env vars at
+  # managed Postgres/Redis/S3 for production SaaS.
+  postgres:
+    profiles: ["local-infra"]
+    image: ${POSTGRES_IMAGE:-postgres:16-alpine}
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-gogomail}
+      POSTGRES_USER: ${POSTGRES_USER:-gogomail}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-gogomail}
+    ports:
+      - "${GOGOMAIL_POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - gogomail
+
+  redis:
+    profiles: ["local-infra"]
+    image: ${REDIS_IMAGE:-redis:7-alpine}
+    restart: unless-stopped
+    command:
+      - redis-server
+      - --appendonly
+      - "yes"
+      - --appendfsync
+      - everysec
+      - --requirepass
+      - ${GOGOMAIL_REDIS_PASSWORD:-gogomail}
+    ports:
+      - "${GOGOMAIL_REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a '${GOGOMAIL_REDIS_PASSWORD:-gogomail}' ping | grep PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - gogomail
+
+  minio:
+    profiles: ["local-infra"]
+    image: ${MINIO_IMAGE:-minio/minio:latest}
+    restart: unless-stopped
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-gogomail}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-gogomail123}
+    ports:
+      - "${GOGOMAIL_MINIO_PORT:-9000}:9000"
+      - "${GOGOMAIL_MINIO_CONSOLE_PORT:-9001}:9001"
+    volumes:
+      - minio-data:/data
+    networks:
+      - gogomail
+
+  minio-init:
+    profiles: ["local-infra"]
+    image: ${MINIO_MC_IMAGE:-minio/mc:latest}
+    restart: "no"
+    depends_on:
+      - minio
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        mc alias set local http://minio:9000 "$${MINIO_ROOT_USER:-gogomail}" "$${MINIO_ROOT_PASSWORD:-gogomail123}"
+        mc mb --ignore-existing "local/${GOGOMAIL_STORAGE_S3_BUCKET:-gogomail}"
+        mc anonymous set none "local/${GOGOMAIL_STORAGE_S3_BUCKET:-gogomail}"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-gogomail}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-gogomail123}
+    networks:
+      - gogomail
+
+  migrate:
+    profiles: ["ops"]
+    <<: *gogomail-service
+    restart: "no"
+    command: ["-migrate", "-mode", "all-in-one"]
+
+  mail-api:
+    <<: *gogomail-service
+    command: ["-mode", "mail-api"]
+    ports:
+      - "${GOGOMAIL_MAIL_API_PORT_RANGE:-8080-8089}:8080"
+
+  admin-api:
+    <<: *gogomail-service
+    command: ["-mode", "admin-api"]
+    ports:
+      - "${GOGOMAIL_ADMIN_API_PORT_RANGE:-8090-8099}:8080"
+
+  auth-server:
+    <<: *gogomail-service
+    command: ["-mode", "auth-server"]
+    ports:
+      - "${GOGOMAIL_AUTH_SERVER_PORT_RANGE:-8100-8109}:8080"
+
+  edge-mta:
+    profiles: ["smtp"]
+    <<: *gogomail-service
+    command: ["-mode", "edge-mta"]
+    ports:
+      - "${GOGOMAIL_EDGE_SMTP_PORT_RANGE:-2525-2534}:2525"
+
+  outbound-mta:
+    profiles: ["smtp"]
+    <<: *gogomail-service
+    command: ["-mode", "outbound-mta"]
+    ports:
+      - "${GOGOMAIL_SUBMISSION_PORT_RANGE:-2587-2596}:2587"
+
+  imap:
+    profiles: ["protocols"]
+    <<: *gogomail-service
+    command: ["-mode", "imap"]
+    ports:
+      - "${GOGOMAIL_IMAP_PORT_RANGE:-1143-1152}:1143"
+
+  pop3:
+    profiles: ["protocols"]
+    <<: *gogomail-service
+    command: ["-mode", "pop3"]
+    ports:
+      - "${GOGOMAIL_POP3_PORT_RANGE:-1110-1119}:1110"
+
+  caldav:
+    profiles: ["protocols"]
+    <<: *gogomail-service
+    command: ["-mode", "caldav"]
+    ports:
+      - "${GOGOMAIL_CALDAV_PORT_RANGE:-8110-8119}:8081"
+
+  carddav:
+    profiles: ["protocols"]
+    <<: *gogomail-service
+    command: ["-mode", "carddav"]
+    ports:
+      - "${GOGOMAIL_CARDDAV_PORT_RANGE:-8120-8129}:8082"
+
+  webdav:
+    profiles: ["protocols"]
+    <<: *gogomail-service
+    command: ["-mode", "webdav"]
+    ports:
+      - "${GOGOMAIL_WEBDAV_PORT_RANGE:-8130-8139}:8083"
+
+  outbox-relay:
+    profiles: ["workers"]
+    <<: *gogomail-service
+    command: ["-mode", "outbox-relay"]
+
+  delivery-worker:
+    profiles: ["workers"]
+    <<: *gogomail-service
+    command: ["-mode", "delivery-worker"]
+
+  event-worker:
+    profiles: ["workers"]
+    <<: *gogomail-service
+    command: ["-mode", "event-worker"]
+
+  search-index-worker:
+    profiles: ["workers", "search"]
+    <<: *gogomail-service
+    command: ["-mode", "search-index-worker"]
+
+  push-notification-worker:
+    profiles: ["workers", "push"]
+    <<: *gogomail-service
+    command: ["-mode", "push-notification-worker"]
+
+  api-metering-worker:
+    profiles: ["workers"]
+    <<: *gogomail-service
+    command: ["-mode", "api-metering-worker"]
+
+  attachment-cleanup-worker:
+    profiles: ["workers", "cleanup"]
+    <<: *gogomail-service
+    command: ["-mode", "attachment-cleanup-worker"]
+
+  drive-cleanup-worker:
+    profiles: ["workers", "cleanup"]
+    <<: *gogomail-service
+    command: ["-mode", "drive-cleanup-worker"]
+
+  batch-worker:
+    profiles: ["workers", "cleanup"]
+    <<: *gogomail-service
+    command: ["-mode", "batch-worker"]
+
+volumes:
+  postgres-data:
+  redis-data:
+  minio-data:
+
+networks:
+  gogomail:
+    driver: bridge

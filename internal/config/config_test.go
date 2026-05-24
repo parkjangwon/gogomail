@@ -1,6 +1,8 @@
 package config
 
 import (
+	"os"
+	"strings"
 	"testing"
 	"time"
 )
@@ -545,6 +547,38 @@ func TestLoadAppliesDefaults(t *testing.T) {
 	}
 	if cfg.PushNotifyWebhookTimeout != 2*time.Second {
 		t.Fatalf("PushNotifyWebhookTimeout = %s, want 2s", cfg.PushNotifyWebhookTimeout)
+	}
+}
+
+func TestLoadExpandsHostnamePlaceholdersForScaledReplicas(t *testing.T) {
+	hostname, err := os.Hostname()
+	if err != nil || hostname == "" {
+		t.Skipf("hostname unavailable: %v", err)
+	}
+
+	t.Setenv("GOGOMAIL_IMAP_NOTIFY_CONSUMER_NAME", "imap-{hostname}")
+	t.Setenv("GOGOMAIL_EVENT_CONSUMER_NAME", "event-${HOSTNAME}")
+	t.Setenv("GOGOMAIL_SEARCH_INDEX_CONSUMER_NAME", "search-$HOSTNAME")
+	t.Setenv("GOGOMAIL_PUSH_NOTIFICATION_CONSUMER_NAME", "push-{hostname}")
+	t.Setenv("GOGOMAIL_API_METERING_CONSUMER_NAME", "api-{hostname}")
+	t.Setenv("GOGOMAIL_DELIVERY_CONSUMER_NAME", "delivery-{hostname}")
+	t.Setenv("GOGOMAIL_FARM_COORDINATOR_NODE_ID", "node-{hostname}")
+	t.Setenv("GOGOMAIL_AUTO_BACKPRESSURE_INSTANCE_ID", "pressure-{hostname}")
+
+	cfg := Load()
+	for name, got := range map[string]string{
+		"IMAPNotifyConsumerName":     cfg.IMAPNotifyConsumerName,
+		"EventConsumerName":          cfg.EventConsumerName,
+		"SearchIndexConsumerName":    cfg.SearchIndexConsumerName,
+		"PushNotifyConsumerName":     cfg.PushNotifyConsumerName,
+		"APIMeteringConsumerName":    cfg.APIMeteringConsumerName,
+		"DeliveryConsumerName":       cfg.DeliveryConsumerName,
+		"FarmCoordinatorNodeID":      cfg.FarmCoordinatorNodeID,
+		"AutoBackpressureInstanceID": cfg.AutoBackpressureInstanceID,
+	} {
+		if got == "" || !strings.Contains(got, hostname) {
+			t.Fatalf("%s = %q, want hostname %q", name, got, hostname)
+		}
 	}
 }
 

@@ -1,8 +1,12 @@
 import type { NextConfig } from "next";
 import createNextIntlPlugin from 'next-intl/plugin';
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
 const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts');
 const isProduction = process.env.NODE_ENV === "production";
+const appRoot = dirname(fileURLToPath(import.meta.url));
+const repoRoot = resolve(appRoot, "../..");
 
 const scriptSrc = isProduction
   ? "script-src 'self' 'unsafe-inline'"
@@ -12,6 +16,9 @@ const config: NextConfig = {
   reactStrictMode: true,
   typescript: {
     tsconfigPath: "./tsconfig.json",
+  },
+  turbopack: {
+    root: repoRoot,
   },
   headers: async () => [
     {

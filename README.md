@@ -51,6 +51,9 @@ Korean / 한국어: [README.ko.md](README.ko.md)
   ZooKeeper, no service mesh.
 - **Horizontal scale per workload** — each mode is independently
   scalable; singleton workers use PG advisory locks / Redis leases.
+- **Compose/env deployment contract** — clone the repo, keep the same image,
+  and grow from one host to split-mode SaaS by changing Compose profiles,
+  env vars, and replica counts.
 - **Single source of truth** — Postgres holds tenant, mailbox, and outbox
   state. No local spool, crash-safe restarts.
 
@@ -106,6 +109,7 @@ User request
 | Topic | File |
 |---|---|
 | Deployment guide (agent-friendly) | [docker/DEPLOYMENT.md](docker/DEPLOYMENT.md) |
+| Scaling without code changes | [docs/SCALING.md](docs/SCALING.md) |
 | Backend modes (24 modes, env vars) | [docs/MODES.md](docs/MODES.md) |
 | Architecture overview | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) |
 | Security model and threat model | [docs/SECURITY.md](docs/SECURITY.md) |

@@ -4,7 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "next dev -p 3003",
+    "predev": "node ../../scripts/check-frontend-node-version.mjs",
+    "dev": "next dev --webpack -p 3003",
+    "prebuild": "node ../../scripts/check-frontend-node-version.mjs",
     "build": "next build",
     "start": "next start",
     "type-check": "tsc --noEmit",
@@ -54,12 +56,7 @@
     "typescript": "^5.8.0"
   },
   "engines": {
-    "node": ">=22.0.0",
+    "node": ">=24.0.0",
     "pnpm": ">=10.0.0"
-  },
-  "pnpm": {
-    "overrides": {
-      "postcss": "^8.5.14"
-    }
   }
 }
