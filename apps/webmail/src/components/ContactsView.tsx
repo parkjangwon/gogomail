@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   AddressBook,
@@ -61,6 +61,22 @@ interface ParsedContact {
   note: string;
 }
 
+type ContactsSort = 'name' | 'email' | 'company';
+type ContactsDensity = 'comfortable' | 'compact';
+
+function loadContactViewSettings() {
+  try {
+    const settings = JSON.parse(localStorage.getItem('webmail_settings') ?? '{}') as Record<string, unknown>;
+    return {
+      sort: (settings.contactsSort as ContactsSort) ?? 'name',
+      density: (settings.contactsDensity as ContactsDensity) ?? 'comfortable',
+      showCompany: settings.contactsShowCompany !== false,
+    };
+  } catch {
+    return { sort: 'name' as ContactsSort, density: 'comfortable' as ContactsDensity, showCompany: true };
+  }
+}
+
 function useContactsParsed(contacts: ContactObject[]): ParsedContact[] {
   return contacts.map((c) => parseVCard(c.VCard));
 }
@@ -79,6 +95,7 @@ export function ContactsView({ onCompose }: ContactsViewProps) {
   const [editFields, setEditFields] = useState<ParsedContact>({ fn: '', email: '', tel: '', org: '', title: '', note: '' });
   const [loading, setLoading] = useState(false);
   const [booksLoading, setBooksLoading] = useState(true);
+  const [viewSettings, setViewSettings] = useState(loadContactViewSettings);
 
   // Address book CRUD state
   const [hoveredBookId, setHoveredBookId] = useState<string | null>(null);
@@ -100,6 +117,25 @@ export function ContactsView({ onCompose }: ContactsViewProps) {
       p.org.toLowerCase().includes(q)
     );
   });
+
+  const sortedFiltered = useMemo(() => {
+    const rank = (contact: ContactObject) => {
+      const p = parsed[contacts.indexOf(contact)];
+      if (viewSettings.sort === 'email') return p?.email || p?.fn || contact.ObjectName;
+      if (viewSettings.sort === 'company') return p?.org || p?.fn || p?.email || contact.ObjectName;
+      return p?.fn || p?.email || contact.ObjectName;
+    };
+    return [...filtered].sort((a, b) => rank(a).localeCompare(rank(b), 'ko', { sensitivity: 'base' }));
+  }, [contacts, filtered, parsed, viewSettings.sort]);
+
+  useEffect(() => {
+    const refresh = (event?: StorageEvent) => {
+      if (event && event.key !== 'webmail_settings') return;
+      setViewSettings(loadContactViewSettings());
+    };
+    window.addEventListener('storage', refresh);
+    return () => window.removeEventListener('storage', refresh);
+  }, []);
 
   // Load address books on mount
   useEffect(() => {
@@ -125,7 +161,7 @@ export function ContactsView({ onCompose }: ContactsViewProps) {
     });
   }, [selectedBookId]);
 
-  const selectedContact = selectedContactIdx !== null ? filtered[selectedContactIdx] ?? null : null;
+  const selectedContact = selectedContactIdx !== null ? sortedFiltered[selectedContactIdx] ?? null : null;
   const selectedContactRaw = selectedContact
     ? contacts.find((c) => c.ID === selectedContact.ID) ?? null
     : null;
@@ -241,16 +277,21 @@ export function ContactsView({ onCompose }: ContactsViewProps) {
     }
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [filtered.length, selectedParsed, onCompose, selectedContact, handleDelete]);
+  }, [sortedFiltered.length, selectedParsed, onCompose, selectedContact, handleDelete]);
 
   const displayName = (idx: number) => {
-    const p = parsed[contacts.indexOf(filtered[idx])];
-    return p?.fn || filtered[idx]?.ObjectName || t('noName');
+    const p = parsed[contacts.indexOf(sortedFiltered[idx])];
+    return p?.fn || sortedFiltered[idx]?.ObjectName || t('noName');
   };
 
   const displayEmail = (idx: number) => {
-    const p = parsed[contacts.indexOf(filtered[idx])];
+    const p = parsed[contacts.indexOf(sortedFiltered[idx])];
     return p?.email || '';
+  };
+
+  const displayCompany = (idx: number) => {
+    const p = parsed[contacts.indexOf(sortedFiltered[idx])];
+    return p?.org || '';
   };
 
   return (
@@ -363,24 +404,25 @@ export function ContactsView({ onCompose }: ContactsViewProps) {
             <div style={{ padding: '32px 16px', textAlign: 'center', color: 'var(--color-text-tertiary)', fontSize: '13px' }}>
               {t('loading')}
             </div>
-          ) : filtered.length === 0 ? (
+          ) : sortedFiltered.length === 0 ? (
             <div style={{ padding: '32px 16px', textAlign: 'center', color: 'var(--color-text-tertiary)', fontSize: '13px' }}>
               {searchQuery ? t('noContactsSearch') : t('noContacts')}
             </div>
           ) : (
-            filtered.map((_, idx) => {
+            sortedFiltered.map((_, idx) => {
               const name = displayName(idx);
               const email = displayEmail(idx);
+              const company = displayCompany(idx);
               const active = selectedContactIdx === idx;
               const color = avatarColor(name);
               return (
                 <button
-                  key={filtered[idx].ID}
+                  key={sortedFiltered[idx].ID}
                   onClick={() => handleSelectContact(idx)}
                   style={{
                     width: '100%',
                     textAlign: 'left',
-                    padding: '10px 14px',
+                    padding: viewSettings.density === 'compact' ? '7px 14px' : '10px 14px',
                     background: active ? 'var(--color-bg-tertiary)' : 'none',
                     border: 'none',
                     borderBottom: '1px solid var(--color-border-subtle)',
@@ -395,8 +437,8 @@ export function ContactsView({ onCompose }: ContactsViewProps) {
                   {/* Avatar */}
                   <div
                     style={{
-                      width: '36px',
-                      height: '36px',
+                      width: viewSettings.density === 'compact' ? '30px' : '36px',
+                      height: viewSettings.density === 'compact' ? '30px' : '36px',
                       borderRadius: '50%',
                       background: color,
                       color: '#fff',
@@ -417,6 +459,11 @@ export function ContactsView({ onCompose }: ContactsViewProps) {
                     {email && (
                       <div style={{ fontSize: '11px', color: 'var(--color-text-tertiary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {email}
+                      </div>
+                    )}
+                    {viewSettings.showCompany && company && (
+                      <div style={{ fontSize: '11px', color: 'var(--color-text-tertiary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {company}
                       </div>
                     )}
                   </div>

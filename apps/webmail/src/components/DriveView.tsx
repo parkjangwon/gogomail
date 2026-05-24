@@ -21,6 +21,7 @@ import { FolderIcon as FolderSolid, TrashIcon as TrashSolid } from '@heroicons/r
 
 type DriveUploadStatus = 'queued' | 'creating_session' | 'uploading' | 'paused' | 'finalizing' | 'done' | 'error' | 'canceled';
 type DriveUploadSource = 'picker' | 'folder' | 'drop';
+type DriveSort = 'typeName' | 'name' | 'updated' | 'size';
 
 const DRIVE_UPLOAD_CONCURRENCY = 3;
 
@@ -53,6 +54,25 @@ type DriveUploadItem = {
   batchId?: string;
   source?: DriveUploadSource;
 };
+
+function loadDriveSortSetting(): DriveSort {
+  try {
+    const settings = JSON.parse(localStorage.getItem('webmail_settings') ?? '{}') as Record<string, unknown>;
+    const sort = settings.driveSort;
+    return sort === 'name' || sort === 'updated' || sort === 'size' ? sort : 'typeName';
+  } catch {
+    return 'typeName';
+  }
+}
+
+function sortDriveNodes(nodes: DriveNode[], sort: DriveSort): DriveNode[] {
+  return [...nodes].sort((a, b) => {
+    if (sort === 'typeName' && a.node_type !== b.node_type) return a.node_type === 'folder' ? -1 : 1;
+    if (sort === 'updated') return Date.parse(b.updated_at) - Date.parse(a.updated_at) || a.name.localeCompare(b.name, 'ko');
+    if (sort === 'size') return b.size - a.size || a.name.localeCompare(b.name, 'ko');
+    return a.name.localeCompare(b.name, 'ko', { sensitivity: 'base' });
+  });
+}
 
 
 function getDriveNodeDragPayload(dataTransfer: DataTransfer): string | null {
@@ -311,6 +331,7 @@ export function DriveView() {
     canceled: t('upload.status.canceled'),
   }), [t]);
   const [activeSection, setActiveSection] = useState<'drive' | 'trash'>('drive');
+  const [driveSort, setDriveSort] = useState<DriveSort>(loadDriveSortSetting);
   const [breadcrumb, setBreadcrumb] = useState<BreadcrumbItem[]>([{ id: '', name: t('myDrive') }]);
   const [nodes, setNodes] = useState<DriveNode[]>([]);
   const [trashNodes, setTrashNodes] = useState<DriveNode[]>([]);
@@ -382,11 +403,17 @@ export function DriveView() {
   const loadNodes = useCallback(async (parentId: string) => {
     setLoading(true);
     const data = await listDriveNodes(parentId || undefined);
-    setNodes(data.sort((a, b) => {
-      if (a.node_type !== b.node_type) return a.node_type === 'folder' ? -1 : 1;
-      return a.name.localeCompare(b.name, 'ko');
-    }));
+    setNodes(sortDriveNodes(data, driveSort));
     setLoading(false);
+  }, [driveSort]);
+
+  useEffect(() => {
+    const refresh = (event?: StorageEvent) => {
+      if (event && event.key !== 'webmail_settings') return;
+      setDriveSort(loadDriveSortSetting());
+    };
+    window.addEventListener('storage', refresh);
+    return () => window.removeEventListener('storage', refresh);
   }, []);
 
   const loadTrashNodes = useCallback(async () => {
