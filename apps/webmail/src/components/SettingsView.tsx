@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { CheckIcon, ExclamationTriangleIcon, NoSymbolIcon, ArrowDownTrayIcon, GlobeAltIcon } from '@heroicons/react/24/outline';
+import { CheckIcon, ExclamationTriangleIcon, NoSymbolIcon, ArrowDownTrayIcon, GlobeAltIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
 import { revokeAllSessions, getFolderStats, exportFolderEml, exportFolderZip, getPreferences, setPreferences, getUserProfile, updateUserProfile, uploadUserAvatar, deleteUserAvatar, changePassword, registerWebPushDevice, getNotificationPreferences, setNotificationPreferences, getFolders, type FolderStats, type WebmailPreferences, type UserProfile, type NotificationPreferences, type FolderNotificationOverride, type Folder } from '@/lib/api';
 import { ReadMark, ExternalImages, SendDelay, Theme, FontSize, ACCENT_COLORS, FilterRule, migrateFilterRule, loadFilterRules, saveFilterRules } from '@/lib/settings/settingsUtils';
 import { NAV_ITEMS, SHORTCUT_GROUPS, type SectionId } from '@/components/settings-view/settingsViewConfig';
@@ -177,6 +177,7 @@ export function SettingsView({ userEmail, userName, initialSection }: SettingsVi
   const [blockedSenders, setBlockedSenders] = useState<string[]>([]);
   const [blockedMeta, setBlockedMeta] = useState<Record<string, string>>({}); // addr → ISO date
   const [newBlockedInput, setNewBlockedInput] = useState('');
+  const [blockedSearch, setBlockedSearch] = useState('');
   const [blockedPage, setBlockedPage] = useState(0);
   const [spamAutoDeleteDays, setSpamAutoDeleteDays] = useState<number>(30);
   const [spamAutoBlock, setSpamAutoBlock] = useState(true);
@@ -1021,9 +1022,11 @@ export function SettingsView({ userEmail, userName, initialSection }: SettingsVi
 
       case 'blocked': {
         const PAGE_SIZE = 5;
-        const totalPages = Math.ceil(blockedSenders.length / PAGE_SIZE);
+        const q = blockedSearch.trim().toLowerCase();
+        const filteredSenders = q ? blockedSenders.filter((a) => a.includes(q)) : blockedSenders;
+        const totalPages = Math.ceil(filteredSenders.length / PAGE_SIZE);
         const safePage = Math.min(blockedPage, Math.max(0, totalPages - 1));
-        const pageItems = blockedSenders.slice(safePage * PAGE_SIZE, (safePage + 1) * PAGE_SIZE);
+        const pageItems = filteredSenders.slice(safePage * PAGE_SIZE, (safePage + 1) * PAGE_SIZE);
 
         function saveBlocked(next: string[], meta?: Record<string, string>) {
           try { localStorage.setItem('webmail_blocked_senders', JSON.stringify(next)); } catch { /* ignore */ }
@@ -1112,15 +1115,46 @@ export function SettingsView({ userEmail, userName, initialSection }: SettingsVi
 
             {/* ── 차단된 발신자 목록 (table + pagination) ── */}
             <SectionCard>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px 0' }}>
-                <div>
+              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px', padding: '16px 20px 0', flexWrap: 'wrap' }}>
+                <div style={{ flex: 1 }}>
                   <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-text-primary)' }}>{t('sectionBlockedSenders')}</div>
                   <div style={{ fontSize: '12px', color: 'var(--color-text-tertiary)', marginTop: '2px' }}>{t('blockedSendersDesc')}</div>
                 </div>
+                {/* Search input */}
                 {blockedSenders.length > 0 && (
-                  <span style={{ fontSize: '12px', color: 'var(--color-text-tertiary)', flexShrink: 0 }}>
-                    {t('blockedCount', { count: blockedSenders.length })}
-                  </span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+                    <div style={{ position: 'relative' }}>
+                      <MagnifyingGlassIcon style={{ position: 'absolute', left: 8, top: '50%', transform: 'translateY(-50%)', width: 13, height: 13, color: 'var(--color-text-tertiary)', pointerEvents: 'none' }} />
+                      <input
+                        type="text"
+                        value={blockedSearch}
+                        onChange={(e) => { setBlockedSearch(e.target.value); setBlockedPage(0); }}
+                        placeholder={t('blockedSearchPlaceholder')}
+                        style={{
+                          paddingLeft: 26, paddingRight: 8, paddingTop: 5, paddingBottom: 5,
+                          width: 190, fontSize: '12px',
+                          border: '1px solid var(--color-border-default)',
+                          borderRadius: '6px',
+                          background: 'var(--color-bg-secondary)',
+                          color: 'var(--color-text-primary)',
+                          outline: 'none',
+                          fontFamily: 'monospace',
+                        }}
+                        onFocus={(e) => { (e.currentTarget as HTMLInputElement).style.borderColor = 'var(--color-accent)'; }}
+                        onBlur={(e) => { (e.currentTarget as HTMLInputElement).style.borderColor = 'var(--color-border-default)'; }}
+                      />
+                      {blockedSearch && (
+                        <button
+                          onClick={() => { setBlockedSearch(''); setBlockedPage(0); }}
+                          style={{ position: 'absolute', right: 6, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', padding: 0, color: 'var(--color-text-tertiary)', lineHeight: 1, fontSize: 14 }}
+                          aria-label={t('blockedSearchClear')}
+                        >×</button>
+                      )}
+                    </div>
+                    <span style={{ fontSize: '12px', color: 'var(--color-text-tertiary)', whiteSpace: 'nowrap' }}>
+                      {q ? t('blockedSearchCount', { found: filteredSenders.length, total: blockedSenders.length }) : t('blockedCount', { count: blockedSenders.length })}
+                    </span>
+                  </div>
                 )}
               </div>
 
@@ -1128,6 +1162,10 @@ export function SettingsView({ userEmail, userName, initialSection }: SettingsVi
                 {blockedSenders.length === 0 ? (
                   <div style={{ padding: '20px', textAlign: 'center', fontSize: '13px', color: 'var(--color-text-tertiary)' }}>
                     {t('noBlocked')}
+                  </div>
+                ) : filteredSenders.length === 0 ? (
+                  <div style={{ padding: '20px', textAlign: 'center', fontSize: '13px', color: 'var(--color-text-tertiary)' }}>
+                    {t('blockedSearchEmpty')}
                   </div>
                 ) : (
                   <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>

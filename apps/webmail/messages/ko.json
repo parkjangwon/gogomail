@@ -1371,7 +1371,11 @@
     "blockedColDate": "차단 일시",
     "blockedColAction": "해제",
     "blockedInputHint": "이메일 주소 또는 도메인(@example.com) 입력 후 엔터를 누르거나 추가 버튼을 누르세요.",
-    "blockedAlready": "이미 차단된 주소입니다."
+    "blockedAlready": "이미 차단된 주소입니다.",
+    "blockedSearchPlaceholder": "주소 검색...",
+    "blockedSearchClear": "검색 지우기",
+    "blockedSearchCount": "{found}개 / 전체 {total}개",
+    "blockedSearchEmpty": "검색 결과가 없습니다."
   },
   "composeFull": {
     "titleNew": "새 메시지",

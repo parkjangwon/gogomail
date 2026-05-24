@@ -1371,7 +1371,11 @@
     "blockedColDate": "ブロック日時",
     "blockedColAction": "解除",
     "blockedInputHint": "メールアドレスまたはドメイン(@example.com)を入力してEnterを押すか、追加ボタンをクリックしてください。",
-    "blockedAlready": "このアドレスはすでにブロックされています。"
+    "blockedAlready": "このアドレスはすでにブロックされています。",
+    "blockedSearchPlaceholder": "アドレスを検索...",
+    "blockedSearchClear": "検索をクリア",
+    "blockedSearchCount": "{found}件 / 全{total}件",
+    "blockedSearchEmpty": "一致する結果がありません。"
   },
   "composeFull": {
     "titleNew": "新規メッセージ",
