@@ -1375,7 +1375,18 @@
     "blockedSearchPlaceholder": "Search addresses...",
     "blockedSearchClear": "Clear search",
     "blockedSearchCount": "{found} of {total}",
-    "blockedSearchEmpty": "No matching entries."
+    "blockedSearchEmpty": "No matching entries.",
+    "sectionAllowedSenders": "Allowed Senders",
+    "allowedSendersDesc": "Mail from allowed senders will always be delivered to your inbox, bypassing spam filters.",
+    "noAllowed": "No allowed senders yet.",
+    "allowedColAddr": "Sender / Domain",
+    "allowedColDate": "Allowed on",
+    "disallow": "Remove",
+    "sectionAddAllowedSender": "Add Allowed Sender",
+    "allowedInputHint": "Enter an email address or domain (@example.com). Mail from this sender will bypass spam filters.",
+    "allowedInputPlaceholder": "e.g. newsletter@example.com or @trusted.com",
+    "allow": "Allow",
+    "allowedAlready": "This address is already allowed."
   },
   "composeFull": {
     "titleNew": "New message",
