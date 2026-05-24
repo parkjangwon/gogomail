@@ -135,6 +135,67 @@ services:
     networks:
       - gogomail-dev
 
+
+  event-worker:
+    image: golang:1.25-alpine
+    container_name: gogomail-event-worker-dev
+    working_dir: /app
+    volumes:
+      - ..:/app
+    environment:
+      CGO_ENABLED: 0
+      GOFLAGS: -v
+    command: sh -c "go run ./cmd/gogomail --config /app/configs/config.dev.yaml --mode event-worker"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      clamav:
+        condition: service_healthy
+    networks:
+      - gogomail-dev
+
+  outbox-relay:
+    image: golang:1.25-alpine
+    container_name: gogomail-outbox-relay-dev
+    working_dir: /app
+    volumes:
+      - ..:/app
+    environment:
+      CGO_ENABLED: 0
+      GOFLAGS: -v
+    command: sh -c "go run ./cmd/gogomail --config /app/configs/config.dev.yaml --mode outbox-relay"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - gogomail-dev
+
+  delivery-worker:
+    image: golang:1.25-alpine
+    container_name: gogomail-delivery-worker-dev
+    working_dir: /app
+    volumes:
+      - ..:/app
+    environment:
+      CGO_ENABLED: 0
+      GOFLAGS: -v
+    command: sh -c "go run ./cmd/gogomail --config /app/configs/config.dev.yaml --mode delivery-worker"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    networks:
+      - gogomail-dev
+
 volumes:
   postgres-data:
     driver: local
