@@ -989,6 +989,10 @@ export default function MailPage() {
               setShowSpotlight(true);
             }
             return;
+          case 'b':
+            e.preventDefault();
+            window.dispatchEvent(new CustomEvent('toggleNotificationCenter'));
+            return;
           default:
             return;
         }
