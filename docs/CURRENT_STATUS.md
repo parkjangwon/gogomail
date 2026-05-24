@@ -1,6 +1,13 @@
 # gogomail current status
 
-Last updated: 2026-05-24 (User MCP automation)
+Last updated: 2026-05-24 (MCP agent compatibility)
+
+## MCP Agent Compatibility Follow-up (2026-05-24)
+- Removed the top-level `anyOf` constraint from the user MCP `gogomail_mail_send` advertised input schema so stricter agent clients such as Codex can register the tool; recipient requirements remain enforced by runtime validation.
+- Added schema compatibility regression coverage for both `apps/gogomail-user-mcp` and `apps/gogomail-manage-mcp` so advertised tool schemas stay rooted at plain objects and avoid top-level constructs rejected by conservative MCP/function-call adapters.
+- Fixed mail and thread page-list SQL optional parameter typing so folderless/filterless mailbox reads no longer fail PostgreSQL analysis with skipped placeholder types while preserving the existing direct predicates for active filters.
+- Local Docker smoke against `pjw@parkjw.org` now successfully lists messages through the real `gogomail-user-mcp` stdio server after the schema and backend fixes.
+- Verification: `npm test && npm run type-check && npm run build` in both MCP packages; `go test ./internal/maildb ./internal/mailservice ./internal/httpapi`; `go test ./...`; stdio MCP smoke against `http://localhost:8080`.
 
 ## User MCP Automation (2026-05-24)
 - Added the user-facing `apps/gogomail-user-mcp` server so end users can automate mail, contacts, Drive, and calendar through user-scoped APIs instead of the admin/support MCP.

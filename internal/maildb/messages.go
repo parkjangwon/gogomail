@@ -654,13 +654,13 @@ func (r *Repository) ListMessagesPage(ctx context.Context, userID string, folder
 		ctx,
 		query,
 		strings.TrimSpace(userID),
-		folderID,
-		cursor.At,
-		cursorID,
+		optionalStringParam(folderID),
+		optionalTimeParam(cursorID != "", cursor.At),
+		optionalStringParam(cursorID),
 		limit,
-		filter.Read,
-		filter.Starred,
-		filter.HasAttachment,
+		optionalBoolParam(filter.Read),
+		optionalBoolParam(filter.Starred),
+		optionalBoolParam(filter.HasAttachment),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("list message page: %w", err)
@@ -793,6 +793,15 @@ var (
 )
 
 const messageListPageBaseSQL = `
+WITH message_list_page_params AS (
+  SELECT
+    $2::uuid AS folder_id,
+    $3::timestamptz AS cursor_at,
+    $4::uuid AS cursor_id,
+    $6::boolean AS read_filter,
+    $7::boolean AS starred_filter,
+    $8::boolean AS has_attachment_filter
+)
 SELECT
   messages.id::text,
   messages.folder_id::text,
@@ -806,9 +815,31 @@ SELECT
   COALESCE((messages.flags->>'read')::boolean, false) AS read,
   COALESCE((messages.flags->>'starred')::boolean, false) AS starred
 FROM messages
+CROSS JOIN message_list_page_params
 LEFT JOIN message_search_documents msd
   ON msd.message_id = messages.id
  AND msd.user_id = messages.user_id`
+
+func optionalStringParam(value string) any {
+	if strings.TrimSpace(value) == "" {
+		return nil
+	}
+	return value
+}
+
+func optionalTimeParam(enabled bool, value time.Time) any {
+	if !enabled {
+		return nil
+	}
+	return value
+}
+
+func optionalBoolParam(value *bool) any {
+	if value == nil {
+		return nil
+	}
+	return *value
+}
 
 func (r *Repository) GetMessage(ctx context.Context, userID string, messageID string) (MessageDetail, error) {
 	if r.db == nil {

@@ -4,9 +4,33 @@ import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { withMCPNotice } from "./client.js";
-import { callTool } from "./tools.js";
+import { callTool, toolDefinitions } from "./tools.js";
 
 type CapturedCall = { method: string; path: string; body?: unknown; headers?: Record<string, string> };
+
+describe("MCP tool schema compatibility", () => {
+  test("all advertised tools use Codex-compatible top-level object schemas", () => {
+    for (const tool of toolDefinitions) {
+      const schema = tool.inputSchema as Record<string, unknown>;
+      assert.equal(schema.type, "object", `${tool.name} must expose an object input schema`);
+      for (const keyword of ["oneOf", "anyOf", "allOf", "enum", "not"]) {
+        assert.equal(Object.hasOwn(schema, keyword), false, `${tool.name} must not expose top-level ${keyword}`);
+      }
+      assertNoSchemaCombinators(schema, tool.name);
+    }
+  });
+});
+
+function assertNoSchemaCombinators(value: unknown, path: string): void {
+  if (!value || typeof value !== "object") return;
+  const record = value as Record<string, unknown>;
+  for (const keyword of ["oneOf", "anyOf", "allOf", "not"]) {
+    assert.equal(Object.hasOwn(record, keyword), false, `${path} must not expose ${keyword}`);
+  }
+  for (const [key, child] of Object.entries(record)) {
+    assertNoSchemaCombinators(child, `${path}.${key}`);
+  }
+}
 
 describe("MCP generated mail notice", () => {
   test("prepends Korean notice to text and HTML bodies by default", () => {

@@ -73,6 +73,26 @@ func TestThreadListQueryUsesSargableFolderFilter(t *testing.T) {
 	}
 }
 
+func TestThreadListPageQueryAnchorsOptionalParameterTypes(t *testing.T) {
+	t.Parallel()
+
+	query := buildThreadListPageSQL(ListSortNewest, "", "", ThreadListFilter{})
+	for _, want := range []string{
+		"WITH thread_list_page_params AS",
+		"$3::timestamptz AS cursor_at",
+		"$4::text AS cursor_id",
+		"$5::boolean AS read_filter",
+		"$6::boolean AS starred_filter",
+		"$7::boolean AS has_attachment_filter",
+		"$8::uuid AS folder_id",
+		"CROSS JOIN thread_list_page_params",
+	} {
+		if !strings.Contains(query, want) {
+			t.Fatalf("thread list query missing optional parameter type anchor %q:\n%s", want, query)
+		}
+	}
+}
+
 func TestThreadListQueryUsesSargableBooleanFilters(t *testing.T) {
 	t.Parallel()
 
@@ -111,9 +131,8 @@ func TestThreadListQueryUsesSargableBooleanFilters(t *testing.T) {
 
 	query = buildThreadListPageSQL(ListSortNewest, "", "", ThreadListFilter{})
 	for _, forbidden := range []string{
-		"$5::boolean",
-		"AND starred",
-		"AND has_attachment",
+		"AND starred = $6::boolean",
+		"AND has_attachment = $7::boolean",
 	} {
 		if strings.Contains(query, forbidden) {
 			t.Fatalf("unfiltered thread list query unexpectedly includes boolean filter %q:\n%s", forbidden, query)
@@ -141,7 +160,7 @@ func TestThreadListQueryUsesSargableCursorFilter(t *testing.T) {
 	}
 
 	query = buildThreadListPageSQL(ListSortNewest, "", "", ThreadListFilter{})
-	if strings.Contains(query, "$4") {
+	if strings.Contains(query, "WHERE (latest_at, thread_key)") {
 		t.Fatalf("cursorless thread list query unexpectedly includes cursor predicate:\n%s", query)
 	}
 	if !strings.Contains(query, "WHERE TRUE") {
