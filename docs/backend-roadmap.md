@@ -2,6 +2,7 @@
 
 ## Recent launch-readiness closures
 
+- Delivery workers now short-circuit active local-domain recipients into local inbox storage while preserving policy/event processing, and bounce unknown local recipients instead of falling back to MX lookup.
 - Outbox relay now publishes each row to its own topic stream so queued outbound mail reaches delivery workers, and webmail sent-message tracking tolerates pending delivery-status responses with no attempt rows yet.
 - Webmail and console documentation/UI copy now reflects the Next.js 16 frontend baseline, and MCP access-key issuance includes localized bulk scope selection/reset controls.
 - Webmail settings sidebar ordering now prioritizes active product preferences and adds functional Contacts and Drive preference sections with localized controls.

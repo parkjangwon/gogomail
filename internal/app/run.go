@@ -58,6 +58,7 @@ import (
 	"github.com/gogomail/gogomail/internal/maildb"
 	"github.com/gogomail/gogomail/internal/mailflow"
 	"github.com/gogomail/gogomail/internal/mailservice"
+	"github.com/gogomail/gogomail/internal/message"
 	"github.com/gogomail/gogomail/internal/milterhook"
 	"github.com/gogomail/gogomail/internal/observability"
 	"github.com/gogomail/gogomail/internal/orgchart"
@@ -2926,12 +2927,13 @@ func runDeliveryWorker(ctx context.Context, cfg config.Config, logger *slog.Logg
 		)
 	}
 
+	localDelivery := localDeliveryAdapter{repository: repository}
 	handler := delivery.NewHandler(
 		store,
 		deliveryTransport,
 		deliveryRecorder,
 		delivery.NewPostgresRetryScheduler(db, retryPolicy),
-	).WithExhaustionHook(deliveryRecorder)
+	).WithExhaustionHook(deliveryRecorder).WithLocalDelivery(localDelivery, localDelivery)
 	if cfg.DeliveryThrottleEnabled {
 		throttlePolicy := delivery.ThrottlePolicy{
 			FarmMaxConcurrent:   deliveryFarmLimits(cfg.DeliveryFarmConcurrency),
@@ -3804,4 +3806,57 @@ func waitForShutdown(ctx context.Context, logger *slog.Logger, mode Mode) error 
 	logger.Info("mode scaffold is ready; component implementation will be added next", "mode", mode)
 	<-ctx.Done()
 	return nil
+}
+
+type localDeliveryAdapter struct {
+	repository *maildb.Repository
+}
+
+func (a localDeliveryAdapter) ResolveLocalRecipient(ctx context.Context, address string) (delivery.LocalRecipientLookup, error) {
+	if a.repository == nil {
+		return delivery.LocalRecipientLookup{}, fmt.Errorf("local delivery repository is required")
+	}
+	mailbox, domainLocal, err := a.repository.ResolveLocalRecipient(ctx, address)
+	if err != nil {
+		return delivery.LocalRecipientLookup{}, err
+	}
+	return delivery.LocalRecipientLookup{
+		DomainLocal:     domainLocal,
+		RecipientExists: domainLocal && mailbox.UserID != "",
+		Mailbox: delivery.LocalMailbox{
+			CompanyID: mailbox.CompanyID,
+			DomainID:  mailbox.DomainID,
+			UserID:    mailbox.UserID,
+			Address:   mailbox.Address,
+		},
+	}, nil
+}
+
+func (a localDeliveryAdapter) DeliverLocal(ctx context.Context, job delivery.Job, _ outbound.Address, mailbox delivery.LocalMailbox) error {
+	if a.repository == nil {
+		return fmt.Errorf("local delivery repository is required")
+	}
+	body, err := job.OpenMessage(ctx)
+	if err != nil {
+		return err
+	}
+	defer body.Close()
+	parsed, err := message.ParseEML(body)
+	if err != nil {
+		return err
+	}
+	return a.repository.Record(ctx, smtpd.ReceivedMessage{
+		EnvelopeFrom: strings.TrimSpace(job.From.Email),
+		Mailbox: smtpd.Mailbox{
+			CompanyID: mailbox.CompanyID,
+			DomainID:  mailbox.DomainID,
+			UserID:    mailbox.UserID,
+			Address:   mailbox.Address,
+		},
+		StoragePath:      job.StoragePath,
+		Parsed:           parsed,
+		ReceivedAt:       time.Now().UTC(),
+		Size:             job.Size,
+		FolderSystemType: "inbox",
+	})
 }

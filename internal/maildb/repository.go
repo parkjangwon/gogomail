@@ -68,6 +68,51 @@ LIMIT 1`
 	return mailbox, nil
 }
 
+func (r *Repository) ResolveLocalRecipient(ctx context.Context, address string) (smtpd.Mailbox, bool, error) {
+	if r.db == nil {
+		return smtpd.Mailbox{}, false, fmt.Errorf("database handle is required")
+	}
+	addressACE, err := normalizeAddressACE(address)
+	if err != nil {
+		return smtpd.Mailbox{}, false, err
+	}
+	_, domainACE, ok := strings.Cut(addressACE, "@")
+	if !ok || strings.TrimSpace(domainACE) == "" {
+		return smtpd.Mailbox{}, false, fmt.Errorf("recipient %q has no domain", address)
+	}
+
+	const query = `
+SELECT
+  d.company_id::text,
+  d.id::text,
+  COALESCE(u.id::text, ''),
+  COALESCE(ua.address, ''),
+  u.id IS NOT NULL
+FROM domains d
+LEFT JOIN user_addresses ua ON ua.domain_id = d.id AND ua.address_ace = $1
+LEFT JOIN users u ON u.id = ua.user_id AND u.status = 'active'
+WHERE d.name_ace = $2
+  AND d.status = 'active'
+LIMIT 1`
+
+	var mailbox smtpd.Mailbox
+	var recipientExists bool
+	err = r.db.QueryRowContext(ctx, query, addressACE, strings.ToLower(strings.TrimSpace(domainACE))).Scan(
+		&mailbox.CompanyID,
+		&mailbox.DomainID,
+		&mailbox.UserID,
+		&mailbox.Address,
+		&recipientExists,
+	)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return smtpd.Mailbox{}, false, nil
+		}
+		return smtpd.Mailbox{}, false, fmt.Errorf("resolve local recipient %q: %w", address, err)
+	}
+	return mailbox, true, nil
+}
+
 func (r *Repository) Record(ctx context.Context, msg smtpd.ReceivedMessage) error {
 	if r.db == nil {
 		return fmt.Errorf("database handle is required")
