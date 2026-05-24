@@ -635,7 +635,8 @@
         "todoList": "Task list",
         "send": "Send",
         "saveDraft": "Save draft",
-        "composeClose": "Close compose"
+        "composeClose": "Close compose",
+        "notificationCenter": "Toggle Notification Center"
       }
     },
     "orgPicker": {

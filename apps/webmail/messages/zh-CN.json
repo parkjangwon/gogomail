@@ -635,7 +635,8 @@
         "todoList": "任务列表",
         "send": "发送",
         "saveDraft": "保存草稿",
-        "composeClose": "关闭撰写"
+        "composeClose": "关闭撰写",
+        "notificationCenter": "切换通知中心"
       }
     },
     "orgPicker": {

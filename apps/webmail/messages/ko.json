@@ -635,7 +635,8 @@
         "todoList": "할 일 목록",
         "send": "전송",
         "saveDraft": "임시저장",
-        "composeClose": "작성창 닫기"
+        "composeClose": "작성창 닫기",
+        "notificationCenter": "알림 센터 열기/닫기"
       }
     },
     "orgPicker": {

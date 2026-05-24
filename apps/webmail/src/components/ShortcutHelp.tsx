@@ -13,6 +13,7 @@ const SECTIONS: SectionDef[] = [
       { key: 'Cmd+k / Ctrl+k', descId: 'spotlight' },
       { key: '/', descId: 'spotlightSlash' },
       { key: '[', descId: 'toggleSidebar' },
+      { key: 'b', descId: 'notificationCenter' },
     ],
   },
   {

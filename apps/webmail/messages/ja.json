@@ -635,7 +635,8 @@
         "todoList": "タスク一覧",
         "send": "送信",
         "saveDraft": "下書きを保存",
-        "composeClose": "作成画面を閉じる"
+        "composeClose": "作成画面を閉じる",
+        "notificationCenter": "通知センターを開く/閉じる"
       }
     },
     "orgPicker": {
