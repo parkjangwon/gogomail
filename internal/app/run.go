@@ -3469,7 +3469,7 @@ func runHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, mode M
 				if err := sc.Ping(ctx); err != nil {
 					return httpapi.ReadinessCheck{Name: "clamav", Status: "unhealthy", Detail: err.Error()}
 				}
-				return httpapi.ReadinessCheck{Name: "clamav", Status: "healthy"}
+				return httpapi.ReadinessCheck{Name: "clamav", Status: "ok"}
 			})
 			logger.Info("clamav readiness check registered", "addr", cfg.AttachmentScanClamAVAddr)
 		}

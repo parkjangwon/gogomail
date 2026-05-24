@@ -187,14 +187,17 @@ export class GogomailClient {
     const url = `${this.baseUrl}/admin/v1${path}`;
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 30_000);
+    const headers: Record<string, string> = {
+      Authorization: `Bearer ${this.apiKey}`,
+    };
+    if (body !== undefined) {
+      headers["Content-Type"] = "application/json";
+    }
     let res: Response;
     try {
       res = await fetch(url, {
         method,
-        headers: {
-          Authorization: `Bearer ${this.apiKey}`,
-          "Content-Type": "application/json",
-        },
+        headers,
         body: body !== undefined ? JSON.stringify(body) : undefined,
         signal: controller.signal,
       });

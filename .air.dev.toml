@@ -2,7 +2,7 @@ root = "."
 tmp_dir = "/tmp/gogomail-air"
 
 [build]
-cmd = "go build -o /tmp/gogomail-air/gogomail ./cmd/gogomail/main.go"
+cmd = "go build -o /tmp/gogomail-air/gogomail ./cmd/gogomail"
 bin = "/tmp/gogomail-air/gogomail -mode all-in-one -migrate -config /app/configs/config.dev.yaml"
 delay = 1000
 exclude_dir = [

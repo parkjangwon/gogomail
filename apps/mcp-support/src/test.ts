@@ -162,6 +162,25 @@ describe("SuppoClient: 5xx response body masking", () => {
 });
 
 describe("GogomailClient: Admin API contract mapping", () => {
+  test("GET requests do not send Content-Type when there is no request body", async () => {
+    const client = new GogomailClient("https://admin.example.com", "test-key");
+    const origFetch = globalThis.fetch;
+    const contentTypes: (string | null)[] = [];
+    globalThis.fetch = async (_input, init) => {
+      contentTypes.push(new Headers(init?.headers).get("Content-Type"));
+      return new Response(JSON.stringify({
+        checks: [],
+      }), { status: 200, headers: { "Content-Type": "application/json" } });
+    };
+
+    try {
+      await client.checkHealth();
+      assert.equal(contentTypes[0], null);
+    } finally {
+      globalThis.fetch = origFetch;
+    }
+  });
+
   test("getUser unwraps the { user } response envelope", async () => {
     const client = new GogomailClient("https://admin.example.com", "test-key");
     const origFetch = globalThis.fetch;

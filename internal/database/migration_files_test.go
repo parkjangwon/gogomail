@@ -89,6 +89,26 @@ func TestMigrationsDeclareGooseSections(t *testing.T) {
 	}
 }
 
+func TestConcurrentIndexMigrationsDisableTransactions(t *testing.T) {
+	t.Parallel()
+
+	matches, err := filepath.Glob(filepath.Join("..", "..", "migrations", "*.sql"))
+	if err != nil {
+		t.Fatalf("glob migrations: %v", err)
+	}
+	for _, path := range matches {
+		name := filepath.Base(path)
+		raw, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatalf("read migration %s: %v", name, err)
+		}
+		text := string(raw)
+		if strings.Contains(text, "CONCURRENTLY") && !strings.Contains(text, "-- +goose NO TRANSACTION") {
+			t.Fatalf("migration %s uses CONCURRENTLY and must declare -- +goose NO TRANSACTION", name)
+		}
+	}
+}
+
 func TestDAVCollectionPropertyLanguageMigrationMatchesRepositoryColumns(t *testing.T) {
 	t.Parallel()
 
