@@ -49,7 +49,14 @@ export class GogomailUserClient {
     if (res.status === 204) return {} as T;
     const contentType = res.headers.get("Content-Type") ?? "";
     if (!contentType.includes("application/json")) {
-      return { body: await res.text() } as T;
+      const bytes = Buffer.from(await res.arrayBuffer());
+      const body = bytes.toString("utf8");
+      return {
+        body,
+        body_text: body,
+        body_base64: bytes.toString("base64"),
+        content_type: contentType,
+      } as T;
     }
     return (await res.json()) as T;
   }

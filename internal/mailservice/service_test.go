@@ -4302,7 +4302,8 @@ func TestSendDraftSendsAndMarksDraftSent(t *testing.T) {
 		},
 	}
 	service := New(repo, store)
-	result, err := service.SendDraft(context.Background(), "user-1", "draft-1")
+	ctx := ContextWithMCPGeneratedNotice(context.Background(), "Automated via MCP.")
+	result, err := service.SendDraft(ctx, "user-1", "draft-1")
 	if err != nil {
 		t.Fatalf("SendDraft returned error: %v", err)
 	}
@@ -4332,8 +4333,11 @@ func TestSendDraftSendsAndMarksDraftSent(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ParseEML returned error: %v", err)
 	}
-	if parsed.HTMLBody != "<p>draft html</p>" {
+	if !strings.Contains(parsed.HTMLBody, "Automated via MCP.") || !strings.Contains(parsed.HTMLBody, "<p>draft html</p>") {
 		t.Fatalf("HTMLBody = %q", parsed.HTMLBody)
+	}
+	if !strings.HasPrefix(strings.ReplaceAll(parsed.TextBody, "\r\n", "\n"), "Automated via MCP.\n\ndraft body") {
+		t.Fatalf("TextBody = %q", parsed.TextBody)
 	}
 	if !parsed.HasAttachment || len(parsed.Attachments) != 1 || parsed.Attachments[0].Filename != "report.pdf" {
 		t.Fatalf("attachments = %+v", parsed.Attachments)

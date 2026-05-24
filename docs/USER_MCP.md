@@ -19,6 +19,7 @@ Defaults:
 - Bypass mode is not allowed by default; a user and domain admin must opt in.
 - MCP-generated mail notice is enabled and prepends `MCP를 통해 작성된 메일입니다.`.
 - Sensitive actions require explicit MCP tool confirmation strings in `basic` mode.
+- `mail.send_enabled`, external-recipient confirmation, attachment confirmation, and daily send limits are enforced server-side for user MCP keys.
 
 The webmail settings page exposes:
 
@@ -46,15 +47,17 @@ Important fields:
 - `force_generated_mail_notice`: forces the generated-mail notice in effective user MCP settings even if the user disables it.
 - `audit_level`: controls future audit verbosity expectations.
 
-In `basic` mode, sensitive user-key API calls must include `X-Gogomail-MCP-Confirm` with the same confirmation string required by the MCP tool. Bypass-mode user keys skip this backend confirmation gate.
+In `basic` mode, sensitive user-key API calls must include `X-Gogomail-MCP-Confirm` with the same confirmation string required by the MCP tool. Bypass-mode user keys skip this backend confirmation gate. If the user enables external-recipient or attachment confirmation, send calls must also include `X-Gogomail-MCP-External-Confirm: external recipients` or `X-Gogomail-MCP-Attachment-Confirm: send attachments`.
 
 ## Tool Contract
 
 The user MCP server only calls existing GoGoMail user APIs:
 
-- Mail: `/api/v1/messages`, `/api/v1/drafts`, `/api/v1/search`.
-- Contacts: `/api/mail/addressbooks`, `/api/mail/contacts/autocomplete`.
-- Drive: `/api/v1/drive/nodes`, `/api/v1/drive/folders`, `/api/v1/drive/upload-sessions`.
-- Calendar: `/api/v1/calendars`.
+- Mail: messages, drafts, folders, threads, attachments, delivery status, bulk routes, and search.
+- Contacts and directory: address books, contacts, autocomplete, directory users, and organization tree.
+- Drive: nodes, folders, downloads, upload sessions, usage, and share links.
+- Calendar: calendars, calendar objects, calendar subscriptions, and subscription events.
+
+For agent-native coverage, `gogomail_api_request` can call the documented user API surface through an exact method/path manifest. It blocks admin, auth, password, session, and MCP key-management routes and denies undocumented future routes until the manifest is intentionally updated.
 
 When a needed user workflow has no API, add the backend API first and document it in `docs/openapi.yaml` before exposing an MCP tool.

@@ -14,6 +14,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gogomail/gogomail/internal/apikeys"
@@ -1631,11 +1632,27 @@ func RegisterMailRoutesWithOptions(mux *http.ServeMux, service MessageService, t
 		if !ok {
 			return
 		}
-		result, err := service.SendDraft(r.Context(), userID, draftID)
+		ctx := r.Context()
+		if notice, ok, err := userMCPGeneratedNotice(ctx, service, r, userID); err != nil {
+			writeError(w, http.StatusInternalServerError, "failed to apply mcp settings")
+			return
+		} else if ok {
+			ctx = mailservice.ContextWithMCPGeneratedNotice(ctx, notice)
+		}
+		ctx, ok = userMCPSendPolicyContext(w, r, service, ctx, userID, nil)
+		if !ok {
+			return
+		}
+		result, err := service.SendDraft(ctx, userID, draftID)
 		if err != nil {
+			if strings.HasPrefix(err.Error(), "mcp ") {
+				writeError(w, http.StatusForbidden, err.Error())
+				return
+			}
 			writeError(w, http.StatusBadRequest, err.Error())
 			return
 		}
+		recordUserMCPSend(r, userID)
 		result = mailservice.NormalizeSendTextResult(result)
 		writeJSON(w, http.StatusAccepted, map[string]any{"message": result})
 	})
@@ -2183,15 +2200,26 @@ func RegisterMailRoutesWithOptions(mux *http.ServeMux, service MessageService, t
 		if !bindRequestUserID(w, r, tokenManager, service, &req.UserID, req.UserEmail) {
 			return
 		}
-		if err := applyUserMCPGeneratedNotice(r.Context(), service, r, req.UserID, &req); err != nil {
+		if notice, ok, err := userMCPGeneratedNotice(r.Context(), service, r, req.UserID); err != nil {
 			writeError(w, http.StatusInternalServerError, "failed to apply mcp settings")
 			return
+		} else if ok {
+			mailservice.ApplyGeneratedNoticeToSendTextRequest(&req, notice)
 		}
-		result, err := service.SendText(r.Context(), req)
+		ctx, ok := userMCPSendPolicyContext(w, r, service, r.Context(), req.UserID, &req)
+		if !ok {
+			return
+		}
+		if err := mailservice.EnforceMCPSendPolicy(ctx, req); err != nil {
+			writeError(w, http.StatusForbidden, err.Error())
+			return
+		}
+		result, err := service.SendText(ctx, req)
 		if err != nil {
 			writeError(w, http.StatusBadRequest, err.Error())
 			return
 		}
+		recordUserMCPSend(r, req.UserID)
 		result = mailservice.NormalizeSendTextResult(result)
 
 		writeJSON(w, http.StatusAccepted, map[string]any{"message": result})
@@ -3063,7 +3091,7 @@ func apiKeyHasScope(info *apikeys.KeyInfo, required string) bool {
 		if scopeAction == "manage" {
 			return true
 		}
-		if scopeAction == "write" && (requiredAction == "read" || requiredAction == "write" || requiredAction == "send") {
+		if scopeAction == "write" && (requiredAction == "read" || requiredAction == "write") {
 			return true
 		}
 		switch required {
@@ -3072,7 +3100,7 @@ func apiKeyHasScope(info *apikeys.KeyInfo, required string) bool {
 				return true
 			}
 		case "mail:send":
-			if scope == "mail" || scope == "mail:*" || scope == "mail:send" || scope == "mail:manage" || scope == "mail:write" {
+			if scope == "mail" || scope == "mail:*" || scope == "mail:send" || scope == "mail:manage" {
 				return true
 			}
 		case "mail:manage":
@@ -3146,10 +3174,20 @@ func requiredUserAPIKeyConfirmation(r *http.Request) (string, bool) {
 		return "delete drive " + r.PathValue("id"), true
 	case r.Method == http.MethodPost && strings.HasPrefix(path, "/api/v1/drive/nodes/") && strings.HasSuffix(path, "/share-links"):
 		return "share drive " + r.PathValue("id"), true
+	case r.Method == http.MethodDelete && strings.HasPrefix(path, "/api/v1/drive/share-links/"):
+		return "DELETE " + path, true
 	case r.Method == http.MethodDelete && strings.HasPrefix(path, "/api/v1/calendars/") && strings.Contains(path, "/objects/"):
 		return "delete calendar " + r.PathValue("name"), true
 	case r.Method == http.MethodDelete && strings.HasPrefix(path, "/api/v1/calendars/"):
 		return "delete calendar " + r.PathValue("id"), true
+	case r.Method == http.MethodDelete && strings.HasPrefix(path, "/api/v1/attachments/"):
+		return "DELETE " + path, true
+	case r.Method == http.MethodPost && path == "/api/v1/messages/bulk/delete":
+		return "POST " + path, true
+	case r.Method == http.MethodPost && path == "/api/v1/threads/bulk/delete":
+		return "POST " + path, true
+	case r.Method == http.MethodDelete && strings.HasPrefix(path, "/api/v1/calendar-subscriptions/"):
+		return "DELETE " + path, true
 	default:
 		return "", false
 	}
@@ -3204,52 +3242,168 @@ func effectiveMCPSettings(ctx context.Context, service MessageService, userID st
 	return out, nil
 }
 
-func applyUserMCPGeneratedNotice(ctx context.Context, service MessageService, r *http.Request, userID string, req *mailservice.SendTextRequest) error {
-	if req == nil {
-		return nil
-	}
+type userMCPRuntimeSettings struct {
+	GeneratedMailNoticeEnabled *bool  `json:"generated_mail_notice_enabled"`
+	GeneratedMailNoticeText    string `json:"generated_mail_notice_text"`
+	Mail                       struct {
+		SendEnabled               *bool `json:"send_enabled"`
+		ConfirmExternalRecipients *bool `json:"confirm_external_recipients"`
+		ConfirmAttachments        *bool `json:"confirm_attachments"`
+		DailySendLimit            *int  `json:"daily_send_limit"`
+	} `json:"mail"`
+}
+
+type userMCPSendCounter struct {
+	Day   string
+	Count int
+}
+
+var (
+	userMCPSendCountersMu sync.Mutex
+	userMCPSendCounters   = map[string]userMCPSendCounter{}
+)
+
+func loadUserMCPRuntimeSettings(ctx context.Context, service MessageService, r *http.Request, userID string) (userMCPRuntimeSettings, bool, error) {
+	var settings userMCPRuntimeSettings
 	info, ok := apikeys.KeyInfoFromContext(r.Context())
 	if !ok || info == nil || strings.TrimSpace(info.UserID) == "" {
-		return nil
+		return settings, false, nil
 	}
 	prefs, err := service.GetWebmailPreferences(ctx, userID)
 	if err != nil {
-		return err
+		return settings, true, err
 	}
 	raw, err := effectiveMCPSettings(ctx, service, userID, extractMCPSettings(prefs), info)
 	if err != nil {
-		return err
-	}
-	var settings struct {
-		GeneratedMailNoticeEnabled bool   `json:"generated_mail_notice_enabled"`
-		GeneratedMailNoticeText    string `json:"generated_mail_notice_text"`
+		return settings, true, err
 	}
 	if err := json.Unmarshal(raw, &settings); err != nil {
-		return err
+		return settings, true, err
 	}
-	if !settings.GeneratedMailNoticeEnabled {
-		return nil
+	return settings, true, nil
+}
+
+func userMCPGeneratedNotice(ctx context.Context, service MessageService, r *http.Request, userID string) (string, bool, error) {
+	settings, ok, err := loadUserMCPRuntimeSettings(ctx, service, r, userID)
+	if err != nil || !ok {
+		return "", false, err
+	}
+	if settings.GeneratedMailNoticeEnabled != nil && !*settings.GeneratedMailNoticeEnabled {
+		return "", false, nil
 	}
 	notice := strings.TrimSpace(settings.GeneratedMailNoticeText)
 	if notice == "" {
 		notice = "MCP를 통해 작성된 메일입니다."
 	}
-	if strings.TrimSpace(req.TextBody) != "" && !strings.HasPrefix(req.TextBody, notice) {
-		req.TextBody = notice + "\n\n" + req.TextBody
-	}
-	if strings.TrimSpace(req.HTMLBody) != "" && !strings.Contains(req.HTMLBody[:min(len(req.HTMLBody), 2048)], notice) {
-		req.HTMLBody = `<p style="color:#8a8a8a;font-size:12px;margin:0 0 12px">` + htmlEscape(notice) + `</p>` + req.HTMLBody
-	}
-	return nil
+	return notice, true, nil
 }
 
-func htmlEscape(value string) string {
-	value = strings.ReplaceAll(value, "&", "&amp;")
-	value = strings.ReplaceAll(value, "<", "&lt;")
-	value = strings.ReplaceAll(value, ">", "&gt;")
-	value = strings.ReplaceAll(value, `"`, "&quot;")
-	value = strings.ReplaceAll(value, `'`, "&#39;")
-	return value
+func userMCPSendPolicyContext(w http.ResponseWriter, r *http.Request, service MessageService, ctx context.Context, userID string, req *mailservice.SendTextRequest) (context.Context, bool) {
+	settings, ok, err := loadUserMCPRuntimeSettings(r.Context(), service, r, userID)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to apply mcp settings")
+		return ctx, false
+	}
+	if !ok {
+		return ctx, true
+	}
+	if settings.Mail.SendEnabled != nil && !*settings.Mail.SendEnabled {
+		writeError(w, http.StatusForbidden, "mcp mail sending is disabled")
+		return ctx, false
+	}
+	policy := mailservice.MCPSendPolicy{
+		ConfirmExternalRecipients:   true,
+		ConfirmAttachments:          true,
+		ExternalRecipientsConfirmed: strings.TrimSpace(r.Header.Get("X-Gogomail-MCP-External-Confirm")) == "external recipients",
+		AttachmentsConfirmed:        strings.TrimSpace(r.Header.Get("X-Gogomail-MCP-Attachment-Confirm")) == "send attachments",
+	}
+	if settings.Mail.ConfirmExternalRecipients != nil {
+		policy.ConfirmExternalRecipients = *settings.Mail.ConfirmExternalRecipients
+	}
+	if settings.Mail.ConfirmAttachments != nil {
+		policy.ConfirmAttachments = *settings.Mail.ConfirmAttachments
+	}
+	info, _ := apikeys.KeyInfoFromContext(r.Context())
+	isBypass := info != nil && strings.EqualFold(strings.TrimSpace(info.PermissionMode), maildb.MCPPermissionModeBypass)
+	if isBypass {
+		policy.ConfirmExternalRecipients = false
+		policy.ConfirmAttachments = false
+	}
+	if profile, err := service.GetUserProfile(r.Context(), userID); err == nil {
+		policy.SenderDomain = emailDomain(profile.Email)
+	}
+	ctx = mailservice.ContextWithMCPSendPolicy(ctx, policy)
+	if info != nil && !isBypass {
+		if req != nil && strings.TrimSpace(req.From) == "" {
+			if policy.SenderDomain != "" {
+				reqCopy := *req
+				reqCopy.From = policy.SenderDomain
+				req = &reqCopy
+			}
+		}
+		if req != nil && policy.ConfirmAttachments && len(req.AttachmentIDs) > 0 && !policy.AttachmentsConfirmed {
+			writeError(w, http.StatusForbidden, "mcp attachment confirmation header must equal send attachments")
+			return ctx, false
+		}
+		if req != nil && policy.ConfirmExternalRecipients && mailservice.EnforceMCPSendPolicy(ctx, *req) != nil && !policy.ExternalRecipientsConfirmed {
+			writeError(w, http.StatusForbidden, "mcp external-recipient confirmation header must equal external recipients")
+			return ctx, false
+		}
+	}
+	dailyLimit := 100
+	if settings.Mail.DailySendLimit != nil {
+		dailyLimit = *settings.Mail.DailySendLimit
+	}
+	if dailyLimit >= 0 && userMCPSendCount(r, userID) >= dailyLimit {
+		writeError(w, http.StatusForbidden, "mcp daily send limit exceeded")
+		return ctx, false
+	}
+	return ctx, true
+}
+
+func emailDomain(address string) string {
+	address = strings.TrimSpace(address)
+	_, domain, ok := strings.Cut(address, "@")
+	if !ok {
+		return ""
+	}
+	return strings.ToLower(strings.TrimSpace(domain))
+}
+
+func userMCPSendCounterKey(r *http.Request, userID string) string {
+	keyID := "unknown-key"
+	if info, ok := apikeys.KeyInfoFromContext(r.Context()); ok && strings.TrimSpace(info.ID) != "" {
+		keyID = strings.TrimSpace(info.ID)
+	}
+	return keyID + ":" + strings.TrimSpace(userID)
+}
+
+func userMCPSendCount(r *http.Request, userID string) int {
+	key := userMCPSendCounterKey(r, userID)
+	day := time.Now().UTC().Format("2006-01-02")
+	userMCPSendCountersMu.Lock()
+	defer userMCPSendCountersMu.Unlock()
+	counter := userMCPSendCounters[key]
+	if counter.Day != day {
+		return 0
+	}
+	return counter.Count
+}
+
+func recordUserMCPSend(r *http.Request, userID string) {
+	if info, ok := apikeys.KeyInfoFromContext(r.Context()); !ok || info == nil || strings.TrimSpace(info.UserID) == "" {
+		return
+	}
+	key := userMCPSendCounterKey(r, userID)
+	day := time.Now().UTC().Format("2006-01-02")
+	userMCPSendCountersMu.Lock()
+	defer userMCPSendCountersMu.Unlock()
+	counter := userMCPSendCounters[key]
+	if counter.Day != day {
+		counter = userMCPSendCounter{Day: day}
+	}
+	counter.Count++
+	userMCPSendCounters[key] = counter
 }
 
 func mergeMCPSettings(ctx context.Context, service MessageService, userID string, mcp json.RawMessage) (json.RawMessage, error) {
