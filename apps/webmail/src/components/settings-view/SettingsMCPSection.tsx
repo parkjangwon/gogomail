@@ -17,21 +17,28 @@ import {
 } from '@/lib/api';
 import { Row, SectionCard, SectionHeader, Segment, Toggle } from '@/components/settings-view/settingsViewPrimitives';
 
-const DEFAULT_SCOPES = [
-  'mail:read',
-  'mail:write',
-  'mail:send',
-  'mail:manage',
-  'contacts:read',
-  'contacts:write',
-  'contacts:manage',
-  'drive:read',
-  'drive:write',
-  'drive:manage',
-  'calendar:read',
-  'calendar:write',
-  'calendar:manage',
-];
+const MCP_SCOPE_GROUPS = [
+  { id: 'mail', labelKey: 'mcpScopeGroupMail', scopes: ['mail:read', 'mail:write', 'mail:send', 'mail:manage'] },
+  { id: 'contacts', labelKey: 'mcpScopeGroupContacts', scopes: ['contacts:read', 'contacts:write', 'contacts:manage'] },
+  { id: 'drive', labelKey: 'mcpScopeGroupDrive', scopes: ['drive:read', 'drive:write', 'drive:manage'] },
+  { id: 'calendar', labelKey: 'mcpScopeGroupCalendar', scopes: ['calendar:read', 'calendar:write', 'calendar:manage'] },
+] as const;
+
+const MCP_SCOPE_LABEL_KEYS: Record<string, string> = {
+  'mail:read': 'mcpScopeMailRead',
+  'mail:write': 'mcpScopeMailWrite',
+  'mail:send': 'mcpScopeMailSend',
+  'mail:manage': 'mcpScopeMailManage',
+  'contacts:read': 'mcpScopeContactsRead',
+  'contacts:write': 'mcpScopeContactsWrite',
+  'contacts:manage': 'mcpScopeContactsManage',
+  'drive:read': 'mcpScopeDriveRead',
+  'drive:write': 'mcpScopeDriveWrite',
+  'drive:manage': 'mcpScopeDriveManage',
+  'calendar:read': 'mcpScopeCalendarRead',
+  'calendar:write': 'mcpScopeCalendarWrite',
+  'calendar:manage': 'mcpScopeCalendarManage',
+};
 
 const DEFAULT_SETTINGS: MCPSettings = {
   enabled: false,
@@ -137,6 +144,15 @@ export function SettingsMCPSection() {
     return mode === 'bypass' ? t('mcpModeBypass') : t('mcpModeBasic');
   }
 
+  function scopeLabel(scope: string) {
+    const key = MCP_SCOPE_LABEL_KEYS[scope];
+    return key ? t(key) : scope;
+  }
+
+  function scopeListLabel(scopes: string[]) {
+    return scopes.map(scopeLabel).join(', ');
+  }
+
   function toggleKeyScope(scope: string, checked: boolean) {
     setNewKeyScopes((prev) => {
       const next = checked ? [...prev, scope] : prev.filter((item) => item !== scope);
@@ -221,31 +237,23 @@ export function SettingsMCPSection() {
         <Row label={t('mcpEnabled')} description={t('mcpEnabledDesc')}>
           <Toggle value={settings.enabled} onChange={(enabled) => updateSettings({ ...settings, enabled })} />
         </Row>
-        <Row label={t('mcpPermissionMode')} description={t('mcpPermissionModeDesc')}>
-          <Segment
-            options={[{ value: 'basic' as MCPPermissionMode, label: t('mcpModeBasic') }, { value: 'bypass' as MCPPermissionMode, label: t('mcpModeBypass') }]}
-            value={settings.permission_mode}
-            onChange={(permission_mode) => updateSettings({ ...settings, permission_mode, bypass_mode_allowed: permission_mode === 'bypass' ? true : settings.bypass_mode_allowed })}
-          />
-        </Row>
-        <Row label={t('mcpBypassAllowed')} description={t('mcpBypassAllowedDesc')}>
-          <Toggle value={settings.bypass_mode_allowed} onChange={(bypass_mode_allowed) => updateSettings({ ...settings, bypass_mode_allowed, permission_mode: bypass_mode_allowed ? settings.permission_mode : 'basic' })} />
-        </Row>
         <Row label={t('mcpSensitiveConfirm')} description={t('mcpSensitiveConfirmDesc')}>
           <Toggle value={settings.require_confirmation_for_sensitive_actions} onChange={(require_confirmation_for_sensitive_actions) => updateSettings({ ...settings, require_confirmation_for_sensitive_actions })} />
         </Row>
         <Row label={t('mcpGeneratedNotice')} description={t('mcpGeneratedNoticeDesc')}>
           <Toggle value={settings.generated_mail_notice_enabled} onChange={(generated_mail_notice_enabled) => updateSettings({ ...settings, generated_mail_notice_enabled })} disabled={settings.generated_mail_notice_forced} />
         </Row>
-        <Row label={t('mcpGeneratedNoticeText')} description={t('mcpGeneratedNoticeTextDesc')} last>
-          <input
-            value={settings.generated_mail_notice_text}
-            disabled={!settings.generated_mail_notice_enabled || settings.generated_mail_notice_forced}
-            onChange={(e) => setSettingsState({ ...settings, generated_mail_notice_text: e.target.value })}
-            onBlur={(e) => updateSettings({ ...settings, generated_mail_notice_text: e.currentTarget.value })}
-            style={inputStyle('280px')}
-          />
-        </Row>
+        {settings.generated_mail_notice_enabled && (
+          <Row label={t('mcpGeneratedNoticeText')} description={t('mcpGeneratedNoticeTextDesc')} last>
+            <input
+              value={settings.generated_mail_notice_text}
+              disabled={settings.generated_mail_notice_forced}
+              onChange={(e) => setSettingsState({ ...settings, generated_mail_notice_text: e.target.value })}
+              onBlur={(e) => updateSettings({ ...settings, generated_mail_notice_text: e.currentTarget.value })}
+              style={inputStyle('280px')}
+            />
+          </Row>
+        )}
       </SectionCard>
 
       <SectionCard>
@@ -253,23 +261,27 @@ export function SettingsMCPSection() {
         <Row label={t('mcpMailSend')} description={t('mcpMailSendDesc')}>
           <Toggle value={settings.mail.send_enabled} onChange={(send_enabled) => updateMailSettings({ send_enabled })} />
         </Row>
-        <Row label={t('mcpExternalConfirm')} description={t('mcpExternalConfirmDesc')}>
-          <Toggle value={settings.mail.confirm_external_recipients} onChange={(confirm_external_recipients) => updateMailSettings({ confirm_external_recipients })} />
-        </Row>
-        <Row label={t('mcpAttachmentConfirm')} description={t('mcpAttachmentConfirmDesc')}>
-          <Toggle value={settings.mail.confirm_attachments} onChange={(confirm_attachments) => updateMailSettings({ confirm_attachments })} />
-        </Row>
-        <Row label={t('mcpDailySendLimit')} description={t('mcpDailySendLimitDesc')} last>
-          <input
-            type="number"
-            min={0}
-            max={10000}
-            value={String(settings.mail.daily_send_limit)}
-            onChange={(e) => setSettingsState({ ...settings, mail: { ...settings.mail, daily_send_limit: boundedDailySendLimit(e.target.value) } })}
-            onBlur={(e) => updateMailSettings({ daily_send_limit: boundedDailySendLimit(e.currentTarget.value) })}
-            style={inputStyle('110px')}
-          />
-        </Row>
+        {settings.mail.send_enabled && (
+          <>
+            <Row label={t('mcpExternalConfirm')} description={t('mcpExternalConfirmDesc')}>
+              <Toggle value={settings.mail.confirm_external_recipients} onChange={(confirm_external_recipients) => updateMailSettings({ confirm_external_recipients })} />
+            </Row>
+            <Row label={t('mcpAttachmentConfirm')} description={t('mcpAttachmentConfirmDesc')}>
+              <Toggle value={settings.mail.confirm_attachments} onChange={(confirm_attachments) => updateMailSettings({ confirm_attachments })} />
+            </Row>
+            <Row label={t('mcpDailySendLimit')} description={t('mcpDailySendLimitDesc')} last>
+              <input
+                type="number"
+                min={0}
+                max={10000}
+                value={String(settings.mail.daily_send_limit)}
+                onChange={(e) => setSettingsState({ ...settings, mail: { ...settings.mail, daily_send_limit: boundedDailySendLimit(e.target.value) } })}
+                onBlur={(e) => updateMailSettings({ daily_send_limit: boundedDailySendLimit(e.currentTarget.value) })}
+                style={inputStyle('110px')}
+              />
+            </Row>
+          </>
+        )}
       </SectionCard>
 
       <SectionCard>
@@ -280,23 +292,32 @@ export function SettingsMCPSection() {
           )}
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
           <input value={newKeyName} onChange={(e) => setNewKeyName(e.target.value)} placeholder={t('mcpKeyNamePlaceholder')} style={inputStyle('220px')} />
-          <Segment
-            options={[{ value: 'basic' as MCPPermissionMode, label: t('mcpModeBasic') }, { value: 'bypass' as MCPPermissionMode, label: t('mcpModeBypass') }]}
-            value={settings.bypass_mode_allowed ? newKeyPermissionMode : 'basic'}
-            onChange={(permission_mode) => setNewKeyPermissionMode(permission_mode)}
-          />
+          {settings.bypass_mode_allowed && (
+            <Segment
+              options={[{ value: 'basic' as MCPPermissionMode, label: t('mcpModeBasic') }, { value: 'bypass' as MCPPermissionMode, label: t('mcpModeBypass') }]}
+              value={newKeyPermissionMode}
+              onChange={(permission_mode) => setNewKeyPermissionMode(permission_mode)}
+            />
+          )}
           <input type="datetime-local" value={newKeyExpiresAt} onChange={(e) => setNewKeyExpiresAt(e.target.value)} style={inputStyle('190px')} aria-label={t('mcpKeyExpiresAt')} />
           <button onClick={handleCreateKey} disabled={savingKey || !settings.enabled || !newKeyName.trim() || newKeyScopes.length === 0} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '7px 12px', borderRadius: '6px', border: 'none', background: 'var(--color-accent)', color: '#fff', fontSize: '12px', fontWeight: 600, cursor: savingKey ? 'wait' : 'pointer' }}>
             <KeyIcon style={{ width: 14, height: 14 }} /> {savingKey ? t('saving') : t('mcpCreateKey')}
           </button>
           </div>
           <input value={newKeyCIDRs} onChange={(e) => setNewKeyCIDRs(e.target.value)} placeholder={t('mcpKeyCIDRsPlaceholder')} style={inputStyle('520px')} />
-          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-            {DEFAULT_SCOPES.map((scope) => (
-              <label key={scope} style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '11px', color: 'var(--color-text-secondary)', border: '1px solid var(--color-border-subtle)', borderRadius: '6px', padding: '5px 7px' }}>
-                <input type="checkbox" checked={newKeyScopes.includes(scope)} onChange={(e) => toggleKeyScope(scope, e.target.checked)} />
-                {scope}
-              </label>
+          <div style={{ display: 'grid', gap: '10px' }}>
+            {MCP_SCOPE_GROUPS.map((group) => (
+              <div key={group.id} style={{ display: 'grid', gap: '6px' }}>
+                <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--color-text-secondary)' }}>{t(group.labelKey)}</div>
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                  {group.scopes.map((scope) => (
+                    <label key={scope} title={scope} style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '11px', color: 'var(--color-text-secondary)', border: '1px solid var(--color-border-subtle)', borderRadius: '6px', padding: '5px 7px' }}>
+                      <input type="checkbox" checked={newKeyScopes.includes(scope)} onChange={(e) => toggleKeyScope(scope, e.target.checked)} />
+                      {scopeLabel(scope)}
+                    </label>
+                  ))}
+                </div>
+              </div>
             ))}
           </div>
         </div>
@@ -318,7 +339,7 @@ export function SettingsMCPSection() {
             <div key={key.id} style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', alignItems: 'center', padding: '12px 20px', borderBottom: index === activeKeys.length - 1 ? 'none' : '1px solid var(--color-border-subtle)' }}>
               <div style={{ minWidth: 0 }}>
                 <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-text-primary)' }}>{key.name}</div>
-                <div style={{ fontSize: '11px', color: 'var(--color-text-tertiary)', marginTop: '2px' }}>...{key.token_suffix} · {permissionModeLabel(key.permission_mode)} · {key.scopes.join(', ')}</div>
+                <div style={{ fontSize: '11px', color: 'var(--color-text-tertiary)', marginTop: '2px' }}>...{key.token_suffix} · {permissionModeLabel(key.permission_mode)} · {scopeListLabel(key.scopes)}</div>
               </div>
               <button onClick={() => handleRevoke(key)} title={t('mcpRevokeKey')} style={{ border: '1px solid rgba(220,38,38,0.35)', background: 'transparent', color: 'var(--color-destructive)', borderRadius: '6px', padding: '6px', cursor: 'pointer' }}>
                 <TrashIcon style={{ width: 15, height: 15 }} />
