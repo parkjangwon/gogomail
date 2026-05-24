@@ -325,20 +325,22 @@ export default function MailPage() {
     setMessagesLoading(true);
 
     const load = async (): Promise<MessageSummary[]> => {
+      // Backend caps list requests at 200; exceeding it returns 400.
+      const MAX = 200;
       if (activeFolderId === VIRTUAL_STARRED) {
-        const data = await getMessages('', '', 500, { starred: true });
+        const data = await getMessages('', '', MAX, { starred: true });
         return data.messages ?? [];
       }
       if (activeFolderId === VIRTUAL_UNREAD) {
-        const data = await getMessages('', '', 500, { read: false });
+        const data = await getMessages('', '', MAX, { read: false });
         return data.messages ?? [];
       }
       if (activeFolderId === VIRTUAL_ATTACHMENTS) {
-        const data = await getMessages('', '', 500, { has_attachment: true });
+        const data = await getMessages('', '', MAX, { has_attachment: true });
         return data.messages ?? [];
       }
       // localStorage-based virtual folders: fetch a broad recent pool and filter.
-      const data = await searchMessages({ limit: 500 });
+      const data = await searchMessages({ limit: MAX });
       let msgs = data.messages ?? [];
       if (activeFolderId === VIRTUAL_SNOOZED) {
         try {
