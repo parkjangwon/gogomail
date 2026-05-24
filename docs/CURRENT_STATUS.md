@@ -1,6 +1,14 @@
 # gogomail current status
 
-Last updated: 2026-05-24 (dev infra and MCP support smoke hardening)
+Last updated: 2026-05-24 (MCP support security hardening)
+
+## MCP Support Security Hardening (2026-05-24)
+- SSE transport now binds to `127.0.0.1` by default via `MCP_HOST`, requires a 32-byte `MCP_SECRET`, rejects browser `Origin` headers unless explicitly allowlisted with `MCP_ALLOWED_ORIGINS`, and no longer accepts non-loopback `http://` upstreams unless `MCP_ALLOW_INSECURE_UPSTREAMS=true`.
+- Config validation now trims and rejects blank/header-injection secrets, validates `GITHUB_REPO` as `owner/repo`, and requires Suppo URL/key to be configured as a pair.
+- GoGoMail mutation tools now require an operator-readable `reason`; irreversible user/DLQ deletes also require exact `confirm` phrases to reduce accidental autonomous destructive actions.
+- Runtime validation now aligns with advertised enums for GoGoMail, Suppo, and GitHub tools, rejects empty Suppo/GitHub updates, defaults Suppo comments to internal-only, and tightens user creation/password/domain-setting inputs.
+- Upstream clients now avoid `Content-Type` on bodyless Suppo GETs and truncate/sanitize exposed 4xx error bodies.
+- Verification: `npm test`, `npm run type-check`, `npm run build`, `npm audit --audit-level=low` in `apps/mcp-support`; `go test -timeout=240s ./...`; SSE smoke checks for short-secret rejection, missing-auth rejection, Origin rejection, and authorized `/sse` stream establishment.
 
 ## Dev Infra and MCP Support Smoke Hardening (2026-05-24)
 - Fixed the dev Air build target to compile the whole `cmd/gogomail` package so the Docker Compose backend includes all command files.
