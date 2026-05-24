@@ -1,6 +1,10 @@
 import type { NextConfig } from "next";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
 const isProduction = process.env.NODE_ENV === "production";
+const appRoot = dirname(fileURLToPath(import.meta.url));
+const repoRoot = resolve(appRoot, "../..");
 const scriptSrc = isProduction
   ? "script-src 'self' 'unsafe-inline'"
   : "script-src 'self' 'unsafe-inline' 'unsafe-eval'";
@@ -12,6 +16,9 @@ const config: NextConfig = {
   transpilePackages: ["@gogomail/api-types"],
   typescript: {
     tsconfigPath: "./tsconfig.json",
+  },
+  turbopack: {
+    root: repoRoot,
   },
   experimental: {
     optimizePackageImports: ["@cloudscape-design/components"],

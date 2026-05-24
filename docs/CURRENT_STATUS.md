@@ -1,6 +1,13 @@
 # gogomail current status
 
-Last updated: 2026-05-24 (MCP agent compatibility)
+Last updated: 2026-05-24 (No-code scaling deployment contract)
+
+## No-code Scaling Deployment Contract (2026-05-24)
+- Added `docker/docker-compose.scale.yml` as a split-mode Compose template that reuses one GoGoMail backend image across API, protocol, SMTP, and worker modes so operators can scale by editing env/profile/replica settings instead of code.
+- Added `docker/env.scale.example` with production-facing knobs for external Postgres, Redis/Sentinel, S3/MinIO, OpenSearch, Redis-backed rate limits, farm coordination, and per-replica DB pool sizing.
+- Added `docs/SCALING.md` to document which modes scale horizontally, which modes are singleton/failover-only, how the Postgres/Redis/S3 backbone carries state, and how to size database connections as replicas grow.
+- Config now expands `{hostname}`, `${HOSTNAME}`, and `$HOSTNAME` in worker consumer names and node IDs, allowing `docker compose --scale` replicas to get unique Redis Stream consumer names without per-container env edits.
+- Verification target: `go test ./internal/config`; `docker compose -f docker/docker-compose.scale.yml --profile local-infra --profile protocols --profile workers config`.
 
 ## MCP Agent Compatibility Follow-up (2026-05-24)
 - Removed the top-level `anyOf` constraint from the user MCP `gogomail_mail_send` advertised input schema so stricter agent clients such as Codex can register the tool; recipient requirements remain enforced by runtime validation.

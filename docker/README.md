@@ -64,6 +64,35 @@ docker-compose -f docker-compose.small.yml down
 
 ---
 
+### Split-Mode Scaling Template (`docker-compose.scale.yml`)
+
+**Target**: Operators who want to clone the repository and scale GoGoMail by
+editing Compose profiles, `.env`, and replica counts without changing code.
+
+**Components**:
+- One backend image reused by every role
+- Separate `mail-api`, `admin-api`, `auth-server`, protocol, and worker services
+- Optional local Postgres/Redis/MinIO via the `local-infra` profile
+- Hostname-expanded worker consumer names for safe `--scale` usage
+
+**Usage**:
+```bash
+cp env.scale.example .env
+docker compose -f docker-compose.scale.yml --profile local-infra --profile protocols --profile workers up -d
+docker compose -f docker-compose.scale.yml --profile ops run --rm migrate
+
+# Add API or worker capacity without changing the image or code.
+docker compose -f docker-compose.scale.yml up -d --scale mail-api=4 --scale delivery-worker=3
+```
+
+For production, point `.env` at managed Postgres, Redis/Sentinel, S3/MinIO,
+and optional OpenSearch, then run without the `local-infra` profile.
+
+See [`../docs/SCALING.md`](../docs/SCALING.md) for the scaling contract and
+database load guidance.
+
+---
+
 ### 3. Medium Deployment (`docker-compose.medium.yml`)
 
 **Target**: 5-50 servers, single or multiple data centers

@@ -5,6 +5,7 @@ replicas based on traffic and the capacity rules in
 [`OPERATIONS.md`](OPERATIONS.md).
 
 See also: [`MODES.md`](MODES.md) for per-mode env vars,
+[`SCALING.md`](SCALING.md) for the no-code-change scaling contract, and
 [`docker/`](../docker/) for ready-to-run compose files.
 
 ---
@@ -47,6 +48,9 @@ internal-only).
 ### Reference compose
 
 See [`docker/docker-compose.dev.yml`](../docker/docker-compose.dev.yml).
+For a split-mode template that can grow with `docker compose --scale`, use
+[`docker/docker-compose.scale.yml`](../docker/docker-compose.scale.yml) with
+[`docker/env.scale.example`](../docker/env.scale.example).
 
 ```bash
 cd docker
