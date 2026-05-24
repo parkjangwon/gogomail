@@ -16,7 +16,7 @@ type ContactHoverCardProps = {
 export function ContactHoverCard({ name, addr, count, x, y, onClose, onComposeTo }: ContactHoverCardProps) {
   const t = useTranslations('contactHover');
   const initials = (name || addr).charAt(0).toUpperCase();
-  const color = avatarColor(name || addr);
+  const color = avatarColor(addr);
   const cardW = 224;
   const clampedX = Math.min(x, (typeof window !== 'undefined' ? window.innerWidth : 1200) - cardW - 16);
 
