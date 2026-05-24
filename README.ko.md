@@ -74,22 +74,33 @@ docker compose -f docker-compose.small.yml up -d
 [`docker/DEPLOYMENT.md`](docker/DEPLOYMENT.md) (한국어:
 [`docker/DEPLOYMENT.ko.md`](docker/DEPLOYMENT.ko.md))를 참고하세요.
 
-## AI 에이전트 지원 (MCP 서버)
+## AI 에이전트 자동화 (MCP 서버)
 
-`apps/mcp-support`는 AI 에이전트에게 GoGoMail Admin API에 대한 구조화된 직접 접근을 제공하는 [Model Context Protocol](https://modelcontextprotocol.io/) 서버입니다. **무인 24/7 운영**을 목표로 설계됐습니다 — 에이전트가 배송 오류 진단, 사용자 관리, 큐 확인, 지원 티켓 처리 등을 사람 없이 처리할 수 있습니다.
+GoGoMail은 관리자 권한과 사용자 데이터 접근 권한을 섞지 않기 위해 [Model Context Protocol](https://modelcontextprotocol.io/) 서버를 둘로 분리합니다.
+
+| 서버 | 디렉터리 | 대상 | 범위 |
+|---|---|---|---|
+| 관리 MCP | `apps/gogomail-manage-mcp` | 운영자, 지원팀, 관리자 | Admin API, 큐/헬스 확인, 사용자/도메인 운영, 선택적 Suppo/GitHub 연동 |
+| 사용자 MCP | `apps/gogomail-user-mcp` | 개별 웹메일 사용자 | 사용자 스코프 `gmu_` 키를 통한 메일, 초안, 폴더, 스레드, 주소록, 디렉터리, 드라이브, 일정, 환경설정, 계정 컨텍스트 |
+
+관리 MCP는 서비스를 운영하기 위한 서버이고, 사용자 MCP는 사용자가 Codex, Claude Desktop 같은 에이전트를 자신의 메일함과 협업 데이터에 연결하기 위한 서버입니다.
 
 ```
-자연어 요청
-    → AI 에이전트 (Claude, GPT-4, …)
-        → MCP 툴 (apps/mcp-support)
-            → GoGoMail Admin API  /admin/v1/…
-            → Suppo 헬프데스크    (선택)
-            → GitHub Issues       (선택)
+운영자 요청
+    → AI 에이전트
+        → gogomail-manage-mcp
+            → /admin/v1/...
+
+사용자 요청
+    → AI 에이전트
+        → gogomail-user-mcp
+            → /api/v1/... 및 /api/mail/...
 ```
 
-세 영역에 걸쳐 **53개 툴** — GoGoMail Admin 37개, Suppo 헬프데스크 10개, GitHub Issues 6개. `GOGOMAIL_ADMIN_URL`과 `GOGOMAIL_ADMIN_KEY`만 필수이며 Suppo와 GitHub는 선택 연동입니다.
+`gogomail-user-mcp`는 현재 **87개 사용자 툴**을 제공합니다. 메일 발송/초안/검색, 메시지·스레드 bulk 작업, 주소록·일정 CRUD 편의 툴, 드라이브 업로드/다운로드/공유 링크, 문서화된 사용자 API만 허용하는 exact-manifest API bridge가 포함됩니다. 민감한 동작은 `basic` 모드에서 명시 확인을 요구하며, `bypass` 모드는 사용자 설정과 도메인 정책이 모두 허용할 때만 사용할 수 있습니다.
 
-→ 상세 문서: [apps/mcp-support/README.md](apps/mcp-support/README.md) · [apps/mcp-support/README.ko.md](apps/mcp-support/README.ko.md)
+→ 관리 MCP 문서: [apps/gogomail-manage-mcp/README.ko.md](apps/gogomail-manage-mcp/README.ko.md)
+→ 사용자 MCP 문서: [apps/gogomail-user-mcp/README.md](apps/gogomail-user-mcp/README.md) / [한국어](apps/gogomail-user-mcp/README.ko.md)
 
 ## 문서
 
@@ -103,7 +114,9 @@ docker compose -f docker-compose.small.yml up -d
 | 토폴로지 패턴 | [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) |
 | OpenAPI 계약 | [docs/openapi.yaml](docs/openapi.yaml) |
 | 로드맵 | [docs/backend-roadmap.md](docs/backend-roadmap.md) |
-| AI 에이전트 / MCP 서버 | [apps/mcp-support/README.ko.md](apps/mcp-support/README.ko.md) |
+| AI 에이전트 관리 MCP 서버 | [apps/gogomail-manage-mcp/README.ko.md](apps/gogomail-manage-mcp/README.ko.md) |
+| AI 에이전트 사용자 MCP 서버 | [apps/gogomail-user-mcp/README.ko.md](apps/gogomail-user-mcp/README.ko.md) |
+| 사용자 MCP 보안/정책 메모 | [docs/USER_MCP.md](docs/USER_MCP.md) |
 
 ## 소스 빌드
 
