@@ -10,6 +10,7 @@ import assert from "node:assert/strict";
 import { timingSafeEqual } from "node:crypto";
 import { GogomailClient } from "./clients/gogomail.js";
 import { SuppoClient } from "./clients/suppo.js";
+import { GithubClient } from "./clients/github.js";
 import { toolDefinitions as gogomailDefs, callTool as gogomailCallTool } from "./tools/gogomail.js";
 import { toolDefinitions as suppoDefs, callTool as suppoCallTool } from "./tools/suppo.js";
 import { toolDefinitions as githubDefs, callTool as githubCallTool } from "./tools/github.js";
@@ -392,6 +393,63 @@ describe("github toolDefinitions: constraints", () => {
   test("gogomail_update_user_role: role enum is constrained", () => {
     const p = prop(findTool(gogomailDefs, "gogomail_update_user_role"), "role");
     assert.deepEqual(p["enum"], ["user", "company_admin", "system_admin"]);
+  });
+});
+
+describe("SSE HTTP request gates", () => {
+  function isMessagesPath(rawUrl: string): boolean {
+    return new URL(rawUrl, "http://localhost").pathname === "/messages";
+  }
+
+  function isJsonContentType(value: string): boolean {
+    const mediaType = value.split(";", 1)[0]?.trim().toLowerCase();
+    return mediaType === "application/json";
+  }
+
+  test("messages route matching is exact, not prefix-based", () => {
+    assert.equal(isMessagesPath("/messages?sessionId=s1"), true);
+    assert.equal(isMessagesPath("/messages-extra?sessionId=s1"), false);
+    assert.equal(isMessagesPath("/messages/extra?sessionId=s1"), false);
+  });
+
+  test("Content-Type validation accepts only application/json media type", () => {
+    assert.equal(isJsonContentType("application/json"), true);
+    assert.equal(isJsonContentType("application/json; charset=utf-8"), true);
+    assert.equal(isJsonContentType("text/plain application/json"), false);
+    assert.equal(isJsonContentType("application/jsonp"), false);
+  });
+});
+
+describe("GithubClient: repository scope hardening", () => {
+  test("searchIssues ignores user-provided repo/org/user qualifiers and searches issues only", async () => {
+    const client = new GithubClient("token", "owner/repo");
+    let capturedQuery = "";
+    (client as unknown as {
+      octokit: {
+        search: {
+          issuesAndPullRequests: (params: { q: string }) => Promise<{ data: { items: [] } }>;
+        };
+      };
+    }).octokit = {
+      search: {
+        issuesAndPullRequests: async ({ q }) => {
+          capturedQuery = q;
+          return { data: { items: [] } };
+        },
+      },
+    };
+
+    await client.searchIssues({
+      query: "repo:evil/other org:evil user:attacker delivery failure",
+      state: "open",
+    });
+
+    assert.ok(capturedQuery.includes("repo:owner/repo"));
+    assert.ok(capturedQuery.includes("is:issue"));
+    assert.ok(capturedQuery.includes("delivery failure"));
+    assert.ok(!capturedQuery.includes("repo:evil/other"));
+    assert.ok(!capturedQuery.includes("org:evil"));
+    assert.ok(!capturedQuery.includes("user:attacker"));
   });
 });
 

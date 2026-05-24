@@ -320,7 +320,7 @@ Requires `GITHUB_TOKEN`. Returns a "not configured" error otherwise.
 
 | Tool | Description |
 |---|---|
-| `github_search_issues` | Full-text search across all issues in the configured repo. |
+| `github_search_issues` | Full-text search across issues in the configured repo. User-provided `repo:`, `org:`, and `user:` qualifiers are ignored so searches cannot escape `GITHUB_REPO`. |
 | `github_get_issue` | Get issue detail and comment thread by issue number. |
 | `github_list_issues` | List issues. Filter by `state` (`open`/`closed`/`all`) and/or `labels`. |
 | `github_create_issue` | Create a bug report or feature request with `title`, `body`, and optional `labels`. |

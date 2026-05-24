@@ -320,7 +320,7 @@ node dist/index.js
 
 | 툴 | 설명 |
 |---|---|
-| `github_search_issues` | 설정된 저장소의 전체 이슈 전문 검색. |
+| `github_search_issues` | 설정된 저장소의 이슈 전문 검색. 사용자가 입력한 `repo:`, `org:`, `user:` qualifier는 무시되어 `GITHUB_REPO` 범위를 벗어나지 않습니다. |
 | `github_get_issue` | 이슈 번호로 상세 정보 및 댓글 스레드 조회. |
 | `github_list_issues` | 이슈 목록. `state`(`open`/`closed`/`all`) 및/또는 `labels`로 필터링. |
 | `github_create_issue` | 버그 리포트 또는 기능 요청 생성. `title`, `body`, 선택적 `labels` 포함. |

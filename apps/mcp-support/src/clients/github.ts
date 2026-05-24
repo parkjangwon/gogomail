@@ -33,6 +33,14 @@ export class GithubClient {
     this.repo = repo;
   }
 
+  private sanitizeSearchQuery(query: string): string {
+    return query
+      // The configured repo is the trust boundary; ignore user-provided scope qualifiers.
+      .replace(/\b(?:repo|org|user):[^\s]+/gi, "")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
   private mapIssue(issue: {
     number: number;
     title: string;
@@ -64,8 +72,10 @@ export class GithubClient {
   }): Promise<GithubIssue[]> {
     const parts = [
       `repo:${this.owner}/${this.repo}`,
-      params.query,
+      "is:issue",
     ];
+    const sanitizedQuery = this.sanitizeSearchQuery(params.query);
+    if (sanitizedQuery) parts.push(sanitizedQuery);
     if (params.labels) {
       parts.push(...params.labels.map((l) => `label:"${l.replace(/"/g, "")}"`));
     }
@@ -112,7 +122,9 @@ export class GithubClient {
       milestone: params.milestone,
       state: (params.state as "open" | "closed" | "all") ?? "open",
     });
-    return data.map((i) => this.mapIssue(i));
+    return data
+      .filter((i) => !("pull_request" in i))
+      .map((i) => this.mapIssue(i));
   }
 
   async createIssue(params: {

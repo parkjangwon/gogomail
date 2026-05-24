@@ -112,6 +112,15 @@ function checkOrigin(req: IncomingMessage, res: ServerResponse): boolean {
   return true;
 }
 
+function parseRequestUrl(req: IncomingMessage): URL {
+  return new URL(req.url ?? "/", "http://localhost");
+}
+
+function isJsonContentType(value: string): boolean {
+  const mediaType = value.split(";", 1)[0]?.trim().toLowerCase();
+  return mediaType === "application/json";
+}
+
 // ── Security headers ─────────────────────────────────────────────
 
 function securityHeaders(): Record<string, string> {
@@ -211,8 +220,10 @@ async function main(): Promise<void> {
     const sessions = new Map<string, InstanceType<typeof SSEServerTransport>>();
 
     const httpServer = createServer((req, res) => {
+      const url = parseRequestUrl(req);
+
       // GET /sse — establish SSE stream
-      if (req.method === "GET" && req.url === "/sse") {
+      if (req.method === "GET" && url.pathname === "/sse" && url.search === "") {
         if (!checkAuth(req, res)) return;
         if (!checkOrigin(req, res)) return;
 
@@ -239,7 +250,7 @@ async function main(): Promise<void> {
       }
 
       // POST /messages — tool call from agent
-      if (req.method === "POST" && req.url?.startsWith("/messages")) {
+      if (req.method === "POST" && url.pathname === "/messages") {
         if (!checkAuth(req, res)) return;
         if (!checkOrigin(req, res)) return;
 
@@ -251,12 +262,11 @@ async function main(): Promise<void> {
           res.writeHead(400, securityHeaders()).end("Bad Request");
           return;
         }
-        if (!ct.includes("application/json")) {
+        if (!isJsonContentType(ct)) {
           res.writeHead(415, securityHeaders()).end("Unsupported Media Type — use application/json");
           return;
         }
 
-        const url = new URL(req.url, `http://localhost`);
         const sessionId = url.searchParams.get("sessionId") ?? "";
 
         // Reject obviously invalid session IDs before Map lookup
