@@ -38,6 +38,22 @@ test.describe('Mail list', () => {
     }
   });
 
+  test('all mail lists messages across folders', async ({ page }) => {
+    await setupAuthedPage(page, {
+      messages: [
+        makeMessage('all-inbox', { subject: 'Inbox item in all mail', folder_id: 'folder-inbox' }),
+        makeMessage('all-sent', { subject: 'Sent item in all mail', folder_id: 'folder-sent', from_addr: 'pjw@parkjw.org' }),
+      ],
+    });
+
+    const allMail = page.locator('aside[aria-label="메일 탐색"]').getByRole('button', { name: /모든 편지함/ }).first();
+    await allMail.click();
+
+    await expect(page.getByText('Inbox item in all mail').first()).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText('Sent item in all mail').first()).toBeVisible();
+    await expect(page.getByText('받은 편지함이 깨끗합니다')).toHaveCount(0);
+  });
+
   test('arrow keys move focus between message rows', async ({ page }) => {
     const rows = page.locator('[data-message-id]');
     await expect(rows.first()).toBeVisible({ timeout: 15_000 });

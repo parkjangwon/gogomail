@@ -5,6 +5,16 @@ import { Folder, MessageSummary, getFolders, getMessages } from '@/lib/api';
 
 export type RefreshIntervalSeconds = 30 | 60 | 300;
 
+const VIRTUAL_ALL_FOLDER_ID = '__all__';
+
+function isExternallyLoadedVirtualFolder(folderId: string): boolean {
+  return folderId.startsWith('__') && folderId !== VIRTUAL_ALL_FOLDER_ID;
+}
+
+function backendFolderId(folderId: string): string {
+  return folderId === VIRTUAL_ALL_FOLDER_ID ? '' : folderId;
+}
+
 export function useMailList(folderId: string, refreshIntervalSeconds: RefreshIntervalSeconds) {
   const [folders, setFolders] = useState<Folder[]>([]);
   const [messages, setMessages] = useState<MessageSummary[]>([]);
@@ -34,8 +44,9 @@ export function useMailList(folderId: string, refreshIntervalSeconds: RefreshInt
       setMessagesLoading(false);
       return;
     }
-    if (folderId.startsWith('__')) {
-      // Virtual folders are loaded externally via searchMessages
+    if (isExternallyLoadedVirtualFolder(folderId)) {
+      // Filtered virtual folders are loaded externally via searchMessages.
+      // All Mail uses the normal messages endpoint without a folder_id.
       setMessages([]);
       setHasMore(false);
       setNextCursor('');
@@ -48,7 +59,7 @@ export function useMailList(folderId: string, refreshIntervalSeconds: RefreshInt
     setNextCursor('');
     nextCursorRef.current = '';
     setMessagesLoading(true);
-    getMessages(folderId)
+    getMessages(backendFolderId(folderId))
       .then((data) => {
         if (!cancelled) {
           setMessages(data.messages ?? []);
@@ -63,12 +74,12 @@ export function useMailList(folderId: string, refreshIntervalSeconds: RefreshInt
   }, [folderId]);
 
   const loadMore = useCallback(async () => {
-    if (!folderId || folderId.startsWith('__')) return;
+    if (!folderId || isExternallyLoadedVirtualFolder(folderId)) return;
     const cursor = nextCursorRef.current;
     if (!cursor) return;
     setLoadingMore(true);
     try {
-      const data = await getMessages(folderId, cursor);
+      const data = await getMessages(backendFolderId(folderId), cursor);
       setMessages((prev) => [...prev, ...(data.messages ?? [])]);
       setHasMore(data.has_more);
       setNextCursor(data.next_cursor);
@@ -88,10 +99,10 @@ export function useMailList(folderId: string, refreshIntervalSeconds: RefreshInt
 
   // Poll for new messages using the user's Settings interval.
   useEffect(() => {
-    if (!folderId || folderId.startsWith('__')) return;
+    if (!folderId || isExternallyLoadedVirtualFolder(folderId)) return;
     const id = setInterval(async () => {
       try {
-        const data = await getMessages(folderId);
+        const data = await getMessages(backendFolderId(folderId));
         setMessages((prev) => {
           const existingIds = new Set(prev.map((m) => m.id));
           const incoming = (data.messages ?? []).filter((m) => !existingIds.has(m.id));
@@ -116,10 +127,10 @@ export function useMailList(folderId: string, refreshIntervalSeconds: RefreshInt
   const [refreshing, setRefreshing] = useState(false);
 
   const refresh = useCallback(async () => {
-    if (!folderId || folderId.startsWith('__') || refreshing) return;
+    if (!folderId || isExternallyLoadedVirtualFolder(folderId) || refreshing) return;
     setRefreshing(true);
     try {
-      const [fData, mData] = await Promise.all([getFolders(), getMessages(folderId)]);
+      const [fData, mData] = await Promise.all([getFolders(), getMessages(backendFolderId(folderId))]);
       setFolders(fData.folders);
       setMessages(mData.messages ?? []);
       setHasMore(mData.has_more);

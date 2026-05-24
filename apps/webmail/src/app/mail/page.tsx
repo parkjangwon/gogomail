@@ -306,7 +306,7 @@ export default function MailPage() {
 
   // Virtual folder message loading
   useEffect(() => {
-    if (!activeFolderId.startsWith('__')) return;
+    if (!activeFolderId.startsWith('__') || activeFolderId === VIRTUAL_ALL) return;
     let cancelled = false;
     const params = activeFolderId === VIRTUAL_ATTACHMENTS ? { has_attachment: true, limit: 100 } : { limit: 100 };
     searchMessages(params).then((res) => {
@@ -1565,7 +1565,7 @@ export default function MailPage() {
               selectedId={selectedMessageId}
               onSelect={handleSelectMessage}
               loading={searchResults !== null ? searchLoading : messagesLoading}
-              emptyLabel={searchResults !== null ? (searchQuery ? t('misc.mailPage.searchEmptyQuery', { query: searchQuery }) : t('misc.mailPage.searchEmpty')) : getEmptyFolderLabel(activeFolderSystemType, t)}
+              emptyLabel={searchResults !== null ? (searchQuery ? t('misc.mailPage.searchEmptyQuery', { query: searchQuery }) : t('misc.mailPage.searchEmpty')) : getEmptyFolderLabel(activeFolderSystemType, t, activeFolderId)}
               hasMore={searchResults === null ? hasMore : false}
               loadingMore={loadingMore}
               onLoadMore={loadMore}

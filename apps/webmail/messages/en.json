@@ -1791,6 +1791,7 @@
       "italic": "Italic"
     },
     "mailEmpty": {
+      "all": "No mail in All mail",
       "drafts": "No drafts",
       "sent": "No sent mail",
       "trash": "Trash is empty",

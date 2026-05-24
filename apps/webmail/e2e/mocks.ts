@@ -230,8 +230,8 @@ export async function installMocks(page: Page, overrides: MockOverrides = {}) {
 
     // messages
     if (path === 'messages' && method === 'GET') {
-      const folderId = search.get('folder_id') ?? 'folder-inbox';
-      const filtered = messages.filter((m) => m.folder_id === folderId || folderId === 'folder-inbox');
+      const folderId = search.get('folder_id')?.trim() ?? '';
+      const filtered = folderId ? messages.filter((m) => m.folder_id === folderId) : messages;
       return json(route, { messages: filtered, has_more: false, next_cursor: '' });
     }
     if (segments[0] === 'messages' && segments.length === 3 && segments[2] === 'delivery-status' && method === 'GET') {
