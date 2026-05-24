@@ -1801,6 +1801,16 @@ func (s *Service) RevokeUserMCPAccessKey(ctx context.Context, userID, id string)
 	return repo.RevokeUserMCPAccessKey(ctx, strings.TrimSpace(userID), strings.TrimSpace(id))
 }
 
+func (s *Service) GetUserMCPDomainPolicy(ctx context.Context, userID string) (maildb.DomainMCPPolicy, error) {
+	repo, ok := s.repository.(interface {
+		GetUserMCPDomainPolicy(context.Context, string) (maildb.DomainMCPPolicy, error)
+	})
+	if !ok {
+		return maildb.DomainMCPPolicy{}, fmt.Errorf("user mcp domain policy repository is required")
+	}
+	return repo.GetUserMCPDomainPolicy(ctx, strings.TrimSpace(userID))
+}
+
 func (s *Service) SaveDraft(ctx context.Context, req SaveDraftRequest) (maildb.MessageDetail, error) {
 	req = normalizeSaveDraftRequest(req)
 	if err := ValidateSaveDraftRequest(req); err != nil {

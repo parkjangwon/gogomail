@@ -318,7 +318,7 @@ func TestOpenAPIDraftDocumentsPublicShareLinkRoutesAsUnauthenticated(t *testing.
 func TestOpenAPIDraftCoversRegisteredHTTPRoutes(t *testing.T) {
 	t.Parallel()
 
-	registered := extractRegisteredRoutes(t, "mail.go", "drive.go", "password_reset.go", "admin.go", "admin_helpers.go", "orgchart.go", "health.go")
+	registered := extractRegisteredRoutes(t, "mail.go", "drive.go", "calendar.go", "carddav.go", "password_reset.go", "admin.go", "admin_helpers.go", "orgchart.go", "health.go")
 	documented := extractOpenAPIRoutes(t, "../../docs/openapi.yaml")
 
 	var missing []string
@@ -337,7 +337,7 @@ func TestOpenAPIDraftDoesNotExposeUnregisteredRoutes(t *testing.T) {
 	t.Parallel()
 
 	registered := make(map[string]bool)
-	for _, route := range extractRegisteredRoutes(t, "mail.go", "drive.go", "password_reset.go", "admin.go", "admin_helpers.go", "orgchart.go", "health.go") {
+	for _, route := range extractRegisteredRoutes(t, "mail.go", "drive.go", "calendar.go", "carddav.go", "password_reset.go", "admin.go", "admin_helpers.go", "orgchart.go", "health.go") {
 		registered[route] = true
 	}
 	documented := extractOpenAPIRoutes(t, "../../docs/openapi.yaml")
@@ -1779,7 +1779,7 @@ func openAPIComponentExists(draft string, section string, name string) bool {
 func extractRegisteredRoutes(t *testing.T, filenames ...string) []string {
 	t.Helper()
 
-	pattern := regexp.MustCompile(`mux\.HandleFunc\("([A-Z]+) (/(?:api|admin)/v1/[^"]+|/health/(?:live|ready))"`)
+	pattern := regexp.MustCompile(`mux\.HandleFunc\("([A-Z]+) (/(?:api/v1|api/mail|admin/v1)/[^"]+|/health/(?:live|ready))"`)
 	var routes []string
 	for _, filename := range filenames {
 		raw, err := os.ReadFile(filename)
@@ -1903,6 +1903,9 @@ func extractOpenAPIOperationBlocks(t *testing.T, filename string) map[string]str
 func normalizeOpenAPIPath(path string) string {
 	path = strings.TrimSpace(path)
 	path = strings.TrimPrefix(path, "/api/v1")
+	if strings.HasPrefix(path, "/api/mail/") {
+		path = "/mail/" + strings.TrimPrefix(path, "/api/mail/")
+	}
 	path = strings.TrimPrefix(path, "/admin/v1")
 	return path
 }

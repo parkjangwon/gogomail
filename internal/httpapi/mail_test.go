@@ -3348,6 +3348,158 @@ func TestUserMCPAccessKeyLifecycleAllowsSession(t *testing.T) {
 	}
 }
 
+func TestUserMCPSettingsClampsBasicKeyAndForcedNotice(t *testing.T) {
+	service := &fakeMessageService{
+		webmailPreferences: json.RawMessage(`{"mcp":{"enabled":true,"permission_mode":"bypass","bypass_mode_allowed":true,"generated_mail_notice_enabled":false}}`),
+		mcpDomainPolicy: maildb.DomainMCPPolicy{
+			Enabled:                  true,
+			AllowUserAccessKeys:      true,
+			AllowBypassMode:          true,
+			ForceGeneratedMailNotice: true,
+			AllowedScopes:            []string{"mail:read", "mail:manage"},
+		},
+	}
+	mux := http.NewServeMux()
+	RegisterMailRoutes(mux, service, nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/me/mcp/settings", nil)
+	req = req.WithContext(apikeys.ContextWithKeyInfo(req.Context(), &apikeys.KeyInfo{
+		ID:             "key-1",
+		UserID:         "user-1",
+		DomainID:       "domain-1",
+		Scopes:         []string{"mail:read"},
+		PermissionMode: maildb.MCPPermissionModeBasic,
+	}))
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	var body struct {
+		MCP struct {
+			PermissionMode             string `json:"permission_mode"`
+			BypassModeAllowed          bool   `json:"bypass_mode_allowed"`
+			GeneratedMailNoticeEnabled bool   `json:"generated_mail_notice_enabled"`
+			GeneratedMailNoticeForced  bool   `json:"generated_mail_notice_forced"`
+		} `json:"mcp"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("json.Unmarshal returned error: %v", err)
+	}
+	if body.MCP.PermissionMode != maildb.MCPPermissionModeBasic || body.MCP.BypassModeAllowed {
+		t.Fatalf("mcp mode = %q bypass_allowed=%v, want basic false", body.MCP.PermissionMode, body.MCP.BypassModeAllowed)
+	}
+	if !body.MCP.GeneratedMailNoticeEnabled || !body.MCP.GeneratedMailNoticeForced {
+		t.Fatalf("notice enabled=%v forced=%v, want true true", body.MCP.GeneratedMailNoticeEnabled, body.MCP.GeneratedMailNoticeForced)
+	}
+}
+
+func TestUserMCPBasicKeyRequiresConfirmationHeaderForSensitiveAction(t *testing.T) {
+	service := &fakeMessageService{}
+	mux := http.NewServeMux()
+	RegisterMailRoutes(mux, service, nil)
+
+	req := httptest.NewRequest(http.MethodDelete, "/api/v1/messages/msg-1", nil)
+	req = req.WithContext(apikeys.ContextWithKeyInfo(req.Context(), &apikeys.KeyInfo{
+		ID:             "key-1",
+		UserID:         "user-1",
+		DomainID:       "domain-1",
+		Scopes:         []string{"mail:manage"},
+		PermissionMode: maildb.MCPPermissionModeBasic,
+	}))
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("status = %d, want 403; body = %s", rec.Code, rec.Body.String())
+	}
+	if service.lastDeletedID != "" {
+		t.Fatalf("delete should not dispatch, lastDeletedID = %q", service.lastDeletedID)
+	}
+}
+
+func TestUserMCPBasicKeyAcceptsConfirmationHeaderForSensitiveAction(t *testing.T) {
+	service := &fakeMessageService{}
+	mux := http.NewServeMux()
+	RegisterMailRoutes(mux, service, nil)
+
+	req := httptest.NewRequest(http.MethodDelete, "/api/v1/messages/msg-1", nil)
+	req.Header.Set("X-Gogomail-MCP-Confirm", "delete message msg-1")
+	req = req.WithContext(apikeys.ContextWithKeyInfo(req.Context(), &apikeys.KeyInfo{
+		ID:             "key-1",
+		UserID:         "user-1",
+		DomainID:       "domain-1",
+		Scopes:         []string{"mail:manage"},
+		PermissionMode: maildb.MCPPermissionModeBasic,
+	}))
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200; body = %s", rec.Code, rec.Body.String())
+	}
+	if service.lastDeletedID != "msg-1" {
+		t.Fatalf("lastDeletedID = %q, want msg-1", service.lastDeletedID)
+	}
+}
+
+func TestUserMCPBypassKeySkipsConfirmationHeaderForSensitiveAction(t *testing.T) {
+	service := &fakeMessageService{}
+	mux := http.NewServeMux()
+	RegisterMailRoutes(mux, service, nil)
+
+	req := httptest.NewRequest(http.MethodDelete, "/api/v1/messages/msg-1", nil)
+	req = req.WithContext(apikeys.ContextWithKeyInfo(req.Context(), &apikeys.KeyInfo{
+		ID:             "key-1",
+		UserID:         "user-1",
+		DomainID:       "domain-1",
+		Scopes:         []string{"mail:manage"},
+		PermissionMode: maildb.MCPPermissionModeBypass,
+	}))
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200; body = %s", rec.Code, rec.Body.String())
+	}
+	if service.lastDeletedID != "msg-1" {
+		t.Fatalf("lastDeletedID = %q, want msg-1", service.lastDeletedID)
+	}
+}
+
+func TestUserMCPDirectSendAppliesGeneratedNoticeServerSide(t *testing.T) {
+	service := &fakeMessageService{
+		webmailPreferences: json.RawMessage(`{"mcp":{"enabled":true,"permission_mode":"basic","generated_mail_notice_enabled":true,"generated_mail_notice_text":"Automated via MCP."}}`),
+	}
+	mux := http.NewServeMux()
+	RegisterMailRoutes(mux, service, nil)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/messages/send", strings.NewReader(`{
+		"to":[{"email":"recipient@example.net"}],
+		"subject":"hello",
+		"text_body":"body"
+	}`))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Gogomail-MCP-Confirm", "send message")
+	req = req.WithContext(apikeys.ContextWithKeyInfo(req.Context(), &apikeys.KeyInfo{
+		ID:             "key-1",
+		UserID:         "user-1",
+		DomainID:       "domain-1",
+		Scopes:         []string{"mail:send"},
+		PermissionMode: maildb.MCPPermissionModeBasic,
+	}))
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusAccepted {
+		t.Fatalf("status = %d, want 202; body = %s", rec.Code, rec.Body.String())
+	}
+	if !strings.HasPrefix(service.lastSend.TextBody, "Automated via MCP.\n\nbody") {
+		t.Fatalf("lastSend.TextBody = %q", service.lastSend.TextBody)
+	}
+}
+
 func TestMailAuthRejectsOversizedAuthorizationHeader(t *testing.T) {
 	t.Parallel()
 
@@ -3885,6 +4037,8 @@ type fakeMessageService struct {
 	userProfile                 maildb.UserProfile
 	userProfileByEmail          map[string]maildb.UserProfile
 	userProfileErr              error
+	webmailPreferences          json.RawMessage
+	mcpDomainPolicy             maildb.DomainMCPPolicy
 	lastSend                    mailservice.SendTextRequest
 	lastDraft                   mailservice.SaveDraftRequest
 	lastAttachmentUpload        mailservice.CreateAttachmentUploadRequest
@@ -4260,6 +4414,9 @@ func (f *fakeMessageService) MessageDeliveryStatus(_ context.Context, userID str
 }
 
 func (f *fakeMessageService) GetWebmailPreferences(_ context.Context, _ string) (json.RawMessage, error) {
+	if len(f.webmailPreferences) > 0 {
+		return f.webmailPreferences, nil
+	}
 	return json.RawMessage("{}"), nil
 }
 
@@ -4280,6 +4437,18 @@ func (f *fakeMessageService) CreateUserMCPAccessKey(_ context.Context, req maild
 
 func (f *fakeMessageService) RevokeUserMCPAccessKey(_ context.Context, userID, id string) (maildb.UserMCPAccessKey, error) {
 	return maildb.UserMCPAccessKey{ID: id, UserID: userID, DomainID: "domain-1", Name: "test", Revoked: true}, nil
+}
+
+func (f *fakeMessageService) GetUserMCPDomainPolicy(_ context.Context, _ string) (maildb.DomainMCPPolicy, error) {
+	if f.mcpDomainPolicy.AllowedScopes != nil {
+		return f.mcpDomainPolicy, nil
+	}
+	return maildb.DomainMCPPolicy{
+		Enabled:             true,
+		AllowUserAccessKeys: true,
+		AllowBypassMode:     false,
+		AllowedScopes:       []string{"mail:read", "mail:write", "mail:send", "mail:manage", "contacts:read", "contacts:write", "contacts:manage", "drive:read", "drive:write", "drive:manage", "calendar:read", "calendar:write", "calendar:manage"},
+	}, nil
 }
 
 func (f *fakeMessageService) GetUserProfile(_ context.Context, userID string) (maildb.UserProfile, error) {

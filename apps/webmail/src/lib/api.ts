@@ -1729,6 +1729,7 @@ export interface MCPSettings {
   enabled: boolean;
   permission_mode: MCPPermissionMode;
   generated_mail_notice_enabled: boolean;
+  generated_mail_notice_forced?: boolean;
   generated_mail_notice_text: string;
   require_confirmation_for_sensitive_actions: boolean;
   bypass_mode_allowed: boolean;

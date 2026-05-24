@@ -39,7 +39,7 @@ const DEFAULT_SETTINGS: MCPSettings = {
   generated_mail_notice_enabled: true,
   generated_mail_notice_text: 'MCP를 통해 작성된 메일입니다.',
   require_confirmation_for_sensitive_actions: true,
-  bypass_mode_allowed: true,
+  bypass_mode_allowed: false,
   mail: {
     send_enabled: true,
     confirm_external_recipients: true,
@@ -88,6 +88,10 @@ export function SettingsMCPSection() {
   const [settings, setSettingsState] = useState<MCPSettings>(DEFAULT_SETTINGS);
   const [keys, setKeys] = useState<MCPAccessKey[]>([]);
   const [newKeyName, setNewKeyName] = useState('');
+  const [newKeyPermissionMode, setNewKeyPermissionMode] = useState<MCPPermissionMode>('basic');
+  const [newKeyScopes, setNewKeyScopes] = useState<string[]>(['mail:read']);
+  const [newKeyCIDRs, setNewKeyCIDRs] = useState('');
+  const [newKeyExpiresAt, setNewKeyExpiresAt] = useState('');
   const [newToken, setNewToken] = useState('');
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState('');
@@ -98,6 +102,7 @@ export function SettingsMCPSection() {
     Promise.all([getMCPSettings(), listMCPAccessKeys()])
       .then(([loadedSettings, loadedKeys]) => {
         setSettingsState(mergeSettings(loadedSettings));
+        if (!loadedSettings.bypass_mode_allowed) setNewKeyPermissionMode('basic');
         setKeys(loadedKeys);
       })
       .catch((e: unknown) => setError(e instanceof Error ? e.message : t('mcpLoadFailed')))
@@ -132,6 +137,17 @@ export function SettingsMCPSection() {
     return mode === 'bypass' ? t('mcpModeBypass') : t('mcpModeBasic');
   }
 
+  function toggleKeyScope(scope: string, checked: boolean) {
+    setNewKeyScopes((prev) => {
+      const next = checked ? [...prev, scope] : prev.filter((item) => item !== scope);
+      return next.length > 0 ? Array.from(new Set(next)) : prev;
+    });
+  }
+
+  function splitCIDRs(value: string) {
+    return value.split(/[\s,]+/).map((item) => item.trim()).filter(Boolean);
+  }
+
   async function handleCreateKey() {
     const name = newKeyName.trim();
     if (!name) {
@@ -144,11 +160,16 @@ export function SettingsMCPSection() {
     try {
       const created = await createMCPAccessKey({
         name,
-        permission_mode: settings.bypass_mode_allowed ? settings.permission_mode : 'basic',
-        scopes: DEFAULT_SCOPES,
+        permission_mode: settings.bypass_mode_allowed ? newKeyPermissionMode : 'basic',
+        scopes: newKeyScopes,
+        allowed_cidrs: splitCIDRs(newKeyCIDRs),
+        expires_at: newKeyExpiresAt ? new Date(newKeyExpiresAt).toISOString() : null,
       });
       setKeys((prev) => [created.key, ...prev]);
       setNewKeyName('');
+      setNewKeyScopes(['mail:read']);
+      setNewKeyCIDRs('');
+      setNewKeyExpiresAt('');
       setNewToken(created.token);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : t('mcpKeyCreateFailed'));
@@ -214,12 +235,12 @@ export function SettingsMCPSection() {
           <Toggle value={settings.require_confirmation_for_sensitive_actions} onChange={(require_confirmation_for_sensitive_actions) => updateSettings({ ...settings, require_confirmation_for_sensitive_actions })} />
         </Row>
         <Row label={t('mcpGeneratedNotice')} description={t('mcpGeneratedNoticeDesc')}>
-          <Toggle value={settings.generated_mail_notice_enabled} onChange={(generated_mail_notice_enabled) => updateSettings({ ...settings, generated_mail_notice_enabled })} />
+          <Toggle value={settings.generated_mail_notice_enabled} onChange={(generated_mail_notice_enabled) => updateSettings({ ...settings, generated_mail_notice_enabled })} disabled={settings.generated_mail_notice_forced} />
         </Row>
         <Row label={t('mcpGeneratedNoticeText')} description={t('mcpGeneratedNoticeTextDesc')} last>
           <input
             value={settings.generated_mail_notice_text}
-            disabled={!settings.generated_mail_notice_enabled}
+            disabled={!settings.generated_mail_notice_enabled || settings.generated_mail_notice_forced}
             onChange={(e) => setSettingsState({ ...settings, generated_mail_notice_text: e.target.value })}
             onBlur={(e) => updateSettings({ ...settings, generated_mail_notice_text: e.currentTarget.value })}
             style={inputStyle('280px')}
@@ -253,11 +274,31 @@ export function SettingsMCPSection() {
 
       <SectionCard>
         <SectionHeader>{t('sectionMcpKeys')}</SectionHeader>
-        <div style={{ padding: '14px 20px', display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap', borderBottom: '1px solid var(--color-border-subtle)' }}>
+        <div style={{ padding: '14px 20px', display: 'grid', gap: '12px', borderBottom: '1px solid var(--color-border-subtle)' }}>
+          {!settings.enabled && (
+            <div style={{ fontSize: '12px', color: 'var(--color-text-tertiary)' }}>{t('mcpKeysDisabledUntilEnabled')}</div>
+          )}
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
           <input value={newKeyName} onChange={(e) => setNewKeyName(e.target.value)} placeholder={t('mcpKeyNamePlaceholder')} style={inputStyle('220px')} />
-          <button onClick={handleCreateKey} disabled={savingKey || !newKeyName.trim()} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '7px 12px', borderRadius: '6px', border: 'none', background: 'var(--color-accent)', color: '#fff', fontSize: '12px', fontWeight: 600, cursor: savingKey ? 'wait' : 'pointer' }}>
+          <Segment
+            options={[{ value: 'basic' as MCPPermissionMode, label: t('mcpModeBasic') }, { value: 'bypass' as MCPPermissionMode, label: t('mcpModeBypass') }]}
+            value={settings.bypass_mode_allowed ? newKeyPermissionMode : 'basic'}
+            onChange={(permission_mode) => setNewKeyPermissionMode(permission_mode)}
+          />
+          <input type="datetime-local" value={newKeyExpiresAt} onChange={(e) => setNewKeyExpiresAt(e.target.value)} style={inputStyle('190px')} aria-label={t('mcpKeyExpiresAt')} />
+          <button onClick={handleCreateKey} disabled={savingKey || !settings.enabled || !newKeyName.trim() || newKeyScopes.length === 0} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '7px 12px', borderRadius: '6px', border: 'none', background: 'var(--color-accent)', color: '#fff', fontSize: '12px', fontWeight: 600, cursor: savingKey ? 'wait' : 'pointer' }}>
             <KeyIcon style={{ width: 14, height: 14 }} /> {savingKey ? t('saving') : t('mcpCreateKey')}
           </button>
+          </div>
+          <input value={newKeyCIDRs} onChange={(e) => setNewKeyCIDRs(e.target.value)} placeholder={t('mcpKeyCIDRsPlaceholder')} style={inputStyle('520px')} />
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            {DEFAULT_SCOPES.map((scope) => (
+              <label key={scope} style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '11px', color: 'var(--color-text-secondary)', border: '1px solid var(--color-border-subtle)', borderRadius: '6px', padding: '5px 7px' }}>
+                <input type="checkbox" checked={newKeyScopes.includes(scope)} onChange={(e) => toggleKeyScope(scope, e.target.checked)} />
+                {scope}
+              </label>
+            ))}
+          </div>
         </div>
         {newToken && (
           <div style={{ padding: '12px 20px', background: 'var(--color-bg-secondary)', borderBottom: '1px solid var(--color-border-subtle)' }}>

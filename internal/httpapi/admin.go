@@ -651,7 +651,7 @@ type adminConfigPropagateRequest struct {
 	Locked bool            `json:"locked"`
 }
 
-var defaultDomainMCPPolicy = json.RawMessage(`{"enabled":true,"allow_bypass_mode":true,"allow_user_access_keys":true,"allowed_scopes":["mail:read","mail:write","mail:send","mail:manage","contacts:read","contacts:write","contacts:manage","drive:read","drive:write","drive:manage","calendar:read","calendar:write","calendar:manage"],"force_generated_mail_notice":false,"external_recipient_confirmation":"basic","public_drive_share_confirmation":"basic","audit_level":"full"}`)
+var defaultDomainMCPPolicy = json.RawMessage(`{"enabled":false,"allow_bypass_mode":false,"allow_user_access_keys":false,"allowed_scopes":[],"force_generated_mail_notice":false,"external_recipient_confirmation":"basic","public_drive_share_confirmation":"basic","audit_level":"full"}`)
 
 func inheritCompanyDomainSettings(ctx context.Context, service AdminService, domain maildb.DomainView) error {
 	if domain.CompanyID == "" || domain.ID == "" {

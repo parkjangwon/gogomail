@@ -1202,6 +1202,622 @@ paths:
           $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
+  /calendars:
+    get:
+      operationId: listCalendars
+      summary: List user calendars
+      servers:
+        - url: /api/v1
+          description: Mail API
+      parameters:
+        - $ref: "#/components/parameters/UserIDFallback"
+        - $ref: "#/components/parameters/UserEmailFallback"
+      responses:
+        "200":
+          description: Calendar list envelope
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        default:
+          $ref: "#/components/responses/Error"
+    post:
+      operationId: createCalendar
+      summary: Create a user calendar
+      servers:
+        - url: /api/v1
+          description: Mail API
+      parameters:
+        - $ref: "#/components/parameters/UserIDFallback"
+        - $ref: "#/components/parameters/UserEmailFallback"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name:
+                  type: string
+                  maxLength: 200
+                description:
+                  type: string
+                  maxLength: 1000
+                color:
+                  type: string
+                  maxLength: 32
+      responses:
+        "201":
+          description: Calendar envelope
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        default:
+          $ref: "#/components/responses/Error"
+  /calendars/{id}:
+    get:
+      operationId: getCalendar
+      summary: Get a user calendar
+      servers:
+        - url: /api/v1
+          description: Mail API
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+        - $ref: "#/components/parameters/UserIDFallback"
+        - $ref: "#/components/parameters/UserEmailFallback"
+      responses:
+        "200":
+          description: Calendar envelope
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        default:
+          $ref: "#/components/responses/Error"
+    patch:
+      operationId: updateCalendar
+      summary: Update a user calendar
+      servers:
+        - url: /api/v1
+          description: Mail API
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+        - $ref: "#/components/parameters/UserIDFallback"
+        - $ref: "#/components/parameters/UserEmailFallback"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  maxLength: 200
+                description:
+                  type: string
+                  maxLength: 1000
+                color:
+                  type: string
+                  maxLength: 32
+      responses:
+        "200":
+          description: Calendar envelope
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        default:
+          $ref: "#/components/responses/Error"
+    delete:
+      operationId: deleteCalendar
+      summary: Delete a user calendar
+      servers:
+        - url: /api/v1
+          description: Mail API
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+        - $ref: "#/components/parameters/UserIDFallback"
+        - $ref: "#/components/parameters/UserEmailFallback"
+      responses:
+        "200":
+          $ref: "#/components/responses/Status"
+        default:
+          $ref: "#/components/responses/Error"
+  /calendars/{id}/objects:
+    get:
+      operationId: listCalendarObjects
+      summary: List iCalendar objects in a calendar
+      servers:
+        - url: /api/v1
+          description: Mail API
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+        - $ref: "#/components/parameters/UserIDFallback"
+        - $ref: "#/components/parameters/UserEmailFallback"
+      responses:
+        "200":
+          description: Calendar object list envelope
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        default:
+          $ref: "#/components/responses/Error"
+  /calendars/{id}/objects/{name}:
+    get:
+      operationId: getCalendarObject
+      summary: Get an iCalendar object
+      servers:
+        - url: /api/v1
+          description: Mail API
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+            maxLength: 200
+        - $ref: "#/components/parameters/UserIDFallback"
+        - $ref: "#/components/parameters/UserEmailFallback"
+      responses:
+        "200":
+          description: Calendar object envelope
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        default:
+          $ref: "#/components/responses/Error"
+    put:
+      operationId: upsertCalendarObject
+      summary: Create or update an iCalendar object
+      servers:
+        - url: /api/v1
+          description: Mail API
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+            maxLength: 200
+        - $ref: "#/components/parameters/UserIDFallback"
+        - $ref: "#/components/parameters/UserEmailFallback"
+      requestBody:
+        required: true
+        content:
+          text/calendar:
+            schema:
+              type: string
+      responses:
+        "200":
+          description: Calendar object envelope
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        default:
+          $ref: "#/components/responses/Error"
+    delete:
+      operationId: deleteCalendarObject
+      summary: Delete an iCalendar object
+      servers:
+        - url: /api/v1
+          description: Mail API
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+            maxLength: 200
+        - $ref: "#/components/parameters/UserIDFallback"
+        - $ref: "#/components/parameters/UserEmailFallback"
+      responses:
+        "200":
+          $ref: "#/components/responses/Status"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/mail/addressbooks:
+    get:
+      operationId: listAddressBooks
+      summary: List CardDAV address books
+      servers:
+        - url: /
+          description: Service root
+      parameters:
+        - $ref: "#/components/parameters/UserIDFallback"
+        - $ref: "#/components/parameters/UserEmailFallback"
+      responses:
+        "200":
+          description: Address book list envelope
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        default:
+          $ref: "#/components/responses/Error"
+    post:
+      operationId: createAddressBook
+      summary: Create a CardDAV address book
+      servers:
+        - url: /
+          description: Service root
+      parameters:
+        - $ref: "#/components/parameters/UserIDFallback"
+        - $ref: "#/components/parameters/UserEmailFallback"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name:
+                  type: string
+                  maxLength: 200
+                description:
+                  type: string
+                  maxLength: 1000
+      responses:
+        "201":
+          description: Address book envelope
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        default:
+          $ref: "#/components/responses/Error"
+  /api/mail/addressbooks/{id}:
+    get:
+      operationId: getAddressBook
+      summary: Get a CardDAV address book
+      servers:
+        - url: /
+          description: Service root
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+        - $ref: "#/components/parameters/UserIDFallback"
+        - $ref: "#/components/parameters/UserEmailFallback"
+      responses:
+        "200":
+          description: Address book envelope
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        default:
+          $ref: "#/components/responses/Error"
+    patch:
+      operationId: updateAddressBook
+      summary: Update a CardDAV address book
+      servers:
+        - url: /
+          description: Service root
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+        - $ref: "#/components/parameters/UserIDFallback"
+        - $ref: "#/components/parameters/UserEmailFallback"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  maxLength: 200
+                description:
+                  type: string
+                  maxLength: 1000
+      responses:
+        "200":
+          description: Address book envelope
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        default:
+          $ref: "#/components/responses/Error"
+    delete:
+      operationId: deleteAddressBook
+      summary: Delete a CardDAV address book
+      servers:
+        - url: /
+          description: Service root
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+        - $ref: "#/components/parameters/UserIDFallback"
+        - $ref: "#/components/parameters/UserEmailFallback"
+      responses:
+        "200":
+          $ref: "#/components/responses/Status"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/mail/addressbooks/{id}/contacts:
+    get:
+      operationId: listContacts
+      summary: List contacts in an address book
+      servers:
+        - url: /
+          description: Service root
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+        - $ref: "#/components/parameters/UserIDFallback"
+        - $ref: "#/components/parameters/UserEmailFallback"
+      responses:
+        "200":
+          description: Contact list envelope
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        default:
+          $ref: "#/components/responses/Error"
+  /api/mail/addressbooks/{id}/contacts/{name}:
+    get:
+      operationId: getContact
+      summary: Get a vCard contact
+      servers:
+        - url: /
+          description: Service root
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+            maxLength: 200
+        - $ref: "#/components/parameters/UserIDFallback"
+        - $ref: "#/components/parameters/UserEmailFallback"
+      responses:
+        "200":
+          description: Contact envelope
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        default:
+          $ref: "#/components/responses/Error"
+    put:
+      operationId: upsertContact
+      summary: Create or update a vCard contact
+      servers:
+        - url: /
+          description: Service root
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+            maxLength: 200
+        - $ref: "#/components/parameters/UserIDFallback"
+        - $ref: "#/components/parameters/UserEmailFallback"
+      requestBody:
+        required: true
+        content:
+          text/vcard:
+            schema:
+              type: string
+      responses:
+        "200":
+          description: Contact envelope
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        default:
+          $ref: "#/components/responses/Error"
+    delete:
+      operationId: deleteContact
+      summary: Delete a vCard contact
+      servers:
+        - url: /
+          description: Service root
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+            maxLength: 200
+        - $ref: "#/components/parameters/UserIDFallback"
+        - $ref: "#/components/parameters/UserEmailFallback"
+      responses:
+        "200":
+          $ref: "#/components/responses/Status"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/mail/contacts/autocomplete:
+    get:
+      operationId: autocompleteContacts
+      summary: Search contact suggestions
+      servers:
+        - url: /
+          description: Service root
+      parameters:
+        - $ref: "#/components/parameters/UserIDFallback"
+        - $ref: "#/components/parameters/UserEmailFallback"
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+            maxLength: 255
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+      responses:
+        "200":
+          description: Contact autocomplete envelope
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        default:
+          $ref: "#/components/responses/Error"
+  /calendar-subscriptions:
+    get:
+      operationId: listCalendarSubscriptions
+      summary: List external calendar subscriptions
+      servers:
+        - url: /api/v1
+          description: Mail API
+      parameters:
+        - $ref: "#/components/parameters/UserIDFallback"
+      responses:
+        "200":
+          description: Calendar subscription list envelope
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        default:
+          $ref: "#/components/responses/Error"
+    post:
+      operationId: createCalendarSubscription
+      summary: Create an external calendar subscription
+      servers:
+        - url: /api/v1
+          description: Mail API
+      parameters:
+        - $ref: "#/components/parameters/UserIDFallback"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [url]
+              properties:
+                name:
+                  type: string
+                  maxLength: 200
+                url:
+                  type: string
+                  format: uri
+                color:
+                  type: string
+                  maxLength: 32
+      responses:
+        "201":
+          description: Calendar subscription envelope
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        default:
+          $ref: "#/components/responses/Error"
+  /calendar-subscriptions/{id}:
+    delete:
+      operationId: deleteCalendarSubscription
+      summary: Delete an external calendar subscription
+      servers:
+        - url: /api/v1
+          description: Mail API
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+        - $ref: "#/components/parameters/UserIDFallback"
+      responses:
+        "204":
+          description: Deleted
+        default:
+          $ref: "#/components/responses/Error"
+  /calendar-subscriptions/{id}/events:
+    get:
+      operationId: getCalendarSubscriptionEvents
+      summary: Fetch external calendar subscription events
+      servers:
+        - url: /api/v1
+          description: Mail API
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+        - $ref: "#/components/parameters/UserIDFallback"
+      responses:
+        "200":
+          description: iCalendar feed body
+          content:
+            text/calendar:
+              schema:
+                type: string
+        default:
+          $ref: "#/components/responses/Error"
+  /api/mail/directory/users:
+    get:
+      operationId: listDirectoryUsers
+      summary: List directory users for mail autocomplete and address book views
+      servers:
+        - url: /
+          description: Service root
+      parameters:
+        - $ref: "#/components/parameters/UserIDFallback"
+        - name: q
+          in: query
+          schema:
+            type: string
+            maxLength: 255
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: Directory user list envelope
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        default:
+          $ref: "#/components/responses/Error"
+  /api/mail/directory/org-tree:
+    get:
+      operationId: getDirectoryOrgTree
+      summary: List directory org units with members
+      servers:
+        - url: /
+          description: Service root
+      parameters:
+        - $ref: "#/components/parameters/UserIDFallback"
+      responses:
+        "200":
+          description: Directory organization tree envelope
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        default:
+          $ref: "#/components/responses/Error"
   /mailbox/overview:
     get:
       operationId: getMailboxOverview
