@@ -675,6 +675,14 @@ export function SettingsView({ userEmail, userName, initialSection }: SettingsVi
     }
   }
 
+  // Auto-load folder stats when storage section becomes active
+  useEffect(() => {
+    if (activeSection !== 'storage') return;
+    if (folderStats.length > 0 || statsLoading) return; // already loaded
+    setStatsLoading(true);
+    getFolderStats().then(setFolderStats).catch(() => {}).finally(() => setStatsLoading(false));
+  }, [activeSection]);
+
   // ─── Render ──────────────────────────────────────────────────────────────────
 
   function renderContent() {
