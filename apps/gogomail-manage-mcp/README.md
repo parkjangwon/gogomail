@@ -4,6 +4,8 @@ Korean / 한국어: [README.ko.md](README.ko.md)
 
 `gogomail-manage-mcp` is an [MCP (Model Context Protocol)](https://modelcontextprotocol.io/) server that gives an AI agent direct, structured management access to GoGoMail's Admin API, an optional Suppo helpdesk, and GitHub Issues. Designed for **unmanned 24/7 mail service operation** — an agent can diagnose and fix delivery failures, manage user accounts, inspect mail queues, and work through support tickets without human intervention.
 
+Current GoGoMail Admin coverage is **49 tools**. The catalog includes typed tools for user/domain operations, delivery and queue diagnostics, organization membership/title metadata, security and spam-filter policies, and a guarded `gogomail_admin_api_request` bridge for documented admin-console routes that do not yet need dedicated wrappers.
+
 ---
 
 ## Table of Contents

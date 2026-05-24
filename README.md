@@ -128,8 +128,8 @@ GoGoMail has two separate [Model Context Protocol](https://modelcontextprotocol.
 
 | Server | Directory | Audience | Scope |
 |---|---|---|---|
-| Management MCP | `apps/gogomail-manage-mcp` | Operators, support, administrators | Admin API, queue/health inspection, user/domain operations, optional Suppo and GitHub integrations |
-| User MCP | `apps/gogomail-user-mcp` | Individual webmail users | Mail, drafts, folders, threads, contacts, directory, Drive, calendars, preferences, and account context through user-scoped `gmu_` keys |
+| Management MCP | `apps/gogomail-manage-mcp` | Operators, support, administrators | 49 admin tools for Admin API, queue/health inspection, user/domain operations, organization membership/title metadata, security/spam policies, and optional Suppo/GitHub integrations |
+| User MCP | `apps/gogomail-user-mcp` | Individual webmail users | 96 user tools for mail, drafts, folders, threads, contacts, directory, Drive, calendars, preferences, spam UX, profile/avatar, and account context through user-scoped `gmu_` keys |
 
 The split is intentional: the management MCP is for running GoGoMail as a service, while the user MCP lets a user connect Codex, Claude Desktop, or another agent to their own mailbox and collaboration data.
 
@@ -145,9 +145,11 @@ User request
             → /api/v1/... and /api/mail/...
 ```
 
-`gogomail-user-mcp` currently exposes **96 user tools**, including mail send/drafts/search, bulk message and thread actions, spam report/not-spam and sender allow/block helpers, profile/avatar helpers, contact and calendar CRUD helpers, Drive upload/download/share tools, and an exact-manifest API bridge for documented user APIs. Sensitive actions stay confirmation-gated in `basic` mode; `bypass` mode is allowed only when both user settings and domain policy permit it.
+`gogomail-manage-mcp` currently exposes **49 admin tools**, including audited user/domain mutations, delivery and queue diagnostics, organization membership/title management, security and spam-filter policy helpers, and a guarded `gogomail_admin_api_request` bridge for documented admin-console routes without dedicated wrappers. All GoGoMail write actions require a human-readable `reason`; destructive operations also require exact confirmation.
 
-→ Management MCP documentation: [apps/gogomail-manage-mcp/README.md](apps/gogomail-manage-mcp/README.md)
+`gogomail-user-mcp` currently exposes **96 user tools**, including mail send/drafts/search, bulk message and thread actions, spam report/not-spam and sender allow/block helpers, profile/avatar helpers, contact and calendar CRUD helpers, Drive upload/download/share tools, and an exact-manifest `gogomail_api_request` bridge for documented user APIs. Sensitive actions stay confirmation-gated in `basic` mode; `bypass` mode is allowed only when both user settings and domain policy permit it.
+
+→ Management MCP documentation: [apps/gogomail-manage-mcp/README.md](apps/gogomail-manage-mcp/README.md) / [한국어](apps/gogomail-manage-mcp/README.ko.md)
 → User MCP documentation: [apps/gogomail-user-mcp/README.md](apps/gogomail-user-mcp/README.md) / [한국어](apps/gogomail-user-mcp/README.ko.md)
 
 ## Documentation

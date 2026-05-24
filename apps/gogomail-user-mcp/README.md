@@ -6,6 +6,8 @@ Korean / 한국어: [README.ko.md](README.ko.md)
 
 This server is intentionally separate from `apps/gogomail-manage-mcp`. The management MCP is for operators and administrators; this package is for an individual user and authenticates with a user-issued `gmu_` access key.
 
+Current user coverage is **96 tools** over the documented webmail/user API surface, including the recent profile/avatar, directory profile, spam report/not-spam, and sender allow/block workflows used by the webmail UI.
+
 ## What It Provides
 
 - 96 MCP tools over existing GoGoMail user APIs.
