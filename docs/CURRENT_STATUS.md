@@ -1,9 +1,18 @@
 # gogomail current status
 
-Last updated: 2026-05-25 (manage MCP admin console feature gap closure)
+Last updated: 2026-05-25 (spam filter phishing defense expansion)
+
+## Spam filter phishing defense expansion (2026-05-25)
+- `internal/spamfilter` now ships two additional default system packs: URL/credential phishing defense and sender impersonation defense.
+- New filter rule types are available for tenant custom packs: `sender_domain`, `url_host`, and `header_anomaly`; header anomalies cover URL text/href mismatch, HTML credential forms, raw-IP URLs, punycode URLs, envelope/header sender mismatch, and zero-width/confusable text obfuscation.
+- Suspicious phrase matching now folds common Cyrillic/Greek homoglyphs and strips zero-width characters before scoring, closing an obfuscated credential-lure gap without adding external dependencies.
+- The filter-pack evaluator now reuses per-message URL/anomaly analysis across rules; the added benchmark reports the new URL/anomaly-heavy path at about 23.5 us/op and 139 allocs/op on Apple M1 Pro.
+- Admin console spam policy UI lists the new built-in packs and exposes the new custom rule types; OpenAPI documents the expanded `SpamFilterRule.type` enum.
+- `apps/gogomail-manage-mcp` now exposes 50 GoGoMail Admin tools, adding `gogomail_list_spam_filter_events` and widening spam stats filters so agents can inspect console-equivalent spam decision logs.
+- Verification: `go test ./internal/spamfilter -bench BenchmarkEngineEvaluateURLAndAnomalyPacks -benchmem`; `go test ./internal/spamfilter ./internal/httpapi`; `pnpm -C apps/console type-check`; `npm run type-check`, `npm test`, and `npm run build` in `apps/gogomail-manage-mcp`.
 
 ## Manage MCP admin console feature gap closure (2026-05-25)
-- `apps/gogomail-manage-mcp` now exposes 49 GoGoMail Admin tools, adding typed organization membership/title tools, generic security/spam-policy tools, spam filter stats, and a guarded `gogomail_admin_api_request` bridge for documented admin-console Admin API routes.
+- `apps/gogomail-manage-mcp` was expanded from 37 to 49 GoGoMail Admin tools in this pass, adding typed organization membership/title tools, generic security/spam-policy tools, spam filter stats, and a guarded `gogomail_admin_api_request` bridge for documented admin-console Admin API routes.
 - Gap analysis found admin console API surfaces not represented by the previous 37-tool MCP server: admin users, company/domain config, organization hierarchy/memberships, security policies, routing/legal hold/quota summary, bulk user import/export, delivery routes, trusted relays, attachment cleanup, drive nodes, and quota reconciliation.
 - The bridge is allowlisted to documented `/admin/v1` routes, blocks auth-style endpoints and path traversal, requires `reason` for writes, exact `DELETE <path>` confirmation for deletes, and records the same Suppo/stderr audit memo as other GoGoMail mutation tools.
 - Verification: `npm run type-check`, `npm test`, and `npm run build` in `apps/gogomail-manage-mcp`.

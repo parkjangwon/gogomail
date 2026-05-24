@@ -663,6 +663,30 @@ export const toolDefinitions: Tool[] = [
       properties: {
         companyId: { type: "string", pattern: "^[A-Za-z0-9_-]+$", maxLength: 128 },
         domainId: { type: "string", pattern: "^[A-Za-z0-9_-]+$", maxLength: 128 },
+        userId: { type: "string", pattern: "^[A-Za-z0-9_-]+$", maxLength: 128 },
+        since: { type: "string", description: "ISO 8601 start time" },
+        until: { type: "string", description: "ISO 8601 end time" },
+      },
+      required: ["companyId"],
+    },
+  },
+  {
+    name: "gogomail_list_spam_filter_events",
+    description:
+      "List spam filter decision logs with console-equivalent filters. Use this to inspect blocked, rejected, quarantined, or suspicious accepted messages.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        companyId: { type: "string", pattern: "^[A-Za-z0-9_-]+$", maxLength: 128 },
+        domainId: { type: "string", pattern: "^[A-Za-z0-9_-]+$", maxLength: 128 },
+        userId: { type: "string", pattern: "^[A-Za-z0-9_-]+$", maxLength: 128 },
+        fromAddr: { type: "string", format: "email", maxLength: 254 },
+        toAddr: { type: "string", format: "email", maxLength: 254 },
+        subject: { type: "string", maxLength: 200 },
+        flowStatus: { type: "string", enum: ["filtered", "rejected", "received"] },
+        since: { type: "string", description: "ISO 8601 start time" },
+        until: { type: "string", description: "ISO 8601 end time" },
+        limit: { type: "number", minimum: 1, maximum: 200 },
       },
       required: ["companyId"],
     },
@@ -1118,6 +1142,25 @@ const UpdateSpamFilterPolicySchema = SpamFilterPolicySchema.extend({
 const SpamFilterStatsSchema = z.object({
   companyId: id(),
   domainId: id().optional(),
+  userId: id().optional(),
+  since: ts().optional(),
+  until: ts().optional(),
+}).refine(validSinceUntil, {
+  message: "since must be earlier than or equal to until",
+});
+const ListSpamFilterEventsSchema = z.object({
+  companyId: id(),
+  domainId: id().optional(),
+  userId: id().optional(),
+  fromAddr: email().optional(),
+  toAddr: email().optional(),
+  subject: singleLine("subject", 200).optional(),
+  flowStatus: z.enum(["filtered", "rejected", "received"]).optional(),
+  since: ts().optional(),
+  until: ts().optional(),
+  limit: pageLimit(),
+}).refine(validSinceUntil, {
+  message: "since must be earlier than or equal to until",
 });
 
 // ── callTool dispatcher ─────────────────────────────────────────
@@ -1508,11 +1551,27 @@ export async function callTool(
       return withAudit(result, audit);
     }
     case "gogomail_get_spam_filter_stats": {
-      const { companyId, domainId } = SpamFilterStatsSchema.parse(args);
-      const path = domainId
-        ? `/companies/${companyId}/security/spam-filter/stats?domain_id=${encodeURIComponent(domainId)}`
-        : `/companies/${companyId}/security/spam-filter/stats`;
-      return gogomail.adminRequest("GET", path);
+      const { companyId, domainId, userId, since, until } = SpamFilterStatsSchema.parse(args);
+      return gogomail.adminRequest("GET", pathWithQuery(`/companies/${companyId}/security/spam-filter/stats`, {
+        domain_id: domainId ?? null,
+        user_id: userId ?? null,
+        since: since ?? null,
+        until: until ?? null,
+      }));
+    }
+    case "gogomail_list_spam_filter_events": {
+      const p = ListSpamFilterEventsSchema.parse(args);
+      return gogomail.adminRequest("GET", pathWithQuery(`/companies/${p.companyId}/security/spam-filter/events`, {
+        domain_id: p.domainId ?? null,
+        user_id: p.userId ?? null,
+        from_addr: p.fromAddr ?? null,
+        to_addr: p.toAddr ?? null,
+        subject: p.subject ?? null,
+        flow_status: p.flowStatus ?? null,
+        since: p.since ?? null,
+        until: p.until ?? null,
+        limit: p.limit ?? null,
+      }));
     }
     default:
       throw new Error(`Unknown GoGoMail tool: ${name}`);

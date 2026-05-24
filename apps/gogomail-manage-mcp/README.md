@@ -4,7 +4,7 @@ Korean / 한국어: [README.ko.md](README.ko.md)
 
 `gogomail-manage-mcp` is an [MCP (Model Context Protocol)](https://modelcontextprotocol.io/) server that gives an AI agent direct, structured management access to GoGoMail's Admin API, an optional Suppo helpdesk, and GitHub Issues. Designed for **unmanned 24/7 mail service operation** — an agent can diagnose and fix delivery failures, manage user accounts, inspect mail queues, and work through support tickets without human intervention.
 
-Current GoGoMail Admin coverage is **49 tools**. The catalog includes typed tools for user/domain operations, delivery and queue diagnostics, organization membership/title metadata, security and spam-filter policies, and a guarded `gogomail_admin_api_request` bridge for documented admin-console routes that do not yet need dedicated wrappers.
+Current GoGoMail Admin coverage is **50 tools**. The catalog includes typed tools for user/domain operations, delivery and queue diagnostics, organization membership/title metadata, security and spam-filter policies, and a guarded `gogomail_admin_api_request` bridge for documented admin-console routes that do not yet need dedicated wrappers.
 
 ---
 
@@ -18,7 +18,7 @@ Current GoGoMail Admin coverage is **49 tools**. The catalog includes typed tool
   - [Claude Desktop (stdio)](#claude-desktop-stdio)
   - [Autonomous Agent (HTTP + SSE)](#autonomous-agent-http--sse)
 - [Tool Reference](#tool-reference)
-  - [GoGoMail Admin (49)](#gogomail-admin-49)
+  - [GoGoMail Admin (50)](#gogomail-admin-50)
   - [Suppo Helpdesk (10)](#suppo-helpdesk-10)
   - [GitHub Issues (6)](#github-issues-6)
 - [Workflow Examples](#workflow-examples)
@@ -42,7 +42,7 @@ Natural-language request (human or ticket system)
   │                             │
   │  ┌──────────────────────┐   │
   │  │  GoGoMail Admin      │   │──► GET/PATCH/POST/DELETE /admin/v1/…
-  │  │  49 tools  [required]│   │    Bearer: GOGOMAIL_ADMIN_KEY
+  │  │  50 tools  [required]│   │    Bearer: GOGOMAIL_ADMIN_KEY
   │  └──────────────────────┘   │
   │  ┌──────────────────────┐   │
   │  │  Suppo helpdesk      │   │──► /api/public/…
@@ -196,7 +196,7 @@ The server exposes:
 
 All tool names follow the pattern `{provider}_{action}_{object}`. Every GoGoMail action (write operation) requires a human-readable `reason` and is audit-logged — either as an internal comment on the Suppo ticket referenced by `ticketId`, or as a standalone audit ticket created automatically when `ticketId` is omitted. Irreversible deletes also require an exact `confirm` phrase. When Suppo is not configured, the audit record is written to stderr.
 
-### GoGoMail Admin (49)
+### GoGoMail Admin (50)
 
 #### User & Directory
 
@@ -310,7 +310,8 @@ All tool names follow the pattern `{provider}_{action}_{object}`. Every GoGoMail
 | `gogomail_update_security_policy` | `PUT /admin/v1/{companies|domains}/{id}/security/...` | Update a company/domain security policy JSON document. *(audit logged)* |
 | `gogomail_get_spam_filter_policy` | `GET /admin/v1/{companies|domains}/{id}/security/spam-filter` | Get company- or domain-scoped spam filter policy. |
 | `gogomail_update_spam_filter_policy` | `PUT /admin/v1/{companies|domains}/{id}/security/spam-filter` | Update company- or domain-scoped spam filter policy. *(audit logged)* |
-| `gogomail_get_spam_filter_stats` | `GET /admin/v1/companies/{id}/security/spam-filter/stats` | Get spam filter statistics, optionally filtered by domain. |
+| `gogomail_get_spam_filter_stats` | `GET /admin/v1/companies/{id}/security/spam-filter/stats` | Get spam filter statistics, optionally filtered by domain, user, and time range. |
+| `gogomail_list_spam_filter_events` | `GET /admin/v1/companies/{id}/security/spam-filter/events` | List spam filter decision logs with console-equivalent filters for status, sender, recipient, subject, domain, user, and time range. |
 
 ---
 

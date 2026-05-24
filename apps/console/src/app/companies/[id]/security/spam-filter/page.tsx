@@ -62,7 +62,7 @@ interface FilterPack {
 
 interface FilterRule {
   id: string;
-  type: 'phrase' | 'attachment_extension' | 'bulk_recipient' | 'auth_failure' | string;
+  type: 'phrase' | 'attachment_extension' | 'bulk_recipient' | 'auth_failure' | 'sender_domain' | 'url_host' | 'header_anomaly' | string;
   target?: 'subject' | 'body' | 'subject_body' | string;
   patterns: string[];
   score: number;
@@ -117,7 +117,7 @@ const defaultPolicy = (): SpamFilterPolicy => ({
   max_attachment_mb: 25,
   bulk_recipient_limit: 50,
   filter_packs: {
-    enabled_pack_ids: ['gogomail-core-auth', 'gogomail-core-malware', 'gogomail-core-phishing-ko', 'gogomail-core-bulk'],
+    enabled_pack_ids: ['gogomail-core-auth', 'gogomail-core-malware', 'gogomail-core-phishing-ko', 'gogomail-core-bulk', 'gogomail-core-url', 'gogomail-core-sender'],
     custom_packs: [],
   },
 });
@@ -183,6 +183,40 @@ const builtinFilterPacks: Array<FilterPack & { nameKey: string; descriptionKey: 
     enabled: true,
     rules: [
       { id: 'recipient-fanout', type: 'bulk_recipient', patterns: [], score: 1.5, enabled: true },
+    ],
+  },
+  {
+    id: 'gogomail-core-url',
+    nameKey: 'pack_url_name',
+    descriptionKey: 'pack_url_desc',
+    categoryKey: 'pack_category_phishing',
+    version: '2026.05.25',
+    name: 'Core URL and credential phishing defense',
+    description: 'Scores disguised links, credential forms, raw IP links, and IDN/punycode link lures.',
+    category: 'phishing',
+    source: 'system',
+    enabled: true,
+    rules: [
+      { id: 'link-text-mismatch', type: 'header_anomaly', patterns: ['url_mismatch'], score: 3, enabled: true },
+      { id: 'credential-form', type: 'header_anomaly', patterns: ['html_form'], score: 3, enabled: true },
+      { id: 'raw-ip-url', type: 'header_anomaly', patterns: ['raw_ip_url'], score: 2, enabled: true },
+      { id: 'punycode-url', type: 'header_anomaly', patterns: ['punycode_url'], score: 2, enabled: true },
+    ],
+  },
+  {
+    id: 'gogomail-core-sender',
+    nameKey: 'pack_sender_name',
+    descriptionKey: 'pack_sender_desc',
+    categoryKey: 'pack_category_impersonation',
+    version: '2026.05.25',
+    name: 'Core sender impersonation defense',
+    description: 'Scores envelope/header sender mismatches and obfuscated credential-lure text.',
+    category: 'impersonation',
+    source: 'system',
+    enabled: true,
+    rules: [
+      { id: 'from-envelope-mismatch', type: 'header_anomaly', patterns: ['from_envelope_mismatch'], score: 2, enabled: true },
+      { id: 'text-obfuscation', type: 'header_anomaly', patterns: ['text_obfuscation'], score: 2, enabled: true },
     ],
   },
 ];
@@ -574,6 +608,9 @@ export default function SpamFilterPage() {
     { value: 'attachment_extension', label: t('pages.spam_filter_page.rule_type_attachment') },
     { value: 'bulk_recipient', label: t('pages.spam_filter_page.rule_type_bulk') },
     { value: 'auth_failure', label: t('pages.spam_filter_page.rule_type_auth') },
+    { value: 'sender_domain', label: t('pages.spam_filter_page.rule_type_sender_domain') },
+    { value: 'url_host', label: t('pages.spam_filter_page.rule_type_url_host') },
+    { value: 'header_anomaly', label: t('pages.spam_filter_page.rule_type_header_anomaly') },
   ];
   const ruleTargetOptions: SelectProps.Option[] = [
     { value: 'subject_body', label: t('pages.spam_filter_page.rule_target_subject_body') },

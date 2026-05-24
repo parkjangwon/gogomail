@@ -94,6 +94,68 @@ func TestEngineScoresSuspiciousBody(t *testing.T) {
 	}
 }
 
+func TestEngineCatchesConfusableCredentialLure(t *testing.T) {
+	policy := DefaultPolicy()
+	policy.SpamThreshold = 2
+	decision := NewEngine().Evaluate(policy, smtpd.Event{
+		Parsed: message.ParsedMessage{
+			Subject: "pаsswоrd еxpired", // Cyrillic a/o/e in an otherwise English lure.
+		},
+	})
+	if decision.Action != ActionQuarantine || !contains(decision.Rules, "SUSPICIOUS_SUBJECT") {
+		t.Fatalf("decision = %+v, want obfuscated suspicious subject quarantine", decision)
+	}
+}
+
+func TestEngineScoresDisguisedCredentialFormLink(t *testing.T) {
+	policy := DefaultPolicy()
+	decision := NewEngine().Evaluate(policy, smtpd.Event{
+		Parsed: message.ParsedMessage{
+			HTMLBody: `<p>Please sign in.</p><a href="https://evil.example/login">https://mail.example.com/login</a><form><input type="password"></form>`,
+		},
+	})
+	if decision.Action != ActionQuarantine {
+		t.Fatalf("decision = %+v, want quarantine for URL mismatch and credential form", decision)
+	}
+	if !contains(decision.Rules, "PACK:gogomail-core-url:link-text-mismatch") || !contains(decision.Rules, "PACK:gogomail-core-url:credential-form") {
+		t.Fatalf("rules = %#v, want URL mismatch and credential form rules", decision.Rules)
+	}
+}
+
+func TestEngineScoresPunycodeAndRawIPURLs(t *testing.T) {
+	policy := DefaultPolicy()
+	decision := NewEngine().Evaluate(policy, smtpd.Event{
+		Parsed: message.ParsedMessage{
+			TextBody: "Open https://xn--pple-43d.example/login then http://203.0.113.4/reset",
+		},
+		Authentication: smtpd.AuthenticationResults{
+			SPF:   smtpd.AuthCheckResult{Result: smtpd.AuthResultPass},
+			DKIM:  smtpd.AuthCheckResult{Result: smtpd.AuthResultPass},
+			DMARC: smtpd.AuthCheckResult{Result: smtpd.AuthResultPass},
+		},
+	})
+	if decision.Action != ActionAccept || decision.Score < 4 {
+		t.Fatalf("decision = %+v, want scored but below-threshold URL risk", decision)
+	}
+	if !contains(decision.Rules, "PACK:gogomail-core-url:punycode-url") || !contains(decision.Rules, "PACK:gogomail-core-url:raw-ip-url") {
+		t.Fatalf("rules = %#v, want punycode and raw IP URL rules", decision.Rules)
+	}
+}
+
+func TestEngineScoresEnvelopeFromMismatch(t *testing.T) {
+	policy := DefaultPolicy()
+	policy.SpamThreshold = 2
+	decision := NewEngine().Evaluate(policy, smtpd.Event{
+		EnvelopeFrom: "bounce@evil.example",
+		Parsed: message.ParsedMessage{
+			From: message.Address{Address: "security@example.com"},
+		},
+	})
+	if decision.Action != ActionQuarantine || !contains(decision.Rules, "PACK:gogomail-core-sender:from-envelope-mismatch") {
+		t.Fatalf("decision = %+v, want sender mismatch quarantine", decision)
+	}
+}
+
 func TestPolicyNormalizesRBLZonesAndBulkLimit(t *testing.T) {
 	policy := NormalizePolicy(Policy{
 		RBLZones:           []string{" Zen.SpamHaus.Org. ", "bad zone", "zen.spamhaus.org", "x@y"},
@@ -167,13 +229,40 @@ func TestEngineScoresCustomFilterPackPhrase(t *testing.T) {
 
 func TestBuiltinFilterPackCatalogMarksEnabledSystemPacks(t *testing.T) {
 	catalog := FilterPackCatalog(DefaultPolicy().FilterPacks)
-	if len(catalog) < 4 {
+	if len(catalog) < 6 {
 		t.Fatalf("catalog length = %d, want built-in packs", len(catalog))
 	}
 	for _, pack := range catalog {
 		if strings.HasPrefix(pack.ID, "gogomail-core-") && !pack.Enabled {
 			t.Fatalf("builtin pack %s disabled in default catalog", pack.ID)
 		}
+	}
+}
+
+func TestEngineScoresCustomURLHostRule(t *testing.T) {
+	policy := DefaultPolicy()
+	policy.SpamThreshold = 3
+	policy.FilterPacks = FilterPackBundle{
+		EnabledPackIDs: []string{"tenant-bad-hosts"},
+		CustomPacks: []FilterPack{{
+			ID:       "tenant-bad-hosts",
+			Name:     "Bad hosts",
+			Category: "phishing",
+			Rules: []FilterRuleDefinition{{
+				ID:       "bad-link-host",
+				Type:     RuleTypeURLHost,
+				Patterns: []string{"evil.example"},
+				Score:    3,
+				Enabled:  true,
+			}},
+		}},
+	}
+
+	decision := NewEngine().Evaluate(policy, smtpd.Event{
+		Parsed: message.ParsedMessage{TextBody: "See https://login.evil.example/reset"},
+	})
+	if decision.Action != ActionQuarantine || !contains(decision.Rules, "PACK:tenant-bad-hosts:bad-link-host") {
+		t.Fatalf("decision = %+v, want custom URL host quarantine", decision)
 	}
 }
 
@@ -243,3 +332,23 @@ func (failingRBLResolver) LookupHost(string) ([]string, error) {
 }
 
 var _ dnsbl.Resolver = listedRBLResolver{}
+
+func BenchmarkEngineEvaluateURLAndAnomalyPacks(b *testing.B) {
+	policy := DefaultPolicy()
+	event := smtpd.Event{
+		EnvelopeFrom: "bounce@evil.example",
+		RemoteAddr:   "203.0.113.10:25",
+		Recipients:   []string{"user@example.net"},
+		Parsed: message.ParsedMessage{
+			From:     message.Address{Address: "security@example.com"},
+			Subject:  "pаsswоrd еxpired",
+			TextBody: "Open https://xn--pple-43d.example/login then http://203.0.113.4/reset",
+			HTMLBody: `<p>Please sign in.</p><a href="https://evil.example/login">https://mail.example.com/login</a><form><input type="password"></form>`,
+		},
+	}
+	engine := NewEngine()
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		_ = engine.Evaluate(policy, event)
+	}
+}
