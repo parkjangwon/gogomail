@@ -975,7 +975,6 @@
     "navCompose": "Compose",
     "navFilters": "Filters",
     "navStorage": "Storage / Backup",
-    "navBlocked": "Blocked",
     "navVacation": "Auto-reply",
     "navPrivacy": "Privacy",
     "navAppearance": "Appearance",
@@ -1355,7 +1354,18 @@
     "mcpSelectAllScopes": "Select all",
     "mcpResetScopes": "Reset to default",
     "mcpKeyScopesSelected": "{count} of {total} permissions selected",
-    "scNotificationCenter": "Notification Center"
+    "scNotificationCenter": "Notification Center",
+    "navSpam": "Spam",
+    "sectionSpamFilter": "Spam Filter",
+    "spamAutoDelete": "Auto-delete spam after",
+    "spamAutoDeleteDesc": "Automatically delete spam messages after the selected period",
+    "spamDelete14": "14 days",
+    "spamDelete30": "30 days",
+    "spamDelete60": "60 days",
+    "spamDelete90": "90 days",
+    "spamDeleteNever": "Never",
+    "spamAutoBlock": "Auto-block when reporting spam",
+    "spamAutoBlockDesc": "Automatically add senders to block list when reporting as spam"
   },
   "composeFull": {
     "titleNew": "New message",

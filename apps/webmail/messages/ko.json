@@ -975,7 +975,6 @@
     "navCompose": "작성",
     "navFilters": "필터",
     "navStorage": "용량/백업",
-    "navBlocked": "차단 목록",
     "navVacation": "자동 응답",
     "navPrivacy": "개인정보 보호",
     "navAppearance": "외관",
@@ -1355,7 +1354,18 @@
     "mcpSelectAllScopes": "전체 선택",
     "mcpResetScopes": "기본 권한으로 되돌리기",
     "mcpKeyScopesSelected": "{total}개 중 {count}개 권한 선택됨",
-    "scNotificationCenter": "알림 센터"
+    "scNotificationCenter": "알림 센터",
+    "navSpam": "스팸 설정",
+    "sectionSpamFilter": "스팸 필터",
+    "spamAutoDelete": "스팸 자동 삭제 기간",
+    "spamAutoDeleteDesc": "스팸 편지함의 메일을 자동으로 삭제할 기간을 설정합니다",
+    "spamDelete14": "14일",
+    "spamDelete30": "30일",
+    "spamDelete60": "60일",
+    "spamDelete90": "90일",
+    "spamDeleteNever": "삭제 안 함",
+    "spamAutoBlock": "스팸 신고 시 자동 차단",
+    "spamAutoBlockDesc": "스팸으로 신고할 때 해당 발신자를 자동으로 차단 목록에 추가합니다"
   },
   "composeFull": {
     "titleNew": "새 메시지",

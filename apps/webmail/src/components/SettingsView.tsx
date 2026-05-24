@@ -173,9 +173,11 @@ export function SettingsView({ userEmail, userName, initialSection }: SettingsVi
   const [linkPreview, setLinkPreview] = useState(true);
   const [followUpDays, setFollowUpDays] = useState<0 | 1 | 3 | 7>(0);
 
-  // Blocked senders
+  // Blocked senders / Spam settings
   const [blockedSenders, setBlockedSenders] = useState<string[]>([]);
   const [newBlockedInput, setNewBlockedInput] = useState('');
+  const [spamAutoDeleteDays, setSpamAutoDeleteDays] = useState<number>(30);
+  const [spamAutoBlock, setSpamAutoBlock] = useState(true);
 
   // Vacation responder
   const [vacEnabled, setVacEnabled] = useState(false);
@@ -418,6 +420,9 @@ export function SettingsView({ userEmail, userName, initialSection }: SettingsVi
       setTemplates(loadLocalEmailTemplates());
       setFilterRules(loadFilterRules());
       setBlockedSenders(JSON.parse(localStorage.getItem('webmail_blocked_senders') ?? '[]') as string[]);
+      const spamDays = parseInt(localStorage.getItem('webmail_spam_autodelete_days') ?? '30', 10);
+      setSpamAutoDeleteDays([14, 30, 60, 90, 0].includes(spamDays) ? spamDays : 30);
+      setSpamAutoBlock(localStorage.getItem('webmail_spam_auto_block') !== 'false');
       const priv = loadWmSettings();
       setBlockTrackingPixels((priv.blockTrackingPixels as boolean) !== false);
       setRequestReadReceipt((priv.requestReadReceipt as boolean) === true);
@@ -1009,6 +1014,8 @@ export function SettingsView({ userEmail, userName, initialSection }: SettingsVi
         function saveBlocked(next: string[]) {
           try { localStorage.setItem('webmail_blocked_senders', JSON.stringify(next)); } catch { /* ignore */ }
           setBlockedSenders(next);
+          // Immediately sync to server (not waiting for debounced save)
+          void setPreferences({ blocked_senders: next });
         }
         function addBlocked() {
           const val = newBlockedInput.trim().toLowerCase();
@@ -1016,8 +1023,41 @@ export function SettingsView({ userEmail, userName, initialSection }: SettingsVi
           saveBlocked([...blockedSenders, val]);
           setNewBlockedInput('');
         }
+        const autoDeleteOptions: { value: number; labelKey: string }[] = [
+          { value: 14, labelKey: 'spamDelete14' },
+          { value: 30, labelKey: 'spamDelete30' },
+          { value: 60, labelKey: 'spamDelete60' },
+          { value: 90, labelKey: 'spamDelete90' },
+          { value: 0, labelKey: 'spamDeleteNever' },
+        ];
         return (
           <>
+            {/* ── 스팸 필터 설정 ── */}
+            <SectionCard>
+              <SectionHeader>{t('sectionSpamFilter')}</SectionHeader>
+              <Row label={t('spamAutoDelete')} description={t('spamAutoDeleteDesc')}>
+                <Segment
+                  value={String(spamAutoDeleteDays)}
+                  onChange={(v) => {
+                    const days = Number(v);
+                    setSpamAutoDeleteDays(days);
+                    try { localStorage.setItem('webmail_spam_autodelete_days', String(days)); } catch { /* */ }
+                  }}
+                  options={autoDeleteOptions.map((o) => ({ value: String(o.value), label: t(o.labelKey) }))}
+                />
+              </Row>
+              <Row label={t('spamAutoBlock')} description={t('spamAutoBlockDesc')}>
+                <Toggle
+                  value={spamAutoBlock}
+                  onChange={(v) => {
+                    setSpamAutoBlock(v);
+                    try { localStorage.setItem('webmail_spam_auto_block', v ? 'true' : 'false'); } catch { /* */ }
+                  }}
+                />
+              </Row>
+            </SectionCard>
+
+            {/* ── 차단된 발신자 목록 ── */}
             <SectionCard>
               <SectionHeader>{t('sectionBlockedSenders')}</SectionHeader>
               <div style={{ padding: '0 20px 12px', fontSize: '12px', color: 'var(--color-text-tertiary)' }}>
@@ -1038,6 +1078,7 @@ export function SettingsView({ userEmail, userName, initialSection }: SettingsVi
               ))}
             </SectionCard>
 
+            {/* ── 발신자/도메인 차단 추가 ── */}
             <SectionCard>
               <SectionHeader>{t('sectionAddBlockedSender')}</SectionHeader>
               <div style={{ padding: '0 20px 16px', display: 'flex', gap: '8px', alignItems: 'center' }}>

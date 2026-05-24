@@ -975,7 +975,6 @@
     "navCompose": "作成",
     "navFilters": "フィルター",
     "navStorage": "容量/バックアップ",
-    "navBlocked": "ブロックリスト",
     "navVacation": "自動返信",
     "navPrivacy": "プライバシー",
     "navAppearance": "外観",
@@ -1355,7 +1354,18 @@
     "mcpSelectAllScopes": "すべて選択",
     "mcpResetScopes": "既定の権限に戻す",
     "mcpKeyScopesSelected": "{total}件中{count}件の権限を選択中",
-    "scNotificationCenter": "通知センター"
+    "scNotificationCenter": "通知センター",
+    "navSpam": "スパム設定",
+    "sectionSpamFilter": "スパムフィルター",
+    "spamAutoDelete": "スパム自動削除期間",
+    "spamAutoDeleteDesc": "スパムメールを自動削除するまでの期間を設定します",
+    "spamDelete14": "14日",
+    "spamDelete30": "30日",
+    "spamDelete60": "60日",
+    "spamDelete90": "90日",
+    "spamDeleteNever": "削除しない",
+    "spamAutoBlock": "スパム報告時に自動ブロック",
+    "spamAutoBlockDesc": "スパムとして報告する際に自動的にブロックリストに追加します"
   },
   "composeFull": {
     "titleNew": "新規メッセージ",
