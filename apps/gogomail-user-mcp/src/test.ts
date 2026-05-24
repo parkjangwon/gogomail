@@ -152,6 +152,49 @@ describe("GoGoMail API contract alignment", () => {
     assert.equal(calls[11]?.headers?.["X-Gogomail-MCP-Confirm"], "POST /api/v1/threads/bulk/delete");
   });
 
+  test("notification and push tools map to documented webmail APIs", async () => {
+    const calls: CapturedCall[] = [];
+    const fake = {
+      settings: async () => ({ permission_mode: "basic" as const }),
+      request: async (method: string, path: string, body?: unknown, headers?: Record<string, string>) => {
+        calls.push({ method, path, body, headers });
+        return { ok: true };
+      },
+    };
+    const dnd = { weekdays: [1, 2], time_ranges: [{ start: "09:00", end: "17:00" }], timezone: "Asia/Seoul" };
+
+    await callTool(fake as never, "gogomail_notifications_get_preferences", {}, "basic");
+    await callTool(fake as never, "gogomail_notifications_update_preferences", {
+      global_dnd_enabled: true,
+      global_dnd_schedule: dnd,
+      folder_overrides: {
+        "11111111-1111-1111-1111-111111111111": { enabled: false, dnd_inherit: true, dnd_schedule: { weekdays: [], time_ranges: [], timezone: "UTC" } },
+      },
+      thread_overrides: {
+        "22222222-2222-2222-2222-222222222222": { enabled: true },
+      },
+    }, "basic");
+    await callTool(fake as never, "gogomail_notifications_get_web_push_config", {}, "basic");
+    await callTool(fake as never, "gogomail_notifications_list_push_subscriptions", {}, "basic");
+    await callTool(fake as never, "gogomail_notifications_upsert_push_subscription", { endpoint: "https://push.example/sub", p256dh: "key", auth: "auth", user_agent: "agent" }, "basic");
+    await callTool(fake as never, "gogomail_notifications_delete_push_subscription", { id: "sub-1", confirm: "delete web push subscription sub-1" }, "basic");
+    await callTool(fake as never, "gogomail_notifications_list_push_devices", { limit: 5 }, "basic");
+    await callTool(fake as never, "gogomail_notifications_upsert_push_device", { platform: "webpush", token: "token-1", label: "browser" }, "basic");
+    await callTool(fake as never, "gogomail_notifications_delete_push_device", { id: "device-1", confirm: "delete push device device-1" }, "basic");
+
+    assert.deepEqual(calls[0], { method: "GET", path: "/api/v1/me/notification-preferences", body: undefined, headers: undefined });
+    assert.equal(calls[1]?.method, "PUT");
+    assert.equal(calls[1]?.path, "/api/v1/me/notification-preferences");
+    assert.deepEqual((calls[1]?.body as { global_dnd_schedule?: unknown }).global_dnd_schedule, dnd);
+    assert.equal(calls[2]?.path, "/api/v1/config/web-push");
+    assert.equal(calls[3]?.path, "/api/v1/me/push-subscriptions");
+    assert.deepEqual(calls[4]?.body, { endpoint: "https://push.example/sub", p256dh: "key", auth: "auth", userAgent: "agent" });
+    assert.equal(calls[5]?.headers?.["X-Gogomail-MCP-Confirm"], "delete web push subscription sub-1");
+    assert.equal(calls[6]?.path, "/api/v1/push-devices?limit=5");
+    assert.deepEqual(calls[7]?.body, { platform: "webpush", token: "token-1", label: "browser" });
+    assert.equal(calls[8]?.headers?.["X-Gogomail-MCP-Confirm"], "delete push device device-1");
+  });
+
   test("profile avatar tools map to profile APIs with confirmation", async () => {
     const calls: CapturedCall[] = [];
     const fake = {
@@ -229,6 +272,25 @@ describe("GoGoMail API contract alignment", () => {
       () => callTool(fake as never, "gogomail_api_request", { method: "POST", path: "/api/v1/auth/token", body_json: { email: "a@example.com" } }, "basic"),
       /not allowed/,
     );
+  });
+
+  test("generic API bridge allows documented notification and push routes", async () => {
+    const calls: CapturedCall[] = [];
+    const fake = {
+      settings: async () => ({ permission_mode: "basic" as const }),
+      request: async (method: string, path: string, body?: unknown, headers?: Record<string, string>) => {
+        calls.push({ method, path, body, headers });
+        return { ok: true };
+      },
+    };
+
+    await callTool(fake as never, "gogomail_api_request", { method: "GET", path: "/api/v1/config/web-push" }, "basic");
+    await callTool(fake as never, "gogomail_api_request", { method: "POST", path: "/api/v1/me/push-subscriptions", body_json: { endpoint: "https://push.example/sub", p256dh: "key", auth: "auth" }, confirm: "POST /api/v1/me/push-subscriptions" }, "basic");
+    await callTool(fake as never, "gogomail_api_request", { method: "DELETE", path: "/api/v1/push-devices/device-1", confirm: "delete push device device-1" }, "basic");
+
+    assert.equal(calls[0]?.path, "/api/v1/config/web-push");
+    assert.deepEqual(calls[1]?.body, { endpoint: "https://push.example/sub", p256dh: "key", auth: "auth" });
+    assert.equal(calls[2]?.headers?.["X-Gogomail-MCP-Confirm"], "delete push device device-1");
   });
 
   test("generic API bridge supports text bodies for CalDAV and CardDAV routes", async () => {
