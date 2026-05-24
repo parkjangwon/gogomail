@@ -2741,8 +2741,66 @@ paths:
                       display_name: { type: string }
                       email: { type: string }
                       recovery_email: { type: string, format: email }
+                      avatar_url:
+                        type: string
+                        description: Data URL for the user's uploaded profile photo, when configured.
                       quota_used: { type: integer }
                       quota_limit: { type: integer, nullable: true }
+        default:
+          $ref: "#/components/responses/Error"
+  /me/avatar:
+    put:
+      operationId: updateUserAvatar
+      summary: Upload the authenticated user's profile photo
+      servers:
+        - url: /api/v1
+          description: Mail API
+      parameters:
+        - $ref: "#/components/parameters/UserIDFallback"
+        - $ref: "#/components/parameters/UserEmailFallback"
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [avatar]
+              properties:
+                avatar:
+                  type: string
+                  format: binary
+                  description: PNG, JPEG, GIF, or WebP image up to 256 KiB.
+      responses:
+        "200":
+          description: Updated profile avatar
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  avatar_url:
+                    type: string
+        default:
+          $ref: "#/components/responses/Error"
+    delete:
+      operationId: deleteUserAvatar
+      summary: Remove the authenticated user's profile photo
+      servers:
+        - url: /api/v1
+          description: Mail API
+      parameters:
+        - $ref: "#/components/parameters/UserIDFallback"
+        - $ref: "#/components/parameters/UserEmailFallback"
+      responses:
+        "200":
+          description: Cleared profile avatar
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  avatar_url:
+                    type: string
         default:
           $ref: "#/components/responses/Error"
   /me/addresses:
@@ -13565,6 +13623,9 @@ components:
           format: email
         from_name:
           type: string
+        sender_avatar_url:
+          type: string
+          description: Data URL for an internal GoGoMail sender profile photo when the sender address belongs to a local active user.
         received_at:
           type: string
           format: date-time

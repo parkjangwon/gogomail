@@ -38,6 +38,26 @@ test.describe('Mail list', () => {
     }
   });
 
+
+  test('internal sender avatar is rendered in message rows', async ({ page }) => {
+    const avatar = 'data:image/png;base64,iVBORw0KGgo=';
+    await setupAuthedPage(page, {
+      messages: [
+        makeMessage('avatar-internal', {
+          subject: 'Internal avatar mail',
+          folder_id: 'folder-inbox',
+          from_addr: 'teammate@parkjw.org',
+          from_name: 'Team Mate',
+          sender_avatar_url: avatar,
+        }),
+      ],
+    });
+
+    const row = page.locator('[data-message-id="avatar-internal"]');
+    await expect(row).toBeVisible({ timeout: 15_000 });
+    await expect(row.locator(`img[src="${avatar}"]`)).toBeVisible();
+  });
+
   test('all mail lists messages across folders', async ({ page }) => {
     await setupAuthedPage(page, {
       messages: [

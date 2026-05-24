@@ -205,6 +205,8 @@ export async function installMocks(page: Page, overrides: MockOverrides = {}) {
     // me
     if (path === 'me' && method === 'GET') return json(route, { user });
     if (path === 'me' && method === 'PATCH') return json(route, { user });
+    if (path === 'me/avatar' && method === 'PUT') return json(route, { avatar_url: 'data:image/png;base64,bW9jaw==' });
+    if (path === 'me/avatar' && method === 'DELETE') return json(route, { avatar_url: '' });
     if (path === 'me/addresses' && method === 'GET') return json(route, { addresses: [{ email: user.email, primary: true }] });
     if (path === 'me/password' && method === 'POST') return empty(route, 204);
 

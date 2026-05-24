@@ -7044,3 +7044,7 @@ Target outcome:
       message-list endpoint and has a dedicated localized empty state, so the
       virtual mailbox no longer shows Inbox Zero copy or an empty list while
       inbox/sent messages exist.
+1920. Webmail profile photos now upload through the Mail API and are projected
+      onto message summaries/details as `sender_avatar_url` for active local
+      sender addresses, allowing internal-domain messages to show user photos
+      in the existing sender avatar/BIMI slot.

@@ -195,3 +195,17 @@ func TestMessageListPageQueryUsesSargableCursorFilter(t *testing.T) {
 		t.Fatalf("cursorless message list query unexpectedly includes cursor predicate:\n%s", query)
 	}
 }
+
+func TestMessageListProjectsInternalSenderAvatar(t *testing.T) {
+	query := buildMessageListPageSQL(ListSortNewest, "", "", MessageListFilter{})
+	for _, want := range []string{
+		"COALESCE(sender_user.settings->>'avatar_url', '') AS sender_avatar_url",
+		"LEFT JOIN user_addresses sender_addr",
+		"sender_addr.address_ace = lower(messages.from_addr)",
+		"LEFT JOIN users sender_user",
+	} {
+		if !strings.Contains(query, want) {
+			t.Fatalf("message list SQL missing %q:\n%s", want, query)
+		}
+	}
+}

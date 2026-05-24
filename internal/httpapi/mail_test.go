@@ -3527,6 +3527,69 @@ func TestUserMCPDraftSendAppliesGeneratedNoticeServerSide(t *testing.T) {
 	}
 }
 
+func TestProfileAvatarUploadStoresDataURL(t *testing.T) {
+	service := &fakeMessageService{}
+	mux := http.NewServeMux()
+	RegisterMailRoutes(mux, service, nil)
+
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
+	part, err := writer.CreateFormFile("avatar", "avatar.png")
+	if err != nil {
+		t.Fatalf("CreateFormFile: %v", err)
+	}
+	png := []byte{0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 0, 0, 0, 0, 0}
+	if _, err := part.Write(png); err != nil {
+		t.Fatalf("write png: %v", err)
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatalf("close writer: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/me/avatar?user_id=user-1", &body)
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if !strings.HasPrefix(service.lastAvatarURL, "data:image/png;base64,") {
+		t.Fatalf("lastAvatarURL = %q", service.lastAvatarURL)
+	}
+}
+
+func TestProfileAvatarUploadRejectsNonImage(t *testing.T) {
+	service := &fakeMessageService{}
+	mux := http.NewServeMux()
+	RegisterMailRoutes(mux, service, nil)
+
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
+	part, err := writer.CreateFormFile("avatar", "avatar.txt")
+	if err != nil {
+		t.Fatalf("CreateFormFile: %v", err)
+	}
+	if _, err := part.Write([]byte("not an image")); err != nil {
+		t.Fatalf("write text: %v", err)
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatalf("close writer: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/me/avatar?user_id=user-1", &body)
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want 400; body = %s", rec.Code, rec.Body.String())
+	}
+	if service.lastAvatarURL != "" {
+		t.Fatalf("lastAvatarURL = %q", service.lastAvatarURL)
+	}
+}
+
 func TestUserMCPWriteScopeDoesNotGrantSend(t *testing.T) {
 	info := &apikeys.KeyInfo{UserID: "user-1", DomainID: "domain-1", Scopes: []string{"mail:write"}}
 	if apiKeyHasScope(info, "mail:send") {
@@ -4129,6 +4192,7 @@ type fakeMessageService struct {
 	userProfile                 maildb.UserProfile
 	userProfileByEmail          map[string]maildb.UserProfile
 	userProfileErr              error
+	lastAvatarURL               string
 	webmailPreferences          json.RawMessage
 	mcpDomainPolicy             maildb.DomainMCPPolicy
 	lastSend                    mailservice.SendTextRequest
@@ -4578,6 +4642,11 @@ func (f *fakeMessageService) UpdateUserDisplayName(_ context.Context, _, _ strin
 }
 
 func (f *fakeMessageService) UpdateOwnRecoveryEmail(_ context.Context, _, _ string) error {
+	return nil
+}
+
+func (f *fakeMessageService) UpdateUserAvatarURL(_ context.Context, _ string, avatarURL string) error {
+	f.lastAvatarURL = avatarURL
 	return nil
 }
 

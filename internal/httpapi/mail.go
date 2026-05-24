@@ -3,6 +3,7 @@ package httpapi
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -27,6 +28,7 @@ import (
 )
 
 const (
+	maxProfileAvatarBytes  = 256 * 1024
 	maxJSONBodyBytes       = 1 << 20
 	maxHTTPAuthHeaderBytes = 16 << 10
 	maxHTTPControlBytes    = 32
@@ -106,12 +108,54 @@ type MessageService interface {
 	GetUserProfileByEmail(ctx context.Context, email string) (maildb.UserProfile, error)
 	ListUserAddresses(ctx context.Context, userID string) ([]maildb.UserAddress, error)
 	UpdateUserDisplayName(ctx context.Context, userID, displayName string) error
+	UpdateUserAvatarURL(ctx context.Context, userID, avatarURL string) error
 	UpdateOwnRecoveryEmail(ctx context.Context, userID, recoveryEmail string) error
 	ChangeUserPassword(ctx context.Context, userID, currentPassword, newPassword string) error
 }
 
 type webmailCapabilitiesEnvelope struct {
 	WebmailCapabilities webmailCapabilities `json:"webmail_capabilities"`
+}
+
+func profileAvatarDataURL(contentType string, data []byte) (string, error) {
+	contentType = strings.ToLower(strings.TrimSpace(strings.Split(contentType, ";")[0]))
+	detected := strings.ToLower(http.DetectContentType(data))
+	if contentType == "" || contentType == "application/octet-stream" {
+		contentType = detected
+	}
+	switch contentType {
+	case "image/png", "image/jpeg", "image/gif", "image/webp":
+	default:
+		return "", fmt.Errorf("avatar must be a PNG, JPEG, GIF, or WebP image")
+	}
+	if detected != "application/octet-stream" && !strings.HasPrefix(detected, "image/") {
+		return "", fmt.Errorf("avatar content is not an image")
+	}
+	return "data:" + contentType + ";base64," + base64.StdEncoding.EncodeToString(data), nil
+}
+
+func readProfileAvatarUpload(w http.ResponseWriter, r *http.Request) (string, error) {
+	r.Body = http.MaxBytesReader(w, r.Body, maxProfileAvatarBytes+4096)
+	if err := r.ParseMultipartForm(maxProfileAvatarBytes + 4096); err != nil {
+		return "", fmt.Errorf("invalid avatar upload")
+	}
+	file, header, err := r.FormFile("avatar")
+	if err != nil {
+		return "", fmt.Errorf("avatar file is required")
+	}
+	defer file.Close()
+	data, err := io.ReadAll(io.LimitReader(file, maxProfileAvatarBytes+1))
+	if err != nil {
+		return "", fmt.Errorf("read avatar upload: %w", err)
+	}
+	if len(data) == 0 {
+		return "", fmt.Errorf("avatar file is empty")
+	}
+	if len(data) > maxProfileAvatarBytes {
+		return "", fmt.Errorf("avatar file is too large")
+	}
+	contentType := header.Header.Get("Content-Type")
+	return profileAvatarDataURL(contentType, data)
 }
 
 type UserAuthenticator interface {
@@ -2419,6 +2463,43 @@ func RegisterMailRoutesWithOptions(mux *http.ServeMux, service MessageService, t
 			}
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"status": "ok"})
+	})
+
+	mux.HandleFunc("PUT /api/v1/me/avatar", func(w http.ResponseWriter, r *http.Request) {
+		defer r.Body.Close()
+		if !rejectUnknownQueryKeys(w, r, "user_id", "user_email") {
+			return
+		}
+		userID, ok := userIDFromRequest(w, r, tokenManager, service)
+		if !ok {
+			return
+		}
+		avatarURL, err := readProfileAvatarUpload(w, r)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		if err := service.UpdateUserAvatarURL(r.Context(), userID, avatarURL); err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"avatar_url": avatarURL})
+	})
+
+	mux.HandleFunc("DELETE /api/v1/me/avatar", func(w http.ResponseWriter, r *http.Request) {
+		defer r.Body.Close()
+		if !rejectUnknownQueryKeys(w, r, "user_id", "user_email") {
+			return
+		}
+		userID, ok := userIDFromRequest(w, r, tokenManager, service)
+		if !ok {
+			return
+		}
+		if err := service.UpdateUserAvatarURL(r.Context(), userID, ""); err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"avatar_url": ""})
 	})
 
 	mux.HandleFunc("GET /api/v1/me", func(w http.ResponseWriter, r *http.Request) {
