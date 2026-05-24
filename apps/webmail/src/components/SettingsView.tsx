@@ -190,6 +190,13 @@ export function SettingsView({ userEmail, userName, initialSection }: SettingsVi
   const [largerClickTargets, setLargerClickTargets] = useState(false);
   const [screenReaderMode, setScreenReaderMode] = useState(false);
   const [fontFamily, setFontFamily] = useState<'system' | 'serif' | 'mono'>('system');
+  const [colorBlindMode, setColorBlindMode] = useState<'none' | 'deuteranopia' | 'protanopia' | 'tritanopia'>('none');
+  const [alwaysFocusRing, setAlwaysFocusRing] = useState(false);
+  const [underlineLinks, setUnderlineLinks] = useState(false);
+  const [dyslexiaMode, setDyslexiaMode] = useState(false);
+  const [uiFontSize, setUiFontSize] = useState<'sm' | 'md' | 'lg' | 'xl'>('md');
+  const [lineSpacing, setLineSpacing] = useState<'normal' | 'relaxed' | 'loose'>('normal');
+  const [letterSpacing, setLetterSpacing] = useState<'normal' | 'wide'>('normal');
 
   // Security
   const [revokingAll, setRevokingAll] = useState(false);
@@ -425,8 +432,19 @@ export function SettingsView({ userEmail, userName, initialSection }: SettingsVi
       setReducedMotion(localStorage.getItem('webmail_reduced_motion') === '1');
       setLargerClickTargets(localStorage.getItem('webmail_larger_targets') === '1');
       setScreenReaderMode(localStorage.getItem('webmail_screen_reader') === '1');
+      setAlwaysFocusRing(localStorage.getItem('webmail_always_focus_ring') === '1');
+      setUnderlineLinks(localStorage.getItem('webmail_underline_links') === '1');
+      setDyslexiaMode(localStorage.getItem('webmail_dyslexia') === '1');
       const storedFf = localStorage.getItem('webmail_font_family');
       if (storedFf === 'serif' || storedFf === 'mono') setFontFamily(storedFf);
+      const storedCb = localStorage.getItem('webmail_colorblind');
+      if (storedCb === 'deuteranopia' || storedCb === 'protanopia' || storedCb === 'tritanopia') setColorBlindMode(storedCb);
+      const storedUfs = localStorage.getItem('webmail_ui_font_size');
+      if (storedUfs === 'sm' || storedUfs === 'lg' || storedUfs === 'xl') setUiFontSize(storedUfs);
+      const storedLs = localStorage.getItem('webmail_line_spacing');
+      if (storedLs === 'relaxed' || storedLs === 'loose') setLineSpacing(storedLs);
+      const storedLts = localStorage.getItem('webmail_letter_spacing');
+      if (storedLts === 'wide') setLetterSpacing('wide');
     } catch { /* ignore */ }
     if (typeof Notification !== 'undefined') setNotifPerm(Notification.permission);
   }, [userName, t]);
@@ -461,6 +479,36 @@ export function SettingsView({ userEmail, userName, initialSection }: SettingsVi
     saveWmSetting('fontSize', fs);
     const map: Record<FontSize, string> = { small: '13px', medium: '14px', large: '15px' };
     document.documentElement.style.setProperty('--font-size-base', map[fs]);
+  }
+
+  function applyColorBlindMode(mode: 'none' | 'deuteranopia' | 'protanopia' | 'tritanopia') {
+    const el = document.documentElement;
+    el.classList.remove('colorblind-deuteranopia', 'colorblind-protanopia', 'colorblind-tritanopia');
+    if (mode !== 'none') el.classList.add(`colorblind-${mode}`);
+    setColorBlindMode(mode);
+    try { localStorage.setItem('webmail_colorblind', mode); } catch { /* */ }
+  }
+
+  function applyUiFontSize(size: 'sm' | 'md' | 'lg' | 'xl') {
+    const el = document.documentElement;
+    el.classList.remove('ui-font-size-sm', 'ui-font-size-md', 'ui-font-size-lg', 'ui-font-size-xl');
+    el.classList.add(`ui-font-size-${size}`);
+    setUiFontSize(size);
+    try { localStorage.setItem('webmail_ui_font_size', size); } catch { /* */ }
+  }
+
+  function applyLineSpacing(spacing: 'normal' | 'relaxed' | 'loose') {
+    const el = document.documentElement;
+    el.classList.remove('line-spacing-relaxed', 'line-spacing-loose');
+    if (spacing !== 'normal') el.classList.add(`line-spacing-${spacing}`);
+    setLineSpacing(spacing);
+    try { localStorage.setItem('webmail_line_spacing', spacing); } catch { /* */ }
+  }
+
+  function applyLetterSpacing(spacing: 'normal' | 'wide') {
+    document.documentElement.classList.toggle('letter-spacing-wide', spacing === 'wide');
+    setLetterSpacing(spacing);
+    try { localStorage.setItem('webmail_letter_spacing', spacing); } catch { /* */ }
   }
 
 
@@ -1250,17 +1298,42 @@ export function SettingsView({ userEmail, userName, initialSection }: SettingsVi
       case 'accessibility':
         return (
           <>
+            {/* ── 시각 보조 ─────────────────────────────────── */}
             <SectionCard>
               <SectionHeader>{t('sectionVisualAids')}</SectionHeader>
               <Row label={t('highContrast')} description={t('highContrastDesc')}>
                 <Toggle value={highContrast} onChange={(v) => { setHighContrast(v); try { localStorage.setItem('webmail_high_contrast', v ? '1' : '0'); document.documentElement.classList.toggle('high-contrast', v); } catch { /* */ } }} />
               </Row>
-              <Row label={t('reducedMotion')} description={t('reducedMotionDesc')}>
+              <Row label={t('colorBlindMode')} description={t('colorBlindModeDesc')}>
+                <Segment
+                  options={[
+                    { value: 'none' as const, label: t('colorBlindNone') },
+                    { value: 'deuteranopia' as const, label: t('colorBlindDeuteranopia') },
+                    { value: 'protanopia' as const, label: t('colorBlindProtanopia') },
+                    { value: 'tritanopia' as const, label: t('colorBlindTritanopia') },
+                  ]}
+                  value={colorBlindMode}
+                  onChange={applyColorBlindMode}
+                />
+              </Row>
+              <Row label={t('underlineLinks')} description={t('underlineLinksDesc')}>
+                <Toggle value={underlineLinks} onChange={(v) => { setUnderlineLinks(v); try { localStorage.setItem('webmail_underline_links', v ? '1' : '0'); document.documentElement.classList.toggle('underline-links', v); } catch { /* */ } }} />
+              </Row>
+              <Row label={t('reducedMotion')} description={t('reducedMotionDesc')} last>
                 <Toggle value={reducedMotion} onChange={(v) => { setReducedMotion(v); try { localStorage.setItem('webmail_reduced_motion', v ? '1' : '0'); document.documentElement.classList.toggle('reduced-motion', v); } catch { /* */ } }} />
               </Row>
+            </SectionCard>
+
+            {/* ── 글꼴 및 가독성 ────────────────────────────── */}
+            <SectionCard>
+              <SectionHeader>{t('sectionTypography')}</SectionHeader>
               <Row label={t('fontFamily')} description={t('fontFamilyDesc')}>
                 <Segment
-                  options={[{ value: 'system' as const, label: t('fontFamilySystem') }, { value: 'serif' as const, label: t('fontFamilySerif') }, { value: 'mono' as const, label: t('fontFamilyMono') }]}
+                  options={[
+                    { value: 'system' as const, label: t('fontFamilySystem') },
+                    { value: 'serif' as const, label: t('fontFamilySerif') },
+                    { value: 'mono' as const, label: t('fontFamilyMono') },
+                  ]}
                   value={fontFamily}
                   onChange={(v) => {
                     setFontFamily(v);
@@ -1272,10 +1345,56 @@ export function SettingsView({ userEmail, userName, initialSection }: SettingsVi
                   }}
                 />
               </Row>
+              <Row label={t('dyslexiaMode')} description={t('dyslexiaModeDesc')}>
+                <Toggle value={dyslexiaMode} onChange={(v) => { setDyslexiaMode(v); try { localStorage.setItem('webmail_dyslexia', v ? '1' : '0'); document.documentElement.classList.toggle('dyslexia-mode', v); } catch { /* */ } }} />
+              </Row>
+              <Row label={t('uiFontSize')} description={t('uiFontSizeDesc')}>
+                <Segment
+                  options={[
+                    { value: 'sm' as const, label: t('fontSizeSm') },
+                    { value: 'md' as const, label: t('fontSizeMd') },
+                    { value: 'lg' as const, label: t('fontSizeLg') },
+                    { value: 'xl' as const, label: t('fontSizeXl') },
+                  ]}
+                  value={uiFontSize}
+                  onChange={applyUiFontSize}
+                />
+              </Row>
+              <Row label={t('lineSpacing')} description={t('lineSpacingDesc')}>
+                <Segment
+                  options={[
+                    { value: 'normal' as const, label: t('lineSpacingNormal') },
+                    { value: 'relaxed' as const, label: t('lineSpacingRelaxed') },
+                    { value: 'loose' as const, label: t('lineSpacingLoose') },
+                  ]}
+                  value={lineSpacing}
+                  onChange={applyLineSpacing}
+                />
+              </Row>
+              <Row label={t('letterSpacing')} description={t('letterSpacingDesc')} last>
+                <Segment
+                  options={[
+                    { value: 'normal' as const, label: t('letterSpacingNormal') },
+                    { value: 'wide' as const, label: t('letterSpacingWide') },
+                  ]}
+                  value={letterSpacing}
+                  onChange={applyLetterSpacing}
+                />
+              </Row>
+            </SectionCard>
+
+            {/* ── 키보드 및 포커스 ──────────────────────────── */}
+            <SectionCard>
+              <SectionHeader>{t('sectionKeyboardFocus')}</SectionHeader>
+              <Row label={t('alwaysFocusRing')} description={t('alwaysFocusRingDesc')}>
+                <Toggle value={alwaysFocusRing} onChange={(v) => { setAlwaysFocusRing(v); try { localStorage.setItem('webmail_always_focus_ring', v ? '1' : '0'); document.documentElement.classList.toggle('always-focus-ring', v); } catch { /* */ } }} />
+              </Row>
               <Row label={t('largerClickTargets')} description={t('largerClickTargetsDesc')} last>
                 <Toggle value={largerClickTargets} onChange={(v) => { setLargerClickTargets(v); try { localStorage.setItem('webmail_larger_targets', v ? '1' : '0'); document.documentElement.classList.toggle('larger-targets', v); } catch { /* */ } }} />
               </Row>
             </SectionCard>
+
+            {/* ── 스크린리더 ────────────────────────────────── */}
             <SectionCard>
               <SectionHeader>{t('sectionScreenReader')}</SectionHeader>
               <Row label={t('screenReaderMode')} description={t('screenReaderModeDesc')} last>

@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Lexend:wght@400;500;600&display=swap');
 @import "tailwindcss";
 
 :root {
@@ -195,6 +195,89 @@ html.screen-reader-mode .sr-skip-link:focus {
   clip: auto !important;
   width: auto !important;
   height: auto !important;
+}
+
+/* ─── Accessibility: Always-visible Focus Ring ─────────────────────────── */
+html.always-focus-ring *:focus {
+  outline: 2px solid var(--color-accent) !important;
+  outline-offset: 2px !important;
+}
+
+/* ─── Accessibility: Underline Links ──────────────────────────────────── */
+html.underline-links a {
+  text-decoration: underline !important;
+}
+
+/* ─── Accessibility: Color Blind Modes ────────────────────────────────── */
+/* Deuteranopia (red-green, ~8% of males): replace green→teal, yellow→purple */
+html.colorblind-deuteranopia {
+  --color-success: #0099BB;
+  --color-warning: #8855EE;
+  --color-destructive: #CC6600;
+}
+html[data-theme="dark"].colorblind-deuteranopia {
+  --color-success: #22BBCC;
+  --color-warning: #AA77FF;
+  --color-destructive: #EE8822;
+}
+/* Protanopia (red-blind, ~1% of males): red→yellow-orange, green→blue-teal */
+html.colorblind-protanopia {
+  --color-success: #0088AA;
+  --color-warning: #AA44AA;
+  --color-destructive: #BB9900;
+}
+html[data-theme="dark"].colorblind-protanopia {
+  --color-success: #33AABB;
+  --color-warning: #CC66CC;
+  --color-destructive: #DDBB22;
+}
+/* Tritanopia (blue-blind, very rare): accent blue→orange, yellow kept as-is */
+html.colorblind-tritanopia {
+  --color-accent: #CC5500;
+  --color-accent-hover: #AA4400;
+  --color-accent-subtle: #FDEEE0;
+}
+html[data-theme="dark"].colorblind-tritanopia {
+  --color-accent: #FF8833;
+  --color-accent-hover: #FFAA55;
+  --color-accent-subtle: #2A1A00;
+}
+
+/* ─── Accessibility: Dyslexia-Friendly Mode ───────────────────────────── */
+html.dyslexia-mode,
+html.dyslexia-mode body {
+  font-family: 'Lexend', 'Inter', -apple-system, sans-serif !important;
+  letter-spacing: 0.04em;
+  word-spacing: 0.1em;
+  line-height: 1.75;
+}
+
+/* ─── Accessibility: UI Font Size ─────────────────────────────────────── */
+html.ui-font-size-sm { font-size: 12px; }
+html.ui-font-size-md { font-size: 14px; } /* default, same as :root */
+html.ui-font-size-lg { font-size: 16px; }
+html.ui-font-size-xl { font-size: 18px; }
+
+/* ─── Accessibility: Line Spacing ─────────────────────────────────────── */
+html.line-spacing-relaxed body,
+html.line-spacing-relaxed p,
+html.line-spacing-relaxed li,
+html.line-spacing-relaxed span {
+  line-height: 1.65 !important;
+}
+html.line-spacing-loose body,
+html.line-spacing-loose p,
+html.line-spacing-loose li,
+html.line-spacing-loose span {
+  line-height: 1.9 !important;
+}
+
+/* ─── Accessibility: Letter Spacing ───────────────────────────────────── */
+html.letter-spacing-wide body,
+html.letter-spacing-wide p,
+html.letter-spacing-wide span,
+html.letter-spacing-wide li {
+  letter-spacing: 0.035em;
 }
 
 @media print {

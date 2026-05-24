@@ -48,6 +48,17 @@ if(localStorage.getItem('webmail_high_contrast')==='1')el.classList.add('high-co
 if(localStorage.getItem('webmail_reduced_motion')==='1')el.classList.add('reduced-motion');
 if(localStorage.getItem('webmail_larger_targets')==='1')el.classList.add('larger-targets');
 if(localStorage.getItem('webmail_screen_reader')==='1')el.classList.add('screen-reader-mode');
+if(localStorage.getItem('webmail_always_focus_ring')==='1')el.classList.add('always-focus-ring');
+if(localStorage.getItem('webmail_underline_links')==='1')el.classList.add('underline-links');
+if(localStorage.getItem('webmail_dyslexia')==='1')el.classList.add('dyslexia-mode');
+var cb=localStorage.getItem('webmail_colorblind');
+if(cb&&cb!=='none')el.classList.add('colorblind-'+cb);
+var ufs=localStorage.getItem('webmail_ui_font_size');
+if(ufs&&ufs!=='md'){el.classList.add('ui-font-size-'+ufs);}
+var ls=localStorage.getItem('webmail_line_spacing');
+if(ls&&ls!=='normal')el.classList.add('line-spacing-'+ls);
+var lts=localStorage.getItem('webmail_letter_spacing');
+if(lts&&lts!=='normal')el.classList.add('letter-spacing-'+lts);
 var ff=localStorage.getItem('webmail_font_family');
 var fm={serif:'Georgia,serif',mono:'"JetBrains Mono","Fira Code",monospace'};
 if(ff&&fm[ff])el.style.fontFamily=fm[ff];
