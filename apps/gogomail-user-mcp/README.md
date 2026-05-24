@@ -29,5 +29,9 @@ npm run build
 
 - Mail and Drive tools call the `/api/v1` backend routes documented in `docs/openapi.yaml`.
 - Contact tools call the existing CardDAV JSON bridge under `/api/mail/addressbooks` and `/api/mail/contacts/autocomplete`.
+- Context tools expose webmail capabilities, mailbox overview, profile, sender addresses, and read-only preferences so agents can inspect the account before mutating data.
+- Bulk mail tools cover message/thread flag updates, moves, soft deletes, and restores with capped unique ID lists.
+- Contact and calendar convenience tools can generate simple vCard and ICS payloads from structured fields while raw CardDAV/CalDAV object upserts remain available.
+- Drive download tools return text plus base64 and can save to a local path when explicitly confirmed in basic mode. Upload-session and share-link inspect/download helpers are typed as first-class tools.
 - Address book and calendar mutation tools send the backend `name` field. `display_name` is accepted only as a legacy MCP input alias.
 - Drive text-file upload uses `/api/v1/drive/upload-sessions` with `declared_size`, `storage_backend`, binary body upload, and finalize.

@@ -7026,3 +7026,8 @@ Target outcome:
       queued self-send with the generated-mail notice; the smoke fixed CIDR
       normalization, directory API-key scope routing, Drive upload SQL
       finalization, and S3-compatible outgoing mail `Content-Length` handling.
+1918. User MCP now exposes broader agent-native convenience tools for account
+      context, mailbox overview, preferences reads, message/thread bulk
+      actions, Drive downloads and upload-session/share-link inspection,
+      simple vCard contact upserts, and simple ICS event upserts while keeping
+      destructive actions behind confirmation in basic mode.
