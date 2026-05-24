@@ -1,6 +1,11 @@
 # gogomail current status
 
-Last updated: 2026-05-24 (self-send delivery queue routing and panel resilience)
+Last updated: 2026-05-24 (local-domain delivery without MX fallback)
+
+## Local-domain delivery without MX fallback (2026-05-24)
+- Delivery workers now resolve recipients against active local GoGoMail domains before external transport; existing local recipients are stored directly into their inbox while still emitting normal delivery attempts and `mail.stored` events for downstream policy, audit, indexing, and notification handlers.
+- Active local domains are authoritative: unknown local recipients are recorded as bounced instead of falling back to external MX lookup. Mixed local/external recipient batches are split so only external recipients reach SMTP transport and retries.
+- Verification: `go test ./internal/delivery`; `go test ./internal/app ./internal/maildb`; `go test ./...`.
 
 ## Self-send delivery queue routing and panel resilience (2026-05-24)
 - Outbox relay publishing now uses each outbox row topic as the Redis stream target, so `mail.outbound.general` rows reach delivery workers instead of being stranded on the generic event stream.

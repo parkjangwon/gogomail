@@ -1138,3 +1138,143 @@ type alwaysThrottle struct{}
 func (alwaysThrottle) Acquire(context.Context, Job) (func(), error) {
 	return nil, &ThrottleError{Key: "farm:general", Limit: 1}
 }
+
+func TestHandlerDeliversLocalRecipientWithoutTransport(t *testing.T) {
+	t.Parallel()
+
+	store := storage.NewLocalStore(t.TempDir())
+	if err := store.Put(context.Background(), "mailstore/msg.eml", strings.NewReader("Subject: local\r\n\r\nbody")); err != nil {
+		t.Fatalf("Put returned error: %v", err)
+	}
+	transport := &fakeTransport{}
+	recorder := &fakeRecorder{}
+	resolver := &fakeLocalResolver{lookups: map[string]LocalRecipientLookup{
+		"user@example.test": {
+			DomainLocal:     true,
+			RecipientExists: true,
+			Mailbox:         LocalMailbox{CompanyID: "company-1", DomainID: "domain-1", UserID: "user-1", Address: "user@example.test"},
+		},
+	}}
+	deliverer := &fakeLocalDeliverer{}
+	handler := NewHandler(store, transport, recorder, nil).WithLocalDelivery(resolver, deliverer)
+
+	err := handler.HandleEvent(context.Background(), eventstream.Message{
+		ID: "1-0",
+		Payload: []byte(`{
+			"event":"mail.queued",
+			"message_id":"msg-1",
+			"from":{"email":"sender@example.test"},
+			"to":[{"email":"user@example.test"}],
+			"storage_path":"mailstore/msg.eml",
+			"farm":"general"
+		}`),
+	})
+	if err != nil {
+		t.Fatalf("HandleEvent returned error: %v", err)
+	}
+	if transport.delivered.MessageID != "" {
+		t.Fatalf("transport delivered = %+v, want local-only delivery to bypass transport", transport.delivered)
+	}
+	if len(deliverer.delivered) != 1 || deliverer.delivered[0].Email != "user@example.test" {
+		t.Fatalf("local deliveries = %+v, want local recipient", deliverer.delivered)
+	}
+	if len(recorder.attempts) != 1 || recorder.attempts[0].Status != AttemptDelivered || recorder.attempts[0].Recipient != "user@example.test" {
+		t.Fatalf("attempts = %+v, want local delivered attempt", recorder.attempts)
+	}
+}
+
+func TestHandlerBouncesUnknownLocalRecipientWithoutMXFallback(t *testing.T) {
+	t.Parallel()
+
+	store := storage.NewLocalStore(t.TempDir())
+	if err := store.Put(context.Background(), "mailstore/msg.eml", strings.NewReader("Subject: local\r\n\r\nbody")); err != nil {
+		t.Fatalf("Put returned error: %v", err)
+	}
+	transport := &fakeTransport{}
+	recorder := &fakeRecorder{}
+	resolver := &fakeLocalResolver{lookups: map[string]LocalRecipientLookup{
+		"missing@example.test": {DomainLocal: true, RecipientExists: false},
+	}}
+	handler := NewHandler(store, transport, recorder, nil).WithLocalDelivery(resolver, &fakeLocalDeliverer{})
+
+	err := handler.HandleEvent(context.Background(), eventstream.Message{
+		ID: "1-0",
+		Payload: []byte(`{
+			"event":"mail.queued",
+			"message_id":"msg-1",
+			"from":{"email":"sender@example.test"},
+			"to":[{"email":"missing@example.test"}],
+			"storage_path":"mailstore/msg.eml",
+			"farm":"general"
+		}`),
+	})
+	if err != nil {
+		t.Fatalf("HandleEvent returned error: %v", err)
+	}
+	if transport.delivered.MessageID != "" {
+		t.Fatalf("transport delivered = %+v, want unknown local recipient not to fall back to MX", transport.delivered)
+	}
+	if len(recorder.attempts) != 1 || recorder.attempts[0].Status != AttemptBounced || recorder.attempts[0].Recipient != "missing@example.test" {
+		t.Fatalf("attempts = %+v, want local bounced attempt", recorder.attempts)
+	}
+}
+
+func TestHandlerSplitsLocalAndRemoteRecipients(t *testing.T) {
+	t.Parallel()
+
+	store := storage.NewLocalStore(t.TempDir())
+	if err := store.Put(context.Background(), "mailstore/msg.eml", strings.NewReader("Subject: mixed\r\n\r\nbody")); err != nil {
+		t.Fatalf("Put returned error: %v", err)
+	}
+	transport := &fakeTransport{}
+	recorder := &fakeRecorder{}
+	resolver := &fakeLocalResolver{lookups: map[string]LocalRecipientLookup{
+		"local@example.test": {
+			DomainLocal:     true,
+			RecipientExists: true,
+			Mailbox:         LocalMailbox{CompanyID: "company-1", DomainID: "domain-1", UserID: "user-1", Address: "local@example.test"},
+		},
+	}}
+	handler := NewHandler(store, transport, recorder, nil).WithLocalDelivery(resolver, &fakeLocalDeliverer{})
+
+	err := handler.HandleEvent(context.Background(), eventstream.Message{
+		ID: "1-0",
+		Payload: []byte(`{
+			"event":"mail.queued",
+			"message_id":"msg-1",
+			"from":{"email":"sender@example.test"},
+			"to":[{"email":"local@example.test"},{"email":"remote@example.net"}],
+			"storage_path":"mailstore/msg.eml",
+			"farm":"general"
+		}`),
+	})
+	if err != nil {
+		t.Fatalf("HandleEvent returned error: %v", err)
+	}
+	if got := transport.delivered.Recipients(); len(got) != 1 || got[0].Email != "remote@example.net" {
+		t.Fatalf("transport recipients = %+v, want only remote recipient", got)
+	}
+	if len(recorder.attempts) != 2 {
+		t.Fatalf("attempts = %+v, want local + remote delivered attempts", recorder.attempts)
+	}
+}
+
+type fakeLocalResolver struct {
+	lookups map[string]LocalRecipientLookup
+}
+
+func (r *fakeLocalResolver) ResolveLocalRecipient(_ context.Context, address string) (LocalRecipientLookup, error) {
+	if lookup, ok := r.lookups[address]; ok {
+		return lookup, nil
+	}
+	return LocalRecipientLookup{}, nil
+}
+
+type fakeLocalDeliverer struct {
+	delivered []outbound.Address
+}
+
+func (d *fakeLocalDeliverer) DeliverLocal(_ context.Context, _ Job, recipient outbound.Address, _ LocalMailbox) error {
+	d.delivered = append(d.delivered, recipient)
+	return nil
+}

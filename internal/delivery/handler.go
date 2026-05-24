@@ -100,6 +100,27 @@ type ExhaustionHook interface {
 	RecordExhausted(ctx context.Context, queued QueuedMessage, cause error) error
 }
 
+type LocalRecipientLookup struct {
+	Mailbox         LocalMailbox
+	DomainLocal     bool
+	RecipientExists bool
+}
+
+type LocalMailbox struct {
+	CompanyID string
+	DomainID  string
+	UserID    string
+	Address   string
+}
+
+type LocalRecipientResolver interface {
+	ResolveLocalRecipient(ctx context.Context, address string) (LocalRecipientLookup, error)
+}
+
+type LocalDeliverer interface {
+	DeliverLocal(ctx context.Context, job Job, recipient outbound.Address, mailbox LocalMailbox) error
+}
+
 type Handler struct {
 	store          storage.Store
 	transport      Transport
@@ -110,6 +131,8 @@ type Handler struct {
 	backoff        DomainBackoff
 	routeCounter   *RouteCounters
 	exhaustionHook ExhaustionHook
+	localResolver  LocalRecipientResolver
+	localDeliverer LocalDeliverer
 }
 
 func NewHandler(store storage.Store, transport Transport, recorder Recorder, retry RetryScheduler) *Handler {
@@ -144,6 +167,12 @@ func (h *Handler) WithExhaustionHook(hook ExhaustionHook) *Handler {
 	return h
 }
 
+func (h *Handler) WithLocalDelivery(resolver LocalRecipientResolver, deliverer LocalDeliverer) *Handler {
+	h.localResolver = resolver
+	h.localDeliverer = deliverer
+	return h
+}
+
 func (h *Handler) HandleEvent(ctx context.Context, msg eventstream.Message) error {
 	if h.store == nil {
 		return fmt.Errorf("delivery storage is required")
@@ -173,6 +202,20 @@ func (h *Handler) HandleEvent(ctx context.Context, msg eventstream.Message) erro
 		},
 		recipientCache: recipients,
 		rawPayload:     append(json.RawMessage(nil), msg.Payload...),
+	}
+
+	remoteRecipients, err := h.deliverLocalRecipients(ctx, job)
+	if err != nil {
+		return err
+	}
+	if len(remoteRecipients) == 0 {
+		h.observe(ctx, metricEvent(queued, MetricTransportDelivered, MetricOK, nil))
+		return nil
+	}
+	if len(remoteRecipients) != len(recipients) {
+		job.QueuedMessage = queuedMessageForRecipients(job.QueuedMessage, remoteRecipients)
+		job.recipientCache = remoteRecipients
+		job.rawPayload = nil
 	}
 
 	if h.backoff != nil {
@@ -280,6 +323,53 @@ func (h *Handler) HandleEvent(ctx context.Context, msg eventstream.Message) erro
 	}
 	h.observe(ctx, metricEvent(queued, MetricTransportDelivered, MetricOK, nil))
 	return h.recordAttempts(ctx, job, AttemptDelivered, nil)
+}
+
+func (h *Handler) deliverLocalRecipients(ctx context.Context, job Job) ([]outbound.Address, error) {
+	if h.localResolver == nil || h.localDeliverer == nil {
+		return job.Recipients(), nil
+	}
+	remote := make([]outbound.Address, 0, len(job.Recipients()))
+	delivered := make([]outbound.Address, 0)
+	bounced := make([]RecipientDeliveryError, 0)
+	for _, recipient := range job.Recipients() {
+		lookup, err := h.localResolver.ResolveLocalRecipient(ctx, recipient.Email)
+		if err != nil {
+			return nil, fmt.Errorf("resolve local recipient %s: %w", recipient.Email, err)
+		}
+		if !lookup.DomainLocal {
+			remote = append(remote, recipient)
+			continue
+		}
+		if !lookup.RecipientExists {
+			bounced = append(bounced, RecipientDeliveryError{
+				Recipient: recipient,
+				Err:       &SMTPStatusError{Op: "local", Code: 550, Message: "5.1.1 local recipient not found"},
+			})
+			continue
+		}
+		if err := h.localDeliverer.DeliverLocal(ctx, job, recipient, lookup.Mailbox); err != nil {
+			return nil, fmt.Errorf("deliver local recipient %s: %w", recipient.Email, err)
+		}
+		delivered = append(delivered, recipient)
+	}
+	attemptedAt := timeNow()
+	dsnByAddress := dsnRecipientOptionsByAddress(job.DSN.Recipients)
+	if err := h.recordAttemptBatch(ctx, attemptsForRecipients(job, delivered, AttemptDelivered, nil, attemptedAt, dsnByAddress)); err != nil {
+		return nil, fmt.Errorf("record local delivered attempt: %w", err)
+	}
+	failedAttempts := make([]Attempt, 0, len(bounced))
+	for _, failure := range bounced {
+		message := ""
+		if failure.Err != nil {
+			message = truncateUTF8Bytes(failure.Err.Error(), 2000)
+		}
+		failedAttempts = append(failedAttempts, attemptForRecipient(job, failure.Recipient, AttemptBounced, failure.Err, message, attemptedAt, dsnByAddress))
+	}
+	if err := h.recordAttemptBatch(ctx, failedAttempts); err != nil {
+		return nil, fmt.Errorf("record local bounced attempt: %w", err)
+	}
+	return remote, nil
 }
 
 func (j Job) Recipients() []outbound.Address {
