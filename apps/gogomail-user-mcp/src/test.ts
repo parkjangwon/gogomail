@@ -128,6 +128,7 @@ describe("GoGoMail API contract alignment", () => {
     await callTool(fake as never, "gogomail_webmail_get_capabilities", {}, "basic");
     await callTool(fake as never, "gogomail_mailbox_get_overview", {}, "basic");
     await callTool(fake as never, "gogomail_account_get_profile", {}, "basic");
+    await callTool(fake as never, "gogomail_account_update_profile", { display_name: "Park JW", recovery_email: "backup@example.com" }, "basic");
     await callTool(fake as never, "gogomail_account_list_addresses", {}, "basic");
     await callTool(fake as never, "gogomail_preferences_get", {}, "basic");
     await callTool(fake as never, "gogomail_mail_bulk_update_flags", { message_ids: ["m1", "m2"], flag: "answered", value: true }, "basic");
@@ -140,14 +141,78 @@ describe("GoGoMail API contract alignment", () => {
     assert.equal(calls[0]?.path, "/api/v1/webmail/capabilities");
     assert.equal(calls[1]?.path, "/api/v1/mailbox/overview");
     assert.equal(calls[2]?.path, "/api/v1/me");
-    assert.equal(calls[3]?.path, "/api/v1/me/addresses");
-    assert.equal(calls[4]?.path, "/api/v1/preferences");
-    assert.deepEqual(calls[5], { method: "PATCH", path: "/api/v1/messages/bulk/flags", body: { message_ids: ["m1", "m2"], flag: "answered", value: true }, headers: undefined });
-    assert.deepEqual(calls[6]?.body, { message_ids: ["m1"], folder_id: "archive" });
-    assert.equal(calls[7]?.headers?.["X-Gogomail-MCP-Confirm"], "POST /api/v1/messages/bulk/delete");
-    assert.deepEqual(calls[8]?.body, { thread_ids: ["t1"], flag: "forwarded", value: false });
-    assert.equal(calls[9]?.method, "PATCH");
-    assert.equal(calls[10]?.headers?.["X-Gogomail-MCP-Confirm"], "POST /api/v1/threads/bulk/delete");
+    assert.deepEqual(calls[3], { method: "PATCH", path: "/api/v1/me", body: { display_name: "Park JW", recovery_email: "backup@example.com" }, headers: undefined });
+    assert.equal(calls[4]?.path, "/api/v1/me/addresses");
+    assert.equal(calls[5]?.path, "/api/v1/preferences");
+    assert.deepEqual(calls[6], { method: "PATCH", path: "/api/v1/messages/bulk/flags", body: { message_ids: ["m1", "m2"], flag: "answered", value: true }, headers: undefined });
+    assert.deepEqual(calls[7]?.body, { message_ids: ["m1"], folder_id: "archive" });
+    assert.equal(calls[8]?.headers?.["X-Gogomail-MCP-Confirm"], "POST /api/v1/messages/bulk/delete");
+    assert.deepEqual(calls[9]?.body, { thread_ids: ["t1"], flag: "forwarded", value: false });
+    assert.equal(calls[10]?.method, "PATCH");
+    assert.equal(calls[11]?.headers?.["X-Gogomail-MCP-Confirm"], "POST /api/v1/threads/bulk/delete");
+  });
+
+  test("profile avatar tools map to profile APIs with confirmation", async () => {
+    const calls: CapturedCall[] = [];
+    const fake = {
+      settings: async () => ({ permission_mode: "basic" as const }),
+      request: async (method: string, path: string, body?: unknown, headers?: Record<string, string>) => {
+        calls.push({ method, path, body, headers });
+        return { avatar_url: "data:image/png;base64,AA==" };
+      },
+    };
+
+    await callTool(fake as never, "gogomail_account_upload_avatar", {
+      avatar_base64: Buffer.from("png").toString("base64"),
+      mime_type: "image/png",
+      filename: "avatar.png",
+      confirm: "upload avatar",
+    }, "basic");
+    await callTool(fake as never, "gogomail_account_delete_avatar", { confirm: "delete avatar" }, "basic");
+
+    assert.equal(calls[0]?.method, "PUT");
+    assert.equal(calls[0]?.path, "/api/v1/me/avatar");
+    assert.ok(Buffer.isBuffer(calls[0]?.body));
+    assert.match(calls[0]?.headers?.["Content-Type"] ?? "", /^multipart\/form-data; boundary=gogomail-mcp-/);
+    assert.equal(calls[1]?.method, "DELETE");
+    assert.equal(calls[1]?.headers?.["X-Gogomail-MCP-Confirm"], "delete avatar");
+  });
+
+  test("directory profile and spam sender tools cover recent webmail spam UX", async () => {
+    const calls: CapturedCall[] = [];
+    const fake = {
+      settings: async () => ({ permission_mode: "basic" as const }),
+      request: async (method: string, path: string, body?: unknown, headers?: Record<string, string>) => {
+        calls.push({ method, path, body, headers });
+        if (method === "GET" && path === "/api/v1/preferences") {
+          return { preferences: { settings: { keep: true }, blocked_senders: ["old@example.com"], allowed_senders: ["friend@example.com"] } };
+        }
+        if (method === "GET" && path === "/api/v1/folders") {
+          return { folders: [{ id: "inbox-id", system_type: "inbox" }, { id: "spam-id", system_type: "spam" }] };
+        }
+        if (method === "GET" && path === "/api/v1/messages/msg-1") {
+          return { message: { from_addr: "Spammer@Example.com" } };
+        }
+        return { ok: true };
+      },
+    };
+
+    await callTool(fake as never, "gogomail_directory_get_profile", { email: "person@example.com" }, "basic");
+    await callTool(fake as never, "gogomail_spam_list_senders", { kind: "blocked", q: "old" }, "basic");
+    await callTool(fake as never, "gogomail_spam_add_sender", { kind: "allowed", sender: "@Example.com", confirm: "add allowed sender @example.com" }, "basic");
+    await callTool(fake as never, "gogomail_spam_remove_sender", { kind: "blocked", sender: "old@example.com", confirm: "remove blocked sender old@example.com" }, "basic");
+    await callTool(fake as never, "gogomail_spam_report_message", { id: "msg-1", block_sender: true, block_domain: true, confirm: "report spam msg-1" }, "basic");
+    await callTool(fake as never, "gogomail_spam_mark_not_spam", { id: "msg-1" }, "basic");
+
+    assert.equal(calls[0]?.path, "/api/mail/directory/profile?email=person%40example.com");
+    const allowedPut = calls.find((call) => call.method === "PUT" && call.path === "/api/v1/preferences" && Array.isArray((call.body as { allowed_senders?: unknown }).allowed_senders));
+    assert.deepEqual((allowedPut?.body as { allowed_senders?: string[] }).allowed_senders, ["friend@example.com", "@example.com"]);
+    const blockedRemovePut = calls.find((call) => call.method === "PUT" && call.path === "/api/v1/preferences" && Array.isArray((call.body as { blocked_senders?: unknown }).blocked_senders) && !(call.body as { blocked_senders: string[] }).blocked_senders.includes("old@example.com"));
+    assert.ok(blockedRemovePut);
+    assert.ok(calls.some((call) => call.method === "PATCH" && call.path === "/api/v1/messages/msg-1/folder" && (call.body as { folder_id?: string }).folder_id === "spam-id"));
+    const spamPut = calls.filter((call) => call.method === "PUT" && call.path === "/api/v1/preferences").at(-1);
+    assert.deepEqual((spamPut?.body as { blocked_senders?: string[] }).blocked_senders, ["old@example.com", "spammer@example.com", "@example.com"]);
+    assert.ok(calls.some((call) => call.method === "PATCH" && call.path === "/api/v1/messages/msg-1/folder" && (call.body as { folder_id?: string }).folder_id === "inbox-id"));
   });
 
   test("generic API bridge blocks account and key-management routes", async () => {

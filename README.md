@@ -11,6 +11,10 @@ change**.
 
 Korean / 한국어: [README.ko.md](README.ko.md)
 
+Current baseline: **2026-05-25**. The repo is focused on SaaS pre-launch
+hardening: webmail usability, notification safety, local-domain delivery,
+spam controls, MCP automation, and split-mode deployment readiness.
+
 ## What it is
 
 - Self-hosted mail platform: SMTP receive/submission/delivery + IMAP + POP3
@@ -36,6 +40,24 @@ Korean / 한국어: [README.ko.md](README.ko.md)
 | Storage | PostgreSQL 16+, Redis 7+ (single / Sentinel / Cluster), S3 / MinIO / local FS |
 | Reliability | Outbox Pattern (PG → Redis Streams), per-domain throttling, circuit breakers, graceful 30s drain |
 
+## Current product surface
+
+- **Webmail** — mail list/detail, compose, drafts, folder operations,
+  attachments, search, All Mail, spam/blocked/allowed sender settings,
+  profile photos, contacts, Drive, calendar, notification center, Web Push,
+  MFA, refresh-token sessions, and localized settings in English, Korean,
+  Japanese, and Simplified Chinese.
+- **Admin console** — company/domain/user administration, audit logs,
+  delivery attempts, suppression and routing controls, quota/storage views,
+  security posture, SCIM/SSO/organization settings, and broad mocked E2E
+  coverage for launch-readiness UI.
+- **Mail pipeline** — inbound/submission SMTP, local-domain delivery without
+  MX fallback, outbound delivery workers, DSN/bounce generation, DKIM/SPF/DMARC
+  boundaries, spam relay hooks, retry scheduling, throttling, and event fan-out.
+- **Agent automation** — separate management and user MCP servers so operators
+  can manage the service while users can safely automate their own mailbox,
+  contacts, Drive, calendar, and preferences.
+
 ## Strengths
 
 - **One binary, many shapes** — modular monolith. Run all 24 modes in one
@@ -56,25 +78,49 @@ Korean / 한국어: [README.ko.md](README.ko.md)
   env vars, and replica counts.
 - **Single source of truth** — Postgres holds tenant, mailbox, and outbox
   state. No local spool, crash-safe restarts.
+- **Local-first smoke path** — the dev Compose stack now starts the HTTP
+  backend plus event, outbox relay, and delivery workers so webmail send/receive
+  paths run without manual worker startup.
 
 ## Quick start
 
 ```bash
-# All-in-one demo (Postgres + Redis + MinIO + gogomail)
+# Local development stack (Postgres + Redis + MinIO + ClamAV + backend + workers)
 cd docker
-cp .env.example .env   # edit secrets
-docker compose -f docker-compose.small.yml up -d
+docker compose -f docker-compose.dev.yml up -d --build \
+  backend event-worker outbox-relay delivery-worker
 ```
 
 Once up:
 
-- Webmail / API: `https://localhost/` (via the bundled nginx)
-- Admin console: behind the same nginx, `/admin` route
-- Metrics: `:9090/metrics` (when `GOGOMAIL_METRICS_BACKEND=prometheus`)
+- Backend API: `http://localhost:8080/`
+- Readiness: `http://localhost:8080/health/ready`
+- Postgres / Redis / MinIO: `localhost:15432`, `localhost:16379`,
+  `localhost:19000` (`localhost:19001` console)
 
-For production deployments, follow
-[`docker/DEPLOYMENT.md`](docker/DEPLOYMENT.md) — the agent-friendly
-deployment guide.
+Run the frontend apps separately when you are working on UI:
+
+```bash
+pnpm -C apps/webmail install
+pnpm -C apps/webmail dev
+
+pnpm -C apps/console install
+pnpm -C apps/console dev
+```
+
+For production-like or split-mode deployments, start from the no-code scaling
+template:
+
+```bash
+cd docker
+cp env.scale.example .env
+docker compose -f docker-compose.scale.yml --profile local-infra --profile protocols --profile workers up -d
+docker compose -f docker-compose.scale.yml --profile ops run --rm migrate
+```
+
+Production deployments should follow
+[`docker/DEPLOYMENT.md`](docker/DEPLOYMENT.md) and
+[`docs/SCALING.md`](docs/SCALING.md).
 
 ## AI Agent Automation (MCP Servers)
 
@@ -99,7 +145,7 @@ User request
             → /api/v1/... and /api/mail/...
 ```
 
-`gogomail-user-mcp` currently exposes **87 user tools**, including mail send/drafts/search, bulk message and thread actions, contact and calendar CRUD helpers, Drive upload/download/share tools, and an exact-manifest API bridge for documented user APIs. Sensitive actions stay confirmation-gated in `basic` mode; `bypass` mode is allowed only when both user settings and domain policy permit it.
+`gogomail-user-mcp` currently exposes **96 user tools**, including mail send/drafts/search, bulk message and thread actions, spam report/not-spam and sender allow/block helpers, profile/avatar helpers, contact and calendar CRUD helpers, Drive upload/download/share tools, and an exact-manifest API bridge for documented user APIs. Sensitive actions stay confirmation-gated in `basic` mode; `bypass` mode is allowed only when both user settings and domain policy permit it.
 
 → Management MCP documentation: [apps/gogomail-manage-mcp/README.md](apps/gogomail-manage-mcp/README.md)
 → User MCP documentation: [apps/gogomail-user-mcp/README.md](apps/gogomail-user-mcp/README.md) / [한국어](apps/gogomail-user-mcp/README.ko.md)
@@ -111,6 +157,7 @@ User request
 | Deployment guide (agent-friendly) | [docker/DEPLOYMENT.md](docker/DEPLOYMENT.md) |
 | Scaling without code changes | [docs/SCALING.md](docs/SCALING.md) |
 | Backend modes (24 modes, env vars) | [docs/MODES.md](docs/MODES.md) |
+| Current implementation status | [docs/CURRENT_STATUS.md](docs/CURRENT_STATUS.md) |
 | Architecture overview | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) |
 | Security model and threat model | [docs/SECURITY.md](docs/SECURITY.md) |
 | Operations / runbooks | [docs/OPERATIONS.md](docs/OPERATIONS.md) |

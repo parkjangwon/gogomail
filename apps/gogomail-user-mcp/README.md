@@ -8,12 +8,13 @@ This server is intentionally separate from `apps/gogomail-manage-mcp`. The manag
 
 ## What It Provides
 
-- 87 MCP tools over existing GoGoMail user APIs.
+- 96 MCP tools over existing GoGoMail user APIs.
 - Mail search, message reads, send, drafts, folders, threads, attachments, delivery status, open-tracking reads, and bulk message/thread actions.
 - Contacts, address books, autocomplete, and company directory lookup.
 - Drive browsing, upload-session based text-file creation, downloads, share links, usage, trash/restore/delete, move, rename, and copy.
 - Calendar CRUD, calendar objects, simple event creation, subscriptions, and subscription event reads.
-- Account/context helpers for webmail capabilities, mailbox overview, user profile, sender addresses, MCP settings, and read-only webmail preferences.
+- Account/context helpers for webmail capabilities, mailbox overview, user profile, profile photo, sender addresses, MCP settings, and webmail preferences.
+- Spam UX helpers for report-spam/not-spam flows and blocked/allowed sender list management.
 - A guarded `gogomail_api_request` bridge for documented user API routes that are not yet wrapped as first-class tools.
 
 ## Safety Model
@@ -82,13 +83,14 @@ For local Docker development, `GOGOMAIL_API_URL` is usually `http://localhost:80
 
 | Group | Tools |
 |---|---|
-| MCP/account context | `gogomail_mcp_get_settings`, `gogomail_webmail_get_capabilities`, `gogomail_mailbox_get_overview`, `gogomail_account_get_profile`, `gogomail_account_list_addresses`, `gogomail_preferences_get` |
+| MCP/account context | `gogomail_mcp_get_settings`, `gogomail_webmail_get_capabilities`, `gogomail_mailbox_get_overview`, `gogomail_account_get_profile`, `gogomail_account_update_profile`, `gogomail_account_list_addresses`, `gogomail_account_upload_avatar`, `gogomail_account_delete_avatar`, `gogomail_preferences_get` |
 | Generic bridge | `gogomail_api_request` |
 | Mail | `gogomail_mail_search`, `gogomail_mail_list_messages`, `gogomail_mail_get_message`, `gogomail_mail_send`, `gogomail_mail_save_draft`, `gogomail_mail_search_drafts`, `gogomail_mail_send_draft`, `gogomail_mail_delete_draft`, `gogomail_mail_restore_message`, `gogomail_mail_update_flags`, `gogomail_mail_move_message`, `gogomail_mail_delete_message`, `gogomail_mail_delivery_status`, `gogomail_mail_get_tracking` |
 | Mail bulk | `gogomail_mail_bulk_update_flags`, `gogomail_mail_bulk_move_messages`, `gogomail_mail_bulk_delete_messages`, `gogomail_mail_bulk_restore_messages`, `gogomail_mail_bulk_update_thread_flags`, `gogomail_mail_bulk_move_threads`, `gogomail_mail_bulk_delete_threads`, `gogomail_mail_bulk_restore_threads` |
 | Folders and threads | `gogomail_mail_list_folders`, `gogomail_mail_create_folder`, `gogomail_mail_rename_folder`, `gogomail_mail_delete_folder`, `gogomail_mail_list_threads`, `gogomail_mail_get_thread_messages` |
 | Attachments | `gogomail_mail_list_attachments`, `gogomail_mail_download_attachment`, `gogomail_mail_get_attachment_upload_capabilities`, `gogomail_mail_create_text_attachment`, `gogomail_mail_cancel_attachment_upload` |
-| Contacts and directory | `gogomail_contacts_list_addressbooks`, `gogomail_contacts_create_addressbook`, `gogomail_contacts_get_addressbook`, `gogomail_contacts_update_addressbook`, `gogomail_contacts_upsert_simple`, `gogomail_contacts_delete_addressbook`, `gogomail_contacts_list`, `gogomail_contacts_get`, `gogomail_contacts_autocomplete`, `gogomail_contacts_upsert`, `gogomail_contacts_delete`, `gogomail_directory_search_users`, `gogomail_directory_org_tree` |
+| Contacts and directory | `gogomail_contacts_list_addressbooks`, `gogomail_contacts_create_addressbook`, `gogomail_contacts_get_addressbook`, `gogomail_contacts_update_addressbook`, `gogomail_contacts_upsert_simple`, `gogomail_contacts_delete_addressbook`, `gogomail_contacts_list`, `gogomail_contacts_get`, `gogomail_contacts_autocomplete`, `gogomail_contacts_upsert`, `gogomail_contacts_delete`, `gogomail_directory_search_users`, `gogomail_directory_org_tree`, `gogomail_directory_get_profile` |
+| Spam settings | `gogomail_spam_report_message`, `gogomail_spam_mark_not_spam`, `gogomail_spam_list_senders`, `gogomail_spam_add_sender`, `gogomail_spam_remove_sender` |
 | Drive | `gogomail_drive_list`, `gogomail_drive_get`, `gogomail_drive_download`, `gogomail_drive_create_folder`, `gogomail_drive_create_text_file`, `gogomail_drive_list_upload_sessions`, `gogomail_drive_get_upload_session`, `gogomail_drive_cancel_upload_session`, `gogomail_drive_rename`, `gogomail_drive_move`, `gogomail_drive_copy`, `gogomail_drive_trash`, `gogomail_drive_restore`, `gogomail_drive_delete`, `gogomail_drive_share_link`, `gogomail_drive_get_share_link`, `gogomail_drive_download_share_link`, `gogomail_drive_usage`, `gogomail_drive_list_share_links`, `gogomail_drive_delete_share_link` |
 | Calendar | `gogomail_calendar_list`, `gogomail_calendar_create`, `gogomail_calendar_get`, `gogomail_calendar_update`, `gogomail_calendar_delete`, `gogomail_calendar_list_objects`, `gogomail_calendar_get_object`, `gogomail_calendar_upsert_object`, `gogomail_calendar_upsert_event_simple`, `gogomail_calendar_delete_object`, `gogomail_calendar_list_subscriptions`, `gogomail_calendar_create_subscription`, `gogomail_calendar_delete_subscription`, `gogomail_calendar_get_subscription_events` |
 

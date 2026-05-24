@@ -8,12 +8,13 @@ English / 영어: [README.md](README.md)
 
 ## 제공 기능
 
-- 기존 GoGoMail 사용자 API 위에 구성된 87개 MCP 툴.
+- 기존 GoGoMail 사용자 API 위에 구성된 96개 MCP 툴.
 - 메일 검색, 메시지 조회, 발송, 초안, 폴더, 스레드, 첨부파일, 배송 상태, 오픈 트래킹 조회, 메시지/스레드 bulk 작업.
 - 주소록, 연락처, 자동완성, 조직 디렉터리 조회.
 - 드라이브 탐색, 업로드 세션 기반 텍스트 파일 생성, 다운로드, 공유 링크, 사용량 조회, 휴지통/복원/삭제, 이동, 이름 변경, 복사.
 - 일정 CRUD, 일정 객체, 간편 이벤트 생성, 구독 캘린더, 구독 이벤트 조회.
-- 웹메일 capabilities, 메일함 overview, 사용자 프로필, 발신 주소, MCP 설정, 읽기 전용 웹메일 환경설정 같은 계정/컨텍스트 툴.
+- 웹메일 capabilities, 메일함 overview, 사용자 프로필, 프로필 사진, 발신 주소, MCP 설정, 웹메일 환경설정 같은 계정/컨텍스트 툴.
+- spam 신고/not-spam 흐름과 차단/허용 발신자 목록 관리를 위한 Spam UX 헬퍼.
 - 아직 1급 툴로 감싸지 않은 문서화된 사용자 API를 위한 제한된 `gogomail_api_request` bridge.
 
 ## 안전 모델
@@ -82,13 +83,14 @@ npm run build
 
 | 그룹 | 툴 |
 |---|---|
-| MCP/계정 컨텍스트 | `gogomail_mcp_get_settings`, `gogomail_webmail_get_capabilities`, `gogomail_mailbox_get_overview`, `gogomail_account_get_profile`, `gogomail_account_list_addresses`, `gogomail_preferences_get` |
+| MCP/계정 컨텍스트 | `gogomail_mcp_get_settings`, `gogomail_webmail_get_capabilities`, `gogomail_mailbox_get_overview`, `gogomail_account_get_profile`, `gogomail_account_update_profile`, `gogomail_account_list_addresses`, `gogomail_account_upload_avatar`, `gogomail_account_delete_avatar`, `gogomail_preferences_get` |
 | Generic bridge | `gogomail_api_request` |
 | 메일 | `gogomail_mail_search`, `gogomail_mail_list_messages`, `gogomail_mail_get_message`, `gogomail_mail_send`, `gogomail_mail_save_draft`, `gogomail_mail_search_drafts`, `gogomail_mail_send_draft`, `gogomail_mail_delete_draft`, `gogomail_mail_restore_message`, `gogomail_mail_update_flags`, `gogomail_mail_move_message`, `gogomail_mail_delete_message`, `gogomail_mail_delivery_status`, `gogomail_mail_get_tracking` |
 | 메일 bulk | `gogomail_mail_bulk_update_flags`, `gogomail_mail_bulk_move_messages`, `gogomail_mail_bulk_delete_messages`, `gogomail_mail_bulk_restore_messages`, `gogomail_mail_bulk_update_thread_flags`, `gogomail_mail_bulk_move_threads`, `gogomail_mail_bulk_delete_threads`, `gogomail_mail_bulk_restore_threads` |
 | 폴더/스레드 | `gogomail_mail_list_folders`, `gogomail_mail_create_folder`, `gogomail_mail_rename_folder`, `gogomail_mail_delete_folder`, `gogomail_mail_list_threads`, `gogomail_mail_get_thread_messages` |
 | 첨부파일 | `gogomail_mail_list_attachments`, `gogomail_mail_download_attachment`, `gogomail_mail_get_attachment_upload_capabilities`, `gogomail_mail_create_text_attachment`, `gogomail_mail_cancel_attachment_upload` |
-| 주소록/디렉터리 | `gogomail_contacts_list_addressbooks`, `gogomail_contacts_create_addressbook`, `gogomail_contacts_get_addressbook`, `gogomail_contacts_update_addressbook`, `gogomail_contacts_upsert_simple`, `gogomail_contacts_delete_addressbook`, `gogomail_contacts_list`, `gogomail_contacts_get`, `gogomail_contacts_autocomplete`, `gogomail_contacts_upsert`, `gogomail_contacts_delete`, `gogomail_directory_search_users`, `gogomail_directory_org_tree` |
+| 주소록/디렉터리 | `gogomail_contacts_list_addressbooks`, `gogomail_contacts_create_addressbook`, `gogomail_contacts_get_addressbook`, `gogomail_contacts_update_addressbook`, `gogomail_contacts_upsert_simple`, `gogomail_contacts_delete_addressbook`, `gogomail_contacts_list`, `gogomail_contacts_get`, `gogomail_contacts_autocomplete`, `gogomail_contacts_upsert`, `gogomail_contacts_delete`, `gogomail_directory_search_users`, `gogomail_directory_org_tree`, `gogomail_directory_get_profile` |
+| Spam 설정 | `gogomail_spam_report_message`, `gogomail_spam_mark_not_spam`, `gogomail_spam_list_senders`, `gogomail_spam_add_sender`, `gogomail_spam_remove_sender` |
 | 드라이브 | `gogomail_drive_list`, `gogomail_drive_get`, `gogomail_drive_download`, `gogomail_drive_create_folder`, `gogomail_drive_create_text_file`, `gogomail_drive_list_upload_sessions`, `gogomail_drive_get_upload_session`, `gogomail_drive_cancel_upload_session`, `gogomail_drive_rename`, `gogomail_drive_move`, `gogomail_drive_copy`, `gogomail_drive_trash`, `gogomail_drive_restore`, `gogomail_drive_delete`, `gogomail_drive_share_link`, `gogomail_drive_get_share_link`, `gogomail_drive_download_share_link`, `gogomail_drive_usage`, `gogomail_drive_list_share_links`, `gogomail_drive_delete_share_link` |
 | 일정 | `gogomail_calendar_list`, `gogomail_calendar_create`, `gogomail_calendar_get`, `gogomail_calendar_update`, `gogomail_calendar_delete`, `gogomail_calendar_list_objects`, `gogomail_calendar_get_object`, `gogomail_calendar_upsert_object`, `gogomail_calendar_upsert_event_simple`, `gogomail_calendar_delete_object`, `gogomail_calendar_list_subscriptions`, `gogomail_calendar_create_subscription`, `gogomail_calendar_delete_subscription`, `gogomail_calendar_get_subscription_events` |
 

@@ -1,6 +1,12 @@
 # gogomail current status
 
-Last updated: 2026-05-25 (allowed_senders inbound filter)
+Last updated: 2026-05-25 (user MCP webmail feature gap closure)
+
+## User MCP webmail feature gap closure (2026-05-25)
+- `apps/gogomail-user-mcp` now exposes 96 user tools, closing the recent webmail gap for profile updates, profile photo upload/remove, directory profile lookup with org unit/title, spam report/not-spam flows, and blocked/allowed sender list management.
+- Spam MCP helpers preserve existing webmail preference objects by reading `/api/v1/preferences`, merging only `blocked_senders` or `allowed_senders`, and writing the full object back through the documented preferences contract.
+- `gogomail_spam_report_message` mirrors the webmail report-spam flow by moving the message to the spam/junk system folder and optionally adding exact sender and domain block patterns.
+- Verification: `npm run type-check`, `npm test`, and `npm run build` in `apps/gogomail-user-mcp`.
 
 ## Allowed senders + spam filter backend (2026-05-25)
 - `internal/inboundfilter/handler.go` now reads `allowed_senders` from user webmail preferences alongside `blocked_senders`.
