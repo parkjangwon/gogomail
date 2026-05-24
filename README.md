@@ -73,14 +73,14 @@ For production deployments, follow
 [`docker/DEPLOYMENT.md`](docker/DEPLOYMENT.md) — the agent-friendly
 deployment guide.
 
-## AI Agent Support (MCP Server)
+## AI Agent Management (MCP Server)
 
-`apps/mcp-support` is a [Model Context Protocol](https://modelcontextprotocol.io/) server that gives an AI agent direct, structured access to GoGoMail's Admin API. It enables **unmanned 24/7 operation** — an agent can diagnose delivery failures, manage users, inspect queues, and handle support tickets without a human at the keyboard.
+`gogomail-manage-mcp` in `apps/gogomail-manage-mcp` is a [Model Context Protocol](https://modelcontextprotocol.io/) server that gives an AI agent direct, structured management access to GoGoMail's Admin API. It enables **unmanned 24/7 operation** — an agent can diagnose delivery failures, manage users, inspect queues, and handle support tickets without a human at the keyboard.
 
 ```
 Natural language request
     → AI agent (Claude, GPT-4, …)
-        → MCP tools (apps/mcp-support)
+        → MCP tools (apps/gogomail-manage-mcp)
             → GoGoMail Admin API  /admin/v1/…
             → Suppo helpdesk API  (optional)
             → GitHub Issues API   (optional)
@@ -88,7 +88,7 @@ Natural language request
 
 **53 tools** across three domains — 37 GoGoMail Admin, 10 Suppo helpdesk, 6 GitHub Issues. Only `GOGOMAIL_ADMIN_URL` and `GOGOMAIL_ADMIN_KEY` are required; Suppo and GitHub are optional integrations.
 
-→ Full documentation: [apps/mcp-support/README.md](apps/mcp-support/README.md)
+→ Full documentation: [apps/gogomail-manage-mcp/README.md](apps/gogomail-manage-mcp/README.md)
 
 ## Documentation
 
@@ -102,7 +102,7 @@ Natural language request
 | Topology patterns | [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) |
 | OpenAPI contract | [docs/openapi.yaml](docs/openapi.yaml) |
 | Roadmap | [docs/backend-roadmap.md](docs/backend-roadmap.md) |
-| AI Agent / MCP server | [apps/mcp-support/README.md](apps/mcp-support/README.md) |
+| AI Agent management MCP server | [apps/gogomail-manage-mcp/README.md](apps/gogomail-manage-mcp/README.md) |
 
 ## Build from source
 

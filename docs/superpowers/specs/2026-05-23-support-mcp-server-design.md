@@ -1,4 +1,4 @@
-# GoGoMail Support MCP Server — 설계 스펙
+# GoGoMail Manage MCP Server — 설계 스펙
 
 **날짜:** 2026-05-23  
 **목표:** 기술 지원 업무(문의 처리·오류 추적·이슈 트래킹·기능 답변)를 AI 에이전트가 무인으로 수행할 수 있는 MCP 서버
@@ -34,7 +34,7 @@ Suppo 티켓 수신
 AI 에이전트 (Claude)
        ↓  MCP protocol (stdio 또는 HTTP+SSE)
 ┌──────────────────────────────────────────┐
-│   apps/mcp-support  (TypeScript/Node.js) │
+│   apps/gogomail-manage-mcp  (TypeScript/Node.js) │
 │                                          │
 │   tools/suppo.ts   (10개 도구)           │
 │   tools/gogomail.ts (18개 도구)          │
@@ -60,7 +60,7 @@ AI 에이전트 (Claude)
 ## 3. 파일 구조
 
 ```
-apps/mcp-support/
+apps/gogomail-manage-mcp/
 ├── src/
 │   ├── index.ts                 # MCP 서버 진입점, 클라이언트 초기화, 도구 등록
 │   ├── config.ts                # 환경변수 파싱 및 검증 (필수값 누락 시 즉시 종료)
@@ -202,9 +202,9 @@ MCP_PORT=3100        # SSE 모드일 때
 ```json
 {
   "mcpServers": {
-    "gogomail-support": {
+    "gogomail-manage-mcp": {
       "command": "node",
-      "args": ["/path/to/apps/mcp-support/dist/index.js"],
+      "args": ["/path/to/apps/gogomail-manage-mcp/dist/index.js"],
       "env": {
         "GOGOMAIL_ADMIN_URL": "...",
         "GOGOMAIL_ADMIN_KEY": "...",
