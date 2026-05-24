@@ -30,7 +30,7 @@ func (v PostgresVerifier) Verify(ctx context.Context, keyHash string, ip net.IP)
 SELECT k.id::text, k.user_id::text, k.domain_id::text, k.scopes, k.allowed_cidrs, k.permission_mode,
        CASE
          WHEN jsonb_typeof(domain_mcp.value->'allowed_scopes') = 'array' THEN ARRAY(SELECT jsonb_array_elements_text(domain_mcp.value->'allowed_scopes'))
-         ELSE ARRAY['mail:read','mail:write','mail:send','mail:manage','contacts:read','contacts:write','contacts:manage','drive:read','drive:write','drive:manage','calendar:read','calendar:write','calendar:manage']::text[]
+         ELSE ARRAY[]::text[]
        END AS allowed_scopes
 FROM user_mcp_access_keys k
 LEFT JOIN runtime_config domain_mcp
@@ -42,9 +42,9 @@ LEFT JOIN users u
 WHERE k.key_hash = $1
   AND k.revoked = false
   AND (k.expires_at IS NULL OR k.expires_at > now())
-  AND COALESCE(domain_mcp.value->>'enabled', 'true') = 'true'
-  AND COALESCE(domain_mcp.value->>'allow_user_access_keys', 'true') = 'true'
-  AND (k.permission_mode <> 'bypass' OR COALESCE(domain_mcp.value->>'allow_bypass_mode', 'true') = 'true')
+  AND COALESCE(domain_mcp.value->>'enabled', 'false') = 'true'
+  AND COALESCE(domain_mcp.value->>'allow_user_access_keys', 'false') = 'true'
+  AND (k.permission_mode <> 'bypass' OR COALESCE(domain_mcp.value->>'allow_bypass_mode', 'false') = 'true')
   AND COALESCE(u.settings->'webmail'->'mcp'->>'enabled', 'false') = 'true'
 UNION ALL
 SELECT id::text, '' AS user_id, domain_id::text, scopes, allowed_cidrs, 'basic' AS permission_mode, ARRAY[]::text[] AS allowed_scopes

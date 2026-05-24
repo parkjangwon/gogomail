@@ -100,6 +100,7 @@ type MessageService interface {
 	ListUserMCPAccessKeys(ctx context.Context, userID string) ([]maildb.UserMCPAccessKey, error)
 	CreateUserMCPAccessKey(ctx context.Context, req maildb.CreateUserMCPAccessKeyRequest) (maildb.CreatedUserMCPAccessKey, error)
 	RevokeUserMCPAccessKey(ctx context.Context, userID, id string) (maildb.UserMCPAccessKey, error)
+	GetUserMCPDomainPolicy(ctx context.Context, userID string) (maildb.DomainMCPPolicy, error)
 	GetUserProfile(ctx context.Context, userID string) (maildb.UserProfile, error)
 	GetUserProfileByEmail(ctx context.Context, email string) (maildb.UserProfile, error)
 	ListUserAddresses(ctx context.Context, userID string) ([]maildb.UserAddress, error)
@@ -438,6 +439,8 @@ func allowAPIKeyRequest(w http.ResponseWriter, r *http.Request, limiter *AdminIP
 	}
 	return true
 }
+
+var userMCPAPIKeyMutationLimiter = NewAdminIPRateLimiter(120, time.Minute)
 
 func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager *auth.TokenManager) {
 	RegisterMailRoutesWithOptions(mux, service, tokenManager, MailRouteOptions{})
@@ -2180,6 +2183,10 @@ func RegisterMailRoutesWithOptions(mux *http.ServeMux, service MessageService, t
 		if !bindRequestUserID(w, r, tokenManager, service, &req.UserID, req.UserEmail) {
 			return
 		}
+		if err := applyUserMCPGeneratedNotice(r.Context(), service, r, req.UserID, &req); err != nil {
+			writeError(w, http.StatusInternalServerError, "failed to apply mcp settings")
+			return
+		}
 		result, err := service.SendText(r.Context(), req)
 		if err != nil {
 			writeError(w, http.StatusBadRequest, err.Error())
@@ -2246,7 +2253,16 @@ func RegisterMailRoutesWithOptions(mux *http.ServeMux, service MessageService, t
 			writeError(w, http.StatusInternalServerError, "failed to load mcp settings")
 			return
 		}
-		writeJSON(w, http.StatusOK, map[string]json.RawMessage{"mcp": extractMCPSettings(prefs)})
+		var keyInfo *apikeys.KeyInfo
+		if info, ok := apikeys.KeyInfoFromContext(r.Context()); ok {
+			keyInfo = info
+		}
+		settings, err := effectiveMCPSettings(r.Context(), service, userID, extractMCPSettings(prefs), keyInfo)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "failed to load mcp settings")
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]json.RawMessage{"mcp": settings})
 	})
 
 	mux.HandleFunc("PUT /api/v1/me/mcp/settings", func(w http.ResponseWriter, r *http.Request) {
@@ -2254,7 +2270,7 @@ func RegisterMailRoutesWithOptions(mux *http.ServeMux, service MessageService, t
 		if !rejectUnknownQueryKeys(w, r, "user_id", "user_email") {
 			return
 		}
-		userID, ok := userIDFromRequest(w, r, tokenManager, service)
+		userID, ok := sessionUserIDFromRequest(w, r, tokenManager)
 		if !ok {
 			return
 		}
@@ -2268,7 +2284,12 @@ func RegisterMailRoutesWithOptions(mux *http.ServeMux, service MessageService, t
 			writeError(w, http.StatusBadRequest, err.Error())
 			return
 		}
-		writeJSON(w, http.StatusOK, map[string]json.RawMessage{"mcp": extractMCPSettings(merged)})
+		settings, err := effectiveMCPSettings(r.Context(), service, userID, extractMCPSettings(merged), nil)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "failed to load mcp settings")
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]json.RawMessage{"mcp": settings})
 	})
 
 	mux.HandleFunc("GET /api/v1/me/mcp/access-keys", func(w http.ResponseWriter, r *http.Request) {
@@ -2746,7 +2767,8 @@ func userIDFromRequest(w http.ResponseWriter, r *http.Request, tokenManager *aut
 
 func sessionUserIDFromRequest(w http.ResponseWriter, r *http.Request, tokenManager *auth.TokenManager) (string, bool) {
 	if tokenManager == nil {
-		return parseBoundedHTTPQuery(w, r, "user_id", true, maxHTTPResourceIDBytes)
+		writeError(w, http.StatusServiceUnavailable, "session authentication is required")
+		return "", false
 	}
 	claims, ok := claimsFromRequest(w, r, tokenManager)
 	if !ok {
@@ -2811,6 +2833,12 @@ func userScopedAPIKeyUserIDFromRequest(w http.ResponseWriter, r *http.Request, i
 		writeError(w, http.StatusForbidden, "api key scope "+requiredScope+" is required")
 		return "", false
 	}
+	if r.Method != http.MethodGet && r.Method != http.MethodHead && r.Method != http.MethodOptions && !allowAPIKeyRequest(w, r, userMCPAPIKeyMutationLimiter) {
+		return "", false
+	}
+	if !userAPIKeyConfirmationOK(w, r, info) {
+		return "", false
+	}
 	queryUserID, ok := parseBoundedHTTPQuery(w, r, "user_id", false, maxHTTPResourceIDBytes)
 	if !ok {
 		return "", false
@@ -2836,6 +2864,25 @@ func userScopedAPIKeyUserIDFromRequest(w http.ResponseWriter, r *http.Request, i
 	}
 	r.Header.Set("X-Gogomail-Resolved-User-ID", userID)
 	return userID, true
+}
+
+func userAPIKeyConfirmationOK(w http.ResponseWriter, r *http.Request, info *apikeys.KeyInfo) bool {
+	if info == nil || strings.EqualFold(strings.TrimSpace(info.PermissionMode), maildb.MCPPermissionModeBypass) {
+		return true
+	}
+	expected, ok := requiredUserAPIKeyConfirmation(r)
+	if !ok {
+		return true
+	}
+	got, ok := singleHTTPHeaderValue(w, r, "X-Gogomail-MCP-Confirm", maxHTTPResourceIDBytes)
+	if !ok {
+		return false
+	}
+	if strings.TrimSpace(got) != expected {
+		writeError(w, http.StatusForbidden, "mcp confirmation header must equal "+expected)
+		return false
+	}
+	return true
 }
 
 func apiKeyUserIDFromRequest(w http.ResponseWriter, r *http.Request, service MessageService, info *apikeys.KeyInfo, bodyUserID string, bodyUserEmail string) (string, bool) {
@@ -3075,7 +3122,40 @@ func requiredUserAPIKeyScope(r *http.Request) string {
 	return requiredMailAPIKeyScope(r)
 }
 
-var defaultMCPSettingsJSON = json.RawMessage(`{"enabled":false,"permission_mode":"basic","generated_mail_notice_enabled":true,"generated_mail_notice_text":"MCP를 통해 작성된 메일입니다.","require_confirmation_for_sensitive_actions":true,"bypass_mode_allowed":true,"mail":{"send_enabled":true,"confirm_external_recipients":true,"confirm_attachments":true,"daily_send_limit":100},"scopes":{"mail":["read","write","send","delete"],"contacts":["read","write","delete"],"drive":["read","write","delete","share"],"calendar":["read","write","delete","invite"]}}`)
+func requiredUserAPIKeyConfirmation(r *http.Request) (string, bool) {
+	if r == nil || r.URL == nil {
+		return "", false
+	}
+	path := r.URL.Path
+	switch {
+	case r.Method == http.MethodPost && path == "/api/v1/messages/send":
+		return "send message", true
+	case r.Method == http.MethodPost && strings.HasPrefix(path, "/api/v1/drafts/") && strings.HasSuffix(path, "/send"):
+		return "send draft " + r.PathValue("id"), true
+	case r.Method == http.MethodDelete && strings.HasPrefix(path, "/api/v1/drafts/"):
+		return "delete draft " + r.PathValue("id"), true
+	case r.Method == http.MethodDelete && strings.HasPrefix(path, "/api/v1/messages/"):
+		return "delete message " + r.PathValue("id"), true
+	case r.Method == http.MethodDelete && strings.HasPrefix(path, "/api/mail/addressbooks/") && strings.Contains(path, "/contacts/"):
+		return "delete contact " + r.PathValue("name"), true
+	case r.Method == http.MethodDelete && strings.HasPrefix(path, "/api/mail/addressbooks/"):
+		return "delete addressbook " + r.PathValue("id"), true
+	case r.Method == http.MethodPost && strings.HasPrefix(path, "/api/v1/drive/nodes/") && strings.HasSuffix(path, "/trash"):
+		return "trash drive " + r.PathValue("id"), true
+	case r.Method == http.MethodDelete && strings.HasPrefix(path, "/api/v1/drive/nodes/"):
+		return "delete drive " + r.PathValue("id"), true
+	case r.Method == http.MethodPost && strings.HasPrefix(path, "/api/v1/drive/nodes/") && strings.HasSuffix(path, "/share-links"):
+		return "share drive " + r.PathValue("id"), true
+	case r.Method == http.MethodDelete && strings.HasPrefix(path, "/api/v1/calendars/") && strings.Contains(path, "/objects/"):
+		return "delete calendar " + r.PathValue("name"), true
+	case r.Method == http.MethodDelete && strings.HasPrefix(path, "/api/v1/calendars/"):
+		return "delete calendar " + r.PathValue("id"), true
+	default:
+		return "", false
+	}
+}
+
+var defaultMCPSettingsJSON = json.RawMessage(`{"enabled":false,"permission_mode":"basic","generated_mail_notice_enabled":true,"generated_mail_notice_text":"MCP를 통해 작성된 메일입니다.","require_confirmation_for_sensitive_actions":true,"bypass_mode_allowed":false,"mail":{"send_enabled":true,"confirm_external_recipients":true,"confirm_attachments":true,"daily_send_limit":100},"scopes":{"mail":["read","write","send","delete"],"contacts":["read","write","delete"],"drive":["read","write","delete","share"],"calendar":["read","write","delete","invite"]}}`)
 
 func extractMCPSettings(prefs json.RawMessage) json.RawMessage {
 	var root map[string]json.RawMessage
@@ -3085,6 +3165,91 @@ func extractMCPSettings(prefs json.RawMessage) json.RawMessage {
 		}
 	}
 	return defaultMCPSettingsJSON
+}
+
+func effectiveMCPSettings(ctx context.Context, service MessageService, userID string, raw json.RawMessage, keyInfo *apikeys.KeyInfo) (json.RawMessage, error) {
+	if !json.Valid(raw) {
+		raw = defaultMCPSettingsJSON
+	}
+	var settings map[string]any
+	if err := json.Unmarshal(raw, &settings); err != nil || settings == nil {
+		if err := json.Unmarshal(defaultMCPSettingsJSON, &settings); err != nil {
+			return nil, err
+		}
+	}
+	policy, err := service.GetUserMCPDomainPolicy(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	if !policy.AllowBypassMode {
+		settings["bypass_mode_allowed"] = false
+		settings["permission_mode"] = maildb.MCPPermissionModeBasic
+	} else if _, ok := settings["bypass_mode_allowed"].(bool); !ok {
+		settings["bypass_mode_allowed"] = true
+	}
+	if keyInfo != nil && strings.TrimSpace(keyInfo.UserID) != "" && !strings.EqualFold(strings.TrimSpace(keyInfo.PermissionMode), maildb.MCPPermissionModeBypass) {
+		settings["bypass_mode_allowed"] = false
+		settings["permission_mode"] = maildb.MCPPermissionModeBasic
+	}
+	if policy.ForceGeneratedMailNotice {
+		settings["generated_mail_notice_enabled"] = true
+		settings["generated_mail_notice_forced"] = true
+	} else {
+		settings["generated_mail_notice_forced"] = false
+	}
+	out, err := json.Marshal(settings)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func applyUserMCPGeneratedNotice(ctx context.Context, service MessageService, r *http.Request, userID string, req *mailservice.SendTextRequest) error {
+	if req == nil {
+		return nil
+	}
+	info, ok := apikeys.KeyInfoFromContext(r.Context())
+	if !ok || info == nil || strings.TrimSpace(info.UserID) == "" {
+		return nil
+	}
+	prefs, err := service.GetWebmailPreferences(ctx, userID)
+	if err != nil {
+		return err
+	}
+	raw, err := effectiveMCPSettings(ctx, service, userID, extractMCPSettings(prefs), info)
+	if err != nil {
+		return err
+	}
+	var settings struct {
+		GeneratedMailNoticeEnabled bool   `json:"generated_mail_notice_enabled"`
+		GeneratedMailNoticeText    string `json:"generated_mail_notice_text"`
+	}
+	if err := json.Unmarshal(raw, &settings); err != nil {
+		return err
+	}
+	if !settings.GeneratedMailNoticeEnabled {
+		return nil
+	}
+	notice := strings.TrimSpace(settings.GeneratedMailNoticeText)
+	if notice == "" {
+		notice = "MCP를 통해 작성된 메일입니다."
+	}
+	if strings.TrimSpace(req.TextBody) != "" && !strings.HasPrefix(req.TextBody, notice) {
+		req.TextBody = notice + "\n\n" + req.TextBody
+	}
+	if strings.TrimSpace(req.HTMLBody) != "" && !strings.Contains(req.HTMLBody[:min(len(req.HTMLBody), 2048)], notice) {
+		req.HTMLBody = `<p style="color:#8a8a8a;font-size:12px;margin:0 0 12px">` + htmlEscape(notice) + `</p>` + req.HTMLBody
+	}
+	return nil
+}
+
+func htmlEscape(value string) string {
+	value = strings.ReplaceAll(value, "&", "&amp;")
+	value = strings.ReplaceAll(value, "<", "&lt;")
+	value = strings.ReplaceAll(value, ">", "&gt;")
+	value = strings.ReplaceAll(value, `"`, "&quot;")
+	value = strings.ReplaceAll(value, `'`, "&#39;")
+	return value
 }
 
 func mergeMCPSettings(ctx context.Context, service MessageService, userID string, mcp json.RawMessage) (json.RawMessage, error) {

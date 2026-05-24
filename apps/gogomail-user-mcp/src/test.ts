@@ -97,4 +97,33 @@ describe("sensitive action confirmation", () => {
     assert.deepEqual(result, { ok: true });
     assert.equal(calls.length, 1);
   });
+
+  test("allows CC-only send and forwards backend confirmation header in basic mode", async () => {
+    const calls: CapturedCall[] = [];
+    const fake = {
+      settings: async () => ({ permission_mode: "basic" as const }),
+      request: async (method: string, path: string, body?: unknown, headers?: Record<string, string>) => {
+        calls.push({ method, path, body, headers });
+        return { ok: true };
+      },
+    };
+
+    await callTool(fake as never, "gogomail_mail_send", { cc: [{ email: "cc@example.com" }], text_body: "body", confirm: "send message" }, "basic");
+
+    assert.equal(calls[0]?.path, "/api/v1/messages/send");
+    assert.equal(calls[0]?.headers?.["X-Gogomail-MCP-Confirm"], "send message");
+    assert.deepEqual((calls[0]?.body as { cc?: unknown }).cc, [{ email: "cc@example.com" }]);
+  });
+
+  test("requires Drive copy name to match backend contract", async () => {
+    const fake = {
+      settings: async () => ({ permission_mode: "bypass" as const }),
+      request: async () => ({ ok: true }),
+    };
+
+    await assert.rejects(
+      () => callTool(fake as never, "gogomail_drive_copy", { id: "node-1" }, "basic"),
+      /Required|name/,
+    );
+  });
 });

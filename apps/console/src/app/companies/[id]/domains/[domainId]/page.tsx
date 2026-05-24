@@ -114,12 +114,12 @@ const DEFAULT_MCP_SCOPES = [
 ];
 
 const DEFAULT_MCP_POLICY: DomainMCPPolicy = {
-  enabled: true,
-  allow_user_access_keys: true,
-  allow_bypass_mode: true,
+  enabled: false,
+  allow_user_access_keys: false,
+  allow_bypass_mode: false,
   force_generated_mail_notice: false,
   audit_level: 'full',
-  allowed_scopes: DEFAULT_MCP_SCOPES,
+  allowed_scopes: [],
   external_recipient_confirmation: 'basic',
   public_drive_share_confirmation: 'basic',
 };

@@ -26,14 +26,15 @@ export function saveWmSetting(key: string, value: unknown) {
   }
 }
 
-export function Toggle({ value, onChange, ariaLabel }: { value: boolean; onChange: (v: boolean) => void; ariaLabel?: string }) {
+export function Toggle({ value, onChange, ariaLabel, disabled = false }: { value: boolean; onChange: (v: boolean) => void; ariaLabel?: string; disabled?: boolean }) {
   return (
     <button
       role="switch"
       aria-checked={value}
       aria-label={ariaLabel}
+      disabled={disabled}
       onClick={() => onChange(!value)}
-      style={{ width: '36px', height: '20px', borderRadius: '10px', background: value ? 'var(--color-accent)' : 'var(--color-bg-tertiary)', border: 'none', cursor: 'pointer', position: 'relative', flexShrink: 0, transition: 'background 150ms ease' }}
+      style={{ width: '36px', height: '20px', borderRadius: '10px', background: value ? 'var(--color-accent)' : 'var(--color-bg-tertiary)', border: 'none', cursor: disabled ? 'not-allowed' : 'pointer', opacity: disabled ? 0.65 : 1, position: 'relative', flexShrink: 0, transition: 'background 150ms ease' }}
     >
       <span
         style={{

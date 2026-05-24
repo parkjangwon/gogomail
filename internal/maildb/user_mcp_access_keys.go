@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/gogomail/gogomail/internal/apikeys"
+	"github.com/gogomail/gogomail/internal/audit"
 	"github.com/lib/pq"
 )
 
@@ -46,11 +47,12 @@ type CreatedUserMCPAccessKey struct {
 	Token string           `json:"token"`
 }
 
-type domainMCPPolicy struct {
-	Enabled             bool     `json:"enabled"`
-	AllowBypassMode     bool     `json:"allow_bypass_mode"`
-	AllowUserAccessKeys bool     `json:"allow_user_access_keys"`
-	AllowedScopes       []string `json:"allowed_scopes"`
+type DomainMCPPolicy struct {
+	Enabled                  bool     `json:"enabled"`
+	AllowBypassMode          bool     `json:"allow_bypass_mode"`
+	AllowUserAccessKeys      bool     `json:"allow_user_access_keys"`
+	AllowedScopes            []string `json:"allowed_scopes"`
+	ForceGeneratedMailNotice bool     `json:"force_generated_mail_notice"`
 }
 
 func (r *Repository) ListUserMCPAccessKeys(ctx context.Context, userID string) ([]UserMCPAccessKey, error) {
@@ -93,7 +95,7 @@ func (r *Repository) CreateUserMCPAccessKey(ctx context.Context, req CreateUserM
 	if len(scopes) == 0 {
 		scopes = []string{"mail:read"}
 	}
-	policy, err := r.userDomainMCPPolicy(ctx, req.UserID)
+	policy, err := r.GetUserMCPDomainPolicy(ctx, req.UserID)
 	if err != nil {
 		return CreatedUserMCPAccessKey{}, err
 	}
@@ -102,6 +104,13 @@ func (r *Repository) CreateUserMCPAccessKey(ctx context.Context, req CreateUserM
 	}
 	if !policy.AllowUserAccessKeys {
 		return CreatedUserMCPAccessKey{}, fmt.Errorf("user mcp access keys are disabled for this domain")
+	}
+	enabled, err := r.userMCPEnabled(ctx, req.UserID)
+	if err != nil {
+		return CreatedUserMCPAccessKey{}, err
+	}
+	if !enabled {
+		return CreatedUserMCPAccessKey{}, fmt.Errorf("mcp is disabled in user settings")
 	}
 	if req.PermissionMode == MCPPermissionModeBypass && !policy.AllowBypassMode {
 		return CreatedUserMCPAccessKey{}, fmt.Errorf("bypass mode is disabled for this domain")
@@ -143,15 +152,45 @@ RETURNING id::text, user_id::text, domain_id::text, name, token_suffix, scopes, 
 		}
 		return CreatedUserMCPAccessKey{}, fmt.Errorf("create user mcp access key: %w", err)
 	}
+	_ = audit.NewPostgresRepository(r.db).Insert(ctx, audit.Log{
+		DomainID:   key.DomainID,
+		UserID:     key.UserID,
+		ActorID:    key.UserID,
+		Category:   "mcp",
+		Action:     "mcp.key.created",
+		TargetType: "user_mcp_access_key",
+		TargetID:   key.ID,
+		Result:     "success",
+		Detail:     userMCPAccessKeyAuditDetail(key),
+	})
 	return CreatedUserMCPAccessKey{Key: key, Token: token}, nil
 }
 
-func (r *Repository) userDomainMCPPolicy(ctx context.Context, userID string) (domainMCPPolicy, error) {
-	policy := domainMCPPolicy{
-		Enabled:             true,
-		AllowBypassMode:     true,
-		AllowUserAccessKeys: true,
-		AllowedScopes:       []string{"mail:read", "mail:write", "mail:send", "mail:manage", "contacts:read", "contacts:write", "contacts:manage", "drive:read", "drive:write", "drive:manage", "calendar:read", "calendar:write", "calendar:manage"},
+func (r *Repository) userMCPEnabled(ctx context.Context, userID string) (bool, error) {
+	var enabled bool
+	err := r.db.QueryRowContext(ctx, `
+SELECT COALESCE(settings->'webmail'->'mcp'->>'enabled', 'false') = 'true'
+FROM users
+WHERE id = $1::uuid`, userID).Scan(&enabled)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return false, fmt.Errorf("user not found")
+		}
+		return false, fmt.Errorf("load user mcp settings: %w", err)
+	}
+	return enabled, nil
+}
+
+func (r *Repository) GetUserMCPDomainPolicy(ctx context.Context, userID string) (DomainMCPPolicy, error) {
+	userID = strings.TrimSpace(userID)
+	if userID == "" {
+		return DomainMCPPolicy{}, fmt.Errorf("user_id is required")
+	}
+	policy := DomainMCPPolicy{
+		Enabled:             false,
+		AllowBypassMode:     false,
+		AllowUserAccessKeys: false,
+		AllowedScopes:       []string{},
 	}
 	var raw []byte
 	err := r.db.QueryRowContext(ctx, `
@@ -164,13 +203,13 @@ LEFT JOIN runtime_config rc
 WHERE u.id = $1::uuid`, userID).Scan(&raw)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return domainMCPPolicy{}, fmt.Errorf("user not found")
+			return DomainMCPPolicy{}, fmt.Errorf("user not found")
 		}
-		return domainMCPPolicy{}, fmt.Errorf("load domain mcp policy: %w", err)
+		return DomainMCPPolicy{}, fmt.Errorf("load domain mcp policy: %w", err)
 	}
 	if len(raw) > 0 {
 		if err := json.Unmarshal(raw, &policy); err != nil {
-			return domainMCPPolicy{}, fmt.Errorf("domain mcp policy is invalid")
+			return DomainMCPPolicy{}, fmt.Errorf("domain mcp policy is invalid")
 		}
 	}
 	return policy, nil
@@ -218,7 +257,35 @@ RETURNING id::text, user_id::text, domain_id::text, name, token_suffix, scopes, 
 		}
 		return UserMCPAccessKey{}, fmt.Errorf("revoke user mcp access key: %w", err)
 	}
+	_ = audit.NewPostgresRepository(r.db).Insert(ctx, audit.Log{
+		DomainID:   key.DomainID,
+		UserID:     key.UserID,
+		ActorID:    key.UserID,
+		Category:   "mcp",
+		Action:     "mcp.key.revoked",
+		TargetType: "user_mcp_access_key",
+		TargetID:   key.ID,
+		Result:     "success",
+		Detail:     userMCPAccessKeyAuditDetail(key),
+	})
 	return key, nil
+}
+
+func userMCPAccessKeyAuditDetail(key UserMCPAccessKey) json.RawMessage {
+	detail := map[string]any{
+		"permission_mode":    key.PermissionMode,
+		"scope_count":        len(key.Scopes),
+		"allowed_cidr_count": len(key.AllowedCIDRs),
+		"token_suffix":       key.TokenSuffix,
+	}
+	if key.ExpiresAt != nil {
+		detail["expires_at"] = key.ExpiresAt.UTC().Format(time.RFC3339Nano)
+	}
+	raw, err := json.Marshal(detail)
+	if err != nil {
+		return json.RawMessage(`{}`)
+	}
+	return raw
 }
 
 type userMCPAccessKeyScanner interface {
