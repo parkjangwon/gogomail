@@ -73,22 +73,33 @@ For production deployments, follow
 [`docker/DEPLOYMENT.md`](docker/DEPLOYMENT.md) — the agent-friendly
 deployment guide.
 
-## AI Agent Management (MCP Server)
+## AI Agent Automation (MCP Servers)
 
-`gogomail-manage-mcp` in `apps/gogomail-manage-mcp` is a [Model Context Protocol](https://modelcontextprotocol.io/) server that gives an AI agent direct, structured management access to GoGoMail's Admin API. It enables **unmanned 24/7 operation** — an agent can diagnose delivery failures, manage users, inspect queues, and handle support tickets without a human at the keyboard.
+GoGoMail has two separate [Model Context Protocol](https://modelcontextprotocol.io/) servers so agents can operate the platform without mixing administrator authority with end-user data access.
+
+| Server | Directory | Audience | Scope |
+|---|---|---|---|
+| Management MCP | `apps/gogomail-manage-mcp` | Operators, support, administrators | Admin API, queue/health inspection, user/domain operations, optional Suppo and GitHub integrations |
+| User MCP | `apps/gogomail-user-mcp` | Individual webmail users | Mail, drafts, folders, threads, contacts, directory, Drive, calendars, preferences, and account context through user-scoped `gmu_` keys |
+
+The split is intentional: the management MCP is for running GoGoMail as a service, while the user MCP lets a user connect Codex, Claude Desktop, or another agent to their own mailbox and collaboration data.
 
 ```
-Natural language request
-    → AI agent (Claude, GPT-4, …)
-        → MCP tools (apps/gogomail-manage-mcp)
-            → GoGoMail Admin API  /admin/v1/…
-            → Suppo helpdesk API  (optional)
-            → GitHub Issues API   (optional)
+Operator request
+    → AI agent
+        → gogomail-manage-mcp
+            → /admin/v1/...
+
+User request
+    → AI agent
+        → gogomail-user-mcp
+            → /api/v1/... and /api/mail/...
 ```
 
-**53 tools** across three domains — 37 GoGoMail Admin, 10 Suppo helpdesk, 6 GitHub Issues. Only `GOGOMAIL_ADMIN_URL` and `GOGOMAIL_ADMIN_KEY` are required; Suppo and GitHub are optional integrations.
+`gogomail-user-mcp` currently exposes **87 user tools**, including mail send/drafts/search, bulk message and thread actions, contact and calendar CRUD helpers, Drive upload/download/share tools, and an exact-manifest API bridge for documented user APIs. Sensitive actions stay confirmation-gated in `basic` mode; `bypass` mode is allowed only when both user settings and domain policy permit it.
 
-→ Full documentation: [apps/gogomail-manage-mcp/README.md](apps/gogomail-manage-mcp/README.md)
+→ Management MCP documentation: [apps/gogomail-manage-mcp/README.md](apps/gogomail-manage-mcp/README.md)
+→ User MCP documentation: [apps/gogomail-user-mcp/README.md](apps/gogomail-user-mcp/README.md) / [한국어](apps/gogomail-user-mcp/README.ko.md)
 
 ## Documentation
 
@@ -103,6 +114,8 @@ Natural language request
 | OpenAPI contract | [docs/openapi.yaml](docs/openapi.yaml) |
 | Roadmap | [docs/backend-roadmap.md](docs/backend-roadmap.md) |
 | AI Agent management MCP server | [apps/gogomail-manage-mcp/README.md](apps/gogomail-manage-mcp/README.md) |
+| AI Agent user MCP server | [apps/gogomail-user-mcp/README.md](apps/gogomail-user-mcp/README.md) |
+| User MCP security and policy notes | [docs/USER_MCP.md](docs/USER_MCP.md) |
 
 ## Build from source
 
