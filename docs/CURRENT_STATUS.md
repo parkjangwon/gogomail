@@ -1,6 +1,11 @@
 # gogomail current status
 
-Last updated: 2026-05-24 (local-domain delivery without MX fallback)
+Last updated: 2026-05-24 (dev compose mail worker coverage)
+
+## Dev compose mail worker coverage (2026-05-24)
+- `docker/docker-compose.dev.yml` now starts the `event-worker`, `outbox-relay`, and `delivery-worker` alongside the all-in-one HTTP backend so webmail sends progress from API outbox rows through local/external delivery and downstream mail events in the standard dev stack.
+- Verified the previously pending `asdasd` self-send by restarting workers with `configs/config.dev.yaml`, replaying the outbox row, and confirming a delivered attempt plus an inbox copy.
+- Verification: `docker compose -f docker/docker-compose.dev.yml config`; `docker compose -f docker/docker-compose.dev.yml up -d --build backend event-worker outbox-relay delivery-worker`; `curl http://localhost:8080/health/ready`; SQL checks for `asdasd` delivered attempt and inbox row.
 
 ## Local-domain delivery without MX fallback (2026-05-24)
 - Delivery workers now resolve recipients against active local GoGoMail domains before external transport; existing local recipients are stored directly into their inbox while still emitting normal delivery attempts and `mail.stored` events for downstream policy, audit, indexing, and notification handlers.
