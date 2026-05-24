@@ -870,7 +870,9 @@
       "contact": "連絡先",
       "calendar": "予定",
       "drive": "ドライブ",
-      "template": "テンプレート"
+      "template": "テンプレート",
+      "settings": "設定",
+      "notification": "通知"
     },
     "time": {
       "justNow": "たった今",
@@ -891,7 +893,8 @@
       "starred": "スター付きメール",
       "unread": "未読メール",
       "attachments": "添付ファイル付きメール",
-      "settings": "設定を開く"
+      "settings": "設定を開く",
+      "notifications": "通知センターを開く"
     },
     "drive": {
       "folder": "フォルダー",
@@ -916,7 +919,9 @@
       "calendar": "予定",
       "drive": "ドライブ",
       "folders": "フォルダー",
-      "commands": "コマンド"
+      "commands": "コマンド",
+      "settings": "設定",
+      "notifications": "通知"
     },
     "recentSearches": "最近の検索",
     "noResults": "結果がありません",
@@ -1310,7 +1315,8 @@
     "driveSortSize": "サイズ",
     "mcpSelectAllScopes": "すべて選択",
     "mcpResetScopes": "既定の権限に戻す",
-    "mcpKeyScopesSelected": "{total}件中{count}件の権限を選択中"
+    "mcpKeyScopesSelected": "{total}件中{count}件の権限を選択中",
+    "scNotificationCenter": "通知センター"
   },
   "composeFull": {
     "titleNew": "新規メッセージ",
@@ -1860,6 +1866,7 @@
       "toggle": "ブラウザ通知",
       "dismiss": "閉じる",
       "dismissPrompt": "ブラウザ通知の案内を閉じる"
-    }
+    },
+    "unread": "未読"
   }
 }

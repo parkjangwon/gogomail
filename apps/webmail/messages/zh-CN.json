@@ -870,7 +870,9 @@
       "contact": "联系人",
       "calendar": "日程",
       "drive": "云盘",
-      "template": "模板"
+      "template": "模板",
+      "settings": "设置",
+      "notification": "通知"
     },
     "time": {
       "justNow": "刚刚",
@@ -891,7 +893,8 @@
       "starred": "星标邮件",
       "unread": "未读邮件",
       "attachments": "附件邮件",
-      "settings": "打开设置"
+      "settings": "打开设置",
+      "notifications": "打开通知中心"
     },
     "drive": {
       "folder": "文件夹",
@@ -916,7 +919,9 @@
       "calendar": "日程",
       "drive": "云盘",
       "folders": "邮箱",
-      "commands": "命令"
+      "commands": "命令",
+      "settings": "设置",
+      "notifications": "通知"
     },
     "recentSearches": "最近搜索",
     "noResults": "没有结果",
@@ -1310,7 +1315,8 @@
     "driveSortSize": "大小",
     "mcpSelectAllScopes": "全选",
     "mcpResetScopes": "重置为默认权限",
-    "mcpKeyScopesSelected": "已选择 {count}/{total} 个权限"
+    "mcpKeyScopesSelected": "已选择 {count}/{total} 个权限",
+    "scNotificationCenter": "通知中心"
   },
   "composeFull": {
     "titleNew": "新邮件",
@@ -1860,6 +1866,7 @@
       "toggle": "浏览器通知",
       "dismiss": "关闭",
       "dismissPrompt": "关闭浏览器通知提示"
-    }
+    },
+    "unread": "未读"
   }
 }

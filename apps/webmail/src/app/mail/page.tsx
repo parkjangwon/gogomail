@@ -1130,6 +1130,11 @@ export default function MailPage() {
           }
           break;
         }
+        case 'b':
+          // Toggle Notification Center via custom event (state lives in NotificationBell)
+          e.preventDefault();
+          window.dispatchEvent(new CustomEvent('toggleNotificationCenter'));
+          break;
         case '?':
           setShowShortcuts((v) => !v);
           break;
@@ -1981,7 +1986,8 @@ export default function MailPage() {
           onSelectMessage={(id) => { handleSelectMessage(id); setShowSpotlight(false); }}
           onOpenCalendar={() => { setActiveApp('calendar'); setShowSpotlight(false); }}
           onOpenDrive={() => { setActiveApp('drive'); setShowSpotlight(false); }}
-          onOpenSettings={() => { setActiveApp('settings'); setShowSpotlight(false); }}
+          onOpenSettings={(sectionId?: SectionId) => { if (sectionId) setSettingsInitialSection(sectionId); setActiveApp('settings'); setShowSpotlight(false); }}
+          onOpenNotifications={() => { setShowSpotlight(false); window.dispatchEvent(new CustomEvent('toggleNotificationCenter')); }}
           onSearch={(q) => { handleSearch(q); setActiveApp('mail'); setShowSpotlight(false); }}
           onComposeWithTemplate={(t) => { openCompose({ intent: 'new', initialSubject: t.subject, initialBody: t.body }); setShowSpotlight(false); }}
           movingMessageId={spotlightMoveId ?? undefined}

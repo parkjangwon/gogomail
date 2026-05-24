@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { BellIcon } from '@heroicons/react/24/outline';
 import { BellIcon as BellIconSolid } from '@heroicons/react/24/solid';
@@ -12,6 +12,13 @@ export function NotificationBell() {
   const { unreadCount } = useNotifications();
   const [open, setOpen] = useState(false);
   const buttonRef = useRef<HTMLButtonElement | null>(null);
+
+  // Global keyboard shortcut: 'b' key dispatches this event from page.tsx
+  useEffect(() => {
+    const handler = () => setOpen((v) => !v);
+    window.addEventListener('toggleNotificationCenter', handler);
+    return () => window.removeEventListener('toggleNotificationCenter', handler);
+  }, []);
   const badgeLabel = unreadCount > 0 ? (unreadCount > 99 ? '99+' : String(unreadCount)) : '';
   const buttonLabel = unreadCount > 0 ? t('openCenterUnread', { count: unreadCount }) : t('openCenter');
   const closeCenter = useCallback((options?: { restoreFocus?: boolean }) => {
