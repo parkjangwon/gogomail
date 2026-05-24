@@ -80,6 +80,9 @@ apps/*/tsconfig.tsbuildinfo
 # Zed AI
 .zed/
 
+# Antigravity CLI
+.antigravitycli/
+
 # Generic AI agent session/cache artifacts
 .agent/
 .agents/
