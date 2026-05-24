@@ -34,12 +34,20 @@ func (p *RedisStreamPublisher) Publish(ctx context.Context, event Event) error {
 	}
 
 	if err := p.client.XAdd(ctx, &redis.XAddArgs{
-		Stream: p.stream,
+		Stream: redisStreamForEvent(p.stream, event.Topic),
 		Values: values,
 	}).Err(); err != nil {
-		return fmt.Errorf("publish outbox event to redis stream %q: %w", p.stream, err)
+		return fmt.Errorf("publish outbox event to redis stream %q: %w", redisStreamForEvent(p.stream, event.Topic), err)
 	}
 	return nil
+}
+
+func redisStreamForEvent(defaultStream string, topic string) string {
+	topic = strings.TrimSpace(topic)
+	if topic != "" {
+		return topic
+	}
+	return strings.TrimSpace(defaultStream)
 }
 
 func normalizeRedisStreamEvent(event Event) (Event, error) {

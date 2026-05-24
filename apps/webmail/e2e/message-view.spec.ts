@@ -32,6 +32,37 @@ test.describe('Message view', () => {
     }
   });
 
+  test('sent message delivery panel tolerates null attempts from pending status', async ({ page }) => {
+    const sentMessage = {
+      ...DEFAULT_MESSAGES[0],
+      id: 'sent-null-attempts',
+      folder_id: 'folder-sent',
+      subject: 'Pending self delivery',
+      from_addr: 'pjw@parkjw.org',
+      from_name: 'PJW',
+    };
+
+    await setupAuthedPage(page, {
+      messages: [sentMessage],
+      deliveryStatuses: {
+        'sent-null-attempts': {
+          delivery_status: {
+            message_id: 'sent-null-attempts',
+            delivery_status: 'pending',
+            bounce_status: 'none',
+            attempts: null,
+            updated_at: '2026-05-24T00:00:00Z',
+          },
+        },
+      },
+    });
+
+    await page.getByText('Pending self delivery').first().click();
+    await expect(page.getByText(/배달|Delivery/)).toBeVisible({ timeout: 5_000 });
+    await page.getByText(/배달|Delivery/).first().click();
+    await expect(page.getByText(/시도|attempt/i)).toBeVisible({ timeout: 5_000 });
+  });
+
   test('opening a message issues a flags PATCH (mark-read)', async ({ page }) => {
     let flagPatched = false;
     page.on('request', (req) => {

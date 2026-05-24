@@ -128,6 +128,7 @@ export interface MockOverrides {
   driveNodes?: typeof DEFAULT_DRIVE_NODES;
   driveUsage?: typeof DEFAULT_DRIVE_USAGE;
   notificationPreferences?: Json;
+  deliveryStatuses?: Record<string, Json>;
   onNotificationPreferencesPut?: (body: Record<string, unknown>) => void;
   /** Extra raw route handlers — pattern is matched first; falls back to defaults */
   extra?: Array<{ urlPattern: string | RegExp; handler: RouteHandler }>;
@@ -152,6 +153,7 @@ export async function installMocks(page: Page, overrides: MockOverrides = {}) {
   const messages = overrides.messages ?? DEFAULT_MESSAGES;
   const user = overrides.user ?? DEFAULT_USER;
   const preferences = overrides.preferences ?? DEFAULT_PREFERENCES;
+  const deliveryStatuses = overrides.deliveryStatuses ?? {};
   const notificationPreferences = overrides.notificationPreferences ?? {
     global_dnd_enabled: false,
     global_dnd_schedule: { weekdays: [], time_ranges: [], timezone: 'Asia/Seoul' },
@@ -231,6 +233,9 @@ export async function installMocks(page: Page, overrides: MockOverrides = {}) {
       const folderId = search.get('folder_id') ?? 'folder-inbox';
       const filtered = messages.filter((m) => m.folder_id === folderId || folderId === 'folder-inbox');
       return json(route, { messages: filtered, has_more: false, next_cursor: '' });
+    }
+    if (segments[0] === 'messages' && segments.length === 3 && segments[2] === 'delivery-status' && method === 'GET') {
+      return json(route, deliveryStatuses[segments[1]] ?? { delivery_status: null });
     }
     if (segments[0] === 'messages' && segments.length === 2 && method === 'GET') {
       const summary = messages.find((m) => m.id === segments[1]);

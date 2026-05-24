@@ -2,6 +2,7 @@
 
 ## Recent launch-readiness closures
 
+- Outbox relay now publishes each row to its own topic stream so queued outbound mail reaches delivery workers, and webmail sent-message tracking tolerates pending delivery-status responses with no attempt rows yet.
 - Webmail and console documentation/UI copy now reflects the Next.js 16 frontend baseline, and MCP access-key issuance includes localized bulk scope selection/reset controls.
 - Webmail settings sidebar ordering now prioritizes active product preferences and adds functional Contacts and Drive preference sections with localized controls.
 - Webmail settings now label the list-behavior preference section as Message list/메일 목록 instead of Inbox/받은편지함, keeping actual mailbox labels reserved for mailbox navigation.

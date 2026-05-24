@@ -25,6 +25,8 @@ export function DeliveryTrackingPanels({
   const t = useTranslations();
   if (!isSent) return null;
 
+  const deliveryAttempts = Array.isArray(deliveryStatus?.attempts) ? deliveryStatus.attempts : [];
+
   return (
     <>
       {deliveryStatus && (
@@ -41,10 +43,10 @@ export function DeliveryTrackingPanels({
           </button>
           {deliveryOpen && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              {deliveryStatus.attempts.length === 0 ? (
+              {deliveryAttempts.length === 0 ? (
                 <div style={{ fontSize: '13px', color: 'var(--color-text-tertiary)', padding: '6px 0' }}>{t('misc.delivery.noAttempts')}</div>
               ) : (
-                deliveryStatus.attempts.map((attempt, index) => {
+                deliveryAttempts.map((attempt, index) => {
                   const isOk = attempt.status === 'delivered' || attempt.status === 'success';
                   const isFail = attempt.status === 'failed' || attempt.status === 'bounced' || attempt.status === 'error';
                   const statusColor = isOk ? 'var(--color-success, #22c55e)' : isFail ? 'var(--color-destructive)' : 'var(--color-text-tertiary)';
