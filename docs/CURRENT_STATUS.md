@@ -1,6 +1,13 @@
 # gogomail current status
 
-Last updated: 2026-05-24 (profile photo avatars)
+Last updated: 2026-05-25 (allowed_senders inbound filter)
+
+## Allowed senders + spam filter backend (2026-05-25)
+- `internal/inboundfilter/handler.go` now reads `allowed_senders` from user webmail preferences alongside `blocked_senders`.
+- Personal allowlist takes precedence: if a sender matches `allowed_senders`, the blocked-sender check is skipped entirely.
+- `matchesSender()` helper added — supports exact email match and `@domain` prefix patterns for both lists (previous blocked-sender check was exact-only).
+- Matches the spamfilter engine semantics already used for domain-level policy.
+- Verification: `go test ./internal/inboundfilter/... && go test ./...`
 
 ## Profile photo avatars (2026-05-24)
 - Webmail account settings now uploads/removes a server-backed profile photo on `/me/avatar`, mirrored into the local sidebar avatar cache for immediate UI updates.

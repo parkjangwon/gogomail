@@ -73,16 +73,19 @@ func (h *Handler) HandleEvent(ctx context.Context, msg eventstream.Message) erro
 		return nil // malformed prefs — skip silently
 	}
 
-	// 1. Blocked senders
-	if len(p.BlockedSenders) > 0 && ev.EnvelopeFrom != "" {
-		fromNorm := strings.ToLower(strings.TrimSpace(ev.EnvelopeFrom))
-		for _, blocked := range p.BlockedSenders {
-			if strings.ToLower(strings.TrimSpace(blocked)) == fromNorm {
-				if err := h.moveToTrash(ctx, ev.UserID, ev.MessageID); err != nil {
-					return fmt.Errorf("inboundfilter: move blocked message: %w", err)
-				}
-				return nil // no vacation reply for blocked senders
+	// 1. Personal allowlist — takes precedence over blocked-sender check.
+	// If the sender is explicitly allowed by the user, skip the blocklist.
+	allowed := ev.EnvelopeFrom != "" &&
+		len(p.AllowedSenders) > 0 &&
+		matchesSender(ev.EnvelopeFrom, p.AllowedSenders)
+
+	// 2. Blocked senders (skipped when sender is personally allowed).
+	if !allowed && ev.EnvelopeFrom != "" && len(p.BlockedSenders) > 0 {
+		if matchesSender(ev.EnvelopeFrom, p.BlockedSenders) {
+			if err := h.moveToTrash(ctx, ev.UserID, ev.MessageID); err != nil {
+				return fmt.Errorf("inboundfilter: move blocked message: %w", err)
 			}
+			return nil // no vacation reply for blocked senders
 		}
 	}
 
@@ -207,8 +210,41 @@ func (h *Handler) pruneVacationSent(now time.Time) {
 }
 
 type preferences struct {
-	BlockedSenders []string         `json:"blocked_senders"`
+	BlockedSenders []string          `json:"blocked_senders"`
+	AllowedSenders []string          `json:"allowed_senders"`
 	Vacation       *vacationSettings `json:"vacation"`
+}
+
+// matchesSender returns true if addr matches an entry in list.
+// Entries are either exact email addresses (case-insensitive) or "@domain"
+// prefix patterns that match any address at that domain.
+func matchesSender(addr string, list []string) bool {
+	addrNorm := strings.ToLower(strings.TrimSpace(addr))
+	if addrNorm == "" {
+		return false
+	}
+	atIdx := strings.Index(addrNorm, "@")
+	addrDomain := ""
+	if atIdx >= 0 {
+		addrDomain = addrNorm[atIdx:] // e.g. "@example.com"
+	}
+	for _, entry := range list {
+		entryNorm := strings.ToLower(strings.TrimSpace(entry))
+		if entryNorm == "" {
+			continue
+		}
+		if strings.HasPrefix(entryNorm, "@") {
+			// Domain pattern: match any address at this domain.
+			if addrDomain != "" && addrDomain == entryNorm {
+				return true
+			}
+		} else {
+			if entryNorm == addrNorm {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 type vacationSettings struct {
