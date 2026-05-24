@@ -34,6 +34,14 @@ import {
   CATEGORY_TABS,
 } from './message-list/messageListTypes';
 
+// Korean QWERTY → Latin normalization so shortcuts work in Korean IME mode
+const KO_KEYS: Record<string, string> = {
+  'ㄷ':'e','ㄱ':'r','ㅅ':'t','ㅛ':'y','ㅕ':'u','ㅑ':'i','ㅐ':'o','ㅔ':'p',
+  'ㅁ':'a','ㄴ':'s','ㅇ':'d','ㄹ':'f','ㅎ':'g','ㅗ':'h','ㅓ':'j','ㅏ':'k','ㅣ':'l',
+  'ㅋ':'z','ㅌ':'x','ㅊ':'c','ㅍ':'v','ㅠ':'b','ㅜ':'n','ㅡ':'m',
+  'ㅂ':'q','ㅈ':'w',
+};
+
 type DateGroupKey = 'today' | 'yesterday' | 'lastWeek' | 'thisMonth';
 
 function getDateGroup(receivedAt: string): DateGroupKey {
@@ -56,7 +64,7 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
   const filterDropdownRef = useRef<HTMLDivElement>(null);
   const [bulkSelected, setBulkSelected] = useState<Set<string>>(new Set());
-  const [hoveredMessageId, setHoveredMessageId] = useState<string | null>(null);
+  const hoveredMessageIdRef = useRef<string | null>(null);
   const [sortAsc, setSortAsc] = useState(false);
   const [bulkMoveOpen, setBulkMoveOpen] = useState(false);
   const [categoryTab, setCategoryTab] = useState<CategoryTab>('all');
@@ -349,11 +357,11 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
       const target = event.target as HTMLElement | null;
       if (target?.closest('input, textarea, select, [contenteditable="true"]')) return;
       const bulkIds = [...bulkSelected];
-      const ids = bulkIds.length > 0 ? bulkIds : hoveredMessageId ? [hoveredMessageId] : [];
+      const ids = bulkIds.length > 0 ? bulkIds : hoveredMessageIdRef.current ? [hoveredMessageIdRef.current] : [];
       if (ids.length === 0) return;
       const actionMessages = getActionMessages(ids);
       if (actionMessages.length === 0) return;
-      const lowerKey = event.key.toLowerCase();
+      const lowerKey = (KO_KEYS[event.key] ?? event.key).toLowerCase();
       const isBulkAction = bulkIds.length > 0;
       const finish = (run: () => void) => {
         event.preventDefault();
@@ -392,7 +400,7 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
     };
     window.addEventListener('keydown', handler, { capture: true });
     return () => window.removeEventListener('keydown', handler, { capture: true });
-  }, [bulkSelected, hoveredMessageId, filteredMessages, messages, onToggleReadMessage, onArchiveMessage, onSnoozeMessage, onPinMessage, onDeleteMessage, onBulkDelete]);
+  }, [bulkSelected, filteredMessages, messages, onToggleReadMessage, onArchiveMessage, onSnoozeMessage, onPinMessage, onDeleteMessage, onBulkDelete]);
 
   const listWidth = (isMobile || fullWidth || bottomLayout || !paneWidth)
     ? { flex: 1, minWidth: 0 }
@@ -659,7 +667,7 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
               folderLabel={folderLabelById.get(msg.folder_id)}
               onAvatarEnter={!isMobile ? handleAvatarEnter : undefined}
               onAvatarLeave={!isMobile ? handleAvatarLeave : undefined}
-              onHoverChange={setHoveredMessageId}
+              onHoverChange={(id) => { hoveredMessageIdRef.current = id; }}
             />
           ))}
         </div>
