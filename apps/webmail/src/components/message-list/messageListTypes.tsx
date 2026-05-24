@@ -66,15 +66,14 @@ export function formatDate(receivedAt: string, t?: (key: string, values?: Record
   if (diffMins < 60) return t ? t('misc.messageListTypes.minutesAgo', { n: diffMins }) : `${diffMins}분 전`;
   if (diffHours < 12 && date.getDate() === now.getDate()) return t ? t('misc.messageListTypes.hoursAgo', { n: diffHours }) : `${diffHours}시간 전`;
   if (diffDays === 0) {
+    // 오늘이지만 12시간 이상 지난 경우 — 시:분만 표시
     return new Intl.DateTimeFormat('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false }).format(date);
   }
-  if (diffDays < 7) {
-    return new Intl.DateTimeFormat('ko-KR', { weekday: 'short' }).format(date);
-  }
-  if (date.getFullYear() === now.getFullYear()) {
-    return new Intl.DateTimeFormat('ko-KR', { month: 'numeric', day: 'numeric' }).format(date);
-  }
-  return new Intl.DateTimeFormat('ko-KR', { year: 'numeric', month: 'numeric', day: 'numeric' }).format(date);
+  // 오늘이 아닌 모든 날짜 — 년/월/일 + 시:분 풀포맷
+  return new Intl.DateTimeFormat('ko-KR', {
+    year: 'numeric', month: 'numeric', day: 'numeric',
+    hour: '2-digit', minute: '2-digit', hour12: false,
+  }).format(date);
 }
 
 export interface MessageListProps {
