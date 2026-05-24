@@ -6,6 +6,8 @@ English / 영어: [README.md](README.md)
 
 이 서버는 `apps/gogomail-manage-mcp`와 의도적으로 분리되어 있습니다. 관리 MCP는 운영자와 관리자를 위한 서버이고, 이 패키지는 개별 사용자를 위한 서버이며 사용자가 발급한 `gmu_` 액세스 키로 인증합니다.
 
+현재 사용자 API 커버리지는 **96개 툴**입니다. 웹메일 UI가 사용하는 프로필/아바타, 디렉터리 프로필, spam 신고/not-spam, 발신자 허용/차단 흐름까지 문서화된 webmail/user API 표면 위에서 제공합니다.
+
 ## 제공 기능
 
 - 기존 GoGoMail 사용자 API 위에 구성된 96개 MCP 툴.
