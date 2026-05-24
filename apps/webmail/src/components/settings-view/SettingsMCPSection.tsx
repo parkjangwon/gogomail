@@ -24,6 +24,8 @@ const MCP_SCOPE_GROUPS = [
   { id: 'calendar', labelKey: 'mcpScopeGroupCalendar', scopes: ['calendar:read', 'calendar:write', 'calendar:manage'] },
 ] as const;
 
+const ALL_MCP_SCOPES = MCP_SCOPE_GROUPS.flatMap((group) => group.scopes);
+
 const MCP_SCOPE_LABEL_KEYS: Record<string, string> = {
   'mail:read': 'mcpScopeMailRead',
   'mail:write': 'mcpScopeMailWrite',
@@ -158,6 +160,14 @@ export function SettingsMCPSection() {
       const next = checked ? [...prev, scope] : prev.filter((item) => item !== scope);
       return next.length > 0 ? Array.from(new Set(next)) : prev;
     });
+  }
+
+  function selectAllKeyScopes() {
+    setNewKeyScopes([...ALL_MCP_SCOPES]);
+  }
+
+  function resetKeyScopes() {
+    setNewKeyScopes(['mail:read']);
   }
 
   function splitCIDRs(value: string) {
@@ -306,6 +316,17 @@ export function SettingsMCPSection() {
           </div>
           <input value={newKeyCIDRs} onChange={(e) => setNewKeyCIDRs(e.target.value)} placeholder={t('mcpKeyCIDRsPlaceholder')} style={inputStyle('520px')} />
           <div style={{ display: 'grid', gap: '10px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+              <div style={{ fontSize: '11px', color: 'var(--color-text-tertiary)' }}>{t('mcpKeyScopesSelected', { count: newKeyScopes.length, total: ALL_MCP_SCOPES.length })}</div>
+              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                <button type="button" onClick={selectAllKeyScopes} disabled={newKeyScopes.length === ALL_MCP_SCOPES.length} style={{ padding: '5px 9px', borderRadius: '6px', border: '1px solid var(--color-border-default)', background: 'var(--color-bg-primary)', color: 'var(--color-text-secondary)', fontSize: '11px', cursor: newKeyScopes.length === ALL_MCP_SCOPES.length ? 'not-allowed' : 'pointer', opacity: newKeyScopes.length === ALL_MCP_SCOPES.length ? 0.6 : 1 }}>
+                  {t('mcpSelectAllScopes')}
+                </button>
+                <button type="button" onClick={resetKeyScopes} disabled={newKeyScopes.length === 1 && newKeyScopes[0] === 'mail:read'} style={{ padding: '5px 9px', borderRadius: '6px', border: '1px solid var(--color-border-default)', background: 'var(--color-bg-primary)', color: 'var(--color-text-secondary)', fontSize: '11px', cursor: newKeyScopes.length === 1 && newKeyScopes[0] === 'mail:read' ? 'not-allowed' : 'pointer', opacity: newKeyScopes.length === 1 && newKeyScopes[0] === 'mail:read' ? 0.6 : 1 }}>
+                  {t('mcpResetScopes')}
+                </button>
+              </div>
+            </div>
             {MCP_SCOPE_GROUPS.map((group) => (
               <div key={group.id} style={{ display: 'grid', gap: '6px' }}>
                 <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--color-text-secondary)' }}>{t(group.labelKey)}</div>

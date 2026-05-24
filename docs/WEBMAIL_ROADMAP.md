@@ -2,7 +2,7 @@
 
 **Product Direction**: Notion Mail / Linear / Superhuman inspired, but original. Clean minimalist UI on the surface, packed with enterprise-grade power features underneath — so users never need to ask for more.
 
-**Target**: Korean market primarily, global enterprise use. Original implementation only. Next.js 15 + React 19 + Tailwind v4 + TipTap v2, port 3003.
+**Target**: Korean market primarily, global enterprise use. Original implementation only. Next.js 16 + React 19 + Tailwind v4 + TipTap v2, port 3003.
 
 **Current MVP**: Login + 3-pane layout (Sidebar / MessageList / ReadingPane) + TipTap compose modal.
 

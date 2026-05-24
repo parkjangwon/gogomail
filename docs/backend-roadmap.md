@@ -2,6 +2,7 @@
 
 ## Recent launch-readiness closures
 
+- Webmail and console documentation/UI copy now reflects the Next.js 16 frontend baseline, and MCP access-key issuance includes localized bulk scope selection/reset controls.
 - Webmail settings sidebar ordering now prioritizes active product preferences and adds functional Contacts and Drive preference sections with localized controls.
 - Webmail settings now label the list-behavior preference section as Message list/메일 목록 instead of Inbox/받은편지함, keeping actual mailbox labels reserved for mailbox navigation.
 - Webmail user MCP settings now present a simpler default configuration surface, hide dependent controls until relevant, and localize access-key scope labels across supported webmail locales instead of exposing raw scope ids such as `drive:read`.

@@ -1299,7 +1299,10 @@
     "driveSortTypeName": "Folders first",
     "driveSortName": "Name",
     "driveSortUpdated": "Recently updated",
-    "driveSortSize": "Size"
+    "driveSortSize": "Size",
+    "mcpSelectAllScopes": "Select all",
+    "mcpResetScopes": "Reset to default",
+    "mcpKeyScopesSelected": "{count} of {total} permissions selected"
   },
   "composeFull": {
     "titleNew": "New message",
