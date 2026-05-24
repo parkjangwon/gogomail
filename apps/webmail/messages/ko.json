@@ -624,7 +624,6 @@
         "snooze": "1시간 스누즈",
         "pin": "핀 고정 / 해제",
         "important": "중요 표시 / 해제",
-        "addTodo": "이 메일을 할 일로 추가",
         "labelCycle": "라벨 색상 순환",
         "inbox": "받은 편지함",
         "sent": "보낸 편지함",
@@ -632,7 +631,6 @@
         "spamFolder": "스팸 편지함",
         "firstUnread": "첫 읽지 않은 메일",
         "important2": "중요 메일함",
-        "todoList": "할 일 목록",
         "send": "전송",
         "saveDraft": "임시저장",
         "composeClose": "작성창 닫기",
@@ -852,8 +850,7 @@
       "unread": "읽지 않은 편지",
       "attachments": "첨부 편지함",
       "snoozed": "다시 알림",
-      "pinned": "핀 고정",
-      "tasks": "할 일"
+      "pinned": "핀 고정"
     },
     "system": {
       "inbox": "받은 편지함",
@@ -1485,7 +1482,6 @@
       "moved": "메일을 이동했습니다",
       "importantUnmarked": "중요 표시 해제했습니다",
       "importantMarked": "중요 메일로 표시했습니다",
-      "taskAdded": "할 일 추가: \"{subject}\"",
       "snoozeNotifyAt": "스누즈: {time}에 다시 알립니다",
       "snoozeReturned": "스누즈 알림: {count}개 메일이 돌아왔습니다",
       "followUpReminder": "팔로업 알림: \"{subject}\"에 대한 답장이 없습니다",

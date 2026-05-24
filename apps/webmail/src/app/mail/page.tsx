@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { deleteMessage, restoreMessage, bulkRestoreMessages, createFolder, renameFolder, deleteFolder, starMessage, markRead, moveMessage, bulkMarkRead, searchMessages, getMessages, getMessage, sendMessage, listThreads, listThreadMessages, getNotificationPreferences, setNotificationPreferences, UIComposeIntent, MessageAddress, MessageDetail, MessageSummary, ThreadSummary, type ThreadNotificationOverride } from '@/lib/api';
-import { AdvancedFilters, VIRTUAL_ALL, VIRTUAL_STARRED, VIRTUAL_ATTACHMENTS, VIRTUAL_UNREAD, VIRTUAL_SNOOZED, VIRTUAL_PINNED, VIRTUAL_IMPORTANT, VIRTUAL_TASKS } from '@/components/Sidebar';
+import { AdvancedFilters, VIRTUAL_ALL, VIRTUAL_STARRED, VIRTUAL_ATTACHMENTS, VIRTUAL_UNREAD, VIRTUAL_SNOOZED, VIRTUAL_PINNED, VIRTUAL_IMPORTANT } from '@/components/Sidebar';
 import { useMailList, type RefreshIntervalSeconds } from '@/hooks/useMailList';
 import { useMessage } from '@/hooks/useMessage';
 import { useIsMobile } from '@/hooks/useIsMobile';
@@ -317,8 +317,8 @@ export default function MailPage() {
   // __starred__, __unread__, __attachments__: use the messages API directly with
   // server-side filters (starred/read/has_attachment) so we never miss messages
   // due to a small page limit.
-  // __pinned__, __important__, __snoozed__, __tasks__: stored in localStorage so
-  // we have to fetch a broad set and filter client-side; 500 covers typical usage.
+  // __pinned__, __important__, __snoozed__: stored in localStorage so
+  // we fetch each stored ID directly via getMessage.
   useEffect(() => {
     if (!activeFolderId.startsWith('__') || activeFolderId === VIRTUAL_ALL) return;
     let cancelled = false;
@@ -368,12 +368,6 @@ export default function MailPage() {
         try {
           const important: string[] = JSON.parse(localStorage.getItem('webmail_important') ?? '[]');
           return fetchByIds(important);
-        } catch { return []; }
-      }
-      if (activeFolderId === VIRTUAL_TASKS) {
-        try {
-          const tasks: { messageId: string }[] = JSON.parse(localStorage.getItem('webmail_tasks') ?? '[]');
-          return fetchByIds(tasks.map((t) => t.messageId));
         } catch { return []; }
       }
       return [];
@@ -955,7 +949,7 @@ export default function MailPage() {
           if (firstUnread) setSelectedMessageId(firstUnread.id);
           return;
         }
-        const virtualFolderMap: Record<string, string> = { w: VIRTUAL_TASKS, x: VIRTUAL_IMPORTANT };
+        const virtualFolderMap: Record<string, string> = { x: VIRTUAL_IMPORTANT };
         if (virtualFolderMap[key]) { e.preventDefault(); handleSelectFolder(virtualFolderMap[key]); return; }
         const systemTypeMap: Record<string, string> = { i: 'inbox', s: 'sent', t: 'trash', a: 'archive', p: 'spam' };
         const target = systemTypeMap[key];
@@ -1096,17 +1090,6 @@ export default function MailPage() {
           if (selectedMessageId && !composeContext) {
             handleImportant(selectedMessageId);
             addToast(importantIds.has(selectedMessageId) ? t('misc.mailPage.importantUnmarked') : t('misc.mailPage.importantMarked'), 'info');
-          }
-          break;
-        }
-        case 't': {
-          if (selectedMessageId && !composeContext && selectedMessage) {
-            try {
-              const tasks: unknown[] = JSON.parse(localStorage.getItem('webmail_tasks') ?? '[]');
-              tasks.unshift({ id: crypto.randomUUID(), subject: selectedMessage.subject || t('misc.mailPage.noSubject'), from: selectedMessage.from_addr, messageId: selectedMessageId, done: false, createdAt: new Date().toISOString() });
-              localStorage.setItem('webmail_tasks', JSON.stringify(tasks));
-              addToast(t('misc.mailPage.taskAdded', { subject: selectedMessage.subject || t('misc.mailPage.noSubject') }), 'success');
-            } catch { /* */ }
           }
           break;
         }

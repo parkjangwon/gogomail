@@ -54,7 +54,6 @@ const SECTIONS: SectionDef[] = [
       { key: 'z', descId: 'snooze' },
       { key: 'p', descId: 'pin' },
       { key: 'i', descId: 'important' },
-      { key: 't', descId: 'addTodo' },
       { key: 'l', descId: 'labelCycle' },
     ],
   },
@@ -67,7 +66,6 @@ const SECTIONS: SectionDef[] = [
       { key: 'g  p', descId: 'spamFolder' },
       { key: 'g  u', descId: 'firstUnread' },
       { key: 'g  x', descId: 'important2' },
-      { key: 'g  w', descId: 'todoList' },
     ],
   },
   {
