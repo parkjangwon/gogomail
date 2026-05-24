@@ -16,6 +16,21 @@ func TestCreateUploadSessionRequiresDatabase(t *testing.T) {
 	}
 }
 
+func TestCreateUploadSessionQueryAliasesReturnedParentID(t *testing.T) {
+	t.Parallel()
+
+	query := buildCreateUploadSessionQuery()
+	for _, want := range []string{
+		"COALESCE(parent_id::text, '') AS parent_id",
+		"FROM inserted",
+		"  parent_id,",
+	} {
+		if !strings.Contains(query, want) {
+			t.Fatalf("create upload session query missing %q:\n%s", want, query)
+		}
+	}
+}
+
 func TestServiceCreateUploadSessionRequiresRepository(t *testing.T) {
 	t.Parallel()
 

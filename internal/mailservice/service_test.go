@@ -3617,6 +3617,22 @@ func (s *recordingStore) Put(context.Context, string, io.Reader) error {
 	return nil
 }
 
+type seekRecordingStore struct {
+	recordingStore
+	sawSeeker bool
+	putBody   string
+}
+
+func (s *seekRecordingStore) Put(_ context.Context, _ string, body io.Reader) error {
+	_, s.sawSeeker = body.(io.Seeker)
+	data, err := io.ReadAll(body)
+	if err != nil {
+		return err
+	}
+	s.putBody = string(data)
+	return nil
+}
+
 func (s *recordingStore) Get(_ context.Context, path string) (io.ReadCloser, error) {
 	s.getPath = path
 	s.getCount++
@@ -3885,6 +3901,32 @@ func TestSendTextStoresOutgoingMessage(t *testing.T) {
 	}
 	if repo.lastOutgoing.ComposeIntent != "new" || repo.lastOutgoing.To[0].Email != "user@example.net" || repo.lastOutgoing.To[0].Name != "User" || !repo.lastOutgoing.HasAttachment {
 		t.Fatalf("lastOutgoing = %+v", repo.lastOutgoing)
+	}
+}
+
+func TestStoreComposedMessageProvidesSeekableBodyToStorage(t *testing.T) {
+	t.Parallel()
+
+	store := &seekRecordingStore{}
+	service := New(nil, store)
+	composed, err := service.storeComposedMessage(context.Background(), "mailstore/msg.eml", outbound.TextMessage{
+		From:     outbound.Address{Email: "sender@example.com"},
+		To:       []outbound.Address{{Email: "user@example.net"}},
+		Subject:  "hello",
+		TextBody: "body",
+		Date:     time.Date(2026, 5, 24, 4, 0, 0, 0, time.UTC),
+	})
+	if err != nil {
+		t.Fatalf("storeComposedMessage returned error: %v", err)
+	}
+	if !store.sawSeeker {
+		t.Fatal("storage Put body did not implement io.Seeker")
+	}
+	if int64(len(store.putBody)) != composed.Size {
+		t.Fatalf("stored body size = %d, composed.Size = %d", len(store.putBody), composed.Size)
+	}
+	if !strings.Contains(store.putBody, "Subject: hello") || !strings.Contains(store.putBody, "body") {
+		t.Fatalf("stored body missing composed message content:\n%s", store.putBody)
 	}
 }
 

@@ -19,86 +19,7 @@ func (r *Repository) CreateUploadSession(ctx context.Context, req CreateUploadSe
 	if err != nil {
 		return UploadSession{}, err
 	}
-	const query = `
-WITH owner AS (
-  SELECT u.id AS user_id
-  FROM users u
-  JOIN domains d ON d.id = u.domain_id
-  WHERE u.id = $1::uuid
-    AND u.status = 'active'
-    AND d.status = 'active'
-),
-parent AS (
-  SELECT NULL::uuid AS id
-  WHERE NULLIF($2, '') IS NULL
-  UNION ALL
-  SELECT n.id
-  FROM drive_nodes n
-  JOIN owner ON owner.user_id = n.user_id
-  WHERE n.id = NULLIF($2, '')::uuid
-    AND n.node_type = 'folder'
-    AND n.status = 'active'
-),
-inserted AS (
-  INSERT INTO drive_upload_sessions (
-    user_id,
-    parent_id,
-    upload_id,
-    name,
-    declared_size,
-    mime_type,
-    storage_backend,
-    expires_at
-  )
-  SELECT
-    owner.user_id,
-    parent.id,
-    $3,
-    $4,
-    $5,
-    $6,
-    $7,
-    $8
-  FROM owner
-  JOIN parent ON true
-  RETURNING
-    id::text,
-    user_id::text,
-    COALESCE(parent_id::text, ''),
-    upload_id,
-    name,
-    declared_size,
-    received_size,
-    mime_type,
-    status,
-    storage_backend,
-    storage_path,
-    checksum_sha256,
-    expires_at,
-    created_at,
-    updated_at,
-    finalized_at,
-    canceled_at
-)
-SELECT
-  id,
-  user_id,
-  parent_id,
-  upload_id,
-  name,
-  declared_size,
-  received_size,
-  mime_type,
-  status,
-  storage_backend,
-  storage_path,
-  checksum_sha256,
-  expires_at,
-  created_at,
-  updated_at,
-  finalized_at,
-  canceled_at
-FROM inserted`
+	query := buildCreateUploadSessionQuery()
 	var session UploadSession
 	var finalizedAt sql.NullTime
 	var canceledAt sql.NullTime
@@ -145,6 +66,89 @@ FROM inserted`
 		session.CanceledAt = canceledAt.Time
 	}
 	return session, nil
+}
+
+func buildCreateUploadSessionQuery() string {
+	return `
+WITH owner AS (
+  SELECT u.id AS user_id
+  FROM users u
+  JOIN domains d ON d.id = u.domain_id
+  WHERE u.id = $1::uuid
+    AND u.status = 'active'
+    AND d.status = 'active'
+),
+parent AS (
+  SELECT NULL::uuid AS id
+  WHERE NULLIF($2, '') IS NULL
+  UNION ALL
+  SELECT n.id
+  FROM drive_nodes n
+  JOIN owner ON owner.user_id = n.user_id
+  WHERE n.id = NULLIF($2, '')::uuid
+    AND n.node_type = 'folder'
+    AND n.status = 'active'
+),
+inserted AS (
+  INSERT INTO drive_upload_sessions (
+    user_id,
+    parent_id,
+    upload_id,
+    name,
+    declared_size,
+    mime_type,
+    storage_backend,
+    expires_at
+  )
+  SELECT
+    owner.user_id,
+    parent.id,
+    $3,
+    $4,
+    $5,
+    $6,
+    $7,
+    $8
+  FROM owner
+  JOIN parent ON true
+  RETURNING
+    id::text,
+    user_id::text,
+    COALESCE(parent_id::text, '') AS parent_id,
+    upload_id,
+    name,
+    declared_size,
+    received_size,
+    mime_type,
+    status,
+    storage_backend,
+    storage_path,
+    checksum_sha256,
+    expires_at,
+    created_at,
+    updated_at,
+    finalized_at,
+    canceled_at
+)
+SELECT
+  id,
+  user_id,
+  parent_id,
+  upload_id,
+  name,
+  declared_size,
+  received_size,
+  mime_type,
+  status,
+  storage_backend,
+  storage_path,
+  checksum_sha256,
+  expires_at,
+  created_at,
+  updated_at,
+  finalized_at,
+  canceled_at
+FROM inserted`
 }
 
 func (r *Repository) GetUploadSession(ctx context.Context, req GetUploadSessionRequest) (UploadSession, error) {

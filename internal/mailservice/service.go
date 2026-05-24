@@ -2989,35 +2989,25 @@ func (s *Service) storeComposedMessage(ctx context.Context, path string, msg out
 	if s.store == nil {
 		return outbound.ComposedMessage{}, fmt.Errorf("mail storage is required")
 	}
-	pr, pw := io.Pipe()
-	defer pr.Close()
-	type composeResult struct {
-		message outbound.ComposedMessage
-		err     error
+	tmp, err := os.CreateTemp("", "gogomail-outgoing-*.eml")
+	if err != nil {
+		return outbound.ComposedMessage{}, fmt.Errorf("create outgoing message spool: %w", err)
 	}
-	resultCh := make(chan composeResult, 1)
-	go func() {
-		composed, err := outbound.ComposeTextToWriter(pw, msg)
-		if err != nil {
-			_ = pw.CloseWithError(err)
-		} else {
-			_ = pw.Close()
-		}
-		resultCh <- composeResult{message: composed, err: err}
+	defer func() {
+		_ = tmp.Close()
+		_ = os.Remove(tmp.Name())
 	}()
-
-	putErr := s.store.Put(ctx, path, pr)
-	if putErr != nil {
-		_ = pr.CloseWithError(putErr)
+	composed, err := outbound.ComposeTextToWriter(tmp, msg)
+	if err != nil {
+		return outbound.ComposedMessage{}, err
 	}
-	result := <-resultCh
-	if putErr != nil {
-		return outbound.ComposedMessage{}, fmt.Errorf("store outgoing message: %w", putErr)
+	if _, err := tmp.Seek(0, io.SeekStart); err != nil {
+		return outbound.ComposedMessage{}, fmt.Errorf("rewind outgoing message spool: %w", err)
 	}
-	if result.err != nil {
-		return outbound.ComposedMessage{}, result.err
+	if err := s.store.Put(ctx, path, tmp); err != nil {
+		return outbound.ComposedMessage{}, fmt.Errorf("store outgoing message: %w", err)
 	}
-	return result.message, nil
+	return composed, nil
 }
 
 func normalizeSendTextRequest(req SendTextRequest) SendTextRequest {
