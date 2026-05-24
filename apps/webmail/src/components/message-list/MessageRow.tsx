@@ -196,8 +196,9 @@ export function MessageRow({
             onMouseLeave={() => onAvatarLeave?.()}
           >
             {(() => {
-              if (userEmail && message.from_addr === userEmail && userAvatarUrl) {
-                return <img src={userAvatarUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />;
+              const avatarUrl = message.sender_avatar_url || (userEmail && message.from_addr === userEmail ? userAvatarUrl : '');
+              if (avatarUrl) {
+                return <img src={avatarUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />;
               }
               return (message.from_name || message.from_addr).charAt(0).toUpperCase();
             })()}

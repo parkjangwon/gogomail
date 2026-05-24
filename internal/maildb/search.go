@@ -123,6 +123,7 @@ func (r *Repository) SearchMessages(ctx context.Context, query MessageSearchQuer
 			&msg.Preview,
 			&msg.FromAddr,
 			&msg.FromName,
+			&msg.SenderAvatarURL,
 			&msg.ReceivedAt,
 			&msg.Size,
 			&msg.HasAttachment,
@@ -347,6 +348,7 @@ SELECT
   left(btrim(regexp_replace(left(coalesce(msd.body_text, ''), 2000), '[[:space:]]+', ' ', 'g')), 280) AS preview,
   messages.from_addr,
   messages.from_name,
+  COALESCE(sender_user.settings->>'avatar_url', '') AS sender_avatar_url,
   COALESCE(received_at, sent_at, draft_updated_at, created_at) AS message_at,
   messages.size,
   messages.has_attachment,
@@ -375,6 +377,11 @@ CROSS JOIN search_input
 LEFT JOIN message_search_documents msd
   ON msd.message_id = messages.id
  AND msd.user_id = messages.user_id
+LEFT JOIN user_addresses sender_addr
+  ON sender_addr.address_ace = lower(messages.from_addr)
+LEFT JOIN users sender_user
+  ON sender_user.id = sender_addr.user_id
+ AND sender_user.status = 'active'
 WHERE %s
 )
 SELECT
@@ -384,6 +391,7 @@ SELECT
   preview,
   from_addr,
   from_name,
+  sender_avatar_url,
   message_at,
   size,
   has_attachment,

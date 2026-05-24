@@ -1,6 +1,11 @@
 # gogomail current status
 
-Last updated: 2026-05-24 (webmail all-mail folder view)
+Last updated: 2026-05-24 (profile photo avatars)
+
+## Profile photo avatars (2026-05-24)
+- Webmail account settings now uploads/removes a server-backed profile photo on `/me/avatar`, mirrored into the local sidebar avatar cache for immediate UI updates.
+- Internal sender message rows now include and render `sender_avatar_url`, so mail from active local GoGoMail users shows that user's profile photo in the existing sender/BIMI avatar position.
+- Verification: `go test ./internal/maildb ./internal/mailservice ./internal/httpapi`; `pnpm -C apps/webmail type-check`; `pnpm -C apps/webmail exec playwright test e2e/mail-list.spec.ts --grep "internal sender avatar"`.
 
 ## Webmail all-mail folder view (2026-05-24)
 - The sidebar “All mail/모든 편지함” virtual folder now uses the normal message-list endpoint without a `folder_id`, so it lists active mail across inbox, sent, archive, and other folders instead of depending on the search path.

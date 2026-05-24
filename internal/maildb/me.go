@@ -17,6 +17,7 @@ type UserProfile struct {
 	DisplayName   string `json:"display_name"`
 	Email         string `json:"email"`
 	RecoveryEmail string `json:"recovery_email,omitempty"`
+	AvatarURL     string `json:"avatar_url,omitempty"`
 	QuotaUsed     int64  `json:"quota_used"`
 	QuotaLimit    *int64 `json:"quota_limit"`
 }
@@ -27,7 +28,7 @@ func (r *Repository) GetUserProfile(ctx context.Context, userID string) (UserPro
 		return UserProfile{}, fmt.Errorf("database handle is required")
 	}
 	const query = `
-SELECT u.id::text, u.domain_id::text, u.display_name, ua.address, COALESCE(u.recovery_email, ''), u.quota_used, u.quota_limit
+SELECT u.id::text, u.domain_id::text, u.display_name, ua.address, COALESCE(u.recovery_email, ''), COALESCE(u.settings->>'avatar_url', ''), u.quota_used, u.quota_limit
 FROM users u
 JOIN user_addresses ua ON ua.user_id = u.id AND ua.is_primary = true
 WHERE u.id = $1::uuid
@@ -40,6 +41,7 @@ LIMIT 1`
 		&p.DisplayName,
 		&p.Email,
 		&p.RecoveryEmail,
+		&p.AvatarURL,
 		&p.QuotaUsed,
 		&p.QuotaLimit,
 	)
@@ -66,7 +68,7 @@ func (r *Repository) GetUserProfileByEmail(ctx context.Context, email string) (U
 		return UserProfile{}, err
 	}
 	const query = `
-SELECT u.id::text, u.domain_id::text, u.display_name, primary_addr.address, COALESCE(u.recovery_email, ''), u.quota_used, u.quota_limit
+SELECT u.id::text, u.domain_id::text, u.display_name, primary_addr.address, COALESCE(u.recovery_email, ''), COALESCE(u.settings->>'avatar_url', ''), u.quota_used, u.quota_limit
 FROM user_addresses lookup
 JOIN users u ON u.id = lookup.user_id
 JOIN user_addresses primary_addr ON primary_addr.user_id = u.id AND primary_addr.is_primary = true
@@ -80,6 +82,7 @@ LIMIT 1`
 		&p.DisplayName,
 		&p.Email,
 		&p.RecoveryEmail,
+		&p.AvatarURL,
 		&p.QuotaUsed,
 		&p.QuotaLimit,
 	)
@@ -141,6 +144,37 @@ func (r *Repository) UpdateUserDisplayName(ctx context.Context, userID, displayN
 	)
 	if err != nil {
 		return fmt.Errorf("update display name: %w", err)
+	}
+	return nil
+}
+
+// UpdateUserAvatarURL sets or clears the authenticated user's profile avatar data URL.
+func (r *Repository) UpdateUserAvatarURL(ctx context.Context, userID, avatarURL string) error {
+	if r.db == nil {
+		return fmt.Errorf("database handle is required")
+	}
+	userID = strings.TrimSpace(userID)
+	if userID == "" {
+		return fmt.Errorf("user_id is required")
+	}
+	if strings.TrimSpace(avatarURL) == "" {
+		_, err := r.db.ExecContext(ctx, `
+UPDATE users
+SET settings = settings - 'avatar_url',
+    updated_at = now()
+WHERE id = $1::uuid`, userID)
+		if err != nil {
+			return fmt.Errorf("clear user avatar: %w", err)
+		}
+		return nil
+	}
+	_, err := r.db.ExecContext(ctx, `
+UPDATE users
+SET settings = jsonb_set(settings, '{avatar_url}', to_jsonb($2::text), true),
+    updated_at = now()
+WHERE id = $1::uuid`, userID, avatarURL)
+	if err != nil {
+		return fmt.Errorf("update user avatar: %w", err)
 	}
 	return nil
 }

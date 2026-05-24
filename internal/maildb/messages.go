@@ -18,6 +18,7 @@ type MessageSummary struct {
 	Preview          string                   `json:"preview"`
 	FromAddr         string                   `json:"from_addr"`
 	FromName         string                   `json:"from_name"`
+	SenderAvatarURL  string                   `json:"sender_avatar_url,omitempty"`
 	ReceivedAt       time.Time                `json:"received_at"`
 	Size             int64                    `json:"size"`
 	HasAttachment    bool                     `json:"has_attachment"`
@@ -34,22 +35,23 @@ type MessageSearchHighlights struct {
 }
 
 type MessageDetail struct {
-	ID            string          `json:"id"`
-	MessageID     string          `json:"message_id"`
-	Subject       string          `json:"subject"`
-	FromAddr      string          `json:"from_addr"`
-	FromName      string          `json:"from_name"`
-	ToAddrs       json.RawMessage `json:"to_addrs"`
-	CcAddrs       json.RawMessage `json:"cc_addrs"`
-	BccAddrs      json.RawMessage `json:"bcc_addrs"`
-	ReceivedAt    time.Time       `json:"received_at"`
-	Size          int64           `json:"size"`
-	HasAttachment bool            `json:"has_attachment"`
-	Flags         json.RawMessage `json:"flags"`
-	StoragePath   string          `json:"storage_path"`
-	TextBody      string          `json:"text_body"`
-	HTMLBody      string          `json:"html_body,omitempty"`
-	Attachments   []Attachment    `json:"attachments,omitempty"`
+	ID              string          `json:"id"`
+	MessageID       string          `json:"message_id"`
+	Subject         string          `json:"subject"`
+	FromAddr        string          `json:"from_addr"`
+	FromName        string          `json:"from_name"`
+	SenderAvatarURL string          `json:"sender_avatar_url,omitempty"`
+	ToAddrs         json.RawMessage `json:"to_addrs"`
+	CcAddrs         json.RawMessage `json:"cc_addrs"`
+	BccAddrs        json.RawMessage `json:"bcc_addrs"`
+	ReceivedAt      time.Time       `json:"received_at"`
+	Size            int64           `json:"size"`
+	HasAttachment   bool            `json:"has_attachment"`
+	Flags           json.RawMessage `json:"flags"`
+	StoragePath     string          `json:"storage_path"`
+	TextBody        string          `json:"text_body"`
+	HTMLBody        string          `json:"html_body,omitempty"`
+	Attachments     []Attachment    `json:"attachments,omitempty"`
 }
 
 type Folder struct {
@@ -534,6 +536,7 @@ func (r *Repository) ListMessages(ctx context.Context, userID string, limit int)
 			&msg.Preview,
 			&msg.FromAddr,
 			&msg.FromName,
+			&msg.SenderAvatarURL,
 			&msg.ReceivedAt,
 			&msg.Size,
 			&msg.HasAttachment,
@@ -558,6 +561,7 @@ SELECT
   left(btrim(regexp_replace(left(coalesce(msd.body_text, ''), 2000), '[[:space:]]+', ' ', 'g')), 280) AS preview,
   m.from_addr,
   m.from_name,
+  COALESCE(sender_user.settings->>'avatar_url', '') AS sender_avatar_url,
   COALESCE(m.received_at, m.sent_at, m.draft_updated_at, m.created_at),
   m.size,
   m.has_attachment,
@@ -567,6 +571,11 @@ FROM messages m
 LEFT JOIN message_search_documents msd
   ON msd.message_id = m.id
  AND msd.user_id = m.user_id
+LEFT JOIN user_addresses sender_addr
+  ON sender_addr.address_ace = lower(m.from_addr)
+LEFT JOIN users sender_user
+  ON sender_user.id = sender_addr.user_id
+ AND sender_user.status = 'active'
 WHERE m.user_id = $1
   AND m.status = 'active'
 ORDER BY COALESCE(m.received_at, m.sent_at, m.draft_updated_at, m.created_at) DESC, m.id DESC
@@ -597,6 +606,7 @@ func (r *Repository) ListMessagesInFolder(ctx context.Context, userID string, fo
 			&msg.Preview,
 			&msg.FromAddr,
 			&msg.FromName,
+			&msg.SenderAvatarURL,
 			&msg.ReceivedAt,
 			&msg.Size,
 			&msg.HasAttachment,
@@ -621,6 +631,7 @@ SELECT
   left(btrim(regexp_replace(left(coalesce(msd.body_text, ''), 2000), '[[:space:]]+', ' ', 'g')), 280) AS preview,
   m.from_addr,
   m.from_name,
+  COALESCE(sender_user.settings->>'avatar_url', '') AS sender_avatar_url,
   COALESCE(m.received_at, m.sent_at, m.draft_updated_at, m.created_at),
   m.size,
   m.has_attachment,
@@ -630,6 +641,11 @@ FROM messages m
 LEFT JOIN message_search_documents msd
   ON msd.message_id = m.id
  AND msd.user_id = m.user_id
+LEFT JOIN user_addresses sender_addr
+  ON sender_addr.address_ace = lower(m.from_addr)
+LEFT JOIN users sender_user
+  ON sender_user.id = sender_addr.user_id
+ AND sender_user.status = 'active'
 WHERE m.user_id = $1
   AND m.folder_id = $2
   AND m.status = 'active'
@@ -677,6 +693,7 @@ func (r *Repository) ListMessagesPage(ctx context.Context, userID string, folder
 			&msg.Preview,
 			&msg.FromAddr,
 			&msg.FromName,
+			&msg.SenderAvatarURL,
 			&msg.ReceivedAt,
 			&msg.Size,
 			&msg.HasAttachment,
@@ -809,6 +826,7 @@ SELECT
   left(btrim(regexp_replace(left(coalesce(msd.body_text, ''), 2000), '[[:space:]]+', ' ', 'g')), 280) AS preview,
   messages.from_addr,
   messages.from_name,
+  COALESCE(sender_user.settings->>'avatar_url', '') AS sender_avatar_url,
   COALESCE(messages.received_at, messages.sent_at, messages.draft_updated_at, messages.created_at) AS message_at,
   messages.size,
   messages.has_attachment,
@@ -818,7 +836,12 @@ FROM messages
 CROSS JOIN message_list_page_params
 LEFT JOIN message_search_documents msd
   ON msd.message_id = messages.id
- AND msd.user_id = messages.user_id`
+ AND msd.user_id = messages.user_id
+LEFT JOIN user_addresses sender_addr
+  ON sender_addr.address_ace = lower(messages.from_addr)
+LEFT JOIN users sender_user
+  ON sender_user.id = sender_addr.user_id
+ AND sender_user.status = 'active'`
 
 func optionalStringParam(value string) any {
 	if strings.TrimSpace(value) == "" {
@@ -848,23 +871,29 @@ func (r *Repository) GetMessage(ctx context.Context, userID string, messageID st
 
 	const query = `
 SELECT
-  id::text,
-  COALESCE(rfc_message_id, ''),
-  subject,
-  from_addr,
-  from_name,
-  to_addrs,
-  cc_addrs,
-  bcc_addrs,
-  COALESCE(received_at, created_at),
-  size,
-  has_attachment,
-  flags,
-  storage_path
+  messages.id::text,
+  COALESCE(messages.rfc_message_id, ''),
+  messages.subject,
+  messages.from_addr,
+  messages.from_name,
+  COALESCE(sender_user.settings->>'avatar_url', '') AS sender_avatar_url,
+  messages.to_addrs,
+  messages.cc_addrs,
+  messages.bcc_addrs,
+  COALESCE(messages.received_at, messages.created_at),
+  messages.size,
+  messages.has_attachment,
+  messages.flags,
+  messages.storage_path
 FROM messages
-WHERE user_id = $1
-  AND id = $2
-  AND status = 'active'
+LEFT JOIN user_addresses sender_addr
+  ON sender_addr.address_ace = lower(messages.from_addr)
+LEFT JOIN users sender_user
+  ON sender_user.id = sender_addr.user_id
+ AND sender_user.status = 'active'
+WHERE messages.user_id = $1
+  AND messages.id = $2
+  AND messages.status = 'active'
 LIMIT 1`
 
 	var msg MessageDetail
@@ -874,6 +903,7 @@ LIMIT 1`
 		&msg.Subject,
 		&msg.FromAddr,
 		&msg.FromName,
+		&msg.SenderAvatarURL,
 		&msg.ToAddrs,
 		&msg.CcAddrs,
 		&msg.BccAddrs,

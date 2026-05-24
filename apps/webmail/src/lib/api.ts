@@ -27,6 +27,7 @@ export interface MessageSummary {
   preview: string;
   from_addr: string;
   from_name: string;
+  sender_avatar_url?: string;
   received_at: string;
   size: number;
   has_attachment: boolean;
@@ -1605,6 +1606,7 @@ export interface UserProfile {
   display_name: string;
   email: string;
   recovery_email?: string;
+  avatar_url?: string;
   quota_used: number;
   quota_limit: number | null;
 }
@@ -1641,6 +1643,28 @@ export async function updateUserProfile(fields: { display_name?: string; recover
   });
   if (!res.ok) {
     throw new Error(await responseErrorMessage(res, 'Failed to update profile.'));
+  }
+}
+
+
+export async function uploadUserAvatar(file: File): Promise<string> {
+  const form = new FormData();
+  form.set('avatar', file);
+  const res = await fetch('/api/mail/me/avatar', {
+    method: 'PUT',
+    body: form,
+  });
+  if (!res.ok) {
+    throw new Error(await responseErrorMessage(res, 'Failed to upload profile photo.'));
+  }
+  const data = await res.json() as { avatar_url?: string };
+  return data.avatar_url ?? '';
+}
+
+export async function deleteUserAvatar(): Promise<void> {
+  const res = await fetch('/api/mail/me/avatar', { method: 'DELETE' });
+  if (!res.ok) {
+    throw new Error(await responseErrorMessage(res, 'Failed to remove profile photo.'));
   }
 }
 

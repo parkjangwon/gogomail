@@ -231,6 +231,7 @@ func (r *Repository) ListThreadMessagesPage(ctx context.Context, userID string, 
 			&msg.Preview,
 			&msg.FromAddr,
 			&msg.FromName,
+			&msg.SenderAvatarURL,
 			&msg.ReceivedAt,
 			&msg.Size,
 			&msg.HasAttachment,
@@ -255,6 +256,7 @@ SELECT
   left(btrim(regexp_replace(left(coalesce(msd.body_text, ''), 2000), '[[:space:]]+', ' ', 'g')), 280) AS preview,
   messages.from_addr,
   messages.from_name,
+  COALESCE(sender_user.settings->>'avatar_url', '') AS sender_avatar_url,
   COALESCE(messages.received_at, messages.sent_at, messages.draft_updated_at, messages.created_at) AS message_at,
   messages.size,
   messages.has_attachment,
@@ -264,6 +266,11 @@ FROM messages
 LEFT JOIN message_search_documents msd
   ON msd.message_id = messages.id
  AND msd.user_id = messages.user_id
+LEFT JOIN user_addresses sender_addr
+  ON sender_addr.address_ace = lower(messages.from_addr)
+LEFT JOIN users sender_user
+  ON sender_user.id = sender_addr.user_id
+ AND sender_user.status = 'active'
 WHERE messages.user_id = $1
   AND messages.status = 'active'
   AND (

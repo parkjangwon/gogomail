@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { CheckIcon, ExclamationTriangleIcon, NoSymbolIcon, ArrowDownTrayIcon } from '@heroicons/react/24/outline';
-import { revokeAllSessions, getFolderStats, exportFolderEml, exportFolderZip, getPreferences, setPreferences, getUserProfile, updateUserProfile, changePassword, registerWebPushDevice, getNotificationPreferences, setNotificationPreferences, getFolders, type FolderStats, type WebmailPreferences, type UserProfile, type NotificationPreferences, type FolderNotificationOverride, type Folder } from '@/lib/api';
+import { revokeAllSessions, getFolderStats, exportFolderEml, exportFolderZip, getPreferences, setPreferences, getUserProfile, updateUserProfile, uploadUserAvatar, deleteUserAvatar, changePassword, registerWebPushDevice, getNotificationPreferences, setNotificationPreferences, getFolders, type FolderStats, type WebmailPreferences, type UserProfile, type NotificationPreferences, type FolderNotificationOverride, type Folder } from '@/lib/api';
 import { ReadMark, ExternalImages, SendDelay, Theme, FontSize, ACCENT_COLORS, FilterRule, migrateFilterRule, loadFilterRules, saveFilterRules } from '@/lib/settings/settingsUtils';
 import { NAV_ITEMS, SHORTCUT_GROUPS, type SectionId } from '@/components/settings-view/settingsViewConfig';
 import { Kbd, MiniEditor, Row, SectionCard, SectionHeader, Segment, Toggle, loadWmSettings, saveWmSetting } from '@/components/settings-view/settingsViewPrimitives';
@@ -19,6 +19,7 @@ import { handleVerticalNavKeyDown } from '@/lib/navKeyboard';
 import { webPushPublicKeyToUint8Array } from '@/lib/webpush';
 import { loadLocalEmailTemplates, normalizeEmailTemplates, saveLocalEmailTemplates, type StoredEmailTemplate } from '@/lib/emailTemplates';
 import { stableId } from '@/lib/stableId';
+import { setWebmailAvatar } from '@/lib/webmailAvatar';
 
 export interface SettingsViewProps {
   userEmail?: string;
@@ -81,6 +82,9 @@ export function SettingsView({ userEmail, userName, initialSection }: SettingsVi
   const [recoveryError, setRecoveryError] = useState('');
   const [signature, setSignature] = useState('');
   const [sigSaved, setSigSaved] = useState(false);
+  const [avatarUrl, setAvatarUrl] = useState('');
+  const [avatarSaving, setAvatarSaving] = useState(false);
+  const [avatarError, setAvatarError] = useState('');
 
   // Inbox
   const [convMode, setConvMode] = useState(true);
@@ -208,6 +212,8 @@ export function SettingsView({ userEmail, userName, initialSection }: SettingsVi
       if (p) {
         setProfile(p);
         setRecoveryEmail(p.recovery_email ?? '');
+        setAvatarUrl(p.avatar_url ?? '');
+        setWebmailAvatar(p.avatar_url ?? '');
       }
     }).catch(() => {});
     getPreferences().then((prefs: WebmailPreferences) => {
@@ -444,6 +450,36 @@ export function SettingsView({ userEmail, userName, initialSection }: SettingsVi
     document.documentElement.style.setProperty('--font-size-base', map[fs]);
   }
 
+
+  async function handleAvatarUpload(file: File | undefined) {
+    if (!file) return;
+    setAvatarError('');
+    setAvatarSaving(true);
+    try {
+      const url = await uploadUserAvatar(file);
+      setAvatarUrl(url);
+      setWebmailAvatar(url);
+    } catch (err) {
+      setAvatarError(err instanceof Error ? err.message : t('avatarUploadError'));
+    } finally {
+      setAvatarSaving(false);
+    }
+  }
+
+  async function handleAvatarRemove() {
+    setAvatarError('');
+    setAvatarSaving(true);
+    try {
+      await deleteUserAvatar();
+      setAvatarUrl('');
+      setWebmailAvatar('');
+    } catch (err) {
+      setAvatarError(err instanceof Error ? err.message : t('avatarRemoveError'));
+    } finally {
+      setAvatarSaving(false);
+    }
+  }
+
   function saveDisplayName() {
     try { localStorage.setItem('webmail_display_name', displayName); } catch { /* ignore */ }
     updateUserProfile({ display_name: displayName }).catch(() => {});
@@ -541,8 +577,8 @@ export function SettingsView({ userEmail, userName, initialSection }: SettingsVi
         return (
           <>
             <div style={{ display: 'flex', alignItems: 'center', gap: '16px', padding: '20px', background: 'var(--color-bg-secondary)', border: '1px solid var(--color-border-subtle)', borderRadius: '10px', marginBottom: '20px' }}>
-              <div style={{ width: '52px', height: '52px', borderRadius: '50%', background: 'var(--color-accent)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px', fontWeight: 700, flexShrink: 0 }}>
-                {(displayName || userEmail || '?')[0].toUpperCase()}
+              <div style={{ width: '52px', height: '52px', borderRadius: '50%', background: avatarUrl ? 'transparent' : 'var(--color-accent)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px', fontWeight: 700, flexShrink: 0, overflow: 'hidden' }}>
+                {avatarUrl ? <img src={avatarUrl} alt={t('profilePhotoAlt')} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : (displayName || userEmail || '?')[0].toUpperCase()}
               </div>
               <div>
                 <div style={{ fontSize: '15px', fontWeight: 600, color: 'var(--color-text-primary)' }}>{displayName || userName || t('nameEmpty')}</div>
@@ -551,6 +587,21 @@ export function SettingsView({ userEmail, userName, initialSection }: SettingsVi
             </div>
             <SectionCard>
               <SectionHeader>{t('sectionProfile')}</SectionHeader>
+
+              <Row label={t('profilePhoto')} description={t('profilePhotoDesc')}>
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                  <label style={{ padding: '6px 14px', borderRadius: '6px', border: '1px solid var(--color-border-default)', background: 'var(--color-bg-primary)', color: 'var(--color-text-primary)', fontSize: '12px', fontWeight: 600, cursor: avatarSaving ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap', opacity: avatarSaving ? 0.6 : 1 }}>
+                    {avatarSaving ? t('profilePhotoSaving') : t('profilePhotoUpload')}
+                    <input type="file" accept="image/png,image/jpeg,image/gif,image/webp" disabled={avatarSaving} style={{ display: 'none' }} onChange={(e) => { void handleAvatarUpload(e.target.files?.[0]); e.currentTarget.value = ''; }} />
+                  </label>
+                  {avatarUrl && (
+                    <button onClick={handleAvatarRemove} disabled={avatarSaving} style={{ padding: '6px 14px', borderRadius: '6px', border: '1px solid var(--color-border-default)', background: 'transparent', color: 'var(--color-destructive)', fontSize: '12px', fontWeight: 600, cursor: avatarSaving ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap' }}>
+                      {t('profilePhotoRemove')}
+                    </button>
+                  )}
+                  {avatarError && <span style={{ fontSize: '12px', color: 'var(--color-danger, #dc2626)', width: '100%', textAlign: 'right' }}>{avatarError}</span>}
+                </div>
+              </Row>
               <Row label={t('displayName')} description={t('displayNameDesc')}>
                 <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                   <input value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder={t('namePlaceholder')} style={{ padding: '6px 11px', borderRadius: '6px', border: '1px solid var(--color-border-default)', background: 'var(--color-bg-primary)', color: 'var(--color-text-primary)', fontSize: '13px', width: '170px', outline: 'none' }} />
