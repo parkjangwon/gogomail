@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -17,7 +18,7 @@ import (
 	"github.com/gogomail/gogomail/internal/maildb"
 )
 
-func registerAdminMFARoutes(mux *http.ServeMux, cfg adminRouteConfig, adminAuth func(http.HandlerFunc) http.HandlerFunc) {
+func registerAdminMFARoutes(mux *http.ServeMux, service AdminService, cfg adminRouteConfig, adminAuth func(http.HandlerFunc) http.HandlerFunc) {
 	if cfg.adminMFAStore == nil || cfg.tokenMgr == nil {
 		return
 	}
@@ -110,7 +111,7 @@ func registerAdminMFARoutes(mux *http.ServeMux, cfg adminRouteConfig, adminAuth 
 			req.Issuer = "GoGoMail Admin"
 		}
 		if req.Email == "" {
-			req.Email = claims.UserID
+			req.Email = adminMFAProvisioningEmail(r.Context(), service, claims)
 		}
 
 		secret, err := authmfa.GenerateSecret()
@@ -130,7 +131,7 @@ func registerAdminMFARoutes(mux *http.ServeMux, cfg adminRouteConfig, adminAuth 
 
 		qrURI := fmt.Sprintf(
 			"otpauth://totp/%s:%s?secret=%s&issuer=%s&digits=6&period=30",
-			req.Issuer, req.Email, secret, req.Issuer,
+			url.PathEscape(req.Issuer), url.PathEscape(req.Email), url.QueryEscape(secret), url.QueryEscape(req.Issuer),
 		)
 		qrPNG, err := qrcode.Encode(qrURI, qrcode.Medium, 180)
 		if err != nil {
@@ -198,6 +199,14 @@ func registerAdminMFARoutes(mux *http.ServeMux, cfg adminRouteConfig, adminAuth 
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"status": "mfa disabled"})
 	}))
+}
+
+func adminMFAProvisioningEmail(ctx context.Context, service AdminService, claims auth.Claims) string {
+	email, err := userPrimaryEmail(ctx, service, claims.UserID)
+	if err == nil && strings.TrimSpace(email) != "" {
+		return email
+	}
+	return claims.UserID
 }
 
 // adminMFASetupRequired returns true when the role+policy combination demands

@@ -1,6 +1,13 @@
 # gogomail current status
 
-Last updated: 2026-05-24 (No-code scaling deployment contract)
+Last updated: 2026-05-24 (Frontend auth/MFA local smoke hardening)
+
+## Frontend auth/MFA local smoke hardening (2026-05-24)
+- Admin console MFA enrollment now labels authenticator entries with the user email instead of the opaque user id, URL-encodes the otpauth label/issuer, remembers the login email for setup requests, and redirects to `/` after successful setup confirmation.
+- Admin console MFA settings SpaceBetween children now carry stable keys, removing the first-login MFA registration React key warning.
+- Webmail and console server-side API helpers now fall back to `http://localhost:8080` only in non-production when `GOGOMAIL_BACKEND_URL` is absent, preserving production config failure behavior while making local Docker smoke resilient.
+- Webmail now proxies `/api/v1/config/web-push` through Next.js and only injects the development `user_id` query when no JWT cookie is present, so authenticated folders and notification preferences use the bearer token contract.
+- Verification: `go test ./internal/httpapi -run 'TestAdminMFASetupDefaultsProvisioningLabelToUserEmail|TestAdminVerify'`; `go test ./...`; `pnpm -C apps/webmail type-check`; `pnpm -C apps/console type-check`; local curl smoke for webmail login, folders, notification preferences, web-push config, and admin MFA setup QR URI.
 
 ## No-code Scaling Deployment Contract (2026-05-24)
 - Added `docker/docker-compose.scale.yml` as a split-mode Compose template that reuses one GoGoMail backend image across API, protocol, SMTP, and worker modes so operators can scale by editing env/profile/replica settings instead of code.

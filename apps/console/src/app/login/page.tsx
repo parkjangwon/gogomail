@@ -31,6 +31,10 @@ function LoginPageContent() {
   const [mfaCode, setMfaCode] = useState('');
   const [useRecovery, setUseRecovery] = useState(false);
 
+  const rememberAdminEmail = () => {
+    localStorage.setItem('console_admin_email', email.trim());
+  };
+
   const validate = () => {
     let valid = true;
     if (!email.trim()) {
@@ -81,10 +85,13 @@ function LoginPageContent() {
       };
 
       if (data.mfa_required && data.pending_token) {
+        rememberAdminEmail();
         setPendingToken(data.pending_token);
         setStep('mfa');
         return;
       }
+
+      rememberAdminEmail();
 
       if (data.mfa_setup_required) {
         localStorage.setItem('console_mfa_setup_required', '1');
@@ -122,6 +129,7 @@ function LoginPageContent() {
         const message = typeof errorData?.error === 'string' ? errorData.error : 'Invalid code';
         throw new Error(message);
       }
+      rememberAdminEmail();
       const next = searchParams.get('next');
       const destination = next?.startsWith('/companies/') ? next : '/companies/default/dashboard';
       router.push(destination);
