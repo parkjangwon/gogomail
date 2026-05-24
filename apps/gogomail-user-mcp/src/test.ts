@@ -19,7 +19,7 @@ describe("MCP generated mail notice", () => {
 });
 
 describe("GoGoMail API contract alignment", () => {
-  test("creates Drive text files through upload sessions with declared_size and storage_backend", async () => {
+  test("creates Drive text files through upload sessions with declared_size and backend-default storage", async () => {
     const calls: CapturedCall[] = [];
     const fake = {
       settings: async () => ({ permission_mode: "bypass" as const }),
@@ -33,7 +33,7 @@ describe("GoGoMail API contract alignment", () => {
       },
     };
 
-    await callTool(fake as never, "gogomail_drive_create_text_file", { name: "note.txt", content: "hello", storage_backend: "local" }, "basic");
+    await callTool(fake as never, "gogomail_drive_create_text_file", { name: "note.txt", content: "hello" }, "basic");
 
     assert.equal(calls[0]?.method, "POST");
     assert.equal(calls[0]?.path, "/api/v1/drive/upload-sessions");
@@ -42,7 +42,7 @@ describe("GoGoMail API contract alignment", () => {
       name: "note.txt",
       mime_type: "text/plain; charset=utf-8",
       declared_size: 5,
-      storage_backend: "local",
+      storage_backend: undefined,
     });
     assert.equal(calls[1]?.method, "PUT");
     assert.equal(calls[1]?.path, "/api/v1/drive/upload-sessions/session-1/body");

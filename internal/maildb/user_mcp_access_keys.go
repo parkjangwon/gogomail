@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"net/netip"
 	"strings"
 	"time"
 
@@ -118,7 +119,10 @@ func (r *Repository) CreateUserMCPAccessKey(ctx context.Context, req CreateUserM
 	if err := ensureUserMCPScopesAllowed(scopes, policy.AllowedScopes); err != nil {
 		return CreatedUserMCPAccessKey{}, err
 	}
-	cidrs := normalizeStringSlice(req.AllowedCIDRs)
+	cidrs, err := normalizeUserMCPAllowedCIDRs(req.AllowedCIDRs)
+	if err != nil {
+		return CreatedUserMCPAccessKey{}, err
+	}
 	token, err := apikeys.GenerateUserMCPKey()
 	if err != nil {
 		return CreatedUserMCPAccessKey{}, err
@@ -331,6 +335,37 @@ func normalizeMCPPermissionMode(value string) string {
 
 func normalizeMCPScopes(values []string) []string {
 	return normalizeStringSlice(values)
+}
+
+func normalizeUserMCPAllowedCIDRs(values []string) ([]string, error) {
+	seen := map[string]struct{}{}
+	out := make([]string, 0, len(values))
+	for _, value := range values {
+		value = strings.TrimSpace(value)
+		if value == "" {
+			continue
+		}
+		var normalized string
+		if prefix, err := netip.ParsePrefix(value); err == nil {
+			normalized = prefix.Masked().String()
+		} else {
+			addr, err := netip.ParseAddr(value)
+			if err != nil {
+				return nil, fmt.Errorf("allowed_cidrs contains invalid IP or CIDR %q", value)
+			}
+			if addr.Is4() {
+				normalized = netip.PrefixFrom(addr, 32).String()
+			} else {
+				normalized = netip.PrefixFrom(addr, 128).String()
+			}
+		}
+		if _, ok := seen[normalized]; ok {
+			continue
+		}
+		seen[normalized] = struct{}{}
+		out = append(out, normalized)
+	}
+	return out, nil
 }
 
 func normalizeStringSlice(values []string) []string {

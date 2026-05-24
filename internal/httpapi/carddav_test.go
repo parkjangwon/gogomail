@@ -9,13 +9,15 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/gogomail/gogomail/internal/apikeys"
 	"github.com/gogomail/gogomail/internal/carddavgw"
+	"github.com/gogomail/gogomail/internal/directory"
 )
 
 type fakeContactRepo struct {
 	addressBooks []carddavgw.AddressBook
 	contacts     []carddavgw.ContactObject
-	err         error
+	err          error
 }
 
 func (f *fakeContactRepo) ListAddressBooks(ctx context.Context, req carddavgw.ListAddressBooksRequest) ([]carddavgw.AddressBook, error) {
@@ -102,6 +104,33 @@ func (f *fakeContactRepo) SearchContacts(ctx context.Context, req carddavgw.Sear
 		return nil, f.err
 	}
 	return f.contacts, nil
+}
+
+type fakeDirectoryRepo struct {
+	lastSearch directory.SearchPrincipalsRequest
+	lastOrg    struct {
+		companyID string
+		domainID  string
+	}
+}
+
+func (f *fakeDirectoryRepo) SearchPrincipals(_ context.Context, req directory.SearchPrincipalsRequest) ([]directory.Principal, error) {
+	f.lastSearch = req
+	return []directory.Principal{{ID: "user-1", DisplayName: "Jangwon Park", PrimaryEmail: "pjw@parkjw.org"}}, nil
+}
+
+func (f *fakeDirectoryRepo) ResolvePrincipal(_ context.Context, req directory.ResolvePrincipalRequest) (directory.Principal, error) {
+	return directory.Principal{ID: req.ID, CompanyID: "company-1", DomainID: "domain-1", PrimaryEmail: "pjw@parkjw.org"}, nil
+}
+
+func (f *fakeDirectoryRepo) ListOrgTree(_ context.Context, companyID, domainID string) ([]directory.OrgTreeItem, error) {
+	f.lastOrg.companyID = companyID
+	f.lastOrg.domainID = domainID
+	return []directory.OrgTreeItem{{ID: "org-1", DisplayName: "Team", Depth: 0}}, nil
+}
+
+func (f *fakeDirectoryRepo) ListOrgMembersByOrgIDs(_ context.Context, companyID, domainID string, orgIDs []string, limitPerOrg int) (map[string][]directory.Principal, error) {
+	return map[string][]directory.Principal{"org-1": []directory.Principal{{ID: "user-1", DisplayName: "Jangwon Park", PrimaryEmail: "pjw@parkjw.org"}}}, nil
 }
 
 func TestContactListAddressBooks(t *testing.T) {
@@ -412,5 +441,57 @@ func TestContactAutocompleteWithNoResults(t *testing.T) {
 	}
 	if len(out.Results) != 0 {
 		t.Fatalf("AutocompleteResponse results: got %d, want 0", len(out.Results))
+	}
+}
+
+func TestDirectoryUsersAcceptsUserMCPAPIKey(t *testing.T) {
+	t.Parallel()
+
+	dir := &fakeDirectoryRepo{}
+	mux := http.NewServeMux()
+	handler := &ContactHandler{repo: &fakeContactRepo{}, directoryRepo: dir}
+	RegisterContactRoutes(mux, handler, nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/mail/directory/users?q=pjw&limit=5", nil)
+	req = req.WithContext(apikeys.ContextWithKeyInfo(req.Context(), &apikeys.KeyInfo{
+		ID:       "key-1",
+		UserID:   "user-1",
+		DomainID: "domain-1",
+		Scopes:   []string{"contacts:read"},
+	}))
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("GET /api/mail/directory/users with MCP key: got status %d body %s, want 200", rec.Code, rec.Body.String())
+	}
+	if dir.lastSearch.CompanyID != "company-1" || dir.lastSearch.DomainID != "domain-1" || dir.lastSearch.Query != "pjw" || dir.lastSearch.Limit != 5 {
+		t.Fatalf("lastSearch = %+v", dir.lastSearch)
+	}
+}
+
+func TestDirectoryOrgTreeAcceptsUserMCPAPIKey(t *testing.T) {
+	t.Parallel()
+
+	dir := &fakeDirectoryRepo{}
+	mux := http.NewServeMux()
+	handler := &ContactHandler{repo: &fakeContactRepo{}, directoryRepo: dir}
+	RegisterContactRoutes(mux, handler, nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/mail/directory/org-tree", nil)
+	req = req.WithContext(apikeys.ContextWithKeyInfo(req.Context(), &apikeys.KeyInfo{
+		ID:       "key-1",
+		UserID:   "user-1",
+		DomainID: "domain-1",
+		Scopes:   []string{"contacts:read"},
+	}))
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("GET /api/mail/directory/org-tree with MCP key: got status %d body %s, want 200", rec.Code, rec.Body.String())
+	}
+	if dir.lastOrg.companyID != "company-1" || dir.lastOrg.domainID != "domain-1" {
+		t.Fatalf("lastOrg = %+v", dir.lastOrg)
 	}
 }

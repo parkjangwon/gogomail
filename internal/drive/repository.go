@@ -552,7 +552,7 @@ RETURNING
 
 func driveParentFolderInsertFragments(parentID string) (string, string, string) {
 	if parentID == "" {
-		return "", "NULL", ""
+		return "", "NULLIF($2, '')::uuid", ""
 	}
 	return `,
 parent AS (

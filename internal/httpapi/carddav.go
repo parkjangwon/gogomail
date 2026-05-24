@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/gogomail/gogomail/internal/apikeys"
 	"github.com/gogomail/gogomail/internal/auth"
 	"github.com/gogomail/gogomail/internal/carddavgw"
 	"github.com/gogomail/gogomail/internal/directory"
@@ -475,29 +476,9 @@ func RegisterContactRoutes(mux *http.ServeMux, handler *ContactHandler, tokenMan
 			writeError(w, http.StatusServiceUnavailable, "directory not available")
 			return
 		}
-		var companyID, domainID string
-		if tokenManager != nil {
-			claims, ok := claimsFromRequest(w, r, tokenManager)
-			if !ok {
-				return
-			}
-			companyID = claims.CompanyID
-			domainID = claims.DomainID
-		} else {
-			userID, ok := userIDFromRequest(w, r, nil)
-			if !ok {
-				return
-			}
-			principal, err := handler.directoryRepo.ResolvePrincipal(r.Context(), directory.ResolvePrincipalRequest{
-				ID:   userID,
-				Kind: directory.PrincipalKindUser,
-			})
-			if err != nil {
-				writeError(w, http.StatusInternalServerError, "directory lookup failed")
-				return
-			}
-			companyID = principal.CompanyID
-			domainID = principal.DomainID
+		companyID, domainID, ok := directoryScopeFromRequest(w, r, handler, tokenManager)
+		if !ok {
+			return
 		}
 		q := r.URL.Query().Get("q")
 		limit := 50
@@ -539,33 +520,19 @@ func RegisterContactRoutes(mux *http.ServeMux, handler *ContactHandler, tokenMan
 
 	// GET /api/mail/directory/org-tree — org units with their members
 	mux.HandleFunc("GET /api/mail/directory/org-tree", func(w http.ResponseWriter, r *http.Request) {
+		if !rejectBodylessRequestPayload(w, r) {
+			return
+		}
+		if !rejectUnknownQueryKeys(w, r, "user_id") {
+			return
+		}
 		if handler.directoryRepo == nil {
 			writeError(w, http.StatusServiceUnavailable, "directory not available")
 			return
 		}
-		var companyID, domainID string
-		if tokenManager != nil {
-			claims, ok := claimsFromRequest(w, r, tokenManager)
-			if !ok {
-				return
-			}
-			companyID = claims.CompanyID
-			domainID = claims.DomainID
-		} else {
-			userID, ok := userIDFromRequest(w, r, nil)
-			if !ok {
-				return
-			}
-			p, err := handler.directoryRepo.ResolvePrincipal(r.Context(), directory.ResolvePrincipalRequest{
-				ID:   userID,
-				Kind: directory.PrincipalKindUser,
-			})
-			if err != nil {
-				writeJSON(w, http.StatusOK, map[string]any{"units": []any{}})
-				return
-			}
-			companyID = p.CompanyID
-			domainID = p.DomainID
+		companyID, domainID, ok := directoryScopeFromRequest(w, r, handler, tokenManager)
+		if !ok {
+			return
 		}
 		orgs, err := handler.directoryRepo.ListOrgTree(r.Context(), companyID, domainID)
 		if err != nil {
@@ -607,6 +574,44 @@ func RegisterContactRoutes(mux *http.ServeMux, handler *ContactHandler, tokenMan
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"units": units})
 	})
+}
+
+func directoryScopeFromRequest(w http.ResponseWriter, r *http.Request, handler *ContactHandler, tokenManager *auth.TokenManager) (string, string, bool) {
+	if info, ok := apikeys.KeyInfoFromContext(r.Context()); ok && info != nil && strings.TrimSpace(info.UserID) != "" {
+		userID, ok := userScopedAPIKeyUserIDFromRequest(w, r, info, "", "")
+		if !ok {
+			return "", "", false
+		}
+		principal, err := handler.directoryRepo.ResolvePrincipal(r.Context(), directory.ResolvePrincipalRequest{
+			ID:   userID,
+			Kind: directory.PrincipalKindUser,
+		})
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "directory lookup failed")
+			return "", "", false
+		}
+		return principal.CompanyID, principal.DomainID, true
+	}
+	if tokenManager != nil {
+		claims, ok := claimsFromRequest(w, r, tokenManager)
+		if !ok {
+			return "", "", false
+		}
+		return claims.CompanyID, claims.DomainID, true
+	}
+	userID, ok := userIDFromRequest(w, r, nil)
+	if !ok {
+		return "", "", false
+	}
+	principal, err := handler.directoryRepo.ResolvePrincipal(r.Context(), directory.ResolvePrincipalRequest{
+		ID:   userID,
+		Kind: directory.PrincipalKindUser,
+	})
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "directory lookup failed")
+		return "", "", false
+	}
+	return principal.CompanyID, principal.DomainID, true
 }
 
 // vcardPropValue returns the first value of the named vCard property,

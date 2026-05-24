@@ -7020,3 +7020,9 @@ Target outcome:
       calendar subscription tools; backend enforcement keeps send scope,
       generated notices, granular send settings, and trusted-proxy CIDR checks
       authoritative for user-scoped `gmu_` keys.
+1917. User MCP local-Docker smoke now exercises the real stdio server against
+      `pjw@parkjw.org`, covering settings, folders, contacts, directory,
+      Drive upload/trash/delete, calendar reads, bridge deny rules, and a
+      queued self-send with the generated-mail notice; the smoke fixed CIDR
+      normalization, directory API-key scope routing, Drive upload SQL
+      finalization, and S3-compatible outgoing mail `Content-Length` handling.

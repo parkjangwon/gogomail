@@ -175,11 +175,11 @@ func TestDriveCreateQueriesUseSargableParentFilters(t *testing.T) {
 		t.Run(name+"_root", func(t *testing.T) {
 			t.Parallel()
 
-			if strings.Contains(query, "parent AS") || strings.Contains(query, "$2::uuid") || strings.Contains(query, "EXISTS (SELECT 1 FROM parent)") {
+			if strings.Contains(query, "parent AS") || strings.Contains(query, "EXISTS (SELECT 1 FROM parent)") {
 				t.Fatalf("%s root create query unexpectedly includes parent lookup:\n%s", name, query)
 			}
-			if !strings.Contains(query, "\n  NULL,\n") {
-				t.Fatalf("%s root create query missing NULL parent projection:\n%s", name, query)
+			if !strings.Contains(query, "\n  NULLIF($2, '')::uuid,\n") {
+				t.Fatalf("%s root create query missing typed NULL parent projection:\n%s", name, query)
 			}
 		})
 	}

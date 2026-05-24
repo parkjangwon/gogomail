@@ -60,4 +60,6 @@ The user MCP server only calls existing GoGoMail user APIs:
 
 For agent-native coverage, `gogomail_api_request` can call the documented user API surface through an exact method/path manifest. It blocks admin, auth, password, session, and MCP key-management routes and denies undocumented future routes until the manifest is intentionally updated.
 
+Drive text-file creation uses the real upload-session API. If `storage_backend` is omitted, the backend selects the configured storage backend; clients should only pass an explicit backend label when they know it is enabled for that environment. Permanent Drive delete applies to already-trashed nodes, so agents should call `gogomail_drive_trash` before `gogomail_drive_delete` for active files.
+
 When a needed user workflow has no API, add the backend API first and document it in `docs/openapi.yaml` before exposing an MCP tool.

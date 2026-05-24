@@ -3138,7 +3138,7 @@ func requiredUserAPIKeyScope(r *http.Request) string {
 		}
 		return "calendar:write"
 	}
-	if strings.Contains(path, "/api/mail/addressbooks") || strings.Contains(path, "/api/mail/contacts") {
+	if strings.Contains(path, "/api/mail/addressbooks") || strings.Contains(path, "/api/mail/contacts") || strings.Contains(path, "/api/mail/directory") {
 		if r.Method == http.MethodGet || r.Method == http.MethodHead || r.Method == http.MethodOptions {
 			return "contacts:read"
 		}
