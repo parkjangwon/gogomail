@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { deleteMessage, restoreMessage, bulkRestoreMessages, createFolder, renameFolder, deleteFolder, starMessage, markRead, moveMessage, bulkMarkRead, searchMessages, sendMessage, listThreads, listThreadMessages, getNotificationPreferences, setNotificationPreferences, UIComposeIntent, MessageAddress, MessageDetail, MessageSummary, ThreadSummary, type ThreadNotificationOverride } from '@/lib/api';
+import { deleteMessage, restoreMessage, bulkRestoreMessages, createFolder, renameFolder, deleteFolder, starMessage, markRead, moveMessage, bulkMarkRead, searchMessages, getMessages, sendMessage, listThreads, listThreadMessages, getNotificationPreferences, setNotificationPreferences, UIComposeIntent, MessageAddress, MessageDetail, MessageSummary, ThreadSummary, type ThreadNotificationOverride } from '@/lib/api';
 import { AdvancedFilters, VIRTUAL_ALL, VIRTUAL_STARRED, VIRTUAL_ATTACHMENTS, VIRTUAL_UNREAD, VIRTUAL_SNOOZED, VIRTUAL_PINNED, VIRTUAL_IMPORTANT, VIRTUAL_TASKS } from '@/components/Sidebar';
 import { useMailList, type RefreshIntervalSeconds } from '@/hooks/useMailList';
 import { useMessage } from '@/hooks/useMessage';
@@ -273,7 +273,7 @@ export default function MailPage() {
     addToast(color ? t('misc.mailPage.labelAdded', { count: ids.length }) : t('misc.mailPage.labelRemoved', { count: ids.length }), 'info');
   }, [addToast]);
 
-  const { folders, messages, setMessages, foldersLoading, messagesLoading, hasMore, loadingMore, loadMore, adjustUnread, refresh, refreshing } =
+  const { folders, messages, setMessages, foldersLoading, messagesLoading, setMessagesLoading, hasMore, loadingMore, loadMore, adjustUnread, refresh, refreshing } =
     useMailList(activeFolderId, refreshIntervalSeconds);
   const [threadMessages, setThreadMessages] = useState<MessageSummary[]>([]);
 
@@ -304,48 +304,67 @@ export default function MailPage() {
     }
   }, [folders, activeFolderId]);
 
-  // Virtual folder message loading
+  // Virtual folder message loading.
+  // __starred__, __unread__, __attachments__: use the messages API directly with
+  // server-side filters (starred/read/has_attachment) so we never miss messages
+  // due to a small page limit.
+  // __pinned__, __important__, __snoozed__, __tasks__: stored in localStorage so
+  // we have to fetch a broad set and filter client-side; 500 covers typical usage.
   useEffect(() => {
     if (!activeFolderId.startsWith('__') || activeFolderId === VIRTUAL_ALL) return;
     let cancelled = false;
-    const params = activeFolderId === VIRTUAL_ATTACHMENTS ? { has_attachment: true, limit: 100 } : { limit: 100 };
-    searchMessages(params).then((res) => {
-      if (cancelled) return;
-      let msgs = res.messages ?? [];
-      if (activeFolderId === VIRTUAL_STARRED) msgs = msgs.filter((m) => m.starred);
-      if (activeFolderId === VIRTUAL_UNREAD) msgs = msgs.filter((m) => !m.read);
+    setMessagesLoading(true);
+
+    const load = async (): Promise<MessageSummary[]> => {
+      if (activeFolderId === VIRTUAL_STARRED) {
+        const data = await getMessages('', '', 500, { starred: true });
+        return data.messages ?? [];
+      }
+      if (activeFolderId === VIRTUAL_UNREAD) {
+        const data = await getMessages('', '', 500, { read: false });
+        return data.messages ?? [];
+      }
+      if (activeFolderId === VIRTUAL_ATTACHMENTS) {
+        const data = await getMessages('', '', 500, { has_attachment: true });
+        return data.messages ?? [];
+      }
+      // localStorage-based virtual folders: fetch a broad recent pool and filter.
+      const data = await searchMessages({ limit: 500 });
+      let msgs = data.messages ?? [];
       if (activeFolderId === VIRTUAL_SNOOZED) {
         try {
           const snoozed: Record<string, string> = JSON.parse(localStorage.getItem('webmail_snoozed') ?? '{}');
           const now = Date.now();
           msgs = msgs.filter((m) => snoozed[m.id] && new Date(snoozed[m.id]).getTime() > now);
         } catch { /* ignore */ }
-      }
-      if (activeFolderId === VIRTUAL_PINNED) {
+      } else if (activeFolderId === VIRTUAL_PINNED) {
         try {
           const pinned: string[] = JSON.parse(localStorage.getItem('webmail_pinned') ?? '[]');
           const pinnedSet = new Set(pinned);
           msgs = msgs.filter((m) => pinnedSet.has(m.id));
         } catch { /* ignore */ }
-      }
-      if (activeFolderId === VIRTUAL_IMPORTANT) {
+      } else if (activeFolderId === VIRTUAL_IMPORTANT) {
         try {
           const important: string[] = JSON.parse(localStorage.getItem('webmail_important') ?? '[]');
           const importantSet = new Set(important);
           msgs = msgs.filter((m) => importantSet.has(m.id));
         } catch { /* ignore */ }
-      }
-      if (activeFolderId === VIRTUAL_TASKS) {
+      } else if (activeFolderId === VIRTUAL_TASKS) {
         try {
           const tasks: { messageId: string }[] = JSON.parse(localStorage.getItem('webmail_tasks') ?? '[]');
           const taskIds = new Set(tasks.map((t) => t.messageId));
           msgs = msgs.filter((m) => taskIds.has(m.id));
         } catch { /* ignore */ }
       }
-      setMessages(msgs);
-    }).catch(() => {});
+      return msgs;
+    };
+
+    load()
+      .then((msgs) => { if (!cancelled) { setMessages(msgs); setMessagesLoading(false); } })
+      .catch(() => { if (!cancelled) setMessagesLoading(false); });
+
     return () => { cancelled = true; };
-  }, [activeFolderId, setMessages]);
+  }, [activeFolderId, setMessages, setMessagesLoading]);
 
   // Thread view: fetch threads when enabled and folder changes
   useEffect(() => {

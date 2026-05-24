@@ -45,12 +45,15 @@ export function useMailList(folderId: string, refreshIntervalSeconds: RefreshInt
       return;
     }
     if (isExternallyLoadedVirtualFolder(folderId)) {
-      // Filtered virtual folders are loaded externally via searchMessages.
+      // Filtered virtual folders are loaded externally (page-level effect).
       // All Mail uses the normal messages endpoint without a folder_id.
+      // Reset loading to false so a stale true from a previous mid-load regular
+      // folder doesn't leave the skeleton spinner showing forever.
       setMessages([]);
       setHasMore(false);
       setNextCursor('');
       nextCursorRef.current = '';
+      setMessagesLoading(false);
       return;
     }
     let cancelled = false;
@@ -143,5 +146,5 @@ export function useMailList(folderId: string, refreshIntervalSeconds: RefreshInt
     }
   }, [folderId, refreshing]);
 
-  return { folders, messages, setMessages, foldersLoading, messagesLoading, loadingMore, hasMore, nextCursor, loadMore, adjustUnread, refresh, refreshing };
+  return { folders, messages, setMessages, foldersLoading, messagesLoading, setMessagesLoading, loadingMore, hasMore, nextCursor, loadMore, adjustUnread, refresh, refreshing };
 }
