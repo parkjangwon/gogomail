@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   Box,
   Button,
@@ -21,12 +22,14 @@ type View = 'idle' | 'setup' | 'codes';
 
 export default function SecurityPage() {
   const { t } = useI18n();
+  const router = useRouter();
   const [status, setStatus] = useState<MFAStatus | null>(null);
   const [view, setView] = useState<View>('idle');
   const [setupData, setSetupData] = useState<SetupData | null>(null);
   const [confirmCode, setConfirmCode] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [accountEmail, setAccountEmail] = useState('');
 
   const fetchStatus = useCallback(async () => {
     const res = await fetch('/api/admin/auth/mfa/status', { credentials: 'include' });
@@ -38,6 +41,10 @@ export default function SecurityPage() {
 
   useEffect(() => { fetchStatus(); }, [fetchStatus]);
 
+  useEffect(() => {
+    setAccountEmail(localStorage.getItem('console_admin_email') || '');
+  }, []);
+
   async function startSetup() {
     setLoading(true);
     setError('');
@@ -46,7 +53,7 @@ export default function SecurityPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({}),
+        body: JSON.stringify(accountEmail ? { email: accountEmail } : {}),
       });
       if (!res.ok) {
         setError(t('security.settings.mfa_setup_failed'));
@@ -78,6 +85,7 @@ export default function SecurityPage() {
       localStorage.removeItem('console_mfa_setup_required');
       setView('codes');
       await fetchStatus();
+      router.replace('/');
     } finally {
       setLoading(false);
     }
@@ -104,7 +112,7 @@ export default function SecurityPage() {
     if (view === 'idle') {
       return (
         <SpaceBetween size="m">
-          <ColumnLayout columns={2}>
+          <ColumnLayout key="status-layout" columns={2}>
             <div>
               <Box variant="awsui-key-label">{t('common.status')}</Box>
               <StatusIndicator type={status.enabled ? 'success' : 'stopped'}>
@@ -112,11 +120,11 @@ export default function SecurityPage() {
               </StatusIndicator>
             </div>
           </ColumnLayout>
-          {error && <Alert type="error" onDismiss={() => setError('')} dismissible>{error}</Alert>}
+          {error && <Alert key="status-error" type="error" onDismiss={() => setError('')} dismissible>{error}</Alert>}
           {status.enabled ? (
-            <Button onClick={disableMFA} loading={loading}>{t('security.settings.disable_mfa')}</Button>
+            <Button key="disable-mfa" onClick={disableMFA} loading={loading}>{t('security.settings.disable_mfa')}</Button>
           ) : (
-            <Button variant="primary" onClick={startSetup} loading={loading}>{t('security.settings.enable_mfa')}</Button>
+            <Button key="enable-mfa" variant="primary" onClick={startSetup} loading={loading}>{t('security.settings.enable_mfa')}</Button>
           )}
         </SpaceBetween>
       );
@@ -125,11 +133,11 @@ export default function SecurityPage() {
     if (view === 'setup' && setupData) {
       return (
         <SpaceBetween size="m">
-          <Box>{t('security.settings.setup_instructions')}</Box>
+          <Box key="setup-instructions">{t('security.settings.setup_instructions')}</Box>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={setupData.qr_image} alt={t('security.settings.qr_alt')} width={180} height={180} />
-          <Box variant="code">{t('security.settings.secret_label')}: {setupData.secret}</Box>
-          <FormField label={t('security.settings.confirmation_code')} description={t('security.settings.confirmation_desc')}>
+          <img key="setup-qr" src={setupData.qr_image} alt={t('security.settings.qr_alt')} width={180} height={180} />
+          <Box key="setup-secret" variant="code">{t('security.settings.secret_label')}: {setupData.secret}</Box>
+          <FormField key="setup-confirm-code" label={t('security.settings.confirmation_code')} description={t('security.settings.confirmation_desc')}>
             <Input
               value={confirmCode}
               onChange={({ detail }) => setConfirmCode(detail.value)}
@@ -138,10 +146,10 @@ export default function SecurityPage() {
               autoFocus
             />
           </FormField>
-          {error && <Alert type="error" onDismiss={() => setError('')} dismissible>{error}</Alert>}
-          <SpaceBetween direction="horizontal" size="xs">
-            <Button onClick={() => { setView('idle'); setError(''); setConfirmCode(''); }}>{t('common.cancel')}</Button>
-            <Button variant="primary" onClick={confirmSetup} loading={loading}>{t('common.confirm')}</Button>
+          {error && <Alert key="setup-error" type="error" onDismiss={() => setError('')} dismissible>{error}</Alert>}
+          <SpaceBetween key="setup-actions" direction="horizontal" size="xs">
+            <Button key="setup-cancel" onClick={() => { setView('idle'); setError(''); setConfirmCode(''); }}>{t('common.cancel')}</Button>
+            <Button key="setup-confirm" variant="primary" onClick={confirmSetup} loading={loading}>{t('common.confirm')}</Button>
           </SpaceBetween>
         </SpaceBetween>
       );
@@ -150,15 +158,15 @@ export default function SecurityPage() {
     if (view === 'codes' && setupData) {
       return (
         <SpaceBetween size="m">
-          <Alert type="success">{t('security.settings.enabled_success')}</Alert>
-          <Box variant="h3">{t('security.settings.recovery_codes')}</Box>
-          <Box>{t('security.settings.recovery_desc')}</Box>
-          <SpaceBetween size="xs">
+          <Alert key="codes-success" type="success">{t('security.settings.enabled_success')}</Alert>
+          <Box key="codes-heading" variant="h3">{t('security.settings.recovery_codes')}</Box>
+          <Box key="codes-description">{t('security.settings.recovery_desc')}</Box>
+          <SpaceBetween key="codes-list" size="xs">
             {setupData.recovery_codes.map((c) => (
               <Box key={c} variant="code">{c}</Box>
             ))}
           </SpaceBetween>
-          <Button onClick={() => setView('idle')}>{t('common.done')}</Button>
+          <Button key="codes-done" onClick={() => router.replace('/')}>{t('common.done')}</Button>
         </SpaceBetween>
       );
     }
@@ -168,8 +176,8 @@ export default function SecurityPage() {
 
   return (
     <SpaceBetween size="l">
-      <Header variant="h1">{t('nav.security')}</Header>
-      <Container header={<Header variant="h2">{t('security.settings.mfa_header')}</Header>}>
+      <Header key="security-title" variant="h1">{t('nav.security')}</Header>
+      <Container key="mfa-container" header={<Header variant="h2">{t('security.settings.mfa_header')}</Header>}>
         {renderContent()}
       </Container>
     </SpaceBetween>

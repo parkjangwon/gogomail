@@ -64,18 +64,19 @@ async function handler(
     reqUrl.searchParams.delete('user_id');
   }
 
-  // In local development mode (no JWT configured), inject user_id query param.
-  if (!isPublicShareLinkRoute && DEV_USER_ID && !reqUrl.searchParams.has('user_id')) {
+  // Read token from httpOnly cookie — never from client-supplied Authorization header
+  const cookieStore = await cookies();
+  const token = cookieStore.get(WEBMAIL_TOKEN_COOKIE)?.value
+    ?? cookieStore.get(LEGACY_WEBMAIL_TOKEN_COOKIE)?.value;
+
+  // In local development mode (no JWT cookie configured), inject user_id query param.
+  if (!token && !isPublicShareLinkRoute && DEV_USER_ID && !reqUrl.searchParams.has('user_id')) {
     reqUrl.searchParams.set('user_id', DEV_USER_ID);
   }
 
   const search = reqUrl.search;
   const url = `${backendUrl}${backendBaseFor(pathStr)}/${pathStr}${search}`;
 
-  // Read token from httpOnly cookie — never from client-supplied Authorization header
-  const cookieStore = await cookies();
-  const token = cookieStore.get(WEBMAIL_TOKEN_COOKIE)?.value
-    ?? cookieStore.get(LEGACY_WEBMAIL_TOKEN_COOKIE)?.value;
   const headers = headersForBackend(req.headers, token, isPublicShareLinkRoute);
 
   let body: ArrayBuffer | undefined;

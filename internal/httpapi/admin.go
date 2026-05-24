@@ -702,7 +702,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	registerUsageAndQuotaRoutes(mux, service, adminAuth)
 	registerDeliveryAndMailRoutes(mux, service, adminAuth)
 	registerAdminUtilityRoutes(mux, service, cfg, adminAuth)
-	registerAdminMFARoutes(mux, cfg, adminAuth)
+	registerAdminMFARoutes(mux, service, cfg, adminAuth)
 }
 
 func registerCompanyRoutes(mux *http.ServeMux, service AdminService, adminAuth func(http.HandlerFunc) http.HandlerFunc) {
