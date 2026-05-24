@@ -1365,7 +1365,13 @@
     "spamDelete90": "90 days",
     "spamDeleteNever": "Never",
     "spamAutoBlock": "Auto-block when reporting spam",
-    "spamAutoBlockDesc": "Automatically add senders to block list when reporting as spam"
+    "spamAutoBlockDesc": "Automatically add senders to block list when reporting as spam",
+    "blockedCount": "{count} entries",
+    "blockedColAddr": "Sender / Domain",
+    "blockedColDate": "Blocked on",
+    "blockedColAction": "Remove",
+    "blockedInputHint": "Enter an email address or domain (e.g. @example.com), then press Enter or click Add.",
+    "blockedAlready": "This address is already blocked."
   },
   "composeFull": {
     "titleNew": "New message",
