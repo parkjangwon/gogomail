@@ -74,6 +74,12 @@ export function SettingsView({ userEmail, userName, initialSection }: SettingsVi
   const [activeSection, setActiveSection] = useState<SectionId>(initialSection ?? 'account');
   const contentRef = useRef<HTMLDivElement>(null);
 
+  // Allow external navigation (e.g. Spotlight) to change the active section
+  // even after initial mount.
+  useEffect(() => {
+    if (initialSection) setActiveSection(initialSection);
+  }, [initialSection]);
+
   // Account
   const [displayName, setDisplayName] = useState('');
   const [nameSaved, setNameSaved] = useState(false);
