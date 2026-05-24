@@ -25,7 +25,8 @@ export function ThreadConversation({ messages, currentMessageId, userEmail, onSe
         {messages.map((message) => {
           const isCurrent = message.id === currentMessageId;
           const isMine = userEmail ? message.from_addr.toLowerCase() === userEmail.toLowerCase() : false;
-          const date = new Intl.DateTimeFormat(locale, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date(message.received_at));
+          const _tz = (() => { try { return localStorage.getItem('webmail_timezone') || undefined; } catch { return undefined; } })();
+          const date = new Intl.DateTimeFormat(locale, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false, ...(_tz ? { timeZone: _tz } : {}) }).format(new Date(message.received_at));
           const initial = (message.from_name || message.from_addr)[0]?.toUpperCase() ?? '?';
 
           return (
