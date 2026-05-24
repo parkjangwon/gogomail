@@ -2,6 +2,7 @@
 
 ## Recent launch-readiness closures
 
+- Webmail compose duplicate-send hardening now guards the full send lifecycle before React state settles and clears undo countdown execution before dispatch, preventing rapid repeated submit events from creating many sent/outbox copies.
 - Frontend auth/MFA local smoke hardening now gives admin and webmail authenticator apps email-based labels, redirects after admin MFA setup, removes the MFA setup key warning, exposes web-push config through the webmail proxy, and avoids development `user_id` injection when a JWT cookie is present.
 - User-facing MCP automation now has a separate user-scoped access-key contract, domain MCP policy controls, webmail preference storage, and a dedicated MCP server surface over the existing mail, contacts, Drive, and calendar user APIs.
 - Mail API user sessions now have rotating refresh tokens backed by hashed `user_refresh_tokens`, reducing forced daily re-login while preserving single-use refresh semantics.

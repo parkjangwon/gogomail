@@ -3,7 +3,6 @@
 import { type Dispatch, type MutableRefObject, type RefObject, type SetStateAction } from 'react';
 import { ArchiveBoxIcon, CalendarIcon, ChevronUpIcon } from '@heroicons/react/24/outline';
 import { useTranslations, useLocale } from 'next-intl';
-import type { SendMessageRequest } from '@/lib/api';
 import { toDateTimeLocalValue } from '@/lib/dateTimeLocal';
 import { type ComposeScheduleOption } from './ComposeModalActions';
 
@@ -21,8 +20,6 @@ interface ComposeModalFooterProps {
   saveStatus: 'idle' | 'saving' | 'saved';
   savedAt: string;
   sendCountdown: number | null;
-  pendingMsgRef: MutableRefObject<SendMessageRequest | null>;
-  pendingDraftSendRef: MutableRefObject<boolean>;
   sendAndArchiveRef: MutableRefObject<boolean>;
   scheduledAt: string;
   setScheduledAt: Dispatch<SetStateAction<string>>;
@@ -31,7 +28,7 @@ interface ComposeModalFooterProps {
   handleSend: (e: { preventDefault(): void }) => void;
   closeSendDropdown: () => void;
   onArchiveSource?: () => void;
-  setSendCountdown: Dispatch<SetStateAction<number | null>>;
+  onCancelPendingSend: () => void;
 }
 
 export function ComposeModalFooter({
@@ -48,8 +45,6 @@ export function ComposeModalFooter({
   saveStatus,
   savedAt,
   sendCountdown,
-  pendingMsgRef,
-  pendingDraftSendRef,
   sendAndArchiveRef,
   scheduledAt,
   setScheduledAt,
@@ -58,7 +53,7 @@ export function ComposeModalFooter({
   handleSend,
   closeSendDropdown,
   onArchiveSource,
-  setSendCountdown,
+  onCancelPendingSend,
 }: ComposeModalFooterProps) {
   const t = useTranslations('composeFooter');
   const locale = useLocale();
@@ -220,7 +215,7 @@ export function ComposeModalFooter({
         }}>
           <span>{t('countdown', { seconds: sendCountdown })}</span>
           <button
-            onClick={() => { setSendCountdown(null); pendingMsgRef.current = null; pendingDraftSendRef.current = false; }}
+            onClick={onCancelPendingSend}
             style={{ padding: '4px 12px', borderRadius: '5px', border: '1px solid var(--color-border-default)', background: 'transparent', cursor: 'pointer', fontSize: '13px', color: 'var(--color-text-primary)' }}
           >{t('cancel')}</button>
         </div>

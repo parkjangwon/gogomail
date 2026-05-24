@@ -1,6 +1,13 @@
 # gogomail current status
 
-Last updated: 2026-05-24 (Frontend auth/MFA local smoke hardening)
+Last updated: 2026-05-24 (Webmail compose duplicate-send guard)
+
+## Webmail compose duplicate-send guard (2026-05-24)
+- Webmail compose now uses a synchronous in-flight guard across draft preparation, undo countdown, scheduled sends, and immediate sends so rapid repeated submit events cannot create many sent copies before React state updates.
+- The undo countdown execution path clears the countdown before dispatching the prepared send and uses an execution guard so the `sendCountdown === 0` effect cannot fire the same prepared message more than once.
+- The compose footer delegates countdown cancellation through the parent guard reset, keeping the user-visible cancel path while releasing the in-flight lock.
+- Local duplicate cleanup kept one `dfsf` sent copy and removed 55 duplicate sent/outbox rows created during the smoke failure.
+- Verification: `pnpm -C apps/webmail type-check`; SQL inspection of sent/outbox counts after cleanup.
 
 ## Frontend auth/MFA local smoke hardening (2026-05-24)
 - Admin console and webmail MFA enrollment now label authenticator entries with the user email instead of opaque user ids, URL-encode the otpauth label/issuer, and the admin console remembers the login email for setup requests before redirecting to `/` after successful setup confirmation.

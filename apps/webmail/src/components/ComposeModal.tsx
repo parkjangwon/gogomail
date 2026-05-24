@@ -100,6 +100,8 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
   const [trackOpens, setTrackOpens] = useState(false);
   const pendingMsgRef = useRef<SendMessageRequest | null>(null);
   const pendingDraftSendRef = useRef(false);
+  const sendInProgressRef = useRef(false);
+  const sendExecutionRef = useRef(false);
   const sendAndArchiveRef = useRef(false);
   const [scheduledAt, setScheduledAt] = useState('');
   const [showSchedule, setShowSchedule] = useState(false);
@@ -276,7 +278,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
 
   const sendResultLabel = formatSendResultLabel(sendResult);
   const sendButtonUploading = uploadedAttachments.some((a) => a.uploading);
-  const sendButtonDisabled = sending || sent || sendButtonUploading;
+  const sendButtonDisabled = sending || sent || sendCountdown !== null || sendButtonUploading;
   const miscT = (k: string) => tMisc(k.replace(/^misc\.compose\./, ''));
   const sendButtonLabel = composeSendButtonLabel({
     sending,
@@ -312,6 +314,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
     persistSuccessfulSendLocalState(msg);
     await clearSentDraft(!useDraftSend);
     pendingDraftSendRef.current = false;
+    sendInProgressRef.current = true;
     setSent(true);
     if (notifications) {
       const firstRecipient = msg.to?.[0];
@@ -340,6 +343,8 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
     const message = err instanceof Error ? err.message : t('errSendFailed');
     setError(t('draftPreserved', { message }));
     pendingDraftSendRef.current = false;
+    sendExecutionRef.current = false;
+    sendInProgressRef.current = false;
     if (clearCountdown) setSendCountdown(null);
     if (notifications) {
       notifications.push({
@@ -355,6 +360,8 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
     const message = err instanceof Error ? err.message : t('draftPrepFailed');
     pendingMsgRef.current = null;
     pendingDraftSendRef.current = false;
+    sendExecutionRef.current = false;
+    sendInProgressRef.current = false;
     setError(t('sendNotStarted', { message }));
   }, [t]);
 
@@ -366,6 +373,8 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
   }, []);
 
   const buildDraftData = useCallback((toVal: string, ccVal: string, bccVal: string, subjectVal: string, bodyText: string, bodyHtml: string) => {
+    sendInProgressRef.current = true;
+    sendExecutionRef.current = false;
     const attachmentIds = readyAttachmentIds();
     return {
       intent: backendComposeIntent(intent),
@@ -597,8 +606,11 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
   useEffect(() => {
     if (sendCountdown === null) return;
     if (sendCountdown === 0) {
+      if (sendExecutionRef.current) return;
       const msg = pendingMsgRef.current;
-      if (!msg) return;
+      if (!msg) { sendInProgressRef.current = false; return; }
+      sendExecutionRef.current = true;
+      setSendCountdown(null);
       const useDraftSend = shouldSendSavedDraft();
       setSending(true);
       sendPreparedMessage(msg, useDraftSend)
@@ -670,6 +682,14 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
     onClose();
   }, [onClose]);
 
+  const cancelPendingSend = useCallback(() => {
+    setSendCountdown(null);
+    pendingMsgRef.current = null;
+    pendingDraftSendRef.current = false;
+    sendExecutionRef.current = false;
+    sendInProgressRef.current = false;
+  }, []);
+
   const saveTemplate = () => {
     const name = templateSaveName.trim();
     if (!name) return;
@@ -687,7 +707,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
 
   async function handleSend(e: { preventDefault(): void }) {
     e.preventDefault();
-    if (sending || sent) return;
+    if (sending || sent || sendInProgressRef.current) return;
     if (sendCountdown !== null) {
       setError(t('alreadyScheduled'));
       return;
@@ -728,6 +748,8 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
         return;
       }
     }
+    sendInProgressRef.current = true;
+    sendExecutionRef.current = false;
     const attachmentIds = readyAttachmentIds();
     const draftData = buildDraftData(to, cc, bcc, subject.trim(), bodyText, editor?.getHTML() ?? '');
     const msg: SendMessageRequest = {
@@ -763,6 +785,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
     if (scheduledAt) {
       // Scheduled sends bypass the undo countdown and go immediately
       const useDraftSend = shouldSendSavedDraft();
+      sendExecutionRef.current = true;
       setSending(true);
       sendPreparedMessage(msg, useDraftSend)
         .then(async (res) => { await handleSuccessfulSend(msg, res.message, useDraftSend); })
@@ -1293,8 +1316,6 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
             saveStatus={saveStatus}
             savedAt={savedAt}
             sendCountdown={sendCountdown}
-            pendingMsgRef={pendingMsgRef}
-            pendingDraftSendRef={pendingDraftSendRef}
             sendAndArchiveRef={sendAndArchiveRef}
             scheduledAt={scheduledAt}
             setScheduledAt={setScheduledAt}
@@ -1303,7 +1324,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
             handleSend={handleSend}
             closeSendDropdown={closeSendDropdown}
             onArchiveSource={onArchiveSource}
-            setSendCountdown={setSendCountdown}
+            onCancelPendingSend={cancelPendingSend}
           />
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '0 12px 8px', flexShrink: 0 }}>
             <div style={{ flex: 1 }} />
