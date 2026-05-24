@@ -6,16 +6,17 @@ English / 영어: [README.md](README.md)
 
 이 서버는 `apps/gogomail-manage-mcp`와 의도적으로 분리되어 있습니다. 관리 MCP는 운영자와 관리자를 위한 서버이고, 이 패키지는 개별 사용자를 위한 서버이며 사용자가 발급한 `gmu_` 액세스 키로 인증합니다.
 
-현재 사용자 API 커버리지는 **96개 툴**입니다. 웹메일 UI가 사용하는 프로필/아바타, 디렉터리 프로필, spam 신고/not-spam, 발신자 허용/차단 흐름까지 문서화된 webmail/user API 표면 위에서 제공합니다.
+현재 사용자 API 커버리지는 **105개 툴**입니다. 웹메일 UI가 사용하는 프로필/아바타, 디렉터리 프로필, spam 신고/not-spam, 발신자 허용/차단, 알림 환경설정, Web Push 구독, push device 흐름까지 문서화된 webmail/user API 표면 위에서 제공합니다.
 
 ## 제공 기능
 
-- 기존 GoGoMail 사용자 API 위에 구성된 96개 MCP 툴.
+- 기존 GoGoMail 사용자 API 위에 구성된 105개 MCP 툴.
 - 메일 검색, 메시지 조회, 발송, 초안, 폴더, 스레드, 첨부파일, 배송 상태, 오픈 트래킹 조회, 메시지/스레드 bulk 작업.
 - 주소록, 연락처, 자동완성, 조직 디렉터리 조회.
 - 드라이브 탐색, 업로드 세션 기반 텍스트 파일 생성, 다운로드, 공유 링크, 사용량 조회, 휴지통/복원/삭제, 이동, 이름 변경, 복사.
 - 일정 CRUD, 일정 객체, 간편 이벤트 생성, 구독 캘린더, 구독 이벤트 조회.
 - 웹메일 capabilities, 메일함 overview, 사용자 프로필, 프로필 사진, 발신 주소, MCP 설정, 웹메일 환경설정 같은 계정/컨텍스트 툴.
+- DND/폴더/스레드 알림 환경설정, Web Push 브라우저 구독, Web Push public-key 설정, push device 등록을 위한 알림 툴.
 - spam 신고/not-spam 흐름과 차단/허용 발신자 목록 관리를 위한 Spam UX 헬퍼.
 - 아직 1급 툴로 감싸지 않은 문서화된 사용자 API를 위한 제한된 `gogomail_api_request` bridge.
 
@@ -86,6 +87,7 @@ npm run build
 | 그룹 | 툴 |
 |---|---|
 | MCP/계정 컨텍스트 | `gogomail_mcp_get_settings`, `gogomail_webmail_get_capabilities`, `gogomail_mailbox_get_overview`, `gogomail_account_get_profile`, `gogomail_account_update_profile`, `gogomail_account_list_addresses`, `gogomail_account_upload_avatar`, `gogomail_account_delete_avatar`, `gogomail_preferences_get` |
+| 알림/푸시 | `gogomail_notifications_get_preferences`, `gogomail_notifications_update_preferences`, `gogomail_notifications_get_web_push_config`, `gogomail_notifications_list_push_subscriptions`, `gogomail_notifications_upsert_push_subscription`, `gogomail_notifications_delete_push_subscription`, `gogomail_notifications_list_push_devices`, `gogomail_notifications_upsert_push_device`, `gogomail_notifications_delete_push_device` |
 | Generic bridge | `gogomail_api_request` |
 | 메일 | `gogomail_mail_search`, `gogomail_mail_list_messages`, `gogomail_mail_get_message`, `gogomail_mail_send`, `gogomail_mail_save_draft`, `gogomail_mail_search_drafts`, `gogomail_mail_send_draft`, `gogomail_mail_delete_draft`, `gogomail_mail_restore_message`, `gogomail_mail_update_flags`, `gogomail_mail_move_message`, `gogomail_mail_delete_message`, `gogomail_mail_delivery_status`, `gogomail_mail_get_tracking` |
 | 메일 bulk | `gogomail_mail_bulk_update_flags`, `gogomail_mail_bulk_move_messages`, `gogomail_mail_bulk_delete_messages`, `gogomail_mail_bulk_restore_messages`, `gogomail_mail_bulk_update_thread_flags`, `gogomail_mail_bulk_move_threads`, `gogomail_mail_bulk_delete_threads`, `gogomail_mail_bulk_restore_threads` |
@@ -121,6 +123,7 @@ npm run build
 - 메일, 드라이브, 일정, 계정 툴은 `docs/openapi.yaml`에 문서화된 `/api/v1` 라우트를 호출합니다.
 - 주소록과 디렉터리 툴은 `/api/mail` 아래의 기존 CardDAV JSON bridge를 호출합니다.
 - 메일 bulk flag/move 툴은 문서화된 `PATCH` bulk 라우트를 사용하고, bulk delete/restore는 `POST`를 사용합니다.
+- 알림 툴은 `/api/v1/me/notification-preferences`, `/api/v1/config/web-push`, `/api/v1/me/push-subscriptions`, `/api/v1/push-devices`를 사용합니다. 구독/디바이스 삭제는 `basic` 모드에서 정확한 확인 문자열이 필요합니다.
 - `gogomail_contacts_upsert_simple`은 vCard를 생성합니다. 원본 vCard upsert도 계속 사용할 수 있습니다.
 - `gogomail_calendar_upsert_event_simple`은 단일 VEVENT ICS 객체를 생성합니다. 원본 ICS upsert도 계속 사용할 수 있습니다.
 - 드라이브 다운로드는 `body_text`, `body_base64`, `content_type`을 반환합니다. 로컬 저장은 `basic` 모드에서 명시 확인이 필요합니다.

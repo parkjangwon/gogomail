@@ -6,16 +6,17 @@ Korean / 한국어: [README.ko.md](README.ko.md)
 
 This server is intentionally separate from `apps/gogomail-manage-mcp`. The management MCP is for operators and administrators; this package is for an individual user and authenticates with a user-issued `gmu_` access key.
 
-Current user coverage is **96 tools** over the documented webmail/user API surface, including the recent profile/avatar, directory profile, spam report/not-spam, and sender allow/block workflows used by the webmail UI.
+Current user coverage is **105 tools** over the documented webmail/user API surface, including the recent profile/avatar, directory profile, spam report/not-spam, sender allow/block, notification preference, Web Push subscription, and push-device workflows used by the webmail UI.
 
 ## What It Provides
 
-- 96 MCP tools over existing GoGoMail user APIs.
+- 105 MCP tools over existing GoGoMail user APIs.
 - Mail search, message reads, send, drafts, folders, threads, attachments, delivery status, open-tracking reads, and bulk message/thread actions.
 - Contacts, address books, autocomplete, and company directory lookup.
 - Drive browsing, upload-session based text-file creation, downloads, share links, usage, trash/restore/delete, move, rename, and copy.
 - Calendar CRUD, calendar objects, simple event creation, subscriptions, and subscription event reads.
 - Account/context helpers for webmail capabilities, mailbox overview, user profile, profile photo, sender addresses, MCP settings, and webmail preferences.
+- Notification helpers for DND/folder/thread preferences, Web Push browser subscriptions, Web Push public-key config, and push-device registration.
 - Spam UX helpers for report-spam/not-spam flows and blocked/allowed sender list management.
 - A guarded `gogomail_api_request` bridge for documented user API routes that are not yet wrapped as first-class tools.
 
@@ -86,6 +87,7 @@ For local Docker development, `GOGOMAIL_API_URL` is usually `http://localhost:80
 | Group | Tools |
 |---|---|
 | MCP/account context | `gogomail_mcp_get_settings`, `gogomail_webmail_get_capabilities`, `gogomail_mailbox_get_overview`, `gogomail_account_get_profile`, `gogomail_account_update_profile`, `gogomail_account_list_addresses`, `gogomail_account_upload_avatar`, `gogomail_account_delete_avatar`, `gogomail_preferences_get` |
+| Notifications and push | `gogomail_notifications_get_preferences`, `gogomail_notifications_update_preferences`, `gogomail_notifications_get_web_push_config`, `gogomail_notifications_list_push_subscriptions`, `gogomail_notifications_upsert_push_subscription`, `gogomail_notifications_delete_push_subscription`, `gogomail_notifications_list_push_devices`, `gogomail_notifications_upsert_push_device`, `gogomail_notifications_delete_push_device` |
 | Generic bridge | `gogomail_api_request` |
 | Mail | `gogomail_mail_search`, `gogomail_mail_list_messages`, `gogomail_mail_get_message`, `gogomail_mail_send`, `gogomail_mail_save_draft`, `gogomail_mail_search_drafts`, `gogomail_mail_send_draft`, `gogomail_mail_delete_draft`, `gogomail_mail_restore_message`, `gogomail_mail_update_flags`, `gogomail_mail_move_message`, `gogomail_mail_delete_message`, `gogomail_mail_delivery_status`, `gogomail_mail_get_tracking` |
 | Mail bulk | `gogomail_mail_bulk_update_flags`, `gogomail_mail_bulk_move_messages`, `gogomail_mail_bulk_delete_messages`, `gogomail_mail_bulk_restore_messages`, `gogomail_mail_bulk_update_thread_flags`, `gogomail_mail_bulk_move_threads`, `gogomail_mail_bulk_delete_threads`, `gogomail_mail_bulk_restore_threads` |
@@ -121,6 +123,7 @@ Sensitive actions in `basic` mode require the matching confirmation argument. Fo
 - Mail, Drive, calendar, and account tools call `/api/v1` routes documented in `docs/openapi.yaml`.
 - Contact and directory tools call the existing CardDAV JSON bridge under `/api/mail`.
 - Bulk mail flag and move tools use the documented `PATCH` bulk routes; bulk delete and restore use `POST`.
+- Notification tools use `/api/v1/me/notification-preferences`, `/api/v1/config/web-push`, `/api/v1/me/push-subscriptions`, and `/api/v1/push-devices`; deleting subscriptions/devices requires exact confirmation in `basic` mode.
 - `gogomail_contacts_upsert_simple` generates vCard; raw vCard upsert remains available.
 - `gogomail_calendar_upsert_event_simple` generates a single VEVENT ICS object; raw ICS upsert remains available.
 - Drive downloads return `body_text`, `body_base64`, and `content_type`; optional local saves require explicit confirmation in `basic` mode.
