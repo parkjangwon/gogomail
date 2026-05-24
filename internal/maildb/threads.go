@@ -42,7 +42,18 @@ func (r *Repository) ListThreadsPage(ctx context.Context, userID string, limit i
 	cursorID := strings.TrimSpace(cursor.ID)
 	query := buildThreadListPageSQL(sortMode, folderID, cursorID, filter)
 
-	rows, err := r.db.QueryContext(ctx, query, userID, limit, cursor.At, cursorID, filter.Read, filter.Starred, filter.HasAttachment, folderID)
+	rows, err := r.db.QueryContext(
+		ctx,
+		query,
+		userID,
+		limit,
+		optionalTimeParam(cursorID != "", cursor.At),
+		optionalStringParam(cursorID),
+		optionalBoolParam(filter.Read),
+		optionalBoolParam(filter.Starred),
+		optionalBoolParam(filter.HasAttachment),
+		optionalStringParam(folderID),
+	)
 	if err != nil {
 		return nil, fmt.Errorf("list threads: %w", err)
 	}
@@ -118,7 +129,16 @@ var (
 )
 
 const threadListPageBaseSQL = `
-WITH active_messages AS (
+WITH thread_list_page_params AS (
+  SELECT
+    $3::timestamptz AS cursor_at,
+    $4::text AS cursor_id,
+    $5::boolean AS read_filter,
+    $6::boolean AS starred_filter,
+    $7::boolean AS has_attachment_filter,
+    $8::uuid AS folder_id
+),
+active_messages AS (
   SELECT
     COALESCE(messages.thread_id, messages.id)::text AS thread_key,
     messages.id::text AS id,
@@ -130,6 +150,7 @@ WITH active_messages AS (
     COALESCE((messages.flags->>'read')::boolean, false) AS read,
     COALESCE((messages.flags->>'starred')::boolean, false) AS starred
   FROM messages
+  CROSS JOIN thread_list_page_params
   LEFT JOIN message_search_documents msd
     ON msd.message_id = messages.id
    AND msd.user_id = messages.user_id

@@ -106,6 +106,26 @@ func TestMessageListPageQueryUsesSargableFolderFilter(t *testing.T) {
 	}
 }
 
+func TestMessageListPageQueryAnchorsOptionalParameterTypes(t *testing.T) {
+	t.Parallel()
+
+	query := buildMessageListPageSQL(ListSortNewest, "", "", MessageListFilter{})
+	for _, want := range []string{
+		"WITH message_list_page_params AS",
+		"$2::uuid AS folder_id",
+		"$3::timestamptz AS cursor_at",
+		"$4::uuid AS cursor_id",
+		"$6::boolean AS read_filter",
+		"$7::boolean AS starred_filter",
+		"$8::boolean AS has_attachment_filter",
+		"CROSS JOIN message_list_page_params",
+	} {
+		if !strings.Contains(query, want) {
+			t.Fatalf("message list query missing optional parameter type anchor %q:\n%s", want, query)
+		}
+	}
+}
+
 func TestMessageListPageQueryUsesSargableBooleanFilters(t *testing.T) {
 	t.Parallel()
 
@@ -171,7 +191,7 @@ func TestMessageListPageQueryUsesSargableCursorFilter(t *testing.T) {
 	}
 
 	query = buildMessageListPageSQL(ListSortNewest, "", "", MessageListFilter{})
-	if strings.Contains(query, "$4::uuid") {
+	if strings.Contains(query, "AND (COALESCE(messages.received_at, messages.sent_at, messages.draft_updated_at, messages.created_at), messages.id)") {
 		t.Fatalf("cursorless message list query unexpectedly includes cursor predicate:\n%s", query)
 	}
 }

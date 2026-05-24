@@ -30,6 +30,17 @@ function prop(tool: Tool, field: string): Record<string, unknown> {
   return props[field] as Record<string, unknown>;
 }
 
+function assertNoSchemaCombinators(value: unknown, path: string): void {
+  if (!value || typeof value !== "object") return;
+  const record = value as Record<string, unknown>;
+  for (const keyword of ["oneOf", "anyOf", "allOf", "not"]) {
+    assert.equal(Object.hasOwn(record, keyword), false, `${path} must not expose ${keyword}`);
+  }
+  for (const [key, child] of Object.entries(record)) {
+    assertNoSchemaCombinators(child, `${path}.${key}`);
+  }
+}
+
 // ── 1. Rate limiting algorithm ────────────────────────────────────────
 
 describe("Rate limiting (sliding window)", () => {
@@ -273,6 +284,19 @@ describe("GogomailClient: Admin API contract mapping", () => {
 });
 
 // ── 3. inputSchema JSON Schema constraints ────────────────────────────
+
+describe("all toolDefinitions: MCP client schema compatibility", () => {
+  test("all advertised tools expose conservative object schemas", () => {
+    for (const tool of [...gogomailDefs, ...suppoDefs, ...githubDefs]) {
+      const schema = tool.inputSchema as Record<string, unknown>;
+      assert.equal(schema.type, "object", `${tool.name} must expose an object input schema`);
+      for (const keyword of ["oneOf", "anyOf", "allOf", "enum", "not"]) {
+        assert.equal(Object.hasOwn(schema, keyword), false, `${tool.name} must not expose top-level ${keyword}`);
+      }
+      assertNoSchemaCombinators(schema, tool.name);
+    }
+  });
+});
 
 describe("gogomail toolDefinitions: ID field constraints", () => {
   test("gogomail_get_user: userId has pattern and maxLength", () => {
