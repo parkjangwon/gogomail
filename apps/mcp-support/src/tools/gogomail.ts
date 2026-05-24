@@ -16,10 +16,10 @@ export const toolDefinitions: Tool[] = [
     inputSchema: {
       type: "object",
       properties: {
-        q: { type: "string", description: "Email address or name to search for" },
-        companyId: { type: "string", description: "Filter by company ID" },
-        domainId: { type: "string", description: "Filter by domain ID" },
-        limit: { type: "number", description: "Max results (default 20)" },
+        q: { type: "string", description: "Email address or name to search for", maxLength: 200 },
+        companyId: { type: "string", description: "Filter by company ID", pattern: "^[A-Za-z0-9_-]+$", maxLength: 128 },
+        domainId: { type: "string", description: "Filter by domain ID", pattern: "^[A-Za-z0-9_-]+$", maxLength: 128 },
+        limit: { type: "number", description: "Max results (default 20)", minimum: 1, maximum: 200 },
       },
       required: ["q"],
     },
@@ -31,9 +31,9 @@ export const toolDefinitions: Tool[] = [
     inputSchema: {
       type: "object",
       properties: {
-        domainId: { type: "string", description: "Filter by domain ID" },
-        status: { type: "string", description: "active | suspended | disabled" },
-        limit: { type: "number" },
+        domainId: { type: "string", description: "Filter by domain ID", pattern: "^[A-Za-z0-9_-]+$", maxLength: 128 },
+        status: { type: "string", description: "Filter by user status", enum: ["active", "suspended", "disabled"] },
+        limit: { type: "number", minimum: 1, maximum: 200 },
       },
     },
   },
@@ -42,7 +42,7 @@ export const toolDefinitions: Tool[] = [
     description: "Get full user details including status, role, quota, and domain.",
     inputSchema: {
       type: "object",
-      properties: { userId: { type: "string" } },
+      properties: { userId: { type: "string", description: "User entity ID", pattern: "^[A-Za-z0-9_-]+$", maxLength: 128 } },
       required: ["userId"],
     },
   },
@@ -51,7 +51,7 @@ export const toolDefinitions: Tool[] = [
     description: "Get storage quota allocation and current usage bytes for a user.",
     inputSchema: {
       type: "object",
-      properties: { userId: { type: "string" } },
+      properties: { userId: { type: "string", description: "User entity ID", pattern: "^[A-Za-z0-9_-]+$", maxLength: 128 } },
       required: ["userId"],
     },
   },
@@ -62,8 +62,8 @@ export const toolDefinitions: Tool[] = [
     inputSchema: {
       type: "object",
       properties: {
-        status: { type: "string", description: "active | suspended" },
-        limit: { type: "number" },
+        status: { type: "string", description: "Filter by company status", enum: ["active", "suspended"] },
+        limit: { type: "number", minimum: 1, maximum: 200 },
       },
     },
   },
@@ -72,7 +72,7 @@ export const toolDefinitions: Tool[] = [
     description: "Get company details by company ID.",
     inputSchema: {
       type: "object",
-      properties: { companyId: { type: "string" } },
+      properties: { companyId: { type: "string", description: "Company entity ID", pattern: "^[A-Za-z0-9_-]+$", maxLength: 128 } },
       required: ["companyId"],
     },
   },
@@ -82,10 +82,10 @@ export const toolDefinitions: Tool[] = [
     inputSchema: {
       type: "object",
       properties: {
-        companyId: { type: "string" },
-        status: { type: "string", description: "active | suspended" },
-        dnsStatus: { type: "string", description: "verified | unverified | partial" },
-        limit: { type: "number" },
+        companyId: { type: "string", description: "Filter by company ID", pattern: "^[A-Za-z0-9_-]+$", maxLength: 128 },
+        status: { type: "string", description: "Filter by domain status", enum: ["active", "suspended"] },
+        dnsStatus: { type: "string", description: "Filter by DNS verification status", enum: ["verified", "unverified", "partial"] },
+        limit: { type: "number", minimum: 1, maximum: 200 },
       },
     },
   },
@@ -95,7 +95,7 @@ export const toolDefinitions: Tool[] = [
       "Get domain configuration: SPF, DKIM, DMARC, catch-all, and max message size.",
     inputSchema: {
       type: "object",
-      properties: { domainId: { type: "string" } },
+      properties: { domainId: { type: "string", description: "Domain entity ID", pattern: "^[A-Za-z0-9_-]+$", maxLength: 128 } },
       required: ["domainId"],
     },
   },
@@ -105,7 +105,7 @@ export const toolDefinitions: Tool[] = [
       "Check DNS record verification status for a domain (SPF, DKIM, DMARC, MX). Use to diagnose mail delivery failures caused by DNS misconfiguration.",
     inputSchema: {
       type: "object",
-      properties: { domainId: { type: "string" } },
+      properties: { domainId: { type: "string", description: "Domain entity ID", pattern: "^[A-Za-z0-9_-]+$", maxLength: 128 } },
       required: ["domainId"],
     },
   },
@@ -117,21 +117,21 @@ export const toolDefinitions: Tool[] = [
     inputSchema: {
       type: "object",
       properties: {
-        userId: { type: "string" },
-        companyId: { type: "string" },
-        domainId: { type: "string" },
-        messageId: { type: "string" },
-        fromAddr: { type: "string", description: "Sender email address" },
-        toAddr: { type: "string", description: "Recipient email address" },
-        direction: { type: "string", description: "inbound | outbound" },
+        userId: { type: "string", description: "Filter by user ID", pattern: "^[A-Za-z0-9_-]+$", maxLength: 128 },
+        companyId: { type: "string", description: "Filter by company ID", pattern: "^[A-Za-z0-9_-]+$", maxLength: 128 },
+        domainId: { type: "string", description: "Filter by domain ID", pattern: "^[A-Za-z0-9_-]+$", maxLength: 128 },
+        messageId: { type: "string", description: "Filter by message ID" },
+        fromAddr: { type: "string", description: "Sender email address", format: "email", maxLength: 254 },
+        toAddr: { type: "string", description: "Recipient email address", format: "email", maxLength: 254 },
+        direction: { type: "string", description: "Mail flow direction", enum: ["inbound", "outbound"] },
         flowStatus: {
           type: "string",
-          description:
-            "delivered | bounced | deferred | rejected | quarantined | expired",
+          description: "Mail flow delivery status",
+          enum: ["delivered", "bounced", "deferred", "rejected", "quarantined", "expired"],
         },
         since: { type: "string", description: "ISO 8601 start time" },
         until: { type: "string", description: "ISO 8601 end time" },
-        limit: { type: "number", description: "Max results (default 20, max 100)" },
+        limit: { type: "number", description: "Max results (default 20, max 100)", minimum: 1, maximum: 200 },
       },
     },
   },
@@ -142,12 +142,12 @@ export const toolDefinitions: Tool[] = [
     inputSchema: {
       type: "object",
       properties: {
-        userId: { type: "string" },
-        companyId: { type: "string" },
-        domainId: { type: "string" },
-        direction: { type: "string" },
-        since: { type: "string" },
-        until: { type: "string" },
+        userId: { type: "string", description: "Filter by user ID", pattern: "^[A-Za-z0-9_-]+$", maxLength: 128 },
+        companyId: { type: "string", description: "Filter by company ID", pattern: "^[A-Za-z0-9_-]+$", maxLength: 128 },
+        domainId: { type: "string", description: "Filter by domain ID", pattern: "^[A-Za-z0-9_-]+$", maxLength: 128 },
+        direction: { type: "string", description: "Mail flow direction", enum: ["inbound", "outbound"] },
+        since: { type: "string", description: "ISO 8601 start time" },
+        until: { type: "string", description: "ISO 8601 end time" },
       },
     },
   },
@@ -159,12 +159,12 @@ export const toolDefinitions: Tool[] = [
     inputSchema: {
       type: "object",
       properties: {
-        messageId: { type: "string" },
-        status: { type: "string", description: "pending | success | failed | exhausted" },
-        recipientDomain: { type: "string" },
-        sender: { type: "string" },
+        messageId: { type: "string", description: "Filter by message ID" },
+        status: { type: "string", description: "Delivery attempt status", enum: ["pending", "success", "failed", "exhausted"] },
+        recipientDomain: { type: "string", description: "Filter by recipient domain" },
+        sender: { type: "string", description: "Filter by sender email address", format: "email", maxLength: 254 },
         since: { type: "string", description: "ISO 8601 start time" },
-        limit: { type: "number" },
+        limit: { type: "number", minimum: 1, maximum: 200 },
       },
     },
   },
@@ -175,11 +175,11 @@ export const toolDefinitions: Tool[] = [
     inputSchema: {
       type: "object",
       properties: {
-        messageId: { type: "string" },
-        recipientDomain: { type: "string" },
-        sender: { type: "string" },
-        since: { type: "string" },
-        limit: { type: "number" },
+        messageId: { type: "string", description: "Filter by message ID" },
+        recipientDomain: { type: "string", description: "Filter by recipient domain" },
+        sender: { type: "string", description: "Filter by sender email address", format: "email", maxLength: 254 },
+        since: { type: "string", description: "ISO 8601 start time" },
+        limit: { type: "number", minimum: 1, maximum: 200 },
       },
     },
   },
@@ -191,8 +191,8 @@ export const toolDefinitions: Tool[] = [
     inputSchema: {
       type: "object",
       properties: {
-        stream: { type: "string", description: "DLQ stream name (required)" },
-        count: { type: "number", description: "Max entries to return" },
+        stream: { type: "string", description: "DLQ stream name (required)", pattern: "^[A-Za-z0-9_-]+$", maxLength: 128 },
+        count: { type: "number", description: "Max entries to return", minimum: 1, maximum: 500 },
       },
       required: ["stream"],
     },
@@ -204,9 +204,9 @@ export const toolDefinitions: Tool[] = [
     inputSchema: {
       type: "object",
       properties: {
-        stream: { type: "string" },
-        id: { type: "string", description: "DLQ entry ID" },
-        ticketId: { type: "string" },
+        stream: { type: "string", description: "DLQ stream name", pattern: "^[A-Za-z0-9_-]+$", maxLength: 128 },
+        id: { type: "string", description: "DLQ entry ID", pattern: "^[A-Za-z0-9_-]+$", maxLength: 128 },
+        ticketId: { type: "string", description: "Suppo ticket ID to attach audit memo to", pattern: "^[A-Za-z0-9_-]+$", maxLength: 128 },
       },
       required: ["stream", "id"],
     },
@@ -219,8 +219,8 @@ export const toolDefinitions: Tool[] = [
     inputSchema: {
       type: "object",
       properties: {
-        id: { type: "string", description: "Outbox message ID" },
-        ticketId: { type: "string" },
+        id: { type: "string", description: "Outbox message ID", pattern: "^[A-Za-z0-9_-]+$", maxLength: 128 },
+        ticketId: { type: "string", description: "Suppo ticket ID to attach audit memo to", pattern: "^[A-Za-z0-9_-]+$", maxLength: 128 },
       },
       required: ["id"],
     },
@@ -233,10 +233,10 @@ export const toolDefinitions: Tool[] = [
     inputSchema: {
       type: "object",
       properties: {
-        email: { type: "string", description: "Filter by specific email address" },
-        domainId: { type: "string" },
-        reason: { type: "string", description: "bounce | complaint | manual" },
-        limit: { type: "number" },
+        email: { type: "string", description: "Filter by specific email address", format: "email", maxLength: 254 },
+        domainId: { type: "string", description: "Filter by domain ID", pattern: "^[A-Za-z0-9_-]+$", maxLength: 128 },
+        reason: { type: "string", description: "Suppression reason", enum: ["bounce", "complaint", "manual"] },
+        limit: { type: "number", minimum: 1, maximum: 200 },
       },
     },
   },
@@ -247,8 +247,8 @@ export const toolDefinitions: Tool[] = [
     inputSchema: {
       type: "object",
       properties: {
-        id: { type: "string", description: "Suppression entry ID from list_suppression_list" },
-        ticketId: { type: "string" },
+        id: { type: "string", description: "Suppression entry ID from list_suppression_list", pattern: "^[A-Za-z0-9_-]+$", maxLength: 128 },
+        ticketId: { type: "string", description: "Suppo ticket ID to attach audit memo to", pattern: "^[A-Za-z0-9_-]+$", maxLength: 128 },
       },
       required: ["id"],
     },
@@ -261,9 +261,9 @@ export const toolDefinitions: Tool[] = [
     inputSchema: {
       type: "object",
       properties: {
-        domainId: { type: "string" },
+        domainId: { type: "string", description: "Filter by domain ID", pattern: "^[A-Za-z0-9_-]+$", maxLength: 128 },
         overLimit: { type: "boolean", description: "Only show entities over quota limit" },
-        limit: { type: "number" },
+        limit: { type: "number", minimum: 1, maximum: 200 },
       },
     },
   },
@@ -273,7 +273,7 @@ export const toolDefinitions: Tool[] = [
     inputSchema: {
       type: "object",
       properties: {
-        limit: { type: "number" },
+        limit: { type: "number", minimum: 1, maximum: 200 },
       },
     },
   },
@@ -285,8 +285,8 @@ export const toolDefinitions: Tool[] = [
     inputSchema: {
       type: "object",
       properties: {
-        userId: { type: "string" },
-        ticketId: { type: "string" },
+        userId: { type: "string", description: "User entity ID", pattern: "^[A-Za-z0-9_-]+$", maxLength: 128 },
+        ticketId: { type: "string", description: "Suppo ticket ID to attach audit memo to", pattern: "^[A-Za-z0-9_-]+$", maxLength: 128 },
       },
       required: ["userId"],
     },
@@ -298,9 +298,9 @@ export const toolDefinitions: Tool[] = [
     inputSchema: {
       type: "object",
       properties: {
-        userId: { type: "string" },
-        status: { type: "string", description: "active | suspended | disabled" },
-        ticketId: { type: "string" },
+        userId: { type: "string", description: "User entity ID", pattern: "^[A-Za-z0-9_-]+$", maxLength: 128 },
+        status: { type: "string", description: "New user account status", enum: ["active", "suspended", "disabled"] },
+        ticketId: { type: "string", description: "Suppo ticket ID to attach audit memo to", pattern: "^[A-Za-z0-9_-]+$", maxLength: 128 },
       },
       required: ["userId", "status"],
     },
@@ -312,9 +312,9 @@ export const toolDefinitions: Tool[] = [
     inputSchema: {
       type: "object",
       properties: {
-        userId: { type: "string" },
-        quotaBytes: { type: "number", description: "New quota in bytes" },
-        ticketId: { type: "string" },
+        userId: { type: "string", description: "User entity ID", pattern: "^[A-Za-z0-9_-]+$", maxLength: 128 },
+        quotaBytes: { type: "number", description: "New quota in bytes", minimum: 0, maximum: 10995116277760 },
+        ticketId: { type: "string", description: "Suppo ticket ID to attach audit memo to", pattern: "^[A-Za-z0-9_-]+$", maxLength: 128 },
       },
       required: ["userId", "quotaBytes"],
     },
@@ -326,9 +326,9 @@ export const toolDefinitions: Tool[] = [
     inputSchema: {
       type: "object",
       properties: {
-        userId: { type: "string" },
-        role: { type: "string" },
-        ticketId: { type: "string" },
+        userId: { type: "string", description: "User entity ID", pattern: "^[A-Za-z0-9_-]+$", maxLength: 128 },
+        role: { type: "string", description: "New role to assign to the user" },
+        ticketId: { type: "string", description: "Suppo ticket ID to attach audit memo to", pattern: "^[A-Za-z0-9_-]+$", maxLength: 128 },
       },
       required: ["userId", "role"],
     },
@@ -340,9 +340,9 @@ export const toolDefinitions: Tool[] = [
     inputSchema: {
       type: "object",
       properties: {
-        userId: { type: "string" },
-        recoveryEmail: { type: "string", description: "New recovery email address" },
-        ticketId: { type: "string" },
+        userId: { type: "string", description: "User entity ID", pattern: "^[A-Za-z0-9_-]+$", maxLength: 128 },
+        recoveryEmail: { type: "string", description: "New recovery email address", format: "email", maxLength: 254 },
+        ticketId: { type: "string", description: "Suppo ticket ID to attach audit memo to", pattern: "^[A-Za-z0-9_-]+$", maxLength: 128 },
       },
       required: ["userId", "recoveryEmail"],
     },
@@ -354,13 +354,13 @@ export const toolDefinitions: Tool[] = [
     inputSchema: {
       type: "object",
       properties: {
-        domainId: { type: "string" },
-        username: { type: "string", description: "Local part of the email address (before @)" },
-        displayName: { type: "string", description: "User's full display name" },
-        recoveryEmail: { type: "string", description: "Recovery email (optional)" },
-        password: { type: "string", description: "Initial password — user will be required to change it on first login" },
-        quotaLimit: { type: "number", description: "Storage quota in bytes (optional, uses domain default)" },
-        ticketId: { type: "string" },
+        domainId: { type: "string", description: "Domain entity ID to create the user in", pattern: "^[A-Za-z0-9_-]+$", maxLength: 128 },
+        username: { type: "string", description: "Local part of the email address (before @)", maxLength: 64 },
+        displayName: { type: "string", description: "User's full display name", maxLength: 256 },
+        recoveryEmail: { type: "string", description: "Recovery email (optional)", format: "email", maxLength: 254 },
+        password: { type: "string", description: "Initial password — user will be required to change it on first login", maxLength: 256 },
+        quotaLimit: { type: "number", description: "Storage quota in bytes (optional, uses domain default)", minimum: 0, maximum: 10995116277760 },
+        ticketId: { type: "string", description: "Suppo ticket ID to attach audit memo to", pattern: "^[A-Za-z0-9_-]+$", maxLength: 128 },
       },
       required: ["domainId", "username", "displayName"],
     },
@@ -372,8 +372,8 @@ export const toolDefinitions: Tool[] = [
     inputSchema: {
       type: "object",
       properties: {
-        userId: { type: "string" },
-        ticketId: { type: "string" },
+        userId: { type: "string", description: "User entity ID to permanently delete", pattern: "^[A-Za-z0-9_-]+$", maxLength: 128 },
+        ticketId: { type: "string", description: "Suppo ticket ID to attach audit memo to", pattern: "^[A-Za-z0-9_-]+$", maxLength: 128 },
       },
       required: ["userId"],
     },
@@ -385,12 +385,12 @@ export const toolDefinitions: Tool[] = [
     inputSchema: {
       type: "object",
       properties: {
-        domainId: { type: "string" },
+        domainId: { type: "string", description: "Domain entity ID", pattern: "^[A-Za-z0-9_-]+$", maxLength: 128 },
         settings: {
           type: "object",
           description: "Partial domain settings to update",
         },
-        ticketId: { type: "string" },
+        ticketId: { type: "string", description: "Suppo ticket ID to attach audit memo to", pattern: "^[A-Za-z0-9_-]+$", maxLength: 128 },
       },
       required: ["domainId", "settings"],
     },
@@ -402,7 +402,7 @@ export const toolDefinitions: Tool[] = [
       "List all active login sessions for all users in a company. Use for security investigations.",
     inputSchema: {
       type: "object",
-      properties: { companyId: { type: "string" } },
+      properties: { companyId: { type: "string", description: "Company entity ID", pattern: "^[A-Za-z0-9_-]+$", maxLength: 128 } },
       required: ["companyId"],
     },
   },
@@ -413,9 +413,9 @@ export const toolDefinitions: Tool[] = [
     inputSchema: {
       type: "object",
       properties: {
-        companyId: { type: "string" },
-        userId: { type: "string" },
-        ticketId: { type: "string" },
+        companyId: { type: "string", description: "Company entity ID", pattern: "^[A-Za-z0-9_-]+$", maxLength: 128 },
+        userId: { type: "string", description: "User entity ID whose session to revoke", pattern: "^[A-Za-z0-9_-]+$", maxLength: 128 },
+        ticketId: { type: "string", description: "Suppo ticket ID to attach audit memo to", pattern: "^[A-Za-z0-9_-]+$", maxLength: 128 },
       },
       required: ["companyId", "userId"],
     },
@@ -426,7 +426,7 @@ export const toolDefinitions: Tool[] = [
     description: "Get spam filter policy configuration for a company.",
     inputSchema: {
       type: "object",
-      properties: { companyId: { type: "string" } },
+      properties: { companyId: { type: "string", description: "Company entity ID", pattern: "^[A-Za-z0-9_-]+$", maxLength: 128 } },
       required: ["companyId"],
     },
   },
@@ -436,7 +436,7 @@ export const toolDefinitions: Tool[] = [
       "Get recent spam filter events for a company. Use to investigate why legitimate mail is being quarantined.",
     inputSchema: {
       type: "object",
-      properties: { companyId: { type: "string" } },
+      properties: { companyId: { type: "string", description: "Company entity ID", pattern: "^[A-Za-z0-9_-]+$", maxLength: 128 } },
       required: ["companyId"],
     },
   },
@@ -446,7 +446,7 @@ export const toolDefinitions: Tool[] = [
       "List DKIM signing keys. Filter by domain to check if a domain has valid DKIM configured.",
     inputSchema: {
       type: "object",
-      properties: { domainId: { type: "string" } },
+      properties: { domainId: { type: "string", description: "Filter by domain ID", pattern: "^[A-Za-z0-9_-]+$", maxLength: 128 } },
     },
   },
   {
@@ -455,8 +455,8 @@ export const toolDefinitions: Tool[] = [
     inputSchema: {
       type: "object",
       properties: {
-        companyId: { type: "string" },
-        limit: { type: "number" },
+        companyId: { type: "string", description: "Company entity ID", pattern: "^[A-Za-z0-9_-]+$", maxLength: 128 },
+        limit: { type: "number", minimum: 1, maximum: 200 },
       },
       required: ["companyId"],
     },
@@ -468,11 +468,11 @@ export const toolDefinitions: Tool[] = [
     inputSchema: {
       type: "object",
       properties: {
-        userId: { type: "string" },
-        companyId: { type: "string" },
+        userId: { type: "string", description: "Filter by user ID", pattern: "^[A-Za-z0-9_-]+$", maxLength: 128 },
+        companyId: { type: "string", description: "Filter by company ID", pattern: "^[A-Za-z0-9_-]+$", maxLength: 128 },
         from: { type: "string", description: "ISO 8601 start time" },
         to: { type: "string", description: "ISO 8601 end time" },
-        limit: { type: "number" },
+        limit: { type: "number", minimum: 1, maximum: 200 },
       },
     },
   },

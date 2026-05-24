@@ -19,6 +19,14 @@ import * as githubTools from "./tools/github.js";
 const MAX_BODY_BYTES = 1 * 1024 * 1024; // 1 MB
 const MAX_SESSIONS = 100; // prevent session map unbounded growth
 const MAX_SESSION_ID_LENGTH = 128;
+const SENSITIVE_ARG_KEYS = new Set(["password", "token", "apiKey", "secret", "key"]);
+const RATE_LIMIT_WINDOW_MS = 60_000;   // 1-minute sliding window
+const RATE_LIMIT_MAX = 100;            // max tool calls per session per window
+const SESSION_TTL_MS = 30 * 60_000;   // evict sessions idle for 30 min
+
+const rateLimitState = new Map<string, { count: number; windowStart: number }>();
+const sessionActivity = new Map<string, number>();
+let isShuttingDown = false;
 
 // ── Clients ──────────────────────────────────────────────────────
 
@@ -94,6 +102,19 @@ function sanitizeError(err: unknown): string {
   return raw.length > 500 ? raw.slice(0, 500) + " [truncated]" : raw;
 }
 
+// ── Rate limiter (SSE only) ──────────────────────────────────────
+function checkRateLimit(sessionId: string): boolean {
+  const now = Date.now();
+  const state = rateLimitState.get(sessionId);
+  if (!state || now - state.windowStart >= RATE_LIMIT_WINDOW_MS) {
+    rateLimitState.set(sessionId, { count: 1, windowStart: now });
+    return true;
+  }
+  if (state.count >= RATE_LIMIT_MAX) return false;
+  state.count++;
+  return true;
+}
+
 // ── MCP server ───────────────────────────────────────────────────
 
 const allTools = [
@@ -116,6 +137,10 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const typedArgs = args as Record<string, unknown>;
 
   try {
+    // Log tool invocations — field names only, values are never logged (may contain credentials)
+    const logKeys = Object.keys(typedArgs).filter(k => !SENSITIVE_ARG_KEYS.has(k));
+    console.error(`[tool] ${name}${logKeys.length ? ` [${logKeys.join(", ")}]` : ""}`);
+
     let result: unknown;
 
     if (name.startsWith("suppo_")) {
@@ -160,6 +185,11 @@ async function main(): Promise<void> {
       if (req.method === "GET" && req.url === "/sse") {
         if (!checkAuth(req, res)) return;
 
+        if (isShuttingDown) {
+          res.writeHead(503, securityHeaders()).end("Server is shutting down");
+          return;
+        }
+
         if (sessions.size >= MAX_SESSIONS) {
           res.writeHead(503, securityHeaders()).end("Too many sessions");
           return;
@@ -168,7 +198,12 @@ async function main(): Promise<void> {
         const transport = new SSEServerTransport("/messages", res);
         sessions.set(transport.sessionId, transport);
         server.connect(transport).catch(console.error);
-        req.on("close", () => sessions.delete(transport.sessionId));
+        sessionActivity.set(transport.sessionId, Date.now());
+        req.on("close", () => {
+          sessions.delete(transport.sessionId);
+          sessionActivity.delete(transport.sessionId);
+          rateLimitState.delete(transport.sessionId);
+        });
         return;
       }
 
@@ -197,6 +232,12 @@ async function main(): Promise<void> {
           res.writeHead(404, securityHeaders()).end("Session not found");
           return;
         }
+
+        if (!checkRateLimit(sessionId)) {
+          res.writeHead(429, { ...securityHeaders(), "Retry-After": "60" }).end("Too Many Requests");
+          return;
+        }
+        sessionActivity.set(sessionId, Date.now());
 
         // Enforce body size limit to prevent OOM
         let body = "";
@@ -233,6 +274,34 @@ async function main(): Promise<void> {
         `[mcp-support] SSE transport listening on port ${config.port}`,
       );
     });
+
+    setInterval(() => {
+      const now = Date.now();
+      for (const [id, lastActive] of sessionActivity) {
+        if (now - lastActive > SESSION_TTL_MS) {
+          sessions.delete(id);
+          sessionActivity.delete(id);
+          rateLimitState.delete(id);
+          console.error(`[mcp-support] Session ${id.slice(0, 8)}… evicted (idle TTL)`);
+        }
+      }
+    }, 60_000).unref();
+
+    const shutdown = () => {
+      if (isShuttingDown) return;
+      isShuttingDown = true;
+      console.error("[mcp-support] Shutdown signal received — draining connections…");
+      httpServer.close(() => {
+        console.error("[mcp-support] HTTP server closed");
+        process.exit(0);
+      });
+      setTimeout(() => {
+        console.error("[mcp-support] Shutdown timeout exceeded, force-exiting");
+        process.exit(1);
+      }, 30_000).unref();
+    };
+    process.on("SIGTERM", shutdown);
+    process.on("SIGINT", shutdown);
   } else {
     const transport = new StdioServerTransport();
     await server.connect(transport);

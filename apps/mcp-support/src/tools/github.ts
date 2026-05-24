@@ -13,9 +13,9 @@ export const toolDefinitions: Tool[] = [
     inputSchema: {
       type: "object",
       properties: {
-        query: { type: "string" },
-        labels: { type: "array", items: { type: "string" } },
-        state: { type: "string", description: "open | closed | all" },
+        query: { type: "string", maxLength: 1000 },
+        labels: { type: "array", items: { type: "string", maxLength: 128 }, maxItems: 20 },
+        state: { type: "string", description: "open | closed | all", enum: ["open", "closed", "all"] },
       },
       required: ["query"],
     },
@@ -26,7 +26,7 @@ export const toolDefinitions: Tool[] = [
     inputSchema: {
       type: "object",
       properties: {
-        issueNumber: { type: "number" },
+        issueNumber: { type: "number", minimum: 1 },
       },
       required: ["issueNumber"],
     },
@@ -37,9 +37,9 @@ export const toolDefinitions: Tool[] = [
     inputSchema: {
       type: "object",
       properties: {
-        labels: { type: "array", items: { type: "string" } },
-        milestone: { type: "string" },
-        state: { type: "string", description: "open | closed | all" },
+        labels: { type: "array", items: { type: "string", maxLength: 128 }, maxItems: 20 },
+        milestone: { type: "string", maxLength: 256 },
+        state: { type: "string", description: "open | closed | all", enum: ["open", "closed", "all"] },
       },
     },
   },
@@ -49,9 +49,9 @@ export const toolDefinitions: Tool[] = [
     inputSchema: {
       type: "object",
       properties: {
-        title: { type: "string" },
-        body: { type: "string" },
-        labels: { type: "array", items: { type: "string" } },
+        title: { type: "string", maxLength: 512 },
+        body: { type: "string", maxLength: 65535 },
+        labels: { type: "array", items: { type: "string", maxLength: 128 }, maxItems: 20 },
       },
       required: ["title", "body"],
     },
@@ -62,8 +62,8 @@ export const toolDefinitions: Tool[] = [
     inputSchema: {
       type: "object",
       properties: {
-        issueNumber: { type: "number" },
-        body: { type: "string" },
+        issueNumber: { type: "number", minimum: 1 },
+        body: { type: "string", maxLength: 65535 },
       },
       required: ["issueNumber", "body"],
     },
@@ -74,9 +74,9 @@ export const toolDefinitions: Tool[] = [
     inputSchema: {
       type: "object",
       properties: {
-        issueNumber: { type: "number" },
-        labels: { type: "array", items: { type: "string" } },
-        state: { type: "string", description: "open | closed" },
+        issueNumber: { type: "number", minimum: 1 },
+        labels: { type: "array", items: { type: "string", maxLength: 128 }, maxItems: 20 },
+        state: { type: "string", description: "open | closed", enum: ["open", "closed"] },
       },
       required: ["issueNumber"],
     },

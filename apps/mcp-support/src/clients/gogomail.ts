@@ -184,6 +184,15 @@ export class GogomailClient {
     }
     if (!res.ok) {
       const text = await res.text().catch(() => "");
+      if (res.status >= 500) {
+        // Log full body internally but don't expose server internals to the agent
+        console.error(
+          `[gogomail] ${method} /admin/v1${path} → ${res.status}: ${text.slice(0, 300)}`,
+        );
+        throw new Error(
+          `GoGoMail Admin API ${method} /admin/v1${path} → ${res.status} (internal server error)`,
+        );
+      }
       throw new Error(
         `GoGoMail Admin API ${method} /admin/v1${path} → ${res.status}: ${text}`,
       );

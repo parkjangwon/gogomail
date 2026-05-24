@@ -69,6 +69,11 @@ export class SuppoClient {
     }
     if (!res.ok) {
       const text = await res.text().catch(() => "");
+      if (res.status >= 500) {
+        // Log full body internally but don't expose server internals to the agent
+        console.error(`[suppo] ${method} ${path} → ${res.status}: ${text.slice(0, 300)}`);
+        throw new Error(`Suppo API ${method} ${path} → ${res.status} (internal server error)`);
+      }
       throw new Error(`Suppo API ${method} ${path} → ${res.status}: ${text}`);
     }
     return res.json() as Promise<T>;

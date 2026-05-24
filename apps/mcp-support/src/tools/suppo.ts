@@ -13,9 +13,9 @@ export const toolDefinitions: Tool[] = [
     inputSchema: {
       type: "object",
       properties: {
-        status: { type: "string", description: "Filter by ticket status" },
-        priority: { type: "string", description: "Filter by priority" },
-        limit: { type: "number", description: "Max results (default 20)" },
+        status: { type: "string", description: "Filter by ticket status", enum: ["open", "pending", "resolved", "closed"] },
+        priority: { type: "string", description: "Filter by priority", enum: ["low", "normal", "high", "urgent"] },
+        limit: { type: "number", description: "Max results (default 20)", minimum: 1, maximum: 200 },
       },
     },
   },
@@ -25,7 +25,7 @@ export const toolDefinitions: Tool[] = [
     inputSchema: {
       type: "object",
       properties: {
-        ticketId: { type: "string" },
+        ticketId: { type: "string", pattern: "^[A-Za-z0-9_-]+$", maxLength: 128 },
       },
       required: ["ticketId"],
     },
@@ -36,8 +36,8 @@ export const toolDefinitions: Tool[] = [
     inputSchema: {
       type: "object",
       properties: {
-        customerEmail: { type: "string" },
-        query: { type: "string" },
+        customerEmail: { type: "string", format: "email", maxLength: 254 },
+        query: { type: "string", maxLength: 500 },
       },
     },
   },
@@ -47,11 +47,11 @@ export const toolDefinitions: Tool[] = [
     inputSchema: {
       type: "object",
       properties: {
-        customerName: { type: "string" },
-        customerEmail: { type: "string" },
-        subject: { type: "string" },
-        description: { type: "string" },
-        priority: { type: "string", description: "low | normal | high | urgent" },
+        customerName: { type: "string", maxLength: 256 },
+        customerEmail: { type: "string", format: "email", maxLength: 254 },
+        subject: { type: "string", maxLength: 512 },
+        description: { type: "string", maxLength: 10000 },
+        priority: { type: "string", description: "low | normal | high | urgent", enum: ["low", "normal", "high", "urgent"] },
       },
       required: ["customerName", "customerEmail", "subject", "description"],
     },
@@ -62,9 +62,9 @@ export const toolDefinitions: Tool[] = [
     inputSchema: {
       type: "object",
       properties: {
-        ticketId: { type: "string" },
-        status: { type: "string" },
-        priority: { type: "string" },
+        ticketId: { type: "string", pattern: "^[A-Za-z0-9_-]+$", maxLength: 128 },
+        status: { type: "string", enum: ["open", "pending", "resolved", "closed"] },
+        priority: { type: "string", enum: ["low", "normal", "high", "urgent"] },
       },
       required: ["ticketId"],
     },
@@ -75,8 +75,8 @@ export const toolDefinitions: Tool[] = [
     inputSchema: {
       type: "object",
       properties: {
-        ticketId: { type: "string" },
-        body: { type: "string" },
+        ticketId: { type: "string", pattern: "^[A-Za-z0-9_-]+$", maxLength: 128 },
+        body: { type: "string", maxLength: 10000 },
         internal: { type: "boolean", description: "true = internal memo, false = customer-visible reply" },
       },
       required: ["ticketId", "body"],
@@ -88,8 +88,8 @@ export const toolDefinitions: Tool[] = [
     inputSchema: {
       type: "object",
       properties: {
-        ticketId: { type: "string" },
-        assigneeId: { type: "string" },
+        ticketId: { type: "string", pattern: "^[A-Za-z0-9_-]+$", maxLength: 128 },
+        assigneeId: { type: "string", pattern: "^[A-Za-z0-9_-]+$", maxLength: 128 },
       },
       required: ["ticketId", "assigneeId"],
     },
@@ -105,7 +105,7 @@ export const toolDefinitions: Tool[] = [
     inputSchema: {
       type: "object",
       properties: {
-        query: { type: "string" },
+        query: { type: "string", maxLength: 500 },
       },
       required: ["query"],
     },
@@ -116,8 +116,8 @@ export const toolDefinitions: Tool[] = [
     inputSchema: {
       type: "object",
       properties: {
-        title: { type: "string" },
-        content: { type: "string" },
+        title: { type: "string", maxLength: 512 },
+        content: { type: "string", maxLength: 100000 },
       },
       required: ["title", "content"],
     },

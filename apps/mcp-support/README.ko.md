@@ -92,6 +92,7 @@ npm run build        # TypeScript → dist/ 컴파일
 | `GITHUB_REPO` | 선택 | Issues에 사용할 `owner/repo` (기본값: `parkjangwon/gogomail`) |
 | `MCP_TRANSPORT` | 선택 | `stdio` (기본값) 또는 `sse` |
 | `MCP_PORT` | 선택 | SSE 전송 시 HTTP 포트 (기본값: `3100`) |
+| `MCP_SECRET` | 선택 | 설정 시 모든 SSE 연결에 `Authorization: Bearer <값>` 헤더가 필요합니다. 강력한 랜덤 시크릿(32자 이상)을 사용하세요. |
 
 ### 최소 설정 (GoGoMail만)
 
@@ -168,13 +169,11 @@ Claude Desktop이 MCP 서버를 하위 프로세스로 실행합니다. `~/Libra
 원격 에이전트가 연결할 수 있도록 SSE 모드로 서버를 시작합니다:
 
 ```bash
-GOGOMAIL_ADMIN_URL=https://mail.example.com \
-GOGOMAIL_ADMIN_KEY=your-admin-token \
-SUPPO_API_URL=https://support.example.com \
-SUPPO_API_KEY=crn_live_... \
-GITHUB_TOKEN=ghp_... \
+MCP_SECRET=your-strong-random-secret \
 MCP_TRANSPORT=sse \
 MCP_PORT=3100 \
+GOGOMAIL_ADMIN_URL=https://mail.example.com \
+GOGOMAIL_ADMIN_KEY=your-admin-token \
 node dist/index.js
 ```
 
@@ -182,7 +181,9 @@ node dist/index.js
 - `GET  http://localhost:3100/sse` — SSE 스트림. 에이전트가 먼저 여기에 연결합니다.
 - `POST http://localhost:3100/messages?sessionId=<id>` — 에이전트가 툴 호출을 여기로 전송합니다.
 
-> **보안 경고:** SSE 엔드포인트에는 내장 인증이 없습니다. 프로덕션에서는 사설 인터페이스(`localhost` 또는 VPC 내부 주소)에만 바인딩하고, 포트 3100을 외부에 절대 노출하지 마세요. 원격 에이전트가 필요한 경우 mTLS나 토큰 검증을 수행하는 리버스 프록시를 앞에 두세요.
+> **보안:** `MCP_SECRET`을 설정하면 모든 SSE 연결에 Bearer 토큰 인증이 적용됩니다.
+> 모든 요청에 `Authorization: Bearer <MCP_SECRET>` 헤더가 포함되어야 합니다.
+> `MCP_SECRET`이 없으면 엔드포인트는 미인증 상태입니다 — 신뢰할 수 있는 내부 망에서만 사용하세요.
 
 ---
 
@@ -472,12 +473,20 @@ GoGoMail **액션** 툴(쓰기 작업)은 모두 실행 후 자동으로 감사 
 - AWS Secrets Manager, Vault, 1Password 같은 시크릿 관리자에 저장하고, 소스 컨트롤에 커밋되는 평문 env 파일에는 넣지 마세요.
 - 유출된 경우 즉시 교체하세요.
 
-**SSE 엔드포인트**
+**SSE 엔드포인트 인증**
 
-HTTP+SSE 전송에는 내장 인증이 없습니다. 포트 3100에 접근할 수 있는 누구나 `gogomail_delete_user`, `gogomail_delete_dlq_entry` 같은 파괴적인 툴을 포함한 53개 전체 툴을 호출할 수 있습니다. 완화 방법:
-- `localhost`에서만 실행하고 SSH 포트 포워딩이나 Cloudflare Tunnel로 안전하게 터널링하세요.
-- IP 허용 목록이나 상호 TLS를 수행하는 리버스 프록시를 앞에 배치하세요.
-- 포트를 외부 인터넷에 절대 노출하지 마세요.
+`MCP_SECRET`을 설정하면 Bearer 토큰 인증이 활성화됩니다. 이후 모든 SSE 연결(`GET /sse`)과 툴 호출 요청(`POST /messages`)에 다음 헤더가 필요합니다:
+```
+Authorization: Bearer <MCP_SECRET>
+```
+토큰 비교는 타이밍 공격을 방지하기 위해 `crypto.timingSafeEqual`을 사용합니다. `MCP_SECRET`이 없는 경우:
+- 엔드포인트는 미인증 상태 — 포트에 접근 가능한 모든 프로세스가 53개 전체 툴을 호출할 수 있습니다
+- `localhost`에 바인딩하고 외부 접근이 없는 경우에만 허용 가능
+
+프로덕션 권장 사항:
+- 강력한 `MCP_SECRET` 설정 (32바이트 이상의 랜덤 값, base64 인코딩)
+- 사설 인터페이스에 바인딩하거나 리버스 프록시 사용
+- 포트를 외부 인터넷에 절대 노출하지 마세요
 
 **최소 권한 원칙**
 

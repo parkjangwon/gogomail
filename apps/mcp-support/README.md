@@ -92,6 +92,7 @@ All configuration is via environment variables.
 | `GITHUB_REPO` | No | `owner/repo` to use for Issues (default: `parkjangwon/gogomail`) |
 | `MCP_TRANSPORT` | No | `stdio` (default) or `sse` |
 | `MCP_PORT` | No | HTTP port when using SSE transport (default: `3100`) |
+| `MCP_SECRET` | No | When set, all SSE connections must include `Authorization: Bearer <value>`. Use a strong random secret (≥ 32 chars). |
 
 ### Minimal setup (GoGoMail only)
 
@@ -168,13 +169,11 @@ After saving, restart Claude Desktop. You should see the hammer icon (🔨) in t
 Start the server in SSE mode so a remote agent can connect:
 
 ```bash
-GOGOMAIL_ADMIN_URL=https://mail.example.com \
-GOGOMAIL_ADMIN_KEY=your-admin-token \
-SUPPO_API_URL=https://support.example.com \
-SUPPO_API_KEY=crn_live_... \
-GITHUB_TOKEN=ghp_... \
+MCP_SECRET=your-strong-random-secret \
 MCP_TRANSPORT=sse \
 MCP_PORT=3100 \
+GOGOMAIL_ADMIN_URL=https://mail.example.com \
+GOGOMAIL_ADMIN_KEY=your-admin-token \
 node dist/index.js
 ```
 
@@ -182,7 +181,9 @@ The server exposes:
 - `GET  http://localhost:3100/sse` — SSE stream; the agent connects here first
 - `POST http://localhost:3100/messages?sessionId=<id>` — the agent sends tool calls here
 
-> **Security warning:** The SSE endpoint has no built-in authentication. In production, bind to a private interface (`localhost` or a VPC-internal address) and never expose port 3100 to the public internet. Use a reverse proxy with mTLS or token verification in front if the agent is remote.
+> **Security:** Set `MCP_SECRET` to require Bearer token authentication on all SSE connections.
+> Every request must include `Authorization: Bearer <MCP_SECRET>`.
+> Without `MCP_SECRET` the endpoint is unauthenticated — only use that in trusted private networks.
 
 ---
 
@@ -472,11 +473,19 @@ The `GOGOMAIL_ADMIN_KEY` grants full Admin API access. Treat it like a root pass
 - Store it in a secrets manager (AWS Secrets Manager, Vault, 1Password), not in plain env files committed to source control.
 - Rotate it if it is ever exposed.
 
-**SSE endpoint**
-The HTTP+SSE transport has no built-in authentication. Anyone who can reach port 3100 can invoke all 53 tools, including destructive ones (`gogomail_delete_user`, `gogomail_delete_dlq_entry`). Mitigations:
-- Run on `localhost` and tunnel securely (SSH port forwarding, Cloudflare Tunnel).
-- Place a reverse proxy with IP allowlist or mutual TLS in front.
-- Never expose the port to the public internet.
+**SSE endpoint authentication**
+Set `MCP_SECRET` to enable Bearer token authentication. All SSE connections (`GET /sse`) and tool call requests (`POST /messages`) must then include:
+```
+Authorization: Bearer <MCP_SECRET>
+```
+Token comparison uses `crypto.timingSafeEqual` to prevent timing attacks. Without `MCP_SECRET`:
+- The endpoint is unauthenticated — any process that can reach the port can invoke all 53 tools
+- Acceptable only when bound to `localhost` with no external access
+
+Recommended for production:
+- Set a strong `MCP_SECRET` (≥ 32 random bytes, base64-encoded)
+- Bind to a private interface or use a reverse proxy
+- Never expose the port to the public internet
 
 **Principle of least privilege**
 If you only need a subset of tools (e.g., read-only diagnostics), you can safely omit `SUPPO_API_KEY` / `GITHUB_TOKEN` and use a GoGoMail admin key with reduced permissions.
