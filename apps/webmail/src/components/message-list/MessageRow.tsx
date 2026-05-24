@@ -191,7 +191,7 @@ export function MessageRow({
         </button>
 
         {!compact && (
-          <div ref={avatarRef} aria-hidden="true" style={{ width: '32px', height: '32px', borderRadius: '50%', flexShrink: 0, background: avatarColor(message.from_name || message.from_addr), color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px', fontWeight: 600, userSelect: 'none', alignSelf: 'center', overflow: 'hidden' }}
+          <div ref={avatarRef} aria-hidden="true" style={{ width: '32px', height: '32px', borderRadius: '50%', flexShrink: 0, background: avatarColor(message.from_addr), color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px', fontWeight: 600, userSelect: 'none', alignSelf: 'center', overflow: 'hidden' }}
             onMouseEnter={() => { if (avatarRef.current && onAvatarEnter) { onAvatarEnter(message.from_name || '', message.from_addr, avatarRef.current.getBoundingClientRect()); } }}
             onMouseLeave={() => onAvatarLeave?.()}
           >
