@@ -975,7 +975,6 @@
     "navCompose": "撰写",
     "navFilters": "过滤器",
     "navStorage": "存储/备份",
-    "navBlocked": "黑名单",
     "navVacation": "自动回复",
     "navPrivacy": "隐私",
     "navAppearance": "外观",
@@ -1355,7 +1354,18 @@
     "mcpSelectAllScopes": "全选",
     "mcpResetScopes": "重置为默认权限",
     "mcpKeyScopesSelected": "已选择 {count}/{total} 个权限",
-    "scNotificationCenter": "通知中心"
+    "scNotificationCenter": "通知中心",
+    "navSpam": "垃圾邮件设置",
+    "sectionSpamFilter": "垃圾邮件过滤器",
+    "spamAutoDelete": "垃圾邮件自动删除时间",
+    "spamAutoDeleteDesc": "设置自动删除垃圾邮件的时间",
+    "spamDelete14": "14天",
+    "spamDelete30": "30天",
+    "spamDelete60": "60天",
+    "spamDelete90": "90天",
+    "spamDeleteNever": "不自动删除",
+    "spamAutoBlock": "举报垃圾邮件时自动屏蔽",
+    "spamAutoBlockDesc": "举报垃圾邮件时自动将发件人添加到屏蔽列表"
   },
   "composeFull": {
     "titleNew": "新邮件",

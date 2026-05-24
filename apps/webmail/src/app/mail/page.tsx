@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { deleteMessage, restoreMessage, bulkRestoreMessages, createFolder, renameFolder, deleteFolder, starMessage, markRead, moveMessage, bulkMarkRead, searchMessages, getMessages, getMessage, sendMessage, listThreads, listThreadMessages, getNotificationPreferences, setNotificationPreferences, UIComposeIntent, MessageAddress, MessageDetail, MessageSummary, ThreadSummary, type ThreadNotificationOverride } from '@/lib/api';
+import { deleteMessage, restoreMessage, bulkRestoreMessages, createFolder, renameFolder, deleteFolder, starMessage, markRead, moveMessage, bulkMarkRead, searchMessages, getMessages, getMessage, sendMessage, listThreads, listThreadMessages, getNotificationPreferences, setNotificationPreferences, setPreferences, UIComposeIntent, MessageAddress, MessageDetail, MessageSummary, ThreadSummary, type ThreadNotificationOverride } from '@/lib/api';
 import { AdvancedFilters, VIRTUAL_ALL, VIRTUAL_STARRED, VIRTUAL_ATTACHMENTS, VIRTUAL_UNREAD, VIRTUAL_SNOOZED, VIRTUAL_PINNED, VIRTUAL_IMPORTANT } from '@/components/Sidebar';
 import { useMailList, type RefreshIntervalSeconds } from '@/hooks/useMailList';
 import { useMessage } from '@/hooks/useMessage';
@@ -838,13 +838,14 @@ export default function MailPage() {
     if (opts.blockSender) {
       try {
         const blocked: string[] = JSON.parse(localStorage.getItem('webmail_blocked_senders') ?? '[]');
-        const fromAddr = spamMsg ? (spamMsg as { from_addr?: string }).from_addr ?? '' : '';
+        const fromAddr = spamMsg?.from_addr ?? '';
         const toBlock: string[] = [fromAddr];
         if (opts.blockDomain && fromAddr.includes('@')) {
           toBlock.push('@' + fromAddr.split('@')[1]);
         }
         const next = [...new Set([...blocked, ...toBlock.filter(Boolean)])];
         localStorage.setItem('webmail_blocked_senders', JSON.stringify(next));
+        void setPreferences({ blocked_senders: next });
       } catch { /* ignore */ }
     }
     addToast(t('misc.mailPage.movedToSpam'), 'info', {
@@ -872,9 +873,10 @@ export default function MailPage() {
     if (!addr) return;
     try {
       const blocked: string[] = JSON.parse(localStorage.getItem('webmail_blocked_senders') ?? '[]');
-      if (!blocked.includes(addr)) {
-        localStorage.setItem('webmail_blocked_senders', JSON.stringify([...blocked, addr]));
-      }
+      if (blocked.includes(addr)) return;
+      const next = [...blocked, addr];
+      localStorage.setItem('webmail_blocked_senders', JSON.stringify(next));
+      void setPreferences({ blocked_senders: next });
     } catch { /* ignore */ }
     addToast(t('misc.mailPage.senderBlocked', { addr }), 'info');
   }, [addToast]);
