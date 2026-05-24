@@ -224,6 +224,54 @@ func (r *Repository) ListUnitsForUser(ctx context.Context, userID string) ([]Org
 	return units, rows.Err()
 }
 
+// GetMembershipsForUser returns all active org unit memberships for a user,
+// including the resolved unit display name and the member's title.
+func (r *Repository) GetMembershipsForUser(ctx context.Context, userID string) ([]MembershipDetail, error) {
+	if userID == "" {
+		return nil, fmt.Errorf("user_id is required")
+	}
+	rows, err := r.db.QueryContext(
+		ctx,
+		`SELECT om.id, ou.id,
+		        COALESCE(NULLIF(TRIM(ou.display_name), ''), ou.name),
+		        COALESCE(om.title, ''), om.role, om.is_primary
+		FROM organization_members om
+		JOIN organization_units ou ON ou.id = om.organization_unit_id
+		WHERE om.user_id = $1
+		  AND om.ended_at IS NULL
+		  AND ou.status = 'active'
+		ORDER BY om.is_primary DESC, ou.name`,
+		userID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var details []MembershipDetail
+	for rows.Next() {
+		var d MembershipDetail
+		if err := rows.Scan(&d.MemberID, &d.UnitID, &d.UnitName, &d.Title, &d.Role, &d.IsPrimary); err != nil {
+			return nil, err
+		}
+		details = append(details, d)
+	}
+	return details, rows.Err()
+}
+
+// UpdateMember updates the title and role of an existing membership.
+func (r *Repository) UpdateMember(ctx context.Context, memberID, title, role string) error {
+	if memberID == "" {
+		return fmt.Errorf("member_id is required")
+	}
+	_, err := r.db.ExecContext(
+		ctx,
+		`UPDATE organization_members SET title = $1, role = $2, updated_at = NOW() WHERE id = $3`,
+		title, role, memberID,
+	)
+	return err
+}
+
 // RemoveUser removes a user from an organization unit.
 func (r *Repository) RemoveUser(ctx context.Context, memberID string) error {
 	_, err := r.db.ExecContext(

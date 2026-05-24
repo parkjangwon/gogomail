@@ -23,6 +23,8 @@ type RepositoryInterface interface {
 	GetMembersInUnit(ctx context.Context, unitID string) ([]OrganizationMember, error)
 	ListMembersInUnits(ctx context.Context, unitIDs []string) (map[string][]OrganizationMember, error)
 	ListUnitsForUser(ctx context.Context, userID string) ([]OrganizationUnit, error)
+	GetMembershipsForUser(ctx context.Context, userID string) ([]MembershipDetail, error)
+	UpdateMember(ctx context.Context, memberID, title, role string) error
 	RemoveUser(ctx context.Context, memberID string) error
 	LogSync(ctx context.Context, log *SyncLog) error
 	UpdateSyncLog(ctx context.Context, log *SyncLog) error
@@ -156,8 +158,8 @@ func (s *Service) SyncWithLDAP(ctx context.Context, companyID string) (*SyncLog,
 	return log, nil
 }
 
-// AssignUserToUnit assigns a user to an organization unit.
-func (s *Service) AssignUserToUnit(ctx context.Context, unitID, userID string, role string) error {
+// AssignUserToUnit assigns a user to an organization unit with an optional title.
+func (s *Service) AssignUserToUnit(ctx context.Context, unitID, userID, role, title string) error {
 	if unitID == "" || userID == "" {
 		return fmt.Errorf("unit_id and user_id are required")
 	}
@@ -169,11 +171,28 @@ func (s *Service) AssignUserToUnit(ctx context.Context, unitID, userID string, r
 		OrganizationUnitID: unitID,
 		UserID:             userID,
 		Role:               role,
+		Title:              title,
 		StartedAt:          time.Now(),
 		IsPrimary:          true,
 	}
 
 	return s.repo.AssignUser(ctx, member)
+}
+
+// UpdateMemberTitle updates the title and role of an existing membership record.
+func (s *Service) UpdateMemberTitle(ctx context.Context, memberID, title, role string) error {
+	if memberID == "" {
+		return fmt.Errorf("member_id is required")
+	}
+	if role == "" {
+		role = "member"
+	}
+	return s.repo.UpdateMember(ctx, memberID, title, role)
+}
+
+// GetMembershipsForUser returns active memberships for a user including unit name and title.
+func (s *Service) GetMembershipsForUser(ctx context.Context, userID string) ([]MembershipDetail, error) {
+	return s.repo.GetMembershipsForUser(ctx, userID)
 }
 
 // RemoveUserFromUnit removes a user from an organization unit.

@@ -12,6 +12,7 @@ import (
 	"github.com/gogomail/gogomail/internal/auth"
 	"github.com/gogomail/gogomail/internal/carddavgw"
 	"github.com/gogomail/gogomail/internal/directory"
+	"github.com/gogomail/gogomail/internal/orgchart"
 )
 
 type ContactRepo interface {
@@ -30,17 +31,36 @@ type ContactRepo interface {
 type DirectoryRepo interface {
 	SearchPrincipals(ctx context.Context, req directory.SearchPrincipalsRequest) ([]directory.Principal, error)
 	ResolvePrincipal(ctx context.Context, req directory.ResolvePrincipalRequest) (directory.Principal, error)
+	ResolveUserByEmail(ctx context.Context, req directory.ResolveUserByEmailRequest) (directory.Principal, error)
 	ListOrgTree(ctx context.Context, companyID, domainID string) ([]directory.OrgTreeItem, error)
 	ListOrgMembersByOrgIDs(ctx context.Context, companyID, domainID string, orgIDs []string, limitPerOrg int) (map[string][]directory.Principal, error)
+}
+
+// OrgProfiler resolves org memberships (unit name + title) for a user.
+type OrgProfiler interface {
+	GetMembershipsForUser(ctx context.Context, userID string) ([]orgchart.MembershipDetail, error)
+}
+
+// DirectoryUserResolver resolves a user principal by email, scoped to a company/domain.
+type DirectoryUserResolver interface {
+	ResolveUserByEmail(ctx context.Context, req directory.ResolveUserByEmailRequest) (directory.Principal, error)
 }
 
 type ContactHandler struct {
 	repo          ContactRepo
 	directoryRepo DirectoryRepo
+	orgProfiler   OrgProfiler
 }
 
 func NewContactHandler(repo ContactRepo, dirRepo DirectoryRepo) *ContactHandler {
 	return &ContactHandler{repo: repo, directoryRepo: dirRepo}
+}
+
+// WithOrgProfiler attaches an org profiler so the directory profile endpoint can return
+// org unit name and title for internal users.
+func (h *ContactHandler) WithOrgProfiler(op OrgProfiler) *ContactHandler {
+	h.orgProfiler = op
+	return h
 }
 
 type AddressBookEnvelope struct {
@@ -573,6 +593,60 @@ func RegisterContactRoutes(mux *http.ServeMux, handler *ContactHandler, tokenMan
 			})
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"units": units})
+	})
+
+	// GET /api/mail/directory/profile?email={email} — user profile with org unit + title
+	mux.HandleFunc("GET /api/mail/directory/profile", func(w http.ResponseWriter, r *http.Request) {
+		if !rejectBodylessRequestPayload(w, r) {
+			return
+		}
+		if !rejectUnknownQueryKeys(w, r, "email", "user_id") {
+			return
+		}
+		if handler.directoryRepo == nil {
+			writeError(w, http.StatusServiceUnavailable, "directory not available")
+			return
+		}
+
+		_, _, ok := directoryScopeFromRequest(w, r, handler, tokenManager)
+		if !ok {
+			return
+		}
+
+		email := strings.TrimSpace(r.URL.Query().Get("email"))
+		if email == "" {
+			writeError(w, http.StatusBadRequest, "email is required")
+			return
+		}
+
+		principal, err := handler.directoryRepo.ResolveUserByEmail(r.Context(), directory.ResolveUserByEmailRequest{
+			Email:      email,
+			ActiveOnly: true,
+		})
+		if err != nil {
+			// User not found — return empty profile (not an error; caller decides)
+			writeJSON(w, http.StatusOK, map[string]any{"found": false})
+			return
+		}
+
+		type ProfileResponse struct {
+			Found       bool   `json:"found"`
+			DisplayName string `json:"display_name,omitempty"`
+			OrgUnitName string `json:"org_unit_name,omitempty"`
+			Title       string `json:"title,omitempty"`
+		}
+
+		resp := ProfileResponse{Found: true, DisplayName: principal.DisplayName}
+
+		if handler.orgProfiler != nil {
+			if memberships, err := handler.orgProfiler.GetMembershipsForUser(r.Context(), principal.ID); err == nil && len(memberships) > 0 {
+				// Primary membership (already sorted: is_primary DESC) takes priority.
+				resp.OrgUnitName = memberships[0].UnitName
+				resp.Title = memberships[0].Title
+			}
+		}
+
+		writeJSON(w, http.StatusOK, resp)
 	})
 }
 

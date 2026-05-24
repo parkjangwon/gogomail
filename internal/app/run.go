@@ -3335,7 +3335,7 @@ func runHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, mode M
 		httpapi.RegisterContactRoutes(mux, httpapi.NewContactHandler(
 			carddavgw.NewRepository(db),
 			directory.NewRepository(db),
-		), tokenManager)
+		).WithOrgProfiler(orgchart.NewService(orgchart.NewRepository(db), nil)), tokenManager)
 		calendarHandler := httpapi.NewCalendarHandler(caldavgw.NewRepository(db), service)
 		httpapi.RegisterCalendarRoutes(mux, calendarHandler, tokenManager)
 		httpapi.RegisterCalendarSubscriptionRoutes(mux, calendarHandler, tokenManager)

@@ -1818,6 +1818,31 @@ paths:
                 additionalProperties: true
         default:
           $ref: "#/components/responses/Error"
+  /api/mail/directory/profile:
+    get:
+      operationId: getDirectoryUserProfile
+      summary: Get user profile including org unit name and title
+      servers:
+        - url: /
+          description: Service root
+      parameters:
+        - $ref: "#/components/parameters/UserIDFallback"
+        - name: email
+          in: query
+          required: true
+          schema:
+            type: string
+            maxLength: 255
+      responses:
+        "200":
+          description: User profile envelope
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        default:
+          $ref: "#/components/responses/Error"
   /mailbox/overview:
     get:
       operationId: getMailboxOverview
@@ -8388,6 +8413,32 @@ paths:
         default:
           $ref: "#/components/responses/Error"
   /organization/members:
+    get:
+      operationId: adminGetOrganizationMemberships
+      summary: Get org unit memberships for a user
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      parameters:
+        - name: user_id
+          in: query
+          required: true
+          schema:
+            type: string
+            maxLength: 1024
+      responses:
+        "200":
+          description: Membership list
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        default:
+          $ref: "#/components/responses/Error"
     post:
       operationId: adminAssignOrganizationMember
       summary: Assign a user to an organization unit
@@ -8411,6 +8462,8 @@ paths:
                   type: string
                 role:
                   type: string
+                title:
+                  type: string
       responses:
         "201":
           description: Organization member assigned
@@ -8425,6 +8478,38 @@ paths:
         default:
           $ref: "#/components/responses/Error"
   /organization/members/{id}:
+    patch:
+      operationId: adminUpdateOrganizationMember
+      summary: Update a member's title and role
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                role:
+                  type: string
+      responses:
+        "200":
+          description: Member updated
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        default:
+          $ref: "#/components/responses/Error"
     delete:
       operationId: adminRemoveOrganizationMember
       summary: Remove an organization member assignment
