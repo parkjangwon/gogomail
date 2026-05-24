@@ -1,6 +1,12 @@
 # gogomail current status
 
-Last updated: 2026-05-23 (delivery exhausted push handler + webpush worker wiring)
+Last updated: 2026-05-24 (web_push_subscriptions migration)
+
+## Web Push Subscriptions Migration (2026-05-24)
+- Added `migrations/0152_web_push_subscriptions.sql` which creates the `web_push_subscriptions` table.
+- Columns: `id` (UUID PK), `user_id` (FK → users, CASCADE), `endpoint`, `p256dh`, `auth`, `user_agent`, `status`, `created_at`, `updated_at`.
+- Unique partial index on `endpoint` where `status = 'active'` prevents duplicate active subscriptions.
+- Filtered index on `(user_id)` where `status = 'active'` for efficient per-user subscription lookup.
 
 ## Delivery Exhausted Push Notification Handler (2026-05-23)
 - Added `DeliveryExhaustedHandler` in `internal/pushnotify/delivery_handler.go` that consumes `mail.delivery_exhausted` events.
