@@ -1,8 +1,8 @@
-# GoGoMail Support MCP 서버
+# GoGoMail Manage MCP 서버
 
 English / 영어: [README.md](README.md)
 
-AI 에이전트에게 GoGoMail Admin API, Suppo 헬프데스크(선택), GitHub Issues(선택)에 대한 구조화된 직접 접근을 제공하는 [MCP(Model Context Protocol)](https://modelcontextprotocol.io/) 서버입니다. **무인 24/7 메일 서비스 운영**을 목표로 설계됐습니다 — 에이전트가 배송 오류 진단·수정, 사용자 계정 관리, 메일 큐 확인, 지원 티켓 처리를 사람 없이 수행할 수 있습니다.
+`gogomail-manage-mcp`는 AI 에이전트에게 GoGoMail Admin API, Suppo 헬프데스크(선택), GitHub Issues(선택)에 대한 구조화된 관리 접근을 제공하는 [MCP(Model Context Protocol)](https://modelcontextprotocol.io/) 서버입니다. **무인 24/7 메일 서비스 운영**을 목표로 설계됐습니다 — 에이전트가 배송 오류 진단·수정, 사용자 계정 관리, 메일 큐 확인, 지원 티켓 처리를 사람 없이 수행할 수 있습니다.
 
 ---
 
@@ -35,7 +35,7 @@ AI 에이전트에게 GoGoMail Admin API, Suppo 헬프데스크(선택), GitHub 
           │  MCP 프로토콜 (JSON-RPC 2.0)
           ▼
   ┌─────────────────────────────┐
-  │   apps/mcp-support          │
+  │   apps/gogomail-manage-mcp  │
   │   (Node.js / TypeScript)    │
   │                             │
   │  ┌──────────────────────┐   │
@@ -69,7 +69,7 @@ AI 에이전트에게 GoGoMail Admin API, Suppo 헬프데스크(선택), GitHub 
 ## 설치
 
 ```bash
-cd apps/mcp-support
+cd apps/gogomail-manage-mcp
 npm install
 npm run build        # TypeScript → dist/ 컴파일
 ```
@@ -132,9 +132,9 @@ Claude Desktop이 MCP 서버를 하위 프로세스로 실행합니다. `~/Libra
 ```json
 {
   "mcpServers": {
-    "gogomail-support": {
+    "gogomail-manage-mcp": {
       "command": "node",
-      "args": ["/절대경로/apps/mcp-support/dist/index.js"],
+      "args": ["/절대경로/apps/gogomail-manage-mcp/dist/index.js"],
       "env": {
         "GOGOMAIL_ADMIN_URL": "https://mail.example.com",
         "GOGOMAIL_ADMIN_KEY": "your-admin-token"
@@ -149,9 +149,9 @@ Claude Desktop이 MCP 서버를 하위 프로세스로 실행합니다. `~/Libra
 ```json
 {
   "mcpServers": {
-    "gogomail-support": {
+    "gogomail-manage-mcp": {
       "command": "node",
-      "args": ["/절대경로/apps/mcp-support/dist/index.js"],
+      "args": ["/절대경로/apps/gogomail-manage-mcp/dist/index.js"],
       "env": {
         "GOGOMAIL_ADMIN_URL": "https://mail.example.com",
         "GOGOMAIL_ADMIN_KEY": "your-admin-token",

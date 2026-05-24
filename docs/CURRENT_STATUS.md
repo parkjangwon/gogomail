@@ -3,6 +3,7 @@
 Last updated: 2026-05-24 (MCP support security hardening)
 
 ## MCP Support Security Hardening (2026-05-24)
+- Renamed the exposed MCP identity to `gogomail-manage-mcp` and package metadata to `@gogomail/manage-mcp` so agent/client configurations clearly signal operational management scope.
 - Follow-up hardening tightened GoGoMail MCP timestamp filters to complete ISO-8601 values with timezone, rejects inverted time ranges, validates domain IP allowlists as real IP/CIDR entries, and updated workflow examples to include required `reason` fields.
 - Third-pass hardening made SSE `/messages` routing exact, tightened JSON content-type acceptance, and constrained GitHub issue search to configured-repository issues even when user queries include scope qualifiers.
 - SSE transport now binds to `127.0.0.1` by default via `MCP_HOST`, requires a 32-byte `MCP_SECRET`, rejects browser `Origin` headers unless explicitly allowlisted with `MCP_ALLOWED_ORIGINS`, and no longer accepts non-loopback `http://` upstreams unless `MCP_ALLOW_INSECURE_UPSTREAMS=true`.
@@ -10,7 +11,7 @@ Last updated: 2026-05-24 (MCP support security hardening)
 - GoGoMail mutation tools now require an operator-readable `reason`; irreversible user/DLQ deletes also require exact `confirm` phrases to reduce accidental autonomous destructive actions.
 - Runtime validation now aligns with advertised enums for GoGoMail, Suppo, and GitHub tools, rejects empty Suppo/GitHub updates, defaults Suppo comments to internal-only, and tightens user creation/password/domain-setting inputs.
 - Upstream clients now avoid `Content-Type` on bodyless Suppo GETs and truncate/sanitize exposed 4xx error bodies.
-- Verification: `npm test`, `npm run type-check`, `npm run build`, `npm audit --audit-level=low` in `apps/mcp-support`; `go test -timeout=240s ./...`; SSE smoke checks for short-secret rejection, missing-auth rejection, Origin rejection, authorized `/sse` stream establishment, exact `/messages` routing, and strict JSON content-type rejection.
+- Verification: `npm test`, `npm run type-check`, `npm run build`, `npm audit --audit-level=low` in `apps/gogomail-manage-mcp`; `go test -timeout=240s ./...`; SSE smoke checks for short-secret rejection, missing-auth rejection, Origin rejection, authorized `/sse` stream establishment, exact `/messages` routing, and strict JSON content-type rejection.
 
 ## Dev Infra and MCP Support Smoke Hardening (2026-05-24)
 - Fixed the dev Air build target to compile the whole `cmd/gogomail` package so the Docker Compose backend includes all command files.

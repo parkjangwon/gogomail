@@ -46,16 +46,16 @@ const githubClient = config.github.token
 
 if (!suppoClient) {
   console.error(
-    "[mcp-support] Suppo not configured — helpdesk tools disabled; audit trail will be logged to stderr only",
+    "[gogomail-manage-mcp] Suppo not configured — helpdesk tools disabled; audit trail will be logged to stderr only",
   );
 }
 if (!githubClient) {
   console.error(
-    "[mcp-support] GitHub not configured — GitHub Issues tools disabled",
+    "[gogomail-manage-mcp] GitHub not configured — GitHub Issues tools disabled",
   );
 }
 if (config.mcpSecret) {
-  console.error("[mcp-support] MCP_SECRET is set — SSE endpoints require Bearer auth");
+  console.error("[gogomail-manage-mcp] MCP_SECRET is set — SSE endpoints require Bearer auth");
 }
 
 // ── Auth middleware ───────────────────────────────────────────────
@@ -163,7 +163,7 @@ const allTools = [
 ];
 
 const server = new Server(
-  { name: "gogomail-support", version: "1.0.0" },
+  { name: "gogomail-manage-mcp", version: "1.0.0" },
   { capabilities: { tools: {} } },
 );
 
@@ -308,7 +308,7 @@ async function main(): Promise<void> {
           if (limitExceeded) return;
           const body = Buffer.concat(chunks, bytesRead).toString("utf8");
           transport.handlePostMessage(req, res, body).catch((e: unknown) => {
-            console.error("[mcp-support] handlePostMessage error:", e instanceof Error ? e.message : String(e));
+            console.error("[gogomail-manage-mcp] handlePostMessage error:", e instanceof Error ? e.message : String(e));
             if (!res.headersSent) {
               res.writeHead(500, securityHeaders()).end("Internal Server Error");
             }
@@ -329,7 +329,7 @@ async function main(): Promise<void> {
 
     httpServer.listen(config.port, config.host, () => {
       console.error(
-        `[mcp-support] SSE transport listening on ${config.host}:${config.port}`,
+        `[gogomail-manage-mcp] SSE transport listening on ${config.host}:${config.port}`,
       );
     });
 
@@ -340,7 +340,7 @@ async function main(): Promise<void> {
           sessions.delete(id);
           sessionActivity.delete(id);
           rateLimitState.delete(id);
-          console.error(`[mcp-support] Session ${id.slice(0, 8)}… evicted (idle TTL)`);
+          console.error(`[gogomail-manage-mcp] Session ${id.slice(0, 8)}… evicted (idle TTL)`);
         }
       }
     }, 60_000).unref();
@@ -348,13 +348,13 @@ async function main(): Promise<void> {
     const shutdown = () => {
       if (isShuttingDown) return;
       isShuttingDown = true;
-      console.error("[mcp-support] Shutdown signal received — draining connections…");
+      console.error("[gogomail-manage-mcp] Shutdown signal received — draining connections…");
       httpServer.close(() => {
-        console.error("[mcp-support] HTTP server closed");
+        console.error("[gogomail-manage-mcp] HTTP server closed");
         process.exit(0);
       });
       setTimeout(() => {
-        console.error("[mcp-support] Shutdown timeout exceeded, force-exiting");
+        console.error("[gogomail-manage-mcp] Shutdown timeout exceeded, force-exiting");
         process.exit(1);
       }, 30_000).unref();
     };
@@ -363,11 +363,11 @@ async function main(): Promise<void> {
   } else {
     const transport = new StdioServerTransport();
     await server.connect(transport);
-    console.error("[mcp-support] stdio transport ready");
+    console.error("[gogomail-manage-mcp] stdio transport ready");
   }
 }
 
 main().catch((err) => {
-  console.error("[mcp-support] Fatal error:", err instanceof Error ? err.message : String(err));
+  console.error("[gogomail-manage-mcp] Fatal error:", err instanceof Error ? err.message : String(err));
   process.exit(1);
 });

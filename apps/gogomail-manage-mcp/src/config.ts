@@ -3,7 +3,7 @@ import { isIP } from "node:net";
 function requireEnv(name: string): string {
   const val = process.env[name]?.trim();
   if (!val) {
-    console.error(`[mcp-support] Missing required env var: ${name}`);
+    console.error(`[gogomail-manage-mcp] Missing required env var: ${name}`);
     process.exit(1);
   }
   return val;
@@ -19,7 +19,7 @@ function boolEnv(name: string, defaultValue = false): boolean {
   if (!val) return defaultValue;
   if (["1", "true", "yes"].includes(val.toLowerCase())) return true;
   if (["0", "false", "no"].includes(val.toLowerCase())) return false;
-  console.error(`[mcp-support] ${name} must be true/false, got: ${val}`);
+  console.error(`[gogomail-manage-mcp] ${name} must be true/false, got: ${val}`);
   process.exit(1);
 }
 
@@ -32,30 +32,30 @@ function validateUrl(val: string, name: string, allowInsecureHttp: boolean): str
   try {
     parsed = new URL(val);
   } catch {
-    console.error(`[mcp-support] ${name} is not a valid URL: ${val}`);
+    console.error(`[gogomail-manage-mcp] ${name} is not a valid URL: ${val}`);
     process.exit(1);
   }
   if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
-    console.error(`[mcp-support] ${name} must use http or https scheme: ${val}`);
+    console.error(`[gogomail-manage-mcp] ${name} must use http or https scheme: ${val}`);
     process.exit(1);
   }
   if (parsed.protocol === "http:" && !isLoopbackHost(parsed.hostname) && !allowInsecureHttp) {
     console.error(
-      `[mcp-support] ${name} must use https for non-loopback hosts. Set MCP_ALLOW_INSECURE_UPSTREAMS=true only for an explicitly trusted private network.`,
+      `[gogomail-manage-mcp] ${name} must use https for non-loopback hosts. Set MCP_ALLOW_INSECURE_UPSTREAMS=true only for an explicitly trusted private network.`,
     );
     process.exit(1);
   }
   // Embedded credentials in URLs (https://user:pass@host) would be stored in
   // baseUrl and could appear in network-level error messages.
   if (parsed.username || parsed.password) {
-    console.error(`[mcp-support] ${name} must not contain embedded credentials`);
+    console.error(`[gogomail-manage-mcp] ${name} must not contain embedded credentials`);
     process.exit(1);
   }
   return val;
 }
 
 function reject(name: string, message: string): never {
-  console.error(`[mcp-support] ${name} ${message}`);
+  console.error(`[gogomail-manage-mcp] ${name} ${message}`);
   process.exit(1);
 }
 
@@ -140,14 +140,14 @@ const githubToken = optionalSecretEnv("GITHUB_TOKEN");
 const portRaw = parseInt(process.env["MCP_PORT"] ?? "3100", 10);
 if (isNaN(portRaw) || portRaw < 1 || portRaw > 65535) {
   console.error(
-    `[mcp-support] MCP_PORT must be a valid port number (1-65535), got: ${process.env["MCP_PORT"] ?? "(unset)"}`,
+    `[gogomail-manage-mcp] MCP_PORT must be a valid port number (1-65535), got: ${process.env["MCP_PORT"] ?? "(unset)"}`,
   );
   process.exit(1);
 }
 
 const transport = optionalEnv("MCP_TRANSPORT") ?? "stdio";
 if (transport !== "stdio" && transport !== "sse") {
-  console.error(`[mcp-support] MCP_TRANSPORT must be "stdio" or "sse", got: ${transport}`);
+  console.error(`[gogomail-manage-mcp] MCP_TRANSPORT must be "stdio" or "sse", got: ${transport}`);
   process.exit(1);
 }
 
@@ -156,11 +156,11 @@ const mcpAllowedOrigins = parseAllowedOrigins(optionalEnv("MCP_ALLOWED_ORIGINS")
 const mcpSecret = optionalSecretEnv("MCP_SECRET");
 if (transport === "sse") {
   if (!mcpSecret) {
-    console.error("[mcp-support] MCP_SECRET is required when MCP_TRANSPORT=sse");
+    console.error("[gogomail-manage-mcp] MCP_SECRET is required when MCP_TRANSPORT=sse");
     process.exit(1);
   }
   if (Buffer.byteLength(mcpSecret, "utf8") < 32) {
-    console.error("[mcp-support] MCP_SECRET must be at least 32 bytes when MCP_TRANSPORT=sse");
+    console.error("[gogomail-manage-mcp] MCP_SECRET must be at least 32 bytes when MCP_TRANSPORT=sse");
     process.exit(1);
   }
 }

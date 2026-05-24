@@ -1,8 +1,8 @@
-# GoGoMail Support MCP Server
+# GoGoMail Manage MCP Server
 
 Korean / 한국어: [README.ko.md](README.ko.md)
 
-An [MCP (Model Context Protocol)](https://modelcontextprotocol.io/) server that gives an AI agent direct, structured access to GoGoMail's Admin API, an optional Suppo helpdesk, and GitHub Issues. Designed for **unmanned 24/7 mail service operation** — an agent can diagnose and fix delivery failures, manage user accounts, inspect mail queues, and work through support tickets without human intervention.
+`gogomail-manage-mcp` is an [MCP (Model Context Protocol)](https://modelcontextprotocol.io/) server that gives an AI agent direct, structured management access to GoGoMail's Admin API, an optional Suppo helpdesk, and GitHub Issues. Designed for **unmanned 24/7 mail service operation** — an agent can diagnose and fix delivery failures, manage user accounts, inspect mail queues, and work through support tickets without human intervention.
 
 ---
 
@@ -35,7 +35,7 @@ Natural-language request (human or ticket system)
           │  MCP protocol (JSON-RPC 2.0)
           ▼
   ┌─────────────────────────────┐
-  │   apps/mcp-support          │
+  │   apps/gogomail-manage-mcp  │
   │   (Node.js / TypeScript)    │
   │                             │
   │  ┌──────────────────────┐   │
@@ -69,7 +69,7 @@ Natural-language request (human or ticket system)
 ## Installation
 
 ```bash
-cd apps/mcp-support
+cd apps/gogomail-manage-mcp
 npm install
 npm run build        # compiles TypeScript → dist/
 ```
@@ -132,9 +132,9 @@ Claude Desktop spawns the MCP server as a child process. Edit `~/Library/Applica
 ```json
 {
   "mcpServers": {
-    "gogomail-support": {
+    "gogomail-manage-mcp": {
       "command": "node",
-      "args": ["/absolute/path/to/apps/mcp-support/dist/index.js"],
+      "args": ["/absolute/path/to/apps/gogomail-manage-mcp/dist/index.js"],
       "env": {
         "GOGOMAIL_ADMIN_URL": "https://mail.example.com",
         "GOGOMAIL_ADMIN_KEY": "your-admin-token"
@@ -149,9 +149,9 @@ Claude Desktop spawns the MCP server as a child process. Edit `~/Library/Applica
 ```json
 {
   "mcpServers": {
-    "gogomail-support": {
+    "gogomail-manage-mcp": {
       "command": "node",
-      "args": ["/absolute/path/to/apps/mcp-support/dist/index.js"],
+      "args": ["/absolute/path/to/apps/gogomail-manage-mcp/dist/index.js"],
       "env": {
         "GOGOMAIL_ADMIN_URL": "https://mail.example.com",
         "GOGOMAIL_ADMIN_KEY": "your-admin-token",

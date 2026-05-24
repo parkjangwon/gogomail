@@ -1,5 +1,5 @@
 /**
- * Security hardening tests for mcp-support.
+ * Security hardening tests for gogomail-manage-mcp.
  * Run: tsx src/test.ts
  *
  * Covers: rate limiting, 5xx masking, inputSchema constraints, Zod validation, auth timing safety

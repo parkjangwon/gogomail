@@ -1,8 +1,8 @@
-# Support MCP Server Implementation Plan
+# Manage MCP Server Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers-extended-cc:subagent-driven-development (recommended) or superpowers-extended-cc:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** TypeScript MCP server at `apps/mcp-support` that exposes 34 tools for autonomous AI-driven customer support across Suppo, GoGoMail Admin API, and GitHub.
+**Goal:** TypeScript MCP server at `apps/gogomail-manage-mcp` that exposes 34 tools for autonomous AI-driven customer support across Suppo, GoGoMail Admin API, and GitHub.
 
 **Architecture:** Stateless Node.js process; clients in `src/clients/` handle HTTP I/O, tools in `src/tools/` define MCP schemas and dispatch to clients. `src/index.ts` wires everything together and supports stdio (Claude Desktop) or HTTP+SSE (remote agent) transport.
 
@@ -14,34 +14,34 @@
 
 | File | Responsibility |
 |---|---|
-| `apps/mcp-support/package.json` | deps, scripts |
-| `apps/mcp-support/tsconfig.json` | TS compiler config |
-| `apps/mcp-support/src/config.ts` | env var parsing, fail-fast |
-| `apps/mcp-support/src/clients/suppo.ts` | Suppo REST API client |
-| `apps/mcp-support/src/clients/gogomail.ts` | GoGoMail Admin API client |
-| `apps/mcp-support/src/clients/github.ts` | GitHub client via @octokit/rest |
-| `apps/mcp-support/src/tools/suppo.ts` | 10 Suppo MCP tools |
-| `apps/mcp-support/src/tools/gogomail.ts` | 18 GoGoMail MCP tools |
-| `apps/mcp-support/src/tools/github.ts` | 6 GitHub MCP tools |
-| `apps/mcp-support/src/index.ts` | server entrypoint, transport switch |
+| `apps/gogomail-manage-mcp/package.json` | deps, scripts |
+| `apps/gogomail-manage-mcp/tsconfig.json` | TS compiler config |
+| `apps/gogomail-manage-mcp/src/config.ts` | env var parsing, fail-fast |
+| `apps/gogomail-manage-mcp/src/clients/suppo.ts` | Suppo REST API client |
+| `apps/gogomail-manage-mcp/src/clients/gogomail.ts` | GoGoMail Admin API client |
+| `apps/gogomail-manage-mcp/src/clients/github.ts` | GitHub client via @octokit/rest |
+| `apps/gogomail-manage-mcp/src/tools/suppo.ts` | 10 Suppo MCP tools |
+| `apps/gogomail-manage-mcp/src/tools/gogomail.ts` | 18 GoGoMail MCP tools |
+| `apps/gogomail-manage-mcp/src/tools/github.ts` | 6 GitHub MCP tools |
+| `apps/gogomail-manage-mcp/src/index.ts` | server entrypoint, transport switch |
 
 ---
 
 ### Task 1: Project Scaffold
 
-**Goal:** Create `apps/mcp-support` with working `package.json`, `tsconfig.json`, and `src/config.ts` so `npm install && npm run type-check` passes.
+**Goal:** Create `apps/gogomail-manage-mcp` with working `package.json`, `tsconfig.json`, and `src/config.ts` so `npm install && npm run type-check` passes.
 
 **Files:**
-- Create: `apps/mcp-support/package.json`
-- Create: `apps/mcp-support/tsconfig.json`
-- Create: `apps/mcp-support/src/config.ts`
+- Create: `apps/gogomail-manage-mcp/package.json`
+- Create: `apps/gogomail-manage-mcp/tsconfig.json`
+- Create: `apps/gogomail-manage-mcp/src/config.ts`
 
 **Acceptance Criteria:**
 - [ ] `npm install` succeeds with no peer-dep errors
 - [ ] `npm run type-check` exits 0 with just `config.ts` present
 - [ ] Missing env var causes process to exit with a clear error message (verified manually)
 
-**Verify:** `cd apps/mcp-support && npm install && npm run type-check` → exit 0
+**Verify:** `cd apps/gogomail-manage-mcp && npm install && npm run type-check` → exit 0
 
 **Steps:**
 
@@ -49,7 +49,7 @@
 
 ```json
 {
-  "name": "@gogomail/mcp-support",
+  "name": "@gogomail/manage-mcp",
   "version": "1.0.0",
   "private": true,
   "type": "module",
@@ -99,7 +99,7 @@
 function requireEnv(name: string): string {
   const val = process.env[name];
   if (!val) {
-    console.error(`[mcp-support] Missing required env var: ${name}`);
+    console.error(`[gogomail-manage-mcp] Missing required env var: ${name}`);
     process.exit(1);
   }
   return val;
@@ -126,7 +126,7 @@ export const config = {
 - [ ] **Step 4: Run npm install and type-check**
 
 ```bash
-cd apps/mcp-support
+cd apps/gogomail-manage-mcp
 npm install
 npm run type-check
 ```
@@ -136,8 +136,8 @@ Expected: no errors (config.ts alone has no type issues with strict mode).
 - [ ] **Step 5: Commit**
 
 ```bash
-git add apps/mcp-support/
-git commit -m "feat(mcp-support): scaffold project with config and tsconfig"
+git add apps/gogomail-manage-mcp/
+git commit -m "feat(gogomail-manage-mcp): scaffold project with config and tsconfig"
 ```
 
 ---
@@ -147,7 +147,7 @@ git commit -m "feat(mcp-support): scaffold project with config and tsconfig"
 **Goal:** `src/clients/suppo.ts` implementing typed fetch wrappers for all Suppo endpoints used by the 10 Suppo tools.
 
 **Files:**
-- Create: `apps/mcp-support/src/clients/suppo.ts`
+- Create: `apps/gogomail-manage-mcp/src/clients/suppo.ts`
 
 **Acceptance Criteria:**
 - [ ] All methods compile without errors
@@ -313,7 +313,7 @@ export class SuppoClient {
 - [ ] **Step 2: Verify type-check**
 
 ```bash
-cd apps/mcp-support && npm run type-check
+cd apps/gogomail-manage-mcp && npm run type-check
 ```
 
 Expected: exit 0
@@ -321,8 +321,8 @@ Expected: exit 0
 - [ ] **Step 3: Commit**
 
 ```bash
-git add apps/mcp-support/src/clients/suppo.ts
-git commit -m "feat(mcp-support): add Suppo API client"
+git add apps/gogomail-manage-mcp/src/clients/suppo.ts
+git commit -m "feat(gogomail-manage-mcp): add Suppo API client"
 ```
 
 ---
@@ -332,7 +332,7 @@ git commit -m "feat(mcp-support): add Suppo API client"
 **Goal:** `src/tools/suppo.ts` exporting a `toolDefinitions` array (for ListTools) and a `callTool` handler covering all 10 Suppo tools.
 
 **Files:**
-- Create: `apps/mcp-support/src/tools/suppo.ts`
+- Create: `apps/gogomail-manage-mcp/src/tools/suppo.ts`
 
 **Acceptance Criteria:**
 - [ ] All 10 tools listed in `toolDefinitions`
@@ -567,7 +567,7 @@ export async function callTool(
 - [ ] **Step 2: Type-check**
 
 ```bash
-cd apps/mcp-support && npm run type-check
+cd apps/gogomail-manage-mcp && npm run type-check
 ```
 
 Expected: exit 0
@@ -575,8 +575,8 @@ Expected: exit 0
 - [ ] **Step 3: Commit**
 
 ```bash
-git add apps/mcp-support/src/tools/suppo.ts
-git commit -m "feat(mcp-support): add 10 Suppo MCP tools"
+git add apps/gogomail-manage-mcp/src/tools/suppo.ts
+git commit -m "feat(gogomail-manage-mcp): add 10 Suppo MCP tools"
 ```
 
 ---
@@ -586,7 +586,7 @@ git commit -m "feat(mcp-support): add 10 Suppo MCP tools"
 **Goal:** `src/clients/gogomail.ts` with typed methods for all 18 GoGoMail operations.
 
 **Files:**
-- Create: `apps/mcp-support/src/clients/gogomail.ts`
+- Create: `apps/gogomail-manage-mcp/src/clients/gogomail.ts`
 
 **Acceptance Criteria:**
 - [ ] All 18 tool operations have a corresponding client method
@@ -883,7 +883,7 @@ export class GogomailClient {
 - [ ] **Step 2: Type-check**
 
 ```bash
-cd apps/mcp-support && npm run type-check
+cd apps/gogomail-manage-mcp && npm run type-check
 ```
 
 Expected: exit 0
@@ -891,8 +891,8 @@ Expected: exit 0
 - [ ] **Step 3: Commit**
 
 ```bash
-git add apps/mcp-support/src/clients/gogomail.ts
-git commit -m "feat(mcp-support): add GoGoMail Admin API client"
+git add apps/gogomail-manage-mcp/src/clients/gogomail.ts
+git commit -m "feat(gogomail-manage-mcp): add GoGoMail Admin API client"
 ```
 
 ---
@@ -902,7 +902,7 @@ git commit -m "feat(mcp-support): add GoGoMail Admin API client"
 **Goal:** `src/tools/gogomail.ts` with all 18 GoGoMail tool definitions and a `callTool` handler. Action tools (9 of 18) must auto-write an internal Suppo audit comment after every successful execution.
 
 **Files:**
-- Create: `apps/mcp-support/src/tools/gogomail.ts`
+- Create: `apps/gogomail-manage-mcp/src/tools/gogomail.ts`
 
 **Acceptance Criteria:**
 - [ ] All 18 tools in `toolDefinitions`
@@ -1349,7 +1349,7 @@ export async function callTool(
 - [ ] **Step 2: Type-check**
 
 ```bash
-cd apps/mcp-support && npm run type-check
+cd apps/gogomail-manage-mcp && npm run type-check
 ```
 
 Expected: exit 0
@@ -1357,8 +1357,8 @@ Expected: exit 0
 - [ ] **Step 3: Commit**
 
 ```bash
-git add apps/mcp-support/src/tools/gogomail.ts
-git commit -m "feat(mcp-support): add 18 GoGoMail MCP tools with audit trail"
+git add apps/gogomail-manage-mcp/src/tools/gogomail.ts
+git commit -m "feat(gogomail-manage-mcp): add 18 GoGoMail MCP tools with audit trail"
 ```
 
 ---
@@ -1368,8 +1368,8 @@ git commit -m "feat(mcp-support): add 18 GoGoMail MCP tools with audit trail"
 **Goal:** `src/clients/github.ts` wrapping `@octokit/rest` and `src/tools/github.ts` with all 6 GitHub tools.
 
 **Files:**
-- Create: `apps/mcp-support/src/clients/github.ts`
-- Create: `apps/mcp-support/src/tools/github.ts`
+- Create: `apps/gogomail-manage-mcp/src/clients/github.ts`
+- Create: `apps/gogomail-manage-mcp/src/tools/github.ts`
 
 **Acceptance Criteria:**
 - [ ] All 6 GitHub tools defined and dispatched
@@ -1692,7 +1692,7 @@ export async function callTool(
 - [ ] **Step 3: Type-check**
 
 ```bash
-cd apps/mcp-support && npm run type-check
+cd apps/gogomail-manage-mcp && npm run type-check
 ```
 
 Expected: exit 0
@@ -1700,8 +1700,8 @@ Expected: exit 0
 - [ ] **Step 4: Commit**
 
 ```bash
-git add apps/mcp-support/src/clients/github.ts apps/mcp-support/src/tools/github.ts
-git commit -m "feat(mcp-support): add GitHub client and 6 MCP tools"
+git add apps/gogomail-manage-mcp/src/clients/github.ts apps/gogomail-manage-mcp/src/tools/github.ts
+git commit -m "feat(gogomail-manage-mcp): add GitHub client and 6 MCP tools"
 ```
 
 ---
@@ -1711,7 +1711,7 @@ git commit -m "feat(mcp-support): add GitHub client and 6 MCP tools"
 **Goal:** `src/index.ts` that initializes all clients, registers all 34 tools, and connects either stdio or HTTP+SSE transport depending on `MCP_TRANSPORT`.
 
 **Files:**
-- Create: `apps/mcp-support/src/index.ts`
+- Create: `apps/gogomail-manage-mcp/src/index.ts`
 
 **Acceptance Criteria:**
 - [ ] `npm run build` (tsc) exits 0 — dist/index.js produced
@@ -1721,7 +1721,7 @@ git commit -m "feat(mcp-support): add GitHub client and 6 MCP tools"
 **Verify:**
 
 ```bash
-cd apps/mcp-support && npm run build
+cd apps/gogomail-manage-mcp && npm run build
 ```
 
 Expected: `dist/index.js` exists, exit 0
@@ -1759,7 +1759,7 @@ const allTools = [
 ];
 
 const server = new Server(
-  { name: "gogomail-support", version: "1.0.0" },
+  { name: "gogomail-manage-mcp", version: "1.0.0" },
   { capabilities: { tools: {} } },
 );
 
@@ -1841,18 +1841,18 @@ async function main(): Promise<void> {
 
     httpServer.listen(config.port, () => {
       console.error(
-        `[mcp-support] SSE transport listening on port ${config.port}`,
+        `[gogomail-manage-mcp] SSE transport listening on port ${config.port}`,
       );
     });
   } else {
     const transport = new StdioServerTransport();
     await server.connect(transport);
-    console.error("[mcp-support] stdio transport ready");
+    console.error("[gogomail-manage-mcp] stdio transport ready");
   }
 }
 
 main().catch((err) => {
-  console.error("[mcp-support] Fatal error:", err);
+  console.error("[gogomail-manage-mcp] Fatal error:", err);
   process.exit(1);
 });
 ```
@@ -1860,7 +1860,7 @@ main().catch((err) => {
 - [ ] **Step 2: Build**
 
 ```bash
-cd apps/mcp-support && npm run build
+cd apps/gogomail-manage-mcp && npm run build
 ```
 
 Expected: `dist/index.js` created, exit 0. Fix any type errors before continuing.
@@ -1870,7 +1870,7 @@ Expected: `dist/index.js` created, exit 0. Fix any type errors before continuing
 Send a `tools/list` request via stdin and verify 34 tools are returned:
 
 ```bash
-cd apps/mcp-support
+cd apps/gogomail-manage-mcp
 GOGOMAIL_ADMIN_URL=https://example.com \
 GOGOMAIL_ADMIN_KEY=test \
 SUPPO_API_URL=https://example.com \
@@ -1895,8 +1895,8 @@ Expected: 34
 - [ ] **Step 4: Commit**
 
 ```bash
-git add apps/mcp-support/src/index.ts
-git commit -m "feat(mcp-support): add server entrypoint with stdio/SSE transport"
+git add apps/gogomail-manage-mcp/src/index.ts
+git commit -m "feat(gogomail-manage-mcp): add server entrypoint with stdio/SSE transport"
 ```
 
 ---
@@ -1906,7 +1906,7 @@ git commit -m "feat(mcp-support): add server entrypoint with stdio/SSE transport
 **Goal:** Add a working Claude Desktop JSON snippet and minimal README so the server can be wired up immediately.
 
 **Files:**
-- Create: `apps/mcp-support/README.md`
+- Create: `apps/gogomail-manage-mcp/README.md`
 
 **Acceptance Criteria:**
 - [ ] README contains the Claude Desktop JSON config snippet with all required env vars
@@ -1917,10 +1917,10 @@ git commit -m "feat(mcp-support): add server entrypoint with stdio/SSE transport
 
 **Steps:**
 
-- [ ] **Step 1: Create apps/mcp-support/README.md**
+- [ ] **Step 1: Create apps/gogomail-manage-mcp/README.md**
 
 ```markdown
-# GoGoMail Support MCP Server
+# GoGoMail Manage MCP Server
 
 Autonomous AI support agent MCP server for GoGoMail. Exposes 34 tools across Suppo (helpdesk), GoGoMail Admin API, and GitHub Issues.
 
@@ -1929,7 +1929,7 @@ Autonomous AI support agent MCP server for GoGoMail. Exposes 34 tools across Sup
 ### Build
 
 ```bash
-cd apps/mcp-support
+cd apps/gogomail-manage-mcp
 npm install
 npm run build
 ```
@@ -1941,9 +1941,9 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
 ```json
 {
   "mcpServers": {
-    "gogomail-support": {
+    "gogomail-manage-mcp": {
       "command": "node",
-      "args": ["/absolute/path/to/apps/mcp-support/dist/index.js"],
+      "args": ["/absolute/path/to/apps/gogomail-manage-mcp/dist/index.js"],
       "env": {
         "GOGOMAIL_ADMIN_URL": "https://admin.gogomail.io",
         "GOGOMAIL_ADMIN_KEY": "...",
@@ -1967,7 +1967,7 @@ SUPPO_API_KEY=... \
 GITHUB_TOKEN=... \
 MCP_TRANSPORT=sse \
 MCP_PORT=3100 \
-node apps/mcp-support/dist/index.js
+node apps/gogomail-manage-mcp/dist/index.js
 ```
 
 ## Tools (34 total)
@@ -2000,8 +2000,8 @@ All GoGoMail action tools auto-write an internal Suppo comment after execution. 
 - [ ] **Step 2: Commit**
 
 ```bash
-git add apps/mcp-support/README.md
-git commit -m "docs(mcp-support): add README with Claude Desktop config and tool list"
+git add apps/gogomail-manage-mcp/README.md
+git commit -m "docs(gogomail-manage-mcp): add README with Claude Desktop config and tool list"
 ```
 
 ---
@@ -2027,57 +2027,57 @@ The MCP server clients are already wired to these paths — implement them in Su
     {
       "id": "task-1",
       "subject": "Task 1: Project Scaffold",
-      "files": ["apps/mcp-support/package.json", "apps/mcp-support/tsconfig.json", "apps/mcp-support/src/config.ts"],
-      "verifyCommand": "cd apps/mcp-support && npm install && npm run type-check",
+      "files": ["apps/gogomail-manage-mcp/package.json", "apps/gogomail-manage-mcp/tsconfig.json", "apps/gogomail-manage-mcp/src/config.ts"],
+      "verifyCommand": "cd apps/gogomail-manage-mcp && npm install && npm run type-check",
       "acceptanceCriteria": ["npm install succeeds", "type-check exits 0"]
     },
     {
       "id": "task-2",
       "subject": "Task 2: Suppo API Client",
-      "files": ["apps/mcp-support/src/clients/suppo.ts"],
-      "verifyCommand": "cd apps/mcp-support && npm run type-check",
+      "files": ["apps/gogomail-manage-mcp/src/clients/suppo.ts"],
+      "verifyCommand": "cd apps/gogomail-manage-mcp && npm run type-check",
       "acceptanceCriteria": ["All 10 Suppo operations have a client method", "type-check exits 0"]
     },
     {
       "id": "task-3",
       "subject": "Task 3: Suppo MCP Tools",
-      "files": ["apps/mcp-support/src/tools/suppo.ts"],
-      "verifyCommand": "cd apps/mcp-support && npm run type-check",
+      "files": ["apps/gogomail-manage-mcp/src/tools/suppo.ts"],
+      "verifyCommand": "cd apps/gogomail-manage-mcp && npm run type-check",
       "acceptanceCriteria": ["10 tools in toolDefinitions", "callTool handles all 10", "type-check exits 0"]
     },
     {
       "id": "task-4",
       "subject": "Task 4: GoGoMail Admin API Client",
-      "files": ["apps/mcp-support/src/clients/gogomail.ts"],
-      "verifyCommand": "cd apps/mcp-support && npm run type-check",
+      "files": ["apps/gogomail-manage-mcp/src/clients/gogomail.ts"],
+      "verifyCommand": "cd apps/gogomail-manage-mcp && npm run type-check",
       "acceptanceCriteria": ["18 tool operations have client methods", "type-check exits 0"]
     },
     {
       "id": "task-5",
       "subject": "Task 5: GoGoMail MCP Tools (18)",
-      "files": ["apps/mcp-support/src/tools/gogomail.ts"],
-      "verifyCommand": "cd apps/mcp-support && npm run type-check",
+      "files": ["apps/gogomail-manage-mcp/src/tools/gogomail.ts"],
+      "verifyCommand": "cd apps/gogomail-manage-mcp && npm run type-check",
       "acceptanceCriteria": ["18 tools in toolDefinitions", "action tools write audit comments", "type-check exits 0"]
     },
     {
       "id": "task-6",
       "subject": "Task 6: GitHub Client + Tools",
-      "files": ["apps/mcp-support/src/clients/github.ts", "apps/mcp-support/src/tools/github.ts"],
-      "verifyCommand": "cd apps/mcp-support && npm run type-check",
+      "files": ["apps/gogomail-manage-mcp/src/clients/github.ts", "apps/gogomail-manage-mcp/src/tools/github.ts"],
+      "verifyCommand": "cd apps/gogomail-manage-mcp && npm run type-check",
       "acceptanceCriteria": ["6 GitHub tools", "type-check exits 0"]
     },
     {
       "id": "task-7",
       "subject": "Task 7: Server Entrypoint + Transport",
-      "files": ["apps/mcp-support/src/index.ts"],
-      "verifyCommand": "cd apps/mcp-support && npm run build",
+      "files": ["apps/gogomail-manage-mcp/src/index.ts"],
+      "verifyCommand": "cd apps/gogomail-manage-mcp && npm run build",
       "acceptanceCriteria": ["build exits 0", "tools/list returns 34 tools", "no crash on startup"]
     },
     {
       "id": "task-8",
       "subject": "Task 8: Claude Desktop Config + README",
-      "files": ["apps/mcp-support/README.md"],
-      "verifyCommand": "cat apps/mcp-support/README.md",
+      "files": ["apps/gogomail-manage-mcp/README.md"],
+      "verifyCommand": "cat apps/gogomail-manage-mcp/README.md",
       "acceptanceCriteria": ["README has Claude Desktop JSON snippet", "README lists all 34 tools"]
     }
   ]
