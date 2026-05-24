@@ -64,7 +64,7 @@ export const NAV_ITEMS: { id: SectionId; labelKey: string; icon: ReactNode }[] =
 
 // titleKey and descKey reference keys in the `settingsView` translation namespace.
 export const SHORTCUT_GROUPS: { titleKey: string; items: [string, string][] }[] = [
-  { titleKey: 'shortcutGlobal', items: [['?', 'scShortcutHelp'], ['Cmd+K / Ctrl+K', 'scSpotlightSearch'], ['/', 'scSpotlightOpen'], ['[', 'scSidebarToggle'], ['b', 'scNotificationCenter']] },
+  { titleKey: 'shortcutGlobal', items: [['?', 'scShortcutHelp'], ['Cmd+K / Ctrl+K', 'scSpotlightSearch'], ['[', 'scSidebarToggle'], ['b', 'scNotificationCenter']] },
   { titleKey: 'shortcutAppSwitch', items: [['g  m', 'scMail'], ['g  c', 'scCalendar'], ['g  a', 'scContacts'], ['g  d', 'scDrive'], ['g  ,', 'scSettings']] },
   { titleKey: 'shortcutMailNav', items: [['j / k', 'scNextPrev'], ['↑ / ↓', 'scListMove'], ['o', 'scOpenSelected'], ['Space', 'scCheckboxSelect'], ['Home / End', 'scFirstLast'], ['Ctrl+A', 'scSelectAll'], ['Esc', 'scCloseUnset']] },
   { titleKey: 'shortcutMailAction', items: [['r', 'scReply'], ['a', 'scReplyAll'], ['f', 'scForward'], ['e', 'scArchive'], ['v', 'scMoveToFolder'], ['#', 'scDelete'], ['m', 'scMarkRead'], ['Shift+M', 'scMarkUnread'], ['z', 'scSnooze1h'], ['l', 'scLabelCycle'], ['!', 'scSpam']] },
