@@ -861,7 +861,8 @@
       "sent": "送信済み",
       "drafts": "下書き",
       "spam": "迷惑メール",
-      "trash": "ゴミ箱"
+      "trash": "ゴミ箱",
+      "archive": "アーカイブ"
     }
   },
   "spotlight": {

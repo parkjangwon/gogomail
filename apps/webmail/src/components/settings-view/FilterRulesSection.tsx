@@ -57,6 +57,7 @@ function messageMatchesRule(msg: MessageSummary, rule: FilterRule): boolean {
 
 export function FilterRulesSection({ filterRules, setFilterRules }: FilterRulesSectionProps) {
   const t = useTranslations('filterRules');
+  const tSidebar = useTranslations('sidebar');
   const [editingRule, setEditingRule] = useState<FilterRule | null>(null);
   const [newRule, setNewRule] = useState<Omit<FilterRule, 'id'>>(emptyRule);
   const [folders, setFolders] = useState<Folder[]>([]);
@@ -123,10 +124,27 @@ export function FilterRulesSection({ filterRules, setFilterRules }: FilterRulesS
       return `${fo?.label ?? c.field} ${matchOpts.find((m) => m.value === c.matchType)?.label ?? c.matchType} "${c.value}"`;
     }).join(rule.logic === 'and' ? ' AND ' : ' OR ');
 
+  const SYSTEM_TYPE_KEYS: Record<string, string> = {
+    inbox: 'system.inbox',
+    sent: 'system.sent',
+    drafts: 'system.drafts',
+    trash: 'system.trash',
+    spam: 'system.spam',
+    archive: 'system.archive',
+  };
+
+  const localizedFolderName = useCallback((f: Folder): string => {
+    if (f.system_type && SYSTEM_TYPE_KEYS[f.system_type]) {
+      try { return tSidebar(SYSTEM_TYPE_KEYS[f.system_type] as Parameters<typeof tSidebar>[0]); } catch { /* */ }
+    }
+    return f.name || f.full_path;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tSidebar]);
+
   const folderName = useCallback((id: string): string => {
     const f = folders.find((x) => x.id === id);
-    return f ? (f.name || f.full_path) : id;
-  }, [folders]);
+    return f ? localizedFolderName(f) : id;
+  }, [folders, localizedFolderName]);
 
   const actionBadges = (a: FilterAction) => {
     const parts: string[] = [];
@@ -303,7 +321,7 @@ export function FilterRulesSection({ filterRules, setFilterRules }: FilterRulesS
                     <option value="">{t('folderNamePlaceholder')}</option>
                   )}
                   {movableFolders.map((f) => (
-                    <option key={f.id} value={f.id}>{f.name || f.full_path}</option>
+                    <option key={f.id} value={f.id}>{localizedFolderName(f)}</option>
                   ))}
                 </select>
               )}

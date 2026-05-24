@@ -861,7 +861,8 @@
       "sent": "已发送",
       "drafts": "草稿箱",
       "spam": "垃圾邮件",
-      "trash": "废纸篓"
+      "trash": "废纸篓",
+      "archive": "归档"
     }
   },
   "spotlight": {

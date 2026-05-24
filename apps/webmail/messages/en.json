@@ -861,7 +861,8 @@
       "sent": "Sent",
       "drafts": "Drafts",
       "spam": "Spam",
-      "trash": "Trash"
+      "trash": "Trash",
+      "archive": "Archive"
     }
   },
   "spotlight": {
