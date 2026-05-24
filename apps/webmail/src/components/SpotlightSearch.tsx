@@ -20,6 +20,8 @@ import {
 } from '@/lib/api';
 import { parseEvents, parseTodos } from '@/lib/calendar/eventParser';
 import { loadLocalEmailTemplates } from '@/lib/emailTemplates';
+import { NAV_ITEMS, type SectionId } from '@/components/settings-view/settingsViewConfig';
+import { useNotifications } from '@/lib/notifications/store';
 import {
   CalendarDaysIcon,
   CheckCircleIcon,
@@ -39,11 +41,12 @@ import {
   ArchiveBoxIcon,
   DocumentTextIcon,
   DocumentIcon,
+  BellIcon,
 } from '@heroicons/react/24/outline';
 import { ReactNode } from 'react';
 
 interface SpotlightItem {
-  type: 'action' | 'mail' | 'contact' | 'calendar' | 'drive' | 'folder' | 'template';
+  type: 'action' | 'mail' | 'contact' | 'calendar' | 'drive' | 'folder' | 'template' | 'settings' | 'notification';
   id: string;
   title: string;
   subtitle?: string;
@@ -60,7 +63,8 @@ interface SpotlightSearchProps {
   onSelectMessage: (id: string, folderId?: string) => void;
   onOpenCalendar: () => void;
   onOpenDrive: () => void;
-  onOpenSettings: () => void;
+  onOpenSettings: (sectionId?: SectionId) => void;
+  onOpenNotifications?: () => void;
   onSearch: (q: string) => void;
   onComposeToAddress?: (email: string) => void;
   movingMessageId?: string;
@@ -88,6 +92,8 @@ function sectionLabel(t: SpotlightT, type: SpotlightItem['type']): string {
     case 'calendar': return t('section.calendar');
     case 'drive': return t('section.drive');
     case 'template': return t('section.template');
+    case 'settings': return t('section.settings');
+    case 'notification': return t('section.notification');
   }
 }
 
@@ -125,6 +131,7 @@ export function SpotlightSearch({
   onOpenCalendar,
   onOpenDrive,
   onOpenSettings,
+  onOpenNotifications,
   onSearch,
   onComposeToAddress,
   movingMessageId,
@@ -132,9 +139,12 @@ export function SpotlightSearch({
   onComposeWithTemplate,
 }: SpotlightSearchProps) {
   const t = useTranslations('spotlight');
+  const tSettings = useTranslations('settingsView');
+  const tNotif = useTranslations('notifications');
+  const { notifications } = useNotifications();
   const isMoveMode = !!movingMessageId;
   const [query, setQuery] = useState('');
-  const [scope, setScope] = useState<'all' | 'mail' | 'contacts' | 'calendar' | 'drive' | 'folders' | 'commands'>('all');
+  const [scope, setScope] = useState<'all' | 'mail' | 'contacts' | 'calendar' | 'drive' | 'folders' | 'commands' | 'settings' | 'notifications'>('all');
   const [items, setItems] = useState<SpotlightItem[]>([]);
   const [selIdx, setSelIdx] = useState(0);
   const [searching, setSearching] = useState(false);
@@ -335,6 +345,36 @@ export function SpotlightSearch({
     } catch { return []; }
   }, [onComposeWithTemplate, onClose, t]);
 
+  const buildSettingsItems = useCallback((q: string): SpotlightItem[] => {
+    const ql = q.toLowerCase();
+    return NAV_ITEMS
+      .filter((item) => !ql || tSettings(item.labelKey as Parameters<typeof tSettings>[0]).toLowerCase().includes(ql))
+      .map((item) => ({
+        type: 'settings' as const,
+        id: `settings-${item.id}`,
+        title: tSettings(item.labelKey as Parameters<typeof tSettings>[0]),
+        subtitle: t('action.settings'),
+        icon: item.icon,
+        onSelect: () => { onOpenSettings(item.id); onClose(); },
+      }));
+  }, [tSettings, t, onOpenSettings, onClose]);
+
+  const buildNotificationItems = useCallback((q: string): SpotlightItem[] => {
+    const ql = q.toLowerCase();
+    return notifications
+      .filter((n) => !ql || `${n.title} ${n.body ?? ''}`.toLowerCase().includes(ql))
+      .slice(0, 8)
+      .map((n) => ({
+        type: 'notification' as const,
+        id: `notif-${n.id}`,
+        title: n.title,
+        subtitle: n.body,
+        badge: n.read ? undefined : tNotif('unread'),
+        icon: <BellIcon style={{ width: 16, height: 16 }} />,
+        onSelect: () => { onOpenNotifications?.(); onClose(); },
+      }));
+  }, [notifications, tNotif, onOpenNotifications, onClose]);
+
   const recentSearchKey = 'webmail_recent_searches';
   const recentSearches: string[] = (() => {
     try { return JSON.parse(localStorage.getItem(recentSearchKey) ?? '[]').slice(0, 4) as string[]; } catch { return []; }
@@ -353,19 +393,22 @@ export function SpotlightSearch({
       const quickActions = buildQuickActions();
       const contacts = isMoveMode ? [] : buildContactItems('').slice(0, 3);
       const templates = isMoveMode ? [] : buildTemplateItems('').slice(0, 3);
-      setItems([...quickActions, ...contacts, ...templates]);
+      const notificationItems = isMoveMode ? [] : buildNotificationItems('').slice(0, 3);
+      setItems([...quickActions, ...contacts, ...templates, ...notificationItems]);
       setSelIdx(0);
       return;
     }
 
-    // Immediate: filter actions + local contacts + templates
+    // Immediate: filter actions + local contacts + templates + settings + notifications
     const ql = q.toLowerCase();
     const actions = buildQuickActions().filter((a) =>
       a.title.toLowerCase().includes(ql) || (a.subtitle ?? '').toLowerCase().includes(ql)
     );
     const localContacts = isMoveMode ? [] : buildContactItems(ql);
     const templates = isMoveMode ? [] : buildTemplateItems(ql);
-    setItems([...actions, ...localContacts, ...templates]);
+    const settingsItems = isMoveMode ? [] : buildSettingsItems(ql).slice(0, 5);
+    const notificationItems = isMoveMode ? [] : buildNotificationItems(ql).slice(0, 5);
+    setItems([...actions, ...localContacts, ...templates, ...settingsItems, ...notificationItems]);
     setSelIdx(0);
 
     if (isMoveMode) return;
@@ -407,14 +450,14 @@ export function SpotlightSearch({
           icon: <MagnifyingGlassIcon style={{ width: 16, height: 16 }} />,
           onSelect: () => { onSearch(q); onClose(); },
         };
-        setItems([...actions, ...remoteContacts, ...templates, ...mailItems, ...calendarItems, ...driveItems, searchAll]);
+        setItems([...actions, ...remoteContacts, ...templates, ...settingsItems, ...notificationItems, ...mailItems, ...calendarItems, ...driveItems, searchAll]);
         setSelIdx(0);
       } catch { /* */ }
       setSearching(false);
     }, 200);
 
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
-  }, [query, buildQuickActions, buildContactItems, buildTemplateItems, buildRemoteContactItems, buildCalendarItems, buildDriveItems, onSelectMessage, onSearch, onClose, isMoveMode, t]);
+  }, [query, buildQuickActions, buildContactItems, buildTemplateItems, buildSettingsItems, buildNotificationItems, buildRemoteContactItems, buildCalendarItems, buildDriveItems, onSelectMessage, onSearch, onClose, isMoveMode, t]);
 
   // Apply scope filter to items
   const scopeTypeMap: Record<typeof scope, SpotlightItem['type'][] | null> = {
@@ -425,6 +468,8 @@ export function SpotlightSearch({
     drive: ['drive'],
     folders: ['folder'],
     commands: ['action', 'template'],
+    settings: ['settings'],
+    notifications: ['notification'],
   };
   const allowedTypes = scopeTypeMap[scope];
   const visibleItems = allowedTypes ? items.filter((i) => allowedTypes.includes(i.type)) : items;
@@ -528,8 +573,8 @@ export function SpotlightSearch({
         {/* Scope filter chips */}
         {!isMoveMode && (
           <div style={{ display: 'flex', gap: '6px', padding: '6px 16px', borderBottom: '1px solid var(--color-border-subtle)', flexShrink: 0, flexWrap: 'wrap' }}>
-            {(['all', 'mail', 'contacts', 'calendar', 'drive', 'folders', 'commands'] as const).map((s) => {
-              const labels: Record<typeof s, string> = { all: t('scope.all'), mail: t('scope.mail'), contacts: t('scope.contacts'), calendar: t('scope.calendar'), drive: t('scope.drive'), folders: t('scope.folders'), commands: t('scope.commands') };
+            {(['all', 'mail', 'contacts', 'calendar', 'drive', 'folders', 'commands', 'settings', 'notifications'] as const).map((s) => {
+              const labels: Record<typeof s, string> = { all: t('scope.all'), mail: t('scope.mail'), contacts: t('scope.contacts'), calendar: t('scope.calendar'), drive: t('scope.drive'), folders: t('scope.folders'), commands: t('scope.commands'), settings: t('scope.settings'), notifications: t('scope.notifications') };
               return (
                 <button key={s} type="button" onClick={() => setScope(s)}
                   style={{ padding: '3px 10px', borderRadius: '12px', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: 500,

@@ -870,7 +870,9 @@
       "contact": "연락처",
       "calendar": "일정",
       "drive": "드라이브",
-      "template": "템플릿"
+      "template": "템플릿",
+      "settings": "환경설정",
+      "notification": "알림"
     },
     "time": {
       "justNow": "방금",
@@ -891,7 +893,8 @@
       "starred": "별표 메일",
       "unread": "읽지 않은 편지",
       "attachments": "첨부파일 메일",
-      "settings": "설정 열기"
+      "settings": "설정 열기",
+      "notifications": "알림 센터 열기"
     },
     "drive": {
       "folder": "폴더",
@@ -916,7 +919,9 @@
       "calendar": "일정",
       "drive": "드라이브",
       "folders": "편지함",
-      "commands": "명령"
+      "commands": "명령",
+      "settings": "설정",
+      "notifications": "알림"
     },
     "recentSearches": "최근 검색",
     "noResults": "결과가 없습니다",
@@ -1310,7 +1315,8 @@
     "driveSortSize": "크기",
     "mcpSelectAllScopes": "전체 선택",
     "mcpResetScopes": "기본 권한으로 되돌리기",
-    "mcpKeyScopesSelected": "{total}개 중 {count}개 권한 선택됨"
+    "mcpKeyScopesSelected": "{total}개 중 {count}개 권한 선택됨",
+    "scNotificationCenter": "알림 센터"
   },
   "composeFull": {
     "titleNew": "새 메시지",
@@ -1863,6 +1869,7 @@
       "toggle": "브라우저 알림",
       "dismiss": "닫기",
       "dismissPrompt": "브라우저 알림 안내 닫기"
-    }
+    },
+    "unread": "읽지 않음"
   }
 }
