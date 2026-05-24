@@ -1,6 +1,12 @@
 # gogomail current status
 
-Last updated: 2026-05-24 (dev compose mail worker coverage)
+Last updated: 2026-05-24 (webmail all-mail folder view)
+
+## Webmail all-mail folder view (2026-05-24)
+- The sidebar “All mail/모든 편지함” virtual folder now uses the normal message-list endpoint without a `folder_id`, so it lists active mail across inbox, sent, archive, and other folders instead of depending on the search path.
+- Empty All Mail now shows a dedicated localized empty-state string instead of the Inbox Zero “받은 편지함이 깨끗합니다” copy.
+- E2E mocks and coverage now assert that All Mail renders both inbox and sent-folder messages.
+- Verification: `pnpm -C apps/webmail type-check`; `pnpm -C apps/webmail exec playwright test e2e/mail-list.spec.ts --grep "all mail lists messages across folders"`.
 
 ## Dev compose mail worker coverage (2026-05-24)
 - `docker/docker-compose.dev.yml` now starts the `event-worker`, `outbox-relay`, and `delivery-worker` alongside the all-in-one HTTP backend so webmail sends progress from API outbox rows through local/external delivery and downstream mail events in the standard dev stack.

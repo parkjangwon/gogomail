@@ -351,9 +351,10 @@ export function getMessages(
   limit = 50
 ): Promise<{ messages: MessageSummary[]; has_more: boolean; next_cursor: string }> {
   const params: Record<string, string> = {
-    folder_id: folderId,
     limit: String(limit),
   };
+  const trimmedFolderId = folderId.trim();
+  if (trimmedFolderId) params.folder_id = trimmedFolderId;
   if (cursor) params.cursor = cursor;
   return apiGet<{ messages: MessageSummary[]; has_more: boolean; next_cursor: string }>(
     'messages',

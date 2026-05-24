@@ -7040,3 +7040,7 @@ Target outcome:
       actions, Drive downloads and upload-session/share-link inspection,
       simple vCard contact upserts, and simple ICS event upserts while keeping
       destructive actions behind confirmation in basic mode.
+1919. Webmail All Mail now lists active messages through the folderless
+      message-list endpoint and has a dedicated localized empty state, so the
+      virtual mailbox no longer shows Inbox Zero copy or an empty list while
+      inbox/sent messages exist.
