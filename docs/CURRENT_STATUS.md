@@ -1,6 +1,12 @@
 # gogomail current status
 
-Last updated: 2026-05-24 (Next.js 16 references and MCP key scope bulk selection)
+Last updated: 2026-05-24 (self-send delivery queue routing and panel resilience)
+
+## Self-send delivery queue routing and panel resilience (2026-05-24)
+- Outbox relay publishing now uses each outbox row topic as the Redis stream target, so `mail.outbound.general` rows reach delivery workers instead of being stranded on the generic event stream.
+- Sent-message delivery tracking now treats a `null` delivery-attempt list from pending delivery-status responses as an empty list instead of crashing the reading pane.
+- E2E mocks now cover `/messages/{id}/delivery-status`, with regression coverage for pending self-send status responses that have no attempts yet.
+- Verification: `go test ./internal/outbox`; `pnpm -C apps/webmail exec playwright test e2e/message-view.spec.ts -g "null attempts"`; `pnpm -C apps/webmail type-check`; `go test ./...`.
 
 ## Next.js 16 references and MCP key scope bulk selection (2026-05-24)
 - Confirmed webmail and console package manifests and lockfiles already target Next.js 16.2.6 / eslint-config-next 16.2.6, then removed remaining stale previous-major product copy from docs, console README, and the webmail About settings panel.

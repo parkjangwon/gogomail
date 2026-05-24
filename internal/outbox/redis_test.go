@@ -40,3 +40,19 @@ func TestNormalizeRedisStreamEventRejectsInvalidMetadata(t *testing.T) {
 		})
 	}
 }
+
+func TestRedisStreamForEventUsesOutboxTopic(t *testing.T) {
+	t.Parallel()
+
+	if got := redisStreamForEvent("mail.event", " mail.outbound.general "); got != "mail.outbound.general" {
+		t.Fatalf("redisStreamForEvent = %q, want mail.outbound.general", got)
+	}
+}
+
+func TestRedisStreamForEventFallsBackToDefault(t *testing.T) {
+	t.Parallel()
+
+	if got := redisStreamForEvent(" mail.event ", " "); got != "mail.event" {
+		t.Fatalf("redisStreamForEvent fallback = %q, want mail.event", got)
+	}
+}
