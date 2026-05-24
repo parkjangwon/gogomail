@@ -624,7 +624,6 @@
         "snooze": "暂停 1 小时",
         "pin": "置顶 / 取消",
         "important": "重要 / 取消",
-        "addTodo": "将此邮件添加为任务",
         "labelCycle": "循环标签颜色",
         "inbox": "收件箱",
         "sent": "已发送",
@@ -632,7 +631,6 @@
         "spamFolder": "垃圾邮件",
         "firstUnread": "首封未读邮件",
         "important2": "重要邮件",
-        "todoList": "任务列表",
         "send": "发送",
         "saveDraft": "保存草稿",
         "composeClose": "关闭撰写",
@@ -852,8 +850,7 @@
       "unread": "未读邮件",
       "attachments": "附件邮件",
       "snoozed": "稍后提醒",
-      "pinned": "置顶",
-      "tasks": "任务"
+      "pinned": "置顶"
     },
     "system": {
       "inbox": "收件箱",
@@ -1485,7 +1482,6 @@
       "moved": "已移动邮件",
       "importantUnmarked": "已取消重要标记",
       "importantMarked": "已标为重要",
-      "taskAdded": "已添加任务：“{subject}”",
       "snoozeNotifyAt": "稍后提醒：将在 {time} 再次提醒",
       "snoozeReturned": "稍后提醒：{count} 封邮件已返回",
       "followUpReminder": "跟进提醒：“{subject}”尚未收到回复",

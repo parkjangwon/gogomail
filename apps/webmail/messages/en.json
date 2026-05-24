@@ -624,7 +624,6 @@
         "snooze": "Snooze 1 hour",
         "pin": "Pin / unpin",
         "important": "Toggle important",
-        "addTodo": "Add this mail as a task",
         "labelCycle": "Cycle label color",
         "inbox": "Inbox",
         "sent": "Sent",
@@ -632,7 +631,6 @@
         "spamFolder": "Spam",
         "firstUnread": "First unread mail",
         "important2": "Important",
-        "todoList": "Task list",
         "send": "Send",
         "saveDraft": "Save draft",
         "composeClose": "Close compose",
@@ -852,8 +850,7 @@
       "unread": "Unread",
       "attachments": "With attachments",
       "snoozed": "Snoozed",
-      "pinned": "Pinned",
-      "tasks": "Tasks"
+      "pinned": "Pinned"
     },
     "system": {
       "inbox": "Inbox",
@@ -1485,7 +1482,6 @@
       "moved": "Message moved",
       "importantUnmarked": "Removed important flag",
       "importantMarked": "Marked as important",
-      "taskAdded": "Task added: \"{subject}\"",
       "snoozeNotifyAt": "Snoozed: will notify again at {time}",
       "snoozeReturned": "Snooze: {count} messages returned",
       "followUpReminder": "Follow-up: no reply yet to \"{subject}\"",

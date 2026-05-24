@@ -25,7 +25,6 @@ import {
   ClockIcon,
   BookmarkIcon,
   ExclamationCircleIcon,
-  ClipboardDocumentListIcon,
 } from '@heroicons/react/24/outline';
 import { SettingsModal } from '@/components/SettingsModal';
 import { SidebarUserMenu } from './SidebarUserMenu';
@@ -40,8 +39,6 @@ export const VIRTUAL_UNREAD = '__unread__';
 export const VIRTUAL_SNOOZED = '__snoozed__';
 export const VIRTUAL_PINNED = '__pinned__';
 export const VIRTUAL_IMPORTANT = '__important__';
-export const VIRTUAL_TASKS = '__tasks__';
-
 const VIRTUAL_NAV: { id: string; labelKey: string; icon: ReactNode }[] = [
   { id: VIRTUAL_ALL, labelKey: 'virtual.all', icon: <InboxIcon style={{ width: '16px', height: '16px', flexShrink: 0 }} /> },
   { id: VIRTUAL_STARRED, labelKey: 'virtual.starred', icon: <StarIcon style={{ width: '16px', height: '16px', flexShrink: 0 }} /> },
@@ -50,7 +47,6 @@ const VIRTUAL_NAV: { id: string; labelKey: string; icon: ReactNode }[] = [
   { id: VIRTUAL_ATTACHMENTS, labelKey: 'virtual.attachments', icon: <PaperClipIcon style={{ width: '16px', height: '16px', flexShrink: 0 }} /> },
   { id: VIRTUAL_SNOOZED, labelKey: 'virtual.snoozed', icon: <ClockIcon style={{ width: '16px', height: '16px', flexShrink: 0 }} /> },
   { id: VIRTUAL_PINNED, labelKey: 'virtual.pinned', icon: <BookmarkIcon style={{ width: '16px', height: '16px', flexShrink: 0 }} /> },
-  { id: VIRTUAL_TASKS, labelKey: 'virtual.tasks', icon: <ClipboardDocumentListIcon style={{ width: '16px', height: '16px', flexShrink: 0 }} /> },
 ];
 
 const SYSTEM_FOLDER_META: { systemType: string; labelKey: string }[] = [

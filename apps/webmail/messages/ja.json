@@ -624,7 +624,6 @@
         "snooze": "1時間スヌーズ",
         "pin": "ピン留め / 解除",
         "important": "重要 / 解除",
-        "addTodo": "このメールをタスクに追加",
         "labelCycle": "ラベル色を循環",
         "inbox": "受信箱",
         "sent": "送信済み",
@@ -632,7 +631,6 @@
         "spamFolder": "スパム",
         "firstUnread": "最初の未読メール",
         "important2": "重要メール",
-        "todoList": "タスク一覧",
         "send": "送信",
         "saveDraft": "下書きを保存",
         "composeClose": "作成画面を閉じる",
@@ -852,8 +850,7 @@
       "unread": "未読メール",
       "attachments": "添付メール",
       "snoozed": "スヌーズ",
-      "pinned": "ピン留め",
-      "tasks": "タスク"
+      "pinned": "ピン留め"
     },
     "system": {
       "inbox": "受信トレイ",
@@ -1485,7 +1482,6 @@
       "moved": "メールを移動しました",
       "importantUnmarked": "重要マークを解除しました",
       "importantMarked": "重要メールにしました",
-      "taskAdded": "タスクを追加: \"{subject}\"",
       "snoozeNotifyAt": "スヌーズ: {time}に再通知します",
       "snoozeReturned": "スヌーズ: {count}件のメールが戻りました",
       "followUpReminder": "フォローアップ: \"{subject}\"への返信がありません",
