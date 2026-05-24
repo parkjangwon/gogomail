@@ -285,6 +285,15 @@ export default function MailPage() {
     setThreadMessages(applyPatch);
     setThreads((prev) => patchThreadsForMessages(prev, ids, patch));
   }, [setMessages]);
+  // Remove messages from all visible sources (messages, searchResults, threadMessages) so
+  // delete/archive/move actions take immediate effect even when the user is in search mode.
+  const removeVisibleMessages = useCallback((ids: string[]) => {
+    const idSet = new Set(ids);
+    const filterFn = (prev: MessageSummary[]) => prev.filter((m) => !idSet.has(m.id));
+    setMessages(filterFn);
+    setSearchResults((prev) => (prev ? filterFn(prev) : prev));
+    setThreadMessages(filterFn);
+  }, [setMessages]);
   const findVisibleMessage = useCallback((id: string) => (
     messages.find((m) => m.id === id) ??
     searchResults?.find((m) => m.id === id) ??
@@ -646,10 +655,10 @@ export default function MailPage() {
   const getNextId = useCallback((id: string): string | null => getNextMessageId(messages, id), [messages]);
 
   const handleDeleteById = useCallback((id: string) => {
-    const msgToDelete = messages.find((m) => m.id === id);
+    const msgToDelete = messages.find((m) => m.id === id) ?? searchResults?.find((m) => m.id === id);
     if (msgToDelete && !msgToDelete.read) adjustUnread(activeFolderId, -1);
     const nextId = getNextId(id);
-    setMessages((prev) => prev.filter((m) => m.id !== id));
+    removeVisibleMessages([id]);
     if (selectedMessageId === id) setSelectedMessageId(nextId);
 
     const timer = setTimeout(() => {
@@ -663,13 +672,16 @@ export default function MailPage() {
       action: {
         label: t('misc.mailPage.undo'),
         onClick: () => {
-          const t = pendingDeletesRef.current.get(id);
-          if (t) { clearTimeout(t); pendingDeletesRef.current.delete(id); }
-          if (msgToDelete) setMessages((prev) => [msgToDelete, ...prev]);
+          const timer = pendingDeletesRef.current.get(id);
+          if (timer) { clearTimeout(timer); pendingDeletesRef.current.delete(id); }
+          if (msgToDelete) {
+            setMessages((prev) => [msgToDelete, ...prev]);
+            setSearchResults((prev) => (prev ? [msgToDelete, ...prev] : prev));
+          }
         },
       },
     });
-  }, [messages, selectedMessageId, setMessages, addToast]);
+  }, [messages, searchResults, selectedMessageId, removeVisibleMessages, setMessages, addToast]);
 
   const handleDelete = useCallback(() => {
     if (!selectedMessageId) return;
@@ -677,9 +689,9 @@ export default function MailPage() {
   }, [selectedMessageId, handleDeleteById]);
 
   const handleBulkDelete = useCallback(async (ids: string[]) => {
-    const unreadDeleteCount = messages.filter((m) => ids.includes(m.id) && !m.read).length;
+    const unreadDeleteCount = countUnreadVisible(ids);
     if (unreadDeleteCount > 0) adjustUnread(activeFolderId, -unreadDeleteCount);
-    setMessages((prev) => prev.filter((m) => !ids.includes(m.id)));
+    removeVisibleMessages(ids);
     if (ids.includes(selectedMessageId ?? '')) setSelectedMessageId(null);
     const results = await Promise.allSettled(ids.map((id) => deleteMessage(id)));
     const failed = results.filter((r) => r.status === 'rejected').length;
@@ -688,22 +700,49 @@ export default function MailPage() {
     } else {
       addToast(t('misc.mailPage.bulkDeleted', { count: ids.length }));
     }
-  }, [selectedMessageId, setMessages, addToast]);
+  }, [selectedMessageId, countUnreadVisible, adjustUnread, activeFolderId, removeVisibleMessages, addToast]);
 
   const handleRestore = useCallback(async (id: string) => {
     const nextId = getNextId(id);
-    setMessages((prev) => prev.filter((m) => m.id !== id));
+    removeVisibleMessages([id]);
     if (selectedMessageId === id) setSelectedMessageId(nextId);
     try { await restoreMessage(id); addToast(t('misc.mailPage.restored')); }
     catch { addToast(t('misc.mailPage.restoreFailed'), 'error'); }
-  }, [selectedMessageId, getNextId, setMessages, addToast]);
+  }, [selectedMessageId, getNextId, removeVisibleMessages, addToast]);
 
   const handleBulkRestore = useCallback(async (ids: string[]) => {
-    setMessages((prev) => prev.filter((m) => !ids.includes(m.id)));
+    removeVisibleMessages(ids);
     if (ids.includes(selectedMessageId ?? '')) setSelectedMessageId(null);
     try { await bulkRestoreMessages(ids); addToast(t('misc.mailPage.bulkRestored', { count: ids.length })); }
     catch { addToast(t('misc.mailPage.restoreFailed'), 'error'); }
-  }, [selectedMessageId, setMessages, addToast]);
+  }, [selectedMessageId, removeVisibleMessages, addToast]);
+
+  // Restore archived messages back to inbox (archive uses move, not the trash restore API)
+  const handleRestoreFromArchive = useCallback((id: string) => {
+    const inboxFolder = folders.find((f) => f.system_type === 'inbox');
+    if (!inboxFolder) return;
+    const msg = messages.find((m) => m.id === id) ?? searchResults?.find((m) => m.id === id);
+    const nextId = getNextId(id);
+    removeVisibleMessages([id]);
+    if (selectedMessageId === id) setSelectedMessageId(nextId);
+    addToast(t('misc.mailPage.restored'), 'info');
+    void moveMessage(id, inboxFolder.id).catch(() => {
+      if (msg) {
+        setMessages((prev) => [msg, ...prev]);
+        setSearchResults((prev) => (prev ? [msg, ...prev] : prev));
+      }
+      addToast(t('misc.mailPage.restoreFailed'), 'error');
+    });
+  }, [folders, messages, searchResults, selectedMessageId, getNextId, removeVisibleMessages, setMessages, addToast]);
+
+  const handleBulkRestoreFromArchive = useCallback(async (ids: string[]) => {
+    const inboxFolder = folders.find((f) => f.system_type === 'inbox');
+    if (!inboxFolder) return;
+    removeVisibleMessages(ids);
+    if (ids.includes(selectedMessageId ?? '')) setSelectedMessageId(null);
+    await Promise.allSettled(ids.map((id) => moveMessage(id, inboxFolder.id)));
+    addToast(t('misc.mailPage.bulkRestored', { count: ids.length }));
+  }, [folders, selectedMessageId, removeVisibleMessages, addToast]);
 
   const handleBulkMarkRead = useCallback(async (ids: string[]) => {
     const unreadCount = countUnreadVisible(ids);
@@ -743,10 +782,10 @@ export default function MailPage() {
   const handleArchiveById = useCallback((id: string) => {
     const archiveFolder = folders.find((f) => f.system_type === 'archive');
     if (!archiveFolder) return;
-    const msgToArchive = messages.find((m) => m.id === id);
+    const msgToArchive = messages.find((m) => m.id === id) ?? searchResults?.find((m) => m.id === id);
     if (msgToArchive && !msgToArchive.read) adjustUnread(activeFolderId, -1);
     const nextId = getNextId(id);
-    setMessages((prev) => prev.filter((m) => m.id !== id));
+    removeVisibleMessages([id]);
     if (selectedMessageId === id) setSelectedMessageId(nextId);
     addToast(t('misc.mailPage.archived'), 'info', {
       action: {
@@ -754,15 +793,19 @@ export default function MailPage() {
         onClick: () => {
           if (msgToArchive) {
             setMessages((prev) => [msgToArchive, ...prev]);
-            if (msgToArchive && !msgToArchive.read) adjustUnread(activeFolderId, 1);
+            setSearchResults((prev) => (prev ? [msgToArchive, ...prev] : prev));
+            if (!msgToArchive.read) adjustUnread(activeFolderId, 1);
           }
         },
       },
     });
     void moveMessage(id, archiveFolder.id).catch(() => {
-      if (msgToArchive) setMessages((prev) => [msgToArchive, ...prev]);
+      if (msgToArchive) {
+        setMessages((prev) => [msgToArchive, ...prev]);
+        setSearchResults((prev) => (prev ? [msgToArchive, ...prev] : prev));
+      }
     });
-  }, [folders, getNextId, setMessages, selectedMessageId, messages, addToast, adjustUnread, activeFolderId]);
+  }, [folders, getNextId, removeVisibleMessages, setMessages, selectedMessageId, messages, searchResults, addToast, adjustUnread, activeFolderId]);
 
   const handleArchive = useCallback(() => {
     if (!selectedMessageId) return;
@@ -774,50 +817,59 @@ export default function MailPage() {
     const spamFolder = folders.find((f) => f.system_type === 'spam' || f.system_type === 'junk');
     if (!spamFolder) return;
     const id = selectedMessageId;
-    const spamMsg = messages.find((m) => m.id === id);
+    const spamMsg = messages.find((m) => m.id === id) ?? searchResults?.find((m) => m.id === id);
     if (spamMsg && !spamMsg.read) adjustUnread(activeFolderId, -1);
     const nextId = getNextId(id);
-    setMessages((prev) => prev.filter((m) => m.id !== id));
+    removeVisibleMessages([id]);
     setSelectedMessageId(nextId);
     addToast(t('misc.mailPage.movedToSpam'), 'info', {
       action: {
         label: t('misc.mailPage.undo'),
-        onClick: () => { if (spamMsg) { setMessages((prev) => [spamMsg, ...prev]); if (spamMsg && !spamMsg.read) adjustUnread(activeFolderId, 1); } },
+        onClick: () => {
+          if (spamMsg) {
+            setMessages((prev) => [spamMsg, ...prev]);
+            setSearchResults((prev) => (prev ? [spamMsg, ...prev] : prev));
+            if (!spamMsg.read) adjustUnread(activeFolderId, 1);
+          }
+        },
       },
     });
     void moveMessage(id, spamFolder.id).catch(() => {
-      if (spamMsg) setMessages((prev) => [spamMsg, ...prev]);
+      if (spamMsg) {
+        setMessages((prev) => [spamMsg, ...prev]);
+        setSearchResults((prev) => (prev ? [spamMsg, ...prev] : prev));
+      }
       addToast(t('misc.mailPage.moveFailed'), 'error');
     });
-  }, [selectedMessageId, folders, getNextId, setMessages, addToast, messages, adjustUnread, activeFolderId]);
+  }, [selectedMessageId, folders, getNextId, removeVisibleMessages, setMessages, addToast, messages, searchResults, adjustUnread, activeFolderId]);
 
   const handleNotSpam = useCallback(() => {
     if (!selectedMessageId) return;
     const inboxFolder = folders.find((f) => f.system_type === 'inbox');
     if (!inboxFolder) return;
     const id = selectedMessageId;
-    const notSpamMsg = messages.find((m) => m.id === id);
+    const notSpamMsg = messages.find((m) => m.id === id) ?? searchResults?.find((m) => m.id === id);
     if (notSpamMsg && !notSpamMsg.read) adjustUnread(activeFolderId, -1);
     const nextId = getNextId(id);
     void moveMessage(id, inboxFolder.id).then(() => {
-      setMessages((prev) => prev.filter((m) => m.id !== id));
+      removeVisibleMessages([id]);
       setSelectedMessageId(nextId);
       addToast(t('misc.mailPage.movedToInbox'), 'info');
     }).catch(() => addToast(t('misc.mailPage.moveFailed'), 'error'));
-  }, [selectedMessageId, folders, getNextId, setMessages, addToast]);
+  }, [selectedMessageId, folders, getNextId, removeVisibleMessages, messages, searchResults, adjustUnread, activeFolderId, addToast]);
 
   const handleMove = useCallback(async (folderId: string) => {
     if (!selectedMessageId) return;
     const id = selectedMessageId;
-    const msg = messages.find((m) => m.id === id);
+    const msg = messages.find((m) => m.id === id) ?? searchResults?.find((m) => m.id === id);
     if (msg && !msg.read) adjustUnread(activeFolderId, -1);
     const nextId = getNextId(id);
-    setMessages((prev) => prev.filter((m) => m.id !== id));
+    removeVisibleMessages([id]);
     setSelectedMessageId(nextId);
     moveMessage(id, folderId)
       .then(() => addToast(t('misc.mailPage.moved')))
       .catch(() => addToast(t('misc.mailPage.moveFailed'), 'error'));
-  }, [selectedMessageId, getNextId, setMessages, addToast]);
+  }, [selectedMessageId, getNextId, removeVisibleMessages, messages, searchResults, adjustUnread, activeFolderId, addToast]);
 
   const handleStar = useCallback(async (id: string, starred: boolean) => {
     patchVisibleMessages([id], { starred });
@@ -1593,7 +1645,7 @@ export default function MailPage() {
               onBulkMarkRead={handleBulkMarkRead}
               folders={folders}
               onBulkMove={async (ids, folderId) => {
-                setMessages((prev) => prev.filter((m) => !ids.includes(m.id)));
+                removeVisibleMessages(ids);
                 if (ids.includes(selectedMessageId ?? '')) setSelectedMessageId(null);
                 await Promise.allSettled(ids.map((id) => moveMessage(id, folderId)));
                 addToast(t('misc.mailPage.bulkMoved', { count: ids.length }));
@@ -1614,7 +1666,7 @@ export default function MailPage() {
               onPinMessage={handlePin}
               pinnedIds={pinnedIds}
               importantIds={importantIds}
-              onBulkRestore={activeFolderSystemType === 'trash' ? handleBulkRestore : undefined}
+              onBulkRestore={activeFolderSystemType === 'trash' ? handleBulkRestore : activeFolderSystemType === 'archive' ? handleBulkRestoreFromArchive : undefined}
               onBulkLabel={handleBulkLabel}
               onBulkStar={handleBulkStar}
               messageLabels={messageLabels}
@@ -1765,7 +1817,7 @@ export default function MailPage() {
                   });
                   addToast(t('misc.mailPage.replySent'));
                 } : undefined}
-                onRestore={activeFolderSystemType === 'trash' && selectedMessageId ? () => handleRestore(selectedMessageId) : undefined}
+                onRestore={selectedMessageId && (activeFolderSystemType === 'trash' || activeFolderSystemType === 'archive') ? () => activeFolderSystemType === 'archive' ? handleRestoreFromArchive(selectedMessageId) : handleRestore(selectedMessageId) : undefined}
                 onComposeToAddress={(address) => openCompose({ intent: 'new', to: address })}
                 onSnooze={activeFolderSystemType !== 'trash' ? handleSnooze : undefined}
                 onOpenInWindow={selectedMessageId ? () => window.open(`/mail/${selectedMessageId}`, '_blank', 'width=900,height=700,menubar=no,toolbar=no') : undefined}
