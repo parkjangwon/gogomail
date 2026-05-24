@@ -223,10 +223,22 @@ export class GogomailClient {
         `GoGoMail Admin API ${method} /admin/v1${path} → ${res.status}: ${safeErrorBody(text)}`,
       );
     }
-    if (method === "DELETE" && res.status === 204) {
+    if (res.status === 204) {
       return undefined as T;
     }
+    const contentType = res.headers.get("Content-Type") ?? "";
+    if (!contentType.toLowerCase().includes("application/json")) {
+      const body = await res.text();
+      return {
+        content_type: contentType || "application/octet-stream",
+        body_text: body,
+      } as T;
+    }
     return res.json() as Promise<T>;
+  }
+
+  async adminRequest(method: string, path: string, body?: unknown): Promise<unknown> {
+    return this.request<unknown>(method, path, body);
   }
 
   // ── Directory / user search ─────────────────────────────────────

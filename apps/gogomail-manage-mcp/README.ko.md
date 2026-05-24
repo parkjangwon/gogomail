@@ -16,7 +16,7 @@ English / 영어: [README.md](README.md)
   - [Claude Desktop (stdio)](#claude-desktop-stdio)
   - [자율 에이전트 (HTTP + SSE)](#자율-에이전트-http--sse)
 - [툴 레퍼런스](#툴-레퍼런스)
-  - [GoGoMail Admin (37개)](#gogomail-admin-37개)
+  - [GoGoMail Admin (49개)](#gogomail-admin-49개)
   - [Suppo 헬프데스크 (10개)](#suppo-헬프데스크-10개)
   - [GitHub Issues (6개)](#github-issues-6개)
 - [워크플로우 예시](#워크플로우-예시)
@@ -40,7 +40,7 @@ English / 영어: [README.md](README.md)
   │                             │
   │  ┌──────────────────────┐   │
   │  │  GoGoMail Admin      │   │──► GET/PATCH/POST/DELETE /admin/v1/…
-  │  │  37개 툴  [필수]      │   │    Bearer: GOGOMAIL_ADMIN_KEY
+  │  │  49개 툴  [필수]      │   │    Bearer: GOGOMAIL_ADMIN_KEY
   │  └──────────────────────┘   │
   │  ┌──────────────────────┐   │
   │  │  Suppo 헬프데스크     │   │──► /api/public/…
@@ -194,7 +194,7 @@ node dist/index.js
 
 툴 이름은 `{공급자}_{동작}_{대상}` 패턴을 따릅니다. GoGoMail **액션** 툴(쓰기 작업)은 사람이 읽을 수 있는 `reason`을 필수로 받고 모두 감사 로그가 기록됩니다 — `ticketId`가 지정되면 해당 Suppo 티켓에 내부 댓글로 기록되고, 생략하면 자동으로 별도 감사 티켓이 생성됩니다. 되돌릴 수 없는 삭제는 정확한 `confirm` 문구도 필요합니다. Suppo가 설정되지 않은 경우 감사 기록은 stderr에 출력됩니다.
 
-### GoGoMail Admin (37개)
+### GoGoMail Admin (49개)
 
 #### 사용자 및 디렉터리
 
@@ -292,6 +292,23 @@ node dist/index.js
 |---|---|---|
 | `gogomail_check_health` | `GET /admin/v1/health` | 시스템 상태 및 컴포넌트 가용성 확인. |
 | `gogomail_get_queue_stats` | `GET /admin/v1/queue` | 메일 큐 깊이 및 처리 통계 조회. 높은 큐 깊이는 백로그나 배송 병목을 나타냄. |
+
+#### 어드민 콘솔 패리티
+
+| 툴 | 메서드 + 경로 | 설명 |
+|---|---|---|
+| `gogomail_admin_api_request` | allowlisted `/admin/v1/...` | 전용 typed 툴이 아직 없는 문서화된 어드민 콘솔 라우트용 안전 브리지. 읽기는 직접 실행하고, 쓰기는 `reason`과 감사 로그가 필요하며, 삭제는 `confirm="DELETE <path>"`가 필요합니다. |
+| `gogomail_list_org_units` | `GET /admin/v1/organization/units` | 회사의 조직 단위 목록 조회. |
+| `gogomail_get_org_hierarchy` | `GET /admin/v1/organization/hierarchy` | 회사의 조직 트리 조회. |
+| `gogomail_list_user_org_memberships` | `GET /admin/v1/organization/members` | 사용자의 조직 소속 및 role/title 메타데이터 조회. |
+| `gogomail_assign_user_org_membership` | `POST /admin/v1/organization/members` | 사용자를 조직 단위에 배정하고 선택적으로 role/title 지정. *(감사 로그 기록)* |
+| `gogomail_update_org_membership` | `PATCH /admin/v1/organization/members/{id}` | 조직 소속의 role/title 메타데이터 변경. *(감사 로그 기록)* |
+| `gogomail_remove_org_membership` | `DELETE /admin/v1/organization/members/{id}` | 조직 소속 제거. `confirm="remove org membership <membershipId>"` 필요. *(감사 로그 기록)* |
+| `gogomail_get_security_policy` | `GET /admin/v1/{companies|domains}/{id}/security/...` | IP, 인증, 보존, 세션, rate-limit, DMARC/SPF, SMTP, MCP, 스팸 필터 등 회사/도메인 보안 정책 조회. |
+| `gogomail_update_security_policy` | `PUT /admin/v1/{companies|domains}/{id}/security/...` | 회사/도메인 보안 정책 JSON 문서 변경. *(감사 로그 기록)* |
+| `gogomail_get_spam_filter_policy` | `GET /admin/v1/{companies|domains}/{id}/security/spam-filter` | 회사 또는 도메인 범위 스팸 필터 정책 조회. |
+| `gogomail_update_spam_filter_policy` | `PUT /admin/v1/{companies|domains}/{id}/security/spam-filter` | 회사 또는 도메인 범위 스팸 필터 정책 변경. *(감사 로그 기록)* |
+| `gogomail_get_spam_filter_stats` | `GET /admin/v1/companies/{id}/security/spam-filter/stats` | 스팸 필터 통계 조회. 도메인 필터 선택 가능. |
 
 ---
 

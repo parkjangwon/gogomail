@@ -503,6 +503,170 @@ export const toolDefinitions: Tool[] = [
       "Get mail queue depth and processing stats. High queue depth indicates a backlog or delivery bottleneck.",
     inputSchema: { type: "object", properties: {} },
   },
+  // ── Admin console parity ─────────────────────────────────────
+  {
+    name: "gogomail_admin_api_request",
+    description:
+      "Guarded bridge for documented GoGoMail Admin API routes used by the admin console. Path is relative to /admin/v1, for example /organization/units. Non-read methods require reason and are audit-logged; DELETE also requires confirm exactly equal to DELETE <path>.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        method: { type: "string", enum: ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE"] },
+        path: { type: "string", description: "Admin API path relative to /admin/v1; no query string", maxLength: 1024 },
+        query: { type: "object", description: "Optional query parameters as string, number, boolean, or null values" },
+        bodyJson: { description: "JSON request body for POST, PUT, PATCH, or DELETE requests" },
+        reason: { type: "string", description: "Operational reason required for non-read requests", maxLength: 500 },
+        confirm: { type: "string", description: "For DELETE only, must exactly equal: DELETE <path>", maxLength: 160 },
+        ticketId: { type: "string", description: "Suppo ticket ID to attach audit memo to", pattern: "^[A-Za-z0-9_-]+$", maxLength: 128 },
+      },
+      required: ["method", "path"],
+    },
+  },
+  {
+    name: "gogomail_list_org_units",
+    description: "List organization units for a company. Mirrors the admin console organization chart API.",
+    inputSchema: {
+      type: "object",
+      properties: { companyId: { type: "string", pattern: "^[A-Za-z0-9_-]+$", maxLength: 128 } },
+      required: ["companyId"],
+    },
+  },
+  {
+    name: "gogomail_get_org_hierarchy",
+    description: "Get the organization hierarchy tree for a company.",
+    inputSchema: {
+      type: "object",
+      properties: { companyId: { type: "string", pattern: "^[A-Za-z0-9_-]+$", maxLength: 128 } },
+      required: ["companyId"],
+    },
+  },
+  {
+    name: "gogomail_list_user_org_memberships",
+    description: "List organization unit memberships for a user, including role/title metadata used by the admin console.",
+    inputSchema: {
+      type: "object",
+      properties: { userId: { type: "string", pattern: "^[A-Za-z0-9_-]+$", maxLength: 128 } },
+      required: ["userId"],
+    },
+  },
+  {
+    name: "gogomail_assign_user_org_membership",
+    description:
+      "Assign a user to an organization unit with optional role/title. Requires reason and writes an audit memo.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        unitId: { type: "string", pattern: "^[A-Za-z0-9_-]+$", maxLength: 128 },
+        userId: { type: "string", pattern: "^[A-Za-z0-9_-]+$", maxLength: 128 },
+        role: { type: "string", maxLength: 64 },
+        title: { type: "string", maxLength: 128 },
+        reason: { type: "string", maxLength: 500 },
+        ticketId: { type: "string", pattern: "^[A-Za-z0-9_-]+$", maxLength: 128 },
+      },
+      required: ["unitId", "userId", "reason"],
+    },
+  },
+  {
+    name: "gogomail_update_org_membership",
+    description:
+      "Update an organization membership role/title. Requires reason and writes an audit memo.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        membershipId: { type: "string", pattern: "^[A-Za-z0-9_-]+$", maxLength: 128 },
+        role: { type: "string", maxLength: 64 },
+        title: { type: "string", maxLength: 128 },
+        reason: { type: "string", maxLength: 500 },
+        ticketId: { type: "string", pattern: "^[A-Za-z0-9_-]+$", maxLength: 128 },
+      },
+      required: ["membershipId", "reason"],
+    },
+  },
+  {
+    name: "gogomail_remove_org_membership",
+    description:
+      "Remove an organization membership. Requires reason and confirm exactly equal to remove org membership <membershipId>.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        membershipId: { type: "string", pattern: "^[A-Za-z0-9_-]+$", maxLength: 128 },
+        confirm: { type: "string", maxLength: 160 },
+        reason: { type: "string", maxLength: 500 },
+        ticketId: { type: "string", pattern: "^[A-Za-z0-9_-]+$", maxLength: 128 },
+      },
+      required: ["membershipId", "confirm", "reason"],
+    },
+  },
+  {
+    name: "gogomail_get_security_policy",
+    description:
+      "Get a company or domain security policy: ip-policy, auth-policy, retention-policy, session-policy, rate-limit, dmarc-spf, mcp-policy, smtp-policy, or spam-filter.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        scope: { type: "string", enum: ["company", "domain"] },
+        id: { type: "string", pattern: "^[A-Za-z0-9_-]+$", maxLength: 128 },
+        policy: { type: "string", enum: ["ip-policy", "auth-policy", "retention-policy", "session-policy", "rate-limit", "dmarc-spf", "mcp-policy", "smtp-policy", "spam-filter"] },
+      },
+      required: ["scope", "id", "policy"],
+    },
+  },
+  {
+    name: "gogomail_update_security_policy",
+    description:
+      "Update a company or domain security policy. Requires reason and writes an audit memo.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        scope: { type: "string", enum: ["company", "domain"] },
+        id: { type: "string", pattern: "^[A-Za-z0-9_-]+$", maxLength: 128 },
+        policy: { type: "string", enum: ["ip-policy", "auth-policy", "retention-policy", "session-policy", "rate-limit", "dmarc-spf", "mcp-policy", "smtp-policy", "spam-filter"] },
+        bodyJson: { description: "Policy JSON body to PUT" },
+        reason: { type: "string", maxLength: 500 },
+        ticketId: { type: "string", pattern: "^[A-Za-z0-9_-]+$", maxLength: 128 },
+      },
+      required: ["scope", "id", "policy", "bodyJson", "reason"],
+    },
+  },
+  {
+    name: "gogomail_get_spam_filter_policy",
+    description: "Get company- or domain-scoped spam filter policy.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        scope: { type: "string", enum: ["company", "domain"] },
+        id: { type: "string", pattern: "^[A-Za-z0-9_-]+$", maxLength: 128 },
+      },
+      required: ["scope", "id"],
+    },
+  },
+  {
+    name: "gogomail_update_spam_filter_policy",
+    description: "Update company- or domain-scoped spam filter policy. Requires reason and writes an audit memo.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        scope: { type: "string", enum: ["company", "domain"] },
+        id: { type: "string", pattern: "^[A-Za-z0-9_-]+$", maxLength: 128 },
+        bodyJson: { description: "Spam filter policy JSON body to PUT" },
+        reason: { type: "string", maxLength: 500 },
+        ticketId: { type: "string", pattern: "^[A-Za-z0-9_-]+$", maxLength: 128 },
+      },
+      required: ["scope", "id", "bodyJson", "reason"],
+    },
+  },
+  {
+    name: "gogomail_get_spam_filter_stats",
+    description: "Get spam filter statistics for a company, optionally scoped to a domain.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        companyId: { type: "string", pattern: "^[A-Za-z0-9_-]+$", maxLength: 128 },
+        domainId: { type: "string", pattern: "^[A-Za-z0-9_-]+$", maxLength: 128 },
+      },
+      required: ["companyId"],
+    },
+  },
 ];
 
 // ── Audit helper ────────────────────────────────────────────────
@@ -626,6 +790,85 @@ const validFromTo = (p: { from?: string; to?: string }) =>
   !p.from || !p.to || Date.parse(p.from) <= Date.parse(p.to);
 // Bounded page limit — prevents agents from issuing unbounded backend queries
 const pageLimit = () => z.number().int().min(1).max(200).optional();
+const adminMethod = z.enum(["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE"]);
+const adminQueryValue = z.union([z.string().max(1000), z.number(), z.boolean(), z.null()]);
+const adminQuery = z.record(adminQueryValue).optional();
+const adminJsonBody = z.unknown().optional();
+const orgRole = () => singleLine("role", 64).optional();
+const orgTitle = () => singleLine("title", 128).optional();
+const securityScope = z.enum(["company", "domain"]);
+const securityPolicy = z.enum([
+  "ip-policy",
+  "auth-policy",
+  "retention-policy",
+  "session-policy",
+  "rate-limit",
+  "dmarc-spf",
+  "mcp-policy",
+  "smtp-policy",
+  "spam-filter",
+]);
+
+const ADMIN_API_ALLOWLIST: RegExp[] = [
+  /^\/admin-users(?:\/[A-Za-z0-9_-]+)?$/,
+  /^\/users(?:\/[A-Za-z0-9_-]+(?:\/(?:quota|role|recovery-email|status|invite|mfa))?)?$/,
+  /^\/companies(?:\/[A-Za-z0-9_-]+(?:\/(?:users\/bulk-import|users\/bulk-export|quota-summary|routing-rules|legal-holds(?:\/[A-Za-z0-9_-]+)?|sessions(?:\/[A-Za-z0-9_-]+)?|config(?:\/[A-Za-z0-9_-]+)?|mfa\/stats|alert-events|security\/(?:ip-policy|auth-policy|retention-policy|session-policy|rate-limit|spam-filter(?:\/(?:events|stats))?)))?)?$/,
+  /^\/domains(?:\/[A-Za-z0-9_-]+(?:\/(?:settings|dns-check|config(?:\/[A-Za-z0-9_-]+)?|routing-rules|mcp-policy|smtp-policy|security\/(?:ip-policy|auth-policy|retention-policy|rate-limit|dmarc-spf|spam-filter)))?)?$/,
+  /^\/organization\/(?:units(?:\/[A-Za-z0-9_-]+)?|hierarchy|members(?:\/[A-Za-z0-9_-]+)?|sync|settings)$/,
+  /^\/(?:directory\/principals|mail-flow-logs(?:\/stats)?|delivery-attempts(?:\/exhausted)?|outbox\/[A-Za-z0-9_-]+\/retry|dlq(?:\/[A-Za-z0-9_-]+)?|suppression-list(?:\/[A-Za-z0-9_-]+)?|quota-usage|quota-alerts|audit-logs|dkim-keys|health|queue|delivery-routes(?:\/[A-Za-z0-9_-]+)?|trusted-relays(?:\/[A-Za-z0-9_-]+)?|attachments|attachment-cleanup\/runs|drive-nodes|quota-reconciliation)$/,
+];
+
+function normalizeAdminPath(path: string): string {
+  let normalized = path.trim();
+  if (normalized.startsWith("/admin/v1/")) {
+    normalized = normalized.slice("/admin/v1".length);
+  }
+  if (!normalized.startsWith("/")) normalized = `/${normalized}`;
+  if (
+    normalized.length > 1024 ||
+    normalized.includes("?") ||
+    normalized.includes("#") ||
+    normalized.includes("://") ||
+    normalized.includes("..") ||
+    /[\r\n]/.test(normalized)
+  ) {
+    throw new Error("path must be a clean /admin/v1-relative path without query, fragment, traversal, or URL scheme");
+  }
+  if (!ADMIN_API_ALLOWLIST.some((pattern) => pattern.test(normalized))) {
+    throw new Error(`Admin API path is not in the documented MCP allowlist: ${normalized}`);
+  }
+  return normalized;
+}
+
+function pathWithQuery(path: string, query?: Record<string, string | number | boolean | null>): string {
+  const qs = new URLSearchParams();
+  for (const [key, value] of Object.entries(query ?? {})) {
+    if (!/^[A-Za-z0-9_.-]+$/.test(key)) {
+      throw new Error(`query key contains unsupported characters: ${key}`);
+    }
+    if (value !== null) qs.set(key, String(value));
+  }
+  const encoded = qs.toString();
+  return encoded ? `${path}?${encoded}` : path;
+}
+
+function securityPolicyPath(scope: "company" | "domain", id: string, policy: z.infer<typeof securityPolicy>): string {
+  if (policy === "mcp-policy") {
+    if (scope !== "domain") throw new Error("mcp-policy is domain-scoped");
+    return `/domains/${id}/mcp-policy`;
+  }
+  if (policy === "smtp-policy") {
+    if (scope !== "domain") throw new Error("smtp-policy is domain-scoped");
+    return `/domains/${id}/smtp-policy`;
+  }
+  if (policy === "dmarc-spf") {
+    if (scope !== "domain") throw new Error("dmarc-spf is domain-scoped");
+    return `/domains/${id}/security/dmarc-spf`;
+  }
+  return scope === "company"
+    ? `/companies/${id}/security/${policy}`
+    : `/domains/${id}/security/${policy}`;
+}
 
 const SearchPrincipalsSchema = z.object({
   q: singleLine("query", 200),
@@ -818,6 +1061,63 @@ const AuditLogsSchema = z.object({
   limit: pageLimit(),
 }).refine(validFromTo, {
   message: "from must be earlier than or equal to to",
+});
+const AdminApiRequestSchema = z.object({
+  method: adminMethod,
+  path: singleLine("path", 1024),
+  query: adminQuery,
+  bodyJson: adminJsonBody,
+  reason: reason().optional(),
+  confirm: confirm().optional(),
+  ticketId: id().optional(),
+});
+const OrgCompanySchema = z.object({ companyId: id() });
+const UserOrgMembershipsSchema = z.object({ userId: id() });
+const AssignOrgMembershipSchema = z.object({
+  unitId: id(),
+  userId: id(),
+  role: orgRole(),
+  title: orgTitle(),
+  reason: reason(),
+  ticketId: id().optional(),
+});
+const UpdateOrgMembershipSchema = z.object({
+  membershipId: id(),
+  role: orgRole(),
+  title: orgTitle(),
+  reason: reason(),
+  ticketId: id().optional(),
+}).refine((p) => p.role !== undefined || p.title !== undefined, {
+  message: "role or title must be provided",
+});
+const RemoveOrgMembershipSchema = z.object({
+  membershipId: id(),
+  confirm: confirm(),
+  reason: reason(),
+  ticketId: id().optional(),
+});
+const SecurityPolicySchema = z.object({
+  scope: securityScope,
+  id: id(),
+  policy: securityPolicy,
+});
+const UpdateSecurityPolicySchema = SecurityPolicySchema.extend({
+  bodyJson: z.unknown(),
+  reason: reason(),
+  ticketId: id().optional(),
+});
+const SpamFilterPolicySchema = z.object({
+  scope: securityScope,
+  id: id(),
+});
+const UpdateSpamFilterPolicySchema = SpamFilterPolicySchema.extend({
+  bodyJson: z.unknown(),
+  reason: reason(),
+  ticketId: id().optional(),
+});
+const SpamFilterStatsSchema = z.object({
+  companyId: id(),
+  domainId: id().optional(),
 });
 
 // ── callTool dispatcher ─────────────────────────────────────────
@@ -1093,6 +1393,126 @@ export async function callTool(
     }
     case "gogomail_get_queue_stats": {
       return gogomail.getQueueStats();
+    }
+    // ── Admin console parity ─────────────────────────────────
+    case "gogomail_admin_api_request": {
+      const { method, path, query, bodyJson, reason, confirm, ticketId } = AdminApiRequestSchema.parse(args);
+      const normalizedPath = normalizeAdminPath(path);
+      const requestPath = pathWithQuery(normalizedPath, query);
+      if (method !== "GET" && method !== "HEAD" && !reason) {
+        throw new Error("reason is required for non-read Admin API requests");
+      }
+      if (method === "DELETE") {
+        requireConfirm(confirm ?? "", `DELETE ${normalizedPath}`);
+      }
+      const result = await gogomail.adminRequest(method, requestPath, bodyJson);
+      if (method === "GET" || method === "HEAD") return result;
+      const audit = await writeAuditComment(
+        suppo,
+        ticketId,
+        "gogomail_admin_api_request",
+        `${method} ${requestPath}`,
+        `관리자 API 요청 / 사유: ${reason}`,
+      );
+      return withAudit(result ?? { status: "ok" }, audit);
+    }
+    case "gogomail_list_org_units": {
+      const { companyId } = OrgCompanySchema.parse(args);
+      return gogomail.adminRequest("GET", `/organization/units?company_id=${encodeURIComponent(companyId)}`);
+    }
+    case "gogomail_get_org_hierarchy": {
+      const { companyId } = OrgCompanySchema.parse(args);
+      return gogomail.adminRequest("GET", `/organization/hierarchy?company_id=${encodeURIComponent(companyId)}`);
+    }
+    case "gogomail_list_user_org_memberships": {
+      const { userId } = UserOrgMembershipsSchema.parse(args);
+      return gogomail.adminRequest("GET", `/organization/members?user_id=${encodeURIComponent(userId)}`);
+    }
+    case "gogomail_assign_user_org_membership": {
+      const { unitId, userId, role, title, reason, ticketId } = AssignOrgMembershipSchema.parse(args);
+      const result = await gogomail.adminRequest("POST", "/organization/members", {
+        unit_id: unitId,
+        user_id: userId,
+        role,
+        title,
+      });
+      const audit = await writeAuditComment(
+        suppo,
+        ticketId,
+        "gogomail_assign_user_org_membership",
+        `unitId: ${unitId}, userId: ${userId}`,
+        `조직 구성원 배정 / role: ${role ?? "(none)"}, title: ${title ?? "(none)"} / 사유: ${reason}`,
+      );
+      return withAudit(result, audit);
+    }
+    case "gogomail_update_org_membership": {
+      const { membershipId, role, title, reason, ticketId } = UpdateOrgMembershipSchema.parse(args);
+      const result = await gogomail.adminRequest("PATCH", `/organization/members/${membershipId}`, {
+        role,
+        title,
+      });
+      const audit = await writeAuditComment(
+        suppo,
+        ticketId,
+        "gogomail_update_org_membership",
+        `membershipId: ${membershipId}`,
+        `조직 구성원 메타데이터 변경 / role: ${role ?? "(unchanged)"}, title: ${title ?? "(unchanged)"} / 사유: ${reason}`,
+      );
+      return withAudit(result, audit);
+    }
+    case "gogomail_remove_org_membership": {
+      const { membershipId, confirm, reason, ticketId } = RemoveOrgMembershipSchema.parse(args);
+      requireConfirm(confirm, `remove org membership ${membershipId}`);
+      await gogomail.adminRequest("DELETE", `/organization/members/${membershipId}`);
+      const audit = await writeAuditComment(
+        suppo,
+        ticketId,
+        "gogomail_remove_org_membership",
+        `membershipId: ${membershipId}`,
+        `조직 구성원 배정 제거 / 사유: ${reason}`,
+      );
+      return { status: "ok", membershipId, audit };
+    }
+    case "gogomail_get_security_policy": {
+      const { scope, id, policy } = SecurityPolicySchema.parse(args);
+      return gogomail.adminRequest("GET", securityPolicyPath(scope, id, policy));
+    }
+    case "gogomail_update_security_policy": {
+      const { scope, id, policy, bodyJson, reason, ticketId } = UpdateSecurityPolicySchema.parse(args);
+      const path = securityPolicyPath(scope, id, policy);
+      const result = await gogomail.adminRequest("PUT", path, bodyJson);
+      const audit = await writeAuditComment(
+        suppo,
+        ticketId,
+        "gogomail_update_security_policy",
+        `${scope}: ${id}, policy: ${policy}`,
+        `보안 정책 변경 / 사유: ${reason}`,
+      );
+      return withAudit(result, audit);
+    }
+    case "gogomail_get_spam_filter_policy": {
+      const { scope, id } = SpamFilterPolicySchema.parse(args);
+      return gogomail.adminRequest("GET", securityPolicyPath(scope, id, "spam-filter"));
+    }
+    case "gogomail_update_spam_filter_policy": {
+      const { scope, id, bodyJson, reason, ticketId } = UpdateSpamFilterPolicySchema.parse(args);
+      const path = securityPolicyPath(scope, id, "spam-filter");
+      const result = await gogomail.adminRequest("PUT", path, bodyJson);
+      const audit = await writeAuditComment(
+        suppo,
+        ticketId,
+        "gogomail_update_spam_filter_policy",
+        `${scope}: ${id}`,
+        `스팸 필터 정책 변경 / 사유: ${reason}`,
+      );
+      return withAudit(result, audit);
+    }
+    case "gogomail_get_spam_filter_stats": {
+      const { companyId, domainId } = SpamFilterStatsSchema.parse(args);
+      const path = domainId
+        ? `/companies/${companyId}/security/spam-filter/stats?domain_id=${encodeURIComponent(domainId)}`
+        : `/companies/${companyId}/security/spam-filter/stats`;
+      return gogomail.adminRequest("GET", path);
     }
     default:
       throw new Error(`Unknown GoGoMail tool: ${name}`);
