@@ -1,6 +1,6 @@
 # GoGoMail Admin Console
 
-Enterprise administration console for GoGoMail platform built with Next.js 15 and Cloudscape Design System.
+Enterprise administration console for GoGoMail platform built with Next.js 16 and Cloudscape Design System.
 
 ## Quick Start
 

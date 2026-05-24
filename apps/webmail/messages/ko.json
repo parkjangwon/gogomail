@@ -1299,7 +1299,10 @@
     "driveSortTypeName": "폴더 우선",
     "driveSortName": "이름",
     "driveSortUpdated": "최근 수정",
-    "driveSortSize": "크기"
+    "driveSortSize": "크기",
+    "mcpSelectAllScopes": "전체 선택",
+    "mcpResetScopes": "기본 권한으로 되돌리기",
+    "mcpKeyScopesSelected": "{total}개 중 {count}개 권한 선택됨"
   },
   "composeFull": {
     "titleNew": "새 메시지",

@@ -1299,7 +1299,10 @@
     "driveSortTypeName": "文件夹优先",
     "driveSortName": "名称",
     "driveSortUpdated": "最近更新",
-    "driveSortSize": "大小"
+    "driveSortSize": "大小",
+    "mcpSelectAllScopes": "全选",
+    "mcpResetScopes": "重置为默认权限",
+    "mcpKeyScopesSelected": "已选择 {count}/{total} 个权限"
   },
   "composeFull": {
     "titleNew": "新邮件",

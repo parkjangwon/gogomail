@@ -14,7 +14,7 @@ export function SettingsAboutSection() {
       <SectionCard>
         <SectionHeader>{t('misc.settingsAbout.section')}</SectionHeader>
         <Row label={t('misc.settingsAbout.productName')} description={t('misc.settingsAbout.productDesc')} last>
-          <span style={{ fontSize: '12px', color: 'var(--color-text-tertiary)', fontFamily: 'monospace' }}>Next.js 15 · TS · Tailwind v4</span>
+          <span style={{ fontSize: '12px', color: 'var(--color-text-tertiary)', fontFamily: 'monospace' }}>Next.js 16 · TS · Tailwind v4</span>
         </Row>
       </SectionCard>
 

@@ -359,7 +359,7 @@ Do not mix icon sets.
 
 ## Tech Stack (Frontend)
 
-- **Framework**: Next.js 15+ (App Router), TypeScript
+- **Framework**: Next.js 16 (App Router), TypeScript
 - **Styling**: Tailwind CSS v4 with CSS custom properties for tokens
 - **Components**: shadcn/ui as base, customized to this design system
 - **State**: Zustand or Jotai for client state, TanStack Query for server state

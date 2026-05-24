@@ -479,7 +479,7 @@ DELETE /api/admin/[endpoint] → /admin/v1/[endpoint]
 
 ## Tools & Technologies
 
-- **Frontend**: Next.js 15 + TypeScript
+- **Frontend**: Next.js 16 + TypeScript
 - **UI Library**: Cloudscape Design System
 - **Data Fetching**: React Query
 - **Forms**: Custom validation + Cloudscape inputs

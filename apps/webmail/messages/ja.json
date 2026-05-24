@@ -1299,7 +1299,10 @@
     "driveSortTypeName": "フォルダー優先",
     "driveSortName": "名前",
     "driveSortUpdated": "最近更新",
-    "driveSortSize": "サイズ"
+    "driveSortSize": "サイズ",
+    "mcpSelectAllScopes": "すべて選択",
+    "mcpResetScopes": "既定の権限に戻す",
+    "mcpKeyScopesSelected": "{total}件中{count}件の権限を選択中"
   },
   "composeFull": {
     "titleNew": "新規メッセージ",

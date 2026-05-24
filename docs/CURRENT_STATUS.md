@@ -1,6 +1,12 @@
 # gogomail current status
 
-Last updated: 2026-05-24 (Webmail settings category organization)
+Last updated: 2026-05-24 (Next.js 16 references and MCP key scope bulk selection)
+
+## Next.js 16 references and MCP key scope bulk selection (2026-05-24)
+- Confirmed webmail and console package manifests and lockfiles already target Next.js 16.2.6 / eslint-config-next 16.2.6, then removed remaining stale previous-major product copy from docs, console README, and the webmail About settings panel.
+- Added localized MCP access-key scope bulk controls so users can select every available permission at once or reset back to the safe default `mail:read` selection during key issuance.
+- The MCP key form now shows a selected-scope count across English, Korean, Japanese, and Simplified Chinese.
+- Verification: `pnpm -C apps/webmail type-check`; `pnpm -C apps/console type-check`; `pnpm -C apps/webmail build`; `pnpm -C apps/console build`; `go test -short ./...`.
 
 ## Webmail settings category organization (2026-05-24)
 - Reordered the webmail settings sidebar so active product preferences come first: account, compose, reading, message list, contacts, Drive, filters, auto-reply, blocked senders, storage, notifications, appearance, privacy, security, MCP, accessibility, shortcuts, and about.

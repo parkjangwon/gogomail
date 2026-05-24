@@ -6,7 +6,7 @@
 
 **Architecture:** Reuses the existing `MFAStore` interface and `maildb.Repository` MFA methods. Admin MFA endpoints live in a new `internal/httpapi/admin_mfa.go` file and are registered via a `registerAdminMFARoutes` helper called from `RegisterAdminRoutes`. The login flow branches on enrollment/policy status before issuing the final JWT pair.
 
-**Tech Stack:** Go (`net/http`, `auth.TokenManager`, `MFAStore`, `configstore.Resolver`), Next.js 15 App Router (Cloudscape Design System), `go-qrcode` (already in `go.mod`).
+**Tech Stack:** Go (`net/http`, `auth.TokenManager`, `MFAStore`, `configstore.Resolver`), Next.js 16 App Router (Cloudscape Design System), `go-qrcode` (already in `go.mod`).
 
 ---
 
