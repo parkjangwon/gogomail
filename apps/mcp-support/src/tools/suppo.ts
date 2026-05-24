@@ -124,13 +124,15 @@ export const toolDefinitions: Tool[] = [
   },
 ];
 
+const safeId = () => z.string().regex(/^[A-Za-z0-9_-]+$/).max(128);
+
 const ListTicketsSchema = z.object({
   status: z.string().max(32).optional(),
   priority: z.string().max(32).optional(),
   limit: z.number().int().min(1).max(200).optional(),
 });
 
-const TicketIdSchema = z.object({ ticketId: z.string().max(128) });
+const TicketIdSchema = z.object({ ticketId: safeId() });
 
 const SearchTicketsSchema = z.object({
   customerEmail: z.string().email().max(254).optional(),
@@ -146,20 +148,20 @@ const CreateTicketSchema = z.object({
 });
 
 const UpdateTicketSchema = z.object({
-  ticketId: z.string().max(128),
+  ticketId: safeId(),
   status: z.string().max(32).optional(),
   priority: z.string().max(32).optional(),
 });
 
 const AddCommentSchema = z.object({
-  ticketId: z.string().max(128),
+  ticketId: safeId(),
   body: z.string().max(10_000),
   internal: z.boolean().optional(),
 });
 
 const AssignTicketSchema = z.object({
-  ticketId: z.string().max(128),
-  assigneeId: z.string().max(128),
+  ticketId: safeId(),
+  assigneeId: safeId(),
 });
 
 const SearchKbSchema = z.object({ query: z.string().max(500) });
