@@ -15,6 +15,7 @@ interface MessageHeaderProps {
   isContactSaved: boolean;
   savedContact: boolean;
   onSaveContact: () => void;
+  onBlockSender?: (addr: string) => void;
 }
 
 export function MessageHeader({
@@ -27,6 +28,7 @@ export function MessageHeader({
   isContactSaved,
   savedContact,
   onSaveContact,
+  onBlockSender,
 }: MessageHeaderProps) {
   const t = useTranslations('readingFull');
   return (
@@ -99,6 +101,21 @@ export function MessageHeader({
                   (e.currentTarget as HTMLButtonElement).style.background = 'transparent';
                 }}
               >{savedContact ? t('header.savedContactLabel') : t('header.addContactLabel')}</button>
+            )}
+            {onBlockSender && (
+              <button
+                onClick={() => onBlockSender(message.from_addr)}
+                title={t('header.blockSenderTitle', { addr: message.from_addr })}
+                style={{ background: 'none', border: '1px solid var(--color-border-default)', borderRadius: '4px', cursor: 'pointer', fontSize: '11px', color: 'var(--color-destructive)', padding: '1px 6px', marginInlineStart: '4px', lineHeight: 1.4, opacity: 0.8 }}
+                onMouseEnter={(e) => {
+                  (e.currentTarget as HTMLButtonElement).style.background = 'color-mix(in srgb, var(--color-destructive) 10%, transparent)';
+                  (e.currentTarget as HTMLButtonElement).style.opacity = '1';
+                }}
+                onMouseLeave={(e) => {
+                  (e.currentTarget as HTMLButtonElement).style.background = 'transparent';
+                  (e.currentTarget as HTMLButtonElement).style.opacity = '0.8';
+                }}
+              >{t('header.blockSenderLabel')}</button>
             )}
           </div>
 

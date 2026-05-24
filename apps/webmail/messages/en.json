@@ -830,8 +830,12 @@
       "savedContactLabel": "Saved ✓",
       "toLabel": "To",
       "ccLabel": "Cc",
-      "readingPrefix": "Reading"
-    }
+      "readingPrefix": "Reading",
+      "blockSenderTitle": "Block sender {addr}",
+      "blockSenderLabel": "Block"
+    },
+    "notSpamBannerText": "This email was marked as spam. Not spam?",
+    "notSpamBannerAction": "Move to Inbox"
   },
   "sidebar": {
     "asideLabel": "Mail navigation",
@@ -1555,7 +1559,12 @@
         "labelGreen": "Green",
         "labelBlue": "Blue",
         "labelPurple": "Purple"
-      }
+      },
+      "spamAutoDelete": "Spam messages are automatically deleted after 30 days.",
+      "markAllNotSpam": "Mark all as not spam",
+      "allNotSpam": "Moved {count} messages to Inbox",
+      "emptySpam": "Empty spam",
+      "senderBlocked": "Blocked {addr}"
     },
     "messagePage": {
       "backToInbox": "← Inbox"
@@ -1905,5 +1914,18 @@
       "dismissPrompt": "Dismiss browser notification prompt"
     },
     "unread": "Unread"
+  },
+  "spamDialog": {
+    "ariaLabel": "Report spam",
+    "title": "Report spam",
+    "cancelAria": "Cancel",
+    "sender": "Sender",
+    "description": "This email will be reported as spam and moved to your spam folder.",
+    "blockSenderLabel": "Block this sender",
+    "blockSenderDesc": "Block future emails from {addr}",
+    "blockDomainLabel": "Block entire domain",
+    "blockDomainDesc": "Block all emails from @{domain}",
+    "cancel": "Cancel",
+    "confirm": "Report spam"
   }
 }

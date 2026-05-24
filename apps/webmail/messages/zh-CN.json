@@ -830,8 +830,12 @@
       "savedContactLabel": "已保存 ✓",
       "toLabel": "收件人",
       "ccLabel": "抄送",
-      "readingPrefix": "阅读"
-    }
+      "readingPrefix": "阅读",
+      "blockSenderTitle": "屏蔽发件人 {addr}",
+      "blockSenderLabel": "屏蔽"
+    },
+    "notSpamBannerText": "此邮件已被标记为垃圾邮件。不是垃圾邮件？",
+    "notSpamBannerAction": "移至收件箱"
   },
   "sidebar": {
     "asideLabel": "邮件导航",
@@ -1555,7 +1559,12 @@
         "labelGreen": "绿",
         "labelBlue": "蓝",
         "labelPurple": "紫"
-      }
+      },
+      "spamAutoDelete": "垃圾邮件将在30天后自动删除。",
+      "markAllNotSpam": "全部标为非垃圾邮件",
+      "allNotSpam": "已将{count}封邮件移至收件箱",
+      "emptySpam": "清空垃圾邮件",
+      "senderBlocked": "已屏蔽 {addr}"
     },
     "messagePage": {
       "backToInbox": "← 收件箱"
@@ -1902,5 +1911,18 @@
       "dismissPrompt": "关闭浏览器通知提示"
     },
     "unread": "未读"
+  },
+  "spamDialog": {
+    "ariaLabel": "举报垃圾邮件",
+    "title": "举报垃圾邮件",
+    "cancelAria": "取消",
+    "sender": "发件人",
+    "description": "此邮件将被举报为垃圾邮件并移至垃圾邮件文件夹。",
+    "blockSenderLabel": "屏蔽此发件人",
+    "blockSenderDesc": "屏蔽来自 {addr} 的邮件",
+    "blockDomainLabel": "屏蔽整个域名",
+    "blockDomainDesc": "屏蔽来自 @{domain} 的所有邮件",
+    "cancel": "取消",
+    "confirm": "举报垃圾邮件"
   }
 }

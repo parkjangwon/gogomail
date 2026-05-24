@@ -830,8 +830,12 @@
       "savedContactLabel": "保存済み ✓",
       "toLabel": "宛先",
       "ccLabel": "Cc",
-      "readingPrefix": "読了"
-    }
+      "readingPrefix": "読了",
+      "blockSenderTitle": "送信者 {addr} をブロック",
+      "blockSenderLabel": "ブロック"
+    },
+    "notSpamBannerText": "このメールはスパムとして分類されました。スパムではないですか？",
+    "notSpamBannerAction": "受信トレイに移動"
   },
   "sidebar": {
     "asideLabel": "メールナビゲーション",
@@ -1555,7 +1559,12 @@
         "labelGreen": "緑",
         "labelBlue": "青",
         "labelPurple": "紫"
-      }
+      },
+      "spamAutoDelete": "スパムメールは30日後に自動削除されます。",
+      "markAllNotSpam": "すべてスパムではないとしてマーク",
+      "allNotSpam": "{count}件を受信トレイに移動しました",
+      "emptySpam": "スパムをすべて削除",
+      "senderBlocked": "{addr} をブロックしました"
     },
     "messagePage": {
       "backToInbox": "← 受信トレイ"
@@ -1902,5 +1911,18 @@
       "dismissPrompt": "ブラウザ通知の案内を閉じる"
     },
     "unread": "未読"
+  },
+  "spamDialog": {
+    "ariaLabel": "スパム報告",
+    "title": "スパムとして報告",
+    "cancelAria": "キャンセル",
+    "sender": "送信者",
+    "description": "このメールをスパムとして報告し、スパムフォルダーに移動します。",
+    "blockSenderLabel": "この送信者をブロック",
+    "blockSenderDesc": "{addr} からのメールをブロックします",
+    "blockDomainLabel": "ドメイン全体をブロック",
+    "blockDomainDesc": "@{domain} からのすべてのメールをブロックします",
+    "cancel": "キャンセル",
+    "confirm": "スパムとして報告"
   }
 }
