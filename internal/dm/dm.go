@@ -191,6 +191,8 @@ type Store interface {
 	MarkRead(ctx context.Context, principal Principal, roomID string, lastMessageID string) error
 	ListSearchCandidates(ctx context.Context, principal Principal, roomID string, beforeMessageID string, limit int) ([]MessageRecord, error)
 	ListMedia(ctx context.Context, principal Principal, roomID string, query MediaQuery) ([]MediaItem, error)
+	GetRoom(ctx context.Context, principal Principal, roomID string) (Room, error)
+	ListAllMessagesForExport(ctx context.Context, principal Principal, roomID string) ([]MessageRecord, error)
 }
 
 type AttachmentStore interface {

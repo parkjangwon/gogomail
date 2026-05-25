@@ -748,6 +748,49 @@ func (s *PostgresStore) ListMedia(ctx context.Context, principal Principal, room
 	return s.listFileMedia(ctx, principal, roomID, query)
 }
 
+func (s *PostgresStore) GetRoom(ctx context.Context, principal Principal, roomID string) (Room, error) {
+	if err := s.requireDB(); err != nil {
+		return Room{}, err
+	}
+	const query = `
+SELECT r.id::text, r.company_id::text, r.domain_id::text, r.room_type,
+  COALESCE(r.visibility, ''), COALESCE(r.name, ''),
+  COALESCE(r.owner_id::text, ''), r.created_by::text, r.created_at,
+  0::int AS unread_count, 0::int AS member_count, ''::text AS last_read_id
+FROM dm_rooms r
+JOIN dm_participants p ON p.room_id = r.id AND p.user_id = $1
+WHERE r.id = $2 AND r.company_id = $3 AND r.domain_id = $4`
+	row := s.db.QueryRowContext(ctx, query, principal.UserID, roomID, principal.CompanyID, principal.DomainID)
+	room, err := scanRoom(row)
+	if err != nil {
+		return Room{}, mapNoRows(err)
+	}
+	rooms, err := loadMembersForRooms(ctx, s.db, []Room{room})
+	if err != nil {
+		return Room{}, err
+	}
+	if len(rooms) == 1 {
+		room = rooms[0]
+	}
+	return room, nil
+}
+
+func (s *PostgresStore) ListAllMessagesForExport(ctx context.Context, principal Principal, roomID string) ([]MessageRecord, error) {
+	if err := s.requireDB(); err != nil {
+		return nil, err
+	}
+	const where = `
+WHERE r.id = $1 AND r.company_id = $2 AND r.domain_id = $3 AND p.user_id = $4`
+	const order = "ORDER BY m.created_at ASC, m.id ASC"
+	q := messageSelectSQL + "\n" + where + "\n" + order
+	rows, err := s.db.QueryContext(ctx, q, roomID, principal.CompanyID, principal.DomainID, principal.UserID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	return scanMessageRecords(rows)
+}
+
 func (s *PostgresStore) requireDB() error {
 	if s == nil || s.db == nil {
 		return fmt.Errorf("dm database handle is required")
