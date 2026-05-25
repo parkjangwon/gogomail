@@ -37,6 +37,7 @@ type DMService interface {
 	VerifyAttachmentDownload(token string) (string, error)
 	OpenAttachment(ctx context.Context, token string) (dm.AttachmentDownload, error)
 	ExportRoom(ctx context.Context, principal dm.Principal, roomID string) (dm.RoomExport, error)
+	RotateRoomKey(ctx context.Context, principal dm.Principal, roomID string) error
 }
 
 func RegisterDMRoutes(mux *http.ServeMux, service DMService, tokenManager *auth.TokenManager, publicBaseURL string) {
@@ -458,6 +459,26 @@ func RegisterDMRoutes(mux *http.ServeMux, service DMService, tokenManager *auth.
 		w.Header().Set("Content-Disposition", contentDispositionAttachment(filename))
 		w.WriteHeader(http.StatusOK)
 		_, _ = io.WriteString(w, txt)
+	})
+
+	mux.HandleFunc("POST /api/v1/dm/rooms/{roomID}/rotate-key", func(w http.ResponseWriter, r *http.Request) {
+		if !rejectBodylessRequestPayload(w, r) || !rejectUnknownQueryKeys(w, r, "user_id", "company_id", "domain_id") {
+			return
+		}
+		principal, ok := dmPrincipalFromRequest(w, r, tokenManager)
+		if !ok {
+			return
+		}
+		roomID := strings.TrimSpace(r.PathValue("roomID"))
+		if roomID == "" {
+			writeError(w, http.StatusBadRequest, "room_id is required")
+			return
+		}
+		if err := service.RotateRoomKey(r.Context(), principal, roomID); err != nil {
+			writeDMError(w, err)
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
 	})
 }
 

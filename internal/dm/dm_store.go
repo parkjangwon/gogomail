@@ -1299,6 +1299,50 @@ func sortedPair(a, b string) []string {
 	return []string{b, a}
 }
 
+// RotateRoomKey replaces the room's encryption key and atomically updates every
+// message ciphertext in a single transaction. Only a current participant of the
+// room may call this; the SELECT in the query enforces that constraint.
+func (s *PostgresStore) RotateRoomKey(ctx context.Context, principal Principal, roomID string, newKeyCiphertext []byte, updatedMessages []MessageRecord) error {
+	if err := s.requireDB(); err != nil {
+		return err
+	}
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	// Verify participant and update the room key atomically.
+	const updateKey = `
+UPDATE dm_room_keys k
+SET key_ciphertext = $1
+FROM dm_rooms r
+JOIN dm_participants p ON p.room_id = r.id AND p.user_id = $2
+WHERE k.room_id = r.id AND r.id = $3 AND r.company_id = $4 AND r.domain_id = $5`
+	res, err := tx.ExecContext(ctx, updateKey, newKeyCiphertext, principal.UserID, roomID, principal.CompanyID, principal.DomainID)
+	if err != nil {
+		return err
+	}
+	rows, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rows == 0 {
+		return ErrNotFound
+	}
+
+	// Re-encrypt each message's body and attachment path in the same transaction.
+	const updateMsg = `
+UPDATE dm_messages SET body = $1, attachment_storage_path = $2 WHERE id = $3::uuid`
+	for _, r := range updatedMessages {
+		if _, err := tx.ExecContext(ctx, updateMsg, r.BodyCiphertext, nullBytes(r.AttachmentStoragePathCiphertext), r.ID); err != nil {
+			return fmt.Errorf("update message %s: %w", r.ID, err)
+		}
+	}
+
+	return tx.Commit()
+}
+
 func validateUUIDs(ids []string) error {
 	for _, id := range ids {
 		if _, err := uuid.Parse(id); err != nil {
