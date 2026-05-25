@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"strings"
 
@@ -556,6 +557,7 @@ func RegisterContactRoutes(mux *http.ServeMux, handler *ContactHandler, tokenMan
 		}
 		orgs, err := handler.directoryRepo.ListOrgTree(r.Context(), companyID, domainID)
 		if err != nil {
+			slog.ErrorContext(r.Context(), "list org tree failed", "error", err, "company_id", companyID, "domain_id", domainID)
 			writeError(w, http.StatusInternalServerError, "org search failed")
 			return
 		}
