@@ -36,11 +36,20 @@ cat <<'EOF'
 
 Seed complete.
 
-Useful webmail login:
-  email:    pjw@parkjw.org
+Admin login:
+  email:    admin@gogomail.io
+  password: admin1234
+
+Demo user login:
+  email:    user@parkjw.org
   password: pass1234
 
-Additional seeded users use password:
-  pass1234
+Demo user has:
+  - 15 inbox messages (varied read/unread/starred/attachment states)
+  - 4 custom folders (프로젝트, 뉴스레터, 청구서, 업무) with 10 messages
+  - 22 contacts (12 internal colleagues + 10 external with phone/address/notes)
+  - 2 calendars with 10 events (업무 7개 + 개인 3개)
+
+All co-worker accounts use password: pass1234
 
 EOF
