@@ -76,8 +76,8 @@ export default function GroupMembershipsPage() {
         member_id: '',
         role: DirectoryGroupMembershipCreateRequestRole.member,
       });
-    } catch (error) {
-      console.error('Failed to create group membership:', error);
+    } catch {
+      // mutation error handled by caller
     } finally {
       setCreating(false);
     }
@@ -91,8 +91,8 @@ export default function GroupMembershipsPage() {
         id,
         companyId,
       });
-    } catch (error) {
-      console.error('Failed to delete group membership:', error);
+    } catch {
+      // mutation error handled by caller
     } finally {
       setDeletingId(null);
     }

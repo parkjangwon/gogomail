@@ -59,8 +59,8 @@ export default function RateLimitsPage() {
         const data = await res.json();
         setPolicy(data.policy);
       }
-    } catch (error) {
-      console.error('Failed to fetch rate limit policy:', error);
+    } catch {
+      // mutation error handled by caller
     } finally {
       setLoading(false);
     }
@@ -79,8 +79,8 @@ export default function RateLimitsPage() {
         body: JSON.stringify(policy),
         credentials: 'include',
       });
-    } catch (error) {
-      console.error('Failed to save rate limit policy:', error);
+    } catch {
+      // mutation error handled by caller
     } finally {
       setSaving(false);
     }

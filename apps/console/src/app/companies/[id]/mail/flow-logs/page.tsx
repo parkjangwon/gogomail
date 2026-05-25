@@ -141,8 +141,7 @@ export default function MailFlowLogsPage() {
         }
         const data = await res.json();
         setLogs(data.logs || data.mail_flow_logs || []);
-      } catch (error) {
-        console.error('Failed to fetch mail logs:', error);
+      } catch {
         setLogs([]);
         setLoadingError(true);
       } finally {

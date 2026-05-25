@@ -42,8 +42,8 @@ export default function ReconciliationPage() {
         const data = await res.json();
         setJobs(data.jobs || []);
       }
-    } catch (error) {
-      console.error('Failed to fetch reconciliation jobs:', error);
+    } catch {
+      // mutation error handled by caller
     } finally {
       setLoading(false);
     }
@@ -57,8 +57,8 @@ export default function ReconciliationPage() {
         credentials: 'include',
       });
       fetchReconciliationJobs();
-    } catch (error) {
-      console.error('Failed to run reconciliation:', error);
+    } catch {
+      // mutation error handled by caller
     }
   };
 

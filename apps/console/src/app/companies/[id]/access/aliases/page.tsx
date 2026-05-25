@@ -69,8 +69,8 @@ export default function AliasesPage() {
       });
       setShowCreateModal(false);
       setNewAlias({ domain_id: '', address: '', target_kind: DirectoryAliasCreateRequestTarget_kind.user, target_id: '' });
-    } catch (error) {
-      console.error('Failed to create alias:', error);
+    } catch {
+      // mutation error handled by caller
     } finally {
       setCreating(false);
     }
@@ -84,8 +84,8 @@ export default function AliasesPage() {
         id,
         companyId,
       });
-    } catch (error) {
-      console.error('Failed to delete alias:', error);
+    } catch {
+      // mutation error handled by caller
     } finally {
       setDeletingId(null);
     }

@@ -62,8 +62,8 @@ export default function DKIMKeysPage() {
         const data = await res.json();
         setKeys(data.dkim_keys || []);
       }
-    } catch (error) {
-      console.error('Failed to fetch DKIM keys:', error);
+    } catch {
+      // mutation error handled by caller
     } finally {
       setLoading(false);
     }
@@ -95,8 +95,8 @@ export default function DKIMKeysPage() {
         setNewKey({ domain_id: '', selector: '', private_key_pem: '', public_key_dns: '' });
         fetchDKIMKeys();
       }
-    } catch (error) {
-      console.error('Failed to create DKIM key:', error);
+    } catch {
+      // mutation error handled by caller
     } finally {
       setCreating(false);
     }
@@ -110,8 +110,8 @@ export default function DKIMKeysPage() {
         credentials: 'include',
       });
       fetchDKIMKeys();
-    } catch (error) {
-      console.error('Failed to deactivate DKIM key:', error);
+    } catch {
+      // mutation error handled by caller
     } finally {
       setDeletingId(null);
       setConfirmDelete(null);

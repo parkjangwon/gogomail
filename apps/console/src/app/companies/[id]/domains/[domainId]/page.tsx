@@ -208,8 +208,7 @@ export default function DomainDetailPage() {
       if (!mcpPolicyData) {
         setMcpPolicyError(t('pages.domain_detail.mcp_policy_load_error', 'Failed to load MCP policy. Defaults are shown until refreshed.'));
       }
-    }).catch((err) => {
-      console.error('Failed to load domain details:', err);
+    }).catch(() => {
       setLoadError('Failed to load domain details. Please refresh the page.');
     }).finally(() => setLoading(false));
   }, [domainId]);

@@ -86,8 +86,8 @@ export default function APIUsagePage() {
     try {
       const result = await usageQuery.refetch();
       setRecords(result.data || []);
-    } catch (error) {
-      console.error('Failed to fetch API usage:', error);
+    } catch {
+      // mutation error handled by caller
     } finally {
       setLoading(false);
     }

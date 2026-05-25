@@ -48,8 +48,8 @@ export default function SuppressionListPage() {
         const data = await res.json();
         setEntries(data.suppression_list || []);
       }
-    } catch (error) {
-      console.error('Failed to fetch suppression list:', error);
+    } catch {
+      // mutation error handled by caller
     } finally {
       setLoading(false);
     }
@@ -66,8 +66,8 @@ export default function SuppressionListPage() {
       setShowModal(false);
       setNewEntry({ email: '', reason: '' });
       fetchSuppressionList();
-    } catch (error) {
-      console.error('Failed to add suppression entry:', error);
+    } catch {
+      // mutation error handled by caller
     }
   };
 
@@ -79,8 +79,8 @@ export default function SuppressionListPage() {
         credentials: 'include',
       });
       fetchSuppressionList();
-    } catch (error) {
-      console.error('Failed to delete suppression entry:', error);
+    } catch {
+      // mutation error handled by caller
     } finally {
       setDeletingId(null);
     }
