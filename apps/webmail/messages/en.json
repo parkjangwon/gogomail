@@ -254,6 +254,7 @@
   },
   "nav": {
     "mail": "Mail",
+    "dm": "DM",
     "calendar": "Calendar",
     "contacts": "Contacts",
     "drive": "Drive",

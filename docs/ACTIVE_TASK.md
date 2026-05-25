@@ -2,31 +2,46 @@
 
 ## Current Task
 
-**TASK-WEBMAIL-NOTIFICATION-BROWSER-TAG-COLLISION — Browser notification tag collision hardening**
+**TASK-DM-COMPLETE-SPEC — DM instant messaging spec implementation**
 
 ## Background
 
-Browser notification mirroring now caps native `NotificationOptions.tag` values at 128 characters, but simple truncation can collapse two distinct max-length runtime ids with the same prefix into the same native replacement key. That can cause the browser to replace or group unrelated high-severity notifications.
-
-This task continues the notification hardening track in `docs/backend-roadmap.md` by preserving bounded browser tags without sacrificing uniqueness for long event ids.
+`docs/superpowers/specs/2026-05-25-dm-design.md` defines a lightweight
+domain-scoped DM product with encrypted per-room message storage, direct and
+group rooms, group ownership/invites, attachments, reactions, read state,
+search/media read models, polling APIs, and a webmail global panel.
 
 ## Scope
 
-- Add failing E2E coverage for distinct max-length runtime ids that share a long prefix.
-- Keep browser mirror tags capped at 128 characters while adding a stable hash suffix for overlong derived tags.
-- Preserve existing browser notification mirror dedupe behavior for exact repeated ids.
-- Update `docs/CURRENT_STATUS.md` and `docs/backend-roadmap.md`.
+- Implement the DM PostgreSQL schema and backend service/API under the existing
+  mail API authentication boundary.
+- Enforce same-domain access, participant-only message decryption, direct-room
+  dedupe, per-room AES-256-GCM keys, key destruction on room deletion, and no
+  admin DM read surface.
+- Implement group membership, owner transfer, invite links, system messages,
+  text/file/Drive messages, reactions, read marks, search, media/link views,
+  and attachment handling.
+- Implement the webmail DM panel, sidebar entry, unread badge, polling cadence,
+  message bubbles, file/Drive actions, and reaction/edit/delete controls.
+- Update docs and API contracts, then verify with Go tests, webmail type-check,
+  and browser/E2E coverage.
 
 ## Completion Checklist
 
-- [x] RED: focused Playwright test fails before implementation.
-- [x] GREEN: focused Playwright tests pass after implementation.
-- [x] Full notification E2E passes.
+- [x] DM schema migration added.
+- [x] DM crypto/service/HTTP groundwork compiles.
+- [x] Text message encryption, URL extraction, reactions/read/search/media core covered by Go tests.
+- [x] Attachment upload path encryption covered by Go tests.
+- [x] Group membership/owner/invite flows insert encrypted system messages.
+- [x] Room key destruction and hard-delete lifecycle covered.
+- [x] `docs/openapi.yaml` and `docs/backend-api-contracts.md` updated.
+- [x] Webmail DM panel implemented.
 - [x] `pnpm -C apps/webmail type-check` passes.
-- [x] `go test ./...` passes.
+- [x] DM browser/E2E smoke passes.
+- [x] `go test ./...` passes after current backend implementation.
 - [x] Docs updated.
-- [x] Commit and push to `origin/main`.
+- [ ] Commit and push to `origin/main`.
 
 ## Next Task
 
-Continue SaaS pre-launch notification center usability and hardening audit.
+Continue completing the remaining DM spec requirements.

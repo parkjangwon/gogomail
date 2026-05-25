@@ -115,6 +115,51 @@ export const DEFAULT_DRIVE_NODES = {
   ],
 };
 
+export const DEFAULT_DM_ROOMS = [
+  {
+    id: 'dm-room-1',
+    company_id: 'company-1',
+    domain_id: 'domain-1',
+    room_type: 'group',
+    visibility: 'private',
+    name: 'Launch room',
+    owner_id: 'user-1',
+    created_by: 'user-1',
+    created_at: '2026-05-25T00:00:00Z',
+    members: [
+      { id: 'user-1', display_name: 'Park Jangwon' },
+      { id: 'user-2', display_name: 'Kim Chulsoo' },
+    ],
+    unread_count: 1,
+    member_count: 2,
+    last_message: {
+      id: 'dm-msg-1',
+      room_id: 'dm-room-1',
+      sender_id: 'user-2',
+      message_type: 'text',
+      body: 'DM smoke hello',
+      created_at: '2026-05-25T00:01:00Z',
+    },
+  },
+];
+
+export const DEFAULT_DM_MESSAGES = [
+  {
+    id: 'dm-msg-1',
+    room_id: 'dm-room-1',
+    sender_id: 'user-2',
+    message_type: 'text',
+    body: 'DM smoke hello',
+    created_at: '2026-05-25T00:01:00Z',
+    reactions: [],
+  },
+];
+
+export const DEFAULT_DIRECTORY_USERS = [
+  { id: 'user-2', display_name: 'Kim Chulsoo', email: 'kim.chulsoo@parkjw.org' },
+  { id: 'user-3', display_name: 'Lee Younghee', email: 'lee.younghee@parkjw.org' },
+];
+
 // --- Mock installation -----------------------------------------------------
 
 type Json = unknown;
@@ -127,6 +172,9 @@ export interface MockOverrides {
   user?: typeof DEFAULT_USER;
   driveNodes?: typeof DEFAULT_DRIVE_NODES;
   driveUsage?: typeof DEFAULT_DRIVE_USAGE;
+  dmRooms?: typeof DEFAULT_DM_ROOMS;
+  dmMessages?: typeof DEFAULT_DM_MESSAGES;
+  directoryUsers?: typeof DEFAULT_DIRECTORY_USERS;
   notificationPreferences?: Json;
   deliveryStatuses?: Record<string, Json>;
   onNotificationPreferencesPut?: (body: Record<string, unknown>) => void;
@@ -163,6 +211,9 @@ export async function installMocks(page: Page, overrides: MockOverrides = {}) {
   };
   const driveNodes = overrides.driveNodes ?? DEFAULT_DRIVE_NODES;
   const driveUsage = overrides.driveUsage ?? DEFAULT_DRIVE_USAGE;
+  let dmRooms = [...(overrides.dmRooms ?? DEFAULT_DM_ROOMS)];
+  let dmMessages = [...(overrides.dmMessages ?? DEFAULT_DM_MESSAGES)];
+  const directoryUsers = overrides.directoryUsers ?? DEFAULT_DIRECTORY_USERS;
 
   // Custom user-provided routes win first
   for (const { urlPattern, handler } of overrides.extra ?? []) {
@@ -262,6 +313,92 @@ export async function installMocks(page: Page, overrides: MockOverrides = {}) {
     if (path === 'threads' && method === 'GET') return json(route, { threads: [], has_more: false, next_cursor: '' });
     if (segments[0] === 'threads' && segments.length === 3 && segments[2] === 'messages') return json(route, { messages: [] });
 
+    // dm
+    if (path === 'dm/rooms' && method === 'GET') {
+      return json(route, { rooms: dmRooms });
+    }
+    if (path === 'dm/rooms/public' && method === 'GET') {
+      return json(route, { rooms: [] });
+    }
+    if (path === 'dm/rooms' && method === 'POST') {
+      const body = (req.postDataJSON?.() ?? {}) as { room_type?: string; name?: string; user_ids?: string[]; visibility?: string };
+      const room = {
+        id: `dm-room-${Date.now()}`,
+        company_id: 'company-1',
+        domain_id: 'domain-1',
+        room_type: body.room_type ?? 'direct',
+        visibility: body.visibility ?? 'private',
+        name: body.name ?? '',
+        owner_id: 'user-1',
+        created_by: 'user-1',
+        created_at: new Date().toISOString(),
+        members: directoryUsers.filter((u) => body.user_ids?.includes(u.id)),
+        unread_count: 0,
+        member_count: body.user_ids?.length ?? 0,
+      };
+      dmRooms = [room, ...dmRooms] as typeof DEFAULT_DM_ROOMS;
+      return json(route, { room }, 201);
+    }
+    if (segments[0] === 'dm' && segments[1] === 'rooms' && segments[3] === 'messages' && method === 'GET') {
+      return json(route, { messages: dmMessages.filter((m) => m.room_id === segments[2]) });
+    }
+    if (segments[0] === 'dm' && segments[1] === 'rooms' && segments[3] === 'messages' && method === 'POST') {
+      const body = (req.postDataJSON?.() ?? {}) as { body?: string; drive_file_id?: string };
+      const message = {
+        id: `dm-msg-${Date.now()}`,
+        room_id: segments[2],
+        sender_id: 'user-1',
+        message_type: body.drive_file_id ? 'drive_link' : 'text',
+        body: body.body ?? '',
+        drive_file_id: body.drive_file_id,
+        created_at: new Date().toISOString(),
+        reactions: [],
+      };
+      dmMessages = [...dmMessages, message] as typeof DEFAULT_DM_MESSAGES;
+      return json(route, { message }, 201);
+    }
+    if (segments[0] === 'dm' && segments[1] === 'rooms' && segments[3] === 'attachments' && method === 'POST') {
+      const message = {
+        id: `dm-file-${Date.now()}`,
+        room_id: segments[2],
+        sender_id: 'user-1',
+        message_type: 'file',
+        body: 'upload.txt',
+        attachment_name: 'upload.txt',
+        attachment_size: 12,
+        attachment_mime_type: 'text/plain',
+        created_at: new Date().toISOString(),
+        reactions: [],
+      };
+      dmMessages = [...dmMessages, message] as typeof DEFAULT_DM_MESSAGES;
+      return json(route, { message }, 201);
+    }
+    if (segments[0] === 'dm' && segments[1] === 'rooms' && segments[3] === 'read' && method === 'POST') return empty(route, 204);
+    if (segments[0] === 'dm' && segments[1] === 'rooms' && segments[3] === 'search' && method === 'GET') {
+      const q = (search.get('q') ?? '').toLowerCase();
+      return json(route, { results: dmMessages.filter((m) => m.body.toLowerCase().includes(q)).map((message) => ({ message })) });
+    }
+    if (segments[0] === 'dm' && segments[1] === 'rooms' && segments[3] === 'media' && method === 'GET') {
+      return json(route, { media: [] });
+    }
+    if (segments[0] === 'dm' && segments[1] === 'rooms' && segments[3] === 'members' && method === 'POST') return json(route, { messages: [] });
+    if (segments[0] === 'dm' && segments[1] === 'rooms' && segments[3] === 'members' && method === 'DELETE') return json(route, { removal: { deleted_room: false } });
+    if (segments[0] === 'dm' && segments[1] === 'rooms' && segments[3] === 'owner' && method === 'PATCH') return json(route, { message: dmMessages[0] });
+    if (segments[0] === 'dm' && segments[1] === 'rooms' && segments[3] === 'invites' && method === 'POST') return json(route, { invite: { token: 'invite-token', room_id: segments[2], expires_at: '2026-06-01T00:00:00Z' }, invite_url: 'http://localhost:3003/dm/join/invite-token' }, 201);
+    if (segments[0] === 'dm' && segments[1] === 'join' && method === 'POST') return json(route, { message: dmMessages[0] });
+    if (segments[0] === 'dm' && segments[1] === 'messages' && segments.length === 3 && method === 'PATCH') {
+      const body = (req.postDataJSON?.() ?? {}) as { body?: string };
+      const message = { ...(dmMessages.find((m) => m.id === segments[2]) ?? dmMessages[0]), body: body.body ?? '', edited_at: new Date().toISOString() };
+      dmMessages = dmMessages.map((m) => m.id === message.id ? message : m) as typeof DEFAULT_DM_MESSAGES;
+      return json(route, { message });
+    }
+    if (segments[0] === 'dm' && segments[1] === 'messages' && segments.length === 3 && method === 'DELETE') {
+      const message = { ...(dmMessages.find((m) => m.id === segments[2]) ?? dmMessages[0]), deleted_at: new Date().toISOString(), body: '삭제된 메시지입니다.' };
+      dmMessages = dmMessages.map((m) => m.id === message.id ? message : m) as typeof DEFAULT_DM_MESSAGES;
+      return json(route, { message });
+    }
+    if (segments[0] === 'dm' && segments[1] === 'messages' && segments[3] === 'reactions' && method === 'PUT') return empty(route, 204);
+
     // search
     if (path === 'search' && method === 'GET') {
       const q = search.get('q') ?? '';
@@ -343,6 +480,7 @@ export async function installMocks(page: Page, overrides: MockOverrides = {}) {
     }
 
     // directory
+    if (segments[0] === 'directory' && segments[1] === 'users') return json(route, { users: directoryUsers });
     if (segments[0] === 'directory') return json(route, { users: [], nodes: [] });
 
     // signatures, filter rules, quick reply templates

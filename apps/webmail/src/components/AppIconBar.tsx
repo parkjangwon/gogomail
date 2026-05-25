@@ -1,15 +1,16 @@
 'use client';
-import { EnvelopeIcon, CalendarDaysIcon, UserGroupIcon, Cog6ToothIcon, CloudIcon, BookOpenIcon } from '@heroicons/react/24/outline';
-import { EnvelopeIcon as EnvelopeIconSolid, CalendarDaysIcon as CalendarSolid, UserGroupIcon as UserGroupSolid, Cog6ToothIcon as Cog6ToothSolid, CloudIcon as CloudSolid } from '@heroicons/react/24/solid';
+import { EnvelopeIcon, CalendarDaysIcon, UserGroupIcon, Cog6ToothIcon, CloudIcon, BookOpenIcon, ChatBubbleLeftRightIcon } from '@heroicons/react/24/outline';
+import { EnvelopeIcon as EnvelopeIconSolid, CalendarDaysIcon as CalendarSolid, UserGroupIcon as UserGroupSolid, Cog6ToothIcon as Cog6ToothSolid, CloudIcon as CloudSolid, ChatBubbleLeftRightIcon as ChatBubbleSolid } from '@heroicons/react/24/solid';
 import { useTranslations } from 'next-intl';
 import { NotificationBell } from './notifications/NotificationBell';
 
-export type AppId = 'mail' | 'calendar' | 'contacts' | 'drive' | 'settings';
+export type AppId = 'mail' | 'dm' | 'calendar' | 'contacts' | 'drive' | 'settings';
 
 interface AppIconBarProps {
   activeApp: AppId;
   onChangeApp: (app: AppId) => void;
   mailUnread?: number;
+  dmUnread?: number;
 }
 
 const GUIDE_URL = process.env.NEXT_PUBLIC_WEBMAIL_GUIDE_URL?.trim() ?? '';
@@ -117,10 +118,11 @@ function AppActionBtn({ label, icon, onClick }: { label: string; icon: React.Rea
   );
 }
 
-export function AppIconBar({ activeApp, onChangeApp, mailUnread }: AppIconBarProps) {
+export function AppIconBar({ activeApp, onChangeApp, mailUnread, dmUnread }: AppIconBarProps) {
   const t = useTranslations('nav');
   const MAIN_APPS: AppItem[] = [
     { id: 'mail', label: t('mail'), icon: <EnvelopeIcon style={{ width: '20px', height: '20px' }} />, activeIcon: <EnvelopeIconSolid style={{ width: '20px', height: '20px' }} /> },
+    { id: 'dm', label: t('dm'), icon: <ChatBubbleLeftRightIcon style={{ width: '20px', height: '20px' }} />, activeIcon: <ChatBubbleSolid style={{ width: '20px', height: '20px' }} /> },
     { id: 'calendar', label: t('calendar'), icon: <CalendarDaysIcon style={{ width: '20px', height: '20px' }} />, activeIcon: <CalendarSolid style={{ width: '20px', height: '20px' }} /> },
     { id: 'contacts', label: t('contacts'), icon: <UserGroupIcon style={{ width: '20px', height: '20px' }} />, activeIcon: <UserGroupSolid style={{ width: '20px', height: '20px' }} /> },
     { id: 'drive', label: t('drive'), icon: <CloudIcon style={{ width: '20px', height: '20px' }} />, activeIcon: <CloudSolid style={{ width: '20px', height: '20px' }} /> },
@@ -153,7 +155,7 @@ export function AppIconBar({ activeApp, onChangeApp, mailUnread }: AppIconBarPro
             app={app}
             isActive={activeApp === app.id}
             onChangeApp={onChangeApp}
-            badge={app.id === 'mail' ? mailUnread : undefined}
+            badge={app.id === 'mail' ? mailUnread : app.id === 'dm' ? dmUnread : undefined}
             unreadLabel={unreadLabel}
           />
         ))}

@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { deleteMessage, restoreMessage, bulkRestoreMessages, createFolder, renameFolder, deleteFolder, starMessage, markRead, moveMessage, bulkMarkRead, searchMessages, getMessages, getMessage, sendMessage, listThreads, listThreadMessages, getNotificationPreferences, setNotificationPreferences, setPreferences, UIComposeIntent, MessageAddress, MessageDetail, MessageSummary, ThreadSummary, type ThreadNotificationOverride } from '@/lib/api';
+import { deleteMessage, restoreMessage, bulkRestoreMessages, createFolder, renameFolder, deleteFolder, starMessage, markRead, moveMessage, bulkMarkRead, searchMessages, getMessages, getMessage, sendMessage, listThreads, listThreadMessages, getNotificationPreferences, setNotificationPreferences, setPreferences, listDMRooms, UIComposeIntent, MessageAddress, MessageDetail, MessageSummary, ThreadSummary, type ThreadNotificationOverride } from '@/lib/api';
 import { AdvancedFilters, VIRTUAL_ALL, VIRTUAL_STARRED, VIRTUAL_ATTACHMENTS, VIRTUAL_UNREAD, VIRTUAL_SNOOZED, VIRTUAL_PINNED, VIRTUAL_IMPORTANT } from '@/components/Sidebar';
 import { useMailList, type RefreshIntervalSeconds } from '@/hooks/useMailList';
 import { useMessage } from '@/hooks/useMessage';
@@ -23,6 +23,7 @@ import { ContactsView } from '@/components/ContactsView';
 import { SettingsView } from '@/components/SettingsView';
 import { type SectionId } from '@/components/settings-view/settingsViewConfig';
 import { DriveView } from '@/components/DriveView';
+import { DMPanel } from '@/components/DMPanel';
 import { loadFilterRules } from '@/components/settings/settingsConfig';
 import { SpotlightSearch } from '@/components/SpotlightSearch';
 import { MFASetupPromptModal } from '@/components/MFASetupPromptModal';
@@ -52,7 +53,7 @@ type NavigatorWithBadging = Navigator & {
 };
 
 function isAppId(value: string | null): value is AppId {
-  return value === 'mail' || value === 'calendar' || value === 'contacts' || value === 'drive' || value === 'settings';
+  return value === 'mail' || value === 'dm' || value === 'calendar' || value === 'contacts' || value === 'drive' || value === 'settings';
 }
 
 function getInitialActiveApp(): AppId {
@@ -201,6 +202,7 @@ export default function MailPage() {
   }, []);
 
   const [activeApp, setActiveApp] = useState<AppId>(getInitialActiveApp);
+  const [dmUnreadCount, setDMUnreadCount] = useState(0);
   const [badgeCountMode, setBadgeCountMode] = useState<BadgeCountMode>(readBadgeCountMode);
   const [refreshIntervalSeconds, setRefreshIntervalSeconds] = useState<RefreshIntervalSeconds>(readRefreshIntervalSeconds);
   const [threadNotificationOverrides, setThreadNotificationOverrides] = useState<Record<string, ThreadNotificationOverride>>({});
@@ -227,6 +229,24 @@ export default function MailPage() {
       // ignore
     }
   }, [activeApp]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const refreshDMUnread = () => {
+      listDMRooms()
+        .then((dmRooms) => {
+          if (!cancelled) setDMUnreadCount(dmRooms.reduce((sum, room) => sum + (room.unread_count ?? 0), 0));
+        })
+        .catch(() => {
+          if (!cancelled) setDMUnreadCount(0);
+        });
+    };
+    refreshDMUnread();
+    const id = window.setInterval(() => {
+      if (document.visibilityState === 'visible') refreshDMUnread();
+    }, 5000);
+    return () => { cancelled = true; window.clearInterval(id); };
+  }, []);
 
   const [wmSettings, setWmSettings] = useState<{ showPreview: boolean; externalImages: string }>(() => {
     try {
@@ -999,9 +1019,15 @@ export default function MailPage() {
           const folder = folders.find((f) => f.system_type === target);
           if (folder) { e.preventDefault(); handleSelectFolder(folder.id); return; }
         }
-        const appSwitchMap: Record<string, AppId> = { m: 'mail', c: 'calendar', a: 'contacts', k: 'contacts', d: 'drive', v: 'drive', ',': 'settings' };
+        const appSwitchMap: Record<string, AppId> = { m: 'mail', h: 'dm', c: 'calendar', a: 'contacts', k: 'contacts', d: 'drive', v: 'drive', ',': 'settings' };
         const appTarget = appSwitchMap[key];
         if (appTarget) { e.preventDefault(); setActiveApp(appTarget); return; }
+      }
+
+      if (key === 'D' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        e.preventDefault();
+        setActiveApp('dm');
+        return;
       }
 
       if (key === 'g' && !e.ctrlKey && !e.metaKey && !e.altKey) {
@@ -1636,7 +1662,7 @@ export default function MailPage() {
         </div>
       )}
 
-      <AppIconBar activeApp={activeApp} onChangeApp={setActiveApp} mailUnread={folders.reduce((s, f) => s + (f.unread ?? 0), 0)} />
+      <AppIconBar activeApp={activeApp} onChangeApp={setActiveApp} mailUnread={folders.reduce((s, f) => s + (f.unread ?? 0), 0)} dmUnread={dmUnreadCount} />
 
       {activeApp === 'mail' ? (
         <>
@@ -1799,6 +1825,8 @@ export default function MailPage() {
 
           </div>{/* end mail layout wrapper */}
         </>
+      ) : activeApp === 'dm' ? (
+        <DMPanel userEmail={userEmail || undefined} onUnreadChange={setDMUnreadCount} />
       ) : activeApp === 'calendar' ? (
         <CalendarView />
       ) : activeApp === 'contacts' ? (

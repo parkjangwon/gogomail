@@ -49,6 +49,358 @@ paths:
       responses:
         "200":
           $ref: "#/components/responses/Info"
+  /dm/rooms:
+    get:
+      operationId: listDMRooms
+      summary: List DM rooms for the authenticated user
+      servers:
+        - url: /api/v1
+          description: Mail API
+      parameters:
+        - $ref: "#/components/parameters/UserIDQuery"
+        - $ref: "#/components/parameters/CompanyIDQuery"
+        - $ref: "#/components/parameters/DomainIDQuery"
+      responses:
+        "200":
+          $ref: "#/components/responses/DMRoomList"
+        default:
+          $ref: "#/components/responses/Error"
+    post:
+      operationId: createDMRoom
+      summary: Create a direct or group DM room
+      servers:
+        - url: /api/v1
+          description: Mail API
+      parameters:
+        - $ref: "#/components/parameters/UserIDQuery"
+        - $ref: "#/components/parameters/CompanyIDQuery"
+        - $ref: "#/components/parameters/DomainIDQuery"
+      requestBody:
+        $ref: "#/components/requestBodies/DMRoomCreate"
+      responses:
+        "201":
+          $ref: "#/components/responses/DMRoom"
+        default:
+          $ref: "#/components/responses/Error"
+  /dm/rooms/public:
+    get:
+      operationId: listPublicDMRooms
+      summary: List public group DM rooms in the authenticated user's domain
+      servers:
+        - url: /api/v1
+          description: Mail API
+      parameters:
+        - $ref: "#/components/parameters/UserIDQuery"
+        - $ref: "#/components/parameters/CompanyIDQuery"
+        - $ref: "#/components/parameters/DomainIDQuery"
+      responses:
+        "200":
+          $ref: "#/components/responses/DMRoomList"
+        default:
+          $ref: "#/components/responses/Error"
+  /dm/rooms/{id}/members:
+    post:
+      operationId: addDMRoomMembers
+      summary: Add same-domain users to a group DM room
+      servers:
+        - url: /api/v1
+          description: Mail API
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+        - $ref: "#/components/parameters/UserIDQuery"
+        - $ref: "#/components/parameters/CompanyIDQuery"
+        - $ref: "#/components/parameters/DomainIDQuery"
+      requestBody:
+        $ref: "#/components/requestBodies/DMRoomMembers"
+      responses:
+        "200":
+          $ref: "#/components/responses/DMMessageList"
+        default:
+          $ref: "#/components/responses/Error"
+  /dm/rooms/{id}/members/{user_id}:
+    delete:
+      operationId: removeDMRoomMember
+      summary: Leave a room or remove a group member
+      servers:
+        - url: /api/v1
+          description: Mail API
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          $ref: "#/components/responses/DMRoomRemoval"
+        default:
+          $ref: "#/components/responses/Error"
+  /dm/rooms/{id}/owner:
+    patch:
+      operationId: transferDMRoomOwner
+      summary: Transfer group DM room ownership
+      servers:
+        - url: /api/v1
+          description: Mail API
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+        - $ref: "#/components/parameters/UserIDQuery"
+        - $ref: "#/components/parameters/CompanyIDQuery"
+        - $ref: "#/components/parameters/DomainIDQuery"
+      requestBody:
+        $ref: "#/components/requestBodies/DMOwnerTransfer"
+      responses:
+        "200":
+          $ref: "#/components/responses/DMMessage"
+        default:
+          $ref: "#/components/responses/Error"
+  /dm/rooms/{id}/invites:
+    post:
+      operationId: createDMInvite
+      summary: Create a one-use invite link for a private group DM room
+      servers:
+        - url: /api/v1
+          description: Mail API
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+        - $ref: "#/components/parameters/UserIDQuery"
+        - $ref: "#/components/parameters/CompanyIDQuery"
+        - $ref: "#/components/parameters/DomainIDQuery"
+      responses:
+        "201":
+          $ref: "#/components/responses/DMInvite"
+        default:
+          $ref: "#/components/responses/Error"
+  /dm/join/{token}:
+    post:
+      operationId: joinDMInvite
+      summary: Join a private group DM room using a one-use invite token
+      servers:
+        - url: /api/v1
+          description: Mail API
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+        - $ref: "#/components/parameters/UserIDQuery"
+        - $ref: "#/components/parameters/CompanyIDQuery"
+        - $ref: "#/components/parameters/DomainIDQuery"
+      responses:
+        "200":
+          $ref: "#/components/responses/DMMessage"
+        default:
+          $ref: "#/components/responses/Error"
+  /dm/rooms/{id}/messages:
+    get:
+      operationId: listDMMessages
+      summary: List or poll decrypted DM messages for a participant
+      servers:
+        - url: /api/v1
+          description: Mail API
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+        - $ref: "#/components/parameters/UserIDQuery"
+        - $ref: "#/components/parameters/CompanyIDQuery"
+        - $ref: "#/components/parameters/DomainIDQuery"
+        - name: before
+          in: query
+          schema:
+            type: string
+        - name: after
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+      responses:
+        "200":
+          $ref: "#/components/responses/DMMessageList"
+        default:
+          $ref: "#/components/responses/Error"
+    post:
+      operationId: sendDMMessage
+      summary: Send an encrypted text or Drive-link DM message
+      servers:
+        - url: /api/v1
+          description: Mail API
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+        - $ref: "#/components/parameters/UserIDQuery"
+        - $ref: "#/components/parameters/CompanyIDQuery"
+        - $ref: "#/components/parameters/DomainIDQuery"
+      requestBody:
+        $ref: "#/components/requestBodies/DMMessageSend"
+      responses:
+        "201":
+          $ref: "#/components/responses/DMMessage"
+        default:
+          $ref: "#/components/responses/Error"
+  /dm/rooms/{id}/attachments:
+    post:
+      operationId: uploadDMAttachment
+      summary: Upload a DM attachment and store its encrypted object path
+      servers:
+        - url: /api/v1
+          description: Mail API
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+        - $ref: "#/components/parameters/UserIDQuery"
+        - $ref: "#/components/parameters/CompanyIDQuery"
+        - $ref: "#/components/parameters/DomainIDQuery"
+      requestBody:
+        $ref: "#/components/requestBodies/DMAttachmentUpload"
+      responses:
+        "201":
+          $ref: "#/components/responses/DMMessage"
+        default:
+          $ref: "#/components/responses/Error"
+  /dm/rooms/{id}/read:
+    post:
+      operationId: markDMRoomRead
+      summary: Update the authenticated participant's last-read DM message
+      servers:
+        - url: /api/v1
+          description: Mail API
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+        - $ref: "#/components/parameters/UserIDQuery"
+        - $ref: "#/components/parameters/CompanyIDQuery"
+        - $ref: "#/components/parameters/DomainIDQuery"
+      requestBody:
+        $ref: "#/components/requestBodies/DMReadMark"
+      responses:
+        "204":
+          description: DM read state updated
+        default:
+          $ref: "#/components/responses/Error"
+  /dm/rooms/{id}/search:
+    get:
+      operationId: searchDMMessages
+      summary: Search decrypted DM messages within a room
+      servers:
+        - url: /api/v1
+          description: Mail API
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+        - $ref: "#/components/parameters/UserIDQuery"
+        - $ref: "#/components/parameters/CompanyIDQuery"
+        - $ref: "#/components/parameters/DomainIDQuery"
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: before
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+      responses:
+        "200":
+          $ref: "#/components/responses/DMSearchResultList"
+        default:
+          $ref: "#/components/responses/Error"
+  /dm/rooms/{id}/media:
+    get:
+      operationId: listDMMedia
+      summary: List DM files, links, images, videos, or Drive references
+      servers:
+        - url: /api/v1
+          description: Mail API
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+        - $ref: "#/components/parameters/UserIDQuery"
+        - $ref: "#/components/parameters/CompanyIDQuery"
+        - $ref: "#/components/parameters/DomainIDQuery"
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [files, file, image, video, links, drive]
+        - name: before
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+      responses:
+        "200":
+          $ref: "#/components/responses/DMMediaList"
+        default:
+          $ref: "#/components/responses/Error"
+  /dm/messages/{id}:
+    patch:
+      operationId: editDMMessage
+      summary: Edit the authenticated user's text DM message
+      servers:
+        - url: /api/v1
+          description: Mail API
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+        - $ref: "#/components/parameters/UserIDQuery"
+        - $ref: "#/components/parameters/CompanyIDQuery"
+        - $ref: "#/components/parameters/DomainIDQuery"
+      requestBody:
+        $ref: "#/components/requestBodies/DMMessageEdit"
+      responses:
+        "200":
+          $ref: "#/components/responses/DMMessage"
+        default:
+          $ref: "#/components/responses/Error"
+    delete:
+      operationId: deleteDMMessage
+      summary: Soft-delete the authenticated user's DM message
+      servers:
+        - url: /api/v1
+          description: Mail API
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+        - $ref: "#/components/parameters/UserIDQuery"
+        - $ref: "#/components/parameters/CompanyIDQuery"
+        - $ref: "#/components/parameters/DomainIDQuery"
+      responses:
+        "200":
+          $ref: "#/components/responses/DMMessage"
+        default:
+          $ref: "#/components/responses/Error"
+  /dm/messages/{id}/reactions/{emoji}:
+    put:
+      operationId: toggleDMReaction
+      summary: Toggle a single-emoji reaction on a DM message
+      servers:
+        - url: /api/v1
+          description: Mail API
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+        - name: emoji
+          in: path
+          required: true
+          schema:
+            type: string
+        - $ref: "#/components/parameters/UserIDQuery"
+        - $ref: "#/components/parameters/CompanyIDQuery"
+        - $ref: "#/components/parameters/DomainIDQuery"
+      responses:
+        "204":
+          description: DM reaction toggled
+        default:
+          $ref: "#/components/responses/Error"
   /auth/token:
     post:
       operationId: loginUser
@@ -11628,6 +11980,54 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/DriveSharedFileEnvelope"
+    DMRoomList:
+      description: DM room list envelope
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/DMRoomListEnvelope"
+    DMRoom:
+      description: DM room envelope
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/DMRoomEnvelope"
+    DMMessageList:
+      description: DM message list envelope
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/DMMessageListEnvelope"
+    DMMessage:
+      description: DM message envelope
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/DMMessageEnvelope"
+    DMRoomRemoval:
+      description: DM room member removal envelope
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/DMRoomRemovalEnvelope"
+    DMInvite:
+      description: DM invite envelope
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/DMInviteEnvelope"
+    DMSearchResultList:
+      description: DM search result list envelope
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/DMSearchResultListEnvelope"
+    DMMediaList:
+      description: DM media list envelope
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/DMMediaListEnvelope"
     DriveStagedObject:
       description: Drive staged object envelope
       content:
@@ -12318,6 +12718,37 @@ components:
           schema:
             $ref: "#/components/schemas/ErrorEnvelope"
   parameters:
+    ResourceIDPath:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        maxLength: 200
+    UserIDQuery:
+      name: user_id
+      in: query
+      required: false
+      description: Development fallback required only when JWT auth is disabled.
+      schema:
+        type: string
+        maxLength: 200
+    CompanyIDQuery:
+      name: company_id
+      in: query
+      required: false
+      description: Development fallback required only when JWT auth is disabled for DM routes.
+      schema:
+        type: string
+        maxLength: 200
+    DomainIDQuery:
+      name: domain_id
+      in: query
+      required: false
+      description: Development fallback required only when JWT auth is disabled for DM routes.
+      schema:
+        type: string
+        maxLength: 200
     PathID:
       name: id
       in: path
@@ -12450,6 +12881,54 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/DriveShareLinkCreateRequest"
+    DMRoomCreate:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/DMRoomCreateRequest"
+    DMRoomMembers:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/DMRoomMembersRequest"
+    DMOwnerTransfer:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/DMOwnerTransferRequest"
+    DMMessageSend:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/DMMessageSendRequest"
+    DMMessageEdit:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/DMMessageEditRequest"
+    DMReadMark:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/DMReadMarkRequest"
+    DMAttachmentUpload:
+      required: true
+      content:
+        multipart/form-data:
+          schema:
+            type: object
+            required: [file]
+            properties:
+              file:
+                type: string
+                format: binary
+                description: DM attachment file, capped at 20 MB by the server.
     MessageFlagUpdate:
       required: true
       content:
@@ -12728,6 +13207,266 @@ components:
           schema:
             $ref: "#/components/schemas/APISettingsUpdateRequest"
   schemas:
+    DMRoomListEnvelope:
+      type: object
+      required: [rooms]
+      properties:
+        rooms:
+          type: array
+          items:
+            $ref: "#/components/schemas/DMRoom"
+    DMRoomEnvelope:
+      type: object
+      required: [room]
+      properties:
+        room:
+          $ref: "#/components/schemas/DMRoom"
+    DMMessageListEnvelope:
+      type: object
+      required: [messages]
+      properties:
+        messages:
+          type: array
+          items:
+            $ref: "#/components/schemas/DMMessage"
+    DMMessageEnvelope:
+      type: object
+      required: [message]
+      properties:
+        message:
+          $ref: "#/components/schemas/DMMessage"
+    DMRoomRemovalEnvelope:
+      type: object
+      required: [removal]
+      properties:
+        removal:
+          type: object
+          properties:
+            system_message:
+              $ref: "#/components/schemas/DMMessage"
+            deleted_room:
+              type: boolean
+    DMInviteEnvelope:
+      type: object
+      properties:
+        invite:
+          $ref: "#/components/schemas/DMInvite"
+        invite_url:
+          type: string
+          format: uri
+    DMSearchResultListEnvelope:
+      type: object
+      required: [results]
+      properties:
+        results:
+          type: array
+          items:
+            type: object
+            properties:
+              message:
+                $ref: "#/components/schemas/DMMessage"
+              before:
+                type: string
+              after:
+                type: string
+    DMMediaListEnvelope:
+      type: object
+      required: [media]
+      properties:
+        media:
+          type: array
+          items:
+            $ref: "#/components/schemas/DMMediaItem"
+    DMRoom:
+      type: object
+      properties:
+        id:
+          type: string
+        company_id:
+          type: string
+        domain_id:
+          type: string
+        room_type:
+          type: string
+          enum: [direct, group]
+        visibility:
+          type: string
+          enum: [public, private]
+        name:
+          type: string
+        owner_id:
+          type: string
+        created_by:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        members:
+          type: array
+          items:
+            $ref: "#/components/schemas/DMUser"
+        unread_count:
+          type: integer
+          minimum: 0
+        member_count:
+          type: integer
+          minimum: 0
+        last_read_message_id:
+          type: string
+    DMUser:
+      type: object
+      properties:
+        id:
+          type: string
+        company_id:
+          type: string
+        domain_id:
+          type: string
+        display_name:
+          type: string
+    DMMessage:
+      type: object
+      properties:
+        id:
+          type: string
+        room_id:
+          type: string
+        sender_id:
+          type: string
+        message_type:
+          type: string
+          enum: [text, file, drive_link, system]
+        body:
+          type: string
+          description: Decrypted body returned only to room participants.
+        attachment_name:
+          type: string
+        attachment_size:
+          type: integer
+          format: int64
+        attachment_mime_type:
+          type: string
+        attachment_download_url:
+          type: string
+          format: uri
+        drive_file_id:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        edited_at:
+          type: string
+          format: date-time
+        deleted_at:
+          type: string
+          format: date-time
+        reactions:
+          type: array
+          items:
+            $ref: "#/components/schemas/DMReaction"
+        read_count:
+          type: integer
+          minimum: 0
+    DMReaction:
+      type: object
+      properties:
+        emoji:
+          type: string
+        count:
+          type: integer
+          minimum: 0
+        mine:
+          type: boolean
+    DMInvite:
+      type: object
+      properties:
+        token:
+          type: string
+        room_id:
+          type: string
+        expires_at:
+          type: string
+          format: date-time
+    DMMediaItem:
+      type: object
+      properties:
+        message_id:
+          type: string
+        message_type:
+          type: string
+        sender_id:
+          type: string
+        url:
+          type: string
+          format: uri
+        attachment_name:
+          type: string
+        attachment_size:
+          type: integer
+          format: int64
+        attachment_mime_type:
+          type: string
+        download_url:
+          type: string
+          format: uri
+        drive_file_id:
+          type: string
+        drive_name:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+    DMRoomCreateRequest:
+      type: object
+      required: [room_type]
+      properties:
+        room_type:
+          type: string
+          enum: [direct, group]
+        user_ids:
+          type: array
+          items:
+            type: string
+        name:
+          type: string
+        visibility:
+          type: string
+          enum: [public, private]
+    DMRoomMembersRequest:
+      type: object
+      required: [user_ids]
+      properties:
+        user_ids:
+          type: array
+          items:
+            type: string
+    DMOwnerTransferRequest:
+      type: object
+      required: [user_id]
+      properties:
+        user_id:
+          type: string
+    DMMessageSendRequest:
+      type: object
+      properties:
+        body:
+          type: string
+          maxLength: 32768
+        drive_file_id:
+          type: string
+    DMMessageEditRequest:
+      type: object
+      required: [body]
+      properties:
+        body:
+          type: string
+          maxLength: 32768
+    DMReadMarkRequest:
+      type: object
+      required: [last_message_id]
+      properties:
+        last_message_id:
+          type: string
     AuditLogView:
       type: object
       properties:

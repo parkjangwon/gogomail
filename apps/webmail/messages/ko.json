@@ -254,6 +254,7 @@
   },
   "nav": {
     "mail": "메일",
+    "dm": "DM",
     "calendar": "캘린더",
     "contacts": "연락처",
     "drive": "드라이브",
