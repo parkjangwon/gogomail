@@ -24,7 +24,14 @@ var durationBuckets = []float64{.005, .01, .025, .05, .1, .25, .5, 1, 2.5, 5, 10
 type PrometheusAdapter struct {
 	mu         sync.Mutex
 	counters   map[promCounterKey]uint64
-	histograms map[string]*promHistogram
+	histograms map[promHistogramKey]*promHistogram
+}
+
+// promHistogramKey uniquely identifies a histogram by metric name and sorted label set.
+// Keeping name and labels separate ensures text() receives the bare metric name.
+type promHistogramKey struct {
+	Name   string
+	Labels string // sorted label string, used only as a uniqueness key
 }
 
 type promCounterKey struct {
@@ -35,7 +42,7 @@ type promCounterKey struct {
 func NewPrometheusAdapter() *PrometheusAdapter {
 	return &PrometheusAdapter{
 		counters:   make(map[promCounterKey]uint64),
-		histograms: make(map[string]*promHistogram),
+		histograms: make(map[promHistogramKey]*promHistogram),
 	}
 }
 
@@ -108,15 +115,19 @@ func (a *PrometheusAdapter) Text() string {
 		b.WriteByte('\n')
 	}
 
-	// Emit histograms.
-	histNames := make([]string, 0, len(a.histograms))
-	for name := range a.histograms {
-		histNames = append(histNames, name)
+	// Emit histograms. Sort by metric name then label string for deterministic output.
+	histKeys := make([]promHistogramKey, 0, len(a.histograms))
+	for key := range a.histograms {
+		histKeys = append(histKeys, key)
 	}
-	sort.Strings(histNames)
-	for _, name := range histNames {
-		h := a.histograms[name]
-		b.WriteString(h.text(name))
+	sort.Slice(histKeys, func(i, j int) bool {
+		if histKeys[i].Name != histKeys[j].Name {
+			return histKeys[i].Name < histKeys[j].Name
+		}
+		return histKeys[i].Labels < histKeys[j].Labels
+	})
+	for _, key := range histKeys {
+		b.WriteString(a.histograms[key].text(key.Name))
 	}
 
 	return b.String()
@@ -135,12 +146,9 @@ func (a *PrometheusAdapter) observe(name string, buckets []float64, value float6
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	if a.histograms == nil {
-		a.histograms = make(map[string]*promHistogram)
+		a.histograms = make(map[promHistogramKey]*promHistogram)
 	}
-	key := name
-	if len(labels) > 0 {
-		key = name + "{" + promLabels(labels) + "}"
-	}
+	key := promHistogramKey{Name: name, Labels: promLabels(labels)}
 	h, ok := a.histograms[key]
 	if !ok {
 		h = newPromHistogram(buckets, labels)
