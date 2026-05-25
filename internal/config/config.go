@@ -210,6 +210,9 @@ type Config struct {
 	OutboxRelayBatchSize                int
 	OutboxRelayPollInterval             time.Duration
 	OutboxRelayMaxAttempts              int
+	OutboxRelayWorkerCount              int // GOGOMAIL_OUTBOX_RELAY_WORKER_COUNT (default 1)
+	OutboxRelayShardTotal               int // GOGOMAIL_OUTBOX_RELAY_SHARD_TOTAL (default 1 = no sharding)
+	OutboxRelayShardIndex               int // GOGOMAIL_OUTBOX_RELAY_SHARD_INDEX (default 0)
 	EventStream                         string
 	EventConsumerGroup                  string
 	EventConsumerName                   string
@@ -534,6 +537,9 @@ func Load() Config {
 		OutboxRelayBatchSize:                intEnvOrDefault("GOGOMAIL_OUTBOX_RELAY_BATCH_SIZE", 100),
 		OutboxRelayPollInterval:             durationEnvOrDefault("GOGOMAIL_OUTBOX_RELAY_POLL_INTERVAL", time.Second),
 		OutboxRelayMaxAttempts:              intEnvOrDefault("GOGOMAIL_OUTBOX_RELAY_MAX_ATTEMPTS", 10),
+		OutboxRelayWorkerCount:              intEnvOrDefault("GOGOMAIL_OUTBOX_RELAY_WORKER_COUNT", 1),
+		OutboxRelayShardTotal:               intEnvOrDefault("GOGOMAIL_OUTBOX_RELAY_SHARD_TOTAL", 1),
+		OutboxRelayShardIndex:               intEnvOrDefault("GOGOMAIL_OUTBOX_RELAY_SHARD_INDEX", 0),
 		EventStream:                         envOrDefault("GOGOMAIL_EVENT_STREAM", "mail.event"),
 		EventConsumerGroup:                  envOrDefault("GOGOMAIL_EVENT_CONSUMER_GROUP", "gogomail.event-worker"),
 		EventConsumerName:                   nodeScopedEnvOrDefault("GOGOMAIL_EVENT_CONSUMER_NAME", "event-worker-1"),
