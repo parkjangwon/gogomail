@@ -9,19 +9,16 @@ import Underline from '@tiptap/extension-underline';
 import TextAlign from '@tiptap/extension-text-align';
 import Placeholder from '@tiptap/extension-placeholder';
 import Image from '@tiptap/extension-image';
-import { sendMessage, saveDraft, updateDraft, deleteDraft, sendDraft, uploadAttachment, attachDriveFileToEmail, listDriveNodes, listUserAddresses, getPreferences, setPreferences } from '@/lib/api';
-import type { DriveNode, UIComposeIntent, MessageDetail, SendMessageRequest, SendMessageResult, UserAddressEntry } from '@/lib/api';
+import { sendMessage, saveDraft, updateDraft, deleteDraft, sendDraft, uploadAttachment, listUserAddresses } from '@/lib/api';
+import type { UIComposeIntent, MessageDetail, SendMessageRequest, SendMessageResult, UserAddressEntry } from '@/lib/api';
 import { composeCloseSaveButtonAriaLabel } from '@/lib/composeCloseSaveButtonAriaLabel';
 import { composeCloseSaveButtonLabel } from '@/lib/composeCloseSaveButtonLabel';
 import { composeCloseSavePrompt } from '@/lib/composeCloseSavePrompt';
 import { composeSendButtonLabel } from '@/lib/composeSendButtonLabel';
 import { toDateTimeLocalValue } from '@/lib/dateTimeLocal';
 import { formatSendResultLabel } from '@/lib/sendResultLabel';
-import { DriveNodeIcon } from '@/lib/driveNodeIcon';
-import { stableId } from '@/lib/stableId';
 import { useOptionalNotifications } from '@/lib/notifications/store';
-import { escapeHtml, parseAddrs, EmailTemplate, backendComposeIntent } from '@/lib/compose/composeUtils';
-import { loadLocalEmailTemplates, normalizeEmailTemplates, saveLocalEmailTemplates } from '@/lib/emailTemplates';
+import { escapeHtml, parseAddrs, backendComposeIntent } from '@/lib/compose/composeUtils';
 import { buildQuoteHTML, emailOf, invalidRecipientAddresses, parseToPickerItems, pickerItemsToString } from '@/lib/mail-address';
 import { SLASH_COMMANDS, type SlashCommand } from '@/lib/compose/slashCommands';
 import { RecipientChips } from './RecipientChips';
@@ -29,7 +26,10 @@ import { OrgPickerModal } from './OrgPickerModal';
 import { ComposeModalActions } from './ComposeModalActions';
 import { ComposeModalFooter } from './ComposeModalFooter';
 import { ComposeSlashCommandMenu } from './compose/ComposeSlashCommandMenu';
-import { ComposeAttachmentPanel, type UploadedAttachment } from './compose/ComposeAttachmentPanel';
+import { ComposeAttachmentPanel } from './compose/ComposeAttachmentPanel';
+import { useComposeWindow } from './compose/useComposeWindow';
+import { useComposeAttachments } from './compose/useComposeAttachments';
+import { useComposeTemplates } from './compose/useComposeTemplates';
 import {
   PaperClipIcon,
   PencilSquareIcon as PencilSquareIconHero,
@@ -104,8 +104,6 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
   const [showSchedule, setShowSchedule] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
   const [savedAt, setSavedAt] = useState('');
-  const [minimized, setMinimized] = useState(false);
-  const [fullscreen, setFullscreen] = useState(false);
   const [confirmClose, setConfirmClose] = useState(false);
   const [closeSaveInProgress, setCloseSaveInProgress] = useState(false);
   const [showSigEditor, setShowSigEditor] = useState(false);
@@ -133,32 +131,44 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
   const draftIdRef = useRef<string>(draftMessage?.id ?? '');
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [uploadedAttachments, setUploadedAttachments] = useState<UploadedAttachment[]>([]);
-  const [dragOver, setDragOver] = useState(false);
-  const dragCounterRef = useRef(0);
-  const [showTemplates, setShowTemplates] = useState(false);
-  const [templates, setTemplates] = useState<EmailTemplate[]>(() => loadLocalEmailTemplates());
-  const [templateSaveName, setTemplateSaveName] = useState('');
-  const [showTemplateSave, setShowTemplateSave] = useState(false);
-  const templateMenuRef = useRef<HTMLDivElement>(null);
   const sendDropdownRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    let cancelled = false;
-    getPreferences().then((prefs) => {
-      if (cancelled || !prefs.templates) return;
-      const serverTemplates = normalizeEmailTemplates(prefs.templates);
-      setTemplates(serverTemplates);
-      saveLocalEmailTemplates(serverTemplates);
-    }).catch(() => {});
-    return () => { cancelled = true; };
-  }, []);
 
-  const persistTemplates = useCallback((next: EmailTemplate[]) => {
-    const normalized = normalizeEmailTemplates(next);
-    setTemplates(normalized);
-    saveLocalEmailTemplates(normalized);
-    setPreferences({ templates: normalized }).catch(() => {});
-  }, []);
+  const {
+    uploadedAttachments,
+    setUploadedAttachments,
+    dragOver,
+    setDragOver,
+    dragCounterRef,
+    showDrivePicker,
+    setShowDrivePicker,
+    drivePickerNodes,
+    drivePickerLoading,
+    drivePickerCrumbs,
+    attachingDriveId,
+    handleFileSelect,
+    retryAttachmentUpload,
+    openDrivePicker,
+    handleAttachFromDrive,
+    readyAttachmentIds,
+  } = useComposeAttachments({ t, draftIdRef, initialDriveCrumbName: t('drive') });
+
+  const {
+    templates,
+    templateSaveName,
+    setTemplateSaveName,
+    showTemplates,
+    setShowTemplates,
+    showTemplateSave,
+    setShowTemplateSave,
+    templateMenuRef,
+    persistTemplates,
+    saveTemplate,
+    deleteTemplate,
+  } = useComposeTemplates({
+    t,
+    getEditorHTML: () => editor?.getHTML() ?? '',
+    subject,
+  });
 
   // Slash command menu state
   const [slashMenu, setSlashMenu] = useState<{ query: string; top: number; cursorTop: number; left: number } | null>(null);
@@ -171,91 +181,13 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
   useEffect(() => { slashIndexRef.current = slashIndex; }, [slashIndex]);
 
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
-  const [showDrivePicker, setShowDrivePicker] = useState(false);
-  const [drivePickerNodes, setDrivePickerNodes] = useState<DriveNode[]>([]);
-  const [drivePickerLoading, setDrivePickerLoading] = useState(false);
-  const [drivePickerCrumbs, setDrivePickerCrumbs] = useState<Array<{ id: string | undefined; name: string }>>([{ id: undefined, name: t('drive') }]);
-  const [attachingDriveId, setAttachingDriveId] = useState<string | null>(null);
 
   const [showOrgPicker, setShowOrgPicker] = useState(false);
 
-  const dialogRef = useRef<HTMLDivElement>(null);
-  const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
-  const [size, setSize] = useState<{ w: number; h: number }>(() => {
-    try {
-      const s = localStorage.getItem('webmail_compose_size');
-      const parsed = s ? JSON.parse(s) : { w: 560, h: 520 };
-      const maxH = typeof window !== 'undefined' ? window.innerHeight - 60 : 800;
-      return { w: parsed.w, h: Math.min(parsed.h, maxH) };
-    } catch { return { w: 560, h: 520 }; }
-  });
+  const { pos, setPos: _setPos, size, minimized, setMinimized, fullscreen, setFullscreen, dialogRef, startDrag, startResize } = useComposeWindow({ isMobile });
   const [showSendDropdown, setShowSendDropdown] = useState(false);
   const [fromAddress, setFromAddress] = useState(userEmail ?? '');
   const [availableAddresses, setAvailableAddresses] = useState<UserAddressEntry[]>([]);
-
-  const readyAttachmentIds = useCallback(() =>
-    uploadedAttachments
-      .filter((a) => !a.uploading && !a.error)
-      .map((a) => a.id),
-  [uploadedAttachments]);
-
-  const handleFileSelect = useCallback(async (files: FileList) => {
-    const newFiles = Array.from(files);
-    for (const file of newFiles) {
-      const tempId = stableId('tmp');
-      setUploadedAttachments((prev) => [...prev, { id: tempId, filename: file.name, size: file.size, uploading: true, file }]);
-      try {
-        const att = await uploadAttachment(file, draftIdRef.current || undefined);
-        setUploadedAttachments((prev) => prev.map((a) => a.id === tempId ? { id: att.id, filename: att.filename, size: att.size } : a));
-      } catch {
-        setUploadedAttachments((prev) => prev.map((a) => a.id === tempId ? { ...a, uploading: false, error: t('uploadFailed') } : a));
-      }
-    }
-  }, [t]);
-
-  const retryAttachmentUpload = useCallback(async (attachmentId: string) => {
-    const failedAttachment = uploadedAttachments.find((attachment) => attachment.id === attachmentId && attachment.error && attachment.file);
-    if (!failedAttachment?.file) return;
-
-    setUploadedAttachments((prev) => prev.map((attachment) =>
-      attachment.id === attachmentId ? { ...attachment, uploading: true, error: undefined } : attachment,
-    ));
-
-    try {
-      const att = await uploadAttachment(failedAttachment.file, draftIdRef.current || undefined);
-      setUploadedAttachments((prev) => prev.map((attachment) =>
-        attachment.id === attachmentId ? { id: att.id, filename: att.filename, size: att.size } : attachment,
-      ));
-    } catch {
-      setUploadedAttachments((prev) => prev.map((attachment) =>
-        attachment.id === attachmentId ? { ...attachment, uploading: false, error: t('uploadFailed') } : attachment,
-      ));
-    }
-  }, [uploadedAttachments, t]);
-
-  const openDrivePicker = useCallback(async (parentId?: string, crumbs?: Array<{ id: string | undefined; name: string }>) => {
-    setShowDrivePicker(true);
-    setDrivePickerLoading(true);
-    if (crumbs) setDrivePickerCrumbs(crumbs);
-    const nodes = await listDriveNodes(parentId);
-    setDrivePickerNodes(nodes ?? []);
-    setDrivePickerLoading(false);
-  }, []);
-
-  const handleAttachFromDrive = useCallback(async (node: DriveNode) => {
-    if (node.node_type === 'folder') {
-      const newCrumbs = [...drivePickerCrumbs, { id: node.id, name: node.name }];
-      await openDrivePicker(node.id, newCrumbs);
-      return;
-    }
-    setAttachingDriveId(node.id);
-    const att = await attachDriveFileToEmail(node.id, node.name, node.mime_type ?? '', draftIdRef.current || undefined);
-    if (att) {
-      setUploadedAttachments((prev) => [...prev, { id: att.id, filename: att.filename, size: att.size }]);
-      setShowDrivePicker(false);
-    }
-    setAttachingDriveId(null);
-  }, [drivePickerCrumbs, openDrivePicker]);
 
   const clearSentDraft = useCallback(async (deleteRemote = true) => {
     const draftId = draftIdRef.current;
@@ -432,17 +364,6 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
       if (primary && !fromAddress) setFromAddress(primary.address);
     }).catch(() => {});
   }, []);
-
-  useEffect(() => {
-    function handleClick(e: MouseEvent) {
-      if (templateMenuRef.current && !templateMenuRef.current.contains(e.target as Node)) {
-        setShowTemplates(false);
-        setShowTemplateSave(false);
-      }
-    }
-    if (showTemplates) document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
-  }, [showTemplates]);
 
   useEffect(() => {
     if (!showSendDropdown) return;
@@ -694,21 +615,6 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
     sendInProgressRef.current = false;
   }, []);
 
-  const saveTemplate = () => {
-    const name = templateSaveName.trim();
-    if (!name) return;
-    const body = editor?.getHTML() ?? '';
-    const newTemplate: EmailTemplate = { id: stableId('template'), name, subject, body };
-    const updated = [...templates, newTemplate];
-    persistTemplates(updated);
-    setTemplateSaveName('');
-    setShowTemplateSave(false);
-  };
-
-  const deleteTemplate = useCallback((id: string) => {
-    persistTemplates(templates.filter((t) => t.id !== id));
-  }, [persistTemplates, templates]);
-
   async function handleSend(e: { preventDefault(): void }) {
     e.preventDefault();
     if (sending || sent || sendInProgressRef.current) return;
@@ -873,60 +779,6 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
       )
     : [];
   const scheduleOptions = getScheduleOptions();
-
-  function startDrag(e: React.MouseEvent<HTMLDivElement>) {
-    if (fullscreen || minimized || isMobile) return;
-    const dialog = dialogRef.current;
-    if (!dialog) return;
-    const rect = dialog.getBoundingClientRect();
-    // if no pos set yet, compute current position
-    const curX = pos?.x ?? rect.left;
-    const curY = pos?.y ?? rect.top;
-    const offsetX = e.clientX - curX;
-    const offsetY = e.clientY - curY;
-    function onMove(ev: MouseEvent) {
-      const nx = Math.max(0, Math.min(ev.clientX - offsetX, window.innerWidth - size.w));
-      const ny = Math.max(0, Math.min(ev.clientY - offsetY, window.innerHeight - size.h));
-      setPos({ x: nx, y: ny });
-    }
-    function onUp() {
-      document.removeEventListener('mousemove', onMove);
-      document.removeEventListener('mouseup', onUp);
-    }
-    document.addEventListener('mousemove', onMove);
-    document.addEventListener('mouseup', onUp);
-  }
-
-  function startResize(e: React.MouseEvent, dir: string) {
-    e.preventDefault();
-    e.stopPropagation();
-    const dialog = dialogRef.current;
-    if (!dialog) return;
-    const rect = dialog.getBoundingClientRect();
-    const startX = e.clientX, startY = e.clientY;
-    const startW = rect.width, startH = rect.height;
-    const startL = rect.left, startT = rect.top;
-    function onMove(ev: MouseEvent) {
-      let nw = startW, nh = startH;
-      let nx = pos?.x ?? startL, ny = pos?.y ?? startT;
-      if (dir.includes('e')) nw = Math.max(400, startW + ev.clientX - startX);
-      if (dir.includes('s')) nh = Math.max(300, startH + ev.clientY - startY);
-      if (dir.includes('w')) { nw = Math.max(400, startW - (ev.clientX - startX)); nx = startL + (startW - nw); }
-      if (dir.includes('n')) { nh = Math.max(300, startH - (ev.clientY - startY)); ny = startT + (startH - nh); }
-      setSize({ w: nw, h: nh });
-      if (dir.includes('w') || dir.includes('n')) setPos({ x: nx, y: ny });
-    }
-    function onUp() {
-      document.removeEventListener('mousemove', onMove);
-      document.removeEventListener('mouseup', onUp);
-      setSize((s) => {
-        try { localStorage.setItem('webmail_compose_size', JSON.stringify(s)); } catch { /* */ }
-        return s;
-      });
-    }
-    document.addEventListener('mousemove', onMove);
-    document.addEventListener('mouseup', onUp);
-  }
 
   function getScheduleOptions(): { label: string; sub: string; date: Date }[] {
     const now = new Date();
