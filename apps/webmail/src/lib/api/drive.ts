@@ -1,4 +1,4 @@
-import { responseErrorMessage } from './http';
+import { apiGet, apiDelete, responseErrorMessage } from './http';
 
 export interface DriveNode {
   id: string;
@@ -257,39 +257,30 @@ export async function uploadDriveFile(file: File, parentId?: string): Promise<Dr
 
 export async function listDriveNodes(parentId?: string): Promise<DriveNode[]> {
   try {
-    const p = new URLSearchParams({ status: 'active' });
-    if (parentId) p.set('parent_id', parentId);
-    const res = await fetch(`/api/mail/drive/nodes?${p}`);
-    if (!res.ok) return [];
-    const data = await res.json() as { drive_nodes?: DriveNode[] };
+    const p: Record<string, string> = { status: 'active' };
+    if (parentId) p.parent_id = parentId;
+    const data = await apiGet<{ drive_nodes?: DriveNode[] }>('drive/nodes', p);
     return data.drive_nodes ?? [];
   } catch { return []; }
 }
 
 export async function listTrashedDriveNodes(): Promise<DriveNode[]> {
   try {
-    const p = new URLSearchParams({ status: 'trashed' });
-    const res = await fetch(`/api/mail/drive/nodes?${p}`);
-    if (!res.ok) return [];
-    const data = await res.json() as { drive_nodes?: DriveNode[] };
+    const data = await apiGet<{ drive_nodes?: DriveNode[] }>('drive/nodes', { status: 'trashed' });
     return data.drive_nodes ?? [];
   } catch { return []; }
 }
 
 export async function deleteDriveNodePermanently(nodeId: string): Promise<boolean> {
   try {
-    const res = await fetch(`/api/mail/drive/nodes/${encodeURIComponent(nodeId)}`, {
-      method: 'DELETE',
-    });
-    return res.ok;
+    await apiDelete(`drive/nodes/${encodeURIComponent(nodeId)}`);
+    return true;
   } catch { return false; }
 }
 
 export async function getDriveUsage(): Promise<DriveUsage | null> {
   try {
-    const res = await fetch('/api/mail/drive/usage');
-    if (!res.ok) return null;
-    const data = await res.json() as { usage?: DriveUsage };
+    const data = await apiGet<{ usage?: DriveUsage }>('drive/usage');
     return data.usage ?? null;
   } catch { return null; }
 }

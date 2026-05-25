@@ -8,6 +8,8 @@ import type {
   ComposeIntent,
   ThreadSummary,
 } from './types';
+// Cross-domain bridge: these two functions straddle mail and drive.
+// They live here because compose owns the UX flow; drive provides storage.
 import type { DriveNode, DriveUploadCapabilities } from './drive';
 import { uploadDriveFile } from './drive';
 
@@ -146,13 +148,6 @@ export interface MessageDeliveryStatus {
   bounce_status: string;
   attempts: DeliveryAttempt[];
   updated_at: string;
-}
-
-export interface ContactSuggestion {
-  type?: string;
-  display_name: string;
-  email: string;
-  organization?: string;
 }
 
 // ─── Message operations ───────────────────────────────────────────────────────
@@ -316,16 +311,6 @@ export async function downloadAttachment(messageId: string, attachmentId: string
   setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 1000);
 }
 
-export async function autocompleteContacts(q: string, limit = 8): Promise<ContactSuggestion[]> {
-  if (!q.trim()) return [];
-  const params = new URLSearchParams({ q, limit: String(limit) });
-  try {
-    const res = await fetch(`/api/mail/contacts/autocomplete?${params}`);
-    if (!res.ok) return [];
-    const data = await res.json() as { results?: ContactSuggestion[] };
-    return data.results ?? [];
-  } catch { return []; }
-}
 
 // ─── Storage / Backup / Restore ───────────────────────────────────────────────
 

@@ -1,5 +1,5 @@
 import { arrayBufferToBase64URL } from '../webpush';
-import { request, apiGet, apiPost, apiDelete, responseErrorMessage } from './http';
+import { request, apiGet, apiPost, apiPatch, apiDelete, responseErrorMessage } from './http';
 import type { AuthTokenResponse, MFAVerifyResponse } from './types';
 
 export type { AuthTokenResponse, MFAVerifyResponse };
@@ -17,6 +17,9 @@ export interface MFASetupResponse {
   recovery_codes: string[];
 }
 
+// Note: loginUser, verifyMFA, and MFA setup/disable calls below use raw fetch
+// because they run before a session token exists and must target /api/auth/*
+// (not /api/mail/*), so the request() helper cannot be used here.
 export async function loginUser(
   email: string,
   password: string
@@ -89,9 +92,7 @@ export interface UserProfile {
 
 export async function getUserProfile(): Promise<UserProfile | null> {
   try {
-    const res = await fetch('/api/mail/me');
-    if (!res.ok) return null;
-    const data = await res.json() as { user?: UserProfile };
+    const data = await apiGet<{ user?: UserProfile }>('me');
     return data.user ?? null;
   } catch { return null; }
 }
@@ -104,22 +105,13 @@ export interface UserAddressEntry {
 
 export async function listUserAddresses(): Promise<UserAddressEntry[]> {
   try {
-    const res = await fetch('/api/mail/me/addresses');
-    if (!res.ok) return [];
-    const data = await res.json() as { addresses?: UserAddressEntry[] };
+    const data = await apiGet<{ addresses?: UserAddressEntry[] }>('me/addresses');
     return data.addresses ?? [];
   } catch { return []; }
 }
 
 export async function updateUserProfile(fields: { display_name?: string; recovery_email?: string }): Promise<void> {
-  const res = await fetch('/api/mail/me', {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(fields),
-  });
-  if (!res.ok) {
-    throw new Error(await responseErrorMessage(res, 'Failed to update profile.'));
-  }
+  await apiPatch('me', fields);
 }
 
 export async function uploadUserAvatar(file: File): Promise<string> {
@@ -137,22 +129,11 @@ export async function uploadUserAvatar(file: File): Promise<string> {
 }
 
 export async function deleteUserAvatar(): Promise<void> {
-  const res = await fetch('/api/mail/me/avatar', { method: 'DELETE' });
-  if (!res.ok) {
-    throw new Error(await responseErrorMessage(res, 'Failed to remove profile photo.'));
-  }
+  await apiDelete('me/avatar');
 }
 
 export async function changePassword(currentPassword: string, newPassword: string): Promise<void> {
-  const res = await fetch('/api/mail/me/password', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ current_password: currentPassword, new_password: newPassword }),
-  });
-  if (!res.ok) {
-    const data = await res.json().catch(() => ({})) as { error?: string };
-    throw new Error(data.error ?? 'Failed to change password.');
-  }
+  await apiPost('me/password', { current_password: currentPassword, new_password: newPassword });
 }
 
 // ─── Notification preferences ─────────────────────────────────────────────────
