@@ -13,12 +13,14 @@ Korean / 한국어: [README.ko.md](README.ko.md)
 
 Current baseline: **2026-05-25**. The repo is focused on SaaS pre-launch
 hardening: webmail usability, notification safety, local-domain delivery,
-spam controls, MCP automation, and split-mode deployment readiness.
+spam controls, DM collaboration, MCP automation, and split-mode deployment
+readiness.
 
 ## What it is
 
 - Self-hosted mail platform: SMTP receive/submission/delivery + IMAP + POP3
 - Bundled webmail (Next.js 16) and admin console
+- Domain-scoped encrypted DM for 1:1 and group conversations
 - Calendar / Contacts / Drive via CalDAV, CardDAV, and WebDAV
 - LDAP directory front-end + SCIM 2.0 provisioning
 - Multi-tenant: **company → domain → user** boundary in every query
@@ -31,7 +33,7 @@ spam controls, MCP automation, and split-mode deployment readiness.
 | Mail server | RFC 5321/5322 SMTP, RFC 6409 submission (587/465), RFC 5321/7672 outbound delivery with DANE |
 | Mailbox protocols | IMAP4rev2 (RFC 9051) with IDLE/CONDSTORE/QRESYNC, POP3 (RFC 1939) |
 | Collaboration | CalDAV (RFC 4791), CardDAV (RFC 6352), WebDAV (RFC 4918), LDAP (RFC 4511) |
-| APIs | Mail API, Admin API, Auth server (JWT + refresh + MFA), SCIM 2.0 |
+| APIs | Mail API, DM API, Admin API, Auth server (JWT + refresh + MFA), SCIM 2.0 |
 | Webmail / admin | Next.js 16 webmail SPA and admin console (`apps/webmail`, `apps/console`) |
 | Email security | SPF (RFC 7208), DKIM (RFC 6376), DMARC (RFC 7489), ARC (RFC 8617), MTA-STS (RFC 8461), TLS-RPT (RFC 8460) |
 | Auth | JWT (HS256, ≥32-byte secret), TOTP MFA, refresh-token rotation with replay detection, PBKDF2 password hashes |
@@ -44,9 +46,13 @@ spam controls, MCP automation, and split-mode deployment readiness.
 
 - **Webmail** — mail list/detail, compose, drafts, folder operations,
   attachments, search, All Mail, spam/blocked/allowed sender settings,
-  profile photos, contacts, Drive, calendar, notification center, Web Push,
-  MFA, refresh-token sessions, and localized settings in English, Korean,
-  Japanese, and Simplified Chinese.
+  profile photos, contacts, Drive, calendar, encrypted DM, notification center,
+  Web Push, MFA, refresh-token sessions, and localized settings in English,
+  Korean, Japanese, and Simplified Chinese.
+- **DM** — participant-only direct/group rooms with per-room encrypted message
+  storage, unread/read state, group owners and invites, text/file/Drive
+  messages, attachment downloads, reactions, search, media/link views, and a
+  compact messenger-style webmail window plus user MCP automation tools.
 - **Admin console** — company/domain/user administration, audit logs,
   delivery attempts, suppression and routing controls, quota/storage views,
   security posture, SCIM/SSO/organization settings, and broad mocked E2E
@@ -56,7 +62,7 @@ spam controls, MCP automation, and split-mode deployment readiness.
   boundaries, spam relay hooks, retry scheduling, throttling, and event fan-out.
 - **Agent automation** — separate management and user MCP servers so operators
   can manage the service while users can safely automate their own mailbox,
-  contacts, Drive, calendar, and preferences.
+  DM, contacts, Drive, calendar, and preferences.
 
 ## Strengths
 
