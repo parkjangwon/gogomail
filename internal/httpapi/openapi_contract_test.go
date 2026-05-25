@@ -233,7 +233,7 @@ func TestOpenAPIDraftPinsAllRegisteredAdminOperationsToAdminBase(t *testing.T) {
 	t.Parallel()
 
 	operations := extractOpenAPIOperationBlocks(t, "../../docs/openapi.yaml")
-	for _, route := range extractRegisteredAdminRoutes(t, "admin.go") {
+	for _, route := range extractRegisteredAdminRoutes(t, "admin.go", "admin_company.go", "admin_domain.go", "admin_user.go", "admin_operations.go", "admin_directory.go", "admin_storage.go", "admin_usage.go", "admin_mail.go", "admin_system.go", "admin_helpers.go") {
 		block, ok := operations[route]
 		if !ok {
 			t.Fatalf("OpenAPI operation %s is missing", route)
@@ -318,7 +318,7 @@ func TestOpenAPIDraftDocumentsPublicShareLinkRoutesAsUnauthenticated(t *testing.
 func TestOpenAPIDraftCoversRegisteredHTTPRoutes(t *testing.T) {
 	t.Parallel()
 
-	registered := extractRegisteredRoutes(t, "mail.go", "drive.go", "dm.go", "calendar.go", "carddav.go", "password_reset.go", "admin.go", "admin_helpers.go", "orgchart.go", "health.go")
+	registered := extractRegisteredRoutes(t, "mail.go", "drive.go", "dm.go", "calendar.go", "carddav.go", "password_reset.go", "admin.go", "admin_company.go", "admin_domain.go", "admin_user.go", "admin_operations.go", "admin_directory.go", "admin_storage.go", "admin_usage.go", "admin_mail.go", "admin_system.go", "admin_helpers.go", "orgchart.go", "health.go")
 	documented := extractOpenAPIRoutes(t, "../../docs/openapi.yaml")
 
 	var missing []string
@@ -337,7 +337,7 @@ func TestOpenAPIDraftDoesNotExposeUnregisteredRoutes(t *testing.T) {
 	t.Parallel()
 
 	registered := make(map[string]bool)
-	for _, route := range extractRegisteredRoutes(t, "mail.go", "drive.go", "dm.go", "calendar.go", "carddav.go", "password_reset.go", "admin.go", "admin_helpers.go", "orgchart.go", "health.go") {
+	for _, route := range extractRegisteredRoutes(t, "mail.go", "drive.go", "dm.go", "calendar.go", "carddav.go", "password_reset.go", "admin.go", "admin_company.go", "admin_domain.go", "admin_user.go", "admin_operations.go", "admin_directory.go", "admin_storage.go", "admin_usage.go", "admin_mail.go", "admin_system.go", "admin_helpers.go", "orgchart.go", "health.go") {
 		registered[route] = true
 	}
 	documented := extractOpenAPIRoutes(t, "../../docs/openapi.yaml")

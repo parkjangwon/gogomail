@@ -2,35 +2,31 @@
 
 ## Current Task
 
-**Task 4: Split user-mcp tools.ts into domain modules**
+**Task 9: Split internal/httpapi/admin.go into route-group files** — COMPLETE
 
 ## Previous Task Status
 
-**Task 3: Harden Promtail container security** — COMPLETE
-- ✓ Added `security_opt: ["no-new-privileges:true"]` to both Promtail services
-- ✓ Added `read_only: true` to both Promtail services
-- ✓ Added `tmpfs: [/tmp]` to both Promtail services
-- ✓ Added security documentation comment explaining Docker socket risk and Loki driver alternative
-- ✓ Modified: `docker/docker-compose.monitoring.yml`
-- ✓ Modified: `docker/docker-compose.dev.yml`
-- ✓ Validated: `docker compose -f docker/docker-compose.dev.yml config` exits 0
-- ✓ Verified: `docker compose -f docker/docker-compose.dev.yml config 2>&1 | grep -c "no-new-privileges"` → `1`
-- ✓ Committed and pushed
+**Task 8: Extract DMRoomList, DMMessageList, DMComposer from DMPanel** — COMPLETE
 
 ## Current Task Details
 
-**File:** `webmail/src/user-mcp/tools.ts` (need to split into domain modules)
-**Structure:** Large monolithic file with mixed domain concerns
-**Changes needed:**
-- Extract tools by domain
-- Ensure backward compatibility via index.ts re-exports
-- Document module structure
+**File:** `internal/httpapi/admin.go` (was 8,901 lines, now 420 lines)
+**Changes:**
+- Extracted types/constants → `admin_types.go` (357 lines)
+- Extracted middleware → `admin_middleware.go` (316 lines)
+- Extracted company routes → `admin_company.go` (459 lines)
+- Extracted domain routes → `admin_domain.go` (716 lines)
+- Extracted user routes → `admin_user.go` (550 lines)
+- Extracted operations routes → `admin_operations.go` (306 lines)
+- Extracted directory routes → `admin_directory.go` (350 lines)
+- Extracted storage routes → `admin_storage.go` (536 lines)
+- Extracted usage routes → `admin_usage.go` (864 lines)
+- Extracted mail routes → `admin_mail.go` (644 lines)
+- Extracted system handlers → `admin_system.go` (3,510 lines)
+- Updated `openapi_contract_test.go` to scan all new admin_*.go files
+- `go build ./internal/httpapi/...` exits 0
+- `go test ./internal/httpapi/... -count=1` → 1101 passed
 
 ## Next Steps After Current Task
 
-Refer to `docs/NEXT_STEPS.md` backlog (priority order):
-1. Split manage-mcp tools/gogomail.ts
-2. Split webmail api.ts by domain
-3. TypeScript file splits (UI components)
-4. Go package refactoring
-5. And more...
+→ Task 10: Split internal/app/admin_service.go into domain files
