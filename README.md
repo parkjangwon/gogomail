@@ -11,7 +11,7 @@ change**.
 
 Korean / 한국어: [README.ko.md](README.ko.md)
 
-Current baseline: **2026-05-25**. The repo is focused on SaaS pre-launch
+Current baseline: **2026-05-26**. The repo is focused on SaaS pre-launch
 hardening: webmail usability, notification safety, local-domain delivery,
 spam controls, DM collaboration, MCP automation, and split-mode deployment
 readiness.
