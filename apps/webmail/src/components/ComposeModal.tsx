@@ -29,16 +29,13 @@ import { OrgPickerModal } from './OrgPickerModal';
 import { ComposeModalActions } from './ComposeModalActions';
 import { ComposeModalFooter } from './ComposeModalFooter';
 import { ComposeSlashCommandMenu } from './compose/ComposeSlashCommandMenu';
-import { ComposeAttachmentPanel } from './compose/ComposeAttachmentPanel';
+import { ComposeAttachmentPanel, type UploadedAttachment } from './compose/ComposeAttachmentPanel';
 import {
   PaperClipIcon,
-  LinkIcon,
   PencilSquareIcon as PencilSquareIconHero,
   DocumentTextIcon,
   CalendarIcon,
   ChevronUpIcon,
-  ListBulletIcon,
-  NumberedListIcon,
   XMarkIcon,
   CloudIcon,
   ChevronRightIcon,
@@ -136,7 +133,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
   const draftIdRef = useRef<string>(draftMessage?.id ?? '');
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [uploadedAttachments, setUploadedAttachments] = useState<Array<{ id: string; filename: string; size: number; uploading?: boolean; error?: string; file?: File }>>([]);
+  const [uploadedAttachments, setUploadedAttachments] = useState<UploadedAttachment[]>([]);
   const [dragOver, setDragOver] = useState(false);
   const dragCounterRef = useRef(0);
   const [showTemplates, setShowTemplates] = useState(false);
