@@ -24,6 +24,10 @@ function isDrivePublicShareDownload(method: string, segments: string[]): boolean
   return segments.length === 4 && segments[0] === 'drive' && segments[1] === 'share-links' && segments[3] === 'download' && (method === 'GET' || method === 'POST');
 }
 
+function isDMAttachmentDownloadRoute(method: string, segments: string[]): boolean {
+  return segments.length === 4 && segments[0] === 'dm' && segments[1] === 'messages' && segments[3] === 'attachment' && (method === 'GET' || method === 'HEAD');
+}
+
 function backendBaseFor(pathStr: string): '/api/mail' | '/api/v1' {
   const [prefix] = pathStr.split('/');
   return MAIL_BASE_PREFIXES.has(prefix) ? '/api/mail' : '/api/v1';
@@ -95,7 +99,7 @@ async function handler(
     ?? cookieStore.get(LEGACY_WEBMAIL_TOKEN_COOKIE)?.value;
 
   // In local development mode (no JWT cookie configured), inject user_id query param.
-  if (!token && !isPublicShareLinkRoute && DEV_USER_ID && !reqUrl.searchParams.has('user_id')) {
+  if (!token && !isPublicShareLinkRoute && !isDMAttachmentDownloadRoute(req.method, path) && DEV_USER_ID && !reqUrl.searchParams.has('user_id')) {
     reqUrl.searchParams.set('user_id', DEV_USER_ID);
   }
 

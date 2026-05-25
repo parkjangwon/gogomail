@@ -150,6 +150,11 @@ test.describe('DM panel', () => {
 
     await page.getByRole('button', { name: /^DM/ }).click();
     const input = page.getByPlaceholder(/Message|메시지|メッセージ|消息/);
+    const imageResponse = page.waitForResponse((response) =>
+      response.url().includes('/api/mail/dm/messages/')
+      && response.url().includes('/attachment?token=')
+      && response.status() === 200
+    );
     await input.evaluate((node) => {
       const file = new File([new Uint8Array([137, 80, 78, 71])], 'clip.png', { type: 'image/png' });
       const data = new DataTransfer();
@@ -158,6 +163,7 @@ test.describe('DM panel', () => {
     });
 
     await expect(page.getByText('clip.png').first()).toBeVisible();
+    await imageResponse;
     const image = page.getByRole('img', { name: 'clip.png' }).first();
     await expect(image).toBeVisible();
     await image.click();

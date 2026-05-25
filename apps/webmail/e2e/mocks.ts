@@ -16,6 +16,7 @@ import type { Page, Route } from '@playwright/test';
 // --- Canned fixture data ---------------------------------------------------
 
 export const SEED_USER_EMAIL = 'pjw@parkjw.org';
+const PNG_1X1 = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=', 'base64');
 
 export const DEFAULT_FOLDERS = [
   { id: 'folder-inbox', name: 'INBOX', full_path: 'INBOX', type: 'system', system_type: 'inbox', order_index: 0, total: 3, unread: 2, starred: 1 },
@@ -366,8 +367,9 @@ export async function installMocks(page: Page, overrides: MockOverrides = {}) {
       const uploadData = req.postData() ?? '';
       const uploadName = /filename="([^"]+)"/.exec(uploadData)?.[1] ?? 'upload.txt';
       const uploadType = /Content-Type: ([^\r\n]+)/.exec(uploadData)?.[1] ?? 'application/octet-stream';
+      const id = `dm-file-${Date.now()}`;
       const message = {
-        id: `dm-file-${Date.now()}`,
+        id,
         room_id: segments[2],
         sender_id: 'user-1',
         message_type: 'file',
@@ -375,7 +377,7 @@ export async function installMocks(page: Page, overrides: MockOverrides = {}) {
         attachment_name: uploadName,
         attachment_size: 12,
         attachment_mime_type: uploadType,
-        attachment_download_url: uploadType.startsWith('image/') ? 'data:image/png;base64,iVBORw0KGgo=' : undefined,
+        attachment_download_url: uploadType.startsWith('image/') ? `/api/v1/dm/messages/${id}/attachment?token=mock-${id}` : undefined,
         created_at: new Date().toISOString(),
         reactions: [],
       };
@@ -395,6 +397,14 @@ export async function installMocks(page: Page, overrides: MockOverrides = {}) {
     if (segments[0] === 'dm' && segments[1] === 'rooms' && segments[3] === 'owner' && method === 'PATCH') return json(route, { message: dmMessages[0] });
     if (segments[0] === 'dm' && segments[1] === 'rooms' && segments[3] === 'invites' && method === 'POST') return json(route, { invite: { token: 'invite-token', room_id: segments[2], expires_at: '2026-06-01T00:00:00Z' }, invite_url: 'http://localhost:3003/dm/join/invite-token' }, 201);
     if (segments[0] === 'dm' && segments[1] === 'join' && method === 'POST') return json(route, { message: dmMessages[0] });
+    if (segments[0] === 'dm' && segments[1] === 'messages' && segments[3] === 'attachment' && method === 'GET') {
+      return route.fulfill({
+        status: 200,
+        contentType: 'image/png',
+        headers: { 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' },
+        body: PNG_1X1,
+      });
+    }
     if (segments[0] === 'dm' && segments[1] === 'messages' && segments.length === 3 && method === 'PATCH') {
       const body = (req.postDataJSON?.() ?? {}) as { body?: string };
       const message = { ...(dmMessages.find((m) => m.id === segments[2]) ?? dmMessages[0]), body: body.body ?? '', edited_at: new Date().toISOString() };

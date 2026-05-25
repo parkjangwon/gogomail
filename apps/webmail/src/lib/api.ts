@@ -679,12 +679,48 @@ export interface DMSearchResult {
   after?: string;
 }
 
+function normalizeDMAttachmentDownloadURL(raw?: string): string | undefined {
+  if (!raw) return raw;
+  if (raw.startsWith('data:') || raw.startsWith('blob:') || raw.startsWith('/api/mail/')) return raw;
+  if (raw.startsWith('/api/v1/dm/')) return `/api/mail/${raw.slice('/api/v1/'.length)}`;
+  try {
+    const url = new URL(raw);
+    if (url.pathname.startsWith('/api/v1/dm/')) {
+      return `/api/mail/${url.pathname.slice('/api/v1/'.length)}${url.search}${url.hash}`;
+    }
+  } catch {
+    return raw;
+  }
+  return raw;
+}
+
+function normalizeDMMessage(message: DMMessage): DMMessage {
+  return {
+    ...message,
+    attachment_download_url: normalizeDMAttachmentDownloadURL(message.attachment_download_url),
+  };
+}
+
+function normalizeDMRoom(room: DMRoom): DMRoom {
+  return {
+    ...room,
+    last_message: room.last_message ? normalizeDMMessage(room.last_message) : room.last_message,
+  };
+}
+
+function normalizeDMMediaItem(item: DMMediaItem): DMMediaItem {
+  return {
+    ...item,
+    download_url: normalizeDMAttachmentDownloadURL(item.download_url),
+  };
+}
+
 export function listDMRooms(): Promise<DMRoom[]> {
-  return apiGet<{ rooms: DMRoom[] }>('dm/rooms').then((r) => r.rooms ?? []);
+  return apiGet<{ rooms: DMRoom[] }>('dm/rooms').then((r) => (r.rooms ?? []).map(normalizeDMRoom));
 }
 
 export function listPublicDMRooms(): Promise<DMRoom[]> {
-  return apiGet<{ rooms: DMRoom[] }>('dm/rooms/public').then((r) => r.rooms ?? []);
+  return apiGet<{ rooms: DMRoom[] }>('dm/rooms/public').then((r) => (r.rooms ?? []).map(normalizeDMRoom));
 }
 
 export function createDMRoom(input: {
@@ -693,12 +729,12 @@ export function createDMRoom(input: {
   name?: string;
   visibility?: 'public' | 'private';
 }): Promise<DMRoom> {
-  return apiPost<{ room: DMRoom }>('dm/rooms', input).then((r) => r.room);
+  return apiPost<{ room: DMRoom }>('dm/rooms', input).then((r) => normalizeDMRoom(r.room));
 }
 
 export function addDMMembers(roomId: string, userIds: string[]): Promise<DMMessage[]> {
   return apiPost<{ messages: DMMessage[] }>(`dm/rooms/${encodeURIComponent(roomId)}/members`, { user_ids: userIds })
-    .then((r) => r.messages ?? []);
+    .then((r) => (r.messages ?? []).map(normalizeDMMessage));
 }
 
 export function removeDMMember(roomId: string, userId: string): Promise<{ deleted_room: boolean; system_message?: DMMessage }> {
@@ -709,7 +745,7 @@ export function removeDMMember(roomId: string, userId: string): Promise<{ delete
 
 export function transferDMOwner(roomId: string, userId: string): Promise<DMMessage> {
   return apiPatch<{ message: DMMessage }>(`dm/rooms/${encodeURIComponent(roomId)}/owner`, { user_id: userId })
-    .then((r) => r.message);
+    .then((r) => normalizeDMMessage(r.message));
 }
 
 export function createDMInvite(roomId: string): Promise<{ invite: DMInvite; invite_url: string }> {
@@ -717,7 +753,7 @@ export function createDMInvite(roomId: string): Promise<{ invite: DMInvite; invi
 }
 
 export function joinDMInvite(token: string): Promise<DMMessage> {
-  return apiPost<{ message: DMMessage }>(`dm/join/${encodeURIComponent(token)}`).then((r) => r.message);
+  return apiPost<{ message: DMMessage }>(`dm/join/${encodeURIComponent(token)}`).then((r) => normalizeDMMessage(r.message));
 }
 
 export function listDMMessages(roomId: string, params: { before?: string; after?: string; limit?: number } = {}): Promise<DMMessage[]> {
@@ -725,14 +761,14 @@ export function listDMMessages(roomId: string, params: { before?: string; after?
   if (params.before) search.before = params.before;
   if (params.after) search.after = params.after;
   if (params.limit) search.limit = String(params.limit);
-  return apiGet<{ messages: DMMessage[] }>(`dm/rooms/${encodeURIComponent(roomId)}/messages`, search).then((r) => r.messages ?? []);
+  return apiGet<{ messages: DMMessage[] }>(`dm/rooms/${encodeURIComponent(roomId)}/messages`, search).then((r) => (r.messages ?? []).map(normalizeDMMessage));
 }
 
 export function sendDMMessage(roomId: string, body: string, driveFileId?: string): Promise<DMMessage> {
   return apiPost<{ message: DMMessage }>(`dm/rooms/${encodeURIComponent(roomId)}/messages`, {
     body,
     ...(driveFileId ? { drive_file_id: driveFileId } : {}),
-  }).then((r) => r.message);
+  }).then((r) => normalizeDMMessage(r.message));
 }
 
 export async function uploadDMAttachment(roomId: string, file: File): Promise<DMMessage> {
@@ -747,7 +783,7 @@ export async function uploadDMAttachment(roomId: string, file: File): Promise<DM
     throw new Error(await responseErrorMessage(res, `Upload failed: ${res.status}`));
   }
   const data = await res.json() as { message: DMMessage };
-  return data.message;
+  return normalizeDMMessage(data.message);
 }
 
 export function markDMRead(roomId: string, lastMessageId: string): Promise<void> {
@@ -757,21 +793,22 @@ export function markDMRead(roomId: string, lastMessageId: string): Promise<void>
 export function searchDMMessages(roomId: string, q: string, before?: string, limit = 20): Promise<DMSearchResult[]> {
   const params: Record<string, string> = { q, limit: String(limit) };
   if (before) params.before = before;
-  return apiGet<{ results: DMSearchResult[] }>(`dm/rooms/${encodeURIComponent(roomId)}/search`, params).then((r) => r.results ?? []);
+  return apiGet<{ results: DMSearchResult[] }>(`dm/rooms/${encodeURIComponent(roomId)}/search`, params)
+    .then((r) => (r.results ?? []).map((result) => ({ ...result, message: normalizeDMMessage(result.message) })));
 }
 
 export function listDMMedia(roomId: string, type: 'files' | 'links' | 'drive' = 'files', before?: string, limit = 30): Promise<DMMediaItem[]> {
   const params: Record<string, string> = { type, limit: String(limit) };
   if (before) params.before = before;
-  return apiGet<{ media: DMMediaItem[] }>(`dm/rooms/${encodeURIComponent(roomId)}/media`, params).then((r) => r.media ?? []);
+  return apiGet<{ media: DMMediaItem[] }>(`dm/rooms/${encodeURIComponent(roomId)}/media`, params).then((r) => (r.media ?? []).map(normalizeDMMediaItem));
 }
 
 export function editDMMessage(messageId: string, body: string): Promise<DMMessage> {
-  return apiPatch<{ message: DMMessage }>(`dm/messages/${encodeURIComponent(messageId)}`, { body }).then((r) => r.message);
+  return apiPatch<{ message: DMMessage }>(`dm/messages/${encodeURIComponent(messageId)}`, { body }).then((r) => normalizeDMMessage(r.message));
 }
 
 export function deleteDMMessage(messageId: string): Promise<DMMessage> {
-  return apiDelete<{ message: DMMessage }>(`dm/messages/${encodeURIComponent(messageId)}`).then((r) => r.message);
+  return apiDelete<{ message: DMMessage }>(`dm/messages/${encodeURIComponent(messageId)}`).then((r) => normalizeDMMessage(r.message));
 }
 
 export function toggleDMReaction(messageId: string, emoji: string): Promise<void> {
