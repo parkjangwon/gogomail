@@ -4,21 +4,28 @@ Last updated: 2026-05-25 (org chart seed data)
 
 ## Org chart seed data (2026-05-25)
 
-Added a full IT company org hierarchy to `scripts/seed_dev_data.sql`:
+Added a full 3-level IT company org hierarchy to `scripts/seed_dev_data.sql`:
 
-- **Section 5-A** (`organizations` table, directory system): 3 top-level divisions
-  (개발본부, 마케팅본부, 경영지원부) + 7 child teams; all 14 users assigned
-  `org_id` to their respective teams.
-- **Section 5-B** (`organization_units` table, orgchart system): same 10 units
-  with `type` (division/department/team), manager assignments, and parent linkage.
-- **Section 5-C** (`organization_members` table): 17 membership rows covering all
-  14 non-admin users + 3 겸직 (dual-role) entries for 김철수, 박민준, 최준호.
-  Each row carries `title` (직책 · 직급, e.g. `팀장 · 과장`) and `role`
-  (manager/member).
-- Fixed UUID prefix in member IDs: `m0000000` → `b0000000` (PostgreSQL requires
-  hex-only UUID chars).
-- Also corrected 송지율's `org_id` from 백엔드팀 → 프론트엔드팀 (was inconsistent
-  with vCard and actual team assignment).
+```
+고구마컴퍼니
+├── 개발본부 (division)
+│   ├── 서비스사업부 (business_unit) → 백엔드팀, 프론트엔드팀
+│   └── 기술사업부 (business_unit)  → 인프라팀
+├── 마케팅본부 (division)
+│   ├── 브랜드사업부 (business_unit) → 브랜드팀
+│   └── 성장사업부 (business_unit)  → 퍼포먼스팀
+└── 경영지원부 (department)          → 인사팀, 재무팀  (사업부 없이 2계층)
+```
+
+- **Section 5-A** (`organizations`, directory): 3 본부/부서 (depth=0),
+  4 사업부 (depth=1), 7 팀 (depth=1 or 2). All 14 users assigned `org_id`.
+- **Section 5-B** (`organization_units`, orgchart): 14 units across 3 levels
+  with `type` (division/department/business_unit/team) and manager assignments.
+- **Section 5-C** (`organization_members`): 21 membership rows.겸직 겸직
+  entries: 김철수 (팀장+사업부장+본부장), 강현재 (팀장+사업부장),
+  박민준 (팀장+사업부장+본부장), 정수연 (팀장+사업부장), 최준호 (팀장+부장).
+- Fixed UUID prefix `m0000000` → `b0000000` (PostgreSQL requires hex-only UUIDs).
+- Corrected 송지율's `org_id` from 백엔드팀 → 프론트엔드팀.
 
 ## Seed-data UI bug fixes (2026-05-25)
 
