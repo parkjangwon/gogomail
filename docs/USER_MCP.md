@@ -55,6 +55,7 @@ The user MCP server only calls existing GoGoMail user APIs:
 
 - Account/context: webmail capabilities, mailbox overview, profile, sender addresses, user MCP settings, and read-only webmail preferences.
 - Mail: messages, drafts, folders, threads, attachments, delivery status, bulk routes, and search.
+- DM: participant-only rooms, public room discovery, group membership/owner/invites, messages, attachments, read marks, search/media read models, and reactions.
 - Contacts and directory: address books, contacts, autocomplete, directory users, and organization tree.
 - Drive: nodes, folders, downloads, upload sessions, usage, and share links.
 - Calendar: calendars, calendar objects, calendar subscriptions, and subscription events.

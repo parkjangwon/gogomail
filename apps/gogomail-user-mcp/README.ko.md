@@ -6,12 +6,13 @@ English / 영어: [README.md](README.md)
 
 이 서버는 `apps/gogomail-manage-mcp`와 의도적으로 분리되어 있습니다. 관리 MCP는 운영자와 관리자를 위한 서버이고, 이 패키지는 개별 사용자를 위한 서버이며 사용자가 발급한 `gmu_` 액세스 키로 인증합니다.
 
-현재 사용자 API 커버리지는 **105개 툴**입니다. 웹메일 UI가 사용하는 프로필/아바타, 디렉터리 프로필, spam 신고/not-spam, 발신자 허용/차단, 알림 환경설정, Web Push 구독, push device 흐름까지 문서화된 webmail/user API 표면 위에서 제공합니다.
+현재 사용자 API 커버리지는 **123개 툴**입니다. DM 방/메시지/첨부/반응, 프로필/아바타, 디렉터리 프로필, spam 신고/not-spam, 발신자 허용/차단, 알림 환경설정, Web Push 구독, push device 흐름까지 문서화된 webmail/user API 표면 위에서 제공합니다.
 
 ## 제공 기능
 
-- 기존 GoGoMail 사용자 API 위에 구성된 105개 MCP 툴.
+- 기존 GoGoMail 사용자 API 위에 구성된 123개 MCP 툴.
 - 메일 검색, 메시지 조회, 발송, 초안, 폴더, 스레드, 첨부파일, 배송 상태, 오픈 트래킹 조회, 메시지/스레드 bulk 작업.
+- DM 방 조회/생성, 그룹 멤버/소유자/초대, 텍스트/Drive/file 메시지, 읽음 처리, 검색/미디어 뷰, 첨부 다운로드, 수정/삭제, 반응.
 - 주소록, 연락처, 자동완성, 조직 디렉터리 조회.
 - 드라이브 탐색, 업로드 세션 기반 텍스트 파일 생성, 다운로드, 공유 링크, 사용량 조회, 휴지통/복원/삭제, 이동, 이름 변경, 복사.
 - 일정 CRUD, 일정 객체, 간편 이벤트 생성, 구독 캘린더, 구독 이벤트 조회.
@@ -93,6 +94,7 @@ npm run build
 | 메일 bulk | `gogomail_mail_bulk_update_flags`, `gogomail_mail_bulk_move_messages`, `gogomail_mail_bulk_delete_messages`, `gogomail_mail_bulk_restore_messages`, `gogomail_mail_bulk_update_thread_flags`, `gogomail_mail_bulk_move_threads`, `gogomail_mail_bulk_delete_threads`, `gogomail_mail_bulk_restore_threads` |
 | 폴더/스레드 | `gogomail_mail_list_folders`, `gogomail_mail_create_folder`, `gogomail_mail_rename_folder`, `gogomail_mail_delete_folder`, `gogomail_mail_list_threads`, `gogomail_mail_get_thread_messages` |
 | 첨부파일 | `gogomail_mail_list_attachments`, `gogomail_mail_download_attachment`, `gogomail_mail_get_attachment_upload_capabilities`, `gogomail_mail_create_text_attachment`, `gogomail_mail_cancel_attachment_upload` |
+| DM | `gogomail_dm_list_rooms`, `gogomail_dm_list_public_rooms`, `gogomail_dm_create_room`, `gogomail_dm_add_members`, `gogomail_dm_remove_member`, `gogomail_dm_transfer_owner`, `gogomail_dm_create_invite`, `gogomail_dm_join_invite`, `gogomail_dm_list_messages`, `gogomail_dm_send_message`, `gogomail_dm_send_attachment`, `gogomail_dm_mark_read`, `gogomail_dm_search`, `gogomail_dm_list_media`, `gogomail_dm_download_attachment`, `gogomail_dm_edit_message`, `gogomail_dm_delete_message`, `gogomail_dm_toggle_reaction` |
 | 주소록/디렉터리 | `gogomail_contacts_list_addressbooks`, `gogomail_contacts_create_addressbook`, `gogomail_contacts_get_addressbook`, `gogomail_contacts_update_addressbook`, `gogomail_contacts_upsert_simple`, `gogomail_contacts_delete_addressbook`, `gogomail_contacts_list`, `gogomail_contacts_get`, `gogomail_contacts_autocomplete`, `gogomail_contacts_upsert`, `gogomail_contacts_delete`, `gogomail_directory_search_users`, `gogomail_directory_org_tree`, `gogomail_directory_get_profile` |
 | Spam 설정 | `gogomail_spam_report_message`, `gogomail_spam_mark_not_spam`, `gogomail_spam_list_senders`, `gogomail_spam_add_sender`, `gogomail_spam_remove_sender` |
 | 드라이브 | `gogomail_drive_list`, `gogomail_drive_get`, `gogomail_drive_download`, `gogomail_drive_create_folder`, `gogomail_drive_create_text_file`, `gogomail_drive_list_upload_sessions`, `gogomail_drive_get_upload_session`, `gogomail_drive_cancel_upload_session`, `gogomail_drive_rename`, `gogomail_drive_move`, `gogomail_drive_copy`, `gogomail_drive_trash`, `gogomail_drive_restore`, `gogomail_drive_delete`, `gogomail_drive_share_link`, `gogomail_drive_get_share_link`, `gogomail_drive_download_share_link`, `gogomail_drive_usage`, `gogomail_drive_list_share_links`, `gogomail_drive_delete_share_link` |
@@ -121,6 +123,7 @@ npm run build
 ## API 계약 메모
 
 - 메일, 드라이브, 일정, 계정 툴은 `docs/openapi.yaml`에 문서화된 `/api/v1` 라우트를 호출합니다.
+- DM 툴은 `/api/v1/dm` 라우트를 호출하며 웹메일과 같은 참여자 전용 방/메시지, 초대, 첨부, 반응, 검색, 미디어 계약을 제공합니다.
 - 주소록과 디렉터리 툴은 `/api/mail` 아래의 기존 CardDAV JSON bridge를 호출합니다.
 - 메일 bulk flag/move 툴은 문서화된 `PATCH` bulk 라우트를 사용하고, bulk delete/restore는 `POST`를 사용합니다.
 - 알림 툴은 `/api/v1/me/notification-preferences`, `/api/v1/config/web-push`, `/api/v1/me/push-subscriptions`, `/api/v1/push-devices`를 사용합니다. 구독/디바이스 삭제는 `basic` 모드에서 정확한 확인 문자열이 필요합니다.

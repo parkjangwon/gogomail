@@ -6,12 +6,13 @@ Korean / 한국어: [README.ko.md](README.ko.md)
 
 This server is intentionally separate from `apps/gogomail-manage-mcp`. The management MCP is for operators and administrators; this package is for an individual user and authenticates with a user-issued `gmu_` access key.
 
-Current user coverage is **105 tools** over the documented webmail/user API surface, including the recent profile/avatar, directory profile, spam report/not-spam, sender allow/block, notification preference, Web Push subscription, and push-device workflows used by the webmail UI.
+Current user coverage is **123 tools** over the documented webmail/user API surface, including DM rooms/messages/attachments/reactions, profile/avatar, directory profile, spam report/not-spam, sender allow/block, notification preference, Web Push subscription, and push-device workflows used by the webmail UI.
 
 ## What It Provides
 
-- 105 MCP tools over existing GoGoMail user APIs.
+- 123 MCP tools over existing GoGoMail user APIs.
 - Mail search, message reads, send, drafts, folders, threads, attachments, delivery status, open-tracking reads, and bulk message/thread actions.
+- DM room discovery/creation, group membership/owner/invite workflows, text/Drive/file messages, read marks, search/media views, attachment downloads, edits/deletes, and reactions.
 - Contacts, address books, autocomplete, and company directory lookup.
 - Drive browsing, upload-session based text-file creation, downloads, share links, usage, trash/restore/delete, move, rename, and copy.
 - Calendar CRUD, calendar objects, simple event creation, subscriptions, and subscription event reads.
@@ -93,6 +94,7 @@ For local Docker development, `GOGOMAIL_API_URL` is usually `http://localhost:80
 | Mail bulk | `gogomail_mail_bulk_update_flags`, `gogomail_mail_bulk_move_messages`, `gogomail_mail_bulk_delete_messages`, `gogomail_mail_bulk_restore_messages`, `gogomail_mail_bulk_update_thread_flags`, `gogomail_mail_bulk_move_threads`, `gogomail_mail_bulk_delete_threads`, `gogomail_mail_bulk_restore_threads` |
 | Folders and threads | `gogomail_mail_list_folders`, `gogomail_mail_create_folder`, `gogomail_mail_rename_folder`, `gogomail_mail_delete_folder`, `gogomail_mail_list_threads`, `gogomail_mail_get_thread_messages` |
 | Attachments | `gogomail_mail_list_attachments`, `gogomail_mail_download_attachment`, `gogomail_mail_get_attachment_upload_capabilities`, `gogomail_mail_create_text_attachment`, `gogomail_mail_cancel_attachment_upload` |
+| DM | `gogomail_dm_list_rooms`, `gogomail_dm_list_public_rooms`, `gogomail_dm_create_room`, `gogomail_dm_add_members`, `gogomail_dm_remove_member`, `gogomail_dm_transfer_owner`, `gogomail_dm_create_invite`, `gogomail_dm_join_invite`, `gogomail_dm_list_messages`, `gogomail_dm_send_message`, `gogomail_dm_send_attachment`, `gogomail_dm_mark_read`, `gogomail_dm_search`, `gogomail_dm_list_media`, `gogomail_dm_download_attachment`, `gogomail_dm_edit_message`, `gogomail_dm_delete_message`, `gogomail_dm_toggle_reaction` |
 | Contacts and directory | `gogomail_contacts_list_addressbooks`, `gogomail_contacts_create_addressbook`, `gogomail_contacts_get_addressbook`, `gogomail_contacts_update_addressbook`, `gogomail_contacts_upsert_simple`, `gogomail_contacts_delete_addressbook`, `gogomail_contacts_list`, `gogomail_contacts_get`, `gogomail_contacts_autocomplete`, `gogomail_contacts_upsert`, `gogomail_contacts_delete`, `gogomail_directory_search_users`, `gogomail_directory_org_tree`, `gogomail_directory_get_profile` |
 | Spam settings | `gogomail_spam_report_message`, `gogomail_spam_mark_not_spam`, `gogomail_spam_list_senders`, `gogomail_spam_add_sender`, `gogomail_spam_remove_sender` |
 | Drive | `gogomail_drive_list`, `gogomail_drive_get`, `gogomail_drive_download`, `gogomail_drive_create_folder`, `gogomail_drive_create_text_file`, `gogomail_drive_list_upload_sessions`, `gogomail_drive_get_upload_session`, `gogomail_drive_cancel_upload_session`, `gogomail_drive_rename`, `gogomail_drive_move`, `gogomail_drive_copy`, `gogomail_drive_trash`, `gogomail_drive_restore`, `gogomail_drive_delete`, `gogomail_drive_share_link`, `gogomail_drive_get_share_link`, `gogomail_drive_download_share_link`, `gogomail_drive_usage`, `gogomail_drive_list_share_links`, `gogomail_drive_delete_share_link` |
@@ -121,6 +123,7 @@ Sensitive actions in `basic` mode require the matching confirmation argument. Fo
 ## API Contract Notes
 
 - Mail, Drive, calendar, and account tools call `/api/v1` routes documented in `docs/openapi.yaml`.
+- DM tools call `/api/v1/dm` routes and expose the same participant-only room/message, invite, attachment, reaction, search, and media contracts used by webmail.
 - Contact and directory tools call the existing CardDAV JSON bridge under `/api/mail`.
 - Bulk mail flag and move tools use the documented `PATCH` bulk routes; bulk delete and restore use `POST`.
 - Notification tools use `/api/v1/me/notification-preferences`, `/api/v1/config/web-push`, `/api/v1/me/push-subscriptions`, and `/api/v1/push-devices`; deleting subscriptions/devices requires exact confirmation in `basic` mode.
