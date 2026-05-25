@@ -10,7 +10,7 @@
 # Agent API surface:
 #   Prometheus:  http://localhost:9090/api/v1/query?query=<PromQL>
 #   Loki:        http://localhost:3100/loki/api/v1/query_range?query=<LogQL>&start=<ns>&end=<ns>&limit=100
-#   Grafana UI:  http://localhost:3000  (admin / $GRAFANA_PASSWORD)
+#   Grafana UI:  http://localhost:3000  (admin / $GRAFANA_PASSWORD — set in .env or environment)
 
 services:
   # Extend backend: enable Prometheus metrics on :9091
@@ -82,7 +82,8 @@ services:
       - "${GRAFANA_PORT:-3000}:3000"
     environment:
       GF_SECURITY_ADMIN_USER: admin
-      GF_SECURITY_ADMIN_PASSWORD: "${GRAFANA_PASSWORD:-admin}"
+      # GRAFANA_PASSWORD must be set in environment or .env file. No default — fails loudly if missing.
+      GF_SECURITY_ADMIN_PASSWORD: "${GRAFANA_PASSWORD}"
       GF_USERS_ALLOW_SIGN_UP: "false"
       GF_AUTH_ANONYMOUS_ENABLED: "true"
       GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
