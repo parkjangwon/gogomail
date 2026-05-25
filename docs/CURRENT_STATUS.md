@@ -1,6 +1,14 @@
 # gogomail current status
 
-Last updated: 2026-05-25 (Prometheus+Loki+Grafana monitoring stack)
+Last updated: 2026-05-25 (edge-mta SMTP fixes + monitoring end-to-end)
+
+## Edge-MTA SMTP fix and monitoring end-to-end wiring (2026-05-25)
+- Fixed a nil-interface panic in `runReceiveMTA` (`internal/app/run.go`): when `LocalRecipients` is configured, the static-resolver path left `maildbRepo` as a typed nil `*maildb.Repository`. Assigning it directly to `DomainPolicyLookup` (an interface) bypassed the nil-check in `session.Rcpt`, causing a panic on every `RCPT TO` command. Fix: declare a separate `smtpd.DomainPolicyLookup` variable and only populate it when `maildbRepo != nil`.
+- Added `go serveMetrics()` call to `runReceiveMTA` so edge-mta, inbound-mta, and submission modes expose `/metrics` on `cfg.MetricsAddr`, matching what the all-in-one HTTP mode already did.
+- Added `gogomail-edge-mta` Prometheus scrape job in `docker/prometheus-monitoring.yml`; SMTP metrics (`gogomail_smtp_events_total`, `gogomail_smtp_session_duration_seconds`) now flow from edge-mta into Prometheus.
+- Added `log_format: json` to `configs/config.dev.yaml` + new `LogFormat` config field with `"text"|"json"` validation; all services now emit structured JSON logs in all environments.
+- Added `edge-mta` service to `docker/docker-compose.dev.yml` for local SMTP testing on port 2525.
+- Verification: full SMTP session (EHLO→MAIL FROM→RCPT TO→DATA→QUIT) succeeds; `gogomail_smtp_events_total{stage=mail_from|rcpt|recorded|logout,result=accepted}` visible in Prometheus from both backend and edge-mta targets; Loki shows JSON logs from all services.
 
 ## Prometheus + Loki + Grafana monitoring stack (2026-05-25)
 - Docker Compose overlay (`docker/docker-compose.monitoring.yml`) adds Prometheus, Loki, Promtail, and Grafana as a side-by-side stack with no changes to the base dev/small compose files.
