@@ -164,6 +164,13 @@ function messagePreview(message: DMMessage | undefined, labels: { deleted: strin
   return message.body;
 }
 
+function isDMImageMessage(message: DMMessage): boolean {
+  if (message.message_type !== 'file') return false;
+  const mime = (message.attachment_mime_type ?? '').toLowerCase();
+  if (['image/jpeg', 'image/jpg', 'image/png', 'image/webp'].includes(mime)) return true;
+  return /\.(jpe?g|png|webp)$/i.test(message.attachment_name ?? message.body ?? '');
+}
+
 function mergeMessage(existing: DMMessage[], next: DMMessage): DMMessage[] {
   const index = existing.findIndex((m) => m.id === next.id);
   if (index === -1) return [...existing, next].sort((a, b) => Date.parse(a.created_at) - Date.parse(b.created_at));
@@ -213,6 +220,7 @@ export function DMPanel({ userEmail, onUnreadChange, onClose, onComposeToAddress
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [driveComposerOpen, setDriveComposerOpen] = useState(false);
   const [reactionPickerMessageId, setReactionPickerMessageId] = useState<string | null>(null);
+  const [previewImage, setPreviewImage] = useState<DMMessage | null>(null);
   const [loadingRooms, setLoadingRooms] = useState(false);
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [error, setError] = useState('');
@@ -684,6 +692,8 @@ export function DMPanel({ userEmail, onUnreadChange, onClose, onComposeToAddress
                     const reactions = message.reactions ?? [];
                     const sender = message.sender_id ? memberById.get(message.sender_id) : undefined;
                     const senderLabel = memberName(sender, message.sender_id || 'system');
+                    const imageMessage = isDMImageMessage(message);
+                    const imageSrc = message.attachment_download_url;
                     return (
                       <div key={message.id} style={{ display: 'flex', justifyContent: system ? 'center' : mine ? 'flex-end' : 'flex-start', alignItems: 'flex-end', gap: 7, marginBottom: 9 }}>
                         {!system && !mine && <MemberAvatar member={sender} currentUserId={currentUserId} selfAvatarUrl={selfAvatarUrl} size={28} label={senderLabel} />}
@@ -698,6 +708,17 @@ export function DMPanel({ userEmail, onUnreadChange, onClose, onComposeToAddress
                             <div style={{ display: 'flex', gap: 6 }}>
                               <input value={editingBody} onChange={(e) => setEditingBody(e.currentTarget.value)} style={{ flex: 1, minWidth: 0, border: '1px solid var(--color-border-default)', borderRadius: 5, padding: '5px 7px', fontSize: 13 }} />
                               <button type="button" onClick={submitEdit} style={{ border: 'none', borderRadius: 5, background: 'var(--color-accent)', color: '#fff', padding: '0 9px', fontSize: 12, cursor: 'pointer' }}>{t('save')}</button>
+                            </div>
+                          ) : imageMessage && imageSrc && !message.deleted_at ? (
+                            <div>
+                              <button type="button" onClick={() => setPreviewImage(message)} aria-label={t('openImage')} style={{ display: 'block', border: 'none', padding: 0, background: 'transparent', cursor: 'zoom-in', maxWidth: '100%' }}>
+                                <img src={imageSrc} alt={message.attachment_name || message.body || t('imageAttachment')} style={{ display: 'block', maxWidth: 'min(320px, 100%)', maxHeight: 260, objectFit: 'cover', borderRadius: 7, border: mine ? '1px solid rgba(255,255,255,0.24)' : '1px solid var(--color-border-subtle)' }} />
+                              </button>
+                              <div style={{ marginTop: 6, fontSize: 12, color: mine ? 'rgba(255,255,255,0.82)' : 'var(--color-text-secondary)', display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+                                <PaperClipIcon style={{ width: 13, height: 13, flexShrink: 0 }} />
+                                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{message.attachment_name || message.body || t('imageAttachment')}</span>
+                                {message.attachment_size ? <span style={{ opacity: 0.72, flexShrink: 0 }}>{formatBytes(message.attachment_size)}</span> : null}
+                              </div>
                             </div>
                           ) : (
                             <div style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', fontSize: system ? 12 : 13, lineHeight: 1.5 }}>
@@ -877,6 +898,14 @@ export function DMPanel({ userEmail, onUnreadChange, onClose, onComposeToAddress
           </div>
         )}
       </main>
+      {previewImage?.attachment_download_url && (
+        <div role="dialog" aria-modal="true" aria-label={previewImage.attachment_name || t('imageAttachment')} onClick={() => setPreviewImage(null)} style={{ position: 'absolute', inset: 0, zIndex: 140, background: 'rgba(15,23,42,0.72)', display: 'grid', placeItems: 'center', padding: 24 }}>
+          <button type="button" onClick={(e) => { e.stopPropagation(); setPreviewImage(null); }} aria-label={t('closeImage')} style={{ position: 'absolute', top: 14, right: 14, width: 34, height: 34, border: '1px solid rgba(255,255,255,0.36)', borderRadius: 6, background: 'rgba(15,23,42,0.42)', color: '#fff', display: 'grid', placeItems: 'center', cursor: 'pointer' }}>
+            <XMarkIcon style={{ width: 19, height: 19 }} />
+          </button>
+          <img onClick={(e) => e.stopPropagation()} src={previewImage.attachment_download_url} alt={previewImage.attachment_name || previewImage.body || t('imageAttachment')} style={{ maxWidth: 'min(92vw, 920px)', maxHeight: 'min(82vh, 760px)', objectFit: 'contain', borderRadius: 8, boxShadow: '0 24px 80px rgba(0,0,0,0.34)', background: '#fff' }} />
+        </div>
+      )}
     </div>
   );
 }

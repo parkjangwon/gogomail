@@ -108,6 +108,7 @@ func RegisterDMRoutes(mux *http.ServeMux, service DMService, tokenManager *auth.
 			writeDMError(w, err)
 			return
 		}
+		addDMMessageAttachmentDownloadURLs(messages, service, publicBaseURL)
 		writeJSON(w, http.StatusOK, map[string]any{"messages": messages})
 	})
 
@@ -141,6 +142,7 @@ func RegisterDMRoutes(mux *http.ServeMux, service DMService, tokenManager *auth.
 			writeDMError(w, err)
 			return
 		}
+		addDMMessageAttachmentDownloadURL(&message, service, publicBaseURL)
 		writeJSON(w, http.StatusOK, map[string]any{"message": message})
 	})
 
@@ -176,6 +178,7 @@ func RegisterDMRoutes(mux *http.ServeMux, service DMService, tokenManager *auth.
 			writeDMError(w, err)
 			return
 		}
+		addDMMessageAttachmentDownloadURL(&message, service, publicBaseURL)
 		writeJSON(w, http.StatusOK, map[string]any{"message": message})
 	})
 
@@ -218,6 +221,7 @@ func RegisterDMRoutes(mux *http.ServeMux, service DMService, tokenManager *auth.
 			writeDMError(w, err)
 			return
 		}
+		addDMMessageAttachmentDownloadURL(&message, service, publicBaseURL)
 		writeJSON(w, http.StatusCreated, map[string]any{"message": message})
 	})
 
@@ -421,6 +425,28 @@ func addDMAttachmentDownloadURLs(items []dm.MediaItem, service DMService, public
 		}
 		items[i].DownloadURL = base + "/dm/messages/" + url.PathEscape(items[i].MessageID) + "/attachment?token=" + url.QueryEscape(token)
 	}
+}
+
+func addDMMessageAttachmentDownloadURLs(messages []dm.Message, service DMService, publicBaseURL string) {
+	for i := range messages {
+		addDMMessageAttachmentDownloadURL(&messages[i], service, publicBaseURL)
+	}
+}
+
+func addDMMessageAttachmentDownloadURL(message *dm.Message, service DMService, publicBaseURL string) {
+	if message == nil || message.MessageType != dm.MessageTypeFile || message.ID == "" {
+		return
+	}
+	token, err := service.SignAttachmentDownload(message.ID, time.Now().UTC().Add(time.Hour))
+	if err != nil {
+		return
+	}
+	publicRoot := strings.TrimRight(publicBaseURL, "/")
+	base := publicRoot + "/api/v1"
+	if publicRoot == "" {
+		base = "/api/v1"
+	}
+	message.AttachmentDownloadURL = base + "/dm/messages/" + url.PathEscape(message.ID) + "/attachment?token=" + url.QueryEscape(token)
 }
 
 func readDMAttachmentUpload(w http.ResponseWriter, r *http.Request) (dm.AttachmentUpload, bool) {
