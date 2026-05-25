@@ -2,31 +2,25 @@
 
 ## Current Task
 
-**Task 9: Split internal/httpapi/admin.go into route-group files** — COMPLETE
+**Task 10: Split internal/app/admin_service.go into domain files** — COMPLETE
 
 ## Previous Task Status
 
-**Task 8: Extract DMRoomList, DMMessageList, DMComposer from DMPanel** — COMPLETE
+**Task 9: Split internal/httpapi/admin.go into route-group files** — COMPLETE
 
 ## Current Task Details
 
-**File:** `internal/httpapi/admin.go` (was 8,901 lines, now 420 lines)
+**File:** `internal/app/admin_service.go` (was 1,759 lines, now 93 lines)
 **Changes:**
-- Extracted types/constants → `admin_types.go` (357 lines)
-- Extracted middleware → `admin_middleware.go` (316 lines)
-- Extracted company routes → `admin_company.go` (459 lines)
-- Extracted domain routes → `admin_domain.go` (716 lines)
-- Extracted user routes → `admin_user.go` (550 lines)
-- Extracted operations routes → `admin_operations.go` (306 lines)
-- Extracted directory routes → `admin_directory.go` (350 lines)
-- Extracted storage routes → `admin_storage.go` (536 lines)
-- Extracted usage routes → `admin_usage.go` (864 lines)
-- Extracted mail routes → `admin_mail.go` (644 lines)
-- Extracted system handlers → `admin_system.go` (3,510 lines)
-- Updated `openapi_contract_test.go` to scan all new admin_*.go files
-- `go build ./internal/httpapi/...` exits 0
-- `go test ./internal/httpapi/... -count=1` → 1101 passed
+- Extracted delivery methods → `admin_service_delivery.go` (backpressure, DAV sync retention, API usage export, mail flow stats)
+- Extracted storage methods → `admin_service_storage.go` (attachment cleanup, drive upload sessions, drive nodes)
+- Extracted directory methods → `admin_service_directory.go` (delegation, group membership, alias methods)
+- Extracted user methods → `admin_service_user.go` (user/domain CRUD, MFA, LDAP/RDBMS sync, IdP config)
+- Extracted config methods → `admin_service_config.go` (config store, domain settings, alerts, API keys)
+- `admin_service.go` now contains only the `adminService` struct + interfaces (93 lines)
+- `go build ./internal/app/...` exits 0
+- `go test ./internal/app/... -count=1` → 169 passed
 
 ## Next Steps After Current Task
 
-→ Task 10: Split internal/app/admin_service.go into domain files
+→ All 10 tasks in the codebase improvement plan are complete
