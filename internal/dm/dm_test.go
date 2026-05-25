@@ -502,3 +502,122 @@ func TestListAllMessagesForExportStoreReturnsAll(t *testing.T) {
 		t.Fatalf("got %d records, want 2", len(got))
 	}
 }
+
+func TestFormatExportTXTHeader(t *testing.T) {
+	now := time.Date(2026, 5, 26, 12, 0, 0, 0, time.UTC)
+	export := RoomExport{
+		Room: Room{
+			ID:       "room-1",
+			RoomType: RoomTypeDirect,
+			Members: []User{
+				{ID: "u1", DisplayName: "Alice", Email: "alice@example.com"},
+				{ID: "u2", DisplayName: "Bob", Email: "bob@example.com"},
+			},
+		},
+		Messages: []Message{},
+		ExportAt: now,
+	}
+	out := FormatExportTXT(export)
+	if !strings.Contains(out, "Alice, Bob") {
+		t.Fatalf("header missing room name, got:\n%s", out)
+	}
+	if !strings.Contains(out, "alice@example.com") {
+		t.Fatalf("header missing participant email, got:\n%s", out)
+	}
+	if !strings.Contains(out, "2026-05-26 12:00:00 UTC") {
+		t.Fatalf("header missing export datetime, got:\n%s", out)
+	}
+	if !strings.Contains(out, "Messages: 0") {
+		t.Fatalf("header missing message count, got:\n%s", out)
+	}
+}
+
+func TestFormatExportTXTMessages(t *testing.T) {
+	now := time.Date(2026, 5, 26, 10, 0, 0, 0, time.UTC)
+	del := now.Add(time.Minute)
+	export := RoomExport{
+		Room: Room{
+			ID:       "room-1",
+			RoomType: RoomTypeGroup,
+			Name:     "Team Chat",
+			Members:  []User{{ID: "u1", DisplayName: "Alice", Email: "alice@example.com"}},
+		},
+		Messages: []Message{
+			{ID: "m1", SenderID: "u1", MessageType: MessageTypeText, Body: "hello world", CreatedAt: now},
+			{ID: "m2", SenderID: "u1", MessageType: MessageTypeText, Body: "삭제된 메시지입니다.", CreatedAt: now.Add(time.Second), DeletedAt: &del},
+			{ID: "m3", SenderID: "", MessageType: MessageTypeSystem, Body: "Alice님이 참여했습니다.", CreatedAt: now.Add(2 * time.Second)},
+			{ID: "m4", SenderID: "u1", MessageType: MessageTypeFile, AttachmentName: "report.pdf", CreatedAt: now.Add(3 * time.Second)},
+			{ID: "m5", SenderID: "u1", MessageType: MessageTypeDriveLink, DriveFileID: "drive-123", CreatedAt: now.Add(4 * time.Second)},
+		},
+		ExportAt: now,
+	}
+	out := FormatExportTXT(export)
+	if !strings.Contains(out, "hello world") {
+		t.Errorf("missing text body, got:\n%s", out)
+	}
+	if !strings.Contains(out, "[삭제됨]") {
+		t.Errorf("missing deleted marker, got:\n%s", out)
+	}
+	if !strings.Contains(out, "[시스템]") {
+		t.Errorf("missing system prefix, got:\n%s", out)
+	}
+	if !strings.Contains(out, "[파일: report.pdf]") {
+		t.Errorf("missing file attachment, got:\n%s", out)
+	}
+	if !strings.Contains(out, "[드라이브: drive-123]") {
+		t.Errorf("missing drive link, got:\n%s", out)
+	}
+}
+
+func TestExportRoomDecryptsMessages(t *testing.T) {
+	master := bytes.Repeat([]byte{0x11}, MasterKeyBytes)
+	crypto, _ := NewCrypto(master)
+	roomKey, _ := crypto.GenerateRoomKey()
+	wrapped, _ := crypto.WrapRoomKey(roomKey)
+	body1, _ := crypto.EncryptBody(roomKey, []byte("hello"))
+	body2, _ := crypto.EncryptBody(roomKey, []byte("world"))
+	now := time.Now().UTC()
+	store := &fakeStore{
+		wrappedRoomKey: wrapped,
+		exportMessages: []MessageRecord{
+			{Message: Message{ID: "m1", RoomID: "room-1", SenderID: "u1", MessageType: MessageTypeText, CreatedAt: now}},
+			{Message: Message{ID: "m2", RoomID: "room-1", SenderID: "u2", MessageType: MessageTypeText, CreatedAt: now.Add(time.Minute)}},
+		},
+		room: Room{ID: "room-1", RoomType: RoomTypeDirect},
+	}
+	store.exportMessages[0].BodyCiphertext = body1
+	store.exportMessages[1].BodyCiphertext = body2
+	svc := NewService(store, crypto)
+	p := Principal{UserID: "u1", CompanyID: "c1", DomainID: "d1"}
+	export, err := svc.ExportRoom(context.Background(), p, "room-1")
+	if err != nil {
+		t.Fatalf("ExportRoom: %v", err)
+	}
+	if len(export.Messages) != 2 {
+		t.Fatalf("messages = %d, want 2", len(export.Messages))
+	}
+	if export.Messages[0].Body != "hello" {
+		t.Fatalf("body[0] = %q, want hello", export.Messages[0].Body)
+	}
+	if export.Messages[1].Body != "world" {
+		t.Fatalf("body[1] = %q, want world", export.Messages[1].Body)
+	}
+	if export.Room.ID != "room-1" {
+		t.Fatalf("room ID = %q, want room-1", export.Room.ID)
+	}
+}
+
+func TestGetRoomServiceDelegates(t *testing.T) {
+	master := bytes.Repeat([]byte{0x11}, MasterKeyBytes)
+	crypto, _ := NewCrypto(master)
+	store := &fakeStore{room: Room{ID: "room-1", RoomType: RoomTypeDirect}}
+	svc := NewService(store, crypto)
+	p := Principal{UserID: "u1", CompanyID: "c1", DomainID: "d1"}
+	got, err := svc.GetRoom(context.Background(), p, "room-1")
+	if err != nil {
+		t.Fatalf("GetRoom: %v", err)
+	}
+	if got.ID != "room-1" {
+		t.Fatalf("room ID = %q, want room-1", got.ID)
+	}
+}

@@ -301,6 +301,50 @@ func (s *Service) ListPublicRooms(ctx context.Context, principal Principal) ([]R
 	return s.store.ListPublicRooms(ctx, normalizePrincipal(principal))
 }
 
+// GetRoom returns the room if the principal is a participant.
+func (s *Service) GetRoom(ctx context.Context, principal Principal, roomID string) (Room, error) {
+	principal = normalizePrincipal(principal)
+	if err := validatePrincipal(principal); err != nil {
+		return Room{}, err
+	}
+	roomID = strings.TrimSpace(roomID)
+	if roomID == "" {
+		return Room{}, fmt.Errorf("%w: room_id is required", ErrInvalid)
+	}
+	return s.store.GetRoom(ctx, principal, roomID)
+}
+
+// ExportRoom fetches all messages (including deleted and system) for a room,
+// decrypts them, and returns a RoomExport ready for rendering.
+func (s *Service) ExportRoom(ctx context.Context, principal Principal, roomID string) (RoomExport, error) {
+	principal = normalizePrincipal(principal)
+	if err := validatePrincipal(principal); err != nil {
+		return RoomExport{}, err
+	}
+	roomID = strings.TrimSpace(roomID)
+	if roomID == "" {
+		return RoomExport{}, fmt.Errorf("%w: room_id is required", ErrInvalid)
+	}
+	room, err := s.store.GetRoom(ctx, principal, roomID)
+	if err != nil {
+		return RoomExport{}, err
+	}
+	roomKey, err := s.roomKey(ctx, principal, roomID)
+	if err != nil {
+		return RoomExport{}, err
+	}
+	defer zeroBytes(roomKey)
+	records, err := s.store.ListAllMessagesForExport(ctx, principal, roomID)
+	if err != nil {
+		return RoomExport{}, err
+	}
+	messages, err := s.decryptRecords(roomKey, records)
+	if err != nil {
+		return RoomExport{}, err
+	}
+	return RoomExport{Room: room, Messages: messages, ExportAt: s.now()}, nil
+}
+
 func (s *Service) SendMessage(ctx context.Context, principal Principal, roomID string, req SendMessageRequest) (Message, error) {
 	principal = normalizePrincipal(principal)
 	if err := validatePrincipal(principal); err != nil {
