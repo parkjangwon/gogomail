@@ -1,6 +1,5 @@
 export function exportToCSV(data: Record<string, unknown>[], filename: string) {
   if (!data || data.length === 0) {
-    console.warn("No data to export");
     return;
   }
 

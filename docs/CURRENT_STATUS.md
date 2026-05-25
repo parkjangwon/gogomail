@@ -7,7 +7,7 @@ Last updated: 2026-05-26
 GoGoMail is a production-grade self-hosted email platform written in Go
 (single binary, 24 runtime modes). Key capabilities:
 
-- **Protocols**: SMTP (inbound/outbound), IMAP, POP3, CalDAV, CardDAV, WebDAV, LDAP
+- **Protocols**: SMTP (inbound/outbound), IMAP, POP3, CalDAV, CardDAV, WebDAV, LDAP, JMAP (RFC 8620/8621 foundation)
 - **Mail security**: SPF, DKIM, DMARC, ARC, MTA-STS, TLS-RPT, DANE
 - **Storage**: PostgreSQL (multi-tenant), Redis Streams (outbox), S3-compatible object storage
 - **Auth**: JWT + TOTP MFA + refresh token rotation
