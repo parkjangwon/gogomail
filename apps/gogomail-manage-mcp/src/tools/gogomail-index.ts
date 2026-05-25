@@ -4,7 +4,7 @@
 
 import type { Tool } from "@modelcontextprotocol/sdk/types.js";
 import type { GogomailClient } from "../clients/gogomail.js";
-import type { SuppoClient } from "../clients/suppo.js";
+import { type OptionalSuppo } from "./shared.js";
 
 import * as usersTools from "./users.js";
 import * as companyTools from "./company.js";
@@ -13,7 +13,7 @@ import * as securityTools from "./security.js";
 import * as orgTools from "./org.js";
 import * as systemTools from "./system.js";
 
-export type OptionalSuppo = SuppoClient | null;
+export type { OptionalSuppo };
 
 export const toolDefinitions: Tool[] = [
   ...usersTools.toolDefinitions,
