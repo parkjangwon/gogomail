@@ -1034,7 +1034,7 @@ export default function MailPage() {
         if (appTarget) { e.preventDefault(); setActiveApp(appTarget); return; }
       }
 
-      if (key === 'D' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      if (key.toLowerCase() === 'd' && !e.ctrlKey && !e.metaKey && !e.altKey) {
         e.preventDefault();
         setShowDMModal(true);
         return;

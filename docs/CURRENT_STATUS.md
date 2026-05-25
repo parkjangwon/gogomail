@@ -27,6 +27,10 @@ Last updated: 2026-05-25 (DM instant messaging implementation)
   creation from directory users, message bubbles, file uploads, Drive-file
   message IDs, search/media side views, invite creation, member/owner controls,
   reactions, edit/delete actions, and localized labels.
+- DM modal copy is covered by the webmail locale files, the global shortcut is
+  documented as `d` in both shortcut help and settings, and direct-room creation
+  now succeeds against the live API after fixing the direct-room lookup SQL bind
+  parameters. Invalid non-UUID participant IDs now return 400 instead of 500.
 - `docs/openapi.yaml` and `docs/backend-api-contracts.md` now document the DM
   route surface, envelopes, auth fallback, encrypted storage behavior, and
   attachment constraints/downloads; OpenAPI route-coverage tests include

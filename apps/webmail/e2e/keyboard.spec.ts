@@ -41,4 +41,10 @@ test.describe('Keyboard shortcuts', () => {
     await expect(help).toBeVisible({ timeout: 2_000 }).catch(() => null);
     expect(true).toBe(true);
   });
+
+  test('"d" opens DM modal', async ({ page }) => {
+    await page.locator('body').click({ position: { x: 5, y: 5 }, force: true }).catch(() => null);
+    await page.keyboard.press('d');
+    await expect(page.getByRole('heading', { name: 'DM' })).toBeVisible({ timeout: 3_000 });
+  });
 });
