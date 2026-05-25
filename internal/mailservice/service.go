@@ -924,6 +924,16 @@ func (s *Service) BackfillIMAPMailboxUIDs(ctx context.Context, userID string, ma
 	return repo.BackfillIMAPMailboxUIDs(ctx, userID, mailboxID, limit)
 }
 
+func (s *Service) LookupIMAPMessageUIDs(ctx context.Context, userID, mailboxID string, messageIDs []string) (map[string]uint32, error) {
+	repo, ok := s.repository.(interface {
+		LookupIMAPMessageUIDs(context.Context, string, string, []string) (map[string]uint32, error)
+	})
+	if !ok {
+		return nil, fmt.Errorf("imap uid lookup repository is required")
+	}
+	return repo.LookupIMAPMessageUIDs(ctx, userID, mailboxID, messageIDs)
+}
+
 func (s *Service) StoreIMAPFlags(ctx context.Context, req imapgw.StoreFlagsRequest) ([]imapgw.MessageSummary, error) {
 	repo, ok := s.repository.(interface {
 		StoreIMAPFlags(context.Context, string, string, []imapgw.UID, imapgw.MessageFlags, imapgw.StoreFlagsMode, uint64, bool) ([]imapgw.MessageSummary, error)

@@ -1,6 +1,14 @@
 # gogomail current status
 
-Last updated: 2026-05-25 (OpenSearch search pipeline end-to-end)
+Last updated: 2026-05-25 (IMAP UID SEARCH OpenSearch fast path)
+
+## IMAP UID SEARCH OpenSearch fast path (2026-05-25)
+- Added `imapgw.MessageUIDLookup` interface (`LookupMessageUIDs`) and `maildb.Repository.LookupIMAPMessageUIDs` SQL method; resolves a slice of message UUIDs → IMAP UIDs in a single `SELECT … WHERE message_id = ANY($3::uuid[])` roundtrip.
+- Added `imapSearchUIDFastPath` helper in `imapgw/server.go`: when `UID SEARCH` criteria are 100% satisfied by the search index (no MODSEQ, no SAVE, no OR/NOT/TEXT/HEADER/UID/MODSEQ predicates), skips the full `ListMessages` Postgres load. Instead: query OpenSearch (limit 10 000), resolve UIDs, write `* SEARCH …` response. Falls back to the existing slow path if OpenSearch returns ≥ 10 000 results or returns an error.
+- `handleSearch` now computes `requestsModSeq` before attempting the fast path so the CONDSTORE guard check happens once in both paths.
+- Compile-time `var _ imapgw.MessageUIDLookup = IMAPBackendAdapter{}` assertion added to `mailservice/imap_backend.go`.
+- POP3 `ListPOP3InboxMessagesPage` was already lean (fetches only `id`, `received_at`, `size` — 3 cols vs 20+); no POP3 changes needed.
+- Full test suite: 6,154 tests pass.
 
 ## OpenSearch search pipeline end-to-end (2026-05-25)
 - Added `docker/docker-compose.opensearch.yml` overlay: runs OpenSearch 2.11.0 (single-node, security plugin disabled) + a `search-index-worker` container; injects `GOGOMAIL_SEARCH_INDEX_OPENSEARCH_ENDPOINT` and `_INDEX` env vars into every service that loads `config.dev.yaml` (required because config validation fails if the endpoint is unset when `search_index_backend=opensearch`).

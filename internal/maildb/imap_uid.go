@@ -3238,3 +3238,36 @@ SELECT EXISTS (
 	}
 	return nil
 }
+
+// LookupIMAPMessageUIDs returns the IMAP UID for each message ID in
+// messageIDs that exists in the given mailbox. Messages without an assigned
+// UID (not yet processed by the uid-backfill worker) are silently omitted.
+func (r *Repository) LookupIMAPMessageUIDs(ctx context.Context, userID, mailboxID string, messageIDs []string) (map[string]uint32, error) {
+	if r.db == nil {
+		return nil, fmt.Errorf("database handle is required")
+	}
+	if len(messageIDs) == 0 {
+		return map[string]uint32{}, nil
+	}
+	rows, err := r.db.QueryContext(ctx, `
+SELECT message_id::text, uid::bigint
+FROM imap_message_uid
+WHERE mailbox_id = $1::uuid
+  AND user_id    = $2::uuid
+  AND message_id = ANY($3::uuid[])
+`, mailboxID, userID, pq.Array(messageIDs))
+	if err != nil {
+		return nil, fmt.Errorf("lookup imap message uids: %w", err)
+	}
+	defer rows.Close()
+	result := make(map[string]uint32, len(messageIDs))
+	for rows.Next() {
+		var id string
+		var uid int64
+		if err := rows.Scan(&id, &uid); err != nil {
+			return nil, fmt.Errorf("scan imap message uid: %w", err)
+		}
+		result[id] = uint32(uid) //nolint:gosec // uid is bounded [1,4294967295] by DB check
+	}
+	return result, rows.Err()
+}

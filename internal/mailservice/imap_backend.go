@@ -16,6 +16,7 @@ type IMAPBackendAdapter struct {
 
 var _ imapgw.Backend = IMAPBackendAdapter{}
 var _ imapgw.SearchMessageIDSource = IMAPBackendAdapter{}
+var _ imapgw.MessageUIDLookup = IMAPBackendAdapter{}
 
 func NewIMAPBackendAdapter(authenticator smtpd.SubmissionAuthenticator, service *Service) IMAPBackendAdapter {
 	return IMAPBackendAdapter{

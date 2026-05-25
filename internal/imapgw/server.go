@@ -2582,6 +2582,24 @@ func (s *Server) handleSearch(writer *bufio.Writer, tag string, fields []string,
 		_, err := writer.WriteString(tag + " NO mailbox must be selected\r\n")
 		return false, err
 	}
+	requestsModSeq := imapSearchRequestsModSeq(criteria)
+	if requestsModSeq {
+		if !state.selectedSupportsPersistentModSeq() {
+			return s.rejectSelectedNoModSeq(writer, tag, state, "SEARCH")
+		}
+		state.condstoreAware = true
+	}
+
+	// Fast path: UID SEARCH with criteria fully satisfied by the search index.
+	// Avoids loading the full mailbox from Postgres when all predicates can be
+	// answered by OpenSearch directly.
+	if uidMode && !requestsModSeq && !returnOptions.save {
+		if handled, err := s.imapSearchUIDFastPath(state.ctx, state, criteria, returnOptions, tag, writer); handled {
+			return false, err
+		}
+	}
+
+	// Slow path: load all message summaries from Postgres, then filter.
 	messages, err := s.options.Backend.ListMessages(state.ctx, ListMessagesRequest{
 		UserID:    state.session.UserID,
 		MailboxID: state.selectedMailbox,
@@ -2593,13 +2611,6 @@ func (s *Server) handleSearch(writer *bufio.Writer, tag string, fields []string,
 		}
 		_, writeErr := writer.WriteString(tag + " NO SEARCH failed\r\n")
 		return false, writeErr
-	}
-	requestsModSeq := imapSearchRequestsModSeq(criteria)
-	if requestsModSeq {
-		if !state.selectedSupportsPersistentModSeq() {
-			return s.rejectSelectedNoModSeq(writer, tag, state, "SEARCH")
-		}
-		state.condstoreAware = true
 	}
 	results, highestModSeq, ok, err := s.imapSearchResults(state.ctx, state, criteria, messages, uidMode, requestsModSeq)
 	if err != nil {
@@ -3180,6 +3191,76 @@ func (s *Server) imapSearchResults(ctx context.Context, state *imapConnState, cr
 }
 
 const maxIMAPSearchOpenSearchCandidates = 200
+
+// maxIMAPSearchFastPathLimit caps the number of UIDs returned by the fast
+// path. If OpenSearch returns this many results we cannot guarantee
+// completeness and fall back to the slow path.
+const maxIMAPSearchFastPathLimit = 10_000
+
+// imapSearchUIDFastPath handles UID SEARCH when every criterion is fully
+// satisfied by the search index (no MODSEQ, no SAVE). It queries the search
+// index for matching message IDs, resolves them to IMAP UIDs via a targeted
+// Postgres query, and writes the SEARCH/ESEARCH response, all without
+// loading the full mailbox into memory.
+//
+// Returns (true, err) when the response was written (caller must return),
+// (false, nil) to signal that the slow path should be used instead.
+func (s *Server) imapSearchUIDFastPath(
+	ctx context.Context,
+	state *imapConnState,
+	criteria []string,
+	returnOptions imapSearchReturnSpec,
+	tag string,
+	writer *bufio.Writer,
+) (bool, error) {
+	if s == nil || s.options.Backend == nil {
+		return false, nil
+	}
+	// Check that all criteria are satisfied by OpenSearch (ok=true) and at
+	// least one filter is active (used=true, i.e. not just "ALL").
+	osReq, ok := imapOpenSearchSearchRequest(state, criteria)
+	if !ok {
+		return false, nil
+	}
+	source, hasSearch := s.options.Backend.(SearchMessageIDSource)
+	lookup, hasLookup := s.options.Backend.(MessageUIDLookup)
+	if !hasSearch || !hasLookup {
+		return false, nil
+	}
+
+	osReq.Limit = maxIMAPSearchFastPathLimit
+	messageIDs, err := source.SearchMessageIDs(ctx, osReq)
+	if err != nil || len(messageIDs) >= maxIMAPSearchFastPathLimit {
+		// Error or result set too large — fall back to slow path.
+		return false, nil
+	}
+
+	uidMap, err := lookup.LookupMessageUIDs(ctx, state.session.UserID, state.selectedMailbox, messageIDs)
+	if err != nil {
+		return false, nil
+	}
+
+	results := make([]imapSearchMatch, 0, len(uidMap))
+	for _, uid := range uidMap {
+		results = append(results, imapSearchMatch{
+			value: uint32(uid),
+			uid:   uid,
+		})
+	}
+	sort.Slice(results, func(i, j int) bool { return results[i].uid < results[j].uid })
+
+	if returnOptions.extended && len(returnOptions.options) > 0 {
+		if _, err := writer.WriteString(imapESearchResponse(tag, results, true, returnOptions.options, 0, false) + "\r\n"); err != nil {
+			return true, err
+		}
+	} else {
+		if _, err := writer.WriteString("* SEARCH" + imapSearchResultSuffix(imapSearchResultValues(results), 0, false) + "\r\n"); err != nil {
+			return true, err
+		}
+	}
+	_, err = writer.WriteString(tag + " OK UID SEARCH completed\r\n")
+	return true, err
+}
 
 func (s *Server) imapSearchCandidateIDs(ctx context.Context, state *imapConnState, criteria []string) map[MessageID]struct{} {
 	req, ok := imapOpenSearchSearchRequest(state, criteria)
