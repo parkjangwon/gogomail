@@ -35,11 +35,12 @@ curl -s "http://localhost:9090/api/v1/query?query=<PromQL>" | jq .
 ### Range query
 
 ```bash
+# Sent as POST form-encoded body — Prometheus accepts both GET and POST
 curl -s "http://localhost:9090/api/v1/query_range" \
   --data-urlencode "query=<PromQL>" \
   --data-urlencode "start=$(date -v-1H +%s 2>/dev/null || date -d '1 hour ago' +%s)" \
   --data-urlencode "end=$(date +%s)" \
-  --data-urlencode "step=30" | jq .
+  --data-urlencode "step=30s" | jq .
 ```
 
 ### Key PromQL expressions
@@ -170,9 +171,9 @@ Auth: `admin` / `$GRAFANA_PASSWORD` (default: `admin`)
 # List datasources
 curl -s http://admin:admin@localhost:3000/api/datasources | jq '.[].name'
 
-# Check datasource health
-curl -s http://admin:admin@localhost:3000/api/datasources/name/Prometheus/health | jq .
-curl -s http://admin:admin@localhost:3000/api/datasources/name/Loki/health | jq .
+# Check datasource health (uid-based endpoint, available in Grafana 9.4+)
+curl -s http://admin:admin@localhost:3000/api/datasources/uid/prometheus/health | jq .
+curl -s http://admin:admin@localhost:3000/api/datasources/uid/loki/health | jq .
 
 # List dashboards
 curl -s http://admin:admin@localhost:3000/api/search | jq '.[] | {uid, title}'
