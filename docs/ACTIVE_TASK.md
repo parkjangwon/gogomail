@@ -42,6 +42,7 @@ search/media read models, polling APIs, and a webmail global panel.
 - [x] Docs updated.
 - [x] Commit and push to `origin/main`.
 - [x] Fix: Search function now uses consistent 1000 limit in ListSearchCandidates call (was 10000).
+- [x] Refactor: Extracted hardcoded Korean system message strings into injectable `SystemMessages` struct with `DefaultSystemMessages()` and `WithSystemMessages()` for i18n-readiness.
 
 ## Next Task
 

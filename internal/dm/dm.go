@@ -37,6 +37,28 @@ var (
 	ErrForbidden = errors.New("dm forbidden")
 )
 
+// SystemMessages holds the text templates for system-generated DM messages.
+// All placeholders use %s for a user's display name.
+// Override at startup with Service.WithSystemMessages to support other locales.
+type SystemMessages struct {
+	MessageDeleted   string // shown for soft-deleted messages (no placeholder)
+	MemberInvited    string // %s = invitee display name
+	MemberLeft       string // %s = leaving member display name
+	OwnerTransferred string // %s = new owner display name
+	MemberJoined     string // %s = joining member display name
+}
+
+// DefaultSystemMessages returns the built-in Korean system message templates.
+func DefaultSystemMessages() SystemMessages {
+	return SystemMessages{
+		MessageDeleted:   "삭제된 메시지입니다.",
+		MemberInvited:    "%s님이 초대되었습니다.",
+		MemberLeft:       "%s님이 나갔습니다.",
+		OwnerTransferred: "방장이 %s님에게 권한을 위임했습니다.",
+		MemberJoined:     "%s님이 참여했습니다.",
+	}
+}
+
 type Principal struct {
 	UserID    string
 	CompanyID string
@@ -205,10 +227,18 @@ type Service struct {
 	crypto      *Crypto
 	attachments AttachmentStore
 	now         func() time.Time
+	messages    SystemMessages
 }
 
 func NewService(store Store, crypto *Crypto) *Service {
-	return &Service{store: store, crypto: crypto, now: time.Now}
+	return &Service{store: store, crypto: crypto, now: time.Now, messages: DefaultSystemMessages()}
+}
+
+// WithSystemMessages replaces the default (Korean) system message templates.
+// Call before the service handles any requests.
+func (s *Service) WithSystemMessages(msgs SystemMessages) *Service {
+	s.messages = msgs
+	return s
 }
 
 func (s *Service) WithAttachmentStore(store AttachmentStore) *Service {
@@ -436,7 +466,7 @@ func (s *Service) DeleteMessage(ctx context.Context, principal Principal, messag
 	if err != nil {
 		return Message{}, err
 	}
-	deleted.Body = "삭제된 메시지입니다."
+	deleted.Body = s.messages.MessageDeleted
 	return deleted.Message, nil
 }
 
@@ -592,7 +622,7 @@ func (s *Service) AddMembers(ctx context.Context, principal Principal, roomID st
 	if len(users) != len(userIDs) {
 		return nil, fmt.Errorf("%w: users must belong to the same domain", ErrInvalid)
 	}
-	systemMessages, err := s.memberSystemMessages(key, roomID, users, "%s님이 초대되었습니다.")
+	systemMessages, err := s.memberSystemMessages(key, roomID, users, s.messages.MemberInvited)
 	if err != nil {
 		return nil, err
 	}
@@ -625,7 +655,7 @@ func (s *Service) RemoveMember(ctx context.Context, principal Principal, roomID 
 	if len(users) != 1 {
 		return RoomRemoval{}, fmt.Errorf("%w: users must belong to the same domain", ErrInvalid)
 	}
-	systemMessage, err := s.systemMessage(key, roomID, fmt.Sprintf("%s님이 나갔습니다.", displayName(users[0])))
+	systemMessage, err := s.systemMessage(key, roomID, fmt.Sprintf(s.messages.MemberLeft, displayName(users[0])))
 	if err != nil {
 		return RoomRemoval{}, err
 	}
@@ -663,7 +693,7 @@ func (s *Service) TransferOwner(ctx context.Context, principal Principal, roomID
 	if len(users) != 1 {
 		return Message{}, fmt.Errorf("%w: users must belong to the same domain", ErrInvalid)
 	}
-	systemMessage, err := s.systemMessage(key, roomID, fmt.Sprintf("방장이 %s님에게 권한을 위임했습니다.", displayName(users[0])))
+	systemMessage, err := s.systemMessage(key, roomID, fmt.Sprintf(s.messages.OwnerTransferred, displayName(users[0])))
 	if err != nil {
 		return Message{}, err
 	}
@@ -707,7 +737,7 @@ func (s *Service) JoinInvite(ctx context.Context, principal Principal, token str
 	if len(users) != 1 {
 		return Message{}, fmt.Errorf("%w: users must belong to the same domain", ErrInvalid)
 	}
-	systemMessage, err := s.systemMessage(key, roomID, fmt.Sprintf("%s님이 참여했습니다.", displayName(users[0])))
+	systemMessage, err := s.systemMessage(key, roomID, fmt.Sprintf(s.messages.MemberJoined, displayName(users[0])))
 	if err != nil {
 		return Message{}, err
 	}
@@ -773,7 +803,7 @@ func (s *Service) decryptRecords(roomKey []byte, records []MessageRecord) ([]Mes
 	for _, record := range records {
 		msg := record.Message
 		if record.DeletedAt != nil {
-			msg.Body = "삭제된 메시지입니다."
+			msg.Body = s.messages.MessageDeleted
 			out = append(out, msg)
 			continue
 		}
