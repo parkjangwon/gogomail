@@ -1,4 +1,4 @@
-import { UIComposeIntent, ComposeIntent, MessageAddress, MessageDetail } from '@/lib/api';
+import type { UIComposeIntent, ComposeIntent, MessageAddress, MessageDetail } from '@/lib/api';
 
 export interface EmailTemplate {
   id: string;
