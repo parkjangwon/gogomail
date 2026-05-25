@@ -106,6 +106,32 @@ pnpm -C apps/console install
 pnpm -C apps/console dev
 ```
 
+### 개발 데이터 시드
+
+스택이 기동된 후 아래 명령 하나로 데모 데이터를 채울 수 있습니다.
+
+```bash
+bash scripts/seed_dev_beta.sh
+```
+
+| 계정 | 이메일 | 비밀번호 | 역할 |
+|---|---|---|---|
+| 관리자 | `admin@gogomail.io` | `admin1234` | admin |
+| 데모 사용자 | `user@parkjw.org` | `pass1234` | user |
+
+데모 사용자에는 수신함 메일 15개(읽음/안읽음/별표/첨부 등 다양한 상태), 개인
+메일함 4개(프로젝트·뉴스레터·청구서·업무, 10개 메일 포함), 연락처 22개(전화번호·
+주소·메모 포함 vCard), CalDAV 캘린더 2개(일정 10개)가 들어 있습니다.
+동료 계정 13개의 비밀번호는 모두 `pass1234`입니다.
+
+관리자 테넌트만 남기고 나머지 데이터를 초기화한 뒤 재시드하려면:
+
+```bash
+bash scripts/reset_dev_data.sh          # 확인 프롬프트 있음
+bash scripts/reset_dev_data.sh --yes    # 확인 없이 바로 실행
+bash scripts/reset_dev_data.sh --yes --wipe-only   # 삭제만, 재시드 없음
+```
+
 운영과 유사한 split-mode 배포는 no-code scaling 템플릿에서 시작합니다.
 
 ```bash
