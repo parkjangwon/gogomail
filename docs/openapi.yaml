@@ -376,6 +376,33 @@ paths:
                 type: string
         default:
           $ref: "#/components/responses/Error"
+  /dm/rooms/{roomID}/rotate-key:
+    post:
+      operationId: rotateDMRoomKey
+      summary: Rotate the encryption key for a DM room
+      description: |
+        Generates a new AES-256-GCM room key, re-encrypts all existing message
+        bodies and attachment paths under the new key in a single atomic transaction,
+        and discards the old key.  Only current participants of the room may
+        invoke this endpoint.
+      tags: [dm]
+      servers:
+        - url: /api/v1
+          description: Mail API
+      parameters:
+        - name: roomID
+          in: path
+          required: true
+          schema:
+            type: string
+        - $ref: "#/components/parameters/UserIDQuery"
+        - $ref: "#/components/parameters/CompanyIDQuery"
+        - $ref: "#/components/parameters/DomainIDQuery"
+      responses:
+        "204":
+          description: Key rotated successfully; no content returned.
+        default:
+          $ref: "#/components/responses/Error"
   /dm/messages/{id}:
     patch:
       operationId: editDMMessage

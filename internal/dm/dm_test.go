@@ -333,6 +333,10 @@ type fakeStore struct {
 	searchPageIdx  int
 	// searchBeforeIDs records the beforeMessageID passed to each ListSearchCandidates call.
 	searchBeforeIDs []string
+	// key rotation
+	rotatedKey      []byte
+	rotatedMessages []MessageRecord
+	rotateErr       error
 }
 
 type fakeAttachmentStore struct {
@@ -479,6 +483,12 @@ func (f *fakeStore) GetRoom(_ context.Context, _ Principal, _ string) (Room, err
 
 func (f *fakeStore) ListAllMessagesForExport(_ context.Context, _ Principal, _ string) ([]MessageRecord, error) {
 	return f.exportMessages, nil
+}
+
+func (f *fakeStore) RotateRoomKey(_ context.Context, _ Principal, _ string, newKey []byte, updated []MessageRecord) error {
+	f.rotatedKey = newKey
+	f.rotatedMessages = updated
+	return f.rotateErr
 }
 
 var _ Store = (*fakeStore)(nil)
@@ -797,5 +807,97 @@ func TestSearchCursorAdvancesPerPage(t *testing.T) {
 	// Second call must use the oldest message ID from page 1 (records[0]) as the cursor.
 	if len(store.searchBeforeIDs) < 2 || store.searchBeforeIDs[1] != "msg-old" {
 		t.Fatalf("second cursor = %q, want %q", store.searchBeforeIDs[1], "msg-old")
+	}
+}
+
+// --- RotateRoomKey tests ---
+
+// TestRotateRoomKeyReEncryptsAllMessages verifies that after rotation every
+// message body is re-encrypted under a new key and the old key can no longer
+// decrypt them.
+func TestRotateRoomKeyReEncryptsAllMessages(t *testing.T) {
+	crypto, wrapped := testCryptoAndWrappedRoomKey(t)
+	// Use the known fixed room key from testCryptoAndWrappedRoomKey.
+	oldKey := bytes.Repeat([]byte{0x22}, RoomKeyBytes)
+	store := &fakeStore{wrappedRoomKey: wrapped}
+
+	// Pre-encrypt two messages with the original key.
+	body1 := "hello world"
+	body2 := "second message"
+	ct1, err := crypto.EncryptBody(oldKey, []byte(body1))
+	if err != nil {
+		t.Fatalf("EncryptBody: %v", err)
+	}
+	ct2, err := crypto.EncryptBody(oldKey, []byte(body2))
+	if err != nil {
+		t.Fatalf("EncryptBody: %v", err)
+	}
+	store.exportMessages = []MessageRecord{
+		{Message: Message{ID: "msg-1", MessageType: MessageTypeText}, BodyCiphertext: ct1},
+		{Message: Message{ID: "msg-2", MessageType: MessageTypeText}, BodyCiphertext: ct2},
+	}
+
+	svc := NewService(store, crypto)
+	p := testPrincipal()
+	if err := svc.RotateRoomKey(context.Background(), p, "room-1"); err != nil {
+		t.Fatalf("RotateRoomKey: %v", err)
+	}
+
+	// A new key must have been stored and must differ from the old one.
+	if len(store.rotatedKey) == 0 {
+		t.Fatal("rotatedKey is empty")
+	}
+	if bytes.Equal(store.rotatedKey, wrapped) {
+		t.Fatal("rotatedKey must differ from old wrapped key")
+	}
+
+	// The new key must successfully decrypt the re-encrypted messages.
+	newKey, err := crypto.UnwrapRoomKey(store.rotatedKey)
+	if err != nil {
+		t.Fatalf("UnwrapRoomKey (new): %v", err)
+	}
+	if len(store.rotatedMessages) != 2 {
+		t.Fatalf("rotatedMessages len = %d, want 2", len(store.rotatedMessages))
+	}
+	for i, want := range []string{body1, body2} {
+		got, err := crypto.DecryptBody(newKey, store.rotatedMessages[i].BodyCiphertext)
+		if err != nil {
+			t.Fatalf("DecryptBody[%d] with new key: %v", i, err)
+		}
+		if string(got) != want {
+			t.Fatalf("message[%d] = %q, want %q", i, got, want)
+		}
+	}
+
+	// The old key must NOT decrypt the rotated ciphertexts.
+	if _, err := crypto.DecryptBody(oldKey, store.rotatedMessages[0].BodyCiphertext); err == nil {
+		t.Fatal("old key must not decrypt re-encrypted message")
+	}
+}
+
+// TestRotateRoomKeyEmptyRoomSucceeds verifies that rotation on a room with no
+// messages (e.g. newly created) succeeds and stores a new key.
+func TestRotateRoomKeyEmptyRoomSucceeds(t *testing.T) {
+	crypto, wrapped := testCryptoAndWrappedRoomKey(t)
+	store := &fakeStore{wrappedRoomKey: wrapped, exportMessages: nil}
+	svc := NewService(store, crypto)
+	p := testPrincipal()
+	if err := svc.RotateRoomKey(context.Background(), p, "room-1"); err != nil {
+		t.Fatalf("RotateRoomKey: %v", err)
+	}
+	if len(store.rotatedKey) == 0 {
+		t.Fatal("rotatedKey is empty")
+	}
+}
+
+// TestRotateRoomKeyRequiresRoomID validates that an empty roomID is rejected.
+func TestRotateRoomKeyRequiresRoomID(t *testing.T) {
+	crypto, wrapped := testCryptoAndWrappedRoomKey(t)
+	store := &fakeStore{wrappedRoomKey: wrapped}
+	svc := NewService(store, crypto)
+	p := testPrincipal()
+	err := svc.RotateRoomKey(context.Background(), p, "")
+	if !errors.Is(err, ErrInvalid) {
+		t.Fatalf("err = %v, want ErrInvalid", err)
 	}
 }

@@ -193,6 +193,7 @@ type Store interface {
 	ListMedia(ctx context.Context, principal Principal, roomID string, query MediaQuery) ([]MediaItem, error)
 	GetRoom(ctx context.Context, principal Principal, roomID string) (Room, error)
 	ListAllMessagesForExport(ctx context.Context, principal Principal, roomID string) ([]MessageRecord, error)
+	RotateRoomKey(ctx context.Context, principal Principal, roomID string, newKeyCiphertext []byte, updatedMessages []MessageRecord) error
 }
 
 type AttachmentStore interface {
@@ -1020,4 +1021,74 @@ func truncateStringRunes(value string, max int) string {
 		count++
 	}
 	return value
+}
+
+// RotateRoomKey generates a new encryption key for the room and re-encrypts
+// all existing message bodies and attachment paths under the new key.
+// Only participants of the room may rotate its key.
+func (s *Service) RotateRoomKey(ctx context.Context, principal Principal, roomID string) error {
+	if s == nil || s.crypto == nil {
+		return fmt.Errorf("dm crypto is not configured")
+	}
+	principal = normalizePrincipal(principal)
+	if err := validatePrincipal(principal); err != nil {
+		return err
+	}
+	roomID = strings.TrimSpace(roomID)
+	if roomID == "" {
+		return fmt.Errorf("%w: room_id is required", ErrInvalid)
+	}
+
+	// Fetch old key (also validates participant membership).
+	oldWrapped, err := s.store.RoomKeyForParticipant(ctx, principal, roomID)
+	if err != nil {
+		return err
+	}
+	oldKey, err := s.crypto.UnwrapRoomKey(oldWrapped)
+	if err != nil {
+		return fmt.Errorf("dm room key unavailable: %w", err)
+	}
+	defer zeroBytes(oldKey)
+
+	// Generate new key.
+	newKey, newWrapped, err := s.newWrappedRoomKey()
+	if err != nil {
+		return err
+	}
+	defer zeroBytes(newKey)
+
+	// Load all messages for re-encryption.
+	records, err := s.store.ListAllMessagesForExport(ctx, principal, roomID)
+	if err != nil {
+		return err
+	}
+
+	updated := make([]MessageRecord, 0, len(records))
+	for _, r := range records {
+		if len(r.BodyCiphertext) > 0 {
+			plain, decErr := s.crypto.DecryptBody(oldKey, r.BodyCiphertext)
+			if decErr != nil {
+				return fmt.Errorf("decrypt message %s body: %w", r.ID, decErr)
+			}
+			newCT, encErr := s.crypto.EncryptBody(newKey, plain)
+			if encErr != nil {
+				return fmt.Errorf("re-encrypt message %s body: %w", r.ID, encErr)
+			}
+			r.BodyCiphertext = newCT
+		}
+		if len(r.AttachmentStoragePathCiphertext) > 0 {
+			plain, decErr := s.crypto.DecryptBody(oldKey, r.AttachmentStoragePathCiphertext)
+			if decErr != nil {
+				return fmt.Errorf("decrypt message %s attachment path: %w", r.ID, decErr)
+			}
+			newCT, encErr := s.crypto.EncryptBody(newKey, plain)
+			if encErr != nil {
+				return fmt.Errorf("re-encrypt message %s attachment path: %w", r.ID, encErr)
+			}
+			r.AttachmentStoragePathCiphertext = newCT
+		}
+		updated = append(updated, r)
+	}
+
+	return s.store.RotateRoomKey(ctx, principal, roomID, newWrapped, updated)
 }

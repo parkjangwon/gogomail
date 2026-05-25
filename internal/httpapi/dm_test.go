@@ -201,6 +201,10 @@ func (f *fakeDMRouteService) ExportRoom(_ context.Context, _ dm.Principal, _ str
 	return f.exportResult, nil
 }
 
+func (f *fakeDMRouteService) RotateRoomKey(context.Context, dm.Principal, string) error {
+	return nil
+}
+
 func TestDMExportRoomRespondsWithTextFile(t *testing.T) {
 	now := time.Date(2026, 5, 26, 12, 0, 0, 0, time.UTC)
 	svc := &fakeDMRouteService{}
