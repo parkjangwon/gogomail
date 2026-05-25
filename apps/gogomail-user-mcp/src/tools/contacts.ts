@@ -1,8 +1,7 @@
 import type { Tool } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
 import { appendQuery, GogomailUserClient } from "../client.js";
-import { confirm, contractName, email, id, nameOrLegacyDisplayName } from "./schemas.js";
-import { sanitizeFileSegment } from "./schemas.js";
+import { confirm, email, id, nameOrLegacyDisplayName, sanitizeFileSegment } from "./schemas.js";
 
 export const toolDefinitions: Tool[] = [
   { name: "gogomail_contacts_list_addressbooks", description: "List address books using GET /api/mail/addressbooks.", inputSchema: { type: "object", properties: {} } },
@@ -138,5 +137,4 @@ function escapeVCardText(value: string): string {
   return value.replace(/\\/g, "\\\\").replace(/\r?\n/g, "\\n").replace(/;/g, "\\;").replace(/,/g, "\\,");
 }
 
-// contractName is imported but only used via nameOrLegacyDisplayName schema above — keep the import to avoid unused-var warnings
-void (contractName as unknown);
+

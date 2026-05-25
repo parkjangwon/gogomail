@@ -2,8 +2,7 @@ import type { Tool } from "@modelcontextprotocol/sdk/types.js";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { appendQuery, GogomailUserClient } from "../client.js";
-import { confirm, id } from "./schemas.js";
-import { sanitizeFileSegment } from "./schemas.js";
+import { confirm, id, sanitizeFileSegment } from "./schemas.js";
 
 export const toolDefinitions: Tool[] = [
   { name: "gogomail_calendar_list", description: "List calendars using GET /api/v1/calendars.", inputSchema: { type: "object", properties: {} } },
