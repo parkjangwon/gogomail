@@ -2340,6 +2340,18 @@ func attachmentScanHooksForConfig(cfg config.Config, logger *slog.Logger, compon
 }
 
 func runOutboxRelay(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
+	tp, err := observability.InitTracing(ctx, observability.TracingConfig{
+		Enabled:          cfg.OTelEnabled,
+		ExporterEndpoint: cfg.OTelEndpoint,
+		ServiceName:      cfg.OTelServiceName + "-outbox",
+		ServiceVersion:   cfg.OTelServiceVersion,
+	})
+	if err != nil {
+		logger.Warn("tracing init failed in outbox relay", "error", err)
+	} else {
+		defer func() { _ = tp.Shutdown(context.Background()) }()
+	}
+
 	db, err := openDatabase(ctx, cfg)
 	if err != nil {
 		return err
@@ -3282,6 +3294,27 @@ func (p dkimKeyProvider) DKIMKey(ctx context.Context, job delivery.Job) (dkim.Ke
 }
 
 func runHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, mode Mode) error {
+	// Initialise OTel tracing.  Shutdown is deferred so buffered spans are
+	// exported before the process exits even under normal shutdown paths.
+	tp, err := observability.InitTracing(ctx, observability.TracingConfig{
+		Enabled:        cfg.OTelEnabled,
+		ExporterEndpoint: cfg.OTelEndpoint,
+		ServiceName:    cfg.OTelServiceName,
+		ServiceVersion: cfg.OTelServiceVersion,
+	})
+	if err != nil {
+		logger.Warn("tracing init failed, continuing without traces", "error", err)
+	} else {
+		defer func() {
+			if shutErr := tp.Shutdown(context.Background()); shutErr != nil {
+				logger.Warn("tracing shutdown error", "error", shutErr)
+			}
+		}()
+		if cfg.OTelEnabled {
+			logger.Info("opentelemetry tracing enabled", "endpoint", cfg.OTelEndpoint, "service", cfg.OTelServiceName)
+		}
+	}
+
 	mux := http.NewServeMux()
 	var readinessChecks []httpapi.ReadinessCheckFunc
 
@@ -3542,6 +3575,9 @@ func runHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, mode M
 	handler = httpapi.SecurityHeadersMiddleware(handler)
 	handler = httpapi.AccessLogMiddleware(logger, handler)
 	handler = httpapi.RequestIDMiddleware(handler)
+	if cfg.OTelEnabled {
+		handler = observability.OTelHTTPMiddleware(cfg.OTelServiceName)(handler)
+	}
 	if strings.EqualFold(strings.TrimSpace(cfg.MetricsBackend), "prometheus") {
 		handler = httpapi.MetricsMiddleware(sharedPrometheusAdapter(), handler)
 	}

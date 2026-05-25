@@ -118,7 +118,12 @@ type Config struct {
 	RateLimitBackend                    string
 	BackpressureBackend                 string
 	MetricsBackend                      string
-	LogFormat                           string
+	// OTel tracing
+	OTelEnabled          bool   // GOGOMAIL_OTEL_ENABLED (default false)
+	OTelEndpoint         string // GOGOMAIL_OTEL_ENDPOINT (default "http://localhost:4318")
+	OTelServiceName      string // GOGOMAIL_OTEL_SERVICE_NAME (default "gogomail")
+	OTelServiceVersion   string // GOGOMAIL_OTEL_SERVICE_VERSION (default "dev")
+	LogFormat            string
 	MilterEnabled                       bool
 	MilterAddr                          string
 	MilterTimeout                       time.Duration
@@ -438,6 +443,10 @@ func Load() Config {
 		RateLimitBackend:                    envOrDefault("GOGOMAIL_RATELIMIT_BACKEND", "none"),
 		BackpressureBackend:                 envOrDefault("GOGOMAIL_BACKPRESSURE_BACKEND", "none"),
 		MetricsBackend:                      envOrDefault("GOGOMAIL_METRICS_BACKEND", "none"),
+		OTelEnabled:                         boolEnvOrDefault("GOGOMAIL_OTEL_ENABLED", false),
+		OTelEndpoint:                        envOrDefault("GOGOMAIL_OTEL_ENDPOINT", "http://localhost:4318"),
+		OTelServiceName:                     envOrDefault("GOGOMAIL_OTEL_SERVICE_NAME", "gogomail"),
+		OTelServiceVersion:                  envOrDefault("GOGOMAIL_OTEL_SERVICE_VERSION", "dev"),
 		LogFormat:                           envOrDefault("GOGOMAIL_LOG_FORMAT", "json"),
 		MilterEnabled:                       boolEnvOrDefault("GOGOMAIL_MILTER_ENABLED", false),
 		MilterAddr:                          envOrDefault("GOGOMAIL_MILTER_ADDR", "127.0.0.1:7357"),
