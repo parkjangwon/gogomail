@@ -19,6 +19,7 @@ GoGoMail is a production-grade self-hosted email platform written in Go
 
 | Date | Feature |
 |------|---------|
+| 2026-05-26 | Refactor: split `internal/maildb/admin.go` (7579 lines) into 8 focused files — admin_users.go, admin_domains.go, admin_relay.go, admin_api_usage.go, admin_push.go, admin_outbox.go, admin_delivery.go, admin_suppression.go — admin.go reduced to 1498 lines (types/consts/validation); 549 tests pass |
 | 2026-05-26 | Refactor: split `internal/imapgw/server.go` (9654 lines) into 13 focused files — server_conn.go, server_auth.go, server_capabilities.go, server_mailbox.go, server_list.go, server_idle.go, server_uid.go, server_search.go, server_fetch.go, server_store.go, server_copy_append.go, server_parse.go, server_dispatch.go — server.go reduced to 802 lines; 439 tests pass |
 | 2026-05-26 | K8s deployment: 8 manifests (namespace, configmap, secret template, deployment, service, HPA, PDB, ingress) + README in `k8s/` |
 | 2026-05-26 | DM room key rotation: `POST /api/v1/dm/rooms/{roomID}/rotate-key` — generates new AES-256-GCM key, atomically re-encrypts all message bodies and attachment paths |
