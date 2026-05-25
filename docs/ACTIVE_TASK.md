@@ -2,7 +2,10 @@
 
 ## Current Task
 
-없음 — 모든 계획된 태스크가 완료되었습니다.
+**DM Export Plan — Task 2: Service layer + TXT formatter** (in progress 2026-05-26)
+
+- `internal/dm/dm_export.go`: `RoomExport` struct + `FormatExportTXT`
+- `internal/dm/dm.go`: `Service.GetRoom` + `Service.ExportRoom` methods
 
 ## Last Completed Task
 
