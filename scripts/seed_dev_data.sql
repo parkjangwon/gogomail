@@ -506,6 +506,18 @@ ON CONFLICT (id) DO UPDATE SET
   storage_path = EXCLUDED.storage_path, draft_text_body = EXCLUDED.draft_text_body,
   updated_at = now();
 
+-- Populate html_body from draft_text_body for all seed messages that lack a
+-- storage_path body.  This lets the API return readable body content without
+-- needing MinIO-stored MIME emails.
+UPDATE messages
+SET html_body = '<p>' || draft_text_body || '</p>'
+WHERE user_id = '20000000-0000-0000-0000-000000000001'
+  AND domain_id = '6049fa6e-d649-44d3-83d2-b548c7e787d5'
+  AND storage_path = ''
+  AND draft_text_body IS NOT NULL
+  AND draft_text_body != ''
+  AND (html_body IS NULL OR html_body = '');
+
 -- ══════════════════════════════════════════════════════════════════════════════
 -- 5. ORGANIZATION STRUCTURE (parkjw.org)
 -- ══════════════════════════════════════════════════════════════════════════════

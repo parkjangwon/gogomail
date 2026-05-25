@@ -740,7 +740,7 @@ func (r *Repository) listContactObjects(ctx context.Context, req ListContactObje
 		return nil, fmt.Errorf("database handle is required")
 	}
 	const query = `
-SELECT id::text, user_id::text, addressbook_id::text, object_name, uid, etag, size, vcard, photo_data, photo_media_type, categories_list, group_name, created_at, updated_at
+SELECT id::text, user_id::text, addressbook_id::text, object_name, uid, etag, size, vcard, photo_data, COALESCE(photo_media_type, ''), categories_list, COALESCE(group_name, ''), created_at, updated_at
 FROM carddav_contact_objects
 WHERE user_id = $1::uuid
   AND addressbook_id = $2::uuid
@@ -777,7 +777,7 @@ func (r *Repository) GetContactObject(ctx context.Context, req GetContactObjectR
 		return ContactObject{}, err
 	}
 	const query = `
-SELECT id::text, user_id::text, addressbook_id::text, object_name, uid, etag, size, vcard, photo_data, photo_media_type, categories_list, group_name, created_at, updated_at
+SELECT id::text, user_id::text, addressbook_id::text, object_name, uid, etag, size, vcard, photo_data, COALESCE(photo_media_type, ''), categories_list, COALESCE(group_name, ''), created_at, updated_at
 FROM carddav_contact_objects
 WHERE user_id = $1::uuid
   AND addressbook_id = $2::uuid
@@ -888,9 +888,9 @@ SELECT c.id::text,
        c.size,
        c.vcard,
        c.photo_data,
-       c.photo_media_type,
+       COALESCE(c.photo_media_type, ''),
        c.categories_list,
-       c.group_name,
+       COALESCE(c.group_name, ''),
        c.created_at,
        c.updated_at
 FROM requested r
@@ -947,9 +947,9 @@ SELECT c.id::text,
        c.size,
        c.vcard,
        c.photo_data,
-       c.photo_media_type,
+       COALESCE(c.photo_media_type, ''),
        c.categories_list,
-       c.group_name,
+       COALESCE(c.group_name, ''),
        c.created_at,
        c.updated_at
 FROM carddav_contact_objects c
@@ -1069,9 +1069,9 @@ SELECT req.email,
        c.size,
        c.vcard,
        c.photo_data,
-       c.photo_media_type,
+       COALESCE(c.photo_media_type, ''),
        c.categories_list,
-       c.group_name,
+       COALESCE(c.group_name, ''),
        c.created_at,
        c.updated_at
 FROM requested req
@@ -1085,9 +1085,9 @@ JOIN LATERAL (
          c.size,
          c.vcard,
          c.photo_data,
-         c.photo_media_type,
+         COALESCE(c.photo_media_type, ''),
          c.categories_list,
-         c.group_name,
+         COALESCE(c.group_name, ''),
          c.created_at,
          c.updated_at
   FROM carddav_contact_objects c
@@ -1147,9 +1147,9 @@ SELECT c.id::text,
        c.size,
        c.vcard,
        c.photo_data,
-       c.photo_media_type,
+       COALESCE(c.photo_media_type, ''),
        c.categories_list,
-       c.group_name,
+       COALESCE(c.group_name, ''),
        c.created_at,
        c.updated_at
 FROM carddav_contact_objects c

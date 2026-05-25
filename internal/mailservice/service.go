@@ -678,6 +678,11 @@ func (s *Service) GetMessage(ctx context.Context, userID string, messageID strin
 		}
 	}
 	if s.store == nil || detail.StoragePath == "" {
+		// When there is no object-store body, fall back to the inline html_body column
+		// (populated by seed/test data and draft-converted messages).
+		if detail.HTMLBody != "" && detail.TextBody == "" {
+			detail.TextBody = stripHTMLTags(detail.HTMLBody)
+		}
 		return detail, nil
 	}
 	if detail.HasAttachment {
@@ -3384,4 +3389,27 @@ func recipientEmails(req SendTextRequest) []string {
 		appendRecipient(addr.Email)
 	}
 	return recipients
+}
+
+// stripHTMLTags returns a plain-text approximation of an HTML string by
+// removing all tags and collapsing whitespace.  Used as a TextBody fallback
+// when only an inline html_body is available (e.g. seed/test data with no
+// object-store body).
+func stripHTMLTags(html string) string {
+	var b strings.Builder
+	inTag := false
+	for _, r := range html {
+		switch {
+		case r == '<':
+			inTag = true
+		case r == '>':
+			inTag = false
+			b.WriteRune(' ')
+		case !inTag:
+			b.WriteRune(r)
+		}
+	}
+	// Collapse runs of whitespace
+	out := strings.Join(strings.Fields(b.String()), " ")
+	return out
 }
