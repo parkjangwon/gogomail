@@ -39,11 +39,20 @@ type ServerOptions struct {
 	IdleTimeout       time.Duration
 }
 
+// gatewayMetrics is the minimal interface imapgw uses for observability.
+// *protocolmetrics.GatewayMetrics satisfies this interface.
+type gatewayMetrics interface {
+	RecordConnect(userID string)
+	RecordDisconnect()
+	RecordCommand(userID string, duration time.Duration)
+	RecordError(userID string)
+}
+
 type Server struct {
 	options     ServerOptions
 	mu          sync.Mutex
 	listener    net.Listener
-	metrics     interface{} // GatewayMetrics (optional, typed as interface{} to avoid import)
+	metrics     gatewayMetrics
 	authTracker *authFailureTracker
 }
 
@@ -90,7 +99,7 @@ func (s *Server) Options() ServerOptions {
 }
 
 // SetMetrics sets optional metrics collector for gateway observability
-func (s *Server) SetMetrics(metrics interface{}) {
+func (s *Server) SetMetrics(metrics gatewayMetrics) {
 	if s == nil {
 		return
 	}
@@ -105,15 +114,12 @@ func (s *Server) recordConnect(userID string) {
 		return
 	}
 	s.mu.Lock()
-	metrics := s.metrics
+	m := s.metrics
 	s.mu.Unlock()
-	if metrics == nil {
+	if m == nil {
 		return
 	}
-	// Type assert to GatewayMetrics interface
-	if m, ok := metrics.(interface{ RecordConnect(string) }); ok {
-		m.RecordConnect(userID)
-	}
+	m.RecordConnect(userID)
 }
 
 // recordDisconnect records a disconnection with optional metrics
@@ -122,14 +128,12 @@ func (s *Server) recordDisconnect() {
 		return
 	}
 	s.mu.Lock()
-	metrics := s.metrics
+	m := s.metrics
 	s.mu.Unlock()
-	if metrics == nil {
+	if m == nil {
 		return
 	}
-	if m, ok := metrics.(interface{ RecordDisconnect() }); ok {
-		m.RecordDisconnect()
-	}
+	m.RecordDisconnect()
 }
 
 // recordCommand records command processing with optional metrics
@@ -138,14 +142,12 @@ func (s *Server) recordCommand(userID string, duration time.Duration) {
 		return
 	}
 	s.mu.Lock()
-	metrics := s.metrics
+	m := s.metrics
 	s.mu.Unlock()
-	if metrics == nil {
+	if m == nil {
 		return
 	}
-	if m, ok := metrics.(interface{ RecordCommand(string, time.Duration) }); ok {
-		m.RecordCommand(userID, duration)
-	}
+	m.RecordCommand(userID, duration)
 }
 
 // recordError records command error with optional metrics
@@ -154,14 +156,12 @@ func (s *Server) recordError(userID string) {
 		return
 	}
 	s.mu.Lock()
-	metrics := s.metrics
+	m := s.metrics
 	s.mu.Unlock()
-	if metrics == nil {
+	if m == nil {
 		return
 	}
-	if m, ok := metrics.(interface{ RecordError(string) }); ok {
-		m.RecordError(userID)
-	}
+	m.RecordError(userID)
 }
 
 func (s *Server) Serve(listener net.Listener) error {

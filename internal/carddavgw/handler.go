@@ -67,12 +67,19 @@ type AccessAuthorizer interface {
 	AuthorizeAddressBookAccess(ctx context.Context, req AccessRequest) (AccessDecision, error)
 }
 
+// gatewayMetrics is the minimal interface carddavgw uses for observability.
+// *protocolmetrics.GatewayMetrics satisfies this interface.
+type gatewayMetrics interface {
+	RecordCommand(userID string, duration time.Duration)
+	RecordError(userID string)
+}
+
 type Handler struct {
 	Store            DiscoveryStore
 	ResolveUser      UserResolver
 	AccessAuthorizer AccessAuthorizer
 	IncludeSync      bool
-	metrics          interface{} // GatewayMetrics (optional, typed as interface{} to avoid import)
+	metrics          gatewayMetrics
 }
 
 type SyncChangeStore interface {
@@ -140,7 +147,7 @@ func QueryUserResolver(r *http.Request) (string, error) {
 }
 
 // SetMetrics sets optional metrics collector for gateway observability
-func (h *Handler) SetMetrics(metrics interface{}) {
+func (h *Handler) SetMetrics(metrics gatewayMetrics) {
 	if h == nil {
 		return
 	}
@@ -152,9 +159,7 @@ func (h *Handler) recordCommand(userID string, duration time.Duration) {
 	if h == nil || h.metrics == nil {
 		return
 	}
-	if m, ok := h.metrics.(interface{ RecordCommand(string, time.Duration) }); ok {
-		m.RecordCommand(userID, duration)
-	}
+	h.metrics.RecordCommand(userID, duration)
 }
 
 // recordError records HTTP operation error with optional metrics
@@ -162,9 +167,7 @@ func (h *Handler) recordError(userID string) {
 	if h == nil || h.metrics == nil {
 		return
 	}
-	if m, ok := h.metrics.(interface{ RecordError(string) }); ok {
-		m.RecordError(userID)
-	}
+	h.metrics.RecordError(userID)
 }
 
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
