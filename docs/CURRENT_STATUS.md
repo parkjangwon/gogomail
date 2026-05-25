@@ -1,6 +1,15 @@
 # gogomail current status
 
-Last updated: 2026-05-25 (centralized request and protocol logging foundation)
+Last updated: 2026-05-25 (Prometheus+Loki+Grafana monitoring stack)
+
+## Prometheus + Loki + Grafana monitoring stack (2026-05-25)
+- Docker Compose overlay (`docker/docker-compose.monitoring.yml`) adds Prometheus, Loki, Promtail, and Grafana as a side-by-side stack with no changes to the base dev/small compose files.
+- Prometheus scrapes the backend's `/metrics` endpoint on `:9091`; HTTP, SMTP, delivery, and LDAP metrics are all emitted in standard text/0.0.4 format.
+- Fixed a bug in `internal/observability/prometheus.go`: histogram map keys embedded the label string in the metric name, causing invalid output like `metric_name{labels}_bucket{labels,le=...}` instead of `metric_name_bucket{labels,le=...}`.
+- Loki receives Docker container logs via Promtail Docker socket discovery; `request_id` is extractable from log lines for end-to-end trace correlation.
+- Grafana auto-provisions Prometheus and Loki datasources and a GoGoMail Overview dashboard (7 panels) at startup.
+- Agent query reference: `docs/MONITORING.md` documents Prometheus HTTP API, Loki HTTP API (nanosecond timestamps), and Grafana API with example PromQL/LogQL expressions.
+- `configs/config.dev.yaml` now enables `metrics_backend: prometheus` so the metrics server starts in dev mode.
 
 ## Centralized request and protocol logging foundation (2026-05-25)
 - Go runtime logging now installs the configured slog handler as the process default, keeps production JSON output on stdout, and redacts secrets, cookies, authorization headers, tokens, passwords, and API/private keys before emission.
