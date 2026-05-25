@@ -53,7 +53,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	}
 
 	// ─── Console & Delivery Routes ─────────────────────────────────────────────
-	registerConsoleRoutes(mux, cfg, adminAuth)
+	registerConsoleRoutes(mux, cfg, adminAuth, service)
 	registerCompanyRoutes(mux, service, adminAuth)
 	registerDomainRoutes(mux, service, adminAuth)
 	registerUserAndConfigRoutes(mux, service, token, cfg, adminAuth)

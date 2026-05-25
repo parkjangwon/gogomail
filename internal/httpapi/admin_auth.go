@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"runtime"
 	"strings"
 	"time"
 
@@ -578,7 +577,7 @@ func handleDeleteAdminUser(w http.ResponseWriter, r *http.Request, service Admin
 	})
 }
 
-// registerAuthAndAdminUserRoutes registers auth, admin-user, health, and metrics routes.
+// registerAuthAndAdminUserRoutes registers auth and admin-user routes.
 func registerAuthAndAdminUserRoutes(mux *http.ServeMux, service AdminService, cfg adminRouteConfig, loginLimiter *AdminIPRateLimiter, adminAuthFn func(http.HandlerFunc) http.HandlerFunc) {
 	mux.HandleFunc("POST /admin/v1/auth/login", loginLimiter.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		handleAdminLogin(w, r, service, cfg)
@@ -610,36 +609,5 @@ func registerAuthAndAdminUserRoutes(mux *http.ServeMux, service AdminService, cf
 
 	mux.HandleFunc("DELETE /admin/v1/admin-users/{id}", adminAuthFn(func(w http.ResponseWriter, r *http.Request) {
 		handleDeleteAdminUser(w, r, service)
-	}))
-
-	mux.HandleFunc("GET /admin/v1/health", adminAuthFn(func(w http.ResponseWriter, r *http.Request) {
-		handleAdminHealth(w, r, service)
-	}))
-
-	mux.HandleFunc("GET /admin/v1/system/metrics", adminAuthFn(func(w http.ResponseWriter, r *http.Request) {
-		if !rejectBodylessRequestPayload(w, r) {
-			return
-		}
-		if !rejectUnknownQueryKeys(w, r) {
-			return
-		}
-		var ms runtime.MemStats
-		runtime.ReadMemStats(&ms)
-		memPct := 0.0
-		if ms.Sys > 0 {
-			memPct = float64(ms.HeapInuse) / float64(ms.Sys) * 100
-		}
-		writeJSON(w, http.StatusOK, map[string]any{
-			"memory": map[string]any{
-				"heap_inuse_bytes": ms.HeapInuse,
-				"heap_sys_bytes":   ms.HeapSys,
-				"sys_bytes":        ms.Sys,
-				"alloc_bytes":      ms.Alloc,
-				"gc_runs":          ms.NumGC,
-				"usage_pct":        memPct,
-			},
-			"goroutines": runtime.NumGoroutine(),
-			"timestamp":  time.Now().UTC().Format(time.RFC3339),
-		})
 	}))
 }
