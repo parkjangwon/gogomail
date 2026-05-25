@@ -1,6 +1,17 @@
 import { test, expect } from '@playwright/test';
 import { setupAuthedPage } from './helpers';
 
+function encodedVCard(email: string) {
+  return Buffer.from([
+    'BEGIN:VCARD',
+    'VERSION:3.0',
+    'FN:Shortcut Contact',
+    `EMAIL:${email}`,
+    'ORG:Shortcut QA',
+    'END:VCARD',
+  ].join('\n')).toString('base64');
+}
+
 test.describe('Keyboard shortcuts', () => {
   test.beforeEach(async ({ page }) => {
     await setupAuthedPage(page);
@@ -14,6 +25,50 @@ test.describe('Keyboard shortcuts', () => {
     await expect(dialog).toBeVisible({ timeout: 3_000 }).catch(() => null);
     // Soft assertion: shortcut may not fire if focus is wrong.
     expect(true).toBe(true);
+  });
+
+  test('"s" opens compose outside the mail app', async ({ page }) => {
+    await page.getByRole('button', { name: '연락처' }).click();
+    await expect(page.getByPlaceholder('연락처 검색...')).toBeVisible({ timeout: 5_000 });
+    await page.locator('body').click({ position: { x: 5, y: 5 }, force: true }).catch(() => null);
+    await page.keyboard.press('s');
+    await expect(page.getByRole('dialog', { name: /새 메시지 작성/ }).first()).toBeVisible({ timeout: 3_000 });
+  });
+
+  test('contacts "c" shortcut does not type c into compose recipients', async ({ page }) => {
+    const email = 'shortcut.contact@example.test';
+    await page.route('**/api/mail/addressbooks', (route) => route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        address_books: [{ ID: 'ab-1', Name: '내 주소록', Description: '', UserID: 'user-1' }],
+      }),
+    }));
+    await page.route('**/api/mail/addressbooks/ab-1/contacts', (route) => route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        contacts: [{
+          ID: 'contact-1',
+          AddressBookID: 'ab-1',
+          ObjectName: 'shortcut-contact.vcf',
+          UID: 'contact-1',
+          VCard: encodedVCard(email),
+          CreatedAt: '2026-05-25T00:00:00Z',
+          UpdatedAt: '2026-05-25T00:00:00Z',
+        }],
+      }),
+    }));
+
+    await page.getByRole('button', { name: '연락처' }).click();
+    await expect(page.getByText('Shortcut Contact')).toBeVisible({ timeout: 5_000 });
+    await page.getByText('Shortcut Contact').click();
+    await page.keyboard.press('c');
+
+    const dialog = page.getByRole('dialog', { name: /새 메시지 작성/ }).first();
+    await expect(dialog).toBeVisible({ timeout: 3_000 });
+    await expect(dialog.getByText(email)).toBeVisible();
+    await expect(dialog.locator('span').filter({ hasText: /^c$/ })).toHaveCount(0);
   });
 
   test('Cmd/Ctrl+K opens spotlight', async ({ page }) => {

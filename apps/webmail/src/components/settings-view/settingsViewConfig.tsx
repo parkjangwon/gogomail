@@ -64,12 +64,12 @@ export const NAV_ITEMS: { id: SectionId; labelKey: string; icon: ReactNode }[] =
 
 // titleKey and descKey reference keys in the `settingsView` translation namespace.
 export const SHORTCUT_GROUPS: { titleKey: string; items: [string, string][] }[] = [
-  { titleKey: 'shortcutGlobal', items: [['?', 'scShortcutHelp'], ['Cmd+K / Ctrl+K', 'scSpotlightSearch'], ['[', 'scSidebarToggle'], ['b', 'scNotificationCenter'], ['`', 'scDM']] },
+  { titleKey: 'shortcutGlobal', items: [['?', 'scShortcutHelp'], ['Cmd+K / Ctrl+K', 'scSpotlightSearch'], ['[', 'scSidebarToggle'], ['b', 'scNotificationCenter'], ['s', 'scNewMail'], ['`', 'scDM']] },
   { titleKey: 'shortcutAppSwitch', items: [['g  m', 'scMail'], ['g  c', 'scCalendar'], ['g  a', 'scContacts'], ['g  d', 'scDrive'], ['g  ,', 'scSettings']] },
   { titleKey: 'shortcutMailNav', items: [['j / k', 'scNextPrev'], ['↑ / ↓', 'scListMove'], ['o', 'scOpenSelected'], ['Space', 'scCheckboxSelect'], ['Home / End', 'scFirstLast'], ['Ctrl+A', 'scSelectAll'], ['Esc', 'scCloseUnset']] },
   { titleKey: 'shortcutMailAction', items: [['r', 'scReply'], ['a', 'scReplyAll'], ['f', 'scForward'], ['e', 'scArchive'], ['v', 'scMoveToFolder'], ['#', 'scDelete'], ['m', 'scMarkRead'], ['Shift+M', 'scMarkUnread'], ['z', 'scSnooze1h'], ['l', 'scLabelCycle'], ['!', 'scSpam']] },
   { titleKey: 'shortcutMailbox', items: [['g  i', 'scInbox'], ['g  s', 'scSent'], ['g  t', 'scTrash'], ['g  p', 'scSpamFolder']] },
-  { titleKey: 'shortcutCompose', items: [['c', 'scNewMail'], ['Ctrl+Enter', 'scSend'], ['Ctrl+S', 'scSaveDraft'], ['Esc', 'scClose']] },
+  { titleKey: 'shortcutCompose', items: [['Ctrl+Enter', 'scSend'], ['Ctrl+S', 'scSaveDraft'], ['Esc', 'scClose']] },
   { titleKey: 'shortcutCalendar', items: [['d', 'scCalendarDay'], ['w', 'scCalendarWeek'], ['m', 'scCalendarMonth'], ['t', 'scCalendarToday'], ['← / →', 'scCalendarPrevNext']] },
   { titleKey: 'shortcutContacts', items: [['j / k', 'scContactNextPrev'], ['c', 'scContactCompose'], ['Del / Backspace', 'scContactDelete'], ['Ctrl+A / Cmd+A', 'scContactSelectAll'], ['Esc', 'scContactClearSelection']] },
 ];

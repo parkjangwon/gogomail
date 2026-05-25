@@ -13,6 +13,7 @@ const SECTIONS: SectionDef[] = [
       { key: 'Cmd+k / Ctrl+k', descId: 'spotlight' },
       { key: '[', descId: 'toggleSidebar' },
       { key: 'b', descId: 'notificationCenter' },
+      { key: 's', descId: 'compose' },
       { key: '`', descId: 'dm' },
     ],
   },
@@ -29,7 +30,6 @@ const SECTIONS: SectionDef[] = [
   {
     id: 'mailList',
     items: [
-      { key: 's', descId: 'compose' },
       { key: 'j / k', descId: 'nextPrev' },
       { key: '↑ / ↓', descId: 'listMove' },
       { key: 'n / N', descId: 'nextPrevUnread' },
