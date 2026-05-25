@@ -3,12 +3,16 @@ package dm
 import (
 	"crypto/aes"
 	"crypto/cipher"
+	"crypto/hmac"
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
 	"io"
+	"strconv"
 	"strings"
+	"time"
 )
 
 const (
@@ -83,6 +87,52 @@ func (c *Crypto) DecryptBody(roomKey []byte, ciphertext []byte) ([]byte, error) 
 		return nil, fmt.Errorf("dm room key must be %d bytes", RoomKeyBytes)
 	}
 	return openGCM(roomKey, ciphertext)
+}
+
+func (c *Crypto) SignAttachmentToken(messageID string, expiresAt time.Time) (string, error) {
+	messageID = strings.TrimSpace(messageID)
+	if messageID == "" {
+		return "", fmt.Errorf("%w: message_id is required", ErrInvalid)
+	}
+	exp := expiresAt.UTC().Unix()
+	payload := fmt.Sprintf("%s.%d", messageID, exp)
+	mac := hmac.New(sha256.New, c.masterKey)
+	_, _ = mac.Write([]byte("dm-attachment-download:" + payload))
+	signature := base64.RawURLEncoding.EncodeToString(mac.Sum(nil))
+	return base64.RawURLEncoding.EncodeToString([]byte(payload)) + "." + signature, nil
+}
+
+func (c *Crypto) VerifyAttachmentToken(token string, now time.Time) (string, error) {
+	token = strings.TrimSpace(token)
+	parts := strings.Split(token, ".")
+	if len(parts) != 2 {
+		return "", fmt.Errorf("%w: invalid attachment token", ErrInvalid)
+	}
+	payloadBytes, err := base64.RawURLEncoding.DecodeString(parts[0])
+	if err != nil {
+		return "", fmt.Errorf("%w: invalid attachment token", ErrInvalid)
+	}
+	payload := string(payloadBytes)
+	dot := strings.LastIndexByte(payload, '.')
+	if dot <= 0 || dot == len(payload)-1 {
+		return "", fmt.Errorf("%w: invalid attachment token", ErrInvalid)
+	}
+	messageID := strings.TrimSpace(payload[:dot])
+	exp, err := strconv.ParseInt(payload[dot+1:], 10, 64)
+	if err != nil || exp <= 0 {
+		return "", fmt.Errorf("%w: invalid attachment token", ErrInvalid)
+	}
+	if now.UTC().Unix() > exp {
+		return "", fmt.Errorf("%w: attachment token expired", ErrForbidden)
+	}
+	mac := hmac.New(sha256.New, c.masterKey)
+	_, _ = mac.Write([]byte("dm-attachment-download:" + payload))
+	want := mac.Sum(nil)
+	got, err := base64.RawURLEncoding.DecodeString(parts[1])
+	if err != nil || !hmac.Equal(got, want) {
+		return "", fmt.Errorf("%w: invalid attachment token", ErrForbidden)
+	}
+	return messageID, nil
 }
 
 func (c *Crypto) seal(key []byte, plaintext []byte) ([]byte, error) {

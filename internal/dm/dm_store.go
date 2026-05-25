@@ -457,6 +457,31 @@ WHERE m.id = $2
 	return roomID, key, nil
 }
 
+func (s *PostgresStore) AttachmentByMessageID(ctx context.Context, messageID string) (MessageRecord, []byte, error) {
+	if err := s.requireDB(); err != nil {
+		return MessageRecord{}, nil, err
+	}
+	const query = `
+SELECT m.id::text, m.room_id::text, COALESCE(m.sender_id::text, ''), m.message_type, m.body,
+  COALESCE(m.attachment_storage_path, NULL), COALESCE(m.attachment_name, ''), COALESCE(m.attachment_size, 0),
+  COALESCE(m.attachment_mime_type, ''), COALESCE(m.drive_file_id::text, ''),
+  m.created_at, m.edited_at, m.deleted_at, 0, '[]',
+  k.key_ciphertext
+FROM dm_messages m
+JOIN dm_rooms r ON r.id = m.room_id
+JOIN dm_room_keys k ON k.room_id = r.id
+WHERE m.id = $1 AND m.message_type = 'file' AND m.deleted_at IS NULL`
+	var wrapped []byte
+	record, err := scanMessageRecordWithTail(s.db.QueryRowContext(ctx, query, messageID), &wrapped)
+	if err != nil {
+		return MessageRecord{}, nil, mapNoRows(err)
+	}
+	if len(record.AttachmentStoragePathCiphertext) == 0 {
+		return MessageRecord{}, nil, ErrNotFound
+	}
+	return record, append([]byte(nil), wrapped...), nil
+}
+
 func (s *PostgresStore) InsertMessage(ctx context.Context, principal Principal, msg MessageRecord, urls []string) (MessageRecord, error) {
 	if err := s.requireDB(); err != nil {
 		return MessageRecord{}, err
@@ -749,15 +774,21 @@ func scanRoom(row scanner) (Room, error) {
 }
 
 func scanMessageRecord(row scanner) (MessageRecord, error) {
+	return scanMessageRecordWithTail(row)
+}
+
+func scanMessageRecordWithTail(row scanner, tail ...any) (MessageRecord, error) {
 	var record MessageRecord
 	var editedAt, deletedAt sql.NullTime
 	var attachmentPath []byte
 	var reactionsJSON string
-	if err := row.Scan(
+	dest := []any{
 		&record.ID, &record.RoomID, &record.SenderID, &record.MessageType, &record.BodyCiphertext,
 		&attachmentPath, &record.AttachmentName, &record.AttachmentSize, &record.AttachmentMIMEType,
 		&record.DriveFileID, &record.CreatedAt, &editedAt, &deletedAt, &record.ReadCount, &reactionsJSON,
-	); err != nil {
+	}
+	dest = append(dest, tail...)
+	if err := row.Scan(dest...); err != nil {
 		return MessageRecord{}, err
 	}
 	record.AttachmentStoragePathCiphertext = attachmentPath

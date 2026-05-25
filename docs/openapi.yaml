@@ -379,6 +379,52 @@ paths:
           $ref: "#/components/responses/DMMessage"
         default:
           $ref: "#/components/responses/Error"
+  /dm/messages/{id}/attachment:
+    get:
+      operationId: downloadDMAttachment
+      summary: Download a DM attachment through a signed one-hour URL
+      security: []
+      servers:
+        - url: /api/v1
+          description: Mail API
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+        - name: token
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 1
+      responses:
+        "200":
+          description: DM attachment bytes
+          headers:
+            Content-Disposition:
+              description: Attachment disposition with a safe filename.
+              schema:
+                type: string
+            Content-Length:
+              description: Attachment size in bytes.
+              schema:
+                type: integer
+                format: int64
+            Cache-Control:
+              description: Signed DM attachment URLs are private and expire after one hour.
+              schema:
+                type: string
+                enum: ["private, max-age=3600"]
+            X-Content-Type-Options:
+              description: Prevent browser MIME sniffing for DM attachment bytes.
+              schema:
+                type: string
+                enum: [nosniff]
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        default:
+          $ref: "#/components/responses/Error"
   /dm/messages/{id}/reactions/{emoji}:
     put:
       operationId: toggleDMReaction

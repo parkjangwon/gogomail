@@ -136,6 +136,13 @@ type AttachmentUpload struct {
 	Body        []byte
 }
 
+type AttachmentDownload struct {
+	Filename    string
+	Size        int64
+	ContentType string
+	Body        io.ReadCloser
+}
+
 type Store interface {
 	CreateDirectRoom(ctx context.Context, principal Principal, otherUserID string, keyCiphertext []byte) (Room, error)
 	CreateGroupRoom(ctx context.Context, principal Principal, req CreateRoomRequest, keyCiphertext []byte) (Room, error)
@@ -150,6 +157,7 @@ type Store interface {
 	JoinInvite(ctx context.Context, principal Principal, token string, systemMessage MessageRecord) (MessageRecord, error)
 	RoomKeyForParticipant(ctx context.Context, principal Principal, roomID string) ([]byte, error)
 	RoomKeyForMessageOwner(ctx context.Context, principal Principal, messageID string) (string, []byte, error)
+	AttachmentByMessageID(ctx context.Context, messageID string) (MessageRecord, []byte, error)
 	InsertMessage(ctx context.Context, principal Principal, msg MessageRecord, urls []string) (MessageRecord, error)
 	ListMessages(ctx context.Context, principal Principal, roomID string, cursor MessageCursor) ([]MessageRecord, error)
 	UpdateTextMessage(ctx context.Context, principal Principal, messageID string, bodyCiphertext []byte, urls []string) (MessageRecord, error)
@@ -162,6 +170,7 @@ type Store interface {
 
 type AttachmentStore interface {
 	Put(ctx context.Context, path string, body io.Reader) error
+	Get(ctx context.Context, path string) (io.ReadCloser, error)
 }
 
 type MessageRecord struct {
@@ -502,6 +511,56 @@ func (s *Service) ListMedia(ctx context.Context, principal Principal, roomID str
 		query.Limit = 30
 	}
 	return s.store.ListMedia(ctx, principal, strings.TrimSpace(roomID), query)
+}
+
+func (s *Service) SignAttachmentDownload(messageID string, expiresAt time.Time) (string, error) {
+	if s == nil || s.crypto == nil {
+		return "", fmt.Errorf("dm crypto is not configured")
+	}
+	return s.crypto.SignAttachmentToken(messageID, expiresAt)
+}
+
+func (s *Service) VerifyAttachmentDownload(token string) (string, error) {
+	if s == nil || s.crypto == nil {
+		return "", fmt.Errorf("dm crypto is not configured")
+	}
+	return s.crypto.VerifyAttachmentToken(token, s.now())
+}
+
+func (s *Service) OpenAttachment(ctx context.Context, token string) (AttachmentDownload, error) {
+	if s == nil || s.crypto == nil {
+		return AttachmentDownload{}, fmt.Errorf("dm crypto is not configured")
+	}
+	if s.attachments == nil {
+		return AttachmentDownload{}, fmt.Errorf("%w: attachment storage is not configured", ErrInvalid)
+	}
+	messageID, err := s.VerifyAttachmentDownload(token)
+	if err != nil {
+		return AttachmentDownload{}, err
+	}
+	record, wrapped, err := s.store.AttachmentByMessageID(ctx, messageID)
+	if err != nil {
+		return AttachmentDownload{}, err
+	}
+	roomKey, err := s.crypto.UnwrapRoomKey(wrapped)
+	if err != nil {
+		return AttachmentDownload{}, fmt.Errorf("dm room key unavailable: %w", err)
+	}
+	defer zeroBytes(roomKey)
+	plainPath, err := s.crypto.DecryptBody(roomKey, record.AttachmentStoragePathCiphertext)
+	if err != nil {
+		return AttachmentDownload{}, err
+	}
+	body, err := s.attachments.Get(ctx, string(plainPath))
+	if err != nil {
+		return AttachmentDownload{}, err
+	}
+	return AttachmentDownload{
+		Filename:    record.AttachmentName,
+		Size:        record.AttachmentSize,
+		ContentType: record.AttachmentMIMEType,
+		Body:        body,
+	}, nil
 }
 
 func (s *Service) AddMembers(ctx context.Context, principal Principal, roomID string, userIDs []string) ([]Message, error) {
