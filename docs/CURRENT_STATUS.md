@@ -19,6 +19,7 @@ GoGoMail is a production-grade self-hosted email platform written in Go
 
 | Date | Feature |
 |------|---------|
+| 2026-05-26 | Refactor: split admin_system.go (3510 lines) into 4 focused files (auth/access-policy/security-config/governance) |
 | 2026-05-26 | Codebase improvements: doc cleanup, security hardening, file splits |
 | 2026-05-25 | DM search candidate limit lowered 10000 → 1000; system messages injectable |
 | 2026-05-25 | Grafana default password removed; metrics interface{} replaced with typed interfaces |
