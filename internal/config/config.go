@@ -332,6 +332,12 @@ type Config struct {
 
 	// Metrics HTTP endpoint
 	MetricsAddr string
+
+	// WebAuthn / Passkey MFA (FIDO2)
+	WebAuthnEnabled       bool     // GOGOMAIL_WEBAUTHN_ENABLED (default false)
+	WebAuthnRPID          string   // GOGOMAIL_WEBAUTHN_RP_ID (default from PublicHostname)
+	WebAuthnRPDisplayName string   // GOGOMAIL_WEBAUTHN_RP_DISPLAY_NAME (default "GoGoMail")
+	WebAuthnRPOrigins     []string // GOGOMAIL_WEBAUTHN_RP_ORIGINS (comma-separated)
 }
 
 func Load() Config {
@@ -649,6 +655,11 @@ func Load() Config {
 		FarmCoordinatorJobVisibilityTimeout: durationEnvOrDefault("GOGOMAIL_FARM_COORDINATOR_JOB_VISIBILITY_TIMEOUT", 5*time.Minute),
 		CORSAllowedOrigins:                  os.Getenv("GOGOMAIL_CORS_ALLOWED_ORIGINS"),
 		MetricsAddr:                         envOrDefault("GOGOMAIL_METRICS_ADDR", ":9090"),
+
+		WebAuthnEnabled:       boolEnvOrDefault("GOGOMAIL_WEBAUTHN_ENABLED", false),
+		WebAuthnRPID:          envOrDefault("GOGOMAIL_WEBAUTHN_RP_ID", ""),
+		WebAuthnRPDisplayName: envOrDefault("GOGOMAIL_WEBAUTHN_RP_DISPLAY_NAME", "GoGoMail"),
+		WebAuthnRPOrigins:     splitCSV(os.Getenv("GOGOMAIL_WEBAUTHN_RP_ORIGINS")),
 	}
 	if cfg.EventConsumerDeadLetterStream == "" {
 		cfg.EventConsumerDeadLetterStream = cfg.EventStream + ".dead"
