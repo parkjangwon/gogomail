@@ -2,11 +2,16 @@
 
 ## Current Task
 
-**DM Export Plan — Task 4: Frontend DMPanel more-menu + export** (in progress 2026-05-26)
+**DM Export Plan — Task 5: User MCP — dm_export_room tool** (pending 2026-05-26)
 
-- `internal/httpapi/dm.go`: `DMService.ExportRoom` interface method + handler registered at `GET /api/v1/dm/rooms/{roomID}/export`
-- `internal/httpapi/dm_test.go`: `fakeDMRouteService.ExportRoom` stub + `TestDMExportRoomRespondsWithTextFile`
-- `docs/openapi.yaml`: `exportDMRoom` operation added
+## Last Completed Task
+
+**Task 4: Frontend — DMPanel more-menu + export download** — COMPLETE (2026-05-26)
+
+- `apps/webmail/messages/{en,ko,ja,zh-CN}.json`: added `exportRoom`, `exportDownloading`, `exportError` keys inside `dmPanel`
+- `apps/webmail/src/lib/api/dm.ts`: added `exportDMRoom(roomId)` using `fetch` → `Blob`
+- `apps/webmail/src/components/DMPanel.tsx`: added `EllipsisHorizontalIcon` ⋯ button with dropdown menu + export handler + click-away overlay
+- TypeScript: `npx tsc --noEmit` → no errors
 
 ## Last Completed Task
 

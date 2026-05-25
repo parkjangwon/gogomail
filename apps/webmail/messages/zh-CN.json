@@ -2041,7 +2041,10 @@
       "inviteFailed": "创建邀请失败",
       "removeMemberFailed": "移除成员失败",
       "copyFailed": "复制图片失败"
-    }
+    },
+    "exportRoom": "导出对话",
+    "exportDownloading": "正在导出...",
+    "exportError": "导出失败，请重试。"
   },
   "spamDialog": {
     "ariaLabel": "举报垃圾邮件",

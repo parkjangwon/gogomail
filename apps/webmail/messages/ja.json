@@ -2041,7 +2041,10 @@
       "inviteFailed": "招待作成に失敗しました",
       "removeMemberFailed": "メンバー削除に失敗しました",
       "copyFailed": "画像コピーに失敗しました"
-    }
+    },
+    "exportRoom": "会話をエクスポート",
+    "exportDownloading": "エクスポート中...",
+    "exportError": "エクスポートに失敗しました。もう一度お試しください。"
   },
   "spamDialog": {
     "ariaLabel": "スパム報告",

@@ -2044,7 +2044,10 @@
       "inviteFailed": "초대 생성 실패",
       "removeMemberFailed": "멤버 제거 실패",
       "copyFailed": "이미지 복사 실패"
-    }
+    },
+    "exportRoom": "대화 내보내기",
+    "exportDownloading": "내보내는 중...",
+    "exportError": "내보내기에 실패했습니다. 다시 시도해주세요."
   },
   "spamDialog": {
     "ariaLabel": "스팸 신고",

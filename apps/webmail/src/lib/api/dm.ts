@@ -218,3 +218,17 @@ export function toggleDMReaction(messageId: string, emoji: string): Promise<void
     body: JSON.stringify({ emoji }),
   });
 }
+
+export async function exportDMRoom(roomId: string): Promise<Blob> {
+  const res = await fetch(`/api/mail/dm/rooms/${encodeURIComponent(roomId)}/export`, {
+    signal: AbortSignal.timeout(60_000),
+  });
+  if (res.status === 401) {
+    clearTokenAndRedirect();
+    throw new Error('Unauthorized');
+  }
+  if (!res.ok) {
+    throw new Error(await responseErrorMessage(res, `Export failed: ${res.status}`));
+  }
+  return res.blob();
+}
