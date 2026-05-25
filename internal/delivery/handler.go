@@ -129,6 +129,7 @@ type Handler struct {
 	retry          RetryScheduler
 	metrics        Metrics
 	throttler      Throttler
+	rateLimiter    RateLimiter
 	backoff        DomainBackoff
 	routeCounter   *RouteCounters
 	exhaustionHook ExhaustionHook
@@ -166,6 +167,11 @@ func (h *Handler) WithMetrics(metrics Metrics) *Handler {
 
 func (h *Handler) WithThrottler(throttler Throttler) *Handler {
 	h.throttler = throttler
+	return h
+}
+
+func (h *Handler) WithRateLimiter(rl RateLimiter) *Handler {
+	h.rateLimiter = rl
 	return h
 }
 
@@ -259,6 +265,25 @@ func (h *Handler) HandleEvent(ctx context.Context, msg eventstream.Message) erro
 	if h.backoff != nil {
 		if err := h.backoff.Check(ctx, job); err != nil {
 			h.observe(ctx, metricEvent(queued, MetricDomainBackoff, MetricDeferred, err))
+			if h.retry != nil {
+				retryErr := h.retry.ScheduleRetry(ctx, job, err)
+				if retryErr == nil {
+					h.observe(ctx, metricEvent(queued, MetricRetryScheduled, MetricDeferred, err))
+					return nil
+				}
+				if errors.Is(retryErr, ErrRetryExhausted) {
+					h.observe(ctx, metricEvent(queued, MetricRetryExhausted, MetricFailed, retryErr))
+					return h.notifyExhausted(ctx, queued, retryErr)
+				}
+				return retryErr
+			}
+			return err
+		}
+	}
+
+	if h.rateLimiter != nil {
+		if err := h.rateLimiter.Allow(ctx, job); err != nil {
+			h.observe(ctx, metricEvent(queued, MetricRateLimited, MetricDeferred, err))
 			if h.retry != nil {
 				retryErr := h.retry.ScheduleRetry(ctx, job, err)
 				if retryErr == nil {

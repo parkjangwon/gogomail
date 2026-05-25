@@ -262,6 +262,9 @@ type Config struct {
 	DeliveryDefaultConcurrency          int
 	DeliveryFarmConcurrency             map[string]int
 	DeliveryDomainConcurrency           map[string]int
+	DeliveryRateLimitEnabled            bool
+	DeliveryDefaultRateLimitPerMinute   int
+	DeliveryDomainRateLimitPerMinute    map[string]int
 	DeliveryDomainBackoffEnabled        bool
 	DeliveryDomainBackoffBackend        string
 	DeliveryDomainBackoffScope          string
@@ -578,6 +581,9 @@ func Load() Config {
 		DeliveryDefaultConcurrency:          intEnvOrDefault("GOGOMAIL_DELIVERY_DEFAULT_CONCURRENCY", 0),
 		DeliveryFarmConcurrency:             intMapEnvOrDefault("GOGOMAIL_DELIVERY_FARM_CONCURRENCY", nil),
 		DeliveryDomainConcurrency:           intMapEnvOrDefault("GOGOMAIL_DELIVERY_DOMAIN_CONCURRENCY", nil),
+		DeliveryRateLimitEnabled:            boolEnvOrDefault("GOGOMAIL_DELIVERY_RATE_LIMIT_ENABLED", false),
+		DeliveryDefaultRateLimitPerMinute:   intEnvOrDefault("GOGOMAIL_DELIVERY_DEFAULT_RATE_LIMIT_PER_MINUTE", 0),
+		DeliveryDomainRateLimitPerMinute:    intMapEnvOrDefault("GOGOMAIL_DELIVERY_DOMAIN_RATE_LIMIT_PER_MINUTE", nil),
 		DeliveryDomainBackoffEnabled:        boolEnvOrDefault("GOGOMAIL_DELIVERY_DOMAIN_BACKOFF_ENABLED", false),
 		DeliveryDomainBackoffBackend:        envOrDefault("GOGOMAIL_DELIVERY_DOMAIN_BACKOFF_BACKEND", "redis"),
 		DeliveryDomainBackoffScope:          envOrDefault("GOGOMAIL_DELIVERY_DOMAIN_BACKOFF_SCOPE", "domain"),

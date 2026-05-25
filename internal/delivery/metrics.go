@@ -15,6 +15,7 @@ const (
 	MetricTransportFailed    MetricStage = "transport_failed"
 	MetricDomainBackoff      MetricStage = "domain_backoff"
 	MetricThrottled          MetricStage = "throttled"
+	MetricRateLimited        MetricStage = "rate_limited"
 	MetricRetryScheduled     MetricStage = "retry_scheduled"
 	MetricRetryExhausted     MetricStage = "retry_exhausted"
 )

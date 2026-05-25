@@ -2969,6 +2969,18 @@ func runDeliveryWorker(ctx context.Context, cfg config.Config, logger *slog.Logg
 			"domain_limits", cfg.DeliveryDomainConcurrency,
 		)
 	}
+	if cfg.DeliveryRateLimitEnabled {
+		rateLimitPolicy := delivery.DomainRateLimitPolicy{
+			DomainMessagesPerMinute:  cfg.DeliveryDomainRateLimitPerMinute,
+			DefaultMessagesPerMinute: cfg.DeliveryDefaultRateLimitPerMinute,
+		}
+		handler.WithRateLimiter(delivery.NewInMemoryDomainRateLimiter(rateLimitPolicy))
+		logger.Info(
+			"delivery rate limiting enabled",
+			"default_per_minute", cfg.DeliveryDefaultRateLimitPerMinute,
+			"domain_limits", cfg.DeliveryDomainRateLimitPerMinute,
+		)
+	}
 	if backoff := deliveryDomainBackoffFromConfig(cfg, redisClient); backoff != nil {
 		handler.WithDomainBackoff(backoff)
 		logger.Info(
