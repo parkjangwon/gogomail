@@ -56,12 +56,14 @@ func run(args []string, stdout io.Writer, stderr io.Writer, runApp func(context.
 		return 2
 	}
 	var logHandler slog.Handler
+	logOptions := &slog.HandlerOptions{Level: slog.LevelInfo, ReplaceAttr: redactLogAttr}
 	if cfg.Environment == "production" {
-		logHandler = slog.NewJSONHandler(stdout, &slog.HandlerOptions{Level: slog.LevelInfo})
+		logHandler = slog.NewJSONHandler(stdout, logOptions)
 	} else {
-		logHandler = slog.NewTextHandler(stdout, &slog.HandlerOptions{Level: slog.LevelInfo})
+		logHandler = slog.NewTextHandler(stdout, logOptions)
 	}
-	logger := slog.New(logHandler)
+	logger := slog.New(newContextHandler(logHandler))
+	slog.SetDefault(logger)
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()

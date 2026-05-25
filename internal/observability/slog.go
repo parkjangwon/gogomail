@@ -3,6 +3,7 @@ package observability
 import (
 	"context"
 	"log/slog"
+	"strconv"
 
 	"github.com/gogomail/gogomail/internal/delivery"
 	"github.com/gogomail/gogomail/internal/ldapgw"
@@ -24,6 +25,8 @@ func (a SlogAdapter) ObserveSMTP(ctx context.Context, event smtpd.MetricEvent) {
 	logger := a.logger()
 	attrs := []any{
 		"component", "smtp",
+		"protocol", "smtp",
+		"request_id", requestIDForEvent(ctx, "smtp", event.RemoteAddr, event.EnvelopeFrom, event.Recipient, string(event.Stage), string(event.Result)),
 		"stage", event.Stage,
 		"result", event.Result,
 		"remote_addr", event.RemoteAddr,
@@ -44,6 +47,8 @@ func (a SlogAdapter) ObserveDelivery(ctx context.Context, event delivery.MetricE
 	logger := a.logger()
 	attrs := []any{
 		"component", "delivery",
+		"protocol", "smtp-delivery",
+		"request_id", requestIDForEvent(ctx, "delivery", event.MessageID, event.RFCMessageID, event.DomainID, string(event.Stage), string(event.Result)),
 		"stage", event.Stage,
 		"result", event.Result,
 		"message_id", event.MessageID,
@@ -65,6 +70,8 @@ func (a SlogAdapter) ObserveLDAP(ctx context.Context, event ldapgw.MetricEvent) 
 	logger := a.logger()
 	attrs := []any{
 		"component", "ldap",
+		"protocol", "ldap",
+		"request_id", requestIDForEvent(ctx, "ldap", event.RemoteAddr, event.Operation, string(event.Result), strconv.Itoa(event.ResultCode)),
 		"operation", event.Operation,
 		"result", event.Result,
 		"result_code", event.ResultCode,

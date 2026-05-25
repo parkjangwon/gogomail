@@ -22,7 +22,7 @@ func TestSlogAdapterObservesSMTPMetrics(t *testing.T) {
 		Error:        "rate limit",
 	})
 	got := buf.String()
-	for _, want := range []string{"component=smtp", "stage=rcpt", "result=rejected", "rate limit"} {
+	for _, want := range []string{"component=smtp", "protocol=smtp", "request_id=smtp-", "stage=rcpt", "result=rejected", "rate limit"} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("log = %q, want %q", got, want)
 		}
@@ -42,7 +42,7 @@ func TestSlogAdapterObservesDeliveryMetrics(t *testing.T) {
 		RecipientCount: 2,
 	})
 	got := buf.String()
-	for _, want := range []string{"component=delivery", "stage=throttled", "result=deferred", "msg-1", "route_pool=bulk-relay"} {
+	for _, want := range []string{"component=delivery", "protocol=smtp-delivery", "request_id=delivery-", "stage=throttled", "result=deferred", "msg-1", "route_pool=bulk-relay"} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("log = %q, want %q", got, want)
 		}

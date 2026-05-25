@@ -36,7 +36,7 @@ MCP 자동화, split-mode 배포 준비가 핵심 축입니다.
 | 이메일 보안 | SPF (RFC 7208), DKIM (RFC 6376), DMARC (RFC 7489), ARC (RFC 8617), MTA-STS (RFC 8461), TLS-RPT (RFC 8460) |
 | 인증 | JWT (HS256, 32바이트 이상 시크릿), TOTP MFA, refresh 토큰 회전 + 재사용 감지, PBKDF2 비밀번호 해시 |
 | 남용 방지 | IP·계정별 brute-force 추적기, rate limit, DNSBL, milter, ClamAV 연동 |
-| 관찰 가능성 | Prometheus 메트릭, slog JSON 로그(시크릿 마스킹) |
+| 관찰 가능성 | Prometheus 메트릭, 구조화된 slog JSON 로그, 웹/API/프로토콜 로그 간 `X-Request-ID` 추적, 시크릿 마스킹 |
 | 스토리지 | PostgreSQL 16+, Redis 7+ (단일 / Sentinel / Cluster), S3 / MinIO / 로컬 FS |
 | 신뢰성 | Outbox 패턴 (PG → Redis Streams), 도메인별 throttling, 서킷 브레이커, 30초 graceful drain |
 

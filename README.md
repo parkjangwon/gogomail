@@ -36,7 +36,7 @@ spam controls, MCP automation, and split-mode deployment readiness.
 | Email security | SPF (RFC 7208), DKIM (RFC 6376), DMARC (RFC 7489), ARC (RFC 8617), MTA-STS (RFC 8461), TLS-RPT (RFC 8460) |
 | Auth | JWT (HS256, ≥32-byte secret), TOTP MFA, refresh-token rotation with replay detection, PBKDF2 password hashes |
 | Anti-abuse | Per-IP/per-account brute-force tracker, configurable rate limits, DNSBL, milter, optional ClamAV |
-| Observability | Prometheus metrics, slog JSON logs with secret redaction |
+| Observability | Prometheus metrics, structured slog JSON logs, `X-Request-ID` correlation across web/API/protocol logs, secret redaction |
 | Storage | PostgreSQL 16+, Redis 7+ (single / Sentinel / Cluster), S3 / MinIO / local FS |
 | Reliability | Outbox Pattern (PG → Redis Streams), per-domain throttling, circuit breakers, graceful 30s drain |
 

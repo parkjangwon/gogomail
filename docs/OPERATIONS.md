@@ -35,6 +35,53 @@ expose Prometheus metrics (which doubles as a TCP liveness probe target).
 Enabled when `GOGOMAIL_METRICS_BACKEND=prometheus` and `GOGOMAIL_METRICS_ADDR`
 is set (e.g. `:9090`). Endpoint: `GET /metrics`.
 
+---
+
+## Centralized logging
+
+Production modes write structured slog JSON to stdout. Development keeps text
+logs for readability, but uses the same fields and redaction rules. Ship stdout
+from every Go mode and both Next.js apps to ELK, Loki/Grafana, or another log
+drain.
+
+Common fields:
+
+| Field | Meaning |
+|---|---|
+| `request_id` | Primary correlation id. HTTP accepts `X-Request-ID`, generates one when missing, returns it in `X-Request-ID`, and forwards it through the webmail/admin Next.js proxies to the Go APIs. |
+| `component` | Runtime surface such as `next-api`, `smtp`, `delivery`, or `ldap`. |
+| `protocol` | Protocol family for non-HTTP logs, e.g. `smtp`, `smtp-delivery`, `ldap`. |
+| `method`, `route`, `status`, `duration_ms`, `bytes` | HTTP access-log fields. Routes are normalized to avoid high-cardinality ids. |
+| `user_id`, `actor_id`, `company_id`, `tenant_id`, `domain_id` | Authenticated context when available. |
+| `message_id`, `rfc_message_id`, `recipient_count` | Mail-flow correlation fields for delivery logs. |
+
+HTTP access logs are emitted in English as `http request`. They never include
+request or response bodies. Sensitive attributes such as authorization headers,
+cookies, passwords, tokens, secrets, and API/private keys are redacted before
+they reach the handler.
+
+Protocol and worker logs:
+
+- SMTP receive/submission and delivery worker events flow through the
+  observability adapter. Set `GOGOMAIL_METRICS_BACKEND=slog` to emit those
+  mail-flow events as structured logs, or `prometheus` to emit metrics.
+- LDAP gateway events use the same adapter and include `request_id`, operation,
+  result, result code, remote address, and entry count.
+- IMAP, POP3, CalDAV, CardDAV, and WebDAV HTTP gateway requests are covered by
+  the HTTP access log when served through the Go HTTP stack. TCP-only protocol
+  connection gauges remain in Prometheus.
+- The webmail and admin console server-side API routes log one structured JSON
+  line per proxied backend request and forward `X-Request-ID` to the backend.
+
+Suggested Kibana/Loki pivots:
+
+```text
+request_id="req-..."                         # one browser/API/proxy/backend trace
+component="delivery" message_id="..."        # one outbound delivery flow
+protocol="smtp" remote_addr="203.0.113.10"   # SMTP behavior from one peer
+status>=500 route="/api/v1/messages/{id}"    # normalized API failures
+```
+
 ### Core metrics
 
 | Metric | Type | Labels | Notes |

@@ -2,38 +2,66 @@ import { NextRequest, NextResponse } from 'next/server';
 import { assertSameOriginRequest } from '@/lib/server/adminProxy';
 import { backendConfigErrorResponse, requiredBackendUrl } from '@/lib/server/backend';
 import { ADMIN_ACCESS_TOKEN_COOKIE, LEGACY_ADMIN_ACCESS_TOKEN_COOKIE } from '@/lib/server/cookies';
+import { logServerRequest, requestIDFromHeaders, responseHeadersWithRequestID } from '@/lib/server/requestLog';
 
 const IS_PROD = process.env.NODE_ENV === 'production';
 
 export async function POST(req: NextRequest) {
+  const started = Date.now();
+  const requestID = requestIDFromHeaders(req.headers);
+  const finish = (response: NextResponse, upstreamStatus?: number): NextResponse => {
+    logServerRequest({
+      requestID,
+      method: req.method,
+      route: '/api/admin/auth/login',
+      status: response.status,
+      durationMs: Date.now() - started,
+      upstreamStatus,
+    });
+    return response;
+  };
   try {
     assertSameOriginRequest(req);
   } catch {
-    return NextResponse.json({ error: 'Invalid request origin' }, { status: 403 });
+    return finish(NextResponse.json({ error: 'Invalid request origin' }, {
+      status: 403,
+      headers: responseHeadersWithRequestID({ 'Cache-Control': 'no-store' }, requestID),
+    }));
   }
   let backendUrl: string;
   try {
     backendUrl = requiredBackendUrl();
   } catch {
-    return backendConfigErrorResponse();
+    const response = backendConfigErrorResponse();
+    response.headers.set('X-Request-ID', requestID);
+    return finish(response);
   }
 
   let body: unknown;
   try { body = await req.json(); } catch {
-    return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
+    return finish(NextResponse.json({ error: 'Invalid request body' }, {
+      status: 400,
+      headers: responseHeadersWithRequestID({ 'Cache-Control': 'no-store' }, requestID),
+    }));
   }
 
   const upstream = await fetch(`${backendUrl}/admin/v1/auth/login`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', 'X-Request-ID': requestID },
     body: JSON.stringify(body),
   }).catch(() => null);
 
-  if (!upstream) return NextResponse.json({ error: 'Backend unreachable' }, { status: 503 });
+  if (!upstream) return finish(NextResponse.json({ error: 'Backend unreachable' }, {
+    status: 503,
+    headers: responseHeadersWithRequestID({ 'Cache-Control': 'no-store' }, requestID),
+  }));
 
   if (!upstream.ok) {
     const err = await upstream.json().catch(() => ({ error: 'Invalid credentials' }));
-    return NextResponse.json(err, { status: upstream.status });
+    return finish(NextResponse.json(err, {
+      status: upstream.status,
+      headers: responseHeadersWithRequestID({ 'Cache-Control': 'no-store' }, requestID),
+    }), upstream.status);
   }
 
   const data = await upstream.json() as {
@@ -48,10 +76,10 @@ export async function POST(req: NextRequest) {
 
   // MFA challenge — don't set cookies yet, pass pending_token to frontend.
   if (data.mfa_required) {
-    return NextResponse.json(
+    return finish(NextResponse.json(
       { mfa_required: true, pending_token: data.pending_token },
-      { headers: { 'Cache-Control': 'no-store' } }
-    );
+      { headers: responseHeadersWithRequestID({ 'Cache-Control': 'no-store' }, requestID) }
+    ), upstream.status);
   }
 
   // Full token — set cookies.
@@ -60,14 +88,17 @@ export async function POST(req: NextRequest) {
     : 86400;
 
   if (!data.access_token) {
-    return NextResponse.json({ error: 'No access token in response' }, { status: 502 });
+    return finish(NextResponse.json({ error: 'No access token in response' }, {
+      status: 502,
+      headers: responseHeadersWithRequestID({ 'Cache-Control': 'no-store' }, requestID),
+    }), upstream.status);
   }
 
   const responseBody: Record<string, unknown> = { ok: true };
   if (data.mfa_setup_required) responseBody.mfa_setup_required = true;
 
   const response = NextResponse.json(responseBody, {
-    headers: { 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' },
+    headers: responseHeadersWithRequestID({ 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' }, requestID),
   });
   response.cookies.set(ADMIN_ACCESS_TOKEN_COOKIE, data.access_token, {
     httpOnly: true,
@@ -85,5 +116,5 @@ export async function POST(req: NextRequest) {
       maxAge: 0,
     });
   }
-  return response;
+  return finish(response, upstream.status);
 }

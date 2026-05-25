@@ -3488,6 +3488,7 @@ func runHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, mode M
 		handler = httpapi.CORSMiddleware(cfg.CORSAllowedOrigins)(handler)
 	}
 	handler = httpapi.SecurityHeadersMiddleware(handler)
+	handler = httpapi.AccessLogMiddleware(logger, handler)
 	handler = httpapi.RequestIDMiddleware(handler)
 	if strings.EqualFold(strings.TrimSpace(cfg.MetricsBackend), "prometheus") {
 		handler = httpapi.MetricsMiddleware(sharedPrometheusAdapter(), handler)

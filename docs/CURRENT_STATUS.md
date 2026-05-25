@@ -1,6 +1,13 @@
 # gogomail current status
 
-Last updated: 2026-05-25 (spam filter phishing defense expansion)
+Last updated: 2026-05-25 (centralized request and protocol logging foundation)
+
+## Centralized request and protocol logging foundation (2026-05-25)
+- Go runtime logging now installs the configured slog handler as the process default, keeps production JSON output on stdout, and redacts secrets, cookies, authorization headers, tokens, passwords, and API/private keys before emission.
+- HTTP modes emit one English structured access log per request with normalized route, status, duration, bytes, remote IP, user agent, authenticated context, and `request_id`; `X-Request-ID` is generated when missing and returned to callers.
+- Webmail and admin console Next.js middleware/proxies now propagate `X-Request-ID` to backend API calls, echo it in responses, and write structured server-side proxy logs.
+- SMTP, delivery worker, and LDAP slog observability events now include `protocol` and `request_id` fields so ELK/Loki/Grafana queries can pivot across mail-flow and protocol events.
+- Verification target: `go test ./cmd/gogomail ./internal/httpapi ./internal/observability`; `pnpm --dir apps/webmail type-check`; `pnpm --dir apps/console type-check`.
 
 ## Spam filter phishing defense expansion (2026-05-25)
 - `internal/spamfilter` now ships two additional default system packs: URL/credential phishing defense and sender impersonation defense.
