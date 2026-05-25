@@ -50,6 +50,7 @@ import (
 	dsnpkg "github.com/gogomail/gogomail/internal/dsn"
 	"github.com/gogomail/gogomail/internal/eventstream"
 	"github.com/gogomail/gogomail/internal/httpapi"
+	"github.com/gogomail/gogomail/internal/jmap"
 	"github.com/gogomail/gogomail/internal/idprovider"
 	"github.com/gogomail/gogomail/internal/imapgw"
 	"github.com/gogomail/gogomail/internal/imapnotify"
@@ -3450,6 +3451,9 @@ func runHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, mode M
 			bgTracker,
 		)
 		logger.Info("mail api routes registered")
+
+		httpapi.RegisterJMAPRoutes(mux, jmapHandler(cfg))
+		logger.Info("jmap routes registered")
 	}
 	if modeIncludesAdminAPI(mode) {
 		db, err := openDatabase(ctx, cfg)
@@ -3664,6 +3668,18 @@ func tokenManagerForConfig(cfg config.Config, checker auth.RevocationChecker) (*
 
 func modeIncludesMailAPI(mode Mode) bool {
 	return mode == ModeMailAPI || mode == ModeAllInOne
+}
+
+// jmapHandler creates a JMAP handler using a stub session builder.
+// Real DB/auth integration can be wired here in a later iteration.
+func jmapHandler(cfg config.Config) *jmap.Handler {
+	base := cfg.PublicBaseURL
+	if base == "" {
+		base = "http://localhost" + cfg.HTTPAddr
+	}
+	return jmap.NewHandler(func(ctx context.Context, userID, accountID string) (*jmap.Session, error) {
+		return jmap.BuildSession(userID, accountID, base), nil
+	})
 }
 
 func modeIncludesAdminAPI(mode Mode) bool {
