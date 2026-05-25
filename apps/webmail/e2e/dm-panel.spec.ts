@@ -22,6 +22,46 @@ test.describe('DM panel', () => {
     expect(outgoing && incoming ? outgoing.x > incoming.x : true).toBe(true);
   });
 
+  test('resizes from every modal edge without collapsing the DM layout', async ({ page }) => {
+    await setupAuthedPage(page);
+
+    await page.getByRole('button', { name: /^DM/ }).click();
+    const dialog = page.getByRole('dialog', { name: 'DM' });
+    await expect(dialog).toBeVisible();
+
+    const before = await dialog.boundingBox();
+    expect(before).not.toBeNull();
+    if (!before) return;
+
+    await page.mouse.move(before.x + 2, before.y + before.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(before.x - 80, before.y + before.height / 2);
+    await page.mouse.up();
+
+    const afterWestResize = await dialog.boundingBox();
+    expect(afterWestResize).not.toBeNull();
+    if (!afterWestResize) return;
+    expect(afterWestResize.width).toBeGreaterThan(before.width + 50);
+
+    await page.mouse.move(afterWestResize.x + afterWestResize.width - 2, afterWestResize.y + afterWestResize.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(afterWestResize.x + 260, afterWestResize.y + afterWestResize.height / 2);
+    await page.mouse.up();
+
+    await page.mouse.move(afterWestResize.x + afterWestResize.width / 2, afterWestResize.y + 2);
+    await page.mouse.down();
+    await page.mouse.move(afterWestResize.x + afterWestResize.width / 2, afterWestResize.y + afterWestResize.height + 200);
+    await page.mouse.up();
+
+    const compact = await dialog.boundingBox();
+    expect(compact).not.toBeNull();
+    if (!compact) return;
+    expect(compact.width).toBeGreaterThanOrEqual(320);
+    expect(compact.height).toBeGreaterThanOrEqual(360);
+    await expect(page.getByRole('heading', { name: 'DM' })).toBeVisible();
+    await expect(page.getByRole('button', { name: /New DM|새 DM|新規DM|新建私信/ })).toBeVisible();
+  });
+
   test('uses the other participant as the direct room title', async ({ page }) => {
     await setupAuthedPage(page, {
       dmRooms: [{

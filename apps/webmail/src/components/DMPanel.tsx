@@ -729,8 +729,8 @@ export function DMPanel({ userEmail, onUnreadChange, onClose, onComposeToAddress
       </aside>
 
       <main style={{ flex: 1, minWidth: 0, display: activeRoom ? 'flex' : 'none', flexDirection: 'column', height: '100%' }}>
-        <header style={{ minHeight: 58, borderBottom: '1px solid var(--color-border-subtle)', display: 'flex', alignItems: 'center', gap: 12, padding: '10px 16px', flexShrink: 0 }}>
-          <div style={{ minWidth: 0, flex: 1, display: 'flex', alignItems: 'center', gap: 10 }}>
+        <header style={{ minHeight: 58, borderBottom: '1px solid var(--color-border-subtle)', display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', flexShrink: 0, flexWrap: 'wrap' }}>
+          <div style={{ minWidth: 0, flex: '1 1 180px', display: 'flex', alignItems: 'center', gap: 8 }}>
             <button type="button" onClick={() => { setActiveRoomId(''); setDetailsOpen(false); setSearchQuery(''); }} aria-label={t('backToList')} style={{ width: 32, height: 32, border: 'none', borderRadius: 6, background: 'transparent', color: 'var(--color-text-secondary)', display: 'grid', placeItems: 'center', cursor: 'pointer', flexShrink: 0 }}>
               <ArrowLeftIcon style={{ width: 18, height: 18 }} />
             </button>
@@ -740,12 +740,12 @@ export function DMPanel({ userEmail, onUnreadChange, onClose, onComposeToAddress
               <div style={{ fontSize: 12, color: 'var(--color-text-tertiary)' }}>{activeRoom ? t('membersCount', { count: activeRoom.members?.length ?? activeRoom.member_count ?? 0 }) : userEmail}</div>
             </div>
           </div>
-          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: 6, alignItems: 'center', flex: '1 1 180px', justifyContent: 'flex-end', minWidth: 0 }}>
             {activeRoom && (
               <>
-                <div style={{ position: 'relative' }}>
+                <div style={{ position: 'relative', flex: '1 1 110px', minWidth: 0, maxWidth: 220 }}>
                   <MagnifyingGlassIcon style={{ position: 'absolute', left: 8, top: 7, width: 15, height: 15, color: 'var(--color-text-tertiary)' }} />
-                  <input value={searchQuery} onChange={(e) => setSearchQuery(e.currentTarget.value)} placeholder={t('search')} style={{ width: 180, border: '1px solid var(--color-border-default)', background: 'var(--color-bg-secondary)', color: 'var(--color-text-primary)', borderRadius: 6, padding: '6px 9px 6px 28px', fontSize: 13 }} />
+                  <input value={searchQuery} onChange={(e) => setSearchQuery(e.currentTarget.value)} placeholder={t('search')} style={{ width: '100%', boxSizing: 'border-box', border: '1px solid var(--color-border-default)', background: 'var(--color-bg-secondary)', color: 'var(--color-text-primary)', borderRadius: 6, padding: '6px 9px 6px 28px', fontSize: 13 }} />
                 </div>
                 <button type="button" onClick={() => fileInputRef.current?.click()} disabled={!activeRoomId} aria-label={t('attachFile')} style={{ width: 32, height: 32, border: '1px solid var(--color-border-default)', borderRadius: 6, background: 'transparent', color: 'var(--color-text-secondary)', display: 'grid', placeItems: 'center', cursor: 'pointer' }}>
                   <PaperClipIcon style={{ width: 17, height: 17 }} />
@@ -775,9 +775,9 @@ export function DMPanel({ userEmail, onUnreadChange, onClose, onComposeToAddress
         )}
 
         {activeRoom ? (
-          <div style={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: detailsOpen ? 'minmax(0, 1fr) 260px' : 'minmax(0, 1fr)' }}>
+          <div style={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: detailsOpen ? 'minmax(0, 1fr) minmax(170px, 34%)' : 'minmax(0, 1fr)' }}>
             <section style={{ display: 'flex', flexDirection: 'column', minWidth: 0, minHeight: 0 }}>
-              <div style={{ flex: 1, minHeight: 0, overflow: 'auto', padding: '16px 18px' }}>
+              <div style={{ flex: 1, minHeight: 0, overflow: 'auto', padding: '14px 12px' }}>
                 {loadingMessages && messages.length === 0 ? (
                   <div style={{ color: 'var(--color-text-tertiary)', fontSize: 13 }}>{t('loading')}</div>
                 ) : (
@@ -792,7 +792,7 @@ export function DMPanel({ userEmail, onUnreadChange, onClose, onComposeToAddress
                     return (
                       <div key={message.id} style={{ display: 'flex', justifyContent: system ? 'center' : mine ? 'flex-end' : 'flex-start', alignItems: 'flex-end', gap: 7, marginBottom: 9 }}>
                         {!system && !mine && <MemberAvatar member={sender} currentUserId={currentUserId} selfAvatarUrl={selfAvatarUrl} size={28} label={senderLabel} />}
-                        <div style={{ maxWidth: system ? '70%' : 'min(72%, 680px)', borderRadius: system ? 6 : 8, border: system ? '1px solid var(--color-border-subtle)' : 'none', background: system ? 'var(--color-bg-secondary)' : mine ? 'var(--color-accent)' : 'var(--color-bg-secondary)', color: system ? 'var(--color-text-secondary)' : mine ? '#fff' : 'var(--color-text-primary)', padding: system ? '5px 9px' : '8px 10px' }}>
+                        <div style={{ maxWidth: system ? '78%' : 'min(76%, 680px)', minWidth: 0, borderRadius: system ? 6 : 8, border: system ? '1px solid var(--color-border-subtle)' : 'none', background: system ? 'var(--color-bg-secondary)' : mine ? 'var(--color-accent)' : 'var(--color-bg-secondary)', color: system ? 'var(--color-text-secondary)' : mine ? '#fff' : 'var(--color-text-primary)', padding: system ? '5px 9px' : '8px 10px' }}>
                           {!system && (
                             <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 4 }}>
                               <span style={{ fontSize: 11, fontWeight: 700, color: mine ? 'rgba(255,255,255,0.78)' : 'var(--color-text-tertiary)' }}>{senderLabel}</span>
@@ -877,12 +877,12 @@ export function DMPanel({ userEmail, onUnreadChange, onClose, onComposeToAddress
                 )}
                 <div ref={messageEndRef} />
               </div>
-              <footer style={{ borderTop: '1px solid var(--color-border-subtle)', padding: '10px 12px', flexShrink: 0 }}>
+              <footer style={{ borderTop: '1px solid var(--color-border-subtle)', padding: '9px 10px', flexShrink: 0 }}>
                 {driveComposerOpen && (
                   <input value={driveFileId} onChange={(e) => { const value = e.currentTarget.value; setDriveFileId(value); persistDraft(activeRoomId, composer, value); }} placeholder={t('driveFileId')} style={{ width: '100%', boxSizing: 'border-box', marginBottom: 8, border: '1px solid var(--color-border-default)', background: 'var(--color-bg-secondary)', color: 'var(--color-text-primary)', borderRadius: 6, padding: '7px 9px', fontSize: 13 }} />
                 )}
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <button type="button" onClick={() => setDriveComposerOpen((open) => !open)} aria-label={t('addDriveFile')} style={{ width: 36, border: '1px solid var(--color-border-default)', borderRadius: 6, background: driveComposerOpen ? 'var(--color-accent-subtle)' : 'transparent', color: driveComposerOpen ? 'var(--color-accent)' : 'var(--color-text-secondary)', display: 'grid', placeItems: 'center', cursor: 'pointer' }}>
+                <div style={{ display: 'flex', gap: 7, minWidth: 0 }}>
+                  <button type="button" onClick={() => setDriveComposerOpen((open) => !open)} aria-label={t('addDriveFile')} style={{ width: 34, minWidth: 34, border: '1px solid var(--color-border-default)', borderRadius: 6, background: driveComposerOpen ? 'var(--color-accent-subtle)' : 'transparent', color: driveComposerOpen ? 'var(--color-accent)' : 'var(--color-text-secondary)', display: 'grid', placeItems: 'center', cursor: 'pointer' }}>
                     <LinkIcon style={{ width: 16, height: 16 }} />
                   </button>
                   <input
@@ -900,9 +900,9 @@ export function DMPanel({ userEmail, onUnreadChange, onClose, onComposeToAddress
                       }
                     }}
                     placeholder={t('message')}
-                    style={{ flex: 1, minWidth: 0, border: '1px solid var(--color-border-default)', background: 'var(--color-bg-primary)', color: 'var(--color-text-primary)', borderRadius: 6, padding: '7px 9px', fontSize: 13 }}
+                    style={{ flex: '1 1 120px', minWidth: 0, border: '1px solid var(--color-border-default)', background: 'var(--color-bg-primary)', color: 'var(--color-text-primary)', borderRadius: 6, padding: '7px 9px', fontSize: 13 }}
                   />
-                  <button type="button" onClick={send} disabled={!composer.trim() && !driveFileId.trim()} aria-label={t('sendMessage')} style={{ width: 36, border: 'none', borderRadius: 6, background: 'var(--color-accent)', color: '#fff', display: 'grid', placeItems: 'center', cursor: 'pointer' }}>
+                  <button type="button" onClick={send} disabled={!composer.trim() && !driveFileId.trim()} aria-label={t('sendMessage')} style={{ width: 34, minWidth: 34, border: 'none', borderRadius: 6, background: 'var(--color-accent)', color: '#fff', display: 'grid', placeItems: 'center', cursor: 'pointer' }}>
                     <PaperAirplaneIcon style={{ width: 17, height: 17 }} />
                   </button>
                 </div>
@@ -910,8 +910,8 @@ export function DMPanel({ userEmail, onUnreadChange, onClose, onComposeToAddress
             </section>
 
             {detailsOpen && (
-            <aside style={{ borderLeft: '1px solid var(--color-border-subtle)', background: 'var(--color-bg-secondary)', minHeight: 0, overflow: 'auto' }}>
-              <div style={{ padding: 16, borderBottom: '1px solid var(--color-border-subtle)' }}>
+            <aside style={{ borderLeft: '1px solid var(--color-border-subtle)', background: 'var(--color-bg-secondary)', minWidth: 0, minHeight: 0, overflow: 'auto' }}>
+              <div style={{ padding: 12, borderBottom: '1px solid var(--color-border-subtle)' }}>
                 <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--color-text-primary)', marginBottom: 12 }}>{t('conversationDetails')}</div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
                   <RoomAvatar room={activeRoom} currentUserId={currentUserId} selfAvatarUrl={selfAvatarUrl} />
@@ -961,7 +961,7 @@ export function DMPanel({ userEmail, onUnreadChange, onClose, onComposeToAddress
                 })}
               </div>
               <div style={{ padding: 12, borderBottom: '1px solid var(--color-border-subtle)' }}>
-                <div style={{ display: 'flex', gap: 5, marginBottom: 10 }}>
+                <div style={{ display: 'flex', gap: 5, marginBottom: 10, flexWrap: 'wrap' }}>
                   {(['files', 'links', 'drive'] as MediaTab[]).map((tab) => (
                     <button key={tab} type="button" onClick={() => setMediaTab(tab)} style={pillButton(mediaTab === tab)}>{mediaTabLabels[tab]}</button>
                   ))}
@@ -1002,7 +1002,7 @@ export function DMPanel({ userEmail, onUnreadChange, onClose, onComposeToAddress
         )}
 
         {searchResults.length > 0 && (
-          <div style={{ position: 'absolute', top: 60, right: detailsOpen ? 280 : 16, width: 320, maxHeight: 260, overflow: 'auto', zIndex: 70, border: '1px solid var(--color-border-default)', background: 'var(--color-bg-primary)', boxShadow: '0 12px 32px rgba(0,0,0,0.12)', borderRadius: 8 }}>
+          <div style={{ position: 'absolute', top: 64, right: detailsOpen ? 12 : 12, width: 'min(320px, calc(100% - 24px))', maxHeight: 260, overflow: 'auto', zIndex: 70, border: '1px solid var(--color-border-default)', background: 'var(--color-bg-primary)', boxShadow: '0 12px 32px rgba(0,0,0,0.12)', borderRadius: 8 }}>
             {searchResults.map((message) => (
               <button key={message.id} type="button" onClick={() => setSearchQuery('')} style={{ display: 'block', width: '100%', border: 'none', borderBottom: '1px solid var(--color-border-subtle)', background: 'transparent', color: 'var(--color-text-primary)', padding: 10, textAlign: 'left', cursor: 'pointer' }}>
                 <span style={{ display: 'block', fontSize: 12, color: 'var(--color-text-tertiary)' }}>{formatTime(message.created_at)}</span>
