@@ -1,3 +1,11 @@
+# OpenSearch overlay — for use with small/medium deployments.
+#
+# NOTE: docker-compose.dev.yml already includes OpenSearch and this worker.
+#       This file is only needed when composing with small.yml or medium.yml:
+#
+#   docker compose -f docker/docker-compose.small.yml \
+#                  -f docker/docker-compose.opensearch.yml up -d
+
 services:
   opensearch:
     image: opensearchproject/opensearch:2.11.0

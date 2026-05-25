@@ -6,28 +6,50 @@ This directory contains Docker Compose configurations for different deployment s
 
 ### 1. Development (`docker-compose.dev.yml`)
 
-**Target**: Local development on a single machine
+**Target**: Local development on a single machine — full converged stack.
 
-**Components**:
-- PostgreSQL (single instance)
-- Redis (single instance)
-- MinIO (single node)
-- ClamAV (`clamd` + persistent signature DB volume)
-- GoGoMail backend (hot-reload via mounted volume)
+**Components** (16 services, single `gogomail-dev` network):
+
+| Group | Services |
+|---|---|
+| Infrastructure | postgres, redis, minio, minio-init, clamav |
+| Application | backend (hot-reload), event-worker, outbox-relay, delivery-worker, edge-mta |
+| Search index | opensearch, search-index-worker |
+| Monitoring | prometheus, loki, promtail, grafana |
 
 **Usage**:
 ```bash
-docker-compose -f docker-compose.dev.yml up
+docker compose -f docker/docker-compose.dev.yml up -d
+
+# Follow logs for a specific service
+docker compose -f docker/docker-compose.dev.yml logs -f backend
+
+# Tear down and wipe all volumes
+docker compose -f docker/docker-compose.dev.yml down -v
 ```
 
+**Ports**:
+
+| Port | Service |
+|---|---|
+| 8080 | Backend HTTP API + admin console |
+| 2525 | Edge-MTA SMTP (send test mail here) |
+| 9200 | OpenSearch REST (dev inspection) |
+| 9090 | Prometheus |
+| 3100 | Loki |
+| 3000 | Grafana (admin / admin) |
+| 15432 | Postgres (direct access) |
+| 16379 | Redis |
+| 19000 | MinIO S3 API |
+| 19001 | MinIO console |
+
 **Features**:
-- Hot reload for Go backend
-- Direct database access for testing
-- Attachment byte scanning through a separate ClamAV container at `clamav:3310`
-- Bounded ClamAV scan admission: only attachment-bearing messages are scanned,
-  with backend concurrency, timeout, max-byte, and circuit-breaker controls
-- Development-friendly logging
-- No authentication required
+- Hot reload for Go backend via `air`
+- OpenSearch full-text search pipeline: SMTP → Postgres → Redis stream → search-index-worker → OpenSearch
+- Prometheus scrapes `backend:9091` and `edge-mta:9091`; Loki collects all container logs via Docker socket
+- Grafana pre-provisioned with Prometheus + Loki datasources and GoGoMail dashboard
+- ClamAV attachment scanning with circuit-breaker and concurrency controls
+- All services on a single bridge network — no overlay file juggling required
 
 ---
 

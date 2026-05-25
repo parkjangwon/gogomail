@@ -1,9 +1,11 @@
 # docker/docker-compose.monitoring.yml
 # Monitoring overlay: Prometheus + Loki + Promtail + Grafana
 #
-# Usage:
-#   docker compose -f docker/docker-compose.dev.yml   -f docker/docker-compose.monitoring.yml up -d
-#   docker compose -f docker/docker-compose.small.yml -f docker/docker-compose.monitoring.yml up -d
+# NOTE: docker-compose.dev.yml already includes monitoring.
+#       This file is only needed when composing with small.yml or medium.yml:
+#
+#   docker compose -f docker/docker-compose.small.yml \
+#                  -f docker/docker-compose.monitoring.yml up -d
 #
 # Agent API surface:
 #   Prometheus:  http://localhost:9090/api/v1/query?query=<PromQL>
