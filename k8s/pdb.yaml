@@ -1,0 +1,13 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: gogomail
+  namespace: gogomail
+  labels:
+    app.kubernetes.io/name: gogomail
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: gogomail
+      app.kubernetes.io/component: server
