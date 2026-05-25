@@ -375,6 +375,7 @@ export async function installMocks(page: Page, overrides: MockOverrides = {}) {
         attachment_name: uploadName,
         attachment_size: 12,
         attachment_mime_type: uploadType,
+        attachment_download_url: uploadType.startsWith('image/') ? 'data:image/png;base64,iVBORw0KGgo=' : undefined,
         created_at: new Date().toISOString(),
         reactions: [],
       };

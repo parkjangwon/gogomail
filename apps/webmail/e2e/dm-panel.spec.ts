@@ -158,6 +158,12 @@ test.describe('DM panel', () => {
     });
 
     await expect(page.getByText('clip.png').first()).toBeVisible();
+    const image = page.getByRole('img', { name: 'clip.png' }).first();
+    await expect(image).toBeVisible();
+    await image.click();
+    const preview = page.getByRole('dialog', { name: 'clip.png' });
+    await expect(preview).toBeVisible();
+    await expect(preview.getByRole('img', { name: 'clip.png' })).toBeVisible();
   });
 
   test('hides group-only controls in direct rooms', async ({ page }) => {
