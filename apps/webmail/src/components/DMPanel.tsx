@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { ClipboardEvent, CSSProperties, KeyboardEvent } from 'react';
+import type { ClipboardEvent, CSSProperties, KeyboardEvent, MouseEvent as ReactMouseEvent } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   addDMMembers,
@@ -52,6 +52,7 @@ type DMPanelProps = {
   onUnreadChange?: (count: number) => void;
   onClose?: () => void;
   onComposeToAddress?: (email: string) => void;
+  onStartWindowDrag?: (event: ReactMouseEvent<HTMLElement>) => void;
 };
 
 type MediaTab = 'files' | 'links' | 'drive';
@@ -204,7 +205,7 @@ function pillButton(active: boolean): CSSProperties {
   };
 }
 
-export function DMPanel({ userEmail, onUnreadChange, onClose, onComposeToAddress }: DMPanelProps) {
+export function DMPanel({ userEmail, onUnreadChange, onClose, onComposeToAddress, onStartWindowDrag }: DMPanelProps) {
   const t = useTranslations('dmPanel');
   const selfAvatarUrl = useWebmailAvatar();
   const [rooms, setRooms] = useState<DMRoom[]>([]);
@@ -596,6 +597,12 @@ export function DMPanel({ userEmail, onUnreadChange, onClose, onComposeToAddress
     }
   }, [activeRoomId, t]);
 
+  const handleWindowHeaderMouseDown = useCallback((event: ReactMouseEvent<HTMLElement>) => {
+    const target = event.target as HTMLElement;
+    if (target.closest('button,input,textarea,a,[role="button"],[role="menuitem"]')) return;
+    onStartWindowDrag?.(event);
+  }, [onStartWindowDrag]);
+
   const leaveOrRemove = useCallback(async (userId: string) => {
     if (!activeRoomId) return;
     try {
@@ -615,7 +622,7 @@ export function DMPanel({ userEmail, onUnreadChange, onClose, onComposeToAddress
   return (
     <div style={{ flex: 1, minWidth: 0, display: 'flex', height: '100%', overflow: 'hidden', background: 'var(--color-bg-primary)', position: 'relative' }}>
       <aside style={{ width: '100%', flexShrink: 0, borderRight: activeRoom ? '1px solid var(--color-border-subtle)' : 'none', background: 'var(--color-bg-secondary)', display: activeRoom ? 'none' : 'flex', flexDirection: 'column', minHeight: 0 }}>
-        <div style={{ padding: '14px', borderBottom: '1px solid var(--color-border-subtle)' }}>
+        <div onMouseDown={handleWindowHeaderMouseDown} style={{ padding: '14px', borderBottom: '1px solid var(--color-border-subtle)', cursor: onStartWindowDrag ? 'move' : 'default' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <ChatBubbleLeftRightIcon style={{ width: 19, height: 19, color: 'var(--color-accent)' }} />
             <h1 style={{ margin: 0, fontSize: 16, lineHeight: 1.3, color: 'var(--color-text-primary)', fontWeight: 700 }}>{t('title')}</h1>
@@ -729,7 +736,10 @@ export function DMPanel({ userEmail, onUnreadChange, onClose, onComposeToAddress
       </aside>
 
       <main style={{ flex: 1, minWidth: 0, display: activeRoom ? 'flex' : 'none', flexDirection: 'column', height: '100%' }}>
-        <header style={{ minHeight: 58, borderBottom: '1px solid var(--color-border-subtle)', display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', flexShrink: 0, flexWrap: 'wrap' }}>
+        <header
+          onMouseDown={handleWindowHeaderMouseDown}
+          style={{ minHeight: 58, borderBottom: '1px solid var(--color-border-subtle)', display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', flexShrink: 0, flexWrap: 'wrap', cursor: onStartWindowDrag ? 'move' : 'default' }}
+        >
           <div style={{ minWidth: 0, flex: '1 1 180px', display: 'flex', alignItems: 'center', gap: 8 }}>
             <button type="button" onClick={() => { setActiveRoomId(''); setDetailsOpen(false); setSearchQuery(''); }} aria-label={t('backToList')} style={{ width: 32, height: 32, border: 'none', borderRadius: 6, background: 'transparent', color: 'var(--color-text-secondary)', display: 'grid', placeItems: 'center', cursor: 'pointer', flexShrink: 0 }}>
               <ArrowLeftIcon style={{ width: 18, height: 18 }} />

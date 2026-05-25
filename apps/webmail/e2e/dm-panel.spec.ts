@@ -32,16 +32,29 @@ test.describe('DM panel', () => {
     const before = await dialog.boundingBox();
     expect(before).not.toBeNull();
     if (!before) return;
+    expect(before.width).toBeGreaterThanOrEqual(440);
+    expect(before.width).toBeLessThanOrEqual(520);
 
-    await page.mouse.move(before.x + 2, before.y + before.height / 2);
+    await page.mouse.move(before.x + 150, before.y + 24);
     await page.mouse.down();
-    await page.mouse.move(before.x - 80, before.y + before.height / 2);
+    await page.mouse.move(before.x + 230, before.y + 84);
+    await page.mouse.up();
+
+    const afterDrag = await dialog.boundingBox();
+    expect(afterDrag).not.toBeNull();
+    if (!afterDrag) return;
+    expect(afterDrag.x).toBeGreaterThan(before.x + 50);
+    expect(afterDrag.y).toBeGreaterThanOrEqual(before.y);
+
+    await page.mouse.move(afterDrag.x + 2, afterDrag.y + afterDrag.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(afterDrag.x - 80, afterDrag.y + afterDrag.height / 2);
     await page.mouse.up();
 
     const afterWestResize = await dialog.boundingBox();
     expect(afterWestResize).not.toBeNull();
     if (!afterWestResize) return;
-    expect(afterWestResize.width).toBeGreaterThan(before.width + 50);
+    expect(afterWestResize.width).toBeGreaterThan(afterDrag.width + 50);
 
     await page.mouse.move(afterWestResize.x + afterWestResize.width - 2, afterWestResize.y + afterWestResize.height / 2);
     await page.mouse.down();
