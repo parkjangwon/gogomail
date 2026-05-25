@@ -555,7 +555,7 @@ func TestFormatExportTXTMessages(t *testing.T) {
 	if !strings.Contains(out, "hello world") {
 		t.Errorf("missing text body, got:\n%s", out)
 	}
-	if !strings.Contains(out, "[삭제됨]") {
+	if !strings.Contains(out, "삭제된 메시지입니다.") {
 		t.Errorf("missing deleted marker, got:\n%s", out)
 	}
 	if !strings.Contains(out, "[시스템]") {
