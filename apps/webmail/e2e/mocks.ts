@@ -126,9 +126,10 @@ export const DEFAULT_DM_ROOMS = [
     owner_id: 'user-1',
     created_by: 'user-1',
     created_at: '2026-05-25T00:00:00Z',
+    current_user_id: 'user-1',
     members: [
-      { id: 'user-1', display_name: 'Park Jangwon' },
-      { id: 'user-2', display_name: 'Kim Chulsoo' },
+      { id: 'user-1', display_name: 'Park Jangwon', avatar_url: 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22%3E%3Crect width=%2232%22 height=%2232%22 fill=%22%232f6ee0%22/%3E%3Ctext x=%2216%22 y=%2221%22 text-anchor=%22middle%22 fill=%22white%22 font-size=%2212%22 font-family=%22Arial%22%3EPJ%3C/text%3E%3C/svg%3E' },
+      { id: 'user-2', display_name: 'Kim Chulsoo', avatar_url: 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22%3E%3Crect width=%2232%22 height=%2232%22 fill=%22%230d9488%22/%3E%3Ctext x=%2216%22 y=%2221%22 text-anchor=%22middle%22 fill=%22white%22 font-size=%2212%22 font-family=%22Arial%22%3EKC%3C/text%3E%3C/svg%3E' },
     ],
     unread_count: 1,
     member_count: 2,
@@ -332,6 +333,7 @@ export async function installMocks(page: Page, overrides: MockOverrides = {}) {
         owner_id: 'user-1',
         created_by: 'user-1',
         created_at: new Date().toISOString(),
+        current_user_id: 'user-1',
         members: directoryUsers.filter((u) => body.user_ids?.includes(u.id)),
         unread_count: 0,
         member_count: body.user_ids?.length ?? 0,
@@ -397,7 +399,18 @@ export async function installMocks(page: Page, overrides: MockOverrides = {}) {
       dmMessages = dmMessages.map((m) => m.id === message.id ? message : m) as typeof DEFAULT_DM_MESSAGES;
       return json(route, { message });
     }
-    if (segments[0] === 'dm' && segments[1] === 'messages' && segments[3] === 'reactions' && method === 'PUT') return empty(route, 204);
+    if (segments[0] === 'dm' && segments[1] === 'messages' && segments[3] === 'reactions' && method === 'PUT') {
+      const emoji = decodeURIComponent(segments[4] ?? '');
+      dmMessages = dmMessages.map((m) => {
+        if (m.id !== segments[2]) return m;
+        const reactions = [...((m.reactions ?? []) as Array<{ emoji: string; count: number; mine?: boolean }>)];
+        const index = reactions.findIndex((r) => r.emoji === emoji);
+        if (index >= 0) reactions[index] = { ...reactions[index], count: reactions[index].count + 1, mine: true };
+        else reactions.push({ emoji, count: 1, mine: true });
+        return { ...m, reactions } as typeof m;
+      }) as typeof DEFAULT_DM_MESSAGES;
+      return empty(route, 204);
+    }
 
     // search
     if (path === 'search' && method === 'GET') {

@@ -44,27 +44,29 @@ type Principal struct {
 }
 
 type User struct {
-	ID          string
-	CompanyID   string
-	DomainID    string
-	DisplayName string
+	ID          string `json:"id"`
+	CompanyID   string `json:"company_id,omitempty"`
+	DomainID    string `json:"domain_id,omitempty"`
+	DisplayName string `json:"display_name"`
+	AvatarURL   string `json:"avatar_url,omitempty"`
 }
 
 type Room struct {
-	ID          string    `json:"id"`
-	CompanyID   string    `json:"company_id"`
-	DomainID    string    `json:"domain_id"`
-	RoomType    string    `json:"room_type"`
-	Visibility  string    `json:"visibility,omitempty"`
-	Name        string    `json:"name,omitempty"`
-	OwnerID     string    `json:"owner_id,omitempty"`
-	CreatedBy   string    `json:"created_by"`
-	CreatedAt   time.Time `json:"created_at"`
-	Members     []User    `json:"members,omitempty"`
-	UnreadCount int       `json:"unread_count,omitempty"`
-	LastMessage *Message  `json:"last_message,omitempty"`
-	MemberCount int       `json:"member_count,omitempty"`
-	LastReadID  string    `json:"last_read_message_id,omitempty"`
+	ID            string    `json:"id"`
+	CompanyID     string    `json:"company_id"`
+	DomainID      string    `json:"domain_id"`
+	RoomType      string    `json:"room_type"`
+	Visibility    string    `json:"visibility,omitempty"`
+	Name          string    `json:"name,omitempty"`
+	OwnerID       string    `json:"owner_id,omitempty"`
+	CreatedBy     string    `json:"created_by"`
+	CreatedAt     time.Time `json:"created_at"`
+	Members       []User    `json:"members,omitempty"`
+	UnreadCount   int       `json:"unread_count,omitempty"`
+	LastMessage   *Message  `json:"last_message,omitempty"`
+	MemberCount   int       `json:"member_count,omitempty"`
+	LastReadID    string    `json:"last_read_message_id,omitempty"`
+	CurrentUserID string    `json:"current_user_id,omitempty"`
 }
 
 type Message struct {

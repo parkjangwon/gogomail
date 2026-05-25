@@ -41,6 +41,12 @@ func (s *PostgresStore) CreateDirectRoom(ctx context.Context, principal Principa
 	if room, ok, err := findDirectRoomTx(ctx, tx, principal, pair[0], pair[1]); err != nil {
 		return Room{}, err
 	} else if ok {
+		room.CurrentUserID = principal.UserID
+		if rooms, err := loadMembersForRooms(ctx, tx, []Room{room}); err != nil {
+			return Room{}, err
+		} else if len(rooms) == 1 {
+			room = rooms[0]
+		}
 		if err := tx.Commit(); err != nil {
 			return Room{}, err
 		}
@@ -57,6 +63,7 @@ func (s *PostgresStore) CreateDirectRoom(ctx context.Context, principal Principa
 		return Room{}, err
 	}
 	room.Members, _ = usersInScope(ctx, tx, principal, []string{principal.UserID, otherUserID})
+	room.CurrentUserID = principal.UserID
 	if err := tx.Commit(); err != nil {
 		return Room{}, err
 	}
@@ -88,6 +95,7 @@ func (s *PostgresStore) CreateGroupRoom(ctx context.Context, principal Principal
 		return Room{}, err
 	}
 	room.Members, _ = usersInScope(ctx, tx, principal, memberIDs)
+	room.CurrentUserID = principal.UserID
 	if err := tx.Commit(); err != nil {
 		return Room{}, err
 	}
@@ -129,12 +137,13 @@ ORDER BY COALESCE((SELECT MAX(created_at) FROM dm_messages lm WHERE lm.room_id =
 		if err != nil {
 			return nil, err
 		}
+		room.CurrentUserID = principal.UserID
 		rooms = append(rooms, room)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
-	return rooms, nil
+	return loadMembersForRooms(ctx, s.db, rooms)
 }
 
 func (s *PostgresStore) ListPublicRooms(ctx context.Context, principal Principal) ([]Room, error) {
@@ -160,9 +169,13 @@ ORDER BY r.created_at DESC`
 		if err != nil {
 			return nil, err
 		}
+		room.CurrentUserID = principal.UserID
 		rooms = append(rooms, room)
 	}
-	return rooms, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return loadMembersForRooms(ctx, s.db, rooms)
 }
 
 func (s *PostgresStore) Users(ctx context.Context, principal Principal, userIDs []string) ([]User, error) {
@@ -768,10 +781,55 @@ type scanner interface {
 	Scan(dest ...any) error
 }
 
+type roomMemberQuerier interface {
+	QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error)
+}
+
 func scanRoom(row scanner) (Room, error) {
 	var room Room
 	err := row.Scan(&room.ID, &room.CompanyID, &room.DomainID, &room.RoomType, &room.Visibility, &room.Name, &room.OwnerID, &room.CreatedBy, &room.CreatedAt, &room.UnreadCount, &room.MemberCount, &room.LastReadID)
 	return room, err
+}
+
+func loadMembersForRooms(ctx context.Context, q roomMemberQuerier, rooms []Room) ([]Room, error) {
+	if len(rooms) == 0 {
+		return rooms, nil
+	}
+	roomIDs := make([]string, 0, len(rooms))
+	for _, room := range rooms {
+		roomIDs = append(roomIDs, room.ID)
+	}
+	const query = `
+SELECT p.room_id::text, u.id::text, d.company_id::text, u.domain_id::text, u.display_name, COALESCE(u.settings->>'avatar_url', '')
+FROM dm_participants p
+JOIN users u ON u.id = p.user_id
+JOIN domains d ON d.id = u.domain_id
+WHERE p.room_id = ANY($1::uuid[])
+ORDER BY p.joined_at ASC, u.display_name ASC`
+	rows, err := q.QueryContext(ctx, query, pq.Array(roomIDs))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	membersByRoom := make(map[string][]User)
+	for rows.Next() {
+		var roomID string
+		var u User
+		if err := rows.Scan(&roomID, &u.ID, &u.CompanyID, &u.DomainID, &u.DisplayName, &u.AvatarURL); err != nil {
+			return nil, err
+		}
+		membersByRoom[roomID] = append(membersByRoom[roomID], u)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	for i := range rooms {
+		rooms[i].Members = membersByRoom[rooms[i].ID]
+		if rooms[i].MemberCount == 0 {
+			rooms[i].MemberCount = len(rooms[i].Members)
+		}
+	}
+	return rooms, nil
 }
 
 func scanMessageRecord(row scanner) (MessageRecord, error) {
@@ -940,7 +998,7 @@ func usersInScope(ctx context.Context, tx *sql.Tx, principal Principal, userIDs 
 		return nil, err
 	}
 	const query = `
-SELECT u.id::text, d.company_id::text, u.domain_id::text, u.display_name
+SELECT u.id::text, d.company_id::text, u.domain_id::text, u.display_name, COALESCE(u.settings->>'avatar_url', '')
 FROM users u
 JOIN domains d ON d.id = u.domain_id
 WHERE u.id = ANY($1::uuid[])
@@ -956,7 +1014,7 @@ WHERE u.id = ANY($1::uuid[])
 	var users []User
 	for rows.Next() {
 		var u User
-		if err := rows.Scan(&u.ID, &u.CompanyID, &u.DomainID, &u.DisplayName); err != nil {
+		if err := rows.Scan(&u.ID, &u.CompanyID, &u.DomainID, &u.DisplayName, &u.AvatarURL); err != nil {
 			return nil, err
 		}
 		users = append(users, u)
@@ -973,7 +1031,7 @@ func usersInScopeDB(ctx context.Context, db *sql.DB, principal Principal, userID
 		return nil, err
 	}
 	const query = `
-SELECT u.id::text, d.company_id::text, u.domain_id::text, u.display_name
+SELECT u.id::text, d.company_id::text, u.domain_id::text, u.display_name, COALESCE(u.settings->>'avatar_url', '')
 FROM users u
 JOIN domains d ON d.id = u.domain_id
 WHERE u.id = ANY($1::uuid[])
@@ -989,7 +1047,7 @@ WHERE u.id = ANY($1::uuid[])
 	var users []User
 	for rows.Next() {
 		var u User
-		if err := rows.Scan(&u.ID, &u.CompanyID, &u.DomainID, &u.DisplayName); err != nil {
+		if err := rows.Scan(&u.ID, &u.CompanyID, &u.DomainID, &u.DisplayName, &u.AvatarURL); err != nil {
 			return nil, err
 		}
 		users = append(users, u)

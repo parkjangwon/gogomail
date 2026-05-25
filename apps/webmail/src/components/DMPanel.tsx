@@ -24,8 +24,10 @@ import {
   type DMMediaItem,
   type DMMessage,
   type DMRoom,
+  type DMUser,
   type DirectoryUser,
 } from '@/lib/api';
+import { useWebmailAvatar } from '@/lib/webmailAvatar';
 import {
   ArrowPathIcon,
   ChatBubbleLeftRightIcon,
@@ -34,11 +36,13 @@ import {
   MagnifyingGlassIcon,
   PaperAirplaneIcon,
   PaperClipIcon,
+  FaceSmileIcon,
   PlusIcon,
   TrashIcon,
   UserPlusIcon,
   XMarkIcon,
 } from '@heroicons/react/24/outline';
+import { avatarColor } from './message-list/messageListTypes';
 
 type DMPanelProps = {
   userEmail?: string;
@@ -48,8 +52,13 @@ type DMPanelProps = {
 
 type MediaTab = 'files' | 'links' | 'drive';
 
-const CURRENT_USER_ID = process.env.NEXT_PUBLIC_GOGOMAIL_DEV_USER_ID ?? '';
-const EMOJI = ['👍', '🙏', '🔥', '✅'];
+const DEV_CURRENT_USER_ID = process.env.NEXT_PUBLIC_GOGOMAIL_DEV_USER_ID ?? '';
+const REACTION_EMOJI = [
+  '😀', '😂', '🥰', '😍', '😮', '😢', '😎', '🙏',
+  '👍', '👎', '❤️', '🎉', '✨', '🔥', '💯', '✅',
+  '👏', '🙌', '🤝', '💪', '👀', '💡', '📌', '🚀',
+  '☕', '🍕', '🎵', '🏆', '❌', '⚠️', '💬', '🎁',
+];
 
 function formatTime(value?: string): string {
   if (!value) return '';
@@ -65,10 +74,60 @@ function formatBytes(size?: number): string {
   return `${(size / 1024 / 1024).toFixed(1)} MB`;
 }
 
-function roomTitle(room: DMRoom, fallbackDirect: string, fallbackGroup: string): string {
+function initials(value: string): string {
+  const trimmed = value.trim();
+  if (!trimmed) return '?';
+  return trimmed.split(/\s+/).map((part) => part[0]).join('').slice(0, 2).toUpperCase();
+}
+
+function memberName(member?: DMUser, fallback = ''): string {
+  return member?.display_name || member?.id || fallback;
+}
+
+function memberAvatarURL(member: DMUser | undefined, currentUserId: string, selfAvatarUrl: string): string {
+  return member?.avatar_url || (member?.id === currentUserId ? selfAvatarUrl : '');
+}
+
+function MemberAvatar({ member, currentUserId, selfAvatarUrl, size = 30, label }: { member?: DMUser; currentUserId: string; selfAvatarUrl: string; size?: number; label?: string }) {
+  const name = memberName(member, label);
+  const avatarUrl = memberAvatarURL(member, currentUserId, selfAvatarUrl);
+  return (
+    <span aria-hidden={!label} aria-label={label} style={{ width: size, height: size, borderRadius: '50%', background: avatarUrl ? 'transparent' : avatarColor(member?.id || name), color: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: Math.max(10, size * 0.36), fontWeight: 700, flexShrink: 0, overflow: 'hidden', border: '1px solid var(--color-border-subtle)' }}>
+      {avatarUrl ? <img src={avatarUrl} alt={label || ''} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : initials(name)}
+    </span>
+  );
+}
+
+function RoomAvatar({ room, currentUserId, selfAvatarUrl }: { room: DMRoom; currentUserId: string; selfAvatarUrl: string }) {
+  const others = (room.members ?? []).filter((member) => member.id !== currentUserId);
+  const members = room.room_type === 'direct' ? [others[0] ?? room.members?.[0]] : (others.length ? others : room.members ?? []).slice(0, 2);
+  if (room.room_type === 'group' && members.length > 1) {
+    return (
+      <span aria-hidden="true" style={{ position: 'relative', width: 34, height: 30, flexShrink: 0, display: 'inline-flex' }}>
+        <span style={{ position: 'absolute', left: 0, top: 2 }}><MemberAvatar member={members[0]} currentUserId={currentUserId} selfAvatarUrl={selfAvatarUrl} size={26} /></span>
+        <span style={{ position: 'absolute', right: 0, bottom: 0 }}><MemberAvatar member={members[1]} currentUserId={currentUserId} selfAvatarUrl={selfAvatarUrl} size={24} /></span>
+      </span>
+    );
+  }
+  return <MemberAvatar member={members[0]} currentUserId={currentUserId} selfAvatarUrl={selfAvatarUrl} size={30} />;
+}
+
+function roomTitle(
+  room: DMRoom,
+  currentUserId: string,
+  labels: { direct: string; group: string; groupOthers: (name: string, count: number) => string },
+): string {
+  const otherNames = (room.members ?? [])
+    .filter((member) => member.id !== currentUserId)
+    .map((member) => member.display_name || member.id)
+    .filter(Boolean);
+
+  if (room.room_type === 'direct') {
+    return otherNames[0] || room.name?.trim() || labels.direct;
+  }
   if (room.name?.trim()) return room.name;
-  const names = room.members?.map((m) => m.display_name || m.id).filter(Boolean) ?? [];
-  return names.length > 0 ? names.join(', ') : room.room_type === 'direct' ? fallbackDirect : fallbackGroup;
+  if (otherNames.length > 1) return labels.groupOthers(otherNames[0], otherNames.length - 1);
+  return otherNames[0] || labels.group;
 }
 
 function messagePreview(message: DMMessage | undefined, labels: { deleted: string; file: string; drive: string }): string {
@@ -102,6 +161,7 @@ function pillButton(active: boolean): CSSProperties {
 
 export function DMPanel({ userEmail, onUnreadChange, onClose }: DMPanelProps) {
   const t = useTranslations('dmPanel');
+  const selfAvatarUrl = useWebmailAvatar();
   const [rooms, setRooms] = useState<DMRoom[]>([]);
   const [publicRooms, setPublicRooms] = useState<DMRoom[]>([]);
   const [activeRoomId, setActiveRoomId] = useState<string>('');
@@ -126,21 +186,38 @@ export function DMPanel({ userEmail, onUnreadChange, onClose }: DMPanelProps) {
   const [newChatOpen, setNewChatOpen] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [driveComposerOpen, setDriveComposerOpen] = useState(false);
+  const [reactionPickerMessageId, setReactionPickerMessageId] = useState<string | null>(null);
   const [loadingRooms, setLoadingRooms] = useState(false);
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [error, setError] = useState('');
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const memberInputRef = useRef<HTMLInputElement | null>(null);
   const messageEndRef = useRef<HTMLDivElement | null>(null);
+  const composerComposingRef = useRef(false);
+  const sendingRef = useRef(false);
 
   const activeRoom = rooms.find((room) => room.id === activeRoomId) ?? null;
   const unread = useMemo(() => rooms.reduce((sum, room) => sum + (room.unread_count ?? 0), 0), [rooms]);
+  const currentUserId = activeRoom?.current_user_id || rooms.find((room) => room.current_user_id)?.current_user_id || DEV_CURRENT_USER_ID;
+  const memberById = useMemo(() => {
+    const map = new Map<string, DMUser>();
+    for (const member of activeRoom?.members ?? []) map.set(member.id, member);
+    return map;
+  }, [activeRoom]);
   const previewLabels = useMemo(() => ({ deleted: t('deletedMessage'), file: t('file'), drive: t('drive') }), [t]);
   const mediaTabLabels = useMemo<Record<MediaTab, string>>(() => ({
     files: t('tabFiles'),
     links: t('tabLinks'),
     drive: t('tabDrive'),
   }), [t]);
-  const titleForRoom = useCallback((room: DMRoom) => roomTitle(room, t('directMessage'), t('group')), [t]);
+  const titleForRoom = useCallback(
+    (room: DMRoom) => roomTitle(room, currentUserId, {
+      direct: t('directMessage'),
+      group: t('group'),
+      groupOthers: (name, count) => t('groupTitleOthers', { name, count }),
+    }),
+    [currentUserId, t],
+  );
   const previewForMessage = useCallback((message?: DMMessage) => messagePreview(message, previewLabels), [previewLabels]);
 
   const loadRooms = useCallback(async () => {
@@ -228,6 +305,10 @@ export function DMPanel({ userEmail, onUnreadChange, onClose }: DMPanelProps) {
     messageEndRef.current?.scrollIntoView({ block: 'end' });
   }, [messages.length, activeRoomId]);
 
+  useEffect(() => {
+    setReactionPickerMessageId(null);
+  }, [activeRoomId]);
+
   const createRoom = useCallback(async () => {
     if (selectedUsers.length === 0) return;
     try {
@@ -251,8 +332,10 @@ export function DMPanel({ userEmail, onUnreadChange, onClose }: DMPanelProps) {
 
   const send = useCallback(async () => {
     if (!activeRoomId || (!composer.trim() && !driveFileId.trim())) return;
+    if (composerComposingRef.current || sendingRef.current) return;
     const body = composer.trim();
     const drive = driveFileId.trim();
+    sendingRef.current = true;
     setComposer('');
     setDriveFileId('');
     try {
@@ -263,6 +346,8 @@ export function DMPanel({ userEmail, onUnreadChange, onClose }: DMPanelProps) {
       setComposer(body);
       setDriveFileId(drive);
       setError(err instanceof Error ? err.message : t('errors.sendFailed'));
+    } finally {
+      sendingRef.current = false;
     }
   }, [activeRoomId, composer, driveFileId, loadRooms, t]);
 
@@ -303,6 +388,7 @@ export function DMPanel({ userEmail, onUnreadChange, onClose }: DMPanelProps) {
     try {
       await toggleDMReaction(messageId, emoji);
       void loadMessages();
+      setReactionPickerMessageId(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : t('errors.reactionFailed'));
     }
@@ -442,11 +528,16 @@ export function DMPanel({ userEmail, onUnreadChange, onClose }: DMPanelProps) {
               onClick={() => { setActiveRoomId(room.id); setInviteUrl(''); }}
               style={{ width: '100%', border: 'none', borderBottom: '1px solid var(--color-border-subtle)', background: activeRoomId === room.id ? 'var(--color-accent-subtle)' : 'transparent', color: 'var(--color-text-primary)', padding: '10px 14px', textAlign: 'left', cursor: 'pointer' }}
             >
-              <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 13, fontWeight: room.unread_count ? 700 : 600 }}>{titleForRoom(room)}</span>
-                {!!room.unread_count && <span style={{ borderRadius: 8, padding: '1px 6px', fontSize: 10, background: 'var(--color-accent)', color: '#fff' }}>{room.unread_count}</span>}
+              <span style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+                <RoomAvatar room={room} currentUserId={currentUserId} selfAvatarUrl={selfAvatarUrl} />
+                <span style={{ flex: 1, minWidth: 0 }}>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 13, fontWeight: room.unread_count ? 700 : 600 }}>{titleForRoom(room)}</span>
+                    {!!room.unread_count && <span style={{ borderRadius: 8, padding: '1px 6px', fontSize: 10, background: 'var(--color-accent)', color: '#fff' }}>{room.unread_count}</span>}
+                  </span>
+                  <span style={{ display: 'block', marginTop: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 12, color: 'var(--color-text-tertiary)' }}>{previewForMessage(room.last_message) || t('membersCount', { count: room.member_count ?? room.members?.length ?? 0 })}</span>
+                </span>
               </span>
-              <span style={{ display: 'block', marginTop: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 12, color: 'var(--color-text-tertiary)' }}>{previewForMessage(room.last_message) || t('membersCount', { count: room.member_count ?? room.members?.length ?? 0 })}</span>
             </button>
           ))}
           {publicRooms.length > 0 && (
@@ -454,8 +545,13 @@ export function DMPanel({ userEmail, onUnreadChange, onClose }: DMPanelProps) {
               <div style={{ padding: '10px 14px 4px', fontSize: 11, fontWeight: 700, color: 'var(--color-text-tertiary)', textTransform: 'uppercase' }}>{t('public')}</div>
               {publicRooms.map((room) => (
                 <button key={room.id} type="button" onClick={() => setActiveRoomId(room.id)} style={{ width: '100%', border: 'none', borderTop: '1px solid var(--color-border-subtle)', background: 'transparent', color: 'var(--color-text-primary)', padding: '9px 14px', textAlign: 'left', cursor: 'pointer' }}>
-                  <span style={{ display: 'block', fontSize: 13, fontWeight: 600 }}>{titleForRoom(room)}</span>
-                  <span style={{ display: 'block', fontSize: 12, color: 'var(--color-text-tertiary)' }}>{t('membersCount', { count: room.member_count ?? 0 })}</span>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+                    <RoomAvatar room={room} currentUserId={currentUserId} selfAvatarUrl={selfAvatarUrl} />
+                    <span style={{ minWidth: 0 }}>
+                      <span style={{ display: 'block', fontSize: 13, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{titleForRoom(room)}</span>
+                      <span style={{ display: 'block', fontSize: 12, color: 'var(--color-text-tertiary)' }}>{t('membersCount', { count: room.member_count ?? 0 })}</span>
+                    </span>
+                  </span>
                 </button>
               ))}
             </div>
@@ -465,9 +561,12 @@ export function DMPanel({ userEmail, onUnreadChange, onClose }: DMPanelProps) {
 
       <main style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', height: '100%' }}>
         <header style={{ minHeight: 58, borderBottom: '1px solid var(--color-border-subtle)', display: 'flex', alignItems: 'center', gap: 12, padding: '10px 16px', flexShrink: 0 }}>
-          <div style={{ minWidth: 0, flex: 1 }}>
-            <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--color-text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{activeRoom ? titleForRoom(activeRoom) : t('title')}</div>
-            <div style={{ fontSize: 12, color: 'var(--color-text-tertiary)' }}>{activeRoom ? t('membersCount', { count: activeRoom.members?.length ?? activeRoom.member_count ?? 0 }) : userEmail}</div>
+          <div style={{ minWidth: 0, flex: 1, display: 'flex', alignItems: 'center', gap: 10 }}>
+            {activeRoom && <RoomAvatar room={activeRoom} currentUserId={currentUserId} selfAvatarUrl={selfAvatarUrl} />}
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--color-text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{activeRoom ? titleForRoom(activeRoom) : t('title')}</div>
+              <div style={{ fontSize: 12, color: 'var(--color-text-tertiary)' }}>{activeRoom ? t('membersCount', { count: activeRoom.members?.length ?? activeRoom.member_count ?? 0 }) : userEmail}</div>
+            </div>
           </div>
           <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
             {activeRoom && (
@@ -511,14 +610,18 @@ export function DMPanel({ userEmail, onUnreadChange, onClose }: DMPanelProps) {
                   <div style={{ color: 'var(--color-text-tertiary)', fontSize: 13 }}>{t('loading')}</div>
                 ) : (
                   messages.map((message) => {
-                    const mine = CURRENT_USER_ID && message.sender_id === CURRENT_USER_ID;
+                    const mine = !!currentUserId && message.sender_id === currentUserId;
                     const system = message.message_type === 'system';
+                    const reactions = message.reactions ?? [];
+                    const sender = message.sender_id ? memberById.get(message.sender_id) : undefined;
+                    const senderLabel = memberName(sender, message.sender_id || 'system');
                     return (
-                      <div key={message.id} style={{ display: 'flex', justifyContent: system ? 'center' : mine ? 'flex-end' : 'flex-start', marginBottom: 9 }}>
+                      <div key={message.id} style={{ display: 'flex', justifyContent: system ? 'center' : mine ? 'flex-end' : 'flex-start', alignItems: 'flex-end', gap: 7, marginBottom: 9 }}>
+                        {!system && !mine && <MemberAvatar member={sender} currentUserId={currentUserId} selfAvatarUrl={selfAvatarUrl} size={28} label={senderLabel} />}
                         <div style={{ maxWidth: system ? '70%' : 'min(72%, 680px)', borderRadius: system ? 6 : 8, border: system ? '1px solid var(--color-border-subtle)' : 'none', background: system ? 'var(--color-bg-secondary)' : mine ? 'var(--color-accent)' : 'var(--color-bg-secondary)', color: system ? 'var(--color-text-secondary)' : mine ? '#fff' : 'var(--color-text-primary)', padding: system ? '5px 9px' : '8px 10px' }}>
                           {!system && (
                             <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 4 }}>
-                              <span style={{ fontSize: 11, fontWeight: 700, color: mine ? 'rgba(255,255,255,0.78)' : 'var(--color-text-tertiary)' }}>{message.sender_id || 'system'}</span>
+                              <span style={{ fontSize: 11, fontWeight: 700, color: mine ? 'rgba(255,255,255,0.78)' : 'var(--color-text-tertiary)' }}>{senderLabel}</span>
                               <span style={{ fontSize: 11, color: mine ? 'rgba(255,255,255,0.68)' : 'var(--color-text-tertiary)' }}>{formatTime(message.created_at)}{message.edited_at ? ` · ${t('edited')}` : ''}</span>
                             </div>
                           )}
@@ -537,11 +640,25 @@ export function DMPanel({ userEmail, onUnreadChange, onClose }: DMPanelProps) {
                           )}
                           {!system && !message.deleted_at && (
                             <div style={{ display: 'flex', gap: 4, marginTop: 6, alignItems: 'center', justifyContent: mine ? 'flex-end' : 'flex-start' }}>
-                              {EMOJI.map((emoji) => (
-                                <button key={emoji} type="button" onClick={() => toggleReaction(message.id, emoji)} style={{ border: 'none', borderRadius: 10, padding: '1px 5px', background: mine ? 'rgba(255,255,255,0.18)' : 'var(--color-bg-tertiary)', color: mine ? '#fff' : 'var(--color-text-secondary)', fontSize: 11, cursor: 'pointer' }}>
-                                  {emoji}{message.reactions?.find((r) => r.emoji === emoji)?.count ? ` ${message.reactions.find((r) => r.emoji === emoji)!.count}` : ''}
+                              {reactions.map((reaction) => (
+                                <button key={reaction.emoji} type="button" onClick={() => toggleReaction(message.id, reaction.emoji)} style={{ border: 'none', borderRadius: 10, padding: '1px 6px', background: reaction.mine ? 'var(--color-accent-subtle)' : mine ? 'rgba(255,255,255,0.18)' : 'var(--color-bg-tertiary)', color: mine ? '#fff' : reaction.mine ? 'var(--color-accent)' : 'var(--color-text-secondary)', fontSize: 11, cursor: 'pointer' }}>
+                                  {reaction.emoji}{reaction.count ? ` ${reaction.count}` : ''}
                                 </button>
                               ))}
+                              <span style={{ position: 'relative', display: 'inline-flex' }}>
+                                <button type="button" onClick={() => setReactionPickerMessageId((id) => id === message.id ? null : message.id)} aria-label={t('react')} style={{ border: 'none', borderRadius: 10, padding: '1px 5px', background: mine ? 'rgba(255,255,255,0.18)' : 'var(--color-bg-tertiary)', color: mine ? '#fff' : 'var(--color-text-secondary)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}>
+                                  <FaceSmileIcon style={{ width: 13, height: 13 }} />
+                                </button>
+                                {reactionPickerMessageId === message.id && (
+                                  <span style={{ position: 'absolute', top: '100%', right: mine ? 0 : 'auto', left: mine ? 'auto' : 0, marginTop: 6, width: 230, padding: 8, border: '1px solid var(--color-border-default)', borderRadius: 8, background: 'var(--color-bg-primary)', boxShadow: '0 12px 32px rgba(0,0,0,0.16)', display: 'flex', flexWrap: 'wrap', gap: 3, zIndex: 90 }}>
+                                    {REACTION_EMOJI.map((emoji) => (
+                                      <button key={emoji} type="button" onClick={() => toggleReaction(message.id, emoji)} style={{ width: 25, height: 25, border: 'none', borderRadius: 5, background: 'transparent', cursor: 'pointer', fontSize: 17, lineHeight: 1 }}>
+                                        {emoji}
+                                      </button>
+                                    ))}
+                                  </span>
+                                )}
+                              </span>
                               <button type="button" onClick={() => { setEditingId(message.id); setEditingBody(message.body); }} style={{ border: 'none', background: 'transparent', color: mine ? 'rgba(255,255,255,0.82)' : 'var(--color-text-tertiary)', fontSize: 11, cursor: 'pointer' }}>{t('edit')}</button>
                               <button type="button" onClick={() => removeMessage(message.id)} aria-label={t('deleteMessage')} style={{ border: 'none', background: 'transparent', color: mine ? 'rgba(255,255,255,0.82)' : 'var(--color-text-tertiary)', cursor: 'pointer', padding: 0 }}>
                                 <TrashIcon style={{ width: 13, height: 13 }} />
@@ -549,6 +666,7 @@ export function DMPanel({ userEmail, onUnreadChange, onClose }: DMPanelProps) {
                             </div>
                           )}
                         </div>
+                        {!system && mine && <MemberAvatar member={sender} currentUserId={currentUserId} selfAvatarUrl={selfAvatarUrl} size={28} label={senderLabel} />}
                       </div>
                     );
                   })
@@ -566,8 +684,12 @@ export function DMPanel({ userEmail, onUnreadChange, onClose }: DMPanelProps) {
                   <input
                     value={composer}
                     onChange={(e) => setComposer(e.currentTarget.value)}
+                    onCompositionStart={() => { composerComposingRef.current = true; }}
+                    onCompositionEnd={() => { composerComposingRef.current = false; }}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter' && !e.shiftKey) {
+                        const nativeEvent = e.nativeEvent as KeyboardEvent & { isComposing?: boolean };
+                        if (nativeEvent.isComposing || nativeEvent.keyCode === 229 || composerComposingRef.current) return;
                         e.preventDefault();
                         void send();
                       }
@@ -584,6 +706,43 @@ export function DMPanel({ userEmail, onUnreadChange, onClose }: DMPanelProps) {
 
             {detailsOpen && (
             <aside style={{ borderLeft: '1px solid var(--color-border-subtle)', background: 'var(--color-bg-secondary)', minHeight: 0, overflow: 'auto' }}>
+              <div style={{ padding: 16, borderBottom: '1px solid var(--color-border-subtle)' }}>
+                <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--color-text-primary)', marginBottom: 12 }}>{t('conversationDetails')}</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+                  <RoomAvatar room={activeRoom} currentUserId={currentUserId} selfAvatarUrl={selfAvatarUrl} />
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{titleForRoom(activeRoom)}</div>
+                    <div style={{ fontSize: 12, color: 'var(--color-text-tertiary)' }}>{t('membersCount', { count: activeRoom.members?.length ?? activeRoom.member_count ?? 0 })}</div>
+                  </div>
+                </div>
+                <button type="button" onClick={makeInvite} style={{ width: '100%', border: '1px solid var(--color-border-default)', borderRadius: 6, background: 'var(--color-bg-primary)', color: 'var(--color-text-secondary)', padding: '7px 9px', fontSize: 12, cursor: 'pointer' }}>{t('createInvite')}</button>
+                {inviteUrl && <input readOnly value={inviteUrl} onFocus={(e) => e.currentTarget.select()} style={{ marginTop: 8, width: '100%', boxSizing: 'border-box', border: '1px solid var(--color-border-default)', borderRadius: 6, background: 'var(--color-bg-primary)', color: 'var(--color-text-secondary)', padding: '6px 8px', fontSize: 12 }} />}
+              </div>
+              <div style={{ padding: 12, borderBottom: '1px solid var(--color-border-subtle)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 8 }}>
+                  <div style={{ color: 'var(--color-text-primary)', fontSize: 13, fontWeight: 700 }}>{t('members')}</div>
+                  <button type="button" onClick={() => memberInputRef.current?.focus()} aria-label={t('addMembers')} style={{ border: 'none', background: 'transparent', color: 'var(--color-accent)', fontSize: 12, fontWeight: 700, cursor: 'pointer', padding: 0 }}>{t('addMembers')}</button>
+                </div>
+                {(activeRoom.members ?? []).map((member) => {
+                  const name = memberName(member);
+                  const isOwner = activeRoom.owner_id === member.id;
+                  return (
+                    <div key={member.id} style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '7px 0', fontSize: 12, color: 'var(--color-text-secondary)' }}>
+                      <MemberAvatar member={member} currentUserId={currentUserId} selfAvatarUrl={selfAvatarUrl} size={34} label={name} />
+                      <span style={{ flex: 1, minWidth: 0 }}>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 700, color: 'var(--color-text-primary)' }}>{name}</span>
+                          {isOwner && <span style={{ borderRadius: 999, background: 'var(--color-accent-subtle)', color: 'var(--color-accent)', padding: '1px 6px', fontSize: 10, fontWeight: 700 }}>{t('owner')}</span>}
+                        </span>
+                        <span style={{ display: 'block', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--color-text-tertiary)' }}>{member.id}</span>
+                      </span>
+                      <button type="button" onClick={() => leaveOrRemove(member.id)} aria-label={t('removeMember')} style={{ border: 'none', background: 'transparent', color: 'var(--color-text-tertiary)', cursor: 'pointer', padding: 2 }}>
+                        <TrashIcon style={{ width: 13, height: 13 }} />
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
               <div style={{ padding: 12, borderBottom: '1px solid var(--color-border-subtle)' }}>
                 <div style={{ display: 'flex', gap: 5, marginBottom: 10 }}>
                   {(['files', 'links', 'drive'] as MediaTab[]).map((tab) => (
@@ -601,7 +760,7 @@ export function DMPanel({ userEmail, onUnreadChange, onClose }: DMPanelProps) {
               </div>
               <div style={{ padding: 12, borderBottom: '1px solid var(--color-border-subtle)' }}>
                 <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
-                  <input value={memberInput} onChange={(e) => setMemberInput(e.currentTarget.value)} placeholder={t('userIds')} style={{ flex: 1, minWidth: 0, border: '1px solid var(--color-border-default)', background: 'var(--color-bg-primary)', color: 'var(--color-text-primary)', borderRadius: 6, padding: '6px 8px', fontSize: 12 }} />
+                  <input ref={memberInputRef} value={memberInput} onChange={(e) => setMemberInput(e.currentTarget.value)} placeholder={t('userIds')} style={{ flex: 1, minWidth: 0, border: '1px solid var(--color-border-default)', background: 'var(--color-bg-primary)', color: 'var(--color-text-primary)', borderRadius: 6, padding: '6px 8px', fontSize: 12 }} />
                   <button type="button" onClick={addMembers} aria-label={t('addMembers')} style={{ width: 30, border: 'none', borderRadius: 6, background: 'var(--color-accent)', color: '#fff', display: 'grid', placeItems: 'center', cursor: 'pointer' }}>
                     <UserPlusIcon style={{ width: 15, height: 15 }} />
                   </button>
@@ -610,21 +769,6 @@ export function DMPanel({ userEmail, onUnreadChange, onClose }: DMPanelProps) {
                   <input value={ownerInput} onChange={(e) => setOwnerInput(e.currentTarget.value)} placeholder={t('ownerUserId')} style={{ flex: 1, minWidth: 0, border: '1px solid var(--color-border-default)', background: 'var(--color-bg-primary)', color: 'var(--color-text-primary)', borderRadius: 6, padding: '6px 8px', fontSize: 12 }} />
                   <button type="button" onClick={transferOwner} style={{ border: '1px solid var(--color-border-default)', borderRadius: 6, background: 'transparent', color: 'var(--color-text-secondary)', padding: '0 8px', fontSize: 12, cursor: 'pointer' }}>{t('owner')}</button>
                 </div>
-              </div>
-              <div style={{ padding: 12, borderBottom: '1px solid var(--color-border-subtle)' }}>
-                <button type="button" onClick={makeInvite} style={{ width: '100%', border: '1px solid var(--color-border-default)', borderRadius: 6, background: 'var(--color-bg-primary)', color: 'var(--color-text-secondary)', padding: '7px 9px', fontSize: 12, cursor: 'pointer' }}>{t('createInvite')}</button>
-                {inviteUrl && <input readOnly value={inviteUrl} onFocus={(e) => e.currentTarget.select()} style={{ marginTop: 8, width: '100%', boxSizing: 'border-box', border: '1px solid var(--color-border-default)', borderRadius: 6, background: 'var(--color-bg-primary)', color: 'var(--color-text-secondary)', padding: '6px 8px', fontSize: 12 }} />}
-              </div>
-              <div style={{ padding: 12 }}>
-                <div style={{ marginBottom: 8, color: 'var(--color-text-tertiary)', fontSize: 11, fontWeight: 700, textTransform: 'uppercase' }}>{t('members')}</div>
-                {(activeRoom.members ?? []).map((member) => (
-                  <div key={member.id} style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '5px 0', fontSize: 12, color: 'var(--color-text-secondary)' }}>
-                    <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{member.display_name || member.id}</span>
-                    <button type="button" onClick={() => leaveOrRemove(member.id)} aria-label={t('removeMember')} style={{ border: 'none', background: 'transparent', color: 'var(--color-text-tertiary)', cursor: 'pointer', padding: 0 }}>
-                      <TrashIcon style={{ width: 13, height: 13 }} />
-                    </button>
-                  </div>
-                ))}
               </div>
             </aside>
             )}

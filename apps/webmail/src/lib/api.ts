@@ -607,6 +607,7 @@ export interface DMUser {
   company_id?: string;
   domain_id?: string;
   display_name: string;
+  avatar_url?: string;
 }
 
 export interface DMReaction {
@@ -648,6 +649,7 @@ export interface DMRoom {
   last_message?: DMMessage;
   member_count?: number;
   last_read_message_id?: string;
+  current_user_id?: string;
 }
 
 export interface DMInvite {
