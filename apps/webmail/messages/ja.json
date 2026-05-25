@@ -1974,6 +1974,13 @@
     "imageAttachment": "画像添付",
     "openImage": "画像を拡大",
     "closeImage": "画像を閉じる",
+    "downloadFile": "ダウンロード",
+    "copyImage": "画像をコピー",
+    "imageCopied": "画像をコピーしました",
+    "confirmImageAttach": "この画像を添付しますか？",
+    "attachImage": "画像を添付",
+    "cancel": "キャンセル",
+    "backToList": "会話一覧に戻る",
     "drive": "ドライブ",
     "directMessage": "1:1メッセージ",
     "edited": "編集済み",
@@ -2008,7 +2015,8 @@
       "addMemberFailed": "メンバー追加に失敗しました",
       "ownerTransferFailed": "オーナー変更に失敗しました",
       "inviteFailed": "招待作成に失敗しました",
-      "removeMemberFailed": "メンバー削除に失敗しました"
+      "removeMemberFailed": "メンバー削除に失敗しました",
+      "copyFailed": "画像コピーに失敗しました"
     }
   },
   "spamDialog": {

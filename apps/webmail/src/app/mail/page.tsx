@@ -1861,7 +1861,7 @@ export default function MailPage() {
             position: 'fixed',
             ...(isMobile
               ? { inset: 0, width: '100%', height: '100dvh', borderRadius: 0 }
-              : { left: 56, bottom: 24, width: 'min(940px, calc(100vw - 80px))', height: 'min(720px, calc(100vh - 48px))', borderRadius: 8 }),
+              : { left: 56, bottom: 24, width: 'min(940px, calc(100vw - 80px))', height: 'min(720px, calc(100vh - 48px))', minWidth: 360, minHeight: 420, maxWidth: 'calc(100vw - 80px)', maxHeight: 'calc(100vh - 48px)', borderRadius: 8, resize: 'both' }),
             zIndex: 120,
             overflow: 'hidden',
             background: 'var(--color-bg-primary)',

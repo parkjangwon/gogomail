@@ -1977,6 +1977,13 @@
     "imageAttachment": "Image attachment",
     "openImage": "Open image",
     "closeImage": "Close image",
+    "downloadFile": "Download",
+    "copyImage": "Copy image",
+    "imageCopied": "Image copied",
+    "confirmImageAttach": "Attach this image?",
+    "attachImage": "Attach image",
+    "cancel": "Cancel",
+    "backToList": "Back to conversations",
     "drive": "Drive",
     "directMessage": "Direct message",
     "edited": "edited",
@@ -2011,7 +2018,8 @@
       "addMemberFailed": "Add member failed",
       "ownerTransferFailed": "Owner transfer failed",
       "inviteFailed": "Invite failed",
-      "removeMemberFailed": "Remove member failed"
+      "removeMemberFailed": "Remove member failed",
+      "copyFailed": "Copy image failed"
     }
   },
   "spamDialog": {
