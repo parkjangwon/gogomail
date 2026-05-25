@@ -1,6 +1,6 @@
 'use client';
 
-import { type CSSProperties, type Dispatch, type RefObject, type SetStateAction } from 'react';
+import { type Dispatch, type RefObject, type SetStateAction } from 'react';
 import { useTranslations } from 'next-intl';
 import { type Editor } from '@tiptap/react';
 import type { DriveNode } from '@/lib/api';
@@ -17,6 +17,7 @@ import {
   XMarkIcon,
 } from '@heroicons/react/24/outline';
 import { ComposeEditorToolbar } from './compose/ComposeEditorToolbar';
+import { toolbarBtnStyle } from './compose/toolbarBtnStyle';
 
 export interface ComposeScheduleOption {
   label: string;
@@ -64,21 +65,6 @@ interface ComposeModalActionsProps {
   imageResizeToolbar: { top: number; left: number } | null;
 }
 
-const toolbarBtnStyle = (active?: boolean): CSSProperties => ({
-  width: '28px',
-  height: '28px',
-  borderRadius: '4px',
-  border: 'none',
-  background: active ? 'var(--color-bg-tertiary)' : 'transparent',
-  color: active ? 'var(--color-text-primary)' : 'var(--color-text-secondary)',
-  cursor: 'pointer',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  fontSize: '13px',
-  fontWeight: 600,
-  transition: 'background 80ms ease',
-});
 
 const EMOJI_GROUPS = [
   { labelKey: 'emojiFrequent', emojis: ['😀', '😂', '🥰', '😍', '🤔', '😮', '😢', '😎', '🙏', '👍', '👎', '❤️', '🎉', '✨', '🔥', '💯', '😁', '🤣', '😇', '🥳'] },
