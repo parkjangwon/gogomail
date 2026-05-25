@@ -154,6 +154,7 @@ type Config struct {
 	DriveShareRateLimitPerMinute        int
 	MailMutationRateLimitBackend        string
 	MailMutationRateLimitPerMinute      int
+	DMMasterKey                         string
 	PushNotifyBackend                   string
 	PushNotifyWebhookURL                string
 	PushNotifyWebhookToken              string
@@ -469,6 +470,7 @@ func Load() Config {
 		DriveShareRateLimitPerMinute:        intEnvOrDefault("GOGOMAIL_DRIVE_SHARE_RATELIMIT_PER_MINUTE", 120),
 		MailMutationRateLimitBackend:        envOrDefault("GOGOMAIL_MAIL_MUTATION_RATELIMIT_BACKEND", "none"),
 		MailMutationRateLimitPerMinute:      intEnvOrDefault("GOGOMAIL_MAIL_MUTATION_RATELIMIT_PER_MINUTE", 300),
+		DMMasterKey:                         os.Getenv("GOGOMAIL_DM_MASTER_KEY"),
 		PushNotifyBackend:                   envOrDefault("GOGOMAIL_PUSH_NOTIFICATION_BACKEND", "none"),
 		PushNotifyWebhookURL:                envOrDefault("GOGOMAIL_PUSH_NOTIFICATION_WEBHOOK_URL", ""),
 		PushNotifyWebhookToken:              os.Getenv("GOGOMAIL_PUSH_NOTIFICATION_WEBHOOK_TOKEN"),

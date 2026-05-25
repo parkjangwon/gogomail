@@ -44,6 +44,7 @@ import (
 	"github.com/gogomail/gogomail/internal/deltasync"
 	"github.com/gogomail/gogomail/internal/directory"
 	"github.com/gogomail/gogomail/internal/dkim"
+	dmpkg "github.com/gogomail/gogomail/internal/dm"
 	"github.com/gogomail/gogomail/internal/dnsbl"
 	"github.com/gogomail/gogomail/internal/drive"
 	dsnpkg "github.com/gogomail/gogomail/internal/dsn"
@@ -3341,6 +3342,20 @@ func runHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, mode M
 			logger.Info("mail mutation rate limiting enabled", "backend", "redis", "per_minute", cfg.MailMutationRateLimitPerMinute)
 		}
 		httpapi.RegisterMailRoutesWithOptions(mux, service, tokenManager, mailOpts)
+		if strings.TrimSpace(cfg.DMMasterKey) != "" {
+			dmMasterKey, err := dmpkg.ParseMasterKey(cfg.DMMasterKey)
+			if err != nil {
+				return err
+			}
+			dmCrypto, err := dmpkg.NewCrypto(dmMasterKey)
+			if err != nil {
+				return err
+			}
+			httpapi.RegisterDMRoutes(mux, dmpkg.NewService(dmpkg.NewPostgresStore(db), dmCrypto).WithAttachmentStore(store), tokenManager, cfg.PublicBaseURL)
+			logger.Info("dm routes registered")
+		} else {
+			logger.Warn("dm routes disabled; GOGOMAIL_DM_MASTER_KEY is not configured")
+		}
 		httpapi.RegisterMFARoutes(mux, tokenManager, mailOpts)
 		httpapi.RegisterNotificationPreferenceRoutes(mux, httpapi.NewMaildbNotificationPreferenceAdapter(maildb.NewRepository(db)), tokenManager)
 		httpapi.RegisterTrackingRoutes(mux, trackingRepo, tokenManager)

@@ -1,6 +1,35 @@
 # gogomail current status
 
-Last updated: 2026-05-25 (org chart picker fix)
+Last updated: 2026-05-25 (DM instant messaging implementation)
+
+## DM instant messaging implementation (2026-05-25)
+
+- Added DM core tables for rooms, room keys, participants, encrypted messages,
+  reactions, extracted message URLs, and one-time invites.
+- Added `internal/dm` crypto/service/store groundwork: AES-256-GCM master-key
+  wrapping for per-room keys, encrypted message bodies, URL extraction, direct
+  and group room creation, message send/list/edit/delete, reactions, read marks,
+  search candidates, media listing, and attachment upload path encryption.
+- Added `/api/v1/dm/*` mail API route registration gated by
+  `GOGOMAIL_DM_MASTER_KEY`; when configured, the all-in-one/mail API process
+  mounts DM room, message, search, media, reaction, read, and attachment routes.
+- Group membership, owner-transfer, and invite-join flows now build encrypted
+  system messages before store dispatch, and the PostgreSQL store applies those
+  mutations transactionally with owner/same-domain/participant checks. Invite
+  room-key lookup returns 409-style conflict for already joined users.
+- Room hard deletion now has regression coverage asserting `dm_room_keys` are
+  deleted before message, participant, invite, and room rows.
+- Webmail now exposes DM as a global app with an unread badge, 5-second room
+  polling, 3-second active-room message polling, direct/group room creation from
+  directory users, message bubbles, file uploads, Drive-file message IDs,
+  search/media side views, invite creation, member/owner controls, reactions,
+  edit/delete actions, and localized app-switcher labels.
+- `docs/openapi.yaml` and `docs/backend-api-contracts.md` now document the DM
+  route surface, envelopes, auth fallback, encrypted storage behavior, and
+  attachment constraints; OpenAPI route-coverage tests include `dm.go`.
+- Verification: `go test ./...`, `pnpm -C apps/webmail type-check`, and
+  `pnpm -C apps/webmail exec playwright test e2e/dm-panel.spec.ts --project=chromium`
+  passed.
 
 ## Org chart picker 500 fix (2026-05-25)
 

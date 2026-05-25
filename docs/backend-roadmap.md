@@ -2,6 +2,7 @@
 
 ## Recent launch-readiness closures
 
+- DM instant messaging now has persisted room/key/participant/message/reaction/URL/invite tables, AES-256-GCM per-room key wrapping through `GOGOMAIL_DM_MASTER_KEY`, mail API route registration, encrypted text/file message storage, URL extraction, reactions, read marks, search/media read models, group member/owner/invite system messages, key-destruction hard-delete coverage, OpenAPI/API contract coverage, 20 MB attachment uploads with encrypted storage paths, and a webmail DM app with unread badge, polling, room creation, search/media views, attachments, Drive-file messages, reactions, edit/delete, invites, and member/owner controls.
 - The development Compose stack now runs event, outbox relay, and delivery worker processes with the all-in-one HTTP backend so webmail send/receive flows complete without manual worker startup.
 - Delivery workers now short-circuit active local-domain recipients into local inbox storage while preserving policy/event processing, and bounce unknown local recipients instead of falling back to MX lookup.
 - Outbox relay now publishes each row to its own topic stream so queued outbound mail reaches delivery workers, and webmail sent-message tracking tolerates pending delivery-status responses with no attempt rows yet.

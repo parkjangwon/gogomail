@@ -177,7 +177,48 @@ clients can show per-chunk progress instead of only finalization state.
 ## Drive API
 
 The first Drive Mail API surface is authenticated through the same bearer token
-or development `user_id` fallback path as webmail mail routes:
+or development `user_id` fallback path as webmail mail routes.
+
+## DM API
+
+DM is a Mail API module mounted under `/api/v1/dm` when
+`GOGOMAIL_DM_MASTER_KEY` is configured. The master key is never stored in the
+database; it unwraps per-room AES-256-GCM keys from `dm_room_keys`, and only the
+`internal/dm` service decrypts message bodies for authenticated participants.
+Admin API routes do not expose DM message read paths.
+
+DM routes use the same bearer JWT identity as mail routes. In development
+without JWT configuration, handlers require `user_id`, `company_id`, and
+`domain_id` query fallbacks so same-domain and same-company scope is explicit.
+Non-participants receive 404-style not found responses to avoid room existence
+disclosure.
+
+Response envelopes are stable:
+
+- `GET /api/v1/dm/rooms` and `/dm/rooms/public` return `{"rooms":[...]}`
+  with `unread_count` for joined rooms and `member_count` for public rooms.
+- Room creation returns `{"room":{...}}`; direct rooms dedupe by the two
+  participants and return the existing room when present.
+- Message list/search/media routes return `{"messages":[...]}`,
+  `{"results":[...]}`, or `{"media":[...]}`. Message list responses include
+  decrypted bodies plus reaction aggregates and `read_count` for group/read
+  indicators.
+- Message send/edit/delete, invite join, and owner transfer return
+  `{"message":{...}}`; invite creation returns `{"invite":{...},"invite_url":"..."}`.
+
+Group mutations are owner-scoped: group owners can add same-domain members,
+remove other members, create private-room invite links, and transfer ownership
+to an existing participant. Membership, owner, and invite-join events insert
+encrypted `system` messages in the same transaction as the state change. If the
+last participant leaves a room, the backend deletes `dm_room_keys` before hard
+deleting messages, participants, invites, and the room row so stored ciphertext
+is no longer decryptable.
+
+DM attachments use `POST /api/v1/dm/rooms/{id}/attachments` with
+`multipart/form-data` field `file`, hard-capped at 20 MB. The storage object is
+written through the configured object store, while the storage path persisted in
+`dm_messages.attachment_storage_path` is encrypted with the room key. Attachment
+names, sizes, and MIME types remain plaintext metadata for media listing.
 
 - `GET /api/v1/drive/nodes` returns `{"drive_nodes":[...]}` and accepts
   bounded `parent_id`, `status=active|trashed|deleted`,
