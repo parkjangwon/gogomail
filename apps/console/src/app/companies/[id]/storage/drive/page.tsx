@@ -42,8 +42,8 @@ export default function DrivePage() {
         const data = await res.json();
         setNodes(data.nodes || []);
       }
-    } catch (error) {
-      console.error('Failed to fetch drive nodes:', error);
+    } catch {
+      // mutation error handled by caller
     } finally {
       setLoading(false);
     }

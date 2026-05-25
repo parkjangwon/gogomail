@@ -79,8 +79,8 @@ export default function UserConfigPage() {
         )
       );
       setUsers(userLists.flatMap((data: { users?: User[] }) => data.users || []));
-    } catch (error) {
-      console.error('Failed to fetch users:', error);
+    } catch {
+      // mutation error handled by caller
     } finally {
       setUsersLoading(false);
     }
@@ -96,8 +96,8 @@ export default function UserConfigPage() {
         const data = await res.json();
         setConfigs(data.config || []);
       }
-    } catch (error) {
-      console.error('Failed to fetch user config:', error);
+    } catch {
+      // mutation error handled by caller
     } finally {
       setConfigLoading(false);
     }

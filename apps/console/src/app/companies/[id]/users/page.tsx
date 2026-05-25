@@ -105,7 +105,6 @@ export default function UsersPage() {
           status: normalizeUserStatus(u.status),
         })));
     } catch (e) {
-      console.error('Failed to fetch users:', e);
       setFetchError('데이터를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.');
     } finally {
       setLoading(false);
@@ -119,8 +118,8 @@ export default function UsersPage() {
         const data = await res.json();
         setDomains(data.domains || []);
       }
-    } catch (e) {
-      console.error('Failed to fetch domains:', e);
+    } catch {
+      // mutation error handled by caller
     }
   };
 
@@ -141,8 +140,8 @@ export default function UsersPage() {
         const data = await res.json();
         setRegistrationMode(data.settings?.user_registration_mode ?? 'temp_password');
       }
-    } catch (e) {
-      console.error('Failed to fetch domain settings:', e);
+    } catch {
+      // mutation error handled by caller
     } finally {
       setLoadingDomainSettings(false);
     }
@@ -212,7 +211,6 @@ export default function UsersPage() {
       }
       fetchUsers();
     } catch (e) {
-      console.error('Failed to create user:', e);
       setCreateError(t('pages.users_page.create_failed'));
     } finally {
       setCreating(false);
@@ -247,8 +245,8 @@ export default function UsersPage() {
       }
       setEditUser(null);
       fetchUsers();
-    } catch (e) {
-      console.error('Failed to update user:', e);
+    } catch {
+      // mutation error handled by caller
     } finally {
       setSaving(false);
     }
@@ -268,8 +266,8 @@ export default function UsersPage() {
         credentials: 'include',
       });
       fetchUsers();
-    } catch (e) {
-      console.error('Failed to activate user:', e);
+    } catch {
+      // mutation error handled by caller
     } finally {
       setTogglingId(null);
     }

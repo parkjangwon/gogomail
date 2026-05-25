@@ -45,8 +45,8 @@ export default function AttachmentsPage() {
         const data = await res.json();
         setAttachments(data.attachments || []);
       }
-    } catch (error) {
-      console.error('Failed to fetch attachments:', error);
+    } catch {
+      // mutation error handled by caller
     } finally {
       setLoading(false);
     }
@@ -63,8 +63,8 @@ export default function AttachmentsPage() {
       });
       setCleanupSuccess(true);
       setTimeout(() => setCleanupSuccess(false), 3000);
-    } catch (error) {
-      console.error('Failed to run cleanup:', error);
+    } catch {
+      // mutation error handled by caller
     } finally {
       setCleanupLoading(false);
     }

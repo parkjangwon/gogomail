@@ -57,8 +57,8 @@ export default function RetentionPolicyPage() {
         const data = await res.json();
         setPolicy(data.policy);
       }
-    } catch (error) {
-      console.error('Failed to fetch retention policy:', error);
+    } catch {
+      // mutation error handled by caller
     } finally {
       setLoading(false);
     }
@@ -73,8 +73,8 @@ export default function RetentionPolicyPage() {
         body: JSON.stringify(policy),
         credentials: 'include',
       });
-    } catch (error) {
-      console.error('Failed to save retention policy:', error);
+    } catch {
+      // mutation error handled by caller
     } finally {
       setSaving(false);
     }

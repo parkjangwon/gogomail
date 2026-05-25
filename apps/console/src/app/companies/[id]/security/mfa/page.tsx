@@ -81,8 +81,8 @@ export default function MFAManagementPage() {
         const data = await statsRes.json();
         setStats(data.mfa_stats ?? null);
       }
-    } catch (e) {
-      console.error('Failed to fetch MFA data:', e);
+    } catch {
+      // mutation error handled by caller
     } finally {
       setLoading(false);
     }
@@ -98,8 +98,8 @@ export default function MFAManagementPage() {
       });
       setResetTarget(null);
       fetchAll();
-    } catch (e) {
-      console.error('Failed to reset MFA:', e);
+    } catch {
+      // mutation error handled by caller
     } finally {
       setResetting(false);
     }

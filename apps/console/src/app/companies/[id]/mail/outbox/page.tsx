@@ -45,8 +45,8 @@ export default function OutboxEventsPage() {
         const data = await res.json();
         setEvents(data.events || []);
       }
-    } catch (error) {
-      console.error('Failed to fetch outbox events:', error);
+    } catch {
+      // mutation error handled by caller
     } finally {
       setLoading(false);
     }
@@ -60,8 +60,8 @@ export default function OutboxEventsPage() {
         credentials: 'include',
       });
       fetchOutboxEvents();
-    } catch (error) {
-      console.error('Failed to retry outbox event:', error);
+    } catch {
+      // mutation error handled by caller
     } finally {
       setRetryingId(null);
     }

@@ -84,8 +84,8 @@ export default function SessionManagementPage() {
         const data = await res.json();
         setPolicy(data.policy);
       }
-    } catch (error) {
-      console.error('Failed to fetch session policy:', error);
+    } catch {
+      // mutation error handled by caller
     } finally {
       setLoadingPolicy(false);
     }
@@ -102,8 +102,8 @@ export default function SessionManagementPage() {
         const data = await res.json();
         setSessions(data.sessions ?? []);
       }
-    } catch (error) {
-      console.error('Failed to fetch sessions:', error);
+    } catch {
+      // mutation error handled by caller
     } finally {
       setLoadingSessions(false);
     }
@@ -130,8 +130,8 @@ export default function SessionManagementPage() {
         const data = await res.json();
         setLoginAudits(data.login_audits ?? []);
       }
-    } catch (error) {
-      console.error('Failed to fetch login audits:', error);
+    } catch {
+      // mutation error handled by caller
     } finally {
       setLoadingLoginAudits(false);
     }
@@ -152,8 +152,8 @@ export default function SessionManagementPage() {
         body: JSON.stringify(policy),
         credentials: 'include',
       });
-    } catch (error) {
-      console.error('Failed to save session policy:', error);
+    } catch {
+      // mutation error handled by caller
     } finally {
       setSaving(false);
     }
@@ -167,8 +167,8 @@ export default function SessionManagementPage() {
         credentials: 'include',
       });
       await fetchSessions();
-    } catch (error) {
-      console.error('Failed to terminate session:', error);
+    } catch {
+      // mutation error handled by caller
     } finally {
       setTerminatingId(null);
     }

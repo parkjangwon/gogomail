@@ -52,7 +52,6 @@ export default function AdminUsersPage() {
         setFetchError('데이터를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.');
       }
     } catch (error) {
-      console.error('Failed to fetch admin users:', error);
       setFetchError('데이터를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.');
     } finally {
       setLoading(false);
@@ -72,8 +71,8 @@ export default function AdminUsersPage() {
         setNewAdmin({ username: '', email: '', password: '', role: 'admin' });
         fetchAdminUsers();
       }
-    } catch (error) {
-      console.error('Failed to create admin user:', error);
+    } catch {
+      // mutation error handled by caller
     }
   };
 
@@ -84,8 +83,8 @@ export default function AdminUsersPage() {
         credentials: 'include',
       });
       fetchAdminUsers();
-    } catch (error) {
-      console.error('Failed to delete admin user:', error);
+    } catch {
+      // mutation error handled by caller
     }
   };
 

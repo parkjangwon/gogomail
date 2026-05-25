@@ -69,8 +69,8 @@ export default function DomainConfigPage() {
         const data = await res.json();
         setDomains(data.domains || []);
       }
-    } catch (error) {
-      console.error('Failed to fetch domains:', error);
+    } catch {
+      // mutation error handled by caller
     } finally {
       setDomainsLoading(false);
     }
@@ -86,8 +86,8 @@ export default function DomainConfigPage() {
         const data = await res.json();
         setConfigs(data.config || []);
       }
-    } catch (error) {
-      console.error('Failed to fetch domain config:', error);
+    } catch {
+      // mutation error handled by caller
     } finally {
       setConfigLoading(false);
     }

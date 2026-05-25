@@ -94,7 +94,6 @@ export default function APIKeysPage() {
       setNewKeyName('');
       addFlash('success', t('pages.api_keys_page.key_created_success'));
     } catch (error) {
-      console.error('Failed to create API key:', error);
       addFlash('error', error instanceof Error ? error.message : t('pages.api_keys_page.create_failed'));
     }
   };
@@ -108,7 +107,6 @@ export default function APIKeysPage() {
       await deleteKey.mutateAsync({ domainId: selectedDomainId, keyId });
       addFlash('success', t('pages.api_keys_page.key_deleted'));
     } catch (error) {
-      console.error('Failed to delete API key:', error);
       addFlash('error', error instanceof Error ? error.message : t('pages.api_keys_page.delete_failed'));
     } finally {
       setDeletingId(null);
@@ -132,7 +130,6 @@ export default function APIKeysPage() {
       setShowRotateModal(true);
       addFlash('success', t('pages.api_keys_page.key_rotated'));
     } catch (error) {
-      console.error('Failed to rotate API key:', error);
       addFlash('error', error instanceof Error ? error.message : t('pages.api_keys_page.rotate_failed'));
     } finally {
       setRotatingId(null);

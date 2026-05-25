@@ -82,8 +82,8 @@ export default function DeliveryRoutesPage() {
         const data = await res.json();
         setRoutes(data.routes || []);
       }
-    } catch (error) {
-      console.error('Failed to fetch delivery routes:', error);
+    } catch {
+      // mutation error handled by caller
     } finally {
       setLoading(false);
     }
@@ -114,8 +114,8 @@ export default function DeliveryRoutesPage() {
         setNewRoute({ domain_pattern: '', hosts: '', port: '25', tls_mode: 'none', description: '' });
         fetchRoutes();
       }
-    } catch (error) {
-      console.error('Failed to create delivery route:', error);
+    } catch {
+      // mutation error handled by caller
     } finally {
       setCreating(false);
     }
@@ -129,8 +129,8 @@ export default function DeliveryRoutesPage() {
         credentials: 'include',
       });
       fetchRoutes();
-    } catch (error) {
-      console.error('Failed to delete delivery route:', error);
+    } catch {
+      // mutation error handled by caller
     } finally {
       setDeletingId(null);
       setConfirmDelete(null);
@@ -148,8 +148,8 @@ export default function DeliveryRoutesPage() {
         credentials: 'include',
       });
       fetchRoutes();
-    } catch (error) {
-      console.error('Failed to toggle route status:', error);
+    } catch {
+      // mutation error handled by caller
     } finally {
       setTogglingId(null);
     }

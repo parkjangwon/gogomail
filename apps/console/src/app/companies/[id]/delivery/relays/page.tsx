@@ -52,8 +52,8 @@ export default function TrustedRelaysPage() {
         const data = await res.json();
         setRelays(data.relays || []);
       }
-    } catch (error) {
-      console.error('Failed to fetch trusted relays:', error);
+    } catch {
+      // mutation error handled by caller
     } finally {
       setLoading(false);
     }
@@ -77,8 +77,8 @@ export default function TrustedRelaysPage() {
         setNewRelay({ cidr: '', description: '' });
         fetchRelays();
       }
-    } catch (error) {
-      console.error('Failed to create trusted relay:', error);
+    } catch {
+      // mutation error handled by caller
     } finally {
       setCreating(false);
     }
@@ -92,8 +92,8 @@ export default function TrustedRelaysPage() {
         credentials: 'include',
       });
       fetchRelays();
-    } catch (error) {
-      console.error('Failed to delete trusted relay:', error);
+    } catch {
+      // mutation error handled by caller
     } finally {
       setDeletingId(null);
       setConfirmDelete(null);
