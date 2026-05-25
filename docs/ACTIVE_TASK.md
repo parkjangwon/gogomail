@@ -53,6 +53,14 @@ ListMedia 타입 정규화 수정:
 - [x] Unknown types default to `"file"`
 - [x] `go test ./internal/dm/...` passes (14 tests)
 
+## Task 4: Complete
+
+metrics interface{} → 타입 안전 로컬 인터페이스:
+- [x] `caldavgw`: `gatewayMetrics` 인터페이스 정의 (RecordCommand, RecordError), `metrics interface{}` 필드 → `metrics gatewayMetrics`, `SetMetrics` 시그니처 변경, type assertion 제거
+- [x] `carddavgw`: 동일 패턴 적용
+- [x] `imapgw`: `gatewayMetrics` 인터페이스 (RecordConnect, RecordDisconnect, RecordCommand, RecordError), mutex 로컬 복사 패턴 유지
+- [x] `go test ./internal/caldavgw/... ./internal/carddavgw/... ./internal/imapgw/...` 통과 (1530 tests)
+
 ## Next Task
 
-Task 4: metrics interface{} → 타입 안전 로컬 인터페이스 (caldavgw/carddavgw/imapgw)
+Task 5: Grafana 기본 비밀번호 제거 (docker-compose 3곳)
