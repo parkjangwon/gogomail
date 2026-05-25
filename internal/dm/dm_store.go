@@ -772,6 +772,7 @@ WHERE r.id = $2 AND r.company_id = $3 AND r.domain_id = $4`
 	if len(rooms) == 1 {
 		room = rooms[0]
 	}
+	room.CurrentUserID = principal.UserID
 	return room, nil
 }
 
@@ -1316,3 +1317,5 @@ func reverseMessageRecords(records []MessageRecord) {
 		records[i], records[j] = records[j], records[i]
 	}
 }
+
+var _ Store = (*PostgresStore)(nil)
