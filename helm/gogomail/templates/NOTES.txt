@@ -1,0 +1,44 @@
+gogomail has been deployed.
+
+1. Get the application URL:
+{{- if .Values.ingress.enabled }}
+{{- range $host := .Values.ingress.hosts }}
+  http{{ if $.Values.ingress.tls }}s{{ end }}://{{ $host.host }}
+{{- end }}
+{{- else if contains "NodePort" .Values.service.type }}
+  export NODE_PORT=$(kubectl get --namespace {{ .Release.Namespace }} -o jsonpath="{.spec.ports[0].nodePort}" services {{ include "gogomail.fullname" . }})
+  export NODE_IP=$(kubectl get nodes --namespace {{ .Release.Namespace }} -o jsonpath="{.items[0].status.addresses[0].address}")
+  echo http://$NODE_IP:$NODE_PORT
+{{- else if contains "LoadBalancer" .Values.service.type }}
+  NOTE: It may take a few minutes for the LoadBalancer IP to be available.
+  watch kubectl get --namespace {{ .Release.Namespace }} svc -w {{ include "gogomail.fullname" . }}
+{{- else }}
+  kubectl --namespace {{ .Release.Namespace }} port-forward svc/{{ include "gogomail.fullname" . }} 8080:80
+  Then visit: http://localhost:8080
+{{- end }}
+
+2. Health check:
+  curl http://<host>/health/ready
+
+3. Important: update secrets before production use.
+   The chart was installed with placeholder secret values. Replace them:
+
+   kubectl --namespace {{ .Release.Namespace }} create secret generic \
+     {{ include "gogomail.fullname" . }}-secrets \
+     --from-literal=GOGOMAIL_DATABASE_URL="postgres://..." \
+     --from-literal=GOGOMAIL_AUTH_JWT_SECRET="<32+ random bytes>" \
+     --from-literal=GOGOMAIL_ADMIN_TOKEN="<strong token>" \
+     --from-literal=GOGOMAIL_DM_MASTER_KEY="<32-byte hex>" \
+     --from-literal=GOGOMAIL_STORAGE_S3_ENDPOINT="https://..." \
+     --from-literal=GOGOMAIL_STORAGE_S3_BUCKET="<bucket>" \
+     --from-literal=GOGOMAIL_STORAGE_S3_ACCESS_KEY_ID="<key id>" \
+     --from-literal=GOGOMAIL_STORAGE_S3_SECRET_ACCESS_KEY="<secret key>" \
+     --dry-run=client -o yaml | kubectl apply -f -
+
+   Then roll the deployment:
+   kubectl --namespace {{ .Release.Namespace }} rollout restart deployment/{{ include "gogomail.fullname" . }}
+
+4. For production, use an external secret manager (Sealed Secrets, External Secrets Operator, Vault).
+
+5. Mail ports (SMTP 25/465/587, IMAP 143/993) are exposed on the ClusterIP service.
+   For direct internet mail delivery, set service.type=LoadBalancer or use a NodePort.

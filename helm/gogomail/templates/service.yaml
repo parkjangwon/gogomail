@@ -1,0 +1,55 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "gogomail.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "gogomail.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.service.type }}
+  selector:
+    {{- include "gogomail.selectorLabels" . | nindent 4 }}
+  ports:
+    - name: http
+      port: {{ .Values.service.ports.http.port }}
+      targetPort: http
+      protocol: {{ .Values.service.ports.http.protocol }}
+    - name: smtp
+      port: {{ .Values.service.ports.smtp.port }}
+      targetPort: smtp
+      protocol: {{ .Values.service.ports.smtp.protocol }}
+    - name: smtps
+      port: {{ .Values.service.ports.smtps.port }}
+      targetPort: smtp
+      protocol: {{ .Values.service.ports.smtps.protocol }}
+    - name: smtp-submission
+      port: {{ .Values.service.ports.smtpSubmission.port }}
+      targetPort: smtp
+      protocol: {{ .Values.service.ports.smtpSubmission.protocol }}
+    - name: imap
+      port: {{ .Values.service.ports.imap.port }}
+      targetPort: imap
+      protocol: {{ .Values.service.ports.imap.protocol }}
+    - name: imaps
+      port: {{ .Values.service.ports.imaps.port }}
+      targetPort: imap
+      protocol: {{ .Values.service.ports.imaps.protocol }}
+---
+# Headless service for IMAP/SMTP clients that require sticky sessions
+# or direct pod addressing (e.g. IMAP IDLE push notifications).
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "gogomail.fullname" . }}-headless
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "gogomail.labels" . | nindent 4 }}
+spec:
+  clusterIP: None
+  selector:
+    {{- include "gogomail.selectorLabels" . | nindent 4 }}
+  ports:
+    - name: imap
+      port: {{ .Values.service.ports.imap.port }}
+      targetPort: imap
+      protocol: {{ .Values.service.ports.imap.protocol }}
