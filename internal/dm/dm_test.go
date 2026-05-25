@@ -327,6 +327,12 @@ type fakeStore struct {
 	room           Room
 	roomErr        error
 	exportMessages []MessageRecord
+	// searchPages supports multi-page search tests: each call to ListSearchCandidates
+	// returns the next page. An empty page signals end-of-history.
+	searchPages    [][]MessageRecord
+	searchPageIdx  int
+	// searchBeforeIDs records the beforeMessageID passed to each ListSearchCandidates call.
+	searchBeforeIDs []string
 }
 
 type fakeAttachmentStore struct {
@@ -447,8 +453,17 @@ func (f *fakeStore) ToggleReaction(context.Context, Principal, string, string) e
 
 func (f *fakeStore) MarkRead(context.Context, Principal, string, string) error { return nil }
 
-func (f *fakeStore) ListSearchCandidates(context.Context, Principal, string, string, int) ([]MessageRecord, error) {
-	return nil, nil
+func (f *fakeStore) ListSearchCandidates(_ context.Context, _ Principal, _ string, before string, _ int) ([]MessageRecord, error) {
+	f.searchBeforeIDs = append(f.searchBeforeIDs, before)
+	if len(f.searchPages) == 0 {
+		return nil, nil
+	}
+	if f.searchPageIdx >= len(f.searchPages) {
+		return nil, nil
+	}
+	page := f.searchPages[f.searchPageIdx]
+	f.searchPageIdx++
+	return append([]MessageRecord(nil), page...), nil
 }
 
 func (f *fakeStore) ListMedia(context.Context, Principal, string, MediaQuery) ([]MediaItem, error) {
@@ -619,5 +634,168 @@ func TestGetRoomServiceDelegates(t *testing.T) {
 	}
 	if got.ID != "room-1" {
 		t.Fatalf("room ID = %q, want room-1", got.ID)
+	}
+}
+
+// --- DM search pagination tests ---
+
+// makeSearchRecord builds a MessageRecord with an encrypted body for search tests.
+// It uses the provided Crypto and roomKey (obtained via testCryptoAndWrappedRoomKey).
+func makeSearchRecord(t *testing.T, id, body string, crypto *Crypto, roomKey []byte) MessageRecord {
+	t.Helper()
+	ct, err := crypto.EncryptBody(roomKey, []byte(body))
+	if err != nil {
+		t.Fatalf("EncryptBody(%q): %v", id, err)
+	}
+	return MessageRecord{
+		Message:        Message{ID: id, MessageType: MessageTypeText},
+		BodyCiphertext: ct,
+	}
+}
+
+func newSearchService(t *testing.T, store *fakeStore) (*Service, *Crypto, []byte) {
+	t.Helper()
+	crypto, wrappedKey := testCryptoAndWrappedRoomKey(t)
+	roomKey, err := crypto.UnwrapRoomKey(wrappedKey)
+	if err != nil {
+		t.Fatalf("UnwrapRoomKey: %v", err)
+	}
+	store.wrappedRoomKey = wrappedKey
+	svc := NewService(store, crypto)
+	return svc, crypto, roomKey
+}
+
+// TestSearchReturnsSinglePageResults verifies basic single-page search (regression guard).
+func TestSearchReturnsSinglePageResults(t *testing.T) {
+	store := &fakeStore{}
+	svc, crypto, roomKey := newSearchService(t, store)
+
+	match := makeSearchRecord(t, "msg-1", "hello world", crypto, roomKey)
+	noMatch := makeSearchRecord(t, "msg-2", "goodbye", crypto, roomKey)
+	// Single page, 2 messages (oldest first, as the store returns them after reversal).
+	store.searchPages = [][]MessageRecord{{noMatch, match}}
+
+	p := testPrincipal()
+	got, err := svc.Search(context.Background(), p, "room-1", "hello", "", 10)
+	if err != nil {
+		t.Fatalf("Search: %v", err)
+	}
+	if len(got) != 1 {
+		t.Fatalf("got %d results, want 1", len(got))
+	}
+	if got[0].Message.ID != "msg-1" {
+		t.Fatalf("result ID = %q, want msg-1", got[0].Message.ID)
+	}
+}
+
+// TestSearchPaginatesAcrossMultiplePages verifies that search pages through history
+// when the first page contains no matches.
+func TestSearchPaginatesAcrossMultiplePages(t *testing.T) {
+	store := &fakeStore{}
+	svc, crypto, roomKey := newSearchService(t, store)
+
+	// Page 1: no matches. Page 2: one match. Page 3: empty (end of history).
+	page1 := []MessageRecord{
+		makeSearchRecord(t, "msg-100", "unrelated content A", crypto, roomKey),
+		makeSearchRecord(t, "msg-101", "unrelated content B", crypto, roomKey),
+	}
+	page2 := []MessageRecord{
+		makeSearchRecord(t, "msg-50", "needle in page two", crypto, roomKey),
+	}
+	store.searchPages = [][]MessageRecord{page1, page2, {}}
+
+	p := testPrincipal()
+	got, err := svc.Search(context.Background(), p, "room-1", "needle", "", 10)
+	if err != nil {
+		t.Fatalf("Search: %v", err)
+	}
+	if len(got) != 1 {
+		t.Fatalf("got %d results, want 1 (from page 2)", len(got))
+	}
+	if got[0].Message.ID != "msg-50" {
+		t.Fatalf("result ID = %q, want msg-50", got[0].Message.ID)
+	}
+	// Verify that it fetched exactly 3 pages (including the empty terminator).
+	if store.searchPageIdx != 3 {
+		t.Fatalf("fetched %d pages, want 3", store.searchPageIdx)
+	}
+}
+
+// TestSearchStopsWhenLimitReached verifies that search stops fetching pages once
+// the requested result limit is satisfied.
+func TestSearchStopsWhenLimitReached(t *testing.T) {
+	store := &fakeStore{}
+	svc, crypto, roomKey := newSearchService(t, store)
+
+	// Two pages, each containing a match. Limit=1 → should stop after page 1.
+	page1 := []MessageRecord{makeSearchRecord(t, "msg-200", "target message", crypto, roomKey)}
+	page2 := []MessageRecord{makeSearchRecord(t, "msg-100", "target message", crypto, roomKey)}
+	store.searchPages = [][]MessageRecord{page1, page2}
+
+	p := testPrincipal()
+	got, err := svc.Search(context.Background(), p, "room-1", "target", "", 1)
+	if err != nil {
+		t.Fatalf("Search: %v", err)
+	}
+	if len(got) != 1 {
+		t.Fatalf("got %d results, want 1", len(got))
+	}
+	// Page 2 should NOT have been fetched.
+	if store.searchPageIdx >= 2 {
+		t.Fatalf("fetched page 2 unnecessarily (pageIdx=%d)", store.searchPageIdx)
+	}
+}
+
+// TestSearchExhaustsAllPagesWhenMatchesSparse verifies that search fetches all
+// pages when matches are spread thinly across history.
+func TestSearchExhaustsAllPagesWhenMatchesSparse(t *testing.T) {
+	store := &fakeStore{}
+	svc, crypto, roomKey := newSearchService(t, store)
+
+	pages := make([][]MessageRecord, 5)
+	for i := range pages {
+		pages[i] = []MessageRecord{
+			makeSearchRecord(t, strings.Repeat("x", i+1), "sparse hit", crypto, roomKey),
+		}
+	}
+	// No terminator — the last page being smaller than pageSize signals end-of-history.
+	store.searchPages = pages
+
+	p := testPrincipal()
+	got, err := svc.Search(context.Background(), p, "room-1", "sparse", "", 50)
+	if err != nil {
+		t.Fatalf("Search: %v", err)
+	}
+	if len(got) != 5 {
+		t.Fatalf("got %d results, want 5", len(got))
+	}
+}
+
+// TestSearchCursorAdvancesPerPage verifies that the beforeMessageID cursor advances
+// to the oldest record in each page, enabling correct DB pagination.
+func TestSearchCursorAdvancesPerPage(t *testing.T) {
+	store := &fakeStore{}
+	svc, crypto, roomKey := newSearchService(t, store)
+
+	// Page 1: two messages [oldest="msg-old", newest="msg-new"]. No match.
+	// Page 2: empty (end of history).
+	// The store returns messages oldest-first (after reversal in PostgresStore),
+	// so msg-old is records[0] and msg-new is records[1].
+	page1 := []MessageRecord{
+		makeSearchRecord(t, "msg-old", "no match", crypto, roomKey),
+		makeSearchRecord(t, "msg-new", "no match", crypto, roomKey),
+	}
+	store.searchPages = [][]MessageRecord{page1, {}}
+
+	p := testPrincipal()
+	_, _ = svc.Search(context.Background(), p, "room-1", "target", "initial-cursor", 10)
+
+	// First call must use the caller-supplied cursor.
+	if len(store.searchBeforeIDs) < 1 || store.searchBeforeIDs[0] != "initial-cursor" {
+		t.Fatalf("first cursor = %q, want %q", store.searchBeforeIDs[0], "initial-cursor")
+	}
+	// Second call must use the oldest message ID from page 1 (records[0]) as the cursor.
+	if len(store.searchBeforeIDs) < 2 || store.searchBeforeIDs[1] != "msg-old" {
+		t.Fatalf("second cursor = %q, want %q", store.searchBeforeIDs[1], "msg-old")
 	}
 }
