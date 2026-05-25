@@ -17,6 +17,7 @@ import type { Page, Route } from '@playwright/test';
 
 export const SEED_USER_EMAIL = 'pjw@parkjw.org';
 const PNG_1X1 = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=', 'base64');
+const AVATAR_DATA_URL = `data:image/png;base64,${PNG_1X1.toString('base64')}`;
 
 export const DEFAULT_FOLDERS = [
   { id: 'folder-inbox', name: 'INBOX', full_path: 'INBOX', type: 'system', system_type: 'inbox', order_index: 0, total: 3, unread: 2, starred: 1 },
@@ -158,8 +159,27 @@ export const DEFAULT_DM_MESSAGES = [
 ];
 
 export const DEFAULT_DIRECTORY_USERS = [
-  { id: 'user-2', display_name: 'Kim Chulsoo', email: 'kim.chulsoo@parkjw.org' },
-  { id: 'user-3', display_name: 'Lee Younghee', email: 'lee.younghee@parkjw.org' },
+  { id: 'user-2', display_name: 'Kim Chulsoo', email: 'kim.chulsoo@parkjw.org', avatar_url: AVATAR_DATA_URL },
+  { id: 'user-3', display_name: 'Lee Younghee', email: 'lee.younghee@parkjw.org', avatar_url: AVATAR_DATA_URL },
+];
+
+export const DEFAULT_ORG_UNITS = [
+  {
+    id: 'org-dev',
+    display_name: 'Development Team',
+    depth: 0,
+    members: [
+      { id: 'user-2', display_name: 'Kim Chulsoo', email: 'kim.chulsoo@parkjw.org', avatar_url: AVATAR_DATA_URL },
+    ],
+  },
+  {
+    id: 'org-infra',
+    display_name: 'Infrastructure Team',
+    depth: 0,
+    members: [
+      { id: 'user-4', display_name: 'Kang Hyunjae', email: 'kang.hyunjae@parkjw.org', avatar_url: AVATAR_DATA_URL },
+    ],
+  },
 ];
 
 // --- Mock installation -----------------------------------------------------
@@ -177,6 +197,7 @@ export interface MockOverrides {
   dmRooms?: typeof DEFAULT_DM_ROOMS;
   dmMessages?: typeof DEFAULT_DM_MESSAGES;
   directoryUsers?: typeof DEFAULT_DIRECTORY_USERS;
+  orgUnits?: typeof DEFAULT_ORG_UNITS;
   notificationPreferences?: Json;
   deliveryStatuses?: Record<string, Json>;
   onNotificationPreferencesPut?: (body: Record<string, unknown>) => void;
@@ -216,6 +237,11 @@ export async function installMocks(page: Page, overrides: MockOverrides = {}) {
   let dmRooms = [...(overrides.dmRooms ?? DEFAULT_DM_ROOMS)];
   let dmMessages = [...(overrides.dmMessages ?? DEFAULT_DM_MESSAGES)];
   const directoryUsers = overrides.directoryUsers ?? DEFAULT_DIRECTORY_USERS;
+  const orgUnits = overrides.orgUnits ?? DEFAULT_ORG_UNITS;
+  const allDirectoryUsers = [
+    ...directoryUsers,
+    ...orgUnits.flatMap((unit) => unit.members ?? []),
+  ];
 
   // Custom user-provided routes win first
   for (const { urlPattern, handler } of overrides.extra ?? []) {
@@ -337,7 +363,7 @@ export async function installMocks(page: Page, overrides: MockOverrides = {}) {
         current_user_id: 'user-1',
         members: [
           { id: 'user-1', display_name: 'Park Jangwon', email: 'pjw@parkjw.org', avatar_url: '' },
-          ...directoryUsers.filter((u) => body.user_ids?.includes(u.id)).map((u) => ({ ...u, avatar_url: '' })),
+          ...allDirectoryUsers.filter((u) => body.user_ids?.includes(u.id)).map((u) => ({ ...u })),
         ],
         unread_count: 0,
         member_count: (body.user_ids?.length ?? 0) + 1,
@@ -512,6 +538,7 @@ export async function installMocks(page: Page, overrides: MockOverrides = {}) {
 
     // directory
     if (segments[0] === 'directory' && segments[1] === 'users') return json(route, { users: directoryUsers });
+    if (segments[0] === 'directory' && segments[1] === 'org-tree') return json(route, { units: orgUnits });
     if (segments[0] === 'directory') return json(route, { users: [], nodes: [] });
 
     // signatures, filter rules, quick reply templates

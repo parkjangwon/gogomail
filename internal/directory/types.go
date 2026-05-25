@@ -64,6 +64,7 @@ type Principal struct {
 	OrganizationID string
 	DisplayName    string
 	PrimaryEmail   string
+	AvatarURL      string
 	Status         string
 	ResourceType   string
 }

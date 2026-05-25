@@ -13,6 +13,7 @@ import {
   listDMMessages,
   listDMRooms,
   listDirectoryUsers,
+  listOrgTree,
   listPublicDMRooms,
   markDMRead,
   removeDMMember,
@@ -67,6 +68,16 @@ const REACTION_EMOJI = [
   '☕', '🍕', '🎵', '🏆', '❌', '⚠️', '💬', '🎁',
 ];
 
+function matchesDirectoryUser(user: DirectoryUser, query: string): boolean {
+  if (!query) return true;
+  const needle = query.toLowerCase();
+  return [
+    user.display_name,
+    user.email,
+    user.org_unit_name,
+  ].some((value) => (value ?? '').toLowerCase().includes(needle));
+}
+
 function formatTime(value?: string): string {
   if (!value) return '';
   const date = new Date(value);
@@ -97,6 +108,15 @@ function memberEmail(member?: DMUser): string {
 
 function memberAvatarURL(member: DMUser | undefined, currentUserId: string, selfAvatarUrl: string): string {
   return member?.avatar_url || (member?.id === currentUserId ? selfAvatarUrl : '');
+}
+
+function directoryUserToDMUser(user: DirectoryUser): DMUser {
+  return {
+    id: user.id,
+    display_name: user.display_name || user.email,
+    email: user.email,
+    avatar_url: user.avatar_url,
+  };
 }
 
 function MemberAvatar({ member, currentUserId, selfAvatarUrl, size = 30, label }: { member?: DMUser; currentUserId: string; selfAvatarUrl: string; size?: number; label?: string }) {
@@ -340,8 +360,31 @@ export function DMPanel({ userEmail, onUnreadChange, onClose, onComposeToAddress
       return;
     }
     const id = window.setTimeout(() => {
-      void listDirectoryUsers(directoryQuery || undefined, 30).then((users) => {
-        setDirectoryUsers(users);
+      const query = directoryQuery.trim();
+      void Promise.all([listDirectoryUsers(query || undefined, 30), listOrgTree()]).then(([users, orgUnits]) => {
+        const byId = new Map<string, DirectoryUser>();
+        for (const user of users) byId.set(user.id, user);
+        for (const unit of orgUnits) {
+          const unitMatches = unit.display_name.toLowerCase().includes(query.toLowerCase());
+          for (const member of unit.members ?? []) {
+            const candidate: DirectoryUser = {
+              id: member.id,
+              display_name: member.display_name,
+              email: member.email,
+              avatar_url: member.avatar_url,
+              org_unit_name: unit.display_name,
+            };
+            if (!unitMatches && !matchesDirectoryUser(candidate, query)) continue;
+            const existing = byId.get(candidate.id);
+            byId.set(candidate.id, {
+              ...candidate,
+              ...existing,
+              avatar_url: existing?.avatar_url || candidate.avatar_url,
+              org_unit_name: existing?.org_unit_name || candidate.org_unit_name,
+            });
+          }
+        }
+        setDirectoryUsers([...byId.values()].slice(0, 30));
         setDirectoryActiveIndex(0);
       });
     }, 180);
@@ -668,7 +711,8 @@ export function DMPanel({ userEmail, onUnreadChange, onClose, onComposeToAddress
               {selectedUsers.length > 0 && (
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginTop: 8 }}>
                   {selectedUsers.map((user) => (
-                    <button key={user.id} type="button" onClick={() => setSelectedUsers((prev) => prev.filter((item) => item.id !== user.id))} style={{ border: '1px solid var(--color-border-default)', background: 'var(--color-bg-secondary)', color: 'var(--color-text-secondary)', borderRadius: 6, padding: '3px 7px', fontSize: 12, cursor: 'pointer' }}>
+                    <button key={user.id} type="button" onClick={() => setSelectedUsers((prev) => prev.filter((item) => item.id !== user.id))} style={{ border: '1px solid var(--color-border-default)', background: 'var(--color-bg-secondary)', color: 'var(--color-text-secondary)', borderRadius: 6, padding: '3px 7px 3px 4px', fontSize: 12, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5, maxWidth: '100%' }}>
+                      <MemberAvatar member={directoryUserToDMUser(user)} currentUserId={currentUserId} selfAvatarUrl={selfAvatarUrl} size={18} label={user.display_name || user.email} />
                       {user.display_name || user.email}
                     </button>
                   ))}
@@ -677,9 +721,12 @@ export function DMPanel({ userEmail, onUnreadChange, onClose, onComposeToAddress
               {directoryUsers.length > 0 && (
                 <div style={{ marginTop: 8, maxHeight: 150, overflow: 'auto', border: '1px solid var(--color-border-subtle)', borderRadius: 6, background: 'var(--color-bg-primary)' }}>
                   {directoryUsers.map((user, index) => (
-                    <button key={user.id} type="button" onMouseEnter={() => setDirectoryActiveIndex(index)} onClick={() => addDirectoryUser(user)} style={{ width: '100%', textAlign: 'left', border: 'none', borderBottom: '1px solid var(--color-border-subtle)', background: index === directoryActiveIndex ? 'var(--color-accent-subtle)' : 'transparent', color: 'var(--color-text-primary)', padding: '8px 9px', cursor: 'pointer' }}>
-                      <span style={{ display: 'block', fontSize: 13, fontWeight: 600 }}>{user.display_name || user.email}</span>
-                      <span style={{ display: 'block', fontSize: 11, color: 'var(--color-text-tertiary)' }}>{user.email}</span>
+                    <button key={user.id} type="button" onMouseEnter={() => setDirectoryActiveIndex(index)} onClick={() => addDirectoryUser(user)} style={{ width: '100%', textAlign: 'left', border: 'none', borderBottom: '1px solid var(--color-border-subtle)', background: index === directoryActiveIndex ? 'var(--color-accent-subtle)' : 'transparent', color: 'var(--color-text-primary)', padding: '8px 9px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 9 }}>
+                      <MemberAvatar member={directoryUserToDMUser(user)} currentUserId={currentUserId} selfAvatarUrl={selfAvatarUrl} size={30} label={user.display_name || user.email} />
+                      <span style={{ flex: 1, minWidth: 0 }}>
+                        <span style={{ display: 'block', fontSize: 13, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user.display_name || user.email}</span>
+                        <span style={{ display: 'block', fontSize: 11, color: 'var(--color-text-tertiary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user.email}{user.org_unit_name ? ` · ${user.org_unit_name}` : ''}</span>
+                      </span>
                     </button>
                   ))}
                 </div>

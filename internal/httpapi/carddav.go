@@ -527,6 +527,7 @@ func RegisterContactRoutes(mux *http.ServeMux, handler *ContactHandler, tokenMan
 			ID          string `json:"id"`
 			DisplayName string `json:"display_name"`
 			Email       string `json:"email"`
+			AvatarURL   string `json:"avatar_url,omitempty"`
 		}
 		users := make([]DirectoryUser, 0, len(principals))
 		for _, p := range principals {
@@ -534,6 +535,7 @@ func RegisterContactRoutes(mux *http.ServeMux, handler *ContactHandler, tokenMan
 				ID:          p.ID,
 				DisplayName: p.DisplayName,
 				Email:       p.PrimaryEmail,
+				AvatarURL:   p.AvatarURL,
 			})
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"users": users})
@@ -565,6 +567,7 @@ func RegisterContactRoutes(mux *http.ServeMux, handler *ContactHandler, tokenMan
 			ID          string `json:"id"`
 			DisplayName string `json:"display_name"`
 			Email       string `json:"email"`
+			AvatarURL   string `json:"avatar_url,omitempty"`
 		}
 		type OrgUnit struct {
 			ID          string      `json:"id"`
@@ -586,7 +589,7 @@ func RegisterContactRoutes(mux *http.ServeMux, handler *ContactHandler, tokenMan
 			members := membersByOrgID[org.ID]
 			mList := make([]OrgMember, 0, len(members))
 			for _, m := range members {
-				mList = append(mList, OrgMember{ID: m.ID, DisplayName: m.DisplayName, Email: m.PrimaryEmail})
+				mList = append(mList, OrgMember{ID: m.ID, DisplayName: m.DisplayName, Email: m.PrimaryEmail, AvatarURL: m.AvatarURL})
 			}
 			units = append(units, OrgUnit{
 				ID: org.ID, DisplayName: org.DisplayName,
