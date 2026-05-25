@@ -1278,3 +1278,73 @@ func (d *fakeLocalDeliverer) DeliverLocal(_ context.Context, _ Job, recipient ou
 	d.delivered = append(d.delivered, recipient)
 	return nil
 }
+
+// --- Rate limiter handler integration tests ---
+
+type alwaysRateLimit struct{}
+
+func (alwaysRateLimit) Allow(context.Context, Job) error {
+	return &RateLimitError{Domain: "example.net", LimitPerMinute: 1}
+}
+
+func TestHandlerObservesRateLimitedRetryScheduled(t *testing.T) {
+	t.Parallel()
+
+	store := storage.NewLocalStore(t.TempDir())
+	if err := store.Put(context.Background(), "mailstore/msg.eml", strings.NewReader("Subject: hello\r\n\r\nbody")); err != nil {
+		t.Fatalf("Put returned error: %v", err)
+	}
+	metrics := &fakeMetrics{}
+	handler := NewHandler(store, &fakeTransport{}, &fakeRecorder{}, &fakeRetryScheduler{}).
+		WithMetrics(metrics).
+		WithRateLimiter(alwaysRateLimit{})
+
+	err := handler.HandleEvent(context.Background(), eventstream.Message{
+		ID: "1-0",
+		Payload: []byte(`{
+			"event":"mail.queued",
+			"message_id":"msg-1",
+			"from":{"email":"sender@example.com"},
+			"to":[{"email":"recipient@example.net"}],
+			"storage_path":"mailstore/msg.eml",
+			"farm":"general"
+		}`),
+	})
+	if err != nil {
+		t.Fatalf("HandleEvent returned error: %v", err)
+	}
+	if !metrics.has(MetricRateLimited, MetricDeferred) {
+		t.Fatalf("metrics = %+v, want rate_limited+deferred", metrics.events)
+	}
+	if !metrics.has(MetricRetryScheduled, MetricDeferred) {
+		t.Fatalf("metrics = %+v, want retry_scheduled", metrics.events)
+	}
+}
+
+func TestHandlerRateLimitedDoesNotCallTransport(t *testing.T) {
+	t.Parallel()
+
+	store := storage.NewLocalStore(t.TempDir())
+	if err := store.Put(context.Background(), "mailstore/msg.eml", strings.NewReader("Subject: hello\r\n\r\nbody")); err != nil {
+		t.Fatalf("Put returned error: %v", err)
+	}
+	transport := &fakeTransport{}
+	handler := NewHandler(store, transport, &fakeRecorder{}, &fakeRetryScheduler{}).
+		WithRateLimiter(alwaysRateLimit{})
+
+	_ = handler.HandleEvent(context.Background(), eventstream.Message{
+		ID: "1-0",
+		Payload: []byte(`{
+			"event":"mail.queued",
+			"message_id":"msg-1",
+			"from":{"email":"sender@example.com"},
+			"to":[{"email":"recipient@example.net"}],
+			"storage_path":"mailstore/msg.eml",
+			"farm":"general"
+		}`),
+	})
+	// transport.delivered.MessageID is empty only if Deliver was never called.
+	if transport.delivered.MessageID != "" {
+		t.Fatal("transport.Deliver was called despite rate limit")
+	}
+}

@@ -2,20 +2,24 @@
 
 ## ID: COMPLETE
 
-DM 검색 전체 히스토리 스캔 구현 완료 (2026-05-26)
+SMTP 수신 도메인별 발신 레이트 리밋 구현 완료 (2026-05-26)
 
-- `internal/dm/dm.go`: `Service.Search` — 단일 1000개 페치를 페이지네이션 루프로 교체
-  - `searchPageSize = 200` 상수 추가
-  - 빈 페이지가 반환될 때까지 cursor 기반으로 전체 히스토리를 스캔
-  - `limit`개 결과 달성 시 즉시 반환
-- `internal/dm/dm_store.go`: `PostgresStore.ListSearchCandidates` — 1000 하드캡 제거, pageSize 파라미터 존중
-- `internal/dm/dm_test.go`: 5개 새 테스트 추가
-  - `TestSearchReturnsSinglePageResults` (회귀 방지)
-  - `TestSearchPaginatesAcrossMultiplePages`
-  - `TestSearchStopsWhenLimitReached`
-  - `TestSearchExhaustsAllPagesWhenMatchesSparse`
-  - `TestSearchCursorAdvancesPerPage`
-- `go test -short ./...`: 6152 passed
+- `internal/delivery/rate_limiter.go`: `RateLimiter` 인터페이스, `DomainRateLimitPolicy`, `InMemoryDomainRateLimiter`, `RateLimitError` (신규 파일)
+  - 고정 1분 윈도우 카운터, 클럭 주입 가능 (테스트용)
+  - 도메인별 설정 + 기본값, 0 = 무제한
+  - 멀티-수신자 잡: 모든 도메인이 한계 미만일 때만 카운터 증가
+- `internal/delivery/rate_limiter_test.go`: 7개 단위 테스트 (신규 파일)
+- `internal/delivery/handler.go`: `rateLimiter` 필드, `WithRateLimiter` 메서드, `HandleEvent` 통합 (백오프 확인 후, 스로틀 획득 전)
+- `internal/delivery/handler_test.go`: 2개 핸들러 통합 테스트 추가
+- `internal/delivery/metrics.go`: `MetricRateLimited` 상수 추가
+- `internal/config/config.go`: `DeliveryRateLimitEnabled`, `DeliveryDefaultRateLimitPerMinute`, `DeliveryDomainRateLimitPerMinute` 필드
+- `internal/app/run.go`: 설정에서 `InMemoryDomainRateLimiter` 생성 및 wiring
+- `go test -short -count=1 ./...`: 6162 passed
+
+**설정 환경 변수**:
+- `GOGOMAIL_DELIVERY_RATE_LIMIT_ENABLED=true` — 레이트 리밋 활성화
+- `GOGOMAIL_DELIVERY_DEFAULT_RATE_LIMIT_PER_MINUTE=60` — 기본 분당 메시지 수
+- `GOGOMAIL_DELIVERY_DOMAIN_RATE_LIMIT_PER_MINUTE=gmail.com:100,yahoo.com:50` — 도메인별 설정
 
 ## Next Steps
 
