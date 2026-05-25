@@ -108,6 +108,32 @@ pnpm -C apps/console install
 pnpm -C apps/console dev
 ```
 
+### Seed dev data
+
+After the stack is up, load realistic demo data in one command:
+
+```bash
+bash scripts/seed_dev_beta.sh
+```
+
+| Account | Email | Password | Role |
+|---|---|---|---|
+| Admin | `admin@gogomail.io` | `admin1234` | admin |
+| Demo user | `user@parkjw.org` | `pass1234` | user |
+
+The demo user comes pre-loaded with 15 inbox messages (varied read/unread/starred/
+attachment states), 4 custom folders (프로젝트 · 뉴스레터 · 청구서 · 업무) with 10
+messages, 22 contacts with full vCard data, and 2 CalDAV calendars with 10 events.
+All 13 co-worker accounts share password `pass1234`.
+
+To wipe everything except the admin tenant and reseed from scratch:
+
+```bash
+bash scripts/reset_dev_data.sh          # prompts for confirmation
+bash scripts/reset_dev_data.sh --yes    # skip prompt
+bash scripts/reset_dev_data.sh --yes --wipe-only   # wipe without reseeding
+```
+
 For production-like or split-mode deployments, start from the no-code scaling
 template:
 
