@@ -2,10 +2,11 @@
 
 ## Current Task
 
-**DM Export Plan — Task 2: Service layer + TXT formatter** (completed 2026-05-26)
+**DM Export Plan — Task 4: Frontend DMPanel more-menu + export** (in progress 2026-05-26)
 
-- `internal/dm/dm_export.go`: `RoomExport` struct + `FormatExportTXT`
-- `internal/dm/dm.go`: `Service.GetRoom` + `Service.ExportRoom` methods
+- `internal/httpapi/dm.go`: `DMService.ExportRoom` interface method + handler registered at `GET /api/v1/dm/rooms/{roomID}/export`
+- `internal/httpapi/dm_test.go`: `fakeDMRouteService.ExportRoom` stub + `TestDMExportRoomRespondsWithTextFile`
+- `docs/openapi.yaml`: `exportDMRoom` operation added
 
 ## Last Completed Task
 

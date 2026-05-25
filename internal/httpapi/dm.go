@@ -3,6 +3,7 @@ package httpapi
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/url"
@@ -35,6 +36,7 @@ type DMService interface {
 	SignAttachmentDownload(messageID string, expiresAt time.Time) (string, error)
 	VerifyAttachmentDownload(token string) (string, error)
 	OpenAttachment(ctx context.Context, token string) (dm.AttachmentDownload, error)
+	ExportRoom(ctx context.Context, principal dm.Principal, roomID string) (dm.RoomExport, error)
 }
 
 func RegisterDMRoutes(mux *http.ServeMux, service DMService, tokenManager *auth.TokenManager, publicBaseURL string) {
@@ -410,6 +412,52 @@ func RegisterDMRoutes(mux *http.ServeMux, service DMService, tokenManager *auth.
 			return
 		}
 		w.WriteHeader(http.StatusNoContent)
+	})
+
+	mux.HandleFunc("GET /api/v1/dm/rooms/{roomID}/export", func(w http.ResponseWriter, r *http.Request) {
+		if !rejectBodylessRequestPayload(w, r) || !rejectUnknownQueryKeys(w, r, "user_id", "company_id", "domain_id") {
+			return
+		}
+		principal, ok := dmPrincipalFromRequest(w, r, tokenManager)
+		if !ok {
+			return
+		}
+		roomID := strings.TrimSpace(r.PathValue("roomID"))
+		if roomID == "" {
+			writeError(w, http.StatusBadRequest, "room_id is required")
+			return
+		}
+		export, err := service.ExportRoom(r.Context(), principal, roomID)
+		if err != nil {
+			writeDMError(w, err)
+			return
+		}
+		roomName := export.Room.Name
+		if roomName == "" {
+			names := make([]string, 0, len(export.Room.Members))
+			for _, m := range export.Room.Members {
+				names = append(names, m.DisplayName)
+			}
+			roomName = strings.Join(names, "-")
+		}
+		if roomName == "" {
+			roomName = export.Room.ID
+		}
+		// Sanitize room name for use in filename
+		safeRoomName := strings.Map(func(r rune) rune {
+			switch r {
+			case '/', '\\', ':', '*', '?', '"', '<', '>', '|':
+				return '-'
+			}
+			return r
+		}, roomName)
+		date := export.ExportAt.UTC().Format("20060102")
+		filename := fmt.Sprintf("dm-%s-%s.txt", safeRoomName, date)
+		txt := dm.FormatExportTXT(export)
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		w.Header().Set("Content-Disposition", contentDispositionAttachment(filename))
+		w.WriteHeader(http.StatusOK)
+		_, _ = io.WriteString(w, txt)
 	})
 }
 

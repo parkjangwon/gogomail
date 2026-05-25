@@ -113,6 +113,7 @@ type fakeDMRouteService struct {
 	messages          []dm.Message
 	attachmentMessage dm.Message
 	upload            dm.AttachmentUpload
+	exportResult      dm.RoomExport
 }
 
 func (f *fakeDMRouteService) CreateRoom(context.Context, dm.Principal, dm.CreateRoomRequest) (dm.Room, error) {
@@ -194,4 +195,43 @@ func (f *fakeDMRouteService) VerifyAttachmentDownload(token string) (string, err
 
 func (f *fakeDMRouteService) OpenAttachment(context.Context, string) (dm.AttachmentDownload, error) {
 	return dm.AttachmentDownload{Body: io.NopCloser(strings.NewReader(""))}, nil
+}
+
+func (f *fakeDMRouteService) ExportRoom(_ context.Context, _ dm.Principal, _ string) (dm.RoomExport, error) {
+	return f.exportResult, nil
+}
+
+func TestDMExportRoomRespondsWithTextFile(t *testing.T) {
+	now := time.Date(2026, 5, 26, 12, 0, 0, 0, time.UTC)
+	svc := &fakeDMRouteService{}
+	svc.exportResult = dm.RoomExport{
+		Room: dm.Room{ID: "room-1", RoomType: dm.RoomTypeDirect, Name: "test-room",
+			Members: []dm.User{{ID: "u1", DisplayName: "Alice", Email: "alice@example.com"}}},
+		Messages: []dm.Message{
+			{ID: "m1", SenderID: "u1", MessageType: dm.MessageTypeText, Body: "hello", CreatedAt: now},
+		},
+		ExportAt: now,
+	}
+	mux := http.NewServeMux()
+	RegisterDMRoutes(mux, svc, nil, "")
+	req := httptest.NewRequest("GET", "/api/v1/dm/rooms/room-1/export?user_id=u1&company_id=c1&domain_id=d1", nil)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200; body: %s", w.Code, w.Body.String())
+	}
+	ct := w.Header().Get("Content-Type")
+	if !strings.HasPrefix(ct, "text/plain") {
+		t.Fatalf("Content-Type = %q, want text/plain", ct)
+	}
+	cd := w.Header().Get("Content-Disposition")
+	if !strings.Contains(cd, "attachment") {
+		t.Fatalf("Content-Disposition = %q, want attachment", cd)
+	}
+	if !strings.Contains(cd, "test-room") {
+		t.Fatalf("Content-Disposition missing room name: %q", cd)
+	}
+	if !strings.Contains(w.Body.String(), "hello") {
+		t.Fatalf("body missing message text, got:\n%s", w.Body.String())
+	}
 }

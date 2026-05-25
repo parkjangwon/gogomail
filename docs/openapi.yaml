@@ -344,6 +344,38 @@ paths:
           $ref: "#/components/responses/DMMediaList"
         default:
           $ref: "#/components/responses/Error"
+  /dm/rooms/{roomID}/export:
+    get:
+      operationId: exportDMRoom
+      summary: Export DM room as TXT file
+      tags: [dm]
+      servers:
+        - url: /api/v1
+          description: Mail API
+      parameters:
+        - name: roomID
+          in: path
+          required: true
+          schema:
+            type: string
+        - $ref: "#/components/parameters/UserIDQuery"
+        - $ref: "#/components/parameters/CompanyIDQuery"
+        - $ref: "#/components/parameters/DomainIDQuery"
+      responses:
+        "200":
+          description: Plain-text export of all room messages
+          headers:
+            Content-Disposition:
+              description: Attachment disposition with a safe filename.
+              schema:
+                type: string
+              example: 'attachment; filename="dm-Team-Chat-20260526.txt"'
+          content:
+            text/plain:
+              schema:
+                type: string
+        default:
+          $ref: "#/components/responses/Error"
   /dm/messages/{id}:
     patch:
       operationId: editDMMessage
