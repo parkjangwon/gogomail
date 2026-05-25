@@ -42,11 +42,21 @@ Prevent webmail and console frontends from becoming bloated by systematically se
 - **Target**: 700-800 lines (feature orchestrator only)
 
 ### Other Large Components (Priority Order)
-1. **ComposeModal.tsx** (1795 lines)
-   - Extract: RichTextEditor sub-component
-   - Extract: RecipientInput component
-   - Extract: AttachmentList component
-   - Extract: composerUtils.ts (formatting, validation helpers)
+1. **ComposeModal.tsx** (현재 1,429줄, 원본 1,795줄)
+   - ✅ Extracted: `compose/ComposeEditorToolbar.tsx` (92줄) — TipTap 툴바
+   - ✅ Extracted: `compose/ComposeAttachmentPanel.tsx` (84줄) — 첨부파일 패널
+   - ✅ Extracted: `compose/toolbarBtnStyle.ts` — 툴바 버튼 스타일 공유 유틸
+   - Remaining: RichTextEditor sub-component, RecipientInput component, composerUtils.ts
+
+**Completed Extractions:**
+- **DMPanel.tsx** (원본 약 900줄 → 현재 235줄)
+  - ✅ Extracted: `dm/DMRoomList.tsx` (272줄) — 룸 목록 + 새 채팅
+  - ✅ Extracted: `dm/DMMessageList.tsx` (204줄) — 메시지 목록
+  - ✅ Extracted: `dm/DMComposer.tsx` (88줄) — 작성 영역
+  - ✅ Extracted: `dm/DMDetailsPanel.tsx` (166줄) — 대화 상세
+  - ✅ Extracted: `dm/DMOverlays.tsx` (94줄) — 이미지/붙여넣기 오버레이
+  - ✅ Extracted: `dm/useDMPanel.ts` — 전체 DM 상태 관리 커스텀 훅
+  - ✅ Extracted: `dm/types.ts` — `DMTFunction` 타입 정의
 
 2. **ReadingPane.tsx** (1756 lines)
    - Extract: MessageHeader component
@@ -172,8 +182,9 @@ apps/webmail/src/
 - **Total**: 30-40 commits to complete refactoring
 
 ## Success Criteria
-- [ ] All webmail components < 800 lines
+- [ ] All webmail components < 800 lines (ComposeModal 1,429줄 — 진행 중)
 - [ ] All console components < 1000 lines
+- [x] DM components: DMPanel 235줄, 모든 서브컴포넌트 300줄 이하
 - [ ] Utilities organized by feature in `lib/`
 - [ ] Components organized by feature directories
 - [ ] All functionality preserved and tested
