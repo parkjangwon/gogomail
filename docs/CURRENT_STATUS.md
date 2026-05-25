@@ -36,8 +36,11 @@ Last updated: 2026-05-25 (DM instant messaging implementation)
   outgoing bubbles and direct-room counterpart titles, named group rooms keep the
   configured room name for every participant, DM uses the existing profile-photo
   data for member/message avatars, the details panel shows a participant list
-  with owner/removal affordances, and the webmail panel offers a compact emoji
-  picker instead of fixed reaction presets.
+  with email compose links and group-only owner/invite/member controls, 1:1
+  rooms expose only the current user's leave action, per-room composer drafts
+  survive room switches, clipboard image paste uploads as a DM attachment, and
+  the webmail panel offers a compact emoji picker that closes on outside clicks
+  or reaction errors instead of fixed reaction presets.
 - `docs/openapi.yaml` and `docs/backend-api-contracts.md` now document the DM
   route surface, envelopes, auth fallback, encrypted storage behavior, and
   attachment constraints/downloads; OpenAPI route-coverage tests include

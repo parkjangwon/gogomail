@@ -447,6 +447,33 @@ paths:
           description: DM reaction toggled
         default:
           $ref: "#/components/responses/Error"
+  /dm/messages/{id}/reactions:
+    put:
+      operationId: toggleDMReactionByBody
+      summary: Toggle a single-emoji reaction on a DM message
+      servers:
+        - url: /api/v1
+          description: Mail API
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+        - $ref: "#/components/parameters/UserIDQuery"
+        - $ref: "#/components/parameters/CompanyIDQuery"
+        - $ref: "#/components/parameters/DomainIDQuery"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [emoji]
+              properties:
+                emoji:
+                  type: string
+      responses:
+        "204":
+          description: DM reaction toggled
+        default:
+          $ref: "#/components/responses/Error"
   /auth/token:
     post:
       operationId: loginUser

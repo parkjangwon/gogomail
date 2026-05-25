@@ -384,6 +384,25 @@ func RegisterDMRoutes(mux *http.ServeMux, service DMService, tokenManager *auth.
 		}
 		w.WriteHeader(http.StatusNoContent)
 	})
+
+	mux.HandleFunc("PUT /api/v1/dm/messages/{id}/reactions", func(w http.ResponseWriter, r *http.Request) {
+		principal, ok := dmMutationPrincipal(w, r, tokenManager)
+		if !ok {
+			return
+		}
+		var req struct {
+			Emoji string `json:"emoji"`
+		}
+		if err := decodeJSONBody(r, &req); err != nil {
+			writeError(w, http.StatusBadRequest, "invalid JSON body")
+			return
+		}
+		if err := service.ToggleReaction(r.Context(), principal, r.PathValue("id"), req.Emoji); err != nil {
+			writeDMError(w, err)
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
+	})
 }
 
 func addDMAttachmentDownloadURLs(items []dm.MediaItem, service DMService, publicBaseURL string) {

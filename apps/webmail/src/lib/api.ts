@@ -607,6 +607,7 @@ export interface DMUser {
   company_id?: string;
   domain_id?: string;
   display_name: string;
+  email?: string;
   avatar_url?: string;
 }
 
@@ -774,7 +775,10 @@ export function deleteDMMessage(messageId: string): Promise<DMMessage> {
 }
 
 export function toggleDMReaction(messageId: string, emoji: string): Promise<void> {
-  return request<void>(`dm/messages/${encodeURIComponent(messageId)}/reactions/${encodeURIComponent(emoji)}`, { method: 'PUT' });
+  return request<void>(`dm/messages/${encodeURIComponent(messageId)}/reactions`, {
+    method: 'PUT',
+    body: JSON.stringify({ emoji }),
+  });
 }
 
 export function listAttachments(messageId: string): Promise<Attachment[]> {

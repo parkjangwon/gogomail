@@ -58,12 +58,13 @@ interface ComposeModalProps {
   initialTo?: string;
   initialSubject?: string;
   initialBody?: string;
+  focusSubjectOnOpen?: boolean;
   isMobile?: boolean;
   windowOffset?: number;
   onArchiveSource?: () => void;
 }
 
-export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMessage, userEmail, initialTo, initialSubject, initialBody, isMobile, windowOffset = 0, onArchiveSource }: ComposeModalProps) {
+export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMessage, userEmail, initialTo, initialSubject, initialBody, focusSubjectOnOpen = false, isMobile, windowOffset = 0, onArchiveSource }: ComposeModalProps) {
   const t = useTranslations('composeFull');
   const tMisc = useTranslations('misc.compose');
   const tNotif = useTranslations('notifications');
@@ -476,6 +477,13 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
   const ccRef = useRef(draftMessage ? draftCc : replyCc);
   const bccRef = useRef('');
   const subjectRef = useRef(draftMessage ? (draftMessage.subject ?? '') : replySubject);
+  const subjectInputRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    if (!focusSubjectOnOpen) return;
+    const id = window.setTimeout(() => subjectInputRef.current?.focus(), 0);
+    return () => window.clearTimeout(id);
+  }, [focusSubjectOnOpen]);
 
   const sigHTML = signature.trim()
     ? `<p></p><p>--</p><p>${signature.trim().split('\n').map((l) => escapeHtml(l)).join('</p><p>')}</p>`
@@ -1244,6 +1252,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
           {/* Subject */}
           <div style={{ display: 'flex', alignItems: 'center', borderBottom: '1px solid var(--color-border-subtle)', padding: '0 16px', flexShrink: 0 }}>
             <input
+              ref={subjectInputRef}
               id="compose-subject"
               type="text"
               value={subject}

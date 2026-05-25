@@ -145,7 +145,7 @@ export default function MailPage() {
   const [activeFolderId, setActiveFolderId] = useState('');
   const [selectedMessageId, setSelectedMessageId] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState('');
-  type ComposeContext = { intent: UIComposeIntent; source?: MessageDetail; draft?: MessageDetail; to?: string; initialSubject?: string; initialBody?: string };
+  type ComposeContext = { intent: UIComposeIntent; source?: MessageDetail; draft?: MessageDetail; to?: string; initialSubject?: string; initialBody?: string; focusSubjectOnOpen?: boolean };
   const [composeContext, setComposeContext] = useState<ComposeContext | null>(null);
   const openCompose = useCallback((ctx: ComposeContext) => setComposeContext(ctx), []);
   const closeCompose = useCallback(() => setComposeContext(null), []);
@@ -1871,7 +1871,7 @@ export default function MailPage() {
             animation: 'composeIn 120ms ease-out',
           }}
         >
-          <DMPanel userEmail={userEmail || undefined} onUnreadChange={setDMUnreadCount} onClose={() => setShowDMModal(false)} />
+          <DMPanel userEmail={userEmail || undefined} onUnreadChange={setDMUnreadCount} onClose={() => setShowDMModal(false)} onComposeToAddress={(email) => openCompose({ intent: 'new', to: email, focusSubjectOnOpen: true })} />
         </div>
       )}
 
@@ -2053,6 +2053,7 @@ export default function MailPage() {
           initialTo={composeContext.to}
           initialSubject={composeContext.initialSubject}
           initialBody={composeContext.initialBody}
+          focusSubjectOnOpen={composeContext.focusSubjectOnOpen}
           userEmail={userEmail}
           isMobile={isMobile}
           onClose={closeCompose}

@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { CSSProperties } from 'react';
+import type { ClipboardEvent, CSSProperties } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   addDMMembers,
@@ -48,11 +48,14 @@ type DMPanelProps = {
   userEmail?: string;
   onUnreadChange?: (count: number) => void;
   onClose?: () => void;
+  onComposeToAddress?: (email: string) => void;
 };
 
 type MediaTab = 'files' | 'links' | 'drive';
+type DMDraft = { body: string; driveFileId: string };
 
 const DEV_CURRENT_USER_ID = process.env.NEXT_PUBLIC_GOGOMAIL_DEV_USER_ID ?? '';
+const DM_DRAFT_STORAGE_KEY = 'webmail_dm_drafts_v1';
 const REACTION_EMOJI = [
   '😀', '😂', '🥰', '😍', '😮', '😢', '😎', '🙏',
   '👍', '👎', '❤️', '🎉', '✨', '🔥', '💯', '✅',
@@ -84,6 +87,10 @@ function memberName(member?: DMUser, fallback = ''): string {
   return member?.display_name || member?.id || fallback;
 }
 
+function memberEmail(member?: DMUser): string {
+  return member?.email || '';
+}
+
 function memberAvatarURL(member: DMUser | undefined, currentUserId: string, selfAvatarUrl: string): string {
   return member?.avatar_url || (member?.id === currentUserId ? selfAvatarUrl : '');
 }
@@ -110,6 +117,25 @@ function RoomAvatar({ room, currentUserId, selfAvatarUrl }: { room: DMRoom; curr
     );
   }
   return <MemberAvatar member={members[0]} currentUserId={currentUserId} selfAvatarUrl={selfAvatarUrl} size={30} />;
+}
+
+function readDMDrafts(): Record<string, DMDraft> {
+  try {
+    if (typeof window === 'undefined') return {};
+    const parsed = JSON.parse(localStorage.getItem(DM_DRAFT_STORAGE_KEY) ?? '{}') as Record<string, DMDraft>;
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function writeDMDrafts(drafts: Record<string, DMDraft>) {
+  try {
+    if (typeof window === 'undefined') return;
+    localStorage.setItem(DM_DRAFT_STORAGE_KEY, JSON.stringify(drafts));
+  } catch {
+    /* best-effort */
+  }
 }
 
 function roomTitle(
@@ -159,7 +185,7 @@ function pillButton(active: boolean): CSSProperties {
   };
 }
 
-export function DMPanel({ userEmail, onUnreadChange, onClose }: DMPanelProps) {
+export function DMPanel({ userEmail, onUnreadChange, onClose, onComposeToAddress }: DMPanelProps) {
   const t = useTranslations('dmPanel');
   const selfAvatarUrl = useWebmailAvatar();
   const [rooms, setRooms] = useState<DMRoom[]>([]);
@@ -193,6 +219,8 @@ export function DMPanel({ userEmail, onUnreadChange, onClose }: DMPanelProps) {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const memberInputRef = useRef<HTMLInputElement | null>(null);
   const messageEndRef = useRef<HTMLDivElement | null>(null);
+  const reactionPickerRef = useRef<HTMLSpanElement | null>(null);
+  const draftsRef = useRef<Record<string, DMDraft>>(readDMDrafts());
   const composerComposingRef = useRef(false);
   const sendingRef = useRef(false);
 
@@ -219,6 +247,17 @@ export function DMPanel({ userEmail, onUnreadChange, onClose }: DMPanelProps) {
     [currentUserId, t],
   );
   const previewForMessage = useCallback((message?: DMMessage) => messagePreview(message, previewLabels), [previewLabels]);
+  const persistDraft = useCallback((roomId: string, body: string, drive: string) => {
+    if (!roomId) return;
+    const next = { ...draftsRef.current };
+    if (body.trim() || drive.trim()) {
+      next[roomId] = { body, driveFileId: drive };
+    } else {
+      delete next[roomId];
+    }
+    draftsRef.current = next;
+    writeDMDrafts(next);
+  }, []);
 
   const loadRooms = useCallback(async () => {
     setLoadingRooms(true);
@@ -307,7 +346,21 @@ export function DMPanel({ userEmail, onUnreadChange, onClose }: DMPanelProps) {
 
   useEffect(() => {
     setReactionPickerMessageId(null);
+    const draft = activeRoomId ? draftsRef.current[activeRoomId] : undefined;
+    setComposer(draft?.body ?? '');
+    setDriveFileId(draft?.driveFileId ?? '');
   }, [activeRoomId]);
+
+  useEffect(() => {
+    if (!reactionPickerMessageId) return;
+    function closeOnOutsidePointer(event: MouseEvent) {
+      const target = event.target;
+      if (target instanceof Node && reactionPickerRef.current?.contains(target)) return;
+      setReactionPickerMessageId(null);
+    }
+    document.addEventListener('mousedown', closeOnOutsidePointer);
+    return () => document.removeEventListener('mousedown', closeOnOutsidePointer);
+  }, [reactionPickerMessageId]);
 
   const createRoom = useCallback(async () => {
     if (selectedUsers.length === 0) return;
@@ -338,6 +391,7 @@ export function DMPanel({ userEmail, onUnreadChange, onClose }: DMPanelProps) {
     sendingRef.current = true;
     setComposer('');
     setDriveFileId('');
+    persistDraft(activeRoomId, '', '');
     try {
       const sent = await sendDMMessage(activeRoomId, body, drive || undefined);
       setMessages((prev) => mergeMessage(prev, sent));
@@ -345,11 +399,12 @@ export function DMPanel({ userEmail, onUnreadChange, onClose }: DMPanelProps) {
     } catch (err) {
       setComposer(body);
       setDriveFileId(drive);
+      persistDraft(activeRoomId, body, drive);
       setError(err instanceof Error ? err.message : t('errors.sendFailed'));
     } finally {
       sendingRef.current = false;
     }
-  }, [activeRoomId, composer, driveFileId, loadRooms, t]);
+  }, [activeRoomId, composer, driveFileId, loadRooms, persistDraft, t]);
 
   const uploadFile = useCallback(async (file: File) => {
     if (!activeRoomId) return;
@@ -362,6 +417,18 @@ export function DMPanel({ userEmail, onUnreadChange, onClose }: DMPanelProps) {
       setError(err instanceof Error ? err.message : t('errors.uploadFailed'));
     }
   }, [activeRoomId, loadRooms, mediaTab, t]);
+
+  const uploadPastedImages = useCallback((event: ClipboardEvent<HTMLInputElement>) => {
+    const files: File[] = [];
+    for (const item of Array.from(event.clipboardData.items)) {
+      if (!item.type.startsWith('image/')) continue;
+      const file = item.getAsFile();
+      if (file) files.push(new File([file], file.name || `clipboard-${Date.now()}.png`, { type: file.type || item.type }));
+    }
+    if (files.length === 0) return;
+    event.preventDefault();
+    files.forEach((file) => { void uploadFile(file); });
+  }, [uploadFile]);
 
   const submitEdit = useCallback(async () => {
     if (!editingId || !editingBody.trim()) return;
@@ -391,6 +458,8 @@ export function DMPanel({ userEmail, onUnreadChange, onClose }: DMPanelProps) {
       setReactionPickerMessageId(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : t('errors.reactionFailed'));
+    } finally {
+      setReactionPickerMessageId(null);
     }
   }, [loadMessages, t]);
 
@@ -645,7 +714,7 @@ export function DMPanel({ userEmail, onUnreadChange, onClose }: DMPanelProps) {
                                   {reaction.emoji}{reaction.count ? ` ${reaction.count}` : ''}
                                 </button>
                               ))}
-                              <span style={{ position: 'relative', display: 'inline-flex' }}>
+                              <span ref={reactionPickerMessageId === message.id ? reactionPickerRef : undefined} style={{ position: 'relative', display: 'inline-flex' }}>
                                 <button type="button" onClick={() => setReactionPickerMessageId((id) => id === message.id ? null : message.id)} aria-label={t('react')} style={{ border: 'none', borderRadius: 10, padding: '1px 5px', background: mine ? 'rgba(255,255,255,0.18)' : 'var(--color-bg-tertiary)', color: mine ? '#fff' : 'var(--color-text-secondary)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}>
                                   <FaceSmileIcon style={{ width: 13, height: 13 }} />
                                 </button>
@@ -675,7 +744,7 @@ export function DMPanel({ userEmail, onUnreadChange, onClose }: DMPanelProps) {
               </div>
               <footer style={{ borderTop: '1px solid var(--color-border-subtle)', padding: '10px 12px', flexShrink: 0 }}>
                 {driveComposerOpen && (
-                  <input value={driveFileId} onChange={(e) => setDriveFileId(e.currentTarget.value)} placeholder={t('driveFileId')} style={{ width: '100%', boxSizing: 'border-box', marginBottom: 8, border: '1px solid var(--color-border-default)', background: 'var(--color-bg-secondary)', color: 'var(--color-text-primary)', borderRadius: 6, padding: '7px 9px', fontSize: 13 }} />
+                  <input value={driveFileId} onChange={(e) => { const value = e.currentTarget.value; setDriveFileId(value); persistDraft(activeRoomId, composer, value); }} placeholder={t('driveFileId')} style={{ width: '100%', boxSizing: 'border-box', marginBottom: 8, border: '1px solid var(--color-border-default)', background: 'var(--color-bg-secondary)', color: 'var(--color-text-primary)', borderRadius: 6, padding: '7px 9px', fontSize: 13 }} />
                 )}
                 <div style={{ display: 'flex', gap: 8 }}>
                   <button type="button" onClick={() => setDriveComposerOpen((open) => !open)} aria-label={t('addDriveFile')} style={{ width: 36, border: '1px solid var(--color-border-default)', borderRadius: 6, background: driveComposerOpen ? 'var(--color-accent-subtle)' : 'transparent', color: driveComposerOpen ? 'var(--color-accent)' : 'var(--color-text-secondary)', display: 'grid', placeItems: 'center', cursor: 'pointer' }}>
@@ -683,7 +752,8 @@ export function DMPanel({ userEmail, onUnreadChange, onClose }: DMPanelProps) {
                   </button>
                   <input
                     value={composer}
-                    onChange={(e) => setComposer(e.currentTarget.value)}
+                    onChange={(e) => { const value = e.currentTarget.value; setComposer(value); persistDraft(activeRoomId, value, driveFileId); }}
+                    onPaste={uploadPastedImages}
                     onCompositionStart={() => { composerComposingRef.current = true; }}
                     onCompositionEnd={() => { composerComposingRef.current = false; }}
                     onKeyDown={(e) => {
@@ -715,17 +785,23 @@ export function DMPanel({ userEmail, onUnreadChange, onClose }: DMPanelProps) {
                     <div style={{ fontSize: 12, color: 'var(--color-text-tertiary)' }}>{t('membersCount', { count: activeRoom.members?.length ?? activeRoom.member_count ?? 0 })}</div>
                   </div>
                 </div>
-                <button type="button" onClick={makeInvite} style={{ width: '100%', border: '1px solid var(--color-border-default)', borderRadius: 6, background: 'var(--color-bg-primary)', color: 'var(--color-text-secondary)', padding: '7px 9px', fontSize: 12, cursor: 'pointer' }}>{t('createInvite')}</button>
-                {inviteUrl && <input readOnly value={inviteUrl} onFocus={(e) => e.currentTarget.select()} style={{ marginTop: 8, width: '100%', boxSizing: 'border-box', border: '1px solid var(--color-border-default)', borderRadius: 6, background: 'var(--color-bg-primary)', color: 'var(--color-text-secondary)', padding: '6px 8px', fontSize: 12 }} />}
+                {activeRoom.room_type === 'group' && (
+                  <>
+                    <button type="button" onClick={makeInvite} style={{ width: '100%', border: '1px solid var(--color-border-default)', borderRadius: 6, background: 'var(--color-bg-primary)', color: 'var(--color-text-secondary)', padding: '7px 9px', fontSize: 12, cursor: 'pointer' }}>{t('createInvite')}</button>
+                    {inviteUrl && <input readOnly value={inviteUrl} onFocus={(e) => e.currentTarget.select()} style={{ marginTop: 8, width: '100%', boxSizing: 'border-box', border: '1px solid var(--color-border-default)', borderRadius: 6, background: 'var(--color-bg-primary)', color: 'var(--color-text-secondary)', padding: '6px 8px', fontSize: 12 }} />}
+                  </>
+                )}
               </div>
               <div style={{ padding: 12, borderBottom: '1px solid var(--color-border-subtle)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 8 }}>
                   <div style={{ color: 'var(--color-text-primary)', fontSize: 13, fontWeight: 700 }}>{t('members')}</div>
-                  <button type="button" onClick={() => memberInputRef.current?.focus()} aria-label={t('addMembers')} style={{ border: 'none', background: 'transparent', color: 'var(--color-accent)', fontSize: 12, fontWeight: 700, cursor: 'pointer', padding: 0 }}>{t('addMembers')}</button>
+                  {activeRoom.room_type === 'group' && <button type="button" onClick={() => memberInputRef.current?.focus()} aria-label={t('addMembers')} style={{ border: 'none', background: 'transparent', color: 'var(--color-accent)', fontSize: 12, fontWeight: 700, cursor: 'pointer', padding: 0 }}>{t('addMembers')}</button>}
                 </div>
                 {(activeRoom.members ?? []).map((member) => {
                   const name = memberName(member);
+                  const email = memberEmail(member);
                   const isOwner = activeRoom.owner_id === member.id;
+                  const canRemove = activeRoom.room_type === 'group' || member.id === currentUserId;
                   return (
                     <div key={member.id} style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '7px 0', fontSize: 12, color: 'var(--color-text-secondary)' }}>
                       <MemberAvatar member={member} currentUserId={currentUserId} selfAvatarUrl={selfAvatarUrl} size={34} label={name} />
@@ -734,11 +810,17 @@ export function DMPanel({ userEmail, onUnreadChange, onClose }: DMPanelProps) {
                           <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 700, color: 'var(--color-text-primary)' }}>{name}</span>
                           {isOwner && <span style={{ borderRadius: 999, background: 'var(--color-accent-subtle)', color: 'var(--color-accent)', padding: '1px 6px', fontSize: 10, fontWeight: 700 }}>{t('owner')}</span>}
                         </span>
-                        <span style={{ display: 'block', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--color-text-tertiary)' }}>{member.id}</span>
+                        {email ? (
+                          <button type="button" onClick={() => onComposeToAddress?.(email)} style={{ display: 'block', maxWidth: '100%', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: onComposeToAddress ? 'var(--color-accent)' : 'var(--color-text-tertiary)', background: 'transparent', border: 'none', padding: 0, font: 'inherit', cursor: onComposeToAddress ? 'pointer' : 'default', textAlign: 'left' }}>{email}</button>
+                        ) : (
+                          <span style={{ display: 'block', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--color-text-tertiary)' }}>{member.id}</span>
+                        )}
                       </span>
-                      <button type="button" onClick={() => leaveOrRemove(member.id)} aria-label={t('removeMember')} style={{ border: 'none', background: 'transparent', color: 'var(--color-text-tertiary)', cursor: 'pointer', padding: 2 }}>
-                        <TrashIcon style={{ width: 13, height: 13 }} />
-                      </button>
+                      {canRemove && (
+                        <button type="button" onClick={() => leaveOrRemove(member.id)} aria-label={t('removeMember')} style={{ border: 'none', background: 'transparent', color: 'var(--color-text-tertiary)', cursor: 'pointer', padding: 2 }}>
+                          <TrashIcon style={{ width: 13, height: 13 }} />
+                        </button>
+                      )}
                     </div>
                   );
                 })}
@@ -758,7 +840,7 @@ export function DMPanel({ userEmail, onUnreadChange, onClose }: DMPanelProps) {
                   </div>
                 ))}
               </div>
-              <div style={{ padding: 12, borderBottom: '1px solid var(--color-border-subtle)' }}>
+              {activeRoom.room_type === 'group' && <div style={{ padding: 12, borderBottom: '1px solid var(--color-border-subtle)' }}>
                 <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
                   <input ref={memberInputRef} value={memberInput} onChange={(e) => setMemberInput(e.currentTarget.value)} placeholder={t('userIds')} style={{ flex: 1, minWidth: 0, border: '1px solid var(--color-border-default)', background: 'var(--color-bg-primary)', color: 'var(--color-text-primary)', borderRadius: 6, padding: '6px 8px', fontSize: 12 }} />
                   <button type="button" onClick={addMembers} aria-label={t('addMembers')} style={{ width: 30, border: 'none', borderRadius: 6, background: 'var(--color-accent)', color: '#fff', display: 'grid', placeItems: 'center', cursor: 'pointer' }}>
@@ -769,7 +851,7 @@ export function DMPanel({ userEmail, onUnreadChange, onClose }: DMPanelProps) {
                   <input value={ownerInput} onChange={(e) => setOwnerInput(e.currentTarget.value)} placeholder={t('ownerUserId')} style={{ flex: 1, minWidth: 0, border: '1px solid var(--color-border-default)', background: 'var(--color-bg-primary)', color: 'var(--color-text-primary)', borderRadius: 6, padding: '6px 8px', fontSize: 12 }} />
                   <button type="button" onClick={transferOwner} style={{ border: '1px solid var(--color-border-default)', borderRadius: 6, background: 'transparent', color: 'var(--color-text-secondary)', padding: '0 8px', fontSize: 12, cursor: 'pointer' }}>{t('owner')}</button>
                 </div>
-              </div>
+              </div>}
             </aside>
             )}
           </div>

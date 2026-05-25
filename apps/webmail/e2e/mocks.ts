@@ -128,8 +128,8 @@ export const DEFAULT_DM_ROOMS = [
     created_at: '2026-05-25T00:00:00Z',
     current_user_id: 'user-1',
     members: [
-      { id: 'user-1', display_name: 'Park Jangwon', avatar_url: 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22%3E%3Crect width=%2232%22 height=%2232%22 fill=%22%232f6ee0%22/%3E%3Ctext x=%2216%22 y=%2221%22 text-anchor=%22middle%22 fill=%22white%22 font-size=%2212%22 font-family=%22Arial%22%3EPJ%3C/text%3E%3C/svg%3E' },
-      { id: 'user-2', display_name: 'Kim Chulsoo', avatar_url: 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22%3E%3Crect width=%2232%22 height=%2232%22 fill=%22%230d9488%22/%3E%3Ctext x=%2216%22 y=%2221%22 text-anchor=%22middle%22 fill=%22white%22 font-size=%2212%22 font-family=%22Arial%22%3EKC%3C/text%3E%3C/svg%3E' },
+      { id: 'user-1', display_name: 'Park Jangwon', email: 'pjw@parkjw.org', avatar_url: 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22%3E%3Crect width=%2232%22 height=%2232%22 fill=%22%232f6ee0%22/%3E%3Ctext x=%2216%22 y=%2221%22 text-anchor=%22middle%22 fill=%22white%22 font-size=%2212%22 font-family=%22Arial%22%3EPJ%3C/text%3E%3C/svg%3E' },
+      { id: 'user-2', display_name: 'Kim Chulsoo', email: 'kim.chulsoo@parkjw.org', avatar_url: 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22%3E%3Crect width=%2232%22 height=%2232%22 fill=%22%230d9488%22/%3E%3Ctext x=%2216%22 y=%2221%22 text-anchor=%22middle%22 fill=%22white%22 font-size=%2212%22 font-family=%22Arial%22%3EKC%3C/text%3E%3C/svg%3E' },
     ],
     unread_count: 1,
     member_count: 2,
@@ -334,9 +334,12 @@ export async function installMocks(page: Page, overrides: MockOverrides = {}) {
         created_by: 'user-1',
         created_at: new Date().toISOString(),
         current_user_id: 'user-1',
-        members: directoryUsers.filter((u) => body.user_ids?.includes(u.id)),
+        members: [
+          { id: 'user-1', display_name: 'Park Jangwon', email: 'pjw@parkjw.org', avatar_url: '' },
+          ...directoryUsers.filter((u) => body.user_ids?.includes(u.id)).map((u) => ({ ...u, avatar_url: '' })),
+        ],
         unread_count: 0,
-        member_count: body.user_ids?.length ?? 0,
+        member_count: (body.user_ids?.length ?? 0) + 1,
       };
       dmRooms = [room, ...dmRooms] as typeof DEFAULT_DM_ROOMS;
       return json(route, { room }, 201);
@@ -360,15 +363,18 @@ export async function installMocks(page: Page, overrides: MockOverrides = {}) {
       return json(route, { message }, 201);
     }
     if (segments[0] === 'dm' && segments[1] === 'rooms' && segments[3] === 'attachments' && method === 'POST') {
+      const uploadData = req.postData() ?? '';
+      const uploadName = /filename="([^"]+)"/.exec(uploadData)?.[1] ?? 'upload.txt';
+      const uploadType = /Content-Type: ([^\r\n]+)/.exec(uploadData)?.[1] ?? 'application/octet-stream';
       const message = {
         id: `dm-file-${Date.now()}`,
         room_id: segments[2],
         sender_id: 'user-1',
         message_type: 'file',
-        body: 'upload.txt',
-        attachment_name: 'upload.txt',
+        body: uploadName,
+        attachment_name: uploadName,
         attachment_size: 12,
-        attachment_mime_type: 'text/plain',
+        attachment_mime_type: uploadType,
         created_at: new Date().toISOString(),
         reactions: [],
       };
@@ -400,7 +406,8 @@ export async function installMocks(page: Page, overrides: MockOverrides = {}) {
       return json(route, { message });
     }
     if (segments[0] === 'dm' && segments[1] === 'messages' && segments[3] === 'reactions' && method === 'PUT') {
-      const emoji = decodeURIComponent(segments[4] ?? '');
+      const body = (req.postDataJSON?.() ?? {}) as { emoji?: string };
+      const emoji = body.emoji ?? decodeURIComponent(segments[4] ?? '');
       dmMessages = dmMessages.map((m) => {
         if (m.id !== segments[2]) return m;
         const reactions = [...((m.reactions ?? []) as Array<{ emoji: string; count: number; mine?: boolean }>)];
