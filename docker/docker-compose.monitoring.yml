@@ -19,6 +19,11 @@ services:
     networks:
       - gogomail-monitoring
 
+  # Edge MTA — join monitoring network so Promtail collects its logs
+  edge-mta:
+    networks:
+      - gogomail-monitoring
+
   # Prometheus — scrapes backend:9091/metrics every 15s
   prometheus:
     image: prom/prometheus:v2.53.1

@@ -7,7 +7,6 @@ imap_max_connections: 0
 submission_addr: :2587
 submission_smtps_addr: ""
 submission_max_connections: 0
-smtp_domain: localhost
 smtp_auth_verification_enabled: false
 smtp_authserv_id: localhost
 smtp_dmarc_enforcement: monitor
@@ -23,6 +22,9 @@ delivery_smarthost_implicit_tls: false
 delivery_smarthost_username: ""
 metrics_backend: prometheus
 metrics_addr: :9091
+log_format: json
+smtp_domain: parkjw.org
+local_recipients: shim.dayoung@parkjw.org,hong.seungwoo@parkjw.org
 attachment_scan_backend: clamav
 attachment_scan_clamav_addr: clamav:3310
 attachment_scan_max_concurrency: 4
@@ -66,5 +68,3 @@ storage_s3_ca_cert_file: ""
 storage_s3_insecure_skip_verify: false
 migration_dir: migrations
 mailstore_root: var/mailstore
-local_recipients:
-  - admin@example.com

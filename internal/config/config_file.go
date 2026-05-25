@@ -189,6 +189,8 @@ func applyYAMLConfigValue(cfg *Config, key string, value any) error {
 		return setYAMLStringSlice(value, &cfg.LocalRecipients, key)
 	case "metrics_backend":
 		return setYAMLString(value, &cfg.MetricsBackend, key)
+	case "log_format":
+		return setYAMLString(value, &cfg.LogFormat, key)
 	case "attachment_scan_backend":
 		return setYAMLString(value, &cfg.AttachmentScanBackend, key)
 	case "attachment_scan_clamav_addr":

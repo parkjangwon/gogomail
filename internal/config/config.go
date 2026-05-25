@@ -118,6 +118,7 @@ type Config struct {
 	RateLimitBackend                    string
 	BackpressureBackend                 string
 	MetricsBackend                      string
+	LogFormat                           string
 	MilterEnabled                       bool
 	MilterAddr                          string
 	MilterTimeout                       time.Duration
@@ -432,6 +433,7 @@ func Load() Config {
 		RateLimitBackend:                    envOrDefault("GOGOMAIL_RATELIMIT_BACKEND", "none"),
 		BackpressureBackend:                 envOrDefault("GOGOMAIL_BACKPRESSURE_BACKEND", "none"),
 		MetricsBackend:                      envOrDefault("GOGOMAIL_METRICS_BACKEND", "none"),
+		LogFormat:                           envOrDefault("GOGOMAIL_LOG_FORMAT", "json"),
 		MilterEnabled:                       boolEnvOrDefault("GOGOMAIL_MILTER_ENABLED", false),
 		MilterAddr:                          envOrDefault("GOGOMAIL_MILTER_ADDR", "127.0.0.1:7357"),
 		MilterTimeout:                       durationEnvOrDefault("GOGOMAIL_MILTER_TIMEOUT", 30*time.Second),

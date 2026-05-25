@@ -350,6 +350,9 @@ func (c Config) Validate() error {
 	if err := validateEnum("GOGOMAIL_METRICS_BACKEND", c.MetricsBackend, "none", "slog", "prometheus"); err != nil {
 		return err
 	}
+	if err := validateEnum("GOGOMAIL_LOG_FORMAT", c.LogFormat, "json", "text"); err != nil {
+		return err
+	}
 	if err := validateEnum("GOGOMAIL_ATTACHMENT_SCAN_BACKEND", c.AttachmentScanBackend, "none", "webhook", "clamav"); err != nil {
 		return err
 	}

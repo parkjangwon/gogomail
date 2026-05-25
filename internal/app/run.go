@@ -2078,6 +2078,15 @@ func runReceiveMTA(ctx context.Context, cfg config.Config, logger *slog.Logger, 
 		logger.Info(opts.Component + " SMTP latency tracking enabled")
 	}
 
+	// Guard against the nil-interface trap: a typed nil *maildb.Repository assigned
+	// to a DomainPolicyLookup interface is not a nil interface, so the receiver's
+	// nil-check won't fire and the method call panics.  Only wire it up when the
+	// repo was actually created (i.e. when DB mode, not static-resolver mode).
+	var domainPolicyLookup smtpd.DomainPolicyLookup
+	if maildbRepo != nil {
+		domainPolicyLookup = maildbRepo
+	}
+
 	receiver := smtpd.NewReceiver(smtpd.ReceiverOptions{
 		Store:              store,
 		Resolver:           resolver,
@@ -2087,7 +2096,7 @@ func runReceiveMTA(ctx context.Context, cfg config.Config, logger *slog.Logger, 
 		Backpressure:       pressure,
 		AuthVerifier:       authVerifier,
 		RelayAuthorizer:    relayAuthorizer,
-		DomainPolicyLookup: maildbRepo,
+		DomainPolicyLookup: domainPolicyLookup,
 		Metrics:            smtpMetrics(cfg, logger),
 		AddReceivedHeader:  cfg.SMTPAddReceivedHeader,
 		ReceivedDomain:     cfg.SMTPDomain,
@@ -2110,6 +2119,8 @@ func runReceiveMTA(ctx context.Context, cfg config.Config, logger *slog.Logger, 
 	}
 
 	receiver.SetBaseContext(ctx)
+
+	go serveMetrics(ctx, cfg, logger)
 
 	return smtpd.RunServer(ctx, smtpd.ServerOptions{
 		Addr:             opts.Addr,

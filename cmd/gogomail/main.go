@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 
 	"github.com/gogomail/gogomail/internal/app"
@@ -57,10 +58,10 @@ func run(args []string, stdout io.Writer, stderr io.Writer, runApp func(context.
 	}
 	var logHandler slog.Handler
 	logOptions := &slog.HandlerOptions{Level: slog.LevelInfo, ReplaceAttr: redactLogAttr}
-	if cfg.Environment == "production" {
-		logHandler = slog.NewJSONHandler(stdout, logOptions)
-	} else {
+	if strings.EqualFold(strings.TrimSpace(cfg.LogFormat), "text") {
 		logHandler = slog.NewTextHandler(stdout, logOptions)
+	} else {
+		logHandler = slog.NewJSONHandler(stdout, logOptions)
 	}
 	logger := slog.New(newContextHandler(logHandler))
 	slog.SetDefault(logger)
