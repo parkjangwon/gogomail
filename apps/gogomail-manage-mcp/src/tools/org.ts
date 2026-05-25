@@ -4,7 +4,7 @@ import type { GogomailClient } from "../clients/gogomail.js";
 import {
   type OptionalSuppo,
   id, reason, confirm, orgRole, orgTitle,
-  withAudit, requireConfirm, writeAuditComment,
+  pathWithQuery, withAudit, requireConfirm, writeAuditComment,
 } from "./shared.js";
 
 // ── Tool definitions ─────────────────────────────────────────────────
@@ -135,15 +135,15 @@ export async function callTool(
   switch (name) {
     case "gogomail_list_org_units": {
       const { companyId } = OrgCompanySchema.parse(args);
-      return gogomail.adminRequest("GET", `/organization/units?company_id=${encodeURIComponent(companyId)}`);
+      return gogomail.adminRequest("GET", pathWithQuery("/organization/units", { company_id: companyId }));
     }
     case "gogomail_get_org_hierarchy": {
       const { companyId } = OrgCompanySchema.parse(args);
-      return gogomail.adminRequest("GET", `/organization/hierarchy?company_id=${encodeURIComponent(companyId)}`);
+      return gogomail.adminRequest("GET", pathWithQuery("/organization/hierarchy", { company_id: companyId }));
     }
     case "gogomail_list_user_org_memberships": {
       const { userId } = UserOrgMembershipsSchema.parse(args);
-      return gogomail.adminRequest("GET", `/organization/members?user_id=${encodeURIComponent(userId)}`);
+      return gogomail.adminRequest("GET", pathWithQuery("/organization/members", { user_id: userId }));
     }
     case "gogomail_assign_user_org_membership": {
       const { unitId, userId, role, title, reason: rsn, ticketId } = AssignOrgMembershipSchema.parse(args);

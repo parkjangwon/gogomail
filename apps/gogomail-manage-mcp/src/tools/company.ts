@@ -203,7 +203,7 @@ export async function callTool(
         ticketId,
         "gogomail_update_domain_settings",
         `domainId: ${domainId}`,
-        `변경 전: ${JSON.stringify(before)}\n- 변경 요청: ${JSON.stringify(settings)}\n- 사유: ${rsn}`,
+        `변경 요청: ${JSON.stringify(settings)} / 사유: ${rsn}`,
       );
       return withAudit(result, audit);
     }
