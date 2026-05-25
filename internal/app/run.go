@@ -15,6 +15,7 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"sort"
 	"strings"
@@ -76,6 +77,7 @@ import (
 	"github.com/gogomail/gogomail/internal/spamfilter"
 	"github.com/gogomail/gogomail/internal/storage"
 	webhookguard "github.com/gogomail/gogomail/internal/webhook"
+	wapkg "github.com/gogomail/gogomail/internal/webauthn"
 )
 
 func Run(ctx context.Context, mode Mode, cfg config.Config, logger *slog.Logger) error {
@@ -3452,6 +3454,28 @@ func runHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, mode M
 		)
 		logger.Info("mail api routes registered")
 
+		if cfg.WebAuthnEnabled {
+			rpid := strings.TrimSpace(cfg.WebAuthnRPID)
+			if rpid == "" {
+				// Derive RPID from PublicBaseURL hostname.
+				if u, err2 := parsePublicHostname(cfg.PublicBaseURL); err2 == nil {
+					rpid = u
+				}
+			}
+			waStore := wapkg.NewStore(db)
+			waSvc, err := wapkg.NewService(wapkg.Config{
+				RPDisplayName: cfg.WebAuthnRPDisplayName,
+				RPID:          rpid,
+				RPOrigins:     cfg.WebAuthnRPOrigins,
+			}, waStore)
+			if err != nil {
+				logger.Warn("webauthn init failed, feature disabled", "error", err)
+			} else {
+				httpapi.RegisterWebAuthnRoutes(mux, waSvc, tokenManager)
+				logger.Info("webauthn mfa enabled", "rpid", rpid)
+			}
+		}
+
 		httpapi.RegisterJMAPRoutes(mux, jmapHandler(cfg))
 		logger.Info("jmap routes registered")
 	}
@@ -3983,4 +4007,22 @@ func (a localDeliveryAdapter) DeliverLocal(ctx context.Context, job delivery.Job
 		FolderSystemType: "inbox",
 	})
 	return err
+}
+
+// parsePublicHostname extracts the hostname from a public base URL.
+// Returns an error if rawURL is empty or unparseable.
+func parsePublicHostname(rawURL string) (string, error) {
+	rawURL = strings.TrimSpace(rawURL)
+	if rawURL == "" {
+		return "", fmt.Errorf("empty URL")
+	}
+	parsed, err := url.Parse(rawURL)
+	if err != nil {
+		return "", err
+	}
+	host := parsed.Hostname()
+	if host == "" {
+		return "", fmt.Errorf("no hostname in URL %q", rawURL)
+	}
+	return host, nil
 }
