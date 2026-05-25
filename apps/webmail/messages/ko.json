@@ -591,7 +591,9 @@
         "mailList": "메일 목록",
         "mailActions": "메일 동작",
         "folderNav": "폴더 이동",
-        "mailCompose": "메일 작성"
+        "mailCompose": "메일 작성",
+        "calendar": "캘린더",
+        "contacts": "연락처"
       },
       "items": {
         "help": "단축키 도움말",
@@ -640,7 +642,17 @@
         "saveDraft": "임시저장",
         "composeClose": "작성창 닫기",
         "notificationCenter": "알림 센터 열기/닫기",
-        "dm": "DM 열기"
+        "dm": "DM 열기",
+        "calendarDay": "일 보기",
+        "calendarWeek": "주 보기",
+        "calendarMonth": "월 보기",
+        "calendarToday": "오늘로 이동",
+        "calendarPrevNext": "이전 / 다음 기간",
+        "contactNextPrev": "다음 / 이전 연락처",
+        "contactCompose": "선택 연락처에게 메일 쓰기",
+        "contactDelete": "선택 연락처 삭제",
+        "contactSelectAll": "연락처 전체 선택",
+        "contactClearSelection": "선택 해제"
       }
     },
     "orgPicker": {
@@ -993,6 +1005,8 @@
     "shortcutMailAction": "메일 동작",
     "shortcutMailbox": "편지함 이동",
     "shortcutCompose": "작성",
+    "shortcutCalendar": "캘린더",
+    "shortcutContacts": "연락처",
     "scShortcutHelp": "단축키 도움말",
     "scSpotlightSearch": "스팟라이트 검색",
     "scSpotlightOpen": "스팟라이트 열기",
@@ -1028,6 +1042,16 @@
     "scSend": "전송",
     "scSaveDraft": "임시저장",
     "scClose": "닫기",
+    "scCalendarDay": "일 보기",
+    "scCalendarWeek": "주 보기",
+    "scCalendarMonth": "월 보기",
+    "scCalendarToday": "오늘로 이동",
+    "scCalendarPrevNext": "이전/다음 기간",
+    "scContactNextPrev": "다음/이전 연락처",
+    "scContactCompose": "메일 쓰기",
+    "scContactDelete": "삭제",
+    "scContactSelectAll": "전체 선택",
+    "scContactClearSelection": "선택 해제",
     "nameEmpty": "(이름 없음)",
     "sectionProfile": "프로필",
     "profilePhoto": "프로필 사진",

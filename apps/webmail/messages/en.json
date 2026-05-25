@@ -591,7 +591,9 @@
         "mailList": "Mail list",
         "mailActions": "Mail actions",
         "folderNav": "Folder navigation",
-        "mailCompose": "Compose"
+        "mailCompose": "Compose",
+        "calendar": "Calendar",
+        "contacts": "Contacts"
       },
       "items": {
         "help": "Shortcut help",
@@ -640,7 +642,17 @@
         "saveDraft": "Save draft",
         "composeClose": "Close compose",
         "notificationCenter": "Toggle Notification Center",
-        "dm": "Open direct messages"
+        "dm": "Open direct messages",
+        "calendarDay": "Day view",
+        "calendarWeek": "Week view",
+        "calendarMonth": "Month view",
+        "calendarToday": "Go to today",
+        "calendarPrevNext": "Previous / next period",
+        "contactNextPrev": "Next / previous contact",
+        "contactCompose": "Compose to selected contact",
+        "contactDelete": "Delete selected contact",
+        "contactSelectAll": "Select all contacts",
+        "contactClearSelection": "Clear selection"
       }
     },
     "orgPicker": {
@@ -993,6 +1005,8 @@
     "shortcutMailAction": "Mail actions",
     "shortcutMailbox": "Mailbox jump",
     "shortcutCompose": "Compose",
+    "shortcutCalendar": "Calendar",
+    "shortcutContacts": "Contacts",
     "scShortcutHelp": "Shortcut help",
     "scSpotlightSearch": "Spotlight search",
     "scSpotlightOpen": "Open spotlight",
@@ -1028,6 +1042,16 @@
     "scSend": "Send",
     "scSaveDraft": "Save draft",
     "scClose": "Close",
+    "scCalendarDay": "Day view",
+    "scCalendarWeek": "Week view",
+    "scCalendarMonth": "Month view",
+    "scCalendarToday": "Go to today",
+    "scCalendarPrevNext": "Previous / next period",
+    "scContactNextPrev": "Next / previous contact",
+    "scContactCompose": "Compose mail",
+    "scContactDelete": "Delete",
+    "scContactSelectAll": "Select all",
+    "scContactClearSelection": "Clear selection",
     "nameEmpty": "(no name)",
     "sectionProfile": "Profile",
     "profilePhoto": "Profile photo",

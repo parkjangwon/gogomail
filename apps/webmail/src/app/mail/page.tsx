@@ -1174,7 +1174,7 @@ export default function MailPage() {
         if (appTarget) { e.preventDefault(); setActiveApp(appTarget); return; }
       }
 
-      if (key.toLowerCase() === 'd' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      if ((key === '`' || e.code === 'Backquote') && !e.ctrlKey && !e.metaKey && !e.altKey) {
         e.preventDefault();
         setShowDMModal(true);
         return;

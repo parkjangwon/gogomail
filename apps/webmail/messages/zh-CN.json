@@ -591,7 +591,9 @@
         "mailList": "邮件列表",
         "mailActions": "邮件操作",
         "folderNav": "文件夹导航",
-        "mailCompose": "撰写邮件"
+        "mailCompose": "撰写邮件",
+        "calendar": "日历",
+        "contacts": "联系人"
       },
       "items": {
         "help": "快捷键帮助",
@@ -640,7 +642,17 @@
         "saveDraft": "保存草稿",
         "composeClose": "关闭撰写",
         "notificationCenter": "切换通知中心",
-        "dm": "打开私信"
+        "dm": "打开私信",
+        "calendarDay": "日视图",
+        "calendarWeek": "周视图",
+        "calendarMonth": "月视图",
+        "calendarToday": "转到今天",
+        "calendarPrevNext": "上一个 / 下一个周期",
+        "contactNextPrev": "下一个 / 上一个联系人",
+        "contactCompose": "给所选联系人写邮件",
+        "contactDelete": "删除所选联系人",
+        "contactSelectAll": "选择所有联系人",
+        "contactClearSelection": "清除选择"
       }
     },
     "orgPicker": {
@@ -993,6 +1005,8 @@
     "shortcutMailAction": "邮件操作",
     "shortcutMailbox": "邮箱跳转",
     "shortcutCompose": "撰写",
+    "shortcutCalendar": "日历",
+    "shortcutContacts": "联系人",
     "scShortcutHelp": "快捷键帮助",
     "scSpotlightSearch": "聚焦搜索",
     "scSpotlightOpen": "打开聚焦",
@@ -1028,6 +1042,16 @@
     "scSend": "发送",
     "scSaveDraft": "保存草稿",
     "scClose": "关闭",
+    "scCalendarDay": "日视图",
+    "scCalendarWeek": "周视图",
+    "scCalendarMonth": "月视图",
+    "scCalendarToday": "转到今天",
+    "scCalendarPrevNext": "上一个/下一个周期",
+    "scContactNextPrev": "下一个/上一个联系人",
+    "scContactCompose": "写邮件",
+    "scContactDelete": "删除",
+    "scContactSelectAll": "全选",
+    "scContactClearSelection": "清除选择",
     "nameEmpty": "(未命名)",
     "sectionProfile": "个人资料",
     "profilePhoto": "头像",

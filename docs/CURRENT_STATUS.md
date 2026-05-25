@@ -47,8 +47,12 @@ Last updated: 2026-05-25 (DM instant messaging implementation)
   viewport clamping and compact layout safeguards, and now starts at a shorter
   messenger-style height. DM invite search merges directory users with org-chart
   members, supports matching by organization unit names, and shows profile
-  avatars in search results. The DM flow uses a conversation-list first layout
-  with a back button into the list. The webmail panel offers a
+  avatars in search results. The DM global shortcut is the backtick key (`), and
+  both the keyboard shortcut help modal and Settings shortcut table show that
+  same key. Keyboard shortcut help and Settings also list app-specific Calendar
+  shortcuts (`d`, `w`, `m`, `t`, arrow navigation) and Contacts shortcuts
+  (`j/k`, `c`, delete, select-all, escape). The DM flow uses a conversation-list
+  first layout with a back button into the list. The webmail panel offers a
   compact emoji picker that closes on outside clicks or reaction errors instead
   of fixed reaction presets.
 - `docs/openapi.yaml` and `docs/backend-api-contracts.md` now document the DM

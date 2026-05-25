@@ -13,7 +13,7 @@ const SECTIONS: SectionDef[] = [
       { key: 'Cmd+k / Ctrl+k', descId: 'spotlight' },
       { key: '[', descId: 'toggleSidebar' },
       { key: 'b', descId: 'notificationCenter' },
-      { key: 'd', descId: 'dm' },
+      { key: '`', descId: 'dm' },
     ],
   },
   {
@@ -74,6 +74,26 @@ const SECTIONS: SectionDef[] = [
       { key: 'Ctrl+Enter', descId: 'send' },
       { key: 'Ctrl+s', descId: 'saveDraft' },
       { key: 'Esc', descId: 'composeClose' },
+    ],
+  },
+  {
+    id: 'calendar',
+    items: [
+      { key: 'd', descId: 'calendarDay' },
+      { key: 'w', descId: 'calendarWeek' },
+      { key: 'm', descId: 'calendarMonth' },
+      { key: 't', descId: 'calendarToday' },
+      { key: '← / →', descId: 'calendarPrevNext' },
+    ],
+  },
+  {
+    id: 'contacts',
+    items: [
+      { key: 'j / k', descId: 'contactNextPrev' },
+      { key: 'c', descId: 'contactCompose' },
+      { key: 'Del / Backspace', descId: 'contactDelete' },
+      { key: 'Ctrl+a / Cmd+a', descId: 'contactSelectAll' },
+      { key: 'Esc', descId: 'contactClearSelection' },
     ],
   },
 ];
