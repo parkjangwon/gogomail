@@ -86,7 +86,7 @@ This is the authoritative durable contract for all coding agents working on this
   - [ ] 관련 기능 동작 확인
   - [ ] docs/CURRENT_STATUS.md 갱신
   - [ ] docs/backend-roadmap.md 해당 항목 체크
-  - [ ] (API 변경 시) docs/backend-api-contracts.md, openapi.yaml 갱신
+  - [ ] (API 변경 시) docs/openapi.yaml 갱신
 - **다음 태스크**: NEXT_STEPS.md의 항목명 (사전 예고만, 자동 변경 금지)
 ```
 
@@ -128,7 +128,6 @@ This is the authoritative durable contract for all coding agents working on this
 
 필요 시 추가로 읽는 파일:
 - `docs/CURRENT_STATUS.md`
-- `docs/backend-api-contracts.md`
 - `docs/openapi.yaml`
 - `docs/adr/` 관련 항목
 

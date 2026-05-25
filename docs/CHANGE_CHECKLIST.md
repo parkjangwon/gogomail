@@ -20,8 +20,6 @@ Use this checklist before finishing a coding-agent work unit.
 ## API and contracts
 
 - [ ] If HTTP API behavior changed, I updated `docs/openapi.yaml`.
-- [ ] If API semantics changed, I updated `docs/backend-api-contracts.md`.
-- [ ] If release readiness changed, I updated `docs/backend-release-readiness.md`.
 - [ ] I kept OpenAPI operation IDs stable and response envelopes explicit.
 
 ## Guardrails
