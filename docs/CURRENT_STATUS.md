@@ -12,13 +12,14 @@ GoGoMail is a production-grade self-hosted email platform written in Go
 - **Storage**: PostgreSQL (multi-tenant), Redis Streams (outbox), S3-compatible object storage
 - **Auth**: JWT + TOTP MFA + refresh token rotation
 - **Frontend**: Next.js 16 webmail SPA + admin console (TypeScript/TSX)
-- **AI interface**: User MCP (123 tools) + Manage MCP (50 admin tools)
+- **AI interface**: User MCP (124 tools) + Manage MCP (50 admin tools)
 - **Monitoring**: Prometheus + Loki + Promtail + Grafana (provisioned dashboards)
 
 ## Completed milestones (2026-05)
 
 | Date | Feature |
 |------|---------|
+| 2026-05-26 | DM room export: TXT download from room header ⋯ menu (any participant; includes deleted/system messages); User MCP `gogomail_dm_export_room` tool (124 total) |
 | 2026-05-26 | Doc optimization: deleted 12 completed/stale docs, trimmed backend-roadmap.md 7057→110 lines, removed 18 stale worktrees (1.4GB), freed 174MB from .git via gc |
 | 2026-05-26 | VitePress AI Automation MCP guide (12 pages × 4 locales), expanded User MCP READMEs 147→1024 lines |
 | 2026-05-26 | Codebase improvements (10 tasks): doc cleanup, security hardening, TypeScript domain splits (MCP tools, webmail API, UI components), Go package refactoring (httpapi/admin.go 8901→420 lines + 12 files, app/admin_service.go 1759→93 lines + 5 files) |
