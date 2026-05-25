@@ -2974,12 +2974,24 @@ func runDeliveryWorker(ctx context.Context, cfg config.Config, logger *slog.Logg
 			DomainMessagesPerMinute:  cfg.DeliveryDomainRateLimitPerMinute,
 			DefaultMessagesPerMinute: cfg.DeliveryDefaultRateLimitPerMinute,
 		}
-		handler.WithRateLimiter(delivery.NewInMemoryDomainRateLimiter(rateLimitPolicy))
-		logger.Info(
-			"delivery rate limiting enabled",
-			"default_per_minute", cfg.DeliveryDefaultRateLimitPerMinute,
-			"domain_limits", cfg.DeliveryDomainRateLimitPerMinute,
-		)
+		backend := strings.ToLower(strings.TrimSpace(cfg.DeliveryRateLimitBackend))
+		if backend == "redis" && redisClient != nil {
+			handler.WithRateLimiter(delivery.NewRedisDomainRateLimiter(redisClient, "gogomail", rateLimitPolicy))
+			logger.Info(
+				"delivery rate limiting enabled",
+				"backend", "redis",
+				"default_per_minute", cfg.DeliveryDefaultRateLimitPerMinute,
+				"domain_limits", cfg.DeliveryDomainRateLimitPerMinute,
+			)
+		} else {
+			handler.WithRateLimiter(delivery.NewInMemoryDomainRateLimiter(rateLimitPolicy))
+			logger.Info(
+				"delivery rate limiting enabled",
+				"backend", "memory",
+				"default_per_minute", cfg.DeliveryDefaultRateLimitPerMinute,
+				"domain_limits", cfg.DeliveryDomainRateLimitPerMinute,
+			)
+		}
 	}
 	if backoff := deliveryDomainBackoffFromConfig(cfg, redisClient); backoff != nil {
 		handler.WithDomainBackoff(backoff)
