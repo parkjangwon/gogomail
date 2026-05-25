@@ -1,0 +1,157 @@
+replicaCount: 1
+
+image:
+  repository: ghcr.io/gogomail/gogomail
+  tag: "latest"
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+podAnnotations: {}
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  runAsGroup: 1000
+  fsGroup: 1000
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop: ["ALL"]
+
+service:
+  type: ClusterIP
+  ports:
+    http:
+      port: 80
+      targetPort: 8080
+      protocol: TCP
+    smtp:
+      port: 25
+      targetPort: 2525
+      protocol: TCP
+    smtps:
+      port: 465
+      targetPort: 2525
+      protocol: TCP
+    smtpSubmission:
+      port: 587
+      targetPort: 2525
+      protocol: TCP
+    imap:
+      port: 143
+      targetPort: 1143
+      protocol: TCP
+    imaps:
+      port: 993
+      targetPort: 1143
+      protocol: TCP
+
+ingress:
+  enabled: false
+  className: "nginx"
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: "32m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "300"
+  hosts:
+    - host: mail.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+  # tls:
+  #   - secretName: gogomail-tls
+  #     hosts:
+  #       - mail.example.com
+
+resources:
+  requests:
+    cpu: "250m"
+    memory: "256Mi"
+  limits:
+    cpu: "1000m"
+    memory: "512Mi"
+
+autoscaling:
+  enabled: false
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+podDisruptionBudget:
+  minAvailable: 1
+
+# Configuration env vars (non-secret). Maps to ConfigMap.
+config:
+  # HTTP server
+  GOGOMAIL_HTTP_ADDR: ":8080"
+  GOGOMAIL_ENV: "production"
+
+  # SMTP inbound/outbound
+  GOGOMAIL_SMTP_ADDR: ":2525"
+  GOGOMAIL_INBOUND_SMTP_ADDR: ":2526"
+
+  # IMAP
+  GOGOMAIL_IMAP_ADDR: ":1143"
+  GOGOMAIL_IMAP_MAX_CONNECTIONS: "5000"
+
+  # POP3
+  GOGOMAIL_POP3_ADDR: ":1110"
+
+  # CalDAV / CardDAV / WebDAV
+  GOGOMAIL_CALDAV_ADDR: ":8081"
+  GOGOMAIL_CARDDAV_ADDR: ":8082"
+  GOGOMAIL_WEBDAV_ADDR: ":8083"
+
+  # LDAP
+  GOGOMAIL_LDAP_ADDR: ":389"
+
+  # Redis
+  GOGOMAIL_REDIS_ADDR: "redis:6379"
+
+  # S3 storage
+  GOGOMAIL_STORAGE_S3_REGION: "us-east-1"
+  GOGOMAIL_STORAGE_S3_FORCE_PATH_STYLE: "false"
+
+  # Mail security defaults
+  GOGOMAIL_SMTP_DMARC_ENFORCEMENT: "reject"
+
+  # Delivery rate limiting
+  GOGOMAIL_DELIVERY_RATE_LIMIT_ENABLED: "false"
+  GOGOMAIL_DELIVERY_DEFAULT_RATE_LIMIT_PER_MINUTE: "60"
+
+# Secret env vars. Values are passed as plain strings and base64-encoded by the template.
+# For production, use an external secret manager (Sealed Secrets, ESO, Vault).
+secrets:
+  GOGOMAIL_DATABASE_URL: "postgres://gogomail:CHANGEME@postgres:5432/gogomail?sslmode=require"
+  GOGOMAIL_AUTH_JWT_SECRET: "CHANGEME_32_BYTES_MINIMUM_RANDOM_STRING"
+  GOGOMAIL_ADMIN_TOKEN: "CHANGEME_ADMIN_TOKEN"
+  GOGOMAIL_DM_MASTER_KEY: "CHANGEME_DM_MASTER_KEY_HEX"
+  GOGOMAIL_STORAGE_S3_ENDPOINT: "https://s3.amazonaws.com"
+  GOGOMAIL_STORAGE_S3_BUCKET: "gogomail-attachments"
+  GOGOMAIL_STORAGE_S3_ACCESS_KEY_ID: "CHANGEME_ACCESS_KEY"
+  GOGOMAIL_STORAGE_S3_SECRET_ACCESS_KEY: "CHANGEME_SECRET_KEY"
+
+# Persistence (disabled by default; enable for local storage modes)
+persistence:
+  enabled: false
+  storageClass: ""
+  size: "10Gi"
+  accessMode: ReadWriteOnce
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}

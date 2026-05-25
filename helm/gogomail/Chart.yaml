@@ -1,0 +1,9 @@
+apiVersion: v2
+name: gogomail
+description: Self-hosted email platform (Go, single binary, multi-mode)
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
+keywords: [email, smtp, imap, pop3, self-hosted]
+maintainers:
+  - name: gogomail
