@@ -1,6 +1,14 @@
 # gogomail current status
 
-Last updated: 2026-05-25 (IMAP UID SEARCH OpenSearch fast path)
+Last updated: 2026-05-25 (converged dev compose stack)
+
+## Converged dev Docker Compose stack (2026-05-25)
+- Merged `docker-compose.dev.yml` + `docker-compose.opensearch.yml` + `docker-compose.monitoring.yml` into a single `docker-compose.dev.yml` (16 services, one `gogomail-dev` bridge network).
+- `x-gogomail-app` YAML anchor de-duplicates the common Go service config (image, working_dir, volumes, OpenSearch env vars, network).
+- Two-level `depends_on` chain: application services wait for opensearch health, search-index-worker waits for opensearch + postgres + redis + minio.
+- `docker-compose.opensearch.yml` and `docker-compose.monitoring.yml` kept for use with `small.yml`/`medium.yml` overlays; both updated with NOTE comments pointing to the converged dev file.
+- `docker/README.md` dev section rewritten: component table, port table, and simplified single-command usage.
+- Dev stack now starts with: `docker compose -f docker/docker-compose.dev.yml up -d`
 
 ## IMAP UID SEARCH OpenSearch fast path (2026-05-25)
 - Added `imapgw.MessageUIDLookup` interface (`LookupMessageUIDs`) and `maildb.Repository.LookupIMAPMessageUIDs` SQL method; resolves a slice of message UUIDs → IMAP UIDs in a single `SELECT … WHERE message_id = ANY($3::uuid[])` roundtrip.

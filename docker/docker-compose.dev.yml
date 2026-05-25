@@ -1,5 +1,45 @@
+# GoGoMail — Full development stack
+#
+# Includes: core infra + all application services + OpenSearch + monitoring.
+#
+# Usage:
+#   docker compose -f docker/docker-compose.dev.yml up -d
+#   docker compose -f docker/docker-compose.dev.yml logs -f backend
+#   docker compose -f docker/docker-compose.dev.yml down -v   # wipe volumes
+#
+# Ports (host):
+#   8080  — backend HTTP API + admin console
+#   2525  — edge-MTA SMTP
+#   9200  — OpenSearch REST (dev inspection)
+#   9090  — Prometheus
+#   3100  — Loki
+#   3000  — Grafana  (admin / admin)
+#  15432  — Postgres  (direct access)
+#  16379  — Redis
+#  19000  — MinIO S3 API
+#  19001  — MinIO console
+
+# ── Shared fragments ──────────────────────────────────────────────────────────
+#
+# All Go application services share a common base: mounted source tree,
+# single network, and the two OpenSearch env vars required by config.dev.yaml
+# (config validation fails when search_index_backend=opensearch and the
+# endpoint env var is unset).
+x-gogomail-app: &gogomail-app
+  image: golang:1.25-alpine
+  working_dir: /app
+  volumes:
+    - ..:/app
+  environment: &gogomail-env
+    CGO_ENABLED: 0
+    GOFLAGS: -v
+    GOGOMAIL_SEARCH_INDEX_OPENSEARCH_ENDPOINT: http://opensearch:9200
+    GOGOMAIL_SEARCH_INDEX_OPENSEARCH_INDEX: gogomail-messages
+  networks:
+    - gogomail-dev
+
 services:
-  # PostgreSQL - Development
+  # ── Infrastructure ──────────────────────────────────────────────────────────
   postgres:
     image: postgres:16-alpine
     container_name: gogomail-postgres-dev
@@ -20,7 +60,6 @@ services:
     networks:
       - gogomail-dev
 
-  # Redis - Development
   redis:
     image: redis:7-alpine
     container_name: gogomail-redis-dev
@@ -37,7 +76,6 @@ services:
     networks:
       - gogomail-dev
 
-  # MinIO - Development
   minio:
     image: minio/minio:latest
     container_name: gogomail-minio-dev
@@ -59,7 +97,6 @@ services:
     networks:
       - gogomail-dev
 
-  # MinIO Init - Create buckets
   minio-init:
     image: minio/mc:latest
     container_name: gogomail-minio-init-dev
@@ -77,7 +114,6 @@ services:
     networks:
       - gogomail-dev
 
-  # Go Backend - Development
   clamav:
     image: clamav/clamav-debian:stable
     container_name: gogomail-clamav-dev
@@ -91,37 +127,45 @@ services:
       timeout: 10s
       retries: 10
       start_period: 60s
-    networks:
-      - gogomail-dev
     deploy:
       resources:
         limits:
           memory: 1536M
         reservations:
           memory: 768M
+    networks:
+      - gogomail-dev
 
-  backend:
-    image: golang:1.25-alpine
-    container_name: gogomail-backend-dev
-    working_dir: /app
+  opensearch:
+    image: opensearchproject/opensearch:2.11.0
+    container_name: gogomail-opensearch-dev
+    environment:
+      discovery.type: single-node
+      OPENSEARCH_JAVA_OPTS: "-Xms512m -Xmx512m"
+      DISABLE_SECURITY_PLUGIN: "true"
+    ports:
+      - "${GOGOMAIL_DEV_OPENSEARCH_PORT:-9200}:9200"
     volumes:
-      - ..:/app
+      - opensearch-data:/usr/share/opensearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:9200/_cluster/health | grep -qE '\"status\":\"(green|yellow)\"'"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+    networks:
+      - gogomail-dev
+
+  # ── Application services ────────────────────────────────────────────────────
+  backend:
+    <<: *gogomail-app
+    container_name: gogomail-backend-dev
     ports:
       - "${GOGOMAIL_DEV_BACKEND_PORT:-8080}:8080"
     environment:
-      CGO_ENABLED: 0
-      GOFLAGS: -v
+      <<: *gogomail-env
       GOGOMAIL_AUTH_JWT_SECRET: gogomail-dev-jwt-secret-at-least-32-bytes
       GOGOMAIL_ADMIN_TOKEN: change-this-admin-token
-      POSTGRES_HOST: postgres
-      POSTGRES_PORT: 5432
-      POSTGRES_USER: gogomail
-      POSTGRES_PASSWORD: gogomail
-      POSTGRES_DB: gogomail
-      REDIS_ADDR: redis:6379
-      MINIO_ENDPOINT: minio:9000
-      MINIO_ACCESS_KEY: gogomail
-      MINIO_SECRET_KEY: gogomail123
     command: sh -c "go install github.com/air-verse/air@v1.61.7 && air -c /app/.air.dev.toml"
     depends_on:
       postgres:
@@ -132,19 +176,12 @@ services:
         condition: service_healthy
       clamav:
         condition: service_healthy
-    networks:
-      - gogomail-dev
-
+      opensearch:
+        condition: service_healthy
 
   event-worker:
-    image: golang:1.25-alpine
+    <<: *gogomail-app
     container_name: gogomail-event-worker-dev
-    working_dir: /app
-    volumes:
-      - ..:/app
-    environment:
-      CGO_ENABLED: 0
-      GOFLAGS: -v
     command: sh -c "go run ./cmd/gogomail --config /app/configs/config.dev.yaml --mode event-worker"
     depends_on:
       postgres:
@@ -155,36 +192,24 @@ services:
         condition: service_healthy
       clamav:
         condition: service_healthy
-    networks:
-      - gogomail-dev
+      opensearch:
+        condition: service_healthy
 
   outbox-relay:
-    image: golang:1.25-alpine
+    <<: *gogomail-app
     container_name: gogomail-outbox-relay-dev
-    working_dir: /app
-    volumes:
-      - ..:/app
-    environment:
-      CGO_ENABLED: 0
-      GOFLAGS: -v
     command: sh -c "go run ./cmd/gogomail --config /app/configs/config.dev.yaml --mode outbox-relay"
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
-    networks:
-      - gogomail-dev
+      opensearch:
+        condition: service_healthy
 
   delivery-worker:
-    image: golang:1.25-alpine
+    <<: *gogomail-app
     container_name: gogomail-delivery-worker-dev
-    working_dir: /app
-    volumes:
-      - ..:/app
-    environment:
-      CGO_ENABLED: 0
-      GOFLAGS: -v
     command: sh -c "go run ./cmd/gogomail --config /app/configs/config.dev.yaml --mode delivery-worker"
     depends_on:
       postgres:
@@ -193,28 +218,12 @@ services:
         condition: service_healthy
       minio:
         condition: service_healthy
-    networks:
-      - gogomail-dev
+      opensearch:
+        condition: service_healthy
 
-  # Edge MTA — receives inbound SMTP on :2525, writes to outbox for delivery-worker
   edge-mta:
-    image: golang:1.25-alpine
+    <<: *gogomail-app
     container_name: gogomail-edge-mta-dev
-    working_dir: /app
-    volumes:
-      - ..:/app
-    environment:
-      CGO_ENABLED: 0
-      GOFLAGS: -v
-      POSTGRES_HOST: postgres
-      POSTGRES_PORT: 5432
-      POSTGRES_USER: gogomail
-      POSTGRES_PASSWORD: gogomail
-      POSTGRES_DB: gogomail
-      REDIS_ADDR: redis:6379
-      MINIO_ENDPOINT: minio:9000
-      MINIO_ACCESS_KEY: gogomail
-      MINIO_SECRET_KEY: gogomail123
     ports:
       - "${GOGOMAIL_DEV_SMTP_PORT:-2525}:2525"
     command: sh -c "go run ./cmd/gogomail --config /app/configs/config.dev.yaml --mode edge-mta"
@@ -227,18 +236,103 @@ services:
         condition: service_healthy
       clamav:
         condition: service_healthy
+      opensearch:
+        condition: service_healthy
+
+  search-index-worker:
+    <<: *gogomail-app
+    container_name: gogomail-search-index-worker-dev
+    environment:
+      <<: *gogomail-env
+      GOGOMAIL_SEARCH_INDEX_OPENSEARCH_BOOTSTRAP: "true"
+    command: sh -c "go run ./cmd/gogomail --config /app/configs/config.dev.yaml --mode search-index-worker"
+    depends_on:
+      opensearch:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+
+  # ── Monitoring ──────────────────────────────────────────────────────────────
+  prometheus:
+    image: prom/prometheus:v2.53.1
+    container_name: gogomail-prometheus-dev
+    restart: unless-stopped
+    ports:
+      - "${PROMETHEUS_PORT:-9090}:9090"
+    volumes:
+      - ./prometheus-monitoring.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=30d
+      - --web.enable-lifecycle
+    networks:
+      - gogomail-dev
+
+  loki:
+    image: grafana/loki:3.1.0
+    container_name: gogomail-loki-dev
+    restart: unless-stopped
+    ports:
+      - "${LOKI_PORT:-3100}:3100"
+    volumes:
+      - ./loki-config.yml:/etc/loki/local-config.yaml:ro
+      - loki-data:/loki
+    command: -config.file=/etc/loki/local-config.yaml
+    networks:
+      - gogomail-dev
+
+  promtail:
+    image: grafana/promtail:3.1.0
+    container_name: gogomail-promtail-dev
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - promtail-positions:/var/lib/promtail
+      - ./promtail-config.yml:/etc/promtail/config.yml:ro
+    command: -config.file=/etc/promtail/config.yml
+    depends_on:
+      - loki
+    networks:
+      - gogomail-dev
+
+  grafana:
+    image: grafana/grafana:11.1.0
+    container_name: gogomail-grafana-dev
+    restart: unless-stopped
+    ports:
+      - "${GRAFANA_PORT:-3000}:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: "${GRAFANA_PASSWORD:-admin}"
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+      GF_SECURITY_ALLOW_EMBEDDING: "true"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana-provisioning:/etc/grafana/provisioning:ro
+    depends_on:
+      - prometheus
+      - loki
     networks:
       - gogomail-dev
 
 volumes:
   postgres-data:
-    driver: local
   redis-data:
-    driver: local
   minio-data:
-    driver: local
   clamav-data:
-    driver: local
+  opensearch-data:
+  prometheus-data:
+  loki-data:
+  grafana-data:
+  promtail-positions:
 
 networks:
   gogomail-dev:
