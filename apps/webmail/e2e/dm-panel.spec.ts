@@ -21,6 +21,7 @@ test.describe('DM panel', () => {
     await setupAuthedPage(page);
 
     await page.getByRole('button', { name: /^DM/ }).click();
+    await page.getByRole('button', { name: 'New DM' }).click();
     await page.getByPlaceholder('Search people').fill('Kim');
     await page.getByText('kim.chulsoo@parkjw.org').first().click();
     await page.getByRole('button', { name: 'Create room' }).click();

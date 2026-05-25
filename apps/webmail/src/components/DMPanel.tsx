@@ -28,6 +28,7 @@ import {
 import {
   ArrowPathIcon,
   ChatBubbleLeftRightIcon,
+  InformationCircleIcon,
   LinkIcon,
   MagnifyingGlassIcon,
   PaperAirplaneIcon,
@@ -120,6 +121,9 @@ export function DMPanel({ userEmail, onUnreadChange, onClose }: DMPanelProps) {
   const [ownerInput, setOwnerInput] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingBody, setEditingBody] = useState('');
+  const [newChatOpen, setNewChatOpen] = useState(false);
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [driveComposerOpen, setDriveComposerOpen] = useState(false);
   const [loadingRooms, setLoadingRooms] = useState(false);
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [error, setError] = useState('');
@@ -179,11 +183,15 @@ export function DMPanel({ userEmail, onUnreadChange, onClose }: DMPanelProps) {
   }, [loadMessages]);
 
   useEffect(() => {
+    if (!newChatOpen) {
+      setDirectoryUsers([]);
+      return;
+    }
     const id = window.setTimeout(() => {
       void listDirectoryUsers(directoryQuery || undefined, 30).then(setDirectoryUsers);
     }, 180);
     return () => window.clearTimeout(id);
-  }, [directoryQuery]);
+  }, [directoryQuery, newChatOpen]);
 
   useEffect(() => {
     if (!activeRoomId || !searchQuery.trim()) {
@@ -223,6 +231,8 @@ export function DMPanel({ userEmail, onUnreadChange, onClose }: DMPanelProps) {
       setActiveRoomId(room.id);
       setSelectedUsers([]);
       setRoomName('');
+      setDirectoryQuery('');
+      setNewChatOpen(false);
       setError('');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Room create failed');
@@ -341,61 +351,68 @@ export function DMPanel({ userEmail, onUnreadChange, onClose }: DMPanelProps) {
 
   return (
     <div style={{ flex: 1, minWidth: 0, display: 'flex', height: '100%', overflow: 'hidden', background: 'var(--color-bg-primary)', position: 'relative' }}>
-      <aside style={{ width: 288, flexShrink: 0, borderRight: '1px solid var(--color-border-subtle)', background: 'var(--color-bg-secondary)', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-        <div style={{ padding: '14px 14px 10px', borderBottom: '1px solid var(--color-border-subtle)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+      <aside style={{ width: 300, flexShrink: 0, borderRight: '1px solid var(--color-border-subtle)', background: 'var(--color-bg-secondary)', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+        <div style={{ padding: '14px', borderBottom: '1px solid var(--color-border-subtle)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <ChatBubbleLeftRightIcon style={{ width: 19, height: 19, color: 'var(--color-accent)' }} />
             <h1 style={{ margin: 0, fontSize: 16, lineHeight: 1.3, color: 'var(--color-text-primary)', fontWeight: 700 }}>DM</h1>
-            {unread > 0 && <span style={{ marginLeft: 'auto', borderRadius: 10, padding: '1px 7px', fontSize: 11, color: '#fff', background: 'var(--color-destructive)' }}>{unread > 99 ? '99+' : unread}</span>}
-            <button type="button" aria-label="Refresh" onClick={() => { void loadRooms(); void loadMessages(); }} style={{ marginLeft: 'auto', border: 'none', background: 'transparent', color: 'var(--color-text-tertiary)', cursor: 'pointer', padding: 4 }}>
+            {unread > 0 && <span style={{ marginLeft: 2, borderRadius: 10, padding: '1px 7px', fontSize: 11, color: '#fff', background: 'var(--color-destructive)' }}>{unread > 99 ? '99+' : unread}</span>}
+            <button type="button" aria-label="Refresh" onClick={() => { void loadRooms(); void loadMessages(); }} style={{ marginLeft: 'auto', width: 30, height: 30, border: 'none', borderRadius: 6, background: 'transparent', color: 'var(--color-text-tertiary)', cursor: 'pointer', display: 'grid', placeItems: 'center' }}>
               <ArrowPathIcon style={{ width: 17, height: 17 }} />
             </button>
-          </div>
-          <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
-            <button type="button" onClick={() => setRoomType('direct')} style={pillButton(roomType === 'direct')}>Direct</button>
-            <button type="button" onClick={() => setRoomType('group')} style={pillButton(roomType === 'group')}>Group</button>
-            {roomType === 'group' && (
-              <button type="button" onClick={() => setVisibility((v) => v === 'private' ? 'public' : 'private')} style={pillButton(visibility === 'public')}>
-                {visibility}
-              </button>
-            )}
-          </div>
-          {roomType === 'group' && (
-            <input
-              value={roomName}
-              onChange={(e) => setRoomName(e.currentTarget.value)}
-              placeholder="Room name"
-              style={{ width: '100%', boxSizing: 'border-box', marginBottom: 8, border: '1px solid var(--color-border-default)', background: 'var(--color-bg-primary)', color: 'var(--color-text-primary)', borderRadius: 6, padding: '7px 9px', fontSize: 13 }}
-            />
-          )}
-          <div style={{ display: 'flex', gap: 6 }}>
-            <input
-              value={directoryQuery}
-              onChange={(e) => setDirectoryQuery(e.currentTarget.value)}
-              placeholder="Search people"
-              style={{ flex: 1, minWidth: 0, border: '1px solid var(--color-border-default)', background: 'var(--color-bg-primary)', color: 'var(--color-text-primary)', borderRadius: 6, padding: '7px 9px', fontSize: 13 }}
-            />
-            <button type="button" onClick={createRoom} disabled={selectedUsers.length === 0 || (roomType === 'group' && !roomName.trim())} aria-label="Create room" style={{ width: 34, border: 'none', borderRadius: 6, background: 'var(--color-accent)', color: '#fff', display: 'grid', placeItems: 'center', cursor: 'pointer' }}>
+            <button type="button" aria-label="New DM" onClick={() => setNewChatOpen((open) => !open)} style={{ width: 30, height: 30, border: '1px solid var(--color-border-default)', borderRadius: 6, background: newChatOpen ? 'var(--color-accent)' : 'var(--color-bg-primary)', color: newChatOpen ? '#fff' : 'var(--color-text-secondary)', display: 'grid', placeItems: 'center', cursor: 'pointer' }}>
               <PlusIcon style={{ width: 17, height: 17 }} />
             </button>
           </div>
-          {selectedUsers.length > 0 && (
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginTop: 8 }}>
-              {selectedUsers.map((user) => (
-                <button key={user.id} type="button" onClick={() => setSelectedUsers((prev) => prev.filter((item) => item.id !== user.id))} style={{ border: '1px solid var(--color-border-default)', background: 'var(--color-bg-primary)', color: 'var(--color-text-secondary)', borderRadius: 6, padding: '3px 7px', fontSize: 12, cursor: 'pointer' }}>
-                  {user.display_name || user.email}
+          {newChatOpen && (
+            <div style={{ marginTop: 12, border: '1px solid var(--color-border-subtle)', borderRadius: 8, background: 'var(--color-bg-primary)', padding: 10 }}>
+              <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+                <button type="button" onClick={() => setRoomType('direct')} style={pillButton(roomType === 'direct')}>Direct</button>
+                <button type="button" onClick={() => setRoomType('group')} style={pillButton(roomType === 'group')}>Group</button>
+                {roomType === 'group' && (
+                  <button type="button" onClick={() => setVisibility((v) => v === 'private' ? 'public' : 'private')} style={pillButton(visibility === 'public')}>
+                    {visibility}
+                  </button>
+                )}
+              </div>
+              {roomType === 'group' && (
+                <input
+                  value={roomName}
+                  onChange={(e) => setRoomName(e.currentTarget.value)}
+                  placeholder="Room name"
+                  style={{ width: '100%', boxSizing: 'border-box', marginBottom: 8, border: '1px solid var(--color-border-default)', background: 'var(--color-bg-primary)', color: 'var(--color-text-primary)', borderRadius: 6, padding: '7px 9px', fontSize: 13 }}
+                />
+              )}
+              <div style={{ display: 'flex', gap: 6 }}>
+                <input
+                  value={directoryQuery}
+                  onChange={(e) => setDirectoryQuery(e.currentTarget.value)}
+                  placeholder="Search people"
+                  style={{ flex: 1, minWidth: 0, border: '1px solid var(--color-border-default)', background: 'var(--color-bg-primary)', color: 'var(--color-text-primary)', borderRadius: 6, padding: '7px 9px', fontSize: 13 }}
+                />
+                <button type="button" onClick={createRoom} disabled={selectedUsers.length === 0 || (roomType === 'group' && !roomName.trim())} aria-label="Create room" style={{ width: 34, border: 'none', borderRadius: 6, background: 'var(--color-accent)', color: '#fff', display: 'grid', placeItems: 'center', cursor: 'pointer', opacity: selectedUsers.length === 0 || (roomType === 'group' && !roomName.trim()) ? 0.55 : 1 }}>
+                  <PlusIcon style={{ width: 17, height: 17 }} />
                 </button>
-              ))}
-            </div>
-          )}
-          {directoryUsers.length > 0 && (
-            <div style={{ marginTop: 8, maxHeight: 116, overflow: 'auto', border: '1px solid var(--color-border-subtle)', borderRadius: 6, background: 'var(--color-bg-primary)' }}>
-              {directoryUsers.map((user) => (
-                <button key={user.id} type="button" onClick={() => setSelectedUsers((prev) => prev.some((item) => item.id === user.id) ? prev : [...prev, user])} style={{ width: '100%', textAlign: 'left', border: 'none', borderBottom: '1px solid var(--color-border-subtle)', background: 'transparent', color: 'var(--color-text-primary)', padding: '7px 9px', cursor: 'pointer' }}>
-                  <span style={{ display: 'block', fontSize: 13, fontWeight: 600 }}>{user.display_name || user.email}</span>
-                  <span style={{ display: 'block', fontSize: 11, color: 'var(--color-text-tertiary)' }}>{user.email}</span>
-                </button>
-              ))}
+              </div>
+              {selectedUsers.length > 0 && (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginTop: 8 }}>
+                  {selectedUsers.map((user) => (
+                    <button key={user.id} type="button" onClick={() => setSelectedUsers((prev) => prev.filter((item) => item.id !== user.id))} style={{ border: '1px solid var(--color-border-default)', background: 'var(--color-bg-secondary)', color: 'var(--color-text-secondary)', borderRadius: 6, padding: '3px 7px', fontSize: 12, cursor: 'pointer' }}>
+                      {user.display_name || user.email}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {directoryUsers.length > 0 && (
+                <div style={{ marginTop: 8, maxHeight: 150, overflow: 'auto', border: '1px solid var(--color-border-subtle)', borderRadius: 6, background: 'var(--color-bg-primary)' }}>
+                  {directoryUsers.map((user) => (
+                    <button key={user.id} type="button" onClick={() => setSelectedUsers((prev) => prev.some((item) => item.id === user.id) ? prev : [...prev, user])} style={{ width: '100%', textAlign: 'left', border: 'none', borderBottom: '1px solid var(--color-border-subtle)', background: 'transparent', color: 'var(--color-text-primary)', padding: '8px 9px', cursor: 'pointer' }}>
+                      <span style={{ display: 'block', fontSize: 13, fontWeight: 600 }}>{user.display_name || user.email}</span>
+                      <span style={{ display: 'block', fontSize: 11, color: 'var(--color-text-tertiary)' }}>{user.email}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -404,7 +421,10 @@ export function DMPanel({ userEmail, onUnreadChange, onClose }: DMPanelProps) {
           {loadingRooms && rooms.length === 0 ? (
             <div style={{ padding: 16, color: 'var(--color-text-tertiary)', fontSize: 13 }}>Loading...</div>
           ) : rooms.length === 0 ? (
-            <div style={{ padding: 16, color: 'var(--color-text-tertiary)', fontSize: 13 }}>No rooms</div>
+            <div style={{ padding: 20, color: 'var(--color-text-tertiary)', fontSize: 13, lineHeight: 1.5 }}>
+              <div style={{ fontWeight: 700, color: 'var(--color-text-secondary)', marginBottom: 4 }}>No conversations yet</div>
+              <div>Start a direct message or create a group room.</div>
+            </div>
           ) : rooms.map((room) => (
             <button
               key={room.id}
@@ -440,13 +460,20 @@ export function DMPanel({ userEmail, onUnreadChange, onClose }: DMPanelProps) {
             <div style={{ fontSize: 12, color: 'var(--color-text-tertiary)' }}>{activeRoom ? `${activeRoom.members?.length ?? activeRoom.member_count ?? 0} members` : userEmail}</div>
           </div>
           <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-            <div style={{ position: 'relative' }}>
-              <MagnifyingGlassIcon style={{ position: 'absolute', left: 8, top: 7, width: 15, height: 15, color: 'var(--color-text-tertiary)' }} />
-              <input value={searchQuery} onChange={(e) => setSearchQuery(e.currentTarget.value)} placeholder="Search" style={{ width: 180, border: '1px solid var(--color-border-default)', background: 'var(--color-bg-secondary)', color: 'var(--color-text-primary)', borderRadius: 6, padding: '6px 9px 6px 28px', fontSize: 13 }} />
-            </div>
-            <button type="button" onClick={() => fileInputRef.current?.click()} disabled={!activeRoomId} aria-label="Attach file" style={{ width: 32, height: 32, border: '1px solid var(--color-border-default)', borderRadius: 6, background: 'transparent', color: 'var(--color-text-secondary)', display: 'grid', placeItems: 'center', cursor: 'pointer' }}>
-              <PaperClipIcon style={{ width: 17, height: 17 }} />
-            </button>
+            {activeRoom && (
+              <>
+                <div style={{ position: 'relative' }}>
+                  <MagnifyingGlassIcon style={{ position: 'absolute', left: 8, top: 7, width: 15, height: 15, color: 'var(--color-text-tertiary)' }} />
+                  <input value={searchQuery} onChange={(e) => setSearchQuery(e.currentTarget.value)} placeholder="Search" style={{ width: 180, border: '1px solid var(--color-border-default)', background: 'var(--color-bg-secondary)', color: 'var(--color-text-primary)', borderRadius: 6, padding: '6px 9px 6px 28px', fontSize: 13 }} />
+                </div>
+                <button type="button" onClick={() => fileInputRef.current?.click()} disabled={!activeRoomId} aria-label="Attach file" style={{ width: 32, height: 32, border: '1px solid var(--color-border-default)', borderRadius: 6, background: 'transparent', color: 'var(--color-text-secondary)', display: 'grid', placeItems: 'center', cursor: 'pointer' }}>
+                  <PaperClipIcon style={{ width: 17, height: 17 }} />
+                </button>
+                <button type="button" onClick={() => setDetailsOpen((open) => !open)} aria-label="Conversation details" style={{ width: 32, height: 32, border: '1px solid var(--color-border-default)', borderRadius: 6, background: detailsOpen ? 'var(--color-accent-subtle)' : 'transparent', color: detailsOpen ? 'var(--color-accent)' : 'var(--color-text-secondary)', display: 'grid', placeItems: 'center', cursor: 'pointer' }}>
+                  <InformationCircleIcon style={{ width: 17, height: 17 }} />
+                </button>
+              </>
+            )}
             {onClose && (
               <button type="button" onClick={onClose} aria-label="Close DM" style={{ width: 32, height: 32, border: '1px solid var(--color-border-default)', borderRadius: 6, background: 'transparent', color: 'var(--color-text-secondary)', display: 'grid', placeItems: 'center', cursor: 'pointer' }}>
                 <XMarkIcon style={{ width: 17, height: 17 }} />
@@ -467,7 +494,7 @@ export function DMPanel({ userEmail, onUnreadChange, onClose }: DMPanelProps) {
         )}
 
         {activeRoom ? (
-          <div style={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 248px' }}>
+          <div style={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: detailsOpen ? 'minmax(0, 1fr) 260px' : 'minmax(0, 1fr)' }}>
             <section style={{ display: 'flex', flexDirection: 'column', minWidth: 0, minHeight: 0 }}>
               <div style={{ flex: 1, minHeight: 0, overflow: 'auto', padding: '16px 18px' }}>
                 {loadingMessages && messages.length === 0 ? (
@@ -519,8 +546,13 @@ export function DMPanel({ userEmail, onUnreadChange, onClose }: DMPanelProps) {
                 <div ref={messageEndRef} />
               </div>
               <footer style={{ borderTop: '1px solid var(--color-border-subtle)', padding: '10px 12px', flexShrink: 0 }}>
-                <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
-                  <input value={driveFileId} onChange={(e) => setDriveFileId(e.currentTarget.value)} placeholder="Drive file ID" style={{ width: 160, border: '1px solid var(--color-border-default)', background: 'var(--color-bg-secondary)', color: 'var(--color-text-primary)', borderRadius: 6, padding: '7px 9px', fontSize: 13 }} />
+                {driveComposerOpen && (
+                  <input value={driveFileId} onChange={(e) => setDriveFileId(e.currentTarget.value)} placeholder="Drive file ID" style={{ width: '100%', boxSizing: 'border-box', marginBottom: 8, border: '1px solid var(--color-border-default)', background: 'var(--color-bg-secondary)', color: 'var(--color-text-primary)', borderRadius: 6, padding: '7px 9px', fontSize: 13 }} />
+                )}
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button type="button" onClick={() => setDriveComposerOpen((open) => !open)} aria-label="Add Drive file" style={{ width: 36, border: '1px solid var(--color-border-default)', borderRadius: 6, background: driveComposerOpen ? 'var(--color-accent-subtle)' : 'transparent', color: driveComposerOpen ? 'var(--color-accent)' : 'var(--color-text-secondary)', display: 'grid', placeItems: 'center', cursor: 'pointer' }}>
+                    <LinkIcon style={{ width: 16, height: 16 }} />
+                  </button>
                   <input
                     value={composer}
                     onChange={(e) => setComposer(e.currentTarget.value)}
@@ -540,6 +572,7 @@ export function DMPanel({ userEmail, onUnreadChange, onClose }: DMPanelProps) {
               </footer>
             </section>
 
+            {detailsOpen && (
             <aside style={{ borderLeft: '1px solid var(--color-border-subtle)', background: 'var(--color-bg-secondary)', minHeight: 0, overflow: 'auto' }}>
               <div style={{ padding: 12, borderBottom: '1px solid var(--color-border-subtle)' }}>
                 <div style={{ display: 'flex', gap: 5, marginBottom: 10 }}>
@@ -584,13 +617,21 @@ export function DMPanel({ userEmail, onUnreadChange, onClose }: DMPanelProps) {
                 ))}
               </div>
             </aside>
+            )}
           </div>
         ) : (
-          <div style={{ flex: 1, display: 'grid', placeItems: 'center', color: 'var(--color-text-tertiary)', fontSize: 14 }}>Select a room</div>
+          <div style={{ flex: 1, display: 'grid', placeItems: 'center', color: 'var(--color-text-tertiary)', fontSize: 14 }}>
+            <div style={{ textAlign: 'center', maxWidth: 280, lineHeight: 1.5 }}>
+              <ChatBubbleLeftRightIcon style={{ width: 42, height: 42, color: 'var(--color-text-tertiary)', marginBottom: 10 }} />
+              <div style={{ color: 'var(--color-text-primary)', fontWeight: 700, marginBottom: 4 }}>Your messages</div>
+              <div style={{ marginBottom: 14 }}>Select a conversation or start a new chat.</div>
+              <button type="button" onClick={() => setNewChatOpen(true)} style={{ border: 'none', borderRadius: 6, background: 'var(--color-accent)', color: '#fff', padding: '8px 12px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>New chat</button>
+            </div>
+          </div>
         )}
 
         {searchResults.length > 0 && (
-          <div style={{ position: 'absolute', top: 60, right: 280, width: 320, maxHeight: 260, overflow: 'auto', zIndex: 70, border: '1px solid var(--color-border-default)', background: 'var(--color-bg-primary)', boxShadow: '0 12px 32px rgba(0,0,0,0.12)', borderRadius: 8 }}>
+          <div style={{ position: 'absolute', top: 60, right: detailsOpen ? 280 : 16, width: 320, maxHeight: 260, overflow: 'auto', zIndex: 70, border: '1px solid var(--color-border-default)', background: 'var(--color-bg-primary)', boxShadow: '0 12px 32px rgba(0,0,0,0.12)', borderRadius: 8 }}>
             {searchResults.map((message) => (
               <button key={message.id} type="button" onClick={() => setSearchQuery('')} style={{ display: 'block', width: '100%', border: 'none', borderBottom: '1px solid var(--color-border-subtle)', background: 'transparent', color: 'var(--color-text-primary)', padding: 10, textAlign: 'left', cursor: 'pointer' }}>
                 <span style={{ display: 'block', fontSize: 12, color: 'var(--color-text-tertiary)' }}>{formatTime(message.created_at)}</span>
