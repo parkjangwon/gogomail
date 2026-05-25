@@ -34,7 +34,6 @@ services:
       - --storage.tsdb.path=/prometheus
       - --storage.tsdb.retention.time=30d
       - --web.enable-lifecycle
-      - --web.enable-admin-api
     networks:
       - gogomail-monitoring
 
@@ -59,7 +58,7 @@ services:
     restart: unless-stopped
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
-      - promtail-positions:/tmp
+      - promtail-positions:/var/lib/promtail
       - ./promtail-config.yml:/etc/promtail/config.yml:ro
     command: -config.file=/etc/promtail/config.yml
     depends_on:
