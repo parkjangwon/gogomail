@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"runtime"
 	"strings"
 	"time"
 
@@ -15,7 +16,7 @@ import (
 	"github.com/gogomail/gogomail/internal/maildb"
 )
 
-func registerConsoleRoutes(mux *http.ServeMux, cfg adminRouteConfig, adminAuth func(http.HandlerFunc) http.HandlerFunc) {
+func registerConsoleRoutes(mux *http.ServeMux, cfg adminRouteConfig, adminAuth func(http.HandlerFunc) http.HandlerFunc, service AdminService) {
 	mux.HandleFunc("GET /admin/v1/console/capabilities", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		if !rejectBodylessRequestPayload(w, r) {
 			return
@@ -34,6 +35,37 @@ func registerConsoleRoutes(mux *http.ServeMux, cfg adminRouteConfig, adminAuth f
 			writeJSON(w, http.StatusOK, map[string]any{"route_counters": cfg.routeCounters.Snapshot()})
 		}))
 	}
+
+	mux.HandleFunc("GET /admin/v1/health", adminAuth(func(w http.ResponseWriter, r *http.Request) {
+		handleAdminHealth(w, r, service)
+	}))
+
+	mux.HandleFunc("GET /admin/v1/system/metrics", adminAuth(func(w http.ResponseWriter, r *http.Request) {
+		if !rejectBodylessRequestPayload(w, r) {
+			return
+		}
+		if !rejectUnknownQueryKeys(w, r) {
+			return
+		}
+		var ms runtime.MemStats
+		runtime.ReadMemStats(&ms)
+		memPct := 0.0
+		if ms.Sys > 0 {
+			memPct = float64(ms.HeapInuse) / float64(ms.Sys) * 100
+		}
+		writeJSON(w, http.StatusOK, map[string]any{
+			"memory": map[string]any{
+				"heap_inuse_bytes": ms.HeapInuse,
+				"heap_sys_bytes":   ms.HeapSys,
+				"sys_bytes":        ms.Sys,
+				"alloc_bytes":      ms.Alloc,
+				"gc_runs":          ms.NumGC,
+				"usage_pct":        memPct,
+			},
+			"goroutines": runtime.NumGoroutine(),
+			"timestamp":  time.Now().UTC().Format(time.RFC3339),
+		})
+	}))
 }
 
 func handleAdminHealth(w http.ResponseWriter, r *http.Request, service AdminService) {
