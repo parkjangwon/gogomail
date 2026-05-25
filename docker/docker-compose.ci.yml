@@ -1,0 +1,61 @@
+version: '3.9'
+
+# CI integration test environment — minimal, no persistence, no nginx.
+# Started by .github/workflows/ci.yml for the go-integration-test job.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: gogomail_test
+      POSTGRES_USER: gogomail_test
+      POSTGRES_PASSWORD: gogomail_test
+    ports:
+      - "5432:5432"
+    tmpfs:
+      - /var/lib/postgresql/data   # in-memory for speed
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gogomail_test -d gogomail_test"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    command: redis-server --appendonly no --maxmemory 256mb --maxmemory-policy allkeys-lru
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address :9001
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    ports:
+      - "9000:9000"
+    tmpfs:
+      - /data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  minio-init:
+    image: minio/mc:latest
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 minioadmin minioadmin &&
+      mc mb --ignore-existing local/gogomail-test &&
+      echo 'bucket ready'
+      "
+    restart: "no"
