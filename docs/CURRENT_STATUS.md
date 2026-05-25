@@ -1,6 +1,24 @@
 # gogomail current status
 
-Last updated: 2026-05-25 (seed-data UI bug fixes)
+Last updated: 2026-05-25 (org chart seed data)
+
+## Org chart seed data (2026-05-25)
+
+Added a full IT company org hierarchy to `scripts/seed_dev_data.sql`:
+
+- **Section 5-A** (`organizations` table, directory system): 3 top-level divisions
+  (개발본부, 마케팅본부, 경영지원부) + 7 child teams; all 14 users assigned
+  `org_id` to their respective teams.
+- **Section 5-B** (`organization_units` table, orgchart system): same 10 units
+  with `type` (division/department/team), manager assignments, and parent linkage.
+- **Section 5-C** (`organization_members` table): 17 membership rows covering all
+  14 non-admin users + 3 겸직 (dual-role) entries for 김철수, 박민준, 최준호.
+  Each row carries `title` (직책 · 직급, e.g. `팀장 · 과장`) and `role`
+  (manager/member).
+- Fixed UUID prefix in member IDs: `m0000000` → `b0000000` (PostgreSQL requires
+  hex-only UUID chars).
+- Also corrected 송지율's `org_id` from 백엔드팀 → 프론트엔드팀 (was inconsistent
+  with vCard and actual team assignment).
 
 ## Seed-data UI bug fixes (2026-05-25)
 
