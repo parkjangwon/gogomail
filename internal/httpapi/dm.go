@@ -5,8 +5,10 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gogomail/gogomail/internal/auth"
 	"github.com/gogomail/gogomail/internal/dm"
@@ -30,6 +32,9 @@ type DMService interface {
 	MarkRead(ctx context.Context, principal dm.Principal, roomID string, lastMessageID string) error
 	Search(ctx context.Context, principal dm.Principal, roomID string, q string, before string, limit int) ([]dm.SearchResult, error)
 	ListMedia(ctx context.Context, principal dm.Principal, roomID string, query dm.MediaQuery) ([]dm.MediaItem, error)
+	SignAttachmentDownload(messageID string, expiresAt time.Time) (string, error)
+	VerifyAttachmentDownload(token string) (string, error)
+	OpenAttachment(ctx context.Context, token string) (dm.AttachmentDownload, error)
 }
 
 func RegisterDMRoutes(mux *http.ServeMux, service DMService, tokenManager *auth.TokenManager, publicBaseURL string) {
@@ -293,7 +298,43 @@ func RegisterDMRoutes(mux *http.ServeMux, service DMService, tokenManager *auth.
 			writeDMError(w, err)
 			return
 		}
+		addDMAttachmentDownloadURLs(items, service, publicBaseURL)
 		writeJSON(w, http.StatusOK, map[string]any{"media": items})
+	})
+
+	mux.HandleFunc("GET /api/v1/dm/messages/{id}/attachment", func(w http.ResponseWriter, r *http.Request) {
+		if !rejectBodylessRequestPayload(w, r) || !rejectUnknownQueryKeys(w, r, "token") {
+			return
+		}
+		token := strings.TrimSpace(r.URL.Query().Get("token"))
+		if token == "" {
+			writeError(w, http.StatusBadRequest, "token is required")
+			return
+		}
+		messageID, err := service.VerifyAttachmentDownload(token)
+		if err != nil {
+			writeDMError(w, err)
+			return
+		}
+		if messageID != strings.TrimSpace(r.PathValue("id")) {
+			writeDMError(w, dm.ErrForbidden)
+			return
+		}
+		download, err := service.OpenAttachment(r.Context(), token)
+		if err != nil {
+			writeDMError(w, err)
+			return
+		}
+		defer download.Body.Close()
+		w.Header().Set("Content-Type", attachmentContentType(download.ContentType))
+		w.Header().Set("Cache-Control", "private, max-age=3600")
+		w.Header().Set("Content-Disposition", contentDispositionAttachment(download.Filename))
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		if download.Size > 0 {
+			w.Header().Set("Content-Length", strconv.FormatInt(download.Size, 10))
+		}
+		w.WriteHeader(http.StatusOK)
+		_, _ = io.Copy(w, download.Body)
 	})
 
 	mux.HandleFunc("PATCH /api/v1/dm/messages/{id}", func(w http.ResponseWriter, r *http.Request) {
@@ -343,6 +384,24 @@ func RegisterDMRoutes(mux *http.ServeMux, service DMService, tokenManager *auth.
 		}
 		w.WriteHeader(http.StatusNoContent)
 	})
+}
+
+func addDMAttachmentDownloadURLs(items []dm.MediaItem, service DMService, publicBaseURL string) {
+	publicRoot := strings.TrimRight(publicBaseURL, "/")
+	base := publicRoot + "/api/v1"
+	if publicRoot == "" {
+		base = "/api/v1"
+	}
+	for i := range items {
+		if items[i].MessageType != dm.MessageTypeFile || items[i].MessageID == "" {
+			continue
+		}
+		token, err := service.SignAttachmentDownload(items[i].MessageID, time.Now().UTC().Add(time.Hour))
+		if err != nil {
+			continue
+		}
+		items[i].DownloadURL = base + "/dm/messages/" + url.PathEscape(items[i].MessageID) + "/attachment?token=" + url.QueryEscape(token)
+	}
 }
 
 func readDMAttachmentUpload(w http.ResponseWriter, r *http.Request) (dm.AttachmentUpload, bool) {

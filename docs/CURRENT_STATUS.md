@@ -9,7 +9,8 @@ Last updated: 2026-05-25 (DM instant messaging implementation)
 - Added `internal/dm` crypto/service/store groundwork: AES-256-GCM master-key
   wrapping for per-room keys, encrypted message bodies, URL extraction, direct
   and group room creation, message send/list/edit/delete, reactions, read marks,
-  search candidates, media listing, and attachment upload path encryption.
+  search candidates, media listing, attachment upload path encryption, and
+  one-hour signed attachment download URLs.
 - Added `/api/v1/dm/*` mail API route registration gated by
   `GOGOMAIL_DM_MASTER_KEY`; when configured, the all-in-one/mail API process
   mounts DM room, message, search, media, reaction, read, and attachment routes.
@@ -26,7 +27,8 @@ Last updated: 2026-05-25 (DM instant messaging implementation)
   edit/delete actions, and localized app-switcher labels.
 - `docs/openapi.yaml` and `docs/backend-api-contracts.md` now document the DM
   route surface, envelopes, auth fallback, encrypted storage behavior, and
-  attachment constraints; OpenAPI route-coverage tests include `dm.go`.
+  attachment constraints/downloads; OpenAPI route-coverage tests include
+  `dm.go`.
 - Verification: `go test ./...`, `pnpm -C apps/webmail type-check`, and
   `pnpm -C apps/webmail exec playwright test e2e/dm-panel.spec.ts --project=chromium`
   passed.

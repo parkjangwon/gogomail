@@ -40,7 +40,7 @@ search/media read models, polling APIs, and a webmail global panel.
 - [x] DM browser/E2E smoke passes.
 - [x] `go test ./...` passes after current backend implementation.
 - [x] Docs updated.
-- [ ] Commit and push to `origin/main`.
+- [x] Commit and push to `origin/main`.
 
 ## Next Task
 

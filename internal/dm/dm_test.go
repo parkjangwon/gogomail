@@ -134,6 +134,43 @@ func TestServiceSendAttachmentStoresObjectAndEncryptsPath(t *testing.T) {
 	}
 }
 
+func TestServiceOpenAttachmentUsesSignedExpiringToken(t *testing.T) {
+	crypto, wrappedKey := testCryptoAndWrappedRoomKey(t)
+	attachments := &fakeAttachmentStore{}
+	store := &fakeStore{wrappedRoomKey: wrappedKey}
+	service := NewService(store, crypto).WithAttachmentStore(attachments)
+	service.now = func() time.Time { return time.Unix(100, 0).UTC() }
+	msg, err := service.SendAttachment(context.Background(), testPrincipal(), "room-1", AttachmentUpload{
+		Filename:    "report.txt",
+		ContentType: "text/plain",
+		Size:        7,
+		Body:        []byte("content"),
+	})
+	if err != nil {
+		t.Fatalf("SendAttachment: %v", err)
+	}
+	token, err := service.SignAttachmentDownload(msg.ID, service.now().Add(time.Hour))
+	if err != nil {
+		t.Fatalf("SignAttachmentDownload: %v", err)
+	}
+	download, err := service.OpenAttachment(context.Background(), token)
+	if err != nil {
+		t.Fatalf("OpenAttachment: %v", err)
+	}
+	defer download.Body.Close()
+	body, err := io.ReadAll(download.Body)
+	if err != nil {
+		t.Fatalf("read download: %v", err)
+	}
+	if string(body) != "content" || download.Filename != "report.txt" || download.ContentType != "text/plain" {
+		t.Fatalf("download = (%q, %q, %q)", body, download.Filename, download.ContentType)
+	}
+	service.now = func() time.Time { return time.Unix(100, 0).UTC().Add(2 * time.Hour) }
+	if _, err := service.OpenAttachment(context.Background(), token); !errors.Is(err, ErrForbidden) {
+		t.Fatalf("expired OpenAttachment err = %v, want ErrForbidden", err)
+	}
+}
+
 func TestServiceAddMembersEncryptsSystemMessages(t *testing.T) {
 	crypto, wrappedKey := testCryptoAndWrappedRoomKey(t)
 	store := &fakeStore{
@@ -286,6 +323,13 @@ func (f *fakeAttachmentStore) Put(_ context.Context, path string, body io.Reader
 	return nil
 }
 
+func (f *fakeAttachmentStore) Get(_ context.Context, path string) (io.ReadCloser, error) {
+	if path != f.path {
+		return nil, ErrNotFound
+	}
+	return io.NopCloser(bytes.NewReader(f.body)), nil
+}
+
 func (f *fakeStore) CreateDirectRoom(context.Context, Principal, string, []byte) (Room, error) {
 	return Room{ID: "room-1", RoomType: RoomTypeDirect}, nil
 }
@@ -352,6 +396,10 @@ func (f *fakeStore) RoomKeyForParticipant(context.Context, Principal, string) ([
 
 func (f *fakeStore) RoomKeyForMessageOwner(context.Context, Principal, string) (string, []byte, error) {
 	return "room-1", append([]byte(nil), f.wrappedRoomKey...), nil
+}
+
+func (f *fakeStore) AttachmentByMessageID(context.Context, string) (MessageRecord, []byte, error) {
+	return f.inserted, append([]byte(nil), f.wrappedRoomKey...), nil
 }
 
 func (f *fakeStore) InsertMessage(_ context.Context, _ Principal, msg MessageRecord, urls []string) (MessageRecord, error) {
