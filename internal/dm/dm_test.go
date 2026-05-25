@@ -324,6 +324,9 @@ type fakeStore struct {
 	addedSystem    []MessageRecord
 	transferSystem MessageRecord
 	joinSystem     MessageRecord
+	room           Room
+	roomErr        error
+	exportMessages []MessageRecord
 }
 
 type fakeAttachmentStore struct {
@@ -452,4 +455,50 @@ func (f *fakeStore) ListMedia(context.Context, Principal, string, MediaQuery) ([
 	return nil, nil
 }
 
+func (f *fakeStore) GetRoom(_ context.Context, _ Principal, _ string) (Room, error) {
+	if f.roomErr != nil {
+		return Room{}, f.roomErr
+	}
+	return f.room, nil
+}
+
+func (f *fakeStore) ListAllMessagesForExport(_ context.Context, _ Principal, _ string) ([]MessageRecord, error) {
+	return f.exportMessages, nil
+}
+
 var _ Store = (*fakeStore)(nil)
+
+func TestGetRoomStoreReturnsRoom(t *testing.T) {
+	store := &fakeStore{room: Room{ID: "room-1", RoomType: RoomTypeDirect}}
+	got, err := store.GetRoom(context.Background(), Principal{UserID: "u1", CompanyID: "c1", DomainID: "d1"}, "room-1")
+	if err != nil {
+		t.Fatalf("GetRoom: %v", err)
+	}
+	if got.ID != "room-1" {
+		t.Fatalf("room ID = %q, want room-1", got.ID)
+	}
+}
+
+func TestGetRoomStoreReturnsErrNotFound(t *testing.T) {
+	store := &fakeStore{roomErr: ErrNotFound}
+	_, err := store.GetRoom(context.Background(), Principal{UserID: "u1", CompanyID: "c1", DomainID: "d1"}, "room-1")
+	if !errors.Is(err, ErrNotFound) {
+		t.Fatalf("err = %v, want ErrNotFound", err)
+	}
+}
+
+func TestListAllMessagesForExportStoreReturnsAll(t *testing.T) {
+	now := time.Now().UTC()
+	msgs := []MessageRecord{
+		{Message: Message{ID: "m1", CreatedAt: now}},
+		{Message: Message{ID: "m2", CreatedAt: now.Add(time.Minute)}},
+	}
+	store := &fakeStore{exportMessages: msgs}
+	got, err := store.ListAllMessagesForExport(context.Background(), Principal{UserID: "u1"}, "room-1")
+	if err != nil {
+		t.Fatalf("ListAllMessagesForExport: %v", err)
+	}
+	if len(got) != 2 {
+		t.Fatalf("got %d records, want 2", len(got))
+	}
+}
