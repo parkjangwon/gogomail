@@ -461,6 +461,10 @@ func (s *Service) MarkRead(ctx context.Context, principal Principal, roomID stri
 }
 
 func (s *Service) Search(ctx context.Context, principal Principal, roomID string, q string, before string, limit int) ([]SearchResult, error) {
+	// NOTE: DM 메시지는 AES-GCM 암호화로 저장된다. DB 레벨 FTS가 불가능하므로
+	// 메시지를 복호화한 뒤 애플리케이션 레이어에서 strings.Contains로 검색한다.
+	// 최대 1000개 메시지를 스캔하므로 메시지 수가 많은 방에서는 오래된 메시지가
+	// 검색 범위에서 벗어날 수 있다.
 	principal = normalizePrincipal(principal)
 	if err := validatePrincipal(principal); err != nil {
 		return nil, err
@@ -477,7 +481,7 @@ func (s *Service) Search(ctx context.Context, principal Principal, roomID string
 		return nil, err
 	}
 	defer zeroBytes(roomKey)
-	records, err := s.store.ListSearchCandidates(ctx, principal, strings.TrimSpace(roomID), strings.TrimSpace(before), 10000)
+	records, err := s.store.ListSearchCandidates(ctx, principal, strings.TrimSpace(roomID), strings.TrimSpace(before), 1000)
 	if err != nil {
 		return nil, err
 	}

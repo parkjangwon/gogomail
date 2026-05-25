@@ -41,6 +41,7 @@ search/media read models, polling APIs, and a webmail global panel.
 - [x] `go test ./...` passes after current backend implementation.
 - [x] Docs updated.
 - [x] Commit and push to `origin/main`.
+- [x] Fix: Search function now uses consistent 1000 limit in ListSearchCandidates call (was 10000).
 
 ## Next Task
 
