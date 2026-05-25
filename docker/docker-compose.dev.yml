@@ -287,10 +287,22 @@ services:
     networks:
       - gogomail-dev
 
+  # Promtail — ships Docker container logs to Loki via Docker socket (read-only).
+  # Security notes:
+  #   - Docker socket grants root-equivalent read access to container metadata and logs.
+  #   - Mitigations applied: read-only socket mount, no-new-privileges, read-only root FS.
+  #   - Production alternative: use the Loki Docker log driver plugin so each container
+  #     pushes its own logs and Promtail is not needed.
+  #     Install with: docker plugin install grafana/loki-docker-driver:latest --alias loki
   promtail:
     image: grafana/promtail:3.1.0
     container_name: gogomail-promtail-dev
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - promtail-positions:/var/lib/promtail
