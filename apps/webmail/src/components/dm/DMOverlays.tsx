@@ -1,4 +1,5 @@
 'use client';
+import { type DMTFunction } from './types';
 
 import type { DMMessage } from '@/lib/api';
 import { ArrowDownTrayIcon, ClipboardDocumentIcon, XMarkIcon } from '@heroicons/react/24/outline';
@@ -30,7 +31,7 @@ type DMOverlaysProps = {
   onSetImageMenu: (menu: { message: DMMessage; x: number; y: number } | null) => void;
   onCancelPaste: () => void;
   onConfirmPaste: () => void;
-  t: (key: string, params?: Record<string, string | number>) => string;
+  t: DMTFunction;
 };
 
 export function DMOverlays({

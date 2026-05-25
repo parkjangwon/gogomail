@@ -1,4 +1,5 @@
 'use client';
+import { type DMTFunction } from './types';
 
 import type { ClipboardEvent, KeyboardEvent } from 'react';
 import { LinkIcon, PaperAirplaneIcon } from '@heroicons/react/24/outline';
@@ -16,7 +17,7 @@ type DMComposerProps = {
   onPaste: (event: ClipboardEvent<HTMLInputElement>) => void;
   onCompositionStart: () => void;
   onCompositionEnd: () => void;
-  t: (key: string, params?: Record<string, string | number>) => string;
+  t: DMTFunction;
 };
 
 export function DMComposer({
