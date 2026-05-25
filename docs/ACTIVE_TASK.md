@@ -2,43 +2,31 @@
 
 ## Current Task
 
-**TASK-CODEBASE-IMPROVEMENTS — Phase 3 Code Quality Improvements**
+**Task 3: Harden Promtail container security**
 
-## Background
+## Previous Task Status
 
-Following completion of the DM instant messaging and monitoring stack implementation (May 2026), the current focus is on codebase quality improvements identified in the Phase 3 evaluation. This includes TypeScript file splits, Go package refactoring, and documentation hygiene.
+**Task 2: Add generated TypeScript client to .gitignore** — COMPLETE
+- ✓ Added `clients/typescript/index.ts` to `.gitignore` with comment
+- ✓ Ran `git rm --cached clients/typescript/index.ts` to untrack
+- ✓ Created `clients/typescript/README.md` with regeneration instructions
+- ✓ Verified: `git check-ignore -v clients/typescript/index.ts` outputs match
+- ✓ Makefile `gen-ts-client` target confirmed functional
+- ✓ Committed and pushed
 
-## Scope
+## Current Task Details
 
-### TypeScript file splits
-- Extract MCP tool implementations into separate modules (`apps/gogomail-user-mcp/src/tools/`)
-- Refactor webmail API layer (`apps/webmail/src/api/`)
-- Organize UI components by domain (`apps/webmail/src/components/`)
+**File:** `docs/docker-compose.yaml` (Promtail service section)
+**Changes needed:**
+- Add network isolation (read-only logging volumes)
+- Restrict capabilities
+- Add resource limits
+- Document security hardening in comments
 
-### Go package refactoring
-- Split `internal/httpapi/admin.go` into focused modules
-- Refactor `internal/app/admin_service.go` for better maintainability
-- Ensure consistent error handling and logging across packages
+## Next Steps After Current Task
 
-### Documentation hygiene
-- Reset accumulated AI-agent logs (`docs/CURRENT_STATUS.md`, `docs/NEXT_STEPS.md`)
-- Update `PROJECT_HARNESS.md` with current workflow
-- Ensure `docs/openapi.yaml` reflects all recent additions
-
-## Completion Checklist
-
-- [ ] TypeScript file splits completed
-- [ ] Go package refactoring completed
-- [ ] Documentation updated and verified
-- [ ] `go test ./...` passes
-- [ ] `npm test` + `npm run type-check` pass in webmail and MCP apps
-- [ ] Commit and push to `origin/main`
-
-## Next Task
-
-After completion, refer to `docs/NEXT_STEPS.md` backlog (priority order):
-1. OpenSearch integration
-2. DM search scalability
-3. SMTP rate limiting per recipient domain
-4. Attachment virus scanning
-5. And more...
+Refer to `docs/NEXT_STEPS.md` backlog (priority order):
+1. TypeScript file splits
+2. Go package refactoring
+3. Documentation hygiene
+4. And more...
