@@ -47,6 +47,7 @@ export type DocsMessages = {
     webmail: string;
     gettingStarted: string;
     overview: string;
+    mcp: string;
   };
   pages: Record<string, PageMessage>;
 };
@@ -127,6 +128,7 @@ const copy = {
     webmailSettingsStartBody: 'Open settings from the webmail shell, then change theme or language. The same guide page should mention light and dark themes because they are first-class user controls.',
     factualLimitTitle: 'Documentation rule',
     factualLimitBody: 'If a behavior is not visible in the frontend, not present in the route list, or not backed by an existing message key, the guide should leave it undocumented until the product exposes it.',
+    mcp: 'AI Automation',
   },
   ko: {
     guide: '가이드',
@@ -196,6 +198,7 @@ const copy = {
     webmailSettingsStartBody: '웹메일 셸에서 설정을 열고 테마 또는 언어를 변경합니다. 라이트 테마와 다크 테마는 사용자 제어이므로 같은 시작 페이지에서 함께 설명합니다.',
     factualLimitTitle: '문서화 규칙',
     factualLimitBody: '프론트엔드에서 보이지 않거나, 라우트 목록에 없거나, 기존 메시지 키로 뒷받침되지 않는 동작은 제품이 노출할 때까지 문서화하지 않습니다.',
+    mcp: 'AI 자동화',
   },
   ja: {
     guide: 'ガイド',
@@ -265,6 +268,7 @@ const copy = {
     webmailSettingsStartBody: 'ウェブメールシェルから設定を開き、テーマまたは言語を変更します。ライトテーマとダークテーマはユーザー操作なので、同じ開始ページで扱います。',
     factualLimitTitle: '文書化ルール',
     factualLimitBody: 'フロントエンドに見えない、ルート一覧にない、既存メッセージキーで裏付けられない動作は、製品が表示するまで文書化しません。',
+    mcp: 'AI 自動化',
   },
   'zh-CN': {
     guide: '指南',
@@ -334,6 +338,7 @@ const copy = {
     webmailSettingsStartBody: '从 Webmail 外壳打开设置，然后更改主题或语言。浅色主题和深色主题是用户控制项，因此在同一开始页面说明。',
     factualLimitTitle: '文档规则',
     factualLimitBody: '如果行为在前端不可见、不在路由列表中，或没有现有消息键支撑，应在产品暴露之前不写入文档。',
+    mcp: 'AI 自动化',
   },
 } satisfies Record<DocsLocale, Record<string, string>>;
 
@@ -1070,6 +1075,7 @@ function makeMessages(locale: DocsLocale): DocsMessages {
       webmail: webmailName,
       gettingStarted: c.gettingStarted,
       overview: c.overview,
+      mcp: c.mcp,
     },
     pages: enrichPages({
       glossary: {
@@ -2038,6 +2044,427 @@ Accept: application/json`,
             title: translated({ en: 'Contacts', ko: '연락처', ja: '連絡先', 'zh-CN': '联系人' }),
             body: f.sourceNote,
             items: ['j / k', 'c', 'Del / Backspace', 'Ctrl+A / Cmd+A', 'Esc'],
+          },
+        ],
+      },
+      mcpOverview: {
+        eyebrow: translated({ en: 'AI Automation', ko: 'AI 자동화', ja: 'AI 自動化', 'zh-CN': 'AI 自动化' }),
+        title: translated({ en: 'AI Agent Automation (MCP)', ko: 'AI 에이전트 자동화 (MCP)', ja: 'AI エージェント自動化 (MCP)', 'zh-CN': 'AI 智能体自动化 (MCP)' }),
+        lead: translated({
+          en: 'Connect Claude, Codex, and any MCP-compatible agent to GoGoMail. Two purpose-built servers keep administrator authority and user data access strictly separated.',
+          ko: 'Claude, Codex, 기타 MCP 호환 에이전트를 GoGoMail에 연결합니다. 목적별로 구축된 두 서버가 관리자 권한과 사용자 데이터 접근을 엄격히 분리합니다.',
+          ja: 'Claude、Codex、その他 MCP 対応エージェントを GoGoMail に接続します。2 つの専用サーバーが管理者権限とユーザーデータアクセスを厳密に分離します。',
+          'zh-CN': '将 Claude、Codex 和任何兼容 MCP 的智能体连接到 GoGoMail。两个专用服务器严格分离管理员权限与用户数据访问。',
+        }),
+        sections: [
+          {
+            title: translated({ en: 'What MCP does for GoGoMail', ko: 'GoGoMail에서 MCP가 하는 일', ja: 'GoGoMail における MCP の役割', 'zh-CN': 'MCP 为 GoGoMail 带来什么' }),
+            body: translated({
+              en: 'MCP (Model Context Protocol) is an open standard that lets AI agents call structured APIs through a tool interface. GoGoMail ships two MCP servers so agents can operate the platform without mixing administrator authority with end-user data access.',
+              ko: 'MCP(Model Context Protocol)는 AI 에이전트가 도구 인터페이스를 통해 구조화된 API를 호출할 수 있게 해주는 개방형 표준입니다. GoGoMail은 두 개의 MCP 서버를 제공하여 에이전트가 관리자 권한과 최종 사용자 데이터 접근을 혼합하지 않고 플랫폼을 운영할 수 있게 합니다.',
+              ja: 'MCP（Model Context Protocol）は、AI エージェントがツールインターフェースを通じて構造化 API を呼び出せるオープン標準です。GoGoMail は 2 つの MCP サーバーを提供し、管理者権限とエンドユーザーデータアクセスを混在させずにプラットフォームを操作できるようにします。',
+              'zh-CN': 'MCP（模型上下文协议）是一个开放标准，让 AI 智能体通过工具接口调用结构化 API。GoGoMail 提供两个 MCP 服务器，使智能体能够在不混淆管理员权限与最终用户数据访问的情况下操作平台。',
+            }),
+          },
+          {
+            title: translated({ en: 'Management MCP', ko: '관리 MCP', ja: '管理 MCP', 'zh-CN': '管理 MCP' }),
+            body: translated({
+              en: 'The management MCP is for operators, support staff, and administrators. It calls Admin API routes and requires an admin API key. 50 admin tools cover user and domain operations, mail flow diagnostics, delivery failures, DLQ recovery, quota management, organization, security and spam policies, and system health.',
+              ko: '관리 MCP는 운영자, 지원 담당자, 관리자를 위한 서버입니다. Admin API 라우트를 호출하며 관리자 API 키가 필요합니다. 50개의 관리 도구가 사용자 및 도메인 운영, 메일 흐름 진단, 전송 실패, DLQ 복구, 할당량 관리, 조직, 보안 및 스팸 정책, 시스템 상태를 다룹니다.',
+              ja: '管理 MCP はオペレーター、サポートスタッフ、管理者向けのサーバーです。Admin API ルートを呼び出し、管理者 API キーが必要です。50 の管理ツールが、ユーザーとドメインの運用、メールフロー診断、配信失敗、DLQ 回復、クォータ管理、組織、セキュリティとスパムポリシー、システムヘルスをカバーします。',
+              'zh-CN': '管理 MCP 面向运营人员、支持人员和管理员。它调用 Admin API 路由并需要管理员 API 密钥。50 个管理工具涵盖用户和域名运营、邮件流诊断、投递失败、DLQ 恢复、配额管理、组织、安全和垃圾邮件策略以及系统健康。',
+            }),
+            items: ['gogomail_search_principals', 'gogomail_list_users', 'gogomail_get_user', 'gogomail_list_domains', 'gogomail_check_domain_dns', 'gogomail_list_mail_flow_logs', 'gogomail_list_exhausted_deliveries', 'gogomail_list_dlq', 'gogomail_get_spam_filter', 'gogomail_check_health'],
+          },
+          {
+            title: translated({ en: 'User MCP', ko: '사용자 MCP', ja: 'ユーザー MCP', 'zh-CN': '用户 MCP' }),
+            body: translated({
+              en: 'The user MCP is for individual webmail users. It calls the user-facing API with a user-issued gmu_ key generated from webmail settings. 123 user tools cover mail, DM, contacts, drive, calendar, notifications, spam, and account management.',
+              ko: '사용자 MCP는 개별 웹메일 사용자를 위한 서버입니다. 웹메일 설정에서 생성된 gmu_ 키로 사용자 API를 호출합니다. 123개의 사용자 도구가 메일, DM, 연락처, 드라이브, 캘린더, 알림, 스팸, 계정 관리를 다룹니다.',
+              ja: 'ユーザー MCP は個々のウェブメールユーザー向けのサーバーです。ウェブメール設定で生成された gmu_ キーでユーザー向け API を呼び出します。123 のユーザーツールが、メール、DM、連絡先、ドライブ、カレンダー、通知、スパム、アカウント管理をカバーします。',
+              'zh-CN': '用户 MCP 面向个人 Webmail 用户。它使用从 Webmail 设置生成的用户自颁 gmu_ 密钥调用用户端 API。123 个用户工具涵盖邮件、私信、联系人、Drive、日历、通知、垃圾邮件和账号管理。',
+            }),
+            items: ['gogomail_mail_search', 'gogomail_mail_send', 'gogomail_dm_list_rooms', 'gogomail_dm_send_message', 'gogomail_drive_list', 'gogomail_drive_create_text_file', 'gogomail_calendar_upsert_event_simple', 'gogomail_contacts_upsert_simple', 'gogomail_spam_report_message', 'gogomail_mcp_get_settings'],
+          },
+          {
+            title: translated({ en: 'Choosing the right server', ko: '올바른 서버 선택', ja: '適切なサーバーの選択', 'zh-CN': '选择合适的服务器' }),
+            body: translated({
+              en: 'Use the management MCP when the task is about operating the service: domain DNS checks, delivery failures, user account management, quota alerts, spam policy. Use the user MCP when the task is about a person\'s own data: reading and sending mail, organizing folders, managing DM rooms, uploading files to Drive, creating calendar events.',
+              ko: '도메인 DNS 확인, 전송 실패, 사용자 계정 관리, 할당량 알림, 스팸 정책 등 서비스 운영에 관한 작업에는 관리 MCP를 사용합니다. 메일 읽기 및 보내기, 폴더 정리, DM 룸 관리, Drive 파일 업로드, 캘린더 이벤트 생성 등 개인 데이터에 관한 작업에는 사용자 MCP를 사용합니다.',
+              ja: 'ドメイン DNS 確認、配信失敗、ユーザーアカウント管理、クォータ通知、スパムポリシーなどサービス運用に関するタスクには管理 MCP を使います。メールの読み書き、フォルダー整理、DM ルーム管理、Drive ファイルアップロード、カレンダーイベント作成など個人データに関するタスクにはユーザー MCP を使います。',
+              'zh-CN': '当任务关于运营服务时使用管理 MCP：域名 DNS 检查、投递失败、用户账号管理、配额告警、垃圾邮件策略。当任务关于个人数据时使用用户 MCP：阅读和发送邮件、整理文件夹、管理私信房间、上传文件到 Drive、创建日历事件。',
+            }),
+          },
+          {
+            title: translated({ en: 'Safety model', ko: '보안 모델', ja: 'セキュリティモデル', 'zh-CN': '安全模型' }),
+            body: translated({
+              en: 'The two servers never share keys. Management keys reach admin routes; user keys reach only that user\'s own data. Domain administrators control whether users can enable MCP, which scopes are allowed, whether bypass mode is permitted, and whether generated mail notices are required.',
+              ko: '두 서버는 키를 절대 공유하지 않습니다. 관리 키는 관리자 라우트에만 접근하고, 사용자 키는 해당 사용자의 데이터에만 접근합니다. 도메인 관리자는 사용자가 MCP를 활성화할 수 있는지, 허용된 스코프, 바이패스 모드 허용 여부, 생성된 메일 공지 필요 여부를 제어합니다.',
+              ja: '2 つのサーバーはキーを共有しません。管理キーは管理ルートにのみ、ユーザーキーはそのユーザー自身のデータにのみアクセスします。ドメイン管理者は、ユーザーが MCP を有効にできるか、許可されるスコープ、バイパスモードの許可、生成メール通知の要否を制御します。',
+              'zh-CN': '两个服务器从不共享密钥。管理密钥到达管理路由；用户密钥只能到达该用户自己的数据。域名管理员控制用户是否可以启用 MCP、允许哪些权限范围、是否允许绕过模式，以及是否需要生成邮件通知。',
+            }),
+          },
+        ],
+      },
+      manageMcp: {
+        eyebrow: translated({ en: 'AI Automation', ko: 'AI 자동화', ja: 'AI 自動化', 'zh-CN': 'AI 自动化' }),
+        title: translated({ en: 'Management MCP', ko: '관리 MCP 설정', ja: '管理 MCP セットアップ', 'zh-CN': '管理 MCP 设置' }),
+        lead: translated({
+          en: 'Connect AI agents to the GoGoMail Admin API. 50 tools for user and domain management, mail flow diagnostics, delivery recovery, and system health.',
+          ko: 'AI 에이전트를 GoGoMail Admin API에 연결합니다. 사용자 및 도메인 관리, 메일 흐름 진단, 전송 복구, 시스템 상태를 위한 50개의 도구를 제공합니다.',
+          ja: 'AI エージェントを GoGoMail Admin API に接続します。ユーザーとドメイン管理、メールフロー診断、配信回復、システムヘルスのための 50 のツールを提供します。',
+          'zh-CN': '将 AI 智能体连接到 GoGoMail 管理 API。提供 50 个用于用户和域名管理、邮件流诊断、投递恢复和系统健康的工具。',
+        }),
+        sections: [
+          {
+            title: translated({ en: 'Prerequisites', ko: '사전 요구사항', ja: '前提条件', 'zh-CN': '前提条件' }),
+            body: translated({
+              en: 'A running GoGoMail instance, Node.js 20+, and an admin API key. The admin key grants full Admin API access; treat it like a root password.',
+              ko: '실행 중인 GoGoMail 인스턴스, Node.js 20+, 관리자 API 키가 필요합니다. 관리자 키는 Admin API 전체 접근 권한을 부여하므로 root 비밀번호처럼 취급합니다.',
+              ja: '稼働中の GoGoMail インスタンス、Node.js 20+、管理者 API キーが必要です。管理者キーは Admin API への完全アクセスを許可するため、root パスワードと同様に扱います。',
+              'zh-CN': '需要运行中的 GoGoMail 实例、Node.js 20+ 和管理员 API 密钥。管理员密钥授予完整的 Admin API 访问权限；请像对待 root 密码一样保管它。',
+            }),
+          },
+          {
+            title: translated({ en: 'Installation and build', ko: '설치 및 빌드', ja: 'インストールとビルド', 'zh-CN': '安装与构建' }),
+            body: translated({
+              en: 'Change to apps/gogomail-manage-mcp, run npm install, then npm run build. The entry point is dist/index.js.',
+              ko: 'apps/gogomail-manage-mcp 디렉터리로 이동한 뒤 npm install, npm run build를 실행합니다. 진입점은 dist/index.js입니다.',
+              ja: 'apps/gogomail-manage-mcp に移動し、npm install、npm run build を実行します。エントリーポイントは dist/index.js です。',
+              'zh-CN': '切换到 apps/gogomail-manage-mcp，运行 npm install，然后 npm run build。入口点为 dist/index.js。',
+            }),
+            examples: [
+              {
+                title: translated({ en: 'Build', ko: '빌드', ja: 'ビルド', 'zh-CN': '构建' }),
+                language: 'bash',
+                code: `cd apps/gogomail-manage-mcp
+npm install
+npm run build`,
+              },
+            ],
+          },
+          {
+            title: translated({ en: 'Environment variables', ko: '환경 변수', ja: '環境変数', 'zh-CN': '环境变量' }),
+            body: translated({
+              en: 'Required: GOGOMAIL_ADMIN_URL (base URL of the GoGoMail instance), GOGOMAIL_ADMIN_KEY (admin bearer token). Optional: SUPPO_API_URL, SUPPO_API_KEY, GITHUB_TOKEN, GITHUB_REPO, MCP_TRANSPORT (stdio or sse), MCP_SECRET (required for sse), MCP_PORT (default 3100).',
+              ko: '필수: GOGOMAIL_ADMIN_URL (GoGoMail 인스턴스 기본 URL), GOGOMAIL_ADMIN_KEY (관리자 bearer 토큰). 선택: SUPPO_API_URL, SUPPO_API_KEY, GITHUB_TOKEN, GITHUB_REPO, MCP_TRANSPORT (stdio 또는 sse), MCP_SECRET (sse 시 필수), MCP_PORT (기본값 3100).',
+              ja: '必須: GOGOMAIL_ADMIN_URL（GoGoMail インスタンスのベース URL）、GOGOMAIL_ADMIN_KEY（管理者ベアラートークン）。任意: SUPPO_API_URL、SUPPO_API_KEY、GITHUB_TOKEN、GITHUB_REPO、MCP_TRANSPORT（stdio または sse）、MCP_SECRET（sse 時に必須）、MCP_PORT（既定値 3100）。',
+              'zh-CN': '必需：GOGOMAIL_ADMIN_URL（GoGoMail 实例基础 URL）、GOGOMAIL_ADMIN_KEY（管理员 Bearer 令牌）。可选：SUPPO_API_URL、SUPPO_API_KEY、GITHUB_TOKEN、GITHUB_REPO、MCP_TRANSPORT（stdio 或 sse）、MCP_SECRET（sse 时必需）、MCP_PORT（默认 3100）。',
+            }),
+            items: ['GOGOMAIL_ADMIN_URL', 'GOGOMAIL_ADMIN_KEY', 'MCP_TRANSPORT', 'MCP_SECRET', 'MCP_PORT', 'SUPPO_API_URL', 'SUPPO_API_KEY'],
+          },
+          {
+            title: translated({ en: 'Claude Desktop setup', ko: 'Claude Desktop 설정', ja: 'Claude Desktop セットアップ', 'zh-CN': 'Claude Desktop 设置' }),
+            body: translated({
+              en: 'Edit ~/Library/Application Support/Claude/claude_desktop_config.json. Add a mcpServers entry with command: node, args pointing to dist/index.js, and env with GOGOMAIL_ADMIN_URL and GOGOMAIL_ADMIN_KEY. Restart Claude Desktop; the hammer icon confirms tools are loaded.',
+              ko: '~/Library/Application Support/Claude/claude_desktop_config.json을 편집합니다. command: node, dist/index.js를 가리키는 args, GOGOMAIL_ADMIN_URL과 GOGOMAIL_ADMIN_KEY가 포함된 env를 가진 mcpServers 항목을 추가합니다. Claude Desktop을 재시작하면 망치 아이콘으로 도구 로드를 확인할 수 있습니다.',
+              ja: '~/Library/Application Support/Claude/claude_desktop_config.json を編集します。command: node、dist/index.js を指す args、GOGOMAIL_ADMIN_URL と GOGOMAIL_ADMIN_KEY を含む env を持つ mcpServers エントリを追加します。Claude Desktop を再起動するとハンマーアイコンでツールの読み込みを確認できます。',
+              'zh-CN': '编辑 ~/Library/Application Support/Claude/claude_desktop_config.json。添加 mcpServers 条目，包含 command: node、指向 dist/index.js 的 args，以及含有 GOGOMAIL_ADMIN_URL 和 GOGOMAIL_ADMIN_KEY 的 env。重启 Claude Desktop；锤子图标确认工具已加载。',
+            }),
+            examples: [
+              {
+                title: translated({ en: 'Claude Desktop config', ko: 'Claude Desktop 설정', ja: 'Claude Desktop 設定', 'zh-CN': 'Claude Desktop 配置' }),
+                language: 'json',
+                code: `{
+  "mcpServers": {
+    "gogomail-manage-mcp": {
+      "command": "node",
+      "args": ["/path/to/gogomail/apps/gogomail-manage-mcp/dist/index.js"],
+      "env": {
+        "GOGOMAIL_ADMIN_URL": "https://mail.company.com",
+        "GOGOMAIL_ADMIN_KEY": "your_admin_api_key_here"
+      }
+    }
+  }
+}`,
+              },
+            ],
+          },
+          {
+            title: translated({ en: 'Autonomous agent (SSE mode)', ko: '자율 에이전트 (SSE 모드)', ja: '自律エージェント（SSE モード）', 'zh-CN': '自主智能体（SSE 模式）' }),
+            body: translated({
+              en: 'Set MCP_TRANSPORT=sse and MCP_SECRET for HTTP+SSE mode. The server exposes GET /sse (stream connection) and POST /messages?sessionId= (tool calls). MCP_SECRET is required and enables Bearer token authentication with timing-safe comparison.',
+              ko: 'HTTP+SSE 모드를 위해 MCP_TRANSPORT=sse와 MCP_SECRET을 설정합니다. 서버는 GET /sse (스트림 연결)와 POST /messages?sessionId= (도구 호출)를 노출합니다. MCP_SECRET은 필수이며 타이밍 세이프 비교로 Bearer 토큰 인증을 활성화합니다.',
+              ja: 'HTTP+SSE モードには MCP_TRANSPORT=sse と MCP_SECRET を設定します。サーバーは GET /sse（ストリーム接続）と POST /messages?sessionId=（ツール呼び出し）を公開します。MCP_SECRET は必須で、タイミングセーフな比較による Bearer トークン認証を有効にします。',
+              'zh-CN': '为 HTTP+SSE 模式设置 MCP_TRANSPORT=sse 和 MCP_SECRET。服务器暴露 GET /sse（流连接）和 POST /messages?sessionId=（工具调用）。MCP_SECRET 为必需项，启用基于时序安全比较的 Bearer 令牌认证。',
+            }),
+            examples: [
+              {
+                title: translated({ en: 'SSE mode startup', ko: 'SSE 모드 시작', ja: 'SSE モード起動', 'zh-CN': 'SSE 模式启动' }),
+                language: 'bash',
+                code: `MCP_TRANSPORT=sse \\
+MCP_SECRET=your_secret_here \\
+MCP_PORT=3100 \\
+GOGOMAIL_ADMIN_URL=https://mail.company.com \\
+GOGOMAIL_ADMIN_KEY=your_admin_key \\
+node dist/index.js`,
+              },
+            ],
+          },
+          {
+            title: translated({ en: 'User and domain tools', ko: '사용자 및 도메인 도구', ja: 'ユーザーとドメインのツール', 'zh-CN': '用户和域名工具' }),
+            body: translated({
+              en: 'gogomail_search_principals searches by email or name; start here when you have an address. gogomail_list_users, gogomail_get_user, gogomail_get_user_quota for user data. gogomail_list_domains, gogomail_get_domain_settings, gogomail_check_domain_dns for domain and DNS. gogomail_create_user, gogomail_update_user_status, gogomail_delete_user for mutations (all audit-logged; delete requires a confirm string).',
+              ko: 'gogomail_search_principals는 이메일 또는 이름으로 검색합니다. 주소가 있을 때 여기서 시작합니다. 사용자 데이터에는 gogomail_list_users, gogomail_get_user, gogomail_get_user_quota를 사용합니다. 도메인과 DNS에는 gogomail_list_domains, gogomail_get_domain_settings, gogomail_check_domain_dns를 사용합니다. gogomail_create_user, gogomail_update_user_status, gogomail_delete_user로 변경 작업을 수행합니다(모두 감사 로그 기록; 삭제는 confirm 문자열 필요).',
+              ja: 'gogomail_search_principals はメールまたは名前で検索します。アドレスがある場合はここから始めます。ユーザーデータには gogomail_list_users、gogomail_get_user、gogomail_get_user_quota。ドメインと DNS には gogomail_list_domains、gogomail_get_domain_settings、gogomail_check_domain_dns。変更には gogomail_create_user、gogomail_update_user_status、gogomail_delete_user（すべて監査ログ記録；削除には confirm 文字列が必要）。',
+              'zh-CN': 'gogomail_search_principals 按邮箱或姓名搜索；有地址时从这里开始。用户数据使用 gogomail_list_users、gogomail_get_user、gogomail_get_user_quota。域名和 DNS 使用 gogomail_list_domains、gogomail_get_domain_settings、gogomail_check_domain_dns。变更使用 gogomail_create_user、gogomail_update_user_status、gogomail_delete_user（均记录审计日志；删除需要 confirm 字符串）。',
+            }),
+            items: ['gogomail_search_principals', 'gogomail_list_users', 'gogomail_get_user', 'gogomail_get_user_quota', 'gogomail_list_domains', 'gogomail_get_domain_settings', 'gogomail_check_domain_dns', 'gogomail_create_user', 'gogomail_update_user_status', 'gogomail_delete_user'],
+          },
+          {
+            title: translated({ en: 'Mail flow and delivery tools', ko: '메일 흐름 및 전송 도구', ja: 'メールフローと配信ツール', 'zh-CN': '邮件流和投递工具' }),
+            body: translated({
+              en: 'gogomail_list_mail_flow_logs (filter by user, direction, status, time) and gogomail_get_mail_flow_stats for aggregate counts. gogomail_list_delivery_attempts for per-hop errors and gogomail_list_exhausted_deliveries for messages needing manual action. gogomail_list_dlq for dead-letter queue entries, gogomail_retry_outbox for outbox recovery.',
+              ko: 'gogomail_list_mail_flow_logs (사용자, 방향, 상태, 시간으로 필터)와 gogomail_get_mail_flow_stats로 집계 카운트를 확인합니다. gogomail_list_delivery_attempts로 홉별 오류를, gogomail_list_exhausted_deliveries로 수동 처리가 필요한 메시지를 확인합니다. gogomail_list_dlq로 데드레터 큐 항목을, gogomail_retry_outbox로 아웃박스를 복구합니다.',
+              ja: 'gogomail_list_mail_flow_logs（ユーザー、方向、ステータス、時間でフィルター）と gogomail_get_mail_flow_stats で集計カウントを確認します。gogomail_list_delivery_attempts でホップ別エラーを、gogomail_list_exhausted_deliveries で手動対応が必要なメッセージを確認します。gogomail_list_dlq でデッドレターキューを、gogomail_retry_outbox でアウトボックスを回復します。',
+              'zh-CN': 'gogomail_list_mail_flow_logs（按用户、方向、状态、时间过滤）和 gogomail_get_mail_flow_stats 查看聚合计数。gogomail_list_delivery_attempts 查看逐跳错误，gogomail_list_exhausted_deliveries 查看需要手动处理的消息。gogomail_list_dlq 查看死信队列条目，gogomail_retry_outbox 恢复发件箱。',
+            }),
+            items: ['gogomail_list_mail_flow_logs', 'gogomail_get_mail_flow_stats', 'gogomail_list_delivery_attempts', 'gogomail_list_exhausted_deliveries', 'gogomail_list_dlq', 'gogomail_retry_outbox'],
+          },
+          {
+            title: translated({ en: 'Security and monitoring tools', ko: '보안 및 모니터링 도구', ja: 'セキュリティと監視ツール', 'zh-CN': '安全与监控工具' }),
+            body: translated({
+              en: 'gogomail_get_spam_filter, gogomail_get_spam_filter_events, gogomail_list_dkim_keys, gogomail_get_audit_logs, gogomail_get_alert_events for monitoring. gogomail_check_health and gogomail_get_queue_stats for system health. gogomail_list_company_sessions and gogomail_revoke_company_session for session management.',
+              ko: '모니터링에는 gogomail_get_spam_filter, gogomail_get_spam_filter_events, gogomail_list_dkim_keys, gogomail_get_audit_logs, gogomail_get_alert_events를 사용합니다. 시스템 상태에는 gogomail_check_health와 gogomail_get_queue_stats를 사용합니다. 세션 관리에는 gogomail_list_company_sessions와 gogomail_revoke_company_session을 사용합니다.',
+              ja: 'モニタリングには gogomail_get_spam_filter、gogomail_get_spam_filter_events、gogomail_list_dkim_keys、gogomail_get_audit_logs、gogomail_get_alert_events。システムヘルスには gogomail_check_health と gogomail_get_queue_stats。セッション管理には gogomail_list_company_sessions と gogomail_revoke_company_session。',
+              'zh-CN': '监控使用 gogomail_get_spam_filter、gogomail_get_spam_filter_events、gogomail_list_dkim_keys、gogomail_get_audit_logs、gogomail_get_alert_events。系统健康使用 gogomail_check_health 和 gogomail_get_queue_stats。会话管理使用 gogomail_list_company_sessions 和 gogomail_revoke_company_session。',
+            }),
+            items: ['gogomail_get_spam_filter', 'gogomail_get_audit_logs', 'gogomail_check_health', 'gogomail_get_queue_stats', 'gogomail_list_company_sessions', 'gogomail_revoke_company_session'],
+          },
+          {
+            title: translated({ en: 'Workflow: customer cannot send email', ko: '워크플로: 고객이 이메일을 보낼 수 없는 경우', ja: 'ワークフロー：顧客がメールを送れない場合', 'zh-CN': '工作流：客户无法发送邮件' }),
+            body: translated({
+              en: 'search_principals → get_user → list_mail_flow_logs (direction: outbound, status: rejected) → check_domain_dns. This sequence surfaces the SPF failure that the agent then explains as a required DNS fix.',
+              ko: 'search_principals → get_user → list_mail_flow_logs (방향: outbound, 상태: rejected) → check_domain_dns. 이 순서로 에이전트가 필요한 DNS 수정 사항으로 설명할 SPF 실패를 찾아냅니다.',
+              ja: 'search_principals → get_user → list_mail_flow_logs（方向: outbound、ステータス: rejected）→ check_domain_dns。このシーケンスで、エージェントが必要な DNS 修正として説明する SPF 失敗が見つかります。',
+              'zh-CN': 'search_principals → get_user → list_mail_flow_logs（方向: outbound，状态: rejected）→ check_domain_dns。该序列找出 SPF 失败，智能体随后将其解释为所需的 DNS 修复。',
+            }),
+            examples: [
+              {
+                title: translated({ en: 'Tool call sequence', ko: '도구 호출 순서', ja: 'ツール呼び出し順序', 'zh-CN': '工具调用顺序' }),
+                language: 'text',
+                code: `1. gogomail_search_principals({ query: "user@company.com" })
+2. gogomail_get_user({ userId: "<id>" })
+3. gogomail_list_mail_flow_logs({ userId: "<id>", direction: "outbound", status: "rejected" })
+4. gogomail_check_domain_dns({ domain: "company.com" })
+→ SPF record missing — agent explains required DNS TXT record`,
+              },
+            ],
+          },
+          {
+            title: translated({ en: 'Workflow: account compromise', ko: '워크플로: 계정 침해', ja: 'ワークフロー：アカウント侵害', 'zh-CN': '工作流：账号被盗' }),
+            body: translated({
+              en: 'search_principals → list_company_sessions → revoke_company_session (with reason, ticketId) → get_audit_logs → send_invite_email. All actions are audit-logged to the ticket.',
+              ko: 'search_principals → list_company_sessions → revoke_company_session (reason, ticketId 포함) → get_audit_logs → send_invite_email. 모든 작업이 티켓에 감사 로그로 기록됩니다.',
+              ja: 'search_principals → list_company_sessions → revoke_company_session（reason、ticketId を含む）→ get_audit_logs → send_invite_email。すべてのアクションがチケットに監査ログとして記録されます。',
+              'zh-CN': 'search_principals → list_company_sessions → revoke_company_session（含 reason、ticketId）→ get_audit_logs → send_invite_email。所有操作均审计记录到工单。',
+            }),
+            examples: [
+              {
+                title: translated({ en: 'Tool call sequence', ko: '도구 호출 순서', ja: 'ツール呼び出し順序', 'zh-CN': '工具调用顺序' }),
+                language: 'text',
+                code: `1. gogomail_search_principals({ query: "compromised@company.com" })
+2. gogomail_list_company_sessions({ userId: "<id>" })
+3. gogomail_revoke_company_session({ sessionId: "<id>", reason: "Suspected compromise", ticketId: "TKT-1234" })
+4. gogomail_get_audit_logs({ userId: "<id>", limit: 20 })
+5. gogomail_send_invite_email({ userId: "<id>" })`,
+              },
+            ],
+          },
+          {
+            title: translated({ en: 'Audit trail', ko: '감사 추적', ja: '監査証跡', 'zh-CN': '审计追踪' }),
+            body: translated({
+              en: 'Every write tool requires a human-readable reason. If ticketId is provided and Suppo is configured, an internal memo is added to that ticket. If ticketId is omitted and Suppo is configured, a standalone audit ticket is created. If Suppo is not configured, the memo goes to stderr. Audit writes are best-effort and do not roll back completed actions.',
+              ko: '모든 쓰기 도구는 사람이 읽을 수 있는 이유를 요구합니다. ticketId가 제공되고 Suppo가 설정된 경우 해당 티켓에 내부 메모가 추가됩니다. ticketId가 생략되고 Suppo가 설정된 경우 독립 감사 티켓이 생성됩니다. Suppo가 설정되지 않은 경우 메모는 stderr로 전송됩니다. 감사 쓰기는 최선형이며 완료된 작업을 롤백하지 않습니다.',
+              ja: 'すべての書き込みツールは人が読める理由を要求します。ticketId が指定され Suppo が設定されている場合、そのチケットに内部メモが追加されます。ticketId が省略され Suppo が設定されている場合、独立した監査チケットが作成されます。Suppo が設定されていない場合、メモは stderr に送られます。監査書き込みはベストエフォートであり、完了したアクションをロールバックしません。',
+              'zh-CN': '每个写入工具都需要一个人类可读的原因。如果提供了 ticketId 且配置了 Suppo，则将内部备忘录添加到该工单。如果省略 ticketId 且配置了 Suppo，则创建独立审计工单。如果未配置 Suppo，备忘录发送到 stderr。审计写入是尽力而为的，不会回滚已完成的操作。',
+            }),
+          },
+        ],
+      },
+      userMcp: {
+        eyebrow: translated({ en: 'AI Automation', ko: 'AI 자동화', ja: 'AI 自動化', 'zh-CN': 'AI 自动化' }),
+        title: translated({ en: 'User MCP', ko: '사용자 MCP 설정', ja: 'ユーザー MCP セットアップ', 'zh-CN': '用户 MCP 设置' }),
+        lead: translated({
+          en: 'Connect Claude Desktop, Claude Code, Codex, or any MCP-compatible agent to your GoGoMail mailbox. 123 tools across mail, DM, drive, calendar, contacts, and more.',
+          ko: 'Claude Desktop, Claude Code, Codex 또는 MCP 호환 에이전트를 GoGoMail 메일함에 연결합니다. 메일, DM, 드라이브, 캘린더, 연락처 등 123개의 도구를 제공합니다.',
+          ja: 'Claude Desktop、Claude Code、Codex、その他 MCP 対応エージェントを GoGoMail メールボックスに接続します。メール、DM、ドライブ、カレンダー、連絡先など 123 のツールを提供します。',
+          'zh-CN': '将 Claude Desktop、Claude Code、Codex 或任何兼容 MCP 的智能体连接到您的 GoGoMail 邮箱。涵盖邮件、私信、Drive、日历、联系人等 123 个工具。',
+        }),
+        sections: [
+          {
+            title: translated({ en: 'What the user MCP enables', ko: '사용자 MCP가 가능하게 하는 것', ja: 'ユーザー MCP が実現すること', 'zh-CN': '用户 MCP 能做什么' }),
+            body: translated({
+              en: 'Connect Claude Desktop, Claude Code, Codex, or any MCP-compatible agent to your GoGoMail mailbox without opening webmail. Natural-language requests become tool calls across 123 capabilities: read and send mail, manage DM rooms, upload and share Drive files, create calendar events, organize contacts, and adjust notification preferences.',
+              ko: 'Claude Desktop, Claude Code, Codex 또는 MCP 호환 에이전트를 웹메일을 열지 않고 GoGoMail 메일함에 연결합니다. 자연어 요청이 123개의 기능에 걸쳐 도구 호출로 변환됩니다: 메일 읽기 및 보내기, DM 룸 관리, Drive 파일 업로드 및 공유, 캘린더 이벤트 생성, 연락처 정리, 알림 설정 조정.',
+              ja: 'ウェブメールを開かずに Claude Desktop、Claude Code、Codex、その他 MCP 対応エージェントを GoGoMail メールボックスに接続します。自然言語の要求が 123 の機能にわたるツール呼び出しになります：メールの読み書き、DM ルーム管理、Drive ファイルのアップロードと共有、カレンダーイベント作成、連絡先整理、通知設定の調整。',
+              'zh-CN': '无需打开 Webmail，将 Claude Desktop、Claude Code、Codex 或任何兼容 MCP 的智能体连接到您的 GoGoMail 邮箱。自然语言请求转换为跨 123 个功能的工具调用：阅读和发送邮件、管理私信房间、上传和分享 Drive 文件、创建日历事件、整理联系人、调整通知偏好。',
+            }),
+          },
+          {
+            title: translated({ en: 'Generating a user MCP key', ko: '사용자 MCP 키 생성', ja: 'ユーザー MCP キーの生成', 'zh-CN': '生成用户 MCP 密钥' }),
+            body: translated({
+              en: 'Open GoGoMail webmail → Settings → Security → MCP Access Keys. Toggle MCP enabled, choose permission mode (basic recommended), then click New access key. Enter a name, select scopes, optionally set an expiry and CIDR allowlist, then click Create. The full gmu_ token is shown only once — save it immediately to a password manager or environment file.',
+              ko: 'GoGoMail 웹메일 → 설정 → 보안 → MCP 접근 키를 엽니다. MCP 활성화를 토글하고, 권한 모드(basic 권장)를 선택한 뒤 새 접근 키를 클릭합니다. 이름을 입력하고 스코프를 선택한 뒤 만료일과 CIDR 허용 목록을 선택적으로 설정하고 만들기를 클릭합니다. gmu_ 토큰 전체는 한 번만 표시되므로 즉시 비밀번호 관리자 또는 환경 파일에 저장합니다.',
+              ja: 'GoGoMail ウェブメール → 設定 → セキュリティ → MCP アクセスキーを開きます。MCP を有効にトグルし、権限モード（basic 推奨）を選択してから、新しいアクセスキーをクリックします。名前を入力し、スコープを選択し、任意で有効期限と CIDR 許可リストを設定して作成をクリックします。gmu_ トークン全体は一度しか表示されないため、すぐにパスワードマネージャーまたは環境ファイルに保存します。',
+              'zh-CN': '打开 GoGoMail Webmail → 设置 → 安全 → MCP 访问密钥。切换启用 MCP，选择权限模式（推荐 basic），然后点击新建访问密钥。输入名称，选择权限范围，可选设置到期时间和 CIDR 允许列表，然后点击创建。完整的 gmu_ 令牌只显示一次——立即保存到密码管理器或环境文件中。',
+            }),
+          },
+          {
+            title: translated({ en: 'Key scopes', ko: '키 스코프', ja: 'キースコープ', 'zh-CN': '密钥权限范围' }),
+            body: translated({
+              en: 'mail covers read/send/draft/folder/thread/attachments. dm covers DM rooms and messages. drive covers file browse/upload/download/share. calendar covers events and subscriptions. contacts covers address books and directory. account covers profile/avatar/preferences/notifications. spam covers spam report/not-spam/block/allow.',
+              ko: 'mail은 읽기/보내기/임시저장/폴더/스레드/첨부파일을 포함합니다. dm은 DM 룸과 메시지를 포함합니다. drive는 파일 탐색/업로드/다운로드/공유를 포함합니다. calendar는 이벤트와 구독을 포함합니다. contacts는 주소록과 디렉터리를 포함합니다. account는 프로필/아바타/설정/알림을 포함합니다. spam은 스팸 신고/스팸 아님/차단/허용을 포함합니다.',
+              ja: 'mail は読み取り/送信/下書き/フォルダー/スレッド/添付をカバーします。dm は DM ルームとメッセージをカバーします。drive はファイル閲覧/アップロード/ダウンロード/共有をカバーします。calendar はイベントとサブスクリプションをカバーします。contacts はアドレス帳とディレクトリをカバーします。account はプロフィール/アバター/設定/通知をカバーします。spam はスパム報告/スパムでない/ブロック/許可をカバーします。',
+              'zh-CN': 'mail 涵盖读取/发送/草稿/文件夹/会话/附件。dm 涵盖私信房间和消息。drive 涵盖文件浏览/上传/下载/分享。calendar 涵盖事件和订阅。contacts 涵盖通讯录和目录。account 涵盖个人资料/头像/偏好/通知。spam 涵盖垃圾邮件举报/非垃圾邮件/屏蔽/允许。',
+            }),
+            items: ['mail', 'dm', 'drive', 'calendar', 'contacts', 'account', 'spam'],
+          },
+          {
+            title: translated({ en: 'Installation and build', ko: '설치 및 빌드', ja: 'インストールとビルド', 'zh-CN': '安装与构建' }),
+            body: translated({
+              en: 'Change to apps/gogomail-user-mcp, run npm install, then npm run build. Verify with npm test and npm run type-check.',
+              ko: 'apps/gogomail-user-mcp 디렉터리로 이동한 뒤 npm install, npm run build를 실행합니다. npm test와 npm run type-check로 검증합니다.',
+              ja: 'apps/gogomail-user-mcp に移動し、npm install、npm run build を実行します。npm test と npm run type-check で確認します。',
+              'zh-CN': '切换到 apps/gogomail-user-mcp，运行 npm install，然后 npm run build。使用 npm test 和 npm run type-check 验证。',
+            }),
+            examples: [
+              {
+                title: translated({ en: 'Build and verify', ko: '빌드 및 검증', ja: 'ビルドと確認', 'zh-CN': '构建并验证' }),
+                language: 'bash',
+                code: `cd apps/gogomail-user-mcp
+npm install
+npm run build
+npm test
+npm run type-check`,
+              },
+            ],
+          },
+          {
+            title: translated({ en: 'Claude Desktop setup', ko: 'Claude Desktop 설정', ja: 'Claude Desktop セットアップ', 'zh-CN': 'Claude Desktop 设置' }),
+            body: translated({
+              en: 'Edit ~/Library/Application Support/Claude/claude_desktop_config.json (macOS) or %APPDATA%\\Claude\\claude_desktop_config.json (Windows). Add a mcpServers entry with an absolute path to dist/index.js. Include GOGOMAIL_API_URL, GOGOMAIL_USER_MCP_KEY, and GOGOMAIL_MCP_PERMISSION_MODE.',
+              ko: '~/Library/Application Support/Claude/claude_desktop_config.json (macOS) 또는 %APPDATA%\\Claude\\claude_desktop_config.json (Windows)을 편집합니다. dist/index.js의 절대 경로를 가진 mcpServers 항목을 추가합니다. GOGOMAIL_API_URL, GOGOMAIL_USER_MCP_KEY, GOGOMAIL_MCP_PERMISSION_MODE를 포함합니다.',
+              ja: '~/Library/Application Support/Claude/claude_desktop_config.json（macOS）または %APPDATA%\\Claude\\claude_desktop_config.json（Windows）を編集します。dist/index.js への絶対パスを持つ mcpServers エントリを追加します。GOGOMAIL_API_URL、GOGOMAIL_USER_MCP_KEY、GOGOMAIL_MCP_PERMISSION_MODE を含めます。',
+              'zh-CN': '编辑 ~/Library/Application Support/Claude/claude_desktop_config.json（macOS）或 %APPDATA%\\Claude\\claude_desktop_config.json（Windows）。添加含有 dist/index.js 绝对路径的 mcpServers 条目。包含 GOGOMAIL_API_URL、GOGOMAIL_USER_MCP_KEY 和 GOGOMAIL_MCP_PERMISSION_MODE。',
+            }),
+            examples: [
+              {
+                title: translated({ en: 'Claude Desktop config', ko: 'Claude Desktop 설정', ja: 'Claude Desktop 設定', 'zh-CN': 'Claude Desktop 配置' }),
+                language: 'json',
+                code: `{
+  "mcpServers": {
+    "gogomail-user-mcp": {
+      "command": "node",
+      "args": ["/path/to/gogomail/apps/gogomail-user-mcp/dist/index.js"],
+      "env": {
+        "GOGOMAIL_API_URL": "https://mail.company.com",
+        "GOGOMAIL_USER_MCP_KEY": "gmu_your_key_here",
+        "GOGOMAIL_MCP_PERMISSION_MODE": "basic"
+      }
+    }
+  }
+}`,
+              },
+            ],
+          },
+          {
+            title: translated({ en: 'Permission modes', ko: '권한 모드', ja: '権限モード', 'zh-CN': '权限模式' }),
+            body: translated({
+              en: 'basic mode requires an exact confirm string for write operations (e.g. "send message", "delete message <id>", "trash drive <id>"). This prevents accidental or injected writes. bypass mode skips tool-level confirmation but all GoGoMail auth, key scopes, domain policy, rate limits, and audit still apply. bypass must be explicitly allowed by both user settings and domain policy.',
+              ko: 'basic 모드는 쓰기 작업에 정확한 confirm 문자열이 필요합니다 (예: "send message", "delete message <id>", "trash drive <id>"). 이는 우발적이거나 주입된 쓰기를 방지합니다. bypass 모드는 도구 수준 확인을 건너뛰지만 모든 GoGoMail 인증, 키 스코프, 도메인 정책, 속도 제한, 감사가 여전히 적용됩니다. bypass는 사용자 설정과 도메인 정책 모두에서 명시적으로 허용해야 합니다.',
+              ja: 'basic モードは書き込み操作に正確な confirm 文字列が必要です（例: "send message"、"delete message <id>"、"trash drive <id>"）。これにより意図しない書き込みや注入された書き込みを防ぎます。bypass モードはツールレベルの確認をスキップしますが、GoGoMail の認証、キースコープ、ドメインポリシー、レート制限、監査はすべて適用されます。bypass はユーザー設定とドメインポリシーの両方で明示的に許可する必要があります。',
+              'zh-CN': 'basic 模式要求写入操作提供精确的 confirm 字符串（如 "send message"、"delete message <id>"、"trash drive <id>"）。这防止意外或注入式写入。bypass 模式跳过工具级确认，但所有 GoGoMail 认证、密钥范围、域策略、速率限制和审计仍然适用。bypass 必须同时得到用户设置和域策略的明确允许。',
+            }),
+            items: ['basic', 'bypass'],
+          },
+          {
+            title: translated({ en: 'Mail tools', ko: '메일 도구', ja: 'メールツール', 'zh-CN': '邮件工具' }),
+            body: translated({
+              en: 'gogomail_mail_search (q, folder, from, to, since, until), gogomail_mail_list_messages, gogomail_mail_get_message for reading. gogomail_mail_send (confirm: "send message"), gogomail_mail_save_draft, gogomail_mail_send_draft (confirm: "send draft <id>"). gogomail_mail_update_flags, gogomail_mail_move_message, gogomail_mail_delete_message (confirm: "delete message <id>"). Bulk: gogomail_mail_bulk_update_flags, gogomail_mail_bulk_move_messages, gogomail_mail_bulk_delete_messages.',
+              ko: '읽기에는 gogomail_mail_search (q, folder, from, to, since, until), gogomail_mail_list_messages, gogomail_mail_get_message를 사용합니다. 전송에는 gogomail_mail_send (confirm: "send message"), gogomail_mail_save_draft, gogomail_mail_send_draft (confirm: "send draft <id>")를 사용합니다. gogomail_mail_update_flags, gogomail_mail_move_message, gogomail_mail_delete_message (confirm: "delete message <id>"). 일괄: gogomail_mail_bulk_update_flags, gogomail_mail_bulk_move_messages, gogomail_mail_bulk_delete_messages.',
+              ja: '読み取りには gogomail_mail_search（q、folder、from、to、since、until）、gogomail_mail_list_messages、gogomail_mail_get_message。送信には gogomail_mail_send（confirm: "send message"）、gogomail_mail_save_draft、gogomail_mail_send_draft（confirm: "send draft <id>"）。gogomail_mail_update_flags、gogomail_mail_move_message、gogomail_mail_delete_message（confirm: "delete message <id>"）。一括: gogomail_mail_bulk_update_flags、gogomail_mail_bulk_move_messages、gogomail_mail_bulk_delete_messages。',
+              'zh-CN': '阅读使用 gogomail_mail_search（q、folder、from、to、since、until）、gogomail_mail_list_messages、gogomail_mail_get_message。发送使用 gogomail_mail_send（confirm: "send message"）、gogomail_mail_save_draft、gogomail_mail_send_draft（confirm: "send draft <id>"）。gogomail_mail_update_flags、gogomail_mail_move_message、gogomail_mail_delete_message（confirm: "delete message <id>"）。批量：gogomail_mail_bulk_update_flags、gogomail_mail_bulk_move_messages、gogomail_mail_bulk_delete_messages。',
+            }),
+            items: ['gogomail_mail_search', 'gogomail_mail_send', 'gogomail_mail_save_draft', 'gogomail_mail_update_flags', 'gogomail_mail_move_message', 'gogomail_mail_delete_message', 'gogomail_mail_bulk_update_flags', 'gogomail_mail_bulk_move_messages', 'gogomail_mail_bulk_delete_messages'],
+          },
+          {
+            title: translated({ en: 'DM tools', ko: 'DM 도구', ja: 'DM ツール', 'zh-CN': '私信工具' }),
+            body: translated({
+              en: 'gogomail_dm_list_rooms, gogomail_dm_create_room (confirm: "create dm room"), gogomail_dm_add_members, gogomail_dm_remove_member. gogomail_dm_list_messages, gogomail_dm_send_message (confirm: "send dm message <room_id>"), gogomail_dm_send_attachment, gogomail_dm_toggle_reaction. gogomail_dm_search, gogomail_dm_list_media, gogomail_dm_download_attachment. Per-room AES-256-GCM encryption. Participant-only access.',
+              ko: 'gogomail_dm_list_rooms, gogomail_dm_create_room (confirm: "create dm room"), gogomail_dm_add_members, gogomail_dm_remove_member. gogomail_dm_list_messages, gogomail_dm_send_message (confirm: "send dm message <room_id>"), gogomail_dm_send_attachment, gogomail_dm_toggle_reaction. gogomail_dm_search, gogomail_dm_list_media, gogomail_dm_download_attachment. 룸별 AES-256-GCM 암호화. 참여자 전용 접근.',
+              ja: 'gogomail_dm_list_rooms、gogomail_dm_create_room（confirm: "create dm room"）、gogomail_dm_add_members、gogomail_dm_remove_member。gogomail_dm_list_messages、gogomail_dm_send_message（confirm: "send dm message <room_id>"）、gogomail_dm_send_attachment、gogomail_dm_toggle_reaction。gogomail_dm_search、gogomail_dm_list_media、gogomail_dm_download_attachment。ルームごとの AES-256-GCM 暗号化。参加者専用アクセス。',
+              'zh-CN': 'gogomail_dm_list_rooms、gogomail_dm_create_room（confirm: "create dm room"）、gogomail_dm_add_members、gogomail_dm_remove_member。gogomail_dm_list_messages、gogomail_dm_send_message（confirm: "send dm message <room_id>"）、gogomail_dm_send_attachment、gogomail_dm_toggle_reaction。gogomail_dm_search、gogomail_dm_list_media、gogomail_dm_download_attachment。逐房间 AES-256-GCM 加密，仅参与者可访问。',
+            }),
+            items: ['gogomail_dm_list_rooms', 'gogomail_dm_create_room', 'gogomail_dm_list_messages', 'gogomail_dm_send_message', 'gogomail_dm_send_attachment', 'gogomail_dm_search'],
+          },
+          {
+            title: translated({ en: 'Drive and calendar tools', ko: '드라이브 및 캘린더 도구', ja: 'ドライブとカレンダーツール', 'zh-CN': 'Drive 和日历工具' }),
+            body: translated({
+              en: 'gogomail_drive_list, gogomail_drive_download, gogomail_drive_create_text_file, gogomail_drive_share_link (confirm: "share drive <id>"), gogomail_drive_trash (confirm: "trash drive <id>"), gogomail_drive_delete (confirm: "delete drive <id>"; file must be trashed first). gogomail_calendar_list, gogomail_calendar_upsert_event_simple (title, start, end, description, location), gogomail_calendar_list_objects, gogomail_calendar_delete_object.',
+              ko: 'gogomail_drive_list, gogomail_drive_download, gogomail_drive_create_text_file, gogomail_drive_share_link (confirm: "share drive <id>"), gogomail_drive_trash (confirm: "trash drive <id>"), gogomail_drive_delete (confirm: "delete drive <id>"; 파일을 먼저 휴지통으로 이동해야 함). gogomail_calendar_list, gogomail_calendar_upsert_event_simple (title, start, end, description, location), gogomail_calendar_list_objects, gogomail_calendar_delete_object.',
+              ja: 'gogomail_drive_list、gogomail_drive_download、gogomail_drive_create_text_file、gogomail_drive_share_link（confirm: "share drive <id>"）、gogomail_drive_trash（confirm: "trash drive <id>"）、gogomail_drive_delete（confirm: "delete drive <id>"；先にゴミ箱に移動が必要）。gogomail_calendar_list、gogomail_calendar_upsert_event_simple（title、start、end、description、location）、gogomail_calendar_list_objects、gogomail_calendar_delete_object。',
+              'zh-CN': 'gogomail_drive_list、gogomail_drive_download、gogomail_drive_create_text_file、gogomail_drive_share_link（confirm: "share drive <id>"）、gogomail_drive_trash（confirm: "trash drive <id>"）、gogomail_drive_delete（confirm: "delete drive <id>"；文件必须先被移入回收站）。gogomail_calendar_list、gogomail_calendar_upsert_event_simple（title、start、end、description、location）、gogomail_calendar_list_objects、gogomail_calendar_delete_object。',
+            }),
+            items: ['gogomail_drive_list', 'gogomail_drive_create_text_file', 'gogomail_drive_share_link', 'gogomail_drive_trash', 'gogomail_drive_delete', 'gogomail_calendar_list', 'gogomail_calendar_upsert_event_simple', 'gogomail_calendar_delete_object'],
+          },
+          {
+            title: translated({ en: 'Contacts and spam tools', ko: '연락처 및 스팸 도구', ja: '連絡先とスパムツール', 'zh-CN': '联系人和垃圾邮件工具' }),
+            body: translated({
+              en: 'gogomail_contacts_upsert_simple (name, email, phone, address — generates vCard), gogomail_contacts_autocomplete, gogomail_directory_search_users, gogomail_directory_org_tree. gogomail_spam_report_message, gogomail_spam_mark_not_spam, gogomail_spam_add_sender (block/allow), gogomail_spam_remove_sender.',
+              ko: 'gogomail_contacts_upsert_simple (name, email, phone, address — vCard 생성), gogomail_contacts_autocomplete, gogomail_directory_search_users, gogomail_directory_org_tree. gogomail_spam_report_message, gogomail_spam_mark_not_spam, gogomail_spam_add_sender (차단/허용), gogomail_spam_remove_sender.',
+              ja: 'gogomail_contacts_upsert_simple（name、email、phone、address — vCard 生成）、gogomail_contacts_autocomplete、gogomail_directory_search_users、gogomail_directory_org_tree。gogomail_spam_report_message、gogomail_spam_mark_not_spam、gogomail_spam_add_sender（ブロック/許可）、gogomail_spam_remove_sender。',
+              'zh-CN': 'gogomail_contacts_upsert_simple（name、email、phone、address — 生成 vCard）、gogomail_contacts_autocomplete、gogomail_directory_search_users、gogomail_directory_org_tree。gogomail_spam_report_message、gogomail_spam_mark_not_spam、gogomail_spam_add_sender（屏蔽/允许）、gogomail_spam_remove_sender。',
+            }),
+            items: ['gogomail_contacts_upsert_simple', 'gogomail_contacts_autocomplete', 'gogomail_directory_search_users', 'gogomail_spam_report_message', 'gogomail_spam_mark_not_spam', 'gogomail_spam_add_sender'],
+          },
+          {
+            title: translated({ en: 'Workflow: inbox cleanup', ko: '워크플로: 받은편지함 정리', ja: 'ワークフロー：受信トレイ整理', 'zh-CN': '工作流：收件箱整理' }),
+            body: translated({
+              en: 'Ask: "Find all unread emails from newsletters@*.com received this month, star the three most recent, and move the rest to my Newsletter folder." Agent calls: mail_search → mail_bulk_update_flags (star) → mail_bulk_move_messages (confirm: "bulk move messages").',
+              ko: '"이번 달에 newsletters@*.com에서 받은 읽지 않은 메일을 모두 찾아 최근 3개에 별표를 달고 나머지는 뉴스레터 폴더로 이동해줘." 에이전트 호출: mail_search → mail_bulk_update_flags (별표) → mail_bulk_move_messages (confirm: "bulk move messages").',
+              ja: '"今月 newsletters@*.com から届いた未読メールをすべて探し、最新の 3 件にスターを付けて、残りを Newsletter フォルダーに移動して。" エージェントの呼び出し: mail_search → mail_bulk_update_flags（スター）→ mail_bulk_move_messages（confirm: "bulk move messages"）。',
+              'zh-CN': '请求："找出本月从 newsletters@*.com 收到的所有未读邮件，给最近的三封加星标，并把其余的移到我的 Newsletter 文件夹。" 智能体调用：mail_search → mail_bulk_update_flags（加星标）→ mail_bulk_move_messages（confirm: "bulk move messages"）。',
+            }),
+            examples: [
+              {
+                title: translated({ en: 'Tool call sequence', ko: '도구 호출 순서', ja: 'ツール呼び出し順序', 'zh-CN': '工具调用顺序' }),
+                language: 'text',
+                code: `1. gogomail_mail_search({ from: "newsletters@*.com", since: "2026-05-01", folder: "inbox" })
+2. gogomail_mail_bulk_update_flags({ messageIds: ["<id1>","<id2>","<id3>"], flags: { starred: true } })
+3. gogomail_mail_bulk_move_messages({ messageIds: [...rest], folder: "Newsletter", confirm: "bulk move messages" })`,
+              },
+            ],
+          },
+          {
+            title: translated({ en: 'Workflow: DM room and Drive share', ko: '워크플로: DM 룸 및 Drive 공유', ja: 'ワークフロー：DM ルームと Drive 共有', 'zh-CN': '工作流：私信房间和 Drive 分享' }),
+            body: translated({
+              en: 'Ask: "Create a group DM room named \'Project Alpha\' with alice and bob, upload this report to Drive, and send the Drive link to that room." Agent calls: directory_search_users → dm_create_room → drive_create_text_file → dm_send_message (with drive_file_id).',
+              ko: '"alice와 bob과 함께 \'Project Alpha\'라는 그룹 DM 룸을 만들고, 이 보고서를 Drive에 업로드한 뒤 그 링크를 해당 룸에 보내줘." 에이전트 호출: directory_search_users → dm_create_room → drive_create_text_file → dm_send_message (drive_file_id 포함).',
+              ja: '"alice と bob と一緒に「Project Alpha」というグループ DM ルームを作成し、このレポートを Drive にアップロードして、そのリンクをそのルームに送って。" エージェントの呼び出し: directory_search_users → dm_create_room → drive_create_text_file → dm_send_message（drive_file_id を含む）。',
+              'zh-CN': '请求："创建一个名为 \'Project Alpha\' 的群组私信房间，邀请 alice 和 bob，把这份报告上传到 Drive，然后把 Drive 链接发到那个房间。" 智能体调用：directory_search_users → dm_create_room → drive_create_text_file → dm_send_message（含 drive_file_id）。',
+            }),
+            examples: [
+              {
+                title: translated({ en: 'Tool call sequence', ko: '도구 호출 순서', ja: 'ツール呼び出し順序', 'zh-CN': '工具调用顺序' }),
+                language: 'text',
+                code: `1. gogomail_directory_search_users({ query: "alice" })
+2. gogomail_directory_search_users({ query: "bob" })
+3. gogomail_dm_create_room({ name: "Project Alpha", memberIds: ["<alice_id>","<bob_id>"], confirm: "create dm room" })
+4. gogomail_drive_create_text_file({ name: "report.md", content: "..." })
+5. gogomail_dm_send_message({ roomId: "<room_id>", text: "Report ready: [Drive link]", driveFileId: "<file_id>", confirm: "send dm message <room_id>" })`,
+              },
+            ],
+          },
+          {
+            title: translated({ en: 'Outbound mail notice', ko: '발신 메일 공지', ja: '送信メール通知', 'zh-CN': '外发邮件通知' }),
+            body: translated({
+              en: 'By default, outbound mail sent through the user MCP prepends the notice "MCP를 통해 작성된 메일입니다." (sent via MCP). This can be disabled per user in MCP settings or enforced by domain policy. Check gogomail_mcp_get_settings to see the current setting.',
+              ko: '기본적으로 사용자 MCP를 통해 발송된 메일에는 "MCP를 통해 작성된 메일입니다."라는 공지가 앞에 추가됩니다. 이는 MCP 설정에서 사용자별로 비활성화하거나 도메인 정책으로 강제할 수 있습니다. 현재 설정을 확인하려면 gogomail_mcp_get_settings를 확인합니다.',
+              ja: 'デフォルトでは、ユーザー MCP を通じて送信された送信メールに "MCP를 통해 작성된 메일입니다." (MCP 経由で送信) という通知が先頭に付きます。これはユーザーごとに MCP 設定で無効にするか、ドメインポリシーで強制できます。現在の設定を確認するには gogomail_mcp_get_settings を確認します。',
+              'zh-CN': '默认情况下，通过用户 MCP 发送的外发邮件会在前面添加通知 "MCP를 통해 작성된 메일입니다."（通过 MCP 发送）。这可以在 MCP 设置中按用户禁用，或通过域策略强制执行。使用 gogomail_mcp_get_settings 查看当前设置。',
+            }),
+            items: ['gogomail_mcp_get_settings'],
           },
         ],
       },

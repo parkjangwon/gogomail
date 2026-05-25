@@ -18,6 +18,7 @@ function nav(locale: DocsLocale, messages: DocsMessages): DefaultTheme.NavItem[]
     { text: messages.nav.home, link: localizedPath(locale, '/') },
     { text: messages.nav.adminConsole, link: localizedPath(locale, '/admin-console/') },
     { text: messages.nav.webmail, link: localizedPath(locale, '/webmail/') },
+    { text: messages.nav.mcp, link: localizedPath(locale, '/mcp/') },
     { text: messages.pages.glossary.title, link: localizedPath(locale, '/glossary') },
   ];
 }
@@ -61,6 +62,15 @@ function sidebar(locale: DocsLocale, messages: DocsMessages): DefaultTheme.Sideb
         page('webmailSettings', '/webmail/settings'),
         page('webmailApps', '/webmail/apps'),
         page('webmailShortcuts', '/webmail/shortcuts'),
+      ],
+    },
+    {
+      text: messages.nav.mcp,
+      collapsed: false,
+      items: [
+        page('mcpOverview', '/mcp/'),
+        page('manageMcp', '/mcp/manage'),
+        page('userMcp', '/mcp/user'),
       ],
     },
   ];
