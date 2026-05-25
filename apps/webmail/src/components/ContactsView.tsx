@@ -269,6 +269,9 @@ export function ContactsView({ onCompose }: ContactsViewProps) {
         });
       } else if (e.key === 'c') {
         if (selectedParsed?.email && onCompose) {
+          e.preventDefault();
+          e.stopPropagation();
+          e.stopImmediatePropagation();
           onCompose(selectedParsed.email);
         }
       } else if (e.key === 'Delete' || e.key === 'Backspace') {

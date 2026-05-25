@@ -1187,6 +1187,12 @@ export default function MailPage() {
         return;
       }
 
+      if (key === 's' && !e.ctrlKey && !e.metaKey && !e.altKey && !composeContext) {
+        e.preventDefault();
+        openCompose({ intent: 'new' });
+        return;
+      }
+
       if (!isMailApp) {
         switch (key) {
           case '?':
@@ -1232,12 +1238,6 @@ export default function MailPage() {
           }
           break;
         }
-        case 's':
-          if (!e.ctrlKey && !e.metaKey && !e.altKey && !composeContext) {
-            e.preventDefault();
-            openCompose({ intent: 'new' });
-          }
-          break;
         case 'n': {
           // Next unread message
           const nextUnread = list.slice(currentIdx + 1).find((m) => !m.read);

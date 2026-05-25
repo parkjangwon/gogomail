@@ -28,7 +28,7 @@ Last updated: 2026-05-25 (DM instant messaging implementation)
   message IDs, search/media side views, invite creation, member/owner controls,
   reactions, edit/delete actions, and localized labels.
 - DM modal copy is covered by the webmail locale files, the global shortcut is
-  documented as `d` in both shortcut help and settings, and direct-room creation
+  documented as the backtick key (`) in both shortcut help and settings, and direct-room creation
   now succeeds against the live API after fixing the direct-room lookup SQL bind
   parameters. Invalid non-UUID participant IDs now return 400 instead of 500.
 - DM message sending now guards IME composition to prevent duplicate Korean
@@ -49,7 +49,9 @@ Last updated: 2026-05-25 (DM instant messaging implementation)
   members, supports matching by organization unit names, and shows profile
   avatars in search results. The DM global shortcut is the backtick key (`), and
   both the keyboard shortcut help modal and Settings shortcut table show that
-  same key. Keyboard shortcut help and Settings also list app-specific Calendar
+  same key. The compose shortcut `s` is global outside text inputs, and the
+  Contacts `c` compose shortcut prevents the key itself from entering the
+  recipient field. Keyboard shortcut help and Settings also list app-specific Calendar
   shortcuts (`d`, `w`, `m`, `t`, arrow navigation) and Contacts shortcuts
   (`j/k`, `c`, delete, select-all, escape). The DM flow uses a conversation-list
   first layout with a back button into the list. The webmail panel offers a
