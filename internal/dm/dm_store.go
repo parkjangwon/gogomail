@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/lib/pq"
 )
 
@@ -861,18 +862,19 @@ RETURNING id::text, created_at`
 	return msg, nil
 }
 
-func findDirectRoomTx(ctx context.Context, tx *sql.Tx, principal Principal, a string, b string) (Room, bool, error) {
-	const query = `
+const findDirectRoomQuery = `
 SELECT r.id::text, r.company_id::text, r.domain_id::text, r.room_type, COALESCE(r.visibility, ''),
   COALESCE(r.name, ''), COALESCE(r.owner_id::text, ''), r.created_by::text, r.created_at,
   0, 2, ''
 FROM dm_rooms r
-JOIN dm_participants p1 ON p1.room_id = r.id AND p1.user_id = $4
-JOIN dm_participants p2 ON p2.room_id = r.id AND p2.user_id = $5
+JOIN dm_participants p1 ON p1.room_id = r.id AND p1.user_id = $3
+JOIN dm_participants p2 ON p2.room_id = r.id AND p2.user_id = $4
 WHERE r.company_id = $1 AND r.domain_id = $2 AND r.room_type = 'direct'
   AND (SELECT COUNT(*) FROM dm_participants pc WHERE pc.room_id = r.id) = 2
 LIMIT 1`
-	room, err := scanRoom(tx.QueryRowContext(ctx, query, principal.CompanyID, principal.DomainID, principal.UserID, a, b))
+
+func findDirectRoomTx(ctx context.Context, tx *sql.Tx, principal Principal, a string, b string) (Room, bool, error) {
+	room, err := scanRoom(tx.QueryRowContext(ctx, findDirectRoomQuery, principal.CompanyID, principal.DomainID, a, b))
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return Room{}, false, nil
@@ -934,6 +936,9 @@ func usersInScope(ctx context.Context, tx *sql.Tx, principal Principal, userIDs 
 	if len(ids) == 0 {
 		return nil, nil
 	}
+	if err := validateUUIDs(ids); err != nil {
+		return nil, err
+	}
 	const query = `
 SELECT u.id::text, d.company_id::text, u.domain_id::text, u.display_name
 FROM users u
@@ -963,6 +968,9 @@ func usersInScopeDB(ctx context.Context, db *sql.DB, principal Principal, userID
 	ids := cleanIDs(userIDs)
 	if len(ids) == 0 {
 		return nil, nil
+	}
+	if err := validateUUIDs(ids); err != nil {
+		return nil, err
 	}
 	const query = `
 SELECT u.id::text, d.company_id::text, u.domain_id::text, u.display_name
@@ -1170,6 +1178,15 @@ func sortedPair(a, b string) []string {
 		return []string{a, b}
 	}
 	return []string{b, a}
+}
+
+func validateUUIDs(ids []string) error {
+	for _, id := range ids {
+		if _, err := uuid.Parse(id); err != nil {
+			return fmt.Errorf("%w: user_ids must be UUIDs", ErrInvalid)
+		}
+	}
+	return nil
 }
 
 func reverseMessageRecords(records []MessageRecord) {

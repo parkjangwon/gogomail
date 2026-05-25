@@ -248,6 +248,24 @@ func TestServiceCreateDirectRoomRejectsSelf(t *testing.T) {
 	}
 }
 
+func TestValidateUUIDsRejectsDirectoryAliases(t *testing.T) {
+	err := validateUUIDs([]string{"kang.hyunjae@parkjw.org"})
+	if !errors.Is(err, ErrInvalid) {
+		t.Fatalf("validateUUIDs err = %v, want ErrInvalid", err)
+	}
+}
+
+func TestFindDirectRoomQueryUsesContiguousParameters(t *testing.T) {
+	if strings.Contains(findDirectRoomQuery, "$5") {
+		t.Fatalf("findDirectRoomQuery has an unused parameter gap: %s", findDirectRoomQuery)
+	}
+	for _, parameter := range []string{"$1", "$2", "$3", "$4"} {
+		if !strings.Contains(findDirectRoomQuery, parameter) {
+			t.Fatalf("findDirectRoomQuery missing %s", parameter)
+		}
+	}
+}
+
 func TestServiceToggleReactionRequiresSingleEmoji(t *testing.T) {
 	crypto, _ := testCryptoAndWrappedRoomKey(t)
 	service := NewService(&fakeStore{}, crypto)
