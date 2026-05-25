@@ -2367,11 +2367,28 @@ func runOutboxRelay(ctx context.Context, cfg config.Config, logger *slog.Logger)
 	}
 	defer redisClient.Close()
 
+	// Choose store: sharded (for partition-ordered multi-process scaling) or plain.
+	var store outbox.Store
+	if cfg.OutboxRelayShardTotal > 1 {
+		sharded, err := outbox.NewShardedPostgresStore(db, cfg.OutboxRelayMaxAttempts, cfg.OutboxRelayShardTotal, cfg.OutboxRelayShardIndex)
+		if err != nil {
+			return fmt.Errorf("create sharded outbox store: %w", err)
+		}
+		store = sharded
+		logger.Info("outbox relay sharding enabled",
+			"shard_index", cfg.OutboxRelayShardIndex,
+			"shard_total", cfg.OutboxRelayShardTotal,
+		)
+	} else {
+		store = outbox.NewPostgresStore(db, cfg.OutboxRelayMaxAttempts)
+	}
+
 	relay, err := outbox.NewRelay(outbox.RelayOptions{
-		Store:        outbox.NewPostgresStore(db, cfg.OutboxRelayMaxAttempts),
+		Store:        store,
 		Publisher:    outbox.NewRedisStreamPublisher(redisClient, cfg.EventStream),
 		BatchSize:    cfg.OutboxRelayBatchSize,
 		PollInterval: cfg.OutboxRelayPollInterval,
+		WorkerCount:  cfg.OutboxRelayWorkerCount,
 		Logger:       logger,
 	})
 	if err != nil {
@@ -2385,6 +2402,7 @@ func runOutboxRelay(ctx context.Context, cfg config.Config, logger *slog.Logger)
 		"batch_size", cfg.OutboxRelayBatchSize,
 		"poll_interval", cfg.OutboxRelayPollInterval.String(),
 		"max_attempts", cfg.OutboxRelayMaxAttempts,
+		"workers", cfg.OutboxRelayWorkerCount,
 	)
 	return relay.Run(ctx)
 }

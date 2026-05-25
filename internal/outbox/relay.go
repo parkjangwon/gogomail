@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"sync"
 	"time"
 )
 
@@ -41,15 +42,31 @@ type Relay struct {
 	publisher    Publisher
 	batchSize    int
 	pollInterval time.Duration
+	workerCount  int
 	logger       *slog.Logger
 }
 
+// RelayOptions configures a Relay.
+//
+// Horizontal scaling note: PostgresStore uses FOR UPDATE … SKIP LOCKED so
+// multiple Relay instances (or multiple workers within one Relay) can safely
+// run against the same database without double-processing. Each concurrent
+// worker claims a distinct set of rows.
+//
+// For strict per-partition ordering across multiple relay *processes*, use
+// ShardedPostgresStore so each process handles a disjoint subset of
+// partition keys.
 type RelayOptions struct {
 	Store        Store
 	Publisher    Publisher
 	BatchSize    int
 	PollInterval time.Duration
-	Logger       *slog.Logger
+	// WorkerCount is the number of parallel goroutines each Relay runs.
+	// Zero or negative defaults to 1 (single worker, backward-compatible).
+	// With WorkerCount > 1 the Relay launches N independent poll loops;
+	// Postgres SKIP LOCKED prevents double-claiming.
+	WorkerCount int
+	Logger      *slog.Logger
 }
 
 func NewRelay(opts RelayOptions) (*Relay, error) {
@@ -65,6 +82,9 @@ func NewRelay(opts RelayOptions) (*Relay, error) {
 	if opts.PollInterval <= 0 {
 		opts.PollInterval = time.Second
 	}
+	if opts.WorkerCount <= 0 {
+		opts.WorkerCount = 1
+	}
 	if opts.Logger == nil {
 		opts.Logger = slog.Default()
 	}
@@ -74,17 +94,50 @@ func NewRelay(opts RelayOptions) (*Relay, error) {
 		publisher:    opts.Publisher,
 		batchSize:    opts.BatchSize,
 		pollInterval: opts.PollInterval,
+		workerCount:  opts.WorkerCount,
 		logger:       opts.Logger,
 	}, nil
 }
 
+// Run starts the relay and blocks until ctx is cancelled.
+//
+// When WorkerCount == 1 (the default) it runs a single poll loop identical to
+// the pre-scaling behaviour.  When WorkerCount > 1 it launches N independent
+// goroutines, each running their own poll loop.  Postgres FOR UPDATE … SKIP
+// LOCKED prevents double-claiming across goroutines and across relay
+// *processes*, so this is safe to scale both horizontally (multiple Relay
+// processes) and vertically (multiple workers within one process).
 func (r *Relay) Run(ctx context.Context) error {
+	if r.workerCount <= 1 {
+		return r.runWorker(ctx, 0)
+	}
+
+	var wg sync.WaitGroup
+	for i := range r.workerCount {
+		wg.Add(1)
+		go func(idx int) {
+			defer wg.Done()
+			if err := r.runWorker(ctx, idx); err != nil {
+				r.logger.Error("outbox relay worker exited with error", "worker", idx, "error", err)
+			}
+		}(i)
+	}
+	wg.Wait()
+	return nil
+}
+
+// runWorker runs a single poll loop for worker idx.
+func (r *Relay) runWorker(ctx context.Context, idx int) error {
+	log := r.logger
+	if r.workerCount > 1 {
+		log = r.logger.With("worker", idx)
+	}
 	ticker := time.NewTicker(r.pollInterval)
 	defer ticker.Stop()
 
 	for {
 		if _, err := r.ProcessOnce(ctx); err != nil {
-			r.logger.Error("outbox relay batch failed", "error", err)
+			log.Error("outbox relay batch failed", "error", err)
 		}
 
 		select {
