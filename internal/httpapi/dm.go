@@ -203,6 +203,7 @@ func RegisterDMRoutes(mux *http.ServeMux, service DMService, tokenManager *auth.
 			writeDMError(w, err)
 			return
 		}
+		addDMMessageAttachmentDownloadURLs(messages, service, publicBaseURL)
 		writeJSON(w, http.StatusOK, map[string]any{"messages": messages})
 	})
 
@@ -239,6 +240,7 @@ func RegisterDMRoutes(mux *http.ServeMux, service DMService, tokenManager *auth.
 			writeDMError(w, err)
 			return
 		}
+		addDMMessageAttachmentDownloadURL(&message, service, publicBaseURL)
 		writeJSON(w, http.StatusCreated, map[string]any{"message": message})
 	})
 
@@ -358,6 +360,7 @@ func RegisterDMRoutes(mux *http.ServeMux, service DMService, tokenManager *auth.
 			writeDMError(w, err)
 			return
 		}
+		addDMMessageAttachmentDownloadURL(&message, service, publicBaseURL)
 		writeJSON(w, http.StatusOK, map[string]any{"message": message})
 	})
 
@@ -371,6 +374,7 @@ func RegisterDMRoutes(mux *http.ServeMux, service DMService, tokenManager *auth.
 			writeDMError(w, err)
 			return
 		}
+		addDMMessageAttachmentDownloadURL(&message, service, publicBaseURL)
 		writeJSON(w, http.StatusOK, map[string]any{"message": message})
 	})
 

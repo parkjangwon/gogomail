@@ -223,7 +223,9 @@ DM attachments use `POST /api/v1/dm/rooms/{id}/attachments` with
 written through the configured object store, while the storage path persisted in
 `dm_messages.attachment_storage_path` is encrypted with the room key. Attachment
 names, sizes, and MIME types remain plaintext metadata for media listing.
-File media responses include a one-hour signed `download_url` for
+File message responses, including message list reloads and attachment upload
+responses, include a one-hour signed `attachment_download_url`. File media
+responses include the same signed URL as `download_url` for
 `GET /api/v1/dm/messages/{id}/attachment?token=...`; the token is scoped to the
 message id and expiry, and the service verifies it before unwrapping the room
 key, decrypting the storage path, and streaming bytes from object storage.
