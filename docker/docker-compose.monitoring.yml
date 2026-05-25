@@ -1,0 +1,101 @@
+# docker/docker-compose.monitoring.yml
+# Monitoring overlay: Prometheus + Loki + Promtail + Grafana
+#
+# Usage:
+#   docker compose -f docker/docker-compose.dev.yml   -f docker/docker-compose.monitoring.yml up -d
+#   docker compose -f docker/docker-compose.small.yml -f docker/docker-compose.monitoring.yml up -d
+#
+# Agent API surface:
+#   Prometheus:  http://localhost:9090/api/v1/query?query=<PromQL>
+#   Loki:        http://localhost:3100/loki/api/v1/query_range?query=<LogQL>&start=<ns>&end=<ns>&limit=100
+#   Grafana UI:  http://localhost:3000  (admin / $GRAFANA_PASSWORD)
+
+services:
+  # Extend backend: enable Prometheus metrics on :9091
+  backend:
+    environment:
+      GOGOMAIL_METRICS_BACKEND: prometheus
+      GOGOMAIL_METRICS_ADDR: ":9091"
+    networks:
+      - gogomail-monitoring
+
+  # Prometheus — scrapes backend:9091/metrics every 15s
+  prometheus:
+    image: prom/prometheus:v2.53.1
+    container_name: gogomail-prometheus
+    restart: unless-stopped
+    ports:
+      - "${PROMETHEUS_PORT:-9090}:9090"
+    volumes:
+      - ./prometheus-monitoring.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-monitoring-data:/prometheus
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=30d
+      - --web.enable-lifecycle
+      - --web.enable-admin-api
+    networks:
+      - gogomail-monitoring
+
+  # Loki — log aggregation, filesystem storage
+  loki:
+    image: grafana/loki:3.1.0
+    container_name: gogomail-loki
+    restart: unless-stopped
+    ports:
+      - "${LOKI_PORT:-3100}:3100"
+    volumes:
+      - ./loki-config.yml:/etc/loki/local-config.yaml:ro
+      - loki-monitoring-data:/loki
+    command: -config.file=/etc/loki/local-config.yaml
+    networks:
+      - gogomail-monitoring
+
+  # Promtail — ships Docker container logs to Loki via Docker socket
+  promtail:
+    image: grafana/promtail:3.1.0
+    container_name: gogomail-promtail
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - promtail-positions:/tmp
+      - ./promtail-config.yml:/etc/promtail/config.yml:ro
+    command: -config.file=/etc/promtail/config.yml
+    depends_on:
+      - loki
+    networks:
+      - gogomail-monitoring
+
+  # Grafana — dashboards pre-provisioned with Prometheus + Loki
+  grafana:
+    image: grafana/grafana:11.1.0
+    container_name: gogomail-grafana
+    restart: unless-stopped
+    ports:
+      - "${GRAFANA_PORT:-3000}:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: "${GRAFANA_PASSWORD:-admin}"
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+      GF_SECURITY_ALLOW_EMBEDDING: "true"
+    volumes:
+      - grafana-monitoring-data:/var/lib/grafana
+      - ./grafana-provisioning:/etc/grafana/provisioning:ro
+    depends_on:
+      - prometheus
+      - loki
+    networks:
+      - gogomail-monitoring
+
+volumes:
+  prometheus-monitoring-data:
+  loki-monitoring-data:
+  grafana-monitoring-data:
+  promtail-positions:
+
+networks:
+  gogomail-monitoring:
+    driver: bridge

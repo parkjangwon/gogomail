@@ -1,0 +1,15 @@
+# Prometheus config for monitoring overlay.
+# Scrapes backend:9091/metrics — port set via GOGOMAIL_METRICS_ADDR in the overlay.
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    deployment: gogomail
+
+scrape_configs:
+  - job_name: gogomail-backend
+    static_configs:
+      - targets: ["backend:9091"]
+    metrics_path: /metrics
+    scrape_interval: 15s
