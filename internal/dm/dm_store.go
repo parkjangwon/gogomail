@@ -800,10 +800,17 @@ func loadMembersForRooms(ctx context.Context, q roomMemberQuerier, rooms []Room)
 		roomIDs = append(roomIDs, room.ID)
 	}
 	const query = `
-SELECT p.room_id::text, u.id::text, d.company_id::text, u.domain_id::text, u.display_name, COALESCE(u.settings->>'avatar_url', '')
+SELECT p.room_id::text, u.id::text, d.company_id::text, u.domain_id::text, u.display_name, COALESCE(primary_addr.address, ''), COALESCE(u.settings->>'avatar_url', '')
 FROM dm_participants p
 JOIN users u ON u.id = p.user_id
 JOIN domains d ON d.id = u.domain_id
+LEFT JOIN LATERAL (
+  SELECT ua.address
+  FROM user_addresses ua
+  WHERE ua.user_id = u.id
+  ORDER BY ua.is_primary DESC, ua.address ASC
+  LIMIT 1
+) primary_addr ON true
 WHERE p.room_id = ANY($1::uuid[])
 ORDER BY p.joined_at ASC, u.display_name ASC`
 	rows, err := q.QueryContext(ctx, query, pq.Array(roomIDs))
@@ -815,7 +822,7 @@ ORDER BY p.joined_at ASC, u.display_name ASC`
 	for rows.Next() {
 		var roomID string
 		var u User
-		if err := rows.Scan(&roomID, &u.ID, &u.CompanyID, &u.DomainID, &u.DisplayName, &u.AvatarURL); err != nil {
+		if err := rows.Scan(&roomID, &u.ID, &u.CompanyID, &u.DomainID, &u.DisplayName, &u.Email, &u.AvatarURL); err != nil {
 			return nil, err
 		}
 		membersByRoom[roomID] = append(membersByRoom[roomID], u)
@@ -998,9 +1005,16 @@ func usersInScope(ctx context.Context, tx *sql.Tx, principal Principal, userIDs 
 		return nil, err
 	}
 	const query = `
-SELECT u.id::text, d.company_id::text, u.domain_id::text, u.display_name, COALESCE(u.settings->>'avatar_url', '')
+SELECT u.id::text, d.company_id::text, u.domain_id::text, u.display_name, COALESCE(primary_addr.address, ''), COALESCE(u.settings->>'avatar_url', '')
 FROM users u
 JOIN domains d ON d.id = u.domain_id
+LEFT JOIN LATERAL (
+  SELECT ua.address
+  FROM user_addresses ua
+  WHERE ua.user_id = u.id
+  ORDER BY ua.is_primary DESC, ua.address ASC
+  LIMIT 1
+) primary_addr ON true
 WHERE u.id = ANY($1::uuid[])
   AND u.domain_id = $2
   AND d.company_id = $3
@@ -1014,7 +1028,7 @@ WHERE u.id = ANY($1::uuid[])
 	var users []User
 	for rows.Next() {
 		var u User
-		if err := rows.Scan(&u.ID, &u.CompanyID, &u.DomainID, &u.DisplayName, &u.AvatarURL); err != nil {
+		if err := rows.Scan(&u.ID, &u.CompanyID, &u.DomainID, &u.DisplayName, &u.Email, &u.AvatarURL); err != nil {
 			return nil, err
 		}
 		users = append(users, u)
@@ -1031,9 +1045,16 @@ func usersInScopeDB(ctx context.Context, db *sql.DB, principal Principal, userID
 		return nil, err
 	}
 	const query = `
-SELECT u.id::text, d.company_id::text, u.domain_id::text, u.display_name, COALESCE(u.settings->>'avatar_url', '')
+SELECT u.id::text, d.company_id::text, u.domain_id::text, u.display_name, COALESCE(primary_addr.address, ''), COALESCE(u.settings->>'avatar_url', '')
 FROM users u
 JOIN domains d ON d.id = u.domain_id
+LEFT JOIN LATERAL (
+  SELECT ua.address
+  FROM user_addresses ua
+  WHERE ua.user_id = u.id
+  ORDER BY ua.is_primary DESC, ua.address ASC
+  LIMIT 1
+) primary_addr ON true
 WHERE u.id = ANY($1::uuid[])
   AND u.domain_id = $2
   AND d.company_id = $3
@@ -1047,7 +1068,7 @@ WHERE u.id = ANY($1::uuid[])
 	var users []User
 	for rows.Next() {
 		var u User
-		if err := rows.Scan(&u.ID, &u.CompanyID, &u.DomainID, &u.DisplayName, &u.AvatarURL); err != nil {
+		if err := rows.Scan(&u.ID, &u.CompanyID, &u.DomainID, &u.DisplayName, &u.Email, &u.AvatarURL); err != nil {
 			return nil, err
 		}
 		users = append(users, u)

@@ -205,6 +205,10 @@ Response envelopes are stable:
   indicators.
 - Message send/edit/delete, invite join, and owner transfer return
   `{"message":{...}}`; invite creation returns `{"invite":{...},"invite_url":"..."}`.
+- Reactions can be toggled with `PUT /api/v1/dm/messages/{id}/reactions`
+  using `{"emoji":"..."}`; the legacy emoji path remains available for
+  compatibility, but clients should prefer the body form so non-ASCII emoji do
+  not travel in a URL path segment.
 
 Group mutations are owner-scoped: group owners can add same-domain members,
 remove other members, create private-room invite links, and transfer ownership

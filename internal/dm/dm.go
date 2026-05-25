@@ -48,6 +48,7 @@ type User struct {
 	CompanyID   string `json:"company_id,omitempty"`
 	DomainID    string `json:"domain_id,omitempty"`
 	DisplayName string `json:"display_name"`
+	Email       string `json:"email,omitempty"`
 	AvatarURL   string `json:"avatar_url,omitempty"`
 }
 
