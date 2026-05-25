@@ -539,10 +539,16 @@ func (s *Service) ListMedia(ctx context.Context, principal Principal, roomID str
 	if err := validatePrincipal(principal); err != nil {
 		return nil, err
 	}
+	// Normalize API-level type names to the store's internal tokens.
+	// API uses: "file", "drive_link", "link"
+	// Store uses: "file" (→ listFileMedia), "drive" (→ listDriveMedia), "links" (→ listLinkMedia)
 	switch strings.ToLower(strings.TrimSpace(query.Type)) {
-	case "files", "file", "image", "video", "links", "drive":
+	case "drive_link", "drive":
+		query.Type = "drive"
+	case "link", "links":
+		query.Type = "links"
 	default:
-		query.Type = "files"
+		query.Type = "file"
 	}
 	if query.Limit <= 0 || query.Limit > 100 {
 		query.Limit = 30
