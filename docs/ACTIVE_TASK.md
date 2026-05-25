@@ -2,25 +2,26 @@
 
 ## Current Task
 
-**Task 10: Split internal/app/admin_service.go into domain files** — COMPLETE
+없음 — 모든 계획된 태스크가 완료되었습니다.
 
-## Previous Task Status
+## Last Completed Task
 
-**Task 9: Split internal/httpapi/admin.go into route-group files** — COMPLETE
+**Task 10: Split internal/app/admin_service.go into domain files** — COMPLETE (2026-05-26)
 
-## Current Task Details
-
-**File:** `internal/app/admin_service.go` (was 1,759 lines, now 93 lines)
-**Changes:**
-- Extracted delivery methods → `admin_service_delivery.go` (backpressure, DAV sync retention, API usage export, mail flow stats)
-- Extracted storage methods → `admin_service_storage.go` (attachment cleanup, drive upload sessions, drive nodes)
-- Extracted directory methods → `admin_service_directory.go` (delegation, group membership, alias methods)
-- Extracted user methods → `admin_service_user.go` (user/domain CRUD, MFA, LDAP/RDBMS sync, IdP config)
-- Extracted config methods → `admin_service_config.go` (config store, domain settings, alerts, API keys)
-- `admin_service.go` now contains only the `adminService` struct + interfaces (93 lines)
-- `go build ./internal/app/...` exits 0
+- `internal/app/admin_service.go`: 1,759줄 → 93줄 (struct + interfaces only)
+- `admin_service_delivery.go` / `admin_service_storage.go` / `admin_service_directory.go` / `admin_service_user.go` / `admin_service_config.go` 생성
 - `go test ./internal/app/... -count=1` → 169 passed
 
-## Next Steps After Current Task
+## Recently Completed Plan
 
-→ All 10 tasks in the codebase improvement plan are complete
+10-task codebase improvements plan (`docs/superpowers/plans/2026-05-26-codebase-improvements.md`):
+1. docs/CURRENT_STATUS.md 및 NEXT_STEPS.md 정리
+2. TypeScript 생성 클라이언트 .gitignore 추가
+3. Promtail 컨테이너 보안 강화
+4. User MCP tools.ts → 도메인 모듈 분리
+5. Manage MCP gogomail.ts → 도메인 모듈 분리
+6. webmail/src/lib/api.ts → 도메인별 분리 + 이름 정리
+7. ComposeEditorToolbar + ComposeAttachmentPanel 추출
+8. DMRoomList + DMMessageList + DMComposer + useDMPanel 추출
+9. internal/httpapi/admin.go (8901줄) → 12개 파일로 분리
+10. internal/app/admin_service.go (1759줄) → 5개 도메인 파일로 분리

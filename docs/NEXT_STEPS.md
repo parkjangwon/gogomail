@@ -4,10 +4,8 @@ Last updated: 2026-05-26
 
 ## Current focus
 
-Code quality improvements per Phase 3 evaluation (see plan: docs/superpowers/plans/2026-05-26-codebase-improvements.md):
-- TypeScript file splits (MCP tools, webmail API layer, UI components)
-- Go package refactoring (httpapi/admin.go, app/admin_service.go)
-- Documentation hygiene
+All planned codebase improvements are complete as of 2026-05-26. The platform
+is in post-improvement steady state; immediate focus is on product feature work.
 
 ## Backlog (priority order)
 
