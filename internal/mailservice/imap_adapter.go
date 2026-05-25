@@ -65,6 +65,22 @@ func (a IMAPStoreAdapter) AppendMessage(ctx context.Context, req imapgw.AppendMe
 	return a.service.AppendIMAPMessage(ctx, req)
 }
 
+func (a IMAPStoreAdapter) LookupMessageUIDs(ctx context.Context, userID imapgw.UserID, mailboxID imapgw.MailboxID, messageIDs []imapgw.MessageID) (map[imapgw.MessageID]imapgw.UID, error) {
+	ids := make([]string, 0, len(messageIDs))
+	for _, id := range messageIDs {
+		ids = append(ids, string(id))
+	}
+	raw, err := a.service.LookupIMAPMessageUIDs(ctx, string(userID), string(mailboxID), ids)
+	if err != nil {
+		return nil, err
+	}
+	result := make(map[imapgw.MessageID]imapgw.UID, len(raw))
+	for id, uid := range raw {
+		result[imapgw.MessageID(id)] = imapgw.UID(uid)
+	}
+	return result, nil
+}
+
 func (a IMAPStoreAdapter) SelectMailbox(ctx context.Context, req imapgw.SelectMailboxRequest) (imapgw.MailboxState, error) {
 	mailbox, err := a.service.GetIMAPMailbox(ctx, req.UserID, req.MailboxID)
 	if err != nil {

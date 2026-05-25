@@ -163,6 +163,13 @@ type SearchMessageIDSource interface {
 	SearchMessageIDs(ctx context.Context, req SearchMessagesRequest) ([]MessageID, error)
 }
 
+// MessageUIDLookup resolves a list of message IDs to their IMAP UIDs within a
+// specific mailbox. Used by the UID SEARCH fast path to avoid loading full
+// message summaries when all criteria are satisfied by the search index.
+type MessageUIDLookup interface {
+	LookupMessageUIDs(ctx context.Context, userID UserID, mailboxID MailboxID, messageIDs []MessageID) (map[MessageID]UID, error)
+}
+
 type Store interface {
 	MailboxStore
 	MailboxSubscriptionStore
