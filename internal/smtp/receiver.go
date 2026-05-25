@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net"
 	"os"
 	"strings"
@@ -50,7 +51,11 @@ func (r StaticResolver) ResolveRecipient(_ context.Context, address string) (Mai
 type IDGenerator func() string
 
 type MessageRecorder interface {
-	Record(ctx context.Context, msg ReceivedMessage) error
+	// Record persists the received message and returns the database message ID
+	// (a UUID string) that can be used to correlate log entries across services.
+	// Implementations that do not persist to a database (e.g. noopRecorder)
+	// should return an empty string.
+	Record(ctx context.Context, msg ReceivedMessage) (string, error)
 }
 
 type Deduplicator interface {
@@ -125,6 +130,7 @@ type ReceiverOptions struct {
 	RelayAuthorizer    RelayAuthorizer
 	DomainPolicyLookup DomainPolicyLookup
 	Metrics            Metrics
+	Logger             *slog.Logger // nil → slog.Default()
 	RequireAuth        bool
 	DMARCEnforce       bool
 	SupportSMTPUTF8    bool
@@ -154,6 +160,7 @@ type Receiver struct {
 	relayAuthorizer    RelayAuthorizer
 	domainPolicyLookup DomainPolicyLookup
 	metrics            Metrics
+	logger             *slog.Logger
 	requireAuth        bool
 	dmarcEnforce       bool
 	supportSMTPUTF8    bool
@@ -190,6 +197,10 @@ func NewReceiver(opts ReceiverOptions) *Receiver {
 	if idGenerator == nil {
 		idGenerator = randomMessageID
 	}
+	logger := opts.Logger
+	if logger == nil {
+		logger = slog.Default()
+	}
 	return &Receiver{
 		store:              opts.Store,
 		resolver:           opts.Resolver,
@@ -202,6 +213,7 @@ func NewReceiver(opts ReceiverOptions) *Receiver {
 		relayAuthorizer:    opts.RelayAuthorizer,
 		domainPolicyLookup: opts.DomainPolicyLookup,
 		metrics:            metricsOrDefault(opts.Metrics),
+		logger:             logger,
 		requireAuth:        opts.RequireAuth,
 		dmarcEnforce:       opts.DMARCEnforce,
 		supportSMTPUTF8:    opts.SupportSMTPUTF8,
@@ -573,7 +585,7 @@ func (s *session) Data(r io.Reader) (err error) {
 			s.deleteStoredMessage(path)
 			return err
 		}
-		if err := s.receiver.recorder.Record(s.ctx, ReceivedMessage{
+		dbMessageID, recordErr := s.receiver.recorder.Record(s.ctx, ReceivedMessage{
 			EnvelopeFrom:   s.from,
 			Mailbox:        recipient,
 			DSN:            s.currentDSNOptions(),
@@ -582,13 +594,23 @@ func (s *session) Data(r io.Reader) (err error) {
 			Authentication: authResults,
 			ReceivedAt:     receivedAt,
 			Size:           size,
-		}); err != nil {
+		})
+		if recordErr != nil {
 			s.deleteStoredMessage(path)
-			if errors.Is(err, mail.ErrMailboxFull) {
+			if errors.Is(recordErr, mail.ErrMailboxFull) {
 				return smtpMailboxFull(recipient.Address)
 			}
-			return fmt.Errorf("record message for %s: %w", recipient.Address, err)
+			return fmt.Errorf("record message for %s: %w", recipient.Address, recordErr)
 		}
+		s.receiver.logger.Info("smtp message accepted",
+			"smtp_id", messageID,
+			"message_id", dbMessageID,
+			"envelope_from", s.from,
+			"recipient", recipient.Address,
+			"rfc_message_id", parsed.MessageID,
+			"remote_addr", s.remoteAddr,
+			"size_bytes", size,
+		)
 		if trace != nil {
 			trace.RecordPhaseLatency("recorded", time.Since(storeStart))
 		}
@@ -917,8 +939,8 @@ func clockOrDefault(clock func() time.Time) func() time.Time {
 
 type noopRecorder struct{}
 
-func (noopRecorder) Record(context.Context, ReceivedMessage) error {
-	return nil
+func (noopRecorder) Record(context.Context, ReceivedMessage) (string, error) {
+	return "", nil
 }
 
 func recorderOrDefault(recorder MessageRecorder) MessageRecorder {

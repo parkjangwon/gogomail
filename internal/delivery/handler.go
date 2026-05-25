@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"path"
 	"strings"
 	"time"
@@ -133,13 +134,29 @@ type Handler struct {
 	exhaustionHook ExhaustionHook
 	localResolver  LocalRecipientResolver
 	localDeliverer LocalDeliverer
+	logger         *slog.Logger
 }
 
 func NewHandler(store storage.Store, transport Transport, recorder Recorder, retry RetryScheduler) *Handler {
 	if recorder == nil {
 		recorder = noopRecorder{}
 	}
-	return &Handler{store: store, transport: transport, recorder: recorder, retry: retry, metrics: noopMetrics{}}
+	return &Handler{
+		store:     store,
+		transport: transport,
+		recorder:  recorder,
+		retry:     retry,
+		metrics:   noopMetrics{},
+		logger:    slog.Default(),
+	}
+}
+
+// WithLogger sets the structured logger for per-delivery event logging.
+func (h *Handler) WithLogger(logger *slog.Logger) *Handler {
+	if logger != nil {
+		h.logger = logger
+	}
+	return h
 }
 
 func (h *Handler) WithMetrics(metrics Metrics) *Handler {
@@ -195,6 +212,20 @@ func (h *Handler) HandleEvent(ctx context.Context, msg eventstream.Message) erro
 		return fmt.Errorf("mail.queued payload has no recipients")
 	}
 
+	recipientAddrs := make([]string, len(recipients))
+	for i, r := range recipients {
+		recipientAddrs[i] = r.Email
+	}
+	deliveryStart := time.Now()
+	h.logger.Info("delivery job started",
+		"message_id", queued.MessageID,
+		"rfc_message_id", queued.RFCMessageID,
+		"from", queued.From.Email,
+		"recipients", recipientAddrs,
+		"attempt", queued.RetryAttempt,
+		"size_bytes", queued.Size,
+	)
+
 	job := Job{
 		QueuedMessage: queued,
 		OpenMessage: func(openCtx context.Context) (io.ReadCloser, error) {
@@ -210,6 +241,13 @@ func (h *Handler) HandleEvent(ctx context.Context, msg eventstream.Message) erro
 	}
 	if len(remoteRecipients) == 0 {
 		h.observe(ctx, metricEvent(queued, MetricTransportDelivered, MetricOK, nil))
+		h.logger.Info("delivery succeeded",
+			"message_id", queued.MessageID,
+			"rfc_message_id", queued.RFCMessageID,
+			"recipients", recipientAddrs,
+			"result", "local",
+			"duration_ms", time.Since(deliveryStart).Milliseconds(),
+		)
 		return nil
 	}
 	if len(remoteRecipients) != len(recipients) {
@@ -270,7 +308,18 @@ func (h *Handler) HandleEvent(ctx context.Context, msg eventstream.Message) erro
 				partialResult = MetricDeferred
 			}
 			h.observe(ctx, metricEvent(queued, MetricTransportFailed, partialResult, err))
-			if len(temporary) == 0 || h.retry == nil {
+			if len(temporary) == 0 {
+				h.logger.Warn("delivery partial bounce",
+					"message_id", queued.MessageID,
+					"rfc_message_id", queued.RFCMessageID,
+					"recipients", recipientAddrs,
+					"result", "bounced",
+					"error", err.Error(),
+					"duration_ms", time.Since(deliveryStart).Milliseconds(),
+				)
+				return nil
+			}
+			if h.retry == nil {
 				return nil
 			}
 			retryJob := job
@@ -284,9 +333,24 @@ func (h *Handler) HandleEvent(ctx context.Context, msg eventstream.Message) erro
 			if retryErr == nil || errors.Is(retryErr, ErrRetryExhausted) {
 				if errors.Is(retryErr, ErrRetryExhausted) {
 					h.observe(ctx, metricEvent(retryJob.QueuedMessage, MetricRetryExhausted, MetricFailed, retryErr))
+					h.logger.Error("delivery retry exhausted",
+						"message_id", queued.MessageID,
+						"rfc_message_id", queued.RFCMessageID,
+						"recipients", recipientAddrs,
+						"result", "exhausted",
+						"error", retryErr.Error(),
+					)
 					return h.notifyExhausted(ctx, retryJob.QueuedMessage, retryErr)
 				}
 				h.observe(ctx, metricEvent(retryJob.QueuedMessage, MetricRetryScheduled, MetricDeferred, err))
+				h.logger.Warn("delivery retry scheduled",
+					"message_id", queued.MessageID,
+					"rfc_message_id", queued.RFCMessageID,
+					"recipients", recipientAddrs,
+					"result", "deferred",
+					"attempt", queued.RetryAttempt,
+					"error", err.Error(),
+				)
 				return nil
 			}
 			return retryErr
@@ -302,8 +366,24 @@ func (h *Handler) HandleEvent(ctx context.Context, msg eventstream.Message) erro
 			return recordErr
 		}
 		if IsPermanentFailure(err) {
+			h.logger.Error("delivery bounced",
+				"message_id", queued.MessageID,
+				"rfc_message_id", queued.RFCMessageID,
+				"recipients", recipientAddrs,
+				"result", "bounced",
+				"error", err.Error(),
+				"duration_ms", time.Since(deliveryStart).Milliseconds(),
+			)
 			return nil
 		}
+		h.logger.Warn("delivery failed",
+			"message_id", queued.MessageID,
+			"rfc_message_id", queued.RFCMessageID,
+			"recipients", recipientAddrs,
+			"result", "failed",
+			"error", err.Error(),
+			"duration_ms", time.Since(deliveryStart).Milliseconds(),
+		)
 		if h.backoff != nil {
 			h.backoff.ObserveTemporaryFailure(ctx, job, job.Recipients(), err)
 		}
@@ -312,9 +392,24 @@ func (h *Handler) HandleEvent(ctx context.Context, msg eventstream.Message) erro
 			if retryErr == nil || errors.Is(retryErr, ErrRetryExhausted) {
 				if errors.Is(retryErr, ErrRetryExhausted) {
 					h.observe(ctx, metricEvent(queued, MetricRetryExhausted, MetricFailed, retryErr))
+					h.logger.Error("delivery retry exhausted",
+						"message_id", queued.MessageID,
+						"rfc_message_id", queued.RFCMessageID,
+						"recipients", recipientAddrs,
+						"result", "exhausted",
+						"error", retryErr.Error(),
+					)
 					return h.notifyExhausted(ctx, queued, retryErr)
 				}
 				h.observe(ctx, metricEvent(queued, MetricRetryScheduled, MetricDeferred, err))
+				h.logger.Warn("delivery retry scheduled",
+					"message_id", queued.MessageID,
+					"rfc_message_id", queued.RFCMessageID,
+					"recipients", recipientAddrs,
+					"result", "deferred",
+					"attempt", queued.RetryAttempt,
+					"error", err.Error(),
+				)
 				return nil
 			}
 			return retryErr
@@ -322,6 +417,13 @@ func (h *Handler) HandleEvent(ctx context.Context, msg eventstream.Message) erro
 		return err
 	}
 	h.observe(ctx, metricEvent(queued, MetricTransportDelivered, MetricOK, nil))
+	h.logger.Info("delivery succeeded",
+		"message_id", queued.MessageID,
+		"rfc_message_id", queued.RFCMessageID,
+		"recipients", recipientAddrs,
+		"result", "delivered",
+		"duration_ms", time.Since(deliveryStart).Milliseconds(),
+	)
 	return h.recordAttempts(ctx, job, AttemptDelivered, nil)
 }
 

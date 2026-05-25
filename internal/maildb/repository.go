@@ -113,41 +113,44 @@ LIMIT 1`
 	return mailbox, true, nil
 }
 
-func (r *Repository) Record(ctx context.Context, msg smtpd.ReceivedMessage) error {
+// Record persists the received message to the database and returns the
+// database-assigned message UUID, which can be used to correlate log
+// entries across services (SMTP receiver → outbox relay → delivery worker).
+func (r *Repository) Record(ctx context.Context, msg smtpd.ReceivedMessage) (string, error) {
 	if r.db == nil {
-		return fmt.Errorf("database handle is required")
+		return "", fmt.Errorf("database handle is required")
 	}
 
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
-		return fmt.Errorf("begin record message transaction: %w", err)
+		return "", fmt.Errorf("begin record message transaction: %w", err)
 	}
 	defer tx.Rollback()
 
 	if err := checkAndIncrementUserQuota(ctx, tx, msg.Mailbox.UserID, msg.Size); err != nil {
-		return err
+		return "", err
 	}
 
 	folderID, err := r.deliveryFolderID(ctx, msg.Mailbox.UserID, msg.FolderSystemType)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	toAddrs, err := addressesJSON(msg.Parsed.To)
 	if err != nil {
-		return err
+		return "", err
 	}
 	ccAddrs, err := addressesJSON(msg.Parsed.Cc)
 	if err != nil {
-		return err
+		return "", err
 	}
 	bccAddrs, err := addressesJSON(msg.Parsed.Bcc)
 	if err != nil {
-		return err
+		return "", err
 	}
 	threadID, err := r.resolveThreadID(ctx, tx, msg.Mailbox.UserID, threadCandidates(msg.Parsed.InReplyTo, msg.Parsed.References))
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	const insert = `
@@ -199,17 +202,17 @@ INSERT INTO messages (
 		msg.StoragePath,
 	).Scan(&insertedMessageID)
 	if err != nil {
-		return fmt.Errorf("insert message metadata: %w", err)
+		return "", fmt.Errorf("insert message metadata: %w", err)
 	}
 
 	if err := r.insertStoredOutbox(ctx, tx, insertedMessageID, folderID, msg); err != nil {
-		return err
+		return "", err
 	}
 
 	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("commit record message transaction: %w", err)
+		return "", fmt.Errorf("commit record message transaction: %w", err)
 	}
-	return nil
+	return insertedMessageID, nil
 }
 
 func (r *Repository) deliveryFolderID(ctx context.Context, userID string, systemType string) (string, error) {

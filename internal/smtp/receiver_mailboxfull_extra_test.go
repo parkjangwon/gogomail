@@ -15,8 +15,8 @@ import (
 
 type quotaFullRecorder struct{}
 
-func (r *quotaFullRecorder) Record(_ context.Context, _ ReceivedMessage) error {
-	return fmt.Errorf("store failed: %w", mail.ErrMailboxFull)
+func (r *quotaFullRecorder) Record(_ context.Context, _ ReceivedMessage) (string, error) {
+	return "", fmt.Errorf("store failed: %w", mail.ErrMailboxFull)
 }
 
 func TestSessionReturns452WhenRecorderReportsMailboxFull(t *testing.T) {

@@ -116,9 +116,9 @@ type Recorder struct {
 	Engine   Engine
 }
 
-func (r Recorder) Record(ctx context.Context, msg smtpd.ReceivedMessage) error {
+func (r Recorder) Record(ctx context.Context, msg smtpd.ReceivedMessage) (string, error) {
 	if r.Next == nil {
-		return fmt.Errorf("spamfilter recorder next recorder is required")
+		return "", fmt.Errorf("spamfilter recorder next recorder is required")
 	}
 	policy := DefaultPolicy()
 	if r.Resolver != nil {
@@ -128,7 +128,7 @@ func (r Recorder) Record(ctx context.Context, msg smtpd.ReceivedMessage) error {
 				policy = decoded
 			}
 		} else if !errors.Is(err, configstore.ErrConfigNotFound) {
-			return fmt.Errorf("resolve spam filter policy: %w", err)
+			return "", fmt.Errorf("resolve spam filter policy: %w", err)
 		}
 	}
 	event := smtpd.Event{

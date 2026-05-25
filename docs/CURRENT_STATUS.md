@@ -1,6 +1,17 @@
 # gogomail current status
 
-Last updated: 2026-05-25 (edge-mta SMTP fixes + monitoring end-to-end)
+Last updated: 2026-05-25 (per-message trace logging across all mail services)
+
+## Per-message trace logging across all mail services (2026-05-25)
+- Changed `smtp.MessageRecorder.Record()` interface to return `(string, error)` where the string is the database message UUID, enabling cross-service trace correlation.
+- Added `logger *slog.Logger` to `smtp.Receiver` and `ReceiverOptions.Logger`; defaults to `slog.Default()`. After each accepted SMTP message the receiver logs: `smtp_id`, `message_id` (DB UUID), `envelope_from`, `recipient`, `rfc_message_id`, `remote_addr`, `size_bytes`.
+- Updated `maildb.Repository.Record()` to return `(string, error)` — returns the `insertedMessageID` (DB UUID) so callers can include it in logs and traces.
+- Updated `spamfilter.Recorder` wrapper to propagate `(string, error)` through the chain.
+- Added `logger *slog.Logger` to `delivery.Handler` with `WithLogger()` method. `HandleEvent()` now logs at each delivery outcome: `delivery job started` (with `message_id`, `rfc_message_id`, `from`, `recipients`, `attempt`, `size_bytes`), `delivery succeeded`, `delivery failed`, `delivery bounced`, `delivery retry scheduled`, `delivery retry exhausted`.
+- Added `outbox event relayed` INFO log to `outbox.Relay` for each successfully published event: `outbox_id`, `topic`, `message_id` (partition key = DB UUID).
+- Trace chain now visible in Loki: query `{service="edge-mta"} |= "smtp message accepted"` → get `smtp_id`/`message_id` → correlate with `{service="outbox-relay"} |= "message_id"` → correlate with `{service="delivery-worker"} |= "message_id"`.
+- Verified: 4 test emails visible in Loki with full structured fields. 1,183 package tests pass.
+- Agent query patterns: `{service="edge-mta"} | json | message_id = "<uuid>"` to find all events for a specific message; `{service="edge-mta"} | json | recipient = "user@domain"` to trace all mail to a recipient.
 
 ## Edge-MTA SMTP fix and monitoring end-to-end wiring (2026-05-25)
 - Fixed a nil-interface panic in `runReceiveMTA` (`internal/app/run.go`): when `LocalRecipients` is configured, the static-resolver path left `maildbRepo` as a typed nil `*maildb.Repository`. Assigning it directly to `DomainPolicyLookup` (an interface) bypassed the nil-check in `session.Rcpt`, causing a panic on every `RCPT TO` command. Fix: declare a separate `smtpd.DomainPolicyLookup` variable and only populate it when `maildbRepo != nil`.
