@@ -1354,6 +1354,8 @@ export interface DirectoryUser {
   id: string;
   display_name: string;
   email: string;
+  avatar_url?: string;
+  org_unit_name?: string;
 }
 
 export async function listDirectoryUsers(q?: string, limit = 50): Promise<DirectoryUser[]> {
@@ -1372,6 +1374,7 @@ export interface OrgMember {
   id: string;
   display_name: string;
   email: string;
+  avatar_url?: string;
 }
 
 export interface OrgUnit {

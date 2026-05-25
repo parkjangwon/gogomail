@@ -999,6 +999,14 @@ Admin operational read models also keep explicit envelope keys:
   the stored direction, SMTP envelope (mail_from, rcpt_to), auth results
   (DKIM/SPF/DMARC), spam score, delivery status, and timestamps for one
   mail flow log entry.
+- `GET /api/mail/directory/users` returns `{"users":[...]}` for authenticated
+  webmail directory search. Each user includes `id`, `display_name`, `email`,
+  and optional `avatar_url` from the user's profile settings so DM and address
+  pickers can render profile photos.
+- `GET /api/mail/directory/org-tree` returns `{"units":[...]}` with active
+  organization units and bounded active members. Each member includes `id`,
+  `display_name`, `email`, and optional `avatar_url`, allowing DM invite search
+  to merge org-chart matches with the direct directory user search.
 - `GET /admin/v1/directory/principals` returns
   `{"directory_principals":[...]}` for company-scoped Directory principal
   search across users, organizations, groups, and resources. It supports

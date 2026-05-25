@@ -2222,6 +2222,20 @@ paths:
               schema:
                 type: object
                 additionalProperties: true
+                properties:
+                  users:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                        display_name:
+                          type: string
+                        email:
+                          type: string
+                        avatar_url:
+                          type: string
         default:
           $ref: "#/components/responses/Error"
   /api/mail/directory/org-tree:
@@ -2241,6 +2255,33 @@ paths:
               schema:
                 type: object
                 additionalProperties: true
+                properties:
+                  units:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                        display_name:
+                          type: string
+                        parent_id:
+                          type: string
+                        depth:
+                          type: integer
+                        members:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              id:
+                                type: string
+                              display_name:
+                                type: string
+                              email:
+                                type: string
+                              avatar_url:
+                                type: string
         default:
           $ref: "#/components/responses/Error"
   /api/mail/directory/profile:

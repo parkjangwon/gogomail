@@ -671,6 +671,7 @@ ranked AS (
     COALESCE(u.org_id::text, '') AS user_org_id,
     u.display_name,
     COALESCE(primary_addr.address, '') AS primary_email,
+    COALESCE(u.settings->>'avatar_url', '') AS avatar_url,
     u.status,
     row_number() OVER (PARTITION BY req.org_id ORDER BY lower(u.display_name), u.id) AS member_rank,
     req.org_order
@@ -686,7 +687,7 @@ ranked AS (
     AND d.status = 'active'
     AND c.status = 'active'
 )
-SELECT organization_id, id, company_id, domain_id, user_org_id, display_name, primary_email, status
+SELECT organization_id, id, company_id, domain_id, user_org_id, display_name, primary_email, avatar_url, status
 FROM ranked
 WHERE member_rank <= $%d
 ORDER BY org_order, member_rank`, orgIDsArg, domainPredicate, limitArg)
@@ -741,6 +742,7 @@ func (r *Repository) ListOrgMembersByOrgIDs(ctx context.Context, companyID, doma
 			&principal.OrganizationID,
 			&principal.DisplayName,
 			&principal.PrimaryEmail,
+			&principal.AvatarURL,
 			&principal.Status,
 		); err != nil {
 			return nil, fmt.Errorf("scan org member: %w", err)
@@ -778,6 +780,7 @@ func (r *Repository) SearchPrincipals(ctx context.Context, req SearchPrincipalsR
 			&principal.OrganizationID,
 			&principal.DisplayName,
 			&principal.PrimaryEmail,
+			&principal.AvatarURL,
 			&principal.Status,
 			&principal.ResourceType,
 		); err != nil {
@@ -830,6 +833,7 @@ func buildSearchPrincipalsQuery(req SearchPrincipalsRequest) (string, []any) {
          COALESCE(u.org_id::text, '') AS organization_id,
          u.display_name AS display_name,
          COALESCE(primary_addr.address, '') AS primary_email,
+         COALESCE(u.settings->>'avatar_url', '') AS avatar_url,
          u.status AS status,
          '' AS resource_type,
          1 AS kind_rank
@@ -867,6 +871,7 @@ func buildSearchPrincipalsQuery(req SearchPrincipalsRequest) (string, []any) {
          o.id::text,
          o.name,
          '',
+         '',
          o.status,
          '',
          2
@@ -896,6 +901,7 @@ func buildSearchPrincipalsQuery(req SearchPrincipalsRequest) (string, []any) {
          g.domain_id::text,
          COALESCE(g.org_id::text, ''),
          g.name,
+         '',
          '',
          g.status,
          '',
@@ -927,6 +933,7 @@ func buildSearchPrincipalsQuery(req SearchPrincipalsRequest) (string, []any) {
          COALESCE(rsrc.org_id::text, ''),
          rsrc.name,
          '',
+         '',
          rsrc.status,
          rsrc.resource_type,
          4
@@ -942,7 +949,7 @@ func buildSearchPrincipalsQuery(req SearchPrincipalsRequest) (string, []any) {
 	query := `
 WITH principals AS (` + strings.Join(branches, "\n  UNION ALL") + `
 )
-SELECT id, kind, company_id, domain_id, organization_id, display_name, primary_email, status, resource_type
+SELECT id, kind, company_id, domain_id, organization_id, display_name, primary_email, avatar_url, status, resource_type
 FROM principals
 ORDER BY kind_rank, lower(display_name), id
 LIMIT $%d OFFSET $%d`

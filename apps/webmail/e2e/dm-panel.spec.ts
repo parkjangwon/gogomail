@@ -34,6 +34,8 @@ test.describe('DM panel', () => {
     if (!before) return;
     expect(before.width).toBeGreaterThanOrEqual(440);
     expect(before.width).toBeLessThanOrEqual(520);
+    expect(before.height).toBeGreaterThanOrEqual(640);
+    expect(before.height).toBeLessThanOrEqual(720);
 
     await page.mouse.move(before.x + 150, before.y + 24);
     await page.mouse.down();
@@ -283,5 +285,35 @@ test.describe('DM panel', () => {
     await page.getByRole('button', { name: /Create room|대화방 만들기|ルームを作成|创建会话/ }).click();
 
     await expect(page.locator('main').getByText('Kim Chulsoo').first()).toBeVisible();
+  });
+
+  test('finds org-chart members with profile photos in the new DM search', async ({ page }) => {
+    await setupAuthedPage(page, {
+      directoryUsers: [],
+      orgUnits: [{
+        id: 'org-infra',
+        display_name: '인프라팀',
+        depth: 0,
+        members: [
+          {
+            id: 'user-4',
+            display_name: '강현재',
+            email: 'kang.hyunjae@parkjw.org',
+            avatar_url: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=',
+          },
+        ],
+      }],
+    });
+
+    await page.getByRole('button', { name: /^DM/ }).click();
+    await page.getByRole('button', { name: /New DM|새 DM|新規DM|新建私信/ }).click();
+    await page.getByPlaceholder(/Search people|사람 검색|ユーザーを検索|搜索联系人/).fill('인프라');
+
+    await expect(page.getByText('강현재').first()).toBeVisible();
+    await expect(page.getByText(/kang\.hyunjae@parkjw\.org .* 인프라팀/).first()).toBeVisible();
+    await expect(page.getByAltText('강현재').first()).toBeVisible();
+    await page.keyboard.press('Enter');
+    await page.getByRole('button', { name: /Create room|대화방 만들기|ルームを作成|创建会话/ }).click();
+    await expect(page.locator('main').getByText('강현재').first()).toBeVisible();
   });
 });

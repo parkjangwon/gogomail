@@ -44,9 +44,11 @@ Last updated: 2026-05-25 (DM instant messaging implementation)
   clipboard images now open an attach-confirmation preview before upload, the DM
   modal opens in a compact messenger-sized desktop frame at the same lower-left
   anchor, can be dragged by its header, is resizable from every edge/corner with
-  viewport clamping and compact layout safeguards, and the DM flow now uses a
-  conversation-list first layout with a back button into the list. The webmail
-  panel offers a
+  viewport clamping and compact layout safeguards, and now starts at a shorter
+  messenger-style height. DM invite search merges directory users with org-chart
+  members, supports matching by organization unit names, and shows profile
+  avatars in search results. The DM flow uses a conversation-list first layout
+  with a back button into the list. The webmail panel offers a
   compact emoji picker that closes on outside clicks or reaction errors instead
   of fixed reaction presets.
 - `docs/openapi.yaml` and `docs/backend-api-contracts.md` now document the DM
