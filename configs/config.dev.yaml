@@ -50,7 +50,7 @@ api_metering_consumer_group: gogomail.api-metering-worker
 api_metering_consumer_name: api-metering-worker-1
 api_metering_consumer_count: 100
 api_metering_consumer_block: 1s
-search_index_backend: disabled
+search_index_backend: opensearch
 search_index_max_body_bytes: 1048576
 database_url: postgres://gogomail:gogomail@postgres:5432/gogomail?sslmode=disable
 redis_addr: redis:6379

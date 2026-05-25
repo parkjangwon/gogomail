@@ -994,6 +994,14 @@ func RegisterMailRoutesWithOptions(mux *http.ServeMux, service MessageService, t
 		if !ok {
 			return
 		}
+		sinceStr := ""
+		if !since.IsZero() {
+			sinceStr = since.Format(time.RFC3339Nano)
+		}
+		untilStr := ""
+		if !until.IsZero() {
+			untilStr = until.Format(time.RFC3339Nano)
+		}
 		messages, err := service.SearchMessages(r.Context(), maildb.MessageSearchQuery{
 			UserID:            userID,
 			Query:             queryText,
@@ -1004,8 +1012,8 @@ func RegisterMailRoutesWithOptions(mux *http.ServeMux, service MessageService, t
 			Bcc:               bcc,
 			Subject:           subject,
 			HasAttachment:     hasAttachment,
-			Since:             since.Format(time.RFC3339Nano),
-			Until:             until.Format(time.RFC3339Nano),
+			Since:             sinceStr,
+			Until:             untilStr,
 			Limit:             limit,
 			Sort:              sortMode,
 			Cursor:            cursor,

@@ -1,0 +1,76 @@
+services:
+  opensearch:
+    image: opensearchproject/opensearch:2.11.0
+    container_name: gogomail-opensearch-dev
+    environment:
+      discovery.type: single-node
+      OPENSEARCH_JAVA_OPTS: "-Xms512m -Xmx512m"
+      DISABLE_SECURITY_PLUGIN: "true"
+    ports:
+      - "${GOGOMAIL_DEV_OPENSEARCH_PORT:-9200}:9200"
+    volumes:
+      - opensearch-data:/usr/share/opensearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:9200/_cluster/health | grep -qE '\"status\":\"(green|yellow)\"'"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+    networks:
+      - gogomail-dev
+
+  search-index-worker:
+    image: golang:1.25-alpine
+    container_name: gogomail-search-index-worker-dev
+    working_dir: /app
+    volumes:
+      - ..:/app
+    environment:
+      CGO_ENABLED: 0
+      GOFLAGS: -v
+      GOGOMAIL_SEARCH_INDEX_OPENSEARCH_ENDPOINT: http://opensearch:9200
+      GOGOMAIL_SEARCH_INDEX_OPENSEARCH_INDEX: gogomail-messages
+      GOGOMAIL_SEARCH_INDEX_OPENSEARCH_BOOTSTRAP: "true"
+    command: sh -c "go run ./cmd/gogomail --config /app/configs/config.dev.yaml --mode search-index-worker"
+    depends_on:
+      opensearch:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    networks:
+      - gogomail-dev
+
+  # All services that load config.dev.yaml (search_index_backend=opensearch)
+  # must have the endpoint env var set or config validation fails at startup.
+  backend:
+    environment:
+      GOGOMAIL_SEARCH_INDEX_OPENSEARCH_ENDPOINT: http://opensearch:9200
+      GOGOMAIL_SEARCH_INDEX_OPENSEARCH_INDEX: gogomail-messages
+
+  edge-mta:
+    environment:
+      GOGOMAIL_SEARCH_INDEX_OPENSEARCH_ENDPOINT: http://opensearch:9200
+      GOGOMAIL_SEARCH_INDEX_OPENSEARCH_INDEX: gogomail-messages
+
+  event-worker:
+    environment:
+      GOGOMAIL_SEARCH_INDEX_OPENSEARCH_ENDPOINT: http://opensearch:9200
+      GOGOMAIL_SEARCH_INDEX_OPENSEARCH_INDEX: gogomail-messages
+
+  outbox-relay:
+    environment:
+      GOGOMAIL_SEARCH_INDEX_OPENSEARCH_ENDPOINT: http://opensearch:9200
+      GOGOMAIL_SEARCH_INDEX_OPENSEARCH_INDEX: gogomail-messages
+
+  delivery-worker:
+    environment:
+      GOGOMAIL_SEARCH_INDEX_OPENSEARCH_ENDPOINT: http://opensearch:9200
+      GOGOMAIL_SEARCH_INDEX_OPENSEARCH_INDEX: gogomail-messages
+
+volumes:
+  opensearch-data:
+    driver: local

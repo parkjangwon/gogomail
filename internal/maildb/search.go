@@ -76,36 +76,50 @@ func (r *Repository) SearchMessages(ctx context.Context, query MessageSearchQuer
 	if sortMode == "" {
 		return nil, fmt.Errorf("unsupported search sort %q", query.Sort)
 	}
+
+	// $3: uuid — pass nil (NULL) when empty so Postgres doesn't reject empty-string as uuid.
+	folderID := strings.TrimSpace(query.FolderID)
+	var folderIDArg interface{}
+	if folderID != "" {
+		folderIDArg = folderID
+	}
+
+	// $9: boolean — pass nil (NULL) when unset; Postgres infers boolean from the dead CTE.
 	hasAttachment := ""
+	var hasAttachmentArg interface{}
 	if query.HasAttachment != nil {
 		if *query.HasAttachment {
 			hasAttachment = "true"
+			hasAttachmentArg = true
 		} else {
 			hasAttachment = "false"
+			hasAttachmentArg = false
 		}
 	}
 
-	folderID := strings.TrimSpace(query.FolderID)
 	cursorID := strings.TrimSpace(query.Cursor.ID)
 	sqlQuery := buildMessageSearchSQL(sortMode, query, hasAttachment, cursorID)
-	rows, err := r.db.QueryContext(
-		ctx,
-		sqlQuery,
-		userID,
-		strings.TrimSpace(query.Query),
-		folderID,
-		strings.TrimSpace(query.From),
-		strings.TrimSpace(query.To),
-		strings.TrimSpace(query.Cc),
-		strings.TrimSpace(query.Bcc),
-		strings.TrimSpace(query.Subject),
-		hasAttachment,
-		limit,
-		query.IncludeRank || sortMode == MessageSearchSortRelevance,
-		query.IncludeHighlights,
-		query.Cursor.At,
-		cursorID,
-	)
+
+	// $1–$12 are always present; $13–$14 (cursor) only when cursor is active.
+	args := []interface{}{
+		userID,                           // $1
+		strings.TrimSpace(query.Query),  // $2
+		folderIDArg,                      // $3  uuid or NULL
+		strings.TrimSpace(query.From),   // $4
+		strings.TrimSpace(query.To),     // $5
+		strings.TrimSpace(query.Cc),     // $6
+		strings.TrimSpace(query.Bcc),    // $7
+		strings.TrimSpace(query.Subject), // $8
+		hasAttachmentArg,                 // $9  bool or NULL
+		limit,                            // $10
+		query.IncludeRank || sortMode == MessageSearchSortRelevance, // $11
+		query.IncludeHighlights,          // $12
+	}
+	if cursorID != "" {
+		args = append(args, query.Cursor.At, cursorID) // $13 timestamptz, $14 uuid
+	}
+
+	rows, err := r.db.QueryContext(ctx, sqlQuery, args...)
 	if err != nil {
 		return nil, fmt.Errorf("search messages: %w", err)
 	}
@@ -150,8 +164,7 @@ func (r *Repository) SearchMessages(ctx context.Context, query MessageSearchQuer
 
 func buildMessageSearchSQL(sortMode string, query MessageSearchQuery, hasAttachment, cursorID string) string {
 	conditions := messageSearchBaseConditions(query)
-	folderID := strings.TrimSpace(query.FolderID)
-	if folderID != "" {
+	if strings.TrimSpace(query.FolderID) != "" {
 		conditions = append(conditions, "messages.folder_id = $3::uuid")
 	}
 	if hasAttachment != "" {
@@ -336,8 +349,16 @@ func messageSearchSQLWithConditions(sortMode string, conditions []string, includ
 		orderBy = "search_rank DESC NULLS LAST, message_at DESC, id DESC"
 	}
 	queryMatchesCTE := messageSearchQueryMatchesCTE(includeQueryMatches)
+	// type_hints is a dead CTE that is never referenced by the rest of the query.
+	// Its sole purpose is to give Postgres unambiguous type information for $3–$9
+	// so the extended query protocol (used by pgx v5 stdlib) can prepare the
+	// statement even when those parameters are absent from the WHERE clause
+	// (e.g. no folder filter, no text filters, etc.).
 	return fmt.Sprintf(`
-WITH search_input AS (
+WITH type_hints AS (
+  SELECT $3::uuid, $4::text, $5::text, $6::text, $7::text, $8::text, $9::boolean
+),
+search_input AS (
   SELECT plainto_tsquery('simple', $2) AS tsq
 )`+queryMatchesCTE+`,
 ranked_messages AS (
@@ -349,7 +370,7 @@ SELECT
   messages.from_addr,
   messages.from_name,
   COALESCE(sender_user.settings->>'avatar_url', '') AS sender_avatar_url,
-  COALESCE(received_at, sent_at, draft_updated_at, created_at) AS message_at,
+  COALESCE(messages.received_at, messages.sent_at, messages.draft_updated_at, messages.created_at) AS message_at,
   messages.size,
   messages.has_attachment,
   COALESCE((flags->>'read')::boolean, false) AS read,

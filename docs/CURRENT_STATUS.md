@@ -1,6 +1,17 @@
 # gogomail current status
 
-Last updated: 2026-05-25 (per-message trace logging across all mail services)
+Last updated: 2026-05-25 (OpenSearch search pipeline end-to-end)
+
+## OpenSearch search pipeline end-to-end (2026-05-25)
+- Added `docker/docker-compose.opensearch.yml` overlay: runs OpenSearch 2.11.0 (single-node, security plugin disabled) + a `search-index-worker` container; injects `GOGOMAIL_SEARCH_INDEX_OPENSEARCH_ENDPOINT` and `_INDEX` env vars into every service that loads `config.dev.yaml` (required because config validation fails if the endpoint is unset when `search_index_backend=opensearch`).
+- Switched `configs/config.dev.yaml` `search_index_backend` from `disabled` to `opensearch`.
+- Fixed `internal/httpapi/mail.go`: zero `time.Time{}` formatted with `RFC3339Nano` produces `"0001-01-01T00:00:00Z"`, which OpenSearch applied as a date-range filter that excluded every message. Guard with `IsZero()` before formatting `Since`/`Until`.
+- Fixed `internal/maildb/search.go` parameter type inference for pgx v5 extended query protocol:
+  - Added a dead `type_hints` CTE (`SELECT $3::uuid, $4::text … $9::boolean`) so Postgres infers types for optional WHERE parameters at prepared-statement parse time even when those parameters are absent from the dynamic WHERE clause.
+  - Reverted OR-pattern conditions back to sargable conditional predicates (folder, attachment, cursor only added when non-empty).
+  - `SearchMessages` now passes `nil` for `$3`/`$9` when unused, and omits `$13`/`$14` entirely when no cursor is active.
+- Verified full pipeline: SMTP receive → Postgres store → Redis `mail.event` stream → search-index-worker → OpenSearch index → `GET /api/v1/search?q=…&sort=relevance` returns results with correct relevance rank. Both Korean and English queries return expected messages.
+- Full test suite: 6,153 tests pass.
 
 ## Per-message trace logging across all mail services (2026-05-25)
 - Changed `smtp.MessageRecorder.Record()` interface to return `(string, error)` where the string is the database message UUID, enabling cross-service trace correlation.
