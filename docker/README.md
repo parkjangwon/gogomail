@@ -4,9 +4,10 @@ This directory contains Docker Compose configurations for different deployment s
 
 ## Deployment Configurations
 
-### 1. Development (`docker-compose.dev.yml`)
+### 1. Development / Agent Operations (`docker-compose.dev.yml`)
 
-**Target**: Local development on a single machine — full converged stack.
+**Target**: Local development and agent-driven service operation on a single
+machine — full converged stack.
 
 **Components** (16 services, single `gogomail-dev` network):
 
@@ -50,6 +51,8 @@ docker compose -f docker/docker-compose.dev.yml down -v
 - Grafana pre-provisioned with Prometheus + Loki datasources and GoGoMail dashboard
 - ClamAV attachment scanning with circuit-breaker and concurrency controls
 - All services on a single bridge network — no overlay file juggling required
+- Intended as the default local stack for agent workflows: API state, queue
+  workers, search indexing, metrics, logs, and dashboards come up together
 
 ---
 
@@ -348,14 +351,24 @@ docker-compose -f docker-compose.medium.yml exec minio-1 \
 - Query: `http_requests_total{job="gogomail-backend"}`
 - Alerts: `/alerts`
 
-**Grafana** (Large only): `http://localhost:3000`
-- Default: admin / (see .env GRAFANA_ADMIN_PASSWORD)
-- Pre-configured datasources: Prometheus, Elasticsearch
+**Grafana**: `http://localhost:3000`
+- Development default: admin / admin (`docker-compose.dev.yml`, override with `GRAFANA_PASSWORD`)
+- Production/large default: admin / (see `.env` `GRAFANA_ADMIN_PASSWORD`)
+- Pre-configured dev datasources: Prometheus, Loki
+- Large stack datasources: Prometheus, Elasticsearch
 
 **Kibana** (Large only): `http://localhost:5601`
 - Logs: `gogomail-*` index pattern
 
 **HAProxy Stats** (Large only): `http://localhost:8404/stats`
+
+**OpenSearch dev endpoint**: `http://localhost:9200`
+- Included by default in `docker-compose.dev.yml`
+- Used by `search-index-worker` with index `gogomail-messages`
+
+**Loki dev endpoint**: `http://localhost:3100`
+- Included by default in `docker-compose.dev.yml`
+- Receives container logs through Promtail and the Docker socket
 
 ---
 

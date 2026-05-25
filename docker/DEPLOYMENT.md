@@ -334,6 +334,49 @@ behavior: `internal/config/validate.go`.
 Each recipe is a starting point. Adjust replicas with `docker compose up
 -d --scale <service>=N` or set `deploy.replicas` in Swarm.
 
+### 6.0 Local development / agent operations
+
+Use [`docker-compose.dev.yml`](docker-compose.dev.yml) for local development,
+E2E validation, and agent-driven service operation. It is intentionally a
+complete single-host stack, not a thin app-only compose file:
+
+| Group | Services |
+|---|---|
+| Core infra | postgres, redis, minio, minio-init, clamav |
+| App/runtime | backend with hot reload, event-worker, outbox-relay, delivery-worker, edge-mta |
+| Search | opensearch, search-index-worker |
+| Monitoring/logging | prometheus, loki, promtail, grafana |
+
+```bash
+docker compose -f docker/docker-compose.dev.yml up -d
+docker compose -f docker/docker-compose.dev.yml ps
+docker compose -f docker/docker-compose.dev.yml logs -f backend
+docker compose -f docker/docker-compose.dev.yml down -v
+```
+
+Default local endpoints:
+
+| Endpoint | Purpose |
+|---|---|
+| `http://localhost:8080` | Backend HTTP API + admin console |
+| `localhost:2525` | Edge-MTA SMTP test ingress |
+| `http://localhost:9200` | OpenSearch REST inspection |
+| `http://localhost:9090` | Prometheus |
+| `http://localhost:3100` | Loki |
+| `http://localhost:3000` | Grafana (`admin` / `admin`, override with `GRAFANA_PASSWORD`) |
+| `localhost:15432` | Postgres direct access |
+| `localhost:16379` | Redis direct access |
+| `http://localhost:19000` | MinIO S3 API |
+| `http://localhost:19001` | MinIO console |
+
+The dev stack is the recommended base for automated agents because API
+state, queue workers, OpenSearch indexing, metrics, logs, and dashboards
+are all available without compose overlays. The standalone
+[`docker-compose.monitoring.yml`](docker-compose.monitoring.yml) and
+[`docker-compose.opensearch.yml`](docker-compose.opensearch.yml) files remain
+useful for production-like split stacks or when attaching observability/search
+to another compose topology.
+
 ### 6.1 Pattern A — single-node (demo / very small)
 
 **Topology**
@@ -480,8 +523,9 @@ Sentinel, MinIO 3-node, Prometheus, and two backend instances.
    - `ldap` ×2
    - `outbox-relay` ×2 (singleton)
    - `delivery-worker` ×3
-   - `search-index-worker` ×2 (needs OpenSearch — add the
-     `elasticsearch` service block from the large compose)
+   - `search-index-worker` ×2 (needs OpenSearch — use
+     [`docker-compose.opensearch.yml`](docker-compose.opensearch.yml) or a
+     managed OpenSearch/Elasticsearch endpoint)
    - `push-notification-worker` ×2
    - `api-metering-worker` ×2
    - cleanup / retention / batch ×1 each (with one cold-standby for
@@ -834,8 +878,9 @@ follow this procedure deterministically.**
 
 ### Reference summary
 
-- Compose recipes: §6 above plus the three checked-in
-  `docker-compose.{small,medium,large}.yml` files.
+- Compose recipes: §6 above plus the checked-in
+  `docker-compose.{dev,small,medium,large,scale,monitoring,opensearch}.yml`
+  files.
 - Env var reference: §5 above, source of truth `internal/config/config.go`.
 - Mode reference: §4 above, source of truth
   [`docs/MODES.md`](../docs/MODES.md) and `internal/app/mode.go`.

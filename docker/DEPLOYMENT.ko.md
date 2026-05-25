@@ -316,6 +316,47 @@ s3/minio ──┘    │
 각 레시피는 출발점입니다. `docker compose up -d --scale <service>=N`
 으로 복제본을 조정합니다.
 
+### 6.0 로컬 개발 / 에이전트 운영
+
+로컬 개발, E2E 검증, 에이전트 기반 서비스 운영에는
+[`docker-compose.dev.yml`](docker-compose.dev.yml)을 사용하세요. 이 파일은
+앱만 띄우는 얇은 compose가 아니라 단일 호스트용 완전한 기본 스택입니다.
+
+| 그룹 | 서비스 |
+|---|---|
+| 코어 인프라 | postgres, redis, minio, minio-init, clamav |
+| 앱/런타임 | backend hot reload, event-worker, outbox-relay, delivery-worker, edge-mta |
+| 검색 | opensearch, search-index-worker |
+| 모니터링/로그 | prometheus, loki, promtail, grafana |
+
+```bash
+docker compose -f docker/docker-compose.dev.yml up -d
+docker compose -f docker/docker-compose.dev.yml ps
+docker compose -f docker/docker-compose.dev.yml logs -f backend
+docker compose -f docker/docker-compose.dev.yml down -v
+```
+
+기본 로컬 엔드포인트:
+
+| 엔드포인트 | 용도 |
+|---|---|
+| `http://localhost:8080` | Backend HTTP API + admin console |
+| `localhost:2525` | Edge-MTA SMTP 테스트 인입 |
+| `http://localhost:9200` | OpenSearch REST 점검 |
+| `http://localhost:9090` | Prometheus |
+| `http://localhost:3100` | Loki |
+| `http://localhost:3000` | Grafana (`admin` / `admin`, `GRAFANA_PASSWORD`로 변경) |
+| `localhost:15432` | Postgres 직접 접속 |
+| `localhost:16379` | Redis 직접 접속 |
+| `http://localhost:19000` | MinIO S3 API |
+| `http://localhost:19001` | MinIO console |
+
+dev 스택은 API 상태, 큐 워커, OpenSearch 인덱싱, 메트릭, 로그, 대시보드가
+overlay 없이 함께 올라오므로 자동화 에이전트의 기본 실행 환경입니다. 독립
+[`docker-compose.monitoring.yml`](docker-compose.monitoring.yml)과
+[`docker-compose.opensearch.yml`](docker-compose.opensearch.yml)은 운영형
+분리 스택 또는 다른 compose 토폴로지에 관측/검색 계층만 붙일 때 사용합니다.
+
 ### 6.1 Pattern A — 단일 노드 (데모 / 매우 소형)
 
 **토폴로지**
@@ -453,7 +494,8 @@ PG primary+replica, Redis Sentinel, MinIO 3노드, Prometheus, backend 2개
    - `caldav` ×2 / `carddav` ×2 / `webdav` ×2 / `ldap` ×2
    - `outbox-relay` ×2 (싱글톤)
    - `delivery-worker` ×3
-   - `search-index-worker` ×2 (large compose에서 `elasticsearch` 블록 추가)
+   - `search-index-worker` ×2 ([`docker-compose.opensearch.yml`](docker-compose.opensearch.yml)
+     또는 관리형 OpenSearch/Elasticsearch 엔드포인트 필요)
    - `push-notification-worker` ×2 / `api-metering-worker` ×2
    - cleanup / retention / batch 각 ×1 + cold-standby 1
 
@@ -786,7 +828,7 @@ swaks --to test@example.com --from probe@external.tld \
 
 ### 참조 요약
 
-- Compose 레시피: 위 §6 + `docker-compose.{small,medium,large}.yml`
+- Compose 레시피: 위 §6 + `docker-compose.{dev,small,medium,large,scale,monitoring,opensearch}.yml`
 - Env 변수: 위 §5, 출처 `internal/config/config.go`
 - 모드 참조: 위 §4, 출처 [`docs/MODES.md`](../docs/MODES.md) +
   `internal/app/mode.go`
