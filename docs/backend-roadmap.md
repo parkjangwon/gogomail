@@ -7048,3 +7048,9 @@ Target outcome:
       onto message summaries/details as `sender_avatar_url` for active local
       sender addresses, allowing internal-domain messages to show user photos
       in the existing sender avatar/BIMI slot.
+1921. Centralized logging now has a common `request_id` field across Go HTTP
+      access logs, webmail/admin Next.js API proxy logs, backend API request
+      context, and SMTP/delivery/LDAP slog observability events. Production Go
+      modes write structured JSON to stdout with secret redaction, while
+      frontend proxies forward and echo `X-Request-ID` for ELK/Loki/Grafana
+      trace pivots.

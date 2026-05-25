@@ -127,8 +127,34 @@ func RequestIDFromContext(ctx context.Context) string {
 	return id
 }
 
+func ContextWithRequestID(ctx context.Context, requestID string) context.Context {
+	return context.WithValue(ctx, requestIDContextKey{}, strings.TrimSpace(requestID))
+}
+
 func RequestIDAttr(ctx context.Context) slog.Attr {
 	return slog.String("request_id", RequestIDFromContext(ctx))
+}
+
+func RequestContextAttrs(ctx context.Context) []slog.Attr {
+	if ctx == nil {
+		return nil
+	}
+	attrs := make([]slog.Attr, 0, 5)
+	if requestID := RequestIDFromContext(ctx); requestID != "" {
+		attrs = append(attrs, slog.String("request_id", requestID))
+	}
+	if claims, ok := ctx.Value(adminContextKey{}).(auth.Claims); ok {
+		if claims.UserID != "" {
+			attrs = append(attrs, slog.String("user_id", claims.UserID), slog.String("actor_id", claims.UserID))
+		}
+		if claims.CompanyID != "" {
+			attrs = append(attrs, slog.String("company_id", claims.CompanyID), slog.String("tenant_id", claims.CompanyID))
+		}
+		if claims.DomainID != "" {
+			attrs = append(attrs, slog.String("domain_id", claims.DomainID))
+		}
+	}
+	return attrs
 }
 
 func RequestIDMiddleware(next http.Handler) http.Handler {
@@ -138,7 +164,7 @@ func RequestIDMiddleware(next http.Handler) http.Handler {
 			requestID = newRequestID()
 		}
 		w.Header().Set("X-Request-ID", requestID)
-		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), requestIDContextKey{}, requestID)))
+		next.ServeHTTP(w, r.WithContext(ContextWithRequestID(r.Context(), requestID)))
 	})
 }
 

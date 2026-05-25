@@ -1,8 +1,14 @@
 import { cookies } from 'next/headers';
 import { ADMIN_ACCESS_TOKEN_COOKIE, LEGACY_ADMIN_ACCESS_TOKEN_COOKIE } from './cookies';
+import {
+  logServerRequest,
+  requestIDFromHeaders,
+  responseHeadersWithRequestID,
+  setRequestIDHeader,
+} from './requestLog';
 
 const MUTATING_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
-const REQUEST_HEADER_ALLOWLIST = new Set(['accept', 'content-type']);
+const REQUEST_HEADER_ALLOWLIST = new Set(['accept', 'content-type', 'x-request-id']);
 const DOWNLOAD_CONTENT_TYPES = ['text/csv', 'application/octet-stream'];
 
 export function encodeProxyPath(path: string[]): string {
@@ -58,19 +64,36 @@ export async function adminProxyHandler(
   path: string[],
   backendURL: string,
 ): Promise<Response> {
+  const started = Date.now();
+  const requestID = requestIDFromHeaders(req.headers);
+  const route = `/api/admin/${path.join('/')}`;
+  const finish = (response: Response, upstreamStatus?: number): Response => {
+    logServerRequest({
+      requestID,
+      method: req.method,
+      route,
+      status: response.status,
+      durationMs: Date.now() - started,
+      upstreamStatus,
+    });
+    return response;
+  };
   let encodedPath: string;
   try {
     assertSameOriginRequest(req);
     encodedPath = encodeProxyPath(path);
   } catch {
-    return Response.json({ error: 'Invalid proxy request' }, { status: 400 });
+    return finish(Response.json({ error: 'Invalid proxy request' }, {
+      status: 400,
+      headers: responseHeadersWithRequestID({ 'Cache-Control': 'no-store' }, requestID),
+    }));
   }
   const reqUrl = new URL(req.url);
   const url = `${backendURL}/admin/v1/${encodedPath}${reqUrl.search}`;
   const cookieStore = await cookies();
   const token = cookieStore.get(ADMIN_ACCESS_TOKEN_COOKIE)?.value
     ?? cookieStore.get(LEGACY_ADMIN_ACCESS_TOKEN_COOKIE)?.value;
-  const headers = requestHeadersForBackend(req, token);
+  const headers = setRequestIDHeader(requestHeadersForBackend(req, token), requestID);
   const hasRequestBody = req.method !== 'GET' && req.method !== 'HEAD';
   const body = hasRequestBody ? await req.arrayBuffer() : undefined;
   if (body && body.byteLength === 0) headers.delete('content-type');
@@ -81,18 +104,28 @@ export async function adminProxyHandler(
       headers,
       body,
     });
-    const responseHeaders = responseHeadersFromBackend(response);
+    const responseHeaders = responseHeadersWithRequestID(responseHeadersFromBackend(response), requestID);
     if (response.status === 204) {
-      return new Response(null, { status: 204, headers: responseHeaders });
+      return finish(new Response(null, { status: 204, headers: responseHeaders }), response.status);
     }
     const contentType = response.headers.get('content-type') ?? '';
     if (DOWNLOAD_CONTENT_TYPES.some((type) => contentType.includes(type))) {
-      return new Response(await response.arrayBuffer(), { status: response.status, headers: responseHeaders });
+      return finish(new Response(await response.arrayBuffer(), { status: response.status, headers: responseHeaders }), response.status);
     }
     const responseBody = contentType.includes('application/json') ? await response.json() : await response.text();
-    return Response.json(responseBody, { status: response.status, headers: responseHeaders });
+    return finish(Response.json(responseBody, { status: response.status, headers: responseHeaders }), response.status);
   } catch (error) {
-    console.error('Admin proxy error:', error);
-    return Response.json({ error: 'Failed to proxy request to backend' }, { status: 500 });
+    logServerRequest({
+      requestID,
+      method: req.method,
+      route,
+      status: 500,
+      durationMs: Date.now() - started,
+      error,
+    });
+    return Response.json({ error: 'Failed to proxy request to backend' }, {
+      status: 500,
+      headers: responseHeadersWithRequestID({ 'Cache-Control': 'no-store' }, requestID),
+    });
   }
 }

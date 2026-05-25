@@ -1,5 +1,5 @@
 const MUTATING_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
-const FORWARDED_HEADER_ALLOWLIST = new Set(['content-type', 'content-range', 'x-content-sha256', 'range']);
+const FORWARDED_HEADER_ALLOWLIST = new Set(['content-type', 'content-range', 'x-content-sha256', 'range', 'x-request-id']);
 
 export function encodeBackendPath(path: string[]): string {
   return path.map((segment) => {
