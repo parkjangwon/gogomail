@@ -78,7 +78,7 @@ export async function POST(req: NextRequest) {
   if (data.mfa_required) {
     return finish(NextResponse.json(
       { mfa_required: true, pending_token: data.pending_token },
-      { headers: responseHeadersWithRequestID({ 'Cache-Control': 'no-store' }, requestID) }
+      { headers: responseHeadersWithRequestID({ 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' }, requestID) }
     ), upstream.status);
   }
 

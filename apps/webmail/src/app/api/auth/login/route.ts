@@ -82,10 +82,9 @@ export async function POST(req: NextRequest) {
     ), upstream.status);
   }
 
-  const maxAge = Math.max(
-    60,
-    Math.floor((new Date(data.expires_at!).getTime() - Date.now()) / 1000),
-  );
+  const maxAge = data.expires_at
+    ? Math.max(60, Math.floor((new Date(data.expires_at).getTime() - Date.now()) / 1000))
+    : 86400;
 
   const response = NextResponse.json({
     expires_at: data.expires_at,
