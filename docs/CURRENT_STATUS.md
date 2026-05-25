@@ -31,12 +31,19 @@ Last updated: 2026-05-25 (DM instant messaging implementation)
   documented as `d` in both shortcut help and settings, and direct-room creation
   now succeeds against the live API after fixing the direct-room lookup SQL bind
   parameters. Invalid non-UUID participant IDs now return 400 instead of 500.
+- DM message sending now guards IME composition to prevent duplicate Korean
+  sends, room envelopes expose the authenticated current user for right-aligned
+  outgoing bubbles and direct-room counterpart titles, named group rooms keep the
+  configured room name for every participant, DM uses the existing profile-photo
+  data for member/message avatars, the details panel shows a participant list
+  with owner/removal affordances, and the webmail panel offers a compact emoji
+  picker instead of fixed reaction presets.
 - `docs/openapi.yaml` and `docs/backend-api-contracts.md` now document the DM
   route surface, envelopes, auth fallback, encrypted storage behavior, and
   attachment constraints/downloads; OpenAPI route-coverage tests include
   `dm.go`.
 - Verification: `go test ./...`, `pnpm -C apps/webmail type-check`, and
-  `pnpm -C apps/webmail exec playwright test e2e/dm-panel.spec.ts --project=chromium`
+  `pnpm -C apps/webmail exec playwright test e2e/dm-panel.spec.ts e2e/keyboard.spec.ts --project=chromium`
   passed.
 
 ## Org chart picker 500 fix (2026-05-25)
