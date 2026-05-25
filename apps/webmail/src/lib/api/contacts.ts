@@ -183,3 +183,23 @@ export async function getDirectoryProfile(email: string): Promise<DirectoryProfi
     return await res.json() as DirectoryProfile;
   } catch { return null; }
 }
+
+// ─── Contact autocomplete (used by compose) ───────────────────────────────────
+
+export interface ContactSuggestion {
+  type?: string;
+  display_name: string;
+  email: string;
+  organization?: string;
+}
+
+export async function autocompleteContacts(q: string, limit = 8): Promise<ContactSuggestion[]> {
+  if (!q.trim()) return [];
+  const params = new URLSearchParams({ q, limit: String(limit) });
+  try {
+    const res = await fetch(`/api/mail/contacts/autocomplete?${params}`);
+    if (!res.ok) return [];
+    const data = await res.json() as { results?: ContactSuggestion[] };
+    return data.results ?? [];
+  } catch { return []; }
+}

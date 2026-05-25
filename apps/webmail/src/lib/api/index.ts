@@ -2,7 +2,7 @@
 // Consumers importing from '@/lib/api' continue to work via the api.ts shim.
 
 export * from './types';
-export * from './http';
+// Note: http.ts helpers (request, apiGet, …) are internal infrastructure and not re-exported.
 export * from './auth';
 export * from './mail';
 export * from './dm';
