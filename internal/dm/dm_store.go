@@ -722,8 +722,8 @@ WHERE p.room_id = r.id
 }
 
 func (s *PostgresStore) ListSearchCandidates(ctx context.Context, principal Principal, roomID string, beforeMessageID string, limit int) ([]MessageRecord, error) {
-	if limit <= 0 || limit > 10000 {
-		limit = 10000
+	if limit <= 0 || limit > 1000 {
+		limit = 1000
 	}
 	cursor := MessageCursor{BeforeID: beforeMessageID, Limit: limit}
 	records, err := s.ListMessages(ctx, principal, roomID, cursor)

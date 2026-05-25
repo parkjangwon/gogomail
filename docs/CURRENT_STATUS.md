@@ -9111,3 +9111,9 @@ Next focus areas:
 - English, Japanese, and Simplified Chinese console locale files now use specific modal titles and confirmation copy for alerts, aliases, companies, DKIM keys, domain settings, trusted relays, routes, reports, and roles.
 - Removed launch-visible placeholder strings including `Config Modal Title`, `Quota Modal Title`, `Domain Settings Title`, `Delete Modal Title`, bare `Title`, and related placeholder descriptions from shipped locale JSON.
 - Verification target: `rg 'Config Modal Title|Quota Modal Title|Domain Settings Title|Deactivate Modal Title|Delete Modal Title|Add Setting Modal Header|Dns Issues Header|No Domains Desc|Quota Help|Dns Setup Desc|Dns Verification Desc|Manage Dkim Desc|Delete Confirm|Deactivate Confirm|"title": "Title"|Reports Desc|Description Col|Backend Warning|Assigned Users' apps/console/src/messages/*.json`; `pnpm --dir apps/console type-check`.
+
+## 2026-05-25 DM search candidate limit and documentation
+
+- Lowered `ListSearchCandidates` maximum from 10000 to 1000 records to reduce per-query decryption overhead on large rooms.
+- Added inline comment in `Search` function explaining why DM messages require in-memory scanning: AES-GCM encryption prevents database-level FTS; messages are decrypted client-side and matched with `strings.Contains`. High-message-count rooms may have older messages fall outside the 1000-message scan window.
+- Verification target: `go test ./internal/dm/... -v`.
