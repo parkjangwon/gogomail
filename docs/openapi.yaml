@@ -13422,6 +13422,7 @@ components:
         attachment_download_url:
           type: string
           format: uri
+          description: One-hour signed download URL included on file message responses.
         drive_file_id:
           type: string
         created_at:
