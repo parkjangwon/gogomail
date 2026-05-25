@@ -1,4 +1,5 @@
 'use client';
+import { type DMTFunction } from './types';
 
 import type { RefObject } from 'react';
 import type { DMMediaItem, DMRoom, DMUser } from '@/lib/api';
@@ -55,7 +56,7 @@ type DMDetailsPanelProps = {
   onLeaveOrRemove: (userId: string) => void;
   onComposeToAddress?: (email: string) => void;
   titleForRoom: (room: DMRoom) => string;
-  t: (key: string, params?: Record<string, string | number>) => string;
+  t: DMTFunction;
 };
 
 export function DMDetailsPanel({

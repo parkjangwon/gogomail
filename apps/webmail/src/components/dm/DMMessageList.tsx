@@ -1,4 +1,5 @@
 'use client';
+import { type DMTFunction } from './types';
 
 import type { RefObject } from 'react';
 import type { DMMessage, DMRoom, DMUser } from '@/lib/api';
@@ -55,7 +56,6 @@ function downloadFromURL(url: string, filename: string) {
 
 type DMMessageListProps = {
   messages: DMMessage[];
-  activeRoom: DMRoom | null;
   currentUserId: string;
   selfAvatarUrl: string;
   loadingMessages: boolean;
@@ -74,7 +74,7 @@ type DMMessageListProps = {
   onSubmitEdit: () => void;
   onRemoveMessage: (messageId: string) => void;
   onCopyImage: (message: DMMessage) => void;
-  t: (key: string, params?: Record<string, string | number>) => string;
+  t: DMTFunction;
 };
 
 export function DMMessageList({

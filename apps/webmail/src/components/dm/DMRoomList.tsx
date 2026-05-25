@@ -1,4 +1,5 @@
 'use client';
+import { type DMTFunction } from './types';
 
 import type { KeyboardEvent, MouseEvent as ReactMouseEvent } from 'react';
 import type { DMRoom, DMUser, DirectoryUser } from '@/lib/api';
@@ -107,7 +108,7 @@ type DMRoomListProps = {
   onStartWindowDrag?: (event: ReactMouseEvent<HTMLElement>) => void;
   titleForRoom: (room: DMRoom) => string;
   previewForMessage: (message: DMRoom['last_message']) => string;
-  t: (key: string, params?: Record<string, string | number>) => string;
+  t: DMTFunction;
 };
 
 export function DMRoomList({

@@ -179,7 +179,7 @@ export function useDMPanel({ onUnreadChange }: UseDMPanelOptions) {
     } catch (err) {
       setError(err instanceof Error ? err.message : t('errors.unavailable'));
     } finally { setLoadingRooms(false); }
-  }, [activeRoomId, onUnreadChange, t]);
+  }, [onUnreadChange, t]);
 
   const loadMessages = useCallback(async () => {
     if (!activeRoomId) return;

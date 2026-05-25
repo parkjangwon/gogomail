@@ -36,9 +36,6 @@ export function DMPanel({ userEmail, onUnreadChange, onClose, onComposeToAddress
   const dm = useDMPanel({ onUnreadChange });
   const { t } = dm;
 
-  // Cast t to pass into sub-components that accept a generic translation function
-  const tFn = t as unknown as (key: string, params?: Record<string, string | number>) => string;
-
   const handleWindowHeaderMouseDown = useCallback((event: ReactMouseEvent<HTMLElement>) => {
     const target = event.target as HTMLElement;
     if (target.closest('button,input,textarea,a,[role="button"],[role="menuitem"]')) return;
@@ -78,7 +75,7 @@ export function DMPanel({ userEmail, onUnreadChange, onClose, onComposeToAddress
         onStartWindowDrag={onStartWindowDrag}
         titleForRoom={dm.titleForRoom}
         previewForMessage={dm.previewForMessage}
-        t={tFn}
+        t={t}
       />
 
       <main style={{ flex: 1, minWidth: 0, display: dm.activeRoom ? 'flex' : 'none', flexDirection: 'column', height: '100%' }}>
@@ -135,7 +132,6 @@ export function DMPanel({ userEmail, onUnreadChange, onClose, onComposeToAddress
             <section style={{ display: 'flex', flexDirection: 'column', minWidth: 0, minHeight: 0 }}>
               <DMMessageList
                 messages={dm.messages}
-                activeRoom={dm.activeRoom}
                 currentUserId={dm.currentUserId}
                 selfAvatarUrl={dm.selfAvatarUrl}
                 loadingMessages={dm.loadingMessages}
@@ -154,7 +150,7 @@ export function DMPanel({ userEmail, onUnreadChange, onClose, onComposeToAddress
                 onSubmitEdit={dm.submitEdit}
                 onRemoveMessage={dm.removeMessage}
                 onCopyImage={dm.copyImageToClipboard}
-                t={tFn}
+                t={t}
               />
               <DMComposer
                 composer={dm.composer}
@@ -169,7 +165,7 @@ export function DMPanel({ userEmail, onUnreadChange, onClose, onComposeToAddress
                 onPaste={dm.uploadPastedImages}
                 onCompositionStart={() => { dm.composerComposingRef.current = true; }}
                 onCompositionEnd={() => { dm.composerComposingRef.current = false; }}
-                t={tFn}
+                t={t}
               />
             </section>
 
@@ -194,7 +190,7 @@ export function DMPanel({ userEmail, onUnreadChange, onClose, onComposeToAddress
                 onLeaveOrRemove={dm.leaveOrRemove}
                 onComposeToAddress={onComposeToAddress}
                 titleForRoom={dm.titleForRoom}
-                t={tFn}
+                t={t}
               />
             )}
           </div>
@@ -232,7 +228,7 @@ export function DMPanel({ userEmail, onUnreadChange, onClose, onComposeToAddress
         onSetImageMenu={dm.setImageMenu}
         onCancelPaste={() => dm.setPendingPasteFile(null)}
         onConfirmPaste={dm.confirmPendingPaste}
-        t={tFn}
+        t={t}
       />
     </div>
   );
