@@ -721,17 +721,13 @@ WHERE p.room_id = r.id
 	return nil
 }
 
-func (s *PostgresStore) ListSearchCandidates(ctx context.Context, principal Principal, roomID string, beforeMessageID string, limit int) ([]MessageRecord, error) {
-	if limit <= 0 || limit > 1000 {
-		limit = 1000
+func (s *PostgresStore) ListSearchCandidates(ctx context.Context, principal Principal, roomID string, beforeMessageID string, pageSize int) ([]MessageRecord, error) {
+	if pageSize <= 0 || pageSize > 500 {
+		pageSize = 200
 	}
-	cursor := MessageCursor{BeforeID: beforeMessageID, Limit: limit}
-	records, err := s.ListMessages(ctx, principal, roomID, cursor)
-	if err != nil {
-		return nil, err
-	}
-	reverseMessageRecords(records)
-	return records, nil
+	cursor := MessageCursor{BeforeID: beforeMessageID, Limit: pageSize}
+	// ListMessages returns messages ordered DESC then reversed → chronological (oldest first).
+	return s.ListMessages(ctx, principal, roomID, cursor)
 }
 
 func (s *PostgresStore) ListMedia(ctx context.Context, principal Principal, roomID string, query MediaQuery) ([]MediaItem, error) {

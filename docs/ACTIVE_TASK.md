@@ -2,20 +2,20 @@
 
 ## ID: COMPLETE
 
-DM 대화방 내보내기 기능 구현 완료 (2026-05-26)
+DM 검색 전체 히스토리 스캔 구현 완료 (2026-05-26)
 
-- `internal/dm/dm.go`: `Store` 인터페이스에 `GetRoom`, `ListAllMessagesForExport` 추가
-- `internal/dm/dm_store.go`: `PostgresStore` 구현 (참여자 전용 접근, `messageSelectSQL` 재사용)
-- `internal/dm/dm_export.go`: `RoomExport` 타입 + `FormatExportTXT` 함수 (신규 파일)
-- `internal/dm/dm.go`: `Service.GetRoom`, `Service.ExportRoom` 메서드 추가
-- `internal/httpapi/dm.go`: `DMService.ExportRoom` + `GET /api/v1/dm/rooms/{roomID}/export` 핸들러
-- `docs/openapi.yaml`: `exportDMRoom` 오퍼레이션 추가
-- `apps/webmail/src/components/DMPanel.tsx`: ⋯ 더보기 메뉴 + export 핸들러 + 오류 표시
-- `apps/webmail/src/lib/api/dm.ts`: `exportDMRoom()` API 함수
-- `apps/webmail/messages/{en,ko,ja,zh-CN}.json`: `dmPanel.exportRoom/exportDownloading/exportError` i18n 키
-- `apps/gogomail-user-mcp/src/tools/dm.ts`: `gogomail_dm_export_room` 도구 추가 (124번째 도구)
-- `apps/gogomail-user-mcp/README.md`: DM (18→19)로 업데이트
-- `go test -short ./...`: 6003 passed
+- `internal/dm/dm.go`: `Service.Search` — 단일 1000개 페치를 페이지네이션 루프로 교체
+  - `searchPageSize = 200` 상수 추가
+  - 빈 페이지가 반환될 때까지 cursor 기반으로 전체 히스토리를 스캔
+  - `limit`개 결과 달성 시 즉시 반환
+- `internal/dm/dm_store.go`: `PostgresStore.ListSearchCandidates` — 1000 하드캡 제거, pageSize 파라미터 존중
+- `internal/dm/dm_test.go`: 5개 새 테스트 추가
+  - `TestSearchReturnsSinglePageResults` (회귀 방지)
+  - `TestSearchPaginatesAcrossMultiplePages`
+  - `TestSearchStopsWhenLimitReached`
+  - `TestSearchExhaustsAllPagesWhenMatchesSparse`
+  - `TestSearchCursorAdvancesPerPage`
+- `go test -short ./...`: 6152 passed
 
 ## Next Steps
 

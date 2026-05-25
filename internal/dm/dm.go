@@ -536,11 +536,15 @@ func (s *Service) MarkRead(ctx context.Context, principal Principal, roomID stri
 	return s.store.MarkRead(ctx, principal, strings.TrimSpace(roomID), strings.TrimSpace(lastMessageID))
 }
 
+// searchPageSize is the number of messages fetched per iteration in Search.
+// Smaller values reduce peak memory; larger values reduce round-trips.
+const searchPageSize = 200
+
 func (s *Service) Search(ctx context.Context, principal Principal, roomID string, q string, before string, limit int) ([]SearchResult, error) {
 	// NOTE: DM 메시지는 AES-GCM 암호화로 저장된다. DB 레벨 FTS가 불가능하므로
 	// 메시지를 복호화한 뒤 애플리케이션 레이어에서 strings.Contains로 검색한다.
-	// 최대 1000개 메시지를 스캔하므로 메시지 수가 많은 방에서는 오래된 메시지가
-	// 검색 범위에서 벗어날 수 있다.
+	// searchPageSize개씩 페이지를 읽으며 전체 히스토리를 스캔한다.
+	// 결과가 limit개 모이거나 메시지가 소진되면 종료한다.
 	principal = normalizePrincipal(principal)
 	if err := validatePrincipal(principal); err != nil {
 		return nil, err
@@ -552,31 +556,49 @@ func (s *Service) Search(ctx context.Context, principal Principal, roomID string
 	if limit <= 0 || limit > 50 {
 		limit = 20
 	}
+	roomID = strings.TrimSpace(roomID)
+	cursor := strings.TrimSpace(before)
+
 	roomKey, err := s.roomKey(ctx, principal, roomID)
 	if err != nil {
 		return nil, err
 	}
 	defer zeroBytes(roomKey)
-	records, err := s.store.ListSearchCandidates(ctx, principal, strings.TrimSpace(roomID), strings.TrimSpace(before), 1000)
-	if err != nil {
-		return nil, err
-	}
-	messages, err := s.decryptRecords(roomKey, records)
-	if err != nil {
-		return nil, err
-	}
+
 	results := make([]SearchResult, 0, limit)
-	for _, msg := range messages {
-		if msg.MessageType == MessageTypeSystem || msg.DeletedAt != nil {
-			continue
+	for {
+		records, err := s.store.ListSearchCandidates(ctx, principal, roomID, cursor, searchPageSize)
+		if err != nil {
+			return nil, err
 		}
-		if strings.Contains(strings.ToLower(msg.Body), q) {
-			results = append(results, SearchResult{Message: msg})
-			if len(results) >= limit {
-				break
+		if len(records) == 0 {
+			break // exhausted all messages
+		}
+
+		messages, err := s.decryptRecords(roomKey, records)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, msg := range messages {
+			if msg.MessageType == MessageTypeSystem || msg.DeletedAt != nil {
+				continue
+			}
+			if strings.Contains(strings.ToLower(msg.Body), q) {
+				results = append(results, SearchResult{Message: msg})
+				if len(results) >= limit {
+					return results, nil
+				}
 			}
 		}
+
+		// Advance cursor to the oldest message in the current page.
+		// The store returns records in chronological order (oldest first),
+		// so records[0] is the oldest — passing its ID as BeforeID fetches
+		// the next older batch.
+		cursor = records[0].ID
 	}
+
 	return results, nil
 }
 
