@@ -28,7 +28,7 @@ Current user coverage is **123 tools** across mail, bulk mail operations, folder
   - [Mail Bulk (8)](#mail-bulk-8)
   - [Folders and Threads (6)](#folders-and-threads-6)
   - [Attachments (5)](#attachments-5)
-  - [DM (18)](#dm-18)
+  - [DM (19)](#dm-19)
   - [Contacts and Directory (14)](#contacts-and-directory-14)
   - [Spam (5)](#spam-5)
   - [Drive (20)](#drive-20)
@@ -462,7 +462,7 @@ Attachment listing, download, and upload tools.
 | `gogomail_mail_create_text_attachment` | Create and upload a text attachment for a draft message. Useful for attaching generated content without a local file. | `draft_id`, `filename`, `content_text`, `mime_type` | — |
 | `gogomail_mail_cancel_attachment_upload` | Cancel an in-progress attachment upload for a draft. | `draft_id`, `attachment_id` | — |
 
-### DM (18)
+### DM (19)
 
 Direct messages: room management, messaging, attachments, search, and reactions. All DM room content is encrypted with AES-256-GCM per room, with keys distributed to participants at the API layer.
 
@@ -486,6 +486,7 @@ Direct messages: room management, messaging, attachments, search, and reactions.
 | `gogomail_dm_edit_message` | Edit the text body of a DM message the caller sent. | `room_id`, `message_id`, `body` | `"edit dm message <message_id>"` |
 | `gogomail_dm_delete_message` | Delete a DM message the caller sent. | `room_id`, `message_id` | `"delete dm message <message_id>"` |
 | `gogomail_dm_toggle_reaction` | Add or remove an emoji reaction to a message. If the caller has already reacted with this emoji, the reaction is removed; otherwise it is added. | `room_id`, `message_id`, `emoji` | — |
+| `gogomail_dm_export_room` | Export all messages in a DM room as plain text. Includes deleted messages (shown as `[삭제됨]`) and system events. Returns the conversation in `body_text`. | `room_id` | — |
 
 ### Contacts and Directory (14)
 

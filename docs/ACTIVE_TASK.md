@@ -2,7 +2,7 @@
 
 ## Current Task
 
-**DM Export Plan — Task 5: User MCP — dm_export_room tool** (pending 2026-05-26)
+**DM Export Plan — Task 5: User MCP — dm_export_room tool** (COMPLETE 2026-05-26)
 
 ## Last Completed Task
 
