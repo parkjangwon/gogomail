@@ -884,7 +884,8 @@ SELECT
   messages.size,
   messages.has_attachment,
   messages.flags,
-  messages.storage_path
+  messages.storage_path,
+  COALESCE(messages.html_body, '')
 FROM messages
 LEFT JOIN user_addresses sender_addr
   ON sender_addr.address_ace = lower(messages.from_addr)
@@ -912,6 +913,7 @@ LIMIT 1`
 		&msg.HasAttachment,
 		&msg.Flags,
 		&msg.StoragePath,
+		&msg.HTMLBody,
 	)
 	if err != nil {
 		if err == sql.ErrNoRows {

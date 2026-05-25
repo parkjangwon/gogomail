@@ -820,6 +820,20 @@ export interface CalendarObject {
   UpdatedAt: string;
 }
 
+/** Decode a base64 string as UTF-8 text (handles multi-byte characters). */
+function base64ToUTF8(b64: string): string {
+  try {
+    const binStr = atob(b64);
+    const bytes = new Uint8Array(binStr.length);
+    for (let i = 0; i < binStr.length; i++) {
+      bytes[i] = binStr.charCodeAt(i);
+    }
+    return new TextDecoder('utf-8').decode(bytes);
+  } catch {
+    return b64;
+  }
+}
+
 /** Parse key iCal fields from base64-encoded ICS data. */
 export function parseICS(base64ICS: string): {
   summary: string;
@@ -830,7 +844,7 @@ export function parseICS(base64ICS: string): {
   allDay: boolean;
 } {
   let text = '';
-  try { text = atob(base64ICS); } catch { text = base64ICS; }
+  try { text = base64ToUTF8(base64ICS); } catch { text = base64ICS; }
 
   // Unfold long lines (RFC 5545 line folding: CRLF + whitespace)
   text = text.replace(/\r\n[ \t]/g, '').replace(/\n[ \t]/g, '');
@@ -1001,7 +1015,7 @@ export interface ParsedVTODOFields {
 
 export function parseVTODOICS(base64ICS: string): ParsedVTODOFields {
   let text = '';
-  try { text = atob(base64ICS); } catch { text = base64ICS; }
+  try { text = base64ToUTF8(base64ICS); } catch { text = base64ICS; }
   text = text.replace(/\r\n[ \t]/g, '').replace(/\n[ \t]/g, '');
   const get = (prop: string): string => {
     const m = text.match(new RegExp(`(?:^|\\n)${prop}(?:;[^\\n:]*)?:([^\\n]*)`, 'im'));

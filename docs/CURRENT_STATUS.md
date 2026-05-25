@@ -1,6 +1,34 @@
 # gogomail current status
 
-Last updated: 2026-05-25 (converged dev compose stack)
+Last updated: 2026-05-25 (seed-data UI bug fixes)
+
+## Seed-data UI bug fixes (2026-05-25)
+
+Three bugs affecting the dev seed-data experience were fixed:
+
+**Contacts 500 error (carddavgw):**
+- `photo_media_type` and `group_name` are nullable columns in
+  `carddav_contact_objects` but were scanned into non-pointer Go `string`
+  fields. Any row with NULL in either column caused "converting NULL to string"
+  and a 500 response.
+- Fix: all six SELECT queries in `internal/carddavgw/repository.go` that project
+  these columns now use `COALESCE(col, '')`.
+
+**Mail body showing "(내용 없음)" (maildb + mailservice):**
+- `GetMessage` did not select `html_body` from the DB. When `storage_path` is
+  empty (seed/SQL-inserted messages with no MinIO object), the service returned
+  no body.
+- Fix: `GetMessage` query now selects `COALESCE(html_body,'')` and scans into
+  `msg.HTMLBody`. The service uses the DB `html_body` as the body when
+  `storage_path` is empty, deriving `text_body` via `stripHTMLTags`.
+- `scripts/seed_dev_data.sql`: after INSERTs an UPDATE sets
+  `html_body = '<p>' || draft_text_body || '</p>'` for all seed messages.
+
+**Calendar Korean characters garbled (webmail):**
+- `parseICS` and `parseVTODOICS` used `atob()` which decodes base64 to Latin-1
+  bytes, corrupting multi-byte UTF-8 characters.
+- Fix: `base64ToUTF8()` helper added to `apps/webmail/src/lib/api.ts`; uses
+  `TextDecoder('utf-8')` after `atob()`. Both ICS parsers now call this helper.
 
 ## Converged dev Docker Compose stack (2026-05-25)
 - Merged `docker-compose.dev.yml` + `docker-compose.opensearch.yml` + `docker-compose.monitoring.yml` into a single `docker-compose.dev.yml` (16 services, one `gogomail-dev` bridge network).
