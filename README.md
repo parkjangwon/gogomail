@@ -11,11 +11,6 @@ change**.
 
 Korean / 한국어: [README.ko.md](README.ko.md)
 
-Current baseline: **2026-05-26**. The repo is focused on SaaS pre-launch
-hardening: webmail usability, notification safety, local-domain delivery,
-spam controls, DM collaboration, MCP automation, and split-mode deployment
-readiness.
-
 ## What it is
 
 - Self-hosted mail platform: SMTP receive/submission/delivery + IMAP + POP3
@@ -84,23 +79,22 @@ readiness.
   env vars, and replica counts.
 - **Single source of truth** — Postgres holds tenant, mailbox, and outbox
   state. No local spool, crash-safe restarts.
-- **Local-first smoke path** — the dev Compose stack now starts the HTTP
-  backend plus event, outbox relay, and delivery workers so webmail send/receive
-  paths run without manual worker startup.
+- **Local-first smoke path** — the dev Compose stack starts infra, backend,
+  all workers, and the monitoring stack in one command so webmail send/receive
+  paths and Grafana dashboards are available immediately.
 
 ## Quick start
 
 ```bash
-# Local development stack (Postgres + Redis + MinIO + ClamAV + backend + workers)
-cd docker
-docker compose -f docker-compose.dev.yml up -d --build \
-  backend event-worker outbox-relay delivery-worker
+# Full dev stack: infra (Postgres, Redis, MinIO, ClamAV) + backend + workers + monitoring
+docker compose -f docker/docker-compose.dev.yml up -d
 ```
 
 Once up:
 
 - Backend API: `http://localhost:8080/`
 - Readiness: `http://localhost:8080/health/ready`
+- Grafana: `http://localhost:3000/` (admin / admin)
 - Postgres / Redis / MinIO: `localhost:15432`, `localhost:16379`,
   `localhost:19000` (`localhost:19001` console)
 
