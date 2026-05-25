@@ -39,9 +39,10 @@ Last updated: 2026-05-25 (DM instant messaging implementation)
   with email compose links and group-only owner/invite/member controls, 1:1
   rooms expose only the current user's leave action, per-room composer drafts
   survive room switches, clipboard image paste uploads as a DM attachment, and
-  JPG/PNG/WebP DM attachments render inline with click-to-enlarge preview. The
-  webmail panel offers a compact emoji picker that closes on outside clicks or
-  reaction errors instead of fixed reaction presets.
+  JPG/PNG/WebP DM attachments render inline with click-to-enlarge preview
+  through the webmail API proxy. The webmail panel offers a compact emoji picker
+  that closes on outside clicks or reaction errors instead of fixed reaction
+  presets.
 - `docs/openapi.yaml` and `docs/backend-api-contracts.md` now document the DM
   route surface, envelopes, auth fallback, encrypted storage behavior, and
   attachment constraints/downloads; OpenAPI route-coverage tests include
