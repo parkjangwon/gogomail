@@ -1977,6 +1977,13 @@
     "imageAttachment": "이미지 첨부",
     "openImage": "이미지 크게 보기",
     "closeImage": "이미지 닫기",
+    "downloadFile": "다운로드",
+    "copyImage": "이미지 복사",
+    "imageCopied": "이미지를 복사했습니다",
+    "confirmImageAttach": "해당 이미지를 첨부하시겠습니까?",
+    "attachImage": "이미지 첨부",
+    "cancel": "취소",
+    "backToList": "대화 목록으로 돌아가기",
     "drive": "드라이브",
     "directMessage": "1:1 메시지",
     "edited": "수정됨",
@@ -2011,7 +2018,8 @@
       "addMemberFailed": "멤버 추가 실패",
       "ownerTransferFailed": "소유자 이전 실패",
       "inviteFailed": "초대 생성 실패",
-      "removeMemberFailed": "멤버 제거 실패"
+      "removeMemberFailed": "멤버 제거 실패",
+      "copyFailed": "이미지 복사 실패"
     }
   },
   "spamDialog": {

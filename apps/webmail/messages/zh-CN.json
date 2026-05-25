@@ -1974,6 +1974,13 @@
     "imageAttachment": "图片附件",
     "openImage": "放大图片",
     "closeImage": "关闭图片",
+    "downloadFile": "下载",
+    "copyImage": "复制图片",
+    "imageCopied": "图片已复制",
+    "confirmImageAttach": "要附加这张图片吗？",
+    "attachImage": "附加图片",
+    "cancel": "取消",
+    "backToList": "返回会话列表",
     "drive": "网盘",
     "directMessage": "单聊消息",
     "edited": "已编辑",
@@ -2008,7 +2015,8 @@
       "addMemberFailed": "添加成员失败",
       "ownerTransferFailed": "转移所有者失败",
       "inviteFailed": "创建邀请失败",
-      "removeMemberFailed": "移除成员失败"
+      "removeMemberFailed": "移除成员失败",
+      "copyFailed": "复制图片失败"
     }
   },
   "spamDialog": {

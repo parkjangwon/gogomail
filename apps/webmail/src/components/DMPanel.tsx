@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { ClipboardEvent, CSSProperties } from 'react';
+import type { ClipboardEvent, CSSProperties, KeyboardEvent } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   addDMMembers,
@@ -29,8 +29,11 @@ import {
 } from '@/lib/api';
 import { useWebmailAvatar } from '@/lib/webmailAvatar';
 import {
+  ArrowDownTrayIcon,
+  ArrowLeftIcon,
   ArrowPathIcon,
   ChatBubbleLeftRightIcon,
+  ClipboardDocumentIcon,
   InformationCircleIcon,
   LinkIcon,
   MagnifyingGlassIcon,
@@ -171,6 +174,15 @@ function isDMImageMessage(message: DMMessage): boolean {
   return /\.(jpe?g|png|webp)$/i.test(message.attachment_name ?? message.body ?? '');
 }
 
+function downloadFromURL(url: string, filename: string) {
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = filename || 'download';
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+}
+
 function mergeMessage(existing: DMMessage[], next: DMMessage): DMMessage[] {
   const index = existing.findIndex((m) => m.id === next.id);
   if (index === -1) return [...existing, next].sort((a, b) => Date.parse(a.created_at) - Date.parse(b.created_at));
@@ -201,6 +213,7 @@ export function DMPanel({ userEmail, onUnreadChange, onClose, onComposeToAddress
   const [messages, setMessages] = useState<DMMessage[]>([]);
   const [directoryQuery, setDirectoryQuery] = useState('');
   const [directoryUsers, setDirectoryUsers] = useState<DirectoryUser[]>([]);
+  const [directoryActiveIndex, setDirectoryActiveIndex] = useState(0);
   const [selectedUsers, setSelectedUsers] = useState<DirectoryUser[]>([]);
   const [roomName, setRoomName] = useState('');
   const [roomType, setRoomType] = useState<'direct' | 'group'>('direct');
@@ -221,6 +234,10 @@ export function DMPanel({ userEmail, onUnreadChange, onClose, onComposeToAddress
   const [driveComposerOpen, setDriveComposerOpen] = useState(false);
   const [reactionPickerMessageId, setReactionPickerMessageId] = useState<string | null>(null);
   const [previewImage, setPreviewImage] = useState<DMMessage | null>(null);
+  const [imageMenu, setImageMenu] = useState<{ message: DMMessage; x: number; y: number } | null>(null);
+  const [pendingPasteFile, setPendingPasteFile] = useState<File | null>(null);
+  const [pendingPastePreview, setPendingPastePreview] = useState('');
+  const [notice, setNotice] = useState('');
   const [loadingRooms, setLoadingRooms] = useState(false);
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [error, setError] = useState('');
@@ -274,7 +291,6 @@ export function DMPanel({ userEmail, onUnreadChange, onClose, onComposeToAddress
       setRooms(joined);
       setPublicRooms(publicList);
       onUnreadChange?.(joined.reduce((sum, room) => sum + (room.unread_count ?? 0), 0));
-      if (!activeRoomId && joined[0]) setActiveRoomId(joined[0].id);
       setError('');
     } catch (err) {
       setError(err instanceof Error ? err.message : t('errors.unavailable'));
@@ -319,13 +335,27 @@ export function DMPanel({ userEmail, onUnreadChange, onClose, onComposeToAddress
   useEffect(() => {
     if (!newChatOpen) {
       setDirectoryUsers([]);
+      setDirectoryActiveIndex(0);
       return;
     }
     const id = window.setTimeout(() => {
-      void listDirectoryUsers(directoryQuery || undefined, 30).then(setDirectoryUsers);
+      void listDirectoryUsers(directoryQuery || undefined, 30).then((users) => {
+        setDirectoryUsers(users);
+        setDirectoryActiveIndex(0);
+      });
     }, 180);
     return () => window.clearTimeout(id);
   }, [directoryQuery, newChatOpen]);
+
+  useEffect(() => {
+    if (!pendingPasteFile) {
+      setPendingPastePreview('');
+      return;
+    }
+    const url = URL.createObjectURL(pendingPasteFile);
+    setPendingPastePreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [pendingPasteFile]);
 
   useEffect(() => {
     if (!activeRoomId || !searchQuery.trim()) {
@@ -370,6 +400,22 @@ export function DMPanel({ userEmail, onUnreadChange, onClose, onComposeToAddress
     return () => document.removeEventListener('mousedown', closeOnOutsidePointer);
   }, [reactionPickerMessageId]);
 
+  useEffect(() => {
+    if (!imageMenu) return;
+    const close = () => setImageMenu(null);
+    const closeOnKey = (event: globalThis.KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      event.stopPropagation();
+      setImageMenu(null);
+    };
+    document.addEventListener('mousedown', close);
+    document.addEventListener('keydown', closeOnKey, true);
+    return () => {
+      document.removeEventListener('mousedown', close);
+      document.removeEventListener('keydown', closeOnKey, true);
+    };
+  }, [imageMenu]);
+
   const createRoom = useCallback(async () => {
     if (selectedUsers.length === 0) return;
     try {
@@ -390,6 +436,27 @@ export function DMPanel({ userEmail, onUnreadChange, onClose, onComposeToAddress
       setError(err instanceof Error ? err.message : t('errors.roomCreateFailed'));
     }
   }, [roomName, roomType, selectedUsers, t, visibility]);
+
+  const addDirectoryUser = useCallback((user: DirectoryUser) => {
+    setSelectedUsers((prev) => {
+      if (roomType === 'direct') return [user];
+      return prev.some((item) => item.id === user.id) ? prev : [...prev, user];
+    });
+  }, [roomType]);
+
+  const handleDirectoryKeyDown = useCallback((event: KeyboardEvent<HTMLInputElement>) => {
+    if (directoryUsers.length === 0) return;
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      setDirectoryActiveIndex((index) => Math.min(index + 1, directoryUsers.length - 1));
+    } else if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      setDirectoryActiveIndex((index) => Math.max(index - 1, 0));
+    } else if (event.key === 'Enter') {
+      event.preventDefault();
+      addDirectoryUser(directoryUsers[directoryActiveIndex] ?? directoryUsers[0]);
+    }
+  }, [addDirectoryUser, directoryActiveIndex, directoryUsers]);
 
   const send = useCallback(async () => {
     if (!activeRoomId || (!composer.trim() && !driveFileId.trim())) return;
@@ -435,8 +502,31 @@ export function DMPanel({ userEmail, onUnreadChange, onClose, onComposeToAddress
     }
     if (files.length === 0) return;
     event.preventDefault();
-    files.forEach((file) => { void uploadFile(file); });
-  }, [uploadFile]);
+    setPendingPasteFile(files[0]);
+  }, []);
+
+  const confirmPendingPaste = useCallback(() => {
+    if (!pendingPasteFile) return;
+    const file = pendingPasteFile;
+    setPendingPasteFile(null);
+    void uploadFile(file);
+  }, [pendingPasteFile, uploadFile]);
+
+  const copyImageToClipboard = useCallback(async (message: DMMessage) => {
+    if (!message.attachment_download_url) return;
+    try {
+      const response = await fetch(message.attachment_download_url);
+      if (!response.ok) throw new Error(`image fetch failed: ${response.status}`);
+      const blob = await response.blob();
+      await navigator.clipboard.write([new ClipboardItem({ [blob.type || 'image/png']: blob })]);
+      setNotice(t('imageCopied'));
+      window.setTimeout(() => setNotice(''), 1800);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('errors.copyFailed'));
+    } finally {
+      setImageMenu(null);
+    }
+  }, [t]);
 
   const submitEdit = useCallback(async () => {
     if (!editingId || !editingBody.trim()) return;
@@ -524,7 +614,7 @@ export function DMPanel({ userEmail, onUnreadChange, onClose, onComposeToAddress
 
   return (
     <div style={{ flex: 1, minWidth: 0, display: 'flex', height: '100%', overflow: 'hidden', background: 'var(--color-bg-primary)', position: 'relative' }}>
-      <aside style={{ width: 300, flexShrink: 0, borderRight: '1px solid var(--color-border-subtle)', background: 'var(--color-bg-secondary)', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+      <aside style={{ width: '100%', flexShrink: 0, borderRight: activeRoom ? '1px solid var(--color-border-subtle)' : 'none', background: 'var(--color-bg-secondary)', display: activeRoom ? 'none' : 'flex', flexDirection: 'column', minHeight: 0 }}>
         <div style={{ padding: '14px', borderBottom: '1px solid var(--color-border-subtle)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <ChatBubbleLeftRightIcon style={{ width: 19, height: 19, color: 'var(--color-accent)' }} />
@@ -560,6 +650,7 @@ export function DMPanel({ userEmail, onUnreadChange, onClose, onComposeToAddress
                 <input
                   value={directoryQuery}
                   onChange={(e) => setDirectoryQuery(e.currentTarget.value)}
+                  onKeyDown={handleDirectoryKeyDown}
                   placeholder={t('searchPeople')}
                   style={{ flex: 1, minWidth: 0, border: '1px solid var(--color-border-default)', background: 'var(--color-bg-primary)', color: 'var(--color-text-primary)', borderRadius: 6, padding: '7px 9px', fontSize: 13 }}
                 />
@@ -578,8 +669,8 @@ export function DMPanel({ userEmail, onUnreadChange, onClose, onComposeToAddress
               )}
               {directoryUsers.length > 0 && (
                 <div style={{ marginTop: 8, maxHeight: 150, overflow: 'auto', border: '1px solid var(--color-border-subtle)', borderRadius: 6, background: 'var(--color-bg-primary)' }}>
-                  {directoryUsers.map((user) => (
-                    <button key={user.id} type="button" onClick={() => setSelectedUsers((prev) => prev.some((item) => item.id === user.id) ? prev : [...prev, user])} style={{ width: '100%', textAlign: 'left', border: 'none', borderBottom: '1px solid var(--color-border-subtle)', background: 'transparent', color: 'var(--color-text-primary)', padding: '8px 9px', cursor: 'pointer' }}>
+                  {directoryUsers.map((user, index) => (
+                    <button key={user.id} type="button" onMouseEnter={() => setDirectoryActiveIndex(index)} onClick={() => addDirectoryUser(user)} style={{ width: '100%', textAlign: 'left', border: 'none', borderBottom: '1px solid var(--color-border-subtle)', background: index === directoryActiveIndex ? 'var(--color-accent-subtle)' : 'transparent', color: 'var(--color-text-primary)', padding: '8px 9px', cursor: 'pointer' }}>
                       <span style={{ display: 'block', fontSize: 13, fontWeight: 600 }}>{user.display_name || user.email}</span>
                       <span style={{ display: 'block', fontSize: 11, color: 'var(--color-text-tertiary)' }}>{user.email}</span>
                     </button>
@@ -610,6 +701,7 @@ export function DMPanel({ userEmail, onUnreadChange, onClose, onComposeToAddress
                 <span style={{ flex: 1, minWidth: 0 }}>
                   <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 13, fontWeight: room.unread_count ? 700 : 600 }}>{titleForRoom(room)}</span>
+                    {room.last_message?.created_at && <span style={{ flexShrink: 0, fontSize: 11, color: 'var(--color-text-tertiary)' }}>{formatTime(room.last_message.created_at)}</span>}
                     {!!room.unread_count && <span style={{ borderRadius: 8, padding: '1px 6px', fontSize: 10, background: 'var(--color-accent)', color: '#fff' }}>{room.unread_count}</span>}
                   </span>
                   <span style={{ display: 'block', marginTop: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 12, color: 'var(--color-text-tertiary)' }}>{previewForMessage(room.last_message) || t('membersCount', { count: room.member_count ?? room.members?.length ?? 0 })}</span>
@@ -636,9 +728,12 @@ export function DMPanel({ userEmail, onUnreadChange, onClose, onComposeToAddress
         </div>
       </aside>
 
-      <main style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', height: '100%' }}>
+      <main style={{ flex: 1, minWidth: 0, display: activeRoom ? 'flex' : 'none', flexDirection: 'column', height: '100%' }}>
         <header style={{ minHeight: 58, borderBottom: '1px solid var(--color-border-subtle)', display: 'flex', alignItems: 'center', gap: 12, padding: '10px 16px', flexShrink: 0 }}>
           <div style={{ minWidth: 0, flex: 1, display: 'flex', alignItems: 'center', gap: 10 }}>
+            <button type="button" onClick={() => { setActiveRoomId(''); setDetailsOpen(false); setSearchQuery(''); }} aria-label={t('backToList')} style={{ width: 32, height: 32, border: 'none', borderRadius: 6, background: 'transparent', color: 'var(--color-text-secondary)', display: 'grid', placeItems: 'center', cursor: 'pointer', flexShrink: 0 }}>
+              <ArrowLeftIcon style={{ width: 18, height: 18 }} />
+            </button>
             {activeRoom && <RoomAvatar room={activeRoom} currentUserId={currentUserId} selfAvatarUrl={selfAvatarUrl} />}
             <div style={{ minWidth: 0 }}>
               <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--color-text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{activeRoom ? titleForRoom(activeRoom) : t('title')}</div>
@@ -712,12 +807,26 @@ export function DMPanel({ userEmail, onUnreadChange, onClose, onComposeToAddress
                           ) : imageMessage && imageSrc && !message.deleted_at ? (
                             <div>
                               <button type="button" onClick={() => setPreviewImage(message)} aria-label={t('openImage')} style={{ display: 'block', border: 'none', padding: 0, background: 'transparent', cursor: 'zoom-in', maxWidth: '100%' }}>
-                                <img src={imageSrc} alt={message.attachment_name || message.body || t('imageAttachment')} style={{ display: 'block', maxWidth: 'min(320px, 100%)', maxHeight: 260, objectFit: 'cover', borderRadius: 7, border: mine ? '1px solid rgba(255,255,255,0.24)' : '1px solid var(--color-border-subtle)' }} />
+                                <img
+                                  src={imageSrc}
+                                  alt={message.attachment_name || message.body || t('imageAttachment')}
+                                  onContextMenu={(event) => {
+                                    event.preventDefault();
+                                    setImageMenu({ message, x: event.clientX, y: event.clientY });
+                                  }}
+                                  style={{ display: 'block', maxWidth: 'min(320px, 100%)', maxHeight: 260, objectFit: 'cover', borderRadius: 7, border: mine ? '1px solid rgba(255,255,255,0.24)' : '1px solid var(--color-border-subtle)' }}
+                                />
                               </button>
                               <div style={{ marginTop: 6, fontSize: 12, color: mine ? 'rgba(255,255,255,0.82)' : 'var(--color-text-secondary)', display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
                                 <PaperClipIcon style={{ width: 13, height: 13, flexShrink: 0 }} />
                                 <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{message.attachment_name || message.body || t('imageAttachment')}</span>
                                 {message.attachment_size ? <span style={{ opacity: 0.72, flexShrink: 0 }}>{formatBytes(message.attachment_size)}</span> : null}
+                                <button type="button" onClick={() => downloadFromURL(imageSrc, message.attachment_name || message.body || 'image')} aria-label={t('downloadFile')} style={{ border: 'none', background: 'transparent', color: mine ? 'rgba(255,255,255,0.86)' : 'var(--color-accent)', padding: 1, cursor: 'pointer', display: 'inline-flex' }}>
+                                  <ArrowDownTrayIcon style={{ width: 14, height: 14 }} />
+                                </button>
+                                <button type="button" onClick={() => copyImageToClipboard(message)} aria-label={t('copyImage')} style={{ border: 'none', background: 'transparent', color: mine ? 'rgba(255,255,255,0.86)' : 'var(--color-accent)', padding: 1, cursor: 'pointer', display: 'inline-flex' }}>
+                                  <ClipboardDocumentIcon style={{ width: 14, height: 14 }} />
+                                </button>
                               </div>
                             </div>
                           ) : (
@@ -726,6 +835,11 @@ export function DMPanel({ userEmail, onUnreadChange, onClose, onComposeToAddress
                               {message.message_type === 'drive_link' && <LinkIcon style={{ width: 14, height: 14, verticalAlign: '-2px', marginRight: 4 }} />}
                               {message.deleted_at ? t('deletedMessage') : message.body || message.attachment_name || message.drive_file_id}
                               {message.attachment_size ? <span style={{ marginLeft: 6, opacity: 0.72 }}>{formatBytes(message.attachment_size)}</span> : null}
+                              {message.message_type === 'file' && message.attachment_download_url && !message.deleted_at && (
+                                <button type="button" onClick={() => downloadFromURL(message.attachment_download_url!, message.attachment_name || message.body || 'download')} aria-label={t('downloadFile')} style={{ marginLeft: 6, border: 'none', background: 'transparent', color: mine ? 'rgba(255,255,255,0.86)' : 'var(--color-accent)', padding: 1, cursor: 'pointer', verticalAlign: '-2px' }}>
+                                  <ArrowDownTrayIcon style={{ width: 14, height: 14 }} />
+                                </button>
+                              )}
                             </div>
                           )}
                           {!system && !message.deleted_at && (
@@ -779,7 +893,7 @@ export function DMPanel({ userEmail, onUnreadChange, onClose, onComposeToAddress
                     onCompositionEnd={() => { composerComposingRef.current = false; }}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter' && !e.shiftKey) {
-                        const nativeEvent = e.nativeEvent as KeyboardEvent & { isComposing?: boolean };
+                        const nativeEvent = e.nativeEvent as globalThis.KeyboardEvent & { isComposing?: boolean };
                         if (nativeEvent.isComposing || nativeEvent.keyCode === 229 || composerComposingRef.current) return;
                         e.preventDefault();
                         void send();
@@ -903,7 +1017,39 @@ export function DMPanel({ userEmail, onUnreadChange, onClose, onComposeToAddress
           <button type="button" onClick={(e) => { e.stopPropagation(); setPreviewImage(null); }} aria-label={t('closeImage')} style={{ position: 'absolute', top: 14, right: 14, width: 34, height: 34, border: '1px solid rgba(255,255,255,0.36)', borderRadius: 6, background: 'rgba(15,23,42,0.42)', color: '#fff', display: 'grid', placeItems: 'center', cursor: 'pointer' }}>
             <XMarkIcon style={{ width: 19, height: 19 }} />
           </button>
+          <div onClick={(e) => e.stopPropagation()} style={{ position: 'absolute', left: 14, top: 14, display: 'flex', gap: 8 }}>
+            <button type="button" onClick={() => downloadFromURL(previewImage.attachment_download_url!, previewImage.attachment_name || previewImage.body || 'image')} aria-label={t('downloadFile')} style={{ width: 34, height: 34, border: '1px solid rgba(255,255,255,0.36)', borderRadius: 6, background: 'rgba(15,23,42,0.42)', color: '#fff', display: 'grid', placeItems: 'center', cursor: 'pointer' }}>
+              <ArrowDownTrayIcon style={{ width: 18, height: 18 }} />
+            </button>
+            <button type="button" onClick={() => copyImageToClipboard(previewImage)} aria-label={t('copyImage')} style={{ width: 34, height: 34, border: '1px solid rgba(255,255,255,0.36)', borderRadius: 6, background: 'rgba(15,23,42,0.42)', color: '#fff', display: 'grid', placeItems: 'center', cursor: 'pointer' }}>
+              <ClipboardDocumentIcon style={{ width: 18, height: 18 }} />
+            </button>
+          </div>
           <img onClick={(e) => e.stopPropagation()} src={previewImage.attachment_download_url} alt={previewImage.attachment_name || previewImage.body || t('imageAttachment')} style={{ maxWidth: 'min(92vw, 920px)', maxHeight: 'min(82vh, 760px)', objectFit: 'contain', borderRadius: 8, boxShadow: '0 24px 80px rgba(0,0,0,0.34)', background: '#fff' }} />
+        </div>
+      )}
+      {imageMenu && (
+        <div role="menu" style={{ position: 'fixed', left: imageMenu.x, top: imageMenu.y, zIndex: 180, minWidth: 138, border: '1px solid var(--color-border-default)', borderRadius: 7, background: 'var(--color-bg-primary)', boxShadow: '0 12px 30px rgba(0,0,0,0.18)', padding: 4 }}>
+          <button type="button" role="menuitem" onMouseDown={(event) => event.stopPropagation()} onClick={() => copyImageToClipboard(imageMenu.message)} style={{ width: '100%', border: 'none', borderRadius: 5, background: 'transparent', color: 'var(--color-text-primary)', padding: '7px 9px', textAlign: 'left', cursor: 'pointer', fontSize: 13 }}>{t('copyImage')}</button>
+          <button type="button" role="menuitem" onMouseDown={(event) => event.stopPropagation()} onClick={() => { downloadFromURL(imageMenu.message.attachment_download_url!, imageMenu.message.attachment_name || imageMenu.message.body || 'image'); setImageMenu(null); }} style={{ width: '100%', border: 'none', borderRadius: 5, background: 'transparent', color: 'var(--color-text-primary)', padding: '7px 9px', textAlign: 'left', cursor: 'pointer', fontSize: 13 }}>{t('downloadFile')}</button>
+        </div>
+      )}
+      {pendingPasteFile && (
+        <div role="dialog" aria-modal="true" aria-label={t('confirmImageAttach')} onClick={() => setPendingPasteFile(null)} style={{ position: 'absolute', inset: 0, zIndex: 150, background: 'rgba(15,23,42,0.46)', display: 'grid', placeItems: 'center', padding: 24 }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ width: 'min(360px, 100%)', border: '1px solid var(--color-border-default)', borderRadius: 8, background: 'var(--color-bg-primary)', boxShadow: '0 20px 50px rgba(0,0,0,0.22)', padding: 16 }}>
+            <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--color-text-primary)', marginBottom: 10 }}>{t('confirmImageAttach')}</div>
+            {pendingPastePreview && <img src={pendingPastePreview} alt={pendingPasteFile.name || t('imageAttachment')} style={{ display: 'block', width: '100%', maxHeight: 240, objectFit: 'contain', border: '1px solid var(--color-border-subtle)', borderRadius: 7, background: 'var(--color-bg-secondary)', marginBottom: 10 }} />}
+            <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginBottom: 14 }}>{pendingPasteFile.name || t('imageAttachment')} {formatBytes(pendingPasteFile.size)}</div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+              <button type="button" onClick={() => setPendingPasteFile(null)} style={{ border: '1px solid var(--color-border-default)', borderRadius: 6, background: 'transparent', color: 'var(--color-text-secondary)', padding: '7px 11px', fontSize: 13, cursor: 'pointer' }}>{t('cancel')}</button>
+              <button type="button" onClick={confirmPendingPaste} style={{ border: 'none', borderRadius: 6, background: 'var(--color-accent)', color: '#fff', padding: '7px 11px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>{t('attachImage')}</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {notice && (
+        <div role="status" style={{ position: 'absolute', left: '50%', bottom: 18, transform: 'translateX(-50%)', zIndex: 170, borderRadius: 999, background: 'rgba(15,23,42,0.88)', color: '#fff', padding: '6px 12px', fontSize: 12 }}>
+          {notice}
         </div>
       )}
     </div>

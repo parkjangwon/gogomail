@@ -10,14 +10,15 @@ test.describe('DM panel', () => {
 
     await expect(page.getByRole('heading', { name: 'DM' })).toBeVisible();
     await expect(page.getByText('Launch room').first()).toBeVisible();
-    await expect(page.getByText('DM smoke hello').first()).toBeVisible();
+    await page.getByRole('button', { name: /Launch room/ }).click();
+    await expect(page.locator('main').getByText('DM smoke hello').first()).toBeVisible();
 
     await page.getByPlaceholder(/Message|메시지|メッセージ|消息/).fill('Browser smoke reply');
     await page.getByRole('button', { name: /Send message|메시지 보내기|メッセージを送信|发送消息/ }).click();
 
-    await expect(page.getByText('Browser smoke reply').first()).toBeVisible();
-    const incoming = await page.getByText('DM smoke hello').first().boundingBox();
-    const outgoing = await page.getByText('Browser smoke reply').first().boundingBox();
+    await expect(page.locator('main').getByText('Browser smoke reply').first()).toBeVisible();
+    const incoming = await page.locator('main').getByText('DM smoke hello').first().boundingBox();
+    const outgoing = await page.locator('main').getByText('Browser smoke reply').first().boundingBox();
     expect(outgoing && incoming ? outgoing.x > incoming.x : true).toBe(true);
   });
 
@@ -75,10 +76,11 @@ test.describe('DM panel', () => {
     await setupAuthedPage(page);
 
     await page.getByRole('button', { name: /^DM/ }).click();
+    await page.getByRole('button', { name: /Launch room/ }).click();
     await page.getByRole('button', { name: /Conversation details|대화 상세|会話の詳細|会话详情/ }).click();
 
     await expect(page.getByText(/Members|멤버|メンバー|成员/).first()).toBeVisible();
-    await expect(page.getByText('Kim Chulsoo').first()).toBeVisible();
+    await expect(page.locator('main').getByText('Kim Chulsoo').first()).toBeVisible();
     await expect(page.getByText('kim.chulsoo@parkjw.org').first()).toBeVisible();
     await expect(page.getByAltText('Kim Chulsoo').first()).toBeVisible();
   });
@@ -87,6 +89,7 @@ test.describe('DM panel', () => {
     await setupAuthedPage(page);
 
     await page.getByRole('button', { name: /^DM/ }).click();
+    await page.getByRole('button', { name: /Launch room/ }).click();
     await page.getByRole('button', { name: /Conversation details|대화 상세|会話の詳細|会话详情/ }).click();
     await page.getByText('kim.chulsoo@parkjw.org').first().click();
 
@@ -100,6 +103,7 @@ test.describe('DM panel', () => {
     await setupAuthedPage(page);
 
     await page.getByRole('button', { name: /^DM/ }).click();
+    await page.getByRole('button', { name: /Launch room/ }).click();
     await page.getByRole('button', { name: /Add reaction|공감 추가|リアクションを追加|添加回应/ }).first().click();
     await page.getByRole('button', { name: '🎉' }).click();
 
@@ -113,9 +117,10 @@ test.describe('DM panel', () => {
     );
 
     await page.getByRole('button', { name: /^DM/ }).click();
+    await page.getByRole('button', { name: /Launch room/ }).click();
     await page.getByRole('button', { name: /Add reaction|공감 추가|リアクションを追加|添加回应/ }).first().click();
     await expect(page.getByRole('button', { name: '🎉' })).toBeVisible();
-    await page.getByRole('heading', { name: 'DM' }).click();
+    await page.mouse.click(520, 180);
     await expect(page.getByRole('button', { name: '🎉' })).not.toBeVisible();
 
     await page.getByRole('button', { name: /Add reaction|공감 추가|リアクションを追加|添加回应/ }).first().click();
@@ -134,13 +139,17 @@ test.describe('DM panel', () => {
     });
 
     await page.getByRole('button', { name: /^DM/ }).click();
+    await page.getByRole('button', { name: /A room/ }).click();
     const input = page.getByPlaceholder(/Message|메시지|メッセージ|消息/);
     await input.fill('draft for A');
+    await page.getByRole('button', { name: /Back to conversations|대화 목록으로 돌아가기|会話一覧に戻る|返回会话列表/ }).click();
     await page.getByRole('button', { name: /B room/ }).click();
     await expect(input).toHaveValue('');
     await input.fill('draft for B');
+    await page.getByRole('button', { name: /Back to conversations|대화 목록으로 돌아가기|会話一覧に戻る|返回会话列表/ }).click();
     await page.getByRole('button', { name: /A room/ }).click();
     await expect(input).toHaveValue('draft for A');
+    await page.getByRole('button', { name: /Back to conversations|대화 목록으로 돌아가기|会話一覧に戻る|返回会话列表/ }).click();
     await page.getByRole('button', { name: /B room/ }).click();
     await expect(input).toHaveValue('draft for B');
   });
@@ -149,6 +158,7 @@ test.describe('DM panel', () => {
     await setupAuthedPage(page);
 
     await page.getByRole('button', { name: /^DM/ }).click();
+    await page.getByRole('button', { name: /Launch room/ }).click();
     const input = page.getByPlaceholder(/Message|메시지|メッセージ|消息/);
     const imageResponse = page.waitForResponse((response) =>
       response.url().includes('/api/mail/dm/messages/')
@@ -162,10 +172,17 @@ test.describe('DM panel', () => {
       node.dispatchEvent(new ClipboardEvent('paste', { clipboardData: data, bubbles: true, cancelable: true }));
     });
 
+    await expect(page.getByRole('dialog', { name: /Attach this image|해당 이미지를 첨부하시겠습니까|この画像を添付しますか|要附加这张图片吗/ })).toBeVisible();
+    await page.getByRole('button', { name: /Attach image|이미지 첨부|画像を添付|附加图片/ }).click();
     await expect(page.getByText('clip.png').first()).toBeVisible();
     await imageResponse;
-    const image = page.getByRole('img', { name: 'clip.png' }).first();
+    const image = page.locator('main').getByRole('img', { name: 'clip.png' }).first();
     await expect(image).toBeVisible();
+    await expect(page.getByRole('button', { name: /Download|다운로드|ダウンロード|下载/ }).first()).toBeVisible();
+    await expect(page.getByRole('button', { name: /Copy image|이미지 복사|画像をコピー|复制图片/ }).first()).toBeVisible();
+    await image.click({ button: 'right' });
+    await expect(page.getByRole('menuitem', { name: /Copy image|이미지 복사|画像をコピー|复制图片/ })).toBeVisible();
+    await page.mouse.click(520, 180);
     await image.click();
     const preview = page.getByRole('dialog', { name: 'clip.png' });
     await expect(preview).toBeVisible();
@@ -191,6 +208,7 @@ test.describe('DM panel', () => {
     });
 
     await page.getByRole('button', { name: /^DM/ }).click();
+    await page.getByRole('button', { name: /Kim Chulsoo/ }).click();
     await page.getByRole('button', { name: /Conversation details|대화 상세|会話の詳細|会话详情/ }).click();
 
     await expect(page.getByRole('button', { name: /Create invite|초대 링크 만들기|招待リンクを作成|创建邀请链接/ })).not.toBeVisible();
@@ -205,9 +223,12 @@ test.describe('DM panel', () => {
     await page.getByRole('button', { name: /^DM/ }).click();
     await page.getByRole('button', { name: /New DM|새 DM|新規DM|新建私信/ }).click();
     await page.getByPlaceholder(/Search people|사람 검색|ユーザーを検索|搜索联系人/).fill('Kim');
-    await page.getByText('kim.chulsoo@parkjw.org').first().click();
+    await expect(page.getByText('kim.chulsoo@parkjw.org').first()).toBeVisible();
+    await page.keyboard.press('ArrowDown');
+    await page.keyboard.press('ArrowUp');
+    await page.keyboard.press('Enter');
     await page.getByRole('button', { name: /Create room|대화방 만들기|ルームを作成|创建会话/ }).click();
 
-    await expect(page.getByText('Kim Chulsoo').first()).toBeVisible();
+    await expect(page.locator('main').getByText('Kim Chulsoo').first()).toBeVisible();
   });
 });
