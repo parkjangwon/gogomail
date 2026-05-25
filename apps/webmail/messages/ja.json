@@ -591,7 +591,9 @@
         "mailList": "メール一覧",
         "mailActions": "メール操作",
         "folderNav": "フォルダ移動",
-        "mailCompose": "メール作成"
+        "mailCompose": "メール作成",
+        "calendar": "カレンダー",
+        "contacts": "連絡先"
       },
       "items": {
         "help": "ショートカットヘルプ",
@@ -640,7 +642,17 @@
         "saveDraft": "下書きを保存",
         "composeClose": "作成画面を閉じる",
         "notificationCenter": "通知センターを開く/閉じる",
-        "dm": "DMを開く"
+        "dm": "DMを開く",
+        "calendarDay": "日表示",
+        "calendarWeek": "週表示",
+        "calendarMonth": "月表示",
+        "calendarToday": "今日へ移動",
+        "calendarPrevNext": "前 / 次の期間",
+        "contactNextPrev": "次 / 前の連絡先",
+        "contactCompose": "選択した連絡先へメール作成",
+        "contactDelete": "選択した連絡先を削除",
+        "contactSelectAll": "連絡先をすべて選択",
+        "contactClearSelection": "選択解除"
       }
     },
     "orgPicker": {
@@ -993,6 +1005,8 @@
     "shortcutMailAction": "メールアクション",
     "shortcutMailbox": "フォルダ移動",
     "shortcutCompose": "作成",
+    "shortcutCalendar": "カレンダー",
+    "shortcutContacts": "連絡先",
     "scShortcutHelp": "ショートカットヘルプ",
     "scSpotlightSearch": "スポットライト検索",
     "scSpotlightOpen": "スポットライトを開く",
@@ -1028,6 +1042,16 @@
     "scSend": "送信",
     "scSaveDraft": "下書き保存",
     "scClose": "閉じる",
+    "scCalendarDay": "日表示",
+    "scCalendarWeek": "週表示",
+    "scCalendarMonth": "月表示",
+    "scCalendarToday": "今日へ移動",
+    "scCalendarPrevNext": "前/次の期間",
+    "scContactNextPrev": "次/前の連絡先",
+    "scContactCompose": "メール作成",
+    "scContactDelete": "削除",
+    "scContactSelectAll": "すべて選択",
+    "scContactClearSelection": "選択解除",
     "nameEmpty": "(名前なし)",
     "sectionProfile": "プロフィール",
     "profilePhoto": "プロフィール写真",
