@@ -37,7 +37,7 @@ Added a full 3-level IT company org hierarchy to `scripts/seed_dev_data.sql`:
   4 사업부 (depth=1), 7 팀 (depth=1 or 2). All 14 users assigned `org_id`.
 - **Section 5-B** (`organization_units`, orgchart): 14 units across 3 levels
   with `type` (division/department/business_unit/team) and manager assignments.
-- **Section 5-C** (`organization_members`): 21 membership rows.겸직 겸직
+- **Section 5-C** (`organization_members`): 21 membership rows. 겸직(dual-role)
   entries: 김철수 (팀장+사업부장+본부장), 강현재 (팀장+사업부장),
   박민준 (팀장+사업부장+본부장), 정수연 (팀장+사업부장), 최준호 (팀장+부장).
 - Fixed UUID prefix `m0000000` → `b0000000` (PostgreSQL requires hex-only UUIDs).
