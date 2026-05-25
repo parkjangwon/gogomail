@@ -519,15 +519,28 @@ WHERE user_id = '20000000-0000-0000-0000-000000000001'
   AND (html_body IS NULL OR html_body = '');
 
 -- ══════════════════════════════════════════════════════════════════════════════
--- 5. ORGANIZATION STRUCTURE (parkjw.org)
+-- 5. ORGANIZATION STRUCTURE (parkjw.org / 고구마컴퍼니)
 -- ══════════════════════════════════════════════════════════════════════════════
+--
+-- 조직도 개요 (일반적인 IT 스타트업 구조, ~15명)
+--
+--   고구마컴퍼니
+--   ├── 개발본부  (division)
+--   │   ├── 백엔드팀   — 팀장 김철수(과장), 박지원·오석민·장인경(대리/사원)
+--   │   ├── 프론트엔드팀 — 팀장 이영희(대리), 송지율(사원)
+--   │   └── 인프라팀   — 팀장 강현재(대리), 백우진(사원)
+--   ├── 마케팅본부 (division)
+--   │   ├── 브랜드팀   — 팀장 박민준(과장), 심다영(대리), 홍승우(사원)
+--   │   └── 퍼포먼스팀 — 팀장 정수연(대리), 한지연(대리)
+--   └── 경영지원부 (department)
+--       ├── 인사팀     — 팀장 최준호(차장)
+--       └── 재무팀     (담당자 없음 — 향후 확장 예정)
+--
+-- organization_units  : orgchart 패키지 사용 (팀/직책/관리자 관리)
+-- organizations       : directory 패키지 사용 (users.org_id FK 대상, 조직 트리)
+-- ─────────────────────────────────────────────────────────────────────────────
 
-INSERT INTO organization_units (id, company_id, name, name_normalized, type, display_name, status)
-VALUES
-  ('c1000000-0000-0000-0000-000000000001', '6106af4e-fc44-4a65-890d-55bb35741d6c', '개발팀',   '개발팀',   'team',       '개발팀',   'active'),
-  ('c1000000-0000-0000-0000-000000000002', '6106af4e-fc44-4a65-890d-55bb35741d6c', '마케팅팀', '마케팅팀', 'team',       '마케팅팀', 'active'),
-  ('c1000000-0000-0000-0000-000000000003', '6106af4e-fc44-4a65-890d-55bb35741d6c', '인사팀',   '인사팀',   'department', '인사팀',   'active')
-ON CONFLICT DO NOTHING;
+-- ── 5-A. organizations 트리 (directory용) ────────────────────────────────────
 
 INSERT INTO organizations (id, domain_id, name, code, depth, order_index, status)
 VALUES
@@ -550,22 +563,315 @@ ON CONFLICT (id) DO UPDATE SET domain_id=EXCLUDED.domain_id, parent_id=EXCLUDED.
   name=EXCLUDED.name, code=EXCLUDED.code, depth=EXCLUDED.depth,
   order_index=EXCLUDED.order_index, status=EXCLUDED.status;
 
+-- ── users.org_id 배정 ─────────────────────────────────────────────────────────
+-- 백엔드팀: 박지원(데모), 김철수, 오석민, 장인경
 UPDATE users SET org_id = 'c3000000-0000-0000-0000-000000000001'
-WHERE id IN ('20000000-0000-0000-0000-000000000001', 'a1000000-0000-0000-0000-000000000001');
+WHERE id IN ('20000000-0000-0000-0000-000000000001',
+             'a1000000-0000-0000-0000-000000000001',
+             'a1000000-0000-0000-0000-000000000008',
+             'a1000000-0000-0000-0000-000000000010');
+-- 프론트엔드팀: 이영희, 송지율
 UPDATE users SET org_id = 'c3000000-0000-0000-0000-000000000002'
-WHERE id = 'a1000000-0000-0000-0000-000000000002';
+WHERE id IN ('a1000000-0000-0000-0000-000000000002',
+             'a1000000-0000-0000-0000-000000000009');
+-- 인프라팀: 강현재, 백우진
+UPDATE users SET org_id = 'c3000000-0000-0000-0000-000000000003'
+WHERE id IN ('a1000000-0000-0000-0000-000000000007',
+             'a1000000-0000-0000-0000-000000000011');
+-- 브랜드팀: 박민준, 심다영, 홍승우
 UPDATE users SET org_id = 'c3000000-0000-0000-0000-000000000004'
-WHERE id = 'a1000000-0000-0000-0000-000000000003';
+WHERE id IN ('a1000000-0000-0000-0000-000000000003',
+             'a1000000-0000-0000-0000-000000000012',
+             'a1000000-0000-0000-0000-000000000013');
+-- 퍼포먼스팀: 정수연, 한지연
 UPDATE users SET org_id = 'c3000000-0000-0000-0000-000000000005'
-WHERE id IN ('a1000000-0000-0000-0000-000000000004', 'a1000000-0000-0000-0000-000000000006');
+WHERE id IN ('a1000000-0000-0000-0000-000000000004',
+             'a1000000-0000-0000-0000-000000000006');
+-- 인사팀: 최준호
 UPDATE users SET org_id = 'c3000000-0000-0000-0000-000000000006'
 WHERE id = 'a1000000-0000-0000-0000-000000000005';
-UPDATE users SET org_id = 'c3000000-0000-0000-0000-000000000003'
-WHERE id IN ('a1000000-0000-0000-0000-000000000007', 'a1000000-0000-0000-0000-000000000011');
-UPDATE users SET org_id = 'c3000000-0000-0000-0000-000000000001'
-WHERE id IN ('a1000000-0000-0000-0000-000000000008', 'a1000000-0000-0000-0000-000000000009', 'a1000000-0000-0000-0000-000000000010');
-UPDATE users SET org_id = 'c3000000-0000-0000-0000-000000000004'
-WHERE id IN ('a1000000-0000-0000-0000-000000000012', 'a1000000-0000-0000-0000-000000000013');
+
+-- ── 5-B. organization_units (orgchart용, 직책/관리자 정보 포함) ───────────────
+--
+-- 구조: 본부(division) → 팀(team)
+-- c1000000-...00X : 본부 레벨
+-- c1000000-...01X : 개발본부 산하 팀
+-- c1000000-...02X : 마케팅본부 산하 팀
+-- c1000000-...03X : 경영지원부 산하 팀
+-- ─────────────────────────────────────────────────────────────────────────────
+
+-- 본부 레벨 (부모 없음)
+INSERT INTO organization_units
+  (id, company_id, name, name_normalized, type, display_name,
+   manager_user_id, status)
+VALUES
+  ('c1000000-0000-0000-0000-000000000001',
+   '6106af4e-fc44-4a65-890d-55bb35741d6c',
+   '개발본부', '개발본부', 'division', '개발본부',
+   'a1000000-0000-0000-0000-000000000001', -- 김철수 (개발 총괄)
+   'active'),
+  ('c1000000-0000-0000-0000-000000000002',
+   '6106af4e-fc44-4a65-890d-55bb35741d6c',
+   '마케팅본부', '마케팅본부', 'division', '마케팅본부',
+   'a1000000-0000-0000-0000-000000000003', -- 박민준
+   'active'),
+  ('c1000000-0000-0000-0000-000000000003',
+   '6106af4e-fc44-4a65-890d-55bb35741d6c',
+   '경영지원부', '경영지원부', 'department', '경영지원부',
+   'a1000000-0000-0000-0000-000000000005', -- 최준호
+   'active')
+ON CONFLICT (id) DO UPDATE SET
+  name=EXCLUDED.name, name_normalized=EXCLUDED.name_normalized,
+  type=EXCLUDED.type, display_name=EXCLUDED.display_name,
+  manager_user_id=EXCLUDED.manager_user_id, status=EXCLUDED.status;
+
+-- 개발본부 산하 팀 (parent = 개발본부)
+INSERT INTO organization_units
+  (id, company_id, parent_id, name, name_normalized, type, display_name,
+   manager_user_id, status)
+VALUES
+  ('c1000000-0000-0000-0000-000000000011',
+   '6106af4e-fc44-4a65-890d-55bb35741d6c',
+   'c1000000-0000-0000-0000-000000000001',
+   '백엔드팀', '백엔드팀', 'team', '백엔드팀',
+   'a1000000-0000-0000-0000-000000000001', -- 김철수
+   'active'),
+  ('c1000000-0000-0000-0000-000000000012',
+   '6106af4e-fc44-4a65-890d-55bb35741d6c',
+   'c1000000-0000-0000-0000-000000000001',
+   '프론트엔드팀', '프론트엔드팀', 'team', '프론트엔드팀',
+   'a1000000-0000-0000-0000-000000000002', -- 이영희
+   'active'),
+  ('c1000000-0000-0000-0000-000000000013',
+   '6106af4e-fc44-4a65-890d-55bb35741d6c',
+   'c1000000-0000-0000-0000-000000000001',
+   '인프라팀', '인프라팀', 'team', '인프라팀',
+   'a1000000-0000-0000-0000-000000000007', -- 강현재
+   'active')
+ON CONFLICT (id) DO UPDATE SET
+  parent_id=EXCLUDED.parent_id, name=EXCLUDED.name,
+  name_normalized=EXCLUDED.name_normalized, type=EXCLUDED.type,
+  display_name=EXCLUDED.display_name,
+  manager_user_id=EXCLUDED.manager_user_id, status=EXCLUDED.status;
+
+-- 마케팅본부 산하 팀
+INSERT INTO organization_units
+  (id, company_id, parent_id, name, name_normalized, type, display_name,
+   manager_user_id, status)
+VALUES
+  ('c1000000-0000-0000-0000-000000000021',
+   '6106af4e-fc44-4a65-890d-55bb35741d6c',
+   'c1000000-0000-0000-0000-000000000002',
+   '브랜드팀', '브랜드팀', 'team', '브랜드팀',
+   'a1000000-0000-0000-0000-000000000003', -- 박민준
+   'active'),
+  ('c1000000-0000-0000-0000-000000000022',
+   '6106af4e-fc44-4a65-890d-55bb35741d6c',
+   'c1000000-0000-0000-0000-000000000002',
+   '퍼포먼스팀', '퍼포먼스팀', 'team', '퍼포먼스팀',
+   'a1000000-0000-0000-0000-000000000004', -- 정수연
+   'active')
+ON CONFLICT (id) DO UPDATE SET
+  parent_id=EXCLUDED.parent_id, name=EXCLUDED.name,
+  name_normalized=EXCLUDED.name_normalized, type=EXCLUDED.type,
+  display_name=EXCLUDED.display_name,
+  manager_user_id=EXCLUDED.manager_user_id, status=EXCLUDED.status;
+
+-- 경영지원부 산하 팀
+INSERT INTO organization_units
+  (id, company_id, parent_id, name, name_normalized, type, display_name,
+   manager_user_id, status)
+VALUES
+  ('c1000000-0000-0000-0000-000000000031',
+   '6106af4e-fc44-4a65-890d-55bb35741d6c',
+   'c1000000-0000-0000-0000-000000000003',
+   '인사팀', '인사팀', 'team', '인사팀',
+   'a1000000-0000-0000-0000-000000000005', -- 최준호
+   'active'),
+  ('c1000000-0000-0000-0000-000000000032',
+   '6106af4e-fc44-4a65-890d-55bb35741d6c',
+   'c1000000-0000-0000-0000-000000000003',
+   '재무팀', '재무팀', 'team', '재무팀',
+   NULL, -- 담당 팀장 미배정
+   'active')
+ON CONFLICT (id) DO UPDATE SET
+  parent_id=EXCLUDED.parent_id, name=EXCLUDED.name,
+  name_normalized=EXCLUDED.name_normalized, type=EXCLUDED.type,
+  display_name=EXCLUDED.display_name,
+  manager_user_id=EXCLUDED.manager_user_id, status=EXCLUDED.status;
+
+-- ── 5-C. organization_members (직책/직급 포함) ───────────────────────────────
+--
+-- title  : 직책 · 직급  (예: "팀장 · 과장", "시니어 개발자 · 대리")
+-- role   : 'manager' (팀장) | 'member' (일반)
+-- is_primary = true : 대표 소속팀 (한 명이 두 팀에 걸칠 때 하나만 primary)
+--
+-- 직급 체계 (IT 스타트업):
+--   차장(7+년) > 과장(5년) > 대리(3년) > 주임(1년) > 사원(신입)
+-- ─────────────────────────────────────────────────────────────────────────────
+
+-- 기존 멤버십 제거 후 재삽입 (idempotent 보장)
+DELETE FROM organization_members
+WHERE user_id IN (
+  '20000000-0000-0000-0000-000000000001',
+  'a1000000-0000-0000-0000-000000000001',
+  'a1000000-0000-0000-0000-000000000002',
+  'a1000000-0000-0000-0000-000000000003',
+  'a1000000-0000-0000-0000-000000000004',
+  'a1000000-0000-0000-0000-000000000005',
+  'a1000000-0000-0000-0000-000000000006',
+  'a1000000-0000-0000-0000-000000000007',
+  'a1000000-0000-0000-0000-000000000008',
+  'a1000000-0000-0000-0000-000000000009',
+  'a1000000-0000-0000-0000-000000000010',
+  'a1000000-0000-0000-0000-000000000011',
+  'a1000000-0000-0000-0000-000000000012',
+  'a1000000-0000-0000-0000-000000000013'
+);
+
+-- ─ 개발본부 ──────────────────────────────────────────────────────────────────
+
+-- 김철수 · 백엔드팀 팀장 / 개발본부 본부장 겸직
+INSERT INTO organization_members
+  (id, organization_unit_id, user_id, role, title, is_primary)
+VALUES
+  ('b0000000-0000-0000-0000-000000000001',
+   'c1000000-0000-0000-0000-000000000011', -- 백엔드팀
+   'a1000000-0000-0000-0000-000000000001',
+   'manager', '팀장 · 과장', true),
+  ('b0000000-0000-0000-0000-000000000002',
+   'c1000000-0000-0000-0000-000000000001', -- 개발본부 (겸직)
+   'a1000000-0000-0000-0000-000000000001',
+   'manager', '본부장 · 과장', false);
+
+-- 박지원 · 백엔드팀 시니어 개발자 (데모 유저)
+INSERT INTO organization_members
+  (id, organization_unit_id, user_id, role, title, is_primary)
+VALUES
+  ('b0000000-0000-0000-0000-000000000010',
+   'c1000000-0000-0000-0000-000000000011', -- 백엔드팀
+   '20000000-0000-0000-0000-000000000001',
+   'member', '시니어 백엔드 개발자 · 대리', true);
+
+-- 오석민 · 백엔드팀 시니어 개발자
+INSERT INTO organization_members
+  (id, organization_unit_id, user_id, role, title, is_primary)
+VALUES
+  ('b0000000-0000-0000-0000-000000000011',
+   'c1000000-0000-0000-0000-000000000011', -- 백엔드팀
+   'a1000000-0000-0000-0000-000000000008',
+   'member', '시니어 백엔드 개발자 · 대리', true);
+
+-- 장인경 · 백엔드팀 개발자
+INSERT INTO organization_members
+  (id, organization_unit_id, user_id, role, title, is_primary)
+VALUES
+  ('b0000000-0000-0000-0000-000000000012',
+   'c1000000-0000-0000-0000-000000000011', -- 백엔드팀
+   'a1000000-0000-0000-0000-000000000010',
+   'member', '백엔드 개발자 · 주임', true);
+
+-- 이영희 · 프론트엔드팀 팀장
+INSERT INTO organization_members
+  (id, organization_unit_id, user_id, role, title, is_primary)
+VALUES
+  ('b0000000-0000-0000-0000-000000000013',
+   'c1000000-0000-0000-0000-000000000012', -- 프론트엔드팀
+   'a1000000-0000-0000-0000-000000000002',
+   'manager', '팀장 · 대리', true);
+
+-- 송지율 · 프론트엔드팀 개발자
+INSERT INTO organization_members
+  (id, organization_unit_id, user_id, role, title, is_primary)
+VALUES
+  ('b0000000-0000-0000-0000-000000000014',
+   'c1000000-0000-0000-0000-000000000012', -- 프론트엔드팀
+   'a1000000-0000-0000-0000-000000000009',
+   'member', '프론트엔드 개발자 · 사원', true);
+
+-- 강현재 · 인프라팀 팀장
+INSERT INTO organization_members
+  (id, organization_unit_id, user_id, role, title, is_primary)
+VALUES
+  ('b0000000-0000-0000-0000-000000000015',
+   'c1000000-0000-0000-0000-000000000013', -- 인프라팀
+   'a1000000-0000-0000-0000-000000000007',
+   'manager', '팀장 · 대리', true);
+
+-- 백우진 · 인프라팀 데브옵스 엔지니어
+INSERT INTO organization_members
+  (id, organization_unit_id, user_id, role, title, is_primary)
+VALUES
+  ('b0000000-0000-0000-0000-000000000016',
+   'c1000000-0000-0000-0000-000000000013', -- 인프라팀
+   'a1000000-0000-0000-0000-000000000011',
+   'member', '데브옵스 엔지니어 · 사원', true);
+
+-- ─ 마케팅본부 ────────────────────────────────────────────────────────────────
+
+-- 박민준 · 브랜드팀 팀장 / 마케팅본부 본부장 겸직
+INSERT INTO organization_members
+  (id, organization_unit_id, user_id, role, title, is_primary)
+VALUES
+  ('b0000000-0000-0000-0000-000000000020',
+   'c1000000-0000-0000-0000-000000000021', -- 브랜드팀
+   'a1000000-0000-0000-0000-000000000003',
+   'manager', '팀장 · 과장', true),
+  ('b0000000-0000-0000-0000-000000000021',
+   'c1000000-0000-0000-0000-000000000002', -- 마케팅본부 (겸직)
+   'a1000000-0000-0000-0000-000000000003',
+   'manager', '본부장 · 과장', false);
+
+-- 심다영 · 브랜드팀 UI/UX 디자이너
+INSERT INTO organization_members
+  (id, organization_unit_id, user_id, role, title, is_primary)
+VALUES
+  ('b0000000-0000-0000-0000-000000000022',
+   'c1000000-0000-0000-0000-000000000021', -- 브랜드팀
+   'a1000000-0000-0000-0000-000000000012',
+   'member', 'UI/UX 디자이너 · 대리', true);
+
+-- 홍승우 · 브랜드팀 UI/UX 디자이너
+INSERT INTO organization_members
+  (id, organization_unit_id, user_id, role, title, is_primary)
+VALUES
+  ('b0000000-0000-0000-0000-000000000023',
+   'c1000000-0000-0000-0000-000000000021', -- 브랜드팀
+   'a1000000-0000-0000-0000-000000000013',
+   'member', 'UI/UX 디자이너 · 사원', true);
+
+-- 정수연 · 퍼포먼스팀 팀장
+INSERT INTO organization_members
+  (id, organization_unit_id, user_id, role, title, is_primary)
+VALUES
+  ('b0000000-0000-0000-0000-000000000024',
+   'c1000000-0000-0000-0000-000000000022', -- 퍼포먼스팀
+   'a1000000-0000-0000-0000-000000000004',
+   'manager', '팀장 · 대리', true);
+
+-- 한지연 · 퍼포먼스팀 클라우드/인프라 지원
+INSERT INTO organization_members
+  (id, organization_unit_id, user_id, role, title, is_primary)
+VALUES
+  ('b0000000-0000-0000-0000-000000000025',
+   'c1000000-0000-0000-0000-000000000022', -- 퍼포먼스팀
+   'a1000000-0000-0000-0000-000000000006',
+   'member', '클라우드 엔지니어 · 대리', true);
+
+-- ─ 경영지원부 ────────────────────────────────────────────────────────────────
+
+-- 최준호 · 인사팀 팀장 / 경영지원부 부장 겸직
+INSERT INTO organization_members
+  (id, organization_unit_id, user_id, role, title, is_primary)
+VALUES
+  ('b0000000-0000-0000-0000-000000000030',
+   'c1000000-0000-0000-0000-000000000031', -- 인사팀
+   'a1000000-0000-0000-0000-000000000005',
+   'manager', '팀장 · 차장', true),
+  ('b0000000-0000-0000-0000-000000000031',
+   'c1000000-0000-0000-0000-000000000003', -- 경영지원부 (겸직)
+   'a1000000-0000-0000-0000-000000000005',
+   'manager', '부장 · 차장', false);
 
 -- ══════════════════════════════════════════════════════════════════════════════
 -- 6. DEMO USER CONTACTS (주소록)
