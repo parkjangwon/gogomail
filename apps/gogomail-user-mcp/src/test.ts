@@ -393,6 +393,78 @@ describe("GoGoMail API contract alignment", () => {
     assert.equal(calls[6]?.path, "/api/v1/attachments/upload-sessions/session-1/finalize");
   });
 
+  test("DM tools map to the documented DM API surface", async () => {
+    const calls: CapturedCall[] = [];
+    const fake = {
+      settings: async () => ({ permission_mode: "basic" as const }),
+      request: async (method: string, path: string, body?: unknown, headers?: Record<string, string>) => {
+        calls.push({ method, path, body, headers });
+        if (method === "GET" && path.includes("/attachment?")) {
+          return { body_base64: Buffer.from("dm file").toString("base64"), content_type: "text/plain" };
+        }
+        return { ok: true };
+      },
+    };
+
+    await callTool(fake as never, "gogomail_dm_list_rooms", {}, "basic");
+    await callTool(fake as never, "gogomail_dm_list_public_rooms", {}, "basic");
+    await callTool(fake as never, "gogomail_dm_create_room", { room_type: "group", user_ids: ["u1", "u2"], name: "Team", visibility: "private", confirm: "create dm room" }, "basic");
+    await callTool(fake as never, "gogomail_dm_add_members", { room_id: "room-1", user_ids: ["u3"], confirm: "add dm members room-1" }, "basic");
+    await callTool(fake as never, "gogomail_dm_remove_member", { room_id: "room-1", user_id: "u3", confirm: "remove dm member room-1 u3" }, "basic");
+    await callTool(fake as never, "gogomail_dm_transfer_owner", { room_id: "room-1", user_id: "u2", confirm: "transfer dm owner room-1 u2" }, "basic");
+    await callTool(fake as never, "gogomail_dm_create_invite", { room_id: "room-1", confirm: "create dm invite room-1" }, "basic");
+    await callTool(fake as never, "gogomail_dm_join_invite", { token: "tok-1", confirm: "join dm invite tok-1" }, "basic");
+    await callTool(fake as never, "gogomail_dm_list_messages", { room_id: "room-1", before: "m2", limit: 25 }, "basic");
+    await callTool(fake as never, "gogomail_dm_send_message", { room_id: "room-1", body: "hello", confirm: "send dm message room-1" }, "basic");
+    await callTool(fake as never, "gogomail_dm_send_attachment", { room_id: "room-1", filename: "note.txt", mime_type: "text/plain", content_base64: Buffer.from("hello").toString("base64"), confirm: "send dm attachment room-1" }, "basic");
+    await callTool(fake as never, "gogomail_dm_mark_read", { room_id: "room-1", last_message_id: "m3" }, "basic");
+    await callTool(fake as never, "gogomail_dm_search", { room_id: "room-1", q: "hello", limit: 5 }, "basic");
+    await callTool(fake as never, "gogomail_dm_list_media", { room_id: "room-1", type: "file" }, "basic");
+    await callTool(fake as never, "gogomail_dm_download_attachment", { attachment_download_url: "/api/v1/dm/messages/m-file/attachment?token=t1" }, "basic");
+    await callTool(fake as never, "gogomail_dm_edit_message", { message_id: "m1", body: "edited", confirm: "edit dm message m1" }, "basic");
+    await callTool(fake as never, "gogomail_dm_delete_message", { message_id: "m1", confirm: "delete dm message m1" }, "basic");
+    await callTool(fake as never, "gogomail_dm_toggle_reaction", { message_id: "m2", emoji: "👍" }, "basic");
+
+    assert.deepEqual(calls[0], { method: "GET", path: "/api/v1/dm/rooms", body: undefined, headers: undefined });
+    assert.equal(calls[1]?.path, "/api/v1/dm/rooms/public");
+    assert.equal(calls[2]?.headers?.["X-Gogomail-MCP-Confirm"], "create dm room");
+    assert.deepEqual(calls[2]?.body, { room_type: "group", user_ids: ["u1", "u2"], name: "Team", visibility: "private" });
+    assert.equal(calls[3]?.path, "/api/v1/dm/rooms/room-1/members");
+    assert.equal(calls[4]?.method, "DELETE");
+    assert.equal(calls[5]?.headers?.["X-Gogomail-MCP-Confirm"], "transfer dm owner room-1 u2");
+    assert.equal(calls[6]?.path, "/api/v1/dm/rooms/room-1/invites");
+    assert.equal(calls[7]?.path, "/api/v1/dm/join/tok-1");
+    assert.equal(calls[8]?.path, "/api/v1/dm/rooms/room-1/messages?before=m2&limit=25");
+    assert.deepEqual(calls[9]?.body, { body: "hello", drive_file_id: undefined });
+    assert.ok(Buffer.isBuffer(calls[10]?.body));
+    assert.match(calls[10]?.headers?.["Content-Type"] ?? "", /^multipart\/form-data; boundary=gogomail-mcp-/);
+    assert.deepEqual(calls[11]?.body, { last_message_id: "m3" });
+    assert.equal(calls[12]?.path, "/api/v1/dm/rooms/room-1/search?q=hello&limit=5");
+    assert.equal(calls[13]?.path, "/api/v1/dm/rooms/room-1/media?type=file");
+    assert.equal(calls[14]?.path, "/api/v1/dm/messages/m-file/attachment?token=t1");
+    assert.equal(calls[15]?.headers?.["X-Gogomail-MCP-Confirm"], "edit dm message m1");
+    assert.equal(calls[16]?.headers?.["X-Gogomail-MCP-Confirm"], "delete dm message m1");
+    assert.deepEqual(calls[17]?.body, { emoji: "👍" });
+  });
+
+  test("generic API bridge admits DM routes and forwards DM confirmations", async () => {
+    const calls: CapturedCall[] = [];
+    const fake = {
+      settings: async () => ({ permission_mode: "basic" as const }),
+      request: async (method: string, path: string, body?: unknown, headers?: Record<string, string>) => {
+        calls.push({ method, path, body, headers });
+        return { ok: true };
+      },
+    };
+
+    await callTool(fake as never, "gogomail_api_request", { method: "POST", path: "/api/v1/dm/rooms/room-1/messages", body_json: { body: "hello" }, confirm: "send dm message room-1" }, "basic");
+    await callTool(fake as never, "gogomail_api_request", { method: "DELETE", path: "/api/v1/dm/messages/msg-1", confirm: "delete dm message msg-1" }, "basic");
+
+    assert.equal(calls[0]?.path, "/api/v1/dm/rooms/room-1/messages");
+    assert.equal(calls[0]?.headers?.["X-Gogomail-MCP-Confirm"], "send dm message room-1");
+    assert.equal(calls[1]?.headers?.["X-Gogomail-MCP-Confirm"], "delete dm message msg-1");
+  });
+
   test("agent-native contact, calendar, Drive session, share, and download helpers work", async () => {
     const calls: CapturedCall[] = [];
     const tmp = await mkdtemp(join(tmpdir(), "gogomail-user-mcp-"));

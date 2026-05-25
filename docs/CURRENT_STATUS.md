@@ -2,6 +2,19 @@
 
 Last updated: 2026-05-25 (DM instant messaging implementation)
 
+## User MCP DM coverage (2026-05-25)
+
+- `apps/gogomail-user-mcp` now exposes 123 user tools after adding 18 DM
+  tools for room/public-room listing, direct/group room creation, member
+  management, owner transfer, invites, message listing/sending, file attachment
+  upload/download, read marks, room search/media views, message edit/delete,
+  and reaction toggles.
+- The guarded `gogomail_api_request` manifest now admits the documented
+  `/api/v1/dm` user routes and forwards exact DM confirmation strings for
+  sensitive mutations in `basic` mode.
+- Verification: `npm test`, `npm run type-check`, and `npm run build` in
+  `apps/gogomail-user-mcp`.
+
 ## DM instant messaging implementation (2026-05-25)
 
 - Added DM core tables for rooms, room keys, participants, encrypted messages,
