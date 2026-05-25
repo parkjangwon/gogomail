@@ -1,6 +1,22 @@
 # gogomail current status
 
-Last updated: 2026-05-25 (org chart seed data)
+Last updated: 2026-05-25 (org chart picker fix)
+
+## Org chart picker 500 fix (2026-05-25)
+
+**Root cause:** `GET /api/mail/directory/org-tree` returned 500 for all regular users.
+The JWT issued at login (`POST /api/v1/auth/token`) omitted `company_id` from the claims
+(`CompanyID` was `omitempty`). When `directoryScopeFromRequest` passed empty-string companyID
+to `buildListOrgTreeQuery`, the SQL generated `WHERE c.id = ''::uuid` which PostgreSQL
+rejected as an invalid UUID cast.
+
+**Fix:**
+- `internal/httpapi/mail.go`: Added `CompanyID: user.CompanyID` to the `auth.Claims`
+  struct at login. The `user.CompanyID` field was already populated by `AuthenticateUser`.
+- `internal/httpapi/mail_mfa.go`: Same fix in `issuePendingToken` and the MFA-verify
+  full-claims block so that MFA login flows also produce correct tokens.
+- `internal/httpapi/carddav.go`: Added `slog.ErrorContext` before the 500 return in
+  the org-tree handler for future debuggability.
 
 ## Org chart seed data (2026-05-25)
 

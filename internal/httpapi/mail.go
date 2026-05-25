@@ -563,6 +563,7 @@ func RegisterMailRoutesWithOptions(mux *http.ServeMux, service MessageService, t
 		claims := auth.Claims{
 			UserID:         user.UserID,
 			DomainID:       user.DomainID,
+			CompanyID:      user.CompanyID,
 			SessionVersion: user.SessionVersion,
 		}
 		token, err := tokenManager.Sign(claims, tokenTTL)

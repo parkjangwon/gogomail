@@ -94,6 +94,7 @@ func issuePendingToken(tokenManager *auth.TokenManager, user maildb.Authenticate
 	claims := auth.Claims{
 		UserID:         user.UserID,
 		DomainID:       user.DomainID,
+		CompanyID:      user.CompanyID,
 		SessionVersion: user.SessionVersion,
 		TokenType:      "mfa_pending",
 	}
@@ -174,6 +175,7 @@ func RegisterMFARoutes(mux *http.ServeMux, tokenManager *auth.TokenManager, opts
 		fullClaims := auth.Claims{
 			UserID:         claims.UserID,
 			DomainID:       claims.DomainID,
+			CompanyID:      claims.CompanyID,
 			SessionVersion: claims.SessionVersion,
 			MFAVerified:    true,
 		}
