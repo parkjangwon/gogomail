@@ -35,11 +35,13 @@ import {
   PlusIcon,
   TrashIcon,
   UserPlusIcon,
+  XMarkIcon,
 } from '@heroicons/react/24/outline';
 
 type DMPanelProps = {
   userEmail?: string;
   onUnreadChange?: (count: number) => void;
+  onClose?: () => void;
 };
 
 type MediaTab = 'files' | 'links' | 'drive';
@@ -96,7 +98,7 @@ function pillButton(active: boolean): CSSProperties {
   };
 }
 
-export function DMPanel({ userEmail, onUnreadChange }: DMPanelProps) {
+export function DMPanel({ userEmail, onUnreadChange, onClose }: DMPanelProps) {
   const [rooms, setRooms] = useState<DMRoom[]>([]);
   const [publicRooms, setPublicRooms] = useState<DMRoom[]>([]);
   const [activeRoomId, setActiveRoomId] = useState<string>('');
@@ -338,7 +340,7 @@ export function DMPanel({ userEmail, onUnreadChange }: DMPanelProps) {
   }, [activeRoomId, loadRooms]);
 
   return (
-    <div style={{ flex: 1, minWidth: 0, display: 'flex', height: '100%', overflow: 'hidden', background: 'var(--color-bg-primary)' }}>
+    <div style={{ flex: 1, minWidth: 0, display: 'flex', height: '100%', overflow: 'hidden', background: 'var(--color-bg-primary)', position: 'relative' }}>
       <aside style={{ width: 288, flexShrink: 0, borderRight: '1px solid var(--color-border-subtle)', background: 'var(--color-bg-secondary)', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
         <div style={{ padding: '14px 14px 10px', borderBottom: '1px solid var(--color-border-subtle)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
@@ -445,6 +447,11 @@ export function DMPanel({ userEmail, onUnreadChange }: DMPanelProps) {
             <button type="button" onClick={() => fileInputRef.current?.click()} disabled={!activeRoomId} aria-label="Attach file" style={{ width: 32, height: 32, border: '1px solid var(--color-border-default)', borderRadius: 6, background: 'transparent', color: 'var(--color-text-secondary)', display: 'grid', placeItems: 'center', cursor: 'pointer' }}>
               <PaperClipIcon style={{ width: 17, height: 17 }} />
             </button>
+            {onClose && (
+              <button type="button" onClick={onClose} aria-label="Close DM" style={{ width: 32, height: 32, border: '1px solid var(--color-border-default)', borderRadius: 6, background: 'transparent', color: 'var(--color-text-secondary)', display: 'grid', placeItems: 'center', cursor: 'pointer' }}>
+                <XMarkIcon style={{ width: 17, height: 17 }} />
+              </button>
+            )}
             <input ref={fileInputRef} type="file" style={{ display: 'none' }} onChange={(event) => {
               const file = event.currentTarget.files?.[0];
               event.currentTarget.value = '';
@@ -583,7 +590,7 @@ export function DMPanel({ userEmail, onUnreadChange }: DMPanelProps) {
         )}
 
         {searchResults.length > 0 && (
-          <div style={{ position: 'fixed', top: 60, right: 280, width: 320, maxHeight: 260, overflow: 'auto', zIndex: 70, border: '1px solid var(--color-border-default)', background: 'var(--color-bg-primary)', boxShadow: '0 12px 32px rgba(0,0,0,0.12)', borderRadius: 8 }}>
+          <div style={{ position: 'absolute', top: 60, right: 280, width: 320, maxHeight: 260, overflow: 'auto', zIndex: 70, border: '1px solid var(--color-border-default)', background: 'var(--color-bg-primary)', boxShadow: '0 12px 32px rgba(0,0,0,0.12)', borderRadius: 8 }}>
             {searchResults.map((message) => (
               <button key={message.id} type="button" onClick={() => setSearchQuery('')} style={{ display: 'block', width: '100%', border: 'none', borderBottom: '1px solid var(--color-border-subtle)', background: 'transparent', color: 'var(--color-text-primary)', padding: 10, textAlign: 'left', cursor: 'pointer' }}>
                 <span style={{ display: 'block', fontSize: 12, color: 'var(--color-text-tertiary)' }}>{formatTime(message.created_at)}</span>
