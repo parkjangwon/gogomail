@@ -2044,7 +2044,10 @@
       "inviteFailed": "Invite failed",
       "removeMemberFailed": "Remove member failed",
       "copyFailed": "Copy image failed"
-    }
+    },
+    "exportRoom": "Export conversation",
+    "exportDownloading": "Exporting...",
+    "exportError": "Export failed. Please try again."
   },
   "spamDialog": {
     "ariaLabel": "Report spam",
