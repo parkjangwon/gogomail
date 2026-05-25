@@ -2,31 +2,35 @@
 
 ## Current Task
 
-**Task 3: Harden Promtail container security**
+**Task 4: Split user-mcp tools.ts into domain modules**
 
 ## Previous Task Status
 
-**Task 2: Add generated TypeScript client to .gitignore** — COMPLETE
-- ✓ Added `clients/typescript/index.ts` to `.gitignore` with comment
-- ✓ Ran `git rm --cached clients/typescript/index.ts` to untrack
-- ✓ Created `clients/typescript/README.md` with regeneration instructions
-- ✓ Verified: `git check-ignore -v clients/typescript/index.ts` outputs match
-- ✓ Makefile `gen-ts-client` target confirmed functional
+**Task 3: Harden Promtail container security** — COMPLETE
+- ✓ Added `security_opt: ["no-new-privileges:true"]` to both Promtail services
+- ✓ Added `read_only: true` to both Promtail services
+- ✓ Added `tmpfs: [/tmp]` to both Promtail services
+- ✓ Added security documentation comment explaining Docker socket risk and Loki driver alternative
+- ✓ Modified: `docker/docker-compose.monitoring.yml`
+- ✓ Modified: `docker/docker-compose.dev.yml`
+- ✓ Validated: `docker compose -f docker/docker-compose.dev.yml config` exits 0
+- ✓ Verified: `docker compose -f docker/docker-compose.dev.yml config 2>&1 | grep -c "no-new-privileges"` → `1`
 - ✓ Committed and pushed
 
 ## Current Task Details
 
-**File:** `docs/docker-compose.yaml` (Promtail service section)
+**File:** `webmail/src/user-mcp/tools.ts` (need to split into domain modules)
+**Structure:** Large monolithic file with mixed domain concerns
 **Changes needed:**
-- Add network isolation (read-only logging volumes)
-- Restrict capabilities
-- Add resource limits
-- Document security hardening in comments
+- Extract tools by domain
+- Ensure backward compatibility via index.ts re-exports
+- Document module structure
 
 ## Next Steps After Current Task
 
 Refer to `docs/NEXT_STEPS.md` backlog (priority order):
-1. TypeScript file splits
-2. Go package refactoring
-3. Documentation hygiene
-4. And more...
+1. Split manage-mcp tools/gogomail.ts
+2. Split webmail api.ts by domain
+3. TypeScript file splits (UI components)
+4. Go package refactoring
+5. And more...
