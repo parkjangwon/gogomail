@@ -25,6 +25,7 @@ GoGoMail is a production-grade self-hosted email platform written in Go
 | 2026-05-26 | DM room key rotation: `POST /api/v1/dm/rooms/{roomID}/rotate-key` — generates new AES-256-GCM key, atomically re-encrypts all message bodies and attachment paths |
 | 2026-05-26 | Frontend cleanup: removed 63 console.log/error/warn calls from 29 console admin page files |
 | 2026-05-26 | Global HTTP body limit already enforced via `MaxRequestBodyMiddleware(4MB)` applied to all routes |
+| 2026-05-26 | Webmail unit tests: 3 new node --experimental-strip-types test scripts (check-compose-utils, check-send-result-label, check-stableid-timezone); pnpm test now runs all 6 scripts; composeUtils.ts import changed to `import type` |
 | 2026-05-26 | OpenTelemetry tracing: `internal/observability/tracing.go` — TracerProvider, InitTracing (OTLP HTTP exporter), OTelHTTPMiddleware, StartSpan; config via GOGOMAIL_OTEL_{ENABLED,ENDPOINT,SERVICE_NAME,SERVICE_VERSION}; HTTP middleware wired into runHTTP + runOutboxRelay; 9 tests pass |
 | 2026-05-26 | CI integration test stage: `docker/docker-compose.ci.yml` (Postgres 16, Redis 7, MinIO with tmpfs), `go-integration-test` job in CI runs full `go test ./...` against live services with `GOGOMAIL_TEST_*` env vars |
 | 2026-05-26 | Delivery rate limit on by default (60/min), Redis-backed cross-process limiter (`RedisDomainRateLimiter`); backend selectable via `GOGOMAIL_DELIVERY_RATE_LIMIT_BACKEND` |
