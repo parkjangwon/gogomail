@@ -49,6 +49,8 @@ const BADGE_COUNT_MODE_KEY = 'webmail_badge_count_mode';
 const REFRESH_INTERVAL_KEY = 'webmail_refresh_interval';
 const DM_MODAL_MIN_WIDTH = 320;
 const DM_MODAL_MIN_HEIGHT = 360;
+const DM_MODAL_DEFAULT_WIDTH = 480;
+const DM_MODAL_DEFAULT_HEIGHT = 840;
 const DM_MODAL_MARGIN = 12;
 type DMModalRect = { left: number; top: number; width: number; height: number };
 type DMResizeEdge = 'n' | 's' | 'e' | 'w' | 'ne' | 'nw' | 'se' | 'sw';
@@ -70,11 +72,11 @@ const DM_RESIZE_HANDLES: Array<{ edge: DMResizeEdge; cursor: string; style: CSSP
 ];
 
 function getDefaultDMModalRect(): DMModalRect {
-  if (typeof window === 'undefined') return { left: 56, top: 48, width: 940, height: 720 };
+  if (typeof window === 'undefined') return { left: 56, top: 48, width: DM_MODAL_DEFAULT_WIDTH, height: DM_MODAL_DEFAULT_HEIGHT };
   const maxWidth = Math.max(DM_MODAL_MIN_WIDTH, window.innerWidth - 80);
   const maxHeight = Math.max(DM_MODAL_MIN_HEIGHT, window.innerHeight - 48);
-  const width = Math.min(940, maxWidth);
-  const height = Math.min(720, maxHeight);
+  const width = Math.min(DM_MODAL_DEFAULT_WIDTH, maxWidth);
+  const height = Math.min(DM_MODAL_DEFAULT_HEIGHT, maxHeight);
   return {
     left: Math.max(DM_MODAL_MARGIN, 56),
     top: Math.max(DM_MODAL_MARGIN, window.innerHeight - 24 - height),
@@ -383,6 +385,37 @@ export default function MailPage() {
 
     document.addEventListener('mousemove', handleMove);
     document.addEventListener('mouseup', stopResize);
+  }, [isMobile, clampDMModalRect]);
+
+  const startDMModalDrag = useCallback((event: ReactMouseEvent<HTMLElement>) => {
+    if (isMobile) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const startRect = dmModalRectRef.current ?? clampDMModalRect(getDefaultDMModalRect());
+    const offsetX = event.clientX - startRect.left;
+    const offsetY = event.clientY - startRect.top;
+    const previousCursor = document.body.style.cursor;
+    const previousUserSelect = document.body.style.userSelect;
+    document.body.style.cursor = 'move';
+    document.body.style.userSelect = 'none';
+
+    const handleMove = (moveEvent: MouseEvent) => {
+      setDMModalRect(clampDMModalRect({
+        ...startRect,
+        left: moveEvent.clientX - offsetX,
+        top: moveEvent.clientY - offsetY,
+      }));
+    };
+
+    const stopDrag = () => {
+      document.removeEventListener('mousemove', handleMove);
+      document.removeEventListener('mouseup', stopDrag);
+      document.body.style.cursor = previousCursor;
+      document.body.style.userSelect = previousUserSelect;
+    };
+
+    document.addEventListener('mousemove', handleMove);
+    document.addEventListener('mouseup', stopDrag);
   }, [isMobile, clampDMModalRect]);
 
   const addToast = useCallback((message: string, type: ToastItem['type'] = 'success', options?: { duration?: number; action?: ToastItem['action'] }) => {
@@ -1992,7 +2025,7 @@ export default function MailPage() {
               }}
             />
           ))}
-          <DMPanel userEmail={userEmail || undefined} onUnreadChange={setDMUnreadCount} onClose={() => setShowDMModal(false)} onComposeToAddress={(email) => openCompose({ intent: 'new', to: email, focusSubjectOnOpen: true })} />
+          <DMPanel userEmail={userEmail || undefined} onUnreadChange={setDMUnreadCount} onClose={() => setShowDMModal(false)} onComposeToAddress={(email) => openCompose({ intent: 'new', to: email, focusSubjectOnOpen: true })} onStartWindowDrag={startDMModalDrag} />
         </div>
       )}
 
