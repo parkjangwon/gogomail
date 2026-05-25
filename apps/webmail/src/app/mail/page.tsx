@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import type { CSSProperties, MouseEvent as ReactMouseEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { deleteMessage, restoreMessage, bulkRestoreMessages, createFolder, renameFolder, deleteFolder, starMessage, markRead, moveMessage, bulkMarkRead, searchMessages, getMessages, getMessage, sendMessage, listThreads, listThreadMessages, getNotificationPreferences, setNotificationPreferences, setPreferences, listDMRooms, UIComposeIntent, MessageAddress, MessageDetail, MessageSummary, ThreadSummary, type ThreadNotificationOverride } from '@/lib/api';
@@ -46,11 +47,41 @@ const NOTIFICATION_FOLDER_OVERRIDES_KEY = 'webmail_notification_folder_overrides
 const NOTIFICATION_THREAD_OVERRIDES_KEY = 'webmail_notification_thread_overrides';
 const BADGE_COUNT_MODE_KEY = 'webmail_badge_count_mode';
 const REFRESH_INTERVAL_KEY = 'webmail_refresh_interval';
+const DM_MODAL_MIN_WIDTH = 320;
+const DM_MODAL_MIN_HEIGHT = 360;
+const DM_MODAL_MARGIN = 12;
+type DMModalRect = { left: number; top: number; width: number; height: number };
+type DMResizeEdge = 'n' | 's' | 'e' | 'w' | 'ne' | 'nw' | 'se' | 'sw';
 type BadgeCountMode = 'unread' | 'all' | 'none';
 type NavigatorWithBadging = Navigator & {
   setAppBadge?: (contents?: number) => Promise<void>;
   clearAppBadge?: () => Promise<void>;
 };
+
+const DM_RESIZE_HANDLES: Array<{ edge: DMResizeEdge; cursor: string; style: CSSProperties }> = [
+  { edge: 'n', cursor: 'ns-resize', style: { top: -5, left: 10, right: 10, height: 10 } },
+  { edge: 's', cursor: 'ns-resize', style: { bottom: -5, left: 10, right: 10, height: 10 } },
+  { edge: 'e', cursor: 'ew-resize', style: { top: 10, right: -5, bottom: 10, width: 10 } },
+  { edge: 'w', cursor: 'ew-resize', style: { top: 10, left: -5, bottom: 10, width: 10 } },
+  { edge: 'ne', cursor: 'nesw-resize', style: { top: -7, right: -7, width: 18, height: 18 } },
+  { edge: 'nw', cursor: 'nwse-resize', style: { top: -7, left: -7, width: 18, height: 18 } },
+  { edge: 'se', cursor: 'nwse-resize', style: { bottom: -7, right: -7, width: 18, height: 18 } },
+  { edge: 'sw', cursor: 'nesw-resize', style: { bottom: -7, left: -7, width: 18, height: 18 } },
+];
+
+function getDefaultDMModalRect(): DMModalRect {
+  if (typeof window === 'undefined') return { left: 56, top: 48, width: 940, height: 720 };
+  const maxWidth = Math.max(DM_MODAL_MIN_WIDTH, window.innerWidth - 80);
+  const maxHeight = Math.max(DM_MODAL_MIN_HEIGHT, window.innerHeight - 48);
+  const width = Math.min(940, maxWidth);
+  const height = Math.min(720, maxHeight);
+  return {
+    left: Math.max(DM_MODAL_MARGIN, 56),
+    top: Math.max(DM_MODAL_MARGIN, window.innerHeight - 24 - height),
+    width,
+    height,
+  };
+}
 
 function isAppId(value: string | null): value is AppId {
   return value === 'mail' || value === 'calendar' || value === 'contacts' || value === 'drive' || value === 'settings';
@@ -203,6 +234,7 @@ export default function MailPage() {
 
   const [activeApp, setActiveApp] = useState<AppId>(getInitialActiveApp);
   const [showDMModal, setShowDMModal] = useState(false);
+  const [dmModalRect, setDMModalRect] = useState<DMModalRect | null>(null);
   const [dmUnreadCount, setDMUnreadCount] = useState(0);
   const [badgeCountMode, setBadgeCountMode] = useState<BadgeCountMode>(readBadgeCountMode);
   const [refreshIntervalSeconds, setRefreshIntervalSeconds] = useState<RefreshIntervalSeconds>(readRefreshIntervalSeconds);
@@ -275,8 +307,83 @@ export default function MailPage() {
   const isMobile = useIsMobile();
   const gPrefixRef = useRef(false);
   const isOnline = useIsOnline();
+  const dmModalRectRef = useRef<DMModalRect | null>(null);
 
   const pendingDeletesRef = useRef(new Map<string, ReturnType<typeof setTimeout>>());
+
+  const clampDMModalRect = useCallback((rect: DMModalRect): DMModalRect => {
+    if (typeof window === 'undefined') return rect;
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+    const minWidth = Math.min(DM_MODAL_MIN_WIDTH, Math.max(280, viewportWidth - DM_MODAL_MARGIN * 2));
+    const minHeight = Math.min(DM_MODAL_MIN_HEIGHT, Math.max(300, viewportHeight - DM_MODAL_MARGIN * 2));
+    const maxWidth = Math.max(minWidth, viewportWidth - DM_MODAL_MARGIN * 2);
+    const maxHeight = Math.max(minHeight, viewportHeight - DM_MODAL_MARGIN * 2);
+    const width = Math.min(Math.max(rect.width, minWidth), maxWidth);
+    const height = Math.min(Math.max(rect.height, minHeight), maxHeight);
+    const maxLeft = Math.max(DM_MODAL_MARGIN, viewportWidth - width - DM_MODAL_MARGIN);
+    const maxTop = Math.max(DM_MODAL_MARGIN, viewportHeight - height - DM_MODAL_MARGIN);
+    const left = Math.min(Math.max(rect.left, DM_MODAL_MARGIN), maxLeft);
+    const top = Math.min(Math.max(rect.top, DM_MODAL_MARGIN), maxTop);
+    return { left, top, width, height };
+  }, []);
+
+  useEffect(() => {
+    dmModalRectRef.current = dmModalRect;
+  }, [dmModalRect]);
+
+  useEffect(() => {
+    if (!showDMModal || isMobile) return;
+    setDMModalRect((rect) => clampDMModalRect(rect ?? getDefaultDMModalRect()));
+  }, [showDMModal, isMobile, clampDMModalRect]);
+
+  useEffect(() => {
+    if (isMobile) return undefined;
+    const handleViewportResize = () => setDMModalRect((rect) => (rect ? clampDMModalRect(rect) : rect));
+    window.addEventListener('resize', handleViewportResize);
+    return () => window.removeEventListener('resize', handleViewportResize);
+  }, [isMobile, clampDMModalRect]);
+
+  const startDMModalResize = useCallback((edge: DMResizeEdge, event: ReactMouseEvent<HTMLDivElement>) => {
+    if (isMobile) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const startRect = dmModalRectRef.current ?? clampDMModalRect(getDefaultDMModalRect());
+    const startX = event.clientX;
+    const startY = event.clientY;
+    const previousCursor = document.body.style.cursor;
+    const previousUserSelect = document.body.style.userSelect;
+    const cursor = DM_RESIZE_HANDLES.find((handle) => handle.edge === edge)?.cursor ?? 'default';
+    document.body.style.cursor = cursor;
+    document.body.style.userSelect = 'none';
+
+    const handleMove = (moveEvent: MouseEvent) => {
+      const dx = moveEvent.clientX - startX;
+      const dy = moveEvent.clientY - startY;
+      let { left, top, width, height } = startRect;
+      if (edge.includes('e')) width += dx;
+      if (edge.includes('s')) height += dy;
+      if (edge.includes('w')) {
+        width -= dx;
+        left += dx;
+      }
+      if (edge.includes('n')) {
+        height -= dy;
+        top += dy;
+      }
+      setDMModalRect(clampDMModalRect({ left, top, width, height }));
+    };
+
+    const stopResize = () => {
+      document.removeEventListener('mousemove', handleMove);
+      document.removeEventListener('mouseup', stopResize);
+      document.body.style.cursor = previousCursor;
+      document.body.style.userSelect = previousUserSelect;
+    };
+
+    document.addEventListener('mousemove', handleMove);
+    document.addEventListener('mouseup', stopResize);
+  }, [isMobile, clampDMModalRect]);
 
   const addToast = useCallback((message: string, type: ToastItem['type'] = 'success', options?: { duration?: number; action?: ToastItem['action'] }) => {
     const id = stableId('toast');
@@ -1585,6 +1692,7 @@ export default function MailPage() {
       focusModeEnabled,
     });
   })();
+  const resolvedDMModalRect = dmModalRect ?? getDefaultDMModalRect();
 
   return (
     <div
@@ -1861,7 +1969,7 @@ export default function MailPage() {
             position: 'fixed',
             ...(isMobile
               ? { inset: 0, width: '100%', height: '100dvh', borderRadius: 0 }
-              : { left: 56, bottom: 24, width: 'min(940px, calc(100vw - 80px))', height: 'min(720px, calc(100vh - 48px))', minWidth: 360, minHeight: 420, maxWidth: 'calc(100vw - 80px)', maxHeight: 'calc(100vh - 48px)', borderRadius: 8, resize: 'both' }),
+              : { left: resolvedDMModalRect.left, top: resolvedDMModalRect.top, width: resolvedDMModalRect.width, height: resolvedDMModalRect.height, minWidth: `min(${DM_MODAL_MIN_WIDTH}px, calc(100vw - 24px))`, minHeight: `min(${DM_MODAL_MIN_HEIGHT}px, calc(100vh - 24px))`, maxWidth: 'calc(100vw - 24px)', maxHeight: 'calc(100vh - 24px)', borderRadius: 8 }),
             zIndex: 120,
             overflow: 'hidden',
             background: 'var(--color-bg-primary)',
@@ -1871,6 +1979,19 @@ export default function MailPage() {
             animation: 'composeIn 120ms ease-out',
           }}
         >
+          {!isMobile && DM_RESIZE_HANDLES.map((handle) => (
+            <div
+              key={handle.edge}
+              aria-hidden="true"
+              onMouseDown={(event) => startDMModalResize(handle.edge, event)}
+              style={{
+                position: 'absolute',
+                zIndex: 4,
+                cursor: handle.cursor,
+                ...handle.style,
+              }}
+            />
+          ))}
           <DMPanel userEmail={userEmail || undefined} onUnreadChange={setDMUnreadCount} onClose={() => setShowDMModal(false)} onComposeToAddress={(email) => openCompose({ intent: 'new', to: email, focusSubjectOnOpen: true })} />
         </div>
       )}

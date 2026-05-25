@@ -42,8 +42,9 @@ Last updated: 2026-05-25 (DM instant messaging implementation)
   JPG/PNG/WebP DM attachments render inline with click-to-enlarge preview,
   download, and clipboard-copy actions through the webmail API proxy. Pasted
   clipboard images now open an attach-confirmation preview before upload, the DM
-  modal is resizable on desktop, and the DM flow now uses a conversation-list
-  first layout with a back button into the list. The webmail panel offers a
+  modal is resizable from every edge/corner on desktop with viewport clamping and
+  compact layout safeguards, and the DM flow now uses a conversation-list first
+  layout with a back button into the list. The webmail panel offers a
   compact emoji picker that closes on outside clicks or reaction errors instead
   of fixed reaction presets.
 - `docs/openapi.yaml` and `docs/backend-api-contracts.md` now document the DM
