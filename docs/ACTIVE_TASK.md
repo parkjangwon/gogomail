@@ -2,7 +2,7 @@
 
 ## Current Task
 
-**DM Export Plan — Task 2: Service layer + TXT formatter** (in progress 2026-05-26)
+**DM Export Plan — Task 2: Service layer + TXT formatter** (completed 2026-05-26)
 
 - `internal/dm/dm_export.go`: `RoomExport` struct + `FormatExportTXT`
 - `internal/dm/dm.go`: `Service.GetRoom` + `Service.ExportRoom` methods

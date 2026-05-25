@@ -26,6 +26,9 @@ func FormatExportTXT(e RoomExport) string {
 		}
 		roomName = strings.Join(names, ", ")
 	}
+	if roomName == "" {
+		roomName = e.Room.ID
+	}
 
 	participantLines := make([]string, 0, len(e.Room.Members))
 	for _, m := range e.Room.Members {
@@ -53,7 +56,7 @@ func FormatExportTXT(e RoomExport) string {
 		ts := msg.CreatedAt.UTC().Format("2006-01-02 15:04:05 UTC")
 
 		if msg.DeletedAt != nil {
-			fmt.Fprintf(&sb, "[%s] [삭제됨]\n\n", ts)
+			fmt.Fprintf(&sb, "[%s] %s\n\n", ts, msg.Body)
 			continue
 		}
 
