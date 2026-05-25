@@ -44,6 +44,15 @@ search/media read models, polling APIs, and a webmail global panel.
 - [x] Fix: Search function now uses consistent 1000 limit in ListSearchCandidates call (was 10000).
 - [x] Refactor: Extracted hardcoded Korean system message strings into injectable `SystemMessages` struct with `DefaultSystemMessages()` and `WithSystemMessages()` for i18n-readiness.
 
+## Task 3: Complete
+
+ListMedia 타입 정규화 수정:
+- [x] Switch statement updated to normalize API types to store tokens
+- [x] MCP `"drive_link"` → store `"drive"`
+- [x] MCP `"link"` → store `"links"`
+- [x] Unknown types default to `"file"`
+- [x] `go test ./internal/dm/...` passes (14 tests)
+
 ## Next Task
 
-Continue completing the remaining DM spec requirements.
+Task 4: metrics interface{} → 타입 안전 로컬 인터페이스 (caldavgw/carddavgw/imapgw)
