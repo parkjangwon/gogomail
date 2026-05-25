@@ -43,6 +43,47 @@ jobs:
       - name: go build
         run: go build ./...
 
+  go-integration-test:
+    name: Go integration tests (Postgres + Redis + S3)
+    runs-on: ubuntu-latest
+    needs: [go-test]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Start services (Postgres, Redis, MinIO)
+        run: |
+          docker compose -f docker/docker-compose.ci.yml up -d postgres redis minio
+          docker compose -f docker/docker-compose.ci.yml up minio-init
+
+      - name: Wait for services to be healthy
+        run: |
+          echo "Waiting for Postgres..."
+          timeout 60 bash -c 'until docker compose -f docker/docker-compose.ci.yml exec -T postgres pg_isready -U gogomail_test; do sleep 2; done'
+          echo "Waiting for Redis..."
+          timeout 30 bash -c 'until docker compose -f docker/docker-compose.ci.yml exec -T redis redis-cli ping; do sleep 2; done'
+
+      - name: Run integration tests
+        run: |
+          go test -count=1 -timeout=300s ./...
+        env:
+          GOGOMAIL_TEST_DATABASE_URL: "postgres://gogomail_test:gogomail_test@localhost:5432/gogomail_test?sslmode=disable"
+          GOGOMAIL_TEST_REDIS_ADDR: "localhost:6379"
+          GOGOMAIL_TEST_S3_ENDPOINT: "http://localhost:9000"
+          GOGOMAIL_TEST_S3_ACCESS_KEY_ID: "minioadmin"
+          GOGOMAIL_TEST_S3_SECRET_ACCESS_KEY: "minioadmin"
+          GOGOMAIL_TEST_S3_BUCKET: "gogomail-test"
+          GOGOMAIL_TEST_S3_REGION: "us-east-1"
+          GOGOMAIL_TEST_S3_FORCE_PATH_STYLE: "true"
+
+      - name: Stop services
+        if: always()
+        run: docker compose -f docker/docker-compose.ci.yml down -v
+
   docker-image:
     name: Docker build & scan
     runs-on: ubuntu-latest
