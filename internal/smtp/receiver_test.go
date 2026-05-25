@@ -1711,19 +1711,19 @@ type recordingRecorder struct {
 	messages []ReceivedMessage
 }
 
-func (r *recordingRecorder) Record(_ context.Context, msg ReceivedMessage) error {
+func (r *recordingRecorder) Record(_ context.Context, msg ReceivedMessage) (string, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.messages = append(r.messages, msg)
-	return nil
+	return "", nil
 }
 
 type failingRecorder struct {
 	err error
 }
 
-func (r failingRecorder) Record(context.Context, ReceivedMessage) error {
-	return r.err
+func (r failingRecorder) Record(context.Context, ReceivedMessage) (string, error) {
+	return "", r.err
 }
 
 func TestSessionSkipsAuthenticationHookWhenVerifierDisabled(t *testing.T) {

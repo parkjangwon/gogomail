@@ -268,11 +268,11 @@ type throughputRecorder struct {
 	count int64
 }
 
-func (r *throughputRecorder) Record(_ context.Context, _ ReceivedMessage) error {
+func (r *throughputRecorder) Record(_ context.Context, _ ReceivedMessage) (string, error) {
 	r.mu.Lock()
 	r.count++
 	r.mu.Unlock()
-	return nil
+	return "", nil
 }
 
 // BenchmarkSMTPReceiverThroughput measures message-processing throughput

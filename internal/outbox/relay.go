@@ -121,6 +121,11 @@ func (r *Relay) processIndividually(ctx context.Context, events []Event) (int, e
 		if err := r.store.MarkDone(ctx, event.ID); err != nil {
 			return processed, fmt.Errorf("mark outbox event done: %w", err)
 		}
+		r.logger.Info("outbox event relayed",
+			"outbox_id", event.ID,
+			"topic", event.Topic,
+			"message_id", event.PartitionKey,
+		)
 		processed++
 	}
 	return processed, nil
@@ -135,6 +140,11 @@ func (r *Relay) processBatch(ctx context.Context, store BatchStore, events []Eve
 			r.logger.Warn("outbox event publish failed", "id", event.ID, "topic", event.Topic, "error", err)
 			continue
 		}
+		r.logger.Info("outbox event relayed",
+			"outbox_id", event.ID,
+			"topic", event.Topic,
+			"message_id", event.PartitionKey,
+		)
 		doneIDs = append(doneIDs, event.ID)
 	}
 

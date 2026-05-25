@@ -2098,6 +2098,7 @@ func runReceiveMTA(ctx context.Context, cfg config.Config, logger *slog.Logger, 
 		RelayAuthorizer:    relayAuthorizer,
 		DomainPolicyLookup: domainPolicyLookup,
 		Metrics:            smtpMetrics(cfg, logger),
+		Logger:             logger,
 		AddReceivedHeader:  cfg.SMTPAddReceivedHeader,
 		ReceivedDomain:     cfg.SMTPDomain,
 		RequireAuth:        cfg.SMTPRequireAuth,
@@ -2978,6 +2979,7 @@ func runDeliveryWorker(ctx context.Context, cfg config.Config, logger *slog.Logg
 		)
 	}
 	handler.WithMetrics(deliveryMetrics(cfg, logger))
+	handler.WithLogger(logger)
 
 	consumer, err := eventstream.NewRedisConsumer(eventstream.RedisConsumerOptions{
 		Client:           redisClient,
@@ -3857,7 +3859,7 @@ func (a localDeliveryAdapter) DeliverLocal(ctx context.Context, job delivery.Job
 	if err != nil {
 		return err
 	}
-	return a.repository.Record(ctx, smtpd.ReceivedMessage{
+	_, err = a.repository.Record(ctx, smtpd.ReceivedMessage{
 		EnvelopeFrom: strings.TrimSpace(job.From.Email),
 		Mailbox: smtpd.Mailbox{
 			CompanyID: mailbox.CompanyID,
@@ -3871,4 +3873,5 @@ func (a localDeliveryAdapter) DeliverLocal(ctx context.Context, job delivery.Job
 		Size:             job.Size,
 		FolderSystemType: "inbox",
 	})
+	return err
 }
