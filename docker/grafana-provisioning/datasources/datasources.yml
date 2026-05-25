@@ -23,7 +23,7 @@ datasources:
     jsonData:
       maxLines: 1000
       derivedFields:
-        - name: TraceID
+        - name: RequestID
           matcherRegex: '"request_id":"([^"]+)"'
           url: '/explore?orgId=1&left={"datasource":"loki","queries":[{"expr":"{service=~\".+\"} |= \"${__value.raw}\"","refId":"A"}],"range":{"from":"now-1h","to":"now"}}'
           datasourceUid: loki
