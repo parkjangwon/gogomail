@@ -21,10 +21,11 @@ Last updated: 2026-05-25 (DM instant messaging implementation)
 - Room hard deletion now has regression coverage asserting `dm_room_keys` are
   deleted before message, participant, invite, and room rows.
 - Webmail now exposes DM as a global app with an unread badge, 5-second room
-  polling, 3-second active-room message polling, direct/group room creation from
-  directory users, message bubbles, file uploads, Drive-file message IDs,
-  search/media side views, invite creation, member/owner controls, reactions,
-  edit/delete actions, and localized app-switcher labels.
+  polling, 3-second active-room message polling, a lower-rail entry beside
+  notifications/settings, a compose-style floating messenger window,
+  direct/group room creation from directory users, message bubbles, file
+  uploads, Drive-file message IDs, search/media side views, invite creation,
+  member/owner controls, reactions, edit/delete actions, and localized labels.
 - `docs/openapi.yaml` and `docs/backend-api-contracts.md` now document the DM
   route surface, envelopes, auth fallback, encrypted storage behavior, and
   attachment constraints/downloads; OpenAPI route-coverage tests include

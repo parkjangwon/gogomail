@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 import { setupAuthedPage } from './helpers';
 
 test.describe('DM panel', () => {
-  test('opens from the app switcher and sends a message', async ({ page }) => {
+  test('opens from the lower rail as a modal and sends a message', async ({ page }) => {
     await setupAuthedPage(page);
 
     await page.getByRole('button', { name: /^DM/ }).click();

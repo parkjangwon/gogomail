@@ -53,7 +53,7 @@ type NavigatorWithBadging = Navigator & {
 };
 
 function isAppId(value: string | null): value is AppId {
-  return value === 'mail' || value === 'dm' || value === 'calendar' || value === 'contacts' || value === 'drive' || value === 'settings';
+  return value === 'mail' || value === 'calendar' || value === 'contacts' || value === 'drive' || value === 'settings';
 }
 
 function getInitialActiveApp(): AppId {
@@ -202,6 +202,7 @@ export default function MailPage() {
   }, []);
 
   const [activeApp, setActiveApp] = useState<AppId>(getInitialActiveApp);
+  const [showDMModal, setShowDMModal] = useState(false);
   const [dmUnreadCount, setDMUnreadCount] = useState(0);
   const [badgeCountMode, setBadgeCountMode] = useState<BadgeCountMode>(readBadgeCountMode);
   const [refreshIntervalSeconds, setRefreshIntervalSeconds] = useState<RefreshIntervalSeconds>(readRefreshIntervalSeconds);
@@ -964,12 +965,16 @@ export default function MailPage() {
       setMobileSidebarOpen(false);
       return true;
     }
+    if (showDMModal) {
+      setShowDMModal(false);
+      return true;
+    }
     if (selectedMessageId) {
       setSelectedMessageId(null);
       return true;
     }
     return false;
-  }, [composeContext, showSpotlight, contextMenu, showShortcuts, mobileSidebarOpen, selectedMessageId]);
+  }, [composeContext, showSpotlight, contextMenu, showShortcuts, mobileSidebarOpen, showDMModal, selectedMessageId]);
 
 
   // Persist last-selected message per folder
@@ -1019,14 +1024,19 @@ export default function MailPage() {
           const folder = folders.find((f) => f.system_type === target);
           if (folder) { e.preventDefault(); handleSelectFolder(folder.id); return; }
         }
-        const appSwitchMap: Record<string, AppId> = { m: 'mail', h: 'dm', c: 'calendar', a: 'contacts', k: 'contacts', d: 'drive', v: 'drive', ',': 'settings' };
+        if (key === 'h') {
+          e.preventDefault();
+          setShowDMModal(true);
+          return;
+        }
+        const appSwitchMap: Record<string, AppId> = { m: 'mail', c: 'calendar', a: 'contacts', k: 'contacts', d: 'drive', v: 'drive', ',': 'settings' };
         const appTarget = appSwitchMap[key];
         if (appTarget) { e.preventDefault(); setActiveApp(appTarget); return; }
       }
 
       if (key === 'D' && !e.ctrlKey && !e.metaKey && !e.altKey) {
         e.preventDefault();
-        setActiveApp('dm');
+        setShowDMModal(true);
         return;
       }
 
@@ -1662,7 +1672,14 @@ export default function MailPage() {
         </div>
       )}
 
-      <AppIconBar activeApp={activeApp} onChangeApp={setActiveApp} mailUnread={folders.reduce((s, f) => s + (f.unread ?? 0), 0)} dmUnread={dmUnreadCount} />
+      <AppIconBar
+        activeApp={activeApp}
+        onChangeApp={setActiveApp}
+        mailUnread={folders.reduce((s, f) => s + (f.unread ?? 0), 0)}
+        dmUnread={dmUnreadCount}
+        dmOpen={showDMModal}
+        onOpenDM={() => setShowDMModal((open) => !open)}
+      />
 
       {activeApp === 'mail' ? (
         <>
@@ -1825,8 +1842,6 @@ export default function MailPage() {
 
           </div>{/* end mail layout wrapper */}
         </>
-      ) : activeApp === 'dm' ? (
-        <DMPanel userEmail={userEmail || undefined} onUnreadChange={setDMUnreadCount} />
       ) : activeApp === 'calendar' ? (
         <CalendarView />
       ) : activeApp === 'contacts' ? (
@@ -1836,6 +1851,29 @@ export default function MailPage() {
       ) : activeApp === 'settings' ? (
         <SettingsView userEmail={userEmail || undefined} userName={userEmail || undefined} initialSection={settingsInitialSection} />
       ) : null}
+
+      {showDMModal && (
+        <div
+          role="dialog"
+          aria-modal="false"
+          aria-label="DM"
+          style={{
+            position: 'fixed',
+            ...(isMobile
+              ? { inset: 0, width: '100%', height: '100dvh', borderRadius: 0 }
+              : { left: 56, bottom: 24, width: 'min(940px, calc(100vw - 80px))', height: 'min(720px, calc(100vh - 48px))', borderRadius: 8 }),
+            zIndex: 120,
+            overflow: 'hidden',
+            background: 'var(--color-bg-primary)',
+            border: isMobile ? 'none' : '1px solid var(--color-border-default)',
+            boxShadow: isMobile ? 'none' : '0 12px 42px rgba(0,0,0,0.20)',
+            display: 'flex',
+            animation: 'composeIn 120ms ease-out',
+          }}
+        >
+          <DMPanel userEmail={userEmail || undefined} onUnreadChange={setDMUnreadCount} onClose={() => setShowDMModal(false)} />
+        </div>
+      )}
 
       <MFASetupPromptModal
         onGoToSettings={() => {

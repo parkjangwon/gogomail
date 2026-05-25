@@ -4,13 +4,15 @@ import { EnvelopeIcon as EnvelopeIconSolid, CalendarDaysIcon as CalendarSolid, U
 import { useTranslations } from 'next-intl';
 import { NotificationBell } from './notifications/NotificationBell';
 
-export type AppId = 'mail' | 'dm' | 'calendar' | 'contacts' | 'drive' | 'settings';
+export type AppId = 'mail' | 'calendar' | 'contacts' | 'drive' | 'settings';
 
 interface AppIconBarProps {
   activeApp: AppId;
   onChangeApp: (app: AppId) => void;
   mailUnread?: number;
   dmUnread?: number;
+  dmOpen?: boolean;
+  onOpenDM?: () => void;
 }
 
 const GUIDE_URL = process.env.NEXT_PUBLIC_WEBMAIL_GUIDE_URL?.trim() ?? '';
@@ -82,10 +84,12 @@ function AppBtn({ app, isActive, onChangeApp, badge, unreadLabel }: { app: AppIt
   );
 }
 
-function AppActionBtn({ label, icon, onClick }: { label: string; icon: React.ReactNode; onClick: () => void }) {
+function AppActionBtn({ label, icon, onClick, badge, unreadLabel, isActive }: { label: string; icon: React.ReactNode; onClick: () => void; badge?: number; unreadLabel?: string; isActive?: boolean }) {
+  const badgeLabel = badge && badge > 0 ? (badge > 99 ? '99+' : String(badge)) : '';
   return (
     <button
-      aria-label={label}
+      aria-label={`${label}${badgeLabel && unreadLabel ? ` (${unreadLabel} ${badgeLabel})` : ''}`}
+      aria-pressed={isActive}
       title={label}
       type="button"
       onClick={onClick}
@@ -95,8 +99,8 @@ function AppActionBtn({ label, icon, onClick }: { label: string; icon: React.Rea
         height: '36px',
         borderRadius: '8px',
         border: 'none',
-        background: 'transparent',
-        color: 'var(--color-text-tertiary)',
+        background: isActive ? 'var(--color-accent-subtle)' : 'transparent',
+        color: isActive ? 'var(--color-accent)' : 'var(--color-text-tertiary)',
         cursor: 'pointer',
         display: 'flex',
         alignItems: 'center',
@@ -105,24 +109,49 @@ function AppActionBtn({ label, icon, onClick }: { label: string; icon: React.Rea
         position: 'relative',
       }}
       onMouseEnter={(e) => {
-        (e.currentTarget).style.background = 'var(--color-bg-tertiary)';
-        (e.currentTarget).style.color = 'var(--color-text-secondary)';
+        if (!isActive) {
+          (e.currentTarget).style.background = 'var(--color-bg-tertiary)';
+          (e.currentTarget).style.color = 'var(--color-text-secondary)';
+        }
       }}
       onMouseLeave={(e) => {
-        (e.currentTarget).style.background = 'transparent';
-        (e.currentTarget).style.color = 'var(--color-text-tertiary)';
+        if (!isActive) {
+          (e.currentTarget).style.background = 'transparent';
+          (e.currentTarget).style.color = 'var(--color-text-tertiary)';
+        }
       }}
     >
       {icon}
+      {badgeLabel && (
+        <span style={{
+          position: 'absolute',
+          top: '2px',
+          right: '2px',
+          minWidth: '14px',
+          height: '14px',
+          borderRadius: '7px',
+          background: 'var(--color-destructive, #dc2626)',
+          color: '#fff',
+          fontSize: '9px',
+          fontWeight: 700,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '0 3px',
+          lineHeight: 1,
+          pointerEvents: 'none',
+        }}>
+          {badgeLabel}
+        </span>
+      )}
     </button>
   );
 }
 
-export function AppIconBar({ activeApp, onChangeApp, mailUnread, dmUnread }: AppIconBarProps) {
+export function AppIconBar({ activeApp, onChangeApp, mailUnread, dmUnread, dmOpen, onOpenDM }: AppIconBarProps) {
   const t = useTranslations('nav');
   const MAIN_APPS: AppItem[] = [
     { id: 'mail', label: t('mail'), icon: <EnvelopeIcon style={{ width: '20px', height: '20px' }} />, activeIcon: <EnvelopeIconSolid style={{ width: '20px', height: '20px' }} /> },
-    { id: 'dm', label: t('dm'), icon: <ChatBubbleLeftRightIcon style={{ width: '20px', height: '20px' }} />, activeIcon: <ChatBubbleSolid style={{ width: '20px', height: '20px' }} /> },
     { id: 'calendar', label: t('calendar'), icon: <CalendarDaysIcon style={{ width: '20px', height: '20px' }} />, activeIcon: <CalendarSolid style={{ width: '20px', height: '20px' }} /> },
     { id: 'contacts', label: t('contacts'), icon: <UserGroupIcon style={{ width: '20px', height: '20px' }} />, activeIcon: <UserGroupSolid style={{ width: '20px', height: '20px' }} /> },
     { id: 'drive', label: t('drive'), icon: <CloudIcon style={{ width: '20px', height: '20px' }} />, activeIcon: <CloudSolid style={{ width: '20px', height: '20px' }} /> },
@@ -155,7 +184,7 @@ export function AppIconBar({ activeApp, onChangeApp, mailUnread, dmUnread }: App
             app={app}
             isActive={activeApp === app.id}
             onChangeApp={onChangeApp}
-            badge={app.id === 'mail' ? mailUnread : app.id === 'dm' ? dmUnread : undefined}
+            badge={app.id === 'mail' ? mailUnread : undefined}
             unreadLabel={unreadLabel}
           />
         ))}
@@ -171,6 +200,16 @@ export function AppIconBar({ activeApp, onChangeApp, mailUnread, dmUnread }: App
         borderTop: '1px solid var(--color-border-subtle)',
       }}>
         <NotificationBell />
+        {onOpenDM && (
+          <AppActionBtn
+            label={t('dm')}
+            icon={dmOpen ? <ChatBubbleSolid style={{ width: '20px', height: '20px' }} /> : <ChatBubbleLeftRightIcon style={{ width: '20px', height: '20px' }} />}
+            onClick={onOpenDM}
+            badge={dmUnread}
+            unreadLabel={unreadLabel}
+            isActive={dmOpen}
+          />
+        )}
         {GUIDE_URL && (
           <AppActionBtn
             label={t('guide')}
