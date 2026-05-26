@@ -57,6 +57,12 @@ test.describe('Message view', () => {
       },
     });
 
+    // Navigate to Sent folder where the message lives
+    const sent = page.locator('aside[aria-label="메일 탐색"]').getByRole('button', { name: /보낸 편지함/ }).first();
+    if (await sent.isVisible({ timeout: 5_000 }).catch(() => false)) {
+      await sent.click();
+    }
+
     await page.getByText('Pending self delivery').first().click();
     await expect(page.getByText(/배달|Delivery/)).toBeVisible({ timeout: 5_000 });
     await page.getByText(/배달|Delivery/).first().click();

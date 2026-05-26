@@ -77,7 +77,7 @@ test.describe('Settings', () => {
     });
     await openSettings(page);
     await page.getByRole('button', { name: /^(알림|Notifications)$/i }).click();
-    await page.getByRole('switch', { name: /INBOX/ }).click();
+    await page.getByRole('switch', { name: /INBOX|받은 편지함/ }).click();
 
     await expect.poll(() => savedBody, { timeout: 5_000 }).toMatchObject({
       folder_overrides: {

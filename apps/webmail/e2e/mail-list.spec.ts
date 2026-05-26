@@ -99,7 +99,7 @@ test.describe('Mail list', () => {
     const spam = page.locator('aside[aria-label="메일 탐색"]').getByRole('button', { name: /스팸/ }).first();
     if (await spam.isVisible()) {
       await spam.click();
-      await page.waitForLoadState('networkidle').catch(() => null);
+      await page.waitForLoadState('networkidle', { timeout: 5_000 }).catch(() => null);
     }
   });
 });
