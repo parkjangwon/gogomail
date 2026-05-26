@@ -2,7 +2,8 @@ import { useState, useEffect, useCallback } from 'react';
 
 export interface UseMailSessionParams {
   router: { push: (href: string) => void };
-  t: (key: string, values?: Record<string, unknown>) => string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  t: (key: string, values?: Record<string, any>) => string;
 }
 
 export function useMailSession({ router, t }: UseMailSessionParams) {

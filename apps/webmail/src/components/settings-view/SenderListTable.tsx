@@ -13,7 +13,7 @@ interface SenderListTableProps {
   // Controls
   search: string;
   setSearch: (v: string) => void;
-  setPage: (v: number) => void;
+  setPage: React.Dispatch<React.SetStateAction<number>>;
   newInput: string;
   setNewInput: (v: string) => void;
   // Actions

@@ -3,7 +3,8 @@ import type { ToastItem } from '@/components/Toast';
 
 export interface UseMailLabelsParams {
   addToast: (message: string, type?: ToastItem['type'], options?: { duration?: number; action?: ToastItem['action'] }) => void;
-  t: (key: string, values?: Record<string, unknown>) => string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  t: (key: string, values?: Record<string, any>) => string;
 }
 
 export function useMailLabels({ addToast, t }: UseMailLabelsParams) {
