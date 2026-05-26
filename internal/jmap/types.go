@@ -3,6 +3,7 @@ package jmap
 import (
 	"encoding/json"
 	"fmt"
+	"strconv"
 )
 
 // Session represents the JMAP Session Resource (RFC 8620 §2).
@@ -48,9 +49,9 @@ func (m MethodCall) MarshalJSON() ([]byte, error) {
 		args = json.RawMessage("{}")
 	}
 	return json.Marshal([3]json.RawMessage{
-		mustRawString(m.Name),
+		rawString(m.Name),
 		args,
-		mustRawString(m.CallID),
+		rawString(m.CallID),
 	})
 }
 
@@ -92,9 +93,9 @@ func (m MethodResponse) MarshalJSON() ([]byte, error) {
 		result = json.RawMessage("{}")
 	}
 	return json.Marshal([3]json.RawMessage{
-		mustRawString(m.Name),
+		rawString(m.Name),
 		result,
-		mustRawString(m.CallID),
+		rawString(m.CallID),
 	})
 }
 
@@ -136,12 +137,14 @@ type methodError struct {
 	Type string `json:"type"`
 }
 
-// mustRawString encodes s as a JSON string, panicking on error (impossible for
-// a plain Go string).
-func mustRawString(s string) json.RawMessage {
+// rawString JSON-encodes s as a JSON string.
+// json.Marshal cannot fail for a plain Go string, but we avoid panic defensively
+// so an HTTP handler goroutine is never killed by an encoding edge case.
+func rawString(s string) json.RawMessage {
 	b, err := json.Marshal(s)
 	if err != nil {
-		panic(err)
+		// Fallback: strconv.AppendQuote produces valid JSON string encoding.
+		return strconv.AppendQuote(nil, s)
 	}
 	return b
 }

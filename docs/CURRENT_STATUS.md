@@ -60,6 +60,7 @@ GoGoMail is a production-grade self-hosted email platform written in Go
 | 2026-05-26 | JMAP session URL fix: APIUrl/DownloadUrl/UploadUrl/EventSourceUrl now point to /jmap/* (was /.well-known/jmap/* — 404 on all client operations); README.md and README.ko.md updated with JMAP client section |
 | 2026-05-26 | JMAP integration: nil-safe DraftSender guard in jmapHandler (svc==nil → Sender=nil → graceful serverFail instead of panic) |
 | 2026-05-26 | JMAP Task 13: Integration complete — DraftSender adapter wired (mailservice.Service→jmap.DraftSender), submission/vacationresponse capabilities in session resource; all 20 JMAP methods live |
+| 2026-05-26 | JMAP hardening: replaced panic in mustRawString with safe strconv.AppendQuote fallback (rawString function); prevents HTTP handler goroutine death on encoding edge case; 62 internal/jmap tests pass |
 | 2026-05-26 | VitePress AI Automation MCP guide (12 pages × 4 locales), expanded User MCP READMEs 147→1024 lines |
 | 2026-05-26 | Codebase improvements (10 tasks): doc cleanup, security hardening, TypeScript domain splits (MCP tools, webmail API, UI components), Go package refactoring (httpapi/admin.go 8901→420 lines + 12 files, app/admin_service.go 1759→93 lines + 5 files) |
 | 2026-05-25 | DM search candidate limit 10000→1000; system messages injectable |
