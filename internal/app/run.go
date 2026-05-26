@@ -177,7 +177,7 @@ func runBatchWorker(ctx context.Context, cfg config.Config, logger *slog.Logger)
 	}, 5*time.Minute)
 
 	quotaAlertRepository := maildb.NewRepository(db)
-	quotaSystemEmailSender := mailservice.NewSMTPSystemEmailSenderFromEnv()
+	quotaSystemEmailSender := mailservice.NewSMTPSystemEmailSender(cfg.SystemEmail.From, cfg.SystemEmail.SMTPAddr, cfg.SystemEmail.SMTPUser, cfg.SystemEmail.SMTPPass)
 	registry.Register("quota-alert-check", func() error {
 		n, err := quotaAlertRepository.ScanAndRecordQuotaAlerts(ctx, 0.80, 0.95)
 		if err != nil {
@@ -3448,7 +3448,7 @@ func runHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, mode M
 		httpapi.RegisterPasswordResetRoutes(
 			mux,
 			httpapi.NewMaildbPasswordResetAdapter(repository),
-			mailservice.NewSMTPSystemEmailSenderFromEnv(),
+			mailservice.NewSMTPSystemEmailSender(cfg.SystemEmail.From, cfg.SystemEmail.SMTPAddr, cfg.SystemEmail.SMTPUser, cfg.SystemEmail.SMTPPass),
 			cfg.PublicBaseURL,
 			bgTracker,
 		)
@@ -3534,7 +3534,8 @@ func runHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, mode M
 			httpapi.WithAdminMFAStore(repository),
 			httpapi.WithAdminMFARequired(cfg.AdminMFARequired),
 			httpapi.WithAdminConfigResolver(configStore),
-			httpapi.WithSystemEmailSender(mailservice.NewSMTPSystemEmailSenderFromEnv(), cfg.PublicBaseURL),
+			httpapi.WithSystemEmailSender(mailservice.NewSMTPSystemEmailSender(cfg.SystemEmail.From, cfg.SystemEmail.SMTPAddr, cfg.SystemEmail.SMTPUser, cfg.SystemEmail.SMTPPass), cfg.PublicBaseURL),
+			httpapi.WithAdminBootstrap(cfg.AdminBootstrap.Email, cfg.AdminBootstrap.Password),
 			httpapi.WithBackgroundTracker(bgTracker),
 		}
 		if redisClient != nil {
@@ -3611,7 +3612,7 @@ func runHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, mode M
 
 	handler := apiMeteringHandler(mux, cfg, logger, meteringDB, tokenManager, cfg.AdminToken)
 	if apiKeyVerifierConfigured {
-		handler = apikeys.Middleware(apiKeyVerifier)(handler)
+		handler = apikeys.Middleware(apiKeyVerifier, cfg.TrustedProxyCIDRs)(handler)
 	}
 	handler = httpapi.NewAdminIPRateLimiter(600, time.Minute).Middleware(handler)
 	handler = httpapi.MaxRequestBodyMiddleware(4 * 1024 * 1024)(handler)

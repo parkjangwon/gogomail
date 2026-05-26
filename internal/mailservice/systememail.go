@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log/slog"
 	"net/smtp"
-	"os"
 	"strings"
 	"time"
 )
@@ -28,31 +27,20 @@ type SMTPSystemEmailSender struct {
 	smtpAuth smtp.Auth
 }
 
-// SystemEmailSenderConfig configures an SMTPSystemEmailSender from environment
-// variables so that callers have a single constructor to wire up.
+// NewSMTPSystemEmailSender creates an SMTPSystemEmailSender from explicit
+// configuration values.
 //
-// Required env:
-//
-//	GOGOMAIL_SYSTEM_EMAIL_FROM  – envelope/header From address
-//	GOGOMAIL_SYSTEM_SMTP_ADDR  – SMTP relay, e.g. "127.0.0.1:25"
-//
-// Optional env (for SMTP AUTH LOGIN / PLAIN):
-//
-//	GOGOMAIL_SYSTEM_SMTP_USER
-//	GOGOMAIL_SYSTEM_SMTP_PASS
-//
-// If GOGOMAIL_SYSTEM_EMAIL_FROM is empty the sender operates in log-only mode:
-// emails are formatted and logged at Debug level but not transmitted.
-func NewSMTPSystemEmailSenderFromEnv() *SMTPSystemEmailSender {
-	from := strings.TrimSpace(os.Getenv("GOGOMAIL_SYSTEM_EMAIL_FROM"))
-	addr := strings.TrimSpace(os.Getenv("GOGOMAIL_SYSTEM_SMTP_ADDR"))
+//   - from: envelope/header From address; empty → log-only mode
+//   - addr: SMTP relay host:port; empty defaults to "127.0.0.1:25"
+//   - user, pass: SMTP AUTH credentials; empty → no auth
+func NewSMTPSystemEmailSender(from, addr, user, pass string) *SMTPSystemEmailSender {
+	from = strings.TrimSpace(from)
+	addr = strings.TrimSpace(addr)
 	if addr == "" {
 		addr = "127.0.0.1:25"
 	}
 
 	var auth smtp.Auth
-	user := os.Getenv("GOGOMAIL_SYSTEM_SMTP_USER")
-	pass := os.Getenv("GOGOMAIL_SYSTEM_SMTP_PASS")
 	if user != "" {
 		host := addr
 		if idx := strings.LastIndex(addr, ":"); idx >= 0 {

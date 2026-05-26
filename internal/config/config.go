@@ -7,6 +7,20 @@ import (
 	"time"
 )
 
+// SystemEmailConfig holds outbound SMTP credentials for system-generated emails.
+type SystemEmailConfig struct {
+	From     string
+	SMTPAddr string
+	SMTPUser string
+	SMTPPass string
+}
+
+// AdminBootstrapConfig holds one-time admin account seed credentials.
+type AdminBootstrapConfig struct {
+	Email    string
+	Password string
+}
+
 type Config struct {
 	Environment                         string
 	HTTPAddr                            string
@@ -332,6 +346,18 @@ type Config struct {
 
 	// Metrics HTTP endpoint
 	MetricsAddr string
+
+	// TrustedProxyCIDRs is a comma-separated list of CIDR ranges whose
+	// X-Forwarded-For / X-Real-IP headers are trusted for real-IP extraction.
+	TrustedProxyCIDRs string
+
+	// SystemEmail holds outbound SMTP credentials for system-generated emails
+	// (password reset, quota warnings, etc.)
+	SystemEmail SystemEmailConfig
+
+	// AdminBootstrap holds one-time admin account seed credentials.
+	// Consumed on first startup; leave empty after bootstrapping.
+	AdminBootstrap AdminBootstrapConfig
 
 	// WebAuthn / Passkey MFA (FIDO2)
 	WebAuthnEnabled       bool     // GOGOMAIL_WEBAUTHN_ENABLED (default false)
@@ -660,6 +686,18 @@ func Load() Config {
 		WebAuthnRPID:          envOrDefault("GOGOMAIL_WEBAUTHN_RP_ID", ""),
 		WebAuthnRPDisplayName: envOrDefault("GOGOMAIL_WEBAUTHN_RP_DISPLAY_NAME", "GoGoMail"),
 		WebAuthnRPOrigins:     splitCSV(os.Getenv("GOGOMAIL_WEBAUTHN_RP_ORIGINS")),
+
+		TrustedProxyCIDRs: os.Getenv("GOGOMAIL_TRUSTED_PROXY_CIDRS"),
+		SystemEmail: SystemEmailConfig{
+			From:     strings.TrimSpace(os.Getenv("GOGOMAIL_SYSTEM_EMAIL_FROM")),
+			SMTPAddr: strings.TrimSpace(os.Getenv("GOGOMAIL_SYSTEM_SMTP_ADDR")),
+			SMTPUser: os.Getenv("GOGOMAIL_SYSTEM_SMTP_USER"),
+			SMTPPass: os.Getenv("GOGOMAIL_SYSTEM_SMTP_PASS"),
+		},
+		AdminBootstrap: AdminBootstrapConfig{
+			Email:    strings.TrimSpace(os.Getenv("GOGOMAIL_ADMIN_BOOTSTRAP_EMAIL")),
+			Password: os.Getenv("GOGOMAIL_ADMIN_BOOTSTRAP_PASSWORD"),
+		},
 	}
 	if cfg.EventConsumerDeadLetterStream == "" {
 		cfg.EventConsumerDeadLetterStream = cfg.EventStream + ".dead"
