@@ -166,6 +166,7 @@ services:
       <<: *gogomail-env
       GOGOMAIL_AUTH_JWT_SECRET: gogomail-dev-jwt-secret-at-least-32-bytes
       GOGOMAIL_ADMIN_TOKEN: change-this-admin-token
+      GOGOMAIL_DM_MASTER_KEY: LFUqUVTTIYHCZg98syBY6viHvKuIO6gLGR9b+Kl1v4I=
     command: sh -c "go install github.com/air-verse/air@v1.61.7 && air -c /app/.air.dev.toml"
     depends_on:
       postgres:
