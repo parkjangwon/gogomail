@@ -19,6 +19,7 @@ GoGoMail is a production-grade self-hosted email platform written in Go
 
 | Date | Feature |
 |------|---------|
+| 2026-05-26 | Code structure: internal/mailservice/service.go split from 3415 lines into 10 domain files (service_folders.go, service_threads.go, service_search.go, service_imap.go, service_user.go, service_messages.go, service_drafts.go, service_attachments.go, service_delivery.go, service_helpers.go); service.go reduced to 244 lines; 305 tests pass |
 | 2026-05-26 | Code structure: internal/httpapi/mail.go split from 3726 lines into 9 domain files (mail_auth.go, mail_folders.go, mail_messages.go, mail_threads.go, mail_drafts.go, mail_attachments.go, mail_push.go, mail_profile.go, mail_helpers.go); mail.go reduced to 502 lines; 1102 tests pass |
 | 2026-05-26 | Code structure: internal/app/run.go split from 4048 lines into 10 subsystem files (run_imap.go, run_pop3.go, run_dav.go, run_ldap.go, run_scim.go, run_smtp.go, run_workers.go, run_search.go, run_push.go, run_delivery.go); run.go reduced to 1820 lines; 169 tests pass |
 | 2026-05-26 | Config quality: TrustedProxyCIDRs changed from string to []string (loaded via splitCSV); Middleware/parseClientIP/isTrustedForwardingProxy accept []string, eliminating per-request splitting; validate.go gains GOGOMAIL_TRUSTED_PROXY_CIDRS and GOGOMAIL_SYSTEM_SMTP_ADDR validation |
