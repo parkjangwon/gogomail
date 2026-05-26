@@ -18,10 +18,13 @@ import (
 	"time"
 )
 
+// oidcRequestTimeout is the timeout for outbound OIDC discovery and JWKS fetches.
+const oidcRequestTimeout = 15 * time.Second
+
 // oidcHTTPClient is used for all OIDC discovery and JWKS fetches.
 // 15-second timeout matches the per-request context timeout already set by callers.
 var oidcHTTPClient = &http.Client{
-	Timeout: 15 * time.Second,
+	Timeout: oidcRequestTimeout,
 }
 
 // oidcFullClaims holds all standard OIDC ID token claims used for verification.
@@ -192,7 +195,7 @@ func verifyRS256JWT(parts []string, kid, issuer string) error {
 // issuer + "/.well-known/openid-configuration".
 func fetchJWKSURI(issuer string) (string, error) {
 	discoveryURL := strings.TrimRight(issuer, "/") + "/.well-known/openid-configuration"
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), oidcRequestTimeout)
 	defer cancel()
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, discoveryURL, nil)
 	if err != nil {
@@ -242,7 +245,7 @@ func getJWKSKeys(jwksURI string) ([]jwkKey, error) {
 	}
 
 	// Fetch fresh JWKS.
-	fetchCtx, fetchCancel := context.WithTimeout(context.Background(), 15*time.Second)
+	fetchCtx, fetchCancel := context.WithTimeout(context.Background(), oidcRequestTimeout)
 	defer fetchCancel()
 	jwksReq, err := http.NewRequestWithContext(fetchCtx, http.MethodGet, jwksURI, nil)
 	if err != nil {
