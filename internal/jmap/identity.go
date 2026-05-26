@@ -13,8 +13,8 @@ type Identity struct {
 	ID            string         `json:"id"`
 	Name          string         `json:"name"`
 	Email         string         `json:"email"`
-	ReplyTo       []EmailAddress `json:"replyTo,omitempty"`
-	Bcc           []EmailAddress `json:"bcc,omitempty"`
+	ReplyTo       []EmailAddress `json:"replyTo"`
+	Bcc           []EmailAddress `json:"bcc"`
 	TextSignature string         `json:"textSignature"`
 	HTMLSignature string         `json:"htmlSignature"`
 	MayDelete     bool           `json:"mayDelete"`
@@ -189,11 +189,49 @@ func (m *identitySetMethod) Call(ctx context.Context, userID string, args json.R
 	}
 
 	// Handle destroys.
+	var destroyed []string
 	for _, did := range req.Destroy {
 		if did == userID {
 			notDestroyed[did] = SetError{Type: "forbidden"}
+			continue
 		}
-		// For custom identities, we'd remove from prefs — stub for now.
+		// Remove custom identity from preferences.
+		prefs, _ := m.deps.Repo.GetWebmailPreferences(ctx, userID)
+		var p struct {
+			Identities []Identity `json:"identities"`
+		}
+		if prefs != nil {
+			_ = json.Unmarshal(prefs, &p)
+		}
+		found := false
+		newList := p.Identities[:0]
+		for _, ident := range p.Identities {
+			if ident.ID == did {
+				found = true
+			} else {
+				newList = append(newList, ident)
+			}
+		}
+		if !found {
+			notDestroyed[did] = SetError{Type: "notFound"}
+			continue
+		}
+		p.Identities = newList
+		var merged map[string]json.RawMessage
+		if prefs != nil {
+			_ = json.Unmarshal(prefs, &merged)
+		}
+		if merged == nil {
+			merged = make(map[string]json.RawMessage)
+		}
+		identJSON, _ := json.Marshal(p.Identities)
+		merged["identities"] = identJSON
+		mergedJSON, _ := json.Marshal(merged)
+		_ = m.deps.Repo.SetWebmailPreferences(ctx, userID, mergedJSON)
+		destroyed = append(destroyed, did)
+	}
+	if destroyed == nil {
+		destroyed = []string{}
 	}
 
 	resp := map[string]interface{}{
@@ -202,7 +240,7 @@ func (m *identitySetMethod) Call(ctx context.Context, userID string, args json.R
 		"newState":     "identity-v1",
 		"created":      created,
 		"updated":      updated,
-		"destroyed":    []string{},
+		"destroyed":    destroyed,
 		"notCreated":   notCreated,
 		"notUpdated":   notUpdated,
 		"notDestroyed": notDestroyed,

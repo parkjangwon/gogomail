@@ -14,8 +14,9 @@ type SearchSnippet struct {
 }
 
 type searchSnippetGetArgs struct {
-	AccountID string   `json:"accountId"`
-	EmailIDs  []string `json:"emailIds"`
+	AccountID string          `json:"accountId"`
+	Filter    json.RawMessage `json:"filter"` // ignored; present for RFC compliance
+	EmailIDs  []string        `json:"emailIds"`
 }
 
 type searchSnippetGetResponse struct {
