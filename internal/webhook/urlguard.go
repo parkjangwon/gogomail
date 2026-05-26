@@ -70,7 +70,7 @@ func GuardedHTTPClient(base *http.Client, opts OutboundURLGuardOptions) *http.Cl
 	if base != nil {
 		client = *base
 	} else {
-		client = *http.DefaultClient
+		client = http.Client{} // start from zero; Timeout is set below
 	}
 	if client.Timeout == 0 {
 		client.Timeout = DefaultOutboundTimeout
