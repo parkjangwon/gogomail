@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 )
 
@@ -168,7 +169,11 @@ func (m *vacationResponseSetMethod) Call(ctx context.Context, userID string, arg
 		// Load existing vacation response.
 		vr := defaultVacationResponse()
 		prefs, err := m.deps.Repo.GetWebmailPreferences(ctx, userID)
-		if err == nil {
+		if err != nil {
+			notUpdated[id] = SetError{Type: "serverFail", Description: "failed to load preferences"}
+			continue
+		}
+		if prefs != nil {
 			var p struct {
 				VacationResponse *VacationResponse `json:"vacationResponse"`
 			}
@@ -178,9 +183,28 @@ func (m *vacationResponseSetMethod) Call(ctx context.Context, userID string, arg
 			}
 		}
 
-		// Apply patch: unmarshal over the existing struct.
-		if err := json.Unmarshal(patch, &vr); err != nil {
-			notUpdated[id] = SetError{Type: "invalidProperties", Description: err.Error()}
+		// Apply JMAP patch (RFC 8620 §3.3): iterate keys in the patch object
+		// and merge them into the current VacationResponse.
+		var patchMap map[string]json.RawMessage
+		if err := json.Unmarshal(patch, &patchMap); err != nil {
+			notUpdated[id] = SetError{Type: "invalidPatch"}
+			continue
+		}
+		vrBytes, _ := json.Marshal(vr)
+		var vrMap map[string]json.RawMessage
+		_ = json.Unmarshal(vrBytes, &vrMap)
+		for k, v := range patchMap {
+			// Strip leading slash if present (JMAP path pointer).
+			key := strings.TrimPrefix(k, "/")
+			vrMap[key] = v
+		}
+		mergedBytes, err := json.Marshal(vrMap)
+		if err != nil {
+			notUpdated[id] = SetError{Type: "serverFail"}
+			continue
+		}
+		if err := json.Unmarshal(mergedBytes, &vr); err != nil {
+			notUpdated[id] = SetError{Type: "invalidPatch"}
 			continue
 		}
 		vr.ID = vacationResponseID // preserve singleton ID
@@ -193,9 +217,17 @@ func (m *vacationResponseSetMethod) Call(ctx context.Context, userID string, arg
 		if existing == nil {
 			existing = make(map[string]json.RawMessage)
 		}
-		vrRaw, _ := json.Marshal(vr)
+		vrRaw, err := json.Marshal(vr)
+		if err != nil {
+			notUpdated[id] = SetError{Type: "serverFail", Description: "failed to encode vacation response"}
+			continue
+		}
 		existing[vacationPrefKey] = vrRaw
-		newPrefs, _ := json.Marshal(existing)
+		newPrefs, err := json.Marshal(existing)
+		if err != nil {
+			notUpdated[id] = SetError{Type: "serverFail", Description: "failed to encode preferences"}
+			continue
+		}
 		if err := m.deps.Repo.SetWebmailPreferences(ctx, userID, newPrefs); err != nil {
 			notUpdated[id] = SetError{Type: "serverFail", Description: err.Error()}
 			continue

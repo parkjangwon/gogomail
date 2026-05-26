@@ -76,31 +76,30 @@ func (m *emailSubmissionSetMethod) Call(ctx context.Context, userID string, args
 			notCreated[cid] = SetError{Type: "serverFail", Description: err.Error()}
 			continue
 		}
-		// Fetch message metadata to populate threadId and mailboxIds.
-		msg, msgErr := m.deps.Repo.GetMessage(ctx, userID, sub.EmailID)
 		threadID := ""
 		mailboxIDs := map[string]bool{}
-		if msgErr == nil {
-			_ = msg // MessageDetail has no ThreadID/FolderID fields; leave empty
-		}
 
 		sendAt := time.Now().UTC().Format(time.RFC3339)
 
 		// Return the submission record.
 		submission := map[string]interface{}{
-			"id":              sub.EmailID + "-submitted",
-			"emailId":         sub.EmailID,
-			"identityId":      sub.IdentityID,
-			"threadId":        threadID,
-			"mailboxIds":      mailboxIDs,
-			"envelope":        nil,
-			"sendAt":          sendAt,
-			"undoStatus":      "final",
-			"deliveryStatus":  map[string]interface{}{},
-			"dsnBlobIds":      []string{},
-			"mdnBlobIds":      []string{},
+			"id":             sub.EmailID + "-submitted",
+			"emailId":        sub.EmailID,
+			"identityId":     sub.IdentityID,
+			"threadId":       threadID,
+			"mailboxIds":     mailboxIDs,
+			"envelope":       nil,
+			"sendAt":         sendAt,
+			"undoStatus":     "final",
+			"deliveryStatus": map[string]interface{}{},
+			"dsnBlobIds":     []string{},
+			"mdnBlobIds":     []string{},
 		}
-		raw, _ := json.Marshal(submission)
+		raw, err := json.Marshal(submission)
+		if err != nil {
+			notCreated[cid] = SetError{Type: "serverFail", Description: "failed to encode submission"}
+			continue
+		}
 		created[cid] = raw
 	}
 
