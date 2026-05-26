@@ -3476,7 +3476,7 @@ func runHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, mode M
 			}
 		}
 
-		httpapi.RegisterJMAPRoutes(mux, jmapHandler(cfg, repository, store, tokenManager))
+		httpapi.RegisterJMAPRoutes(mux, jmapHandler(cfg, repository, store, tokenManager, service))
 		logger.Info("jmap routes registered")
 	}
 	if modeIncludesAdminAPI(mode) {
@@ -3694,16 +3694,27 @@ func modeIncludesMailAPI(mode Mode) bool {
 	return mode == ModeMailAPI || mode == ModeAllInOne
 }
 
-// jmapHandler creates a JMAP handler wired with real DB, storage, and auth deps.
-func jmapHandler(cfg config.Config, repo *maildb.Repository, store storage.Store, tm *auth.TokenManager) *jmap.Handler {
+// jmapDraftSender adapts mailservice.Service to jmap.DraftSender.
+type jmapDraftSender struct {
+	svc *mailservice.Service
+}
+
+func (a *jmapDraftSender) SendDraft(ctx context.Context, userID, draftID string) error {
+	_, err := a.svc.SendDraft(ctx, userID, draftID)
+	return err
+}
+
+// jmapHandler creates a JMAP handler wired with real DB, storage, auth, and mail-send deps.
+func jmapHandler(cfg config.Config, repo *maildb.Repository, store storage.Store, tm *auth.TokenManager, svc *mailservice.Service) *jmap.Handler {
 	base := cfg.PublicBaseURL
 	if base == "" {
 		base = "http://localhost" + cfg.HTTPAddr
 	}
 	deps := jmap.Deps{
-		Repo:  repo,
-		Store: store,
-		Auth:  tm,
+		Repo:   repo,
+		Store:  store,
+		Auth:   tm,
+		Sender: &jmapDraftSender{svc: svc},
 	}
 	return jmap.NewHandler(deps, func(ctx context.Context, userID, accountID string) (*jmap.Session, error) {
 		return jmap.BuildSession(userID, accountID, base), nil

@@ -120,8 +120,10 @@ func (h *Handler) ServeSession(w http.ResponseWriter, r *http.Request) {
 
 // knownCapabilities lists the JMAP capability URIs this server supports.
 var knownCapabilities = map[string]bool{
-	CapabilityCore: true,
-	CapabilityMail: true,
+	CapabilityCore:             true,
+	CapabilityMail:             true,
+	CapabilitySubmission:       true,
+	CapabilityVacationResponse: true,
 }
 
 // ServeAPI handles POST /jmap/api — it decodes a JMAP Request, validates
