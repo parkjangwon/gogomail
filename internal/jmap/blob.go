@@ -1,7 +1,10 @@
 package jmap
 
 import (
+	"database/sql"
+	"errors"
 	"io"
+	"log/slog"
 	"net/http"
 
 	"github.com/google/uuid"
@@ -50,13 +53,18 @@ func (h *Handler) ServeUpload(w http.ResponseWriter, r *http.Request) {
 		size = info.Size
 	}
 
-	// Record in jmap_blobs (best-effort, skip if no DB).
+	// Record in jmap_blobs. Log on error — the blob is stored but won't be
+	// retrievable via the normal download path until the record exists.
 	if h.deps.Repo != nil {
-		_, _ = h.deps.Repo.DB().ExecContext(r.Context(),
+		if _, err := h.deps.Repo.DB().ExecContext(r.Context(),
 			`INSERT INTO jmap_blobs (id, account_id, storage_path, content_type, size)
              VALUES ($1::uuid, $2::uuid, $3, $4, $5)`,
 			blobID, accountID, storagePath, contentType, size,
-		)
+		); err != nil {
+			slog.Error("jmap: failed to record blob in jmap_blobs", "blobId", blobID, "err", err)
+			writeJSONResponse(w, http.StatusInternalServerError, map[string]string{"type": "serverFail"})
+			return
+		}
 	}
 
 	writeJSONResponse(w, http.StatusCreated, blobInfo{
@@ -77,6 +85,7 @@ func (h *Handler) ServeDownload(w http.ResponseWriter, r *http.Request) {
 
 	accountID := r.PathValue("accountId")
 	blobID := r.PathValue("blobId")
+	name := r.PathValue("name")
 
 	if accountID != userID {
 		http.Error(w, `{"type":"forbidden"}`, http.StatusForbidden)
@@ -91,11 +100,18 @@ func (h *Handler) ServeDownload(w http.ResponseWriter, r *http.Request) {
 			blobID, accountID,
 		).Scan(&storagePath, &contentType)
 		if err != nil {
-			// Not found in jmap_blobs — treat blobId as direct storage path.
+			if !errors.Is(err, sql.ErrNoRows) {
+				// Real DB error — don't fall back silently
+				slog.Error("jmap: blob lookup failed", "blobId", blobID, "err", err)
+				writeJSONResponse(w, http.StatusInternalServerError, map[string]string{"type": "serverFail"})
+				return
+			}
+			// ErrNoRows — treat blobId as a direct storage path (e.g. message body)
 			storagePath = blobID
 			contentType = "application/octet-stream"
 		}
 	} else {
+		// No DB (test mode) — treat blobId as a direct storage path
 		storagePath = blobID
 		contentType = "application/octet-stream"
 	}
@@ -112,7 +128,14 @@ func (h *Handler) ServeDownload(w http.ResponseWriter, r *http.Request) {
 	}
 	defer reader.Close()
 
+	// Set filename for download per RFC 8620 §6.2
+	if name != "" {
+		w.Header().Set("Content-Disposition", `attachment; filename="`+name+`"`)
+	}
 	w.Header().Set("Content-Type", contentType)
 	w.Header().Set("Cache-Control", "private, max-age=3600")
-	_, _ = io.Copy(w, reader)
+	if _, err := io.Copy(w, reader); err != nil {
+		// Headers already sent; log but cannot change status code
+		slog.Warn("jmap: blob download copy error", "blobId", blobID, "err", err)
+	}
 }

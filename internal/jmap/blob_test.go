@@ -75,6 +75,7 @@ func TestBlobUploadWrongAccountReturns403(t *testing.T) {
 
 func TestBlobUploadHappyPath(t *testing.T) {
 	store := newFakeStore()
+	// nil Repo: DB insert skipped, upload succeeds with just the store
 	h := NewHandler(Deps{Store: store}, nil)
 
 	body := "test content for blob"
@@ -111,5 +112,69 @@ func TestBlobUploadHappyPath(t *testing.T) {
 	storagePath := "jmap-blobs/user1/" + info.BlobID
 	if _, ok := store.data[storagePath]; !ok {
 		t.Errorf("blob not found in store at path %s", storagePath)
+	}
+}
+
+func TestBlobDownloadWrongAccountReturns403(t *testing.T) {
+	store := newFakeStore()
+	h := NewHandler(Deps{Store: store}, nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/jmap/download/other-user/some-blob/file.txt", nil)
+	req.SetPathValue("accountId", "other-user")
+	req.SetPathValue("blobId", "some-blob")
+	req.SetPathValue("name", "file.txt")
+	req.Header.Set("X-Test-UserID", "actual-user")
+
+	w := httptest.NewRecorder()
+	h.ServeDownload(w, req)
+
+	if w.Code != http.StatusForbidden {
+		t.Errorf("want 403, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+// TestBlobDownloadRoundTrip uploads a blob then downloads it using the nil-Repo
+// fallback path (blobId = storage path). This verifies upload→download works
+// end-to-end without a database.
+func TestBlobDownloadRoundTrip(t *testing.T) {
+	store := newFakeStore()
+	h := NewHandler(Deps{Store: store}, nil)
+
+	// Upload
+	content := "round-trip content"
+	upReq := httptest.NewRequest(http.MethodPost, "/jmap/upload/user1/", strings.NewReader(content))
+	upReq.SetPathValue("accountId", "user1")
+	upReq.Header.Set("X-Test-UserID", "user1")
+	upReq.Header.Set("Content-Type", "text/plain; charset=utf-8")
+	upW := httptest.NewRecorder()
+	h.ServeUpload(upW, upReq)
+
+	if upW.Code != http.StatusCreated {
+		t.Fatalf("upload want 201, got %d: %s", upW.Code, upW.Body.String())
+	}
+
+	var info blobInfo
+	if err := json.NewDecoder(upW.Body).Decode(&info); err != nil {
+		t.Fatalf("decode upload response: %v", err)
+	}
+
+	// Download using the storage path as blobId (nil-Repo fallback)
+	storagePath := "jmap-blobs/user1/" + info.BlobID
+	dlReq := httptest.NewRequest(http.MethodGet, "/jmap/download/user1/"+storagePath+"/file.txt", nil)
+	dlReq.SetPathValue("accountId", "user1")
+	dlReq.SetPathValue("blobId", storagePath)
+	dlReq.SetPathValue("name", "file.txt")
+	dlReq.Header.Set("X-Test-UserID", "user1")
+	dlW := httptest.NewRecorder()
+	h.ServeDownload(dlW, dlReq)
+
+	if dlW.Code != http.StatusOK {
+		t.Fatalf("download want 200, got %d: %s", dlW.Code, dlW.Body.String())
+	}
+	if got := dlW.Body.String(); got != content {
+		t.Errorf("download body want %q, got %q", content, got)
+	}
+	if cd := dlW.Header().Get("Content-Disposition"); !strings.Contains(cd, "file.txt") {
+		t.Errorf("Content-Disposition want filename=file.txt, got %q", cd)
 	}
 }
