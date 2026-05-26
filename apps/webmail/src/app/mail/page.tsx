@@ -31,13 +31,14 @@ import { SpamReportDialog } from '@/components/spam/SpamReportDialog';
 import { useDMModal } from './useDMModal';
 import { useMailLabels } from './useMailLabels';
 import { useMailSession } from './useMailSession';
+import { useMailSearch } from './useMailSearch';
+import { useMailLayout } from './useMailLayout';
 import {
   buildThreadMessages,
   getEmptyFolderLabel,
   getNextMessageId,
   getVisibleMailMessages,
   patchThreadsForMessages,
-  parseSearchOperators,
   shouldHideMessageAfterSnooze,
 } from '@/lib/mail/mailPageUtils';
 import { stableId } from '@/lib/stableId';
@@ -82,23 +83,17 @@ export default function MailPage() {
   const [composeContext, setComposeContext] = useState<ComposeContext | null>(null);
   const openCompose = useCallback((ctx: ComposeContext) => setComposeContext(ctx), []);
   const closeCompose = useCallback(() => setComposeContext(null), []);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<MessageSummary[] | null>(null);
-  const [searchLoading, setSearchLoading] = useState(false);
-  const [advancedFilters, setAdvancedFilters] = useState<AdvancedFilters>({});
   const [toasts, setToasts] = useState<ToastItem[]>([]);
   const [showShortcuts, setShowShortcuts] = useState(false);
-  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [sidebarWidth, setSidebarWidth] = useState(() => {
-    try { return parseInt(localStorage.getItem('webmail_sidebar_width') ?? '220', 10) || 220; } catch { return 220; }
-  });
-  const [readingPaneWidth, setReadingPaneWidth] = useState(() => {
-    try { return parseInt(localStorage.getItem('webmail_reading_pane_width') ?? '0', 10) || 0; } catch { return 0; }
-  });
+  const {
+    mobileSidebarOpen, setMobileSidebarOpen,
+    sidebarCollapsed, setSidebarCollapsed,
+    sidebarWidth, setSidebarWidth,
+    readingPaneWidth, setReadingPaneWidth,
+    swipeDeltaX, setSwipeDeltaX,
+    swipeTouchStartRef,
+  } = useMailLayout();
   const [contextMenu, setContextMenu] = useState<{ id: string; x: number; y: number } | null>(null);
-  const [swipeDeltaX, setSwipeDeltaX] = useState(0);
-  const swipeTouchStartRef = useRef<number | null>(null);
 
   const [activeApp, setActiveApp] = useState<AppId>(getInitialActiveApp);
   const [badgeCountMode, setBadgeCountMode] = useState<BadgeCountMode>(readBadgeCountMode);
@@ -169,6 +164,14 @@ export default function MailPage() {
   }, []);
 
   // Extracted hooks
+  const {
+    searchQuery, setSearchQuery,
+    searchResults, setSearchResults,
+    searchLoading,
+    advancedFilters, setAdvancedFilters,
+    handleSearch,
+  } = useMailSearch({ t, addToast });
+
   const {
     showDMModal, setShowDMModal,
     dmModalRect, setDMModalRect,
@@ -493,39 +496,6 @@ export default function MailPage() {
     });
   }, [findVisibleMessage, patchVisibleMessages, adjustUnread, activeFolderId]);
 
-  const runSearch = useCallback(async (q: string, filters: AdvancedFilters) => {
-    if (!q.trim() && !filters.from && !filters.to && !filters.subject && !filters.since && !filters.until && !filters.has_attachment) {
-      setSearchResults(null);
-      return;
-    }
-    setSearchLoading(true);
-    try {
-      const res = await searchMessages({
-        q: q.trim() || undefined,
-        from: filters.from || undefined,
-        to: filters.to || undefined,
-        subject: filters.subject || undefined,
-        since: filters.since || undefined,
-        until: filters.until || undefined,
-        has_attachment: filters.has_attachment || undefined,
-        limit: 50,
-      });
-      setSearchResults(res.messages ?? []);
-    } catch {
-      setSearchResults([]);
-    } finally {
-      setSearchLoading(false);
-    }
-  }, []);
-
-  const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const handleSearch = useCallback((q: string) => {
-    setSearchQuery(q);
-    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
-    const { q: plainQ, operators } = parseSearchOperators(q);
-    const merged = { ...advancedFilters, ...operators };
-    searchDebounceRef.current = setTimeout(() => runSearch(plainQ, merged), 300);
-  }, [advancedFilters, runSearch, parseSearchOperators]);
 
   const handleSelectFolder = useCallback((id: string) => {
     setActiveFolderId(id);
