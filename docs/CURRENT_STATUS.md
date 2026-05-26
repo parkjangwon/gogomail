@@ -4,6 +4,7 @@ Last updated: 2026-05-27
 
 ## Recent refactoring
 
+- Extracted `useDMModal`, `useMailLabels`, `useMailSession` hooks from `mail/page.tsx` (2302→2114 lines); hooks live in `apps/webmail/src/app/mail/`.
 - Extracted `SpotlightSearch` pre-component helpers (`SpotlightItem`, `SYSTEM_ICONS`, `SCOPES`, `SpotlightT`, `sectionLabel`, `relativeTime`, `formatDriveSize`) to `apps/webmail/src/components/spotlight/spotlightHelpers.tsx`.
 - Extracted `MessageList` helpers (`KO_KEYS`, `DateGroupKey`, `getDateGroup`) to `apps/webmail/src/components/message-list/messageListHelpers.ts`.
 

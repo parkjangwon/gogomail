@@ -1,10 +1,9 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import type { MouseEvent as ReactMouseEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { deleteMessage, restoreMessage, bulkRestoreMessages, createFolder, renameFolder, deleteFolder, starMessage, markRead, moveMessage, bulkMarkRead, bulkMoveMessages, searchMessages, getMessages, getMessage, sendMessage, listThreads, listThreadMessages, getNotificationPreferences, setNotificationPreferences, setPreferences, listDMRooms, UIComposeIntent, MessageAddress, MessageDetail, MessageSummary, ThreadSummary, type ThreadNotificationOverride } from '@/lib/api';
+import { deleteMessage, restoreMessage, bulkRestoreMessages, createFolder, renameFolder, deleteFolder, starMessage, markRead, moveMessage, bulkMarkRead, bulkMoveMessages, searchMessages, getMessages, getMessage, sendMessage, listThreads, listThreadMessages, getNotificationPreferences, setNotificationPreferences, setPreferences, UIComposeIntent, MessageAddress, MessageDetail, MessageSummary, ThreadSummary, type ThreadNotificationOverride } from '@/lib/api';
 import { AdvancedFilters, VIRTUAL_ALL, VIRTUAL_STARRED, VIRTUAL_ATTACHMENTS, VIRTUAL_UNREAD, VIRTUAL_SNOOZED, VIRTUAL_PINNED, VIRTUAL_IMPORTANT } from '@/components/Sidebar';
 import { useMailList, type RefreshIntervalSeconds } from '@/hooks/useMailList';
 import { useMessage } from '@/hooks/useMessage';
@@ -29,6 +28,9 @@ import { loadFilterRules } from '@/components/settings/settingsConfig';
 import { SpotlightSearch } from '@/components/SpotlightSearch';
 import { MFASetupPromptModal } from '@/components/MFASetupPromptModal';
 import { SpamReportDialog } from '@/components/spam/SpamReportDialog';
+import { useDMModal } from './useDMModal';
+import { useMailLabels } from './useMailLabels';
+import { useMailSession } from './useMailSession';
 import {
   buildThreadMessages,
   getEmptyFolderLabel,
@@ -76,7 +78,6 @@ export default function MailPage() {
 
   const [activeFolderId, setActiveFolderId] = useState('');
   const [selectedMessageId, setSelectedMessageId] = useState<string | null>(null);
-  const [userEmail, setUserEmail] = useState('');
   type ComposeContext = { intent: UIComposeIntent; source?: MessageDetail; draft?: MessageDetail; to?: string; initialSubject?: string; initialBody?: string; focusSubjectOnOpen?: boolean };
   const [composeContext, setComposeContext] = useState<ComposeContext | null>(null);
   const openCompose = useCallback((ctx: ComposeContext) => setComposeContext(ctx), []);
@@ -98,45 +99,8 @@ export default function MailPage() {
   const [contextMenu, setContextMenu] = useState<{ id: string; x: number; y: number } | null>(null);
   const [swipeDeltaX, setSwipeDeltaX] = useState(0);
   const swipeTouchStartRef = useRef<number | null>(null);
-  const [messageLabels, setMessageLabels] = useState<Record<string, string>>(() => {
-    try { return JSON.parse(localStorage.getItem('webmail_labels') ?? '{}'); } catch { return {}; }
-  });
-  const [pinnedIds, setPinnedIds] = useState<Set<string>>(() => {
-    try { return new Set<string>(JSON.parse(localStorage.getItem('webmail_pinned') ?? '[]') as string[]); } catch { return new Set(); }
-  });
-  const handlePin = useCallback((id: string) => {
-    setPinnedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
-      try { localStorage.setItem('webmail_pinned', JSON.stringify([...next])); } catch { /* */ }
-      return next;
-    });
-  }, []);
-  const [importantIds, setImportantIds] = useState<Set<string>>(() => {
-    try { return new Set<string>(JSON.parse(localStorage.getItem('webmail_important') ?? '[]') as string[]); } catch { return new Set(); }
-  });
-  const handleImportant = useCallback((id: string) => {
-    setImportantIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
-      try { localStorage.setItem('webmail_important', JSON.stringify([...next])); } catch { /* */ }
-      return next;
-    });
-  }, []);
-
-  const setLabel = useCallback((id: string, color: string | null) => {
-    setMessageLabels((prev) => {
-      const next = { ...prev };
-      if (color) next[id] = color; else delete next[id];
-      try { localStorage.setItem('webmail_labels', JSON.stringify(next)); } catch { /* */ }
-      return next;
-    });
-  }, []);
 
   const [activeApp, setActiveApp] = useState<AppId>(getInitialActiveApp);
-  const [showDMModal, setShowDMModal] = useState(false);
-  const [dmModalRect, setDMModalRect] = useState<DMModalRect | null>(null);
-  const [dmUnreadCount, setDMUnreadCount] = useState(0);
   const [badgeCountMode, setBadgeCountMode] = useState<BadgeCountMode>(readBadgeCountMode);
   const [refreshIntervalSeconds, setRefreshIntervalSeconds] = useState<RefreshIntervalSeconds>(readRefreshIntervalSeconds);
   const [threadNotificationOverrides, setThreadNotificationOverrides] = useState<Record<string, ThreadNotificationOverride>>({});
@@ -164,23 +128,6 @@ export default function MailPage() {
     }
   }, [activeApp]);
 
-  useEffect(() => {
-    let cancelled = false;
-    const refreshDMUnread = () => {
-      listDMRooms()
-        .then((dmRooms) => {
-          if (!cancelled) setDMUnreadCount(dmRooms.reduce((sum, room) => sum + (room.unread_count ?? 0), 0));
-        })
-        .catch(() => {
-          if (!cancelled) setDMUnreadCount(0);
-        });
-    };
-    refreshDMUnread();
-    const id = window.setInterval(() => {
-      if (document.visibilityState === 'visible') refreshDMUnread();
-    }, 5000);
-    return () => { cancelled = true; window.clearInterval(id); };
-  }, []);
 
   const [wmSettings, setWmSettings] = useState<{ showPreview: boolean; externalImages: string }>(() => {
     try {
@@ -210,114 +157,8 @@ export default function MailPage() {
   const isMobile = useIsMobile();
   const gPrefixRef = useRef(false);
   const isOnline = useIsOnline();
-  const dmModalRectRef = useRef<DMModalRect | null>(null);
 
   const pendingDeletesRef = useRef(new Map<string, ReturnType<typeof setTimeout>>());
-
-  const clampDMModalRect = useCallback((rect: DMModalRect): DMModalRect => {
-    if (typeof window === 'undefined') return rect;
-    const viewportWidth = window.innerWidth;
-    const viewportHeight = window.innerHeight;
-    const minWidth = Math.min(DM_MODAL_MIN_WIDTH, Math.max(280, viewportWidth - DM_MODAL_MARGIN * 2));
-    const minHeight = Math.min(DM_MODAL_MIN_HEIGHT, Math.max(300, viewportHeight - DM_MODAL_MARGIN * 2));
-    const maxWidth = Math.max(minWidth, viewportWidth - DM_MODAL_MARGIN * 2);
-    const maxHeight = Math.max(minHeight, viewportHeight - DM_MODAL_MARGIN * 2);
-    const width = Math.min(Math.max(rect.width, minWidth), maxWidth);
-    const height = Math.min(Math.max(rect.height, minHeight), maxHeight);
-    const maxLeft = Math.max(DM_MODAL_MARGIN, viewportWidth - width - DM_MODAL_MARGIN);
-    const maxTop = Math.max(DM_MODAL_MARGIN, viewportHeight - height - DM_MODAL_MARGIN);
-    const left = Math.min(Math.max(rect.left, DM_MODAL_MARGIN), maxLeft);
-    const top = Math.min(Math.max(rect.top, DM_MODAL_MARGIN), maxTop);
-    return { left, top, width, height };
-  }, []);
-
-  useEffect(() => {
-    dmModalRectRef.current = dmModalRect;
-  }, [dmModalRect]);
-
-  useEffect(() => {
-    if (!showDMModal || isMobile) return;
-    setDMModalRect((rect) => clampDMModalRect(rect ?? getDefaultDMModalRect()));
-  }, [showDMModal, isMobile, clampDMModalRect]);
-
-  useEffect(() => {
-    if (isMobile) return undefined;
-    const handleViewportResize = () => setDMModalRect((rect) => (rect ? clampDMModalRect(rect) : rect));
-    window.addEventListener('resize', handleViewportResize);
-    return () => window.removeEventListener('resize', handleViewportResize);
-  }, [isMobile, clampDMModalRect]);
-
-  const startDMModalResize = useCallback((edge: DMResizeEdge, event: ReactMouseEvent<HTMLDivElement>) => {
-    if (isMobile) return;
-    event.preventDefault();
-    event.stopPropagation();
-    const startRect = dmModalRectRef.current ?? clampDMModalRect(getDefaultDMModalRect());
-    const startX = event.clientX;
-    const startY = event.clientY;
-    const previousCursor = document.body.style.cursor;
-    const previousUserSelect = document.body.style.userSelect;
-    const cursor = DM_RESIZE_HANDLES.find((handle) => handle.edge === edge)?.cursor ?? 'default';
-    document.body.style.cursor = cursor;
-    document.body.style.userSelect = 'none';
-
-    const handleMove = (moveEvent: MouseEvent) => {
-      const dx = moveEvent.clientX - startX;
-      const dy = moveEvent.clientY - startY;
-      let { left, top, width, height } = startRect;
-      if (edge.includes('e')) width += dx;
-      if (edge.includes('s')) height += dy;
-      if (edge.includes('w')) {
-        width -= dx;
-        left += dx;
-      }
-      if (edge.includes('n')) {
-        height -= dy;
-        top += dy;
-      }
-      setDMModalRect(clampDMModalRect({ left, top, width, height }));
-    };
-
-    const stopResize = () => {
-      document.removeEventListener('mousemove', handleMove);
-      document.removeEventListener('mouseup', stopResize);
-      document.body.style.cursor = previousCursor;
-      document.body.style.userSelect = previousUserSelect;
-    };
-
-    document.addEventListener('mousemove', handleMove);
-    document.addEventListener('mouseup', stopResize);
-  }, [isMobile, clampDMModalRect]);
-
-  const startDMModalDrag = useCallback((event: ReactMouseEvent<HTMLElement>) => {
-    if (isMobile) return;
-    event.preventDefault();
-    event.stopPropagation();
-    const startRect = dmModalRectRef.current ?? clampDMModalRect(getDefaultDMModalRect());
-    const offsetX = event.clientX - startRect.left;
-    const offsetY = event.clientY - startRect.top;
-    const previousCursor = document.body.style.cursor;
-    const previousUserSelect = document.body.style.userSelect;
-    document.body.style.cursor = 'move';
-    document.body.style.userSelect = 'none';
-
-    const handleMove = (moveEvent: MouseEvent) => {
-      setDMModalRect(clampDMModalRect({
-        ...startRect,
-        left: moveEvent.clientX - offsetX,
-        top: moveEvent.clientY - offsetY,
-      }));
-    };
-
-    const stopDrag = () => {
-      document.removeEventListener('mousemove', handleMove);
-      document.removeEventListener('mouseup', stopDrag);
-      document.body.style.cursor = previousCursor;
-      document.body.style.userSelect = previousUserSelect;
-    };
-
-    document.addEventListener('mousemove', handleMove);
-    document.addEventListener('mouseup', stopDrag);
-  }, [isMobile, clampDMModalRect]);
 
   const addToast = useCallback((message: string, type: ToastItem['type'] = 'success', options?: { duration?: number; action?: ToastItem['action'] }) => {
     const id = stableId('toast');
@@ -327,15 +168,28 @@ export default function MailPage() {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
-  const handleBulkLabel = useCallback((ids: string[], color: string | null) => {
-    setMessageLabels((prev) => {
-      const next = { ...prev };
-      for (const id of ids) { if (color) next[id] = color; else delete next[id]; }
-      try { localStorage.setItem('webmail_labels', JSON.stringify(next)); } catch { /* */ }
-      return next;
-    });
-    addToast(color ? t('misc.mailPage.labelAdded', { count: ids.length }) : t('misc.mailPage.labelRemoved', { count: ids.length }), 'info');
-  }, [addToast]);
+  // Extracted hooks
+  const {
+    showDMModal, setShowDMModal,
+    dmModalRect, setDMModalRect,
+    dmUnreadCount, setDMUnreadCount,
+    startDMModalResize, startDMModalDrag,
+  } = useDMModal({ isMobile });
+
+  const {
+    messageLabels, setMessageLabels,
+    pinnedIds, setPinnedIds,
+    importantIds, setImportantIds,
+    handlePin, handleImportant,
+    setLabel, handleBulkLabel,
+  } = useMailLabels({ addToast, t });
+
+  const {
+    userEmail, setUserEmail,
+    mustChangePassword, setMustChangePassword,
+    sessionWarning, setSessionWarning,
+    handleLogout,
+  } = useMailSession({ router, t });
 
   const { folders, messages, setMessages, foldersLoading, messagesLoading, setMessagesLoading, hasMore, loadingMore, loadMore, adjustUnread, refresh, refreshing } =
     useMailList(activeFolderId, refreshIntervalSeconds);
@@ -569,48 +423,6 @@ export default function MailPage() {
     } catch { /* canvas not supported */ }
   }, [folders, badgeCountMode]);
 
-  const [mustChangePassword, setMustChangePassword] = useState(false);
-  const [sessionWarning, setSessionWarning] = useState<string | null>(null);
-
-  const DEV_USER_ID = process.env.NODE_ENV !== 'production' ? (process.env.NEXT_PUBLIC_GOGOMAIL_DEV_USER_ID || '') : '';
-  const DEV_SKIP_LOGIN = process.env.NODE_ENV !== 'production' && process.env.NEXT_PUBLIC_GOGOMAIL_DEV_SKIP_LOGIN === 'true';
-
-  // Check auth on mount, load email
-  useEffect(() => {
-    const authenticated = localStorage.getItem('webmail_authenticated');
-    if (!authenticated && !(DEV_SKIP_LOGIN && DEV_USER_ID)) { router.push('/login'); return; }
-    let email = localStorage.getItem('webmail_email') ?? '';
-    if (!email && DEV_SKIP_LOGIN && DEV_USER_ID.includes('@')) email = DEV_USER_ID;
-    setUserEmail(email);
-    if (localStorage.getItem('webmail_must_change_password') === '1') {
-      setMustChangePassword(true);
-    }
-  }, [router, DEV_SKIP_LOGIN, DEV_USER_ID]);
-
-  // Session expiry warning: check every 60s, warn when < 10 min left
-  useEffect(() => {
-    function check() {
-      const expiresAt = localStorage.getItem('webmail_token_expires_at');
-      if (!expiresAt) { setSessionWarning(null); return; }
-      const msLeft = new Date(expiresAt).getTime() - Date.now();
-      if (msLeft <= 0) { setSessionWarning(t('misc.mailPage.sessionExpired')); return; }
-      const minsLeft = Math.floor(msLeft / 60000);
-      if (minsLeft < 10) setSessionWarning(t('misc.mailPage.sessionExpiresIn', { mins: minsLeft }));
-      else setSessionWarning(null);
-    }
-    check();
-    const id = setInterval(check, 60000);
-    return () => clearInterval(id);
-  }, []);
-
-  const handleLogout = useCallback(() => {
-    fetch('/api/auth/logout', { method: 'POST' }).catch(() => {});
-    localStorage.removeItem('webmail_authenticated');
-    localStorage.removeItem('webmail_email');
-    localStorage.removeItem('webmail_must_change_password');
-    localStorage.removeItem('webmail_token_expires_at');
-    router.push('/login');
-  }, [router]);
 
   const activeFolderSystemType = folders.find((f) => f.id === activeFolderId)?.system_type;
 
