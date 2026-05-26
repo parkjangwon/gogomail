@@ -305,6 +305,8 @@ export default function MailPage() {
 
   const threadViewEnabled = true; // thread view always on (toggle removed)
   const [threads, setThreads] = useState<ThreadSummary[]>([]);
+  // Incrementing this triggers the thread-fetch effect to re-run without changing folder.
+  const [threadRefreshKey, setThreadRefreshKey] = useState(0);
 
   const isMobile = useIsMobile();
   const gPrefixRef = useRef(false);
@@ -450,14 +452,16 @@ export default function MailPage() {
     setThreadMessages(applyPatch);
     setThreads((prev) => patchThreadsForMessages(prev, ids, patch));
   }, [setMessages]);
-  // Remove messages from all visible sources (messages, searchResults, threadMessages) so
-  // delete/archive/move actions take immediate effect even when the user is in search mode.
+  // Remove messages from all visible sources so delete/archive/move take immediate effect.
+  // Must also filter threads because visibleMessages uses buildThreadMessages(threads) when
+  // threadViewEnabled is true — threads use (latest_message_id || thread.id) as the display id.
   const removeVisibleMessages = useCallback((ids: string[]) => {
     const idSet = new Set(ids);
     const filterFn = (prev: MessageSummary[]) => prev.filter((m) => !idSet.has(m.id));
     setMessages(filterFn);
     setSearchResults((prev) => (prev ? filterFn(prev) : prev));
     setThreadMessages(filterFn);
+    setThreads((prev) => prev.filter((t) => !idSet.has(t.latest_message_id || t.id)));
   }, [setMessages]);
   const findVisibleMessage = useCallback((id: string) => (
     messages.find((m) => m.id === id) ??
@@ -545,7 +549,8 @@ export default function MailPage() {
     return () => { cancelled = true; };
   }, [activeFolderId, setMessages, setMessagesLoading, virtualRefreshKey]);
 
-  // Thread view: fetch threads when enabled and folder changes
+  // Thread view: fetch threads when enabled, folder changes, or threadRefreshKey bumps.
+  // threadRefreshKey is incremented by handleRefresh so periodic/manual refresh updates the list.
   useEffect(() => {
     if (!threadViewEnabled || !activeFolderId || activeFolderId.startsWith('__')) {
       setThreads([]);
@@ -556,7 +561,8 @@ export default function MailPage() {
       .then((r) => { if (!cancelled) setThreads(r.threads ?? []); })
       .catch(() => {});
     return () => { cancelled = true; };
-  }, [threadViewEnabled, activeFolderId]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [threadViewEnabled, activeFolderId, threadRefreshKey]);
 
   const { message: selectedMessage, loading: messageLoading } =
     useMessage(selectedMessageId);
@@ -1359,17 +1365,11 @@ export default function MailPage() {
       setVirtualRefreshKey((k) => k + 1);
     } else {
       refresh();
-      // threadViewEnabled is always true (hardcoded); visibleMessages uses
-      // buildThreadMessages(threads) when threads are loaded, so refresh()
-      // alone (which only updates messages/folders) doesn't update the list.
-      // Re-fetch threads in parallel so the visible list actually reflects new mail.
-      if (!activeFolderId.startsWith('__')) {
-        listThreads({ folder_id: activeFolderId, limit: 50 })
-          .then((r) => setThreads(r.threads ?? []))
-          .catch(() => {});
-      }
+      // threadViewEnabled is always true; visibleMessages uses buildThreadMessages(threads).
+      // Bumping threadRefreshKey re-triggers the thread fetch effect (with proper cancellation).
+      setThreadRefreshKey((k) => k + 1);
     }
-  }, [isVirtualFolder, refresh, activeFolderId]);
+  }, [isVirtualFolder, refresh]);
 
   const refreshRef = useRef(handleRefresh);
   useEffect(() => { refreshRef.current = handleRefresh; }, [handleRefresh]);
