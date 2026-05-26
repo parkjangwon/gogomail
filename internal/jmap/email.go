@@ -1,9 +1,5 @@
 package jmap
 
-import (
-	"context"
-	"encoding/json"
-)
 
 // EmailAddress represents a JMAP EmailAddress (RFC 8621 §4.1.2).
 type EmailAddress struct {
@@ -85,11 +81,12 @@ type EmailComparator struct {
 
 // EmailQueryArgs is the argument object for Email/query (RFC 8621 §4.4).
 type EmailQueryArgs struct {
-	AccountID string           `json:"accountId"`
-	Filter    *EmailFilter     `json:"filter,omitempty"`
-	Sort      []EmailComparator `json:"sort,omitempty"`
-	Position  int              `json:"position,omitempty"`
-	Limit     int              `json:"limit,omitempty"`
+	AccountID       string            `json:"accountId"`
+	Filter          *EmailFilter      `json:"filter,omitempty"`
+	Sort            []EmailComparator `json:"sort,omitempty"`
+	Position        int               `json:"position,omitempty"`
+	Limit           int               `json:"limit,omitempty"`
+	CollapseThreads bool              `json:"collapseThreads,omitempty"`
 }
 
 // EmailQueryResponse is the response object for Email/query (RFC 8621 §4.4).
@@ -102,26 +99,3 @@ type EmailQueryResponse struct {
 	Total               int      `json:"total"`
 }
 
-// emailQueryMethod implements the Email/query JMAP method (RFC 8621 §4.4).
-// Currently returns an empty result set; real mail store integration to follow.
-type emailQueryMethod struct{}
-
-func (emailQueryMethod) Call(_ context.Context, accountID string, args json.RawMessage) (json.RawMessage, error) {
-	var req EmailQueryArgs
-	if err := json.Unmarshal(args, &req); err != nil {
-		return errorResult(ErrInvalidArguments), nil
-	}
-	if req.AccountID == "" {
-		req.AccountID = accountID
-	}
-
-	resp := EmailQueryResponse{
-		AccountID:           req.AccountID,
-		QueryState:          "state-v1",
-		CanCalculateChanges: false,
-		Position:            req.Position,
-		IDs:                 []string{},
-		Total:               0,
-	}
-	return json.Marshal(resp)
-}

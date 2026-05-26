@@ -169,7 +169,8 @@ func TestServeAPIEmailGet(t *testing.T) {
 	}
 }
 
-// TestServeAPIEmailQuery verifies that Email/query returns a valid EmailQueryResponse.
+// TestServeAPIEmailQuery verifies that Email/query returns serverFail when repo is nil.
+// A nil repo is what newTestHandler provides; real DB integration is tested separately.
 func TestServeAPIEmailQuery(t *testing.T) {
 	h := newTestHandler()
 
@@ -206,15 +207,13 @@ func TestServeAPIEmailQuery(t *testing.T) {
 		t.Errorf("expected method name 'Email/query', got %q", mr.Name)
 	}
 
-	var queryResp jmap.EmailQueryResponse
-	if err := json.Unmarshal(mr.Result, &queryResp); err != nil {
-		t.Fatalf("cannot decode EmailQueryResponse: %v", err)
+	// Nil repo → serverFail error result.
+	var errResp map[string]string
+	if err := json.Unmarshal(mr.Result, &errResp); err != nil {
+		t.Fatalf("cannot decode error result: %v", err)
 	}
-	if queryResp.IDs == nil {
-		t.Error("IDs must not be nil")
-	}
-	if queryResp.QueryState == "" {
-		t.Error("QueryState must not be empty")
+	if errResp["type"] != jmap.ErrServerFail {
+		t.Errorf("expected serverFail, got %q", errResp["type"])
 	}
 }
 
