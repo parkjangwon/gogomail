@@ -4,8 +4,10 @@ import "fmt"
 
 // JMAP capability URIs (RFC 8620 §2, RFC 8621 §2).
 const (
-	CapabilityCore  = "urn:ietf:params:jmap:core"
-	CapabilityMail  = "urn:ietf:params:jmap:mail"
+	CapabilityCore             = "urn:ietf:params:jmap:core"
+	CapabilityMail             = "urn:ietf:params:jmap:mail"
+	CapabilitySubmission       = "urn:ietf:params:jmap:submission"
+	CapabilityVacationResponse = "urn:ietf:params:jmap:vacationresponse"
 )
 
 // BuildSession constructs a Session for the given user+account.
@@ -37,14 +39,18 @@ func BuildSession(username, accountID, apiBase string) *Session {
 	}
 
 	accountCaps := map[string]interface{}{
-		CapabilityCore: map[string]interface{}{},
-		CapabilityMail: mailCaps,
+		CapabilityCore:             map[string]interface{}{},
+		CapabilityMail:             mailCaps,
+		CapabilitySubmission:       map[string]interface{}{},
+		CapabilityVacationResponse: map[string]interface{}{},
 	}
 
 	return &Session{
 		Capabilities: map[string]interface{}{
-			CapabilityCore: coreCaps,
-			CapabilityMail: map[string]interface{}{},
+			CapabilityCore:             coreCaps,
+			CapabilityMail:             map[string]interface{}{},
+			CapabilitySubmission:       map[string]interface{}{},
+			CapabilityVacationResponse: map[string]interface{}{},
 		},
 		Accounts: map[string]Account{
 			accountID: {
@@ -55,8 +61,10 @@ func BuildSession(username, accountID, apiBase string) *Session {
 			},
 		},
 		PrimaryAccounts: map[string]string{
-			CapabilityCore: accountID,
-			CapabilityMail: accountID,
+			CapabilityCore:             accountID,
+			CapabilityMail:             accountID,
+			CapabilitySubmission:       accountID,
+			CapabilityVacationResponse: accountID,
 		},
 		Username:       username,
 		APIUrl:         fmt.Sprintf("%s/.well-known/jmap/api", apiBase),
