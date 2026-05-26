@@ -1,11 +1,13 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useRef } from 'react';
 import { useTranslations } from 'next-intl';
-import { listOrgTree, listAddressBooks, listContacts, parseVCard, OrgUnit, AddressBook, getUserProfile } from '@/lib/api';
-import { parseToPickerItems, pickerItemsToString } from '@/lib/mail-address';
+import { OrgUnit } from '@/lib/api';
 import type { PickerItem } from '@/lib/mail-address';
 import { RenderOrgTree } from './OrgPickerTree';
+import { useOrgTree } from './org-picker/useOrgTree';
+import { useAddressBook } from './org-picker/useAddressBook';
+import { useRecipients } from './org-picker/useRecipients';
 
 interface OrgPickerModalProps {
   initialTo?: PickerItem[];
@@ -27,172 +29,49 @@ export function OrgPickerModal({
   const tr = useTranslations('modals.orgPicker');
   const FIELD_LABELS = { to: tr('fields.to'), cc: tr('fields.cc'), bcc: tr('fields.bcc') } as const;
   const [tab, setTab] = useState<'org' | 'contacts'>('org');
-
-  // Org tree
-  const [orgTree, setOrgTree] = useState<OrgUnit[]>([]);
-  const [selectedOrg, setSelectedOrg] = useState<OrgUnit | null>(null);
-  const [treeLoading, setTreeLoading] = useState(false);
-  const [orgSearch, setOrgSearch] = useState('');
-  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
-
-  // Address book
-  const [addressBooks, setAddressBooks] = useState<AddressBook[]>([]);
-  const [selectedBook, setSelectedBook] = useState<AddressBook | null>(null);
-  const [bookContacts, setBookContacts] = useState<PickerItem[]>([]);
-  const [booksLoading, setBooksLoading] = useState(false);
-  const [bookLoading, setBookLoading] = useState(false);
-  const [contactsSearch, setContactsSearch] = useState('');
   const [includeChildOrgs, setIncludeChildOrgs] = useState(true);
 
-  // Recipients
-  const [toList, setToList] = useState<Map<string, PickerItem>>(
-    () => new Map(initialTo.map((i) => [i.id, i]))
-  );
-  const [ccList, setCcList] = useState<Map<string, PickerItem>>(
-    () => new Map(initialCc.map((i) => [i.id, i]))
-  );
-  const [bccList, setBccList] = useState<Map<string, PickerItem>>(
-    () => new Map(initialBcc.map((i) => [i.id, i]))
-  );
-  const [activeField, setActiveField] = useState<'to' | 'cc' | 'bcc'>('to');
+  const {
+    orgTree,
+    selectedOrg,
+    setSelectedOrg,
+    treeLoading,
+    orgSearch,
+    setOrgSearch,
+    expandedIds,
+    toggleExpanded,
+    getChildrenOf,
+    getRootOrgs,
+    orgMemberCount,
+    matchesSearch,
+    q,
+  } = useOrgTree();
+
+  const {
+    addressBooks,
+    selectedBook,
+    setSelectedBook,
+    bookContacts,
+    booksLoading,
+    bookLoading,
+    contactsSearch,
+    setContactsSearch,
+    filteredContacts,
+    addressBookToken,
+  } = useAddressBook(tab);
+
+  const {
+    toList,
+    ccList,
+    bccList,
+    activeField,
+    setActiveField,
+    addToActive,
+    removeFromList,
+    clearList,
+  } = useRecipients(initialTo, initialCc, initialBcc);
 
   const orgSearchRef = useRef<HTMLInputElement>(null);
-
-  // Load org tree on mount
-  useEffect(() => {
-    setTreeLoading(true);
-    Promise.all([getUserProfile(), listOrgTree()])
-      .then(([userProfile, units]) => {
-        setOrgTree(units);
-
-        // Find user's organization
-        let userOrgId: string | null = null;
-        if (userProfile) {
-          for (const unit of units) {
-            const member = unit.members.find((m) => m.id === userProfile.user_id);
-            if (member) {
-              userOrgId = unit.id;
-              break;
-            }
-          }
-        }
-
-        // Build parent chain from user's org to root
-        const toExpand = new Set<string>();
-        if (userOrgId) {
-          const userOrg = units.find((u) => u.id === userOrgId) ?? null;
-          let current = userOrg;
-          while (current && current.parent_id) {
-            const parent = units.find((u) => u.id === current!.parent_id);
-            if (parent) {
-              toExpand.add(parent.id);
-              current = parent;
-            } else {
-              break;
-            }
-          }
-          if (userOrg && units.some((u) => u.parent_id === userOrg.id)) {
-            toExpand.add(userOrg.id);
-          }
-          setSelectedOrg(userOrg);
-        } else {
-          units.filter((u) => !u.parent_id).forEach((u) => toExpand.add(u.id));
-          setSelectedOrg(units.find((u) => !u.parent_id) ?? null);
-        }
-
-        setExpandedIds(toExpand);
-        setTreeLoading(false);
-      })
-      .catch(() => setTreeLoading(false));
-  }, []);
-
-  // Load address books when switching to contacts tab
-  useEffect(() => {
-    if (tab !== 'contacts') return;
-    if (addressBooks.length > 0) return;
-    setBooksLoading(true);
-    listAddressBooks()
-      .then((books) => {
-        setAddressBooks(books);
-        if (books.length > 0 && !selectedBook) setSelectedBook(books[0]);
-        setBooksLoading(false);
-      })
-      .catch(() => setBooksLoading(false));
-  }, [tab, addressBooks.length, selectedBook]);
-
-  // Load contacts when selectedBook changes
-  useEffect(() => {
-    if (!selectedBook) return;
-    setBookLoading(true);
-    listContacts(selectedBook.ID)
-      .then((contacts) => {
-        const items: PickerItem[] = contacts
-          .map((c) => {
-            const parsed = parseVCard(c.VCard);
-            return { id: c.ID, display_name: parsed.fn || parsed.email, email: parsed.email };
-          })
-          .filter((i) => !!i.email);
-        setBookContacts(items);
-        setBookLoading(false);
-      })
-      .catch(() => setBookLoading(false));
-  }, [selectedBook]);
-
-  // ── Recipients helpers ────────────────────────────────────────────────────────
-
-  function getActiveList(): Map<string, PickerItem> {
-    if (activeField === 'to') return toList;
-    if (activeField === 'cc') return ccList;
-    return bccList;
-  }
-
-  function setActiveList(next: Map<string, PickerItem>) {
-    if (activeField === 'to') setToList(next);
-    else if (activeField === 'cc') setCcList(next);
-    else setBccList(next);
-  }
-
-  function addToActive(item: PickerItem) {
-    const cur = getActiveList();
-    if (cur.has(item.id)) return;
-    const next = new Map(cur);
-    next.set(item.id, item);
-    setActiveList(next);
-  }
-
-  function removeFromList(field: 'to' | 'cc' | 'bcc', id: string) {
-    const setter = field === 'to' ? setToList : field === 'cc' ? setCcList : setBccList;
-    const cur = field === 'to' ? toList : field === 'cc' ? ccList : bccList;
-    const next = new Map(cur);
-    next.delete(id);
-    setter(next);
-  }
-
-  function clearList(field: 'to' | 'cc' | 'bcc') {
-    if (field === 'to') setToList(new Map());
-    else if (field === 'cc') setCcList(new Map());
-    else setBccList(new Map());
-  }
-
-  // ── Org tree helpers ──────────────────────────────────────────────────────
-
-  const getChildrenOf = (parentId: string | undefined): OrgUnit[] => {
-    return orgTree.filter((u) => u.parent_id === parentId);
-  };
-
-  const getRootOrgs = (): OrgUnit[] => {
-    return orgTree.filter((u) => !u.parent_id);
-  };
-
-  const descendantOrgs = (orgId: string): OrgUnit[] => {
-    const children = getChildrenOf(orgId);
-    return children.flatMap((child) => [child, ...descendantOrgs(child.id)]);
-  };
-
-  const orgMemberCount = (unit: OrgUnit, includeChildren: boolean): number => {
-    if (!includeChildren) return unit.members.length;
-    return unit.members.length + descendantOrgs(unit.id).reduce((sum, child) => sum + child.members.length, 0);
-  };
 
   const orgToken = (unit: OrgUnit): PickerItem => {
     const token = `org:${unit.id}${includeChildOrgs ? ':children' : ''}`;
@@ -206,47 +85,23 @@ export function OrgPickerModal({
     };
   };
 
-  const addressBookToken = (book: AddressBook): PickerItem => ({
-    id: `addressbook:${book.ID}`,
-    display_name: book.Name,
-    email: `addressbook:${book.ID}`,
-    kind: 'addressbook',
-    count: bookContacts.length,
-  });
+  // ── Styles ────────────────────────────────────────────────────────────────────
 
-  const toggleExpanded = (id: string) => {
-    const next = new Set(expandedIds);
-    if (next.has(id)) next.delete(id);
-    else next.add(id);
-    setExpandedIds(next);
+  const rowHover = {
+    onMouseEnter: (e: React.MouseEvent<HTMLElement>) => {
+      (e.currentTarget as HTMLElement).style.background = 'var(--color-bg-secondary)';
+    },
+    onMouseLeave: (e: React.MouseEvent<HTMLElement>) => {
+      (e.currentTarget as HTMLElement).style.background = 'transparent';
+    },
   };
 
-  // ── Org search filtering ──────────────────────────────────────────────────────
-
-  const q = orgSearch.trim().toLowerCase();
-
-  const matchesSearch = (unit: OrgUnit): boolean => {
-    if (!q) return true;
-    return (
-      unit.display_name.toLowerCase().includes(q) ||
-      unit.members.some(
-        (m) =>
-          (m.display_name || '').toLowerCase().includes(q) ||
-          m.email.toLowerCase().includes(q)
-      )
-    );
+  const avatarStyle: React.CSSProperties = {
+    width: '32px', height: '32px', borderRadius: '50%',
+    background: 'var(--color-accent-subtle)', color: 'var(--color-accent)',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    fontSize: '13px', fontWeight: 600, flexShrink: 0,
   };
-
-  // ── Contacts search filtering ──────────────────────────────────────────────
-
-  const cq = contactsSearch.trim().toLowerCase();
-  const filteredContacts: PickerItem[] = cq
-    ? bookContacts.filter(
-        (c) =>
-          c.display_name.toLowerCase().includes(cq) ||
-          c.email.toLowerCase().includes(cq)
-      )
-    : bookContacts;
 
   // Middle pane items
   const middleItems: PickerItem[] = (() => {
@@ -294,24 +149,6 @@ export function OrgPickerModal({
       })),
     ];
   })();
-
-  // ── Styles ────────────────────────────────────────────────────────────────────
-
-  const rowHover = {
-    onMouseEnter: (e: React.MouseEvent<HTMLElement>) => {
-      (e.currentTarget as HTMLElement).style.background = 'var(--color-bg-secondary)';
-    },
-    onMouseLeave: (e: React.MouseEvent<HTMLElement>) => {
-      (e.currentTarget as HTMLElement).style.background = 'transparent';
-    },
-  };
-
-  const avatarStyle: React.CSSProperties = {
-    width: '32px', height: '32px', borderRadius: '50%',
-    background: 'var(--color-accent-subtle)', color: 'var(--color-accent)',
-    display: 'flex', alignItems: 'center', justifyContent: 'center',
-    fontSize: '13px', fontWeight: 600, flexShrink: 0,
-  };
 
   // ── Right pane section ────────────────────────────────────────────────────────
 
