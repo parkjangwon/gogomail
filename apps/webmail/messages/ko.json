@@ -3,7 +3,8 @@
     "loading": "로딩 중...",
     "error": "오류가 발생했습니다",
     "retry": "다시 시도",
-    "close": "닫기",
+    "scope": "범위 이동",
+      "close": "닫기",
     "cancel": "취소",
     "save": "저장",
     "delete": "삭제",
@@ -369,7 +370,8 @@
   },
   "readingPaneOverlay": {
     "download": "다운로드",
-    "close": "닫기"
+    "scope": "범위 이동",
+      "close": "닫기"
   },
   "composeSlash": {
     "formatting": "서식"
@@ -817,6 +819,7 @@
       "replyAllLabel": "전체 답장",
       "forwardLabel": "전달",
       "openNewWindow": "새창으로 열기",
+      "scope": "범위 이동",
       "close": "닫기",
       "fromLabel": "보내는 사람",
       "toLabel": "받는 사람",
@@ -952,6 +955,7 @@
     "footer": {
       "navigate": "이동",
       "select": "선택",
+      "scope": "범위 이동",
       "close": "닫기",
       "brand": "GoGoMail 통합 검색"
     }
@@ -1552,6 +1556,7 @@
     "mailPage": {
       "loading": "로딩 중...",
       "mustChangePassword": "보안을 위해 비밀번호를 변경해 주세요.",
+      "scope": "범위 이동",
       "close": "닫기",
       "loginAgain": "다시 로그인",
       "sessionExpired": "세션이 만료되었습니다. 다시 로그인해 주세요.",

@@ -952,6 +952,7 @@
     "footer": {
       "navigate": "Navigate",
       "select": "Select",
+      "scope": "Scope",
       "close": "Close",
       "brand": "GoGoMail spotlight"
     }

@@ -952,6 +952,7 @@
     "footer": {
       "navigate": "移動",
       "select": "選択",
+      "scope": "スコープ",
       "close": "閉じる",
       "brand": "GoGoMail Spotlight"
     }
