@@ -21,6 +21,7 @@ GoGoMail is a production-grade self-hosted email platform written in Go
 |------|---------|
 | 2026-05-26 | FIDO2/WebAuthn MFA: go-webauthn/webauthn integration, 6 HTTP endpoints (register/begin, register/complete, authenticate/begin, authenticate/complete, credentials GET/DELETE), credential + challenge store, DB migration 0155 |
 | 2026-05-26 | JMAP auth hardening: userIDFromBearer now calls VerifyFull(ctx,token) instead of Verify(token) — session revocation enforced on every authenticated request; TestServeSessionRequiresAuth rewritten with real TokenManager asserting HTTP 401 |
+| 2026-05-26 | JMAP RFC compliance: Identity replyTo/bcc now marshal as null (not omitted), Identity/set destroy tracks and persists removals to preferences, SearchSnippet/get accepts filter param per RFC 8621 §7.1 |
 | 2026-05-26 | JMAP Task 10: Identity/get, Identity/set, SearchSnippet/get — primary identity from users table, custom identities stored in webmail preferences JSON under `identities` key, SearchSnippet/get fetches subject+TextBody preview via GetMessage; 4 unit tests pass |
 | 2026-05-26 | JMAP Task 9: Email/changes, Email/copy, Email/import, Email/parse — modseq-based change tracking from imap_message_uid, MIME header parsing for Email/parse, Email/copy and Email/import stubs with proper RFC error types; 4 unit tests pass |
 | 2026-05-26 | JMAP Task 8: Email/set — applyEmailPatch (keywords/$seen/$flagged/$draft, mailboxIds patch semantics), DeleteMessage for destroy, SaveDraft for create; 5 unit tests pass |
