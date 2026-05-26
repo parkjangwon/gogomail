@@ -82,6 +82,8 @@ const SYSTEM_ICONS: Record<string, ReactNode> = {
   archive: <ArchiveBoxIcon style={{ width: 16, height: 16 }} />,
 };
 
+const SCOPES = ['all', 'mail', 'contacts', 'calendar', 'drive', 'folders', 'commands', 'settings', 'notifications'] as const;
+
 type SpotlightT = ReturnType<typeof useTranslations>;
 
 function sectionLabel(t: SpotlightT, type: SpotlightItem['type']): string {
@@ -488,10 +490,20 @@ export function SpotlightSearch({
       if (e.key === 'Enter') { e.preventDefault(); visibleItems[selIdx]?.onSelect(); }
       if (e.key === 'Escape') { e.preventDefault(); onClose(); }
       if (e.key === 'Tab') { e.preventDefault(); setSelIdx((i) => (e.shiftKey ? Math.max(i - 1, 0) : Math.min(i + 1, visibleItems.length - 1))); }
+      // Left/right arrows cycle scope filter chips — only when query is empty so
+      // normal cursor movement in the text input is not interrupted.
+      if (!isMoveMode && !query && e.key === 'ArrowLeft') {
+        e.preventDefault();
+        setScope((s) => { const i = SCOPES.indexOf(s); return SCOPES[(i - 1 + SCOPES.length) % SCOPES.length]; });
+      }
+      if (!isMoveMode && !query && e.key === 'ArrowRight') {
+        e.preventDefault();
+        setScope((s) => { const i = SCOPES.indexOf(s); return SCOPES[(i + 1) % SCOPES.length]; });
+      }
     }
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [visibleItems, selIdx, onClose]);
+  }, [visibleItems, selIdx, onClose, isMoveMode, query]);
 
   // Scroll selected item into view
   useEffect(() => {
@@ -704,6 +716,7 @@ export function SpotlightSearch({
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '8px 18px', borderTop: '1px solid var(--color-border-subtle)', fontSize: '11px', color: 'var(--color-text-tertiary)' }}>
           <span><kbd style={kbdStyle}>↑↓</kbd> {t('footer.navigate')}</span>
           <span><kbd style={kbdStyle}>↵</kbd> {t('footer.select')}</span>
+          {!isMoveMode && <span><kbd style={kbdStyle}>←→</kbd> {t('footer.scope')}</span>}
           <span><kbd style={kbdStyle}>Esc</kbd> {t('footer.close')}</span>
           <span style={{ marginLeft: 'auto' }}>{t('footer.brand')}</span>
         </div>
