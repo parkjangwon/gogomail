@@ -50,12 +50,16 @@ export function DMPanel({ userEmail, onUnreadChange, onClose, onComposeToAddress
     setExporting(true);
     exportingRef.current = true;
     try {
-      const blob = await exportDMRoom(dm.activeRoom.id);
+      // Pass user's stored timezone so the backend uses it for timestamps and filename.
+      let tz = 'UTC';
+      try { tz = localStorage.getItem('webmail_timezone') || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'; } catch { /* ignore */ }
+      const blob = await exportDMRoom(dm.activeRoom.id, tz);
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      const title = dm.titleForRoom(dm.activeRoom).replace(/[^a-z0-9\-_ ]/gi, '_').slice(0, 60);
-      a.download = `dm-${title}.txt`;
+      // Let the browser use the Content-Disposition filename set by the backend.
+      // Fallback filename used only when Content-Disposition is absent.
+      a.download = '';
       document.body.appendChild(a);
       a.click();
       a.remove();

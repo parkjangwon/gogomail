@@ -542,7 +542,7 @@ func TestFormatExportTXTHeader(t *testing.T) {
 		Messages: []Message{},
 		ExportAt: now,
 	}
-	out := FormatExportTXT(export)
+	out := FormatExportTXT(export, nil)
 	if !strings.Contains(out, "Alice, Bob") {
 		t.Fatalf("header missing room name, got:\n%s", out)
 	}
@@ -554,6 +554,13 @@ func TestFormatExportTXTHeader(t *testing.T) {
 	}
 	if !strings.Contains(out, "Messages: 0") {
 		t.Fatalf("header missing message count, got:\n%s", out)
+	}
+
+	// timezone test: KST (UTC+9)
+	kst := time.FixedZone("Asia/Seoul", 9*60*60)
+	outKST := FormatExportTXT(export, kst)
+	if !strings.Contains(outKST, "2026-05-26 21:00:00 Asia/Seoul") {
+		t.Fatalf("header missing KST export datetime, got:\n%s", outKST)
 	}
 }
 
@@ -576,7 +583,7 @@ func TestFormatExportTXTMessages(t *testing.T) {
 		},
 		ExportAt: now,
 	}
-	out := FormatExportTXT(export)
+	out := FormatExportTXT(export, nil)
 	if !strings.Contains(out, "hello world") {
 		t.Errorf("missing text body, got:\n%s", out)
 	}

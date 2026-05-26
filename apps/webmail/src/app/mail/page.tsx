@@ -1407,6 +1407,18 @@ export default function MailPage() {
     doSetup().catch(() => {});
   }, []);
 
+  // Refresh mail list when the service worker signals a push notification arrived.
+  useEffect(() => {
+    if (!('serviceWorker' in navigator)) return;
+    function onSwMessage(event: MessageEvent) {
+      if ((event.data as { type?: string } | null)?.type === 'mail_update') {
+        refreshRef.current();
+      }
+    }
+    navigator.serviceWorker.addEventListener('message', onSwMessage);
+    return () => navigator.serviceWorker.removeEventListener('message', onSwMessage);
+  }, []);
+
   useEffect(() => {
     getNotificationPreferences()
       .then((prefs) => {

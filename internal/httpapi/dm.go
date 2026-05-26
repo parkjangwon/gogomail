@@ -416,7 +416,7 @@ func RegisterDMRoutes(mux *http.ServeMux, service DMService, tokenManager *auth.
 	})
 
 	mux.HandleFunc("GET /api/v1/dm/rooms/{roomID}/export", func(w http.ResponseWriter, r *http.Request) {
-		if !rejectBodylessRequestPayload(w, r) || !rejectUnknownQueryKeys(w, r, "user_id", "company_id", "domain_id") {
+		if !rejectBodylessRequestPayload(w, r) || !rejectUnknownQueryKeys(w, r, "user_id", "company_id", "domain_id", "timezone") {
 			return
 		}
 		principal, ok := dmPrincipalFromRequest(w, r, tokenManager)
@@ -428,11 +428,34 @@ func RegisterDMRoutes(mux *http.ServeMux, service DMService, tokenManager *auth.
 			writeError(w, http.StatusBadRequest, "room_id is required")
 			return
 		}
+
+		// Parse optional timezone query param (IANA name, e.g. "Asia/Seoul").
+		// Falls back to UTC if missing or invalid.
+		loc := time.UTC
+		if tzParam := strings.TrimSpace(r.URL.Query().Get("timezone")); tzParam != "" {
+			if parsed, err := time.LoadLocation(tzParam); err == nil {
+				loc = parsed
+			}
+		}
+
 		export, err := service.ExportRoom(r.Context(), principal, roomID)
 		if err != nil {
 			writeDMError(w, err)
 			return
 		}
+
+		// Derive owner email from room members matching the requesting user.
+		ownerEmail := principal.UserID // fallback
+		for _, m := range export.Room.Members {
+			if m.ID == principal.UserID {
+				if m.Email != "" {
+					ownerEmail = m.Email
+				}
+				break
+			}
+		}
+
+		// Build room name from explicit name or participant display names.
 		roomName := export.Room.Name
 		if roomName == "" {
 			names := make([]string, 0, len(export.Room.Members))
@@ -444,17 +467,22 @@ func RegisterDMRoutes(mux *http.ServeMux, service DMService, tokenManager *auth.
 		if roomName == "" {
 			roomName = export.Room.ID
 		}
-		// Sanitize room name for use in filename
-		safeRoomName := strings.Map(func(r rune) rune {
-			switch r {
-			case '/', '\\', ':', '*', '?', '"', '<', '>', '|':
-				return '-'
-			}
-			return r
-		}, roomName)
-		date := export.ExportAt.UTC().Format("20060102")
-		filename := fmt.Sprintf("dm-%s-%s.txt", safeRoomName, date)
-		txt := dm.FormatExportTXT(export)
+
+		sanitize := func(s string) string {
+			return strings.Map(func(r rune) rune {
+				switch r {
+				case '/', '\\', ':', '*', '?', '"', '<', '>', '|', ' ':
+					return '_'
+				}
+				return r
+			}, s)
+		}
+
+		// Filename: {ownerEmail}_{roomName}_{YYYYMMDDHHmmss}.txt
+		datetime := export.ExportAt.In(loc).Format("20060102150405")
+		filename := fmt.Sprintf("%s_%s_%s.txt", sanitize(ownerEmail), sanitize(roomName), datetime)
+
+		txt := dm.FormatExportTXT(export, loc)
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		w.Header().Set("Content-Disposition", contentDispositionAttachment(filename))
 		w.WriteHeader(http.StatusOK)
