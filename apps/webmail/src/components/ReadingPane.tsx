@@ -3,19 +3,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { useTranslations } from 'next-intl';
 import {
-  Attachment,
-  MessageDeliveryStatus,
   MessageDetail,
   MessageSummary,
   Folder,
-  TrackingEvent,
-  createCalendarEvent,
-  downloadAttachment,
-  getMessageDeliveryStatus,
-  getMessageTracking,
-  listAttachments,
-  listCalendars,
-  saveAttachmentToDrive,
 } from '@/lib/api';
 import { emailOf, linkify } from '@/lib/message/messageUtils';
 import { MailActions } from './reading-pane/MailActions';
@@ -26,9 +16,11 @@ import { AttachmentPanel } from './reading-pane/AttachmentPanel';
 import { QuickReplyPanel } from './reading-pane/QuickReplyPanel';
 import { ThreadConversation } from './reading-pane/ThreadConversation';
 import { InlineCompose } from './reading-pane/InlineCompose';
-import { ICSEvent } from './reading-pane/readingPaneTypes';
 import { SafeHTMLBody } from './reading-pane/SafeHTMLBody';
 import { ReadingPaneOverlays } from './reading-pane/ReadingPaneOverlays';
+import { useReadingPaneAttachments } from './reading-pane/useReadingPaneAttachments';
+import { useReadingPaneMedia } from './reading-pane/useReadingPaneMedia';
+import { useReadingPaneCalendar } from './reading-pane/useReadingPaneCalendar';
 
 interface ReadingPaneProps {
   message: MessageDetail | null;
@@ -107,22 +99,6 @@ export function ReadingPane({
   });
   const [savedContact, setSavedContact] = useState(false);
   const [scrollProgress, setScrollProgress] = useState(0);
-  const [attachments, setAttachments] = useState<Attachment[]>([]);
-  const [attachmentsLoading, setAttachmentsLoading] = useState(false);
-  const [downloadingId, setDownloadingId] = useState<string | null>(null);
-  const [deliveryStatus, setDeliveryStatus] = useState<MessageDeliveryStatus | null>(null);
-  const [deliveryOpen, setDeliveryOpen] = useState(false);
-  const [icsEvents, setIcsEvents] = useState<ICSEvent[]>([]);
-  const [addingCalendarId, setAddingCalendarId] = useState<string | null>(null);
-  const [calendarAdded, setCalendarAdded] = useState<string | null>(null);
-  const [trackingEvents, setTrackingEvents] = useState<TrackingEvent[] | null>(null);
-  const [trackingOpen, setTrackingOpen] = useState(false);
-  const [savingToDriveId, setSavingToDriveId] = useState<string | null>(null);
-  const [driveToast, setDriveToast] = useState('');
-  const [imagePreviews, setImagePreviews] = useState<Record<string, string>>({});
-  const [lightbox, setLightbox] = useState<{ url: string; filename: string; attId: string } | null>(null);
-  const [pdfPreview, setPdfPreview] = useState<{ url: string; filename: string } | null>(null);
-  const [pdfPreviewLoadingId, setPdfPreviewLoadingId] = useState<string | null>(null);
   const [emailDarkMode, setEmailDarkMode] = useState(false);
   const [copiedEmail, setCopiedEmail] = useState('');
   const [inlineCompose, setInlineCompose] = useState<{
@@ -132,8 +108,57 @@ export function ReadingPane({
   } | null>(null);
 
   const scrollContainerRef = useRef<HTMLElement>(null);
-  const imagePreviewsRef = useRef<Record<string, string>>({});
   const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const folderSystemType = folders?.find((f) => f.id === message?.folder_id)?.system_type;
+
+  const {
+    attachments,
+    attachmentsLoading,
+    downloadingId,
+    savingToDriveId,
+    driveToast,
+    handleDownload,
+    handleSaveToDrive,
+  } = useReadingPaneAttachments({
+    messageId: message?.id,
+    hasAttachment: message?.has_attachment,
+    t,
+  });
+
+  const {
+    imagePreviews,
+    lightbox,
+    setLightbox,
+    pdfPreview,
+    setPdfPreview,
+    pdfPreviewLoadingId,
+    onOpenImage,
+    handlePdfPreview,
+  } = useReadingPaneMedia({
+    messageId: message?.id,
+    attachments,
+  });
+
+  const {
+    icsEvents,
+    addingCalendarId,
+    calendarAdded,
+    deliveryStatus,
+    deliveryOpen,
+    setDeliveryOpen,
+    trackingEvents,
+    trackingOpen,
+    setTrackingOpen,
+    handleAddToCalendar,
+  } = useReadingPaneCalendar({
+    messageId: message?.id,
+    fromAddr: message?.from_addr,
+    userEmail,
+    folderId: message?.folder_id,
+    folderSystemType,
+    attachments,
+  });
 
   useEffect(() => {
     localStorage.setItem('webmail_font_size', String(fontSize));
@@ -149,143 +174,6 @@ export function ReadingPane({
   useEffect(() => {
     setInlineCompose(null);
   }, [message?.id]);
-
-  useEffect(() => {
-    if (!message?.has_attachment || !message.id) {
-      setAttachments([]);
-      return;
-    }
-
-    setAttachmentsLoading(true);
-    listAttachments(message.id)
-      .then((result) => setAttachments(result))
-      .catch(() => setAttachments([]))
-      .finally(() => setAttachmentsLoading(false));
-  }, [message?.id, message?.has_attachment]);
-
-  useEffect(() => {
-    if (attachments.length === 0) {
-      setIcsEvents([]);
-      return;
-    }
-    const icsAtts = attachments.filter((a) => a.filename.toLowerCase().endsWith('.ics') || a.mime_type === 'text/calendar');
-    if (icsAtts.length === 0) {
-      setIcsEvents([]);
-      return;
-    }
-    Promise.all(
-      icsAtts.map(async (att) => {
-        if (!message) return null;
-        try {
-          const resp = await fetch(`/api/mail/messages/${message.id}/attachments/${att.id}/download`);
-          if (!resp.ok) return null;
-          const text = await resp.text();
-          const get = (key: string) => {
-            const m = text.match(new RegExp(`^${key}[;:][^:]*:?(.+)$`, 'mi'));
-            return m ? m[1].trim() : undefined;
-          };
-          const summary = get('SUMMARY');
-          const dtstart = get('DTSTART');
-          if (!summary || !dtstart) return null;
-          return {
-            summary,
-            dtstart,
-            dtend: get('DTEND'),
-            location: get('LOCATION'),
-            description: get('DESCRIPTION'),
-          } as ICSEvent;
-        } catch {
-          return null;
-        }
-      }),
-    ).then((results) => {
-      setIcsEvents(results.filter(Boolean) as ICSEvent[]);
-    });
-  }, [attachments, message]);
-
-  useEffect(() => {
-    // Delivery tracking is only meaningful when viewing an outgoing message
-    // from the Sent folder. Avoid showing it for self-sent emails sitting in
-    // the inbox — the sender/recipient coincidence makes isSent=true even though
-    // the user is reading it as a recipient, not as the original sender.
-    const senderMatch = message?.from_addr && userEmail
-      ? message.from_addr.toLowerCase() === userEmail.toLowerCase()
-      : false;
-    const folderSystemType = folders?.find((f) => f.id === message?.folder_id)?.system_type;
-    const isSentView = senderMatch && folderSystemType === 'sent';
-
-    setDeliveryStatus(null);
-    setDeliveryOpen(false);
-    setTrackingEvents(null);
-    setTrackingOpen(false);
-
-    if (!message?.id || !isSentView) return;
-
-    getMessageDeliveryStatus(message.id)
-      .then(setDeliveryStatus)
-      .catch(() => {});
-    getMessageTracking(message.id)
-      .then((events) => {
-        if (events.length > 0) {
-          setTrackingEvents(events);
-        }
-      })
-      .catch(() => {});
-  }, [message?.id, message?.from_addr, userEmail]);
-
-  useEffect(() => {
-    if (!lightbox) return;
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setLightbox(null);
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [lightbox]);
-
-  useEffect(() => {
-    if (!pdfPreview) return;
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setPdfPreview(null);
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [pdfPreview]);
-
-  useEffect(() => {
-    const url = pdfPreview?.url;
-    return () => {
-      if (url) URL.revokeObjectURL(url);
-    };
-  }, [pdfPreview]);
-
-  useEffect(() => {
-    if (!message || attachments.length === 0) return;
-    const imageAttachments = attachments.filter((a) => a.mime_type.startsWith('image/') && a.status === 'stored');
-    const previous = imagePreviewsRef.current;
-    let cancelled = false;
-    imageAttachments.forEach((att) => {
-      if (previous[att.id]) return;
-      fetch(`/api/mail/messages/${message.id}/attachments/${att.id}/download`)
-        .then((response) => response.ok ? response.blob() : null)
-        .then((blob) => {
-          if (!blob || cancelled) return;
-          const url = URL.createObjectURL(blob);
-          imagePreviewsRef.current[att.id] = url;
-          setImagePreviews((current) => ({ ...current, [att.id]: url }));
-        })
-        .catch(() => {});
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [attachments, message]);
-
-  useEffect(() => {
-    const urls = imagePreviewsRef.current;
-    return () => {
-      Object.values(urls).forEach((url) => URL.revokeObjectURL(url));
-    };
-  }, []);
 
   const isContactSaved = useMemo(() => {
     if (!message) return false;
@@ -350,88 +238,6 @@ export function ReadingPane({
     setTimeout(() => setSavedContact(false), 2000);
   };
 
-  const parseIcsDate = (value: string): Date | null => {
-    try {
-      const clean = value.trim().replace(/z$/i, '');
-      if (clean.length === 8) {
-        return new Date(`${clean.slice(0, 4)}-${clean.slice(4, 6)}-${clean.slice(6, 8)}T00:00:00`);
-      }
-      if (clean.includes('T')) {
-        return new Date(`${clean.slice(0, 4)}-${clean.slice(4, 6)}-${clean.slice(6, 8)}T${clean.slice(9, 11)}:${clean.slice(11, 13)}:${clean.slice(13, 15)}`);
-      }
-      return new Date(clean);
-    } catch {
-      return null;
-    }
-  };
-
-  const handleAddToCalendar = async (event: ICSEvent) => {
-    setAddingCalendarId(event.dtstart);
-    try {
-      const calendars = await listCalendars();
-      const cal = calendars[0];
-      if (!cal) return;
-      const start = parseIcsDate(event.dtstart) ?? new Date();
-      const end = parseIcsDate(event.dtend || '') ?? new Date(start.getTime() + 60 * 60 * 1000);
-      await createCalendarEvent(cal.ID, {
-        title: event.summary,
-        start,
-        end,
-        allDay: event.dtstart.length === 8,
-        location: event.location,
-        description: event.description,
-      });
-      setCalendarAdded(event.dtstart);
-      setTimeout(() => setCalendarAdded(null), 3000);
-    } catch {
-      // ignore
-    } finally {
-      setAddingCalendarId(null);
-    }
-  };
-
-  const handleDownload = useCallback(async (att: Attachment) => {
-    if (!message) return;
-    setDownloadingId(att.id);
-    try {
-      await downloadAttachment(message.id, att.id, att.filename);
-    } catch {
-      // ignore
-    } finally {
-      setDownloadingId(null);
-    }
-  }, [message]);
-
-  const handleSaveToDrive = useCallback(async (att: Attachment) => {
-    if (!message) return;
-    setSavingToDriveId(att.id);
-    try {
-      const node = await saveAttachmentToDrive(message.id, att.id, att.filename, att.mime_type);
-      setDriveToast(node ? t('misc.readingPane.savedToDrive', { filename: att.filename }) : t('misc.readingPane.driveSaveFailed'));
-      setTimeout(() => setDriveToast(''), 3000);
-    } catch {
-      setDriveToast(t('misc.readingPane.driveSaveFailed'));
-      setTimeout(() => setDriveToast(''), 3000);
-    } finally {
-      setSavingToDriveId(null);
-    }
-  }, [message]);
-
-  const handlePdfPreview = useCallback(async (att: Attachment) => {
-    if (!message) return;
-    setPdfPreviewLoadingId(att.id);
-    try {
-      const res = await fetch(`/api/mail/messages/${message.id}/attachments/${att.id}/download`);
-      if (!res.ok) return;
-      const blob = await res.blob();
-      setPdfPreview({ url: URL.createObjectURL(blob), filename: att.filename });
-    } catch {
-      // ignore
-    } finally {
-      setPdfPreviewLoadingId(null);
-    }
-  }, [message]);
-
   const copyEmail = useCallback((address: string) => {
     navigator.clipboard.writeText(address).catch(() => {});
     setCopiedEmail(address);
@@ -449,10 +255,6 @@ export function ReadingPane({
         behavior: 'smooth',
       });
     }, 50);
-  };
-
-  const onOpenImage = (url: string, filename: string, attId: string) => {
-    setLightbox({ url, filename, attId });
   };
 
   const onOpenFullCompose = (intent: 'reply' | 'reply_all' | 'forward') => {
