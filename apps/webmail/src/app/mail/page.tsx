@@ -1359,8 +1359,17 @@ export default function MailPage() {
       setVirtualRefreshKey((k) => k + 1);
     } else {
       refresh();
+      // threadViewEnabled is always true (hardcoded); visibleMessages uses
+      // buildThreadMessages(threads) when threads are loaded, so refresh()
+      // alone (which only updates messages/folders) doesn't update the list.
+      // Re-fetch threads in parallel so the visible list actually reflects new mail.
+      if (!activeFolderId.startsWith('__')) {
+        listThreads({ folder_id: activeFolderId, limit: 50 })
+          .then((r) => setThreads(r.threads ?? []))
+          .catch(() => {});
+      }
     }
-  }, [isVirtualFolder, refresh]);
+  }, [isVirtualFolder, refresh, activeFolderId]);
 
   const refreshRef = useRef(handleRefresh);
   useEffect(() => { refreshRef.current = handleRefresh; }, [handleRefresh]);
