@@ -2226,6 +2226,7 @@ export default function MailPage() {
           onArchiveSource={(composeContext.intent === 'reply' || composeContext.intent === 'reply_all') && composeContext.source
             ? () => handleArchiveById(composeContext.source!.id)
             : undefined}
+          onAfterSend={() => { setTimeout(() => refreshRef.current(), 1500); }}
         />
       )}
 

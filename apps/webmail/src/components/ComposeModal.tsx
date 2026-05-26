@@ -58,9 +58,11 @@ interface ComposeModalProps {
   isMobile?: boolean;
   windowOffset?: number;
   onArchiveSource?: () => void;
+  /** Called right after a mail is successfully sent — use to refresh the inbox. */
+  onAfterSend?: () => void;
 }
 
-export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMessage, userEmail, initialTo, initialSubject, initialBody, focusSubjectOnOpen = false, isMobile, windowOffset = 0, onArchiveSource }: ComposeModalProps) {
+export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMessage, userEmail, initialTo, initialSubject, initialBody, focusSubjectOnOpen = false, isMobile, windowOffset = 0, onArchiveSource, onAfterSend }: ComposeModalProps) {
   const t = useTranslations('composeFull');
   const tMisc = useTranslations('misc.compose');
   const tNotif = useTranslations('notifications');
@@ -259,6 +261,9 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
         metadata: { messageId: result?.id },
       });
     }
+    // Trigger inbox refresh after a short delay to let the backend deliver the
+    // mail before we poll for it. Works even without VAPID push configured.
+    onAfterSend?.();
     setTimeout(() => {
       if (sendAndArchiveRef.current) {
         onArchiveSource?.();
@@ -266,7 +271,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
       }
       onClose();
     }, 1500);
-  }, [clearSentDraft, onArchiveSource, onClose, persistSuccessfulSendLocalState, rememberSendResult, notifications, tNotif]);
+  }, [clearSentDraft, onAfterSend, onArchiveSource, onClose, persistSuccessfulSendLocalState, rememberSendResult, notifications, tNotif]);
 
   const handleSendFailure = useCallback((err: unknown, clearCountdown = false) => {
     const message = err instanceof Error ? err.message : t('errSendFailed');
