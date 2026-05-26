@@ -158,7 +158,14 @@ export function RecipientChips({ value, onChange, placeholder, id, autoFocus, ha
       <input
         ref={inputRef}
         id={id}
-        type="email"
+        // Use type="text" + inputMode="email" instead of type="email".
+        // type="email" lets the browser's native autocomplete and password-manager
+        // extensions intercept ArrowDown/Enter, which overwrites the input value and
+        // resets activeIdx before our Enter handler fires — causing the raw partial
+        // text ("user") to be committed instead of the selected suggestion ("user@parkjw.org").
+        // inputMode="email" preserves the @ email keyboard on mobile.
+        type="text"
+        inputMode="email"
         value={input}
         onChange={(e) => { setInput(e.target.value); setDropdownOpen(true); setActiveIdx(-1); }}
         onKeyDown={onKeyDown}
@@ -174,6 +181,14 @@ export function RecipientChips({ value, onChange, placeholder, id, autoFocus, ha
         placeholder={chips.length === 0 ? placeholder : ''}
         autoFocus={autoFocus}
         autoComplete="off"
+        autoCorrect="off"
+        autoCapitalize="off"
+        spellCheck={false}
+        // Vendor-specific password-manager ignore flags
+        data-1p-ignore="true"
+        data-lpignore="true"
+        data-bwignore="true"
+        data-form-type="other"
         style={{ flex: 1, minWidth: '120px', border: 'none', outline: 'none', fontSize: '14px', background: 'transparent', color: 'var(--color-text-primary)', padding: '2px 0' }}
       />
       {dropdownOpen && dropdownItems.length > 0 && (
