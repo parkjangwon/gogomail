@@ -1,0 +1,77 @@
+{
+  "planPath": "docs/superpowers/plans/2026-05-26-repo-audit-improvements.md",
+  "tasks": [
+    {
+      "id": 2,
+      "subject": "Task 1: SSO + pushnotify HTTP 클라이언트 타임아웃",
+      "status": "pending",
+      "description": "**Goal:** http.DefaultClient 사용처에 타임아웃 클라이언트 주입\n\n**Files:**\n- Modify: internal/sso/verify.go\n- Modify: internal/pushnotify/pushnotify.go\n\n**Verify:** go test ./internal/sso/... ./internal/pushnotify/... -v\n\n```json:metadata\n{\"files\":[\"internal/sso/verify.go\",\"internal/pushnotify/pushnotify.go\"],\"verifyCommand\":\"go test ./internal/sso/... ./internal/pushnotify/... -v\",\"acceptanceCriteria\":[\"sso/verify.go에서 http.DefaultClient 제거\",\"pushnotify에서 http.DefaultClient 7곳 모두 제거\",\"테스트 통과\"]}\n```"
+    },
+    {
+      "id": 3,
+      "subject": "Task 2: os.Getenv — config 패키지 밖 직접 사용 제거",
+      "status": "pending",
+      "description": "**Goal:** 4개 env var를 config.Config 구조체로 이동\n\n**Files:**\n- Modify: internal/config/config.go\n- Modify: internal/apikeys/middleware.go\n- Modify: internal/mailservice/systememail.go\n- Modify: internal/httpapi/admin_auth.go\n\n**Verify:** go build ./... && grep -rn \"os.Getenv\" internal/ --include=\"*.go\" | grep -v \"_test.go\" | grep -v \"config/\"\n\n```json:metadata\n{\"files\":[\"internal/config/config.go\",\"internal/apikeys/middleware.go\",\"internal/mailservice/systememail.go\",\"internal/httpapi/admin_auth.go\"],\"verifyCommand\":\"go build ./...\",\"acceptanceCriteria\":[\"os.Getenv 제거\",\"config.Config 필드 추가\",\"go build 통과\"]}\n```"
+    },
+    {
+      "id": 4,
+      "subject": "Task 3: JMAP types.go panic 제거",
+      "status": "pending",
+      "description": "**Goal:** mustRawString의 panic을 strconv.AppendQuote fallback으로 교체\n\n**Files:**\n- Modify: internal/jmap/types.go\n\n**Verify:** grep -n \"panic\" internal/jmap/types.go; go test ./internal/jmap/... -v\n\n```json:metadata\n{\"files\":[\"internal/jmap/types.go\"],\"verifyCommand\":\"grep -n \\\"panic\\\" internal/jmap/types.go; go test ./internal/jmap/... -v\",\"acceptanceCriteria\":[\"panic 제거\",\"테스트 통과\"]}\n```"
+    },
+    {
+      "id": 5,
+      "subject": "Task 4: CI 품질 게이트 강화",
+      "status": "pending",
+      "description": "**Goal:** golangci-lint, govulncheck CI 추가, docker-image 의존성 수정\n\n**Files:**\n- Create: .golangci.yml\n- Modify: .github/workflows/ci.yml\n\n**Verify:** cat .golangci.yml | grep -E \"errcheck|staticcheck|gosec\"\n\n```json:metadata\n{\"files\":[\".golangci.yml\",\".github/workflows/ci.yml\"],\"verifyCommand\":\"cat .golangci.yml | grep -E \\\"errcheck|staticcheck|gosec\\\"\",\"acceptanceCriteria\":[\".golangci.yml 생성\",\"CI go-lint 추가\",\"CI go-vuln 추가\",\"docker-image needs 수정\"]}\n```"
+    },
+    {
+      "id": 6,
+      "subject": "Task 5: context.Background() → caller context 전파",
+      "status": "pending",
+      "blockedBy": [2],
+      "description": "**Goal:** service 코드의 context.Background() → caller ctx 전파\n\n**Files:**\n- Modify: internal/batchlock/batchlock.go\n- Modify: internal/idprovider/rdbms/validator.go\n- Modify: internal/mailservice/pop3_adapter.go\n- Modify: internal/sso/verify.go\n\n**Verify:** go test ./internal/batchlock/... ./internal/idprovider/... ./internal/sso/... -v\n\n```json:metadata\n{\"files\":[\"internal/batchlock/batchlock.go\",\"internal/idprovider/rdbms/validator.go\",\"internal/mailservice/pop3_adapter.go\",\"internal/sso/verify.go\"],\"verifyCommand\":\"go test ./internal/batchlock/... ./internal/idprovider/... ./internal/sso/... -v\",\"acceptanceCriteria\":[\"caller ctx 전파\",\"shutdown context 유지\",\"테스트 통과\"]}\n```"
+    },
+    {
+      "id": 7,
+      "subject": "Task 6: 핵심 패키지 에러 래핑",
+      "status": "pending",
+      "blockedBy": [4],
+      "description": "**Goal:** jmap, mailservice, httpapi의 bare return err → fmt.Errorf 래핑\n\n**Files:**\n- Modify: internal/jmap/*.go\n- Modify: internal/mailservice/service.go\n- Modify: internal/httpapi/mail.go\n\n**Verify:** grep -rn \"return err$\" internal/jmap/ --include=\"*.go\" | grep -v \"_test.go\"; go test ./internal/jmap/... -v\n\n```json:metadata\n{\"files\":[\"internal/jmap/\",\"internal/mailservice/service.go\",\"internal/httpapi/mail.go\"],\"verifyCommand\":\"grep -rn \\\"return err$\\\" internal/jmap/ --include=\\\"*.go\\\" | grep -v \\\"_test.go\\\"\",\"acceptanceCriteria\":[\"jmap bare return err 0건\",\"mailservice exported 함수 래핑\",\"테스트 통과\"]}\n```"
+    },
+    {
+      "id": 8,
+      "subject": "Task 7: internal/app/run.go 서브시스템 파일 분리",
+      "status": "pending",
+      "blockedBy": [3],
+      "description": "**Goal:** 4047줄 run.go → 서브시스템별 파일 분리, 2000줄 이하\n\n**Files:**\n- Modify: internal/app/run.go\n- Create: internal/app/run_batch.go, run_imap.go, run_pop3.go, run_dav.go, run_ldap.go, run_smtp.go, run_http.go\n\n**Verify:** wc -l internal/app/run.go; go test ./internal/app/... -timeout=120s\n\n```json:metadata\n{\"files\":[\"internal/app/run.go\"],\"verifyCommand\":\"wc -l internal/app/run.go; go test ./internal/app/... -timeout=120s\",\"acceptanceCriteria\":[\"run.go 2000줄 이하\",\"서브시스템 파일 생성\",\"테스트 통과\"]}\n```"
+    },
+    {
+      "id": 9,
+      "subject": "Task 8: internal/httpapi/mail.go 도메인별 파일 분리",
+      "status": "pending",
+      "blockedBy": [3, 7],
+      "description": "**Goal:** 3726줄 mail.go → 도메인별 파일, 1000줄 이하\n\n**Verify:** wc -l internal/httpapi/mail.go; go test ./internal/httpapi/... -v\n\n```json:metadata\n{\"files\":[\"internal/httpapi/mail.go\"],\"verifyCommand\":\"wc -l internal/httpapi/mail.go; go test ./internal/httpapi/... -v\",\"acceptanceCriteria\":[\"mail.go 1000줄 이하\",\"도메인 파일 생성\",\"테스트 통과\"]}\n```"
+    },
+    {
+      "id": 10,
+      "subject": "Task 9: internal/mailservice/service.go 기능별 파일 분리",
+      "status": "pending",
+      "blockedBy": [3, 7],
+      "description": "**Goal:** 3415줄 service.go → 기능별 파일, 300줄 이하\n\n**Verify:** wc -l internal/mailservice/service.go; go test ./internal/mailservice/... -timeout=180s\n\n```json:metadata\n{\"files\":[\"internal/mailservice/service.go\"],\"verifyCommand\":\"wc -l internal/mailservice/service.go; go test ./internal/mailservice/... -timeout=180s\",\"acceptanceCriteria\":[\"service.go 300줄 이하\",\"기능별 파일 생성\",\"테스트 통과\"]}\n```"
+    },
+    {
+      "id": 11,
+      "subject": "Task 10: internal/maildb/admin_api_usage.go 책임별 분리",
+      "status": "pending",
+      "description": "**Goal:** 2361줄 admin_api_usage.go → 책임별 파일, 600줄 이하\n\n**Verify:** wc -l internal/maildb/admin_api_usage.go; go test ./internal/maildb/... -count=1 -timeout=300s\n\n```json:metadata\n{\"files\":[\"internal/maildb/admin_api_usage.go\"],\"verifyCommand\":\"wc -l internal/maildb/admin_api_usage.go; go test ./internal/maildb/... -count=1 -timeout=300s\",\"acceptanceCriteria\":[\"600줄 이하\",\"책임별 파일 생성\",\"테스트 통과\"]}\n```"
+    },
+    {
+      "id": 12,
+      "subject": "Task 11: imapgw server_search.go + server_fetch.go 추가 분리",
+      "status": "pending",
+      "description": "**Goal:** server_search.go(2170줄), server_fetch.go(2005줄) → 각 1200줄 이하\n\n**Verify:** wc -l internal/imapgw/server_search.go internal/imapgw/server_fetch.go; go test ./internal/imapgw/... -short\n\n```json:metadata\n{\"files\":[\"internal/imapgw/server_search.go\",\"internal/imapgw/server_fetch.go\"],\"verifyCommand\":\"wc -l internal/imapgw/server_search.go internal/imapgw/server_fetch.go; go test ./internal/imapgw/... -short\",\"acceptanceCriteria\":[\"각 1200줄 이하\",\"추가 파일 생성\",\"테스트 통과\"]}\n```"
+    }
+  ],
+  "lastUpdated": "2026-05-26T00:00:00Z"
+}
