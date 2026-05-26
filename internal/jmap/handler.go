@@ -50,6 +50,8 @@ func NewHandler(deps Deps, sessionFn SessionFunc) *Handler {
 	h.Register("Mailbox/query", &mailboxQueryMethod{deps: deps})
 	h.Register("Mailbox/set", &mailboxSetMethod{deps: deps})
 	h.Register("Mailbox/changes", &mailboxChangesMethod{deps: deps})
+	h.Register("Thread/get", &threadGetMethod{deps: deps})
+	h.Register("Thread/changes", &threadChangesMethod{deps: deps})
 	return h
 }
 
