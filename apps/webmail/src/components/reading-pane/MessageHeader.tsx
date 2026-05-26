@@ -11,7 +11,6 @@ interface MessageHeaderProps {
   ccList: string;
   copiedEmail: string;
   onCopyEmail: (email: string) => void;
-  onComposeToAddress?: (address: string) => void;
   isContactSaved: boolean;
   savedContact: boolean;
   onSaveContact: () => void;
@@ -24,7 +23,6 @@ export function MessageHeader({
   ccList,
   copiedEmail,
   onCopyEmail,
-  onComposeToAddress,
   isContactSaved,
   savedContact,
   onSaveContact,
@@ -75,31 +73,6 @@ export function MessageHeader({
               >
                 {copiedEmail === message.from_addr ? '' : `<${message.from_addr}>`}
               </span>
-            )}
-            {onComposeToAddress && (
-              <button
-                onClick={() => onComposeToAddress(message.from_addr)}
-                title={t('header.composeToTitle', { addr: message.from_addr })}
-                style={{
-                  background: 'var(--color-accent)',
-                  border: 'none',
-                  borderRadius: '5px',
-                  cursor: 'pointer',
-                  fontSize: '12px',
-                  fontWeight: 500,
-                  color: '#fff',
-                  padding: '3px 10px',
-                  marginInlineStart: '8px',
-                  lineHeight: 1.5,
-                  transition: 'opacity 100ms ease',
-                }}
-                onMouseEnter={(e) => {
-                  (e.currentTarget as HTMLButtonElement).style.opacity = '0.85';
-                }}
-                onMouseLeave={(e) => {
-                  (e.currentTarget as HTMLButtonElement).style.opacity = '1';
-                }}
-              >{t('header.composeToLabel')}</button>
             )}
             {!isContactSaved && (
               <button
