@@ -3,6 +3,7 @@ package jmap
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"strings"
 
 	"github.com/gogomail/gogomail/internal/maildb"
@@ -94,27 +95,27 @@ func (m *emailSetMethod) Call(ctx context.Context, userID string, args json.RawM
 func applyEmailPatch(ctx context.Context, repo *maildb.Repository, userID, msgID string, patch json.RawMessage) error {
 	var p map[string]any
 	if err := json.Unmarshal(patch, &p); err != nil {
-		return err
+		return fmt.Errorf("Email/set: unmarshal patch: %w", err)
 	}
 	for key, val := range p {
 		switch {
 		case key == "keywords/$seen":
 			if err := repo.SetMessageFlag(ctx, userID, msgID, "read", asBool(val)); err != nil {
-				return err
+				return fmt.Errorf("Email/set: set $seen flag: %w", err)
 			}
 		case key == "keywords/$flagged":
 			if err := repo.SetMessageFlag(ctx, userID, msgID, "starred", asBool(val)); err != nil {
-				return err
+				return fmt.Errorf("Email/set: set $flagged flag: %w", err)
 			}
 		case key == "keywords/$draft":
 			if err := repo.SetMessageFlag(ctx, userID, msgID, "draft", asBool(val)); err != nil {
-				return err
+				return fmt.Errorf("Email/set: set $draft flag: %w", err)
 			}
 		case strings.HasPrefix(key, "mailboxIds/"):
 			folderID := strings.TrimPrefix(key, "mailboxIds/")
 			if asBool(val) {
 				if err := repo.MoveMessage(ctx, userID, msgID, folderID); err != nil {
-					return err
+					return fmt.Errorf("Email/set: move to mailbox: %w", err)
 				}
 			}
 		}

@@ -291,10 +291,10 @@ func (s *Service) DeleteFolder(ctx context.Context, userID string, folderID stri
 	userID = strings.TrimSpace(userID)
 	folderID = strings.TrimSpace(folderID)
 	if err := validateServiceResourceID("user_id", userID); err != nil {
-		return err
+		return fmt.Errorf("delete folder: %w", err)
 	}
 	if err := validateServiceResourceID("folder_id", folderID); err != nil {
-		return err
+		return fmt.Errorf("delete folder: %w", err)
 	}
 	return s.repository.DeleteFolder(ctx, userID, folderID)
 }
@@ -830,10 +830,10 @@ func (s *Service) UnsubscribeIMAPMailboxName(ctx context.Context, userID imapgw.
 	user := strings.TrimSpace(string(userID))
 	mailbox := string(mailboxID)
 	if err := validateServiceResourceID("user_id", user); err != nil {
-		return err
+		return fmt.Errorf("unsubscribe IMAP mailbox: %w", err)
 	}
 	if err := validateServiceResourceID("mailbox_id", mailbox); err != nil {
-		return err
+		return fmt.Errorf("unsubscribe IMAP mailbox: %w", err)
 	}
 	return repo.UnsubscribeIMAPMailbox(ctx, user, mailbox)
 }
@@ -855,7 +855,7 @@ func (s *Service) DeleteIMAPMailbox(ctx context.Context, userID imapgw.UserID, m
 	user := strings.TrimSpace(string(userID))
 	mailbox, err := s.GetIMAPMailbox(ctx, imapgw.UserID(user), mailboxID)
 	if err != nil {
-		return err
+		return fmt.Errorf("delete IMAP mailbox: %w", err)
 	}
 	return s.DeleteFolder(ctx, user, string(mailbox.ID))
 }
@@ -1501,10 +1501,10 @@ func (s *Service) SetMessageFlag(ctx context.Context, userID string, messageID s
 	messageID = strings.TrimSpace(messageID)
 	flag = strings.TrimSpace(flag)
 	if err := validateServiceResourceID("message_id", messageID); err != nil {
-		return err
+		return fmt.Errorf("set message flag: %w", err)
 	}
 	if err := s.repository.SetMessageFlag(ctx, userID, messageID, flag, value); err != nil {
-		return err
+		return fmt.Errorf("set message flag: %w", err)
 	}
 	_ = s.publishIMAPMessageUIDEvents(ctx, imapgw.MailboxEventFlags, userID, []string{messageID})
 	return nil
@@ -1547,17 +1547,17 @@ func (s *Service) MoveMessage(ctx context.Context, userID string, messageID stri
 	messageID = strings.TrimSpace(messageID)
 	folderID = strings.TrimSpace(folderID)
 	if err := validateServiceResourceID("message_id", messageID); err != nil {
-		return err
+		return fmt.Errorf("move message: %w", err)
 	}
 	if err := validateServiceResourceID("folder_id", folderID); err != nil {
-		return err
+		return fmt.Errorf("move message: %w", err)
 	}
 	uids, err := s.lookupExistingIMAPMessageUIDs(ctx, userID, []string{messageID})
 	if err != nil {
-		return err
+		return fmt.Errorf("move message: lookup IMAP UIDs: %w", err)
 	}
 	if err := s.repository.MoveMessage(ctx, userID, messageID, folderID); err != nil {
-		return err
+		return fmt.Errorf("move message: %w", err)
 	}
 	_ = s.publishIMAPUIDEvents(ctx, imapgw.MailboxEventExpunge, userID, uids)
 	return nil
@@ -1612,17 +1612,17 @@ func (s *Service) DeleteMessage(ctx context.Context, userID string, messageID st
 	userID = strings.TrimSpace(userID)
 	messageID = strings.TrimSpace(messageID)
 	if err := validateServiceResourceID("message_id", messageID); err != nil {
-		return err
+		return fmt.Errorf("delete message: %w", err)
 	}
 	uids, err := s.lookupExistingIMAPMessageUIDs(ctx, userID, []string{messageID})
 	if err != nil {
-		return err
+		return fmt.Errorf("delete message: lookup IMAP UIDs: %w", err)
 	}
 	// Resolve deleteable storage paths BEFORE the DB record is removed so that
 	// the reference-count check in LookupDeleteableStoragePaths is accurate.
 	storagePaths := s.lookupGCStoragePaths(ctx, userID, []string{messageID})
 	if err := s.repository.DeleteMessage(ctx, userID, messageID); err != nil {
-		return err
+		return fmt.Errorf("delete message: %w", err)
 	}
 	s.deleteStorageObjects(ctx, storagePaths)
 	_ = s.publishIMAPUIDEvents(ctx, imapgw.MailboxEventExpunge, userID, uids)
@@ -1682,10 +1682,10 @@ func (s *Service) RestoreMessage(ctx context.Context, userID string, messageID s
 	userID = strings.TrimSpace(userID)
 	messageID = strings.TrimSpace(messageID)
 	if err := validateServiceResourceID("message_id", messageID); err != nil {
-		return err
+		return fmt.Errorf("restore message: %w", err)
 	}
 	if err := s.repository.RestoreMessage(ctx, userID, messageID); err != nil {
-		return err
+		return fmt.Errorf("restore message: %w", err)
 	}
 	_ = s.publishIMAPRestoredMessageEvents(ctx, userID, []string{messageID})
 	return nil
@@ -1756,7 +1756,7 @@ func (s *Service) DeletePushDevice(ctx context.Context, userID string, id string
 	userID = strings.TrimSpace(userID)
 	id = strings.TrimSpace(id)
 	if err := validateServiceResourceID("device_id", id); err != nil {
-		return err
+		return fmt.Errorf("delete push device: %w", err)
 	}
 	return repo.DeletePushDevice(ctx, userID, id)
 }
@@ -1883,7 +1883,7 @@ func (s *Service) DeleteDraft(ctx context.Context, userID string, draftID string
 	userID = strings.TrimSpace(userID)
 	draftID = strings.TrimSpace(draftID)
 	if err := ValidateDeleteDraftRequest(userID, draftID); err != nil {
-		return err
+		return fmt.Errorf("delete draft: %w", err)
 	}
 	repo, ok := s.repository.(DraftRepository)
 	if !ok {
