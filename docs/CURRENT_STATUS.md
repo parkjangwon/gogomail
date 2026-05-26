@@ -15,6 +15,7 @@ Last updated: 2026-05-27
 - Extracted `SpotlightSearch` pre-component helpers (`SpotlightItem`, `SYSTEM_ICONS`, `SCOPES`, `SpotlightT`, `sectionLabel`, `relativeTime`, `formatDriveSize`) to `apps/webmail/src/components/spotlight/spotlightHelpers.tsx`.
 - Extracted `MessageList` helpers (`KO_KEYS`, `DateGroupKey`, `getDateGroup`) to `apps/webmail/src/components/message-list/messageListHelpers.ts`.
 - Extracted `useReadingPaneAttachments`, `useReadingPaneMedia`, `useReadingPaneCalendar` hooks from `ReadingPane.tsx` (865→667 lines); hooks live in `apps/webmail/src/components/reading-pane/`.
+- Extracted `useOrgTree` (org tree load, expand/collapse, search filtering), `useAddressBook` (address book load, contacts load, contacts search), and `useRecipients` (to/cc/bcc list management) from `OrgPickerModal.tsx` (620→457 lines); hooks live in `apps/webmail/src/components/org-picker/`.
 
 ## Platform summary
 
