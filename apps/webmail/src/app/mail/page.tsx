@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import type { CSSProperties, MouseEvent as ReactMouseEvent } from 'react';
+import type { MouseEvent as ReactMouseEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { deleteMessage, restoreMessage, bulkRestoreMessages, createFolder, renameFolder, deleteFolder, starMessage, markRead, moveMessage, bulkMarkRead, bulkMoveMessages, searchMessages, getMessages, getMessage, sendMessage, listThreads, listThreadMessages, getNotificationPreferences, setNotificationPreferences, setPreferences, listDMRooms, UIComposeIntent, MessageAddress, MessageDetail, MessageSummary, ThreadSummary, type ThreadNotificationOverride } from '@/lib/api';
@@ -38,136 +38,35 @@ import {
   parseSearchOperators,
   shouldHideMessageAfterSnooze,
 } from '@/lib/mail/mailPageUtils';
-import { focusNavGroup } from '@/lib/navKeyboard';
 import { stableId } from '@/lib/stableId';
 import { useNotifications } from '@/lib/notifications/store';
-
-const WEBMAIL_ACTIVE_APP_KEY = 'webmail_active_app';
-const NOTIFICATION_FOLDER_OVERRIDES_KEY = 'webmail_notification_folder_overrides';
-const NOTIFICATION_THREAD_OVERRIDES_KEY = 'webmail_notification_thread_overrides';
-const BADGE_COUNT_MODE_KEY = 'webmail_badge_count_mode';
-const REFRESH_INTERVAL_KEY = 'webmail_refresh_interval';
-const DM_MODAL_MIN_WIDTH = 320;
-const DM_MODAL_MIN_HEIGHT = 360;
-const DM_MODAL_DEFAULT_WIDTH = 480;
-const DM_MODAL_DEFAULT_HEIGHT = 680;
-const DM_MODAL_MARGIN = 12;
-type DMModalRect = { left: number; top: number; width: number; height: number };
-type DMResizeEdge = 'n' | 's' | 'e' | 'w' | 'ne' | 'nw' | 'se' | 'sw';
-type BadgeCountMode = 'unread' | 'all' | 'none';
-type NavigatorWithBadging = Navigator & {
-  setAppBadge?: (contents?: number) => Promise<void>;
-  clearAppBadge?: () => Promise<void>;
-};
-
-const DM_RESIZE_HANDLES: Array<{ edge: DMResizeEdge; cursor: string; style: CSSProperties }> = [
-  { edge: 'n', cursor: 'ns-resize', style: { top: -5, left: 10, right: 10, height: 10 } },
-  { edge: 's', cursor: 'ns-resize', style: { bottom: -5, left: 10, right: 10, height: 10 } },
-  { edge: 'e', cursor: 'ew-resize', style: { top: 10, right: -5, bottom: 10, width: 10 } },
-  { edge: 'w', cursor: 'ew-resize', style: { top: 10, left: -5, bottom: 10, width: 10 } },
-  { edge: 'ne', cursor: 'nesw-resize', style: { top: -7, right: -7, width: 18, height: 18 } },
-  { edge: 'nw', cursor: 'nwse-resize', style: { top: -7, left: -7, width: 18, height: 18 } },
-  { edge: 'se', cursor: 'nwse-resize', style: { bottom: -7, right: -7, width: 18, height: 18 } },
-  { edge: 'sw', cursor: 'nesw-resize', style: { bottom: -7, left: -7, width: 18, height: 18 } },
-];
-
-function getDefaultDMModalRect(): DMModalRect {
-  if (typeof window === 'undefined') return { left: 56, top: 48, width: DM_MODAL_DEFAULT_WIDTH, height: DM_MODAL_DEFAULT_HEIGHT };
-  const maxWidth = Math.max(DM_MODAL_MIN_WIDTH, window.innerWidth - 80);
-  const maxHeight = Math.max(DM_MODAL_MIN_HEIGHT, window.innerHeight - 48);
-  const width = Math.min(DM_MODAL_DEFAULT_WIDTH, maxWidth);
-  const height = Math.min(DM_MODAL_DEFAULT_HEIGHT, maxHeight);
-  return {
-    left: Math.max(DM_MODAL_MARGIN, 56),
-    top: Math.max(DM_MODAL_MARGIN, window.innerHeight - 24 - height),
-    width,
-    height,
-  };
-}
-
-function isAppId(value: string | null): value is AppId {
-  return value === 'mail' || value === 'calendar' || value === 'contacts' || value === 'drive' || value === 'settings';
-}
-
-function getInitialActiveApp(): AppId {
-  if (typeof window === 'undefined') return 'mail';
-  try {
-    const urlApp = new URLSearchParams(window.location.search).get('app');
-    if (isAppId(urlApp)) return urlApp;
-    const stored = window.localStorage.getItem(WEBMAIL_ACTIVE_APP_KEY);
-    if (isAppId(stored)) return stored;
-  } catch {
-    // ignore
-  }
-  return 'mail';
-}
-
-function folderNotificationsEnabled(folderId: string): boolean {
-  if (!folderId || typeof window === 'undefined') return true;
-  try {
-    const raw = window.localStorage.getItem(NOTIFICATION_FOLDER_OVERRIDES_KEY);
-    if (!raw) return true;
-    const overrides = JSON.parse(raw) as Record<string, { enabled?: boolean }>;
-    return overrides[folderId]?.enabled !== false;
-  } catch {
-    return true;
-  }
-}
-
-function threadNotificationsEnabled(threadId: string | undefined, messageId: string): boolean {
-  if (typeof window === 'undefined') return true;
-  const key = threadId || messageId;
-  if (!key) return true;
-  try {
-    const raw = window.localStorage.getItem(NOTIFICATION_THREAD_OVERRIDES_KEY);
-    if (!raw) return true;
-    const overrides = JSON.parse(raw) as Record<string, { enabled?: boolean }>;
-    return overrides[key]?.enabled !== false;
-  } catch {
-    return true;
-  }
-}
-
-function readBadgeCountMode(): BadgeCountMode {
-  if (typeof window === 'undefined') return 'unread';
-  try {
-    const value = window.localStorage.getItem(BADGE_COUNT_MODE_KEY);
-    return value === 'all' || value === 'none' ? value : 'unread';
-  } catch {
-    return 'unread';
-  }
-}
-
-function readRefreshIntervalSeconds(): RefreshIntervalSeconds {
-  if (typeof window === 'undefined') return 30;
-  try {
-    const value = Number(window.localStorage.getItem(REFRESH_INTERVAL_KEY) ?? 30);
-    return value === 60 || value === 300 ? value : 30;
-  } catch {
-    return 30;
-  }
-}
-
-function getFocusedNavGroup(): string | null {
-  if (typeof document === 'undefined') return null;
-  const active = document.activeElement as HTMLElement | null;
-  return active?.closest<HTMLElement>('[data-nav-group]')?.dataset.navGroup ?? null;
-}
-
-function getMailNavGroups(readingPaneOpen: boolean): string[] {
-  return readingPaneOpen ? ['sidebar-nav', 'message-list', 'reading-pane'] : ['sidebar-nav', 'message-list'];
-}
-
-function moveMailPanelFocus(direction: 'prev' | 'next', readingPaneOpen: boolean): boolean {
-  const groups = getMailNavGroups(readingPaneOpen);
-  const currentGroup = getFocusedNavGroup();
-  const currentIndex = currentGroup ? groups.indexOf(currentGroup) : -1;
-  const fallbackIndex = direction === 'next' ? 0 : groups.length - 1;
-  const nextIndex = currentIndex === -1
-    ? fallbackIndex
-    : Math.max(0, Math.min(groups.length - 1, currentIndex + (direction === 'next' ? 1 : -1)));
-  return !!focusNavGroup(groups[nextIndex]);
-}
+import {
+  WEBMAIL_ACTIVE_APP_KEY,
+  NOTIFICATION_FOLDER_OVERRIDES_KEY,
+  NOTIFICATION_THREAD_OVERRIDES_KEY,
+  BADGE_COUNT_MODE_KEY,
+  REFRESH_INTERVAL_KEY,
+  DM_MODAL_MIN_WIDTH,
+  DM_MODAL_MIN_HEIGHT,
+  DM_MODAL_DEFAULT_WIDTH,
+  DM_MODAL_DEFAULT_HEIGHT,
+  DM_MODAL_MARGIN,
+  DM_RESIZE_HANDLES,
+  getDefaultDMModalRect,
+  isAppId,
+  getInitialActiveApp,
+  folderNotificationsEnabled,
+  threadNotificationsEnabled,
+  readBadgeCountMode,
+  readRefreshIntervalSeconds,
+  getFocusedNavGroup,
+  getMailNavGroups,
+  moveMailPanelFocus,
+  type DMModalRect,
+  type DMResizeEdge,
+  type BadgeCountMode,
+  type NavigatorWithBadging,
+} from './mailPageHelpers';
 
 export default function MailPage() {
   const router = useRouter();
