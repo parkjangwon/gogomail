@@ -15,6 +15,10 @@ function backendFolderId(folderId: string): string {
   return folderId === VIRTUAL_ALL_FOLDER_ID ? '' : folderId;
 }
 
+// refreshIntervalSeconds is used by the caller (mail page) to drive the
+// periodic refresh via its own setInterval; it is no longer used inside
+// this hook to avoid a double-poll race with the page-level refresh.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function useMailList(folderId: string, refreshIntervalSeconds: RefreshIntervalSeconds) {
   const [folders, setFolders] = useState<Folder[]>([]);
   const [messages, setMessages] = useState<MessageSummary[]>([]);
@@ -99,33 +103,6 @@ export function useMailList(folderId: string, refreshIntervalSeconds: RefreshInt
       prev.map((f) => f.id === folderId ? { ...f, unread: Math.max(0, f.unread + delta) } : f)
     );
   }, []);
-
-  // Poll for new messages using the user's Settings interval.
-  useEffect(() => {
-    if (!folderId || isExternallyLoadedVirtualFolder(folderId)) return;
-    const id = setInterval(async () => {
-      try {
-        const data = await getMessages(backendFolderId(folderId));
-        setMessages((prev) => {
-          const existingIds = new Set(prev.map((m) => m.id));
-          const incoming = (data.messages ?? []).filter((m) => !existingIds.has(m.id));
-          if (incoming.length === 0) return prev;
-          // Prepend new messages and update unread count
-          setFolders((fs) =>
-            fs.map((f) =>
-              f.id === folderId
-                ? { ...f, unread: f.unread + incoming.filter((m) => !m.read).length }
-                : f
-            )
-          );
-          return [...incoming, ...prev];
-        });
-      } catch {
-        // ignore poll errors silently
-      }
-    }, refreshIntervalSeconds * 1000);
-    return () => clearInterval(id);
-  }, [folderId, refreshIntervalSeconds]);
 
   const [refreshing, setRefreshing] = useState(false);
 

@@ -59,6 +59,8 @@
     "unstar": "スター解除",
     "unsubscribe": "配信停止",
     "openInWindow": "新しいウィンドウで開く",
+    "emailDarkMode": "ダークモードで表示",
+    "emailLightMode": "ライトモードで表示",
     "moreActions": "その他の操作",
     "snooze": "スヌーズ",
     "snooze1h": "1時間後",

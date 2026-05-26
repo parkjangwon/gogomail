@@ -13,8 +13,10 @@ import {
   ChevronDownIcon,
   ChevronUpIcon,
   EllipsisHorizontalIcon,
+  MoonIcon,
   NoSymbolIcon,
   StarIcon,
+  SunIcon,
 } from '@heroicons/react/24/outline';
 import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid';
 
@@ -48,6 +50,8 @@ interface MailActionsProps {
   fontSize: number;
   onIncreaseFontSize: () => void;
   onDecreaseFontSize: () => void;
+  emailDarkMode?: boolean;
+  onToggleEmailDark?: () => void;
 }
 
 const iconButtonStyle: CSSProperties = {
@@ -94,6 +98,8 @@ export function MailActions({
   fontSize,
   onIncreaseFontSize,
   onDecreaseFontSize,
+  emailDarkMode = false,
+  onToggleEmailDark,
 }: MailActionsProps) {
   const t = useTranslations('mail');
   const tSidebar = useTranslations('sidebar');
@@ -335,6 +341,28 @@ export function MailActions({
             (e.currentTarget as HTMLButtonElement).style.background = 'transparent';
           }}
         ><ArrowTopRightOnSquareIcon style={{ width: '16px', height: '16px' }} /></button>
+      )}
+
+      {onToggleEmailDark && message.html_body && (
+        <button
+          aria-label={emailDarkMode ? t('emailLightMode') : t('emailDarkMode')}
+          title={emailDarkMode ? t('emailLightMode') : t('emailDarkMode')}
+          onClick={onToggleEmailDark}
+          style={{
+            ...iconButtonStyle,
+            border: 'none',
+            padding: '5px 8px',
+            color: emailDarkMode ? 'var(--color-accent)' : 'var(--color-text-secondary)',
+          }}
+          onMouseEnter={(e) => {
+            (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-secondary)';
+          }}
+          onMouseLeave={(e) => {
+            (e.currentTarget as HTMLButtonElement).style.background = 'transparent';
+          }}
+        >
+          {emailDarkMode ? <SunIcon style={{ width: '16px', height: '16px' }} /> : <MoonIcon style={{ width: '16px', height: '16px' }} />}
+        </button>
       )}
 
       <div ref={moreMenuRef} style={{ position: 'relative' }}>

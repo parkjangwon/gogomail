@@ -444,15 +444,20 @@ func RegisterDMRoutes(mux *http.ServeMux, service DMService, tokenManager *auth.
 			return
 		}
 
-		// Derive owner email from room members matching the requesting user.
-		ownerEmail := principal.UserID // fallback
+		// Derive owner identifier (email preferred, then display_name, then user ID) from room members.
+		ownerIdent := ""
 		for _, m := range export.Room.Members {
 			if m.ID == principal.UserID {
 				if m.Email != "" {
-					ownerEmail = m.Email
+					ownerIdent = m.Email
+				} else {
+					ownerIdent = m.DisplayName
 				}
 				break
 			}
+		}
+		if ownerIdent == "" {
+			ownerIdent = principal.UserID
 		}
 
 		// Build room name from explicit name or participant display names.
@@ -480,7 +485,7 @@ func RegisterDMRoutes(mux *http.ServeMux, service DMService, tokenManager *auth.
 
 		// Filename: {ownerEmail}_{roomName}_{YYYYMMDDHHmmss}.txt
 		datetime := export.ExportAt.In(loc).Format("20060102150405")
-		filename := fmt.Sprintf("%s_%s_%s.txt", sanitize(ownerEmail), sanitize(roomName), datetime)
+		filename := fmt.Sprintf("%s_%s_%s.txt", sanitize(ownerIdent), sanitize(roomName), datetime)
 
 		txt := dm.FormatExportTXT(export, loc)
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")

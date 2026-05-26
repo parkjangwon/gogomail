@@ -62,6 +62,8 @@
     "unstar": "Unstar",
     "unsubscribe": "Unsubscribe",
     "openInWindow": "Open in new window",
+    "emailDarkMode": "View in dark mode",
+    "emailLightMode": "View in light mode",
     "moreActions": "More actions",
     "snooze": "Snooze",
     "snooze1h": "In 1 hour",
