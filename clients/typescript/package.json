@@ -3,9 +3,13 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "types": "./index.ts",
   "main": "./index.ts",
   "exports": {
-    ".": "./index.ts"
+    ".": {
+      "types": "./index.ts",
+      "default": "./index.ts"
+    }
   },
   "files": [
     "index.ts"
