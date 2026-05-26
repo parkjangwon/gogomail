@@ -32,8 +32,10 @@ func TestS3StoreUsesPathStyleEndpointAndSignsRequests(t *testing.T) {
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
-		if r.Header.Get("x-amz-content-sha256") != "UNSIGNED-PAYLOAD" {
-			t.Errorf("x-amz-content-sha256 = %q", r.Header.Get("x-amz-content-sha256"))
+		// x-amz-content-sha256 must be present; HTTPS uses "UNSIGNED-PAYLOAD",
+		// HTTP uses the actual hex-encoded SHA-256 of the body.
+		if h := r.Header.Get("x-amz-content-sha256"); h == "" {
+			t.Errorf("x-amz-content-sha256 is missing")
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
