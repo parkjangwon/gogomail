@@ -23,9 +23,10 @@ type SessionFunc func(ctx context.Context, userID, accountID string) (*Session, 
 
 // Deps holds the external dependencies required by Handler.
 type Deps struct {
-	Repo  *maildb.Repository
-	Store storage.Store
-	Auth  *auth.TokenManager
+	Repo   *maildb.Repository
+	Store  storage.Store
+	Auth   *auth.TokenManager
+	Sender DraftSender // optional; nil means EmailSubmission/set returns serverFail
 }
 
 // Handler serves JMAP Session (/.well-known/jmap) and API (/jmap/api)
@@ -61,6 +62,9 @@ func NewHandler(deps Deps, sessionFn SessionFunc) *Handler {
 	h.Register("Identity/get", &identityGetMethod{deps: deps})
 	h.Register("Identity/set", &identitySetMethod{deps: deps})
 	h.Register("SearchSnippet/get", &searchSnippetGetMethod{deps: deps})
+	h.Register("EmailSubmission/set", &emailSubmissionSetMethod{deps: deps})
+	h.Register("VacationResponse/get", &vacationResponseGetMethod{deps: deps})
+	h.Register("VacationResponse/set", &vacationResponseSetMethod{deps: deps})
 	return h
 }
 
