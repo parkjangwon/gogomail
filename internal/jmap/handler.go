@@ -73,7 +73,7 @@ func (h *Handler) userIDFromBearer(r *http.Request) (string, bool) {
 		return "", false
 	}
 	token := strings.TrimPrefix(authHeader, "Bearer ")
-	claims, err := h.deps.Auth.Verify(token)
+	claims, err := h.deps.Auth.VerifyFull(r.Context(), token)
 	if err != nil {
 		return "", false
 	}
