@@ -2,9 +2,13 @@
 
 ## ID: COMPLETE
 
-이슈 6개 조치 완료 (2026-05-26)
+Task 1 잔여 이슈 해결 (2026-05-26 15:xx)
 
 ### 완료된 항목
+
+0. **http.DefaultClient → defaultPushHTTPClient 교체** ✅
+   - `internal/pushnotify/webhook.go:44`의 `http.DefaultClient` 사용을 `defaultPushHTTPClient`로 통합
+   - 51개 모든 pushnotify 테스트 통과
 
 1. **프론트 console.log 제거** ✅
    - 29개 console 앱 페이지 파일에서 63개 console.log/error/warn 제거

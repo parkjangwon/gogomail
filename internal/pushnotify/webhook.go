@@ -41,7 +41,7 @@ func NewWebhookSink(opts WebhookOptions) (*WebhookSink, error) {
 	}
 	client := opts.Client
 	if client == nil {
-		client = http.DefaultClient
+		client = defaultPushHTTPClient
 	}
 	token, err := webhook.NormalizeWebhookToken(opts.Token, maxWebhookTokenBytes)
 	if err != nil {
