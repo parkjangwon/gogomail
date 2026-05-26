@@ -3,8 +3,8 @@
 <img width="1456" height="720" alt="gogomail" src="https://github.com/user-attachments/assets/3e222678-51be-465f-b37d-58d2390ba40d" />
 
 A self-hosted, multi-tenant mail and collaboration platform written in Go.
-One static binary serves SMTP, IMAP, POP3, CalDAV, CardDAV, WebDAV, LDAP,
-REST APIs, and event workers — each role selectable at startup. Pair it
+One static binary serves SMTP, IMAP, POP3, **JMAP**, CalDAV, CardDAV, WebDAV,
+LDAP, REST APIs, and event workers — each role selectable at startup. Pair it
 with PostgreSQL, Redis, and any S3-compatible store to run anything from a
 single demo host to a multi-DC enterprise deployment with **zero code
 change**.
@@ -14,6 +14,7 @@ Korean / 한국어: [README.ko.md](README.ko.md)
 ## What it is
 
 - Self-hosted mail platform: SMTP receive/submission/delivery + IMAP + POP3
+- **JMAP** (RFC 8620/8621) — modern JSON email protocol; connects Thunderbird and any standards-compliant JMAP client
 - Bundled webmail (Next.js 16) and admin console
 - Domain-scoped encrypted DM for 1:1 and group conversations
 - Calendar / Contacts / Drive via CalDAV, CardDAV, and WebDAV
@@ -26,7 +27,7 @@ Korean / 한국어: [README.ko.md](README.ko.md)
 | Area | Features |
 |---|---|
 | Mail server | RFC 5321/5322 SMTP, RFC 6409 submission (587/465), RFC 5321/7672 outbound delivery with DANE |
-| Mailbox protocols | IMAP4rev2 (RFC 9051) with IDLE/CONDSTORE/QRESYNC, POP3 (RFC 1939) |
+| Mailbox protocols | IMAP4rev2 (RFC 9051) with IDLE/CONDSTORE/QRESYNC, POP3 (RFC 1939), **JMAP (RFC 8620/8621)** |
 | Collaboration | CalDAV (RFC 4791), CardDAV (RFC 6352), WebDAV (RFC 4918), LDAP (RFC 4511) |
 | APIs | Mail API, DM API, Admin API, Auth server (JWT + refresh + MFA), SCIM 2.0 |
 | Webmail / admin | Next.js 16 webmail SPA and admin console (`apps/webmail`, `apps/console`) |
@@ -66,7 +67,7 @@ Korean / 한국어: [README.ko.md](README.ko.md)
 - **Outbox Pattern guarantees event delivery** — no message lost on Redis
   outage; outbox-relay drains the backlog on recovery.
 - **RFC-first protocols** — `5321`, `5322`, `9051`, `1939`, `4791`, `6352`,
-  `4918`, `4511`, plus DKIM/SPF/DMARC/ARC/MTA-STS.
+  `4918`, `4511`, **`8620`/`8621` (JMAP)**, plus DKIM/SPF/DMARC/ARC/MTA-STS.
 - **Production validator** — `internal/config/validate.go` rejects unsafe
   config at startup (insecure auth, HTTP S3 in prod, JWT secret < 32 bytes,
   localhost HELO, sslmode=disable in prod, …).
@@ -147,6 +148,55 @@ docker compose -f docker-compose.scale.yml --profile ops run --rm migrate
 Production deployments should follow
 [`docker/DEPLOYMENT.md`](docker/DEPLOYMENT.md) and
 [`docs/SCALING.md`](docs/SCALING.md).
+
+## JMAP — Connecting a Standards Client
+
+GoGoMail implements JMAP Core (RFC 8620) and JMAP Mail (RFC 8621) in full,
+including EmailSubmission, VacationResponse, Identity, SearchSnippet, and
+EventSource push.
+
+### Client discovery
+
+```
+GET /.well-known/jmap
+Authorization: Bearer <token>
+```
+
+The session resource returns all endpoint URLs. Any RFC 8620-compliant client
+can autodiscover everything from this single URL.
+
+### Obtaining a token
+
+```bash
+curl -s -X POST https://your-server/api/v1/auth/token \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"user@example.com","password":"..."}' | jq .access_token
+```
+
+### Compatible clients
+
+| Client | Platform | Notes |
+|--------|----------|-------|
+| [Thunderbird](https://www.thunderbird.net/) | Desktop | Native JMAP since v91 |
+| [Mimestream](https://mimestream.com/) | macOS | JMAP-native |
+| [aerc](https://aerc-mail.org/) | Terminal | JMAP backend |
+| Any RFC 8620 library | Custom | [jmap.io/software](https://jmap.io/software.html) |
+
+### Implemented methods (20)
+
+`Email/get` · `/query` · `/queryChanges` · `/set` · `/changes` · `/copy` · `/import` · `/parse`
+`Mailbox/get` · `/query` · `/set` · `/changes`
+`Thread/get` · `/changes`
+`Identity/get` · `/set`
+`SearchSnippet/get`
+`EmailSubmission/set`
+`VacationResponse/get` · `/set`
++ EventSource SSE push (RFC 8620 §7.3)
+
+### Deployment note
+
+For browser-based JMAP clients, set `GOGOMAIL_CORS_ALLOWED_ORIGINS` to allow
+your client origin. Native desktop/mobile clients do not require CORS.
 
 ## AI Agent Automation (MCP Servers)
 

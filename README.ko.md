@@ -3,8 +3,8 @@
 <img width="1456" height="720" alt="gogomail" src="https://github.com/user-attachments/assets/3e222678-51be-465f-b37d-58d2390ba40d" />
 
 Go로 작성된 자체 호스팅 멀티테넌트 메일 · 협업 플랫폼입니다. 단일
-정적 바이너리가 SMTP, IMAP, POP3, CalDAV, CardDAV, WebDAV, LDAP, REST
-API, 이벤트 워커 역할을 모두 수행하며, 시작 시 모드를 선택합니다.
+정적 바이너리가 SMTP, IMAP, POP3, **JMAP**, CalDAV, CardDAV, WebDAV, LDAP,
+REST API, 이벤트 워커 역할을 모두 수행하며, 시작 시 모드를 선택합니다.
 PostgreSQL · Redis · S3 호환 스토리지만 있으면 단일 호스트 데모부터
 다중 DC 엔터프라이즈 배포까지 **코드 변경 없이** 동일한 바이너리로
 운영할 수 있습니다.
@@ -14,6 +14,7 @@ English / 영어: [README.md](README.md)
 ## 무엇인가
 
 - 자체 호스팅 메일 플랫폼: SMTP 수신/발송/배달 + IMAP + POP3
+- **JMAP** (RFC 8620/8621) — 현대적 JSON 이메일 프로토콜; Thunderbird 등 표준 JMAP 클라이언트 연결 가능
 - 내장 웹메일(Next.js 16) 및 관리자 콘솔
 - CalDAV · CardDAV · WebDAV 기반 일정/주소록/드라이브
 - LDAP 디렉터리 게이트웨이 + SCIM 2.0 프로비저닝
@@ -25,7 +26,7 @@ English / 영어: [README.md](README.md)
 | 영역 | 기능 |
 |---|---|
 | 메일 서버 | RFC 5321/5322 SMTP, RFC 6409 submission (587/465), RFC 5321/7672 DANE 지원 송신 |
-| 메일박스 프로토콜 | IMAP4rev2 (RFC 9051) IDLE/CONDSTORE/QRESYNC, POP3 (RFC 1939) |
+| 메일박스 프로토콜 | IMAP4rev2 (RFC 9051) IDLE/CONDSTORE/QRESYNC, POP3 (RFC 1939), **JMAP (RFC 8620/8621)** |
 | 협업 | CalDAV (RFC 4791), CardDAV (RFC 6352), WebDAV (RFC 4918), LDAP (RFC 4511) |
 | API | Mail API, DM API, Admin API, Auth 서버 (JWT + refresh + MFA), SCIM 2.0 |
 | 웹메일 / 관리자 | Next.js 16 웹메일 SPA 및 관리자 콘솔 (`apps/webmail`, `apps/console`) |
@@ -66,7 +67,7 @@ English / 영어: [README.md](README.md)
 - **Outbox 패턴으로 이벤트 손실 없음** — Redis가 장애여도 outbox에
   누적되어 복구 시 자동으로 배출됩니다.
 - **RFC 우선 프로토콜** — `5321`, `5322`, `9051`, `1939`, `4791`,
-  `6352`, `4918`, `4511`, DKIM/SPF/DMARC/ARC/MTA-STS.
+  `6352`, `4918`, `4511`, **`8620`/`8621` (JMAP)**, DKIM/SPF/DMARC/ARC/MTA-STS.
 - **프로덕션 검증기** — `internal/config/validate.go`가 시작 시
   안전하지 않은 설정(insecure auth, HTTP S3, JWT 시크릿 < 32바이트,
   localhost HELO, sslmode=disable 등)을 거부합니다.
@@ -143,6 +144,56 @@ docker compose -f docker-compose.scale.yml --profile ops run --rm migrate
 운영 배포는 [`docker/DEPLOYMENT.md`](docker/DEPLOYMENT.md) (한국어:
 [`docker/DEPLOYMENT.ko.md`](docker/DEPLOYMENT.ko.md))와
 [`docs/SCALING.md`](docs/SCALING.md)를 참고하세요.
+
+## JMAP — 표준 클라이언트 연결하기
+
+GoGoMail은 JMAP Core (RFC 8620)와 JMAP Mail (RFC 8621)을 완전 구현합니다.
+EmailSubmission, VacationResponse, Identity, SearchSnippet, EventSource 푸시
+모두 포함됩니다.
+
+### 클라이언트 디스커버리
+
+```
+GET /.well-known/jmap
+Authorization: Bearer <token>
+```
+
+세션 리소스에서 모든 엔드포인트 URL이 반환됩니다. RFC 8620 호환 클라이언트는
+이 URL 하나로 자동 설정됩니다.
+
+### 토큰 발급
+
+```bash
+curl -s -X POST https://your-server/api/v1/auth/token \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"user@example.com","password":"..."}' | jq .access_token
+```
+
+### 호환 클라이언트
+
+| 클라이언트 | 플랫폼 | 비고 |
+|-----------|--------|------|
+| [Thunderbird](https://www.thunderbird.net/) | 데스크톱 | v91부터 JMAP 기본 지원 |
+| [Mimestream](https://mimestream.com/) | macOS | JMAP 전용 |
+| [aerc](https://aerc-mail.org/) | 터미널 | JMAP 백엔드 |
+| RFC 8620 라이브러리 | 커스텀 | [jmap.io/software](https://jmap.io/software.html) |
+
+### 구현된 메서드 (20개)
+
+`Email/get` · `/query` · `/queryChanges` · `/set` · `/changes` · `/copy` · `/import` · `/parse`
+`Mailbox/get` · `/query` · `/set` · `/changes`
+`Thread/get` · `/changes`
+`Identity/get` · `/set`
+`SearchSnippet/get`
+`EmailSubmission/set`
+`VacationResponse/get` · `/set`
++ EventSource SSE 푸시 (RFC 8620 §7.3)
+
+### 배포 시 주의사항
+
+브라우저 기반 JMAP 클라이언트를 사용한다면 `GOGOMAIL_CORS_ALLOWED_ORIGINS`에
+클라이언트 오리진을 설정해야 합니다. 네이티브 데스크톱/모바일 클라이언트는
+CORS 설정 불필요합니다.
 
 ## AI 에이전트 자동화 (MCP 서버)
 

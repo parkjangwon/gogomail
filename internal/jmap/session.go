@@ -67,10 +67,10 @@ func BuildSession(username, accountID, apiBase string) *Session {
 			CapabilityVacationResponse: accountID,
 		},
 		Username:       username,
-		APIUrl:         fmt.Sprintf("%s/.well-known/jmap/api", apiBase),
-		DownloadUrl:    fmt.Sprintf("%s/.well-known/jmap/download/{accountId}/{blobId}/{name}?accept={type}", apiBase),
-		UploadUrl:      fmt.Sprintf("%s/.well-known/jmap/upload/{accountId}/", apiBase),
-		EventSourceUrl: fmt.Sprintf("%s/.well-known/jmap/eventsource/?types={types}&closeafter={closeafter}&ping={ping}", apiBase),
+		APIUrl:         fmt.Sprintf("%s/jmap/api", apiBase),
+		DownloadUrl:    fmt.Sprintf("%s/jmap/download/{accountId}/{blobId}/{name}?accept={type}", apiBase),
+		UploadUrl:      fmt.Sprintf("%s/jmap/upload/{accountId}/", apiBase),
+		EventSourceUrl: fmt.Sprintf("%s/jmap/eventsource/?types={types}&closeafter={closeafter}&ping={ping}", apiBase),
 		State:          "state-v1",
 	}
 }
