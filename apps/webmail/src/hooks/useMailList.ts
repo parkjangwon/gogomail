@@ -105,23 +105,38 @@ export function useMailList(folderId: string, refreshIntervalSeconds: RefreshInt
   }, []);
 
   const [refreshing, setRefreshing] = useState(false);
+  // Track in-flight status via ref so refresh() never captures a stale
+  // closure of `refreshing` state — changing `refreshing` recreates the
+  // useCallback, but between setRefreshing(true) and the next render the
+  // OLD closure is still in refreshRef, making concurrent refreshes possible.
+  const refreshingRef = useRef(false);
+  // Keep folderId accessible inside async refresh without it being a dep.
+  const folderIdRef = useRef(folderId);
+  useEffect(() => { folderIdRef.current = folderId; }, [folderId]);
 
   const refresh = useCallback(async () => {
-    if (!folderId || isExternallyLoadedVirtualFolder(folderId) || refreshing) return;
+    const currentFolderId = folderIdRef.current;
+    if (!currentFolderId || isExternallyLoadedVirtualFolder(currentFolderId) || refreshingRef.current) return;
+    refreshingRef.current = true;
     setRefreshing(true);
     try {
-      const [fData, mData] = await Promise.all([getFolders(), getMessages(backendFolderId(folderId))]);
+      const [fData, mData] = await Promise.all([getFolders(), getMessages(backendFolderId(currentFolderId))]);
+      // Verify folder hasn't changed while fetch was in flight.
+      if (folderIdRef.current !== currentFolderId) return;
       setFolders(fData.folders);
       setMessages(mData.messages ?? []);
       setHasMore(mData.has_more);
       setNextCursor(mData.next_cursor);
       nextCursorRef.current = mData.next_cursor;
     } catch {
-      // ignore
+      // ignore network / auth errors
     } finally {
+      refreshingRef.current = false;
       setRefreshing(false);
     }
-  }, [folderId, refreshing]);
+  // No deps: uses refs for all mutable values to keep the callback stable.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return { folders, messages, setMessages, foldersLoading, messagesLoading, setMessagesLoading, loadingMore, hasMore, nextCursor, loadMore, adjustUnread, refresh, refreshing };
 }
