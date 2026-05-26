@@ -3,13 +3,11 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { CheckIcon } from '@heroicons/react/24/outline';
 import { revokeAllSessions, getFolderStats, exportFolderEml, exportFolderZip, getPreferences, setPreferences, getUserProfile, updateUserProfile, uploadUserAvatar, deleteUserAvatar, changePassword, registerWebPushDevice, getNotificationPreferences, setNotificationPreferences, getFolders, type FolderStats, type WebmailPreferences, type UserProfile, type NotificationPreferences, type FolderNotificationOverride, type Folder } from '@/lib/api';
-import { ReadMark, ExternalImages, SendDelay, Theme, FontSize, ACCENT_COLORS, FilterRule, migrateFilterRule, loadFilterRules, saveFilterRules } from '@/lib/settings/settingsUtils';
-import { NAV_ITEMS, SHORTCUT_GROUPS, type SectionId } from '@/components/settings-view/settingsViewConfig';
-import { Kbd, MiniEditor, Row, SectionCard, SectionHeader, Segment, Toggle, loadWmSettings, saveWmSetting } from '@/components/settings-view/settingsViewPrimitives';
+import { ReadMark, ExternalImages, SendDelay, Theme, FontSize, FilterRule, migrateFilterRule, loadFilterRules, saveFilterRules } from '@/lib/settings/settingsUtils';
+import { NAV_ITEMS, type SectionId } from '@/components/settings-view/settingsViewConfig';
+import { loadWmSettings, saveWmSetting } from '@/components/settings-view/settingsViewPrimitives';
 import { FilterRulesSection } from '@/components/settings-view/FilterRulesSection';
-import { TimezoneSelect } from '@/components/settings-view/TimezoneSelect';
 import { SettingsAboutSection } from '@/components/settings-view/SettingsAboutSection';
 import { SettingsStorageSection, type BackupState } from '@/components/settings-view/SettingsStorageSection';
 import { SettingsPrivacySection } from '@/components/settings-view/SettingsPrivacySection';
@@ -18,10 +16,18 @@ import { SettingsSecuritySection } from '@/components/settings-view/SettingsSecu
 import { SettingsMCPSection } from '@/components/settings-view/SettingsMCPSection';
 import { SettingsBlockedSection } from '@/components/settings-view/SettingsBlockedSection';
 import { SettingsVacationSection } from '@/components/settings-view/SettingsVacationSection';
+import { SettingsAccountSection } from '@/components/settings-view/SettingsAccountSection';
+import { SettingsInboxSection } from '@/components/settings-view/SettingsInboxSection';
+import { SettingsReadingSection } from '@/components/settings-view/SettingsReadingSection';
+import { SettingsComposeSection } from '@/components/settings-view/SettingsComposeSection';
+import { SettingsAppearanceSection } from '@/components/settings-view/SettingsAppearanceSection';
+import { SettingsAccessibilitySection } from '@/components/settings-view/SettingsAccessibilitySection';
+import { SettingsContactsSection } from '@/components/settings-view/SettingsContactsSection';
+import { SettingsDriveSection } from '@/components/settings-view/SettingsDriveSection';
+import { SettingsShortcutsSection } from '@/components/settings-view/SettingsShortcutsSection';
 import { handleVerticalNavKeyDown } from '@/lib/navKeyboard';
 import { webPushPublicKeyToUint8Array } from '@/lib/webpush';
 import { loadLocalEmailTemplates, normalizeEmailTemplates, saveLocalEmailTemplates, type StoredEmailTemplate } from '@/lib/emailTemplates';
-import { stableId } from '@/lib/stableId';
 import { setWebmailAvatar } from '@/lib/webmailAvatar';
 
 export interface SettingsViewProps {
@@ -692,359 +698,134 @@ export function SettingsView({ userEmail, userName, initialSection }: SettingsVi
 
       case 'account':
         return (
-          <>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '16px', padding: '20px', background: 'var(--color-bg-secondary)', border: '1px solid var(--color-border-subtle)', borderRadius: '10px', marginBottom: '20px' }}>
-              <div style={{ width: '52px', height: '52px', borderRadius: '50%', background: avatarUrl ? 'transparent' : 'var(--color-accent)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px', fontWeight: 700, flexShrink: 0, overflow: 'hidden' }}>
-                {avatarUrl ? <img src={avatarUrl} alt={t('profilePhotoAlt')} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : (displayName || userEmail || '?')[0].toUpperCase()}
-              </div>
-              <div>
-                <div style={{ fontSize: '15px', fontWeight: 600, color: 'var(--color-text-primary)' }}>{displayName || userName || t('nameEmpty')}</div>
-                <div style={{ fontSize: '12px', color: 'var(--color-text-tertiary)', marginTop: '3px' }}>{userEmail}</div>
-              </div>
-            </div>
-            <SectionCard>
-              <SectionHeader>{t('sectionProfile')}</SectionHeader>
-
-              <Row label={t('profilePhoto')} description={t('profilePhotoDesc')}>
-                <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-                  <label style={{ padding: '6px 14px', borderRadius: '6px', border: '1px solid var(--color-border-default)', background: 'var(--color-bg-primary)', color: 'var(--color-text-primary)', fontSize: '12px', fontWeight: 600, cursor: avatarSaving ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap', opacity: avatarSaving ? 0.6 : 1 }}>
-                    {avatarSaving ? t('profilePhotoSaving') : t('profilePhotoUpload')}
-                    <input type="file" accept="image/png,image/jpeg,image/gif,image/webp" disabled={avatarSaving} style={{ display: 'none' }} onChange={(e) => { void handleAvatarUpload(e.target.files?.[0]); e.currentTarget.value = ''; }} />
-                  </label>
-                  {avatarUrl && (
-                    <button onClick={handleAvatarRemove} disabled={avatarSaving} style={{ padding: '6px 14px', borderRadius: '6px', border: '1px solid var(--color-border-default)', background: 'transparent', color: 'var(--color-destructive)', fontSize: '12px', fontWeight: 600, cursor: avatarSaving ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap' }}>
-                      {t('profilePhotoRemove')}
-                    </button>
-                  )}
-                  {avatarError && <span style={{ fontSize: '12px', color: 'var(--color-danger, #dc2626)', width: '100%', textAlign: 'right' }}>{avatarError}</span>}
-                </div>
-              </Row>
-              <Row label={t('displayName')} description={t('displayNameDesc')}>
-                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                  <input value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder={t('namePlaceholder')} style={{ padding: '6px 11px', borderRadius: '6px', border: '1px solid var(--color-border-default)', background: 'var(--color-bg-primary)', color: 'var(--color-text-primary)', fontSize: '13px', width: '170px', outline: 'none' }} />
-                  <button onClick={saveDisplayName} style={{ padding: '6px 14px', borderRadius: '6px', border: 'none', background: 'var(--color-accent)', color: '#fff', fontSize: '12px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap' }}>
-                    {nameSaved ? <><CheckIcon style={{ width: 13, height: 13 }} />{t('saved')}</> : t('save')}
-                  </button>
-                </div>
-              </Row>
-              <Row label={t('emailAddress')} description={t('emailAddressDesc')}>
-                <span style={{ fontSize: '13px', color: 'var(--color-text-tertiary)', fontFamily: 'monospace' }}>{userEmail}</span>
-              </Row>
-              <Row label={t('recoveryEmail')} description={t('recoveryEmailDesc')}>
-                <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-                  <input
-                    type="email"
-                    value={recoveryEmail}
-                    onChange={(e) => setRecoveryEmail(e.target.value)}
-                    placeholder="personal@example.com"
-                    style={{ padding: '6px 11px', borderRadius: '6px', border: '1px solid var(--color-border-default)', background: 'var(--color-bg-primary)', color: 'var(--color-text-primary)', fontSize: '13px', width: '220px', outline: 'none' }}
-                  />
-                  <button onClick={saveRecoveryEmail} style={{ padding: '6px 14px', borderRadius: '6px', border: 'none', background: 'var(--color-accent)', color: '#fff', fontSize: '12px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap' }}>
-                    {recoverySaved ? <><CheckIcon style={{ width: 13, height: 13 }} />{t('saved')}</> : t('save')}
-                  </button>
-                  {recoveryError && <span style={{ fontSize: '12px', color: 'var(--color-danger, #dc2626)', width: '100%', textAlign: 'right' }}>{recoveryError}</span>}
-                </div>
-              </Row>
-              <Row label={t('timezone')} description={t('timezoneDesc')} last>
-                <TimezoneSelect
-                  value={timezone}
-                  onChange={(v) => {
-                    setTimezone(v);
-                    try { localStorage.setItem('webmail_timezone', v); } catch { /* */ }
-                  }}
-                  placeholder={t('timezonePlaceholder')}
-                />
-              </Row>
-            </SectionCard>
-            <SectionCard>
-              <SectionHeader>{t('sectionSignature')}</SectionHeader>
-              <div style={{ padding: '16px 20px', background: 'var(--color-bg-primary)' }}>
-                <div style={{ fontSize: '12px', color: 'var(--color-text-tertiary)', marginBottom: '10px' }}>{t('signatureAutoAdd')}</div>
-                <MiniEditor
-                  value={signature}
-                  onChange={(html) => { setSignature(html); }}
-                  placeholder={t('signaturePlaceholder')}
-                />
-                <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '10px' }}>
-                  <button onClick={saveSignature} style={{ padding: '6px 16px', borderRadius: '6px', border: 'none', background: 'var(--color-accent)', color: '#fff', fontSize: '12px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                    {sigSaved ? <><CheckIcon style={{ width: 13, height: 13 }} />{t('saved')}</> : t('saveSignature')}
-                  </button>
-                </div>
-              </div>
-            </SectionCard>
-            {profile && (
-              <SectionCard>
-                <SectionHeader>{t('sectionQuota')}</SectionHeader>
-                <div style={{ padding: '16px 20px' }}>
-                  {(() => {
-                    const used = profile.quota_used;
-                    const limit = profile.quota_limit;
-                    const pct = limit && limit > 0 ? Math.min(100, Math.round((used / limit) * 100)) : null;
-                    const fmt = (b: number) => b >= 1073741824 ? `${(b / 1073741824).toFixed(1)} GB` : b >= 1048576 ? `${(b / 1048576).toFixed(1)} MB` : `${Math.round(b / 1024)} KB`;
-                    return (
-                      <>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: 'var(--color-text-secondary)', marginBottom: '8px' }}>
-                          <span>{fmt(used)} {t('quotaUsed')}{limit ? ` / ${fmt(limit)}` : ''}</span>
-                          {pct !== null && <span>{pct}%</span>}
-                        </div>
-                        {pct !== null && (
-                          <div style={{ height: '6px', borderRadius: '3px', background: 'var(--color-bg-tertiary)', overflow: 'hidden' }}>
-                            <div style={{ height: '100%', width: `${pct}%`, background: pct > 90 ? 'var(--color-destructive)' : pct > 75 ? '#f59e0b' : 'var(--color-accent)', borderRadius: '3px', transition: 'width 400ms ease' }} />
-                          </div>
-                        )}
-                      </>
-                    );
-                  })()}
-                </div>
-              </SectionCard>
-            )}
-            <SectionCard>
-              <SectionHeader>{t('sectionChangePassword')}</SectionHeader>
-              <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                {([t('currentPassword'), t('newPassword'), t('confirmNewPassword')] as const).map((label, i) => (
-                  <div key={label} style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
-                    <label style={{ fontSize: '12px', color: 'var(--color-text-secondary)', fontWeight: 500 }}>{label}</label>
-                    <input
-                      type="password"
-                      value={[pwCurrent, pwNew, pwConfirm][i]}
-                      onChange={(e) => [setPwCurrent, setPwNew, setPwConfirm][i](e.target.value)}
-                      style={{ padding: '7px 11px', borderRadius: '6px', border: '1px solid var(--color-border-default)', background: 'var(--color-bg-primary)', color: 'var(--color-text-primary)', fontSize: '13px', outline: 'none' }}
-                    />
-                  </div>
-                ))}
-                {pwError && <div style={{ fontSize: '12px', color: 'var(--color-destructive)', padding: '6px 10px', background: 'rgba(217,79,61,0.08)', borderRadius: '5px' }}>{pwError}</div>}
-                {pwSaved && <div style={{ fontSize: '12px', color: 'var(--color-success, #22c55e)', padding: '6px 10px', background: 'rgba(34,197,94,0.08)', borderRadius: '5px' }}>{t('pwChanged')}</div>}
-                <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                  <button onClick={handleChangePassword} disabled={pwSaving} style={{ padding: '7px 18px', borderRadius: '6px', border: 'none', background: pwSaving ? 'var(--color-bg-tertiary)' : 'var(--color-accent)', color: '#fff', fontSize: '13px', fontWeight: 600, cursor: pwSaving ? 'not-allowed' : 'pointer' }}>
-                    {pwSaving ? t('pwChanging') : t('pwChange')}
-                  </button>
-                </div>
-              </div>
-            </SectionCard>
-          </>
+          <SettingsAccountSection
+            userEmail={userEmail}
+            userName={userName}
+            displayName={displayName}
+            setDisplayName={setDisplayName}
+            nameSaved={nameSaved}
+            avatarUrl={avatarUrl}
+            avatarSaving={avatarSaving}
+            avatarError={avatarError}
+            recoveryEmail={recoveryEmail}
+            setRecoveryEmail={setRecoveryEmail}
+            recoverySaved={recoverySaved}
+            recoveryError={recoveryError}
+            signature={signature}
+            setSignature={setSignature}
+            sigSaved={sigSaved}
+            profile={profile}
+            timezone={timezone}
+            setTimezone={setTimezone}
+            pwCurrent={pwCurrent}
+            setPwCurrent={setPwCurrent}
+            pwNew={pwNew}
+            setPwNew={setPwNew}
+            pwConfirm={pwConfirm}
+            setPwConfirm={setPwConfirm}
+            pwError={pwError}
+            pwSaving={pwSaving}
+            pwSaved={pwSaved}
+            onAvatarUpload={(file) => { void handleAvatarUpload(file); }}
+            onAvatarRemove={handleAvatarRemove}
+            onSaveName={saveDisplayName}
+            onSaveRecovery={saveRecoveryEmail}
+            onSaveSignature={saveSignature}
+            onChangePassword={handleChangePassword}
+          />
         );
 
       case 'inbox':
         return (
-          <SectionCard>
-            <SectionHeader>{t('sectionInboxSettings')}</SectionHeader>
-            <Row label={t('convMode')} description={t('convModeDesc')}>
-              <Toggle value={convMode} onChange={(v) => { setConvMode(v); try { localStorage.setItem('webmail_conv_mode', v ? '1' : '0'); } catch { /* */ } }} />
-            </Row>
-            <Row label={t('compactView')} description={t('compactViewDesc')}>
-              <Toggle value={compact} onChange={(v) => { setCompact(v); try { localStorage.setItem('webmail_compact', v ? '1' : '0'); } catch { /* */ } }} />
-            </Row>
-            <Row label={t('previewText')} description={t('previewTextDesc')}>
-              <Toggle value={showPreview} onChange={(v) => { setShowPreview(v); saveWmSetting('showPreview', v); }} />
-            </Row>
-            <Row label={t('autoRefresh')} description={t('autoRefreshDesc')}>
-              <Segment
-                options={[{ value: 30 as 30, label: t('sec30') }, { value: 60 as 60, label: t('min1') }, { value: 300 as 300, label: t('min5') }]}
-                value={refreshInterval}
-                onChange={(v) => {
-                  setRefreshInterval(v);
-                  try {
-                    localStorage.setItem('webmail_refresh_interval', String(v));
-                    window.dispatchEvent(new StorageEvent('storage', { key: 'webmail_refresh_interval', newValue: String(v) }));
-                  } catch { /* */ }
-                }}
-              />
-            </Row>
-            <Row label={t('groupByDate')} description={t('groupByDateDesc')}>
-              <Toggle value={groupByDate} onChange={(v) => { setGroupByDate(v); try { localStorage.setItem('webmail_group_by_date', v ? '1' : '0'); } catch { /* */ } }} />
-            </Row>
-            <Row label={t('importanceMarkers')} description={t('importanceMarkersDesc')}>
-              <Toggle value={importanceMarkers} onChange={(v) => { setImportanceMarkers(v); try { localStorage.setItem('webmail_importance_markers', v ? '1' : '0'); } catch { /* */ } }} />
-            </Row>
-            <Row label={t('focusMode')} description={t('focusModeDesc')}>
-              <Toggle value={focusMode} onChange={(v) => { setFocusMode(v); try { localStorage.setItem('webmail_focus_mode', v ? '1' : '0'); } catch { /* */ } }} />
-            </Row>
-            <Row label={t('swipeLeft')} description={t('swipeLeftDesc')}>
-              <Segment
-                options={[{ value: 'archive' as const, label: t('swipeArchive') }, { value: 'delete' as const, label: t('swipeDelete') }, { value: 'snooze' as const, label: t('swipeSnooze') }, { value: 'star' as const, label: t('swipeStar') }]}
-                value={swipeLeft}
-                onChange={(v) => { setSwipeLeft(v); try { localStorage.setItem('webmail_swipe_left', v); } catch { /* */ } }}
-              />
-            </Row>
-            <Row label={t('swipeRight')} description={t('swipeRightDesc')} last>
-              <Segment
-                options={[{ value: 'archive' as const, label: t('swipeArchive') }, { value: 'delete' as const, label: t('swipeDelete') }, { value: 'snooze' as const, label: t('swipeSnooze') }, { value: 'star' as const, label: t('swipeStar') }]}
-                value={swipeRight}
-                onChange={(v) => { setSwipeRight(v); try { localStorage.setItem('webmail_swipe_right', v); } catch { /* */ } }}
-              />
-            </Row>
-          </SectionCard>
+          <SettingsInboxSection
+            convMode={convMode}
+            setConvMode={setConvMode}
+            compact={compact}
+            setCompact={setCompact}
+            showPreview={showPreview}
+            setShowPreview={setShowPreview}
+            refreshInterval={refreshInterval}
+            setRefreshInterval={setRefreshInterval}
+            importanceMarkers={importanceMarkers}
+            setImportanceMarkers={setImportanceMarkers}
+            groupByDate={groupByDate}
+            setGroupByDate={setGroupByDate}
+            focusMode={focusMode}
+            setFocusMode={setFocusMode}
+            swipeLeft={swipeLeft}
+            setSwipeLeft={setSwipeLeft}
+            swipeRight={swipeRight}
+            setSwipeRight={setSwipeRight}
+          />
         );
 
       case 'contacts':
         return (
-          <SectionCard>
-            <SectionHeader>{t('sectionContactsSettings')}</SectionHeader>
-            <Row label={t('contactsSort')} description={t('contactsSortDesc')}>
-              <Segment
-                options={[{ value: 'name' as ContactsSort, label: t('contactsSortName') }, { value: 'email' as ContactsSort, label: t('contactsSortEmail') }, { value: 'company' as ContactsSort, label: t('contactsSortCompany') }]}
-                value={contactsSort}
-                onChange={(v) => { setContactsSort(v); saveWmSetting('contactsSort', v); }}
-              />
-            </Row>
-            <Row label={t('contactsDensity')} description={t('contactsDensityDesc')}>
-              <Segment
-                options={[{ value: 'comfortable' as ContactsDensity, label: t('densityComfortable') }, { value: 'compact' as ContactsDensity, label: t('densityCompact') }]}
-                value={contactsDensity}
-                onChange={(v) => { setContactsDensity(v); saveWmSetting('contactsDensity', v); }}
-              />
-            </Row>
-            <Row label={t('contactsShowCompany')} description={t('contactsShowCompanyDesc')} last>
-              <Toggle value={contactsShowCompany} onChange={(v) => { setContactsShowCompany(v); saveWmSetting('contactsShowCompany', v); }} />
-            </Row>
-          </SectionCard>
+          <SettingsContactsSection
+            contactsSort={contactsSort}
+            setContactsSort={setContactsSort}
+            contactsDensity={contactsDensity}
+            setContactsDensity={setContactsDensity}
+            contactsShowCompany={contactsShowCompany}
+            setContactsShowCompany={setContactsShowCompany}
+          />
         );
 
       case 'drive':
         return (
-          <SectionCard>
-            <SectionHeader>{t('sectionDriveSettings')}</SectionHeader>
-            <Row label={t('driveSort')} description={t('driveSortDesc')} last>
-              <Segment
-                options={[{ value: 'typeName' as DriveSort, label: t('driveSortTypeName') }, { value: 'name' as DriveSort, label: t('driveSortName') }, { value: 'updated' as DriveSort, label: t('driveSortUpdated') }, { value: 'size' as DriveSort, label: t('driveSortSize') }]}
-                value={driveSort}
-                onChange={(v) => { setDriveSort(v); saveWmSetting('driveSort', v); }}
-              />
-            </Row>
-          </SectionCard>
+          <SettingsDriveSection
+            driveSort={driveSort}
+            setDriveSort={setDriveSort}
+          />
         );
 
       case 'reading':
         return (
-          <SectionCard>
-            <SectionHeader>{t('sectionReadingSettings')}</SectionHeader>
-            <Row label={t('readMark')} description={t('readMarkDesc')}>
-              <Segment
-                options={[{ value: 'instant' as ReadMark, label: t('readMarkInstant') }, { value: '2s' as ReadMark, label: t('readMark2s') }, { value: 'manual' as ReadMark, label: t('readMarkManual') }]}
-                value={readMark}
-                onChange={(v) => { setReadMark(v); saveWmSetting('readMark', v); }}
-              />
-            </Row>
-            <Row label={t('externalImages')} description={t('externalImagesDesc')}>
-              <Segment
-                options={[{ value: 'always' as ExternalImages, label: t('externalImagesAlways') }, { value: 'ask' as ExternalImages, label: t('externalImagesAsk') }, { value: 'never' as ExternalImages, label: t('externalImagesNever') }]}
-                value={externalImages}
-                onChange={(v) => { setExternalImages(v); saveWmSetting('externalImages', v); }}
-              />
-            </Row>
-            <Row label={t('inlineImagePreview')} description={t('inlineImagePreviewDesc')}>
-              <Toggle value={inlineImagePreview} onChange={(v) => { setInlineImagePreview(v); saveWmSetting('inlineImagePreview', v); }} />
-            </Row>
-            <Row label={t('smartReply')} description={t('smartReplyDesc')}>
-              <Toggle value={smartReplySuggestions} onChange={(v) => { setSmartReplySuggestions(v); try { localStorage.setItem('webmail_smart_reply', v ? '1' : '0'); } catch { /* */ } }} />
-            </Row>
-            <Row label={t('readingTime')} description={t('readingTimeDesc')}>
-              <Toggle value={showReadingTime} onChange={(v) => { setShowReadingTime(v); try { localStorage.setItem('webmail_reading_time', v ? '1' : '0'); } catch { /* */ } }} />
-            </Row>
-            <Row label={t('readingPane')} description={t('readingPaneDesc')} last>
-              <Segment
-                options={[{ value: 'right' as const, label: t('paneRight') }, { value: 'bottom' as const, label: t('paneBottom') }, { value: 'hidden' as const, label: t('paneHidden') }]}
-                value={readingPanePosition}
-                onChange={(v) => { setReadingPanePosition(v); try { localStorage.setItem('webmail_reading_pane', v); } catch { /* */ } }}
-              />
-            </Row>
-          </SectionCard>
+          <SettingsReadingSection
+            readMark={readMark}
+            setReadMark={setReadMark}
+            externalImages={externalImages}
+            setExternalImages={setExternalImages}
+            inlineImagePreview={inlineImagePreview}
+            setInlineImagePreview={setInlineImagePreview}
+            smartReplySuggestions={smartReplySuggestions}
+            setSmartReplySuggestions={setSmartReplySuggestions}
+            showReadingTime={showReadingTime}
+            setShowReadingTime={setShowReadingTime}
+            readingPanePosition={readingPanePosition}
+            setReadingPanePosition={setReadingPanePosition}
+          />
         );
 
-      case 'compose': {
-        function saveTpl() {
-          if (!newTplName.trim()) return;
-          const next = normalizeEmailTemplates([
-            ...templates.filter((t) => t.name !== newTplName.trim()),
-            { id: stableId('template'), name: newTplName.trim(), subject: newTplSubject.trim(), body: newTplBody.trim() },
-          ]);
-          setTemplates(next);
-          saveLocalEmailTemplates(next);
-          setPreferences({ templates: next }).catch(() => {});
-          setNewTplName(''); setNewTplSubject(''); setNewTplBody(''); setShowNewTpl(false);
-        }
-        function deleteTpl(name: string) {
-          const next = templates.filter((t) => t.name !== name);
-          setTemplates(next);
-          saveLocalEmailTemplates(next);
-          setPreferences({ templates: next }).catch(() => {});
-        }
+      case 'compose':
         return (
-          <>
-            <SectionCard>
-              <SectionHeader>{t('sectionComposeSettings')}</SectionHeader>
-              <Row label={t('sendDelay')} description={t('sendDelayDesc')}>
-                <Segment
-                  options={[{ value: 0 as SendDelay, label: t('sendDelayNone') }, { value: 5 as SendDelay, label: t('sendDelay5s') }, { value: 10 as SendDelay, label: t('sendDelay10s') }, { value: 30 as SendDelay, label: t('sendDelay30s') }]}
-                  value={sendDelay}
-                  onChange={(v) => { setSendDelay(v); saveWmSetting('sendDelay', v); }}
-                />
-              </Row>
-              <Row label={t('quoteOnReply')} description={t('quoteOnReplyDesc')}>
-                <Toggle value={quoteOnReply} onChange={(v) => { setQuoteOnReply(v); saveWmSetting('quoteOnReply', v); }} />
-              </Row>
-              <Row label={t('fontSizeDefault')} description={t('fontSizeDefaultDesc')}>
-                <Segment
-                  options={[{ value: 'small' as FontSize, label: t('fontSizeSmall') }, { value: 'medium' as FontSize, label: t('fontSizeMedium') }, { value: 'large' as FontSize, label: t('fontSizeLarge') }]}
-                  value={fontSize}
-                  onChange={(v) => applyFontSize(v)}
-                />
-              </Row>
-              <Row label={t('confirmBeforeSend')} description={t('confirmBeforeSendDesc')}>
-                <Toggle value={confirmBeforeSend} onChange={(v) => { setConfirmBeforeSend(v); try { localStorage.setItem('webmail_confirm_before_send', v ? '1' : '0'); } catch { /* */ } }} />
-              </Row>
-              <Row label={t('ccSelf')} description={t('ccSelfDesc')}>
-                <Toggle value={ccSelf} onChange={(v) => { setCcSelf(v); try { localStorage.setItem('webmail_cc_self', v ? '1' : '0'); } catch { /* */ } }} />
-              </Row>
-              <Row label={t('spellCheck')} description={t('spellCheckDesc')}>
-                <Toggle value={spellCheck} onChange={(v) => { setSpellCheck(v); try { localStorage.setItem('webmail_spell_check', v ? '1' : '0'); } catch { /* */ } }} />
-              </Row>
-              <Row label={t('defaultBcc')} description={t('defaultBccDesc')} last>
-                <input
-                  type="email"
-                  value={defaultBcc}
-                  onChange={(e) => { setDefaultBcc(e.target.value); try { localStorage.setItem('webmail_default_bcc', e.target.value); } catch { /* */ } }}
-                  placeholder="bcc@example.com"
-                  style={{ width: '200px', padding: '5px 10px', border: '1px solid var(--color-border-default)', borderRadius: '6px', background: 'var(--color-bg-secondary)', color: 'var(--color-text-primary)', fontSize: '13px', outline: 'none' }}
-                />
-              </Row>
-            </SectionCard>
-            <SectionCard>
-              <SectionHeader>{t('sectionQuickReplyTemplates')}</SectionHeader>
-              {templates.length === 0 && !showNewTpl && (
-                <div style={{ padding: '16px 20px', fontSize: '13px', color: 'var(--color-text-tertiary)', background: 'var(--color-bg-primary)' }}>
-                  {t('noTemplates')}
-                </div>
-              )}
-              {templates.map((tpl, i) => (
-                <div key={tpl.name} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 20px', borderBottom: i < templates.length - 1 || showNewTpl ? '1px solid var(--color-border-subtle)' : 'none', background: 'var(--color-bg-primary)' }}>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-text-primary)' }}>{tpl.name}</div>
-                    {tpl.subject && <div style={{ fontSize: '12px', color: 'var(--color-text-tertiary)', marginTop: '2px' }}>{t('templateSubjectLabel')}: {tpl.subject}</div>}
-                  </div>
-                  <button onClick={() => deleteTpl(tpl.name)} style={{ padding: '4px 10px', borderRadius: '5px', border: '1px solid rgba(220,38,38,0.3)', background: 'transparent', color: 'var(--color-destructive)', fontSize: '12px', cursor: 'pointer' }}>{t('delete')}</button>
-                </div>
-              ))}
-              {showNewTpl && (
-                <div style={{ padding: '14px 20px', background: 'var(--color-bg-secondary)', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  <input value={newTplName} onChange={(e) => setNewTplName(e.target.value)} placeholder={t('tplNamePlaceholder')} style={{ padding: '7px 11px', borderRadius: '6px', border: '1px solid var(--color-border-default)', background: 'var(--color-bg-primary)', color: 'var(--color-text-primary)', fontSize: '13px', outline: 'none' }} />
-                  <input value={newTplSubject} onChange={(e) => setNewTplSubject(e.target.value)} placeholder={t('tplSubjectPlaceholder')} style={{ padding: '7px 11px', borderRadius: '6px', border: '1px solid var(--color-border-default)', background: 'var(--color-bg-primary)', color: 'var(--color-text-primary)', fontSize: '13px', outline: 'none' }} />
-                  <textarea value={newTplBody} onChange={(e) => setNewTplBody(e.target.value)} placeholder={t('tplBodyPlaceholder')} rows={4} style={{ padding: '8px 11px', borderRadius: '6px', border: '1px solid var(--color-border-default)', background: 'var(--color-bg-primary)', color: 'var(--color-text-primary)', fontSize: '13px', resize: 'vertical', fontFamily: 'inherit', outline: 'none' }} />
-                  <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-                    <button onClick={() => setShowNewTpl(false)} style={{ padding: '6px 14px', borderRadius: '6px', border: '1px solid var(--color-border-default)', background: 'transparent', color: 'var(--color-text-secondary)', fontSize: '12px', cursor: 'pointer' }}>{t('cancel')}</button>
-                    <button onClick={saveTpl} style={{ padding: '6px 14px', borderRadius: '6px', border: 'none', background: 'var(--color-accent)', color: '#fff', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}>{t('save')}</button>
-                  </div>
-                </div>
-              )}
-              {!showNewTpl && (
-                <div style={{ padding: '10px 20px', background: 'var(--color-bg-primary)', borderTop: templates.length > 0 ? '1px solid var(--color-border-subtle)' : 'none' }}>
-                  <button onClick={() => setShowNewTpl(true)} style={{ fontSize: '13px', color: 'var(--color-accent)', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 500, padding: 0 }}>{t('newTemplate')}</button>
-                </div>
-              )}
-            </SectionCard>
-          </>
+          <SettingsComposeSection
+            sendDelay={sendDelay}
+            setSendDelay={setSendDelay}
+            quoteOnReply={quoteOnReply}
+            setQuoteOnReply={setQuoteOnReply}
+            fontSize={fontSize}
+            ccSelf={ccSelf}
+            setCcSelf={setCcSelf}
+            defaultBcc={defaultBcc}
+            setDefaultBcc={setDefaultBcc}
+            confirmBeforeSend={confirmBeforeSend}
+            setConfirmBeforeSend={setConfirmBeforeSend}
+            spellCheck={spellCheck}
+            setSpellCheck={setSpellCheck}
+            templates={templates}
+            setTemplates={setTemplates}
+            newTplName={newTplName}
+            setNewTplName={setNewTplName}
+            newTplSubject={newTplSubject}
+            setNewTplSubject={setNewTplSubject}
+            newTplBody={newTplBody}
+            setNewTplBody={setNewTplBody}
+            showNewTpl={showNewTpl}
+            setShowNewTpl={setShowNewTpl}
+            applyFontSize={applyFontSize}
+          />
         );
-      }
 
       case 'filters': {
         return <FilterRulesSection filterRules={filterRules} setFilterRules={setFilterRules} />;
@@ -1116,113 +897,47 @@ export function SettingsView({ userEmail, userName, initialSection }: SettingsVi
 
       case 'appearance':
         return (
-          <>
-            <SectionCard>
-              <SectionHeader>{t('sectionTheme')}</SectionHeader>
-              <Row label={t('themeMode')} description={t('themeModeDesc')} last>
-                <Segment
-                  options={[{ value: 'light' as Theme, label: t('themeLight') }, { value: 'dark' as Theme, label: t('themeDark') }, { value: 'system' as Theme, label: t('themeSystem') }]}
-                  value={theme}
-                  onChange={applyTheme}
-                />
-              </Row>
-            </SectionCard>
-            <SectionCard>
-              <SectionHeader>{t('sectionAccent')}</SectionHeader>
-              <div style={{ padding: '16px 20px', background: 'var(--color-bg-primary)' }}>
-                <div style={{ fontSize: '12px', color: 'var(--color-text-tertiary)', marginBottom: '14px' }}>{t('accentDesc')}</div>
-                <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
-                  {ACCENT_COLORS.map((c) => (
-                    <button
-                      key={c.value}
-                      title={c.label}
-                      onClick={() => applyAccent(c.value)}
-                      style={{ width: '28px', height: '28px', borderRadius: '50%', background: c.value, border: `2.5px solid ${accent === c.value ? 'var(--color-text-primary)' : 'transparent'}`, cursor: 'pointer', padding: 0, boxShadow: accent === c.value ? `0 0 0 1.5px ${c.value}` : 'none', transition: 'border-color 120ms ease', flexShrink: 0 }}
-                    />
-                  ))}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginLeft: '4px' }}>
-                    <span style={{ fontSize: '12px', color: 'var(--color-text-tertiary)' }}>{t('accentCustom')}</span>
-                    <input
-                      type="text"
-                      value={customAccent}
-                      onChange={(e) => setCustomAccent(e.target.value)}
-                      placeholder="#2563eb"
-                      style={{ width: '80px', padding: '4px 8px', borderRadius: '5px', border: '1px solid var(--color-border-default)', background: 'var(--color-bg-secondary)', color: 'var(--color-text-primary)', fontSize: '12px', fontFamily: 'monospace', outline: 'none' }}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          const hex = customAccent.startsWith('#') ? customAccent : `#${customAccent}`;
-                          if (/^#[0-9a-f]{6}$/i.test(hex)) { applyAccent(hex); setAccent(hex); }
-                        }
-                      }}
-                    />
-                  </div>
-                </div>
-              </div>
-            </SectionCard>
-            <SectionCard>
-              <SectionHeader>{t('sectionDensityFont')}</SectionHeader>
-              <Row label={t('compactView')} description={t('compactViewDesc')}>
-                <Toggle value={compact} onChange={(v) => { setCompact(v); try { localStorage.setItem('webmail_compact', v ? '1' : '0'); } catch { /* */ } }} />
-              </Row>
-              <Row label={t('fontSizeBody')} description={t('fontSizeBodyDesc')} last>
-                <Segment
-                  options={[{ value: 'small' as FontSize, label: t('fontSizeSmallPx') }, { value: 'medium' as FontSize, label: t('fontSizeMediumPx') }, { value: 'large' as FontSize, label: t('fontSizeLargePx') }]}
-                  value={fontSize}
-                  onChange={applyFontSize}
-                />
-              </Row>
-            </SectionCard>
-          </>
+          <SettingsAppearanceSection
+            theme={theme}
+            accent={accent}
+            setAccent={setAccent}
+            customAccent={customAccent}
+            setCustomAccent={setCustomAccent}
+            compact={compact}
+            setCompact={setCompact}
+            fontSize={fontSize}
+            applyTheme={applyTheme}
+            applyAccent={applyAccent}
+            applyFontSize={applyFontSize}
+          />
         );
 
       case 'notifications':
-        const setBadgeMode = (mode: BadgeCountMode) => {
-          setBadgeCountMode(mode);
-          try {
-            localStorage.setItem(BADGE_COUNT_MODE_KEY, mode);
-            window.dispatchEvent(new StorageEvent('storage', { key: BADGE_COUNT_MODE_KEY, newValue: mode }));
-          } catch {
-            // local settings cache is best-effort
-          }
-        };
-        const setFolderNotificationEnabled = (folderId: string, enabled: boolean) => {
-          setNotificationFolderOverrides((prev) => {
-            const next = { ...prev };
-            if (enabled) {
-              delete next[folderId];
-            } else {
-              next[folderId] = { enabled: false, dnd_inherit: true, dnd_schedule: emptyDNDSchedule() };
-            }
-            try {
-              localStorage.setItem(NOTIFICATION_FOLDER_OVERRIDES_KEY, JSON.stringify(next));
-            } catch {
-              // local settings cache is best-effort
-            }
-            return next;
-          });
-        };
-        const setBrowserMirroring = (enabled: boolean) => {
-          setBrowserNotificationsEnabled(enabled);
-          try {
-            localStorage.setItem(BROWSER_NOTIF_ENABLED_KEY, enabled ? 'true' : 'false');
-            window.dispatchEvent(new StorageEvent('storage', { key: BROWSER_NOTIF_ENABLED_KEY, newValue: enabled ? 'true' : 'false' }));
-          } catch {
-            // local settings cache is best-effort
-          }
-        };
         return (
           <SettingsNotificationsSection
             notifPerm={notifPerm}
             notifSyncError={notifSyncError}
             onRequestNotif={requestNotif}
             browserNotificationsEnabled={browserNotificationsEnabled}
-            setBrowserNotificationsEnabled={setBrowserMirroring}
+            setBrowserNotificationsEnabled={(enabled) => {
+              setBrowserNotificationsEnabled(enabled);
+              try {
+                localStorage.setItem(BROWSER_NOTIF_ENABLED_KEY, enabled ? 'true' : 'false');
+                window.dispatchEvent(new StorageEvent('storage', { key: BROWSER_NOTIF_ENABLED_KEY, newValue: enabled ? 'true' : 'false' }));
+              } catch { /* */ }
+            }}
             notifSound={notifSound}
             setNotifSound={(v) => { setNotifSound(v); try { localStorage.setItem('webmail_notif_sound', v ? '1' : '0'); } catch { /* */ } }}
             notifDetail={notifDetail}
             setNotifDetail={(v) => { setNotifDetail(v); try { localStorage.setItem('webmail_notif_detail', v); } catch { /* */ } }}
             badgeCountMode={badgeCountMode}
-            setBadgeCountMode={setBadgeMode}
+            setBadgeCountMode={(mode) => {
+              setBadgeCountMode(mode);
+              try {
+                localStorage.setItem(BADGE_COUNT_MODE_KEY, mode);
+                window.dispatchEvent(new StorageEvent('storage', { key: BADGE_COUNT_MODE_KEY, newValue: mode }));
+              } catch { /* */ }
+            }}
             dndEnabled={dndEnabled}
             setDndEnabled={(v) => { setDndEnabled(v); try { localStorage.setItem('webmail_dnd', v ? '1' : '0'); } catch { /* */ } }}
             dndStart={dndStart}
@@ -1231,7 +946,20 @@ export function SettingsView({ userEmail, userName, initialSection }: SettingsVi
             setDndEnd={(v) => { setDndEnd(v); try { localStorage.setItem('webmail_dnd_end', v); } catch { /* */ } }}
             folders={notificationFolders}
             folderOverrides={notificationFolderOverrides}
-            setFolderNotificationEnabled={setFolderNotificationEnabled}
+            setFolderNotificationEnabled={(folderId, enabled) => {
+              setNotificationFolderOverrides((prev) => {
+                const next = { ...prev };
+                if (enabled) {
+                  delete next[folderId];
+                } else {
+                  next[folderId] = { enabled: false, dnd_inherit: true, dnd_schedule: emptyDNDSchedule() };
+                }
+                try {
+                  localStorage.setItem(NOTIFICATION_FOLDER_OVERRIDES_KEY, JSON.stringify(next));
+                } catch { /* */ }
+                return next;
+              });
+            }}
             webPushEnabled={webPushEnabled}
             setWebPushEnabled={(v) => {
               setWebPushEnabled(v);
@@ -1242,23 +970,7 @@ export function SettingsView({ userEmail, userName, initialSection }: SettingsVi
         );
 
       case 'shortcuts':
-        return (
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-            {SHORTCUT_GROUPS.map((group) => (
-              <SectionCard key={group.titleKey}>
-                <SectionHeader>{t(group.titleKey)}</SectionHeader>
-                <div style={{ background: 'var(--color-bg-primary)' }}>
-                  {group.items.map(([key, descKey], i) => (
-                    <div key={key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', padding: '9px 16px', borderBottom: i < group.items.length - 1 ? '1px solid var(--color-border-subtle)' : 'none' }}>
-                      <span style={{ fontSize: '12px', color: 'var(--color-text-secondary)', flex: 1 }}>{t(descKey)}</span>
-                      <Kbd k={key} />
-                    </div>
-                  ))}
-                </div>
-              </SectionCard>
-            ))}
-          </div>
-        );
+        return <SettingsShortcutsSection />;
 
       case 'security': {
         return (
@@ -1276,111 +988,32 @@ export function SettingsView({ userEmail, userName, initialSection }: SettingsVi
 
       case 'accessibility':
         return (
-          <>
-            {/* ── 시각 보조 ─────────────────────────────────── */}
-            <SectionCard>
-              <SectionHeader>{t('sectionVisualAids')}</SectionHeader>
-              <Row label={t('highContrast')} description={t('highContrastDesc')}>
-                <Toggle value={highContrast} onChange={(v) => { setHighContrast(v); try { localStorage.setItem('webmail_high_contrast', v ? '1' : '0'); document.documentElement.classList.toggle('high-contrast', v); } catch { /* */ } }} />
-              </Row>
-              <Row label={t('colorBlindMode')} description={t('colorBlindModeDesc')}>
-                <Segment
-                  options={[
-                    { value: 'none' as const, label: t('colorBlindNone') },
-                    { value: 'deuteranopia' as const, label: t('colorBlindDeuteranopia') },
-                    { value: 'protanopia' as const, label: t('colorBlindProtanopia') },
-                    { value: 'tritanopia' as const, label: t('colorBlindTritanopia') },
-                  ]}
-                  value={colorBlindMode}
-                  onChange={applyColorBlindMode}
-                />
-              </Row>
-              <Row label={t('underlineLinks')} description={t('underlineLinksDesc')}>
-                <Toggle value={underlineLinks} onChange={(v) => { setUnderlineLinks(v); try { localStorage.setItem('webmail_underline_links', v ? '1' : '0'); document.documentElement.classList.toggle('underline-links', v); } catch { /* */ } }} />
-              </Row>
-              <Row label={t('reducedMotion')} description={t('reducedMotionDesc')} last>
-                <Toggle value={reducedMotion} onChange={(v) => { setReducedMotion(v); try { localStorage.setItem('webmail_reduced_motion', v ? '1' : '0'); document.documentElement.classList.toggle('reduced-motion', v); } catch { /* */ } }} />
-              </Row>
-            </SectionCard>
-
-            {/* ── 글꼴 및 가독성 ────────────────────────────── */}
-            <SectionCard>
-              <SectionHeader>{t('sectionTypography')}</SectionHeader>
-              <Row label={t('fontFamily')} description={t('fontFamilyDesc')}>
-                <Segment
-                  options={[
-                    { value: 'system' as const, label: t('fontFamilySystem') },
-                    { value: 'serif' as const, label: t('fontFamilySerif') },
-                    { value: 'mono' as const, label: t('fontFamilyMono') },
-                  ]}
-                  value={fontFamily}
-                  onChange={(v) => {
-                    setFontFamily(v);
-                    try {
-                      localStorage.setItem('webmail_font_family', v);
-                      const map: Record<string, string> = { system: '', serif: 'Georgia, serif', mono: '"JetBrains Mono", "Fira Code", monospace' };
-                      document.documentElement.style.fontFamily = map[v] ?? '';
-                    } catch { /* */ }
-                  }}
-                />
-              </Row>
-              <Row label={t('dyslexiaMode')} description={t('dyslexiaModeDesc')}>
-                <Toggle value={dyslexiaMode} onChange={(v) => { setDyslexiaMode(v); try { localStorage.setItem('webmail_dyslexia', v ? '1' : '0'); document.documentElement.classList.toggle('dyslexia-mode', v); } catch { /* */ } }} />
-              </Row>
-              <Row label={t('uiFontSize')} description={t('uiFontSizeDesc')}>
-                <Segment
-                  options={[
-                    { value: 'sm' as const, label: t('fontSizeSm') },
-                    { value: 'md' as const, label: t('fontSizeMd') },
-                    { value: 'lg' as const, label: t('fontSizeLg') },
-                    { value: 'xl' as const, label: t('fontSizeXl') },
-                  ]}
-                  value={uiFontSize}
-                  onChange={applyUiFontSize}
-                />
-              </Row>
-              <Row label={t('lineSpacing')} description={t('lineSpacingDesc')}>
-                <Segment
-                  options={[
-                    { value: 'normal' as const, label: t('lineSpacingNormal') },
-                    { value: 'relaxed' as const, label: t('lineSpacingRelaxed') },
-                    { value: 'loose' as const, label: t('lineSpacingLoose') },
-                  ]}
-                  value={lineSpacing}
-                  onChange={applyLineSpacing}
-                />
-              </Row>
-              <Row label={t('letterSpacing')} description={t('letterSpacingDesc')} last>
-                <Segment
-                  options={[
-                    { value: 'normal' as const, label: t('letterSpacingNormal') },
-                    { value: 'wide' as const, label: t('letterSpacingWide') },
-                  ]}
-                  value={letterSpacing}
-                  onChange={applyLetterSpacing}
-                />
-              </Row>
-            </SectionCard>
-
-            {/* ── 키보드 및 포커스 ──────────────────────────── */}
-            <SectionCard>
-              <SectionHeader>{t('sectionKeyboardFocus')}</SectionHeader>
-              <Row label={t('alwaysFocusRing')} description={t('alwaysFocusRingDesc')}>
-                <Toggle value={alwaysFocusRing} onChange={(v) => { setAlwaysFocusRing(v); try { localStorage.setItem('webmail_always_focus_ring', v ? '1' : '0'); document.documentElement.classList.toggle('always-focus-ring', v); } catch { /* */ } }} />
-              </Row>
-              <Row label={t('largerClickTargets')} description={t('largerClickTargetsDesc')} last>
-                <Toggle value={largerClickTargets} onChange={(v) => { setLargerClickTargets(v); try { localStorage.setItem('webmail_larger_targets', v ? '1' : '0'); document.documentElement.classList.toggle('larger-targets', v); } catch { /* */ } }} />
-              </Row>
-            </SectionCard>
-
-            {/* ── 스크린리더 ────────────────────────────────── */}
-            <SectionCard>
-              <SectionHeader>{t('sectionScreenReader')}</SectionHeader>
-              <Row label={t('screenReaderMode')} description={t('screenReaderModeDesc')} last>
-                <Toggle value={screenReaderMode} onChange={(v) => { setScreenReaderMode(v); try { localStorage.setItem('webmail_screen_reader', v ? '1' : '0'); document.documentElement.classList.toggle('screen-reader-mode', v); } catch { /* */ } }} />
-              </Row>
-            </SectionCard>
-          </>
+          <SettingsAccessibilitySection
+            reducedMotion={reducedMotion}
+            setReducedMotion={setReducedMotion}
+            highContrast={highContrast}
+            setHighContrast={setHighContrast}
+            underlineLinks={underlineLinks}
+            setUnderlineLinks={setUnderlineLinks}
+            largerClickTargets={largerClickTargets}
+            setLargerClickTargets={setLargerClickTargets}
+            screenReaderMode={screenReaderMode}
+            setScreenReaderMode={setScreenReaderMode}
+            fontFamily={fontFamily}
+            setFontFamily={setFontFamily}
+            colorBlindMode={colorBlindMode}
+            alwaysFocusRing={alwaysFocusRing}
+            setAlwaysFocusRing={setAlwaysFocusRing}
+            dyslexiaMode={dyslexiaMode}
+            setDyslexiaMode={setDyslexiaMode}
+            uiFontSize={uiFontSize}
+            lineSpacing={lineSpacing}
+            letterSpacing={letterSpacing}
+            applyColorBlindMode={applyColorBlindMode}
+            applyUiFontSize={applyUiFontSize}
+            applyLineSpacing={applyLineSpacing}
+            applyLetterSpacing={applyLetterSpacing}
+          />
         );
 
       case 'about':

@@ -87,6 +87,7 @@ GoGoMail is a production-grade self-hosted email platform written in Go
 | 2026-05-24 | User MCP DM tools (18 tools): rooms, messages, attachments, reactions, search |
 | 2026-05-23 | Web push notifications + push device management |
 | 2026-05-23 | Monitoring stack: Prometheus, Loki, Promtail, Grafana with provisioned dashboards |
+| 2026-05-27 | Refactor: SettingsView account/inbox/reading/compose/appearance/accessibility/contacts/drive/shortcuts extracted to separate components (1465 → 1098 lines) |
 | 2026-05-22 | Admin console MFA enforcement |
 | 2026-05-21 | Multiple query sargability improvements, LDAP batching, i18n cleanup |
 | 2026-05-14 | DM instant messaging: rooms, encrypted messages, attachments, reactions, invites, Drive messages |
