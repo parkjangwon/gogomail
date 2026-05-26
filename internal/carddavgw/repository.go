@@ -3,11 +3,8 @@ package carddavgw
 import (
 	"context"
 	"database/sql"
-	"encoding/base64"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"regexp"
 	"strings"
 	"time"
 
@@ -31,160 +28,6 @@ type contactObjectNameLookup struct {
 
 func NewRepository(db *sql.DB) *Repository {
 	return &Repository{db: db}
-}
-
-var photoLineRegex = regexp.MustCompile(`(?i)^PHOTO(?:\;[^\:]*)?:`)
-
-func extractPhotoFromVCard(vcard []byte) ([]byte, string, []byte, error) {
-	lines := strings.Split(string(vcard), "\r\n")
-	var photoLine strings.Builder
-	var photoMediaType string
-	var photoData []byte
-	var filteredLines []string
-	photoFound := false
-
-	for _, line := range lines {
-		if strings.TrimSpace(line) == "" {
-			if !photoFound {
-				filteredLines = append(filteredLines, line)
-			}
-			continue
-		}
-		if photoLineRegex.MatchString(line) {
-			photoFound = true
-			photoLine.WriteString(line)
-			photoLine.WriteString("\r\n")
-
-			name, value, err := parseVCardContentLine(line)
-			if err != nil {
-				continue
-			}
-			if !strings.EqualFold(name, "PHOTO") {
-				filteredLines = append(filteredLines, line)
-				continue
-			}
-
-			for {
-				if err != nil {
-					break
-				}
-				parts := strings.SplitN(value, ",", 2)
-				if len(parts) == 2 {
-					photoMediaType = parts[0]
-					if strings.HasPrefix(photoMediaType, "data:") {
-						photoMediaType = strings.TrimPrefix(photoMediaType, "data:")
-						decoded, err := base64.StdEncoding.DecodeString(parts[1])
-						if err == nil && len(decoded) <= MaxPhotoBytes {
-							photoData = decoded
-							break
-						}
-					}
-				}
-				break
-			}
-		} else if photoFound && (strings.HasPrefix(strings.TrimSpace(line), " ") || strings.HasPrefix(strings.TrimSpace(line), "\t")) {
-			photoLine.WriteString(line)
-			photoLine.WriteString("\r\n")
-		} else {
-			photoFound = false
-			filteredLines = append(filteredLines, line)
-		}
-	}
-
-	cleanVCard := []byte(strings.Join(filteredLines, "\r\n"))
-	return cleanVCard, photoMediaType, photoData, nil
-}
-
-func mergePhotoIntoVCard(vcard []byte, photoData []byte, photoMediaType string) []byte {
-	if len(photoData) == 0 || photoMediaType == "" {
-		return vcard
-	}
-
-	vCardStr := string(vcard)
-	endIdx := strings.LastIndex(vCardStr, "END:VCARD")
-	if endIdx == -1 {
-		return vcard
-	}
-
-	encoded := base64.StdEncoding.EncodeToString(photoData)
-	photoLine := fmt.Sprintf("PHOTO;ENCODING=base64;TYPE=%s:\r\n %s\r\n", photoMediaType, encoded)
-
-	result := vCardStr[:endIdx] + photoLine + vCardStr[endIdx:]
-	return []byte(result)
-}
-
-var categoriesLineRegex = regexp.MustCompile(`(?i)^CATEGORIES(?:\;[^\:]*)?:`)
-var groupLineRegex = regexp.MustCompile(`(?i)^GROUP(?:\;[^\:]*)?:`)
-
-func extractCategoriesAndGroupFromVCard(vcard []byte) ([]byte, []string, string, error) {
-	lines := strings.Split(string(vcard), "\r\n")
-	var categories []string
-	var group string
-	var filteredLines []string
-	categoriesFound := false
-	groupFound := false
-
-	for _, line := range lines {
-		if strings.TrimSpace(line) == "" {
-			if !categoriesFound && !groupFound {
-				filteredLines = append(filteredLines, line)
-			}
-			continue
-		}
-
-		if categoriesLineRegex.MatchString(line) {
-			categoriesFound = true
-			name, value, err := parseVCardContentLine(line)
-			if err == nil && strings.EqualFold(name, "CATEGORIES") {
-				cats := strings.Split(value, ",")
-				for _, cat := range cats {
-					cat = strings.TrimSpace(cat)
-					if cat != "" {
-						categories = append(categories, cat)
-					}
-				}
-			}
-		} else if groupLineRegex.MatchString(line) {
-			groupFound = true
-			name, value, err := parseVCardContentLine(line)
-			if err == nil && strings.EqualFold(name, "GROUP") {
-				group = strings.TrimSpace(value)
-			}
-		} else if (categoriesFound || groupFound) && (strings.HasPrefix(strings.TrimSpace(line), " ") || strings.HasPrefix(strings.TrimSpace(line), "\t")) {
-			continue
-		} else {
-			categoriesFound = false
-			groupFound = false
-			filteredLines = append(filteredLines, line)
-		}
-	}
-
-	cleanVCard := []byte(strings.Join(filteredLines, "\r\n"))
-	return cleanVCard, categories, group, nil
-}
-
-func mergeCategoriesAndGroupIntoVCard(vcard []byte, categories []string, group string) []byte {
-	vCardStr := string(vcard)
-	endIdx := strings.LastIndex(vCardStr, "END:VCARD")
-	if endIdx == -1 {
-		return vcard
-	}
-
-	var additions string
-	if len(categories) > 0 {
-		categoryStr := strings.Join(categories, ",")
-		additions += fmt.Sprintf("CATEGORIES:%s\r\n", categoryStr)
-	}
-	if group != "" {
-		additions += fmt.Sprintf("GROUP:%s\r\n", group)
-	}
-
-	if additions == "" {
-		return vcard
-	}
-
-	result := vCardStr[:endIdx] + additions + vCardStr[endIdx:]
-	return []byte(result)
 }
 
 type CreateAddressBookRequest struct {
@@ -291,6 +134,28 @@ type AddressBookChangePruneResult struct {
 	DryRun         bool
 	CandidateCount int64
 	DeletedCount   int64
+}
+
+type CreateACLRuleRequest struct {
+	AddressBookID   string
+	PrincipalID     string
+	GrantPrivileges []string
+	DenyPrivileges  []string
+	Protected       bool
+}
+
+type GetACLRulesRequest struct {
+	AddressBookID string
+}
+
+type UpdateACLRuleRequest struct {
+	ACLRuleID       string
+	GrantPrivileges []string
+	DenyPrivileges  []string
+}
+
+type DeleteACLRuleRequest struct {
+	ACLRuleID string
 }
 
 func (r *Repository) CreateAddressBook(ctx context.Context, req CreateAddressBookRequest) (AddressBook, error) {
@@ -629,638 +494,6 @@ WHERE user_id = $1::uuid
 	return book, nil
 }
 
-func (r *Repository) UpsertContactObject(ctx context.Context, req UpsertContactObjectRequest) (ContactObject, error) {
-	if r == nil || r.db == nil {
-		return ContactObject{}, fmt.Errorf("database handle is required")
-	}
-	req, etag, syncToken, err := ValidateUpsertContactObjectRequest(req)
-	if err != nil {
-		return ContactObject{}, err
-	}
-
-	cleanVCard, photoMediaType, photoData, _ := extractPhotoFromVCard(req.VCard)
-	cleanVCard, categories, group, _ := extractCategoriesAndGroupFromVCard(cleanVCard)
-
-	var object ContactObject
-	if err := runCardDAVWriteWithRetry(ctx, func() error {
-		tx, err := r.db.BeginTx(ctx, nil)
-		if err != nil {
-			return fmt.Errorf("begin CardDAV contact upsert: %w", err)
-		}
-		defer tx.Rollback()
-		if err := ensureAddressBookSyncMarker(ctx, tx, req.UserID, req.AddressBookID); err != nil {
-			return err
-		}
-		if req.ObservedETag != "" {
-			if err := ensureContactObjectETag(ctx, tx, req.UserID, req.AddressBookID, req.ObjectName, req.ObservedETag); err != nil {
-				return err
-			}
-		}
-		const query = `
-INSERT INTO carddav_contact_objects (
-  user_id, addressbook_id, object_name, uid, etag, size, vcard, photo_data, photo_media_type, categories_list, group_name
-) VALUES ($1::uuid, $2::uuid, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-ON CONFLICT (addressbook_id, object_name) WHERE status = 'active'
-DO UPDATE SET
-  uid = EXCLUDED.uid,
-  etag = EXCLUDED.etag,
-  size = EXCLUDED.size,
-  vcard = EXCLUDED.vcard,
-  photo_data = EXCLUDED.photo_data,
-  photo_media_type = EXCLUDED.photo_media_type,
-  categories_list = EXCLUDED.categories_list,
-  group_name = EXCLUDED.group_name,
-  updated_at = now()
-RETURNING id::text, user_id::text, addressbook_id::text, object_name, uid, etag, size, vcard, photo_data, photo_media_type, categories_list, group_name, created_at, updated_at`
-		err = tx.QueryRowContext(ctx, query,
-			req.UserID,
-			req.AddressBookID,
-			req.ObjectName,
-			req.UID,
-			etag,
-			len(cleanVCard),
-			string(cleanVCard),
-			photoData,
-			photoMediaType,
-			categories,
-			group,
-		).Scan(
-			&object.ID,
-			&object.UserID,
-			&object.AddressBookID,
-			&object.ObjectName,
-			&object.UID,
-			&object.ETag,
-			&object.Size,
-			&object.VCard,
-			&object.PhotoData,
-			&object.PhotoMediaType,
-			pq.Array(&object.Categories),
-			&object.Group,
-			&object.CreatedAt,
-			&object.UpdatedAt,
-		)
-		if err != nil {
-			return mapContactObjectUpsertError(err)
-		}
-		if err := updateAddressBookSyncToken(ctx, tx, req.UserID, req.AddressBookID, syncToken); err != nil {
-			return err
-		}
-		if err := insertAddressBookChange(ctx, tx, req.UserID, req.ActorUserID, req.AddressBookID, syncToken, "contact-upserted", req.ObjectName, etag); err != nil {
-			return err
-		}
-		if err := tx.Commit(); err != nil {
-			return fmt.Errorf("commit CardDAV contact upsert: %w", err)
-		}
-		return nil
-	}); err != nil {
-		return ContactObject{}, err
-	}
-	return object, nil
-}
-
-func (r *Repository) ListContactObjects(ctx context.Context, req ListContactObjectsRequest) ([]ContactObject, error) {
-	req, err := ValidateListContactObjectsRequest(req)
-	if err != nil {
-		return nil, err
-	}
-	return r.listContactObjects(ctx, req)
-}
-
-func (r *Repository) listContactObjectsForSync(ctx context.Context, req ListContactObjectsRequest) ([]ContactObject, error) {
-	req, err := ValidateListContactObjectsForSyncRequest(req)
-	if err != nil {
-		return nil, err
-	}
-	return r.listContactObjects(ctx, req)
-}
-
-func (r *Repository) listContactObjects(ctx context.Context, req ListContactObjectsRequest) ([]ContactObject, error) {
-	if r == nil || r.db == nil {
-		return nil, fmt.Errorf("database handle is required")
-	}
-	const query = `
-SELECT id::text, user_id::text, addressbook_id::text, object_name, uid, etag, size, vcard, photo_data, COALESCE(photo_media_type, ''), categories_list, COALESCE(group_name, ''), created_at, updated_at
-FROM carddav_contact_objects
-WHERE user_id = $1::uuid
-  AND addressbook_id = $2::uuid
-  AND status = $3
-ORDER BY updated_at DESC, id DESC
-LIMIT $4`
-	rows, err := r.db.QueryContext(ctx, query, req.UserID, req.AddressBookID, req.Status, req.Limit)
-	if err != nil {
-		return nil, fmt.Errorf("list CardDAV contact objects: %w", err)
-	}
-	defer rows.Close()
-	var objects []ContactObject
-	for rows.Next() {
-		var object ContactObject
-		if err := rows.Scan(&object.ID, &object.UserID, &object.AddressBookID, &object.ObjectName, &object.UID, &object.ETag, &object.Size, &object.VCard, &object.PhotoData, &object.PhotoMediaType, pq.Array(&object.Categories), &object.Group, &object.CreatedAt, &object.UpdatedAt); err != nil {
-			return nil, fmt.Errorf("scan CardDAV contact object: %w", err)
-		}
-		object.VCard = mergePhotoIntoVCard(object.VCard, object.PhotoData, object.PhotoMediaType)
-		object.VCard = mergeCategoriesAndGroupIntoVCard(object.VCard, object.Categories, object.Group)
-		objects = append(objects, object)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("iterate CardDAV contact objects: %w", err)
-	}
-	return objects, nil
-}
-
-func (r *Repository) GetContactObject(ctx context.Context, req GetContactObjectRequest) (ContactObject, error) {
-	if r == nil || r.db == nil {
-		return ContactObject{}, fmt.Errorf("database handle is required")
-	}
-	req, err := ValidateGetContactObjectRequest(req)
-	if err != nil {
-		return ContactObject{}, err
-	}
-	const query = `
-SELECT id::text, user_id::text, addressbook_id::text, object_name, uid, etag, size, vcard, photo_data, COALESCE(photo_media_type, ''), categories_list, COALESCE(group_name, ''), created_at, updated_at
-FROM carddav_contact_objects
-WHERE user_id = $1::uuid
-  AND addressbook_id = $2::uuid
-  AND object_name = $3
-  AND status = $4`
-	var object ContactObject
-	err = r.db.QueryRowContext(ctx, query, req.UserID, req.AddressBookID, req.ObjectName, req.Status).Scan(
-		&object.ID,
-		&object.UserID,
-		&object.AddressBookID,
-		&object.ObjectName,
-		&object.UID,
-		&object.ETag,
-		&object.Size,
-		&object.VCard,
-		&object.PhotoData,
-		&object.PhotoMediaType,
-		pq.Array(&object.Categories),
-		&object.Group,
-		&object.CreatedAt,
-		&object.UpdatedAt,
-	)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return ContactObject{}, fmt.Errorf("CardDAV contact object not found")
-		}
-		return ContactObject{}, fmt.Errorf("get CardDAV contact object: %w", err)
-	}
-	object.VCard = mergePhotoIntoVCard(object.VCard, object.PhotoData, object.PhotoMediaType)
-	object.VCard = mergeCategoriesAndGroupIntoVCard(object.VCard, object.Categories, object.Group)
-	return object, nil
-}
-
-func (r *Repository) ListContactObjectsByNameGroups(ctx context.Context, userID string, objectNamesByAddressBook map[string][]string, status string) ([]ContactObject, error) {
-	if r == nil || r.db == nil {
-		return nil, fmt.Errorf("database handle is required")
-	}
-	userID, err := validateCardDAVID("user_id", userID, true)
-	if err != nil {
-		return nil, err
-	}
-	status, err = ValidateAddressBookStatus(status)
-	if err != nil {
-		return nil, err
-	}
-	seen := make(map[contactObjectNameLookup]struct{})
-	lookups := make([]contactObjectNameLookup, 0)
-	for addressBookID, names := range objectNamesByAddressBook {
-		addressBookID, err := validateCardDAVID("addressbook_id", addressBookID, true)
-		if err != nil {
-			return nil, err
-		}
-		for _, name := range names {
-			name, err := ValidateContactObjectName(name)
-			if err != nil {
-				return nil, err
-			}
-			key := contactObjectNameLookup{addressBookID: addressBookID, objectName: name}
-			if _, ok := seen[key]; ok {
-				continue
-			}
-			seen[key] = struct{}{}
-			lookups = append(lookups, key)
-		}
-	}
-	if len(lookups) == 0 {
-		return nil, nil
-	}
-
-	objects := make([]ContactObject, 0, len(lookups))
-	for start := 0; start < len(lookups); start += carddavContactObjectLookupBatchSize {
-		end := start + carddavContactObjectLookupBatchSize
-		if end > len(lookups) {
-			end = len(lookups)
-		}
-		chunkObjects, err := r.listContactObjectsByNameGroupsChunk(ctx, userID, status, lookups[start:end])
-		if err != nil {
-			return nil, err
-		}
-		objects = append(objects, chunkObjects...)
-	}
-	return objects, nil
-}
-
-func (r *Repository) listContactObjectsByNameGroupsChunk(ctx context.Context, userID string, status string, lookups []contactObjectNameLookup) ([]ContactObject, error) {
-	var values strings.Builder
-	args := make([]any, 0, 2+len(lookups)*2)
-	args = append(args, userID, status)
-	for i, lookup := range lookups {
-		if i > 0 {
-			values.WriteString(", ")
-		}
-		addressBookArg := len(args) + 1
-		objectNameArg := len(args) + 2
-		values.WriteString(fmt.Sprintf("($%d::uuid, $%d)", addressBookArg, objectNameArg))
-		args = append(args, lookup.addressBookID, lookup.objectName)
-	}
-	query := `
-WITH requested(addressbook_id, object_name) AS (
-  VALUES ` + values.String() + `
-)
-SELECT c.id::text,
-       c.user_id::text,
-       c.addressbook_id::text,
-       c.object_name,
-       c.uid,
-       c.etag,
-       c.size,
-       c.vcard,
-       c.photo_data,
-       COALESCE(c.photo_media_type, ''),
-       c.categories_list,
-       COALESCE(c.group_name, ''),
-       c.created_at,
-       c.updated_at
-FROM requested r
-JOIN carddav_contact_objects c
-  ON c.addressbook_id = r.addressbook_id
- AND c.object_name = r.object_name
-WHERE c.user_id = $1::uuid
-  AND c.status = $2`
-	rows, err := r.db.QueryContext(ctx, query, args...)
-	if err != nil {
-		return nil, fmt.Errorf("list CardDAV contact objects by names: %w", err)
-	}
-	defer rows.Close()
-	objects := make([]ContactObject, 0, len(lookups))
-	for rows.Next() {
-		var object ContactObject
-		if err := rows.Scan(&object.ID, &object.UserID, &object.AddressBookID, &object.ObjectName, &object.UID, &object.ETag, &object.Size, &object.VCard, &object.PhotoData, &object.PhotoMediaType, pq.Array(&object.Categories), &object.Group, &object.CreatedAt, &object.UpdatedAt); err != nil {
-			return nil, fmt.Errorf("scan CardDAV contact object by names: %w", err)
-		}
-		object.VCard = mergePhotoIntoVCard(object.VCard, object.PhotoData, object.PhotoMediaType)
-		object.VCard = mergeCategoriesAndGroupIntoVCard(object.VCard, object.Categories, object.Group)
-		objects = append(objects, object)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("iterate CardDAV contact objects by names: %w", err)
-	}
-	return objects, nil
-}
-
-func (r *Repository) SearchContactsByEmail(ctx context.Context, req SearchContactsByEmailRequest) ([]ContactObject, error) {
-	if r == nil || r.db == nil {
-		return nil, fmt.Errorf("database handle is required")
-	}
-	if req.UserID == "" {
-		return nil, fmt.Errorf("user id is required")
-	}
-	if req.Email == "" {
-		return nil, fmt.Errorf("email is required")
-	}
-	limit := req.Limit
-	if limit <= 0 {
-		limit = 10
-	}
-	if limit > 50 {
-		limit = 50
-	}
-	const query = `
-SELECT c.id::text,
-       c.user_id::text,
-       c.addressbook_id::text,
-       c.object_name,
-       c.uid,
-       c.etag,
-       c.size,
-       c.vcard,
-       c.photo_data,
-       COALESCE(c.photo_media_type, ''),
-       c.categories_list,
-       COALESCE(c.group_name, ''),
-       c.created_at,
-       c.updated_at
-FROM carddav_contact_objects c
-JOIN carddav_addressbooks a ON a.id = c.addressbook_id
-WHERE a.user_id = $1::uuid
-  AND a.status = 'active'
-  AND c.status = 'active'
-  AND lower(c.vcard::text) LIKE '%' || lower($2) || '%'
-ORDER BY c.updated_at DESC
-LIMIT $3`
-	rows, err := r.db.QueryContext(ctx, query, req.UserID, req.Email, limit)
-	if err != nil {
-		return nil, fmt.Errorf("search contacts by email: %w", err)
-	}
-	defer rows.Close()
-	var objects []ContactObject
-	for rows.Next() {
-		var object ContactObject
-		if err := rows.Scan(
-			&object.ID,
-			&object.UserID,
-			&object.AddressBookID,
-			&object.ObjectName,
-			&object.UID,
-			&object.ETag,
-			&object.Size,
-			&object.VCard,
-			&object.PhotoData,
-			&object.PhotoMediaType,
-			pq.Array(&object.Categories),
-			&object.Group,
-			&object.CreatedAt,
-			&object.UpdatedAt,
-		); err != nil {
-			return nil, fmt.Errorf("scan contact object: %w", err)
-		}
-		object.VCard = mergePhotoIntoVCard(object.VCard, object.PhotoData, object.PhotoMediaType)
-		object.VCard = mergeCategoriesAndGroupIntoVCard(object.VCard, object.Categories, object.Group)
-		objects = append(objects, object)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("iterate contact objects: %w", err)
-	}
-	return objects, nil
-}
-
-func (r *Repository) SearchContactsByEmails(ctx context.Context, req SearchContactsByEmailsRequest) (map[string][]ContactObject, error) {
-	if r == nil || r.db == nil {
-		return nil, fmt.Errorf("database handle is required")
-	}
-	if req.UserID == "" {
-		return nil, fmt.Errorf("user id is required")
-	}
-	emails := normalizeContactEmailList(req.Emails)
-	out := make(map[string][]ContactObject, len(emails))
-	if len(emails) == 0 {
-		return out, nil
-	}
-	limit := req.Limit
-	if limit <= 0 {
-		limit = 1
-	}
-	if limit > 10 {
-		limit = 10
-	}
-	rows, err := r.db.QueryContext(ctx, buildSearchContactsByEmailsQuery(), req.UserID, pq.Array(emails), limit)
-	if err != nil {
-		return nil, fmt.Errorf("search contacts by emails: %w", err)
-	}
-	defer rows.Close()
-	for rows.Next() {
-		var email string
-		var object ContactObject
-		if err := rows.Scan(
-			&email,
-			&object.ID,
-			&object.UserID,
-			&object.AddressBookID,
-			&object.ObjectName,
-			&object.UID,
-			&object.ETag,
-			&object.Size,
-			&object.VCard,
-			&object.PhotoData,
-			&object.PhotoMediaType,
-			pq.Array(&object.Categories),
-			&object.Group,
-			&object.CreatedAt,
-			&object.UpdatedAt,
-		); err != nil {
-			return nil, fmt.Errorf("scan contact object by email batch: %w", err)
-		}
-		object.VCard = mergePhotoIntoVCard(object.VCard, object.PhotoData, object.PhotoMediaType)
-		object.VCard = mergeCategoriesAndGroupIntoVCard(object.VCard, object.Categories, object.Group)
-		key := strings.ToLower(strings.TrimSpace(email))
-		out[key] = append(out[key], object)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("iterate contact objects by email batch: %w", err)
-	}
-	return out, nil
-}
-
-func buildSearchContactsByEmailsQuery() string {
-	return `
-WITH requested AS (
-  SELECT email, email_order
-  FROM unnest($2::text[]) WITH ORDINALITY AS req(email, email_order)
-)
-SELECT req.email,
-       c.id::text,
-       c.user_id::text,
-       c.addressbook_id::text,
-       c.object_name,
-       c.uid,
-       c.etag,
-       c.size,
-       c.vcard,
-       c.photo_data,
-       COALESCE(c.photo_media_type, ''),
-       c.categories_list,
-       COALESCE(c.group_name, ''),
-       c.created_at,
-       c.updated_at
-FROM requested req
-JOIN LATERAL (
-  SELECT c.id,
-         c.user_id,
-         c.addressbook_id,
-         c.object_name,
-         c.uid,
-         c.etag,
-         c.size,
-         c.vcard,
-         c.photo_data,
-         COALESCE(c.photo_media_type, ''),
-         c.categories_list,
-         COALESCE(c.group_name, ''),
-         c.created_at,
-         c.updated_at
-  FROM carddav_contact_objects c
-  JOIN carddav_addressbooks a ON a.id = c.addressbook_id
-  WHERE a.user_id = $1::uuid
-    AND a.status = 'active'
-    AND c.status = 'active'
-    AND lower(c.vcard::text) LIKE '%' || lower(req.email) || '%'
-  ORDER BY c.updated_at DESC
-  LIMIT $3
-) c ON true
-ORDER BY req.email_order, c.updated_at DESC`
-}
-
-func normalizeContactEmailList(emails []string) []string {
-	out := make([]string, 0, len(emails))
-	seen := make(map[string]struct{}, len(emails))
-	for _, email := range emails {
-		email = strings.TrimSpace(email)
-		if email == "" {
-			continue
-		}
-		key := strings.ToLower(email)
-		if _, ok := seen[key]; ok {
-			continue
-		}
-		seen[key] = struct{}{}
-		out = append(out, email)
-	}
-	return out
-}
-
-func (r *Repository) SearchContacts(ctx context.Context, req SearchContactsRequest) ([]ContactObject, error) {
-	if r == nil || r.db == nil {
-		return nil, fmt.Errorf("database handle is required")
-	}
-	if req.UserID == "" {
-		return nil, fmt.Errorf("user id is required")
-	}
-	if req.Query == "" {
-		return nil, fmt.Errorf("query is required")
-	}
-	limit := req.Limit
-	if limit <= 0 {
-		limit = 10
-	}
-	if limit > 50 {
-		limit = 50
-	}
-	const query = `
-SELECT c.id::text,
-       c.user_id::text,
-       c.addressbook_id::text,
-       c.object_name,
-       c.uid,
-       c.etag,
-       c.size,
-       c.vcard,
-       c.photo_data,
-       COALESCE(c.photo_media_type, ''),
-       c.categories_list,
-       COALESCE(c.group_name, ''),
-       c.created_at,
-       c.updated_at
-FROM carddav_contact_objects c
-JOIN carddav_addressbooks a ON a.id = c.addressbook_id
-WHERE a.user_id = $1::uuid
-  AND a.status = 'active'
-  AND c.status = 'active'
-  AND (lower(c.vcard::text) LIKE '%' || lower($2) || '%')
-ORDER BY c.updated_at DESC
-LIMIT $3`
-	rows, err := r.db.QueryContext(ctx, query, req.UserID, req.Query, limit)
-	if err != nil {
-		return nil, fmt.Errorf("search contacts: %w", err)
-	}
-	defer rows.Close()
-	var objects []ContactObject
-	for rows.Next() {
-		var object ContactObject
-		if err := rows.Scan(
-			&object.ID,
-			&object.UserID,
-			&object.AddressBookID,
-			&object.ObjectName,
-			&object.UID,
-			&object.ETag,
-			&object.Size,
-			&object.VCard,
-			&object.PhotoData,
-			&object.PhotoMediaType,
-			pq.Array(&object.Categories),
-			&object.Group,
-			&object.CreatedAt,
-			&object.UpdatedAt,
-		); err != nil {
-			return nil, fmt.Errorf("scan contact object: %w", err)
-		}
-		object.VCard = mergePhotoIntoVCard(object.VCard, object.PhotoData, object.PhotoMediaType)
-		object.VCard = mergeCategoriesAndGroupIntoVCard(object.VCard, object.Categories, object.Group)
-		objects = append(objects, object)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("iterate contact objects: %w", err)
-	}
-	return objects, nil
-}
-
-func (r *Repository) DeleteContactObject(ctx context.Context, req DeleteContactObjectRequest) (ContactObject, error) {
-	if r == nil || r.db == nil {
-		return ContactObject{}, fmt.Errorf("database handle is required")
-	}
-	req, syncToken, err := ValidateDeleteContactObjectRequest(req)
-	if err != nil {
-		return ContactObject{}, err
-	}
-	var object ContactObject
-	if err := runCardDAVWriteWithRetry(ctx, func() error {
-		tx, err := r.db.BeginTx(ctx, nil)
-		if err != nil {
-			return fmt.Errorf("begin CardDAV contact delete: %w", err)
-		}
-		defer tx.Rollback()
-		if err := ensureAddressBookSyncMarker(ctx, tx, req.UserID, req.AddressBookID); err != nil {
-			return err
-		}
-		if req.ObservedETag != "" {
-			if err := ensureContactObjectETag(ctx, tx, req.UserID, req.AddressBookID, req.ObjectName, req.ObservedETag); err != nil {
-				return err
-			}
-		}
-		const query = `
-UPDATE carddav_contact_objects
-SET status = 'deleted', deleted_at = now(), updated_at = now()
-WHERE user_id = $1::uuid
-  AND addressbook_id = $2::uuid
-  AND object_name = $3
-  AND status = 'active'
-RETURNING id::text, user_id::text, addressbook_id::text, object_name, uid, etag, size, vcard, created_at, updated_at`
-		err = tx.QueryRowContext(ctx, query, req.UserID, req.AddressBookID, req.ObjectName).Scan(
-			&object.ID,
-			&object.UserID,
-			&object.AddressBookID,
-			&object.ObjectName,
-			&object.UID,
-			&object.ETag,
-			&object.Size,
-			&object.VCard,
-			&object.CreatedAt,
-			&object.UpdatedAt,
-		)
-		if err != nil {
-			if errors.Is(err, sql.ErrNoRows) {
-				return fmt.Errorf("CardDAV contact object not found")
-			}
-			return fmt.Errorf("delete CardDAV contact object: %w", err)
-		}
-		if err := updateAddressBookSyncToken(ctx, tx, req.UserID, req.AddressBookID, syncToken); err != nil {
-			return err
-		}
-		if err := insertAddressBookChange(ctx, tx, req.UserID, req.ActorUserID, req.AddressBookID, syncToken, "contact-deleted", req.ObjectName, object.ETag); err != nil {
-			return err
-		}
-		if err := tx.Commit(); err != nil {
-			return fmt.Errorf("commit CardDAV contact delete: %w", err)
-		}
-		return nil
-	}); err != nil {
-		return ContactObject{}, err
-	}
-	return object, nil
-}
-
 func (r *Repository) CreateACLRule(ctx context.Context, req CreateACLRuleRequest) (ACLRule, error) {
 	if r == nil || r.db == nil {
 		return ACLRule{}, fmt.Errorf("database handle is required")
@@ -1357,297 +590,211 @@ WHERE id = $1::uuid`, req.ACLRuleID)
 	return nil
 }
 
-func (r *Repository) ListAddressBookChangesSince(ctx context.Context, req ListAddressBookChangesSinceRequest) ([]AddressBookChange, error) {
-	if r == nil || r.db == nil {
-		return nil, fmt.Errorf("database handle is required")
-	}
-	req, err := ValidateListAddressBookChangesSinceRequest(req)
-	if err != nil {
-		return nil, err
-	}
-	const query = `
-WITH marker AS (
-  SELECT id
-  FROM carddav_addressbook_changes
-  WHERE user_id = $1::uuid
-    AND addressbook_id = $2::uuid
-    AND sync_token = $3
-)
-SELECT c.id, c.user_id::text, c.addressbook_id::text, c.object_name, c.etag, c.action, c.sync_token, c.changed_at
-FROM carddav_addressbook_changes c
-JOIN marker m ON c.id > m.id
-WHERE c.user_id = $1::uuid
-  AND c.addressbook_id = $2::uuid
-ORDER BY c.id ASC
-LIMIT $4`
-	rows, err := r.db.QueryContext(ctx, query, req.UserID, req.AddressBookID, req.SyncToken, req.Limit)
-	if err != nil {
-		return nil, fmt.Errorf("list CardDAV sync changes: %w", err)
-	}
-	defer rows.Close()
-	var changes []AddressBookChange
-	for rows.Next() {
-		var change AddressBookChange
-		if err := rows.Scan(&change.ID, &change.UserID, &change.AddressBookID, &change.ObjectName, &change.ETag, &change.Action, &change.SyncToken, &change.ChangedAt); err != nil {
-			return nil, fmt.Errorf("scan CardDAV sync change: %w", err)
-		}
-		changes = append(changes, change)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("iterate CardDAV sync changes: %w", err)
-	}
-	if len(changes) == 0 {
-		var markerExists bool
-		err := r.db.QueryRowContext(ctx, `
-SELECT EXISTS (
-  SELECT 1
-  FROM carddav_addressbook_changes
-  WHERE user_id = $1::uuid
-    AND addressbook_id = $2::uuid
-    AND sync_token = $3
-)`, req.UserID, req.AddressBookID, req.SyncToken).Scan(&markerExists)
-		if err != nil {
-			return nil, fmt.Errorf("check CardDAV sync marker: %w", err)
-		}
-		if !markerExists {
-			return nil, InvalidSyncTokenError{Token: req.SyncToken}
-		}
-	}
-	return changes, nil
-}
-
-func (r *Repository) ListAddressBookChangesWithObjectsSince(ctx context.Context, req ListAddressBookChangesSinceRequest, includeVCard bool) ([]AddressBookChangeWithObject, error) {
-	if r == nil || r.db == nil {
-		return nil, fmt.Errorf("database handle is required")
-	}
-	req, err := ValidateListAddressBookChangesSinceRequest(req)
-	if err != nil {
-		return nil, err
-	}
-	const markerQuery = `
-SELECT id
-FROM carddav_addressbook_changes
+func ensureAddressBookCollectionETag(ctx context.Context, tx *sql.Tx, userID string, addressBookID string, etag string) error {
+	var book AddressBook
+	err := tx.QueryRowContext(ctx, `
+SELECT id::text, user_id::text, name, displayname_lang, description, description_lang, sync_token, created_at, updated_at
+FROM carddav_addressbooks
 WHERE user_id = $1::uuid
-  AND addressbook_id = $2::uuid
-  AND sync_token = $3`
-	var markerID int64
-	if err := r.db.QueryRowContext(ctx, markerQuery, req.UserID, req.AddressBookID, req.SyncToken).Scan(&markerID); err != nil {
+  AND id = $2::uuid
+  AND status = 'active'`, userID, addressBookID).Scan(
+		&book.ID,
+		&book.UserID,
+		&book.Name,
+		&book.NameLang,
+		&book.Description,
+		&book.DescriptionLang,
+		&book.SyncToken,
+		&book.CreatedAt,
+		&book.UpdatedAt,
+	)
+	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, InvalidSyncTokenError{Token: req.SyncToken}
+			return fmt.Errorf("CardDAV address book not found")
 		}
-		return nil, fmt.Errorf("get CardDAV sync marker: %w", err)
+		return fmt.Errorf("read CardDAV address book collection etag: %w", err)
 	}
-
-	vcardExpr := "NULL::text AS object_vcard"
-	photoDataExpr := "NULL::bytea AS object_photo_data"
-	photoMediaTypeExpr := "NULL::text AS object_photo_media_type"
-	categoriesExpr := "NULL::text[] AS object_categories_list"
-	groupExpr := "NULL::text AS object_group_name"
-	if includeVCard {
-		vcardExpr = "o.vcard AS object_vcard"
-		photoDataExpr = "o.photo_data AS object_photo_data"
-		photoMediaTypeExpr = "o.photo_media_type AS object_photo_media_type"
-		categoriesExpr = "o.categories_list AS object_categories_list"
-		groupExpr = "o.group_name AS object_group_name"
-	}
-	query := `
-SELECT
-  c.id,
-  c.user_id::text,
-  c.addressbook_id::text,
-  c.object_name,
-  c.etag,
-  c.action,
-  c.sync_token,
-  c.changed_at,
-  o.id::text AS object_id,
-  o.user_id::text AS object_user_id,
-  o.addressbook_id::text AS object_addressbook_id,
-  o.object_name AS object_object_name,
-  o.uid AS object_uid,
-  o.etag AS object_etag,
-  o.size AS object_size,
-  ` + vcardExpr + `,
-  ` + photoDataExpr + `,
-  ` + photoMediaTypeExpr + `,
-  ` + categoriesExpr + `,
-  ` + groupExpr + `,
-  o.created_at AS object_created_at,
-  o.updated_at AS object_updated_at
-FROM carddav_addressbook_changes c
-LEFT JOIN carddav_contact_objects o
-  ON o.user_id = c.user_id
- AND o.addressbook_id = c.addressbook_id
- AND o.object_name = c.object_name
- AND o.status = 'active'
-WHERE c.user_id = $1::uuid
-  AND c.addressbook_id = $2::uuid
-  AND c.id > $3
-ORDER BY c.id ASC
-LIMIT $4`
-	rows, err := r.db.QueryContext(ctx, query, req.UserID, req.AddressBookID, markerID, req.Limit)
+	current, err := AddressBookCollectionETag(userID, book)
 	if err != nil {
-		return nil, fmt.Errorf("list CardDAV sync changes with objects: %w", err)
+		return fmt.Errorf("build CardDAV address book collection etag: %w", err)
 	}
-	defer rows.Close()
-
-	changes := make([]AddressBookChangeWithObject, 0, req.Limit)
-	for rows.Next() {
-		var item AddressBookChangeWithObject
-		var (
-			objectID             sql.NullString
-			objectUserID         sql.NullString
-			objectAddressBookID  sql.NullString
-			objectObjectName     sql.NullString
-			objectUID            sql.NullString
-			objectETag           sql.NullString
-			objectSize           sql.NullInt64
-			objectVCard          sql.NullString
-			objectPhotoData      interface{}
-			objectPhotoMediaType sql.NullString
-			objectCategoriesList interface{}
-			objectGroupName      sql.NullString
-			objectCreatedAt      sql.NullTime
-			objectUpdatedAt      sql.NullTime
-		)
-		if err := rows.Scan(
-			&item.Change.ID,
-			&item.Change.UserID,
-			&item.Change.AddressBookID,
-			&item.Change.ObjectName,
-			&item.Change.ETag,
-			&item.Change.Action,
-			&item.Change.SyncToken,
-			&item.Change.ChangedAt,
-			&objectID,
-			&objectUserID,
-			&objectAddressBookID,
-			&objectObjectName,
-			&objectUID,
-			&objectETag,
-			&objectSize,
-			&objectVCard,
-			&objectPhotoData,
-			&objectPhotoMediaType,
-			&objectCategoriesList,
-			&objectGroupName,
-			&objectCreatedAt,
-			&objectUpdatedAt,
-		); err != nil {
-			return nil, fmt.Errorf("scan CardDAV sync change with object: %w", err)
-		}
-		if objectID.Valid {
-			item.HasObject = true
-			photoData := []byte(nil)
-			if objectPhotoData != nil {
-				photoData = objectPhotoData.([]byte)
-			}
-			categories := []string(nil)
-			if objectCategoriesList != nil {
-				categories = objectCategoriesList.([]string)
-			}
-			item.Object = ContactObject{
-				ID:             objectID.String,
-				UserID:         objectUserID.String,
-				AddressBookID:  objectAddressBookID.String,
-				ObjectName:     objectObjectName.String,
-				UID:            objectUID.String,
-				ETag:           objectETag.String,
-				Size:           objectSize.Int64,
-				VCard:          []byte(objectVCard.String),
-				PhotoData:      photoData,
-				PhotoMediaType: objectPhotoMediaType.String,
-				Categories:     categories,
-				Group:          objectGroupName.String,
-				CreatedAt:      objectCreatedAt.Time,
-				UpdatedAt:      objectUpdatedAt.Time,
-			}
-			item.Object.VCard = mergePhotoIntoVCard(item.Object.VCard, item.Object.PhotoData, item.Object.PhotoMediaType)
-			item.Object.VCard = mergeCategoriesAndGroupIntoVCard(item.Object.VCard, item.Object.Categories, item.Object.Group)
-		}
-		changes = append(changes, item)
+	if current != etag {
+		return fmt.Errorf("CardDAV address book collection etag mismatch")
 	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("iterate CardDAV sync changes with objects: %w", err)
-	}
-	return changes, nil
+	return nil
 }
 
-func (r *Repository) PruneAddressBookChanges(ctx context.Context, req PruneAddressBookChangesRequest) (AddressBookChangePruneResult, error) {
-	if r == nil || r.db == nil {
-		return AddressBookChangePruneResult{}, fmt.Errorf("database handle is required")
-	}
-	req, err := ValidatePruneAddressBookChangesRequest(req)
+func updateAddressBookSyncToken(ctx context.Context, tx *sql.Tx, userID string, addressBookID string, syncToken string) error {
+	res, err := tx.ExecContext(ctx, `
+UPDATE carddav_addressbooks
+SET sync_token = $3, updated_at = now()
+WHERE user_id = $1::uuid
+  AND id = $2::uuid
+  AND status = 'active'`, userID, addressBookID, syncToken)
 	if err != nil {
-		return AddressBookChangePruneResult{}, err
+		return fmt.Errorf("update CardDAV sync token: %w", err)
 	}
-	result := AddressBookChangePruneResult{
-		Cutoff:        req.Cutoff,
-		UserID:        req.UserID,
-		AddressBookID: req.AddressBookID,
-		Limit:         req.Limit,
-		DryRun:        req.DryRun,
+	affected, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("read CardDAV sync token update count: %w", err)
 	}
-	if req.DryRun {
-		query, args := buildPruneAddressBookChangesSQL(req, true)
-		if err := r.db.QueryRowContext(ctx, query, args...).Scan(&result.CandidateCount); err != nil {
-			return AddressBookChangePruneResult{}, fmt.Errorf("check CardDAV sync change prune candidates: %w", err)
-		}
-		return result, nil
+	if affected != 1 {
+		return fmt.Errorf("CardDAV address book not found")
 	}
-	query, args := buildPruneAddressBookChangesSQL(req, false)
-	if err := r.db.QueryRowContext(ctx, query, args...).Scan(&result.CandidateCount, &result.DeletedCount); err != nil {
-		return AddressBookChangePruneResult{}, fmt.Errorf("prune CardDAV sync changes: %w", err)
-	}
-	return result, nil
+	return nil
 }
 
-func buildPruneAddressBookChangesSQL(req PruneAddressBookChangesRequest, dryRun bool) (string, []any) {
-	args := []any{req.Cutoff}
-	where := []string{"c.changed_at < $1"}
-	if req.UserID != "" {
-		args = append(args, req.UserID)
-		where = append(where, fmt.Sprintf("c.user_id = $%d::uuid", len(args)))
-	}
-	if req.AddressBookID != "" {
-		args = append(args, req.AddressBookID)
-		where = append(where, fmt.Sprintf("c.addressbook_id = $%d::uuid", len(args)))
-	}
-	args = append(args, req.Limit)
-	limitParam := len(args)
-
-	query := fmt.Sprintf(`
-WITH candidates AS (
-  SELECT c.id
-  FROM carddav_addressbook_changes c
-  WHERE %s
-    AND EXISTS (
-      SELECT 1
-      FROM carddav_addressbook_changes newer
-      WHERE newer.addressbook_id = c.addressbook_id
-        AND newer.id > c.id
-    )
-    AND NOT EXISTS (
-      SELECT 1
-      FROM carddav_addressbooks a
-      WHERE a.id = c.addressbook_id
-        AND a.sync_token = c.sync_token
-    )
-  ORDER BY c.id ASC
-  LIMIT $%d
-)`, strings.Join(where, "\n    AND "), limitParam)
-	if dryRun {
-		return query + `
-SELECT count(*)::bigint FROM candidates`, args
-	}
-	return query + `,
-deleted AS (
-  DELETE FROM carddav_addressbook_changes c
-  USING candidates
-  WHERE c.id = candidates.id
-  RETURNING c.id
+func ensureAddressBookSyncMarker(ctx context.Context, tx *sql.Tx, userID string, addressBookID string) error {
+	var hasActiveAddressBook bool
+	err := tx.QueryRowContext(ctx, `
+WITH active_addressbook AS (
+  SELECT sync_token
+  FROM carddav_addressbooks
+  WHERE user_id = $1::uuid
+    AND id = $2::uuid
+    AND status = 'active'
+),
+insert_marker AS (
+  INSERT INTO carddav_addressbook_changes (
+    user_id, addressbook_id, sync_token, action
+  )
+  SELECT $1::uuid, $2::uuid, sync_token, 'addressbook-created'
+  FROM active_addressbook
+  WHERE NOT EXISTS (
+    SELECT 1
+    FROM carddav_addressbook_changes existing
+    JOIN active_addressbook active ON active.sync_token = existing.sync_token
+    WHERE existing.addressbook_id = $2::uuid
+      AND existing.sync_token = active.sync_token
+      AND existing.action = 'addressbook-created'
+  )
 )
-SELECT (SELECT count(*)::bigint FROM candidates), (SELECT count(*)::bigint FROM deleted)`, args
+SELECT EXISTS (SELECT 1 FROM active_addressbook)`, userID, addressBookID).Scan(&hasActiveAddressBook)
+	if err != nil {
+		return fmt.Errorf("read CardDAV sync marker: %w", err)
+	}
+	if !hasActiveAddressBook {
+		return fmt.Errorf("CardDAV address book not found")
+	}
+	return nil
+}
+
+func optionalStringArg(value *string) (string, bool) {
+	if value == nil {
+		return "", false
+	}
+	return *value, true
+}
+
+func mapContactObjectUpsertError(err error) error {
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+		switch pgErr.ConstraintName {
+		case "idx_carddav_contact_objects_active_uid":
+			return fmt.Errorf("CardDAV contact object UID already exists")
+		case "idx_carddav_contact_objects_active_name":
+			return fmt.Errorf("CardDAV contact object already exists")
+		}
+	}
+	return fmt.Errorf("upsert CardDAV contact object: %w", err)
+}
+
+func isRetryableCardDAVWriteError(err error) bool {
+	var pgErr *pgconn.PgError
+	if !errors.As(err, &pgErr) {
+		return false
+	}
+	switch pgErr.Code {
+	case "40001", "40P01", "40P02", "55P03":
+		return true
+	default:
+		return false
+	}
+}
+
+func sleepWithContext(ctx context.Context, duration time.Duration) error {
+	timer := time.NewTimer(duration)
+	defer timer.Stop()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-timer.C:
+		return nil
+	}
+}
+
+func runCardDAVWriteWithRetry(ctx context.Context, fn func() error) error {
+	for attempt := 0; attempt < carddavWriteMaxAttempts; attempt++ {
+		err := fn()
+		if err == nil {
+			return nil
+		}
+		if !isRetryableCardDAVWriteError(err) || attempt+1 >= carddavWriteMaxAttempts {
+			return err
+		}
+		delay := carddavWriteBaseDelay << attempt
+		if delay > carddavWriteMaxDelay {
+			delay = carddavWriteMaxDelay
+		}
+		jitter := time.Duration(time.Now().UnixNano() % int64(delay))
+		if err := sleepWithContext(ctx, delay+jitter); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func validateOptionalContactETag(value string) (string, error) {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return "", nil
+	}
+	return ValidateContactObjectETag(value)
+}
+
+func validateCardDAVID(field string, value string, required bool) (string, error) {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		if required {
+			return "", fmt.Errorf("%s is required", field)
+		}
+		return "", nil
+	}
+	if len(value) > maxSegmentBytes {
+		return "", fmt.Errorf("%s is too long", field)
+	}
+	if strings.ContainsAny(value, "\r\n") {
+		return "", fmt.Errorf("%s must not contain line breaks", field)
+	}
+	return value, nil
+}
+
+func validateCardDAVActorUserID(actorUserID string, ownerUserID string) (string, error) {
+	actorUserID = strings.TrimSpace(actorUserID)
+	if actorUserID == "" {
+		return ownerUserID, nil
+	}
+	return validateCardDAVID("actor_user_id", actorUserID, true)
+}
+
+func normalizeCardDAVLimit(limit int) int {
+	if limit <= 0 {
+		return 200
+	}
+	if limit > 1000 {
+		return 1000
+	}
+	return limit
+}
+
+func normalizeCardDAVChangeLimit(limit int) int {
+	if limit <= 0 {
+		return 200
+	}
+	if limit > MaxWebDAVReportLimit+1 {
+		return MaxWebDAVReportLimit + 1
+	}
+	return limit
 }
 
 func ValidateCreateAddressBookRequest(req CreateAddressBookRequest) (CreateAddressBookRequest, string, string, error) {
@@ -1852,474 +999,4 @@ func ValidateDeleteAddressBookRequest(req DeleteAddressBookRequest) (DeleteAddre
 		return DeleteAddressBookRequest{}, err
 	}
 	return DeleteAddressBookRequest{UserID: userID, ActorUserID: actorUserID, AddressBookID: bookID, ObservedETag: observedETag}, nil
-}
-
-func ValidateUpsertContactObjectRequest(req UpsertContactObjectRequest) (UpsertContactObjectRequest, string, string, error) {
-	userID, err := validateCardDAVID("user_id", req.UserID, true)
-	if err != nil {
-		return UpsertContactObjectRequest{}, "", "", err
-	}
-	actorUserID, err := validateCardDAVActorUserID(req.ActorUserID, userID)
-	if err != nil {
-		return UpsertContactObjectRequest{}, "", "", err
-	}
-	bookID, err := validateCardDAVID("addressbook_id", req.AddressBookID, true)
-	if err != nil {
-		return UpsertContactObjectRequest{}, "", "", err
-	}
-	objectName, err := ValidateContactObjectName(req.ObjectName)
-	if err != nil {
-		return UpsertContactObjectRequest{}, "", "", err
-	}
-	meta, err := ValidateVCardObject(req.VCard)
-	if err != nil {
-		return UpsertContactObjectRequest{}, "", "", err
-	}
-	uid := strings.TrimSpace(req.UID)
-	if uid == "" {
-		uid = meta.UID
-	}
-	uid, err = ValidateContactObjectUID(uid)
-	if err != nil {
-		return UpsertContactObjectRequest{}, "", "", err
-	}
-	if uid != meta.UID {
-		return UpsertContactObjectRequest{}, "", "", fmt.Errorf("contact object uid does not match vcard UID")
-	}
-	observedETag, err := validateOptionalContactETag(req.ObservedETag)
-	if err != nil {
-		return UpsertContactObjectRequest{}, "", "", err
-	}
-	etag, err := ContactObjectETag(req.VCard)
-	if err != nil {
-		return UpsertContactObjectRequest{}, "", "", err
-	}
-	syncToken := AddressBookSyncToken(userID, bookID, objectName, etag, time.Now().UTC().Format(time.RFC3339Nano))
-	return UpsertContactObjectRequest{UserID: userID, ActorUserID: actorUserID, AddressBookID: bookID, ObjectName: objectName, UID: uid, VCard: req.VCard, ObservedETag: observedETag}, etag, syncToken, nil
-}
-
-func ValidateListContactObjectsRequest(req ListContactObjectsRequest) (ListContactObjectsRequest, error) {
-	return validateListContactObjectsRequest(req, normalizeCardDAVLimit)
-}
-
-func ValidateListContactObjectsForSyncRequest(req ListContactObjectsRequest) (ListContactObjectsRequest, error) {
-	return validateListContactObjectsRequest(req, normalizeCardDAVChangeLimit)
-}
-
-func validateListContactObjectsRequest(req ListContactObjectsRequest, normalizeLimit func(int) int) (ListContactObjectsRequest, error) {
-	userID, err := validateCardDAVID("user_id", req.UserID, true)
-	if err != nil {
-		return ListContactObjectsRequest{}, err
-	}
-	bookID, err := validateCardDAVID("addressbook_id", req.AddressBookID, true)
-	if err != nil {
-		return ListContactObjectsRequest{}, err
-	}
-	status, err := ValidateAddressBookStatus(req.Status)
-	if err != nil {
-		return ListContactObjectsRequest{}, err
-	}
-	return ListContactObjectsRequest{UserID: userID, AddressBookID: bookID, Status: status, Limit: normalizeLimit(req.Limit)}, nil
-}
-
-func ValidateGetContactObjectRequest(req GetContactObjectRequest) (GetContactObjectRequest, error) {
-	userID, err := validateCardDAVID("user_id", req.UserID, true)
-	if err != nil {
-		return GetContactObjectRequest{}, err
-	}
-	bookID, err := validateCardDAVID("addressbook_id", req.AddressBookID, true)
-	if err != nil {
-		return GetContactObjectRequest{}, err
-	}
-	objectName, err := ValidateContactObjectName(req.ObjectName)
-	if err != nil {
-		return GetContactObjectRequest{}, err
-	}
-	status, err := ValidateAddressBookStatus(req.Status)
-	if err != nil {
-		return GetContactObjectRequest{}, err
-	}
-	return GetContactObjectRequest{UserID: userID, AddressBookID: bookID, ObjectName: objectName, Status: status}, nil
-}
-
-func ValidateDeleteContactObjectRequest(req DeleteContactObjectRequest) (DeleteContactObjectRequest, string, error) {
-	userID, err := validateCardDAVID("user_id", req.UserID, true)
-	if err != nil {
-		return DeleteContactObjectRequest{}, "", err
-	}
-	actorUserID, err := validateCardDAVActorUserID(req.ActorUserID, userID)
-	if err != nil {
-		return DeleteContactObjectRequest{}, "", err
-	}
-	bookID, err := validateCardDAVID("addressbook_id", req.AddressBookID, true)
-	if err != nil {
-		return DeleteContactObjectRequest{}, "", err
-	}
-	objectName, err := ValidateContactObjectName(req.ObjectName)
-	if err != nil {
-		return DeleteContactObjectRequest{}, "", err
-	}
-	observedETag, err := validateOptionalContactETag(req.ObservedETag)
-	if err != nil {
-		return DeleteContactObjectRequest{}, "", err
-	}
-	syncToken := AddressBookSyncToken(userID, bookID, objectName, "contact-delete", time.Now().UTC().Format(time.RFC3339Nano))
-	return DeleteContactObjectRequest{UserID: userID, ActorUserID: actorUserID, AddressBookID: bookID, ObjectName: objectName, ObservedETag: observedETag}, syncToken, nil
-}
-
-func ValidateListAddressBookChangesSinceRequest(req ListAddressBookChangesSinceRequest) (ListAddressBookChangesSinceRequest, error) {
-	userID, err := validateCardDAVID("user_id", req.UserID, true)
-	if err != nil {
-		return ListAddressBookChangesSinceRequest{}, err
-	}
-	bookID, err := validateCardDAVID("addressbook_id", req.AddressBookID, true)
-	if err != nil {
-		return ListAddressBookChangesSinceRequest{}, err
-	}
-	syncToken := strings.TrimSpace(req.SyncToken)
-	if syncToken == "" {
-		return ListAddressBookChangesSinceRequest{}, fmt.Errorf("sync token is required")
-	}
-	if len(syncToken) > 128 || strings.ContainsAny(syncToken, "\r\n") {
-		return ListAddressBookChangesSinceRequest{}, fmt.Errorf("sync token is invalid")
-	}
-	return ListAddressBookChangesSinceRequest{UserID: userID, AddressBookID: bookID, SyncToken: syncToken, Limit: normalizeCardDAVChangeLimit(req.Limit)}, nil
-}
-
-func ValidatePruneAddressBookChangesRequest(req PruneAddressBookChangesRequest) (PruneAddressBookChangesRequest, error) {
-	if req.Cutoff.IsZero() {
-		return PruneAddressBookChangesRequest{}, fmt.Errorf("cutoff is required")
-	}
-	cutoff := req.Cutoff.UTC()
-	if cutoff.After(time.Now().UTC()) {
-		return PruneAddressBookChangesRequest{}, fmt.Errorf("cutoff must not be in the future")
-	}
-	userID, err := validateCardDAVID("user_id", req.UserID, false)
-	if err != nil {
-		return PruneAddressBookChangesRequest{}, err
-	}
-	bookID, err := validateCardDAVID("addressbook_id", req.AddressBookID, false)
-	if err != nil {
-		return PruneAddressBookChangesRequest{}, err
-	}
-	return PruneAddressBookChangesRequest{
-		Cutoff:        cutoff,
-		UserID:        userID,
-		AddressBookID: bookID,
-		Limit:         normalizeCardDAVChangeLimit(req.Limit),
-		DryRun:        req.DryRun,
-	}, nil
-}
-
-type addressBookChangeExecer interface {
-	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
-}
-
-const (
-	contactsChangedEvent       = "contacts.changed"
-	davChangeOutboxTopic       = "dav.event"
-	davChangeSchemaVersion     = "2026-05-06.dav-change.v1"
-	davChangeKindCardDAV       = "carddav"
-	davChangePartitionFallback = "unknown"
-)
-
-type CreateACLRuleRequest struct {
-	AddressBookID   string
-	PrincipalID     string
-	GrantPrivileges []string
-	DenyPrivileges  []string
-	Protected       bool
-}
-
-type GetACLRulesRequest struct {
-	AddressBookID string
-}
-
-type UpdateACLRuleRequest struct {
-	ACLRuleID       string
-	GrantPrivileges []string
-	DenyPrivileges  []string
-}
-
-type DeleteACLRuleRequest struct {
-	ACLRuleID string
-}
-
-func insertAddressBookChange(ctx context.Context, execer addressBookChangeExecer, userID string, actorUserID string, addressBookID string, syncToken string, action string, objectName string, etag string) error {
-	_, err := execer.ExecContext(ctx, `
-INSERT INTO carddav_addressbook_changes (
-  user_id, addressbook_id, sync_token, action, object_name, etag
-) VALUES ($1::uuid, $2::uuid, $3, $4, $5, $6)`, userID, addressBookID, syncToken, action, objectName, etag)
-	if err != nil {
-		return fmt.Errorf("insert CardDAV address book change: %w", err)
-	}
-	if err := insertAddressBookChangeOutbox(ctx, execer, userID, actorUserID, addressBookID, syncToken, action, objectName, etag); err != nil {
-		return err
-	}
-	return nil
-}
-
-func insertAddressBookChangeOutbox(ctx context.Context, execer addressBookChangeExecer, userID string, actorUserID string, addressBookID string, syncToken string, action string, objectName string, etag string) error {
-	ownerUserID := strings.TrimSpace(userID)
-	actorUserID = strings.TrimSpace(actorUserID)
-	if actorUserID == "" {
-		actorUserID = ownerUserID
-	}
-	payload, err := json.Marshal(map[string]any{
-		"event":          contactsChangedEvent,
-		"schema_version": davChangeSchemaVersion,
-		"dav_kind":       davChangeKindCardDAV,
-		"action":         action,
-		"user_id":        ownerUserID,
-		"owner_user_id":  ownerUserID,
-		"actor_user_id":  actorUserID,
-		"delegated":      actorUserID != "" && actorUserID != ownerUserID,
-		"collection_id":  addressBookID,
-		"object_name":    objectName,
-		"etag":           etag,
-		"sync_token":     syncToken,
-		"changed_at":     time.Now().UTC(),
-	})
-	if err != nil {
-		return fmt.Errorf("marshal CardDAV change event: %w", err)
-	}
-	partitionKey := ownerUserID
-	if partitionKey == "" {
-		partitionKey = davChangePartitionFallback
-	}
-	_, err = execer.ExecContext(ctx, `
-INSERT INTO outbox (topic, partition_key, payload, status)
-VALUES ($1, $2, $3::jsonb, 'pending')`, davChangeOutboxTopic, partitionKey, string(payload))
-	if err != nil {
-		return fmt.Errorf("insert CardDAV change outbox event: %w", err)
-	}
-	return nil
-}
-
-func optionalStringArg(value *string) (string, bool) {
-	if value == nil {
-		return "", false
-	}
-	return *value, true
-}
-
-func mapContactObjectUpsertError(err error) error {
-	var pgErr *pgconn.PgError
-	if errors.As(err, &pgErr) && pgErr.Code == "23505" {
-		switch pgErr.ConstraintName {
-		case "idx_carddav_contact_objects_active_uid":
-			return fmt.Errorf("CardDAV contact object UID already exists")
-		case "idx_carddav_contact_objects_active_name":
-			return fmt.Errorf("CardDAV contact object already exists")
-		}
-	}
-	return fmt.Errorf("upsert CardDAV contact object: %w", err)
-}
-
-func isRetryableCardDAVWriteError(err error) bool {
-	var pgErr *pgconn.PgError
-	if !errors.As(err, &pgErr) {
-		return false
-	}
-	switch pgErr.Code {
-	case "40001", "40P01", "40P02", "55P03":
-		return true
-	default:
-		return false
-	}
-}
-
-func sleepWithContext(ctx context.Context, duration time.Duration) error {
-	timer := time.NewTimer(duration)
-	defer timer.Stop()
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	case <-timer.C:
-		return nil
-	}
-}
-
-func runCardDAVWriteWithRetry(ctx context.Context, fn func() error) error {
-	for attempt := 0; attempt < carddavWriteMaxAttempts; attempt++ {
-		err := fn()
-		if err == nil {
-			return nil
-		}
-		if !isRetryableCardDAVWriteError(err) || attempt+1 >= carddavWriteMaxAttempts {
-			return err
-		}
-		delay := carddavWriteBaseDelay << attempt
-		if delay > carddavWriteMaxDelay {
-			delay = carddavWriteMaxDelay
-		}
-		jitter := time.Duration(time.Now().UnixNano() % int64(delay))
-		if err := sleepWithContext(ctx, delay+jitter); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func ensureContactObjectETag(ctx context.Context, tx *sql.Tx, userID string, addressBookID string, objectName string, etag string) error {
-	var current string
-	err := tx.QueryRowContext(ctx, `
-SELECT etag
-FROM carddav_contact_objects
-WHERE user_id = $1::uuid
-  AND addressbook_id = $2::uuid
-  AND object_name = $3
-  AND status = 'active'`, userID, addressBookID, objectName).Scan(&current)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return fmt.Errorf("CardDAV contact object not found")
-		}
-		return fmt.Errorf("read CardDAV contact object etag: %w", err)
-	}
-	if current != etag {
-		return fmt.Errorf("CardDAV contact object etag mismatch")
-	}
-	return nil
-}
-
-func ensureAddressBookCollectionETag(ctx context.Context, tx *sql.Tx, userID string, addressBookID string, etag string) error {
-	var book AddressBook
-	err := tx.QueryRowContext(ctx, `
-SELECT id::text, user_id::text, name, displayname_lang, description, description_lang, sync_token, created_at, updated_at
-FROM carddav_addressbooks
-WHERE user_id = $1::uuid
-  AND id = $2::uuid
-  AND status = 'active'`, userID, addressBookID).Scan(
-		&book.ID,
-		&book.UserID,
-		&book.Name,
-		&book.NameLang,
-		&book.Description,
-		&book.DescriptionLang,
-		&book.SyncToken,
-		&book.CreatedAt,
-		&book.UpdatedAt,
-	)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return fmt.Errorf("CardDAV address book not found")
-		}
-		return fmt.Errorf("read CardDAV address book collection etag: %w", err)
-	}
-	current, err := AddressBookCollectionETag(userID, book)
-	if err != nil {
-		return fmt.Errorf("build CardDAV address book collection etag: %w", err)
-	}
-	if current != etag {
-		return fmt.Errorf("CardDAV address book collection etag mismatch")
-	}
-	return nil
-}
-
-func updateAddressBookSyncToken(ctx context.Context, tx *sql.Tx, userID string, addressBookID string, syncToken string) error {
-	res, err := tx.ExecContext(ctx, `
-UPDATE carddav_addressbooks
-SET sync_token = $3, updated_at = now()
-WHERE user_id = $1::uuid
-  AND id = $2::uuid
-  AND status = 'active'`, userID, addressBookID, syncToken)
-	if err != nil {
-		return fmt.Errorf("update CardDAV sync token: %w", err)
-	}
-	affected, err := res.RowsAffected()
-	if err != nil {
-		return fmt.Errorf("read CardDAV sync token update count: %w", err)
-	}
-	if affected != 1 {
-		return fmt.Errorf("CardDAV address book not found")
-	}
-	return nil
-}
-
-func ensureAddressBookSyncMarker(ctx context.Context, tx *sql.Tx, userID string, addressBookID string) error {
-	var hasActiveAddressBook bool
-	err := tx.QueryRowContext(ctx, `
-WITH active_addressbook AS (
-  SELECT sync_token
-  FROM carddav_addressbooks
-  WHERE user_id = $1::uuid
-    AND id = $2::uuid
-    AND status = 'active'
-),
-insert_marker AS (
-  INSERT INTO carddav_addressbook_changes (
-    user_id, addressbook_id, sync_token, action
-  )
-  SELECT $1::uuid, $2::uuid, sync_token, 'addressbook-created'
-  FROM active_addressbook
-  WHERE NOT EXISTS (
-    SELECT 1
-    FROM carddav_addressbook_changes existing
-    JOIN active_addressbook active ON active.sync_token = existing.sync_token
-    WHERE existing.addressbook_id = $2::uuid
-      AND existing.sync_token = active.sync_token
-      AND existing.action = 'addressbook-created'
-  )
-)
-SELECT EXISTS (SELECT 1 FROM active_addressbook)`, userID, addressBookID).Scan(&hasActiveAddressBook)
-	if err != nil {
-		return fmt.Errorf("read CardDAV sync marker: %w", err)
-	}
-	if !hasActiveAddressBook {
-		return fmt.Errorf("CardDAV address book not found")
-	}
-	return nil
-}
-
-func validateOptionalContactETag(value string) (string, error) {
-	value = strings.TrimSpace(value)
-	if value == "" {
-		return "", nil
-	}
-	return ValidateContactObjectETag(value)
-}
-
-func validateCardDAVID(field string, value string, required bool) (string, error) {
-	value = strings.TrimSpace(value)
-	if value == "" {
-		if required {
-			return "", fmt.Errorf("%s is required", field)
-		}
-		return "", nil
-	}
-	if len(value) > maxSegmentBytes {
-		return "", fmt.Errorf("%s is too long", field)
-	}
-	if strings.ContainsAny(value, "\r\n") {
-		return "", fmt.Errorf("%s must not contain line breaks", field)
-	}
-	return value, nil
-}
-
-func validateCardDAVActorUserID(actorUserID string, ownerUserID string) (string, error) {
-	actorUserID = strings.TrimSpace(actorUserID)
-	if actorUserID == "" {
-		return ownerUserID, nil
-	}
-	return validateCardDAVID("actor_user_id", actorUserID, true)
-}
-
-func normalizeCardDAVLimit(limit int) int {
-	if limit <= 0 {
-		return 200
-	}
-	if limit > 1000 {
-		return 1000
-	}
-	return limit
-}
-
-func normalizeCardDAVChangeLimit(limit int) int {
-	if limit <= 0 {
-		return 200
-	}
-	if limit > MaxWebDAVReportLimit+1 {
-		return MaxWebDAVReportLimit + 1
-	}
-	return limit
 }
