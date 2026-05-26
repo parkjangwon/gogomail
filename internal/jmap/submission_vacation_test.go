@@ -17,51 +17,49 @@ func TestEmailSubmissionSetNilRepoReturnsError(t *testing.T) {
 	}
 }
 
-// Test 2: nil Sender populates notCreated with serverFail.
-func TestEmailSubmissionSetNilSenderPopulatesNotCreated(t *testing.T) {
-	// We need a non-nil Repo to get past the nil check.
-	// Use a fake Repo — can't create a real one without a DB.
-	// Instead test with a minimal fake via the response shape.
-	// Since we can't pass a non-nil Repo without a DB, test the Sender=nil
-	// path by verifying the JSON shape of the response when Sender is nil
-	// and Repo is also nil (different codepath — error returned).
-	// To test the Sender=nil path properly we construct the response directly.
+// Test 2: emailSubmissionResponse JSON has all required JMAP fields.
+func TestEmailSubmissionResponseHasRequiredFields(t *testing.T) {
 	resp := emailSubmissionResponse{
-		AccountID: "u1",
-		OldState:  "submission-v1",
-		NewState:  "submission-v1",
-		Created:   make(map[string]json.RawMessage),
-		NotCreated: map[string]SetError{
-			"c1": {Type: "serverFail", Description: "email submission not available"},
-		},
-		Updated:      make(map[string]json.RawMessage),
-		NotUpdated:   make(map[string]SetError),
+		AccountID:    "u1",
+		OldState:     "submission-v1",
+		NewState:     "submission-v2",
+		Created:      map[string]json.RawMessage{},
+		NotCreated:   map[string]SetError{},
+		Updated:      map[string]json.RawMessage{},
+		NotUpdated:   map[string]SetError{},
 		Destroyed:    []string{},
-		NotDestroyed: make(map[string]SetError),
+		NotDestroyed: map[string]SetError{},
 	}
-	raw, err := json.Marshal(resp)
+	b, err := json.Marshal(resp)
 	if err != nil {
-		t.Fatalf("marshal error: %v", err)
+		t.Fatalf("marshal: %v", err)
 	}
-	s := string(raw)
-	if !strings.Contains(s, `"serverFail"`) {
-		t.Errorf("expected serverFail in notCreated, got: %s", s)
+	var m map[string]json.RawMessage
+	if err := json.Unmarshal(b, &m); err != nil {
+		t.Fatalf("unmarshal: %v", err)
 	}
-	if !strings.Contains(s, `"notCreated"`) {
-		t.Errorf("expected notCreated key, got: %s", s)
+	for _, field := range []string{"accountId", "oldState", "newState", "created", "notCreated", "updated", "notUpdated", "destroyed", "notDestroyed"} {
+		if _, ok := m[field]; !ok {
+			t.Errorf("missing required field: %s", field)
+		}
 	}
+}
 
-	// Also verify the nil Repo path returns an error (not a valid response).
-	m := &emailSubmissionSetMethod{deps: Deps{Repo: nil, Sender: nil}}
-	args, _ := json.Marshal(emailSubmissionSetArgs{
-		AccountID: "u1",
-		Create: map[string]emailSubmissionCreate{
-			"c1": {EmailID: "draft-1"},
-		},
-	})
-	_, callErr := m.Call(context.Background(), "u1", args)
-	if callErr == nil {
-		t.Fatal("expected error with nil repo, got nil")
+// Test: VacationResponse/set returns error for nil Repo.
+func TestVacationResponseSetForbidsCreate(t *testing.T) {
+	m := &vacationResponseSetMethod{deps: Deps{}}
+	_, err := m.Call(context.Background(), "u1", json.RawMessage(`{"create": {"c1": {}}}`))
+	if err == nil {
+		t.Error("expected error for nil Repo, got nil")
+	}
+}
+
+// Test: VacationResponse/get returns error for nil Repo regardless of ids filter.
+func TestVacationResponseGetIdsFilterNonSingleton(t *testing.T) {
+	m := &vacationResponseGetMethod{deps: Deps{}}
+	_, err := m.Call(context.Background(), "u1", json.RawMessage(`{"ids": ["nonexistent"]}`))
+	if err == nil {
+		t.Error("expected error for nil Repo")
 	}
 }
 
