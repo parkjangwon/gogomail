@@ -2,8 +2,6 @@ module github.com/gogomail/gogomail
 
 go 1.25.7
 
-toolchain go1.26.3
-
 require (
 	github.com/SherClockHolmes/webpush-go v1.4.0
 	github.com/emersion/go-ical v0.0.0-20250609112844-439c63cef608
