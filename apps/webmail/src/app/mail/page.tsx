@@ -984,6 +984,7 @@ export default function MailPage() {
     const msgToArchive = messages.find((m) => m.id === id) ?? searchResults?.find((m) => m.id === id);
     if (msgToArchive && !msgToArchive.read) adjustUnread(activeFolderId, -1);
     const nextId = getNextId(id);
+    const threadToRestore = threads.find((t) => (t.latest_message_id || t.id) === id);
     removeVisibleMessages([id]);
     if (selectedMessageId === id) setSelectedMessageId(nextId);
     addToast(t('misc.mailPage.archived'), 'info', {
@@ -995,6 +996,7 @@ export default function MailPage() {
             setSearchResults((prev) => (prev ? [msgToArchive, ...prev] : prev));
             if (!msgToArchive.read) adjustUnread(activeFolderId, 1);
           }
+          if (threadToRestore) setThreads((prev) => [threadToRestore, ...prev]);
         },
       },
     });
@@ -1004,7 +1006,7 @@ export default function MailPage() {
         setSearchResults((prev) => (prev ? [msgToArchive, ...prev] : prev));
       }
     });
-  }, [folders, getNextId, removeVisibleMessages, setMessages, selectedMessageId, messages, searchResults, addToast, adjustUnread, activeFolderId]);
+  }, [folders, getNextId, removeVisibleMessages, setMessages, selectedMessageId, messages, searchResults, threads, addToast, adjustUnread, activeFolderId]);
 
   const handleArchive = useCallback(() => {
     if (!selectedMessageId) return;
@@ -1022,6 +1024,7 @@ export default function MailPage() {
     const spamMsg = messages.find((m) => m.id === id) ?? searchResults?.find((m) => m.id === id);
     if (spamMsg && !spamMsg.read) adjustUnread(activeFolderId, -1);
     const nextId = getNextId(id);
+    const threadToRestore = threads.find((t) => (t.latest_message_id || t.id) === id);
     removeVisibleMessages([id]);
     setSelectedMessageId(nextId);
     // Block sender/domain if requested
@@ -1052,6 +1055,7 @@ export default function MailPage() {
             setSearchResults((prev) => (prev ? [spamMsg, ...prev] : prev));
             if (!spamMsg.read) adjustUnread(activeFolderId, 1);
           }
+          if (threadToRestore) setThreads((prev) => [threadToRestore, ...prev]);
         },
       },
     });
@@ -1062,7 +1066,7 @@ export default function MailPage() {
       }
       addToast(t('misc.mailPage.moveFailed'), 'error');
     });
-  }, [folders, getNextId, removeVisibleMessages, setMessages, addToast, messages, searchResults, adjustUnread, activeFolderId]);
+  }, [folders, getNextId, removeVisibleMessages, setMessages, addToast, messages, searchResults, threads, adjustUnread, activeFolderId]);
 
   const handleBlockSender = useCallback((addr: string) => {
     if (!addr) return;
