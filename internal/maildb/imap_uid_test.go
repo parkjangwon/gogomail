@@ -299,7 +299,7 @@ func TestNormalizeIMAPMailboxLookupName(t *testing.T) {
 func TestIMAPMailboxLookupUsesTypedMailboxIDFastPath(t *testing.T) {
 	t.Parallel()
 
-	for _, path := range []string{"imap_uid.go", "imap_append.go"} {
+	for _, path := range []string{"imap_mailboxes.go", "imap_append.go"} {
 		path := path
 		t.Run(path, func(t *testing.T) {
 			t.Parallel()

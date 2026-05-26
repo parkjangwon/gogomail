@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-26
+Last updated: 2026-05-27
 
 ## Platform summary
 
@@ -19,6 +19,7 @@ GoGoMail is a production-grade self-hosted email platform written in Go
 
 | Date | Feature |
 |------|---------|
+| 2026-05-27 | Refactor: split 5 large backend files — ldapgw/server.go (3287→745 lines, +5 files: server_pdu.go, server_search.go, server_attributes.go, server_controls.go, server_filter.go), maildb/imap_uid.go (3273→stub, +6 files: imap_mailboxes.go, imap_messages.go, imap_flags.go, imap_copy_move.go, imap_uid_backfill.go, imap_uid_helpers.go), caldavgw/handler.go (3178→308 lines, +5 files: handler_timezone/collection/objects/propfind/report.go), carddavgw/handler.go (2830→273 lines, +5 files: handler_collection/objects/propfind/report/sync.go), directory/repository.go (2922→~270 lines, +4 files: repository_aliases/search/memberships/delegations.go); 1974 tests pass |
 | 2026-05-26 | Bug fix: internal/storage/s3.go — two pre-existing S3 signing bugs fixed: (1) escapeS3Segment now uses S3-strict unreserved-only encoding (was url.PathEscape which left @, =, ! unencoded, causing SignatureDoesNotMatch for paths with those chars); (2) s3PayloadHash computes actual SHA-256 body hash for HTTP endpoints (MinIO rejects UNSIGNED-PAYLOAD over plain HTTP); test infrastructure: pg_trgm installed in public schema via docker-entrypoint-initdb.d; webauthn test uses real UUID user |
 | 2026-05-26 | HTTP client: webhook/urlguard.go *http.DefaultClient value copy replaced with explicit http.Client{} for clarity; timeout always set via DefaultOutboundTimeout |
 | 2026-05-26 | Code structure: internal/imapgw/server_search.go (2170 lines) split into server_search.go (304), server_search_criteria.go (292), server_search_executor.go (901), server_search_match.go (692); server_fetch.go (2005 lines) split into server_fetch.go (478), server_fetch_body.go (549), server_fetch_envelope.go (1002); all files ≤1200 lines; 439 tests pass |
