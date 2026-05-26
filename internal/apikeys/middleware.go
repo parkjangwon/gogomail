@@ -33,7 +33,7 @@ func KeyInfoFromContext(ctx context.Context) (*KeyInfo, bool) {
 	return info, ok
 }
 
-func Middleware(verifier KeyVerifier, trustedProxyCIDRs string) func(http.Handler) http.Handler {
+func Middleware(verifier KeyVerifier, trustedProxyCIDRs []string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			auth := r.Header.Get("Authorization")
@@ -82,7 +82,7 @@ func Middleware(verifier KeyVerifier, trustedProxyCIDRs string) func(http.Handle
 	}
 }
 
-func parseClientIP(r *http.Request, trustedProxyCIDRs string) net.IP {
+func parseClientIP(r *http.Request, trustedProxyCIDRs []string) net.IP {
 	host, _, _ := net.SplitHostPort(r.RemoteAddr)
 	remoteIP := net.ParseIP(host)
 	if !isTrustedForwardingProxy(remoteIP, trustedProxyCIDRs) {
@@ -101,18 +101,14 @@ func parseClientIP(r *http.Request, trustedProxyCIDRs string) net.IP {
 	return remoteIP
 }
 
-func isTrustedForwardingProxy(ip net.IP, trustedProxyCIDRs string) bool {
+func isTrustedForwardingProxy(ip net.IP, trustedProxyCIDRs []string) bool {
 	if ip == nil {
 		return false
 	}
 	if ip.IsLoopback() {
 		return true
 	}
-	for _, raw := range strings.Split(trustedProxyCIDRs, ",") {
-		raw = strings.TrimSpace(raw)
-		if raw == "" {
-			continue
-		}
+	for _, raw := range trustedProxyCIDRs {
 		if candidate := net.ParseIP(raw); candidate != nil && candidate.Equal(ip) {
 			return true
 		}

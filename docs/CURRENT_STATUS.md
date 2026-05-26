@@ -19,6 +19,7 @@ GoGoMail is a production-grade self-hosted email platform written in Go
 
 | Date | Feature |
 |------|---------|
+| 2026-05-26 | Config quality: TrustedProxyCIDRs changed from string to []string (loaded via splitCSV); Middleware/parseClientIP/isTrustedForwardingProxy accept []string, eliminating per-request splitting; validate.go gains GOGOMAIL_TRUSTED_PROXY_CIDRS and GOGOMAIL_SYSTEM_SMTP_ADDR validation |
 | 2026-05-26 | Config centralization: os.Getenv removed from apikeys/middleware.go (trustedProxyCIDRs threaded as param), mailservice/systememail.go (NewSMTPSystemEmailSender replaces NewSMTPSystemEmailSenderFromEnv), httpapi/admin_auth.go (bootstrap creds via WithAdminBootstrap option); SystemEmailConfig + AdminBootstrapConfig named types added to config.Config |
 | 2026-05-26 | HTTP client timeouts: replaced http.DefaultClient with 15s-timeout client in internal/sso (OIDC discovery + JWKS) and 30s-timeout client in internal/pushnotify (FCM/APNs/WebPush adapters); prevents goroutine leaks on unresponsive external services |
 | 2026-05-26 | JMAP EventSource code quality: sseWriteEvent logs slog.Warn on marshal error, dead typesParam variable removed, fakeNotifier uses sync.Once for safe channel teardown, added TestEventSourcePingFormat + TestEventSourceDeliversStateChange; 62 tests pass |
