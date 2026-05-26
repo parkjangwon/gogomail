@@ -29,7 +29,7 @@ test.describe('Drive', () => {
     await input.setInputFiles([
       { name: 'sample.txt', mimeType: 'text/plain', buffer: Buffer.from('hello world') },
     ]);
-    const modal = page.locator('[data-testid="drive-upload-modal"], [role="dialog"]').first();
+    const modal = page.locator('[data-testid="drive-upload-modal"]').first();
     await expect(modal).toBeVisible({ timeout: 5_000 });
   });
 
