@@ -20,6 +20,7 @@ import { formatSendResultLabel } from '@/lib/sendResultLabel';
 import { escapeHtml, parseAddrs, backendComposeIntent } from '@/lib/compose/composeUtils';
 import { buildQuoteHTML, emailOf, invalidRecipientAddresses, parseToPickerItems, pickerItemsToString } from '@/lib/mail-address';
 import { SLASH_COMMANDS } from '@/lib/compose/slashCommands';
+import type { SlashCommand } from '@/lib/compose/slashCommands';
 import { RecipientChips } from './RecipientChips';
 import { OrgPickerModal } from './OrgPickerModal';
 import { ComposeModalActions } from './ComposeModalActions';
@@ -93,13 +94,11 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
     try {
       const recents: string[] = JSON.parse(localStorage.getItem('webmail_recent_recipients') ?? '[]');
       const contacts: Record<string, string> = JSON.parse(localStorage.getItem('webmail_contacts') ?? '{}');
-      // Enrich plain email entries with stored contact names
       const enriched = recents.map((r) => {
         if (r.includes('<')) return r;
         const name = contacts[r.toLowerCase()];
         return name ? `${name} <${r}>` : r;
       });
-      // Add contacts not yet in recents
       const recentEmails = new Set(recents.map((r) => { const m = r.match(/<([^>]+)>/); return (m ? m[1] : r).toLowerCase(); }));
       Object.entries(contacts).forEach(([email, name]) => {
         if (!recentEmails.has(email)) enriched.push(`${name} <${email}>`);
@@ -110,6 +109,26 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const sendDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Lazy ref for readyAttachmentIds — allows useComposeDraft to be called before useComposeAttachments
+  // while still getting the live function at call time.
+  const readyAttachmentIdsRef = useRef<() => string[]>(() => []);
+
+  // ---- Draft hook (must come before useComposeAttachments to provide draftIdRef) ----
+  const draftHook = useComposeDraft({
+    to,
+    cc,
+    bcc,
+    subject,
+    intent,
+    sourceMessage,
+    fromAddress: userEmail ?? '',   // will be updated via setFromAddress; draft hook reads lazily
+    scheduledAt: '',                 // updated below via sendHook; reads lazily in callbacks
+    trackOpens,
+    readyAttachmentIds: () => readyAttachmentIdsRef.current(),
+    draftMessage,
+  });
+  const { draftIdRef, saveStatus, savedAt, setSaveStatus, setSavedAt, clearSentDraft, buildDraftData, triggerAutoSave } = draftHook;
 
   const {
     uploadedAttachments,
@@ -128,7 +147,10 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
     openDrivePicker,
     handleAttachFromDrive,
     readyAttachmentIds,
-  } = useComposeAttachments({ t, draftIdRef: { current: '' } as React.MutableRefObject<string>, initialDriveCrumbName: t('drive') });
+  } = useComposeAttachments({ t, draftIdRef, initialDriveCrumbName: t('drive') });
+
+  // Keep the lazy ref in sync
+  readyAttachmentIdsRef.current = readyAttachmentIds;
 
   const {
     templates,
@@ -156,22 +178,6 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
   const [fromAddress, setFromAddress] = useState(userEmail ?? '');
   const [availableAddresses, setAvailableAddresses] = useState<UserAddressEntry[]>([]);
 
-  // ---- Draft hook ----
-  const draftHook = useComposeDraft({
-    to,
-    cc,
-    bcc,
-    subject,
-    intent,
-    sourceMessage,
-    fromAddress,
-    scheduledAt: '',   // will be overridden below via sendHook.scheduledAt; kept for initial call
-    trackOpens,
-    readyAttachmentIds,
-    draftMessage,
-  });
-  const { draftIdRef, saveStatus, savedAt, setSaveStatus, setSavedAt, clearSentDraft, buildDraftData } = draftHook;
-
   // ---- Send hook ----
   const sendHook = useComposeSend({
     draftIdRef,
@@ -187,7 +193,6 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
     error,
     setError,
     sent,
-    setSent,
     sendResult,
     sendCountdown,
     setSendCountdown,
@@ -205,7 +210,6 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
     handleSendPreparationFailure,
     shouldSendSavedDraft,
     sendPreparedMessage,
-    persistSuccessfulSendLocalState,
   } = sendHook;
 
   // ---- Slash hook ----
@@ -219,29 +223,15 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
     slashMenuRef,
     slashIndexRef,
     runSlashCommandRef,
-    runSlashCommand: _runSlashCommandBase,
+    runSlashCommand: runSlashCommandBase,
     filteredCommands,
   } = slashHook;
-
-  // Re-wire useComposeAttachments draftIdRef (pass real ref now that draftHook exists)
-  // Note: useComposeAttachments received a stub ref above; we sync it here.
-  useEffect(() => {
-    // Nothing to sync — useComposeAttachments holds its own draftIdRef via the prop passed at call-time.
-    // The workaround: we pass draftIdRef directly below via overriding the hook's own ref.
-    // Actually we need to reconstruct. See comment below.
-  }, []);
 
   const toRef = useRef(draftMessage ? draftTo : replyTo);
   const ccRef = useRef(draftMessage ? draftCc : replyCc);
   const bccRef = useRef('');
   const subjectRef = useRef(draftMessage ? (draftMessage.subject ?? '') : replySubject);
   const subjectInputRef = useRef<HTMLInputElement | null>(null);
-
-  // triggerAutoSave needs current scheduledAt and trackOpens (which may update after initial render)
-  // We rebuild a live version that closes over current state via the refs pattern
-  const triggerAutoSave = useCallback((toVal: string, ccVal: string, bccVal: string, subjectVal: string, bodyText: string, bodyHtml: string) => {
-    draftHook.triggerAutoSave(toVal, ccVal, bccVal, subjectVal, bodyText, bodyHtml);
-  }, [draftHook]);
 
   useEffect(() => {
     if (!focusSubjectOnOpen) return;
@@ -250,7 +240,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
   }, [focusSubjectOnOpen]);
 
   const sigHTML = signature.trim()
-    ? `<p></p><p>--</p><p>${signature.trim().split('\n').map((l) => escapeHtml(l)).join('</p><p>')}</p>`
+    ? `<p></p><p>--</p><p>${signature.trim().split('\n').map((l: string) => escapeHtml(l)).join('</p><p>')}</p>`
     : '';
 
   const quoteOnReply = (() => {
@@ -259,12 +249,12 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
 
   const initialContent = draftMessage
     ? (draftMessage.html_body ?? (draftMessage.text_body
-        ? draftMessage.text_body.split('\n').map((l) => `<p>${escapeHtml(l) || '&nbsp;'}</p>`).join('')
+        ? draftMessage.text_body.split('\n').map((l: string) => `<p>${escapeHtml(l) || '&nbsp;'}</p>`).join('')
         : ''))
     : (sourceMessage && (intent === 'reply' || intent === 'reply_all' || intent === 'forward')
         ? `<p></p>${sigHTML ? sigHTML + '<p></p>' : ''}${quoteOnReply ? buildQuoteHTML(intent, sourceMessage) : ''}`
         : initialBody
-        ? `${initialBody.split('\n').map((l) => `<p>${escapeHtml(l) || '&nbsp;'}</p>`).join('')}<p></p>${sigHTML}`
+        ? `${initialBody.split('\n').map((l: string) => `<p>${escapeHtml(l) || '&nbsp;'}</p>`).join('')}<p></p>${sigHTML}`
         : `<p></p>${sigHTML}`);
 
   const imageInputRef = useRef<HTMLInputElement>(null);
@@ -296,12 +286,12 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
         role: 'textbox',
         'aria-multiline': 'true',
       },
-      handleKeyDown: (_view, event) => {
+      handleKeyDown: (_view: unknown, event: KeyboardEvent) => {
         const menu = slashMenuRef.current;
         if (!menu) return false;
         if (event.key === 'ArrowDown') {
           event.preventDefault();
-          setSlashIndex((i) => {
+          setSlashIndex((i: number) => {
             const cmds = SLASH_COMMANDS.filter((c) =>
               !menu.query || c.id.startsWith(menu.query.toLowerCase()) || c.label.includes(menu.query)
             );
@@ -311,7 +301,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
         }
         if (event.key === 'ArrowUp') {
           event.preventDefault();
-          setSlashIndex((i) => Math.max(i - 1, 0));
+          setSlashIndex((i: number) => Math.max(i - 1, 0));
           return true;
         }
         if (event.key === 'Enter') {
@@ -628,9 +618,9 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
     editor.chain().focus().setImage({ src, alt: file.name }).run();
   }, [editor, draftIdRef, setUploadedAttachments]);
 
-  const runSlashCommand = useCallback((cmd: import('@/lib/compose/slashCommands').SlashCommand) => {
-    _runSlashCommandBase(cmd, editor ?? null);
-  }, [_runSlashCommandBase, editor]);
+  const runSlashCommand = useCallback((cmd: SlashCommand) => {
+    runSlashCommandBase(cmd, editor ?? null);
+  }, [runSlashCommandBase, editor]);
   // Keep ref in sync so the stale-closure-safe handleKeyDown can call the latest version
   runSlashCommandRef.current = runSlashCommand;
 
