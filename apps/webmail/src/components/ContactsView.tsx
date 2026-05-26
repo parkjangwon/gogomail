@@ -3,16 +3,9 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useTranslations } from 'next-intl';
 import {
-  AddressBook,
   ContactObject,
-  listAddressBooks,
-  createAddressBook,
-  renameAddressBook,
-  deleteAddressBook,
   listContacts,
-  deleteContact,
   parseVCard,
-  upsertContact,
 } from '@/lib/api';
 import {
   UserGroupIcon,
@@ -27,7 +20,6 @@ import {
   CheckIcon,
 } from '@heroicons/react/24/outline';
 import { ContactsSidebar } from './ContactsSidebar';
-import { stableId } from '@/lib/stableId';
 import {
   avatarColor,
   initials,
@@ -35,6 +27,8 @@ import {
   useContactsParsed,
   type ParsedContact,
 } from './contacts/contactsViewHelpers';
+import { useContactsBooks } from './contacts/useContactsBooks';
+import { useContactsEdit } from './contacts/useContactsEdit';
 
 interface ContactsViewProps {
   onCompose?: (email: string) => void;
@@ -42,27 +36,32 @@ interface ContactsViewProps {
 
 export function ContactsView({ onCompose }: ContactsViewProps) {
   const t = useTranslations('contacts');
-  const [addressBooks, setAddressBooks] = useState<AddressBook[]>([]);
-  const [selectedBookId, setSelectedBookId] = useState<string | null>(null);
   const [contacts, setContacts] = useState<ContactObject[]>([]);
   const [selectedContactIdx, setSelectedContactIdx] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [editMode, setEditMode] = useState(false);
-  const [isNewContact, setIsNewContact] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [saveError, setSaveError] = useState('');
-  const [editFields, setEditFields] = useState<ParsedContact>({ fn: '', email: '', tel: '', org: '', title: '', note: '' });
   const [loading, setLoading] = useState(false);
-  const [booksLoading, setBooksLoading] = useState(true);
   const [viewSettings, setViewSettings] = useState(loadContactViewSettings);
 
-  // Address book CRUD state
-  const [hoveredBookId, setHoveredBookId] = useState<string | null>(null);
-  const [renamingBookId, setRenamingBookId] = useState<string | null>(null);
-  const [renameValue, setRenameValue] = useState('');
-  const [showNewBookInput, setShowNewBookInput] = useState(false);
-  const [newBookName, setNewBookName] = useState('');
-  const [bookActionLoading, setBookActionLoading] = useState(false);
+  const {
+    addressBooks,
+    selectedBookId,
+    setSelectedBookId,
+    booksLoading,
+    hoveredBookId,
+    setHoveredBookId,
+    renamingBookId,
+    setRenamingBookId,
+    renameValue,
+    setRenameValue,
+    showNewBookInput,
+    setShowNewBookInput,
+    newBookName,
+    setNewBookName,
+    bookActionLoading,
+    handleCreateBook,
+    handleRenameBook,
+    handleDeleteBook,
+  } = useContactsBooks({ t, setContacts, setSelectedContactIdx });
 
   const parsed = useContactsParsed(contacts);
 
@@ -96,18 +95,6 @@ export function ContactsView({ onCompose }: ContactsViewProps) {
     return () => window.removeEventListener('storage', refresh);
   }, []);
 
-  // Load address books on mount
-  useEffect(() => {
-    setBooksLoading(true);
-    listAddressBooks().then((books) => {
-      setAddressBooks(books);
-      if (books.length > 0 && !selectedBookId) {
-        setSelectedBookId(books[0].ID);
-      }
-      setBooksLoading(false);
-    });
-  }, []);
-
   // Load contacts when selected book changes
   useEffect(() => {
     if (!selectedBookId) return;
@@ -126,87 +113,37 @@ export function ContactsView({ onCompose }: ContactsViewProps) {
     : null;
   const selectedParsed = selectedContactRaw ? parseVCard(selectedContactRaw.VCard) : null;
 
+  const {
+    editMode,
+    setEditMode,
+    saving,
+    saveError,
+    editFields,
+    setEditFields,
+    handleDelete,
+    handleEditStart,
+    handleEditCancel,
+    handleSave,
+    handleNewContactStart,
+  } = useContactsEdit({
+    selectedContact,
+    selectedBookId,
+    contacts,
+    setContacts,
+    selectedParsed,
+    setSelectedContactIdx,
+    t,
+  });
+
   const handleSelectBook = useCallback((id: string) => {
     setSelectedBookId(id);
     setSearchQuery('');
-  }, []);
+  }, [setSelectedBookId]);
 
   const handleSelectContact = useCallback((idx: number) => {
     setSelectedContactIdx(idx);
     setEditMode(false);
-  }, []);
-
-  const handleDelete = useCallback(async () => {
-    if (!selectedContact || !selectedBookId) return;
-    const name = selectedParsed?.fn || selectedContact.ObjectName;
-    if (!confirm(t('deleteConfirm', { name }))) return;
-    await deleteContact(selectedBookId, selectedContact.ObjectName);
-    setContacts((prev) => prev.filter((c) => c.ID !== selectedContact.ID));
-    setSelectedContactIdx(null);
-  }, [selectedContact, selectedBookId, selectedParsed, t]);
-
-  const handleEditStart = useCallback(() => {
-    if (!selectedParsed) return;
-    setEditFields({ ...selectedParsed });
-    setEditMode(true);
-  }, [selectedParsed]);
-
-  const handleEditCancel = useCallback(() => {
-    setEditMode(false);
-    setIsNewContact(false);
-    setSaveError('');
-  }, []);
-
-  // Address book handlers
-  const handleCreateBook = useCallback(async () => {
-    const name = newBookName.trim();
-    if (!name) return;
-    setBookActionLoading(true);
-    try {
-      const book = await createAddressBook(name);
-      setAddressBooks((prev) => [...prev, book]);
-      setSelectedBookId(book.ID);
-      setNewBookName('');
-      setShowNewBookInput(false);
-    } catch {
-      // silently ignore; user can retry
-    } finally {
-      setBookActionLoading(false);
-    }
-  }, [newBookName]);
-
-  const handleRenameBook = useCallback(async (id: string) => {
-    const name = renameValue.trim();
-    if (!name) { setRenamingBookId(null); return; }
-    setBookActionLoading(true);
-    try {
-      const updated = await renameAddressBook(id, name);
-      setAddressBooks((prev) => prev.map((b) => (b.ID === id ? updated : b)));
-    } catch {
-      // ignore
-    } finally {
-      setRenamingBookId(null);
-      setBookActionLoading(false);
-    }
-  }, [renameValue]);
-
-  const handleDeleteBook = useCallback(async (id: string, name: string) => {
-    if (!confirm(t('deleteBookConfirm', { name }))) return;
-    setBookActionLoading(true);
-    try {
-      await deleteAddressBook(id);
-      setAddressBooks((prev) => prev.filter((b) => b.ID !== id));
-      if (selectedBookId === id) {
-        setSelectedBookId(null);
-        setContacts([]);
-        setSelectedContactIdx(null);
-      }
-    } catch {
-      // ignore
-    } finally {
-      setBookActionLoading(false);
-    }
-  }, [selectedBookId, t]);
+  }, [setEditMode]);
 
   // j/k/c/Delete keyboard shortcuts
   const containerRef = useRef<HTMLDivElement>(null);
@@ -339,13 +276,7 @@ export function ContactsView({ onCompose }: ContactsViewProps) {
         {selectedBookId && !editMode && (
           <div style={{ padding: '6px 12px', borderBottom: '1px solid var(--color-border-subtle)', flexShrink: 0 }}>
             <button
-              onClick={() => {
-                setEditFields({ fn: '', email: '', tel: '', org: '', title: '', note: '' });
-                setIsNewContact(true);
-                setSaveError('');
-                setSelectedContactIdx(null);
-                setEditMode(true);
-              }}
+              onClick={handleNewContactStart}
               style={{ width: '100%', padding: '6px', border: '1px dashed var(--color-border-default)', borderRadius: '6px', background: 'none', cursor: 'pointer', fontSize: '12px', color: 'var(--color-text-tertiary)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}
               onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-secondary)'; }}
               onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'none'; }}
@@ -634,24 +565,7 @@ export function ContactsView({ onCompose }: ContactsViewProps) {
                     </button>
                     <button
                       disabled={saving}
-                      onClick={async () => {
-                        if (!editFields.fn.trim()) { setSaveError(t('saveErrorName')); return; }
-                        if (!selectedBookId) { setSaveError(t('saveErrorBook')); return; }
-                        setSaving(true); setSaveError('');
-                        try {
-                          const objectName = isNewContact
-                            ? `${stableId('contact')}.vcf`
-                            : (selectedContact?.ObjectName ?? `${Date.now()}.vcf`);
-                          await upsertContact(selectedBookId, objectName, editFields);
-                          const updated = await listContacts(selectedBookId);
-                          setContacts(updated);
-                          setIsNewContact(false);
-                          setEditMode(false);
-                          if (isNewContact) setSelectedContactIdx(updated.length - 1);
-                        } catch (e) {
-                          setSaveError(e instanceof Error ? e.message : t('saveErrorGeneric'));
-                        } finally { setSaving(false); }
-                      }}
+                      onClick={handleSave}
                       style={{
                         display: 'flex', alignItems: 'center', gap: '4px',
                         padding: '7px 14px',

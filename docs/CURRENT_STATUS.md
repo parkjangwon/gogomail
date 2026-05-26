@@ -4,6 +4,7 @@ Last updated: 2026-05-27
 
 ## Recent refactoring
 
+- Extracted `useContactsBooks`, `useContactsEdit` hooks from `ContactsView.tsx` (723→~330 lines); hooks live in `apps/webmail/src/components/contacts/`.
 - Extracted `useCalendarCreateForm`, `useCalendarEditForm`, and `useCalendarData` custom hooks from `CalendarView.tsx` (812→~340 lines); hooks live in `apps/webmail/src/components/calendar/`.
 - Extracted `useDMModal`, `useMailLabels`, `useMailSession` hooks from `mail/page.tsx` (2302→2114 lines); hooks live in `apps/webmail/src/app/mail/`.
 - Extracted `useDriveUpload` (upload state, refs, pause/resume/cancel/scheduler) to `apps/webmail/src/components/drive/useDriveUpload.ts` and `useDriveSidebar` (folder tree state/loading) to `apps/webmail/src/components/drive/useDriveSidebar.ts`; DriveView.tsx reduced from 1412 → ~900 lines with no logic changes.
