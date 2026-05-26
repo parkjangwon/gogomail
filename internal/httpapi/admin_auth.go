@@ -7,7 +7,6 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
-	"os"
 	"strings"
 	"time"
 
@@ -133,11 +132,11 @@ func handleAdminLogin(w http.ResponseWriter, r *http.Request, service AdminServi
 		})
 	}
 
-	// Bootstrap system admin via environment variables only.
-	// Set GOGOMAIL_ADMIN_BOOTSTRAP_EMAIL and GOGOMAIL_ADMIN_BOOTSTRAP_PASSWORD to enable.
-	// If either env var is empty, bootstrap is disabled.
-	bootstrapEmail := strings.TrimSpace(os.Getenv("GOGOMAIL_ADMIN_BOOTSTRAP_EMAIL"))
-	bootstrapPassword := os.Getenv("GOGOMAIL_ADMIN_BOOTSTRAP_PASSWORD")
+	// Bootstrap system admin via config-provided credentials only.
+	// Set AdminBootstrap.Email and AdminBootstrap.Password in config to enable.
+	// If either value is empty, bootstrap is disabled.
+	bootstrapEmail := cfg.adminBootstrapEmail
+	bootstrapPassword := cfg.adminBootstrapPassword
 	if bootstrapEmail != "" && bootstrapPassword != "" &&
 		req.Email == bootstrapEmail && subtle.ConstantTimeCompare([]byte(req.Password), []byte(bootstrapPassword)) == 1 {
 		issueToken(auth.Claims{

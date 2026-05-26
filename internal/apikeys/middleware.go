@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net"
 	"net/http"
-	"os"
 	"strings"
 )
 
@@ -34,7 +33,7 @@ func KeyInfoFromContext(ctx context.Context) (*KeyInfo, bool) {
 	return info, ok
 }
 
-func Middleware(verifier KeyVerifier) func(http.Handler) http.Handler {
+func Middleware(verifier KeyVerifier, trustedProxyCIDRs string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			auth := r.Header.Get("Authorization")
@@ -61,7 +60,7 @@ func Middleware(verifier KeyVerifier) func(http.Handler) http.Handler {
 			}
 
 			hash := HashKey(token)
-			ip := parseClientIP(r)
+			ip := parseClientIP(r, trustedProxyCIDRs)
 
 			info, err := verifier.Verify(r.Context(), hash, ip)
 			if err != nil {
@@ -83,10 +82,10 @@ func Middleware(verifier KeyVerifier) func(http.Handler) http.Handler {
 	}
 }
 
-func parseClientIP(r *http.Request) net.IP {
+func parseClientIP(r *http.Request, trustedProxyCIDRs string) net.IP {
 	host, _, _ := net.SplitHostPort(r.RemoteAddr)
 	remoteIP := net.ParseIP(host)
-	if !isTrustedForwardingProxy(remoteIP) {
+	if !isTrustedForwardingProxy(remoteIP, trustedProxyCIDRs) {
 		return remoteIP
 	}
 	xff := r.Header.Get("X-Forwarded-For")
@@ -102,14 +101,14 @@ func parseClientIP(r *http.Request) net.IP {
 	return remoteIP
 }
 
-func isTrustedForwardingProxy(ip net.IP) bool {
+func isTrustedForwardingProxy(ip net.IP, trustedProxyCIDRs string) bool {
 	if ip == nil {
 		return false
 	}
 	if ip.IsLoopback() {
 		return true
 	}
-	for _, raw := range strings.Split(os.Getenv("GOGOMAIL_TRUSTED_PROXY_CIDRS"), ",") {
+	for _, raw := range strings.Split(trustedProxyCIDRs, ",") {
 		raw = strings.TrimSpace(raw)
 		if raw == "" {
 			continue

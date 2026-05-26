@@ -90,7 +90,7 @@ func TestParseClientIPIgnoresForwardedForFromUntrustedRemote(t *testing.T) {
 	req.RemoteAddr = "203.0.113.10:4567"
 	req.Header.Set("X-Forwarded-For", "192.0.2.50")
 
-	if got := parseClientIP(req); got == nil || got.String() != "203.0.113.10" {
+	if got := parseClientIP(req, ""); got == nil || got.String() != "203.0.113.10" {
 		t.Fatalf("parseClientIP = %v, want untrusted remote address", got)
 	}
 }
@@ -103,7 +103,7 @@ func TestParseClientIPAllowsForwardedForFromLoopbackProxy(t *testing.T) {
 	req.RemoteAddr = "127.0.0.1:4567"
 	req.Header.Set("X-Forwarded-For", "192.0.2.50")
 
-	if got := parseClientIP(req); got == nil || got.String() != "192.0.2.50" {
+	if got := parseClientIP(req, ""); got == nil || got.String() != "192.0.2.50" {
 		t.Fatalf("parseClientIP = %v, want forwarded client address", got)
 	}
 }

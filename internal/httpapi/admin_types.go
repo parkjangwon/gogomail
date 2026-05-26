@@ -17,18 +17,20 @@ import (
 )
 
 type adminRouteConfig struct {
-	routeCounters       *delivery.RouteCounters
-	storageCapabilities *storage.BackendCapabilities
-	configNotifier      configstore.Notifier
-	tokenMgr            *auth.TokenManager
-	environment         string
-	adminMFAStore       MFAStore
-	adminMFARequired    bool
-	configResolver      ConfigResolver
-	dlqReader           eventstream.DLQReader
-	systemEmailSender   mailservice.SystemEmailSender
-	publicBaseURL       string
-	bgTracker           *BackgroundTracker
+	routeCounters          *delivery.RouteCounters
+	storageCapabilities    *storage.BackendCapabilities
+	configNotifier         configstore.Notifier
+	tokenMgr               *auth.TokenManager
+	environment            string
+	adminMFAStore          MFAStore
+	adminMFARequired       bool
+	configResolver         ConfigResolver
+	dlqReader              eventstream.DLQReader
+	systemEmailSender      mailservice.SystemEmailSender
+	publicBaseURL          string
+	bgTracker              *BackgroundTracker
+	adminBootstrapEmail    string
+	adminBootstrapPassword string
 }
 
 // AdminRouteOption configures optional capabilities for RegisterAdminRoutes.
@@ -90,6 +92,15 @@ func WithSystemEmailSender(sender mailservice.SystemEmailSender, publicBaseURL s
 // such goroutines run unsupervised and may be dropped on graceful shutdown.
 func WithBackgroundTracker(t *BackgroundTracker) AdminRouteOption {
 	return func(cfg *adminRouteConfig) { cfg.bgTracker = t }
+}
+
+// WithAdminBootstrap sets the bootstrap admin credentials used to seed a
+// system admin on first startup. Leave both empty to disable bootstrap login.
+func WithAdminBootstrap(email, password string) AdminRouteOption {
+	return func(cfg *adminRouteConfig) {
+		cfg.adminBootstrapEmail = strings.TrimSpace(email)
+		cfg.adminBootstrapPassword = password
+	}
 }
 
 type adminContextKey struct{}

@@ -5991,15 +5991,15 @@ func TestAdminLoginRejectsHardcodedBootstrapCredentials(t *testing.T) {
 }
 
 func TestAdminLoginAllowsBootstrapViaEnvVars(t *testing.T) {
-	t.Setenv("GOGOMAIL_ADMIN_BOOTSTRAP_EMAIL", "bootstrap@example.com")
-	t.Setenv("GOGOMAIL_ADMIN_BOOTSTRAP_PASSWORD", "s3cr3t-b00tstrap!")
-
 	manager, err := auth.NewTokenManager("admin-auth-secret-at-least-32bytes")
 	if err != nil {
 		t.Fatalf("NewTokenManager returned error: %v", err)
 	}
 	mux := http.NewServeMux()
-	RegisterAdminRoutes(mux, &fakeAdminService{}, "", WithTokenManager(manager))
+	RegisterAdminRoutes(mux, &fakeAdminService{}, "",
+		WithTokenManager(manager),
+		WithAdminBootstrap("bootstrap@example.com", "s3cr3t-b00tstrap!"),
+	)
 
 	// Correct credentials should succeed.
 	req := httptest.NewRequest(http.MethodPost, "/admin/v1/auth/login", strings.NewReader(`{"email":"bootstrap@example.com","password":"s3cr3t-b00tstrap!"}`))

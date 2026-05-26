@@ -67,3 +67,16 @@ migration_dir: migrations
 mailstore_root: var/mailstore
 local_recipients:
   - admin@example.com
+
+# Trusted proxy CIDR ranges for X-Forwarded-For header (comma-separated)
+# GOGOMAIL_TRUSTED_PROXY_CIDRS: "10.0.0.0/8,172.16.0.0/12"
+
+# System email sender (password reset, quota alerts, etc.)
+# GOGOMAIL_SYSTEM_EMAIL_FROM: "noreply@example.com"
+# GOGOMAIL_SYSTEM_SMTP_ADDR: "localhost:25"
+# GOGOMAIL_SYSTEM_SMTP_USER: ""
+# GOGOMAIL_SYSTEM_SMTP_PASS: ""
+
+# Admin bootstrap credentials (seed admin account on first startup; clear after use)
+# GOGOMAIL_ADMIN_BOOTSTRAP_EMAIL: ""
+# GOGOMAIL_ADMIN_BOOTSTRAP_PASSWORD: ""
