@@ -3710,11 +3710,15 @@ func jmapHandler(cfg config.Config, repo *maildb.Repository, store storage.Store
 	if base == "" {
 		base = "http://localhost" + cfg.HTTPAddr
 	}
+	var sender jmap.DraftSender
+	if svc != nil {
+		sender = &jmapDraftSender{svc: svc}
+	}
 	deps := jmap.Deps{
 		Repo:   repo,
 		Store:  store,
 		Auth:   tm,
-		Sender: &jmapDraftSender{svc: svc},
+		Sender: sender,
 	}
 	return jmap.NewHandler(deps, func(ctx context.Context, userID, accountID string) (*jmap.Session, error) {
 		return jmap.BuildSession(userID, accountID, base), nil
