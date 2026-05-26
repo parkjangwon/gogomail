@@ -89,13 +89,8 @@ func (m *identityGetMethod) Call(ctx context.Context, userID string, args json.R
 
 	// Filter by requested IDs if provided.
 	if len(req.IDs) > 0 {
-		wanted := make(map[string]bool, len(req.IDs))
-		for _, id := range req.IDs {
-			wanted[id] = true
-		}
-		_ = wanted
 		var filtered []Identity
-		var notFound []string
+		notFound := []string{}
 		for _, id := range req.IDs {
 			found := false
 			for _, ident := range identities {
@@ -108,6 +103,9 @@ func (m *identityGetMethod) Call(ctx context.Context, userID string, args json.R
 			if !found {
 				notFound = append(notFound, id)
 			}
+		}
+		if filtered == nil {
+			filtered = []Identity{}
 		}
 		resp := identityGetResponse{
 			AccountID: userID,
@@ -175,60 +173,72 @@ func (m *identitySetMethod) Call(ctx context.Context, userID string, args json.R
 		identJSON, _ := json.Marshal(p.Identities)
 		merged["identities"] = identJSON
 		mergedJSON, _ := json.Marshal(merged)
-		_ = m.deps.Repo.SetWebmailPreferences(ctx, userID, mergedJSON)
+		if err := m.deps.Repo.SetWebmailPreferences(ctx, userID, mergedJSON); err != nil {
+			for cid := range req.Create {
+				delete(created, cid)
+				notCreated[cid] = SetError{Type: "serverFail"}
+			}
+		}
 	}
 
 	// Handle updates.
 	for uid := range req.Update {
-		// Only allow updating custom identities (not the primary).
 		if uid == userID {
 			notUpdated[uid] = SetError{Type: "forbidden"}
 			continue
 		}
-		updated[uid] = json.RawMessage(`{}`)
+		notUpdated[uid] = SetError{Type: "notImplemented", Description: "Identity update is not yet supported"}
 	}
 
-	// Handle destroys.
+	// Handle destroys — load preferences once, modify in memory, save once.
 	var destroyed []string
-	for _, did := range req.Destroy {
-		if did == userID {
-			notDestroyed[did] = SetError{Type: "forbidden"}
-			continue
-		}
-		// Remove custom identity from preferences.
-		prefs, _ := m.deps.Repo.GetWebmailPreferences(ctx, userID)
-		var p struct {
+	if len(req.Destroy) > 0 {
+		destroyPrefs, _ := m.deps.Repo.GetWebmailPreferences(ctx, userID)
+		var dp struct {
 			Identities []Identity `json:"identities"`
 		}
-		if prefs != nil {
-			_ = json.Unmarshal(prefs, &p)
+		json.Unmarshal(destroyPrefs, &dp)
+		originalLen := len(dp.Identities)
+
+		for _, did := range req.Destroy {
+			if did == userID {
+				notDestroyed[did] = SetError{Type: "forbidden"}
+				continue
+			}
+			found := false
+			newList := make([]Identity, 0, len(dp.Identities))
+			for _, ident := range dp.Identities {
+				if ident.ID == did {
+					found = true
+				} else {
+					newList = append(newList, ident)
+				}
+			}
+			if !found {
+				notDestroyed[did] = SetError{Type: "notFound"}
+				continue
+			}
+			dp.Identities = newList
+			destroyed = append(destroyed, did)
 		}
-		found := false
-		newList := p.Identities[:0]
-		for _, ident := range p.Identities {
-			if ident.ID == did {
-				found = true
-			} else {
-				newList = append(newList, ident)
+
+		// Only save if something was actually destroyed.
+		if len(destroyed) > 0 || len(dp.Identities) != originalLen {
+			var dMerged map[string]json.RawMessage
+			json.Unmarshal(destroyPrefs, &dMerged)
+			if dMerged == nil {
+				dMerged = make(map[string]json.RawMessage)
+			}
+			identJSON, _ := json.Marshal(dp.Identities)
+			dMerged["identities"] = identJSON
+			mergedJSON, _ := json.Marshal(dMerged)
+			if err := m.deps.Repo.SetWebmailPreferences(ctx, userID, mergedJSON); err != nil {
+				for _, did := range destroyed {
+					notDestroyed[did] = SetError{Type: "serverFail"}
+				}
+				destroyed = []string{}
 			}
 		}
-		if !found {
-			notDestroyed[did] = SetError{Type: "notFound"}
-			continue
-		}
-		p.Identities = newList
-		var merged map[string]json.RawMessage
-		if prefs != nil {
-			_ = json.Unmarshal(prefs, &merged)
-		}
-		if merged == nil {
-			merged = make(map[string]json.RawMessage)
-		}
-		identJSON, _ := json.Marshal(p.Identities)
-		merged["identities"] = identJSON
-		mergedJSON, _ := json.Marshal(merged)
-		_ = m.deps.Repo.SetWebmailPreferences(ctx, userID, mergedJSON)
-		destroyed = append(destroyed, did)
 	}
 	if destroyed == nil {
 		destroyed = []string{}
