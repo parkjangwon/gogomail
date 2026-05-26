@@ -36,6 +36,7 @@ import {
   PaperClipIcon,
   ArrowRightIcon,
   ClockIcon,
+  XMarkIcon,
   TrashIcon,
   PaperAirplaneIcon,
   ArchiveBoxIcon,
@@ -376,9 +377,14 @@ export function SpotlightSearch({
   }, [notifications, tNotif, onOpenNotifications, onClose]);
 
   const recentSearchKey = 'webmail_recent_searches';
-  const recentSearches: string[] = (() => {
+  const [recentSearches, setRecentSearches] = useState<string[]>(() => {
     try { return JSON.parse(localStorage.getItem(recentSearchKey) ?? '[]').slice(0, 4) as string[]; } catch { return []; }
-  })();
+  });
+  const deleteRecentSearch = useCallback((q: string) => {
+    const next = recentSearches.filter((x) => x !== q);
+    localStorage.setItem(recentSearchKey, JSON.stringify(next));
+    setRecentSearches(next);
+  }, [recentSearches, recentSearchKey]);
 
   // Reset scope when query changes
   useEffect(() => { setScope('all'); }, [query]);
@@ -604,16 +610,27 @@ export function SpotlightSearch({
           <div style={{ padding: '8px 12px 0' }}>
             <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-text-tertiary)', padding: '4px 6px', letterSpacing: '0.05em', textTransform: 'uppercase' }}>{t('recentSearches')}</div>
             {recentSearches.map((q) => (
-              <button
+              <div
                 key={q}
-                onMouseDown={() => setQuery(q)}
-                style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '6px 6px', border: 'none', background: 'transparent', color: 'var(--color-text-secondary)', fontSize: '13px', cursor: 'pointer', borderRadius: '6px', textAlign: 'left' }}
-                onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-secondary)'; }}
-                onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
+                style={{ display: 'flex', alignItems: 'center', borderRadius: '6px' }}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.background = 'var(--color-bg-secondary)'; }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.background = 'transparent'; }}
               >
-                <ClockIcon style={{ width: 13, height: 13, color: 'var(--color-text-tertiary)', flexShrink: 0 }} />
-                {q}
-              </button>
+                <button
+                  onMouseDown={() => setQuery(q)}
+                  style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, padding: '6px 6px', border: 'none', background: 'transparent', color: 'var(--color-text-secondary)', fontSize: '13px', cursor: 'pointer', textAlign: 'left' }}
+                >
+                  <ClockIcon style={{ width: 13, height: 13, color: 'var(--color-text-tertiary)', flexShrink: 0 }} />
+                  {q}
+                </button>
+                <button
+                  onMouseDown={(e) => { e.stopPropagation(); deleteRecentSearch(q); }}
+                  title="삭제"
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px 6px', color: 'var(--color-text-tertiary)', display: 'flex', flexShrink: 0, borderRadius: '4px' }}
+                >
+                  <XMarkIcon style={{ width: 13, height: 13 }} />
+                </button>
+              </div>
             ))}
           </div>
         )}

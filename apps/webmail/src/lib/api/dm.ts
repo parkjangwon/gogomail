@@ -219,8 +219,10 @@ export function toggleDMReaction(messageId: string, emoji: string): Promise<void
   });
 }
 
-export async function exportDMRoom(roomId: string): Promise<Blob> {
-  const res = await fetch(`/api/mail/dm/rooms/${encodeURIComponent(roomId)}/export`, {
+export async function exportDMRoom(roomId: string, timezone?: string): Promise<Blob> {
+  const tz = timezone ?? (() => { try { return Intl.DateTimeFormat().resolvedOptions().timeZone; } catch { return 'UTC'; } })();
+  const url = `/api/mail/dm/rooms/${encodeURIComponent(roomId)}/export?timezone=${encodeURIComponent(tz)}`;
+  const res = await fetch(url, {
     signal: AbortSignal.timeout(60_000),
   });
   if (res.status === 401) {

@@ -15,7 +15,13 @@ type RoomExport struct {
 
 // FormatExportTXT renders a RoomExport as human-readable plain text.
 // Deleted messages are shown as [삭제됨]; system messages are labeled [시스템].
-func FormatExportTXT(e RoomExport) string {
+// loc is the timezone for all displayed timestamps; if nil, UTC is used.
+func FormatExportTXT(e RoomExport, loc *time.Location) string {
+	if loc == nil {
+		loc = time.UTC
+	}
+	tzLabel := loc.String()
+
 	var sb strings.Builder
 
 	roomName := e.Room.Name
@@ -39,11 +45,15 @@ func FormatExportTXT(e RoomExport) string {
 		}
 	}
 
+	formatTS := func(t time.Time) string {
+		return t.In(loc).Format("2006-01-02 15:04:05") + " " + tzLabel
+	}
+
 	fmt.Fprintf(&sb, "============================\n")
 	fmt.Fprintf(&sb, "Room: %s\n", roomName)
 	fmt.Fprintf(&sb, "Type: %s\n", e.Room.RoomType)
 	fmt.Fprintf(&sb, "Participants:\n%s\n", strings.Join(participantLines, "\n"))
-	fmt.Fprintf(&sb, "Exported: %s\n", e.ExportAt.UTC().Format("2006-01-02 15:04:05 UTC"))
+	fmt.Fprintf(&sb, "Exported: %s\n", formatTS(e.ExportAt))
 	fmt.Fprintf(&sb, "Messages: %d\n", len(e.Messages))
 	fmt.Fprintf(&sb, "============================\n\n")
 
@@ -53,7 +63,7 @@ func FormatExportTXT(e RoomExport) string {
 	}
 
 	for _, msg := range e.Messages {
-		ts := msg.CreatedAt.UTC().Format("2006-01-02 15:04:05 UTC")
+		ts := formatTS(msg.CreatedAt)
 
 		if msg.DeletedAt != nil {
 			fmt.Fprintf(&sb, "[%s] %s\n\n", ts, msg.Body)

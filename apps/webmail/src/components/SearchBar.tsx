@@ -162,16 +162,32 @@ export function SearchBar({ value, onChange, advancedFilters = {}, onAdvancedFil
         }}>
           <div style={{ padding: '8px 20px 4px', fontSize: '11px', color: 'var(--color-text-tertiary)', fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase' }}>{t('misc.searchBar.recent')}</div>
           {recentSearches.map((q) => (
-            <button
+            <div
               key={q}
-              onMouseDown={() => { onChange(q); setRecentSearches(saveRecentSearch(q)); setShowSuggestions(false); }}
-              style={{ display: 'flex', alignItems: 'center', gap: '10px', width: '100%', textAlign: 'left', padding: '9px 20px', border: 'none', background: 'transparent', color: 'var(--color-text-primary)', fontSize: '14px', cursor: 'pointer' }}
-              onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-secondary)'; }}
-              onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
+              style={{ display: 'flex', alignItems: 'center', padding: '0 12px 0 20px' }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.background = 'var(--color-bg-secondary)'; }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.background = 'transparent'; }}
             >
-              <MagnifyingGlassIcon style={{ width: '14px', height: '14px', color: 'var(--color-text-tertiary)', flexShrink: 0 }} />
-              {q}
-            </button>
+              <button
+                onMouseDown={() => { onChange(q); setRecentSearches(saveRecentSearch(q)); setShowSuggestions(false); }}
+                style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, textAlign: 'left', padding: '9px 0', border: 'none', background: 'transparent', color: 'var(--color-text-primary)', fontSize: '14px', cursor: 'pointer' }}
+              >
+                <MagnifyingGlassIcon style={{ width: '14px', height: '14px', color: 'var(--color-text-tertiary)', flexShrink: 0 }} />
+                {q}
+              </button>
+              <button
+                onMouseDown={(e) => {
+                  e.stopPropagation();
+                  const next = recentSearches.filter((x) => x !== q);
+                  localStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(next));
+                  setRecentSearches(next);
+                }}
+                title="최근 검색어 삭제"
+                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px', color: 'var(--color-text-tertiary)', display: 'flex', flexShrink: 0, borderRadius: '4px' }}
+              >
+                <XMarkIcon style={{ width: '14px', height: '14px' }} />
+              </button>
+            </div>
           ))}
         </div>
       )}

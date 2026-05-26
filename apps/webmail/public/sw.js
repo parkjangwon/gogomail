@@ -83,7 +83,14 @@ self.addEventListener('push', (event) => {
   };
 
   event.waitUntil(
-    self.registration.showNotification(title, options)
+    self.registration.showNotification(title, options).then(() =>
+      // Notify all open clients to refresh the mail list
+      clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+        for (const client of clientList) {
+          client.postMessage({ type: 'mail_update' });
+        }
+      })
+    )
   );
 });
 
