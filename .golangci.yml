@@ -1,0 +1,31 @@
+version: "2"
+
+linters:
+  enable:
+    - errcheck
+    - staticcheck
+    - gosec
+    - govet
+    - bodyclose
+    - noctx
+    - misspell
+
+linters-settings:
+  errcheck:
+    exclude-functions:
+      - (io.Closer).Close
+      - (*os.File).Close
+      - (net.Conn).Close
+      - fmt.Fprintf
+      - fmt.Fprintln
+      - fmt.Fprint
+  gosec:
+    excludes:
+      - G104  # errors unhandled (errcheck covers this)
+      - G304  # file path provided as taint input
+      - G404  # use of weak random number generator
+      - G501  # import blocklist (md5 — non-crypto use)
+      - G401  # use of weak cryptographic primitive
+
+run:
+  timeout: 5m
