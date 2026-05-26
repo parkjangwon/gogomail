@@ -106,6 +106,7 @@ clients/typescript/index.ts
 .codegraph/
 apps/docs/node_modules/
 apps/docs/.vitepress/cache/
+apps/docs/.vitepress/dist/
 apps/docs/package-lock.json
 apps/gogomail-manage-mcp/node_modules/
 apps/gogomail-manage-mcp/dist/
