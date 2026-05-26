@@ -23,10 +23,11 @@ type SessionFunc func(ctx context.Context, userID, accountID string) (*Session, 
 
 // Deps holds the external dependencies required by Handler.
 type Deps struct {
-	Repo   *maildb.Repository
-	Store  storage.Store
-	Auth   *auth.TokenManager
-	Sender DraftSender // optional; nil means EmailSubmission/set returns serverFail
+	Repo     *maildb.Repository
+	Store    storage.Store
+	Auth     *auth.TokenManager
+	Sender   DraftSender   // optional; nil means EmailSubmission/set returns serverFail
+	Notifier StateNotifier // optional; nil means ping-only SSE
 }
 
 // Handler serves JMAP Session (/.well-known/jmap) and API (/jmap/api)
