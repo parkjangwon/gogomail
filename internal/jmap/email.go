@@ -1,6 +1,9 @@
 package jmap
 
-import "encoding/json"
+import (
+	"context"
+	"encoding/json"
+)
 
 // EmailAddress represents an RFC 8621 EmailAddress object.
 type EmailAddress struct {
@@ -71,7 +74,7 @@ type EmailQueryResponse struct {
 // Currently returns an empty list; real mail store integration to follow.
 type emailGetMethod struct{}
 
-func (emailGetMethod) Call(_ interface{}, accountID string, args json.RawMessage) (json.RawMessage, error) {
+func (emailGetMethod) Call(_ context.Context, accountID string, args json.RawMessage) (json.RawMessage, error) {
 	var req EmailGetArgs
 	if err := json.Unmarshal(args, &req); err != nil {
 		return errorResult(ErrInvalidArguments), nil
@@ -96,7 +99,7 @@ func (emailGetMethod) Call(_ interface{}, accountID string, args json.RawMessage
 // Currently returns an empty result set; real mail store integration to follow.
 type emailQueryMethod struct{}
 
-func (emailQueryMethod) Call(_ interface{}, accountID string, args json.RawMessage) (json.RawMessage, error) {
+func (emailQueryMethod) Call(_ context.Context, accountID string, args json.RawMessage) (json.RawMessage, error) {
 	var req EmailQueryArgs
 	if err := json.Unmarshal(args, &req); err != nil {
 		return errorResult(ErrInvalidArguments), nil

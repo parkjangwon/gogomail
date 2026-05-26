@@ -122,7 +122,11 @@ const (
 	ErrUnknownMethod     = "unknownMethod"
 	ErrServerFail        = "serverFail"
 	ErrInvalidArguments  = "invalidArguments"
+	ErrRequestTooLarge   = "requestTooLarge"
 )
+
+// maxCallsInRequest is the JMAP limit on method calls per request (RFC 8620 §2).
+const maxCallsInRequest = 16
 
 // methodError is the JSON object returned in a method-level error response.
 type methodError struct {

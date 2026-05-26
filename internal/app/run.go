@@ -3476,7 +3476,7 @@ func runHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, mode M
 			}
 		}
 
-		httpapi.RegisterJMAPRoutes(mux, jmapHandler(cfg))
+		httpapi.RegisterJMAPRoutes(mux, jmapHandler(cfg, repository, store, tokenManager))
 		logger.Info("jmap routes registered")
 	}
 	if modeIncludesAdminAPI(mode) {
@@ -3694,14 +3694,18 @@ func modeIncludesMailAPI(mode Mode) bool {
 	return mode == ModeMailAPI || mode == ModeAllInOne
 }
 
-// jmapHandler creates a JMAP handler using a stub session builder.
-// Real DB/auth integration can be wired here in a later iteration.
-func jmapHandler(cfg config.Config) *jmap.Handler {
+// jmapHandler creates a JMAP handler wired with real DB, storage, and auth deps.
+func jmapHandler(cfg config.Config, repo *maildb.Repository, store storage.Store, tm *auth.TokenManager) *jmap.Handler {
 	base := cfg.PublicBaseURL
 	if base == "" {
 		base = "http://localhost" + cfg.HTTPAddr
 	}
-	return jmap.NewHandler(func(ctx context.Context, userID, accountID string) (*jmap.Session, error) {
+	deps := jmap.Deps{
+		Repo:  repo,
+		Store: store,
+		Auth:  tm,
+	}
+	return jmap.NewHandler(deps, func(ctx context.Context, userID, accountID string) (*jmap.Session, error) {
 		return jmap.BuildSession(userID, accountID, base), nil
 	})
 }
