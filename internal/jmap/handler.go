@@ -54,6 +54,10 @@ func NewHandler(deps Deps, sessionFn SessionFunc) *Handler {
 	h.Register("Mailbox/changes", &mailboxChangesMethod{deps: deps})
 	h.Register("Thread/get", &threadGetMethod{deps: deps})
 	h.Register("Thread/changes", &threadChangesMethod{deps: deps})
+	h.Register("Email/changes", &emailChangesMethod{deps: deps})
+	h.Register("Email/copy", &emailCopyMethod{deps: deps})
+	h.Register("Email/import", &emailImportMethod{deps: deps})
+	h.Register("Email/parse", &emailParseMethod{deps: deps})
 	return h
 }
 
