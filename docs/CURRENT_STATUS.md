@@ -17,6 +17,7 @@ Last updated: 2026-05-27
 - Extracted `MessageList` helpers (`KO_KEYS`, `DateGroupKey`, `getDateGroup`) to `apps/webmail/src/components/message-list/messageListHelpers.ts`.
 - Extracted `useReadingPaneAttachments`, `useReadingPaneMedia`, `useReadingPaneCalendar` hooks from `ReadingPane.tsx` (865→667 lines); hooks live in `apps/webmail/src/components/reading-pane/`.
 - Extracted `useOrgTree` (org tree load, expand/collapse, search filtering), `useAddressBook` (address book load, contacts load, contacts search), and `useRecipients` (to/cc/bcc list management) from `OrgPickerModal.tsx` (620→457 lines); hooks live in `apps/webmail/src/components/org-picker/`.
+- Extracted `useMessageListSelection` (bulk-select state, shift-click range, Escape/Ctrl+A/action-key shortcuts, row keyboard nav) and `useContactHoverCard` (hover card state + debounced timers) from `MessageList.tsx` (669→~520 lines); hooks live in `apps/webmail/src/components/message-list/`.
 
 ## Platform summary
 
