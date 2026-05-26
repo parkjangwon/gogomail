@@ -3,9 +3,9 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { deleteMessage, restoreMessage, bulkRestoreMessages, createFolder, renameFolder, deleteFolder, starMessage, markRead, moveMessage, bulkMarkRead, bulkMoveMessages, searchMessages, getMessages, getMessage, sendMessage, listThreads, listThreadMessages, getNotificationPreferences, setNotificationPreferences, setPreferences, UIComposeIntent, MessageAddress, MessageDetail, MessageSummary, ThreadSummary, type ThreadNotificationOverride } from '@/lib/api';
-import { AdvancedFilters, VIRTUAL_ALL, VIRTUAL_STARRED, VIRTUAL_ATTACHMENTS, VIRTUAL_UNREAD, VIRTUAL_SNOOZED, VIRTUAL_PINNED, VIRTUAL_IMPORTANT } from '@/components/Sidebar';
-import { useMailList, type RefreshIntervalSeconds } from '@/hooks/useMailList';
+import { deleteMessage, restoreMessage, bulkRestoreMessages, createFolder, renameFolder, deleteFolder, starMessage, markRead, moveMessage, bulkMarkRead, bulkMoveMessages, sendMessage, listThreadMessages, searchMessages, getNotificationPreferences, setNotificationPreferences, setPreferences, UIComposeIntent, MessageAddress, MessageDetail, MessageSummary } from '@/lib/api';
+import { AdvancedFilters, VIRTUAL_ALL, VIRTUAL_SNOOZED, VIRTUAL_IMPORTANT } from '@/components/Sidebar';
+import { useMailList } from '@/hooks/useMailList';
 import { useMessage } from '@/hooks/useMessage';
 import { useIsMobile } from '@/hooks/useIsMobile';
 import { useIsOnline } from '@/hooks/useIsOnline';
@@ -33,6 +33,9 @@ import { useMailLabels } from './useMailLabels';
 import { useMailSession } from './useMailSession';
 import { useMailSearch } from './useMailSearch';
 import { useMailLayout } from './useMailLayout';
+import { useMailToasts } from './useMailToasts';
+import { useMailSettings } from './useMailSettings';
+import { useMailThreads } from './useMailThreads';
 import {
   buildThreadMessages,
   getEmptyFolderLabel,
@@ -41,33 +44,21 @@ import {
   patchThreadsForMessages,
   shouldHideMessageAfterSnooze,
 } from '@/lib/mail/mailPageUtils';
-import { stableId } from '@/lib/stableId';
 import { useNotifications } from '@/lib/notifications/store';
 import {
   WEBMAIL_ACTIVE_APP_KEY,
   NOTIFICATION_FOLDER_OVERRIDES_KEY,
   NOTIFICATION_THREAD_OVERRIDES_KEY,
-  BADGE_COUNT_MODE_KEY,
-  REFRESH_INTERVAL_KEY,
   DM_MODAL_MIN_WIDTH,
   DM_MODAL_MIN_HEIGHT,
-  DM_MODAL_DEFAULT_WIDTH,
-  DM_MODAL_DEFAULT_HEIGHT,
-  DM_MODAL_MARGIN,
   DM_RESIZE_HANDLES,
   getDefaultDMModalRect,
-  isAppId,
   getInitialActiveApp,
   folderNotificationsEnabled,
   threadNotificationsEnabled,
-  readBadgeCountMode,
-  readRefreshIntervalSeconds,
-  getFocusedNavGroup,
-  getMailNavGroups,
   moveMailPanelFocus,
   type DMModalRect,
   type DMResizeEdge,
-  type BadgeCountMode,
   type NavigatorWithBadging,
 } from './mailPageHelpers';
 
@@ -83,7 +74,7 @@ export default function MailPage() {
   const [composeContext, setComposeContext] = useState<ComposeContext | null>(null);
   const openCompose = useCallback((ctx: ComposeContext) => setComposeContext(ctx), []);
   const closeCompose = useCallback(() => setComposeContext(null), []);
-  const [toasts, setToasts] = useState<ToastItem[]>([]);
+  const { toasts, setToasts, addToast, dismissToast } = useMailToasts();
   const [showShortcuts, setShowShortcuts] = useState(false);
   const {
     mobileSidebarOpen, setMobileSidebarOpen,
@@ -96,10 +87,13 @@ export default function MailPage() {
   const [contextMenu, setContextMenu] = useState<{ id: string; x: number; y: number } | null>(null);
 
   const [activeApp, setActiveApp] = useState<AppId>(getInitialActiveApp);
-  const [badgeCountMode, setBadgeCountMode] = useState<BadgeCountMode>(readBadgeCountMode);
-  const [refreshIntervalSeconds, setRefreshIntervalSeconds] = useState<RefreshIntervalSeconds>(readRefreshIntervalSeconds);
-  const [threadNotificationOverrides, setThreadNotificationOverrides] = useState<Record<string, ThreadNotificationOverride>>({});
-  const [settingsInitialSection, setSettingsInitialSection] = useState<SectionId | undefined>(undefined);
+  const {
+    badgeCountMode, setBadgeCountMode,
+    refreshIntervalSeconds, setRefreshIntervalSeconds,
+    threadNotificationOverrides, setThreadNotificationOverrides,
+    wmSettings, setWmSettings,
+    settingsInitialSection, setSettingsInitialSection,
+  } = useMailSettings();
   const [showSpotlight, setShowSpotlight] = useState(false);
   const [spotlightMoveId, setSpotlightMoveId] = useState<string | null>(null);
   const [spamDialogMessageId, setSpamDialogMessageId] = useState<string | null>(null);
@@ -124,44 +118,15 @@ export default function MailPage() {
   }, [activeApp]);
 
 
-  const [wmSettings, setWmSettings] = useState<{ showPreview: boolean; externalImages: string }>(() => {
-    try {
-      const s = JSON.parse(localStorage.getItem('webmail_settings') ?? '{}') as Record<string, unknown>;
-      return { showPreview: s.showPreview !== false, externalImages: (s.externalImages as string) ?? 'ask' };
-    } catch { return { showPreview: true, externalImages: 'ask' }; }
-  });
-  useEffect(() => {
-    function onStorage(e: StorageEvent) {
-      if (e.key !== 'webmail_settings') return;
-      try {
-        const s = JSON.parse(e.newValue ?? '{}') as Record<string, unknown>;
-        setWmSettings({ showPreview: s.showPreview !== false, externalImages: (s.externalImages as string) ?? 'ask' });
-      } catch { /* */ }
-    }
-    window.addEventListener('storage', onStorage);
-    return () => window.removeEventListener('storage', onStorage);
-  }, []);
-
   const [pendingCompose, setPendingCompose] = useState<{ intent: 'reply' | 'forward'; messageId: string } | null>(null);
 
   const threadViewEnabled = true; // thread view always on (toggle removed)
-  const [threads, setThreads] = useState<ThreadSummary[]>([]);
-  // Incrementing this triggers the thread-fetch effect to re-run without changing folder.
-  const [threadRefreshKey, setThreadRefreshKey] = useState(0);
 
   const isMobile = useIsMobile();
   const gPrefixRef = useRef(false);
   const isOnline = useIsOnline();
 
   const pendingDeletesRef = useRef(new Map<string, ReturnType<typeof setTimeout>>());
-
-  const addToast = useCallback((message: string, type: ToastItem['type'] = 'success', options?: { duration?: number; action?: ToastItem['action'] }) => {
-    const id = stableId('toast');
-    setToasts((prev) => [...prev, { id, message, type, ...options }]);
-  }, []);
-  const dismissToast = useCallback((id: string) => {
-    setToasts((prev) => prev.filter((t) => t.id !== id));
-  }, []);
 
   // Extracted hooks
   const {
@@ -196,129 +161,18 @@ export default function MailPage() {
 
   const { folders, messages, setMessages, foldersLoading, messagesLoading, setMessagesLoading, hasMore, loadingMore, loadMore, adjustUnread, refresh, refreshing } =
     useMailList(activeFolderId, refreshIntervalSeconds);
-  // Version counter to force re-run of the virtual-folder load effect
-  const [virtualRefreshKey, setVirtualRefreshKey] = useState(0);
-  const [threadMessages, setThreadMessages] = useState<MessageSummary[]>([]);
 
-  const patchVisibleMessages = useCallback((ids: string[], patch: Partial<MessageSummary>) => {
-    const idSet = new Set(ids);
-    const applyPatch = (items: MessageSummary[]) => items.map((m) => (idSet.has(m.id) ? { ...m, ...patch } : m));
-    setMessages(applyPatch);
-    setSearchResults((prev) => (prev ? applyPatch(prev) : prev));
-    setThreadMessages(applyPatch);
-    setThreads((prev) => patchThreadsForMessages(prev, ids, patch));
-  }, [setMessages]);
-  // Remove messages from all visible sources so delete/archive/move take immediate effect.
-  // Must also filter threads because visibleMessages uses buildThreadMessages(threads) when
-  // threadViewEnabled is true — threads use (latest_message_id || thread.id) as the display id.
-  const removeVisibleMessages = useCallback((ids: string[]) => {
-    const idSet = new Set(ids);
-    const filterFn = (prev: MessageSummary[]) => prev.filter((m) => !idSet.has(m.id));
-    setMessages(filterFn);
-    setSearchResults((prev) => (prev ? filterFn(prev) : prev));
-    setThreadMessages(filterFn);
-    setThreads((prev) => prev.filter((t) => !idSet.has(t.latest_message_id || t.id)));
-  }, [setMessages]);
-  const findVisibleMessage = useCallback((id: string) => (
-    messages.find((m) => m.id === id) ??
-    searchResults?.find((m) => m.id === id) ??
-    threadMessages.find((m) => m.id === id) ??
-    buildThreadMessages(threads).find((m) => m.id === id)
-  ), [messages, searchResults, threadMessages, threads]);
-  const countUnreadVisible = useCallback((ids: string[]) => (
-    ids.reduce((count, id) => count + (findVisibleMessage(id)?.read === false ? 1 : 0), 0)
-  ), [findVisibleMessage]);
-
-  // Set default folder to inbox UUID once folders are loaded, and recover from stale saved IDs.
-  useEffect(() => {
-    if (folders.length === 0 || activeFolderId.startsWith('__')) return;
-    const inbox = folders.find((f) => f.system_type === 'inbox') ?? folders[0];
-    if (!activeFolderId || !folders.some((f) => f.id === activeFolderId)) {
-      if (inbox) setActiveFolderId(inbox.id);
-    }
-  }, [folders, activeFolderId]);
-
-  // Virtual folder message loading.
-  // __starred__, __unread__, __attachments__: use the messages API directly with
-  // server-side filters (starred/read/has_attachment) so we never miss messages
-  // due to a small page limit.
-  // __pinned__, __important__, __snoozed__: stored in localStorage so
-  // we fetch each stored ID directly via getMessage.
-  useEffect(() => {
-    if (!activeFolderId.startsWith('__') || activeFolderId === VIRTUAL_ALL) return;
-    let cancelled = false;
-    setMessagesLoading(true);
-
-    const load = async (): Promise<MessageSummary[]> => {
-      // Backend caps list requests at 200; exceeding it returns 400.
-      const MAX = 200;
-      if (activeFolderId === VIRTUAL_STARRED) {
-        const data = await getMessages('', '', MAX, { starred: true });
-        return data.messages ?? [];
-      }
-      if (activeFolderId === VIRTUAL_UNREAD) {
-        const data = await getMessages('', '', MAX, { read: false });
-        return data.messages ?? [];
-      }
-      if (activeFolderId === VIRTUAL_ATTACHMENTS) {
-        const data = await getMessages('', '', MAX, { has_attachment: true });
-        return data.messages ?? [];
-      }
-      // localStorage-based virtual folders: fetch each stored ID directly so we
-      // never miss messages that fall outside any arbitrary page-size limit.
-      const fetchByIds = async (ids: string[]): Promise<MessageSummary[]> => {
-        if (ids.length === 0) return [];
-        const results = await Promise.allSettled(ids.slice(0, 50).map((id) => getMessage(id)));
-        return results
-          .filter((r): r is PromiseFulfilledResult<MessageDetail> => r.status === 'fulfilled')
-          .map((r) => r.value);
-      };
-      if (activeFolderId === VIRTUAL_SNOOZED) {
-        try {
-          const snoozed: Record<string, string> = JSON.parse(localStorage.getItem('webmail_snoozed') ?? '{}');
-          const now = Date.now();
-          const ids = Object.entries(snoozed)
-            .filter(([, until]) => new Date(until).getTime() > now)
-            .map(([id]) => id);
-          return fetchByIds(ids);
-        } catch { return []; }
-      }
-      if (activeFolderId === VIRTUAL_PINNED) {
-        try {
-          const pinned: string[] = JSON.parse(localStorage.getItem('webmail_pinned') ?? '[]');
-          return fetchByIds(pinned);
-        } catch { return []; }
-      }
-      if (activeFolderId === VIRTUAL_IMPORTANT) {
-        try {
-          const important: string[] = JSON.parse(localStorage.getItem('webmail_important') ?? '[]');
-          return fetchByIds(important);
-        } catch { return []; }
-      }
-      return [];
-    };
-
-    load()
-      .then((msgs) => { if (!cancelled) { setMessages(msgs); setMessagesLoading(false); } })
-      .catch(() => { if (!cancelled) setMessagesLoading(false); });
-
-    return () => { cancelled = true; };
-  }, [activeFolderId, setMessages, setMessagesLoading, virtualRefreshKey]);
-
-  // Thread view: fetch threads when enabled, folder changes, or threadRefreshKey bumps.
-  // threadRefreshKey is incremented by handleRefresh so periodic/manual refresh updates the list.
-  useEffect(() => {
-    if (!threadViewEnabled || !activeFolderId || activeFolderId.startsWith('__')) {
-      setThreads([]);
-      return;
-    }
-    let cancelled = false;
-    listThreads({ folder_id: activeFolderId, limit: 50 })
-      .then((r) => { if (!cancelled) setThreads(r.threads ?? []); })
-      .catch(() => {});
-    return () => { cancelled = true; };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [threadViewEnabled, activeFolderId, threadRefreshKey]);
+  const {
+    virtualRefreshKey, setVirtualRefreshKey,
+    threadMessages, setThreadMessages,
+    threads, setThreads,
+    threadRefreshKey, setThreadRefreshKey,
+  } = useMailThreads({
+    activeFolderId,
+    foldersLoading,
+    setMessages: (msgs) => setMessages(() => msgs),
+    setMessagesLoading,
+  });
 
   const { message: selectedMessage, loading: messageLoading } =
     useMessage(selectedMessageId);
@@ -331,8 +185,9 @@ export default function MailPage() {
   const selectedNotificationThreadId = selectedThreadId ?? selectedMessage?.thread_id ?? selectedMessage?.id ?? '';
   const selectedThreadMuted = !!selectedNotificationThreadId && threadNotificationOverrides[selectedNotificationThreadId]?.enabled === false;
 
+  // Thread messages: fetch via thread API when a thread is selected, or fall back
+  // to subject-based grouping for normal message view.
   useEffect(() => {
-    // If viewing a thread from thread-view mode, fetch via thread API
     if (selectedThreadId) {
       let cancelled = false;
       listThreadMessages(selectedThreadId)
@@ -361,23 +216,45 @@ export default function MailPage() {
       })
       .catch(() => { if (!cancelled) setThreadMessages([]); });
     return () => { cancelled = true; };
-  }, [selectedThreadId, selectedMessage?.id, selectedMessage?.subject]);
+  }, [selectedThreadId, selectedMessage?.id, selectedMessage?.subject, setThreadMessages]);
 
-  useEffect(() => {
-    const onBadgeModeChange = (event: StorageEvent) => {
-      if (event.key === BADGE_COUNT_MODE_KEY) setBadgeCountMode(readBadgeCountMode());
-    };
-    window.addEventListener('storage', onBadgeModeChange);
-    return () => window.removeEventListener('storage', onBadgeModeChange);
-  }, []);
+  const patchVisibleMessages = useCallback((ids: string[], patch: Partial<MessageSummary>) => {
+    const idSet = new Set(ids);
+    const applyPatch = (items: MessageSummary[]) => items.map((m) => (idSet.has(m.id) ? { ...m, ...patch } : m));
+    setMessages(applyPatch);
+    setSearchResults((prev) => (prev ? applyPatch(prev) : prev));
+    setThreadMessages(applyPatch);
+    setThreads((prev) => patchThreadsForMessages(prev, ids, patch));
+  }, [setMessages, setThreadMessages, setThreads]);
+  // Remove messages from all visible sources so delete/archive/move take immediate effect.
+  // Must also filter threads because visibleMessages uses buildThreadMessages(threads) when
+  // threadViewEnabled is true — threads use (latest_message_id || thread.id) as the display id.
+  const removeVisibleMessages = useCallback((ids: string[]) => {
+    const idSet = new Set(ids);
+    const filterFn = (prev: MessageSummary[]) => prev.filter((m) => !idSet.has(m.id));
+    setMessages(filterFn);
+    setSearchResults((prev) => (prev ? filterFn(prev) : prev));
+    setThreadMessages(filterFn);
+    setThreads((prev) => prev.filter((t) => !idSet.has(t.latest_message_id || t.id)));
+  }, [setMessages, setThreadMessages, setThreads]);
+  const findVisibleMessage = useCallback((id: string) => (
+    messages.find((m) => m.id === id) ??
+    searchResults?.find((m) => m.id === id) ??
+    threadMessages.find((m) => m.id === id) ??
+    buildThreadMessages(threads).find((m) => m.id === id)
+  ), [messages, searchResults, threadMessages, threads]);
+  const countUnreadVisible = useCallback((ids: string[]) => (
+    ids.reduce((count, id) => count + (findVisibleMessage(id)?.read === false ? 1 : 0), 0)
+  ), [findVisibleMessage]);
 
+  // Set default folder to inbox UUID once folders are loaded, and recover from stale saved IDs.
   useEffect(() => {
-    const onRefreshIntervalChange = (event: StorageEvent) => {
-      if (event.key === REFRESH_INTERVAL_KEY) setRefreshIntervalSeconds(readRefreshIntervalSeconds());
-    };
-    window.addEventListener('storage', onRefreshIntervalChange);
-    return () => window.removeEventListener('storage', onRefreshIntervalChange);
-  }, []);
+    if (folders.length === 0 || activeFolderId.startsWith('__')) return;
+    const inbox = folders.find((f) => f.system_type === 'inbox') ?? folders[0];
+    if (!activeFolderId || !folders.some((f) => f.id === activeFolderId)) {
+      if (inbox) setActiveFolderId(inbox.id);
+    }
+  }, [folders, activeFolderId]);
 
   // Update document title + favicon badge according to the selected badge mode.
   useEffect(() => {

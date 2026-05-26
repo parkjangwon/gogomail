@@ -10,6 +10,7 @@ Last updated: 2026-05-27
 - Extracted `useMailSearch`, `useMailLayout` hooks from `mail/page.tsx` (2114→N lines); hooks live in `apps/webmail/src/app/mail/`.
 - Extracted `useDriveUpload` (upload state, refs, pause/resume/cancel/scheduler) to `apps/webmail/src/components/drive/useDriveUpload.ts` and `useDriveSidebar` (folder tree state/loading) to `apps/webmail/src/components/drive/useDriveSidebar.ts`; DriveView.tsx reduced from 1412 → ~900 lines with no logic changes.
 - Extracted `ComposeModal` (1309 lines) into three hooks: `useComposeDraft` (auto-save), `useComposeSlash` (slash command menu), `useComposeSend` (send lifecycle + countdown). No logic changes — pure code movement.
+- Extracted `useMailThreads`, `useMailSettings`, `useMailToasts` hooks from `mail/page.tsx` (2085→1961 lines).
 - Extracted `SpotlightSearch` pre-component helpers (`SpotlightItem`, `SYSTEM_ICONS`, `SCOPES`, `SpotlightT`, `sectionLabel`, `relativeTime`, `formatDriveSize`) to `apps/webmail/src/components/spotlight/spotlightHelpers.tsx`.
 - Extracted `MessageList` helpers (`KO_KEYS`, `DateGroupKey`, `getDateGroup`) to `apps/webmail/src/components/message-list/messageListHelpers.ts`.
 - Extracted `useReadingPaneAttachments`, `useReadingPaneMedia`, `useReadingPaneCalendar` hooks from `ReadingPane.tsx` (865→667 lines); hooks live in `apps/webmail/src/components/reading-pane/`.
