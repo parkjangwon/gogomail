@@ -53,13 +53,11 @@ export function DMPanel({ userEmail, onUnreadChange, onClose, onComposeToAddress
       // Pass user's stored timezone so the backend uses it for timestamps and filename.
       let tz = 'UTC';
       try { tz = localStorage.getItem('webmail_timezone') || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'; } catch { /* ignore */ }
-      const blob = await exportDMRoom(dm.activeRoom.id, tz);
+      const { blob, filename } = await exportDMRoom(dm.activeRoom.id, tz);
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      // Let the browser use the Content-Disposition filename set by the backend.
-      // Fallback filename used only when Content-Disposition is absent.
-      a.download = '';
+      a.download = filename;
       document.body.appendChild(a);
       a.click();
       a.remove();

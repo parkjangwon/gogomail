@@ -59,6 +59,8 @@
     "unstar": "取消星标",
     "unsubscribe": "退订",
     "openInWindow": "在新窗口打开",
+    "emailDarkMode": "使用深色模式查看",
+    "emailLightMode": "使用亮色模式查看",
     "moreActions": "更多操作",
     "snooze": "推迟",
     "snooze1h": "1小时后",

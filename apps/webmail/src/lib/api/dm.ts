@@ -219,7 +219,7 @@ export function toggleDMReaction(messageId: string, emoji: string): Promise<void
   });
 }
 
-export async function exportDMRoom(roomId: string, timezone?: string): Promise<Blob> {
+export async function exportDMRoom(roomId: string, timezone?: string): Promise<{ blob: Blob; filename: string }> {
   const tz = timezone ?? (() => { try { return Intl.DateTimeFormat().resolvedOptions().timeZone; } catch { return 'UTC'; } })();
   const url = `/api/mail/dm/rooms/${encodeURIComponent(roomId)}/export?timezone=${encodeURIComponent(tz)}`;
   const res = await fetch(url, {
@@ -232,5 +232,12 @@ export async function exportDMRoom(roomId: string, timezone?: string): Promise<B
   if (!res.ok) {
     throw new Error(await responseErrorMessage(res, `Export failed: ${res.status}`));
   }
-  return res.blob();
+  // Extract filename from Content-Disposition before consuming the body as a blob.
+  // blob: URLs don't preserve original response headers, so a.download = '' would
+  // fall back to the blob URL (which contains the room UUID as the path).
+  const cd = res.headers.get('Content-Disposition') ?? '';
+  const match = cd.match(/filename[^;=\n]*=(['"]?)([^'"\n;]+)\1/);
+  const filename = match?.[2]?.trim() || `dm-export.txt`;
+  const blob = await res.blob();
+  return { blob, filename };
 }

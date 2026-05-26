@@ -706,6 +706,8 @@ export function ReadingPane({
         fontSize={fontSize}
         onIncreaseFontSize={increaseFontSize}
         onDecreaseFontSize={decreaseFontSize}
+        emailDarkMode={emailDarkMode}
+        onToggleEmailDark={() => setEmailDarkMode((v) => !v)}
       />
 
       {/* "스팸 아님" banner — shown when viewing email in spam folder */}
@@ -787,35 +789,6 @@ export function ReadingPane({
           onSaveToDrive={handleSaveToDrive}
           onOpenImage={onOpenImage}
         />
-
-        {message.html_body && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
-            <button
-              onClick={() => setEmailDarkMode((value) => !value)}
-              title={emailDarkMode ? t('misc.readingPane.lightTooltip') : t('misc.readingPane.darkTooltip')}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '4px',
-                padding: '3px 10px',
-                borderRadius: '5px',
-                border: '1px solid var(--color-border-default)',
-                background: emailDarkMode ? 'var(--color-bg-tertiary)' : 'transparent',
-                color: 'var(--color-text-secondary)',
-                fontSize: '11px',
-                cursor: 'pointer',
-              }}
-              onMouseEnter={(event) => {
-                (event.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-secondary)';
-              }}
-              onMouseLeave={(event) => {
-                (event.currentTarget as HTMLButtonElement).style.background = emailDarkMode ? 'var(--color-bg-tertiary)' : 'transparent';
-              }}
-            >
-              {emailDarkMode ? t('misc.readingPane.light') : t('misc.readingPane.dark')}
-            </button>
-          </div>
-        )}
 
         <div
           style={{

@@ -80,12 +80,24 @@ export function MessageHeader({
               <button
                 onClick={() => onComposeToAddress(message.from_addr)}
                 title={t('header.composeToTitle', { addr: message.from_addr })}
-                style={{ background: 'none', border: '1px solid var(--color-border-default)', borderRadius: '4px', cursor: 'pointer', fontSize: '11px', color: 'var(--color-text-tertiary)', padding: '1px 6px', marginInlineStart: '6px', lineHeight: 1.4 }}
+                style={{
+                  background: 'var(--color-accent)',
+                  border: 'none',
+                  borderRadius: '5px',
+                  cursor: 'pointer',
+                  fontSize: '12px',
+                  fontWeight: 500,
+                  color: '#fff',
+                  padding: '3px 10px',
+                  marginInlineStart: '8px',
+                  lineHeight: 1.5,
+                  transition: 'opacity 100ms ease',
+                }}
                 onMouseEnter={(e) => {
-                  (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-secondary)';
+                  (e.currentTarget as HTMLButtonElement).style.opacity = '0.85';
                 }}
                 onMouseLeave={(e) => {
-                  (e.currentTarget as HTMLButtonElement).style.background = 'transparent';
+                  (e.currentTarget as HTMLButtonElement).style.opacity = '1';
                 }}
               >{t('header.composeToLabel')}</button>
             )}
@@ -93,7 +105,19 @@ export function MessageHeader({
               <button
                 onClick={onSaveContact}
                 title={t('header.addContactTitle')}
-                style={{ background: 'none', border: '1px solid var(--color-border-default)', borderRadius: '4px', cursor: 'pointer', fontSize: '11px', color: savedContact ? 'var(--color-accent)' : 'var(--color-text-tertiary)', padding: '1px 6px', marginInlineStart: '4px', lineHeight: 1.4 }}
+                style={{
+                  background: 'none',
+                  border: '1px solid var(--color-border-default)',
+                  borderRadius: '5px',
+                  cursor: 'pointer',
+                  fontSize: '12px',
+                  fontWeight: 500,
+                  color: savedContact ? 'var(--color-accent)' : 'var(--color-text-secondary)',
+                  padding: '3px 10px',
+                  marginInlineStart: '6px',
+                  lineHeight: 1.5,
+                  transition: 'background 100ms ease',
+                }}
                 onMouseEnter={(e) => {
                   (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-secondary)';
                 }}
@@ -106,14 +130,24 @@ export function MessageHeader({
               <button
                 onClick={() => onBlockSender(message.from_addr)}
                 title={t('header.blockSenderTitle', { addr: message.from_addr })}
-                style={{ background: 'none', border: '1px solid var(--color-border-default)', borderRadius: '4px', cursor: 'pointer', fontSize: '11px', color: 'var(--color-destructive)', padding: '1px 6px', marginInlineStart: '4px', lineHeight: 1.4, opacity: 0.8 }}
+                style={{
+                  background: 'color-mix(in srgb, var(--color-destructive) 8%, transparent)',
+                  border: '1px solid color-mix(in srgb, var(--color-destructive) 35%, transparent)',
+                  borderRadius: '5px',
+                  cursor: 'pointer',
+                  fontSize: '12px',
+                  fontWeight: 500,
+                  color: 'var(--color-destructive)',
+                  padding: '3px 10px',
+                  marginInlineStart: '6px',
+                  lineHeight: 1.5,
+                  transition: 'background 100ms ease',
+                }}
                 onMouseEnter={(e) => {
-                  (e.currentTarget as HTMLButtonElement).style.background = 'color-mix(in srgb, var(--color-destructive) 10%, transparent)';
-                  (e.currentTarget as HTMLButtonElement).style.opacity = '1';
+                  (e.currentTarget as HTMLButtonElement).style.background = 'color-mix(in srgb, var(--color-destructive) 15%, transparent)';
                 }}
                 onMouseLeave={(e) => {
-                  (e.currentTarget as HTMLButtonElement).style.background = 'transparent';
-                  (e.currentTarget as HTMLButtonElement).style.opacity = '0.8';
+                  (e.currentTarget as HTMLButtonElement).style.background = 'color-mix(in srgb, var(--color-destructive) 8%, transparent)';
                 }}
               >{t('header.blockSenderLabel')}</button>
             )}
