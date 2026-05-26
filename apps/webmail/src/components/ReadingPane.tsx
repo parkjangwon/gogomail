@@ -744,7 +744,6 @@ export function ReadingPane({
           ccList={ccList}
           copiedEmail={copiedEmail}
           onCopyEmail={copyEmail}
-          onComposeToAddress={onComposeToAddress}
           onBlockSender={onBlockSender}
           isContactSaved={isContactSaved}
           savedContact={savedContact}
