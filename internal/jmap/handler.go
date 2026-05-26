@@ -58,6 +58,9 @@ func NewHandler(deps Deps, sessionFn SessionFunc) *Handler {
 	h.Register("Email/copy", &emailCopyMethod{deps: deps})
 	h.Register("Email/import", &emailImportMethod{deps: deps})
 	h.Register("Email/parse", &emailParseMethod{deps: deps})
+	h.Register("Identity/get", &identityGetMethod{deps: deps})
+	h.Register("Identity/set", &identitySetMethod{deps: deps})
+	h.Register("SearchSnippet/get", &searchSnippetGetMethod{deps: deps})
 	return h
 }
 
