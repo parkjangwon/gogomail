@@ -22,6 +22,7 @@ import (
 )
 
 // defaultPushHTTPClient is shared across all push notification senders.
+// 30s covers FCM/APNs/WebPush handshake + typical response latency while still bounding goroutines.
 var defaultPushHTTPClient = &http.Client{
 	Timeout: 30 * time.Second,
 }
