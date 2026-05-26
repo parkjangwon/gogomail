@@ -21,6 +21,9 @@ func NewRepository(db *sql.DB) *Repository {
 	return &Repository{db: db}
 }
 
+// DB returns the underlying *sql.DB for direct query access.
+func (r *Repository) DB() *sql.DB { return r.db }
+
 func normalizeAddressACE(raw string) (string, error) {
 	address, err := mail.NormalizeAddress(raw)
 	if err != nil {
