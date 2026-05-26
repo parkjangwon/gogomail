@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"time"
 )
 
 // VacationResponse is the RFC 8621 §8 singleton object.
@@ -73,10 +74,39 @@ func (m *vacationResponseGetMethod) Call(ctx context.Context, userID string, arg
 		}
 	}
 
+	singleton := vr
+
+	// Apply ids filter if provided.
+	if len(req.IDs) > 0 {
+		var list []VacationResponse
+		var notFound []string
+		for _, id := range req.IDs {
+			if id == "singleton" {
+				list = append(list, singleton)
+			} else {
+				notFound = append(notFound, id)
+			}
+		}
+		if list == nil {
+			list = []VacationResponse{}
+		}
+		if notFound == nil {
+			notFound = []string{}
+		}
+		resp := vacationResponseGetResponse{
+			AccountID: userID,
+			State:     "vacation-v1",
+			List:      list,
+			NotFound:  notFound,
+		}
+		return json.Marshal(resp)
+	}
+
+	// ids=null: return all (just the singleton).
 	resp := vacationResponseGetResponse{
 		AccountID: userID,
 		State:     "vacation-v1",
-		List:      []VacationResponse{vr},
+		List:      []VacationResponse{singleton},
 		NotFound:  []string{},
 	}
 	return json.Marshal(resp)
@@ -175,10 +205,16 @@ func (m *vacationResponseSetMethod) Call(ctx context.Context, userID string, arg
 		updated[id] = vrRaw
 	}
 
+	oldState := "vacation-v1"
+	newState := oldState
+	if len(updated) > 0 {
+		newState = fmt.Sprintf("vacation-%d", time.Now().UnixMicro())
+	}
+
 	resp := vacationResponseSetResponse{
 		AccountID:    userID,
-		OldState:     "vacation-v1",
-		NewState:     "vacation-v1",
+		OldState:     oldState,
+		NewState:     newState,
 		Created:      make(map[string]json.RawMessage),
 		NotCreated:   notCreated,
 		Updated:      updated,

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"time"
 )
 
 // DraftSender abstracts email submission for EmailSubmission/set.
@@ -61,6 +62,10 @@ func (m *emailSubmissionSetMethod) Call(ctx context.Context, userID string, args
 			notCreated[cid] = SetError{Type: "invalidProperties", Description: "emailId is required"}
 			continue
 		}
+		if sub.IdentityID == "" {
+			notCreated[cid] = SetError{Type: "invalidProperties", Description: "identityId is required"}
+			continue
+		}
 		// Verify the draft exists.
 		if _, err := m.deps.Repo.GetMessage(ctx, userID, sub.EmailID); err != nil {
 			notCreated[cid] = SetError{Type: "notFound", Description: "email not found"}
@@ -71,12 +76,29 @@ func (m *emailSubmissionSetMethod) Call(ctx context.Context, userID string, args
 			notCreated[cid] = SetError{Type: "serverFail", Description: err.Error()}
 			continue
 		}
+		// Fetch message metadata to populate threadId and mailboxIds.
+		msg, msgErr := m.deps.Repo.GetMessage(ctx, userID, sub.EmailID)
+		threadID := ""
+		mailboxIDs := map[string]bool{}
+		if msgErr == nil {
+			_ = msg // MessageDetail has no ThreadID/FolderID fields; leave empty
+		}
+
+		sendAt := time.Now().UTC().Format(time.RFC3339)
+
 		// Return the submission record.
 		submission := map[string]interface{}{
-			"id":         sub.EmailID + "-submitted",
-			"emailId":    sub.EmailID,
-			"identityId": sub.IdentityID,
-			"sendAt":     "now",
+			"id":              sub.EmailID + "-submitted",
+			"emailId":         sub.EmailID,
+			"identityId":      sub.IdentityID,
+			"threadId":        threadID,
+			"mailboxIds":      mailboxIDs,
+			"envelope":        nil,
+			"sendAt":          sendAt,
+			"undoStatus":      "final",
+			"deliveryStatus":  map[string]interface{}{},
+			"dsnBlobIds":      []string{},
+			"mdnBlobIds":      []string{},
 		}
 		raw, _ := json.Marshal(submission)
 		created[cid] = raw
@@ -91,10 +113,16 @@ func (m *emailSubmissionSetMethod) Call(ctx context.Context, userID string, args
 		notDestroyed[did] = SetError{Type: "forbidden"}
 	}
 
+	oldState := "submission-v1"
+	newState := oldState
+	if len(created) > 0 {
+		newState = fmt.Sprintf("submission-%d", time.Now().UnixMicro())
+	}
+
 	resp := emailSubmissionResponse{
 		AccountID:    userID,
-		OldState:     "submission-v1",
-		NewState:     "submission-v1",
+		OldState:     oldState,
+		NewState:     newState,
 		Created:      created,
 		NotCreated:   notCreated,
 		Updated:      make(map[string]json.RawMessage),
