@@ -4,6 +4,7 @@ Last updated: 2026-05-27
 
 ## Recent refactoring
 
+- Extracted `useSettingsPrefs` hook from `SettingsView.tsx` (1098→563 lines); holds all 109 state variables and preference load/save effects.
 - Extracted `useContactsBooks`, `useContactsEdit` hooks from `ContactsView.tsx` (723→~330 lines); hooks live in `apps/webmail/src/components/contacts/`.
 - Extracted `useCalendarCreateForm`, `useCalendarEditForm`, and `useCalendarData` custom hooks from `CalendarView.tsx` (812→~340 lines); hooks live in `apps/webmail/src/components/calendar/`.
 - Extracted `useDMModal`, `useMailLabels`, `useMailSession` hooks from `mail/page.tsx` (2302→2114 lines); hooks live in `apps/webmail/src/app/mail/`.
