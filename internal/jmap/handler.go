@@ -145,7 +145,23 @@ func (h *Handler) ServeAPI(w http.ResponseWriter, r *http.Request) {
 		MethodResponses: make([]MethodResponse, 0, len(req.MethodCalls)),
 	}
 
+	// prevResults stores each call's raw result keyed by callID so that
+	// subsequent calls can reference it via RFC 8620 §3.7 back-references.
+	prevResults := make(map[string]json.RawMessage)
+
 	for _, call := range req.MethodCalls {
+		// Resolve any "#key" back-references in the arguments before dispatch.
+		resolvedArgs, err := resolveBackRefs(call.Args, prevResults)
+		if err != nil {
+			resp.MethodResponses = append(resp.MethodResponses, MethodResponse{
+				Name:   "error",
+				Result: errorResult("invalidResultReference"),
+				CallID: call.CallID,
+			})
+			continue
+		}
+		call.Args = resolvedArgs
+
 		method, ok := h.methods[call.Name]
 		if !ok {
 			resp.MethodResponses = append(resp.MethodResponses, MethodResponse{
@@ -165,6 +181,9 @@ func (h *Handler) ServeAPI(w http.ResponseWriter, r *http.Request) {
 			})
 			continue
 		}
+
+		// Store result so later calls can back-reference it.
+		prevResults[call.CallID] = result
 
 		resp.MethodResponses = append(resp.MethodResponses, MethodResponse{
 			Name:   call.Name,
