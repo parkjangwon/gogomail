@@ -4,6 +4,7 @@ Last updated: 2026-05-27
 
 ## Recent refactoring
 
+- Extracted `ComposeModal` (1309 lines) into three hooks: `useComposeDraft` (auto-save), `useComposeSlash` (slash command menu), `useComposeSend` (send lifecycle + countdown). No logic changes — pure code movement.
 - Extracted `SpotlightSearch` pre-component helpers (`SpotlightItem`, `SYSTEM_ICONS`, `SCOPES`, `SpotlightT`, `sectionLabel`, `relativeTime`, `formatDriveSize`) to `apps/webmail/src/components/spotlight/spotlightHelpers.tsx`.
 - Extracted `MessageList` helpers (`KO_KEYS`, `DateGroupKey`, `getDateGroup`) to `apps/webmail/src/components/message-list/messageListHelpers.ts`.
 

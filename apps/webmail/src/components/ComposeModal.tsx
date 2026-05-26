@@ -9,18 +9,18 @@ import Underline from '@tiptap/extension-underline';
 import TextAlign from '@tiptap/extension-text-align';
 import Placeholder from '@tiptap/extension-placeholder';
 import Image from '@tiptap/extension-image';
-import { sendMessage, saveDraft, updateDraft, deleteDraft, sendDraft, uploadAttachment, listUserAddresses } from '@/lib/api';
-import type { UIComposeIntent, MessageDetail, SendMessageRequest, SendMessageResult, UserAddressEntry } from '@/lib/api';
+import { saveDraft, updateDraft, uploadAttachment, listUserAddresses } from '@/lib/api';
+import type { UIComposeIntent, MessageDetail, SendMessageRequest, UserAddressEntry } from '@/lib/api';
 import { composeCloseSaveButtonAriaLabel } from '@/lib/composeCloseSaveButtonAriaLabel';
 import { composeCloseSaveButtonLabel } from '@/lib/composeCloseSaveButtonLabel';
 import { composeCloseSavePrompt } from '@/lib/composeCloseSavePrompt';
 import { composeSendButtonLabel } from '@/lib/composeSendButtonLabel';
 import { toDateTimeLocalValue } from '@/lib/dateTimeLocal';
 import { formatSendResultLabel } from '@/lib/sendResultLabel';
-import { useOptionalNotifications } from '@/lib/notifications/store';
 import { escapeHtml, parseAddrs, backendComposeIntent } from '@/lib/compose/composeUtils';
 import { buildQuoteHTML, emailOf, invalidRecipientAddresses, parseToPickerItems, pickerItemsToString } from '@/lib/mail-address';
-import { SLASH_COMMANDS, type SlashCommand } from '@/lib/compose/slashCommands';
+import { SLASH_COMMANDS } from '@/lib/compose/slashCommands';
+import type { SlashCommand } from '@/lib/compose/slashCommands';
 import { RecipientChips } from './RecipientChips';
 import { OrgPickerModal } from './OrgPickerModal';
 import { ComposeModalActions } from './ComposeModalActions';
@@ -30,18 +30,12 @@ import { ComposeAttachmentPanel } from './compose/ComposeAttachmentPanel';
 import { useComposeWindow } from './compose/useComposeWindow';
 import { useComposeAttachments } from './compose/useComposeAttachments';
 import { useComposeTemplates } from './compose/useComposeTemplates';
+import { useComposeDraft } from './compose/useComposeDraft';
+import { useComposeSlash } from './compose/useComposeSlash';
+import { useComposeSend } from './compose/useComposeSend';
 import {
   PaperClipIcon,
-  PencilSquareIcon as PencilSquareIconHero,
-  DocumentTextIcon,
-  CalendarIcon,
-  ChevronUpIcon,
   XMarkIcon,
-  CloudIcon,
-  ChevronRightIcon,
-  FaceSmileIcon,
-  ArchiveBoxIcon,
-  PhotoIcon,
   UsersIcon,
 } from '@heroicons/react/24/outline';
 
@@ -65,8 +59,6 @@ interface ComposeModalProps {
 export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMessage, userEmail, initialTo, initialSubject, initialBody, focusSubjectOnOpen = false, isMobile, windowOffset = 0, onArchiveSource, onAfterSend }: ComposeModalProps) {
   const t = useTranslations('composeFull');
   const tMisc = useTranslations('misc.compose');
-  const tNotif = useTranslations('notifications');
-  const notifications = useOptionalNotifications();
   const replyTo = intent === 'reply' || intent === 'reply_all'
     ? sourceMessage?.from_addr ?? ''
     : '';
@@ -91,21 +83,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
   const [showCc, setShowCc] = useState(!!(draftMessage ? draftCc : replyCc));
   const [showBcc, setShowBcc] = useState(false);
   const [subject, setSubject] = useState(draftMessage ? (draftMessage.subject ?? '') : (initialSubject ?? replySubject));
-  const [sending, setSending] = useState(false);
-  const [error, setError] = useState('');
-  const [sent, setSent] = useState(false);
-  const [sendResult, setSendResult] = useState<SendMessageResult | null>(null);
-  const [sendCountdown, setSendCountdown] = useState<number | null>(null);
   const [trackOpens, setTrackOpens] = useState(false);
-  const pendingMsgRef = useRef<SendMessageRequest | null>(null);
-  const pendingDraftSendRef = useRef(false);
-  const sendInProgressRef = useRef(false);
-  const sendExecutionRef = useRef(false);
-  const sendAndArchiveRef = useRef(false);
-  const [scheduledAt, setScheduledAt] = useState('');
-  const [showSchedule, setShowSchedule] = useState(false);
-  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
-  const [savedAt, setSavedAt] = useState('');
   const [confirmClose, setConfirmClose] = useState(false);
   const [closeSaveInProgress, setCloseSaveInProgress] = useState(false);
   const [showSigEditor, setShowSigEditor] = useState(false);
@@ -116,13 +94,11 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
     try {
       const recents: string[] = JSON.parse(localStorage.getItem('webmail_recent_recipients') ?? '[]');
       const contacts: Record<string, string> = JSON.parse(localStorage.getItem('webmail_contacts') ?? '{}');
-      // Enrich plain email entries with stored contact names
       const enriched = recents.map((r) => {
         if (r.includes('<')) return r;
         const name = contacts[r.toLowerCase()];
         return name ? `${name} <${r}>` : r;
       });
-      // Add contacts not yet in recents
       const recentEmails = new Set(recents.map((r) => { const m = r.match(/<([^>]+)>/); return (m ? m[1] : r).toLowerCase(); }));
       Object.entries(contacts).forEach(([email, name]) => {
         if (!recentEmails.has(email)) enriched.push(`${name} <${email}>`);
@@ -130,10 +106,29 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
       return enriched.slice(0, 50);
     } catch { return []; }
   });
-  const draftIdRef = useRef<string>(draftMessage?.id ?? '');
-  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   const sendDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Lazy ref for readyAttachmentIds — allows useComposeDraft to be called before useComposeAttachments
+  // while still getting the live function at call time.
+  const readyAttachmentIdsRef = useRef<() => string[]>(() => []);
+
+  // ---- Draft hook (must come before useComposeAttachments to provide draftIdRef) ----
+  const draftHook = useComposeDraft({
+    to,
+    cc,
+    bcc,
+    subject,
+    intent,
+    sourceMessage,
+    fromAddress: userEmail ?? '',   // will be updated via setFromAddress; draft hook reads lazily
+    scheduledAt: '',                 // updated below via sendHook; reads lazily in callbacks
+    trackOpens,
+    readyAttachmentIds: () => readyAttachmentIdsRef.current(),
+    draftMessage,
+  });
+  const { draftIdRef, saveStatus, savedAt, setSaveStatus, setSavedAt, clearSentDraft, buildDraftData, triggerAutoSave } = draftHook;
 
   const {
     uploadedAttachments,
@@ -154,6 +149,9 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
     readyAttachmentIds,
   } = useComposeAttachments({ t, draftIdRef, initialDriveCrumbName: t('drive') });
 
+  // Keep the lazy ref in sync
+  readyAttachmentIdsRef.current = readyAttachmentIds;
+
   const {
     templates,
     templateSaveName,
@@ -172,18 +170,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
     subject,
   });
 
-  // Slash command menu state
-  const [slashMenu, setSlashMenu] = useState<{ query: string; top: number; cursorTop: number; left: number } | null>(null);
-  const [slashIndex, setSlashIndex] = useState(0);
-  const slashStartPosRef = useRef<number | null>(null);
-  const slashMenuRef = useRef<typeof slashMenu>(null);
-  const slashIndexRef = useRef(0);
-  const runSlashCommandRef = useRef<((cmd: SlashCommand) => void) | null>(null);
-  useEffect(() => { slashMenuRef.current = slashMenu; }, [slashMenu]);
-  useEffect(() => { slashIndexRef.current = slashIndex; }, [slashIndex]);
-
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
-
   const [showOrgPicker, setShowOrgPicker] = useState(false);
 
   const { pos, setPos: _setPos, size, minimized, setMinimized, fullscreen, setFullscreen, dialogRef, startDrag, startResize } = useComposeWindow({ isMobile });
@@ -191,209 +178,54 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
   const [fromAddress, setFromAddress] = useState(userEmail ?? '');
   const [availableAddresses, setAvailableAddresses] = useState<UserAddressEntry[]>([]);
 
-  const clearSentDraft = useCallback(async (deleteRemote = true) => {
-    const draftId = draftIdRef.current;
-    if (!draftId) return;
-    draftIdRef.current = '';
-    if (!deleteRemote) return;
-    try {
-      await deleteDraft(draftId);
-    } catch {
-      // Sending succeeded; draft cleanup is best-effort and must not fail the send.
-    }
-  }, []);
-
-  const rememberSendResult = useCallback((result: SendMessageResult | undefined) => {
-    if (result) setSendResult(result);
-  }, []);
-
-  const sendResultLabel = formatSendResultLabel(sendResult);
-  const sendButtonUploading = uploadedAttachments.some((a) => a.uploading);
-  const sendButtonDisabled = sending || sent || sendCountdown !== null || sendButtonUploading;
-  const miscT = (k: string) => tMisc(k.replace(/^misc\.compose\./, ''));
-  const sendButtonLabel = composeSendButtonLabel({
+  // ---- Send hook ----
+  const sendHook = useComposeSend({
+    draftIdRef,
+    clearSentDraft,
+    onAfterSend,
+    onClose,
+    onArchiveSource,
+    recentRecipients,
+  });
+  const {
     sending,
+    setSending,
+    error,
+    setError,
     sent,
-    scheduled: !!scheduledAt,
-    uploading: sendButtonUploading,
-  }, miscT);
-  const closeSavePrompt = composeCloseSavePrompt(!!scheduledAt, miscT);
-  const closeSaveButtonAriaLabel = composeCloseSaveButtonAriaLabel(closeSaveInProgress, miscT);
-  const closeSaveButtonLabel = composeCloseSaveButtonLabel(closeSaveInProgress, miscT);
-  const scheduleMinDateTime = toDateTimeLocalValue(new Date(Date.now() + 60000));
-  const closeSendDropdown = useCallback(() => setShowSendDropdown(false), []);
-  const cancelCloseConfirmation = useCallback(() => setConfirmClose(false), []);
+    sendResult,
+    sendCountdown,
+    setSendCountdown,
+    scheduledAt,
+    setScheduledAt,
+    showSchedule,
+    setShowSchedule,
+    pendingMsgRef,
+    pendingDraftSendRef,
+    sendInProgressRef,
+    sendExecutionRef,
+    sendAndArchiveRef,
+    handleSuccessfulSend,
+    handleSendFailure,
+    handleSendPreparationFailure,
+    shouldSendSavedDraft,
+    sendPreparedMessage,
+  } = sendHook;
 
-  const persistSuccessfulSendLocalState = useCallback((msg: SendMessageRequest) => {
-    try {
-      const newAddrs = [...(msg.to ?? []), ...(msg.cc ?? []), ...(msg.bcc ?? [])]
-        .map((a) => a.name ? `${a.name} <${a.address}>` : a.address).filter(Boolean);
-      const merged = [...new Set([...newAddrs, ...recentRecipients])].slice(0, 30);
-      localStorage.setItem('webmail_recent_recipients', JSON.stringify(merged));
-      const followUpDays = Number((JSON.parse(localStorage.getItem('webmail_settings') ?? '{}') as Record<string, unknown>).followUpDays ?? 0);
-      if (followUpDays > 0 && msg.to?.length) {
-        const remindAt = new Date(Date.now() + followUpDays * 86400000).toISOString();
-        const followups: Record<string, unknown>[] = JSON.parse(localStorage.getItem('webmail_followups') ?? '[]');
-        followups.push({ remindAt, subject: msg.subject ?? '', to: msg.to[0].address, createdAt: new Date().toISOString() });
-        localStorage.setItem('webmail_followups', JSON.stringify(followups));
-      }
-    } catch { /* keep send success independent from local storage */ }
-  }, [recentRecipients]);
-
-  const handleSuccessfulSend = useCallback(async (msg: SendMessageRequest, result: SendMessageResult, useDraftSend: boolean) => {
-    rememberSendResult(result);
-    persistSuccessfulSendLocalState(msg);
-    await clearSentDraft(!useDraftSend);
-    pendingDraftSendRef.current = false;
-    sendInProgressRef.current = true;
-    setSent(true);
-    if (notifications) {
-      const firstRecipient = msg.to?.[0];
-      const recipientLabel = firstRecipient
-        ? (firstRecipient.name ? `${firstRecipient.name} <${firstRecipient.address}>` : firstRecipient.address)
-        : '';
-      notifications.push({
-        category: 'mail_sent',
-        severity: 'success',
-        title: tNotif('mailSent'),
-        body: msg.subject ? `${msg.subject}${recipientLabel ? ` — ${recipientLabel}` : ''}` : recipientLabel || undefined,
-        actionUrl: result?.id ? `/mail/${result.id}` : undefined,
-        metadata: { messageId: result?.id },
-      });
-    }
-    // Trigger inbox refresh after a short delay to let the backend deliver the
-    // mail before we poll for it. Works even without VAPID push configured.
-    onAfterSend?.();
-    setTimeout(() => {
-      if (sendAndArchiveRef.current) {
-        onArchiveSource?.();
-        sendAndArchiveRef.current = false;
-      }
-      onClose();
-    }, 1500);
-  }, [clearSentDraft, onAfterSend, onArchiveSource, onClose, persistSuccessfulSendLocalState, rememberSendResult, notifications, tNotif]);
-
-  const handleSendFailure = useCallback((err: unknown, clearCountdown = false) => {
-    const message = err instanceof Error ? err.message : t('errSendFailed');
-    setError(t('draftPreserved', { message }));
-    pendingDraftSendRef.current = false;
-    sendExecutionRef.current = false;
-    sendInProgressRef.current = false;
-    if (clearCountdown) setSendCountdown(null);
-    if (notifications) {
-      notifications.push({
-        category: 'mail_send_failed',
-        severity: 'error',
-        title: tNotif('mailSendFailed'),
-        body: message,
-      });
-    }
-  }, [t, notifications, tNotif]);
-
-  const handleSendPreparationFailure = useCallback((err: unknown) => {
-    const message = err instanceof Error ? err.message : t('draftPrepFailed');
-    pendingMsgRef.current = null;
-    pendingDraftSendRef.current = false;
-    sendExecutionRef.current = false;
-    sendInProgressRef.current = false;
-    setError(t('sendNotStarted', { message }));
-  }, [t]);
-
-  const shouldSendSavedDraft = useCallback(() => pendingDraftSendRef.current && !!draftIdRef.current, []);
-
-  const sendPreparedMessage = useCallback((msg: SendMessageRequest, useDraftSend: boolean) => {
-    const draftId = draftIdRef.current;
-    return useDraftSend && draftId ? sendDraft(draftId) : sendMessage(msg);
-  }, []);
-
-  const buildDraftData = useCallback((toVal: string, ccVal: string, bccVal: string, subjectVal: string, bodyText: string, bodyHtml: string) => {
-    sendInProgressRef.current = true;
-    sendExecutionRef.current = false;
-    const attachmentIds = readyAttachmentIds();
-    return {
-      intent: backendComposeIntent(intent),
-      ...(intent !== 'new' && sourceMessage && { source_message_id: sourceMessage.id }),
-      to: parseAddrs(toVal),
-      ...(ccVal.trim() && { cc: parseAddrs(ccVal) }),
-      ...(bccVal.trim() && { bcc: parseAddrs(bccVal) }),
-      subject: subjectVal,
-      text_body: bodyText,
-      html_body: bodyHtml,
-      ...(fromAddress && { from: fromAddress }),
-      ...(attachmentIds.length > 0 && { attachment_ids: attachmentIds }),
-      ...(trackOpens && { track_opens: true }),
-      ...(scheduledAt && { scheduled_at: new Date(scheduledAt).toISOString() }),
-    };
-  }, [intent, sourceMessage, fromAddress, readyAttachmentIds, trackOpens, scheduledAt]);
-
-  const triggerAutoSave = useCallback((toVal: string, ccVal: string, bccVal: string, subjectVal: string, bodyText: string, bodyHtml: string) => {
-    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
-    saveTimerRef.current = setTimeout(async () => {
-      if (!toVal.trim() && !subjectVal.trim() && !bodyText.trim()) return;
-      setSaveStatus('saving');
-      try {
-        const data = buildDraftData(toVal, ccVal, bccVal, subjectVal, bodyText, bodyHtml);
-        if (draftIdRef.current) {
-          await updateDraft(draftIdRef.current, data);
-        } else {
-          const res = await saveDraft(data);
-          draftIdRef.current = res.draft.id;
-        }
-        const now = new Date();
-        setSavedAt(`${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`);
-        setSaveStatus('saved');
-      } catch {
-        setSaveStatus('idle');
-      }
-    }, 3000);
-  }, [buildDraftData]);
-
-  useEffect(() => {
-    return () => { if (saveTimerRef.current) clearTimeout(saveTimerRef.current); };
-  }, []);
-
-  useEffect(() => {
-    function handleBeforeUnload(e: BeforeUnloadEvent) {
-      if (saveStatus === 'saving') {
-        e.preventDefault();
-      }
-    }
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, [saveStatus]);
-
-  useEffect(() => {
-    listUserAddresses().then((addrs) => {
-      setAvailableAddresses(addrs);
-      const primary = addrs.find((a) => a.is_primary);
-      if (primary && !fromAddress) setFromAddress(primary.address);
-    }).catch(() => {});
-  }, []);
-
-  useEffect(() => {
-    if (!showSendDropdown) return;
-    function handleOutsideClick(e: MouseEvent) {
-      if (sendDropdownRef.current && !sendDropdownRef.current.contains(e.target as Node)) {
-        closeSendDropdown();
-      }
-    }
-    document.addEventListener('mousedown', handleOutsideClick);
-    return () => document.removeEventListener('mousedown', handleOutsideClick);
-  }, [closeSendDropdown, showSendDropdown]);
-
-  // Close slash menu on outside click
-  useEffect(() => {
-    if (!slashMenu) return;
-    function handleOutsideClick(e: MouseEvent) {
-      const target = e.target as Node;
-      // If the click is inside the editor, let the onUpdate handler decide
-      if (dialogRef.current?.contains(target)) return;
-      setSlashMenu(null);
-      slashStartPosRef.current = null;
-    }
-    document.addEventListener('mousedown', handleOutsideClick);
-    return () => document.removeEventListener('mousedown', handleOutsideClick);
-  }, [slashMenu]);
+  // ---- Slash hook ----
+  const slashHook = useComposeSlash();
+  const {
+    slashMenu,
+    setSlashMenu,
+    slashIndex,
+    setSlashIndex,
+    slashStartPosRef,
+    slashMenuRef,
+    slashIndexRef,
+    runSlashCommandRef,
+    runSlashCommand: runSlashCommandBase,
+    filteredCommands,
+  } = slashHook;
 
   const toRef = useRef(draftMessage ? draftTo : replyTo);
   const ccRef = useRef(draftMessage ? draftCc : replyCc);
@@ -408,7 +240,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
   }, [focusSubjectOnOpen]);
 
   const sigHTML = signature.trim()
-    ? `<p></p><p>--</p><p>${signature.trim().split('\n').map((l) => escapeHtml(l)).join('</p><p>')}</p>`
+    ? `<p></p><p>--</p><p>${signature.trim().split('\n').map((l: string) => escapeHtml(l)).join('</p><p>')}</p>`
     : '';
 
   const quoteOnReply = (() => {
@@ -417,12 +249,12 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
 
   const initialContent = draftMessage
     ? (draftMessage.html_body ?? (draftMessage.text_body
-        ? draftMessage.text_body.split('\n').map((l) => `<p>${escapeHtml(l) || '&nbsp;'}</p>`).join('')
+        ? draftMessage.text_body.split('\n').map((l: string) => `<p>${escapeHtml(l) || '&nbsp;'}</p>`).join('')
         : ''))
     : (sourceMessage && (intent === 'reply' || intent === 'reply_all' || intent === 'forward')
         ? `<p></p>${sigHTML ? sigHTML + '<p></p>' : ''}${quoteOnReply ? buildQuoteHTML(intent, sourceMessage) : ''}`
         : initialBody
-        ? `${initialBody.split('\n').map((l) => `<p>${escapeHtml(l) || '&nbsp;'}</p>`).join('')}<p></p>${sigHTML}`
+        ? `${initialBody.split('\n').map((l: string) => `<p>${escapeHtml(l) || '&nbsp;'}</p>`).join('')}<p></p>${sigHTML}`
         : `<p></p>${sigHTML}`);
 
   const imageInputRef = useRef<HTMLInputElement>(null);
@@ -454,12 +286,12 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
         role: 'textbox',
         'aria-multiline': 'true',
       },
-      handleKeyDown: (_view, event) => {
+      handleKeyDown: (_view: unknown, event: KeyboardEvent) => {
         const menu = slashMenuRef.current;
         if (!menu) return false;
         if (event.key === 'ArrowDown') {
           event.preventDefault();
-          setSlashIndex((i) => {
+          setSlashIndex((i: number) => {
             const cmds = SLASH_COMMANDS.filter((c) =>
               !menu.query || c.id.startsWith(menu.query.toLowerCase()) || c.label.includes(menu.query)
             );
@@ -469,7 +301,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
         }
         if (event.key === 'ArrowUp') {
           event.preventDefault();
-          setSlashIndex((i) => Math.max(i - 1, 0));
+          setSlashIndex((i: number) => Math.max(i - 1, 0));
           return true;
         }
         if (event.key === 'Enter') {
@@ -478,8 +310,6 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
           );
           const cmd = cmds[slashIndexRef.current];
           if (cmd) {
-            // runSlashCommand will be called after editor is fully initialized
-            // Use a microtask to avoid calling a stale closure
             setTimeout(() => runSlashCommandRef.current?.(cmd), 0);
             return true;
           }
@@ -512,7 +342,6 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
     },
     onSelectionUpdate: ({ editor: e }) => {
       if (e.isActive('image')) {
-        // Find the selected image DOM node and position the toolbar
         const selectedImg = e.view.dom.querySelector('img.ProseMirror-selectednode') as HTMLImageElement | null;
         if (selectedImg) {
           const rect = selectedImg.getBoundingClientRect();
@@ -533,30 +362,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
     }
   }, [editor, initialContent]);
 
-  useEffect(() => {
-    if (sendCountdown === null) return;
-    if (sendCountdown === 0) {
-      if (sendExecutionRef.current) return;
-      const msg = pendingMsgRef.current;
-      if (!msg) { sendInProgressRef.current = false; return; }
-      sendExecutionRef.current = true;
-      setSendCountdown(null);
-      const useDraftSend = shouldSendSavedDraft();
-      setSending(true);
-      sendPreparedMessage(msg, useDraftSend)
-        .then(async (res) => {
-          await handleSuccessfulSend(msg, res.message, useDraftSend);
-        })
-        .catch((err: unknown) => {
-          handleSendFailure(err, true);
-        })
-        .finally(() => setSending(false));
-      return;
-    }
-    const t = setTimeout(() => setSendCountdown((n) => (n !== null ? n - 1 : null)), 1000);
-    return () => clearTimeout(t);
-  }, [sendCountdown, handleSuccessfulSend, handleSendFailure, sendPreparedMessage, shouldSendSavedDraft]);
-
+  // Attachment change guard during send countdown
   useEffect(() => {
     if (sendCountdown === null || sendCountdown <= 0 || !pendingMsgRef.current) return;
 
@@ -570,13 +376,13 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
       pendingDraftSendRef.current = false;
       setError(t('errAttachmentChanged'));
     }
-  }, [sendCountdown, uploadedAttachments, readyAttachmentIds]);
+  }, [sendCountdown, uploadedAttachments, readyAttachmentIds, setSendCountdown, pendingMsgRef, pendingDraftSendRef, setError, t]);
 
   const markDraftSaved = useCallback(() => {
     const now = new Date();
     setSavedAt(`${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`);
     setSaveStatus('saved');
-  }, []);
+  }, [setSavedAt, setSaveStatus]);
 
   const handleManualSave = useCallback(async () => {
     const bodyText = editor?.getText() ?? '';
@@ -588,7 +394,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
       else { const r = await saveDraft(data); draftIdRef.current = r.draft.id; }
       markDraftSaved();
     } catch { setSaveStatus('idle'); }
-  }, [to, cc, bcc, subject, editor, buildDraftData, markDraftSaved]);
+  }, [to, cc, bcc, subject, editor, buildDraftData, markDraftSaved, draftIdRef, setSaveStatus]);
 
   const saveDraftAndClose = useCallback(async () => {
     if (closeSaveInProgress) return;
@@ -606,7 +412,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
       setCloseSaveInProgress(false);
       onClose();
     }
-  }, [to, cc, bcc, subject, editor, buildDraftData, closeSaveInProgress, onClose]);
+  }, [to, cc, bcc, subject, editor, buildDraftData, closeSaveInProgress, onClose, draftIdRef]);
 
   const discardDraftAndClose = useCallback(() => {
     onClose();
@@ -618,9 +424,52 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
     pendingDraftSendRef.current = false;
     sendExecutionRef.current = false;
     sendInProgressRef.current = false;
+  }, [setSendCountdown]);
+
+  // beforeunload guard
+  useEffect(() => {
+    function handleBeforeUnload(e: BeforeUnloadEvent) {
+      if (saveStatus === 'saving') {
+        e.preventDefault();
+      }
+    }
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [saveStatus]);
+
+  useEffect(() => {
+    listUserAddresses().then((addrs) => {
+      setAvailableAddresses(addrs);
+      const primary = addrs.find((a) => a.is_primary);
+      if (primary && !fromAddress) setFromAddress(primary.address);
+    }).catch(() => {});
   }, []);
 
-  // Escape key: cancel pending send if countdown is active; otherwise close the modal.
+  useEffect(() => {
+    if (!showSendDropdown) return;
+    function handleOutsideClick(e: MouseEvent) {
+      if (sendDropdownRef.current && !sendDropdownRef.current.contains(e.target as Node)) {
+        closeSendDropdown();
+      }
+    }
+    document.addEventListener('mousedown', handleOutsideClick);
+    return () => document.removeEventListener('mousedown', handleOutsideClick);
+  }, [showSendDropdown]);
+
+  // Close slash menu on outside click
+  useEffect(() => {
+    if (!slashMenu) return;
+    function handleOutsideClick(e: MouseEvent) {
+      const target = e.target as Node;
+      if (dialogRef.current?.contains(target)) return;
+      setSlashMenu(null);
+      slashStartPosRef.current = null;
+    }
+    document.addEventListener('mousedown', handleOutsideClick);
+    return () => document.removeEventListener('mousedown', handleOutsideClick);
+  }, [slashMenu]);
+
+  // Escape key handler
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
       if (e.key !== 'Escape') return;
@@ -630,8 +479,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
         cancelPendingSend();
         return;
       }
-      // Normal Escape → close (same logic as the X button)
-      if (confirmClose || closeSaveInProgress) return; // let the confirmClose dialog handle it
+      if (confirmClose || closeSaveInProgress) return;
       const hasContent = !sent && (to.trim() || subject.trim() || (editor?.getText().trim()));
       if (hasContent) {
         setConfirmClose(true);
@@ -639,7 +487,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
         onClose();
       }
     }
-    window.addEventListener('keydown', onKeyDown, true); // capture phase so it fires before editor
+    window.addEventListener('keydown', onKeyDown, true);
     return () => window.removeEventListener('keydown', onKeyDown, true);
   }, [sendCountdown, cancelPendingSend, confirmClose, closeSaveInProgress, sent, to, subject, editor, onClose]);
 
@@ -721,7 +569,6 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
       setSending(false);
     }
     if (scheduledAt) {
-      // Scheduled sends bypass the undo countdown and go immediately
       const useDraftSend = shouldSendSavedDraft();
       sendExecutionRef.current = true;
       setSending(true);
@@ -735,7 +582,6 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
       let sendDelay = 5;
       try { sendDelay = Number((JSON.parse(localStorage.getItem('webmail_settings') ?? '{}') as { sendDelay?: number }).sendDelay ?? 5); } catch { /* */ }
       if (sendDelay === 0) {
-        // No undo window — send immediately
         const useDraftSend = shouldSendSavedDraft();
         setSending(true);
         sendPreparedMessage(msg, useDraftSend)
@@ -754,7 +600,6 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
     if (!editor) return;
     let src: string;
     if (file.size < 500 * 1024) {
-      // Small image: convert to base64 data URL inline (fast, no upload needed)
       src = await new Promise<string>((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = () => resolve(reader.result as string);
@@ -762,9 +607,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
         reader.readAsDataURL(file);
       });
     } else {
-      // Large image: upload as attachment, then create an object URL for inline display
       const objectUrl = URL.createObjectURL(file);
-      // Also upload in the background so it's attached to the email
       uploadAttachment(file, draftIdRef.current || undefined)
         .then((att) => {
           setUploadedAttachments((prev) => [...prev, { id: att.id, filename: att.filename, size: att.size }]);
@@ -773,40 +616,33 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
       src = objectUrl;
     }
     editor.chain().focus().setImage({ src, alt: file.name }).run();
-  }, [editor]);
+  }, [editor, draftIdRef, setUploadedAttachments]);
 
   const runSlashCommand = useCallback((cmd: SlashCommand) => {
-    if (!editor || slashStartPosRef.current === null) return;
-    const { from } = editor.state.selection;
-    editor.chain().focus()
-      .deleteRange({ from: slashStartPosRef.current, to: from })
-      .run();
-    switch (cmd.id) {
-      case 'h1': editor.chain().focus().toggleHeading({ level: 1 }).run(); break;
-      case 'h2': editor.chain().focus().toggleHeading({ level: 2 }).run(); break;
-      case 'h3': editor.chain().focus().toggleHeading({ level: 3 }).run(); break;
-      case 'bullet': editor.chain().focus().toggleBulletList().run(); break;
-      case 'numbered': editor.chain().focus().toggleOrderedList().run(); break;
-      case 'quote': editor.chain().focus().toggleBlockquote().run(); break;
-      case 'code': editor.chain().focus().toggleCodeBlock().run(); break;
-      case 'hr': editor.chain().focus().setHorizontalRule().run(); break;
-      case 'bold': editor.chain().focus().toggleBold().run(); break;
-      case 'italic': editor.chain().focus().toggleItalic().run(); break;
-    }
-    setSlashMenu(null);
-    slashStartPosRef.current = null;
-  }, [editor]);
+    runSlashCommandBase(cmd, editor ?? null);
+  }, [runSlashCommandBase, editor]);
   // Keep ref in sync so the stale-closure-safe handleKeyDown can call the latest version
   runSlashCommandRef.current = runSlashCommand;
 
-  const filteredCmds = slashMenu
-    ? SLASH_COMMANDS.filter((c) =>
-        !slashMenu.query ||
-        c.id.startsWith(slashMenu.query.toLowerCase()) ||
-        c.label.includes(slashMenu.query)
-      )
-    : [];
+  const filteredCmds = slashMenu ? filteredCommands(slashMenu.query) : [];
   const scheduleOptions = getScheduleOptions();
+
+  const sendResultLabel = formatSendResultLabel(sendResult);
+  const sendButtonUploading = uploadedAttachments.some((a) => a.uploading);
+  const sendButtonDisabled = sending || sent || sendCountdown !== null || sendButtonUploading;
+  const miscT = (k: string) => tMisc(k.replace(/^misc\.compose\./, ''));
+  const sendButtonLabel = composeSendButtonLabel({
+    sending,
+    sent,
+    scheduled: !!scheduledAt,
+    uploading: sendButtonUploading,
+  }, miscT);
+  const closeSavePrompt = composeCloseSavePrompt(!!scheduledAt, miscT);
+  const closeSaveButtonAriaLabel = composeCloseSaveButtonAriaLabel(closeSaveInProgress, miscT);
+  const closeSaveButtonLabel = composeCloseSaveButtonLabel(closeSaveInProgress, miscT);
+  const scheduleMinDateTime = toDateTimeLocalValue(new Date(Date.now() + 60000));
+  const closeSendDropdown = useCallback(() => setShowSendDropdown(false), []);
+  const cancelCloseConfirmation = useCallback(() => setConfirmClose(false), []);
 
   function getScheduleOptions(): { label: string; sub: string; date: Date }[] {
     const now = new Date();
@@ -814,9 +650,8 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
     tomorrow.setDate(tomorrow.getDate() + 1);
     const tomorrowMorning = new Date(tomorrow); tomorrowMorning.setHours(8, 0, 0, 0);
     const tomorrowAfternoon = new Date(tomorrow); tomorrowAfternoon.setHours(13, 0, 0, 0);
-    // next Monday
     const nextMonday = new Date(now);
-    const day = now.getDay(); // 0=Sun, 1=Mon...
+    const day = now.getDay();
     const daysUntilMonday = day === 0 ? 1 : (8 - day);
     nextMonday.setDate(now.getDate() + daysUntilMonday);
     nextMonday.setHours(8, 0, 0, 0);
