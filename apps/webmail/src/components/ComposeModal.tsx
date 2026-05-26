@@ -620,6 +620,29 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
     sendInProgressRef.current = false;
   }, []);
 
+  // Escape key: cancel pending send if countdown is active; otherwise close the modal.
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key !== 'Escape') return;
+      if (sendCountdown !== null) {
+        e.preventDefault();
+        e.stopPropagation();
+        cancelPendingSend();
+        return;
+      }
+      // Normal Escape → close (same logic as the X button)
+      if (confirmClose || closeSaveInProgress) return; // let the confirmClose dialog handle it
+      const hasContent = !sent && (to.trim() || subject.trim() || (editor?.getText().trim()));
+      if (hasContent) {
+        setConfirmClose(true);
+      } else {
+        onClose();
+      }
+    }
+    window.addEventListener('keydown', onKeyDown, true); // capture phase so it fires before editor
+    return () => window.removeEventListener('keydown', onKeyDown, true);
+  }, [sendCountdown, cancelPendingSend, confirmClose, closeSaveInProgress, sent, to, subject, editor, onClose]);
+
   async function handleSend(e: { preventDefault(): void }) {
     e.preventDefault();
     if (sending || sent || sendInProgressRef.current) return;

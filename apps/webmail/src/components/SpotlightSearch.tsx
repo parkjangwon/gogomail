@@ -388,8 +388,7 @@ export function SpotlightSearch({
     setRecentSearches(next);
   }, [recentSearches, recentSearchKey]);
 
-  // Reset scope when query changes
-  useEffect(() => { setScope('all'); }, [query]);
+  // Do NOT reset scope when query changes — user explicitly selected it with ←/→ or click.
 
   // Update items based on query
   useEffect(() => {
