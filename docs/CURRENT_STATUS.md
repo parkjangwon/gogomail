@@ -19,6 +19,7 @@ GoGoMail is a production-grade self-hosted email platform written in Go
 
 | Date | Feature |
 |------|---------|
+| 2026-05-26 | Code structure: internal/imapgw/server_search.go (2170 lines) split into server_search.go (304), server_search_criteria.go (292), server_search_executor.go (901), server_search_match.go (692); server_fetch.go (2005 lines) split into server_fetch.go (478), server_fetch_body.go (549), server_fetch_envelope.go (1002); all files ≤1200 lines; 439 tests pass |
 | 2026-05-26 | Code structure: internal/maildb/admin_api_usage.go split from 2361 lines into 5 domain files (admin_api_usage_quota.go, admin_api_usage_aggregate.go, admin_api_usage_ledger.go, admin_api_usage_retention.go, admin_api_usage_export.go); admin_api_usage.go reduced to 85 lines (shared utils); 549 tests pass |
 | 2026-05-26 | Code structure: internal/mailservice/service.go split from 3415 lines into 10 domain files (service_folders.go, service_threads.go, service_search.go, service_imap.go, service_user.go, service_messages.go, service_drafts.go, service_attachments.go, service_delivery.go, service_helpers.go); service.go reduced to 244 lines; 305 tests pass |
 | 2026-05-26 | Code structure: internal/httpapi/mail.go split from 3726 lines into 9 domain files (mail_auth.go, mail_folders.go, mail_messages.go, mail_threads.go, mail_drafts.go, mail_attachments.go, mail_push.go, mail_profile.go, mail_helpers.go); mail.go reduced to 502 lines; 1102 tests pass |
