@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import type { CSSProperties, MouseEvent as ReactMouseEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { deleteMessage, restoreMessage, bulkRestoreMessages, createFolder, renameFolder, deleteFolder, starMessage, markRead, moveMessage, bulkMarkRead, searchMessages, getMessages, getMessage, sendMessage, listThreads, listThreadMessages, getNotificationPreferences, setNotificationPreferences, setPreferences, listDMRooms, UIComposeIntent, MessageAddress, MessageDetail, MessageSummary, ThreadSummary, type ThreadNotificationOverride } from '@/lib/api';
+import { deleteMessage, restoreMessage, bulkRestoreMessages, createFolder, renameFolder, deleteFolder, starMessage, markRead, moveMessage, bulkMarkRead, bulkMoveMessages, searchMessages, getMessages, getMessage, sendMessage, listThreads, listThreadMessages, getNotificationPreferences, setNotificationPreferences, setPreferences, listDMRooms, UIComposeIntent, MessageAddress, MessageDetail, MessageSummary, ThreadSummary, type ThreadNotificationOverride } from '@/lib/api';
 import { AdvancedFilters, VIRTUAL_ALL, VIRTUAL_STARRED, VIRTUAL_ATTACHMENTS, VIRTUAL_UNREAD, VIRTUAL_SNOOZED, VIRTUAL_PINNED, VIRTUAL_IMPORTANT } from '@/components/Sidebar';
 import { useMailList, type RefreshIntervalSeconds } from '@/hooks/useMailList';
 import { useMessage } from '@/hooks/useMessage';
@@ -834,12 +834,23 @@ export default function MailPage() {
     const msgToDelete = messages.find((m) => m.id === id) ?? searchResults?.find((m) => m.id === id);
     if (msgToDelete && !msgToDelete.read) adjustUnread(activeFolderId, -1);
     const nextId = getNextId(id);
+    // Snapshot the thread entry before removal so undo can restore it.
+    const threadToRestore = threads.find((t) => (t.latest_message_id || t.id) === id);
     removeVisibleMessages([id]);
     if (selectedMessageId === id) setSelectedMessageId(nextId);
 
+    const inTrash = activeFolderSystemType === 'trash';
+    const trashFolder = inTrash ? null : folders.find((f) => f.system_type === 'trash');
+
     const timer = setTimeout(() => {
       pendingDeletesRef.current.delete(id);
-      deleteMessage(id).catch(() => {});
+      if (inTrash || !trashFolder) {
+        // Already in trash → permanent delete
+        deleteMessage(id).catch(() => {});
+      } else {
+        // Move to trash (soft delete)
+        moveMessage(id, trashFolder.id).catch(() => {});
+      }
     }, 5000);
     pendingDeletesRef.current.set(id, timer);
 
@@ -854,10 +865,13 @@ export default function MailPage() {
             setMessages((prev) => [msgToDelete, ...prev]);
             setSearchResults((prev) => (prev ? [msgToDelete, ...prev] : prev));
           }
+          if (threadToRestore) {
+            setThreads((prev) => [threadToRestore, ...prev]);
+          }
         },
       },
     });
-  }, [messages, searchResults, selectedMessageId, removeVisibleMessages, setMessages, addToast]);
+  }, [messages, searchResults, threads, selectedMessageId, activeFolderId, activeFolderSystemType, folders, removeVisibleMessages, setMessages, addToast]);
 
   const handleDelete = useCallback(() => {
     if (!selectedMessageId) return;
@@ -869,14 +883,23 @@ export default function MailPage() {
     if (unreadDeleteCount > 0) adjustUnread(activeFolderId, -unreadDeleteCount);
     removeVisibleMessages(ids);
     if (ids.includes(selectedMessageId ?? '')) setSelectedMessageId(null);
-    const results = await Promise.allSettled(ids.map((id) => deleteMessage(id)));
-    const failed = results.filter((r) => r.status === 'rejected').length;
+    const inTrash = activeFolderSystemType === 'trash';
+    const trashFolder = inTrash ? null : folders.find((f) => f.system_type === 'trash');
+    let failed = 0;
+    if (inTrash || !trashFolder) {
+      // Already in trash → permanent delete
+      const results = await Promise.allSettled(ids.map((id) => deleteMessage(id)));
+      failed = results.filter((r) => r.status === 'rejected').length;
+    } else {
+      // Move to trash (soft delete)
+      try { await bulkMoveMessages(ids, trashFolder.id); } catch { failed = ids.length; }
+    }
     if (failed > 0) {
       addToast(t('misc.mailPage.bulkDeleteMixed', { ok: ids.length - failed, failed }), 'error');
     } else {
       addToast(t('misc.mailPage.bulkDeleted', { count: ids.length }));
     }
-  }, [selectedMessageId, countUnreadVisible, adjustUnread, activeFolderId, removeVisibleMessages, addToast]);
+  }, [selectedMessageId, countUnreadVisible, adjustUnread, activeFolderId, activeFolderSystemType, folders, removeVisibleMessages, addToast]);
 
   const handleRestore = useCallback(async (id: string) => {
     const nextId = getNextId(id);

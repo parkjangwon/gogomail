@@ -212,6 +212,10 @@ export function bulkMarkRead(ids: string[], value: boolean): Promise<{ updated: 
   return apiPatch<{ updated: number }>('messages/bulk/flags', { message_ids: ids, flag: 'read', value });
 }
 
+export function bulkMoveMessages(ids: string[], folderId: string): Promise<{ updated: number }> {
+  return apiPatch<{ updated: number }>('messages/bulk/folder', { message_ids: ids, folder_id: folderId });
+}
+
 export function deleteMessage(id: string): Promise<void> {
   return apiDelete<void>(`messages/${id}`);
 }
