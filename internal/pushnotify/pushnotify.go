@@ -21,6 +21,11 @@ import (
 	"time"
 )
 
+// defaultPushHTTPClient is shared across all push notification senders.
+var defaultPushHTTPClient = &http.Client{
+	Timeout: 30 * time.Second,
+}
+
 // HTTPClient abstracts HTTP requests for testability.
 type HTTPClient interface {
 	Do(req *http.Request) (*http.Response, error)
@@ -53,7 +58,7 @@ type FCMAdapter struct {
 // NewFCMAdapter creates an FCM adapter.
 func NewFCMAdapter(projectID, authToken string, client HTTPClient) *FCMAdapter {
 	if client == nil {
-		client = http.DefaultClient
+		client = defaultPushHTTPClient
 	}
 	return &FCMAdapter{
 		projectID: projectID,
@@ -132,7 +137,7 @@ const apnsJWTMaxAge = 45 * time.Minute
 // NewAPNsAdapter creates an APNs adapter using JWT token-based auth (ES256).
 func NewAPNsAdapter(cfg APNsConfig, client HTTPClient) (*APNsAdapter, error) {
 	if client == nil {
-		client = http.DefaultClient
+		client = defaultPushHTTPClient
 	}
 	key, err := parseECPrivateKey(cfg.PrivateKeyPEM)
 	if err != nil {
@@ -150,7 +155,7 @@ func NewAPNsAdapter(cfg APNsConfig, client HTTPClient) (*APNsAdapter, error) {
 // NewAPNsAdapterFromKey creates an APNs adapter from an already-parsed ECDSA key (for tests).
 func NewAPNsAdapterFromKey(cfg APNsConfig, key *ecdsa.PrivateKey, client HTTPClient) *APNsAdapter {
 	if client == nil {
-		client = http.DefaultClient
+		client = defaultPushHTTPClient
 	}
 	return &APNsAdapter{
 		bundleID:   cfg.BundleID,
@@ -249,7 +254,7 @@ type WebPushAdapter struct {
 // NewWebPushAdapter creates a Web Push adapter with VAPID authentication.
 func NewWebPushAdapter(cfg VAPIDConfig, client HTTPClient) (*WebPushAdapter, error) {
 	if client == nil {
-		client = http.DefaultClient
+		client = defaultPushHTTPClient
 	}
 	privKey, err := parseVAPIDPrivateKey(cfg.PrivateKey)
 	if err != nil {
@@ -266,7 +271,7 @@ func NewWebPushAdapter(cfg VAPIDConfig, client HTTPClient) (*WebPushAdapter, err
 // NewWebPushAdapterFromKey creates a Web Push adapter from an already-parsed ECDSA key (for tests).
 func NewWebPushAdapterFromKey(cfg VAPIDConfig, key *ecdsa.PrivateKey, client HTTPClient) *WebPushAdapter {
 	if client == nil {
-		client = http.DefaultClient
+		client = defaultPushHTTPClient
 	}
 	return &WebPushAdapter{
 		vapidPublicKey:  cfg.PublicKey,
