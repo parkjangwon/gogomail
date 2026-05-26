@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { installLocalAdminSession } from './helpers';
+import { setupAuthedAdminPage } from './helpers';
 
 const BASE_URL = 'http://localhost:3001';
 
@@ -64,6 +64,9 @@ const PAGES = [
 ];
 
 test.describe('Admin Console E2E Tests', () => {
+  // Allow extra time for Next.js dev-mode on-demand compilation of each route.
+  test.setTimeout(60_000);
+
   PAGES.forEach((pageConfig, index) => {
     test(`[${index + 1}/${PAGES.length}] ${pageConfig.name}`, async ({ page }) => {
       const url = `${BASE_URL}${pageConfig.path}`;
@@ -76,21 +79,14 @@ test.describe('Admin Console E2E Tests', () => {
       });
 
       try {
-        if (pageConfig.requiresAuth) await installLocalAdminSession(page);
-        await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 20000 });
-        await page.waitForTimeout(300);
-
-        // For auth-required pages, check if redirected to login
-        if (pageConfig.requiresAuth && page.url().includes('/login')) {
-          // Try to authenticate inline
-          await page.fill('input[type="email"]', 'admin@system');
-          await page.fill('input[type="password"]', 'admin1234');
-          const signInButton = await page.$('button:has-text("Sign in")');
-          if (signInButton) {
-            await signInButton.click();
-            await page.waitForURL(`**${pageConfig.path}`, { timeout: 20000 });
-          }
+        // Set up auth state (localStorage + cookie) and install API mocks before
+        // navigation so CompanyLayout authorises without redirecting to /login.
+        if (pageConfig.requiresAuth) {
+          await setupAuthedAdminPage(page, { noNavigate: true });
         }
+
+        await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 50_000 });
+        await page.waitForTimeout(300);
 
         const finalUrl = page.url();
         expect(finalUrl).toContain(pageConfig.path);

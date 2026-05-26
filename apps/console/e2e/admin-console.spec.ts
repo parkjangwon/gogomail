@@ -1,12 +1,10 @@
 import { test, expect, type Page } from "@playwright/test";
-import { installLocalAdminSession } from "./helpers";
+import { setupAuthedAdminPage, installLocalAdminSession } from "./helpers";
 
 const BASE_URL = "http://localhost:3001";
 
 async function login(page: Page) {
-  await installLocalAdminSession(page);
-  await page.goto(`${BASE_URL}/companies/default/dashboard`);
-  await page.waitForURL("**/companies/**/dashboard", { timeout: 15000, waitUntil: "domcontentloaded" });
+  await setupAuthedAdminPage(page, { gotoPath: `/companies/default/dashboard` });
   await expect(page.getByRole("heading", { name: /Dashboard|대시보드/ })).toBeVisible({ timeout: 15000 });
 }
 
@@ -34,15 +32,17 @@ test.describe("Admin Console", () => {
 
   test("returns to a protected page after login", async ({ page }) => {
     await page.goto(`${BASE_URL}/companies/default/audit-logs`);
-    await expect(page).toHaveURL(/\/login\?next=/);
+    await expect(page).toHaveURL(/\/login\?next=/, { timeout: 10_000 });
 
+    // Install mocks while on the login page so API calls are intercepted
     await installLocalAdminSession(page);
     await page.getByPlaceholder("admin@system").fill("admin@system");
     await page.locator('input[type="password"]').fill("admin1234");
-    await page.getByRole("button", { name: "Sign in" }).click();
+    // Button text is locale-dependent; handle both English and Korean
+    await page.getByRole("button", { name: /Sign in|로그인/ }).click();
 
-    await page.waitForURL("**/companies/default/audit-logs", { timeout: 15000, waitUntil: "domcontentloaded" });
-    await expect(page.getByRole("heading", { name: /Audit Logs|감사 로그/ })).toBeVisible();
+    await page.waitForURL("**/companies/default/audit-logs", { timeout: 20000, waitUntil: "domcontentloaded" });
+    await expect(page.getByRole("heading", { name: /Audit Logs|감사 로그/ })).toBeVisible({ timeout: 10_000 });
   });
 
   test("displays dashboard and navigation", async ({ page }) => {
@@ -58,17 +58,17 @@ test.describe("Admin Console", () => {
 
   test("displays audit logs filters", async ({ page }) => {
     await login(page);
-    await page.goto(`${BASE_URL}/companies/default/audit-logs`);
+    await page.goto(`${BASE_URL}/companies/default/audit-logs`, { waitUntil: "domcontentloaded" });
 
-    await expect(page.getByRole("heading", { name: /Audit Logs|감사 로그/ })).toBeVisible();
-    await expect(page.locator("input").first()).toBeVisible();
+    await expect(page.getByRole("heading", { name: /Audit Logs|감사 로그/ })).toBeVisible({ timeout: 10_000 });
+    await expect(page.locator("input").first()).toBeVisible({ timeout: 10_000 });
   });
 
   test("displays reports page", async ({ page }) => {
     await login(page);
-    await page.goto(`${BASE_URL}/companies/default/reports`);
+    await page.goto(`${BASE_URL}/companies/default/reports`, { waitUntil: "domcontentloaded" });
 
-    await expect(page.getByRole("heading", { name: /Reports|보고서/ })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /Reports|보고서/ })).toBeVisible({ timeout: 10_000 });
     await expect(page.locator("body")).toBeVisible();
   });
 
@@ -91,7 +91,7 @@ test.describe("Admin Console", () => {
 test.describe("Admin Console - Data Operations", () => {
   test.beforeEach(async ({ page }) => {
     await login(page);
-    await page.goto(`${BASE_URL}/companies/default/audit-logs`);
+    await page.goto(`${BASE_URL}/companies/default/audit-logs`, { waitUntil: "domcontentloaded" });
   });
 
   test("keeps the audit logs page stable while filtering", async ({ page }) => {
