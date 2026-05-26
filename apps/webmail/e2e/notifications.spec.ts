@@ -189,6 +189,11 @@ test.describe('Notification center', () => {
     await page.evaluate(() => localStorage.removeItem('webmail_notifications'));
     await page.reload();
     await page.waitForURL(/\/mail/);
+    // Wait for the notification store to expose itself on window (set in a React useEffect)
+    await expect.poll(
+      () => page.evaluate(() => Boolean((window as unknown as { __webmailNotifications?: unknown }).__webmailNotifications)),
+      { timeout: 10_000 },
+    ).toBe(true);
   });
 
   test('bell opens the notification center with empty state', async ({ page }) => {
