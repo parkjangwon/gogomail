@@ -5,25 +5,23 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync"
 	"testing"
 )
 
 // fakeNotifier is a test double for StateNotifier.
 type fakeNotifier struct {
-	ch chan StateChange
+	ch   chan StateChange
+	once sync.Once
+}
+
+func newFakeNotifier() *fakeNotifier {
+	return &fakeNotifier{ch: make(chan StateChange, 1)}
 }
 
 func (f *fakeNotifier) Subscribe(_ string) <-chan StateChange { return f.ch }
 func (f *fakeNotifier) Unsubscribe(_ string, _ <-chan StateChange) {
-	// Close channel to signal done (safe only once).
-	select {
-	case _, open := <-f.ch:
-		if open {
-			close(f.ch)
-		}
-	default:
-		close(f.ch)
-	}
+	f.once.Do(func() { close(f.ch) })
 }
 
 // TestEventSourceRequiresAuth verifies that a missing Bearer token when Auth is
@@ -138,7 +136,7 @@ func TestEventSourceNoPingWhenZero(t *testing.T) {
 // TestEventSourceCloseAfterState verifies that when closeafter=state and a
 // state change is available, the handler sends the change and then returns.
 func TestEventSourceCloseAfterState(t *testing.T) {
-	n := &fakeNotifier{ch: make(chan StateChange, 1)}
+	n := newFakeNotifier()
 	// Pre-send one state change so the handler receives it immediately.
 	n.ch <- StateChange{Changed: map[string]map[string]string{
 		"user1": {"Email": "state-2"},
@@ -166,34 +164,23 @@ func TestEventSourceCloseAfterState(t *testing.T) {
 // TestEventSourceCloseWhenChannelClosed verifies that closing the notifier
 // channel (without closeafter=state) also terminates the handler cleanly.
 func TestEventSourceCloseWhenChannelClosed(t *testing.T) {
-	n := &fakeNotifier{ch: make(chan StateChange)}
-	// Close the channel immediately so the handler sees !ok on first receive.
-	close(n.ch)
+	// Use safeCloseNotifier with a pre-closed channel so the handler sees
+	// !ok on the first receive and exits cleanly.
+	ch := make(chan StateChange)
+	close(ch)
 
-	h := NewHandler(Deps{Notifier: n}, nil)
+	safeN := &safeCloseNotifier{ch: ch}
+	h := NewHandler(Deps{Notifier: safeN}, nil)
 	req := httptest.NewRequest(http.MethodGet, "/jmap/eventsource/?types=*&closeafter=no&ping=0", nil)
 	req.Header.Set("X-Test-UserID", "user1")
-
 	w := httptest.NewRecorder()
-	// Override Unsubscribe to be a no-op since channel is already closed.
-	// We use a different fakeNotifier variant here.
+	h.ServeEventSource(w, req)
 
-	// Actually fakeNotifier.Unsubscribe tries to close the already-closed
-	// channel which would panic. Use a safe variant.
-	safeN := &safeCloseNotifier{ch: n.ch}
-	h2 := NewHandler(Deps{Notifier: safeN}, nil)
-	req2 := httptest.NewRequest(http.MethodGet, "/jmap/eventsource/?types=*&closeafter=no&ping=0", nil)
-	req2.Header.Set("X-Test-UserID", "user1")
-	w2 := httptest.NewRecorder()
-	h2.ServeEventSource(w2, req2)
-
-	body := w2.Body.String()
+	body := w.Body.String()
 	// Should have received the initial state event before the channel closed.
 	if !strings.Contains(body, "event: state") {
 		t.Errorf("want initial state event before channel close, got: %q", body)
 	}
-	_ = h
-	_ = w
 }
 
 // safeCloseNotifier is a notifier that returns an already-closed channel and
@@ -204,3 +191,41 @@ type safeCloseNotifier struct {
 
 func (s *safeCloseNotifier) Subscribe(_ string) <-chan StateChange      { return s.ch }
 func (s *safeCloseNotifier) Unsubscribe(_ string, _ <-chan StateChange) {} // no-op
+
+// TestEventSourcePingFormat verifies that ssePing writes a correctly formatted
+// SSE ping event without relying on timing.
+func TestEventSourcePingFormat(t *testing.T) {
+	h := NewHandler(Deps{}, nil)
+	w := httptest.NewRecorder()
+	h.ssePing(w, 30)
+	body := w.Body.String()
+	if !strings.Contains(body, "event: ping") {
+		t.Errorf("want ping event, got: %q", body)
+	}
+	if !strings.Contains(body, `"interval": 30`) {
+		t.Errorf("want interval 30 in ping, got: %q", body)
+	}
+}
+
+// TestEventSourceDeliversStateChange verifies that a state change buffered on
+// the notifier channel is written to the response body. It uses closeafter=state
+// so the handler returns after delivering the first state change.
+func TestEventSourceDeliversStateChange(t *testing.T) {
+	n := newFakeNotifier()
+	// Pre-buffer a state change.
+	n.ch <- StateChange{Changed: map[string]map[string]string{
+		"user1": {"Email": "state-xyz"},
+	}}
+
+	h := NewHandler(Deps{Notifier: n}, nil)
+	req := httptest.NewRequest(http.MethodGet, "/jmap/eventsource/?types=*&closeafter=state&ping=0", nil)
+	req.Header.Set("X-Test-UserID", "user1")
+
+	w := httptest.NewRecorder()
+	h.ServeEventSource(w, req)
+
+	body := w.Body.String()
+	if !strings.Contains(body, "state-xyz") {
+		t.Errorf("want state-xyz in body, got: %q", body)
+	}
+}

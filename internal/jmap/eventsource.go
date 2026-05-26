@@ -3,6 +3,7 @@ package jmap
 import (
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"strconv"
 	"time"
@@ -30,7 +31,6 @@ func (h *Handler) ServeEventSource(w http.ResponseWriter, r *http.Request) {
 
 	// Parse query parameters.
 	q := r.URL.Query()
-	typesParam := q.Get("types")      // "*" or "Mailbox,Email,..."
 	closeAfter := q.Get("closeafter") // "state" or "no"
 	pingParam := q.Get("ping")
 
@@ -43,9 +43,6 @@ func (h *Handler) ServeEventSource(w http.ResponseWriter, r *http.Request) {
 	if closeAfter == "" {
 		closeAfter = "no"
 	}
-
-	// typesParam is stored for future filtering; currently we push all types.
-	_ = typesParam
 
 	// SSE headers.
 	w.Header().Set("Content-Type", "text/event-stream")
@@ -106,6 +103,7 @@ func (h *Handler) ServeEventSource(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) sseWriteEvent(w http.ResponseWriter, event string, data interface{}) {
 	b, err := json.Marshal(data)
 	if err != nil {
+		slog.Warn("jmap: eventsource marshal error", "event", event, "err", err)
 		return
 	}
 	fmt.Fprintf(w, "event: %s\ndata: %s\n\n", event, b)

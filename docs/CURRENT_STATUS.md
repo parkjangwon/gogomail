@@ -19,6 +19,7 @@ GoGoMail is a production-grade self-hosted email platform written in Go
 
 | Date | Feature |
 |------|---------|
+| 2026-05-26 | JMAP EventSource code quality: sseWriteEvent logs slog.Warn on marshal error, dead typesParam variable removed, fakeNotifier uses sync.Once for safe channel teardown, added TestEventSourcePingFormat + TestEventSourceDeliversStateChange; 62 tests pass |
 | 2026-05-26 | JMAP Task 12: EventSource SSE push (RFC 8620 §7.3) — GET /jmap/eventsource/ with types/closeafter/ping params, initial state event, ping ticker, StateNotifier interface for live push, closeafter=state closes after first change; StateNotifier + Notifier field added to Deps; route registered in httpapi/jmap.go; 5 unit tests pass (60 total) |
 | 2026-05-26 | FIDO2/WebAuthn MFA: go-webauthn/webauthn integration, 6 HTTP endpoints (register/begin, register/complete, authenticate/begin, authenticate/complete, credentials GET/DELETE), credential + challenge store, DB migration 0155 |
 | 2026-05-26 | JMAP identity code quality: removed dead `wanted` map, create/destroy paths now return serverFail on SetWebmailPreferences error, destroy loop restructured to load-once/save-once eliminating read-modify-write race, update stub returns notImplemented instead of silent success |
