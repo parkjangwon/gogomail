@@ -1,4 +1,5 @@
 'use client';
+import type { Dispatch, SetStateAction } from 'react';
 import { useTranslations } from 'next-intl';
 import { setPreferences } from '@/lib/api';
 import { Row, SectionCard, SectionHeader, Segment, Toggle } from '@/components/settings-view/settingsViewPrimitives';
@@ -14,7 +15,7 @@ interface SettingsBlockedSectionProps {
   blockedSearch: string;
   setBlockedSearch: (v: string) => void;
   blockedPage: number;
-  setBlockedPage: (v: number) => void;
+  setBlockedPage: Dispatch<SetStateAction<number>>;
   spamAutoDeleteDays: number;
   setSpamAutoDeleteDays: (v: number) => void;
   spamAutoBlock: boolean;
@@ -28,7 +29,7 @@ interface SettingsBlockedSectionProps {
   allowedSearch: string;
   setAllowedSearch: (v: string) => void;
   allowedPage: number;
-  setAllowedPage: (v: number) => void;
+  setAllowedPage: Dispatch<SetStateAction<number>>;
 }
 
 export function SettingsBlockedSection({
