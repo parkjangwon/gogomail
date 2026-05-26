@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/gogomail/gogomail/internal/auth"
 	"github.com/gogomail/gogomail/internal/jmap"
 )
 
@@ -53,17 +54,20 @@ func TestServeSessionReturnsJSON(t *testing.T) {
 // TestServeSessionRequiresAuth verifies that ServeSession returns 401 when
 // Auth is configured and no valid Bearer token is provided.
 func TestServeSessionRequiresAuth(t *testing.T) {
-	// We cannot easily create a real TokenManager without a secret, but we can
-	// use a nil-Auth handler and verify test-mode works, then separately verify
-	// that a missing token causes 401 when auth is present via the integration
-	// path. For unit tests, confirm test-mode fallback path works.
-	h := newTestHandler()
+	tm, err := auth.NewTokenManager("test-secret-32-bytes-minimum!!xx")
+	if err != nil {
+		t.Fatalf("NewTokenManager: %v", err)
+	}
+	deps := jmap.Deps{Auth: tm}
+	h := jmap.NewHandler(deps, func(_ context.Context, userID, accountID string) (*jmap.Session, error) {
+		return jmap.BuildSession(userID, accountID, "https://mail.example.com"), nil
+	})
 	req := httptest.NewRequest(http.MethodGet, "/.well-known/jmap", nil)
-	// No X-Test-UserID header — still accepted in test mode, defaults to "test-user"
+	// No Authorization header — must get 401.
 	rec := httptest.NewRecorder()
 	h.ServeSession(rec, req)
-	if rec.Code != http.StatusOK {
-		t.Fatalf("test mode: expected 200, got %d", rec.Code)
+	if rec.Code != http.StatusUnauthorized {
+		t.Errorf("want 401, got %d", rec.Code)
 	}
 }
 
