@@ -18,6 +18,12 @@ import (
 	"time"
 )
 
+// oidcHTTPClient is used for all OIDC discovery and JWKS fetches.
+// 15-second timeout matches the per-request context timeout already set by callers.
+var oidcHTTPClient = &http.Client{
+	Timeout: 15 * time.Second,
+}
+
 // oidcFullClaims holds all standard OIDC ID token claims used for verification.
 type oidcFullClaims struct {
 	Issuer   string `json:"iss"`
@@ -192,7 +198,7 @@ func fetchJWKSURI(issuer string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("build discovery request: %w", err)
 	}
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := oidcHTTPClient.Do(req)
 	if err != nil {
 		return "", fmt.Errorf("fetch discovery document: %w", err)
 	}
@@ -242,7 +248,7 @@ func getJWKSKeys(jwksURI string) ([]jwkKey, error) {
 	if err != nil {
 		return nil, fmt.Errorf("build JWKS request: %w", err)
 	}
-	resp, err := http.DefaultClient.Do(jwksReq)
+	resp, err := oidcHTTPClient.Do(jwksReq)
 	if err != nil {
 		return nil, fmt.Errorf("fetch JWKS: %w", err)
 	}
