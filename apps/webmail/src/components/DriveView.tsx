@@ -1,15 +1,15 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   DriveNode, DriveUsage,
-  listDriveNodes, listTrashedDriveNodes, getDriveUsage, createDriveFolder,
+  listDriveNodes, getDriveUsage, createDriveFolder,
   renameDriveNode, moveDriveNode, trashDriveNode, restoreDriveNode, deleteDriveNodePermanently,
-  downloadDriveNode, uploadDriveFileWithOptions, getWebmailCapabilities, cancelDriveUploadSession,
+  downloadDriveNode, listTrashedDriveNodes,
 } from '@/lib/api';
 import { DriveNodeIcon } from '@/lib/driveNodeIcon';
-import { formatBytes, formatDate, BreadcrumbItem, SidebarFolderItem, DRIVE_NODE_DRAG_MIME, DRIVE_NODE_DRAG_TEXT, DroppedFileEntry } from '@/lib/drive/driveUtils';
+import { formatBytes, formatDate, BreadcrumbItem, DRIVE_NODE_DRAG_MIME, DRIVE_NODE_DRAG_TEXT, DroppedFileEntry } from '@/lib/drive/driveUtils';
 import { DriveShareModal } from './DriveShareModal';
 import { DriveNodeMenu } from './drive/DriveNodeMenu';
 import {
@@ -20,25 +20,17 @@ import {
 import { FolderIcon as FolderSolid, TrashIcon as TrashSolid } from '@heroicons/react/24/solid';
 
 import {
-  DriveUploadStatus, DriveUploadSource, DriveSort, DriveUploadBatch, DriveUploadItem,
-  FileSystemHandleLike, DRIVE_UPLOAD_CONCURRENCY,
+  DriveUploadSource, DriveSort, DriveUploadBatch,
+  DRIVE_UPLOAD_CONCURRENCY,
   loadDriveSortSetting, sortDriveNodes, getDriveNodeDragPayload, parseDriveNodeIds,
   isDriveNodeDrag, createDriveDragGhost, normalizeDroppedPath, getDriveUploadSourceLabel,
-  driveUploadNeedsFreshSession, formatDriveUploadError, readAllEntries, readFileFromEntry,
-  collectDroppedFilesFromEntry, collectDroppedFilesFromHandle, collectDroppedFiles,
+  collectDroppedFiles,
 } from './drive/driveViewHelpers';
+import { useDriveUpload } from './drive/useDriveUpload';
+import { useDriveSidebar } from './drive/useDriveSidebar';
+
 export function DriveView() {
   const t = useTranslations('drive');
-  const DRIVE_UPLOAD_STATUS_LABELS = useMemo<Record<DriveUploadStatus, string>>(() => ({
-    queued: t('upload.status.queued'),
-    creating_session: t('upload.status.creatingSession'),
-    uploading: t('upload.status.uploading'),
-    paused: t('upload.status.paused'),
-    finalizing: t('upload.status.finalizing'),
-    done: t('upload.status.done'),
-    error: t('upload.status.error'),
-    canceled: t('upload.status.canceled'),
-  }), [t]);
   const [activeSection, setActiveSection] = useState<'drive' | 'trash'>('drive');
   const [driveSort, setDriveSort] = useState<DriveSort>(loadDriveSortSetting);
   const [breadcrumb, setBreadcrumb] = useState<BreadcrumbItem[]>([{ id: '', name: t('myDrive') }]);
@@ -53,54 +45,54 @@ export function DriveView() {
   const [shareNode, setShareNode] = useState<DriveNode | null>(null);
   const [newFolderMode, setNewFolderMode] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
-  const [driveUploadBatch, setDriveUploadBatch] = useState<DriveUploadBatch | null>(null);
-  const [driveUploads, setDriveUploads] = useState<DriveUploadItem[]>([]);
-  const [driveUploadModalOpen, setDriveUploadModalOpen] = useState(false);
-  const [driveUploadResumable, setDriveUploadResumable] = useState<boolean | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const [draggingNodeIds, setDraggingNodeIds] = useState<string[]>([]);
   const [selectedNodeIds, setSelectedNodeIds] = useState<string[]>([]);
   const [dropTargetFolderId, setDropTargetFolderId] = useState<string | null>(null);
-  const [sidebarFolderChildren, setSidebarFolderChildren] = useState<Record<string, SidebarFolderItem[]>>({});
-  const [sidebarExpandedFolders, setSidebarExpandedFolders] = useState<Set<string>>(new Set(['']));
-  const [sidebarLoadedFolders, setSidebarLoadedFolders] = useState<Set<string>>(new Set());
-  const [sidebarLoadingFolders, setSidebarLoadingFolders] = useState<Record<string, boolean>>({});
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   const folderInputRef = useRef<HTMLInputElement>(null);
   const newFolderRef = useRef<HTMLInputElement>(null);
   const renameRef = useRef<HTMLInputElement>(null);
-  const driveUploadControllersRef = useRef<Map<string, AbortController>>(new Map());
-  const driveUploadAbortReasonsRef = useRef<Map<string, 'pause' | 'cancel'>>(new Map());
-  const driveUploadActiveIdsRef = useRef<Set<string>>(new Set());
-  const driveUploadsRef = useRef<DriveUploadItem[]>([]);
-  const driveUploadSchedulerRef = useRef(false);
-  const driveUploadModalDismissedRef = useRef(false);
 
   const currentParentId = breadcrumb[breadcrumb.length - 1]?.id ?? '';
 
-  function getUploadRelativePath(file: File): string {
-    const withPath = (file as File & { webkitRelativePath?: string }).webkitRelativePath;
-    if (withPath && withPath.trim()) return normalizeDroppedPath(withPath);
-    return file.name;
-  }
+  const refreshDriveNodes = useCallback(async () => {
+    setLoading(true);
+    const data = await listDriveNodes(currentParentId || undefined);
+    setNodes(sortDriveNodes(data, driveSort));
+    setLoading(false);
+    getDriveUsage().then(setUsage).catch(() => {});
+  }, [currentParentId, driveSort]);
 
-  function buildDriveUploadBatch(
-    source: DriveUploadSource,
-    files: Array<{ file: File; relativePath: string }>,
-  ): DriveUploadBatch {
-    return {
-      id: crypto.randomUUID(),
-      source,
-      fileCount: files.length,
-      totalBytes: files.reduce((sum, item) => sum + item.file.size, 0),
-      files: files.slice(0, 6).map((item) => ({
-        name: item.file.name,
-        relativePath: item.relativePath,
-        size: item.file.size,
-      })),
-      createdAt: Date.now(),
-    };
-  }
+  const upload = useDriveUpload({ onUploadComplete: refreshDriveNodes, t });
+  const {
+    driveUploadBatch,
+    driveUploads,
+    driveUploadModalOpen,
+    setDriveUploadModalOpen,
+    driveUploadResumable,
+    driveUploadModalDismissedRef,
+    enqueueDriveUploads,
+    pauseDriveUpload,
+    resumeDriveUpload,
+    cancelDriveUpload,
+    DRIVE_UPLOAD_STATUS_LABELS,
+  } = upload;
+
+  const sidebar = useDriveSidebar({ breadcrumb });
+  const {
+    sidebarFolderChildren,
+    setSidebarFolderChildren,
+    sidebarExpandedFolders,
+    sidebarLoadedFolders,
+    setSidebarLoadedFolders,
+    sidebarLoadingFolders,
+    sidebarLoadKey,
+    loadSidebarFolders,
+    reloadSidebarCurrentPath,
+    toggleSidebarFolder,
+  } = sidebar;
 
   useEffect(() => {
     const folderInput = folderInputRef.current;
@@ -132,39 +124,6 @@ export function DriveView() {
     setTrashLoading(false);
   }, []);
 
-  const sidebarLoadKey = useCallback((folderId: string) => folderId || '__ROOT__', []);
-
-  const loadSidebarFolders = useCallback(async (parentId: string) => {
-    const key = sidebarLoadKey(parentId);
-    if (sidebarLoadedFolders.has(key) || sidebarLoadingFolders[key]) return;
-
-    setSidebarLoadingFolders((prev) => ({ ...prev, [key]: true }));
-    try {
-      const data = await listDriveNodes(parentId || undefined);
-      const sortedFolders = data
-        .filter((n) => n.node_type === 'folder')
-        .sort((a, b) => a.name.localeCompare(b.name, 'ko'))
-        .map((n) => ({ id: n.id, name: n.name }));
-      setSidebarFolderChildren((prev) => ({ ...prev, [key]: sortedFolders }));
-      setSidebarLoadedFolders((prev) => {
-        const next = new Set(prev);
-        next.add(key);
-        return next;
-      });
-    } finally {
-      setSidebarLoadingFolders((prev) => {
-        const next = { ...prev };
-        delete next[key];
-        return next;
-      });
-    }
-  }, [sidebarLoadedFolders, sidebarLoadKey, sidebarLoadingFolders]);
-
-  const reloadSidebarCurrentPath = useCallback(() => {
-    setSidebarFolderChildren({});
-    setSidebarLoadedFolders(new Set());
-  }, []);
-
   useEffect(() => {
     loadNodes(currentParentId);
     getDriveUsage().then(setUsage).catch(() => {});
@@ -177,29 +136,6 @@ export function DriveView() {
   useEffect(() => {
     if (activeSection === 'drive') loadSidebarFolders('');
   }, [activeSection, loadSidebarFolders]);
-
-  useEffect(() => {
-    driveUploadsRef.current = driveUploads;
-  }, [driveUploads]);
-
-  useEffect(() => {
-    let alive = true;
-    getWebmailCapabilities().then((caps) => {
-      if (!alive) return;
-      setDriveUploadResumable(Boolean(caps?.drive?.resumable_chunked_uploads));
-    });
-    return () => {
-      alive = false;
-    };
-  }, []);
-
-  useEffect(() => () => {
-    for (const controller of driveUploadControllersRef.current.values()) {
-      controller.abort();
-    }
-    driveUploadControllersRef.current.clear();
-    driveUploadAbortReasonsRef.current.clear();
-  }, []);
 
   useEffect(() => { if (newFolderMode) setTimeout(() => newFolderRef.current?.focus(), 50); }, [newFolderMode]);
   useEffect(() => { if (renameNodeId) setTimeout(() => renameRef.current?.select(), 50); }, [renameNodeId]);
@@ -325,134 +261,29 @@ export function DriveView() {
     return current || undefined;
   }
 
-  const updateDriveUpload = useCallback((uploadId: string, updater: (item: DriveUploadItem) => DriveUploadItem) => {
-    setDriveUploads((prev) => prev.map((item) => (item.id === uploadId ? updater(item) : item)));
-  }, []);
+  function getUploadRelativePath(file: File): string {
+    const withPath = (file as File & { webkitRelativePath?: string }).webkitRelativePath;
+    if (withPath && withPath.trim()) return normalizeDroppedPath(withPath);
+    return file.name;
+  }
 
-  const refreshDriveNodes = useCallback(async () => {
-    await loadNodes(currentParentId);
-    getDriveUsage().then(setUsage).catch(() => {});
-  }, [currentParentId, loadNodes]);
-
-  const runDriveUpload = useCallback(async (uploadId: string) => {
-    const next = driveUploadsRef.current.find((item) => item.id === uploadId);
-    if (!next || next.status !== 'queued') return;
-
-    driveUploadActiveIdsRef.current.add(next.id);
-    const controller = new AbortController();
-    driveUploadControllersRef.current.set(next.id, controller);
-    driveUploadAbortReasonsRef.current.delete(next.id);
-
-    try {
-      updateDriveUpload(next.id, (item) => ({
-        ...item,
-        status: 'creating_session',
-        error: undefined,
-      }));
-
-      const node = await uploadDriveFileWithOptions(next.file, {
-        parentId: next.parentId,
-        resumable: next.resumable,
-        resumeSessionId: next.sessionId,
-        signal: controller.signal,
-        onProgress: (progress) => {
-          updateDriveUpload(next.id, (item) => ({
-            ...item,
-            status: progress.phase === 'creating_session'
-              ? 'creating_session'
-              : progress.phase === 'finalizing'
-                ? 'finalizing'
-                : 'uploading',
-            sessionId: progress.sessionId ?? item.sessionId,
-            storageBackend: progress.storageBackend ?? item.storageBackend,
-            uploadedBytes: progress.uploadedBytes,
-            totalBytes: progress.totalBytes,
-          }));
-        },
-      });
-
-      updateDriveUpload(next.id, (item) => ({
-        ...item,
-        status: 'done',
-        uploadedBytes: item.totalBytes,
-        node: node ?? item.node,
-        error: undefined,
-      }));
-      await refreshDriveNodes();
-    } catch (error) {
-      const reason = driveUploadAbortReasonsRef.current.get(next.id);
-      if (controller.signal.aborted || reason === 'pause' || reason === 'cancel') {
-        updateDriveUpload(next.id, (item) => ({
-          ...item,
-          status: reason === 'cancel' ? 'canceled' : 'paused',
-          error: undefined,
-        }));
-      } else {
-        const message = formatDriveUploadError(error, t);
-        updateDriveUpload(next.id, (item) => ({
-          ...item,
-          status: 'error',
-          error: message,
-          sessionId: driveUploadNeedsFreshSession(message) ? undefined : item.sessionId,
-          storageBackend: driveUploadNeedsFreshSession(message) ? undefined : item.storageBackend,
-          uploadedBytes: driveUploadNeedsFreshSession(message) ? 0 : item.uploadedBytes,
-        }));
-      }
-    } finally {
-      driveUploadControllersRef.current.delete(next.id);
-      driveUploadAbortReasonsRef.current.delete(next.id);
-      driveUploadActiveIdsRef.current.delete(next.id);
-      driveUploadSchedulerRef.current = false;
-      void scheduleDriveUploads();
-    }
-  }, [refreshDriveNodes, updateDriveUpload]);
-
-  const scheduleDriveUploads = useCallback(() => {
-    if (driveUploadSchedulerRef.current) return;
-    driveUploadSchedulerRef.current = true;
-    try {
-      const runningCount = driveUploadActiveIdsRef.current.size;
-      let availableSlots = DRIVE_UPLOAD_CONCURRENCY - runningCount;
-      while (availableSlots > 0) {
-        const next = driveUploadsRef.current.find((item) => item.status === 'queued' && !driveUploadActiveIdsRef.current.has(item.id));
-        if (!next) break;
-        availableSlots -= 1;
-        void runDriveUpload(next.id);
-      }
-    } finally {
-      driveUploadSchedulerRef.current = false;
-    }
-  }, [runDriveUpload]);
-
-  useEffect(() => {
-    void scheduleDriveUploads();
-  }, [driveUploads, scheduleDriveUploads]);
-
-  const enqueueDriveUploads = useCallback((
-    items: Array<{ file: File; relativePath: string; parentId?: string; resumable: boolean; batchId: string; source: DriveUploadSource }>,
-    batch?: DriveUploadBatch | null,
-  ) => {
-    if (!items.length) return;
-    driveUploadModalDismissedRef.current = false;
-    setDriveUploadModalOpen(true);
-    if (batch) setDriveUploadBatch(batch);
-    setDriveUploads((prev) => [
-      ...prev,
-      ...items.map((item) => ({
-        id: crypto.randomUUID(),
-        file: item.file,
-        parentId: item.parentId,
+  function buildDriveUploadBatch(
+    source: DriveUploadSource,
+    files: Array<{ file: File; relativePath: string }>,
+  ): DriveUploadBatch {
+    return {
+      id: crypto.randomUUID(),
+      source,
+      fileCount: files.length,
+      totalBytes: files.reduce((sum, item) => sum + item.file.size, 0),
+      files: files.slice(0, 6).map((item) => ({
+        name: item.file.name,
         relativePath: item.relativePath,
-        status: 'queued' as const,
-        uploadedBytes: 0,
-        totalBytes: item.file.size,
-        resumable: item.resumable,
-        batchId: item.batchId,
-        source: item.source,
+        size: item.file.size,
       })),
-    ]);
-    void scheduleDriveUploads();
-  }, [scheduleDriveUploads]);
+      createdAt: Date.now(),
+    };
+  }
 
   async function handleUploadEntries(files: DroppedFileEntry[], targetParentId?: string, source: DriveUploadSource = 'drop') {
     const folderCache = getFolderCache();
@@ -483,42 +314,6 @@ export function DriveView() {
   function handleUploadFromList(files: FileList, targetParentId?: string, source: DriveUploadSource = 'picker') {
     const entries = Array.from(files).map((file) => ({ file, relativePath: getUploadRelativePath(file) }));
     handleUploadEntries(entries, targetParentId, source).catch(() => {});
-  }
-
-  function pauseDriveUpload(uploadId: string) {
-    const controller = driveUploadControllersRef.current.get(uploadId);
-    if (!controller) return;
-    driveUploadAbortReasonsRef.current.set(uploadId, 'pause');
-    controller.abort();
-  }
-
-  async function resumeDriveUpload(uploadId: string) {
-    updateDriveUpload(uploadId, (item) => ({
-      ...item,
-      status: 'queued',
-      error: undefined,
-    }));
-    driveUploadModalDismissedRef.current = false;
-    setDriveUploadModalOpen(true);
-    await scheduleDriveUploads();
-  }
-
-  async function cancelDriveUpload(uploadId: string) {
-    const item = driveUploadsRef.current.find((entry) => entry.id === uploadId);
-    if (!item) return;
-    const controller = driveUploadControllersRef.current.get(uploadId);
-    if (controller) {
-      driveUploadAbortReasonsRef.current.set(uploadId, 'cancel');
-      controller.abort();
-    }
-    if (item.sessionId) {
-      await cancelDriveUploadSession(item.sessionId);
-    }
-    updateDriveUpload(uploadId, (current) => ({
-      ...current,
-      status: 'canceled',
-      error: undefined,
-    }));
   }
 
   async function handleMoveNodes(nodeIds: string[], targetParentId: string) {
@@ -581,16 +376,6 @@ export function DriveView() {
   const draggingNodeNames = draggingNodeIds
     .map((id) => nodes.find((node) => node.id === id)?.name)
     .filter(Boolean) as string[];
-
-  const toggleSidebarFolder = useCallback((folderId: string) => {
-    setSidebarExpandedFolders((prev) => {
-      const next = new Set(prev);
-      if (next.has(folderId)) next.delete(folderId);
-      else next.add(folderId);
-      return next;
-    });
-    void loadSidebarFolders(folderId);
-  }, [loadSidebarFolders]);
 
   const renderSidebarFolders = (parentId: string, depth: number, path: BreadcrumbItem[]): React.ReactNode => {
     const key = sidebarLoadKey(parentId);
