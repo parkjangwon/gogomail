@@ -5,23 +5,46 @@ import (
 	"encoding/json"
 )
 
-// EmailAddress represents an RFC 8621 EmailAddress object.
+// EmailAddress represents a JMAP EmailAddress (RFC 8621 §4.1.2).
 type EmailAddress struct {
 	Name  *string `json:"name"`
 	Email string  `json:"email"`
 }
 
-// EmailObject represents an RFC 8621 Email object (§4.1).
-// Only a subset of mandatory and commonly used properties are included;
-// the full property set can be expanded when real storage integration lands.
+// EmailBodyValue is a decoded body part value (RFC 8621 §4.1.4).
+type EmailBodyValue struct {
+	Value             string `json:"value"`
+	IsEncodingProblem bool   `json:"isEncodingProblem"`
+	IsTruncated       bool   `json:"isTruncated"`
+}
+
+// EmailBodyPart is a body structure descriptor (RFC 8621 §4.1.4).
+type EmailBodyPart struct {
+	PartID string `json:"partId,omitempty"`
+	Type   string `json:"type,omitempty"`
+	BlobID string `json:"blobId,omitempty"`
+	Size   int    `json:"size,omitempty"`
+	Name   string `json:"name,omitempty"`
+}
+
+// EmailObject is the full JMAP Email object (RFC 8621 §4.1).
 type EmailObject struct {
-	ID         string         `json:"id"`
-	Subject    string         `json:"subject"`
-	From       []EmailAddress `json:"from"`
-	To         []EmailAddress `json:"to"`
-	ReceivedAt string         `json:"receivedAt"` // UTCDate per RFC 8621 §1.4
-	Size       int            `json:"size"`
-	Preview    string         `json:"preview"`
+	ID         string                    `json:"id"`
+	BlobID     string                    `json:"blobId,omitempty"`
+	ThreadID   string                    `json:"threadId,omitempty"`
+	MailboxIDs map[string]bool           `json:"mailboxIds,omitempty"`
+	Keywords   map[string]bool           `json:"keywords,omitempty"`
+	Size       int                       `json:"size,omitempty"`
+	ReceivedAt string                    `json:"receivedAt,omitempty"`
+	Subject    string                    `json:"subject,omitempty"`
+	From       []EmailAddress            `json:"from,omitempty"`
+	To         []EmailAddress            `json:"to,omitempty"`
+	Cc         []EmailAddress            `json:"cc,omitempty"`
+	Bcc        []EmailAddress            `json:"bcc,omitempty"`
+	Preview    string                    `json:"preview,omitempty"`
+	BodyValues map[string]EmailBodyValue `json:"bodyValues,omitempty"`
+	TextBody   []EmailBodyPart           `json:"textBody,omitempty"`
+	HTMLBody   []EmailBodyPart           `json:"htmlBody,omitempty"`
 }
 
 // EmailGetArgs is the argument object for Email/get (RFC 8621 §4.5).
@@ -41,8 +64,17 @@ type EmailGetResponse struct {
 
 // EmailFilter represents a filter condition for Email/query (RFC 8621 §4.4.1).
 type EmailFilter struct {
-	InMailbox string `json:"inMailbox,omitempty"`
-	Text      string `json:"text,omitempty"`
+	InMailbox  string `json:"inMailbox,omitempty"`
+	Text       string `json:"text,omitempty"`
+	HasKeyword string `json:"hasKeyword,omitempty"`
+	NotKeyword string `json:"notKeyword,omitempty"`
+	Before     string `json:"before,omitempty"`
+	After      string `json:"after,omitempty"`
+	MinSize    int    `json:"minSize,omitempty"`
+	MaxSize    int    `json:"maxSize,omitempty"`
+	Subject    string `json:"subject,omitempty"`
+	From       string `json:"from,omitempty"`
+	To         string `json:"to,omitempty"`
 }
 
 // EmailComparator is a sort comparator for Email/query (RFC 8621 §4.4.2).
@@ -68,31 +100,6 @@ type EmailQueryResponse struct {
 	Position            int      `json:"position"`
 	IDs                 []string `json:"ids"`
 	Total               int      `json:"total"`
-}
-
-// emailGetMethod implements the Email/get JMAP method (RFC 8621 §4.5).
-// Currently returns an empty list; real mail store integration to follow.
-type emailGetMethod struct{}
-
-func (emailGetMethod) Call(_ context.Context, accountID string, args json.RawMessage) (json.RawMessage, error) {
-	var req EmailGetArgs
-	if err := json.Unmarshal(args, &req); err != nil {
-		return errorResult(ErrInvalidArguments), nil
-	}
-	if req.AccountID == "" {
-		req.AccountID = accountID
-	}
-
-	resp := EmailGetResponse{
-		AccountID: req.AccountID,
-		List:      []EmailObject{},
-		NotFound:  []string{},
-		State:     "state-v1",
-	}
-	// If specific IDs were requested, mark them all as not found (stub).
-	resp.NotFound = append(resp.NotFound, req.IDs...)
-
-	return json.Marshal(resp)
 }
 
 // emailQueryMethod implements the Email/query JMAP method (RFC 8621 §4.4).

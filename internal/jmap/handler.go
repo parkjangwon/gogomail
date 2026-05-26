@@ -44,7 +44,7 @@ func NewHandler(deps Deps, sessionFn SessionFunc) *Handler {
 		sessionFn: sessionFn,
 		methods:   make(map[string]Method),
 	}
-	h.Register("Email/get", emailGetMethod{})
+	h.Register("Email/get", &emailGetMethod{deps: deps})
 	h.Register("Email/query", emailQueryMethod{})
 	h.Register("Mailbox/get", &mailboxGetMethod{deps: deps})
 	h.Register("Mailbox/query", &mailboxQueryMethod{deps: deps})
