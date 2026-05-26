@@ -128,6 +128,9 @@ const (
 // maxCallsInRequest is the JMAP limit on method calls per request (RFC 8620 §2).
 const maxCallsInRequest = 16
 
+// maxObjectsInGet is the JMAP limit on object IDs per /get request (RFC 8620 §5.1).
+const maxObjectsInGet = 500
+
 // methodError is the JSON object returned in a method-level error response.
 type methodError struct {
 	Type string `json:"type"`

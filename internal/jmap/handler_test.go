@@ -119,7 +119,9 @@ func TestServeAPIUnknownMethod(t *testing.T) {
 	}
 }
 
-// TestServeAPIEmailGet verifies that Email/get returns a valid EmailGetResponse.
+// TestServeAPIEmailGet verifies that Email/get dispatches correctly.
+// With no repository configured (test handler), it returns a serverFail error
+// at the method level (HTTP 200 with error in method response).
 func TestServeAPIEmailGet(t *testing.T) {
 	h := newTestHandler()
 
@@ -152,22 +154,18 @@ func TestServeAPIEmailGet(t *testing.T) {
 		t.Fatalf("expected 1 method response, got %d", len(resp.MethodResponses))
 	}
 	mr := resp.MethodResponses[0]
+	// The method response name is "Email/get" (not "error") because the method
+	// itself returns the error JSON — the dispatcher wraps only panics/Go errors.
 	if mr.Name != "Email/get" {
 		t.Errorf("expected method name 'Email/get', got %q", mr.Name)
 	}
-
-	var getResp jmap.EmailGetResponse
-	if err := json.Unmarshal(mr.Result, &getResp); err != nil {
-		t.Fatalf("cannot decode EmailGetResponse: %v", err)
+	// Without a real repo, the method returns {"type":"serverFail"}.
+	var errResp map[string]string
+	if err := json.Unmarshal(mr.Result, &errResp); err != nil {
+		t.Fatalf("cannot decode method result: %v", err)
 	}
-	if getResp.List == nil {
-		t.Error("List must not be nil")
-	}
-	if getResp.NotFound == nil {
-		t.Error("NotFound must not be nil")
-	}
-	if getResp.State == "" {
-		t.Error("State must not be empty")
+	if errResp["type"] != "serverFail" {
+		t.Errorf("expected serverFail, got %q", errResp["type"])
 	}
 }
 
