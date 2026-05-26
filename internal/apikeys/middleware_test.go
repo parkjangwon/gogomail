@@ -19,7 +19,7 @@ func (f *fakeVerifier) Verify(ctx context.Context, keyHash string, ip net.IP) (*
 }
 
 func TestMiddlewareIgnoresNonAPIKey(t *testing.T) {
-	middleware := Middleware(&fakeVerifier{}, "")
+	middleware := Middleware(&fakeVerifier{}, nil)
 	handler := middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
@@ -36,7 +36,7 @@ func TestMiddlewareIgnoresNonAPIKey(t *testing.T) {
 func TestMiddlewareAcceptsValidAPIKey(t *testing.T) {
 	middleware := Middleware(&fakeVerifier{
 		info: &KeyInfo{DomainID: "domain-1", Scopes: []string{"mail"}},
-	}, "")
+	}, nil)
 	handler := middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		info, ok := KeyInfoFromContext(r.Context())
 		if !ok {
@@ -59,7 +59,7 @@ func TestMiddlewareAcceptsValidAPIKey(t *testing.T) {
 }
 
 func TestMiddlewareRejectsInvalidAPIKey(t *testing.T) {
-	middleware := Middleware(&fakeVerifier{err: errors.New("not found")}, "")
+	middleware := Middleware(&fakeVerifier{err: errors.New("not found")}, nil)
 	handler := middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))

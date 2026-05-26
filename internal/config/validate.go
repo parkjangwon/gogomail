@@ -52,6 +52,12 @@ func (c Config) Validate() error {
 	if err := validateTrustedProxies("GOGOMAIL_CARDDAV_TRUSTED_PROXIES", c.CardDAVTrustedProxies); err != nil {
 		return err
 	}
+	if err := validateTrustedProxies("GOGOMAIL_TRUSTED_PROXY_CIDRS", c.TrustedProxyCIDRs); err != nil {
+		return err
+	}
+	if err := validateTCPAddr("GOGOMAIL_SYSTEM_SMTP_ADDR", c.SystemEmail.SMTPAddr, false); err != nil {
+		return err
+	}
 	if (c.SMTPTLSCertFile == "") != (c.SMTPTLSKeyFile == "") {
 		return fmt.Errorf("both SMTP TLS certificate and key files are required")
 	}

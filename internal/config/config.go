@@ -347,9 +347,9 @@ type Config struct {
 	// Metrics HTTP endpoint
 	MetricsAddr string
 
-	// TrustedProxyCIDRs is a comma-separated list of CIDR ranges whose
+	// TrustedProxyCIDRs is the list of CIDR ranges whose
 	// X-Forwarded-For / X-Real-IP headers are trusted for real-IP extraction.
-	TrustedProxyCIDRs string
+	TrustedProxyCIDRs []string
 
 	// SystemEmail holds outbound SMTP credentials for system-generated emails
 	// (password reset, quota warnings, etc.)
@@ -687,7 +687,7 @@ func Load() Config {
 		WebAuthnRPDisplayName: envOrDefault("GOGOMAIL_WEBAUTHN_RP_DISPLAY_NAME", "GoGoMail"),
 		WebAuthnRPOrigins:     splitCSV(os.Getenv("GOGOMAIL_WEBAUTHN_RP_ORIGINS")),
 
-		TrustedProxyCIDRs: os.Getenv("GOGOMAIL_TRUSTED_PROXY_CIDRS"),
+		TrustedProxyCIDRs: splitCSV(os.Getenv("GOGOMAIL_TRUSTED_PROXY_CIDRS")),
 		SystemEmail: SystemEmailConfig{
 			From:     strings.TrimSpace(os.Getenv("GOGOMAIL_SYSTEM_EMAIL_FROM")),
 			SMTPAddr: strings.TrimSpace(os.Getenv("GOGOMAIL_SYSTEM_SMTP_ADDR")),
