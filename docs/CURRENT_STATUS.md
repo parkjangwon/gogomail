@@ -19,6 +19,7 @@ GoGoMail is a production-grade self-hosted email platform written in Go
 
 | Date | Feature |
 |------|---------|
+| 2026-05-26 | Bug fix: internal/storage/s3.go — two pre-existing S3 signing bugs fixed: (1) escapeS3Segment now uses S3-strict unreserved-only encoding (was url.PathEscape which left @, =, ! unencoded, causing SignatureDoesNotMatch for paths with those chars); (2) s3PayloadHash computes actual SHA-256 body hash for HTTP endpoints (MinIO rejects UNSIGNED-PAYLOAD over plain HTTP); test infrastructure: pg_trgm installed in public schema via docker-entrypoint-initdb.d; webauthn test uses real UUID user |
 | 2026-05-26 | HTTP client: webhook/urlguard.go *http.DefaultClient value copy replaced with explicit http.Client{} for clarity; timeout always set via DefaultOutboundTimeout |
 | 2026-05-26 | Code structure: internal/imapgw/server_search.go (2170 lines) split into server_search.go (304), server_search_criteria.go (292), server_search_executor.go (901), server_search_match.go (692); server_fetch.go (2005 lines) split into server_fetch.go (478), server_fetch_body.go (549), server_fetch_envelope.go (1002); all files ≤1200 lines; 439 tests pass |
 | 2026-05-26 | Code structure: internal/maildb/admin_api_usage.go split from 2361 lines into 5 domain files (admin_api_usage_quota.go, admin_api_usage_aggregate.go, admin_api_usage_ledger.go, admin_api_usage_retention.go, admin_api_usage_export.go); admin_api_usage.go reduced to 85 lines (shared utils); 549 tests pass |

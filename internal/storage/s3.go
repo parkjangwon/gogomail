@@ -609,7 +609,11 @@ func (s *S3Store) newListRequest(ctx context.Context, prefix string, limit int, 
 	if err != nil {
 		return nil, fmt.Errorf("create s3 list request: %w", err)
 	}
-	req.Header.Set("x-amz-content-sha256", "UNSIGNED-PAYLOAD")
+	payloadHash, err := s.s3PayloadHash(nil)
+	if err != nil {
+		return nil, fmt.Errorf("compute s3 list payload hash: %w", err)
+	}
+	req.Header.Set("x-amz-content-sha256", payloadHash)
 	req.Header.Set("x-amz-date", s.now().UTC().Format("20060102T150405Z"))
 	if s.sessionToken != "" {
 		req.Header.Set("x-amz-security-token", s.sessionToken)
@@ -645,7 +649,11 @@ func (s *S3Store) newRequestWithHeaders(ctx context.Context, method string, obje
 	if err := setS3ContentLength(req, body); err != nil {
 		return nil, err
 	}
-	req.Header.Set("x-amz-content-sha256", "UNSIGNED-PAYLOAD")
+	payloadHash, err := s.s3PayloadHash(body)
+	if err != nil {
+		return nil, fmt.Errorf("compute s3 payload hash: %w", err)
+	}
+	req.Header.Set("x-amz-content-sha256", payloadHash)
 	req.Header.Set("x-amz-date", s.now().UTC().Format("20060102T150405Z"))
 	if s.sessionToken != "" {
 		req.Header.Set("x-amz-security-token", s.sessionToken)
@@ -1298,13 +1306,21 @@ func (s *S3Store) sign(req *http.Request) {
 	headers := signedHeaderValues(req)
 	canonicalHeaders := canonicalS3Headers(headers)
 	signedHeaders := strings.Join(sortedHeaderNames(headers), ";")
+	// Use the actual payload hash from the x-amz-content-sha256 header.
+	// For HTTPS endpoints the caller sets this to "UNSIGNED-PAYLOAD";
+	// for HTTP endpoints it is set to the hex-encoded SHA-256 of the body
+	// because MinIO (and AWS) reject unsigned payloads over plain HTTP.
+	payloadHash := req.Header.Get("x-amz-content-sha256")
+	if payloadHash == "" {
+		payloadHash = "UNSIGNED-PAYLOAD"
+	}
 	canonicalRequest := strings.Join([]string{
 		req.Method,
 		req.URL.EscapedPath(),
 		req.URL.RawQuery,
 		canonicalHeaders,
 		signedHeaders,
-		"UNSIGNED-PAYLOAD",
+		payloadHash,
 	}, "\n")
 	scope := date + "/" + s.region + "/s3/aws4_request"
 	hashedCanonicalRequest := sha256Hex([]byte(canonicalRequest))
@@ -1553,8 +1569,61 @@ func escapeS3QueryComponent(value string) string {
 	return b.String()
 }
 
+// escapeS3Segment percent-encodes a single path segment for use in an S3
+// canonical URI. AWS SigV4 requires ALL characters except the unreserved set
+// (A-Z a-z 0-9 - _ . ~) to be %XX encoded — this is stricter than Go's
+// url.PathEscape which leaves @, =, :, !, $, &, (, ), *, +, ,, ; unencoded.
+// Using url.PathEscape would cause SignatureDoesNotMatch when object keys
+// contain those characters (e.g. "@" in user@example.com paths).
 func escapeS3Segment(segment string) string {
-	return strings.ReplaceAll(url.PathEscape(segment), "+", "%2B")
+	var b strings.Builder
+	for i := 0; i < len(segment); i++ {
+		c := segment[i]
+		if (c >= 'A' && c <= 'Z') ||
+			(c >= 'a' && c <= 'z') ||
+			(c >= '0' && c <= '9') ||
+			c == '-' || c == '.' || c == '_' || c == '~' {
+			b.WriteByte(c)
+			continue
+		}
+		b.WriteByte('%')
+		b.WriteString(strings.ToUpper(hex.EncodeToString([]byte{c})))
+	}
+	return b.String()
+}
+
+// s3PayloadHash returns the value for the x-amz-content-sha256 header.
+// For HTTPS endpoints it returns "UNSIGNED-PAYLOAD" (AWS/MinIO allow skipping
+// body signing over TLS). For HTTP endpoints the actual SHA-256 of the body
+// must be provided because MinIO rejects unsigned payloads over plain HTTP.
+// If body is nil (e.g. GET/DELETE requests) the hash of an empty body is returned.
+func (s *S3Store) s3PayloadHash(body io.Reader) (string, error) {
+	if s.endpoint != nil && s.endpoint.Scheme == "https" {
+		return "UNSIGNED-PAYLOAD", nil
+	}
+	// HTTP endpoint: compute real hash.
+	if body == nil {
+		return sha256Hex(nil), nil
+	}
+	// If the body supports seeking, compute hash then seek back to start.
+	if seeker, ok := body.(io.ReadSeeker); ok {
+		start, err := seeker.Seek(0, io.SeekCurrent)
+		if err != nil {
+			return "", fmt.Errorf("seek to current: %w", err)
+		}
+		h := sha256.New()
+		if _, err := io.Copy(h, seeker); err != nil {
+			return "", fmt.Errorf("hash body: %w", err)
+		}
+		if _, err := seeker.Seek(start, io.SeekStart); err != nil {
+			return "", fmt.Errorf("seek back: %w", err)
+		}
+		return hex.EncodeToString(h.Sum(nil)), nil
+	}
+	// Non-seekable streaming body: fall back to UNSIGNED-PAYLOAD.
+	// This may fail on HTTP-only MinIO; callers should use HTTPS or provide
+	// a seekable body for HTTP endpoints.
+	return "UNSIGNED-PAYLOAD", nil
 }
 
 func s3SigningKey(secret string, date string, region string) []byte {

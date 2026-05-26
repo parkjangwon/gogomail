@@ -14,6 +14,8 @@ services:
       - "5432:5432"
     tmpfs:
       - /var/lib/postgresql/data   # in-memory for speed
+    volumes:
+      - ./init-scripts/01-extensions.sql:/docker-entrypoint-initdb.d/01-extensions.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U gogomail_test -d gogomail_test"]
       interval: 5s

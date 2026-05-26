@@ -44,7 +44,8 @@ func TestServiceBeginRegistrationReturnsJSON(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	optionsJSON, err := svc.BeginRegistration(ctx, "user-id-1", "testuser", "Test User")
+	userID := mustCreateTestUser(t, db)
+	optionsJSON, err := svc.BeginRegistration(ctx, userID, "testuser", "Test User")
 	if err != nil {
 		t.Fatalf("BeginRegistration: %v", err)
 	}
