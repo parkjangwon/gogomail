@@ -21,6 +21,7 @@ GoGoMail is a production-grade self-hosted email platform written in Go
 |------|---------|
 | 2026-05-26 | FIDO2/WebAuthn MFA: go-webauthn/webauthn integration, 6 HTTP endpoints (register/begin, register/complete, authenticate/begin, authenticate/complete, credentials GET/DELETE), credential + challenge store, DB migration 0155 |
 | 2026-05-26 | JMAP auth hardening: userIDFromBearer now calls VerifyFull(ctx,token) instead of Verify(token) — session revocation enforced on every authenticated request; TestServeSessionRequiresAuth rewritten with real TokenManager asserting HTTP 401 |
+| 2026-05-26 | JMAP Task 8: Email/set — applyEmailPatch (keywords/$seen/$flagged/$draft, mailboxIds patch semantics), DeleteMessage for destroy, SaveDraft for create; 5 unit tests pass |
 | 2026-05-26 | JMAP Task 7: Email/query, Email/queryChanges — text filter routes to SearchMessages, list filter routes to ListMessagesPage with keyword/flag mapping ($seen/$flagged); Email/queryChanges returns cannotCalculateChanges; 4 unit tests pass |
 | 2026-05-26 | JMAP Task 6: Email/get real DB integration — messageDetailToJMAP property filtering, flagsToKeywords ($seen/$flagged/$draft), parseJMAPAddrs, body values/parts, requestTooLarge enforcement; 4 unit tests pass |
 | 2026-05-26 | JMAP Task 5: Thread/get, Thread/changes — threadGetMethod calls ListThreadMessagesPage per threadID, notFound for missing threads; threadChangesMethod returns empty created/updated/destroyed with current modseq state; 3 unit tests pass |

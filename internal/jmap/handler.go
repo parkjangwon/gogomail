@@ -47,6 +47,7 @@ func NewHandler(deps Deps, sessionFn SessionFunc) *Handler {
 	h.Register("Email/get", &emailGetMethod{deps: deps})
 	h.Register("Email/query", &emailQueryMethod{deps: deps})
 	h.Register("Email/queryChanges", &emailQueryChangesMethod{deps: deps})
+	h.Register("Email/set", &emailSetMethod{deps: deps})
 	h.Register("Mailbox/get", &mailboxGetMethod{deps: deps})
 	h.Register("Mailbox/query", &mailboxQueryMethod{deps: deps})
 	h.Register("Mailbox/set", &mailboxSetMethod{deps: deps})
