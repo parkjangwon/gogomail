@@ -483,9 +483,9 @@ func RegisterDMRoutes(mux *http.ServeMux, service DMService, tokenManager *auth.
 			}, s)
 		}
 
-		// Filename: {ownerEmail}_{roomName}_{YYYYMMDDHHmmss}.txt
+		// Filename: {roomName}_{ownerEmail}_{YYYYMMDDHHmmss}.txt
 		datetime := export.ExportAt.In(loc).Format("20060102150405")
-		filename := fmt.Sprintf("%s_%s_%s.txt", sanitize(ownerIdent), sanitize(roomName), datetime)
+		filename := fmt.Sprintf("%s_%s_%s.txt", sanitize(roomName), sanitize(ownerIdent), datetime)
 
 		txt := dm.FormatExportTXT(export, loc)
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
