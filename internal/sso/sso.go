@@ -34,15 +34,50 @@ type AuthnRequest struct {
 	ACSURL       string
 }
 
+// samlAuthnRequest is the encoding/xml-marshallable representation of a
+// SAML 2.0 AuthnRequest. Attribute values are escaped by encoding/xml,
+// preventing XML injection via admin-configured Destination or Issuer fields.
+type samlAuthnRequest struct {
+	XMLName      xml.Name       `xml:"samlp:AuthnRequest"`
+	SAMLPNs      string         `xml:"xmlns:samlp,attr"`
+	SAMLNs       string         `xml:"xmlns:saml,attr"`
+	ID           string         `xml:"ID,attr"`
+	Version      string         `xml:"Version,attr"`
+	IssueInstant string         `xml:"IssueInstant,attr"`
+	Destination  string         `xml:"Destination,attr"`
+	Issuer       samlIssuer     `xml:"saml:Issuer"`
+	NameIDPolicy samlNamePolicy `xml:"samlp:NameIDPolicy"`
+}
+
+type samlIssuer struct {
+	Value string `xml:",chardata"`
+}
+
+type samlNamePolicy struct {
+	Format      string `xml:"Format,attr"`
+	AllowCreate bool   `xml:"AllowCreate,attr"`
+}
+
 func (r *AuthnRequest) BuildXML() ([]byte, error) {
-	xml := fmt.Sprintf(`<samlp:AuthnRequest xmlns:samlp="urn:oasis:names:tc:SAML:2.0:protocol" `+
-		`xmlns:saml="urn:oasis:names:tc:SAML:2.0:assertion" `+
-		`ID="%s" Version="2.0" IssueInstant="%s" Destination="%s">`+
-		`<saml:Issuer>%s</saml:Issuer>`+
-		`<samlp:NameIDPolicy Format="urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress" AllowCreate="true"/>`+
-		`</samlp:AuthnRequest>`,
-		r.ID, r.IssueInstant, r.Destination, r.Issuer)
-	return []byte(xml), nil
+	req := samlAuthnRequest{
+		SAMLPNs:      "urn:oasis:names:tc:SAML:2.0:protocol",
+		SAMLNs:       "urn:oasis:names:tc:SAML:2.0:assertion",
+		ID:           r.ID,
+		Version:      "2.0",
+		IssueInstant: r.IssueInstant,
+		Destination:  r.Destination,
+		Issuer:       samlIssuer{Value: r.Issuer},
+		NameIDPolicy: samlNamePolicy{
+			Format:      "urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress",
+			AllowCreate: true,
+		},
+	}
+	var buf bytes.Buffer
+	buf.WriteString(xml.Header)
+	if err := xml.NewEncoder(&buf).Encode(req); err != nil {
+		return nil, fmt.Errorf("encode saml authn request: %w", err)
+	}
+	return buf.Bytes(), nil
 }
 
 func GenerateOIDCState() (string, error) {
