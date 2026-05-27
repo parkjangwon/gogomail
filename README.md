@@ -24,6 +24,8 @@ GoGoMail is a production-grade, open-source mail platform built for organization
 - A drop-in Postfix/Dovecot replacement (it owns delivery, storage, and access in one process)
 - A hosted service (you run it)
 
+GoGoMail ships as a single static binary with 24 selectable runtime modes. Run every role in one process on a laptop for development, then promote individual modes to dedicated containers as load grows — all by changing Docker Compose profiles, environment variables, and replica counts. No code changes between topologies.
+
 ---
 
 ## Quick start
@@ -78,6 +80,18 @@ docker compose -f docker-compose.scale.yml --profile ops run --rm migrate
 ```
 
 See [`docker/DEPLOYMENT.md`](docker/DEPLOYMENT.md) and [`docs/SCALING.md`](docs/SCALING.md) for production topology.
+
+### Deployment topology
+
+The same binary, the same image, the same config format — at every scale:
+
+| Topology | When to use |
+|---|---|
+| `docker-compose.dev.yml` (all-in-one) | Local development — every role in one process |
+| `docker-compose.scale.yml` + profiles | Single-site production — roles split across containers |
+| Kubernetes (`k8s/` manifests or `helm/gogomail`) | Multi-node, HPA autoscaling, rolling deploys, PodDisruptionBudgets |
+
+Each of the 24 runtime modes scales independently. Singleton workers coordinate via PostgreSQL advisory locks and Redis leases — no external coordination service required.
 
 ---
 
@@ -213,7 +227,6 @@ All GoGoMail write actions require a human-readable `reason`; destructive operat
 | OpenAPI contract | [docs/openapi.yaml](docs/openapi.yaml) |
 | Roadmap | [docs/backend-roadmap.md](docs/backend-roadmap.md) |
 | User MCP policy notes | [docs/USER_MCP.md](docs/USER_MCP.md) |
-| Current implementation status | [docs/CURRENT_STATUS.md](docs/CURRENT_STATUS.md) |
 
 ---
 
