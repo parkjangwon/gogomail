@@ -37,6 +37,15 @@ func handleLDAPSync(w http.ResponseWriter, r *http.Request, service AdminService
 	if !ok {
 		return
 	}
+	domain, err := service.GetDomain(r.Context(), id)
+	if err != nil {
+		writeError(w, http.StatusNotFound, "domain not found")
+		return
+	}
+	if err := requiresCompanyAccess(r.Context(), domain.CompanyID); err != nil {
+		writeError(w, http.StatusForbidden, "access denied")
+		return
+	}
 	syncType, ok := parseBoundedAdminQuery(w, r, "sync_type")
 	if !ok {
 		return
@@ -66,6 +75,15 @@ func handleLDAPSyncHistory(w http.ResponseWriter, r *http.Request, service Admin
 	}
 	id, ok := parseBoundedAdminPathValue(w, r, "id")
 	if !ok {
+		return
+	}
+	domain, err := service.GetDomain(r.Context(), id)
+	if err != nil {
+		writeError(w, http.StatusNotFound, "domain not found")
+		return
+	}
+	if err := requiresCompanyAccess(r.Context(), domain.CompanyID); err != nil {
+		writeError(w, http.StatusForbidden, "access denied")
 		return
 	}
 	limit, ok := parseQueryLimit(w, r)
@@ -106,6 +124,15 @@ func handleLDAPSyncConflicts(w http.ResponseWriter, r *http.Request, service Adm
 	}
 	id, ok := parseBoundedAdminPathValue(w, r, "id")
 	if !ok {
+		return
+	}
+	domain, err := service.GetDomain(r.Context(), id)
+	if err != nil {
+		writeError(w, http.StatusNotFound, "domain not found")
+		return
+	}
+	if err := requiresCompanyAccess(r.Context(), domain.CompanyID); err != nil {
+		writeError(w, http.StatusForbidden, "access denied")
 		return
 	}
 	limit, ok := parseQueryLimit(w, r)
@@ -168,6 +195,15 @@ func handleResolveLDAPConflict(w http.ResponseWriter, r *http.Request, service A
 	if !ok {
 		return
 	}
+	domain, err := service.GetDomain(r.Context(), id)
+	if err != nil {
+		writeError(w, http.StatusNotFound, "domain not found")
+		return
+	}
+	if err := requiresCompanyAccess(r.Context(), domain.CompanyID); err != nil {
+		writeError(w, http.StatusForbidden, "access denied")
+		return
+	}
 	conflictID, ok := parseBoundedAdminPathValue(w, r, "conflictId")
 	if !ok {
 		return
@@ -220,6 +256,15 @@ func handleGetIdPConfig(w http.ResponseWriter, r *http.Request, service AdminSer
 	if !ok {
 		return
 	}
+	domain, err := service.GetDomain(r.Context(), id)
+	if err != nil {
+		writeError(w, http.StatusNotFound, "domain not found")
+		return
+	}
+	if err := requiresCompanyAccess(r.Context(), domain.CompanyID); err != nil {
+		writeError(w, http.StatusForbidden, "access denied")
+		return
+	}
 	cfg, err := service.GetDomainIdPConfig(r.Context(), id)
 	if err != nil {
 		slog.ErrorContext(r.Context(), "get idp config failed", "domain_id", id, "error", err)
@@ -236,6 +281,15 @@ func handleSetIdPConfig(w http.ResponseWriter, r *http.Request, service AdminSer
 	}
 	id, ok := parseBoundedAdminPathValue(w, r, "id")
 	if !ok {
+		return
+	}
+	domain, err := service.GetDomain(r.Context(), id)
+	if err != nil {
+		writeError(w, http.StatusNotFound, "domain not found")
+		return
+	}
+	if err := requiresCompanyAccess(r.Context(), domain.CompanyID); err != nil {
+		writeError(w, http.StatusForbidden, "access denied")
 		return
 	}
 	var cfg idprovider.Config
@@ -265,6 +319,15 @@ func handleDeleteIdPConfig(w http.ResponseWriter, r *http.Request, service Admin
 	}
 	id, ok := parseBoundedAdminPathValue(w, r, "id")
 	if !ok {
+		return
+	}
+	domain, err := service.GetDomain(r.Context(), id)
+	if err != nil {
+		writeError(w, http.StatusNotFound, "domain not found")
+		return
+	}
+	if err := requiresCompanyAccess(r.Context(), domain.CompanyID); err != nil {
+		writeError(w, http.StatusForbidden, "access denied")
 		return
 	}
 	if err := service.DeleteDomainIdPConfig(r.Context(), id); err != nil {
