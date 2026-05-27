@@ -1,6 +1,14 @@
 # gogomail current status
 
-Last updated: 2026-05-27 (Task 2: APNS private key file option)
+Last updated: 2026-05-27 (Task 3: Helm CHANGEME guard)
+
+## Task 3: Helm CHANGEME guard (2026-05-27)
+
+**Helm deployment safety**: Added validation to prevent accidental deployment with placeholder secret values
+- **helm/gogomail/templates/_helpers.tpl**: Added `gogomail.requireNotChangeme` helper function that validates secret values are not empty or contain "CHANGEME" placeholder; fails with descriptive error message if validation fails
+- **helm/gogomail/templates/secret.yaml**: Added three guard calls before data block to validate GOGOMAIL_DM_MASTER_KEY, GOGOMAIL_AUTH_JWT_SECRET, and GOGOMAIL_ADMIN_TOKEN
+- **Verification**: `helm template ./helm/gogomail` fails with "must be set to a non-placeholder value" error when using default values; `helm template` succeeds when all three secrets are set to real values via --set flags
+- **Acceptance criteria met**: All three secrets fail helm template when containing CHANGEME, pass when set to real values
 
 ## Task 2: APNS private key file option (2026-05-27)
 
