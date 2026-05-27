@@ -23,9 +23,9 @@ import {
 import { parseToPickerItems, pickerItemsToString } from '@/lib/mail-address';
 import { RecipientChips } from '@/components/RecipientChips';
 import { OrgPickerModal } from '@/components/OrgPickerModal';
-import { uploadAttachment, sendMessage } from '@/lib/api';
-import { stableId } from '@/lib/stableId';
-import { buildInlineQuoteHTML, toolbarBtnStyleInline, backendComposeIntent } from './readingPaneHelpers';
+import { buildInlineQuoteHTML, toolbarBtnStyleInline } from './readingPaneHelpers';
+import { useInlineComposeSend } from './useInlineComposeSend';
+import { useInlineComposeAttachments } from './useInlineComposeAttachments';
 
 interface InlineComposeProps {
   intent: 'reply' | 'reply_all' | 'forward';
@@ -55,9 +55,6 @@ export function InlineCompose({
   const [bcc, setBcc] = useState('');
   const [showCc, setShowCc] = useState(false);
   const [showBcc, setShowBcc] = useState(false);
-  const [sending, setSending] = useState(false);
-  const [sent, setSent] = useState(false);
-  const [attachments, setAttachments] = useState<Array<{ id: string; filename: string; size: number; uploading?: boolean }>>([]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
@@ -77,71 +74,24 @@ export function InlineCompose({
     autofocus: 'start',
   });
 
+  const { attachments, setAttachments, handleFileAttach, handleImageFile } =
+    useInlineComposeAttachments(editor);
+
+  const { sending, sent, doSend } = useInlineComposeSend({
+    editor,
+    to,
+    cc,
+    bcc,
+    subject,
+    messageId,
+    intent,
+    attachments,
+    onClose,
+  });
+
   function handleLinkInsert() {
     const url = window.prompt(t('compose.linkPrompt'));
     if (url && editor) editor.chain().focus().setLink({ href: url }).run();
-  }
-
-  async function handleImageFile(file: File) {
-    if (!editor) return;
-    let src: string;
-
-    if (file.size < 500 * 1024) {
-      src = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result as string);
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-      });
-    } else {
-      src = URL.createObjectURL(file);
-      uploadAttachment(file).then((att) => {
-        setAttachments((prev) => [...prev, { id: att.id, filename: att.filename, size: att.size }]);
-      }).catch(() => {});
-    }
-
-    editor.chain().focus().setImage({ src, alt: file.name }).run();
-  }
-
-  async function handleFileAttach(files: FileList) {
-    for (const file of Array.from(files)) {
-      const tempId = stableId('tmp');
-      setAttachments((prev) => [...prev, { id: tempId, filename: file.name, size: file.size, uploading: true }]);
-      try {
-        const att = await uploadAttachment(file);
-        setAttachments((prev) => prev.map((a) => (a.id === tempId ? { id: att.id, filename: att.filename, size: att.size } : a)));
-      } catch {
-        setAttachments((prev) => prev.filter((a) => a.id !== tempId));
-      }
-    }
-  }
-
-  function doSend() {
-    if (sending || !editor) return;
-
-    const toAddrs = parseAddrs(to);
-    const ccAddrs = parseAddrs(cc);
-    const bccAddrs = parseAddrs(bcc);
-    const normalizedIntent = backendComposeIntent(intent);
-    const isReplyOrForward = normalizedIntent !== 'new';
-
-    setSending(true);
-    sendMessage({
-      to: toAddrs,
-      cc: ccAddrs.length ? ccAddrs : undefined,
-      bcc: bccAddrs.length ? bccAddrs : undefined,
-      subject,
-      text_body: '',
-      html_body: editor.getHTML(),
-      ...(isReplyOrForward && { intent: normalizedIntent, source_message_id: messageId }),
-      attachment_ids: attachments.filter((a) => !a.uploading).map((a) => a.id),
-    })
-      .then(() => {
-        setSent(true);
-        setTimeout(() => onClose(), 1500);
-      })
-      .catch(() => {})
-      .finally(() => setSending(false));
   }
 
   const intentLabel = intent === 'reply' ? t('compose.replyLabel') : intent === 'reply_all' ? t('compose.replyAllLabel') : t('compose.forwardLabel');
