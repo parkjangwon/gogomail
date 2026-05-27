@@ -139,12 +139,8 @@ func RegisterCalendarRoutes(mux *http.ServeMux, handler *CalendarHandler, tokenM
 		if !ok {
 			return
 		}
-		if r.ContentLength > maxJSONBodyBytes {
-			writeError(w, http.StatusRequestEntityTooLarge, "request body too large")
-			return
-		}
 		var req caldavgw.CreateCalendarRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		if err := decodeJSONBody(r, &req); err != nil {
 			slog.WarnContext(r.Context(), "decode calendar create request failed", "error", err)
 			writeError(w, http.StatusBadRequest, "invalid calendar request")
 			return
@@ -197,12 +193,8 @@ func RegisterCalendarRoutes(mux *http.ServeMux, handler *CalendarHandler, tokenM
 			writeError(w, http.StatusBadRequest, "calendar id is required")
 			return
 		}
-		if r.ContentLength > maxJSONBodyBytes {
-			writeError(w, http.StatusRequestEntityTooLarge, "request body too large")
-			return
-		}
 		var req caldavgw.UpdateCalendarRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		if err := decodeJSONBody(r, &req); err != nil {
 			slog.WarnContext(r.Context(), "decode calendar update request failed", "error", err)
 			writeError(w, http.StatusBadRequest, "invalid calendar request")
 			return
@@ -405,16 +397,12 @@ func RegisterCalendarSubscriptionRoutes(mux *http.ServeMux, handler *CalendarHan
 		if !ok {
 			return
 		}
-		if r.ContentLength > maxJSONBodyBytes {
-			writeError(w, http.StatusRequestEntityTooLarge, "request body too large")
-			return
-		}
 		var req struct {
 			Name  string `json:"name"`
 			URL   string `json:"url"`
 			Color string `json:"color"`
 		}
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		if err := decodeJSONBody(r, &req); err != nil {
 			writeError(w, http.StatusBadRequest, "invalid request body")
 			return
 		}

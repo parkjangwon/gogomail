@@ -136,7 +136,7 @@ func makeCreateAlertConfigHandler(repo alert.Repository) http.HandlerFunc {
 		}
 
 		var req AlertConfigRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		if err := decodeJSONBody(r, &req); err != nil {
 			slog.WarnContext(r.Context(), "decode alert config create request failed", "error", err)
 			http.Error(w, "invalid JSON body", http.StatusBadRequest)
 			return
@@ -232,7 +232,7 @@ func makeUpdateAlertConfigHandler(repo alert.Repository) http.HandlerFunc {
 		}
 
 		var req AlertConfigRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		if err := decodeJSONBody(r, &req); err != nil {
 			slog.WarnContext(r.Context(), "decode alert config update request failed", "error", err)
 			http.Error(w, "invalid JSON body", http.StatusBadRequest)
 			return

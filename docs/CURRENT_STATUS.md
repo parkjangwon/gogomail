@@ -1,6 +1,18 @@
 # gogomail current status
 
-Last updated: 2026-05-27 (security hardening: password DoS cap, IdP error info leak)
+Last updated: 2026-05-28 (security hardening: replace bare json.Decoder with decodeJSONBody across httpapi)
+
+## Post-remediation hardening round 3 (2026-05-28)
+
+**Replace bare json.Decoder with decodeJSONBody in httpapi handlers (security/cso-audit-remediation)**
+- **internal/httpapi/alerts.go** (2): `makeCreateAlertConfigHandler`, `makeUpdateAlertConfigHandler`
+- **internal/httpapi/calendar.go** (3): `POST /api/v1/calendars`, `PATCH /api/v1/calendars/{id}`, `POST /api/v1/calendar-subscriptions`
+- **internal/httpapi/carddav.go** (2): `POST /api/mail/addressbooks`, `PATCH /api/mail/addressbooks/{id}`
+- **internal/httpapi/admin_alerts.go** (4): `handleCreateAlertRule`, `handleUpdateAlertRule`, `handleCreateAlertChannel`, `handleUpdateAlertChannel`
+- **internal/httpapi/orgchart.go** (4): `POST /units`, `PUT /units/{id}`, `POST /members`, `PATCH /members/{id}`
+- **internal/httpapi/scim.go** (3): SCIM uses `application/scim+json` — used inline `LimitReader+DisallowUnknownFields` instead of `decodeJSONBody`
+- `decodeJSONBody` enforces `application/json` Content-Type, 1MB body cap, `DisallowUnknownFields`, and single-value rejection
+- Updated `alerts_test.go` to set `Content-Type: application/json` on POST/PUT requests
 
 ## Post-remediation hardening round 2 (2026-05-27)
 

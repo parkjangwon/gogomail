@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
 	"log/slog"
 	"net/http"
 	"strconv"
@@ -70,7 +71,9 @@ func RegisterSCIMRoutes(mux *http.ServeMux, svc SCIMUserService, token string) {
 
 	mux.HandleFunc("POST /scim/v2/Users", scimAuth(token, func(w http.ResponseWriter, r *http.Request) {
 		var req scim.UserResource
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		scimDec := json.NewDecoder(io.LimitReader(r.Body, maxJSONBodyBytes+1))
+		scimDec.DisallowUnknownFields()
+		if err := scimDec.Decode(&req); err != nil {
 			writeSCIMError(w, http.StatusBadRequest, "invalidValue", "invalid request body")
 			return
 		}
@@ -103,7 +106,9 @@ func RegisterSCIMRoutes(mux *http.ServeMux, svc SCIMUserService, token string) {
 	mux.HandleFunc("PUT /scim/v2/Users/{id}", scimAuth(token, func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
 		var req scim.UserResource
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		scimDec := json.NewDecoder(io.LimitReader(r.Body, maxJSONBodyBytes+1))
+		scimDec.DisallowUnknownFields()
+		if err := scimDec.Decode(&req); err != nil {
 			writeSCIMError(w, http.StatusBadRequest, "invalidValue", "invalid request body")
 			return
 		}
@@ -125,7 +130,9 @@ func RegisterSCIMRoutes(mux *http.ServeMux, svc SCIMUserService, token string) {
 			Schemas    []string              `json:"schemas"`
 			Operations []scim.PatchOperation `json:"Operations"`
 		}
-		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		scimDec := json.NewDecoder(io.LimitReader(r.Body, maxJSONBodyBytes+1))
+		scimDec.DisallowUnknownFields()
+		if err := scimDec.Decode(&body); err != nil {
 			writeSCIMError(w, http.StatusBadRequest, "invalidValue", "invalid request body")
 			return
 		}

@@ -2,7 +2,6 @@ package httpapi
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"log/slog"
@@ -125,12 +124,8 @@ func RegisterContactRoutes(mux *http.ServeMux, handler *ContactHandler, tokenMan
 		if !ok {
 			return
 		}
-		if r.ContentLength > maxJSONBodyBytes {
-			writeError(w, http.StatusRequestEntityTooLarge, "request body too large")
-			return
-		}
 		var req carddavgw.CreateAddressBookRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		if err := decodeJSONBody(r, &req); err != nil {
 			writeError(w, http.StatusBadRequest, fmt.Errorf("decode address book create request: %w", err).Error())
 			return
 		}
@@ -181,12 +176,8 @@ func RegisterContactRoutes(mux *http.ServeMux, handler *ContactHandler, tokenMan
 			writeError(w, http.StatusBadRequest, "address book id is required")
 			return
 		}
-		if r.ContentLength > maxJSONBodyBytes {
-			writeError(w, http.StatusRequestEntityTooLarge, "request body too large")
-			return
-		}
 		var req carddavgw.UpdateAddressBookRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		if err := decodeJSONBody(r, &req); err != nil {
 			writeError(w, http.StatusBadRequest, fmt.Errorf("decode address book update request: %w", err).Error())
 			return
 		}
