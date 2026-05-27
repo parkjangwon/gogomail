@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gogomail/gogomail/internal/scim"
 )
@@ -28,15 +29,22 @@ type SCIMUserService interface {
 
 // RegisterSCIMRoutes mounts SCIM 2.0 /scim/v2 routes on mux, protected by Bearer token.
 func RegisterSCIMRoutes(mux *http.ServeMux, svc SCIMUserService, token string) {
-	mux.HandleFunc("GET /scim/v2/ServiceProviderConfig", scimAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	// Shared per-IP rate limiter: 20 req/min/IP prevents bearer-token brute-force.
+	// Applied before the auth check so failed attempts are also throttled.
+	limiter := NewAdminIPRateLimiter(20, time.Minute)
+	protect := func(h http.HandlerFunc) http.HandlerFunc {
+		return limiter.Middleware(http.HandlerFunc(scimAuth(token, h))).ServeHTTP
+	}
+
+	mux.HandleFunc("GET /scim/v2/ServiceProviderConfig", protect(func(w http.ResponseWriter, r *http.Request) {
 		writeSCIMJSON(w, http.StatusOK, scimServiceProviderConfig())
 	}))
 
-	mux.HandleFunc("GET /scim/v2/ResourceTypes", scimAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /scim/v2/ResourceTypes", protect(func(w http.ResponseWriter, r *http.Request) {
 		writeSCIMJSON(w, http.StatusOK, scimResourceTypes())
 	}))
 
-	mux.HandleFunc("GET /scim/v2/Users", scimAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /scim/v2/Users", protect(func(w http.ResponseWriter, r *http.Request) {
 		q := r.URL.Query()
 		var filter *scim.Filter
 		if raw := q.Get("filter"); raw != "" {
@@ -69,7 +77,7 @@ func RegisterSCIMRoutes(mux *http.ServeMux, svc SCIMUserService, token string) {
 		writeSCIMJSON(w, http.StatusOK, resp)
 	}))
 
-	mux.HandleFunc("POST /scim/v2/Users", scimAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("POST /scim/v2/Users", protect(func(w http.ResponseWriter, r *http.Request) {
 		var req scim.UserResource
 		scimDec := json.NewDecoder(io.LimitReader(r.Body, maxJSONBodyBytes+1))
 		scimDec.DisallowUnknownFields()
@@ -89,7 +97,7 @@ func RegisterSCIMRoutes(mux *http.ServeMux, svc SCIMUserService, token string) {
 		writeSCIMJSON(w, http.StatusCreated, created)
 	}))
 
-	mux.HandleFunc("GET /scim/v2/Users/{id}", scimAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /scim/v2/Users/{id}", protect(func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
 		user, err := svc.GetSCIMUser(r.Context(), id)
 		if err != nil {
@@ -103,7 +111,7 @@ func RegisterSCIMRoutes(mux *http.ServeMux, svc SCIMUserService, token string) {
 		writeSCIMJSON(w, http.StatusOK, user)
 	}))
 
-	mux.HandleFunc("PUT /scim/v2/Users/{id}", scimAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("PUT /scim/v2/Users/{id}", protect(func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
 		var req scim.UserResource
 		scimDec := json.NewDecoder(io.LimitReader(r.Body, maxJSONBodyBytes+1))
@@ -124,7 +132,7 @@ func RegisterSCIMRoutes(mux *http.ServeMux, svc SCIMUserService, token string) {
 		writeSCIMJSON(w, http.StatusOK, updated)
 	}))
 
-	mux.HandleFunc("PATCH /scim/v2/Users/{id}", scimAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("PATCH /scim/v2/Users/{id}", protect(func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
 		var body struct {
 			Schemas    []string              `json:"schemas"`
@@ -148,7 +156,7 @@ func RegisterSCIMRoutes(mux *http.ServeMux, svc SCIMUserService, token string) {
 		writeSCIMJSON(w, http.StatusOK, updated)
 	}))
 
-	mux.HandleFunc("DELETE /scim/v2/Users/{id}", scimAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("DELETE /scim/v2/Users/{id}", protect(func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
 		if err := svc.DeleteSCIMUser(r.Context(), id); err != nil {
 			if errors.Is(err, ErrSCIMUserNotFound) {

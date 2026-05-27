@@ -1,10 +1,11 @@
 package maildb
 
 import (
-	"errors"
 	"context"
 	"database/sql"
+	"errors"
 	"strings"
+	"time"
 
 	"github.com/gogomail/gogomail/internal/auth"
 	"github.com/gogomail/gogomail/internal/mail"
@@ -32,7 +33,7 @@ func (r *Repository) AuthenticateLDAP(ctx context.Context, username, password st
 		normalizedUserID = normalized
 	}
 	const query = `
-SELECT COALESCE(u.password_hash, '')
+SELECT u.id::text, COALESCE(u.password_hash, '')
 FROM users u
 JOIN domains d ON d.id = u.domain_id
 JOIN user_addresses ua ON ua.user_id = u.id
@@ -46,13 +47,26 @@ WHERE u.status = 'active'
   )
 ORDER BY ua.is_primary DESC
 LIMIT 1`
-	var passwordHash string
-	err := r.db.QueryRowContext(ctx, query, normalizedUsername, normalizedAddress, normalizedUserID).Scan(&passwordHash)
+	var userID, passwordHash string
+	err := r.db.QueryRowContext(ctx, query, normalizedUsername, normalizedAddress, normalizedUserID).Scan(&userID, &passwordHash)
 	if errors.Is(err, sql.ErrNoRows) {
 		return false, nil
 	}
 	if err != nil {
 		return false, err
 	}
-	return auth.VerifyPasswordHash(password, passwordHash), nil
+	verified, needsUpgrade := auth.VerifyPasswordHashResult(password, passwordHash)
+	if !verified {
+		return false, nil
+	}
+	if needsUpgrade {
+		upgradeCtx := context.WithoutCancel(ctx)
+		upgradePwd := password
+		go func() {
+			timeoutCtx, cancel := context.WithTimeout(upgradeCtx, 60*time.Second)
+			defer cancel()
+			r.upgradePasswordHash(timeoutCtx, userID, upgradePwd)
+		}()
+	}
+	return true, nil
 }

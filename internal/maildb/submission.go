@@ -1,11 +1,12 @@
 package maildb
 
 import (
-	"errors"
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/gogomail/gogomail/internal/auth"
 	"github.com/gogomail/gogomail/internal/mail"
@@ -72,8 +73,19 @@ LIMIT 1`
 		}
 		return smtpd.SubmissionUser{}, fmt.Errorf("authenticate submission user: %w", err)
 	}
-	if !auth.VerifyPasswordHash(password, passwordHash) {
+	verified, needsUpgrade := auth.VerifyPasswordHashResult(password, passwordHash)
+	if !verified {
 		return smtpd.SubmissionUser{}, fmt.Errorf("invalid submission credentials")
+	}
+	if needsUpgrade {
+		upgradeCtx := context.WithoutCancel(ctx)
+		upgradeUserID := user.UserID
+		upgradePwd := password
+		go func() {
+			timeoutCtx, cancel := context.WithTimeout(upgradeCtx, 60*time.Second)
+			defer cancel()
+			r.upgradePasswordHash(timeoutCtx, upgradeUserID, upgradePwd)
+		}()
 	}
 	addresses, err := r.submissionUserAddresses(ctx, user.UserID)
 	if err != nil {
