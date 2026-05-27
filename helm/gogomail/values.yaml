@@ -63,6 +63,14 @@ ingress:
     nginx.ingress.kubernetes.io/proxy-body-size: "32m"
     nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
     nginx.ingress.kubernetes.io/proxy-send-timeout: "300"
+    # Strip internal X-Gogomail-* identity headers before forwarding to the backend.
+    # External clients must not be able to spoof tenant attribution or billing records.
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      proxy_set_header X-Gogomail-Tenant-ID    "";
+      proxy_set_header X-Gogomail-Company-ID   "";
+      proxy_set_header X-Gogomail-Domain-ID    "";
+      proxy_set_header X-Gogomail-API-Key-ID   "";
+      proxy_set_header X-Gogomail-Principal-ID "";
   hosts:
     - host: mail.example.com
       paths:

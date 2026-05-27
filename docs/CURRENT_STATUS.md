@@ -1,6 +1,12 @@
 # gogomail current status
 
-Last updated: 2026-05-28 (security hardening: admin MFA verify missing rate limit)
+Last updated: 2026-05-28 (security hardening: strip X-Gogomail-* headers at nginx ingress)
+
+## Post-remediation hardening round 21 (2026-05-28)
+
+**X-Gogomail-* internal headers not stripped at ingress (spoofable by external clients)**
+- **docker/nginx-backend.conf** and **docker/nginx-single.conf**: The `X-Gogomail-Tenant-ID`, `X-Gogomail-Company-ID`, `X-Gogomail-Domain-ID`, `X-Gogomail-API-Key-ID`, and `X-Gogomail-Principal-ID` headers are consumed by the API metering layer (`apimeter`) to attribute usage to specific tenants. Nginx was forwarding client-supplied values verbatim, allowing an external client to falsify billing/usage records by sending arbitrary header values. Fixed by adding `proxy_set_header X-Gogomail-... ""` directives in all `location /` blocks — nginx overwrites whatever the client sent with an empty string before forwarding.
+- **k8s/ingress.yaml** and **helm/gogomail/values.yaml**: Same fix via `nginx.ingress.kubernetes.io/configuration-snippet` annotation for Kubernetes deployments.
 
 ## Post-remediation hardening round 20 (2026-05-28)
 
