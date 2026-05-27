@@ -164,6 +164,7 @@ func TestCreateAlertConfig(t *testing.T) {
 	RegisterAlertsRoutes(router, repo)
 
 	httpReq := httptest.NewRequest(http.MethodPost, "/admin/v1/alerts/configs", bytes.NewReader(body))
+	httpReq.Header.Set("Content-Type", "application/json")
 	httpReq = httpReq.WithContext(context.WithValue(httpReq.Context(), alertContextKey{}, companyID))
 	w := httptest.NewRecorder()
 
@@ -236,6 +237,7 @@ func TestUpdateAlertConfig(t *testing.T) {
 	RegisterAlertsRoutes(router, repo)
 
 	req := httptest.NewRequest(http.MethodPut, "/admin/v1/alerts/configs/"+cfg.ID.String(), bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
 	req = req.WithContext(context.WithValue(req.Context(), alertContextKey{}, companyID))
 	w := httptest.NewRecorder()
 

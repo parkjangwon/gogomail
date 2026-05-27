@@ -27,7 +27,7 @@ func handleCreateAlertRule(w http.ResponseWriter, r *http.Request, svc AdminServ
 		CreatedBy            string  `json:"created_by"`
 	}
 
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	if err := decodeJSONBody(r, &req); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
@@ -118,7 +118,7 @@ func handleUpdateAlertRule(w http.ResponseWriter, r *http.Request, svc AdminServ
 		IsEnabled            bool    `json:"is_enabled"`
 	}
 
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	if err := decodeJSONBody(r, &req); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
@@ -187,7 +187,7 @@ func handleCreateAlertChannel(w http.ResponseWriter, r *http.Request, svc AdminS
 		CreatedBy   string                   `json:"created_by"`
 	}
 
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	if err := decodeJSONBody(r, &req); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
@@ -244,7 +244,7 @@ func handleUpdateAlertChannel(w http.ResponseWriter, r *http.Request, svc AdminS
 		IsEnabled bool                     `json:"is_enabled"`
 	}
 
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	if err := decodeJSONBody(r, &req); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid request body")
 		return
 	}

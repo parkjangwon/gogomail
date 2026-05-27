@@ -74,7 +74,7 @@ func RegisterOrgChartRoutes(mux *http.ServeMux, service OrgChartService, adminTo
 		}
 
 		var req orgchart.OrganizationUnit
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		if err := decodeJSONBody(r, &req); err != nil {
 			writeError(w, http.StatusBadRequest, "invalid JSON body")
 			return
 		}
@@ -104,7 +104,7 @@ func RegisterOrgChartRoutes(mux *http.ServeMux, service OrgChartService, adminTo
 		}
 
 		var req orgchart.OrganizationUnit
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		if err := decodeJSONBody(r, &req); err != nil {
 			writeError(w, http.StatusBadRequest, "invalid JSON body")
 			return
 		}
@@ -174,7 +174,7 @@ func RegisterOrgChartRoutes(mux *http.ServeMux, service OrgChartService, adminTo
 			Role   string `json:"role"`
 			Title  string `json:"title"`
 		}
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		if err := decodeJSONBody(r, &req); err != nil {
 			writeError(w, http.StatusBadRequest, "invalid JSON body")
 			return
 		}
@@ -207,7 +207,7 @@ func RegisterOrgChartRoutes(mux *http.ServeMux, service OrgChartService, adminTo
 			Title string `json:"title"`
 			Role  string `json:"role"`
 		}
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		if err := decodeJSONBody(r, &req); err != nil {
 			writeError(w, http.StatusBadRequest, "invalid JSON body")
 			return
 		}
