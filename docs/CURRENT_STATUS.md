@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-28 (security hardening: admin IDOR bulk fix — 39 handlers)
+Last updated: 2026-05-28 (security hardening: admin IDOR bulk fix — 40 handlers)
 
 ## Post-remediation hardening round 11 (2026-05-28)
 
@@ -10,6 +10,7 @@ Last updated: 2026-05-28 (security hardening: admin IDOR bulk fix — 39 handler
 - **internal/httpapi/admin_security_config.go** (10 handlers): spam-filter, quota-summary, routing-rules, SSO config/test endpoints were unprotected.
 - **internal/httpapi/admin_system.go** (8 handlers): security posture, global signature, legal holds, SCIM status, seat usage endpoints fixed (follow-up from round 10 discovery).
 - **internal/httpapi/admin_user.go** (1 handler): `GET /admin/v1/companies/{id}/mfa/stats` fixed.
+- **internal/httpapi/admin_helpers.go** (1 handler): `GET /admin/v1/companies/{id}/security/login-audits` (`handleCompanyLoginAudits`) fixed.
 
 Pattern applied consistently: `requiresCompanyAccess(ctx, id)` immediately after `parseBoundedAdminPathValue` succeeds, returning HTTP 403 on cross-tenant access. 39 handlers total. Domain-scoped handlers were not modified.
 

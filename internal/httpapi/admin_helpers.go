@@ -1084,6 +1084,10 @@ func handleCompanyLoginAudits(service loginAuditLister) http.HandlerFunc {
 		if !ok {
 			return
 		}
+		if err := requiresCompanyAccess(r.Context(), companyID); err != nil {
+			writeError(w, http.StatusForbidden, "access denied")
+			return
+		}
 		limit, ok := parseQueryLimit(w, r)
 		if !ok {
 			return
