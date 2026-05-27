@@ -4,8 +4,9 @@ Last updated: 2026-05-28 (security hardening: MFA IP spoofing fix)
 
 ## Post-remediation hardening round 5 (2026-05-28)
 
-**MFA CIDR exemption IP spoofing fix**
+**MFA IP spoofing fix + calendar subscription SSRF**
 - **internal/httpapi/mail_mfa.go**: `extractClientIP` previously trusted `X-Forwarded-For` unconditionally, letting any caller fake their IP and potentially bypass MFA CIDR exemptions. Now uses the same trusted-proxy check as `adminClientIP`: `X-Forwarded-For` is only honoured when the TCP peer is a loopback or RFC1918 address (i.e., a trusted reverse proxy).
+- **internal/httpapi/calendar.go**: `POST /api/v1/calendar-subscriptions` and the fetch endpoint only validated `http/https` scheme but did not block private/loopback IPs. An authenticated user could subscribe to `http://169.254.169.254/...` or any internal service. Both endpoints now call `webhookguard.ValidateOutboundHTTPURL` and use `GuardedHTTPClient` to prevent SSRF.
 
 ## Post-remediation hardening round 4 (2026-05-28)
 
