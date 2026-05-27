@@ -85,6 +85,11 @@ func handleGetAlertRule(w http.ResponseWriter, r *http.Request, svc AdminService
 		return
 	}
 
+	if err := requiresCompanyAccess(r.Context(), rule.CompanyID); err != nil {
+		writeError(w, http.StatusForbidden, "access denied")
+		return
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(rule)
 }
@@ -116,6 +121,16 @@ func handleListAlertRules(w http.ResponseWriter, r *http.Request, svc AdminServi
 func handleUpdateAlertRule(w http.ResponseWriter, r *http.Request, svc AdminService) {
 	ruleID, ok := parseBoundedAdminPathValue(w, r, "ruleid")
 	if !ok {
+		return
+	}
+
+	existing, err := svc.GetAlertRule(r.Context(), ruleID)
+	if err != nil {
+		writeError(w, http.StatusNotFound, "alert rule not found")
+		return
+	}
+	if err := requiresCompanyAccess(r.Context(), existing.CompanyID); err != nil {
+		writeError(w, http.StatusForbidden, "access denied")
 		return
 	}
 
@@ -167,6 +182,16 @@ func handleUpdateAlertRule(w http.ResponseWriter, r *http.Request, svc AdminServ
 func handleDeleteAlertRule(w http.ResponseWriter, r *http.Request, svc AdminService) {
 	ruleID, ok := parseBoundedAdminPathValue(w, r, "ruleid")
 	if !ok {
+		return
+	}
+
+	existing, err := svc.GetAlertRule(r.Context(), ruleID)
+	if err != nil {
+		writeError(w, http.StatusNotFound, "alert rule not found")
+		return
+	}
+	if err := requiresCompanyAccess(r.Context(), existing.CompanyID); err != nil {
+		writeError(w, http.StatusForbidden, "access denied")
 		return
 	}
 
@@ -279,6 +304,10 @@ func handleUpdateAlertChannel(w http.ResponseWriter, r *http.Request, svc AdminS
 		writeError(w, http.StatusNotFound, "alert channel not found")
 		return
 	}
+	if err := requiresCompanyAccess(r.Context(), channel.CompanyID); err != nil {
+		writeError(w, http.StatusForbidden, "access denied")
+		return
+	}
 
 	channel.Name = req.Name
 	channel.IsEnabled = req.IsEnabled
@@ -307,6 +336,16 @@ func handleUpdateAlertChannel(w http.ResponseWriter, r *http.Request, svc AdminS
 func handleDeleteAlertChannel(w http.ResponseWriter, r *http.Request, svc AdminService) {
 	channelID, ok := parseBoundedAdminPathValue(w, r, "channelid")
 	if !ok {
+		return
+	}
+
+	existing, err := svc.GetAlertChannel(r.Context(), channelID)
+	if err != nil {
+		writeError(w, http.StatusNotFound, "alert channel not found")
+		return
+	}
+	if err := requiresCompanyAccess(r.Context(), existing.CompanyID); err != nil {
+		writeError(w, http.StatusForbidden, "access denied")
 		return
 	}
 

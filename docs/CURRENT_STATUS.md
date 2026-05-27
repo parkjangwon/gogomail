@@ -1,6 +1,15 @@
 # gogomail current status
 
-Last updated: 2026-05-28 (security hardening: operations/alerts IDOR sweep)
+Last updated: 2026-05-28 (security hardening: alert rule/channel IDOR sweep)
+
+## Post-remediation hardening round 28 (2026-05-28)
+
+**IDOR sweep: admin_alerts.go — alert rule/channel by ID endpoints (5 handlers)**
+- `handleGetAlertRule`: `AlertRule.CompanyID` present; no isolation. Added `requiresCompanyAccess(r.Context(), rule.CompanyID)` after `GetAlertRule`.
+- `handleUpdateAlertRule`: No isolation. Added `GetAlertRule → requiresCompanyAccess` before applying updates.
+- `handleDeleteAlertRule`: No isolation. Added `GetAlertRule → requiresCompanyAccess` before deletion.
+- `handleUpdateAlertChannel`: `GetAlertChannel` was already called; added `requiresCompanyAccess(r.Context(), channel.CompanyID)` immediately after.
+- `handleDeleteAlertChannel`: Added `GetAlertChannel → requiresCompanyAccess` before deletion.
 
 ## Post-remediation hardening round 27 (2026-05-28)
 
