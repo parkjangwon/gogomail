@@ -4,9 +4,10 @@ Last updated: 2026-05-28 (security hardening: SAML error leak fix, JMAP Content-
 
 ## Post-remediation hardening round 4 (2026-05-28)
 
-**SAML information leak + JMAP RFC compliance**
+**SAML info leak, JMAP RFC compliance, invite password cap**
 - **internal/httpapi/sso.go**: SAML signature verification failure no longer returns the raw error string to the client (prevented oracle-style information disclosure on the ACS endpoint). Error now logged via `slog.WarnContext` with domain_id; generic message returned to caller.
 - **internal/jmap/handler.go**: `ServeAPI` now enforces `Content-Type: application/json` per RFC 8620 §3.3. Missing or non-JSON content type returns 400 `notJSON` immediately, before body parsing.
+- **internal/httpapi/admin_user.go**: Invite-accept endpoint (`POST /admin/invite/{token}/accept`) now caps password at 1024 bytes (same limit as change-password and reset-password) to prevent CPU DoS via PBKDF2. Internal salt/hash errors are now logged via slog and return a generic 500 instead of leaking the error string.
 
 ## Post-remediation hardening round 3 (2026-05-28)
 
