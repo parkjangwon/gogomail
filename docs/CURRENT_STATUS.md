@@ -1,6 +1,14 @@
 # gogomail current status
 
-Last updated: 2026-05-28 (security hardening: invite endpoint IDOR fix)
+Last updated: 2026-05-28 (security hardening: broad IDOR sweep across domain/policy/usage handlers)
+
+## Post-remediation hardening round 26 (2026-05-28)
+
+**IDOR sweep: domain stats/dns-check, security/access/usage policy handlers (21 endpoints)**
+- **admin_domain.go**: `GET /admin/v1/domains/{id}/stats`, `GET /admin/v1/domains/{id}/dns-check`, `GET /admin/v1/domains/{id}/dns-checks` — missing `requiresCompanyAccess`. Fixed with `GetDomain → requiresCompanyAccess`.
+- **admin_security_config.go**: 8 domain-scoped handler functions (`handleGetDomainSpamFilterPolicy`, `handlePutDomainSpamFilterPolicy`, `handleGetDomainRoutingRules`, `handlePutDomainRoutingRules`, `handleGetDomainSMTPPolicy`, `handlePutDomainSMTPPolicy`, `handleGetDomainDmarcSpfPolicy`, `handlePutDomainDmarcSpfPolicy`) — missing company isolation. Fixed with `GetDomain → requiresCompanyAccess`.
+- **admin_access_policy.go**: 8 domain-scoped handler functions (`handleGetDomainRetentionPolicy`, `handlePutDomainRetentionPolicy`, `handleGetDomainIPPolicy`, `handlePutDomainIPPolicy`, `handleGetDomainAuthPolicy`, `handlePutDomainAuthPolicy`, `handleGetDomainSecurityGovernancePolicy`, `handlePutDomainSecurityGovernancePolicy`) — missing company isolation. Fixed with `GetDomain → requiresCompanyAccess`.
+- **admin_usage.go**: `GET/POST /admin/v1/quota-alert-thresholds` and `GET/PATCH/DELETE /admin/v1/quota-alert-thresholds/{id}` and `GET /admin/v1/quota-alerts/{id}` — `QuotaAlertThresholdView` and `QuotaAlertView` both have `CompanyID`; GET/PATCH/DELETE by ID had no isolation. Fixed by fetching the resource first and calling `requiresCompanyAccess(r.Context(), threshold.CompanyID)` (or `alert.CompanyID`). POST (create) checks `req.CompanyID` before creating.
 
 ## Post-remediation hardening round 25 (2026-05-28)
 

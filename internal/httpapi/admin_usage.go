@@ -731,6 +731,10 @@ func registerUsageAndQuotaRoutes(mux *http.ServeMux, service AdminService, admin
 			writeError(w, http.StatusNotFound, err.Error())
 			return
 		}
+		if err := requiresCompanyAccess(r.Context(), threshold.CompanyID); err != nil {
+			writeError(w, http.StatusForbidden, "access denied")
+			return
+		}
 		writeJSON(w, http.StatusOK, map[string]any{"quota_alert_threshold": threshold})
 	}))
 
@@ -743,6 +747,10 @@ func registerUsageAndQuotaRoutes(mux *http.ServeMux, service AdminService, admin
 		var req maildb.CreateQuotaAlertThresholdRequest
 		if err := decodeJSONBody(r, &req); err != nil {
 			writeError(w, http.StatusBadRequest, "invalid JSON body")
+			return
+		}
+		if err := requiresCompanyAccess(r.Context(), req.CompanyID); err != nil {
+			writeError(w, http.StatusForbidden, "access denied")
 			return
 		}
 		threshold, err := service.CreateQuotaAlertThreshold(r.Context(), req)
@@ -761,6 +769,15 @@ func registerUsageAndQuotaRoutes(mux *http.ServeMux, service AdminService, admin
 		}
 		id, ok := parseBoundedAdminPathValue(w, r, "id")
 		if !ok {
+			return
+		}
+		existing, err := service.GetQuotaAlertThreshold(r.Context(), id)
+		if err != nil {
+			writeError(w, http.StatusNotFound, err.Error())
+			return
+		}
+		if err := requiresCompanyAccess(r.Context(), existing.CompanyID); err != nil {
+			writeError(w, http.StatusForbidden, "access denied")
 			return
 		}
 		var req maildb.UpdateQuotaAlertThresholdRequest
@@ -783,6 +800,15 @@ func registerUsageAndQuotaRoutes(mux *http.ServeMux, service AdminService, admin
 		}
 		id, ok := parseBoundedAdminPathValue(w, r, "id")
 		if !ok {
+			return
+		}
+		existing, err := service.GetQuotaAlertThreshold(r.Context(), id)
+		if err != nil {
+			writeError(w, http.StatusNotFound, err.Error())
+			return
+		}
+		if err := requiresCompanyAccess(r.Context(), existing.CompanyID); err != nil {
+			writeError(w, http.StatusForbidden, "access denied")
 			return
 		}
 		if err := service.DeleteQuotaAlertThreshold(r.Context(), id); err != nil {
@@ -857,6 +883,10 @@ func registerUsageAndQuotaRoutes(mux *http.ServeMux, service AdminService, admin
 		alert, err := service.GetQuotaAlert(r.Context(), id)
 		if err != nil {
 			writeError(w, http.StatusNotFound, err.Error())
+			return
+		}
+		if err := requiresCompanyAccess(r.Context(), alert.CompanyID); err != nil {
+			writeError(w, http.StatusForbidden, "access denied")
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"quota_alert": alert})
