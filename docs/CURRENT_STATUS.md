@@ -21,6 +21,7 @@ Last updated: 2026-05-27
 - Extracted `useMessageListSelection` (bulk-select state, shift-click range, Escape/Ctrl+A/action-key shortcuts, row keyboard nav) and `useContactHoverCard` (hover card state + debounced timers) from `MessageList.tsx` (669→~520 lines); hooks live in `apps/webmail/src/components/message-list/`.
 - Extracted `useMailCompose` (composeContext, openCompose/closeCompose, pendingCompose) and `useMailNav` (activeApp + localStorage/URL persist, activeFolderId, selectedMessageId) from `mail/page.tsx` (1961→1934 lines); hooks live in `apps/webmail/src/app/mail/`.
 - Extracted `useComposeRecipients` (to/cc/bcc/from state, address loading, recent recipients) and `useComposeUI` (signature, emoji/org/send-dropdown toggles, confirmClose, imageResizeToolbar, trackOpens) from `ComposeModal.tsx` (1144→1115 lines); hooks live in `apps/webmail/src/components/compose/`.
+- Extracted `useDriveNodes` (file/folder data loading, refresh, usage/quota) and `useDriveInteractions` (rename, menu, new-folder, drag/drop, selection, share) from `DriveView.tsx` (1197→1118 lines); hooks live in `apps/webmail/src/components/drive/`.
 
 ## Platform summary
 
