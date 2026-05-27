@@ -68,7 +68,13 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 
 func registerAdminUtilityRoutes(mux *http.ServeMux, service AdminService, cfg adminRouteConfig, adminAuth func(http.HandlerFunc) http.HandlerFunc) {
 	// loginLimiter enforces a strict per-IP rate limit for login attempts (5 req/min).
-	loginLimiter := NewAdminIPRateLimiter(5, time.Minute)
+	// Uses Redis for distributed rate limiting when a Redis client is configured.
+	var loginLimiter adminLoginRateLimiter
+	if cfg.redisLoginClient != nil {
+		loginLimiter = NewRedisAdminLoginLimiter(cfg.redisLoginClient, 5, time.Minute)
+	} else {
+		loginLimiter = NewAdminIPRateLimiter(5, time.Minute)
+	}
 
 	// ─── Alert rules / channels / events ────────────────────────────────────────
 	mux.HandleFunc("POST /admin/v1/companies/{id}/alert-rules", adminAuth(func(w http.ResponseWriter, r *http.Request) {
