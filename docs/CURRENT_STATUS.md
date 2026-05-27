@@ -2,6 +2,16 @@
 
 Last updated: 2026-05-28 (security hardening: Round 34 — roles/bulk-domains/bulk-import IDOR)
 
+## Post-remediation hardening round 37 (2026-05-28)
+
+**IDOR sweep: admin_operations.go — mail-flow-logs list/stats endpoints**
+
+- **GET /admin/v1/mail-flow-logs**: Added `requiresCompanyAccess(req.CompanyID)` after `parseMailFlowLogListRequest`.
+- **GET /admin/v1/mail-flow-logs/stats**: Added `requiresCompanyAccess(req.CompanyID)` after `parseMailFlowLogStatsRequest`.
+- **GET /admin/v1/mail-flow-logs/daily-stats**: Added `requiresCompanyAccess(req.CompanyID)` after `parseMailFlowLogDailyStatsRequest`.
+
+Company_admin could enumerate mail-flow logs belonging to other companies by supplying `company_id` query param.
+
 ## Post-remediation hardening round 36 (2026-05-28)
 
 **IDOR sweep: admin_usage.go — api-usage aggregate list endpoints**
