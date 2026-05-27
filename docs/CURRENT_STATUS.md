@@ -2,6 +2,11 @@
 
 Last updated: 2026-05-28 (security hardening: MFA verify rate limit)
 
+## Post-remediation hardening round 10 (2026-05-28)
+
+**Alert admin endpoints missing tenant isolation (IDOR)**
+- **internal/httpapi/admin_alerts.go**: Five company-ID-scoped alert endpoints (`handleCreateAlertRule`, `handleListAlertRules`, `handleCreateAlertChannel`, `handleListAlertChannels`, `handleListAlertEvents`) accepted an arbitrary company ID in the URL path without verifying that the calling `company_admin` owns that company. A company_admin could enumerate or create alert rules/channels for another company. Fixed by adding `requiresCompanyAccess(r.Context(), companyID)` checks — consistent with the pattern used in `admin_company.go`, `admin_domain.go`, and `admin_user.go`.
+
 ## Post-remediation hardening round 9 (2026-05-28)
 
 **Alert channel webhook SSRF guard**
