@@ -30,6 +30,7 @@ func TestValidateAndFetchDoesNotVerifyVMCByURLPresence(t *testing.T) {
 
 	cache := NewLogoCache()
 	cache.client = server.Client()
+	cache.allowPrivateNetwork = true // test server runs on localhost
 	validator := NewValidator(fakeResolver{policy: &Policy{
 		Version: "BIMI1",
 		LogoURL: server.URL,
@@ -61,6 +62,7 @@ func TestFetchLogoCachesSHA256OfBody(t *testing.T) {
 
 	cache := NewLogoCache()
 	cache.client = server.Client()
+	cache.allowPrivateNetwork = true // test server runs on localhost
 	if _, err := cache.FetchLogo(context.Background(), server.URL); err != nil {
 		t.Fatalf("FetchLogo returned error: %v", err)
 	}

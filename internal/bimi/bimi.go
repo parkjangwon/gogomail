@@ -13,6 +13,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	webhookguard "github.com/gogomail/gogomail/internal/webhook"
 )
 
 // Policy represents a BIMI policy from DNS TXT record (RFC 6651).
@@ -109,11 +111,12 @@ func ParsePolicy(txt string) (*Policy, error) {
 
 // LogoCache caches fetched logo images with size/TTL limits.
 type LogoCache struct {
-	client   *http.Client
-	cache    map[string]*cachedLogo
-	mu       sync.RWMutex
-	maxSize  int           // Max logo size in bytes
-	cacheTTL time.Duration // Cache time-to-live
+	client              *http.Client
+	cache               map[string]*cachedLogo
+	mu                  sync.RWMutex
+	maxSize             int           // Max logo size in bytes
+	cacheTTL            time.Duration // Cache time-to-live
+	allowPrivateNetwork bool          // Set to true only in tests; bypasses SSRF guard
 }
 
 type cachedLogo struct {
@@ -135,11 +138,16 @@ func NewLogoCache() *LogoCache {
 	}
 }
 
-// FetchLogo fetches and caches logo from URL (HTTPS only, size-limited).
+// FetchLogo fetches and caches logo from URL (HTTPS only, size-limited, SSRF-guarded).
 func (lc *LogoCache) FetchLogo(ctx context.Context, logoURL string) ([]byte, error) {
-	// Validate HTTPS
+	// Validate HTTPS and reject private/internal addresses to prevent SSRF.
 	if !strings.HasPrefix(strings.ToLower(logoURL), "https://") {
 		return nil, fmt.Errorf("logo url must be https")
+	}
+	if _, err := webhookguard.ValidateOutboundHTTPURL(ctx, logoURL, webhookguard.OutboundURLGuardOptions{
+		AllowPrivateNetwork: lc.allowPrivateNetwork,
+	}); err != nil {
+		return nil, fmt.Errorf("logo url rejected: %w", err)
 	}
 
 	// Check cache
