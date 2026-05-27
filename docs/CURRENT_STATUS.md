@@ -2,6 +2,11 @@
 
 Last updated: 2026-05-28 (security hardening: MFA verify rate limit)
 
+## Post-remediation hardening round 8 (2026-05-28)
+
+**Tracking endpoint X-Forwarded-For spoofing fix**
+- **internal/httpapi/tracking.go**: `clientIP` used for email-open recording unconditionally trusted `X-Forwarded-For`, identical to the MFA IP spoofing bug fixed in round 5. Fixed with the same trusted-proxy check: XFF is only honoured when the TCP peer is loopback or RFC1918. Without the fix an external attacker could falsify the recorded IP address for email open events.
+
 ## Post-remediation hardening round 7 (2026-05-28)
 
 **MFA verify endpoint rate limit**
