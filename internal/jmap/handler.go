@@ -135,6 +135,13 @@ func (h *Handler) ServeAPI(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// RFC 8620 §3.3: Content-Type must be application/json.
+	ct := r.Header.Get("Content-Type")
+	if !strings.HasPrefix(ct, "application/json") {
+		writeJSONResponse(w, http.StatusBadRequest, map[string]string{"type": ErrNotJSON})
+		return
+	}
+
 	userID, ok := h.userIDFromBearer(r)
 	if !ok {
 		writeJSONResponse(w, http.StatusUnauthorized, map[string]string{"type": "unauthorized"})

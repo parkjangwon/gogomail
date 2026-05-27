@@ -1,6 +1,12 @@
 # gogomail current status
 
-Last updated: 2026-05-28 (security hardening: replace bare json.Decoder with decodeJSONBody across httpapi)
+Last updated: 2026-05-28 (security hardening: SAML error leak fix, JMAP Content-Type enforcement)
+
+## Post-remediation hardening round 4 (2026-05-28)
+
+**SAML information leak + JMAP RFC compliance**
+- **internal/httpapi/sso.go**: SAML signature verification failure no longer returns the raw error string to the client (prevented oracle-style information disclosure on the ACS endpoint). Error now logged via `slog.WarnContext` with domain_id; generic message returned to caller.
+- **internal/jmap/handler.go**: `ServeAPI` now enforces `Content-Type: application/json` per RFC 8620 §3.3. Missing or non-JSON content type returns 400 `notJSON` immediately, before body parsing.
 
 ## Post-remediation hardening round 3 (2026-05-28)
 
