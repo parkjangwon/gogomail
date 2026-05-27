@@ -1,6 +1,7 @@
 package maildb
 
 import (
+	"errors"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -405,7 +406,7 @@ WHERE i.message_id = $1::uuid
   AND m.status = 'active'
 LIMIT 1`
 	if err := tx.QueryRowContext(ctx, assign, messageID, mailboxID, userID).Scan(&uid, &modseq); err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return IMAPMessageUID{}, fmt.Errorf("ensure imap message uid for message %q in mailbox %q: %w", messageID, mailboxID, ErrIMAPMessageNotActive)
 		}
 		return IMAPMessageUID{}, fmt.Errorf("ensure imap message uid: %w", err)

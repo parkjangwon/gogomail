@@ -1,6 +1,7 @@
 package admin
 
 import (
+	"errors"
 	"context"
 	"database/sql"
 	"fmt"
@@ -29,7 +30,7 @@ func (r *Repository) GetAlertRule(ctx context.Context, ruleID string) (*AlertRul
 		 FROM alert_rules WHERE id = $1`,
 		ruleID,
 	).Scan(&rule.ID, &rule.CompanyID, &rule.AlertType, &rule.Name, &rule.Description, &rule.Threshold, &rule.CheckIntervalMinutes, &rule.IsEnabled, &rule.CreatedAt, &rule.CreatedBy)
-	if err == sql.ErrNoRows {
+	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrRoleNotFound
 	}
 	if err != nil {
@@ -126,7 +127,7 @@ func (r *Repository) GetAlertChannel(ctx context.Context, channelID string) (*Al
 		 FROM alert_channels WHERE id = $1`,
 		channelID,
 	).Scan(&channel.ID, &channel.CompanyID, &channel.ChannelType, &channel.Name, &configJSON, &channel.IsEnabled, &channel.CreatedAt, &channel.CreatedBy)
-	if err == sql.ErrNoRows {
+	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrPermissionNotFound
 	}
 	if err != nil {

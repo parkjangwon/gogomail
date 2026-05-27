@@ -78,7 +78,7 @@ LIMIT 1`
 		&draft.TrackOpens,
 		&scheduledAtText,
 	); err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return DraftForSend{}, fmt.Errorf("draft %q not found", draftID)
 		}
 		return DraftForSend{}, fmt.Errorf("get draft for send: %w", err)
@@ -386,7 +386,7 @@ RETURNING id::text, COALESCE(rfc_message_id, ''), subject, from_addr, from_name,
 		&draft.TextBody,
 		&draft.HTMLBody,
 	); err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			if !req.IfUpdatedAt.IsZero() {
 				// The draft exists (or the user_id/status check failed). To distinguish
 				// "not found" from "conflict" we check whether the draft still exists.
@@ -458,7 +458,7 @@ LIMIT 1`
 
 	var folderID string
 	if err := tx.QueryRowContext(ctx, query, userID).Scan(&folderID); err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return createDraftFolder(ctx, tx, userID)
 		}
 		return "", fmt.Errorf("lookup drafts folder: %w", err)
@@ -740,7 +740,7 @@ LIMIT 1`
 		&sender.Address,
 		&sender.DisplayName,
 	); err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return Sender{}, fmt.Errorf("sender address is not available for user %q", userID)
 		}
 		return Sender{}, fmt.Errorf("resolve draft sender address: %w", err)

@@ -1,6 +1,7 @@
 package maildb
 
 import (
+	"errors"
 	"context"
 	"database/sql"
 	"fmt"
@@ -50,7 +51,7 @@ LIMIT 1`
 
 	var source SourceThreadView
 	if err := r.db.QueryRowContext(ctx, query, userID, sourceMessageID).Scan(&source.MessageID, &source.InReplyTo, &source.ThreadID); err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return SourceThreadView{}, fmt.Errorf("source message %q not found", sourceMessageID)
 		}
 		return SourceThreadView{}, fmt.Errorf("read source thread: %w", err)

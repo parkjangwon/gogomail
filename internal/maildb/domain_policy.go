@@ -1,6 +1,7 @@
 package maildb
 
 import (
+	"errors"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -43,7 +44,7 @@ LIMIT 1`
 	var raw []byte
 	var updatedAt time.Time
 	if err := r.db.QueryRowContext(ctx, query, domainID).Scan(&raw, &updatedAt); err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return DomainPolicyView{}, fmt.Errorf("domain %q not found", domainID)
 		}
 		return DomainPolicyView{}, fmt.Errorf("read domain policy: %w", err)
@@ -107,7 +108,7 @@ LIMIT 1`
 	var raw []byte
 	var updatedAt time.Time
 	if err := r.db.QueryRowContext(ctx, query, userID).Scan(&domainID, &raw, &updatedAt); err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return DomainPolicyView{}, fmt.Errorf("user %q not found for domain policy", userID)
 		}
 		return DomainPolicyView{}, fmt.Errorf("read user domain policy: %w", err)

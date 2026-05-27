@@ -247,3 +247,9 @@ See `PROJECT_HARNESS.md` for development workflow.
 - **internal/httpapi/admin_rate_limiter_redis.go**: Redis rate limiter now fail-open on Redis error (warn log + allow) instead of fail-closed (429 for all logins)
 - **internal/config/config.go**: APNS key-file loading now clears env-var value before file read — missing/unreadable file can no longer silently fall back to inline env var
 - **internal/maildb/user_auth.go**: Legacy password hash upgrade now runs in a goroutine (`context.WithoutCancel`) — no longer blocks login response with 210k PBKDF2 iterations
+
+## Post-remediation hardening round 4 (2026-05-28)
+
+**Two code-quality / security refactors**
+- **internal/auth/jwt.go**: Removed redundant manual `alg == "HS256"` check before `ParseWithClaims`. golang-jwt's key function already rejects non-HMAC algorithms; the duplicate check added noise without additional security. The `typ` check (golang-jwt doesn't verify `typ`) and `iat`-future check (golang-jwt v5 doesn't enforce iat > now) are retained.
+- **44 files across maildb, drive, admin, apikeys, orgchart, idprovider, alert**: Replaced 94 occurrences of `err == sql.ErrNoRows` with `errors.Is(err, sql.ErrNoRows)`. Idiomatic Go 1.13+ style; future-proofs against driver changes that might wrap the error.

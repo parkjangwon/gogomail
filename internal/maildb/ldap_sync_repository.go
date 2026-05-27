@@ -1,6 +1,7 @@
 package maildb
 
 import (
+	"errors"
 	"context"
 	"database/sql"
 	"fmt"
@@ -232,7 +233,7 @@ WHERE id = $1`
 	err := r.db.QueryRowContext(ctx, query, runID).Scan(&run.ID, &run.DomainID, &run.SyncType, &run.Status, &run.CreatedCount, &run.UpdatedCount, &run.DeletedCount,
 		&run.ConflictCount, &run.ErrorCount, &run.ResolutionStrategy, &run.StartedAt, &run.CompletedAt,
 		&run.LastSuccessAt, &run.DurationMs, &run.ErrorMessage)
-	if err == sql.ErrNoRows {
+	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
 	if err != nil {
@@ -256,7 +257,7 @@ WHERE id = $1`
 	var conflict LDAPSyncConflictView
 	err := r.db.QueryRowContext(ctx, query, conflictID).Scan(&conflict.ID, &conflict.DomainID, &conflict.SyncRunID, &conflict.ObjectType, &conflict.ObjectID, &conflict.LDAPDN, &conflict.ConflictType,
 		&conflict.LocalValue, &conflict.LDAPValue, &conflict.Resolution, &conflict.ResolvedAt, &conflict.CreatedAt)
-	if err == sql.ErrNoRows {
+	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
 	if err != nil {
@@ -275,7 +276,7 @@ func (r *Repository) GetLastLDAPSyncTime(ctx context.Context, domainID uuid.UUID
 
 	var lastSync *time.Time
 	err := r.db.QueryRowContext(ctx, query, domainID, syncType).Scan(&lastSync)
-	if err == sql.ErrNoRows {
+	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
 	if err != nil {

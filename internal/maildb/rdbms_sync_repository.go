@@ -1,6 +1,7 @@
 package maildb
 
 import (
+	"errors"
 	"context"
 	"database/sql"
 	"fmt"
@@ -188,7 +189,7 @@ func (r *Repository) GetRDBMSSyncRun(ctx context.Context, runID uuid.UUID) (*RDB
 	)
 
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return nil, fmt.Errorf("sync run not found")
 		}
 		return nil, fmt.Errorf("failed to query sync run: %w", err)
@@ -322,7 +323,7 @@ func (r *Repository) GetRDBMSSyncConflict(ctx context.Context, conflictID uuid.U
 	)
 
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return nil, fmt.Errorf("conflict not found")
 		}
 		return nil, fmt.Errorf("failed to query conflict: %w", err)
@@ -368,7 +369,7 @@ func (r *Repository) GetLastRDBMSSyncTime(ctx context.Context, domainID uuid.UUI
 	var lastTime *time.Time
 	err := r.db.QueryRowContext(ctx, query, domainID, syncType).Scan(&lastTime)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil
 		}
 		return nil, fmt.Errorf("failed to query last sync time: %w", err)

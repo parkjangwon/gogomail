@@ -85,7 +85,7 @@ LIMIT 1`
 		&key.CreatedAt,
 		&key.UpdatedAt,
 	); err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return DKIMKey{}, fmt.Errorf("active dkim key for domain %q not found", domainID)
 		}
 		return DKIMKey{}, fmt.Errorf("lookup active dkim key: %w", err)
@@ -297,7 +297,7 @@ WHERE dk.id = $1`
 		&id, &domainID, &selector, &publicKeyDNS,
 		&companyID, &domainName, &domainDBID,
 	); err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return DKIMKeyDNSVerificationResult{}, fmt.Errorf("dkim key %q not found", keyID)
 		}
 		return DKIMKeyDNSVerificationResult{}, fmt.Errorf("lookup dkim key: %w", err)

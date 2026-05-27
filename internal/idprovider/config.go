@@ -1,6 +1,7 @@
 package idprovider
 
 import (
+	"errors"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -38,7 +39,7 @@ func (r *ConfigRepository) GetConfigByDomain(ctx context.Context, domainID strin
 
 	err := row.Scan(&providerType, &configJSON)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			// Fallback to database mode if no config exists
 			return &Config{
 				DomainID:     domainID,

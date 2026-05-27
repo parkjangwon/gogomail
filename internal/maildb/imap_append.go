@@ -1,6 +1,7 @@
 package maildb
 
 import (
+	"errors"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -89,7 +90,7 @@ LIMIT 1`
 		&target.DomainID,
 		&target.Address,
 	); err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return IMAPAppendTarget{}, fmt.Errorf("%w: %q", imapgw.ErrMailboxNotFound, mailboxID)
 		}
 		return IMAPAppendTarget{}, fmt.Errorf("resolve imap append target: %w", err)

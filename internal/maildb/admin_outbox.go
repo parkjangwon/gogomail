@@ -202,7 +202,7 @@ WHERE id = $1`
 		&lockedAt,
 		&processedAt,
 	); err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return OutboxEventView{}, fmt.Errorf("outbox event %q not found", id)
 		}
 		return OutboxEventView{}, fmt.Errorf("get outbox event: %w", err)

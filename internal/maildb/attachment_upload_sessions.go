@@ -1,6 +1,7 @@
 package maildb
 
 import (
+	"errors"
 	"context"
 	"database/sql"
 	"fmt"
@@ -331,7 +332,7 @@ RETURNING
 		&finalizedAt,
 		&canceledAt,
 	); err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return AttachmentUploadSession{}, fmt.Errorf("attachment upload session %q not found for cancellation", req.SessionID)
 		}
 		return AttachmentUploadSession{}, fmt.Errorf("cancel attachment upload session: %w", err)
@@ -384,7 +385,7 @@ WHERE user_id = $1
 
 	session, err := scanAttachmentUploadSession(r.db.QueryRowContext(ctx, query, strings.TrimSpace(req.UserID), strings.TrimSpace(req.SessionID)))
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return AttachmentUploadSession{}, fmt.Errorf("attachment upload session %q not found", req.SessionID)
 		}
 		return AttachmentUploadSession{}, fmt.Errorf("get attachment upload session: %w", err)
@@ -441,7 +442,7 @@ RETURNING
 		strings.TrimSpace(req.ChecksumSHA256),
 	))
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return AttachmentUploadSession{}, fmt.Errorf("attachment upload session %q not found for body storage", req.SessionID)
 		}
 		return AttachmentUploadSession{}, fmt.Errorf("store attachment upload session body: %w", err)
@@ -511,7 +512,7 @@ FOR UPDATE`
 		&session.CanceledAt,
 	)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return AttachmentUploadSession{}, fmt.Errorf("attachment upload session %q not found", req.SessionID)
 		}
 		return AttachmentUploadSession{}, fmt.Errorf("get session for chunk storage: %w", err)
@@ -604,7 +605,7 @@ func (r *Repository) FinalizeAttachmentUploadSession(ctx context.Context, req Fi
 		&attachment.CreatedAt,
 		&draftID,
 	); err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return Attachment{}, fmt.Errorf("attachment upload session %q not ready for finalization", req.SessionID)
 		}
 		return Attachment{}, fmt.Errorf("finalize attachment upload session: %w", err)

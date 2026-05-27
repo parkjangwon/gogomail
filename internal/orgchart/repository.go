@@ -1,6 +1,7 @@
 package orgchart
 
 import (
+	"errors"
 	"context"
 	"database/sql"
 	"fmt"
@@ -49,7 +50,7 @@ func (r *Repository) GetUnit(ctx context.Context, id string) (*OrganizationUnit,
 		&unit.Description, &unit.DisplayName, &unit.ManagerUserID, &unit.Status,
 		&unit.CreatedAt, &unit.UpdatedAt,
 	)
-	if err == sql.ErrNoRows {
+	if errors.Is(err, sql.ErrNoRows) {
 		return nil, fmt.Errorf("organization unit not found")
 	}
 	return &unit, err

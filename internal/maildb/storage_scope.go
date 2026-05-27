@@ -1,6 +1,7 @@
 package maildb
 
 import (
+	"errors"
 	"context"
 	"database/sql"
 	"fmt"
@@ -30,7 +31,7 @@ WHERE u.id = $1::uuid
   AND d.status = 'active'`
 	var scope UserStorageScope
 	if err := r.db.QueryRowContext(ctx, query, userID).Scan(&scope.CompanyID, &scope.DomainID, &scope.UserID); err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return UserStorageScope{}, fmt.Errorf("active user not found")
 		}
 		return UserStorageScope{}, fmt.Errorf("lookup user storage scope: %w", err)

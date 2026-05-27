@@ -38,7 +38,7 @@ WHERE u.id = $1::uuid
   AND d.status = 'active'`
 	var scope ObjectPathScope
 	if err := r.db.QueryRowContext(ctx, query, userID).Scan(&scope.CompanyID, &scope.DomainID, &scope.UserID); err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return ObjectPathScope{}, fmt.Errorf("active user not found")
 		}
 		return ObjectPathScope{}, fmt.Errorf("lookup drive object path scope: %w", err)
@@ -480,7 +480,7 @@ func (r *Repository) CreateFolder(ctx context.Context, req CreateFolderRequest) 
 		&node.UpdatedAt,
 	)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return Node{}, fmt.Errorf("active user or parent folder not found")
 		}
 		if isDriveNodeSiblingNameConflict(err) {
@@ -748,7 +748,7 @@ CROSS JOIN upload_stats`
 		&summary.PendingUploadBytes,
 	)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return UsageSummary{}, fmt.Errorf("drive usage user not found")
 		}
 		return UsageSummary{}, fmt.Errorf("get drive usage summary: %w", err)
@@ -810,7 +810,7 @@ WHERE n.id = $2::uuid
 		&node.UpdatedAt,
 	)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return Node{}, fmt.Errorf("drive node not found")
 		}
 		return Node{}, fmt.Errorf("get drive node: %w", err)
@@ -962,7 +962,7 @@ FROM updated`
 		&node.UpdatedAt,
 	)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return Node{}, fmt.Errorf("active drive node not found")
 		}
 		return Node{}, fmt.Errorf("rename drive node: %w", err)

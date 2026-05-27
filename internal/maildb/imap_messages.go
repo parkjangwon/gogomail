@@ -1,6 +1,7 @@
 package maildb
 
 import (
+	"errors"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -299,7 +300,7 @@ LIMIT 1`
 		&messageUID.UID,
 		&messageUID.ModSeq,
 	); err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return IMAPStoredMessage{}, fmt.Errorf("imap message uid %d not found", uid)
 		}
 		return IMAPStoredMessage{}, fmt.Errorf("get imap message: %w", err)
@@ -451,7 +452,7 @@ FOR UPDATE OF i, m`
 		&messageUID.UID,
 		&messageUID.ModSeq,
 	); err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return imapMessageRow{}, IMAPMessageUID{}, fmt.Errorf("imap message uid %d not found", uid)
 		}
 		return imapMessageRow{}, IMAPMessageUID{}, fmt.Errorf("scan imap message by uid: %w", err)

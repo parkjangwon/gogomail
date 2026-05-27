@@ -1,6 +1,7 @@
 package maildb
 
 import (
+	"errors"
 	"context"
 	"database/sql"
 	"fmt"
@@ -61,7 +62,7 @@ WHERE domain_id = $1::uuid`
 		&cfg.ACSURL, &cfg.JITProvisioning, &cfg.SessionTTLSeconds,
 		&cfg.CreatedAt, &cfg.UpdatedAt,
 	)
-	if err == sql.ErrNoRows {
+	if errors.Is(err, sql.ErrNoRows) {
 		return SSOConfig{}, fmt.Errorf("sso configuration not found")
 	}
 	return cfg, err

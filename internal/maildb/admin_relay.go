@@ -519,7 +519,7 @@ LIMIT 1`
 		&route.CreatedAt,
 		&route.UpdatedAt,
 	); err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return DeliveryRouteView{}, ErrDeliveryRouteNotFound
 		}
 		return DeliveryRouteView{}, fmt.Errorf("get delivery route for domain: %w", err)

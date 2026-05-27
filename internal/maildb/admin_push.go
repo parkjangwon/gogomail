@@ -166,7 +166,7 @@ WHERE id = $1::uuid`
 		&attempt.ProviderStatus,
 		&attempt.AttemptedAt,
 	); err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return PushNotificationAttemptView{}, fmt.Errorf("push notification attempt %q not found", id)
 		}
 		return PushNotificationAttemptView{}, fmt.Errorf("get push notification attempt: %w", err)

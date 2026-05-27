@@ -1,6 +1,7 @@
 package alert
 
 import (
+	"errors"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -49,7 +50,7 @@ func (r *DBRepository) GetConfig(ctx context.Context, id uuid.UUID) (*Config, er
 	).Scan(&cfg.ID, &cfg.CompanyID, (*string)(&cfg.AlertType), &cfg.Threshold, &cfg.Name, &cfg.Description,
 		&cfg.CheckIntervalMinutes, &cfg.IsEnabled, &cfg.CreatedAt, &cfg.UpdatedAt, &createdBy)
 
-	if err == sql.ErrNoRows {
+	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
 	if err != nil {

@@ -1,6 +1,7 @@
 package maildb
 
 import (
+	"errors"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -19,7 +20,7 @@ func (r *Repository) GetWebmailPreferences(ctx context.Context, userID string) (
 		userID,
 	).Scan(&raw)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return json.RawMessage("{}"), nil
 		}
 		return nil, fmt.Errorf("get webmail preferences: %w", err)

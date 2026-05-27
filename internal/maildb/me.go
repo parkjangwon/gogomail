@@ -1,6 +1,7 @@
 package maildb
 
 import (
+	"errors"
 	"context"
 	"crypto/rand"
 	"database/sql"
@@ -49,7 +50,7 @@ LIMIT 1`
 		&p.QuotaUsed,
 		&p.QuotaLimit,
 	)
-	if err == sql.ErrNoRows {
+	if errors.Is(err, sql.ErrNoRows) {
 		return UserProfile{}, fmt.Errorf("user not found")
 	}
 	if err != nil {
@@ -90,7 +91,7 @@ LIMIT 1`
 		&p.QuotaUsed,
 		&p.QuotaLimit,
 	)
-	if err == sql.ErrNoRows {
+	if errors.Is(err, sql.ErrNoRows) {
 		return UserProfile{}, fmt.Errorf("user not found")
 	}
 	if err != nil {
@@ -250,7 +251,7 @@ func (r *Repository) ChangeUserPassword(ctx context.Context, userID, currentPass
 		`SELECT COALESCE(password_hash, '') FROM users WHERE id = $1::uuid AND auth_source = 'local'`,
 		userID,
 	).Scan(&currentHash)
-	if err == sql.ErrNoRows {
+	if errors.Is(err, sql.ErrNoRows) {
 		return fmt.Errorf("user not found or external auth")
 	}
 	if err != nil {

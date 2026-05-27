@@ -1,6 +1,7 @@
 package drive
 
 import (
+	"errors"
 	"context"
 	"database/sql"
 	"fmt"
@@ -215,7 +216,7 @@ RETURNING
 		&failure.UpdatedAt,
 	)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return ObjectCleanupFailure{}, fmt.Errorf("pending drive object cleanup failure not found")
 		}
 		return ObjectCleanupFailure{}, fmt.Errorf("resolve drive object cleanup failure: %w", err)

@@ -1,6 +1,7 @@
 package maildb
 
 import (
+	"errors"
 	"context"
 	"database/sql"
 	"fmt"
@@ -40,7 +41,7 @@ LIMIT 1`
 
 	var view MessageDeliveryStatusView
 	if err := r.db.QueryRowContext(ctx, messageQuery, messageID, userID).Scan(&view.MessageID, &view.RFCMessageID); err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return MessageDeliveryStatusView{}, fmt.Errorf("message %q not found", messageID)
 		}
 		return MessageDeliveryStatusView{}, fmt.Errorf("lookup message delivery status owner: %w", err)

@@ -1,6 +1,7 @@
 package maildb
 
 import (
+	"errors"
 	"context"
 	"database/sql"
 	"fmt"
@@ -66,7 +67,7 @@ LIMIT 1`
 		&user.MustChangePassword,
 		&passwordHash,
 	); err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return smtpd.SubmissionUser{}, fmt.Errorf("submission user %q not found", username)
 		}
 		return smtpd.SubmissionUser{}, fmt.Errorf("authenticate submission user: %w", err)

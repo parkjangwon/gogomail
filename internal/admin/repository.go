@@ -1,6 +1,7 @@
 package admin
 
 import (
+	"errors"
 	"context"
 	"database/sql"
 	"fmt"
@@ -659,7 +660,7 @@ func (r *Repository) GetDomainSettings(ctx context.Context, domainID string) (*D
 		&settings.PasswordRequireSpecialChars, &settings.PasswordExpiryDays, &settings.UserRegistrationMode,
 		&settings.PasswordResetTokenTTLMinutes,
 		&settings.UpdatedAt, &updatedBy)
-	if err == sql.ErrNoRows {
+	if errors.Is(err, sql.ErrNoRows) {
 		return nil, fmt.Errorf("domain settings not found")
 	}
 	if err != nil {

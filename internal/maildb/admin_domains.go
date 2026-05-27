@@ -549,7 +549,7 @@ LIMIT 1`
 		&lastDNSCheckedAt,
 		&domain.CreatedAt,
 	); err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return DomainView{}, fmt.Errorf("domain %q not found", id)
 		}
 		return DomainView{}, fmt.Errorf("get domain: %w", err)
@@ -609,7 +609,7 @@ LIMIT 1`
 		&stats.Failed24h,
 		&stats.SuppressionCount,
 	); err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return DomainStatsView{}, fmt.Errorf("domain %q not found", id)
 		}
 		return DomainStatsView{}, fmt.Errorf("get domain stats: %w", err)
