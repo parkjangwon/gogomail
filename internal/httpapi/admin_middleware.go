@@ -320,6 +320,11 @@ func adminJWTOrStaticAuthWithEnvironment(token string, tokenMgr *auth.TokenManag
 		if tokenMgr != nil && got != "" {
 			if claims, err := verifyAdminJWTClaims(r.Context(), tokenMgr, got); err == nil {
 				if claims.Role == "company_admin" || claims.Role == "system_admin" {
+					// Reject MFA-pending tokens — the holder must complete MFA first.
+					if claims.TokenType == "mfa_pending" {
+						writeError(w, http.StatusUnauthorized, "mfa verification required")
+						return
+					}
 					r = r.WithContext(context.WithValue(r.Context(), adminContextKey{}, claims))
 					authorized = true
 				}
