@@ -168,6 +168,12 @@ func (h *webdavHandler) webdavUserID(w http.ResponseWriter, r *http.Request) (st
 			return "", false
 		}
 
+		// Reject MFA-pending tokens — the holder must complete TOTP before accessing WebDAV.
+		if claims.TokenType == "mfa_pending" {
+			http.Error(w, "mfa verification required", http.StatusUnauthorized)
+			return "", false
+		}
+
 		// Verify username matches the token claims
 		if username != claims.UserID {
 			http.Error(w, "username does not match token", http.StatusUnauthorized)
