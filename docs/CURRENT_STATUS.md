@@ -215,3 +215,10 @@ See `docs/ARCHITECTURE.md` for the architecture overview.
 See `docs/backend-roadmap.md` for the full feature roadmap.
 See `docs/openapi.yaml` for the REST API spec.
 See `PROJECT_HARNESS.md` for development workflow.
+
+## Post-remediation hardening (2026-05-27)
+
+**Three residual defects found in security branch and fixed:**
+- **internal/httpapi/admin_rate_limiter_redis.go**: Redis rate limiter now fail-open on Redis error (warn log + allow) instead of fail-closed (429 for all logins)
+- **internal/config/config.go**: APNS key-file loading now clears env-var value before file read — missing/unreadable file can no longer silently fall back to inline env var
+- **internal/maildb/user_auth.go**: Legacy password hash upgrade now runs in a goroutine (`context.WithoutCancel`) — no longer blocks login response with 210k PBKDF2 iterations

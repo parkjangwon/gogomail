@@ -719,13 +719,17 @@ func Load() Config {
 	if cfg.DeliveryConsumerDeadLetterStream == "" {
 		cfg.DeliveryConsumerDeadLetterStream = cfg.DeliveryStream + ".dead"
 	}
-	// Load APNS private key from file if specified
+	// Load APNS private key from file if a path is specified.
+	// The file path takes strict precedence: clear the env-var value first so
+	// that a misconfigured or missing mount never silently falls back to the
+	// old inline key. Validate() will surface a clear error if the file is
+	// unreadable or empty.
 	if cfg.APNsPrivateKeyFile != "" {
+		cfg.APNsPrivateKey = "" // clear env-var value; file must succeed
 		data, err := os.ReadFile(cfg.APNsPrivateKeyFile)
 		if err == nil {
 			cfg.APNsPrivateKey = string(data)
 		}
-		// Note: validation will check for errors reading the file if needed
 	}
 	return cfg
 }
