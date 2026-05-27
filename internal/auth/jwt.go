@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"github.com/golang-jwt/jwt/v5"
 )
 
 // RevocationChecker lets the TokenManager validate session_version on every request.
@@ -29,6 +31,7 @@ const (
 	maxJWTIdentityBytes         = 200
 )
 
+// Claims holds the parsed, validated fields of a GoGoMail JWT.
 type Claims struct {
 	Subject        string    `json:"sub"`
 	UserID         string    `json:"user_id"`
@@ -43,6 +46,19 @@ type Claims struct {
 	IssuedAt       int64     `json:"iat"`
 }
 
+// jwtInternalClaims is the wire format used with golang-jwt/jwt/v5.
+type jwtInternalClaims struct {
+	UserID         string `json:"user_id"`
+	DomainID       string `json:"domain_id"`
+	CompanyID      string `json:"company_id,omitempty"`
+	Role           string `json:"role"`
+	SessionVersion int64  `json:"session_ver,omitempty"`
+	TokenType      string `json:"token_type,omitempty"`
+	MFAVerified    bool   `json:"mfa_verified,omitempty"`
+	jwt.RegisteredClaims
+}
+
+// TokenManager issues and verifies GoGoMail JWTs.
 type TokenManager struct {
 	secret  []byte
 	now     func() time.Time
@@ -53,9 +69,8 @@ func (m *TokenManager) SetRevocationChecker(c RevocationChecker) {
 	m.checker = c
 }
 
-// VerifyFull validates the token signature and expiry, then checks session_version
-// against the RevocationChecker if one is configured. Use this on every authenticated
-// request so that RevokeAllSessions takes effect immediately.
+// VerifyFull validates signature + expiry, then checks session_version against the
+// RevocationChecker if one is configured.
 func (m *TokenManager) VerifyFull(ctx context.Context, token string) (Claims, error) {
 	claims, err := m.Verify(token)
 	if err != nil {
@@ -110,41 +125,45 @@ func (m *TokenManager) Sign(claims Claims, ttl time.Duration) (string, error) {
 	if claims.Subject == "" {
 		return "", fmt.Errorf("user_id is required")
 	}
-	claims.IssuedAt = now.Unix()
-	claims.Expiry = now.Add(ttl).Unix()
 
-	header := map[string]string{"alg": "HS256", "typ": "JWT"}
-	headerRaw, err := json.Marshal(header)
-	if err != nil {
-		return "", err
+	internal := jwtInternalClaims{
+		UserID:         claims.UserID,
+		DomainID:       claims.DomainID,
+		CompanyID:      claims.CompanyID,
+		Role:           claims.Role,
+		SessionVersion: claims.SessionVersion,
+		TokenType:      claims.TokenType,
+		MFAVerified:    claims.MFAVerified,
+		RegisteredClaims: jwt.RegisteredClaims{
+			Subject:   claims.Subject,
+			IssuedAt:  jwt.NewNumericDate(now),
+			ExpiresAt: jwt.NewNumericDate(now.Add(ttl)),
+		},
 	}
-	payloadRaw, err := json.Marshal(claims)
-	if err != nil {
-		return "", err
-	}
-
-	encodedHeader := base64.RawURLEncoding.EncodeToString(headerRaw)
-	encodedPayload := base64.RawURLEncoding.EncodeToString(payloadRaw)
-	signingInput := encodedHeader + "." + encodedPayload
-	signature := m.sign(signingInput)
-	return signingInput + "." + signature, nil
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, internal)
+	return token.SignedString(m.secret)
 }
 
-func (m *TokenManager) Verify(token string) (Claims, error) {
+func (m *TokenManager) Verify(tokenString string) (Claims, error) {
 	if m == nil || len(m.secret) == 0 {
 		return Claims{}, fmt.Errorf("token manager is not configured")
 	}
-	token = strings.TrimSpace(token)
-	if len(token) > maxJWTTokenBytes {
+	tokenString = strings.TrimSpace(tokenString)
+	if len(tokenString) > maxJWTTokenBytes {
 		return Claims{}, fmt.Errorf("jwt token is too long")
 	}
-	parts := strings.Split(token, ".")
+
+	// Segment-size checks before any decoding.
+	parts := strings.Split(tokenString, ".")
 	if len(parts) != 3 {
 		return Claims{}, fmt.Errorf("invalid jwt format")
 	}
 	if err := validateJWTSegments(parts); err != nil {
 		return Claims{}, err
 	}
+
+	// Decode and validate header manually so we can check typ and alg before
+	// handing off to golang-jwt (which only checks alg in the key function).
 	headerRaw, err := base64.RawURLEncoding.DecodeString(parts[0])
 	if err != nil {
 		return Claims{}, fmt.Errorf("decode jwt header: %w", err)
@@ -162,42 +181,76 @@ func (m *TokenManager) Verify(token string) (Claims, error) {
 	if header.Type != "" && !strings.EqualFold(header.Type, "JWT") {
 		return Claims{}, fmt.Errorf("unsupported jwt type")
 	}
-	signingInput := parts[0] + "." + parts[1]
-	expected := m.sign(signingInput)
-	if !hmac.Equal([]byte(expected), []byte(parts[2])) {
-		return Claims{}, fmt.Errorf("invalid jwt signature")
-	}
 
+	// Decode payload to check issued-at before handing off to golang-jwt.
 	payloadRaw, err := base64.RawURLEncoding.DecodeString(parts[1])
 	if err != nil {
 		return Claims{}, fmt.Errorf("decode jwt payload: %w", err)
 	}
-	var claims Claims
-	if err := json.Unmarshal(payloadRaw, &claims); err != nil {
+	var rawClaims struct {
+		IssuedAt int64 `json:"iat"`
+	}
+	if err := json.Unmarshal(payloadRaw, &rawClaims); err != nil {
 		return Claims{}, fmt.Errorf("decode jwt claims: %w", err)
 	}
-	claims.UserID, err = normalizeJWTIdentity(claims.UserID)
-	if err != nil {
-		return Claims{}, err
-	}
-	claims.Subject, err = normalizeJWTIdentity(claims.Subject)
-	if err != nil {
-		return Claims{}, err
-	}
-	if claims.UserID == "" {
-		claims.UserID = claims.Subject
-	}
-	if claims.UserID == "" {
-		return Claims{}, fmt.Errorf("jwt missing user_id")
-	}
-	if claims.IssuedAt > 0 && claims.IssuedAt > m.now().UTC().Add(time.Minute).Unix() {
+	if rawClaims.IssuedAt > 0 && rawClaims.IssuedAt > m.now().UTC().Add(time.Minute).Unix() {
 		return Claims{}, fmt.Errorf("jwt issued_at is in the future")
 	}
-	if claims.Expiry <= m.now().UTC().Unix() {
-		return Claims{}, fmt.Errorf("jwt expired")
+
+	// Use golang-jwt for signature + expiry validation with the mocked clock.
+	var internal jwtInternalClaims
+	token, err := jwt.ParseWithClaims(tokenString, &internal, func(t *jwt.Token) (interface{}, error) {
+		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unsupported jwt algorithm: %v", t.Header["alg"])
+		}
+		return m.secret, nil
+	}, jwt.WithTimeFunc(m.now), jwt.WithLeeway(0))
+	if err != nil {
+		return Claims{}, fmt.Errorf("invalid jwt: %w", err)
 	}
-	claims.Expires = time.Unix(claims.Expiry, 0).UTC()
-	return claims, nil
+	if !token.Valid {
+		return Claims{}, fmt.Errorf("invalid jwt")
+	}
+
+	userID, err := normalizeJWTIdentity(internal.UserID)
+	if err != nil {
+		return Claims{}, err
+	}
+	subject, err := normalizeJWTIdentity(internal.Subject)
+	if err != nil {
+		return Claims{}, err
+	}
+	if userID == "" {
+		userID = subject
+	}
+	if userID == "" {
+		return Claims{}, fmt.Errorf("jwt missing user_id")
+	}
+
+	expiry := int64(0)
+	var expires time.Time
+	if internal.ExpiresAt != nil {
+		expiry = internal.ExpiresAt.Unix()
+		expires = internal.ExpiresAt.Time
+	}
+	issuedAt := int64(0)
+	if internal.IssuedAt != nil {
+		issuedAt = internal.IssuedAt.Unix()
+	}
+
+	return Claims{
+		Subject:        subject,
+		UserID:         userID,
+		DomainID:       internal.DomainID,
+		CompanyID:      internal.CompanyID,
+		Role:           internal.Role,
+		SessionVersion: internal.SessionVersion,
+		TokenType:      internal.TokenType,
+		MFAVerified:    internal.MFAVerified,
+		Expires:        expires,
+		Expiry:         expiry,
+		IssuedAt:       issuedAt,
+	}, nil
 }
 
 func validateJWTSegments(parts []string) error {
@@ -227,6 +280,8 @@ func normalizeJWTIdentity(value string) (string, error) {
 	return value, nil
 }
 
+// sign computes the HMAC-SHA256 signature for a JWT signing input.
+// Kept for test helpers that craft raw tokens.
 func (m *TokenManager) sign(input string) string {
 	mac := hmac.New(sha256.New, m.secret)
 	_, _ = mac.Write([]byte(input))

@@ -1,6 +1,17 @@
 # gogomail current status
 
-Last updated: 2026-05-27 (Task 4: RDBMS identity provider SQL allowlist)
+Last updated: 2026-05-27 (Task 5: JWT 내부 구현 → golang-jwt/jwt/v5)
+
+## Task 5: JWT 내부 구현 → golang-jwt/jwt/v5 (2026-05-27)
+
+**JWT library replacement**: Replaced hand-rolled HMAC-SHA256 JWT implementation with `golang-jwt/jwt/v5`
+- **internal/auth/jwt.go**: Replaced manual `crypto/hmac`/`crypto/sha256`/base64 parsing with `jwt.ParseWithClaims` + `jwt.NewWithClaims`; public `Claims`/`TokenManager` interfaces unchanged
+- Added `jwtInternalClaims` (embeds `jwt.RegisteredClaims`) as wire format; `Sign` maps `Claims` → `jwtInternalClaims`, `Verify` maps back
+- Used `jwt.WithTimeFunc(m.now)` to inject mocked clock so tests using `manager.now` continue to pass
+- Pre-validation retained: segment-size checks, manual header decode (alg+typ check), manual iat-future check — required by existing test suite
+- `sign` unexported method kept for `signedTestToken` test helper
+- Token format (HS256 HMAC-SHA256) unchanged — existing tokens remain valid
+- **Test coverage**: All 47 `internal/auth` tests pass; all three extra test files pass
 
 ## Task 4: RDBMS identity provider SQL allowlist (2026-05-27)
 
