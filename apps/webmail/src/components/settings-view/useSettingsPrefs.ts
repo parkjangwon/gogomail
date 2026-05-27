@@ -1,50 +1,19 @@
-import { useState, useEffect, useRef } from 'react';
-import { getPreferences, setPreferences, getUserProfile, updateUserProfile, uploadUserAvatar, deleteUserAvatar, changePassword, revokeAllSessions, registerWebPushDevice, getNotificationPreferences, setNotificationPreferences, getFolders, getFolderStats, exportFolderEml, exportFolderZip, type FolderStats, type WebmailPreferences, type UserProfile, type NotificationPreferences, type FolderNotificationOverride, type Folder } from '@/lib/api';
+import { useState, useEffect } from 'react';
+import { getPreferences, setPreferences, getUserProfile, getFolderStats, exportFolderEml, exportFolderZip, type FolderStats, type WebmailPreferences } from '@/lib/api';
 import { ReadMark, ExternalImages, SendDelay, Theme, FontSize, FilterRule, migrateFilterRule, loadFilterRules, saveFilterRules } from '@/lib/settings/settingsUtils';
 import { loadWmSettings, saveWmSetting } from '@/components/settings-view/settingsViewPrimitives';
-import { loadLocalEmailTemplates, normalizeEmailTemplates, saveLocalEmailTemplates, type StoredEmailTemplate } from '@/lib/emailTemplates';
+import { normalizeEmailTemplates, saveLocalEmailTemplates, loadLocalEmailTemplates } from '@/lib/emailTemplates';
 import { setWebmailAvatar } from '@/lib/webmailAvatar';
-import { webPushPublicKeyToUint8Array } from '@/lib/webpush';
 import { type BackupState } from '@/components/settings-view/SettingsStorageSection';
+import { useSettingsAccount } from '@/components/settings-view/useSettingsAccount';
+import { useSettingsNotifications } from '@/components/settings-view/useSettingsNotifications';
+import { useSettingsTemplates } from '@/components/settings-view/useSettingsTemplates';
 
-const NOTIFICATION_FOLDER_OVERRIDES_KEY = 'webmail_notification_folder_overrides';
 const BADGE_COUNT_MODE_KEY = 'webmail_badge_count_mode';
 const BROWSER_NOTIF_ENABLED_KEY = 'webmail_browser_notifications_enabled';
-type BadgeCountMode = 'unread' | 'all' | 'none';
 type ContactsSort = 'name' | 'email' | 'company';
 type ContactsDensity = 'comfortable' | 'compact';
 type DriveSort = 'typeName' | 'name' | 'updated' | 'size';
-
-function currentTimeZone(): string {
-  try {
-    return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
-  } catch {
-    return 'UTC';
-  }
-}
-
-function quietHoursPreferences(
-  base: NotificationPreferences | null,
-  folderOverrides: Record<string, FolderNotificationOverride>,
-  enabled: boolean,
-  start: string,
-  end: string,
-): NotificationPreferences {
-  return {
-    global_dnd_enabled: enabled,
-    global_dnd_schedule: {
-      weekdays: enabled ? [0, 1, 2, 3, 4, 5, 6] : [],
-      time_ranges: enabled ? [{ start, end }] : [],
-      timezone: base?.global_dnd_schedule?.timezone || currentTimeZone(),
-    },
-    folder_overrides: folderOverrides ?? base?.folder_overrides ?? {},
-    thread_overrides: base?.thread_overrides ?? {},
-  };
-}
-
-function emptyDNDSchedule() {
-  return { weekdays: [], time_ranges: [], timezone: '' };
-}
 
 export interface UseSettingsPrefsParams {
   userEmail?: string;
@@ -57,17 +26,10 @@ export interface UseSettingsPrefsParams {
 
 // eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
 export function useSettingsPrefs({ userEmail: _userEmail, userName, activeSection, t, router }: UseSettingsPrefsParams) {
-  // Account
-  const [displayName, setDisplayName] = useState('');
-  const [nameSaved, setNameSaved] = useState(false);
-  const [recoveryEmail, setRecoveryEmail] = useState('');
-  const [recoverySaved, setRecoverySaved] = useState(false);
-  const [recoveryError, setRecoveryError] = useState('');
-  const [signature, setSignature] = useState('');
-  const [sigSaved, setSigSaved] = useState(false);
-  const [avatarUrl, setAvatarUrl] = useState('');
-  const [avatarSaving, setAvatarSaving] = useState(false);
-  const [avatarError, setAvatarError] = useState('');
+  // Sub-hooks
+  const account = useSettingsAccount({ t, router });
+  const notifications = useSettingsNotifications({ t });
+  const tplState = useSettingsTemplates();
 
   // Inbox
   const [convMode, setConvMode] = useState(true);
@@ -109,36 +71,6 @@ export function useSettingsPrefs({ userEmail: _userEmail, userName, activeSectio
   const [theme, setTheme] = useState<Theme>('light');
   const [accent, setAccent] = useState('#2563eb');
   const [customAccent, setCustomAccent] = useState('');
-
-  // Notifications
-  const [notifPerm, setNotifPerm] = useState<NotificationPermission>('default');
-  const [notifSyncError, setNotifSyncError] = useState('');
-  const [browserNotificationsEnabled, setBrowserNotificationsEnabled] = useState(true);
-  const [notifSound, setNotifSound] = useState(false);
-  const [notifDetail, setNotifDetail] = useState<'sender' | 'subject' | 'preview'>('subject');
-  const [badgeCountMode, setBadgeCountMode] = useState<BadgeCountMode>('unread');
-  const [dndEnabled, setDndEnabled] = useState(false);
-  const [dndStart, setDndStart] = useState('22:00');
-  const [dndEnd, setDndEnd] = useState('08:00');
-  const [webPushEnabled, setWebPushEnabled] = useState<boolean>(() => {
-    try { return localStorage.getItem('webmail_webpush_enabled') === 'true'; } catch { return false; }
-  });
-  const [webPushSupported] = useState<boolean>(() => {
-    if (typeof window === 'undefined') return false;
-    return 'serviceWorker' in navigator && 'PushManager' in window;
-  });
-  const [notificationPrefsLoaded, setNotificationPrefsLoaded] = useState(false);
-  const notificationPrefsBaseRef = useRef<NotificationPreferences | null>(null);
-  const skipNotificationPrefsInitialSaveRef = useRef(true);
-  const [notificationFolderOverrides, setNotificationFolderOverrides] = useState<Record<string, FolderNotificationOverride>>({});
-  const [notificationFolders, setNotificationFolders] = useState<Folder[]>([]);
-
-  // Templates
-  const [templates, setTemplates] = useState<StoredEmailTemplate[]>([]);
-  const [newTplName, setNewTplName] = useState('');
-  const [newTplSubject, setNewTplSubject] = useState('');
-  const [newTplBody, setNewTplBody] = useState('');
-  const [showNewTpl, setShowNewTpl] = useState(false);
 
   // Filters
   const [filterRules, setFilterRules] = useState<FilterRule[]>([]);
@@ -191,23 +123,10 @@ export function useSettingsPrefs({ userEmail: _userEmail, userName, activeSectio
     try { return localStorage.getItem('webmail_timezone') || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'; } catch { return 'UTC'; }
   });
 
-  // Security
-  const [revokingAll, setRevokingAll] = useState(false);
-  const [revokeAllError, setRevokeAllError] = useState('');
-
   // Storage / Backup
   const [folderStats, setFolderStats] = useState<FolderStats[]>([]);
   const [statsLoading, setStatsLoading] = useState(false);
   const [backupStates, setBackupStates] = useState<Record<string, BackupState>>({});
-
-  // User profile
-  const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [pwCurrent, setPwCurrent] = useState('');
-  const [pwNew, setPwNew] = useState('');
-  const [pwConfirm, setPwConfirm] = useState('');
-  const [pwError, setPwError] = useState('');
-  const [pwSaving, setPwSaving] = useState(false);
-  const [pwSaved, setPwSaved] = useState(false);
 
   // Server-side preferences sync
   const [prefsLoaded, setPrefsLoaded] = useState(false);
@@ -216,9 +135,9 @@ export function useSettingsPrefs({ userEmail: _userEmail, userName, activeSectio
   useEffect(() => {
     getUserProfile().then((p) => {
       if (p) {
-        setProfile(p);
-        setRecoveryEmail(p.recovery_email ?? '');
-        setAvatarUrl(p.avatar_url ?? '');
+        account.setProfile(p);
+        account.setRecoveryEmail(p.recovery_email ?? '');
+        account.setAvatarUrl(p.avatar_url ?? '');
         setWebmailAvatar(p.avatar_url ?? '');
       }
     }).catch(() => {});
@@ -248,18 +167,18 @@ export function useSettingsPrefs({ userEmail: _userEmail, userName, activeSectio
           if (s.driveSort) setDriveSort(s.driveSort as DriveSort);
           if (s.browserNotificationsEnabled !== undefined) {
             const enabled = s.browserNotificationsEnabled as boolean;
-            setBrowserNotificationsEnabled(enabled);
+            notifications.setBrowserNotificationsEnabled(enabled);
             try { localStorage.setItem(BROWSER_NOTIF_ENABLED_KEY, enabled ? 'true' : 'false'); } catch { /* ignore */ }
           }
-          if (s.notifSound !== undefined) setNotifSound(s.notifSound as boolean);
-          if (s.notifDetail) setNotifDetail(s.notifDetail as typeof notifDetail);
+          if (s.notifSound !== undefined) notifications.setNotifSound(s.notifSound as boolean);
+          if (s.notifDetail) notifications.setNotifDetail(s.notifDetail as 'sender' | 'subject' | 'preview');
           if (s.badgeCountMode === 'all' || s.badgeCountMode === 'none' || s.badgeCountMode === 'unread') {
-            setBadgeCountMode(s.badgeCountMode);
+            notifications.setBadgeCountMode(s.badgeCountMode);
             try { localStorage.setItem(BADGE_COUNT_MODE_KEY, s.badgeCountMode); } catch { /* ignore */ }
           }
-          if (s.dndEnabled !== undefined) setDndEnabled(s.dndEnabled as boolean);
-          if (s.dndStart) setDndStart(s.dndStart as string);
-          if (s.dndEnd) setDndEnd(s.dndEnd as string);
+          if (s.dndEnabled !== undefined) notifications.setDndEnabled(s.dndEnabled as boolean);
+          if (s.dndStart) notifications.setDndStart(s.dndStart as string);
+          if (s.dndEnd) notifications.setDndEnd(s.dndEnd as string);
         }
         if (prefs.filter_rules) {
           const serverRules = (prefs.filter_rules as Record<string, unknown>[]).map(migrateFilterRule);
@@ -298,75 +217,18 @@ export function useSettingsPrefs({ userEmail: _userEmail, userName, activeSectio
           if (v.body !== undefined) setVacBody(v.body as string);
         }
         if (prefs.signatures && typeof prefs.signatures['default'] === 'string') {
-          setSignature(prefs.signatures['default']);
+          account.setSignature(prefs.signatures['default']);
           try { localStorage.setItem('webmail_signature', prefs.signatures['default']); } catch { /* ignore */ }
         }
         if (prefs.templates) {
           const serverTemplates = normalizeEmailTemplates(prefs.templates);
-          setTemplates(serverTemplates);
+          tplState.setTemplates(serverTemplates);
           saveLocalEmailTemplates(serverTemplates);
         }
       } catch { /* ignore */ }
       setPrefsLoaded(true);
     }).catch(() => setPrefsLoaded(true));
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  useEffect(() => {
-    getFolders()
-      .then((data) => setNotificationFolders(data.folders ?? []))
-      .catch(() => setNotificationFolders([]));
-  }, []);
-
-  useEffect(() => {
-    let cancelled = false;
-    getNotificationPreferences()
-      .then((prefs) => {
-        if (cancelled) return;
-        notificationPrefsBaseRef.current = prefs;
-        setNotificationFolderOverrides(prefs.folder_overrides ?? {});
-        setDndEnabled(prefs.global_dnd_enabled);
-        const firstRange = prefs.global_dnd_schedule?.time_ranges?.[0];
-        if (firstRange?.start) setDndStart(firstRange.start);
-        if (firstRange?.end) setDndEnd(firstRange.end);
-        try {
-          localStorage.setItem('webmail_dnd', prefs.global_dnd_enabled ? '1' : '0');
-          localStorage.setItem(NOTIFICATION_FOLDER_OVERRIDES_KEY, JSON.stringify(prefs.folder_overrides ?? {}));
-          if (firstRange?.start) localStorage.setItem('webmail_dnd_start', firstRange.start);
-          if (firstRange?.end) localStorage.setItem('webmail_dnd_end', firstRange.end);
-        } catch {
-          // local settings cache is best-effort
-        }
-      })
-      .catch(() => {
-        // Older backends may not expose server-side notification preferences.
-      })
-      .finally(() => {
-        if (!cancelled) setNotificationPrefsLoaded(true);
-      });
-    return () => { cancelled = true; };
-  }, []);
-
-  useEffect(() => {
-    if (!notificationPrefsLoaded) return;
-    if (skipNotificationPrefsInitialSaveRef.current) {
-      skipNotificationPrefsInitialSaveRef.current = false;
-      return;
-    }
-    const timer = setTimeout(() => {
-      const next = quietHoursPreferences(notificationPrefsBaseRef.current, notificationFolderOverrides, dndEnabled, dndStart, dndEnd);
-      setNotificationPreferences(next)
-        .then((saved) => {
-          notificationPrefsBaseRef.current = saved;
-          try {
-            localStorage.setItem(NOTIFICATION_FOLDER_OVERRIDES_KEY, JSON.stringify(saved.folder_overrides ?? {}));
-          } catch {
-            // local settings cache is best-effort
-          }
-        })
-        .catch(() => {});
-    }, 800);
-    return () => clearTimeout(timer);
-  }, [notificationPrefsLoaded, notificationFolderOverrides, dndEnabled, dndStart, dndEnd]);
 
   // ── Debounced server save (2s after any setting change) ───────────────────────
   useEffect(() => {
@@ -379,13 +241,19 @@ export function useSettingsPrefs({ userEmail: _userEmail, userName, activeSectio
           requestReadReceipt, linkPreview, followUpDays, focusMode,
           swipeLeft, swipeRight, refreshInterval, importanceMarkers, groupByDate,
           contactsSort, contactsDensity, contactsShowCompany, driveSort,
-          browserNotificationsEnabled, notifSound, notifDetail, badgeCountMode, dndEnabled, dndStart, dndEnd,
+          browserNotificationsEnabled: notifications.browserNotificationsEnabled,
+          notifSound: notifications.notifSound,
+          notifDetail: notifications.notifDetail,
+          badgeCountMode: notifications.badgeCountMode,
+          dndEnabled: notifications.dndEnabled,
+          dndStart: notifications.dndStart,
+          dndEnd: notifications.dndEnd,
         },
         filter_rules: filterRules as unknown[],
         blocked_senders: blockedSenders,
         allowed_senders: allowedSenders,
         vacation: { enabled: vacEnabled, startDate: vacStartDate, endDate: vacEndDate, subject: vacSubject, body: vacBody },
-        templates,
+        templates: tplState.templates,
       };
       setPreferences(prefs).catch(() => {});
     }, 2000);
@@ -397,16 +265,18 @@ export function useSettingsPrefs({ userEmail: _userEmail, userName, activeSectio
     requestReadReceipt, linkPreview, followUpDays, focusMode,
     swipeLeft, swipeRight, refreshInterval, importanceMarkers, groupByDate,
     contactsSort, contactsDensity, contactsShowCompany, driveSort,
-    browserNotificationsEnabled, notifSound, notifDetail, badgeCountMode, dndEnabled, dndStart, dndEnd,
-    filterRules, blockedSenders, allowedSenders, templates,
+    notifications.browserNotificationsEnabled, notifications.notifSound,
+    notifications.notifDetail, notifications.badgeCountMode,
+    notifications.dndEnabled, notifications.dndStart, notifications.dndEnd,
+    filterRules, blockedSenders, allowedSenders, tplState.templates,
     vacEnabled, vacStartDate, vacEndDate, vacSubject, vacBody,
   ]);
 
   // ── Load from storage ─────────────────────────────────────────────────────────
   useEffect(() => {
     try {
-      setDisplayName(localStorage.getItem('webmail_display_name') ?? userName ?? '');
-      setSignature(localStorage.getItem('webmail_signature') ?? '');
+      account.setDisplayName(localStorage.getItem('webmail_display_name') ?? userName ?? '');
+      account.setSignature(localStorage.getItem('webmail_signature') ?? '');
       setTheme((localStorage.getItem('webmail_theme') as Theme) ?? 'light');
       setAccent(localStorage.getItem('webmail_accent') ?? '#2563eb');
       setCompact(localStorage.getItem('webmail_compact') === '1');
@@ -420,12 +290,12 @@ export function useSettingsPrefs({ userEmail: _userEmail, userName, activeSectio
       setQuoteOnReply((wm.quoteOnReply as boolean) !== false);
       setFontSize((wm.fontSize as FontSize) ?? 'medium');
       setInlineImagePreview((wm.inlineImagePreview as boolean) !== false);
-      setNotifSound(localStorage.getItem('webmail_notif_sound') === '1');
-      setBrowserNotificationsEnabled(localStorage.getItem(BROWSER_NOTIF_ENABLED_KEY) !== 'false');
-      setNotifDetail((localStorage.getItem('webmail_notif_detail') as 'sender' | 'subject' | 'preview') ?? 'subject');
+      notifications.setNotifSound(localStorage.getItem('webmail_notif_sound') === '1');
+      notifications.setBrowserNotificationsEnabled(localStorage.getItem(BROWSER_NOTIF_ENABLED_KEY) !== 'false');
+      notifications.setNotifDetail((localStorage.getItem('webmail_notif_detail') as 'sender' | 'subject' | 'preview') ?? 'subject');
       const storedBadgeMode = localStorage.getItem(BADGE_COUNT_MODE_KEY);
-      setBadgeCountMode(storedBadgeMode === 'all' || storedBadgeMode === 'none' ? storedBadgeMode : 'unread');
-      setTemplates(loadLocalEmailTemplates());
+      notifications.setBadgeCountMode(storedBadgeMode === 'all' || storedBadgeMode === 'none' ? storedBadgeMode : 'unread');
+      tplState.setTemplates(loadLocalEmailTemplates());
       setFilterRules(loadFilterRules());
       setBlockedSenders(JSON.parse(localStorage.getItem('webmail_blocked_senders') ?? '[]') as string[]);
       setBlockedMeta(JSON.parse(localStorage.getItem('webmail_blocked_meta') ?? '{}') as Record<string, string>);
@@ -468,8 +338,8 @@ export function useSettingsPrefs({ userEmail: _userEmail, userName, activeSectio
       const storedLts = localStorage.getItem('webmail_letter_spacing');
       if (storedLts === 'wide') setLetterSpacing('wide');
     } catch { /* ignore */ }
-    if (typeof Notification !== 'undefined') setNotifPerm(Notification.permission);
-  }, [userName, t]);
+    if (typeof Notification !== 'undefined') notifications.setNotifPerm(Notification.permission);
+  }, [userName, t]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Auto-load folder stats when storage section becomes active
   useEffect(() => {
@@ -541,184 +411,6 @@ export function useSettingsPrefs({ userEmail: _userEmail, userName, activeSectio
     try { localStorage.setItem('webmail_letter_spacing', spacing); } catch { /* */ }
   }
 
-  async function handleAvatarUpload(file: File | undefined) {
-    if (!file) return;
-    setAvatarError('');
-    setAvatarSaving(true);
-    try {
-      const url = await uploadUserAvatar(file);
-      setAvatarUrl(url);
-      setWebmailAvatar(url);
-    } catch (err) {
-      setAvatarError(err instanceof Error ? err.message : t('avatarUploadError'));
-    } finally {
-      setAvatarSaving(false);
-    }
-  }
-
-  async function handleAvatarRemove() {
-    setAvatarError('');
-    setAvatarSaving(true);
-    try {
-      await deleteUserAvatar();
-      setAvatarUrl('');
-      setWebmailAvatar('');
-    } catch (err) {
-      setAvatarError(err instanceof Error ? err.message : t('avatarRemoveError'));
-    } finally {
-      setAvatarSaving(false);
-    }
-  }
-
-  function saveDisplayName() {
-    try { localStorage.setItem('webmail_display_name', displayName); } catch { /* ignore */ }
-    updateUserProfile({ display_name: displayName }).catch(() => {});
-    setNameSaved(true);
-    setTimeout(() => setNameSaved(false), 2000);
-  }
-
-  async function saveRecoveryEmail() {
-    setRecoveryError('');
-    try {
-      await updateUserProfile({ recovery_email: recoveryEmail.trim() });
-      setRecoverySaved(true);
-      setTimeout(() => setRecoverySaved(false), 2000);
-    } catch (err) {
-      setRecoveryError(err instanceof Error ? err.message : t('recoverySaveError'));
-    }
-  }
-
-  function saveSignature() {
-    try { localStorage.setItem('webmail_signature', signature); } catch { /* ignore */ }
-    setPreferences({ signatures: { default: signature } }).catch(() => {});
-    setSigSaved(true);
-    setTimeout(() => setSigSaved(false), 2000);
-  }
-
-  async function handleChangePassword() {
-    setPwError('');
-    if (!pwCurrent || !pwNew || !pwConfirm) { setPwError(t('pwAllRequired')); return; }
-    if (pwNew.length < 8) { setPwError(t('pwMinLength')); return; }
-    if (pwNew !== pwConfirm) { setPwError(t('pwMismatch')); return; }
-    setPwSaving(true);
-    try {
-      await changePassword(pwCurrent, pwNew);
-      setPwCurrent(''); setPwNew(''); setPwConfirm('');
-      setPwSaved(true);
-      setTimeout(() => setPwSaved(false), 3000);
-    } catch (err) {
-      setPwError(err instanceof Error ? err.message : t('pwChangeFailed'));
-    } finally {
-      setPwSaving(false);
-    }
-  }
-
-  async function handleRevokeAll() {
-    if (!window.confirm(t('revokeAllConfirm'))) return;
-    setRevokeAllError('');
-    setRevokingAll(true);
-    const ok = await revokeAllSessions();
-    if (ok) {
-      try { localStorage.removeItem('webmail_token'); localStorage.removeItem('webmail_email'); } catch { /* ignore */ }
-      router.push('/login');
-    } else {
-      setRevokingAll(false);
-      setRevokeAllError(t('revokeFailed'));
-    }
-  }
-
-  async function requestNotif() {
-    if (typeof Notification === 'undefined') return;
-    const p = await Notification.requestPermission();
-    setNotifPerm(p);
-    setNotifSyncError('');
-    if (p === 'granted') {
-      setBrowserNotificationsEnabled(true);
-      try {
-        localStorage.setItem(BROWSER_NOTIF_ENABLED_KEY, 'true');
-        window.dispatchEvent(new StorageEvent('storage', { key: BROWSER_NOTIF_ENABLED_KEY, newValue: 'true' }));
-      } catch {
-        // local settings cache is best-effort
-      }
-    }
-    if (p === 'granted' && 'serviceWorker' in navigator && 'PushManager' in window) {
-      try {
-        const reg = await navigator.serviceWorker.register('/sw.js');
-        const vapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
-        if (vapidKey) {
-          const sub = await reg.pushManager.subscribe({
-            userVisibleOnly: true,
-            applicationServerKey: webPushPublicKeyToUint8Array(vapidKey),
-          });
-          await registerWebPushDevice(sub);
-        }
-      } catch {
-        setNotifSyncError(t('pushRegisterFailed'));
-      }
-    }
-  }
-
-  function setFolderNotificationEnabled(folderId: string, enabled: boolean) {
-    setNotificationFolderOverrides((prev) => {
-      const next = { ...prev };
-      if (enabled) {
-        delete next[folderId];
-      } else {
-        next[folderId] = { enabled: false, dnd_inherit: true, dnd_schedule: emptyDNDSchedule() };
-      }
-      try {
-        localStorage.setItem(NOTIFICATION_FOLDER_OVERRIDES_KEY, JSON.stringify(next));
-      } catch { /* */ }
-      return next;
-    });
-  }
-
-  function setBrowserNotificationsEnabledWithStorage(enabled: boolean) {
-    setBrowserNotificationsEnabled(enabled);
-    try {
-      localStorage.setItem(BROWSER_NOTIF_ENABLED_KEY, enabled ? 'true' : 'false');
-      window.dispatchEvent(new StorageEvent('storage', { key: BROWSER_NOTIF_ENABLED_KEY, newValue: enabled ? 'true' : 'false' }));
-    } catch { /* */ }
-  }
-
-  function setNotifSoundWithStorage(v: boolean) {
-    setNotifSound(v);
-    try { localStorage.setItem('webmail_notif_sound', v ? '1' : '0'); } catch { /* */ }
-  }
-
-  function setNotifDetailWithStorage(v: 'sender' | 'subject' | 'preview') {
-    setNotifDetail(v);
-    try { localStorage.setItem('webmail_notif_detail', v); } catch { /* */ }
-  }
-
-  function setBadgeCountModeWithStorage(mode: BadgeCountMode) {
-    setBadgeCountMode(mode);
-    try {
-      localStorage.setItem(BADGE_COUNT_MODE_KEY, mode);
-      window.dispatchEvent(new StorageEvent('storage', { key: BADGE_COUNT_MODE_KEY, newValue: mode }));
-    } catch { /* */ }
-  }
-
-  function setDndEnabledWithStorage(v: boolean) {
-    setDndEnabled(v);
-    try { localStorage.setItem('webmail_dnd', v ? '1' : '0'); } catch { /* */ }
-  }
-
-  function setDndStartWithStorage(v: string) {
-    setDndStart(v);
-    try { localStorage.setItem('webmail_dnd_start', v); } catch { /* */ }
-  }
-
-  function setDndEndWithStorage(v: string) {
-    setDndEnd(v);
-    try { localStorage.setItem('webmail_dnd_end', v); } catch { /* */ }
-  }
-
-  function setWebPushEnabledWithStorage(v: boolean) {
-    setWebPushEnabled(v);
-    try { localStorage.setItem('webmail_webpush_enabled', v ? 'true' : 'false'); } catch { /* */ }
-  }
-
   async function startBackup(folderId: string, folderName: string, format: 'eml' | 'zip') {
     const key = `${folderId}-${format}`;
     setBackupStates((p) => ({ ...p, [key]: { status: 'running', fetched: 0, total: 0 } }));
@@ -735,17 +427,12 @@ export function useSettingsPrefs({ userEmail: _userEmail, userName, activeSectio
   }
 
   return {
-    // Account
-    displayName, setDisplayName,
-    nameSaved, setNameSaved,
-    recoveryEmail, setRecoveryEmail,
-    recoverySaved, setRecoverySaved,
-    recoveryError, setRecoveryError,
-    signature, setSignature,
-    sigSaved, setSigSaved,
-    avatarUrl, setAvatarUrl,
-    avatarSaving, setAvatarSaving,
-    avatarError, setAvatarError,
+    // Account (from sub-hook)
+    ...account,
+    // Notifications (from sub-hook)
+    ...notifications,
+    // Templates (from sub-hook)
+    ...tplState,
     // Inbox
     convMode, setConvMode,
     compact, setCompact,
@@ -781,27 +468,6 @@ export function useSettingsPrefs({ userEmail: _userEmail, userName, activeSectio
     theme, setTheme,
     accent, setAccent,
     customAccent, setCustomAccent,
-    // Notifications
-    notifPerm, setNotifPerm,
-    notifSyncError, setNotifSyncError,
-    browserNotificationsEnabled, setBrowserNotificationsEnabled,
-    notifSound, setNotifSound,
-    notifDetail, setNotifDetail,
-    badgeCountMode, setBadgeCountMode,
-    dndEnabled, setDndEnabled,
-    dndStart, setDndStart,
-    dndEnd, setDndEnd,
-    webPushEnabled, setWebPushEnabled,
-    webPushSupported,
-    notificationPrefsLoaded,
-    notificationFolderOverrides, setNotificationFolderOverrides,
-    notificationFolders, setNotificationFolders,
-    // Templates
-    templates, setTemplates,
-    newTplName, setNewTplName,
-    newTplSubject, setNewTplSubject,
-    newTplBody, setNewTplBody,
-    showNewTpl, setShowNewTpl,
     // Filters
     filterRules, setFilterRules,
     // Privacy
@@ -845,21 +511,10 @@ export function useSettingsPrefs({ userEmail: _userEmail, userName, activeSectio
     letterSpacing, setLetterSpacing,
     // Timezone
     timezone, setTimezone,
-    // Security
-    revokingAll, setRevokingAll,
-    revokeAllError, setRevokeAllError,
     // Storage
     folderStats, setFolderStats,
     statsLoading, setStatsLoading,
     backupStates, setBackupStates,
-    // User profile
-    profile, setProfile,
-    pwCurrent, setPwCurrent,
-    pwNew, setPwNew,
-    pwConfirm, setPwConfirm,
-    pwError, setPwError,
-    pwSaving, setPwSaving,
-    pwSaved, setPwSaved,
     // Prefs loaded flag
     prefsLoaded, setPrefsLoaded,
     // Handlers
@@ -870,23 +525,6 @@ export function useSettingsPrefs({ userEmail: _userEmail, userName, activeSectio
     applyUiFontSize,
     applyLineSpacing,
     applyLetterSpacing,
-    handleAvatarUpload,
-    handleAvatarRemove,
-    saveDisplayName,
-    saveRecoveryEmail,
-    saveSignature,
-    handleChangePassword,
-    handleRevokeAll,
-    requestNotif,
-    setFolderNotificationEnabled,
-    setBrowserNotificationsEnabledWithStorage,
-    setNotifSoundWithStorage,
-    setNotifDetailWithStorage,
-    setBadgeCountModeWithStorage,
-    setDndEnabledWithStorage,
-    setDndStartWithStorage,
-    setDndEndWithStorage,
-    setWebPushEnabledWithStorage,
     startBackup,
   };
 }
