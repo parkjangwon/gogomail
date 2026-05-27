@@ -15,6 +15,7 @@ import (
 
 	"github.com/gogomail/gogomail/internal/auth"
 	"github.com/gogomail/gogomail/internal/caldavgw"
+	webhookguard "github.com/gogomail/gogomail/internal/webhook"
 )
 
 type CalendarRepo interface {
@@ -416,6 +417,10 @@ func RegisterCalendarSubscriptionRoutes(mux *http.ServeMux, handler *CalendarHan
 			writeError(w, http.StatusBadRequest, "url must be an http or https URL")
 			return
 		}
+		if _, err := webhookguard.ValidateOutboundHTTPURL(r.Context(), req.URL, webhookguard.OutboundURLGuardOptions{}); err != nil {
+			writeError(w, http.StatusBadRequest, "url is not allowed")
+			return
+		}
 		if req.Name == "" {
 			req.Name = u.Host
 		}
@@ -499,8 +504,18 @@ func RegisterCalendarSubscriptionRoutes(mux *http.ServeMux, handler *CalendarHan
 			writeError(w, http.StatusNotFound, "subscription not found")
 			return
 		}
-		client := &http.Client{Timeout: 15 * time.Second}
-		resp, err := client.Get(target.URL)
+		guardOpts := webhookguard.OutboundURLGuardOptions{}
+		guardedClient := webhookguard.GuardedHTTPClient(&http.Client{Timeout: 15 * time.Second}, guardOpts)
+		if _, err := webhookguard.ValidateOutboundHTTPURL(r.Context(), target.URL, guardOpts); err != nil {
+			writeError(w, http.StatusBadRequest, "subscription url is not allowed")
+			return
+		}
+		req2, err := http.NewRequestWithContext(r.Context(), http.MethodGet, target.URL, nil)
+		if err != nil {
+			writeError(w, http.StatusBadGateway, "failed to build subscription request")
+			return
+		}
+		resp, err := guardedClient.Do(req2)
 		if err != nil {
 			writeError(w, http.StatusBadGateway, "failed to fetch subscription URL")
 			return
