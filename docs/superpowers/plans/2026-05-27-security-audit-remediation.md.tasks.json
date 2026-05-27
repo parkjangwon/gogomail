@@ -1,0 +1,70 @@
+{
+  "planFile": "2026-05-27-security-audit-remediation.md",
+  "createdAt": "2026-05-27",
+  "tasks": [
+    {
+      "id": "1",
+      "subject": "Task 0: Secure defaults — GOGOMAIL_ENV + sslmode",
+      "status": "pending",
+      "files": ["internal/config/config.go", "docker/docker-compose.scale.yml"],
+      "verifyCommand": "go test ./internal/config/... -v 2>&1 | tail -5"
+    },
+    {
+      "id": "2",
+      "subject": "Task 1: Strip internal proxy headers (#3)",
+      "status": "pending",
+      "files": ["internal/httpapi/admin_middleware.go", "internal/httpapi/admin_middleware_test.go", "internal/app/run.go"],
+      "verifyCommand": "go test ./internal/httpapi/... -run TestStrip -v"
+    },
+    {
+      "id": "3",
+      "subject": "Task 2: APNS private key file option (#10)",
+      "status": "pending",
+      "files": ["internal/config/config.go", "internal/config/config_file.go", "internal/app/run_push.go", "docker/.env.example"],
+      "verifyCommand": "go test ./internal/config/... ./internal/app/... 2>&1 | grep -E \"^(ok|FAIL)\""
+    },
+    {
+      "id": "4",
+      "subject": "Task 3: Helm CHANGEME guard (#2)",
+      "status": "pending",
+      "files": ["helm/gogomail/templates/_helpers.tpl", "helm/gogomail/templates/secret.yaml"],
+      "verifyCommand": "helm template ./helm/gogomail 2>&1 | grep -c \"must be set\""
+    },
+    {
+      "id": "5",
+      "subject": "Task 4: RDBMS identity provider SQL allowlist (#8)",
+      "status": "pending",
+      "files": ["internal/idprovider/rdbms/provider.go", "internal/idprovider/rdbms/provider_test.go"],
+      "verifyCommand": "go test ./internal/idprovider/rdbms/... -v -run TestValidateSourceQuery"
+    },
+    {
+      "id": "6",
+      "subject": "Task 5: JWT 내부 구현 → golang-jwt/jwt/v5 (#5)",
+      "status": "pending",
+      "files": ["internal/auth/jwt.go"],
+      "verifyCommand": "go test ./internal/auth/... -v 2>&1 | grep -E \"^(ok|FAIL|--- (PASS|FAIL))\""
+    },
+    {
+      "id": "7",
+      "subject": "Task 6: 레거시 패스워드 해시 로그인 시 자동 업그레이드 (#6)",
+      "status": "pending",
+      "files": ["internal/auth/password.go", "internal/maildb/user_auth.go", "internal/auth/password_test.go"],
+      "verifyCommand": "go test ./internal/auth/... -run TestVerifyPasswordHashResult -v"
+    },
+    {
+      "id": "8",
+      "subject": "Task 7: Redis 기반 어드민 로그인 rate limiter (#4)",
+      "status": "pending",
+      "blockedBy": ["2"],
+      "files": ["internal/httpapi/admin_rate_limiter_redis.go", "internal/httpapi/admin_types.go", "internal/httpapi/admin.go", "internal/app/run.go"],
+      "verifyCommand": "go test ./internal/httpapi/... 2>&1 | grep -E \"^(ok|FAIL)\""
+    },
+    {
+      "id": "9",
+      "subject": "Task 8: Next.js CSP nonce — webmail + console (#7)",
+      "status": "pending",
+      "files": ["apps/webmail/src/middleware.ts", "apps/webmail/src/app/layout.tsx", "apps/webmail/next.config.ts", "apps/console/src/middleware.ts", "apps/console/src/app/layout.tsx", "apps/console/next.config.ts"],
+      "verifyCommand": "grep 'unsafe-inline' apps/webmail/next.config.ts apps/console/next.config.ts"
+    }
+  ]
+}
