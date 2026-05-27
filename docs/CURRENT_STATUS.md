@@ -1,6 +1,16 @@
 # gogomail current status
 
-Last updated: 2026-05-28 (security hardening: role update privilege escalation + IDOR)
+Last updated: 2026-05-28 (security hardening: user endpoint IDOR sweep)
+
+## Post-remediation hardening round 24 (2026-05-28)
+
+**Cross-tenant IDOR in user-scoped admin endpoints (follow-up to Round 23)**
+- **PATCH /admin/v1/users/{id}/recovery-email** (admin_mail.go): Missing company isolation — a `company_admin` could change another company's user's recovery email, enabling account takeover of external accounts. Fixed with `GetUser → GetDomain → requiresCompanyAccess`.
+- **GET /admin/v1/users/{id}/mfa** (admin_user.go): Missing company isolation — `company_admin` could read another company's user's MFA status. Fixed same pattern.
+- **DELETE /admin/v1/users/{id}/mfa** (admin_user.go): Missing company isolation — `company_admin` could disable another company's user's MFA. Fixed same pattern.
+- **GET /admin/v1/users/{id}/config** and **GET /admin/v1/users/{id}/config/{key}** (admin_user.go): Missing company isolation — `company_admin` could read user configuration entries for any user. Fixed same pattern.
+
+All five handlers now enforce the same `GetUser → GetDomain → requiresCompanyAccess` pattern as `UpdateUserStatus`, `UpdateUserQuota`, and `UpdateUserPasswordHash`.
 
 ## Post-remediation hardening round 23 (2026-05-28)
 
