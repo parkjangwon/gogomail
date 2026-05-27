@@ -21,6 +21,10 @@ func registerUsageAndQuotaRoutes(mux *http.ServeMux, service AdminService, admin
 		if !ok {
 			return
 		}
+		if err := requiresCompanyAccess(r.Context(), req.CompanyID); err != nil {
+			writeError(w, http.StatusForbidden, "access denied")
+			return
+		}
 		usages, err := service.ListAPIUsageDaily(r.Context(), req)
 		if err != nil {
 			writeError(w, http.StatusBadRequest, err.Error())
@@ -39,6 +43,10 @@ func registerUsageAndQuotaRoutes(mux *http.ServeMux, service AdminService, admin
 		}
 		req, ok := parseAPIUsageAggregateListRequest(w, r, limit)
 		if !ok {
+			return
+		}
+		if err := requiresCompanyAccess(r.Context(), req.CompanyID); err != nil {
+			writeError(w, http.StatusForbidden, "access denied")
 			return
 		}
 		usages, err := service.ListAPIUsageMonthly(r.Context(), req)
