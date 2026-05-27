@@ -38,6 +38,9 @@ import { useMailSettings } from './useMailSettings';
 import { useMailThreads } from './useMailThreads';
 import { useMailCompose } from './useMailCompose';
 import { useMailNav } from './useMailNav';
+import { useMailComposeGate } from './useMailComposeGate';
+import { useMailAutoRead } from './useMailAutoRead';
+import { useMailTimers } from './useMailTimers';
 import {
   buildThreadMessages,
   getEmptyFolderLabel,
@@ -279,37 +282,8 @@ export default function MailPage() {
 
   const activeFolderSystemType = folders.find((f) => f.id === activeFolderId)?.system_type;
 
-  // When a draft message loads, open it in compose instead of ReadingPane
-  useEffect(() => {
-    if (!selectedMessage || activeFolderSystemType !== 'drafts') return;
-    openCompose({ intent: 'new', draft: selectedMessage });
-    setSelectedMessageId(null);
-  }, [selectedMessage, activeFolderSystemType]);
-
-  useEffect(() => {
-    if (!pendingCompose || !selectedMessage || selectedMessage.id !== pendingCompose.messageId) return;
-    openCompose({ intent: pendingCompose.intent, source: selectedMessage });
-    setPendingCompose(null);
-  }, [pendingCompose, selectedMessage]);
-
-  // Mark selected message as read locally + server (delay controlled by readMark setting)
-  useEffect(() => {
-    if (!selectedMessageId || activeFolderSystemType === 'drafts') return;
-    let readMark: string;
-    try { readMark = (JSON.parse(localStorage.getItem('webmail_settings') ?? '{}') as { readMark?: string }).readMark ?? 'instant'; } catch { readMark = 'instant'; }
-    if (readMark === 'manual') return;
-    const delay = readMark === '2s' ? 2000 : 0;
-    let cancelled = false;
-    const timer = setTimeout(() => {
-      if (cancelled) return;
-      const msg = findVisibleMessage(selectedMessageId);
-      if (!msg || msg.read) return;
-      patchVisibleMessages([selectedMessageId], { read: true });
-      adjustUnread(activeFolderId, -1);
-      markRead(selectedMessageId, true).catch(() => {});
-    }, delay);
-    return () => { cancelled = true; clearTimeout(timer); };
-  }, [selectedMessageId, findVisibleMessage, patchVisibleMessages, adjustUnread, activeFolderId, activeFolderSystemType]);
+  useMailComposeGate({ selectedMessage, activeFolderSystemType, pendingCompose, openCompose, setSelectedMessageId, setPendingCompose });
+  useMailAutoRead({ selectedMessageId, activeFolderId, activeFolderSystemType, findVisibleMessage, patchVisibleMessages, adjustUnread });
 
   const handleMarkUnread = useCallback(async () => {
     if (!selectedMessageId) return;
@@ -1182,66 +1156,7 @@ export default function MailPage() {
     addToast(t('misc.mailPage.snoozeNotifyAt', { time: until.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }) }), 'info', { duration: 4000 });
   }, [activeFolderId, selectedMessageId, setMessages, addToast]);
 
-  // Check every 60s if any snoozed message should reappear
-  useEffect(() => {
-    const check = () => {
-      try {
-        const stored: Record<string, string> = JSON.parse(localStorage.getItem('webmail_snoozed') ?? '{}');
-        const now = Date.now();
-        const expired = Object.entries(stored).filter(([, ts]) => new Date(ts).getTime() <= now);
-        if (expired.length === 0) return;
-        const remaining = { ...stored };
-        expired.forEach(([id]) => delete remaining[id]);
-        localStorage.setItem('webmail_snoozed', JSON.stringify(remaining));
-        // Only show toast — message reappears on next folder refresh
-        addToast(t('misc.mailPage.snoozeReturned', { count: expired.length }), 'info');
-        refresh();
-      } catch { /* ignore */ }
-    };
-    const id = setInterval(check, 60_000);
-    check();
-    return () => clearInterval(id);
-  }, [addToast, refresh]);
-
-  // Check for overdue follow-up reminders on load and every 5 minutes
-  useEffect(() => {
-    const checkFollowUps = () => {
-      try {
-        type FollowUp = { remindAt: string; subject: string; to: string; createdAt: string };
-        const followups: FollowUp[] = JSON.parse(localStorage.getItem('webmail_followups') ?? '[]');
-        const now = Date.now();
-        const overdue = followups.filter((f) => new Date(f.remindAt).getTime() <= now);
-        if (overdue.length === 0) return;
-        const remaining = followups.filter((f) => new Date(f.remindAt).getTime() > now);
-        localStorage.setItem('webmail_followups', JSON.stringify(remaining));
-        overdue.forEach((f) => {
-          addToast(t('misc.mailPage.followUpReminder', { subject: f.subject || t('misc.mailPage.noSubject') }), 'info', { duration: 8000 });
-        });
-      } catch { /* ignore */ }
-    };
-    checkFollowUps();
-    const id = setInterval(checkFollowUps, 5 * 60_000);
-    return () => clearInterval(id);
-  }, [addToast]);
-
-  // Extract sender names from messages and store as contacts
-  useEffect(() => {
-    if (messages.length === 0) return;
-    try {
-      const stored: Record<string, string> = JSON.parse(localStorage.getItem('webmail_contacts') ?? '{}');
-      let changed = false;
-      messages.forEach((m) => {
-        if (m.from_name && m.from_addr) {
-          const key = m.from_addr.toLowerCase();
-          if (!stored[key] || stored[key] !== m.from_name) {
-            stored[key] = m.from_name;
-            changed = true;
-          }
-        }
-      });
-      if (changed) localStorage.setItem('webmail_contacts', JSON.stringify(stored));
-    } catch { /* ignore */ }
-  }, [messages]);
+  useMailTimers({ messages, addToast, t, refresh });
 
   if (foldersLoading) {
     return (
