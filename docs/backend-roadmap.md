@@ -1,10 +1,10 @@
 # gogomail backend roadmap
 
-Last updated: 2026-05-26
+Last updated: 2026-05-28
 
 ## Completed phases
 
-All core phases through Phase 7 are complete as of 2026-05-26.
+All core phases through Phase 8 are complete as of 2026-05-28.
 
 | Phase | Description | Status |
 |-------|-------------|--------|
@@ -14,14 +14,15 @@ All core phases through Phase 7 are complete as of 2026-05-26.
 | Phase 3 | Submission and outbound delivery: SMTP submission (587/465), delivery workers, DKIM/SPF/DMARC, DSN/bounce, Outbox Pattern | ✅ Done |
 | Phase 4 | Auth and multi-tenancy: JWT, TOTP MFA, refresh-token rotation, replay detection, PBKDF2, SCIM 2.0, SAML/OIDC SSO | ✅ Done |
 | Phase 5 | Collaboration protocols: CalDAV (RFC 4791+7809), CardDAV (RFC 6352), Drive WebDAV (RFC 4918), LDAP gateway (RFC 4511) | ✅ Done |
-| Phase 6 | Anti-abuse and security: brute-force tracker, DNSBL, milter, rate limiting, MTA-STS, ARC, DANE, ClamAV integration | ✅ Done |
+| Phase 6 | Anti-abuse and security: brute-force tracker, DNSBL, milter, rate limiting, MTA-STS, ARC, DANE, ClamAV, IDOR sweep, header stripping | ✅ Done |
 | Phase 7 | Observability and reliability: Prometheus metrics, Loki+Promtail, Grafana dashboards, X-Request-ID tracing, POP3, Web Push | ✅ Done |
-
-**Admin Console** (TASK-063 through TASK-090) is functionally complete with broad E2E mock coverage for all panels. Enterprise hardening items remain.
+| Phase 8 | Admin console enterprise hardening: RBAC, audit logs, IdP abstraction (database/LDAP/RDBMS), mail logs, statistics, export, alerts | ✅ Done |
 
 **Webmail SPA** (Next.js 16): mail, compose, drafts, folders, contacts, Drive, calendar, encrypted DM, notification center, Web Push, MFA, i18n (en/ko/ja/zh-CN) — all shipped.
 
 **AI Agent automation**: User MCP (123 tools) and Management MCP (50 tools) — both shipped and documented.
+
+**Security hardening** (2026-05-28): IDOR sweep complete across all admin handlers, StripInternalHeadersMiddleware, Helm CHANGEME guard, CSP nonce, PBKDF2 auto-upgrade, RDBMS IdP SQL allowlist.
 
 ---
 
@@ -39,41 +40,7 @@ These are items not yet implemented or deliberately deferred:
 - Directory/Identity expansion: effective resource booking policy, company-scoped delegation reads, bounded group membership expansion
 - CardDAV broader vCard 3.0/4.0 compatibility with additional native-client compatibility tests
 - Notification & Sync boundary: domain events, reminders, device policy, delta fan-out
-- Vendor push notification delivery adapters (APNs, FCM)
-
-### Phase 8: Admin Console enterprise hardening
-
-Target: enterprise-grade SaaS/on-premises admin — strong RBAC, deep audit, identity-provider abstraction.
-
-**Remaining tasks:**
-
-| TASK | Title |
-|------|-------|
-| TASK-063 | Admin Console Architecture: Schema + RBAC + Custom Roles |
-| TASK-064 | Admin Auth & Session: JWT, login, refresh-token |
-| TASK-065 | User Management CRUD: Create/Read/Update/Delete users |
-| TASK-066 | Organization Management: Unit CRUD, hierarchy, members |
-| TASK-067 | Audit Logs (Level 1+2): Admin actions + security events |
-| TASK-068 | Identity Provider Abstraction: Database/LDAP/Azure/RDBMS plugin |
-| TASK-069 | Database Identity Mode: default implementation |
-| TASK-070 | LDAP Identity Config & Sync |
-| TASK-071 | LDAP Sync UI & Logs |
-| TASK-072 | External RDBMS Config & Sync: HR DB connection, query, mapping |
-| TASK-073 | External RDBMS Sync UI & Logs |
-| TASK-074 | Mail Log Queries & UI: send/receive logs, search, detail |
-| TASK-075 | Login/Security Audit Logs: login history, suspicious activity |
-| TASK-076 | Statistics & Dashboard: mail volume, user activity, storage |
-| TASK-077 | API Metering: daily rollup, per-domain visibility |
-| TASK-078 | Dashboard UI: system/domain admin views |
-| TASK-079 | Audit Policy Config UI: company audit-policy settings, retention, masking |
-| TASK-080 | Export & Reports: CSV, PDF, NDJSON |
-| TASK-081 | Role Management UI: builtin roles view, custom role CRUD |
-| TASK-082 | Domain Settings UI: TLS, quota, IP whitelist, 2FA |
-| TASK-083 | API Settings UI: API key management, rate limit, CIDR allowlist |
-| TASK-084 | Alerts & Notifications: threshold-based alerts, channels |
-| TASK-088 | Mail Infrastructure Hardening: connection pooling, pipelining, retry policy, metrics |
-| TASK-089 | Protocol Gateway Hardening: IMAP/CalDAV/CardDAV buffer pooling, metrics, graceful degradation |
-| TASK-090 | Message Storage & Delivery Optimization: query/index optimization, bulk batching, metadata caching |
+- Vendor push notification delivery adapters (APNs file-key done; FCM native adapter pending)
 
 ---
 
