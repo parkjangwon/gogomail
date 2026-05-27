@@ -263,6 +263,10 @@ func registerOperationsRoutes(mux *http.ServeMux, service AdminService, cfg admi
 		if !ok {
 			return
 		}
+		if err := requiresCompanyAccess(r.Context(), req.CompanyID); err != nil {
+			writeError(w, http.StatusForbidden, "access denied")
+			return
+		}
 		logs, err := service.ListMailFlowLogs(r.Context(), req)
 		if err != nil {
 			slog.ErrorContext(r.Context(), "admin handler error", "error", err)
@@ -280,6 +284,10 @@ func registerOperationsRoutes(mux *http.ServeMux, service AdminService, cfg admi
 		if !ok {
 			return
 		}
+		if err := requiresCompanyAccess(r.Context(), req.CompanyID); err != nil {
+			writeError(w, http.StatusForbidden, "access denied")
+			return
+		}
 		stats, err := service.GetMailFlowLogStats(r.Context(), req)
 		if err != nil {
 			slog.ErrorContext(r.Context(), "admin handler error", "error", err)
@@ -295,6 +303,10 @@ func registerOperationsRoutes(mux *http.ServeMux, service AdminService, cfg admi
 		}
 		req, ok := parseMailFlowLogDailyStatsRequest(w, r)
 		if !ok {
+			return
+		}
+		if err := requiresCompanyAccess(r.Context(), req.CompanyID); err != nil {
+			writeError(w, http.StatusForbidden, "access denied")
 			return
 		}
 		stats, err := service.GetMailFlowLogDailyStats(r.Context(), req)
