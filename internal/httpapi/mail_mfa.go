@@ -138,10 +138,19 @@ func extractClientIP(r *http.Request) string {
 
 // RegisterMFARoutes registers MFA-related API routes onto mux.
 func RegisterMFARoutes(mux *http.ServeMux, tokenManager *auth.TokenManager, opts MailRouteOptions) {
+	// mfaVerifyLimiter throttles TOTP brute-force: 5 attempts per IP per minute.
+	// The pending_token TTL is 5 min; without a limit an attacker could try
+	// all 1,000,000 six-digit codes before it expires.
+	mfaVerifyLimiter := NewAdminIPRateLimiter(5, time.Minute)
+
 	// POST /api/v1/auth/mfa/verify — exchange pending token + TOTP/recovery code for a full JWT.
 	mux.HandleFunc("POST /api/v1/auth/mfa/verify", func(w http.ResponseWriter, r *http.Request) {
 		if opts.MFAStore == nil || tokenManager == nil {
 			writeError(w, http.StatusServiceUnavailable, "mfa not configured")
+			return
+		}
+		if !mfaVerifyLimiter.allow(adminClientIP(r)) {
+			writeError(w, http.StatusTooManyRequests, "too many mfa attempts")
 			return
 		}
 		if !rejectUnknownQueryKeys(w, r, "user_id") {

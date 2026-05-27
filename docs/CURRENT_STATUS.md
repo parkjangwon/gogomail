@@ -1,6 +1,11 @@
 # gogomail current status
 
-Last updated: 2026-05-28 (security hardening: password DoS cap on all auth paths)
+Last updated: 2026-05-28 (security hardening: MFA verify rate limit)
+
+## Post-remediation hardening round 7 (2026-05-28)
+
+**MFA verify endpoint rate limit**
+- **internal/httpapi/mail_mfa.go**: `POST /api/v1/auth/mfa/verify` had no rate limiting, allowing a brute-force attack against the 6-digit TOTP code if an attacker had obtained a `pending_token` (which requires the user's password). Added a 5-attempts-per-minute-per-IP rate limiter (`mfaVerifyLimiter`) mirroring the same guard used on the login and password-reset endpoints. With the 5-minute pending token TTL, the old code allowed up to ~1 million attempts; the new limit caps it at 25.
 
 ## Post-remediation hardening round 6 (2026-05-28)
 
