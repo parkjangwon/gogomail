@@ -33,6 +33,15 @@ func handleRDBMSSync(w http.ResponseWriter, r *http.Request, service AdminServic
 	if !ok {
 		return
 	}
+	domain, err := service.GetDomain(r.Context(), id)
+	if err != nil {
+		writeError(w, http.StatusNotFound, "domain not found")
+		return
+	}
+	if err := requiresCompanyAccess(r.Context(), domain.CompanyID); err != nil {
+		writeError(w, http.StatusForbidden, "access denied")
+		return
+	}
 	syncType, ok := parseBoundedAdminQuery(w, r, "sync_type")
 	if !ok {
 		return
@@ -62,6 +71,15 @@ func handleRDBMSSyncHistory(w http.ResponseWriter, r *http.Request, service Admi
 	}
 	id, ok := parseBoundedAdminPathValue(w, r, "id")
 	if !ok {
+		return
+	}
+	domain, err := service.GetDomain(r.Context(), id)
+	if err != nil {
+		writeError(w, http.StatusNotFound, "domain not found")
+		return
+	}
+	if err := requiresCompanyAccess(r.Context(), domain.CompanyID); err != nil {
+		writeError(w, http.StatusForbidden, "access denied")
 		return
 	}
 	limit, ok := parseQueryLimit(w, r)
@@ -122,6 +140,15 @@ func handleRDBMSSyncConflicts(w http.ResponseWriter, r *http.Request, service Ad
 	if !ok {
 		return
 	}
+	domain, err := service.GetDomain(r.Context(), id)
+	if err != nil {
+		writeError(w, http.StatusNotFound, "domain not found")
+		return
+	}
+	if err := requiresCompanyAccess(r.Context(), domain.CompanyID); err != nil {
+		writeError(w, http.StatusForbidden, "access denied")
+		return
+	}
 	limit, ok := parseQueryLimit(w, r)
 	if !ok {
 		return
@@ -178,6 +205,15 @@ func handleResolveRDBMSConflict(w http.ResponseWriter, r *http.Request, service 
 	}
 	id, ok := parseBoundedAdminPathValue(w, r, "id")
 	if !ok {
+		return
+	}
+	domain, err := service.GetDomain(r.Context(), id)
+	if err != nil {
+		writeError(w, http.StatusNotFound, "domain not found")
+		return
+	}
+	if err := requiresCompanyAccess(r.Context(), domain.CompanyID); err != nil {
+		writeError(w, http.StatusForbidden, "access denied")
 		return
 	}
 	conflictID, ok := parseBoundedAdminPathValue(w, r, "conflictId")

@@ -1,6 +1,14 @@
 # gogomail current status
 
-Last updated: 2026-05-28 (security hardening: directory alias/membership/delegation IDOR sweep)
+Last updated: 2026-05-28 (security hardening: LDAP/RDBMS sync + IdP config IDOR sweep)
+
+## Post-remediation hardening round 30 (2026-05-28)
+
+**IDOR sweep: admin_ldap_sync.go + admin_rdbms_sync.go (11 handlers)**
+All handlers use `{id}` as a domain ID from `/domains/{id}/ldap/...` or `/domains/{id}/rdbms/...` paths but had no company isolation.
+
+- **admin_ldap_sync.go** (7): `handleLDAPSync`, `handleLDAPSyncHistory`, `handleLDAPSyncConflicts`, `handleResolveLDAPConflict`, `handleGetIdPConfig`, `handleSetIdPConfig`, `handleDeleteIdPConfig` — all now call `GetDomain → requiresCompanyAccess`.
+- **admin_rdbms_sync.go** (4): `handleRDBMSSync`, `handleRDBMSSyncHistory`, `handleRDBMSSyncConflicts`, `handleResolveRDBMSConflict` — same fix.
 
 ## Post-remediation hardening round 29 (2026-05-28)
 
