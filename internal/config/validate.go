@@ -445,6 +445,16 @@ func (c Config) Validate() error {
 	if c.PushNotifyDeviceLimit <= 0 || c.PushNotifyDeviceLimit > 200 {
 		return fmt.Errorf("GOGOMAIL_PUSH_NOTIFICATION_DEVICE_LIMIT must be between 1 and 200")
 	}
+	// Validate APNS configuration if private key file is specified
+	if c.APNsPrivateKeyFile != "" {
+		if err := validateBoundedNoCRLF("GOGOMAIL_APNS_PRIVATE_KEY_FILE", c.APNsPrivateKeyFile, 4096); err != nil {
+			return err
+		}
+		// Verify file was successfully read during Load()
+		if strings.TrimSpace(c.APNsPrivateKey) == "" {
+			return fmt.Errorf("GOGOMAIL_APNS_PRIVATE_KEY_FILE file could not be read or is empty")
+		}
+	}
 	if c.PushNotifyConsumerCount <= 0 {
 		return fmt.Errorf("GOGOMAIL_PUSH_NOTIFICATION_CONSUMER_COUNT must be positive")
 	}

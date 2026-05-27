@@ -182,6 +182,7 @@ type Config struct {
 	APNsKeyID                           string
 	APNsTeamID                          string
 	APNsPrivateKey                      string
+	APNsPrivateKeyFile                  string
 	APNsBundleID                        string
 	WebPushVAPIDPublicKey               string
 	WebPushVAPIDPrivateKey              string
@@ -527,6 +528,7 @@ func Load() Config {
 		APNsKeyID:                           os.Getenv("GOGOMAIL_APNS_KEY_ID"),
 		APNsTeamID:                          os.Getenv("GOGOMAIL_APNS_TEAM_ID"),
 		APNsPrivateKey:                      os.Getenv("GOGOMAIL_APNS_PRIVATE_KEY"),
+		APNsPrivateKeyFile:                  envOrDefault("GOGOMAIL_APNS_PRIVATE_KEY_FILE", ""),
 		APNsBundleID:                        os.Getenv("GOGOMAIL_APNS_BUNDLE_ID"),
 		WebPushVAPIDPublicKey:               os.Getenv("GOGOMAIL_WEBPUSH_VAPID_PUBLIC_KEY"),
 		WebPushVAPIDPrivateKey:              os.Getenv("GOGOMAIL_WEBPUSH_VAPID_PRIVATE_KEY"),
@@ -716,6 +718,14 @@ func Load() Config {
 	}
 	if cfg.DeliveryConsumerDeadLetterStream == "" {
 		cfg.DeliveryConsumerDeadLetterStream = cfg.DeliveryStream + ".dead"
+	}
+	// Load APNS private key from file if specified
+	if cfg.APNsPrivateKeyFile != "" {
+		data, err := os.ReadFile(cfg.APNsPrivateKeyFile)
+		if err == nil {
+			cfg.APNsPrivateKey = string(data)
+		}
+		// Note: validation will check for errors reading the file if needed
 	}
 	return cfg
 }
