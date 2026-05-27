@@ -45,26 +45,40 @@ Once up:
 | Postgres | `localhost:15432` |
 | Redis | `localhost:16379` |
 | MinIO console | `http://localhost:19001` |
+| Web manual | `http://localhost:3005/` (run separately — see below) |
 
 Run the frontend apps separately when working on UI:
 
 ```bash
 pnpm -C apps/webmail install && pnpm -C apps/webmail dev
 pnpm -C apps/console install && pnpm -C apps/console dev
+pnpm -C apps/docs install && pnpm -C apps/docs dev       # web manual (port 3005)
 ```
 
 ### Seed dev data
 
+Two seed datasets are available — pick the one that matches your preferred language:
+
 ```bash
-bash scripts/seed_dev_beta.sh
+bash scripts/seed_dev_beta.sh       # Korean locale (default)
+bash scripts/seed_dev_beta_en.sh    # English locale
 ```
+
+**Korean seed** (`parkjw.org` tenant — Korean display names, folders, and mail content):
 
 | Account | Email | Password | Role |
 |---|---|---|---|
 | Admin | `admin@gogomail.io` | `admin1234` | admin |
 | Demo user | `user@parkjw.org` | `pass1234` | user |
 
-The demo user comes pre-loaded with inbox messages, custom folders, 22 contacts, and 2 CalDAV calendars. 13 co-worker accounts share password `pass1234`.
+**English seed** (`acme.io` tenant — English display names, folders, and mail content):
+
+| Account | Email | Password | Role |
+|---|---|---|---|
+| Admin | `admin@gogomail.io` | `admin1234` | admin |
+| Demo user | `user@acme.io` | `pass1234` | user |
+
+Both seeds include: inbox messages, custom folders, 22 contacts, and 2 CalDAV calendars. 13 co-worker accounts share password `pass1234`. Both tenants can coexist in the same database.
 
 ```bash
 bash scripts/reset_dev_data.sh --yes   # wipe and reseed from scratch
@@ -227,6 +241,7 @@ All GoGoMail write actions require a human-readable `reason`; destructive operat
 | OpenAPI contract | [docs/openapi.yaml](docs/openapi.yaml) |
 | Roadmap | [docs/backend-roadmap.md](docs/backend-roadmap.md) |
 | User MCP policy notes | [docs/USER_MCP.md](docs/USER_MCP.md) |
+| Web manual (VitePress, en/ko/ja/zh-CN) | [apps/docs/](apps/docs/) — `pnpm -C apps/docs dev` |
 
 ---
 
