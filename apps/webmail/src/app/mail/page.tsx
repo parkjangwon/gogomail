@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { deleteMessage, restoreMessage, bulkRestoreMessages, createFolder, renameFolder, deleteFolder, starMessage, markRead, moveMessage, bulkMarkRead, bulkMoveMessages, sendMessage, listThreadMessages, searchMessages, getNotificationPreferences, setNotificationPreferences, setPreferences, UIComposeIntent, MessageAddress, MessageDetail, MessageSummary } from '@/lib/api';
+import { deleteMessage, restoreMessage, bulkRestoreMessages, createFolder, renameFolder, deleteFolder, starMessage, markRead, moveMessage, bulkMarkRead, bulkMoveMessages, sendMessage, listThreadMessages, searchMessages, getNotificationPreferences, setNotificationPreferences, setPreferences, MessageAddress, MessageSummary } from '@/lib/api';
 import { AdvancedFilters, VIRTUAL_ALL, VIRTUAL_SNOOZED, VIRTUAL_IMPORTANT } from '@/components/Sidebar';
 import { useMailList } from '@/hooks/useMailList';
 import { useMessage } from '@/hooks/useMessage';
@@ -36,6 +36,8 @@ import { useMailLayout } from './useMailLayout';
 import { useMailToasts } from './useMailToasts';
 import { useMailSettings } from './useMailSettings';
 import { useMailThreads } from './useMailThreads';
+import { useMailCompose } from './useMailCompose';
+import { useMailNav } from './useMailNav';
 import {
   buildThreadMessages,
   getEmptyFolderLabel,
@@ -46,14 +48,12 @@ import {
 } from '@/lib/mail/mailPageUtils';
 import { useNotifications } from '@/lib/notifications/store';
 import {
-  WEBMAIL_ACTIVE_APP_KEY,
   NOTIFICATION_FOLDER_OVERRIDES_KEY,
   NOTIFICATION_THREAD_OVERRIDES_KEY,
   DM_MODAL_MIN_WIDTH,
   DM_MODAL_MIN_HEIGHT,
   DM_RESIZE_HANDLES,
   getDefaultDMModalRect,
-  getInitialActiveApp,
   folderNotificationsEnabled,
   threadNotificationsEnabled,
   moveMailPanelFocus,
@@ -68,12 +68,8 @@ export default function MailPage() {
   const tNotif = useTranslations('notifications');
   const { push: pushNotification } = useNotifications();
 
-  const [activeFolderId, setActiveFolderId] = useState('');
-  const [selectedMessageId, setSelectedMessageId] = useState<string | null>(null);
-  type ComposeContext = { intent: UIComposeIntent; source?: MessageDetail; draft?: MessageDetail; to?: string; initialSubject?: string; initialBody?: string; focusSubjectOnOpen?: boolean };
-  const [composeContext, setComposeContext] = useState<ComposeContext | null>(null);
-  const openCompose = useCallback((ctx: ComposeContext) => setComposeContext(ctx), []);
-  const closeCompose = useCallback(() => setComposeContext(null), []);
+  const { composeContext, openCompose, closeCompose, pendingCompose, setPendingCompose } = useMailCompose();
+  const { activeApp, setActiveApp, activeFolderId, setActiveFolderId, selectedMessageId, setSelectedMessageId } = useMailNav();
   const { toasts, setToasts, addToast, dismissToast } = useMailToasts();
   const [showShortcuts, setShowShortcuts] = useState(false);
   const {
@@ -86,7 +82,6 @@ export default function MailPage() {
   } = useMailLayout();
   const [contextMenu, setContextMenu] = useState<{ id: string; x: number; y: number } | null>(null);
 
-  const [activeApp, setActiveApp] = useState<AppId>(getInitialActiveApp);
   const {
     badgeCountMode, setBadgeCountMode,
     refreshIntervalSeconds, setRefreshIntervalSeconds,
@@ -97,28 +92,6 @@ export default function MailPage() {
   const [showSpotlight, setShowSpotlight] = useState(false);
   const [spotlightMoveId, setSpotlightMoveId] = useState<string | null>(null);
   const [spamDialogMessageId, setSpamDialogMessageId] = useState<string | null>(null);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(WEBMAIL_ACTIVE_APP_KEY, activeApp);
-    } catch {
-      // ignore
-    }
-
-    try {
-      const url = new URL(window.location.href);
-      if (activeApp === 'mail') url.searchParams.delete('app');
-      else url.searchParams.set('app', activeApp);
-      const nextUrl = `${url.pathname}${url.search}${url.hash}`;
-      const currentUrl = `${window.location.pathname}${window.location.search}${window.location.hash}`;
-      if (nextUrl !== currentUrl) window.history.replaceState(window.history.state, '', nextUrl);
-    } catch {
-      // ignore
-    }
-  }, [activeApp]);
-
-
-  const [pendingCompose, setPendingCompose] = useState<{ intent: 'reply' | 'forward'; messageId: string } | null>(null);
 
   const threadViewEnabled = true; // thread view always on (toggle removed)
 
