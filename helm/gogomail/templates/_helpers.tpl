@@ -61,3 +61,15 @@ Create the name of the service account to use
 {{- default "default" .Values.serviceAccount.name }}
 {{- end }}
 {{- end }}
+
+{{/*
+requireNotChangeme validates that a secret value has been changed from its placeholder.
+Usage: {{ include "gogomail.requireNotChangeme" (dict "name" "SECRET_NAME" "value" .Values.secrets.SECRET_NAME) }}
+*/}}
+{{- define "gogomail.requireNotChangeme" -}}
+{{- $name := .name -}}
+{{- $val  := .value | default "" -}}
+{{- if or (eq $val "") (contains "CHANGEME" $val) -}}
+{{- fail (printf "Secret %s must be set to a non-placeholder value before deploying" $name) -}}
+{{- end -}}
+{{- end -}}
