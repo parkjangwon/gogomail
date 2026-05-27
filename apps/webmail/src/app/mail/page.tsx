@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { createFolder, renameFolder, deleteFolder, moveMessage, sendMessage, MessageAddress, MessageSummary } from '@/lib/api';
+import { moveMessage, sendMessage, MessageSummary } from '@/lib/api';
 import { AdvancedFilters, VIRTUAL_ALL, VIRTUAL_SNOOZED } from '@/components/Sidebar';
 import { useMailList } from '@/hooks/useMailList';
 import { useMessage } from '@/hooks/useMessage';
@@ -49,6 +49,8 @@ import { useMailComposeGate } from './useMailComposeGate';
 import { useMailAutoRead } from './useMailAutoRead';
 import { useMailTimers } from './useMailTimers';
 import { useMailThreadMessages } from './useMailThreadMessages';
+import { useMailFolderOps } from './useMailFolderOps';
+import { printMessage } from '@/lib/mail/printMessage';
 import {
   getEmptyFolderLabel,
   getVisibleMailMessages,
@@ -357,6 +359,20 @@ export default function MailPage() {
 
   useMailTimers({ messages, addToast, t, refresh });
 
+  const { handleDropMessage, handleCreateFolder, handleRenameFolder, handleDeleteFolder } =
+    useMailFolderOps({
+      activeFolderId,
+      setActiveFolderId,
+      messages,
+      setMessages,
+      selectedMessageId,
+      setSelectedMessageId,
+      refresh,
+      addToast,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      t: t as (key: string, values?: Record<string, any>) => string,
+    });
+
   if (foldersLoading) {
     return (
       <div
@@ -468,25 +484,10 @@ export default function MailPage() {
             onClose={() => setMobileSidebarOpen(false)}
             collapsed={sidebarCollapsed}
             onToggleCollapse={() => setSidebarCollapsed((v) => !v)}
-            onDropMessage={(messageId, folderId) => {
-              setMessages((prev) => prev.filter((m) => m.id !== messageId));
-              if (selectedMessageId === messageId) setSelectedMessageId(null);
-              moveMessage(messageId, folderId)
-                .then(() => addToast(t('misc.mailPage.moved')))
-                .catch(() => addToast(t('misc.mailPage.moveFailed'), 'error'));
-            }}
-            onCreateFolder={async (name) => {
-              try { await createFolder(name); refresh(); addToast(t('misc.mailPage.folderCreated', { name })); }
-              catch { addToast(t('misc.mailPage.folderCreateFailed'), 'error'); }
-            }}
-            onRenameFolder={async (id, name) => {
-              try { await renameFolder(id, name); refresh(); addToast(t('misc.mailPage.folderRenamed')); }
-              catch { addToast(t('misc.mailPage.folderRenameFailed'), 'error'); }
-            }}
-            onDeleteFolder={async (id) => {
-              try { await deleteFolder(id); if (activeFolderId === id) setActiveFolderId(''); refresh(); addToast(t('misc.mailPage.folderDeleted')); }
-              catch { addToast(t('misc.mailPage.folderDeleteFailed'), 'error'); }
-            }}
+            onDropMessage={handleDropMessage}
+            onCreateFolder={handleCreateFolder}
+            onRenameFolder={handleRenameFolder}
+            onDeleteFolder={handleDeleteFolder}
           />
 
           {/* Sidebar drag-resize handle */}
@@ -696,23 +697,7 @@ export default function MailPage() {
                 onReplyAll={() => selectedMessage && openCompose({ intent: 'reply_all', source: selectedMessage })}
                 onForward={() => selectedMessage && openCompose({ intent: 'forward', source: selectedMessage })}
                 onMove={handleMove}
-                onPrint={selectedMessage ? () => {
-                  const msg = selectedMessage;
-                  const w = window.open('', '_blank', 'width=780,height=900,menubar=yes,toolbar=yes');
-                  if (!w) { window.print(); return; }
-                  const date = new Intl.DateTimeFormat('ko-KR', { dateStyle: 'full', timeStyle: 'short', hour12: false }).format(new Date(msg.received_at));
-                  const body = msg.html_body
-                    ? `<div>${msg.html_body}</div>`
-                    : (msg.text_body || '').split('\n').map((l) => `<p style="margin:0 0 4px">${l || '&nbsp;'}</p>`).join('');
-                  const emailOf = (a: MessageAddress) => a.email || a.address || '';
-                  const subjectStr = msg.subject || t('misc.mailPage.noSubject');
-                  const fromLbl = t('mail.from');
-                  const toLbl = t('mail.to');
-                  const dateLbl = t('mail.date');
-                  w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${subjectStr}</title><style>body{font-family:-apple-system,sans-serif;font-size:14px;color:#111;max-width:720px;margin:0 auto;padding:24px}h1{font-size:20px;margin:0 0 12px}table{border-collapse:collapse;margin-bottom:16px;font-size:13px}td{padding:3px 8px 3px 0;vertical-align:top}td:first-child{color:#555;white-space:nowrap;min-width:80px}hr{border:none;border-top:1px solid #ddd;margin:16px 0}@media print{body{padding:0}}</style></head><body><h1>${subjectStr}</h1><table><tr><td>${fromLbl}</td><td><b>${msg.from_name ? `${msg.from_name} &lt;${msg.from_addr}&gt;` : msg.from_addr}</b></td></tr><tr><td>${toLbl}</td><td>${(msg.to_addrs ?? []).map((a) => a.name ? `${a.name} &lt;${emailOf(a)}&gt;` : emailOf(a)).join(', ')}</td></tr><tr><td>${dateLbl}</td><td>${date}</td></tr></table><hr>${body}</body></html>`);
-                  w.document.close();
-                  w.onload = () => w.print();
-                } : undefined}
+                onPrint={selectedMessage ? () => printMessage(selectedMessage, t) : undefined}
                 loading={messageLoading}
                 onBack={() => setSelectedMessageId(null)}
                 onPrev={prevId ? () => handleSelectMessage(prevId) : undefined}
