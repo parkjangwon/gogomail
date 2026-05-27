@@ -1,12 +1,7 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { type Dispatch, type SetStateAction, useCallback, useRef } from 'react';
 import { useTranslations } from 'next-intl';
-import {
-  ContactObject,
-  listContacts,
-  parseVCard,
-} from '@/lib/api';
 import {
   UserGroupIcon,
   PlusIcon,
@@ -19,16 +14,16 @@ import {
   XMarkIcon,
   CheckIcon,
 } from '@heroicons/react/24/outline';
+import { type ContactObject } from '@/lib/api';
 import { ContactsSidebar } from './ContactsSidebar';
 import {
   avatarColor,
   initials,
-  loadContactViewSettings,
-  useContactsParsed,
   type ParsedContact,
 } from './contacts/contactsViewHelpers';
 import { useContactsBooks } from './contacts/useContactsBooks';
 import { useContactsEdit } from './contacts/useContactsEdit';
+import { useContactsList } from './contacts/useContactsList';
 
 interface ContactsViewProps {
   onCompose?: (email: string) => void;
@@ -36,11 +31,15 @@ interface ContactsViewProps {
 
 export function ContactsView({ onCompose }: ContactsViewProps) {
   const t = useTranslations('contacts');
-  const [contacts, setContacts] = useState<ContactObject[]>([]);
-  const [selectedContactIdx, setSelectedContactIdx] = useState<number | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [viewSettings, setViewSettings] = useState(loadContactViewSettings);
+
+  // Refs to bridge circular dependencies between hooks.
+  // useContactsBooks needs setContacts/setSelectedContactIdx from useContactsList (called later).
+  // useContactsList keyboard handler needs handleDelete/setEditMode from useContactsEdit (also called later).
+  // We initialise refs here and sync them synchronously during each render after each hook call.
+  const setContactsRef = useRef<Dispatch<SetStateAction<ContactObject[]>> | undefined>(undefined);
+  const setSelectedContactIdxRef = useRef<Dispatch<SetStateAction<number | null>> | undefined>(undefined);
+  const handleDeleteRef = useRef<(() => void) | undefined>(undefined);
+  const setEditModeRef = useRef<((v: boolean) => void) | undefined>(undefined);
 
   const {
     addressBooks,
@@ -61,57 +60,39 @@ export function ContactsView({ onCompose }: ContactsViewProps) {
     handleCreateBook,
     handleRenameBook,
     handleDeleteBook,
-  } = useContactsBooks({ t, setContacts, setSelectedContactIdx });
-
-  const parsed = useContactsParsed(contacts);
-
-  const filtered = contacts.filter((_, i) => {
-    if (!searchQuery.trim()) return true;
-    const q = searchQuery.toLowerCase();
-    const p = parsed[i];
-    return (
-      p.fn.toLowerCase().includes(q) ||
-      p.email.toLowerCase().includes(q) ||
-      p.org.toLowerCase().includes(q)
-    );
+  } = useContactsBooks({
+    t,
+    // Proxy through refs so useContactsBooks callbacks always reach the real state setters
+    setContacts: (v: Parameters<Dispatch<SetStateAction<ContactObject[]>>>[0]) => setContactsRef.current?.(v),
+    setSelectedContactIdx: (v: Parameters<Dispatch<SetStateAction<number | null>>>[0]) => setSelectedContactIdxRef.current?.(v),
   });
 
-  const sortedFiltered = useMemo(() => {
-    const rank = (contact: ContactObject) => {
-      const p = parsed[contacts.indexOf(contact)];
-      if (viewSettings.sort === 'email') return p?.email || p?.fn || contact.ObjectName;
-      if (viewSettings.sort === 'company') return p?.org || p?.fn || p?.email || contact.ObjectName;
-      return p?.fn || p?.email || contact.ObjectName;
-    };
-    return [...filtered].sort((a, b) => rank(a).localeCompare(rank(b), 'ko', { sensitivity: 'base' }));
-  }, [contacts, filtered, parsed, viewSettings.sort]);
+  const {
+    contacts,
+    setContacts,
+    selectedContactIdx,
+    setSelectedContactIdx,
+    searchQuery,
+    setSearchQuery,
+    loading,
+    viewSettings,
+    parsed,
+    filtered,
+    sortedFiltered,
+    selectedContact,
+    selectedContactRaw,
+    selectedParsed,
+    handleSelectContact,
+  } = useContactsList({
+    selectedBookId: selectedBookId ?? '',
+    onCompose,
+    handleDelete: handleDeleteRef.current,
+    setEditMode: setEditModeRef.current,
+  });
 
-  useEffect(() => {
-    const refresh = (event?: StorageEvent) => {
-      if (event && event.key !== 'webmail_settings') return;
-      setViewSettings(loadContactViewSettings());
-    };
-    window.addEventListener('storage', refresh);
-    return () => window.removeEventListener('storage', refresh);
-  }, []);
-
-  // Load contacts when selected book changes
-  useEffect(() => {
-    if (!selectedBookId) return;
-    setLoading(true);
-    setSelectedContactIdx(null);
-    setEditMode(false);
-    listContacts(selectedBookId).then((cts) => {
-      setContacts(cts);
-      setLoading(false);
-    });
-  }, [selectedBookId]);
-
-  const selectedContact = selectedContactIdx !== null ? sortedFiltered[selectedContactIdx] ?? null : null;
-  const selectedContactRaw = selectedContact
-    ? contacts.find((c) => c.ID === selectedContact.ID) ?? null
-    : null;
-  const selectedParsed = selectedContactRaw ? parseVCard(selectedContactRaw.VCard) : null;
+  // Sync list setters so the books-hook callbacks propagate to list state
+  setContactsRef.current = setContacts;
+  setSelectedContactIdxRef.current = setSelectedContactIdx;
 
   const {
     editMode,
@@ -127,7 +108,7 @@ export function ContactsView({ onCompose }: ContactsViewProps) {
     handleNewContactStart,
   } = useContactsEdit({
     selectedContact,
-    selectedBookId,
+    selectedBookId: selectedBookId ?? '',
     contacts,
     setContacts,
     selectedParsed,
@@ -135,48 +116,19 @@ export function ContactsView({ onCompose }: ContactsViewProps) {
     t,
   });
 
-  const handleSelectBook = useCallback((id: string) => {
-    setSelectedBookId(id);
-    setSearchQuery('');
-  }, [setSelectedBookId]);
+  // Sync edit callbacks so the keyboard handler in useContactsList picks them up
+  handleDeleteRef.current = handleDelete;
+  setEditModeRef.current = setEditMode;
 
-  const handleSelectContact = useCallback((idx: number) => {
-    setSelectedContactIdx(idx);
-    setEditMode(false);
-  }, [setEditMode]);
+  const handleSelectBook = useCallback(
+    (id: string) => {
+      setSelectedBookId(id);
+      setSearchQuery('');
+    },
+    [setSelectedBookId, setSearchQuery]
+  );
 
-  // j/k/c/Delete keyboard shortcuts
   const containerRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      const tag = (e.target as HTMLElement).tagName;
-      const editable = (e.target as HTMLElement).isContentEditable;
-      if (tag === 'INPUT' || tag === 'TEXTAREA' || editable) return;
-
-      if (e.key === 'j') {
-        setSelectedContactIdx((prev) => {
-          const next = (prev ?? -1) + 1;
-          return next < filtered.length ? next : prev;
-        });
-      } else if (e.key === 'k') {
-        setSelectedContactIdx((prev) => {
-          if (prev === null) return null;
-          return prev > 0 ? prev - 1 : 0;
-        });
-      } else if (e.key === 'c') {
-        if (selectedParsed?.email && onCompose) {
-          e.preventDefault();
-          e.stopPropagation();
-          e.stopImmediatePropagation();
-          onCompose(selectedParsed.email);
-        }
-      } else if (e.key === 'Delete' || e.key === 'Backspace') {
-        if (selectedContact) handleDelete();
-      }
-    }
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [sortedFiltered.length, selectedParsed, onCompose, selectedContact, handleDelete]);
 
   const displayName = (idx: number) => {
     const p = parsed[contacts.indexOf(sortedFiltered[idx])];
@@ -429,7 +381,7 @@ export function ContactsView({ onCompose }: ContactsViewProps) {
               <div style={{ display: 'flex', gap: '8px', flexShrink: 0 }}>
                 {selectedParsed.email && onCompose && (
                   <button
-                    onClick={() => onCompose(selectedParsed.email)}
+                    onClick={() => onCompose(selectedParsed!.email)}
                     style={{
                       display: 'flex',
                       alignItems: 'center',
