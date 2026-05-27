@@ -1,5 +1,5 @@
 import './globals.css';
-import { cookies } from 'next/headers';
+import { cookies, headers } from 'next/headers';
 import { NextIntlClientProvider } from 'next-intl';
 import { Providers } from '@/components/Providers';
 
@@ -27,6 +27,7 @@ export default async function RootLayout({
   children: React.ReactNode;
 }) {
   const cookieStore = await cookies();
+  const nonce = (await headers()).get('x-nonce') ?? '';
   const raw = cookieStore.get('webmail_locale')?.value ?? 'ko';
   const locale: Locale = (VALID_LOCALES as readonly string[]).includes(raw)
     ? (raw as Locale)
@@ -38,6 +39,7 @@ export default async function RootLayout({
       <head>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script
+          nonce={nonce}
           dangerouslySetInnerHTML={{
             __html: `(function(){try{
 var el=document.documentElement;

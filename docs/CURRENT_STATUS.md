@@ -1,6 +1,14 @@
 # gogomail current status
 
-Last updated: 2026-05-27 (Task 7: Redis 기반 어드민 로그인 rate limiter)
+Last updated: 2026-05-27 (Task 8: Next.js CSP nonce — webmail + console)
+
+## Task 8: Next.js CSP nonce — webmail + console (2026-05-27)
+
+**Replace `script-src 'unsafe-inline'` with per-request nonce-based CSP in both Next.js apps**
+- **apps/webmail/src/middleware.ts** + **apps/console/src/middleware.ts**: Generate a base64 nonce (`Buffer.from(crypto.randomUUID()).toString('base64')`) on each request; set `Content-Security-Policy` header with `script-src 'self' 'nonce-<nonce>'` (no `'unsafe-inline'`); forward nonce to layout via `x-nonce` request header
+- **apps/webmail/src/app/layout.tsx**: Import `headers` from `'next/headers'`; read `x-nonce` header into `nonce` variable; apply `nonce={nonce}` to the theme-init inline `<script>` tag
+- **apps/webmail/next.config.ts** + **apps/console/next.config.ts**: Removed `scriptSrc` variable and `Content-Security-Policy` header block (now set dynamically by middleware); removed `isProduction` variable (was only used for scriptSrc); kept all other security headers unchanged
+- **Acceptance criteria met**: `grep "'unsafe-inline'" apps/webmail/next.config.ts apps/console/next.config.ts` → 0 matches; nonce present in both middleware files and in webmail layout
 
 ## Task 7: Redis 기반 어드민 로그인 rate limiter (2026-05-27)
 

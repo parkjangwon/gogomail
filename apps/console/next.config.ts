@@ -2,12 +2,8 @@ import type { NextConfig } from "next";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const isProduction = process.env.NODE_ENV === "production";
 const appRoot = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(appRoot, "../..");
-const scriptSrc = isProduction
-  ? "script-src 'self' 'unsafe-inline'"
-  : "script-src 'self' 'unsafe-inline' 'unsafe-eval'";
 
 const config: NextConfig = {
   reactStrictMode: true,
@@ -36,23 +32,6 @@ const config: NextConfig = {
         { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
         { key: "Cross-Origin-Resource-Policy", value: "same-origin" },
         { key: "X-DNS-Prefetch-Control", value: "off" },
-        {
-          key: "Content-Security-Policy",
-          value: [
-            "default-src 'self'",
-            scriptSrc,
-            "style-src 'self' 'unsafe-inline'",
-            "img-src 'self' data: blob:",
-            "connect-src 'self'",
-            "font-src 'self' data:",
-            "frame-src 'none'",
-            "frame-ancestors 'none'",
-            "object-src 'none'",
-            "base-uri 'self'",
-            "form-action 'self'",
-            ...(isProduction ? ["upgrade-insecure-requests"] : []),
-          ].join("; "),
-        },
         {
           key: "Strict-Transport-Security",
           value: "max-age=63072000; includeSubDomains; preload",
