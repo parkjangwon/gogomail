@@ -1,5 +1,5 @@
 'use client';
-import { useCallback, useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useRef } from 'react';
 import { useEditor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Link from '@tiptap/extension-link';
@@ -9,6 +9,7 @@ import Placeholder from '@tiptap/extension-placeholder';
 import Image from '@tiptap/extension-image';
 import { uploadAttachment } from '@/lib/api';
 import type { UIComposeIntent, MessageDetail } from '@/lib/api';
+import type { UploadedAttachment } from './ComposeAttachmentPanel';
 import { escapeHtml } from '@/lib/compose/composeUtils';
 import { buildQuoteHTML } from '@/lib/mail-address';
 import { SLASH_COMMANDS } from '@/lib/compose/slashCommands';
@@ -42,10 +43,10 @@ interface UseComposeEditorParams {
   triggerAutoSave: (to: string, cc: string, bcc: string, subject: string, text: string, html: string) => void;
   // Attachments
   draftIdRef: React.MutableRefObject<string | null>;
-  setUploadedAttachments: (fn: (prev: Array<{ id: string; filename: string; size: number; uploading?: boolean; error?: boolean }>) => Array<{ id: string; filename: string; size: number; uploading?: boolean; error?: boolean }>) => void;
+  setUploadedAttachments: React.Dispatch<React.SetStateAction<UploadedAttachment[]>>;
   // Send countdown attachment guard
   sendCountdown: number | null;
-  uploadedAttachments: Array<{ id: string; filename: string; size: number; uploading?: boolean; error?: boolean }>;
+  uploadedAttachments: UploadedAttachment[];
   readyAttachmentIds: () => string[];
   setSendCountdown: (v: number | null) => void;
   pendingMsgRef: React.MutableRefObject<unknown>;
