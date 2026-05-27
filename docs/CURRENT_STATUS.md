@@ -1,6 +1,15 @@
 # gogomail current status
 
-Last updated: 2026-05-28 (security hardening: admin_storage.go — 7 IDOR fixes Round 33)
+Last updated: 2026-05-28 (security hardening: Round 34 — roles/bulk-domains/bulk-import IDOR)
+
+## Post-remediation hardening round 34 (2026-05-28)
+
+**IDOR sweep: admin_system.go, admin_governance.go, admin_company.go**
+
+- **GET /admin/v1/roles** (`handleListRoles`): Added `requiresCompanyAccess(ctx, companyID)` after parsing `company_id` query param. Company_admin was able to enumerate roles of any company; now blocked.
+- **POST /admin/v1/roles** (`handleCreateRole`): Added `requiresCompanyAccess(ctx, req.CompanyID)` before `CreateAdminRole`. Company_admin was able to create roles in any company.
+- **POST /admin/v1/domains/bulk** (`handleBulkDomains`): For each domain ID, now fetches domain first with `GetDomain`, then calls `requiresCompanyAccess(ctx, domain.CompanyID)` before executing activate/suspend/delete. Company_admin could previously activate, suspend, or delete domains belonging to other companies.
+- **POST /admin/v1/companies/{id}/users/bulk-import**: Added per-user domain ownership check (`GetDomain → domain.CompanyID == id`). Company_admin could previously specify `domain_id` values from other companies, injecting users into foreign domains. If domain lookup fails or CompanyID mismatch, the user record is added to the failures list.
 
 ## Post-remediation hardening round 33 (2026-05-28)
 

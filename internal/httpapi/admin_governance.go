@@ -460,7 +460,15 @@ func handleBulkDomains(w http.ResponseWriter, r *http.Request, service AdminServ
 	succeeded := []string{}
 	failed := []map[string]string{}
 	for _, id := range input.IDs {
-		var err error
+		domain, err := service.GetDomain(ctx, id)
+		if err != nil {
+			failed = append(failed, map[string]string{"id": id, "error": "domain not found"})
+			continue
+		}
+		if err := requiresCompanyAccess(ctx, domain.CompanyID); err != nil {
+			failed = append(failed, map[string]string{"id": id, "error": "access denied"})
+			continue
+		}
 		switch input.Action {
 		case "activate":
 			err = service.UpdateDomainStatus(ctx, maildb.UpdateDomainStatusRequest{ID: id, Status: "active"})

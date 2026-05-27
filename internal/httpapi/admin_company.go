@@ -205,6 +205,15 @@ func registerCompanyRoutes(mux *http.ServeMux, service AdminService, adminAuth f
 		var failures []failure
 		successCount := 0
 		for _, u := range req.Users {
+			domainView, err := service.GetDomain(r.Context(), u.DomainID)
+			if err != nil {
+				failures = append(failures, failure{Email: u.Email, Error: "domain not found"})
+				continue
+			}
+			if domainView.CompanyID != id {
+				failures = append(failures, failure{Email: u.Email, Error: "domain does not belong to this company"})
+				continue
+			}
 			parts := strings.SplitN(u.Email, "@", 2)
 			username := parts[0]
 			createReq := maildb.CreateUserRequest{

@@ -357,6 +357,10 @@ func handleListRoles(w http.ResponseWriter, r *http.Request, service AdminServic
 	if !ok {
 		return
 	}
+	if err := requiresCompanyAccess(r.Context(), companyID); err != nil {
+		writeError(w, http.StatusForbidden, "access denied")
+		return
+	}
 	roles, err := service.ListAdminRoles(r.Context(), companyID)
 	if err != nil {
 		slog.ErrorContext(r.Context(), "admin handler error", "error", err)
@@ -390,6 +394,10 @@ func handleCreateRole(w http.ResponseWriter, r *http.Request, service AdminServi
 	}
 	if req.IsBuiltin {
 		writeError(w, http.StatusBadRequest, "custom role creation cannot set is_builtin")
+		return
+	}
+	if err := requiresCompanyAccess(r.Context(), req.CompanyID); err != nil {
+		writeError(w, http.StatusForbidden, "access denied")
 		return
 	}
 	role, err := service.CreateAdminRole(r.Context(), req)
