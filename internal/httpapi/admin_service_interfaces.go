@@ -211,6 +211,7 @@ type adminDeliveryService interface {
 	DeletePushDevice(ctx context.Context, userID string, id string) error
 	DeleteAllPushDevices(ctx context.Context, userID string) (int, error)
 	ListSuppressionEntries(ctx context.Context, req maildb.SuppressionEntryListRequest) ([]maildb.SuppressionEntry, error)
+	GetSuppressionEntry(ctx context.Context, id string) (maildb.SuppressionEntry, error)
 	DeleteSuppressionEntry(ctx context.Context, id string) error
 	ListTrustedRelays(ctx context.Context, req maildb.TrustedRelayListRequest) ([]maildb.TrustedRelayView, error)
 	CreateTrustedRelay(ctx context.Context, req maildb.CreateTrustedRelayRequest) (maildb.TrustedRelayView, error)
@@ -221,6 +222,7 @@ type adminDeliveryService interface {
 	UpdateDeliveryRouteStatus(ctx context.Context, req maildb.UpdateDeliveryRouteStatusRequest) error
 	DeleteDeliveryRoute(ctx context.Context, id string) error
 	ListDKIMKeys(ctx context.Context, req maildb.DKIMKeyListRequest) ([]maildb.DKIMKeyView, error)
+	GetDKIMKey(ctx context.Context, id string) (maildb.DKIMKeyView, error)
 	CreateDKIMKey(ctx context.Context, input maildb.CreateDKIMKeyInput) (string, error)
 	DeactivateDKIMKey(ctx context.Context, id string) error
 	VerifyDKIMKeyDNS(ctx context.Context, keyID string) (maildb.DKIMKeyDNSVerificationResult, error)

@@ -1,6 +1,14 @@
 # gogomail current status
 
-Last updated: 2026-05-28 (security hardening: LDAP/RDBMS sync + IdP config IDOR sweep)
+Last updated: 2026-05-28 (security hardening: admin_mail.go IDOR sweep)
+
+## Post-remediation hardening round 31 (2026-05-28)
+
+**IDOR sweep: admin_mail.go — push notification, DKIM keys, suppression list (5 handlers)**
+- **GET/PATCH /push-notification-attempts/{id}**: `PushNotificationAttemptView.CompanyID` confirmed. Added `requiresCompanyAccess(attempt.CompanyID)`. PATCH pre-fetches the attempt before updating.
+- **DELETE/POST /dkim-keys/{id}**: Added `GetDKIMKey` to `maildb.Repository` (SELECT by ID). DKIM key has `DomainID` → `GetDomain → requiresCompanyAccess`. Added service interface method + test stub.
+- **DELETE /suppression-list/{id}**: Added `GetSuppressionEntry` to `maildb.Repository`. Entry has `DomainID` → `GetDomain → requiresCompanyAccess`. Added service interface method + test stub.
+- **System-level (no fix needed)**: `DELETE /trusted-relays/{id}`, `DELETE /delivery-routes/{id}`, `PATCH /delivery-routes/{id}/status`, `POST /outbox/{id}/retry` — these resources have no company/domain scope.
 
 ## Post-remediation hardening round 30 (2026-05-28)
 

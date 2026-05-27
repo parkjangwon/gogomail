@@ -215,6 +215,10 @@ func registerDeliveryAndMailRoutes(mux *http.ServeMux, service AdminService, adm
 			writeError(w, http.StatusBadRequest, err.Error())
 			return
 		}
+		if err := requiresCompanyAccess(r.Context(), attempt.CompanyID); err != nil {
+			writeError(w, http.StatusForbidden, "access denied")
+			return
+		}
 		writeJSON(w, http.StatusOK, map[string]any{"push_notification_attempt": attempt})
 	}))
 
@@ -226,6 +230,15 @@ func registerDeliveryAndMailRoutes(mux *http.ServeMux, service AdminService, adm
 		}
 		id, ok := parseBoundedAdminPathValue(w, r, "id")
 		if !ok {
+			return
+		}
+		attempt, err := service.GetPushNotificationAttempt(r.Context(), id)
+		if err != nil {
+			writeError(w, http.StatusNotFound, "push notification attempt not found")
+			return
+		}
+		if err := requiresCompanyAccess(r.Context(), attempt.CompanyID); err != nil {
+			writeError(w, http.StatusForbidden, "access denied")
 			return
 		}
 		var req maildb.UpdatePushNotificationOutcomeRequest
@@ -568,6 +581,20 @@ func registerDeliveryAndMailRoutes(mux *http.ServeMux, service AdminService, adm
 		if !ok {
 			return
 		}
+		key, err := service.GetDKIMKey(r.Context(), id)
+		if err != nil {
+			writeError(w, http.StatusNotFound, "dkim key not found")
+			return
+		}
+		domain, err := service.GetDomain(r.Context(), key.DomainID)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "failed to resolve domain")
+			return
+		}
+		if err := requiresCompanyAccess(r.Context(), domain.CompanyID); err != nil {
+			writeError(w, http.StatusForbidden, "access denied")
+			return
+		}
 		if err := service.DeactivateDKIMKey(r.Context(), id); err != nil {
 			writeError(w, http.StatusNotFound, err.Error())
 			return
@@ -584,6 +611,20 @@ func registerDeliveryAndMailRoutes(mux *http.ServeMux, service AdminService, adm
 		}
 		id, ok := parseBoundedAdminPathValue(w, r, "id")
 		if !ok {
+			return
+		}
+		key, err := service.GetDKIMKey(r.Context(), id)
+		if err != nil {
+			writeError(w, http.StatusNotFound, "dkim key not found")
+			return
+		}
+		domain, err := service.GetDomain(r.Context(), key.DomainID)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "failed to resolve domain")
+			return
+		}
+		if err := requiresCompanyAccess(r.Context(), domain.CompanyID); err != nil {
+			writeError(w, http.StatusForbidden, "access denied")
 			return
 		}
 		result, err := service.VerifyDKIMKeyDNS(r.Context(), id)
@@ -618,6 +659,20 @@ func registerDeliveryAndMailRoutes(mux *http.ServeMux, service AdminService, adm
 		}
 		id, ok := parseBoundedAdminPathValue(w, r, "id")
 		if !ok {
+			return
+		}
+		entry, err := service.GetSuppressionEntry(r.Context(), id)
+		if err != nil {
+			writeError(w, http.StatusNotFound, "suppression entry not found")
+			return
+		}
+		domain, err := service.GetDomain(r.Context(), entry.DomainID)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "failed to resolve domain")
+			return
+		}
+		if err := requiresCompanyAccess(r.Context(), domain.CompanyID); err != nil {
+			writeError(w, http.StatusForbidden, "access denied")
 			return
 		}
 		if err := service.DeleteSuppressionEntry(r.Context(), id); err != nil {

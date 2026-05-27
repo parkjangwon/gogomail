@@ -130,6 +130,46 @@ func (r *Repository) ListDKIMKeys(ctx context.Context, req DKIMKeyListRequest) (
 	return keys, nil
 }
 
+func (r *Repository) GetDKIMKey(ctx context.Context, id string) (DKIMKeyView, error) {
+	if r.db == nil {
+		return DKIMKeyView{}, fmt.Errorf("database handle is required")
+	}
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return DKIMKeyView{}, fmt.Errorf("dkim key id is required")
+	}
+	const query = `
+SELECT
+  id::text,
+  domain_id::text,
+  selector,
+  public_key_dns,
+  status,
+  dns_verified_at,
+  created_at,
+  updated_at
+FROM dkim_keys
+WHERE id = $1
+LIMIT 1`
+	var key DKIMKeyView
+	if err := r.db.QueryRowContext(ctx, query, id).Scan(
+		&key.ID,
+		&key.DomainID,
+		&key.Selector,
+		&key.PublicKeyDNS,
+		&key.Status,
+		&key.DNSVerifiedAt,
+		&key.CreatedAt,
+		&key.UpdatedAt,
+	); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return DKIMKeyView{}, fmt.Errorf("dkim key %q not found", id)
+		}
+		return DKIMKeyView{}, fmt.Errorf("get dkim key: %w", err)
+	}
+	return key, nil
+}
+
 const listDKIMKeysBaseSQL = `
 SELECT
   id::text,

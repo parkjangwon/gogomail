@@ -8086,7 +8086,9 @@ func TestAdminPushNotificationAttemptDetailHandlerRejectsUnsafeID(t *testing.T) 
 func TestAdminPushNotificationOutcomeHandler(t *testing.T) {
 	t.Parallel()
 
-	service := &fakeAdminService{}
+	service := &fakeAdminService{
+		pushNotificationAttempts: []maildb.PushNotificationAttemptView{{ID: "attempt-1"}},
+	}
 	mux := http.NewServeMux()
 	RegisterAdminRoutes(mux, service, "")
 
@@ -8134,7 +8136,9 @@ func TestAdminPushNotificationOutcomeHandlerRejectsUnsafeID(t *testing.T) {
 func TestAdminPushNotificationOutcomeHandlerRejectsInvalidBody(t *testing.T) {
 	t.Parallel()
 
-	service := &fakeAdminService{}
+	service := &fakeAdminService{
+		pushNotificationAttempts: []maildb.PushNotificationAttemptView{{ID: "attempt-1"}},
+	}
 	mux := http.NewServeMux()
 	RegisterAdminRoutes(mux, service, "")
 
@@ -10489,6 +10493,15 @@ func (f *fakeAdminService) CreateDKIMKey(_ context.Context, input maildb.CreateD
 	return "dkim-1", nil
 }
 
+func (f *fakeAdminService) GetDKIMKey(_ context.Context, id string) (maildb.DKIMKeyView, error) {
+	for _, k := range f.dkimKeys {
+		if k.ID == id {
+			return k, nil
+		}
+	}
+	return maildb.DKIMKeyView{}, nil
+}
+
 func (f *fakeAdminService) DeactivateDKIMKey(_ context.Context, id string) error {
 	f.lastDeactivateDKIMKeyID = id
 	return nil
@@ -10502,6 +10515,15 @@ func (f *fakeAdminService) VerifyDKIMKeyDNS(_ context.Context, keyID string) (ma
 func (f *fakeAdminService) RetryOutbox(_ context.Context, id string) error {
 	f.lastRetryOutboxID = id
 	return nil
+}
+
+func (f *fakeAdminService) GetSuppressionEntry(_ context.Context, id string) (maildb.SuppressionEntry, error) {
+	for _, e := range f.suppression {
+		if e.ID == id {
+			return e, nil
+		}
+	}
+	return maildb.SuppressionEntry{}, nil
 }
 
 func (f *fakeAdminService) DeleteSuppressionEntry(_ context.Context, id string) error {
