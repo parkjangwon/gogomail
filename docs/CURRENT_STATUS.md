@@ -1,6 +1,17 @@
 # gogomail current status
 
-Last updated: 2026-05-28 (security hardening: Web Push endpoint SSRF fix)
+Last updated: 2026-05-28 (security hardening: SCIM rate limit + hash upgrade on SMTP/LDAP login)
+
+## Post-remediation hardening round 17 (2026-05-28)
+
+**SCIM bearer-token brute-force (no rate limit)**
+- **internal/httpapi/scim.go**: All 7 SCIM endpoints used `scimAuth` which performs a constant-time token comparison but applies no rate limiting. An attacker could probe the static bearer token at full network speed. Fixed by creating a shared `NewAdminIPRateLimiter(20, time.Minute)` inside `RegisterSCIMRoutes` and wrapping every handler with `protect(h)` — rate limit fires before the auth check so even failed attempts are throttled. 429 responses include `Retry-After: 60`.
+
+**Legacy password hash upgrade missing from SMTP/IMAP and LDAP auth paths**
+- **internal/maildb/submission.go**: `AuthenticatePlain` (SMTP submission auth) called `auth.VerifyPasswordHash` and never triggered the async PBKDF2 upgrade. Users whose sole access was via SMTP/IMAP would keep `sha256:` or `plain:` hashes indefinitely. Fixed by switching to `auth.VerifyPasswordHashResult` and spawning the same async `upgradePasswordHash` goroutine used by the web login path.
+- **internal/maildb/ldap_auth.go**: `AuthenticateLDAP` had the same gap. Additionally updated the SQL query to fetch `u.id::text` (needed by the upgrader). Now uses `VerifyPasswordHashResult` and fires the async upgrade on success.
+
+**Context: web login (`AuthenticateUser` in `user_auth.go`) already had upgrade-on-login since the prior session; SMTP/LDAP were the remaining gaps.**
 
 ## Post-remediation hardening round 16 (2026-05-28)
 
