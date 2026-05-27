@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
@@ -139,6 +140,44 @@ func TestVerifyPasswordHashRejectsUnsafePBKDF2Metadata(t *testing.T) {
 
 			if VerifyPasswordHash("secret", tc.encoded) {
 				t.Fatalf("VerifyPasswordHash accepted unsafe metadata for %s", tc.name)
+			}
+		})
+	}
+}
+
+func TestVerifyPasswordHashResult(t *testing.T) {
+	cases := []struct {
+		name        string
+		password    string
+		hash        string
+		wantOK      bool
+		wantUpgrade bool
+	}{
+		{"plain match", "secret", "plain:secret", true, true},
+		{"plain mismatch", "wrong", "plain:secret", false, false},
+		{"sha256 match", "secret", func() string {
+			sum := sha256.Sum256([]byte("secret"))
+			return "sha256:" + hex.EncodeToString(sum[:])
+		}(), true, true},
+		{"sha256 mismatch", "wrong", func() string {
+			sum := sha256.Sum256([]byte("secret"))
+			return "sha256:" + hex.EncodeToString(sum[:])
+		}(), false, false},
+		{"pbkdf2 no upgrade", "secret", func() string {
+			salt := make([]byte, 16)
+			rand.Read(salt)
+			h, _ := HashPasswordPBKDF2SHA256("secret", salt, 210_000)
+			return h
+		}(), true, false},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			ok, upgrade := VerifyPasswordHashResult(c.password, c.hash)
+			if ok != c.wantOK {
+				t.Errorf("ok: got %v want %v", ok, c.wantOK)
+			}
+			if upgrade != c.wantUpgrade {
+				t.Errorf("upgrade: got %v want %v", upgrade, c.wantUpgrade)
 			}
 		})
 	}
