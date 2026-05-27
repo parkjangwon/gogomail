@@ -2,9 +2,8 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslations } from 'next-intl';
-import { createCalendar, updateCalendar, deleteCalendar, createCalendarTodo, setTodoStatus, deleteCalendarObject } from '@/lib/api';
 import { formatDate, formatMonthYear, formatWeekRange } from '@/lib/calendar/dateUtils';
-import { ParsedEvent, ParsedTodo, parseEvents, parseTodos } from '@/lib/calendar/eventParser';
+import { ParsedEvent, parseEvents, parseTodos } from '@/lib/calendar/eventParser';
 import { CalendarSidebar } from './calendar/CalendarSidebar';
 import { CalendarToolbar } from './calendar/CalendarToolbar';
 import { QuickCreatePopover } from './calendar/QuickCreatePopover';
@@ -17,6 +16,9 @@ import { DayView } from './calendar/DayView';
 import { useCalendarData } from './calendar/useCalendarData';
 import { useCalendarCreateForm } from './calendar/useCalendarCreateForm';
 import { useCalendarEditForm } from './calendar/useCalendarEditForm';
+import { useCalendarManagement } from './calendar/useCalendarManagement';
+import { useCalendarTodos } from './calendar/useCalendarTodos';
+import { useCalendarSubscriptionForm } from './calendar/useCalendarSubscriptionForm';
 
   // ── CalendarView (main) ───────────────────────────────────────────────────────
 
@@ -83,36 +85,47 @@ export function CalendarView() {
     handleEditAllDayToggle,
   } = editForm;
 
-  // Calendar management modal
-  const [showCalModal, setShowCalModal] = useState(false);
-  const [editingCal, setEditingCal] = useState<import('@/lib/api').Calendar | null>(null);
-  const [calName, setCalName] = useState('');
-  const [calColor, setCalColor] = useState('#2F6EE0');
-  const [calDesc, setCalDesc] = useState('');
-  const [calSaving, setCalSaving] = useState(false);
-  const [calError, setCalError] = useState('');
-  const [calHoverId, setCalHoverId] = useState<string | null>(null);
+  const {
+    showCalModal, setShowCalModal,
+    editingCal,
+    calName, setCalName,
+    calColor, setCalColor,
+    calDesc, setCalDesc,
+    calSaving, calError,
+    calHoverId, setCalHoverId,
+    CAL_COLORS,
+    openCalModal,
+    handleCalSave,
+    handleCalDelete,
+  } = useCalendarManagement({ calendars, setCalendars, setObjects, setSelectedCalIds, t });
 
-  // Todo state
-  const [todoDraft, setTodoDraft] = useState('');
-  const [todoFocused, setTodoFocused] = useState(false);
-  const [todoDueDate, setTodoDueDate] = useState('');
-  const [todoTogglingId, setTodoTogglingId] = useState<string | null>(null);
-  const [todoDeleteId, setTodoDeleteId] = useState<string | null>(null);
-  const [todoHoverId, setTodoHoverId] = useState<string | null>(null);
-  const [quickCreate, setQuickCreate] = useState<{ day: Date; rect: DOMRect } | null>(null);
+  const {
+    todoDraft, setTodoDraft,
+    todoFocused, setTodoFocused,
+    todoDueDate, setTodoDueDate,
+    todoTogglingId,
+    todoDeleteId,
+    todoHoverId, setTodoHoverId,
+    quickCreate, setQuickCreate,
+    showTodoModal, setShowTodoModal,
+    handleToggleTodo,
+    handleDeleteTodo,
+    handleCreateTodo,
+    handleCellClick,
+    handleQuickSaveTodo,
+  } = useCalendarTodos({ calendars, refresh });
 
   const [showAddMenu, setShowAddMenu] = useState(false);
-  const [showTodoModal, setShowTodoModal] = useState(false);
 
-  // Subscription state
-  const [subHoverId, setSubHoverId] = useState<string | null>(null);
-  const [showSubModal, setShowSubModal] = useState(false);
-  const [subUrl, setSubUrl] = useState('');
-  const [subName, setSubName] = useState('');
-  const [subColor, setSubColor] = useState('#4285f4');
-  const [subSaving, setSubSaving] = useState(false);
-  const [subError, setSubError] = useState('');
+  const {
+    subHoverId, setSubHoverId,
+    showSubModal, setShowSubModal,
+    subUrl, setSubUrl,
+    subName, setSubName,
+    subColor, setSubColor,
+    subSaving, subError, setSubError,
+    handleAddSubscriptionForm,
+  } = useCalendarSubscriptionForm({ handleAddSubscription, t });
 
   // Derived: parse + filter events and todos
   const allEvents = parseEvents(objects, calendars);
@@ -138,56 +151,12 @@ export function CalendarView() {
     const d = new Date(); d.setHours(0, 0, 0, 0); setCurrentDate(d);
   }, []);
 
-  const handleToggleTodo = useCallback(async (todo: ParsedTodo) => {
-    setTodoTogglingId(todo.obj.ID);
-    try {
-      await setTodoStatus(todo.calendarId, todo.obj, !todo.completed);
-      await refresh();
-    } finally {
-      setTodoTogglingId(null);
-    }
-  }, [refresh]);
-
-  const handleDeleteTodo = useCallback(async (todo: ParsedTodo) => {
-    setTodoDeleteId(todo.obj.ID);
-    try {
-      await deleteCalendarObject(todo.calendarId, todo.obj.ObjectName);
-      await refresh();
-    } finally {
-      setTodoDeleteId(null);
-    }
-  }, [refresh]);
-
-  const handleCreateTodo = useCallback(async () => {
-    const title = todoDraft.trim();
-    if (!title || calendars.length === 0) return;
-    const due = todoDueDate ? new Date(todoDueDate + 'T00:00:00') : undefined;
-    const calId = calendars[0].ID;
-    try {
-      await createCalendarTodo({ title, due, calendarId: calId });
-      setTodoDraft('');
-      setTodoDueDate('');
-      setTodoFocused(false);
-      await refresh();
-    } catch { /* ignore */ }
-  }, [todoDraft, todoDueDate, calendars, refresh]);
-
   const handleQuickSaveEvent = useCallback(async (title: string, day: Date) => {
     if (calendars.length === 0) return;
     const { createCalendarEvent } = await import('@/lib/api');
     await createCalendarEvent(calendars[0].ID, { title, start: day, end: day, allDay: true });
     await refresh();
   }, [calendars, refresh]);
-
-  const handleQuickSaveTodo = useCallback(async (title: string, day: Date) => {
-    if (calendars.length === 0) return;
-    await createCalendarTodo({ title, due: day, calendarId: calendars[0].ID });
-    await refresh();
-  }, [calendars, refresh]);
-
-  const handleCellClick = useCallback((day: Date, rect: DOMRect) => {
-    setQuickCreate({ day, rect });
-  }, []);
 
   // Wrap openCreateModal to pass currentDate
   const openCreateModal = useCallback((baseDate?: Date) => {
@@ -228,72 +197,6 @@ export function CalendarView() {
   if (view === 'month') title = formatMonthYear(currentDate);
   else if (view === 'week') title = formatWeekRange(currentDate);
   else title = formatDate(currentDate);
-
-  const CAL_COLORS = ['#2F6EE0', '#ef4444', '#f97316', '#eab308', '#22c55e', '#8b5cf6', '#ec4899', '#14b8a6', '#6b7280'];
-
-  const openCalModal = (cal: import('@/lib/api').Calendar | null) => {
-    setEditingCal(cal);
-    setCalName(cal?.Name ?? '');
-    setCalColor(cal?.Color ?? CAL_COLORS[0]);
-    setCalDesc(cal?.Description ?? '');
-    setCalError('');
-    setShowCalModal(true);
-  };
-
-  const handleCalSave = async () => {
-    if (!calName.trim()) { setCalError(t('management.nameRequired')); return; }
-    setCalSaving(true); setCalError('');
-    try {
-      if (editingCal) {
-        await updateCalendar(editingCal.ID, { name: calName.trim(), color: calColor, description: calDesc.trim() });
-        setCalendars((prev) => prev.map((c) => c.ID === editingCal.ID ? { ...c, Name: calName.trim(), Color: calColor, Description: calDesc.trim() } : c));
-      } else {
-        const newCal = await createCalendar(calName.trim(), calColor, calDesc.trim());
-        setCalendars((prev) => [...prev, newCal]);
-        setSelectedCalIds((prev) => new Set([...prev, newCal.ID]));
-      }
-      setShowCalModal(false);
-    } catch (e) {
-      setCalError(e instanceof Error ? e.message : t('management.saveFailed'));
-    } finally {
-      setCalSaving(false);
-    }
-  };
-
-  const handleCalDelete = async () => {
-    if (!editingCal) return;
-    if (!window.confirm(t('management.confirmDelete', { name: editingCal.Name }))) return;
-    setCalSaving(true);
-    try {
-      await deleteCalendar(editingCal.ID);
-      setCalendars((prev) => prev.filter((c) => c.ID !== editingCal.ID));
-      setObjects((prev) => prev.filter((o) => o.CalendarID !== editingCal.ID));
-      setSelectedCalIds((prev) => { const next = new Set(prev); next.delete(editingCal.ID); return next; });
-      setShowCalModal(false);
-    } catch (e) {
-      setCalError(e instanceof Error ? e.message : t('management.deleteFailed'));
-    } finally {
-      setCalSaving(false);
-    }
-  };
-
-  const handleAddSubscriptionForm = async () => {
-    const trimmed = subUrl.trim();
-    if (!trimmed) return;
-    setSubSaving(true);
-    setSubError('');
-    try {
-      await handleAddSubscription(trimmed, subName.trim() || trimmed, subColor);
-      setShowSubModal(false);
-      setSubUrl('');
-      setSubName('');
-      setSubColor('#4285f4');
-    } catch {
-      setSubError(t('subscription.failed'));
-    } finally {
-      setSubSaving(false);
-    }
-  };
 
   const handleEventClick = (ev: ParsedEvent, rect: DOMRect) => {
     setPopover({ event: ev, rect });
