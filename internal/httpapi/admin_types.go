@@ -14,6 +14,7 @@ import (
 	"github.com/gogomail/gogomail/internal/maildb"
 	"github.com/gogomail/gogomail/internal/mailservice"
 	"github.com/gogomail/gogomail/internal/storage"
+	"github.com/redis/go-redis/v9"
 )
 
 type adminRouteConfig struct {
@@ -31,6 +32,7 @@ type adminRouteConfig struct {
 	bgTracker              *BackgroundTracker
 	adminBootstrapEmail    string
 	adminBootstrapPassword string
+	redisLoginClient       *redis.Client
 }
 
 // AdminRouteOption configures optional capabilities for RegisterAdminRoutes.
@@ -78,6 +80,12 @@ func WithAdminConfigResolver(r ConfigResolver) AdminRouteOption {
 // endpoints for operator visibility into dead-letter streams.
 func WithDLQReader(r eventstream.DLQReader) AdminRouteOption {
 	return func(cfg *adminRouteConfig) { cfg.dlqReader = r }
+}
+
+// WithRedisLoginLimiter enables a distributed Redis-backed rate limiter for
+// the admin login endpoint. Falls back to in-memory when not configured.
+func WithRedisLoginLimiter(client *redis.Client) AdminRouteOption {
+	return func(cfg *adminRouteConfig) { cfg.redisLoginClient = client }
 }
 
 func WithSystemEmailSender(sender mailservice.SystemEmailSender, publicBaseURL string) AdminRouteOption {

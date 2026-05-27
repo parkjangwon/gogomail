@@ -1,6 +1,16 @@
 # gogomail current status
 
-Last updated: 2026-05-27 (Task 6: 레거시 패스워드 해시 로그인 시 자동 업그레이드)
+Last updated: 2026-05-27 (Task 7: Redis 기반 어드민 로그인 rate limiter)
+
+## Task 7: Redis 기반 어드민 로그인 rate limiter (2026-05-27)
+
+**Replace in-memory admin login rate limiter with Redis-backed distributed limiter**
+- **internal/httpapi/admin_rate_limiter_redis.go** (new): `adminLoginRateLimiter` interface with `Middleware(next http.Handler) http.Handler`; `RedisAdminLoginLimiter` struct wrapping `ratelimit.RedisFixedWindowLimiter`; `NewRedisAdminLoginLimiter(client, limit, window)` constructor
+- **internal/httpapi/admin_types.go**: Added `redisLoginClient *redis.Client` field to `adminRouteConfig`; added `WithRedisLoginLimiter(client *redis.Client) AdminRouteOption`
+- **internal/httpapi/admin.go**: `registerAdminUtilityRoutes` now creates `loginLimiter` as `adminLoginRateLimiter` interface — uses `RedisAdminLoginLimiter` when `cfg.redisLoginClient != nil`, falls back to `AdminIPRateLimiter` (in-memory) otherwise
+- **internal/httpapi/admin_auth.go**: `registerAuthAndAdminUserRoutes` parameter changed from `*AdminIPRateLimiter` → `adminLoginRateLimiter`
+- **internal/app/run.go**: Appends `httpapi.WithRedisLoginLimiter(redisClient)` to `adminRouteOpts` when `redisClient != nil`
+- **Test coverage**: 1274 tests pass across `internal/httpapi` and `internal/app`
 
 ## Task 6: 레거시 패스워드 해시 로그인 시 자동 업그레이드 (2026-05-27)
 

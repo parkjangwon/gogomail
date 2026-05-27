@@ -408,6 +408,7 @@ func runHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, mode M
 			if dlqReader, err := eventstream.NewRedisDLQReader(redisClient); err == nil {
 				adminRouteOpts = append(adminRouteOpts, httpapi.WithDLQReader(dlqReader))
 			}
+			adminRouteOpts = append(adminRouteOpts, httpapi.WithRedisLoginLimiter(redisClient))
 		}
 		httpapi.RegisterAdminRoutes(mux, adminService{
 			Repository:                  repository,

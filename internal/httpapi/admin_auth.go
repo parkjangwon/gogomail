@@ -577,7 +577,7 @@ func handleDeleteAdminUser(w http.ResponseWriter, r *http.Request, service Admin
 }
 
 // registerAuthAndAdminUserRoutes registers auth and admin-user routes.
-func registerAuthAndAdminUserRoutes(mux *http.ServeMux, service AdminService, cfg adminRouteConfig, loginLimiter *AdminIPRateLimiter, adminAuthFn func(http.HandlerFunc) http.HandlerFunc) {
+func registerAuthAndAdminUserRoutes(mux *http.ServeMux, service AdminService, cfg adminRouteConfig, loginLimiter adminLoginRateLimiter, adminAuthFn func(http.HandlerFunc) http.HandlerFunc) {
 	mux.HandleFunc("POST /admin/v1/auth/login", loginLimiter.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		handleAdminLogin(w, r, service, cfg)
 	})).ServeHTTP)
