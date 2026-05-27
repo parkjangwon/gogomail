@@ -215,6 +215,10 @@ func registerCompanyRoutes(mux *http.ServeMux, service AdminService, adminAuth f
 				Password:    u.Password,
 			}
 			if u.Password != "" {
+				if len(u.Password) > maxPasswordResetBytes {
+					failures = append(failures, failure{Email: u.Email, Error: "password is too long"})
+					continue
+				}
 				salt := make([]byte, 16)
 				if _, err := rand.Read(salt); err != nil {
 					failures = append(failures, failure{Email: u.Email, Error: "generate salt"})
@@ -222,7 +226,7 @@ func registerCompanyRoutes(mux *http.ServeMux, service AdminService, adminAuth f
 				}
 				hash, err := auth.HashPasswordPBKDF2SHA256(u.Password, salt, 0)
 				if err != nil {
-					failures = append(failures, failure{Email: u.Email, Error: "hash password: " + err.Error()})
+					failures = append(failures, failure{Email: u.Email, Error: "hash password failed"})
 					continue
 				}
 				createReq.PasswordHash = hash
