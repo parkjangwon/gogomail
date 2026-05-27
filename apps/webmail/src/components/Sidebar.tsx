@@ -8,8 +8,6 @@ import { Folder } from '@/lib/api';
 import {
   PencilSquareIcon,
   ChevronRightIcon,
-  ChevronDownIcon,
-  ChevronDoubleLeftIcon,
   InboxIcon,
   StarIcon,
   PaperClipIcon,
