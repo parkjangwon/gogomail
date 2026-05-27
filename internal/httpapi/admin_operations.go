@@ -90,6 +90,20 @@ func registerOperationsRoutes(mux *http.ServeMux, service AdminService, cfg admi
 			writeError(w, http.StatusBadRequest, "user_id is required")
 			return
 		}
+		targetUser, err := service.GetUser(r.Context(), userID)
+		if err != nil {
+			writeError(w, http.StatusNotFound, "user not found")
+			return
+		}
+		targetDomain, err := service.GetDomain(r.Context(), targetUser.DomainID)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "failed to resolve domain")
+			return
+		}
+		if err := requiresCompanyAccess(r.Context(), targetDomain.CompanyID); err != nil {
+			writeError(w, http.StatusForbidden, "access denied")
+			return
+		}
 		limit, ok := parseQueryLimit(w, r)
 		if !ok {
 			return
@@ -230,6 +244,10 @@ func registerOperationsRoutes(mux *http.ServeMux, service AdminService, cfg admi
 			writeError(w, http.StatusNotFound, err.Error())
 			return
 		}
+		if err := requiresCompanyAccess(r.Context(), log.CompanyID); err != nil {
+			writeError(w, http.StatusForbidden, "access denied")
+			return
+		}
 		writeJSON(w, http.StatusOK, map[string]any{"audit_log": log})
 	}))
 
@@ -299,6 +317,10 @@ func registerOperationsRoutes(mux *http.ServeMux, service AdminService, cfg admi
 		log, err := service.GetMailFlowLog(r.Context(), id)
 		if err != nil {
 			writeError(w, http.StatusNotFound, err.Error())
+			return
+		}
+		if err := requiresCompanyAccess(r.Context(), log.CompanyID); err != nil {
+			writeError(w, http.StatusForbidden, "access denied")
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"mail_flow_log": log})

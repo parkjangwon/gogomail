@@ -1,6 +1,14 @@
 # gogomail current status
 
-Last updated: 2026-05-28 (security hardening: broad IDOR sweep across domain/policy/usage handlers)
+Last updated: 2026-05-28 (security hardening: operations/alerts IDOR sweep)
+
+## Post-remediation hardening round 27 (2026-05-28)
+
+**IDOR sweep: admin_operations.go (3 endpoints)**
+- **GET /admin/v1/audit-logs/{id}**: `AuditLogView.CompanyID` present; no isolation check. Fixed with `requiresCompanyAccess(r.Context(), log.CompanyID)`.
+- **GET /admin/v1/mail-flow-logs/{id}**: `MailFlowLogView.CompanyID` present; no isolation check. Fixed same pattern.
+- **POST /admin/v1/imap/mailboxes/{id}/uid-backfill**: `userID` query param targets a specific user's mailbox; no company isolation. Fixed with `GetUser → GetDomain → requiresCompanyAccess`.
+- **GET /admin/v1/outbox-events/{id}**: `OutboxEventView` has no `CompanyID`; treated as system-level resource (no change needed).
 
 ## Post-remediation hardening round 26 (2026-05-28)
 
