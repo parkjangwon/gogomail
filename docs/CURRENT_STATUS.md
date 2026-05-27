@@ -1,6 +1,13 @@
 # gogomail current status
 
-Last updated: 2026-05-28 (security hardening: WebDAV Basic auth MFA pending token bypass)
+Last updated: 2026-05-28 (security hardening: role update privilege escalation + IDOR)
+
+## Post-remediation hardening round 23 (2026-05-28)
+
+**Privilege escalation + IDOR via PATCH /admin/v1/users/{id}/role**
+- **internal/httpapi/admin_user.go**: The role-update handler had two vulnerabilities:
+  1. **Cross-tenant IDOR**: No `requiresCompanyAccess` check. A `company_admin` for company A could change the role of any user by supplying that user's ID, including users in company B. Fixed by adding `GetUser` → `GetDomain` → `requiresCompanyAccess` (same pattern as `UpdateUserStatus` and `UpdateUserQuota`).
+  2. **Privilege escalation**: No restriction on which roles a `company_admin` can assign. A `company_admin` could call this endpoint with `{"role": "system_admin"}` to self-elevate or promote any user to `system_admin`. Fixed by checking `claims.Role != "system_admin"` when `req.Role == "system_admin"` — only a static admin token or `system_admin` JWT may assign the `system_admin` role.
 
 ## Post-remediation hardening round 22 (2026-05-28)
 
