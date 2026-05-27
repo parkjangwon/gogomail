@@ -9,8 +9,8 @@ import Underline from '@tiptap/extension-underline';
 import TextAlign from '@tiptap/extension-text-align';
 import Placeholder from '@tiptap/extension-placeholder';
 import Image from '@tiptap/extension-image';
-import { saveDraft, updateDraft, uploadAttachment, listUserAddresses } from '@/lib/api';
-import type { UIComposeIntent, MessageDetail, SendMessageRequest, UserAddressEntry } from '@/lib/api';
+import { saveDraft, updateDraft, uploadAttachment } from '@/lib/api';
+import type { UIComposeIntent, MessageDetail, SendMessageRequest } from '@/lib/api';
 import { composeCloseSaveButtonAriaLabel } from '@/lib/composeCloseSaveButtonAriaLabel';
 import { composeCloseSaveButtonLabel } from '@/lib/composeCloseSaveButtonLabel';
 import { composeCloseSavePrompt } from '@/lib/composeCloseSavePrompt';
@@ -18,7 +18,7 @@ import { composeSendButtonLabel } from '@/lib/composeSendButtonLabel';
 import { toDateTimeLocalValue } from '@/lib/dateTimeLocal';
 import { formatSendResultLabel } from '@/lib/sendResultLabel';
 import { escapeHtml, parseAddrs, backendComposeIntent } from '@/lib/compose/composeUtils';
-import { buildQuoteHTML, emailOf, invalidRecipientAddresses, parseToPickerItems, pickerItemsToString } from '@/lib/mail-address';
+import { buildQuoteHTML, invalidRecipientAddresses, parseToPickerItems, pickerItemsToString } from '@/lib/mail-address';
 import { SLASH_COMMANDS } from '@/lib/compose/slashCommands';
 import type { SlashCommand } from '@/lib/compose/slashCommands';
 import { RecipientChips } from './RecipientChips';
@@ -33,6 +33,8 @@ import { useComposeTemplates } from './compose/useComposeTemplates';
 import { useComposeDraft } from './compose/useComposeDraft';
 import { useComposeSlash } from './compose/useComposeSlash';
 import { useComposeSend } from './compose/useComposeSend';
+import { useComposeRecipients } from './compose/useComposeRecipients';
+import { useComposeUI } from './compose/useComposeUI';
 import {
   PaperClipIcon,
   XMarkIcon,
@@ -59,53 +61,40 @@ interface ComposeModalProps {
 export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMessage, userEmail, initialTo, initialSubject, initialBody, focusSubjectOnOpen = false, isMobile, windowOffset = 0, onArchiveSource, onAfterSend }: ComposeModalProps) {
   const t = useTranslations('composeFull');
   const tMisc = useTranslations('misc.compose');
-  const replyTo = intent === 'reply' || intent === 'reply_all'
-    ? sourceMessage?.from_addr ?? ''
-    : '';
-  const replyCc = intent === 'reply_all' && sourceMessage
-    ? (sourceMessage.to_addrs ?? [])
-        .map(emailOf)
-        .filter((addr) => !userEmail || addr.toLowerCase() !== userEmail.toLowerCase())
-        .join(', ')
-    : '';
+
   const replySubject = sourceMessage
     ? intent === 'forward'
       ? `Fwd: ${sourceMessage.subject}`
       : `Re: ${sourceMessage.subject}`
     : '';
 
-  const draftTo = draftMessage ? (draftMessage.to_addrs ?? []).map(emailOf).join(', ') : '';
-  const draftCc = draftMessage ? (draftMessage.cc_addrs ?? []).map(emailOf).join(', ') : '';
+  // ---- Recipients hook ----
+  const {
+    to, setTo,
+    cc, setCc,
+    bcc, setBcc,
+    showCc, setShowCc,
+    showBcc, setShowBcc,
+    fromAddress, setFromAddress,
+    availableAddresses,
+    recentRecipients,
+    toRef, ccRef, bccRef,
+  } = useComposeRecipients({ draftMessage, initialTo, intent, sourceMessage, userEmail });
 
-  const [to, setTo] = useState(draftMessage ? draftTo : (initialTo ?? replyTo));
-  const [cc, setCc] = useState(draftMessage ? draftCc : replyCc);
-  const [bcc, setBcc] = useState('');
-  const [showCc, setShowCc] = useState(!!(draftMessage ? draftCc : replyCc));
-  const [showBcc, setShowBcc] = useState(false);
   const [subject, setSubject] = useState(draftMessage ? (draftMessage.subject ?? '') : (initialSubject ?? replySubject));
-  const [trackOpens, setTrackOpens] = useState(false);
-  const [confirmClose, setConfirmClose] = useState(false);
-  const [closeSaveInProgress, setCloseSaveInProgress] = useState(false);
-  const [showSigEditor, setShowSigEditor] = useState(false);
-  const [signature, setSignature] = useState(() => {
-    try { return localStorage.getItem('webmail_signature') ?? ''; } catch { return ''; }
-  });
-  const [recentRecipients] = useState<string[]>(() => {
-    try {
-      const recents: string[] = JSON.parse(localStorage.getItem('webmail_recent_recipients') ?? '[]');
-      const contacts: Record<string, string> = JSON.parse(localStorage.getItem('webmail_contacts') ?? '{}');
-      const enriched = recents.map((r) => {
-        if (r.includes('<')) return r;
-        const name = contacts[r.toLowerCase()];
-        return name ? `${name} <${r}>` : r;
-      });
-      const recentEmails = new Set(recents.map((r) => { const m = r.match(/<([^>]+)>/); return (m ? m[1] : r).toLowerCase(); }));
-      Object.entries(contacts).forEach(([email, name]) => {
-        if (!recentEmails.has(email)) enriched.push(`${name} <${email}>`);
-      });
-      return enriched.slice(0, 50);
-    } catch { return []; }
-  });
+
+  // ---- UI hook ----
+  const {
+    confirmClose, setConfirmClose,
+    closeSaveInProgress, setCloseSaveInProgress,
+    showSigEditor, setShowSigEditor,
+    signature, setSignature,
+    showEmojiPicker, setShowEmojiPicker,
+    showOrgPicker, setShowOrgPicker,
+    showSendDropdown, setShowSendDropdown,
+    imageResizeToolbar, setImageResizeToolbar,
+    trackOpens, setTrackOpens,
+  } = useComposeUI();
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const sendDropdownRef = useRef<HTMLDivElement>(null);
@@ -170,13 +159,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
     subject,
   });
 
-  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
-  const [showOrgPicker, setShowOrgPicker] = useState(false);
-
   const { pos, setPos: _setPos, size, minimized, setMinimized, fullscreen, setFullscreen, dialogRef, startDrag, startResize } = useComposeWindow({ isMobile });
-  const [showSendDropdown, setShowSendDropdown] = useState(false);
-  const [fromAddress, setFromAddress] = useState(userEmail ?? '');
-  const [availableAddresses, setAvailableAddresses] = useState<UserAddressEntry[]>([]);
 
   // ---- Send hook ----
   const sendHook = useComposeSend({
@@ -227,9 +210,6 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
     filteredCommands,
   } = slashHook;
 
-  const toRef = useRef(draftMessage ? draftTo : replyTo);
-  const ccRef = useRef(draftMessage ? draftCc : replyCc);
-  const bccRef = useRef('');
   const subjectRef = useRef(draftMessage ? (draftMessage.subject ?? '') : replySubject);
   const subjectInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -258,7 +238,6 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
         : `<p></p>${sigHTML}`);
 
   const imageInputRef = useRef<HTMLInputElement>(null);
-  const [imageResizeToolbar, setImageResizeToolbar] = useState<{ top: number; left: number } | null>(null);
 
   const editor = useEditor({
     extensions: [
@@ -436,14 +415,6 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [saveStatus]);
-
-  useEffect(() => {
-    listUserAddresses().then((addrs) => {
-      setAvailableAddresses(addrs);
-      const primary = addrs.find((a) => a.is_primary);
-      if (primary && !fromAddress) setFromAddress(primary.address);
-    }).catch(() => {});
-  }, []);
 
   useEffect(() => {
     if (!showSendDropdown) return;
