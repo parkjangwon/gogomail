@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { deleteMessage, restoreMessage, bulkRestoreMessages, createFolder, renameFolder, deleteFolder, starMessage, markRead, moveMessage, bulkMarkRead, bulkMoveMessages, sendMessage, listThreadMessages, searchMessages, getNotificationPreferences, setNotificationPreferences, setPreferences, MessageAddress, MessageSummary } from '@/lib/api';
+import { deleteMessage, restoreMessage, bulkRestoreMessages, createFolder, renameFolder, deleteFolder, starMessage, markRead, moveMessage, bulkMarkRead, bulkMoveMessages, sendMessage, listThreadMessages, searchMessages, setPreferences, MessageAddress, MessageSummary } from '@/lib/api';
 import { AdvancedFilters, VIRTUAL_ALL, VIRTUAL_SNOOZED, VIRTUAL_IMPORTANT } from '@/components/Sidebar';
 import { useMailList } from '@/hooks/useMailList';
 import { useMessage } from '@/hooks/useMessage';
@@ -24,7 +24,6 @@ import { SettingsView } from '@/components/SettingsView';
 import { type SectionId } from '@/components/settings-view/settingsViewConfig';
 import { DriveView } from '@/components/DriveView';
 import { DMPanel } from '@/components/DMPanel';
-import { loadFilterRules } from '@/components/settings/settingsConfig';
 import { SpotlightSearch } from '@/components/SpotlightSearch';
 import { MFASetupPromptModal } from '@/components/MFASetupPromptModal';
 import { SpamReportDialog } from '@/components/spam/SpamReportDialog';
@@ -38,6 +37,9 @@ import { useMailSettings } from './useMailSettings';
 import { useMailThreads } from './useMailThreads';
 import { useMailCompose } from './useMailCompose';
 import { useMailNav } from './useMailNav';
+import { useMailNotifications } from './useMailNotifications';
+import { useMailFilterRules } from './useMailFilterRules';
+import { useMailServiceWorker } from './useMailServiceWorker';
 import {
   buildThreadMessages,
   getEmptyFolderLabel,
@@ -48,14 +50,10 @@ import {
 } from '@/lib/mail/mailPageUtils';
 import { useNotifications } from '@/lib/notifications/store';
 import {
-  NOTIFICATION_FOLDER_OVERRIDES_KEY,
-  NOTIFICATION_THREAD_OVERRIDES_KEY,
   DM_MODAL_MIN_WIDTH,
   DM_MODAL_MIN_HEIGHT,
   DM_RESIZE_HANDLES,
   getDefaultDMModalRect,
-  folderNotificationsEnabled,
-  threadNotificationsEnabled,
   moveMailPanelFocus,
   type DMModalRect,
   type DMResizeEdge,
@@ -929,244 +927,30 @@ export default function MailPage() {
     }
   }, [isVirtualFolder, refresh]);
 
-  const refreshRef = useRef(handleRefresh);
-  useEffect(() => { refreshRef.current = handleRefresh; }, [handleRefresh]);
+  const { refreshRef } = useMailServiceWorker({ refreshIntervalSeconds, onRefresh: handleRefresh });
 
-  // Periodic background poll
-  useEffect(() => {
-    const id = setInterval(() => {
-      if (document.visibilityState === 'visible') refreshRef.current();
-    }, refreshIntervalSeconds * 1000);
-    return () => clearInterval(id);
-  }, [refreshIntervalSeconds]);
+  const { handleToggleThreadMute } = useMailNotifications({
+    messages,
+    activeFolderId,
+    selectedNotificationThreadId,
+    selectedThreadMuted,
+    threadNotificationOverrides,
+    setThreadNotificationOverrides,
+    pushNotification,
+    t,
+    tNotif,
+  });
 
-  // Immediate refresh when the tab becomes visible (e.g. user returns after
-  // seeing a push notification in another tab/OS notification).
-  useEffect(() => {
-    let lastRefresh = Date.now();
-    function onVisible() {
-      if (document.visibilityState !== 'visible') return;
-      // Only refresh if it's been more than 10 s since the last poll/refresh
-      // to avoid a double-hit when the page first loads.
-      if (Date.now() - lastRefresh > 10_000) {
-        lastRefresh = Date.now();
-        refreshRef.current();
-      }
-    }
-    document.addEventListener('visibilitychange', onVisible);
-    return () => document.removeEventListener('visibilitychange', onVisible);
-  }, []);
-
-  // Register the service worker only when notifications were already allowed.
-  // The permission prompt stays in Settings so entering webmail never surprises users.
-  useEffect(() => {
-    if (typeof Notification === 'undefined') return;
-    const doSetup = async () => {
-      if (Notification.permission === 'granted' && 'serviceWorker' in navigator && 'PushManager' in window) {
-        try {
-          await navigator.serviceWorker.register('/sw.js');
-          // VAPID push subscription is handled in Settings when user explicitly enables notifications
-        } catch {
-          // ignore SW registration failure
-        }
-      }
-    };
-    doSetup().catch(() => {});
-  }, []);
-
-  // Refresh mail list when the service worker signals a push notification arrived.
-  useEffect(() => {
-    if (!('serviceWorker' in navigator)) return;
-    function onSwMessage(event: MessageEvent) {
-      if ((event.data as { type?: string } | null)?.type === 'mail_update') {
-        refreshRef.current();
-      }
-    }
-    navigator.serviceWorker.addEventListener('message', onSwMessage);
-    return () => navigator.serviceWorker.removeEventListener('message', onSwMessage);
-  }, []);
-
-  useEffect(() => {
-    getNotificationPreferences()
-      .then((prefs) => {
-        try {
-          const threadOverrides = prefs.thread_overrides ?? {};
-          setThreadNotificationOverrides(threadOverrides);
-          window.localStorage.setItem(NOTIFICATION_FOLDER_OVERRIDES_KEY, JSON.stringify(prefs.folder_overrides ?? {}));
-          window.localStorage.setItem(NOTIFICATION_THREAD_OVERRIDES_KEY, JSON.stringify(threadOverrides));
-          window.localStorage.setItem('webmail_dnd', prefs.global_dnd_enabled ? '1' : '0');
-          const firstRange = prefs.global_dnd_schedule?.time_ranges?.[0];
-          if (firstRange?.start) window.localStorage.setItem('webmail_dnd_start', firstRange.start);
-          if (firstRange?.end) window.localStorage.setItem('webmail_dnd_end', firstRange.end);
-        } catch {
-          // local notification policy cache is best-effort
-        }
-      })
-      .catch(() => {});
-  }, []);
-
-  const handleToggleThreadMute = useCallback(async () => {
-    if (!selectedNotificationThreadId) return;
-    const nextMuted = !selectedThreadMuted;
-    const previous = threadNotificationOverrides;
-    const next = { ...previous };
-    if (nextMuted) {
-      next[selectedNotificationThreadId] = { enabled: false };
-    } else {
-      delete next[selectedNotificationThreadId];
-    }
-    setThreadNotificationOverrides(next);
-    try {
-      window.localStorage.setItem(NOTIFICATION_THREAD_OVERRIDES_KEY, JSON.stringify(next));
-      const base = await getNotificationPreferences();
-      const saved = await setNotificationPreferences({
-        ...base,
-        thread_overrides: next,
-      });
-      const savedThreads = saved.thread_overrides ?? next;
-      setThreadNotificationOverrides(savedThreads);
-      window.localStorage.setItem(NOTIFICATION_THREAD_OVERRIDES_KEY, JSON.stringify(savedThreads));
-    } catch {
-      setThreadNotificationOverrides(previous);
-      try {
-        window.localStorage.setItem(NOTIFICATION_THREAD_OVERRIDES_KEY, JSON.stringify(previous));
-      } catch {
-        // local notification policy cache is best-effort
-      }
-    }
-  }, [selectedNotificationThreadId, selectedThreadMuted, threadNotificationOverrides]);
-
-  // Detect new unread messages after refresh and notify
-  const seenMsgIdsRef = useRef<Set<string> | null>(null);
-  useEffect(() => {
-    if (messages.length === 0) return;
-    if (seenMsgIdsRef.current === null) {
-      seenMsgIdsRef.current = new Set(messages.map((m) => m.id));
-      return;
-    }
-    const newUnread = messages.filter((m) =>
-      !m.read &&
-      !seenMsgIdsRef.current!.has(m.id) &&
-      folderNotificationsEnabled(m.folder_id) &&
-      threadNotificationsEnabled(m.thread_id, m.id)
-    );
-    messages.forEach((m) => seenMsgIdsRef.current!.add(m.id));
-    // In-app notification center push is independent of OS-level permission/DnD.
-    // Browser mirroring is centralized in the notification store so user toggles,
-    // quiet hours, and click handling stay consistent across event sources.
-    if (newUnread.length > 0) {
-      for (const m of newUnread) {
-        const sender = m.from_name || m.from_addr || '';
-        let detail: 'sender' | 'subject' | 'preview' = 'subject';
-        try {
-          const stored = localStorage.getItem('webmail_notif_detail');
-          if (stored === 'sender' || stored === 'subject' || stored === 'preview') detail = stored;
-        } catch {
-          // keep default detail
-        }
-        const body = detail === 'sender'
-          ? undefined
-          : ((detail === 'preview' ? m.preview : m.subject) || t('misc.mailPage.noSubject')).slice(0, 120);
-        pushNotification({
-          id: `mail_received_${m.id}`,
-          category: 'mail_received',
-          severity: 'info',
-          title: tNotif('mailReceived', { sender }),
-          body,
-          actionUrl: `/mail/${m.id}`,
-          metadata: { messageId: m.id },
-        });
-      }
-    }
-  }, [messages, pushNotification, tNotif]);
-
-  // Reset seen IDs when folder changes (avoid false notifications on folder switch)
-  useEffect(() => { seenMsgIdsRef.current = null; }, [activeFolderId]);
-
-  // Apply client-side filter rules to newly loaded messages
-  useEffect(() => {
-    if (messages.length === 0) return;
-    const rules = loadFilterRules().filter((r) => r.enabled);
-    if (rules.length === 0) return;
-
-    const labelUpdates: Record<string, string> = {};
-    const markReadIds: string[] = [];
-    const markUnreadIds: string[] = [];
-    const markStarredIds: string[] = [];
-    const trashIds: string[] = [];
-
-    for (const msg of messages) {
-      for (const rule of rules) {
-        const condResults = rule.conditions.map((cond) => {
-          if (cond.field === 'has_attachment') return !!(msg as MessageSummary & { has_attachment?: boolean }).has_attachment;
-          if (cond.field === 'is_unread') return !msg.read;
-          if (cond.field === 'size_larger') return ((msg as MessageSummary & { size?: number }).size ?? 0) > Number(cond.value);
-          if (cond.field === 'size_smaller') return ((msg as MessageSummary & { size?: number }).size ?? Infinity) < Number(cond.value);
-          const haystack = ((): string => {
-            switch (cond.field) {
-              case 'from': return (msg.from_addr + ' ' + (msg.from_name ?? '')).toLowerCase();
-              case 'to': return ((msg as MessageSummary & { to?: string }).to ?? '').toLowerCase();
-              case 'cc': return ((msg as MessageSummary & { cc?: string }).cc ?? '').toLowerCase();
-              case 'subject': return (msg.subject ?? '').toLowerCase();
-              case 'body': return (msg.preview ?? '').toLowerCase();
-              default: return '';
-            }
-          })();
-          const needle = cond.value.toLowerCase();
-          switch (cond.matchType) {
-            case 'contains': return haystack.includes(needle);
-            case 'not_contains': return !haystack.includes(needle);
-            case 'equals': return haystack.trim() === needle;
-            case 'starts_with': return haystack.startsWith(needle);
-            case 'ends_with': return haystack.endsWith(needle);
-            case 'regex': try { return new RegExp(cond.value, 'i').test(haystack); } catch { return false; }
-            default: return false;
-          }
-        });
-        const matches = rule.logic === 'and' ? condResults.every(Boolean) : condResults.some(Boolean);
-        if (!matches) continue;
-
-        const a = rule.action;
-        if (a.labelColor && !labelUpdates[msg.id]) labelUpdates[msg.id] = a.labelColor;
-        if (a.markRead && !msg.read) markReadIds.push(msg.id);
-        if (a.markUnread && msg.read) markUnreadIds.push(msg.id);
-        if (a.markStarred && !msg.starred) markStarredIds.push(msg.id);
-        if (a.deleteMsg) trashIds.push(msg.id);
-        if (rule.stopProcessing) break;
-      }
-    }
-
-    if (Object.keys(labelUpdates).length > 0) {
-      setMessageLabels((prev) => {
-        const next = { ...prev };
-        let changed = false;
-        for (const [id, color] of Object.entries(labelUpdates)) {
-          if (!next[id]) { next[id] = color; changed = true; }
-        }
-        if (changed) { try { localStorage.setItem('webmail_labels', JSON.stringify(next)); } catch { /* */ } return next; }
-        return prev;
-      });
-    }
-    if (markReadIds.length > 0) {
-      setMessages((prev) => prev.map((m) => markReadIds.includes(m.id) ? { ...m, read: true } : m));
-      markReadIds.forEach((id) => markRead(id, true).catch(() => {}));
-    }
-    if (markUnreadIds.length > 0) {
-      setMessages((prev) => prev.map((m) => markUnreadIds.includes(m.id) ? { ...m, read: false } : m));
-      markUnreadIds.forEach((id) => markRead(id, false).catch(() => {}));
-    }
-    if (markStarredIds.length > 0) {
-      setMessages((prev) => prev.map((m) => markStarredIds.includes(m.id) ? { ...m, starred: true } : m));
-      markStarredIds.forEach((id) => starMessage(id, true).catch(() => {}));
-    }
-    if (trashIds.length > 0) {
-      const trashFolder = folders.find((f) => f.system_type === 'trash');
-      if (trashFolder) {
-        setMessages((prev) => prev.filter((m) => !trashIds.includes(m.id)));
-        trashIds.forEach((id) => moveMessage(id, trashFolder.id).catch(() => {}));
-      }
-    }
-  }, [messages, folders]);
+  useMailFilterRules({
+    messages,
+    setMessages,
+    setMessageLabels,
+    folders,
+    adjustUnread,
+    activeFolderId,
+    setLabel,
+    t,
+  });
 
   // Snooze: hide message until a future time, then resurface it
   const handleSnooze = useCallback((id: string, until: Date) => {
