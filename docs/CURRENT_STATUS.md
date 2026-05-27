@@ -14,12 +14,12 @@ Last updated: 2026-05-27 (Task 2: APNS private key file option)
 
 ## Task 1: Strip internal proxy headers (2026-05-27)
 
-**Security hardening**: Prevent internal proxy headers from leaking to clients
-- **internal/httpapi/admin_middleware.go**: Added `StripInternalProxyHeadersMiddleware` that wraps response writer to strip X-Forwarded-* and other internal proxy headers before they're sent to clients
-- **internal/app/run.go**: Integrated StripInternalProxyHeadersMiddleware into the HTTP middleware chain (applied before SecurityHeadersMiddleware to intercept any accidentally-set proxy headers)
-- **Test coverage**: Added TestStripInternalProxyHeadersMiddlewareRemovesProxyHeaders, TestSecurityHeadersMiddlewareDoesNotLeakProxyHeaders, TestStripProxyHeadersWithWriteWithoutWriteHeader to verify headers are stripped in all code paths
-- **Headers stripped**: X-Forwarded-For, X-Forwarded-Proto, X-Forwarded-Host, X-Forwarded-Port, X-Real-IP, X-Client-IP, CF-Connecting-IP, True-Client-IP
-- **Impact**: Prevents information leakage via internal proxy headers; codebase properly uses these headers for request routing (from trusted sources only) without echoing them back to clients
+**Security hardening**: Strip inbound X-Gogomail-* request headers to prevent metering/billing spoofing
+- **internal/httpapi/admin_middleware.go**: Added `StripInternalHeadersMiddleware` that removes 6 inbound X-Gogomail-* request headers before handler processing
+- **internal/app/run.go**: Integrated StripInternalHeadersMiddleware right after RequestIDMiddleware
+- **Test coverage**: `TestStripInternalHeadersMiddleware` (strips all 6 headers), `TestStripInternalHeadersMiddleware_PreservesOtherHeaders`
+- **Headers stripped from requests**: X-Gogomail-Resolved-User-ID, X-Gogomail-Tenant-ID, X-Gogomail-Company-ID, X-Gogomail-Domain-ID, X-Gogomail-Principal-ID, X-Gogomail-API-Key-ID
+- **Impact**: External callers cannot spoof internal metering or billing attribution headers
 
 ## Task 0: Secure defaults (2026-05-27)
 

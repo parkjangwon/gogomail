@@ -485,7 +485,7 @@ func runHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, mode M
 	if cfg.CORSAllowedOrigins != "" {
 		handler = httpapi.CORSMiddleware(cfg.CORSAllowedOrigins)(handler)
 	}
-	handler = httpapi.StripInternalProxyHeadersMiddleware(handler)
+	handler = httpapi.StripInternalHeadersMiddleware(handler)
 	handler = httpapi.SecurityHeadersMiddleware(handler)
 	handler = httpapi.AccessLogMiddleware(logger, handler)
 	handler = httpapi.RequestIDMiddleware(handler)
