@@ -2789,6 +2789,16 @@ func TestAdminResolveDriveCleanupFailureHandler(t *testing.T) {
 	t.Parallel()
 
 	service := &fakeAdminService{
+		driveCleanupFailures: []drive.ObjectCleanupFailure{
+			{
+				ID:             "failure-1",
+				UserID:         "user-1",
+				StorageBackend: "s3",
+				StoragePath:    "drive/users/user-1/files/node-1/body",
+				Status:         drive.ObjectCleanupFailureStatusPending,
+				Attempts:       2,
+			},
+		},
 		resolvedDriveCleanupFailure: drive.ObjectCleanupFailure{
 			ID:             "failure-1",
 			UserID:         "user-1",
@@ -10145,6 +10155,15 @@ func (f *fakeAdminService) RunDriveUploadSessionCleanup(_ context.Context, befor
 	f.lastDriveUploadCleanupBefore = before
 	f.lastDriveUploadCleanupLimit = limit
 	return f.expiredDriveUploadSessions, nil
+}
+
+func (f *fakeAdminService) GetDriveObjectCleanupFailure(_ context.Context, id string) (drive.ObjectCleanupFailure, error) {
+	for _, failure := range f.driveCleanupFailures {
+		if failure.ID == id {
+			return failure, nil
+		}
+	}
+	return drive.ObjectCleanupFailure{}, fmt.Errorf("not found")
 }
 
 func (f *fakeAdminService) ListDriveObjectCleanupFailures(_ context.Context, req drive.ListObjectCleanupFailuresRequest) ([]drive.ObjectCleanupFailure, error) {

@@ -20,6 +20,7 @@ type ObjectCleanupFailureRecorder interface {
 
 type ObjectCleanupFailureStore interface {
 	ObjectCleanupFailureRecorder
+	GetObjectCleanupFailure(context.Context, string) (ObjectCleanupFailure, error)
 	ListObjectCleanupFailures(context.Context, ListObjectCleanupFailuresRequest) ([]ObjectCleanupFailure, error)
 	ResolveObjectCleanupFailure(context.Context, ResolveObjectCleanupFailureRequest) (ObjectCleanupFailure, error)
 	ResolveObjectCleanupFailures(context.Context, []string) (int, error)
@@ -978,6 +979,13 @@ func (s *Service) RetryObjectCleanupFailures(ctx context.Context, req ListObject
 		return result, fmt.Errorf("retry drive object cleanup: %d failures remain", result.Failed)
 	}
 	return result, nil
+}
+
+func (s *Service) GetObjectCleanupFailure(ctx context.Context, id string) (ObjectCleanupFailure, error) {
+	if s == nil || s.cleanupFailureStore == nil {
+		return ObjectCleanupFailure{}, fmt.Errorf("drive cleanup failure store is required")
+	}
+	return s.cleanupFailureStore.GetObjectCleanupFailure(ctx, id)
 }
 
 func (s *Service) ListObjectCleanupFailures(ctx context.Context, req ListObjectCleanupFailuresRequest) ([]ObjectCleanupFailure, error) {
