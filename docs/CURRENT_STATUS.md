@@ -1,6 +1,11 @@
 # gogomail current status
 
-Last updated: 2026-05-28 (security hardening: CSV formula injection in admin exports)
+Last updated: 2026-05-28 (security hardening: admin MFA verify missing rate limit)
+
+## Post-remediation hardening round 20 (2026-05-28)
+
+**Admin MFA verify endpoint missing rate limit (TOTP brute-force)**
+- **internal/httpapi/admin_mfa.go**: `POST /admin/v1/auth/mfa/verify` had no rate limiting. The `mfa_pending` token has a 5-minute TTL. Without a limit, an attacker who has stolen a `mfa_pending` token (e.g., via phishing the password step) could attempt all 1,000,000 six-digit codes before the token expires. The webmail equivalent (`/api/v1/auth/mfa/verify` in `mail_mfa.go`) already had `NewAdminIPRateLimiter(5, time.Minute)`. Applied the same limiter to the admin path: 5 attempts per IP per minute = at most 25 guesses in the 5-minute window, making brute-force computationally infeasible.
 
 ## Post-remediation hardening round 19 (2026-05-28)
 

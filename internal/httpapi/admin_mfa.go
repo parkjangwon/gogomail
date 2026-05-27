@@ -23,8 +23,18 @@ func registerAdminMFARoutes(mux *http.ServeMux, service AdminService, cfg adminR
 		return
 	}
 
+	// mfaVerifyLimiter throttles TOTP brute-force on the admin path.
+	// The mfa_pending token TTL is 5 min; without a limit an attacker could try
+	// all 1,000,000 six-digit codes before it expires.  5 attempts/IP/min gives
+	// at most 25 guesses per token lifetime — well below the 1-in-10^6 threshold.
+	mfaVerifyLimiter := NewAdminIPRateLimiter(5, time.Minute)
+
 	// POST /admin/v1/auth/mfa/verify — pending_token + TOTP/recovery → access+refresh token pair
 	mux.HandleFunc("POST /admin/v1/auth/mfa/verify", func(w http.ResponseWriter, r *http.Request) {
+		if !mfaVerifyLimiter.allow(adminClientIP(r)) {
+			writeError(w, http.StatusTooManyRequests, "too many mfa attempts")
+			return
+		}
 		var req struct {
 			PendingToken string `json:"pending_token"`
 			Code         string `json:"code"`
