@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { createFolder, renameFolder, deleteFolder, starMessage, markRead, moveMessage, sendMessage, listThreadMessages, searchMessages, MessageAddress, MessageSummary } from '@/lib/api';
+import { createFolder, renameFolder, deleteFolder, moveMessage, sendMessage, MessageAddress, MessageSummary } from '@/lib/api';
 import { AdvancedFilters, VIRTUAL_ALL, VIRTUAL_SNOOZED } from '@/components/Sidebar';
 import { useMailList } from '@/hooks/useMailList';
 import { useMessage } from '@/hooks/useMessage';
@@ -47,6 +47,7 @@ import { useMailServiceWorker } from './useMailServiceWorker';
 import { useMailComposeGate } from './useMailComposeGate';
 import { useMailAutoRead } from './useMailAutoRead';
 import { useMailTimers } from './useMailTimers';
+import { useMailThreadMessages } from './useMailThreadMessages';
 import {
   getEmptyFolderLabel,
   getVisibleMailMessages,
@@ -157,36 +158,12 @@ export default function MailPage() {
 
   // Thread messages: fetch via thread API when a thread is selected, or fall back
   // to subject-based grouping for normal message view.
-  useEffect(() => {
-    if (selectedThreadId) {
-      let cancelled = false;
-      listThreadMessages(selectedThreadId)
-        .then((msgs) => {
-          if (cancelled) return;
-          const sorted = [...msgs].sort(
-            (a, b) => new Date(a.received_at).getTime() - new Date(b.received_at).getTime()
-          );
-          setThreadMessages(sorted);
-        })
-        .catch(() => { if (!cancelled) setThreadMessages([]); });
-      return () => { cancelled = true; };
-    }
-    // Fallback: subject-based grouping for normal message view
-    if (!selectedMessage?.subject) { setThreadMessages([]); return; }
-    const normalizedSubject = selectedMessage.subject.replace(/^(Re|Fwd?|Fw):\s*/gi, '').trim();
-    if (!normalizedSubject) { setThreadMessages([]); return; }
-    let cancelled = false;
-    searchMessages({ subject: normalizedSubject, limit: 20 })
-      .then((res) => {
-        if (cancelled) return;
-        const sorted = [...(res.messages ?? [])].sort(
-          (a, b) => new Date(a.received_at).getTime() - new Date(b.received_at).getTime()
-        );
-        setThreadMessages(sorted);
-      })
-      .catch(() => { if (!cancelled) setThreadMessages([]); });
-    return () => { cancelled = true; };
-  }, [selectedThreadId, selectedMessage?.id, selectedMessage?.subject, setThreadMessages]);
+  useMailThreadMessages({
+    selectedThreadId,
+    selectedMessageId,
+    selectedMessageSubject: selectedMessage?.subject,
+    setThreadMessages,
+  });
 
   // Set default folder to inbox UUID once folders are loaded, and recover from stale saved IDs.
   useEffect(() => {
