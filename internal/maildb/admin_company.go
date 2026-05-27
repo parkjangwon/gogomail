@@ -135,7 +135,7 @@ WHERE id = $1`, id).Scan(
 		&company.AllocatedDomainQuota,
 		&company.CreatedAt,
 	); err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return CompanyView{}, fmt.Errorf("company %q not found", id)
 		}
 		return CompanyView{}, fmt.Errorf("get company: %w", err)

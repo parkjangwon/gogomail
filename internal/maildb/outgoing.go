@@ -1,6 +1,7 @@
 package maildb
 
 import (
+	"errors"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -84,7 +85,7 @@ LIMIT 1`
 		&sender.Address,
 		&sender.DisplayName,
 	); err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return Sender{}, fmt.Errorf("sender address is not available for user %q", userID)
 		}
 		return Sender{}, fmt.Errorf("resolve sender address: %w", err)
@@ -197,7 +198,7 @@ LIMIT 1`
 
 	var folderID string
 	if err := tx.QueryRowContext(ctx, query, userID).Scan(&folderID); err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return createSentFolder(ctx, tx, userID)
 		}
 		return "", fmt.Errorf("lookup sent folder: %w", err)
@@ -231,7 +232,7 @@ WHERE user_id = $1
   AND status = 'active'
 LIMIT 1`
 	if err := tx.QueryRowContext(ctx, query, strings.TrimSpace(userID), sourceMessageID).Scan(&threadID, &inReplyTo); err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return "", "", fmt.Errorf("source message %q not found", sourceMessageID)
 		}
 		return "", "", fmt.Errorf("resolve outgoing thread: %w", err)

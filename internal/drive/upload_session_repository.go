@@ -1,6 +1,7 @@
 package drive
 
 import (
+	"errors"
 	"context"
 	"database/sql"
 	"fmt"
@@ -54,7 +55,7 @@ func (r *Repository) CreateUploadSession(ctx context.Context, req CreateUploadSe
 		&canceledAt,
 	)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return UploadSession{}, fmt.Errorf("active user or parent folder not found")
 		}
 		return UploadSession{}, fmt.Errorf("create drive upload session: %w", err)
@@ -208,7 +209,7 @@ WHERE s.id = $2::uuid
 		&canceledAt,
 	)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return UploadSession{}, fmt.Errorf("drive upload session not found")
 		}
 		return UploadSession{}, fmt.Errorf("get drive upload session: %w", err)
@@ -354,7 +355,7 @@ RETURNING
 		&canceledAt,
 	)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return UploadSession{}, fmt.Errorf("cancelable drive upload session not found")
 		}
 		return UploadSession{}, fmt.Errorf("cancel drive upload session: %w", err)
@@ -577,7 +578,7 @@ FOR UPDATE`
 		&finalizedAt, &canceledAt,
 	)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return UploadSession{}, fmt.Errorf("writable drive upload session not found")
 		}
 		return UploadSession{}, fmt.Errorf("lock drive upload session for write: %w", err)
@@ -672,7 +673,7 @@ RETURNING
 		&finalizedAt, &canceledAt,
 	)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return UploadSession{}, "", fmt.Errorf("writable drive upload session not found")
 		}
 		return UploadSession{}, "", fmt.Errorf("store drive upload session body: %w", err)
@@ -845,7 +846,7 @@ FOR UPDATE`
 		&canceledAt,
 	)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return UploadSession{}, fmt.Errorf("finalizable drive upload session not found")
 		}
 		return UploadSession{}, fmt.Errorf("lock drive upload session for finalize: %w", err)

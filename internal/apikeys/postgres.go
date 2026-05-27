@@ -1,6 +1,7 @@
 package apikeys
 
 import (
+	"errors"
 	"context"
 	"database/sql"
 	"fmt"
@@ -64,7 +65,7 @@ LIMIT 1`
 		&info.PermissionMode,
 		pq.Array(&allowedScopes),
 	); err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return nil, fmt.Errorf("api key not found")
 		}
 		return nil, fmt.Errorf("verify api key: %w", err)

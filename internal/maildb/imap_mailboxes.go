@@ -190,7 +190,7 @@ LIMIT 1`
 		&folder.TotalSize,
 		&folder.IMAPUnassigned,
 	); err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return imapgw.Mailbox{}, fmt.Errorf("%w: %q", imapgw.ErrMailboxNotFound, mailboxID)
 		}
 		return imapgw.Mailbox{}, fmt.Errorf("get imap mailbox: %w", err)

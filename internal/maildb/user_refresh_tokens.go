@@ -1,6 +1,7 @@
 package maildb
 
 import (
+	"errors"
 	"context"
 	"crypto/rand"
 	"crypto/sha256"
@@ -70,7 +71,7 @@ RETURNING u.id::text, u.domain_id::text, d.company_id::text, u.session_version, 
 		oldHash[:],
 	).Scan(&user.UserID, &user.DomainID, &user.CompanyID, &user.SessionVersion, &user.MustChangePassword)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return RotatedUserRefreshToken{}, fmt.Errorf("refresh token not found")
 		}
 		return RotatedUserRefreshToken{}, fmt.Errorf("rotate user refresh token: %w", err)

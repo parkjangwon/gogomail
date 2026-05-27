@@ -153,7 +153,7 @@ RETURNING
 		&link.UpdatedAt,
 		&revokedAt,
 	); err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return AttachmentShareLink{}, fmt.Errorf("active attachment not found")
 		}
 		return AttachmentShareLink{}, fmt.Errorf("create attachment share link: %w", err)
@@ -230,7 +230,7 @@ WHERE l.token_hash = $1
 		&resolved.Attachment.Status,
 		&resolved.Attachment.CreatedAt,
 	); err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return ResolvedAttachmentShareLink{}, fmt.Errorf("active attachment share link not found")
 		}
 		return ResolvedAttachmentShareLink{}, fmt.Errorf("resolve attachment share link: %w", err)
@@ -357,7 +357,7 @@ RETURNING
 		&link.UpdatedAt,
 		&revokedAt,
 	); err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return AttachmentShareLink{}, fmt.Errorf("active attachment share link not found")
 		}
 		return AttachmentShareLink{}, fmt.Errorf("revoke attachment share link: %w", err)

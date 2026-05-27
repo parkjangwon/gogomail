@@ -1,6 +1,7 @@
 package maildb
 
 import (
+	"errors"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -151,7 +152,7 @@ RETURNING id::text, user_id::text, domain_id::text, name, token_suffix, scopes, 
 	)
 	key, err := scanUserMCPAccessKey(row)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return CreatedUserMCPAccessKey{}, fmt.Errorf("user not found")
 		}
 		return CreatedUserMCPAccessKey{}, fmt.Errorf("create user mcp access key: %w", err)
@@ -177,7 +178,7 @@ SELECT COALESCE(settings->'webmail'->'mcp'->>'enabled', 'false') = 'true'
 FROM users
 WHERE id = $1::uuid`, userID).Scan(&enabled)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return false, fmt.Errorf("user not found")
 		}
 		return false, fmt.Errorf("load user mcp settings: %w", err)
@@ -206,7 +207,7 @@ LEFT JOIN runtime_config rc
  AND rc.key = 'mcp.policy'
 WHERE u.id = $1::uuid`, userID).Scan(&raw)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return DomainMCPPolicy{}, fmt.Errorf("user not found")
 		}
 		return DomainMCPPolicy{}, fmt.Errorf("load domain mcp policy: %w", err)
@@ -256,7 +257,7 @@ RETURNING id::text, user_id::text, domain_id::text, name, token_suffix, scopes, 
           expires_at, created_at, last_used_at, revoked`, userID, id)
 	key, err := scanUserMCPAccessKey(row)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return UserMCPAccessKey{}, fmt.Errorf("mcp access key not found")
 		}
 		return UserMCPAccessKey{}, fmt.Errorf("revoke user mcp access key: %w", err)

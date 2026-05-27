@@ -1,6 +1,7 @@
 package maildb
 
 import (
+	"errors"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -381,7 +382,7 @@ RETURNING id::text, COALESCE(parent_id::text, ''), name, full_path, type, COALES
 		&folder.SystemType,
 		&folder.OrderIndex,
 	); err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return Folder{}, fmt.Errorf("user folder %q not found", folderID)
 		}
 		return Folder{}, fmt.Errorf("rename folder: %w", err)
@@ -916,7 +917,7 @@ LIMIT 1`
 		&msg.HTMLBody,
 	)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return MessageDetail{}, fmt.Errorf("message %q not found", messageID)
 		}
 		return MessageDetail{}, fmt.Errorf("get message: %w", err)
@@ -989,7 +990,7 @@ RETURNING id::text`
 
 	var movedID string
 	if err := tx.QueryRowContext(ctx, query, userID, messageID, folderID).Scan(&movedID); err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return fmt.Errorf("message %q or folder %q not found", messageID, folderID)
 		}
 		return fmt.Errorf("move message: %w", err)
@@ -1019,7 +1020,7 @@ func (r *Repository) DeleteMessage(ctx context.Context, userID string, messageID
 		`SELECT COALESCE(size, 0) FROM messages WHERE user_id = $1 AND id = $2 AND status = 'active'`,
 		userID, messageID,
 	).Scan(&size); err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return fmt.Errorf("message %q not found", messageID)
 		}
 		return fmt.Errorf("read message size for delete: %w", err)
@@ -1066,7 +1067,7 @@ func (r *Repository) RestoreMessage(ctx context.Context, userID string, messageI
 		`SELECT COALESCE(size, 0) FROM messages WHERE user_id = $1 AND id = $2 AND status = 'deleted' FOR UPDATE`,
 		userID, messageID,
 	).Scan(&size); err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return fmt.Errorf("message %q not found", messageID)
 		}
 		return fmt.Errorf("read message size for restore: %w", err)

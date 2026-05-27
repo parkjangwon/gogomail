@@ -731,7 +731,7 @@ LIMIT 1`
 		&user.QuotaSource,
 		&user.CreatedAt,
 	); err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return UserView{}, fmt.Errorf("user %q not found", id)
 		}
 		return UserView{}, fmt.Errorf("get user: %w", err)
@@ -918,7 +918,7 @@ func (r *Repository) GetInviteToken(ctx context.Context, token string) (InviteTo
 SELECT id::text, user_id::text, domain_id::text, token, expires_at, accepted_at, created_at, COALESCE(created_by::text, '')
 FROM user_invite_tokens WHERE token = $1`, token,
 	).Scan(&it.ID, &it.UserID, &it.DomainID, &it.Token, &it.ExpiresAt, &it.AcceptedAt, &it.CreatedAt, &it.CreatedBy)
-	if err == sql.ErrNoRows {
+	if errors.Is(err, sql.ErrNoRows) {
 		return InviteToken{}, fmt.Errorf("invite token not found")
 	}
 	if err != nil {
@@ -942,7 +942,7 @@ func (r *Repository) AcceptInviteToken(ctx context.Context, token, passwordHash 
 SELECT id::text, user_id::text, domain_id::text, token, expires_at, accepted_at
 FROM user_invite_tokens WHERE token = $1 FOR UPDATE`, token,
 	).Scan(&it.ID, &it.UserID, &it.DomainID, &it.Token, &it.ExpiresAt, &it.AcceptedAt)
-	if err == sql.ErrNoRows {
+	if errors.Is(err, sql.ErrNoRows) {
 		return UserView{}, fmt.Errorf("invite token not found")
 	}
 	if err != nil {

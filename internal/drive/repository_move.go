@@ -1,6 +1,7 @@
 package drive
 
 import (
+	"errors"
 	"context"
 	"database/sql"
 	"fmt"
@@ -120,7 +121,7 @@ FROM updated`
 		&node.UpdatedAt,
 	)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return Node{}, fmt.Errorf("active drive node or destination folder not found")
 		}
 		return Node{}, fmt.Errorf("move drive node: %w", err)

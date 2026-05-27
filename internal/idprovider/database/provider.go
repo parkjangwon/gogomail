@@ -1,6 +1,7 @@
 package database
 
 import (
+	"errors"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -29,7 +30,7 @@ func New(db *sql.DB, mr *maildb.Repository) *Provider {
 func (p *Provider) GetUser(ctx context.Context, userID string) (*idprovider.User, error) {
 	view, err := p.mr.GetUser(ctx, userID)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return nil, fmt.Errorf("user not found")
 		}
 		return nil, err
@@ -63,7 +64,7 @@ func (p *Provider) GetGroup(ctx context.Context, groupID string) (*idprovider.Gr
 
 	err := row.Scan(&group.ID, nil, &group.DomainID, &orgID, &group.Name, &group.Slug, &group.Description, &group.Status, &settings, &group.CreatedAt, &group.UpdatedAt)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return nil, fmt.Errorf("group not found")
 		}
 		return nil, err

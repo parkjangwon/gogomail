@@ -1,6 +1,7 @@
 package maildb
 
 import (
+	"errors"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -196,7 +197,7 @@ WHERE user_id = $1::uuid`
 	)
 	err := r.db.QueryRowContext(ctx, query, userID).Scan(&globalEnabled, &globalSchedRaw, &folderOverRaw, &threadOverRaw, &updatedAt)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return &NotificationPreferences{
 				UserID:          userID,
 				FolderOverrides: map[string]FolderNotificationOverride{},

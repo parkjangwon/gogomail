@@ -64,7 +64,7 @@ LIMIT 1`
 		&passwordHash,
 		&companyStatus,
 	)
-	if err == sql.ErrNoRows {
+	if errors.Is(err, sql.ErrNoRows) {
 		return AuthenticatedUser{}, fmt.Errorf("invalid credentials")
 	}
 	if err != nil {

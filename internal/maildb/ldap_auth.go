@@ -1,6 +1,7 @@
 package maildb
 
 import (
+	"errors"
 	"context"
 	"database/sql"
 	"strings"
@@ -47,7 +48,7 @@ ORDER BY ua.is_primary DESC
 LIMIT 1`
 	var passwordHash string
 	err := r.db.QueryRowContext(ctx, query, normalizedUsername, normalizedAddress, normalizedUserID).Scan(&passwordHash)
-	if err == sql.ErrNoRows {
+	if errors.Is(err, sql.ErrNoRows) {
 		return false, nil
 	}
 	if err != nil {

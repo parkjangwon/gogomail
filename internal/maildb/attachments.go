@@ -1,6 +1,7 @@
 package maildb
 
 import (
+	"errors"
 	"context"
 	"crypto/rand"
 	"database/sql"
@@ -252,7 +253,7 @@ LIMIT 1`
 		&attachment.CreatedAt,
 	)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return Attachment{}, fmt.Errorf("attachment %q not found", attachmentID)
 		}
 		return Attachment{}, fmt.Errorf("get attachment: %w", err)
@@ -365,7 +366,7 @@ RETURNING a.id::text, COALESCE(a.message_id::text, ''), COALESCE(target.draft_id
 		&attachment.Status,
 		&attachment.CreatedAt,
 	); err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return Attachment{}, fmt.Errorf("attachment %q not found for active upload", attachmentID)
 		}
 		return Attachment{}, fmt.Errorf("cancel attachment upload: %w", err)

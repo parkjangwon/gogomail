@@ -1,6 +1,7 @@
 package maildb
 
 import (
+	"errors"
 	"context"
 	"database/sql"
 	"fmt"
@@ -37,7 +38,7 @@ LIMIT 1`
 	err = r.db.QueryRowContext(ctx, query, addressACE).Scan(
 		&info.UserID, &info.DomainID, &info.CompanyID, &info.Email,
 	)
-	if err == sql.ErrNoRows {
+	if errors.Is(err, sql.ErrNoRows) {
 		return SSOUserInfo{}, fmt.Errorf("user not found: %s", email)
 	}
 	return info, err

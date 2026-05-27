@@ -171,7 +171,7 @@ func isIMAPMailboxNotFound(err error) bool {
 	if err == nil {
 		return false
 	}
-	if err == sql.ErrNoRows {
+	if errors.Is(err, sql.ErrNoRows) {
 		return true
 	}
 	return errors.Is(err, imapgw.ErrMailboxNotFound)

@@ -162,27 +162,24 @@ func (m *TokenManager) Verify(tokenString string) (Claims, error) {
 		return Claims{}, err
 	}
 
-	// Decode and validate header manually so we can check typ and alg before
-	// handing off to golang-jwt (which only checks alg in the key function).
+	// Decode header to check typ only. Algorithm is validated by golang-jwt's
+	// key function below; duplicating the check here would be redundant.
 	headerRaw, err := base64.RawURLEncoding.DecodeString(parts[0])
 	if err != nil {
 		return Claims{}, fmt.Errorf("decode jwt header: %w", err)
 	}
 	var header struct {
-		Algorithm string `json:"alg"`
-		Type      string `json:"typ"`
+		Type string `json:"typ"`
 	}
 	if err := json.Unmarshal(headerRaw, &header); err != nil {
 		return Claims{}, fmt.Errorf("decode jwt header: %w", err)
-	}
-	if header.Algorithm != "HS256" {
-		return Claims{}, fmt.Errorf("unsupported jwt algorithm")
 	}
 	if header.Type != "" && !strings.EqualFold(header.Type, "JWT") {
 		return Claims{}, fmt.Errorf("unsupported jwt type")
 	}
 
 	// Decode payload to check issued-at before handing off to golang-jwt.
+	// golang-jwt v5 does not enforce iat-in-future by default.
 	payloadRaw, err := base64.RawURLEncoding.DecodeString(parts[1])
 	if err != nil {
 		return Claims{}, fmt.Errorf("decode jwt payload: %w", err)

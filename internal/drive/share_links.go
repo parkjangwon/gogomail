@@ -341,7 +341,7 @@ WHERE l.token_hash = $1
 		&resolved.Node.UpdatedAt,
 	)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return ResolvedShareLink{}, fmt.Errorf("active drive share link not found")
 		}
 		return ResolvedShareLink{}, fmt.Errorf("resolve drive share link: %w", err)
@@ -420,7 +420,7 @@ RETURNING
   revoked_at`
 	link, err := scanShareLink(r.db.QueryRowContext(ctx, query, req.UserID, req.NodeID, tokenHash, tokenSuffix, req.Permission, req.Password, req.ExpiresAt))
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return ShareLink{}, fmt.Errorf("active drive file not found")
 		}
 		return ShareLink{}, fmt.Errorf("create drive share link: %w", err)
@@ -518,7 +518,7 @@ RETURNING
   revoked_at`
 	link, err := scanShareLink(r.db.QueryRowContext(ctx, query, req.UserID, req.LinkID))
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return ShareLink{}, fmt.Errorf("active drive share link not found")
 		}
 		return ShareLink{}, fmt.Errorf("revoke drive share link: %w", err)

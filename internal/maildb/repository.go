@@ -1,6 +1,7 @@
 package maildb
 
 import (
+	"errors"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -63,7 +64,7 @@ LIMIT 1`
 		&mailbox.Address,
 	)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return smtpd.Mailbox{}, fmt.Errorf("recipient %q not found", address)
 		}
 		return smtpd.Mailbox{}, fmt.Errorf("resolve recipient %q: %w", address, err)
@@ -108,7 +109,7 @@ LIMIT 1`
 		&recipientExists,
 	)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return smtpd.Mailbox{}, false, nil
 		}
 		return smtpd.Mailbox{}, false, fmt.Errorf("resolve local recipient %q: %w", address, err)
@@ -233,7 +234,7 @@ LIMIT 1`
 
 	var folderID string
 	if err := r.db.QueryRowContext(ctx, query, userID, systemType).Scan(&folderID); err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			if systemType != "inbox" {
 				return r.deliveryFolderID(ctx, userID, "inbox")
 			}
@@ -280,7 +281,7 @@ func (r *Repository) resolveThreadID(ctx context.Context, tx *sql.Tx, userID str
 
 	var threadID string
 	if err := tx.QueryRowContext(ctx, resolveThreadIDSQL, strings.TrimSpace(userID), pq.Array(candidates)).Scan(&threadID); err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return "", nil
 		}
 		return "", fmt.Errorf("resolve message thread: %w", err)
