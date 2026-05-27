@@ -47,6 +47,7 @@ storage_s3_secret_access_key: secret
 }
 
 func TestRunAcceptsStorageProfileConfigs(t *testing.T) {
+	t.Setenv("GOGOMAIL_ENV", "development")
 	tests := []struct {
 		path        string
 		backend     string
@@ -114,6 +115,7 @@ func TestRunAcceptsStorageProfileConfigs(t *testing.T) {
 }
 
 func TestRunRejectsInvalidYAMLConfigBeforeAppStart(t *testing.T) {
+	t.Setenv("GOGOMAIL_ENV", "development")
 	configFile := writeCommandConfig(t, "storage_backend: minio\n")
 	var stderr bytes.Buffer
 	called := false
@@ -153,6 +155,7 @@ func TestRunRejectsUnknownModeBeforeAppStart(t *testing.T) {
 }
 
 func TestRunUsesAppModeEnvWhenModeFlagUnset(t *testing.T) {
+	t.Setenv("GOGOMAIL_ENV", "development")
 	t.Setenv("APP_MODE", "outbox-relay")
 
 	var gotMode app.Mode
@@ -169,6 +172,7 @@ func TestRunUsesAppModeEnvWhenModeFlagUnset(t *testing.T) {
 }
 
 func TestRunModeFlagOverridesAppModeEnv(t *testing.T) {
+	t.Setenv("GOGOMAIL_ENV", "development")
 	t.Setenv("APP_MODE", "outbox-relay")
 
 	var gotMode app.Mode

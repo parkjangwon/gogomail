@@ -235,6 +235,7 @@ func TestLoadFileParsesExampleConfig(t *testing.T) {
 }
 
 func TestLoadFileParsesStorageProfileConfigs(t *testing.T) {
+	t.Setenv("GOGOMAIL_ENV", "development")
 	tests := []struct {
 		path        string
 		backend     string

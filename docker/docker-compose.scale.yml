@@ -24,7 +24,7 @@ x-gogomail-env: &gogomail-env
   GOGOMAIL_ADMIN_TOKEN: ${GOGOMAIL_ADMIN_TOKEN:-change-this-admin-token}
   GOGOMAIL_ADMIN_MFA_REQUIRED: ${GOGOMAIL_ADMIN_MFA_REQUIRED:-false}
 
-  GOGOMAIL_DATABASE_URL: ${GOGOMAIL_DATABASE_URL:-postgres://gogomail:gogomail@postgres:5432/gogomail?sslmode=disable}
+  GOGOMAIL_DATABASE_URL: ${GOGOMAIL_DATABASE_URL:-postgres://gogomail:gogomail@postgres:5432/gogomail?sslmode=require}
   GOGOMAIL_DB_MAX_OPEN_CONNS: ${GOGOMAIL_DB_MAX_OPEN_CONNS:-20}
   GOGOMAIL_DB_MAX_IDLE_CONNS: ${GOGOMAIL_DB_MAX_IDLE_CONNS:-5}
   GOGOMAIL_DB_CONN_MAX_LIFETIME: ${GOGOMAIL_DB_CONN_MAX_LIFETIME:-30m}

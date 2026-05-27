@@ -3,6 +3,7 @@ package config
 import "testing"
 
 func TestValidateRejectsUnknownAPIMeteringBackend(t *testing.T) {
+	t.Setenv("GOGOMAIL_ENV", "development")
 	cfg := Load()
 	cfg.APIMeteringBackend = "database"
 
@@ -12,6 +13,7 @@ func TestValidateRejectsUnknownAPIMeteringBackend(t *testing.T) {
 }
 
 func TestValidateAcceptsOutboxAPIMeteringBackend(t *testing.T) {
+	t.Setenv("GOGOMAIL_ENV", "development")
 	cfg := Load()
 	cfg.APIMeteringBackend = "outbox"
 
@@ -21,6 +23,7 @@ func TestValidateAcceptsOutboxAPIMeteringBackend(t *testing.T) {
 }
 
 func TestValidateRejectsNonpositiveAPIMeteringTimeout(t *testing.T) {
+	t.Setenv("GOGOMAIL_ENV", "development")
 	cfg := Load()
 	cfg.APIMeteringTimeout = 0
 

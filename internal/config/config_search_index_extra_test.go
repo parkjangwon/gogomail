@@ -7,6 +7,7 @@ import (
 )
 
 func TestValidateRejectsUnknownSearchIndexBackend(t *testing.T) {
+	t.Setenv("GOGOMAIL_ENV", "development")
 	cfg := Load()
 	cfg.SearchIndexBackend = "elastic"
 
@@ -16,6 +17,7 @@ func TestValidateRejectsUnknownSearchIndexBackend(t *testing.T) {
 }
 
 func TestValidateAcceptsOpenSearchBackendWithEndpointAndIndex(t *testing.T) {
+	t.Setenv("GOGOMAIL_ENV", "development")
 	cfg := Load()
 	cfg.SearchIndexBackend = "opensearch"
 	cfg.SearchIndexOpenSearchEndpoint = "https://search.example.com"
@@ -36,6 +38,7 @@ func TestValidateRejectsOpenSearchBackendWithoutEndpointOrIndex(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Setenv("GOGOMAIL_ENV", "development")
 			cfg := Load()
 			cfg.SearchIndexBackend = "opensearch"
 			cfg.SearchIndexOpenSearchEndpoint = "https://search.example.com"
@@ -61,6 +64,7 @@ func TestValidateRejectsInvalidOpenSearchEndpoint(t *testing.T) {
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
+			t.Setenv("GOGOMAIL_ENV", "development")
 			cfg := Load()
 			cfg.SearchIndexBackend = "opensearch"
 			cfg.SearchIndexOpenSearchEndpoint = tt.endpoint
@@ -77,6 +81,7 @@ func TestValidateRejectsInvalidOpenSearchIndexName(t *testing.T) {
 	for _, index := range []string{"../bad", ".hidden", "_system", "bad name", "bad:index"} {
 		index := index
 		t.Run(index, func(t *testing.T) {
+			t.Setenv("GOGOMAIL_ENV", "development")
 			cfg := Load()
 			cfg.SearchIndexBackend = "opensearch"
 			cfg.SearchIndexOpenSearchEndpoint = "https://search.example.com"
@@ -106,6 +111,7 @@ func TestValidateRejectsUnsafeOpenSearchCredentials(t *testing.T) {
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
+			t.Setenv("GOGOMAIL_ENV", "development")
 			cfg := Load()
 			cfg.SearchIndexBackend = "opensearch"
 			cfg.SearchIndexOpenSearchEndpoint = "https://search.example.com"
@@ -132,6 +138,7 @@ func TestValidateRejectsNonpositiveSearchIndexLimits(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Setenv("GOGOMAIL_ENV", "development")
 			cfg := Load()
 			tt.edit(&cfg)
 			if err := cfg.Validate(); err == nil {
@@ -144,6 +151,7 @@ func TestValidateRejectsNonpositiveSearchIndexLimits(t *testing.T) {
 func TestLoadSearchIndexOpenSearchBootstrapSetting(t *testing.T) {
 	t.Setenv("GOGOMAIL_SEARCH_INDEX_OPENSEARCH_BOOTSTRAP", "true")
 
+	t.Setenv("GOGOMAIL_ENV", "development")
 	cfg := Load()
 	if !cfg.SearchIndexOpenSearchBootstrap {
 		t.Fatal("SearchIndexOpenSearchBootstrap = false, want true")
@@ -153,6 +161,7 @@ func TestLoadSearchIndexOpenSearchBootstrapSetting(t *testing.T) {
 func TestLoadSearchIndexOpenSearchTimeoutSetting(t *testing.T) {
 	t.Setenv("GOGOMAIL_SEARCH_INDEX_OPENSEARCH_TIMEOUT", "3s")
 
+	t.Setenv("GOGOMAIL_ENV", "development")
 	cfg := Load()
 	if cfg.SearchIndexOpenSearchTimeout != 3*time.Second {
 		t.Fatalf("SearchIndexOpenSearchTimeout = %s, want 3s", cfg.SearchIndexOpenSearchTimeout)

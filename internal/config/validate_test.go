@@ -10,6 +10,11 @@ import (
 	"time"
 )
 
+// setDevelopmentMode sets the environment to development for test configs that don't specify one.
+func setDevelopmentMode(t *testing.T) {
+	t.Setenv("GOGOMAIL_ENV", "development")
+}
+
 // setProductionSecrets applies the minimum required secrets for a production config to pass Validate().
 func setProductionSecrets(cfg *Config) {
 	cfg.AuthJWTSecret = "test-jwt-secret-for-production-tests"
@@ -24,6 +29,7 @@ func setProductionSecrets(cfg *Config) {
 }
 
 func TestValidateRejectsProductionInsecureSubmissionAuth(t *testing.T) {
+	setDevelopmentMode(t)
 	cfg := Load()
 	cfg.Environment = "production"
 	cfg.SubmissionAllowInsecureAuth = true
@@ -33,6 +39,7 @@ func TestValidateRejectsProductionInsecureSubmissionAuth(t *testing.T) {
 }
 
 func TestValidateRejectsProductionInsecureIMAPAuth(t *testing.T) {
+	setDevelopmentMode(t)
 	cfg := Load()
 	cfg.Environment = "production"
 	cfg.SubmissionAllowInsecureAuth = false
@@ -45,6 +52,7 @@ func TestValidateRejectsProductionInsecureIMAPAuth(t *testing.T) {
 }
 
 func TestValidateRejectsProductionInsecureCalDAVAuth(t *testing.T) {
+	setDevelopmentMode(t)
 	cfg := Load()
 	cfg.Environment = "production"
 	cfg.SubmissionAllowInsecureAuth = false
@@ -57,6 +65,7 @@ func TestValidateRejectsProductionInsecureCalDAVAuth(t *testing.T) {
 }
 
 func TestValidateRejectsProductionInsecureCardDAVAuth(t *testing.T) {
+	setDevelopmentMode(t)
 	cfg := Load()
 	cfg.Environment = "production"
 	cfg.SubmissionAllowInsecureAuth = false
@@ -69,6 +78,7 @@ func TestValidateRejectsProductionInsecureCardDAVAuth(t *testing.T) {
 }
 
 func TestValidateRejectsEmptyJWTSecretInProduction(t *testing.T) {
+	setDevelopmentMode(t)
 	cfg := Load()
 	cfg.Environment = "production"
 	cfg.SubmissionAllowInsecureAuth = false
@@ -83,6 +93,7 @@ func TestValidateRejectsEmptyJWTSecretInProduction(t *testing.T) {
 }
 
 func TestValidateRejectsEmptyAdminTokenInProduction(t *testing.T) {
+	setDevelopmentMode(t)
 	cfg := Load()
 	cfg.Environment = "production"
 	cfg.SubmissionAllowInsecureAuth = false
@@ -108,6 +119,7 @@ func TestValidateRejectsLocalPublicBaseURLInProduction(t *testing.T) {
 	for _, publicURL := range tests {
 		publicURL := publicURL
 		t.Run(publicURL, func(t *testing.T) {
+			setDevelopmentMode(t)
 			cfg := Load()
 			cfg.Environment = "production"
 			cfg.SubmissionAllowInsecureAuth = false
@@ -124,6 +136,7 @@ func TestValidateRejectsLocalPublicBaseURLInProduction(t *testing.T) {
 }
 
 func TestValidateAcceptsHTTPSPublicBaseURLInProduction(t *testing.T) {
+	setDevelopmentMode(t)
 	cfg := Load()
 	cfg.Environment = "production"
 	cfg.SubmissionAllowInsecureAuth = false
@@ -179,6 +192,7 @@ func TestValidateRejectsLocalSMTPIdentitiesInProduction(t *testing.T) {
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
+			setDevelopmentMode(t)
 			cfg := Load()
 			cfg.Environment = "production"
 			cfg.SubmissionAllowInsecureAuth = false
@@ -196,6 +210,7 @@ func TestValidateRejectsLocalSMTPIdentitiesInProduction(t *testing.T) {
 
 func TestLoadDefaultsPublicBaseURLToEmpty(t *testing.T) {
 	t.Setenv("GOGOMAIL_PUBLIC_BASE_URL", "")
+	setDevelopmentMode(t)
 	cfg := Load()
 	if cfg.PublicBaseURL != "" {
 		t.Fatalf("PublicBaseURL = %q, want empty default", cfg.PublicBaseURL)
@@ -203,6 +218,7 @@ func TestLoadDefaultsPublicBaseURLToEmpty(t *testing.T) {
 }
 
 func TestValidateRejectsSSLModeDisableInProduction(t *testing.T) {
+	setDevelopmentMode(t)
 	cfg := Load()
 	cfg.Environment = "production"
 	cfg.SubmissionAllowInsecureAuth = false
@@ -217,6 +233,7 @@ func TestValidateRejectsSSLModeDisableInProduction(t *testing.T) {
 }
 
 func TestValidateRejectsNoopFarmCoordinatorInProduction(t *testing.T) {
+	setDevelopmentMode(t)
 	cfg := Load()
 	cfg.Environment = "production"
 	cfg.SubmissionAllowInsecureAuth = false
@@ -231,6 +248,7 @@ func TestValidateRejectsNoopFarmCoordinatorInProduction(t *testing.T) {
 }
 
 func TestValidateAcceptsRedisFarmCoordinatorInProduction(t *testing.T) {
+	setDevelopmentMode(t)
 	cfg := Load()
 	cfg.Environment = "production"
 	cfg.SubmissionAllowInsecureAuth = false
@@ -245,6 +263,8 @@ func TestValidateAcceptsRedisFarmCoordinatorInProduction(t *testing.T) {
 }
 
 func TestValidateRejectsInvalidCalDAVTrustedProxies(t *testing.T) {
+	setDevelopmentMode(t)
+	setDevelopmentMode(t)
 	cfg := Load()
 	cfg.CalDAVTrustedProxies = []string{"bad-proxy"}
 	if err := cfg.Validate(); err == nil || !strings.Contains(err.Error(), "GOGOMAIL_CALDAV_TRUSTED_PROXIES") {
@@ -253,6 +273,8 @@ func TestValidateRejectsInvalidCalDAVTrustedProxies(t *testing.T) {
 }
 
 func TestValidateRejectsInvalidCardDAVTrustedProxies(t *testing.T) {
+	setDevelopmentMode(t)
+	setDevelopmentMode(t)
 	cfg := Load()
 	cfg.CardDAVTrustedProxies = []string{"bad/proxy"}
 	if err := cfg.Validate(); err == nil || !strings.Contains(err.Error(), "GOGOMAIL_CARDDAV_TRUSTED_PROXIES") {
@@ -264,6 +286,7 @@ func TestValidateRejectsUnknownEnvironment(t *testing.T) {
 	for _, env := range []string{"prod", "staging", ""} {
 		env := env
 		t.Run(env, func(t *testing.T) {
+			setDevelopmentMode(t)
 			cfg := Load()
 			cfg.Environment = env
 			if err := cfg.Validate(); err == nil {
@@ -277,6 +300,7 @@ func TestValidateAcceptsKnownEnvironmentValues(t *testing.T) {
 	for _, env := range []string{"development", " test ", "Production"} {
 		env := env
 		t.Run(env, func(t *testing.T) {
+			setDevelopmentMode(t)
 			cfg := Load()
 			cfg.Environment = env
 			cfg.SubmissionAllowInsecureAuth = false
@@ -294,6 +318,7 @@ func TestValidateAcceptsKnownEnvironmentValues(t *testing.T) {
 }
 
 func TestValidateRejectsUnknownMetricsBackend(t *testing.T) {
+	setDevelopmentMode(t)
 	cfg := Load()
 	cfg.MetricsBackend = "promish"
 	if err := cfg.Validate(); err == nil {
@@ -302,6 +327,7 @@ func TestValidateRejectsUnknownMetricsBackend(t *testing.T) {
 }
 
 func TestValidateRejectsUnknownPushNotifyBackend(t *testing.T) {
+	setDevelopmentMode(t)
 	cfg := Load()
 	cfg.PushNotifyBackend = "fcm-direct"
 	if err := cfg.Validate(); err == nil {
@@ -310,6 +336,7 @@ func TestValidateRejectsUnknownPushNotifyBackend(t *testing.T) {
 }
 
 func TestValidateRejectsUnknownStorageBackend(t *testing.T) {
+	setDevelopmentMode(t)
 	cfg := Load()
 	cfg.StorageBackend = "swift"
 	if err := cfg.Validate(); err == nil {
@@ -318,6 +345,7 @@ func TestValidateRejectsUnknownStorageBackend(t *testing.T) {
 }
 
 func TestValidateAcceptsNFSStorageBackend(t *testing.T) {
+	setDevelopmentMode(t)
 	cfg := Load()
 	cfg.StorageBackend = " nfs "
 	cfg.MailstoreRoot = t.TempDir()
@@ -327,6 +355,7 @@ func TestValidateAcceptsNFSStorageBackend(t *testing.T) {
 }
 
 func TestValidateAcceptsStorageBackendCompatLabels(t *testing.T) {
+	setDevelopmentMode(t)
 	cfg := Load()
 	cfg.StorageBackend = "s3"
 	cfg.StorageS3Endpoint = "http://localhost:9000"
@@ -344,6 +373,7 @@ func TestValidateRejectsUnsafeStorageBackendCompatLabels(t *testing.T) {
 	for _, label := range []string{"", "bad label", "bad/label", "bad\nlabel", strings.Repeat("a", 65)} {
 		label := label
 		t.Run(label, func(t *testing.T) {
+			setDevelopmentMode(t)
 			cfg := Load()
 			cfg.StorageBackendCompatLabels = []string{label}
 			if err := cfg.Validate(); err == nil {
@@ -357,6 +387,7 @@ func TestValidateRejectsUnsafeLocalStorageRoot(t *testing.T) {
 	for _, root := range []string{"", "   ", "var/mailstore\nbad"} {
 		root := root
 		t.Run(root, func(t *testing.T) {
+			setDevelopmentMode(t)
 			cfg := Load()
 			cfg.StorageBackend = "local"
 			cfg.MailstoreRoot = root
@@ -368,6 +399,7 @@ func TestValidateRejectsUnsafeLocalStorageRoot(t *testing.T) {
 }
 
 func TestValidateAcceptsS3StorageBackend(t *testing.T) {
+	setDevelopmentMode(t)
 	cfg := Load()
 	cfg.StorageBackend = "s3"
 	cfg.StorageS3Endpoint = "http://localhost:9000"
@@ -386,6 +418,7 @@ func TestValidateAcceptsS3CustomCAFile(t *testing.T) {
 	defer server.Close()
 	certFile := writeTestCACertFile(t, server)
 
+	setDevelopmentMode(t)
 	cfg := Load()
 	cfg.StorageBackend = "s3"
 	cfg.StorageS3Endpoint = "https://s3.internal.example"
@@ -400,6 +433,7 @@ func TestValidateAcceptsS3CustomCAFile(t *testing.T) {
 }
 
 func TestValidateRequiresExplicitS3EndpointInProduction(t *testing.T) {
+	setDevelopmentMode(t)
 	cfg := Load()
 	cfg.Environment = "production"
 	cfg.SubmissionAllowInsecureAuth = false
@@ -424,6 +458,7 @@ func TestValidateRequiresExplicitS3EndpointInProduction(t *testing.T) {
 }
 
 func TestValidateRejectsProductionS3HTTPEndpoint(t *testing.T) {
+	setDevelopmentMode(t)
 	cfg := Load()
 	cfg.Environment = "production"
 	cfg.SubmissionAllowInsecureAuth = false
@@ -442,6 +477,7 @@ func TestValidateRejectsProductionS3HTTPEndpoint(t *testing.T) {
 }
 
 func TestValidateRejectsProductionS3InsecureSkipVerify(t *testing.T) {
+	setDevelopmentMode(t)
 	cfg := Load()
 	cfg.Environment = "production"
 	cfg.SubmissionAllowInsecureAuth = false
@@ -461,6 +497,7 @@ func TestValidateRejectsProductionS3InsecureSkipVerify(t *testing.T) {
 }
 
 func TestValidateAcceptsMinIOStorageBackend(t *testing.T) {
+	setDevelopmentMode(t)
 	cfg := Load()
 	cfg.StorageBackend = "minio"
 	cfg.StorageS3Endpoint = "http://localhost:9000"
@@ -474,6 +511,7 @@ func TestValidateAcceptsMinIOStorageBackend(t *testing.T) {
 }
 
 func TestValidateRejectsIncompleteS3StorageBackend(t *testing.T) {
+	setDevelopmentMode(t)
 	cfg := Load()
 	cfg.StorageBackend = "s3"
 	cfg.StorageS3Bucket = "gogomail"
@@ -503,6 +541,7 @@ func TestValidateRejectsS3CredentialWhitespace(t *testing.T) {
 		} {
 			tt := tt
 			t.Run(backend+" "+tt.name, func(t *testing.T) {
+				setDevelopmentMode(t)
 				cfg := Load()
 				cfg.StorageBackend = backend
 				cfg.StorageS3Endpoint = "http://localhost:9000"
@@ -520,6 +559,7 @@ func TestValidateRejectsS3CredentialWhitespace(t *testing.T) {
 }
 
 func TestValidateRejectsUnsafeS3BucketName(t *testing.T) {
+	setDevelopmentMode(t)
 	cfg := Load()
 	cfg.StorageBackend = "s3"
 	cfg.StorageS3Region = "us-east-1"
@@ -532,6 +572,7 @@ func TestValidateRejectsUnsafeS3BucketName(t *testing.T) {
 }
 
 func TestValidateRejectsAmbiguousS3Endpoint(t *testing.T) {
+	setDevelopmentMode(t)
 	cfg := Load()
 	cfg.StorageBackend = "s3"
 	cfg.StorageS3Endpoint = "http://localhost:9000/proxy//s3"
@@ -545,6 +586,7 @@ func TestValidateRejectsAmbiguousS3Endpoint(t *testing.T) {
 }
 
 func TestValidateRejectsReservedS3BucketName(t *testing.T) {
+	setDevelopmentMode(t)
 	cfg := Load()
 	cfg.StorageBackend = "s3"
 	cfg.StorageS3Region = "us-east-1"
@@ -557,6 +599,7 @@ func TestValidateRejectsReservedS3BucketName(t *testing.T) {
 }
 
 func TestValidateRejectsUnsafeS3Region(t *testing.T) {
+	setDevelopmentMode(t)
 	cfg := Load()
 	cfg.StorageBackend = "s3"
 	cfg.StorageS3Region = "US-EAST-1"
@@ -569,6 +612,7 @@ func TestValidateRejectsUnsafeS3Region(t *testing.T) {
 }
 
 func TestValidateRejectsUnsafeS3Prefix(t *testing.T) {
+	setDevelopmentMode(t)
 	cfg := Load()
 	cfg.StorageBackend = "s3"
 	cfg.StorageS3Region = "us-east-1"
@@ -593,6 +637,7 @@ func TestValidateRejectsUnsafeS3TLSConfig(t *testing.T) {
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
+			setDevelopmentMode(t)
 			cfg := Load()
 			cfg.StorageBackend = "s3"
 			cfg.StorageS3Endpoint = "https://s3.internal.example"
@@ -627,6 +672,7 @@ func writeTestCACertFile(t *testing.T, server *httptest.Server) string {
 }
 
 func TestValidateRejectsMinIOWithoutEndpoint(t *testing.T) {
+	setDevelopmentMode(t)
 	cfg := Load()
 	cfg.StorageBackend = "minio"
 	cfg.StorageS3Bucket = "gogomail"
@@ -650,6 +696,7 @@ func TestValidateRejectsUnknownRedisFeatureBackends(t *testing.T) {
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
+			setDevelopmentMode(t)
 			cfg := Load()
 			tt.mutate(&cfg)
 			if err := cfg.Validate(); err == nil {
@@ -673,6 +720,7 @@ func TestValidateRejectsNonpositiveRelayOperationalLimits(t *testing.T) {
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
+			setDevelopmentMode(t)
 			cfg := Load()
 			tt.mutate(&cfg)
 			if err := cfg.Validate(); err == nil {
@@ -683,6 +731,7 @@ func TestValidateRejectsNonpositiveRelayOperationalLimits(t *testing.T) {
 }
 
 func TestValidateAcceptsRedisFeatureBackends(t *testing.T) {
+	setDevelopmentMode(t)
 	cfg := Load()
 	cfg.DedupBackend = "redis"
 	cfg.RateLimitBackend = " redis "
@@ -727,6 +776,7 @@ func TestValidateRejectsInvalidListenerAddresses(t *testing.T) {
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
+			setDevelopmentMode(t)
 			cfg := Load()
 			tt.mutate(&cfg)
 			if err := cfg.Validate(); err == nil {
@@ -737,6 +787,7 @@ func TestValidateRejectsInvalidListenerAddresses(t *testing.T) {
 }
 
 func TestValidateAcceptsListenerAddressForms(t *testing.T) {
+	setDevelopmentMode(t)
 	cfg := Load()
 	cfg.HTTPAddr = "[::1]:8080"
 	cfg.SMTPAddr = ":2525"
@@ -798,6 +849,7 @@ func TestValidateRejectsInvalidPushNotifyWebhookConfig(t *testing.T) {
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
+			setDevelopmentMode(t)
 			cfg := Load()
 			tt.mutate(&cfg)
 			if err := cfg.Validate(); err == nil {
@@ -825,6 +877,7 @@ func TestValidateRejectsHTTPWebhooksInProduction(t *testing.T) {
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
+			setDevelopmentMode(t)
 			cfg := Load()
 			cfg.Environment = "production"
 			cfg.SubmissionAllowInsecureAuth = false
@@ -840,6 +893,7 @@ func TestValidateRejectsHTTPWebhooksInProduction(t *testing.T) {
 }
 
 func TestValidateAcceptsHTTPSWebhooksInProduction(t *testing.T) {
+	setDevelopmentMode(t)
 	cfg := Load()
 	cfg.Environment = "production"
 	cfg.SubmissionAllowInsecureAuth = false
@@ -895,6 +949,7 @@ func TestValidateRejectsInvalidAttachmentScanConfig(t *testing.T) {
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
+			setDevelopmentMode(t)
 			cfg := Load()
 			tt.mutate(&cfg)
 			if err := cfg.Validate(); err == nil {
@@ -918,6 +973,7 @@ func TestValidateRejectsInvalidAttachmentCleanupConfig(t *testing.T) {
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
+			setDevelopmentMode(t)
 			cfg := Load()
 			tt.mutate(&cfg)
 			if err := cfg.Validate(); err == nil {
@@ -940,6 +996,7 @@ func TestValidateRejectsInvalidDriveCleanupConfig(t *testing.T) {
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
+			setDevelopmentMode(t)
 			cfg := Load()
 			tt.mutate(&cfg)
 			if err := cfg.Validate(); err == nil {
@@ -967,6 +1024,7 @@ func TestValidateRejectsInvalidDAVSyncRetentionSettings(t *testing.T) {
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
+			setDevelopmentMode(t)
 			cfg := Load()
 			tt.mutate(&cfg)
 			if err := cfg.Validate(); err == nil {
@@ -990,6 +1048,7 @@ func TestValidateRejectsNonpositivePushNotificationConsumerSettings(t *testing.T
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
+			setDevelopmentMode(t)
 			cfg := Load()
 			tt.mutate(&cfg)
 			if err := cfg.Validate(); err == nil {
@@ -1000,6 +1059,7 @@ func TestValidateRejectsNonpositivePushNotificationConsumerSettings(t *testing.T
 }
 
 func TestValidateRejectsUnknownAPIMeteringAggregateBackend(t *testing.T) {
+	setDevelopmentMode(t)
 	cfg := Load()
 	cfg.APIMeteringAggregateBackend = "warehouse-ish"
 	if err := cfg.Validate(); err == nil {
@@ -1021,6 +1081,7 @@ func TestValidateRejectsNonpositiveAPIMeteringConsumerSettings(t *testing.T) {
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
+			setDevelopmentMode(t)
 			cfg := Load()
 			tt.mutate(&cfg)
 			if err := cfg.Validate(); err == nil {
@@ -1054,6 +1115,7 @@ func TestValidateRejectsInvalidAPIUsageRetentionSettings(t *testing.T) {
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
+			setDevelopmentMode(t)
 			cfg := Load()
 			tt.mutate(&cfg)
 			if err := cfg.Validate(); err == nil {
@@ -1085,6 +1147,7 @@ func TestValidateRejectsNonpositiveEventAndDeliveryConsumerSettings(t *testing.T
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
+			setDevelopmentMode(t)
 			cfg := Load()
 			tt.mutate(&cfg)
 			if err := cfg.Validate(); err == nil {
@@ -1120,6 +1183,7 @@ func TestValidateRejectsUnsafeRedisConsumerIdentifiers(t *testing.T) {
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
+			setDevelopmentMode(t)
 			cfg := Load()
 			tt.mutate(&cfg)
 			if err := cfg.Validate(); err == nil {
@@ -1145,6 +1209,7 @@ func TestValidateRejectsNegativeConsumerClaimIdle(t *testing.T) {
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
+			setDevelopmentMode(t)
 			cfg := Load()
 			tt.mutate(&cfg)
 			if err := cfg.Validate(); err == nil {
@@ -1168,6 +1233,7 @@ func TestValidateRejectsInvalidConsumerDeadLetterSettings(t *testing.T) {
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
+			setDevelopmentMode(t)
 			cfg := Load()
 			tt.mutate(&cfg)
 			if err := cfg.Validate(); err == nil {
@@ -1178,6 +1244,7 @@ func TestValidateRejectsInvalidConsumerDeadLetterSettings(t *testing.T) {
 }
 
 func TestValidateRejectsThrottleWithoutLimits(t *testing.T) {
+	setDevelopmentMode(t)
 	cfg := Load()
 	cfg.DeliveryThrottleEnabled = true
 	cfg.DeliveryDefaultConcurrency = 0
@@ -1189,6 +1256,7 @@ func TestValidateRejectsThrottleWithoutLimits(t *testing.T) {
 }
 
 func TestValidateRejectsUnknownDeliveryThrottleBackend(t *testing.T) {
+	setDevelopmentMode(t)
 	cfg := Load()
 	cfg.DeliveryThrottleEnabled = true
 	cfg.DeliveryThrottleBackend = "memcached"
@@ -1199,6 +1267,7 @@ func TestValidateRejectsUnknownDeliveryThrottleBackend(t *testing.T) {
 }
 
 func TestValidateAcceptsRedisDeliveryThrottleBackend(t *testing.T) {
+	setDevelopmentMode(t)
 	cfg := Load()
 	cfg.DeliveryThrottleEnabled = true
 	cfg.DeliveryThrottleBackend = "redis"
@@ -1226,6 +1295,7 @@ func TestValidateRejectsInvalidFarmCoordinatorSettings(t *testing.T) {
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
+			setDevelopmentMode(t)
 			cfg := Load()
 			tt.mutate(&cfg)
 			if err := cfg.Validate(); err == nil {
@@ -1253,6 +1323,7 @@ func TestValidateRejectsInvalidDeliveryDomainBackoffSettings(t *testing.T) {
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
+			setDevelopmentMode(t)
 			cfg := Load()
 			cfg.DeliveryDomainBackoffEnabled = true
 			tt.mutate(&cfg)
@@ -1264,6 +1335,7 @@ func TestValidateRejectsInvalidDeliveryDomainBackoffSettings(t *testing.T) {
 }
 
 func TestValidateAcceptsDeliveryDomainBackoffSettings(t *testing.T) {
+	setDevelopmentMode(t)
 	cfg := Load()
 	cfg.DeliveryDomainBackoffEnabled = true
 	cfg.DeliveryDomainBackoffBaseDelay = time.Minute
@@ -1286,6 +1358,7 @@ func TestValidateRejectsInvalidDeliveryRetryDelays(t *testing.T) {
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
+			setDevelopmentMode(t)
 			cfg := Load()
 			tt.mutate(&cfg)
 			if err := cfg.Validate(); err == nil {
@@ -1296,6 +1369,7 @@ func TestValidateRejectsInvalidDeliveryRetryDelays(t *testing.T) {
 }
 
 func TestValidateRejectsSMTPSWithoutTLSFiles(t *testing.T) {
+	setDevelopmentMode(t)
 	cfg := Load()
 	cfg.SubmissionSMTPSAddr = ":2465"
 	cfg.SMTPTLSCertFile = ""
@@ -1322,6 +1396,7 @@ func TestValidateRejectsNonpositiveTimeouts(t *testing.T) {
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
+			setDevelopmentMode(t)
 			cfg := Load()
 			tt.mutate(&cfg)
 			if err := cfg.Validate(); err == nil {
@@ -1332,6 +1407,7 @@ func TestValidateRejectsNonpositiveTimeouts(t *testing.T) {
 }
 
 func TestValidateRejectsNonpositiveDeliveryRecipientBatchSize(t *testing.T) {
+	setDevelopmentMode(t)
 	cfg := Load()
 	cfg.DeliveryRecipientBatchSize = 0
 	if err := cfg.Validate(); err == nil {
@@ -1362,6 +1438,7 @@ func TestValidateRejectsInvalidMessageBodyCacheSettings(t *testing.T) {
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
+			setDevelopmentMode(t)
 			cfg := Load()
 			tt.mutate(&cfg)
 			if err := cfg.Validate(); err == nil {
@@ -1382,6 +1459,7 @@ func TestValidateRejectsUnsafeHTTPMaxHeaderBytes(t *testing.T) {
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
+			setDevelopmentMode(t)
 			cfg := Load()
 			cfg.HTTPMaxHeaderBytes = tt.value
 			if err := cfg.Validate(); err == nil {
@@ -1392,6 +1470,7 @@ func TestValidateRejectsUnsafeHTTPMaxHeaderBytes(t *testing.T) {
 }
 
 func TestValidateRejectsNonpositiveDKIMVerificationLimit(t *testing.T) {
+	setDevelopmentMode(t)
 	cfg := Load()
 	cfg.SMTPMaxDKIMVerifications = 0
 	if err := cfg.Validate(); err == nil {
@@ -1400,6 +1479,7 @@ func TestValidateRejectsNonpositiveDKIMVerificationLimit(t *testing.T) {
 }
 
 func TestValidateAcceptsDefaultConfig(t *testing.T) {
+	setDevelopmentMode(t)
 	cfg := Load()
 	if err := cfg.Validate(); err != nil {
 		t.Fatalf("Validate() error = %v", err)
