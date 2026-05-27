@@ -1,6 +1,12 @@
 # gogomail current status
 
-Last updated: 2026-05-28 (security hardening: admin MFA pending token bypass)
+Last updated: 2026-05-28 (security hardening: email header injection fix)
+
+## Post-remediation hardening round 14 (2026-05-28)
+
+**Email header injection in system email and alert dispatcher**
+- **internal/mailservice/systememail.go**: `buildRFC2822Message` embedded `from`, `to`, and `subject` values directly into RFC 2822 headers via string concatenation without stripping CRLF. An email address containing `\r\n` could inject additional headers (e.g., `Bcc:` lines), enabling spam relay or phishing. Added `sanitizeEmailHeader()` which removes `\r` and `\n` before all header values.
+- **internal/alert/dispatcher.go**: Same issue in `sendEmail()` — alert channel config fields `from`, `to`, and `notification.AlertType` were unescaped. Fixed with the same `sanitizeEmailHeader` helper.
 
 ## Post-remediation hardening round 13 (2026-05-28)
 

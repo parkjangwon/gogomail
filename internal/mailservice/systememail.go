@@ -120,14 +120,23 @@ func (s *SMTPSystemEmailSender) send(toEmail, subject, body string) error {
 	return nil
 }
 
+// sanitizeEmailHeader removes CR and LF characters from an RFC 2822 header value
+// to prevent header injection. Header values must not contain line endings.
+func sanitizeEmailHeader(v string) string {
+	v = strings.ReplaceAll(v, "\r", "")
+	v = strings.ReplaceAll(v, "\n", "")
+	return v
+}
+
 // buildRFC2822Message builds a minimal RFC 2822 plain-text message.
+// Header values are sanitized to prevent header injection via malicious input.
 func buildRFC2822Message(from, to, subject, body string) string {
 	now := time.Now().UTC().Format(time.RFC1123Z)
 	var sb strings.Builder
 	sb.WriteString("Date: " + now + "\r\n")
-	sb.WriteString("From: " + from + "\r\n")
-	sb.WriteString("To: " + to + "\r\n")
-	sb.WriteString("Subject: " + subject + "\r\n")
+	sb.WriteString("From: " + sanitizeEmailHeader(from) + "\r\n")
+	sb.WriteString("To: " + sanitizeEmailHeader(to) + "\r\n")
+	sb.WriteString("Subject: " + sanitizeEmailHeader(subject) + "\r\n")
 	sb.WriteString("MIME-Version: 1.0\r\n")
 	sb.WriteString("Content-Type: text/plain; charset=UTF-8\r\n")
 	sb.WriteString("\r\n")

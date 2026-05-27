@@ -52,8 +52,16 @@ func (d *EmailDispatcher) DispatchNotification(ctx context.Context, notification
 	return lastErr
 }
 
+// sanitizeEmailHeader strips CR and LF from an RFC 2822 header value to prevent
+// header injection via admin-configured alert channel fields.
+func sanitizeEmailHeader(v string) string {
+	v = strings.ReplaceAll(v, "\r", "")
+	v = strings.ReplaceAll(v, "\n", "")
+	return v
+}
+
 func (d *EmailDispatcher) sendEmail(from, to string, notification *Notification) error {
-	subject := fmt.Sprintf("[ALERT] %s threshold exceeded (%.1f%%)", notification.AlertType, notification.Threshold)
+	subject := fmt.Sprintf("[ALERT] %s threshold exceeded (%.1f%%)", sanitizeEmailHeader(string(notification.AlertType)), notification.Threshold)
 	body := fmt.Sprintf(
 		"Alert: %s\nCurrent value: %.2f\nThreshold: %.2f\nTime: %s\n",
 		notification.AlertType,
@@ -61,8 +69,8 @@ func (d *EmailDispatcher) sendEmail(from, to string, notification *Notification)
 		notification.Threshold,
 		time.Now().UTC().Format(time.RFC3339),
 	)
-	msg := []byte("From: " + from + "\r\n" +
-		"To: " + to + "\r\n" +
+	msg := []byte("From: " + sanitizeEmailHeader(from) + "\r\n" +
+		"To: " + sanitizeEmailHeader(to) + "\r\n" +
 		"Subject: " + subject + "\r\n" +
 		"\r\n" +
 		body)
