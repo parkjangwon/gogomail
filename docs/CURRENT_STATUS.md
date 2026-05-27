@@ -1,6 +1,20 @@
 # gogomail current status
 
-Last updated: 2026-05-28 (security hardening: alert rule/channel IDOR sweep)
+Last updated: 2026-05-28 (security hardening: directory alias/membership/delegation IDOR sweep)
+
+## Post-remediation hardening round 29 (2026-05-28)
+
+**IDOR sweep: directory aliases/group-memberships/delegations (7 handlers) — requires new Get methods**
+- Added `GetAlias`, `GetGroupMembership`, `GetDelegation` to `internal/directory/repository_*.go`
+- Added `GetDirectoryAlias`, `GetDirectoryGroupMembership`, `GetDirectoryDelegation` to admin service + interface
+- **admin_directory.go**: All 7 mutation handlers now call Get → `requiresCompanyAccess(r.Context(), resource.CompanyID)` before proceeding:
+  - `DELETE /admin/v1/directory/aliases/{id}`
+  - `DELETE /admin/v1/directory/group-memberships/{id}`
+  - `PATCH /admin/v1/directory/group-memberships/{id}/role`
+  - `PATCH /admin/v1/directory/group-memberships/{id}/assignment`
+  - `PATCH /admin/v1/directory/delegations/{id}/role`
+  - `PATCH /admin/v1/directory/delegations/{id}/assignment`
+  - `DELETE /admin/v1/directory/delegations/{id}`
 
 ## Post-remediation hardening round 28 (2026-05-28)
 

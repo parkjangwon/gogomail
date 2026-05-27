@@ -34,6 +34,43 @@ SELECT EXISTS (
 	return query, []any{req.GroupID, req.MemberKind, req.MemberID}
 }
 
+func (r *Repository) GetGroupMembership(ctx context.Context, id string) (GroupMembership, error) {
+	if r == nil || r.db == nil {
+		return GroupMembership{}, fmt.Errorf("database handle is required")
+	}
+	id, err := NormalizePrincipalID(id)
+	if err != nil {
+		return GroupMembership{}, fmt.Errorf("membership id: %w", err)
+	}
+	const query = `
+SELECT m.id::text,
+       m.group_id::text,
+       g.company_id::text,
+       m.member_kind,
+       m.member_id::text,
+       m.role,
+       m.status
+FROM directory_group_memberships m
+JOIN directory_groups g ON g.id = m.group_id
+WHERE m.id = $1::uuid`
+	var membership GroupMembership
+	if err := r.db.QueryRowContext(ctx, query, id).Scan(
+		&membership.ID,
+		&membership.GroupID,
+		&membership.CompanyID,
+		&membership.MemberKind,
+		&membership.MemberID,
+		&membership.Role,
+		&membership.Status,
+	); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return GroupMembership{}, fmt.Errorf("directory group membership not found")
+		}
+		return GroupMembership{}, fmt.Errorf("get directory group membership: %w", err)
+	}
+	return membership, nil
+}
+
 func (r *Repository) CheckDirectGroupMembership(ctx context.Context, req CheckGroupMembershipRequest) (bool, error) {
 	if r == nil || r.db == nil {
 		return false, fmt.Errorf("database handle is required")

@@ -1183,6 +1183,18 @@ func (f *fakeAdminDirectory) DeleteAliasWithAudit(_ context.Context, id string) 
 	return f.alias, nil
 }
 
+func (f *fakeAdminDirectory) GetAlias(_ context.Context, id string) (directory.Alias, error) {
+	return f.alias, nil
+}
+
+func (f *fakeAdminDirectory) GetGroupMembership(_ context.Context, id string) (directory.GroupMembership, error) {
+	return f.membership, nil
+}
+
+func (f *fakeAdminDirectory) GetDelegation(_ context.Context, id string) (directory.Delegation, error) {
+	return f.delegation, nil
+}
+
 func (f *fakeAdminDrive) GetNode(_ context.Context, req drive.GetNodeRequest) (drive.Node, error) {
 	f.lastGetNodeReq = req
 	return f.node, nil
