@@ -1,17 +1,32 @@
 # ACTIVE_TASK
 
-## ID: COMPLETE
+## ID: Task 2
+## Title: APNS private key file option
+## Issue: #10
 
-Task 1 완료 (2026-05-27)
+### Description
 
-### 완료된 항목
+Add support for specifying the APNS (Apple Push Notification Service) private key from a file path instead of requiring it as a base64-encoded environment variable. This makes configuration easier in production deployments where files are mounted via secrets.
 
-1. **Internal proxy headers stripping** ✅
-   - `internal/httpapi/admin_middleware.go`: StripInternalProxyHeadersMiddleware 구현
-   - Headers stripped: X-Forwarded-For, X-Forwarded-Proto, X-Forwarded-Host, X-Forwarded-Port, X-Real-IP, X-Client-IP, CF-Connecting-IP, True-Client-IP
-   - Integrated into HTTP middleware chain in internal/app/run.go
-   - 3개 unit 테스트 + 1105개 httpapi tests 통과
+### Implementation target
 
-## Next Steps
+- `internal/config/` configuration loading
+- `internal/pushnotify/` APNS handler
+- Likely: config validation and default behavior
 
-`docs/NEXT_STEPS.md` 백로그에서 다음 태스크를 선택할 것. (Task 2: APNS private key file option)
+### Completion criteria
+
+- [ ] go test ./... passes
+- [ ] APNS can load private key from file path (verify in config test or integration test)
+- [ ] APNS still works with base64-encoded inline keys for backward compatibility
+- [ ] docs/CURRENT_STATUS.md updated with Task 2 completion
+- [ ] docs/backend-roadmap.md marked as complete
+- [ ] All changes committed and pushed
+
+### Next task
+
+Task 3: Helm CHANGEME guard
+
+### Notes
+
+This is a configuration enhancement to support file-based secret management, which is common in K8s deployments.

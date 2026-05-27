@@ -231,6 +231,8 @@ func applyYAMLConfigValue(cfg *Config, key string, value any) error {
 		return setYAMLString(value, &cfg.APNsTeamID, key)
 	case "apns_private_key":
 		return setYAMLString(value, &cfg.APNsPrivateKey, key)
+	case "apns_private_key_file":
+		return setYAMLString(value, &cfg.APNsPrivateKeyFile, key)
 	case "apns_bundle_id":
 		return setYAMLString(value, &cfg.APNsBundleID, key)
 	case "webpush_vapid_public_key":

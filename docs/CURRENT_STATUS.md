@@ -1,6 +1,16 @@
 # gogomail current status
 
-Last updated: 2026-05-27 (Task 1: Strip proxy headers)
+Last updated: 2026-05-27 (Task 2: APNS private key file option)
+
+## Task 2: APNS private key file option (2026-05-27)
+
+**Configuration enhancement**: Support for APNS private key from file path
+- **internal/config/config.go**: Added APNsPrivateKeyFile field; Load() function reads file if path is specified, with file taking precedence over GOGOMAIL_APNS_PRIVATE_KEY env var
+- **internal/config/config_file.go**: Added YAML support for apns_private_key_file configuration key
+- **internal/config/validate.go**: Added validation to ensure file can be read and contains data
+- **Test coverage**: Added 6 tests (TestLoadAPNsPrivateKeyFromEnvironmentVariable, TestLoadAPNsPrivateKeyFromFile, TestLoadAPNsPrivateKeyFilePathPrecedesEnvironmentVariable, TestValidateRejectsNonexistentAPNsPrivateKeyFile, TestValidateAcceptsAPNsPrivateKeyFromEnvironmentVariable, TestValidateRejectsEmptyAPNsPrivateKeyFile)
+- **Impact**: Supports Kubernetes secret mounting patterns; backward compatible with existing GOGOMAIL_APNS_PRIVATE_KEY environment variable
+- **Config test suite**: 368 passed (added 6 new tests)
 
 ## Task 1: Strip internal proxy headers (2026-05-27)
 
