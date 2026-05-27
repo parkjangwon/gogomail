@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, type KeyboardEvent as ReactKeyboardEvent } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   MessageDetail,
@@ -18,10 +18,12 @@ import { ThreadConversation } from './reading-pane/ThreadConversation';
 import { InlineCompose } from './reading-pane/InlineCompose';
 import { SafeHTMLBody } from './reading-pane/SafeHTMLBody';
 import { ReadingPaneOverlays } from './reading-pane/ReadingPaneOverlays';
+import { ReadingPaneLoading, ReadingPaneEmpty } from './reading-pane/ReadingPaneStatus';
 import { useReadingPaneAttachments } from './reading-pane/useReadingPaneAttachments';
 import { useReadingPaneMedia } from './reading-pane/useReadingPaneMedia';
 import { useReadingPaneCalendar } from './reading-pane/useReadingPaneCalendar';
 import { useReadingPane } from './reading-pane/useReadingPane';
+import { useReadingPaneKeyboard } from './reading-pane/useReadingPaneKeyboard';
 
 interface ReadingPaneProps {
   message: MessageDetail | null;
@@ -225,7 +227,7 @@ export function ReadingPane({
     }, 50);
   };
 
-  const onOpenFullCompose = (intent: 'reply' | 'reply_all' | 'forward') => {
+  const onOpenFullCompose = useCallback((intent: 'reply' | 'reply_all' | 'forward') => {
     setInlineCompose(null);
     const action = intent === 'reply'
       ? onReply
@@ -233,168 +235,20 @@ export function ReadingPane({
       ? onReplyAll
       : onForward;
     action?.();
-  };
+  }, [onReply, onReplyAll, onForward, setInlineCompose]);
 
-  const handleReadingPaneKeyDown = (event: ReactKeyboardEvent<HTMLElement>) => {
-    if ((event.target as HTMLElement | null)?.closest('input, textarea, select, [contenteditable="true"]')) return;
-    if (event.metaKey || event.ctrlKey || event.altKey) return;
+  const { handleReadingPaneKeyDown } = useReadingPaneKeyboard({
+    scrollContainerRef,
+    onBack,
+    onDelete,
+    onStar,
+    onArchive,
+    onToggleRead,
+    onOpenFullCompose,
+  });
 
-    const container = scrollContainerRef.current;
-    const stop = () => {
-      event.preventDefault();
-      event.stopPropagation();
-      event.nativeEvent.stopImmediatePropagation?.();
-    };
-    const scrollBy = (top: number) => {
-      stop();
-      container?.scrollBy({ top, behavior: 'smooth' });
-    };
-    const scrollTo = (top: number) => {
-      stop();
-      container?.scrollTo({ top, behavior: 'smooth' });
-    };
-
-    if (event.key === 'ArrowDown') {
-      scrollBy(80);
-      return;
-    }
-    if (event.key === 'ArrowUp') {
-      scrollBy(-80);
-      return;
-    }
-    if (event.key === 'PageDown') {
-      scrollBy(Math.max(120, (container?.clientHeight ?? 0) * 0.85));
-      return;
-    }
-    if (event.key === 'PageUp') {
-      scrollBy(-Math.max(120, (container?.clientHeight ?? 0) * 0.85));
-      return;
-    }
-    if (event.key === 'Home') {
-      scrollTo(0);
-      return;
-    }
-    if (event.key === 'End') {
-      scrollTo(container?.scrollHeight ?? 0);
-      return;
-    }
-    if (event.key === 'Escape') {
-      if (!onBack) return;
-      stop();
-      onBack();
-      return;
-    }
-    if (event.key === 'Delete' || event.key === 'Backspace' || event.key === '#') {
-      if (!onDelete) return;
-      stop();
-      onDelete();
-      return;
-    }
-
-    const key = event.key.toLowerCase();
-    if (key === 'r') {
-      stop();
-      onOpenFullCompose('reply');
-      return;
-    }
-    if (key === 'a') {
-      stop();
-      onOpenFullCompose('reply_all');
-      return;
-    }
-    if (key === 'f') {
-      stop();
-      onOpenFullCompose('forward');
-      return;
-    }
-    if (key === 's') {
-      if (!onStar) return;
-      stop();
-      onStar();
-      return;
-    }
-    if (key === 'e') {
-      if (!onArchive) return;
-      stop();
-      onArchive();
-      return;
-    }
-    if (key === 'm') {
-      if (!onToggleRead) return;
-      stop();
-      onToggleRead();
-      return;
-    }
-  };
-
-  if (loading) {
-    return (
-      <main
-        aria-label={t('misc.readingPane.region')}
-        data-print-reading-pane
-        style={{
-          flex: 1,
-          minWidth: 0,
-          height: '100%',
-          overflowY: 'auto',
-          padding: '20px 24px',
-          background: 'var(--color-bg-primary)',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '16px',
-        }}
-      >
-        {[100, 60, 80, 40, 70, 90].map((w, i) => (
-          <div
-            key={i}
-            style={{
-              height: i === 0 ? '24px' : '14px',
-              background: 'var(--color-bg-tertiary)',
-              borderRadius: '4px',
-              width: `${w}%`,
-            }}
-          />
-        ))}
-      </main>
-    );
-  }
-
-  if (!message) {
-    return (
-      <main
-        aria-label={t('misc.readingPane.region')}
-        data-print-reading-pane
-        style={{
-          flex: 1,
-          minWidth: 0,
-          height: '100%',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: '8px',
-          background: 'var(--color-bg-primary)',
-          color: 'var(--color-text-tertiary)',
-        }}
-      >
-        <svg
-          width="40"
-          height="40"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          aria-hidden="true"
-        >
-          <rect x="2" y="4" width="20" height="16" rx="2" />
-          <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
-        </svg>
-        <p style={{ fontSize: '14px' }}>{t('misc.readingPane.selectMessage')}</p>
-      </main>
-    );
-  }
+  if (loading) return <ReadingPaneLoading />;
+  if (!message) return <ReadingPaneEmpty />;
 
   const toList = (message.to_addrs ?? [])
     .map((address) => {

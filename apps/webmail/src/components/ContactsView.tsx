@@ -3,16 +3,8 @@
 import { type Dispatch, type SetStateAction, useCallback, useRef } from 'react';
 import { useTranslations } from 'next-intl';
 import {
-  UserGroupIcon,
   PlusIcon,
   MagnifyingGlassIcon,
-  PencilIcon,
-  TrashIcon,
-  EnvelopeIcon,
-  PhoneIcon,
-  BuildingOfficeIcon,
-  XMarkIcon,
-  CheckIcon,
 } from '@heroicons/react/24/outline';
 import { type ContactObject } from '@/lib/api';
 import { ContactsSidebar } from './ContactsSidebar';
@@ -21,6 +13,7 @@ import {
   initials,
   type ParsedContact,
 } from './contacts/contactsViewHelpers';
+import { ContactDetailPanel } from './contacts/ContactDetailPanel';
 import { useContactsBooks } from './contacts/useContactsBooks';
 import { useContactsEdit } from './contacts/useContactsEdit';
 import { useContactsList } from './contacts/useContactsList';
@@ -320,270 +313,21 @@ export function ContactsView({ onCompose }: ContactsViewProps) {
       </div>
 
       {/* Right pane: Contact detail */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
-        {!selectedContact || !selectedParsed ? (
-          <div
-            style={{
-              flex: 1,
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '12px',
-              color: 'var(--color-text-tertiary)',
-            }}
-          >
-            <UserGroupIcon style={{ width: '48px', height: '48px', opacity: 0.3 }} />
-            <span style={{ fontSize: '14px' }}>{t('selectAddressBook')}</span>
-          </div>
-        ) : (
-          <>
-            {/* Detail header */}
-            <div
-              style={{
-                padding: '20px 24px 16px',
-                borderBottom: '1px solid var(--color-border-subtle)',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '16px',
-                flexShrink: 0,
-              }}
-            >
-              {/* Avatar */}
-              <div
-                style={{
-                  width: '56px',
-                  height: '56px',
-                  borderRadius: '50%',
-                  background: avatarColor(selectedParsed.fn || selectedContact.ObjectName),
-                  color: '#fff',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '20px',
-                  fontWeight: 700,
-                  flexShrink: 0,
-                }}
-              >
-                {initials(selectedParsed.fn || selectedContact.ObjectName || '?')}
-              </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: '18px', fontWeight: 600, color: 'var(--color-text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {selectedParsed.fn || selectedContact.ObjectName || t('noName')}
-                </div>
-                {selectedParsed.org && (
-                  <div style={{ fontSize: '13px', color: 'var(--color-text-tertiary)', marginTop: '2px' }}>
-                    {selectedParsed.org}
-                  </div>
-                )}
-              </div>
-              {/* Action buttons */}
-              <div style={{ display: 'flex', gap: '8px', flexShrink: 0 }}>
-                {selectedParsed.email && onCompose && (
-                  <button
-                    onClick={() => onCompose(selectedParsed!.email)}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                      padding: '7px 14px',
-                      background: 'var(--color-accent)',
-                      color: '#fff',
-                      border: 'none',
-                      borderRadius: '6px',
-                      fontSize: '13px',
-                      fontWeight: 500,
-                      cursor: 'pointer',
-                    }}
-                    onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.opacity = '0.85'; }}
-                    onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.opacity = '1'; }}
-                  >
-                    <EnvelopeIcon style={{ width: '14px', height: '14px' }} />
-                    {t('composeButton')}
-                  </button>
-                )}
-                {!editMode && (
-                  <button
-                    onClick={handleEditStart}
-                    title={t('editTitle')}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      padding: '7px',
-                      background: 'var(--color-bg-secondary)',
-                      border: '1px solid var(--color-border-subtle)',
-                      borderRadius: '6px',
-                      cursor: 'pointer',
-                      color: 'var(--color-text-secondary)',
-                    }}
-                    onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-tertiary)'; }}
-                    onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-secondary)'; }}
-                  >
-                    <PencilIcon style={{ width: '14px', height: '14px' }} />
-                  </button>
-                )}
-                <button
-                  onClick={handleDelete}
-                  title={t('deleteTitle')}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    padding: '7px',
-                    background: 'var(--color-bg-secondary)',
-                    border: '1px solid var(--color-border-subtle)',
-                    borderRadius: '6px',
-                    cursor: 'pointer',
-                    color: '#ef4444',
-                  }}
-                  onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-tertiary)'; }}
-                  onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-secondary)'; }}
-                >
-                  <TrashIcon style={{ width: '14px', height: '14px' }} />
-                </button>
-              </div>
-            </div>
-
-            {/* Detail body */}
-            <div style={{ flex: 1, overflowY: 'auto', padding: '20px 24px' }}>
-              {editMode ? (
-                /* Edit form */
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', maxWidth: '480px' }}>
-                  {(
-                    [
-                      { fieldKey: 'name' as const, field: 'fn' as const },
-                      { fieldKey: 'email' as const, field: 'email' as const },
-                      { fieldKey: 'tel' as const, field: 'tel' as const },
-                      { fieldKey: 'org' as const, field: 'org' as const },
-                      { fieldKey: 'title' as const, field: 'title' as const },
-                      { fieldKey: 'note' as const, field: 'note' as const },
-                    ] as { fieldKey: string; field: keyof ParsedContact }[]
-                  ).map(({ fieldKey, field }) => (
-                    <div key={field} style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                      <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                        {t(`fields.${fieldKey}`)}
-                      </label>
-                      {field === 'note' ? (
-                        <textarea
-                          value={editFields[field]}
-                          onChange={(e) => setEditFields((prev) => ({ ...prev, [field]: e.target.value }))}
-                          rows={3}
-                          style={{
-                            padding: '8px 10px',
-                            borderRadius: '6px',
-                            border: '1px solid var(--color-border-default)',
-                            background: 'var(--color-bg-secondary)',
-                            color: 'var(--color-text-primary)',
-                            fontSize: '13px',
-                            resize: 'vertical',
-                            outline: 'none',
-                            fontFamily: 'inherit',
-                          }}
-                        />
-                      ) : (
-                        <input
-                          type="text"
-                          value={editFields[field]}
-                          onChange={(e) => setEditFields((prev) => ({ ...prev, [field]: e.target.value }))}
-                          style={{
-                            padding: '8px 10px',
-                            borderRadius: '6px',
-                            border: '1px solid var(--color-border-default)',
-                            background: 'var(--color-bg-secondary)',
-                            color: 'var(--color-text-primary)',
-                            fontSize: '13px',
-                            outline: 'none',
-                          }}
-                        />
-                      )}
-                    </div>
-                  ))}
-                  {saveError && <div style={{ fontSize: '12px', color: '#e53e3e', marginTop: '4px' }}>{saveError}</div>}
-                  <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
-                    <button
-                      onClick={handleEditCancel}
-                      style={{
-                        display: 'flex', alignItems: 'center', gap: '4px',
-                        padding: '7px 14px',
-                        background: 'var(--color-bg-secondary)',
-                        border: '1px solid var(--color-border-default)',
-                        borderRadius: '6px',
-                        fontSize: '13px',
-                        cursor: 'pointer',
-                        color: 'var(--color-text-secondary)',
-                      }}
-                    >
-                      <XMarkIcon style={{ width: '14px', height: '14px' }} />
-                      {t('cancel')}
-                    </button>
-                    <button
-                      disabled={saving}
-                      onClick={handleSave}
-                      style={{
-                        display: 'flex', alignItems: 'center', gap: '4px',
-                        padding: '7px 14px',
-                        background: 'var(--color-accent)',
-                        border: 'none',
-                        borderRadius: '6px',
-                        fontSize: '13px',
-                        fontWeight: 500,
-                        cursor: saving ? 'wait' : 'pointer',
-                        color: '#fff',
-                        opacity: saving ? 0.7 : 1,
-                      }}
-                    >
-                      <CheckIcon style={{ width: '14px', height: '14px' }} />
-                      {saving ? t('saving') : t('save')}
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                /* Read-only detail */
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0' }}>
-                  {(
-                    [
-                      { fieldKey: 'email' as const, value: selectedParsed.email, icon: <EnvelopeIcon style={{ width: '14px', height: '14px' }} /> },
-                      { fieldKey: 'tel' as const, value: selectedParsed.tel, icon: <PhoneIcon style={{ width: '14px', height: '14px' }} /> },
-                      { fieldKey: 'org' as const, value: selectedParsed.org, icon: <BuildingOfficeIcon style={{ width: '14px', height: '14px' }} /> },
-                      { fieldKey: 'title' as const, value: selectedParsed.title, icon: null },
-                      { fieldKey: 'note' as const, value: selectedParsed.note, icon: null },
-                    ] as { fieldKey: string; value: string; icon: React.ReactNode }[]
-                  )
-                    .filter((row) => row.value)
-                    .map((row) => (
-                      <div
-                        key={row.fieldKey}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'flex-start',
-                          gap: '12px',
-                          padding: '12px 0',
-                          borderBottom: '1px solid var(--color-border-subtle)',
-                        }}
-                      >
-                        <div style={{ width: '80px', flexShrink: 0, fontSize: '12px', fontWeight: 600, color: 'var(--color-text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.04em', paddingTop: '1px', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                          {row.icon}
-                          {t(`fields.${row.fieldKey}`)}
-                        </div>
-                        <div style={{ flex: 1, fontSize: '14px', color: 'var(--color-text-primary)', wordBreak: 'break-all' }}>
-                          {row.fieldKey === 'email' && onCompose ? (
-                            <button
-                              onClick={() => onCompose(row.value)}
-                              style={{ background: 'none', border: 'none', padding: 0, color: 'var(--color-accent)', cursor: 'pointer', fontSize: '14px', textDecoration: 'underline' }}
-                            >
-                              {row.value}
-                            </button>
-                          ) : (
-                            row.value
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                </div>
-              )}
-            </div>
-          </>
-        )}
-      </div>
+      <ContactDetailPanel
+        selectedContact={selectedContact}
+        selectedParsed={selectedParsed}
+        editMode={editMode}
+        editFields={editFields}
+        setEditFields={setEditFields}
+        saving={saving}
+        saveError={saveError}
+        onCompose={onCompose}
+        onEditStart={handleEditStart}
+        onEditCancel={handleEditCancel}
+        onSave={handleSave}
+        onDelete={handleDelete}
+        t={t as (key: string, values?: Record<string, unknown>) => string}
+      />
     </div>
   );
 }
