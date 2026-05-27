@@ -1,6 +1,15 @@
 # gogomail current status
 
-Last updated: 2026-05-27 (Task 3: Helm CHANGEME guard)
+Last updated: 2026-05-27 (Task 4: RDBMS identity provider SQL allowlist)
+
+## Task 4: RDBMS identity provider SQL allowlist (2026-05-27)
+
+**SQL injection prevention**: Admin-configured SQL queries validated to enforce SELECT-only operations
+- **internal/idprovider/rdbms/provider.go**: Added `validateSourceQuery()` function with regex pattern to block SQL keywords (UNION, INSERT, UPDATE, DELETE, DROP, TRUNCATE, CREATE, ALTER, EXEC, EXECUTE, GRANT, REVOKE); enforces SELECT prefix, max 4096-byte limit, and allows trailing semicolon only
+- **internal/idprovider/rdbms/provider.go** Connect(): Integrated query validation after db.Ping() for both UserQuery and GroupQuery; closes DB and returns error if validation fails
+- **internal/idprovider/rdbms/provider_test.go**: Added TestValidateSourceQuery with 11 test cases covering empty query, valid SELECT statements (case-insensitive, leading space OK), injection patterns (UNION, INSERT, DROP with semicolon), length limits, and forbidden keywords
+- **Test coverage**: 55 tests pass in rdbms package (added 11 new validation test cases)
+- **Acceptance criteria met**: All 11 test cases pass; validation rejects empty/non-SELECT/injection queries; accepts valid SELECT with trailing semicolon; case-insensitive matching
 
 ## Task 3: Helm CHANGEME guard (2026-05-27)
 

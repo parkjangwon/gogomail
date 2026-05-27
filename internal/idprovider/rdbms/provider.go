@@ -5,11 +5,43 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"regexp"
 	"strings"
 	"time"
 
 	"github.com/gogomail/gogomail/internal/idprovider"
 )
+
+// forbiddenQueryPattern matches SQL keywords that must not appear in a read-only source query.
+var forbiddenQueryPattern = regexp.MustCompile(
+	`(?i)\b(UNION|INSERT|UPDATE|DELETE|DROP|TRUNCATE|CREATE|ALTER|EXEC|EXECUTE|GRANT|REVOKE)\b`,
+)
+
+const maxSourceQueryBytes = 4096
+
+// validateSourceQuery returns an error if query is not a safe read-only SELECT.
+func validateSourceQuery(query string) error {
+	q := strings.TrimSpace(query)
+	if q == "" {
+		return fmt.Errorf("source query is required")
+	}
+	if len(q) > maxSourceQueryBytes {
+		return fmt.Errorf("source query must be <= %d bytes", maxSourceQueryBytes)
+	}
+	upper := strings.ToUpper(q)
+	if !strings.HasPrefix(upper, "SELECT") {
+		return fmt.Errorf("source query must start with SELECT")
+	}
+	if forbiddenQueryPattern.MatchString(q) {
+		return fmt.Errorf("source query contains forbidden keyword")
+	}
+	// Allow a trailing semicolon but not a semicolon inside the query.
+	trimmed := strings.TrimRight(q, " \t\r\n;")
+	if strings.ContainsRune(trimmed, ';') {
+		return fmt.Errorf("source query must not contain semicolons except at end")
+	}
+	return nil
+}
 
 // Config represents external RDBMS configuration for user/group sync.
 type Config struct {
@@ -49,6 +81,19 @@ func (p *Provider) Connect() error {
 
 	if err := db.Ping(); err != nil {
 		return fmt.Errorf("failed to ping database: %w", err)
+	}
+
+	if p.config.UserQuery != "" {
+		if err := validateSourceQuery(p.config.UserQuery); err != nil {
+			db.Close()
+			return fmt.Errorf("invalid user_query: %w", err)
+		}
+	}
+	if p.config.GroupQuery != "" {
+		if err := validateSourceQuery(p.config.GroupQuery); err != nil {
+			db.Close()
+			return fmt.Errorf("invalid group_query: %w", err)
+		}
 	}
 
 	if p.config.MaxPoolSize > 0 {
