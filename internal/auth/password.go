@@ -2,6 +2,7 @@ package auth
 
 import (
 	"crypto/hmac"
+	"crypto/rand"
 	"crypto/sha256"
 	"crypto/subtle"
 	"encoding/base64"
@@ -154,6 +155,34 @@ func ValidatePasswordHash(encoded string, allowLegacy bool) error {
 		return fmt.Errorf("password_hash key is invalid")
 	}
 	return nil
+}
+
+// GenerateSalt returns n cryptographically random bytes for use as a PBKDF2 salt.
+func GenerateSalt(n int) []byte {
+	if n <= 0 {
+		n = 32
+	}
+	b := make([]byte, n)
+	if _, err := rand.Read(b); err != nil {
+		panic(fmt.Sprintf("auth: generate salt: %v", err))
+	}
+	return b
+}
+
+// VerifyPasswordHashResult is like VerifyPasswordHash but also returns needsUpgrade=true
+// when the hash used a legacy format (plain: or sha256:).
+// Callers should re-hash with PBKDF2-SHA256 when needsUpgrade is true.
+func VerifyPasswordHashResult(password string, encoded string) (verified bool, needsUpgrade bool) {
+	encoded = strings.TrimSpace(encoded)
+	if encoded == "" {
+		return false, false
+	}
+	isLegacy := strings.HasPrefix(encoded, "plain:") || strings.HasPrefix(encoded, "sha256:")
+	ok := VerifyPasswordHash(password, encoded)
+	if !ok {
+		return false, false
+	}
+	return true, isLegacy
 }
 
 func derivePBKDF2SHA256(password string, salt []byte, iterations int) ([]byte, error) {

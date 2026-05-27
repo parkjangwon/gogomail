@@ -1,6 +1,14 @@
 # gogomail current status
 
-Last updated: 2026-05-27 (Task 5: JWT 내부 구현 → golang-jwt/jwt/v5)
+Last updated: 2026-05-27 (Task 6: 레거시 패스워드 해시 로그인 시 자동 업그레이드)
+
+## Task 6: 레거시 패스워드 해시 로그인 시 자동 업그레이드 (2026-05-27)
+
+**Auto-upgrade legacy password hashes on successful login**
+- **internal/auth/password.go**: Added `GenerateSalt(n int) []byte` (crypto/rand); added `VerifyPasswordHashResult(password, encoded string) (verified bool, needsUpgrade bool)` — returns `needsUpgrade=true` for `plain:` and `sha256:` formats
+- **internal/maildb/user_auth.go**: `AuthenticateUser` now calls `VerifyPasswordHashResult` instead of `VerifyPasswordHash`; on `needsUpgrade=true` calls `upgradePasswordHash` (best-effort, non-blocking); `upgradePasswordHash` re-hashes with PBKDF2-SHA256 (210k rounds, 32-byte random salt) and updates `users.password_hash`
+- **internal/auth/password_test.go**: Added `TestVerifyPasswordHashResult` (5 cases: plain match/mismatch, sha256 match/mismatch, pbkdf2 no upgrade)
+- **Test coverage**: 602 tests pass across `internal/auth` and `internal/maildb`
 
 ## Task 5: JWT 내부 구현 → golang-jwt/jwt/v5 (2026-05-27)
 

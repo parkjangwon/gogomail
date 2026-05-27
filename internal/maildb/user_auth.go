@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"log/slog"
 	"strings"
 
 	"github.com/gogomail/gogomail/internal/auth"
@@ -71,8 +72,30 @@ LIMIT 1`
 	if companyStatus == "suspended" {
 		return AuthenticatedUser{}, ErrCompanySuspended
 	}
-	if !auth.VerifyPasswordHash(password, passwordHash) {
+	verified, needsUpgrade := auth.VerifyPasswordHashResult(password, passwordHash)
+	if !verified {
 		return AuthenticatedUser{}, fmt.Errorf("invalid credentials")
 	}
+	if needsUpgrade {
+		r.upgradePasswordHash(ctx, user.UserID, password)
+	}
 	return user, nil
+}
+
+// upgradePasswordHash re-hashes password with PBKDF2-SHA256 and updates the DB.
+// Best-effort: any error is logged but does not affect the caller.
+func (r *Repository) upgradePasswordHash(ctx context.Context, userID, password string) {
+	newHash, err := auth.HashPasswordPBKDF2SHA256(password, auth.GenerateSalt(32), 210_000)
+	if err != nil {
+		slog.WarnContext(ctx, "password hash upgrade: hash generation failed", "user_id", userID)
+		return
+	}
+	_, err = r.db.ExecContext(ctx,
+		`UPDATE users SET password_hash = $2, updated_at = now() WHERE id = $1::uuid`,
+		userID, newHash)
+	if err != nil {
+		slog.WarnContext(ctx, "password hash upgrade: db update failed", "user_id", userID)
+		return
+	}
+	slog.InfoContext(ctx, "password hash upgraded to pbkdf2-sha256", "user_id", userID)
 }
