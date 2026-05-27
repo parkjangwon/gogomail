@@ -2,6 +2,11 @@
 
 Last updated: 2026-05-28 (security hardening: MFA verify rate limit)
 
+## Post-remediation hardening round 9 (2026-05-28)
+
+**Alert channel webhook SSRF guard**
+- **internal/httpapi/admin_alerts.go**: `handleCreateAlertChannel` and `handleUpdateAlertChannel` stored webhook URLs without SSRF validation. A company_admin could configure a webhook pointing at `http://169.254.169.254/...` (or any internal service), causing the alert dispatcher to send HTTP requests there when alerts fire. Both endpoints now call `webhookguard.ValidateOutboundHTTPURL` before storing webhook-type channel configs.
+
 ## Post-remediation hardening round 8 (2026-05-28)
 
 **Tracking endpoint X-Forwarded-For spoofing fix**

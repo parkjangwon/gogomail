@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/gogomail/gogomail/internal/admin"
+	webhookguard "github.com/gogomail/gogomail/internal/webhook"
 )
 
 // handleCreateAlertRule creates a new alert rule.
@@ -192,6 +193,14 @@ func handleCreateAlertChannel(w http.ResponseWriter, r *http.Request, svc AdminS
 		return
 	}
 
+	// Validate webhook URL against SSRF when channel type is webhook.
+	if strings.EqualFold(strings.TrimSpace(req.ChannelType), "webhook") && strings.TrimSpace(req.Config.URL) != "" {
+		if _, err := webhookguard.ValidateOutboundHTTPURL(r.Context(), req.Config.URL, webhookguard.OutboundURLGuardOptions{}); err != nil {
+			writeError(w, http.StatusBadRequest, "webhook url is not allowed")
+			return
+		}
+	}
+
 	channel := &admin.AlertChannel{
 		CompanyID:   companyID,
 		ChannelType: req.ChannelType,
@@ -258,6 +267,13 @@ func handleUpdateAlertChannel(w http.ResponseWriter, r *http.Request, svc AdminS
 	channel.Name = req.Name
 	channel.IsEnabled = req.IsEnabled
 	if len(req.Config.Recipients) > 0 || req.Config.URL != "" || req.Config.AuthHeader != "" {
+		// Validate webhook URL against SSRF before storing.
+		if strings.EqualFold(strings.TrimSpace(channel.ChannelType), "webhook") && strings.TrimSpace(req.Config.URL) != "" {
+			if _, err := webhookguard.ValidateOutboundHTTPURL(r.Context(), req.Config.URL, webhookguard.OutboundURLGuardOptions{}); err != nil {
+				writeError(w, http.StatusBadRequest, "webhook url is not allowed")
+				return
+			}
+		}
 		channel.Config = req.Config
 	}
 
