@@ -99,6 +99,42 @@ func ValidateSuppressionEntryListRequest(req SuppressionEntryListRequest) error 
 	return nil
 }
 
+func (r *Repository) GetSuppressionEntry(ctx context.Context, id string) (SuppressionEntry, error) {
+	if r.db == nil {
+		return SuppressionEntry{}, fmt.Errorf("database handle is required")
+	}
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return SuppressionEntry{}, fmt.Errorf("suppression entry id is required")
+	}
+	const query = `
+SELECT
+  id::text,
+  COALESCE(domain_id::text, ''),
+  email,
+  reason,
+  COALESCE(source_message_id::text, ''),
+  created_at
+FROM suppression_list
+WHERE id = $1
+LIMIT 1`
+	var entry SuppressionEntry
+	if err := r.db.QueryRowContext(ctx, query, id).Scan(
+		&entry.ID,
+		&entry.DomainID,
+		&entry.Email,
+		&entry.Reason,
+		&entry.SourceMessageID,
+		&entry.CreatedAt,
+	); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return SuppressionEntry{}, fmt.Errorf("suppression entry %q not found", id)
+		}
+		return SuppressionEntry{}, fmt.Errorf("get suppression entry: %w", err)
+	}
+	return entry, nil
+}
+
 func (r *Repository) DeleteSuppressionEntry(ctx context.Context, id string) error {
 	if r.db == nil {
 		return fmt.Errorf("database handle is required")
