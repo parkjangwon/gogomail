@@ -461,6 +461,10 @@ func listCompanyUsersForDomains(ctx context.Context, service AdminService, compa
 // ─── Security Posture ─────────────────────────────────────────────────────────
 
 func handleGetSecurityPosture(w http.ResponseWriter, r *http.Request, service AdminService, companyID string) {
+	if err := requiresCompanyAccess(r.Context(), companyID); err != nil {
+		writeError(w, http.StatusForbidden, "access denied")
+		return
+	}
 	ctx := r.Context()
 
 	mfaStats, _ := service.GetMFAStats(ctx, companyID)
@@ -529,6 +533,10 @@ func handleGetSignature(w http.ResponseWriter, r *http.Request, service AdminSer
 	if !ok {
 		return
 	}
+	if err := requiresCompanyAccess(r.Context(), id); err != nil {
+		writeError(w, http.StatusForbidden, "access denied")
+		return
+	}
 	entry, err := service.GetCompanyConfig(r.Context(), id, emailSignatureKey)
 	if err != nil {
 		if errors.Is(err, configstore.ErrConfigNotFound) {
@@ -551,6 +559,10 @@ func handlePutSignature(w http.ResponseWriter, r *http.Request, service AdminSer
 	defer r.Body.Close()
 	id, ok := parseBoundedAdminPathValue(w, r, "id")
 	if !ok {
+		return
+	}
+	if err := requiresCompanyAccess(r.Context(), id); err != nil {
+		writeError(w, http.StatusForbidden, "access denied")
 		return
 	}
 	var cfg signatureConfig
@@ -611,6 +623,10 @@ func handleGetLegalHolds(w http.ResponseWriter, r *http.Request, service AdminSe
 	if !ok {
 		return
 	}
+	if err := requiresCompanyAccess(r.Context(), id); err != nil {
+		writeError(w, http.StatusForbidden, "access denied")
+		return
+	}
 	cfg, err := getLegalHoldsConfig(r.Context(), service, id)
 	if err != nil {
 		slog.ErrorContext(r.Context(), "admin handler error", "error", err)
@@ -624,6 +640,10 @@ func handleCreateLegalHold(w http.ResponseWriter, r *http.Request, service Admin
 	defer r.Body.Close()
 	id, ok := parseBoundedAdminPathValue(w, r, "id")
 	if !ok {
+		return
+	}
+	if err := requiresCompanyAccess(r.Context(), id); err != nil {
+		writeError(w, http.StatusForbidden, "access denied")
 		return
 	}
 	var input legalHold
@@ -658,6 +678,10 @@ func handleCreateLegalHold(w http.ResponseWriter, r *http.Request, service Admin
 func handleDeleteLegalHold(w http.ResponseWriter, r *http.Request, service AdminService) {
 	id, ok := parseBoundedAdminPathValue(w, r, "id")
 	if !ok {
+		return
+	}
+	if err := requiresCompanyAccess(r.Context(), id); err != nil {
+		writeError(w, http.StatusForbidden, "access denied")
 		return
 	}
 	holdID, ok := parseBoundedAdminPathValue(w, r, "holdId")
@@ -708,6 +732,10 @@ func handleGetSCIMStatus(w http.ResponseWriter, r *http.Request, service AdminSe
 	if !ok {
 		return
 	}
+	if err := requiresCompanyAccess(ctx, id); err != nil {
+		writeError(w, http.StatusForbidden, "access denied")
+		return
+	}
 	domains, _, _ := service.ListDomains(ctx, maildb.DomainListRequest{CompanyID: id, Limit: 200})
 	domainID := ""
 	if len(domains) > 0 {
@@ -729,6 +757,10 @@ func handleGetSeatUsage(w http.ResponseWriter, r *http.Request, service AdminSer
 	ctx := r.Context()
 	id, ok := parseBoundedAdminPathValue(w, r, "id")
 	if !ok {
+		return
+	}
+	if err := requiresCompanyAccess(ctx, id); err != nil {
+		writeError(w, http.StatusForbidden, "access denied")
 		return
 	}
 	domains, _, _ := service.ListDomains(ctx, maildb.DomainListRequest{CompanyID: id, Limit: 200})
