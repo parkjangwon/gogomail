@@ -27,6 +27,7 @@ import { DMPanel } from '@/components/DMPanel';
 import { SpotlightSearch } from '@/components/SpotlightSearch';
 import { MFASetupPromptModal } from '@/components/MFASetupPromptModal';
 import { SpamReportDialog } from '@/components/spam/SpamReportDialog';
+import { MailWarningBanners } from './MailWarningBanners';
 import { useMailMessageActions } from './useMailMessageActions';
 import { useDMModal } from './useDMModal';
 import { useMailLabels } from './useMailLabels';
@@ -453,82 +454,18 @@ export default function MailPage() {
         background: 'var(--color-bg-primary)',
       }}
     >
-      {mustChangePassword && (
-        <div
-          role="status"
-          aria-live="polite"
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            zIndex: 500,
-            background: '#b45309',
-            color: '#fff',
-            textAlign: 'center',
-            fontSize: '13px',
-            padding: '6px 40px',
-            fontWeight: 500,
-          }}
-        >
-          {t('misc.mailPage.mustChangePassword')}
-          <button
-            onClick={() => { localStorage.removeItem('webmail_must_change_password'); setMustChangePassword(false); }}
-            style={{ marginLeft: '12px', background: 'none', border: '1px solid rgba(255,255,255,0.6)', color: '#fff', borderRadius: '4px', fontSize: '12px', padding: '2px 8px', cursor: 'pointer' }}
-          >{t('misc.mailPage.close')}</button>
-        </div>
-      )}
-
-      {sessionWarning && (
-        <div
-          role="alert"
-          style={{
-            position: 'fixed',
-            top: mustChangePassword ? '33px' : 0,
-            left: 0,
-            right: 0,
-            zIndex: 499,
-            background: '#92400e',
-            color: '#fff',
-            textAlign: 'center',
-            fontSize: '13px',
-            padding: '6px 40px',
-            fontWeight: 500,
-          }}
-        >
-          {sessionWarning}
-          <button
-            onClick={handleLogout}
-            style={{ marginLeft: '12px', background: 'none', border: '1px solid rgba(255,255,255,0.6)', color: '#fff', borderRadius: '4px', fontSize: '12px', padding: '2px 8px', cursor: 'pointer' }}
-          >{t('misc.mailPage.loginAgain')}</button>
-          <button
-            onClick={() => setSessionWarning(null)}
-            style={{ marginLeft: '8px', background: 'none', border: '1px solid rgba(255,255,255,0.6)', color: '#fff', borderRadius: '4px', fontSize: '12px', padding: '2px 8px', cursor: 'pointer' }}
-          >{t('misc.mailPage.close')}</button>
-        </div>
-      )}
-
-      {!isOnline && (
-        <div
-          role="status"
-          aria-live="polite"
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            zIndex: 500,
-            background: '#b45309',
-            color: '#fff',
-            textAlign: 'center',
-            fontSize: '13px',
-            padding: '6px',
-            fontWeight: 500,
-          }}
-        >
-          {t('misc.mailPage.offline')}
-        </div>
-      )}
+      <MailWarningBanners
+        mustChangePassword={mustChangePassword}
+        sessionWarning={sessionWarning}
+        isOnline={isOnline}
+        onDismissPasswordWarning={() => { localStorage.removeItem('webmail_must_change_password'); setMustChangePassword(false); }}
+        onLogout={handleLogout}
+        onDismissSessionWarning={() => setSessionWarning(null)}
+        tClose={t('misc.mailPage.close')}
+        tMustChangePassword={t('misc.mailPage.mustChangePassword')}
+        tLoginAgain={t('misc.mailPage.loginAgain')}
+        tOffline={t('misc.mailPage.offline')}
+      />
 
       <AppIconBar
         activeApp={activeApp}
