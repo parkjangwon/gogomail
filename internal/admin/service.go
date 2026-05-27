@@ -426,6 +426,14 @@ func (s *Service) CreateAPIKey(ctx context.Context, key *APIKey) (secret string,
 }
 
 // ListAPIKeys lists all API keys for a domain.
+// GetAPIKey retrieves an API key by ID.
+func (s *Service) GetAPIKey(ctx context.Context, keyID string) (*APIKey, error) {
+	if keyID == "" {
+		return nil, fmt.Errorf("%w: keyID", ErrMissingRequiredField)
+	}
+	return s.repo.GetAPIKey(ctx, keyID)
+}
+
 func (s *Service) ListAPIKeys(ctx context.Context, domainID string) ([]APIKey, error) {
 	if domainID == "" {
 		return nil, fmt.Errorf("%w: domainID", ErrMissingRequiredField)

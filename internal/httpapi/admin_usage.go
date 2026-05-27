@@ -701,6 +701,10 @@ func registerUsageAndQuotaRoutes(mux *http.ServeMux, service AdminService, admin
 		if !ok {
 			return
 		}
+		if err := requiresCompanyAccess(r.Context(), companyID); err != nil {
+			writeError(w, http.StatusForbidden, "access denied")
+			return
+		}
 		scope, ok := parseBoundedAdminQuery(w, r, "scope")
 		if !ok {
 			return
@@ -828,6 +832,10 @@ func registerUsageAndQuotaRoutes(mux *http.ServeMux, service AdminService, admin
 		}
 		companyID, ok := parseBoundedAdminQuery(w, r, "company_id")
 		if !ok {
+			return
+		}
+		if err := requiresCompanyAccess(r.Context(), companyID); err != nil {
+			writeError(w, http.StatusForbidden, "access denied")
 			return
 		}
 		domainID, ok := parseBoundedAdminQuery(w, r, "domain_id")

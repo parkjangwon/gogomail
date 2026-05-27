@@ -59,6 +59,7 @@ type adminDomainService interface {
 	UpdateDomainSettings(ctx context.Context, settings *admin.DomainSettings) error
 	GetAPISettings(ctx context.Context, domainID string) (*admin.APISettings, error)
 	UpdateAPISettings(ctx context.Context, settings *admin.APISettings) error
+	GetAPIKey(ctx context.Context, keyID string) (*admin.APIKey, error)
 	CreateAPIKey(ctx context.Context, key *admin.APIKey) (secret string, err error)
 	ListAPIKeys(ctx context.Context, domainID string) ([]admin.APIKey, error)
 	DeleteAPIKey(ctx context.Context, keyID string) error
