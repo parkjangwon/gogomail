@@ -1,6 +1,11 @@
 # gogomail current status
 
-Last updated: 2026-05-28 (security hardening: strip X-Gogomail-* headers at nginx ingress)
+Last updated: 2026-05-28 (security hardening: WebDAV Basic auth MFA pending token bypass)
+
+## Post-remediation hardening round 22 (2026-05-28)
+
+**WebDAV Basic auth accepts MFA-pending tokens (MFA bypass)**
+- **internal/httpapi/webdav.go**: WebDAV supports Basic auth where the password field is a JWT. The handler called `VerifyFull` (signature + session-version check) but did not check `claims.TokenType`. A user who had completed password auth but not yet TOTP could use their `mfa_pending` JWT as the WebDAV password and access calendar/contacts data without completing MFA. The same bypass was fixed in Round 13 for admin API endpoints. Fixed by adding `if claims.TokenType == "mfa_pending" { 401 }` check — consistent with `claimsFromRequest` (used by the webmail API) and `adminJWTOrStaticAuth` (used by the admin API).
 
 ## Post-remediation hardening round 21 (2026-05-28)
 
