@@ -2,6 +2,24 @@
 
 Last updated: 2026-05-28 (security hardening: Round 34 — roles/bulk-domains/bulk-import IDOR)
 
+## Post-remediation hardening round 35 (2026-05-28)
+
+**IDOR sweep: admin_domain.go (8 handlers) + admin_usage.go (2 list endpoints)**
+
+admin_domain.go:
+- **POST /admin/v1/domains**: Added `requiresCompanyAccess(req.CompanyID)` before CreateDomain — company_admin could create domains under other companies.
+- **GET/PUT /admin/v1/domains/{id}/api-settings**: Added `GetDomain → requiresCompanyAccess` — no company isolation existed.
+- **POST/GET /admin/v1/domains/{id}/api-keys**: Added `GetDomain → requiresCompanyAccess` — API key creation/listing for arbitrary domains.
+- **DELETE /admin/v1/domains/{id}/api-keys/{keyid}**: Added `GetAPIKey → GetDomain → requiresCompanyAccess`. Previously `{id}` was ignored entirely; keyid used directly with zero isolation.
+- **POST /admin/v1/domains/{id}/api-keys/{keyid}/rotate**: Same pattern — `GetAPIKey → GetDomain → requiresCompanyAccess`.
+- **PATCH /admin/v1/domains/{id}/policy**: Added `GetDomain → requiresCompanyAccess` before UpdateDomainPolicy.
+
+Added `GetAPIKey` method to `admin.Service` (wrapping `admin.Repository.GetAPIKey`), to `adminDomainService` interface, and test fake.
+
+admin_usage.go:
+- **GET /admin/v1/quota-alert-thresholds**: Added `requiresCompanyAccess(companyID)` after parsing `company_id` query param.
+- **GET /admin/v1/quota-alerts**: Added `requiresCompanyAccess(companyID)` after parsing `company_id` query param.
+
 ## Post-remediation hardening round 34 (2026-05-28)
 
 **IDOR sweep: admin_system.go, admin_governance.go, admin_company.go**

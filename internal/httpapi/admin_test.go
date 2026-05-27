@@ -10734,6 +10734,10 @@ func (f *fakeAdminService) UpdateAPISettings(_ context.Context, settings *admin.
 	return nil
 }
 
+func (f *fakeAdminService) GetAPIKey(_ context.Context, keyID string) (*admin.APIKey, error) {
+	return &admin.APIKey{ID: keyID, DomainID: "domain-1"}, nil
+}
+
 func (f *fakeAdminService) CreateAPIKey(_ context.Context, key *admin.APIKey) (secret string, err error) {
 	f.lastDomainID = key.DomainID
 	key.ID = "key-" + key.DomainID

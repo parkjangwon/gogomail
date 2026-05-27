@@ -180,6 +180,13 @@ func (s adminService) ListAPIKeys(ctx context.Context, domainID string) ([]admin
 	return s.adminSvc.ListAPIKeys(ctx, domainID)
 }
 
+func (s adminService) GetAPIKey(ctx context.Context, keyID string) (*admin.APIKey, error) {
+	if s.adminSvc == nil {
+		return nil, fmt.Errorf("admin service is not configured")
+	}
+	return s.adminSvc.GetAPIKey(ctx, keyID)
+}
+
 func (s adminService) DeleteAPIKey(ctx context.Context, keyID string) error {
 	if s.adminSvc == nil {
 		return fmt.Errorf("admin service is not configured")
