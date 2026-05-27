@@ -211,8 +211,8 @@ func (h *webdavHandler) handlePropfind(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	reqBody, _ := io.ReadAll(r.Body)
-	_ = reqBody
+	// Drain body with a size cap to prevent large-body DoS; content unused.
+	_, _ = io.Copy(io.Discard, io.LimitReader(r.Body, maxJSONBodyBytes))
 
 	userID, ok := h.webdavUserID(w, r)
 	if !ok {
@@ -613,7 +613,7 @@ func (h *webdavHandler) handleProppatch(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	body, _ := io.ReadAll(r.Body)
+	body, _ := io.ReadAll(io.LimitReader(r.Body, maxJSONBodyBytes))
 
 	newName := extractDisplayName(body)
 	if newName != "" {

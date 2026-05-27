@@ -1,6 +1,13 @@
 # gogomail current status
 
-Last updated: 2026-05-27 (Task 8: Next.js CSP nonce — webmail + console)
+Last updated: 2026-05-27 (security hardening: goroutine timeout, BIMI SSRF guard, WebDAV body limit)
+
+## Post-remediation hardening (2026-05-27)
+
+**Three follow-up improvements found during post-CSO code review**
+- **internal/maildb/user_auth.go**: `upgradePasswordHash` goroutine now wraps context with 60-second timeout via `context.WithTimeout`; prevents goroutine leak if DB connection hangs during async hash upgrade
+- **internal/bimi/bimi.go**: `FetchLogo` now calls `webhookguard.ValidateOutboundHTTPURL` before fetching, blocking SSRF attacks where an attacker-controlled `_bimi.domain` DNS record points to a private/internal IP; `LogoCache.allowPrivateNetwork` field added (false by default) for test override
+- **internal/httpapi/webdav.go**: Two unbounded `io.ReadAll(r.Body)` calls (PROPFIND and PROPPATCH handlers) now use `io.LimitReader` capped at `maxJSONBodyBytes` (1 MB) to prevent large-body DoS
 
 ## Task 8: Next.js CSP nonce — webmail + console (2026-05-27)
 

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log/slog"
 	"strings"
+	"time"
 
 	"github.com/gogomail/gogomail/internal/auth"
 	"github.com/gogomail/gogomail/internal/mail"
@@ -79,10 +80,15 @@ LIMIT 1`
 	if needsUpgrade {
 		// Run async so 210k PBKDF2 iterations + DB write don't block the login
 		// response. context.WithoutCancel lets the goroutine outlive the request.
+		// A 60-second timeout prevents goroutine leaks if the DB connection hangs.
 		upgradeCtx := context.WithoutCancel(ctx)
 		upgradeUserID := user.UserID
 		upgradePwd := password
-		go r.upgradePasswordHash(upgradeCtx, upgradeUserID, upgradePwd)
+		go func() {
+			timeoutCtx, cancel := context.WithTimeout(upgradeCtx, 60*time.Second)
+			defer cancel()
+			r.upgradePasswordHash(timeoutCtx, upgradeUserID, upgradePwd)
+		}()
 	}
 	return user, nil
 }
