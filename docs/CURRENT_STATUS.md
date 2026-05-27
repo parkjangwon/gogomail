@@ -2,6 +2,16 @@
 
 Last updated: 2026-05-28 (security hardening: Round 34 — roles/bulk-domains/bulk-import IDOR)
 
+## Post-remediation hardening round 36 (2026-05-28)
+
+**IDOR sweep: admin_usage.go — api-usage aggregate list endpoints**
+
+- **GET /admin/v1/api-usage/daily**: Added `requiresCompanyAccess(req.CompanyID)` after `parseAPIUsageAggregateListRequest`. Company_admin could enumerate any company's daily usage aggregates.
+- **GET /admin/v1/api-usage/monthly**: Same fix.
+
+**Acknowledged / out-of-scope for now:**
+- api-usage/ledger, api-usage/ledger/export, ledger/retention*, api-usage/export-batches and all artifact/digest/signature sub-endpoints: These are scoped by `TenantID` (billing tenant), which is a separate concept from `CompanyID`. No direct `tenant_id → company_id` mapping exists in the handler layer. These endpoints are effectively system-admin-only in practice but lack an explicit gate. Requires architecture-level decision.
+
 ## Post-remediation hardening round 35 (2026-05-28)
 
 **IDOR sweep: admin_domain.go (8 handlers) + admin_usage.go (2 list endpoints)**
