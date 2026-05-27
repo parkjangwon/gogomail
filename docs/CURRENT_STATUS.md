@@ -1,6 +1,12 @@
 # gogomail current status
 
-Last updated: 2026-05-27 (security hardening: goroutine timeout, BIMI SSRF guard, WebDAV body limit)
+Last updated: 2026-05-27 (security hardening: password DoS cap, IdP error info leak)
+
+## Post-remediation hardening round 2 (2026-05-27)
+
+**Two more code-review findings fixed**
+- **internal/maildb/me.go** + **internal/httpapi/password_reset.go**: Added 1024-byte cap on `new_password` in both the change-password and reset-password flows. Without the cap, a caller could submit a multi-megabyte string and force PBKDF2 210k iterations over it — a CPU DoS. IMAP already had the same cap (`maxIMAPAuthPasswordBytes = 4096`).
+- **internal/httpapi/admin_ldap_sync.go**: Replaced three `writeError(w, 500, err.Error())` with generic messages + `slog.ErrorContext` log. The old code leaked LDAP/DB error strings (connection strings, hostnames, SQL details) in the HTTP response body.
 
 ## Post-remediation hardening (2026-05-27)
 
