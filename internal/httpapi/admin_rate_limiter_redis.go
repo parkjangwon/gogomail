@@ -1,6 +1,7 @@
 package httpapi
 
 import (
+	"log/slog"
 	"net/http"
 	"time"
 
@@ -31,7 +32,15 @@ func (l *RedisAdminLoginLimiter) Middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ip := adminClientIP(r)
 		dec, err := l.inner.Allow(r.Context(), ip)
-		if err != nil || !dec.Allowed {
+		if err != nil {
+			// Redis is unavailable — fail open so a Redis blip does not lock admins
+			// out entirely. Log at warn so ops are alerted.
+			slog.WarnContext(r.Context(), "admin login rate limiter: Redis error, allowing request",
+				"error", err, "remote_ip", ip)
+			next.ServeHTTP(w, r)
+			return
+		}
+		if !dec.Allowed {
 			w.Header().Set("Retry-After", "60")
 			http.Error(w, `{"error":"rate limit exceeded"}`, http.StatusTooManyRequests)
 			return

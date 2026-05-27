@@ -77,7 +77,12 @@ LIMIT 1`
 		return AuthenticatedUser{}, fmt.Errorf("invalid credentials")
 	}
 	if needsUpgrade {
-		r.upgradePasswordHash(ctx, user.UserID, password)
+		// Run async so 210k PBKDF2 iterations + DB write don't block the login
+		// response. context.WithoutCancel lets the goroutine outlive the request.
+		upgradeCtx := context.WithoutCancel(ctx)
+		upgradeUserID := user.UserID
+		upgradePwd := password
+		go r.upgradePasswordHash(upgradeCtx, upgradeUserID, upgradePwd)
 	}
 	return user, nil
 }
