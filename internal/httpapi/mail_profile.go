@@ -3,6 +3,7 @@ package httpapi
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
 
 	"github.com/gogomail/gogomail/internal/apikeys"
 	"github.com/gogomail/gogomail/internal/auth"
@@ -345,6 +346,8 @@ func registerProfileRoutes(mux *http.ServeMux, service MessageService, tokenMana
 			writeError(w, http.StatusBadRequest, "invalid JSON body")
 			return
 		}
+		req.CurrentPassword = strings.TrimSpace(req.CurrentPassword)
+		req.NewPassword = strings.TrimSpace(req.NewPassword)
 		if req.CurrentPassword == "" || req.NewPassword == "" {
 			writeError(w, http.StatusBadRequest, "current_password and new_password are required")
 			return

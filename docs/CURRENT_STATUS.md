@@ -253,3 +253,8 @@ See `PROJECT_HARNESS.md` for development workflow.
 **Two code-quality / security refactors**
 - **internal/auth/jwt.go**: Removed redundant manual `alg == "HS256"` check before `ParseWithClaims`. golang-jwt's key function already rejects non-HMAC algorithms; the duplicate check added noise without additional security. The `typ` check (golang-jwt doesn't verify `typ`) and `iat`-future check (golang-jwt v5 doesn't enforce iat > now) are retained.
 - **44 files across maildb, drive, admin, apikeys, orgchart, idprovider, alert**: Replaced 94 occurrences of `err == sql.ErrNoRows` with `errors.Is(err, sql.ErrNoRows)`. Idiomatic Go 1.13+ style; future-proofs against driver changes that might wrap the error.
+
+## Post-remediation hardening round 5 (2026-05-28)
+
+**Password TrimSpace consistency fix**
+- **internal/httpapi/mail_profile.go**: Added `strings.TrimSpace` for both `current_password` and `new_password` in the change-password handler. The login endpoint (`mail_auth.go`) and reset-confirm endpoint (`password_reset.go`) already trimmed; the change-password path did not, causing a user who set a password with leading/trailing whitespace to be unable to log in (hash of `"pass "` ≠ hash of `"pass"` after login trims).
