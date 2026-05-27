@@ -110,6 +110,10 @@ func handleAdminLogin(w http.ResponseWriter, r *http.Request, service AdminServi
 		writeError(w, http.StatusBadRequest, "email and password required")
 		return
 	}
+	if len(req.Password) > maxPasswordResetBytes {
+		writeError(w, http.StatusBadRequest, "password is too long")
+		return
+	}
 
 	issueToken := func(claims auth.Claims) {
 		if cfg.tokenMgr == nil {

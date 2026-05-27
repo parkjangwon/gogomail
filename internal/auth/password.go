@@ -22,6 +22,11 @@ const (
 	maxPBKDF2KeyBytes       = 64
 	maxPBKDF2KeyPartBytes   = 128
 	legacySHA256DigestBytes = 64
+
+	// MaxAuthPasswordBytes is the maximum accepted plaintext password length for
+	// authentication. Inputs longer than this are rejected before any PBKDF2
+	// computation to prevent CPU-exhaustion via oversized inputs.
+	MaxAuthPasswordBytes = 1024
 )
 
 func HashPasswordPBKDF2SHA256(password string, salt []byte, iterations int) (string, error) {
@@ -50,6 +55,10 @@ func HashPasswordPBKDF2SHA256(password string, salt []byte, iterations int) (str
 }
 
 func VerifyPasswordHash(password string, encoded string) bool {
+	// Reject oversized passwords before any expensive hash computation.
+	if len(password) > MaxAuthPasswordBytes {
+		return false
+	}
 	encoded = strings.TrimSpace(encoded)
 	if encoded == "" {
 		return false

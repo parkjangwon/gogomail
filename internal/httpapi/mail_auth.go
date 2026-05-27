@@ -41,6 +41,10 @@ func registerAuthRoutes(mux *http.ServeMux, service MessageService, tokenManager
 			writeError(w, http.StatusBadRequest, "email and password are required")
 			return
 		}
+		if len(req.Password) > maxPasswordResetBytes {
+			writeError(w, http.StatusBadRequest, "password is too long")
+			return
+		}
 		user, err := opts.Authenticator.AuthenticateUser(r.Context(), req.Email, req.Password)
 		if err != nil {
 			if errors.Is(err, maildb.ErrCompanySuspended) {
