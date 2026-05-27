@@ -318,6 +318,37 @@ func TestListGroupsWithoutConnection(t *testing.T) {
 	}
 }
 
+func TestValidateSourceQuery(t *testing.T) {
+	cases := []struct {
+		name    string
+		query   string
+		wantErr bool
+	}{
+		{"empty", "", true},
+		{"valid select", "SELECT id, name FROM users", false},
+		{"valid select lowercase", "  select id from t where x=$1  ", false},
+		{"no select prefix", "DELETE FROM users", true},
+		{"union injection", "SELECT * FROM users UNION SELECT * FROM secrets", true},
+		{"insert injection", "SELECT id FROM (INSERT INTO log VALUES(1)) t", true},
+		{"drop injection", "SELECT id FROM t; DROP TABLE t", true},
+		{"semicolon end only", "SELECT id FROM t;", false},
+		{"semicolon in middle", "SELECT id FROM t; SELECT 1", true},
+		{"too long", string(make([]byte, 4097)), true},
+		{"exec injection", "SELECT EXEC('cmd')", true},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			err := validateSourceQuery(c.query)
+			if c.wantErr && err == nil {
+				t.Errorf("expected error, got nil")
+			}
+			if !c.wantErr && err != nil {
+				t.Errorf("unexpected error: %v", err)
+			}
+		})
+	}
+}
+
 func contains(s, substr string) bool {
 	for i := 0; i <= len(s)-len(substr); i++ {
 		if s[i:i+len(substr)] == substr {
