@@ -13,6 +13,7 @@ import (
 	"github.com/gogomail/gogomail/internal/configstore"
 	"github.com/gogomail/gogomail/internal/maildb"
 	"github.com/gogomail/gogomail/internal/spamfilter"
+	webhookguard "github.com/gogomail/gogomail/internal/webhook"
 )
 
 const dmarcSpfPolicyKey = "dmarc_spf_policy"
@@ -553,6 +554,14 @@ func handlePostCompanySSOTest(w http.ResponseWriter, r *http.Request, service Ad
 			writeJSON(w, http.StatusOK, map[string]any{
 				"success": false,
 				"message": fmt.Sprintf("invalid metadata URL: %v", err),
+			})
+			return
+		}
+		// Guard against SSRF: reject private/loopback/link-local targets.
+		if _, err := webhookguard.ValidateOutboundHTTPURL(r.Context(), cfg.MetadataURL, webhookguard.OutboundURLGuardOptions{}); err != nil {
+			writeJSON(w, http.StatusOK, map[string]any{
+				"success": false,
+				"message": "metadata_url is not allowed: " + err.Error(),
 			})
 			return
 		}

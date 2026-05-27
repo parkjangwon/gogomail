@@ -1,6 +1,11 @@
 # gogomail current status
 
-Last updated: 2026-05-28 (security hardening: email header injection fix)
+Last updated: 2026-05-28 (security hardening: SSO metadata URL SSRF fix)
+
+## Post-remediation hardening round 15 (2026-05-28)
+
+**SSRF in SSO SAML metadata URL fetch**
+- **internal/httpapi/admin_security_config.go**: `handlePostCompanySSOTest` fetched the admin-configured `metadata_url` (SAML IdP metadata endpoint) using only `url.Parse` for syntax validation but no SSRF guard. An admin could point this at `http://169.254.169.254/...` or other internal addresses to probe the internal network or cloud metadata service. Fixed by adding `webhookguard.ValidateOutboundHTTPURL` before the fetch, consistent with the pattern used in webhook channels, BIMI logo fetch, and calendar URL proxy.
 
 ## Post-remediation hardening round 14 (2026-05-28)
 
