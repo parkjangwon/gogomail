@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useSidebarFolders } from './sidebar/useSidebarFolders';
 import type { CSSProperties, ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
 import { Folder } from '@/lib/api';
@@ -136,13 +136,22 @@ export function Sidebar({
   menuExtra,
   width,
 }: SidebarProps) {
-  const [dragOverFolderId, setDragOverFolderId] = useState<string | null>(null);
-  const [newFolderInput, setNewFolderInput] = useState('');
-  const [showNewFolder, setShowNewFolder] = useState(false);
-  const [renamingFolderId, setRenamingFolderId] = useState<string | null>(null);
-  const [renamingValue, setRenamingValue] = useState('');
-  const [hoveredFolderId, setHoveredFolderId] = useState<string | null>(null);
-  const [showSettings, setShowSettings] = useState(false);
+  const {
+    dragOverFolderId,
+    setDragOverFolderId,
+    newFolderInput,
+    setNewFolderInput,
+    showNewFolder,
+    setShowNewFolder,
+    renamingFolderId,
+    setRenamingFolderId,
+    renamingValue,
+    setRenamingValue,
+    hoveredFolderId,
+    setHoveredFolderId,
+    showSettings,
+    setShowSettings,
+  } = useSidebarFolders();
   const avatarUrl = useWebmailAvatar();
   const t = useTranslations('sidebar');
   const resolvedUserName = userName ?? t('defaultUser');
