@@ -153,7 +153,8 @@ func RegisterSSORoutes(mux *http.ServeMux, svc SSOFlowService, tm *auth.TokenMan
 
 		// Verify SAML Response signature before trusting any claims.
 		if err := sso.VerifySAMLSignature(xmlData, samlCfg.Certificate); err != nil {
-			http.Error(w, fmt.Sprintf("SAML signature verification failed: %v", err), http.StatusUnauthorized)
+			slog.WarnContext(r.Context(), "SAML signature verification failed", "domain_id", domainID, "error", err)
+			http.Error(w, "SAML signature verification failed", http.StatusUnauthorized)
 			return
 		}
 
