@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
+import { useCallback, useEffect, useMemo, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   MessageDetail,
@@ -21,6 +21,7 @@ import { ReadingPaneOverlays } from './reading-pane/ReadingPaneOverlays';
 import { useReadingPaneAttachments } from './reading-pane/useReadingPaneAttachments';
 import { useReadingPaneMedia } from './reading-pane/useReadingPaneMedia';
 import { useReadingPaneCalendar } from './reading-pane/useReadingPaneCalendar';
+import { useReadingPane } from './reading-pane/useReadingPane';
 
 interface ReadingPaneProps {
   message: MessageDetail | null;
@@ -94,21 +95,24 @@ export function ReadingPane({
   externalImages = 'ask',
 }: ReadingPaneProps) {
   const t = useTranslations();
-  const [fontSize, setFontSize] = useState(() => {
-    try { return parseInt(localStorage.getItem('webmail_font_size') ?? '14', 10) || 14; } catch { return 14; }
-  });
-  const [savedContact, setSavedContact] = useState(false);
-  const [scrollProgress, setScrollProgress] = useState(0);
-  const [emailDarkMode, setEmailDarkMode] = useState(false);
-  const [copiedEmail, setCopiedEmail] = useState('');
-  const [inlineCompose, setInlineCompose] = useState<{
-    intent: 'reply' | 'reply_all' | 'forward';
-    to: string;
-    subject: string;
-  } | null>(null);
-
-  const scrollContainerRef = useRef<HTMLElement>(null);
-  const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const {
+    fontSize,
+    savedContact,
+    setSavedContact,
+    scrollProgress,
+    emailDarkMode,
+    setEmailDarkMode,
+    copiedEmail,
+    setCopiedEmail,
+    inlineCompose,
+    setInlineCompose,
+    scrollContainerRef,
+    copyTimerRef,
+    increaseFontSize,
+    decreaseFontSize,
+    handleReadingScroll,
+    handleSaveContact,
+  } = useReadingPane({ message });
 
   const folderSystemType = folders?.find((f) => f.id === message?.folder_id)?.system_type;
 
@@ -161,18 +165,10 @@ export function ReadingPane({
   });
 
   useEffect(() => {
-    localStorage.setItem('webmail_font_size', String(fontSize));
-  }, [fontSize]);
-
-  useEffect(() => {
     const el = scrollContainerRef.current;
     if (!el) return;
     el.scrollTo({ top: 0 });
     window.requestAnimationFrame(() => el.focus({ preventScroll: true }));
-  }, [message?.id]);
-
-  useEffect(() => {
-    setInlineCompose(null);
   }, [message?.id]);
 
   const isContactSaved = useMemo(() => {
@@ -209,34 +205,6 @@ export function ReadingPane({
   const isSent = (userEmail && message?.from_addr
     ? message.from_addr.toLowerCase() === userEmail.toLowerCase()
     : false) && folders?.find((f) => f.id === message?.folder_id)?.system_type === 'sent';
-
-  const increaseFontSize = useCallback(() => {
-    setFontSize((current) => Math.min(24, current + 1));
-  }, []);
-
-  const decreaseFontSize = useCallback(() => {
-    setFontSize((current) => Math.max(11, current - 1));
-  }, []);
-
-  const handleReadingScroll = () => {
-    const container = scrollContainerRef.current;
-    if (!container) return;
-    const max = container.scrollHeight - container.clientHeight;
-    setScrollProgress(max > 0 ? Math.round((container.scrollTop / max) * 100) : 0);
-  };
-
-  const handleSaveContact = () => {
-    if (!message) return;
-    try {
-      const contacts: Record<string, string> = JSON.parse(localStorage.getItem('webmail_contacts') ?? '{}');
-      contacts[message.from_addr.toLowerCase()] = message.from_name || message.from_addr;
-      localStorage.setItem('webmail_contacts', JSON.stringify(contacts));
-    } catch {
-      // ignore
-    }
-    setSavedContact(true);
-    setTimeout(() => setSavedContact(false), 2000);
-  };
 
   const copyEmail = useCallback((address: string) => {
     navigator.clipboard.writeText(address).catch(() => {});
