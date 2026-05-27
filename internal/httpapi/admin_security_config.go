@@ -142,6 +142,15 @@ func handleGetDomainSpamFilterPolicy(w http.ResponseWriter, r *http.Request, ser
 	if !ok {
 		return
 	}
+	domain, err := service.GetDomain(r.Context(), id)
+	if err != nil {
+		writeError(w, http.StatusNotFound, "domain not found")
+		return
+	}
+	if err := requiresCompanyAccess(r.Context(), domain.CompanyID); err != nil {
+		writeError(w, http.StatusForbidden, "access denied")
+		return
+	}
 	entry, err := service.GetDomainConfig(r.Context(), id, spamFilterPolicyKey)
 	policy := defaultSpamFilterPolicy()
 	if err == nil {
@@ -159,6 +168,15 @@ func handlePutDomainSpamFilterPolicy(w http.ResponseWriter, r *http.Request, ser
 	defer r.Body.Close()
 	id, ok := parseBoundedAdminPathValue(w, r, "id")
 	if !ok {
+		return
+	}
+	domain, err := service.GetDomain(r.Context(), id)
+	if err != nil {
+		writeError(w, http.StatusNotFound, "domain not found")
+		return
+	}
+	if err := requiresCompanyAccess(r.Context(), domain.CompanyID); err != nil {
+		writeError(w, http.StatusForbidden, "access denied")
 		return
 	}
 	var policy spamfilter.Policy
@@ -386,6 +404,15 @@ func handleGetDomainRoutingRules(w http.ResponseWriter, r *http.Request, service
 	if !ok {
 		return
 	}
+	domain, err := service.GetDomain(r.Context(), id)
+	if err != nil {
+		writeError(w, http.StatusNotFound, "domain not found")
+		return
+	}
+	if err := requiresCompanyAccess(r.Context(), domain.CompanyID); err != nil {
+		writeError(w, http.StatusForbidden, "access denied")
+		return
+	}
 	entry, err := service.GetDomainConfig(r.Context(), id, routingRulesKey)
 	cfg := routingRulesConfig{Rules: []routingRule{}}
 	if err == nil {
@@ -405,6 +432,15 @@ func handlePutDomainRoutingRules(w http.ResponseWriter, r *http.Request, service
 	defer r.Body.Close()
 	id, ok := parseBoundedAdminPathValue(w, r, "id")
 	if !ok {
+		return
+	}
+	domain, err := service.GetDomain(r.Context(), id)
+	if err != nil {
+		writeError(w, http.StatusNotFound, "domain not found")
+		return
+	}
+	if err := requiresCompanyAccess(r.Context(), domain.CompanyID); err != nil {
+		writeError(w, http.StatusForbidden, "access denied")
 		return
 	}
 	var cfg routingRulesConfig
@@ -650,6 +686,15 @@ func handleGetDomainSMTPPolicy(w http.ResponseWriter, r *http.Request, service A
 	if !ok {
 		return
 	}
+	domain, err := service.GetDomain(r.Context(), id)
+	if err != nil {
+		writeError(w, http.StatusNotFound, "domain not found")
+		return
+	}
+	if err := requiresCompanyAccess(r.Context(), domain.CompanyID); err != nil {
+		writeError(w, http.StatusForbidden, "access denied")
+		return
+	}
 	entry, err := service.GetDomainConfig(r.Context(), id, smtpPolicyKey)
 	policy := defaultSMTPPolicy()
 	if err == nil {
@@ -669,6 +714,15 @@ func handlePutDomainSMTPPolicy(w http.ResponseWriter, r *http.Request, service A
 	defer r.Body.Close()
 	id, ok := parseBoundedAdminPathValue(w, r, "id")
 	if !ok {
+		return
+	}
+	domain, err := service.GetDomain(r.Context(), id)
+	if err != nil {
+		writeError(w, http.StatusNotFound, "domain not found")
+		return
+	}
+	if err := requiresCompanyAccess(r.Context(), domain.CompanyID); err != nil {
+		writeError(w, http.StatusForbidden, "access denied")
 		return
 	}
 	var policy smtpPolicy
@@ -702,6 +756,15 @@ func handleGetDomainDmarcSpfPolicy(w http.ResponseWriter, r *http.Request, servi
 	if !ok {
 		return
 	}
+	domain, err := service.GetDomain(r.Context(), id)
+	if err != nil {
+		writeError(w, http.StatusNotFound, "domain not found")
+		return
+	}
+	if err := requiresCompanyAccess(r.Context(), domain.CompanyID); err != nil {
+		writeError(w, http.StatusForbidden, "access denied")
+		return
+	}
 	entry, err := service.GetDomainConfig(r.Context(), id, dmarcSpfPolicyKey)
 	policy := defaultDmarcSpfPolicy()
 	if err == nil {
@@ -726,6 +789,15 @@ func handlePutDomainDmarcSpfPolicy(w http.ResponseWriter, r *http.Request, servi
 	defer r.Body.Close()
 	id, ok := parseBoundedAdminPathValue(w, r, "id")
 	if !ok {
+		return
+	}
+	domain, err := service.GetDomain(r.Context(), id)
+	if err != nil {
+		writeError(w, http.StatusNotFound, "domain not found")
+		return
+	}
+	if err := requiresCompanyAccess(r.Context(), domain.CompanyID); err != nil {
+		writeError(w, http.StatusForbidden, "access denied")
 		return
 	}
 	var policy dmarcSpfPolicy

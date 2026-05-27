@@ -90,9 +90,18 @@ func registerDomainRoutes(mux *http.ServeMux, service AdminService, adminAuth fu
 		if !ok {
 			return
 		}
-		stats, err := service.GetDomainStats(r.Context(), id)
+		domain, err := service.GetDomain(r.Context(), id)
 		if err != nil {
 			writeError(w, http.StatusNotFound, err.Error())
+			return
+		}
+		if err := requiresCompanyAccess(r.Context(), domain.CompanyID); err != nil {
+			writeError(w, http.StatusForbidden, "access denied")
+			return
+		}
+		stats, err := service.GetDomainStats(r.Context(), id)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"stats": stats})
@@ -106,9 +115,18 @@ func registerDomainRoutes(mux *http.ServeMux, service AdminService, adminAuth fu
 		if !ok {
 			return
 		}
-		report, err := service.VerifyDomainDNS(r.Context(), id)
+		domain, err := service.GetDomain(r.Context(), id)
 		if err != nil {
 			writeError(w, http.StatusNotFound, err.Error())
+			return
+		}
+		if err := requiresCompanyAccess(r.Context(), domain.CompanyID); err != nil {
+			writeError(w, http.StatusForbidden, "access denied")
+			return
+		}
+		report, err := service.VerifyDomainDNS(r.Context(), id)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"dns_check": report})
@@ -120,6 +138,15 @@ func registerDomainRoutes(mux *http.ServeMux, service AdminService, adminAuth fu
 		}
 		id, ok := parseBoundedAdminPathValue(w, r, "id")
 		if !ok {
+			return
+		}
+		domain, err := service.GetDomain(r.Context(), id)
+		if err != nil {
+			writeError(w, http.StatusNotFound, err.Error())
+			return
+		}
+		if err := requiresCompanyAccess(r.Context(), domain.CompanyID); err != nil {
+			writeError(w, http.StatusForbidden, "access denied")
 			return
 		}
 		limit, ok := parseQueryLimit(w, r)

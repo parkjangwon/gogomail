@@ -171,6 +171,15 @@ func handleGetDomainRetentionPolicy(w http.ResponseWriter, r *http.Request, serv
 	if !ok {
 		return
 	}
+	domain, err := service.GetDomain(r.Context(), id)
+	if err != nil {
+		writeError(w, http.StatusNotFound, "domain not found")
+		return
+	}
+	if err := requiresCompanyAccess(r.Context(), domain.CompanyID); err != nil {
+		writeError(w, http.StatusForbidden, "access denied")
+		return
+	}
 	entry, err := service.GetDomainConfig(r.Context(), id, retentionPolicyKey)
 	if err != nil {
 		if errors.Is(err, configstore.ErrConfigNotFound) {
@@ -193,6 +202,15 @@ func handlePutDomainRetentionPolicy(w http.ResponseWriter, r *http.Request, serv
 	defer r.Body.Close()
 	id, ok := parseBoundedAdminPathValue(w, r, "id")
 	if !ok {
+		return
+	}
+	domain, err := service.GetDomain(r.Context(), id)
+	if err != nil {
+		writeError(w, http.StatusNotFound, "domain not found")
+		return
+	}
+	if err := requiresCompanyAccess(r.Context(), domain.CompanyID); err != nil {
+		writeError(w, http.StatusForbidden, "access denied")
 		return
 	}
 	var policy retentionPolicy
@@ -219,6 +237,15 @@ func handleGetDomainIPPolicy(w http.ResponseWriter, r *http.Request, service Adm
 	if !ok {
 		return
 	}
+	domain, err := service.GetDomain(r.Context(), id)
+	if err != nil {
+		writeError(w, http.StatusNotFound, "domain not found")
+		return
+	}
+	if err := requiresCompanyAccess(r.Context(), domain.CompanyID); err != nil {
+		writeError(w, http.StatusForbidden, "access denied")
+		return
+	}
 	entry, err := service.GetDomainConfig(r.Context(), id, ipAccessPolicyKey)
 	if err != nil {
 		if errors.Is(err, configstore.ErrConfigNotFound) {
@@ -241,6 +268,15 @@ func handlePutDomainIPPolicy(w http.ResponseWriter, r *http.Request, service Adm
 	defer r.Body.Close()
 	id, ok := parseBoundedAdminPathValue(w, r, "id")
 	if !ok {
+		return
+	}
+	domain, err := service.GetDomain(r.Context(), id)
+	if err != nil {
+		writeError(w, http.StatusNotFound, "domain not found")
+		return
+	}
+	if err := requiresCompanyAccess(r.Context(), domain.CompanyID); err != nil {
+		writeError(w, http.StatusForbidden, "access denied")
 		return
 	}
 	var policy ipAccessPolicy
@@ -354,6 +390,15 @@ func handleGetDomainAuthPolicy(w http.ResponseWriter, r *http.Request, service A
 	if !ok {
 		return
 	}
+	domain, err := service.GetDomain(r.Context(), id)
+	if err != nil {
+		writeError(w, http.StatusNotFound, "domain not found")
+		return
+	}
+	if err := requiresCompanyAccess(r.Context(), domain.CompanyID); err != nil {
+		writeError(w, http.StatusForbidden, "access denied")
+		return
+	}
 	entry, err := service.GetDomainConfig(r.Context(), id, authPolicyKey)
 	if err != nil {
 		if errors.Is(err, configstore.ErrConfigNotFound) {
@@ -376,6 +421,15 @@ func handlePutDomainAuthPolicy(w http.ResponseWriter, r *http.Request, service A
 	defer r.Body.Close()
 	id, ok := parseBoundedAdminPathValue(w, r, "id")
 	if !ok {
+		return
+	}
+	domain, err := service.GetDomain(r.Context(), id)
+	if err != nil {
+		writeError(w, http.StatusNotFound, "domain not found")
+		return
+	}
+	if err := requiresCompanyAccess(r.Context(), domain.CompanyID); err != nil {
+		writeError(w, http.StatusForbidden, "access denied")
 		return
 	}
 	var policy authPolicy
@@ -600,6 +654,15 @@ func handleGetDomainSecurityGovernancePolicy(w http.ResponseWriter, r *http.Requ
 	if !ok {
 		return
 	}
+	domain, err := service.GetDomain(r.Context(), id)
+	if err != nil {
+		writeError(w, http.StatusNotFound, "domain not found")
+		return
+	}
+	if err := requiresCompanyAccess(r.Context(), domain.CompanyID); err != nil {
+		writeError(w, http.StatusForbidden, "access denied")
+		return
+	}
 	entry, err := service.GetDomainConfig(r.Context(), id, securityGovernancePolicyKey)
 	if err != nil {
 		if errors.Is(err, configstore.ErrConfigNotFound) {
@@ -617,6 +680,15 @@ func handlePutDomainSecurityGovernancePolicy(w http.ResponseWriter, r *http.Requ
 	defer r.Body.Close()
 	id, ok := parseBoundedAdminPathValue(w, r, "id")
 	if !ok {
+		return
+	}
+	domain, err := service.GetDomain(r.Context(), id)
+	if err != nil {
+		writeError(w, http.StatusNotFound, "domain not found")
+		return
+	}
+	if err := requiresCompanyAccess(r.Context(), domain.CompanyID); err != nil {
+		writeError(w, http.StatusForbidden, "access denied")
 		return
 	}
 	var input securityGovernancePolicy
