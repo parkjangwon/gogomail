@@ -6,6 +6,7 @@ import (
 
 	"github.com/gogomail/gogomail/internal/auth"
 	"github.com/gogomail/gogomail/internal/maildb"
+	webhookguard "github.com/gogomail/gogomail/internal/webhook"
 )
 
 func registerPushRoutes(mux *http.ServeMux, service MessageService, tokenManager *auth.TokenManager, opts MailRouteOptions) {
@@ -133,6 +134,13 @@ func registerPushRoutes(mux *http.ServeMux, service MessageService, tokenManager
 		}
 		if err := decodeJSONBody(r, &body); err != nil {
 			writeError(w, http.StatusBadRequest, "invalid JSON body")
+			return
+		}
+		// Validate the push endpoint URL to prevent SSRF: a malicious user could
+		// register a subscription pointing at an internal host, causing the server
+		// to make requests there when dispatching push notifications.
+		if _, err := webhookguard.ValidateOutboundHTTPURL(r.Context(), body.Endpoint, webhookguard.OutboundURLGuardOptions{}); err != nil {
+			writeError(w, http.StatusBadRequest, "push subscription endpoint is not allowed")
 			return
 		}
 		sub, err := service.UpsertWebPushSubscription(r.Context(), maildb.UpsertWebPushSubscriptionRequest{
