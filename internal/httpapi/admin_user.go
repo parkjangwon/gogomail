@@ -144,14 +144,20 @@ func registerUserAndConfigRoutes(mux *http.ServeMux, service AdminService, token
 			}
 		}
 		if req.Password != "" && req.PasswordHash == "" {
+			if len(req.Password) > maxPasswordResetBytes {
+				writeError(w, http.StatusBadRequest, "password is too long")
+				return
+			}
 			salt := make([]byte, 16)
 			if _, err := rand.Read(salt); err != nil {
-				writeError(w, http.StatusInternalServerError, "generate salt")
+				slog.ErrorContext(r.Context(), "create user: generate salt failed", "error", err)
+				writeError(w, http.StatusInternalServerError, "internal error")
 				return
 			}
 			hash, err := auth.HashPasswordPBKDF2SHA256(req.Password, salt, 0)
 			if err != nil {
-				writeError(w, http.StatusBadRequest, "hash password: "+err.Error())
+				slog.ErrorContext(r.Context(), "create user: hash password failed", "error", err)
+				writeError(w, http.StatusInternalServerError, "internal error")
 				return
 			}
 			req.PasswordHash = hash
