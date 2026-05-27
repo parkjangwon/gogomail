@@ -39,6 +39,10 @@ func handleGetCompanyIPPolicy(w http.ResponseWriter, r *http.Request, service Ad
 	if !ok {
 		return
 	}
+	if err := requiresCompanyAccess(r.Context(), id); err != nil {
+		writeError(w, http.StatusForbidden, "access denied")
+		return
+	}
 	entry, err := service.GetCompanyConfig(r.Context(), id, ipAccessPolicyKey)
 	if err != nil {
 		if errors.Is(err, configstore.ErrConfigNotFound) {
@@ -61,6 +65,10 @@ func handlePutCompanyIPPolicy(w http.ResponseWriter, r *http.Request, service Ad
 	defer r.Body.Close()
 	id, ok := parseBoundedAdminPathValue(w, r, "id")
 	if !ok {
+		return
+	}
+	if err := requiresCompanyAccess(r.Context(), id); err != nil {
+		writeError(w, http.StatusForbidden, "access denied")
 		return
 	}
 	var policy ipAccessPolicy
@@ -107,6 +115,10 @@ func handleGetCompanyRetentionPolicy(w http.ResponseWriter, r *http.Request, ser
 	if !ok {
 		return
 	}
+	if err := requiresCompanyAccess(r.Context(), id); err != nil {
+		writeError(w, http.StatusForbidden, "access denied")
+		return
+	}
 	entry, err := service.GetCompanyConfig(r.Context(), id, retentionPolicyKey)
 	if err != nil {
 		if errors.Is(err, configstore.ErrConfigNotFound) {
@@ -129,6 +141,10 @@ func handlePutCompanyRetentionPolicy(w http.ResponseWriter, r *http.Request, ser
 	defer r.Body.Close()
 	id, ok := parseBoundedAdminPathValue(w, r, "id")
 	if !ok {
+		return
+	}
+	if err := requiresCompanyAccess(r.Context(), id); err != nil {
+		writeError(w, http.StatusForbidden, "access denied")
 		return
 	}
 	var policy retentionPolicy
@@ -282,6 +298,10 @@ func handleGetCompanyAuthPolicy(w http.ResponseWriter, r *http.Request, service 
 	if !ok {
 		return
 	}
+	if err := requiresCompanyAccess(r.Context(), id); err != nil {
+		writeError(w, http.StatusForbidden, "access denied")
+		return
+	}
 	entry, err := service.GetCompanyConfig(r.Context(), id, authPolicyKey)
 	if err != nil {
 		if errors.Is(err, configstore.ErrConfigNotFound) {
@@ -304,6 +324,10 @@ func handlePutCompanyAuthPolicy(w http.ResponseWriter, r *http.Request, service 
 	defer r.Body.Close()
 	id, ok := parseBoundedAdminPathValue(w, r, "id")
 	if !ok {
+		return
+	}
+	if err := requiresCompanyAccess(r.Context(), id); err != nil {
+		writeError(w, http.StatusForbidden, "access denied")
 		return
 	}
 	var policy authPolicy
@@ -401,6 +425,10 @@ func handleGetCompanyAuditPolicy(w http.ResponseWriter, r *http.Request, service
 	if !ok {
 		return
 	}
+	if err := requiresCompanyAccess(r.Context(), id); err != nil {
+		writeError(w, http.StatusForbidden, "access denied")
+		return
+	}
 	entry, err := service.GetCompanyConfig(r.Context(), id, auditPolicyKey)
 	if err != nil {
 		if errors.Is(err, configstore.ErrConfigNotFound) {
@@ -426,6 +454,10 @@ func handlePutCompanyAuditPolicy(w http.ResponseWriter, r *http.Request, service
 	defer r.Body.Close()
 	id, ok := parseBoundedAdminPathValue(w, r, "id")
 	if !ok {
+		return
+	}
+	if err := requiresCompanyAccess(r.Context(), id); err != nil {
+		writeError(w, http.StatusForbidden, "access denied")
 		return
 	}
 	policy := defaultAuditPolicy()
@@ -516,6 +548,10 @@ func handleGetCompanySecurityGovernancePolicy(w http.ResponseWriter, r *http.Req
 	if !ok {
 		return
 	}
+	if err := requiresCompanyAccess(r.Context(), id); err != nil {
+		writeError(w, http.StatusForbidden, "access denied")
+		return
+	}
 	policy, err := getCompanySecurityGovernancePolicy(r.Context(), service, id)
 	if err != nil {
 		slog.ErrorContext(r.Context(), "admin handler error", "error", err)
@@ -529,6 +565,10 @@ func handlePutCompanySecurityGovernancePolicy(w http.ResponseWriter, r *http.Req
 	defer r.Body.Close()
 	id, ok := parseBoundedAdminPathValue(w, r, "id")
 	if !ok {
+		return
+	}
+	if err := requiresCompanyAccess(r.Context(), id); err != nil {
+		writeError(w, http.StatusForbidden, "access denied")
 		return
 	}
 	var input securityGovernancePolicy
@@ -626,6 +666,10 @@ func handleGetCompanySessionPolicy(w http.ResponseWriter, r *http.Request, servi
 	if !ok {
 		return
 	}
+	if err := requiresCompanyAccess(r.Context(), id); err != nil {
+		writeError(w, http.StatusForbidden, "access denied")
+		return
+	}
 	entry, err := service.GetCompanyConfig(r.Context(), id, sessionPolicyKey)
 	if err != nil {
 		if errors.Is(err, configstore.ErrConfigNotFound) {
@@ -650,6 +694,10 @@ func handlePutCompanySessionPolicy(w http.ResponseWriter, r *http.Request, servi
 	if !ok {
 		return
 	}
+	if err := requiresCompanyAccess(r.Context(), id); err != nil {
+		writeError(w, http.StatusForbidden, "access denied")
+		return
+	}
 	var policy sessionPolicy
 	if err := decodeJSONBody(r, &policy); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid JSON body")
@@ -670,6 +718,14 @@ func handlePutCompanySessionPolicy(w http.ResponseWriter, r *http.Request, servi
 
 func handleGetCompanySessions(w http.ResponseWriter, r *http.Request, _ AdminService) {
 	defer r.Body.Close()
+	id, ok := parseBoundedAdminPathValue(w, r, "id")
+	if !ok {
+		return
+	}
+	if err := requiresCompanyAccess(r.Context(), id); err != nil {
+		writeError(w, http.StatusForbidden, "access denied")
+		return
+	}
 	writeJSON(w, http.StatusOK, map[string]any{
 		"sessions": []map[string]any{
 			{
@@ -686,6 +742,14 @@ func handleGetCompanySessions(w http.ResponseWriter, r *http.Request, _ AdminSer
 
 func handleDeleteCompanySession(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
+	id, ok := parseBoundedAdminPathValue(w, r, "id")
+	if !ok {
+		return
+	}
+	if err := requiresCompanyAccess(r.Context(), id); err != nil {
+		writeError(w, http.StatusForbidden, "access denied")
+		return
+	}
 	writeJSON(w, http.StatusOK, map[string]any{
 		"terminated": true,
 		"user_id":    r.PathValue("userId"),
@@ -724,6 +788,10 @@ func handleGetCompanyRateLimitPolicy(w http.ResponseWriter, r *http.Request, ser
 	if !ok {
 		return
 	}
+	if err := requiresCompanyAccess(r.Context(), id); err != nil {
+		writeError(w, http.StatusForbidden, "access denied")
+		return
+	}
 	entry, err := service.GetCompanyConfig(r.Context(), id, rateLimitPolicyKey)
 	if err != nil {
 		if errors.Is(err, configstore.ErrConfigNotFound) {
@@ -746,6 +814,10 @@ func handlePutCompanyRateLimitPolicy(w http.ResponseWriter, r *http.Request, ser
 	defer r.Body.Close()
 	id, ok := parseBoundedAdminPathValue(w, r, "id")
 	if !ok {
+		return
+	}
+	if err := requiresCompanyAccess(r.Context(), id); err != nil {
+		writeError(w, http.StatusForbidden, "access denied")
 		return
 	}
 	var policy rateLimitPolicy

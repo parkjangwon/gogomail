@@ -81,6 +81,10 @@ func handleGetCompanySpamFilterPolicy(w http.ResponseWriter, r *http.Request, se
 	if !ok {
 		return
 	}
+	if err := requiresCompanyAccess(r.Context(), id); err != nil {
+		writeError(w, http.StatusForbidden, "access denied")
+		return
+	}
 	entry, err := service.GetCompanyConfig(r.Context(), id, spamFilterPolicyKey)
 	policy := defaultSpamFilterPolicy()
 	if err == nil {
@@ -98,6 +102,10 @@ func handlePutCompanySpamFilterPolicy(w http.ResponseWriter, r *http.Request, se
 	defer r.Body.Close()
 	id, ok := parseBoundedAdminPathValue(w, r, "id")
 	if !ok {
+		return
+	}
+	if err := requiresCompanyAccess(r.Context(), id); err != nil {
+		writeError(w, http.StatusForbidden, "access denied")
 		return
 	}
 	var policy spamfilter.Policy
@@ -187,6 +195,10 @@ func handleListCompanySpamFilterEvents(w http.ResponseWriter, r *http.Request, s
 	if !ok {
 		return
 	}
+	if err := requiresCompanyAccess(r.Context(), id); err != nil {
+		writeError(w, http.StatusForbidden, "access denied")
+		return
+	}
 	limit, ok := parseQueryLimit(w, r)
 	if !ok {
 		return
@@ -217,6 +229,10 @@ func handleGetCompanySpamFilterStats(w http.ResponseWriter, r *http.Request, ser
 	if !ok {
 		return
 	}
+	if err := requiresCompanyAccess(r.Context(), id); err != nil {
+		writeError(w, http.StatusForbidden, "access denied")
+		return
+	}
 	req, ok := parseMailFlowLogStatsRequest(w, r)
 	if !ok {
 		return
@@ -238,6 +254,10 @@ func handleGetCompanyQuotaSummary(w http.ResponseWriter, r *http.Request, servic
 	defer r.Body.Close()
 	id, ok := parseBoundedAdminPathValue(w, r, "id")
 	if !ok {
+		return
+	}
+	if err := requiresCompanyAccess(r.Context(), id); err != nil {
+		writeError(w, http.StatusForbidden, "access denied")
 		return
 	}
 
@@ -309,6 +329,10 @@ func handleGetCompanyRoutingRules(w http.ResponseWriter, r *http.Request, servic
 	if !ok {
 		return
 	}
+	if err := requiresCompanyAccess(r.Context(), id); err != nil {
+		writeError(w, http.StatusForbidden, "access denied")
+		return
+	}
 	entry, err := service.GetCompanyConfig(r.Context(), id, routingRulesKey)
 	cfg := routingRulesConfig{Rules: []routingRule{}}
 	if err == nil {
@@ -328,6 +352,10 @@ func handlePutCompanyRoutingRules(w http.ResponseWriter, r *http.Request, servic
 	defer r.Body.Close()
 	id, ok := parseBoundedAdminPathValue(w, r, "id")
 	if !ok {
+		return
+	}
+	if err := requiresCompanyAccess(r.Context(), id); err != nil {
+		writeError(w, http.StatusForbidden, "access denied")
 		return
 	}
 	var cfg routingRulesConfig
@@ -439,6 +467,10 @@ func handleGetCompanySSOConfig(w http.ResponseWriter, r *http.Request, service A
 	if !ok {
 		return
 	}
+	if err := requiresCompanyAccess(r.Context(), id); err != nil {
+		writeError(w, http.StatusForbidden, "access denied")
+		return
+	}
 	entry, err := service.GetCompanyConfig(r.Context(), id, ssoConfigKey)
 	if err != nil {
 		if errors.Is(err, configstore.ErrConfigNotFound) {
@@ -463,6 +495,10 @@ func handlePutCompanySSOConfig(w http.ResponseWriter, r *http.Request, service A
 	if !ok {
 		return
 	}
+	if err := requiresCompanyAccess(r.Context(), id); err != nil {
+		writeError(w, http.StatusForbidden, "access denied")
+		return
+	}
 	var cfg ssoConfig
 	if err := decodeJSONBody(r, &cfg); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid JSON body")
@@ -485,6 +521,10 @@ func handlePostCompanySSOTest(w http.ResponseWriter, r *http.Request, service Ad
 	defer r.Body.Close()
 	id, ok := parseBoundedAdminPathValue(w, r, "id")
 	if !ok {
+		return
+	}
+	if err := requiresCompanyAccess(r.Context(), id); err != nil {
+		writeError(w, http.StatusForbidden, "access denied")
 		return
 	}
 	entry, err := service.GetCompanyConfig(r.Context(), id, ssoConfigKey)

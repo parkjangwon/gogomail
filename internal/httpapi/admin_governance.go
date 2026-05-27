@@ -94,6 +94,10 @@ func handleGetCompanyWebhooks(w http.ResponseWriter, r *http.Request, service Ad
 	if !ok {
 		return
 	}
+	if err := requiresCompanyAccess(r.Context(), id); err != nil {
+		writeError(w, http.StatusForbidden, "access denied")
+		return
+	}
 	cfg, err := getWebhooksConfig(r.Context(), service, id)
 	if err != nil {
 		slog.ErrorContext(r.Context(), "admin handler error", "error", err)
@@ -107,6 +111,10 @@ func handlePostCompanyWebhook(w http.ResponseWriter, r *http.Request, service Ad
 	defer r.Body.Close()
 	id, ok := parseBoundedAdminPathValue(w, r, "id")
 	if !ok {
+		return
+	}
+	if err := requiresCompanyAccess(r.Context(), id); err != nil {
+		writeError(w, http.StatusForbidden, "access denied")
 		return
 	}
 	var input struct {
@@ -168,6 +176,10 @@ func handleDeleteCompanyWebhook(w http.ResponseWriter, r *http.Request, service 
 	if !ok {
 		return
 	}
+	if err := requiresCompanyAccess(r.Context(), id); err != nil {
+		writeError(w, http.StatusForbidden, "access denied")
+		return
+	}
 	webhookID := r.PathValue("webhookId")
 	if webhookID == "" {
 		writeError(w, http.StatusBadRequest, "webhookId is required")
@@ -205,6 +217,10 @@ func handleTestCompanyWebhook(w http.ResponseWriter, r *http.Request, service Ad
 	defer r.Body.Close()
 	id, ok := parseBoundedAdminPathValue(w, r, "id")
 	if !ok {
+		return
+	}
+	if err := requiresCompanyAccess(r.Context(), id); err != nil {
+		writeError(w, http.StatusForbidden, "access denied")
 		return
 	}
 	webhookID := r.PathValue("webhookId")
@@ -311,6 +327,10 @@ func handleGetNotifTemplates(w http.ResponseWriter, r *http.Request, service Adm
 	if !ok {
 		return
 	}
+	if err := requiresCompanyAccess(r.Context(), id); err != nil {
+		writeError(w, http.StatusForbidden, "access denied")
+		return
+	}
 	cfg, err := getNotifTemplatesConfig(r.Context(), service, id)
 	if err != nil {
 		slog.ErrorContext(r.Context(), "admin handler error", "error", err)
@@ -324,6 +344,10 @@ func handlePutNotifTemplate(w http.ResponseWriter, r *http.Request, service Admi
 	defer r.Body.Close()
 	id, ok := parseBoundedAdminPathValue(w, r, "id")
 	if !ok {
+		return
+	}
+	if err := requiresCompanyAccess(r.Context(), id); err != nil {
+		writeError(w, http.StatusForbidden, "access denied")
 		return
 	}
 	templateID := r.PathValue("templateId")
@@ -373,6 +397,10 @@ func handlePutNotifTemplate(w http.ResponseWriter, r *http.Request, service Admi
 func handleExportCompanyAuditLogs(w http.ResponseWriter, r *http.Request, service AdminService) {
 	id, ok := parseBoundedAdminPathValue(w, r, "id")
 	if !ok {
+		return
+	}
+	if err := requiresCompanyAccess(r.Context(), id); err != nil {
+		writeError(w, http.StatusForbidden, "access denied")
 		return
 	}
 	q := r.URL.Query()
@@ -463,6 +491,10 @@ func handleGetCompanyChangeHistory(w http.ResponseWriter, r *http.Request, servi
 	if !ok {
 		return
 	}
+	if err := requiresCompanyAccess(r.Context(), id); err != nil {
+		writeError(w, http.StatusForbidden, "access denied")
+		return
+	}
 	q := r.URL.Query()
 	limit := 100
 	if l := q.Get("limit"); l != "" {
@@ -540,6 +572,10 @@ func handleGetPendingApprovals(w http.ResponseWriter, r *http.Request, service A
 	if !ok {
 		return
 	}
+	if err := requiresCompanyAccess(r.Context(), id); err != nil {
+		writeError(w, http.StatusForbidden, "access denied")
+		return
+	}
 	cfg, err := getApprovalsConfig(r.Context(), service, id)
 	if err != nil {
 		slog.ErrorContext(r.Context(), "admin handler error", "error", err)
@@ -563,6 +599,10 @@ func handleCreatePendingApproval(w http.ResponseWriter, r *http.Request, service
 	defer r.Body.Close()
 	id, ok := parseBoundedAdminPathValue(w, r, "id")
 	if !ok {
+		return
+	}
+	if err := requiresCompanyAccess(r.Context(), id); err != nil {
+		writeError(w, http.StatusForbidden, "access denied")
 		return
 	}
 	var input approvalItem
@@ -597,6 +637,10 @@ func handleApproveApproval(w http.ResponseWriter, r *http.Request, service Admin
 	defer r.Body.Close()
 	id, ok := parseBoundedAdminPathValue(w, r, "id")
 	if !ok {
+		return
+	}
+	if err := requiresCompanyAccess(r.Context(), id); err != nil {
+		writeError(w, http.StatusForbidden, "access denied")
 		return
 	}
 	approvalID := r.PathValue("approvalId")
@@ -636,6 +680,10 @@ func handleRejectApproval(w http.ResponseWriter, r *http.Request, service AdminS
 	if !ok {
 		return
 	}
+	if err := requiresCompanyAccess(r.Context(), id); err != nil {
+		writeError(w, http.StatusForbidden, "access denied")
+		return
+	}
 	approvalID := r.PathValue("approvalId")
 	var input struct {
 		ReviewedBy string `json:"reviewed_by"`
@@ -673,6 +721,10 @@ func handleGetCompanyHealth(w http.ResponseWriter, r *http.Request, service Admi
 		return
 	}
 	ctx := r.Context()
+	if err := requiresCompanyAccess(ctx, id); err != nil {
+		writeError(w, http.StatusForbidden, "access denied")
+		return
+	}
 
 	company, err := service.GetCompany(ctx, id)
 	if err != nil {

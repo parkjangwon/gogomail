@@ -503,6 +503,10 @@ func registerUserAndConfigRoutes(mux *http.ServeMux, service AdminService, token
 		if !ok {
 			return
 		}
+		if err := requiresCompanyAccess(r.Context(), id); err != nil {
+			writeError(w, http.StatusForbidden, "access denied")
+			return
+		}
 		stats, err := service.GetMFAStats(r.Context(), id)
 		if err != nil {
 			slog.ErrorContext(r.Context(), "admin handler error", "error", err)
