@@ -1,6 +1,7 @@
 package authmfa
 
 import (
+	"crypto/hmac"
 	"crypto/rand"
 	"crypto/sha1"
 	"encoding/base32"
@@ -101,29 +102,7 @@ func generateRecoveryCode() (string, error) {
 }
 
 func hmacSHA1(key, data []byte) []byte {
-	blockSize := 64
-	if len(key) > blockSize {
-		h := sha1.Sum(key)
-		key = h[:]
-	}
-
-	ipad := make([]byte, blockSize)
-	opad := make([]byte, blockSize)
-	copy(ipad, key)
-	copy(opad, key)
-
-	for i := range ipad {
-		ipad[i] ^= 0x36
-		opad[i] ^= 0x5c
-	}
-
-	h := sha1.New()
-	h.Write(ipad)
-	h.Write(data)
-	inner := h.Sum(nil)
-
-	h = sha1.New()
-	h.Write(opad)
-	h.Write(inner)
-	return h.Sum(nil)
+	mac := hmac.New(sha1.New, key)
+	mac.Write(data)
+	return mac.Sum(nil)
 }

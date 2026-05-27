@@ -1,6 +1,11 @@
 # gogomail current status
 
-Last updated: 2026-05-28 (security hardening: SCIM rate limit + hash upgrade on SMTP/LDAP login)
+Last updated: 2026-05-28 (security hardening: replace custom HMAC-SHA1 in TOTP with crypto/hmac)
+
+## Post-remediation hardening round 18 (2026-05-28)
+
+**Custom HMAC-SHA1 implementation in TOTP**
+- **internal/authmfa/authmfa.go**: `hmacSHA1` was a 25-line hand-rolled HMAC-SHA1 (XOR pads, inner/outer hash) rather than using `crypto/hmac`. While functionally correct, the custom implementation bypasses the `hmac.Equal` constant-time comparison guarantee and carries reinvention risk (e.g., subtle length-extension or pad-length bugs if the code is ever modified). Replaced with `hmac.New(sha1.New, key)` from the standard library — fewer lines, auditable, and time-constant by default.
 
 ## Post-remediation hardening round 17 (2026-05-28)
 
