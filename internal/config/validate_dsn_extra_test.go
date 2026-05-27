@@ -3,6 +3,7 @@ package config
 import "testing"
 
 func TestValidateRejectsInvalidDSNPostmaster(t *testing.T) {
+	t.Setenv("GOGOMAIL_ENV", "development")
 	cfg := Load()
 	cfg.DSNPostmaster = "not an address"
 
@@ -12,6 +13,7 @@ func TestValidateRejectsInvalidDSNPostmaster(t *testing.T) {
 }
 
 func TestValidateAcceptsNamedDSNPostmaster(t *testing.T) {
+	t.Setenv("GOGOMAIL_ENV", "development")
 	cfg := Load()
 	cfg.DSNPostmaster = "Mail Delivery Subsystem <bounces@example.com>"
 

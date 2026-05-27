@@ -368,7 +368,7 @@ type Config struct {
 
 func Load() Config {
 	cfg := Config{
-		Environment:                         envOrDefault("GOGOMAIL_ENV", "development"),
+		Environment:                         envOrDefault("GOGOMAIL_ENV", "production"),
 		HTTPAddr:                            envOrDefault("GOGOMAIL_HTTP_ADDR", ":8080"),
 		HTTPReadTimeout:                     durationEnvOrDefault("GOGOMAIL_HTTP_READ_TIMEOUT", 5*time.Minute),
 		HTTPWriteTimeout:                    durationEnvOrDefault("GOGOMAIL_HTTP_WRITE_TIMEOUT", 10*time.Minute),

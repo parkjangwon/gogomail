@@ -4,6 +4,7 @@ import "testing"
 
 func TestValidateRejectsUnsafeSMTPDomain(t *testing.T) {
 	for _, domain := range []string{"", " ", "mx example.com", "mx.example.com\nInjected"} {
+		t.Setenv("GOGOMAIL_ENV", "development")
 		cfg := Load()
 		cfg.SMTPDomain = domain
 		if err := cfg.Validate(); err == nil {
@@ -13,6 +14,7 @@ func TestValidateRejectsUnsafeSMTPDomain(t *testing.T) {
 }
 
 func TestValidateAcceptsSMTPDomainHostname(t *testing.T) {
+	t.Setenv("GOGOMAIL_ENV", "development")
 	cfg := Load()
 	cfg.SMTPDomain = "mx.example.com"
 	if err := cfg.Validate(); err != nil {
@@ -22,6 +24,7 @@ func TestValidateAcceptsSMTPDomainHostname(t *testing.T) {
 
 func TestValidateRejectsUnsafeDeliverySMTPHello(t *testing.T) {
 	for _, hello := range []string{"", " ", "mx example.com", "mx.example.com\nInjected"} {
+		t.Setenv("GOGOMAIL_ENV", "development")
 		cfg := Load()
 		cfg.DeliverySMTPHello = hello
 		if err := cfg.Validate(); err == nil {
@@ -31,6 +34,7 @@ func TestValidateRejectsUnsafeDeliverySMTPHello(t *testing.T) {
 }
 
 func TestValidateAcceptsDeliverySMTPHelloHostname(t *testing.T) {
+	t.Setenv("GOGOMAIL_ENV", "development")
 	cfg := Load()
 	cfg.DeliverySMTPHello = "mx.example.com"
 	if err := cfg.Validate(); err != nil {

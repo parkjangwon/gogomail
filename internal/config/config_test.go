@@ -8,7 +8,7 @@ import (
 )
 
 func TestLoadAppliesDefaults(t *testing.T) {
-	t.Setenv("GOGOMAIL_ENV", "")
+	t.Setenv("GOGOMAIL_ENV", "development")
 	t.Setenv("GOGOMAIL_HTTP_ADDR", "")
 	t.Setenv("GOGOMAIL_HTTP_READ_TIMEOUT", "")
 	t.Setenv("GOGOMAIL_HTTP_WRITE_TIMEOUT", "")

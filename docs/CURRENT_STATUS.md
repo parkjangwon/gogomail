@@ -1,6 +1,15 @@
 # gogomail current status
 
-Last updated: 2026-05-27 (analysis improvements)
+Last updated: 2026-05-27 (Task 0: Secure defaults)
+
+## Task 0: Secure defaults (2026-05-27)
+
+**Security audit remediation**: Production-safe configuration defaults
+- **internal/config/config.go** (line 371): Default GOGOMAIL_ENV changed from "development" to "production"
+- **docker/docker-compose.scale.yml** (line 27): PostgreSQL sslmode default changed from "disable" to "require" (enforces encrypted connections)
+- **Test suite hardening**: Added `setDevelopmentMode(t)` helper to ~40+ test functions in internal/config tests; fixed t.Parallel() conflicts by removing from tests that use t.Setenv()
+- **cmd/gogomail/main_test.go**: Added GOGOMAIL_ENV environment setup to TestRunAcceptsStorageProfileConfigs, TestRunRejectsInvalidYAMLConfigBeforeAppStart, TestRunUsesAppModeEnvWhenModeFlagUnset, TestRunModeFlagOverridesAppModeEnv
+- **Impact**: All 362 internal/config tests + 12 cmd/gogomail tests pass; production defaults now secure (no insecure auth allowed unless explicitly configured in development mode)
 
 ## Recent improvements (2026-05-27)
 

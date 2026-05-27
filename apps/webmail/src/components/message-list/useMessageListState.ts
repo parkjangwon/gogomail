@@ -4,6 +4,9 @@ import { useState, useRef, useEffect } from 'react';
 import { MessageSummary } from '@/lib/api';
 import { type FilterMode, type CategoryTab } from './messageListTypes';
 
+export const PULL_THRESHOLD = 64;
+export const PAGE_SIZE = 50;
+
 interface UseMessageListStateParams {
   messages: MessageSummary[];
   selectedId: string | null;
@@ -53,8 +56,6 @@ export function useMessageListState({
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const pullRef = useRef<{ startY: number } | null>(null);
   const [pullY, setPullY] = useState(0);
-  const PULL_THRESHOLD = 64;
-  const PAGE_SIZE = 50;
   const [page, setPage] = useState(0);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const moreMenuRef = useRef<HTMLDivElement>(null);

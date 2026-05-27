@@ -14,6 +14,7 @@ func TestLoadAPIUsageExportManifestSignerDefaultsDisabled(t *testing.T) {
 	t.Setenv("GOGOMAIL_API_USAGE_EXPORT_MANIFEST_SIGNER_PRIVATE_KEY", "")
 	t.Setenv("GOGOMAIL_API_USAGE_EXPORT_MANIFEST_SIGNER_PUBLIC_KEY", "")
 
+	t.Setenv("GOGOMAIL_ENV", "development")
 	cfg := Load()
 	if cfg.APIUsageExportManifestSignerBackend != "disabled" {
 		t.Fatalf("APIUsageExportManifestSignerBackend = %q", cfg.APIUsageExportManifestSignerBackend)
@@ -26,6 +27,7 @@ func TestLoadAPIUsageExportManifestSignerDefaultsDisabled(t *testing.T) {
 func TestValidateRequiresLocalEd25519ExportManifestSignerKeys(t *testing.T) {
 	privateKey := ed25519.NewKeyFromSeed([]byte(strings.Repeat("s", ed25519.SeedSize)))
 	publicKey := privateKey.Public().(ed25519.PublicKey)
+	t.Setenv("GOGOMAIL_ENV", "development")
 	cfg := Load()
 	cfg.APIUsageExportManifestSignerBackend = "local-ed25519"
 	if err := cfg.Validate(); err == nil {
@@ -55,6 +57,7 @@ func TestValidateRequiresLocalEd25519ExportManifestSignerKeys(t *testing.T) {
 
 func TestValidateRequiresRemoteEd25519ExportManifestSignerConfig(t *testing.T) {
 	publicKey := ed25519.NewKeyFromSeed([]byte(strings.Repeat("r", ed25519.SeedSize))).Public().(ed25519.PublicKey)
+	t.Setenv("GOGOMAIL_ENV", "development")
 	cfg := Load()
 	cfg.APIUsageExportManifestSignerBackend = "remote-ed25519"
 	if err := cfg.Validate(); err == nil {
@@ -80,6 +83,7 @@ func TestValidateRequiresRemoteEd25519ExportManifestSignerConfig(t *testing.T) {
 
 func TestValidateAllowsDestructiveAPIUsageRetentionWithRemoteEd25519Signer(t *testing.T) {
 	publicKey := ed25519.NewKeyFromSeed([]byte(strings.Repeat("r", ed25519.SeedSize))).Public().(ed25519.PublicKey)
+	t.Setenv("GOGOMAIL_ENV", "development")
 	cfg := Load()
 	cfg.APIUsageRetentionDryRun = false
 	cfg.APIUsageRetentionConfirmReady = true
@@ -93,8 +97,6 @@ func TestValidateAllowsDestructiveAPIUsageRetentionWithRemoteEd25519Signer(t *te
 }
 
 func TestValidateRejectsUnsafeExportManifestSignerCredentials(t *testing.T) {
-	t.Parallel()
-
 	publicKey := ed25519.NewKeyFromSeed([]byte(strings.Repeat("r", ed25519.SeedSize))).Public().(ed25519.PublicKey)
 	for _, tc := range []struct {
 		name    string
@@ -153,8 +155,7 @@ func TestValidateRejectsUnsafeExportManifestSignerCredentials(t *testing.T) {
 	} {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-
+			t.Setenv("GOGOMAIL_ENV", "development")
 			cfg := Load()
 			tc.mutate(&cfg)
 			if err := cfg.Validate(); err == nil || !strings.Contains(err.Error(), tc.wantErr) {
@@ -165,10 +166,10 @@ func TestValidateRejectsUnsafeExportManifestSignerCredentials(t *testing.T) {
 }
 
 func TestValidateRejectsOversizedEd25519ExportManifestSignerKeysBeforeDecode(t *testing.T) {
-	t.Parallel()
 
 	privateKey := ed25519.NewKeyFromSeed([]byte(strings.Repeat("s", ed25519.SeedSize)))
 	publicKey := privateKey.Public().(ed25519.PublicKey)
+	t.Setenv("GOGOMAIL_ENV", "development")
 	cfg := Load()
 	cfg.APIUsageExportManifestSignerBackend = "local-ed25519"
 	cfg.APIUsageExportManifestSignerKeyID = "key-1"
@@ -186,6 +187,7 @@ func TestValidateRejectsOversizedEd25519ExportManifestSignerKeysBeforeDecode(t *
 }
 
 func TestValidateRequiresLocalHMACExportManifestSignerSecrets(t *testing.T) {
+	t.Setenv("GOGOMAIL_ENV", "development")
 	cfg := Load()
 	cfg.APIUsageExportManifestSignerBackend = "local-hmac"
 	if err := cfg.Validate(); err == nil {
