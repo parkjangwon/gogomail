@@ -27,6 +27,17 @@ func registerStorageRoutes(mux *http.ServeMux, service AdminService, adminAuth f
 		if !ok {
 			return
 		}
+		if strings.TrimSpace(domainID) != "" {
+			domain, err := service.GetDomain(r.Context(), domainID)
+			if err != nil {
+				writeError(w, http.StatusNotFound, "domain not found")
+				return
+			}
+			if err := requiresCompanyAccess(r.Context(), domain.CompanyID); err != nil {
+				writeError(w, http.StatusForbidden, "access denied")
+				return
+			}
+		}
 		overLimit, ok := parseOptionalBoolQuery(w, r, "over_limit")
 		if !ok {
 			return
@@ -112,6 +123,22 @@ func registerStorageRoutes(mux *http.ServeMux, service AdminService, adminAuth f
 		if !ok {
 			return
 		}
+		if strings.TrimSpace(userID) != "" {
+			targetUser, err := service.GetUser(r.Context(), userID)
+			if err != nil {
+				writeError(w, http.StatusNotFound, "user not found")
+				return
+			}
+			targetDomain, err := service.GetDomain(r.Context(), targetUser.DomainID)
+			if err != nil {
+				writeError(w, http.StatusInternalServerError, "failed to resolve domain")
+				return
+			}
+			if err := requiresCompanyAccess(r.Context(), targetDomain.CompanyID); err != nil {
+				writeError(w, http.StatusForbidden, "access denied")
+				return
+			}
+		}
 		draftID, ok := parseBoundedAdminQuery(w, r, "draft_id")
 		if !ok {
 			return
@@ -155,6 +182,20 @@ func registerStorageRoutes(mux *http.ServeMux, service AdminService, adminAuth f
 			writeError(w, http.StatusBadRequest, "user_id is required")
 			return
 		}
+		targetUser, err := service.GetUser(r.Context(), userID)
+		if err != nil {
+			writeError(w, http.StatusNotFound, "user not found")
+			return
+		}
+		targetDomain, err := service.GetDomain(r.Context(), targetUser.DomainID)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "failed to resolve domain")
+			return
+		}
+		if err := requiresCompanyAccess(r.Context(), targetDomain.CompanyID); err != nil {
+			writeError(w, http.StatusForbidden, "access denied")
+			return
+		}
 		status, ok := parseBoundedAdminQuery(w, r, "status")
 		if !ok {
 			return
@@ -164,7 +205,7 @@ func registerStorageRoutes(mux *http.ServeMux, service AdminService, adminAuth f
 			Status: status,
 			Limit:  limit,
 		}
-		req, err := drive.ValidateListUploadSessionsRequest(req)
+		req, err = drive.ValidateListUploadSessionsRequest(req)
 		if err != nil {
 			writeError(w, http.StatusBadRequest, err.Error())
 			return
@@ -195,6 +236,20 @@ func registerStorageRoutes(mux *http.ServeMux, service AdminService, adminAuth f
 		}
 		if strings.TrimSpace(userID) == "" {
 			writeError(w, http.StatusBadRequest, "user_id is required")
+			return
+		}
+		targetUser, err := service.GetUser(r.Context(), userID)
+		if err != nil {
+			writeError(w, http.StatusNotFound, "user not found")
+			return
+		}
+		targetDomain, err := service.GetDomain(r.Context(), targetUser.DomainID)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "failed to resolve domain")
+			return
+		}
+		if err := requiresCompanyAccess(r.Context(), targetDomain.CompanyID); err != nil {
+			writeError(w, http.StatusForbidden, "access denied")
 			return
 		}
 		parentID, ok := parseBoundedAdminQuery(w, r, "parent_id")
@@ -231,7 +286,7 @@ func registerStorageRoutes(mux *http.ServeMux, service AdminService, adminAuth f
 			AllParents: allParentsValue,
 			Limit:      limit,
 		}
-		req, err := drive.ValidateListNodesRequest(req)
+		req, err = drive.ValidateListNodesRequest(req)
 		if err != nil {
 			writeError(w, http.StatusBadRequest, err.Error())
 			return
@@ -310,6 +365,20 @@ func registerStorageRoutes(mux *http.ServeMux, service AdminService, adminAuth f
 		}
 		if strings.TrimSpace(userID) == "" {
 			writeError(w, http.StatusBadRequest, "user_id is required")
+			return
+		}
+		targetUser, err := service.GetUser(r.Context(), userID)
+		if err != nil {
+			writeError(w, http.StatusNotFound, "user not found")
+			return
+		}
+		targetDomain, err := service.GetDomain(r.Context(), targetUser.DomainID)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "failed to resolve domain")
+			return
+		}
+		if err := requiresCompanyAccess(r.Context(), targetDomain.CompanyID); err != nil {
+			writeError(w, http.StatusForbidden, "access denied")
 			return
 		}
 		req, err := drive.ValidateGetUsageSummaryRequest(drive.GetUsageSummaryRequest{UserID: userID})
@@ -411,6 +480,22 @@ func registerStorageRoutes(mux *http.ServeMux, service AdminService, adminAuth f
 		if !ok {
 			return
 		}
+		if strings.TrimSpace(userID) != "" {
+			targetUser, err := service.GetUser(r.Context(), userID)
+			if err != nil {
+				writeError(w, http.StatusNotFound, "user not found")
+				return
+			}
+			targetDomain, err := service.GetDomain(r.Context(), targetUser.DomainID)
+			if err != nil {
+				writeError(w, http.StatusInternalServerError, "failed to resolve domain")
+				return
+			}
+			if err := requiresCompanyAccess(r.Context(), targetDomain.CompanyID); err != nil {
+				writeError(w, http.StatusForbidden, "access denied")
+				return
+			}
+		}
 		status, ok := parseBoundedAdminQuery(w, r, "status")
 		if !ok {
 			return
@@ -443,6 +528,25 @@ func registerStorageRoutes(mux *http.ServeMux, service AdminService, adminAuth f
 		}
 		id, ok := parseBoundedHTTPPathValue(w, r, "id")
 		if !ok {
+			return
+		}
+		existing, err := service.GetDriveObjectCleanupFailure(r.Context(), id)
+		if err != nil {
+			writeError(w, http.StatusNotFound, "cleanup failure not found")
+			return
+		}
+		targetUser, err := service.GetUser(r.Context(), existing.UserID)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "failed to resolve user")
+			return
+		}
+		targetDomain, err := service.GetDomain(r.Context(), targetUser.DomainID)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "failed to resolve domain")
+			return
+		}
+		if err := requiresCompanyAccess(r.Context(), targetDomain.CompanyID); err != nil {
+			writeError(w, http.StatusForbidden, "access denied")
 			return
 		}
 		resolved, err := service.ResolveDriveObjectCleanupFailure(r.Context(), id)

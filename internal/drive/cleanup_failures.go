@@ -108,6 +108,46 @@ RETURNING
 	return recorded, nil
 }
 
+func (r *Repository) GetObjectCleanupFailure(ctx context.Context, id string) (ObjectCleanupFailure, error) {
+	if r == nil || r.db == nil {
+		return ObjectCleanupFailure{}, fmt.Errorf("database handle is required")
+	}
+	const query = `
+SELECT
+  id::text,
+  user_id::text,
+  COALESCE(node_id::text, ''),
+  storage_backend,
+  storage_path,
+  status,
+  attempts,
+  last_error,
+  created_at,
+  updated_at
+FROM drive_object_cleanup_failures
+WHERE id = $1::uuid`
+	var failure ObjectCleanupFailure
+	err := r.db.QueryRowContext(ctx, query, id).Scan(
+		&failure.ID,
+		&failure.UserID,
+		&failure.NodeID,
+		&failure.StorageBackend,
+		&failure.StoragePath,
+		&failure.Status,
+		&failure.Attempts,
+		&failure.LastError,
+		&failure.CreatedAt,
+		&failure.UpdatedAt,
+	)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return ObjectCleanupFailure{}, fmt.Errorf("drive object cleanup failure not found")
+		}
+		return ObjectCleanupFailure{}, fmt.Errorf("get drive object cleanup failure: %w", err)
+	}
+	return failure, nil
+}
+
 func (r *Repository) ListObjectCleanupFailures(ctx context.Context, req ListObjectCleanupFailuresRequest) ([]ObjectCleanupFailure, error) {
 	if r == nil || r.db == nil {
 		return nil, fmt.Errorf("database handle is required")

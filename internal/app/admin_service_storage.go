@@ -241,6 +241,13 @@ func (s adminService) RunDriveUploadSessionCleanup(ctx context.Context, before t
 	return expired, nil
 }
 
+func (s adminService) GetDriveObjectCleanupFailure(ctx context.Context, id string) (drive.ObjectCleanupFailure, error) {
+	if s.drive == nil {
+		return drive.ObjectCleanupFailure{}, fmt.Errorf("drive service is not configured")
+	}
+	return s.drive.GetObjectCleanupFailure(ctx, id)
+}
+
 func (s adminService) ListDriveObjectCleanupFailures(ctx context.Context, req drive.ListObjectCleanupFailuresRequest) ([]drive.ObjectCleanupFailure, error) {
 	if s.drive == nil {
 		return nil, fmt.Errorf("drive service is not configured")

@@ -1,6 +1,18 @@
 # gogomail current status
 
-Last updated: 2026-05-28 (security hardening: admin_storage.go drive-nodes IDOR)
+Last updated: 2026-05-28 (security hardening: admin_storage.go — 7 IDOR fixes Round 33)
+
+## Post-remediation hardening round 33 (2026-05-28)
+
+**IDOR sweep: admin_storage.go — 7 handlers (drive sessions, nodes, usage, cleanup failures)**
+
+- **GET /drive-upload-sessions** (user_id required): Added `GetUser → GetDomain → requiresCompanyAccess`.
+- **GET /drive-nodes** (list, user_id required): Added `GetUser → GetDomain → requiresCompanyAccess`.
+- **GET /drive-usage** (user_id required): Added `GetUser → GetDomain → requiresCompanyAccess`.
+- **POST /drive-cleanup-failures/{id}/resolve** (by ID): Added `GetDriveObjectCleanupFailure → GetUser → GetDomain → requiresCompanyAccess` before mutation. New `GetObjectCleanupFailure` method added to `drive.Repository`, `drive.ObjectCleanupFailureStore` interface, `drive.Service`, `admin_service_storage.go`, and test fakes.
+- **GET /quota-usage** (domain_id optional): If `domain_id` provided, added `GetDomain → requiresCompanyAccess`.
+- **GET /attachment-upload-sessions** (user_id optional): If `user_id` provided, added `GetUser → GetDomain → requiresCompanyAccess`.
+- **GET /drive-cleanup-failures** (user_id optional): If `user_id` provided, added `GetUser → GetDomain → requiresCompanyAccess`.
 
 ## Post-remediation hardening round 32 (2026-05-28)
 

@@ -1230,6 +1230,15 @@ func (f *fakeAdminDrive) ExpireUploadSessions(_ context.Context, req drive.Expir
 	return f.sessions, nil
 }
 
+func (f *fakeAdminDrive) GetObjectCleanupFailure(_ context.Context, id string) (drive.ObjectCleanupFailure, error) {
+	for _, failure := range f.failures {
+		if failure.ID == id {
+			return failure, nil
+		}
+	}
+	return drive.ObjectCleanupFailure{}, fmt.Errorf("not found")
+}
+
 func (f *fakeAdminDrive) ListObjectCleanupFailures(_ context.Context, req drive.ListObjectCleanupFailuresRequest) ([]drive.ObjectCleanupFailure, error) {
 	f.lastFailureReq = req
 	return f.failures, nil

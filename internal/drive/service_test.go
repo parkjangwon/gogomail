@@ -3,6 +3,7 @@ package drive
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -320,6 +321,15 @@ type recordingCleanupFailureStore struct {
 	resolvedIDs  []string
 	resolveCalls int
 	recorded     ObjectCleanupFailure
+}
+
+func (s *recordingCleanupFailureStore) GetObjectCleanupFailure(_ context.Context, id string) (ObjectCleanupFailure, error) {
+	for _, f := range s.failures {
+		if f.ID == id {
+			return f, nil
+		}
+	}
+	return ObjectCleanupFailure{}, fmt.Errorf("not found")
 }
 
 func (s *recordingCleanupFailureStore) ListObjectCleanupFailures(_ context.Context, req ListObjectCleanupFailuresRequest) ([]ObjectCleanupFailure, error) {
