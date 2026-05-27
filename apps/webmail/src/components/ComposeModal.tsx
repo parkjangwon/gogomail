@@ -20,6 +20,9 @@ import { ComposeModalFooter } from './ComposeModalFooter';
 import { ComposeSlashCommandMenu } from './compose/ComposeSlashCommandMenu';
 import { ComposeAttachmentPanel } from './compose/ComposeAttachmentPanel';
 import { ComposeSigEditorPanel } from './compose/ComposeSigEditorPanel';
+import { ComposeModalHeader } from './compose/ComposeModalHeader';
+import { ComposeClosePanel } from './compose/ComposeClosePanel';
+import { ComposeImageResizeToolbar } from './compose/ComposeImageResizeToolbar';
 import { useComposeWindow } from './compose/useComposeWindow';
 import { useComposeAttachments } from './compose/useComposeAttachments';
 import { useComposeTemplates } from './compose/useComposeTemplates';
@@ -587,109 +590,33 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
         `}</style>
 
         {/* Header */}
-        <div
-          onClick={minimized ? () => setMinimized(false) : undefined}
-          onMouseDown={startDrag}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            padding: '10px 16px',
-            borderBottom: minimized ? 'none' : '1px solid var(--color-border-subtle)',
-            background: 'var(--color-bg-secondary)',
-            borderRadius: minimized ? '8px' : '8px 8px 0 0',
-            cursor: minimized ? 'pointer' : (fullscreen || isMobile ? 'default' : 'move'),
-            flexShrink: 0,
-          }}
-        >
-          <span style={{ fontSize: '13px', fontWeight: 500, color: 'var(--color-text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, minWidth: 0 }}>
-            {minimized && subject ? subject : (intent === 'reply' || intent === 'reply_all' ? t('titleReply') : intent === 'forward' ? t('titleForward') : t('titleNew'))}
-          </span>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0, marginLeft: '8px' }}>
-            {!isMobile && <>
-            <button
-              onClick={(e) => { e.stopPropagation(); setFullscreen((v) => !v); if (minimized) setMinimized(false); }}
-              aria-label={fullscreen ? t('shrinkWindow') : t('fullscreen')}
-              title={fullscreen ? t('shrinkWindow') : t('fullscreen')}
-              style={{
-                width: '24px', height: '24px', borderRadius: '4px', border: 'none',
-                background: 'transparent', color: 'var(--color-text-secondary)',
-                cursor: 'pointer', fontSize: '12px', lineHeight: 1,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-              }}
-              onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }}
-              onMouseLeave={(e) => { (e.currentTarget).style.background = 'transparent'; }}
-            >{fullscreen ? '⊡' : '⊞'}</button>
-            <button
-              onClick={(e) => { e.stopPropagation(); setMinimized((v) => !v); }}
-              aria-label={minimized ? t('restoreWindow') : t('minimizeWindow')}
-              style={{
-                width: '24px', height: '24px', borderRadius: '4px', border: 'none',
-                background: 'transparent', color: 'var(--color-text-secondary)',
-                cursor: 'pointer', fontSize: '14px', lineHeight: 1,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-              }}
-              onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }}
-              onMouseLeave={(e) => { (e.currentTarget).style.background = 'transparent'; }}
-            >{minimized ? '□' : '─'}</button>
-            </>}
-            <button
-              onClick={() => {
-                const hasContent = !sent && (to.trim() || subject.trim() || (editor && editor.getText().trim()));
-                if (hasContent) setConfirmClose(true); else onClose();
-              }}
-              aria-label={t('closeWindow')}
-              style={{
-                width: '24px', height: '24px', borderRadius: '4px', border: 'none',
-                background: 'transparent', color: 'var(--color-text-secondary)',
-                cursor: 'pointer', fontSize: isMobile ? '20px' : '16px', lineHeight: 1,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-              }}
-              onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }}
-              onMouseLeave={(e) => { (e.currentTarget).style.background = 'transparent'; }}
-            >{isMobile ? '←' : '×'}</button>
-          </div>
-        </div>
+        <ComposeModalHeader
+          minimized={minimized}
+          setMinimized={setMinimized}
+          fullscreen={fullscreen}
+          setFullscreen={setFullscreen}
+          isMobile={isMobile}
+          intent={intent}
+          subject={subject}
+          sent={sent}
+          to={to}
+          editor={editor}
+          setConfirmClose={setConfirmClose}
+          onClose={onClose}
+          startDrag={startDrag}
+        />
 
         {/* Close confirmation panel */}
         {confirmClose && (
-          <div
-            role="alertdialog"
-            aria-modal="false"
-            aria-labelledby="compose-close-save-title"
-            aria-busy={closeSaveInProgress}
-            onKeyDown={(e) => {
-              if (e.key === 'Escape') {
-                e.stopPropagation();
-                if (closeSaveInProgress) return;
-                cancelCloseConfirmation();
-              }
-            }}
-            style={{ padding: '10px 16px', borderBottom: '1px solid var(--color-border-subtle)', background: 'var(--color-bg-secondary)', display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}
-          >
-            <span id="compose-close-save-title" style={{ fontSize: '13px', color: 'var(--color-text-primary)', flex: 1 }}>{closeSavePrompt}</span>
-            <button
-              type="button"
-              aria-label={closeSaveButtonAriaLabel}
-              disabled={closeSaveInProgress}
-              onClick={() => { void saveDraftAndClose(); }}
-              style={{ fontSize: '12px', padding: '4px 10px', borderRadius: '5px', border: '1px solid var(--color-border-default)', background: 'transparent', color: 'var(--color-text-primary)', cursor: closeSaveInProgress ? 'not-allowed' : 'pointer' }}
-            >{closeSaveButtonLabel}</button>
-            <button
-              type="button"
-              aria-label={t('discardAria')}
-              disabled={closeSaveInProgress}
-              onClick={discardDraftAndClose}
-              style={{ fontSize: '12px', padding: '4px 10px', borderRadius: '5px', border: '1px solid rgba(217,79,61,0.4)', background: 'transparent', color: 'var(--color-destructive)', cursor: closeSaveInProgress ? 'not-allowed' : 'pointer' }}
-            >{t('discard')}</button>
-            <button
-              type="button"
-              aria-label={t('cancelCloseAria')}
-              disabled={closeSaveInProgress}
-              onClick={cancelCloseConfirmation}
-              style={{ fontSize: '12px', padding: '4px 10px', borderRadius: '5px', border: '1px solid var(--color-border-default)', background: 'transparent', color: 'var(--color-text-secondary)', cursor: closeSaveInProgress ? 'not-allowed' : 'pointer' }}
-            >{t('cancel')}</button>
-          </div>
+          <ComposeClosePanel
+            closeSaveInProgress={closeSaveInProgress}
+            closeSavePrompt={closeSavePrompt}
+            closeSaveButtonAriaLabel={closeSaveButtonAriaLabel}
+            closeSaveButtonLabel={closeSaveButtonLabel}
+            onSaveDraft={() => { void saveDraftAndClose(); }}
+            onDiscard={discardDraftAndClose}
+            onCancel={cancelCloseConfirmation}
+          />
         )}
 
         {/* Form */}
@@ -920,48 +847,10 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
       )}
 
       {/* Floating image resize toolbar */}
-      {imageResizeToolbar && editor?.isActive('image') && (
-        <div
-          style={{
-            position: 'fixed',
-            top: imageResizeToolbar.top,
-            left: imageResizeToolbar.left,
-            zIndex: 500,
-            display: 'flex',
-            gap: '2px',
-            background: 'var(--color-bg-primary)',
-            border: '1px solid var(--color-border-default)',
-            borderRadius: '6px',
-            boxShadow: '0 4px 16px rgba(0,0,0,0.16)',
-            padding: '3px',
-          }}
-        >
-          {([[t('imgSmall'), '25%'], [t('imgMedium'), '50%'], [t('imgLarge'), '75%'], [t('imgOriginal'), '100%']] as const).map(([label, pct]) => (
-            <button
-              key={label}
-              type="button"
-              onMouseDown={(e) => {
-                e.preventDefault();
-                editor.chain().focus().updateAttributes('image', { style: `width: ${pct}` }).run();
-              }}
-              style={{
-                padding: '2px 8px',
-                fontSize: '11px',
-                fontWeight: 500,
-                borderRadius: '4px',
-                border: 'none',
-                background: 'transparent',
-                color: 'var(--color-text-secondary)',
-                cursor: 'pointer',
-              }}
-              onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }}
-              onMouseLeave={(e) => { (e.currentTarget).style.background = 'transparent'; }}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-      )}
+      <ComposeImageResizeToolbar
+        editor={editor}
+        imageResizeToolbar={imageResizeToolbar}
+      />
     </>
   );
 }
