@@ -1,6 +1,11 @@
 # gogomail current status
 
-Last updated: 2026-05-28 (security hardening: SAML error leak fix, JMAP Content-Type enforcement)
+Last updated: 2026-05-28 (security hardening: MFA IP spoofing fix)
+
+## Post-remediation hardening round 5 (2026-05-28)
+
+**MFA CIDR exemption IP spoofing fix**
+- **internal/httpapi/mail_mfa.go**: `extractClientIP` previously trusted `X-Forwarded-For` unconditionally, letting any caller fake their IP and potentially bypass MFA CIDR exemptions. Now uses the same trusted-proxy check as `adminClientIP`: `X-Forwarded-For` is only honoured when the TCP peer is a loopback or RFC1918 address (i.e., a trusted reverse proxy).
 
 ## Post-remediation hardening round 4 (2026-05-28)
 

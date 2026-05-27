@@ -114,17 +114,26 @@ func ipIsExempt(ip net.IP, cidrs []string) bool {
 	return false
 }
 
+// extractClientIP returns the best-effort client IP for use in MFA exemption checks.
+// X-Forwarded-For is only trusted when the direct TCP peer is a loopback or
+// RFC1918 private address (i.e., a trusted reverse proxy). Public peers cannot
+// spoof their IP via this header.
 func extractClientIP(r *http.Request) string {
-	if fwd := r.Header.Get("X-Forwarded-For"); fwd != "" {
-		if parts := strings.SplitN(fwd, ",", 2); len(parts) > 0 {
-			return strings.TrimSpace(parts[0])
+	host, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		host = r.RemoteAddr
+	}
+	peer := net.ParseIP(host)
+	if peer != nil && isTrustedProxyIP(peer) {
+		if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
+			if parts := strings.SplitN(xff, ",", 2); len(parts) > 0 {
+				if ip := net.ParseIP(strings.TrimSpace(parts[0])); ip != nil {
+					return ip.String()
+				}
+			}
 		}
 	}
-	host, _, err := net.SplitHostPort(r.RemoteAddr)
-	if err == nil {
-		return host
-	}
-	return r.RemoteAddr
+	return host
 }
 
 // RegisterMFARoutes registers MFA-related API routes onto mux.
