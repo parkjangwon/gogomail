@@ -1,6 +1,11 @@
 # gogomail current status
 
-Last updated: 2026-05-28 (security hardening: SAML XML injection fix)
+Last updated: 2026-05-28 (security hardening: admin MFA pending token bypass)
+
+## Post-remediation hardening round 13 (2026-05-28)
+
+**Admin MFA pending token bypass**
+- **internal/httpapi/admin_middleware.go**: The `adminAuth` JWT wrapper checked `claims.Role` but not `claims.TokenType`. Admin MFA pending tokens carry the full `Role` field (`company_admin` or `system_admin`) alongside `TokenType = "mfa_pending"`. A user who obtained a pending token (i.e., passed password auth but not yet completed TOTP) could use that token to call any admin API endpoint without completing MFA, completely defeating the MFA enforcement. Fixed by checking `claims.TokenType == "mfa_pending"` inside the role-valid branch and returning 401 with "mfa verification required". The mail-API path already had an equivalent guard in `claimsFromRequest`.
 
 ## Post-remediation hardening round 12 (2026-05-28)
 
