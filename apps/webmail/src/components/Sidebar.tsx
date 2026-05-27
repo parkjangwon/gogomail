@@ -21,7 +21,6 @@ import {
   BookmarkIcon,
   ExclamationCircleIcon,
 } from '@heroicons/react/24/outline';
-import { SettingsModal } from '@/components/SettingsModal';
 import { SidebarUserMenu } from './SidebarUserMenu';
 import { useWebmailAvatar } from '@/lib/webmailAvatar';
 import { handleVerticalNavKeyDown } from '@/lib/navKeyboard';
@@ -135,8 +134,6 @@ export function Sidebar({
     setRenamingValue,
     hoveredFolderId,
     setHoveredFolderId,
-    showSettings,
-    setShowSettings,
   } = useSidebarFolders();
   const avatarUrl = useWebmailAvatar();
   const t = useTranslations('sidebar');
@@ -406,9 +403,6 @@ export function Sidebar({
           </>
         )}
       </aside>
-      {showSettings && (
-        <SettingsModal onClose={() => setShowSettings(false)} userEmail={userEmailAddress} />
-      )}
     </>
   );
 }

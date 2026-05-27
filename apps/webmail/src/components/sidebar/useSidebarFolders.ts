@@ -8,7 +8,6 @@ export function useSidebarFolders() {
   const [renamingFolderId, setRenamingFolderId] = useState<string | null>(null);
   const [renamingValue, setRenamingValue] = useState('');
   const [hoveredFolderId, setHoveredFolderId] = useState<string | null>(null);
-  const [showSettings, setShowSettings] = useState(false);
 
   return {
     dragOverFolderId,
@@ -23,7 +22,5 @@ export function useSidebarFolders() {
     setRenamingValue,
     hoveredFolderId,
     setHoveredFolderId,
-    showSettings,
-    setShowSettings,
   };
 }

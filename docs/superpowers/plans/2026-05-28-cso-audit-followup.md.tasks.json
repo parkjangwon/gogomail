@@ -1,0 +1,38 @@
+{
+  "planPath": "docs/superpowers/plans/2026-05-28-cso-audit-followup.md",
+  "tasks": [
+    {
+      "id": 1,
+      "subject": "Task 1: Repo hygiene — untrack tsbuildinfo and .eml",
+      "status": "pending",
+      "description": "**Goal:** Remove `apps/console/tsconfig.tsbuildinfo` and the `.eml` runtime file from git tracking; add `apps/*/var/` to root `.gitignore`.\n\n**Files:**\n- Modify: `.gitignore` (root)\n- Git: `git rm --cached apps/console/tsconfig.tsbuildinfo`\n- Git: `git rm --cached apps/console/var/mailstore/.../1778486139520-5dead6c33f1ee8a3.eml`\n\n**Acceptance Criteria:**\n- [ ] `git ls-files | grep -E \"tsbuildinfo|\\.eml$\"` returns empty\n- [ ] Root `.gitignore` contains `apps/*/var/`\n- [ ] `go test ./...` passes\n\n**Verify:** `git ls-files | grep -E \"tsbuildinfo|\\.eml$\"` → empty output\n\n```json:metadata\n{\"files\": [\".gitignore\"], \"verifyCommand\": \"git ls-files | grep -E 'tsbuildinfo|\\\\.eml$'\", \"acceptanceCriteria\": [\"git ls-files returns empty for tsbuildinfo and .eml patterns\", \"apps/*/var/ is in root .gitignore\"]}\n```"
+    },
+    {
+      "id": 2,
+      "subject": "Task 2: Remove dead SettingsModal from webmail Sidebar",
+      "status": "pending",
+      "description": "**Goal:** Delete the never-shown `SettingsModal` from `Sidebar.tsx` and remove the now-unused `SettingsModal.tsx` / `SettingsModalContent.tsx` files.\n\n**Files:**\n- Modify: `apps/webmail/src/components/sidebar/useSidebarFolders.ts`\n- Modify: `apps/webmail/src/components/Sidebar.tsx`\n- Delete: `apps/webmail/src/components/SettingsModal.tsx`\n- Delete: `apps/webmail/src/components/SettingsModalContent.tsx`\n\n**Acceptance Criteria:**\n- [ ] SettingsModal.tsx and SettingsModalContent.tsx are deleted\n- [ ] useSidebarFolders no longer exports showSettings/setShowSettings\n- [ ] `pnpm --dir apps/webmail type-check` passes\n\n**Verify:** `pnpm --dir apps/webmail type-check` → exit 0\n\n```json:metadata\n{\"files\": [\"apps/webmail/src/components/sidebar/useSidebarFolders.ts\", \"apps/webmail/src/components/Sidebar.tsx\"], \"verifyCommand\": \"pnpm --dir apps/webmail type-check\", \"acceptanceCriteria\": [\"SettingsModal.tsx deleted\", \"SettingsModalContent.tsx deleted\", \"type-check passes\"]}\n```"
+    },
+    {
+      "id": 3,
+      "subject": "Task 3: Restructure SECURITY_REVIEW.md",
+      "status": "pending",
+      "description": "**Goal:** Update `docs/SECURITY_REVIEW.md` so it accurately reflects what is implemented vs. deferred.\n\n**Files:**\n- Modify: `docs/SECURITY_REVIEW.md`\n\n**Acceptance Criteria:**\n- [ ] Sections: Implemented Controls, Accepted Risk, Post-Release Hardening\n- [ ] All 8 audit items appear under Implemented Controls\n- [ ] Last updated = 2026-05-28\n\n**Verify:** `grep '## ' docs/SECURITY_REVIEW.md`\n\n```json:metadata\n{\"files\": [\"docs/SECURITY_REVIEW.md\"], \"verifyCommand\": \"grep '## ' docs/SECURITY_REVIEW.md\", \"acceptanceCriteria\": [\"Implemented Controls section present\", \"Accepted Risk section present\", \"Post-Release Hardening section present\"]}\n```"
+    },
+    {
+      "id": 4,
+      "subject": "Task 4: Decompose spam-filter page (1273 lines)",
+      "status": "pending",
+      "blockedBy": [2, 3],
+      "description": "**Goal:** Split spam-filter/page.tsx into types, data hook, and three focused UI components.\n\n**Acceptance Criteria:**\n- [ ] page.tsx ≤ 200 lines\n- [ ] `pnpm --dir apps/console type-check` passes\n\n**Verify:** `pnpm --dir apps/console type-check`\n\n```json:metadata\n{\"verifyCommand\": \"pnpm --dir apps/console type-check\", \"acceptanceCriteria\": [\"page.tsx <= 200 lines\", \"type-check passes\"]}\n```"
+    },
+    {
+      "id": 5,
+      "subject": "Task 5: Decompose domains/[domainId] page (945 lines)",
+      "status": "pending",
+      "blockedBy": [4],
+      "description": "**Goal:** Split the domain detail page into a data hook and per-tab components.\n\n**Acceptance Criteria:**\n- [ ] page.tsx ≤ 150 lines\n- [ ] `pnpm --dir apps/console type-check` passes\n\n**Verify:** `pnpm --dir apps/console type-check`\n\n```json:metadata\n{\"verifyCommand\": \"pnpm --dir apps/console type-check\", \"acceptanceCriteria\": [\"page.tsx <= 150 lines\", \"type-check passes\"]}\n```"
+    }
+  ],
+  "lastUpdated": "2026-05-28T00:00:00Z"
+}
