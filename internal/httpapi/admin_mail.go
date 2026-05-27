@@ -479,6 +479,21 @@ func registerDeliveryAndMailRoutes(mux *http.ServeMux, service AdminService, adm
 		if !ok {
 			return
 		}
+		// Enforce company isolation before updating sensitive contact data.
+		user, err := service.GetUser(r.Context(), id)
+		if err != nil {
+			writeError(w, http.StatusNotFound, err.Error())
+			return
+		}
+		domain, err := service.GetDomain(r.Context(), user.DomainID)
+		if err != nil {
+			writeError(w, http.StatusNotFound, err.Error())
+			return
+		}
+		if err := requiresCompanyAccess(r.Context(), domain.CompanyID); err != nil {
+			writeError(w, http.StatusForbidden, "access denied")
+			return
+		}
 		var req maildb.UpdateUserRecoveryEmailRequest
 		if err := decodeJSONBody(r, &req); err != nil {
 			writeError(w, http.StatusBadRequest, "invalid JSON body")
