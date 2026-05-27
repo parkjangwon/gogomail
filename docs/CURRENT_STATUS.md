@@ -1,6 +1,11 @@
 # gogomail current status
 
-Last updated: 2026-05-28 (security hardening: admin IDOR bulk fix — 40 handlers)
+Last updated: 2026-05-28 (security hardening: SAML XML injection fix)
+
+## Post-remediation hardening round 12 (2026-05-28)
+
+**SAML AuthnRequest XML injection**
+- **internal/sso/sso.go**: `AuthnRequest.BuildXML()` assembled the SAML XML via `fmt.Sprintf`, embedding admin-configured `Destination` (SSO URL) and `Issuer` (Entity ID) fields verbatim without XML escaping. A malicious `Destination` value containing `"` or `>` could break out of the attribute context and inject arbitrary XML elements into the SAML request. Fixed by replacing the `fmt.Sprintf` construction with a proper `encoding/xml` struct marshal (`samlAuthnRequest`), which escapes all attribute and character-data values automatically.
 
 ## Post-remediation hardening round 11 (2026-05-28)
 
