@@ -35,6 +35,7 @@ x-gogomail-app: &gogomail-app
     GOFLAGS: -v
     GOGOMAIL_SEARCH_INDEX_OPENSEARCH_ENDPOINT: http://opensearch:9200
     GOGOMAIL_SEARCH_INDEX_OPENSEARCH_INDEX: gogomail-messages
+    GOGOMAIL_REDIS_PASSWORD: dev-redis-password
   networks:
     - gogomail-dev
 
@@ -65,11 +66,11 @@ services:
     container_name: gogomail-redis-dev
     ports:
       - "${GOGOMAIL_DEV_REDIS_PORT:-16379}:6379"
-    command: ["redis-server", "--appendonly", "yes"]
+    command: ["redis-server", "--appendonly", "yes", "--requirepass", "dev-redis-password"]
     volumes:
       - redis-data:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD", "redis-cli", "-a", "dev-redis-password", "--no-auth-warning", "ping"]
       interval: 5s
       timeout: 3s
       retries: 20
@@ -166,7 +167,7 @@ services:
       <<: *gogomail-env
       GOGOMAIL_AUTH_JWT_SECRET: gogomail-dev-jwt-secret-at-least-32-bytes
       GOGOMAIL_ADMIN_TOKEN: change-this-admin-token
-      GOGOMAIL_DM_MASTER_KEY: LFUqUVTTIYHCZg98syBY6viHvKuIO6gLGR9b+Kl1v4I=
+      GOGOMAIL_DM_MASTER_KEY: CHANGEME_run_openssl_rand_-base64_32_to_generate
     command: sh -c "go install github.com/air-verse/air@v1.61.7 && air -c /app/.air.dev.toml"
     depends_on:
       postgres:

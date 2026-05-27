@@ -24,6 +24,8 @@ export function useMailList(folderId: string, refreshIntervalSeconds: RefreshInt
   const [messages, setMessages] = useState<MessageSummary[]>([]);
   const [foldersLoading, setFoldersLoading] = useState(true);
   const [messagesLoading, setMessagesLoading] = useState(false);
+  const [foldersError, setFoldersError] = useState<Error | null>(null);
+  const [messagesError, setMessagesError] = useState<Error | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(false);
   const [nextCursor, setNextCursor] = useState('');
@@ -32,9 +34,10 @@ export function useMailList(folderId: string, refreshIntervalSeconds: RefreshInt
   useEffect(() => {
     let cancelled = false;
     setFoldersLoading(true);
+    setFoldersError(null);
     getFolders()
       .then((data) => { if (!cancelled) setFolders(data.folders); })
-      .catch(() => {})
+      .catch((err) => { if (!cancelled) setFoldersError(err instanceof Error ? err : new Error(String(err))); })
       .finally(() => { if (!cancelled) setFoldersLoading(false); });
     return () => { cancelled = true; };
   }, []);
@@ -66,6 +69,7 @@ export function useMailList(folderId: string, refreshIntervalSeconds: RefreshInt
     setNextCursor('');
     nextCursorRef.current = '';
     setMessagesLoading(true);
+    setMessagesError(null);
     getMessages(backendFolderId(folderId))
       .then((data) => {
         if (!cancelled) {
@@ -75,7 +79,12 @@ export function useMailList(folderId: string, refreshIntervalSeconds: RefreshInt
           nextCursorRef.current = data.next_cursor;
         }
       })
-      .catch(() => { if (!cancelled) setMessages([]); })
+      .catch((err) => {
+        if (!cancelled) {
+          setMessages([]);
+          setMessagesError(err instanceof Error ? err : new Error(String(err)));
+        }
+      })
       .finally(() => { if (!cancelled) setMessagesLoading(false); });
     return () => { cancelled = true; };
   }, [folderId]);
@@ -138,5 +147,5 @@ export function useMailList(folderId: string, refreshIntervalSeconds: RefreshInt
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  return { folders, messages, setMessages, foldersLoading, messagesLoading, setMessagesLoading, loadingMore, hasMore, nextCursor, loadMore, adjustUnread, refresh, refreshing };
+  return { folders, messages, setMessages, foldersLoading, messagesLoading, setMessagesLoading, loadingMore, hasMore, nextCursor, loadMore, adjustUnread, refresh, refreshing, foldersError, messagesError };
 }
