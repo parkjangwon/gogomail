@@ -207,14 +207,20 @@ func registerUserAndConfigRoutes(mux *http.ServeMux, service AdminService, token
 			writeError(w, http.StatusBadRequest, "password must be at least 8 characters")
 			return
 		}
+		if len(body.Password) > maxPasswordResetBytes {
+			writeError(w, http.StatusBadRequest, "password is too long")
+			return
+		}
 		salt := make([]byte, 16)
 		if _, err := rand.Read(salt); err != nil {
-			writeError(w, http.StatusInternalServerError, "generate salt")
+			slog.ErrorContext(r.Context(), "invite accept: generate salt failed", "error", err)
+			writeError(w, http.StatusInternalServerError, "internal error")
 			return
 		}
 		hash, err := auth.HashPasswordPBKDF2SHA256(body.Password, salt, 0)
 		if err != nil {
-			writeError(w, http.StatusBadRequest, "hash password: "+err.Error())
+			slog.ErrorContext(r.Context(), "invite accept: hash password failed", "error", err)
+			writeError(w, http.StatusInternalServerError, "internal error")
 			return
 		}
 		user, err := service.AcceptInviteToken(r.Context(), rawToken, hash)
