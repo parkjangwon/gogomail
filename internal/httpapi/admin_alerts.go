@@ -17,6 +17,10 @@ func handleCreateAlertRule(w http.ResponseWriter, r *http.Request, svc AdminServ
 	if !ok {
 		return
 	}
+	if err := requiresCompanyAccess(r.Context(), companyID); err != nil {
+		writeError(w, http.StatusForbidden, "access denied")
+		return
+	}
 
 	var req struct {
 		AlertType            string  `json:"alert_type"`
@@ -89,6 +93,10 @@ func handleGetAlertRule(w http.ResponseWriter, r *http.Request, svc AdminService
 func handleListAlertRules(w http.ResponseWriter, r *http.Request, svc AdminService) {
 	companyID, ok := parseBoundedAdminPathValue(w, r, "id")
 	if !ok {
+		return
+	}
+	if err := requiresCompanyAccess(r.Context(), companyID); err != nil {
+		writeError(w, http.StatusForbidden, "access denied")
 		return
 	}
 
@@ -179,6 +187,10 @@ func handleCreateAlertChannel(w http.ResponseWriter, r *http.Request, svc AdminS
 	if !ok {
 		return
 	}
+	if err := requiresCompanyAccess(r.Context(), companyID); err != nil {
+		writeError(w, http.StatusForbidden, "access denied")
+		return
+	}
 
 	var req struct {
 		ChannelType string                   `json:"channel_type"`
@@ -225,6 +237,10 @@ func handleCreateAlertChannel(w http.ResponseWriter, r *http.Request, svc AdminS
 func handleListAlertChannels(w http.ResponseWriter, r *http.Request, svc AdminService) {
 	companyID, ok := parseBoundedAdminPathValue(w, r, "id")
 	if !ok {
+		return
+	}
+	if err := requiresCompanyAccess(r.Context(), companyID); err != nil {
+		writeError(w, http.StatusForbidden, "access denied")
 		return
 	}
 
@@ -312,6 +328,10 @@ func handleListAlertEvents(w http.ResponseWriter, r *http.Request, svc AdminServ
 	}
 	companyID, ok := parseBoundedAdminPathValue(w, r, "id")
 	if !ok {
+		return
+	}
+	if err := requiresCompanyAccess(r.Context(), companyID); err != nil {
+		writeError(w, http.StatusForbidden, "access denied")
 		return
 	}
 	limit, ok := parseAlertEventLimit(w, r)
