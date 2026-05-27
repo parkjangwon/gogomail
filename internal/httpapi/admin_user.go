@@ -402,6 +402,31 @@ func registerUserAndConfigRoutes(mux *http.ServeMux, service AdminService, token
 		if !ok {
 			return
 		}
+		// Enforce company isolation: look up the target user's company before
+		// checking access, consistent with UpdateUserStatus and UpdateUserQuota.
+		user, err := service.GetUser(r.Context(), id)
+		if err != nil {
+			writeError(w, http.StatusNotFound, err.Error())
+			return
+		}
+		domain, err := service.GetDomain(r.Context(), user.DomainID)
+		if err != nil {
+			writeError(w, http.StatusNotFound, err.Error())
+			return
+		}
+		if err := requiresCompanyAccess(r.Context(), domain.CompanyID); err != nil {
+			writeError(w, http.StatusForbidden, "access denied")
+			return
+		}
+		// Prevent privilege escalation: company_admin may not assign system_admin.
+		// Only the static admin token or a system_admin JWT may do so.
+		if req.Role == "system_admin" {
+			claims, hasClaims := adminClaimsFromCtx(r.Context())
+			if hasClaims && claims.Role != "system_admin" {
+				writeError(w, http.StatusForbidden, "only system_admin may assign the system_admin role")
+				return
+			}
+		}
 		req.ID = id
 		if err := service.UpdateUserRole(r.Context(), req); err != nil {
 			writeError(w, http.StatusBadRequest, err.Error())
