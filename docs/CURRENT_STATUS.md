@@ -8,6 +8,7 @@ Last updated: 2026-05-27
 - Extracted `useSettingsPrefs` hook from `SettingsView.tsx` (1098→563 lines); holds all 109 state variables and preference load/save effects.
 - Extracted `useContactsBooks`, `useContactsEdit` hooks from `ContactsView.tsx` (723→~330 lines); hooks live in `apps/webmail/src/components/contacts/`.
 - Extracted `useCalendarCreateForm`, `useCalendarEditForm`, and `useCalendarData` custom hooks from `CalendarView.tsx` (812→~340 lines); hooks live in `apps/webmail/src/components/calendar/`.
+- Extracted `useInlineComposeSend` and `useInlineComposeAttachments` custom hooks from `InlineCompose.tsx` (477 lines); hooks live in `apps/webmail/src/components/reading-pane/`; pure code movement, no logic changes.
 - Extracted `useDMModal`, `useMailLabels`, `useMailSession` hooks from `mail/page.tsx` (2302→2114 lines); hooks live in `apps/webmail/src/app/mail/`.
 - Extracted `useMailSearch`, `useMailLayout` hooks from `mail/page.tsx` (2114→N lines); hooks live in `apps/webmail/src/app/mail/`.
 - Extracted `useDriveUpload` (upload state, refs, pause/resume/cancel/scheduler) to `apps/webmail/src/components/drive/useDriveUpload.ts` and `useDriveSidebar` (folder tree state/loading) to `apps/webmail/src/components/drive/useDriveSidebar.ts`; DriveView.tsx reduced from 1412 → ~900 lines with no logic changes.
