@@ -1,6 +1,11 @@
 # gogomail current status
 
-Last updated: 2026-05-28 (security hardening: admin_mail.go IDOR sweep)
+Last updated: 2026-05-28 (security hardening: admin_storage.go drive-nodes IDOR)
+
+## Post-remediation hardening round 32 (2026-05-28)
+
+**IDOR sweep: admin_storage.go — GET /admin/v1/drive-nodes/{id}**
+- Handler took `user_id` as a query parameter and fetched the user's drive node without company isolation. A company_admin could read drive nodes of users in other companies. Fixed with `GetUser → GetDomain → requiresCompanyAccess` before proceeding to `GetDriveNode`.
 
 ## Post-remediation hardening round 31 (2026-05-28)
 
