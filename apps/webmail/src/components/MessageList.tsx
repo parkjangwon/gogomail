@@ -3,22 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import { MessageSummary } from '@/lib/api';
-import {
-  StarIcon,
-  ArrowPathIcon,
-  XMarkIcon,
-  ChevronDownIcon,
-  CheckIcon as CheckIconOutline,
-  Bars3Icon,
-  EllipsisVerticalIcon,
-  ChevronLeftIcon,
-  ChevronRightIcon,
-  BarsArrowDownIcon,
-  BarsArrowUpIcon,
-  BookmarkIcon,
-} from '@heroicons/react/24/outline';
 import { MessageRow } from './message-list/MessageRow';
-import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid';
 import { ContactHoverCard } from './message-list/ContactHoverCard';
 import { MessageListHeader } from './message-list/MessageListHeader';
 import { useMessageListSelection } from './message-list/useMessageListSelection';
@@ -26,14 +11,8 @@ import { useContactHoverCard } from './message-list/useContactHoverCard';
 import { useMessageListState } from './message-list/useMessageListState';
 import {
   type CategoryTab,
-  type FilterMode,
   type MessageListProps,
-  avatarColor,
   getAutoCategory,
-  formatDate,
-  readingTimeLabel,
-  highlight,
-  CATEGORY_TABS,
 } from './message-list/messageListTypes';
 import { DateGroupKey, getDateGroup } from './message-list/messageListHelpers';
 
