@@ -5,7 +5,7 @@ import { parseSearchOperators } from '@/lib/mail/mailPageUtils';
 import type { ToastItem } from '@/components/Toast';
 
 interface UseMailSearchParams {
-  t: (key: string, values?: Record<string, unknown>) => string;
+  t: (key: string, values?: Record<string, any>) => string;
   addToast: (message: string, type?: ToastItem['type'], options?: { duration?: number; action?: ToastItem['action'] }) => void;
 }
 
