@@ -1,12 +1,12 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useTranslations } from 'next-intl';
 import {
-  DriveNode, DriveUsage,
+  DriveNode,
   listDriveNodes, getDriveUsage, createDriveFolder,
-  renameDriveNode, moveDriveNode, trashDriveNode, restoreDriveNode, deleteDriveNodePermanently,
-  downloadDriveNode, listTrashedDriveNodes,
+  trashDriveNode, restoreDriveNode, deleteDriveNodePermanently,
+  downloadDriveNode,
 } from '@/lib/api';
 import { DriveNodeIcon } from '@/lib/driveNodeIcon';
 import { formatBytes, formatDate, BreadcrumbItem, DRIVE_NODE_DRAG_MIME, DRIVE_NODE_DRAG_TEXT, DroppedFileEntry } from '@/lib/drive/driveUtils';
@@ -14,41 +14,27 @@ import { DriveShareModal } from './DriveShareModal';
 import { DriveNodeMenu } from './drive/DriveNodeMenu';
 import {
   FolderIcon, ArrowUpTrayIcon, FolderPlusIcon,
-  EllipsisVerticalIcon, ArrowDownTrayIcon, LinkIcon, PencilIcon,
+  EllipsisVerticalIcon,
   TrashIcon, XMarkIcon, ArrowPathIcon, ChevronRightIcon, ArrowUturnLeftIcon, PauseIcon, PlayIcon,
 } from '@heroicons/react/24/outline';
 import { FolderIcon as FolderSolid, TrashIcon as TrashSolid } from '@heroicons/react/24/solid';
 
 import {
-  DriveUploadSource, DriveSort, DriveUploadBatch,
+  DriveUploadSource, DriveUploadBatch,
   DRIVE_UPLOAD_CONCURRENCY,
-  loadDriveSortSetting, sortDriveNodes, getDriveNodeDragPayload, parseDriveNodeIds,
+  getDriveNodeDragPayload, parseDriveNodeIds,
   isDriveNodeDrag, createDriveDragGhost, normalizeDroppedPath, getDriveUploadSourceLabel,
   collectDroppedFiles,
 } from './drive/driveViewHelpers';
 import { useDriveUpload } from './drive/useDriveUpload';
 import { useDriveSidebar } from './drive/useDriveSidebar';
+import { useDriveNodes } from './drive/useDriveNodes';
+import { useDriveInteractions } from './drive/useDriveInteractions';
 
 export function DriveView() {
   const t = useTranslations('drive');
   const [activeSection, setActiveSection] = useState<'drive' | 'trash'>('drive');
-  const [driveSort, setDriveSort] = useState<DriveSort>(loadDriveSortSetting);
   const [breadcrumb, setBreadcrumb] = useState<BreadcrumbItem[]>([{ id: '', name: t('myDrive') }]);
-  const [nodes, setNodes] = useState<DriveNode[]>([]);
-  const [trashNodes, setTrashNodes] = useState<DriveNode[]>([]);
-  const [usage, setUsage] = useState<DriveUsage | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [trashLoading, setTrashLoading] = useState(false);
-  const [menuNodeId, setMenuNodeId] = useState<string | null>(null);
-  const [renameNodeId, setRenameNodeId] = useState<string | null>(null);
-  const [renameName, setRenameName] = useState('');
-  const [shareNode, setShareNode] = useState<DriveNode | null>(null);
-  const [newFolderMode, setNewFolderMode] = useState(false);
-  const [newFolderName, setNewFolderName] = useState('');
-  const [dragOver, setDragOver] = useState(false);
-  const [draggingNodeIds, setDraggingNodeIds] = useState<string[]>([]);
-  const [selectedNodeIds, setSelectedNodeIds] = useState<string[]>([]);
-  const [dropTargetFolderId, setDropTargetFolderId] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const folderInputRef = useRef<HTMLInputElement>(null);
@@ -57,13 +43,18 @@ export function DriveView() {
 
   const currentParentId = breadcrumb[breadcrumb.length - 1]?.id ?? '';
 
-  const refreshDriveNodes = useCallback(async () => {
-    setLoading(true);
-    const data = await listDriveNodes(currentParentId || undefined);
-    setNodes(sortDriveNodes(data, driveSort));
-    setLoading(false);
-    getDriveUsage().then(setUsage).catch(() => {});
-  }, [currentParentId, driveSort]);
+  const {
+    nodes,
+    setNodes,
+    trashNodes,
+    setTrashNodes,
+    usage,
+    setUsage,
+    loading,
+    trashLoading,
+    refreshDriveNodes,
+    loadTrashNodes,
+  } = useDriveNodes({ breadcrumb, activeSection, t });
 
   const upload = useDriveUpload({ onUploadComplete: refreshDriveNodes, t });
   const {
@@ -94,44 +85,50 @@ export function DriveView() {
     toggleSidebarFolder,
   } = sidebar;
 
+  const {
+    menuNodeId,
+    setMenuNodeId,
+    renameNodeId,
+    setRenameNodeId,
+    renameName,
+    setRenameName,
+    newFolderMode,
+    setNewFolderMode,
+    newFolderName,
+    setNewFolderName,
+    dragOver,
+    setDragOver,
+    draggingNodeIds,
+    setDraggingNodeIds,
+    selectedNodeIds,
+    dropTargetFolderId,
+    setDropTargetFolderId,
+    shareNode,
+    setShareNode,
+    handleCreateFolder,
+    handleRename,
+    handleMoveNodes,
+    applySelection,
+  } = useDriveInteractions({
+    breadcrumb,
+    setBreadcrumb,
+    nodes,
+    setNodes,
+    refreshDriveNodes,
+    setUsage,
+    sidebarLoadKey,
+    setSidebarFolderChildren,
+    setSidebarLoadedFolders,
+    reloadSidebarCurrentPath,
+    t,
+  });
+
   useEffect(() => {
     const folderInput = folderInputRef.current;
     if (!folderInput) return;
     folderInput.setAttribute('webkitdirectory', '');
     folderInput.setAttribute('directory', '');
   }, []);
-
-  const loadNodes = useCallback(async (parentId: string) => {
-    setLoading(true);
-    const data = await listDriveNodes(parentId || undefined);
-    setNodes(sortDriveNodes(data, driveSort));
-    setLoading(false);
-  }, [driveSort]);
-
-  useEffect(() => {
-    const refresh = (event?: StorageEvent) => {
-      if (event && event.key !== 'webmail_settings') return;
-      setDriveSort(loadDriveSortSetting());
-    };
-    window.addEventListener('storage', refresh);
-    return () => window.removeEventListener('storage', refresh);
-  }, []);
-
-  const loadTrashNodes = useCallback(async () => {
-    setTrashLoading(true);
-    const data = await listTrashedDriveNodes();
-    setTrashNodes(data.sort((a, b) => a.name.localeCompare(b.name, 'ko')));
-    setTrashLoading(false);
-  }, []);
-
-  useEffect(() => {
-    loadNodes(currentParentId);
-    getDriveUsage().then(setUsage).catch(() => {});
-  }, [currentParentId, loadNodes]);
-
-  useEffect(() => {
-    if (activeSection === 'trash') loadTrashNodes();
-  }, [activeSection, loadTrashNodes]);
 
   useEffect(() => {
     if (activeSection === 'drive') loadSidebarFolders('');
@@ -148,36 +145,6 @@ export function DriveView() {
   function openFolder(node: DriveNode) {
     if (node.node_type !== 'folder') return;
     setBreadcrumb((prev) => [...prev, { id: node.id, name: node.name }]);
-  }
-
-  async function handleCreateFolder() {
-    if (!newFolderName.trim()) { setNewFolderMode(false); return; }
-    const created = await createDriveFolder(newFolderName.trim(), currentParentId || undefined);
-    if (created) setNodes((prev) => [created, ...prev]);
-    if (created && created.node_type === 'folder') {
-      const key = sidebarLoadKey(currentParentId);
-      setSidebarFolderChildren((prev) => {
-        const current = prev[key] ?? [];
-        const next = [...current, { id: created.id, name: created.name }]
-          .filter((value, index, source) => source.findIndex((item) => item.id === value.id) === index)
-          .sort((a, b) => a.name.localeCompare(b.name, 'ko'));
-        return { ...prev, [key]: next };
-      });
-      setSidebarLoadedFolders((prev) => {
-        const next = new Set(prev);
-        next.add(key);
-        return next;
-      });
-    }
-    setNewFolderName('');
-    setNewFolderMode(false);
-  }
-
-  async function handleRename() {
-    if (!renameNodeId || !renameName.trim()) { setRenameNodeId(null); return; }
-    const ok = await renameDriveNode(renameNodeId, renameName.trim());
-    if (ok) setNodes((prev) => prev.map((n) => n.id === renameNodeId ? { ...n, name: renameName.trim() } : n));
-    setRenameNodeId(null);
   }
 
   async function handleTrash(nodeId: string) {
@@ -314,52 +281,6 @@ export function DriveView() {
   function handleUploadFromList(files: FileList, targetParentId?: string, source: DriveUploadSource = 'picker') {
     const entries = Array.from(files).map((file) => ({ file, relativePath: getUploadRelativePath(file) }));
     handleUploadEntries(entries, targetParentId, source).catch(() => {});
-  }
-
-  async function handleMoveNodes(nodeIds: string[], targetParentId: string) {
-    if (!nodeIds.length) {
-      setDraggingNodeIds([]);
-      setDropTargetFolderId(null);
-      return;
-    }
-
-    const movingById = new Set(nodeIds);
-    let movedAny = false;
-    const movedNodeIds: string[] = [];
-
-    for (const nodeId of movingById) {
-      const source = nodes.find((n) => n.id === nodeId);
-      if (!source) continue;
-      if (source.node_type === 'folder' && source.id === targetParentId) continue;
-      if ((source.parent_id || '') === targetParentId) continue;
-
-      const ok = await moveDriveNode(nodeId, targetParentId);
-      if (ok) {
-        movedAny = true;
-        movedNodeIds.push(nodeId);
-        setNodes((prev) => prev.filter((n) => n.id !== nodeId));
-      }
-    }
-
-    if (movedAny) {
-      loadNodes(currentParentId);
-      getDriveUsage().then(setUsage).catch(() => {});
-    }
-    setSelectedNodeIds((prev) => prev.filter((id) => !movedNodeIds.includes(id)));
-    reloadSidebarCurrentPath();
-    setDraggingNodeIds([]);
-    setDropTargetFolderId(null);
-  }
-
-  function applySelection(nodeId: string, multi: boolean) {
-    setSelectedNodeIds((prev) => {
-      if (!multi) return [nodeId];
-      const next = [...prev];
-      const idx = next.indexOf(nodeId);
-      if (idx === -1) next.push(nodeId);
-      else next.splice(idx, 1);
-      return next;
-    });
   }
 
   const usedPct = usage && usage.quota_limit > 0 ? Math.min(100, (usage.quota_used / usage.quota_limit) * 100) : 0;
