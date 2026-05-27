@@ -5,6 +5,7 @@
 /bin/
 /tmp/
 /var/
+apps/*/var/
 /coverage.out
 /.openchrome/
 
