@@ -1,6 +1,11 @@
 # gogomail current status
 
-Last updated: 2026-05-28 (security hardening: SSO metadata URL SSRF fix)
+Last updated: 2026-05-28 (security hardening: Web Push endpoint SSRF fix)
+
+## Post-remediation hardening round 16 (2026-05-28)
+
+**SSRF via user-controlled Web Push subscription endpoint**
+- **internal/httpapi/mail_push.go**: `POST /api/v1/me/push-subscriptions` stored the user-supplied `endpoint` URL without any SSRF validation. When the server later dispatches push notifications for that user, it makes an outbound HTTP request to the stored endpoint. A malicious user could register a subscription pointing at `http://169.254.169.254/...` or any RFC1918 address, causing the server to probe internal infrastructure. Fixed by calling `webhookguard.ValidateOutboundHTTPURL` before storing the endpoint, returning 400 on blocked URLs.
 
 ## Post-remediation hardening round 15 (2026-05-28)
 
