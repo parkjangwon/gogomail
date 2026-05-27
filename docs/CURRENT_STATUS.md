@@ -1,6 +1,14 @@
 # gogomail current status
 
-Last updated: 2026-05-28 (security hardening: MFA IP spoofing fix)
+Last updated: 2026-05-28 (security hardening: password DoS cap on all auth paths)
+
+## Post-remediation hardening round 6 (2026-05-28)
+
+**Password CPU DoS cap applied to all auth paths**
+- **internal/auth/password.go**: `VerifyPasswordHash` now rejects passwords longer than 1024 bytes (`MaxAuthPasswordBytes`) before starting any PBKDF2 computation. This protects all callers (HTTP login, LDAP bind, SMTP SASL PLAIN) in a single place. `MaxAuthPasswordBytes` is exported so callers can surface a user-friendly error before even calling into `maildb`.
+- **internal/httpapi/mail_auth.go**: `POST /api/v1/auth/token` now returns 400 "password is too long" immediately when the password field exceeds 1024 bytes, before calling `AuthenticateUser`.
+- **internal/httpapi/admin_auth.go**: Admin login endpoint now applies the same 1024-byte cap with a 400 response.
+- Previously only the password-change and reset endpoints had this cap; the login, LDAP, and SMTP paths were unprotected and could be driven to 210k PBKDF2 iterations over multi-megabyte inputs.
 
 ## Post-remediation hardening round 5 (2026-05-28)
 
