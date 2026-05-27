@@ -33,6 +33,53 @@ func newRequestID() string {
 	return hex.EncodeToString(b[:])
 }
 
+// StripInternalProxyHeadersMiddleware removes internal proxy headers from HTTP responses
+// to prevent information leakage in production. These headers should only be used
+// internally for request routing, never exposed to clients.
+func StripInternalProxyHeadersMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Wrap response writer to strip headers before they're written
+		rw := &headerStripper{ResponseWriter: w}
+		next.ServeHTTP(rw, r)
+	})
+}
+
+type headerStripper struct {
+	http.ResponseWriter
+	headerWritten bool
+}
+
+// Internal proxy headers that should never leak to clients
+var internalProxyHeaders = []string{
+	"X-Forwarded-For",
+	"X-Forwarded-Proto",
+	"X-Forwarded-Host",
+	"X-Forwarded-Port",
+	"X-Real-IP",
+	"X-Client-IP",
+	"CF-Connecting-IP",
+	"True-Client-IP",
+}
+
+func (rw *headerStripper) WriteHeader(code int) {
+	if !rw.headerWritten {
+		// Strip internal proxy headers before writing the response
+		for _, header := range internalProxyHeaders {
+			rw.ResponseWriter.Header().Del(header)
+		}
+		rw.headerWritten = true
+	}
+	rw.ResponseWriter.WriteHeader(code)
+}
+
+func (rw *headerStripper) Write(b []byte) (int, error) {
+	// Ensure headers are stripped if WriteHeader wasn't called
+	if !rw.headerWritten {
+		rw.WriteHeader(http.StatusOK)
+	}
+	return rw.ResponseWriter.Write(b)
+}
+
 // SecurityHeadersMiddleware adds defensive HTTP security headers to every response.
 // It should wrap the outermost handler in production deployments.
 func SecurityHeadersMiddleware(next http.Handler) http.Handler {

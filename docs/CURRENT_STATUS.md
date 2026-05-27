@@ -1,6 +1,15 @@
 # gogomail current status
 
-Last updated: 2026-05-27 (Task 0: Secure defaults)
+Last updated: 2026-05-27 (Task 1: Strip proxy headers)
+
+## Task 1: Strip internal proxy headers (2026-05-27)
+
+**Security hardening**: Prevent internal proxy headers from leaking to clients
+- **internal/httpapi/admin_middleware.go**: Added `StripInternalProxyHeadersMiddleware` that wraps response writer to strip X-Forwarded-* and other internal proxy headers before they're sent to clients
+- **internal/app/run.go**: Integrated StripInternalProxyHeadersMiddleware into the HTTP middleware chain (applied before SecurityHeadersMiddleware to intercept any accidentally-set proxy headers)
+- **Test coverage**: Added TestStripInternalProxyHeadersMiddlewareRemovesProxyHeaders, TestSecurityHeadersMiddlewareDoesNotLeakProxyHeaders, TestStripProxyHeadersWithWriteWithoutWriteHeader to verify headers are stripped in all code paths
+- **Headers stripped**: X-Forwarded-For, X-Forwarded-Proto, X-Forwarded-Host, X-Forwarded-Port, X-Real-IP, X-Client-IP, CF-Connecting-IP, True-Client-IP
+- **Impact**: Prevents information leakage via internal proxy headers; codebase properly uses these headers for request routing (from trusted sources only) without echoing them back to clients
 
 ## Task 0: Secure defaults (2026-05-27)
 
