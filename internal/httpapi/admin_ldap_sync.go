@@ -2,6 +2,7 @@ package httpapi
 
 import (
 	"errors"
+	"log/slog"
 	"net/http"
 	"strconv"
 
@@ -221,7 +222,8 @@ func handleGetIdPConfig(w http.ResponseWriter, r *http.Request, service AdminSer
 	}
 	cfg, err := service.GetDomainIdPConfig(r.Context(), id)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
+		slog.ErrorContext(r.Context(), "get idp config failed", "domain_id", id, "error", err)
+		writeError(w, http.StatusInternalServerError, "failed to retrieve IdP configuration")
 		return
 	}
 	writeJSON(w, http.StatusOK, cfg)
@@ -247,7 +249,8 @@ func handleSetIdPConfig(w http.ResponseWriter, r *http.Request, service AdminSer
 		return
 	}
 	if err := service.SetDomainIdPConfig(r.Context(), &cfg); err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
+		slog.ErrorContext(r.Context(), "set idp config failed", "domain_id", id, "error", err)
+		writeError(w, http.StatusInternalServerError, "failed to save IdP configuration")
 		return
 	}
 	writeJSON(w, http.StatusOK, cfg)
@@ -265,7 +268,8 @@ func handleDeleteIdPConfig(w http.ResponseWriter, r *http.Request, service Admin
 		return
 	}
 	if err := service.DeleteDomainIdPConfig(r.Context(), id); err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
+		slog.ErrorContext(r.Context(), "delete idp config failed", "domain_id", id, "error", err)
+		writeError(w, http.StatusInternalServerError, "failed to delete IdP configuration")
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"domain_id": id, "status": "disabled"})

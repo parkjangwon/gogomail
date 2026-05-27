@@ -11,6 +11,10 @@ import (
 	"github.com/gogomail/gogomail/internal/auth"
 )
 
+// maxPasswordBytes caps password length at the HTTP API layer to prevent CPU DoS
+// via PBKDF2 with 210k iterations over a very long input. IMAP uses the same cap.
+const maxPasswordBytes = 1024
+
 type UserProfile struct {
 	UserID        string `json:"user_id"`
 	DomainID      string `json:"domain_id,omitempty"`
@@ -235,6 +239,9 @@ func (r *Repository) ChangeUserPassword(ctx context.Context, userID, currentPass
 	}
 	if len(newPassword) < 8 {
 		return fmt.Errorf("new password must be at least 8 characters")
+	}
+	if len(newPassword) > maxPasswordBytes {
+		return fmt.Errorf("new password must be at most %d bytes", maxPasswordBytes)
 	}
 
 	// Fetch current hash

@@ -16,6 +16,10 @@ import (
 	"github.com/gogomail/gogomail/internal/mailservice"
 )
 
+// maxPasswordResetBytes caps new_password length to prevent CPU DoS via PBKDF2
+// with 210k iterations over a very long input string.
+const maxPasswordResetBytes = 1024
+
 // PasswordResetTokenRecord holds the fields returned by GetPasswordResetToken
 // in the PasswordResetStore interface.
 type PasswordResetTokenRecord struct {
@@ -175,6 +179,10 @@ func RegisterPasswordResetRoutes(
 		}
 		if len(req.NewPassword) < 8 {
 			writeError(w, http.StatusBadRequest, "new_password must be at least 8 characters")
+			return
+		}
+		if len(req.NewPassword) > maxPasswordResetBytes {
+			writeError(w, http.StatusBadRequest, "new_password is too long")
 			return
 		}
 
