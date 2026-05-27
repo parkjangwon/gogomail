@@ -193,7 +193,7 @@ func runHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, mode M
 		logger.Warn("tracing init failed, continuing without traces", "error", err)
 	} else {
 		defer func() {
-			if shutErr := tp.Shutdown(context.Background()); shutErr != nil {
+			if shutErr := tp.Shutdown(context.WithoutCancel(ctx)); shutErr != nil {
 				logger.Warn("tracing shutdown error", "error", shutErr)
 			}
 		}()
@@ -506,7 +506,7 @@ func runHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, mode M
 
 	select {
 	case <-ctx.Done():
-		shutdownCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		shutdownCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 30*time.Second)
 		defer cancel()
 		// Drain background goroutines (invite/welcome/password-reset emails)
 		// before closing the HTTP server so in-flight sends are not lost.

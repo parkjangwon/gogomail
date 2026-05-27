@@ -1,6 +1,15 @@
 # gogomail current status
 
-Last updated: 2026-05-27
+Last updated: 2026-05-27 (analysis improvements)
+
+## Recent improvements (2026-05-27)
+
+- **docker-compose.dev.yml**: `GOGOMAIL_DM_MASTER_KEY` → CHANGEME placeholder; Redis `requirepass dev-redis-password` + healthcheck updated; `GOGOMAIL_REDIS_PASSWORD` added to shared env anchor.
+- **internal/app/run.go**: `context.Background()` → `context.WithoutCancel(ctx)` for OTel shutdown and HTTP graceful shutdown (Go 1.21+).
+- **MessageList.tsx**: Filter/sort pipeline (`baseFiltered`, `afterLabelFilter`, `afterCategoryFilter`, `sortedBase`, `filteredMessages`, `threadCounts`, `pagedMessages`) wrapped in `useMemo`; `PAGE_SIZE`, `PULL_THRESHOLD`, `SKELETON_COUNT` extracted as module-level constants.
+- **MessageRow.tsx**: Wrapped in `React.memo`; avatar `<img>` gets `loading="lazy" decoding="async"`.
+- **useMailList.ts**: `foldersError` / `messagesError` states added; `.catch(() => {})` replaced with proper error capture.
+- **useMessage.ts**: Module-level map cache replaced with TTL-aware cache (5 min); `error` state added.
 
 ## Recent refactoring
 

@@ -1,68 +1,289 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo, useCallback, type KeyboardEvent as ReactKeyboardEvent } from 'react';
+
+const PULL_THRESHOLD = 64;
+const PAGE_SIZE = 50;
+const SKELETON_COUNT = 8;
 import { useTranslations } from 'next-intl';
 import { MessageSummary } from '@/lib/api';
+import {
+  StarIcon,
+  ArrowPathIcon,
+  XMarkIcon,
+  ChevronDownIcon,
+  CheckIcon as CheckIconOutline,
+  Bars3Icon,
+  EllipsisVerticalIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  BarsArrowDownIcon,
+  BarsArrowUpIcon,
+  BookmarkIcon,
+} from '@heroicons/react/24/outline';
 import { MessageRow } from './message-list/MessageRow';
+import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid';
 import { ContactHoverCard } from './message-list/ContactHoverCard';
 import { MessageListHeader } from './message-list/MessageListHeader';
-import { useMessageListSelection } from './message-list/useMessageListSelection';
-import { useContactHoverCard } from './message-list/useContactHoverCard';
-import { useMessageListState } from './message-list/useMessageListState';
+import { moveNavFocus } from '@/lib/navKeyboard';
 import {
   type CategoryTab,
+  type FilterMode,
   type MessageListProps,
+  avatarColor,
   getAutoCategory,
+  formatDate,
+  readingTimeLabel,
+  highlight,
+  CATEGORY_TABS,
 } from './message-list/messageListTypes';
-import { DateGroupKey, getDateGroup } from './message-list/messageListHelpers';
+import { KO_KEYS, DateGroupKey, getDateGroup } from './message-list/messageListHelpers';
 
 export function MessageList({ messages, selectedId, onSelect, loading, emptyLabel, hasMore, loadingMore, onLoadMore, onStar, onBulkDelete, onBulkMarkRead, onRefresh, refreshing, isMobile, onOpenSidebar, onContextMenuMessage, onMarkAllRead, emptyFolderLabel, onEmptyFolder, folders, onBulkMove, paneWidth, fullWidth, bottomLayout, searchQuery, onDeleteMessage, onBulkRestore, onBulkLabel, onBulkStar, onArchiveMessage, onToggleReadMessage, onSnoozeMessage, onPinMessage, pinnedIds = new Set(), importantIds = new Set(), messageLabels = {}, userEmail, showPreview = true, showCategoryTabs = false }: MessageListProps) {
   const t = useTranslations('mailListFull');
-  const {
-    filterMode, setFilterMode,
-    filterLabel, setFilterLabel,
-    showFilterDropdown, setShowFilterDropdown,
-    filterDropdownRef,
-    sortAsc, setSortAsc,
-    bulkMoveOpen, setBulkMoveOpen,
-    categoryTab, setCategoryTab,
-    noteIds,
-    compact,
-    toggleCompact,
-    page, setPage,
-    showMoreMenu, setShowMoreMenu,
-    moreMenuRef,
-    sentinelRef,
-    scrollContainerRef,
-    pullRef,
-    pullY, setPullY,
-    PULL_THRESHOLD,
-    PAGE_SIZE,
-  } = useMessageListState({ messages, selectedId, onLoadMore, hasMore, isMobile, onRefresh, refreshing });
+  const [filterMode, setFilterMode] = useState<FilterMode>('all');
+  const [filterLabel, setFilterLabel] = useState<string | null>(null);
+  const [showFilterDropdown, setShowFilterDropdown] = useState(false);
+  const filterDropdownRef = useRef<HTMLDivElement>(null);
+  const [bulkSelected, setBulkSelected] = useState<Set<string>>(new Set());
+  const hoveredMessageIdRef = useRef<string | null>(null);
+  const [sortAsc, setSortAsc] = useState(false);
+  const [bulkMoveOpen, setBulkMoveOpen] = useState(false);
+  const [categoryTab, setCategoryTab] = useState<CategoryTab>('all');
+  const [noteIds, setNoteIds] = useState<Set<string>>(() => {
+    try { return new Set(Object.keys(JSON.parse(localStorage.getItem('webmail_notes') ?? '{}'))); } catch { return new Set(); }
+  });
+  useEffect(() => {
+    function onStorage(e: StorageEvent) {
+      if (e.key !== 'webmail_notes') return;
+      try { setNoteIds(new Set(Object.keys(JSON.parse(e.newValue ?? '{}')))); } catch { /* */ }
+    }
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
+  }, []);
+  const [compact, setCompact] = useState(() => {
+    try { return localStorage.getItem('webmail_compact') === '1'; } catch { return false; }
+  });
+  const toggleCompact = () => setCompact((v) => {
+    const next = !v;
+    try { localStorage.setItem('webmail_compact', next ? '1' : '0'); } catch { /* */ }
+    return next;
+  });
+  const lastBulkIndexRef = useRef<number | null>(null);
+  const sentinelRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const pullRef = useRef<{ startY: number } | null>(null);
+  const [pullY, setPullY] = useState(0);
+  const [page, setPage] = useState(0);
+  const [showMoreMenu, setShowMoreMenu] = useState(false);
+  const moreMenuRef = useRef<HTMLDivElement>(null);
+  const [contactCard, setContactCard] = useState<{ name: string; addr: string; count: number; x: number; y: number } | null>(null);
+  const contactCardTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const senderCounts = useMemo(() => {
+    const m: Record<string, number> = {};
+    for (const msg of messages) m[msg.from_addr] = (m[msg.from_addr] ?? 0) + 1;
+    return m;
+  }, [messages]);
+
+  const handleAvatarEnter = useCallback((name: string, addr: string, rect: DOMRect) => {
+    if (contactCardTimerRef.current) clearTimeout(contactCardTimerRef.current);
+    const count = senderCounts[addr] ?? 1;
+    contactCardTimerRef.current = setTimeout(() => {
+      setContactCard({ name, addr, count, x: rect.right + 6, y: rect.top - 8 });
+    }, 350);
+  }, [senderCounts]);
+  const handleAvatarLeave = useCallback(() => {
+    if (contactCardTimerRef.current) clearTimeout(contactCardTimerRef.current);
+    contactCardTimerRef.current = setTimeout(() => setContactCard(null), 120);
+  }, []);
+
+  // Scroll selected message into view when selectedId changes (e.g., j/k keyboard nav)
+  useEffect(() => {
+    if (!selectedId || !scrollContainerRef.current) return;
+    const el = scrollContainerRef.current.querySelector<HTMLElement>(`[data-message-id="${selectedId}"]`);
+    el?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }, [selectedId]);
+
+  useEffect(() => {
+    if (!showFilterDropdown) return;
+    function onDown(e: MouseEvent) {
+      if (filterDropdownRef.current && !filterDropdownRef.current.contains(e.target as Node)) {
+        setShowFilterDropdown(false);
+      }
+    }
+    document.addEventListener('mousedown', onDown);
+    return () => document.removeEventListener('mousedown', onDown);
+  }, [showFilterDropdown]);
+
+  useEffect(() => {
+    if (!showMoreMenu) return;
+    function onDown(e: MouseEvent) {
+      if (moreMenuRef.current && !moreMenuRef.current.contains(e.target as Node)) {
+        setShowMoreMenu(false);
+      }
+    }
+    document.addEventListener('mousedown', onDown);
+    return () => document.removeEventListener('mousedown', onDown);
+  }, [showMoreMenu]);
+
+  useEffect(() => {
+    if (!sentinelRef.current || !hasMore || !onLoadMore) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting) onLoadMore(); },
+      { threshold: 0.1 }
+    );
+    observer.observe(sentinelRef.current);
+    return () => observer.disconnect();
+  }, [hasMore, onLoadMore, messages.length]);
+
+  const toggleBulk = (id: string, shiftKey?: boolean) => {
+    const idx = filteredMessages.findIndex((m) => m.id === id);
+    if (shiftKey && lastBulkIndexRef.current !== null && idx !== -1) {
+      const from = Math.min(lastBulkIndexRef.current, idx);
+      const to = Math.max(lastBulkIndexRef.current, idx);
+      const rangeIds = filteredMessages.slice(from, to + 1).map((m) => m.id);
+      setBulkSelected((prev) => {
+        const next = new Set(prev);
+        rangeIds.forEach((rid) => next.add(rid));
+        return next;
+      });
+    } else {
+      setBulkSelected((prev) => {
+        const next = new Set(prev);
+        if (next.has(id)) next.delete(id); else next.add(id);
+        return next;
+      });
+      if (idx !== -1) lastBulkIndexRef.current = idx;
+    }
+  };
+
+  const selectAll = () => setBulkSelected(new Set(filteredMessages.map((m) => m.id)));
+  const clearAll = () => { setBulkSelected(new Set()); lastBulkIndexRef.current = null; };
+  const getActionMessages = (ids: string[]) => ids
+    .map((id) => filteredMessages.find((m) => m.id === id) ?? messages.find((m) => m.id === id))
+    .filter((m): m is MessageSummary => Boolean(m));
+  const runActionForIds = (ids: string[], action: (id: string) => void, clearAfter = false) => {
+    ids.forEach(action);
+    if (clearAfter) clearAll();
+  };
+  const toggleReadForIds = (ids: string[], read: boolean, clearAfter = false) => {
+    ids.forEach((id) => onToggleReadMessage?.(id, read));
+    if (clearAfter) clearAll();
+  };
+  const snoozeIdsForOneHour = (ids: string[], clearAfter = false) => {
+    const until = new Date(Date.now() + 60 * 60 * 1000);
+    ids.forEach((id) => onSnoozeMessage?.(id, until));
+    if (clearAfter) clearAll();
+  };
+  const handleRowKeyDownCapture = (event: ReactKeyboardEvent<HTMLDivElement>) => {
+    const target = event.target as HTMLElement | null;
+    if (!target) return;
+    if (target.closest('button, a, input, textarea, select, [role="button"]')) return;
+
+    const row = target.closest<HTMLElement>('[data-message-id]');
+    if (!row) return;
+
+    if (event.key === 'ArrowDown' || event.key === 'j') {
+      event.preventDefault();
+      event.stopPropagation();
+      moveNavFocus(row, 'next', 'message-list');
+      return;
+    }
+
+    if (event.key === 'ArrowUp' || event.key === 'k') {
+      event.preventDefault();
+      event.stopPropagation();
+      moveNavFocus(row, 'prev', 'message-list');
+      return;
+    }
+
+    if (event.key === 'Home') {
+      event.preventDefault();
+      event.stopPropagation();
+      moveNavFocus(row, 'first', 'message-list');
+      return;
+    }
+
+    if (event.key === 'End') {
+      event.preventDefault();
+      event.stopPropagation();
+      moveNavFocus(row, 'last', 'message-list');
+      return;
+    }
+
+    if (event.key === ' ' || event.key === 'Spacebar') {
+      event.preventDefault();
+      event.stopPropagation();
+      const id = row.dataset.messageId;
+      if (id) toggleBulk(id, event.shiftKey);
+      return;
+    }
+
+    if (event.key === 'Enter' || event.key === 'o') {
+      event.preventDefault();
+      event.stopPropagation();
+      const id = row.dataset.messageId;
+      if (id) onSelect(id);
+    }
+  };
+
+  const bulkSize = bulkSelected.size;
+  const clearAllRef = useRef(clearAll);
+  const selectAllRef = useRef(selectAll);
+  useEffect(() => { clearAllRef.current = clearAll; selectAllRef.current = selectAll; });
+  useEffect(() => {
+    if (bulkSize === 0) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { e.stopPropagation(); clearAllRef.current(); }
+    };
+    window.addEventListener('keydown', handler, { capture: true });
+    return () => window.removeEventListener('keydown', handler, { capture: true });
+  }, [bulkSize]);
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (!(e.ctrlKey || e.metaKey) || e.key !== 'a') return;
+      const tag = (e.target as HTMLElement).tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || (e.target as HTMLElement).isContentEditable) return;
+      e.preventDefault();
+      selectAllRef.current();
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, []);
 
   const selectedIdRef = useRef(selectedId);
   useEffect(() => { selectedIdRef.current = selectedId; }, [selectedId]);
+  useEffect(() => { setPage(0); }, [filterMode, filterLabel]);
+  useEffect(() => { setPage(0); }, [messages]);
 
-  const baseFiltered =
+  const baseFiltered = useMemo(() =>
     filterMode === 'unread' ? messages.filter((m) => !m.read)
     : filterMode === 'read' ? messages.filter((m) => m.read)
     : filterMode === 'starred' ? messages.filter((m) => m.starred)
     : filterMode === 'unstarred' ? messages.filter((m) => !m.starred)
     : filterMode === 'attachment' ? messages.filter((m) => m.has_attachment)
     : filterMode === 'noattachment' ? messages.filter((m) => !m.has_attachment)
-    : messages;
+    : messages,
+  [messages, filterMode]);
 
-  const afterLabelFilter = filterLabel
-    ? baseFiltered.filter((m) => messageLabels[m.id] === filterLabel)
-    : baseFiltered;
+  const afterLabelFilter = useMemo(() =>
+    filterLabel ? baseFiltered.filter((m) => messageLabels[m.id] === filterLabel) : baseFiltered,
+  [baseFiltered, filterLabel, messageLabels]);
 
-  const activeLabelColors = [...new Set(messages.map((m) => messageLabels[m.id]).filter(Boolean))];
+  const activeLabelColors = useMemo(() =>
+    [...new Set(messages.map((m) => messageLabels[m.id]).filter(Boolean))],
+  [messages, messageLabels]);
 
-  const afterCategoryFilter = (showCategoryTabs && categoryTab !== 'all')
-    ? afterLabelFilter.filter((m) => getAutoCategory(m.from_addr, m.subject)?.label === categoryTab)
-    : afterLabelFilter;
+  const afterCategoryFilter = useMemo(() =>
+    (showCategoryTabs && categoryTab !== 'all')
+      ? afterLabelFilter.filter((m) => getAutoCategory(m.from_addr, m.subject)?.label === categoryTab)
+      : afterLabelFilter,
+  [showCategoryTabs, categoryTab, afterLabelFilter]);
 
-  const categoryUnreadCounts = showCategoryTabs ? (() => {
+  const categoryUnreadCounts = useMemo(() => {
+    if (!showCategoryTabs) return {};
     const counts: Partial<Record<CategoryTab, number>> = {};
     for (const m of afterLabelFilter) {
       if (m.read) continue;
@@ -70,9 +291,9 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
       if (cat) counts[cat] = (counts[cat] ?? 0) + 1;
     }
     return counts;
-  })() : {};
+  }, [showCategoryTabs, afterLabelFilter]);
 
-  const sortedBase = (() => {
+  const sortedBase = useMemo(() => {
     const base = sortAsc
       ? [...afterCategoryFilter].sort((a, b) => new Date(a.received_at).getTime() - new Date(b.received_at).getTime())
       : afterCategoryFilter;
@@ -82,7 +303,7 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
       const bPin = pinnedIds.has(b.id) ? 0 : 1;
       return aPin - bPin;
     });
-  })();
+  }, [sortAsc, afterCategoryFilter, pinnedIds]);
 
   const [conversationMode] = useState(() => {
     try { return localStorage.getItem('webmail_conv_mode') !== '0'; } catch { return true; }
@@ -92,7 +313,7 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
     return s.replace(/^(re|fwd?)\s*:\s*/gi, '').trim().toLowerCase();
   }
 
-  const { filteredMessages, threadCounts } = (() => {
+  const { filteredMessages, threadCounts } = useMemo(() => {
     if (!conversationMode) return { filteredMessages: sortedBase, threadCounts: {} as Record<string, number> };
     const seen = new Map<string, { msg: MessageSummary; count: number }>();
     for (const msg of sortedBase) {
@@ -111,43 +332,63 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
     const counts: Record<string, number> = {};
     seen.forEach((v) => { counts[v.msg.id] = v.count; });
     return { filteredMessages: msgs, threadCounts: counts };
-  })();
+  }, [conversationMode, sortedBase]);
 
   const pageStart = page * PAGE_SIZE;
   const pageEnd = pageStart + PAGE_SIZE;
-  const pagedMessages = filteredMessages.slice(pageStart, pageEnd);
+  const pagedMessages = useMemo(() =>
+    filteredMessages.slice(pageStart, pageEnd),
+  [filteredMessages, pageStart, pageEnd]);
 
-  // --- Custom hooks (called after filteredMessages is computed, before any early returns) ---
-  const {
-    bulkSelected,
-    toggleBulk,
-    selectAll,
-    clearAll,
-    getActionMessages,
-    handleRowKeyDownCapture,
-    hoveredMessageIdRef,
-  } = useMessageListSelection({
-    filteredMessages,
-    messages,
-    onSelect,
-    onToggleReadMessage,
-    onArchiveMessage,
-    onSnoozeMessage,
-    onPinMessage,
-    onDeleteMessage,
-    onBulkDelete,
-  });
+  useEffect(() => {
+    const handler = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (target?.closest('input, textarea, select, [contenteditable="true"]')) return;
+      const bulkIds = [...bulkSelected];
+      const ids = bulkIds.length > 0 ? bulkIds : hoveredMessageIdRef.current ? [hoveredMessageIdRef.current] : [];
+      if (ids.length === 0) return;
+      const actionMessages = getActionMessages(ids);
+      if (actionMessages.length === 0) return;
+      const lowerKey = (KO_KEYS[event.key] ?? event.key).toLowerCase();
+      const isBulkAction = bulkIds.length > 0;
+      const finish = (run: () => void) => {
+        event.preventDefault();
+        event.stopPropagation();
+        event.stopImmediatePropagation();
+        run();
+      };
 
-  const { contactCard, handleAvatarEnter, handleAvatarLeave, closeContactCard } = useContactHoverCard(messages);
-
-  const runActionForIds = (ids: string[], action: (id: string) => void, clearAfter = false) => {
-    ids.forEach(action);
-    if (clearAfter) clearAll();
-  };
-  const toggleReadForIds = (ids: string[], read: boolean, clearAfter = false) => {
-    ids.forEach((id) => onToggleReadMessage?.(id, read));
-    if (clearAfter) clearAll();
-  };
+      if (lowerKey === 'm' && onToggleReadMessage) {
+        const readTarget = actionMessages.some((m) => !m.read);
+        finish(() => toggleReadForIds(ids, readTarget, isBulkAction));
+        return;
+      }
+      if (lowerKey === 'e' && onArchiveMessage) {
+        finish(() => runActionForIds(ids, onArchiveMessage, isBulkAction));
+        return;
+      }
+      if (lowerKey === 'z' && onSnoozeMessage) {
+        finish(() => snoozeIdsForOneHour(ids, isBulkAction));
+        return;
+      }
+      if (lowerKey === 'p' && onPinMessage) {
+        finish(() => runActionForIds(ids, onPinMessage, isBulkAction));
+        return;
+      }
+      if ((event.key === '#' || event.key === 'Delete') && onDeleteMessage) {
+        finish(() => {
+          if (isBulkAction && onBulkDelete) {
+            onBulkDelete(ids);
+            clearAll();
+          } else {
+            runActionForIds(ids, onDeleteMessage);
+          }
+        });
+      }
+    };
+    window.addEventListener('keydown', handler, { capture: true });
+    return () => window.removeEventListener('keydown', handler, { capture: true });
+  }, [bulkSelected, filteredMessages, messages, onToggleReadMessage, onArchiveMessage, onSnoozeMessage, onPinMessage, onDeleteMessage, onBulkDelete]);
 
   const listWidth = (isMobile || fullWidth || bottomLayout || !paneWidth)
     ? { flex: 1, minWidth: 0 }
@@ -429,7 +670,7 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
       {contactCard && (
         <ContactHoverCard
           {...contactCard}
-          onClose={closeContactCard}
+          onClose={() => { if (contactCardTimerRef.current) clearTimeout(contactCardTimerRef.current); setContactCard(null); }}
         />
       )}
       </div>
