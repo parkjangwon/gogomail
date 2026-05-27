@@ -182,6 +182,20 @@ func registerUserAndConfigRoutes(mux *http.ServeMux, service AdminService, token
 		if !ok {
 			return
 		}
+		user, err := service.GetUser(r.Context(), id)
+		if err != nil {
+			writeError(w, http.StatusNotFound, "user not found")
+			return
+		}
+		domain, err := service.GetDomain(r.Context(), user.DomainID)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "failed to resolve domain")
+			return
+		}
+		if err := requiresCompanyAccess(r.Context(), domain.CompanyID); err != nil {
+			writeError(w, http.StatusForbidden, "access denied")
+			return
+		}
 		it, err := service.CreateInviteToken(r.Context(), id, "")
 		if err != nil {
 			writeError(w, http.StatusBadRequest, err.Error())

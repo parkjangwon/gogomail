@@ -1,6 +1,11 @@
 # gogomail current status
 
-Last updated: 2026-05-28 (security hardening: user endpoint IDOR sweep)
+Last updated: 2026-05-28 (security hardening: invite endpoint IDOR fix)
+
+## Post-remediation hardening round 25 (2026-05-28)
+
+**IDOR on POST /admin/v1/users/{id}/invite**
+- **internal/httpapi/admin_user.go**: The invite handler fetched the user ID from the path and immediately created an invite token + sent an invite email without any company isolation check. A `company_admin` could trigger invite emails to any user in any company by supplying an arbitrary `{id}`. Fixed with `GetUser → GetDomain → requiresCompanyAccess`, consistent with all other user-scoped admin endpoints.
 
 ## Post-remediation hardening round 24 (2026-05-28)
 
