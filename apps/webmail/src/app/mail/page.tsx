@@ -23,11 +23,12 @@ import { ContactsView } from '@/components/ContactsView';
 import { SettingsView } from '@/components/SettingsView';
 import { type SectionId } from '@/components/settings-view/settingsViewConfig';
 import { DriveView } from '@/components/DriveView';
-import { DMPanel } from '@/components/DMPanel';
 import { SpotlightSearch } from '@/components/SpotlightSearch';
 import { MFASetupPromptModal } from '@/components/MFASetupPromptModal';
 import { SpamReportDialog } from '@/components/spam/SpamReportDialog';
 import { MailWarningBanners } from './MailWarningBanners';
+import { SpamFolderBanner } from './SpamFolderBanner';
+import { MailDMModal } from './MailDMModal';
 import { useMailMessageActions } from './useMailMessageActions';
 import { useDMModal } from './useDMModal';
 import { useMailLabels } from './useMailLabels';
@@ -54,9 +55,6 @@ import {
 } from '@/lib/mail/mailPageUtils';
 import { useNotifications } from '@/lib/notifications/store';
 import {
-  DM_MODAL_MIN_WIDTH,
-  DM_MODAL_MIN_HEIGHT,
-  DM_RESIZE_HANDLES,
   getDefaultDMModalRect,
   type DMModalRect,
   type DMResizeEdge,
@@ -521,52 +519,16 @@ export default function MailPage() {
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
 
             {/* Spam folder info banner */}
-            {(activeFolderSystemType === 'spam' || activeFolderSystemType === 'junk') && (
-              <div style={{
-                display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap',
-                padding: '9px 16px',
-                background: 'color-mix(in srgb, var(--color-warning) 10%, transparent)',
-                borderBottom: '1px solid color-mix(in srgb, var(--color-warning) 25%, transparent)',
-                flexShrink: 0,
-              }}>
-                <span style={{ fontSize: '12px', color: 'var(--color-text-secondary)', flex: 1, minWidth: 120 }}>
-                  {t('misc.mailPage.spamAutoDelete')}
-                </span>
-                <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
-                  {messages.length > 0 && (
-                    <button
-                      onClick={async () => {
-                        const inboxFolder = folders.find((f) => f.system_type === 'inbox');
-                        if (!inboxFolder) return;
-                        const ids = messages.map((m) => m.id);
-                        removeVisibleMessages(ids);
-                        setSelectedMessageId(null);
-                        await Promise.allSettled(ids.map((id) => moveMessage(id, inboxFolder.id)));
-                        addToast(t('misc.mailPage.allNotSpam', { count: ids.length }), 'info');
-                      }}
-                      style={{ padding: '4px 12px', borderRadius: '5px', border: '1px solid var(--color-border-default)', background: 'transparent', color: 'var(--color-text-secondary)', fontSize: '12px', cursor: 'pointer', whiteSpace: 'nowrap' }}
-                      onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-secondary)'; }}
-                      onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
-                    >
-                      {t('misc.mailPage.markAllNotSpam')}
-                    </button>
-                  )}
-                  {messages.length > 0 && (
-                    <button
-                      onClick={() => {
-                        const ids = messages.map((m) => m.id);
-                        handleBulkDelete(ids);
-                      }}
-                      style={{ padding: '4px 12px', borderRadius: '5px', border: '1px solid var(--color-destructive)', background: 'transparent', color: 'var(--color-destructive)', fontSize: '12px', cursor: 'pointer', whiteSpace: 'nowrap' }}
-                      onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'color-mix(in srgb, var(--color-destructive) 10%, transparent)'; }}
-                      onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
-                    >
-                      {t('misc.mailPage.emptySpam')}
-                    </button>
-                  )}
-                </div>
-              </div>
-            )}
+            <SpamFolderBanner
+              activeFolderSystemType={activeFolderSystemType}
+              messages={messages}
+              folders={folders}
+              removeVisibleMessages={removeVisibleMessages}
+              setSelectedMessageId={setSelectedMessageId}
+              handleBulkDelete={handleBulkDelete}
+              addToast={addToast}
+              t={t}
+            />
 
             <MessageList
               messages={visibleMessages}
@@ -625,39 +587,16 @@ export default function MailPage() {
       ) : null}
 
       {showDMModal && (
-        <div
-          role="dialog"
-          aria-modal="false"
-          aria-label="DM"
-          style={{
-            position: 'fixed',
-            ...(isMobile
-              ? { inset: 0, width: '100%', height: '100dvh', borderRadius: 0 }
-              : { left: resolvedDMModalRect.left, top: resolvedDMModalRect.top, width: resolvedDMModalRect.width, height: resolvedDMModalRect.height, minWidth: `min(${DM_MODAL_MIN_WIDTH}px, calc(100vw - 24px))`, minHeight: `min(${DM_MODAL_MIN_HEIGHT}px, calc(100vh - 24px))`, maxWidth: 'calc(100vw - 24px)', maxHeight: 'calc(100vh - 24px)', borderRadius: 8 }),
-            zIndex: 120,
-            overflow: 'hidden',
-            background: 'var(--color-bg-primary)',
-            border: isMobile ? 'none' : '1px solid var(--color-border-default)',
-            boxShadow: isMobile ? 'none' : '0 12px 42px rgba(0,0,0,0.20)',
-            display: 'flex',
-            animation: 'composeIn 120ms ease-out',
-          }}
-        >
-          {!isMobile && DM_RESIZE_HANDLES.map((handle) => (
-            <div
-              key={handle.edge}
-              aria-hidden="true"
-              onMouseDown={(event) => startDMModalResize(handle.edge, event)}
-              style={{
-                position: 'absolute',
-                zIndex: 4,
-                cursor: handle.cursor,
-                ...handle.style,
-              }}
-            />
-          ))}
-          <DMPanel userEmail={userEmail || undefined} onUnreadChange={setDMUnreadCount} onClose={() => setShowDMModal(false)} onComposeToAddress={(email) => openCompose({ intent: 'new', to: email, focusSubjectOnOpen: true })} onStartWindowDrag={startDMModalDrag} />
-        </div>
+        <MailDMModal
+          isMobile={isMobile}
+          rect={resolvedDMModalRect}
+          userEmail={userEmail || undefined}
+          onUnreadChange={setDMUnreadCount}
+          onClose={() => setShowDMModal(false)}
+          onComposeToAddress={(email) => openCompose({ intent: 'new', to: email, focusSubjectOnOpen: true })}
+          onStartWindowDrag={startDMModalDrag}
+          onStartResize={startDMModalResize}
+        />
       )}
 
       <MFASetupPromptModal
