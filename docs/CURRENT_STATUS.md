@@ -1,6 +1,13 @@
 # gogomail current status
 
-Last updated: 2026-05-28 (security hardening: replace custom HMAC-SHA1 in TOTP with crypto/hmac)
+Last updated: 2026-05-28 (security hardening: CSV formula injection in admin exports)
+
+## Post-remediation hardening round 19 (2026-05-28)
+
+**CSV formula injection in admin user/audit-log exports**
+- **internal/httpapi/admin_company.go**: User export CSV wrote `u.Username` and `u.DisplayName` verbatim. A user whose display name starts with `=`, `+`, `-`, or `@` (e.g., `=HYPERLINK("http://evil.com","click")`) causes formula execution when an admin opens the file in Excel or LibreOffice Calc. Applied `sanitizeCSVCell` to both fields.
+- **internal/httpapi/admin_governance.go**: Audit-log export CSV wrote `l.TargetID` (can be an email address) and `l.Result` without escaping. Same formula-injection risk. Applied `sanitizeCSVCell` to both fields.
+- **internal/httpapi/csv_sanitize.go** (new): `sanitizeCSVCell` helper — prefixes any cell starting with `=`, `+`, `-`, `@`, `\t`, or `\r` with a tab character, which causes spreadsheet applications to treat the value as plain text rather than a formula.
 
 ## Post-remediation hardening round 18 (2026-05-28)
 

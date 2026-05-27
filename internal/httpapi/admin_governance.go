@@ -429,7 +429,7 @@ func handleExportCompanyAuditLogs(w http.ResponseWriter, r *http.Request, servic
 	for _, l := range logs {
 		_ = wr.Write([]string{
 			l.ID, l.CompanyID, l.ActorID, l.Category, l.Action,
-			l.TargetType, l.TargetID, l.Result, l.IPAddress,
+			l.TargetType, sanitizeCSVCell(l.TargetID), sanitizeCSVCell(l.Result), l.IPAddress,
 			l.CreatedAt.Format(time.RFC3339),
 		})
 	}

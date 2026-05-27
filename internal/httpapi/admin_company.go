@@ -270,8 +270,8 @@ func registerCompanyRoutes(mux *http.ServeMux, service AdminService, adminAuth f
 		_ = cw.Write([]string{"email", "display_name", "domain_id", "status", "quota_used", "quota_limit", "created_at"})
 		for _, u := range users {
 			_ = cw.Write([]string{
-				u.Username,
-				u.DisplayName,
+				sanitizeCSVCell(u.Username),
+				sanitizeCSVCell(u.DisplayName),
 				u.DomainID,
 				u.Status,
 				strconv.FormatInt(u.QuotaUsed, 10),
