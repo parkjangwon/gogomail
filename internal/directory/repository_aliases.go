@@ -70,6 +70,39 @@ func (r *Repository) ResolveAlias(ctx context.Context, req ResolveAliasRequest) 
 	return alias, nil
 }
 
+func (r *Repository) GetAlias(ctx context.Context, id string) (Alias, error) {
+	if r == nil || r.db == nil {
+		return Alias{}, fmt.Errorf("database handle is required")
+	}
+	id, err := NormalizePrincipalID(id)
+	if err != nil {
+		return Alias{}, fmt.Errorf("alias id: %w", err)
+	}
+	const query = `
+SELECT id::text,
+       company_id::text,
+       domain_id::text,
+       alias_address,
+       alias_address_ace,
+       target_kind,
+       target_id::text,
+       status
+FROM directory_aliases
+WHERE id = $1::uuid`
+	var alias Alias
+	if err := r.db.QueryRowContext(ctx, query, id).Scan(
+		&alias.ID, &alias.CompanyID, &alias.DomainID,
+		&alias.Address, &alias.AddressACE,
+		&alias.TargetKind, &alias.TargetID, &alias.Status,
+	); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return Alias{}, fmt.Errorf("directory alias not found")
+		}
+		return Alias{}, fmt.Errorf("get directory alias: %w", err)
+	}
+	return alias, nil
+}
+
 func (r *Repository) CreateAlias(ctx context.Context, req CreateAliasRequest) (Alias, error) {
 	if r == nil || r.db == nil {
 		return Alias{}, fmt.Errorf("database handle is required")

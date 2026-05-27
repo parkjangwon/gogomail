@@ -74,6 +74,46 @@ func (r *Repository) CheckDelegation(ctx context.Context, req CheckDelegationReq
 	return false, nil
 }
 
+func (r *Repository) GetDelegation(ctx context.Context, id string) (Delegation, error) {
+	if r == nil || r.db == nil {
+		return Delegation{}, fmt.Errorf("database handle is required")
+	}
+	id, err := NormalizePrincipalID(id)
+	if err != nil {
+		return Delegation{}, fmt.Errorf("delegation id: %w", err)
+	}
+	const query = `
+SELECT id::text,
+       company_id::text,
+       owner_kind,
+       owner_id::text,
+       delegate_kind,
+       delegate_id::text,
+       scope,
+       role,
+       status
+FROM directory_delegations
+WHERE id = $1::uuid`
+	var delegation Delegation
+	if err := r.db.QueryRowContext(ctx, query, id).Scan(
+		&delegation.ID,
+		&delegation.CompanyID,
+		&delegation.OwnerKind,
+		&delegation.OwnerID,
+		&delegation.DelegateKind,
+		&delegation.DelegateID,
+		&delegation.Scope,
+		&delegation.Role,
+		&delegation.Status,
+	); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return Delegation{}, fmt.Errorf("directory delegation not found")
+		}
+		return Delegation{}, fmt.Errorf("get directory delegation: %w", err)
+	}
+	return delegation, nil
+}
+
 func (r *Repository) CreateDelegationWithAudit(ctx context.Context, req CreateDelegationRequest) (Delegation, error) {
 	if r == nil || r.db == nil {
 		return Delegation{}, fmt.Errorf("database handle is required")

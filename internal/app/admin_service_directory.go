@@ -111,3 +111,24 @@ func (s adminService) ListDirectoryAliases(ctx context.Context, req directory.Li
 	}
 	return s.directory.ListAliases(ctx, req)
 }
+
+func (s adminService) GetDirectoryAlias(ctx context.Context, id string) (directory.Alias, error) {
+	if s.directory == nil {
+		return directory.Alias{}, fmt.Errorf("directory backend is not configured")
+	}
+	return s.directory.GetAlias(ctx, id)
+}
+
+func (s adminService) GetDirectoryGroupMembership(ctx context.Context, id string) (directory.GroupMembership, error) {
+	if s.directory == nil {
+		return directory.GroupMembership{}, fmt.Errorf("directory backend is not configured")
+	}
+	return s.directory.GetGroupMembership(ctx, id)
+}
+
+func (s adminService) GetDirectoryDelegation(ctx context.Context, id string) (directory.Delegation, error) {
+	if s.directory == nil {
+		return directory.Delegation{}, fmt.Errorf("directory backend is not configured")
+	}
+	return s.directory.GetDelegation(ctx, id)
+}

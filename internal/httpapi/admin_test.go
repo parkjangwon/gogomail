@@ -10014,6 +10014,18 @@ func (f *fakeAdminService) DeleteDirectoryDelegation(_ context.Context, id strin
 	return f.directoryDelegation, nil
 }
 
+func (f *fakeAdminService) GetDirectoryAlias(_ context.Context, id string) (directory.Alias, error) {
+	return f.directoryAlias, nil
+}
+
+func (f *fakeAdminService) GetDirectoryGroupMembership(_ context.Context, id string) (directory.GroupMembership, error) {
+	return f.directoryGroupMembership, nil
+}
+
+func (f *fakeAdminService) GetDirectoryDelegation(_ context.Context, id string) (directory.Delegation, error) {
+	return f.directoryDelegation, nil
+}
+
 func (f *fakeAdminService) ListDirectoryDelegations(_ context.Context, req directory.ListDelegationsRequest) ([]directory.Delegation, error) {
 	if _, err := directory.NormalizeListDelegationsRequest(req); err != nil {
 		return nil, err

@@ -92,6 +92,15 @@ func registerDirectoryRoutes(mux *http.ServeMux, service AdminService, adminAuth
 		if !ok {
 			return
 		}
+		existing, err := service.GetDirectoryAlias(r.Context(), id)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		if err := requiresCompanyAccess(r.Context(), existing.CompanyID); err != nil {
+			writeError(w, http.StatusForbidden, err.Error())
+			return
+		}
 		alias, err := service.DeleteDirectoryAlias(r.Context(), id)
 		if err != nil {
 			writeError(w, http.StatusBadRequest, err.Error())
@@ -186,6 +195,15 @@ func registerDirectoryRoutes(mux *http.ServeMux, service AdminService, adminAuth
 		if !ok {
 			return
 		}
+		existing, err := service.GetDirectoryGroupMembership(r.Context(), id)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		if err := requiresCompanyAccess(r.Context(), existing.CompanyID); err != nil {
+			writeError(w, http.StatusForbidden, err.Error())
+			return
+		}
 		membership, err := service.DeleteDirectoryGroupMembership(r.Context(), id)
 		if err != nil {
 			writeError(w, http.StatusBadRequest, err.Error())
@@ -202,6 +220,15 @@ func registerDirectoryRoutes(mux *http.ServeMux, service AdminService, adminAuth
 		}
 		id, ok := parseBoundedAdminPathValue(w, r, "id")
 		if !ok {
+			return
+		}
+		existing, err := service.GetDirectoryGroupMembership(r.Context(), id)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		if err := requiresCompanyAccess(r.Context(), existing.CompanyID); err != nil {
+			writeError(w, http.StatusForbidden, err.Error())
 			return
 		}
 		var req directory.UpdateGroupMembershipRoleRequest
@@ -228,6 +255,15 @@ func registerDirectoryRoutes(mux *http.ServeMux, service AdminService, adminAuth
 		if !ok {
 			return
 		}
+		existing, err := service.GetDirectoryGroupMembership(r.Context(), id)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		if err := requiresCompanyAccess(r.Context(), existing.CompanyID); err != nil {
+			writeError(w, http.StatusForbidden, err.Error())
+			return
+		}
 		var req directory.ReassignGroupMembershipRequest
 		if err := decodeJSONBody(r, &req); err != nil {
 			writeError(w, http.StatusBadRequest, "invalid JSON body")
@@ -250,6 +286,15 @@ func registerDirectoryRoutes(mux *http.ServeMux, service AdminService, adminAuth
 		}
 		id, ok := parseBoundedAdminPathValue(w, r, "id")
 		if !ok {
+			return
+		}
+		existing, err := service.GetDirectoryDelegation(r.Context(), id)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		if err := requiresCompanyAccess(r.Context(), existing.CompanyID); err != nil {
+			writeError(w, http.StatusForbidden, err.Error())
 			return
 		}
 		var req directory.UpdateDelegationRoleRequest
@@ -276,6 +321,15 @@ func registerDirectoryRoutes(mux *http.ServeMux, service AdminService, adminAuth
 		if !ok {
 			return
 		}
+		existing, err := service.GetDirectoryDelegation(r.Context(), id)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		if err := requiresCompanyAccess(r.Context(), existing.CompanyID); err != nil {
+			writeError(w, http.StatusForbidden, err.Error())
+			return
+		}
 		var req directory.ReassignDelegationRequest
 		if err := decodeJSONBody(r, &req); err != nil {
 			writeError(w, http.StatusBadRequest, "invalid JSON body")
@@ -296,6 +350,15 @@ func registerDirectoryRoutes(mux *http.ServeMux, service AdminService, adminAuth
 		}
 		id, ok := parseBoundedAdminPathValue(w, r, "id")
 		if !ok {
+			return
+		}
+		existing, err := service.GetDirectoryDelegation(r.Context(), id)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		if err := requiresCompanyAccess(r.Context(), existing.CompanyID); err != nil {
+			writeError(w, http.StatusForbidden, err.Error())
 			return
 		}
 		delegation, err := service.DeleteDirectoryDelegation(r.Context(), id)

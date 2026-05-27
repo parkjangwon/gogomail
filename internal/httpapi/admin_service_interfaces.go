@@ -147,6 +147,9 @@ type adminDirectoryService interface {
 	ReassignDirectoryDelegation(ctx context.Context, req directory.ReassignDelegationRequest) (directory.Delegation, error)
 	ReassignDirectoryGroupMembership(ctx context.Context, req directory.ReassignGroupMembershipRequest) (directory.GroupMembership, error)
 	UpdateDirectoryGroupMembershipRole(ctx context.Context, req directory.UpdateGroupMembershipRoleRequest) (directory.GroupMembership, error)
+	GetDirectoryAlias(ctx context.Context, id string) (directory.Alias, error)
+	GetDirectoryGroupMembership(ctx context.Context, id string) (directory.GroupMembership, error)
+	GetDirectoryDelegation(ctx context.Context, id string) (directory.Delegation, error)
 }
 
 type adminDriveService interface {
