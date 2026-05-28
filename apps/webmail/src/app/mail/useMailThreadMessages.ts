@@ -7,6 +7,7 @@ interface UseMailThreadMessagesParams {
   selectedThreadId: string | null;
   selectedMessageId: string | null;
   selectedMessageSubject: string | undefined;
+  activeFolderId: string;
   setThreadMessages: Dispatch<SetStateAction<MessageSummary[]>>;
 }
 
@@ -20,6 +21,7 @@ export function useMailThreadMessages({
   selectedThreadId,
   selectedMessageId,
   selectedMessageSubject,
+  activeFolderId,
   setThreadMessages,
 }: UseMailThreadMessagesParams): void {
   useEffect(() => {
@@ -41,7 +43,7 @@ export function useMailThreadMessages({
     const normalizedSubject = selectedMessageSubject.replace(/^(Re|Fwd?|Fw):\s*/gi, '').trim();
     if (!normalizedSubject) { setThreadMessages([]); return; }
     let cancelled = false;
-    searchMessages({ subject: normalizedSubject, limit: 20 })
+    searchMessages({ subject: normalizedSubject, folder_id: activeFolderId, limit: 20 })
       .then((res) => {
         if (cancelled) return;
         const sorted = [...(res.messages ?? [])].sort(
@@ -52,5 +54,5 @@ export function useMailThreadMessages({
       .catch(() => { if (!cancelled) setThreadMessages([]); });
     return () => { cancelled = true; };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedThreadId, selectedMessageId, selectedMessageSubject, setThreadMessages]);
+  }, [selectedThreadId, selectedMessageId, selectedMessageSubject, activeFolderId, setThreadMessages]);
 }

@@ -4,6 +4,7 @@ import React from 'react';
 import { useTranslations } from 'next-intl';
 import {
   MessageSummary,
+  ThreadSummary,
   Folder,
   sendMessage,
 } from '@/lib/api';
@@ -19,6 +20,7 @@ interface MailReadingPanelProps {
   selectedMessage: ReturnType<typeof useMessage>['message'];
   messages: MessageSummary[];
   searchResults: MessageSummary[] | null;
+  threads: ThreadSummary[];
   isMobile: boolean;
   readingPaneWidth: number;
   setReadingPaneWidth: (w: number) => void;
@@ -60,6 +62,7 @@ export function MailReadingPanel({
   selectedMessage,
   messages,
   searchResults,
+  threads,
   isMobile,
   readingPaneWidth,
   setReadingPaneWidth,
@@ -96,10 +99,24 @@ export function MailReadingPanel({
 }: MailReadingPanelProps) {
   const t = useTranslations('misc');
 
-  const msgList = searchResults ?? messages;
-  const curIdx = msgList.findIndex((m) => m.id === selectedMessageId);
-  const prevId = curIdx > 0 ? msgList[curIdx - 1].id : null;
-  const nextId = curIdx !== -1 && curIdx < msgList.length - 1 ? msgList[curIdx + 1].id : null;
+  // In thread view, navigate among threads using latest_message_id. Otherwise use
+  // search results or the flat message list.
+  let prevId: string | null = null;
+  let nextId: string | null = null;
+  let curIdx = -1;
+  let listTotal = 0;
+  if (threads.length > 0 && !searchResults) {
+    curIdx = threads.findIndex((t) => t.latest_message_id === selectedMessageId);
+    listTotal = threads.length;
+    prevId = curIdx > 0 ? threads[curIdx - 1].latest_message_id : null;
+    nextId = curIdx !== -1 && curIdx < threads.length - 1 ? threads[curIdx + 1].latest_message_id : null;
+  } else {
+    const msgList = searchResults ?? messages;
+    curIdx = msgList.findIndex((m) => m.id === selectedMessageId);
+    listTotal = msgList.length;
+    prevId = curIdx > 0 ? msgList[curIdx - 1].id : null;
+    nextId = curIdx !== -1 && curIdx < msgList.length - 1 ? msgList[curIdx + 1].id : null;
+  }
   const panelOpen = !!selectedMessageId;
 
   return (
@@ -191,7 +208,7 @@ export function MailReadingPanel({
           onPrev={prevId ? () => onSelectMessage(prevId) : undefined}
           onNext={nextId ? () => onSelectMessage(nextId) : undefined}
           messageIndex={curIdx >= 0 ? curIdx : undefined}
-          messageTotal={curIdx >= 0 ? msgList.length : undefined}
+          messageTotal={curIdx >= 0 ? listTotal : undefined}
           onQuickReply={selectedMessage ? async (body) => {
             await sendMessage({
               to: [{ address: selectedMessage.from_addr, name: selectedMessage.from_name || undefined }],

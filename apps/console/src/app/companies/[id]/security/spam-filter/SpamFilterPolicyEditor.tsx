@@ -34,7 +34,7 @@ interface SpamFilterPolicyEditorProps {
   locale: string;
 }
 
-export function SpamFilterPolicyEditor({ policy, onPolicyChange, saving, isDirty, onSave, savedPolicyJson, t, locale }: SpamFilterPolicyEditorProps) {
+export function SpamFilterPolicyEditor({ policy, onPolicyChange, saving, isDirty, onSave, savedPolicyJson, t }: SpamFilterPolicyEditorProps) {
   const setPolicy = (updater: SpamFilterPolicy | ((prev: SpamFilterPolicy) => SpamFilterPolicy)) => {
     if (typeof updater === 'function') {
       onPolicyChange(updater(policy));
