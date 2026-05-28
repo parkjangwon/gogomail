@@ -641,7 +641,9 @@
       "description": "バックプレッシャー設定を管理します",
       "no_data": "データなし",
       "throttle_rate": "スロットルレート",
-      "title": "バックプレッシャー"
+      "title": "バックプレッシャー",
+      "reason": "理由",
+      "until": "有効期限"
     },
     "companies": {
       "actions": "Actions",

@@ -642,7 +642,9 @@
       "description": "Manage backpressure settings",
       "no_data": "No data",
       "throttle_rate": "Throttle Rate",
-      "title": "Backpressure"
+      "title": "Backpressure",
+      "reason": "Reason",
+      "until": "Active Until"
     },
     "companies": {
       "actions": "Actions",

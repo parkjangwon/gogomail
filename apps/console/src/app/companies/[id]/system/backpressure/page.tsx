@@ -79,7 +79,7 @@ export default function BackpressurePage() {
       <ContentLayout header={<Header variant="h1">{t('pages.backpressure.title')}</Header>}>
         <Box textAlign="center" padding="xl">
           <SpaceBetween size="m" alignItems="center">
-            <Box color="text-status-error">{t('pages.backpressure_page.current_status')}</Box>
+            <Box color="text-status-error">{t('pages.backpressure.no_data')}</Box>
             <Button iconName="refresh" onClick={() => backpressureQuery.refetch()}>{t('common.retry')}</Button>
           </SpaceBetween>
         </Box>
@@ -126,7 +126,7 @@ export default function BackpressurePage() {
                   {
                     label: t('pages.backpressure_page.enabled'),
                     value: (
-                      <Badge color={state.level === 'normal' ? 'grey' : 'green'}>
+                      <Badge color={state.level === 'normal' ? 'grey' : state.level === 'critical' ? 'red' : 'severity-high'}>
                         {state.level === 'normal' ? t('pages.backpressure.disabled') : t('pages.backpressure_page.enabled_label')}
                       </Badge>
                     ),
@@ -138,8 +138,9 @@ export default function BackpressurePage() {
             <Container header={<Header variant="h3">{t('pages.backpressure_page.metrics')}</Header>}>
               <KeyValuePairs
                 items={[
-                  { label: t('pages.backpressure_page.current_level'), value: `${thresholdForLevel(state.level)}%` },
                   { label: t('pages.backpressure_page.threshold'), value: `${thresholdForLevel(state.level)}%` },
+                  ...(state.reason ? [{ label: t('pages.backpressure_page.reason'), value: state.reason }] : []),
+                  ...(state.until ? [{ label: t('pages.backpressure_page.until'), value: new Date(state.until).toLocaleString() }] : []),
                   { label: t('pages.backpressure_page.last_updated'), value: new Date(state.updated_at ?? Date.now()).toLocaleString() },
                 ]}
               />

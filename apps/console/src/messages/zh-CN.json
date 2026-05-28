@@ -641,7 +641,9 @@
       "description": "管理背压设置",
       "no_data": "暂无数据",
       "throttle_rate": "限流速率",
-      "title": "背压"
+      "title": "背压",
+      "reason": "原因",
+      "until": "有效期至"
     },
     "companies": {
       "actions": "Actions",
