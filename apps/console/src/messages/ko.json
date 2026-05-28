@@ -528,7 +528,9 @@
       "backpressure_active": "백프레셔 활성",
       "backpressure_threshold": "백프레셔 임계값",
       "throttle_rate": "처리율 제한",
-      "no_data": "데이터가 없습니다"
+      "no_data": "데이터가 없습니다",
+      "reason": "사유",
+      "until": "만료 시각"
     },
     "companies": {
       "actions": "작업",
