@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { MessageSummary, markRead, starMessage, moveMessage } from '@/lib/api';
 import { loadFilterRules } from '@/components/settings/settingsConfig';
 
@@ -24,11 +24,20 @@ export function useMailFilterRules(params: UseMailFilterRulesParams) {
     folders,
   } = params;
 
+  // Track message IDs that have already been processed by filter rules to
+  // prevent re-applying actions on re-renders triggered by setMessages calls.
+  const processedIdsRef = useRef(new Set<string>());
+
   // Apply client-side filter rules to newly loaded messages
   useEffect(() => {
     if (messages.length === 0) return;
     const rules = loadFilterRules().filter((r) => r.enabled);
     if (rules.length === 0) return;
+
+    // Only process messages we haven't seen before
+    const unprocessed = messages.filter((m) => !processedIdsRef.current.has(m.id));
+    if (unprocessed.length === 0) return;
+    unprocessed.forEach((m) => processedIdsRef.current.add(m.id));
 
     const labelUpdates: Record<string, string> = {};
     const markReadIds: string[] = [];
@@ -36,7 +45,7 @@ export function useMailFilterRules(params: UseMailFilterRulesParams) {
     const markStarredIds: string[] = [];
     const trashIds: string[] = [];
 
-    for (const msg of messages) {
+    for (const msg of unprocessed) {
       for (const rule of rules) {
         const condResults = rule.conditions.map((cond) => {
           if (cond.field === 'has_attachment') return !!(msg as MessageSummary & { has_attachment?: boolean }).has_attachment;
