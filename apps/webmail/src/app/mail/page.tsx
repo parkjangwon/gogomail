@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { moveMessage, sendMessage, MessageSummary } from '@/lib/api';
+import { moveMessage, MessageSummary } from '@/lib/api';
 import { AdvancedFilters, VIRTUAL_ALL, VIRTUAL_SNOOZED } from '@/components/Sidebar';
 import { useMailList } from '@/hooks/useMailList';
 import { useMessage } from '@/hooks/useMessage';
@@ -11,7 +11,6 @@ import { useIsMobile } from '@/hooks/useIsMobile';
 import { useIsOnline } from '@/hooks/useIsOnline';
 import { Sidebar } from '@/components/Sidebar';
 import { MessageList } from '@/components/MessageList';
-import { ReadingPane } from '@/components/ReadingPane';
 import { ComposeModal } from '@/components/ComposeModal';
 import { ToastContainer, ToastItem } from '@/components/Toast';
 import { ShortcutHelp } from '@/components/ShortcutHelp';
@@ -55,6 +54,7 @@ import {
   getEmptyFolderLabel,
   getVisibleMailMessages,
 } from '@/lib/mail/mailPageUtils';
+import { MailReadingPanel } from './MailReadingPanel';
 import { useNotifications } from '@/lib/notifications/store';
 import {
   getDefaultDMModalRect,
@@ -608,132 +608,45 @@ export default function MailPage() {
       />
 
       {/* Slide-in reading pane overlay */}
-      {(() => {
-        const msgList = searchResults ?? messages;
-        const curIdx = msgList.findIndex((m) => m.id === selectedMessageId);
-        const prevId = curIdx > 0 ? msgList[curIdx - 1].id : null;
-        const nextId = curIdx !== -1 && curIdx < msgList.length - 1 ? msgList[curIdx + 1].id : null;
-        const panelOpen = !!selectedMessageId;
-        return (
-          <>
-            {/* backdrop — semi-transparent, click closes panel */}
-            <div
-              aria-hidden="true"
-              onClick={() => setSelectedMessageId(null)}
-              style={{
-                position: 'fixed', inset: 0, zIndex: 49,
-                background: 'rgba(0,0,0,0.15)',
-                opacity: panelOpen ? 1 : 0,
-                pointerEvents: panelOpen ? 'auto' : 'none',
-                transition: 'opacity 200ms ease',
-              }}
-            />
-            <div
-              role="region"
-              aria-label={t('misc.mailPage.readingRegion')}
-              onTouchStart={isMobile ? (e) => { swipeTouchStartRef.current = e.touches[0].clientX; } : undefined}
-              onTouchMove={isMobile ? (e) => {
-                if (swipeTouchStartRef.current === null) return;
-                const delta = e.touches[0].clientX - swipeTouchStartRef.current;
-                if (delta > 0) setSwipeDeltaX(delta);
-              } : undefined}
-              onTouchEnd={isMobile ? () => {
-                if (swipeDeltaX > 80) setSelectedMessageId(null);
-                setSwipeDeltaX(0);
-                swipeTouchStartRef.current = null;
-              } : undefined}
-              style={{
-                position: 'fixed',
-                top: 0,
-                right: 0,
-                height: '100dvh',
-                width: isMobile ? '100%' : readingPaneWidth > 0 ? `${readingPaneWidth}px` : 'min(720px, 55vw)',
-                transform: panelOpen
-                  ? (isMobile && swipeDeltaX > 0 ? `translateX(${swipeDeltaX}px)` : 'translateX(0)')
-                  : 'translateX(100%)',
-                transition: swipeDeltaX > 0 ? 'none' : 'transform 220ms cubic-bezier(0.4,0,0.2,1)',
-                zIndex: 50,
-                display: 'flex',
-                flexDirection: 'column',
-                background: 'var(--color-bg-primary)',
-                borderLeft: isMobile ? 'none' : '1px solid var(--color-border-default)',
-                boxShadow: panelOpen ? '-8px 0 32px rgba(0,0,0,0.12)' : 'none',
-              }}
-            >
-              {/* Resize handle — left edge */}
-              {!isMobile && panelOpen && (
-                <div
-                  aria-hidden="true"
-                  style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: '5px', cursor: 'col-resize', zIndex: 10, transition: 'background 150ms ease' }}
-                  onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.background = 'var(--color-accent)'; }}
-                  onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.background = 'transparent'; }}
-                  onMouseDown={(e) => {
-                    e.preventDefault();
-                    const startX = e.clientX;
-                    const startW = readingPaneWidth > 0 ? readingPaneWidth : Math.min(720, window.innerWidth * 0.55);
-                    let lastW = startW;
-                    const onMove = (ev: MouseEvent) => {
-                      lastW = Math.min(window.innerWidth - 300, Math.max(380, startW - (ev.clientX - startX)));
-                      setReadingPaneWidth(lastW);
-                    };
-                    const onUp = () => {
-                      document.removeEventListener('mousemove', onMove);
-                      document.removeEventListener('mouseup', onUp);
-                      try { localStorage.setItem('webmail_reading_pane_width', String(lastW)); } catch { /* */ }
-                    };
-                    document.addEventListener('mousemove', onMove);
-                    document.addEventListener('mouseup', onUp);
-                  }}
-                />
-              )}
-              <ReadingPane
-                message={selectedMessage}
-                folders={folders}
-                onArchive={activeFolderSystemType !== 'archive' && activeFolderSystemType !== 'trash' && activeFolderSystemType !== 'spam' && activeFolderSystemType !== 'junk' ? handleArchive : undefined}
-                onSpam={folders.some((f) => f.system_type === 'spam' || f.system_type === 'junk') && activeFolderSystemType !== 'spam' && activeFolderSystemType !== 'junk' && activeFolderSystemType !== 'trash' ? handleSpam : undefined}
-                onNotSpam={activeFolderSystemType === 'spam' || activeFolderSystemType === 'junk' ? handleNotSpam : undefined}
-                onDelete={handleDelete}
-                onReply={() => selectedMessage && openCompose({ intent: 'reply', source: selectedMessage })}
-                onReplyAll={() => selectedMessage && openCompose({ intent: 'reply_all', source: selectedMessage })}
-                onForward={() => selectedMessage && openCompose({ intent: 'forward', source: selectedMessage })}
-                onMove={handleMove}
-                onPrint={selectedMessage ? () => printMessage(selectedMessage, t) : undefined}
-                loading={messageLoading}
-                onBack={() => setSelectedMessageId(null)}
-                onPrev={prevId ? () => handleSelectMessage(prevId) : undefined}
-                onNext={nextId ? () => handleSelectMessage(nextId) : undefined}
-                messageIndex={curIdx >= 0 ? curIdx : undefined}
-                messageTotal={curIdx >= 0 ? msgList.length : undefined}
-                onQuickReply={selectedMessage ? async (body) => {
-                  await sendMessage({
-                    to: [{ address: selectedMessage.from_addr, name: selectedMessage.from_name || undefined }],
-                    subject: `Re: ${selectedMessage.subject || ''}`,
-                    text_body: body,
-                    intent: 'reply',
-                    source_message_id: selectedMessage.id,
-                  });
-                  addToast(t('misc.mailPage.replySent'));
-                } : undefined}
-                onRestore={selectedMessageId && (activeFolderSystemType === 'trash' || activeFolderSystemType === 'archive') ? () => activeFolderSystemType === 'archive' ? handleRestoreFromArchive(selectedMessageId) : handleRestore(selectedMessageId) : undefined}
-                onComposeToAddress={(address) => openCompose({ intent: 'new', to: address })}
-                onBlockSender={handleBlockSender}
-                onSnooze={activeFolderSystemType !== 'trash' ? handleSnooze : undefined}
-                onOpenInWindow={selectedMessageId ? () => window.open(`/mail/${selectedMessageId}`, '_blank', 'width=900,height=700,menubar=no,toolbar=no') : undefined}
-                onToggleRead={selectedMessageId ? () => { const m = findVisibleMessage(selectedMessageId); if (m?.read) handleMarkUnread(); else void handleMarkRead(); } : undefined}
-                isRead={selectedMessageId ? findVisibleMessage(selectedMessageId)?.read : undefined}
-                onStar={selectedMessageId ? () => { const m = findVisibleMessage(selectedMessageId); if (m) handleStar(m.id, !m.starred); } : undefined}
-                isStarred={selectedMessageId ? findVisibleMessage(selectedMessageId)?.starred : undefined}
-                onToggleThreadMute={selectedNotificationThreadId ? handleToggleThreadMute : undefined}
-                isThreadMuted={selectedThreadMuted}
-                threadMessages={threadMessages.length > 1 ? threadMessages : undefined}
-                onSelectThread={handleSelectMessage}
-                userEmail={userEmail || undefined}
-                externalImages={wmSettings.externalImages}
-              />
-            </div>
-          </>
-        );
-      })()}
+      <MailReadingPanel
+        selectedMessageId={selectedMessageId}
+        selectedMessage={selectedMessage}
+        messages={messages}
+        searchResults={searchResults}
+        isMobile={isMobile}
+        readingPaneWidth={readingPaneWidth}
+        setReadingPaneWidth={setReadingPaneWidth}
+        messageLoading={messageLoading}
+        folders={folders}
+        activeFolderSystemType={activeFolderSystemType}
+        wmSettings={wmSettings}
+        swipeDeltaX={swipeDeltaX}
+        setSwipeDeltaX={setSwipeDeltaX}
+        swipeTouchStartRef={swipeTouchStartRef}
+        onClose={() => setSelectedMessageId(null)}
+        onSelectMessage={handleSelectMessage}
+        onOpenCompose={openCompose}
+        onArchive={activeFolderSystemType !== 'archive' && activeFolderSystemType !== 'trash' && activeFolderSystemType !== 'spam' && activeFolderSystemType !== 'junk' ? handleArchive : undefined}
+        onSpam={folders.some((f) => f.system_type === 'spam' || f.system_type === 'junk') && activeFolderSystemType !== 'spam' && activeFolderSystemType !== 'junk' && activeFolderSystemType !== 'trash' ? handleSpam : undefined}
+        onNotSpam={activeFolderSystemType === 'spam' || activeFolderSystemType === 'junk' ? handleNotSpam : undefined}
+        onDelete={handleDelete}
+        onMove={handleMove}
+        onPrint={selectedMessage ? () => printMessage(selectedMessage, t) : undefined}
+        onRestore={selectedMessageId && (activeFolderSystemType === 'trash' || activeFolderSystemType === 'archive') ? () => activeFolderSystemType === 'archive' ? handleRestoreFromArchive(selectedMessageId) : handleRestore(selectedMessageId) : undefined}
+        onComposeToAddress={(address) => openCompose({ intent: 'new', to: address })}
+        onBlockSender={handleBlockSender}
+        onSnooze={activeFolderSystemType !== 'trash' ? handleSnooze : undefined}
+        onToggleRead={selectedMessageId ? () => { const m = findVisibleMessage(selectedMessageId); if (m?.read) handleMarkUnread(); else void handleMarkRead(); } : undefined}
+        isRead={selectedMessageId ? findVisibleMessage(selectedMessageId)?.read : undefined}
+        onStar={selectedMessageId ? () => { const m = findVisibleMessage(selectedMessageId); if (m) handleStar(m.id, !m.starred); } : undefined}
+        isStarred={selectedMessageId ? findVisibleMessage(selectedMessageId)?.starred : undefined}
+        onToggleThreadMute={selectedNotificationThreadId ? handleToggleThreadMute : undefined}
+        isThreadMuted={selectedThreadMuted}
+        threadMessages={threadMessages.length > 1 ? threadMessages : undefined}
+        onSelectThread={handleSelectMessage}
+        userEmail={userEmail || undefined}
+        addToast={addToast}
+      />
 
       {/* Spam Report Dialog */}
       {spamDialogMessageId && (() => {
@@ -858,9 +771,9 @@ export default function MailPage() {
                   .map((f) => ({
                     label: f.name,
                     onClick: () => {
-                      const msg = messages.find((m) => m.id === contextMenu.id);
+                      const msg = findVisibleMessage(contextMenu.id);
                       if (msg && !msg.read) adjustUnread(activeFolderId, -1);
-                      setMessages((prev) => prev.filter((m) => m.id !== contextMenu.id));
+                      removeVisibleMessages([contextMenu.id]);
                       if (selectedMessageId === contextMenu.id) setSelectedMessageId(null);
                       moveMessage(contextMenu.id, f.id)
                         .then(() => addToast(t('misc.mailPage.movedTo', { name: f.name })))
