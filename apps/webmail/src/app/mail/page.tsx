@@ -162,6 +162,7 @@ export default function MailPage() {
     selectedThreadId,
     selectedMessageId,
     selectedMessageSubject: selectedMessage?.subject,
+    activeFolderId,
     setThreadMessages,
   });
 
@@ -613,6 +614,7 @@ export default function MailPage() {
         selectedMessage={selectedMessage}
         messages={messages}
         searchResults={searchResults}
+        threads={threads}
         isMobile={isMobile}
         readingPaneWidth={readingPaneWidth}
         setReadingPaneWidth={setReadingPaneWidth}

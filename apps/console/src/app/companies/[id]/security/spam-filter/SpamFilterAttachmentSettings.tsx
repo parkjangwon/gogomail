@@ -29,6 +29,17 @@ export function SpamFilterAttachmentSettings({
   t,
 }: SpamFilterAttachmentSettingsProps) {
   const [newBlockedExt, setNewBlockedExt] = useState('');
+  const [mbError, setMbError] = useState('');
+
+  function handleMaxChange(raw: string) {
+    const parsed = parseInt(raw, 10);
+    if (!raw.trim() || isNaN(parsed) || parsed <= 0) {
+      setMbError(t('pages.spam_filter_page.max_attachment_error', 'Must be greater than 0'));
+      return;
+    }
+    setMbError('');
+    onMaxChange(parsed);
+  }
 
   return (
     <Container header={<Header variant="h2">{t('pages.spam_filter_page.attachments_section')}</Header>}>
@@ -36,11 +47,13 @@ export function SpamFilterAttachmentSettings({
         <FormField
           label={t('pages.spam_filter_page.max_attachment_label')}
           constraintText={t('pages.spam_filter_page.max_attachment_hint')}
+          errorText={mbError || undefined}
         >
           <Input
             type="number"
             value={String(maxAttachmentMb)}
-            onChange={e => onMaxChange(parseInt(e.detail.value) || 0)}
+            invalid={!!mbError}
+            onChange={e => handleMaxChange(e.detail.value)}
           />
         </FormField>
 
