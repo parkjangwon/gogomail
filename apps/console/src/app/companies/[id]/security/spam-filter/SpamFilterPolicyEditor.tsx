@@ -20,6 +20,8 @@ import {
 import { useState, useMemo } from 'react';
 import { DataTable } from '@/components/DataTable';
 import { SpamFilterPolicy, FilterPack, FilterRule, builtinFilterPacks } from './spamFilterTypes';
+import { SpamFilterAttachmentSettings } from './SpamFilterAttachmentSettings';
+import { SpamFilterSenderLists } from './SpamFilterSenderLists';
 
 interface SpamFilterPolicyEditorProps {
   policy: SpamFilterPolicy;
@@ -41,9 +43,6 @@ export function SpamFilterPolicyEditor({ policy, onPolicyChange, saving, isDirty
     }
   };
 
-  const [newBlockedExt, setNewBlockedExt] = useState('');
-  const [newBlockedSender, setNewBlockedSender] = useState('');
-  const [newAllowedSender, setNewAllowedSender] = useState('');
   const [newRBLZone, setNewRBLZone] = useState('');
   const [newPackId, setNewPackId] = useState('');
   const [newPackName, setNewPackName] = useState('');
@@ -620,105 +619,25 @@ export function SpamFilterPolicyEditor({ policy, onPolicyChange, saving, isDirty
       </Container>
 
       {/* Attachments */}
-      <Container header={<Header variant="h2">{t('pages.spam_filter_page.attachments_section')}</Header>}>
-        <SpaceBetween size="m">
-          <FormField
-            label={t('pages.spam_filter_page.max_attachment_label')}
-            constraintText={t('pages.spam_filter_page.max_attachment_hint')}
-          >
-            <Input
-              type="number"
-              value={String(policy.max_attachment_mb)}
-              onChange={e => setPolicy(p => ({ ...p, max_attachment_mb: parseInt(e.detail.value) || 0 }))}
-            />
-          </FormField>
-
-          <FormField label={t('pages.spam_filter_page.blocked_ext_label')} description={t('pages.spam_filter_page.blocked_ext_desc')}>
-            <SpaceBetween size="xs">
-              <SpaceBetween direction="horizontal" size="xs">
-                {policy.blocked_extensions.map((ext, i) => (
-                  <SpaceBetween key={i} direction="horizontal" size="xs">
-                    <Badge color="red">{ext}</Badge>
-                    <Button variant="inline-link" onClick={() => removeFromList('blocked_extensions', i)}>
-                      {t('common.delete')}
-                    </Button>
-                  </SpaceBetween>
-                ))}
-              </SpaceBetween>
-              <SpaceBetween direction="horizontal" size="xs">
-                <Input
-                  value={newBlockedExt}
-                  onChange={e => setNewBlockedExt(e.detail.value)}
-                  placeholder=".exe"
-                />
-                <Button onClick={() => addToList('blocked_extensions', newBlockedExt, setNewBlockedExt)}>
-                  {t('common.add')}
-                </Button>
-              </SpaceBetween>
-            </SpaceBetween>
-          </FormField>
-        </SpaceBetween>
-      </Container>
+      <SpamFilterAttachmentSettings
+        maxAttachmentMb={policy.max_attachment_mb}
+        onMaxChange={mb => setPolicy(p => ({ ...p, max_attachment_mb: mb }))}
+        blockedExtensions={policy.blocked_extensions}
+        onRemoveExtension={i => removeFromList('blocked_extensions', i)}
+        onAddExtension={value => setPolicy(p => ({ ...p, blocked_extensions: [...p.blocked_extensions, value] }))}
+        t={t}
+      />
 
       {/* Sender lists */}
-      <Container header={<Header variant="h2">{t('pages.spam_filter_page.senders_section')}</Header>}>
-        <SpaceBetween size="m">
-          <FormField label={t('pages.spam_filter_page.blocked_senders_label')} description={t('pages.spam_filter_page.blocked_senders_desc')}>
-            <SpaceBetween size="xs">
-              {policy.blocked_senders.length === 0 && (
-                <Box color="text-body-secondary" fontSize="body-s">{t('pages.spam_filter_page.no_blocked_senders')}</Box>
-              )}
-              {policy.blocked_senders.map((s, i) => (
-                <SpaceBetween key={i} direction="horizontal" size="xs">
-                  <Badge color="red">{s}</Badge>
-                  <Button variant="inline-link" onClick={() => removeFromList('blocked_senders', i)}>
-                    {t('common.delete')}
-                  </Button>
-                </SpaceBetween>
-              ))}
-              <SpaceBetween direction="horizontal" size="xs">
-                <Input
-                  value={newBlockedSender}
-                  onChange={e => setNewBlockedSender(e.detail.value)}
-                  placeholder="spam@example.com or @domain.com"
-                />
-                <Button onClick={() => addToList('blocked_senders', newBlockedSender, setNewBlockedSender)}>
-                  {t('common.add')}
-                </Button>
-              </SpaceBetween>
-            </SpaceBetween>
-          </FormField>
-
-          <FormField label={t('pages.spam_filter_page.allowed_senders_label')} description={t('pages.spam_filter_page.allowed_senders_desc')}>
-            <SpaceBetween size="xs">
-              {policy.allowed_senders.length > 0 && (
-                <Alert type="info">{t('pages.spam_filter_page.allowed_senders_warning')}</Alert>
-              )}
-              {policy.allowed_senders.length === 0 && (
-                <Box color="text-body-secondary" fontSize="body-s">{t('pages.spam_filter_page.no_allowed_senders')}</Box>
-              )}
-              {policy.allowed_senders.map((s, i) => (
-                <SpaceBetween key={i} direction="horizontal" size="xs">
-                  <Badge color="green">{s}</Badge>
-                  <Button variant="inline-link" onClick={() => removeFromList('allowed_senders', i)}>
-                    {t('common.delete')}
-                  </Button>
-                </SpaceBetween>
-              ))}
-              <SpaceBetween direction="horizontal" size="xs">
-                <Input
-                  value={newAllowedSender}
-                  onChange={e => setNewAllowedSender(e.detail.value)}
-                  placeholder="trusted@partner.com or @trusted.com"
-                />
-                <Button onClick={() => addToList('allowed_senders', newAllowedSender, setNewAllowedSender)}>
-                  {t('common.add')}
-                </Button>
-              </SpaceBetween>
-            </SpaceBetween>
-          </FormField>
-        </SpaceBetween>
-      </Container>
+      <SpamFilterSenderLists
+        blockedSenders={policy.blocked_senders}
+        allowedSenders={policy.allowed_senders}
+        onRemoveBlockedSender={i => removeFromList('blocked_senders', i)}
+        onAddBlockedSender={value => setPolicy(p => ({ ...p, blocked_senders: [...p.blocked_senders, value] }))}
+        onRemoveAllowedSender={i => removeFromList('allowed_senders', i)}
+        onAddAllowedSender={value => setPolicy(p => ({ ...p, allowed_senders: [...p.allowed_senders, value] }))}
+        t={t}
+      />
 
       {/* Save bar */}
       <Box float="right">
