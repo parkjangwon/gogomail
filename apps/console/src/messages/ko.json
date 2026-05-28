@@ -210,7 +210,8 @@
       "title": "관리자 계정",
       "username": "사용자명",
       "username_label": "사용자명",
-      "description": "시스템 관리자 계정을 관리합니다"
+      "description": "시스템 관리자 계정을 관리합니다",
+      "custom_role": "사용자 정의"
     },
     "alerts_page": {
       "actions": "작업",
@@ -1791,7 +1792,8 @@
       "avg_rate": "평균 처리율",
       "chart_title": "큐 현황",
       "overview": "큐 개요",
-      "updated": "업데이트"
+      "updated": "업데이트",
+      "idle": "유휴"
     },
     "quota_alerts": {
       "title": "할당량 알림",
@@ -3659,7 +3661,14 @@
     "load_error": "전역 서명을 불러오지 못했습니다.",
     "text_tab": "일반 텍스트",
     "text_desc": "텍스트 전용 메일에 추가되는 일반 텍스트 서명입니다.",
-    "html_placeholder": "<p>감사합니다,<br/><strong>Acme Corp</strong><br/>support@acme.com</p>"
+    "html_placeholder": "<p>감사합니다,<br/><strong>Acme Corp</strong><br/>support@acme.com</p>",
+    "description": "모든 발신 메일에 회사 공통 서명을 추가합니다.",
+    "disabled": "비활성화됨",
+    "enabled": "활성화됨",
+    "html_hint": "서식 있는 HTML 메일에 추가되는 HTML 서명입니다. 호환성을 위해 인라인 스타일을 사용하세요.",
+    "plain_hint": "텍스트 전용 메일에 추가되는 일반 텍스트 서명입니다.",
+    "tab_html": "HTML",
+    "tab_plain": "일반 텍스트"
   },
   "legal_holds": {
     "title": "법적 보관",
@@ -3684,7 +3693,23 @@
     "release_confirm_prefix": "다음 사용자에 대한 보관을 해제할까요:",
     "release_confirm_suffix": "메일함은 더 이상 보존되지 않으며 일반 보존 정책의 적용을 받을 수 있습니다.",
     "reason_placeholder": "소송 - 사건 #12345",
-    "reason_desc": "보존을 위한 법무 또는 컴플라이언스 사유입니다."
+    "reason_desc": "보존을 위한 법무 또는 컴플라이언스 사유입니다.",
+    "active_holds_header": "활성 보관",
+    "col_created_at": "생성일",
+    "col_created_by": "생성자",
+    "col_reason": "사유",
+    "col_release": "해제",
+    "col_user": "사용자",
+    "create_hold_btn": "보관 생성",
+    "create_modal_header": "법적 보관 생성",
+    "no_holds": "법적 보관이 없습니다. 보관 생성을 클릭해 사용자 메일함을 보존하세요.",
+    "reason_label": "사유",
+    "release_confirm": "메일함은 더 이상 보존되지 않으며 일반 보존 정책의 적용을 받을 수 있습니다.",
+    "release_hold_btn": "보관 해제",
+    "release_modal_header": "법적 보관 해제",
+    "release_warning": "이 작업은 되돌릴 수 없습니다.",
+    "user_email_label": "사용자 이메일",
+    "validation_error": "사용자 이메일과 사유는 필수입니다."
   },
   "notif_templates_page": {
     "failed_load": "템플릿을 불러오지 못했습니다",
@@ -3700,7 +3725,25 @@
     "preview_title": "이메일 미리보기",
     "preview_iframe_title": "이메일 HTML 미리보기",
     "preview_subject": "제목",
-    "no_html_content": "아직 HTML 내용이 없습니다."
+    "no_html_content": "아직 HTML 내용이 없습니다.",
+    "col_id": "ID",
+    "col_locale": "로케일",
+    "col_template": "템플릿",
+    "col_variables": "변수",
+    "email_preview_desc": "샘플 값으로 실시간 미리보기",
+    "email_preview_header": "이메일 미리보기",
+    "html_body_label": "HTML 본문",
+    "locale_label": "로케일",
+    "no_plain_content": "아직 일반 텍스트 내용이 없습니다.",
+    "no_templates": "사용 가능한 템플릿이 없습니다",
+    "plain_body_label": "일반 텍스트 본문",
+    "sample_values_desc": "미리보기 전용",
+    "sample_values_header": "샘플 값",
+    "subject_label": "제목",
+    "tab_html": "HTML",
+    "tab_plain": "일반 텍스트",
+    "template_saved": "템플릿이 저장되었습니다",
+    "templates_header": "템플릿"
   },
   "login": {
     "subtitle": "관리자 콘솔",
@@ -3786,5 +3829,82 @@
     "dns_fail": "실패",
     "dns_partial": "부분 통과",
     "dns_unchecked": "미확인"
+  },
+  "audit_logs_page_v2": {
+    "all_categories": "전체 카테고리",
+    "audit_trail": "감사 추적",
+    "cat_auth": "인증",
+    "cat_config": "설정",
+    "cat_domain": "도메인",
+    "cat_security": "보안",
+    "cat_user": "사용자",
+    "col_action": "작업",
+    "col_actor": "주체",
+    "col_category": "카테고리",
+    "col_ip": "IP",
+    "col_result": "결과",
+    "col_target": "대상",
+    "col_time": "시간",
+    "count_text": "건",
+    "export": "내보내기",
+    "export_csv": "CSV로 내보내기",
+    "export_json": "JSON으로 내보내기",
+    "exported_as": "내보내기 완료:",
+    "failed_load": "감사 로그를 불러오지 못했습니다",
+    "last_100": "최근 100건",
+    "last_50": "최근 50건",
+    "last_500": "최근 500건",
+    "loading_text": "감사 로그를 불러오는 중…",
+    "no_logs": "감사 로그가 없습니다",
+    "refresh": "새로고침",
+    "search_placeholder": "작업, 주체, 대상 검색…"
+  },
+  "domain_detail_mail_stats": {
+    "delivered": "전달됨",
+    "description": "이 도메인에서 발송된 메시지 — 최근 7일",
+    "failed": "실패",
+    "header": "일별 메시지 수",
+    "messages": "건",
+    "no_data": "최근 7일간 메일 데이터가 없습니다.",
+    "refresh": "새로고침",
+    "tab_label": "메일 통계",
+    "total_last_7d": "7일 합계:"
+  },
+  "reports_page": {
+    "change_history_link": "변경 내역 및 감사 내보내기 →",
+    "csv_via_api": "CSV 내보내기: API를 통해 사용 가능",
+    "custom_export": "맞춤 내보내기",
+    "custom_export_desc": "필터링된 감사 내보내기는 변경 내역 페이지를, 실시간 상태 스냅샷은 테넌트 상태 페이지를 이용하세요.",
+    "description": "컴플라이언스 및 운영 보고서를 생성하고 내보냅니다",
+    "export": "내보내기",
+    "export_csv": "CSV로 내보내기",
+    "print_pdf": "인쇄 / PDF로 저장",
+    "reports": {
+      "audit_logs": {
+        "category": "컴플라이언스",
+        "description": "컴플라이언스 검토를 위한 관리자 작업 전체 감사 내역",
+        "name": "감사 로그 보고서"
+      },
+      "domain_health": {
+        "category": "도메인",
+        "description": "도메인 상태, DNS 검사 결과, 도메인별 할당량 사용량",
+        "name": "도메인 상태 요약"
+      },
+      "quota_summary": {
+        "category": "스토리지",
+        "description": "도메인별 스토리지 할당 및 사용량 분석",
+        "name": "저장 할당량 요약"
+      },
+      "users_export": {
+        "category": "사용자",
+        "description": "상태, 할당량, 도메인 배정이 포함된 전체 사용자 목록",
+        "name": "사용자 디렉토리 내보내기"
+      }
+    },
+    "tenant_health_link": "테넌트 상태 보고서 →"
+  },
+  "users_page_v2": {
+    "quota_label_gb": "GB (0 = 도메인 기본값)",
+    "role_desc": "회사 관리자 이상은 관리 콘솔에 로그인할 수 있습니다."
   }
 }
