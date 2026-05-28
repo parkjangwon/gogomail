@@ -48,10 +48,11 @@ export default function CompanyOverviewPage() {
   const params = useParams();
   const router = useRouter();
   const companyId = params?.id as string;
-  const { companies, currentCompany, refresh } = useCompany();
+  const { companies, currentCompany, refresh, loading: companiesLoading } = useCompany();
 
   const [domains, setDomains] = useState<Domain[]>([]);
   const [loadingDomains, setLoadingDomains] = useState(true);
+  const [domainsError, setDomainsError] = useState('');
   const [activeTab, setActiveTab] = useState('overview');
 
   const [configs, setConfigs] = useState<ConfigEntry[]>([]);
@@ -72,10 +73,14 @@ export default function CompanyOverviewPage() {
   useEffect(() => {
     if (!company) return;
     setLoadingDomains(true);
+    setDomainsError('');
     fetch(`/api/admin/domains?company_id=${company.id}&limit=100`, { credentials: 'include' })
-      .then(r => r.ok ? r.json() : { domains: [] })
+      .then(r => {
+        if (!r.ok) throw new Error(r.statusText);
+        return r.json();
+      })
       .then(d => setDomains(d.domains || []))
-      .catch(() => { })
+      .catch(() => { setDomainsError(t('common.error')); })
       .finally(() => setLoadingDomains(false));
   }, [company]);
 
@@ -91,13 +96,16 @@ export default function CompanyOverviewPage() {
 
   useEffect(() => {
     if (activeTab === 'settings') fetchConfigs();
-  }, [activeTab, company?.id]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, company?.id, fetchConfigs]);
 
   const handleSaveQuota = async () => {
     if (!company) return;
+    const isUnlimited = quotaGb.trim() === '' || quotaGb.trim() === '0';
+    if (isUnlimited && !window.confirm(t('pages.company_overview.quota_unlimited_confirm', 'Setting 0 or blank removes the quota limit (unlimited storage). Continue?'))) return;
     setSavingQuota(true);
     try {
-      const limitBytes = quotaGb.trim() === '' ? 0 : Math.round(parseFloat(quotaGb) * 1073741824);
+      const limitBytes = isUnlimited ? 0 : Math.round(parseFloat(quotaGb) * 1073741824);
       const res = await fetch(`/api/admin/companies/${company.id}/quota`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -143,9 +151,16 @@ export default function CompanyOverviewPage() {
   }, [company, fetchConfigs]);
 
   if (!company) {
+    if (companiesLoading) {
+      return (
+        <ContentLayout header={<Header variant="h1">{t('pages.company_overview.title')}</Header>}>
+          <Box textAlign="center" padding="xl"><Spinner /></Box>
+        </ContentLayout>
+      );
+    }
     return (
       <ContentLayout header={<Header variant="h1">{t('pages.company_overview.title')}</Header>}>
-        <Box textAlign="center" padding="xl"><Spinner /></Box>
+        <Alert type="error">{t('pages.company_overview.not_found', 'Company not found.')}</Alert>
       </ContentLayout>
     );
   }
@@ -278,6 +293,8 @@ export default function CompanyOverviewPage() {
   );
 
   const domainsTab = (
+    <SpaceBetween size="m">
+      {domainsError && <Alert type="error">{domainsError}</Alert>}
     <DataTable
       loading={loadingDomains}
       loadingText={t('pages.company_overview.loading_domains')}
@@ -308,6 +325,7 @@ export default function CompanyOverviewPage() {
         </Box>
       }
     />
+    </SpaceBetween>
   );
 
   const settingsTab = (

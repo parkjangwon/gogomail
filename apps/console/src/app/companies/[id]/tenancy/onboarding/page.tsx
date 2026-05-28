@@ -74,7 +74,8 @@ interface Step5Data {
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-function formatBytes(bytes: number): string {
+function formatBytes(bytes: number, unlimitedLabel = 'Unlimited'): string {
+  if (bytes === 0) return unlimitedLabel;
   const gb = bytes / 1073741824;
   return `${gb.toFixed(0)} GB`;
 }
@@ -116,6 +117,8 @@ export default function OnboardingPage() {
   const [step5, setStep5] = useState<Step5Data>({ email: '', display_name: '', password: '', skip: false });
   const [step5Errors, setStep5Errors] = useState<Partial<Step5Data>>({});
   const [createdUserCount, setCreatedUserCount] = useState(0);
+  const [step5Loading, setStep5Loading] = useState(false);
+  const [dnsCheckError, setDnsCheckError] = useState('');
 
   // ── Validation ─────────────────────────────────────────────────────────────
 
@@ -269,8 +272,10 @@ export default function OnboardingPage() {
 
   const submitStep5 = useCallback(async (): Promise<boolean> => {
     if (step5.skip) return true;
+    if (createdUserCount > 0) return true;
     if (!validateStep5()) return false;
     if (!createdDomain) return false;
+    setStep5Loading(true);
     try {
       const res = await fetch('/api/admin/users', {
         method: 'POST',
@@ -293,13 +298,16 @@ export default function OnboardingPage() {
     } catch {
       setStep5Errors({ email: t('onboarding.error_create_user') });
       return false;
+    } finally {
+      setStep5Loading(false);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [step5, createdDomain]);
+  }, [step5, createdDomain, createdUserCount]);
 
   const handleCheckDns = async () => {
     if (!createdDomain) return;
     setDnsChecking(true);
+    setDnsCheckError('');
     try {
       const res = await fetch(`/api/admin/domains/${createdDomain.id}/dns-check`, { credentials: 'include' });
       if (res.ok) {
@@ -311,9 +319,11 @@ export default function OnboardingPage() {
           dkim: checks.dkim === 'ok' || checks.dkim === true,
           checked: true,
         });
+      } else {
+        setDnsCheckError(t('common.error'));
       }
     } catch {
-      // ignore
+      setDnsCheckError(t('common.error'));
     } finally {
       setDnsChecking(false);
     }
@@ -504,13 +514,16 @@ export default function OnboardingPage() {
           items={dnsRecords}
           variant="container"
         />
-        <Button
-          onClick={handleCheckDns}
-          loading={dnsChecking}
-          disabled={!createdDomain}
-        >
-          {t('onboarding.check_dns')}
-        </Button>
+        <SpaceBetween direction="horizontal" size="xs" alignItems="center">
+          <Button
+            onClick={handleCheckDns}
+            loading={dnsChecking}
+            disabled={!createdDomain}
+          >
+            {t('onboarding.check_dns')}
+          </Button>
+          {dnsCheckError && <Box color="text-status-error">{dnsCheckError}</Box>}
+        </SpaceBetween>
       </SpaceBetween>
     </Container>
   );
@@ -637,7 +650,7 @@ export default function OnboardingPage() {
             <Box variant="awsui-key-label">ID</Box>
             <div>{createdCompany?.id ?? '—'}</div>
             <Box variant="awsui-key-label">{t('onboarding.quota_gb')}</Box>
-            <div>{createdCompany ? formatBytes(createdCompany.quota_limit) : '—'}</div>
+            <div>{createdCompany ? formatBytes(createdCompany.quota_limit, t('pages.company_overview.quota_unlimited', 'Unlimited')) : '—'}</div>
             <Box variant="awsui-key-label">{t('onboarding.status')}</Box>
             <div>{createdCompany?.status ?? '—'}</div>
           </SpaceBetween>
@@ -687,6 +700,7 @@ export default function OnboardingPage() {
         onCancel={() => router.push(`/companies/${cid}/tenancy/companies`)}
         onSubmit={handleComplete}
         activeStepIndex={activeStep}
+        isLoadingNextStep={step1Loading || step2Loading || step4Loading || step5Loading}
         steps={[
           {
             title: t('onboarding.step1_title'),

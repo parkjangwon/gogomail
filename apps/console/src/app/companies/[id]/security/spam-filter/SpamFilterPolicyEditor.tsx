@@ -88,6 +88,11 @@ export function SpamFilterPolicyEditor({ policy, onPolicyChange, saving, isDirty
     const id = newPackId.trim().toLowerCase();
     const phrase = newPackPhrase.trim();
     if (!id) return;
+    const existing = (policy.filter_packs?.custom_packs ?? []).find(p => p.id === id);
+    if (existing) {
+      alert(t('pages.spam_filter_page.pack_id_duplicate', `Pack ID "${id}" already exists. Use a unique ID.`));
+      return;
+    }
     const safeRuleId = `${id}-phrase`.replace(/[^a-z0-9._-]/g, '-').slice(0, 80);
     const score = Math.max(0.5, Math.min(20, parseFloat(newPackScore) || 4));
     const pack: FilterPack = {
@@ -136,8 +141,16 @@ export function SpamFilterPolicyEditor({ policy, onPolicyChange, saving, isDirty
 
   const addRuleToSelectedPack = () => {
     const packId = selectedCustomPackId.trim();
-    const ruleID = newRuleId.trim().toLowerCase() || `rule-${Date.now()}`;
+    const rawRuleId = newRuleId.trim().toLowerCase();
+    const ruleID = rawRuleId || `rule-${Date.now()}`;
     if (!packId) return;
+    if (rawRuleId) {
+      const targetPack = (policy.filter_packs?.custom_packs ?? []).find(p => p.id === packId);
+      if (targetPack?.rules.some(r => r.id === rawRuleId.replace(/[^a-z0-9._-]/g, '-').slice(0, 80))) {
+        alert(t('pages.spam_filter_page.rule_id_duplicate', `Rule ID "${rawRuleId}" already exists in this pack.`));
+        return;
+      }
+    }
     const patterns = newRulePatterns
       .split('\n')
       .flatMap(line => line.split(','))
@@ -204,7 +217,12 @@ export function SpamFilterPolicyEditor({ policy, onPolicyChange, saving, isDirty
 
   const changedFields = useMemo(() => {
     if (!savedPolicyJson) return [];
-    const saved = JSON.parse(savedPolicyJson) as SpamFilterPolicy;
+    let saved: SpamFilterPolicy;
+    try {
+      saved = JSON.parse(savedPolicyJson) as SpamFilterPolicy;
+    } catch {
+      return [];
+    }
     return [
       ['enabled', t('pages.spam_filter_page.enabled_label')],
       ['spam_threshold', t('pages.spam_filter_page.threshold_label')],
@@ -240,12 +258,7 @@ export function SpamFilterPolicyEditor({ policy, onPolicyChange, saving, isDirty
       ? t('pages.spam_filter_page.posture_high_risk')
       : t('pages.spam_filter_page.posture_review');
 
-  const formatRulesCount = (count: number) => {
-    if (locale === 'ko') return `${count}개 규칙`;
-    if (locale === 'ja') return `${count}件のルール`;
-    if (locale === 'zh-CN') return `${count}条规则`;
-    return `${count} ${count === 1 ? 'rule' : 'rules'}`;
-  };
+  const formatRulesCount = (count: number) => `${count} ${t('pages.spam_filter_page.rules_count')}`;
 
   const ruleTypeOptions: SelectProps.Option[] = [
     { value: 'phrase', label: t('pages.spam_filter_page.rule_type_phrase') },
@@ -389,6 +402,7 @@ export function SpamFilterPolicyEditor({ policy, onPolicyChange, saving, isDirty
             <FormField label={t('pages.spam_filter_page.rbl_reject_label')} description={t('pages.spam_filter_page.rbl_reject_desc')}>
               <Toggle
                 checked={policy.rbl_reject_enabled}
+                disabled={!policy.rbl_check_enabled}
                 onChange={e => setPolicy(p => ({ ...p, rbl_reject_enabled: e.detail.checked }))}
               >
                 {policy.rbl_reject_enabled ? t('pages.spam_filter_page.enabled_on') : t('pages.spam_filter_page.enabled_off')}
