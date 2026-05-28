@@ -10,9 +10,10 @@ export function middleware(req: NextRequest) {
     sanitizeRequestID(req.headers.get(REQUEST_ID_HEADER)) || crypto.randomUUID();
   const nonce = Buffer.from(crypto.randomUUID()).toString('base64');
 
+  const isDev = process.env.NODE_ENV === 'development';
   const cspHeader = [
     "default-src 'self'",
-    `script-src 'self' 'nonce-${nonce}'`,
+    `script-src 'self' 'nonce-${nonce}'${isDev ? " 'unsafe-eval'" : ''}`,
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: blob:",
     "connect-src 'self'",

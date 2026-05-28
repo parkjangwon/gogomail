@@ -1,6 +1,12 @@
 # gogomail current status
 
-Last updated: 2026-05-28 (audit error logging fix + WebAuthn passkey UI)
+Last updated: 2026-05-28 (full-stack test run — CSP dev fix + seed admin role fix)
+
+## Full-stack test run (2026-05-28)
+
+- **CSP fix (dev mode)**: Both `apps/webmail/src/middleware.ts` and `apps/console/src/middleware.ts` — added `'unsafe-eval'` to `script-src` in `NODE_ENV=development` only. Without it, webpack's eval-based HMR bundle fails to load in dev, preventing React hydration and making all form `onSubmit` handlers non-functional.
+- **Seed data fix**: `scripts/seed_dev_data_en.sql` — admin user role changed from `'admin'` to `'system_admin'`. The admin console login endpoint requires `company_admin` or `system_admin`; `'admin'` was an invalid role for console access.
+- **Tested and verified working**: webmail login, mail read/compose/send, calendar, contacts, drive, security settings (MFA QR code, passkey UI, session management), DM modal; admin console login, dashboard, user management (14 users), audit log page.
 
 ## Audit error logging + WebAuthn passkey UI (2026-05-28)
 

@@ -21,7 +21,7 @@ ON CONFLICT (id) DO UPDATE SET company_id = EXCLUDED.company_id, name = EXCLUDED
 
 INSERT INTO users (id, domain_id, username, display_name, password_hash, auth_source, role, status)
 VALUES ('10000000-0000-0000-0000-000000000003', '10000000-0000-0000-0000-000000000002',
-        'admin', 'System Admin', 'plain:admin1234', 'local', 'admin', 'active')
+        'admin', 'System Admin', 'plain:admin1234', 'local', 'system_admin', 'active')
 ON CONFLICT (domain_id, username) DO UPDATE SET display_name = EXCLUDED.display_name,
   password_hash = EXCLUDED.password_hash, auth_source = EXCLUDED.auth_source,
   role = EXCLUDED.role, status = EXCLUDED.status;
@@ -526,66 +526,66 @@ WHERE user_id = '30000000-0000-0000-0000-000000000001'
 
 INSERT INTO organizations (id, domain_id, name, code, depth, order_index, status)
 VALUES
-  ('g2000000-0000-0000-0000-000000000001', '7049fa6e-d649-44d3-83d2-b548c7e787d5', 'Engineering Division', 'eng', 0, 1, 'active'),
-  ('g2000000-0000-0000-0000-000000000002', '7049fa6e-d649-44d3-83d2-b548c7e787d5', 'Marketing Division',   'mkt', 0, 2, 'active'),
-  ('g2000000-0000-0000-0000-000000000003', '7049fa6e-d649-44d3-83d2-b548c7e787d5', 'Business Operations',  'biz', 0, 3, 'active')
+  ('e2000000-0000-0000-0000-000000000001', '7049fa6e-d649-44d3-83d2-b548c7e787d5', 'Engineering Division', 'eng', 0, 1, 'active'),
+  ('e2000000-0000-0000-0000-000000000002', '7049fa6e-d649-44d3-83d2-b548c7e787d5', 'Marketing Division',   'mkt', 0, 2, 'active'),
+  ('e2000000-0000-0000-0000-000000000003', '7049fa6e-d649-44d3-83d2-b548c7e787d5', 'Business Operations',  'biz', 0, 3, 'active')
 ON CONFLICT (id) DO UPDATE SET domain_id=EXCLUDED.domain_id, name=EXCLUDED.name,
   code=EXCLUDED.code, depth=EXCLUDED.depth, order_index=EXCLUDED.order_index, status=EXCLUDED.status;
 
 INSERT INTO organizations (id, domain_id, parent_id, name, code, depth, order_index, status)
 VALUES
-  ('g2100000-0000-0000-0000-000000000001', '7049fa6e-d649-44d3-83d2-b548c7e787d5',
-   'g2000000-0000-0000-0000-000000000001', 'Product Business Unit',    'pbu',    1, 1, 'active'),
-  ('g2100000-0000-0000-0000-000000000002', '7049fa6e-d649-44d3-83d2-b548c7e787d5',
-   'g2000000-0000-0000-0000-000000000001', 'Technology Business Unit', 'tbu',    1, 2, 'active'),
-  ('g2100000-0000-0000-0000-000000000003', '7049fa6e-d649-44d3-83d2-b548c7e787d5',
-   'g2000000-0000-0000-0000-000000000002', 'Brand Business Unit',      'bbu',    1, 1, 'active'),
-  ('g2100000-0000-0000-0000-000000000004', '7049fa6e-d649-44d3-83d2-b548c7e787d5',
-   'g2000000-0000-0000-0000-000000000002', 'Growth Business Unit',     'gbu',    1, 2, 'active')
+  ('e2100000-0000-0000-0000-000000000001', '7049fa6e-d649-44d3-83d2-b548c7e787d5',
+   'e2000000-0000-0000-0000-000000000001', 'Product Business Unit',    'pbu',    1, 1, 'active'),
+  ('e2100000-0000-0000-0000-000000000002', '7049fa6e-d649-44d3-83d2-b548c7e787d5',
+   'e2000000-0000-0000-0000-000000000001', 'Technology Business Unit', 'tbu',    1, 2, 'active'),
+  ('e2100000-0000-0000-0000-000000000003', '7049fa6e-d649-44d3-83d2-b548c7e787d5',
+   'e2000000-0000-0000-0000-000000000002', 'Brand Business Unit',      'bbu',    1, 1, 'active'),
+  ('e2100000-0000-0000-0000-000000000004', '7049fa6e-d649-44d3-83d2-b548c7e787d5',
+   'e2000000-0000-0000-0000-000000000002', 'Growth Business Unit',     'gbu',    1, 2, 'active')
 ON CONFLICT (id) DO UPDATE SET domain_id=EXCLUDED.domain_id, parent_id=EXCLUDED.parent_id,
   name=EXCLUDED.name, code=EXCLUDED.code, depth=EXCLUDED.depth,
   order_index=EXCLUDED.order_index, status=EXCLUDED.status;
 
 INSERT INTO organizations (id, domain_id, parent_id, name, code, depth, order_index, status)
 VALUES
-  ('g3000000-0000-0000-0000-000000000001', '7049fa6e-d649-44d3-83d2-b548c7e787d5',
-   'g2100000-0000-0000-0000-000000000001', 'Backend Team',      'be',    2, 1, 'active'),
-  ('g3000000-0000-0000-0000-000000000002', '7049fa6e-d649-44d3-83d2-b548c7e787d5',
-   'g2100000-0000-0000-0000-000000000001', 'Frontend Team',     'fe',    2, 2, 'active'),
-  ('g3000000-0000-0000-0000-000000000003', '7049fa6e-d649-44d3-83d2-b548c7e787d5',
-   'g2100000-0000-0000-0000-000000000002', 'Infrastructure Team','infra', 2, 1, 'active'),
-  ('g3000000-0000-0000-0000-000000000004', '7049fa6e-d649-44d3-83d2-b548c7e787d5',
-   'g2100000-0000-0000-0000-000000000003', 'Brand Team',        'brand', 2, 1, 'active'),
-  ('g3000000-0000-0000-0000-000000000005', '7049fa6e-d649-44d3-83d2-b548c7e787d5',
-   'g2100000-0000-0000-0000-000000000004', 'Performance Team',  'perf',  2, 1, 'active'),
-  ('g3000000-0000-0000-0000-000000000006', '7049fa6e-d649-44d3-83d2-b548c7e787d5',
-   'g2000000-0000-0000-0000-000000000003', 'HR Team',           'hr',    1, 1, 'active'),
-  ('g3000000-0000-0000-0000-000000000007', '7049fa6e-d649-44d3-83d2-b548c7e787d5',
-   'g2000000-0000-0000-0000-000000000003', 'Finance Team',      'fin',   1, 2, 'active')
+  ('e3000000-0000-0000-0000-000000000001', '7049fa6e-d649-44d3-83d2-b548c7e787d5',
+   'e2100000-0000-0000-0000-000000000001', 'Backend Team',      'be',    2, 1, 'active'),
+  ('e3000000-0000-0000-0000-000000000002', '7049fa6e-d649-44d3-83d2-b548c7e787d5',
+   'e2100000-0000-0000-0000-000000000001', 'Frontend Team',     'fe',    2, 2, 'active'),
+  ('e3000000-0000-0000-0000-000000000003', '7049fa6e-d649-44d3-83d2-b548c7e787d5',
+   'e2100000-0000-0000-0000-000000000002', 'Infrastructure Team','infra', 2, 1, 'active'),
+  ('e3000000-0000-0000-0000-000000000004', '7049fa6e-d649-44d3-83d2-b548c7e787d5',
+   'e2100000-0000-0000-0000-000000000003', 'Brand Team',        'brand', 2, 1, 'active'),
+  ('e3000000-0000-0000-0000-000000000005', '7049fa6e-d649-44d3-83d2-b548c7e787d5',
+   'e2100000-0000-0000-0000-000000000004', 'Performance Team',  'perf',  2, 1, 'active'),
+  ('e3000000-0000-0000-0000-000000000006', '7049fa6e-d649-44d3-83d2-b548c7e787d5',
+   'e2000000-0000-0000-0000-000000000003', 'HR Team',           'hr',    1, 1, 'active'),
+  ('e3000000-0000-0000-0000-000000000007', '7049fa6e-d649-44d3-83d2-b548c7e787d5',
+   'e2000000-0000-0000-0000-000000000003', 'Finance Team',      'fin',   1, 2, 'active')
 ON CONFLICT (id) DO UPDATE SET domain_id=EXCLUDED.domain_id, parent_id=EXCLUDED.parent_id,
   name=EXCLUDED.name, code=EXCLUDED.code, depth=EXCLUDED.depth,
   order_index=EXCLUDED.order_index, status=EXCLUDED.status;
 
 -- Assign org_id on users
-UPDATE users SET org_id = 'g3000000-0000-0000-0000-000000000001'
+UPDATE users SET org_id = 'e3000000-0000-0000-0000-000000000001'
 WHERE id IN ('30000000-0000-0000-0000-000000000001',
              'a2000000-0000-0000-0000-000000000001',
              'a2000000-0000-0000-0000-000000000008',
              'a2000000-0000-0000-0000-000000000010');
-UPDATE users SET org_id = 'g3000000-0000-0000-0000-000000000002'
+UPDATE users SET org_id = 'e3000000-0000-0000-0000-000000000002'
 WHERE id IN ('a2000000-0000-0000-0000-000000000002',
              'a2000000-0000-0000-0000-000000000009');
-UPDATE users SET org_id = 'g3000000-0000-0000-0000-000000000003'
+UPDATE users SET org_id = 'e3000000-0000-0000-0000-000000000003'
 WHERE id IN ('a2000000-0000-0000-0000-000000000007',
              'a2000000-0000-0000-0000-000000000011');
-UPDATE users SET org_id = 'g3000000-0000-0000-0000-000000000004'
+UPDATE users SET org_id = 'e3000000-0000-0000-0000-000000000004'
 WHERE id IN ('a2000000-0000-0000-0000-000000000003',
              'a2000000-0000-0000-0000-000000000012',
              'a2000000-0000-0000-0000-000000000013');
-UPDATE users SET org_id = 'g3000000-0000-0000-0000-000000000005'
+UPDATE users SET org_id = 'e3000000-0000-0000-0000-000000000005'
 WHERE id IN ('a2000000-0000-0000-0000-000000000004',
              'a2000000-0000-0000-0000-000000000006');
-UPDATE users SET org_id = 'g3000000-0000-0000-0000-000000000006'
+UPDATE users SET org_id = 'e3000000-0000-0000-0000-000000000006'
 WHERE id = 'a2000000-0000-0000-0000-000000000005';
 
 -- 5-B. organization_units (orgchart)
@@ -593,13 +593,13 @@ WHERE id = 'a2000000-0000-0000-0000-000000000005';
 INSERT INTO organization_units
   (id, company_id, name, name_normalized, type, display_name, manager_user_id, status)
 VALUES
-  ('g1000000-0000-0000-0000-000000000001', '7206af4e-fc44-4a65-890d-55bb35741d6c',
+  ('e1000000-0000-0000-0000-000000000001', '7206af4e-fc44-4a65-890d-55bb35741d6c',
    'Engineering Division', 'Engineering Division', 'division', 'Engineering Division',
    'a2000000-0000-0000-0000-000000000001', 'active'),
-  ('g1000000-0000-0000-0000-000000000002', '7206af4e-fc44-4a65-890d-55bb35741d6c',
+  ('e1000000-0000-0000-0000-000000000002', '7206af4e-fc44-4a65-890d-55bb35741d6c',
    'Marketing Division', 'Marketing Division', 'division', 'Marketing Division',
    'a2000000-0000-0000-0000-000000000003', 'active'),
-  ('g1000000-0000-0000-0000-000000000003', '7206af4e-fc44-4a65-890d-55bb35741d6c',
+  ('e1000000-0000-0000-0000-000000000003', '7206af4e-fc44-4a65-890d-55bb35741d6c',
    'Business Operations', 'Business Operations', 'department', 'Business Operations',
    'a2000000-0000-0000-0000-000000000005', 'active')
 ON CONFLICT (id) DO UPDATE SET
@@ -610,20 +610,20 @@ ON CONFLICT (id) DO UPDATE SET
 INSERT INTO organization_units
   (id, company_id, parent_id, name, name_normalized, type, display_name, manager_user_id, status)
 VALUES
-  ('g1000000-0000-0000-0000-000000000004', '7206af4e-fc44-4a65-890d-55bb35741d6c',
-   'g1000000-0000-0000-0000-000000000001',
+  ('e1000000-0000-0000-0000-000000000004', '7206af4e-fc44-4a65-890d-55bb35741d6c',
+   'e1000000-0000-0000-0000-000000000001',
    'Product Business Unit', 'Product Business Unit', 'business_unit', 'Product Business Unit',
    'a2000000-0000-0000-0000-000000000001', 'active'),
-  ('g1000000-0000-0000-0000-000000000005', '7206af4e-fc44-4a65-890d-55bb35741d6c',
-   'g1000000-0000-0000-0000-000000000001',
+  ('e1000000-0000-0000-0000-000000000005', '7206af4e-fc44-4a65-890d-55bb35741d6c',
+   'e1000000-0000-0000-0000-000000000001',
    'Technology Business Unit', 'Technology Business Unit', 'business_unit', 'Technology Business Unit',
    'a2000000-0000-0000-0000-000000000007', 'active'),
-  ('g1000000-0000-0000-0000-000000000006', '7206af4e-fc44-4a65-890d-55bb35741d6c',
-   'g1000000-0000-0000-0000-000000000002',
+  ('e1000000-0000-0000-0000-000000000006', '7206af4e-fc44-4a65-890d-55bb35741d6c',
+   'e1000000-0000-0000-0000-000000000002',
    'Brand Business Unit', 'Brand Business Unit', 'business_unit', 'Brand Business Unit',
    'a2000000-0000-0000-0000-000000000003', 'active'),
-  ('g1000000-0000-0000-0000-000000000007', '7206af4e-fc44-4a65-890d-55bb35741d6c',
-   'g1000000-0000-0000-0000-000000000002',
+  ('e1000000-0000-0000-0000-000000000007', '7206af4e-fc44-4a65-890d-55bb35741d6c',
+   'e1000000-0000-0000-0000-000000000002',
    'Growth Business Unit', 'Growth Business Unit', 'business_unit', 'Growth Business Unit',
    'a2000000-0000-0000-0000-000000000004', 'active')
 ON CONFLICT (id) DO UPDATE SET
@@ -635,32 +635,32 @@ ON CONFLICT (id) DO UPDATE SET
 INSERT INTO organization_units
   (id, company_id, parent_id, name, name_normalized, type, display_name, manager_user_id, status)
 VALUES
-  ('g1000000-0000-0000-0000-000000000011', '7206af4e-fc44-4a65-890d-55bb35741d6c',
-   'g1000000-0000-0000-0000-000000000004',
+  ('e1000000-0000-0000-0000-000000000011', '7206af4e-fc44-4a65-890d-55bb35741d6c',
+   'e1000000-0000-0000-0000-000000000004',
    'Backend Team', 'Backend Team', 'team', 'Backend Team',
    'a2000000-0000-0000-0000-000000000001', 'active'),
-  ('g1000000-0000-0000-0000-000000000012', '7206af4e-fc44-4a65-890d-55bb35741d6c',
-   'g1000000-0000-0000-0000-000000000004',
+  ('e1000000-0000-0000-0000-000000000012', '7206af4e-fc44-4a65-890d-55bb35741d6c',
+   'e1000000-0000-0000-0000-000000000004',
    'Frontend Team', 'Frontend Team', 'team', 'Frontend Team',
    'a2000000-0000-0000-0000-000000000002', 'active'),
-  ('g1000000-0000-0000-0000-000000000013', '7206af4e-fc44-4a65-890d-55bb35741d6c',
-   'g1000000-0000-0000-0000-000000000005',
+  ('e1000000-0000-0000-0000-000000000013', '7206af4e-fc44-4a65-890d-55bb35741d6c',
+   'e1000000-0000-0000-0000-000000000005',
    'Infrastructure Team', 'Infrastructure Team', 'team', 'Infrastructure Team',
    'a2000000-0000-0000-0000-000000000007', 'active'),
-  ('g1000000-0000-0000-0000-000000000021', '7206af4e-fc44-4a65-890d-55bb35741d6c',
-   'g1000000-0000-0000-0000-000000000006',
+  ('e1000000-0000-0000-0000-000000000021', '7206af4e-fc44-4a65-890d-55bb35741d6c',
+   'e1000000-0000-0000-0000-000000000006',
    'Brand Team', 'Brand Team', 'team', 'Brand Team',
    'a2000000-0000-0000-0000-000000000003', 'active'),
-  ('g1000000-0000-0000-0000-000000000022', '7206af4e-fc44-4a65-890d-55bb35741d6c',
-   'g1000000-0000-0000-0000-000000000007',
+  ('e1000000-0000-0000-0000-000000000022', '7206af4e-fc44-4a65-890d-55bb35741d6c',
+   'e1000000-0000-0000-0000-000000000007',
    'Performance Team', 'Performance Team', 'team', 'Performance Team',
    'a2000000-0000-0000-0000-000000000004', 'active'),
-  ('g1000000-0000-0000-0000-000000000031', '7206af4e-fc44-4a65-890d-55bb35741d6c',
-   'g1000000-0000-0000-0000-000000000003',
+  ('e1000000-0000-0000-0000-000000000031', '7206af4e-fc44-4a65-890d-55bb35741d6c',
+   'e1000000-0000-0000-0000-000000000003',
    'HR Team', 'HR Team', 'team', 'HR Team',
    'a2000000-0000-0000-0000-000000000005', 'active'),
-  ('g1000000-0000-0000-0000-000000000032', '7206af4e-fc44-4a65-890d-55bb35741d6c',
-   'g1000000-0000-0000-0000-000000000003',
+  ('e1000000-0000-0000-0000-000000000032', '7206af4e-fc44-4a65-890d-55bb35741d6c',
+   'e1000000-0000-0000-0000-000000000003',
    'Finance Team', 'Finance Team', 'team', 'Finance Team',
    NULL, 'active')
 ON CONFLICT (id) DO UPDATE SET
@@ -685,66 +685,66 @@ WHERE user_id IN (
 
 -- Chris Kim: Backend Team lead (P) / Product BU head / Engineering Division head
 INSERT INTO organization_members (id, organization_unit_id, user_id, role, title, is_primary) VALUES
-  ('g0000000-0000-0000-0000-000000000001', 'g1000000-0000-0000-0000-000000000011', 'a2000000-0000-0000-0000-000000000001', 'manager', 'Tech Lead · Senior Engineer', true),
-  ('g0000000-0000-0000-0000-000000000002', 'g1000000-0000-0000-0000-000000000004', 'a2000000-0000-0000-0000-000000000001', 'manager', 'BU Head · Senior Engineer', false),
-  ('g0000000-0000-0000-0000-000000000003', 'g1000000-0000-0000-0000-000000000001', 'a2000000-0000-0000-0000-000000000001', 'manager', 'Division Head · Senior Engineer', false);
+  ('e0000000-0000-0000-0000-000000000001', 'e1000000-0000-0000-0000-000000000011', 'a2000000-0000-0000-0000-000000000001', 'manager', 'Tech Lead · Senior Engineer', true),
+  ('e0000000-0000-0000-0000-000000000002', 'e1000000-0000-0000-0000-000000000004', 'a2000000-0000-0000-0000-000000000001', 'manager', 'BU Head · Senior Engineer', false),
+  ('e0000000-0000-0000-0000-000000000003', 'e1000000-0000-0000-0000-000000000001', 'a2000000-0000-0000-0000-000000000001', 'manager', 'Division Head · Senior Engineer', false);
 
 -- Jamie Park: Backend Team senior engineer (demo user)
 INSERT INTO organization_members (id, organization_unit_id, user_id, role, title, is_primary) VALUES
-  ('g0000000-0000-0000-0000-000000000010', 'g1000000-0000-0000-0000-000000000011', '30000000-0000-0000-0000-000000000001', 'member', 'Senior Backend Engineer', true);
+  ('e0000000-0000-0000-0000-000000000010', 'e1000000-0000-0000-0000-000000000011', '30000000-0000-0000-0000-000000000001', 'member', 'Senior Backend Engineer', true);
 
 -- Seok Oh: Backend Team DBA
 INSERT INTO organization_members (id, organization_unit_id, user_id, role, title, is_primary) VALUES
-  ('g0000000-0000-0000-0000-000000000011', 'g1000000-0000-0000-0000-000000000011', 'a2000000-0000-0000-0000-000000000008', 'member', 'Database Engineer', true);
+  ('e0000000-0000-0000-0000-000000000011', 'e1000000-0000-0000-0000-000000000011', 'a2000000-0000-0000-0000-000000000008', 'member', 'Database Engineer', true);
 
 -- Ina Jang: Backend Team junior engineer
 INSERT INTO organization_members (id, organization_unit_id, user_id, role, title, is_primary) VALUES
-  ('g0000000-0000-0000-0000-000000000012', 'g1000000-0000-0000-0000-000000000011', 'a2000000-0000-0000-0000-000000000010', 'member', 'Backend Engineer', true);
+  ('e0000000-0000-0000-0000-000000000012', 'e1000000-0000-0000-0000-000000000011', 'a2000000-0000-0000-0000-000000000010', 'member', 'Backend Engineer', true);
 
 -- Yuna Lee: Frontend Team lead
 INSERT INTO organization_members (id, organization_unit_id, user_id, role, title, is_primary) VALUES
-  ('g0000000-0000-0000-0000-000000000013', 'g1000000-0000-0000-0000-000000000012', 'a2000000-0000-0000-0000-000000000002', 'manager', 'Tech Lead · Engineer', true);
+  ('e0000000-0000-0000-0000-000000000013', 'e1000000-0000-0000-0000-000000000012', 'a2000000-0000-0000-0000-000000000002', 'manager', 'Tech Lead · Engineer', true);
 
 -- Jay Song: Frontend Team
 INSERT INTO organization_members (id, organization_unit_id, user_id, role, title, is_primary) VALUES
-  ('g0000000-0000-0000-0000-000000000014', 'g1000000-0000-0000-0000-000000000012', 'a2000000-0000-0000-0000-000000000009', 'member', 'Frontend Engineer', true);
+  ('e0000000-0000-0000-0000-000000000014', 'e1000000-0000-0000-0000-000000000012', 'a2000000-0000-0000-0000-000000000009', 'member', 'Frontend Engineer', true);
 
 -- Henry Kang: Infrastructure Team lead (P) / Technology BU head
 INSERT INTO organization_members (id, organization_unit_id, user_id, role, title, is_primary) VALUES
-  ('g0000000-0000-0000-0000-000000000015', 'g1000000-0000-0000-0000-000000000013', 'a2000000-0000-0000-0000-000000000007', 'manager', 'Tech Lead · Engineer', true),
-  ('g0000000-0000-0000-0000-000000000016', 'g1000000-0000-0000-0000-000000000005', 'a2000000-0000-0000-0000-000000000007', 'manager', 'BU Head · Engineer', false);
+  ('e0000000-0000-0000-0000-000000000015', 'e1000000-0000-0000-0000-000000000013', 'a2000000-0000-0000-0000-000000000007', 'manager', 'Tech Lead · Engineer', true),
+  ('e0000000-0000-0000-0000-000000000016', 'e1000000-0000-0000-0000-000000000005', 'a2000000-0000-0000-0000-000000000007', 'manager', 'BU Head · Engineer', false);
 
 -- Woo Baek: Infrastructure Team
 INSERT INTO organization_members (id, organization_unit_id, user_id, role, title, is_primary) VALUES
-  ('g0000000-0000-0000-0000-000000000017', 'g1000000-0000-0000-0000-000000000013', 'a2000000-0000-0000-0000-000000000011', 'member', 'Cloud Engineer', true);
+  ('e0000000-0000-0000-0000-000000000017', 'e1000000-0000-0000-0000-000000000013', 'a2000000-0000-0000-0000-000000000011', 'member', 'Cloud Engineer', true);
 
 -- Min Park: Brand Team lead (P) / Brand BU head / Marketing Division head
 INSERT INTO organization_members (id, organization_unit_id, user_id, role, title, is_primary) VALUES
-  ('g0000000-0000-0000-0000-000000000020', 'g1000000-0000-0000-0000-000000000021', 'a2000000-0000-0000-0000-000000000003', 'manager', 'Team Lead · Senior Engineer', true),
-  ('g0000000-0000-0000-0000-000000000021', 'g1000000-0000-0000-0000-000000000006', 'a2000000-0000-0000-0000-000000000003', 'manager', 'BU Head · Senior Engineer', false),
-  ('g0000000-0000-0000-0000-000000000022', 'g1000000-0000-0000-0000-000000000002', 'a2000000-0000-0000-0000-000000000003', 'manager', 'Division Head · Senior Engineer', false);
+  ('e0000000-0000-0000-0000-000000000020', 'e1000000-0000-0000-0000-000000000021', 'a2000000-0000-0000-0000-000000000003', 'manager', 'Team Lead · Senior Engineer', true),
+  ('e0000000-0000-0000-0000-000000000021', 'e1000000-0000-0000-0000-000000000006', 'a2000000-0000-0000-0000-000000000003', 'manager', 'BU Head · Senior Engineer', false),
+  ('e0000000-0000-0000-0000-000000000022', 'e1000000-0000-0000-0000-000000000002', 'a2000000-0000-0000-0000-000000000003', 'manager', 'Division Head · Senior Engineer', false);
 
 -- Dora Shim: Brand Team designer
 INSERT INTO organization_members (id, organization_unit_id, user_id, role, title, is_primary) VALUES
-  ('g0000000-0000-0000-0000-000000000023', 'g1000000-0000-0000-0000-000000000021', 'a2000000-0000-0000-0000-000000000012', 'member', 'UI/UX Designer', true);
+  ('e0000000-0000-0000-0000-000000000023', 'e1000000-0000-0000-0000-000000000021', 'a2000000-0000-0000-0000-000000000012', 'member', 'UI/UX Designer', true);
 
 -- Sean Hong: Brand Team designer
 INSERT INTO organization_members (id, organization_unit_id, user_id, role, title, is_primary) VALUES
-  ('g0000000-0000-0000-0000-000000000024', 'g1000000-0000-0000-0000-000000000021', 'a2000000-0000-0000-0000-000000000013', 'member', 'UI/UX Designer', true);
+  ('e0000000-0000-0000-0000-000000000024', 'e1000000-0000-0000-0000-000000000021', 'a2000000-0000-0000-0000-000000000013', 'member', 'UI/UX Designer', true);
 
 -- Sue Jung: Performance Team lead (P) / Growth BU head
 INSERT INTO organization_members (id, organization_unit_id, user_id, role, title, is_primary) VALUES
-  ('g0000000-0000-0000-0000-000000000025', 'g1000000-0000-0000-0000-000000000022', 'a2000000-0000-0000-0000-000000000004', 'manager', 'Team Lead · Engineer', true),
-  ('g0000000-0000-0000-0000-000000000026', 'g1000000-0000-0000-0000-000000000007', 'a2000000-0000-0000-0000-000000000004', 'manager', 'BU Head · Engineer', false);
+  ('e0000000-0000-0000-0000-000000000025', 'e1000000-0000-0000-0000-000000000022', 'a2000000-0000-0000-0000-000000000004', 'manager', 'Team Lead · Engineer', true),
+  ('e0000000-0000-0000-0000-000000000026', 'e1000000-0000-0000-0000-000000000007', 'a2000000-0000-0000-0000-000000000004', 'manager', 'BU Head · Engineer', false);
 
 -- Jiyeon Han: Performance Team
 INSERT INTO organization_members (id, organization_unit_id, user_id, role, title, is_primary) VALUES
-  ('g0000000-0000-0000-0000-000000000027', 'g1000000-0000-0000-0000-000000000022', 'a2000000-0000-0000-0000-000000000006', 'member', 'Cloud Cost Engineer', true);
+  ('e0000000-0000-0000-0000-000000000027', 'e1000000-0000-0000-0000-000000000022', 'a2000000-0000-0000-0000-000000000006', 'member', 'Cloud Cost Engineer', true);
 
 -- Jun Choi: HR Team lead (P) / Business Operations head
 INSERT INTO organization_members (id, organization_unit_id, user_id, role, title, is_primary) VALUES
-  ('g0000000-0000-0000-0000-000000000030', 'g1000000-0000-0000-0000-000000000031', 'a2000000-0000-0000-0000-000000000005', 'manager', 'Team Lead · Director', true),
-  ('g0000000-0000-0000-0000-000000000031', 'g1000000-0000-0000-0000-000000000003', 'a2000000-0000-0000-0000-000000000005', 'manager', 'Department Head · Director', false);
+  ('e0000000-0000-0000-0000-000000000030', 'e1000000-0000-0000-0000-000000000031', 'a2000000-0000-0000-0000-000000000005', 'manager', 'Team Lead · Director', true),
+  ('e0000000-0000-0000-0000-000000000031', 'e1000000-0000-0000-0000-000000000003', 'a2000000-0000-0000-0000-000000000005', 'manager', 'Department Head · Director', false);
 
 
 -- ══════════════════════════════════════════════════════════════════════════════
@@ -767,51 +767,51 @@ ON CONFLICT DO NOTHING;
 INSERT INTO carddav_contact_objects (id, user_id, addressbook_id, object_name, uid, etag, size, vcard, status)
 VALUES
   ('f4100000-0000-0000-0000-000000000001', '30000000-0000-0000-0000-000000000001', 'f4000000-0000-0000-0000-000000000001',
-   'kim.chulsoo.vcf', 'en-col-kim-chulsoo', '"en000000000000000000000000000000000000000000000000000000000001"', 260,
+   'kim.chulsoo.vcf', 'en-col-kim-chulsoo', '"e000000000000000000000000000000000000000000000000000000000000001"', 260,
    E'BEGIN:VCARD\r\nVERSION:3.0\r\nFN:Chris Kim\r\nN:Kim;Chris;;;\r\nEMAIL;TYPE=WORK:kim.chulsoo@acme.io\r\nTEL;TYPE=WORK,VOICE:+1-415-555-0001\r\nORG:Acme Corp;Backend Team\r\nTITLE:Tech Lead\r\nNOTE:Backend Team lead. Oversees GoGoMail architecture.\r\nEND:VCARD',
    'active'),
   ('f4100000-0000-0000-0000-000000000002', '30000000-0000-0000-0000-000000000001', 'f4000000-0000-0000-0000-000000000001',
-   'lee.younghee.vcf', 'en-col-lee-younghee', '"en000000000000000000000000000000000000000000000000000000000002"', 255,
+   'lee.younghee.vcf', 'en-col-lee-younghee', '"e000000000000000000000000000000000000000000000000000000000000002"', 255,
    E'BEGIN:VCARD\r\nVERSION:3.0\r\nFN:Yuna Lee\r\nN:Lee;Yuna;;;\r\nEMAIL;TYPE=WORK:lee.younghee@acme.io\r\nTEL;TYPE=WORK,VOICE:+1-415-555-0002\r\nORG:Acme Corp;Frontend Team\r\nTITLE:Tech Lead\r\nNOTE:Frontend Team lead. React/TypeScript expert. Oversees UI components.\r\nEND:VCARD',
    'active'),
   ('f4100000-0000-0000-0000-000000000003', '30000000-0000-0000-0000-000000000001', 'f4000000-0000-0000-0000-000000000001',
-   'park.minjun.vcf', 'en-col-park-minjun', '"en000000000000000000000000000000000000000000000000000000000003"', 250,
+   'park.minjun.vcf', 'en-col-park-minjun', '"e000000000000000000000000000000000000000000000000000000000000003"', 250,
    E'BEGIN:VCARD\r\nVERSION:3.0\r\nFN:Min Park\r\nN:Park;Min;;;\r\nEMAIL;TYPE=WORK:park.minjun@acme.io\r\nTEL;TYPE=WORK,VOICE:+1-415-555-0003\r\nORG:Acme Corp;Brand Team\r\nTITLE:Team Lead\r\nNOTE:Marketing Division Brand Team lead. Campaign strategy.\r\nEND:VCARD',
    'active'),
   ('f4100000-0000-0000-0000-000000000004', '30000000-0000-0000-0000-000000000001', 'f4000000-0000-0000-0000-000000000001',
-   'jung.sooyeon.vcf', 'en-col-jung-sooyeon', '"en000000000000000000000000000000000000000000000000000000000004"', 245,
+   'jung.sooyeon.vcf', 'en-col-jung-sooyeon', '"e000000000000000000000000000000000000000000000000000000000000004"', 245,
    E'BEGIN:VCARD\r\nVERSION:3.0\r\nFN:Sue Jung\r\nN:Jung;Sue;;;\r\nEMAIL;TYPE=WORK:jung.sooyeon@acme.io\r\nTEL;TYPE=WORK,VOICE:+1-415-555-0004\r\nORG:Acme Corp;Performance Team\r\nTITLE:Marketing Specialist\r\nNOTE:Performance marketing expert. Manages company-wide email channel.\r\nEND:VCARD',
    'active'),
   ('f4100000-0000-0000-0000-000000000005', '30000000-0000-0000-0000-000000000001', 'f4000000-0000-0000-0000-000000000001',
-   'choi.junho.vcf', 'en-col-choi-junho', '"en000000000000000000000000000000000000000000000000000000000005"', 248,
+   'choi.junho.vcf', 'en-col-choi-junho', '"e000000000000000000000000000000000000000000000000000000000000005"', 248,
    E'BEGIN:VCARD\r\nVERSION:3.0\r\nFN:Jun Choi\r\nN:Choi;Jun;;;\r\nEMAIL;TYPE=WORK:choi.junho@acme.io\r\nTEL;TYPE=WORK,VOICE:+1-415-555-0005\r\nORG:Acme Corp;HR Team\r\nTITLE:Director\r\nNOTE:HR Team lead. Manages performance reviews and compensation.\r\nEND:VCARD',
    'active'),
   ('f4100000-0000-0000-0000-000000000006', '30000000-0000-0000-0000-000000000001', 'f4000000-0000-0000-0000-000000000001',
-   'han.jiyeon.vcf', 'en-col-han-jiyeon', '"en000000000000000000000000000000000000000000000000000000000006"', 255,
+   'han.jiyeon.vcf', 'en-col-han-jiyeon', '"e000000000000000000000000000000000000000000000000000000000000006"', 255,
    E'BEGIN:VCARD\r\nVERSION:3.0\r\nFN:Jiyeon Han\r\nN:Han;Jiyeon;;;\r\nEMAIL;TYPE=WORK:han.jiyeon@acme.io\r\nTEL;TYPE=WORK,VOICE:+1-415-555-0006\r\nTEL;TYPE=CELL:+1-415-555-9006\r\nORG:Acme Corp;Performance Team\r\nTITLE:Cloud Cost Specialist\r\nNOTE:AWS Architect certified. FinOps expert.\r\nEND:VCARD',
    'active'),
   ('f4100000-0000-0000-0000-000000000007', '30000000-0000-0000-0000-000000000001', 'f4000000-0000-0000-0000-000000000001',
-   'kang.hyunjae.vcf', 'en-col-kang-hyunjae', '"en000000000000000000000000000000000000000000000000000000000007"', 262,
+   'kang.hyunjae.vcf', 'en-col-kang-hyunjae', '"e000000000000000000000000000000000000000000000000000000000000007"', 262,
    E'BEGIN:VCARD\r\nVERSION:3.0\r\nFN:Henry Kang\r\nN:Kang;Henry;;;\r\nEMAIL;TYPE=WORK:kang.hyunjae@acme.io\r\nTEL;TYPE=WORK,VOICE:+1-415-555-0007\r\nORG:Acme Corp;Infrastructure Team\r\nTITLE:Security Engineer\r\nNOTE:Vulnerability scanning and penetration testing. CISSP certified.\r\nEND:VCARD',
    'active'),
   ('f4100000-0000-0000-0000-000000000008', '30000000-0000-0000-0000-000000000001', 'f4000000-0000-0000-0000-000000000001',
-   'oh.seokmin.vcf', 'en-col-oh-seokmin', '"en000000000000000000000000000000000000000000000000000000000008"', 250,
+   'oh.seokmin.vcf', 'en-col-oh-seokmin', '"e000000000000000000000000000000000000000000000000000000000000008"', 250,
    E'BEGIN:VCARD\r\nVERSION:3.0\r\nFN:Seok Oh\r\nN:Oh;Seok;;;\r\nEMAIL;TYPE=WORK:oh.seokmin@acme.io\r\nTEL;TYPE=WORK,VOICE:+1-415-555-0008\r\nORG:Acme Corp;Backend Team\r\nTITLE:Database Engineer\r\nNOTE:PostgreSQL expert. Query tuning and migration specialist.\r\nEND:VCARD',
    'active'),
   ('f4100000-0000-0000-0000-000000000009', '30000000-0000-0000-0000-000000000001', 'f4000000-0000-0000-0000-000000000001',
-   'baek.woojin.vcf', 'en-col-baek-woojin', '"en000000000000000000000000000000000000000000000000000000000009"', 252,
+   'baek.woojin.vcf', 'en-col-baek-woojin', '"e000000000000000000000000000000000000000000000000000000000000009"', 252,
    E'BEGIN:VCARD\r\nVERSION:3.0\r\nFN:Woo Baek\r\nN:Baek;Woo;;;\r\nEMAIL;TYPE=WORK:baek.woojin@acme.io\r\nTEL;TYPE=WORK,VOICE:+1-415-555-0009\r\nTEL;TYPE=CELL:+1-415-555-9009\r\nORG:Acme Corp;Infrastructure Team\r\nTITLE:Cloud Engineer\r\nNOTE:Kubernetes/Terraform expert. Infrastructure automation.\r\nEND:VCARD',
    'active'),
   ('f4100000-0000-0000-0000-000000000010', '30000000-0000-0000-0000-000000000001', 'f4000000-0000-0000-0000-000000000001',
-   'shim.dayoung.vcf', 'en-col-shim-dayoung', '"en00000000000000000000000000000000000000000000000000000000000a"', 255,
+   'shim.dayoung.vcf', 'en-col-shim-dayoung', '"e00000000000000000000000000000000000000000000000000000000000000a"', 255,
    E'BEGIN:VCARD\r\nVERSION:3.0\r\nFN:Dora Shim\r\nN:Shim;Dora;;;\r\nEMAIL;TYPE=WORK:shim.dayoung@acme.io\r\nTEL;TYPE=WORK,VOICE:+1-415-555-0010\r\nORG:Acme Corp;Brand Team\r\nTITLE:UI/UX Designer\r\nNOTE:Figma/Zeplin expert. Brand team service UI design.\r\nEND:VCARD',
    'active'),
   ('f4100000-0000-0000-0000-000000000011', '30000000-0000-0000-0000-000000000001', 'f4000000-0000-0000-0000-000000000001',
-   'hong.seungwoo.vcf', 'en-col-hong-seungwoo', '"en00000000000000000000000000000000000000000000000000000000000b"', 248,
+   'hong.seungwoo.vcf', 'en-col-hong-seungwoo', '"e00000000000000000000000000000000000000000000000000000000000000b"', 248,
    E'BEGIN:VCARD\r\nVERSION:3.0\r\nFN:Sean Hong\r\nN:Hong;Sean;;;\r\nEMAIL;TYPE=WORK:hong.seungwoo@acme.io\r\nTEL;TYPE=WORK,VOICE:+1-415-555-0011\r\nORG:Acme Corp;Brand Team\r\nTITLE:UI/UX Designer\r\nNOTE:Figma expert. Design system owner.\r\nEND:VCARD',
    'active'),
   ('f4100000-0000-0000-0000-000000000012', '30000000-0000-0000-0000-000000000001', 'f4000000-0000-0000-0000-000000000001',
-   'song.jiyul.vcf', 'en-col-song-jiyul', '"en00000000000000000000000000000000000000000000000000000000000c"', 245,
+   'song.jiyul.vcf', 'en-col-song-jiyul', '"e00000000000000000000000000000000000000000000000000000000000000c"', 245,
    E'BEGIN:VCARD\r\nVERSION:3.0\r\nFN:Jay Song\r\nN:Song;Jay;;;\r\nEMAIL;TYPE=WORK:song.jiyul@acme.io\r\nTEL;TYPE=WORK,VOICE:+1-415-555-0012\r\nORG:Acme Corp;Frontend Team\r\nTITLE:Frontend Engineer\r\nNOTE:Next.js/React expert. Mail client UI development.\r\nEND:VCARD',
    'active')
 ON CONFLICT DO NOTHING;
@@ -820,43 +820,43 @@ ON CONFLICT DO NOTHING;
 INSERT INTO carddav_contact_objects (id, user_id, addressbook_id, object_name, uid, etag, size, vcard, status)
 VALUES
   ('f4200000-0000-0000-0000-000000000001', '30000000-0000-0000-0000-000000000001', 'f4000000-0000-0000-0000-000000000002',
-   'minji.kwon.vcf', 'en-ext-minji-kwon', '"en00000000000000000000000000000000000000000000000000000000000d"', 370,
+   'minji.kwon.vcf', 'en-ext-minji-kwon', '"e00000000000000000000000000000000000000000000000000000000000000d"', 370,
    E'BEGIN:VCARD\r\nVERSION:3.0\r\nFN:Minji Kwon\r\nN:Kwon;Minji;;;\r\nEMAIL;TYPE=WORK:minji.kwon@example-partner.test\r\nEMAIL;TYPE=HOME:minji.personal@gmail.example.test\r\nTEL;TYPE=WORK,VOICE:+1-650-555-0101\r\nTEL;TYPE=CELL:+1-650-555-9101\r\nORG:NextWave Studio\r\nTITLE:Project Manager\r\nADR;TYPE=WORK:;;101 Innovation Dr;San Jose;CA;95110;USA\r\nNOTE:Launch campaign partner PM. Contract under review.\r\nEND:VCARD',
    'active'),
   ('f4200000-0000-0000-0000-000000000002', '30000000-0000-0000-0000-000000000001', 'f4000000-0000-0000-0000-000000000002',
-   'taeho.seo.vcf', 'en-ext-taeho-seo', '"en00000000000000000000000000000000000000000000000000000000000e"', 350,
+   'taeho.seo.vcf', 'en-ext-taeho-seo', '"e00000000000000000000000000000000000000000000000000000000000000e"', 350,
    E'BEGIN:VCARD\r\nVERSION:3.0\r\nFN:Taeho Seo\r\nN:Seo;Taeho;;;\r\nEMAIL;TYPE=WORK:taeho.seo@example-cloud.test\r\nTEL;TYPE=WORK,VOICE:+1-650-555-0102\r\nTEL;TYPE=CELL:+1-650-555-9102\r\nORG:CloudBridge\r\nTITLE:Solutions Architect\r\nADR;TYPE=WORK:;;200 Cloud Ave;Sunnyvale;CA;94086;USA\r\nNOTE:Infrastructure cost optimization consulting. AWS/GCP expert.\r\nEND:VCARD',
    'active'),
   ('f4200000-0000-0000-0000-000000000003', '30000000-0000-0000-0000-000000000001', 'f4000000-0000-0000-0000-000000000002',
-   'sarah.lee.vcf', 'en-ext-sarah-lee', '"en00000000000000000000000000000000000000000000000000000000000f"', 350,
+   'sarah.lee.vcf', 'en-ext-sarah-lee', '"e00000000000000000000000000000000000000000000000000000000000000f"', 350,
    E'BEGIN:VCARD\r\nVERSION:3.0\r\nFN:Sarah Lee\r\nN:Lee;Sarah;;;\r\nEMAIL;TYPE=WORK:sarah.lee@example-legal.test\r\nTEL;TYPE=WORK,VOICE:+1-415-555-0103\r\nTEL;TYPE=CELL:+1-415-555-9103\r\nORG:Open Standard Legal\r\nTITLE:Senior Counsel\r\nADR;TYPE=WORK:;;101 Market St;San Francisco;CA;94105;USA\r\nNOTE:Open source licensing and contract review specialist.\r\nEND:VCARD',
    'active'),
   ('f4200000-0000-0000-0000-000000000004', '30000000-0000-0000-0000-000000000001', 'f4000000-0000-0000-0000-000000000002',
-   'jisu.nam.vcf', 'en-ext-jisu-nam', '"en000000000000000000000000000000000000000000000000000000000010"', 340,
+   'jisu.nam.vcf', 'en-ext-jisu-nam', '"e000000000000000000000000000000000000000000000000000000000000010"', 340,
    E'BEGIN:VCARD\r\nVERSION:3.0\r\nFN:Jisu Nam\r\nN:Nam;Jisu;;;\r\nEMAIL;TYPE=WORK:jisu.nam@example-design.test\r\nTEL;TYPE=WORK,VOICE:+1-415-555-0104\r\nORG:Framers Lab\r\nTITLE:Brand Designer\r\nADR;TYPE=WORK:;;789 Design Blvd;San Francisco;CA;94107;USA\r\nNOTE:Product website and brand system collaboration partner.\r\nEND:VCARD',
    'active'),
   ('f4200000-0000-0000-0000-000000000005', '30000000-0000-0000-0000-000000000001', 'f4000000-0000-0000-0000-000000000002',
-   'jason.kim.vcf', 'en-ext-jason-kim', '"en000000000000000000000000000000000000000000000000000000000011"', 345,
+   'jason.kim.vcf', 'en-ext-jason-kim', '"e000000000000000000000000000000000000000000000000000000000000011"', 345,
    E'BEGIN:VCARD\r\nVERSION:3.0\r\nFN:Jason Kim\r\nN:Kim;Jason;;;\r\nEMAIL;TYPE=WORK:jason.kim@example-vc.test\r\nEMAIL;TYPE=HOME:jasonkim@gmail.example.test\r\nTEL;TYPE=WORK,VOICE:+1-650-555-0105\r\nTEL;TYPE=CELL:+1-650-555-8105\r\nORG:Horizon Ventures\r\nTITLE:Partner\r\nADR;TYPE=WORK:;;3000 Sand Hill Rd;Menlo Park;CA;94025;USA\r\nNOTE:Reviewing Series A. Monthly updates shared.\r\nEND:VCARD',
    'active'),
   ('f4200000-0000-0000-0000-000000000006', '30000000-0000-0000-0000-000000000001', 'f4000000-0000-0000-0000-000000000002',
-   'yumi.tanaka.vcf', 'en-ext-yumi-tanaka', '"en000000000000000000000000000000000000000000000000000000000012"', 340,
+   'yumi.tanaka.vcf', 'en-ext-yumi-tanaka', '"e000000000000000000000000000000000000000000000000000000000000012"', 340,
    E'BEGIN:VCARD\r\nVERSION:3.0\r\nFN:Yumi Tanaka\r\nN:Tanaka;Yumi;;;\r\nEMAIL;TYPE=WORK:yumi.tanaka@example-jp.test\r\nTEL;TYPE=WORK,VOICE:+81-3-5555-0106\r\nTEL;TYPE=CELL:+81-90-1234-0106\r\nORG:Future Stack Japan\r\nTITLE:Business Development Manager\r\nADR;TYPE=WORK:;;2-3-1 Marunouchi;Chiyoda-ku;Tokyo;100-0005;Japan\r\nNOTE:Japan partnership. Quarterly business meetings.\r\nEND:VCARD',
    'active'),
   ('f4200000-0000-0000-0000-000000000007', '30000000-0000-0000-0000-000000000001', 'f4000000-0000-0000-0000-000000000002',
-   'dongwoo.lim.vcf', 'en-ext-dongwoo-lim', '"en000000000000000000000000000000000000000000000000000000000013"', 325,
+   'dongwoo.lim.vcf', 'en-ext-dongwoo-lim', '"e000000000000000000000000000000000000000000000000000000000000013"', 325,
    E'BEGIN:VCARD\r\nVERSION:3.0\r\nFN:Dongwoo Lim\r\nN:Lim;Dongwoo;;;\r\nEMAIL;TYPE=WORK:dongwoo.lim@example-pr.test\r\nTEL;TYPE=WORK,VOICE:+1-415-555-0107\r\nTEL;TYPE=CELL:+1-415-555-9107\r\nORG:Platinum PR\r\nTITLE:PR Director\r\nNOTE:Media relations and press releases. Launch PR collaboration.\r\nEND:VCARD',
    'active'),
   ('f4200000-0000-0000-0000-000000000008', '30000000-0000-0000-0000-000000000001', 'f4000000-0000-0000-0000-000000000002',
-   'hyunwoo.ahn.vcf', 'en-ext-hyunwoo-ahn', '"en000000000000000000000000000000000000000000000000000000000014"', 318,
+   'hyunwoo.ahn.vcf', 'en-ext-hyunwoo-ahn', '"e000000000000000000000000000000000000000000000000000000000000014"', 318,
    E'BEGIN:VCARD\r\nVERSION:3.0\r\nFN:Hyunwoo Ahn\r\nN:Ahn;Hyunwoo;;;\r\nEMAIL;TYPE=WORK:hyunwoo.ahn@example-audit.test\r\nTEL;TYPE=WORK,VOICE:+1-415-555-0108\r\nORG:KR IT Audit Corp\r\nTITLE:Senior Auditor\r\nADR;TYPE=WORK:;;77 Financial Row;New York;NY;10005;USA\r\nNOTE:Annual security audit. SOC2 Type II preparation support.\r\nEND:VCARD',
    'active'),
   ('f4200000-0000-0000-0000-000000000009', '30000000-0000-0000-0000-000000000001', 'f4000000-0000-0000-0000-000000000002',
-   'claire.martin.vcf', 'en-ext-claire-martin', '"en000000000000000000000000000000000000000000000000000000000015"', 335,
+   'claire.martin.vcf', 'en-ext-claire-martin', '"e000000000000000000000000000000000000000000000000000000000000015"', 335,
    E'BEGIN:VCARD\r\nVERSION:3.0\r\nFN:Claire Martin\r\nN:Martin;Claire;;;\r\nEMAIL;TYPE=WORK:claire.martin@example-eu.test\r\nTEL;TYPE=WORK,VOICE:+33-1-5555-0109\r\nTEL;TYPE=CELL:+33-6-1234-0109\r\nORG:DigitalBridge EU\r\nTITLE:Head of Partnerships\r\nADR;TYPE=WORK:;;25 Rue de la Paix;Paris;;75002;France\r\nNOTE:European partnerships and GDPR compliance.\r\nEND:VCARD',
    'active'),
   ('f4200000-0000-0000-0000-000000000010', '30000000-0000-0000-0000-000000000001', 'f4000000-0000-0000-0000-000000000002',
-   'sehoon.cho.vcf', 'en-ext-sehoon-cho', '"en000000000000000000000000000000000000000000000000000000000016"', 315,
+   'sehoon.cho.vcf', 'en-ext-sehoon-cho', '"e000000000000000000000000000000000000000000000000000000000000016"', 315,
    E'BEGIN:VCARD\r\nVERSION:3.0\r\nFN:Sehoon Cho\r\nN:Cho;Sehoon;;;\r\nEMAIL;TYPE=WORK:sehoon.cho@example-telecom.test\r\nTEL;TYPE=WORK,VOICE:+1-415-555-0110\r\nTEL;TYPE=CELL:+1-415-555-9110\r\nORG:KR Telecom Enterprise\r\nTITLE:Enterprise Solutions Manager\r\nNOTE:Prospective enterprise mail customer. Quote sent.\r\nEND:VCARD',
    'active')
 ON CONFLICT DO NOTHING;
@@ -869,11 +869,11 @@ ON CONFLICT DO NOTHING;
 INSERT INTO caldav_calendars (id, company_id, domain_id, user_id, name, normalized_name,
   color, description, sync_token, status, slug, timezone)
 VALUES
-  ('h1000000-0000-0000-0000-000000000001', '7206af4e-fc44-4a65-890d-55bb35741d6c',
+  ('a1000000-0000-0000-0000-000000000001', '7206af4e-fc44-4a65-890d-55bb35741d6c',
    '7049fa6e-d649-44d3-83d2-b548c7e787d5', '30000000-0000-0000-0000-000000000001',
    'Work Calendar', 'work-calendar', '#4285F4', 'Work schedule', 'sync-work-1', 'active',
    'work', 'America/New_York'),
-  ('h1000000-0000-0000-0000-000000000002', '7206af4e-fc44-4a65-890d-55bb35741d6c',
+  ('a1000000-0000-0000-0000-000000000002', '7206af4e-fc44-4a65-890d-55bb35741d6c',
    '7049fa6e-d649-44d3-83d2-b548c7e787d5', '30000000-0000-0000-0000-000000000001',
    'Personal Calendar', 'personal-calendar', '#34A853', 'Personal schedule', 'sync-personal-1', 'active',
    'personal', 'America/New_York')
@@ -883,74 +883,74 @@ ON CONFLICT (id) DO UPDATE SET name=EXCLUDED.name, color=EXCLUDED.color,
 INSERT INTO caldav_calendar_objects (id, user_id, calendar_id, object_name, uid,
   component_type, etag, size, ics, status)
 VALUES
-  ('h2000000-0000-0000-0000-000000000001', '30000000-0000-0000-0000-000000000001',
-   'h1000000-0000-0000-0000-000000000001',
+  ('a2000000-0000-0000-0000-000000000001', '30000000-0000-0000-0000-000000000001',
+   'a1000000-0000-0000-0000-000000000001',
    'sprint-kickoff-2026-05-28.ics', 'en-evt-sprint-kickoff-20260528@acme.io',
-   'VEVENT', '"en00000000000000000000000000000000000000000000000000000000000017"', 420,
+   'VEVENT', '"0e00000000000000000000000000000000000000000000000000000000000017"', 420,
    E'BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//GoGoMail//CalDAV//EN\r\nBEGIN:VEVENT\r\nUID:en-evt-sprint-kickoff-20260528@acme.io\r\nSUMMARY:Sprint Kickoff Meeting\r\nDTSTART;TZID=America/New_York:20260528T100000\r\nDTEND;TZID=America/New_York:20260528T110000\r\nLOCATION:Meeting Room A\r\nDESCRIPTION:Q2 Sprint 3 kickoff. All engineering team members required.\r\nORGANIZER:mailto:kim.chulsoo@acme.io\r\nATTENDEE;CN=Jamie Park:mailto:user@acme.io\r\nATTENDEE;CN=Yuna Lee:mailto:lee.younghee@acme.io\r\nSTATUS:CONFIRMED\r\nEND:VEVENT\r\nEND:VCALENDAR',
    'active'),
 
-  ('h2000000-0000-0000-0000-000000000002', '30000000-0000-0000-0000-000000000001',
-   'h1000000-0000-0000-0000-000000000001',
+  ('a2000000-0000-0000-0000-000000000002', '30000000-0000-0000-0000-000000000001',
+   'a1000000-0000-0000-0000-000000000001',
    'okr-review-2026-05-30.ics', 'en-evt-okr-review-20260530@acme.io',
-   'VEVENT', '"en00000000000000000000000000000000000000000000000000000000000018"', 440,
+   'VEVENT', '"0e00000000000000000000000000000000000000000000000000000000000018"', 440,
    E'BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//GoGoMail//CalDAV//EN\r\nBEGIN:VEVENT\r\nUID:en-evt-okr-review-20260530@acme.io\r\nSUMMARY:Q2 OKR Mid-Review\r\nDTSTART;TZID=America/New_York:20260530T140000\r\nDTEND;TZID=America/New_York:20260530T160000\r\nLOCATION:Main Conference Room\r\nDESCRIPTION:Q2 OKR check-in. Division results presentation and H2 adjustment discussion.\r\nORGANIZER:mailto:kim.chulsoo@acme.io\r\nATTENDEE;CN=Jamie Park:mailto:user@acme.io\r\nSTATUS:CONFIRMED\r\nEND:VEVENT\r\nEND:VCALENDAR',
    'active'),
 
-  ('h2000000-0000-0000-0000-000000000003', '30000000-0000-0000-0000-000000000001',
-   'h1000000-0000-0000-0000-000000000001',
+  ('a2000000-0000-0000-0000-000000000003', '30000000-0000-0000-0000-000000000001',
+   'a1000000-0000-0000-0000-000000000001',
    'townhall-2026-05-22.ics', 'en-evt-townhall-20260522@acme.io',
-   'VEVENT', '"en00000000000000000000000000000000000000000000000000000000000019"', 430,
+   'VEVENT', '"0e00000000000000000000000000000000000000000000000000000000000019"', 430,
    E'BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//GoGoMail//CalDAV//EN\r\nBEGIN:VEVENT\r\nUID:en-evt-townhall-20260522@acme.io\r\nSUMMARY:Company Town Hall\r\nDTSTART;TZID=America/New_York:20260522T140000\r\nDTEND;TZID=America/New_York:20260522T160000\r\nLOCATION:Main Auditorium\r\nDESCRIPTION:CEO presentation and company-wide Q&A session. All staff attendance required.\r\nSTATUS:CONFIRMED\r\nEND:VEVENT\r\nEND:VCALENDAR',
    'active'),
 
-  ('h2000000-0000-0000-0000-000000000004', '30000000-0000-0000-0000-000000000001',
-   'h1000000-0000-0000-0000-000000000001',
+  ('a2000000-0000-0000-0000-000000000004', '30000000-0000-0000-0000-000000000001',
+   'a1000000-0000-0000-0000-000000000001',
    'sec-patch-deploy-2026-06-03.ics', 'en-evt-sec-patch-20260603@acme.io',
-   'VEVENT', '"en0000000000000000000000000000000000000000000000000000000000001a"', 425,
+   'VEVENT', '"0e0000000000000000000000000000000000000000000000000000000000001a"', 425,
    E'BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//GoGoMail//CalDAV//EN\r\nBEGIN:VEVENT\r\nUID:en-evt-sec-patch-20260603@acme.io\r\nSUMMARY:[Security] CVE Patch Deployment — gogomail-backend\r\nDTSTART;TZID=America/New_York:20260603T020000\r\nDTEND;TZID=America/New_York:20260603T040000\r\nLOCATION:Remote\r\nDESCRIPTION:CVE-2026-1234 patch deployment. Maintenance window 2-4am EST.\r\nORGANIZER:mailto:user@acme.io\r\nATTENDEE;CN=Henry Kang:mailto:kang.hyunjae@acme.io\r\nATTENDEE;CN=Dora Shim:mailto:shim.dayoung@acme.io\r\nSTATUS:CONFIRMED\r\nEND:VEVENT\r\nEND:VCALENDAR',
    'active'),
 
-  ('h2000000-0000-0000-0000-000000000005', '30000000-0000-0000-0000-000000000001',
-   'h1000000-0000-0000-0000-000000000001',
+  ('a2000000-0000-0000-0000-000000000005', '30000000-0000-0000-0000-000000000001',
+   'a1000000-0000-0000-0000-000000000001',
    'launch-planning-2026-06-10.ics', 'en-evt-launch-planning-20260610@acme.io',
-   'VEVENT', '"en0000000000000000000000000000000000000000000000000000000000001b"', 455,
+   'VEVENT', '"0e0000000000000000000000000000000000000000000000000000000000001b"', 455,
    E'BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//GoGoMail//CalDAV//EN\r\nBEGIN:VEVENT\r\nUID:en-evt-launch-planning-20260610@acme.io\r\nSUMMARY:GoGoMail Service Launch Planning\r\nDTSTART;TZID=America/New_York:20260610T100000\r\nDTEND;TZID=America/New_York:20260610T120000\r\nLOCATION:Meeting Room B\r\nDESCRIPTION:July launch final plan. Cross-team coordination for marketing, engineering, and design.\r\nORGANIZER:mailto:kim.chulsoo@acme.io\r\nATTENDEE;CN=Jamie Park:mailto:user@acme.io\r\nATTENDEE;CN=Min Park:mailto:park.minjun@acme.io\r\nATTENDEE;CN=Sean Hong:mailto:hong.seungwoo@acme.io\r\nSTATUS:TENTATIVE\r\nEND:VEVENT\r\nEND:VCALENDAR',
    'active'),
 
-  ('h2000000-0000-0000-0000-000000000006', '30000000-0000-0000-0000-000000000001',
-   'h1000000-0000-0000-0000-000000000001',
+  ('a2000000-0000-0000-0000-000000000006', '30000000-0000-0000-0000-000000000001',
+   'a1000000-0000-0000-0000-000000000001',
    'hr-eval-deadline-2026-05-15.ics', 'en-evt-hr-eval-20260515@acme.io',
-   'VEVENT', '"en0000000000000000000000000000000000000000000000000000000000001c"', 375,
+   'VEVENT', '"0e0000000000000000000000000000000000000000000000000000000000001c"', 375,
    E'BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//GoGoMail//CalDAV//EN\r\nBEGIN:VEVENT\r\nUID:en-evt-hr-eval-20260515@acme.io\r\nSUMMARY:Self-Evaluation Submission Deadline\r\nDTSTART;TZID=America/New_York:20260515T180000\r\nDTEND;TZID=America/New_York:20260515T183000\r\nDESCRIPTION:May performance review self-evaluation due in HR portal.\r\nSTATUS:CONFIRMED\r\nEND:VEVENT\r\nEND:VCALENDAR',
    'active'),
 
-  ('h2000000-0000-0000-0000-000000000007', '30000000-0000-0000-0000-000000000001',
-   'h1000000-0000-0000-0000-000000000001',
+  ('a2000000-0000-0000-0000-000000000007', '30000000-0000-0000-0000-000000000001',
+   'a1000000-0000-0000-0000-000000000001',
    'partner-meeting-2026-06-05.ics', 'en-evt-partner-mtg-20260605@acme.io',
-   'VEVENT', '"en0000000000000000000000000000000000000000000000000000000000001d"', 415,
+   'VEVENT', '"0e0000000000000000000000000000000000000000000000000000000000001d"', 415,
    E'BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//GoGoMail//CalDAV//EN\r\nBEGIN:VEVENT\r\nUID:en-evt-partner-mtg-20260605@acme.io\r\nSUMMARY:NextWave Studio Contract Meeting\r\nDTSTART;TZID=America/New_York:20260605T150000\r\nDTEND;TZID=America/New_York:20260605T160000\r\nLOCATION:NextWave Studio, 101 Innovation Dr, San Jose CA\r\nDESCRIPTION:Launch campaign agreement final discussion with Minji Kwon (PM).\r\nORGANIZER:mailto:user@acme.io\r\nATTENDEE;CN=Minji Kwon:mailto:minji.kwon@example-partner.test\r\nSTATUS:CONFIRMED\r\nEND:VEVENT\r\nEND:VCALENDAR',
    'active'),
 
   -- Personal calendar (3 events)
-  ('h2000000-0000-0000-0000-000000000008', '30000000-0000-0000-0000-000000000001',
-   'h1000000-0000-0000-0000-000000000002',
+  ('a2000000-0000-0000-0000-000000000008', '30000000-0000-0000-0000-000000000001',
+   'a1000000-0000-0000-0000-000000000002',
    'vacation-2026-06-02.ics', 'en-evt-vacation-20260602@acme.io',
-   'VEVENT', '"en0000000000000000000000000000000000000000000000000000000000001e"', 375,
+   'VEVENT', '"0e0000000000000000000000000000000000000000000000000000000000001e"', 375,
    E'BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//GoGoMail//CalDAV//EN\r\nBEGIN:VEVENT\r\nUID:en-evt-vacation-20260602@acme.io\r\nSUMMARY:Vacation \U0001F334\r\nDTSTART;VALUE=DATE:20260602\r\nDTEND;VALUE=DATE:20260607\r\nDESCRIPTION:Approved PTO 2026-06-02(Mon) through 06-06(Fri), 5 days.\r\nSTATUS:CONFIRMED\r\nEND:VEVENT\r\nEND:VCALENDAR',
    'active'),
 
-  ('h2000000-0000-0000-0000-000000000009', '30000000-0000-0000-0000-000000000001',
-   'h1000000-0000-0000-0000-000000000002',
+  ('a2000000-0000-0000-0000-000000000009', '30000000-0000-0000-0000-000000000001',
+   'a1000000-0000-0000-0000-000000000002',
    'dentist-2026-05-27.ics', 'en-evt-dentist-20260527@acme.io',
-   'VEVENT', '"en0000000000000000000000000000000000000000000000000000000000001f"', 345,
+   'VEVENT', '"0e0000000000000000000000000000000000000000000000000000000000001f"', 345,
    E'BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//GoGoMail//CalDAV//EN\r\nBEGIN:VEVENT\r\nUID:en-evt-dentist-20260527@acme.io\r\nSUMMARY:Dentist Appointment\r\nDTSTART;TZID=America/New_York:20260527T190000\r\nDTEND;TZID=America/New_York:20260527T200000\r\nLOCATION:Smile Dental, 500 Main St\r\nDESCRIPTION:Bi-annual checkup and cleaning.\r\nSTATUS:CONFIRMED\r\nEND:VEVENT\r\nEND:VCALENDAR',
    'active'),
 
-  ('h2000000-0000-0000-0000-000000000010', '30000000-0000-0000-0000-000000000001',
-   'h1000000-0000-0000-0000-000000000002',
+  ('a2000000-0000-0000-0000-000000000010', '30000000-0000-0000-0000-000000000001',
+   'a1000000-0000-0000-0000-000000000002',
    'birthday-min-2026-06-15.ics', 'en-evt-birthday-20260615@acme.io',
-   'VEVENT', '"en000000000000000000000000000000000000000000000000000000000000020"', 335,
+   'VEVENT', '"e000000000000000000000000000000000000000000000000000000000000020"', 335,
    E'BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//GoGoMail//CalDAV//EN\r\nBEGIN:VEVENT\r\nUID:en-evt-birthday-20260615@acme.io\r\nSUMMARY:Min''s Birthday \U0001F382\r\nDTSTART;VALUE=DATE:20260615\r\nDTEND;VALUE=DATE:20260616\r\nDESCRIPTION:Min Park''s birthday. Prepare cake with the team.\r\nSTATUS:CONFIRMED\r\nRRULE:FREQ=YEARLY\r\nEND:VEVENT\r\nEND:VCALENDAR',
    'active')
 
