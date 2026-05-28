@@ -63,6 +63,7 @@ export default function UsersPage() {
   const [editUser, setEditUser] = useState<User | null>(null);
   const [editForm, setEditForm] = useState<EditUserFormState>({ display_name: '', recovery_email: '', quota_gb: '0', role: 'user' });
   const [saving, setSaving] = useState(false);
+  const [editSaveError, setEditSaveError] = useState('');
 
   const [togglingId, setTogglingId] = useState<string | null>(null);
 
@@ -89,7 +90,7 @@ export default function UsersPage() {
     try {
       const domainRes = await fetch(`/api/admin/domains?company_id=${encodeURIComponent(companyId)}&limit=200`, { credentials: 'include' });
       if (!domainRes.ok) {
-        setFetchError(t('pages.users_page.load_failed') || '데이터를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.');
+        setFetchError(t('pages.users_page.load_failed'));
         return;
       }
       const domainData = await domainRes.json();
@@ -104,8 +105,8 @@ export default function UsersPage() {
           ...u,
           status: normalizeUserStatus(u.status),
         })));
-    } catch (e) {
-      setFetchError('데이터를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.');
+    } catch {
+      setFetchError(t('pages.users_page.load_failed'));
     } finally {
       setLoading(false);
     }
@@ -220,33 +221,37 @@ export default function UsersPage() {
   const handleEditSave = async () => {
     if (!editUser) return;
     setSaving(true);
+    setEditSaveError('');
     try {
-      await fetch(`/api/admin/users/${editUser.id}/quota`, {
+      const quotaRes = await fetch(`/api/admin/users/${editUser.id}/quota`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ quota_limit: parseInt(editForm.quota_gb) * USER_STORAGE_BYTES_PER_GB }),
         credentials: 'include',
       });
+      if (!quotaRes.ok) throw new Error(await quotaRes.text());
       if (editForm.role !== editUser.role) {
-        await fetch(`/api/admin/users/${editUser.id}/role`, {
+        const roleRes = await fetch(`/api/admin/users/${editUser.id}/role`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ role: editForm.role }),
           credentials: 'include',
         });
+        if (!roleRes.ok) throw new Error(await roleRes.text());
       }
       if (editForm.recovery_email.trim() !== (editUser.recovery_email ?? '')) {
-        await fetch(`/api/admin/users/${editUser.id}/recovery-email`, {
+        const emailRes = await fetch(`/api/admin/users/${editUser.id}/recovery-email`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ recovery_email: editForm.recovery_email.trim() }),
           credentials: 'include',
         });
+        if (!emailRes.ok) throw new Error(await emailRes.text());
       }
       setEditUser(null);
       fetchUsers();
-    } catch {
-      // mutation error handled by caller
+    } catch (e) {
+      setEditSaveError(e instanceof Error ? e.message : t('common.error'));
     } finally {
       setSaving(false);
     }
@@ -679,8 +684,9 @@ export default function UsersPage() {
         editForm={editForm}
         setEditForm={setEditForm}
         saving={saving}
+        saveError={editSaveError}
         roleOptions={ROLE_OPTIONS}
-        onDismiss={() => setEditUser(null)}
+        onDismiss={() => { setEditUser(null); setEditSaveError(''); }}
         onSave={handleEditSave}
       />
 
