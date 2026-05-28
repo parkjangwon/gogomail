@@ -323,7 +323,8 @@
       "title": "アラートと通知",
       "username": "Username",
       "username_label": "Username",
-      "description": "システム管理者アカウントを管理します"
+      "description": "システム管理者アカウントを管理します",
+      "custom_role": "カスタム"
     },
     "alerts_page": {
       "actions": "Actions",
@@ -1202,7 +1203,12 @@
       "mcp_clear_scopes": "クリア",
       "mcp_select_all_scopes": "すべて選択",
       "mcp_policy_last_updated": "最終更新",
-      "messages": "メッセージ"
+      "messages": "メッセージ",
+      "dns_status_pass": "合格",
+      "dns_status_fail": "不合格",
+      "dns_status_mismatch": "不一致",
+      "dns_status_error": "エラー",
+      "delete_confirm_body": "ドメイン {name} を削除してもよろしいですか？ユーザーがいない場合、この操作は元に戻せません。"
     },
     "domain_settings": {
       "title": "ドメイン設定",
@@ -1795,7 +1801,8 @@
       "search_placeholder": "検索...",
       "title": "キュー統計",
       "unacked_count": "未確認数",
-      "updated": "更新"
+      "updated": "更新",
+      "idle": "アイドル"
     },
     "quota_alerts": {
       "title": "クォータアラート",
@@ -3654,7 +3661,14 @@
     "load_error": "グローバル署名を読み込めませんでした。",
     "text_tab": "プレーンテキスト",
     "text_desc": "テキスト専用メールに追加されるプレーンテキスト署名です。",
-    "html_placeholder": "<p>よろしくお願いいたします。<br/><strong>Acme Corp</strong><br/>support@acme.com</p>"
+    "html_placeholder": "<p>よろしくお願いいたします。<br/><strong>Acme Corp</strong><br/>support@acme.com</p>",
+    "description": "すべての送信メールに会社全体の署名を追加します。",
+    "disabled": "無効",
+    "enabled": "有効",
+    "html_hint": "リッチテキスト（HTML）メールに追加されるHTML署名です。互換性のためインラインスタイルを使用してください。",
+    "plain_hint": "テキスト専用メールに追加されるプレーンテキスト署名です。",
+    "tab_html": "HTML",
+    "tab_plain": "プレーンテキスト"
   },
   "legal_holds": {
     "title": "リーガルホールド",
@@ -3679,7 +3693,23 @@
     "release_confirm_prefix": "次のユーザーのホールドを解除しますか:",
     "release_confirm_suffix": "メールボックスは保護されなくなり、通常の保持ポリシーの対象になる場合があります。",
     "reason_placeholder": "訴訟 - ケース #12345",
-    "reason_desc": "保全のための法務またはコンプライアンス上の理由です。"
+    "reason_desc": "保全のための法務またはコンプライアンス上の理由です。",
+    "active_holds_header": "有効な保全",
+    "col_created_at": "作成日",
+    "col_created_by": "作成者",
+    "col_reason": "理由",
+    "col_release": "解除",
+    "col_user": "ユーザー",
+    "create_hold_btn": "保全を作成",
+    "create_modal_header": "法的保全の作成",
+    "no_holds": "法的保全はありません。「保全を作成」をクリックしてユーザーのメールボックスを保存してください。",
+    "reason_label": "理由",
+    "release_confirm": "メールボックスは保全されなくなり、通常の保持ポリシーの対象となる場合があります。",
+    "release_hold_btn": "保全を解除",
+    "release_modal_header": "法的保全の解除",
+    "release_warning": "この操作は元に戻せません。",
+    "user_email_label": "ユーザーメール",
+    "validation_error": "ユーザーメールと理由は必須です。"
   },
   "notif_templates_page": {
     "failed_load": "テンプレートを読み込めませんでした",
@@ -3695,7 +3725,25 @@
     "preview_title": "メールプレビュー",
     "preview_iframe_title": "メール HTML プレビュー",
     "preview_subject": "件名",
-    "no_html_content": "HTML コンテンツはまだありません。"
+    "no_html_content": "HTML コンテンツはまだありません。",
+    "col_id": "ID",
+    "col_locale": "ロケール",
+    "col_template": "テンプレート",
+    "col_variables": "変数",
+    "email_preview_desc": "サンプル値でのリアルタイムプレビュー",
+    "email_preview_header": "メールプレビュー",
+    "html_body_label": "HTML本文",
+    "locale_label": "ロケール",
+    "no_plain_content": "まだプレーンテキストの内容がありません。",
+    "no_templates": "利用可能なテンプレートがありません",
+    "plain_body_label": "プレーンテキスト本文",
+    "sample_values_desc": "プレビュー用のみ",
+    "sample_values_header": "サンプル値",
+    "subject_label": "件名",
+    "tab_html": "HTML",
+    "tab_plain": "プレーンテキスト",
+    "template_saved": "テンプレートを保存しました",
+    "templates_header": "テンプレート"
   },
   "login": {
     "subtitle": "管理者コンソール",
@@ -3781,5 +3829,82 @@
     "dns_fail": "失敗",
     "dns_partial": "一部合格",
     "dns_unchecked": "未確認"
+  },
+  "audit_logs_page_v2": {
+    "all_categories": "全カテゴリ",
+    "audit_trail": "監査証跡",
+    "cat_auth": "認証",
+    "cat_config": "設定",
+    "cat_domain": "ドメイン",
+    "cat_security": "セキュリティ",
+    "cat_user": "ユーザー",
+    "col_action": "操作",
+    "col_actor": "実行者",
+    "col_category": "カテゴリ",
+    "col_ip": "IP",
+    "col_result": "結果",
+    "col_target": "対象",
+    "col_time": "日時",
+    "count_text": "件",
+    "export": "エクスポート",
+    "export_csv": "CSVでエクスポート",
+    "export_json": "JSONでエクスポート",
+    "exported_as": "エクスポート完了:",
+    "failed_load": "監査ログの読み込みに失敗しました",
+    "last_100": "直近100件",
+    "last_50": "直近50件",
+    "last_500": "直近500件",
+    "loading_text": "監査ログを読み込み中…",
+    "no_logs": "監査ログが見つかりません",
+    "refresh": "更新",
+    "search_placeholder": "操作、実行者、対象で検索…"
+  },
+  "domain_detail_mail_stats": {
+    "delivered": "配信済み",
+    "description": "このドメインから送信されたメッセージ — 直近7日",
+    "failed": "失敗",
+    "header": "日別メッセージ数",
+    "messages": "件",
+    "no_data": "直近7日間のメールデータがありません。",
+    "refresh": "更新",
+    "tab_label": "メール統計",
+    "total_last_7d": "7日合計:"
+  },
+  "reports_page": {
+    "change_history_link": "変更履歴と監査エクスポート →",
+    "csv_via_api": "CSVエクスポート: APIで利用可能",
+    "custom_export": "カスタムエクスポート",
+    "custom_export_desc": "フィルター付き監査エクスポートは変更履歴ページを、リアルタイムのヘルス状況はテナントヘルスページをご利用ください。",
+    "description": "コンプライアンスおよび運用レポートを生成・エクスポートします",
+    "export": "エクスポート",
+    "export_csv": "CSVでエクスポート",
+    "print_pdf": "印刷 / PDFとして保存",
+    "reports": {
+      "audit_logs": {
+        "category": "コンプライアンス",
+        "description": "コンプライアンス審査のための管理者操作の完全な監査証跡",
+        "name": "監査ログレポート"
+      },
+      "domain_health": {
+        "category": "ドメイン",
+        "description": "ドメイン状況、DNS確認結果、ドメイン別クォータ使用量",
+        "name": "ドメインヘルス概要"
+      },
+      "quota_summary": {
+        "category": "ストレージ",
+        "description": "ドメイン別ストレージ割り当てと使用量の内訳",
+        "name": "ストレージクォータ概要"
+      },
+      "users_export": {
+        "category": "ユーザー",
+        "description": "ステータス、クォータ、ドメイン割り当てを含む全ユーザー一覧",
+        "name": "ユーザーディレクトリエクスポート"
+      }
+    },
+    "tenant_health_link": "テナントヘルスレポート →"
+  },
+  "users_page_v2": {
+    "quota_label_gb": "GB（0 = ドメインのデフォルト）",
+    "role_desc": "企業管理者以上は管理コンソールにログインできます。"
   }
 }
