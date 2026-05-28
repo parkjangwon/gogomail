@@ -114,7 +114,7 @@ export function useCalendarEditForm({ onUpdated }: UseCalendarEditFormParams) {
     const startDate = new Date(editAllDay ? editStart + 'T00:00:00' : editStart);
     const endDate = new Date(editAllDay ? editEnd + 'T00:00:00' : editEnd);
     if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) { setEditError(t('event.invalidDate')); return; }
-    if (endDate <= startDate) { setEditError(t('event.endBeforeStart')); return; }
+    if (editAllDay ? endDate < startDate : endDate <= startDate) { setEditError(t('event.endBeforeStart')); return; }
     setEditSaving(true); setEditError('');
     try {
       const uid = editingEvent.obj.UID;

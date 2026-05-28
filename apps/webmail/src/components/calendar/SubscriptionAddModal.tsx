@@ -36,7 +36,7 @@ export function SubscriptionAddModal({
   if (!show) return null;
 
   return (
-    <div style={M.overlay} onClick={onClose}>
+    <div style={M.overlay} onClick={() => { if (!subSaving) onClose(); }}>
       <div style={M.card('400px')} onClick={(e) => e.stopPropagation()}>
         <div style={M.header}><span style={M.title}>{t('addTitle')}</span></div>
         <div style={M.body}>

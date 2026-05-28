@@ -32,10 +32,10 @@ function escapeCsv(value: string): string {
 function appendSearchTerms(params: URLSearchParams, search: string) {
   const term = search.trim();
   if (!term) return;
-  params.set('from_addr', term);
-  params.set('to_addr', term);
-  params.set('subject', term);
-  params.set('rfc_message_id', term);
+  if (!params.has('from_addr')) params.set('from_addr', term);
+  if (!params.has('to_addr')) params.set('to_addr', term);
+  if (!params.has('subject')) params.set('subject', term);
+  if (!params.has('rfc_message_id')) params.set('rfc_message_id', term);
 }
 
 export function buildMailFlowLogsQuery(filters: MailFlowLogQueryFilters): string {

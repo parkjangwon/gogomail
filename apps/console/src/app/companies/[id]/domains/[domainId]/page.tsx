@@ -42,6 +42,9 @@ export default function DomainDetailPage() {
 
   const { domain } = h;
   const dnsColor = domain.last_dns_check_status === 'pass' ? 'green' : domain.last_dns_check_status === 'fail' ? 'red' : 'grey';
+  const dnsStatusLabel = domain.last_dns_check_status
+    ? (t(`pages.domain_detail.dns_status_${domain.last_dns_check_status}`, domain.last_dns_check_status))
+    : t('pages.domain_detail.unchecked');
 
   return (
     <>
@@ -61,8 +64,8 @@ export default function DomainDetailPage() {
           >
             <SpaceBetween direction="horizontal" size="xs">
               <span>{domain.name}</span>
-              <Badge color={domain.status === 'active' ? 'green' : 'grey'}>{domain.status}</Badge>
-              <Badge color={dnsColor as 'green' | 'red' | 'grey'}>{t('pages.domain_detail.dns')}: {domain.last_dns_check_status || t('pages.domain_detail.unchecked')}</Badge>
+              <Badge color={domain.status === 'active' ? 'green' : domain.status === 'suspended' ? 'red' : 'grey'}>{domain.status}</Badge>
+              <Badge color={dnsColor as 'green' | 'red' | 'grey'}>{t('pages.domain_detail.dns')}: {dnsStatusLabel}</Badge>
             </SpaceBetween>
           </Header>
         }
@@ -107,7 +110,7 @@ export default function DomainDetailPage() {
         footer={<Box float="right"><SpaceBetween direction="horizontal" size="xs"><Button onClick={() => { h.setShowDelete(false); h.setDeleteError(''); }}>{t('common.cancel')}</Button><Button variant="primary" onClick={h.handleDelete} loading={h.deleting}>{t('common.delete') || '삭제'}</Button></SpaceBetween></Box>}
       >
         <SpaceBetween size="m">
-          <Box><strong>{domain.name}</strong> 도메인을 삭제하시겠습니까? 사용자가 있는 경우 삭제할 수 없습니다.</Box>
+          <Box>{t('pages.domain_detail.delete_confirm_body').replace('{name}', domain.name)}</Box>
           {h.deleteError ? <Alert type="error">{h.deleteError}</Alert> : null}
         </SpaceBetween>
       </Modal>

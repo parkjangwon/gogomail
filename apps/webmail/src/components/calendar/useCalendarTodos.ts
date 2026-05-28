@@ -54,7 +54,8 @@ export function useCalendarTodos({
     try {
       await setTodoStatus(todo.calendarId, todo.obj, !todo.completed);
       await refresh();
-    } finally {
+    } catch { /* ignore — UI reverts to prior state */ }
+    finally {
       setTodoTogglingId(null);
     }
   }, [refresh]);
@@ -64,7 +65,8 @@ export function useCalendarTodos({
     try {
       await deleteCalendarObject(todo.calendarId, todo.obj.ObjectName);
       await refresh();
-    } finally {
+    } catch { /* ignore — todo remains visible if delete fails */ }
+    finally {
       setTodoDeleteId(null);
     }
   }, [refresh]);

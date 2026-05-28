@@ -332,7 +332,7 @@ export function useSettingsPrefs({ userEmail: _userEmail, userName, activeSectio
       const storedCb = localStorage.getItem('webmail_colorblind');
       if (storedCb === 'deuteranopia' || storedCb === 'protanopia' || storedCb === 'tritanopia') setColorBlindMode(storedCb);
       const storedUfs = localStorage.getItem('webmail_ui_font_size');
-      if (storedUfs === 'sm' || storedUfs === 'lg' || storedUfs === 'xl') setUiFontSize(storedUfs);
+      if (storedUfs === 'sm' || storedUfs === 'md' || storedUfs === 'lg' || storedUfs === 'xl') setUiFontSize(storedUfs);
       const storedLs = localStorage.getItem('webmail_line_spacing');
       if (storedLs === 'relaxed' || storedLs === 'loose') setLineSpacing(storedLs);
       const storedLts = localStorage.getItem('webmail_letter_spacing');

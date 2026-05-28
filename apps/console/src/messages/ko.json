@@ -1193,7 +1193,12 @@
       "mcp_clear_scopes": "비우기",
       "mcp_select_all_scopes": "전체 선택",
       "mcp_policy_last_updated": "마지막 업데이트",
-      "messages": "메시지"
+      "messages": "메시지",
+      "dns_status_pass": "Pass",
+      "dns_status_fail": "Fail",
+      "dns_status_mismatch": "Mismatch",
+      "dns_status_error": "오류",
+      "delete_confirm_body": "도메인 {name}을(를) 삭제하시겠습니까? 사용자가 있는 경우 삭제할 수 없습니다."
     },
     "domain_settings": {
       "title": "도메인 설정",
@@ -1578,7 +1583,12 @@
       "ready": "준비",
       "unacked": "미확인",
       "dead_letter": "데드 레터",
-      "search_placeholder": "검색..."
+      "search_placeholder": "검색...",
+      "active_queues": "활성 큐",
+      "delayed": "지연됨",
+      "goroutines": "고루틴",
+      "queue_breakdown": "큐 상세",
+      "queue_topic": "큐 토픽"
     },
     "organization": {
       "description": "조직 구조",
@@ -2377,7 +2387,8 @@
       "access_aliases": "접근 제어 -> 별칭",
       "offboard_alias_middle": "로 이동해",
       "offboard_alias_suffix": "에서 원하는 주소로 별칭을 만드세요.",
-      "disabled": "비활성화"
+      "disabled": "비활성화",
+      "load_failed": "사용자를 불러오지 못했습니다. 잠시 후 다시 시도해주세요."
     },
     "security": {
       "mfa": "2단계 인증 (MFA)"
@@ -3349,9 +3360,9 @@
     "rule_type_attachment": "첨부 확장자",
     "rule_type_bulk": "대량 수신자",
     "rule_type_auth": "인증 실패",
-      "rule_type_sender_domain": "발신자 도메인",
-      "rule_type_url_host": "URL 호스트",
-      "rule_type_header_anomaly": "헤더/URL 이상 징후",
+    "rule_type_sender_domain": "발신자 도메인",
+    "rule_type_url_host": "URL 호스트",
+    "rule_type_header_anomaly": "헤더/URL 이상 징후",
     "rule_target_label": "대상",
     "rule_target_subject_body": "제목과 본문",
     "rule_target_subject": "제목만",

@@ -26,8 +26,8 @@ export function SafeHTMLBody({ html, onMailto, externalImages = 'ask' }: SafeHTM
 
   useEffect(() => {
     setShowQuoted(false);
-    setShowImages(false);
-  }, [html]);
+    setShowImages(externalImages === 'always');
+  }, [html, externalImages]);
 
   useEffect(() => {
     if (!ref.current) return;

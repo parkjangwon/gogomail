@@ -175,7 +175,7 @@ export function CalendarView() {
       const tag = (e.target as HTMLElement).tagName;
       const editable = (e.target as HTMLElement).isContentEditable;
       if (tag === 'INPUT' || tag === 'TEXTAREA' || editable) return;
-      if (quickCreate || popover || showCreateModal || showCalModal) {
+      if (quickCreate || popover || showCreateModal || showCalModal || showEditModal || showSubModal) {
         if (e.key === 'Escape') { setQuickCreate(null); setPopover(null); closeCreateModal(); setShowCalModal(false); }
         return;
       }
@@ -190,7 +190,7 @@ export function CalendarView() {
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [navigate, goToday, popover, showCreateModal, closeCreateModal]);
+  }, [navigate, goToday, popover, showCreateModal, closeCreateModal, showEditModal, showSubModal]);
 
   // Title
   let title = '';

@@ -40,9 +40,11 @@ export function useContactsEdit({
     if (!selectedContact || !selectedBookId) return;
     const name = selectedParsed?.fn || selectedContact.ObjectName;
     if (!confirm(t('deleteConfirm', { name }))) return;
-    await deleteContact(selectedBookId, selectedContact.ObjectName);
-    setContacts((prev) => prev.filter((c) => c.ID !== selectedContact.ID));
-    setSelectedContactIdx(null);
+    try {
+      await deleteContact(selectedBookId, selectedContact.ObjectName);
+      setContacts((prev) => prev.filter((c) => c.ID !== selectedContact.ID));
+      setSelectedContactIdx(null);
+    } catch { /* ignore — contact remains visible if delete fails */ }
   }, [selectedContact, selectedBookId, selectedParsed, t, setContacts, setSelectedContactIdx]);
 
   const handleEditStart = useCallback(() => {

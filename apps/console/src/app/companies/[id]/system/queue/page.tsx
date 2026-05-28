@@ -33,8 +33,8 @@ export default function QueueStatsPage() {
 
   const getStatusIndicator = (q: QueueStat) => {
     if (q.stale_processing_count > 0) return <StatusIndicator type="error">{t('pages.queue_stats_page.stale')}</StatusIndicator>;
-    if (q.count === 0) return <StatusIndicator type="success">{t('pages.queue_stats.pending')}</StatusIndicator>;
-    if (q.ready_count > 0) return <StatusIndicator type="in-progress">{t('pages.queue_stats.processing')}</StatusIndicator>;
+    if (q.count === 0) return <StatusIndicator type="success">{t('pages.queue_stats_page.idle')}</StatusIndicator>;
+    if (q.ready_count > 0) return <StatusIndicator type="in-progress">{t('pages.queue_stats_page.ready')}</StatusIndicator>;
     return <StatusIndicator type="pending">{t('pages.queue_stats_page.status')}</StatusIndicator>;
   };
 
@@ -51,7 +51,7 @@ export default function QueueStatsPage() {
       <ContentLayout header={<Header variant="h1">{t('pages.queue_stats.title')}</Header>}>
         <Box textAlign="center" padding="xl">
           <SpaceBetween size="m" alignItems="center">
-            <Box color="text-status-error">{t('pages.queue_stats.description')}</Box>
+            <Box color="text-status-error">{t('common.error')}</Box>
             <Button iconName="refresh" onClick={() => queueQuery.refetch()}>{t('common.retry')}</Button>
           </SpaceBetween>
         </Box>

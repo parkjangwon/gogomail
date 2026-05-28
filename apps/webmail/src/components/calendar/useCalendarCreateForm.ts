@@ -78,7 +78,7 @@ export function useCalendarCreateForm({ calendars, onCreated }: UseCalendarCreat
     const startDate = new Date(createAllDay ? createStart + 'T00:00:00' : createStart);
     const endDate = new Date(createAllDay ? createEnd + 'T00:00:00' : createEnd);
     if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) { setCreateError(t('event.invalidDate')); return; }
-    if (endDate <= startDate) { setCreateError(t('event.endBeforeStart')); return; }
+    if (createAllDay ? endDate < startDate : endDate <= startDate) { setCreateError(t('event.endBeforeStart')); return; }
     setCreateSaving(true); setCreateError('');
     try {
       await createCalendarEvent(createCalId, {

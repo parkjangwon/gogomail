@@ -42,16 +42,16 @@ export function useMessage(messageId: string | null) {
       return;
     }
 
-    markRead(messageId, true).catch(() => undefined);
-
     const cached = getCached(messageId);
     if (cached) {
+      if (!cached.read) markRead(messageId, true).catch(() => undefined);
       setMessage(cached);
       setError(null);
       setLoading(false);
       return;
     }
 
+    markRead(messageId, true).catch(() => undefined);
     let cancelled = false;
     setLoading(true);
     setError(null);

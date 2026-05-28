@@ -39,7 +39,7 @@ export function useContactsBooks({
         setSelectedBookId((prev) => (prev ? prev : books[0].ID));
       }
       setBooksLoading(false);
-    });
+    }).catch(() => setBooksLoading(false));
   }, []);
 
   const handleCreateBook = useCallback(async () => {

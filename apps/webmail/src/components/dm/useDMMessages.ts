@@ -73,8 +73,9 @@ export function useDMMessages({
     setLoadingMessages(true);
     try {
       const next = await listDMMessages(activeRoomId, { limit: 80 });
-      setMessages([...next].sort((a, b) => Date.parse(a.created_at) - Date.parse(b.created_at)));
-      const last = next[next.length - 1];
+      const sorted = [...next].sort((a, b) => Date.parse(a.created_at) - Date.parse(b.created_at));
+      setMessages(sorted);
+      const last = sorted[sorted.length - 1];
       if (last) void markDMRead(activeRoomId, last.id).then(loadRooms).catch(() => {});
       setError('');
     } catch (err) {

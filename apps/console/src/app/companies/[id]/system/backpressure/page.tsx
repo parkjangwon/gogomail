@@ -11,30 +11,27 @@ import {
   Button,
   Modal,
   FormField,
-  Input,
+  Select,
+  type SelectProps,
   KeyValuePairs,
 } from '@cloudscape-design/components';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useI18n } from '@/app/i18n-provider';
 import { useAdminBackpressure, useUpdateAdminBackpressure, type BackpressureUpdateRequest } from '@/hooks';
 
+const LEVEL_OPTIONS: SelectProps.Option[] = [
+  { value: 'normal', label: 'Normal' },
+  { value: 'warning', label: 'Warning' },
+  { value: 'critical', label: 'Critical' },
+];
+
 const thresholdForLevel = (level: string) => {
   switch (level) {
-    case 'normal':
-      return 0;
-    case 'warning':
-      return 40;
-    case 'critical':
-      return 90;
-    default:
-      return 0;
+    case 'normal': return 0;
+    case 'warning': return 40;
+    case 'critical': return 90;
+    default: return 0;
   }
-};
-
-const levelForThreshold = (threshold: number): string => {
-  if (threshold >= 90) return 'critical';
-  if (threshold >= 40) return 'warning';
-  return 'normal';
 };
 
 const getStatusColor = (status: string) => {
@@ -56,13 +53,7 @@ export default function BackpressurePage() {
   const updateBackpressure = useUpdateAdminBackpressure();
   const state = backpressureQuery.data?.backpressure ?? null;
   const [showModal, setShowModal] = useState(false);
-  const [newThreshold, setNewThreshold] = useState('');
-
-  useEffect(() => {
-    if (state) {
-      setNewThreshold(String(thresholdForLevel(state.level as string)));
-    }
-  }, [state]);
+  const [newLevel, setNewLevel] = useState<SelectProps.Option>(LEVEL_OPTIONS[0]);
 
   if (backpressureQuery.isLoading) {
     return (
@@ -90,7 +81,7 @@ export default function BackpressurePage() {
   const handleUpdateThreshold = async () => {
     if (!state) return;
     await updateBackpressure.mutateAsync({
-      level: levelForThreshold(Number(newThreshold || 0)) as BackpressureUpdateRequest['level'],
+      level: (newLevel.value ?? 'normal') as BackpressureUpdateRequest['level'],
       reason: state.reason,
       until: state.until,
     });
@@ -104,7 +95,10 @@ export default function BackpressurePage() {
           variant="h1"
           description={t('pages.backpressure.description')}
           actions={
-            <Button variant="primary" onClick={() => setShowModal(true)}>
+            <Button variant="primary" onClick={() => {
+              setNewLevel(LEVEL_OPTIONS.find(o => o.value === state?.level) ?? LEVEL_OPTIONS[0]);
+              setShowModal(true);
+            }}>
               {t('pages.backpressure_page.update_threshold')}
             </Button>
           }
@@ -165,10 +159,10 @@ export default function BackpressurePage() {
         header={t('pages.backpressure_page.modal_header')}
       >
         <FormField label={t('pages.backpressure_page.threshold_label')} description={t('pages.backpressure_page.threshold_desc')}>
-          <Input
-            type="number"
-            value={newThreshold}
-            onChange={(e) => setNewThreshold(e.detail.value)}
+          <Select
+            selectedOption={newLevel}
+            options={LEVEL_OPTIONS}
+            onChange={({ detail }) => setNewLevel(detail.selectedOption)}
           />
         </FormField>
       </Modal>
