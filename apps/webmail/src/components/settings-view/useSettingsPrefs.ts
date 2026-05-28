@@ -346,7 +346,10 @@ export function useSettingsPrefs({ userEmail: _userEmail, userName, activeSectio
     if (activeSection !== 'storage') return;
     if (folderStats.length > 0 || statsLoading) return; // already loaded
     setStatsLoading(true);
-    getFolderStats().then(setFolderStats).catch(() => {}).finally(() => setStatsLoading(false));
+    getFolderStats().then((stats) => {
+      const seen = new Set<string>();
+      setFolderStats(stats.filter((f) => { if (seen.has(f.id)) return false; seen.add(f.id); return true; }));
+    }).catch(() => {}).finally(() => setStatsLoading(false));
   }, [activeSection]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Handlers ──────────────────────────────────────────────────────────────────

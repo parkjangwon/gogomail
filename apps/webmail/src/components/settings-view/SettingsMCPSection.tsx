@@ -198,7 +198,9 @@ export function SettingsMCPSection() {
       setNewKeyExpiresAt('');
       setNewToken(created.token);
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : t('mcpKeyCreateFailed'));
+      const raw = e instanceof Error ? e.message : '';
+      const msg = /mcp.*disabled/i.test(raw) ? t('mcpDisabledByDomain') : (raw || t('mcpKeyCreateFailed'));
+      setError(msg);
     } finally {
       setSavingKey(false);
     }
@@ -310,7 +312,7 @@ export function SettingsMCPSection() {
             />
           )}
           <input type="datetime-local" value={newKeyExpiresAt} onChange={(e) => setNewKeyExpiresAt(e.target.value)} style={inputStyle('190px')} aria-label={t('mcpKeyExpiresAt')} />
-          <button onClick={handleCreateKey} disabled={savingKey || !settings.enabled || !newKeyName.trim() || newKeyScopes.length === 0} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '7px 12px', borderRadius: '6px', border: 'none', background: 'var(--color-accent)', color: '#fff', fontSize: '12px', fontWeight: 600, cursor: savingKey ? 'wait' : 'pointer' }}>
+          <button onClick={handleCreateKey} disabled={savingKey || !settings.enabled || !newKeyName.trim() || newKeyScopes.length === 0} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '7px 12px', borderRadius: '6px', border: 'none', background: 'var(--color-accent)', color: '#fff', fontSize: '12px', fontWeight: 600, opacity: (!settings.enabled || !newKeyName.trim() || newKeyScopes.length === 0) && !savingKey ? 0.5 : 1, cursor: savingKey ? 'wait' : (!settings.enabled || !newKeyName.trim() || newKeyScopes.length === 0) ? 'not-allowed' : 'pointer' }}>
             <KeyIcon style={{ width: 14, height: 14 }} /> {savingKey ? t('saving') : t('mcpCreateKey')}
           </button>
           </div>

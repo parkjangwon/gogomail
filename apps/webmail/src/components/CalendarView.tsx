@@ -380,7 +380,7 @@ export function CalendarView() {
         createRruleUntil={createRruleUntil}
         createRruleDays={createRruleDays}
         canSubmit={canSubmitCreateEvent}
-        showCalSelect={calendars.length > 1}
+        showCalSelect={calendars.length > 0}
         dayLabels={localizedDayLabels}
         ruleIntervalLabel={recurrenceLabel}
         onClose={closeCreateModal}

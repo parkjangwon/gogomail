@@ -646,7 +646,12 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
           />
 
           {/* TipTap editor body */}
-          <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
+          <div
+            style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}
+            onKeyDown={(e) => {
+              if ((e.ctrlKey || e.metaKey) && e.key === 'a') e.stopPropagation();
+            }}
+          >
             <EditorContent editor={editor} />
           </div>
 

@@ -34,6 +34,7 @@ export function useDMRooms({ onUnreadChange, t, setError }: UseDMRoomsParams) {
   const [visibility, setVisibility] = useState<'private' | 'public'>('private');
   const [loadingRooms, setLoadingRooms] = useState(false);
   const [newChatOpen, setNewChatOpen] = useState(false);
+  const [newChatError, setNewChatError] = useState('');
 
   const loadRooms = useCallback(async () => {
     setLoadingRooms(true);
@@ -82,6 +83,7 @@ export function useDMRooms({ onUnreadChange, t, setError }: UseDMRoomsParams) {
 
   const createRoom = useCallback(async () => {
     if (selectedUsers.length === 0) return;
+    setNewChatError('');
     try {
       const room = await createDMRoom({
         room_type: roomType,
@@ -92,7 +94,11 @@ export function useDMRooms({ onUnreadChange, t, setError }: UseDMRoomsParams) {
       setRooms((prev) => [room, ...prev.filter((item) => item.id !== room.id)]);
       setActiveRoomId(room.id);
       setSelectedUsers([]); setRoomName(''); setDirectoryQuery(''); setNewChatOpen(false); setError('');
-    } catch (err) { setError(err instanceof Error ? err.message : t('errors.roomCreateFailed')); }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : t('errors.roomCreateFailed');
+      setNewChatError(msg || t('errors.roomCreateFailed'));
+      setError(msg || t('errors.roomCreateFailed'));
+    }
   }, [roomName, roomType, selectedUsers, t, visibility, setError]);
 
   const addDirectoryUser = useCallback((user: DirectoryUser) => {
@@ -121,6 +127,7 @@ export function useDMRooms({ onUnreadChange, t, setError }: UseDMRoomsParams) {
     visibility, setVisibility,
     loadingRooms,
     newChatOpen, setNewChatOpen,
+    newChatError, setNewChatError,
     loadRooms,
     createRoom,
     addDirectoryUser,
