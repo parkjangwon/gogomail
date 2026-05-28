@@ -323,7 +323,8 @@
       "title": "警报与通知",
       "username": "Username",
       "username_label": "Username",
-      "description": "管理系统管理员账户"
+      "description": "管理系统管理员账户",
+      "custom_role": "自定义"
     },
     "alerts_page": {
       "actions": "Actions",
@@ -1202,7 +1203,12 @@
       "mcp_clear_scopes": "清空",
       "mcp_select_all_scopes": "全选",
       "mcp_policy_last_updated": "最后更新",
-      "messages": "消息"
+      "messages": "消息",
+      "dns_status_pass": "通过",
+      "dns_status_fail": "失败",
+      "dns_status_mismatch": "不匹配",
+      "dns_status_error": "错误",
+      "delete_confirm_body": "确定要删除域名 {name} 吗？如果该域名没有用户，此操作无法撤销。"
     },
     "domain_settings": {
       "title": "域名设置",
@@ -1795,7 +1801,8 @@
       "search_placeholder": "搜索...",
       "title": "队列统计",
       "unacked_count": "未确认数",
-      "updated": "已更新"
+      "updated": "已更新",
+      "idle": "空闲"
     },
     "quota_alerts": {
       "title": "配额告警",
@@ -3654,7 +3661,14 @@
     "load_error": "无法加载全局签名。",
     "text_tab": "纯文本",
     "text_desc": "追加到纯文本邮件的签名。",
-    "html_placeholder": "<p>此致,<br/><strong>Acme Corp</strong><br/>support@acme.com</p>"
+    "html_placeholder": "<p>此致,<br/><strong>Acme Corp</strong><br/>support@acme.com</p>",
+    "description": "为所有外发邮件添加公司统一签名。",
+    "disabled": "已禁用",
+    "enabled": "已启用",
+    "html_hint": "附加到富文本（HTML）邮件的 HTML 签名。建议使用内联样式以确保最佳兼容性。",
+    "plain_hint": "附加到纯文本邮件的纯文本签名。",
+    "tab_html": "HTML",
+    "tab_plain": "纯文本"
   },
   "legal_holds": {
     "title": "法律保留",
@@ -3679,7 +3693,23 @@
     "release_confirm_prefix": "解除以下用户的保留:",
     "release_confirm_suffix": "该邮箱将不再被保留，并可能受常规保留策略约束。",
     "reason_placeholder": "诉讼 - 案件 #12345",
-    "reason_desc": "保留所需的法律或合规理由。"
+    "reason_desc": "保留所需的法律或合规理由。",
+    "active_holds_header": "有效保留",
+    "col_created_at": "创建时间",
+    "col_created_by": "创建者",
+    "col_reason": "原因",
+    "col_release": "解除",
+    "col_user": "用户",
+    "create_hold_btn": "创建保留",
+    "create_modal_header": "创建法律保留",
+    "no_holds": "暂无法律保留。点击创建保留以保存用户邮箱。",
+    "reason_label": "原因",
+    "release_confirm": "邮箱将不再受保护，可能适用正常的保留策略。",
+    "release_hold_btn": "解除保留",
+    "release_modal_header": "解除法律保留",
+    "release_warning": "此操作不可撤销。",
+    "user_email_label": "用户邮箱",
+    "validation_error": "用户邮箱和原因为必填项。"
   },
   "notif_templates_page": {
     "failed_load": "无法加载模板",
@@ -3695,7 +3725,25 @@
     "preview_title": "邮件预览",
     "preview_iframe_title": "邮件 HTML 预览",
     "preview_subject": "主题",
-    "no_html_content": "暂无 HTML 内容。"
+    "no_html_content": "暂无 HTML 内容。",
+    "col_id": "ID",
+    "col_locale": "语言",
+    "col_template": "模板",
+    "col_variables": "变量",
+    "email_preview_desc": "使用示例值的实时预览",
+    "email_preview_header": "邮件预览",
+    "html_body_label": "HTML 正文",
+    "locale_label": "语言",
+    "no_plain_content": "暂无纯文本内容。",
+    "no_templates": "没有可用模板",
+    "plain_body_label": "纯文本正文",
+    "sample_values_desc": "仅用于预览",
+    "sample_values_header": "示例值",
+    "subject_label": "主题",
+    "tab_html": "HTML",
+    "tab_plain": "纯文本",
+    "template_saved": "模板已保存",
+    "templates_header": "模板"
   },
   "login": {
     "subtitle": "管理员控制台",
@@ -3781,5 +3829,82 @@
     "dns_fail": "失败",
     "dns_partial": "部分通过",
     "dns_unchecked": "未检查"
+  },
+  "audit_logs_page_v2": {
+    "all_categories": "全部类别",
+    "audit_trail": "审计追踪",
+    "cat_auth": "认证",
+    "cat_config": "配置",
+    "cat_domain": "域名",
+    "cat_security": "安全",
+    "cat_user": "用户",
+    "col_action": "操作",
+    "col_actor": "执行者",
+    "col_category": "类别",
+    "col_ip": "IP",
+    "col_result": "结果",
+    "col_target": "目标",
+    "col_time": "时间",
+    "count_text": "条",
+    "export": "导出",
+    "export_csv": "导出为 CSV",
+    "export_json": "导出为 JSON",
+    "exported_as": "已导出为",
+    "failed_load": "加载审计日志失败",
+    "last_100": "最近 100 条",
+    "last_50": "最近 50 条",
+    "last_500": "最近 500 条",
+    "loading_text": "正在加载审计日志...",
+    "no_logs": "未找到审计日志",
+    "refresh": "刷新",
+    "search_placeholder": "搜索操作、执行者、目标..."
+  },
+  "domain_detail_mail_stats": {
+    "delivered": "已投递",
+    "description": "此域名发送的邮件 — 最近 7 天",
+    "failed": "失败",
+    "header": "每日邮件量",
+    "messages": "封",
+    "no_data": "最近 7 天没有邮件数据。",
+    "refresh": "刷新",
+    "tab_label": "邮件统计",
+    "total_last_7d": "7 天合计："
+  },
+  "reports_page": {
+    "change_history_link": "变更历史与审计导出 →",
+    "csv_via_api": "CSV 导出：通过 API 获取",
+    "custom_export": "自定义导出",
+    "custom_export_desc": "如需过滤审计导出，请使用变更历史页面；如需实时状态快照，请使用租户健康页面。",
+    "description": "生成并导出合规及运营报告",
+    "export": "导出",
+    "export_csv": "导出为 CSV",
+    "print_pdf": "打印 / 另存为 PDF",
+    "reports": {
+      "audit_logs": {
+        "category": "合规",
+        "description": "用于合规审查的管理员操作完整审计记录",
+        "name": "审计日志报告"
+      },
+      "domain_health": {
+        "category": "域名",
+        "description": "域名状态、DNS 检查结果及各域名配额使用情况",
+        "name": "域名健康摘要"
+      },
+      "quota_summary": {
+        "category": "存储",
+        "description": "各域名存储分配与使用量分析",
+        "name": "存储配额摘要"
+      },
+      "users_export": {
+        "category": "用户",
+        "description": "包含状态、配额和域名分配的所有用户列表",
+        "name": "用户目录导出"
+      }
+    },
+    "tenant_health_link": "租户健康报告 →"
+  },
+  "users_page_v2": {
+    "quota_label_gb": "GB（0 = 域名默认值）",
+    "role_desc": "公司管理员及以上可登录管理控制台。"
   }
 }
