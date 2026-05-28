@@ -62,7 +62,7 @@ export function ContactDetailPanel({
   onDelete,
   t,
 }: ContactDetailPanelProps) {
-  if (!selectedContact || !selectedParsed) {
+  if (!editMode && (!selectedContact || !selectedParsed)) {
     return (
       <div
         style={{
@@ -86,6 +86,61 @@ export function ContactDetailPanel({
     );
   }
 
+  if (editMode && !selectedContact) {
+    return (
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
+        <div style={{ padding: '20px 24px 16px', borderBottom: '1px solid var(--color-border-subtle)', flexShrink: 0 }}>
+          <div style={{ fontSize: '16px', fontWeight: 600, color: 'var(--color-text-primary)' }}>{t('newContact')}</div>
+        </div>
+        <div style={{ flex: 1, overflowY: 'auto', padding: '20px 24px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', maxWidth: '480px' }}>
+            {EDIT_FIELDS.map(({ fieldKey, field }) => (
+              <div key={field} style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  {t(`fields.${fieldKey}`)}
+                </label>
+                {field === 'note' ? (
+                  <textarea
+                    value={editFields[field]}
+                    onChange={(e) => setEditFields((prev) => ({ ...prev, [field]: e.target.value }))}
+                    rows={3}
+                    style={{ padding: '8px 10px', borderRadius: '6px', border: '1px solid var(--color-border-default)', background: 'var(--color-bg-secondary)', color: 'var(--color-text-primary)', fontSize: '13px', resize: 'vertical', outline: 'none', fontFamily: 'inherit' }}
+                  />
+                ) : (
+                  <input
+                    type="text"
+                    value={editFields[field]}
+                    onChange={(e) => setEditFields((prev) => ({ ...prev, [field]: e.target.value }))}
+                    style={{ padding: '8px 10px', borderRadius: '6px', border: '1px solid var(--color-border-default)', background: 'var(--color-bg-secondary)', color: 'var(--color-text-primary)', fontSize: '13px', outline: 'none' }}
+                  />
+                )}
+              </div>
+            ))}
+            {saveError && <div style={{ fontSize: '12px', color: '#e53e3e', marginTop: '4px' }}>{saveError}</div>}
+            <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
+              <button
+                onClick={onEditCancel}
+                style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '7px 14px', background: 'var(--color-bg-secondary)', border: '1px solid var(--color-border-default)', borderRadius: '6px', fontSize: '13px', cursor: 'pointer', color: 'var(--color-text-secondary)' }}
+              >
+                <XMarkIcon style={{ width: '14px', height: '14px' }} />
+                {t('cancel')}
+              </button>
+              <button
+                disabled={saving}
+                onClick={onSave}
+                style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '7px 14px', background: 'var(--color-accent)', border: 'none', borderRadius: '6px', fontSize: '13px', fontWeight: 500, cursor: saving ? 'wait' : 'pointer', color: '#fff', opacity: saving ? 0.7 : 1 }}
+              >
+                <CheckIcon style={{ width: '14px', height: '14px' }} />
+                {saving ? t('saving') : t('save')}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!selectedContact || !selectedParsed) return null;
   const displayFn = selectedParsed.fn || selectedContact.ObjectName || '';
   const avatarBg = avatarColor(displayFn);
 

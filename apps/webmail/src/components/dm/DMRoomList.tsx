@@ -105,6 +105,7 @@ type DMRoomListProps = {
   onAddDirectoryUser: (user: DirectoryUser) => void;
   onRemoveSelectedUser: (userId: string) => void;
   onCreateRoom: () => void;
+  newChatError?: string;
   onStartWindowDrag?: (event: ReactMouseEvent<HTMLElement>) => void;
   titleForRoom: (room: DMRoom) => string;
   previewForMessage: (message: DMRoom['last_message']) => string;
@@ -139,6 +140,7 @@ export function DMRoomList({
   onAddDirectoryUser,
   onRemoveSelectedUser,
   onCreateRoom,
+  newChatError,
   onStartWindowDrag,
   titleForRoom,
   previewForMessage,
@@ -195,6 +197,11 @@ export function DMRoomList({
                 <PlusIcon style={{ width: 17, height: 17 }} />
               </button>
             </div>
+            {newChatError && (
+              <div role="alert" style={{ marginTop: 6, fontSize: 12, color: 'var(--color-destructive)', padding: '5px 8px', borderRadius: 5, background: 'rgba(220,38,38,0.06)', border: '1px solid rgba(220,38,38,0.2)' }}>
+                {newChatError}
+              </div>
+            )}
             {selectedUsers.length > 0 && (
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginTop: 8 }}>
                 {selectedUsers.map((user) => (

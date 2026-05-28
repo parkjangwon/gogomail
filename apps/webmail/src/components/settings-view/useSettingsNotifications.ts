@@ -69,7 +69,11 @@ export function useSettingsNotifications({ t }: UseSettingsNotificationsParams) 
 
   useEffect(() => {
     getFolders()
-      .then((data) => setNotificationFolders(data.folders ?? []))
+      .then((data) => {
+        const folders = data.folders ?? [];
+        const seen = new Set<string>();
+        setNotificationFolders(folders.filter((f) => { if (seen.has(f.id)) return false; seen.add(f.id); return true; }));
+      })
       .catch(() => setNotificationFolders([]));
   }, []);
 

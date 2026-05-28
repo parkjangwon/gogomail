@@ -104,7 +104,11 @@ export function EventCreateModal({
             />
           </div>
 
-          {showCalSelect && (
+          {calendars.length === 0 ? (
+            <div style={{ padding: '10px 12px', borderRadius: '6px', background: 'rgba(234,179,8,0.08)', border: '1px solid rgba(234,179,8,0.3)', fontSize: '13px', color: 'var(--color-text-secondary)' }}>
+              {t('noCalendarsWarning')}
+            </div>
+          ) : showCalSelect && (
             <div>
               <label style={M.label}>{t('calendarLabel')}</label>
               <select value={createCalId} onChange={(e) => onCalIdChange(e.target.value)} style={M.select}>

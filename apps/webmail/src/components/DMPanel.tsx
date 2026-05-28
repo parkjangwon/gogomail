@@ -106,6 +106,7 @@ export function DMPanel({ userEmail, onUnreadChange, onClose, onComposeToAddress
         onAddDirectoryUser={dm.addDirectoryUser}
         onRemoveSelectedUser={(userId) => dm.setSelectedUsers((prev) => prev.filter((item) => item.id !== userId))}
         onCreateRoom={dm.createRoom}
+        newChatError={dm.newChatError}
         onStartWindowDrag={onStartWindowDrag}
         titleForRoom={dm.titleForRoom}
         previewForMessage={dm.previewForMessage}
