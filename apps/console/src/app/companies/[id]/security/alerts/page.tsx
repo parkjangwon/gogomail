@@ -143,7 +143,7 @@ export default function AlertRulesPage() {
   );
 
   const openEvents = events.filter(event => !event.resolved_at);
-  const recentEvents = events.slice(0, 10);
+  const recentEvents = [...events].sort((a, b) => new Date(b.triggered_at).getTime() - new Date(a.triggered_at).getTime()).slice(0, 10);
   const loading = loadingRules || loadingChannels || loadingEvents;
 
   const openRuleCreate = () => {
@@ -183,67 +183,76 @@ export default function AlertRulesPage() {
   };
 
   const saveRule = async () => {
+    if (!companyId || !ruleForm.name.trim()) return;
+    const parsedThreshold = Number(ruleForm.threshold);
+    if (ruleForm.threshold.trim() && !Number.isFinite(parsedThreshold)) {
+      return;
+    }
     const payload: AlertRuleCreateRequest = {
       name: ruleForm.name.trim(),
       alert_type: ruleForm.alert_type,
       description: ruleForm.description.trim() || undefined,
-      threshold: Number(ruleForm.threshold) || 0,
+      threshold: Number.isFinite(parsedThreshold) ? parsedThreshold : 0,
       check_interval_minutes: Number(ruleForm.check_interval_minutes) || 60,
       is_enabled: ruleForm.is_enabled,
     };
 
-    if (!companyId || !ruleForm.name.trim()) return;
-
-    if (ruleForm.id) {
-      await updateRule.mutateAsync({
-        companyId,
-        ruleId: ruleForm.id,
-        data: payload as unknown as AlertRuleUpdateRequest,
-      });
-    } else {
-      await createRule.mutateAsync({
-        companyId,
-        data: payload,
-      });
+    try {
+      if (ruleForm.id) {
+        await updateRule.mutateAsync({
+          companyId,
+          ruleId: ruleForm.id,
+          data: payload as unknown as AlertRuleUpdateRequest,
+        });
+      } else {
+        await createRule.mutateAsync({
+          companyId,
+          data: payload,
+        });
+      }
+      setShowRuleModal(false);
+    } catch {
+      // mutation error is surfaced by the query hook's error state
     }
-
-    setShowRuleModal(false);
   };
 
   const saveChannel = async () => {
     if (!companyId || !channelForm.name.trim()) return;
 
-    if (channelForm.id) {
-      await updateChannel.mutateAsync({
-        companyId,
-        channelId: channelForm.id,
-        data: {
-          name: channelForm.name.trim(),
-          is_enabled: channelForm.is_enabled,
-        } as AlertChannelUpdateRequest,
-      });
-    } else {
-      const config: AlertChannelCreateRequest['config'] = {};
-      if (channelForm.channel_type === 'email') {
-        config.recipients = toRecipients(channelForm.recipients_text);
-      }
-      if (channelForm.channel_type === 'webhook') {
-        if (channelForm.url.trim()) config.url = channelForm.url.trim();
-        if (channelForm.auth_header.trim()) config.auth_header = channelForm.auth_header.trim();
-      }
+    try {
+      if (channelForm.id) {
+        await updateChannel.mutateAsync({
+          companyId,
+          channelId: channelForm.id,
+          data: {
+            name: channelForm.name.trim(),
+            is_enabled: channelForm.is_enabled,
+          } as AlertChannelUpdateRequest,
+        });
+      } else {
+        const config: AlertChannelCreateRequest['config'] = {};
+        if (channelForm.channel_type === 'email') {
+          config.recipients = toRecipients(channelForm.recipients_text);
+        }
+        if (channelForm.channel_type === 'webhook') {
+          if (channelForm.url.trim()) config.url = channelForm.url.trim();
+          if (channelForm.auth_header.trim()) config.auth_header = channelForm.auth_header.trim();
+        }
 
-      await createChannel.mutateAsync({
-        companyId,
-        data: {
-          name: channelForm.name.trim(),
-          channel_type: channelForm.channel_type,
-          config,
-          is_enabled: channelForm.is_enabled,
-        } as AlertChannelCreateRequest,
-      });
+        await createChannel.mutateAsync({
+          companyId,
+          data: {
+            name: channelForm.name.trim(),
+            channel_type: channelForm.channel_type,
+            config,
+            is_enabled: channelForm.is_enabled,
+          } as AlertChannelCreateRequest,
+        });
+      }
+      setShowChannelModal(false);
+    } catch {
+      // mutation error is surfaced by the query hook's error state
     }
-
-    setShowChannelModal(false);
   };
 
   const removeRule = async (rule: AlertRule) => {
@@ -458,7 +467,7 @@ export default function AlertRulesPage() {
           columnDefinitions={[
             {
               header: t('pages.alerts_page.rule'),
-              cell: (item: AlertEvent) => item.alert_rule_id,
+              cell: (item: AlertEvent) => rules.find(r => r.id === item.alert_rule_id)?.name ?? item.alert_rule_id,
               width: '18%',
             },
             {
