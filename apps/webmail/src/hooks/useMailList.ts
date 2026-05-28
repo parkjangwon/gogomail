@@ -109,7 +109,7 @@ export function useMailList(folderId: string, refreshIntervalSeconds: RefreshInt
 
   const adjustUnread = useCallback((folderId: string, delta: number) => {
     setFolders((prev) =>
-      prev.map((f) => f.id === folderId ? { ...f, unread: Math.max(0, f.unread + delta) } : f)
+      prev.map((f) => f.id === folderId ? { ...f, unread: Math.max(0, (f.unread ?? 0) + delta) } : f)
     );
   }, []);
 

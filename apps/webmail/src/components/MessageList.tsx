@@ -5,6 +5,7 @@ import { useState, useRef, useEffect, useMemo, useCallback, type KeyboardEvent a
 const PULL_THRESHOLD = 64;
 const PAGE_SIZE = 50;
 const SKELETON_COUNT = 8;
+const EMPTY_SET = new Set<string>();
 import { useTranslations } from 'next-intl';
 import { MessageSummary } from '@/lib/api';
 import {
@@ -39,7 +40,7 @@ import {
 } from './message-list/messageListTypes';
 import { KO_KEYS, DateGroupKey, getDateGroup } from './message-list/messageListHelpers';
 
-export function MessageList({ messages, selectedId, onSelect, loading, emptyLabel, hasMore, loadingMore, onLoadMore, onStar, onBulkDelete, onBulkMarkRead, onRefresh, refreshing, isMobile, onOpenSidebar, onContextMenuMessage, onMarkAllRead, emptyFolderLabel, onEmptyFolder, folders, onBulkMove, paneWidth, fullWidth, bottomLayout, searchQuery, onDeleteMessage, onBulkRestore, onBulkLabel, onBulkStar, onArchiveMessage, onToggleReadMessage, onSnoozeMessage, onPinMessage, pinnedIds = new Set(), importantIds = new Set(), messageLabels = {}, userEmail, showPreview = true, showCategoryTabs = false }: MessageListProps) {
+export function MessageList({ messages, selectedId, onSelect, loading, emptyLabel, hasMore, loadingMore, onLoadMore, onStar, onBulkDelete, onBulkMarkRead, onRefresh, refreshing, isMobile, onOpenSidebar, onContextMenuMessage, onMarkAllRead, emptyFolderLabel, onEmptyFolder, folders, onBulkMove, paneWidth, fullWidth, bottomLayout, searchQuery, onDeleteMessage, onBulkRestore, onBulkLabel, onBulkStar, onArchiveMessage, onToggleReadMessage, onSnoozeMessage, onPinMessage, pinnedIds = EMPTY_SET, importantIds = EMPTY_SET, messageLabels = {}, userEmail, showPreview = true, showCategoryTabs = false }: MessageListProps) {
   const t = useTranslations('mailListFull');
   const [filterMode, setFilterMode] = useState<FilterMode>('all');
   const [filterLabel, setFilterLabel] = useState<string | null>(null);
@@ -256,7 +257,7 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
   const selectedIdRef = useRef(selectedId);
   useEffect(() => { selectedIdRef.current = selectedId; }, [selectedId]);
   useEffect(() => { setPage(0); }, [filterMode, filterLabel]);
-  useEffect(() => { setPage(0); }, [messages]);
+  useEffect(() => { setPage(0); setBulkSelected(new Set()); }, [messages]);
 
   const baseFiltered = useMemo(() =>
     filterMode === 'unread' ? messages.filter((m) => !m.read)
@@ -294,14 +295,13 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
   }, [showCategoryTabs, afterLabelFilter]);
 
   const sortedBase = useMemo(() => {
-    const base = sortAsc
-      ? [...afterCategoryFilter].sort((a, b) => new Date(a.received_at).getTime() - new Date(b.received_at).getTime())
-      : afterCategoryFilter;
-    if (pinnedIds.size === 0) return base;
-    return [...base].sort((a, b) => {
+    const dir = sortAsc ? 1 : -1;
+    if (pinnedIds.size === 0 && !sortAsc) return afterCategoryFilter;
+    return [...afterCategoryFilter].sort((a, b) => {
       const aPin = pinnedIds.has(a.id) ? 0 : 1;
       const bPin = pinnedIds.has(b.id) ? 0 : 1;
-      return aPin - bPin;
+      if (aPin !== bPin) return aPin - bPin;
+      return dir * (new Date(a.received_at).getTime() - new Date(b.received_at).getTime());
     });
   }, [sortAsc, afterCategoryFilter, pinnedIds]);
 
@@ -410,7 +410,7 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
           padding: '12px 0',
         }}
       >
-        {Array.from({ length: 8 }).map((_, i) => (
+        {Array.from({ length: SKELETON_COUNT }).map((_, i) => (
           <div
             key={i}
             style={{
@@ -544,7 +544,7 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
 
   // Group messages by date
   const groups: { key: string; label: string; messages: MessageSummary[] }[] = [];
-  const groupOrder: DateGroupKey[] = ['today', 'yesterday', 'lastWeek', 'thisMonth'];
+  const groupOrder: DateGroupKey[] = ['today', 'yesterday', 'lastWeek', 'thisMonth', 'older'];
   const groupMap = new Map<DateGroupKey, MessageSummary[]>();
 
   for (const msg of pagedMessages) {

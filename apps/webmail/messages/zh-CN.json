@@ -713,7 +713,8 @@
       "today": "今天",
       "yesterday": "昨天",
       "lastWeek": "过去7天",
-      "thisMonth": "本月"
+      "thisMonth": "本月",
+      "older": "更早"
     },
     "inboxZeroTitle": "收件箱已清空",
     "inboxZeroDesc": "您已处理所有邮件。稍作休息吧。",

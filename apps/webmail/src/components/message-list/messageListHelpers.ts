@@ -6,16 +6,22 @@ export const KO_KEYS: Record<string, string> = {
   'ㅂ':'q','ㅈ':'w',
 };
 
-export type DateGroupKey = 'today' | 'yesterday' | 'lastWeek' | 'thisMonth';
+export type DateGroupKey = 'today' | 'yesterday' | 'lastWeek' | 'thisMonth' | 'older';
+
+const isoDate = (d: Date) => d.toLocaleDateString('en-CA'); // YYYY-MM-DD
 
 export function getDateGroup(receivedAt: string): DateGroupKey {
   const date = new Date(receivedAt);
   const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  const today = isoDate(now);
+  const yesterday = isoDate(new Date(now.getTime() - 86_400_000));
 
-  if (diffDays === 0) return 'today';
-  if (diffDays === 1) return 'yesterday';
+  const dateStr = isoDate(date);
+  if (dateStr === today) return 'today';
+  if (dateStr === yesterday) return 'yesterday';
+
+  const diffDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
   if (diffDays < 7) return 'lastWeek';
-  return 'thisMonth';
+  if (date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear()) return 'thisMonth';
+  return 'older';
 }
