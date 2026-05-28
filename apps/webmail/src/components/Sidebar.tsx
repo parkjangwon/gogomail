@@ -256,7 +256,7 @@ export function Sidebar({
                   {icon}
                   {unread > 0 && (
                     <span style={{ position: 'absolute', top: '2px', right: '2px', width: '14px', height: '14px', borderRadius: '50%', background: 'var(--color-accent)', color: '#fff', fontSize: '9px', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}>
-                      {unread > 9 ? '9+' : unread}
+                      {formatBadge(unread)}
                     </span>
                   )}
                 </button>
