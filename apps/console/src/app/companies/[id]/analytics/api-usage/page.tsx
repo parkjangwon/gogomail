@@ -91,7 +91,8 @@ export default function APIUsagePage() {
     } finally {
       setLoading(false);
     }
-  }, [companyId, usageQuery.refetch]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [companyId]);
 
   useEffect(() => {
     fetchAPIUsage();

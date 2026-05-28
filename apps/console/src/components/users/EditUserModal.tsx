@@ -2,7 +2,7 @@
 
 import { Dispatch, SetStateAction, useState } from 'react';
 import {
-  Box, Button, FormField, Input, Modal, Select,
+  Alert, Box, Button, FormField, Input, Modal, Select,
   SpaceBetween, ExpandableSection, StatusIndicator, Spinner,
 } from '@cloudscape-design/components';
 import { useI18n } from '@/app/i18n-provider';
@@ -32,6 +32,7 @@ interface EditUserModalProps {
   editForm: EditUserFormState;
   setEditForm: Dispatch<SetStateAction<EditUserFormState>>;
   saving: boolean;
+  saveError?: string;
   roleOptions: SelectOption[];
   onDismiss: () => void;
   onSave: () => void;
@@ -191,6 +192,7 @@ export function EditUserModal({
   editForm,
   setEditForm,
   saving,
+  saveError,
   roleOptions,
   onDismiss,
   onSave,
@@ -215,6 +217,7 @@ export function EditUserModal({
       header={`${t('pages.users_page.edit_modal_title')} — ${username}`}
     >
       <SpaceBetween size="m">
+        {saveError && <Alert type="error">{saveError}</Alert>}
         <FormField label={t('pages.users_page.display_name_label')}>
           <Box color="text-body-secondary">{editForm.display_name || '—'}</Box>
         </FormField>
