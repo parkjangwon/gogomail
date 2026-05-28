@@ -56,11 +56,18 @@ export function useReadingPane({ message }: UseReadingPaneParams): UseReadingPan
   useEffect(() => {
     setSavedContact(false);
     setScrollProgress(0);
+    setEmailDarkMode(false);
   }, [message?.id]);
 
   useEffect(() => {
     setInlineCompose(null);
   }, [message?.id]);
+
+  useEffect(() => {
+    return () => {
+      if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+    };
+  }, []);
 
   const increaseFontSize = useCallback(() => {
     setFontSize((current) => Math.min(24, current + 1));

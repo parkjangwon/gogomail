@@ -716,7 +716,8 @@
       "today": "오늘",
       "yesterday": "어제",
       "lastWeek": "지난 7일",
-      "thisMonth": "이번 달"
+      "thisMonth": "이번 달",
+      "older": "이전"
     },
     "inboxZeroTitle": "받은 편지함이 깨끗합니다",
     "inboxZeroDesc": "모든 메일을 처리했습니다. 잠시 여유를 즐기세요.",

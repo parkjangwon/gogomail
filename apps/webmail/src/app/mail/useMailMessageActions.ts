@@ -119,6 +119,8 @@ export function useMailMessageActions(params: UseMailMessageActionsParams) {
 
   const handleMarkUnread = useCallback(async () => {
     if (!selectedMessageId) return;
+    const msg = findVisibleMessage(selectedMessageId);
+    if (msg?.read === false) return;
     patchVisibleMessages([selectedMessageId], { read: false });
     adjustUnread(activeFolderId, 1);
     addToast(t('misc.mailPage.markedUnread'), 'info');
@@ -126,7 +128,7 @@ export function useMailMessageActions(params: UseMailMessageActionsParams) {
       patchVisibleMessages([selectedMessageId], { read: true });
       adjustUnread(activeFolderId, -1);
     });
-  }, [selectedMessageId, patchVisibleMessages, adjustUnread, activeFolderId, addToast]);
+  }, [selectedMessageId, findVisibleMessage, patchVisibleMessages, adjustUnread, activeFolderId, addToast]);
 
   const handleMarkRead = useCallback(async () => {
     if (!selectedMessageId) return;
@@ -194,6 +196,7 @@ export function useMailMessageActions(params: UseMailMessageActionsParams) {
             if (msgToDelete) {
               setMessages((prev) => [msgToDelete, ...prev]);
               setSearchResults((prev) => (prev ? [msgToDelete, ...prev] : prev));
+              if (!msgToDelete.read) adjustUnread(activeFolderId, 1);
             }
             if (threadToRestore) {
               setThreads((prev) => [threadToRestore, ...prev]);
@@ -546,10 +549,11 @@ export function useMailMessageActions(params: UseMailMessageActionsParams) {
     const id = selectedMessageId;
     const notSpamMsg =
       messages.find((m) => m.id === id) ?? searchResults?.find((m) => m.id === id);
-    if (notSpamMsg && !notSpamMsg.read) adjustUnread(activeFolderId, -1);
+    const wasUnread = notSpamMsg && !notSpamMsg.read;
     const nextId = getNextId(id);
     void moveMessage(id, inboxFolder.id)
       .then(() => {
+        if (wasUnread) adjustUnread(activeFolderId, -1);
         removeVisibleMessages([id]);
         setSelectedMessageId(nextId);
         addToast(t('misc.mailPage.movedToInbox'), 'info');
@@ -615,7 +619,7 @@ export function useMailMessageActions(params: UseMailMessageActionsParams) {
         /* ignore */
       }
       if (shouldHideMessageAfterSnooze(activeFolderId)) {
-        setMessages((prev) => prev.filter((m) => m.id !== id));
+        removeVisibleMessages([id]);
         if (selectedMessageId === id) setSelectedMessageId(null);
       }
       addToast(
@@ -626,7 +630,7 @@ export function useMailMessageActions(params: UseMailMessageActionsParams) {
         { duration: 4000 },
       );
     },
-    [activeFolderId, selectedMessageId, setMessages, addToast],
+    [activeFolderId, selectedMessageId, removeVisibleMessages, addToast],
   );
 
   return {

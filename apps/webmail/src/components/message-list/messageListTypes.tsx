@@ -26,11 +26,15 @@ export function highlight(text: string, query: string): ReactNode {
   const words = query.trim().split(/\s+/).filter(Boolean);
   const pattern = new RegExp(`(${words.map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})`, 'gi');
   const parts = text.split(pattern);
-  return parts.map((part, i) => (
-    <mark key={i} style={{ background: '#fef08a', color: 'inherit', borderRadius: '2px', padding: '0 1px' }}>
-      {part}
-    </mark>
-  ));
+  return parts.map((part, i) =>
+    pattern.test(part) ? (
+      <mark key={i} style={{ background: '#fef08a', color: 'inherit', borderRadius: '2px', padding: '0 1px' }}>
+        {part}
+      </mark>
+    ) : (
+      <span key={i}>{part}</span>
+    )
+  );
 }
 
 export function readingTimeLabel(preview: string, t?: (key: string, values?: Record<string, unknown>) => string): string | null {

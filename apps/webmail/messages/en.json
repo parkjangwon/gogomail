@@ -713,7 +713,8 @@
       "today": "Today",
       "yesterday": "Yesterday",
       "lastWeek": "Last 7 days",
-      "thisMonth": "This month"
+      "thisMonth": "This month",
+      "older": "Older"
     },
     "inboxZeroTitle": "Your inbox is clear",
     "inboxZeroDesc": "You've processed all mail. Take a moment to relax.",

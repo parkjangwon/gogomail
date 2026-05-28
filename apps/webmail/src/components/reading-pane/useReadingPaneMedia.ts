@@ -53,12 +53,16 @@ export function useReadingPaneMedia({
   }, [pdfPreview]);
 
   useEffect(() => {
+    // Revoke URLs from the previous message to prevent blob URL leaks
+    const prevUrls = imagePreviewsRef.current;
+    Object.values(prevUrls).forEach((url) => URL.revokeObjectURL(url));
+    imagePreviewsRef.current = {};
+    setImagePreviews({});
+
     if (!messageId || attachments.length === 0) return;
     const imageAttachments = attachments.filter((a) => a.mime_type.startsWith('image/') && a.status === 'stored');
-    const previous = imagePreviewsRef.current;
     let cancelled = false;
     imageAttachments.forEach((att) => {
-      if (previous[att.id]) return;
       fetch(`/api/mail/messages/${messageId}/attachments/${att.id}/download`)
         .then((response) => response.ok ? response.blob() : null)
         .then((blob) => {
