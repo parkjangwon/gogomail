@@ -1588,10 +1588,10 @@
       "title": "监控",
       "unacked": "未确认",
       "warning": "警告",
-      "goroutines": "协程数",
+      "goroutines": "Goroutines",
       "delayed": "延迟",
       "queue_breakdown": "队列详情",
-      "queue_topic": "队列",
+      "queue_topic": "队列主题",
       "active_queues": "活跃队列"
     },
     "organization": {
@@ -2495,7 +2495,8 @@
       "access_aliases": "访问控制 -> 别名",
       "offboard_alias_middle": "并创建从",
       "offboard_alias_suffix": "到目标地址的别名。",
-      "disabled": "已禁用"
+      "disabled": "已禁用",
+      "load_failed": "无法加载用户，请稍后重试。"
     },
     "auth_policy_page": {
       "title": "密码与身份验证策略",

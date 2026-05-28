@@ -111,13 +111,18 @@ export function useSettingsAccount({ t, router }: UseSettingsAccountParams) {
     if (!window.confirm(t('revokeAllConfirm'))) return;
     setRevokeAllError('');
     setRevokingAll(true);
-    const ok = await revokeAllSessions();
-    if (ok) {
-      try { localStorage.removeItem('webmail_token'); localStorage.removeItem('webmail_email'); } catch { /* ignore */ }
-      router.push('/login');
-    } else {
-      setRevokingAll(false);
+    try {
+      const ok = await revokeAllSessions();
+      if (ok) {
+        try { localStorage.removeItem('webmail_token'); localStorage.removeItem('webmail_email'); } catch { /* ignore */ }
+        router.push('/login');
+      } else {
+        setRevokeAllError(t('revokeFailed'));
+      }
+    } catch {
       setRevokeAllError(t('revokeFailed'));
+    } finally {
+      setRevokingAll(false);
     }
   }
 

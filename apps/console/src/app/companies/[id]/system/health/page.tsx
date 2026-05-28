@@ -51,11 +51,13 @@ export default function APIHealthPage() {
     await Promise.all([healthQuery.refetch(), queueQuery.refetch()]);
   }, [healthQuery, queueQuery]);
 
-  const overallStatus = checks.every(c => c.status === 'healthy')
-    ? 'healthy'
-    : checks.some(c => c.status === 'unhealthy')
-      ? 'unhealthy'
-      : 'degraded';
+  const overallStatus = checks.length === 0
+    ? 'unknown'
+    : checks.every(c => c.status === 'healthy')
+      ? 'healthy'
+      : checks.some(c => c.status === 'unhealthy')
+        ? 'unhealthy'
+        : 'degraded';
 
   const totalQueued = queues.reduce((s, q) => s + q.count, 0);
   const totalReady = queues.reduce((s, q) => s + q.ready_count, 0);

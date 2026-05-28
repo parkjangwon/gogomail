@@ -80,7 +80,7 @@ export function useContactsList({
     listContacts(selectedBookId).then((cts) => {
       setContacts(cts);
       setLoading(false);
-    });
+    }).catch(() => setLoading(false));
   }, [selectedBookId]);
 
   // Sync viewSettings from localStorage

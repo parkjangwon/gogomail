@@ -1588,10 +1588,10 @@
       "title": "モニタリング",
       "unacked": "未確認",
       "warning": "警告",
-      "goroutines": "ゴルーチン数",
+      "goroutines": "ゴルーチン",
       "delayed": "遅延",
       "queue_breakdown": "キュー詳細",
-      "queue_topic": "キュー",
+      "queue_topic": "キュートピック",
       "active_queues": "アクティブキュー"
     },
     "organization": {
@@ -2495,7 +2495,8 @@
       "access_aliases": "アクセス -> エイリアス",
       "offboard_alias_middle": "に移動し、",
       "offboard_alias_suffix": "から宛先アドレスへのエイリアスを作成します。",
-      "disabled": "無効"
+      "disabled": "無効",
+      "load_failed": "ユーザーの読み込みに失敗しました。しばらくしてから再試行してください。"
     },
     "auth_policy_page": {
       "title": "パスワード・認証ポリシー",

@@ -18,7 +18,7 @@ export function useCalendarData() {
       if (cancelled) return;
       setCalendars(cals);
       setSelectedCalIds(new Set(cals.map((c) => c.ID)));
-    });
+    }).catch(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, []);
 
@@ -44,7 +44,7 @@ export function useCalendarData() {
       if (cancelled) return;
       setSubscriptions(subs);
       setSelectedSubIds(new Set(subs.map((s) => s.id)));
-    });
+    }).catch(() => {});
     return () => { cancelled = true; };
   }, []);
 
