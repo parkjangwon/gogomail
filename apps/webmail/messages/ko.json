@@ -4,7 +4,7 @@
     "error": "오류가 발생했습니다",
     "retry": "다시 시도",
     "scope": "범위 이동",
-      "close": "닫기",
+    "close": "닫기",
     "cancel": "취소",
     "save": "저장",
     "delete": "삭제",
@@ -371,7 +371,7 @@
   "readingPaneOverlay": {
     "download": "다운로드",
     "scope": "범위 이동",
-      "close": "닫기"
+    "close": "닫기"
   },
   "composeSlash": {
     "formatting": "서식"
@@ -1419,7 +1419,23 @@
     "allowedInputHint": "이메일 주소 또는 도메인(@example.com)을 입력하세요. 해당 발신자의 메일은 스팸으로 분류되더라도 받은 편지함으로 전달됩니다.",
     "allowedInputPlaceholder": "예: newsletter@example.com 또는 @trusted.com",
     "allow": "허용",
-    "allowedAlready": "이미 허용된 주소입니다."
+    "allowedAlready": "이미 허용된 주소입니다.",
+    "sectionPasskeys": "패스키 (Passkey)",
+    "passkeyDesc": "비밀번호 대신 지문, 얼굴 인식, 또는 보안 키로 로그인하세요.",
+    "passkeyNoKeys": "등록된 패스키가 없습니다.",
+    "passkeyAdd": "패스키 추가",
+    "passkeyAdding": "등록 중...",
+    "passkeyNameLabel": "패스키 이름",
+    "passkeyNamePlaceholder": "예: MacBook Touch ID",
+    "passkeyConfirmAdd": "등록",
+    "passkeyAddSuccess": "패스키가 등록되었습니다.",
+    "passkeyAddFailed": "패스키 등록에 실패했습니다.",
+    "passkeyDeleteConfirm": "패스키 \"{name}\"을(를) 삭제하시겠습니까?",
+    "passkeyDeleteFailed": "패스키 삭제에 실패했습니다.",
+    "passkeyUnsupported": "이 브라우저는 패스키를 지원하지 않습니다.",
+    "passkeyLastUsed": "마지막 사용",
+    "passkeyNeverUsed": "사용 이력 없음",
+    "passkeyRemove": "삭제"
   },
   "composeFull": {
     "titleNew": "새 메시지",
