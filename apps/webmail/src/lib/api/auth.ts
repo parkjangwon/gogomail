@@ -1,5 +1,6 @@
 import { arrayBufferToBase64URL } from '../webpush';
 import { request, apiGet, apiPost, apiPatch, apiDelete, responseErrorMessage } from './http';
+import { coerceCreationOptions, credentialToJSON } from './webauthn';
 import type { AuthTokenResponse, MFAVerifyResponse } from './types';
 
 export type { AuthTokenResponse, MFAVerifyResponse };
@@ -69,6 +70,34 @@ export async function verifyMFA(
   }
 
   return res.json() as Promise<MFAVerifyResponse>;
+}
+
+// ─── WebAuthn / Passkeys ───────────────────────────────────────────────────────
+
+export interface PasskeyCredential {
+  id: string;
+  name: string;
+  created_at: string;
+  last_used_at?: string;
+}
+
+export async function listPasskeyCredentials(): Promise<PasskeyCredential[]> {
+  const data = await apiGet<{ credentials: PasskeyCredential[] }>('mfa/webauthn/credentials');
+  return data.credentials ?? [];
+}
+
+export async function registerPasskey(username: string, displayName: string, name: string): Promise<PasskeyCredential> {
+  const options = await apiPost<Record<string, unknown>>('mfa/webauthn/register/begin', { username, display_name: displayName });
+  const creationOptions = coerceCreationOptions(options);
+  const credential = await navigator.credentials.create({ publicKey: creationOptions }) as PublicKeyCredential | null;
+  if (!credential) throw new Error('Passkey registration cancelled.');
+  const credJSON = credentialToJSON(credential);
+  const url = `mfa/webauthn/register/complete?name=${encodeURIComponent(name)}`;
+  return apiPost<PasskeyCredential>(url, credJSON);
+}
+
+export async function deletePasskeyCredential(id: string): Promise<void> {
+  await apiDelete(`mfa/webauthn/credentials/${encodeURIComponent(id)}`);
 }
 
 export async function revokeAllSessions(): Promise<boolean> {

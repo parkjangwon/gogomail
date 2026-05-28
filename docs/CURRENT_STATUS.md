@@ -1,6 +1,16 @@
 # gogomail current status
 
-Last updated: 2026-05-28 (security hardening: Round 34 — roles/bulk-domains/bulk-import IDOR)
+Last updated: 2026-05-28 (audit error logging fix + WebAuthn passkey UI)
+
+## Audit error logging + WebAuthn passkey UI (2026-05-28)
+
+- **maildb**: `user_mcp_access_keys.go` — replaced silent `_ = audit.Insert` with `slog.ErrorContext` in `CreateUserMCPAccessKey` and `RevokeUserMCPAccessKey`. Audit insert failures now surface in structured logs instead of being silently discarded.
+- **webmail**: Added Passkeys section to Security settings (`SettingsSecuritySection.tsx`):
+  - New `lib/api/webauthn.ts` — base64url ↔ ArrayBuffer helpers, coerce creation/request options, credential serializer
+  - `lib/api/auth.ts` — `listPasskeyCredentials`, `registerPasskey`, `deletePasskeyCredential`
+  - Passkeys card with list view, add flow (full browser WebAuthn ceremony via `navigator.credentials.create`), remove
+  - Guarded by `isWebAuthnSupported()` with fallback message
+  - i18n keys added to en/ko/ja/zh-CN
 
 ## Post-remediation hardening round 37 (2026-05-28)
 

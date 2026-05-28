@@ -1,11 +1,12 @@
 package maildb
 
 import (
-	"errors"
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"log/slog"
 	"net/netip"
 	"strings"
 	"time"
@@ -157,7 +158,7 @@ RETURNING id::text, user_id::text, domain_id::text, name, token_suffix, scopes, 
 		}
 		return CreatedUserMCPAccessKey{}, fmt.Errorf("create user mcp access key: %w", err)
 	}
-	_ = audit.NewPostgresRepository(r.db).Insert(ctx, audit.Log{
+	if err := audit.NewPostgresRepository(r.db).Insert(ctx, audit.Log{
 		DomainID:   key.DomainID,
 		UserID:     key.UserID,
 		ActorID:    key.UserID,
@@ -167,7 +168,9 @@ RETURNING id::text, user_id::text, domain_id::text, name, token_suffix, scopes, 
 		TargetID:   key.ID,
 		Result:     "success",
 		Detail:     userMCPAccessKeyAuditDetail(key),
-	})
+	}); err != nil {
+		slog.ErrorContext(ctx, "audit insert failed", "action", "mcp.key.created", "key_id", key.ID, "error", err)
+	}
 	return CreatedUserMCPAccessKey{Key: key, Token: token}, nil
 }
 
@@ -262,7 +265,7 @@ RETURNING id::text, user_id::text, domain_id::text, name, token_suffix, scopes, 
 		}
 		return UserMCPAccessKey{}, fmt.Errorf("revoke user mcp access key: %w", err)
 	}
-	_ = audit.NewPostgresRepository(r.db).Insert(ctx, audit.Log{
+	if err := audit.NewPostgresRepository(r.db).Insert(ctx, audit.Log{
 		DomainID:   key.DomainID,
 		UserID:     key.UserID,
 		ActorID:    key.UserID,
@@ -272,7 +275,9 @@ RETURNING id::text, user_id::text, domain_id::text, name, token_suffix, scopes, 
 		TargetID:   key.ID,
 		Result:     "success",
 		Detail:     userMCPAccessKeyAuditDetail(key),
-	})
+	}); err != nil {
+		slog.ErrorContext(ctx, "audit insert failed", "action", "mcp.key.revoked", "key_id", key.ID, "error", err)
+	}
 	return key, nil
 }
 

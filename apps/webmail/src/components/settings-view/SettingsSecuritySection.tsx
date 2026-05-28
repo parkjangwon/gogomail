@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
 import { ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 import { Row, SectionCard, SectionHeader } from '@/components/settings-view/settingsViewPrimitives';
@@ -9,9 +9,14 @@ import {
   startMFASetup,
   confirmMFASetup,
   disableMFA,
+  listPasskeyCredentials,
+  registerPasskey,
+  deletePasskeyCredential,
   type MFAStatus,
   type MFASetupResponse,
+  type PasskeyCredential,
 } from '@/lib/api';
+import { isWebAuthnSupported } from '@/lib/api/webauthn';
 
 interface SettingsSecuritySectionProps {
   userEmail?: string;
@@ -34,9 +39,23 @@ export function SettingsSecuritySection({
   const [mfaError, setMfaError] = useState('');
   const [mfaLoading, setMfaLoading] = useState(false);
 
+  // Passkey state
+  const [passkeys, setPasskeys] = useState<PasskeyCredential[]>([]);
+  const [passkeyPanel, setPasskeyPanel] = useState<'idle' | 'add'>('idle');
+  const [passkeyName, setPasskeyName] = useState('');
+  const [passkeyLoading, setPasskeyLoading] = useState(false);
+  const [passkeyError, setPasskeyError] = useState('');
+  const webAuthnSupported = isWebAuthnSupported();
+
+  const loadPasskeys = useCallback(() => {
+    if (!webAuthnSupported) return;
+    listPasskeyCredentials().then(setPasskeys).catch(() => null);
+  }, [webAuthnSupported]);
+
   useEffect(() => {
     getMFAStatus().then(setMfaStatus).catch(() => null);
-  }, []);
+    loadPasskeys();
+  }, [loadPasskeys]);
 
   async function handleStartSetup() {
     setMfaError('');
@@ -81,6 +100,32 @@ export function SettingsSecuritySection({
       setMfaError(e instanceof Error ? e.message : t('mfaDisableFailed'));
     } finally {
       setMfaLoading(false);
+    }
+  }
+
+  async function handleAddPasskey() {
+    setPasskeyError('');
+    const name = passkeyName.trim() || 'Security Key';
+    setPasskeyLoading(true);
+    try {
+      const cred = await registerPasskey(userEmail ?? '', userEmail ?? '', name);
+      setPasskeys((prev) => [...prev, cred]);
+      setPasskeyPanel('idle');
+      setPasskeyName('');
+    } catch (e: unknown) {
+      setPasskeyError(e instanceof Error ? e.message : t('passkeyAddFailed'));
+    } finally {
+      setPasskeyLoading(false);
+    }
+  }
+
+  async function handleDeletePasskey(id: string, name: string) {
+    if (!window.confirm(t('passkeyDeleteConfirm', { name }))) return;
+    try {
+      await deletePasskeyCredential(id);
+      setPasskeys((prev) => prev.filter((p) => p.id !== id));
+    } catch {
+      setPasskeyError(t('passkeyDeleteFailed'));
     }
   }
 
@@ -221,6 +266,95 @@ export function SettingsSecuritySection({
               </button>
             </div>
           </div>
+        )}
+      </SectionCard>
+
+      <SectionCard>
+        <SectionHeader>{t('sectionPasskeys')}</SectionHeader>
+
+        {!webAuthnSupported ? (
+          <div style={{ padding: '12px 20px 16px', fontSize: '13px', color: 'var(--color-text-secondary)' }}>
+            {t('passkeyUnsupported')}
+          </div>
+        ) : (
+          <>
+            <div style={{ padding: '4px 20px 0', fontSize: '13px', color: 'var(--color-text-secondary)' }}>
+              {t('passkeyDesc')}
+            </div>
+
+            {passkeys.length === 0 && passkeyPanel === 'idle' && (
+              <div style={{ padding: '10px 20px', fontSize: '13px', color: 'var(--color-text-tertiary)' }}>
+                {t('passkeyNoKeys')}
+              </div>
+            )}
+
+            {passkeys.map((pk) => (
+              <Row key={pk.id} label={pk.name} description={pk.last_used_at ? `${t('passkeyLastUsed')}: ${new Date(pk.last_used_at).toLocaleDateString()}` : t('passkeyNeverUsed')}>
+                <button
+                  onClick={() => void handleDeletePasskey(pk.id, pk.name)}
+                  style={{ fontSize: '12px', padding: '4px 12px', borderRadius: '6px', border: '1px solid rgba(220,38,38,0.35)', background: 'transparent', color: 'var(--color-destructive)', cursor: 'pointer' }}
+                >
+                  {t('passkeyRemove')}
+                </button>
+              </Row>
+            ))}
+
+            {passkeyPanel === 'add' && (
+              <div style={{ padding: '12px 20px 16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <label style={{ fontSize: '13px', fontWeight: 500, color: 'var(--color-text-primary)' }}>
+                  {t('passkeyNameLabel')}
+                </label>
+                <input
+                  type="text"
+                  value={passkeyName}
+                  onChange={(e) => setPasskeyName(e.target.value)}
+                  placeholder={t('passkeyNamePlaceholder')}
+                  maxLength={64}
+                  style={{ padding: '9px 12px', borderRadius: '6px', border: '1px solid var(--color-border-default)', background: 'var(--color-bg-primary)', color: 'var(--color-text-primary)', fontSize: '14px', outline: 'none' }}
+                  onFocus={(e) => { e.target.style.borderColor = 'var(--color-accent)'; }}
+                  onBlur={(e) => { e.target.style.borderColor = 'var(--color-border-default)'; }}
+                  onKeyDown={(e) => { if (e.key === 'Enter') void handleAddPasskey(); }}
+                  autoFocus
+                />
+                {passkeyError && (
+                  <div role="alert" style={{ fontSize: '13px', color: 'var(--color-destructive)', background: 'rgba(217,79,61,0.08)', border: '1px solid rgba(217,79,61,0.2)', borderRadius: '6px', padding: '8px 12px' }}>
+                    {passkeyError}
+                  </div>
+                )}
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button
+                    onClick={() => void handleAddPasskey()}
+                    disabled={passkeyLoading}
+                    style={{ flex: 1, padding: '9px', borderRadius: '6px', border: 'none', background: 'var(--color-accent)', color: '#fff', fontSize: '14px', fontWeight: 500, cursor: passkeyLoading ? 'not-allowed' : 'pointer' }}
+                  >
+                    {passkeyLoading ? t('passkeyAdding') : t('passkeyConfirmAdd')}
+                  </button>
+                  <button
+                    onClick={() => { setPasskeyPanel('idle'); setPasskeyName(''); setPasskeyError(''); }}
+                    style={{ padding: '9px 16px', borderRadius: '6px', border: '1px solid var(--color-border-default)', background: 'transparent', color: 'var(--color-text-secondary)', fontSize: '14px', cursor: 'pointer' }}
+                  >
+                    {t('cancel')}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {passkeyPanel === 'idle' && (
+              <div style={{ padding: '12px 20px 16px' }}>
+                {passkeyError && (
+                  <div role="alert" style={{ marginBottom: '10px', fontSize: '13px', color: 'var(--color-destructive)', background: 'rgba(217,79,61,0.08)', border: '1px solid rgba(217,79,61,0.2)', borderRadius: '6px', padding: '8px 12px' }}>
+                    {passkeyError}
+                  </div>
+                )}
+                <button
+                  onClick={() => { setPasskeyPanel('add'); setPasskeyError(''); }}
+                  style={{ fontSize: '13px', padding: '7px 16px', borderRadius: '6px', border: '1px solid var(--color-accent)', background: 'transparent', color: 'var(--color-accent)', cursor: 'pointer', fontWeight: 600 }}
+                >
+                  {t('passkeyAdd')}
+                </button>
+              </div>
+            )}
+          </>
         )}
       </SectionCard>
 
