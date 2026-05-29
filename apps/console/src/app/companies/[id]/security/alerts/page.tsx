@@ -6,17 +6,11 @@ import {
   Badge,
   Box,
   Button,
-  Checkbox,
   ContentLayout,
-  FormField,
   Header,
-  Input,
-  Modal,
-  Select,
   SpaceBetween,
   Spinner,
   TextFilter,
-  Textarea,
   Container,
 } from '@cloudscape-design/components';
 import type { SelectProps } from '@cloudscape-design/components';
@@ -33,7 +27,6 @@ import {
   type AlertEvent,
   type AlertRule,
   type AlertRuleCreateRequest,
-  type AlertRuleUpdateRequest,
   useAlertChannels,
   useAlertEvents,
   useAlertRules,
@@ -44,26 +37,8 @@ import {
   useUpdateAlertChannel,
   useUpdateAlertRule,
 } from '@/hooks/useAlerts';
-
-type RuleForm = {
-  id?: string;
-  name: string;
-  alert_type: CreateAlertRuleAlert_type;
-  description: string;
-  threshold: string;
-  check_interval_minutes: string;
-  is_enabled: boolean;
-};
-
-type ChannelForm = {
-  id?: string;
-  name: string;
-  channel_type: CreateAlertChannelChannel_type;
-  recipients_text: string;
-  url: string;
-  auth_header: string;
-  is_enabled: boolean;
-};
+import { RuleModal, type RuleForm } from './RuleModal';
+import { ChannelModal, type ChannelForm } from './ChannelModal';
 
 const defaultRuleForm: RuleForm = {
   name: '',
@@ -155,7 +130,7 @@ export default function AlertRulesPage() {
     setRuleForm({
       id: rule.id,
       name: rule.name,
-      alert_type: rule.alert_type as unknown as CreateAlertRuleAlert_type,
+      alert_type: rule.alert_type as CreateAlertRuleAlert_type,
       description: rule.description ?? '',
       threshold: String(rule.threshold),
       check_interval_minutes: String(rule.check_interval_minutes),
@@ -173,7 +148,7 @@ export default function AlertRulesPage() {
     setChannelForm({
       id: channel.id,
       name: channel.name,
-      channel_type: channel.channel_type as unknown as CreateAlertChannelChannel_type,
+      channel_type: channel.channel_type as CreateAlertChannelChannel_type,
       recipients_text: channel.config.recipients?.join(', ') ?? '',
       url: channel.config.url ?? '',
       auth_header: channel.config.auth_header ?? '',
@@ -202,7 +177,13 @@ export default function AlertRulesPage() {
         await updateRule.mutateAsync({
           companyId,
           ruleId: ruleForm.id,
-          data: payload as unknown as AlertRuleUpdateRequest,
+          data: {
+            name: payload.name,
+            description: payload.description,
+            threshold: payload.threshold,
+            check_interval_minutes: payload.check_interval_minutes,
+            is_enabled: payload.is_enabled,
+          },
         });
       } else {
         await createRule.mutateAsync({
@@ -274,11 +255,6 @@ export default function AlertRulesPage() {
       setDeletingChannelId(null);
     }
   };
-
-  const ruleTypeOption =
-    alertTypeOptions.find(option => option.value === ruleForm.alert_type) ?? alertTypeOptions[0];
-  const channelTypeOption =
-    channelTypeOptions.find(option => option.value === channelForm.channel_type) ?? channelTypeOptions[0];
 
   if (loading) {
     return (
@@ -510,151 +486,27 @@ export default function AlertRulesPage() {
         />
       </SpaceBetween>
 
-      <Modal
-        onDismiss={() => setShowRuleModal(false)}
+      <RuleModal
         visible={showRuleModal}
-        header={ruleForm.id ? t('pages.alerts_page.edit_rule') : t('pages.alerts_page.create_modal_title')}
-        footer={
-          <Box float="right">
-            <SpaceBetween direction="horizontal" size="xs">
-              <Button onClick={() => setShowRuleModal(false)}>{t('common.cancel')}</Button>
-              <Button
-                variant="primary"
-                onClick={saveRule}
-                loading={createRule.isPending || updateRule.isPending}
-                disabled={!ruleForm.name.trim()}
-              >
-                {ruleForm.id ? t('common.save') : t('pages.alerts_page.create_btn')}
-              </Button>
-            </SpaceBetween>
-          </Box>
-        }
-      >
-        <SpaceBetween size="m">
-          <FormField label={t('pages.alerts_page.name_label')}>
-            <Input
-              value={ruleForm.name}
-              onChange={(e) => setRuleForm({ ...ruleForm, name: e.detail.value })}
-            />
-          </FormField>
-          <FormField label={t('pages.alerts_page.alert_type_label')}>
-            <Select
-              selectedOption={ruleTypeOption}
-              options={alertTypeOptions}
-              onChange={(e: { detail: SelectProps.ChangeDetail }) =>
-                setRuleForm({ ...ruleForm, alert_type: e.detail.selectedOption.value as CreateAlertRuleAlert_type })
-              }
-              expandToViewport
-            />
-          </FormField>
-          <FormField label={t('pages.alerts_page.description_label')}>
-            <Input
-              value={ruleForm.description}
-              onChange={(e) => setRuleForm({ ...ruleForm, description: e.detail.value })}
-            />
-          </FormField>
-          <FormField label={t('pages.alerts_page.threshold_label')}>
-            <Input
-              type="number"
-              value={ruleForm.threshold}
-              onChange={(e) => setRuleForm({ ...ruleForm, threshold: e.detail.value })}
-            />
-          </FormField>
-          <FormField label={t('pages.alerts_page.interval_label')}>
-            <Input
-              type="number"
-              value={ruleForm.check_interval_minutes}
-              onChange={(e) => setRuleForm({ ...ruleForm, check_interval_minutes: e.detail.value })}
-            />
-          </FormField>
-          <Checkbox
-            checked={ruleForm.is_enabled}
-            onChange={(e) => setRuleForm({ ...ruleForm, is_enabled: e.detail.checked })}
-          >
-            {t('pages.alerts_page.enabled_checkbox_label')}
-          </Checkbox>
-        </SpaceBetween>
-      </Modal>
+        form={ruleForm}
+        alertTypeOptions={alertTypeOptions}
+        isLoading={createRule.isPending || updateRule.isPending}
+        onSave={saveRule}
+        onClose={() => setShowRuleModal(false)}
+        onFormChange={setRuleForm}
+        t={t}
+      />
 
-      <Modal
-        onDismiss={() => setShowChannelModal(false)}
+      <ChannelModal
         visible={showChannelModal}
-        header={channelForm.id ? t('pages.alerts_page.edit_channel') : t('pages.alerts_page.create_channel')}
-        footer={
-          <Box float="right">
-            <SpaceBetween direction="horizontal" size="xs">
-              <Button onClick={() => setShowChannelModal(false)}>{t('common.cancel')}</Button>
-              <Button
-                variant="primary"
-                onClick={saveChannel}
-                loading={createChannel.isPending || updateChannel.isPending}
-                disabled={!channelForm.name.trim()}
-              >
-                {channelForm.id ? t('common.save') : t('common.create')}
-              </Button>
-            </SpaceBetween>
-          </Box>
-        }
-      >
-        <SpaceBetween size="m">
-          <FormField label={t('pages.alerts_page.name')}>
-            <Input
-              value={channelForm.name}
-              onChange={(e) => setChannelForm({ ...channelForm, name: e.detail.value })}
-            />
-          </FormField>
-          <FormField label={t('pages.alerts_page.channel_type')}>
-            <Select
-              selectedOption={channelTypeOption}
-              options={channelTypeOptions}
-              onChange={(e: { detail: SelectProps.ChangeDetail }) =>
-                setChannelForm({
-                  ...channelForm,
-                  channel_type: e.detail.selectedOption.value as CreateAlertChannelChannel_type,
-                })
-              }
-              expandToViewport
-              disabled={!!channelForm.id}
-            />
-          </FormField>
-          {channelForm.id ? (
-            <Box color="text-body-secondary">{t('pages.alerts_page.config_readonly')}</Box>
-          ) : channelForm.channel_type === 'email' ? (
-            <FormField label={t('pages.alerts_page.recipients')}>
-              <Textarea
-                value={channelForm.recipients_text}
-                onChange={({ detail }) => setChannelForm({ ...channelForm, recipients_text: detail.value })}
-                rows={3}
-              />
-            </FormField>
-          ) : channelForm.channel_type === 'webhook' ? (
-            <>
-              <FormField label={t('pages.alerts_page.webhook_url')}>
-                <Input
-                  value={channelForm.url}
-                  onChange={(e) => setChannelForm({ ...channelForm, url: e.detail.value })}
-                  placeholder="https://example.com/webhook"
-                />
-              </FormField>
-              <FormField label={t('pages.alerts_page.auth_header')}>
-                <Input
-                  value={channelForm.auth_header}
-                  onChange={(e) => setChannelForm({ ...channelForm, auth_header: e.detail.value })}
-                  placeholder="Authorization: Bearer ..."
-                />
-              </FormField>
-            </>
-          ) : (
-            <Box color="text-body-secondary">{t('pages.alerts_page.dashboard_no_config')}</Box>
-          )}
-          <Checkbox
-            checked={channelForm.is_enabled}
-            onChange={(e) => setChannelForm({ ...channelForm, is_enabled: e.detail.checked })}
-          >
-            {t('common.enabled')}
-          </Checkbox>
-        </SpaceBetween>
-      </Modal>
+        form={channelForm}
+        channelTypeOptions={channelTypeOptions}
+        isLoading={createChannel.isPending || updateChannel.isPending}
+        onSave={saveChannel}
+        onClose={() => setShowChannelModal(false)}
+        onFormChange={setChannelForm}
+        t={t}
+      />
     </ContentLayout>
   );
 }
