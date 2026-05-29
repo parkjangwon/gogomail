@@ -45,6 +45,7 @@ type Server struct {
 	listener    net.Listener
 	metrics     gatewayMetrics
 	authTracker *authFailureTracker
+	wg          sync.WaitGroup
 }
 
 
@@ -192,7 +193,9 @@ func (s *Server) Serve(listener net.Listener) error {
 			rejectIMAPConnectionLimit(conn)
 			continue
 		}
+		s.wg.Add(1)
 		go func(conn net.Conn) {
+			defer s.wg.Done()
 			defer releaseIMAPConnectionSlot(slots)
 			_ = s.ServeConn(conn)
 		}(conn)
@@ -244,7 +247,9 @@ func (s *Server) Close() error {
 	if listener == nil {
 		return nil
 	}
-	return listener.Close()
+	err := listener.Close()
+	s.wg.Wait()
+	return err
 }
 
 

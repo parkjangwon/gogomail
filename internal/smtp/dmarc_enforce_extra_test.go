@@ -13,7 +13,8 @@ func TestEnforceDMARCPolicyNoopWhenDisabled(t *testing.T) {
 	results := AuthenticationResults{
 		DMARC: AuthCheckResult{Result: AuthResultFail, Policy: "reject", Domain: "example.com"},
 	}
-	if err := enforceDMARCPolicy(false, results); err != nil {
+	_, err := enforceDMARCPolicy(false, results)
+	if err != nil {
 		t.Errorf("expected no error when enforce=false, got %v", err)
 	}
 }
@@ -24,7 +25,8 @@ func TestEnforceDMARCPolicyNoopWhenPass(t *testing.T) {
 	results := AuthenticationResults{
 		DMARC: AuthCheckResult{Result: AuthResultPass, Policy: "reject", Domain: "example.com"},
 	}
-	if err := enforceDMARCPolicy(true, results); err != nil {
+	_, err := enforceDMARCPolicy(true, results)
+	if err != nil {
 		t.Errorf("expected no error when DMARC passes, got %v", err)
 	}
 }
@@ -35,7 +37,8 @@ func TestEnforceDMARCPolicyNoopWhenNone(t *testing.T) {
 	results := AuthenticationResults{
 		DMARC: AuthCheckResult{Result: AuthResultNone, Policy: "none", Domain: "example.com"},
 	}
-	if err := enforceDMARCPolicy(true, results); err != nil {
+	_, err := enforceDMARCPolicy(true, results)
+	if err != nil {
 		t.Errorf("expected no error for policy=none, got %v", err)
 	}
 }
@@ -46,7 +49,7 @@ func TestEnforceDMARCPolicyRejects550OnRejectPolicy(t *testing.T) {
 	results := AuthenticationResults{
 		DMARC: AuthCheckResult{Result: AuthResultFail, Policy: "reject", Domain: "example.com"},
 	}
-	err := enforceDMARCPolicy(true, results)
+	_, err := enforceDMARCPolicy(true, results)
 	if err == nil {
 		t.Fatal("expected SMTP error for DMARC reject policy, got nil")
 	}
@@ -59,13 +62,17 @@ func TestEnforceDMARCPolicyRejects550OnRejectPolicy(t *testing.T) {
 	}
 }
 
-func TestEnforceDMARCPolicyAllowsQuarantinePolicy(t *testing.T) {
+func TestEnforceDMARCPolicyQuarantineReturnsTrue(t *testing.T) {
 	t.Parallel()
 
 	results := AuthenticationResults{
 		DMARC: AuthCheckResult{Result: AuthResultFail, Policy: "quarantine", Domain: "example.com"},
 	}
-	if err := enforceDMARCPolicy(true, results); err != nil {
+	quarantine, err := enforceDMARCPolicy(true, results)
+	if err != nil {
 		t.Errorf("expected no error for quarantine policy, got %v", err)
+	}
+	if !quarantine {
+		t.Error("expected quarantine=true for DMARC quarantine policy")
 	}
 }

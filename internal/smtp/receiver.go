@@ -481,7 +481,8 @@ func (s *session) Data(r io.Reader) (err error) {
 	if err != nil {
 		return err
 	}
-	if err := enforceDMARCPolicy(s.receiver.dmarcEnforce, authResults); err != nil {
+	dmarcQuarantine, err := enforceDMARCPolicy(s.receiver.dmarcEnforce, authResults)
+	if err != nil {
 		return err
 	}
 	if s.receiver.authVerifier != nil {
@@ -565,15 +566,20 @@ func (s *session) Data(r io.Reader) (err error) {
 			s.deleteStoredMessage(path)
 			return err
 		}
+		folderSystemType := "inbox"
+		if dmarcQuarantine {
+			folderSystemType = "spam"
+		}
 		dbMessageID, recordErr := s.receiver.recorder.Record(s.ctx, ReceivedMessage{
-			EnvelopeFrom:   s.from,
-			Mailbox:        recipient,
-			DSN:            s.currentDSNOptions(),
-			StoragePath:    path,
-			Parsed:         parsed,
-			Authentication: authResults,
-			ReceivedAt:     receivedAt,
-			Size:           size,
+			EnvelopeFrom:     s.from,
+			Mailbox:          recipient,
+			DSN:              s.currentDSNOptions(),
+			StoragePath:      path,
+			Parsed:           parsed,
+			Authentication:   authResults,
+			ReceivedAt:       receivedAt,
+			Size:             size,
+			FolderSystemType: folderSystemType,
 		})
 		if recordErr != nil {
 			s.deleteStoredMessage(path)
