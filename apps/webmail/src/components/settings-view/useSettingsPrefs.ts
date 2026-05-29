@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import type { useTranslations } from 'next-intl';
 import { getPreferences, setPreferences, getUserProfile, getFolderStats, exportFolderEml, exportFolderZip, type FolderStats, type WebmailPreferences } from '@/lib/api';
 import { ReadMark, ExternalImages, SendDelay, Theme, FontSize, FilterRule, migrateFilterRule, loadFilterRules, saveFilterRules } from '@/lib/settings/settingsUtils';
 import { loadWmSettings, saveWmSetting } from '@/components/settings-view/settingsViewPrimitives';
@@ -19,7 +20,7 @@ export interface UseSettingsPrefsParams {
   userEmail?: string;
   userName?: string;
   activeSection?: string;
-  t: (key: string, values?: Record<string, unknown>) => string;
+  t: ReturnType<typeof useTranslations>;
   router: { push: (href: string) => void };
 }
 

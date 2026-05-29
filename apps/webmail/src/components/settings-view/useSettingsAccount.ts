@@ -1,9 +1,10 @@
 import { useState } from 'react';
+import type { useTranslations } from 'next-intl';
 import { updateUserProfile, uploadUserAvatar, deleteUserAvatar, changePassword, revokeAllSessions, setPreferences, type UserProfile } from '@/lib/api';
 import { setWebmailAvatar } from '@/lib/webmailAvatar';
 
 export interface UseSettingsAccountParams {
-  t: (key: string, values?: Record<string, unknown>) => string;
+  t: ReturnType<typeof useTranslations>;
   router: { push: (href: string) => void };
 }
 

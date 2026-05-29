@@ -130,7 +130,7 @@ export default function AlertRulesPage() {
     setRuleForm({
       id: rule.id,
       name: rule.name,
-      alert_type: rule.alert_type as CreateAlertRuleAlert_type,
+      alert_type: rule.alert_type as unknown as CreateAlertRuleAlert_type,
       description: rule.description ?? '',
       threshold: String(rule.threshold),
       check_interval_minutes: String(rule.check_interval_minutes),
@@ -148,7 +148,7 @@ export default function AlertRulesPage() {
     setChannelForm({
       id: channel.id,
       name: channel.name,
-      channel_type: channel.channel_type as CreateAlertChannelChannel_type,
+      channel_type: channel.channel_type as unknown as CreateAlertChannelChannel_type,
       recipients_text: channel.config.recipients?.join(', ') ?? '',
       url: channel.config.url ?? '',
       auth_header: channel.config.auth_header ?? '',
