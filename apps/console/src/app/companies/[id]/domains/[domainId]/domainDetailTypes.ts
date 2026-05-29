@@ -30,6 +30,8 @@ export interface DomainSetting {
   ID: string;
   Key: string;
   Value: unknown;
+  Locked: boolean;
+  Version: number;
   UpdatedAt: string;
 }
 

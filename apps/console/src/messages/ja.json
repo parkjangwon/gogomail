@@ -35,7 +35,8 @@
     "status": "ステータス",
     "confirm": "確認",
     "done": "完了",
-    "confirm_delete": "この項目を削除しますか？"
+    "confirm_delete": "この項目を削除しますか？",
+    "locked": "ロック済み"
   },
   "alerts": {
     "title": "アラート",
@@ -1208,7 +1209,10 @@
       "dns_status_fail": "不合格",
       "dns_status_mismatch": "不一致",
       "dns_status_error": "エラー",
-      "delete_confirm_body": "ドメイン {name} を削除してもよろしいですか？ユーザーがいない場合、この操作は元に戻せません。"
+      "delete_confirm_body": "ドメイン {name} を削除してもよろしいですか？ユーザーがいない場合、この操作は元に戻せません。",
+      "value_hint_json": "JSONとして検出されました — 構造化された値として保存されます",
+      "value_hint_string": "文字列として保存されます。オブジェクト、配列、数値、ブール値は有効なJSON構文を使用してください。",
+      "delete_setting_confirm": "この設定は完全に削除されます。"
     },
     "domain_settings": {
       "title": "ドメイン設定",

@@ -79,7 +79,27 @@ export default function DomainDetailPage() {
             {
               id: 'settings',
               label: `${t('pages.domain_detail.settings_tab')} (${h.settings.length})`,
-              content: <DomainSettingsTab settings={h.settings} domainName={domain.name} showAddSetting={h.showAddSetting} onShowAddSetting={h.setShowAddSetting} newSetting={h.newSetting} onNewSettingChange={h.setNewSetting} savingSetting={h.savingSetting} onAddSetting={h.handleAddSetting} t={t} />,
+              content: <DomainSettingsTab
+                settings={h.settings}
+                domainName={domain.name}
+                showAddSetting={h.showAddSetting}
+                onShowAddSetting={h.setShowAddSetting}
+                newSetting={h.newSetting}
+                onNewSettingChange={h.setNewSetting}
+                savingSetting={h.savingSetting}
+                settingError={h.settingError}
+                onSetSettingError={h.setSettingError}
+                onAddSetting={h.handleAddSetting}
+                editingSetting={h.editingSetting}
+                editSettingValue={h.editSettingValue}
+                onOpenEditSetting={h.handleOpenEditSetting}
+                onEditSettingValueChange={h.setEditSettingValue}
+                onCloseEditSetting={() => h.setEditingSetting(null)}
+                onSaveEditSetting={h.handleSaveEditSetting}
+                deletingSettingKey={h.deletingSettingKey}
+                onDeleteSetting={h.handleDeleteSetting}
+                t={t}
+              />,
             },
             {
               id: 'mail-stats',

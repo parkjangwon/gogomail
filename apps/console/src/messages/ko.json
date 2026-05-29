@@ -35,7 +35,8 @@
     "status": "상태",
     "confirm": "확인",
     "done": "완료",
-    "confirm_delete": "이 항목을 삭제할까요?"
+    "confirm_delete": "이 항목을 삭제할까요?",
+    "locked": "잠금"
   },
   "alerts": {
     "title": "알림",
@@ -1199,7 +1200,10 @@
       "dns_status_fail": "Fail",
       "dns_status_mismatch": "Mismatch",
       "dns_status_error": "오류",
-      "delete_confirm_body": "도메인 {name}을(를) 삭제하시겠습니까? 사용자가 있는 경우 삭제할 수 없습니다."
+      "delete_confirm_body": "도메인 {name}을(를) 삭제하시겠습니까? 사용자가 있는 경우 삭제할 수 없습니다.",
+      "value_hint_json": "JSON으로 감지됨 — 구조화된 값으로 저장됩니다",
+      "value_hint_string": "문자열로 저장됩니다. 오브젝트·배열·숫자·불리언은 유효한 JSON 문법을 사용하세요.",
+      "delete_setting_confirm": "이 설정이 영구적으로 삭제됩니다."
     },
     "domain_settings": {
       "title": "도메인 설정",

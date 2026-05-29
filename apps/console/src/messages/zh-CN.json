@@ -35,7 +35,8 @@
     "status": "状态",
     "confirm": "确认",
     "done": "完成",
-    "confirm_delete": "确定要删除此项目吗？"
+    "confirm_delete": "确定要删除此项目吗？",
+    "locked": "已锁定"
   },
   "alerts": {
     "title": "告警",
@@ -1208,7 +1209,10 @@
       "dns_status_fail": "失败",
       "dns_status_mismatch": "不匹配",
       "dns_status_error": "错误",
-      "delete_confirm_body": "确定要删除域名 {name} 吗？如果该域名没有用户，此操作无法撤销。"
+      "delete_confirm_body": "确定要删除域名 {name} 吗？如果该域名没有用户，此操作无法撤销。",
+      "value_hint_json": "检测为 JSON — 将作为结构化值存储",
+      "value_hint_string": "存储为字符串。对象、数组、数字或布尔值请使用有效的 JSON 语法。",
+      "delete_setting_confirm": "此设置将被永久删除。"
     },
     "domain_settings": {
       "title": "域名设置",

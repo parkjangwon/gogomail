@@ -35,7 +35,8 @@
     "status": "Status",
     "confirm": "Confirm",
     "done": "Done",
-    "confirm_delete": "Are you sure you want to delete this item?"
+    "confirm_delete": "Are you sure you want to delete this item?",
+    "locked": "Locked"
   },
   "alerts": {
     "title": "Alerts",
@@ -1343,7 +1344,10 @@
       "dns_status_fail": "Fail",
       "dns_status_mismatch": "Mismatch",
       "dns_status_error": "Error",
-      "delete_confirm_body": "Are you sure you want to delete domain {name}? This cannot be undone if the domain has no users."
+      "delete_confirm_body": "Are you sure you want to delete domain {name}? This cannot be undone if the domain has no users.",
+      "value_hint_json": "Detected as JSON — stored as a structured value",
+      "value_hint_string": "Stored as a string. Use valid JSON syntax for objects, arrays, numbers, or booleans.",
+      "delete_setting_confirm": "This setting will be permanently removed."
     },
     "domain_settings": {
       "title": "Domain Settings",

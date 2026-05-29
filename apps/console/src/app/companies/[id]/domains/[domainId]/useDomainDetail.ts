@@ -33,6 +33,14 @@ export function useDomainDetail() {
   const [showAddSetting, setShowAddSetting] = useState(false);
   const [newSetting, setNewSetting] = useState({ key: '', value: '' });
   const [savingSetting, setSavingSetting] = useState(false);
+  const [settingError, setSettingError] = useState('');
+
+  // Edit Setting modal
+  const [editingSetting, setEditingSetting] = useState<DomainSetting | null>(null);
+  const [editSettingValue, setEditSettingValue] = useState('');
+
+  // Delete Setting
+  const [deletingSettingKey, setDeletingSettingKey] = useState<string | null>(null);
 
   // Edit modal
   const [showEdit, setShowEdit] = useState(false);
@@ -158,24 +166,83 @@ export function useDomainDetail() {
     }
   };
 
+  // Serialize a user-typed value string to JSON. If the input is already valid JSON
+  // (object, array, number, boolean, null) it is sent as-is; plain strings are quoted.
+  const serializeSettingValue = (raw: string): unknown => {
+    const trimmed = raw.trim();
+    try { return JSON.parse(trimmed); } catch { return raw; }
+  };
+
+  const refreshSettings = async () => {
+    const r = await fetch(`/api/admin/domains/${domainId}/config`, { credentials: 'include' });
+    if (r.ok) { const d = await r.json(); setSettings(d.config || []); }
+  };
+
   const handleAddSetting = async () => {
     if (!newSetting.key.trim()) return;
     setSavingSetting(true);
+    setSettingError('');
     try {
       const res = await fetch(`/api/admin/domains/${domainId}/config/${encodeURIComponent(newSetting.key.trim())}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ value: newSetting.value }),
+        body: JSON.stringify({ value: serializeSettingValue(newSetting.value) }),
         credentials: 'include',
       });
       if (res.ok) {
         setShowAddSetting(false);
         setNewSetting({ key: '', value: '' });
-        const r = await fetch(`/api/admin/domains/${domainId}/config`, { credentials: 'include' });
-        if (r.ok) { const d = await r.json(); setSettings(d.config || []); }
+        await refreshSettings();
+      } else {
+        const err = await res.json().catch(() => ({}));
+        setSettingError(err.error || t('common.error', 'Failed to save setting'));
       }
     } finally {
       setSavingSetting(false);
+    }
+  };
+
+  const handleOpenEditSetting = (s: DomainSetting) => {
+    setEditingSetting(s);
+    setEditSettingValue(typeof s.Value === 'object' ? JSON.stringify(s.Value, null, 2) : String(s.Value ?? ''));
+    setSettingError('');
+  };
+
+  const handleSaveEditSetting = async () => {
+    if (!editingSetting) return;
+    setSavingSetting(true);
+    setSettingError('');
+    try {
+      const res = await fetch(`/api/admin/domains/${domainId}/config/${encodeURIComponent(editingSetting.Key)}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ value: serializeSettingValue(editSettingValue), version: editingSetting.Version }),
+        credentials: 'include',
+      });
+      if (res.ok) {
+        setEditingSetting(null);
+        await refreshSettings();
+      } else {
+        const err = await res.json().catch(() => ({}));
+        setSettingError(err.error || t('common.error', 'Failed to save setting'));
+      }
+    } finally {
+      setSavingSetting(false);
+    }
+  };
+
+  const handleDeleteSetting = async (s: DomainSetting) => {
+    setDeletingSettingKey(s.Key);
+    try {
+      const res = await fetch(
+        `/api/admin/domains/${domainId}/config/${encodeURIComponent(s.Key)}?version=${s.Version}`,
+        { method: 'DELETE', credentials: 'include' }
+      );
+      if (res.ok) {
+        await refreshSettings();
+      }
+    } finally {
+      setDeletingSettingKey(null);
     }
   };
 
@@ -315,7 +382,17 @@ export function useDomainDetail() {
     newSetting,
     setNewSetting,
     savingSetting,
+    settingError,
+    setSettingError,
     handleAddSetting,
+    editingSetting,
+    setEditingSetting,
+    editSettingValue,
+    setEditSettingValue,
+    handleOpenEditSetting,
+    handleSaveEditSetting,
+    deletingSettingKey,
+    handleDeleteSetting,
     mailStats,
     statsLoading,
     statsFetched,
