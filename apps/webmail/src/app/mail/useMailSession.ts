@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
+import type { useTranslations } from 'next-intl';
 
 export interface UseMailSessionParams {
   router: { push: (href: string) => void };
-  t: (key: string, values?: Record<string, unknown>) => string;
+  t: ReturnType<typeof useTranslations>;
 }
 
 export function useMailSession({ router, t }: UseMailSessionParams) {
