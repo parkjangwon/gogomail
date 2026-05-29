@@ -117,7 +117,7 @@ export function useMailThreads({
     let cancelled = false;
     listThreads({ folder_id: activeFolderId, limit: 50 })
       .then((r) => { if (!cancelled) setThreads(r.threads ?? []); })
-      .catch(() => {});
+      .catch((err) => { if (!cancelled) console.error('Failed to load threads:', err instanceof Error ? err.message : err); });
     return () => { cancelled = true; };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeFolderId, threadRefreshKey]);

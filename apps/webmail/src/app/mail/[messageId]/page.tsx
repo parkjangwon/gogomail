@@ -21,7 +21,7 @@ export default function MessagePage() {
     if (authenticated !== '1') router.push('/login');
   }, [router]);
 
-  const { message, loading } = useMessage(messageId ?? null);
+  const { message, isLoading } = useMessage(messageId ?? null);
 
   const handleDelete = useCallback(async () => {
     if (!messageId) return;
@@ -86,7 +86,7 @@ export default function MessagePage() {
 
       {/* Message */}
       <div style={{ flex: 1, overflow: 'hidden' }}>
-        <ReadingPane message={message} loading={loading} onDelete={handleDelete} />
+        <ReadingPane message={message} loading={isLoading} onDelete={handleDelete} />
       </div>
     </div>
   );

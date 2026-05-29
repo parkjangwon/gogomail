@@ -2,8 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 
 export interface UseMailSessionParams {
   router: { push: (href: string) => void };
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  t: (key: string, values?: Record<string, any>) => string;
+  t: (key: string, values?: Record<string, unknown>) => string;
 }
 
 export function useMailSession({ router, t }: UseMailSessionParams) {
@@ -43,7 +42,7 @@ export function useMailSession({ router, t }: UseMailSessionParams) {
   }, [t]);
 
   const handleLogout = useCallback(() => {
-    fetch('/api/auth/logout', { method: 'POST' }).catch(() => {});
+    fetch('/api/auth/logout', { method: 'POST' }).catch(() => {}); // fire-and-forget: logout navigates away regardless
     localStorage.removeItem('webmail_authenticated');
     localStorage.removeItem('webmail_email');
     localStorage.removeItem('webmail_must_change_password');

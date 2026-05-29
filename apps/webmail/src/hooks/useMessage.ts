@@ -32,7 +32,7 @@ export function invalidateMessageCache(id: string) {
 
 export function useMessage(messageId: string | null) {
   const [message, setMessage] = useState<MessageDetail | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
@@ -47,13 +47,13 @@ export function useMessage(messageId: string | null) {
       if (!cached.read) markRead(messageId, true).catch(() => undefined);
       setMessage(cached);
       setError(null);
-      setLoading(false);
+      setIsLoading(false);
       return;
     }
 
     markRead(messageId, true).catch(() => undefined);
     let cancelled = false;
-    setLoading(true);
+    setIsLoading(true);
     setError(null);
     getMessage(messageId)
       .then((data) => {
@@ -68,9 +68,9 @@ export function useMessage(messageId: string | null) {
           setError(err instanceof Error ? err : new Error(String(err)));
         }
       })
-      .finally(() => { if (!cancelled) setLoading(false); });
+      .finally(() => { if (!cancelled) setIsLoading(false); });
     return () => { cancelled = true; };
   }, [messageId]);
 
-  return { message, loading, error };
+  return { message, isLoading, error };
 }

@@ -22,8 +22,8 @@ function backendFolderId(folderId: string): string {
 export function useMailList(folderId: string, refreshIntervalSeconds: RefreshIntervalSeconds) {
   const [folders, setFolders] = useState<Folder[]>([]);
   const [messages, setMessages] = useState<MessageSummary[]>([]);
-  const [foldersLoading, setFoldersLoading] = useState(true);
-  const [messagesLoading, setMessagesLoading] = useState(false);
+  const [isFoldersLoading, setIsFoldersLoading] = useState(true);
+  const [isMessagesLoading, setIsMessagesLoading] = useState(false);
   const [foldersError, setFoldersError] = useState<Error | null>(null);
   const [messagesError, setMessagesError] = useState<Error | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -33,12 +33,12 @@ export function useMailList(folderId: string, refreshIntervalSeconds: RefreshInt
 
   useEffect(() => {
     let cancelled = false;
-    setFoldersLoading(true);
+    setIsFoldersLoading(true);
     setFoldersError(null);
     getFolders()
       .then((data) => { if (!cancelled) setFolders(data.folders); })
       .catch((err) => { if (!cancelled) setFoldersError(err instanceof Error ? err : new Error(String(err))); })
-      .finally(() => { if (!cancelled) setFoldersLoading(false); });
+      .finally(() => { if (!cancelled) setIsFoldersLoading(false); });
     return () => { cancelled = true; };
   }, []);
 
@@ -48,7 +48,7 @@ export function useMailList(folderId: string, refreshIntervalSeconds: RefreshInt
       setHasMore(false);
       setNextCursor('');
       nextCursorRef.current = '';
-      setMessagesLoading(false);
+      setIsMessagesLoading(false);
       return;
     }
     if (isExternallyLoadedVirtualFolder(folderId)) {
@@ -60,7 +60,7 @@ export function useMailList(folderId: string, refreshIntervalSeconds: RefreshInt
       setHasMore(false);
       setNextCursor('');
       nextCursorRef.current = '';
-      setMessagesLoading(false);
+      setIsMessagesLoading(false);
       return;
     }
     let cancelled = false;
@@ -68,7 +68,7 @@ export function useMailList(folderId: string, refreshIntervalSeconds: RefreshInt
     setHasMore(false);
     setNextCursor('');
     nextCursorRef.current = '';
-    setMessagesLoading(true);
+    setIsMessagesLoading(true);
     setMessagesError(null);
     getMessages(backendFolderId(folderId))
       .then((data) => {
@@ -85,7 +85,7 @@ export function useMailList(folderId: string, refreshIntervalSeconds: RefreshInt
           setMessagesError(err instanceof Error ? err : new Error(String(err)));
         }
       })
-      .finally(() => { if (!cancelled) setMessagesLoading(false); });
+      .finally(() => { if (!cancelled) setIsMessagesLoading(false); });
     return () => { cancelled = true; };
   }, [folderId]);
 
@@ -147,5 +147,5 @@ export function useMailList(folderId: string, refreshIntervalSeconds: RefreshInt
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  return { folders, messages, setMessages, foldersLoading, messagesLoading, setMessagesLoading, loadingMore, hasMore, nextCursor, loadMore, adjustUnread, refresh, refreshing, foldersError, messagesError };
+  return { folders, messages, setMessages, isFoldersLoading, isMessagesLoading, setIsMessagesLoading, loadingMore, hasMore, nextCursor, loadMore, adjustUnread, refresh, refreshing, foldersError, messagesError };
 }

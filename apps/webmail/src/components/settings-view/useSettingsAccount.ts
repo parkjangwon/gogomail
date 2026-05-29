@@ -3,8 +3,7 @@ import { updateUserProfile, uploadUserAvatar, deleteUserAvatar, changePassword, 
 import { setWebmailAvatar } from '@/lib/webmailAvatar';
 
 export interface UseSettingsAccountParams {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  t: (key: string, values?: Record<string, any>) => string;
+  t: (key: string, values?: Record<string, unknown>) => string;
   router: { push: (href: string) => void };
 }
 
@@ -66,7 +65,9 @@ export function useSettingsAccount({ t, router }: UseSettingsAccountParams) {
 
   function saveDisplayName() {
     try { localStorage.setItem('webmail_display_name', displayName); } catch { /* ignore */ }
-    updateUserProfile({ display_name: displayName }).catch(() => {});
+    updateUserProfile({ display_name: displayName }).catch((err) => {
+      console.error('Failed to save display name:', err instanceof Error ? err.message : err);
+    });
     setNameSaved(true);
     setTimeout(() => setNameSaved(false), 2000);
   }
@@ -84,7 +85,9 @@ export function useSettingsAccount({ t, router }: UseSettingsAccountParams) {
 
   function saveSignature() {
     try { localStorage.setItem('webmail_signature', signature); } catch { /* ignore */ }
-    setPreferences({ signatures: { default: signature } }).catch(() => {});
+    setPreferences({ signatures: { default: signature } }).catch((err) => {
+      console.error('Failed to save signature:', err instanceof Error ? err.message : err);
+    });
     setSigSaved(true);
     setTimeout(() => setSigSaved(false), 2000);
   }

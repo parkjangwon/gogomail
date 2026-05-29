@@ -101,7 +101,7 @@ export function useMailNotifications(params: UseMailNotificationsParams) {
           // local notification policy cache is best-effort
         }
       })
-      .catch(() => {});
+      .catch(() => {}); // fire-and-forget: localStorage cache acts as fallback; failure is non-critical
   }, []);
 
   const handleToggleThreadMute = useCallback(async () => {
