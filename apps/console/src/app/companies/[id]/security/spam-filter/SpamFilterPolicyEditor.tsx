@@ -1,27 +1,19 @@
 'use client';
 
 import {
-  Container,
-  Header,
   SpaceBetween,
   Button,
-  FormField,
-  Input,
-  Select,
   SelectProps,
-  Textarea,
-  Toggle,
-  RadioGroup,
   Box,
-  Alert,
-  ColumnLayout,
-  Badge,
 } from '@cloudscape-design/components';
 import { useState, useMemo } from 'react';
-import { DataTable } from '@/components/DataTable';
-import { SpamFilterPolicy, FilterPack, FilterRule, builtinFilterPacks } from './spamFilterTypes';
+import { SpamFilterPolicy, FilterPack, FilterRule } from './spamFilterTypes';
 import { SpamFilterAttachmentSettings } from './SpamFilterAttachmentSettings';
 import { SpamFilterSenderLists } from './SpamFilterSenderLists';
+import { SpamFilterRiskSection } from './SpamFilterRiskSection';
+import { SpamFilterDetectionSection } from './SpamFilterDetectionSection';
+import { SpamFilterRblSection } from './SpamFilterRblSection';
+import { SpamFilterPacksSection } from './SpamFilterPacksSection';
 
 interface SpamFilterPolicyEditorProps {
   policy: SpamFilterPolicy;
@@ -35,7 +27,7 @@ interface SpamFilterPolicyEditorProps {
 }
 
 export function SpamFilterPolicyEditor({ policy, onPolicyChange, saving, isDirty, onSave, savedPolicyJson, t }: SpamFilterPolicyEditorProps) {
-  const setPolicy = (updater: SpamFilterPolicy | ((prev: SpamFilterPolicy) => SpamFilterPolicy)) => {
+  const updatePolicy = (updater: SpamFilterPolicy | ((prev: SpamFilterPolicy) => SpamFilterPolicy)) => {
     if (typeof updater === 'function') {
       onPolicyChange(updater(policy));
     } else {
@@ -43,12 +35,17 @@ export function SpamFilterPolicyEditor({ policy, onPolicyChange, saving, isDirty
     }
   };
 
+  // RBL zone form state
   const [newRBLZone, setNewRBLZone] = useState('');
+
+  // Filter pack form state
   const [newPackId, setNewPackId] = useState('');
   const [newPackName, setNewPackName] = useState('');
   const [newPackPhrase, setNewPackPhrase] = useState('');
   const [newPackScore, setNewPackScore] = useState('4');
   const [selectedCustomPackId, setSelectedCustomPackId] = useState('');
+
+  // Rule editor form state
   const [newRuleId, setNewRuleId] = useState('');
   const [newRuleType, setNewRuleType] = useState<SelectProps.Option>({ value: 'phrase', label: t('pages.spam_filter_page.rule_type_phrase') });
   const [newRuleTarget, setNewRuleTarget] = useState<SelectProps.Option>({ value: 'subject_body', label: t('pages.spam_filter_page.rule_target_subject_body') });
@@ -56,19 +53,14 @@ export function SpamFilterPolicyEditor({ policy, onPolicyChange, saving, isDirty
   const [newRuleScore, setNewRuleScore] = useState('4');
   const [newRuleAction, setNewRuleAction] = useState<SelectProps.Option>({ value: '', label: t('pages.spam_filter_page.rule_action_score') });
 
-  const addToList = (field: keyof SpamFilterPolicy, value: string, setter: (v: string) => void) => {
-    const trimmed = value.trim();
-    if (!trimmed) return;
-    setPolicy(p => ({ ...p, [field]: [...(p[field] as string[]), trimmed] }));
-    setter('');
-  };
-
+  // --- List helpers ---
   const removeFromList = (field: keyof SpamFilterPolicy, index: number) => {
-    setPolicy(p => ({ ...p, [field]: (p[field] as string[]).filter((_, i) => i !== index) }));
+    updatePolicy(p => ({ ...p, [field]: (p[field] as string[]).filter((_, i) => i !== index) }));
   };
 
+  // --- Filter pack handlers ---
   const setFilterPackEnabled = (packId: string, enabled: boolean) => {
-    setPolicy(p => {
+    updatePolicy(p => {
       const current = p.filter_packs?.enabled_pack_ids ?? [];
       const nextIds = enabled
         ? Array.from(new Set([...current, packId]))
@@ -111,7 +103,7 @@ export function SpamFilterPolicyEditor({ policy, onPolicyChange, saving, isDirty
         enabled: true,
       }] : [],
     };
-    setPolicy(p => ({
+    updatePolicy(p => ({
       ...p,
       filter_packs: {
         enabled_pack_ids: Array.from(new Set([...(p.filter_packs?.enabled_pack_ids ?? []), id])),
@@ -126,7 +118,7 @@ export function SpamFilterPolicyEditor({ policy, onPolicyChange, saving, isDirty
   };
 
   const removeCustomPack = (packId: string) => {
-    setPolicy(p => ({
+    updatePolicy(p => ({
       ...p,
       filter_packs: {
         enabled_pack_ids: (p.filter_packs?.enabled_pack_ids ?? []).filter(id => id !== packId),
@@ -166,7 +158,7 @@ export function SpamFilterPolicyEditor({ policy, onPolicyChange, saving, isDirty
       enabled: true,
       action: String(newRuleAction.value ?? '') || undefined,
     };
-    setPolicy(p => ({
+    updatePolicy(p => ({
       ...p,
       filter_packs: {
         enabled_pack_ids: p.filter_packs?.enabled_pack_ids ?? [],
@@ -184,7 +176,7 @@ export function SpamFilterPolicyEditor({ policy, onPolicyChange, saving, isDirty
   };
 
   const removeRuleFromPack = (packId: string, ruleId: string) => {
-    setPolicy(p => ({
+    updatePolicy(p => ({
       ...p,
       filter_packs: {
         enabled_pack_ids: p.filter_packs?.enabled_pack_ids ?? [],
@@ -198,7 +190,7 @@ export function SpamFilterPolicyEditor({ policy, onPolicyChange, saving, isDirty
   };
 
   const toggleRuleInPack = (packId: string, ruleId: string) => {
-    setPolicy(p => ({
+    updatePolicy(p => ({
       ...p,
       filter_packs: {
         enabled_pack_ids: p.filter_packs?.enabled_pack_ids ?? [],
@@ -211,6 +203,7 @@ export function SpamFilterPolicyEditor({ policy, onPolicyChange, saving, isDirty
     }));
   };
 
+  // --- Computed values ---
   const activePackCount = (policy.filter_packs?.enabled_pack_ids ?? []).length;
   const customPackCount = (policy.filter_packs?.custom_packs ?? []).length;
 
@@ -278,364 +271,92 @@ export function SpamFilterPolicyEditor({ policy, onPolicyChange, saving, isDirty
     { value: 'quarantine', label: t('pages.spam_filter_page.rule_action_quarantine') },
     { value: 'reject', label: t('pages.spam_filter_page.rule_action_reject') },
   ];
-  const customPackOptions: SelectProps.Option[] = (policy.filter_packs?.custom_packs ?? []).map(pack => ({
-    value: pack.id,
-    label: pack.name,
-    description: pack.id,
-  }));
-  const selectedCustomPack = (policy.filter_packs?.custom_packs ?? []).find(pack => pack.id === selectedCustomPackId) ?? null;
 
   return (
     <SpaceBetween size="l">
-      {/* Risk section */}
-      <Container
-        header={
-          <Header
-            variant="h2"
-            actions={<Badge color={riskItems.length >= 3 ? 'red' : riskItems.length > 0 ? 'severity-medium' : 'green'}>{postureLabel}</Badge>}
-          >
-            {t('pages.spam_filter_page.risk_section')}
-          </Header>
-        }
-      >
-        <SpaceBetween size="s">
-          {riskItems.length === 0 ? (
-            <Alert type="success">{t('pages.spam_filter_page.risk_clear')}</Alert>
-          ) : (
-            <Alert type={riskItems.length >= 3 ? 'error' : 'warning'}>
-              {t('pages.spam_filter_page.risk_intro')}
-            </Alert>
-          )}
-          {riskItems.length > 0 && (
-            <ColumnLayout columns={2} minColumnWidth={240}>
-              {riskItems.map(item => (
-                <Box key={item}>
-                  <Badge color="severity-medium">{t('pages.spam_filter_page.review_required')}</Badge> {item}
-                </Box>
-              ))}
-            </ColumnLayout>
-          )}
-          {changedFields.length > 0 && (
-            <FormField label={t('pages.spam_filter_page.changed_fields_label')}>
-              <SpaceBetween direction="horizontal" size="xs">
-                {changedFields.map(field => <Badge key={field} color="blue">{field}</Badge>)}
-              </SpaceBetween>
-            </FormField>
-          )}
-        </SpaceBetween>
-      </Container>
-
-      {/* Spam detection */}
-      <Container header={<Header variant="h2">{t('pages.spam_filter_page.detection_section')}</Header>}>
-        <SpaceBetween size="m">
-          <ColumnLayout columns={2}>
-            <FormField
-              label={t('pages.spam_filter_page.threshold_label')}
-              constraintText={t('pages.spam_filter_page.threshold_hint')}
-            >
-              <Input
-                type="number"
-                value={String(policy.spam_threshold)}
-                onChange={e => {
-                  const v = parseInt(e.detail.value) || 1;
-                  setPolicy(p => ({ ...p, spam_threshold: Math.max(1, Math.min(10, v)) }));
-                }}
-              />
-            </FormField>
-            <FormField label={t('pages.spam_filter_page.virus_scan_label')} description={t('pages.spam_filter_page.virus_scan_desc')}>
-              <Toggle
-                checked={policy.virus_scan_enabled}
-                onChange={e => setPolicy(p => ({ ...p, virus_scan_enabled: e.detail.checked }))}
-              >
-                {policy.virus_scan_enabled ? t('pages.spam_filter_page.enabled_on') : t('pages.spam_filter_page.enabled_off')}
-              </Toggle>
-            </FormField>
-            <FormField label={t('pages.spam_filter_page.strict_auth_label')} description={t('pages.spam_filter_page.strict_auth_desc')}>
-              <Toggle
-                checked={policy.strict_auth_enabled}
-                onChange={e => setPolicy(p => ({ ...p, strict_auth_enabled: e.detail.checked }))}
-              >
-                {policy.strict_auth_enabled ? t('pages.spam_filter_page.enabled_on') : t('pages.spam_filter_page.enabled_off')}
-              </Toggle>
-            </FormField>
-            <FormField
-              label={t('pages.spam_filter_page.bulk_limit_label')}
-              constraintText={t('pages.spam_filter_page.bulk_limit_hint')}
-            >
-              <Input
-                type="number"
-                value={String(policy.bulk_recipient_limit)}
-                onChange={e => {
-                  const v = parseInt(e.detail.value) || 1;
-                  setPolicy(p => ({ ...p, bulk_recipient_limit: Math.max(1, Math.min(500, v)) }));
-                }}
-              />
-            </FormField>
-          </ColumnLayout>
-
-          <FormField label={t('pages.spam_filter_page.action_label')} description={t('pages.spam_filter_page.action_desc')}>
-            <RadioGroup
-              value={policy.quarantine_enabled ? 'quarantine' : 'reject'}
-              onChange={e => setPolicy(p => ({ ...p, quarantine_enabled: e.detail.value === 'quarantine' }))}
-              items={[
-                { value: 'quarantine', label: t('pages.spam_filter_page.action_quarantine') },
-                { value: 'reject', label: t('pages.spam_filter_page.action_reject') },
-              ]}
-            />
-          </FormField>
-        </SpaceBetween>
-      </Container>
-
-      {/* RBL */}
-      <Container header={<Header variant="h2">{t('pages.spam_filter_page.rbl_section')}</Header>}>
-        <SpaceBetween size="m">
-          <ColumnLayout columns={2}>
-            <FormField label={t('pages.spam_filter_page.rbl_lookup_label')} description={t('pages.spam_filter_page.rbl_lookup_desc')}>
-              <Toggle
-                checked={policy.rbl_check_enabled}
-                onChange={e => setPolicy(p => ({ ...p, rbl_check_enabled: e.detail.checked }))}
-              >
-                {policy.rbl_check_enabled ? t('pages.spam_filter_page.enabled_on') : t('pages.spam_filter_page.enabled_off')}
-              </Toggle>
-            </FormField>
-            <FormField label={t('pages.spam_filter_page.rbl_reject_label')} description={t('pages.spam_filter_page.rbl_reject_desc')}>
-              <Toggle
-                checked={policy.rbl_reject_enabled}
-                disabled={!policy.rbl_check_enabled}
-                onChange={e => setPolicy(p => ({ ...p, rbl_reject_enabled: e.detail.checked }))}
-              >
-                {policy.rbl_reject_enabled ? t('pages.spam_filter_page.enabled_on') : t('pages.spam_filter_page.enabled_off')}
-              </Toggle>
-            </FormField>
-          </ColumnLayout>
-          <FormField label={t('pages.spam_filter_page.rbl_zones_label')} description={t('pages.spam_filter_page.rbl_zones_desc')}>
-            <SpaceBetween size="xs">
-              {policy.rbl_zones.length === 0 && (
-                <Box color="text-body-secondary" fontSize="body-s">{t('pages.spam_filter_page.no_rbl_zones')}</Box>
-              )}
-              <SpaceBetween direction="horizontal" size="xs">
-                {policy.rbl_zones.map((zone, i) => (
-                  <SpaceBetween key={zone} direction="horizontal" size="xs">
-                    <Badge color="blue">{zone}</Badge>
-                    <Button variant="inline-link" onClick={() => removeFromList('rbl_zones', i)}>
-                      {t('common.delete')}
-                    </Button>
-                  </SpaceBetween>
-                ))}
-              </SpaceBetween>
-              <SpaceBetween direction="horizontal" size="xs">
-                <Input
-                  value={newRBLZone}
-                  onChange={e => setNewRBLZone(e.detail.value)}
-                  placeholder="zen.example-rbl.test"
-                />
-                <Button onClick={() => addToList('rbl_zones', newRBLZone, setNewRBLZone)}>
-                  {t('common.add')}
-                </Button>
-              </SpaceBetween>
-            </SpaceBetween>
-          </FormField>
-        </SpaceBetween>
-      </Container>
-
-      {/* Filter packs */}
-      <Container
-        header={
-          <Header
-            variant="h2"
-            counter={`(${activePackCount}/${builtinFilterPacks.length + customPackCount})`}
-          >
-            {t('pages.spam_filter_page.filter_packs_section')}
-          </Header>
-        }
-      >
-        <SpaceBetween size="m">
-          <Alert type="info">
-            {t('pages.spam_filter_page.filter_packs_notice')}
-          </Alert>
-          <ColumnLayout columns={2}>
-            {builtinFilterPacks.map(pack => {
-              const enabled = (policy.filter_packs?.enabled_pack_ids ?? []).includes(pack.id);
-              return (
-                <FormField key={pack.id} label={t(`pages.spam_filter_page.${pack.nameKey}`, pack.name)} description={t(`pages.spam_filter_page.${pack.descriptionKey}`, pack.description)}>
-                  <SpaceBetween size="xs">
-                    <Toggle checked={enabled} onChange={e => setFilterPackEnabled(pack.id, e.detail.checked)}>
-                      {enabled ? t('pages.spam_filter_page.enabled_on') : t('pages.spam_filter_page.enabled_off')}
-                    </Toggle>
-                    <SpaceBetween direction="horizontal" size="xs">
-                      <Badge color="blue">{t(`pages.spam_filter_page.${pack.categoryKey}`, pack.category)}</Badge>
-                      <Badge color="grey">{formatRulesCount(pack.rules.length)}</Badge>
-                    </SpaceBetween>
-                  </SpaceBetween>
-                </FormField>
-              );
-            })}
-          </ColumnLayout>
-
-          <FormField label={t('pages.spam_filter_page.custom_packs_label')} description={t('pages.spam_filter_page.custom_packs_desc')}>
-            <SpaceBetween size="s">
-              {(policy.filter_packs?.custom_packs ?? []).length === 0 && (
-                <Box color="text-body-secondary" fontSize="body-s">{t('pages.spam_filter_page.no_custom_packs')}</Box>
-              )}
-              {(policy.filter_packs?.custom_packs ?? []).map(pack => {
-                const enabled = (policy.filter_packs?.enabled_pack_ids ?? []).includes(pack.id);
-                return (
-                  <SpaceBetween key={pack.id} direction="horizontal" size="xs">
-                    <Badge color={enabled ? 'green' : 'grey'}>{pack.id}</Badge>
-                    <Box>{pack.name}</Box>
-                    <Button variant="inline-link" onClick={() => setFilterPackEnabled(pack.id, !enabled)}>
-                      {enabled ? t('pages.spam_filter_page.disable') : t('pages.spam_filter_page.enable')}
-                    </Button>
-                    <Button variant="inline-link" onClick={() => removeCustomPack(pack.id)}>
-                      {t('common.delete')}
-                    </Button>
-                  </SpaceBetween>
-                );
-              })}
-              <ColumnLayout columns={4}>
-                <Input value={newPackId} onChange={e => setNewPackId(e.detail.value)} placeholder={t('pages.spam_filter_page.pack_id_placeholder')} />
-                <Input value={newPackName} onChange={e => setNewPackName(e.detail.value)} placeholder={t('pages.spam_filter_page.pack_name_placeholder')} />
-                <Input value={newPackPhrase} onChange={e => setNewPackPhrase(e.detail.value)} placeholder={t('pages.spam_filter_page.pack_phrase_placeholder')} />
-                <Input type="number" value={newPackScore} onChange={e => setNewPackScore(e.detail.value)} placeholder={t('pages.spam_filter_page.pack_score_placeholder')} />
-              </ColumnLayout>
-              <Button onClick={addCustomPack}>{t('pages.spam_filter_page.add_custom_pack')}</Button>
-            </SpaceBetween>
-          </FormField>
-
-          {(policy.filter_packs?.custom_packs ?? []).length > 0 && (
-            <Container header={<Header variant="h3">{t('pages.spam_filter_page.rule_editor_section')}</Header>}>
-              <SpaceBetween size="m">
-                <ColumnLayout columns={3}>
-                  <FormField label={t('pages.spam_filter_page.rule_pack_label')}>
-                    <Select
-                      selectedOption={customPackOptions.find(option => option.value === selectedCustomPackId) ?? null}
-                      options={customPackOptions}
-                      placeholder={t('pages.spam_filter_page.rule_pack_placeholder')}
-                      onChange={event => setSelectedCustomPackId(String(event.detail.selectedOption.value ?? ''))}
-                    />
-                  </FormField>
-                  <FormField label={t('pages.spam_filter_page.rule_type_label')}>
-                    <Select
-                      selectedOption={newRuleType}
-                      options={ruleTypeOptions}
-                      onChange={event => setNewRuleType(event.detail.selectedOption)}
-                    />
-                  </FormField>
-                  <FormField label={t('pages.spam_filter_page.rule_target_label')}>
-                    <Select
-                      selectedOption={newRuleTarget}
-                      options={ruleTargetOptions}
-                      disabled={newRuleType.value !== 'phrase'}
-                      onChange={event => setNewRuleTarget(event.detail.selectedOption)}
-                    />
-                  </FormField>
-                </ColumnLayout>
-                <ColumnLayout columns={3}>
-                  <FormField label={t('pages.spam_filter_page.rule_id_label')}>
-                    <Input value={newRuleId} onChange={event => setNewRuleId(event.detail.value)} placeholder={t('pages.spam_filter_page.rule_id_placeholder')} />
-                  </FormField>
-                  <FormField label={t('pages.spam_filter_page.rule_score_label')}>
-                    <Input type="number" value={newRuleScore} onChange={event => setNewRuleScore(event.detail.value)} />
-                  </FormField>
-                  <FormField label={t('pages.spam_filter_page.rule_action_label')}>
-                    <Select
-                      selectedOption={newRuleAction}
-                      options={ruleActionOptions}
-                      onChange={event => setNewRuleAction(event.detail.selectedOption)}
-                    />
-                  </FormField>
-                </ColumnLayout>
-                <FormField
-                  label={t('pages.spam_filter_page.rule_patterns_label')}
-                  description={t('pages.spam_filter_page.rule_patterns_desc')}
-                >
-                  <Textarea
-                    value={newRulePatterns}
-                    onChange={event => setNewRulePatterns(event.detail.value)}
-                    placeholder={t('pages.spam_filter_page.rule_patterns_placeholder')}
-                    rows={4}
-                  />
-                </FormField>
-                <Button onClick={addRuleToSelectedPack} disabled={!selectedCustomPackId}>
-                  {t('pages.spam_filter_page.add_rule')}
-                </Button>
-
-                {selectedCustomPack && (
-                  <DataTable
-                    pageSize={10}
-                    searchPlaceholder={t('pages.spam_filter_page.rules_search')}
-                    columnDefinitions={[
-                      {
-                        header: t('pages.spam_filter_page.col_rule'),
-                        cell: (rule: FilterRule) => (
-                          <SpaceBetween size="xxs">
-                            <Box>{rule.id}</Box>
-                            <SpaceBetween direction="horizontal" size="xs">
-                              <Badge color={rule.enabled ? 'green' : 'grey'}>{rule.enabled ? t('pages.spam_filter_page.enabled_on') : t('pages.spam_filter_page.enabled_off')}</Badge>
-                              <Badge color="blue">{rule.type}</Badge>
-                            </SpaceBetween>
-                          </SpaceBetween>
-                        ),
-                        width: '24%',
-                      },
-                      {
-                        header: t('pages.spam_filter_page.col_patterns'),
-                        cell: (rule: FilterRule) => (rule.patterns ?? []).slice(0, 3).join(', ') || '—',
-                        width: '34%',
-                      },
-                      {
-                        header: t('pages.spam_filter_page.col_score'),
-                        cell: (rule: FilterRule) => rule.score.toFixed(1),
-                        width: '10%',
-                      },
-                      {
-                        header: t('pages.spam_filter_page.col_action'),
-                        cell: (rule: FilterRule) => rule.action || t('pages.spam_filter_page.rule_action_score_short'),
-                        width: '14%',
-                      },
-                      {
-                        header: t('pages.spam_filter_page.col_manage'),
-                        cell: (rule: FilterRule) => (
-                          <SpaceBetween direction="horizontal" size="xs">
-                            <Button variant="inline-link" onClick={() => toggleRuleInPack(selectedCustomPack.id, rule.id)}>
-                              {rule.enabled ? t('pages.spam_filter_page.disable') : t('pages.spam_filter_page.enable')}
-                            </Button>
-                            <Button variant="inline-link" onClick={() => removeRuleFromPack(selectedCustomPack.id, rule.id)}>
-                              {t('common.delete')}
-                            </Button>
-                          </SpaceBetween>
-                        ),
-                        width: '18%',
-                      },
-                    ]}
-                    items={selectedCustomPack.rules}
-                    header={<Header variant="h3" counter={`(${selectedCustomPack.rules.length})`}>{selectedCustomPack.name}</Header>}
-                  />
-                )}
-              </SpaceBetween>
-            </Container>
-          )}
-        </SpaceBetween>
-      </Container>
-
-      {/* Attachments */}
-      <SpamFilterAttachmentSettings
-        maxAttachmentMb={policy.max_attachment_mb}
-        onMaxChange={mb => setPolicy(p => ({ ...p, max_attachment_mb: mb }))}
-        blockedExtensions={policy.blocked_extensions}
-        onRemoveExtension={i => removeFromList('blocked_extensions', i)}
-        onAddExtension={value => setPolicy(p => ({ ...p, blocked_extensions: [...p.blocked_extensions, value] }))}
+      <SpamFilterRiskSection
+        riskItems={riskItems}
+        postureLabel={postureLabel}
+        changedFields={changedFields}
         t={t}
       />
 
-      {/* Sender lists */}
+      <SpamFilterDetectionSection
+        policy={policy}
+        onUpdatePolicy={updatePolicy}
+        t={t}
+      />
+
+      <SpamFilterRblSection
+        policy={policy}
+        onUpdatePolicy={updatePolicy}
+        newRBLZone={newRBLZone}
+        onNewRBLZoneChange={setNewRBLZone}
+        onAddRBLZone={() => {
+          const trimmed = newRBLZone.trim();
+          if (!trimmed) return;
+          updatePolicy(p => ({ ...p, rbl_zones: [...p.rbl_zones, trimmed] }));
+          setNewRBLZone('');
+        }}
+        onRemoveRBLZone={i => removeFromList('rbl_zones', i)}
+        t={t}
+      />
+
+      <SpamFilterPacksSection
+        policy={policy}
+        activePackCount={activePackCount}
+        customPackCount={customPackCount}
+        newPackId={newPackId}
+        newPackName={newPackName}
+        newPackPhrase={newPackPhrase}
+        newPackScore={newPackScore}
+        onNewPackIdChange={setNewPackId}
+        onNewPackNameChange={setNewPackName}
+        onNewPackPhraseChange={setNewPackPhrase}
+        onNewPackScoreChange={setNewPackScore}
+        onAddCustomPack={addCustomPack}
+        onRemoveCustomPack={removeCustomPack}
+        onSetFilterPackEnabled={setFilterPackEnabled}
+        selectedCustomPackId={selectedCustomPackId}
+        onSelectedCustomPackIdChange={setSelectedCustomPackId}
+        newRuleId={newRuleId}
+        newRuleType={newRuleType}
+        newRuleTarget={newRuleTarget}
+        newRulePatterns={newRulePatterns}
+        newRuleScore={newRuleScore}
+        newRuleAction={newRuleAction}
+        onNewRuleIdChange={setNewRuleId}
+        onNewRuleTypeChange={setNewRuleType}
+        onNewRuleTargetChange={setNewRuleTarget}
+        onNewRulePatternsChange={setNewRulePatterns}
+        onNewRuleScoreChange={setNewRuleScore}
+        onNewRuleActionChange={setNewRuleAction}
+        onAddRuleToSelectedPack={addRuleToSelectedPack}
+        onToggleRuleInPack={toggleRuleInPack}
+        onRemoveRuleFromPack={removeRuleFromPack}
+        ruleTypeOptions={ruleTypeOptions}
+        ruleTargetOptions={ruleTargetOptions}
+        ruleActionOptions={ruleActionOptions}
+        formatRulesCount={formatRulesCount}
+        t={t}
+      />
+
+      <SpamFilterAttachmentSettings
+        maxAttachmentMb={policy.max_attachment_mb}
+        onMaxChange={mb => updatePolicy(p => ({ ...p, max_attachment_mb: mb }))}
+        blockedExtensions={policy.blocked_extensions}
+        onRemoveExtension={i => removeFromList('blocked_extensions', i)}
+        onAddExtension={value => updatePolicy(p => ({ ...p, blocked_extensions: [...p.blocked_extensions, value] }))}
+        t={t}
+      />
+
       <SpamFilterSenderLists
         blockedSenders={policy.blocked_senders}
         allowedSenders={policy.allowed_senders}
         onRemoveBlockedSender={i => removeFromList('blocked_senders', i)}
-        onAddBlockedSender={value => setPolicy(p => ({ ...p, blocked_senders: [...p.blocked_senders, value] }))}
+        onAddBlockedSender={value => updatePolicy(p => ({ ...p, blocked_senders: [...p.blocked_senders, value] }))}
         onRemoveAllowedSender={i => removeFromList('allowed_senders', i)}
-        onAddAllowedSender={value => setPolicy(p => ({ ...p, allowed_senders: [...p.allowed_senders, value] }))}
+        onAddAllowedSender={value => updatePolicy(p => ({ ...p, allowed_senders: [...p.allowed_senders, value] }))}
         t={t}
       />
 
