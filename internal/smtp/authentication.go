@@ -50,11 +50,12 @@ type AuthenticationVerifier interface {
 }
 
 // enforceDMARCPolicy rejects messages when the DMARC check failed and the
-// domain policy calls for rejection.  It is a no-op when enforce is false or
-// when no DMARC result is available.
-func enforceDMARCPolicy(enforce bool, results AuthenticationResults) error {
+// domain policy calls for rejection.  Returns (quarantine=true, nil) when the
+// policy is "quarantine" — callers should route the message to the Spam folder.
+// It is a no-op when enforce is false or when no DMARC result is available.
+func enforceDMARCPolicy(enforce bool, results AuthenticationResults) (quarantine bool, err error) {
 	if !enforce || results.DMARC.Result != AuthResultFail {
-		return nil
+		return false, nil
 	}
 	policy := strings.ToLower(strings.TrimSpace(results.DMARC.Policy))
 	switch policy {
@@ -63,14 +64,10 @@ func enforceDMARCPolicy(enforce bool, results AuthenticationResults) error {
 		if domain == "" {
 			domain = "sender domain"
 		}
-		return smtpPermanent(550, gosmtp.EnhancedCode{5, 7, 1},
+		return false, smtpPermanent(550, gosmtp.EnhancedCode{5, 7, 1},
 			"message rejected due to DMARC policy for %s", domain)
 	case "quarantine":
-		// Quarantine is a sender-side advisory: deliver but mark.
-		// Full quarantine folder routing requires mailbox-level support;
-		// here we note the intent via the Authentication-Results header
-		// that was already inserted, and continue delivery normally.
-		return nil
+		return true, nil
 	}
-	return nil
+	return false, nil
 }

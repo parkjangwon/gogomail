@@ -125,23 +125,17 @@ VALUES ($1, $2, $3, $3, $4, $5, $5, true)`, userID, domainID, local, domainACE, 
 func createSystemFolders(ctx context.Context, tx interface {
 	ExecContext(context.Context, string, ...any) (sql.Result, error)
 }, userID string) error {
-	folders := []struct {
-		name       string
-		systemType string
-	}{
-		{"Inbox", "inbox"},
-		{"Drafts", "drafts"},
-		{"Sent", "sent"},
-		{"Spam", "spam"},
-		{"Trash", "trash"},
-	}
-	for i, folder := range folders {
-		if _, err := tx.ExecContext(ctx, `
+	_, err := tx.ExecContext(ctx, `
 INSERT INTO folders (user_id, name, full_path, type, system_type, order_index)
-VALUES ($1, $2, $3, 'system', $4, $5)
-ON CONFLICT (user_id, full_path) DO NOTHING`, userID, folder.name, "/"+folder.name, folder.systemType, i); err != nil {
-			return fmt.Errorf("create %s folder: %w", folder.systemType, err)
-		}
+VALUES
+  ($1, 'Inbox',  '/Inbox',  'system', 'inbox',  0),
+  ($1, 'Drafts', '/Drafts', 'system', 'drafts', 1),
+  ($1, 'Sent',   '/Sent',   'system', 'sent',   2),
+  ($1, 'Spam',   '/Spam',   'system', 'spam',   3),
+  ($1, 'Trash',  '/Trash',  'system', 'trash',  4)
+ON CONFLICT (user_id, full_path) DO NOTHING`, userID)
+	if err != nil {
+		return fmt.Errorf("create system folders: %w", err)
 	}
 	return nil
 }
