@@ -175,10 +175,10 @@ export function useMailMessageActions(params: UseMailMessageActionsParams) {
         pendingDeletesRef.current.delete(id);
         if (inTrash || !trashFolder) {
           // Already in trash → permanent delete
-          deleteMessage(id).catch(() => {});
+          deleteMessage(id).catch(() => {}); // fire-and-forget: optimistic delete; UI already updated
         } else {
           // Move to trash (soft delete)
-          moveMessage(id, trashFolder.id).catch(() => {});
+          moveMessage(id, trashFolder.id).catch(() => {}); // fire-and-forget: optimistic delete; UI already updated
         }
       }, 5000);
       pendingDeletesRef.current.set(id, timer);

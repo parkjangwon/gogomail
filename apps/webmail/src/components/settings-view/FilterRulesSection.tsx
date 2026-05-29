@@ -61,11 +61,17 @@ export function FilterRulesSection({ filterRules, setFilterRules }: FilterRulesS
   const [editingRule, setEditingRule] = useState<FilterRule | null>(null);
   const [newRule, setNewRule] = useState<Omit<FilterRule, 'id'>>(emptyRule);
   const [folders, setFolders] = useState<Folder[]>([]);
+  const [folderLoadError, setFolderLoadError] = useState(false);
   const [applyingId, setApplyingId] = useState<string | null>(null);
   const [applyResult, setApplyResult] = useState<Record<string, string>>({});
 
   useEffect(() => {
-    getFolders().then((d) => setFolders(d.folders)).catch(() => {});
+    getFolders()
+      .then((d) => setFolders(d.folders))
+      .catch((err) => {
+        setFolderLoadError(true);
+        console.error('Failed to load folders for filter rules:', err instanceof Error ? err.message : err);
+      });
   }, []);
 
   // Folders usable as move targets (exclude trash/spam)
@@ -317,7 +323,7 @@ export function FilterRulesSection({ filterRules, setFilterRules }: FilterRulesS
                   onChange={(e) => setCur({ action: { ...cur.action, moveToFolder: e.target.value } })}
                   style={{ ...sst, flex: 1 }}
                 >
-                  {movableFolders.length === 0 && (
+                  {movableFolders.length === 0 && !folderLoadError && (
                     <option value="">{t('folderNamePlaceholder')}</option>
                   )}
                   {movableFolders.map((f) => (

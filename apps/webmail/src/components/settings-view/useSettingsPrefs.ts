@@ -19,8 +19,7 @@ export interface UseSettingsPrefsParams {
   userEmail?: string;
   userName?: string;
   activeSection?: string;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  t: (key: string, values?: Record<string, any>) => string;
+  t: (key: string, values?: Record<string, unknown>) => string;
   router: { push: (href: string) => void };
 }
 
@@ -140,7 +139,7 @@ export function useSettingsPrefs({ userEmail: _userEmail, userName, activeSectio
         account.setAvatarUrl(p.avatar_url ?? '');
         setWebmailAvatar(p.avatar_url ?? '');
       }
-    }).catch(() => {});
+    }).catch(() => {}); // fire-and-forget: UI renders with local defaults if profile fetch fails
     getPreferences().then((prefs: WebmailPreferences) => {
       try {
         if (prefs.settings) {
@@ -249,13 +248,13 @@ export function useSettingsPrefs({ userEmail: _userEmail, userName, activeSectio
           dndStart: notifications.dndStart,
           dndEnd: notifications.dndEnd,
         },
-        filter_rules: filterRules as unknown[],
+        filter_rules: filterRules,
         blocked_senders: blockedSenders,
         allowed_senders: allowedSenders,
         vacation: { enabled: vacEnabled, startDate: vacStartDate, endDate: vacEndDate, subject: vacSubject, body: vacBody },
         templates: tplState.templates,
       };
-      setPreferences(prefs).catch(() => {});
+      setPreferences(prefs).catch(() => {}); // fire-and-forget: prefs already applied locally via state
     }, 2000);
     return () => clearTimeout(timer);
   }, [
@@ -349,7 +348,7 @@ export function useSettingsPrefs({ userEmail: _userEmail, userName, activeSectio
     getFolderStats().then((stats) => {
       const seen = new Set<string>();
       setFolderStats(stats.filter((f) => { if (seen.has(f.id)) return false; seen.add(f.id); return true; }));
-    }).catch(() => {}).finally(() => setStatsLoading(false));
+    }).catch((err) => { console.error('Failed to load folder stats:', err instanceof Error ? err.message : err); }).finally(() => setStatsLoading(false));
   }, [activeSection]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Handlers ──────────────────────────────────────────────────────────────────

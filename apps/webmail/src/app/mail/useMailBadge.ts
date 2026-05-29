@@ -17,9 +17,9 @@ export function useMailBadge({ folders, badgeCountMode }: UseMailBadgeParams) {
     document.title = badgeCount > 0 ? `GoGoMail (${badgeCount})` : 'GoGoMail';
     const badging = navigator as NavigatorWithBadging;
     if (badgeCount > 0 && typeof badging.setAppBadge === 'function') {
-      void badging.setAppBadge(badgeCount).catch(() => {});
+      void badging.setAppBadge(badgeCount).catch(() => {}); // fire-and-forget: failure is non-critical
     } else if (badgeCount === 0 && typeof badging.clearAppBadge === 'function') {
-      void badging.clearAppBadge().catch(() => {});
+      void badging.clearAppBadge().catch(() => {}); // fire-and-forget: failure is non-critical
     }
 
     // Draw favicon with optional badge on 32x32 canvas

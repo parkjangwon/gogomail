@@ -53,7 +53,7 @@ export function useMailServiceWorker(params: UseMailServiceWorkerParams) {
         }
       }
     };
-    doSetup().catch(() => {});
+    doSetup().catch(() => {}); // fire-and-forget: SW registration failure is non-critical
   }, []);
 
   // Refresh mail list when the service worker signals a push notification arrived.

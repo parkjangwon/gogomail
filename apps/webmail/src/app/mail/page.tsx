@@ -130,7 +130,7 @@ export default function MailPage() {
     handleLogout,
   } = useMailSession({ router, t });
 
-  const { folders, messages, setMessages, foldersLoading, messagesLoading, setMessagesLoading, hasMore, loadingMore, loadMore, adjustUnread, refresh, refreshing } =
+  const { folders, messages, setMessages, isFoldersLoading, isMessagesLoading, setIsMessagesLoading, hasMore, loadingMore, loadMore, adjustUnread, refresh, refreshing } =
     useMailList(activeFolderId, refreshIntervalSeconds);
 
   const {
@@ -140,12 +140,12 @@ export default function MailPage() {
     threadRefreshKey, setThreadRefreshKey,
   } = useMailThreads({
     activeFolderId,
-    foldersLoading,
+    foldersLoading: isFoldersLoading,
     setMessages: (msgs) => setMessages(() => msgs),
-    setMessagesLoading,
+    setMessagesLoading: setIsMessagesLoading,
   });
 
-  const { message: selectedMessage, loading: messageLoading } =
+  const { message: selectedMessage, isLoading: messageLoading } =
     useMessage(selectedMessageId);
 
   // selectedMessageSummary: the MessageSummary row that was clicked (may carry thread_id)
@@ -374,7 +374,7 @@ export default function MailPage() {
       t: t as (key: string, values?: Record<string, any>) => string,
     });
 
-  if (foldersLoading) {
+  if (isFoldersLoading) {
     return (
       <div
         style={{
@@ -536,7 +536,7 @@ export default function MailPage() {
               messages={visibleMessages}
               selectedId={selectedMessageId}
               onSelect={handleSelectMessage}
-              loading={searchResults !== null ? searchLoading : messagesLoading}
+              loading={searchResults !== null ? searchLoading : isMessagesLoading}
               emptyLabel={searchResults !== null ? (searchQuery ? t('misc.mailPage.searchEmptyQuery', { query: searchQuery }) : t('misc.mailPage.searchEmpty')) : getEmptyFolderLabel(activeFolderSystemType, t, activeFolderId)}
               hasMore={searchResults === null ? hasMore : false}
               loadingMore={loadingMore}
@@ -552,7 +552,7 @@ export default function MailPage() {
                 addToast(t('misc.mailPage.bulkMoved', { count: ids.length }));
               }}
               onRefresh={handleRefresh}
-              refreshing={refreshing || (isVirtualFolder && messagesLoading)}
+              refreshing={refreshing || (isVirtualFolder && isMessagesLoading)}
               isMobile={isMobile}
               onOpenSidebar={() => setMobileSidebarOpen(true)}
               onContextMenuMessage={(id, x, y) => setContextMenu({ id, x, y })}

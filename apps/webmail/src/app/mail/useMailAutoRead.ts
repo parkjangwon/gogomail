@@ -32,7 +32,7 @@ export function useMailAutoRead({
       if (!msg || msg.read) return;
       patchVisibleMessages([selectedMessageId], { read: true });
       adjustUnread(activeFolderId, -1);
-      markRead(selectedMessageId, true).catch(() => {});
+      markRead(selectedMessageId, true).catch(() => {}); // fire-and-forget: failure is non-critical
     }, delay);
     return () => { cancelled = true; clearTimeout(timer); };
   }, [selectedMessageId, findVisibleMessage, patchVisibleMessages, adjustUnread, activeFolderId, activeFolderSystemType]);

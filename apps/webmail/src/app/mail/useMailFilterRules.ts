@@ -99,21 +99,21 @@ export function useMailFilterRules(params: UseMailFilterRulesParams) {
     }
     if (markReadIds.length > 0) {
       setMessages((prev) => prev.map((m) => markReadIds.includes(m.id) ? { ...m, read: true } : m));
-      markReadIds.forEach((id) => markRead(id, true).catch(() => {}));
+      markReadIds.forEach((id) => markRead(id, true).catch(() => {})); // fire-and-forget: failure is non-critical
     }
     if (markUnreadIds.length > 0) {
       setMessages((prev) => prev.map((m) => markUnreadIds.includes(m.id) ? { ...m, read: false } : m));
-      markUnreadIds.forEach((id) => markRead(id, false).catch(() => {}));
+      markUnreadIds.forEach((id) => markRead(id, false).catch(() => {})); // fire-and-forget: failure is non-critical
     }
     if (markStarredIds.length > 0) {
       setMessages((prev) => prev.map((m) => markStarredIds.includes(m.id) ? { ...m, starred: true } : m));
-      markStarredIds.forEach((id) => starMessage(id, true).catch(() => {}));
+      markStarredIds.forEach((id) => starMessage(id, true).catch(() => {})); // fire-and-forget: failure is non-critical
     }
     if (trashIds.length > 0) {
       const trashFolder = folders.find((f) => f.system_type === 'trash');
       if (trashFolder) {
         setMessages((prev) => prev.filter((m) => !trashIds.includes(m.id)));
-        trashIds.forEach((id) => moveMessage(id, trashFolder.id).catch(() => {}));
+        trashIds.forEach((id) => moveMessage(id, trashFolder.id).catch(() => {})); // fire-and-forget: failure is non-critical
       }
     }
   }, [messages, folders]);
