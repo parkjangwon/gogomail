@@ -68,7 +68,7 @@ func (s *Service) StoreStagedObject(ctx context.Context, req StoreStagedObjectRe
 		return StagedObject{}, fmt.Errorf("store staged drive object: %w", err)
 	}
 	if counter.bytesRead > MaxDriveStagedObjectBytes {
-		_ = store.Delete(ctx, storagePath)
+		s.deleteDriveObjectBestEffort(ctx, store, userID, storageBackend, storagePath, "staged_object_oversize")
 		return StagedObject{}, fmt.Errorf("drive staged object exceeds %d bytes", MaxDriveStagedObjectBytes)
 	}
 	return StagedObject{

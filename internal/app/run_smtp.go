@@ -322,6 +322,7 @@ func runSubmissionMTA(ctx context.Context, cfg config.Config, logger *slog.Logge
 		Authenticator:      repository,
 		Recorder:           repository,
 		DomainPolicyLookup: repository,
+		Logger:             logger,
 		Hooks:              hooks,
 		AddReceivedHeader:  cfg.SubmissionAddReceivedHeader,
 		ReceivedDomain:     cfg.SMTPDomain,

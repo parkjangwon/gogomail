@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react';
 import { type Folder } from '@/lib/api';
+import { ignoreNonCritical } from '@/lib/promise';
 import { type NavigatorWithBadging } from './mailPageHelpers';
 
 interface UseMailBadgeParams {
@@ -17,9 +18,9 @@ export function useMailBadge({ folders, badgeCountMode }: UseMailBadgeParams) {
     document.title = badgeCount > 0 ? `GoGoMail (${badgeCount})` : 'GoGoMail';
     const badging = navigator as NavigatorWithBadging;
     if (badgeCount > 0 && typeof badging.setAppBadge === 'function') {
-      void badging.setAppBadge(badgeCount).catch(() => {}); // fire-and-forget: failure is non-critical
+      ignoreNonCritical(badging.setAppBadge(badgeCount), 'mail.badge.setAppBadge');
     } else if (badgeCount === 0 && typeof badging.clearAppBadge === 'function') {
-      void badging.clearAppBadge().catch(() => {}); // fire-and-forget: failure is non-critical
+      ignoreNonCritical(badging.clearAppBadge(), 'mail.badge.clearAppBadge');
     }
 
     // Draw favicon with optional badge on 32x32 canvas

@@ -1,9 +1,11 @@
 package storage
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"io"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -577,6 +579,20 @@ func TestLocalStoreCheckReportsUnwritableStorage(t *testing.T) {
 	store := NewLocalStore(blockingFile)
 	if err := store.Check(context.Background()); err == nil || !strings.Contains(err.Error(), "write readiness probe") {
 		t.Fatalf("Check err = %v", err)
+	}
+}
+
+func TestLocalStoreReadinessCleanupLogsDeleteFailure(t *testing.T) {
+	t.Parallel()
+
+	var logs bytes.Buffer
+	store := NewLocalStore(t.TempDir()).WithLogger(slog.New(slog.NewTextHandler(&logs, nil)))
+	store.deleteReadinessProbeBestEffort(context.Background(), "../bad", "unit")
+	output := logs.String()
+	if !strings.Contains(output, "failed to delete local storage readiness probe object") ||
+		!strings.Contains(output, "unit") ||
+		!strings.Contains(output, "unsafe storage path") {
+		t.Fatalf("logs = %q, want local cleanup failure context", output)
 	}
 }
 

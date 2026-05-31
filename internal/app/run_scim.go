@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"strings"
 
 	"github.com/gogomail/gogomail/internal/httpapi"
@@ -11,9 +12,17 @@ import (
 	"github.com/gogomail/gogomail/internal/scim"
 )
 
+type scimUserRepository interface {
+	GetUser(ctx context.Context, id string) (maildb.UserView, error)
+	ListUsers(ctx context.Context, req maildb.UserListRequest) ([]maildb.UserView, bool, error)
+	CreateUser(ctx context.Context, req maildb.CreateUserRequest) (maildb.UserView, error)
+	UpdateUserStatus(ctx context.Context, req maildb.UpdateUserStatusRequest) error
+}
+
 type maildbSCIMUserService struct {
-	repo            *maildb.Repository
+	repo            scimUserRepository
 	defaultDomainID string
+	logger          *slog.Logger
 }
 
 func (s *maildbSCIMUserService) GetSCIMUser(ctx context.Context, id string) (scim.UserResource, error) {
@@ -69,6 +78,7 @@ func (s *maildbSCIMUserService) ReplaceSCIMUser(ctx context.Context, id string, 
 		status = "suspended"
 	}
 	if err := s.repo.UpdateUserStatus(ctx, maildb.UpdateUserStatusRequest{ID: id, Status: status}); err != nil {
+		s.logStatusUpdateFailure(ctx, id, status, "replace", err)
 		return scim.UserResource{}, httpapi.ErrSCIMUserNotFound
 	}
 	return s.GetSCIMUser(ctx, id)
@@ -95,7 +105,10 @@ func (s *maildbSCIMUserService) PatchSCIMUser(ctx context.Context, id string, op
 						if !active {
 							status = "suspended"
 						}
-						_ = s.repo.UpdateUserStatus(ctx, maildb.UpdateUserStatusRequest{ID: id, Status: status})
+						if err := s.repo.UpdateUserStatus(ctx, maildb.UpdateUserStatusRequest{ID: id, Status: status}); err != nil {
+							s.logStatusUpdateFailure(ctx, id, status, "patch_replace_active", err)
+							return scim.UserResource{}, err
+						}
 					}
 				}
 				continue
@@ -111,7 +124,10 @@ func (s *maildbSCIMUserService) PatchSCIMUser(ctx context.Context, id string, op
 				if !active {
 					status = "suspended"
 				}
-				_ = s.repo.UpdateUserStatus(ctx, maildb.UpdateUserStatusRequest{ID: id, Status: status})
+				if err := s.repo.UpdateUserStatus(ctx, maildb.UpdateUserStatusRequest{ID: id, Status: status}); err != nil {
+					s.logStatusUpdateFailure(ctx, id, status, "patch_active", err)
+					return scim.UserResource{}, err
+				}
 			}
 		}
 	}
@@ -120,9 +136,18 @@ func (s *maildbSCIMUserService) PatchSCIMUser(ctx context.Context, id string, op
 
 func (s *maildbSCIMUserService) DeleteSCIMUser(ctx context.Context, id string) error {
 	if err := s.repo.UpdateUserStatus(ctx, maildb.UpdateUserStatusRequest{ID: id, Status: "suspended"}); err != nil {
+		s.logStatusUpdateFailure(ctx, id, "suspended", "delete", err)
 		return httpapi.ErrSCIMUserNotFound
 	}
 	return nil
+}
+
+func (s *maildbSCIMUserService) logStatusUpdateFailure(ctx context.Context, userID string, status string, operation string, err error) {
+	logger := slog.Default()
+	if s != nil && s.logger != nil {
+		logger = s.logger
+	}
+	logger.WarnContext(ctx, "scim user status update failed", "operation", operation, "user_id", strings.TrimSpace(userID), "desired_status", status, "error", err)
 }
 
 func maildbUserToSCIM(u maildb.UserView) scim.UserResource {

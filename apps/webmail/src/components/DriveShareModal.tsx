@@ -6,6 +6,7 @@ import { XMarkIcon } from '@heroicons/react/24/outline';
 import type { DriveNode, DriveShareLink } from '@/lib/api';
 import { createDriveShareLink, listDriveShareLinks, revokeDriveShareLink } from '@/lib/api';
 import { formatDate } from '@/lib/drive/driveUtils';
+import { ignoreNonCritical } from '@/lib/promise';
 
 interface ShareModalProps {
   node: DriveNode;
@@ -45,7 +46,7 @@ export function DriveShareModal({ node, onClose }: ShareModalProps) {
   function copyLink(link: DriveShareLink) {
     if (!link.token) return;
     const url = `${window.location.origin}/api/mail/drive/share-links/${encodeURIComponent(link.token)}/download`;
-    navigator.clipboard.writeText(url).catch(() => {});
+    ignoreNonCritical(navigator.clipboard.writeText(url), 'drive.shareLink.copy');
     setCopied(link.token_suffix);
     setTimeout(() => setCopied(''), 2000);
   }

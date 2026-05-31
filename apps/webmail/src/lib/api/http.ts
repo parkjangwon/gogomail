@@ -1,5 +1,7 @@
 // Private HTTP helpers shared across all domain modules.
 
+import { ignoreNonCritical } from '@/lib/promise';
+
 type APIErrorBody = {
   error?: string | { message?: string; code?: string; status_text?: string };
   error_message?: string;
@@ -25,7 +27,7 @@ export async function responseErrorMessage(res: Response, fallback: string): Pro
 }
 
 export function clearTokenAndRedirect(): void {
-  fetch('/api/auth/logout', { method: 'POST' }).catch(() => {});
+  ignoreNonCritical(fetch('/api/auth/logout', { method: 'POST' }), 'api.clearTokenAndRedirect.logout');
   localStorage.removeItem('webmail_authenticated');
   localStorage.removeItem('webmail_email');
   localStorage.removeItem('webmail_token_expires_at');

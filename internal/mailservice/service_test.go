@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"reflect"
 	"strings"
@@ -5343,5 +5344,32 @@ func TestUploadAttachmentRejectsDeclaredSizeMismatch(t *testing.T) {
 	}
 	if repo.lastAttachmentUpload.Filename != "" {
 		t.Fatalf("metadata should not be recorded: %+v", repo.lastAttachmentUpload)
+	}
+}
+
+func TestUploadAttachmentLogsRollbackDeleteFailure(t *testing.T) {
+	t.Parallel()
+
+	var logs bytes.Buffer
+	service := New(
+		&fakeRepository{},
+		failingDeleteStore{err: errors.New("permission denied")},
+	).WithLogger(slog.New(slog.NewTextHandler(&logs, nil)))
+
+	_, err := service.UploadAttachment(context.Background(), UploadAttachmentRequest{
+		UserID:   "user-1",
+		Filename: "report.pdf",
+		Size:     7,
+		MIMEType: "application/pdf",
+		Body:     strings.NewReader("content"),
+	})
+	if err == nil {
+		t.Fatal("UploadAttachment returned nil error for declared size mismatch")
+	}
+	output := logs.String()
+	if !strings.Contains(output, "failed to delete attachment storage object") ||
+		!strings.Contains(output, "upload_attachment_size_mismatch") ||
+		!strings.Contains(output, "permission denied") {
+		t.Fatalf("logs = %q, want rollback delete failure context", output)
 	}
 }

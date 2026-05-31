@@ -8,6 +8,7 @@ import {
   getMessageTracking,
   listCalendars,
 } from '@/lib/api';
+import { ignoreNonCritical } from '@/lib/promise';
 import { ICSEvent } from './readingPaneTypes';
 
 interface UseReadingPaneCalendarParams {
@@ -119,16 +120,18 @@ export function useReadingPaneCalendar({
 
     if (!messageId || !isSentView) return;
 
-    getMessageDeliveryStatus(messageId)
-      .then(setDeliveryStatus)
-      .catch(() => {});
-    getMessageTracking(messageId)
-      .then((events) => {
+    ignoreNonCritical(
+      getMessageDeliveryStatus(messageId).then(setDeliveryStatus),
+      'readingPane.deliveryStatus.load',
+    );
+    ignoreNonCritical(
+      getMessageTracking(messageId).then((events) => {
         if (events.length > 0) {
           setTrackingEvents(events);
         }
-      })
-      .catch(() => {});
+      }),
+      'readingPane.tracking.load',
+    );
   }, [messageId, fromAddr, userEmail, folderSystemType]);
 
   const handleAddToCalendar = async (event: ICSEvent) => {

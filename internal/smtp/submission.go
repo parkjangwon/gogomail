@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"strings"
 	"time"
@@ -54,6 +55,7 @@ type SubmissionOptions struct {
 	Recorder           SubmissionRecorder
 	DomainPolicyLookup DomainPolicyLookup
 	Metrics            Metrics
+	Logger             *slog.Logger
 	Hooks              []Hook
 	SupportSMTPUTF8    bool
 	SupportRequireTLS  bool
@@ -74,6 +76,7 @@ type SubmissionReceiver struct {
 	recorder           SubmissionRecorder
 	domainPolicyLookup DomainPolicyLookup
 	metrics            Metrics
+	logger             *slog.Logger
 	hooks              []Hook
 	supportSMTPUTF8    bool
 	supportRequireTLS  bool
@@ -112,6 +115,7 @@ func NewSubmissionReceiver(opts SubmissionOptions) *SubmissionReceiver {
 		recorder:           opts.Recorder,
 		domainPolicyLookup: opts.DomainPolicyLookup,
 		metrics:            metricsOrDefault(opts.Metrics),
+		logger:             opts.Logger,
 		hooks:              append([]Hook(nil), opts.Hooks...),
 		supportSMTPUTF8:    opts.SupportSMTPUTF8,
 		supportRequireTLS:  opts.SupportRequireTLS,
@@ -508,7 +512,13 @@ func (s *submissionSession) deleteStoredMessage(path string) {
 	if strings.TrimSpace(path) == "" || s.receiver.store == nil {
 		return
 	}
-	_ = s.receiver.store.Delete(s.ctx, path)
+	if err := s.receiver.store.Delete(s.ctx, path); err != nil {
+		logger := s.receiver.logger
+		if logger == nil {
+			logger = slog.Default()
+		}
+		logger.Warn("failed to delete stored smtp submission after rollback", "storage_path", path, "user_id", s.user.UserID, "error", err)
+	}
 }
 
 func submittedMessageID(id string, fromAddress string) string {

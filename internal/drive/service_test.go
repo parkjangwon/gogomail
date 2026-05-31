@@ -1,9 +1,11 @@
 package drive
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"strings"
 	"testing"
 
@@ -296,6 +298,39 @@ func TestCreateFileRequiresStore(t *testing.T) {
 	_, err := service.CreateFile(context.Background(), CreateFileRequest{UserID: "user-1", Name: "file.txt", Body: strings.NewReader("hello")})
 	if err == nil || !strings.Contains(err.Error(), "no storage store configured") {
 		t.Fatalf("CreateFile err = %v, want store rejection", err)
+	}
+}
+
+func TestCreateFileRecordsAndLogsRollbackDeleteFailure(t *testing.T) {
+	t.Parallel()
+
+	var logs bytes.Buffer
+	recorder := &recordingCleanupFailureRecorder{}
+	store := &recordingStore{deleteErr: errors.New("delete copied object failed")}
+	service := NewService(&Repository{}, map[string]storage.Store{"s3": store}).
+		WithObjectCleanupFailureRecorder(recorder).
+		WithLogger(slog.New(slog.NewTextHandler(&logs, nil)))
+
+	_, err := service.CreateFile(context.Background(), CreateFileRequest{
+		UserID: "user-1",
+		Name:   "file.txt",
+		Body:   strings.NewReader("hello"),
+	})
+	if err == nil || !strings.Contains(err.Error(), "database handle is required") {
+		t.Fatalf("CreateFile err = %v, want metadata failure", err)
+	}
+	if recorder.calls != 1 {
+		t.Fatalf("recorder calls = %d, want 1", recorder.calls)
+	}
+	failure := recorder.failures[0]
+	if failure.UserID != "user-1" || failure.StorageBackend != "s3" || failure.StoragePath == "" || failure.LastError != "delete copied object failed" {
+		t.Fatalf("recorded failure = %+v", failure)
+	}
+	output := logs.String()
+	if !strings.Contains(output, "failed to delete drive storage object") ||
+		!strings.Contains(output, "create_file_metadata_failure") ||
+		!strings.Contains(output, "delete copied object failed") {
+		t.Fatalf("logs = %q, want drive cleanup failure context", output)
 	}
 }
 

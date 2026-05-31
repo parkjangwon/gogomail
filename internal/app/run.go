@@ -184,10 +184,10 @@ func runHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, mode M
 	// Initialise OTel tracing.  Shutdown is deferred so buffered spans are
 	// exported before the process exits even under normal shutdown paths.
 	tp, err := observability.InitTracing(ctx, observability.TracingConfig{
-		Enabled:        cfg.OTelEnabled,
+		Enabled:          cfg.OTelEnabled,
 		ExporterEndpoint: cfg.OTelEndpoint,
-		ServiceName:    cfg.OTelServiceName,
-		ServiceVersion: cfg.OTelServiceVersion,
+		ServiceName:      cfg.OTelServiceName,
+		ServiceVersion:   cfg.OTelServiceVersion,
 	})
 	if err != nil {
 		logger.Warn("tracing init failed, continuing without traces", "error", err)
@@ -436,6 +436,7 @@ func runHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, mode M
 			httpapi.RegisterSCIMRoutes(mux, &maildbSCIMUserService{
 				repo:            repository,
 				defaultDomainID: cfg.SCIMDefaultDomainID,
+				logger:          logger,
 			}, cfg.SCIMToken)
 			logger.Info("scim routes registered")
 		}

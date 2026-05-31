@@ -4,6 +4,7 @@ import { getPreferences, setPreferences, getUserProfile, getFolderStats, exportF
 import { ReadMark, ExternalImages, SendDelay, Theme, FontSize, FilterRule, migrateFilterRule, loadFilterRules, saveFilterRules } from '@/lib/settings/settingsUtils';
 import { loadWmSettings, saveWmSetting } from '@/components/settings-view/settingsViewPrimitives';
 import { normalizeEmailTemplates, saveLocalEmailTemplates, loadLocalEmailTemplates } from '@/lib/emailTemplates';
+import { ignoreNonCritical } from '@/lib/promise';
 import { setWebmailAvatar } from '@/lib/webmailAvatar';
 import { type BackupState } from '@/components/settings-view/SettingsStorageSection';
 import { useSettingsAccount } from '@/components/settings-view/useSettingsAccount';
@@ -133,14 +134,14 @@ export function useSettingsPrefs({ userEmail: _userEmail, userName, activeSectio
 
   // ── Load server preferences (overlay over localStorage on mount) ──────────────
   useEffect(() => {
-    getUserProfile().then((p) => {
+    ignoreNonCritical(getUserProfile().then((p) => {
       if (p) {
         account.setProfile(p);
         account.setRecoveryEmail(p.recovery_email ?? '');
         account.setAvatarUrl(p.avatar_url ?? '');
         setWebmailAvatar(p.avatar_url ?? '');
       }
-    }).catch(() => {}); // fire-and-forget: UI renders with local defaults if profile fetch fails
+    }), 'settings.profile.load');
     getPreferences().then((prefs: WebmailPreferences) => {
       try {
         if (prefs.settings) {
@@ -255,7 +256,7 @@ export function useSettingsPrefs({ userEmail: _userEmail, userName, activeSectio
         vacation: { enabled: vacEnabled, startDate: vacStartDate, endDate: vacEndDate, subject: vacSubject, body: vacBody },
         templates: tplState.templates,
       };
-      setPreferences(prefs).catch(() => {}); // fire-and-forget: prefs already applied locally via state
+      ignoreNonCritical(setPreferences(prefs), 'settings.preferences.debouncedSave');
     }, 2000);
     return () => clearTimeout(timer);
   }, [

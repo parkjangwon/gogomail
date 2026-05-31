@@ -9,6 +9,7 @@ import Placeholder from '@tiptap/extension-placeholder';
 import Image from '@tiptap/extension-image';
 import { uploadAttachment } from '@/lib/api';
 import type { UIComposeIntent, MessageDetail } from '@/lib/api';
+import { ignoreNonCritical } from '@/lib/promise';
 import type { UploadedAttachment } from './ComposeAttachmentPanel';
 import { escapeHtml } from '@/lib/compose/composeUtils';
 import { buildQuoteHTML } from '@/lib/mail-address';
@@ -246,11 +247,12 @@ export function useComposeEditor(params: UseComposeEditorParams) {
       });
     } else {
       const objectUrl = URL.createObjectURL(file);
-      uploadAttachment(file, draftIdRef.current || undefined)
-        .then((att) => {
+      ignoreNonCritical(
+        uploadAttachment(file, draftIdRef.current || undefined).then((att) => {
           setUploadedAttachments((prev) => [...prev, { id: att.id, filename: att.filename, size: att.size }]);
-        })
-        .catch(() => { /* silent — image still displays via objectUrl */ });
+        }),
+        'compose.inlineImage.upload',
+      );
       src = objectUrl;
     }
     editor.chain().focus().setImage({ src, alt: file.name }).run();

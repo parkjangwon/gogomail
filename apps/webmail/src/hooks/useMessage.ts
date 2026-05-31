@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { MessageDetail, getMessage, markRead } from '@/lib/api';
+import { ignoreNonCritical } from '@/lib/promise';
 
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
@@ -44,14 +45,14 @@ export function useMessage(messageId: string | null) {
 
     const cached = getCached(messageId);
     if (cached) {
-      if (!cached.read) markRead(messageId, true).catch(() => undefined);
+      if (!cached.read) ignoreNonCritical(markRead(messageId, true), 'message.markRead.cached');
       setMessage(cached);
       setError(null);
       setIsLoading(false);
       return;
     }
 
-    markRead(messageId, true).catch(() => undefined);
+    ignoreNonCritical(markRead(messageId, true), 'message.markRead.load');
     let cancelled = false;
     setIsLoading(true);
     setError(null);
