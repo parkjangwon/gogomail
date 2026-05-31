@@ -3,6 +3,7 @@
 import { useEffect, useCallback, useRef } from 'react';
 import { MessageSummary, getNotificationPreferences, setNotificationPreferences, type ThreadNotificationOverride } from '@/lib/api';
 import { type NotificationInput } from '@/lib/notifications/types';
+import { ignoreNonCritical } from '@/lib/promise';
 import {
   NOTIFICATION_FOLDER_OVERRIDES_KEY,
   NOTIFICATION_THREAD_OVERRIDES_KEY,
@@ -86,7 +87,7 @@ export function useMailNotifications(params: UseMailNotificationsParams) {
 
   // Load notification preferences from server and sync to localStorage
   useEffect(() => {
-    getNotificationPreferences()
+    ignoreNonCritical(getNotificationPreferences()
       .then((prefs) => {
         try {
           const threadOverrides = prefs.thread_overrides ?? {};
@@ -100,8 +101,7 @@ export function useMailNotifications(params: UseMailNotificationsParams) {
         } catch {
           // local notification policy cache is best-effort
         }
-      })
-      .catch(() => {}); // fire-and-forget: localStorage cache acts as fallback; failure is non-critical
+      }), 'mail.notifications.loadPreferences');
   }, []);
 
   const handleToggleThreadMute = useCallback(async () => {

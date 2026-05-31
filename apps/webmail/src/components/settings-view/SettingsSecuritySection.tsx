@@ -17,6 +17,7 @@ import {
   type PasskeyCredential,
 } from '@/lib/api';
 import { isWebAuthnSupported } from '@/lib/api/webauthn';
+import { ignoreNonCritical } from '@/lib/promise';
 
 interface SettingsSecuritySectionProps {
   userEmail?: string;
@@ -49,11 +50,11 @@ export function SettingsSecuritySection({
 
   const loadPasskeys = useCallback(() => {
     if (!webAuthnSupported) return;
-    listPasskeyCredentials().then(setPasskeys).catch(() => null);
+    ignoreNonCritical(listPasskeyCredentials().then(setPasskeys), 'settings.security.passkeys.load');
   }, [webAuthnSupported]);
 
   useEffect(() => {
-    getMFAStatus().then(setMfaStatus).catch(() => null);
+    ignoreNonCritical(getMFAStatus().then(setMfaStatus), 'settings.security.mfa.load');
     loadPasskeys();
   }, [loadPasskeys]);
 

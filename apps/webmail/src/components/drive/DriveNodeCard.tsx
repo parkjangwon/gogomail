@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 import { type DriveNode, downloadDriveNode } from '@/lib/api';
 import { DriveNodeIcon } from '@/lib/driveNodeIcon';
 import { formatBytes, formatDate, DRIVE_NODE_DRAG_MIME, DRIVE_NODE_DRAG_TEXT, type DroppedFileEntry } from '@/lib/drive/driveUtils';
+import { ignoreNonCritical } from '@/lib/promise';
 import { EllipsisVerticalIcon } from '@heroicons/react/24/outline';
 import { DriveNodeMenu } from './DriveNodeMenu';
 import {
@@ -164,7 +165,7 @@ export function DriveNodeCard({
           {menuNodeId === node.id && (
             <DriveNodeMenu
               node={node}
-              onDownload={() => downloadDriveNode(node.id, node.name).catch(() => {})}
+              onDownload={() => ignoreNonCritical(downloadDriveNode(node.id, node.name), 'drive.node.download')}
               onRename={() => { setRenameNodeId(node.id); setRenameName(node.name); }}
               onShare={() => setShareNode(node)}
               onTrash={() => handleTrash(node.id)}

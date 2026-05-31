@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -16,10 +17,26 @@ import (
 type LocalStore struct {
 	root   string
 	rename func(oldPath, newPath string) error
+	logger *slog.Logger
 }
 
 func NewLocalStore(root string) *LocalStore {
 	return &LocalStore{root: filepath.Clean(root), rename: os.Rename}
+}
+
+func (s *LocalStore) WithLogger(logger *slog.Logger) *LocalStore {
+	if s == nil {
+		return nil
+	}
+	s.logger = logger
+	return s
+}
+
+func (s *LocalStore) loggerOrDefault() *slog.Logger {
+	if s != nil && s.logger != nil {
+		return s.logger
+	}
+	return slog.Default()
 }
 
 func (s *LocalStore) Put(ctx context.Context, path string, body io.Reader) error {
@@ -417,55 +434,61 @@ func (s *LocalStore) Check(ctx context.Context) error {
 	}
 	readCloser, err := s.Get(ctx, objectPath)
 	if err != nil {
-		_ = s.Delete(ctx, objectPath)
+		s.deleteReadinessProbeBestEffort(ctx, objectPath, "read")
 		return fmt.Errorf("read readiness probe: %w", err)
 	}
 	got, readErr := readStorageCheckBody(readCloser, len(body))
 	closeErr := readCloser.Close()
 	if readErr != nil {
-		_ = s.Delete(ctx, objectPath)
+		s.deleteReadinessProbeBestEffort(ctx, objectPath, "read_body")
 		return fmt.Errorf("read readiness probe body: %w", readErr)
 	}
 	if closeErr != nil {
-		_ = s.Delete(ctx, objectPath)
+		s.deleteReadinessProbeBestEffort(ctx, objectPath, "close_body")
 		return fmt.Errorf("close readiness probe body: %w", closeErr)
 	}
 	if string(got) != body {
-		_ = s.Delete(ctx, objectPath)
+		s.deleteReadinessProbeBestEffort(ctx, objectPath, "body_mismatch")
 		return fmt.Errorf("readiness probe body mismatch")
 	}
 	info, err := s.Stat(ctx, objectPath)
 	if err != nil {
-		_ = s.Delete(ctx, objectPath)
+		s.deleteReadinessProbeBestEffort(ctx, objectPath, "stat")
 		return fmt.Errorf("stat readiness probe: %w", err)
 	}
 	if info.Path != objectPath || info.Size != int64(len(body)) {
-		_ = s.Delete(ctx, objectPath)
+		s.deleteReadinessProbeBestEffort(ctx, objectPath, "metadata_mismatch")
 		return fmt.Errorf("readiness probe metadata mismatch")
 	}
 	rangeCloser, err := s.GetRange(ctx, objectPath, RangeRequest{Offset: 0, Length: int64(len("gogomail"))})
 	if err != nil {
-		_ = s.Delete(ctx, objectPath)
+		s.deleteReadinessProbeBestEffort(ctx, objectPath, "range")
 		return fmt.Errorf("range readiness probe: %w", err)
 	}
 	rangeGot, rangeReadErr := readStorageCheckBody(rangeCloser, len("gogomail"))
 	rangeCloseErr := rangeCloser.Close()
 	if rangeReadErr != nil {
-		_ = s.Delete(ctx, objectPath)
+		s.deleteReadinessProbeBestEffort(ctx, objectPath, "read_range_body")
 		return fmt.Errorf("read range readiness probe body: %w", rangeReadErr)
 	}
 	if rangeCloseErr != nil {
-		_ = s.Delete(ctx, objectPath)
+		s.deleteReadinessProbeBestEffort(ctx, objectPath, "close_range_body")
 		return fmt.Errorf("close range readiness probe body: %w", rangeCloseErr)
 	}
 	if string(rangeGot) != "gogomail" {
-		_ = s.Delete(ctx, objectPath)
+		s.deleteReadinessProbeBestEffort(ctx, objectPath, "range_body_mismatch")
 		return fmt.Errorf("readiness probe range body mismatch")
 	}
 	if err := s.Delete(ctx, objectPath); err != nil {
 		return fmt.Errorf("delete readiness probe: %w", err)
 	}
 	return nil
+}
+
+func (s *LocalStore) deleteReadinessProbeBestEffort(ctx context.Context, objectPath string, phase string) {
+	if err := s.Delete(ctx, objectPath); err != nil {
+		s.loggerOrDefault().Warn("failed to delete local storage readiness probe object", "phase", phase, "storage_path", objectPath, "error", err)
+	}
 }
 
 func localObjectInfo(path string) (os.FileInfo, error) {

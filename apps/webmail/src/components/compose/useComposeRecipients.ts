@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from 'react';
 import { listUserAddresses } from '@/lib/api';
 import type { UIComposeIntent, MessageDetail, UserAddressEntry } from '@/lib/api';
 import { emailOf } from '@/lib/mail-address';
+import { ignoreNonCritical } from '@/lib/promise';
 
 interface UseComposeRecipientsParams {
   draftMessage?: MessageDetail;
@@ -84,11 +85,11 @@ export function useComposeRecipients({
   const bccRef = useRef('');
 
   useEffect(() => {
-    listUserAddresses().then((addrs) => {
+    ignoreNonCritical(listUserAddresses().then((addrs) => {
       setAvailableAddresses(addrs);
       const primary = addrs.find((a) => a.is_primary);
       if (primary && !fromAddress) setFromAddress(primary.address);
-    }).catch(() => {});
+    }), 'compose.recipients.loadAddresses');
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

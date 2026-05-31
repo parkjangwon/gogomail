@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
+import { ignoreNonCritical } from '@/lib/promise';
 
 interface UseMailServiceWorkerParams {
   refreshIntervalSeconds: number;
@@ -53,7 +54,7 @@ export function useMailServiceWorker(params: UseMailServiceWorkerParams) {
         }
       }
     };
-    doSetup().catch(() => {}); // fire-and-forget: SW registration failure is non-critical
+    ignoreNonCritical(doSetup(), 'mail.serviceWorker.setup');
   }, []);
 
   // Refresh mail list when the service worker signals a push notification arrived.

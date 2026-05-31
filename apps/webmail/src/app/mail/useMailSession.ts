@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { useTranslations } from 'next-intl';
+import { ignoreNonCritical } from '@/lib/promise';
 
 export interface UseMailSessionParams {
   router: { push: (href: string) => void };
@@ -43,7 +44,7 @@ export function useMailSession({ router, t }: UseMailSessionParams) {
   }, [t]);
 
   const handleLogout = useCallback(() => {
-    fetch('/api/auth/logout', { method: 'POST' }).catch(() => {}); // fire-and-forget: logout navigates away regardless
+    ignoreNonCritical(fetch('/api/auth/logout', { method: 'POST' }), 'mailSession.logout');
     localStorage.removeItem('webmail_authenticated');
     localStorage.removeItem('webmail_email');
     localStorage.removeItem('webmail_must_change_password');

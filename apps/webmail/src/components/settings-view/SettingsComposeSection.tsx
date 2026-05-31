@@ -5,6 +5,7 @@ import { Row, SectionCard, SectionHeader, Segment, Toggle, saveWmSetting } from 
 import type { SendDelay, FontSize } from '@/lib/settings/settingsUtils';
 import { saveLocalEmailTemplates, normalizeEmailTemplates, type StoredEmailTemplate } from '@/lib/emailTemplates';
 import { setPreferences } from '@/lib/api';
+import { ignoreNonCritical } from '@/lib/promise';
 import { stableId } from '@/lib/stableId';
 
 export interface SettingsComposeSectionProps {
@@ -70,7 +71,7 @@ export function SettingsComposeSection({
     ]);
     setTemplates(next);
     saveLocalEmailTemplates(next);
-    setPreferences({ templates: next }).catch(() => {});
+    ignoreNonCritical(setPreferences({ templates: next }), 'settings.compose.saveTemplate');
     setNewTplName(''); setNewTplSubject(''); setNewTplBody(''); setShowNewTpl(false);
   }
 
@@ -78,7 +79,7 @@ export function SettingsComposeSection({
     const next = templates.filter((tpl) => tpl.name !== name);
     setTemplates(next);
     saveLocalEmailTemplates(next);
-    setPreferences({ templates: next }).catch(() => {});
+    ignoreNonCritical(setPreferences({ templates: next }), 'settings.compose.deleteTemplate');
   }
 
   return (

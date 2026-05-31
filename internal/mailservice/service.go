@@ -155,6 +155,7 @@ type Service struct {
 	trackingRepo      TrackingRepository
 	publicBaseURL     string
 	bodyCache         *messageBodyCache
+	logger            *slog.Logger
 }
 
 func New(repository Repository, store storage.Store) *Service {
@@ -177,6 +178,21 @@ func (s *Service) WithSearchIDSource(source SearchIDSource) *Service {
 func (s *Service) WithIMAPMailboxEvents(publisher IMAPMailboxEventPublisher) *Service {
 	s.imapEvents = publisher
 	return s
+}
+
+func (s *Service) WithLogger(logger *slog.Logger) *Service {
+	if s == nil {
+		return nil
+	}
+	s.logger = logger
+	return s
+}
+
+func (s *Service) loggerOrDefault() *slog.Logger {
+	if s != nil && s.logger != nil {
+		return s.logger
+	}
+	return slog.Default()
 }
 
 func (s *Service) WithMessageBodyCache(capacity int, ttl time.Duration) *Service {
@@ -217,7 +233,7 @@ func (s *Service) lookupGCStoragePaths(ctx context.Context, userID string, messa
 	}
 	paths, err := repo.LookupDeleteableStoragePaths(ctx, userID, messageIDs)
 	if err != nil {
-		slog.Warn("failed to look up message storage paths for gc", "user_id", userID, "error", err)
+		s.loggerOrDefault().Warn("failed to look up message storage paths for gc", "user_id", userID, "error", err)
 		return nil
 	}
 	return paths
@@ -229,7 +245,7 @@ func (s *Service) lookupGCStoragePaths(ctx context.Context, userID string, messa
 func (s *Service) deleteStorageObjects(ctx context.Context, paths []string) {
 	for _, p := range paths {
 		if err := s.store.Delete(ctx, p); err != nil && !errors.Is(err, os.ErrNotExist) {
-			slog.Warn("failed to delete message eml object", "path", p, "error", err)
+			s.loggerOrDefault().Warn("failed to delete message eml object", "path", p, "error", err)
 		}
 	}
 }

@@ -19,6 +19,7 @@ import {
   patchThreadsForMessages,
   shouldHideMessageAfterSnooze,
 } from '@/lib/mail/mailPageUtils';
+import { ignoreNonCritical } from '@/lib/promise';
 import type { ToastItem } from '@/components/Toast';
 
 interface UseMailMessageActionsParams {
@@ -175,10 +176,10 @@ export function useMailMessageActions(params: UseMailMessageActionsParams) {
         pendingDeletesRef.current.delete(id);
         if (inTrash || !trashFolder) {
           // Already in trash → permanent delete
-          deleteMessage(id).catch(() => {}); // fire-and-forget: optimistic delete; UI already updated
+          ignoreNonCritical(deleteMessage(id), 'mail.messageActions.permanentDelete');
         } else {
           // Move to trash (soft delete)
-          moveMessage(id, trashFolder.id).catch(() => {}); // fire-and-forget: optimistic delete; UI already updated
+          ignoreNonCritical(moveMessage(id, trashFolder.id), 'mail.messageActions.moveToTrash');
         }
       }, 5000);
       pendingDeletesRef.current.set(id, timer);

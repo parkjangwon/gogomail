@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Attachment } from '@/lib/api';
+import { ignoreNonCritical } from '@/lib/promise';
 
 interface UseReadingPaneMediaParams {
   messageId: string | undefined;
@@ -63,15 +64,17 @@ export function useReadingPaneMedia({
     const imageAttachments = attachments.filter((a) => a.mime_type.startsWith('image/') && a.status === 'stored');
     let cancelled = false;
     imageAttachments.forEach((att) => {
-      fetch(`/api/mail/messages/${messageId}/attachments/${att.id}/download`)
-        .then((response) => response.ok ? response.blob() : null)
-        .then((blob) => {
-          if (!blob || cancelled) return;
-          const url = URL.createObjectURL(blob);
-          imagePreviewsRef.current[att.id] = url;
-          setImagePreviews((current) => ({ ...current, [att.id]: url }));
-        })
-        .catch(() => {});
+      ignoreNonCritical(
+        fetch(`/api/mail/messages/${messageId}/attachments/${att.id}/download`)
+          .then((response) => response.ok ? response.blob() : null)
+          .then((blob) => {
+            if (!blob || cancelled) return;
+            const url = URL.createObjectURL(blob);
+            imagePreviewsRef.current[att.id] = url;
+            setImagePreviews((current) => ({ ...current, [att.id]: url }));
+          }),
+        'readingPane.imagePreview.load',
+      );
     });
     return () => {
       cancelled = true;

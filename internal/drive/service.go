@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"strings"
 	"time"
@@ -32,6 +33,7 @@ type Service struct {
 	primaryStorageBackend  string
 	cleanupFailureRecorder ObjectCleanupFailureRecorder
 	cleanupFailureStore    ObjectCleanupFailureStore
+	logger                 *slog.Logger
 }
 
 type PermanentDeleteServiceResult struct {
@@ -89,6 +91,21 @@ func (s *Service) WithObjectCleanupFailureStore(store ObjectCleanupFailureStore)
 	s.cleanupFailureStore = store
 	s.cleanupFailureRecorder = store
 	return s
+}
+
+func (s *Service) WithLogger(logger *slog.Logger) *Service {
+	if s == nil {
+		return nil
+	}
+	s.logger = logger
+	return s
+}
+
+func (s *Service) loggerOrDefault() *slog.Logger {
+	if s != nil && s.logger != nil {
+		return s.logger
+	}
+	return slog.Default()
 }
 
 func (s *Service) CreateFolder(ctx context.Context, req CreateFolderRequest) (Node, error) {
@@ -224,7 +241,7 @@ func (s *Service) CreateFile(ctx context.Context, req CreateFileRequest) (Node, 
 		ChecksumSHA256: hex.EncodeToString(hash.Sum(nil)),
 	})
 	if err != nil {
-		_ = store.Delete(ctx, storagePath)
+		s.deleteDriveObjectBestEffort(ctx, store, req.UserID, storageBackend, storagePath, "create_file_metadata_failure")
 		return Node{}, err
 	}
 	return node, nil
@@ -435,17 +452,17 @@ func (s *Service) storeUploadSessionBodyWithRange(ctx context.Context, req Store
 	}
 	if counter.bytesRead > session.DeclaredSize {
 		// Oversized: delete the just-written object immediately (no orphan).
-		_ = store.Delete(ctx, storagePath)
+		s.deleteDriveObjectBestEffort(ctx, store, session.UserID, session.StorageBackend, storagePath, "upload_session_body_oversize")
 		return UploadSession{}, fmt.Errorf("drive upload session body exceeds declared_size")
 	}
 	if expectedReceivedSize >= 0 && counter.bytesRead != expectedReceivedSize {
-		_ = store.Delete(ctx, storagePath)
+		s.deleteDriveObjectBestEffort(ctx, store, session.UserID, session.StorageBackend, storagePath, "upload_session_body_size_mismatch")
 		return UploadSession{}, fmt.Errorf("drive upload session chunk size mismatch: stored %d bytes, expected %d", counter.bytesRead, expectedReceivedSize)
 	}
 	checksum := hex.EncodeToString(hash.Sum(nil))
 	if req.ExpectedChecksumSHA256 != "" && checksum != req.ExpectedChecksumSHA256 {
 		// Checksum mismatch: delete immediately (no orphan).
-		_ = store.Delete(ctx, storagePath)
+		s.deleteDriveObjectBestEffort(ctx, store, session.UserID, session.StorageBackend, storagePath, "upload_session_body_checksum_mismatch")
 		return UploadSession{}, fmt.Errorf("drive upload session checksum mismatch")
 	}
 	// Atomic lock + update. Returns the authoritative prior path from the
@@ -461,17 +478,31 @@ func (s *Service) storeUploadSessionBodyWithRange(ctx context.Context, req Store
 	})
 	if err != nil {
 		// DB update failed: delete the newly written object to prevent orphans.
-		_ = store.Delete(ctx, storagePath)
+		s.deleteDriveObjectBestEffort(ctx, store, session.UserID, session.StorageBackend, storagePath, "upload_session_body_metadata_failure")
 		return UploadSession{}, err
 	}
 	// Delete the object that was just replaced. Use the path from the locked
 	// row (authoritative), not the pre-flight read which may be stale.
 	if lockedPriorPath != "" && lockedPriorPath != storagePath {
 		if validated, valErr := validateUserObjectPath(session.UserID, lockedPriorPath); valErr == nil {
-			_ = store.Delete(ctx, validated)
+			s.deleteDriveObjectBestEffort(ctx, store, session.UserID, session.StorageBackend, validated, "upload_session_body_replaced")
+		} else {
+			s.loggerOrDefault().Warn("skipped drive upload session previous object cleanup", "operation", "upload_session_body_replaced", "user_id", session.UserID, "storage_backend", session.StorageBackend, "storage_path", lockedPriorPath, "error", valErr)
 		}
 	}
 	return updated, nil
+}
+
+func (s *Service) deleteDriveObjectBestEffort(ctx context.Context, store storage.Store, userID string, storageBackend string, storagePath string, operation string) {
+	if store == nil || strings.TrimSpace(storagePath) == "" {
+		return
+	}
+	if err := store.Delete(ctx, storagePath); err != nil && !errors.Is(err, os.ErrNotExist) {
+		if recordErr := s.recordCopiedObjectCleanupFailure(ctx, userID, storageBackend, storagePath, err); recordErr != nil {
+			s.loggerOrDefault().Warn("failed to record drive object cleanup failure", "operation", operation, "user_id", userID, "storage_backend", storageBackend, "storage_path", storagePath, "cleanup_error", err, "error", recordErr)
+		}
+		s.loggerOrDefault().Warn("failed to delete drive storage object", "operation", operation, "user_id", userID, "storage_backend", storageBackend, "storage_path", storagePath, "error", err)
+	}
 }
 
 func uploadSessionBodyReader(ctx context.Context, store storage.Store, session UploadSession, body io.Reader, contentRange ContentRange) (io.Reader, string, int64, error) {

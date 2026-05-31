@@ -54,7 +54,7 @@ func insertHeaderAfterTraceHeaders(spooled *os.File, header string) (*os.File, i
 	inserted := false
 	inTrace := false
 	for {
-		line, err := reader.ReadString('\n')
+		line, err := readSMTPSpoolLine(reader)
 		if line != "" {
 			isContinuation := len(line) > 0 && (line[0] == ' ' || line[0] == '\t')
 			isReceived := strings.HasPrefix(strings.ToLower(line), "received:")

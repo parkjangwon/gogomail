@@ -2,6 +2,7 @@ package smtpd
 
 import (
 	"bufio"
+	"errors"
 	"io"
 	"os"
 	"strings"
@@ -171,6 +172,50 @@ Body
 	}
 	if !strings.Contains(contentStr, "Message-ID: <test@example.com>") {
 		t.Error("expected Message-ID header in output")
+	}
+}
+
+func TestHeaderBufferApplyToFileRejectsOverlongLine(t *testing.T) {
+	t.Parallel()
+
+	original, err := os.CreateTemp("", "test-*.eml")
+	if err != nil {
+		t.Fatalf("create temp file: %v", err)
+	}
+	defer original.Close()
+	defer os.Remove(original.Name())
+
+	overlong := "Subject: " + strings.Repeat("x", maxSMTPSpoolLineBytes) + "\r\n\r\nBody\r\n"
+	if _, err := io.WriteString(original, overlong); err != nil {
+		t.Fatalf("write original: %v", err)
+	}
+
+	hb := NewHeaderBuffer()
+	hb.AddAfterTrace("Message-ID: <test@example.com>\r\n")
+	_, _, err = hb.ApplyToFile(original)
+	if !errors.Is(err, errSMTPSpoolLineTooLong) {
+		t.Fatalf("ApplyToFile err = %v, want overlong line rejection", err)
+	}
+}
+
+func TestInsertHeaderAfterTraceHeadersRejectsOverlongLine(t *testing.T) {
+	t.Parallel()
+
+	original, err := os.CreateTemp("", "test-*.eml")
+	if err != nil {
+		t.Fatalf("create temp file: %v", err)
+	}
+	defer original.Close()
+	defer os.Remove(original.Name())
+
+	overlong := "Received: " + strings.Repeat("x", maxSMTPSpoolLineBytes) + "\r\n\r\nBody\r\n"
+	if _, err := io.WriteString(original, overlong); err != nil {
+		t.Fatalf("write original: %v", err)
+	}
+
+	_, _, err = insertHeaderAfterTraceHeaders(original, "Message-ID: <test@example.com>\r\n")
+	if !errors.Is(err, errSMTPSpoolLineTooLong) {
+		t.Fatalf("insertHeaderAfterTraceHeaders err = %v, want overlong line rejection", err)
 	}
 }
 

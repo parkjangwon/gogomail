@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { getFolderStats } from '@/lib/api';
+import { ignoreNonCritical } from '@/lib/promise';
 import { NAV_ITEMS, type SectionId } from '@/components/settings-view/settingsViewConfig';
 import { FilterRulesSection } from '@/components/settings-view/FilterRulesSection';
 import { SettingsAboutSection } from '@/components/settings-view/SettingsAboutSection';
@@ -504,7 +505,7 @@ export function SettingsView({ userEmail, userName, initialSection }: SettingsVi
             folderStats={folderStats}
             statsLoading={statsLoading}
             backupStates={backupStates}
-            onLoadStats={() => { setStatsLoading(true); getFolderStats().then(setFolderStats).catch(() => {}).finally(() => setStatsLoading(false)); }}
+            onLoadStats={() => { setStatsLoading(true); ignoreNonCritical(getFolderStats().then(setFolderStats).finally(() => setStatsLoading(false)), 'settings.storage.loadFolderStats'); }}
             onStartBackup={startBackup}
           />
         );

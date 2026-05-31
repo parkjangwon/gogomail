@@ -4,6 +4,7 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import { getPreferences, setPreferences } from '@/lib/api';
 import { EmailTemplate } from '@/lib/compose/composeUtils';
 import { loadLocalEmailTemplates, normalizeEmailTemplates, saveLocalEmailTemplates } from '@/lib/emailTemplates';
+import { ignoreNonCritical } from '@/lib/promise';
 import { stableId } from '@/lib/stableId';
 
 interface UseComposeTemplatesOptions {
@@ -35,12 +36,12 @@ export function useComposeTemplates({ t: _t, getEditorHTML, subject }: UseCompos
 
   useEffect(() => {
     let cancelled = false;
-    getPreferences().then((prefs) => {
+    ignoreNonCritical(getPreferences().then((prefs) => {
       if (cancelled || !prefs.templates) return;
       const serverTemplates = normalizeEmailTemplates(prefs.templates);
       setTemplates(serverTemplates);
       saveLocalEmailTemplates(serverTemplates);
-    }).catch(() => {});
+    }), 'compose.templates.loadPreferences');
     return () => { cancelled = true; };
   }, []);
 
@@ -59,7 +60,7 @@ export function useComposeTemplates({ t: _t, getEditorHTML, subject }: UseCompos
     const normalized = normalizeEmailTemplates(next);
     setTemplates(normalized);
     saveLocalEmailTemplates(normalized);
-    setPreferences({ templates: normalized }).catch(() => {});
+    ignoreNonCritical(setPreferences({ templates: normalized }), 'compose.templates.savePreferences');
   }, []);
 
   const saveTemplate = useCallback(() => {

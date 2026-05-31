@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { registerWebPushDevice, getNotificationPreferences, setNotificationPreferences, getFolders, type NotificationPreferences, type FolderNotificationOverride, type Folder } from '@/lib/api';
+import { ignoreNonCritical } from '@/lib/promise';
 import { webPushPublicKeyToUint8Array } from '@/lib/webpush';
 
 const NOTIFICATION_FOLDER_OVERRIDES_KEY = 'webmail_notification_folder_overrides';
@@ -114,7 +115,7 @@ export function useSettingsNotifications({ t }: UseSettingsNotificationsParams) 
     }
     const timer = setTimeout(() => {
       const next = quietHoursPreferences(notificationPrefsBaseRef.current, notificationFolderOverrides, dndEnabled, dndStart, dndEnd);
-      setNotificationPreferences(next)
+      ignoreNonCritical(setNotificationPreferences(next)
         .then((saved) => {
           notificationPrefsBaseRef.current = saved;
           try {
@@ -122,8 +123,7 @@ export function useSettingsNotifications({ t }: UseSettingsNotificationsParams) 
           } catch {
             // local settings cache is best-effort
           }
-        })
-        .catch(() => {});
+        }), 'settings.notifications.savePreferences');
     }, 800);
     return () => clearTimeout(timer);
   }, [notificationPrefsLoaded, notificationFolderOverrides, dndEnabled, dndStart, dndEnd]);

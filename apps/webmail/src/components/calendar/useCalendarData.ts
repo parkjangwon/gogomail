@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Calendar, CalendarObject, CalendarSubscription, listCalendars, listCalendarObjects, listCalendarSubscriptions, addCalendarSubscription, deleteCalendarSubscription, fetchSubscriptionICS } from '@/lib/api';
+import { ignoreNonCritical } from '@/lib/promise';
 
 export function useCalendarData() {
   const [calendars, setCalendars] = useState<Calendar[]>([]);
@@ -40,11 +41,11 @@ export function useCalendarData() {
   // Load subscriptions on mount
   useEffect(() => {
     let cancelled = false;
-    listCalendarSubscriptions().then((subs) => {
+    ignoreNonCritical(listCalendarSubscriptions().then((subs) => {
       if (cancelled) return;
       setSubscriptions(subs);
       setSelectedSubIds(new Set(subs.map((s) => s.id)));
-    }).catch(() => {});
+    }), 'calendar.subscriptions.load');
     return () => { cancelled = true; };
   }, []);
 
@@ -54,10 +55,10 @@ export function useCalendarData() {
     for (const sub of subscriptions) {
       if (!selectedSubIds.has(sub.id)) continue;
       if (subICSCache.has(sub.id)) continue;
-      fetchSubscriptionICS(sub.id).then((ics) => {
+      ignoreNonCritical(fetchSubscriptionICS(sub.id).then((ics) => {
         if (cancelled) return;
         setSubICSCache((prev) => new Map(prev).set(sub.id, ics));
-      }).catch(() => {});
+      }), 'calendar.subscriptions.fetchICS');
     }
     return () => { cancelled = true; };
   // eslint-disable-next-line react-hooks/exhaustive-deps

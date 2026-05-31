@@ -72,7 +72,7 @@ func (hb *HeaderBuffer) ApplyToFile(original *os.File) (*os.File, int64, error) 
 	afterTraceInserted := false
 
 	for {
-		line, err := reader.ReadString('\n')
+		line, err := readSMTPSpoolLine(reader)
 		if line != "" {
 			isContinuation := len(line) > 0 && (line[0] == ' ' || line[0] == '\t')
 			isReceived := strings.HasPrefix(strings.ToLower(line), "received:")

@@ -623,7 +623,13 @@ func (s *session) deleteStoredMessage(path string) {
 	if strings.TrimSpace(path) == "" || s.receiver.store == nil {
 		return
 	}
-	_ = s.receiver.store.Delete(s.ctx, path)
+	if err := s.receiver.store.Delete(s.ctx, path); err != nil {
+		logger := s.receiver.logger
+		if logger == nil {
+			logger = slog.Default()
+		}
+		logger.Warn("failed to delete stored smtp message after rollback", "storage_path", path, "remote_addr", s.remoteAddr, "error", err)
+	}
 }
 
 func (s *session) verifyAuthentication(ctx context.Context, parsed message.ParsedMessage, size int64) (AuthenticationResults, error) {
@@ -740,4 +746,3 @@ func (s *session) Logout() error {
 	s.ctx, s.cancel = context.WithCancel(parent)
 	return nil
 }
-

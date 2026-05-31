@@ -4,6 +4,7 @@ import { useState } from 'react';
 import type { Editor } from '@tiptap/react';
 import { parseAddrs } from '@/lib/message/messageUtils';
 import { sendMessage } from '@/lib/api';
+import { ignoreNonCritical } from '@/lib/promise';
 import { backendComposeIntent } from './readingPaneHelpers';
 
 interface UseSendOptions {
@@ -43,7 +44,7 @@ export function useInlineComposeSend({
     const isReplyOrForward = normalizedIntent !== 'new';
 
     setSending(true);
-    sendMessage({
+    ignoreNonCritical(sendMessage({
       to: toAddrs,
       cc: ccAddrs.length ? ccAddrs : undefined,
       bcc: bccAddrs.length ? bccAddrs : undefined,
@@ -57,8 +58,7 @@ export function useInlineComposeSend({
         setSent(true);
         setTimeout(() => onClose(), 1500);
       })
-      .catch(() => {})
-      .finally(() => setSending(false));
+      .finally(() => setSending(false)), 'readingPane.inlineCompose.send');
   }
 
   return { sending, sent, doSend };

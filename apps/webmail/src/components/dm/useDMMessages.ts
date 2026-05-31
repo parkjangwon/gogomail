@@ -15,6 +15,7 @@ import {
   type DMMediaItem,
   type DMMessage,
 } from '@/lib/api';
+import { ignoreNonCritical } from '@/lib/promise';
 import { mergeMessage, readDMDrafts, writeDMDrafts, type DMDraft, type MediaTab } from './dmUtils';
 
 export interface UseDMMessagesParams {
@@ -76,7 +77,9 @@ export function useDMMessages({
       const sorted = [...next].sort((a, b) => Date.parse(a.created_at) - Date.parse(b.created_at));
       setMessages(sorted);
       const last = sorted[sorted.length - 1];
-      if (last) void markDMRead(activeRoomId, last.id).then(loadRooms).catch(() => {});
+      if (last) {
+        ignoreNonCritical(markDMRead(activeRoomId, last.id).then(loadRooms), 'dm.messages.markRead');
+      }
       setError('');
     } catch (err) {
       setError(err instanceof Error ? err.message : t('errors.messagesUnavailable'));
@@ -134,7 +137,7 @@ export function useDMMessages({
     try {
       const msg = await uploadDMAttachment(activeRoomId, file);
       setMessages((prev) => mergeMessage(prev, msg)); void loadRooms();
-      void listDMMedia(activeRoomId, mediaTab).then(setMediaItems).catch(() => {});
+      ignoreNonCritical(listDMMedia(activeRoomId, mediaTab).then(setMediaItems), 'dm.media.refresh');
     } catch (err) { setError(err instanceof Error ? err.message : t('errors.uploadFailed')); }
   }, [activeRoomId, loadRooms, mediaTab, setMediaItems, t, setError]);
 

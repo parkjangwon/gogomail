@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { markRead, type MessageSummary } from '@/lib/api';
+import { ignoreNonCritical } from '@/lib/promise';
 
 interface UseMailAutoReadParams {
   selectedMessageId: string | null;
@@ -32,7 +33,7 @@ export function useMailAutoRead({
       if (!msg || msg.read) return;
       patchVisibleMessages([selectedMessageId], { read: true });
       adjustUnread(activeFolderId, -1);
-      markRead(selectedMessageId, true).catch(() => {}); // fire-and-forget: failure is non-critical
+      ignoreNonCritical(markRead(selectedMessageId, true), 'mail.autoRead.markRead');
     }, delay);
     return () => { cancelled = true; clearTimeout(timer); };
   }, [selectedMessageId, findVisibleMessage, patchVisibleMessages, adjustUnread, activeFolderId, activeFolderSystemType]);

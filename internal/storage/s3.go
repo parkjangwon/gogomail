@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -35,6 +36,7 @@ type S3Store struct {
 	client          *http.Client
 	uploadClient    *http.Client
 	now             func() time.Time
+	logger          *slog.Logger
 }
 
 type S3MoveCleanupError struct {
@@ -124,6 +126,21 @@ func NewS3Store(opts S3Options) (*S3Store, error) {
 		uploadClient:    uploadClient,
 		now:             time.Now,
 	}, nil
+}
+
+func (s *S3Store) WithLogger(logger *slog.Logger) *S3Store {
+	if s == nil {
+		return nil
+	}
+	s.logger = logger
+	return s
+}
+
+func (s *S3Store) loggerOrDefault() *slog.Logger {
+	if s != nil && s.logger != nil {
+		return s.logger
+	}
+	return slog.Default()
 }
 
 func (s *S3Store) Put(ctx context.Context, objectPath string, body io.Reader) error {
@@ -524,55 +541,61 @@ func (s *S3Store) Check(ctx context.Context) error {
 	}
 	readCloser, err := s.Get(ctx, objectPath)
 	if err != nil {
-		_ = s.Delete(ctx, objectPath)
+		s.deleteReadinessProbeBestEffort(ctx, objectPath, "read")
 		return fmt.Errorf("read readiness probe: %w", err)
 	}
 	got, readErr := readStorageCheckBody(readCloser, len(body))
 	closeErr := readCloser.Close()
 	if readErr != nil {
-		_ = s.Delete(ctx, objectPath)
+		s.deleteReadinessProbeBestEffort(ctx, objectPath, "read_body")
 		return fmt.Errorf("read readiness probe body: %w", readErr)
 	}
 	if closeErr != nil {
-		_ = s.Delete(ctx, objectPath)
+		s.deleteReadinessProbeBestEffort(ctx, objectPath, "close_body")
 		return fmt.Errorf("close readiness probe body: %w", closeErr)
 	}
 	if string(got) != body {
-		_ = s.Delete(ctx, objectPath)
+		s.deleteReadinessProbeBestEffort(ctx, objectPath, "body_mismatch")
 		return fmt.Errorf("readiness probe body mismatch")
 	}
 	info, err := s.Stat(ctx, objectPath)
 	if err != nil {
-		_ = s.Delete(ctx, objectPath)
+		s.deleteReadinessProbeBestEffort(ctx, objectPath, "stat")
 		return fmt.Errorf("stat readiness probe: %w", err)
 	}
 	if info.Path != objectPath || info.Size != int64(len(body)) {
-		_ = s.Delete(ctx, objectPath)
+		s.deleteReadinessProbeBestEffort(ctx, objectPath, "metadata_mismatch")
 		return fmt.Errorf("readiness probe metadata mismatch")
 	}
 	rangeCloser, err := s.GetRange(ctx, objectPath, RangeRequest{Offset: 0, Length: int64(len("gogomail"))})
 	if err != nil {
-		_ = s.Delete(ctx, objectPath)
+		s.deleteReadinessProbeBestEffort(ctx, objectPath, "range")
 		return fmt.Errorf("range readiness probe: %w", err)
 	}
 	rangeGot, rangeReadErr := readStorageCheckBody(rangeCloser, len("gogomail"))
 	rangeCloseErr := rangeCloser.Close()
 	if rangeReadErr != nil {
-		_ = s.Delete(ctx, objectPath)
+		s.deleteReadinessProbeBestEffort(ctx, objectPath, "read_range_body")
 		return fmt.Errorf("read range readiness probe body: %w", rangeReadErr)
 	}
 	if rangeCloseErr != nil {
-		_ = s.Delete(ctx, objectPath)
+		s.deleteReadinessProbeBestEffort(ctx, objectPath, "close_range_body")
 		return fmt.Errorf("close range readiness probe body: %w", rangeCloseErr)
 	}
 	if string(rangeGot) != "gogomail" {
-		_ = s.Delete(ctx, objectPath)
+		s.deleteReadinessProbeBestEffort(ctx, objectPath, "range_body_mismatch")
 		return fmt.Errorf("readiness probe range body mismatch")
 	}
 	if err := s.Delete(ctx, objectPath); err != nil {
 		return fmt.Errorf("delete readiness probe: %w", err)
 	}
 	return nil
+}
+
+func (s *S3Store) deleteReadinessProbeBestEffort(ctx context.Context, objectPath string, phase string) {
+	if err := s.Delete(ctx, objectPath); err != nil {
+		s.loggerOrDefault().Warn("failed to delete s3 storage readiness probe object", "phase", phase, "storage_path", objectPath, "error", err)
+	}
 }
 
 func (s *S3Store) listPrefix(prefix string) string {

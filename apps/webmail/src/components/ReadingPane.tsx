@@ -24,6 +24,7 @@ import { useReadingPaneMedia } from './reading-pane/useReadingPaneMedia';
 import { useReadingPaneCalendar } from './reading-pane/useReadingPaneCalendar';
 import { useReadingPane } from './reading-pane/useReadingPane';
 import { useReadingPaneKeyboard } from './reading-pane/useReadingPaneKeyboard';
+import { ignoreNonCritical } from '@/lib/promise';
 
 interface ReadingPaneProps {
   message: MessageDetail | null;
@@ -209,7 +210,7 @@ export function ReadingPane({
     : false) && folders?.find((f) => f.id === message?.folder_id)?.system_type === 'sent';
 
   const copyEmail = useCallback((address: string) => {
-    navigator.clipboard.writeText(address).catch(() => {});
+    ignoreNonCritical(navigator.clipboard.writeText(address), 'readingPane.email.copy');
     setCopiedEmail(address);
     if (copyTimerRef.current) {
       clearTimeout(copyTimerRef.current);

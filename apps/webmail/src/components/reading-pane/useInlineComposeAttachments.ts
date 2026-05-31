@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import type { Editor } from '@tiptap/react';
 import { uploadAttachment } from '@/lib/api';
+import { ignoreNonCritical } from '@/lib/promise';
 import { stableId } from '@/lib/stableId';
 
 export interface Attachment {
@@ -28,9 +29,9 @@ export function useInlineComposeAttachments(editor: Editor | null) {
       });
     } else {
       src = URL.createObjectURL(file);
-      uploadAttachment(file).then((att) => {
+      ignoreNonCritical(uploadAttachment(file).then((att) => {
         setAttachments((prev) => [...prev, { id: att.id, filename: att.filename, size: att.size }]);
-      }).catch(() => {});
+      }), 'readingPane.inlineCompose.uploadInlineImage');
     }
 
     editor.chain().focus().setImage({ src, alt: file.name }).run();

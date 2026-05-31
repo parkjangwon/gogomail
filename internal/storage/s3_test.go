@@ -1,12 +1,14 @@
 package storage
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/pem"
 	"errors"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -3914,6 +3916,55 @@ func TestS3StoreCheckBoundsReadinessBody(t *testing.T) {
 	}
 	if deletes != 1 {
 		t.Fatalf("delete calls = %d, want cleanup after mismatch", deletes)
+	}
+}
+
+func TestS3StoreCheckLogsReadinessCleanupFailure(t *testing.T) {
+	t.Parallel()
+
+	var deletes int
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodPut:
+			w.WriteHeader(http.StatusOK)
+		case http.MethodGet:
+			_, _ = w.Write([]byte("gogomail storage readiness\nextra"))
+		case http.MethodDelete:
+			deletes++
+			http.Error(w, "delete failed", http.StatusInternalServerError)
+		default:
+			t.Errorf("method = %s", r.Method)
+			w.WriteHeader(http.StatusMethodNotAllowed)
+		}
+	}))
+	defer server.Close()
+
+	var logs bytes.Buffer
+	store, err := NewS3Store(S3Options{
+		Endpoint:        server.URL,
+		Region:          "us-east-1",
+		Bucket:          "gogomail",
+		AccessKeyID:     "access",
+		SecretAccessKey: "secret",
+		ForcePathStyle:  true,
+		HTTPClient:      server.Client(),
+	})
+	if err != nil {
+		t.Fatalf("NewS3Store returned error: %v", err)
+	}
+	store.WithLogger(slog.New(slog.NewTextHandler(&logs, nil)))
+
+	if err := store.Check(context.Background()); err == nil || !strings.Contains(err.Error(), "readiness probe body mismatch") {
+		t.Fatalf("Check err = %v, want bounded mismatch", err)
+	}
+	if deletes != 1 {
+		t.Fatalf("delete calls = %d, want cleanup after mismatch", deletes)
+	}
+	output := logs.String()
+	if !strings.Contains(output, "failed to delete s3 storage readiness probe object") ||
+		!strings.Contains(output, "body_mismatch") ||
+		!strings.Contains(output, "delete failed") {
+		t.Fatalf("logs = %q, want readiness cleanup failure context", output)
 	}
 }
 

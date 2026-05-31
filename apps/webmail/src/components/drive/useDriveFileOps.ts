@@ -6,6 +6,7 @@ import {
 } from '@/lib/api';
 import type { DriveNode } from '@/lib/api';
 import type { DroppedFileEntry } from '@/lib/drive/driveUtils';
+import { ignoreNonCritical } from '@/lib/promise';
 import { type DriveUsageSetter, refreshDriveUsage } from './driveUsageRefresh';
 import { normalizeDroppedPath } from './driveViewHelpers';
 import type { DriveUploadBatch, DriveUploadSource } from './driveViewHelpers';
@@ -189,7 +190,7 @@ export function useDriveFileOps({
       file,
       relativePath: getUploadRelativePath(file),
     }));
-    handleUploadEntries(entries, targetParentId, source).catch(() => {});
+    ignoreNonCritical(handleUploadEntries(entries, targetParentId, source), 'drive.upload.entriesFromList');
   }, [getUploadRelativePath, handleUploadEntries]);
 
   return {

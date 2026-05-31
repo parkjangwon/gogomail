@@ -1,6 +1,16 @@
 # gogomail current status
 
-Last updated: 2026-05-31 (backend protocol hardening + drive helper regression coverage)
+Last updated: 2026-05-31 (cleanup observability + remote signer hardening)
+
+## Cleanup observability + remote signer hardening (2026-05-31)
+
+- **Rollback cleanup observability**: attachment uploads, SMTP receive/submission rollback deletes, Drive object rollback cleanup, and storage readiness probes now warn on best-effort delete failures instead of silently dropping orphan/cost signals.
+- **Drive cleanup durability**: copied/staged Drive object rollback failures are recorded through the cleanup failure recorder where available, so operations can retry or inspect unresolved objects.
+- **SCIM IdP sync tracking**: soft-delete/deactivate/active PATCH paths now log structured warning context when `UpdateUserStatus` fails, including operation, user id, desired status, and error.
+- **Remote signer hardening**: `cmd/remote-signer` now uses structured JSON logging, explicit config validation, HTTP read/header/write/idle timeouts, max header size, graceful SIGINT/SIGTERM shutdown, and handler-level tests.
+- **SMTP spool line boundaries**: SMTP spool/header rewrite paths now use a bounded line reader and regression tests reject overlong lines before unbounded memory growth.
+- **Webmail promise policy**: fire-and-forget promise failures now go through `ignoreNonCritical()` with contextual warning logs; empty `.catch(() => {})` patterns were removed and covered by helper tests.
+- **Verified**: `go test ./...`, `go build ./...`, `pnpm --dir apps/webmail test`, `pnpm --dir apps/webmail type-check`, `pnpm --dir apps/console type-check`, and `git diff --check`.
 
 ## Backend protocol hardening + helper regression coverage (2026-05-31)
 

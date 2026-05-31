@@ -72,11 +72,11 @@ func (s *Service) UploadAttachment(ctx context.Context, req UploadAttachmentRequ
 		return maildb.Attachment{}, fmt.Errorf("store attachment upload: %w", err)
 	}
 	if limitedBody.N == 0 {
-		_ = s.store.Delete(ctx, path)
+		s.deleteAttachmentObjectBestEffort(ctx, path, "upload_attachment_oversize", "user_id", req.UserID, "draft_id", req.DraftID)
 		return maildb.Attachment{}, fmt.Errorf("attachment body exceeds %d bytes", MaxAttachmentUploadBytes)
 	}
 	if counter.n != req.Size {
-		_ = s.store.Delete(ctx, path)
+		s.deleteAttachmentObjectBestEffort(ctx, path, "upload_attachment_size_mismatch", "user_id", req.UserID, "draft_id", req.DraftID)
 		return maildb.Attachment{}, fmt.Errorf("attachment body size %d does not match declared size %d", counter.n, req.Size)
 	}
 
@@ -89,7 +89,7 @@ func (s *Service) UploadAttachment(ctx context.Context, req UploadAttachmentRequ
 		StoragePath: path,
 	})
 	if err != nil {
-		_ = s.store.Delete(ctx, path)
+		s.deleteAttachmentObjectBestEffort(ctx, path, "upload_attachment_metadata_failure", "user_id", req.UserID, "draft_id", req.DraftID)
 		return maildb.Attachment{}, err
 	}
 	return attachment, nil
@@ -245,16 +245,16 @@ func (s *Service) StoreAttachmentUploadSessionBody(ctx context.Context, req Stor
 		return maildb.AttachmentUploadSession{}, fmt.Errorf("store attachment upload session body: %w", err)
 	}
 	if limitedBody.N == 0 {
-		_ = s.store.Delete(ctx, path)
+		s.deleteAttachmentObjectBestEffort(ctx, path, "upload_session_body_oversize", "user_id", req.UserID, "session_id", req.SessionID)
 		return maildb.AttachmentUploadSession{}, fmt.Errorf("attachment upload session body exceeds declared size %d", session.DeclaredSize)
 	}
 	if counter.n != session.DeclaredSize {
-		_ = s.store.Delete(ctx, path)
+		s.deleteAttachmentObjectBestEffort(ctx, path, "upload_session_body_size_mismatch", "user_id", req.UserID, "session_id", req.SessionID)
 		return maildb.AttachmentUploadSession{}, fmt.Errorf("attachment upload session body size %d does not match declared size %d", counter.n, session.DeclaredSize)
 	}
 	checksum := hex.EncodeToString(hash.Sum(nil))
 	if req.ExpectedChecksumSHA256 != "" && checksum != req.ExpectedChecksumSHA256 {
-		_ = s.store.Delete(ctx, path)
+		s.deleteAttachmentObjectBestEffort(ctx, path, "upload_session_body_checksum_mismatch", "user_id", req.UserID, "session_id", req.SessionID)
 		return maildb.AttachmentUploadSession{}, fmt.Errorf("attachment upload session checksum %s does not match expected %s", checksum, req.ExpectedChecksumSHA256)
 	}
 	stored, err := repo.StoreAttachmentUploadSessionBody(ctx, maildb.StoreAttachmentUploadSessionBodyRequest{
@@ -265,12 +265,14 @@ func (s *Service) StoreAttachmentUploadSessionBody(ctx context.Context, req Stor
 		ChecksumSHA256: checksum,
 	})
 	if err != nil {
-		_ = s.store.Delete(ctx, path)
+		s.deleteAttachmentObjectBestEffort(ctx, path, "upload_session_body_metadata_failure", "user_id", req.UserID, "session_id", req.SessionID)
 		return maildb.AttachmentUploadSession{}, err
 	}
 	if previousPath := strings.TrimSpace(session.StoragePath); previousPath != "" && previousPath != path {
 		if previousPath, err := validateUploadSessionObjectPath(previousPath); err == nil {
-			_ = s.store.Delete(ctx, previousPath)
+			s.deleteAttachmentObjectBestEffort(ctx, previousPath, "upload_session_body_replaced", "user_id", req.UserID, "session_id", req.SessionID)
+		} else {
+			s.loggerOrDefault().Warn("skipped attachment upload session previous object cleanup", "operation", "upload_session_body_replaced", "user_id", req.UserID, "session_id", req.SessionID, "storage_path", session.StoragePath, "error", err)
 		}
 	}
 	return stored, nil
@@ -289,11 +291,11 @@ func (s *Service) storeChunk(ctx context.Context, repo AttachmentUploadSessionRe
 		return maildb.AttachmentUploadSession{}, fmt.Errorf("store chunk: %w", err)
 	}
 	if limitedBody.N == 0 {
-		_ = s.store.Delete(ctx, path)
+		s.deleteAttachmentObjectBestEffort(ctx, path, "upload_session_chunk_oversize", "user_id", req.UserID, "session_id", req.SessionID)
 		return maildb.AttachmentUploadSession{}, fmt.Errorf("chunk body exceeds chunk size %d", chunkSize)
 	}
 	if counter.n != chunkSize {
-		_ = s.store.Delete(ctx, path)
+		s.deleteAttachmentObjectBestEffort(ctx, path, "upload_session_chunk_size_mismatch", "user_id", req.UserID, "session_id", req.SessionID)
 		return maildb.AttachmentUploadSession{}, fmt.Errorf("chunk body size %d does not match Content-Range size %d", counter.n, chunkSize)
 	}
 	stored, err := repo.StoreAttachmentUploadSessionChunk(ctx, maildb.StoreAttachmentUploadSessionChunkRequest{
@@ -307,10 +309,21 @@ func (s *Service) storeChunk(ctx context.Context, repo AttachmentUploadSessionRe
 		StoragePath: path,
 	})
 	if err != nil {
-		_ = s.store.Delete(ctx, path)
+		s.deleteAttachmentObjectBestEffort(ctx, path, "upload_session_chunk_metadata_failure", "user_id", req.UserID, "session_id", req.SessionID)
 		return maildb.AttachmentUploadSession{}, err
 	}
 	return stored, nil
+}
+
+func (s *Service) deleteAttachmentObjectBestEffort(ctx context.Context, storagePath string, operation string, attrs ...any) {
+	if s == nil || s.store == nil || strings.TrimSpace(storagePath) == "" {
+		return
+	}
+	if err := s.store.Delete(ctx, storagePath); err != nil && !errors.Is(err, os.ErrNotExist) {
+		args := []any{"operation", operation, "storage_path", storagePath, "error", err}
+		args = append(args, attrs...)
+		s.loggerOrDefault().Warn("failed to delete attachment storage object", args...)
+	}
 }
 
 func (s *Service) FinalizeAttachmentUploadSession(ctx context.Context, userID string, sessionID string) (maildb.Attachment, error) {
