@@ -227,7 +227,17 @@ func recordFailOpen(sink Sink, timeout time.Duration, event Event) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
-	_ = sink.Record(ctx, event)
+	if err := sink.Record(ctx, event); err != nil {
+		slog.Default().Warn(
+			"api metering fail-open record failed",
+			"error", err,
+			"route", event.RoutePattern,
+			"method", event.Method,
+			"status", event.Status,
+			"user_id", event.UserID,
+			"auth_source", event.AuthSource,
+		)
+	}
 }
 
 type countingReadCloser struct {

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { assertSameOriginForMutation } from '@/lib/security/proxy';
 import { backendConfigErrorResponse, requiredBackendUrl } from '@/lib/server/backend';
 import { logServerRequest, requestIDFromHeaders, responseHeadersWithRequestID } from '@/lib/server/requestLog';
+import { fetchUpstreamOrNull, readJSONOrDefault } from '@/lib/server/upstream';
 
 export async function POST(req: NextRequest) {
   const started = Date.now();
@@ -42,11 +43,11 @@ export async function POST(req: NextRequest) {
     }));
   }
 
-  const upstream = await fetch(`${backendUrl}/api/v1/auth/password-reset/confirm`, {
+  const upstream = await fetchUpstreamOrNull(`${backendUrl}/api/v1/auth/password-reset/confirm`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'X-Request-ID': requestID },
     body: JSON.stringify(body),
-  }).catch(() => null);
+  });
 
   if (!upstream) return finish(NextResponse.json({ error: 'Backend unreachable' }, {
     status: 503,
@@ -54,7 +55,7 @@ export async function POST(req: NextRequest) {
   }));
 
   if (!upstream.ok) {
-    const err = await upstream.json().catch(() => ({ error: '유효하지 않거나 만료된 토큰입니다.' }));
+    const err = await readJSONOrDefault(upstream, { error: '유효하지 않거나 만료된 토큰입니다.' });
     return finish(NextResponse.json(err, {
       status: upstream.status,
       headers: responseHeadersWithRequestID({ 'Cache-Control': 'no-store' }, requestID),

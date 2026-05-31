@@ -1,6 +1,14 @@
 # gogomail current status
 
-Last updated: 2026-05-31 (cleanup observability + remote signer hardening)
+Last updated: 2026-05-31 (cleanup/fail-open observability sweep)
+
+## Cleanup/fail-open observability sweep (2026-05-31)
+
+- **Remaining rollback cleanup logs**: IMAP APPEND metadata failures, outbound send size/metadata failures, DSN queue failures, and API usage export artifact metadata failures now warn when compensating object deletes fail.
+- **Fail-open metering visibility**: API metering sink errors are now warning-logged with route/method/status/user context while preserving fail-open request behavior.
+- **API route fallback helpers**: webmail and console auth/config proxy routes now use explicit `fetchUpstreamOrNull` and `readJSONOrDefault` helpers instead of scattered `.catch(() => null)` / JSON fallback catches.
+- **Remote signer lifecycle coverage**: added cancellation-path coverage proving the remote signer exits cleanly on context shutdown after binding its listener.
+- **Verified**: `go test ./...`, `go build ./...`, `pnpm --dir apps/webmail test`, `pnpm --dir apps/webmail type-check`, `pnpm --dir apps/console type-check`, and `git diff --check`.
 
 ## Cleanup observability + remote signer hardening (2026-05-31)
 

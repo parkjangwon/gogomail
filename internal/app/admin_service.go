@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"encoding/json"
+	"log/slog"
 	"time"
 
 	"github.com/gogomail/gogomail/internal/admin"
@@ -36,6 +37,7 @@ type adminService struct {
 	exportManifestSigner        apimeter.ExportManifestSigner
 	exportManifestSignerBackend string
 	exportManifestVerifier      apimeter.ExportManifestSignatureVerifier
+	logger                      *slog.Logger
 	directory                   interface {
 		CreateAliasWithAudit(ctx context.Context, req directory.CreateAliasRequest) (directory.Alias, error)
 		CreateDelegationWithAudit(ctx context.Context, req directory.CreateDelegationRequest) (directory.Delegation, error)
@@ -84,9 +86,9 @@ type adminService struct {
 		CountStaleAttachmentUploadSessions(ctx context.Context, before time.Time, limit int) (maildb.StaleAttachmentUploadSessionCount, error)
 		ListStaleAttachmentUploadSessions(ctx context.Context, before time.Time, limit int) ([]maildb.StaleAttachmentUploadSessionCandidate, error)
 	}
-	mailFlowStats  mailflow.MailFlowStatsProvider
-	idpConfigRepo  *idprovider.ConfigRepository
-	configStore    interface {
+	mailFlowStats mailflow.MailFlowStatsProvider
+	idpConfigRepo *idprovider.ConfigRepository
+	configStore   interface {
 		Get(ctx context.Context, scopeType configstore.ScopeType, scopeID, key string) (*configstore.ConfigEntry, error)
 		Set(ctx context.Context, scopeType configstore.ScopeType, scopeID, key string, value json.RawMessage, locked bool, expectedVersion int64) (*configstore.ConfigEntry, error)
 		Delete(ctx context.Context, scopeType configstore.ScopeType, scopeID, key string, expectedVersion int64) error
@@ -94,4 +96,11 @@ type adminService struct {
 		Propagate(ctx context.Context, companyID string, scope configstore.PropagateScope, key string, value json.RawMessage, locked bool) error
 		PropagateFromParent(ctx context.Context, scopeType configstore.ScopeType, scopeID string, parentScopeType configstore.ScopeType, parentScopeID string) error
 	}
+}
+
+func (s adminService) loggerOrDefault() *slog.Logger {
+	if s.logger != nil {
+		return s.logger
+	}
+	return slog.Default()
 }

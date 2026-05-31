@@ -1,9 +1,11 @@
 package apimeter
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -148,6 +150,29 @@ func TestHandlerFailsOpenWhenSinkReturnsError(t *testing.T) {
 	case <-sink.called:
 	case <-time.After(time.Second):
 		t.Fatal("sink was not called")
+	}
+}
+
+func TestRecordFailOpenLogsSinkErrors(t *testing.T) {
+	var logs bytes.Buffer
+	previous := slog.Default()
+	slog.SetDefault(slog.New(slog.NewTextHandler(&logs, nil)))
+	t.Cleanup(func() { slog.SetDefault(previous) })
+
+	recordFailOpen(&errorSink{called: make(chan struct{}, 1)}, time.Second, Event{
+		Method:       http.MethodPost,
+		RoutePattern: "POST /api/v1/messages",
+		Status:       http.StatusAccepted,
+		UserID:       "user-1",
+		AuthSource:   "session",
+	})
+
+	output := logs.String()
+	if !strings.Contains(output, "api metering fail-open record failed") ||
+		!strings.Contains(output, "metering unavailable") ||
+		!strings.Contains(output, "POST /api/v1/messages") ||
+		!strings.Contains(output, "user-1") {
+		t.Fatalf("logs = %q, want fail-open sink error context", output)
 	}
 }
 

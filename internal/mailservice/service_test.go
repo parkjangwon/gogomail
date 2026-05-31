@@ -2033,6 +2033,43 @@ func TestAppendIMAPMessageMapsMailboxFullToOverQuota(t *testing.T) {
 	}
 }
 
+func TestAppendIMAPMessageLogsRollbackDeleteFailure(t *testing.T) {
+	t.Parallel()
+
+	var logs bytes.Buffer
+	repo := &fakeRepository{
+		imapAppendTarget: maildb.IMAPAppendTarget{
+			UserID:    "user-1",
+			MailboxID: "inbox",
+			CompanyID: "company-1",
+			DomainID:  "domain-1",
+			Address:   "user@example.com",
+		},
+		imapAppendStoredErr: errors.New("metadata write failed"),
+	}
+	service := New(repo, failingDeleteStore{err: errors.New("delete denied")}).
+		WithLogger(slog.New(slog.NewTextHandler(&logs, nil)))
+	appendBody := "Subject: hi\r\n\r\nhello"
+
+	_, err := service.AppendIMAPMessage(context.Background(), imapgw.AppendMessageRequest{
+		UserID:    "user-1",
+		MailboxID: "inbox",
+		Size:      int64(len(appendBody)),
+		Body:      strings.NewReader(appendBody),
+	})
+	if err == nil || !strings.Contains(err.Error(), "metadata write failed") {
+		t.Fatalf("AppendIMAPMessage error = %v, want metadata failure", err)
+	}
+	output := logs.String()
+	if !strings.Contains(output, "failed to delete message storage object") ||
+		!strings.Contains(output, "imap_append_metadata_failure") ||
+		!strings.Contains(output, "user-1") ||
+		!strings.Contains(output, "inbox") ||
+		!strings.Contains(output, "delete denied") {
+		t.Fatalf("logs = %q, want imap rollback cleanup context", output)
+	}
+}
+
 func TestMoveIMAPMessagesDelegatesToRepository(t *testing.T) {
 	t.Parallel()
 
@@ -4034,6 +4071,33 @@ func TestSendTextReturnsRecordErrorAfterStorageWrite(t *testing.T) {
 	})
 	if err == nil {
 		t.Fatal("SendText succeeded despite record failure")
+	}
+}
+
+func TestSendTextLogsRollbackDeleteFailure(t *testing.T) {
+	t.Parallel()
+
+	var logs bytes.Buffer
+	service := New(
+		&fakeRepository{recordErr: errors.New("record failed")},
+		failingDeleteStore{err: errors.New("delete denied")},
+	).WithLogger(slog.New(slog.NewTextHandler(&logs, nil)))
+
+	_, err := service.SendText(context.Background(), SendTextRequest{
+		UserID:   "user-1",
+		To:       []outbound.Address{{Email: "user@example.net"}},
+		Subject:  "hello",
+		TextBody: "body",
+	})
+	if err == nil || !strings.Contains(err.Error(), "record failed") {
+		t.Fatalf("SendText error = %v, want record failure", err)
+	}
+	output := logs.String()
+	if !strings.Contains(output, "failed to delete message storage object") ||
+		!strings.Contains(output, "send_text_record_failure") ||
+		!strings.Contains(output, "user-1") ||
+		!strings.Contains(output, "delete denied") {
+		t.Fatalf("logs = %q, want send rollback cleanup context", output)
 	}
 }
 

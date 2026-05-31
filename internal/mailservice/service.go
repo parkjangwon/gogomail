@@ -250,6 +250,17 @@ func (s *Service) deleteStorageObjects(ctx context.Context, paths []string) {
 	}
 }
 
+func (s *Service) deleteMessageObjectBestEffort(ctx context.Context, storagePath string, operation string, attrs ...any) {
+	if s == nil || s.store == nil || strings.TrimSpace(storagePath) == "" {
+		return
+	}
+	if err := s.store.Delete(ctx, storagePath); err != nil && !errors.Is(err, os.ErrNotExist) {
+		args := []any{"operation", operation, "storage_path", storagePath, "error", err}
+		args = append(args, attrs...)
+		s.loggerOrDefault().Warn("failed to delete message storage object", args...)
+	}
+}
+
 func (s *Service) emitQuotaWarningIfNeeded(ctx context.Context, userID string) {
 	if s.quotaAlertEmitter == nil {
 		return
