@@ -44,6 +44,11 @@ Production validation (`internal/config/validate.go`) enforces:
 Graceful shutdown is uniform: SIGTERM/SIGINT trigger a 30s `context.WithTimeout`
 drain before the process exits.
 
+Production logs are structured slog JSON across Go modes. Protocol gateways,
+workers, cleanup/rollback paths, SCIM synchronization, and fail-open metering
+paths emit warning context for operator tracking; see `docs/OPERATIONS.md` and
+`docs/MONITORING.md` for the current log pivots.
+
 ---
 
 ## All-in-one

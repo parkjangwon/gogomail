@@ -1,10 +1,14 @@
 # gogomail next steps
 
-Last updated: 2026-05-28
+Last updated: 2026-05-31
 
 ## Current focus
 
-All core backend phases (0–7), Phase 8 admin console hardening, and the security remediation sprint are complete as of 2026-05-28. The platform is ready for production use. Focus shifts to product expansion and mobile/desktop clients.
+All core backend phases (0–8), the security remediation sprint, protocol
+hardening, cleanup/rollback observability, SCIM sync logging, remote-signer
+hardening, and frontend promise-policy cleanup are complete as of 2026-05-31.
+The platform is ready for production use. Focus shifts to product expansion,
+mobile/desktop clients, and deployment-specific operator polish.
 
 ## Backlog (priority order)
 
@@ -20,6 +24,22 @@ All core backend phases (0–7), Phase 8 admin console hardening, and the securi
 
 ## Recently completed
 
+- **Cleanup/rollback observability** — best-effort delete failures in
+  attachment, Drive, SMTP, IMAP APPEND, outbound-send, DSN enqueue, API usage
+  export, and storage readiness paths now warn or persist retryable failure
+  records (2026-05-31)
+- **SCIM + fail-open tracking** — SCIM IdP status sync failures and API metering
+  sink errors now emit structured warnings while preserving requested runtime
+  behavior (2026-05-31)
+- **Remote signer hardening** — structured JSON logs, config validation, HTTP
+  timeouts, max-header limits, graceful shutdown, and lifecycle tests
+  (2026-05-31)
+- **Protocol/RFC boundary tests** — POP3 command caps, LDAP malformed/oversized
+  PDU handling, and SMTP spool/header line caps covered by regression tests
+  (2026-05-31)
+- **Frontend promise/API helper cleanup** — `ignoreNonCritical()` standardizes
+  intentional fire-and-forget promise handling; server proxy fallback helpers
+  are explicit and tested (2026-05-31)
 - **Security remediation** — IDOR sweep across all admin handlers, StripInternalHeadersMiddleware, Helm CHANGEME guard, CSP nonce, PBKDF2 auto-upgrade, RDBMS IdP SQL allowlist (2026-05-28)
 - **Admin console page decomposition** — spam-filter (1273→153 lines), domain detail (945→116 lines) (2026-05-28)
 - **Settings UI deduplication** — removed dead SettingsModal from webmail Sidebar (2026-05-28)

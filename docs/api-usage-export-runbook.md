@@ -186,3 +186,21 @@ requires `GOGOMAIL_API_USAGE_EXPORT_MANIFEST_SIGNER_BACKEND=remote-ed25519` so
 scheduled destructive purges cannot run under local-only signing evidence. The
 worker still rechecks readiness and persists every blocked, dry-run, or
 destructive attempt in `api_usage_ledger_retention_runs`.
+
+## 10. Remote signer operations
+
+`cmd/remote-signer` is intended to sit behind a private HTTPS boundary or
+internal service mesh and sign manifest digests for `remote-ed25519` handoff
+flows. It now uses the same production posture as the backend services:
+
+- structured JSON logs to stdout
+- startup validation for address, key id, private key, token policy, timeouts,
+  and max-header size
+- HTTP read, read-header, write, and idle timeouts
+- graceful SIGINT/SIGTERM shutdown
+- bounded request headers before handler work begins
+
+Monitor remote signer logs alongside API usage export logs during handoff. A
+remote signer timeout or shutdown warning means newly requested signatures may
+fail, but already completed batches, artifacts, digests, and signatures remain
+immutable evidence in the Admin API.

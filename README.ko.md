@@ -183,9 +183,9 @@ docker compose -f docker-compose.scale.yml --profile ops run --rm migrate
 | 메일 파이프라인 | inbound/submission SMTP, 로컬 도메인 배달, outbound delivery worker, DSN/bounce, DKIM/SPF/DMARC 경계, 스팸 scoring 훅, retry 스케줄링, throttling, 이벤트 fan-out |
 | 남용 방지 | 내장 스팸 필터 (SPF/DKIM/DMARC 점수 계산, RBL/DNSBL, 첨부 확장자 점수, 문구 팩, 대량 수신자 제한), IP·계정별 brute-force 추적기, ClamAV AV 스캔, milter 훅 |
 | 인증·보안 | PBKDF2 비밀번호 해시 + 레거시 자동 업그레이드, TOTP MFA, refresh 토큰 회전·재사용 감지, rate limiting, 모든 admin 핸들러 IDOR 격리, 내부 헤더 stripping |
-| 관찰 가능성 | Prometheus 메트릭, 구조화된 slog JSON, X-Request-ID 추적, Grafana 대시보드, Loki 로그 집계 |
+| 관찰 가능성 | Prometheus 메트릭, 구조화된 slog JSON, X-Request-ID 추적, 정리/롤백 경고 로그, SCIM 동기화 경고, Grafana 대시보드, Loki 로그 집계 |
 | 스토리지 | PostgreSQL 16+, Redis 7+ (단일/Sentinel/Cluster), S3/MinIO/로컬 FS |
-| 신뢰성 | Outbox 패턴 (PG → Redis Streams), 도메인별 throttling, 서킷 브레이커, 30초 graceful drain, 크래시 안전 재시작 |
+| 신뢰성 | Outbox 패턴 (PG → Redis Streams), 도메인별 throttling, 서킷 브레이커, 30초 graceful drain, remote-signer 타임아웃/종료 하드닝, 크래시 안전 재시작 |
 | 배포 | 단일 Go 바이너리, 24개 실행 모드, Docker Compose dev/scale 프로필, Helm 차트, Kubernetes 매니페스트 (HPA, PDB, ingress) |
 
 ---

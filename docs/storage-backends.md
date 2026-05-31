@@ -75,6 +75,10 @@ If a backend listing returns an unsafe object path, `DeletePrefix` preserves
 completed delete progress and returns a structured unsafe-listed-object error,
 letting cleanup workers distinguish corrupt listing data from provider delete
 failures.
+Callers that treat cleanup as best-effort must still surface delete failures:
+current attachment, Drive, SMTP, IMAP APPEND, outbound-send, DSN, API usage
+export, and readiness paths warning-log compensating delete failures, and Drive
+workflows persist retryable cleanup records where a recorder is available.
 
 ## Backend migration smoke matrix
 
@@ -325,6 +329,9 @@ or `204 No Content`) plus idempotent `404 Not Found` for already-missing
 objects. Accepted/deferred or otherwise ambiguous non-OK 2xx delete responses
 are rejected, so lifecycle cleanup behaves consistently across AWS S3,
 MinIO-style endpoints, and local/NFS storage.
+Those rejected delete responses propagate to callers so rollback and cleanup
+paths can warning-log orphan-object risk instead of treating ambiguous provider
+state as success.
 Missing-object reads also preserve the local/NFS error contract: `Get`,
 `GetRange`, and `Stat` wrap `os.ErrNotExist` for compatible-provider
 `404 Not Found` responses while retaining sanitized S3 status context.

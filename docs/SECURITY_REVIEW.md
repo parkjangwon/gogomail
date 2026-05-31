@@ -1,6 +1,6 @@
 # gogomail Security Review
 
-Last updated: 2026-05-28
+Last updated: 2026-05-31
 
 ## Baseline
 
@@ -147,6 +147,22 @@ Primary risk areas covered in this pass:
 - Go builds are pinned to patched toolchain `go1.26.3`, and both frontend apps
   override `postcss` to `^8.5.14` so production dependency audits are clean.
 
+### Operational Observability
+
+- Cleanup and rollback delete failures are warning-logged across attachment,
+  Drive, SMTP, IMAP APPEND, outbound-send, DSN enqueue, API usage export, and
+  storage readiness paths instead of being silently discarded. Drive workflows
+  record retryable cleanup failures where a recorder exists.
+- SCIM soft-delete/deactivate/active paths warning-log failed external IdP
+  `UpdateUserStatus` calls with operation, user id, desired status, and error
+  context.
+- API metering middleware remains fail-open for availability, but sink errors
+  now warning-log route, method, status, and user context for later
+  reconciliation.
+- `cmd/remote-signer` now uses structured JSON logs, startup config
+  validation, HTTP timeout/max-header policy, graceful signal shutdown, and
+  lifecycle tests for cancellation after listener bind.
+
 ## Accepted Risk
 
 - `style-src 'unsafe-inline'` is still present in the Content Security Policy.
@@ -167,7 +183,9 @@ Primary risk areas covered in this pass:
 - Evaluate nonce-based inline theme/style bootstrapping so production CSP can
   remove `unsafe-inline` without visual flicker.
 - Add centralized security event logging for rejected same-origin, private URL,
-  and oversized proxy attempts once the audit pipeline is finalized.
+  and oversized proxy attempts once the audit pipeline is finalized. Cleanup,
+  SCIM sync, and API metering fail-open warning paths are already covered by
+  structured logs.
 - Add operator-facing ClamAV health and signature freshness monitoring in
   `apps/console` so administrators can see stale signatures or scanner outages
   before mail acceptance depends on them.
