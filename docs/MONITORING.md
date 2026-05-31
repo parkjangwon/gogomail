@@ -134,6 +134,22 @@ curl -s -G "http://localhost:3100/loki/api/v1/query_range" \
 # Delivery worker logs
 {service="backend", component="delivery"} | json
 
+# Cleanup/rollback delete failures that can leave orphaned storage objects
+{service="backend"} | json | level="WARN" |~ "cleanup|rollback|delete"
+
+# Drive cleanup failure records are surfaced through admin APIs; pair those
+# records with warning logs from the same time window.
+{service="backend"} | json | level="WARN" |~ "drive.*cleanup|cleanup.*drive"
+
+# SCIM external IdP status synchronization failures
+{service="backend"} | json | level="WARN" |~ "SCIM|UpdateUserStatus"
+
+# Fail-open API metering sink failures
+{service="backend"} | json | level="WARN" |~ "metering|api usage"
+
+# Remote API usage signer lifecycle and request failures
+{service="remote-signer"} | json
+
 # Count error rate over time
 sum(count_over_time({service="backend"} | json | level="ERROR" [5m]))
 ```

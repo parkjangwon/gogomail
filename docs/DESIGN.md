@@ -374,5 +374,5 @@ Do not mix icon sets.
 
 ---
 
-*Last updated: 2026-05-08*
+*Last updated: 2026-05-31 (reviewed; no design contract changes)*
 *Reference images: Notion Mail UI screenshots (design inspiration only — original implementation required)*

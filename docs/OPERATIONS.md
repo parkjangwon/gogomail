@@ -72,6 +72,20 @@ Protocol and worker logs:
   connection gauges remain in Prometheus.
 - The webmail and admin console server-side API routes log one structured JSON
   line per proxied backend request and forward `X-Request-ID` to the backend.
+- Best-effort cleanup and rollback paths are no longer silent. Attachment
+  upload finalization, Drive object copy/stage rollback, SMTP receive and
+  submission rollback, IMAP APPEND metadata rollback, outbound-send object
+  rollback, DSN queue rollback, API usage export artifact rollback, and storage
+  readiness cleanup log warning records when compensating deletes fail. Drive
+  workflows also persist cleanup failure records where a recorder is available.
+- SCIM soft-delete/deactivate/active synchronization logs warning records when
+  external IdP `UpdateUserStatus` calls fail, including operation, user id,
+  desired status, and error.
+- Fail-open API metering sink errors emit warning logs with request route,
+  method, status, and user context while preserving request availability.
+- `cmd/remote-signer` writes structured JSON logs, validates config at startup,
+  enforces HTTP read/header/write/idle timeouts and max-header size, and shuts
+  down gracefully on SIGINT/SIGTERM.
 
 Suggested Kibana/Loki pivots:
 
@@ -80,6 +94,8 @@ request_id="req-..."                         # one browser/API/proxy/backend tra
 component="delivery" message_id="..."        # one outbound delivery flow
 protocol="smtp" remote_addr="203.0.113.10"   # SMTP behavior from one peer
 status>=500 route="/api/v1/messages/{id}"    # normalized API failures
+level="WARN" cleanup                         # cleanup/rollback failures
+level="WARN" UpdateUserStatus                # SCIM external IdP sync drift
 ```
 
 ### Core metrics
@@ -180,6 +196,17 @@ groups:
     expr: rate(gogomail_attachment_scan_total{verdict="error"}[10m]) > 1
     for: 15m
 ```
+
+Add log-derived alerts in Loki or the log pipeline for:
+
+- cleanup/rollback delete warnings, especially repeated warnings for the same
+  storage backend or object prefix
+- SCIM `UpdateUserStatus` warning logs, because external IdP drift is
+  operator-visible state
+- API metering sink warning logs, which indicate usage evidence is fail-open
+  but delayed or incomplete
+- remote signer startup/shutdown errors or request timeout spikes before
+  invoice-grade API usage export handoff
 
 ---
 

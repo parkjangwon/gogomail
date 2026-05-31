@@ -184,9 +184,9 @@ Each module speaks a defined set of open standards. No proprietary extensions, n
 | Mail pipeline | Inbound/submission SMTP, local-domain delivery, outbound delivery workers, DSN/bounce generation, DKIM/SPF/DMARC boundaries, spam scoring hooks, retry scheduling, throttling, event fan-out |
 | Anti-abuse | Built-in spam filter (SPF/DKIM/DMARC scoring, RBL/DNSBL, attachment extension scoring, phrase packs, bulk recipient limits), per-IP/per-account brute-force tracker, optional ClamAV AV scanning, milter hook |
 | Auth and security | PBKDF2 password hashing with legacy auto-upgrade, TOTP MFA, refresh-token rotation with replay detection, rate limiting, IDOR isolation in every admin handler, internal header stripping |
-| Observability | Prometheus metrics, structured slog JSON, X-Request-ID correlation, Grafana dashboards, Loki log aggregation |
+| Observability | Prometheus metrics, structured slog JSON, X-Request-ID correlation, cleanup/rollback warning logs, SCIM sync warnings, Grafana dashboards, Loki log aggregation |
 | Storage | PostgreSQL 16+, Redis 7+ (single / Sentinel / Cluster), S3 / MinIO / local FS |
-| Reliability | Outbox Pattern (PG → Redis Streams), per-domain throttling, circuit breakers, graceful 30s drain, crash-safe restarts |
+| Reliability | Outbox Pattern (PG → Redis Streams), per-domain throttling, circuit breakers, graceful 30s drain, remote-signer timeouts/shutdown, crash-safe restarts |
 | Deployment | Single Go binary, 24 selectable runtime modes, Docker Compose dev/scale profiles, Helm chart, Kubernetes manifests (HPA, PDB, ingress) |
 
 ---

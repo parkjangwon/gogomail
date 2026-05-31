@@ -1,10 +1,10 @@
 # gogomail backend roadmap
 
-Last updated: 2026-05-28
+Last updated: 2026-05-31
 
 ## Completed phases
 
-All core phases through Phase 8 are complete as of 2026-05-28.
+All core phases through Phase 8 are complete as of 2026-05-31.
 
 | Phase | Description | Status |
 |-------|-------------|--------|
@@ -23,6 +23,12 @@ All core phases through Phase 8 are complete as of 2026-05-28.
 **AI Agent automation**: User MCP (123 tools) and Management MCP (50 tools) — both shipped and documented.
 
 **Security hardening** (2026-05-28): IDOR sweep complete across all admin handlers, StripInternalHeadersMiddleware, Helm CHANGEME guard, CSP nonce, PBKDF2 auto-upgrade, RDBMS IdP SQL allowlist.
+
+**Operational hardening** (2026-05-31): protocol gateway metrics/logging,
+POP3/LDAP/SMTP parser caps, cleanup/rollback failure warning logs, Drive
+cleanup failure recording, SCIM IdP status-sync warning logs, fail-open API
+metering warnings, remote signer timeouts/graceful shutdown, and frontend
+fire-and-forget promise warning policy.
 
 ---
 

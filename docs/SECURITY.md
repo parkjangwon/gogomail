@@ -5,7 +5,8 @@ collaboration platform. This document describes the threat model, security
 controls, and accepted residual risks.
 
 See also: `docs/SECURITY_REVIEW.md` (audit findings),
-`docs/backend-release-readiness.md` (release gates).
+`docs/OPERATIONS.md` (day-2 runbooks), and `docs/CURRENT_STATUS.md`
+(release history).
 
 ---
 
@@ -214,6 +215,16 @@ Logged structured (slog JSON in prod):
   delete.
 - Outbound delivery: each attempt outcome (success/defer/bounce).
 
+Security-relevant operational warnings are also structured:
+
+- SCIM external IdP status synchronization failures include the operation, user
+  id, desired status, and error so tenant/user deactivation drift can be
+  investigated.
+- Best-effort cleanup/rollback delete failures include storage context where
+  available, making orphan-object and cost-growth investigations observable.
+- API metering sink failures are fail-open but warning-logged with request
+  context so usage evidence gaps can be reconciled.
+
 Retention: defaults indefinite; prune via `batch-worker` token-cleanup +
 explicit ops tooling. Audit log rows are append-only at the application layer
 (no UPDATE endpoint).
@@ -244,7 +255,8 @@ explicit ops tooling. Audit log rows are append-only at the application layer
 - **No homomorphic search**. Server-side index (OpenSearch) reads plaintext
   bodies. Operators handling regulated content should disable
   `search-index-worker` and rely on client-side search.
-- **MFA TOTP only** at present. FIDO2/WebAuthn is on the roadmap.
+- **No SMS/email OTP MFA**. TOTP and WebAuthn/passkeys are supported; operators
+  that require SMS or email OTP must provide it outside gogomail.
 - **Outbox-relay singleton** is a single point of contention. The relay does
   not block ingest; if it lags, delivery lags, but no data is lost.
 - **Self-signed DKIM keys** are stored in the DB. Operators must protect DB

@@ -1,6 +1,19 @@
 # gogomail current status
 
-Last updated: 2026-05-31 (cleanup/fail-open observability sweep)
+Last updated: 2026-05-31 (documentation refresh)
+
+## Documentation refresh (2026-05-31)
+
+- **Status and planning docs**: `ACTIVE_TASK`, `NEXT_STEPS`, and
+  `backend-roadmap` now reflect the completed 2026-05-31 backend hardening
+  passes instead of the older 2026-05-28/29 baseline.
+- **Operator docs**: operations, monitoring, security, storage, and API usage
+  export runbooks now describe cleanup/rollback failure warnings, SCIM sync
+  warnings, fail-open metering warnings, remote signer runtime policy, and
+  current WebAuthn/passkey support.
+- **README docs**: English and Korean READMEs now mention the hardened
+  observability/reliability posture in the feature matrix.
+- **Verified**: `git diff --check`.
 
 ## Cleanup/fail-open observability sweep (2026-05-31)
 

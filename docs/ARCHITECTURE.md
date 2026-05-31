@@ -29,6 +29,7 @@ at startup.
 | **Standard Go stdlib first** | `net/http`, `database/sql`, `log/slog`. Minimal third-party surface; SDK churn minimized. |
 | **PostgreSQL as the single tenant of truth** | All multi-tenant boundaries enforced in repository methods; no row-level security required, but `company_id` is in every index. |
 | **RFC compliance over feature breadth** | Each protocol implementation tracks its RFC suite (see matrix below). Quirks documented; non-conformant clients accommodated only when necessary. |
+| **Operationally visible failure paths** | Fail-open and best-effort paths must emit structured warning logs or retryable cleanup records so operators can reconcile orphaned objects, external IdP drift, and usage-metering gaps. |
 | **Configuration via env vars** | 12-factor. Validator (`internal/config/validate.go`) hardens production. Optional YAML config file overlays env vars. |
 
 ---
