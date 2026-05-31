@@ -1,12 +1,13 @@
-import { useState, useEffect, useCallback, Dispatch, SetStateAction } from 'react';
-import { DriveNode, DriveUsage, listDriveNodes, getDriveUsage, listTrashedDriveNodes } from '@/lib/api';
-import { BreadcrumbItem } from '@/lib/drive/driveUtils';
-import { DriveSort, loadDriveSortSetting, sortDriveNodes } from './driveViewHelpers';
+import { useState, useEffect, useCallback, type Dispatch, type SetStateAction } from 'react';
+import { listDriveNodes, listTrashedDriveNodes } from '@/lib/api';
+import type { DriveNode, DriveUsage } from '@/lib/api';
+import type { BreadcrumbItem } from '@/lib/drive/driveUtils';
+import { refreshDriveUsage } from './driveUsageRefresh';
+import { type DriveSort, loadDriveSortSetting, sortDriveNodes } from './driveViewHelpers';
 
 export interface UseDriveNodesParams {
   breadcrumb: BreadcrumbItem[];
   activeSection: 'drive' | 'trash';
-  t: any;
 }
 
 export interface UseDriveNodesReturn {
@@ -39,7 +40,7 @@ export function useDriveNodes({ breadcrumb, activeSection }: UseDriveNodesParams
     const data = await listDriveNodes(currentParentId || undefined);
     setNodes(sortDriveNodes(data, driveSort));
     setLoading(false);
-    getDriveUsage().then(setUsage).catch(() => {});
+    refreshDriveUsage(setUsage);
   }, [currentParentId, driveSort]);
 
   const loadNodes = useCallback(async (parentId: string) => {
@@ -67,7 +68,7 @@ export function useDriveNodes({ breadcrumb, activeSection }: UseDriveNodesParams
 
   useEffect(() => {
     loadNodes(currentParentId);
-    getDriveUsage().then(setUsage).catch(() => {});
+    refreshDriveUsage(setUsage);
   }, [currentParentId, loadNodes]);
 
   useEffect(() => {
