@@ -1,11 +1,12 @@
 {
-  "schema_version": "1.0",
+  "schema_version": "1.1",
   "project": {
     "name": "gogomail",
     "type": "backend-service",
-    "description": "High-performance Go mail server — SMTP/IMAP/CalDAV/CardDAV — targeting national-scale deployments",
+    "description": "Production-grade Go mail and collaboration platform with SMTP, IMAP, POP3, JMAP, CalDAV, CardDAV, WebDAV, LDAP, REST APIs, and workers",
     "primary_language": "go",
-    "test_command": "go test ./...",
+    "test_command": "go test -short ./...",
+    "full_test_command": "go test ./...",
     "build_command": "go build ./...",
     "package_manager": "go-modules",
     "root": "/Users/pjw/dev/project/gogomail"
@@ -14,30 +15,30 @@
     "language": "ko",
     "tone": "concise-direct"
   },
-  "change_posture": "autonomous",
-  "verification_policy": "tdd-enforced",
+  "change_posture": "user-directed-autonomous",
+  "verification_policy": "risk-based with strict pre-commit short tests",
   "approval_policy": {
     "default": "none",
     "exceptions": [
       {
-        "trigger": "frontend-implementation",
-        "action": "pause-and-notify-user",
-        "description": "Before creating apps/shell, apps/webmail, apps/console, or shared UI packages"
+        "trigger": "destructive-or-external-production-change",
+        "action": "ask-user",
+        "description": "Ask before destructive operations, external production changes, credential use, or materially branching scope decisions"
       }
     ]
   },
-  "push_policy": "test-gated-auto",
+  "push_policy": "verification-gated when requested or harness-owned",
   "pre_commit_hook": {
     "mode": "strict",
     "rules": [
       {
-        "id": "tests-must-pass",
-        "command": "go test ./...",
+        "id": "short-tests-must-pass",
+        "command": "go test -short ./...",
         "on_failure": "block-commit"
       },
       {
         "id": "docs-required-with-code",
-        "description": "Production code changes (internal/*.go excl _test.go, migrations/*.sql) require at least one docs/ file staged",
+        "description": "Production code changes (internal/*.go excl _test.go, cmd/*.go excl _test.go, migrations/*.sql) require at least one docs/ file staged",
         "on_failure": "block-commit"
       }
     ]
@@ -45,56 +46,62 @@
   "task_structure": {
     "active_task_file": "docs/ACTIVE_TASK.md",
     "backlog_file": "docs/NEXT_STEPS.md",
-    "pattern": "single-active-task",
-    "description": "Agent reads ACTIVE_TASK.md only. After commit, advances to next backlog item."
+    "pattern": "user-request-or-single-active-task",
+    "description": "The current user request is the primary task. ACTIVE_TASK.md is durable state for explicit harness loops or non-COMPLETE long-running tasks."
   },
   "loop_policy": {
-    "mode": "infinite",
+    "mode": "bounded-user-directed",
+    "auto_advance_requires_explicit_loop_request": true,
     "halt_conditions": [
+      "task-complete-and-verified",
       "user-explicit-halt",
-      "frontend-gate-trigger",
-      "unresolvable-test-failure-after-3-attempts"
+      "missing-authority-or-credential",
+      "ambiguous-acceptance-criteria",
+      "unresolvable-test-failure-after-focused-retries"
     ],
     "forbidden_halt_conditions": [
-      "task-complete",
-      "awaiting-user-input",
-      "no-more-ideas",
-      "silence-after-push"
+      "reversible-local-next-step-within-current-request",
+      "avoidable-tooling-gap-with-known-fallback"
     ],
-    "after_push": "advance-to-next-task-immediately-without-waiting",
-    "description": "Loop is perpetual. Stopping without a listed halt_condition is a harness violation."
+    "after_push": "report-and-stop-unless-user-requested-continuous-loop",
+    "complete_active_task_behavior": "treat COMPLETE as no active harness task; do not promote backlog automatically",
+    "description": "Autonomy means finish the requested safe branch end-to-end, not perpetual backlog consumption."
   },
   "scope_enforcement": {
     "roadmap_file": "docs/backend-roadmap.md",
     "backlog_file": "docs/NEXT_STEPS.md",
     "active_task_file": "docs/ACTIVE_TASK.md",
-    "deviation_policy": "forbidden — implement only what ACTIVE_TASK.md directs",
-    "self_selection_policy": "next task must come from NEXT_STEPS.md backlog only",
-    "backlog_empty_action": "derive next item from backend-roadmap.md phases and append to NEXT_STEPS.md, then continue loop",
-    "out_of_roadmap_action": "forbidden — do not implement features absent from backend-roadmap.md"
+    "product_feature_policy": "start from roadmap or explicit user request",
+    "docs_harness_maintenance_policy": "allowed when requested or when correcting stale operational guidance",
+    "self_selection_policy": "next backlog item may be selected only inside an explicit harness loop",
+    "backlog_empty_action": "report no queued harness task; do not synthesize product work unless explicitly asked",
+    "out_of_roadmap_action": "do not implement unrequested product features absent from backend-roadmap.md"
   },
   "autonomous_loop": {
     "steps": [
-      "read docs/ACTIVE_TASK.md — confirm task and acceptance criteria",
-      "write failing test (_test.go) first",
-      "implement until go test ./... passes",
-      "update docs/CURRENT_STATUS.md, docs/backend-roadmap.md, openapi.yaml as needed",
-      "update docs/ACTIVE_TASK.md acceptance checklist to fully checked",
-      "git add (code + tests + docs), git commit",
-      "git push origin main (only if go test ./... passes)",
-      "advance docs/ACTIVE_TASK.md to next backlog item from docs/NEXT_STEPS.md",
-      "IMMEDIATELY return to step 1 — do not wait for user input"
+      "read docs/ACTIVE_TASK.md and determine whether it is COMPLETE",
+      "use the current user request as the primary scope unless an explicit non-COMPLETE ACTIVE_TASK is in force",
+      "define acceptance criteria and the smallest useful verification",
+      "for behavior changes, add or run targeted regression coverage before risky edits",
+      "implement the requested change",
+      "run scope-appropriate verification: docs/json validation, targeted tests, frontend type-check, go test ./..., or go build ./... as risk requires",
+      "update docs when behavior, operator guidance, API contracts, or harness rules change",
+      "stage, commit with Lore protocol, and push when requested or harness-owned",
+      "report result and verification evidence; continue only if the user explicitly requested a continuous loop"
     ],
     "blocked_by": [
-      "test-failure — fix before continuing",
-      "ambiguous-acceptance-criteria — record blocker in ACTIVE_TASK.md and wait"
+      "missing credentials or external production authority",
+      "destructive action requiring confirmation",
+      "ambiguous acceptance criteria that materially changes implementation",
+      "repeated verification failure without a plausible local recovery path"
     ]
   },
   "commit_rules": {
     "code_and_docs_same_commit": true,
-    "never_docs_only_commit": true,
-    "never_code_without_docs": true,
-    "message_style": "conventional",
+    "docs_only_commit_allowed": true,
+    "never_code_without_docs_when_behavior_or_operator_contract_changes": true,
+    "message_style": "lore",
+    "conventional_prefix": "optional",
     "co_author": "must not add AI co-author lines unless user requests"
   },
   "domain_rules": {
@@ -102,28 +109,26 @@
     "hot_path_allocation": "streaming-first, allocation-aware",
     "protocol_product_separation": "enforced — no spam/product logic in SMTP core",
     "library_over_adhoc": "use well-maintained libraries for protocol parsing, no ad-hoc string parsing",
-    "tdd_order": "failing test before implementation, always"
+    "tdd_order": "required for risky behavior changes; docs-only changes use document/format validation"
   },
   "rule_strengths": {
-    "tests-must-pass-before-commit": "enforced",
+    "short-tests-must-pass-before-commit": "enforced",
     "docs-required-with-production-code": "enforced",
     "rfc-compliance": "enforced",
-    "frontend-gate": "enforced",
-    "tdd-order": "guided",
-    "commit-message-style": "advisory"
+    "explicit-loop-required-for-backlog-auto-advance": "enforced",
+    "commit-message-style": "enforced-by-agent-contract"
   },
   "context_files": {
     "must_read_before_work": [
-      "PROJECT_HARNESS.md",
-      "docs/ACTIVE_TASK.md",
-      "docs/backend-roadmap.md",
-      "git log --oneline -10"
+      "docs/ACTIVE_TASK.md"
     ],
     "read_when_relevant": [
+      "PROJECT_HARNESS.md",
+      "docs/backend-roadmap.md",
       "docs/CURRENT_STATUS.md",
-      "docs/backend-api-contracts.md",
       "docs/openapi.yaml",
-      "docs/adr/"
+      "docs/adr/",
+      "git log --oneline -10"
     ]
   },
   "change_history": [
@@ -133,11 +138,11 @@
     },
     {
       "date": "2026-05-08",
-      "change": "strengthen loop — add loop_policy (infinite, forbidden halt conditions), scope_enforcement (roadmap-bound), explicit step-10 no-wait-for-user, update PROJECT_HARNESS.md/CLAUDE.md/AGENTS.md/GEMINI.md"
+      "change": "strengthen loop — add infinite loop policy and roadmap-bound self-selection"
     },
     {
-      "date": "2026-05-08",
-      "change": "roadmap update — add Phase 2 (Runtime Config Store: PostgreSQL JSONB+LISTEN/NOTIFY), Phase 3 (Enterprise Identity: LDAP/SCIM/SAML/OIDC), Phase 4 (Drive WebDAV), Phase 5 (Milter/DNSBL), Phase 6 (POP3), Phase 7 (Push/Delta Sync), Module×RFC compliance map"
+      "date": "2026-05-31",
+      "change": "harness de-slop — replace perpetual backlog consumption with user-directed autonomy, align pre-commit command with go test -short ./..., allow docs-only maintenance commits, and adopt Lore commit messages"
     }
   ]
 }

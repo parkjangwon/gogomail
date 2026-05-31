@@ -2,6 +2,24 @@
 
 Last updated: 2026-05-31 (documentation refresh)
 
+## Harness and agent-doc cleanup (2026-05-31)
+
+- **Harness loop de-slop**: `PROJECT_HARNESS.md`, `AGENTS.md`,
+  `CLAUDE.md`, and `harness-contract.json` now treat `ACTIVE_TASK=COMPLETE`
+  as "no active harness task" instead of auto-consuming the next backlog item
+  after every push.
+- **Actual gate alignment**: harness docs now match the real pre-commit gate
+  (`go test -short ./...`) while still requiring broader `go test ./...` for
+  backend/protocol changes when risk warrants it.
+- **Commit/documentation policy**: docs-only maintenance commits are explicitly
+  allowed, production code still requires docs, and commit guidance now points
+  to the repo's Lore protocol instead of stale conventional-only wording.
+- **Stale fact fixes**: `docs/MODES.md` now reflects the safe
+  `GOGOMAIL_ENV=production` default and `SECURITY_REVIEW.md` now matches the
+  Go version pinned in `go.mod`.
+- **Verified**: `git diff --check`, `jq empty harness-contract.json
+  harness-runtime.json`, `go test -short ./...`.
+
 ## Documentation refresh (2026-05-31)
 
 - **Status and planning docs**: `ACTIVE_TASK`, `NEXT_STEPS`, and

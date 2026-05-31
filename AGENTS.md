@@ -4,17 +4,18 @@
 
 ## 빠른 참조
 
-- 스택: Go · `go test ./...` · `go build ./...`
-- **루프**: `docs/ACTIVE_TASK.md` 읽기 → 실패 테스트 작성 → 구현 → docs 갱신 → 커밋 → push → **즉시 다음 태스크로** → 반복
-- **루프 강제**: push 완료 후 사용자 응답을 기다리지 않는다. 블로커 없이 멈추는 것은 하네스 위반이다.
-- **범위 이탈 금지**: `docs/backend-roadmap.md` 에 없는 기능은 구현하지 않는다.
-- **Pre-commit hook**: 테스트 실패 또는 docs 누락 시 커밋 차단
-- **Push**: `go test ./...` 통과 커밋만 자동 push
+- 스택: Go · commit gate `go test -short ./...` · full backend `go test ./...` · `go build ./...`
+- **실행 단위**: 현재 사용자 요청을 우선한다. `docs/ACTIVE_TASK.md`가 non-COMPLETE이면 충돌 여부를 확인한다.
+- **연속 루프**: 사용자가 명시적으로 하네스 루프/다음 태스크 진행을 요청한 경우에만 push 후 백로그로 전진한다.
+- **범위 이탈 금지**: 제품 기능은 `docs/backend-roadmap.md` 또는 사용자 명시 요청에서 출발한다.
+- **Pre-commit hook**: `go test -short ./...` 실패 또는 production 코드 docs 누락 시 커밋 차단
+- **Push**: 검증 통과 커밋만 push한다. 백엔드 변경은 필요 시 `go test ./...`까지 확인한다.
 - **RFC 준수**: 필수, 선택 아님
+
 ## 현재 태스크
 
 → `docs/ACTIVE_TASK.md` 를 읽어라. 다른 파일을 먼저 읽지 않는다.
-→ ID가 `COMPLETE`이면 **절대 대기하지 않는다** — `PROJECT_HARNESS.md`의 "COMPLETE 상태 처리" 규칙을 즉시 적용한다.
+→ ID가 `COMPLETE`이면 활성 하네스 태스크가 없는 상태다. 현재 사용자 요청을 작업 범위로 삼고, 명시적 연속 실행 요청 없이 다음 백로그를 자동 생성하지 않는다.
 
 ## 이 파일과 CLAUDE.md 동기화
 

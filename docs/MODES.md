@@ -24,7 +24,7 @@ All modes inherit these settings from `internal/config/config.go`:
 
 | Env var | Default | Purpose |
 |---|---|---|
-| `GOGOMAIL_ENV` | `development` | Must be `production` for prod runs (enables strict validation). |
+| `GOGOMAIL_ENV` | `production` | Defaults safe. Set to `development` or `test` explicitly for local/dev fixtures. |
 | `APP_MODE` | `all-in-one` | Equivalent to `-mode` flag. |
 | `GOGOMAIL_DATABASE_URL` | `postgres://gogomail:gogomail@localhost:5432/gogomail?sslmode=disable` | Postgres DSN. |
 | `GOGOMAIL_REDIS_ADDR` | `localhost:6379` | Redis address (single-node). |
