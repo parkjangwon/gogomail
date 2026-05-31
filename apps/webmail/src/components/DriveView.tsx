@@ -51,7 +51,7 @@ export function DriveView() {
     trashLoading,
     refreshDriveNodes,
     loadTrashNodes,
-  } = useDriveNodes({ breadcrumb, activeSection, t });
+  } = useDriveNodes({ breadcrumb, activeSection });
 
   const upload = useDriveUpload({ onUploadComplete: refreshDriveNodes, t });
   const {
@@ -108,7 +108,6 @@ export function DriveView() {
     applySelection,
   } = useDriveInteractions({
     breadcrumb,
-    setBreadcrumb,
     nodes,
     setNodes,
     refreshDriveNodes,
@@ -117,7 +116,6 @@ export function DriveView() {
     setSidebarFolderChildren,
     setSidebarLoadedFolders,
     reloadSidebarCurrentPath,
-    t,
   });
 
   const {
@@ -133,7 +131,6 @@ export function DriveView() {
     setTrashNodes,
     trashNodes,
     setUsage,
-    breadcrumb,
     driveUploadResumable,
     enqueueDriveUploads,
     t,

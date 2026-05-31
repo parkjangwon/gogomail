@@ -1,29 +1,29 @@
 'use client';
-import { useCallback, Dispatch, SetStateAction } from 'react';
+import { useCallback, type Dispatch, type SetStateAction } from 'react';
 import {
   trashDriveNode, restoreDriveNode, deleteDriveNodePermanently,
-  getDriveUsage, listDriveNodes, createDriveFolder,
+  listDriveNodes, createDriveFolder,
 } from '@/lib/api';
 import type { DriveNode } from '@/lib/api';
-import type { BreadcrumbItem, DroppedFileEntry } from '@/lib/drive/driveUtils';
+import type { DroppedFileEntry } from '@/lib/drive/driveUtils';
+import { type DriveUsageSetter, refreshDriveUsage } from './driveUsageRefresh';
 import { normalizeDroppedPath } from './driveViewHelpers';
 import type { DriveUploadBatch, DriveUploadSource } from './driveViewHelpers';
+
+type DriveTranslation = (key: string, values?: Record<string, string | number | Date>) => string;
 
 interface UseDriveFileOpsParams {
   nodes: DriveNode[];
   setNodes: Dispatch<SetStateAction<DriveNode[]>>;
   setTrashNodes: Dispatch<SetStateAction<DriveNode[]>>;
   trashNodes: DriveNode[];
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  setUsage: (usage: any) => void;
-  breadcrumb: BreadcrumbItem[];
+  setUsage: DriveUsageSetter;
   driveUploadResumable: boolean | null;
   enqueueDriveUploads: (
     items: Array<{ file: File; relativePath: string; parentId?: string; resumable: boolean; batchId: string; source: DriveUploadSource }>,
     batch?: DriveUploadBatch | null,
   ) => void;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  t: (key: string, values?: Record<string, any>) => string;
+  t: DriveTranslation;
 }
 
 export function useDriveFileOps({
@@ -39,14 +39,14 @@ export function useDriveFileOps({
   const handleTrash = useCallback(async (nodeId: string) => {
     const ok = await trashDriveNode(nodeId);
     if (ok) setNodes((prev) => prev.filter((n) => n.id !== nodeId));
-    getDriveUsage().then(setUsage).catch(() => {});
+    refreshDriveUsage(setUsage);
   }, [setNodes, setUsage]);
 
   const handleRestore = useCallback(async (nodeId: string) => {
     const ok = await restoreDriveNode(nodeId);
     if (ok) {
       setTrashNodes((prev) => prev.filter((n) => n.id !== nodeId));
-      getDriveUsage().then(setUsage).catch(() => {});
+      refreshDriveUsage(setUsage);
     }
   }, [setTrashNodes, setUsage]);
 
@@ -55,7 +55,7 @@ export function useDriveFileOps({
     const ok = await deleteDriveNodePermanently(nodeId);
     if (ok) {
       setTrashNodes((prev) => prev.filter((n) => n.id !== nodeId));
-      getDriveUsage().then(setUsage).catch(() => {});
+      refreshDriveUsage(setUsage);
     }
   }, [setTrashNodes, setUsage, t]);
 
@@ -63,7 +63,7 @@ export function useDriveFileOps({
     if (!confirm(t('emptyTrashConfirm', { count: trashNodes.length }))) return;
     await Promise.all(trashNodes.map((n) => deleteDriveNodePermanently(n.id)));
     setTrashNodes([]);
-    getDriveUsage().then(setUsage).catch(() => {});
+    refreshDriveUsage(setUsage);
   }, [trashNodes, setTrashNodes, setUsage, t]);
 
   const getFolderCache = useCallback((): Map<string, string> => {

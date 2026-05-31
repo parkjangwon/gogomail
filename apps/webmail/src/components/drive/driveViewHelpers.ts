@@ -1,5 +1,11 @@
-import { DriveNode } from '@/lib/api';
-import { DRIVE_NODE_DRAG_MIME, DRIVE_NODE_DRAG_TEXT, DroppedFileEntry, FileSystemEntryLike, DirectoryReaderLike } from '@/lib/drive/driveUtils';
+import type { DriveNode } from '@/lib/api';
+import {
+  DRIVE_NODE_DRAG_MIME,
+  DRIVE_NODE_DRAG_TEXT,
+  type DirectoryReaderLike,
+  type DroppedFileEntry,
+  type FileSystemEntryLike,
+} from '../../lib/drive/driveUtils';
 
 export type DriveUploadStatus = 'queued' | 'creating_session' | 'uploading' | 'paused' | 'finalizing' | 'done' | 'error' | 'canceled';
 export type DriveUploadSource = 'picker' | 'folder' | 'drop';

@@ -1,19 +1,19 @@
-import { useState, useCallback, Dispatch, SetStateAction } from 'react';
-import { DriveNode, createDriveFolder, renameDriveNode, moveDriveNode, getDriveUsage } from '@/lib/api';
-import { BreadcrumbItem, SidebarFolderItem } from '@/lib/drive/driveUtils';
+import { useState, useCallback, type Dispatch, type SetStateAction } from 'react';
+import { createDriveFolder, renameDriveNode, moveDriveNode } from '@/lib/api';
+import type { DriveNode, DriveUsage } from '@/lib/api';
+import type { BreadcrumbItem, SidebarFolderItem } from '@/lib/drive/driveUtils';
+import { refreshDriveUsage } from './driveUsageRefresh';
 
 export interface UseDriveInteractionsParams {
   breadcrumb: BreadcrumbItem[];
-  setBreadcrumb: Dispatch<SetStateAction<BreadcrumbItem[]>>;
   nodes: DriveNode[];
   setNodes: Dispatch<SetStateAction<DriveNode[]>>;
   refreshDriveNodes: () => Promise<void>;
-  setUsage: Dispatch<SetStateAction<any>>;
+  setUsage: Dispatch<SetStateAction<DriveUsage | null>>;
   sidebarLoadKey: (folderId: string) => string;
   setSidebarFolderChildren: Dispatch<SetStateAction<Record<string, SidebarFolderItem[]>>>;
   setSidebarLoadedFolders: Dispatch<SetStateAction<Set<string>>>;
   reloadSidebarCurrentPath: () => void;
-  t: any;
 }
 
 export interface UseDriveInteractionsReturn {
@@ -124,7 +124,7 @@ export function useDriveInteractions({
 
     if (movedAny) {
       await refreshDriveNodes();
-      getDriveUsage().then(setUsage).catch(() => {});
+      refreshDriveUsage(setUsage);
     }
     setSelectedNodeIds((prev) => prev.filter((id) => !movedNodeIds.includes(id)));
     reloadSidebarCurrentPath();
