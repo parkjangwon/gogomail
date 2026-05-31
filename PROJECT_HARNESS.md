@@ -1,75 +1,83 @@
 # gogomail Project Harness
 
 This is the authoritative durable contract for all coding agents working on this repository.
-`CLAUDE.md`, `AGENTS.md`, and `GEMINI.md` are thin pointers to this file.
+`CLAUDE.md` and `AGENTS.md` are thin pointers to this file.
 
 ---
 
-## ⚠️ 루프 강제 실행 — 에이전트는 절대 멈추지 않는다
+## 운영 모드 — 사용자 주도 자율 실행
 
-**이 규칙은 이 파일의 다른 모든 규칙보다 우선한다. 읽는 즉시 적용한다.**
+기본 모드는 **사용자 요청 단위 실행**이다. 에이전트는 요청받은 작업을
+끝까지 수행하고 검증하지만, 완료 후 백로그를 임의로 물고 늘어지지 않는다.
 
-- push 완료 후 **사용자 응답을 기다리지 않는다.** 즉시 다음 태스크로 전진한다.
-- "태스크 완료"는 루프 종료 사유가 아니다.
-- "할 일이 없다"는 없다 — `docs/NEXT_STEPS.md` 백로그가 항상 다음 항목을 갖는다.
-- 블로커 없이 루프를 멈추는 것 자체가 **하네스 위반**이다.
-- 루프가 멈추는 유일한 합법적 조건:
- 1. 사용자가 명시적으로 중단을 요청할 때
- 2. `go test ./...` 반복 실패 후 원인을 특정할 수 없을 때 (ACTIVE_TASK.md에 블로커 기록 후 대기)
+- 현재 사용자 프롬프트가 항상 최우선 작업 범위다.
+- `docs/ACTIVE_TASK.md`는 하네스 루프나 장기 작업의 durable 상태로 사용한다.
+- push 완료 후에는 결과를 보고하고 멈춘다. 단, 사용자가 명시적으로
+  "다음 태스크 계속", "하네스 루프", "autopilot"처럼 연속 실행을 요청한
+  경우에만 다음 백로그로 전진한다.
+- 로컬에서 되돌릴 수 있는 조사/수정/검증은 묻지 말고 진행한다.
+- 파괴적 작업, 외부 운영환경 변경, 권한/비밀이 필요한 작업, 범위가 크게
+  갈리는 결정은 멈추고 사용자 지시를 받는다.
 
-### 🚨 COMPLETE 상태 처리 (루프 재진입 규칙)
+### COMPLETE 상태 처리
 
 `docs/ACTIVE_TASK.md`의 ID가 `COMPLETE`이면:
 
-1. **절대 사용자를 기다리지 않는다.** `대기한다`는 문구를 무시한다.
-2. `docs/NEXT_STEPS.md`의 `## 백로그` 섹션에서 첫 번째 미완료 태스크를 선택한다.
-3. 백로그가 비어있으면 `docs/NEXT_STEPS.md`의 `Next:` 항목들에서 가장 구체적인 항목을 새 태스크로 만든다.
-4. 그것도 없으면 `docs/backend-roadmap.md`에서 미구현 또는 하드닝이 필요한 항목을 선택한다.
-5. 새 `ACTIVE_TASK.md`를 작성하고 **즉시 루프 1단계부터 재시작**한다.
+1. 활성 하네스 태스크가 없다는 뜻으로 해석한다.
+2. 현재 사용자 프롬프트를 작업 범위로 삼는다.
+3. 사용자가 명시적으로 연속 하네스 실행을 요청한 경우에만
+   `docs/NEXT_STEPS.md`의 다음 미완료 백로그를 `ACTIVE_TASK.md`로 승격한다.
+4. 일반 대화형 요청에서는 `ACTIVE_TASK.md`를 새 태스크로 덮어쓰지 않는다.
 
 ---
 
 ## 📋 로드맵 범위 이탈 금지
 
-- **모든 구현은 `docs/backend-roadmap.md`에 기술된 Phase/항목 내에서만 진행한다.**
-- `docs/NEXT_STEPS.md` 백로그 항목은 반드시 `docs/backend-roadmap.md`에서 파생된다.
-- `docs/ACTIVE_TASK.md`가 지시하지 않은 코드는 작성하지 않는다.
-- 로드맵에 없는 새 기능을 임의로 추가하는 것은 금지.
-- 백로그가 비어있으면 `docs/backend-roadmap.md`에서 다음 항목을 `docs/NEXT_STEPS.md`에 추가한 뒤 루프를 계속한다.
+- 제품 기능 구현은 `docs/backend-roadmap.md` 또는 사용자의 명시 요청에서
+  출발해야 한다.
+- `docs/NEXT_STEPS.md` 백로그 항목은 가능한 한 `docs/backend-roadmap.md`에서
+  파생한다.
+- 로드맵에 없는 새 기능을 임의로 추가하지 않는다.
+- 문서/하네스/운영 런북 정비는 사용자 요청이 있으면 로드맵 외 작업으로
+  허용한다. 이때 동작 변경 없이 문서 정확성과 에이전트 효율을 개선한다.
+- 백로그가 비어 있더라도 사용자가 연속 실행을 요청하지 않았다면 새 작업을
+  자동 생성하지 않는다.
 
 ---
 
-## 자율 개발 루프 (Autonomous Loop)
+## 요청 단위 실행 루프
 
-에이전트는 이 절차를 **번호 순서대로** 반복한다. 순서를 바꾸거나 건너뛰지 않는다.
+에이전트는 요청받은 범위 안에서 다음 절차를 따른다.
 
 ```
-1. docs/ACTIVE_TASK.md 읽기 — 현재 태스크와 완료 조건 확인
-2. 실패하는 테스트 먼저 작성 (_test.go)
-3. 테스트가 통과하도록 구현
-4. go test ./... 실행 — 실패 시 3으로 돌아가기
-5. 관련 docs 업데이트 (CURRENT_STATUS.md, backend-roadmap.md, openapi.yaml 등)
-6. docs/ACTIVE_TASK.md 완료 체크리스트 전부 체크
-7. git add (코드 + 테스트 + docs 전부), git commit
-8. go test ./... 통과 확인 후 git push origin main
-9. docs/NEXT_STEPS.md 백로그에서 다음 태스크를 ACTIVE_TASK.md로 이동
-10. 즉시 1로 돌아가기 — 사용자 응답을 기다리지 않는다. 루프는 영속한다.
+1. docs/ACTIVE_TASK.md 읽기 — non-COMPLETE이면 현재 사용자 요청과 충돌 여부 확인
+2. 완료 조건과 검증 방법을 정한다
+3. 코드 동작 변경이면 실패 테스트 또는 가장 좁은 회귀 검증을 먼저 준비한다
+4. 구현/문서 수정을 수행한다
+5. 변경 범위에 맞는 검증을 실행한다
+   - docs/json only: `git diff --check` + JSON/YAML 검증
+   - Go backend: targeted test 후 필요 시 `go test ./...`
+   - frontend: 해당 앱의 test/type-check
+6. 관련 docs 업데이트 (CURRENT_STATUS.md, backend-roadmap.md, openapi.yaml 등)
+7. 요청받았거나 하네스 소유 작업이면 git add, Lore 커밋, push
+8. 결과와 검증 근거를 보고한다. 명시적 연속 실행이 아니면 여기서 멈춘다.
 ```
 
 ### 절대 금지
 
-- 4번(테스트 통과) 전에 커밋
-- 5번(docs 업데이트) 없이 커밋
+- 관련 검증 전에 커밋
+- 프로덕션 코드/API/운영 동작 변경 후 docs 업데이트 없이 커밋
 - 테스트 실패 상태에서 push
-- ACTIVE_TASK.md를 건너뛰고 임의로 태스크 선택
-- 로드맵/백로그에 없는 기능을 임의로 구현
-- **루프를 멈추고 사용자 입력을 기다리는 것 (블로커가 없는 경우)**
+- 사용자가 요청하지 않은 백로그 항목을 자동 구현
+- 로드맵/사용자 요청에 없는 기능을 임의로 구현
+- 비밀/권한/운영환경 변경이 필요한 작업을 확인 없이 수행
 
 ### 루프 블로킹 조건
 
 다음 상황에서만 루프를 멈추고 ACTIVE_TASK.md에 블로커를 기록한다:
-- `go test ./...` 반복 실패 후 원인 불명
+- 관련 테스트 반복 실패 후 원인 불명
 - 완료 조건이 모호해서 구현 방향 결정 불가
+- 권한, 비밀, 외부 운영환경 접근이 필요함
 
 ---
 
@@ -82,7 +90,7 @@ This is the authoritative durable contract for all coding agents working on this
 - **제목**: 한 줄 설명
 - **구현 대상**: 어떤 파일/패키지
 - **완료 조건**:
-  - [ ] go test ./... 통과
+  - [ ] 관련 검증 통과 (`go test ./...`, frontend type-check, docs 검증 등)
   - [ ] 관련 기능 동작 확인
   - [ ] docs/CURRENT_STATUS.md 갱신
   - [ ] docs/backend-roadmap.md 해당 항목 체크
@@ -90,7 +98,9 @@ This is the authoritative durable contract for all coding agents working on this
 - **다음 태스크**: NEXT_STEPS.md의 항목명 (사전 예고만, 자동 변경 금지)
 ```
 
-에이전트는 이 파일만 읽는다. NEXT_STEPS.md는 완료 후 다음 태스크 선택 시에만 참조한다.
+하네스 루프에서는 `ACTIVE_TASK.md`를 durable source of truth로 사용한다.
+일반 대화형 요청에서는 사용자 프롬프트가 우선이며, `NEXT_STEPS.md`는
+연속 실행을 명시적으로 요청받았을 때만 다음 태스크 선택에 사용한다.
 
 ---
 
@@ -98,33 +108,36 @@ This is the authoritative durable contract for all coding agents working on this
 
 `.git/hooks/pre-commit`이 다음 두 조건을 강제한다:
 
-1. **`go test ./...` 통과** — 실패 시 커밋 차단
-2. **프로덕션 코드 변경 시 docs/ 동시 스테이징** — `internal/*.go` (테스트 제외) 또는 `migrations/*.sql` 변경 시 `docs/` 파일이 최소 1개 스테이징돼야 함
+1. **`go test -short ./...` 통과** — 실패 시 커밋 차단
+2. **프로덕션 코드 변경 시 docs/ 동시 스테이징** — `internal/*.go`, `cmd/*.go` (테스트 제외) 또는 `migrations/*.sql` 변경 시 `docs/` 파일이 최소 1개 스테이징돼야 함
 
 ---
 
 ## Push 정책
 
-`go test ./...`가 통과한 커밋만 `git push origin main`한다.
-실패 커밋은 로컬에서 수정 후 재커밋한다.
+pre-commit의 `go test -short ./...`가 통과한 커밋만 push한다.
+백엔드/프로토콜/공유 로직 변경은 push 전에 `go test ./...`를 추가로 실행한다.
+프론트엔드 변경은 해당 앱의 test/type-check를 실행한다.
 
 ---
 
 ## 커밋 규칙
 
 - **코드 + docs 반드시 같은 커밋** — 기능은 구현과 문서가 함께 있을 때 완료
-- **docs 단독 커밋 금지** — docs만 push된 경우 fixup 커밋으로 합칠 것
-- 커밋 메시지: `feat:`, `fix:`, `refactor:`, `test:`, `docs:` 컨벤셔널 형식
+- **docs 단독 커밋 허용** — 문서/하네스/런북 정비가 사용자 요청이거나 실제
+  상태 불일치를 고치는 경우 허용한다
+- 커밋 메시지: AGENTS.md의 Lore Commit Protocol을 따른다. 컨벤셔널 prefix는
+  선택 사항이며 Lore trailer를 대체하지 않는다.
 
 ---
 
 ## 컨텍스트 파일 읽기 순서
 
 작업 시작 전 반드시 읽어야 할 파일:
-1. `PROJECT_HARNESS.md` (이 파일)
-2. `docs/ACTIVE_TASK.md`
-3. `docs/backend-roadmap.md`
-4. `git log --oneline -10`
+1. `docs/ACTIVE_TASK.md`
+2. `PROJECT_HARNESS.md` (하네스/워크플로 판단이 필요한 경우)
+3. `docs/backend-roadmap.md` (제품 기능 범위 판단이 필요한 경우)
+4. `git log --oneline -10` (커밋/히스토리 판단이 필요한 경우)
 
 필요 시 추가로 읽는 파일:
 - `docs/CURRENT_STATUS.md`
@@ -222,7 +235,7 @@ gogomail은 극도의 성능, 확장성, 가용성을 갖춘 개발자 친화적
 ## 토큰 절약 원칙 (품질 유지 필수)
 
 gogomail의 품질은 다음 세 가지에 의존한다:
-1. `go test ./...` 통과 (강제, pre-commit hook)
+1. `go test -short ./...` 통과 (강제, pre-commit hook)
 2. 문서 동시 커밋 (강제, pre-commit hook)
 3. RFC 표준 준수 (아키텍처)
 
@@ -243,7 +256,7 @@ gogomail의 품질은 다음 세 가지에 의존한다:
 
 | 금지 항목 | 이유 |
 |----------|------|
-| `go test` 실행 생략 | 숨은 버그, 5375개 안전망 무효화 |
+| 필요한 테스트 실행 생략 | 숨은 버그, 테스트 안전망 무효화 |
 | 완료 조건 미확인 | 불완전한 구현, 다음 태스크 블로킹 |
 | 실패 테스트 스킵 | TDD 원칙 위반, 회귀 불가능 |
 | 문서 없이 커밋 | pre-commit hook 차단, push 실패 |
@@ -251,4 +264,4 @@ gogomail의 품질은 다음 세 가지에 의존한다:
 
 ---
 
-*Managed by make-harness. Last updated: 2026-05-08*
+*Managed by make-harness. Reviewed and pruned: 2026-05-31*

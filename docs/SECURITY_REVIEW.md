@@ -144,7 +144,7 @@ Primary risk areas covered in this pass:
 
 ### Dependencies
 
-- Go builds are pinned to patched toolchain `go1.26.3`, and both frontend apps
+- Go builds are pinned by `go.mod` to Go `1.25.7`, and both frontend apps
   override `postcss` to `^8.5.14` so production dependency audits are clean.
 
 ### Operational Observability
