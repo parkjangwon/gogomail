@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	"github.com/gogomail/gogomail/internal/delivery"
+	"github.com/gogomail/gogomail/internal/httpapi"
 	"github.com/gogomail/gogomail/internal/ldapgw"
 	smtpd "github.com/gogomail/gogomail/internal/smtp"
 )
@@ -84,6 +85,25 @@ func (a SlogAdapter) ObserveLDAP(ctx context.Context, event ldapgw.MetricEvent) 
 		return
 	}
 	logger.InfoContext(ctx, "ldap metric", attrs...)
+}
+
+func (a SlogAdapter) ObserveWebDAV(ctx context.Context, event httpapi.WebDAVMetricEvent) {
+	logger := a.logger()
+	attrs := []any{
+		"component", "webdav",
+		"protocol", "webdav",
+		"request_id", requestIDForEvent(ctx, "webdav", string(event.Method), string(event.Result), event.UserID, event.Path),
+		"method", event.Method,
+		"result", event.Result,
+		"user_id", event.UserID,
+		"path", event.Path,
+	}
+	if event.Error != "" {
+		attrs = append(attrs, "error", event.Error)
+		logger.WarnContext(ctx, "webdav metric", attrs...)
+		return
+	}
+	logger.InfoContext(ctx, "webdav metric", attrs...)
 }
 
 func (a SlogAdapter) ObserveRFCNonCompliance(compliance smtpd.RFCCompliance) {

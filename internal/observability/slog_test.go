@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/gogomail/gogomail/internal/delivery"
+	"github.com/gogomail/gogomail/internal/httpapi"
 	smtpd "github.com/gogomail/gogomail/internal/smtp"
 )
 
@@ -43,6 +44,25 @@ func TestSlogAdapterObservesDeliveryMetrics(t *testing.T) {
 	})
 	got := buf.String()
 	for _, want := range []string{"component=delivery", "protocol=smtp-delivery", "request_id=delivery-", "stage=throttled", "result=deferred", "msg-1", "route_pool=bulk-relay"} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("log = %q, want %q", got, want)
+		}
+	}
+}
+
+func TestSlogAdapterObservesWebDAVMetrics(t *testing.T) {
+	var buf bytes.Buffer
+	adapter := NewSlogAdapter(slog.New(slog.NewTextHandler(&buf, &slog.HandlerOptions{})))
+
+	adapter.ObserveWebDAV(context.Background(), httpapi.WebDAVMetricEvent{
+		Method: httpapi.WebDAVMethodPropfind,
+		Result: httpapi.WebDAVResultRejected,
+		UserID: "user-1",
+		Path:   "docs/report.txt",
+		Error:  "unauthorized",
+	})
+	got := buf.String()
+	for _, want := range []string{"component=webdav", "protocol=webdav", "request_id=webdav-", "method=PROPFIND", "result=rejected", "user-1", "unauthorized"} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("log = %q, want %q", got, want)
 		}

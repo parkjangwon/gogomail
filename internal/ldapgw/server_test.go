@@ -72,6 +72,63 @@ func newFakeDirectoryQuerier() *fakeDirectoryQuerier {
 	return &fakeDirectoryQuerier{principals: make([]PrincipalEntry, 0)}
 }
 
+func TestLDAPServerValidatesNilReceiverAndListener(t *testing.T) {
+	t.Parallel()
+
+	var srv *LDAPServer
+	if err := srv.Serve(); err == nil || !strings.Contains(err.Error(), "ldap server is nil") {
+		t.Fatalf("nil server Serve error = %v, want nil server rejection", err)
+	}
+	if err := srv.Close(); err != nil {
+		t.Fatalf("nil server Close returned error: %v", err)
+	}
+
+	srv = NewServer(nil, newFakeLDAPAuth(), newFakeDirectoryQuerier())
+	if err := srv.Serve(); err == nil || !strings.Contains(err.Error(), "ldap listener is required") {
+		t.Fatalf("nil listener Serve error = %v, want listener rejection", err)
+	}
+	if err := srv.Close(); err != nil {
+		t.Fatalf("nil listener Close returned error: %v", err)
+	}
+	if err := srv.Close(); err != nil {
+		t.Fatalf("second Close returned error: %v", err)
+	}
+}
+
+func TestLDAPServerObservesOversizedPDURejection(t *testing.T) {
+	t.Parallel()
+
+	metrics := &fakeLDAPMetrics{}
+	srv := NewServerWithOptions(nil, newFakeLDAPAuth(), newFakeDirectoryQuerier(), ServerOptions{Metrics: metrics})
+	client, serverConn := net.Pipe()
+	defer client.Close()
+
+	done := make(chan struct{})
+	go func() {
+		srv.handleConn(context.Background(), serverConn)
+		close(done)
+	}()
+
+	oversizedHeader := []byte{tagSequence, 0x84, 0x01, 0x00, 0x00, 0x01}
+	if _, err := client.Write(oversizedHeader); err != nil {
+		t.Fatalf("write oversized PDU header: %v", err)
+	}
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		t.Fatal("LDAP connection did not close after oversized PDU header")
+	}
+
+	events := metrics.snapshot()
+	if len(events) != 1 {
+		t.Fatalf("metrics events = %d, want 1", len(events))
+	}
+	event := events[0]
+	if event.Result != MetricRejected || event.ResultCode != resultProtocolError || event.Error == "" {
+		t.Fatalf("event = %+v, want rejected protocol error with detail", event)
+	}
+}
+
 func (f *fakeDirectoryQuerier) SearchPrincipals(ctx context.Context, req DirectorySearchRequest) ([]PrincipalEntry, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()

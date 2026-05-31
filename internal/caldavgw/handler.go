@@ -234,6 +234,13 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	cmdStart := time.Now()
+	metricsWriter := newCalDAVMetricsResponseWriter(w)
+	w = metricsWriter
+	defer func() {
+		if metricsWriter.status >= http.StatusBadRequest {
+			h.recordError(userID)
+		}
+	}()
 
 	if r.URL.Path == WellKnownCalDAVPath {
 		h.serveWellKnown(w, r)
@@ -277,6 +284,36 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.recordCommand(userID, time.Since(cmdStart))
+}
+
+type calDAVMetricsResponseWriter struct {
+	http.ResponseWriter
+	status int
+	wrote  bool
+}
+
+func newCalDAVMetricsResponseWriter(w http.ResponseWriter) *calDAVMetricsResponseWriter {
+	return &calDAVMetricsResponseWriter{ResponseWriter: w, status: http.StatusOK}
+}
+
+func (w *calDAVMetricsResponseWriter) WriteHeader(status int) {
+	if w.wrote {
+		return
+	}
+	w.status = status
+	w.wrote = true
+	w.ResponseWriter.WriteHeader(status)
+}
+
+func (w *calDAVMetricsResponseWriter) Write(p []byte) (int, error) {
+	if !w.wrote {
+		w.WriteHeader(http.StatusOK)
+	}
+	return w.ResponseWriter.Write(p)
+}
+
+func (w *calDAVMetricsResponseWriter) Unwrap() http.ResponseWriter {
+	return w.ResponseWriter
 }
 
 func (h *Handler) serveWellKnown(w http.ResponseWriter, r *http.Request) {

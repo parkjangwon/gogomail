@@ -68,7 +68,7 @@ func RunServer(ctx context.Context, opts ServerOptions) error {
 	errCh := make(chan error, 1)
 	go func() {
 		logger.Info("smtp server listening", "addr", opts.Addr, "domain", opts.Domain, "implicit_tls", opts.ImplicitTLS)
-		errCh <- listenAndServeSMTP(server, opts.ImplicitTLS, opts.MaxConnections)
+		errCh <- listenAndServeSMTP(server, opts.ImplicitTLS, opts.MaxConnections, logger)
 	}()
 
 	select {
@@ -101,7 +101,7 @@ func newSMTPServer(backend gosmtp.Backend, opts ServerOptions) *gosmtp.Server {
 	return server
 }
 
-func listenAndServeSMTP(server *gosmtp.Server, implicitTLS bool, maxConnections int) error {
+func listenAndServeSMTP(server *gosmtp.Server, implicitTLS bool, maxConnections int, logger *slog.Logger) error {
 	network := "tcp"
 	addr := server.Addr
 	if strings.TrimSpace(addr) == "" {
@@ -122,23 +122,28 @@ func listenAndServeSMTP(server *gosmtp.Server, implicitTLS bool, maxConnections 
 		return err
 	}
 	if maxConnections > 0 {
-		listener = newSMTPConnectionLimitListener(listener, maxConnections)
+		listener = newSMTPConnectionLimitListener(listener, maxConnections, logger)
 	}
 	return server.Serve(listener)
 }
 
 type smtpConnectionLimitListener struct {
 	net.Listener
-	slots chan struct{}
+	slots  chan struct{}
+	logger *slog.Logger
 }
 
-func newSMTPConnectionLimitListener(listener net.Listener, maxConnections int) net.Listener {
+func newSMTPConnectionLimitListener(listener net.Listener, maxConnections int, logger *slog.Logger) net.Listener {
 	if maxConnections <= 0 {
 		return listener
+	}
+	if logger == nil {
+		logger = slog.Default()
 	}
 	return &smtpConnectionLimitListener{
 		Listener: listener,
 		slots:    make(chan struct{}, maxConnections),
+		logger:   logger,
 	}
 }
 
@@ -152,7 +157,7 @@ func (l *smtpConnectionLimitListener) Accept() (net.Conn, error) {
 		case l.slots <- struct{}{}:
 			return &smtpConnectionLimitConn{Conn: conn, release: func() { <-l.slots }}, nil
 		default:
-			rejectSMTPConnectionOverLimit(conn)
+			rejectSMTPConnectionOverLimit(conn, l.logger, cap(l.slots))
 		}
 	}
 }
@@ -169,7 +174,17 @@ func (c *smtpConnectionLimitConn) Close() error {
 	return err
 }
 
-func rejectSMTPConnectionOverLimit(conn net.Conn) {
+func rejectSMTPConnectionOverLimit(conn net.Conn, logger *slog.Logger, maxConnections int) {
+	if logger != nil {
+		remote := ""
+		if conn != nil && conn.RemoteAddr() != nil {
+			remote = conn.RemoteAddr().String()
+		}
+		logger.Warn("smtp connection rejected", "reason", "connection_limit", "remote_addr", remote, "max_connections", maxConnections)
+	}
+	if conn == nil {
+		return
+	}
 	_ = conn.SetWriteDeadline(time.Now().Add(2 * time.Second))
 	_, _ = io.WriteString(conn, "421 4.3.2 Too many connections, try again later\r\n")
 	_ = conn.Close()

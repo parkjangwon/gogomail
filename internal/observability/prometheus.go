@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/gogomail/gogomail/internal/delivery"
+	"github.com/gogomail/gogomail/internal/httpapi"
 	"github.com/gogomail/gogomail/internal/ldapgw"
 	smtpd "github.com/gogomail/gogomail/internal/smtp"
 )
@@ -18,6 +19,7 @@ import (
 var _ smtpd.Metrics = (*PrometheusAdapter)(nil)
 var _ delivery.Metrics = (*PrometheusAdapter)(nil)
 var _ ldapgw.Metrics = (*PrometheusAdapter)(nil)
+var _ httpapi.WebDAVMetrics = (*PrometheusAdapter)(nil)
 
 var durationBuckets = []float64{.005, .01, .025, .05, .1, .25, .5, 1, 2.5, 5, 10}
 
@@ -85,6 +87,13 @@ func (a *PrometheusAdapter) ObserveLDAP(_ context.Context, event ldapgw.MetricEv
 	a.inc("gogomail_ldap_events_total", map[string]string{
 		"operation": event.Operation,
 		"result":    string(event.Result),
+	})
+}
+
+func (a *PrometheusAdapter) ObserveWebDAV(_ context.Context, event httpapi.WebDAVMetricEvent) {
+	a.inc("gogomail_webdav_events_total", map[string]string{
+		"method": string(event.Method),
+		"result": string(event.Result),
 	})
 }
 

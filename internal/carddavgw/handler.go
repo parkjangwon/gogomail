@@ -186,6 +186,13 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	cmdStart := time.Now()
+	metricsWriter := newCardDAVMetricsResponseWriter(w)
+	w = metricsWriter
+	defer func() {
+		if metricsWriter.status >= http.StatusBadRequest {
+			h.recordError(userID)
+		}
+	}()
 
 	if r.URL.Path == WellKnownCardDAVPath {
 		h.serveWellKnown(w, r)
@@ -217,6 +224,36 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.recordCommand(userID, time.Since(cmdStart))
+}
+
+type cardDAVMetricsResponseWriter struct {
+	http.ResponseWriter
+	status int
+	wrote  bool
+}
+
+func newCardDAVMetricsResponseWriter(w http.ResponseWriter) *cardDAVMetricsResponseWriter {
+	return &cardDAVMetricsResponseWriter{ResponseWriter: w, status: http.StatusOK}
+}
+
+func (w *cardDAVMetricsResponseWriter) WriteHeader(status int) {
+	if w.wrote {
+		return
+	}
+	w.status = status
+	w.wrote = true
+	w.ResponseWriter.WriteHeader(status)
+}
+
+func (w *cardDAVMetricsResponseWriter) Write(p []byte) (int, error) {
+	if !w.wrote {
+		w.WriteHeader(http.StatusOK)
+	}
+	return w.ResponseWriter.Write(p)
+}
+
+func (w *cardDAVMetricsResponseWriter) Unwrap() http.ResponseWriter {
+	return w.ResponseWriter
 }
 
 type cardDAVUnauthorizedChallenge interface {

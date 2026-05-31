@@ -1,6 +1,15 @@
 # gogomail current status
 
-Last updated: 2026-05-28 (full-stack test run — CSP dev fix + seed admin role fix)
+Last updated: 2026-05-31 (backend protocol hardening + drive helper regression coverage)
+
+## Backend protocol hardening + helper regression coverage (2026-05-31)
+
+- **Protocol gateway observability**: IMAP, POP3, CalDAV, CardDAV, LDAP, SMTP, and WebDAV now have more consistent operational tracking for connection attempts, command/error counts, connection-limit rejections, and structured logs where relevant.
+- **RFC/defensive input handling**: POP3 now enforces the 512-octet command-line limit and avoids nil-store panics; LDAP now rejects malformed or oversized BER PDUs as protocol errors with metrics; SMTP over-limit rejects are logged with rejection context.
+- **Metrics runtime wiring**: protocol metrics are attached from app startup paths, WebDAV metrics are exposed through slog/prometheus adapters, and LDAP/WebDAV runtime paths start the metrics server when configured.
+- **Admin/query helper hardening**: bounded admin query/path parsing now shares the same CR/LF and size validation path, with regression coverage.
+- **Webmail drive helper coverage**: Drive helper usage refresh logic was split into a typed helper and added to the webmail helper test chain.
+- **Verified**: `go test ./... && go build ./...`, `pnpm --dir apps/webmail test`, `pnpm --dir apps/console type-check`, and `git diff --check`.
 
 ## Full-stack test run (2026-05-28)
 

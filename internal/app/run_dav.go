@@ -37,6 +37,7 @@ func runCalDAVGateway(ctx context.Context, cfg config.Config, logger *slog.Logge
 		return fmt.Errorf("invalid caldav trusted proxies: %w", err)
 	}
 	handler := caldavgw.NewHandler(calendarRepository, resolver.Resolve)
+	handler.SetMetrics(newProtocolGatewayMetrics(logger))
 	handler.IncludeScheduling = cfg.CalDAVScheduling
 	handler.AccessAuthorizer = caldavgw.DelegatedAccessPolicy{
 		Directory: directoryRepository,
@@ -98,6 +99,7 @@ func runCardDAVGateway(ctx context.Context, cfg config.Config, logger *slog.Logg
 		return fmt.Errorf("invalid carddav trusted proxies: %w", err)
 	}
 	handler := carddavgw.NewHandler(addressBookRepository, resolver.Resolve)
+	handler.SetMetrics(newProtocolGatewayMetrics(logger))
 	handler.AccessAuthorizer = carddavgw.DelegatedAccessPolicy{
 		Directory: directoryRepository,
 		Authorizer: accesspolicy.DelegatedAccessAuthorizer{
@@ -163,10 +165,12 @@ func runWebDAVGateway(ctx context.Context, cfg config.Config, logger *slog.Logge
 	mux := http.NewServeMux()
 	opts := httpapi.WebDAVRouteOptions{
 		DepthInfinityEnabled: cfg.WebDAVDepthInfinityEnabled,
+		Metrics:              webDAVMetrics(cfg, logger),
 		TokenManager:         tokenManager,
 	}
 	httpapi.RegisterWebDAVRoutes(mux, webdavSvc, opts)
 	server := newWebDAVHTTPServer(cfg, mux)
+	go serveMetrics(ctx, cfg, logger)
 
 	errCh := make(chan error, 1)
 	go func() {

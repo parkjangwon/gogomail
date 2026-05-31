@@ -25,6 +25,7 @@ import (
 	"unicode/utf8"
 
 	messageparse "github.com/gogomail/gogomail/internal/message"
+	"github.com/gogomail/gogomail/internal/protocolmetrics"
 )
 
 func TestNewServerValidatesListenerOptions(t *testing.T) {
@@ -142,6 +143,63 @@ func TestServerServeConnAppliesIdleTimeout(t *testing.T) {
 	}
 }
 
+func TestServerMetricsCountSingleConnectionAcrossAuthentication(t *testing.T) {
+	t.Parallel()
+
+	server, err := NewServer(ServerOptions{
+		Addr:              "127.0.0.1:0",
+		Backend:           fakeBackend{},
+		AllowInsecureAuth: true,
+		WriteTimeout:      time.Second,
+	})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	metrics := protocolmetrics.NewGatewayMetrics()
+	metrics.SetLogger(nil)
+	server.SetMetrics(metrics)
+
+	client, backend := net.Pipe()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if line, err := reader.ReadString('\n'); err != nil || !strings.HasPrefix(line, "* OK ") {
+		t.Fatalf("greeting = %q, err = %v", line, err)
+	}
+	if _, err := io.WriteString(client, "a1 LOGIN user@example.com secret\r\n"); err != nil {
+		t.Fatalf("write LOGIN: %v", err)
+	}
+	readUntilPrefix(t, reader, "a1 OK ")
+	if err := client.Close(); err != nil {
+		t.Fatalf("close client: %v", err)
+	}
+	select {
+	case err := <-errCh:
+		if err != nil && !errors.Is(err, io.ErrClosedPipe) {
+			t.Fatalf("ServeConn returned error: %v", err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("ServeConn did not exit after client close")
+	}
+
+	snap := metrics.Snapshot()
+	if snap.TotalConnectAttempts != 1 {
+		t.Fatalf("TotalConnectAttempts = %d, want 1", snap.TotalConnectAttempts)
+	}
+	if snap.TotalDisconnects != 1 {
+		t.Fatalf("TotalDisconnects = %d, want 1", snap.TotalDisconnects)
+	}
+	if snap.ConnectedUsers != 0 {
+		t.Fatalf("ConnectedUsers = %d, want 0", snap.ConnectedUsers)
+	}
+	if snap.CommandsProcessed != 1 {
+		t.Fatalf("CommandsProcessed = %d, want 1", snap.CommandsProcessed)
+	}
+}
+
 func readUntilPrefix(t *testing.T, reader *bufio.Reader, prefix string) string {
 	t.Helper()
 	deadline := time.Now().Add(time.Second)
@@ -166,6 +224,9 @@ func TestServerServeRejectsConnectionsOverLimit(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewServer returned error: %v", err)
 	}
+	metrics := protocolmetrics.NewGatewayMetrics()
+	metrics.SetLogger(nil)
+	server.SetMetrics(metrics)
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatalf("Listen returned error: %v", err)
@@ -208,6 +269,9 @@ func TestServerServeRejectsConnectionsOverLimit(t *testing.T) {
 	}
 	if line != "* BYE [ALERT] gogomail IMAP4rev1 server connection limit reached\r\n" {
 		t.Fatalf("over-limit response = %q", line)
+	}
+	if got := metrics.Snapshot().ConnectionLimitExceeded; got != 1 {
+		t.Fatalf("ConnectionLimitExceeded = %d, want 1", got)
 	}
 
 	if err := first.Close(); err != nil {

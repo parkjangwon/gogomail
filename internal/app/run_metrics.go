@@ -17,12 +17,13 @@ import (
 
 	"github.com/redis/go-redis/v9"
 
-	"github.com/gogomail/gogomail/internal/apimeter"
 	"github.com/gogomail/gogomail/internal/apikeys"
+	"github.com/gogomail/gogomail/internal/apimeter"
 	"github.com/gogomail/gogomail/internal/auth"
 	"github.com/gogomail/gogomail/internal/config"
 	"github.com/gogomail/gogomail/internal/delivery"
 	"github.com/gogomail/gogomail/internal/dkim"
+	"github.com/gogomail/gogomail/internal/httpapi"
 	ldapgw "github.com/gogomail/gogomail/internal/ldapgw"
 	"github.com/gogomail/gogomail/internal/maildb"
 	"github.com/gogomail/gogomail/internal/observability"
@@ -51,6 +52,16 @@ func deliveryMetrics(cfg config.Config, logger *slog.Logger) delivery.Metrics {
 }
 
 func ldapMetrics(cfg config.Config, logger *slog.Logger) ldapgw.Metrics {
+	switch cfg.MetricsBackend {
+	case "slog":
+		return observability.NewSlogAdapter(logger)
+	case "prometheus":
+		return sharedPrometheusAdapter()
+	}
+	return nil
+}
+
+func webDAVMetrics(cfg config.Config, logger *slog.Logger) httpapi.WebDAVMetrics {
 	switch cfg.MetricsBackend {
 	case "slog":
 		return observability.NewSlogAdapter(logger)

@@ -10,6 +10,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/gogomail/gogomail/internal/protocolmetrics"
 )
 
 var errFakeCardDAVNotFound = errors.New("not found")
@@ -21,6 +23,36 @@ func assertCacheControlContains(t *testing.T, rec *httptest.ResponseRecorder, va
 		if !strings.Contains(got, value) {
 			t.Fatalf("Cache-Control = %q, missing %q", got, value)
 		}
+	}
+}
+
+func TestHandlerRecordsMetricsErrorsFromHTTPStatus(t *testing.T) {
+	t.Parallel()
+
+	handler := NewHandler(testCardDAVDiscoveryStore(t), func(*http.Request) (string, error) {
+		return "user-1", nil
+	})
+	metrics := protocolmetrics.NewGatewayMetrics()
+	metrics.SetLogger(nil)
+	handler.SetMetrics(metrics)
+
+	req := httptest.NewRequest(http.MethodTrace, "/carddav/addressbooks/user-1/", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusMethodNotAllowed {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusMethodNotAllowed)
+	}
+	snap := metrics.Snapshot()
+	if snap.CommandsProcessed != 1 {
+		t.Fatalf("CommandsProcessed = %d, want 1", snap.CommandsProcessed)
+	}
+	if snap.CommandErrors != 1 {
+		t.Fatalf("CommandErrors = %d, want 1", snap.CommandErrors)
+	}
+	_, commands, errors := metrics.GetUserMetrics("user-1")
+	if commands != 1 || errors != 1 {
+		t.Fatalf("user metrics commands=%d errors=%d, want 1/1", commands, errors)
 	}
 }
 

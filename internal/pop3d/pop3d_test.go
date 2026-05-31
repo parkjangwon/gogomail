@@ -2,6 +2,7 @@ package pop3d
 
 import (
 	"bufio"
+	"context"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/tls"
@@ -17,6 +18,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/gogomail/gogomail/internal/protocolmetrics"
 )
 
 type mockMailbox struct {
@@ -290,6 +293,110 @@ func pop3Cmd(t *testing.T, tp *textproto.Conn, expected string, format string, a
 		t.Fatalf("expected %s, got: %s", expected, line)
 	}
 	return line
+}
+
+func TestPOP3RecordsProtocolMetrics(t *testing.T) {
+	server, listener := newTestServer(t)
+	metrics := protocolmetrics.NewGatewayMetrics()
+	metrics.SetLogger(nil)
+	server.SetMetrics(metrics)
+
+	tp := pop3Conn(t, listener.Addr().String())
+	pop3Login(t, tp)
+	pop3Cmd(t, tp, "+OK", "STAT")
+	pop3Cmd(t, tp, "-ERR", "BOGUS")
+	pop3Cmd(t, tp, "+OK", "QUIT")
+	tp.Close()
+
+	deadline := time.Now().Add(time.Second)
+	for metrics.Snapshot().TotalDisconnects != 1 {
+		if time.Now().After(deadline) {
+			t.Fatalf("TotalDisconnects = %d, want 1", metrics.Snapshot().TotalDisconnects)
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	snap := metrics.Snapshot()
+	if snap.TotalConnectAttempts != 1 {
+		t.Fatalf("TotalConnectAttempts = %d, want 1", snap.TotalConnectAttempts)
+	}
+	if snap.ConnectedUsers != 0 {
+		t.Fatalf("ConnectedUsers = %d, want 0", snap.ConnectedUsers)
+	}
+	if snap.CommandsProcessed != 5 {
+		t.Fatalf("CommandsProcessed = %d, want 5", snap.CommandsProcessed)
+	}
+	if snap.CommandErrors != 1 {
+		t.Fatalf("CommandErrors = %d, want 1", snap.CommandErrors)
+	}
+	_, commands, errors := metrics.GetUserMetrics("alice")
+	if commands != 5 {
+		t.Fatalf("alice commands = %d, want 5", commands)
+	}
+	if errors != 1 {
+		t.Fatalf("alice errors = %d, want 1", errors)
+	}
+}
+
+func TestPOP3ServeValidatesReceiverAndListener(t *testing.T) {
+	t.Parallel()
+
+	var server *Server
+	if err := server.Serve(nil); err == nil {
+		t.Fatal("nil server Serve error = nil")
+	}
+	if err := (&Server{}).Serve(nil); err == nil {
+		t.Fatal("nil listener Serve error = nil")
+	}
+	if err := server.Close(); err != nil {
+		t.Fatalf("nil server Close returned error: %v", err)
+	}
+	if err := server.Shutdown(context.Background()); err != nil {
+		t.Fatalf("nil server Shutdown returned error: %v", err)
+	}
+}
+
+func TestPOP3AuthWithoutStoreFailsWithoutPanic(t *testing.T) {
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listen: %v", err)
+	}
+	defer listener.Close()
+	server := &Server{
+		Greeting:    "test",
+		IdleTimeout: 5 * time.Second,
+	}
+	defer server.Close()
+	go func() { _ = server.Serve(listener) }()
+
+	tp := pop3Conn(t, listener.Addr().String())
+	defer tp.Close()
+	pop3Cmd(t, tp, "+OK", "USER alice")
+	pop3Cmd(t, tp, "-ERR", "PASS secret")
+}
+
+func TestPOP3RejectsOverlongCommandLine(t *testing.T) {
+	_, listener := newTestServer(t)
+	tp := pop3ConnWithDeadline(t, listener.Addr().String(), time.Second)
+	defer tp.Close()
+
+	id, err := tp.Cmd("%s", strings.Repeat("X", maxPOP3LineOctets+1))
+	if err != nil {
+		t.Fatalf("cmd: %v", err)
+	}
+	tp.StartResponse(id)
+	line, err := tp.ReadLine()
+	if err != nil {
+		t.Fatalf("read overlong response: %v", err)
+	}
+	if !strings.HasPrefix(line, "-ERR line too long") {
+		t.Fatalf("overlong response = %q", line)
+	}
+	tp.EndResponse(id)
+
+	if _, err := tp.ReadLine(); err == nil {
+		t.Fatal("expected server to close connection after overlong command")
+	}
 }
 
 func pop3BeginAuth(t *testing.T, tp *textproto.Conn, command string) uint {
@@ -998,6 +1105,9 @@ func TestPOP3RejectsConnectionsOverLimit(t *testing.T) {
 		IdleTimeout:    5 * time.Second,
 		MaxConnections: 1,
 	}
+	metrics := protocolmetrics.NewGatewayMetrics()
+	metrics.SetLogger(nil)
+	server.SetMetrics(metrics)
 	go func() { _ = server.Serve(listener) }()
 
 	first := pop3Conn(t, listener.Addr().String())
@@ -1014,6 +1124,9 @@ func TestPOP3RejectsConnectionsOverLimit(t *testing.T) {
 	}
 	if !strings.HasPrefix(line, "-ERR") {
 		t.Fatalf("expected -ERR connection-limit rejection, got %s", line)
+	}
+	if got := metrics.Snapshot().ConnectionLimitExceeded; got != 1 {
+		t.Fatalf("ConnectionLimitExceeded = %d, want 1", got)
 	}
 	second.Close()
 }

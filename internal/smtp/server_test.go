@@ -2,8 +2,10 @@ package smtpd
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"crypto/tls"
+	"log/slog"
 	"net"
 	"strings"
 	"testing"
@@ -95,7 +97,9 @@ func TestSMTPConnectionLimitListenerRejectsExcessConnections(t *testing.T) {
 		t.Fatalf("Listen returned error: %v", err)
 	}
 	t.Cleanup(func() { _ = base.Close() })
-	limited := newSMTPConnectionLimitListener(base, 1)
+	var logs bytes.Buffer
+	logger := slog.New(slog.NewTextHandler(&logs, nil))
+	limited := newSMTPConnectionLimitListener(base, 1, logger)
 
 	firstAccept := make(chan net.Conn, 1)
 	go func() {
@@ -127,6 +131,10 @@ func TestSMTPConnectionLimitListenerRejectsExcessConnections(t *testing.T) {
 	}
 	if !strings.HasPrefix(line, "421 4.3.2 Too many connections") {
 		t.Fatalf("over-limit banner = %q", line)
+	}
+	gotLog := logs.String()
+	if !strings.Contains(gotLog, "smtp connection rejected") || !strings.Contains(gotLog, "connection_limit") {
+		t.Fatalf("connection-limit log = %q, want rejection context", gotLog)
 	}
 
 	if err := server1.Close(); err != nil {

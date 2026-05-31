@@ -6,6 +6,7 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/base64"
+	"errors"
 	"net"
 	"net/textproto"
 	"strconv"
@@ -38,6 +39,16 @@ type Store interface {
 	Authenticate(user, pass string) (Mailbox, error)
 }
 
+// gatewayMetrics is the minimal interface pop3d uses for observability.
+// *protocolmetrics.GatewayMetrics satisfies this interface.
+type gatewayMetrics interface {
+	RecordConnect(userID string)
+	RecordDisconnect()
+	RecordCommand(userID string, duration time.Duration)
+	RecordError(userID string)
+	RecordConnectionLimitExceeded()
+}
+
 // Server is a POP3 server.
 type Server struct {
 	Store          Store
@@ -49,6 +60,7 @@ type Server struct {
 	listeners      []net.Listener
 	maildrops      map[string]struct{}
 	authTracker    *pop3AuthFailureTracker
+	metrics        gatewayMetrics
 	wg             sync.WaitGroup
 	ctx            context.Context
 	cancel         context.CancelFunc
@@ -67,6 +79,12 @@ func (s *Server) shutdownCtx() context.Context {
 
 // Serve accepts connections on the listener.
 func (s *Server) Serve(ln net.Listener) error {
+	if s == nil {
+		return errors.New("pop3 server is nil")
+	}
+	if ln == nil {
+		return errors.New("pop3 listener is required")
+	}
 	srvCtx := s.shutdownCtx()
 	s.mu.Lock()
 	s.listeners = append(s.listeners, ln)
@@ -85,6 +103,7 @@ func (s *Server) Serve(ln net.Listener) error {
 			return err
 		}
 		if !acquireConnectionSlot(slots) {
+			s.recordConnectionLimitExceeded()
 			rejectConnectionLimit(conn)
 			continue
 		}
@@ -122,8 +141,60 @@ func rejectConnectionLimit(conn net.Conn) {
 	_ = conn.Close()
 }
 
+// SetMetrics sets optional metrics collector for gateway observability.
+func (s *Server) SetMetrics(metrics gatewayMetrics) {
+	if s == nil {
+		return
+	}
+	s.mu.Lock()
+	s.metrics = metrics
+	s.mu.Unlock()
+}
+
+func (s *Server) metricsCollector() gatewayMetrics {
+	if s == nil {
+		return nil
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.metrics
+}
+
+func (s *Server) recordConnect(userID string) {
+	if m := s.metricsCollector(); m != nil {
+		m.RecordConnect(userID)
+	}
+}
+
+func (s *Server) recordDisconnect() {
+	if m := s.metricsCollector(); m != nil {
+		m.RecordDisconnect()
+	}
+}
+
+func (s *Server) recordCommand(userID string, duration time.Duration) {
+	if m := s.metricsCollector(); m != nil {
+		m.RecordCommand(userID, duration)
+	}
+}
+
+func (s *Server) recordError(userID string) {
+	if m := s.metricsCollector(); m != nil {
+		m.RecordError(userID)
+	}
+}
+
+func (s *Server) recordConnectionLimitExceeded() {
+	if m := s.metricsCollector(); m != nil {
+		m.RecordConnectionLimitExceeded()
+	}
+}
+
 // Close closes all active listeners.
 func (s *Server) Close() error {
+	if s == nil {
+		return nil
+	}
 	s.mu.Lock()
 	for _, ln := range s.listeners {
 		ln.Close()
@@ -141,6 +212,9 @@ func (s *Server) Close() error {
 // in-flight handleConn goroutines to finish. It returns ctx.Err() if the given
 // context expires before all goroutines exit.
 func (s *Server) Shutdown(ctx context.Context) error {
+	if s == nil {
+		return nil
+	}
 	_ = s.Close()
 	done := make(chan struct{})
 	go func() {
@@ -174,6 +248,9 @@ type session struct {
 }
 
 func (s *Server) handleConn(ctx context.Context, conn net.Conn) {
+	s.recordConnect("unauthenticated")
+	defer s.recordDisconnect()
+
 	idle := s.IdleTimeout
 	if idle == 0 {
 		idle = 30 * time.Minute
@@ -216,11 +293,13 @@ func (s *Server) handleConn(ctx context.Context, conn net.Conn) {
 	sess.writeLine("+OK " + greeting)
 
 	for {
-		line, err := sess.reader.ReadString('\n')
+		line, err := readPOP3Line(sess.reader)
 		if err != nil {
+			if errors.Is(err, errPOP3LineTooLong) {
+				sess.writeERR("line too long")
+			}
 			return
 		}
-		line = strings.TrimRight(line, "\r\n")
 		if ctx != nil {
 			select {
 			case <-ctx.Done():
@@ -229,7 +308,34 @@ func (s *Server) handleConn(ctx context.Context, conn net.Conn) {
 			}
 		}
 		_ = conn.SetDeadline(time.Now().Add(idle))
+		cmdStart := time.Now()
 		sess.handleCommand(line)
+		s.recordCommand(sess.metricsUserID(), time.Since(cmdStart))
+	}
+}
+
+const maxPOP3LineOctets = 512
+
+var errPOP3LineTooLong = errors.New("pop3 line too long")
+
+func readPOP3Line(reader *bufio.Reader) (string, error) {
+	if reader == nil {
+		return "", errors.New("pop3 reader is required")
+	}
+	var line []byte
+	for {
+		fragment, err := reader.ReadSlice('\n')
+		if len(line)+len(fragment) > maxPOP3LineOctets {
+			return "", errPOP3LineTooLong
+		}
+		line = append(line, fragment...)
+		if err == nil {
+			return strings.TrimRight(string(line), "\r\n"), nil
+		}
+		if errors.Is(err, bufio.ErrBufferFull) {
+			continue
+		}
+		return "", err
 	}
 }
 
@@ -249,6 +355,9 @@ func (sess *session) writeOK(msg string) {
 }
 
 func (sess *session) writeERR(msg string) {
+	if sess != nil && sess.server != nil {
+		sess.server.recordError(sess.metricsUserID())
+	}
 	sess.writeStatusLine("-ERR", msg)
 }
 
@@ -340,12 +449,15 @@ func (sess *session) handleAuth(cmd, arg1, arg2 string, argc int) {
 				encoded = arg2
 			} else {
 				sess.writeLine("+ ")
-				line, err := sess.reader.ReadString('\n')
+				line, err := readPOP3Line(sess.reader)
 				if err != nil {
+					if errors.Is(err, errPOP3LineTooLong) {
+						sess.writeERR("line too long")
+					}
 					sess.conn.Close()
 					return
 				}
-				encoded = strings.TrimRight(line, "\r\n")
+				encoded = line
 				if encoded == "*" {
 					sess.writeERR("authentication cancelled")
 					return
@@ -368,12 +480,15 @@ func (sess *session) handleAuth(cmd, arg1, arg2 string, argc int) {
 				return
 			}
 			sess.writeLine("+ " + base64.StdEncoding.EncodeToString([]byte("Username:")))
-			userLine, err := sess.reader.ReadString('\n')
+			userLine, err := readPOP3Line(sess.reader)
 			if err != nil {
+				if errors.Is(err, errPOP3LineTooLong) {
+					sess.writeERR("line too long")
+				}
 				sess.conn.Close()
 				return
 			}
-			userEncoded := strings.TrimRight(userLine, "\r\n")
+			userEncoded := userLine
 			if userEncoded == "*" {
 				sess.writeERR("authentication cancelled")
 				return
@@ -384,12 +499,15 @@ func (sess *session) handleAuth(cmd, arg1, arg2 string, argc int) {
 				return
 			}
 			sess.writeLine("+ " + base64.StdEncoding.EncodeToString([]byte("Password:")))
-			passLine, err := sess.reader.ReadString('\n')
+			passLine, err := readPOP3Line(sess.reader)
 			if err != nil {
+				if errors.Is(err, errPOP3LineTooLong) {
+					sess.writeERR("line too long")
+				}
 				sess.conn.Close()
 				return
 			}
-			passEncoded := strings.TrimRight(passLine, "\r\n")
+			passEncoded := passLine
 			if passEncoded == "*" {
 				sess.writeERR("authentication cancelled")
 				return
@@ -409,6 +527,10 @@ func (sess *session) handleAuth(cmd, arg1, arg2 string, argc int) {
 }
 
 func (sess *session) authenticate(user, pass string) {
+	if sess.server == nil || sess.server.Store == nil {
+		sess.writeERR("authentication failed")
+		return
+	}
 	ip := pop3RemoteAddrIP(sess.conn.RemoteAddr())
 	tracker := sess.server.getAuthTracker()
 	if tracker.isLocked(ip) {
@@ -428,12 +550,24 @@ func (sess *session) authenticate(user, pass string) {
 	}
 	sess.mailbox = mb
 	sess.release = release
+	sess.user = user
 	sess.state = stateTransaction
 	sess.writeOK("mailbox ready")
 }
 
 func (sess *session) extractUser() string {
 	return sess.user
+}
+
+func (sess *session) metricsUserID() string {
+	if sess == nil {
+		return "unknown"
+	}
+	user := strings.TrimSpace(sess.user)
+	if user == "" {
+		return "unauthenticated"
+	}
+	return user
 }
 
 func (sess *session) releaseMaildropLock() {

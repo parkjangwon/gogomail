@@ -929,21 +929,16 @@ func parseBoundedAdminQuery(w http.ResponseWriter, r *http.Request, key string) 
 	if !ok {
 		return "", false
 	}
-	value = strings.TrimSpace(value)
-	if strings.ContainsAny(value, "\r\n") {
-		writeError(w, http.StatusBadRequest, key+" must not contain CR or LF")
-		return "", false
-	}
-	if len(value) > maxAdminQueryFilterBytes {
-		writeError(w, http.StatusBadRequest, key+" is too long")
-		return "", false
-	}
-	return value, true
+	return parseBoundedAdminValue(w, key, value, false)
 }
 
 func parseBoundedAdminPathValue(w http.ResponseWriter, r *http.Request, key string) (string, bool) {
-	value := strings.TrimSpace(r.PathValue(key))
-	if value == "" {
+	return parseBoundedAdminValue(w, key, r.PathValue(key), true)
+}
+
+func parseBoundedAdminValue(w http.ResponseWriter, key string, raw string, required bool) (string, bool) {
+	value := strings.TrimSpace(raw)
+	if required && value == "" {
 		writeError(w, http.StatusBadRequest, key+" is required")
 		return "", false
 	}
