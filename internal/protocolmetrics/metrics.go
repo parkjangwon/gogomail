@@ -9,25 +9,25 @@ import (
 // GatewayMetrics tracks performance and usage metrics for protocol gateways (IMAP, CalDAV, CardDAV)
 type GatewayMetrics struct {
 	// Connection tracking
-	connectedUsers          int64
-	peakConnectedUsers      int64
-	totalConnectAttempts    int64
-	totalDisconnects        int64
+	connectedUsers       int64
+	peakConnectedUsers   int64
+	totalConnectAttempts int64
+	totalDisconnects     int64
 
 	// Command/Operation tracking
-	commandsProcessed       int64
-	commandErrors           int64
-	totalCommandDuration    int64  // nanoseconds
+	commandsProcessed    int64
+	commandErrors        int64
+	totalCommandDuration int64 // nanoseconds
 
 	// Rate limit tracking
 	rateLimitExceeded       int64
 	connectionLimitExceeded int64
 
 	// Per-user tracking (map protected by mutex)
-	mu                sync.RWMutex
-	userConnections   map[string]int64
-	userCommands      map[string]int64
-	userErrors        map[string]int64
+	mu              sync.RWMutex
+	userConnections map[string]int64
+	userCommands    map[string]int64
+	userErrors      map[string]int64
 
 	startTime time.Time
 	logger    *Logger // Optional structured logging
@@ -99,6 +99,10 @@ func (m *GatewayMetrics) RecordCommand(userID string, duration time.Duration) {
 	m.mu.Lock()
 	m.userCommands[userID]++
 	m.mu.Unlock()
+
+	if m.logger != nil {
+		m.logger.LogCommand(userID, duration, true)
+	}
 }
 
 // RecordError records a command/operation error
@@ -137,6 +141,10 @@ func (m *GatewayMetrics) RecordConnectionLimitExceeded() {
 		return
 	}
 	atomic.AddInt64(&m.connectionLimitExceeded, 1)
+
+	if m.logger != nil {
+		m.logger.LogRateLimitViolation("unknown", "connection_limit")
+	}
 }
 
 // Snapshot captures current metrics state

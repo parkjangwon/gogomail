@@ -8,14 +8,23 @@ import (
 
 // Logger provides structured logging for protocol metrics and events
 type Logger struct {
-	slog *slog.Logger
+	slog  *slog.Logger
 	level slog.Level
 }
 
 // NewLogger creates a new structured logger for protocol metrics
 func NewLogger() *Logger {
+	return NewLoggerWithSlog(slog.Default())
+}
+
+// NewLoggerWithSlog creates a protocol metrics logger backed by the provided
+// structured logger. A nil logger falls back to slog.Default().
+func NewLoggerWithSlog(logger *slog.Logger) *Logger {
+	if logger == nil {
+		logger = slog.Default()
+	}
 	return &Logger{
-		slog:  slog.Default(),
+		slog:  logger,
 		level: slog.LevelInfo,
 	}
 }

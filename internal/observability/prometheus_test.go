@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/gogomail/gogomail/internal/delivery"
+	"github.com/gogomail/gogomail/internal/httpapi"
 	smtpd "github.com/gogomail/gogomail/internal/smtp"
 )
 
@@ -37,6 +38,22 @@ func TestPrometheusAdapterObservesDeliveryEvents(t *testing.T) {
 
 	got := adapter.Text()
 	want := `gogomail_delivery_events_total{farm="bulk",recipient_bucket="11-100",result="deferred",route_pool="bulk-relay",stage="throttled"} 1`
+	if !strings.Contains(got, want) {
+		t.Fatalf("Text() = %q, want %q", got, want)
+	}
+}
+
+func TestPrometheusAdapterObservesWebDAVEvents(t *testing.T) {
+	t.Parallel()
+
+	adapter := NewPrometheusAdapter()
+	adapter.ObserveWebDAV(context.Background(), httpapi.WebDAVMetricEvent{
+		Method: httpapi.WebDAVMethodPut,
+		Result: httpapi.WebDAVResultError,
+	})
+
+	got := adapter.Text()
+	want := `gogomail_webdav_events_total{method="PUT",result="error"} 1`
 	if !strings.Contains(got, want) {
 		t.Fatalf("Text() = %q, want %q", got, want)
 	}

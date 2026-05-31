@@ -56,7 +56,10 @@ func parsePDULengthWithError(data []byte) (pduLen int, headerLen int, err error)
 	}
 	length, rest, decErr := decodeLength(data[1:])
 	if decErr != nil {
-		return 0, 0, nil
+		if strings.Contains(decErr.Error(), "too short") {
+			return 0, 0, nil
+		}
+		return 0, 0, decErr
 	}
 	if length > maxBERMessageSize {
 		return 0, 0, fmt.Errorf("BER message size %d exceeds maximum %d", length, maxBERMessageSize)

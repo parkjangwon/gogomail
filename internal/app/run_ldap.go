@@ -80,6 +80,8 @@ func runLDAPGateway(ctx context.Context, cfg config.Config, logger *slog.Logger)
 		return errors.New("at least one LDAP listener address must be configured")
 	}
 
+	go serveMetrics(ctx, cfg, logger)
+
 	select {
 	case <-ctx.Done():
 		for _, srv := range servers {

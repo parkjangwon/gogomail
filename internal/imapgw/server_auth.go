@@ -43,8 +43,7 @@ func (s *Server) handleLogin(writer *bufio.Writer, tag string, fields []string, 
 		return false, writeErr
 	}
 	state.session = &authSession
-	state.userID = fields[2]   // Set userID for metrics tracking
-	s.recordConnect(fields[2]) // Record auth'd connection
+	state.userID = fields[2]
 	_, err = writer.WriteString(tag + " OK " + s.authenticatedCapabilityCode(state) + " LOGIN completed\r\n")
 	return false, err
 }
@@ -132,8 +131,7 @@ func (s *Server) completeAuthenticatePlain(writer *bufio.Writer, tag string, val
 		return false, writeErr
 	}
 	state.session = &authSession
-	state.userID = username   // Set userID for metrics tracking
-	s.recordConnect(username) // Record auth'd connection
+	state.userID = username
 	_, err = writer.WriteString(tag + " OK " + s.authenticatedCapabilityCode(state) + " AUTHENTICATE completed\r\n")
 	return false, err
 }
@@ -237,4 +235,3 @@ func (t *authFailureTracker) isLocked(ip string) bool {
 	}
 	return count >= t.maxFails
 }
-

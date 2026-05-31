@@ -1,7 +1,9 @@
 package protocolmetrics
 
 import (
+	"bytes"
 	"log/slog"
+	"strings"
 	"testing"
 	"time"
 )
@@ -14,6 +16,26 @@ func TestLoggerCreation(t *testing.T) {
 	}
 	if l.slog == nil {
 		t.Error("expected slog to be initialized")
+	}
+}
+
+func TestLoggerWithSlogUsesProvidedLogger(t *testing.T) {
+	var buf bytes.Buffer
+	logger := slog.New(slog.NewTextHandler(&buf, nil))
+	l := NewLoggerWithSlog(logger)
+
+	l.LogConnection("user1", "connected")
+
+	output := buf.String()
+	if !strings.Contains(output, "user1") || !strings.Contains(output, "connected") {
+		t.Fatalf("log output = %q, want user and event", output)
+	}
+}
+
+func TestLoggerWithSlogNilFallsBack(t *testing.T) {
+	l := NewLoggerWithSlog(nil)
+	if l == nil || l.slog == nil {
+		t.Fatal("expected nil logger fallback to create slog logger")
 	}
 }
 
@@ -71,7 +93,7 @@ func TestLoggerLogRateLimitViolation(t *testing.T) {
 func TestLoggerLogDegradation(t *testing.T) {
 	l := NewLogger()
 	metrics := map[string]interface{}{
-		"error_rate": 0.15,
+		"error_rate":     0.15,
 		"avg_latency_ms": 500,
 	}
 

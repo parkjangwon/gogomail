@@ -14,7 +14,6 @@ import (
 	"time"
 )
 
-
 type ServerOptions struct {
 	Addr              string
 	Backend           Backend
@@ -28,16 +27,13 @@ type ServerOptions struct {
 
 // gatewayMetrics is the minimal interface imapgw uses for observability.
 // *protocolmetrics.GatewayMetrics satisfies this interface.
-
-// gatewayMetrics is the minimal interface imapgw uses for observability.
-// *protocolmetrics.GatewayMetrics satisfies this interface.
 type gatewayMetrics interface {
 	RecordConnect(userID string)
 	RecordDisconnect()
 	RecordCommand(userID string, duration time.Duration)
 	RecordError(userID string)
+	RecordConnectionLimitExceeded()
 }
-
 
 type Server struct {
 	options     ServerOptions
@@ -48,9 +44,7 @@ type Server struct {
 	wg          sync.WaitGroup
 }
 
-
 var ErrServerClosed = errors.New("imap server closed")
-
 
 func NewServer(opts ServerOptions) (*Server, error) {
 	addr := strings.TrimSpace(opts.Addr)
@@ -85,15 +79,12 @@ func NewServer(opts ServerOptions) (*Server, error) {
 	return &Server{options: opts, authTracker: newAuthFailureTracker()}, nil
 }
 
-
 func (s *Server) Options() ServerOptions {
 	if s == nil {
 		return ServerOptions{}
 	}
 	return s.options
 }
-
-// SetMetrics sets optional metrics collector for gateway observability
 
 // SetMetrics sets optional metrics collector for gateway observability
 func (s *Server) SetMetrics(metrics gatewayMetrics) {
@@ -104,8 +95,6 @@ func (s *Server) SetMetrics(metrics gatewayMetrics) {
 	s.metrics = metrics
 	s.mu.Unlock()
 }
-
-// recordConnect records a connection with optional metrics
 
 // recordConnect records a connection with optional metrics
 func (s *Server) recordConnect(userID string) {
@@ -122,8 +111,6 @@ func (s *Server) recordConnect(userID string) {
 }
 
 // recordDisconnect records a disconnection with optional metrics
-
-// recordDisconnect records a disconnection with optional metrics
 func (s *Server) recordDisconnect() {
 	if s == nil {
 		return
@@ -136,8 +123,6 @@ func (s *Server) recordDisconnect() {
 	}
 	m.RecordDisconnect()
 }
-
-// recordCommand records command processing with optional metrics
 
 // recordCommand records command processing with optional metrics
 func (s *Server) recordCommand(userID string, duration time.Duration) {
@@ -154,8 +139,6 @@ func (s *Server) recordCommand(userID string, duration time.Duration) {
 }
 
 // recordError records command error with optional metrics
-
-// recordError records command error with optional metrics
 func (s *Server) recordError(userID string) {
 	if s == nil {
 		return
@@ -169,6 +152,19 @@ func (s *Server) recordError(userID string) {
 	m.RecordError(userID)
 }
 
+// recordConnectionLimitExceeded records a rejected connection with optional metrics.
+func (s *Server) recordConnectionLimitExceeded() {
+	if s == nil {
+		return
+	}
+	s.mu.Lock()
+	m := s.metrics
+	s.mu.Unlock()
+	if m == nil {
+		return
+	}
+	m.RecordConnectionLimitExceeded()
+}
 
 func (s *Server) Serve(listener net.Listener) error {
 	if s == nil {
@@ -190,6 +186,7 @@ func (s *Server) Serve(listener net.Listener) error {
 			return err
 		}
 		if !acquireIMAPConnectionSlot(slots) {
+			s.recordConnectionLimitExceeded()
 			rejectIMAPConnectionLimit(conn)
 			continue
 		}
@@ -201,7 +198,6 @@ func (s *Server) Serve(listener net.Listener) error {
 		}(conn)
 	}
 }
-
 
 func (s *Server) ListenAndServe() error {
 	if s == nil {
@@ -225,7 +221,6 @@ func (s *Server) ListenAndServe() error {
 	return s.Serve(listener)
 }
 
-
 func (s *Server) Listen() (net.Listener, error) {
 	if s == nil {
 		return nil, fmt.Errorf("imap server is nil")
@@ -235,7 +230,6 @@ func (s *Server) Listen() (net.Listener, error) {
 	}
 	return net.Listen("tcp", s.options.Addr)
 }
-
 
 func (s *Server) Close() error {
 	if s == nil {
@@ -251,7 +245,6 @@ func (s *Server) Close() error {
 	s.wg.Wait()
 	return err
 }
-
 
 func (s *Server) ServeConn(conn net.Conn) error {
 	if s == nil {
@@ -374,13 +367,11 @@ func (s *Server) ServeConn(conn net.Conn) error {
 	}
 }
 
-
 var (
 	errIMAPCommandLineTooLong     = errors.New("imap command line is too long")
 	errIMAPCommandLiteralTooLarge = errors.New("imap command literal is too large")
 	errIMAPCommandLiteralInvalid  = errors.New("imap command literal is invalid")
 )
-
 
 type imapConnState struct {
 	ctx                   context.Context
@@ -403,14 +394,11 @@ type imapConnState struct {
 	remoteIP              string
 }
 
-
 func (s *Server) handleLine(writer *bufio.Writer, line string, state *imapConnState) (bool, error) {
 	return s.handleLineWithLiteral(writer, line, nil, state)
 }
 
-
 const imapEmptySearchStringToken = "\x00EMPTY-SEARCH-STRING"
-
 
 const maxIMAPSearchOpenSearchCandidates = 200
 
@@ -444,9 +432,7 @@ const (
 	maxIMAPEnvelopeAddressCount  = 100
 )
 
-
 const maxIMAPExpandedSetItems = 10000
-
 
 func parseIMAPUIDSet(value string) ([]UID, bool) {
 	if strings.TrimSpace(value) != value {
@@ -491,7 +477,6 @@ func parseIMAPUIDSet(value string) ([]UID, bool) {
 	return uids, len(uids) > 0
 }
 
-
 func parseIMAPUIDSetForState(value string, state *imapConnState) ([]UID, bool) {
 	if value != "$" {
 		return parseIMAPUIDSet(value)
@@ -500,12 +485,10 @@ func parseIMAPUIDSetForState(value string, state *imapConnState) ([]UID, bool) {
 	return uids, true
 }
 
-
 type imapUIDRange struct {
 	start UID
 	end   UID
 }
-
 
 func (s *Server) uidsForUIDSet(ctx context.Context, state *imapConnState, value string) ([]UID, bool, error) {
 	if value == "$" {
@@ -538,7 +521,6 @@ func (s *Server) uidsForUIDSet(ctx context.Context, state *imapConnState, value 
 	return uids, ok, nil
 }
 
-
 func parseIMAPUIDSetRanges(value string, maxUID UID) ([]imapUIDRange, bool) {
 	if strings.TrimSpace(value) != value {
 		return nil, false
@@ -569,14 +551,12 @@ func parseIMAPUIDSetRanges(value string, maxUID UID) ([]imapUIDRange, bool) {
 	return ranges, len(ranges) > 0
 }
 
-
 func parseIMAPUIDSetRangeNumber(value string, maxUID UID) (UID, bool) {
 	if value == "*" {
 		return maxUID, true
 	}
 	return parseIMAPUIDSetNumber(value)
 }
-
 
 func imapUIDsMatchingRanges(messages []MessageSummary, ranges []imapUIDRange) ([]UID, bool) {
 	seen := make(map[UID]struct{})
@@ -599,7 +579,6 @@ func imapUIDsMatchingRanges(messages []MessageSummary, ranges []imapUIDRange) ([
 	return uids, true
 }
 
-
 func imapUIDMatchesRanges(uid UID, ranges []imapUIDRange) bool {
 	if uid == 0 {
 		return false
@@ -611,7 +590,6 @@ func imapUIDMatchesRanges(uid UID, ranges []imapUIDRange) bool {
 	}
 	return false
 }
-
 
 func imapSavedSearchUIDs(state *imapConnState) []UID {
 	if state == nil || len(state.savedSearch) == 0 {
@@ -632,7 +610,6 @@ func imapSavedSearchUIDs(state *imapConnState) []UID {
 	return uids
 }
 
-
 func parseIMAPUIDSetNumber(value string) (UID, bool) {
 	if !imapNZNumberAtomDigitsOnly(value) {
 		return 0, false
@@ -644,16 +621,13 @@ func parseIMAPUIDSetNumber(value string) (UID, bool) {
 	return UID(uid64), true
 }
 
-
 func imapUIDSetSyntaxValid(value string) bool {
 	return imapSetSyntaxValid(value, true, true)
 }
 
-
 func imapSequenceSetSyntaxValid(value string) bool {
 	return imapSetSyntaxValid(value, true, true)
 }
-
 
 func imapSetSyntaxValid(value string, allowStar bool, allowDollar bool) bool {
 	if strings.TrimSpace(value) != value {
@@ -681,7 +655,6 @@ func imapSetSyntaxValid(value string, allowStar bool, allowDollar bool) bool {
 	return true
 }
 
-
 func imapSetSyntaxNumberValid(value string, allowStar bool) bool {
 	if value == "*" {
 		return allowStar
@@ -689,7 +662,6 @@ func imapSetSyntaxNumberValid(value string, allowStar bool) bool {
 	_, ok := parseIMAPUIDSetNumber(value)
 	return ok
 }
-
 
 func parseIMAPSequenceSet(value string, maxSequence uint32) ([]uint32, bool) {
 	if maxSequence == 0 {
@@ -706,7 +678,6 @@ func parseIMAPSequenceSet(value string, maxSequence uint32) ([]uint32, bool) {
 	return out, true
 }
 
-
 func parseIMAPSequenceSetForState(value string, maxSequence uint32, state *imapConnState) ([]uint32, bool) {
 	if value != "$" {
 		return parseIMAPSequenceSet(value, maxSequence)
@@ -714,7 +685,6 @@ func parseIMAPSequenceSetForState(value string, maxSequence uint32, state *imapC
 	sequenceNumbers := imapSavedSearchSequenceNumbers(state, maxSequence)
 	return sequenceNumbers, true
 }
-
 
 func imapSavedSearchSequenceNumbers(state *imapConnState, maxSequence uint32) []uint32 {
 	if state == nil || len(state.savedSearch) == 0 {
@@ -734,7 +704,6 @@ func imapSavedSearchSequenceNumbers(state *imapConnState, maxSequence uint32) []
 	}
 	return sequenceNumbers
 }
-
 
 func parseIMAPBoundedNumberSet(value string, maxValue uint32, allowStar bool) ([]UID, bool) {
 	if strings.TrimSpace(value) != value {
@@ -779,7 +748,6 @@ func parseIMAPBoundedNumberSet(value string, maxValue uint32, allowStar bool) ([
 	return values, len(values) > 0
 }
 
-
 func parseIMAPSetNumber(value string, maxValue uint32, allowStar bool) (UID, bool) {
 	if value == "*" {
 		if allowStar && maxValue > 0 {
@@ -794,9 +762,7 @@ func parseIMAPSetNumber(value string, maxValue uint32, allowStar bool) (UID, boo
 	return parsed, true
 }
 
-
 const maxIMAPMIMEPartPathDepth = 32
-
 
 const (
 	imapRawFieldAtom imapRawFieldKindValue = iota
@@ -804,4 +770,3 @@ const (
 	imapRawFieldLiteral
 	imapRawFieldList
 )
-

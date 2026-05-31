@@ -51,6 +51,7 @@ func runPOP3Gateway(ctx context.Context, cfg config.Config, logger *slog.Logger)
 	if err != nil {
 		return err
 	}
+	server.SetMetrics(newProtocolGatewayMetrics(logger))
 
 	addr := strings.TrimSpace(cfg.POP3Addr)
 	if addr == "" {

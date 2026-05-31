@@ -118,6 +118,12 @@ func NewServerWithOptions(ln net.Listener, auth LDAPAuthenticator, quer Director
 }
 
 func (s *LDAPServer) Serve() error {
+	if s == nil {
+		return errors.New("ldap server is nil")
+	}
+	if s.ln == nil {
+		return errors.New("ldap listener is required")
+	}
 	for {
 		conn, err := s.ln.Accept()
 		if err != nil {
@@ -134,11 +140,25 @@ func (s *LDAPServer) Serve() error {
 }
 
 func (s *LDAPServer) Close() error {
+	if s == nil {
+		return nil
+	}
 	s.closeMu.Lock()
+	if s.closed {
+		s.closeMu.Unlock()
+		return nil
+	}
 	s.closed = true
+	ln := s.ln
+	cancel := s.cancel
 	s.closeMu.Unlock()
-	s.cancel()
-	return s.ln.Close()
+	if cancel != nil {
+		cancel()
+	}
+	if ln == nil {
+		return nil
+	}
+	return ln.Close()
 }
 
 func (s *LDAPServer) handleConn(ctx context.Context, conn net.Conn) {
@@ -210,6 +230,7 @@ func (s *LDAPServer) handleConn(ctx context.Context, conn net.Conn) {
 		if n > 0 {
 			buf = append(buf, readBuf[:n]...)
 			if len(buf) > maxBERMessageSize+8 {
+				s.observe(ctx, 0, resultProtocolError, 0, conn.RemoteAddr(), fmt.Errorf("BER message size exceeds maximum %d", maxBERMessageSize))
 				return
 			}
 		}
@@ -228,6 +249,7 @@ func (s *LDAPServer) handleConn(ctx context.Context, conn net.Conn) {
 			pduLen, headerLen, pduErr := parsePDULengthWithError(buf)
 			if pduErr != nil {
 				// Declared length exceeds the safety cap — drop the connection.
+				s.observe(ctx, 0, resultProtocolError, 0, conn.RemoteAddr(), pduErr)
 				return
 			}
 			if pduLen == 0 {
