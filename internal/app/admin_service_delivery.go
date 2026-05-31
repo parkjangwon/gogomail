@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"sort"
 	"strings"
 	"time"
@@ -546,7 +547,9 @@ func (s adminService) cleanupAPIUsageExportArtifactObject(ctx context.Context, o
 	if deleter, ok := s.exportStore.(interface {
 		Delete(context.Context, string) error
 	}); ok {
-		_ = deleter.Delete(ctx, objectKey)
+		if err := deleter.Delete(ctx, objectKey); err != nil && !errors.Is(err, os.ErrNotExist) {
+			s.loggerOrDefault().WarnContext(ctx, "failed to delete api usage export artifact object", "object_key", objectKey, "error", err)
+		}
 	}
 }
 

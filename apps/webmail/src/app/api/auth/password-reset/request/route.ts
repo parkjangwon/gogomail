@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { assertSameOriginForMutation } from '@/lib/security/proxy';
 import { backendConfigErrorResponse, requiredBackendUrl } from '@/lib/server/backend';
 import { logServerRequest, requestIDFromHeaders, responseHeadersWithRequestID } from '@/lib/server/requestLog';
+import { fetchUpstreamOrNull } from '@/lib/server/upstream';
 
 export async function POST(req: NextRequest) {
   const started = Date.now();
@@ -42,11 +43,11 @@ export async function POST(req: NextRequest) {
     }));
   }
 
-  const upstream = await fetch(`${backendUrl}/api/v1/auth/password-reset/request`, {
+  const upstream = await fetchUpstreamOrNull(`${backendUrl}/api/v1/auth/password-reset/request`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'X-Request-ID': requestID },
     body: JSON.stringify(body),
-  }).catch(() => null);
+  });
 
   if (!upstream) return finish(NextResponse.json({ error: 'Backend unreachable' }, {
     status: 503,

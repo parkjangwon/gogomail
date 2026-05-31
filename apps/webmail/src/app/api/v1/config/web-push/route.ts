@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { backendConfigErrorResponse, requiredBackendUrl } from '@/lib/server/backend';
 import { logServerRequest, requestIDFromHeaders, responseHeadersWithRequestID } from '@/lib/server/requestLog';
+import { fetchUpstreamOrNull } from '@/lib/server/upstream';
 
 export async function GET(req: Request) {
   const started = Date.now();
@@ -25,11 +26,11 @@ export async function GET(req: Request) {
     return finish(response);
   }
 
-  const upstream = await fetch(`${backendUrl}/api/v1/config/web-push`, {
+  const upstream = await fetchUpstreamOrNull(`${backendUrl}/api/v1/config/web-push`, {
     method: 'GET',
     headers: { 'Accept': 'application/json', 'X-Request-ID': requestID },
     cache: 'no-store',
-  }).catch(() => null);
+  });
 
   if (!upstream) {
     return finish(NextResponse.json({ error: 'Backend unreachable' }, {

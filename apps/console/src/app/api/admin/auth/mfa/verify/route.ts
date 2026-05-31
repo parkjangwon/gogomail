@@ -3,6 +3,7 @@ import { assertSameOriginRequest } from '@/lib/server/adminProxy';
 import { backendConfigErrorResponse, requiredBackendUrl } from '@/lib/server/backend';
 import { ADMIN_ACCESS_TOKEN_COOKIE, LEGACY_ADMIN_ACCESS_TOKEN_COOKIE } from '@/lib/server/cookies';
 import { logServerRequest, requestIDFromHeaders, responseHeadersWithRequestID } from '@/lib/server/requestLog';
+import { fetchUpstreamOrNull, readJSONOrDefault } from '@/lib/server/upstream';
 
 const IS_PROD = process.env.NODE_ENV === 'production';
 
@@ -45,11 +46,11 @@ export async function POST(req: NextRequest) {
     }));
   }
 
-  const upstream = await fetch(`${backendUrl}/admin/v1/auth/mfa/verify`, {
+  const upstream = await fetchUpstreamOrNull(`${backendUrl}/admin/v1/auth/mfa/verify`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'X-Request-ID': requestID },
     body: JSON.stringify(body),
-  }).catch(() => null);
+  });
 
   if (!upstream) return finish(NextResponse.json({ error: 'Backend unreachable' }, {
     status: 503,
@@ -57,7 +58,7 @@ export async function POST(req: NextRequest) {
   }));
 
   if (!upstream.ok) {
-    const err = await upstream.json().catch(() => ({ error: 'Verification failed' }));
+    const err = await readJSONOrDefault(upstream, { error: 'Verification failed' });
     return finish(NextResponse.json(err, {
       status: upstream.status,
       headers: responseHeadersWithRequestID({ 'Cache-Control': 'no-store' }, requestID),

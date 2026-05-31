@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"log/slog"
 	"strings"
 	"testing"
 	"time"
@@ -380,6 +381,38 @@ func TestBounceHandlerDeletesStoredMessageWhenQueueFails(t *testing.T) {
 	}
 }
 
+func TestBounceHandlerLogsStoredMessageDeleteFailure(t *testing.T) {
+	t.Parallel()
+
+	var logs bytes.Buffer
+	store := &memoryStore{values: map[string][]byte{}, deleteErr: errors.New("delete denied")}
+	handler := NewBounceHandler(HandlerOptions{
+		Store:  store,
+		Queue:  failingQueue{err: errors.New("database down")},
+		Logger: slog.New(slog.NewTextHandler(&logs, nil)),
+		Now: func() time.Time {
+			return time.Date(2026, 5, 4, 1, 2, 3, 0, time.UTC)
+		},
+	})
+
+	err := handler.HandleEvent(context.Background(), eventstream.Message{Payload: []byte(`{
+		"event":"mail.bounced",
+		"message_id":"018f0000-0000-7000-8000-000000000001",
+		"sender":"sender@example.com",
+		"recipient":"bad@example.net"
+	}`)})
+	if err == nil {
+		t.Fatal("HandleEvent returned nil, want queue failure")
+	}
+	output := logs.String()
+	if !strings.Contains(output, "failed to delete dsn storage object") ||
+		!strings.Contains(output, "dsn_enqueue_failure") ||
+		!strings.Contains(output, "018f0000-0000-7000-8000-000000000001") ||
+		!strings.Contains(output, "delete denied") {
+		t.Fatalf("logs = %q, want dsn cleanup failure context", output)
+	}
+}
+
 func TestBounceHandlerUsesSingleClockSnapshot(t *testing.T) {
 	t.Parallel()
 
@@ -473,7 +506,8 @@ func (q *captureQueue) EnqueueOnce(_ context.Context, topic string, partitionKey
 }
 
 type memoryStore struct {
-	values map[string][]byte
+	values    map[string][]byte
+	deleteErr error
 }
 
 func (s *memoryStore) Put(_ context.Context, path string, body io.Reader) error {
@@ -524,6 +558,9 @@ func (s *memoryStore) List(context.Context, storage.ListOptions) (storage.Object
 }
 
 func (s *memoryStore) Delete(_ context.Context, path string) error {
+	if s.deleteErr != nil {
+		return s.deleteErr
+	}
 	delete(s.values, path)
 	return nil
 }

@@ -1,8 +1,13 @@
 package app
 
 import (
+	"bytes"
+	"context"
 	"crypto/ed25519"
 	"encoding/json"
+	"errors"
+	"io"
+	"log/slog"
 	"strings"
 	"testing"
 
@@ -131,6 +136,24 @@ func TestAdminServiceAPIUsageExportCapabilities(t *testing.T) {
 	}
 }
 
+func TestAdminServiceLogsAPIUsageExportArtifactCleanupFailure(t *testing.T) {
+	t.Parallel()
+
+	var logs bytes.Buffer
+	service := adminService{
+		exportStore: &failingDeleteExportArtifactStore{err: errors.New("delete denied")},
+		logger:      slog.New(slog.NewTextHandler(&logs, nil)),
+	}
+	service.cleanupAPIUsageExportArtifactObject(context.Background(), "exports/batch-1.ndjson")
+
+	output := logs.String()
+	if !strings.Contains(output, "failed to delete api usage export artifact object") ||
+		!strings.Contains(output, "exports/batch-1.ndjson") ||
+		!strings.Contains(output, "delete denied") {
+		t.Fatalf("logs = %q, want export artifact cleanup failure context", output)
+	}
+}
+
 func TestAdminServiceAPIUsageExportCapabilitiesLocalEd25519(t *testing.T) {
 	t.Parallel()
 
@@ -150,6 +173,18 @@ func TestAdminServiceAPIUsageExportCapabilitiesLocalEd25519(t *testing.T) {
 	if view.SignerKeyID != "key-2" || strings.Join(view.BlockingReasons, ",") != "production_manifest_signer_required" {
 		t.Fatalf("capabilities = %+v", view)
 	}
+}
+
+type failingDeleteExportArtifactStore struct {
+	err error
+}
+
+func (s *failingDeleteExportArtifactStore) Put(context.Context, string, io.Reader) error {
+	return nil
+}
+
+func (s *failingDeleteExportArtifactStore) Delete(context.Context, string) error {
+	return s.err
 }
 
 func TestAdminServiceAPIUsageExportCapabilitiesRemoteEd25519ProductionReady(t *testing.T) {

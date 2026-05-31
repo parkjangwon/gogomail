@@ -5,9 +5,9 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
+	"io"
 	"log/slog"
 	"os"
-	"io"
 	"strconv"
 	"strings"
 	"time"
@@ -337,7 +337,7 @@ func (s *Service) SendText(ctx context.Context, req SendTextRequest) (SendTextRe
 		return SendTextResult{}, err
 	}
 	if err := enforceOutboundSizePolicy(composed.Size, policy); err != nil {
-		_ = s.store.Delete(ctx, path)
+		s.deleteMessageObjectBestEffort(ctx, path, "send_text_size_policy_failure", "user_id", sender.UserID, "domain_id", sender.DomainID, "company_id", sender.CompanyID)
 		return SendTextResult{}, err
 	}
 
@@ -379,7 +379,7 @@ func (s *Service) SendText(ctx context.Context, req SendTextRequest) (SendTextRe
 		id, err = s.repository.RecordOutgoing(ctx, outgoingMsg)
 	}
 	if err != nil {
-		_ = s.store.Delete(ctx, path)
+		s.deleteMessageObjectBestEffort(ctx, path, "send_text_record_failure", "user_id", sender.UserID, "domain_id", sender.DomainID, "company_id", sender.CompanyID)
 		return SendTextResult{}, err
 	}
 	if err := s.markSourceMessageAfterSend(ctx, req); err != nil {

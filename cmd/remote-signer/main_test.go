@@ -2,11 +2,13 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"crypto/ed25519"
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -103,4 +105,42 @@ func TestNewSignerServerSetsOperationalTimeouts(t *testing.T) {
 	if srv.MaxHeaderBytes != 8<<10 {
 		t.Fatalf("MaxHeaderBytes = %d, want 8192", srv.MaxHeaderBytes)
 	}
+}
+
+func TestRunShutsDownOnContextCancellation(t *testing.T) {
+	_, priv, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatalf("generate key: %v", err)
+	}
+	values := map[string]string{
+		"PORT":               "0",
+		"SIGNER_KEY_ID":      "key-1",
+		"SIGNER_PRIVATE_KEY": base64.StdEncoding.EncodeToString(priv),
+	}
+	var logs bytes.Buffer
+	ctx, cancel := context.WithCancel(context.Background())
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- run(ctx, func(key string) string { return values[key] }, newTestLogger(&logs))
+	}()
+
+	time.Sleep(50 * time.Millisecond)
+	cancel()
+
+	select {
+	case err := <-errCh:
+		if err != nil {
+			t.Fatalf("run returned error after cancellation: %v", err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("run did not shut down after context cancellation")
+	}
+	output := logs.String()
+	if !strings.Contains(output, "remote signer listening") || !strings.Contains(output, "remote signer shutting down") {
+		t.Fatalf("logs = %q, want startup and shutdown context", output)
+	}
+}
+
+func newTestLogger(w *bytes.Buffer) *slog.Logger {
+	return slog.New(slog.NewTextHandler(w, nil))
 }

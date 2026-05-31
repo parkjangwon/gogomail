@@ -358,7 +358,7 @@ func (s *Service) AppendIMAPMessage(ctx context.Context, req imapgw.AppendMessag
 		Size:         copied,
 	})
 	if err != nil {
-		_ = s.store.Delete(context.Background(), path)
+		s.deleteMessageObjectBestEffort(context.Background(), path, "imap_append_metadata_failure", "user_id", target.UserID, "mailbox_id", target.MailboxID)
 		if errors.Is(err, mail.ErrMailboxFull) {
 			return imapgw.AppendMessageResult{}, imapgw.ErrOverQuota
 		}

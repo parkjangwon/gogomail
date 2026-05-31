@@ -5,9 +5,12 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	netmail "net/mail"
+	"os"
 	"path"
 	"sort"
 	"strings"
@@ -35,6 +38,7 @@ type HandlerOptions struct {
 	Postmaster   string
 	Farm         outbound.Farm
 	Now          func() time.Time
+	Logger       *slog.Logger
 }
 
 type BounceHandler struct {
@@ -44,6 +48,7 @@ type BounceHandler struct {
 	postmaster   outbound.Address
 	farm         outbound.Farm
 	now          func() time.Time
+	logger       *slog.Logger
 }
 
 func NewBounceHandler(opts HandlerOptions) *BounceHandler {
@@ -67,6 +72,7 @@ func NewBounceHandler(opts HandlerOptions) *BounceHandler {
 		postmaster:   postmasterAddress,
 		farm:         outbound.NormalizeFarm(opts.Farm),
 		now:          now,
+		logger:       opts.Logger,
 	}
 }
 
@@ -151,10 +157,25 @@ func (h *BounceHandler) handleFailureEvent(ctx context.Context, event bounceEven
 		err = h.queue.Enqueue(ctx, topic, event.MessageID, payload)
 	}
 	if err != nil {
-		_ = h.store.Delete(ctx, storagePath)
+		h.deleteStoredMessageBestEffort(ctx, storagePath, "dsn_enqueue_failure", "message_id", event.MessageID, "recipient", event.Recipient)
 		return err
 	}
 	return nil
+}
+
+func (h *BounceHandler) deleteStoredMessageBestEffort(ctx context.Context, storagePath string, operation string, attrs ...any) {
+	if h == nil || h.store == nil || strings.TrimSpace(storagePath) == "" {
+		return
+	}
+	if err := h.store.Delete(ctx, storagePath); err != nil && !errors.Is(err, os.ErrNotExist) {
+		logger := h.logger
+		if logger == nil {
+			logger = slog.Default()
+		}
+		args := []any{"operation", operation, "storage_path", storagePath, "error", err}
+		args = append(args, attrs...)
+		logger.WarnContext(ctx, "failed to delete dsn storage object", args...)
+	}
 }
 
 func parsePostmasterAddress(value string) outbound.Address {
