@@ -5,6 +5,7 @@
 
 # ---- builder ----
 FROM golang:1.25-alpine AS builder
+ARG TARGETARCH
 
 RUN apk add --no-cache git ca-certificates tzdata
 
@@ -28,9 +29,10 @@ FROM gcr.io/distroless/static-debian12:nonroot
 WORKDIR /app
 
 COPY --from=builder /out/gogomail /usr/local/bin/gogomail
-COPY --from=builder /src/migrations /app/migrations
+COPY --from=builder --chown=nonroot:nonroot /src/migrations /app/migrations
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 COPY --from=builder /usr/share/zoneinfo /usr/share/zoneinfo
+COPY --chown=nonroot:nonroot docker/.data-keep /data/.keep
 
 ENV GOGOMAIL_MIGRATION_DIR=/app/migrations \
     APP_MODE=all-in-one \

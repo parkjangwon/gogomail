@@ -1,0 +1,175 @@
+# GoGoMail OCI single-user stack.
+#
+# Purpose: keep the production server lightweight for one operator/user.
+# Includes only the services needed for mail/web/admin operation:
+# Postgres, Redis, local disk storage, GoGoMail API, edge SMTP, outbound
+# workers, and optional Caddy TLS proxy. No MinIO/OpenSearch/ClamAV/Prometheus.
+#
+# Usage:
+#   docker compose --env-file deploy/oci/.env.solo -f docker/docker-compose.solo.yml up -d postgres redis backend edge-mta outbox-relay delivery-worker event-worker
+#   docker compose --env-file deploy/oci/.env.solo -f docker/docker-compose.solo.yml --profile edge up -d caddy
+
+x-gogomail-env: &gogomail-env
+  # Keep development mode for the solo local-Postgres deployment because the
+  # production profile rejects sslmode=disable. Secrets are still required from
+  # deploy/oci/.env.solo below.
+  GOGOMAIL_ENV: ${GOGOMAIL_ENV:-development}
+  GOGOMAIL_PUBLIC_BASE_URL: ${GOGOMAIL_PUBLIC_BASE_URL:-https://mail.parkjw.org}
+  GOGOMAIL_CORS_ALLOWED_ORIGINS: ${GOGOMAIL_CORS_ALLOWED_ORIGINS:-https://mail.parkjw.org,https://console.parkjw.org}
+  GOGOMAIL_AUTH_JWT_SECRET: ${GOGOMAIL_AUTH_JWT_SECRET:?set in deploy/oci/.env.solo}
+  GOGOMAIL_ADMIN_TOKEN: ${GOGOMAIL_ADMIN_TOKEN:?set in deploy/oci/.env.solo}
+  GOGOMAIL_DM_MASTER_KEY: ${GOGOMAIL_DM_MASTER_KEY:?set in deploy/oci/.env.solo}
+
+  GOGOMAIL_HTTP_ADDR: :8080
+  GOGOMAIL_DATABASE_URL: ${GOGOMAIL_DATABASE_URL:?set in deploy/oci/.env.solo}
+  GOGOMAIL_DB_MAX_OPEN_CONNS: ${GOGOMAIL_DB_MAX_OPEN_CONNS:-10}
+  GOGOMAIL_DB_MAX_IDLE_CONNS: ${GOGOMAIL_DB_MAX_IDLE_CONNS:-3}
+  GOGOMAIL_REDIS_ADDR: redis:6379
+  GOGOMAIL_REDIS_PASSWORD: ${GOGOMAIL_REDIS_PASSWORD:?set in deploy/oci/.env.solo}
+  GOGOMAIL_FARM_COORDINATOR_BACKEND: redis
+
+  GOGOMAIL_STORAGE_BACKEND: local
+  GOGOMAIL_MAILSTORE_ROOT: /data/mailstore
+
+  GOGOMAIL_SMTP_DOMAIN: ${GOGOMAIL_SMTP_DOMAIN:-parkjw.org}
+  GOGOMAIL_DELIVERY_SMTP_HELLO: ${GOGOMAIL_DELIVERY_SMTP_HELLO:-mail.parkjw.org}
+  GOGOMAIL_SMTP_ADDR: :2525
+  GOGOMAIL_DELIVERY_TLS_MODE: opportunistic
+  GOGOMAIL_SMTP_MAX_CONNECTIONS: ${GOGOMAIL_SMTP_MAX_CONNECTIONS:-200}
+  GOGOMAIL_DELIVERY_CONSUMER_COUNT: ${GOGOMAIL_DELIVERY_CONSUMER_COUNT:-5}
+  GOGOMAIL_EVENT_CONSUMER_COUNT: ${GOGOMAIL_EVENT_CONSUMER_COUNT:-10}
+
+  # Lightweight single-user choices.
+  GOGOMAIL_ATTACHMENT_SCAN_BACKEND: none
+  GOGOMAIL_SEARCH_INDEX_BACKEND: disabled
+  GOGOMAIL_PUSH_NOTIFICATION_BACKEND: none
+  GOGOMAIL_API_METERING_BACKEND: none
+  GOGOMAIL_API_METERING_AGGREGATE_BACKEND: disabled
+  GOGOMAIL_METRICS_BACKEND: none
+  GOGOMAIL_OTEL_ENABLED: "false"
+  GOGOMAIL_LOG_FORMAT: json
+
+x-gogomail-service: &gogomail-service
+  image: ${BACKEND_IMAGE:-gogomail:solo}
+  restart: unless-stopped
+  environment: *gogomail-env
+  networks:
+    - gogomail-solo
+  stop_grace_period: 45s
+  depends_on:
+    postgres:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+  volumes:
+    - gogomail-data:/data
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-gogomail}
+      POSTGRES_USER: ${POSTGRES_USER:-gogomail}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set in deploy/oci/.env.solo}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - gogomail-solo
+    logging: &small-logs
+      driver: json-file
+      options:
+        max-size: 20m
+        max-file: "5"
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    environment:
+      GOGOMAIL_REDIS_PASSWORD: ${GOGOMAIL_REDIS_PASSWORD:?set in deploy/oci/.env.solo}
+    command:
+      - redis-server
+      - --appendonly
+      - "yes"
+      - --appendfsync
+      - everysec
+      - --maxmemory
+      - 256mb
+      - --maxmemory-policy
+      - allkeys-lru
+      - --requirepass
+      - ${GOGOMAIL_REDIS_PASSWORD:?set in deploy/oci/.env.solo}
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$${GOGOMAIL_REDIS_PASSWORD}\" --no-auth-warning ping | grep PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - gogomail-solo
+    logging: *small-logs
+
+  migrate:
+    <<: *gogomail-service
+    profiles: ["manual"]
+    restart: "no"
+    command: ["-migrate", "-mode", "all-in-one"]
+
+  backend:
+    <<: *gogomail-service
+    command: ["-migrate", "-mode", "all-in-one"]
+    ports:
+      - "127.0.0.1:${GOGOMAIL_BACKEND_PORT:-8080}:8080"
+    logging: *small-logs
+
+  edge-mta:
+    <<: *gogomail-service
+    command: ["-mode", "edge-mta"]
+    ports:
+      - "25:2525"
+    logging: *small-logs
+
+  outbox-relay:
+    <<: *gogomail-service
+    command: ["-mode", "outbox-relay"]
+    logging: *small-logs
+
+  delivery-worker:
+    <<: *gogomail-service
+    command: ["-mode", "delivery-worker"]
+    logging: *small-logs
+
+  event-worker:
+    <<: *gogomail-service
+    command: ["-mode", "event-worker"]
+    logging: *small-logs
+
+  caddy:
+    profiles: ["edge"]
+    image: caddy:2-alpine
+    restart: unless-stopped
+    network_mode: host
+    volumes:
+      - ../deploy/oci/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - backend
+    logging: *small-logs
+
+volumes:
+  postgres-data:
+  redis-data:
+  gogomail-data:
+  caddy-data:
+  caddy-config:
+
+networks:
+  gogomail-solo:
+    driver: bridge

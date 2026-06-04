@@ -1,0 +1,25 @@
+[Unit]
+Description=GoGoMail Admin Console Next.js app
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=pjw
+WorkingDirectory=/home/pjw/dev/project/gogomail/apps/console
+Environment=NODE_ENV=production
+Environment=PORT=3001
+Environment=HOSTNAME=127.0.0.1
+Environment=GOGOMAIL_BACKEND_URL=http://127.0.0.1:8080
+Environment=ADMIN_BACKEND_URL=http://127.0.0.1:8080
+ExecStartPre=/usr/bin/make -C /home/pjw/dev/project/gogomail gen-ts-client
+ExecStart=/usr/local/bin/pnpm exec next start -H 127.0.0.1
+Restart=always
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ReadWritePaths=/home/pjw/dev/project/gogomail/apps/console/.next /home/pjw/dev/project/gogomail/clients/typescript
+
+[Install]
+WantedBy=multi-user.target

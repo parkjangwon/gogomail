@@ -1,0 +1,23 @@
+[Unit]
+Description=GoGoMail Webmail Next.js app
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=pjw
+WorkingDirectory=/home/pjw/dev/project/gogomail/apps/webmail
+Environment=NODE_ENV=production
+Environment=PORT=3003
+Environment=HOSTNAME=127.0.0.1
+Environment=GOGOMAIL_BACKEND_URL=http://127.0.0.1:8080
+ExecStart=/usr/local/bin/pnpm exec next start -H 127.0.0.1
+Restart=always
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ReadWritePaths=/home/pjw/dev/project/gogomail/apps/webmail/.next
+
+[Install]
+WantedBy=multi-user.target

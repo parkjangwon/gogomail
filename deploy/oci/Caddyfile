@@ -1,0 +1,22 @@
+{
+	# ACME account contact for Let's Encrypt.
+	email admin@parkjw.org
+}
+
+# Public webmail UI. Cloudflare DNS must be DNS-only (grey cloud) for ACME HTTP-01.
+mail.parkjw.org {
+	encode zstd gzip
+	reverse_proxy 127.0.0.1:3003
+}
+
+# Admin console UI. Add console.parkjw.org A -> 144.24.73.88 as DNS-only before enabling.
+console.parkjw.org {
+	encode zstd gzip
+	reverse_proxy 127.0.0.1:3001
+}
+
+# Optional direct backend API exposure. Keep disabled if webmail/console proxy routes are enough.
+# api.parkjw.org {
+# 	encode zstd gzip
+# 	reverse_proxy 127.0.0.1:8080
+# }

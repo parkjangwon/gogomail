@@ -1,0 +1,44 @@
+# OCI single-node overlay for docker-compose.dev.yml.
+# Use the dev stack as the full backend/mail/observability stack, but publish
+# production-facing SMTP and run Caddy as the TLS reverse proxy.
+#
+# Start:
+#   GRAFANA_PASSWORD='change-me' docker compose \
+#     -f docker/docker-compose.dev.yml \
+#     -f docker/docker-compose.oci-dev.yml up -d
+#
+# Frontend Next.js apps are expected to run on the host via systemd:
+#   webmail  -> 127.0.0.1:3003
+#   console  -> 127.0.0.1:3001
+
+services:
+  backend:
+    environment:
+      GOGOMAIL_PUBLIC_BASE_URL: https://mail.parkjw.org
+      GOGOMAIL_CORS_ALLOWED_ORIGINS: https://mail.parkjw.org,https://console.parkjw.org
+      GOGOMAIL_SMTP_DOMAIN: parkjw.org
+      GOGOMAIL_DELIVERY_SMTP_HELLO: mail.parkjw.org
+
+  edge-mta:
+    ports:
+      # Public MX ingress. The container still listens on :2525 from config.dev.yaml.
+      - "25:2525"
+
+  # Optional public submission/IMAP exposure can be added later after auth/TLS
+  # policy is finalized. Keep these closed for the first backend smoke test.
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: gogomail-caddy-oci
+    restart: unless-stopped
+    volumes:
+      - ../deploy/oci/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    network_mode: host
+    depends_on:
+      - backend
+
+volumes:
+  caddy-data:
+  caddy-config:

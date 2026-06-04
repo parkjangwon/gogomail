@@ -3,21 +3,24 @@ import { NextResponse, type NextRequest } from 'next/server';
 const REQUEST_ID_HEADER = 'x-request-id';
 const REQUEST_ID_RESPONSE_HEADER = 'X-Request-ID';
 const MAX_REQUEST_ID_LENGTH = 128;
-const NONCE_HEADER = 'x-nonce';
-
 export function middleware(req: NextRequest) {
   const requestID =
     sanitizeRequestID(req.headers.get(REQUEST_ID_HEADER)) || crypto.randomUUID();
-  const nonce = Buffer.from(crypto.randomUUID()).toString('base64');
-
   const isDev = process.env.NODE_ENV === 'development';
+  // These apps currently serve statically prerendered Next.js HTML in
+  // production (x-nextjs-prerender: 1). Next's bootstrap/data scripts in that
+  // HTML are inline and cannot receive a per-request nonce after prerendering,
+  // so a nonce-only script-src leaves the client unhydrated on first load.
+  // Keep the policy strict for everything else, but allow Next's required
+  // inline bootstrap scripts until these routes are made fully dynamic or the
+  // scripts are covered by stable hashes.
   const cspHeader = [
     "default-src 'self'",
-    `script-src 'self' 'nonce-${nonce}'${isDev ? " 'unsafe-eval'" : ''}`,
-    "style-src 'self' 'unsafe-inline'",
+    `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ''}`,
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "img-src 'self' data: blob:",
     "connect-src 'self'",
-    "font-src 'self' data:",
+    "font-src 'self' data: https://fonts.gstatic.com",
     "frame-src 'none'",
     "frame-ancestors 'none'",
     "object-src 'none'",
@@ -28,7 +31,6 @@ export function middleware(req: NextRequest) {
 
   const requestHeaders = new Headers(req.headers);
   requestHeaders.set(REQUEST_ID_HEADER, requestID);
-  requestHeaders.set(NONCE_HEADER, nonce);
 
   const response = NextResponse.next({ request: { headers: requestHeaders } });
   response.headers.set(REQUEST_ID_RESPONSE_HEADER, requestID);
