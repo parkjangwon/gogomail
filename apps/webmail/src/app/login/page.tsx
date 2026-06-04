@@ -144,6 +144,7 @@ export default function LoginPage() {
           <form
             onSubmit={handlePasswordSubmit}
             onKeyDown={handleKeyDown}
+            autoComplete="on"
             style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}
           >
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
@@ -152,8 +153,9 @@ export default function LoginPage() {
               </label>
               <input
                 id="email"
+                name="username"
                 type="email"
-                autoComplete="email"
+                autoComplete="username"
                 autoFocus
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -170,6 +172,7 @@ export default function LoginPage() {
               </label>
               <input
                 id="password"
+                name="password"
                 type="password"
                 autoComplete="current-password"
                 value={password}
@@ -203,6 +206,7 @@ export default function LoginPage() {
           <form
             onSubmit={handleMFASubmit}
             onKeyDown={handleKeyDown}
+            autoComplete="on"
             style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}
           >
             <p style={{ fontSize: '13px', color: 'var(--color-text-secondary)', margin: 0 }}>
@@ -215,6 +219,7 @@ export default function LoginPage() {
               </label>
               <input
                 id="mfa-code"
+                name="one-time-code"
                 type="text"
                 autoComplete="one-time-code"
                 autoFocus

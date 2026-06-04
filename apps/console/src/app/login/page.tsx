@@ -168,7 +168,10 @@ function LoginPageContent() {
                   value={mfaCode}
                   onChange={(e) => setMfaCode(e.detail.value)}
                   onKeyDown={(e) => { if (e.detail.key === 'Enter') handleMFASubmit(); }}
+                  name="one-time-code"
+                  autoComplete="one-time-code"
                   inputMode={useRecovery ? undefined : 'numeric'}
+                  nativeInputAttributes={{ id: 'admin-mfa-code' }}
                   autoFocus
                   disabled={loading}
                 />
@@ -231,8 +234,11 @@ function LoginPageContent() {
                 value={email}
                 onChange={(e) => { setEmail(e.detail.value); setEmailError(''); }}
                 onKeyDown={(e) => { if (e.detail.key === 'Enter') passwordRef.current?.focus(); }}
-                placeholder="admin@system"
+                name="username"
+                placeholder="admin@parkjw.org"
                 type="email"
+                autoComplete="username"
+                nativeInputAttributes={{ id: 'admin-email' }}
                 disabled={loading}
                 invalid={!!emailError}
                 autoFocus
@@ -245,7 +251,10 @@ function LoginPageContent() {
                 value={password}
                 onChange={(e) => { setPassword(e.detail.value); setPasswordError(''); }}
                 onKeyDown={(e) => { if (e.detail.key === 'Enter') handleSubmit(); }}
+                name="password"
                 type="password"
+                autoComplete="current-password"
+                nativeInputAttributes={{ id: 'admin-password' }}
                 disabled={loading}
                 invalid={!!passwordError}
               />

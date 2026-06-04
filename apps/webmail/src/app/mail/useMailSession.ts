@@ -27,6 +27,12 @@ export function useMailSession({ router, t }: UseMailSessionParams) {
     }
   }, [router, DEV_SKIP_LOGIN, DEV_USER_ID]);
 
+  useEffect(() => {
+    const clearMustChangePassword = () => setMustChangePassword(false);
+    window.addEventListener('webmail:must-change-password-cleared', clearMustChangePassword);
+    return () => window.removeEventListener('webmail:must-change-password-cleared', clearMustChangePassword);
+  }, []);
+
   // Session expiry warning: check every 60s, warn when < 10 min left
   useEffect(() => {
     function check() {

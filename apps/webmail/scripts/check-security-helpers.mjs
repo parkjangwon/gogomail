@@ -18,6 +18,16 @@ assert.throws(() => encodeBackendPath(['messages', '../secret']));
 assert.throws(() => assertSameOriginForMutation('POST', 'https://mail.example.test/api/mail/messages', new Headers({ origin: 'https://evil.example.test' })));
 assert.throws(() => assertSameOriginForMutation('POST', 'https://mail.example.test/api/mail/messages', new Headers()));
 assert.doesNotThrow(() => assertSameOriginForMutation('POST', 'https://mail.example.test/api/mail/messages', new Headers({ origin: 'https://mail.example.test' })));
+assert.doesNotThrow(() => assertSameOriginForMutation('POST', 'http://127.0.0.1:3003/api/auth/login', new Headers({
+  origin: 'https://mail.example.test',
+  'x-forwarded-proto': 'https',
+  'x-forwarded-host': 'mail.example.test',
+})));
+assert.throws(() => assertSameOriginForMutation('POST', 'http://127.0.0.1:3003/api/auth/login', new Headers({
+  origin: 'https://mail.example.test',
+  'x-forwarded-proto': 'https',
+  'x-forwarded-host': 'evil.example.test',
+})));
 
 const proxiedHeaders = headersForBackend(new Headers({
   authorization: 'Bearer attacker',

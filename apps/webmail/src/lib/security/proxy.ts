@@ -10,9 +10,18 @@ export function encodeBackendPath(path: string[]): string {
   }).join('/');
 }
 
+function requestPublicOrigin(requestUrl: string, headers: Headers): string {
+  const url = new URL(requestUrl);
+  const forwardedHost = headers.get('x-forwarded-host')?.split(',')[0]?.trim();
+  const host = forwardedHost || headers.get('host') || url.host;
+  const forwardedProto = headers.get('x-forwarded-proto')?.split(',')[0]?.trim();
+  const proto = forwardedProto || url.protocol.replace(':', '');
+  return `${proto}://${host}`;
+}
+
 export function assertSameOriginForMutation(method: string, requestUrl: string, headers: Headers): void {
   if (!MUTATING_METHODS.has(method)) return;
-  const expectedOrigin = new URL(requestUrl).origin;
+  const expectedOrigin = requestPublicOrigin(requestUrl, headers);
   const origin = headers.get('origin');
   if (origin) {
     if (origin !== expectedOrigin) throw new Error('Invalid request origin');

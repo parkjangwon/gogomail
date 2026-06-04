@@ -19,6 +19,18 @@ describe('admin proxy security helpers', () => {
     }))).toThrow();
   });
 
+  it('accepts same-origin requests behind a reverse proxy', () => {
+    const req = new Request('http://127.0.0.1:3001/api/admin/auth/login', {
+      method: 'POST',
+      headers: {
+        origin: 'https://console.example.test',
+        'x-forwarded-proto': 'https',
+        'x-forwarded-host': 'console.example.test',
+      },
+    });
+    expect(() => assertSameOriginRequest(req)).not.toThrow();
+  });
+
   it('strips client credentials before proxying', () => {
     const req = new Request('https://console.example.test/api/admin/users', {
       headers: {

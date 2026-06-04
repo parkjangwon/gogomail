@@ -273,7 +273,7 @@ func (r *Repository) ChangeUserPassword(ctx context.Context, userID, currentPass
 	}
 
 	_, err = r.db.ExecContext(ctx,
-		`UPDATE users SET password_hash = $2, session_version = session_version + 1, updated_at = now() WHERE id = $1::uuid`,
+		`UPDATE users SET password_hash = $2, must_change_password = false, session_version = session_version + 1, updated_at = now() WHERE id = $1::uuid`,
 		userID, newHash,
 	)
 	if err != nil {

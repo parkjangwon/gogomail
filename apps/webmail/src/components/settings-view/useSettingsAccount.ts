@@ -101,6 +101,8 @@ export function useSettingsAccount({ t, router }: UseSettingsAccountParams) {
     setPwSaving(true);
     try {
       await changePassword(pwCurrent, pwNew);
+      localStorage.removeItem('webmail_must_change_password');
+      window.dispatchEvent(new Event('webmail:must-change-password-cleared'));
       setPwCurrent(''); setPwNew(''); setPwConfirm('');
       setPwSaved(true);
       setTimeout(() => setPwSaved(false), 3000);

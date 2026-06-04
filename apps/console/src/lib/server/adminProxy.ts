@@ -20,17 +20,26 @@ export function encodeProxyPath(path: string[]): string {
   }).join('/');
 }
 
+function requestPublicOrigin(req: Request): string {
+  const url = new URL(req.url);
+  const forwardedHost = req.headers.get('x-forwarded-host')?.split(',')[0]?.trim();
+  const host = forwardedHost || req.headers.get('host') || url.host;
+  const forwardedProto = req.headers.get('x-forwarded-proto')?.split(',')[0]?.trim();
+  const proto = forwardedProto || url.protocol.replace(':', '');
+  return `${proto}://${host}`;
+}
+
 export function assertSameOriginRequest(req: Request): void {
   if (!MUTATING_METHODS.has(req.method)) return;
-  const url = new URL(req.url);
+  const expectedOrigin = requestPublicOrigin(req);
   const origin = req.headers.get('origin');
   if (origin) {
-    if (origin !== url.origin) throw new Error('Invalid request origin');
+    if (origin !== expectedOrigin) throw new Error('Invalid request origin');
     return;
   }
   const referer = req.headers.get('referer');
   if (!referer) throw new Error('Missing request origin');
-  if (new URL(referer).origin !== url.origin) {
+  if (new URL(referer).origin !== expectedOrigin) {
     throw new Error('Invalid request origin');
   }
 }
