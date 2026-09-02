@@ -2,6 +2,11 @@
 *.swp
 *.swo
 
+# Built binaries
+/gogomail
+
+node_modules/
+
 /bin/
 /tmp/
 /var/
