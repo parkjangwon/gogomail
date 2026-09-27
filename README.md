@@ -239,6 +239,7 @@ All GoGoMail write actions require a human-readable `reason`; destructive operat
 | Security review | [docs/SECURITY_REVIEW.md](docs/SECURITY_REVIEW.md) |
 | Operations / runbooks | [docs/OPERATIONS.md](docs/OPERATIONS.md) |
 | Backup & restore | [docs/BACKUP_RESTORE.md](docs/BACKUP_RESTORE.md) |
+| IMAP mailbox import (onboarding) | [docs/IMAP_IMPORT.md](docs/IMAP_IMPORT.md) |
 | Multi-region failover | [docs/MULTI_REGION.md](docs/MULTI_REGION.md) |
 | CardDAV client interop | [docs/CARDDAV_INTEROP.md](docs/CARDDAV_INTEROP.md) |
 | Topology patterns | [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) |

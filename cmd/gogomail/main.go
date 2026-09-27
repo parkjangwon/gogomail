@@ -30,6 +30,8 @@ func run(args []string, stdout io.Writer, stderr io.Writer, runApp func(context.
 			return runBackupCommand(args[1:], stdout, stderr)
 		case "restore":
 			return runRestoreCommand(args[1:], stdout, stderr)
+		case "imap-import":
+			return runIMAPImportCommand(args[1:], stdout, stderr)
 		}
 	}
 
