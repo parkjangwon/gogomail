@@ -14,13 +14,15 @@ import { User } from './domainDetailTypes';
 
 interface Props {
   users: User[];
+  hasMore?: boolean;
   companyId: string;
   domainName: string;
   t: (key: string, fallback?: string) => string;
 }
 
-export function DomainUsersTab({ users, companyId, domainName, t }: Props) {
+export function DomainUsersTab({ users, hasMore, companyId, domainName, t }: Props) {
   const router = useRouter();
+  const counterLabel = hasMore ? `(${users.length}+)` : `(${users.length})`;
 
   return (
     <DataTable
@@ -39,7 +41,7 @@ export function DomainUsersTab({ users, companyId, domainName, t }: Props) {
       ]}
       items={users}
       header={
-        <Header variant="h2" counter={`(${users.length})`} actions={<Button variant="primary" onClick={() => router.push(`/companies/${companyId}/users`)}>{t('pages.domain_detail.add_user')}</Button>}>
+        <Header variant="h2" counter={counterLabel} actions={<Button variant="primary" onClick={() => router.push(`/companies/${companyId}/users`)}>{t('pages.domain_detail.add_user')}</Button>}>
           {t('pages.domain_detail.users_in')} {domainName}
         </Header>
       }

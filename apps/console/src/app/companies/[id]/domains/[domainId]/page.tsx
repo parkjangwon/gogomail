@@ -75,7 +75,7 @@ export default function DomainDetailPage() {
           onChange={(e) => { setActiveTab(e.detail.activeTabId); if (e.detail.activeTabId === 'mail-stats') h.fetchMailStats(domain.name); }}
           tabs={[
             { id: 'overview', label: t('pages.domain_detail.overview_tab'), content: <DomainOverviewTab domain={domain} users={h.users} verifying={h.verifying} onVerifyDNS={h.handleVerifyDNS} onSetActiveTab={setActiveTab} t={t} /> },
-            { id: 'users', label: `${t('pages.domain_detail.users_tab')} (${h.users.length})`, content: <DomainUsersTab users={h.users} companyId={h.companyId} domainName={domain.name} t={t} /> },
+            { id: 'users', label: `${t('pages.domain_detail.users_tab')} (${h.usersHasMore ? `${h.users.length}+` : h.users.length})`, content: <DomainUsersTab users={h.users} hasMore={h.usersHasMore} companyId={h.companyId} domainName={domain.name} t={t} /> },
             {
               id: 'settings',
               label: `${t('pages.domain_detail.settings_tab')} (${h.settings.length})`,

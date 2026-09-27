@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useI18n } from '@/app/i18n-provider';
 import { buildMailFlowLogsQuery } from '@/lib/mailFlowLogs';
+import { parseQuotaInput } from '@/lib/quota';
 import {
   DomainDetail,
   User,
@@ -24,6 +25,9 @@ export function useDomainDetail() {
 
   const [domain, setDomain] = useState<DomainDetail | null>(null);
   const [users, setUsers] = useState<User[]>([]);
+  // The users list is capped at limit=100; the backend returns has_more so we
+  // can show "100+" instead of lying that a 500-user domain has exactly 100.
+  const [usersHasMore, setUsersHasMore] = useState(false);
   const [settings, setSettings] = useState<DomainSetting[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
@@ -69,7 +73,7 @@ export function useDomainDetail() {
   useEffect(() => {
     Promise.all([
       fetch(`/api/admin/domains/${domainId}`, { credentials: 'include' }).then(r => r.ok ? r.json() : null),
-      fetch(`/api/admin/users?domain_id=${domainId}&limit=100`, { credentials: 'include' }).then(r => r.ok ? r.json() : { users: [] }),
+      fetch(`/api/admin/users?domain_id=${domainId}&limit=100`, { credentials: 'include' }).then(r => r.ok ? r.json() : { users: [], has_more: false }),
       fetch(`/api/admin/domains/${domainId}/config`, { credentials: 'include' }).then(r => r.ok ? r.json() : { config: [] }),
       fetch(`/api/admin/domains/${domainId}/mcp-policy`, { credentials: 'include' }).then(r => r.ok ? r.json() : null).catch(() => null),
     ]).then(([domainData, usersData, settingsData, mcpPolicyData]) => {
@@ -81,6 +85,7 @@ export function useDomainDetail() {
         });
       }
       setUsers(usersData.users || []);
+      setUsersHasMore(Boolean(usersData.has_more));
       setSettings(settingsData.config || []);
       setMcpPolicy(normalizeMCPPolicy(mcpPolicyData?.mcp_policy));
       setMcpPolicyConfig(mcpPolicyData?.config ?? null);
@@ -112,14 +117,22 @@ export function useDomainDetail() {
     setSaving(true);
     setSaveError('');
     try {
-      const quotaBytes = editForm.quota_gb ? parseInt(editForm.quota_gb, 10) * 1073741824 : 0;
+      // Empty = explicit unlimited (0). "abc"/"-5"/"1.5" must block the save
+      // with a message instead of silently becoming 0 (= unlimited) or a
+      // truncated value.
+      const parsed = parseQuotaInput(editForm.quota_gb, 'GB');
+      if (!parsed.valid) {
+        setSaveError(t('pages.domain_detail.quota_invalid', 'Enter a valid whole number of GB, or leave blank for unlimited'));
+        return;
+      }
+      const quotaBytes = parsed.bytes ?? 0;
       const statusChanged = domain?.status !== editForm.status;
 
       const calls: Promise<Response>[] = [
         fetch(`/api/admin/domains/${domainId}/quota`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ quota_limit: isNaN(quotaBytes) ? 0 : quotaBytes }),
+          body: JSON.stringify({ quota_limit: quotaBytes }),
           credentials: 'include',
         }),
       ];
@@ -135,8 +148,9 @@ export function useDomainDetail() {
       const results = await Promise.all(calls);
       const failed = results.find(r => !r.ok);
       if (failed) {
-        const errData = await failed.json().catch(() => ({})) as { error?: { message?: string } };
-        setSaveError(errData.error?.message ?? '저장 실패');
+        const errData = await failed.json().catch(() => ({})) as { error?: { message?: string } | string };
+        const msg = typeof errData.error === 'string' ? errData.error : errData.error?.message;
+        setSaveError(msg ?? t('pages.domain_detail.save_failed', 'Failed to save'));
         return;
       }
       const refreshed = await fetch(`/api/admin/domains/${domainId}`, { credentials: 'include' });
@@ -145,6 +159,8 @@ export function useDomainDetail() {
         setDomain(d.domain);
       }
       setShowEdit(false);
+    } catch {
+      setSaveError(t('pages.domain_detail.save_failed', 'Failed to save'));
     } finally {
       setSaving(false);
     }
@@ -180,10 +196,19 @@ export function useDomainDetail() {
 
   const handleAddSetting = async () => {
     if (!newSetting.key.trim()) return;
+    const key = newSetting.key.trim();
+    // The "add" endpoint is an upsert with no optimistic-locking version, so an
+    // existing key is silently overwritten. Warn before clobbering it.
+    const existing = settings.find((s) => s.Key === key);
+    if (existing && !window.confirm(
+      t('pages.domain_detail.setting_overwrite_confirm', 'A setting named "{key}" already exists. Overwrite it?').replace('{key}', key)
+    )) {
+      return;
+    }
     setSavingSetting(true);
     setSettingError('');
     try {
-      const res = await fetch(`/api/admin/domains/${domainId}/config/${encodeURIComponent(newSetting.key.trim())}`, {
+      const res = await fetch(`/api/admin/domains/${domainId}/config/${encodeURIComponent(key)}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ value: serializeSettingValue(newSetting.value) }),
@@ -358,6 +383,7 @@ export function useDomainDetail() {
     domainId,
     domain,
     users,
+    usersHasMore,
     settings,
     loading,
     loadError,

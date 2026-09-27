@@ -25,6 +25,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useCompany } from '@/contexts/CompanyContext';
 import { useI18n } from '@/app/i18n-provider';
+import { parseQuotaInput } from '@/lib/quota';
 
 interface Domain {
   id: string;
@@ -61,10 +62,12 @@ export default function CompanyOverviewPage() {
   const [editQuotaOpen, setEditQuotaOpen] = useState(false);
   const [quotaGb, setQuotaGb] = useState('');
   const [savingQuota, setSavingQuota] = useState(false);
+  const [quotaError, setQuotaError] = useState('');
 
   const [addConfigOpen, setAddConfigOpen] = useState(false);
   const [newConfig, setNewConfig] = useState({ key: '', value: '' });
   const [savingConfig, setSavingConfig] = useState(false);
+  const [configError, setConfigError] = useState('');
 
   const company =
     companies.find(c => c.id === companyId) ??
@@ -101,11 +104,19 @@ export default function CompanyOverviewPage() {
 
   const handleSaveQuota = async () => {
     if (!company) return;
-    const isUnlimited = quotaGb.trim() === '' || quotaGb.trim() === '0';
+    setQuotaError('');
+    // Empty = explicit "unlimited". Any other input must be a valid
+    // non-negative number; "abc"/"-5" must block save, never become 0.
+    const parsed = parseQuotaInput(quotaGb, 'GB', { allowFractional: true });
+    if (!parsed.valid) {
+      setQuotaError(t('pages.company_overview.quota_invalid', 'Enter a valid number, or leave blank for unlimited'));
+      return;
+    }
+    const isUnlimited = parsed.bytes === null || parsed.bytes === 0;
     if (isUnlimited && !window.confirm(t('pages.company_overview.quota_unlimited_confirm', 'Setting 0 or blank removes the quota limit (unlimited storage). Continue?'))) return;
     setSavingQuota(true);
     try {
-      const limitBytes = isUnlimited ? 0 : Math.round(parseFloat(quotaGb) * 1073741824);
+      const limitBytes = isUnlimited ? 0 : (parsed.bytes ?? 0);
       const res = await fetch(`/api/admin/companies/${company.id}/quota`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -115,7 +126,13 @@ export default function CompanyOverviewPage() {
       if (res.ok) {
         setEditQuotaOpen(false);
         refresh();
+      } else {
+        const data = await res.json().catch(() => ({})) as { error?: { message?: string } | string };
+        const msg = typeof data.error === 'string' ? data.error : data.error?.message;
+        setQuotaError(msg ?? t('pages.company_overview.quota_save_failed', 'Failed to save quota'));
       }
+    } catch {
+      setQuotaError(t('pages.company_overview.quota_save_failed', 'Failed to save quota'));
     } finally {
       setSavingQuota(false);
     }
@@ -123,9 +140,19 @@ export default function CompanyOverviewPage() {
 
   const handleAddConfig = async () => {
     if (!company || !newConfig.key.trim()) return;
+    setConfigError('');
+    // "Add" is really an upsert on the backend — warn before clobbering an
+    // existing key so a config value is never silently overwritten.
+    const key = newConfig.key.trim();
+    const existing = configs.find((c) => c.key === key);
+    if (existing && !window.confirm(
+      t('pages.company_overview.config_overwrite_confirm', 'A config named "{key}" already exists. Overwrite it?').replace('{key}', key)
+    )) {
+      return;
+    }
     setSavingConfig(true);
     try {
-      const res = await fetch(`/api/admin/companies/${company.id}/config/${encodeURIComponent(newConfig.key.trim())}`, {
+      const res = await fetch(`/api/admin/companies/${company.id}/config/${encodeURIComponent(key)}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ value: newConfig.value }),
@@ -135,7 +162,13 @@ export default function CompanyOverviewPage() {
         setAddConfigOpen(false);
         setNewConfig({ key: '', value: '' });
         fetchConfigs();
+      } else {
+        const data = await res.json().catch(() => ({})) as { error?: { message?: string } | string };
+        const msg = typeof data.error === 'string' ? data.error : data.error?.message;
+        setConfigError(msg ?? t('pages.company_overview.config_save_failed', 'Failed to save config'));
       }
+    } catch {
+      setConfigError(t('pages.company_overview.config_save_failed', 'Failed to save config'));
     } finally {
       setSavingConfig(false);
     }
@@ -349,6 +382,7 @@ export default function CompanyOverviewPage() {
             actions={
               <Button onClick={() => {
                 setQuotaGb(quotaLimit > 0 ? (quotaLimit / 1073741824).toString() : '');
+                setQuotaError('');
                 setEditQuotaOpen(true);
               }}>
                 {t('pages.company_overview.edit_quota')}
@@ -445,12 +479,12 @@ export default function CompanyOverviewPage() {
 
       <Modal
         visible={editQuotaOpen}
-        onDismiss={() => setEditQuotaOpen(false)}
+        onDismiss={() => { setEditQuotaOpen(false); setQuotaError(''); }}
         header={t('pages.company_overview.quota_modal_title')}
         footer={
           <Box float="right">
             <SpaceBetween direction="horizontal" size="xs">
-              <Button onClick={() => setEditQuotaOpen(false)}>{t('common.cancel')}</Button>
+              <Button onClick={() => { setEditQuotaOpen(false); setQuotaError(''); }}>{t('common.cancel')}</Button>
               <Button variant="primary" loading={savingQuota} onClick={handleSaveQuota}>
                 {t('common.save')}
               </Button>
@@ -458,28 +492,31 @@ export default function CompanyOverviewPage() {
           </Box>
         }
       >
-        <FormField
-          label={t('pages.company_overview.quota_label_gb')}
-          description={t('pages.company_overview.quota_help')}
-        >
-          <Input
-            type="number"
-            value={quotaGb}
-            onChange={(e) => setQuotaGb(e.detail.value)}
-            placeholder="0"
-            autoFocus
-          />
-        </FormField>
+        <SpaceBetween size="m">
+          <FormField
+            label={t('pages.company_overview.quota_label_gb')}
+            description={t('pages.company_overview.quota_help')}
+            errorText={quotaError || undefined}
+          >
+            <Input
+              type="number"
+              value={quotaGb}
+              onChange={(e) => { setQuotaGb(e.detail.value); setQuotaError(''); }}
+              placeholder="0"
+              autoFocus
+            />
+          </FormField>
+        </SpaceBetween>
       </Modal>
 
       <Modal
         visible={addConfigOpen}
-        onDismiss={() => setAddConfigOpen(false)}
+        onDismiss={() => { setAddConfigOpen(false); setConfigError(''); }}
         header={t('pages.company_overview.config_modal_title')}
         footer={
           <Box float="right">
             <SpaceBetween direction="horizontal" size="xs">
-              <Button onClick={() => setAddConfigOpen(false)}>{t('common.cancel')}</Button>
+              <Button onClick={() => { setAddConfigOpen(false); setConfigError(''); }}>{t('common.cancel')}</Button>
               <Button
                 variant="primary"
                 loading={savingConfig}
@@ -496,7 +533,7 @@ export default function CompanyOverviewPage() {
           <FormField label={t('pages.company_overview.config_key')}>
             <Input
               value={newConfig.key}
-              onChange={(e) => setNewConfig({ ...newConfig, key: e.detail.value })}
+              onChange={(e) => { setNewConfig({ ...newConfig, key: e.detail.value }); setConfigError(''); }}
               placeholder={t('pages.company_overview.config_key_placeholder')}
               autoFocus
             />
@@ -504,10 +541,11 @@ export default function CompanyOverviewPage() {
           <FormField label={t('pages.company_overview.config_value')}>
             <Input
               value={newConfig.value}
-              onChange={(e) => setNewConfig({ ...newConfig, value: e.detail.value })}
+              onChange={(e) => { setNewConfig({ ...newConfig, value: e.detail.value }); setConfigError(''); }}
               placeholder={t('pages.company_overview.config_value_placeholder')}
             />
           </FormField>
+          {configError && <Alert type="error">{configError}</Alert>}
         </SpaceBetween>
       </Modal>
     </ContentLayout>

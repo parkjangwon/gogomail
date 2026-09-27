@@ -17,16 +17,16 @@ import {
 import { useEffect, useState } from 'react';
 import { useI18n } from '@/app/i18n-provider';
 import { useParams } from 'next/navigation';
+import {
+  BYTES_PER_MB,
+  QuotaUnit,
+  bestQuotaUnit,
+  formatQuotaValue,
+  parseQuotaInput,
+  validateIntField,
+} from '@/lib/quota';
 
 const COMPANY_DOMAIN_SETTINGS_KEY = 'domain_settings_defaults';
-const BYTES_PER_MB = 1048576;
-const QUOTA_UNITS = {
-  MB: BYTES_PER_MB,
-  GB: BYTES_PER_MB * 1024,
-  TB: BYTES_PER_MB * 1024 * 1024,
-} as const;
-
-type QuotaUnit = keyof typeof QUOTA_UNITS;
 
 interface CompanyDomainSettings {
   tls_policy: string;
@@ -62,17 +62,6 @@ const defaultSettings: CompanyDomainSettings = {
   password_expiry_days: 0,
   user_registration_mode: 'temp_password',
   password_reset_token_ttl_minutes: 60,
-};
-
-const bestQuotaUnit = (bytes: number): QuotaUnit => {
-  if (bytes >= QUOTA_UNITS.TB && bytes % QUOTA_UNITS.TB === 0) return 'TB';
-  if (bytes >= QUOTA_UNITS.GB && bytes % QUOTA_UNITS.GB === 0) return 'GB';
-  return 'MB';
-};
-
-const formatQuotaValue = (bytes: number, unit: QuotaUnit): string => {
-  const value = bytes / QUOTA_UNITS[unit];
-  return Number.isInteger(value) ? String(value) : String(Number(value.toFixed(2)));
 };
 
 const coerceSettings = (value: unknown): CompanyDomainSettings => {
@@ -124,6 +113,12 @@ export default function CompanyConfigPage() {
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [saveError, setSaveError] = useState('');
   const [quotaUnit, setQuotaUnit] = useState<QuotaUnit>('GB');
+  // Raw text of the quota input so we can validate before converting to bytes.
+  // Empty string = "unlimited"; invalid text blocks save with an errorText.
+  const [quotaInput, setQuotaInput] = useState('');
+  // Per-field validation messages. A non-empty entry blocks save and renders
+  // as the FormField errorText — invalid input is never silently coerced.
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   const tlsOptions = [
     { label: t('pages.domain_settings_page.tls_opportunistic'), value: 'opportunistic' },
@@ -165,8 +160,11 @@ export default function CompanyConfigPage() {
       const data = await res.json();
       const entry: ConfigEntry = data.config ?? data;
       const nextSettings = coerceSettings(entry.Value);
+      const unit = bestQuotaUnit(nextSettings.quota_per_user);
       setSettings(nextSettings);
-      setQuotaUnit(bestQuotaUnit(nextSettings.quota_per_user));
+      setQuotaUnit(unit);
+      setQuotaInput(formatQuotaValue(nextSettings.quota_per_user, unit));
+      setFieldErrors({});
     } catch (e: unknown) {
       setSaveError(e instanceof Error ? e.message : t('pages.domain_settings_page.load_error'));
     } finally {
@@ -180,13 +178,108 @@ export default function CompanyConfigPage() {
     setSaveError('');
   };
 
-  const handleQuotaUnitChange = (unit: QuotaUnit) => {
-    const value = parseFloat(formatQuotaValue(settings.quota_per_user, quotaUnit));
-    setQuotaUnit(unit);
-    set('quota_per_user', Math.max(1, Math.round((Number.isFinite(value) ? value : 1) * QUOTA_UNITS[unit])));
+  const setFieldError = (key: string, message: string) => {
+    setFieldErrors((prev) => {
+      if (message) return { ...prev, [key]: message };
+      if (!(key in prev)) return prev;
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
   };
 
+  const intFieldError = (code: string, min: number, max: number): string => {
+    switch (code) {
+      case 'required':
+        return t('pages.domain_settings_page.field_required', 'Value is required');
+      case 'invalid_integer':
+        return t('pages.domain_settings_page.field_invalid_integer', 'Enter a whole number');
+      case 'below_min':
+      case 'above_max':
+        return t('pages.domain_settings_page.field_out_of_range', 'Enter a value between {min} and {max}')
+          .replace('{min}', String(min))
+          .replace('{max}', String(max));
+      default:
+        return t('pages.domain_settings_page.field_invalid_integer', 'Enter a whole number');
+    }
+  };
+
+  // Validate + commit an integer field. Invalid input (blank, non-integer,
+  // negative, out of range) records an errorText and blocks save instead of
+  // silently falling back to a default.
+  const setIntField = (
+    key: keyof CompanyDomainSettings,
+    raw: string,
+    min: number,
+    max: number,
+  ) => {
+    const result = validateIntField(raw, { min, max });
+    setSaveSuccess(false);
+    setSaveError('');
+    if (!result.valid || result.value === null) {
+      // Keep the raw text visible by storing the parsed number when possible,
+      // but surface the error so the user cannot save a bad value.
+      setSettings((prev) => ({ ...prev, [key]: Number(raw) as never }));
+      setFieldError(key as string, intFieldError(result.error, min, max));
+      return;
+    }
+    setSettings((prev) => ({ ...prev, [key]: result.value as never }));
+    setFieldError(key as string, '');
+  };
+
+  const quotaError = (code: string): string => {
+    switch (code) {
+      case 'invalid_number':
+        return t('pages.domain_settings_page.quota_invalid_number', 'Enter a valid number, or leave blank for unlimited');
+      case 'negative':
+        return t('pages.domain_settings_page.quota_negative', 'Quota cannot be negative');
+      case 'fraction':
+        return t('pages.domain_settings_page.quota_fraction', 'Enter a whole number of {unit}').replace('{unit}', quotaUnit);
+      default:
+        return t('pages.domain_settings_page.quota_invalid_number', 'Enter a valid number, or leave blank for unlimited');
+    }
+  };
+
+  // Validate + commit the quota input. Empty = unlimited (stored as 0 by the
+  // backend contract); invalid input blocks save with an errorText and never
+  // silently becomes 0/unlimited.
+  const handleQuotaInputChange = (raw: string) => {
+    setQuotaInput(raw);
+    setSaveSuccess(false);
+    setSaveError('');
+    const result = parseQuotaInput(raw, quotaUnit);
+    if (!result.valid) {
+      setFieldError('quota_per_user', quotaError(result.error));
+      return;
+    }
+    setFieldError('quota_per_user', '');
+    // Empty input => unlimited. The company settings type stores a number, so
+    // represent unlimited as 0 (the wire contract used across the console).
+    set('quota_per_user', result.bytes ?? 0);
+  };
+
+  // Changing the unit is a display-only concern: it must NEVER change the
+  // stored byte value. We re-render the SAME byte value in the new unit rather
+  // than re-interpreting the on-screen number under the new unit (which would
+  // silently shrink/grow the quota by 1024x on every toggle).
+  const handleQuotaUnitChange = (unit: QuotaUnit) => {
+    setQuotaUnit(unit);
+    // Re-derive the displayed text from the unchanged stored bytes so a
+    // GB -> MB -> GB round trip is a no-op on quota_per_user.
+    if (settings.quota_per_user > 0) {
+      setQuotaInput(formatQuotaValue(settings.quota_per_user, unit));
+      setFieldError('quota_per_user', '');
+    }
+    // quota_per_user itself is deliberately left untouched.
+  };
+
+  const hasFieldErrors = Object.values(fieldErrors).some(Boolean);
+
   const handleSave = async () => {
+    if (hasFieldErrors) {
+      setSaveError(t('pages.domain_settings_page.fix_errors_before_save', 'Fix the highlighted fields before saving'));
+      return;
+    }
     setSaving(true);
     setSaveSuccess(false);
     setSaveError('');
@@ -283,36 +376,37 @@ export default function CompanyConfigPage() {
         <Container key="password-settings" header={<Header variant="h2">{t('pages.domain_settings_page.section_password')}</Header>}>
           <ColumnLayout columns={2}>
             <div key="password-left" style={{ display: 'grid', gap: '16px' }}>
-              <FormField key="password-min-length" label={t('pages.domain_settings_page.password_min_length_label')}>
+              <FormField key="password-min-length" label={t('pages.domain_settings_page.password_min_length_label')} errorText={fieldErrors.password_min_length}>
                 <Input
                   type="number"
                   value={String(settings.password_min_length)}
-                  onChange={(e) => set('password_min_length', parseInt(e.detail.value) || 8)}
+                  onChange={(e) => setIntField('password_min_length', e.detail.value, 4, 128)}
                 />
               </FormField>
-              <FormField key="password-expiry" label={t('pages.domain_settings_page.password_expiry_label')} description={t('pages.domain_settings_page.password_expiry_desc')}>
+              <FormField key="password-expiry" label={t('pages.domain_settings_page.password_expiry_label')} description={t('pages.domain_settings_page.password_expiry_desc')} errorText={fieldErrors.password_expiry_days}>
                 <Input
                   type="number"
                   value={String(settings.password_expiry_days)}
-                  onChange={(e) => set('password_expiry_days', parseInt(e.detail.value) || 0)}
+                  onChange={(e) => setIntField('password_expiry_days', e.detail.value, 0, 3650)}
                 />
               </FormField>
-              <FormField key="session-timeout" label={t('pages.domain_settings_page.session_timeout_label')} description={t('pages.domain_settings_page.minutes')}>
+              <FormField key="session-timeout" label={t('pages.domain_settings_page.session_timeout_label')} description={t('pages.domain_settings_page.minutes')} errorText={fieldErrors.session_timeout_minutes}>
                 <Input
                   type="number"
                   value={String(settings.session_timeout_minutes)}
-                  onChange={(e) => set('session_timeout_minutes', parseInt(e.detail.value) || 480)}
+                  onChange={(e) => setIntField('session_timeout_minutes', e.detail.value, 1, 43200)}
                 />
               </FormField>
               <FormField
                 key="reset-ttl"
                 label={t('pages.domain_settings_page.password_reset_ttl_label')}
                 description={t('pages.domain_settings_page.password_reset_ttl_desc')}
+                errorText={fieldErrors.password_reset_token_ttl_minutes}
               >
                 <Input
                   type="number"
                   value={String(settings.password_reset_token_ttl_minutes)}
-                  onChange={(e) => set('password_reset_token_ttl_minutes', parseInt(e.detail.value) || 60)}
+                  onChange={(e) => setIntField('password_reset_token_ttl_minutes', e.detail.value, 1, 10080)}
                 />
               </FormField>
             </div>
@@ -344,14 +438,16 @@ export default function CompanyConfigPage() {
 
         <Container key="quota-settings" header={<Header variant="h2">{t('pages.domain_settings_page.section_quota')}</Header>}>
           <ColumnLayout columns={2}>
-            <FormField label={t('pages.domain_settings_page.quota_per_user_label')}>
+            <FormField
+              label={t('pages.domain_settings_page.quota_per_user_label')}
+              description={t('pages.tenancy_domains.quota_zero_unlimited', '0 = unlimited')}
+              errorText={fieldErrors.quota_per_user}
+            >
               <Input
                 type="number"
-                value={formatQuotaValue(settings.quota_per_user, quotaUnit)}
-                onChange={(e) => {
-                  const value = parseFloat(e.detail.value);
-                  set('quota_per_user', Math.max(1, Math.round((Number.isFinite(value) ? value : 1) * QUOTA_UNITS[quotaUnit])));
-                }}
+                value={quotaInput}
+                onChange={(e) => handleQuotaInputChange(e.detail.value)}
+                placeholder={t('pages.tenancy_domains.quota_zero_unlimited', '0 = unlimited')}
               />
             </FormField>
             <FormField label={t('pages.domain_settings_page.quota_unit_label')}>
@@ -365,7 +461,7 @@ export default function CompanyConfigPage() {
         </Container>
 
         <Box key="settings-footer" float="right">
-          <Button variant="primary" onClick={handleSave} loading={saving}>
+          <Button variant="primary" onClick={handleSave} loading={saving} disabled={hasFieldErrors}>
             {t('pages.domain_settings_page.save_btn')}
           </Button>
         </Box>
