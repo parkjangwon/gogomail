@@ -1,6 +1,13 @@
 #!/usr/bin/env bash
 # backup.sh — PostgreSQL backup for gogomail
 #
+# DEPRECATED: superseded by the `gogomail backup` subcommand, which additionally
+# captures a storage manifest, a redacted config snapshot, and a checksummed
+# migration version, and whose output is validated by `gogomail restore`.
+# Prefer `gogomail backup` for new automation. See docs/BACKUP_RESTORE.md.
+# This script is retained only for environments that cannot yet deploy the
+# updated binary; it produces a DB dump only and offers no restore validation.
+#
 # Required environment variables:
 #   GOGOMAIL_DATABASE_URL     — PostgreSQL connection URL
 #

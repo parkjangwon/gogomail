@@ -21,9 +21,16 @@ func main() {
 }
 
 func run(args []string, stdout io.Writer, stderr io.Writer, runApp func(context.Context, app.Mode, config.Config, *slog.Logger) error) int {
-	// Intercept "admin" subcommand before flag parsing.
-	if len(args) > 0 && args[0] == "admin" {
-		return runAdminCommand(args[1:], stdout, stderr)
+	// Intercept subcommands before flag parsing.
+	if len(args) > 0 {
+		switch args[0] {
+		case "admin":
+			return runAdminCommand(args[1:], stdout, stderr)
+		case "backup":
+			return runBackupCommand(args[1:], stdout, stderr)
+		case "restore":
+			return runRestoreCommand(args[1:], stdout, stderr)
+		}
 	}
 
 	flags := flag.NewFlagSet("gogomail", flag.ContinueOnError)

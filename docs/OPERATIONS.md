@@ -264,6 +264,13 @@ Rules:
 
 ## Backup & restore
 
+> First-class tooling: prefer the `gogomail backup` / `gogomail restore`
+> subcommands, which bundle the DB dump with a storage manifest, a redacted
+> config snapshot, and a checksummed migration version, and validate the bundle
+> (checksums + migration compatibility) before restoring. See
+> [BACKUP_RESTORE.md](BACKUP_RESTORE.md). The manual `pg_dump`/`pg_restore`
+> recipes below remain valid for ad-hoc DB-only operations.
+
 ### Postgres
 
 ```bash
