@@ -24,6 +24,7 @@ import {
   summarizeAPIUsage,
   type APIUsageDailyRow,
 } from '@/lib/apiUsage';
+import { downloadCsv } from '@/lib/export';
 import { useAdminAPIUsageDaily } from '@/hooks';
 
 interface APIUsageRecord extends APIUsageDailyRow {}
@@ -103,13 +104,7 @@ export default function APIUsagePage() {
   const handleExport = () => {
     if (records.length === 0) return;
     const csv = exportAPIUsageCsv(records);
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `api-usage-${companyId}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+    downloadCsv(csv, `api-usage-${companyId}.csv`);
   };
 
   if (loading) {

@@ -23,6 +23,7 @@ import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import { useI18n } from '@/app/i18n-provider';
 import { useCompany } from '@/contexts/CompanyContext';
 import { buildAuditLogsQuery, exportAuditLogsCsv, type AuditLogRow } from '@/lib/auditLogs';
+import { downloadCsv } from '@/lib/export';
 import { formatDateTime } from '@/lib/format';
 
 interface AuditLog extends AuditLogRow {
@@ -185,13 +186,7 @@ export default function AuditLogsPage() {
             created_at: log.created_at,
           }))
         );
-        const blob = new Blob([csv], { type: 'text/csv' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `audit-logs-${cid}.csv`;
-        a.click();
-        URL.revokeObjectURL(url);
+        downloadCsv(csv, `audit-logs-${cid}.csv`);
       } else {
         const content = JSON.stringify(filtered, null, 2);
         const blob = new Blob([content], { type: 'application/json' });

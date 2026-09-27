@@ -1,3 +1,5 @@
+import { sanitizeCsvCell } from './export';
+
 export interface APIUsageDailyRow {
   day: string;
   method: string;
@@ -35,7 +37,7 @@ export interface APIUsageQueryFilters {
 }
 
 function escapeCsv(value: string): string {
-  return `"${(value ?? '').replace(/"/g, '""')}"`;
+  return `"${sanitizeCsvCell(value ?? '').replace(/"/g, '""')}"`;
 }
 
 export function buildAPIUsageQuery(filters: APIUsageQueryFilters): string {

@@ -1,3 +1,5 @@
+import { sanitizeCsvCell } from './export';
+
 export interface LoginAuditRow {
   id: string;
   user_id: string;
@@ -20,7 +22,7 @@ export interface LoginAuditQueryFilters {
 }
 
 function escapeCsv(value: string): string {
-  return `"${(value ?? '').replace(/"/g, '""')}"`;
+  return `"${sanitizeCsvCell(value ?? '').replace(/"/g, '""')}"`;
 }
 
 export function buildLoginAuditsQuery(filters: LoginAuditQueryFilters): string {

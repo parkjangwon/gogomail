@@ -1,3 +1,5 @@
+import { CSV_BOM, sanitizeCsvCell } from './export';
+
 export interface MailFlowLogRow {
   id: string;
   from: string;
@@ -26,7 +28,7 @@ export interface MailFlowLogQueryFilters {
 }
 
 function escapeCsv(value: string): string {
-  return `"${(value ?? '').replace(/"/g, '""')}"`;
+  return `"${sanitizeCsvCell(value ?? '').replace(/"/g, '""')}"`;
 }
 
 export function buildMailFlowLogsQuery(filters: MailFlowLogQueryFilters): string {
@@ -55,12 +57,12 @@ export function exportMailFlowLogsCsv(rows: MailFlowLogRow[]): string {
   const header = ['id', 'from', 'to', 'subject', 'status', 'created_at'].join(',');
   const lines = rows.map((row) =>
     [
-      row.id,
+      sanitizeCsvCell(row.id ?? ''),
       escapeCsv(row.from),
       escapeCsv(row.to),
       escapeCsv(row.subject),
-      row.status,
-      row.created_at || row.timestamp || '',
+      sanitizeCsvCell(row.status ?? ''),
+      sanitizeCsvCell(row.created_at || row.timestamp || ''),
     ].join(',')
   );
   return [header, ...lines].join('\n');
@@ -72,7 +74,7 @@ export function exportMailFlowLogsCsv(rows: MailFlowLogRow[]): string {
  * removed afterwards.
  */
 export function downloadCsv(csv: string, filename: string): void {
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const blob = new Blob([CSV_BOM + csv], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement('a');
   anchor.href = url;

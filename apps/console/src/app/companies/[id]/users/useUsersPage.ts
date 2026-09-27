@@ -7,6 +7,7 @@ import {
   buildAutoAddress,
   createEmptyUserDraft,
   parseUsersCsv,
+  UserCsvParseError,
   USER_STORAGE_BYTES_PER_GB,
 } from '@/lib/users/userPageUtils';
 import type { EditUserFormState } from '@/components/users/EditUserModal';
@@ -404,8 +405,12 @@ export function useUsersPage() {
       } else {
         addFlash('error', t('pages.users_page.import_failed'));
       }
-    } catch {
-      addFlash('error', t('pages.users_page.import_failed'));
+    } catch (e: unknown) {
+      if (e instanceof UserCsvParseError) {
+        addFlash('error', e.message);
+      } else {
+        addFlash('error', t('pages.users_page.import_failed'));
+      }
     } finally {
       setImporting(false);
       if (fileInputRef.current) fileInputRef.current.value = '';

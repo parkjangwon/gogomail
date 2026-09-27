@@ -21,6 +21,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import { useI18n } from '@/app/i18n-provider';
 import { buildLoginAuditsQuery, exportLoginAuditsCsv, type LoginAuditRow } from '@/lib/loginAudits';
+import { downloadCsv } from '@/lib/export';
 
 interface SessionPolicy {
   timeout_minutes: number;
@@ -186,13 +187,7 @@ export default function SessionManagementPage() {
       failure_reason: audit.failure_reason,
       timestamp: audit.timestamp,
     })));
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `login-audits-${companyId}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+    downloadCsv(csv, `login-audits-${companyId}.csv`);
   };
 
   if (loadingPolicy && loadingSessions) {

@@ -1,3 +1,5 @@
+import { sanitizeCsvCell } from './export';
+
 export interface AuditLogRow {
   id: string;
   actor_id: string;
@@ -26,7 +28,7 @@ export interface AuditLogQueryFilters {
 }
 
 function escapeCsv(value: string): string {
-  return `"${(value ?? '').replace(/"/g, '""')}"`;
+  return `"${sanitizeCsvCell(value ?? '').replace(/"/g, '""')}"`;
 }
 
 export function buildAuditLogsQuery(filters: AuditLogQueryFilters): string {

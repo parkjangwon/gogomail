@@ -4,6 +4,7 @@ import {
   createEmptyUserDraft,
   formatStorage,
   parseUsersCsv,
+  UserCsvParseError,
   USER_STORAGE_BYTES_PER_GB,
 } from '../users/userPageUtils';
 
@@ -42,5 +43,56 @@ describe('userPageUtils', () => {
         password: 'secret',
       },
     ]);
+  });
+
+  it('keeps commas inside quoted fields instead of shifting columns', () => {
+    expect(
+      parseUsersCsv('jane@example.com,"Doe, Jane",example.com,"p,ass,word"'),
+    ).toEqual([
+      {
+        email: 'jane@example.com',
+        display_name: 'Doe, Jane',
+        domain_id: 'example.com',
+        password: 'p,ass,word',
+      },
+    ]);
+  });
+
+  it('unescapes doubled quotes in quoted fields', () => {
+    expect(parseUsersCsv('jane@example.com,"a""b",example.com,secret')).toEqual([
+      {
+        email: 'jane@example.com',
+        display_name: 'a"b',
+        domain_id: 'example.com',
+        password: 'secret',
+      },
+    ]);
+  });
+
+  it('detects and skips a header row', () => {
+    expect(
+      parseUsersCsv('email,display_name,domain_id,password\njane@example.com,Jane,example.com,secret'),
+    ).toEqual([
+      {
+        email: 'jane@example.com',
+        display_name: 'Jane',
+        domain_id: 'example.com',
+        password: 'secret',
+      },
+    ]);
+  });
+
+  it('rejects rows with the wrong column count loudly', () => {
+    expect(() => parseUsersCsv('jane@example.com,Jane,example.com')).toThrow(UserCsvParseError);
+    try {
+      parseUsersCsv('jane@example.com,Jane,example.com');
+    } catch (e) {
+      expect(e).toBeInstanceOf(UserCsvParseError);
+      expect((e as UserCsvParseError).rows).toEqual([1]);
+    }
+  });
+
+  it('rejects rows with an empty email', () => {
+    expect(() => parseUsersCsv(',Jane,example.com,secret')).toThrow(UserCsvParseError);
   });
 });
