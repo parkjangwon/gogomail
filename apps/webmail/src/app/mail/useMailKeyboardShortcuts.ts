@@ -7,6 +7,11 @@ import { type ComposeContext } from './useMailCompose';
 import { type ToastItem } from '@/components/Toast';
 import { VIRTUAL_IMPORTANT } from '@/components/Sidebar';
 import { moveMailPanelFocus } from './mailPageHelpers';
+import {
+  normalizeShortcutKey,
+  shouldFireShortcut,
+  type EditableTargetLike,
+} from '@/lib/keyboard/shortcutFocusGuard';
 
 export interface UseMailKeyboardShortcutsParams {
   messages: MessageSummary[];
@@ -91,13 +96,6 @@ export function useMailKeyboardShortcuts(params: UseMailKeyboardShortcutsParams)
   } = params;
 
   useEffect(() => {
-    // Korean QWERTY → Latin normalization (allows shortcuts to work in Korean IME mode)
-    const KO: Record<string, string> = {
-      'ㄷ':'e','ㄱ':'r','ㅅ':'t','ㅛ':'y','ㅕ':'u','ㅑ':'i','ㅐ':'o','ㅔ':'p',
-      'ㅁ':'a','ㄴ':'s','ㅇ':'d','ㄹ':'f','ㅎ':'g','ㅗ':'h','ㅓ':'j','ㅏ':'k','ㅣ':'l',
-      'ㅋ':'z','ㅌ':'x','ㅊ':'c','ㅍ':'v','ㅠ':'b','ㅜ':'n','ㅡ':'m',
-      'ㅂ':'q','ㅈ':'w',
-    };
     function onKeyDown(e: KeyboardEvent) {
       if (e.key === 'Escape') {
         if (handleGlobalEscape()) {
@@ -108,11 +106,10 @@ export function useMailKeyboardShortcuts(params: UseMailKeyboardShortcutsParams)
         return;
       }
 
-      const tag = (e.target as HTMLElement).tagName;
-      const editable = (e.target as HTMLElement).isContentEditable;
-      if (tag === 'INPUT' || tag === 'TEXTAREA' || editable) return;
+      // Block shortcuts while typing into inputs/textareas/contenteditable.
+      if (!shouldFireShortcut(e as unknown as { key: string; target?: EditableTargetLike | null })) return;
 
-      const key = KO[e.key] ?? e.key;
+      const key = normalizeShortcutKey(e.key);
       const list = searchResults ?? messages;
       const currentIdx = list.findIndex((m) => m.id === selectedMessageId);
       const isMailApp = activeApp === 'mail';

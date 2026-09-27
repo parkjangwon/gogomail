@@ -11,6 +11,7 @@ import { useIsMobile } from '@/hooks/useIsMobile';
 import { useIsOnline } from '@/hooks/useIsOnline';
 import { Sidebar } from '@/components/Sidebar';
 import { MessageList } from '@/components/MessageList';
+import { SearchBar } from '@/components/SearchBar';
 import { ComposeModal } from '@/components/ComposeModal';
 import { ToastContainer, ToastItem } from '@/components/Toast';
 import { ShortcutHelp } from '@/components/ShortcutHelp';
@@ -106,7 +107,8 @@ export default function MailPage() {
     searchLoading,
     advancedFilters, setAdvancedFilters,
     handleSearch,
-  } = useMailSearch({ t, addToast });
+    runSearch,
+  } = useMailSearch({ t, addToast, getMessageLabels: () => messageLabelsRef.current });
 
   const {
     showDMModal, setShowDMModal,
@@ -122,6 +124,11 @@ export default function MailPage() {
     handlePin, handleImportant,
     setLabel, handleBulkLabel,
   } = useMailLabels({ addToast, t });
+
+  // Mirror messageLabels into a ref so useMailSearch's client-side `label`
+  // operator can read the latest map without re-subscribing.
+  const messageLabelsRef = useRef(messageLabels);
+  useEffect(() => { messageLabelsRef.current = messageLabels; }, [messageLabels]);
 
   const {
     userEmail, setUserEmail,
@@ -519,6 +526,23 @@ export default function MailPage() {
           )}
 
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
+
+            {/* Advanced search builder (chips + folder/label operators) */}
+            {!isMobile && (
+              <div style={{ padding: '10px 16px 4px', flexShrink: 0 }}>
+                <SearchBar
+                  value={searchQuery}
+                  onChange={handleSearch}
+                  advancedFilters={advancedFilters}
+                  onAdvancedFilterChange={(filters) => {
+                    setAdvancedFilters(filters);
+                    void runSearch(searchQuery, filters);
+                  }}
+                  folders={folders.filter((f) => Boolean(f.id))}
+                  labelColors={[...new Set(Object.values(messageLabels).filter(Boolean))]}
+                />
+              </div>
+            )}
 
             {/* Spam folder info banner */}
             <SpamFolderBanner

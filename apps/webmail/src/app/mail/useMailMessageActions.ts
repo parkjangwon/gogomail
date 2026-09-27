@@ -228,36 +228,80 @@ export function useMailMessageActions(params: UseMailMessageActionsParams) {
   }, [selectedMessageId, handleDeleteById]);
 
   const handleBulkDelete = useCallback(
-    async (ids: string[]) => {
+    (ids: string[]) => {
+      if (ids.length === 0) return;
+      // Snapshot everything needed to restore on undo, before optimistic removal.
+      const idSet = new Set(ids);
+      const messagesToRestore = [
+        ...messages.filter((m) => idSet.has(m.id)),
+        ...(searchResults?.filter((m) => idSet.has(m.id)) ?? []),
+      ];
+      // De-duplicate snapshots by id (a message can appear in both lists).
+      const seen = new Set<string>();
+      const uniqueMessages = messagesToRestore.filter((m) => (seen.has(m.id) ? false : (seen.add(m.id), true)));
+      const threadsToRestore = threads.filter((t) => idSet.has(t.latest_message_id || t.id));
+
       const unreadDeleteCount = countUnreadVisible(ids);
       if (unreadDeleteCount > 0) adjustUnread(activeFolderId, -unreadDeleteCount);
       removeVisibleMessages(ids);
-      if (ids.includes(selectedMessageId ?? '')) setSelectedMessageId(null);
+      if (idSet.has(selectedMessageId ?? '')) setSelectedMessageId(null);
+
       const inTrash = activeFolderSystemType === 'trash';
       const trashFolder = inTrash ? null : folders.find((f) => f.system_type === 'trash');
-      let failed = 0;
-      if (inTrash || !trashFolder) {
-        // Already in trash → permanent delete
-        const results = await Promise.allSettled(ids.map((id) => deleteMessage(id)));
-        failed = results.filter((r) => r.status === 'rejected').length;
-      } else {
-        // Move to trash (soft delete)
-        try {
-          await bulkMoveMessages(ids, trashFolder.id);
-        } catch {
-          failed = ids.length;
+
+      // Use a synthetic op-id so the pending timer + undo share one entry.
+      const opId = `bulk:${ids.join(',')}`;
+
+      const commit = async () => {
+        pendingDeletesRef.current.delete(opId);
+        let failed = 0;
+        if (inTrash || !trashFolder) {
+          const results = await Promise.allSettled(ids.map((id) => deleteMessage(id)));
+          failed = results.filter((r) => r.status === 'rejected').length;
+        } else {
+          try {
+            await bulkMoveMessages(ids, trashFolder.id);
+          } catch {
+            failed = ids.length;
+          }
         }
-      }
-      if (failed > 0) {
-        addToast(
-          t('misc.mailPage.bulkDeleteMixed', { ok: ids.length - failed, failed }),
-          'error',
-        );
-      } else {
-        addToast(t('misc.mailPage.bulkDeleted', { count: ids.length }));
-      }
+        if (failed > 0) {
+          addToast(
+            t('misc.mailPage.bulkDeleteMixed', { ok: ids.length - failed, failed }),
+            'error',
+          );
+        }
+      };
+
+      const timer = setTimeout(() => { void commit(); }, 5000);
+      pendingDeletesRef.current.set(opId, timer);
+
+      addToast(t('misc.mailPage.bulkDeleted', { count: ids.length }), 'info', {
+        duration: 5000,
+        action: {
+          label: t('misc.mailPage.undo'),
+          onClick: () => {
+            const pending = pendingDeletesRef.current.get(opId);
+            if (pending) {
+              clearTimeout(pending);
+              pendingDeletesRef.current.delete(opId);
+            }
+            if (uniqueMessages.length > 0) {
+              setMessages((prev) => [...uniqueMessages, ...prev]);
+              setSearchResults((prev) => (prev ? [...uniqueMessages, ...prev] : prev));
+              if (unreadDeleteCount > 0) adjustUnread(activeFolderId, unreadDeleteCount);
+            }
+            if (threadsToRestore.length > 0) {
+              setThreads((prev) => [...threadsToRestore, ...prev]);
+            }
+          },
+        },
+      });
     },
     [
+      messages,
+      searchResults,
+      threads,
       selectedMessageId,
       countUnreadVisible,
       adjustUnread,
@@ -265,7 +309,12 @@ export function useMailMessageActions(params: UseMailMessageActionsParams) {
       activeFolderSystemType,
       folders,
       removeVisibleMessages,
+      setMessages,
+      setSearchResults,
+      setThreads,
+      setSelectedMessageId,
       addToast,
+      t,
     ],
   );
 

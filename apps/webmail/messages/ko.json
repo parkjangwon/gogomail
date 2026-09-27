@@ -1672,6 +1672,11 @@
       "wordsContains": "포함하는 단어",
       "dateRange": "기간",
       "hasAttachment": "첨부파일 있음",
+      "folder": "폴더",
+      "folderAny": "모든 폴더",
+      "label": "라벨",
+      "since": "시작일",
+      "until": "종료일",
       "cancel": "취소",
       "search": "검색"
     },

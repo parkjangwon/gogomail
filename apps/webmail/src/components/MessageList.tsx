@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useMemo, useCallback, type KeyboardEvent as ReactKeyboardEvent } from 'react';
+import { useVirtualizer } from '@tanstack/react-virtual';
 
 const PULL_THRESHOLD = 64;
 const PAGE_SIZE = 50;
@@ -38,7 +39,9 @@ import {
   highlight,
   CATEGORY_TABS,
 } from './message-list/messageListTypes';
-import { KO_KEYS, DateGroupKey, getDateGroup } from './message-list/messageListHelpers';
+import { DateGroupKey, getDateGroup } from './message-list/messageListHelpers';
+import { toggleSelection } from '@/lib/mail/bulkSelection';
+import { isEditableTarget, normalizeShortcutKey } from '@/lib/keyboard/shortcutFocusGuard';
 
 export function MessageList({ messages, selectedId, onSelect, loading, emptyLabel, hasMore, loadingMore, onLoadMore, onStar, onBulkDelete, onBulkMarkRead, onRefresh, refreshing, isMobile, onOpenSidebar, onContextMenuMessage, onMarkAllRead, emptyFolderLabel, onEmptyFolder, folders, onBulkMove, paneWidth, fullWidth, bottomLayout, searchQuery, onDeleteMessage, onBulkRestore, onBulkLabel, onBulkStar, onArchiveMessage, onToggleReadMessage, onSnoozeMessage, onPinMessage, pinnedIds = EMPTY_SET, importantIds = EMPTY_SET, messageLabels = {}, userEmail, showPreview = true, showCategoryTabs = false, serverThreaded = false }: MessageListProps) {
   const t = useTranslations('mailListFull');
@@ -99,12 +102,8 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
     contactCardTimerRef.current = setTimeout(() => setContactCard(null), 120);
   }, []);
 
-  // Scroll selected message into view when selectedId changes (e.g., j/k keyboard nav)
-  useEffect(() => {
-    if (!selectedId || !scrollContainerRef.current) return;
-    const el = scrollContainerRef.current.querySelector<HTMLElement>(`[data-message-id="${selectedId}"]`);
-    el?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-  }, [selectedId]);
+  // Scroll-into-view for the selected row is handled by the virtualizer's
+  // scrollToIndex effect (defined below), since off-screen rows are not mounted.
 
   useEffect(() => {
     if (!showFilterDropdown) return;
@@ -139,24 +138,17 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
   }, [hasMore, onLoadMore, messages.length]);
 
   const toggleBulk = (id: string, shiftKey?: boolean) => {
-    const idx = filteredMessages.findIndex((m) => m.id === id);
-    if (shiftKey && lastBulkIndexRef.current !== null && idx !== -1) {
-      const from = Math.min(lastBulkIndexRef.current, idx);
-      const to = Math.max(lastBulkIndexRef.current, idx);
-      const rangeIds = filteredMessages.slice(from, to + 1).map((m) => m.id);
-      setBulkSelected((prev) => {
-        const next = new Set(prev);
-        rangeIds.forEach((rid) => next.add(rid));
-        return next;
-      });
-    } else {
-      setBulkSelected((prev) => {
-        const next = new Set(prev);
-        if (next.has(id)) next.delete(id); else next.add(id);
-        return next;
-      });
-      if (idx !== -1) lastBulkIndexRef.current = idx;
-    }
+    const orderedIds = filteredMessages.map((m) => m.id);
+    setBulkSelected((prev) => {
+      const result = toggleSelection(
+        { selected: prev, anchorIndex: lastBulkIndexRef.current },
+        id,
+        orderedIds,
+        shiftKey ?? false,
+      );
+      lastBulkIndexRef.current = result.anchorIndex;
+      return result.selected;
+    });
   };
 
   const selectAll = () => setBulkSelected(new Set(filteredMessages.map((m) => m.id)));
@@ -345,13 +337,13 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
   useEffect(() => {
     const handler = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null;
-      if (target?.closest('input, textarea, select, [contenteditable="true"]')) return;
+      if (isEditableTarget(target, true)) return;
       const bulkIds = [...bulkSelected];
       const ids = bulkIds.length > 0 ? bulkIds : hoveredMessageIdRef.current ? [hoveredMessageIdRef.current] : [];
       if (ids.length === 0) return;
       const actionMessages = getActionMessages(ids);
       if (actionMessages.length === 0) return;
-      const lowerKey = (KO_KEYS[event.key] ?? event.key).toLowerCase();
+      const lowerKey = normalizeShortcutKey(event.key).toLowerCase();
       const isBulkAction = bulkIds.length > 0;
       const finish = (run: () => void) => {
         event.preventDefault();
@@ -399,6 +391,55 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
   const containerBorder: React.CSSProperties = bottomLayout
     ? { borderBottom: '1px solid var(--color-border-subtle)', flexShrink: 0 }
     : { borderRight: '1px solid var(--color-border-subtle)' };
+
+  // Flatten date groups into a single list of virtual items (sticky headers +
+  // message rows) so the list can be windowed with @tanstack/react-virtual.
+  // Only the visible slice mounts, keeping 10k-message folders smooth.
+  type FlatItem =
+    | { kind: 'header'; key: string; label: string }
+    | { kind: 'row'; key: string; msg: MessageSummary };
+  const flatItems = useMemo<FlatItem[]>(() => {
+    const groupOrder: DateGroupKey[] = ['today', 'yesterday', 'lastWeek', 'thisMonth', 'older'];
+    const groupMap = new Map<DateGroupKey, MessageSummary[]>();
+    for (const msg of pagedMessages) {
+      const group = getDateGroup(msg.received_at);
+      if (!groupMap.has(group)) groupMap.set(group, []);
+      groupMap.get(group)!.push(msg);
+    }
+    const order = sortAsc ? [...groupOrder].reverse() : groupOrder;
+    const items: FlatItem[] = [];
+    for (const key of order) {
+      const groupMsgs = groupMap.get(key);
+      if (!groupMsgs) continue;
+      items.push({ kind: 'header', key: `header-${key}`, label: t(`dateGroup.${key}`) });
+      for (const msg of groupMsgs) items.push({ kind: 'row', key: msg.id, msg });
+    }
+    return items;
+    // t is stable enough for this purpose; label strings only change with locale.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pagedMessages, sortAsc]);
+
+  // Estimated row height: compact rows are shorter; headers are ~28px.
+  const estimateSize = useCallback((index: number) => {
+    const item = flatItems[index];
+    if (item?.kind === 'header') return 28;
+    return compact ? 44 : 76;
+  }, [flatItems, compact]);
+
+  const rowVirtualizer = useVirtualizer({
+    count: flatItems.length,
+    getScrollElement: () => scrollContainerRef.current,
+    estimateSize,
+    overscan: 12,
+    getItemKey: (index) => flatItems[index]?.key ?? index,
+  });
+
+  // Keep the selected row visible when selection changes via keyboard nav.
+  useEffect(() => {
+    if (!selectedId) return;
+    const idx = flatItems.findIndex((it) => it.kind === 'row' && it.msg.id === selectedId);
+    if (idx >= 0) rowVirtualizer.scrollToIndex(idx, { align: 'auto' });
+  }, [selectedId, flatItems, rowVirtualizer]);
 
   if (loading) {
     return (
@@ -544,24 +585,7 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
     );
   }
 
-  // Group messages by date
-  const groups: { key: string; label: string; messages: MessageSummary[] }[] = [];
-  const groupOrder: DateGroupKey[] = ['today', 'yesterday', 'lastWeek', 'thisMonth', 'older'];
-  const groupMap = new Map<DateGroupKey, MessageSummary[]>();
-
-  for (const msg of pagedMessages) {
-    const group = getDateGroup(msg.received_at);
-    if (!groupMap.has(group)) groupMap.set(group, []);
-    groupMap.get(group)!.push(msg);
-  }
-
-  const groupOrderDisplay = sortAsc ? [...groupOrder].reverse() : groupOrder;
-
-  for (const key of groupOrderDisplay) {
-    if (groupMap.has(key)) {
-      groups.push({ key, label: t(`dateGroup.${key}`), messages: groupMap.get(key)! });
-    }
-  }
+  const virtualItems = rowVirtualizer.getVirtualItems();
 
   return (
     <div
@@ -610,58 +634,85 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
           pullRef.current = null;
         } : undefined}
       >
-      {groups.map((group) => (
-        <div key={group.key} role="group" aria-label={group.label}>
-          <div
-            aria-hidden="true"
-            style={{
-              padding: '12px 16px 4px',
-              fontSize: '12px',
-              color: 'var(--color-text-tertiary)',
-              fontWeight: 500,
-              position: 'sticky',
-              top: 0,
-              zIndex: 1,
-              background: 'var(--color-bg-primary)',
-              backdropFilter: 'blur(8px)',
-            }}
-          >
-            {group.label}
-          </div>
-          {group.messages.map((msg) => (
-            <MessageRow
-              key={msg.id}
-              message={msg}
-              isSelected={selectedId === msg.id}
-              isBulkChecked={bulkSelected.has(msg.id)}
-              onSelect={onSelect}
-              onStar={onStar}
-              onToggleBulk={toggleBulk}
-              onContextMenu={onContextMenuMessage}
-              searchQuery={searchQuery}
-              compact={compact}
-              onDelete={isMobile ? onDeleteMessage : undefined}
-              onArchiveRow={isMobile ? onArchiveMessage : undefined}
-              onHoverDelete={!isMobile ? onDeleteMessage : undefined}
-              onHoverArchive={!isMobile ? onArchiveMessage : undefined}
-              onHoverToggleRead={!isMobile ? onToggleReadMessage : undefined}
-              onHoverSnooze={!isMobile ? onSnoozeMessage : undefined}
-              onHoverPin={!isMobile ? onPinMessage : undefined}
-              isPinned={pinnedIds.has(msg.id)}
-              threadCount={msg.message_count ?? threadCounts[msg.id]}
-              labelColor={messageLabels[msg.id]}
-              userEmail={userEmail}
-              showPreview={showPreview}
-              hasNote={noteIds.has(msg.id)}
-              isImportant={importantIds.has(msg.id)}
-              folderLabel={folderLabelById.get(msg.folder_id)}
-              onAvatarEnter={!isMobile ? handleAvatarEnter : undefined}
-              onAvatarLeave={!isMobile ? handleAvatarLeave : undefined}
-              onHoverChange={(id) => { hoveredMessageIdRef.current = id; }}
-            />
-          ))}
-        </div>
-      ))}
+      <div
+        style={{
+          height: `${rowVirtualizer.getTotalSize()}px`,
+          position: 'relative',
+          width: '100%',
+        }}
+      >
+        {virtualItems.map((vItem) => {
+          const item = flatItems[vItem.index];
+          if (!item) return null;
+          const commonStyle: React.CSSProperties = {
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width: '100%',
+            transform: `translateY(${vItem.start}px)`,
+          };
+          if (item.kind === 'header') {
+            return (
+              <div
+                key={vItem.key}
+                ref={rowVirtualizer.measureElement}
+                data-index={vItem.index}
+                role="presentation"
+                aria-hidden="true"
+                style={{
+                  ...commonStyle,
+                  padding: '12px 16px 4px',
+                  fontSize: '12px',
+                  color: 'var(--color-text-tertiary)',
+                  fontWeight: 500,
+                  background: 'var(--color-bg-primary)',
+                }}
+              >
+                {item.label}
+              </div>
+            );
+          }
+          const msg = item.msg;
+          return (
+            <div
+              key={vItem.key}
+              ref={rowVirtualizer.measureElement}
+              data-index={vItem.index}
+              style={commonStyle}
+            >
+              <MessageRow
+                message={msg}
+                isSelected={selectedId === msg.id}
+                isBulkChecked={bulkSelected.has(msg.id)}
+                onSelect={onSelect}
+                onStar={onStar}
+                onToggleBulk={toggleBulk}
+                onContextMenu={onContextMenuMessage}
+                searchQuery={searchQuery}
+                compact={compact}
+                onDelete={isMobile ? onDeleteMessage : undefined}
+                onArchiveRow={isMobile ? onArchiveMessage : undefined}
+                onHoverDelete={!isMobile ? onDeleteMessage : undefined}
+                onHoverArchive={!isMobile ? onArchiveMessage : undefined}
+                onHoverToggleRead={!isMobile ? onToggleReadMessage : undefined}
+                onHoverSnooze={!isMobile ? onSnoozeMessage : undefined}
+                onHoverPin={!isMobile ? onPinMessage : undefined}
+                isPinned={pinnedIds.has(msg.id)}
+                threadCount={msg.message_count ?? threadCounts[msg.id]}
+                labelColor={messageLabels[msg.id]}
+                userEmail={userEmail}
+                showPreview={showPreview}
+                hasNote={noteIds.has(msg.id)}
+                isImportant={importantIds.has(msg.id)}
+                folderLabel={folderLabelById.get(msg.folder_id)}
+                onAvatarEnter={!isMobile ? handleAvatarEnter : undefined}
+                onAvatarLeave={!isMobile ? handleAvatarLeave : undefined}
+                onHoverChange={(id) => { hoveredMessageIdRef.current = id; }}
+              />
+            </div>
+          );
+        })}
+      </div>
 
       <div ref={sentinelRef} style={{ height: '1px' }} aria-hidden="true" />
       {loadingMore && (

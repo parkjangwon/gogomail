@@ -64,6 +64,10 @@ export interface AdvancedFilters {
   since?: string;
   until?: string;
   has_attachment?: boolean;
+  /** Backend search operator: restrict results to a specific folder id. */
+  folder_id?: string;
+  /** Client-side operator: restrict results to messages carrying this label color. */
+  label?: string;
 }
 
 const SYSTEM_FOLDER_ICONS: Record<string, ReactNode> = {

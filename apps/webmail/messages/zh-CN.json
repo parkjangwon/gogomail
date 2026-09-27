@@ -1666,6 +1666,11 @@
       "wordsContains": "包含字词",
       "dateRange": "时间范围",
       "hasAttachment": "包含附件",
+      "folder": "文件夹",
+      "folderAny": "所有文件夹",
+      "label": "标签",
+      "since": "起始日期",
+      "until": "结束日期",
       "cancel": "取消",
       "search": "搜索"
     },

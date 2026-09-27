@@ -1666,6 +1666,11 @@
       "wordsContains": "Includes words",
       "dateRange": "Date range",
       "hasAttachment": "Has attachment",
+      "folder": "Folder",
+      "folderAny": "Any folder",
+      "label": "Label",
+      "since": "Since",
+      "until": "Until",
       "cancel": "Cancel",
       "search": "Search"
     },

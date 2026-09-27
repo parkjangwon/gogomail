@@ -4,6 +4,11 @@ import { useState, useRef, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import { MagnifyingGlassIcon, XMarkIcon, AdjustmentsHorizontalIcon } from '@heroicons/react/24/outline';
 import { AdvancedFilters } from '@/components/Sidebar';
+import {
+  buildActiveFilterChips,
+  clearFilterField,
+  type FilterField,
+} from '@/lib/mail/searchFilters';
 
 const RECENT_SEARCHES_KEY = 'webmail_recent_searches';
 const MAX_RECENT = 5;
@@ -20,14 +25,24 @@ function saveRecentSearch(q: string): string[] {
   return next;
 }
 
+interface SearchBarFolderOption {
+  id: string;
+  name: string;
+  system_type?: string;
+}
+
 interface SearchBarProps {
   value: string;
   onChange: (q: string) => void;
   advancedFilters?: AdvancedFilters;
   onAdvancedFilterChange?: (filters: AdvancedFilters) => void;
+  /** Folders offered by the "folder" operator in the builder. */
+  folders?: SearchBarFolderOption[];
+  /** Distinct label colors offered by the "label" operator. */
+  labelColors?: string[];
 }
 
-export function SearchBar({ value, onChange, advancedFilters = {}, onAdvancedFilterChange }: SearchBarProps) {
+export function SearchBar({ value, onChange, advancedFilters = {}, onAdvancedFilterChange, folders = [], labelColors = [] }: SearchBarProps) {
   const t = useTranslations();
   const [focused, setFocused] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
@@ -68,6 +83,17 @@ export function SearchBar({ value, onChange, advancedFilters = {}, onAdvancedFil
 
   const hasActive = value.trim().length > 0 || Object.values(advancedFilters).some(Boolean);
   const dropdownOpen = showAdvanced || (showSuggestions && recentSearches.length > 0 && !value.trim());
+
+  const folderNameById = (id: string) => folders.find((f) => f.id === id)?.name;
+  const activeChips = buildActiveFilterChips(advancedFilters, {
+    folderName: folderNameById,
+    colorName: (c) => c,
+  });
+  function removeChip(field: FilterField) {
+    const next = clearFilterField(advancedFilters, field);
+    setDraft(next);
+    onAdvancedFilterChange?.(next);
+  }
 
   const fieldRow: React.CSSProperties = {
     display: 'grid',
@@ -149,6 +175,38 @@ export function SearchBar({ value, onChange, advancedFilters = {}, onAdvancedFil
           <AdjustmentsHorizontalIcon style={{ width: '18px', height: '18px' }} />
         </button>
       </div>
+
+      {/* Active filter chips */}
+      {activeChips.length > 0 && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', padding: '8px 4px 0' }}>
+          {activeChips.map((chip) => (
+            <span
+              key={chip.field}
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: '6px',
+                padding: '3px 8px', borderRadius: '14px',
+                background: 'var(--color-accent-subtle)', color: 'var(--color-text-primary)',
+                fontSize: '12px', lineHeight: 1.4, maxWidth: '220px',
+              }}
+            >
+              <span style={{ color: 'var(--color-text-tertiary)', flexShrink: 0 }}>{t(`misc.searchBar.${chip.labelKey}`)}:</span>
+              {chip.field === 'label' ? (
+                <span aria-hidden="true" style={{ width: '12px', height: '12px', borderRadius: '50%', background: chip.value, flexShrink: 0 }} />
+              ) : (
+                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{chip.value}</span>
+              )}
+              <button
+                type="button"
+                onClick={() => removeChip(chip.field)}
+                aria-label={t('misc.searchBar.clear')}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-tertiary)', display: 'inline-flex', padding: 0, flexShrink: 0 }}
+              >
+                <XMarkIcon style={{ width: '13px', height: '13px' }} />
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
 
       {/* Recent searches */}
       {showSuggestions && !showAdvanced && recentSearches.length > 0 && !value.trim() && (
@@ -267,6 +325,56 @@ export function SearchBar({ value, onChange, advancedFilters = {}, onAdvancedFil
               {t('misc.searchBar.hasAttachment')}
             </label>
           </div>
+          {folders.length > 0 && (
+            <div style={fieldRow}>
+              <span style={fieldLabel}>{t('misc.searchBar.folder')}</span>
+              <select
+                value={draft.folder_id ?? ''}
+                onChange={(e) => setDraft((d) => ({ ...d, folder_id: e.target.value || undefined }))}
+                style={{ ...fieldInput, cursor: 'pointer' }}
+              >
+                <option value="">{t('misc.searchBar.folderAny')}</option>
+                {folders.map((f) => (
+                  <option key={f.id} value={f.id}>{f.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
+          {labelColors.length > 0 && (
+            <div style={fieldRow}>
+              <span style={fieldLabel}>{t('misc.searchBar.label')}</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                {labelColors.map((color) => {
+                  const active = draft.label === color;
+                  return (
+                    <button
+                      key={color}
+                      type="button"
+                      aria-pressed={active}
+                      aria-label={t('misc.searchBar.label')}
+                      onClick={() => setDraft((d) => ({ ...d, label: active ? undefined : color }))}
+                      style={{
+                        width: '18px', height: '18px', borderRadius: '50%', background: color,
+                        border: active ? '2px solid var(--color-text-primary)' : '2px solid transparent',
+                        boxShadow: active ? '0 0 0 1px var(--color-bg-primary)' : 'none',
+                        cursor: 'pointer', flexShrink: 0, padding: 0,
+                      }}
+                    />
+                  );
+                })}
+                {draft.label && (
+                  <button
+                    type="button"
+                    onClick={() => setDraft((d) => ({ ...d, label: undefined }))}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-tertiary)', display: 'inline-flex', padding: '2px' }}
+                    aria-label={t('misc.searchBar.clear')}
+                  >
+                    <XMarkIcon style={{ width: '14px', height: '14px' }} />
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', paddingTop: '12px', borderTop: '1px solid var(--color-border-subtle)' }}>
             <button
               onClick={() => { setShowAdvanced(false); setDraft(advancedFilters); }}

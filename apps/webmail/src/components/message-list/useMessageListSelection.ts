@@ -3,7 +3,8 @@
 import { useState, useRef, useEffect, type MutableRefObject, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { MessageSummary } from '@/lib/api';
 import { moveNavFocus } from '@/lib/navKeyboard';
-import { KO_KEYS } from './messageListHelpers';
+import { isEditableTarget, normalizeShortcutKey } from '@/lib/keyboard/shortcutFocusGuard';
+import { toggleSelection } from '@/lib/mail/bulkSelection';
 
 export interface UseMessageListSelectionOptions {
   filteredMessages: MessageSummary[];
@@ -43,24 +44,17 @@ export function useMessageListSelection({
   const hoveredMessageIdRef = useRef<string | null>(null);
 
   const toggleBulk = (id: string, shiftKey?: boolean) => {
-    const idx = filteredMessages.findIndex((m) => m.id === id);
-    if (shiftKey && lastBulkIndexRef.current !== null && idx !== -1) {
-      const from = Math.min(lastBulkIndexRef.current, idx);
-      const to = Math.max(lastBulkIndexRef.current, idx);
-      const rangeIds = filteredMessages.slice(from, to + 1).map((m) => m.id);
-      setBulkSelected((prev: Set<string>) => {
-        const next = new Set(prev);
-        rangeIds.forEach((rid) => next.add(rid));
-        return next;
-      });
-    } else {
-      setBulkSelected((prev: Set<string>) => {
-        const next = new Set(prev);
-        if (next.has(id)) next.delete(id); else next.add(id);
-        return next;
-      });
-      if (idx !== -1) lastBulkIndexRef.current = idx;
-    }
+    const orderedIds = filteredMessages.map((m) => m.id);
+    setBulkSelected((prev: Set<string>) => {
+      const result = toggleSelection(
+        { selected: prev, anchorIndex: lastBulkIndexRef.current },
+        id,
+        orderedIds,
+        shiftKey ?? false,
+      );
+      lastBulkIndexRef.current = result.anchorIndex;
+      return result.selected;
+    });
   };
 
   const selectAll = () => setBulkSelected(new Set(filteredMessages.map((m) => m.id)));
@@ -168,13 +162,13 @@ export function useMessageListSelection({
   useEffect(() => {
     const handler = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null;
-      if (target?.closest('input, textarea, select, [contenteditable="true"]')) return;
+      if (isEditableTarget(target, true)) return;
       const bulkIds = [...bulkSelected];
       const ids = bulkIds.length > 0 ? bulkIds : hoveredMessageIdRef.current ? [hoveredMessageIdRef.current] : [];
       if (ids.length === 0) return;
       const actionMessages = getActionMessages(ids);
       if (actionMessages.length === 0) return;
-      const lowerKey = (KO_KEYS[event.key] ?? event.key).toLowerCase();
+      const lowerKey = normalizeShortcutKey(event.key).toLowerCase();
       const isBulkAction = bulkIds.length > 0;
       const finish = (run: () => void) => {
         event.preventDefault();

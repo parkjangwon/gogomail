@@ -1666,6 +1666,11 @@
       "wordsContains": "含む単語",
       "dateRange": "期間",
       "hasAttachment": "添付ファイルあり",
+      "folder": "フォルダ",
+      "folderAny": "すべてのフォルダ",
+      "label": "ラベル",
+      "since": "開始日",
+      "until": "終了日",
       "cancel": "キャンセル",
       "search": "検索"
     },
