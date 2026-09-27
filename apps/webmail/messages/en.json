@@ -1433,7 +1433,10 @@
     "passkeyUnsupported": "Passkeys are not supported in this browser.",
     "passkeyLastUsed": "Last used",
     "passkeyNeverUsed": "Never used",
-    "passkeyRemove": "Remove"
+    "passkeyRemove": "Remove",
+    "pushPermissionDenied": "Notification permission was denied. Enable it in your browser settings to receive push notifications.",
+    "pushNotConfigured": "Push notifications are not configured on this server.",
+    "pushUnsupported": "This browser does not support push notifications."
   },
   "composeFull": {
     "titleNew": "New message",
@@ -2081,5 +2084,13 @@
     "blockDomainDesc": "Block all emails from @{domain}",
     "cancel": "Cancel",
     "confirm": "Report spam"
+  },
+  "pwa": {
+    "installTitle": "Install GoGoMail",
+    "installDesc": "Add GoGoMail to your home screen for a faster, full-screen experience.",
+    "installAction": "Install",
+    "installDismiss": "Dismiss",
+    "offlineBanner": "You are offline. Showing cached mail.",
+    "offlineQueued": "Offline — {count} action(s) will sync when you reconnect."
   }
 }

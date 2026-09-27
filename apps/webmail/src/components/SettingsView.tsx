@@ -111,6 +111,7 @@ export function SettingsView({ userEmail, userName, initialSection }: SettingsVi
     dndEnd,
     webPushEnabled,
     webPushSupported,
+    webPushBusy,
     notificationFolderOverrides,
     notificationFolders,
     // Filters
@@ -446,6 +447,7 @@ export function SettingsView({ userEmail, userName, initialSection }: SettingsVi
             webPushEnabled={webPushEnabled}
             setWebPushEnabled={setWebPushEnabledWithStorage}
             webPushSupported={webPushSupported}
+            webPushBusy={webPushBusy}
           />
         );
 

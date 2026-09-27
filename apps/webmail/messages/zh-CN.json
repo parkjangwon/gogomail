@@ -1433,7 +1433,10 @@
     "passkeyUnsupported": "此浏览器不支持通行密钥。",
     "passkeyLastUsed": "最后使用",
     "passkeyNeverUsed": "从未使用",
-    "passkeyRemove": "删除"
+    "passkeyRemove": "删除",
+    "pushPermissionDenied": "通知权限已被拒绝。请在浏览器设置中启用以接收推送通知。",
+    "pushNotConfigured": "此服务器未配置推送通知。",
+    "pushUnsupported": "此浏览器不支持推送通知。"
   },
   "composeFull": {
     "titleNew": "新邮件",
@@ -2078,5 +2081,13 @@
     "blockDomainDesc": "屏蔽来自 @{domain} 的所有邮件",
     "cancel": "取消",
     "confirm": "举报垃圾邮件"
+  },
+  "pwa": {
+    "installTitle": "安装 GoGoMail",
+    "installDesc": "将 GoGoMail 添加到主屏幕，获得更快的全屏体验。",
+    "installAction": "安装",
+    "installDismiss": "关闭",
+    "offlineBanner": "您已离线。正在显示缓存的邮件。",
+    "offlineQueued": "离线 — 重新连接后将同步 {count} 项操作。"
   }
 }

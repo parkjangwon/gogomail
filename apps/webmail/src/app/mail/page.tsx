@@ -697,8 +697,8 @@ export default function MailPage() {
           onClick={() => openCompose({ intent: 'new' })}
           style={{
             position: 'fixed',
-            bottom: '24px',
-            right: '20px',
+            bottom: 'calc(24px + env(safe-area-inset-bottom))',
+            right: 'calc(20px + env(safe-area-inset-right))',
             zIndex: 200,
             width: '52px',
             height: '52px',

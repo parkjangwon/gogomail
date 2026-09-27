@@ -1,4 +1,5 @@
 import { request, apiGet, apiPost, apiPatch, apiDelete, clearTokenAndRedirect, responseErrorMessage } from './http';
+import { offlineCache, isLikelyOfflineError } from './offlineCache';
 import type {
   Folder,
   MessageAddress,
@@ -169,11 +170,21 @@ export function searchMessages(
   return apiGet<{ messages: MessageSummary[]; has_more: boolean; next_cursor: string }>('search', p);
 }
 
-export function getFolders(): Promise<{ folders: Folder[] }> {
-  return apiGet<{ folders: Folder[] }>('folders');
+export async function getFolders(): Promise<{ folders: Folder[] }> {
+  try {
+    const data = await apiGet<{ folders: Folder[] }>('folders');
+    void offlineCache.saveFolders(data);
+    return data;
+  } catch (err) {
+    if (isLikelyOfflineError(err)) {
+      const cached = await offlineCache.readFolders<{ folders: Folder[] }>();
+      if (cached) return cached;
+    }
+    throw err;
+  }
 }
 
-export function getMessages(
+export async function getMessages(
   folderId: string,
   cursor = '',
   limit = 50,
@@ -188,12 +199,36 @@ export function getMessages(
   if (options.starred !== undefined) params.starred = String(options.starred);
   if (options.read !== undefined) params.read = String(options.read);
   if (options.has_attachment !== undefined) params.has_attachment = String(options.has_attachment);
-  return apiGet<{ messages: MessageSummary[]; has_more: boolean; next_cursor: string }>('messages', params);
+
+  // Only the unfiltered first page is worth caching for offline reading; cursor
+  // pages and filtered views are transient and would bloat the cache.
+  const cacheable = !cursor && options.starred === undefined && options.read === undefined && options.has_attachment === undefined;
+
+  try {
+    const data = await apiGet<{ messages: MessageSummary[]; has_more: boolean; next_cursor: string }>('messages', params);
+    if (cacheable) void offlineCache.saveMessageList(trimmedFolderId, data);
+    return data;
+  } catch (err) {
+    if (cacheable && isLikelyOfflineError(err)) {
+      const cached = await offlineCache.readMessageList<{ messages: MessageSummary[]; has_more: boolean; next_cursor: string }>(trimmedFolderId);
+      if (cached) return { ...cached, has_more: false, next_cursor: '' };
+    }
+    throw err;
+  }
 }
 
 export async function getMessage(id: string): Promise<MessageDetail> {
-  const res = await apiGet<{ message: MessageDetail }>(`messages/${id}`);
-  return res.message;
+  try {
+    const res = await apiGet<{ message: MessageDetail }>(`messages/${id}`);
+    void offlineCache.saveMessage(id, res.message);
+    return res.message;
+  } catch (err) {
+    if (isLikelyOfflineError(err)) {
+      const cached = await offlineCache.readMessage<MessageDetail>(id);
+      if (cached) return cached;
+    }
+    throw err;
+  }
 }
 
 export function markRead(id: string, value: boolean): Promise<{ status: string }> {

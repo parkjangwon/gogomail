@@ -1433,7 +1433,10 @@
     "passkeyUnsupported": "このブラウザはパスキーをサポートしていません。",
     "passkeyLastUsed": "最終使用",
     "passkeyNeverUsed": "使用履歴なし",
-    "passkeyRemove": "削除"
+    "passkeyRemove": "削除",
+    "pushPermissionDenied": "通知の許可が拒否されました。プッシュ通知を受け取るにはブラウザの設定で許可してください。",
+    "pushNotConfigured": "このサーバーではプッシュ通知が構成されていません。",
+    "pushUnsupported": "このブラウザはプッシュ通知に対応していません。"
   },
   "composeFull": {
     "titleNew": "新規メッセージ",
@@ -2078,5 +2081,13 @@
     "blockDomainDesc": "@{domain} からのすべてのメールをブロックします",
     "cancel": "キャンセル",
     "confirm": "スパムとして報告"
+  },
+  "pwa": {
+    "installTitle": "GoGoMail をインストール",
+    "installDesc": "ホーム画面に GoGoMail を追加すると、より高速で全画面表示になります。",
+    "installAction": "インストール",
+    "installDismiss": "閉じる",
+    "offlineBanner": "オフラインです。キャッシュされたメールを表示しています。",
+    "offlineQueued": "オフライン — 再接続時に {count} 件の操作が同期されます。"
   }
 }

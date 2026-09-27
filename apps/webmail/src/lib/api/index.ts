@@ -9,6 +9,7 @@ export * from './dm';
 export * from './drive';
 export * from './calendar';
 export * from './contacts';
+export * from './webPushApi';
 
 // Backward-compat alias: SendMessageRequest was renamed to MailSendRequest.
 export type { MailSendRequest as SendMessageRequest } from './mail';

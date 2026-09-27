@@ -38,6 +38,7 @@ interface SettingsNotificationsSectionProps {
   webPushEnabled: boolean;
   setWebPushEnabled: (value: boolean) => void;
   webPushSupported: boolean;
+  webPushBusy?: boolean;
 }
 
 export function SettingsNotificationsSection({
@@ -64,6 +65,7 @@ export function SettingsNotificationsSection({
   webPushEnabled,
   setWebPushEnabled,
   webPushSupported,
+  webPushBusy,
 }: SettingsNotificationsSectionProps) {
   const t = useTranslations();
   const tSidebar = useTranslations('sidebar');
@@ -111,6 +113,7 @@ export function SettingsNotificationsSection({
               value={webPushEnabled}
               onChange={setWebPushEnabled}
               ariaLabel={t('misc.settingsNotif.pushLabel')}
+              disabled={webPushBusy || notifPerm === 'denied'}
             />
           : <span style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>
               {t('misc.settingsNotif.pushUnsupported')}

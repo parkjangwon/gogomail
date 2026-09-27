@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
-import { registerWebPushDevice, getNotificationPreferences, setNotificationPreferences, getFolders, type NotificationPreferences, type FolderNotificationOverride, type Folder } from '@/lib/api';
+import { getNotificationPreferences, setNotificationPreferences, getFolders, type NotificationPreferences, type FolderNotificationOverride, type Folder } from '@/lib/api';
 import { ignoreNonCritical } from '@/lib/promise';
-import { webPushPublicKeyToUint8Array } from '@/lib/webpush';
+import { enableWebPush, disableWebPush, WebPushError } from '@/lib/webpush/subscription';
 
 const NOTIFICATION_FOLDER_OVERRIDES_KEY = 'webmail_notification_folder_overrides';
 const BADGE_COUNT_MODE_KEY = 'webmail_badge_count_mode';
@@ -58,6 +58,7 @@ export function useSettingsNotifications({ t }: UseSettingsNotificationsParams) 
   const [webPushEnabled, setWebPushEnabled] = useState<boolean>(() => {
     try { return localStorage.getItem('webmail_webpush_enabled') === 'true'; } catch { return false; }
   });
+  const [webPushBusy, setWebPushBusy] = useState<boolean>(false);
   const [webPushSupported] = useState<boolean>(() => {
     if (typeof window === 'undefined') return false;
     return 'serviceWorker' in navigator && 'PushManager' in window;
@@ -142,21 +143,10 @@ export function useSettingsNotifications({ t }: UseSettingsNotificationsParams) 
         // local settings cache is best-effort
       }
     }
-    if (p === 'granted' && 'serviceWorker' in navigator && 'PushManager' in window) {
-      try {
-        const reg = await navigator.serviceWorker.register('/sw.js');
-        const vapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
-        if (vapidKey) {
-          const sub = await reg.pushManager.subscribe({
-            userVisibleOnly: true,
-            applicationServerKey: webPushPublicKeyToUint8Array(vapidKey),
-          });
-          await registerWebPushDevice(sub);
-        }
-      } catch {
-        setNotifSyncError(t('pushRegisterFailed'));
-      }
-    }
+    // Web Push subscription itself is driven by the dedicated push toggle
+    // (setWebPushEnabledWithStorage), which subscribes against the documented
+    // /api/v1/me/push-subscriptions endpoint. Requesting permission here only
+    // unlocks in-app/desktop notifications.
   }
 
   function setFolderNotificationEnabled(folderId: string, enabled: boolean) {
@@ -215,9 +205,41 @@ export function useSettingsNotifications({ t }: UseSettingsNotificationsParams) 
     try { localStorage.setItem('webmail_dnd_end', v); } catch { /* */ }
   }
 
-  function setWebPushEnabledWithStorage(v: boolean) {
+  function webPushErrorMessage(err: unknown): string {
+    if (err instanceof WebPushError) {
+      switch (err.message) {
+        case 'permission-denied': return t('pushPermissionDenied');
+        case 'unsupported': return t('pushUnsupported');
+        case 'no-vapid-key': return t('pushNotConfigured');
+        default: break;
+      }
+    }
+    return t('pushRegisterFailed');
+  }
+
+  async function setWebPushEnabledWithStorage(v: boolean) {
+    if (webPushBusy) return;
+    setNotifSyncError('');
+    // Optimistic UI: reflect the intended state, revert if the operation fails.
     setWebPushEnabled(v);
-    try { localStorage.setItem('webmail_webpush_enabled', v ? 'true' : 'false'); } catch { /* */ }
+    setWebPushBusy(true);
+    try {
+      if (v) {
+        await enableWebPush();
+        // enableWebPush drives the permission prompt; mirror the result.
+        if (typeof Notification !== 'undefined') setNotifPerm(Notification.permission);
+      } else {
+        await disableWebPush();
+      }
+      try { localStorage.setItem('webmail_webpush_enabled', v ? 'true' : 'false'); } catch { /* */ }
+    } catch (err) {
+      setWebPushEnabled(!v);
+      try { localStorage.setItem('webmail_webpush_enabled', v ? 'false' : 'true'); } catch { /* */ }
+      setNotifSyncError(webPushErrorMessage(err));
+      if (typeof Notification !== 'undefined') setNotifPerm(Notification.permission);
+    } finally {
+      setWebPushBusy(false);
+    }
   }
 
   return {
@@ -233,6 +255,7 @@ export function useSettingsNotifications({ t }: UseSettingsNotificationsParams) 
     dndEnd, setDndEnd,
     webPushEnabled, setWebPushEnabled,
     webPushSupported,
+    webPushBusy,
     notificationPrefsLoaded,
     notificationFolderOverrides, setNotificationFolderOverrides,
     notificationFolders, setNotificationFolders,

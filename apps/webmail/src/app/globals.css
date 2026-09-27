@@ -315,3 +315,42 @@ html.letter-spacing-wide li {
     color: inherit;
   }
 }
+
+/* ─── PWA / Mobile layout ─────────────────────────────────────────────────
+   Keep the desktop 3-pane UI intact; only tighten small-viewport behavior:
+   prevent horizontal scroll, honor device safe-area insets (notches / home
+   indicator), and guarantee comfortable touch targets on primary actions. */
+
+html, body {
+  /* Never allow the app chrome to scroll sideways on narrow phones. */
+  overflow-x: hidden;
+  max-width: 100%;
+}
+
+/* Support env(safe-area-inset-*) — viewport-fit=cover is set in the layout. */
+@supports (padding: max(0px)) {
+  @media (max-width: 768px) {
+    body {
+      padding-left: env(safe-area-inset-left);
+      padding-right: env(safe-area-inset-right);
+    }
+  }
+}
+
+@media (max-width: 768px) {
+  /* Primary tap targets should be at least 44px on touch layouts. Scope to
+     mobile so the dense desktop toolbars are unaffected. */
+  .pwa-touch-target,
+  [data-touch-target] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}
+
+/* When launched as an installed PWA, pad the top for the status bar / notch so
+   fixed chrome is not clipped under the system UI. */
+@media (display-mode: standalone) {
+  body {
+    padding-top: env(safe-area-inset-top);
+  }
+}

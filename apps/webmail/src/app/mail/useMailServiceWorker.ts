@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import { ignoreNonCritical } from '@/lib/promise';
 
 interface UseMailServiceWorkerParams {
   refreshIntervalSeconds: number;
@@ -40,22 +39,10 @@ export function useMailServiceWorker(params: UseMailServiceWorkerParams) {
     return () => document.removeEventListener('visibilitychange', onVisible);
   }, []);
 
-  // Register the service worker only when notifications were already allowed.
-  // The permission prompt stays in Settings so entering webmail never surprises users.
-  useEffect(() => {
-    if (typeof Notification === 'undefined') return;
-    const doSetup = async () => {
-      if (Notification.permission === 'granted' && 'serviceWorker' in navigator && 'PushManager' in window) {
-        try {
-          await navigator.serviceWorker.register('/sw.js');
-          // VAPID push subscription is handled in Settings when user explicitly enables notifications
-        } catch {
-          // ignore SW registration failure
-        }
-      }
-    };
-    ignoreNonCritical(doSetup(), 'mail.serviceWorker.setup');
-  }, []);
+  // Service worker registration is handled app-wide in useServiceWorker (via
+  // Providers) so PWA install + offline work regardless of notification
+  // permission. Push subscription is layered on separately (useWebPush /
+  // settings toggle). This hook only listens for SW-driven mail refreshes.
 
   // Refresh mail list when the service worker signals a push notification arrived.
   useEffect(() => {

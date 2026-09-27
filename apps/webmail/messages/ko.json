@@ -1438,7 +1438,10 @@
     "passkeyUnsupported": "이 브라우저는 패스키를 지원하지 않습니다.",
     "passkeyLastUsed": "마지막 사용",
     "passkeyNeverUsed": "사용 이력 없음",
-    "passkeyRemove": "삭제"
+    "passkeyRemove": "삭제",
+    "pushPermissionDenied": "알림 권한이 거부되었습니다. 푸시 알림을 받으려면 브라우저 설정에서 허용하세요.",
+    "pushNotConfigured": "이 서버에는 푸시 알림이 구성되어 있지 않습니다.",
+    "pushUnsupported": "이 브라우저는 푸시 알림을 지원하지 않습니다."
   },
   "composeFull": {
     "titleNew": "새 메시지",
@@ -2087,5 +2090,13 @@
     "blockDomainDesc": "@{domain} 에서 오는 모든 메일을 차단합니다",
     "cancel": "취소",
     "confirm": "스팸 신고"
+  },
+  "pwa": {
+    "installTitle": "GoGoMail 설치",
+    "installDesc": "홈 화면에 GoGoMail을 추가하면 더 빠르고 전체 화면으로 사용할 수 있습니다.",
+    "installAction": "설치",
+    "installDismiss": "닫기",
+    "offlineBanner": "오프라인 상태입니다. 저장된 메일을 표시합니다.",
+    "offlineQueued": "오프라인 — 다시 연결되면 작업 {count}개가 동기화됩니다."
   }
 }
