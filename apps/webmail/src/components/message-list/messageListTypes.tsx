@@ -129,6 +129,8 @@ export interface MessageListProps {
   userEmail?: string;
   showPreview?: boolean;
   showCategoryTabs?: boolean;
+  /** True when `messages` are already server-side threads — skips client-side subject grouping. */
+  serverThreaded?: boolean;
 }
 
 export interface MessageRowProps {

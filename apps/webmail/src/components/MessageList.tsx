@@ -40,7 +40,7 @@ import {
 } from './message-list/messageListTypes';
 import { KO_KEYS, DateGroupKey, getDateGroup } from './message-list/messageListHelpers';
 
-export function MessageList({ messages, selectedId, onSelect, loading, emptyLabel, hasMore, loadingMore, onLoadMore, onStar, onBulkDelete, onBulkMarkRead, onRefresh, refreshing, isMobile, onOpenSidebar, onContextMenuMessage, onMarkAllRead, emptyFolderLabel, onEmptyFolder, folders, onBulkMove, paneWidth, fullWidth, bottomLayout, searchQuery, onDeleteMessage, onBulkRestore, onBulkLabel, onBulkStar, onArchiveMessage, onToggleReadMessage, onSnoozeMessage, onPinMessage, pinnedIds = EMPTY_SET, importantIds = EMPTY_SET, messageLabels = {}, userEmail, showPreview = true, showCategoryTabs = false }: MessageListProps) {
+export function MessageList({ messages, selectedId, onSelect, loading, emptyLabel, hasMore, loadingMore, onLoadMore, onStar, onBulkDelete, onBulkMarkRead, onRefresh, refreshing, isMobile, onOpenSidebar, onContextMenuMessage, onMarkAllRead, emptyFolderLabel, onEmptyFolder, folders, onBulkMove, paneWidth, fullWidth, bottomLayout, searchQuery, onDeleteMessage, onBulkRestore, onBulkLabel, onBulkStar, onArchiveMessage, onToggleReadMessage, onSnoozeMessage, onPinMessage, pinnedIds = EMPTY_SET, importantIds = EMPTY_SET, messageLabels = {}, userEmail, showPreview = true, showCategoryTabs = false, serverThreaded = false }: MessageListProps) {
   const t = useTranslations('mailListFull');
   const [filterMode, setFilterMode] = useState<FilterMode>('all');
   const [filterLabel, setFilterLabel] = useState<string | null>(null);
@@ -314,7 +314,9 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
   }
 
   const { filteredMessages, threadCounts } = useMemo(() => {
-    if (!conversationMode) return { filteredMessages: sortedBase, threadCounts: {} as Record<string, number> };
+    // Server already threaded the list (thread_id/message_count) — client-side
+    // subject grouping would wrongly merge distinct threads sharing a subject.
+    if (!conversationMode || serverThreaded) return { filteredMessages: sortedBase, threadCounts: {} as Record<string, number> };
     const seen = new Map<string, { msg: MessageSummary; count: number }>();
     for (const msg of sortedBase) {
       const key = normalizeSubject(msg.subject || '');
@@ -332,7 +334,7 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
     const counts: Record<string, number> = {};
     seen.forEach((v) => { counts[v.msg.id] = v.count; });
     return { filteredMessages: msgs, threadCounts: counts };
-  }, [conversationMode, sortedBase]);
+  }, [conversationMode, serverThreaded, sortedBase]);
 
   const pageStart = page * PAGE_SIZE;
   const pageEnd = pageStart + PAGE_SIZE;

@@ -499,8 +499,6 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
 
   return (
     <>
-      <div aria-hidden="true" style={{ position: 'fixed', inset: 0, zIndex: 99, pointerEvents: 'none' }} />
-
       <div
         ref={dialogRef}
         role="dialog"

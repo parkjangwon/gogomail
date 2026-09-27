@@ -574,6 +574,7 @@ export default function MailPage() {
               userEmail={userEmail || undefined}
               showPreview={wmSettings.showPreview}
               showCategoryTabs={activeFolderSystemType === 'inbox' || activeFolderId === VIRTUAL_ALL}
+              serverThreaded={searchResults === null && threadViewEnabled && threads.length > 0}
             />
 
           </div>{/* end mail layout wrapper */}

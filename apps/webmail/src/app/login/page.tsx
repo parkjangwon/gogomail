@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, KeyboardEvent } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
@@ -105,12 +105,6 @@ export default function LoginPage() {
     }
   }
 
-  function handleKeyDown(e: KeyboardEvent<HTMLFormElement>) {
-    if (e.key === 'Enter') {
-      void (step === 'password' ? handlePasswordSubmit(e) : handleMFASubmit(e));
-    }
-  }
-
   return (
     <div
       style={{
@@ -143,7 +137,6 @@ export default function LoginPage() {
         {step === 'password' ? (
           <form
             onSubmit={handlePasswordSubmit}
-            onKeyDown={handleKeyDown}
             autoComplete="on"
             style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}
           >
@@ -205,7 +198,6 @@ export default function LoginPage() {
         ) : (
           <form
             onSubmit={handleMFASubmit}
-            onKeyDown={handleKeyDown}
             autoComplete="on"
             style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}
           >

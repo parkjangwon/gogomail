@@ -1,4 +1,6 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Lexend:wght@400;500;600&display=swap');
+/* Inter/Lexend have no Korean glyphs — Pretendard Variable covers CJK, picked up automatically per-glyph. */
+@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css');
 @import "tailwindcss";
 
 :root {
@@ -67,7 +69,7 @@
 html,
 body {
   height: 100%;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family: 'Inter', 'Pretendard Variable', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   font-size: 14px;
   background: var(--color-bg-primary);
   color: var(--color-text-primary);
@@ -246,7 +248,7 @@ html[data-theme="dark"].colorblind-tritanopia {
 /* ─── Accessibility: Dyslexia-Friendly Mode ───────────────────────────── */
 html.dyslexia-mode,
 html.dyslexia-mode body {
-  font-family: 'Lexend', 'Inter', -apple-system, sans-serif !important;
+  font-family: 'Lexend', 'Inter', 'Pretendard Variable', -apple-system, sans-serif !important;
   letter-spacing: 0.04em;
   word-spacing: 0.1em;
   line-height: 1.75;
