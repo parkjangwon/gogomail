@@ -11,8 +11,11 @@ import {
   KeyValuePairs,
   StatusIndicator,
   SpaceBetween,
+  Spinner,
+  Alert,
+  Button,
 } from '@cloudscape-design/components';
-import { useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 import { useI18n } from '@/app/i18n-provider';
 import {
   useAdminQueueStats,
@@ -21,6 +24,27 @@ import {
   type QueueStat,
 } from '@/hooks';
 import { type AdminHealthCheck } from '@/hooks/useSystem';
+
+type DbStatusType = 'success' | 'warning' | 'error' | 'pending';
+
+const dbStatusType = (status: string | undefined): DbStatusType => {
+  switch (status) {
+    case 'healthy':
+      return 'success';
+    case 'degraded':
+      return 'warning';
+    case 'unhealthy':
+      return 'error';
+    default:
+      return 'pending';
+  }
+};
+
+const memBarStatus = (pct: number): 'success' | 'error' | 'in-progress' => {
+  if (pct > 85) return 'error';
+  if (pct >= 70) return 'in-progress';
+  return 'success';
+};
 
 export default function MonitoringPage() {
   const { t } = useI18n();
@@ -42,8 +66,37 @@ export default function MonitoringPage() {
   const goroutines = metricsQuery.data?.goroutines ?? 0;
 
   const dbCheck = healthQuery.data?.checks?.find((c: AdminHealthCheck) => c.service === 'database');
-  const dbStatus = dbCheck?.status === 'healthy' ? 'success' : dbCheck?.status === 'degraded' ? 'warning' : 'pending';
+  const dbStatus = dbStatusType(dbCheck?.status);
   const dbResponseTime = dbCheck?.response_time_ms != null ? `${dbCheck.response_time_ms}ms` : '—';
+
+  const isLoading = queueQuery.isLoading || healthQuery.isLoading || metricsQuery.isLoading;
+  const isError = queueQuery.isError || healthQuery.isError || metricsQuery.isError;
+
+  const refetchAll = useCallback(async () => {
+    await Promise.all([queueQuery.refetch(), healthQuery.refetch(), metricsQuery.refetch()]);
+  }, [queueQuery, healthQuery, metricsQuery]);
+
+  if (isLoading) {
+    return (
+      <ContentLayout header={<Header variant="h1">{t('pages.monitoring.title')}</Header>}>
+        <Box textAlign="center" padding="xl"><Spinner size="large" /></Box>
+      </ContentLayout>
+    );
+  }
+
+  if (isError) {
+    return (
+      <ContentLayout header={<Header variant="h1">{t('pages.monitoring.title')}</Header>}>
+        <Alert
+          type="error"
+          header={t('pages.monitoring_page.failed_load')}
+          action={<Button iconName="refresh" onClick={refetchAll}>{t('common.retry')}</Button>}
+        >
+          {t('pages.monitoring_page.failed_load_detail')}
+        </Alert>
+      </ContentLayout>
+    );
+  }
 
   return (
     <ContentLayout header={<Header variant="h1">{t('pages.monitoring.title')}</Header>}>
@@ -57,7 +110,7 @@ export default function MonitoringPage() {
               <ProgressBar
                 value={memPct}
                 label={`${Math.round(memPct)}%`}
-                status={memPct > 85 ? 'error' : 'success'}
+                status={memBarStatus(memPct)}
               />
             </Box>
             <Box>
@@ -118,7 +171,7 @@ export default function MonitoringPage() {
                 label: t('pages.monitoring_page.queue_status'),
                 value: (
                   <StatusIndicator type={dbStatus}>
-                    {dbCheck?.status ?? t('pages.monitoring_page.pending')}
+                    {dbCheck?.status ? t(`status.${dbCheck.status}`, dbCheck.status) : t('status.unknown')}
                   </StatusIndicator>
                 ),
               },

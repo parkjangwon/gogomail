@@ -1074,7 +1074,11 @@
       "just_now": "just now",
       "minutes_ago": "{n}m ago",
       "hours_ago": "{n}h ago",
-      "days_ago": "{n}d ago"
+      "days_ago": "{n}d ago",
+      "failed_load": "Failed to load dashboard",
+      "failed_load_detail": "The dashboard API is unreachable. Statistics cannot be shown right now — retry or check the backend.",
+      "refresh_failed": "Refresh failed",
+      "refresh_failed_detail": "The latest refresh did not complete. The figures below may be stale."
     },
     "delegations": {
       "create_btn": "Create",
@@ -1744,7 +1748,9 @@
       "delayed": "Delayed",
       "queue_breakdown": "Queue Breakdown",
       "queue_topic": "Queue",
-      "active_queues": "Active Queues"
+      "active_queues": "Active Queues",
+      "failed_load": "Failed to load monitoring data",
+      "failed_load_detail": "The monitoring API is unreachable. This does not mean the system is healthy — retry or check the backend."
     },
     "organization": {
       "description": "Description",

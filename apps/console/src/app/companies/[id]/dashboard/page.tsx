@@ -12,15 +12,16 @@ import {
   KeyValuePairs,
   Button,
   StatusIndicator,
+  Alert,
 } from '@cloudscape-design/components';
 import { useParams, useRouter } from 'next/navigation';
 import { useDashboard } from '@/hooks/useDashboard';
 import { useCompany } from '@/contexts/CompanyContext';
 import { useI18n } from '@/app/i18n-provider';
-import { useQueryClient } from '@tanstack/react-query';
 import { useState, useEffect } from 'react';
 import { getRecentVisits } from '@/components/AdminLayout';
 import { MetricCard } from '@/components/dashboard/MetricCard';
+import { formatDateTime } from '@/lib/format';
 
 const healthIndicator = (status: string, t: (key: string, defaultValue?: string) => string) => {
   if (status === 'healthy') return <StatusIndicator type="success">{t('status.healthy')}</StatusIndicator>;
@@ -37,18 +38,18 @@ export default function DashboardPage() {
   const router = useRouter();
   const companyId = params.id as string;
   const { currentCompany } = useCompany();
-  const queryClient = useQueryClient();
-  const { data, isLoading, isFetching } = useDashboard(companyId);
+  const { data, isLoading, isFetching, isError, isSuccess, refetch } = useDashboard(companyId);
   const [countdown, setCountdown] = useState(30);
   const [recentVisitMap, setRecentVisitMap] = useState<Map<string, number>>(new Map());
 
-  // Countdown to next auto-refresh
+  // Countdown to next auto-refresh — only reset on a successful fetch so a
+  // failed refetch does not imply fresh data is arriving.
   useEffect(() => {
-    if (!data) return;
+    if (!isSuccess || !data) return;
     setCountdown(30);
     const iv = setInterval(() => setCountdown(c => (c <= 1 ? 30 : c - 1)), 1000);
     return () => clearInterval(iv);
-  }, [data?.fetchedAt]);
+  }, [data?.fetchedAt, isSuccess]);
 
   useEffect(() => {
     const visits = getRecentVisits();
@@ -58,13 +59,28 @@ export default function DashboardPage() {
   }, []);
 
   const handleRefresh = () => {
-    queryClient.invalidateQueries({ queryKey: ['dashboard', companyId] });
+    refetch();
   };
 
   if (isLoading) {
     return (
       <ContentLayout header={<Header variant="h1">{t('pages.dashboard_page.title')}</Header>}>
         <Box textAlign="center" padding="xl"><Spinner /></Box>
+      </ContentLayout>
+    );
+  }
+
+  // On fetch failure, show an explicit error with retry — never fake zeros.
+  if (isError && !data) {
+    return (
+      <ContentLayout header={<Header variant="h1">{t('pages.dashboard_page.title')}</Header>}>
+        <Alert
+          type="error"
+          header={t('pages.dashboard_page.failed_load')}
+          action={<Button iconName="refresh" loading={isFetching} onClick={handleRefresh}>{t('common.retry')}</Button>}
+        >
+          {t('pages.dashboard_page.failed_load_detail')}
+        </Alert>
       </ContentLayout>
     );
   }
@@ -111,9 +127,7 @@ export default function DashboardPage() {
   const storagePct = stats.storage_pct;
 
   const fetchedAt = data?.fetchedAt;
-  const lastUpdated = fetchedAt
-    ? fetchedAt.toLocaleTimeString()
-    : '—';
+  const lastUpdated = fetchedAt ? formatDateTime(fetchedAt.toISOString()) : '—';
 
   const formatRelativeVisit = (ts: number) => {
     const mins = Math.floor((Date.now() - ts) / 60000);
@@ -162,6 +176,15 @@ export default function DashboardPage() {
       }
     >
       <SpaceBetween size="l">
+        {isError && (
+          <Alert
+            type="warning"
+            header={t('pages.dashboard_page.refresh_failed')}
+            action={<Button iconName="refresh" loading={isFetching} onClick={handleRefresh}>{t('common.retry')}</Button>}
+          >
+            {t('pages.dashboard_page.refresh_failed_detail')}
+          </Alert>
+        )}
         {/* Core statistics */}
         <ColumnLayout columns={3} variant="text-grid" minColumnWidth={200}>
           <MetricCard
