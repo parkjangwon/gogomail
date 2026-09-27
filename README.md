@@ -198,7 +198,7 @@ GoGoMail is built for the AI-agent era. It ships two Model Context Protocol (MCP
 | Server | Audience | Tools |
 |---|---|---|
 | Management MCP (`apps/gogomail-manage-mcp`) | Operators, support, administrators | **50 tools** — user/domain mutations, delivery and queue diagnostics, organization membership/title management, security and spam-filter policy, admin API bridge |
-| User MCP (`apps/gogomail-user-mcp`) | Individual webmail users | **123 tools** — mail send/search/bulk actions, DM rooms/messages/reactions, contacts, calendar, Drive upload/download/share, notification and Web Push, spam UX, profile/avatar |
+| User MCP (`apps/gogomail-user-mcp`) | Individual webmail users | **127 tools** — mail send/search/bulk actions, DM rooms/messages/reactions, contacts, calendar, Drive upload/download/share, notification and Web Push, spam UX, profile/avatar |
 
 The split is intentional: the management MCP is for running GoGoMail as a service; the user MCP lets a user connect Claude Desktop, Codex, or any other MCP-capable agent to their own mailbox and collaboration data without touching admin territory.
 

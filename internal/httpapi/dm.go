@@ -38,6 +38,9 @@ type DMService interface {
 	OpenAttachment(ctx context.Context, token string) (dm.AttachmentDownload, error)
 	ExportRoom(ctx context.Context, principal dm.Principal, roomID string) (dm.RoomExport, error)
 	RotateRoomKey(ctx context.Context, principal dm.Principal, roomID string) error
+	PinMessage(ctx context.Context, principal dm.Principal, roomID string, messageID string, note string) error
+	UnpinMessage(ctx context.Context, principal dm.Principal, roomID string, messageID string) error
+	ListPinnedMessages(ctx context.Context, principal dm.Principal, roomID string, limit int, offset int) ([]dm.PinnedMessage, error)
 }
 
 func RegisterDMRoutes(mux *http.ServeMux, service DMService, tokenManager *auth.TokenManager, publicBaseURL string) {
@@ -513,6 +516,70 @@ func RegisterDMRoutes(mux *http.ServeMux, service DMService, tokenManager *auth.
 		}
 		w.WriteHeader(http.StatusNoContent)
 	})
+
+	mux.HandleFunc("POST /api/v1/dm/rooms/{roomID}/messages/{messageID}/pin", func(w http.ResponseWriter, r *http.Request) {
+		principal, ok := dmMutationPrincipal(w, r, tokenManager)
+		if !ok {
+			return
+		}
+		var req struct {
+			Note string `json:"note"`
+		}
+		// The body is optional; an empty or absent body pins without a note.
+		if r.ContentLength != 0 {
+			if err := decodeJSONBody(r, &req); err != nil {
+				writeError(w, http.StatusBadRequest, "invalid JSON body")
+				return
+			}
+		}
+		if err := service.PinMessage(r.Context(), principal, r.PathValue("roomID"), r.PathValue("messageID"), req.Note); err != nil {
+			writeDMError(w, err)
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
+	})
+
+	mux.HandleFunc("DELETE /api/v1/dm/rooms/{roomID}/messages/{messageID}/pin", func(w http.ResponseWriter, r *http.Request) {
+		if !rejectBodylessRequestPayload(w, r) {
+			return
+		}
+		principal, ok := dmMutationPrincipal(w, r, tokenManager)
+		if !ok {
+			return
+		}
+		if err := service.UnpinMessage(r.Context(), principal, r.PathValue("roomID"), r.PathValue("messageID")); err != nil {
+			writeDMError(w, err)
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
+	})
+
+	mux.HandleFunc("GET /api/v1/dm/rooms/{roomID}/pins", func(w http.ResponseWriter, r *http.Request) {
+		if !rejectBodylessRequestPayload(w, r) || !rejectUnknownQueryKeys(w, r, "user_id", "company_id", "domain_id", "limit", "offset") {
+			return
+		}
+		principal, ok := dmPrincipalFromRequest(w, r, tokenManager)
+		if !ok {
+			return
+		}
+		limit, ok := dmLimitFromRequest(w, r, 50, 100)
+		if !ok {
+			return
+		}
+		offset, ok := dmOffsetFromRequest(w, r)
+		if !ok {
+			return
+		}
+		pins, err := service.ListPinnedMessages(r.Context(), principal, r.PathValue("roomID"), limit, offset)
+		if err != nil {
+			writeDMError(w, err)
+			return
+		}
+		for i := range pins {
+			addDMMessageAttachmentDownloadURL(&pins[i].Message, service, publicBaseURL)
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"pins": pins})
+	})
 }
 
 func addDMAttachmentDownloadURLs(items []dm.MediaItem, service DMService, publicBaseURL string) {
@@ -637,6 +704,19 @@ func dmLimitFromRequest(w http.ResponseWriter, r *http.Request, fallback int, ma
 		return 0, false
 	}
 	return limit, true
+}
+
+func dmOffsetFromRequest(w http.ResponseWriter, r *http.Request) (int, bool) {
+	raw := strings.TrimSpace(r.URL.Query().Get("offset"))
+	if raw == "" {
+		return 0, true
+	}
+	offset, err := strconv.Atoi(raw)
+	if err != nil || offset < 0 {
+		writeError(w, http.StatusBadRequest, "invalid offset")
+		return 0, false
+	}
+	return offset, true
 }
 
 func writeDMError(w http.ResponseWriter, err error) {

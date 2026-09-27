@@ -114,6 +114,21 @@ type fakeDMRouteService struct {
 	attachmentMessage dm.Message
 	upload            dm.AttachmentUpload
 	exportResult      dm.RoomExport
+	pins              []dm.PinnedMessage
+	pinCall           dmPinCall
+	unpinCall         dmPinCall
+	pinErr            error
+	unpinErr          error
+	listPinsErr       error
+	listPinsRoomID    string
+	listPinsLimit     int
+	listPinsOffset    int
+}
+
+type dmPinCall struct {
+	roomID    string
+	messageID string
+	note      string
 }
 
 func (f *fakeDMRouteService) CreateRoom(context.Context, dm.Principal, dm.CreateRoomRequest) (dm.Room, error) {
@@ -205,6 +220,23 @@ func (f *fakeDMRouteService) RotateRoomKey(context.Context, dm.Principal, string
 	return nil
 }
 
+func (f *fakeDMRouteService) PinMessage(_ context.Context, _ dm.Principal, roomID string, messageID string, note string) error {
+	f.pinCall = dmPinCall{roomID: roomID, messageID: messageID, note: note}
+	return f.pinErr
+}
+
+func (f *fakeDMRouteService) UnpinMessage(_ context.Context, _ dm.Principal, roomID string, messageID string) error {
+	f.unpinCall = dmPinCall{roomID: roomID, messageID: messageID}
+	return f.unpinErr
+}
+
+func (f *fakeDMRouteService) ListPinnedMessages(_ context.Context, _ dm.Principal, roomID string, limit int, offset int) ([]dm.PinnedMessage, error) {
+	f.listPinsRoomID = roomID
+	f.listPinsLimit = limit
+	f.listPinsOffset = offset
+	return f.pins, f.listPinsErr
+}
+
 func TestDMExportRoomRespondsWithTextFile(t *testing.T) {
 	now := time.Date(2026, 5, 26, 12, 0, 0, 0, time.UTC)
 	svc := &fakeDMRouteService{}
@@ -237,5 +269,165 @@ func TestDMExportRoomRespondsWithTextFile(t *testing.T) {
 	}
 	if !strings.Contains(w.Body.String(), "hello") {
 		t.Fatalf("body missing message text, got:\n%s", w.Body.String())
+	}
+}
+
+func TestDMPinMessageHandlerForwardsNote(t *testing.T) {
+	t.Parallel()
+	svc := &fakeDMRouteService{}
+	mux := http.NewServeMux()
+	RegisterDMRoutes(mux, svc, nil, "")
+
+	body := strings.NewReader(`{"note":"important message"}`)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/dm/rooms/room-1/messages/msg-1/pin?user_id=u1&company_id=c1&domain_id=d1", body)
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusNoContent {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if svc.pinCall.roomID != "room-1" || svc.pinCall.messageID != "msg-1" || svc.pinCall.note != "important message" {
+		t.Fatalf("pin call = %+v", svc.pinCall)
+	}
+}
+
+func TestDMPinMessageHandlerAllowsEmptyBody(t *testing.T) {
+	t.Parallel()
+	svc := &fakeDMRouteService{}
+	mux := http.NewServeMux()
+	RegisterDMRoutes(mux, svc, nil, "")
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/dm/rooms/room-1/messages/msg-1/pin?user_id=u1&company_id=c1&domain_id=d1", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusNoContent {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if svc.pinCall.messageID != "msg-1" || svc.pinCall.note != "" {
+		t.Fatalf("pin call = %+v", svc.pinCall)
+	}
+}
+
+func TestDMPinMessageHandlerMapsForbidden(t *testing.T) {
+	t.Parallel()
+	svc := &fakeDMRouteService{pinErr: dm.ErrForbidden}
+	mux := http.NewServeMux()
+	RegisterDMRoutes(mux, svc, nil, "")
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/dm/rooms/room-1/messages/msg-1/pin?user_id=u1&company_id=c1&domain_id=d1", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("status = %d, want 403; body = %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestDMPinMessageHandlerRequiresIdentity(t *testing.T) {
+	t.Parallel()
+	svc := &fakeDMRouteService{}
+	mux := http.NewServeMux()
+	RegisterDMRoutes(mux, svc, nil, "")
+
+	// Missing company_id/domain_id → unauthorized/bad request, handler must not call the service.
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/dm/rooms/room-1/messages/msg-1/pin?user_id=u1", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code == http.StatusNoContent {
+		t.Fatalf("status = %d, want an auth failure, not success", rec.Code)
+	}
+	if svc.pinCall.messageID != "" {
+		t.Fatalf("service must not be called without identity, got %+v", svc.pinCall)
+	}
+}
+
+func TestDMUnpinMessageHandlerForwards(t *testing.T) {
+	t.Parallel()
+	svc := &fakeDMRouteService{}
+	mux := http.NewServeMux()
+	RegisterDMRoutes(mux, svc, nil, "")
+
+	req := httptest.NewRequest(http.MethodDelete, "/api/v1/dm/rooms/room-1/messages/msg-1/pin?user_id=u1&company_id=c1&domain_id=d1", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusNoContent {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if svc.unpinCall.roomID != "room-1" || svc.unpinCall.messageID != "msg-1" {
+		t.Fatalf("unpin call = %+v", svc.unpinCall)
+	}
+}
+
+func TestDMListPinsHandlerReturnsPinsAndAttachmentURLs(t *testing.T) {
+	t.Parallel()
+	pinnedAt := time.Date(2026, 5, 26, 10, 0, 0, 0, time.UTC)
+	svc := &fakeDMRouteService{
+		pins: []dm.PinnedMessage{
+			{
+				Message:        dm.Message{ID: "msg-file", RoomID: "room-1", MessageType: dm.MessageTypeFile, AttachmentName: "a.png"},
+				PinnedByUserID: "u2",
+				PinnedAt:       pinnedAt,
+				Note:           "look",
+			},
+			{
+				Message:        dm.Message{ID: "msg-text", RoomID: "room-1", MessageType: dm.MessageTypeText, Body: "hi"},
+				PinnedByUserID: "u1",
+				PinnedAt:       pinnedAt,
+			},
+		},
+	}
+	mux := http.NewServeMux()
+	RegisterDMRoutes(mux, svc, nil, "https://mail.example")
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/dm/rooms/room-1/pins?user_id=u1&company_id=c1&domain_id=d1&limit=10&offset=5", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if svc.listPinsRoomID != "room-1" || svc.listPinsLimit != 10 || svc.listPinsOffset != 5 {
+		t.Fatalf("list params: room=%q limit=%d offset=%d", svc.listPinsRoomID, svc.listPinsLimit, svc.listPinsOffset)
+	}
+	var body struct {
+		Pins []dm.PinnedMessage `json:"pins"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("json.Unmarshal: %v", err)
+	}
+	if len(body.Pins) != 2 {
+		t.Fatalf("pins = %+v", body.Pins)
+	}
+	wantURL := "https://mail.example/api/v1/dm/messages/msg-file/attachment?token=token-msg-file"
+	if body.Pins[0].Message.AttachmentDownloadURL != wantURL {
+		t.Fatalf("file pin download url = %q, want %q", body.Pins[0].Message.AttachmentDownloadURL, wantURL)
+	}
+	if body.Pins[1].Message.AttachmentDownloadURL != "" {
+		t.Fatalf("text pin should have no download url, got %q", body.Pins[1].Message.AttachmentDownloadURL)
+	}
+	if body.Pins[0].Note != "look" || body.Pins[0].PinnedByUserID != "u2" {
+		t.Fatalf("pin metadata = %+v", body.Pins[0])
+	}
+}
+
+func TestDMListPinsHandlerRejectsInvalidOffset(t *testing.T) {
+	t.Parallel()
+	svc := &fakeDMRouteService{}
+	mux := http.NewServeMux()
+	RegisterDMRoutes(mux, svc, nil, "")
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/dm/rooms/room-1/pins?user_id=u1&company_id=c1&domain_id=d1&offset=-1", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want 400", rec.Code)
+	}
+	if svc.listPinsRoomID != "" {
+		t.Fatalf("service must not be called on invalid offset")
 	}
 }

@@ -403,6 +403,106 @@ paths:
           description: Key rotated successfully; no content returned.
         default:
           $ref: "#/components/responses/Error"
+  /dm/rooms/{roomID}/messages/{messageID}/pin:
+    post:
+      operationId: pinDMMessage
+      summary: Pin a message in a DM room
+      description: |
+        Pins a message so participants can find it quickly. The principal must be
+        a member of the room and the message must belong to it. Pinning is
+        idempotent: pinning an already-pinned message succeeds without creating a
+        duplicate. The optional note is a human-readable reason stored with the
+        pin; it never contains message plaintext.
+      tags: [dm]
+      servers:
+        - url: /api/v1
+          description: Mail API
+      parameters:
+        - name: roomID
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: messageID
+          in: path
+          required: true
+          schema:
+            type: string
+        - $ref: "#/components/parameters/UserIDQuery"
+        - $ref: "#/components/parameters/CompanyIDQuery"
+        - $ref: "#/components/parameters/DomainIDQuery"
+      requestBody:
+        $ref: "#/components/requestBodies/DMMessagePin"
+      responses:
+        "204":
+          description: Message pinned (idempotent); no content returned.
+        default:
+          $ref: "#/components/responses/Error"
+    delete:
+      operationId: unpinDMMessage
+      summary: Unpin a message in a DM room
+      description: |
+        Removes a pin. The principal must be a member of the room. Unpinning a
+        message that is not pinned is a no-op success.
+      tags: [dm]
+      servers:
+        - url: /api/v1
+          description: Mail API
+      parameters:
+        - name: roomID
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: messageID
+          in: path
+          required: true
+          schema:
+            type: string
+        - $ref: "#/components/parameters/UserIDQuery"
+        - $ref: "#/components/parameters/CompanyIDQuery"
+        - $ref: "#/components/parameters/DomainIDQuery"
+      responses:
+        "204":
+          description: Message unpinned (no-op if not pinned); no content returned.
+        default:
+          $ref: "#/components/responses/Error"
+  /dm/rooms/{roomID}/pins:
+    get:
+      operationId: listDMPinnedMessages
+      summary: List pinned messages in a DM room
+      description: |
+        Lists pinned messages, newest pins first, with their bodies decrypted for
+        room participants. The principal must be a member of the room.
+      tags: [dm]
+      servers:
+        - url: /api/v1
+          description: Mail API
+      parameters:
+        - name: roomID
+          in: path
+          required: true
+          schema:
+            type: string
+        - $ref: "#/components/parameters/UserIDQuery"
+        - $ref: "#/components/parameters/CompanyIDQuery"
+        - $ref: "#/components/parameters/DomainIDQuery"
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+      responses:
+        "200":
+          $ref: "#/components/responses/DMPinnedMessageList"
+        default:
+          $ref: "#/components/responses/Error"
   /dm/messages/{id}:
     patch:
       operationId: editDMMessage
@@ -12201,6 +12301,12 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/DMMediaListEnvelope"
+    DMPinnedMessageList:
+      description: DM pinned message list envelope
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/DMPinnedMessageListEnvelope"
     DriveStagedObject:
       description: Drive staged object envelope
       content:
@@ -13090,6 +13196,12 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/DMReadMarkRequest"
+    DMMessagePin:
+      required: false
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/DMMessagePinRequest"
     DMAttachmentUpload:
       required: true
       content:
@@ -13450,6 +13562,30 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/DMMediaItem"
+    DMPinnedMessageListEnvelope:
+      type: object
+      required: [pins]
+      properties:
+        pins:
+          type: array
+          items:
+            $ref: "#/components/schemas/DMPinnedMessage"
+    DMPinnedMessage:
+      type: object
+      required: [message, pinned_by_user_id, pinned_at]
+      properties:
+        message:
+          $ref: "#/components/schemas/DMMessage"
+        pinned_by_user_id:
+          type: string
+          description: ID of the participant who pinned the message.
+        pinned_at:
+          type: string
+          format: date-time
+        note:
+          type: string
+          maxLength: 500
+          description: Optional human-readable reason for the pin. Never message plaintext.
     DMRoom:
       type: object
       properties:
@@ -13641,6 +13777,13 @@ components:
       properties:
         last_message_id:
           type: string
+    DMMessagePinRequest:
+      type: object
+      properties:
+        note:
+          type: string
+          maxLength: 500
+          description: Optional human-readable reason for the pin. Never message plaintext.
     AuditLogView:
       type: object
       properties:

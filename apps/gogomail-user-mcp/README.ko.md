@@ -4,7 +4,7 @@ English / 영어: [README.md](README.md)
 
 `gogomail-user-mcp`는 GoGoMail 개별 사용자를 위한 사용자 스코프 [Model Context Protocol](https://modelcontextprotocol.io/) 서버입니다. 웹메일을 열지 않아도 Claude Desktop, Claude Code, Codex CLI 등 모든 MCP 호환 AI 에이전트를 자신의 메일함, DM, 주소록, 드라이브, 일정, 알림 설정에 직접 연결할 수 있습니다.
 
-GoGoMail의 **핵심 기능**이자 가장 강력한 자동화 레이어입니다. 123개 툴을 통해 메일 수발신부터 파일 공유, 일정 관리, 팀 메시지까지 모든 작업을 자연어 한 줄 명령으로 처리할 수 있습니다.
+GoGoMail의 **핵심 기능**이자 가장 강력한 자동화 레이어입니다. 127개 툴을 통해 메일 수발신부터 파일 공유, 일정 관리, 팀 메시지까지 모든 작업을 자연어 한 줄 명령으로 처리할 수 있습니다.
 
 ---
 
@@ -47,7 +47,7 @@ GoGoMail은 두 종류의 MCP 서버를 제공합니다.
 | 인증 키 형식 | `gmu_` 사용자 키 | 관리자 키 |
 | 발급 위치 | 웹메일 설정 페이지 | 관리 콘솔 |
 | 접근 범위 | 자기 자신의 메일, DM, 드라이브, 일정 | 도메인 전체 사용자, 정책, 감사 로그 |
-| 툴 수 | 123개 | 별도 문서 참조 |
+| 툴 수 | 127개 | 별도 문서 참조 |
 
 관리 MCP는 `apps/gogomail-manage-mcp`에 위치합니다. 운영자용 작업(사용자 계정 생성, 도메인 정책 변경, 스토리지 관리 등)은 그쪽 서버를 사용하세요.
 
@@ -276,7 +276,7 @@ Claude Code 프로젝트 디렉터리의 `.claude/mcp.json` 파일 (또는 글�
 /mcp
 ```
 
-`gogomail-user-mcp`가 연결된 서버 목록에 표시되고 툴 수(123개)가 나타나면 정상입니다.
+`gogomail-user-mcp`가 연결된 서버 목록에 표시되고 툴 수(127개)가 나타나면 정상입니다.
 
 ### Codex CLI
 
@@ -400,7 +400,7 @@ Error: confirmation required: pass confirm="send message" to proceed
 
 ## 툴 레퍼런스
 
-총 123개 툴을 12개 그룹으로 분류합니다. 테이블의 "basic 확인 문자열" 열이 있는 툴은 `basic` 모드에서 해당 문자열을 `confirm` 파라미터로 전달해야 합니다.
+총 127개 툴을 12개 그룹으로 분류합니다. 테이블의 "basic 확인 문자열" 열이 있는 툴은 `basic` 모드에서 해당 문자열을 `confirm` 파라미터로 전달해야 합니다.
 
 ---
 
@@ -522,6 +522,9 @@ DM 툴은 암호화된 참여자 전용 방/메시지 계약을 사용합니다.
 | `gogomail_dm_edit_message` | 메시지 텍스트 수정 | `room_id`, `message_id`, `body` | `edit dm message <message_id>` |
 | `gogomail_dm_delete_message` | 메시지 삭제 | `room_id`, `message_id` | `delete dm message <message_id>` |
 | `gogomail_dm_toggle_reaction` | 이모지 반응 토글 | `room_id`, `message_id`, `emoji` | - |
+| `gogomail_dm_pin_message` | 방에 메시지 고정 (멱등적) | `room_id`, `message_id`, `note` | `pin dm message <room_id> <message_id>` |
+| `gogomail_dm_unpin_message` | 메시지 고정 해제 (미고정 시 무동작 성공) | `room_id`, `message_id` | `unpin dm message <room_id> <message_id>` |
+| `gogomail_dm_list_pins` | 방의 고정 메시지 목록 (최신 고정 순) | `room_id`, `limit`, `offset` | - |
 
 ---
 

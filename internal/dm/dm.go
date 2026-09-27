@@ -140,6 +140,25 @@ type SearchResult struct {
 	After   string  `json:"after,omitempty"`
 }
 
+// PinnedMessage is the API-facing representation of a pinned DM message: the
+// decrypted message summary plus pin metadata.
+type PinnedMessage struct {
+	Message        Message   `json:"message"`
+	PinnedByUserID string    `json:"pinned_by_user_id"`
+	PinnedAt       time.Time `json:"pinned_at"`
+	Note           string    `json:"note,omitempty"`
+}
+
+// PinnedRecord is the store-facing representation of a pin: the encrypted
+// message record plus pin metadata. The service decrypts Record before
+// exposing it as a PinnedMessage.
+type PinnedRecord struct {
+	Record         MessageRecord
+	PinnedByUserID string
+	PinnedAt       time.Time
+	Note           string
+}
+
 type CreateRoomRequest struct {
 	RoomType   string   `json:"room_type"`
 	UserIDs    []string `json:"user_ids"`
@@ -192,6 +211,9 @@ type Store interface {
 	GetRoom(ctx context.Context, principal Principal, roomID string) (Room, error)
 	ListAllMessagesForExport(ctx context.Context, principal Principal, roomID string) ([]MessageRecord, error)
 	RotateRoomKey(ctx context.Context, principal Principal, roomID string, newKeyCiphertext []byte, updatedMessages []MessageRecord) error
+	PinMessage(ctx context.Context, principal Principal, roomID string, messageID string, note string) error
+	UnpinMessage(ctx context.Context, principal Principal, roomID string, messageID string) error
+	ListPinnedMessages(ctx context.Context, principal Principal, roomID string, limit int, offset int) ([]PinnedRecord, error)
 }
 
 type AttachmentStore interface {

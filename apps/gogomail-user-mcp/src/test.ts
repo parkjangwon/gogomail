@@ -424,6 +424,9 @@ describe("GoGoMail API contract alignment", () => {
     await callTool(fake as never, "gogomail_dm_edit_message", { message_id: "m1", body: "edited", confirm: "edit dm message m1" }, "basic");
     await callTool(fake as never, "gogomail_dm_delete_message", { message_id: "m1", confirm: "delete dm message m1" }, "basic");
     await callTool(fake as never, "gogomail_dm_toggle_reaction", { message_id: "m2", emoji: "👍" }, "basic");
+    await callTool(fake as never, "gogomail_dm_pin_message", { room_id: "room-1", message_id: "m1", note: "important", confirm: "pin dm message room-1 m1" }, "basic");
+    await callTool(fake as never, "gogomail_dm_unpin_message", { room_id: "room-1", message_id: "m1", confirm: "unpin dm message room-1 m1" }, "basic");
+    await callTool(fake as never, "gogomail_dm_list_pins", { room_id: "room-1", limit: 10, offset: 5 }, "basic");
 
     assert.deepEqual(calls[0], { method: "GET", path: "/api/v1/dm/rooms", body: undefined, headers: undefined });
     assert.equal(calls[1]?.path, "/api/v1/dm/rooms/public");
@@ -445,6 +448,15 @@ describe("GoGoMail API contract alignment", () => {
     assert.equal(calls[15]?.headers?.["X-Gogomail-MCP-Confirm"], "edit dm message m1");
     assert.equal(calls[16]?.headers?.["X-Gogomail-MCP-Confirm"], "delete dm message m1");
     assert.deepEqual(calls[17]?.body, { emoji: "👍" });
+    assert.equal(calls[18]?.method, "POST");
+    assert.equal(calls[18]?.path, "/api/v1/dm/rooms/room-1/messages/m1/pin");
+    assert.equal(calls[18]?.headers?.["X-Gogomail-MCP-Confirm"], "pin dm message room-1 m1");
+    assert.deepEqual(calls[18]?.body, { note: "important" });
+    assert.equal(calls[19]?.method, "DELETE");
+    assert.equal(calls[19]?.path, "/api/v1/dm/rooms/room-1/messages/m1/pin");
+    assert.equal(calls[19]?.headers?.["X-Gogomail-MCP-Confirm"], "unpin dm message room-1 m1");
+    assert.equal(calls[20]?.method, "GET");
+    assert.equal(calls[20]?.path, "/api/v1/dm/rooms/room-1/pins?limit=10&offset=5");
   });
 
   test("generic API bridge admits DM routes and forwards DM confirmations", async () => {

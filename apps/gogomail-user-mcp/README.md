@@ -6,7 +6,7 @@ Korean / 한국어: [README.ko.md](README.ko.md)
 
 This server is intentionally separate from `apps/gogomail-manage-mcp`. The management MCP is for operators and domain administrators; this package is for an individual webmail user and authenticates with a user-issued `gmu_` access key. An agent using this server can only access data that the authenticated user is permitted to access — there is no administrative privilege escalation path.
 
-Current user coverage is **123 tools** across mail, bulk mail operations, folders, threads, attachments, DM, contacts, directory, spam controls, Drive, calendar, notifications, push subscriptions, account context, and a generic API bridge.
+Current user coverage is **127 tools** across mail, bulk mail operations, folders, threads, attachments, DM, contacts, directory, spam controls, Drive, calendar, notifications, push subscriptions, account context, and a generic API bridge.
 
 ---
 
@@ -28,7 +28,7 @@ Current user coverage is **123 tools** across mail, bulk mail operations, folder
   - [Mail Bulk (8)](#mail-bulk-8)
   - [Folders and Threads (6)](#folders-and-threads-6)
   - [Attachments (5)](#attachments-5)
-  - [DM (19)](#dm-19)
+  - [DM (22)](#dm-22)
   - [Contacts and Directory (14)](#contacts-and-directory-14)
   - [Spam (5)](#spam-5)
   - [Drive (20)](#drive-20)
@@ -462,7 +462,7 @@ Attachment listing, download, and upload tools.
 | `gogomail_mail_create_text_attachment` | Create and upload a text attachment for a draft message. Useful for attaching generated content without a local file. | `draft_id`, `filename`, `content_text`, `mime_type` | — |
 | `gogomail_mail_cancel_attachment_upload` | Cancel an in-progress attachment upload for a draft. | `draft_id`, `attachment_id` | — |
 
-### DM (19)
+### DM (22)
 
 Direct messages: room management, messaging, attachments, search, and reactions. All DM room content is encrypted with AES-256-GCM per room, with keys distributed to participants at the API layer.
 
@@ -486,6 +486,9 @@ Direct messages: room management, messaging, attachments, search, and reactions.
 | `gogomail_dm_edit_message` | Edit the text body of a DM message the caller sent. | `room_id`, `message_id`, `body` | `"edit dm message <message_id>"` |
 | `gogomail_dm_delete_message` | Delete a DM message the caller sent. | `room_id`, `message_id` | `"delete dm message <message_id>"` |
 | `gogomail_dm_toggle_reaction` | Add or remove an emoji reaction to a message. If the caller has already reacted with this emoji, the reaction is removed; otherwise it is added. | `room_id`, `message_id`, `emoji` | — |
+| `gogomail_dm_pin_message` | Pin a message in a room for quick access. Idempotent: pinning an already-pinned message succeeds. Provide an optional `note` (human-readable reason, never message plaintext). | `room_id`, `message_id`, `note` | `"pin dm message <room_id> <message_id>"` |
+| `gogomail_dm_unpin_message` | Unpin a message. Unpinning a message that is not pinned is a no-op success. | `room_id`, `message_id` | `"unpin dm message <room_id> <message_id>"` |
+| `gogomail_dm_list_pins` | List pinned messages in a room, newest pins first. Returns the message summary plus pin metadata (`pinned_by_user_id`, `pinned_at`, `note`). | `room_id`, `limit`, `offset` | — |
 | `gogomail_dm_export_room` | Export all messages in a DM room as plain text. Includes deleted messages (shown as `[삭제됨]`) and system events. Returns the conversation in `body_text`. | `room_id` | — |
 
 ### Contacts and Directory (14)

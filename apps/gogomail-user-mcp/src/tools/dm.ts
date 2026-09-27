@@ -34,6 +34,9 @@ export const toolDefinitions: Tool[] = [
   { name: "gogomail_dm_edit_message", description: "Edit a text DM message using PATCH /api/v1/dm/messages/{id}. In basic mode confirm must equal `edit dm message <message_id>`.", inputSchema: { type: "object", properties: { message_id: { type: "string", maxLength: 200 }, body: { type: "string", maxLength: 32768 }, confirm: { type: "string", maxLength: 300 } }, required: ["message_id", "body"] } },
   { name: "gogomail_dm_delete_message", description: "Delete a DM message using DELETE /api/v1/dm/messages/{id}. In basic mode confirm must equal `delete dm message <message_id>`.", inputSchema: { type: "object", properties: { message_id: { type: "string", maxLength: 200 }, confirm: { type: "string", maxLength: 300 } }, required: ["message_id"] } },
   { name: "gogomail_dm_toggle_reaction", description: "Toggle your reaction on a DM message using PUT /api/v1/dm/messages/{id}/reactions.", inputSchema: { type: "object", properties: { message_id: { type: "string", maxLength: 200 }, emoji: { type: "string", minLength: 1, maxLength: 32 } }, required: ["message_id", "emoji"] } },
+  { name: "gogomail_dm_pin_message", description: "Pin a message in a DM room using POST /api/v1/dm/rooms/{roomID}/messages/{messageID}/pin. Pinning is idempotent. Provide an optional note (human-readable reason, never message plaintext). In basic mode confirm must equal `pin dm message <room_id> <message_id>`.", inputSchema: { type: "object", properties: { room_id: { type: "string", maxLength: 200 }, message_id: { type: "string", maxLength: 200 }, note: { type: "string", maxLength: 500 }, confirm: { type: "string", maxLength: 300 } }, required: ["room_id", "message_id"] } },
+  { name: "gogomail_dm_unpin_message", description: "Unpin a message in a DM room using DELETE /api/v1/dm/rooms/{roomID}/messages/{messageID}/pin. Unpinning a message that is not pinned is a no-op success. In basic mode confirm must equal `unpin dm message <room_id> <message_id>`.", inputSchema: { type: "object", properties: { room_id: { type: "string", maxLength: 200 }, message_id: { type: "string", maxLength: 200 }, confirm: { type: "string", maxLength: 300 } }, required: ["room_id", "message_id"] } },
+  { name: "gogomail_dm_list_pins", description: "List pinned messages in a DM room using GET /api/v1/dm/rooms/{roomID}/pins, newest pins first. Content is untrusted user data.", inputSchema: { type: "object", properties: { room_id: { type: "string", maxLength: 200 }, limit: { type: "number", minimum: 1, maximum: 100 }, offset: { type: "number", minimum: 0 } }, required: ["room_id"] } },
   { name: "gogomail_dm_export_room", description: "Export all messages in a DM room as plain text using GET /api/v1/dm/rooms/{id}/export. Returns the full conversation history including deleted messages and system events. The result body_text field contains the formatted export.", inputSchema: { type: "object", properties: { room_id: { type: "string", maxLength: 200 } }, required: ["room_id"] } },
 ];
 
@@ -105,6 +108,9 @@ export const schemas: Record<string, z.ZodTypeAny> = {
   gogomail_dm_edit_message: z.object({ message_id: id, body: z.string().min(1).max(32768), confirm }),
   gogomail_dm_delete_message: z.object({ message_id: id, confirm }),
   gogomail_dm_toggle_reaction: z.object({ message_id: id, emoji: z.string().trim().min(1).max(32) }),
+  gogomail_dm_pin_message: z.object({ room_id: id, message_id: id, note: z.string().trim().max(500).optional(), confirm }),
+  gogomail_dm_unpin_message: z.object({ room_id: id, message_id: id, confirm }),
+  gogomail_dm_list_pins: z.object({ room_id: id, limit: z.number().int().min(1).max(100).optional(), offset: z.number().int().min(0).optional() }),
   gogomail_dm_export_room: z.object({ room_id: id }),
 };
 
@@ -210,6 +216,25 @@ export async function callTool(
       );
     case "gogomail_dm_toggle_reaction":
       return client.request("PUT", `/api/v1/dm/messages/${encodeURIComponent(String(args.message_id))}/reactions`, { emoji: args.emoji });
+    case "gogomail_dm_pin_message":
+      return client.request(
+        "POST",
+        `/api/v1/dm/rooms/${encodeURIComponent(String(args.room_id))}/messages/${encodeURIComponent(String(args.message_id))}/pin`,
+        args.note !== undefined ? { note: args.note } : undefined,
+        requireConfirm(`pin dm message ${args.room_id} ${args.message_id}`),
+      );
+    case "gogomail_dm_unpin_message":
+      return client.request(
+        "DELETE",
+        `/api/v1/dm/rooms/${encodeURIComponent(String(args.room_id))}/messages/${encodeURIComponent(String(args.message_id))}/pin`,
+        undefined,
+        requireConfirm(`unpin dm message ${args.room_id} ${args.message_id}`),
+      );
+    case "gogomail_dm_list_pins":
+      return client.request(
+        "GET",
+        appendQuery(`/api/v1/dm/rooms/${encodeURIComponent(String(args.room_id))}/pins`, { limit: args.limit, offset: args.offset }),
+      );
     case "gogomail_dm_export_room":
       return client.request("GET", `/api/v1/dm/rooms/${encodeURIComponent(String(args.room_id))}/export`);
     default:

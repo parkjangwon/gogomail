@@ -337,6 +337,21 @@ type fakeStore struct {
 	rotatedKey      []byte
 	rotatedMessages []MessageRecord
 	rotateErr       error
+	// pins
+	pinnedRecords   []PinnedRecord
+	pinErr          error
+	unpinErr        error
+	pinCalls        []pinCall
+	unpinCalls      []pinCall
+	listPinsRoomID  string
+	listPinsLimit   int
+	listPinsOffset  int
+}
+
+type pinCall struct {
+	roomID    string
+	messageID string
+	note      string
 }
 
 type fakeAttachmentStore struct {
@@ -489,6 +504,23 @@ func (f *fakeStore) RotateRoomKey(_ context.Context, _ Principal, _ string, newK
 	f.rotatedKey = newKey
 	f.rotatedMessages = updated
 	return f.rotateErr
+}
+
+func (f *fakeStore) PinMessage(_ context.Context, _ Principal, roomID string, messageID string, note string) error {
+	f.pinCalls = append(f.pinCalls, pinCall{roomID: roomID, messageID: messageID, note: note})
+	return f.pinErr
+}
+
+func (f *fakeStore) UnpinMessage(_ context.Context, _ Principal, roomID string, messageID string) error {
+	f.unpinCalls = append(f.unpinCalls, pinCall{roomID: roomID, messageID: messageID})
+	return f.unpinErr
+}
+
+func (f *fakeStore) ListPinnedMessages(_ context.Context, _ Principal, roomID string, limit int, offset int) ([]PinnedRecord, error) {
+	f.listPinsRoomID = roomID
+	f.listPinsLimit = limit
+	f.listPinsOffset = offset
+	return f.pinnedRecords, nil
 }
 
 var _ Store = (*fakeStore)(nil)
