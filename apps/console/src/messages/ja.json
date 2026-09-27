@@ -2862,6 +2862,12 @@
       "changed_fields_label": "未保存の変更項目"
     },
     "sso_page": {
+      "loading_company": "会社情報を読み込み中…",
+      "url_invalid": "有効なhttp(s) URLを入力してください",
+      "disable_confirm_title": "SSOを無効にしますか？",
+      "disable_confirm_body": "SSOを無効にすると、この組織のIDプロバイダーによるサインインが停止します。SSOに依存するユーザーはログインできなくなる可能性があります。続行しますか？",
+      "disable_confirm_action": "SSOを無効にする",
+      "cancel": "キャンセル",
       "attribute_email_hint": "ユーザーのメールアドレスを含むSAML属性名",
       "attribute_email_label": "メール属性",
       "attribute_name_hint": "ユーザーの表示名を含むSAML属性名",
@@ -3097,7 +3103,20 @@
       "save_success": "IdP設定を保存しました。",
       "save_error": "IdP設定の保存に失敗しました。",
       "reset_success": "ローカルデータベースにリセットしました。",
-      "reset_error": "IdP設定のリセットに失敗しました。"
+      "reset_error": "IdP設定のリセットに失敗しました。",
+      "domain_label": "ドメイン",
+      "domain_desc": "このIDプロバイダーを適用するドメインを選択してください。",
+      "no_domains": "この会社にはドメインがありません。IDプロバイダーを設定する前にドメインを作成してください。",
+      "port_invalid": "1〜65535のポートを入力してください",
+      "secret_set": "値が設定されています。維持するには空欄のままにしてください。",
+      "secret_not_set": "未設定。",
+      "secret_placeholder_set": "•••••••• (変更なし)",
+      "load_error": "IdP設定の読み込みに失敗しました。既存の設定を上書きしないよう保存を無効にしています。再試行してください。",
+      "retry": "再試行",
+      "reset_confirm_title": "ローカルデータベースにリセットしますか？",
+      "reset_confirm_body": "このドメインの現在のIDプロバイダー設定を削除し、ローカルデータベース認証に戻します。この操作は元に戻せません。続行しますか？",
+      "reset_confirm_action": "ローカルデータベースにリセット",
+      "cancel": "キャンセル"
     }
   },
   "buttons": {

@@ -2868,6 +2868,12 @@
       "changed_fields_label": "Pending changes"
     },
     "sso_page": {
+      "loading_company": "Loading company…",
+      "url_invalid": "Enter a valid http(s) URL",
+      "disable_confirm_title": "Disable SSO?",
+      "disable_confirm_body": "Disabling SSO will stop identity-provider sign-in for this organization. Users relying on SSO may be locked out. Are you sure?",
+      "disable_confirm_action": "Disable SSO",
+      "cancel": "Cancel",
       "attribute_email_hint": "SAML attribute name containing the user's email address",
       "attribute_email_label": "Email Attribute",
       "attribute_name_hint": "SAML attribute name containing the user's display name",
@@ -3103,7 +3109,20 @@
       "save_success": "IdP configuration saved.",
       "save_error": "Failed to save IdP configuration.",
       "reset_success": "Reset to local database.",
-      "reset_error": "Failed to reset IdP configuration."
+      "reset_error": "Failed to reset IdP configuration.",
+      "domain_label": "Domain",
+      "domain_desc": "Select which domain this identity provider applies to.",
+      "no_domains": "This company has no domains. Create a domain before configuring an identity provider.",
+      "port_invalid": "Enter a port between 1 and 65535",
+      "secret_set": "A value is currently set. Leave blank to keep it.",
+      "secret_not_set": "Not set.",
+      "secret_placeholder_set": "•••••••• (unchanged)",
+      "load_error": "Failed to load the IdP configuration. Saving is disabled to avoid overwriting the existing configuration. Retry to continue.",
+      "retry": "Retry",
+      "reset_confirm_title": "Reset to local database?",
+      "reset_confirm_body": "This removes the current identity provider configuration for this domain and reverts to local database authentication. This cannot be undone. Continue?",
+      "reset_confirm_action": "Reset to Local Database",
+      "cancel": "Cancel"
     }
   },
   "buttons": {

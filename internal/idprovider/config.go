@@ -15,6 +15,91 @@ type Config struct {
 	Settings     map[string]interface{} `json:"settings"`
 }
 
+// SecretSettingKeys are the settings keys whose values are write-only secrets.
+// They are never returned to clients in plaintext and must not be blanked by a
+// no-change save.
+var SecretSettingKeys = []string{"bind_password", "client_secret", "dsn"}
+
+// SecretSetIndicator marks, in a redacted config, that a write-only secret is
+// currently set on the server without disclosing its value. Clients render a
+// "set" indicator when they observe this sentinel and only submit a new value
+// when the operator explicitly types one.
+const SecretSetIndicator = "__set__"
+
+func isSecretKey(key string) bool {
+	for _, k := range SecretSettingKeys {
+		if k == key {
+			return true
+		}
+	}
+	return false
+}
+
+// RedactSecrets returns a shallow copy of cfg with every write-only secret in
+// Settings replaced: a non-empty stored secret becomes SecretSetIndicator, an
+// absent/empty one is removed. The original config is not mutated. Returns nil
+// when cfg is nil.
+func RedactSecrets(cfg *Config) *Config {
+	if cfg == nil {
+		return nil
+	}
+	out := &Config{
+		DomainID:     cfg.DomainID,
+		ProviderType: cfg.ProviderType,
+		Settings:     make(map[string]interface{}, len(cfg.Settings)),
+	}
+	for k, v := range cfg.Settings {
+		if isSecretKey(k) {
+			if s, ok := v.(string); ok && s != "" {
+				out.Settings[k] = SecretSetIndicator
+			}
+			// empty/absent secret: omit entirely so clients show "not set".
+			continue
+		}
+		out.Settings[k] = v
+	}
+	return out
+}
+
+// MergeSecrets reconciles secret settings on an incoming config against the
+// currently stored config so that a save never silently blanks a secret. For
+// each secret key, the incoming value is preserved only when the operator
+// supplied a real new value; the SecretSetIndicator sentinel or an empty/absent
+// value falls back to the stored secret. incoming is mutated in place. Both
+// arguments may be nil (nil incoming is a no-op).
+func MergeSecrets(incoming *Config, stored *Config) {
+	if incoming == nil {
+		return
+	}
+	if incoming.Settings == nil {
+		incoming.Settings = map[string]interface{}{}
+	}
+	var storedSettings map[string]interface{}
+	if stored != nil {
+		storedSettings = stored.Settings
+	}
+	for _, key := range SecretSettingKeys {
+		newVal, hasNew := incoming.Settings[key]
+		newStr, _ := newVal.(string)
+		// A real, non-empty, non-sentinel value from the operator wins.
+		if hasNew && newStr != "" && newStr != SecretSetIndicator {
+			continue
+		}
+		// Otherwise preserve the stored secret (if any).
+		if storedSettings != nil {
+			if prev, ok := storedSettings[key]; ok {
+				if prevStr, ok := prev.(string); ok && prevStr != "" {
+					incoming.Settings[key] = prevStr
+					continue
+				}
+			}
+		}
+		// No stored secret to preserve: drop the sentinel/empty placeholder so
+		// we never persist the indicator string as if it were a real secret.
+		delete(incoming.Settings, key)
+	}
+}
+
 // ConfigRepository handles IdP configuration persistence.
 type ConfigRepository struct {
 	db *sql.DB

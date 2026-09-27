@@ -199,6 +199,9 @@ func (s adminService) SetDomainIdPConfig(ctx context.Context, cfg *idprovider.Co
 	if err != nil {
 		return err
 	}
+	// Preserve stored write-only secrets when the incoming save left them blank
+	// or carried only the "set" indicator, so a no-change save never wipes them.
+	idprovider.MergeSecrets(cfg, existing)
 	if existing.ProviderType == "database" {
 		return s.idpConfigRepo.CreateConfig(ctx, cfg)
 	}

@@ -2758,6 +2758,12 @@
       "changed_fields_label": "저장 대기 변경"
     },
     "sso_page": {
+      "loading_company": "회사 정보를 불러오는 중…",
+      "url_invalid": "유효한 http(s) URL을 입력하세요",
+      "disable_confirm_title": "SSO를 비활성화하시겠습니까?",
+      "disable_confirm_body": "SSO를 비활성화하면 이 조직의 ID 공급자 로그인이 중단됩니다. SSO에 의존하는 사용자는 로그인하지 못할 수 있습니다. 계속하시겠습니까?",
+      "disable_confirm_action": "SSO 비활성화",
+      "cancel": "취소",
       "attribute_email_hint": "사용자 이메일 주소가 포함된 SAML 속성 이름",
       "attribute_email_label": "이메일 속성",
       "attribute_name_hint": "사용자 표시 이름이 포함된 SAML 속성 이름",
@@ -2990,7 +2996,20 @@
       "save_success": "IdP 구성이 저장되었습니다.",
       "save_error": "IdP 구성 저장에 실패했습니다.",
       "reset_success": "로컬 데이터베이스로 초기화되었습니다.",
-      "reset_error": "IdP 구성 초기화에 실패했습니다."
+      "reset_error": "IdP 구성 초기화에 실패했습니다.",
+      "domain_label": "도메인",
+      "domain_desc": "이 ID 공급자를 적용할 도메인을 선택하세요.",
+      "no_domains": "이 회사에는 도메인이 없습니다. ID 공급자를 구성하기 전에 도메인을 먼저 생성하세요.",
+      "port_invalid": "1에서 65535 사이의 포트를 입력하세요",
+      "secret_set": "값이 설정되어 있습니다. 유지하려면 비워 두세요.",
+      "secret_not_set": "설정되지 않음.",
+      "secret_placeholder_set": "•••••••• (변경 안 함)",
+      "load_error": "IdP 구성을 불러오지 못했습니다. 기존 구성을 덮어쓰지 않도록 저장이 비활성화되었습니다. 다시 시도하세요.",
+      "retry": "다시 시도",
+      "reset_confirm_title": "로컬 데이터베이스로 초기화하시겠습니까?",
+      "reset_confirm_body": "이 도메인의 현재 ID 공급자 구성을 제거하고 로컬 데이터베이스 인증으로 되돌립니다. 이 작업은 취소할 수 없습니다. 계속하시겠습니까?",
+      "reset_confirm_action": "로컬 데이터베이스로 초기화",
+      "cancel": "취소"
     }
   },
   "buttons": {

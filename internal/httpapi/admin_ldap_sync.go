@@ -271,7 +271,10 @@ func handleGetIdPConfig(w http.ResponseWriter, r *http.Request, service AdminSer
 		writeError(w, http.StatusInternalServerError, "failed to retrieve IdP configuration")
 		return
 	}
-	writeJSON(w, http.StatusOK, cfg)
+	// Never disclose write-only secrets (bind_password, client_secret, dsn) in
+	// plaintext; return only a "set" indicator so the client can show status
+	// without holding the real value.
+	writeJSON(w, http.StatusOK, idprovider.RedactSecrets(cfg))
 }
 
 func handleSetIdPConfig(w http.ResponseWriter, r *http.Request, service AdminService) {
@@ -307,7 +310,9 @@ func handleSetIdPConfig(w http.ResponseWriter, r *http.Request, service AdminSer
 		writeError(w, http.StatusInternalServerError, "failed to save IdP configuration")
 		return
 	}
-	writeJSON(w, http.StatusOK, cfg)
+	// The merge step may have populated real secret values into cfg; redact
+	// before echoing so the response never discloses stored secrets.
+	writeJSON(w, http.StatusOK, idprovider.RedactSecrets(&cfg))
 }
 
 func handleDeleteIdPConfig(w http.ResponseWriter, r *http.Request, service AdminService) {

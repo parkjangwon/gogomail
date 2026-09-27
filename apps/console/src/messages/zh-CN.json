@@ -2862,6 +2862,12 @@
       "changed_fields_label": "待保存变更"
     },
     "sso_page": {
+      "loading_company": "正在加载公司信息…",
+      "url_invalid": "请输入有效的 http(s) URL",
+      "disable_confirm_title": "禁用 SSO？",
+      "disable_confirm_body": "禁用 SSO 将停止该组织的身份提供商登录。依赖 SSO 的用户可能会被锁定。确定要继续吗？",
+      "disable_confirm_action": "禁用 SSO",
+      "cancel": "取消",
       "attribute_email_hint": "包含用户邮件地址的SAML属性名称",
       "attribute_email_label": "邮件属性",
       "attribute_name_hint": "包含用户显示名的SAML属性名称",
@@ -3097,7 +3103,20 @@
       "save_success": "IdP配置已保存。",
       "save_error": "IdP配置保存失败。",
       "reset_success": "已重置为本地数据库。",
-      "reset_error": "IdP配置重置失败。"
+      "reset_error": "IdP配置重置失败。",
+      "domain_label": "域名",
+      "domain_desc": "选择此身份提供商适用的域名。",
+      "no_domains": "该公司没有域名。请先创建域名，然后再配置身份提供商。",
+      "port_invalid": "请输入 1 到 65535 之间的端口",
+      "secret_set": "已设置值。留空以保留该值。",
+      "secret_not_set": "未设置。",
+      "secret_placeholder_set": "•••••••• (未更改)",
+      "load_error": "加载 IdP 配置失败。已禁用保存以避免覆盖现有配置。请重试。",
+      "retry": "重试",
+      "reset_confirm_title": "重置为本地数据库？",
+      "reset_confirm_body": "这将删除该域名当前的身份提供商配置并恢复为本地数据库认证。此操作无法撤销。是否继续？",
+      "reset_confirm_action": "重置为本地数据库",
+      "cancel": "取消"
     }
   },
   "buttons": {

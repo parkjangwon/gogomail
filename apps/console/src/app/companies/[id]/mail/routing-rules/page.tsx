@@ -21,8 +21,8 @@ import {
   Alert,
 } from '@cloudscape-design/components';
 import { useState, useEffect, useCallback } from 'react';
+import { useParams } from 'next/navigation';
 import { useI18n } from '@/app/i18n-provider';
-import { useCompany } from '@/contexts/CompanyContext';
 
 interface RoutingRule {
   id: string;
@@ -57,8 +57,10 @@ const ACTION_OPTIONS = [
 
 export default function RoutingRulesPage() {
   const { t } = useI18n();
-  const { currentCompany } = useCompany();
-  const cid = currentCompany?.id ?? 'default';
+  const params = useParams();
+  // Use the authoritative route param; never fall back to a placeholder id
+  // that could target the wrong tenant before context resolves.
+  const cid = (params?.id as string) ?? '';
 
   const [rules, setRules] = useState<RoutingRule[]>([]);
   const [loading, setLoading] = useState(true);
@@ -75,6 +77,7 @@ export default function RoutingRulesPage() {
   const [ruleToDelete, setRuleToDelete] = useState<RoutingRule | null>(null);
 
   const fetchRules = useCallback(async () => {
+    if (!cid) return;
     setLoading(true);
     try {
       const res = await fetch(`/api/admin/companies/${cid}/routing-rules`, { credentials: 'include' });
@@ -90,6 +93,7 @@ export default function RoutingRulesPage() {
   useEffect(() => { fetchRules(); }, [fetchRules]);
 
   const handleSaveAll = async () => {
+    if (!cid) return;
     setSaving(true);
     try {
       const res = await fetch(`/api/admin/companies/${cid}/routing-rules`, {
