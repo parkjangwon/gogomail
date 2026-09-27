@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams } from 'next/navigation';
 import {
   Badge,
@@ -20,7 +20,14 @@ import {
 
 import { DataTable } from '@/components/DataTable';
 import { useI18n } from '@/app/i18n-provider';
-import { buildMailFlowLogsQuery, exportMailFlowLogsCsv, type MailFlowLogRow } from '@/lib/mailFlowLogs';
+import {
+  buildMailFlowLogsQuery,
+  exportMailFlowLogsCsv,
+  downloadCsv,
+  isValidDateTimeInput,
+  toRFC3339,
+  type MailFlowLogRow,
+} from '@/lib/mailFlowLogs';
 
 interface MailLog extends MailFlowLogRow {
   from_addr?: string;
@@ -42,6 +49,7 @@ const statusColor = (status: string): 'green' | 'red' | 'severity-high' | 'blue'
     case 'filtered':
       return 'severity-high';
     case 'pending':
+    case 'received':
       return 'blue';
     default:
       return 'grey';
@@ -101,6 +109,7 @@ export default function MailFlowLogsPage() {
   const [logs, setLogs] = useState<MailLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingError, setLoadingError] = useState(false);
+  const [initialLoad, setInitialLoad] = useState(true);
 
   const [searchText, setSearchText] = useState('');
   const [domainId, setDomainId] = useState('');
@@ -109,7 +118,11 @@ export default function MailFlowLogsPage() {
   const [direction, setDirection] = useState<SelectProps.Option>({ label: t('common.all'), value: '' });
   const [since, setSince] = useState('');
   const [until, setUntil] = useState('');
+  const [sinceError, setSinceError] = useState('');
+  const [untilError, setUntilError] = useState('');
   const [activeFilters, setActiveFilters] = useState(0);
+
+  const abortRef = useRef<AbortController | null>(null);
 
   const requestFilters = useMemo(
     () => ({
@@ -119,8 +132,8 @@ export default function MailFlowLogsPage() {
       status: (status.value as string) || '',
       direction: (direction.value as string) || '',
       search: searchText,
-      since,
-      until,
+      since: toRFC3339(since),
+      until: toRFC3339(until),
       limit: 100,
     }),
     [companyId, direction.value, domainId, searchText, since, status.value, until, userId]
@@ -128,6 +141,23 @@ export default function MailFlowLogsPage() {
 
   const loadMailLogs = useCallback(
     async (override?: Partial<typeof requestFilters>) => {
+      const nextSince = override?.since ?? since;
+      const nextUntil = override?.until ?? until;
+      // Validate free-text date inputs before dispatching a request.
+      const sinceValid = isValidDateTimeInput(typeof nextSince === 'string' ? nextSince : since);
+      const untilValid = isValidDateTimeInput(typeof nextUntil === 'string' ? nextUntil : until);
+      setSinceError(sinceValid ? '' : t('pages.flow_logs_page.invalid_datetime', 'Enter a valid date/time.'));
+      setUntilError(untilValid ? '' : t('pages.flow_logs_page.invalid_datetime', 'Enter a valid date/time.'));
+      if (!sinceValid || !untilValid) {
+        return;
+      }
+
+      // Cancel any in-flight request so a slow older response can't overwrite
+      // newer results.
+      abortRef.current?.abort();
+      const controller = new AbortController();
+      abortRef.current = controller;
+
       setLoading(true);
       setLoadingError(false);
       try {
@@ -135,25 +165,34 @@ export default function MailFlowLogsPage() {
         const suffix = query ? `?${query}` : '';
         const res = await fetch(`/api/admin/mail-flow-logs${suffix}`, {
           credentials: 'include',
+          signal: controller.signal,
         });
         if (!res.ok) {
           throw new Error(`Unexpected response ${res.status}`);
         }
         const data = await res.json();
-        setLogs(data.logs || data.mail_flow_logs || []);
-      } catch {
+        setLogs(data.mail_flow_logs || data.logs || []);
+      } catch (err: unknown) {
+        if (err instanceof DOMException && err.name === 'AbortError') {
+          return; // superseded by a newer request; leave state untouched.
+        }
         setLogs([]);
         setLoadingError(true);
       } finally {
-        setLoading(false);
+        if (abortRef.current === controller) {
+          setLoading(false);
+          setInitialLoad(false);
+        }
       }
     },
-    [requestFilters]
+    [requestFilters, since, until, t]
   );
 
   useEffect(() => {
     void loadMailLogs();
   }, [loadMailLogs]);
+
+  useEffect(() => () => abortRef.current?.abort(), []);
 
   const currentFilterCount = useMemo(() => {
     let count = 0;
@@ -173,13 +212,7 @@ export default function MailFlowLogsPage() {
 
   const exportLogs = () => {
     const csv = exportMailFlowLogsCsv(logs);
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement('a');
-    anchor.href = url;
-    anchor.download = 'mail-flow-logs.csv';
-    anchor.click();
-    URL.revokeObjectURL(url);
+    downloadCsv(csv, 'mail-flow-logs.csv');
   };
 
   const clearFilters = () => {
@@ -190,6 +223,8 @@ export default function MailFlowLogsPage() {
     setDirection(directionOptions[0]);
     setSince('');
     setUntil('');
+    setSinceError('');
+    setUntilError('');
     void loadMailLogs({
       domainId: '',
       userId: '',
@@ -204,7 +239,7 @@ export default function MailFlowLogsPage() {
 
   const hasRows = logs.length > 0;
 
-  if (loading && !hasRows) {
+  if (initialLoad && loading && !hasRows) {
     return (
       <ContentLayout header={<Header variant="h1">{t('pages.flow_logs.title')}</Header>}>
         <Box textAlign="center" padding="xl">
@@ -291,18 +326,18 @@ export default function MailFlowLogsPage() {
                   onChange={(event) => setDirection(event.detail.selectedOption)}
                 />
               </FormField>
-              <FormField label={t('pages.flow_logs_page.since')}>
+              <FormField label={t('pages.flow_logs_page.since')} errorText={sinceError || undefined}>
                 <Input
                   value={since}
                   onChange={(event) => setSince(event.detail.value)}
-                  placeholder="2026-05-01T00:00:00Z"
+                  placeholder="2026-05-01T00:00"
                 />
               </FormField>
-              <FormField label={t('pages.flow_logs_page.until')}>
+              <FormField label={t('pages.flow_logs_page.until')} errorText={untilError || undefined}>
                 <Input
                   value={until}
                   onChange={(event) => setUntil(event.detail.value)}
-                  placeholder="2026-05-31T23:59:59Z"
+                  placeholder="2026-05-31T23:59"
                 />
               </FormField>
             </ColumnLayout>
@@ -317,7 +352,7 @@ export default function MailFlowLogsPage() {
           </SpaceBetween>
         </Container>
 
-        {loadingError ? (
+        {loadingError && !hasRows ? (
           <Box textAlign="center" padding="l" color="text-status-error">
             {t('pages.flow_logs_page.load_error')}
           </Box>
@@ -360,9 +395,10 @@ export default function MailFlowLogsPage() {
                 width: '14%',
               },
             ]}
-            items={loading ? [] : logs}
+            items={logs}
             loading={loading}
             loadingText={t('pages.flow_logs_page.loading')}
+            filter={false}
             header={
               <Header variant="h2" counter={`(${logs.length})`}>
                 {t('pages.flow_logs_page.logs')}

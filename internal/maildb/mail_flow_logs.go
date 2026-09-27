@@ -73,8 +73,13 @@ type MailFlowLogListRequest struct {
 	ToAddr       string
 	Subject      string
 	FlowStatus   string
-	Since        time.Time
-	Until        time.Time
+	// Search is a free-text term matched with OR semantics across
+	// from_addr, rcpt_to, subject, and rfc_message_id (all substring, case-insensitive).
+	// It is intended for the console search box; the field-specific filters above
+	// remain ANDed together and are ANDed with the Search group.
+	Search string
+	Since  time.Time
+	Until  time.Time
 }
 
 type MailFlowLogStatsRequest struct {
@@ -203,6 +208,14 @@ FROM mail_flow_logs`
 	if req.FlowStatus != "" {
 		args = append(args, req.FlowStatus)
 		conditions = append(conditions, fmt.Sprintf("flow_status = $%d", len(args)))
+	}
+	if req.Search != "" {
+		args = append(args, req.Search)
+		idx := len(args)
+		conditions = append(conditions, fmt.Sprintf(
+			"(from_addr ILIKE '%%' || $%d || '%%' OR rcpt_to ILIKE '%%' || $%d || '%%' OR subject ILIKE '%%' || $%d || '%%' OR rfc_message_id ILIKE '%%' || $%d || '%%')",
+			idx, idx, idx, idx,
+		))
 	}
 	if !req.Since.IsZero() {
 		args = append(args, req.Since.UTC())
@@ -542,6 +555,7 @@ func normalizeMailFlowLogListRequest(req MailFlowLogListRequest) MailFlowLogList
 	req.ToAddr = strings.TrimSpace(req.ToAddr)
 	req.Subject = strings.TrimSpace(req.Subject)
 	req.FlowStatus = strings.TrimSpace(req.FlowStatus)
+	req.Search = strings.TrimSpace(req.Search)
 	return req
 }
 

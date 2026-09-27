@@ -36,7 +36,8 @@
     "confirm": "확인",
     "done": "완료",
     "confirm_delete": "이 항목을 삭제할까요?",
-    "locked": "잠금"
+    "locked": "잠금",
+    "load_more": "더 보기"
   },
   "alerts": {
     "title": "알림",
@@ -1005,7 +1006,12 @@
       "mx_host": "MX 호스트",
       "sender": "발신자",
       "subject": "제목",
-      "timestamp": "시간"
+      "timestamp": "시간",
+      "status_delivered": "전달됨",
+      "status_failed": "실패",
+      "status_bounced": "반송",
+      "status_exhausted": "재시도 소진",
+      "invalid_datetime": "유효한 날짜/시간을 입력하세요 (예: 2026-05-01T00:00)."
     },
     "delivery_attempts_page": {
       "attempt": "시도",
@@ -1441,7 +1447,8 @@
       "queue_id": "큐 ID",
       "search_placeholder": "검색...",
       "tab_inbound": "수신",
-      "tab_outbound": "발신"
+      "tab_outbound": "발신",
+      "invalid_datetime": "유효한 날짜/시간을 입력하세요."
     },
     "groups": {
       "add_member": "구성원 추가",
@@ -1710,7 +1717,21 @@
       "search_placeholder": "검색...",
       "locked": "잠김",
       "processed": "처리됨",
-      "retry_count": "재시도 횟수"
+      "retry_count": "재시도 횟수",
+      "fetch_error_header": "아웃박스 이벤트를 불러오지 못했습니다",
+      "topic": "토픽",
+      "partition_key": "파티션 키",
+      "attempts": "시도 횟수",
+      "last_error": "마지막 오류",
+      "status_done": "완료",
+      "status_failed": "실패",
+      "status_pending": "대기 중",
+      "status_processing": "처리 중",
+      "retry_success_header": "재시도 예약됨",
+      "retry_success": "아웃박스 이벤트가 전송 대기열에 다시 추가되었습니다.",
+      "retry_error_header": "재시도 실패",
+      "retry_confirm_header": "아웃박스 이벤트를 재시도하시겠습니까?",
+      "retry_confirm_body": "재시도하면 이 이벤트가 대기 상태로 초기화되어 동일한 메일이 다시 발송될 수 있습니다. 계속하시겠습니까?"
     },
     "push": {
       "title": "푸시 알림",
@@ -2798,7 +2819,8 @@
       "received": "수신 시간",
       "from_placeholder": "sender@example.com",
       "to_placeholder": "recipient@example.com",
-      "subject_placeholder": "부분 제목 검색"
+      "subject_placeholder": "부분 제목 검색",
+      "invalid_datetime": "유효한 날짜/시간을 입력하세요."
     },
     "admin_activity": {
       "title": "관리자 활동 로그",

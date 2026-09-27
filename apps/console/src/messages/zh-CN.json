@@ -36,7 +36,8 @@
     "confirm": "确认",
     "done": "完成",
     "confirm_delete": "确定要删除此项目吗？",
-    "locked": "已锁定"
+    "locked": "已锁定",
+    "load_more": "加载更多"
   },
   "alerts": {
     "title": "告警",
@@ -1014,7 +1015,12 @@
       "response_code": "响应代码",
       "sender": "发件人",
       "subject": "主题",
-      "timestamp": "时间"
+      "timestamp": "时间",
+      "status_delivered": "已投递",
+      "status_failed": "失败",
+      "status_bounced": "退信",
+      "status_exhausted": "重试耗尽",
+      "invalid_datetime": "请输入有效的日期/时间（例如 2026-05-01T00:00）。"
     },
     "delivery_attempts_page": {
       "attempt": "Attempt",
@@ -1450,7 +1456,8 @@
       "subject": "主题",
       "tab_inbound": "入站",
       "tab_outbound": "出站",
-      "title": "邮件流日志"
+      "title": "邮件流日志",
+      "invalid_datetime": "请输入有效的日期/时间。"
     },
     "groups": {
       "add_member": "Add Member",
@@ -1719,7 +1726,21 @@
       "retry_count": "重试次数",
       "search_placeholder": "搜索...",
       "title": "发件箱事件",
-      "type": "类型"
+      "type": "类型",
+      "fetch_error_header": "加载发件箱事件失败",
+      "topic": "主题",
+      "partition_key": "分区键",
+      "attempts": "尝试次数",
+      "last_error": "最近错误",
+      "status_done": "完成",
+      "status_failed": "失败",
+      "status_pending": "待处理",
+      "status_processing": "处理中",
+      "retry_success_header": "已安排重试",
+      "retry_success": "该发件箱事件已重新加入投递队列。",
+      "retry_error_header": "重试失败",
+      "retry_confirm_header": "重试发件箱事件？",
+      "retry_confirm_body": "重试会将此事件重置为待处理状态，并可能重新发送同一封邮件。是否继续？"
     },
     "push": {
       "title": "推送通知",
@@ -2911,7 +2932,8 @@
       "received": "接收时间",
       "from_placeholder": "sender@example.com",
       "to_placeholder": "recipient@example.com",
-      "subject_placeholder": "主题部分匹配"
+      "subject_placeholder": "主题部分匹配",
+      "invalid_datetime": "请输入有效的日期/时间。"
     },
     "admin_activity": {
       "title": "管理员活动日志",

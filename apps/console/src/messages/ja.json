@@ -36,7 +36,8 @@
     "confirm": "確認",
     "done": "完了",
     "confirm_delete": "この項目を削除しますか？",
-    "locked": "ロック済み"
+    "locked": "ロック済み",
+    "load_more": "さらに読み込む"
   },
   "alerts": {
     "title": "アラート",
@@ -1014,7 +1015,12 @@
       "response_code": "レスポンスコード",
       "sender": "送信者",
       "subject": "件名",
-      "timestamp": "時間"
+      "timestamp": "時間",
+      "status_delivered": "配信済み",
+      "status_failed": "失敗",
+      "status_bounced": "バウンス",
+      "status_exhausted": "再試行上限",
+      "invalid_datetime": "有効な日時を入力してください（例: 2026-05-01T00:00）。"
     },
     "delivery_attempts_page": {
       "attempt": "Attempt",
@@ -1450,7 +1456,8 @@
       "subject": "件名",
       "tab_inbound": "受信",
       "tab_outbound": "送信",
-      "title": "メールフローログ"
+      "title": "メールフローログ",
+      "invalid_datetime": "有効な日時を入力してください。"
     },
     "groups": {
       "add_member": "Add Member",
@@ -1719,7 +1726,21 @@
       "retry_count": "再試行回数",
       "search_placeholder": "検索...",
       "title": "アウトボックスイベント",
-      "type": "タイプ"
+      "type": "タイプ",
+      "fetch_error_header": "アウトボックスイベントの読み込みに失敗しました",
+      "topic": "トピック",
+      "partition_key": "パーティションキー",
+      "attempts": "試行回数",
+      "last_error": "最後のエラー",
+      "status_done": "完了",
+      "status_failed": "失敗",
+      "status_pending": "保留中",
+      "status_processing": "処理中",
+      "retry_success_header": "再試行を予約しました",
+      "retry_success": "アウトボックスイベントを配信キューに再登録しました。",
+      "retry_error_header": "再試行に失敗しました",
+      "retry_confirm_header": "アウトボックスイベントを再試行しますか？",
+      "retry_confirm_body": "再試行するとこのイベントは保留状態にリセットされ、同じメールが再送信される可能性があります。続行しますか？"
     },
     "push": {
       "title": "プッシュ通知",
@@ -2911,7 +2932,8 @@
       "received": "受信日時",
       "from_placeholder": "sender@example.com",
       "to_placeholder": "recipient@example.com",
-      "subject_placeholder": "件名の部分一致"
+      "subject_placeholder": "件名の部分一致",
+      "invalid_datetime": "有効な日時を入力してください。"
     },
     "admin_activity": {
       "title": "管理者アクティビティログ",

@@ -370,6 +370,10 @@ func parseMailFlowLogListRequest(w http.ResponseWriter, r *http.Request, limit i
 	if !ok {
 		return maildb.MailFlowLogListRequest{}, false
 	}
+	search, ok := parseBoundedAdminQuery(w, r, "q")
+	if !ok {
+		return maildb.MailFlowLogListRequest{}, false
+	}
 	since, ok := parseOptionalRFC3339Query(w, r, "since")
 	if !ok {
 		return maildb.MailFlowLogListRequest{}, false
@@ -390,6 +394,7 @@ func parseMailFlowLogListRequest(w http.ResponseWriter, r *http.Request, limit i
 		ToAddr:       toAddr,
 		Subject:      subject,
 		FlowStatus:   flowStatus,
+		Search:       search,
 		Since:        since,
 		Until:        until,
 	}, true

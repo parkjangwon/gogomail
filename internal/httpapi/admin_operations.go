@@ -252,7 +252,7 @@ func registerOperationsRoutes(mux *http.ServeMux, service AdminService, cfg admi
 	}))
 
 	mux.HandleFunc("GET /admin/v1/mail-flow-logs", adminAuth(func(w http.ResponseWriter, r *http.Request) {
-		if !rejectUnknownQueryKeys(w, r, "limit", "direction", "company_id", "domain_id", "user_id", "message_id", "rfc_message_id", "from_addr", "to_addr", "subject", "flow_status", "since", "until") {
+		if !rejectUnknownQueryKeys(w, r, "limit", "direction", "company_id", "domain_id", "user_id", "message_id", "rfc_message_id", "from_addr", "to_addr", "subject", "flow_status", "q", "since", "until") {
 			return
 		}
 		limit, ok := parseQueryLimit(w, r)

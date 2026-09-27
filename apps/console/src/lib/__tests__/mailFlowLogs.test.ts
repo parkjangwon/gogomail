@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import {
   buildMailFlowLogsQuery,
   exportMailFlowLogsCsv,
+  isValidDateTimeInput,
+  toRFC3339,
   type MailFlowLogRow,
 } from '../mailFlowLogs';
 
@@ -18,7 +20,7 @@ describe('mailFlowLogs', () => {
         limit: 25,
       })
     ).toBe(
-      'company_id=company-1&domain_id=domain-9&flow_status=delivered&from_addr=invoice&to_addr=invoice&subject=invoice&rfc_message_id=invoice&since=2026-05-01T00%3A00%3A00Z&until=2026-05-31T23%3A59%3A59Z&limit=25'
+      'company_id=company-1&domain_id=domain-9&flow_status=delivered&q=invoice&since=2026-05-01T00%3A00%3A00Z&until=2026-05-31T23%3A59%3A59Z&limit=25'
     );
   });
 
@@ -58,5 +60,22 @@ describe('mailFlowLogs', () => {
     ).toBe(
       'company_id=company-1&direction=outbound&from_addr=alice%40example.com&to_addr=bob%40example.com&subject=Quarterly+update&rfc_message_id=%3Cmsg%40example.com%3E&limit=100'
     );
+  });
+
+  it('validates optional datetime inputs', () => {
+    expect(isValidDateTimeInput('')).toBe(true);
+    expect(isValidDateTimeInput('  ')).toBe(true);
+    expect(isValidDateTimeInput('2026-05-01T00:00:00Z')).toBe(true);
+    expect(isValidDateTimeInput('2026-05-01T00:00')).toBe(true);
+    expect(isValidDateTimeInput('not-a-date')).toBe(false);
+    expect(isValidDateTimeInput('2026-13-40')).toBe(false);
+  });
+
+  it('normalizes datetime-local values to RFC3339 and preserves TZ-qualified input', () => {
+    expect(toRFC3339('')).toBe('');
+    expect(toRFC3339('2026-05-01T00:00:00Z')).toBe('2026-05-01T00:00:00Z');
+    expect(toRFC3339('2026-05-01T00:00+09:00')).toBe('2026-05-01T00:00+09:00');
+    expect(toRFC3339('2026-05-01T00:00')).toBe('2026-05-01T00:00:00Z');
+    expect(toRFC3339('2026-05-01T00:00:30')).toBe('2026-05-01T00:00:30Z');
   });
 });
