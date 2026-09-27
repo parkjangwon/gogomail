@@ -26,6 +26,8 @@ interface Props {
   mcpPolicy: DomainMCPPolicy;
   mcpPolicyConfig: DomainMCPPolicyConfig | null;
   mcpPolicyLoading: boolean;
+  mcpPolicyLoaded: boolean;
+  mcpPolicyAbsent: boolean;
   mcpPolicySaving: boolean;
   mcpPolicyError: string;
   mcpPolicySaved: boolean;
@@ -42,6 +44,8 @@ export function DomainMCPTab({
   mcpPolicy,
   mcpPolicyConfig,
   mcpPolicyLoading,
+  mcpPolicyLoaded,
+  mcpPolicyAbsent,
   mcpPolicySaving,
   mcpPolicyError,
   mcpPolicySaved,
@@ -53,6 +57,9 @@ export function DomainMCPTab({
   onDismissSaved,
   t,
 }: Props) {
+  // While the server value has never loaded, the form shows DEFAULT policy.
+  // Saving now would clobber the real server-side policy — block it.
+  const saveBlocked = !mcpPolicyLoaded;
   return (
     <SpaceBetween size="l">
       {mcpPolicyError ? (
@@ -63,6 +70,11 @@ export function DomainMCPTab({
       {mcpPolicySaved ? (
         <Alert type="success" dismissible onDismiss={onDismissSaved}>
           {t('pages.domain_detail.mcp_policy_saved', 'MCP policy saved.')}
+        </Alert>
+      ) : null}
+      {saveBlocked && !mcpPolicyError ? (
+        <Alert type="warning">
+          {t('pages.domain_detail.mcp_policy_save_blocked_note', 'The current MCP policy could not be loaded, so the form shows defaults. Saving is disabled to avoid overwriting the real policy. Use Refresh to load it before editing.')}
         </Alert>
       ) : null}
 
@@ -76,7 +88,7 @@ export function DomainMCPTab({
                 <Button iconName="refresh" onClick={onRefresh} loading={mcpPolicyLoading}>
                   {t('common.refresh')}
                 </Button>
-                <Button variant="primary" onClick={onSave} loading={mcpPolicySaving}>
+                <Button variant="primary" onClick={onSave} loading={mcpPolicySaving} disabled={saveBlocked}>
                   {t('common.save')}
                 </Button>
               </SpaceBetween>
@@ -189,6 +201,12 @@ export function DomainMCPTab({
           ))}
         </ColumnLayout>
       </Container>
+
+      {mcpPolicyLoaded && mcpPolicyAbsent ? (
+        <Alert type="info">
+          {t('pages.domain_detail.mcp_policy_absent_note', 'No MCP policy is configured for this domain yet. The values below are defaults; save to create the policy.')}
+        </Alert>
+      ) : null}
 
       {mcpPolicyConfig?.UpdatedAt ? (
         <Box color="text-body-secondary" fontSize="body-s">

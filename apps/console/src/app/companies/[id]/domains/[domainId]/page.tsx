@@ -24,6 +24,7 @@ import { DomainSettingsTab } from './DomainSettingsTab';
 import { DomainStatsTab } from './DomainStatsTab';
 import { DomainDNSTab } from './DomainDNSTab';
 import { DomainMCPTab } from './DomainMCPTab';
+import { ConfirmModal } from '@/components/ConfirmModal';
 
 const STATUS_OPTIONS = [
   { label: 'active', value: 'active' },
@@ -70,18 +71,26 @@ export default function DomainDetailPage() {
           </Header>
         }
       >
+        <SpaceBetween size="l">
+        {h.verifyError ? (
+          <Alert type="error" dismissible onDismiss={() => h.setVerifyError('')} header={t('pages.domain_detail.verify_dns')}>
+            {h.verifyError}
+          </Alert>
+        ) : null}
         <Tabs
           activeTabId={activeTab}
-          onChange={(e) => { setActiveTab(e.detail.activeTabId); if (e.detail.activeTabId === 'mail-stats') h.fetchMailStats(domain.name); }}
+          onChange={(e) => { setActiveTab(e.detail.activeTabId); if (e.detail.activeTabId === 'mail-stats') h.fetchMailStats(); }}
           tabs={[
             { id: 'overview', label: t('pages.domain_detail.overview_tab'), content: <DomainOverviewTab domain={domain} users={h.users} verifying={h.verifying} onVerifyDNS={h.handleVerifyDNS} onSetActiveTab={setActiveTab} t={t} /> },
-            { id: 'users', label: `${t('pages.domain_detail.users_tab')} (${h.usersHasMore ? `${h.users.length}+` : h.users.length})`, content: <DomainUsersTab users={h.users} hasMore={h.usersHasMore} companyId={h.companyId} domainName={domain.name} t={t} /> },
+            { id: 'users', label: `${t('pages.domain_detail.users_tab')} (${h.usersHasMore ? `${h.users.length}+` : h.users.length})`, content: <DomainUsersTab users={h.users} hasMore={h.usersHasMore} companyId={h.companyId} domainName={domain.name} usersError={h.usersError} onRetry={h.retryUsers} t={t} /> },
             {
               id: 'settings',
               label: `${t('pages.domain_detail.settings_tab')} (${h.settings.length})`,
               content: <DomainSettingsTab
                 settings={h.settings}
                 domainName={domain.name}
+                settingsError={h.settingsError}
+                onRetry={h.retrySettings}
                 showAddSetting={h.showAddSetting}
                 onShowAddSetting={h.setShowAddSetting}
                 newSetting={h.newSetting}
@@ -104,16 +113,17 @@ export default function DomainDetailPage() {
             {
               id: 'mail-stats',
               label: t('pages.domain_detail.mail_stats'),
-              content: <DomainStatsTab mailStats={h.mailStats} statsLoading={h.statsLoading} statsFetched={h.statsFetched} onFetchStats={() => h.fetchMailStats(domain.name, true)} t={t} />,
+              content: <DomainStatsTab mailStats={h.mailStats} statsLoading={h.statsLoading} statsFetched={h.statsFetched} statsError={h.statsError} onFetchStats={() => h.fetchMailStats(true)} t={t} />,
             },
             { id: 'dns', label: t('pages.domain_detail.dns_security_tab'), content: <DomainDNSTab domain={domain} companyId={h.companyId} verifying={h.verifying} onVerifyDNS={h.handleVerifyDNS} t={t} /> },
             {
               id: 'mcp-policy',
               label: t('pages.domain_detail.mcp_policy_tab', 'MCP Policy'),
-              content: <DomainMCPTab mcpPolicy={h.mcpPolicy} mcpPolicyConfig={h.mcpPolicyConfig} mcpPolicyLoading={h.mcpPolicyLoading} mcpPolicySaving={h.mcpPolicySaving} mcpPolicyError={h.mcpPolicyError} mcpPolicySaved={h.mcpPolicySaved} onPolicyChange={h.updateMCPPolicy} onScopeChange={h.setMCPPolicyScope} onRefresh={h.refreshMCPPolicy} onSave={h.handleSaveMCPPolicy} onDismissError={() => h.setMcpPolicyError('')} onDismissSaved={() => h.setMcpPolicySaved(false)} t={t} />,
+              content: <DomainMCPTab mcpPolicy={h.mcpPolicy} mcpPolicyConfig={h.mcpPolicyConfig} mcpPolicyLoading={h.mcpPolicyLoading} mcpPolicyLoaded={h.mcpPolicyLoaded} mcpPolicyAbsent={h.mcpPolicyAbsent} mcpPolicySaving={h.mcpPolicySaving} mcpPolicyError={h.mcpPolicyError} mcpPolicySaved={h.mcpPolicySaved} onPolicyChange={h.updateMCPPolicy} onScopeChange={h.setMCPPolicyScope} onRefresh={h.refreshMCPPolicy} onSave={h.handleSaveMCPPolicy} onDismissError={() => h.setMcpPolicyError('')} onDismissSaved={() => h.setMcpPolicySaved(false)} t={t} />,
             },
           ]}
         />
+        </SpaceBetween>
       </ContentLayout>
 
       <Modal visible={h.showEdit} onDismiss={() => { h.setShowEdit(false); h.setSaveError(''); }} header={`${t('common.edit')} — ${domain.name}`}
@@ -126,14 +136,16 @@ export default function DomainDetailPage() {
         </SpaceBetween>
       </Modal>
 
-      <Modal visible={h.showDelete} onDismiss={() => { h.setShowDelete(false); h.setDeleteError(''); }} header={t('common.delete')}
-        footer={<Box float="right"><SpaceBetween direction="horizontal" size="xs"><Button onClick={() => { h.setShowDelete(false); h.setDeleteError(''); }}>{t('common.cancel')}</Button><Button variant="primary" onClick={h.handleDelete} loading={h.deleting}>{t('common.delete') || '삭제'}</Button></SpaceBetween></Box>}
+      <ConfirmModal
+        visible={h.showDelete}
+        header={t('common.delete')}
+        onConfirm={h.handleDelete}
+        onDismiss={() => { h.setShowDelete(false); h.setDeleteError(''); }}
+        loading={h.deleting}
+        error={h.deleteError}
       >
-        <SpaceBetween size="m">
-          <Box>{t('pages.domain_detail.delete_confirm_body').replace('{name}', domain.name)}</Box>
-          {h.deleteError ? <Alert type="error">{h.deleteError}</Alert> : null}
-        </SpaceBetween>
-      </Modal>
+        {t('pages.domain_detail.delete_confirm_body').replace('{name}', domain.name)}
+      </ConfirmModal>
     </>
   );
 }

@@ -6,6 +6,7 @@ import {
   SpaceBetween,
   Spinner,
   Button,
+  Alert,
 } from '@cloudscape-design/components';
 import { DailyCount } from './domainDetailTypes';
 
@@ -13,11 +14,12 @@ interface Props {
   mailStats: DailyCount[];
   statsLoading: boolean;
   statsFetched: boolean;
+  statsError?: string;
   onFetchStats: () => void;
   t: (key: string, fallback?: string) => string;
 }
 
-export function DomainStatsTab({ mailStats, statsLoading, onFetchStats, t }: Props) {
+export function DomainStatsTab({ mailStats, statsLoading, statsError, onFetchStats, t }: Props) {
   return (
     <Container header={
       <Header
@@ -34,6 +36,14 @@ export function DomainStatsTab({ mailStats, statsLoading, onFetchStats, t }: Pro
     }>
       {statsLoading ? (
         <Box textAlign="center" padding="xl"><Spinner /></Box>
+      ) : statsError ? (
+        <Alert
+          type="error"
+          header={t('pages.domain_detail.stats_load_error', 'Failed to load mail statistics.')}
+          action={<Button onClick={onFetchStats}>{t('common.retry', 'Retry')}</Button>}
+        >
+          {statsError}
+        </Alert>
       ) : (
         <SpaceBetween size="l">
           {mailStats.length === 0 ? (

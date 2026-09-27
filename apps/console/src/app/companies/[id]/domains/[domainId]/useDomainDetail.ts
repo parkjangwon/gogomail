@@ -31,7 +31,13 @@ export function useDomainDetail() {
   const [settings, setSettings] = useState<DomainSetting[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
+  // Per-section load failures. These must be distinguishable from "empty"
+  // so the UI can offer a retry instead of pretending there is no data.
+  const [usersError, setUsersError] = useState('');
+  const [settingsError, setSettingsError] = useState('');
+  const [statsError, setStatsError] = useState('');
   const [verifying, setVerifying] = useState(false);
+  const [verifyError, setVerifyError] = useState('');
 
   // Add Setting modal
   const [showAddSetting, setShowAddSetting] = useState(false);
@@ -66,17 +72,34 @@ export function useDomainDetail() {
   const [mcpPolicy, setMcpPolicy] = useState<DomainMCPPolicy>(DEFAULT_MCP_POLICY);
   const [mcpPolicyConfig, setMcpPolicyConfig] = useState<DomainMCPPolicyConfig | null>(null);
   const [mcpPolicyLoading, setMcpPolicyLoading] = useState(false);
+  // false until the server value has been fetched at least once. While false
+  // the form shows DEFAULT policy, so saving would overwrite the real
+  // server-side policy (key issuance, bypass mode) with defaults.
+  const [mcpPolicyLoaded, setMcpPolicyLoaded] = useState(false);
+  // true when the server currently has no policy row (legit defaults) — as
+  // opposed to a load failure, where the real policy exists but is unknown.
+  const [mcpPolicyAbsent, setMcpPolicyAbsent] = useState(false);
   const [mcpPolicySaving, setMcpPolicySaving] = useState(false);
   const [mcpPolicyError, setMcpPolicyError] = useState('');
   const [mcpPolicySaved, setMcpPolicySaved] = useState(false);
 
   useEffect(() => {
+    // Sentinel objects let us tell "loaded but empty" apart from "fetch failed"
+    // once Promise.all resolves. A rejected/non-ok fetch yields { __error: true }.
+    const FAILED = { __error: true } as const;
+    const isFailed = (v: unknown): boolean =>
+      typeof v === 'object' && v !== null && (v as { __error?: boolean }).__error === true;
+
     Promise.all([
       fetch(`/api/admin/domains/${domainId}`, { credentials: 'include' }).then(r => r.ok ? r.json() : null),
-      fetch(`/api/admin/users?domain_id=${domainId}&limit=100`, { credentials: 'include' }).then(r => r.ok ? r.json() : { users: [], has_more: false }),
-      fetch(`/api/admin/domains/${domainId}/config`, { credentials: 'include' }).then(r => r.ok ? r.json() : { config: [] }),
-      fetch(`/api/admin/domains/${domainId}/mcp-policy`, { credentials: 'include' }).then(r => r.ok ? r.json() : null).catch(() => null),
-    ]).then(([domainData, usersData, settingsData, mcpPolicyData]) => {
+      fetch(`/api/admin/users?domain_id=${domainId}&limit=100`, { credentials: 'include' }).then(r => r.ok ? r.json() : FAILED).catch(() => FAILED),
+      fetch(`/api/admin/domains/${domainId}/config`, { credentials: 'include' }).then(r => r.ok ? r.json() : FAILED).catch(() => FAILED),
+      // The MCP fetch resolves the response object so we can tell 404/"no policy"
+      // (absent → legit defaults) apart from a real load failure (unknown policy).
+      fetch(`/api/admin/domains/${domainId}/mcp-policy`, { credentials: 'include' })
+        .then(async r => ({ ok: r.ok, status: r.status, body: r.ok ? await r.json().catch(() => null) : null }))
+        .catch(() => ({ ok: false, status: 0, body: null })),
+    ]).then(([domainData, usersData, settingsData, mcpResult]) => {
       if (domainData?.domain) {
         setDomain(domainData.domain);
         setEditForm({
@@ -84,13 +107,34 @@ export function useDomainDetail() {
           status: domainData.domain.status,
         });
       }
-      setUsers(usersData.users || []);
-      setUsersHasMore(Boolean(usersData.has_more));
-      setSettings(settingsData.config || []);
-      setMcpPolicy(normalizeMCPPolicy(mcpPolicyData?.mcp_policy));
-      setMcpPolicyConfig(mcpPolicyData?.config ?? null);
-      if (!mcpPolicyData) {
-        setMcpPolicyError(t('pages.domain_detail.mcp_policy_load_error', 'Failed to load MCP policy. Defaults are shown until refreshed.'));
+
+      if (isFailed(usersData)) {
+        setUsersError(t('pages.domain_detail.users_load_error', 'Failed to load users for this domain.'));
+      } else {
+        setUsers(usersData.users || []);
+        setUsersHasMore(Boolean(usersData.has_more));
+      }
+
+      if (isFailed(settingsData)) {
+        setSettingsError(t('pages.domain_detail.settings_load_error', 'Failed to load domain settings.'));
+      } else {
+        setSettings(settingsData.config || []);
+      }
+
+      if (mcpResult.ok) {
+        // Loaded successfully. A null policy means the server has no row yet,
+        // which is a legitimate "use defaults" state — safe to edit and save.
+        const policy = mcpResult.body?.mcp_policy ?? null;
+        setMcpPolicy(normalizeMCPPolicy(policy));
+        setMcpPolicyConfig(mcpResult.body?.config ?? null);
+        setMcpPolicyLoaded(true);
+        setMcpPolicyAbsent(policy == null);
+      } else {
+        // Load failed: the real policy is unknown. Keep defaults for display
+        // but flag the error so the UI blocks/disables save.
+        setMcpPolicyLoaded(false);
+        setMcpPolicyAbsent(false);
+        setMcpPolicyError(t('pages.domain_detail.mcp_policy_load_error', 'Failed to load MCP policy. Defaults are shown but saving is disabled until the current policy loads, to avoid overwriting it.'));
       }
     }).catch(() => {
       setLoadError('Failed to load domain details. Please refresh the page.');
@@ -99,15 +143,28 @@ export function useDomainDetail() {
 
   const handleVerifyDNS = async () => {
     setVerifying(true);
+    setVerifyError('');
     try {
       const res = await fetch(`/api/admin/domains/${domainId}/dns-check`, {
         method: 'POST',
         credentials: 'include',
       });
-      if (res.ok) {
-        const data = await res.json();
-        setDomain(prev => prev ? { ...prev, last_dns_check_status: data.dns_check?.status ?? prev.last_dns_check_status } : prev);
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({})) as { error?: { message?: string } | string };
+        const msg = typeof data.error === 'string' ? data.error : data.error?.message;
+        setVerifyError(msg ?? t('pages.domain_detail.dns_verify_failed', 'DNS verification failed. Please try again.'));
+        return;
       }
+      // Refetch the domain so last_dns_check_status AND last_dns_checked_at
+      // reflect the run just performed. The dns-check response does not carry a
+      // reliable timestamp, so the DB-backed domain record is the source of truth.
+      const refreshed = await fetch(`/api/admin/domains/${domainId}`, { credentials: 'include' });
+      if (refreshed.ok) {
+        const d = await refreshed.json();
+        if (d?.domain) setDomain(d.domain);
+      }
+    } catch {
+      setVerifyError(t('pages.domain_detail.dns_verify_failed', 'DNS verification failed. Please try again.'));
     } finally {
       setVerifying(false);
     }
@@ -258,6 +315,7 @@ export function useDomainDetail() {
 
   const handleDeleteSetting = async (s: DomainSetting) => {
     setDeletingSettingKey(s.Key);
+    setSettingError('');
     try {
       const res = await fetch(
         `/api/admin/domains/${domainId}/config/${encodeURIComponent(s.Key)}?version=${s.Version}`,
@@ -265,6 +323,10 @@ export function useDomainDetail() {
       );
       if (res.ok) {
         await refreshSettings();
+      } else {
+        const err = await res.json().catch(() => ({})) as { error?: { message?: string } | string };
+        const msg = typeof err.error === 'string' ? err.error : err.error?.message;
+        setSettingError(msg ?? t('pages.domain_detail.setting_delete_failed', 'Failed to delete setting'));
       }
     } finally {
       setDeletingSettingKey(null);
@@ -279,18 +341,30 @@ export function useDomainDetail() {
       const res = await fetch(`/api/admin/domains/${domainId}/mcp-policy`, { credentials: 'include' });
       if (!res.ok) {
         const data = await res.json().catch(() => ({})) as { error?: { message?: string } };
-        setMcpPolicyError(data.error?.message ?? t('pages.domain_detail.mcp_policy_load_error', 'Failed to load MCP policy.'));
+        setMcpPolicyError(data.error?.message ?? t('pages.domain_detail.mcp_policy_load_error', 'Failed to load MCP policy. Defaults are shown but saving is disabled until the current policy loads, to avoid overwriting it.'));
         return;
       }
       const data = await res.json();
-      setMcpPolicy(normalizeMCPPolicy(data.mcp_policy));
+      const policy = data.mcp_policy ?? null;
+      setMcpPolicy(normalizeMCPPolicy(policy));
       setMcpPolicyConfig(data.config ?? null);
+      setMcpPolicyLoaded(true);
+      setMcpPolicyAbsent(policy == null);
+    } catch {
+      setMcpPolicyError(t('pages.domain_detail.mcp_policy_load_error', 'Failed to load MCP policy. Defaults are shown but saving is disabled until the current policy loads, to avoid overwriting it.'));
     } finally {
       setMcpPolicyLoading(false);
     }
   };
 
   const handleSaveMCPPolicy = async () => {
+    // Guard: never overwrite the server policy with defaults when the real
+    // value was never successfully loaded. The UI also disables the button,
+    // but block the call itself as defense-in-depth.
+    if (!mcpPolicyLoaded) {
+      setMcpPolicyError(t('pages.domain_detail.mcp_policy_save_blocked', 'Cannot save: the current MCP policy has not loaded. Refresh to load it before making changes, otherwise defaults would overwrite the real policy.'));
+      return;
+    }
     setMcpPolicySaving(true);
     setMcpPolicyError('');
     setMcpPolicySaved(false);
@@ -313,6 +387,8 @@ export function useDomainDetail() {
       const data = await res.json();
       setMcpPolicy(normalizeMCPPolicy(data.mcp_policy));
       setMcpPolicyConfig(data.config ?? null);
+      setMcpPolicyLoaded(true);
+      setMcpPolicyAbsent(false);
       setMcpPolicySaved(true);
     } finally {
       setMcpPolicySaving(false);
@@ -334,9 +410,10 @@ export function useDomainDetail() {
     setMcpPolicySaved(false);
   };
 
-  const fetchMailStats = async (_domainName: string, force = false) => {
+  const fetchMailStats = async (force = false) => {
     if (statsFetched && !force) return;
     setStatsLoading(true);
+    setStatsError('');
     try {
       const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
       const qs = buildMailFlowLogsQuery({
@@ -346,7 +423,10 @@ export function useDomainDetail() {
         limit: 500,
       });
       const res = await fetch(`/api/admin/mail-flow-logs${qs ? `?${qs}` : ''}`, { credentials: 'include' });
-      if (!res.ok) return;
+      if (!res.ok) {
+        setStatsError(t('pages.domain_detail.stats_load_error', 'Failed to load mail statistics.'));
+        return;
+      }
       const data = await res.json();
       const logs: Array<{ created_at: string; status: string }> = data.mail_flow_logs ?? [];
 
@@ -373,8 +453,41 @@ export function useDomainDetail() {
       }));
       setMailStats(days);
       setStatsFetched(true);
+    } catch {
+      setStatsError(t('pages.domain_detail.stats_load_error', 'Failed to load mail statistics.'));
     } finally {
       setStatsLoading(false);
+    }
+  };
+
+  const retryUsers = async () => {
+    setUsersError('');
+    try {
+      const res = await fetch(`/api/admin/users?domain_id=${domainId}&limit=100`, { credentials: 'include' });
+      if (!res.ok) {
+        setUsersError(t('pages.domain_detail.users_load_error', 'Failed to load users for this domain.'));
+        return;
+      }
+      const data = await res.json();
+      setUsers(data.users || []);
+      setUsersHasMore(Boolean(data.has_more));
+    } catch {
+      setUsersError(t('pages.domain_detail.users_load_error', 'Failed to load users for this domain.'));
+    }
+  };
+
+  const retrySettings = async () => {
+    setSettingsError('');
+    try {
+      const res = await fetch(`/api/admin/domains/${domainId}/config`, { credentials: 'include' });
+      if (!res.ok) {
+        setSettingsError(t('pages.domain_detail.settings_load_error', 'Failed to load domain settings.'));
+        return;
+      }
+      const data = await res.json();
+      setSettings(data.config || []);
+    } catch {
+      setSettingsError(t('pages.domain_detail.settings_load_error', 'Failed to load domain settings.'));
     }
   };
 
@@ -387,7 +500,14 @@ export function useDomainDetail() {
     settings,
     loading,
     loadError,
+    usersError,
+    retryUsers,
+    settingsError,
+    retrySettings,
+    statsError,
     verifying,
+    verifyError,
+    setVerifyError,
     handleVerifyDNS,
     showEdit,
     setShowEdit,
@@ -427,6 +547,8 @@ export function useDomainDetail() {
     setMcpPolicy,
     mcpPolicyConfig,
     mcpPolicyLoading,
+    mcpPolicyLoaded,
+    mcpPolicyAbsent,
     mcpPolicySaving,
     mcpPolicyError,
     setMcpPolicyError,

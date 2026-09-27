@@ -26,8 +26,42 @@ function isJsonLike(raw: string): boolean {
   }
 }
 
-function ValueCell({ value }: { value: unknown }) {
+// Keys whose values may hold credentials. Rendered masked by default so a
+// domain-config table doesn't leak secrets to anyone glancing at the screen.
+const SECRET_KEY_PATTERN = /secret|password|passwd|token|api[-_]?key|(^|[-_.])key([-_.]|$)|credential|private/i;
+
+function isSecretKey(key: string): boolean {
+  return SECRET_KEY_PATTERN.test(key);
+}
+
+function ValueCell({ settingKey, value }: { settingKey: string; value: unknown }) {
   const [expanded, setExpanded] = useState(false);
+  const [revealed, setRevealed] = useState(false);
+  const secret = isSecretKey(settingKey);
+
+  // Mask secret-ish values until the operator explicitly reveals them.
+  if (secret && !revealed) {
+    const isEmpty = value == null || value === '';
+    return (
+      <SpaceBetween direction="horizontal" size="xs">
+        <code style={{ fontFamily: 'monospace', fontSize: '12px', letterSpacing: '1px' }}>
+          {isEmpty ? '—' : '••••••••'}
+        </code>
+        {!isEmpty && (
+          <Button variant="inline-link" iconName="lock-private" onClick={() => setRevealed(true)}>
+            {'표시'}
+          </Button>
+        )}
+      </SpaceBetween>
+    );
+  }
+
+  const hideToggle = secret ? (
+    <Button variant="inline-link" iconName="unlocked" onClick={() => setRevealed(false)}>
+      {'숨기기'}
+    </Button>
+  ) : null;
+
   if (typeof value === 'object' && value !== null) {
     const pretty = JSON.stringify(value, null, 2);
     const oneline = JSON.stringify(value);
@@ -43,20 +77,30 @@ function ValueCell({ value }: { value: unknown }) {
             <code style={{ fontFamily: 'monospace', fontSize: '12px' }}>{truncated}</code>
           )}
         </Box>
-        {oneline.length > 80 && (
-          <Button variant="inline-link" onClick={() => setExpanded((v) => !v)}>
-            {expanded ? '접기' : '펼치기'}
-          </Button>
-        )}
+        <SpaceBetween direction="horizontal" size="xs">
+          {oneline.length > 80 && (
+            <Button variant="inline-link" onClick={() => setExpanded((v) => !v)}>
+              {expanded ? '접기' : '펼치기'}
+            </Button>
+          )}
+          {hideToggle}
+        </SpaceBetween>
       </SpaceBetween>
     );
   }
-  return <span>{String(value ?? '—')}</span>;
+  return (
+    <SpaceBetween direction="horizontal" size="xs">
+      <span>{String(value ?? '—')}</span>
+      {hideToggle}
+    </SpaceBetween>
+  );
 }
 
 interface Props {
   settings: DomainSetting[];
   domainName: string;
+  settingsError?: string;
+  onRetry?: () => void;
   // Add modal
   showAddSetting: boolean;
   onShowAddSetting: (v: boolean) => void;
@@ -82,6 +126,8 @@ interface Props {
 export function DomainSettingsTab({
   settings,
   domainName,
+  settingsError,
+  onRetry,
   showAddSetting,
   onShowAddSetting,
   newSetting,
@@ -103,8 +149,27 @@ export function DomainSettingsTab({
   const [confirmDeleteKey, setConfirmDeleteKey] = useState<string | null>(null);
   const pendingDelete = settings.find((s) => s.Key === confirmDeleteKey) ?? null;
 
+  if (settingsError) {
+    return (
+      <Alert
+        type="error"
+        header={t('pages.domain_detail.settings_load_error', 'Failed to load domain settings.')}
+        action={onRetry ? <Button onClick={onRetry}>{t('common.retry', 'Retry')}</Button> : undefined}
+      >
+        {settingsError}
+      </Alert>
+    );
+  }
+
   const addValueIsJson = isJsonLike(newSetting.value);
   const editValueIsJson = isJsonLike(editSettingValue);
+
+  // Closing the Add modal must clear stale input so re-opening starts fresh.
+  const closeAddSetting = () => {
+    onShowAddSetting(false);
+    onSetSettingError('');
+    onNewSettingChange({ key: '', value: '' });
+  };
 
   const valueHint = (isJson: boolean) =>
     isJson
@@ -127,7 +192,7 @@ export function DomainSettingsTab({
           },
           {
             header: t('pages.domain_detail.setting_value'),
-            cell: (s: DomainSetting) => <ValueCell value={s.Value} />,
+            cell: (s: DomainSetting) => <ValueCell settingKey={s.Key} value={s.Value} />,
             width: '42%',
           },
           {
@@ -183,12 +248,12 @@ export function DomainSettingsTab({
       {/* Add Setting Modal */}
       <Modal
         visible={showAddSetting}
-        onDismiss={() => { onShowAddSetting(false); onSetSettingError(''); }}
+        onDismiss={closeAddSetting}
         header={`${t('pages.domain_detail.add_setting_modal_header')} — ${domainName}`}
         footer={
           <Box float="right">
             <SpaceBetween direction="horizontal" size="xs">
-              <Button onClick={() => { onShowAddSetting(false); onSetSettingError(''); }}>{t('common.cancel')}</Button>
+              <Button onClick={closeAddSetting}>{t('common.cancel')}</Button>
               <Button
                 variant="primary"
                 onClick={onAddSetting}

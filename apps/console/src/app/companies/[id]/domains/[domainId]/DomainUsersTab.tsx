@@ -7,6 +7,7 @@ import {
   Badge,
   StatusIndicator,
   Button,
+  Alert,
 } from '@cloudscape-design/components';
 import { useRouter } from 'next/navigation';
 import { formatDate } from '@/lib/format';
@@ -17,12 +18,26 @@ interface Props {
   hasMore?: boolean;
   companyId: string;
   domainName: string;
+  usersError?: string;
+  onRetry?: () => void;
   t: (key: string, fallback?: string) => string;
 }
 
-export function DomainUsersTab({ users, hasMore, companyId, domainName, t }: Props) {
+export function DomainUsersTab({ users, hasMore, companyId, domainName, usersError, onRetry, t }: Props) {
   const router = useRouter();
   const counterLabel = hasMore ? `(${users.length}+)` : `(${users.length})`;
+
+  if (usersError) {
+    return (
+      <Alert
+        type="error"
+        header={t('pages.domain_detail.users_load_error', 'Failed to load users for this domain.')}
+        action={onRetry ? <Button onClick={onRetry}>{t('common.retry', 'Retry')}</Button> : undefined}
+      >
+        {usersError}
+      </Alert>
+    );
+  }
 
   return (
     <DataTable
