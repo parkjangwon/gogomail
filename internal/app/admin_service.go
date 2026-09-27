@@ -9,6 +9,7 @@ import (
 	"github.com/gogomail/gogomail/internal/admin"
 	"github.com/gogomail/gogomail/internal/apimeter"
 	"github.com/gogomail/gogomail/internal/audit"
+	"github.com/gogomail/gogomail/internal/auditretention"
 	"github.com/gogomail/gogomail/internal/backpressure"
 	"github.com/gogomail/gogomail/internal/configstore"
 	"github.com/gogomail/gogomail/internal/davsyncretention"
@@ -75,6 +76,12 @@ type adminService struct {
 		RecordRun(ctx context.Context, record davsyncretention.RunRecord) (davsyncretention.RunRecord, error)
 		ListRuns(ctx context.Context, req davsyncretention.RunListRequest) ([]davsyncretention.RunRecord, error)
 		GetRun(ctx context.Context, id string) (davsyncretention.RunRecord, error)
+	}
+	auditRetention interface {
+		GetPolicy(ctx context.Context, companyID string) (*auditretention.Policy, error)
+		SetPolicy(ctx context.Context, companyID string, retentionDays int, updatedBy string) (*auditretention.Policy, error)
+		DeletePolicy(ctx context.Context, companyID string) error
+		ListRuns(ctx context.Context, req auditretention.RunListRequest) ([]auditretention.RunRecord, error)
 	}
 	calDAVSyncRetention  calDAVSyncRetentionRunner
 	cardDAVSyncRetention cardDAVSyncRetentionRunner

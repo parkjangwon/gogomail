@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/gogomail/gogomail/internal/audit"
+	"github.com/gogomail/gogomail/internal/auditretention"
 	"github.com/gogomail/gogomail/internal/batchlock"
 	"github.com/gogomail/gogomail/internal/caldavgw"
 	"github.com/gogomail/gogomail/internal/carddavgw"
@@ -97,6 +98,23 @@ func runBatchWorker(ctx context.Context, cfg config.Config, logger *slog.Logger)
 			logger.Info("auto purge completed", "companies", result.CompaniesScanned, "messages_deleted", result.MessagesDeleted, "audit_logs_deleted", result.AuditLogsDeleted)
 			return nil
 		}, cfg.AutoPurgeInterval)
+	}
+
+	if cfg.AuditRetentionEnabled {
+		auditRetentionRepo := auditretention.NewRepository(db)
+		registry.Register("audit-retention-purge", func() error {
+			result, err := runAuditRetentionPurgeOnce(ctx, auditRetentionRepo, time.Now, cfg, logger)
+			if err != nil {
+				logger.Error("audit retention purge failed", "error", err)
+				return err
+			}
+			logger.Info("audit retention purge completed",
+				"companies", result.CompaniesScanned,
+				"rows_deleted", result.RowsDeleted,
+				"dry_run", cfg.AuditRetentionDryRun,
+			)
+			return nil
+		}, cfg.AuditRetentionInterval)
 	}
 
 	mfaGraceRepository := maildb.NewRepository(db)

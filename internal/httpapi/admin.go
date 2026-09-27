@@ -164,6 +164,7 @@ func registerAdminUtilityRoutes(mux *http.ServeMux, service AdminService, cfg ad
 	registerAccessPolicyRoutes(mux, service, adminAuth)
 	registerSecurityConfigRoutes(mux, service, adminAuth)
 	registerAuditLogExportRoutes(mux, adminAuth, service)
+	registerAuditRetentionRoutes(mux, adminAuth, service)
 	registerTenantHealthRoutes(mux, adminAuth, service)
 	registerChangeHistoryAndApprovalsRoutes(mux, adminAuth, service)
 	registerWebhookRoutes(mux, adminAuth, service)

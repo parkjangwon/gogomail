@@ -9955,6 +9955,132 @@ paths:
                 type: object
         default:
           $ref: "#/components/responses/Error"
+  /companies/{id}/audit-retention:
+    get:
+      operationId: adminGetAuditRetentionPolicy
+      summary: Get company audit log retention policy
+      description: >-
+        Returns the audit log retention policy for a company. When no policy is
+        set the company keeps audit logs forever and the response has
+        keep_forever=true with retention_days=0.
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Current audit log retention policy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  audit_retention_policy:
+                    $ref: "#/components/schemas/AuditRetentionPolicy"
+        default:
+          $ref: "#/components/responses/Error"
+    put:
+      operationId: adminSetAuditRetentionPolicy
+      summary: Set company audit log retention policy
+      description: >-
+        Sets the audit log retention window for a company. retention_days must
+        be one of 30, 90, 180, 365, or 730, or 0 to keep audit logs forever
+        (which removes any stored policy). The policy change is itself recorded
+        in the audit log.
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - retention_days
+              properties:
+                retention_days:
+                  type: integer
+                  description: >-
+                    Retention window in days. One of 30, 90, 180, 365, 730, or 0
+                    for keep-forever.
+                  enum: [0, 30, 90, 180, 365, 730]
+      responses:
+        "200":
+          description: Updated audit log retention policy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  audit_retention_policy:
+                    $ref: "#/components/schemas/AuditRetentionPolicy"
+        default:
+          $ref: "#/components/responses/Error"
+  /companies/{id}/audit-retention/runs:
+    get:
+      operationId: adminListAuditRetentionRuns
+      summary: List company audit log retention purge runs
+      description: >-
+        Returns recent audit log retention purge runs for a company, newest
+        first, including when each ran, how many rows were deleted, and whether
+        it was a dry run.
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [completed, failed]
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+      responses:
+        "200":
+          description: Recent audit log retention purge runs
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  audit_retention_runs:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/AuditRetentionRun"
+        default:
+          $ref: "#/components/responses/Error"
   /companies/{id}/security/login-audits:
     get:
       operationId: adminListCompanyLoginAudits
@@ -15893,6 +16019,53 @@ components:
       properties:
         audit_log:
           $ref: "#/components/schemas/AuditLog"
+    AuditRetentionPolicy:
+      type: object
+      required: [company_id, retention_days, keep_forever]
+      properties:
+        company_id:
+          type: string
+        retention_days:
+          type: integer
+          description: >-
+            Configured retention window in days (0 when keep_forever is true).
+        keep_forever:
+          type: boolean
+          description: True when no policy is set and audit logs are kept indefinitely.
+        updated_by:
+          type: string
+        updated_at:
+          type: string
+          format: date-time
+    AuditRetentionRun:
+      type: object
+      required: [id, company_id, retention_days, cutoff, started_at, finished_at, dry_run, status, rows_deleted]
+      properties:
+        id:
+          type: string
+        company_id:
+          type: string
+        retention_days:
+          type: integer
+        cutoff:
+          type: string
+          format: date-time
+        started_at:
+          type: string
+          format: date-time
+        finished_at:
+          type: string
+          format: date-time
+        dry_run:
+          type: boolean
+        status:
+          type: string
+          enum: [completed, failed]
+        error_message:
+          type: string
+        rows_deleted:
+          type: integer
+          format: int64
     LoginAudit:
       type: object
       required: [id, user_id, company_id, ip_address, user_agent, success, timestamp]

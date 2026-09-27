@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/gogomail/gogomail/internal/admin"
+	"github.com/gogomail/gogomail/internal/auditretention"
 	"github.com/gogomail/gogomail/internal/configstore"
 	"github.com/gogomail/gogomail/internal/davsyncretention"
 	"github.com/gogomail/gogomail/internal/directory"
@@ -180,6 +181,9 @@ type adminUsageService interface {
 	ListDAVSyncRetentionRuns(ctx context.Context, req davsyncretention.RunListRequest) ([]davsyncretention.RunRecord, error)
 	GetDAVSyncRetentionRun(ctx context.Context, id string) (davsyncretention.RunRecord, error)
 	GetDAVSyncRetentionReadiness(ctx context.Context, req davsyncretention.ReadinessRequest) (davsyncretention.ReadinessView, error)
+	GetAuditRetentionPolicy(ctx context.Context, companyID string) (*auditretention.Policy, error)
+	SetAuditRetentionPolicy(ctx context.Context, companyID string, retentionDays int) (*auditretention.Policy, error)
+	ListAuditRetentionRuns(ctx context.Context, req auditretention.RunListRequest) ([]auditretention.RunRecord, error)
 	GetAPIUsageExportCapabilities(ctx context.Context) (maildb.APIUsageExportCapabilityView, error)
 	CreateAPIUsageExportBatch(ctx context.Context, req maildb.APIUsageLedgerListRequest) (maildb.APIUsageExportBatchView, error)
 	ListAPIUsageExportBatches(ctx context.Context, req maildb.APIUsageExportBatchListRequest) ([]maildb.APIUsageExportBatchView, error)

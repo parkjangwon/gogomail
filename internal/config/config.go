@@ -169,6 +169,10 @@ type Config struct {
 	DAVSyncRetentionRunOnce             bool
 	DAVSyncRetentionDryRun              bool
 	DAVSyncRetentionConfirmReady        bool
+	AuditRetentionEnabled               bool
+	AuditRetentionInterval              time.Duration
+	AuditRetentionBatchSize             int
+	AuditRetentionDryRun                bool
 	DriveShareRateLimitBackend          string
 	DriveShareRateLimitPerMinute        int
 	MailMutationRateLimitBackend        string
@@ -515,6 +519,10 @@ func Load() Config {
 		DAVSyncRetentionRunOnce:             boolEnvOrDefault("GOGOMAIL_DAV_SYNC_RETENTION_RUN_ONCE", false),
 		DAVSyncRetentionDryRun:              boolEnvOrDefault("GOGOMAIL_DAV_SYNC_RETENTION_DRY_RUN", true),
 		DAVSyncRetentionConfirmReady:        boolEnvOrDefault("GOGOMAIL_DAV_SYNC_RETENTION_CONFIRM_READY", false),
+		AuditRetentionEnabled:               boolEnvOrDefault("GOGOMAIL_AUDIT_RETENTION_ENABLED", true),
+		AuditRetentionInterval:              durationEnvOrDefault("GOGOMAIL_AUDIT_RETENTION_INTERVAL", 24*time.Hour),
+		AuditRetentionBatchSize:             intEnvOrDefault("GOGOMAIL_AUDIT_RETENTION_BATCH_SIZE", 10000),
+		AuditRetentionDryRun:                boolEnvOrDefault("GOGOMAIL_AUDIT_RETENTION_DRY_RUN", false),
 		DriveShareRateLimitBackend:          envOrDefault("GOGOMAIL_DRIVE_SHARE_RATELIMIT_BACKEND", "none"),
 		DriveShareRateLimitPerMinute:        intEnvOrDefault("GOGOMAIL_DRIVE_SHARE_RATELIMIT_PER_MINUTE", 120),
 		MailMutationRateLimitBackend:        envOrDefault("GOGOMAIL_MAIL_MUTATION_RATELIMIT_BACKEND", "none"),

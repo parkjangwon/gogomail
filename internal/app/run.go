@@ -17,6 +17,7 @@ import (
 	"github.com/gogomail/gogomail/internal/apikeys"
 	"github.com/gogomail/gogomail/internal/attachmentscan"
 	"github.com/gogomail/gogomail/internal/audit"
+	"github.com/gogomail/gogomail/internal/auditretention"
 	"github.com/gogomail/gogomail/internal/auth"
 	"github.com/gogomail/gogomail/internal/backpressure"
 	"github.com/gogomail/gogomail/internal/caldavgw"
@@ -425,6 +426,7 @@ func runHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, mode M
 			davSyncRetention:            davsyncretention.NewRepository(db),
 			calDAVSyncRetention:         caldavgw.NewRepository(db),
 			cardDAVSyncRetention:        carddavgw.NewRepository(db),
+			auditRetention:              auditretention.NewRepository(db),
 			attachmentCleanup:           mailservice.New(repository, store),
 			mailFlowStats:               mailFlowStatsProvider,
 			idpConfigRepo:               idprovider.NewConfigRepository(db),

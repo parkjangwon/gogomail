@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/gogomail/gogomail/internal/admin"
+	"github.com/gogomail/gogomail/internal/auditretention"
 	"github.com/gogomail/gogomail/internal/auth"
 	"github.com/gogomail/gogomail/internal/backpressure"
 	"github.com/gogomail/gogomail/internal/configstore"
@@ -9352,6 +9353,12 @@ type fakeAdminService struct {
 	davSyncRetentionRun                         davsyncretention.RunRecord
 	davSyncRetentionRuns                        []davsyncretention.RunRecord
 	davSyncRetentionReadiness                   davsyncretention.ReadinessView
+	auditRetentionPolicy                        *auditretention.Policy
+	auditRetentionPolicyErr                     error
+	auditRetentionRuns                          []auditretention.RunRecord
+	lastAuditRetentionCompanyID                 string
+	lastAuditRetentionSetDays                   int
+	lastAuditRetentionRunList                   auditretention.RunListRequest
 	apiUsageExportCapabilities                  maildb.APIUsageExportCapabilityView
 	apiUsageExportBatch                         maildb.APIUsageExportBatchView
 	apiUsageExportBatches                       []maildb.APIUsageExportBatchView
@@ -10243,6 +10250,31 @@ func (f *fakeAdminService) RunDAVSyncRetention(_ context.Context, req davsyncret
 func (f *fakeAdminService) GetDAVSyncRetentionReadiness(_ context.Context, req davsyncretention.ReadinessRequest) (davsyncretention.ReadinessView, error) {
 	f.lastDAVSyncRetentionReadiness = req
 	return f.davSyncRetentionReadiness, nil
+}
+
+func (f *fakeAdminService) GetAuditRetentionPolicy(_ context.Context, companyID string) (*auditretention.Policy, error) {
+	f.lastAuditRetentionCompanyID = companyID
+	if f.auditRetentionPolicyErr != nil {
+		return nil, f.auditRetentionPolicyErr
+	}
+	return f.auditRetentionPolicy, nil
+}
+
+func (f *fakeAdminService) SetAuditRetentionPolicy(_ context.Context, companyID string, retentionDays int) (*auditretention.Policy, error) {
+	f.lastAuditRetentionCompanyID = companyID
+	f.lastAuditRetentionSetDays = retentionDays
+	if f.auditRetentionPolicyErr != nil {
+		return nil, f.auditRetentionPolicyErr
+	}
+	return f.auditRetentionPolicy, nil
+}
+
+func (f *fakeAdminService) ListAuditRetentionRuns(_ context.Context, req auditretention.RunListRequest) ([]auditretention.RunRecord, error) {
+	f.lastAuditRetentionRunList = req
+	if f.auditRetentionPolicyErr != nil {
+		return nil, f.auditRetentionPolicyErr
+	}
+	return f.auditRetentionRuns, nil
 }
 
 func (f *fakeAdminService) GetAPIUsageExportCapabilities(context.Context) (maildb.APIUsageExportCapabilityView, error) {
