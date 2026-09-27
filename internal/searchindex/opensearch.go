@@ -39,6 +39,13 @@ type OpenSearchIndexer struct {
 const (
 	maxOpenSearchMetadataBytes   = 1000
 	maxOpenSearchCredentialBytes = 4096
+
+	// OpenSearchMappingVersion identifies the current message index mapping.
+	// It is stamped into the index _meta on creation (EnsureIndex) and can be
+	// read back with MappingVersion for operator health checks. Increment this
+	// whenever openSearchIndexDefinition's properties change so a rollover to a
+	// fresh index (write alias) can be triggered.
+	OpenSearchMappingVersion = "2026-05-04.v1"
 )
 
 func NewOpenSearchIndexer(opts OpenSearchOptions) (OpenSearchIndexer, error) {
@@ -216,6 +223,13 @@ func openSearchIndexDefinition(koreanAnalyzer bool) map[string]any {
 		"settings": settings,
 		"mappings": map[string]any{
 			"dynamic": "strict",
+			// _meta carries the mapping version so operators (and the
+			// EnsureIndex health path) can detect when a running index predates
+			// the current mapping and needs a reindex/rollover. Bump
+			// OpenSearchMappingVersion whenever the properties below change.
+			"_meta": map[string]any{
+				"gogomail_mapping_version": OpenSearchMappingVersion,
+			},
 			"properties": map[string]any{
 				"message_id":     map[string]any{"type": "keyword"},
 				"rfc_message_id": map[string]any{"type": "keyword"},

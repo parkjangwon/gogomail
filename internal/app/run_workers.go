@@ -634,9 +634,51 @@ func runOutboxRelay(ctx context.Context, cfg config.Config, logger *slog.Logger)
 		store = outbox.NewPostgresStore(db, cfg.OutboxRelayMaxAttempts)
 	}
 
+	// Choose event-bus publisher: Redis Streams (default) or Kafka (optional).
+	// Kafka is only reachable from the relay worker, which is fully decoupled
+	// from the mail-accept path via the Postgres outbox, so a broker outage
+	// delays event fan-out but never blocks or loses mail.
+	var publisher outbox.Publisher
+	switch strings.ToLower(strings.TrimSpace(cfg.EventBusBackend)) {
+	case "kafka":
+		kafkaPublisher, err := outbox.NewKafkaPublisher(outbox.KafkaOptions{
+			Brokers:       cfg.EventBusKafkaBrokers,
+			TopicPrefix:   cfg.EventBusKafkaTopicPrefix,
+			ClientID:      cfg.EventBusKafkaClientID,
+			BatchSize:     cfg.EventBusKafkaBatchSize,
+			BatchTimeout:  cfg.EventBusKafkaBatchTimeout,
+			WriteTimeout:  cfg.EventBusKafkaWriteTimeout,
+			MaxAttempts:   cfg.EventBusKafkaMaxAttempts,
+			RequiredAcks:  cfg.EventBusKafkaRequiredAcks,
+			TLSEnabled:    cfg.EventBusKafkaTLSEnabled,
+			TLSSkipVerify: cfg.EventBusKafkaTLSSkipVerify,
+			SASLMechanism: cfg.EventBusKafkaSASLMechanism,
+			SASLUsername:  cfg.EventBusKafkaSASLUsername,
+			SASLPassword:  cfg.EventBusKafkaSASLPassword,
+		})
+		if err != nil {
+			return fmt.Errorf("create kafka event-bus publisher: %w", err)
+		}
+		defer func() {
+			if closeErr := kafkaPublisher.Close(); closeErr != nil {
+				logger.Warn("close kafka event-bus publisher", "error", closeErr)
+			}
+		}()
+		publisher = kafkaPublisher
+		logger.Info("outbox relay event bus backend selected",
+			"backend", "kafka",
+			"brokers", strings.Join(cfg.EventBusKafkaBrokers, ","),
+			"topic_prefix", cfg.EventBusKafkaTopicPrefix,
+			"required_acks", cfg.EventBusKafkaRequiredAcks,
+		)
+	default:
+		publisher = outbox.NewRedisStreamPublisher(redisClient, cfg.EventStream)
+		logger.Info("outbox relay event bus backend selected", "backend", "redis", "stream", cfg.EventStream)
+	}
+
 	relay, err := outbox.NewRelay(outbox.RelayOptions{
 		Store:        store,
-		Publisher:    outbox.NewRedisStreamPublisher(redisClient, cfg.EventStream),
+		Publisher:    publisher,
 		BatchSize:    cfg.OutboxRelayBatchSize,
 		PollInterval: cfg.OutboxRelayPollInterval,
 		WorkerCount:  cfg.OutboxRelayWorkerCount,

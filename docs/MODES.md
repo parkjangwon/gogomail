@@ -443,6 +443,26 @@ the relay singleton across replicas.
 **Optional** — `GOGOMAIL_OUTBOX_RELAY_BATCH_SIZE` (default 100),
 `GOGOMAIL_OUTBOX_RELAY_POLL_INTERVAL`, `GOGOMAIL_OUTBOX_RELAY_MAX_ATTEMPTS`.
 
+**Optional (Kafka event bus)** — Set `GOGOMAIL_EVENT_BUS_BACKEND=kafka` to
+publish relayed events to a dedicated Kafka cluster instead of Redis Streams
+(default `redis`). Only the relay produces to Kafka; a broker outage delays
+event fan-out but never blocks or loses mail. See
+[docs/OPERATOR_BACKENDS.md](OPERATOR_BACKENDS.md).
+`GOGOMAIL_EVENT_BUS_KAFKA_BROKERS` (comma-separated `host:port`, required when
+backend=kafka), `GOGOMAIL_EVENT_BUS_KAFKA_TOPIC_PREFIX` (optional prefix),
+`GOGOMAIL_EVENT_BUS_KAFKA_CLIENT_ID` (default `gogomail-outbox-relay`),
+`GOGOMAIL_EVENT_BUS_KAFKA_BATCH_SIZE` (default 100),
+`GOGOMAIL_EVENT_BUS_KAFKA_BATCH_TIMEOUT` (default 100ms),
+`GOGOMAIL_EVENT_BUS_KAFKA_WRITE_TIMEOUT` (default 10s),
+`GOGOMAIL_EVENT_BUS_KAFKA_MAX_ATTEMPTS` (default 5),
+`GOGOMAIL_EVENT_BUS_KAFKA_REQUIRED_ACKS` (`none`|`leader`|`all`, default
+`all`; `none` rejected in production),
+`GOGOMAIL_EVENT_BUS_KAFKA_TLS` (default false; required in production),
+`GOGOMAIL_EVENT_BUS_KAFKA_TLS_INSECURE_SKIP_VERIFY` (default false; rejected in
+production),
+`GOGOMAIL_EVENT_BUS_KAFKA_SASL_MECHANISM` (`none`|`plain`|`scram-sha-256`|`scram-sha-512`),
+`GOGOMAIL_EVENT_BUS_KAFKA_SASL_USERNAME`, `GOGOMAIL_EVENT_BUS_KAFKA_SASL_PASSWORD`.
+
 **Dependencies** — Postgres, Redis.
 
 **Replicas** — **Run 2+** for failover; only **one** runs at a time (advisory

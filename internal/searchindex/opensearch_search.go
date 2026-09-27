@@ -21,6 +21,9 @@ const (
 	maxOpenSearchSearchTextBytes        = 1000
 	maxOpenSearchHitIDBytes             = 500
 	maxOpenSearchSearchResponseBytes    = int64(4 << 20)
+	// openSearchQueryTimeout bounds how long OpenSearch spends on a single
+	// search request server-side before returning partial results.
+	openSearchQueryTimeout = "5s"
 )
 
 type OpenSearchSearchQuery struct {
@@ -231,6 +234,12 @@ func openSearchSearchPayload(query OpenSearchSearchQuery, userID string, limit i
 	}
 	payload := map[string]any{
 		"size": limit,
+		// Server-side query timeout: a defensive bound in addition to the HTTP
+		// client timeout. If a shard cannot answer within this window
+		// OpenSearch returns partial results and sets timed_out=true rather
+		// than holding the request open. This protects the webmail search path
+		// from a slow or overloaded cluster.
+		"timeout": openSearchQueryTimeout,
 		"_source": []string{
 			"message_id",
 		},

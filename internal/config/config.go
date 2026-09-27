@@ -232,6 +232,26 @@ type Config struct {
 	OutboxRelayWorkerCount              int // GOGOMAIL_OUTBOX_RELAY_WORKER_COUNT (default 1)
 	OutboxRelayShardTotal               int // GOGOMAIL_OUTBOX_RELAY_SHARD_TOTAL (default 1 = no sharding)
 	OutboxRelayShardIndex               int // GOGOMAIL_OUTBOX_RELAY_SHARD_INDEX (default 0)
+
+	// Event bus backend selects the transport the outbox-relay publishes to.
+	// "redis" (default) preserves the built-in Redis Streams behaviour.
+	// "kafka" publishes each relayed outbox event to a Kafka broker for
+	// operators who run dedicated event infrastructure. See docs/OPERATOR_BACKENDS.md.
+	EventBusBackend            string        // GOGOMAIL_EVENT_BUS_BACKEND (redis|kafka, default redis)
+	EventBusKafkaBrokers       []string      // GOGOMAIL_EVENT_BUS_KAFKA_BROKERS (comma-separated host:port list)
+	EventBusKafkaTopicPrefix   string        // GOGOMAIL_EVENT_BUS_KAFKA_TOPIC_PREFIX (optional prefix prepended to the event topic)
+	EventBusKafkaClientID      string        // GOGOMAIL_EVENT_BUS_KAFKA_CLIENT_ID
+	EventBusKafkaBatchSize     int           // GOGOMAIL_EVENT_BUS_KAFKA_BATCH_SIZE (max records per producer batch)
+	EventBusKafkaBatchTimeout  time.Duration // GOGOMAIL_EVENT_BUS_KAFKA_BATCH_TIMEOUT (max linger before flush)
+	EventBusKafkaWriteTimeout  time.Duration // GOGOMAIL_EVENT_BUS_KAFKA_WRITE_TIMEOUT (per-write deadline)
+	EventBusKafkaMaxAttempts   int           // GOGOMAIL_EVENT_BUS_KAFKA_MAX_ATTEMPTS (producer retry attempts)
+	EventBusKafkaRequiredAcks  string        // GOGOMAIL_EVENT_BUS_KAFKA_REQUIRED_ACKS (none|leader|all, default all)
+	EventBusKafkaTLSEnabled    bool          // GOGOMAIL_EVENT_BUS_KAFKA_TLS (default false)
+	EventBusKafkaTLSSkipVerify bool          // GOGOMAIL_EVENT_BUS_KAFKA_TLS_INSECURE_SKIP_VERIFY (default false; rejected in production)
+	EventBusKafkaSASLMechanism string        // GOGOMAIL_EVENT_BUS_KAFKA_SASL_MECHANISM (none|plain|scram-sha-256|scram-sha-512)
+	EventBusKafkaSASLUsername  string        // GOGOMAIL_EVENT_BUS_KAFKA_SASL_USERNAME
+	EventBusKafkaSASLPassword  string        // GOGOMAIL_EVENT_BUS_KAFKA_SASL_PASSWORD
+
 	EventStream                         string
 	EventConsumerGroup                  string
 	EventConsumerName                   string
@@ -582,6 +602,20 @@ func Load() Config {
 		OutboxRelayWorkerCount:              intEnvOrDefault("GOGOMAIL_OUTBOX_RELAY_WORKER_COUNT", 1),
 		OutboxRelayShardTotal:               intEnvOrDefault("GOGOMAIL_OUTBOX_RELAY_SHARD_TOTAL", 1),
 		OutboxRelayShardIndex:               intEnvOrDefault("GOGOMAIL_OUTBOX_RELAY_SHARD_INDEX", 0),
+		EventBusBackend:                     envOrDefault("GOGOMAIL_EVENT_BUS_BACKEND", "redis"),
+		EventBusKafkaBrokers:                splitCSV(os.Getenv("GOGOMAIL_EVENT_BUS_KAFKA_BROKERS")),
+		EventBusKafkaTopicPrefix:            strings.TrimSpace(os.Getenv("GOGOMAIL_EVENT_BUS_KAFKA_TOPIC_PREFIX")),
+		EventBusKafkaClientID:               envOrDefault("GOGOMAIL_EVENT_BUS_KAFKA_CLIENT_ID", "gogomail-outbox-relay"),
+		EventBusKafkaBatchSize:              intEnvOrDefault("GOGOMAIL_EVENT_BUS_KAFKA_BATCH_SIZE", 100),
+		EventBusKafkaBatchTimeout:           durationEnvOrDefault("GOGOMAIL_EVENT_BUS_KAFKA_BATCH_TIMEOUT", 100*time.Millisecond),
+		EventBusKafkaWriteTimeout:           durationEnvOrDefault("GOGOMAIL_EVENT_BUS_KAFKA_WRITE_TIMEOUT", 10*time.Second),
+		EventBusKafkaMaxAttempts:            intEnvOrDefault("GOGOMAIL_EVENT_BUS_KAFKA_MAX_ATTEMPTS", 5),
+		EventBusKafkaRequiredAcks:           envOrDefault("GOGOMAIL_EVENT_BUS_KAFKA_REQUIRED_ACKS", "all"),
+		EventBusKafkaTLSEnabled:             boolEnvOrDefault("GOGOMAIL_EVENT_BUS_KAFKA_TLS", false),
+		EventBusKafkaTLSSkipVerify:          boolEnvOrDefault("GOGOMAIL_EVENT_BUS_KAFKA_TLS_INSECURE_SKIP_VERIFY", false),
+		EventBusKafkaSASLMechanism:          envOrDefault("GOGOMAIL_EVENT_BUS_KAFKA_SASL_MECHANISM", "none"),
+		EventBusKafkaSASLUsername:           envOrDefault("GOGOMAIL_EVENT_BUS_KAFKA_SASL_USERNAME", ""),
+		EventBusKafkaSASLPassword:           os.Getenv("GOGOMAIL_EVENT_BUS_KAFKA_SASL_PASSWORD"),
 		EventStream:                         envOrDefault("GOGOMAIL_EVENT_STREAM", "mail.event"),
 		EventConsumerGroup:                  envOrDefault("GOGOMAIL_EVENT_CONSUMER_GROUP", "gogomail.event-worker"),
 		EventConsumerName:                   nodeScopedEnvOrDefault("GOGOMAIL_EVENT_CONSUMER_NAME", "event-worker-1"),

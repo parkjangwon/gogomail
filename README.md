@@ -233,6 +233,7 @@ All GoGoMail write actions require a human-readable `reason`; destructive operat
 | Deployment guide | [docker/DEPLOYMENT.md](docker/DEPLOYMENT.md) |
 | Scaling without code changes | [docs/SCALING.md](docs/SCALING.md) |
 | Backend modes (24 modes, env vars) | [docs/MODES.md](docs/MODES.md) |
+| Optional backends (Kafka / OpenSearch) | [docs/OPERATOR_BACKENDS.md](docs/OPERATOR_BACKENDS.md) |
 | Architecture overview | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) |
 | Security model | [docs/SECURITY.md](docs/SECURITY.md) |
 | Security review | [docs/SECURITY_REVIEW.md](docs/SECURITY_REVIEW.md) |

@@ -14,6 +14,7 @@ const (
 	maxExportManifestSignerKeyIDBytes      = 200
 	maxExportManifestSignerCredentialBytes = 4096
 	maxOpenSearchCredentialBytes           = 4096
+	maxEventBusKafkaCredentialBytes        = 4096
 	maxDeliverySmartHostCredentialBytes    = 4096
 	maxWebhookTokenBytes                   = 4096
 	maxAttachmentCleanupBatchSize          = 1000
@@ -289,6 +290,64 @@ func (c Config) Validate() error {
 	}
 	if c.OutboxRelayMaxAttempts <= 0 {
 		return fmt.Errorf("GOGOMAIL_OUTBOX_RELAY_MAX_ATTEMPTS must be positive")
+	}
+	if err := validateEnum("GOGOMAIL_EVENT_BUS_BACKEND", c.EventBusBackend, "redis", "kafka"); err != nil {
+		return err
+	}
+	if strings.EqualFold(strings.TrimSpace(c.EventBusBackend), "kafka") {
+		if len(c.EventBusKafkaBrokers) == 0 {
+			return fmt.Errorf("GOGOMAIL_EVENT_BUS_KAFKA_BROKERS is required when GOGOMAIL_EVENT_BUS_BACKEND=kafka")
+		}
+		for _, broker := range c.EventBusKafkaBrokers {
+			if err := validateTCPAddr("GOGOMAIL_EVENT_BUS_KAFKA_BROKERS", broker, true); err != nil {
+				return err
+			}
+		}
+		if err := validateBoundedNoCRLF("GOGOMAIL_EVENT_BUS_KAFKA_TOPIC_PREFIX", c.EventBusKafkaTopicPrefix, 200); err != nil {
+			return err
+		}
+		if err := validateRequiredBoundedNoCRLF("GOGOMAIL_EVENT_BUS_KAFKA_CLIENT_ID", c.EventBusKafkaClientID, 255); err != nil {
+			return err
+		}
+		if c.EventBusKafkaBatchSize <= 0 {
+			return fmt.Errorf("GOGOMAIL_EVENT_BUS_KAFKA_BATCH_SIZE must be positive")
+		}
+		if c.EventBusKafkaBatchTimeout <= 0 {
+			return fmt.Errorf("GOGOMAIL_EVENT_BUS_KAFKA_BATCH_TIMEOUT must be positive")
+		}
+		if c.EventBusKafkaWriteTimeout <= 0 {
+			return fmt.Errorf("GOGOMAIL_EVENT_BUS_KAFKA_WRITE_TIMEOUT must be positive")
+		}
+		if c.EventBusKafkaMaxAttempts <= 0 {
+			return fmt.Errorf("GOGOMAIL_EVENT_BUS_KAFKA_MAX_ATTEMPTS must be positive")
+		}
+		if err := validateEnum("GOGOMAIL_EVENT_BUS_KAFKA_REQUIRED_ACKS", c.EventBusKafkaRequiredAcks, "none", "leader", "all"); err != nil {
+			return err
+		}
+		if production && strings.EqualFold(strings.TrimSpace(c.EventBusKafkaRequiredAcks), "none") {
+			return fmt.Errorf("GOGOMAIL_EVENT_BUS_KAFKA_REQUIRED_ACKS must be leader or all in production")
+		}
+		if production && !c.EventBusKafkaTLSEnabled {
+			return fmt.Errorf("GOGOMAIL_EVENT_BUS_KAFKA_TLS must be true in production")
+		}
+		if production && c.EventBusKafkaTLSSkipVerify {
+			return fmt.Errorf("GOGOMAIL_EVENT_BUS_KAFKA_TLS_INSECURE_SKIP_VERIFY must be false in production")
+		}
+		if err := validateEnum("GOGOMAIL_EVENT_BUS_KAFKA_SASL_MECHANISM", c.EventBusKafkaSASLMechanism, "none", "plain", "scram-sha-256", "scram-sha-512"); err != nil {
+			return err
+		}
+		saslMechanism := strings.ToLower(strings.TrimSpace(c.EventBusKafkaSASLMechanism))
+		if saslMechanism != "none" {
+			if err := validateRequiredBoundedNoCRLF("GOGOMAIL_EVENT_BUS_KAFKA_SASL_USERNAME", c.EventBusKafkaSASLUsername, maxEventBusKafkaCredentialBytes); err != nil {
+				return err
+			}
+			if strings.TrimSpace(c.EventBusKafkaSASLPassword) == "" {
+				return fmt.Errorf("GOGOMAIL_EVENT_BUS_KAFKA_SASL_PASSWORD is required when GOGOMAIL_EVENT_BUS_KAFKA_SASL_MECHANISM is set")
+			}
+			if len(c.EventBusKafkaSASLPassword) > maxEventBusKafkaCredentialBytes {
+				return fmt.Errorf("GOGOMAIL_EVENT_BUS_KAFKA_SASL_PASSWORD is too long")
+			}
+		}
 	}
 	if strings.TrimSpace(c.SubmissionSMTPSAddr) != "" && (c.SMTPTLSCertFile == "" || c.SMTPTLSKeyFile == "") {
 		return fmt.Errorf("GOGOMAIL_SUBMISSION_SMTPS_ADDR requires SMTP TLS certificate and key files")

@@ -1,0 +1,59 @@
+# Kafka event-bus overlay — for operators who want the outbox-relay to publish
+# platform events to a dedicated Kafka cluster instead of the built-in Redis
+# Streams transport.
+#
+# Compose it on top of any base stack, e.g.:
+#
+#   docker compose -f docker/docker-compose.small.yml \
+#                  -f docker/docker-compose.kafka.yml up -d
+#
+# The outbox-relay is the ONLY service that produces to Kafka. It is fully
+# decoupled from the mail-accept path via the Postgres outbox table, so a Kafka
+# outage delays downstream event fan-out but never blocks or loses mail — the
+# relay marks unpublished events failed and retries them when the broker
+# recovers. See docs/OPERATOR_BACKENDS.md.
+
+services:
+  kafka:
+    image: bitnami/kafka:3.7
+    container_name: gogomail-kafka-dev
+    environment:
+      # KRaft single-node (no ZooKeeper) — dev/testing only.
+      KAFKA_CFG_NODE_ID: "1"
+      KAFKA_CFG_PROCESS_ROLES: "broker,controller"
+      KAFKA_CFG_CONTROLLER_QUORUM_VOTERS: "1@kafka:9093"
+      KAFKA_CFG_LISTENERS: "PLAINTEXT://:9092,CONTROLLER://:9093"
+      KAFKA_CFG_ADVERTISED_LISTENERS: "PLAINTEXT://kafka:9092"
+      KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP: "CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT"
+      KAFKA_CFG_CONTROLLER_LISTENER_NAMES: "CONTROLLER"
+      KAFKA_CFG_INTER_BROKER_LISTENER_NAME: "PLAINTEXT"
+      KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE: "true"
+      ALLOW_PLAINTEXT_LISTENER: "yes"
+    ports:
+      - "${GOGOMAIL_DEV_KAFKA_PORT:-9092}:9092"
+    volumes:
+      - kafka-data:/bitnami/kafka
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-broker-api-versions.sh --bootstrap-server localhost:9092 >/dev/null 2>&1"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+    networks:
+      - gogomail-dev
+
+  # Only the outbox-relay publishes to Kafka; switch its event-bus backend.
+  outbox-relay:
+    environment:
+      GOGOMAIL_EVENT_BUS_BACKEND: kafka
+      GOGOMAIL_EVENT_BUS_KAFKA_BROKERS: kafka:9092
+      GOGOMAIL_EVENT_BUS_KAFKA_TOPIC_PREFIX: ""
+      GOGOMAIL_EVENT_BUS_KAFKA_CLIENT_ID: gogomail-outbox-relay
+      GOGOMAIL_EVENT_BUS_KAFKA_REQUIRED_ACKS: all
+    depends_on:
+      kafka:
+        condition: service_healthy
+
+volumes:
+  kafka-data:
+    driver: local

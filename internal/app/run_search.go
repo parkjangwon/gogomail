@@ -44,6 +44,7 @@ func runSearchIndexWorker(ctx context.Context, cfg config.Config, logger *slog.L
 	if err := maybeBootstrapSearchIndex(ctx, cfg, indexer); err != nil {
 		return err
 	}
+	maybePingSearchBackend(ctx, cfg, indexer, logger)
 	store, err := objectStoreForConfig(cfg)
 	if err != nil {
 		return err
@@ -110,6 +111,52 @@ func searchIndexerForConfig(cfg config.Config, repository *maildb.Repository) (s
 
 type searchIndexBootstrapper interface {
 	EnsureIndex(ctx context.Context) error
+}
+
+// searchBackendPinger is implemented by search backends that can report
+// cluster reachability (currently OpenSearch).
+type searchBackendPinger interface {
+	Ping(ctx context.Context) error
+}
+
+// mappingVersionReporter is implemented by search backends that stamp and can
+// read back a mapping version (currently OpenSearch).
+type mappingVersionReporter interface {
+	MappingVersion(ctx context.Context) (string, error)
+}
+
+// maybePingSearchBackend performs a best-effort health check against the
+// search backend at worker startup. A failure is logged as a warning rather
+// than fatal: the cluster may still be starting, and the consumer loop retries
+// indexing via the at-least-once event stream. When the backend exposes a
+// mapping version, a mismatch against the current mapping is surfaced so
+// operators know a rollover/reindex is due.
+func maybePingSearchBackend(ctx context.Context, cfg config.Config, indexer any, logger *slog.Logger) {
+	if !strings.EqualFold(strings.TrimSpace(cfg.SearchIndexBackend), "opensearch") {
+		return
+	}
+	pingCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	if pinger, ok := indexer.(searchBackendPinger); ok {
+		if err := pinger.Ping(pingCtx); err != nil {
+			logger.Warn("opensearch health check failed at startup; worker will retry via event stream", "error", err)
+			return
+		}
+		logger.Info("opensearch health check passed")
+	}
+	if reporter, ok := indexer.(mappingVersionReporter); ok {
+		version, err := reporter.MappingVersion(pingCtx)
+		if err != nil {
+			logger.Warn("opensearch mapping version check failed", "error", err)
+			return
+		}
+		if version != "" && version != searchindex.OpenSearchMappingVersion {
+			logger.Warn("opensearch index mapping version is stale; a rollover/reindex is recommended",
+				"index_mapping_version", version,
+				"expected_mapping_version", searchindex.OpenSearchMappingVersion,
+			)
+		}
+	}
 }
 
 func maybeBootstrapSearchIndex(ctx context.Context, cfg config.Config, indexer any) error {
