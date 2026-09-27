@@ -326,7 +326,13 @@
       "username": "Username",
       "username_label": "Username",
       "description": "管理系统管理员账户",
-      "custom_role": "自定义"
+      "custom_role": "自定义",
+      "load_failed": "加载数据失败，请稍后重试。",
+      "create_failed": "创建管理员用户失败。",
+      "delete_failed": "删除管理员用户失败。",
+      "remove_modal_title": "移除管理员",
+      "remove_confirm": "移除以下账户的管理员权限：",
+      "read_only_notice": "只有系统管理员才能添加或移除管理员用户。"
     },
     "alerts_page": {
       "actions": "Actions",
@@ -409,7 +415,15 @@
       "target_kind_external": "External",
       "target_kind_group": "Group",
       "target_kind_label": "Target Type",
-      "target_kind_user": "User"
+      "target_kind_user": "User",
+      "target_kind_organization": "组织",
+      "target_kind_resource": "资源",
+      "created": "别名已创建。",
+      "create_failed": "创建别名失败。",
+      "deleted": "别名已删除。",
+      "delete_failed": "删除别名失败。",
+      "delete_modal_title": "删除别名",
+      "delete_confirm": "删除以下别名："
     },
     "aliases_page": {
       "aliases": "Aliases",
@@ -761,7 +775,10 @@
       "update_quota_btn": "更新配额",
       "users": "用户",
       "users_col": "用户",
-      "verified": "已验证"
+      "verified": "已验证",
+      "config_delete_failed": "删除配置失败",
+      "config_delete_title": "删除配置",
+      "config_delete_confirm": "删除以下配置键："
     },
     "compliance_page": {
       "description": "Description",
@@ -1490,7 +1507,15 @@
       "name": "名称",
       "name_label": "群组名称",
       "no_groups": "暂无群组",
-      "search_placeholder": "搜索..."
+      "search_placeholder": "搜索...",
+      "role_manager": "经理",
+      "member_added": "成员已添加。",
+      "create_failed": "添加成员失败。",
+      "member_removed": "成员已移除。",
+      "delete_failed": "移除成员失败。",
+      "remove_modal_title": "移除成员",
+      "remove_confirm": "移除",
+      "remove_confirm_suffix": "（从组中）"
     },
     "groups_page": {
       "memberships": "Memberships",
@@ -2039,7 +2064,9 @@
       "relay_type": "中继类型",
       "search_placeholder": "搜索...",
       "test_btn": "测试连接",
-      "test_connection": "测试连接"
+      "test_connection": "测试连接",
+      "create_failed": "创建中继失败。",
+      "delete_failed": "删除中继失败。"
     },
     "reports": {
       "title": "报告",
@@ -2218,7 +2245,14 @@
       "route_priority": "优先级",
       "route_type": "路由类型",
       "search_placeholder": "搜索...",
-      "type_label": "路由类型"
+      "type_label": "路由类型",
+      "create_failed": "创建路由失败。",
+      "delete_failed": "删除路由失败。",
+      "toggle_failed": "更新路由状态失败。",
+      "deactivate_modal_title": "停用路由",
+      "activate_modal_title": "启用路由",
+      "deactivate_confirm": "停用此路由可能会中断以下域的邮件流：",
+      "activate_confirm": "为以下域启用邮件路由："
     },
     "suppression": {
       "email": "Email",
@@ -3027,7 +3061,9 @@
       "delegate": "委托对象",
       "revoke": "撤销",
       "grant": "授予",
-      "scope_placeholder": "例如 INBOX，或留空"
+      "scope_placeholder": "例如 INBOX，或留空",
+      "revoke_modal_title": "撤销委派",
+      "revoke_confirm": "撤销对以下对象的委派："
     },
     "posture_page": {
       "overall_score": "总体评分"
@@ -3689,7 +3725,9 @@
     "status": "状态",
     "test": "测试",
     "empty": "未配置 Webhook",
-    "enable_immediately": "立即启用"
+    "enable_immediately": "立即启用",
+    "delete_modal_title": "删除 Webhook",
+    "delete_confirm": "删除以下 Webhook："
   },
   "global_signature": {
     "title": "全局邮件签名",
@@ -3754,7 +3792,8 @@
     "release_modal_header": "解除法律保留",
     "release_warning": "此操作不可撤销。",
     "user_email_label": "用户邮箱",
-    "validation_error": "用户邮箱和原因为必填项。"
+    "validation_error": "用户邮箱和原因为必填项。",
+    "release_failed": "解除法律保留失败。"
   },
   "notif_templates_page": {
     "failed_load": "无法加载模板",

@@ -23,6 +23,7 @@ import {
 import { useState } from 'react';
 import { useI18n } from '@/app/i18n-provider';
 import { useCompany } from '@/contexts/CompanyContext';
+import { ConfirmModal } from '@/components/ConfirmModal';
 import { useCompanyWebhooks, useCreateCompanyWebhook, useDeleteCompanyWebhook, useTestCompanyWebhook, type CompanyWebhookInput } from '@/hooks';
 
 const ALL_EVENTS = [
@@ -36,7 +37,7 @@ const eventOptions: MultiselectProps.Option[] = ALL_EVENTS.map(e => ({ label: e,
 
 export default function WebhooksPage() {
   const { t } = useI18n();
-  const { currentCompany } = useCompany();
+  const { currentCompany, canMutate } = useCompany();
   const cid = currentCompany?.id;
   const webhooksQuery = useCompanyWebhooks(cid);
   const createWebhook = useCreateCompanyWebhook();
@@ -49,6 +50,9 @@ export default function WebhooksPage() {
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState<string | null>(null);
   const [form, setForm] = useState<CompanyWebhookInput>({ name: '', url: '', events: [], enabled: true });
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
 
   const handleCreate = async () => {
     setSaving(true);
@@ -64,13 +68,18 @@ export default function WebhooksPage() {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm(t('webhooks_page.confirm_delete'))) return;
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleteError('');
+    setDeleting(true);
     try {
-      await deleteWebhook.mutateAsync({ companyId: cid!, webhookId: id });
+      await deleteWebhook.mutateAsync({ companyId: cid!, webhookId: deleteTarget.id });
+      setDeleteTarget(null);
       setFlash([{ type: 'success', content: t('webhooks_page.deleted'), dismissible: true, onDismiss: () => setFlash([]) }]);
-    } catch {
-      setFlash([{ type: 'error', content: t('webhooks_page.delete_failed'), dismissible: true, onDismiss: () => setFlash([]) }]);
+    } catch (e) {
+      setDeleteError(e instanceof Error && e.message ? e.message : t('webhooks_page.delete_failed'));
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -101,7 +110,7 @@ export default function WebhooksPage() {
           header={
             <Header
               variant="h2"
-              actions={<Button variant="primary" onClick={() => setShowModal(true)}>{t('webhooks_page.add_webhook')}</Button>}
+              actions={canMutate ? <Button variant="primary" onClick={() => setShowModal(true)}>{t('webhooks_page.add_webhook')}</Button> : undefined}
             >
               {t('webhooks_page.endpoints')} ({webhooks.length})
             </Header>
@@ -119,7 +128,9 @@ export default function WebhooksPage() {
                 cell: (i) => (
                   <SpaceBetween size="xs" direction="horizontal">
                     <Button variant="inline-link" loading={testing === i.id} onClick={() => handleTest(i.id ?? '')}>{t('webhooks_page.test')}</Button>
-                    <Button variant="inline-link" onClick={() => handleDelete(i.id ?? '')}>{t('common.delete')}</Button>
+                    {canMutate && (
+                      <Button variant="inline-link" onClick={() => { setDeleteError(''); setDeleteTarget({ id: i.id ?? '', name: i.name ?? i.url ?? (i.id ?? '') }); }}>{t('common.delete')}</Button>
+                    )}
                   </SpaceBetween>
                 ),
               },
@@ -161,6 +172,18 @@ export default function WebhooksPage() {
             </Toggle>
           </SpaceBetween>
         </Modal>
+
+        <ConfirmModal
+          visible={!!deleteTarget}
+          header={t('webhooks_page.delete_modal_title', 'Delete webhook')}
+          onConfirm={handleDelete}
+          onDismiss={() => { setDeleteTarget(null); setDeleteError(''); }}
+          loading={deleting}
+          error={deleteError || undefined}
+        >
+          {t('webhooks_page.delete_confirm', 'Delete the webhook')}{' '}
+          <strong>{deleteTarget?.name}</strong>?
+        </ConfirmModal>
       </SpaceBetween>
     </ContentLayout>
   );

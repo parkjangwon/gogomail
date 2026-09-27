@@ -213,7 +213,13 @@
       "username": "사용자명",
       "username_label": "사용자명",
       "description": "시스템 관리자 계정을 관리합니다",
-      "custom_role": "사용자 정의"
+      "custom_role": "사용자 정의",
+      "load_failed": "데이터를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.",
+      "create_failed": "관리자 계정을 생성하지 못했습니다.",
+      "delete_failed": "관리자 계정을 삭제하지 못했습니다.",
+      "remove_modal_title": "관리자 제거",
+      "remove_confirm": "다음 계정의 관리자 권한을 제거합니다:",
+      "read_only_notice": "시스템 관리자만 관리자 계정을 추가하거나 제거할 수 있습니다."
     },
     "alerts_page": {
       "actions": "작업",
@@ -296,7 +302,15 @@
       "target_kind_external": "외부",
       "target_kind_group": "그룹",
       "target_kind_label": "대상 유형",
-      "target_kind_user": "사용자"
+      "target_kind_user": "사용자",
+      "target_kind_organization": "조직",
+      "target_kind_resource": "리소스",
+      "created": "별칭을 생성했습니다.",
+      "create_failed": "별칭을 생성하지 못했습니다.",
+      "deleted": "별칭을 삭제했습니다.",
+      "delete_failed": "별칭을 삭제하지 못했습니다.",
+      "delete_modal_title": "별칭 삭제",
+      "delete_confirm": "다음 별칭을 삭제합니다:"
     },
     "aliases_page": {
       "aliases": "별칭 목록",
@@ -648,7 +662,10 @@
       "users": "사용자",
       "update_quota_btn": "할당량 업데이트",
       "users_col": "사용자",
-      "verified": "확인됨"
+      "verified": "확인됨",
+      "config_delete_failed": "설정을 삭제하지 못했습니다",
+      "config_delete_title": "설정 삭제",
+      "config_delete_confirm": "다음 설정 키를 삭제합니다:"
     },
     "compliance_page": {
       "description": "컴플라이언스 정책을 관리합니다",
@@ -1485,7 +1502,15 @@
       "loading": "불러오는 중...",
       "members_count": "구성원 수",
       "search_placeholder": "검색...",
-      "status": "상태"
+      "status": "상태",
+      "role_manager": "매니저",
+      "member_added": "멤버를 추가했습니다.",
+      "create_failed": "멤버를 추가하지 못했습니다.",
+      "member_removed": "멤버를 제거했습니다.",
+      "delete_failed": "멤버를 제거하지 못했습니다.",
+      "remove_modal_title": "멤버 제거",
+      "remove_confirm": "제거:",
+      "remove_confirm_suffix": "(그룹에서)"
     },
     "groups_page": {
       "memberships": "멤버십",
@@ -2036,7 +2061,9 @@
       "active": "활성",
       "disabled": "비활성",
       "enabled": "활성화",
-      "test_connection": "연결 테스트"
+      "test_connection": "연결 테스트",
+      "create_failed": "릴레이를 생성하지 못했습니다.",
+      "delete_failed": "릴레이를 삭제하지 못했습니다."
     },
     "reports": {
       "title": "리포트",
@@ -2215,7 +2242,14 @@
       "condition_placeholder": "조건 입력...",
       "destination_placeholder": "목적지 입력...",
       "edit_btn": "편집",
-      "modal_title": "라우트 생성"
+      "modal_title": "라우트 생성",
+      "create_failed": "라우트를 생성하지 못했습니다.",
+      "delete_failed": "라우트를 삭제하지 못했습니다.",
+      "toggle_failed": "라우트 상태를 변경하지 못했습니다.",
+      "deactivate_modal_title": "라우트 비활성화",
+      "activate_modal_title": "라우트 활성화",
+      "deactivate_confirm": "이 라우트를 비활성화하면 다음 도메인의 메일 흐름이 중단될 수 있습니다:",
+      "activate_confirm": "다음 도메인의 메일 라우팅을 활성화합니다:"
     },
     "suppression": {
       "email": "이메일 주소",
@@ -2920,7 +2954,9 @@
       "delegate": "위임 대상",
       "revoke": "회수",
       "grant": "부여",
-      "scope_placeholder": "예: INBOX 또는 비워두기"
+      "scope_placeholder": "예: INBOX 또는 비워두기",
+      "revoke_modal_title": "위임 취소",
+      "revoke_confirm": "다음 대상에 대한 위임을 취소합니다:"
     },
     "posture_page": {
       "overall_score": "종합 점수"
@@ -3695,7 +3731,9 @@
     "status": "상태",
     "test": "테스트",
     "empty": "설정된 웹훅이 없습니다",
-    "enable_immediately": "즉시 활성화"
+    "enable_immediately": "즉시 활성화",
+    "delete_modal_title": "웹훅 삭제",
+    "delete_confirm": "다음 웹훅을 삭제합니다:"
   },
   "global_signature": {
     "title": "전역 이메일 서명",
@@ -3760,7 +3798,8 @@
     "release_modal_header": "법적 보관 해제",
     "release_warning": "이 작업은 되돌릴 수 없습니다.",
     "user_email_label": "사용자 이메일",
-    "validation_error": "사용자 이메일과 사유는 필수입니다."
+    "validation_error": "사용자 이메일과 사유는 필수입니다.",
+    "release_failed": "법적 보존을 해제하지 못했습니다."
   },
   "notif_templates_page": {
     "failed_load": "템플릿을 불러오지 못했습니다",

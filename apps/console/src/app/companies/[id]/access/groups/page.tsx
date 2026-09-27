@@ -1,5 +1,6 @@
 'use client';
 import { DataTable } from '@/components/DataTable';
+import { ConfirmModal } from '@/components/ConfirmModal';
 
 import {
   ContentLayout,
@@ -14,10 +15,14 @@ import {
   FormField,
   Input,
   Select,
+  Alert,
+  Flashbar,
+  FlashbarProps,
 } from '@cloudscape-design/components';
 import { useState, useMemo } from 'react';
 import { useI18n } from '@/app/i18n-provider';
 import { useParams } from 'next/navigation';
+import { useCompany } from '@/contexts/CompanyContext';
 import {
   DirectoryGroupMembershipCreateRequestMember_kind,
   DirectoryGroupMembershipCreateRequestRole,
@@ -40,10 +45,13 @@ export default function GroupMembershipsPage() {
   const { t } = useI18n();
   const params = useParams();
   const companyId = params?.id as string;
+  const { canMutate } = useCompany();
   const { data: memberships = [], isLoading: loading } = useDirectoryGroupMemberships(companyId);
   const [filter, setFilter] = useState('');
+  const [flash, setFlash] = useState<FlashbarProps.MessageDefinition[]>([]);
 
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [createError, setCreateError] = useState('');
   const [newMembership, setNewMembership] = useState<NewMembership>({
     group_id: '',
     member_kind: DirectoryGroupMembershipCreateRequestMember_kind.user,
@@ -51,12 +59,18 @@ export default function GroupMembershipsPage() {
     role: DirectoryGroupMembershipCreateRequestRole.member,
   });
   const [creating, setCreating] = useState(false);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<DirectoryGroupMembership | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
   const createMembership = useCreateDirectoryGroupMembership();
   const deleteMembership = useDeleteDirectoryGroupMembership();
 
+  const errMessage = (e: unknown, fallback: string) =>
+    e instanceof Error && e.message ? e.message : fallback;
+
   const handleCreate = async () => {
     if (!newMembership.group_id.trim() || !newMembership.member_id.trim()) return;
+    setCreateError('');
     setCreating(true);
     try {
       if (!companyId) return;
@@ -76,25 +90,26 @@ export default function GroupMembershipsPage() {
         member_id: '',
         role: DirectoryGroupMembershipCreateRequestRole.member,
       });
-    } catch {
-      // mutation error handled by caller
+      setFlash([{ type: 'success', content: t('pages.groups.member_added', 'Member added.'), dismissible: true, onDismiss: () => setFlash([]) }]);
+    } catch (e) {
+      setCreateError(errMessage(e, t('pages.groups.create_failed', 'Failed to add member.')));
     } finally {
       setCreating(false);
     }
   };
 
-  const handleDelete = async (id: string) => {
-    setDeletingId(id);
+  const handleDelete = async (membership: DirectoryGroupMembership) => {
+    setDeleteError('');
+    setDeleting(true);
     try {
       if (!companyId) return;
-      await deleteMembership.mutateAsync({
-        id,
-        companyId,
-      });
-    } catch {
-      // mutation error handled by caller
+      await deleteMembership.mutateAsync({ id: membership.id, companyId });
+      setDeleteTarget(null);
+      setFlash([{ type: 'success', content: t('pages.groups.member_removed', 'Member removed.'), dismissible: true, onDismiss: () => setFlash([]) }]);
+    } catch (e) {
+      setDeleteError(errMessage(e, t('pages.groups.delete_failed', 'Failed to remove member.')));
     } finally {
-      setDeletingId(null);
+      setDeleting(false);
     }
   };
 
@@ -103,10 +118,11 @@ export default function GroupMembershipsPage() {
     { label: t('pages.groups.member_kind_group'), value: 'group' },
   ];
 
+  // Values must match the backend group roles (member|manager|owner).
   const roleOptions = [
     { label: t('pages.groups.role_member'), value: 'member' },
     { label: t('pages.groups.role_owner'), value: 'owner' },
-    { label: t('pages.groups.role_admin'), value: 'manager' },
+    { label: t('pages.groups.role_manager', 'Manager'), value: 'manager' },
   ];
 
   const filteredMemberships = useMemo(() => memberships.filter(
@@ -132,9 +148,11 @@ export default function GroupMembershipsPage() {
           variant="h1"
           description={t('pages.groups.description')}
           actions={
-            <Button variant="primary" onClick={() => setShowCreateModal(true)}>
-              {t('pages.groups.add_member')}
-            </Button>
+            canMutate ? (
+              <Button variant="primary" onClick={() => { setCreateError(''); setShowCreateModal(true); }}>
+                {t('pages.groups.add_member')}
+              </Button>
+            ) : undefined
           }
         >
           {t('pages.groups.title')}
@@ -142,6 +160,7 @@ export default function GroupMembershipsPage() {
       }
     >
       <SpaceBetween size="l">
+        {flash.length > 0 && <Flashbar items={flash} />}
         <DataTable
           columnDefinitions={[
             {
@@ -161,11 +180,18 @@ export default function GroupMembershipsPage() {
             },
             {
               header: t('pages.groups_page.role'),
-              cell: (item: DirectoryGroupMembership) => (
-                <Badge color={item.role === 'manager' ? 'red' : item.role === 'owner' ? 'blue' : 'grey'}>
-                  {item.role}
-                </Badge>
-              ),
+              cell: (item: DirectoryGroupMembership) => {
+                const label = item.role === 'manager'
+                  ? t('pages.groups.role_manager', 'Manager')
+                  : item.role === 'owner'
+                    ? t('pages.groups.role_owner')
+                    : t('pages.groups.role_member');
+                return (
+                  <Badge color={item.role === 'manager' ? 'red' : item.role === 'owner' ? 'blue' : 'grey'}>
+                    {label}
+                  </Badge>
+                );
+              },
               width: '20%',
             },
             {
@@ -175,15 +201,16 @@ export default function GroupMembershipsPage() {
             },
             {
               header: t('common.actions'),
-              cell: (item: DirectoryGroupMembership) => (
-                <Button
-                  variant="inline-link"
-                  onClick={() => handleDelete(item.id)}
-                  loading={deletingId === item.id}
-                >
-                  {t('common.delete')}
-                </Button>
-              ),
+              cell: (item: DirectoryGroupMembership) =>
+                canMutate ? (
+                  <Button
+                    variant="inline-link"
+                    onClick={() => { setDeleteError(''); setDeleteTarget(item); }}
+                    loading={deleting && deleteTarget?.id === item.id}
+                  >
+                    {t('common.delete')}
+                  </Button>
+                ) : null,
               width: '10%',
             },
           ]}
@@ -230,6 +257,7 @@ export default function GroupMembershipsPage() {
         header={t('pages.groups.create_modal_title')}
       >
         <SpaceBetween size="m">
+          {createError && <Alert type="error">{createError}</Alert>}
           <FormField label={t('pages.groups.group_id_label')}>
             <Input
               value={newMembership.group_id}
@@ -277,6 +305,21 @@ export default function GroupMembershipsPage() {
           </FormField>
         </SpaceBetween>
       </Modal>
+
+      <ConfirmModal
+        visible={!!deleteTarget}
+        header={t('pages.groups.remove_modal_title', 'Remove member')}
+        onConfirm={() => deleteTarget && handleDelete(deleteTarget)}
+        onDismiss={() => { setDeleteTarget(null); setDeleteError(''); }}
+        loading={deleting}
+        confirmLabel={t('common.delete')}
+        error={deleteError || undefined}
+      >
+        {t('pages.groups.remove_confirm', 'Remove')}{' '}
+        <strong>{deleteTarget?.member_id}</strong>{' '}
+        {t('pages.groups.remove_confirm_suffix', 'from the group')}{' '}
+        <strong>{deleteTarget?.group_id}</strong>?
+      </ConfirmModal>
     </ContentLayout>
   );
 }

@@ -326,7 +326,13 @@
       "title": "Admin Users",
       "username": "Username",
       "username_label": "Username",
-      "description": "Manage system administrator accounts"
+      "description": "Manage system administrator accounts",
+      "load_failed": "Failed to load data. Please try again in a moment.",
+      "create_failed": "Failed to create admin user.",
+      "delete_failed": "Failed to remove admin user.",
+      "remove_modal_title": "Remove admin user",
+      "remove_confirm": "Remove admin access for",
+      "read_only_notice": "Only a system administrator can add or remove admin users."
     },
     "alerts_page": {
       "actions": "Actions",
@@ -409,7 +415,15 @@
       "target_kind_external": "External",
       "target_kind_group": "Group",
       "target_kind_label": "Target Type",
-      "target_kind_user": "User"
+      "target_kind_user": "User",
+      "target_kind_organization": "Organization",
+      "target_kind_resource": "Resource",
+      "created": "Alias created.",
+      "create_failed": "Failed to create alias.",
+      "deleted": "Alias deleted.",
+      "delete_failed": "Failed to delete alias.",
+      "delete_modal_title": "Delete alias",
+      "delete_confirm": "Delete the alias"
     },
     "aliases_page": {
       "aliases": "Aliases",
@@ -761,7 +775,10 @@
       "update_quota_btn": "Update Quota",
       "users": "Users",
       "users_col": "Users",
-      "verified": "Verified"
+      "verified": "Verified",
+      "config_delete_failed": "Failed to delete config",
+      "config_delete_title": "Delete config",
+      "config_delete_confirm": "Delete the config key"
     },
     "compliance_page": {
       "description": "Description",
@@ -1629,7 +1646,15 @@
       "name": "Name",
       "name_label": "Group Name",
       "no_groups": "No groups",
-      "search_placeholder": "Search..."
+      "search_placeholder": "Search...",
+      "role_manager": "Manager",
+      "member_added": "Member added.",
+      "create_failed": "Failed to add member.",
+      "member_removed": "Member removed.",
+      "delete_failed": "Failed to remove member.",
+      "remove_modal_title": "Remove member",
+      "remove_confirm": "Remove",
+      "remove_confirm_suffix": "from the group"
     },
     "groups_page": {
       "memberships": "Memberships",
@@ -2180,7 +2205,9 @@
       "relay_type": "Relay Type",
       "search_placeholder": "Search...",
       "test_btn": "Test Connection",
-      "test_connection": "Test Connection"
+      "test_connection": "Test Connection",
+      "create_failed": "Failed to create relay.",
+      "delete_failed": "Failed to delete relay."
     },
     "reports": {
       "title": "Reports",
@@ -2359,7 +2386,14 @@
       "route_priority": "Priority",
       "route_type": "Route Type",
       "search_placeholder": "Search...",
-      "type_label": "Route Type"
+      "type_label": "Route Type",
+      "create_failed": "Failed to create route.",
+      "delete_failed": "Failed to delete route.",
+      "toggle_failed": "Failed to update route status.",
+      "deactivate_modal_title": "Disable route",
+      "activate_modal_title": "Enable route",
+      "deactivate_confirm": "Disabling this route can halt mail flow for",
+      "activate_confirm": "Enable mail routing for"
     },
     "suppression": {
       "email": "Email",
@@ -3033,7 +3067,9 @@
       "delegate": "Delegate",
       "revoke": "Revoke",
       "grant": "Grant",
-      "scope_placeholder": "e.g. INBOX or leave blank"
+      "scope_placeholder": "e.g. INBOX or leave blank",
+      "revoke_modal_title": "Revoke delegation",
+      "revoke_confirm": "Revoke the delegation to"
     },
     "posture_page": {
       "overall_score": "Overall Score"
@@ -3783,7 +3819,8 @@
     "cannot_undo": "This action cannot be undone.",
     "release_confirm_prefix": "Release the hold for",
     "release_confirm_suffix": "The mailbox will no longer be preserved and may be subject to normal retention policies.",
-    "reason_placeholder": "Litigation - case #12345"
+    "reason_placeholder": "Litigation - case #12345",
+    "release_failed": "Failed to release legal hold."
   },
   "seat_usage": {
     "title": "Seat & License Usage",
@@ -3871,7 +3908,9 @@
     "status": "Status",
     "test": "Test",
     "empty": "No webhooks configured",
-    "enable_immediately": "Enable immediately"
+    "enable_immediately": "Enable immediately",
+    "delete_modal_title": "Delete webhook",
+    "delete_confirm": "Delete the webhook"
   },
   "login": {
     "subtitle": "Admin Console",

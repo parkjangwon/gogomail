@@ -23,6 +23,7 @@ import { useParams } from 'next/navigation';
 import { useI18n } from '@/app/i18n-provider';
 import { useDomains } from '@/hooks';
 import { api } from '@/lib/api-client';
+import { useCompany } from '@/contexts/CompanyContext';
 
 type ProviderType = 'database' | 'ldap' | 'azure_ad' | 'external_rdbms';
 
@@ -64,6 +65,7 @@ export default function IdPConfigPage() {
   const { t } = useI18n();
   const params = useParams();
   const companyId = params?.id as string;
+  const { canMutate } = useCompany();
 
   const domainsQuery = useDomains(companyId);
   const domains = useMemo(() => domainsQuery.data ?? [], [domainsQuery.data]);
@@ -242,7 +244,7 @@ export default function IdPConfigPage() {
   const selectedProvider = PROVIDER_OPTIONS.find(o => o.value === providerType) ?? PROVIDER_OPTIONS[0];
   const domainOptions: SelectProps.Option[] = domains.map(d => ({ value: d.id, label: d.name }));
   const selectedDomain = domainOptions.find(o => o.value === domainId) ?? null;
-  const saveDisabled = !loadedOk || loadError || !domainId;
+  const saveDisabled = !loadedOk || loadError || !domainId || !canMutate;
 
   return (
     <ContentLayout

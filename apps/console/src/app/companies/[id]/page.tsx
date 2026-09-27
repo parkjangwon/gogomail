@@ -26,6 +26,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useCompany } from '@/contexts/CompanyContext';
 import { useI18n } from '@/app/i18n-provider';
 import { parseQuotaInput } from '@/lib/quota';
+import { ConfirmModal } from '@/components/ConfirmModal';
 
 interface Domain {
   id: string;
@@ -68,6 +69,11 @@ export default function CompanyOverviewPage() {
   const [newConfig, setNewConfig] = useState({ key: '', value: '' });
   const [savingConfig, setSavingConfig] = useState(false);
   const [configError, setConfigError] = useState('');
+
+  // Delete-config confirmation + failure feedback.
+  const [deleteConfigTarget, setDeleteConfigTarget] = useState<string | null>(null);
+  const [deletingConfig, setDeletingConfig] = useState(false);
+  const [deleteConfigError, setDeleteConfigError] = useState('');
 
   const company =
     companies.find(c => c.id === companyId) ??
@@ -174,14 +180,29 @@ export default function CompanyOverviewPage() {
     }
   };
 
-  const handleDeleteConfig = useCallback(async (key: string) => {
-    if (!company) return;
-    const res = await fetch(`/api/admin/companies/${company.id}/config/${encodeURIComponent(key)}`, {
-      method: 'DELETE',
-      credentials: 'include',
-    });
-    if (res.ok) fetchConfigs();
-  }, [company, fetchConfigs]);
+  const handleDeleteConfig = useCallback(async () => {
+    if (!company || deleteConfigTarget === null) return;
+    setDeleteConfigError('');
+    setDeletingConfig(true);
+    try {
+      const res = await fetch(`/api/admin/companies/${company.id}/config/${encodeURIComponent(deleteConfigTarget)}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      if (res.ok) {
+        setDeleteConfigTarget(null);
+        fetchConfigs();
+      } else {
+        const data = await res.json().catch(() => ({})) as { error?: { message?: string } | string };
+        const msg = typeof data.error === 'string' ? data.error : data.error?.message;
+        setDeleteConfigError(msg ?? t('pages.company_overview.config_delete_failed', 'Failed to delete config'));
+      }
+    } catch {
+      setDeleteConfigError(t('pages.company_overview.config_delete_failed', 'Failed to delete config'));
+    } finally {
+      setDeletingConfig(false);
+    }
+  }, [company, deleteConfigTarget, fetchConfigs, t]);
 
   if (!company) {
     if (companiesLoading) {
@@ -257,13 +278,13 @@ export default function CompanyOverviewPage() {
     {
       header: t('pages.company_overview.config_actions'),
       cell: (c: ConfigEntry) => (
-        <Button variant="inline-link" onClick={() => handleDeleteConfig(c.key)}>
+        <Button variant="inline-link" onClick={() => { setDeleteConfigError(''); setDeleteConfigTarget(c.key); }}>
           {t('pages.company_overview.delete')}
         </Button>
       ),
       width: '10%',
     },
-  ], [t, handleDeleteConfig]);
+  ], [t]);
 
   const overviewTab = (
     <SpaceBetween size="l">
@@ -548,6 +569,18 @@ export default function CompanyOverviewPage() {
           {configError && <Alert type="error">{configError}</Alert>}
         </SpaceBetween>
       </Modal>
+
+      <ConfirmModal
+        visible={deleteConfigTarget !== null}
+        header={t('pages.company_overview.config_delete_title', 'Delete config')}
+        onConfirm={handleDeleteConfig}
+        onDismiss={() => { setDeleteConfigTarget(null); setDeleteConfigError(''); }}
+        loading={deletingConfig}
+        error={deleteConfigError || undefined}
+      >
+        {t('pages.company_overview.config_delete_confirm', 'Delete the config key')}{' '}
+        <strong>{deleteConfigTarget}</strong>?
+      </ConfirmModal>
     </ContentLayout>
   );
 }

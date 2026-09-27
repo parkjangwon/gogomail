@@ -1,5 +1,6 @@
 'use client';
 import { DataTable } from '@/components/DataTable';
+import { ConfirmModal } from '@/components/ConfirmModal';
 
 
 import {
@@ -17,9 +18,13 @@ import {
   Select,
   SelectProps,
   StatusIndicator,
+  Alert,
+  Flashbar,
+  FlashbarProps,
 } from '@cloudscape-design/components';
 import { useState, useEffect } from 'react';
 import { useI18n } from '@/app/i18n-provider';
+import { useCompany } from '@/contexts/CompanyContext';
 
 interface DeliveryRoute {
   id: string;
@@ -50,11 +55,14 @@ const TLS_OPTIONS: SelectProps.Option[] = [
 
 export default function DeliveryRoutesPage() {
   const { t } = useI18n();
+  const { canMutate } = useCompany();
   const [routes, setRoutes] = useState<DeliveryRoute[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('');
+  const [flash, setFlash] = useState<FlashbarProps.MessageDefinition[]>([]);
 
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [createError, setCreateError] = useState('');
   const [newRoute, setNewRoute] = useState({
     domain_pattern: '',
     hosts: '',
@@ -66,7 +74,16 @@ export default function DeliveryRoutesPage() {
 
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<DeliveryRoute | null>(null);
+  const [deleteError, setDeleteError] = useState('');
   const [togglingId, setTogglingId] = useState<string | null>(null);
+  const [confirmToggle, setConfirmToggle] = useState<DeliveryRoute | null>(null);
+  const [toggleError, setToggleError] = useState('');
+
+  const extractError = async (res: Response, fallback: string): Promise<string> => {
+    const data = (await res.json().catch(() => ({}))) as { error?: { message?: string } | string };
+    const msg = typeof data.error === 'string' ? data.error : data.error?.message;
+    return msg || fallback;
+  };
 
   useEffect(() => {
     fetchRoutes();
@@ -91,6 +108,7 @@ export default function DeliveryRoutesPage() {
 
   const handleCreate = async () => {
     if (!newRoute.domain_pattern.trim() || !newRoute.hosts.trim()) return;
+    setCreateError('');
     setCreating(true);
     try {
       const hosts = newRoute.hosts
@@ -112,10 +130,13 @@ export default function DeliveryRoutesPage() {
       if (res.ok) {
         setShowCreateModal(false);
         setNewRoute({ domain_pattern: '', hosts: '', port: '25', tls_mode: 'none', description: '' });
+        setFlash([{ type: 'success', content: t('pages.routes_page.created', 'Route created.'), dismissible: true, onDismiss: () => setFlash([]) }]);
         fetchRoutes();
+      } else {
+        setCreateError(await extractError(res, t('pages.routes_page.create_failed', 'Failed to create route.')));
       }
     } catch {
-      // mutation error handled by caller
+      setCreateError(t('pages.routes_page.create_failed', 'Failed to create route.'));
     } finally {
       setCreating(false);
     }
@@ -123,33 +144,44 @@ export default function DeliveryRoutesPage() {
 
   const handleDelete = async (route: DeliveryRoute) => {
     setDeletingId(route.id);
+    setDeleteError('');
     try {
-      await fetch(`/api/admin/delivery-routes/${route.id}`, {
+      const res = await fetch(`/api/admin/delivery-routes/${route.id}`, {
         method: 'DELETE',
         credentials: 'include',
       });
-      fetchRoutes();
+      if (res.ok) {
+        setConfirmDelete(null);
+        fetchRoutes();
+      } else {
+        setDeleteError(await extractError(res, t('pages.routes_page.delete_failed', 'Failed to delete route.')));
+      }
     } catch {
-      // mutation error handled by caller
+      setDeleteError(t('pages.routes_page.delete_failed', 'Failed to delete route.'));
     } finally {
       setDeletingId(null);
-      setConfirmDelete(null);
     }
   };
 
   const handleToggleStatus = async (route: DeliveryRoute) => {
     setTogglingId(route.id);
+    setToggleError('');
     const nextStatus = nextRouteStatus(route.status);
     try {
-      await fetch(`/api/admin/delivery-routes/${route.id}/status`, {
+      const res = await fetch(`/api/admin/delivery-routes/${route.id}/status`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: nextStatus }),
         credentials: 'include',
       });
-      fetchRoutes();
+      if (res.ok) {
+        setConfirmToggle(null);
+        fetchRoutes();
+      } else {
+        setToggleError(await extractError(res, t('pages.routes_page.toggle_failed', 'Failed to update route status.')));
+      }
     } catch {
-      // mutation error handled by caller
+      setToggleError(t('pages.routes_page.toggle_failed', 'Failed to update route status.'));
     } finally {
       setTogglingId(null);
     }
@@ -178,9 +210,11 @@ export default function DeliveryRoutesPage() {
           variant="h1"
           description={t('pages.routes_page.description')}
           actions={
-            <Button variant="primary" onClick={() => setShowCreateModal(true)}>
-              {t('pages.routes.create_route')}
-            </Button>
+            canMutate ? (
+              <Button variant="primary" onClick={() => { setCreateError(''); setShowCreateModal(true); }}>
+                {t('pages.routes.create_route')}
+              </Button>
+            ) : undefined
           }
         >
           {t('pages.routes_page.title')}
@@ -188,6 +222,7 @@ export default function DeliveryRoutesPage() {
       }
     >
       <SpaceBetween size="l">
+        {flash.length > 0 && <Flashbar items={flash} />}
         <DataTable
           columnDefinitions={[
             {
@@ -237,26 +272,27 @@ export default function DeliveryRoutesPage() {
             },
             {
               header: t('pages.routes_page.actions'),
-              cell: (item: DeliveryRoute) => (
-                <SpaceBetween direction="horizontal" size="xs">
-                  <Button
-                    variant="inline-link"
-                    onClick={() => handleToggleStatus(item)}
-                    loading={togglingId === item.id}
-                  >
-                    {isRouteActive(item.status)
-                      ? t('pages.routes_page.deactivate')
-                      : t('pages.routes_page.activate')}
-                  </Button>
-                  <Button
-                    variant="inline-link"
-                    onClick={() => setConfirmDelete(item)}
-                    loading={deletingId === item.id}
-                  >
-                    {t('common.delete')}
-                  </Button>
-                </SpaceBetween>
-              ),
+              cell: (item: DeliveryRoute) =>
+                canMutate ? (
+                  <SpaceBetween direction="horizontal" size="xs">
+                    <Button
+                      variant="inline-link"
+                      onClick={() => { setToggleError(''); setConfirmToggle(item); }}
+                      loading={togglingId === item.id}
+                    >
+                      {isRouteActive(item.status)
+                        ? t('pages.routes_page.deactivate')
+                        : t('pages.routes_page.activate')}
+                    </Button>
+                    <Button
+                      variant="inline-link"
+                      onClick={() => { setDeleteError(''); setConfirmDelete(item); }}
+                      loading={deletingId === item.id}
+                    >
+                      {t('common.delete')}
+                    </Button>
+                  </SpaceBetween>
+                ) : null,
               width: '13%',
             },
           ]}
@@ -304,6 +340,7 @@ export default function DeliveryRoutesPage() {
         header={t('pages.routes_page.create_modal_title')}
       >
         <SpaceBetween size="m">
+          {createError && <Alert type="error">{createError}</Alert>}
           <FormField label={t('pages.routes_page.domain_pattern_label')}>
             <Input
               value={newRoute.domain_pattern}
@@ -349,28 +386,40 @@ export default function DeliveryRoutesPage() {
       </Modal>
 
       {/* Delete Confirmation Modal */}
-      <Modal
-        onDismiss={() => setConfirmDelete(null)}
+      <ConfirmModal
         visible={!!confirmDelete}
-        size="small"
-        footer={
-          <Box float="right">
-            <SpaceBetween direction="horizontal" size="xs">
-              <Button onClick={() => setConfirmDelete(null)}>{t('common.cancel')}</Button>
-              <Button
-                variant="primary"
-                onClick={() => confirmDelete && handleDelete(confirmDelete)}
-                loading={deletingId === confirmDelete?.id}
-              >
-                {t('common.delete')}
-              </Button>
-            </SpaceBetween>
-          </Box>
-        }
         header={t('pages.routes_page.delete_modal_title')}
+        onConfirm={() => confirmDelete && handleDelete(confirmDelete)}
+        onDismiss={() => { setConfirmDelete(null); setDeleteError(''); }}
+        loading={deletingId === confirmDelete?.id}
+        error={deleteError || undefined}
       >
-        <Box>{t('pages.routes_page.delete_confirm')} <strong>{confirmDelete?.domain_pattern}</strong>?</Box>
-      </Modal>
+        {t('pages.routes_page.delete_confirm')} <strong>{confirmDelete?.domain_pattern}</strong>?
+      </ConfirmModal>
+
+      {/* Enable/Disable Confirmation Modal — disabling can halt mail flow */}
+      <ConfirmModal
+        visible={!!confirmToggle}
+        header={
+          confirmToggle && isRouteActive(confirmToggle.status)
+            ? t('pages.routes_page.deactivate_modal_title', 'Disable route')
+            : t('pages.routes_page.activate_modal_title', 'Enable route')
+        }
+        onConfirm={() => confirmToggle && handleToggleStatus(confirmToggle)}
+        onDismiss={() => { setConfirmToggle(null); setToggleError(''); }}
+        loading={togglingId === confirmToggle?.id}
+        confirmLabel={
+          confirmToggle && isRouteActive(confirmToggle.status)
+            ? t('pages.routes_page.deactivate')
+            : t('pages.routes_page.activate')
+        }
+        error={toggleError || undefined}
+      >
+        {confirmToggle && isRouteActive(confirmToggle.status)
+          ? t('pages.routes_page.deactivate_confirm', 'Disabling this route can halt mail flow for')
+          : t('pages.routes_page.activate_confirm', 'Enable mail routing for')}{' '}
+        <strong>{confirmToggle?.domain_pattern}</strong>?
+      </ConfirmModal>
     </ContentLayout>
   );
 }

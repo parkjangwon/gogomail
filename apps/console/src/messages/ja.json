@@ -326,7 +326,13 @@
       "username": "Username",
       "username_label": "Username",
       "description": "システム管理者アカウントを管理します",
-      "custom_role": "カスタム"
+      "custom_role": "カスタム",
+      "load_failed": "データの読み込みに失敗しました。しばらくしてからもう一度お試しください。",
+      "create_failed": "管理者ユーザーの作成に失敗しました。",
+      "delete_failed": "管理者ユーザーの削除に失敗しました。",
+      "remove_modal_title": "管理者を削除",
+      "remove_confirm": "次のアカウントの管理者権限を削除します:",
+      "read_only_notice": "システム管理者のみが管理者ユーザーを追加・削除できます。"
     },
     "alerts_page": {
       "actions": "Actions",
@@ -409,7 +415,15 @@
       "target_kind_external": "External",
       "target_kind_group": "Group",
       "target_kind_label": "Target Type",
-      "target_kind_user": "User"
+      "target_kind_user": "User",
+      "target_kind_organization": "組織",
+      "target_kind_resource": "リソース",
+      "created": "エイリアスを作成しました。",
+      "create_failed": "エイリアスの作成に失敗しました。",
+      "deleted": "エイリアスを削除しました。",
+      "delete_failed": "エイリアスの削除に失敗しました。",
+      "delete_modal_title": "エイリアスを削除",
+      "delete_confirm": "次のエイリアスを削除します:"
     },
     "aliases_page": {
       "aliases": "Aliases",
@@ -761,7 +775,10 @@
       "update_quota_btn": "割り当て更新",
       "users": "ユーザー",
       "users_col": "ユーザー",
-      "verified": "確認済み"
+      "verified": "確認済み",
+      "config_delete_failed": "設定の削除に失敗しました",
+      "config_delete_title": "設定を削除",
+      "config_delete_confirm": "次の設定キーを削除します:"
     },
     "compliance_page": {
       "description": "Description",
@@ -1490,7 +1507,15 @@
       "name": "名前",
       "name_label": "グループ名",
       "no_groups": "グループなし",
-      "search_placeholder": "検索..."
+      "search_placeholder": "検索...",
+      "role_manager": "マネージャー",
+      "member_added": "メンバーを追加しました。",
+      "create_failed": "メンバーの追加に失敗しました。",
+      "member_removed": "メンバーを削除しました。",
+      "delete_failed": "メンバーの削除に失敗しました。",
+      "remove_modal_title": "メンバーを削除",
+      "remove_confirm": "削除:",
+      "remove_confirm_suffix": "(グループから)"
     },
     "groups_page": {
       "memberships": "Memberships",
@@ -2039,7 +2064,9 @@
       "relay_type": "リレー種別",
       "search_placeholder": "検索...",
       "test_btn": "接続テスト",
-      "test_connection": "接続テスト"
+      "test_connection": "接続テスト",
+      "create_failed": "リレーの作成に失敗しました。",
+      "delete_failed": "リレーの削除に失敗しました。"
     },
     "reports": {
       "title": "レポート",
@@ -2218,7 +2245,14 @@
       "route_priority": "優先度",
       "route_type": "ルート種別",
       "search_placeholder": "検索...",
-      "type_label": "ルート種別"
+      "type_label": "ルート種別",
+      "create_failed": "ルートの作成に失敗しました。",
+      "delete_failed": "ルートの削除に失敗しました。",
+      "toggle_failed": "ルートの状態を更新できませんでした。",
+      "deactivate_modal_title": "ルートを無効化",
+      "activate_modal_title": "ルートを有効化",
+      "deactivate_confirm": "このルートを無効化すると、次のドメインのメール配送が停止する可能性があります:",
+      "activate_confirm": "次のドメインのメールルーティングを有効化します:"
     },
     "suppression": {
       "email": "Email",
@@ -3027,7 +3061,9 @@
       "delegate": "委任先",
       "revoke": "取り消し",
       "grant": "付与",
-      "scope_placeholder": "例: INBOX または空欄"
+      "scope_placeholder": "例: INBOX または空欄",
+      "revoke_modal_title": "委任を取り消す",
+      "revoke_confirm": "次の対象への委任を取り消します:"
     },
     "posture_page": {
       "overall_score": "総合スコア"
@@ -3689,7 +3725,9 @@
     "status": "ステータス",
     "test": "テスト",
     "empty": "設定済み Webhook はありません",
-    "enable_immediately": "すぐに有効化"
+    "enable_immediately": "すぐに有効化",
+    "delete_modal_title": "Webhookを削除",
+    "delete_confirm": "次のWebhookを削除します:"
   },
   "global_signature": {
     "title": "グローバルメール署名",
@@ -3754,7 +3792,8 @@
     "release_modal_header": "法的保全の解除",
     "release_warning": "この操作は元に戻せません。",
     "user_email_label": "ユーザーメール",
-    "validation_error": "ユーザーメールと理由は必須です。"
+    "validation_error": "ユーザーメールと理由は必須です。",
+    "release_failed": "リーガルホールドの解除に失敗しました。"
   },
   "notif_templates_page": {
     "failed_load": "テンプレートを読み込めませんでした",

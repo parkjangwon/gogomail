@@ -25,6 +25,7 @@ import {
 import { useState, useMemo } from 'react';
 import { useI18n } from '@/app/i18n-provider';
 import { useCompany } from '@/contexts/CompanyContext';
+import { ConfirmModal } from '@/components/ConfirmModal';
 import {
   DirectoryDelegationCreateRequestDelegate_kind,
   DirectoryDelegationCreateRequestOwner_kind,
@@ -53,7 +54,7 @@ const statusType = (status: string): 'success' | 'error' | 'pending' => {
 
 export default function DelegationsPage() {
   const { t } = useI18n();
-  const { currentCompany } = useCompany();
+  const { currentCompany, canMutate } = useCompany();
   const cid = currentCompany?.id;
 
   const { data: delegations = [], isLoading: loading } = useDirectoryDelegations(cid);
@@ -63,6 +64,8 @@ export default function DelegationsPage() {
   const [showModal, setShowModal] = useState(false);
   const [creating, setCreating] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [revokeTarget, setRevokeTarget] = useState<DirectoryDelegation | null>(null);
+  const [revokeError, setRevokeError] = useState('');
   const createDelegation = useCreateDirectoryDelegation();
   const deleteDelegation = useDeleteDirectoryDelegation();
 
@@ -140,14 +143,16 @@ export default function DelegationsPage() {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    setDeletingId(id);
+  const handleDelete = async (delegation: DirectoryDelegation) => {
+    setDeletingId(delegation.id);
+    setRevokeError('');
     try {
       if (!cid) return;
-      await deleteDelegation.mutateAsync({ id, companyId: cid });
+      await deleteDelegation.mutateAsync({ id: delegation.id, companyId: cid });
+      setRevokeTarget(null);
       setFlash([{ type: 'success', content: t('pages.delegations_page.revoked'), dismissible: true, onDismiss: () => setFlash([]) }]);
-    } catch {
-      setFlash([{ type: 'error', content: t('pages.delegations_page.failed_revoke'), dismissible: true, onDismiss: () => setFlash([]) }]);
+    } catch (e) {
+      setRevokeError(e instanceof Error && e.message ? e.message : t('pages.delegations_page.failed_revoke'));
     } finally {
       setDeletingId(null);
     }
@@ -171,7 +176,7 @@ export default function DelegationsPage() {
                   { id: 'list', text: t('pages.delegations_page.list_view') },
                 ]}
               />
-              <Button variant="primary" onClick={() => setShowModal(true)}>{t('pages.delegations_page.grant_delegation')}</Button>
+              <Button variant="primary" onClick={() => setShowModal(true)} disabled={!canMutate}>{t('pages.delegations_page.grant_delegation')}</Button>
             </SpaceBetween>
           }
         >
@@ -234,13 +239,15 @@ export default function DelegationsPage() {
                             <StatusIndicator type={statusType(d.status)}>{d.status}</StatusIndicator>
                           </div>
                           <div>
-                            <Button
-                              variant="inline-link"
-                              loading={deletingId === d.id}
-                              onClick={() => handleDelete(d.id)}
-                            >
-                              {t('pages.delegations_page.revoke')}
-                            </Button>
+                            {canMutate && (
+                              <Button
+                                variant="inline-link"
+                                loading={deletingId === d.id}
+                                onClick={() => { setRevokeError(''); setRevokeTarget(d); }}
+                              >
+                                {t('pages.delegations_page.revoke')}
+                              </Button>
+                            )}
                           </div>
                         </ColumnLayout>
                       </Container>
@@ -286,7 +293,7 @@ export default function DelegationsPage() {
                       <StatusIndicator type={statusType(d.status)}>{d.status}</StatusIndicator>
                     </div>
                     <div>
-                      <Button variant="inline-link" loading={deletingId === d.id} onClick={() => handleDelete(d.id)}>{t('pages.delegations_page.revoke')}</Button>
+                      {canMutate && <Button variant="inline-link" loading={deletingId === d.id} onClick={() => { setRevokeError(''); setRevokeTarget(d); }}>{t('pages.delegations_page.revoke')}</Button>}
                     </div>
                   </ColumnLayout>
                 </Box>
@@ -349,6 +356,19 @@ export default function DelegationsPage() {
             </FormField>
           </SpaceBetween>
         </Modal>
+
+        <ConfirmModal
+          visible={!!revokeTarget}
+          header={t('pages.delegations_page.revoke_modal_title', 'Revoke delegation')}
+          onConfirm={() => revokeTarget && handleDelete(revokeTarget)}
+          onDismiss={() => { setRevokeTarget(null); setRevokeError(''); }}
+          loading={!!revokeTarget && deletingId === revokeTarget.id}
+          confirmLabel={t('pages.delegations_page.revoke')}
+          error={revokeError || undefined}
+        >
+          {t('pages.delegations_page.revoke_confirm', 'Revoke the delegation to')}{' '}
+          <strong>{revokeTarget?.delegate_id}</strong>?
+        </ConfirmModal>
       </SpaceBetween>
     </ContentLayout>
   );

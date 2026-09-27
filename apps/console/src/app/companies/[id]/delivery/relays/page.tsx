@@ -1,5 +1,6 @@
 'use client';
 import { DataTable } from '@/components/DataTable';
+import { ConfirmModal } from '@/components/ConfirmModal';
 
 
 import {
@@ -14,9 +15,13 @@ import {
   FormField,
   Input,
   StatusIndicator,
+  Alert,
+  Flashbar,
+  FlashbarProps,
 } from '@cloudscape-design/components';
 import { useState, useEffect } from 'react';
 import { useI18n } from '@/app/i18n-provider';
+import { useCompany } from '@/contexts/CompanyContext';
 
 interface TrustedRelay {
   id: string;
@@ -27,16 +32,26 @@ interface TrustedRelay {
 
 export default function TrustedRelaysPage() {
   const { t } = useI18n();
+  const { canMutate } = useCompany();
   const [relays, setRelays] = useState<TrustedRelay[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('');
+  const [flash, setFlash] = useState<FlashbarProps.MessageDefinition[]>([]);
 
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newRelay, setNewRelay] = useState({ cidr: '', description: '' });
   const [creating, setCreating] = useState(false);
+  const [createError, setCreateError] = useState('');
 
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<TrustedRelay | null>(null);
+  const [deleteError, setDeleteError] = useState('');
+
+  const extractError = async (res: Response, fallback: string): Promise<string> => {
+    const data = (await res.json().catch(() => ({}))) as { error?: { message?: string } | string };
+    const msg = typeof data.error === 'string' ? data.error : data.error?.message;
+    return msg || fallback;
+  };
 
   useEffect(() => {
     fetchRelays();
@@ -61,6 +76,7 @@ export default function TrustedRelaysPage() {
 
   const handleCreate = async () => {
     if (!newRelay.cidr.trim()) return;
+    setCreateError('');
     setCreating(true);
     try {
       const res = await fetch('/api/admin/trusted-relays', {
@@ -75,10 +91,13 @@ export default function TrustedRelaysPage() {
       if (res.ok) {
         setShowCreateModal(false);
         setNewRelay({ cidr: '', description: '' });
+        setFlash([{ type: 'success', content: t('pages.relays_page.created', 'Relay created.'), dismissible: true, onDismiss: () => setFlash([]) }]);
         fetchRelays();
+      } else {
+        setCreateError(await extractError(res, t('pages.relays_page.create_failed', 'Failed to create relay.')));
       }
     } catch {
-      // mutation error handled by caller
+      setCreateError(t('pages.relays_page.create_failed', 'Failed to create relay.'));
     } finally {
       setCreating(false);
     }
@@ -86,17 +105,22 @@ export default function TrustedRelaysPage() {
 
   const handleDelete = async (relay: TrustedRelay) => {
     setDeletingId(relay.id);
+    setDeleteError('');
     try {
-      await fetch(`/api/admin/trusted-relays/${relay.id}`, {
+      const res = await fetch(`/api/admin/trusted-relays/${relay.id}`, {
         method: 'DELETE',
         credentials: 'include',
       });
-      fetchRelays();
+      if (res.ok) {
+        setConfirmDelete(null);
+        fetchRelays();
+      } else {
+        setDeleteError(await extractError(res, t('pages.relays_page.delete_failed', 'Failed to delete relay.')));
+      }
     } catch {
-      // mutation error handled by caller
+      setDeleteError(t('pages.relays_page.delete_failed', 'Failed to delete relay.'));
     } finally {
       setDeletingId(null);
-      setConfirmDelete(null);
     }
   };
 
@@ -122,9 +146,11 @@ export default function TrustedRelaysPage() {
           variant="h1"
           description={t('pages.relays_page.description')}
           actions={
-            <Button variant="primary" onClick={() => setShowCreateModal(true)}>
-              {t('pages.relays.create_relay')}
-            </Button>
+            canMutate ? (
+              <Button variant="primary" onClick={() => { setCreateError(''); setShowCreateModal(true); }}>
+                {t('pages.relays.create_relay')}
+              </Button>
+            ) : undefined
           }
         >
           {t('pages.relays_page.title')}
@@ -132,6 +158,7 @@ export default function TrustedRelaysPage() {
       }
     >
       <SpaceBetween size="l">
+        {flash.length > 0 && <Flashbar items={flash} />}
         <DataTable
           columnDefinitions={[
             {
@@ -156,15 +183,16 @@ export default function TrustedRelaysPage() {
             },
             {
               header: t('pages.relays_page.actions'),
-              cell: (item: TrustedRelay) => (
-                <Button
-                  variant="inline-link"
-                  onClick={() => setConfirmDelete(item)}
-                  loading={deletingId === item.id}
-                >
-                  {t('common.delete')}
-                </Button>
-              ),
+              cell: (item: TrustedRelay) =>
+                canMutate ? (
+                  <Button
+                    variant="inline-link"
+                    onClick={() => { setDeleteError(''); setConfirmDelete(item); }}
+                    loading={deletingId === item.id}
+                  >
+                    {t('common.delete')}
+                  </Button>
+                ) : null,
               width: '15%',
             },
           ]}
@@ -212,6 +240,7 @@ export default function TrustedRelaysPage() {
         header={t('pages.relays_page.create_modal_title')}
       >
         <SpaceBetween size="m">
+          {createError && <Alert type="error">{createError}</Alert>}
           <FormField
             label={t('pages.relays_page.cidr_label')}
             constraintText={t('pages.relays_page.cidr_constraint')}
@@ -233,28 +262,16 @@ export default function TrustedRelaysPage() {
       </Modal>
 
       {/* Delete Confirmation Modal */}
-      <Modal
-        onDismiss={() => setConfirmDelete(null)}
+      <ConfirmModal
         visible={!!confirmDelete}
-        size="small"
-        footer={
-          <Box float="right">
-            <SpaceBetween direction="horizontal" size="xs">
-              <Button onClick={() => setConfirmDelete(null)}>{t('common.cancel')}</Button>
-              <Button
-                variant="primary"
-                onClick={() => confirmDelete && handleDelete(confirmDelete)}
-                loading={deletingId === confirmDelete?.id}
-              >
-                {t('common.delete')}
-              </Button>
-            </SpaceBetween>
-          </Box>
-        }
         header={t('pages.relays_page.delete_modal_title')}
+        onConfirm={() => confirmDelete && handleDelete(confirmDelete)}
+        onDismiss={() => { setConfirmDelete(null); setDeleteError(''); }}
+        loading={deletingId === confirmDelete?.id}
+        error={deleteError || undefined}
       >
-        <Box>{t('pages.relays_page.delete_confirm')} <strong>{confirmDelete?.cidr}</strong>?</Box>
-      </Modal>
+        {t('pages.relays_page.delete_confirm')} <strong>{confirmDelete?.cidr}</strong>?
+      </ConfirmModal>
     </ContentLayout>
   );
 }

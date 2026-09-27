@@ -1,5 +1,6 @@
 'use client';
 import { DataTable } from '@/components/DataTable';
+import { ConfirmModal } from '@/components/ConfirmModal';
 
 import {
   ContentLayout,
@@ -13,10 +14,14 @@ import {
   FormField,
   Input,
   Select,
+  Alert,
+  Flashbar,
+  FlashbarProps,
 } from '@cloudscape-design/components';
 import { useState, useMemo } from 'react';
 import { useI18n } from '@/app/i18n-provider';
 import { useParams } from 'next/navigation';
+import { useCompany } from '@/contexts/CompanyContext';
 import {
   type DirectoryAlias,
   useCreateDirectoryAlias,
@@ -36,11 +41,14 @@ export default function AliasesPage() {
   const { t } = useI18n();
   const params = useParams();
   const companyId = params?.id as string;
+  const { canMutate } = useCompany();
 
   const { data: aliases = [], isLoading: loading } = useDirectoryAliases(companyId);
   const [filter, setFilter] = useState('');
+  const [flash, setFlash] = useState<FlashbarProps.MessageDefinition[]>([]);
 
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [createError, setCreateError] = useState('');
   const [newAlias, setNewAlias] = useState<NewAlias>({
     domain_id: '',
     address: '',
@@ -48,12 +56,18 @@ export default function AliasesPage() {
     target_id: '',
   });
   const [creating, setCreating] = useState(false);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<DirectoryAlias | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
   const createAlias = useCreateDirectoryAlias();
   const deleteAlias = useDeleteDirectoryAlias();
 
+  const errMessage = (e: unknown, fallback: string) =>
+    e instanceof Error && e.message ? e.message : fallback;
+
   const handleCreate = async () => {
     if (!newAlias.address.trim() || !newAlias.target_id.trim()) return;
+    setCreateError('');
     setCreating(true);
     try {
       if (!companyId) return;
@@ -69,33 +83,36 @@ export default function AliasesPage() {
       });
       setShowCreateModal(false);
       setNewAlias({ domain_id: '', address: '', target_kind: DirectoryAliasCreateRequestTarget_kind.user, target_id: '' });
-    } catch {
-      // mutation error handled by caller
+      setFlash([{ type: 'success', content: t('pages.aliases.created', 'Alias created.'), dismissible: true, onDismiss: () => setFlash([]) }]);
+    } catch (e) {
+      // Keep the modal open so the admin can fix the input and retry.
+      setCreateError(errMessage(e, t('pages.aliases.create_failed', 'Failed to create alias.')));
     } finally {
       setCreating(false);
     }
   };
 
-  const handleDelete = async (id: string) => {
-    setDeletingId(id);
+  const handleDelete = async (alias: DirectoryAlias) => {
+    setDeleteError('');
+    setDeleting(true);
     try {
       if (!companyId) return;
-      await deleteAlias.mutateAsync({
-        id,
-        companyId,
-      });
-    } catch {
-      // mutation error handled by caller
+      await deleteAlias.mutateAsync({ id: alias.id, companyId });
+      setDeleteTarget(null);
+      setFlash([{ type: 'success', content: t('pages.aliases.deleted', 'Alias deleted.'), dismissible: true, onDismiss: () => setFlash([]) }]);
+    } catch (e) {
+      setDeleteError(errMessage(e, t('pages.aliases.delete_failed', 'Failed to delete alias.')));
     } finally {
-      setDeletingId(null);
+      setDeleting(false);
     }
   };
 
+  // Values must match the backend PrincipalKind (user|organization|group|resource).
   const targetKindOptions = [
     { label: t('pages.aliases.target_kind_user'), value: 'user' },
     { label: t('pages.aliases.target_kind_group'), value: 'group' },
-    { label: t('pages.aliases.target_kind_external'), value: 'organization' },
-    { label: 'Resource', value: 'resource' },
+    { label: t('pages.aliases.target_kind_organization', 'Organization'), value: 'organization' },
+    { label: t('pages.aliases.target_kind_resource', 'Resource'), value: 'resource' },
   ];
 
   const filteredAliases = useMemo(() => aliases.filter(
@@ -121,9 +138,11 @@ export default function AliasesPage() {
           variant="h1"
           description={t('pages.aliases_page.description')}
           actions={
-            <Button variant="primary" onClick={() => setShowCreateModal(true)}>
-              {t('pages.aliases.add_alias')}
-            </Button>
+            canMutate ? (
+              <Button variant="primary" onClick={() => { setCreateError(''); setShowCreateModal(true); }}>
+                {t('pages.aliases.add_alias')}
+              </Button>
+            ) : undefined
           }
         >
           {t('pages.aliases_page.title')}
@@ -131,6 +150,7 @@ export default function AliasesPage() {
       }
     >
       <SpaceBetween size="l">
+        {flash.length > 0 && <Flashbar items={flash} />}
         <DataTable
           columnDefinitions={[
             {
@@ -160,15 +180,16 @@ export default function AliasesPage() {
             },
             {
               header: t('common.actions'),
-              cell: (item: DirectoryAlias) => (
-                <Button
-                  variant="inline-link"
-                  onClick={() => handleDelete(item.id)}
-                  loading={deletingId === item.id}
-                >
-                  {t('common.delete')}
-                </Button>
-              ),
+              cell: (item: DirectoryAlias) =>
+                canMutate ? (
+                  <Button
+                    variant="inline-link"
+                    onClick={() => { setDeleteError(''); setDeleteTarget(item); }}
+                    loading={deleting && deleteTarget?.id === item.id}
+                  >
+                    {t('common.delete')}
+                  </Button>
+                ) : null,
               width: '5%',
             },
           ]}
@@ -215,6 +236,7 @@ export default function AliasesPage() {
         header={t('pages.aliases.create_modal_title')}
       >
         <SpaceBetween size="m">
+          {createError && <Alert type="error">{createError}</Alert>}
           <FormField label={t('pages.aliases.domain_label')}>
             <Input
               value={newAlias.domain_id}
@@ -254,6 +276,18 @@ export default function AliasesPage() {
           </FormField>
         </SpaceBetween>
       </Modal>
+
+      <ConfirmModal
+        visible={!!deleteTarget}
+        header={t('pages.aliases.delete_modal_title', 'Delete alias')}
+        onConfirm={() => deleteTarget && handleDelete(deleteTarget)}
+        onDismiss={() => { setDeleteTarget(null); setDeleteError(''); }}
+        loading={deleting}
+        error={deleteError || undefined}
+      >
+        {t('pages.aliases.delete_confirm', 'Delete the alias')}{' '}
+        <strong>{deleteTarget?.address}</strong>?
+      </ConfirmModal>
     </ContentLayout>
   );
 }

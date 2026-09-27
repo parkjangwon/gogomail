@@ -14,10 +14,12 @@ import {
   FormField,
   Input,
   StatusIndicator,
+  Alert,
 } from '@cloudscape-design/components';
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import { useI18n } from '@/app/i18n-provider';
+import { useCompany } from '@/contexts/CompanyContext';
 
 interface LegalHold {
   id: string;
@@ -32,6 +34,7 @@ export default function LegalHoldsPage() {
   const { t } = useI18n();
   const params = useParams();
   const companyId = params?.id as string;
+  const { canMutate } = useCompany();
 
   const [holds, setHolds] = useState<LegalHold[]>([]);
   const [loading, setLoading] = useState(true);
@@ -45,6 +48,7 @@ export default function LegalHoldsPage() {
 
   const [deleteTarget, setDeleteTarget] = useState<LegalHold | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
 
   const fetchHolds = async () => {
     setLoading(true);
@@ -90,14 +94,24 @@ export default function LegalHoldsPage() {
   const handleDelete = async () => {
     if (!deleteTarget) return;
     setDeleting(true);
+    setDeleteError('');
     try {
-      await fetch(`/api/admin/companies/${companyId}/legal-holds/${deleteTarget.id}`, {
+      const res = await fetch(`/api/admin/companies/${companyId}/legal-holds/${deleteTarget.id}`, {
         method: 'DELETE',
         credentials: 'include',
       });
+      if (!res.ok) {
+        // Compliance-critical: a failed release must NOT look like success.
+        const data = (await res.json().catch(() => ({}))) as { error?: { message?: string } | string };
+        const msg = typeof data.error === 'string' ? data.error : data.error?.message;
+        setDeleteError(msg || t('legal_holds.release_failed', 'Failed to release legal hold.'));
+        return;
+      }
       setDeleteTarget(null);
       setSelected([]);
       fetchHolds();
+    } catch (e) {
+      setDeleteError(String(e));
     } finally {
       setDeleting(false);
     }
@@ -118,9 +132,11 @@ export default function LegalHoldsPage() {
           variant="h1"
           description={t('legal_holds.description')}
           actions={
-            <Button variant="primary" onClick={() => setCreateVisible(true)}>
-              {t('legal_holds.create_hold')}
-            </Button>
+            canMutate ? (
+              <Button variant="primary" onClick={() => setCreateVisible(true)}>
+                {t('legal_holds.create_hold')}
+              </Button>
+            ) : undefined
           }
         >
           {t('legal_holds.title')}
@@ -151,11 +167,12 @@ export default function LegalHoldsPage() {
           },
           {
             header: '',
-            cell: (item: LegalHold) => (
-              <Button variant="inline-link" onClick={() => setDeleteTarget(item)}>
-                {t('legal_holds.release')}
-              </Button>
-            ),
+            cell: (item: LegalHold) =>
+              canMutate ? (
+                <Button variant="inline-link" onClick={() => { setDeleteError(''); setDeleteTarget(item); }}>
+                  {t('legal_holds.release')}
+                </Button>
+              ) : null,
             width: '10%',
           },
         ]}
@@ -168,8 +185,8 @@ export default function LegalHoldsPage() {
             variant="h2"
             counter={`(${holds.length})`}
             actions={
-              selected.length > 0 && (
-                <Button variant="normal" onClick={() => setDeleteTarget(selected[0])}>
+              canMutate && selected.length > 0 && (
+                <Button variant="normal" onClick={() => { setDeleteError(''); setDeleteTarget(selected[0]); }}>
                   {t('legal_holds.release_hold')}
                 </Button>
               )
@@ -223,13 +240,13 @@ export default function LegalHoldsPage() {
       {/* Delete confirmation */}
       <Modal
         visible={!!deleteTarget}
-        onDismiss={() => setDeleteTarget(null)}
+        onDismiss={() => { setDeleteTarget(null); setDeleteError(''); }}
         size="small"
         header={t('legal_holds.release_modal')}
         footer={
           <Box float="right">
             <SpaceBetween direction="horizontal" size="xs">
-              <Button onClick={() => setDeleteTarget(null)}>{t('common.cancel')}</Button>
+              <Button onClick={() => { setDeleteTarget(null); setDeleteError(''); }} disabled={deleting}>{t('common.cancel')}</Button>
               <Button variant="primary" onClick={handleDelete} loading={deleting}>{t('legal_holds.release')}</Button>
             </SpaceBetween>
           </Box>
@@ -241,6 +258,7 @@ export default function LegalHoldsPage() {
             {t('legal_holds.release_confirm_prefix')} <strong>{deleteTarget?.user_email}</strong>?
             {t('legal_holds.release_confirm_suffix')}
           </Box>
+          {deleteError && <Alert type="error">{deleteError}</Alert>}
         </SpaceBetween>
       </Modal>
     </ContentLayout>
