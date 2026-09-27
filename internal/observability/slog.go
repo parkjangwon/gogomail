@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"strconv"
 
+	"github.com/gogomail/gogomail/internal/database"
 	"github.com/gogomail/gogomail/internal/delivery"
 	"github.com/gogomail/gogomail/internal/httpapi"
 	"github.com/gogomail/gogomail/internal/ldapgw"
@@ -14,6 +15,8 @@ import (
 type SlogAdapter struct {
 	Logger *slog.Logger
 }
+
+var _ database.RouterMetrics = SlogAdapter{}
 
 func NewSlogAdapter(logger *slog.Logger) SlogAdapter {
 	if logger == nil {
@@ -131,4 +134,20 @@ func (a SlogAdapter) logger() *slog.Logger {
 		return a.Logger
 	}
 	return slog.Default()
+}
+
+// ObserveReplicaLag logs the most recently measured read-replica apply lag.
+func (a SlogAdapter) ObserveReplicaLag(seconds float64) {
+	a.logger().Debug("database replica lag", "component", "database", "replica_lag_seconds", seconds)
+}
+
+// ObserveReplicaFallback logs a replica-eligible read that was served by the
+// primary instead.
+func (a SlogAdapter) ObserveReplicaFallback(reason string) {
+	a.logger().Warn("database read fell back to primary", "component", "database", "reason", reason)
+}
+
+// ObserveReplicaHealth logs a change in read-replica health.
+func (a SlogAdapter) ObserveReplicaHealth(healthy bool) {
+	a.logger().Info("database replica health probe", "component", "database", "healthy", healthy)
 }

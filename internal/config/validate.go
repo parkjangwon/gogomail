@@ -840,7 +840,17 @@ func (c Config) Validate() error {
 		if strings.Contains(c.DatabaseURL, "sslmode=disable") {
 			return fmt.Errorf("GOGOMAIL_DATABASE_URL must not use sslmode=disable in production")
 		}
+		if strings.TrimSpace(c.DatabaseReplicaURL) != "" && strings.Contains(c.DatabaseReplicaURL, "sslmode=disable") {
+			return fmt.Errorf("GOGOMAIL_DATABASE_REPLICA_URL must not use sslmode=disable in production")
+		}
+	}
+	if strings.TrimSpace(c.DatabaseReplicaURL) != "" {
+		if strings.TrimSpace(c.DatabaseReplicaURL) == strings.TrimSpace(c.DatabaseURL) {
+			return fmt.Errorf("GOGOMAIL_DATABASE_REPLICA_URL must differ from GOGOMAIL_DATABASE_URL")
+		}
+		if c.DBReplicaMaxStaleness < 0 {
+			return fmt.Errorf("GOGOMAIL_DB_REPLICA_MAX_STALENESS must not be negative")
+		}
 	}
 	return nil
 }
-

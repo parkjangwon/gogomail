@@ -21,6 +21,7 @@ import (
 	"github.com/gogomail/gogomail/internal/apimeter"
 	"github.com/gogomail/gogomail/internal/auth"
 	"github.com/gogomail/gogomail/internal/config"
+	"github.com/gogomail/gogomail/internal/database"
 	"github.com/gogomail/gogomail/internal/delivery"
 	"github.com/gogomail/gogomail/internal/dkim"
 	"github.com/gogomail/gogomail/internal/httpapi"
@@ -62,6 +63,18 @@ func ldapMetrics(cfg config.Config, logger *slog.Logger) ldapgw.Metrics {
 }
 
 func webDAVMetrics(cfg config.Config, logger *slog.Logger) httpapi.WebDAVMetrics {
+	switch cfg.MetricsBackend {
+	case "slog":
+		return observability.NewSlogAdapter(logger)
+	case "prometheus":
+		return sharedPrometheusAdapter()
+	}
+	return nil
+}
+
+// databaseRouterMetrics selects the metrics sink for the read/write Router.
+// Returns nil when metrics are disabled so the Router uses its no-op sink.
+func databaseRouterMetrics(cfg config.Config, logger *slog.Logger) database.RouterMetrics {
 	switch cfg.MetricsBackend {
 	case "slog":
 		return observability.NewSlogAdapter(logger)

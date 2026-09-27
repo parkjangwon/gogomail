@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/gogomail/gogomail/internal/database"
 	"github.com/gogomail/gogomail/internal/delivery"
 	"github.com/gogomail/gogomail/internal/httpapi"
 	"github.com/gogomail/gogomail/internal/ldapgw"
@@ -20,12 +21,14 @@ var _ smtpd.Metrics = (*PrometheusAdapter)(nil)
 var _ delivery.Metrics = (*PrometheusAdapter)(nil)
 var _ ldapgw.Metrics = (*PrometheusAdapter)(nil)
 var _ httpapi.WebDAVMetrics = (*PrometheusAdapter)(nil)
+var _ database.RouterMetrics = (*PrometheusAdapter)(nil)
 
 var durationBuckets = []float64{.005, .01, .025, .05, .1, .25, .5, 1, 2.5, 5, 10}
 
 type PrometheusAdapter struct {
 	mu         sync.Mutex
 	counters   map[promCounterKey]uint64
+	gauges     map[promCounterKey]float64
 	histograms map[promHistogramKey]*promHistogram
 }
 
@@ -44,6 +47,7 @@ type promCounterKey struct {
 func NewPrometheusAdapter() *PrometheusAdapter {
 	return &PrometheusAdapter{
 		counters:   make(map[promCounterKey]uint64),
+		gauges:     make(map[promCounterKey]float64),
 		histograms: make(map[promHistogramKey]*promHistogram),
 	}
 }
@@ -97,6 +101,30 @@ func (a *PrometheusAdapter) ObserveWebDAV(_ context.Context, event httpapi.WebDA
 	})
 }
 
+// ObserveReplicaLag records the most recently measured read-replica apply lag.
+func (a *PrometheusAdapter) ObserveReplicaLag(seconds float64) {
+	a.setGauge("gogomail_database_replica_lag_seconds", nil, seconds)
+}
+
+// ObserveReplicaFallback increments when a replica-eligible read was served by
+// the primary instead. reason is a low-cardinality label.
+func (a *PrometheusAdapter) ObserveReplicaFallback(reason string) {
+	if strings.TrimSpace(reason) == "" {
+		reason = "unknown"
+	}
+	a.inc("gogomail_database_replica_fallback_total", map[string]string{"reason": reason})
+}
+
+// ObserveReplicaHealth records the current read-replica health state (1 healthy,
+// 0 unhealthy).
+func (a *PrometheusAdapter) ObserveReplicaHealth(healthy bool) {
+	value := 0.0
+	if healthy {
+		value = 1.0
+	}
+	a.setGauge("gogomail_database_replica_healthy", nil, value)
+}
+
 // ObserveHTTPRequest records HTTP request duration as a histogram.
 func (a *PrometheusAdapter) ObserveHTTPRequest(method, route, status string, dur time.Duration) {
 	labels := map[string]string{
@@ -121,6 +149,19 @@ func (a *PrometheusAdapter) Text() string {
 	var b strings.Builder
 	for _, key := range keys {
 		b.WriteString(promLine(key, a.counters[key]))
+		b.WriteByte('\n')
+	}
+
+	// Emit gauges. Sort by rendered line for deterministic output.
+	gaugeKeys := make([]promCounterKey, 0, len(a.gauges))
+	for key := range a.gauges {
+		gaugeKeys = append(gaugeKeys, key)
+	}
+	sort.Slice(gaugeKeys, func(i, j int) bool {
+		return promGaugeLine(gaugeKeys[i], a.gauges[gaugeKeys[i]]) < promGaugeLine(gaugeKeys[j], a.gauges[gaugeKeys[j]])
+	})
+	for _, key := range gaugeKeys {
+		b.WriteString(promGaugeLine(key, a.gauges[key]))
 		b.WriteByte('\n')
 	}
 
@@ -151,6 +192,15 @@ func (a *PrometheusAdapter) inc(name string, labels map[string]string) {
 	a.counters[promCounterKey{Name: name, Labels: promLabels(labels)}]++
 }
 
+func (a *PrometheusAdapter) setGauge(name string, labels map[string]string, value float64) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.gauges == nil {
+		a.gauges = make(map[promCounterKey]float64)
+	}
+	a.gauges[promCounterKey{Name: name, Labels: promLabels(labels)}] = value
+}
+
 func (a *PrometheusAdapter) observe(name string, buckets []float64, value float64, labels map[string]string) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
@@ -171,6 +221,13 @@ func promLine(key promCounterKey, value uint64) string {
 		return fmt.Sprintf("%s %d", key.Name, value)
 	}
 	return fmt.Sprintf("%s{%s} %d", key.Name, key.Labels, value)
+}
+
+func promGaugeLine(key promCounterKey, value float64) string {
+	if key.Labels == "" {
+		return fmt.Sprintf("%s %g", key.Name, value)
+	}
+	return fmt.Sprintf("%s{%s} %g", key.Name, key.Labels, value)
 }
 
 func promLabels(labels map[string]string) string {

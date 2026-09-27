@@ -22,6 +22,14 @@ type S3Options struct {
 	SessionToken    string
 	ForcePathStyle  bool
 	HTTPClient      *http.Client
+	// ReplicaRegion and ReplicaBucket describe the destination of an
+	// S3 Cross-Region Replication (CRR) rule. GoGoMail does not perform the
+	// replication itself — that is configured on the bucket via a replication
+	// rule — but recording the destination lets the control plane surface the
+	// active-passive storage topology and lets operators fail reads over to the
+	// replica bucket during a regional outage. Both are optional.
+	ReplicaRegion string
+	ReplicaBucket string
 }
 
 type S3Store struct {
@@ -37,6 +45,8 @@ type S3Store struct {
 	uploadClient    *http.Client
 	now             func() time.Time
 	logger          *slog.Logger
+	replicaRegion   string
+	replicaBucket   string
 }
 
 type S3MoveCleanupError struct {
@@ -113,6 +123,21 @@ func NewS3Store(opts S3Options) (*S3Store, error) {
 		}
 	}
 	forcePathStyle := opts.ForcePathStyle || s3BucketNeedsPathStyle(endpoint, bucket)
+	replicaRegion := strings.TrimSpace(opts.ReplicaRegion)
+	replicaBucket := strings.TrimSpace(opts.ReplicaBucket)
+	if replicaRegion != "" {
+		if err := ValidateS3Region(replicaRegion); err != nil {
+			return nil, fmt.Errorf("s3 replica region: %w", err)
+		}
+	}
+	if replicaBucket != "" {
+		if err := ValidateS3BucketName(replicaBucket); err != nil {
+			return nil, fmt.Errorf("s3 replica bucket: %w", err)
+		}
+	}
+	if replicaBucket != "" && replicaBucket == bucket && replicaRegion == region {
+		return nil, fmt.Errorf("s3 replica must target a different region or bucket than the primary")
+	}
 	return &S3Store{
 		endpoint:        endpoint,
 		region:          region,
@@ -125,7 +150,19 @@ func NewS3Store(opts S3Options) (*S3Store, error) {
 		client:          client,
 		uploadClient:    uploadClient,
 		now:             time.Now,
+		replicaRegion:   replicaRegion,
+		replicaBucket:   replicaBucket,
 	}, nil
+}
+
+// ReplicaTarget reports the configured S3 Cross-Region Replication destination
+// (region, bucket) and whether a replica is configured. Replication itself is
+// performed by the S3 provider's replication rule, not by GoGoMail.
+func (s *S3Store) ReplicaTarget() (region, bucket string, configured bool) {
+	if s == nil || s.replicaBucket == "" {
+		return "", "", false
+	}
+	return s.replicaRegion, s.replicaBucket, true
 }
 
 func (s *S3Store) WithLogger(logger *slog.Logger) *S3Store {

@@ -50,6 +50,12 @@ api_metering_consumer_block: 1s
 search_index_backend: disabled
 search_index_max_body_bytes: 1048576
 database_url: postgres://gogomail:gogomail@localhost:15432/gogomail?sslmode=disable
+# Optional read replica for active-passive multi-region. See docs/MULTI_REGION.md.
+# Reads (list/search) route here when healthy and within max staleness; writes
+# always use database_url. Leave empty to disable.
+database_replica_url: ""
+db_replica_max_staleness: 10s
+db_replica_fallback_to_primary: true
 redis_addr: localhost:16379
 storage_backend: local
 storage_backend_compat_labels: []
@@ -63,6 +69,10 @@ storage_s3_session_token: ""
 storage_s3_force_path_style: false
 storage_s3_ca_cert_file: ""
 storage_s3_insecure_skip_verify: false
+# S3 Cross-Region Replication destination (metadata only; replication is a
+# bucket-side rule). See docs/MULTI_REGION.md.
+storage_s3_replica_region: ""
+storage_s3_replica_bucket: ""
 migration_dir: migrations
 mailstore_root: var/mailstore
 local_recipients:

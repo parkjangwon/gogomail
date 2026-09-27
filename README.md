@@ -238,6 +238,7 @@ All GoGoMail write actions require a human-readable `reason`; destructive operat
 | Security model | [docs/SECURITY.md](docs/SECURITY.md) |
 | Security review | [docs/SECURITY_REVIEW.md](docs/SECURITY_REVIEW.md) |
 | Operations / runbooks | [docs/OPERATIONS.md](docs/OPERATIONS.md) |
+| Multi-region failover | [docs/MULTI_REGION.md](docs/MULTI_REGION.md) |
 | CardDAV client interop | [docs/CARDDAV_INTEROP.md](docs/CARDDAV_INTEROP.md) |
 | Topology patterns | [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) |
 | OpenAPI contract | [docs/openapi.yaml](docs/openapi.yaml) |

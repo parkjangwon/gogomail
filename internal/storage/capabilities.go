@@ -3,26 +3,29 @@ package storage
 import "strings"
 
 type BackendCapabilities struct {
-	ContractVersion       string   `json:"contract_version"`
-	ConfiguredBackend     string   `json:"configured_backend"`
-	BackendClass          string   `json:"backend_class"`
-	ActiveLabels          []string `json:"active_labels"`
-	Operations            []string `json:"operations"`
-	LocalFilesystem       bool     `json:"local_filesystem"`
-	S3Compatible          bool     `json:"s3_compatible"`
-	PathStyleAddressing   bool     `json:"path_style_addressing"`
-	CompatLabelsEnabled   bool     `json:"compat_labels_enabled"`
-	ReadinessProbe        bool     `json:"readiness_probe"`
-	EndpointOrigin        string   `json:"endpoint_origin,omitempty"`
-	Bucket                string   `json:"bucket,omitempty"`
-	Prefix                string   `json:"prefix,omitempty"`
-	Region                string   `json:"region,omitempty"`
-	SecretsRedacted       bool     `json:"secrets_redacted"`
-	SupportsBackendSwitch bool     `json:"supports_backend_switch"`
-	SupportsLocalNFS      bool     `json:"supports_local_nfs"`
-	SupportsMinIO         bool     `json:"supports_minio"`
-	SupportsAWSCompatible bool     `json:"supports_aws_compatible"`
-	RequiresByteMigration bool     `json:"requires_byte_migration"`
+	ContractVersion        string   `json:"contract_version"`
+	ConfiguredBackend      string   `json:"configured_backend"`
+	BackendClass           string   `json:"backend_class"`
+	ActiveLabels           []string `json:"active_labels"`
+	Operations             []string `json:"operations"`
+	LocalFilesystem        bool     `json:"local_filesystem"`
+	S3Compatible           bool     `json:"s3_compatible"`
+	PathStyleAddressing    bool     `json:"path_style_addressing"`
+	CompatLabelsEnabled    bool     `json:"compat_labels_enabled"`
+	ReadinessProbe         bool     `json:"readiness_probe"`
+	EndpointOrigin         string   `json:"endpoint_origin,omitempty"`
+	Bucket                 string   `json:"bucket,omitempty"`
+	Prefix                 string   `json:"prefix,omitempty"`
+	Region                 string   `json:"region,omitempty"`
+	SecretsRedacted        bool     `json:"secrets_redacted"`
+	SupportsBackendSwitch  bool     `json:"supports_backend_switch"`
+	SupportsLocalNFS       bool     `json:"supports_local_nfs"`
+	SupportsMinIO          bool     `json:"supports_minio"`
+	SupportsAWSCompatible  bool     `json:"supports_aws_compatible"`
+	RequiresByteMigration  bool     `json:"requires_byte_migration"`
+	CrossRegionReplication bool     `json:"cross_region_replication"`
+	ReplicaRegion          string   `json:"replica_region,omitempty"`
+	ReplicaBucket          string   `json:"replica_bucket,omitempty"`
 }
 
 func SupportMatrixForLabels(labels []string) (supportsLocalNFS bool, supportsMinIO bool, supportsAWSCompatible bool) {

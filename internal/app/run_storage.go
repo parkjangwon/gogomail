@@ -116,6 +116,12 @@ func storageCapabilitiesForConfig(cfg config.Config) storage.BackendCapabilities
 		} else {
 			capabilities.PathStyleAddressing = cfg.StorageS3ForcePathStyle || backend == "minio"
 		}
+		replicaBucket := strings.TrimSpace(cfg.StorageS3ReplicaBucket)
+		if replicaBucket != "" {
+			capabilities.CrossRegionReplication = true
+			capabilities.ReplicaRegion = strings.TrimSpace(cfg.StorageS3ReplicaRegion)
+			capabilities.ReplicaBucket = replicaBucket
+		}
 	} else if capabilities.LocalFilesystem {
 		capabilities.BackendClass = "local"
 	}
@@ -167,6 +173,8 @@ func s3OptionsForConfig(cfg config.Config, backend string) (storage.S3Options, e
 		SessionToken:    cfg.StorageS3SessionToken,
 		ForcePathStyle:  cfg.StorageS3ForcePathStyle || backend == "minio",
 		HTTPClient:      client,
+		ReplicaRegion:   cfg.StorageS3ReplicaRegion,
+		ReplicaBucket:   cfg.StorageS3ReplicaBucket,
 	}, nil
 }
 
@@ -269,6 +277,54 @@ func openDatabase(ctx context.Context, cfg config.Config) (*sql.DB, error) {
 		ConnMaxLifetime: cfg.DBConnMaxLifetime,
 		ConnMaxIdleTime: cfg.DBConnMaxIdleTime,
 	})
+}
+
+// openDatabaseRouter opens the primary pool and, when a read-replica DSN is
+// configured, the replica pool, returning a Router that routes reads to the
+// replica (with health-based fallback to primary) and writes to the primary.
+// metrics is optional; when nil the Router uses a no-op sink.
+func openDatabaseRouter(ctx context.Context, cfg config.Config, metrics database.RouterMetrics) (*database.Router, error) {
+	return database.OpenRouter(ctx, cfg.DatabaseURL, cfg.DatabaseReplicaURL,
+		database.Options{
+			MaxOpenConns:    cfg.DBMaxOpenConns,
+			MaxIdleConns:    cfg.DBMaxIdleConns,
+			ConnMaxLifetime: cfg.DBConnMaxLifetime,
+			ConnMaxIdleTime: cfg.DBConnMaxIdleTime,
+		},
+		database.RouterOptions{
+			MaxStaleness:      cfg.DBReplicaMaxStaleness,
+			FallbackToPrimary: cfg.DBReplicaFallbackToPrimary,
+			Metrics:           metrics,
+		},
+	)
+}
+
+// databaseRouterReadinessCheck verifies primary connectivity and migration
+// version through the Router, and reports whether a read replica is configured.
+// A replica probe failure is surfaced in the detail string but does not fail the
+// check, because the service can operate primary-only.
+func databaseRouterReadinessCheck(name string, router *database.Router, migrationDir string) httpapi.ReadinessCheckFunc {
+	return func(ctx context.Context) httpapi.ReadinessCheck {
+		if router == nil {
+			return httpapi.ReadinessCheck{Name: name, Status: "error", Detail: "database router is not configured"}
+		}
+		if err := router.Primary().PingContext(ctx); err != nil {
+			return httpapi.ReadinessCheck{Name: name, Status: "error", Detail: err.Error()}
+		}
+		current, expected, err := database.MigrationVersionReady(ctx, router.Primary(), migrationDir)
+		if err != nil {
+			return httpapi.ReadinessCheck{Name: name, Status: "error", Detail: err.Error()}
+		}
+		replicaState := "disabled"
+		if router.HasReplica() {
+			replicaState = "configured"
+		}
+		return httpapi.ReadinessCheck{
+			Name:   name,
+			Status: "ok",
+			Detail: fmt.Sprintf("ping ok; migration version %d/%d; read_replica=%s", current, expected, replicaState),
+		}
+	}
 }
 
 func tokenManagerForConfig(cfg config.Config, checker auth.RevocationChecker) (*auth.TokenManager, error) {

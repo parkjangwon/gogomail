@@ -22,122 +22,127 @@ type AdminBootstrapConfig struct {
 }
 
 type Config struct {
-	Environment                         string
-	HTTPAddr                            string
-	HTTPReadTimeout                     time.Duration
-	HTTPWriteTimeout                    time.Duration
-	HTTPIdleTimeout                     time.Duration
-	HTTPReadHeaderTimeout               time.Duration
-	HTTPMaxHeaderBytes                  int
-	SMTPAddr                            string
-	InboundSMTPAddr                     string
-	InboundTrustedRelays                []string
-	IMAPAddr                            string
-	IMAPTLSCertFile                     string
-	IMAPTLSKeyFile                      string
-	IMAPAllowInsecureAuth               bool
-	IMAPMaxConnections                  int
-	IMAPReadTimeout                     time.Duration
-	IMAPWriteTimeout                    time.Duration
-	IMAPIdleTimeout                     time.Duration
-	IMAPNotifyConsumerGroup             string
-	IMAPNotifyConsumerName              string
-	IMAPNotifyConsumerCount             int
-	IMAPNotifyConsumerBlock             time.Duration
-	IMAPNotifyConsumerClaimIdle         time.Duration
-	IMAPNotifyConsumerMaxDeliveries     int64
-	IMAPNotifyConsumerDeadLetterStream  string
-	WellKnownCalDAVURL                  string
-	WellKnownCardDAVURL                 string
-	POP3Addr                            string
-	POP3SAddr                           string
-	POP3TLSCertFile                     string
-	POP3TLSKeyFile                      string
-	POP3MaxConnections                  int
-	POP3IdleTimeout                     time.Duration
-	CalDAVAddr                          string
-	CalDAVAllowInsecureAuth             bool
-	CalDAVTrustForwardedProto           bool
-	CalDAVTrustedProxies                []string
-	CalDAVScheduling                    bool
-	CardDAVAddr                         string
-	CardDAVAllowInsecureAuth            bool
-	CardDAVTrustForwardedProto          bool
-	CardDAVTrustedProxies               []string
-	WebDAVAddr                          string
-	WebDAVDepthInfinityEnabled          bool
-	LDAPAddr                            string
-	LDAPSAddr                           string
-	LDAPTLSCertFile                     string
-	LDAPTLSKeyFile                      string
-	LDAPCompanyID                       string
-	LDAPBaseDomain                      string
-	LDAPReferralURLs                    []string
-	SCIMToken                           string
-	SCIMDefaultDomainID                 string
-	SubmissionAddr                      string
-	SubmissionSMTPSAddr                 string
-	SubmissionMaxConnections            int
-	SubmissionMaxRecipients             int
-	SubmissionMaxMessageBytes           int64
-	SubmissionAddReceivedHeader         bool
-	SubmissionSupportSMTPUTF8           bool
-	SubmissionSupportRequireTLS         bool
-	SubmissionSupportDSN                bool
-	SubmissionSupportBinaryMIME         bool
-	SMTPTLSCertFile                     string
-	SMTPTLSKeyFile                      string
-	SubmissionAllowInsecureAuth         bool
-	DatabaseURL                         string
-	DBMaxOpenConns                      int
-	DBMaxIdleConns                      int
-	DBConnMaxLifetime                   time.Duration
-	DBConnMaxIdleTime                   time.Duration
-	RedisAddr                           string
-	RedisPassword                       string
-	RedisSentinelAddrs                  []string // GOGOMAIL_REDIS_SENTINEL_ADDRS (comma-separated)
-	RedisMasterName                     string   // GOGOMAIL_REDIS_MASTER_NAME
-	StorageBackend                      string
-	StorageBackendCompatLabels          []string
-	StorageS3Endpoint                   string
-	StorageS3Region                     string
-	StorageS3Bucket                     string
-	StorageS3Prefix                     string
-	StorageS3AccessKeyID                string
-	StorageS3SecretAccessKey            string
-	StorageS3SessionToken               string
-	StorageS3ForcePathStyle             bool
-	StorageS3CACertFile                 string
-	StorageS3InsecureSkipVerify         bool
-	MigrationDir                        string
-	SMTPDomain                          string
-	SMTPReadTimeout                     time.Duration
-	SMTPWriteTimeout                    time.Duration
-	SMTPMaxConnections                  int
-	SMTPMaxRecipients                   int
-	SMTPMaxMessageBytes                 int64
-	SMTPRequireAuth                     bool
-	SMTPAddReceivedHeader               bool
-	SMTPAuthVerificationEnabled         bool
-	SMTPAuthservID                      string
-	SMTPDMARCEnforcement                string
-	SMTPMaxDKIMVerifications            int
-	SMTPSupportSMTPUTF8                 bool
-	SMTPSupportRequireTLS               bool
-	SMTPSupportDSN                      bool
-	SMTPSupportBinaryMIME               bool
-	MailstoreRoot                       string
-	LocalRecipients                     []string
-	DedupBackend                        string
-	RateLimitBackend                    string
-	BackpressureBackend                 string
-	MetricsBackend                      string
+	Environment                        string
+	HTTPAddr                           string
+	HTTPReadTimeout                    time.Duration
+	HTTPWriteTimeout                   time.Duration
+	HTTPIdleTimeout                    time.Duration
+	HTTPReadHeaderTimeout              time.Duration
+	HTTPMaxHeaderBytes                 int
+	SMTPAddr                           string
+	InboundSMTPAddr                    string
+	InboundTrustedRelays               []string
+	IMAPAddr                           string
+	IMAPTLSCertFile                    string
+	IMAPTLSKeyFile                     string
+	IMAPAllowInsecureAuth              bool
+	IMAPMaxConnections                 int
+	IMAPReadTimeout                    time.Duration
+	IMAPWriteTimeout                   time.Duration
+	IMAPIdleTimeout                    time.Duration
+	IMAPNotifyConsumerGroup            string
+	IMAPNotifyConsumerName             string
+	IMAPNotifyConsumerCount            int
+	IMAPNotifyConsumerBlock            time.Duration
+	IMAPNotifyConsumerClaimIdle        time.Duration
+	IMAPNotifyConsumerMaxDeliveries    int64
+	IMAPNotifyConsumerDeadLetterStream string
+	WellKnownCalDAVURL                 string
+	WellKnownCardDAVURL                string
+	POP3Addr                           string
+	POP3SAddr                          string
+	POP3TLSCertFile                    string
+	POP3TLSKeyFile                     string
+	POP3MaxConnections                 int
+	POP3IdleTimeout                    time.Duration
+	CalDAVAddr                         string
+	CalDAVAllowInsecureAuth            bool
+	CalDAVTrustForwardedProto          bool
+	CalDAVTrustedProxies               []string
+	CalDAVScheduling                   bool
+	CardDAVAddr                        string
+	CardDAVAllowInsecureAuth           bool
+	CardDAVTrustForwardedProto         bool
+	CardDAVTrustedProxies              []string
+	WebDAVAddr                         string
+	WebDAVDepthInfinityEnabled         bool
+	LDAPAddr                           string
+	LDAPSAddr                          string
+	LDAPTLSCertFile                    string
+	LDAPTLSKeyFile                     string
+	LDAPCompanyID                      string
+	LDAPBaseDomain                     string
+	LDAPReferralURLs                   []string
+	SCIMToken                          string
+	SCIMDefaultDomainID                string
+	SubmissionAddr                     string
+	SubmissionSMTPSAddr                string
+	SubmissionMaxConnections           int
+	SubmissionMaxRecipients            int
+	SubmissionMaxMessageBytes          int64
+	SubmissionAddReceivedHeader        bool
+	SubmissionSupportSMTPUTF8          bool
+	SubmissionSupportRequireTLS        bool
+	SubmissionSupportDSN               bool
+	SubmissionSupportBinaryMIME        bool
+	SMTPTLSCertFile                    string
+	SMTPTLSKeyFile                     string
+	SubmissionAllowInsecureAuth        bool
+	DatabaseURL                        string
+	DBMaxOpenConns                     int
+	DBMaxIdleConns                     int
+	DBConnMaxLifetime                  time.Duration
+	DBConnMaxIdleTime                  time.Duration
+	DatabaseReplicaURL                 string        // GOGOMAIL_DATABASE_REPLICA_URL — optional read-replica DSN (active-passive multi-region)
+	DBReplicaMaxStaleness              time.Duration // GOGOMAIL_DB_REPLICA_MAX_STALENESS — replica lag above which reads fall back to primary
+	DBReplicaFallbackToPrimary         bool          // GOGOMAIL_DB_REPLICA_FALLBACK_TO_PRIMARY — route reads to primary when the replica is unhealthy
+	RedisAddr                          string
+	RedisPassword                      string
+	RedisSentinelAddrs                 []string // GOGOMAIL_REDIS_SENTINEL_ADDRS (comma-separated)
+	RedisMasterName                    string   // GOGOMAIL_REDIS_MASTER_NAME
+	StorageBackend                     string
+	StorageBackendCompatLabels         []string
+	StorageS3Endpoint                  string
+	StorageS3Region                    string
+	StorageS3Bucket                    string
+	StorageS3Prefix                    string
+	StorageS3AccessKeyID               string
+	StorageS3SecretAccessKey           string
+	StorageS3SessionToken              string
+	StorageS3ForcePathStyle            bool
+	StorageS3CACertFile                string
+	StorageS3InsecureSkipVerify        bool
+	StorageS3ReplicaRegion             string // GOGOMAIL_STORAGE_S3_REPLICA_REGION — destination region for cross-region replication (CRR)
+	StorageS3ReplicaBucket             string // GOGOMAIL_STORAGE_S3_REPLICA_BUCKET — destination bucket for cross-region replication (CRR)
+	MigrationDir                       string
+	SMTPDomain                         string
+	SMTPReadTimeout                    time.Duration
+	SMTPWriteTimeout                   time.Duration
+	SMTPMaxConnections                 int
+	SMTPMaxRecipients                  int
+	SMTPMaxMessageBytes                int64
+	SMTPRequireAuth                    bool
+	SMTPAddReceivedHeader              bool
+	SMTPAuthVerificationEnabled        bool
+	SMTPAuthservID                     string
+	SMTPDMARCEnforcement               string
+	SMTPMaxDKIMVerifications           int
+	SMTPSupportSMTPUTF8                bool
+	SMTPSupportRequireTLS              bool
+	SMTPSupportDSN                     bool
+	SMTPSupportBinaryMIME              bool
+	MailstoreRoot                      string
+	LocalRecipients                    []string
+	DedupBackend                       string
+	RateLimitBackend                   string
+	BackpressureBackend                string
+	MetricsBackend                     string
 	// OTel tracing
-	OTelEnabled          bool   // GOGOMAIL_OTEL_ENABLED (default false)
-	OTelEndpoint         string // GOGOMAIL_OTEL_ENDPOINT (default "http://localhost:4318")
-	OTelServiceName      string // GOGOMAIL_OTEL_SERVICE_NAME (default "gogomail")
-	OTelServiceVersion   string // GOGOMAIL_OTEL_SERVICE_VERSION (default "dev")
-	LogFormat            string
+	OTelEnabled                         bool   // GOGOMAIL_OTEL_ENABLED (default false)
+	OTelEndpoint                        string // GOGOMAIL_OTEL_ENDPOINT (default "http://localhost:4318")
+	OTelServiceName                     string // GOGOMAIL_OTEL_SERVICE_NAME (default "gogomail")
+	OTelServiceVersion                  string // GOGOMAIL_OTEL_SERVICE_VERSION (default "dev")
+	LogFormat                           string
 	MilterEnabled                       bool
 	MilterAddr                          string
 	MilterTimeout                       time.Duration
@@ -464,6 +469,9 @@ func Load() Config {
 		DBMaxIdleConns:                      intEnvOrDefault("GOGOMAIL_DB_MAX_IDLE_CONNS", 5),
 		DBConnMaxLifetime:                   durationEnvOrDefault("GOGOMAIL_DB_CONN_MAX_LIFETIME", 30*time.Minute),
 		DBConnMaxIdleTime:                   durationEnvOrDefault("GOGOMAIL_DB_CONN_MAX_IDLE_TIME", 5*time.Minute),
+		DatabaseReplicaURL:                  envOrDefault("GOGOMAIL_DATABASE_REPLICA_URL", ""),
+		DBReplicaMaxStaleness:               durationEnvOrDefault("GOGOMAIL_DB_REPLICA_MAX_STALENESS", 10*time.Second),
+		DBReplicaFallbackToPrimary:          boolEnvOrDefault("GOGOMAIL_DB_REPLICA_FALLBACK_TO_PRIMARY", true),
 		RedisAddr:                           envOrDefault("GOGOMAIL_REDIS_ADDR", "localhost:6379"),
 		RedisPassword:                       envOrDefault("GOGOMAIL_REDIS_PASSWORD", ""),
 		RedisSentinelAddrs:                  splitCSV(os.Getenv("GOGOMAIL_REDIS_SENTINEL_ADDRS")),
@@ -480,6 +488,8 @@ func Load() Config {
 		StorageS3ForcePathStyle:             boolEnvOrDefault("GOGOMAIL_STORAGE_S3_FORCE_PATH_STYLE", false),
 		StorageS3CACertFile:                 envOrDefault("GOGOMAIL_STORAGE_S3_CA_CERT_FILE", ""),
 		StorageS3InsecureSkipVerify:         boolEnvOrDefault("GOGOMAIL_STORAGE_S3_INSECURE_SKIP_VERIFY", false),
+		StorageS3ReplicaRegion:              envOrDefault("GOGOMAIL_STORAGE_S3_REPLICA_REGION", ""),
+		StorageS3ReplicaBucket:              envOrDefault("GOGOMAIL_STORAGE_S3_REPLICA_BUCKET", ""),
 		MigrationDir:                        envOrDefault("GOGOMAIL_MIGRATION_DIR", "migrations"),
 		SMTPDomain:                          envOrDefault("GOGOMAIL_SMTP_DOMAIN", "localhost"),
 		SMTPReadTimeout:                     durationEnvOrDefault("GOGOMAIL_SMTP_READ_TIMEOUT", 30*time.Second),

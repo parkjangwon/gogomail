@@ -215,12 +215,18 @@ func runHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, mode M
 	var apiKeyVerifier apikeys.PostgresVerifier
 	var apiKeyVerifierConfigured bool
 	if modeIncludesMailAPI(mode) {
-		db, err := openDatabase(ctx, cfg)
+		router, err := openDatabaseRouter(ctx, cfg, databaseRouterMetrics(cfg, logger))
 		if err != nil {
 			return err
 		}
-		defer db.Close()
-		readinessChecks = append(readinessChecks, databaseReadinessCheck("mail_database", db, cfg.MigrationDir))
+		defer router.Close()
+		db := router.Primary()
+		readinessChecks = append(readinessChecks, databaseRouterReadinessCheck("mail_database", router, cfg.MigrationDir))
+		if router.HasReplica() {
+			logger.Info("database read replica configured",
+				"fallback_to_primary", cfg.DBReplicaFallbackToPrimary,
+				"max_staleness", cfg.DBReplicaMaxStaleness.String())
+		}
 
 		store, err := objectStoreForConfig(cfg)
 		if err != nil {

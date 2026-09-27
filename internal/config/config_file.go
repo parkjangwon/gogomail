@@ -133,6 +133,12 @@ func applyYAMLConfigValue(cfg *Config, key string, value any) error {
 		return setYAMLBool(value, &cfg.SubmissionAllowInsecureAuth, key)
 	case "database_url":
 		return setYAMLString(value, &cfg.DatabaseURL, key)
+	case "database_replica_url":
+		return setYAMLString(value, &cfg.DatabaseReplicaURL, key)
+	case "db_replica_max_staleness":
+		return setYAMLDuration(value, &cfg.DBReplicaMaxStaleness, key)
+	case "db_replica_fallback_to_primary":
+		return setYAMLBool(value, &cfg.DBReplicaFallbackToPrimary, key)
 	case "redis_addr":
 		return setYAMLString(value, &cfg.RedisAddr, key)
 	case "redis_password":
@@ -167,6 +173,10 @@ func applyYAMLConfigValue(cfg *Config, key string, value any) error {
 		return setYAMLString(value, &cfg.StorageS3CACertFile, key)
 	case "storage_s3_insecure_skip_verify":
 		return setYAMLBool(value, &cfg.StorageS3InsecureSkipVerify, key)
+	case "storage_s3_replica_region":
+		return setYAMLString(value, &cfg.StorageS3ReplicaRegion, key)
+	case "storage_s3_replica_bucket":
+		return setYAMLString(value, &cfg.StorageS3ReplicaBucket, key)
 	case "migration_dir":
 		return setYAMLString(value, &cfg.MigrationDir, key)
 	case "smtp_domain":
