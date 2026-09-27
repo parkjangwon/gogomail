@@ -150,7 +150,11 @@ func projectVCardProperties(raw string, properties []string) (string, error) {
 			return "", err
 		}
 		switch parsed.Name {
-		case "BEGIN", "VERSION", "UID", "END":
+		case "BEGIN", "VERSION", "UID", "FN", "END":
+			// BEGIN/VERSION/END delimit the object; UID identifies it; FN is
+			// mandatory in RFC 6350 / RFC 2426. Always retain these so the
+			// projected card stays a valid vCard regardless of the requested
+			// property subset.
 			out = append(out, line)
 		default:
 			if _, ok := wanted[parsed.Name]; ok {
