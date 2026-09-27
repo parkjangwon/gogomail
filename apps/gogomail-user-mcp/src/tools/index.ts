@@ -2,6 +2,7 @@ import type { Tool } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
 import { GogomailUserClient, type MCPSettings } from "../client.js";
 import * as accountTools from "./account.js";
+import * as assistantTools from "./assistant.js";
 import * as calendarTools from "./calendar.js";
 import * as contactsTools from "./contacts.js";
 import * as dmTools from "./dm.js";
@@ -36,7 +37,7 @@ type DomainWithoutSettings = {
 };
 
 const settingsDomains: DomainWithSettings[] = [accountTools, mailTools];
-const plainDomains: DomainWithoutSettings[] = [notifTools, dmTools, driveTools, calendarTools, contactsTools];
+const plainDomains: DomainWithoutSettings[] = [notifTools, dmTools, driveTools, calendarTools, contactsTools, assistantTools];
 
 export const toolDefinitions: Tool[] = [
   ...settingsDomains.flatMap((m) => m.toolDefinitions),

@@ -6,7 +6,7 @@ Korean / 한국어: [README.ko.md](README.ko.md)
 
 This server is intentionally separate from `apps/gogomail-manage-mcp`. The management MCP is for operators and domain administrators; this package is for an individual webmail user and authenticates with a user-issued `gmu_` access key. An agent using this server can only access data that the authenticated user is permitted to access — there is no administrative privilege escalation path.
 
-Current user coverage is **127 tools** across mail, bulk mail operations, folders, threads, attachments, DM, contacts, directory, spam controls, Drive, calendar, notifications, push subscriptions, account context, and a generic API bridge.
+Current user coverage is **135 tools** across mail, bulk mail operations, folders, threads, attachments, DM, contacts, directory, spam controls, Drive, calendar, notifications, push subscriptions, account context, the AI email assistant (thread summary, smart compose, auto-categorization), and a generic API bridge.
 
 ---
 
