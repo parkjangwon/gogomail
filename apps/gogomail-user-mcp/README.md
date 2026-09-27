@@ -166,6 +166,7 @@ Node.js 20 or newer is required.
 | `GOGOMAIL_API_URL` | **Yes** | Base URL of the GoGoMail instance, for example `https://mail.example.com` or `http://localhost:8080`. No trailing slash. |
 | `GOGOMAIL_USER_MCP_KEY` | **Yes** | User-scoped MCP access key with the `gmu_` prefix, generated from webmail settings. |
 | `GOGOMAIL_MCP_PERMISSION_MODE` | No | Local fallback permission mode: `basic` or `bypass`. Server-side user MCP settings are canonical when reachable. Only takes effect if the server-side preference cannot be read. Defaults to `basic`. |
+| `GOGOMAIL_MCP_DOWNLOAD_DIR` | No | Allow-list root directory for saving Drive downloads to the local filesystem (`save_to_path`). When unset, local saves are **disabled** and download tools return the file bytes in-band only. When set, `save_to_path` must resolve inside this directory subtree; paths that escape it are rejected. This prevents a malicious or prompt-injected agent from writing attacker-chosen bytes to arbitrary host paths. |
 
 For local Docker development, `GOGOMAIL_API_URL` is typically `http://localhost:8080`. Make sure the GoGoMail backend is running and the API URL is reachable from the machine running the MCP server.
 

@@ -500,6 +500,7 @@ describe("GoGoMail API contract alignment", () => {
       await callTool(fake as never, "gogomail_drive_cancel_upload_session", { id: "up-1", confirm: "DELETE /api/v1/drive/upload-sessions/up-1" }, "basic");
       await callTool(fake as never, "gogomail_drive_get_share_link", { id: "share-1" }, "basic");
       await callTool(fake as never, "gogomail_drive_download_share_link", { id: "share-1", password: "pw" }, "basic");
+      process.env.GOGOMAIL_MCP_DOWNLOAD_DIR = tmp;
       const saved = await callTool(fake as never, "gogomail_drive_download", { id: "node-1", save_to_path: downloadPath, confirm: `save download ${downloadPath}` }, "basic");
 
       assert.equal(calls[0]?.method, "PUT");
@@ -517,6 +518,73 @@ describe("GoGoMail API contract alignment", () => {
       assert.equal(await readFile(downloadPath, "utf8"), "hello");
       assert.equal((saved as { saved_bytes?: number }).saved_bytes, 5);
     } finally {
+      delete process.env.GOGOMAIL_MCP_DOWNLOAD_DIR;
+      await rm(tmp, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("Drive download local-save containment", () => {
+  const downloadFake = {
+    settings: async () => ({ permission_mode: "basic" as const }),
+    request: async (_method: string, path: string) => {
+      if (path.includes("/download")) {
+        return { body_text: "secret", body_base64: Buffer.from("secret", "utf8").toString("base64"), content_type: "text/plain" };
+      }
+      return { ok: true };
+    },
+  };
+
+  test("refuses local save when GOGOMAIL_MCP_DOWNLOAD_DIR is unset", async () => {
+    delete process.env.GOGOMAIL_MCP_DOWNLOAD_DIR;
+    await assert.rejects(
+      () =>
+        callTool(
+          downloadFake as never,
+          "gogomail_drive_download",
+          { id: "node-1", save_to_path: "/tmp/evil.txt", confirm: "save download /tmp/evil.txt" },
+          "basic",
+        ),
+      /local download saving is disabled/,
+    );
+  });
+
+  test("rejects a save_to_path that escapes the configured download dir", async () => {
+    const tmp = await mkdtemp(join(tmpdir(), "gogomail-user-mcp-dl-"));
+    const escapePath = join(tmp, "..", "escape.txt");
+    process.env.GOGOMAIL_MCP_DOWNLOAD_DIR = tmp;
+    try {
+      await assert.rejects(
+        () =>
+          callTool(
+            downloadFake as never,
+            "gogomail_drive_download",
+            { id: "node-1", save_to_path: escapePath, confirm: `save download ${escapePath}` },
+            "basic",
+          ),
+        /must resolve inside GOGOMAIL_MCP_DOWNLOAD_DIR/,
+      );
+    } finally {
+      delete process.env.GOGOMAIL_MCP_DOWNLOAD_DIR;
+      await rm(tmp, { recursive: true, force: true });
+    }
+  });
+
+  test("allows a save_to_path inside the configured download dir", async () => {
+    const tmp = await mkdtemp(join(tmpdir(), "gogomail-user-mcp-dl-"));
+    const target = join(tmp, "nested", "ok.txt");
+    process.env.GOGOMAIL_MCP_DOWNLOAD_DIR = tmp;
+    try {
+      const saved = await callTool(
+        downloadFake as never,
+        "gogomail_drive_download",
+        { id: "node-1", save_to_path: target, confirm: `save download ${target}` },
+        "basic",
+      );
+      assert.equal((saved as { saved_bytes?: number }).saved_bytes, 6);
+      assert.equal(await readFile(target, "utf8"), "secret");
+    } finally {
+      delete process.env.GOGOMAIL_MCP_DOWNLOAD_DIR;
       await rm(tmp, { recursive: true, force: true });
     }
   });

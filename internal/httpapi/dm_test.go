@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gogomail/gogomail/internal/apikeys"
 	"github.com/gogomail/gogomail/internal/dm"
 )
 
@@ -123,6 +124,7 @@ type fakeDMRouteService struct {
 	listPinsRoomID    string
 	listPinsLimit     int
 	listPinsOffset    int
+	sendCalled        bool
 }
 
 type dmPinCall struct {
@@ -168,6 +170,7 @@ func (f *fakeDMRouteService) ListMessages(context.Context, dm.Principal, string,
 }
 
 func (f *fakeDMRouteService) SendMessage(context.Context, dm.Principal, string, dm.SendMessageRequest) (dm.Message, error) {
+	f.sendCalled = true
 	return dm.Message{}, nil
 }
 
@@ -429,5 +432,67 @@ func TestDMListPinsHandlerRejectsInvalidOffset(t *testing.T) {
 	}
 	if svc.listPinsRoomID != "" {
 		t.Fatalf("service must not be called on invalid offset")
+	}
+}
+
+
+// TestDMHandlerRejectsUserScopedAPIKey verifies that encrypted DM endpoints
+// refuse user-scoped MCP API keys instead of falling through to the tokenless
+// query-parameter binding. Without this fail-closed guard, a key bound to one
+// user could act as any other user via ?user_id=... in non-JWT deployments.
+func TestDMHandlerRejectsUserScopedAPIKey(t *testing.T) {
+	t.Parallel()
+	svc := &fakeDMRouteService{}
+	mux := http.NewServeMux()
+	// tokenManager == nil reproduces the tokenless (dev) deployment where the
+	// query-parameter fallback would otherwise be reachable.
+	RegisterDMRoutes(mux, svc, nil, "")
+
+	// A key bound to user "victim" tries to send a message as "attacker-target".
+	req := httptest.NewRequest(
+		http.MethodPost,
+		"/api/v1/dm/rooms/room-1/messages?user_id=attacker-target&company_id=c1&domain_id=d1",
+		strings.NewReader(`{"body":"hi"}`),
+	)
+	req.Header.Set("Content-Type", "application/json")
+	req = req.WithContext(apikeys.ContextWithKeyInfo(req.Context(), &apikeys.KeyInfo{
+		ID:       "key-1",
+		UserID:   "victim",
+		DomainID: "d1",
+		Scopes:   []string{"mail:manage"},
+	}))
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("status = %d, want 403 Forbidden; body = %s", rec.Code, rec.Body.String())
+	}
+	if svc.sendCalled {
+		t.Fatal("DM service must not be invoked for an API-key-authenticated request")
+	}
+}
+
+// TestDMHandlerAllowsJWTPrincipal is a control: a valid session principal still
+// works when no API key is present (query params supply identity in tokenless mode).
+func TestDMHandlerAllowsAPIKeylessTokenlessRequest(t *testing.T) {
+	t.Parallel()
+	svc := &fakeDMRouteService{}
+	mux := http.NewServeMux()
+	RegisterDMRoutes(mux, svc, nil, "")
+
+	req := httptest.NewRequest(
+		http.MethodPost,
+		"/api/v1/dm/rooms/room-1/messages?user_id=u1&company_id=c1&domain_id=d1",
+		strings.NewReader(`{"body":"hi"}`),
+	)
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code == http.StatusForbidden {
+		t.Fatalf("tokenless non-API-key request must not be rejected as API key; body = %s", rec.Body.String())
+	}
+	if !svc.sendCalled {
+		t.Fatal("DM service should be invoked for a valid tokenless principal")
 	}
 }

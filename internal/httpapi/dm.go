@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gogomail/gogomail/internal/apikeys"
 	"github.com/gogomail/gogomail/internal/auth"
 	"github.com/gogomail/gogomail/internal/dm"
 )
@@ -667,6 +668,16 @@ func dmMutationPrincipal(w http.ResponseWriter, r *http.Request, tokenManager *a
 }
 
 func dmPrincipalFromRequest(w http.ResponseWriter, r *http.Request, tokenManager *auth.TokenManager) (dm.Principal, bool) {
+	// Encrypted DM requires a full session principal (user + company + domain).
+	// User-scoped MCP API keys carry only user/domain and never a company scope,
+	// so they cannot be safely bound to a DM principal. Reject them explicitly
+	// (fail closed) instead of falling through to the tokenless query-parameter
+	// branch below, which would otherwise let a key bound to one user act as any
+	// other user via ?user_id=... in non-JWT deployments.
+	if info, ok := apikeys.KeyInfoFromContext(r.Context()); ok && info != nil && strings.TrimSpace(info.UserID) != "" {
+		writeError(w, http.StatusForbidden, "encrypted DM is not accessible with a user MCP API key")
+		return dm.Principal{}, false
+	}
 	if tokenManager != nil {
 		claims, ok := claimsFromRequest(w, r, tokenManager)
 		if !ok {

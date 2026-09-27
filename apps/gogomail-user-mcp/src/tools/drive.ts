@@ -1,7 +1,7 @@
 import type { Tool } from "@modelcontextprotocol/sdk/types.js";
 import { createHash } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
-import { dirname, resolve } from "node:path";
+import { dirname, isAbsolute, resolve, sep } from "node:path";
 import { z } from "zod";
 import { appendQuery, GogomailUserClient } from "../client.js";
 import { confirm, id, optionalID, outputPath, storageBackend } from "./schemas.js";
@@ -189,12 +189,34 @@ async function saveDownloadIfRequested(result: unknown, args: Record<string, unk
   if (mode !== "bypass" && args.confirm !== expected) {
     throw new Error(`confirmation required: confirm must equal "${expected}"`);
   }
+  const finalPath = resolveWithinDownloadDir(saveToPath);
   const record = (result ?? {}) as DownloadEnvelope;
   const bytes = downloadBytes(record);
-  const finalPath = resolve(saveToPath);
   await mkdir(dirname(finalPath), { recursive: true });
   await writeFile(finalPath, bytes, { flag: args.overwrite ? "w" : "wx" });
   return { ...record, saved_to_path: finalPath, saved_bytes: bytes.length };
+}
+
+// resolveWithinDownloadDir confines local saves to the operator-configured
+// download directory. This prevents a malicious or prompt-injected agent from
+// writing downloaded bytes to sensitive host paths (e.g. ~/.ssh/authorized_keys,
+// shell profiles, cron directories) by supplying an arbitrary save_to_path —
+// the human-readable confirmation string embeds that same attacker-chosen path,
+// so confirmation alone is not a sufficient safeguard.
+function resolveWithinDownloadDir(saveToPath: string): string {
+  const configured = process.env.GOGOMAIL_MCP_DOWNLOAD_DIR?.trim();
+  if (!configured) {
+    throw new Error(
+      "local download saving is disabled: set GOGOMAIL_MCP_DOWNLOAD_DIR to an allowed directory to enable save_to_path",
+    );
+  }
+  const root = resolve(configured);
+  const candidate = isAbsolute(saveToPath) ? resolve(saveToPath) : resolve(root, saveToPath);
+  const rootWithSep = root.endsWith(sep) ? root : root + sep;
+  if (candidate !== root && !candidate.startsWith(rootWithSep)) {
+    throw new Error("save_to_path must resolve inside GOGOMAIL_MCP_DOWNLOAD_DIR");
+  }
+  return candidate;
 }
 
 function downloadBytes(record: DownloadEnvelope): Buffer {
