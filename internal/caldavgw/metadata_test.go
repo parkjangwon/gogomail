@@ -38,6 +38,35 @@ func TestCalendarMetadataValidation(t *testing.T) {
 	}
 }
 
+// TestCalendarColorAcceptsAppleAlphaChannel guards the Apple Calendar quirk of
+// sending calendar-color as #RRGGBBAA (8 hex digits with a trailing alpha
+// channel) rather than the 6-digit #RRGGBB used by other clients.
+func TestCalendarColorAcceptsAppleAlphaChannel(t *testing.T) {
+	t.Parallel()
+
+	cases := map[string]string{
+		" #ff5733ff ": "#FF5733FF", // Apple macOS/iOS: RRGGBBAA
+		"#00AA00":     "#00AA00",    // Thunderbird/DAVx5/GNOME: RRGGBB
+	}
+	for input, want := range cases {
+		got, err := ValidateCalendarColor(input)
+		if err != nil {
+			t.Fatalf("ValidateCalendarColor(%q) error = %v, want nil", input, err)
+		}
+		if got != want {
+			t.Fatalf("ValidateCalendarColor(%q) = %q, want %q", input, got, want)
+		}
+	}
+
+	// A malformed 8-char value (no leading '#'), a 10-char value, and non-hex
+	// characters must still be rejected.
+	for _, bad := range []string{"12345678", "#FF5733FFF", "#FF5733GG"} {
+		if _, err := ValidateCalendarColor(bad); err == nil {
+			t.Fatalf("ValidateCalendarColor(%q) error = nil, want rejection", bad)
+		}
+	}
+}
+
 func TestCalendarMetadataRejectsUnsafeInput(t *testing.T) {
 	t.Parallel()
 

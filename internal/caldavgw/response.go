@@ -35,6 +35,7 @@ var (
 	PropCalendarData                  = XMLName{Space: CalDAVNamespace, Local: "calendar-data"}
 	PropCalendarDescription           = XMLName{Space: CalDAVNamespace, Local: "calendar-description"}
 	PropCalendarColor                 = XMLName{Space: CalendarServerNamespace, Local: "calendar-color"}
+	PropGetCTag                       = XMLName{Space: CalendarServerNamespace, Local: "getctag"}
 	PropCalendarSlug                  = XMLName{Space: AppleICalendarNamespace, Local: "calendar-slug"}
 	PropCalendarTimezone              = XMLName{Space: CalDAVNamespace, Local: "calendar-timezone"}
 	PropSupportedCalendarComponentSet = XMLName{Space: CalDAVNamespace, Local: "supported-calendar-component-set"}
@@ -172,6 +173,7 @@ func CalendarCollectionProperties(userID string, calendar Calendar, includeSyncC
 		{Name: PropDisplayName, Value: PropertyValue{Text: calendar.Name, Lang: calendar.NameLang}, Found: true},
 		{Name: PropResourceType, Value: PropertyValue{ResourceTypes: []XMLName{ResourceTypeCollection, ResourceTypeCalendar}}, Found: true},
 		{Name: PropGetETag, Value: PropertyValue{Text: etag}, Found: true},
+		{Name: PropGetCTag, Value: PropertyValue{Text: etag}, Found: true},
 		webDAVTimeProperty(PropCreationDate, calendar.CreatedAt, formatWebDAVCreationDate),
 		webDAVTimeProperty(PropGetLastModified, calendar.UpdatedAt, formatHTTPDate),
 		{Name: PropOwner, Value: PropertyValue{Hrefs: []string{principalPath}}, Found: true},
@@ -356,6 +358,10 @@ func SelectPropfindProperties(req PropfindRequest, available []PropertyResult) [
 		}
 		sortPropertyResults(found)
 		sortPropertyResults(missing)
+		if req.Minimal {
+			// Brief / return=minimal: omit the 404 propstat block entirely.
+			missing = nil
+		}
 		return propStatsForFoundMissing(found, missing)
 	default:
 		selected := append([]PropertyResult(nil), all...)

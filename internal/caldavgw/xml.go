@@ -76,6 +76,11 @@ type PropfindRequest struct {
 	Kind       PropfindKind
 	Properties []XMLName
 	Include    []XMLName
+	// Minimal, when true, requests that the server omit 404 Not Found propstat
+	// blocks from the multistatus response. It is set from the CalendarServer
+	// "Brief: t" header or the RFC 8144 "Prefer: return=minimal" header, both of
+	// which Apple Calendar / iOS send on nearly every PROPFIND.
+	Minimal bool
 }
 
 type MKCalendarRequest struct {

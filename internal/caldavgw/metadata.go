@@ -57,12 +57,16 @@ func ValidateCalendarColor(color string) (string, error) {
 	if color == "" {
 		return "", nil
 	}
-	if len(color) != 7 || color[0] != '#' {
-		return "", fmt.Errorf("calendar color must be #RRGGBB")
+	// Apple Calendar (macOS/iOS) sends calendar-color as #RRGGBBAA — an 8-digit
+	// hex value with a trailing alpha channel — while most other clients
+	// (Thunderbird, DAVx5, GNOME) use the 6-digit #RRGGBB form. Accept both so
+	// Apple can set/round-trip its colors.
+	if (len(color) != 7 && len(color) != 9) || color[0] != '#' {
+		return "", fmt.Errorf("calendar color must be #RRGGBB or #RRGGBBAA")
 	}
 	for _, r := range color[1:] {
 		if !((r >= '0' && r <= '9') || (r >= 'a' && r <= 'f') || (r >= 'A' && r <= 'F')) {
-			return "", fmt.Errorf("calendar color must be #RRGGBB")
+			return "", fmt.Errorf("calendar color must be #RRGGBB or #RRGGBBAA")
 		}
 	}
 	return strings.ToUpper(color), nil

@@ -46,6 +46,10 @@ func (h *Handler) servePropfind(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+	minimal := propfindPrefersMinimal(r.Header)
+	if minimal {
+		propfind.Minimal = true
+	}
 	responses, err := h.propfindResponses(r.Context(), ownerID, userID, resource, depth, propfind, decision.Privileges)
 	if err != nil {
 		var truncated TruncatedResultsError
@@ -64,8 +68,35 @@ func (h *Handler) servePropfind(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/xml; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
+	if minimal {
+		// RFC 8144 §3.1: echo the honored preference so brief-mode clients
+		// (Apple Calendar/iOS) know 404 propstats were intentionally omitted.
+		w.Header().Set("Preference-Applied", "return=minimal")
+		w.Header().Set("Brief", "t")
+	}
 	w.WriteHeader(http.StatusMultiStatus)
 	_, _ = w.Write(body)
+}
+
+// propfindPrefersMinimal reports whether the client asked for a brief/minimal
+// multistatus response. Apple Calendar and iOS send the CalendarServer
+// "Brief: t" header; RFC 8144 clients send "Prefer: return=minimal". Either
+// one instructs the server to drop the 404 Not Found propstat blocks.
+func propfindPrefersMinimal(header http.Header) bool {
+	for _, brief := range header.Values("Brief") {
+		if strings.EqualFold(strings.TrimSpace(brief), "t") {
+			return true
+		}
+	}
+	for _, prefer := range header.Values("Prefer") {
+		for _, token := range strings.Split(prefer, ",") {
+			token = strings.TrimSpace(token)
+			if strings.EqualFold(token, "return=minimal") {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func (h *Handler) propfindResponses(ctx context.Context, userID string, actorUserID string, resource ResourcePath, depth Depth, propfind PropfindRequest, currentUserPrivileges []XMLName) ([]MultiStatusResponse, error) {
