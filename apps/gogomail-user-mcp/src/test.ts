@@ -459,6 +459,49 @@ describe("GoGoMail API contract alignment", () => {
     assert.equal(calls[20]?.path, "/api/v1/dm/rooms/room-1/pins?limit=10&offset=5");
   });
 
+  test("assistant tools map to the AI email assistant API surface", async () => {
+    const calls: CapturedCall[] = [];
+    const fake = {
+      settings: async () => ({ permission_mode: "basic" as const }),
+      request: async (method: string, path: string, body?: unknown, headers?: Record<string, string>) => {
+        calls.push({ method, path, body, headers });
+        return { ok: true };
+      },
+    };
+
+    await callTool(fake as never, "gogomail_assistant_get_settings", {}, "basic");
+    await callTool(fake as never, "gogomail_assistant_update_settings", { enabled: true }, "basic");
+    await callTool(fake as never, "gogomail_assistant_summarize_thread", { id: "thread-1" }, "basic");
+    await callTool(fake as never, "gogomail_assistant_compose_assist", { subject: "Report", body: "See attached.", recipients: ["boss@example.com"] }, "basic");
+    await callTool(fake as never, "gogomail_assistant_list_categorization_rules", {}, "basic");
+    await callTool(fake as never, "gogomail_assistant_create_categorization_rule", { category: "Finance", field: "subject", match_type: "contains", keyword: "invoice" }, "basic");
+    await callTool(fake as never, "gogomail_assistant_update_categorization_rule", { id: "rule-1", category: "Finance", keyword: "receipt" }, "basic");
+    await callTool(fake as never, "gogomail_assistant_delete_categorization_rule", { id: "rule-1" }, "basic");
+
+    assert.deepEqual(calls[0], { method: "GET", path: "/api/v1/me/assistant/settings", body: undefined, headers: undefined });
+    assert.equal(calls[1]?.method, "PUT");
+    assert.equal(calls[1]?.path, "/api/v1/me/assistant/settings");
+    assert.deepEqual(calls[1]?.body, {
+      enabled: true,
+      summarization_enabled: true,
+      categorization_enabled: true,
+      compose_assist_enabled: true,
+      provider: "local",
+    });
+    assert.equal(calls[2]?.method, "POST");
+    assert.equal(calls[2]?.path, "/api/v1/threads/thread-1/summary");
+    assert.equal(calls[3]?.method, "POST");
+    assert.equal(calls[3]?.path, "/api/v1/compose/assist");
+    assert.deepEqual(calls[3]?.body, { subject: "Report", body: "See attached.", recipients: ["boss@example.com"], attachment_count: 0 });
+    assert.equal(calls[4]?.path, "/api/v1/me/assistant/categorization-rules");
+    assert.equal(calls[5]?.method, "POST");
+    assert.deepEqual(calls[5]?.body, { category: "Finance", field: "subject", match_type: "contains", keyword: "invoice", priority: undefined, weight: undefined });
+    assert.equal(calls[6]?.method, "PUT");
+    assert.equal(calls[6]?.path, "/api/v1/me/assistant/categorization-rules/rule-1");
+    assert.equal(calls[7]?.method, "DELETE");
+    assert.equal(calls[7]?.path, "/api/v1/me/assistant/categorization-rules/rule-1");
+  });
+
   test("generic API bridge admits DM routes and forwards DM confirmations", async () => {
     const calls: CapturedCall[] = [];
     const fake = {

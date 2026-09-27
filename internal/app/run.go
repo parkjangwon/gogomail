@@ -287,6 +287,9 @@ func runHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, mode M
 			logger.Info("mail mutation rate limiting enabled", "backend", "redis", "per_minute", cfg.MailMutationRateLimitPerMinute)
 		}
 		httpapi.RegisterMailRoutesWithOptions(mux, service, tokenManager, mailOpts)
+		httpapi.RegisterAssistantRoutes(mux, service, tokenManager, httpapi.AssistantRouteOptions{
+			Audit: assistantAuditRecorder{audit: audit.NewPostgresRepository(db)},
+		})
 		if strings.TrimSpace(cfg.DMMasterKey) != "" {
 			dmMasterKey, err := dmpkg.ParseMasterKey(cfg.DMMasterKey)
 			if err != nil {

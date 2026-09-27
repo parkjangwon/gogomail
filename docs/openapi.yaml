@@ -2756,6 +2756,255 @@ paths:
           $ref: "#/components/responses/MessageListPage"
         default:
           $ref: "#/components/responses/Error"
+  /threads/{id}/summary:
+    post:
+      operationId: summarizeThread
+      summary: Summarize a thread with the AI assistant (structured summary)
+      description: >
+        Returns a structured summary of the authenticated user's thread:
+        participants, key points, action items, and a suggested reply draft.
+        Requires the per-domain assistant kill switch to be enabled and the
+        user to have opted in. The default provider is a local, offline
+        extractive summarizer; no mail content leaves the server.
+      servers:
+        - url: /api/v1
+          description: Mail API
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+        - $ref: "#/components/parameters/UserIDFallback"
+        - $ref: "#/components/parameters/UserEmailFallback"
+      responses:
+        "200":
+          description: Structured thread summary
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  subject:
+                    type: string
+                  participants:
+                    type: array
+                    items:
+                      type: string
+                  key_points:
+                    type: array
+                    items:
+                      type: string
+                  action_items:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        text:
+                          type: string
+                        owner:
+                          type: string
+                  suggested_reply:
+                    type: string
+                  message_count:
+                    type: integer
+                  provider:
+                    type: string
+                  truncated:
+                    type: boolean
+                  generated_offline:
+                    type: boolean
+        default:
+          $ref: "#/components/responses/Error"
+  /compose/assist:
+    post:
+      operationId: composeAssist
+      summary: Smart compose assistance for a draft (local heuristics)
+      description: >
+        Given a draft (subject, body, recipients, attachment count), returns
+        subject suggestions, tone/length variants, a word count, and pre-send
+        checks such as the "mentions attachment but none attached" warning.
+        Pure local heuristics; no external calls. Requires assistant opt-in and
+        the per-domain kill switch enabled.
+      servers:
+        - url: /api/v1
+          description: Mail API
+      parameters:
+        - $ref: "#/components/parameters/UserIDFallback"
+        - $ref: "#/components/parameters/UserEmailFallback"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                subject:
+                  type: string
+                body:
+                  type: string
+                recipients:
+                  type: array
+                  items:
+                    type: string
+                attachment_count:
+                  type: integer
+      responses:
+        "200":
+          description: Compose assistance result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  subject_suggestions:
+                    type: array
+                    items:
+                      type: string
+                  variants:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        label:
+                          type: string
+                        body:
+                          type: string
+                  checks:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        code:
+                          type: string
+                        message:
+                          type: string
+                        severity:
+                          type: string
+                  word_count:
+                    type: integer
+        default:
+          $ref: "#/components/responses/Error"
+  /me/assistant/settings:
+    get:
+      operationId: getAssistantSettings
+      summary: Get the user's AI assistant settings (opt-in state)
+      servers:
+        - url: /api/v1
+          description: Mail API
+      parameters:
+        - $ref: "#/components/parameters/UserIDFallback"
+        - $ref: "#/components/parameters/UserEmailFallback"
+      responses:
+        "200":
+          $ref: "#/components/responses/AssistantSettings"
+        default:
+          $ref: "#/components/responses/Error"
+    put:
+      operationId: updateAssistantSettings
+      summary: Update the user's AI assistant settings (opt-in, provider)
+      servers:
+        - url: /api/v1
+          description: Mail API
+      parameters:
+        - $ref: "#/components/parameters/UserIDFallback"
+        - $ref: "#/components/parameters/UserEmailFallback"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AssistantSettings"
+      responses:
+        "200":
+          $ref: "#/components/responses/AssistantSettings"
+        default:
+          $ref: "#/components/responses/Error"
+  /me/assistant/categorization-rules:
+    get:
+      operationId: listAssistantCategorizationRules
+      summary: List the user's auto-categorization rules
+      servers:
+        - url: /api/v1
+          description: Mail API
+      parameters:
+        - $ref: "#/components/parameters/UserIDFallback"
+        - $ref: "#/components/parameters/UserEmailFallback"
+      responses:
+        "200":
+          description: Categorization rules
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  rules:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/AssistantCategorizationRule"
+        default:
+          $ref: "#/components/responses/Error"
+    post:
+      operationId: createAssistantCategorizationRule
+      summary: Create an auto-categorization rule
+      servers:
+        - url: /api/v1
+          description: Mail API
+      parameters:
+        - $ref: "#/components/parameters/UserIDFallback"
+        - $ref: "#/components/parameters/UserEmailFallback"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AssistantCategorizationRuleInput"
+      responses:
+        "201":
+          description: Created rule
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AssistantCategorizationRule"
+        default:
+          $ref: "#/components/responses/Error"
+  /me/assistant/categorization-rules/{id}:
+    put:
+      operationId: updateAssistantCategorizationRule
+      summary: Update an auto-categorization rule
+      servers:
+        - url: /api/v1
+          description: Mail API
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+        - $ref: "#/components/parameters/UserIDFallback"
+        - $ref: "#/components/parameters/UserEmailFallback"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AssistantCategorizationRuleInput"
+      responses:
+        "200":
+          description: Updated rule
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AssistantCategorizationRule"
+        default:
+          $ref: "#/components/responses/Error"
+    delete:
+      operationId: deleteAssistantCategorizationRule
+      summary: Delete an auto-categorization rule
+      servers:
+        - url: /api/v1
+          description: Mail API
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+        - $ref: "#/components/parameters/UserIDFallback"
+        - $ref: "#/components/parameters/UserEmailFallback"
+      responses:
+        "200":
+          $ref: "#/components/responses/Status"
+        default:
+          $ref: "#/components/responses/Error"
   /messages/{id}/flags:
     patch:
       operationId: updateMessageFlags
@@ -12277,6 +12526,12 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/HealthResponse"
+    AssistantSettings:
+      description: AI assistant settings envelope
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/AssistantSettings"
     Readiness:
       description: Service is ready or degraded
       content:
@@ -13618,6 +13873,68 @@ components:
           schema:
             $ref: "#/components/schemas/APISettingsUpdateRequest"
   schemas:
+    AssistantSettings:
+      type: object
+      description: Per-user AI assistant settings. The assistant is opt-in (default off).
+      properties:
+        enabled:
+          type: boolean
+        summarization_enabled:
+          type: boolean
+        categorization_enabled:
+          type: boolean
+        compose_assist_enabled:
+          type: boolean
+        provider:
+          type: string
+          description: Summarization provider. "local" is the default offline provider.
+        updated_at:
+          type: string
+          format: date-time
+    AssistantCategorizationRule:
+      type: object
+      description: A persisted user-managed auto-categorization rule.
+      properties:
+        id:
+          type: string
+        category:
+          type: string
+        field:
+          type: string
+          enum: [from, subject, body, to, any]
+        match_type:
+          type: string
+          enum: [contains, prefix, suffix, exact]
+        keyword:
+          type: string
+        priority:
+          type: integer
+        weight:
+          type: number
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    AssistantCategorizationRuleInput:
+      type: object
+      required: [category, keyword]
+      properties:
+        category:
+          type: string
+        field:
+          type: string
+          enum: [from, subject, body, to, any]
+        match_type:
+          type: string
+          enum: [contains, prefix, suffix, exact]
+        keyword:
+          type: string
+        priority:
+          type: integer
+        weight:
+          type: number
     DMRoomListEnvelope:
       type: object
       required: [rooms]
